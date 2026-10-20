@@ -1,0 +1,125 @@
+.ks-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 48px;
+  padding: 0 20px;
+  border-radius: var(--r-md);
+  border: 1px solid transparent;
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+  user-select: none;
+  transition:
+    background-color var(--d-fast) var(--ease),
+    border-color var(--d-fast) var(--ease),
+    color var(--d-fast) var(--ease),
+    box-shadow var(--d-fast) var(--ease),
+    transform var(--d-fast) var(--ease);
+}
+
+.ks-btn-sm {
+  height: 36px;
+  padding: 0 14px;
+  font-size: 14px;
+  border-radius: var(--r-sm);
+  gap: 6px;
+}
+
+/* Extend the 36px button's hit area to 44px. */
+.ks-btn-sm::before {
+  content: '';
+  position: absolute;
+  inset: -5px -2px;
+}
+
+.ks-btn-lg {
+  height: 56px;
+  font-size: 17px;
+  border-radius: 16px;
+}
+
+.ks-btn-block {
+  width: 100%;
+}
+
+.ks-btn-primary { background: var(--accent); color: var(--on-accent); }
+.ks-btn-secondary { background: var(--raised); color: var(--text); border-color: var(--border-strong); }
+.ks-btn-ghost { background: transparent; color: var(--text); }
+.ks-btn-tonal { background: var(--accent-soft); color: var(--accent-text); }
+.ks-btn-danger { background: var(--error); color: var(--on-error); }
+.ks-btn-danger-ghost { background: transparent; color: var(--error); border-color: var(--border-strong); }
+
+@media (hover: hover) {
+  .ks-btn-primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+  }
+
+  .ks-btn-secondary:hover:not(:disabled),
+  .ks-btn-ghost:hover:not(:disabled),
+  .ks-btn-tonal:hover:not(:disabled),
+  .ks-btn-danger-ghost:hover:not(:disabled) {
+    box-shadow: inset 0 0 0 100px var(--hover);
+  }
+
+  .ks-btn-danger:hover:not(:disabled) {
+    filter: brightness(1.08);
+  }
+}
+
+.ks-btn:active:not(:disabled) {
+  box-shadow: inset 0 0 0 100px var(--press);
+  transform: scale(0.98);
+}
+
+.ks-btn-primary:active:not(:disabled) {
+  background: var(--accent-pressed);
+  box-shadow: none;
+}
+
+.ks-btn:disabled {
+  background: var(--sunken);
+  color: var(--disabled);
+  border-color: transparent;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.ks-btn-ghost:disabled {
+  background: transparent;
+}
+
+.ks-btn.is-loading {
+  color: transparent !important;
+  pointer-events: none;
+}
+
+.ks-btn.is-loading::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border-radius: 50%;
+  border: 2px solid var(--on-accent);
+  border-right-color: transparent;
+  animation: ks-spin 0.8s linear infinite;
+}
+
+.ks-btn-secondary.is-loading::after,
+.ks-btn-ghost.is-loading::after,
+.ks-btn-tonal.is-loading::after,
+.ks-btn-danger-ghost.is-loading::after {
+  border-color: var(--text);
+  border-right-color: transparent;
+}
+
+.ks-btn-danger.is-loading::after {
+  border-color: var(--on-error);
+  border-right-color: transparent;
+}

@@ -14,24 +14,5 @@
 
 .app-theme {
   display: inline-flex;
-  gap: 2px;
-  padding: 3px;
-  border-radius: var(--r-md);
-  background: var(--sunken);
-}
-
-.app-theme button {
-  min-height: 38px;
-  padding: 0 var(--space-4);
-  border: none;
-  border-radius: 11px;
-  background: transparent;
-  color: var(--text2);
-  transition: background-color var(--d-base) var(--ease), color var(--d-base) var(--ease);
-}
-
-.app-theme button[aria-pressed='true'] {
-  background: var(--seg-on);
-  color: var(--text);
-  box-shadow: var(--shadow-1);
+  gap: var(--space-1);
 }

@@ -1,0 +1,58 @@
+.ks-icon-btn {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text);
+  transition:
+    background-color var(--d-fast) var(--ease),
+    box-shadow var(--d-fast) var(--ease),
+    transform var(--d-fast) var(--ease);
+}
+
+.ks-icon-btn-filled {
+  background: var(--raised);
+  border: 1px solid var(--border);
+}
+
+/* Over posters and backdrops: always a white icon on dark glass. */
+.ks-icon-btn-glass {
+  background: rgba(8, 10, 12, 0.52);
+  color: #fff;
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
+.ks-icon-btn.is-on {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.ks-icon-btn-sm {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+}
+
+@media (hover: hover) {
+  .ks-icon-btn:hover:not(:disabled) {
+    box-shadow: inset 0 0 0 100px var(--hover);
+  }
+}
+
+.ks-icon-btn:active:not(:disabled) {
+  box-shadow: inset 0 0 0 100px var(--press);
+  transform: scale(0.98);
+}
+
+.ks-icon-btn:disabled {
+  color: var(--disabled);
+  cursor: not-allowed;
+}

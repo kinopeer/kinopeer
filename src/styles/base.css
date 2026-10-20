@@ -85,3 +85,9 @@ h4 {
 .ks-trunc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .ks-clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .ks-clamp3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+@keyframes ks-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
