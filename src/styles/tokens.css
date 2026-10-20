@@ -1,0 +1,154 @@
+/*
+ * Kinoseed design tokens.
+ * Source of truth: the Kinoseed design system (tokens.json) in Claude Design.
+ * Dark is the primary theme; <html data-theme="light|dark"> picks one.
+ */
+
+:root {
+  /* Type */
+  --font-sans: 'Onest Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
+
+  /* Spacing (4px grid) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Radius */
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 28px;
+  --r-full: 999px;
+
+  /* Motion */
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --d-fast: 120ms;
+  --d-base: 200ms;
+  --d-slow: 320ms;
+
+  /* Layout */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --touch-min: 44px;
+  --sidebar: 248px;
+  --sidebar-rail: 76px;
+  --drawer: 460px;
+
+  /* Accent scale */
+  --teal-50: #e6fafb;
+  --teal-100: #c4f2f4;
+  --teal-200: #8fe5e9;
+  --teal-300: #55d5da;
+  --teal-400: #2cc5cc;
+  --teal-500: #14a8b0;
+  --teal-600: #0c8e96;
+  --teal-700: #0a7d87;
+  --teal-800: #0b5f66;
+  --teal-900: #0c454b;
+  --teal-950: #072a2e;
+}
+
+:root,
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #0e1113;
+  --surface: #15191c;
+  --raised: #1c2125;
+  --sunken: #0a0c0e;
+  --glass: rgba(21, 25, 28, 0.86);
+  --border: #283035;
+  --border-strong: #3a4349;
+
+  --text: #eef1f2;
+  --text2: #a8b0b5;
+  --text3: #828b91;
+  --disabled: #535b61;
+
+  --accent: #2cc5cc;
+  --accent-hover: #55d5da;
+  --accent-pressed: #1da8af;
+  --on-accent: #03191b;
+  --accent-soft: rgba(44, 197, 204, 0.14);
+  --accent-text: #62d8dd;
+
+  --success: #4cc27a;
+  --success-soft: rgba(76, 194, 122, 0.15);
+  --warning: #e9a53d;
+  --warning-soft: rgba(233, 165, 61, 0.15);
+  --error: #f06a63;
+  --error-soft: rgba(240, 106, 99, 0.15);
+  --on-error: #1c0706;
+  --info: #74abf2;
+  --info-soft: rgba(116, 171, 242, 0.15);
+  --paused: #939ba1;
+  --paused-soft: rgba(147, 155, 161, 0.16);
+
+  --track: rgba(255, 255, 255, 0.1);
+  --hover: rgba(255, 255, 255, 0.06);
+  --press: rgba(255, 255, 255, 0.11);
+  --scrim: rgba(3, 5, 6, 0.64);
+  --seg-on: #262c31;
+  --hero-fade: linear-gradient(180deg, rgba(14, 17, 19, 0.2) 0%, rgba(14, 17, 19, 0.6) 52%, #0e1113 100%);
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-2: 0 10px 30px rgba(0, 0, 0, 0.5);
+  --shadow-3: 0 -8px 40px rgba(0, 0, 0, 0.55);
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+
+  --bg: #f3f5f5;
+  --surface: #ffffff;
+  --raised: #ffffff;
+  --sunken: #e9edee;
+  --glass: rgba(255, 255, 255, 0.88);
+  --border: #dce2e4;
+  --border-strong: #c2cacd;
+
+  --text: #12171a;
+  --text2: #4f5a60;
+  --text3: #5f6a70;
+  --disabled: #a8b0b4;
+
+  --accent: #0a7d87;
+  --accent-hover: #086c75;
+  --accent-pressed: #065c64;
+  --on-accent: #ffffff;
+  --accent-soft: rgba(10, 125, 135, 0.1);
+  --accent-text: #07666f;
+
+  --success: #17773f;
+  --success-soft: rgba(28, 133, 71, 0.11);
+  --warning: #8a5100;
+  --warning-soft: rgba(190, 120, 10, 0.14);
+  --error: #b3302a;
+  --error-soft: rgba(194, 54, 47, 0.1);
+  --on-error: #ffffff;
+  --info: #2559ad;
+  --info-soft: rgba(42, 102, 196, 0.1);
+  --paused: #5a6267;
+  --paused-soft: rgba(99, 108, 113, 0.12);
+
+  --track: rgba(18, 23, 26, 0.1);
+  --hover: rgba(18, 23, 26, 0.05);
+  --press: rgba(18, 23, 26, 0.09);
+  --scrim: rgba(18, 23, 26, 0.42);
+  --seg-on: #ffffff;
+  --hero-fade: linear-gradient(180deg, rgba(243, 245, 245, 0.15) 0%, rgba(243, 245, 245, 0.65) 52%, #f3f5f5 100%);
+
+  --shadow-1: 0 1px 2px rgba(16, 24, 28, 0.08);
+  --shadow-2: 0 10px 30px rgba(16, 24, 28, 0.14);
+  --shadow-3: 0 -8px 40px rgba(16, 24, 28, 0.16);
+}
