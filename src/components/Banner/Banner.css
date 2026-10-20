@@ -1,0 +1,35 @@
+.ks-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 8px 10px 14px;
+  border-radius: 14px;
+  background: var(--warning-soft);
+  color: var(--text);
+  border: 1px solid color-mix(in srgb, var(--warning) 40%, transparent);
+}
+
+.ks-banner > .ks-ic { color: var(--warning); }
+
+.ks-banner-error {
+  background: var(--error-soft);
+  border-color: color-mix(in srgb, var(--error) 40%, transparent);
+}
+
+.ks-banner-error > .ks-ic { color: var(--error); }
+
+.ks-banner-info {
+  background: var(--info-soft);
+  border-color: color-mix(in srgb, var(--info) 35%, transparent);
+}
+
+.ks-banner-info > .ks-ic { color: var(--info); }
+
+.ks-banner-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.ks-banner-title {
+  font-weight: 600;
+}
