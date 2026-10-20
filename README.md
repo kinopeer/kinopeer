@@ -1,16 +1,16 @@
 # Kinoseed
 
-Веб-интерфейс для qBittorrent, заточенный под фильмы и сериалы. Метаданные берутся из [TMDB](https://www.themoviedb.org/).
+A qBittorrent web UI built around movies and TV series. Metadata comes from [TMDB](https://www.themoviedb.org/).
 
-## Разработка
+## Development
 
-Нужен Node.js 22+.
+Requires Node.js 22+.
 
 ```sh
 npm install
-npm run dev        # дев-сервер на http://localhost:5173
-npm test           # тесты (Vitest)
-npm run lint       # линтер (oxlint)
-npm run typecheck  # проверка типов
-npm run build      # сборка в dist/
+npm run dev        # dev server at http://localhost:5173
+npm test           # tests (Vitest)
+npm run lint       # linter (oxlint)
+npm run typecheck  # type check
+npm run build      # production build into dist/
 ```
