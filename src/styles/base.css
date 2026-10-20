@@ -1,0 +1,87 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 22px;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  margin: 0;
+}
+
+button {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+p,
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+/* Type scale */
+.t-display { font-size: 40px; line-height: 44px; font-weight: 700; letter-spacing: -0.025em; }
+.t-h1 { font-size: 28px; line-height: 34px; font-weight: 700; letter-spacing: -0.02em; }
+.t-h2 { font-size: 22px; line-height: 28px; font-weight: 650; letter-spacing: -0.015em; }
+.t-h3 { font-size: 18px; line-height: 24px; font-weight: 600; letter-spacing: -0.01em; }
+.t-body-lg { font-size: 17px; line-height: 26px; }
+.t-body { font-size: 15px; line-height: 22px; }
+.t-label { font-size: 14px; line-height: 20px; font-weight: 500; }
+.t-cap { font-size: 13px; line-height: 18px; }
+.t-micro { font-size: 11px; line-height: 14px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+.t-mono { font-family: var(--font-mono); font-size: 12.5px; line-height: 18px; letter-spacing: 0; }
+
+/* Text colors */
+.c1 { color: var(--text); }
+.c2 { color: var(--text2); }
+.c3 { color: var(--text3); }
+.ca { color: var(--accent-text); }
+
+/* Helpers */
+.ks-num { font-variant-numeric: tabular-nums; }
+.ks-trunc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.ks-clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ks-clamp3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
