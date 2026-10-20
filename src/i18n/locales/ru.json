@@ -1,0 +1,14 @@
+{
+  "app": {
+    "tagline": "Фильмы и сериалы для qBittorrent."
+  },
+  "theme": {
+    "label": "Тема",
+    "system": "Как в системе",
+    "dark": "Тёмная",
+    "light": "Светлая"
+  },
+  "language": {
+    "label": "Язык"
+  }
+}

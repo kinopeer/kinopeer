@@ -24,7 +24,7 @@ Run lint, typecheck, test and build before pushing. CI must be green before merg
 ## Conventions
 
 - Everything in the repo and on GitHub is in English: code, comments, docs, commit messages, PR titles and descriptions, issues.
-- UI copy is localized (Russian and English) from day one. Never hardcode user-facing strings once i18n lands.
+- UI copy is localized (Russian and English) with i18next. Never hardcode user-facing strings: add keys to both `src/i18n/locales/en.json` and `ru.json` (a test checks they match). Russian plurals need `_one`, `_few`, `_many` and `_other` keys.
 - Work in small, reviewable PRs, one roadmap step or less each. Branch names: `feat/…`, `fix/…`, `chore/…`, `docs/…`.
 - Never push to `main` directly; open a PR.
 - Tests sit next to the code as `*.test.ts(x)`. Query by role and accessible name.
