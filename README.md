@@ -4,7 +4,13 @@ A qBittorrent web UI built around movies and TV series. Metadata comes from [TMD
 
 ## Development
 
-Requires Node.js 22+.
+Requires Node.js 22+ and a qBittorrent instance with the Web UI enabled.
+
+```sh
+cp .env.example .env.local   # then set QBITTORRENT_URL to your qBittorrent Web UI
+```
+
+The dev server proxies `/qbt/*` to `QBITTORRENT_URL`, so the app and the qBittorrent API share one origin (the same layout the production container will use).
 
 ```sh
 npm install

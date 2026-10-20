@@ -21,6 +21,11 @@ npm run build      # production build into dist/
 
 Run lint, typecheck, test and build before pushing. CI must be green before merge.
 
+## Architecture
+
+- The browser talks to qBittorrent (and later Prowlarr) only through same-origin proxies: `/qbt/*` → qBittorrent Web UI. In dev, Vite proxies it using `QBITTORRENT_URL` from `.env.local`; in production, the Kinoseed Docker container (nginx) will. Never call those services cross-origin.
+- qBittorrent Web API client: `src/api/qbittorrent/`.
+
 ## Conventions
 
 - Everything in the repo and on GitHub is in English: code, comments, docs, commit messages, PR titles and descriptions, issues.
