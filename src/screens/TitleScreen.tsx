@@ -12,6 +12,8 @@ import {
   type TvDetails,
 } from '../api/tmdb'
 import { Badge } from '../components/Badge'
+import { Banner } from '../components/Banner'
+import { Button } from '../components/Button'
 import { EmptyState } from '../components/EmptyState'
 import { Icon } from '../components/Icon'
 import { IconButton } from '../components/IconButton'
@@ -186,6 +188,12 @@ export function TitleScreen() {
             <p className="t-body c2">{details.overview}</p>
           </section>
         )}
+        {details.type === 'tv' && <Banner tone="info">{t('title.seriesHint')}</Banner>}
+      </div>
+      <div className="title-actions">
+        <Button size="lg" icon="search" block onClick={() => navigate(`/title/${details.type}/${details.id}/releases`)}>
+          {t('title.findReleases')}
+        </Button>
       </div>
     </main>
   )

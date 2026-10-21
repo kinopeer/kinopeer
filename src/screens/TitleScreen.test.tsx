@@ -65,6 +65,7 @@ function renderAt(path: string, history: string[] = []) {
     <MemoryRouter initialEntries={[...history, path]} initialIndex={history.length}>
       <Routes>
         <Route path="/title/:type/:id" element={<TitleScreen />} />
+        <Route path="/title/:type/:id/releases" element={<h1>Releases page</h1>} />
         <Route path="/search" element={<h1>Search page</h1>} />
       </Routes>
     </MemoryRouter>,
@@ -130,5 +131,16 @@ describe('TitleScreen', () => {
     renderAt('/title/movie/693134')
     await userEvent.click(await screen.findByRole('button', { name: 'Try again' }))
     expect(await screen.findByRole('heading', { level: 1, name: 'Dune: Part Two' })).toBeInTheDocument()
+  })
+
+  it('opens the releases for the title', async () => {
+    renderAt('/title/movie/693134')
+    await userEvent.click(await screen.findByRole('button', { name: 'Find releases' }))
+    expect(screen.getByRole('heading', { name: 'Releases page' })).toBeInTheDocument()
+  })
+
+  it('explains how series releases work', async () => {
+    renderAt('/title/tv/126308')
+    expect(await screen.findByRole('status')).toHaveTextContent('Releases are searched by show name')
   })
 })
