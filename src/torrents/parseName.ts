@@ -25,7 +25,7 @@ const YEARS = /(?<=^|[\s([])(?:19|20)\d{2}(?=$|[\s)\]])/g
 const SEASON = /\b(?:s(\d{1,2})(?:e\d{1,3}|-s?\d{1,2})?|season[\s:]*(\d{1,2})|(\d{1,2})x\d{2})\b|сезон[\s:]*(\d{1,2})|(\d{1,2})\s*сезон/iu
 // The first technical token ends the title.
 const NOISE =
-  /\b(?:\d{3,4}p|[48]k|uhd|hdr\d*|dv|web[\s-]?(?:dl|rip)?|blu[\s-]?ray|bdrip|bdremux|remux|hdtv|hdrip|dvdrip|dvd\d?|x26[45]|h[\s.]?26[45]|hevc|avc|aac|ac3|dts|ddp?\d?|atmos|truehd|imax|proper|repack|extended|unrated|complete|multi|rus?|eng?)\b/i
+  /\b(?:\d{3,4}p|[48]k|uhd|hdr\d*|hd|dv|web[\s-]?(?:dl|rip)?|blu[\s-]?ray|bdrip|bdremux|remux|hdtv|hdrip|dvdrip|dvd\d?|x26[45]|h[\s.]?26[45]|hevc|avc|aac|ac3|dts|ddp?\d?|atmos|truehd|imax|proper|repack|extended|unrated|complete|multi|rus?|eng?)\b/i
 
 function clean(text: string): string {
   return text

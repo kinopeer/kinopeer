@@ -2,7 +2,7 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as tmdb from '../api/tmdb'
 import type { Title } from '../api/tmdb'
-import { clearTitleMatchCache, lookupFor, pickBest, useTitleMatches } from './titleMatches'
+import { categoryType, clearTitleMatchCache, lookupFor, pickBest, useTitleMatches } from './titleMatches'
 
 vi.mock('../api/tmdb', async (importOriginal) => {
   const actual = await importOriginal<typeof tmdb>()
@@ -44,12 +44,51 @@ describe('pickBest', () => {
     expect(pickBest([DUNE_2021, DUNE_SERIES], { title: 'Dune' })).toBe(DUNE_2021)
     expect(pickBest([], { title: 'Dune' })).toBeNull()
   })
+
+  it('prefers a movie near the year to a series of that exact year', () => {
+    const series = title('tv', 1, 'Normal People', 2025)
+    const movie = title('movie', 2, 'Normal', 2026)
+    expect(pickBest([series, movie], { title: 'Normal', year: 2025 })).toBe(movie)
+    expect(pickBest([series, movie], { title: 'Normal', year: 2025 }, 'tv')).toBe(series)
+  })
+
+  it('falls back to the other type when the hinted one has nothing', () => {
+    expect(pickBest([DUNE_2021], { title: 'Dune', year: 2021 }, 'tv')).toBe(DUNE_2021)
+    expect(pickBest([DUNE_2021, DUNE_SERIES], { title: 'Dune' }, 'tv')).toBe(DUNE_SERIES)
+  })
+
+  it('takes an exact name over a longer one', () => {
+    const special = title('tv', 3, 'Air Crash Investigation: Special Report', 2018)
+    const mayday = { ...title('tv', 4, 'Расследования авиакатастроф', 2003), originalTitle: 'Air Crash Investigation' }
+    expect(pickBest([special, mayday], { title: 'Air Crash Investigation' })).toBe(mayday)
+  })
+})
+
+describe('categoryType', () => {
+  it('reads common category names', () => {
+    expect(categoryType('Movies')).toBe('movie')
+    expect(categoryType('Фильмы')).toBe('movie')
+    expect(categoryType('Мультфильмы')).toBe('movie')
+    expect(categoryType('TV Shows')).toBe('tv')
+    expect(categoryType('tv')).toBe('tv')
+    expect(categoryType('Сериалы')).toBe('tv')
+    expect(categoryType('Music')).toBeUndefined()
+    expect(categoryType('')).toBeUndefined()
+  })
 })
 
 describe('lookupFor', () => {
   it('uses the TMDB tag before the name', () => {
     expect(lookupFor({ name: 'whatever', tags: 'tmdb:movie:438631' }).key).toBe('id:movie:438631')
     expect(lookupFor({ name: 'Dune.2021.1080p', tags: '' }).key).toBe('q::2021:dune')
+  })
+
+  it('takes a type hint from the category, but not over season markers', () => {
+    expect(lookupFor({ name: 'Normal.2025.BDRemux', tags: '', category: 'Movies' })).toMatchObject({
+      key: 'q:~movie:2025:normal',
+      hint: 'movie',
+    })
+    expect(lookupFor({ name: 'Show.S01.1080p', tags: '', category: 'Movies' })).toMatchObject({ key: 'q:tv::show', hint: undefined })
   })
 })
 

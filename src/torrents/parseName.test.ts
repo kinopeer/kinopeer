@@ -8,6 +8,7 @@ describe('parseName', () => {
     ['Oppenheimer (2023) [1080p] [YTS.MX]', { title: 'Oppenheimer', year: 2023 }],
     ['1917.2019.1080p.BluRay.x264', { title: '1917', year: 2019 }],
     ['Blade.Runner.2049.2017.2160p.UHD', { title: 'Blade Runner 2049', year: 2017 }],
+    ['Air Crash Investigation_HD', { title: 'Air Crash Investigation' }],
     ['Arrival_2016_1080p.mkv', { title: 'Arrival', year: 2016 }],
     ['[Erai-raws] Frieren - 01 [1080p]', { title: 'Frieren - 01' }],
     ['Poor Things', { title: 'Poor Things' }],

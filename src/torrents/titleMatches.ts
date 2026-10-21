@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Torrent } from '../api/qbittorrent'
-import { getMovie, getTv, searchTitles, tmdbLanguage, toTitle, type Title } from '../api/tmdb'
+import { getMovie, getTv, searchTitles, tmdbLanguage, toTitle, type MediaType, type Title } from '../api/tmdb'
 import { parseName, tmdbTag, type ParsedName } from './parseName'
 
 /** What a download row needs from TMDB. */
@@ -11,27 +11,64 @@ interface Lookup {
   key: string
   tag?: { type: Title['type']; id: number }
   parsed?: ParsedName
+  /** From the qBittorrent category ("Movies", "TV Shows", "Сериалы"): a hint, not a filter. */
+  hint?: MediaType
 }
 
-export function lookupFor(torrent: Pick<Torrent, 'name' | 'tags'>): Lookup {
+const TV_CATEGORY = /\b(?:tv|series|shows?)\b|сериал/iu
+const MOVIE_CATEGORY = /\b(?:movies?|films?)\b|фильм|кино/iu
+
+export function categoryType(category: string | undefined): MediaType | undefined {
+  if (!category) return undefined
+  if (TV_CATEGORY.test(category)) return 'tv'
+  if (MOVIE_CATEGORY.test(category)) return 'movie'
+  return undefined
+}
+
+export function lookupFor(torrent: Pick<Torrent, 'name' | 'tags'> & { category?: string }): Lookup {
   const tag = tmdbTag(torrent.tags ?? '')
   if (tag) return { key: `id:${tag.type}:${tag.id}`, tag }
   const parsed = parseName(torrent.name)
-  return { key: `q:${parsed.type ?? ''}:${parsed.year ?? ''}:${parsed.title.toLocaleLowerCase()}`, parsed }
+  const hint = parsed.type ? undefined : categoryType(torrent.category)
+  const type = parsed.type ?? (hint ? `~${hint}` : '')
+  return { key: `q:${type}:${parsed.year ?? ''}:${parsed.title.toLocaleLowerCase()}`, parsed, hint }
+}
+
+function normalize(text: string): string {
+  return text
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
 }
 
 /**
- * Picks the search result a release name most likely refers to. With a year, a movie must match
- * it (±1 for festival vs. wide release); a series' year may be a later season's, so it only ranks.
+ * Picks the search result a release name most likely refers to.
+ *
+ * Season markers in the name make it a series. Otherwise, with a year, movies come first (or the
+ * category's type): a movie must match the year (±1 for festival vs. wide release), while a series'
+ * year may be a later season's, so a series of another year is the last resort. Without a year,
+ * TMDB's order stands unless the category says otherwise. Within each step an exact name wins.
  */
-export function pickBest(titles: Title[], parsed: ParsedName): Title | null {
+export function pickBest(titles: Title[], parsed: ParsedName, hint?: MediaType): Title | null {
   const candidates = parsed.type ? titles.filter((title) => title.type === parsed.type) : titles
-  if (!parsed.year) return candidates[0] ?? null
-  const near = (title: Title) => title.year !== undefined && Math.abs(title.year - parsed.year!) <= 1
-  const best = candidates.find((title) => title.year === parsed.year) ?? candidates.find(near)
-  if (best) return best
-  const series = candidates.find((title) => title.type === 'tv')
-  return series ?? null
+  const name = normalize(parsed.title)
+  const first = (list: Title[]) =>
+    list.find((title) => normalize(title.title) === name || normalize(title.originalTitle) === name) ?? list[0]
+
+  const preferred = parsed.type ?? hint ?? (parsed.year ? 'movie' : undefined)
+  const groups = preferred
+    ? [candidates.filter((title) => title.type === preferred), candidates.filter((title) => title.type !== preferred)]
+    : [candidates]
+
+  if (!parsed.year) return groups.map(first).find(Boolean) ?? null
+  const year = parsed.year
+  const exact = (title: Title) => title.year === year
+  const near = (title: Title) => title.year !== undefined && Math.abs(title.year - year) <= 1
+  for (const group of groups) {
+    const best = first(group.filter(exact)) ?? first(group.filter(near))
+    if (best) return best
+  }
+  return first(candidates.filter((title) => title.type === 'tv')) ?? null
 }
 
 function slim(title: Title): TitleMatch {
@@ -45,12 +82,13 @@ async function resolve(lookup: Lookup, language: string, signal: AbortSignal): P
     return slim(toTitle(details, type))
   }
   const { titles } = await searchTitles(lookup.parsed!.title, { language, signal })
-  const best = pickBest(titles, lookup.parsed!)
+  const best = pickBest(titles, lookup.parsed!, lookup.hint)
   return best ? slim(best) : null
 }
 
 // Matches are cached per browser so the list doesn't hit TMDB for every torrent on every visit.
-const CACHE_KEY = 'kinoseed.titleMatches.v1'
+// Bump the version when matching changes, so earlier guesses are redone.
+const CACHE_KEY = 'kinoseed.titleMatches.v2'
 const HIT_TTL_MS = 30 * 24 * 3600 * 1000
 const MISS_TTL_MS = 24 * 3600 * 1000
 const MAX_ENTRIES = 500
@@ -110,7 +148,9 @@ const CONCURRENCY = 3
  * TMDB title for each torrent, by hash: the match, null when there is none, or undefined while
  * unknown (still looking it up, or TMDB is unavailable).
  */
-export function useTitleMatches(torrents: Pick<Torrent, 'hash' | 'name' | 'tags'>[]): Record<string, TitleMatch | null | undefined> {
+export function useTitleMatches(
+  torrents: (Pick<Torrent, 'hash' | 'name' | 'tags'> & { category?: string })[],
+): Record<string, TitleMatch | null | undefined> {
   const { i18n } = useTranslation()
   const language = tmdbLanguage(i18n.resolvedLanguage ?? i18n.language)
   const [, setVersion] = useState(0)
