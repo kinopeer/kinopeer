@@ -1,6 +1,7 @@
 {
   "app": {
-    "tagline": "Фильмы и сериалы для qBittorrent."
+    "tagline": "Фильмы и сериалы для qBittorrent.",
+    "connecting": "Подключаемся к qBittorrent…"
   },
   "theme": {
     "label": "Тема",
@@ -10,5 +11,23 @@
   },
   "language": {
     "label": "Язык"
+  },
+  "common": {
+    "retry": "Повторить"
+  },
+  "connect": {
+    "title": "Подключите qBittorrent",
+    "body": "Войдите с логином и паролем от веб-интерфейса qBittorrent.",
+    "username": "Логин",
+    "password": "Пароль",
+    "submit": "Подключить",
+    "invalidCredentials": "Неверный логин или пароль",
+    "banned": "Слишком много неудачных попыток. qBittorrent временно заблокировал этот адрес.",
+    "unreachableTitle": "qBittorrent недоступен",
+    "unreachableBody": "Проверьте, что qBittorrent запущен и веб-интерфейс включён."
+  },
+  "home": {
+    "connected": "Подключено · qBittorrent {{version}}",
+    "signOut": "Выйти"
   }
 }

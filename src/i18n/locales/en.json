@@ -1,6 +1,7 @@
 {
   "app": {
-    "tagline": "Movies and TV series for qBittorrent."
+    "tagline": "Movies and TV series for qBittorrent.",
+    "connecting": "Connecting to qBittorrent…"
   },
   "theme": {
     "label": "Theme",
@@ -10,5 +11,23 @@
   },
   "language": {
     "label": "Language"
+  },
+  "common": {
+    "retry": "Try again"
+  },
+  "connect": {
+    "title": "Connect qBittorrent",
+    "body": "Sign in with your qBittorrent Web UI username and password.",
+    "username": "Username",
+    "password": "Password",
+    "submit": "Connect",
+    "invalidCredentials": "Wrong username or password",
+    "banned": "Too many failed attempts. qBittorrent has blocked this address for a while.",
+    "unreachableTitle": "qBittorrent is unreachable",
+    "unreachableBody": "Check that qBittorrent is running and its Web UI is on."
+  },
+  "home": {
+    "connected": "Connected · qBittorrent {{version}}",
+    "signOut": "Sign out"
   }
 }

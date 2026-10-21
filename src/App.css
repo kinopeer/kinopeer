@@ -1,18 +1,32 @@
-.app {
+.screen {
   min-height: 100vh;
-  display: grid;
-  place-content: center;
-  justify-items: center;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: var(--space-4);
-  padding: var(--space-4);
+  padding: calc(var(--space-6) + var(--safe-top)) var(--space-4) calc(var(--space-6) + var(--safe-bottom));
+}
+
+.screen.home {
+  justify-content: center;
   text-align: center;
 }
 
-.app-wordmark-accent {
+.wordmark-accent {
   color: var(--accent);
 }
 
-.app-controls {
+.screen-spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2.5px solid var(--accent);
+  border-right-color: transparent;
+  animation: ks-spin 0.8s linear infinite;
+}
+
+.screen-controls {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -20,8 +34,33 @@
   gap: var(--space-4);
 }
 
-.app-group {
+.screen-group {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
+}
+
+.connect {
+  justify-content: center;
+  gap: var(--space-8);
+}
+
+.connect-form {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.connect-intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.connect-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
 }

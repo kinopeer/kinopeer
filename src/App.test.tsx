@@ -1,21 +1,41 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import * as api from './api/qbittorrent'
 import App from './App'
+
+vi.mock('./api/qbittorrent', async (importOriginal) => {
+  const actual = await importOriginal<typeof api>()
+  return { ...actual, getAppVersion: vi.fn(), login: vi.fn(), logout: vi.fn() }
+})
+
+const getAppVersion = vi.mocked(api.getAppVersion)
+
+beforeEach(() => {
+  vi.resetAllMocks()
+  getAppVersion.mockResolvedValue('v5.2.4')
+})
 
 afterEach(() => {
   localStorage.clear()
 })
 
 describe('App', () => {
-  it('renders the product name', () => {
+  it('goes straight in when qBittorrent needs no login', async () => {
     render(<App />)
+    expect(await screen.findByText('Connected · qBittorrent v5.2.4')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'kinoseed' })).toBeInTheDocument()
+  })
+
+  it('shows the sign-in form without a session', async () => {
+    getAppVersion.mockRejectedValue(new api.UnauthorizedError())
+    render(<App />)
+    expect(await screen.findByRole('heading', { name: 'Connect qBittorrent' })).toBeInTheDocument()
   })
 
   it('switches the theme on the root element', async () => {
     render(<App />)
-    await userEvent.click(screen.getByRole('button', { name: 'Light' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Light' }))
     expect(document.documentElement.dataset.theme).toBe('light')
     expect(screen.getByRole('button', { name: 'Light' })).toHaveAttribute('aria-pressed', 'true')
 
@@ -25,7 +45,7 @@ describe('App', () => {
 
   it('switches the language and remembers it', async () => {
     render(<App />)
-    expect(screen.getByText('Movies and TV series for qBittorrent.')).toBeInTheDocument()
+    expect(await screen.findByText('Movies and TV series for qBittorrent.')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Русский' }))
     expect(screen.getByText('Фильмы и сериалы для qBittorrent.')).toBeInTheDocument()
