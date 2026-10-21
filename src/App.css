@@ -60,3 +60,10 @@
   flex-direction: column;
   gap: var(--space-4);
 }
+
+/* Leaves room for the fixed tab bar. */
+.app-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding-bottom: calc(66px + var(--safe-bottom));
+}

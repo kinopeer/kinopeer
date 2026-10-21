@@ -25,10 +25,6 @@
     "unreachableTitle": "qBittorrent недоступен",
     "unreachableBody": "Проверьте, что qBittorrent запущен и веб-интерфейс включён."
   },
-  "home": {
-    "connected": "Подключено · qBittorrent {{version}}",
-    "signOut": "Выйти"
-  },
   "status": {
     "downloading": "Загружается",
     "seeding": "Раздаётся",
@@ -68,5 +64,46 @@
     "etaMinutes": "{{minutes}} мин",
     "etaHours": "{{hours}} ч {{minutes}} мин",
     "etaDays": "{{days}} д {{hours}} ч"
+  },
+  "nav": {
+    "label": "Основное",
+    "downloads": "Загрузки",
+    "search": "Поиск",
+    "settings": "Настройки"
+  },
+  "search": {
+    "title": "Поиск",
+    "placeholder": "Фильмы и сериалы",
+    "clear": "Очистить",
+    "typeLabel": "Тип",
+    "all": "Все",
+    "movies": "Фильмы",
+    "series": "Сериалы",
+    "trending": "В тренде на этой неделе",
+    "popularMovies": "Популярные фильмы",
+    "popularSeries": "Популярные сериалы",
+    "results_one": "{{count}} результат",
+    "results_few": "{{count}} результата",
+    "results_many": "{{count}} результатов",
+    "results_other": "{{count}} результата",
+    "loading": "Загружаем",
+    "noResultsTitle": "По запросу «{{query}}» ничего нет",
+    "noResultsBody": "Проверьте написание или попробуйте оригинальное название.",
+    "errorTitle": "Не удалось загрузить данные TMDB",
+    "errorBody": "Проверьте соединение и попробуйте ещё раз.",
+    "keyTitle": "TMDB не настроен",
+    "keyBody": "Добавьте ключ TMDB API в конфигурацию сервера (TMDB_API_KEY)."
+  },
+  "title": {
+    "movie": "Фильм",
+    "series": "Сериал",
+    "subtitle": "{{type}} · {{year}}"
+  },
+  "settings": {
+    "title": "Настройки",
+    "appearance": "Оформление",
+    "connection": "Подключение",
+    "connected": "Подключено · qBittorrent {{version}}",
+    "signOut": "Выйти"
   }
 }

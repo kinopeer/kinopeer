@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import type { Torrent } from '../api/qbittorrent'
-import { Icon } from '../components/Icon'
+import { Poster } from '../components/Poster'
 import { ProgressBar } from '../components/ProgressBar'
 import { StatusChip } from '../components/StatusChip'
 import { useFormatters } from '../lib/format'
@@ -26,16 +26,13 @@ export function DownloadItem({ torrent }: DownloadItemProps) {
 
   return (
     <li className="ks-dl">
-      <div className="ks-poster dl-poster">
-        <div className="ks-poster-art ks-poster-none">
-          <Icon name="film" size={22} />
-        </div>
+      <Poster className="dl-poster">
         {torrent.priority > 0 && (
           <span className="ks-qpos" aria-label={t('downloads.queuePosition', { position: torrent.priority })}>
             #{torrent.priority}
           </span>
         )}
-      </div>
+      </Poster>
       <div className="dl-body">
         <h2 className="dl-title ks-clamp2">{torrent.name}</h2>
         <div className="dl-progress">
