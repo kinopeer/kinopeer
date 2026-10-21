@@ -74,7 +74,8 @@ class ServerSession {
       body: new URLSearchParams({ username: this.username, password: this.password }),
     })
     const text = (await response.text()).trim()
-    if (response.ok && text === 'Fails.') {
+    // Wrong credentials: 401 since qBittorrent 5.3, 200 "Fails." before.
+    if (response.status === 401 || (response.ok && text === 'Fails.')) {
       this.rejected = true
       // Never log the credentials themselves.
       console.warn('[kinoseed] qBittorrent rejected QBITTORRENT_USERNAME/QBITTORRENT_PASSWORD; using the login form instead')

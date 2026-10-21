@@ -39,7 +39,7 @@ interface Seen {
 }
 
 /** A qBittorrent with one user that hands out SID cookies and can expire them. */
-async function fakeQbittorrent() {
+async function fakeQbittorrent({ legacy = false } = {}) {
   const sessions = new Set<string>()
   const seen: Seen[] = []
   let logins = 0
@@ -49,7 +49,12 @@ async function fakeQbittorrent() {
     if (url === '/api/v2/auth/login') {
       logins++
       const params = new URLSearchParams(body)
-      if (params.get('username') !== 'admin' || params.get('password') !== 'pass word') return response.end('Fails.')
+      if (params.get('username') !== 'admin' || params.get('password') !== 'pass word') {
+        // qBittorrent 5.3+ answers 401; older versions 200 "Fails.".
+        if (legacy) return response.end('Fails.')
+        response.statusCode = 401
+        return response.end('Unauthorized')
+      }
       const sid = `sid${logins}`
       sessions.add(sid)
       response.setHeader('Set-Cookie', `SID=${sid}; HttpOnly; SameSite=Strict; path=/`)
@@ -136,9 +141,9 @@ describe('qbittorrentMiddleware', () => {
     expect(retried.body).toContain('magnet:?xt=urn:btih:abc')
   })
 
-  it('falls back to the login form after wrong credentials without trying them again', async () => {
+  it.each([false, true])('falls back to the login form after wrong credentials without trying them again (legacy: %s)', async (legacy) => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const qbt = await fakeQbittorrent()
+    const qbt = await fakeQbittorrent({ legacy })
     const base = await kinoseed({ url: qbt.base, username: 'admin', password: 'wrong' })
 
     expect((await fetch(`${base}/qbt/api/v2/app/version`)).status).toBe(403)
