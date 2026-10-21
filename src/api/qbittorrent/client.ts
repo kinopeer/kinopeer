@@ -70,8 +70,10 @@ export async function login(username: string, password: string): Promise<void> {
     body: new URLSearchParams({ username, password }),
   })
   if (response.status === 403) throw new IpBannedError()
+  // qBittorrent 5.3+ answers wrong credentials with 401; older versions with 200 "Fails.".
+  if (response.status === 401) throw new InvalidCredentialsError()
   if (!response.ok) throw new QbittorrentError(`qBittorrent responded ${response.status}`, response.status)
-  // qBittorrent answers 200 with "Fails." for wrong credentials and "Ok." (or an empty 204) on success.
+  // Success is "Ok." (or an empty 204).
   const text = (await response.text()).trim()
   if (text === 'Fails.') throw new InvalidCredentialsError()
 }
