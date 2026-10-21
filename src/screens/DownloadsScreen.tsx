@@ -8,6 +8,7 @@ import { IconButton } from '../components/IconButton'
 import { Input } from '../components/Input'
 import { useFormatters } from '../lib/format'
 import { STATUS_FILTERS, compareByQueue, matchesFilter, type StatusFilter } from '../torrents/status'
+import { useTitleMatches } from '../torrents/titleMatches'
 import { useMainData } from '../torrents/useMainData'
 import { DownloadItem } from './DownloadItem'
 import './DownloadsScreen.css'
@@ -28,12 +29,17 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
   const [query, setQuery] = useState('')
 
   const torrents = useMemo(() => (data ? Object.values(data.torrents).sort(compareByQueue) : []), [data])
+  const matches = useTitleMatches(torrents)
   const visible = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase()
     return torrents.filter(
-      (torrent) => matchesFilter(torrent, filter) && (!needle || torrent.name.toLocaleLowerCase().includes(needle)),
+      (torrent) =>
+        matchesFilter(torrent, filter) &&
+        (!needle ||
+          torrent.name.toLocaleLowerCase().includes(needle) ||
+          !!matches[torrent.hash]?.title.toLocaleLowerCase().includes(needle)),
     )
-  }, [torrents, filter, query])
+  }, [torrents, filter, query, matches])
 
   const loading = data === null
   const server = data?.server
@@ -149,7 +155,7 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
         ) : (
           <ul className="downloads-list">
             {visible.map((torrent) => (
-              <DownloadItem key={torrent.hash} torrent={torrent} />
+              <DownloadItem key={torrent.hash} torrent={torrent} match={matches[torrent.hash]} />
             ))}
           </ul>
         )}

@@ -103,6 +103,26 @@
   overflow-wrap: anywhere;
 }
 
+.dl-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  font-size: 16px;
+  line-height: 21px;
+  font-weight: 600;
+}
+
+.dl-year {
+  flex: none;
+  font-weight: 400;
+}
+
+.dl-release {
+  font-size: 12px;
+  line-height: 16px;
+}
+
 .dl-progress {
   display: flex;
   align-items: center;

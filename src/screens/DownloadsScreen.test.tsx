@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
 import type { MainData, Torrent } from '../api/qbittorrent'
+import * as tmdb from '../api/tmdb'
+import { clearTitleMatchCache } from '../torrents/titleMatches'
 import { DownloadsScreen } from './DownloadsScreen'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => {
@@ -10,7 +12,13 @@ vi.mock('../api/qbittorrent', async (importOriginal) => {
   return { ...actual, getMainData: vi.fn() }
 })
 
+vi.mock('../api/tmdb', async (importOriginal) => {
+  const actual = await importOriginal<typeof tmdb>()
+  return { ...actual, searchTitles: vi.fn() }
+})
+
 const getMainData = vi.mocked(api.getMainData)
+const searchTitles = vi.mocked(tmdb.searchTitles)
 
 function torrent(hash: string, fields: Partial<Torrent>): Partial<Torrent> {
   return {
@@ -51,7 +59,9 @@ function renderScreen() {
 
 beforeEach(() => {
   vi.resetAllMocks()
+  clearTitleMatchCache()
   getMainData.mockResolvedValue(SNAPSHOT)
+  searchTitles.mockResolvedValue({ titles: [], page: 1, totalPages: 1 })
 })
 
 describe('DownloadsScreen', () => {
@@ -84,6 +94,24 @@ describe('DownloadsScreen', () => {
     expect(row.getByText('12 min')).toBeInTheDocument()
     expect(row.getByText('8.99 GB / 21.4 GB')).toBeInTheDocument()
     expect(row.getByLabelText('Queue position 1')).toBeInTheDocument()
+  })
+
+  it('shows the TMDB title and poster once matched, with the release name below', async () => {
+    searchTitles.mockImplementation(async (query) => ({
+      titles:
+        query === 'Dune Part Two'
+          ? [{ type: 'movie', id: 693134, title: 'Dune: Part Two', originalTitle: 'Dune: Part Two', year: 2024, overview: '', posterPath: '/dune.jpg', backdropPath: null, rating: 8 }]
+          : [],
+      page: 1,
+      totalPages: 1,
+    }))
+    const { container } = renderScreen()
+    expect(await screen.findByText('Dune: Part Two')).toBeInTheDocument()
+    const [dune] = screen.getAllByRole('listitem')
+    expect(within(dune).getByRole('heading')).toHaveTextContent('Dune: Part Two2024')
+    expect(within(dune).getByText('Dune.Part.Two.2024.2160p.WEB-DL')).toBeInTheDocument()
+    expect(container.querySelector('img')).toHaveAttribute('src', '/tmdb-img/w185/dune.jpg')
+    expect(within(dune).getByRole('progressbar', { name: 'Dune: Part Two: progress' })).toBeInTheDocument()
   })
 
   it('shows transfer totals and free space', async () => {
