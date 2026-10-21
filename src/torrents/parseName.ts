@@ -12,6 +12,10 @@ export interface ParsedName {
 /** Kinoseed tags torrents it adds as `tmdb:movie:693134`; that beats any guess from the name. */
 const TAG = /^tmdb:(movie|tv):(\d+)$/
 
+export function tmdbTagFor(type: MediaType, id: number): string {
+  return `tmdb:${type}:${id}`
+}
+
 export function tmdbTag(tags: string): { type: MediaType; id: number } | undefined {
   for (const tag of tags.split(',')) {
     const match = TAG.exec(tag.trim())

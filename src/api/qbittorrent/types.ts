@@ -96,3 +96,34 @@ export interface MainData {
   torrents_removed?: string[]
   server_state?: Partial<ServerState>
 }
+
+export interface AddTorrentOptions {
+  /** .torrent files. */
+  files?: File[]
+  /** Magnet or HTTP(S) links. */
+  urls?: string[]
+  tags?: string[]
+  category?: string
+  savePath?: string
+  /** Add without starting. */
+  stopped?: boolean
+  /**
+   * Stop once the metadata has arrived (qBittorrent 4.5+), so a magnet link's files can be chosen
+   * before anything downloads. A stopped magnet would never fetch its metadata.
+   */
+  stopCondition?: 'MetadataReceived' | 'FilesChecked'
+}
+
+/** 0: skip, 1: normal, 6: high, 7: maximum. */
+export type FilePriority = 0 | 1 | 6 | 7
+
+/** The subset of /torrents/files fields Kinoseed uses. */
+export interface TorrentFile {
+  index: number
+  /** Path inside the torrent, with "/" separators. */
+  name: string
+  size: number
+  /** 0–1. */
+  progress: number
+  priority: FilePriority
+}
