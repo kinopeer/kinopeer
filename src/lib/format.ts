@@ -15,6 +15,8 @@ export interface Formatters {
   speed: (bytesPerSecond: number) => string
   /** Seconds left: 12 min, 1h 5m, 2d 3h; ∞ when unknown. */
   eta: (seconds: number) => string
+  /** A known length in seconds, e.g. a runtime: 48 min, 2h 46m. */
+  duration: (seconds: number) => string
   /** Whole percent, rounded down so 99.9% never shows as 100%. */
   percent: (fraction: number) => string
 }
@@ -34,17 +36,20 @@ export function createFormatters(t: TFunction, language: string): Formatters {
     return `${number(value, digits)}${NBSP}${t(`format.${SIZE_UNITS[unit]}`)}`
   }
 
+  const duration = (seconds: number) => {
+    const minutes = Math.max(1, Math.round(seconds / 60))
+    if (minutes < 60) return t('format.etaMinutes', { minutes })
+    const hours = Math.floor(minutes / 60)
+    if (hours < 24) return t('format.etaHours', { hours, minutes: minutes % 60 })
+    return t('format.etaDays', { days: Math.floor(hours / 24), hours: hours % 24 })
+  }
+
   return {
     size,
     speed: (bytesPerSecond) => t('format.speed', { value: size(bytesPerSecond) }),
-    eta: (seconds) => {
-      if (!Number.isFinite(seconds) || seconds <= 0 || seconds >= ETA_INFINITY) return t('format.etaUnknown')
-      const minutes = Math.max(1, Math.round(seconds / 60))
-      if (minutes < 60) return t('format.etaMinutes', { minutes })
-      const hours = Math.floor(minutes / 60)
-      if (hours < 24) return t('format.etaHours', { hours, minutes: minutes % 60 })
-      return t('format.etaDays', { days: Math.floor(hours / 24), hours: hours % 24 })
-    },
+    eta: (seconds) =>
+      !Number.isFinite(seconds) || seconds <= 0 || seconds >= ETA_INFINITY ? t('format.etaUnknown') : duration(seconds),
+    duration,
     percent: (fraction) =>
       `${Math.floor(Math.min(1, Math.max(0, fraction)) * 100).toLocaleString(language)}%`,
   }

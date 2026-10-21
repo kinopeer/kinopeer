@@ -95,7 +95,19 @@
   "title": {
     "movie": "Movie",
     "series": "Series",
-    "subtitle": "{{type}} · {{year}}"
+    "subtitle": "{{type}} · {{year}}",
+    "back": "Back",
+    "overview": "Overview",
+    "rating": "Rating",
+    "yearsOngoing": "{{from}}–",
+    "seasons_one": "{{count}} season",
+    "seasons_other": "{{count}} seasons",
+    "episodes_one": "{{count}} episode",
+    "episodes_other": "{{count}} episodes",
+    "loading": "Loading title",
+    "notFoundTitle": "Title not found",
+    "notFoundBody": "TMDB has no movie or series with this link.",
+    "backToSearch": "Back to search"
   },
   "settings": {
     "title": "Settings",

@@ -18,3 +18,14 @@
   line-height: 19px;
   font-weight: 600;
 }
+
+a.ks-pcard {
+  border-radius: 12px;
+}
+
+@media (hover: hover) {
+  a.ks-pcard:hover .ks-poster {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-2);
+  }
+}

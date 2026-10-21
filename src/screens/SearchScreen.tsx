@@ -171,6 +171,7 @@ export function SearchScreen() {
                       title={title.title}
                       subtitle={subtitle(t, title)}
                       posterUrl={posterUrl(title.posterPath, 'w342')}
+                      to={`/title/${title.type}/${title.id}`}
                     />
                   </li>
                 ))}
@@ -200,6 +201,7 @@ export function SearchScreen() {
                       title={title.title}
                       subtitle={subtitle(t, title)}
                       posterUrl={posterUrl(title.posterPath, 'w342')}
+                      to={`/title/${title.type}/${title.id}`}
                     />
                   </li>
                 ))}

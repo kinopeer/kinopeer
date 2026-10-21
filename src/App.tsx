@@ -5,6 +5,7 @@ import { ConnectScreen } from './screens/ConnectScreen'
 import { DownloadsScreen } from './screens/DownloadsScreen'
 import { SearchScreen } from './screens/SearchScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
+import { TitleScreen } from './screens/TitleScreen'
 import { useQbitSession } from './session/useQbitSession'
 import './App.css'
 
@@ -31,6 +32,7 @@ function App() {
           <Routes>
             <Route index element={<DownloadsScreen onSessionLost={() => void recheck()} />} />
             <Route path="search" element={<SearchScreen />} />
+            <Route path="title/:type/:id" element={<TitleScreen />} />
             <Route
               path="settings"
               element={<SettingsScreen version={session.version} onSignOut={() => void signOut()} />}
