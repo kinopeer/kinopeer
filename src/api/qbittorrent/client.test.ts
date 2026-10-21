@@ -4,11 +4,15 @@ import {
   IpBannedError,
   QbittorrentError,
   UnauthorizedError,
+  addTorrents,
   getAppVersion,
   getMainData,
+  getTorrentFiles,
   getTorrents,
   login,
   logout,
+  setFilePriority,
+  startTorrents,
 } from './client'
 
 let fetchMock: Mock<typeof fetch>
@@ -114,5 +118,62 @@ describe('getMainData', () => {
     respond(JSON.stringify({ rid: 8, torrents: { abc: { progress: 0.5 } } }))
     await expect(getMainData(7)).resolves.toEqual({ rid: 8, torrents: { abc: { progress: 0.5 } } })
     expect(lastCall().url).toBe('/qbt/api/v2/sync/maindata?rid=7')
+  })
+})
+
+describe('addTorrents', () => {
+  it('posts files, links and options as multipart form data', async () => {
+    respond('Ok.')
+    const file = new File([new Uint8Array([100, 101])], 'dune.torrent')
+    await addTorrents({ files: [file], urls: ['magnet:?xt=urn:btih:abc', 'https://x/y.torrent'], tags: ['tmdb:movie:438631'], category: 'Movies', stopped: true })
+
+    const { url, init } = lastCall()
+    expect(url).toBe('/qbt/api/v2/torrents/add')
+    expect(init.method).toBe('POST')
+    const form = init.body as FormData
+    expect((form.get('torrents') as File).name).toBe('dune.torrent')
+    expect(form.get('urls')).toBe('magnet:?xt=urn:btih:abc\nhttps://x/y.torrent')
+    expect(form.get('tags')).toBe('tmdb:movie:438631')
+    expect(form.get('category')).toBe('Movies')
+    expect(form.get('stopped')).toBe('true')
+    expect(form.get('paused')).toBe('true')
+    expect(form.has('savepath')).toBe(false)
+    expect(form.has('stopCondition')).toBe(false)
+  })
+
+  it('reports a torrent qBittorrent refused', async () => {
+    respond('Fails.')
+    await expect(addTorrents({ urls: ['magnet:?xt=urn:btih:abc'] })).rejects.toBeInstanceOf(QbittorrentError)
+  })
+})
+
+describe('torrent files', () => {
+  it('lists files and sets priorities', async () => {
+    respond(JSON.stringify([{ index: 0, name: 'a.mkv', size: 1, progress: 0, priority: 1 }]))
+    await expect(getTorrentFiles('h1')).resolves.toHaveLength(1)
+    expect(lastCall().url).toBe('/qbt/api/v2/torrents/files?hash=h1')
+
+    respond('')
+    await setFilePriority('h1', [1, 3], 0)
+    expect(String(lastCall().init.body)).toBe('hash=h1&id=1%7C3&priority=0')
+  })
+
+  it('skips an empty priority change', async () => {
+    await setFilePriority('h1', [], 0)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('startTorrents', () => {
+  it('uses /torrents/start, falling back to /torrents/resume on qBittorrent 4', async () => {
+    respond('')
+    await startTorrents(['a', 'b'])
+    expect(lastCall().url).toBe('/qbt/api/v2/torrents/start')
+    expect(String(lastCall().init.body)).toBe('hashes=a%7Cb')
+
+    respond('Not Found', 404)
+    respond('')
+    await startTorrents(['a'])
+    expect(lastCall().url).toBe('/qbt/api/v2/torrents/resume')
   })
 })

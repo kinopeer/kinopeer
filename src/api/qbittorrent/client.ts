@@ -1,4 +1,4 @@
-import type { MainData, Torrent, TorrentsQuery } from './types'
+import type { AddTorrentOptions, FilePriority, MainData, Torrent, TorrentFile, TorrentsQuery } from './types'
 
 /** Same-origin prefix proxied to qBittorrent's Web UI (Vite in dev, nginx in production). */
 export const QBITTORRENT_BASE = '/qbt/api/v2'
@@ -47,15 +47,18 @@ function toSearchParams(params: Params): URLSearchParams {
   return search
 }
 
-async function request(path: string, init: { method?: 'GET' | 'POST'; params?: Params } = {}): Promise<Response> {
-  const { method = 'GET', params = {} } = init
+async function request(
+  path: string,
+  init: { method?: 'GET' | 'POST'; params?: Params; form?: FormData } = {},
+): Promise<Response> {
+  const { method = init.form ? 'POST' : 'GET', params = {} } = init
   const search = toSearchParams(params)
   const url = method === 'GET' && [...search].length ? `${QBITTORRENT_BASE}${path}?${search}` : `${QBITTORRENT_BASE}${path}`
 
   const response = await fetch(url, {
     method,
     credentials: 'same-origin',
-    body: method === 'POST' ? search : undefined,
+    body: method === 'POST' ? (init.form ?? search) : undefined,
   })
 
   if (response.status === 401 || response.status === 403) throw new UnauthorizedError()
@@ -104,4 +107,48 @@ export async function getTorrents(query: TorrentsQuery = {}): Promise<Torrent[]>
 export async function getMainData(rid = 0): Promise<MainData> {
   const response = await request('/sync/maindata', { params: { rid } })
   return (await response.json()) as MainData
+}
+
+/**
+ * Adds torrents from .torrent files and/or magnet or HTTP links. qBittorrent answers "Fails." when
+ * none of them could be added (invalid file, or the torrent is already there).
+ */
+export async function addTorrents(options: AddTorrentOptions): Promise<void> {
+  const { files = [], urls = [], tags = [], category, savePath, stopped, stopCondition } = options
+  const form = new FormData()
+  for (const file of files) form.append('torrents', file, file.name)
+  if (urls.length) form.append('urls', urls.join('\n'))
+  if (tags.length) form.append('tags', tags.join(','))
+  if (category) form.append('category', category)
+  if (savePath) form.append('savepath', savePath)
+  if (stopCondition) form.append('stopCondition', stopCondition)
+  if (stopped !== undefined) {
+    // qBittorrent 5 renamed "paused" to "stopped"; send both so 4.x works too.
+    form.append('stopped', String(stopped))
+    form.append('paused', String(stopped))
+  }
+  const response = await request('/torrents/add', { form })
+  if ((await response.text()).trim() === 'Fails.') throw new QbittorrentError('qBittorrent could not add the torrent', 200)
+}
+
+/** Files of a torrent, in index order. Empty until a magnet link's metadata has arrived. */
+export async function getTorrentFiles(hash: string): Promise<TorrentFile[]> {
+  const response = await request('/torrents/files', { params: { hash } })
+  return (await response.json()) as TorrentFile[]
+}
+
+export async function setFilePriority(hash: string, ids: number[], priority: FilePriority): Promise<void> {
+  if (!ids.length) return
+  await request('/torrents/filePrio', { method: 'POST', params: { hash, id: ids.join('|'), priority } })
+}
+
+/** Starts (resumes) torrents: /torrents/start on qBittorrent 5, /torrents/resume on 4.x. */
+export async function startTorrents(hashes: string[]): Promise<void> {
+  const params = { hashes: hashes.join('|') }
+  try {
+    await request('/torrents/start', { method: 'POST', params })
+  } catch (error) {
+    if (!(error instanceof QbittorrentError && error.status === 404)) throw error
+    await request('/torrents/resume', { method: 'POST', params })
+  }
 }
