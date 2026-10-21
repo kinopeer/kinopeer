@@ -1,0 +1,152 @@
+import { createServer, type RequestListener, type Server } from 'node:http'
+import type { AddressInfo } from 'node:net'
+import { afterEach, describe, expect, it } from 'vitest'
+import { downloadToken, prowlarrMiddleware, type ProwlarrConfig } from './prowlarr.ts'
+
+const KEY = 'secret-key-123'
+const servers: Server[] = []
+
+async function listen(handler: RequestListener): Promise<string> {
+  const server = createServer(handler)
+  servers.push(server)
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+  return `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+}
+
+/** Kinoseed's side: the middleware, with a 404 fallback like Vite's. */
+function kinoseed(config: ProwlarrConfig): Promise<string> {
+  const middleware = prowlarrMiddleware(config)
+  return listen((request, response) =>
+    middleware(request, response, () => {
+      response.statusCode = 404
+      response.end('fallback')
+    }),
+  )
+}
+
+afterEach(async () => {
+  await Promise.all(servers.splice(0).map((server) => new Promise((resolve) => server.close(resolve))))
+})
+
+describe('downloadToken', () => {
+  it('keeps the indexer and link but drops the API key', () => {
+    expect(downloadToken(`http://prowlarr:9696/12/download?apikey=${KEY}&link=abc%3D&file=Dune`)).toBe(
+      '12/download?link=abc%3D&file=Dune',
+    )
+    expect(downloadToken('http://prowlarr:9696/api/v1/indexer')).toBeUndefined()
+    expect(downloadToken('not a url')).toBeUndefined()
+  })
+})
+
+describe('prowlarrMiddleware', () => {
+  it('passes other paths on and reports a missing configuration', async () => {
+    const base = await kinoseed({})
+    expect((await fetch(`${base}/qbt/api/v2/app/version`)).status).toBe(404)
+    const response = await fetch(`${base}/prowlarr/search?query=dune`)
+    expect(response.status).toBe(503)
+    expect(await response.json()).toEqual({ error: 'not-configured' })
+  })
+
+  it('searches with the key and strips it from the results', async () => {
+    let seen: { url?: string; key?: string } = {}
+    const prowlarr = await listen((request, response) => {
+      seen = { url: request.url, key: request.headers['x-api-key'] as string }
+      response.setHeader('Content-Type', 'application/json')
+      response.end(
+        JSON.stringify([
+          {
+            guid: 'kinozal-1',
+            title: 'Дюна / Dune (2021) BDRip 1080p',
+            indexer: 'Kinozal',
+            size: 12_000_000_000,
+            seeders: 42,
+            leechers: 3,
+            categories: [{ id: 2000 }, { id: 100_001 }],
+            protocol: 'torrent',
+            downloadUrl: `http://somewhere:9696/1/download?apikey=${KEY}&link=AAA&file=Dune`,
+            infoUrl: 'https://kinozal.me/details.php?id=1',
+            tmdbId: 438631,
+          },
+          { guid: 'magnet-1', title: 'Dune 2021', protocol: 'torrent', magnetUrl: 'magnet:?xt=urn:btih:abc' },
+          { guid: 'nzb-1', title: 'Dune NZB', protocol: 'usenet', downloadUrl: 'http://x/1/download?link=b' },
+          { guid: 'nolink', title: 'No link', protocol: 'torrent' },
+        ]),
+      )
+    })
+    const base = await kinoseed({ url: `${prowlarr}/`, apiKey: KEY })
+
+    const response = await fetch(`${base}/prowlarr/search?query=Dune&type=movie&categories=2000`)
+    const text = await response.text()
+    expect(response.status).toBe(200)
+    expect(text).not.toContain(KEY)
+    expect(seen).toEqual({ url: '/api/v1/search?query=Dune&type=movie&limit=100&categories=2000', key: KEY })
+    expect(JSON.parse(text)).toEqual([
+      expect.objectContaining({
+        id: 'kinozal-1',
+        seeders: 42,
+        categories: [2000, 100_001],
+        download: '1/download?link=AAA&file=Dune',
+        tmdbId: 438631,
+      }),
+      expect.objectContaining({ id: 'magnet-1', magnet: 'magnet:?xt=urn:btih:abc' }),
+    ])
+  })
+
+  it('rejects bad search parameters', async () => {
+    const base = await kinoseed({ url: 'http://127.0.0.1:9', apiKey: KEY })
+    expect((await fetch(`${base}/prowlarr/search?query=%20`)).status).toBe(400)
+    expect((await fetch(`${base}/prowlarr/search?query=a&type=music`)).status).toBe(400)
+    expect((await fetch(`${base}/prowlarr/search?query=a&categories=x`)).status).toBe(400)
+  })
+
+  it('reports a rejected key and an unreachable Prowlarr without leaking the key', async () => {
+    const prowlarr = await listen((_request, response) => {
+      response.statusCode = 401
+      response.end()
+    })
+    const rejected = await fetch(`${(await kinoseed({ url: prowlarr, apiKey: KEY }))}/prowlarr/search?query=a`)
+    expect(rejected.status).toBe(502)
+    expect(await rejected.json()).toEqual({ error: 'unauthorized' })
+
+    const down = await fetch(`${(await kinoseed({ url: 'http://127.0.0.1:9', apiKey: KEY }))}/prowlarr/search?query=a`)
+    expect(down.status).toBe(502)
+    expect(await down.text()).toBe('{"error":"unreachable"}')
+  })
+
+  it('downloads a .torrent through Prowlarr with the key added back', async () => {
+    let seen: URL | undefined
+    const prowlarr = await listen((request, response) => {
+      seen = new URL(request.url!, 'http://x')
+      response.setHeader('Content-Type', 'application/x-bittorrent')
+      response.end(Buffer.from('d4:infod4:name4:Duneee'))
+    })
+    const base = await kinoseed({ url: prowlarr, apiKey: KEY })
+
+    const token = encodeURIComponent('1/download?link=AAA&file=Dune')
+    const response = await fetch(`${base}/prowlarr/download?token=${token}`)
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toBe('application/x-bittorrent')
+    expect(await response.text()).toBe('d4:infod4:name4:Duneee')
+    expect(seen?.pathname).toBe('/1/download')
+    expect(seen?.searchParams.get('link')).toBe('AAA')
+    expect(seen?.searchParams.get('apikey')).toBe(KEY)
+  })
+
+  it('answers a redirect to a magnet link with the link', async () => {
+    const prowlarr = await listen((_request, response) => {
+      response.statusCode = 301
+      response.setHeader('Location', 'magnet:?xt=urn:btih:abc&dn=Dune')
+      response.end()
+    })
+    const base = await kinoseed({ url: prowlarr, apiKey: KEY })
+    const response = await fetch(`${base}/prowlarr/download?token=${encodeURIComponent('1/download?link=A')}`)
+    expect(await response.json()).toEqual({ magnet: 'magnet:?xt=urn:btih:abc&dn=Dune' })
+  })
+
+  it('only downloads Prowlarr download links', async () => {
+    const base = await kinoseed({ url: 'http://127.0.0.1:9', apiKey: KEY })
+    for (const token of ['api/v1/indexer', '../1/download?link=a', '1/download']) {
+      expect((await fetch(`${base}/prowlarr/download?token=${encodeURIComponent(token)}`)).status).toBe(400)
+    }
+  })
+})
