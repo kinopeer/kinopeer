@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseName, tmdbTag } from './parseName'
+import { parseName, tmdbTag, tmdbTagFor } from './parseName'
 
 describe('parseName', () => {
   it.each([
@@ -47,5 +47,10 @@ describe('tmdbTag', () => {
     expect(tmdbTag('tmdb:tv:126308')).toEqual({ type: 'tv', id: 126308 })
     expect(tmdbTag('')).toBeUndefined()
     expect(tmdbTag('tmdb:person:1')).toBeUndefined()
+  })
+
+  it('round-trips with tmdbTagFor', () => {
+    expect(tmdbTagFor('movie', 438631)).toBe('tmdb:movie:438631')
+    expect(tmdbTag(tmdbTagFor('tv', 1399))).toEqual({ type: 'tv', id: 1399 })
   })
 })
