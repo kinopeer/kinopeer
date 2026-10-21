@@ -97,7 +97,23 @@
   "title": {
     "movie": "Фильм",
     "series": "Сериал",
-    "subtitle": "{{type}} · {{year}}"
+    "subtitle": "{{type}} · {{year}}",
+    "back": "Назад",
+    "overview": "Описание",
+    "rating": "Рейтинг",
+    "yearsOngoing": "{{from}}–",
+    "seasons_one": "{{count}} сезон",
+    "seasons_few": "{{count}} сезона",
+    "seasons_many": "{{count}} сезонов",
+    "seasons_other": "{{count}} сезона",
+    "episodes_one": "{{count}} серия",
+    "episodes_few": "{{count}} серии",
+    "episodes_many": "{{count}} серий",
+    "episodes_other": "{{count}} серии",
+    "loading": "Загружаем",
+    "notFoundTitle": "Не нашли такой фильм или сериал",
+    "notFoundBody": "В TMDB нет фильма или сериала по этой ссылке.",
+    "backToSearch": "Вернуться к поиску"
   },
   "settings": {
     "title": "Настройки",

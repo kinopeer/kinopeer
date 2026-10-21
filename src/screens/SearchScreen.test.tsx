@@ -80,7 +80,7 @@ describe('SearchScreen', () => {
     expect(await screen.findByText('2 results')).toBeInTheDocument()
     expect(searchTitles).toHaveBeenCalledTimes(1)
     expect(searchTitles).toHaveBeenCalledWith('dune', expect.objectContaining({ language: 'en-US' }))
-    expect(screen.getByRole('heading', { name: 'Dune: Part Two' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Dune: Part Two/ })).toHaveAttribute('href', '/title/movie/1')
     // Posters are decorative (alt="") and load through the same-origin image proxy.
     expect(container.querySelector('img[src="/tmdb-img/w342/1.jpg"]')).toHaveAttribute('alt', '')
   })
