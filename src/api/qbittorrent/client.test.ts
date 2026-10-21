@@ -5,6 +5,7 @@ import {
   QbittorrentError,
   UnauthorizedError,
   getAppVersion,
+  getMainData,
   getTorrents,
   login,
   logout,
@@ -105,5 +106,13 @@ describe('getTorrents', () => {
       reverse: 'true',
       hashes: 'a|b',
     })
+  })
+})
+
+describe('getMainData', () => {
+  it('passes the response id and returns the parsed delta', async () => {
+    respond(JSON.stringify({ rid: 8, torrents: { abc: { progress: 0.5 } } }))
+    await expect(getMainData(7)).resolves.toEqual({ rid: 8, torrents: { abc: { progress: 0.5 } } })
+    expect(lastCall().url).toBe('/qbt/api/v2/sync/maindata?rid=7')
   })
 })

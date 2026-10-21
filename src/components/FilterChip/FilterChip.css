@@ -1,0 +1,61 @@
+.ks-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: var(--r-full);
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text2);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  flex: none;
+  transition:
+    background-color var(--d-fast) var(--ease),
+    border-color var(--d-fast) var(--ease),
+    color var(--d-fast) var(--ease);
+}
+
+/* Extends the hit area to 48px without changing the visual size. */
+.ks-chip::before {
+  content: '';
+  position: absolute;
+  inset: -5px -2px;
+}
+
+.ks-chip .n {
+  font-size: 12px;
+  color: var(--text3);
+  font-variant-numeric: tabular-nums;
+}
+
+.ks-chip.is-on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.ks-chip.is-on .n { color: inherit; }
+
+.ks-chip:disabled {
+  color: var(--disabled);
+  border-color: var(--border);
+  cursor: not-allowed;
+}
+
+.ks-chip-solid {
+  background: var(--raised);
+  border-color: var(--border);
+}
+
+@media (hover: hover) {
+  .ks-chip:hover:not(:disabled) { box-shadow: inset 0 0 0 100px var(--hover); }
+}
+
+.ks-chip:active:not(:disabled) {
+  box-shadow: inset 0 0 0 100px var(--press);
+  transform: scale(0.98);
+}

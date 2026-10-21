@@ -1,6 +1,5 @@
 {
   "app": {
-    "tagline": "Movies and TV series for qBittorrent.",
     "connecting": "Connecting to qBittorrent…"
   },
   "theme": {
@@ -29,5 +28,45 @@
   "home": {
     "connected": "Connected · qBittorrent {{version}}",
     "signOut": "Sign out"
+  },
+  "status": {
+    "downloading": "Downloading",
+    "seeding": "Seeding",
+    "paused": "Paused",
+    "completed": "Completed",
+    "queued": "Queued",
+    "checking": "Checking",
+    "error": "Error"
+  },
+  "downloads": {
+    "title": "Downloads",
+    "search": "Filter by name",
+    "filtersLabel": "Filter by status",
+    "all": "All",
+    "downloadSpeed": "Download speed",
+    "uploadSpeed": "Upload speed",
+    "freeSpace": "{{size}} free",
+    "loading": "Loading downloads",
+    "offlineTitle": "No connection to qBittorrent",
+    "offlineBody": "Showing the last known state. Retrying automatically.",
+    "emptyTitle": "No downloads yet",
+    "emptyBody": "Find a movie or series and pick a release — it shows up here with live progress.",
+    "noMatchTitle": "Nothing matches",
+    "noMatchBody": "No torrents match these filters.",
+    "resetFilters": "Reset filters",
+    "progress": "{{name}}: progress",
+    "queuePosition": "Queue position {{position}}"
+  },
+  "format": {
+    "B": "B",
+    "KB": "KB",
+    "MB": "MB",
+    "GB": "GB",
+    "TB": "TB",
+    "speed": "{{value}}/s",
+    "etaUnknown": "∞",
+    "etaMinutes": "{{minutes}} min",
+    "etaHours": "{{hours}}h {{minutes}}m",
+    "etaDays": "{{days}}d {{hours}}h"
   }
 }

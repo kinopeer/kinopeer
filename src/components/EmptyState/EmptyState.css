@@ -1,0 +1,38 @@
+.ks-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  padding: 40px 28px;
+}
+
+.ks-empty-ic {
+  width: 72px;
+  height: 72px;
+  border-radius: 24px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+
+.ks-empty-ic.is-error {
+  background: var(--error-soft);
+  color: var(--error);
+}
+
+.ks-empty-ic.is-muted {
+  background: var(--sunken);
+  color: var(--text3);
+}
+
+.ks-empty-body {
+  max-width: 320px;
+}
+
+.ks-empty-action {
+  margin-top: 8px;
+}

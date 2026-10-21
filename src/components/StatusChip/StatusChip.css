@@ -1,0 +1,65 @@
+.ks-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 9px 0 8px;
+  border-radius: var(--r-full);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex: none;
+}
+
+.ks-status::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+.st-downloading { background: var(--accent-soft); color: var(--accent-text); }
+.st-downloading::before { animation: ks-pulse 1.6s ease-in-out infinite; }
+
+.st-seeding { background: var(--info-soft); color: var(--info); }
+.st-seeding::before {
+  border-radius: 1px;
+  width: 0;
+  height: 0;
+  background: transparent;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-bottom: 7px solid currentColor;
+}
+
+.st-completed { background: var(--success-soft); color: var(--success); }
+
+.st-paused,
+.st-queued { background: var(--paused-soft); color: var(--paused); }
+.st-paused::before {
+  width: 6px;
+  height: 8px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, currentColor 0 36%, transparent 36% 64%, currentColor 64%);
+}
+.st-queued::before {
+  background: transparent;
+  border: 1.5px solid currentColor;
+  width: 7px;
+  height: 7px;
+}
+
+.st-checking { background: var(--warning-soft); color: var(--warning); }
+.st-checking::before {
+  background: transparent;
+  border: 1.5px solid currentColor;
+  border-right-color: transparent;
+  width: 8px;
+  height: 8px;
+  animation: ks-spin 1s linear infinite;
+}
+
+.st-error { background: var(--error-soft); color: var(--error); }
+.st-error::before { border-radius: 1px; transform: rotate(45deg); }

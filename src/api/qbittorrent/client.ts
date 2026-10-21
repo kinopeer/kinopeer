@@ -1,4 +1,4 @@
-import type { Torrent, TorrentsQuery } from './types'
+import type { MainData, Torrent, TorrentsQuery } from './types'
 
 /** Same-origin prefix proxied to qBittorrent's Web UI (Vite in dev, nginx in production). */
 export const QBITTORRENT_BASE = '/qbt/api/v2'
@@ -98,4 +98,10 @@ export async function getTorrents(query: TorrentsQuery = {}): Promise<Torrent[]>
     params: { ...rest, hashes: hashes?.join('|') },
   })
   return (await response.json()) as Torrent[]
+}
+
+/** Incremental sync: pass the `rid` from the previous response (0 for a full snapshot). */
+export async function getMainData(rid = 0): Promise<MainData> {
+  const response = await request('/sync/maindata', { params: { rid } })
+  return (await response.json()) as MainData
 }
