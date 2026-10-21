@@ -25,10 +25,6 @@
     "unreachableTitle": "qBittorrent is unreachable",
     "unreachableBody": "Check that qBittorrent is running and its Web UI is on."
   },
-  "home": {
-    "connected": "Connected · qBittorrent {{version}}",
-    "signOut": "Sign out"
-  },
   "status": {
     "downloading": "Downloading",
     "seeding": "Seeding",
@@ -68,5 +64,44 @@
     "etaMinutes": "{{minutes}} min",
     "etaHours": "{{hours}}h {{minutes}}m",
     "etaDays": "{{days}}d {{hours}}h"
+  },
+  "nav": {
+    "label": "Main",
+    "downloads": "Downloads",
+    "search": "Search",
+    "settings": "Settings"
+  },
+  "search": {
+    "title": "Search",
+    "placeholder": "Movies and series",
+    "clear": "Clear",
+    "typeLabel": "Type",
+    "all": "All",
+    "movies": "Movies",
+    "series": "Series",
+    "trending": "Trending this week",
+    "popularMovies": "Popular movies",
+    "popularSeries": "Popular series",
+    "results_one": "{{count}} result",
+    "results_other": "{{count}} results",
+    "loading": "Loading",
+    "noResultsTitle": "Nothing found for “{{query}}”",
+    "noResultsBody": "Check the spelling or try the original title.",
+    "errorTitle": "Couldn’t load from TMDB",
+    "errorBody": "Check the connection and try again.",
+    "keyTitle": "TMDB isn’t set up",
+    "keyBody": "Add a TMDB API key to the server configuration (TMDB_API_KEY)."
+  },
+  "title": {
+    "movie": "Movie",
+    "series": "Series",
+    "subtitle": "{{type}} · {{year}}"
+  },
+  "settings": {
+    "title": "Settings",
+    "appearance": "Appearance",
+    "connection": "Connection",
+    "connected": "Connected · qBittorrent {{version}}",
+    "signOut": "Sign out"
   }
 }

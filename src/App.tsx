@@ -1,6 +1,10 @@
 import { useTranslation } from 'react-i18next'
+import { Navigate, Route, Routes } from 'react-router'
+import { TabBar, type TabBarItem } from './components/TabBar'
 import { ConnectScreen } from './screens/ConnectScreen'
 import { DownloadsScreen } from './screens/DownloadsScreen'
+import { SearchScreen } from './screens/SearchScreen'
+import { SettingsScreen } from './screens/SettingsScreen'
 import { useQbitSession } from './session/useQbitSession'
 import './App.css'
 
@@ -16,14 +20,27 @@ function App() {
           <p className="t-body c2">{t('app.connecting')}</p>
         </main>
       )
-    case 'connected':
+    case 'connected': {
+      const tabs: TabBarItem[] = [
+        { to: '/', icon: 'download', label: t('nav.downloads') },
+        { to: '/search', icon: 'search', label: t('nav.search') },
+        { to: '/settings', icon: 'settings', label: t('nav.settings') },
+      ]
       return (
-        <DownloadsScreen
-          version={session.version}
-          onSignOut={() => void signOut()}
-          onSessionLost={() => void recheck()}
-        />
+        <div className="app-shell">
+          <Routes>
+            <Route index element={<DownloadsScreen onSessionLost={() => void recheck()} />} />
+            <Route path="search" element={<SearchScreen />} />
+            <Route
+              path="settings"
+              element={<SettingsScreen version={session.version} onSignOut={() => void signOut()} />}
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+          <TabBar items={tabs} label={t('nav.label')} />
+        </div>
       )
+    }
     default:
       return (
         <ConnectScreen

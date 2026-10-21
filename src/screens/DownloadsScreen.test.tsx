@@ -46,7 +46,7 @@ const SNAPSHOT: MainData = {
 }
 
 function renderScreen() {
-  return render(<DownloadsScreen version="v5.2.4" onSignOut={vi.fn()} onSessionLost={vi.fn()} />)
+  return render(<DownloadsScreen onSessionLost={vi.fn()} />)
 }
 
 beforeEach(() => {

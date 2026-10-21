@@ -133,6 +133,12 @@ export async function getTrending(
   return toTitlePage(data)
 }
 
+export async function getPopular(type: MediaType, options: RequestOptions = {}): Promise<TitlePage> {
+  const data = await request<Paged<MovieResult | TvResult>>(`/${type}/popular`, {}, options)
+  // These endpoints omit media_type.
+  return { titles: data.results.map((item) => toTitle(item, type)), page: data.page, totalPages: data.total_pages }
+}
+
 export function getMovie(id: number, options: RequestOptions = {}): Promise<MovieDetails> {
   return request<MovieDetails>(`/movie/${id}`, {}, options)
 }

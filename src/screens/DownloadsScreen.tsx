@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Banner } from '../components/Banner'
-import { Button } from '../components/Button'
 import { EmptyState } from '../components/EmptyState'
 import { FilterChip } from '../components/FilterChip'
 import { Icon } from '../components/Icon'
@@ -11,19 +10,16 @@ import { useFormatters } from '../lib/format'
 import { STATUS_FILTERS, compareByQueue, matchesFilter, type StatusFilter } from '../torrents/status'
 import { useMainData } from '../torrents/useMainData'
 import { DownloadItem } from './DownloadItem'
-import { Preferences } from './Preferences'
 import './DownloadsScreen.css'
 
 export interface DownloadsScreenProps {
-  version: string
-  onSignOut: () => void
   /** qBittorrent rejected the session cookie (expired or signed out elsewhere). */
   onSessionLost: () => void
 }
 
 const SKELETON_ROWS = 5
 
-export function DownloadsScreen({ version, onSignOut, onSessionLost }: DownloadsScreenProps) {
+export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
   const { t } = useTranslation()
   const format = useFormatters()
   const { data, offline, refresh } = useMainData(onSessionLost)
@@ -158,15 +154,6 @@ export function DownloadsScreen({ version, onSignOut, onSessionLost }: Downloads
           </ul>
         )}
       </section>
-
-      {/* Temporary until the Settings screen exists. */}
-      <footer className="downloads-footer">
-        <p className="t-cap c3 ks-num">{t('home.connected', { version })}</p>
-        <Button variant="secondary" size="sm" onClick={onSignOut}>
-          {t('home.signOut')}
-        </Button>
-        <Preferences />
-      </footer>
     </main>
   )
 }
