@@ -1,6 +1,7 @@
 /// <reference types="vitest/config" />
 import react from '@vitejs/plugin-react'
-import { defineConfig, loadEnv, type ProxyOptions } from 'vite'
+import { defineConfig, loadEnv, type Plugin, type ProxyOptions } from 'vite'
+import { prowlarrMiddleware, type ProwlarrConfig } from './server/prowlarr.ts'
 
 /**
  * Same-origin proxy to qBittorrent, mirroring the production nginx setup:
@@ -48,6 +49,16 @@ const tmdbImageProxy: ProxyOptions = {
   configure: dropCookies,
 }
 
+/** Serves /prowlarr/* from server/prowlarr.ts in `vite` and `vite preview`, as the production server will. */
+function prowlarr(config: ProwlarrConfig): Plugin {
+  const middleware = prowlarrMiddleware(config)
+  return {
+    name: 'kinoseed-prowlarr',
+    configureServer: (server) => void server.middlewares.use(middleware),
+    configurePreviewServer: (server) => void server.middlewares.use(middleware),
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
@@ -58,12 +69,17 @@ export default defineConfig(({ mode }) => {
   proxy['^/tmdb-img/'] = tmdbImageProxy
 
   return {
-    plugins: [react()],
+    plugins: [react(), prowlarr({ url: env.PROWLARR_URL, apiKey: env.PROWLARR_API_KEY })],
     server: { proxy },
     preview: { proxy },
     test: {
-      environment: 'jsdom',
-      setupFiles: ['./src/test-setup.ts'],
+      projects: [
+        {
+          extends: true,
+          test: { name: 'app', include: ['src/**/*.test.{ts,tsx}'], environment: 'jsdom', setupFiles: ['./src/test-setup.ts'] },
+        },
+        { extends: true, test: { name: 'server', include: ['server/**/*.test.ts'], environment: 'node' } },
+      ],
     },
   }
 })

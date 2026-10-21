@@ -1,0 +1,180 @@
+import type { IncomingMessage, ServerResponse } from 'node:http'
+import type { MagnetResponse, ProwlarrErrorBody, Release } from '../src/api/prowlarr/types.ts'
+
+/**
+ * Same-origin bridge to Prowlarr. Unlike a plain proxy it reshapes responses, because Prowlarr's
+ * download links carry its API key and must not reach the browser:
+ *
+ * GET /prowlarr/search?query=…&type=search|movie|tvsearch&categories=2000 → Release[]
+ * GET /prowlarr/download?token=… → the .torrent file, or { magnet } when the release is a magnet link
+ *
+ * Runs as Vite middleware in dev and in the production server.
+ */
+export interface ProwlarrConfig {
+  /** e.g. http://192.168.1.10:9696 */
+  url?: string
+  apiKey?: string
+}
+
+type Next = (error?: unknown) => void
+export type Middleware = (request: IncomingMessage, response: ServerResponse, next: Next) => void
+
+const PREFIX = '/prowlarr/'
+const SEARCH_TYPES = new Set(['search', 'movie', 'tvsearch'])
+const MAX_TORRENT_BYTES = 20 * 1024 * 1024
+const MAX_REDIRECTS = 3
+
+/** What Kinoseed reads from Prowlarr's /api/v1/search results. */
+interface ProwlarrRelease {
+  guid?: string
+  title?: string
+  indexer?: string
+  size?: number
+  seeders?: number
+  leechers?: number
+  publishDate?: string
+  infoUrl?: string
+  categories?: { id: number }[]
+  infoHash?: string
+  magnetUrl?: string
+  downloadUrl?: string
+  imdbId?: number
+  tmdbId?: number
+  protocol?: string
+}
+
+function send(response: ServerResponse, status: number, body: unknown): void {
+  response.statusCode = status
+  response.setHeader('Content-Type', 'application/json; charset=utf-8')
+  response.setHeader('Cache-Control', 'no-store')
+  response.end(JSON.stringify(body))
+}
+
+function fail(response: ServerResponse, status: number, error: ProwlarrErrorBody['error']): void {
+  send(response, status, { error } satisfies ProwlarrErrorBody)
+}
+
+/**
+ * Prowlarr download links look like {base}/{indexerId}/download?apikey=…&link=…&file=…. The token
+ * keeps the indexer id and the query without the key, so the server can rebuild the link later.
+ */
+export function downloadToken(link: string | undefined): string | undefined {
+  if (!link) return undefined
+  let url: URL
+  try {
+    url = new URL(link)
+  } catch {
+    return undefined
+  }
+  const match = /\/(\d+)\/download$/.exec(url.pathname)
+  if (!match) return undefined
+  url.searchParams.delete('apikey')
+  return `${match[1]}/download?${url.searchParams}`
+}
+
+function downloadUrl(base: string, token: string, apiKey: string): URL | undefined {
+  const match = /^(\d+)\/download\?(.*)$/.exec(token)
+  if (!match) return undefined
+  const params = new URLSearchParams(match[2])
+  params.delete('apikey')
+  params.set('apikey', apiKey)
+  return new URL(`${base}/${match[1]}/download?${params}`)
+}
+
+export function toRelease(item: ProwlarrRelease): Release | undefined {
+  if (!item.guid || !item.title || (item.protocol && item.protocol !== 'torrent')) return undefined
+  const magnet = item.magnetUrl?.startsWith('magnet:') ? item.magnetUrl : undefined
+  const download = downloadToken(item.downloadUrl) ?? (magnet ? undefined : downloadToken(item.magnetUrl))
+  if (!magnet && !download) return undefined
+  return {
+    id: item.guid,
+    title: item.title,
+    indexer: item.indexer ?? '',
+    size: item.size ?? 0,
+    seeders: item.seeders,
+    leechers: item.leechers,
+    publishDate: item.publishDate,
+    infoUrl: item.infoUrl,
+    categories: (item.categories ?? []).map((category) => category.id),
+    infoHash: item.infoHash?.toLowerCase(),
+    magnet,
+    download,
+    imdbId: item.imdbId || undefined,
+    tmdbId: item.tmdbId || undefined,
+  }
+}
+
+async function search(base: string, apiKey: string, query: URLSearchParams, response: ServerResponse): Promise<void> {
+  const term = query.get('query')?.trim()
+  const type = query.get('type') ?? 'search'
+  const categories = query.getAll('categories')
+  if (!term || !SEARCH_TYPES.has(type) || categories.some((category) => !/^\d+$/.test(category))) {
+    return fail(response, 400, 'bad-request')
+  }
+
+  const params = new URLSearchParams({ query: term, type, limit: '100' })
+  for (const category of categories) params.append('categories', category)
+  const upstream = await fetch(`${base}/api/v1/search?${params}`, {
+    headers: { 'X-Api-Key': apiKey, Accept: 'application/json' },
+  })
+  if (upstream.status === 401) return fail(response, 502, 'unauthorized')
+  if (!upstream.ok) return fail(response, 502, 'upstream')
+
+  const items = (await upstream.json()) as ProwlarrRelease[]
+  const releases = items.map(toRelease).filter((release): release is Release => release !== undefined)
+  send(response, 200, releases)
+}
+
+async function download(base: string, apiKey: string, query: URLSearchParams, response: ServerResponse): Promise<void> {
+  let url: URL | undefined = downloadUrl(base, query.get('token') ?? '', apiKey)
+  if (!url) return fail(response, 400, 'bad-request')
+
+  // Prowlarr answers with the file, or redirects to a magnet link or to the tracker's own link.
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    const upstream: Response = await fetch(url, {
+      redirect: 'manual',
+      headers: hop === 0 ? { 'X-Api-Key': apiKey } : undefined,
+    })
+    const location = upstream.headers.get('location')
+    if (upstream.status >= 300 && upstream.status < 400 && location) {
+      if (location.startsWith('magnet:')) return send(response, 200, { magnet: location } satisfies MagnetResponse)
+      const next: URL = new URL(location, url)
+      if (next.protocol !== 'http:' && next.protocol !== 'https:') return fail(response, 502, 'upstream')
+      url = next
+      continue
+    }
+    if (upstream.status === 401) return fail(response, 502, 'unauthorized')
+    if (upstream.status === 404) return fail(response, 404, 'not-found')
+    if (!upstream.ok) return fail(response, 502, 'upstream')
+
+    const bytes = new Uint8Array(await upstream.arrayBuffer())
+    if (bytes.length > MAX_TORRENT_BYTES) return fail(response, 502, 'upstream')
+    response.statusCode = 200
+    response.setHeader('Content-Type', 'application/x-bittorrent')
+    response.setHeader('Cache-Control', 'no-store')
+    response.end(bytes)
+    return
+  }
+  fail(response, 502, 'upstream')
+}
+
+export function prowlarrMiddleware(config: ProwlarrConfig): Middleware {
+  const base = config.url?.trim().replace(/\/+$/, '')
+  const apiKey = config.apiKey?.trim()
+
+  return (request, response, next) => {
+    const url = new URL(request.url ?? '/', 'http://kinoseed.local')
+    if (!url.pathname.startsWith(PREFIX)) return next()
+    if (!base || !apiKey) return fail(response, 503, 'not-configured')
+    if (request.method !== 'GET') return fail(response, 404, 'not-found')
+
+    const route = url.pathname.slice(PREFIX.length)
+    const handler = route === 'search' ? search : route === 'download' ? download : undefined
+    if (!handler) return fail(response, 404, 'not-found')
+    // Errors never echo upstream URLs: they would contain the API key.
+    handler(base, apiKey, url.searchParams, response).catch(() => {
+      if (!response.headersSent) fail(response, 502, 'unreachable')
+      else response.end()
+    })
+  }
+}
