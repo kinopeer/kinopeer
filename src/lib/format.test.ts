@@ -59,3 +59,22 @@ describe('percent', () => {
     expect(percent(-1)).toBe('0%')
   })
 })
+
+describe('age', () => {
+  const now = Date.parse('2026-10-21T12:00:00Z')
+  const daysAgo = (days: number) => new Date(now - days * 86_400_000)
+
+  it('counts days, months and years', () => {
+    expect(en().age(daysAgo(3), now)).toBe('3 d')
+    expect(en().age(daysAgo(160), now)).toBe('5 mo')
+    expect(en().age(daysAgo(800), now)).toBe('2 y')
+    expect(en().age(daysAgo(-1), now)).toBe('0 d')
+  })
+
+  it('uses Russian plurals for years', () => {
+    expect(ru().age(daysAgo(3), now)).toBe('3 дн.')
+    expect(ru().age(daysAgo(365), now)).toBe('1 год')
+    expect(ru().age(daysAgo(800), now)).toBe('2 года')
+    expect(ru().age(daysAgo(5 * 365), now)).toBe('5 лет')
+  })
+})

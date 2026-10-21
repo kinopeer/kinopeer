@@ -21,3 +21,32 @@
   border-color: transparent;
   font-weight: 700;
 }
+
+.ks-badge-res {
+  background: var(--text);
+  color: var(--bg);
+  border-color: transparent;
+}
+
+/* Warm-to-cool tint for HDR, translucent so it works on both themes. */
+.ks-badge-hdr {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--warning) 20%, transparent),
+    color-mix(in srgb, var(--info) 20%, transparent)
+  );
+  color: var(--text);
+  border-color: transparent;
+}
+
+.ks-badge-audio {
+  background: var(--info-soft);
+  color: var(--info);
+  border-color: transparent;
+}
+
+.ks-badge-sub {
+  background: transparent;
+  color: var(--text2);
+  border-color: var(--border-strong);
+}

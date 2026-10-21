@@ -8,6 +8,8 @@ export interface FilterChipProps extends ButtonHTMLAttributes<HTMLButtonElement>
   /** Shown after the label in tabular figures. */
   count?: number
   icon?: IconName
+  /** After the label, e.g. chevron-down for a chip that opens a picker or close for a removable one. */
+  trailingIcon?: IconName
   /** Raised background, for chips over content. */
   solid?: boolean
 }
@@ -16,6 +18,7 @@ export function FilterChip({
   selected = false,
   count,
   icon,
+  trailingIcon,
   solid,
   className,
   type = 'button',
@@ -33,6 +36,7 @@ export function FilterChip({
       {children}
       {/* The space keeps the accessible name readable ("Seeding 3"); flex layout drops it visually. */}
       {count !== undefined && <> <span className="n">{count}</span></>}
+      {trailingIcon && <Icon name={trailingIcon} size={14} />}
     </button>
   )
 }

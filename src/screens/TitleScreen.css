@@ -111,3 +111,22 @@
   flex-direction: column;
   gap: 6px;
 }
+
+/* Pinned above the tab bar, fading the page out underneath. */
+.title-actions {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(66px + var(--safe-bottom));
+  z-index: 4;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 20px 16px 12px;
+  background: linear-gradient(180deg, transparent, var(--bg) 34%);
+}
+
+/* Room for the pinned button, so the end of the page can scroll above it. */
+.title:has(.title-actions) {
+  padding-bottom: 88px;
+}
