@@ -1,21 +1,8 @@
 /// <reference types="vitest/config" />
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv, type Plugin, type ProxyOptions } from 'vite'
-import { prowlarrMiddleware, type ProwlarrConfig } from './server/prowlarr.ts'
-
-/**
- * Same-origin proxy to qBittorrent, mirroring the production nginx setup:
- * /qbt/api/v2/... → $QBITTORRENT_URL/api/v2/...
- * Origin and Referer are rewritten to the target so qBittorrent's CSRF check passes.
- */
-function qbittorrentProxy(target: string): ProxyOptions {
-  return {
-    target,
-    changeOrigin: true,
-    rewrite: (path) => path.replace(/^\/qbt/, ''),
-    headers: { Origin: target, Referer: target },
-  }
-}
+import { prowlarrMiddleware, type Middleware } from './server/prowlarr.ts'
+import { qbittorrentMiddleware } from './server/qbittorrent.ts'
 
 /** Browser cookies (e.g. the qBittorrent session) must never reach third parties. */
 const dropCookies: ProxyOptions['configure'] = (proxy) => {
@@ -49,13 +36,15 @@ const tmdbImageProxy: ProxyOptions = {
   configure: dropCookies,
 }
 
-/** Serves /prowlarr/* from server/prowlarr.ts in `vite` and `vite preview`, as the production server will. */
-function prowlarr(config: ProwlarrConfig): Plugin {
-  const middleware = prowlarrMiddleware(config)
+/**
+ * Serves server/ middleware (/qbt/* and /prowlarr/*) in `vite` and `vite preview`, as the
+ * production server will.
+ */
+function serverRoutes(middlewares: Middleware[]): Plugin {
   return {
-    name: 'kinoseed-prowlarr',
-    configureServer: (server) => void server.middlewares.use(middleware),
-    configurePreviewServer: (server) => void server.middlewares.use(middleware),
+    name: 'kinoseed-server',
+    configureServer: (server) => middlewares.forEach((middleware) => server.middlewares.use(middleware)),
+    configurePreviewServer: (server) => middlewares.forEach((middleware) => server.middlewares.use(middleware)),
   }
 }
 
@@ -63,13 +52,22 @@ function prowlarr(config: ProwlarrConfig): Plugin {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const proxy: Record<string, ProxyOptions> = {}
-  if (env.QBITTORRENT_URL) proxy['/qbt'] = qbittorrentProxy(env.QBITTORRENT_URL.replace(/\/+$/, ''))
   // Regex keys: a plain '/tmdb' prefix would also catch '/tmdb-img'.
   if (env.TMDB_API_KEY) proxy['^/tmdb/'] = tmdbProxy(env.TMDB_API_KEY.trim())
   proxy['^/tmdb-img/'] = tmdbImageProxy
 
   return {
-    plugins: [react(), prowlarr({ url: env.PROWLARR_URL, apiKey: env.PROWLARR_API_KEY })],
+    plugins: [
+      react(),
+      serverRoutes([
+        qbittorrentMiddleware({
+          url: env.QBITTORRENT_URL,
+          username: env.QBITTORRENT_USERNAME,
+          password: env.QBITTORRENT_PASSWORD,
+        }),
+        prowlarrMiddleware({ url: env.PROWLARR_URL, apiKey: env.PROWLARR_API_KEY }),
+      ]),
+    ],
     server: { proxy },
     preview: { proxy },
     test: {

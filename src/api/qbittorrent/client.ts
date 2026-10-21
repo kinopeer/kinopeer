@@ -1,6 +1,6 @@
 import type { AddTorrentOptions, FilePriority, MainData, Torrent, TorrentFile, TorrentsQuery } from './types'
 
-/** Same-origin prefix proxied to qBittorrent's Web UI (Vite in dev, nginx in production). */
+/** Same-origin prefix bridged to qBittorrent's Web API by server/qbittorrent.ts. */
 export const QBITTORRENT_BASE = '/qbt/api/v2'
 
 export class QbittorrentError extends Error {
