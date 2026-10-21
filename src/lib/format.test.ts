@@ -44,6 +44,13 @@ describe('eta', () => {
   })
 })
 
+describe('duration', () => {
+  it('formats a runtime', () => {
+    expect(en().duration(166 * 60)).toBe('2h 46m')
+    expect(ru().duration(48 * 60)).toBe('48 мин')
+  })
+})
+
 describe('percent', () => {
   it('rounds down and clamps', () => {
     const { percent } = en()
