@@ -28,6 +28,7 @@ Run lint, typecheck, test and build before pushing. CI must be green before merg
 - qBittorrent Web API client: `src/api/qbittorrent/`. Session state: `src/session/useQbitSession.ts` checks `app/version` first, so qBittorrent's auth bypass (localhost or whitelisted subnets) goes straight in without a login form.
 - Torrent state: `src/torrents/useMainData.ts` polls `sync/maindata` every 2 s (only while the tab is visible) and merges the incremental deltas; `src/torrents/status.ts` maps qBittorrent states to the design's statuses. Sizes, speeds and ETAs go through `src/lib/format.ts`.
 - Routing: React Router (`react-router`). `App.tsx` routes `/` (downloads), `/search`, `/title/:type/:id` (type is `movie` or `tv`, id is the TMDB id) and `/settings` behind the tab bar; the production server must fall back to `index.html` for these paths. Search state (`q`, `type`) lives in the URL.
+- Download rows show the TMDB title and poster: `src/torrents/titleMatches.ts` uses a `tmdb:<movie|tv>:<id>` torrent tag when present (Kinoseed will add it when sending a release), otherwise guesses from the release name (`parseName.ts`) and searches TMDB. Matches are cached in localStorage.
 - Screens live in `src/screens/`, shared UI components in `src/components/` (ported from the design system with the same class names).
 
 ## Conventions

@@ -1,20 +1,25 @@
 import { useTranslation } from 'react-i18next'
 import type { Torrent } from '../api/qbittorrent'
+import { posterUrl } from '../api/tmdb'
 import { Poster } from '../components/Poster'
 import { ProgressBar } from '../components/ProgressBar'
 import { StatusChip } from '../components/StatusChip'
 import { useFormatters } from '../lib/format'
 import { downloadStatus } from '../torrents/status'
+import type { TitleMatch } from '../torrents/titleMatches'
 
 export interface DownloadItemProps {
   torrent: Torrent
+  /** The TMDB title, once known; the row falls back to the release name. */
+  match?: TitleMatch | null
 }
 
-export function DownloadItem({ torrent }: DownloadItemProps) {
+export function DownloadItem({ torrent, match }: DownloadItemProps) {
   const { t } = useTranslation()
   const format = useFormatters()
   const status = downloadStatus(torrent)
   const partial = torrent.progress > 0 && torrent.progress < 1
+  const title = match?.title ?? torrent.name
 
   const speed =
     status === 'downloading'
@@ -26,7 +31,7 @@ export function DownloadItem({ torrent }: DownloadItemProps) {
 
   return (
     <li className="ks-dl">
-      <Poster className="dl-poster">
+      <Poster className="dl-poster" src={match ? posterUrl(match.posterPath, 'w185') : undefined}>
         {torrent.priority > 0 && (
           <span className="ks-qpos" aria-label={t('downloads.queuePosition', { position: torrent.priority })}>
             #{torrent.priority}
@@ -34,12 +39,22 @@ export function DownloadItem({ torrent }: DownloadItemProps) {
         )}
       </Poster>
       <div className="dl-body">
-        <h2 className="dl-title ks-clamp2">{torrent.name}</h2>
+        {match ? (
+          <>
+            <h2 className="dl-heading">
+              <span className="dl-title ks-trunc">{match.title}</span>
+              {match.year && <span className="t-cap c3 ks-num dl-year">{match.year}</span>}
+            </h2>
+            <p className="dl-release ks-trunc c3">{torrent.name}</p>
+          </>
+        ) : (
+          <h2 className="dl-title ks-clamp2">{torrent.name}</h2>
+        )}
         <div className="dl-progress">
           <ProgressBar
             value={torrent.progress}
             status={status}
-            label={t('downloads.progress', { name: torrent.name })}
+            label={t('downloads.progress', { name: title })}
             className="dl-bar"
           />
           <span className="dl-pct ks-num c2">{format.percent(torrent.progress)}</span>
