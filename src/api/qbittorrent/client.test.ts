@@ -57,6 +57,11 @@ describe('login', () => {
     await expect(login('admin', 'wrong')).rejects.toBeInstanceOf(InvalidCredentialsError)
   })
 
+  it('rejects wrong credentials answered with 401 (qBittorrent 5.3+)', async () => {
+    respond('Unauthorized', 401)
+    await expect(login('admin', 'wrong')).rejects.toBeInstanceOf(InvalidCredentialsError)
+  })
+
   it('reports an IP ban', async () => {
     respond('Your IP address has been banned', 403)
     await expect(login('admin', 'wrong')).rejects.toBeInstanceOf(IpBannedError)
