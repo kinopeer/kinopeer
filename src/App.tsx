@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { ConnectScreen } from './screens/ConnectScreen'
-import { HomeScreen } from './screens/HomeScreen'
+import { DownloadsScreen } from './screens/DownloadsScreen'
 import { useQbitSession } from './session/useQbitSession'
 import './App.css'
 
@@ -17,7 +17,13 @@ function App() {
         </main>
       )
     case 'connected':
-      return <HomeScreen version={session.version} onSignOut={() => void signOut()} />
+      return (
+        <DownloadsScreen
+          version={session.version}
+          onSignOut={() => void signOut()}
+          onSessionLost={() => void recheck()}
+        />
+      )
     default:
       return (
         <ConnectScreen

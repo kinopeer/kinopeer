@@ -6,14 +6,16 @@ import App from './App'
 
 vi.mock('./api/qbittorrent', async (importOriginal) => {
   const actual = await importOriginal<typeof api>()
-  return { ...actual, getAppVersion: vi.fn(), login: vi.fn(), logout: vi.fn() }
+  return { ...actual, getAppVersion: vi.fn(), getMainData: vi.fn(), login: vi.fn(), logout: vi.fn() }
 })
 
 const getAppVersion = vi.mocked(api.getAppVersion)
+const getMainData = vi.mocked(api.getMainData)
 
 beforeEach(() => {
   vi.resetAllMocks()
   getAppVersion.mockResolvedValue('v5.2.4')
+  getMainData.mockResolvedValue({ rid: 1, full_update: true, torrents: {}, server_state: {} })
 })
 
 afterEach(() => {
@@ -23,8 +25,15 @@ afterEach(() => {
 describe('App', () => {
   it('goes straight in when qBittorrent needs no login', async () => {
     render(<App />)
-    expect(await screen.findByText('Connected · qBittorrent v5.2.4')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'kinoseed' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Downloads' })).toBeInTheDocument()
+    expect(screen.getByText('Connected · qBittorrent v5.2.4')).toBeInTheDocument()
+  })
+
+  it('returns to sign-in when the session expires while polling', async () => {
+    getAppVersion.mockReset().mockResolvedValueOnce('v5.2.4').mockRejectedValue(new api.UnauthorizedError())
+    getMainData.mockRejectedValue(new api.UnauthorizedError())
+    render(<App />)
+    expect(await screen.findByRole('heading', { name: 'Connect qBittorrent' })).toBeInTheDocument()
   })
 
   it('shows the sign-in form without a session', async () => {
@@ -45,10 +54,10 @@ describe('App', () => {
 
   it('switches the language and remembers it', async () => {
     render(<App />)
-    expect(await screen.findByText('Movies and TV series for qBittorrent.')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Downloads' })).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Русский' }))
-    expect(screen.getByText('Фильмы и сериалы для qBittorrent.')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Загрузки' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Светлая' })).toBeInTheDocument()
     expect(document.documentElement.lang).toBe('ru')
     expect(localStorage.getItem('kinoseed.lang')).toBe('ru')

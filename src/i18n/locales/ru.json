@@ -1,6 +1,5 @@
 {
   "app": {
-    "tagline": "Фильмы и сериалы для qBittorrent.",
     "connecting": "Подключаемся к qBittorrent…"
   },
   "theme": {
@@ -29,5 +28,45 @@
   "home": {
     "connected": "Подключено · qBittorrent {{version}}",
     "signOut": "Выйти"
+  },
+  "status": {
+    "downloading": "Загружается",
+    "seeding": "Раздаётся",
+    "paused": "Пауза",
+    "completed": "Готово",
+    "queued": "В очереди",
+    "checking": "Проверка",
+    "error": "Ошибка"
+  },
+  "downloads": {
+    "title": "Загрузки",
+    "search": "Фильтр по названию",
+    "filtersLabel": "Фильтр по статусу",
+    "all": "Все",
+    "downloadSpeed": "Скорость загрузки",
+    "uploadSpeed": "Скорость отдачи",
+    "freeSpace": "{{size}} свободно",
+    "loading": "Загружаем список",
+    "offlineTitle": "Нет связи с qBittorrent",
+    "offlineBody": "Показываем последнее известное состояние. Переподключаемся автоматически.",
+    "emptyTitle": "Загрузок пока нет",
+    "emptyBody": "Найдите фильм или сериал и выберите раздачу — она появится здесь с прогрессом.",
+    "noMatchTitle": "Ничего не найдено",
+    "noMatchBody": "Под эти фильтры не подходит ни один торрент.",
+    "resetFilters": "Сбросить фильтры",
+    "progress": "{{name}}: прогресс",
+    "queuePosition": "Место в очереди: {{position}}"
+  },
+  "format": {
+    "B": "Б",
+    "KB": "КБ",
+    "MB": "МБ",
+    "GB": "ГБ",
+    "TB": "ТБ",
+    "speed": "{{value}}/с",
+    "etaUnknown": "∞",
+    "etaMinutes": "{{minutes}} мин",
+    "etaHours": "{{hours}} ч {{minutes}} мин",
+    "etaDays": "{{days}} д {{hours}} ч"
   }
 }

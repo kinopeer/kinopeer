@@ -13,10 +13,6 @@
   text-align: center;
 }
 
-.wordmark-accent {
-  color: var(--accent);
-}
-
 .screen-spinner {
   width: 28px;
   height: 28px;

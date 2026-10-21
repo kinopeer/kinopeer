@@ -25,6 +25,7 @@ Run lint, typecheck, test and build before pushing. CI must be green before merg
 
 - The browser talks to qBittorrent (and later Prowlarr) only through same-origin proxies: `/qbt/*` → qBittorrent Web UI. In dev, Vite proxies it using `QBITTORRENT_URL` from `.env.local`; in production, the Kinoseed Docker container (nginx) will. Never call those services cross-origin.
 - qBittorrent Web API client: `src/api/qbittorrent/`. Session state: `src/session/useQbitSession.ts` checks `app/version` first, so qBittorrent's auth bypass (localhost or whitelisted subnets) goes straight in without a login form.
+- Torrent state: `src/torrents/useMainData.ts` polls `sync/maindata` every 2 s (only while the tab is visible) and merges the incremental deltas; `src/torrents/status.ts` maps qBittorrent states to the design's statuses. Sizes, speeds and ETAs go through `src/lib/format.ts`.
 - Screens live in `src/screens/`, shared UI components in `src/components/` (ported from the design system with the same class names).
 
 ## Conventions

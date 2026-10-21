@@ -1,0 +1,217 @@
+.downloads {
+  width: 100%;
+  max-width: 760px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  padding: var(--safe-top) var(--space-4) calc(var(--space-6) + var(--safe-bottom));
+}
+
+.downloads-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+  padding-bottom: var(--space-3);
+}
+
+.downloads-title-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 52px;
+}
+
+.downloads-title-row h1 {
+  flex: 1;
+  min-width: 0;
+}
+
+.downloads-totals {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: -6px;
+}
+
+.downloads-total {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.downloads-up {
+  color: var(--info);
+}
+
+.downloads-free {
+  margin-left: auto;
+  gap: 5px;
+}
+
+.downloads-chips {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0 calc(-1 * var(--space-4));
+  padding: 4px var(--space-4);
+}
+
+.downloads-body {
+  flex: 1;
+  padding-top: 4px;
+}
+
+.downloads-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.downloads-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-10);
+}
+
+/* Download row */
+.ks-dl {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  position: relative;
+}
+
+.ks-poster {
+  position: relative;
+  aspect-ratio: 2 / 3;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--raised);
+  flex: none;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 6%, transparent);
+}
+
+.ks-poster-art {
+  position: absolute;
+  inset: 0;
+}
+
+.ks-poster-none {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text3);
+  background: repeating-linear-gradient(135deg, var(--raised) 0 8px, var(--surface) 8px 16px);
+}
+
+/* Over the poster: always white on dark, in both themes. */
+.ks-qpos {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 6px;
+  background: rgba(8, 10, 12, 0.8);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.dl-poster {
+  width: 60px;
+  border-radius: 10px;
+}
+
+.dl-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 1px;
+}
+
+.dl-title {
+  font-size: 16px;
+  line-height: 21px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.dl-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.dl-bar {
+  flex: 1;
+}
+
+.dl-pct {
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 32px;
+  text-align: right;
+}
+
+.dl-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-top: 2px;
+  font-size: 12px;
+}
+
+.dl-size {
+  margin-left: auto;
+}
+
+/* Loading skeleton */
+.dl-skeleton {
+  padding: 10px;
+}
+
+.dl-skel-poster {
+  width: 60px;
+  height: 90px;
+  border-radius: 10px;
+  flex: none;
+}
+
+.dl-skel-lines {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.dl-skel-chips {
+  display: flex;
+  gap: 8px;
+}
+
+.dl-skel-chip {
+  height: 22px;
+  border-radius: var(--r-full);
+}

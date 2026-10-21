@@ -1,0 +1,33 @@
+.ks-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--track);
+  overflow: hidden;
+  position: relative;
+  flex: none;
+}
+
+.ks-bar-lg {
+  height: 8px;
+  border-radius: 4px;
+}
+
+.ks-bar > i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width var(--d-slow) var(--ease);
+}
+
+.ks-bar > i.b-seeding { background: var(--info); }
+.ks-bar > i.b-completed { background: var(--success); }
+.ks-bar > i.b-paused,
+.ks-bar > i.b-queued { background: var(--paused); }
+.ks-bar > i.b-checking { background: var(--warning); }
+.ks-bar > i.b-error { background: var(--error); }
+
+.ks-bar.is-indet > i {
+  width: 35%;
+  animation: ks-indet 1.3s var(--ease) infinite;
+}

@@ -76,3 +76,23 @@ export interface TorrentsQuery {
   offset?: number
   hashes?: string[]
 }
+
+/** The subset of server_state fields Kinoseed uses. Speeds in bytes/s, sizes in bytes. */
+export interface ServerState {
+  dl_info_speed: number
+  up_info_speed: number
+  free_space_on_disk: number
+  connection_status: 'connected' | 'firewalled' | 'disconnected'
+}
+
+/**
+ * Response of /sync/maindata. With `full_update` the maps are complete; otherwise they hold only
+ * the fields that changed since the previous `rid`, and removed torrents are listed separately.
+ */
+export interface MainData {
+  rid: number
+  full_update?: boolean
+  torrents?: Record<string, Partial<Omit<Torrent, 'hash'>>>
+  torrents_removed?: string[]
+  server_state?: Partial<ServerState>
+}

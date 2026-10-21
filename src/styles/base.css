@@ -85,9 +85,65 @@ h4 {
 .ks-trunc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .ks-clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .ks-clamp3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.ks-hscroll { overflow-x: auto; scrollbar-width: none; }
+.ks-hscroll::-webkit-scrollbar { display: none; }
+
+/* Hidden visually, still read by screen readers. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Loading placeholder */
+.ks-skel {
+  background: linear-gradient(90deg, var(--raised) 0%, var(--border) 50%, var(--raised) 100%);
+  background-size: 200% 100%;
+  animation: ks-shimmer 1.4s linear infinite;
+  border-radius: 8px;
+}
+
+[data-theme='light'] .ks-skel {
+  background: linear-gradient(90deg, var(--sunken) 0%, var(--bg) 50%, var(--sunken) 100%);
+  background-size: 200% 100%;
+}
 
 @keyframes ks-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes ks-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes ks-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes ks-indet {
+  from {
+    transform: translateX(-110%);
+  }
+  to {
+    transform: translateX(300%);
   }
 }
