@@ -58,9 +58,22 @@ describe('pickBest', () => {
   })
 
   it('takes an exact name over a longer one', () => {
+    const special = title('tv', 3, 'Dune: Special Report', 2018)
+    const dune = { ...title('tv', 4, 'Дюна', 2000), originalTitle: 'Dune' }
+    expect(pickBest([special, dune], { title: 'Dune' })).toBe(dune)
+  })
+
+  it('takes an exact name a year off over another title of the exact year', () => {
+    const woman = title('movie', 5, 'A Normal Woman', 2025)
+    const normal = { ...title('movie', 6, 'Нормал', 2026), originalTitle: 'Normal' }
+    expect(pickBest([normal, woman], { title: 'Normal', year: 2025 }, 'movie')).toBe(normal)
+  })
+
+  it('ranks a "<name>: Subtitle" spin-off last', () => {
     const special = title('tv', 3, 'Air Crash Investigation: Special Report', 2018)
-    const mayday = { ...title('tv', 4, 'Расследования авиакатастроф', 2003), originalTitle: 'Air Crash Investigation' }
-    expect(pickBest([special, mayday], { title: 'Air Crash Investigation' })).toBe(mayday)
+    const mayday = { ...title('tv', 4, 'Расследования авиакатастроф', 2003), originalTitle: 'Mayday' }
+    expect(pickBest([special, mayday], { title: 'Air Crash Investigation' }, 'tv')).toBe(mayday)
+    expect(pickBest([special], { title: 'Air Crash Investigation' }, 'tv')).toBe(special)
   })
 })
 

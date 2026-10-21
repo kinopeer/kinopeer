@@ -47,13 +47,18 @@ function normalize(text: string): string {
  * Season markers in the name make it a series. Otherwise, with a year, movies come first (or the
  * category's type): a movie must match the year (±1 for festival vs. wide release), while a series'
  * year may be a later season's, so a series of another year is the last resort. Without a year,
- * TMDB's order stands unless the category says otherwise. Within each step an exact name wins.
+ * TMDB's order stands unless the category says otherwise. An exact name (localized or original)
+ * beats the year being off by one, and a "<name>: Subtitle" spin-off ranks after the rest.
  */
 export function pickBest(titles: Title[], parsed: ParsedName, hint?: MediaType): Title | null {
   const candidates = parsed.type ? titles.filter((title) => title.type === parsed.type) : titles
   const name = normalize(parsed.title)
+  const names = (title: Title) => [title.title, title.originalTitle]
+  const exactName = (title: Title) => names(title).some((text) => normalize(text) === name)
+  const spinOff = (title: Title) =>
+    names(title).some((text) => text.includes(':') && normalize(text.slice(0, text.indexOf(':'))) === name)
   const first = (list: Title[]) =>
-    list.find((title) => normalize(title.title) === name || normalize(title.originalTitle) === name) ?? list[0]
+    list.find(exactName) ?? list.find((title) => !spinOff(title)) ?? list[0]
 
   const preferred = parsed.type ?? hint ?? (parsed.year ? 'movie' : undefined)
   const groups = preferred
@@ -65,7 +70,8 @@ export function pickBest(titles: Title[], parsed: ParsedName, hint?: MediaType):
   const exact = (title: Title) => title.year === year
   const near = (title: Title) => title.year !== undefined && Math.abs(title.year - year) <= 1
   for (const group of groups) {
-    const best = first(group.filter(exact)) ?? first(group.filter(near))
+    const named = group.filter(exactName)
+    const best = named.find(exact) ?? named.find(near) ?? first(group.filter(exact)) ?? first(group.filter(near))
     if (best) return best
   }
   return first(candidates.filter((title) => title.type === 'tv')) ?? null
