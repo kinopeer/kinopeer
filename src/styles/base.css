@@ -114,6 +114,17 @@ h4 {
   background-size: 200% 100%;
 }
 
+/* Inline spinner in the current text color */
+.ks-spin {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: ks-spin 0.8s linear infinite;
+  flex: none;
+}
+
 @keyframes ks-spin {
   to {
     transform: rotate(360deg);
@@ -170,3 +181,4 @@ h4 {
 
 .c-ok { color: var(--success); }
 .c-warn { color: var(--warning); }
+.c-err { color: var(--error); }

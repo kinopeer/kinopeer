@@ -1,4 +1,4 @@
-import type { AddTorrentOptions, FilePriority, MainData, Torrent, TorrentFile, TorrentsQuery } from './types'
+import type { AddTorrentOptions, Category, FilePriority, MainData, Torrent, TorrentFile, TorrentsQuery } from './types'
 
 /** Same-origin prefix bridged to qBittorrent's Web API by server/qbittorrent.ts. */
 export const QBITTORRENT_BASE = '/qbt/api/v2'
@@ -116,7 +116,8 @@ export async function getMainData(rid = 0): Promise<MainData> {
  * none of them could be added (invalid file, or the torrent is already there).
  */
 export async function addTorrents(options: AddTorrentOptions): Promise<void> {
-  const { files = [], urls = [], tags = [], category, savePath, stopped, stopCondition } = options
+  const { files = [], urls = [], tags = [], category, savePath, stopped, stopCondition, sequentialDownload, addToTopOfQueue } =
+    options
   const form = new FormData()
   for (const file of files) form.append('torrents', file, file.name)
   if (urls.length) form.append('urls', urls.join('\n'))
@@ -124,6 +125,8 @@ export async function addTorrents(options: AddTorrentOptions): Promise<void> {
   if (category) form.append('category', category)
   if (savePath) form.append('savepath', savePath)
   if (stopCondition) form.append('stopCondition', stopCondition)
+  if (sequentialDownload) form.append('sequentialDownload', 'true')
+  if (addToTopOfQueue) form.append('addToTopOfQueue', 'true')
   if (stopped !== undefined) {
     // qBittorrent 5 renamed "paused" to "stopped"; send both so 4.x works too.
     form.append('stopped', String(stopped))
@@ -131,6 +134,17 @@ export async function addTorrents(options: AddTorrentOptions): Promise<void> {
   }
   const response = await request('/torrents/add', { form })
   if ((await response.text()).trim() === 'Fails.') throw new QbittorrentError('qBittorrent could not add the torrent', 200)
+}
+
+export async function getCategories(): Promise<Category[]> {
+  const response = await request('/torrents/categories')
+  return Object.values((await response.json()) as Record<string, Category>)
+}
+
+/** Where torrents go without a category or a save path of their own. */
+export async function getDefaultSavePath(): Promise<string> {
+  const response = await request('/app/defaultSavePath')
+  return (await response.text()).trim()
 }
 
 /** Files of a torrent, in index order. Empty until a magnet link's metadata has arrived. */

@@ -56,6 +56,12 @@
   --teal-800: #0b5f66;
   --teal-900: #0c454b;
   --teal-950: #072a2e;
+
+  /* Same in both themes */
+  --knob: #ffffff;
+  --toast-bg: #1b2226;
+  --toast-text: #eef1f2;
+  --toast-accent: #62d8dd;
 }
 
 :root,

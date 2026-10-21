@@ -1,0 +1,49 @@
+.ks-check {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  padding: 0;
+  flex: none;
+  border-radius: 12px;
+}
+
+.ks-check > span {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  border: 2px solid var(--border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--on-accent);
+  transition:
+    background-color var(--d-fast) var(--ease),
+    border-color var(--d-fast) var(--ease);
+}
+
+.ks-check .ks-ic {
+  position: absolute;
+  opacity: 0;
+  stroke-width: 3;
+}
+
+.ks-check[aria-checked='true'] > span,
+.ks-check[aria-checked='mixed'] > span {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.ks-check[aria-checked='true'] .ck,
+.ks-check[aria-checked='mixed'] .mx {
+  opacity: 1;
+}
+
+.ks-check:disabled > span {
+  border-color: var(--border);
+  background: var(--sunken);
+}

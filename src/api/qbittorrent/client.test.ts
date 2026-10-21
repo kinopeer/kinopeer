@@ -6,6 +6,8 @@ import {
   UnauthorizedError,
   addTorrents,
   getAppVersion,
+  getCategories,
+  getDefaultSavePath,
   getMainData,
   getTorrentFiles,
   getTorrents,
@@ -144,11 +146,35 @@ describe('addTorrents', () => {
     expect(form.get('paused')).toBe('true')
     expect(form.has('savepath')).toBe(false)
     expect(form.has('stopCondition')).toBe(false)
+    expect(form.has('sequentialDownload')).toBe(false)
+  })
+
+  it('sends the queue and sequential download options', async () => {
+    respond('Ok.')
+    await addTorrents({ urls: ['magnet:?xt=urn:btih:abc'], savePath: '/data/tv', sequentialDownload: true, addToTopOfQueue: true })
+    const form = lastCall().init.body as FormData
+    expect(form.get('savepath')).toBe('/data/tv')
+    expect(form.get('sequentialDownload')).toBe('true')
+    expect(form.get('addToTopOfQueue')).toBe('true')
   })
 
   it('reports a torrent qBittorrent refused', async () => {
     respond('Fails.')
     await expect(addTorrents({ urls: ['magnet:?xt=urn:btih:abc'] })).rejects.toBeInstanceOf(QbittorrentError)
+  })
+})
+
+describe('save locations', () => {
+  it('lists categories and the default save path', async () => {
+    respond(JSON.stringify({ Movies: { name: 'Movies', savePath: '/data/movies' }, TV: { name: 'TV', savePath: '' } }))
+    await expect(getCategories()).resolves.toEqual([
+      { name: 'Movies', savePath: '/data/movies' },
+      { name: 'TV', savePath: '' },
+    ])
+    expect(lastCall().url).toBe('/qbt/api/v2/torrents/categories')
+
+    respond('/downloads\n')
+    await expect(getDefaultSavePath()).resolves.toBe('/downloads')
   })
 })
 

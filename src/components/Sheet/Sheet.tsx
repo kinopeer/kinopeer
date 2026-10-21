@@ -6,6 +6,10 @@ export interface SheetProps {
   open: boolean
   onClose: () => void
   title: string
+  /** Under the title, e.g. what the sheet is about. */
+  subtitle?: string
+  /** Before the title, e.g. a Back button. */
+  leading?: ReactNode
   /** Next to the title, e.g. a Reset button. */
   action?: ReactNode
   /** Pinned under the scrolling content, e.g. the primary button. */
@@ -18,7 +22,7 @@ export interface SheetProps {
  * Bottom sheet on a native modal <dialog>: focus moves in and stays there, Escape and a tap on the
  * backdrop close it, and focus returns to what opened it.
  */
-export function Sheet({ open, onClose, title, action, footer, className, children }: SheetProps) {
+export function Sheet({ open, onClose, title, subtitle, leading, action, footer, className, children }: SheetProps) {
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = useId()
 
@@ -52,10 +56,14 @@ export function Sheet({ open, onClose, title, action, footer, className, childre
       {open && (
         <div className="ks-sheet-inner">
           <div className="ks-grabber" aria-hidden="true" />
-          <div className="ks-sheet-head">
-            <h2 id={titleId} className="t-h3">
-              {title}
-            </h2>
+          <div className={leading ? 'ks-sheet-head has-leading' : 'ks-sheet-head'}>
+            {leading}
+            <div className="ks-sheet-title">
+              <h2 id={titleId} className="t-h3">
+                {title}
+              </h2>
+              {subtitle && <div className="t-cap c3 ks-trunc">{subtitle}</div>}
+            </div>
             {action}
           </div>
           <div className="ks-sheet-body">{children}</div>

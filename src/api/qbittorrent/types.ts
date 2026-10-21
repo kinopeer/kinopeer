@@ -112,6 +112,15 @@ export interface AddTorrentOptions {
    * before anything downloads. A stopped magnet would never fetch its metadata.
    */
   stopCondition?: 'MetadataReceived' | 'FilesChecked'
+  sequentialDownload?: boolean
+  /** Put the torrent first in the download queue (qBittorrent 4.4+). */
+  addToTopOfQueue?: boolean
+}
+
+/** A qBittorrent category; an empty savePath means the default save path (plus the category name with automatic management). */
+export interface Category {
+  name: string
+  savePath: string
 }
 
 /** 0: skip, 1: normal, 6: high, 7: maximum. */

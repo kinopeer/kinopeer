@@ -27,7 +27,9 @@ import {
   type Resolution,
   type Source,
 } from '../releases/parseRelease'
+import { qualityBadges } from '../releases/qualityBadges'
 import { releaseQuery, type TitleDetails as Details } from '../releases/releaseQuery'
+import { AddReleaseSheet } from './AddReleaseSheet'
 import './ReleasesScreen.css'
 
 type AudioFilter = Audio | 'subs'
@@ -110,6 +112,7 @@ export function ReleasesScreen() {
   const [filters, setFilters] = useState<Filters>(NO_FILTERS)
   const [sort, setSort] = useState<{ key: SortKey; descending: boolean }>({ key: 'seeds', descending: true })
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [adding, setAdding] = useState<Row>()
 
   const rows = useMemo<Row[]>(
     () => (search.data ?? []).map((release) => ({ release, info: parseRelease(release.title) })),
@@ -226,7 +229,7 @@ export function ReleasesScreen() {
             <ul className="rel-list">
               {visible.map((row) => (
                 <li key={row.release.id}>
-                  <ReleaseCard row={row} />
+                  <ReleaseCard row={row} onAdd={() => setAdding(row)} />
                 </li>
               ))}
             </ul>
@@ -354,6 +357,17 @@ export function ReleasesScreen() {
           </div>
         </div>
       </Sheet>
+
+      {adding && details.data && (
+        <AddReleaseSheet
+          key={adding.release.id}
+          release={adding.release}
+          info={adding.info}
+          title={{ type: details.data.type, id, name, posterPath: details.data.poster_path }}
+          onClose={() => setAdding(undefined)}
+          onAdded={() => navigate('/', { state: { added: name } })}
+        />
+      )}
     </main>
   )
 }
@@ -386,35 +400,35 @@ function OptionGroup<T extends string>({
   )
 }
 
-function ReleaseCard({ row }: { row: Row }) {
+function ReleaseCard({ row, onAdd }: { row: Row; onAdd: () => void }) {
   const { t, i18n } = useTranslation()
   const format = useFormatters()
   const [expanded, setExpanded] = useState(false)
   const { release, info } = row
   const coverage = seasonCoverage(info) ?? (info.complete ? t('releases.complete') : undefined)
   const seeders = release.seeders ?? 0
-  const badges = [
-    info.resolution && { kind: 'res' as const, label: info.resolution },
-    info.source && { kind: 'default' as const, label: info.source },
-    info.codec && { kind: 'default' as const, label: info.codec },
-    ...info.hdr.map((hdr) => ({ kind: 'hdr' as const, label: hdr === 'DV' ? 'Dolby Vision' : hdr })),
-  ].filter((badge) => !!badge)
+  const badges = qualityBadges(info)
 
   return (
     <article className="ks-rel">
-      {coverage && (
-        <Badge kind="coverage" className="rel-cov">
-          {coverage}
-        </Badge>
-      )}
-      <button
-        type="button"
-        className={expanded ? 'rel-name' : 'rel-name ks-clamp2'}
-        aria-expanded={expanded}
-        onClick={() => setExpanded(!expanded)}
-      >
-        {release.title}
-      </button>
+      <div className="rel-top">
+        <div className="rel-top-text">
+          {coverage && (
+            <Badge kind="coverage" className="rel-cov">
+              {coverage}
+            </Badge>
+          )}
+          <button
+            type="button"
+            className={expanded ? 'rel-name' : 'rel-name ks-clamp2'}
+            aria-expanded={expanded}
+            onClick={() => setExpanded(!expanded)}
+          >
+            {release.title}
+          </button>
+        </div>
+        <IconButton icon="plus" variant="filled" label={t('add.title')} iconSize={22} className="rel-add" onClick={onAdd} />
+      </div>
       {badges.length > 0 && (
         <div className="rel-badges">
           {badges.map((badge) => (
