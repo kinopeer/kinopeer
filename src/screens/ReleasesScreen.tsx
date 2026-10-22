@@ -96,8 +96,8 @@ export function ReleasesScreen() {
 
   const details = useRequest<Details>(valid ? `${type}|${id}|${language}` : null, async (signal) =>
     type === 'movie'
-      ? { type, ...(await getMovie(id, { language, signal })) }
-      : { type: 'tv', ...(await getTv(id, { language, signal })) },
+      ? { ...(await getMovie(id, { language, signal })), type }
+      : { ...(await getTv(id, { language, signal })), type: 'tv' },
   )
   const query = details.data ? releaseQuery(details.data) : null
   const search = useRequest<Release[]>(query ? `${type}|${query}` : null, (signal) =>

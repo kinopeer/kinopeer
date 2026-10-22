@@ -66,8 +66,8 @@ export function TitleScreen() {
 
   const request = useRequest<Details>(valid ? `${type}|${id}|${language}` : null, async (signal) =>
     type === 'movie'
-      ? { type, ...(await getMovie(id, { language, signal })) }
-      : { type: 'tv', ...(await getTv(id, { language, signal })) },
+      ? { ...(await getMovie(id, { language, signal })), type }
+      : { ...(await getTv(id, { language, signal })), type: 'tv' },
   )
 
   // Opened from inside the app: go back. Opened from a shared link: there's nothing to go back to.
