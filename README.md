@@ -4,7 +4,7 @@ A qBittorrent web UI built around movies and TV series. Metadata comes from [TMD
 
 ## Development
 
-Requires Node.js 22+ and a qBittorrent instance with the Web UI enabled.
+Requires Node.js 22.18+ and a qBittorrent instance with the Web UI enabled.
 
 ```sh
 cp .env.example .env.local   # then set QBITTORRENT_URL to your qBittorrent Web UI
@@ -20,3 +20,22 @@ npm run lint       # linter (oxlint)
 npm run typecheck  # type check
 npm run build      # production build into dist/
 ```
+
+## Production
+
+`npm run build && npm start` runs the production server (`server/main.ts`, plain Node 22.18+ with no dependencies): it serves the built app from `dist/` and the same `/qbt`, `/prowlarr`, `/tmdb` and `/tmdb-img` routes as the dev server, configured through the same environment variables. `PORT` (default 8080) and `HOST` (default `0.0.0.0`) set where it listens; `/healthz` answers `ok` while it runs.
+
+The Docker image runs the same server:
+
+```sh
+docker compose up --build   # builds the image and serves it at http://localhost:8080, settings from .env.local
+```
+
+Or without Compose:
+
+```sh
+docker build -t kinoseed .
+docker run -p 8080:8080 --env-file .env.local kinoseed
+```
+
+The service worker needs HTTPS (or `localhost`), so over plain HTTP on the LAN the app works but can't be installed or open offline.
