@@ -23,7 +23,6 @@ import {
 } from '../releases/parseRelease'
 import { qualityBadges } from '../releases/qualityBadges'
 import { releaseQuery, type TitleDetails as Details } from '../releases/releaseQuery'
-import { fitsType, searchCategories } from '../releases/searchCategories'
 import { AddReleaseSheet } from './AddReleaseSheet'
 import './ReleasesScreen.css'
 
@@ -101,7 +100,8 @@ export function ReleasesScreen() {
   )
   const query = details.data ? releaseQuery(details.data) : null
   const search = useRequest<Release[]>(query ? `${type}|${query}` : null, (signal) =>
-    searchReleases(query!, { categories: searchCategories(type!), signal }),
+    // No category filter: some indexers (RuTor) file every release under "Other".
+    searchReleases(query!, { signal }),
   )
 
   const [filters, setFilters] = useState<Filters>(NO_FILTERS)
@@ -110,11 +110,8 @@ export function ReleasesScreen() {
   const [adding, setAdding] = useState<Row>()
 
   const rows = useMemo<Row[]>(
-    () =>
-      (search.data ?? [])
-        .map((release) => ({ release, info: parseRelease(release.title) }))
-        .filter((row) => fitsType(row.release, row.info, type!)),
-    [search.data, type],
+    () => (search.data ?? []).map((release) => ({ release, info: parseRelease(release.title) })),
+    [search.data],
   )
   const visible = useMemo(() => {
     const direction = sort.descending ? -1 : 1
