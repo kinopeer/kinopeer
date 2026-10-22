@@ -69,7 +69,7 @@ describe('ReleasesScreen', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Searching releases')
 
     expect(await screen.findByText('3 of 3 releases')).toBeInTheDocument()
-    expect(searchReleases).toHaveBeenCalledWith('Dune Part Two 2024', expect.objectContaining({ categories: [2000] }))
+    expect(searchReleases).toHaveBeenCalledWith('Dune Part Two 2024', expect.not.objectContaining({ categories: expect.anything() }))
     expect(screen.getByText('Dune: Part Two · 2024')).toBeInTheDocument()
     expect(names()).toEqual([RELEASES[1].title, RELEASES[0].title, RELEASES[2].title])
 
@@ -126,11 +126,21 @@ describe('ReleasesScreen', () => {
     expect(screen.getByText('3 of 3 releases')).toBeInTheDocument()
   })
 
+  it('lists every release found, whatever its category', async () => {
+    const other = (id: string, title: string) => ({ ...release(id, title, 1e9, 50, 'RuTor'), categories: [8000] })
+    searchReleases.mockResolvedValue([
+      other('r', 'Дюна: Часть вторая / Dune: Part Two (2024) BDRemux 1080p'),
+      other('o', 'Hans Zimmer - Dune: Part Two (Original Motion Picture Soundtrack) (2024) MP3'),
+    ])
+    renderAt('/title/movie/693134/releases')
+    expect(await screen.findByText('2 of 2 releases')).toBeInTheDocument()
+  })
+
   it('searches a series by name in TV categories and shows its seasons', async () => {
     searchReleases.mockResolvedValue([release('s', 'Breaking.Bad.S01-S05.COMPLETE.1080p.BluRay.x264-ROVERS', 212e9, 486)])
     renderAt('/title/tv/1396/releases')
     expect(await screen.findByText('S01–S05')).toBeInTheDocument()
-    expect(searchReleases).toHaveBeenCalledWith('Breaking Bad', expect.objectContaining({ categories: [5000] }))
+    expect(searchReleases).toHaveBeenCalledWith('Breaking Bad', expect.anything())
   })
 
   it('explains a missing Prowlarr setup', async () => {

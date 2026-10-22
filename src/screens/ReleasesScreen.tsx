@@ -1,13 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams } from 'react-router'
-import {
-  MOVIE_CATEGORY,
-  ProwlarrSetupError,
-  TV_CATEGORY,
-  searchReleases,
-  type Release,
-} from '../api/prowlarr'
+import { ProwlarrSetupError, searchReleases, type Release } from '../api/prowlarr'
 import { TmdbError, getMovie, getTv, tmdbLanguage } from '../api/tmdb'
 import { Badge } from '../components/Badge'
 import { Button } from '../components/Button'
@@ -106,7 +100,8 @@ export function ReleasesScreen() {
   )
   const query = details.data ? releaseQuery(details.data) : null
   const search = useRequest<Release[]>(query ? `${type}|${query}` : null, (signal) =>
-    searchReleases(query!, { categories: [type === 'tv' ? TV_CATEGORY : MOVIE_CATEGORY], signal }),
+    // No category filter: some indexers (RuTor) file every release under "Other".
+    searchReleases(query!, { signal }),
   )
 
   const [filters, setFilters] = useState<Filters>(NO_FILTERS)
