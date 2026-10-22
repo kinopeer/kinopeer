@@ -19,6 +19,8 @@ export interface Formatters {
   duration: (seconds: number) => string
   /** Whole percent, rounded down so 99.9% never shows as 100%. */
   percent: (fraction: number) => string
+  /** How long ago something updated: just now, 5 min ago, 2 h ago. */
+  since: (date: number, now?: number) => string
   /** How long ago, compactly: 3 d, 5 mo, 2 y. */
   age: (date: Date | string, now?: number) => string
 }
@@ -54,6 +56,12 @@ export function createFormatters(t: TFunction, language: string): Formatters {
     duration,
     percent: (fraction) =>
       `${Math.floor(Math.min(1, Math.max(0, fraction)) * 100).toLocaleString(language)}%`,
+    since: (date, now = Date.now()) => {
+      const minutes = Math.floor(Math.max(0, now - date) / 60_000)
+      if (minutes < 1) return t('format.justNow')
+      if (minutes < 60) return t('format.minutesAgo', { count: minutes })
+      return t('format.hoursAgo', { count: Math.floor(minutes / 60) })
+    },
     age: (date, now = Date.now()) => {
       const days = Math.max(0, Math.floor((now - new Date(date).getTime()) / 86_400_000))
       if (days < 30) return t('format.ageDays', { count: days })

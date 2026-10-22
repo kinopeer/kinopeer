@@ -203,13 +203,25 @@ describe('DownloadsScreen', () => {
     expect(await screen.findByRole('heading', { name: 'No downloads yet' })).toBeInTheDocument()
   })
 
-  it('offers a retry when qBittorrent stops answering', async () => {
+  it('says when qBittorrent can’t be reached at all, and when it answers again', async () => {
     getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     renderScreen()
-    expect(await screen.findByText('No connection to qBittorrent')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Can’t reach qBittorrent' })).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
     expect(await screen.findAllByRole('listitem')).toHaveLength(3)
-    expect(screen.queryByText('No connection to qBittorrent')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Can’t reach qBittorrent' })).not.toBeInTheDocument()
+    expect(screen.getByText('Reconnected to qBittorrent')).toBeInTheDocument()
+  })
+
+  it('keeps the last state with its age when qBittorrent stops answering', async () => {
+    renderScreen()
+    expect(await screen.findAllByRole('listitem')).toHaveLength(3)
+
+    getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    window.dispatchEvent(new Event('online'))
+    expect(await screen.findByText('No connection to qBittorrent')).toBeInTheDocument()
+    expect(screen.getByText('Updated just now · actions paused')).toBeInTheDocument()
+    expect(screen.getAllByRole('listitem')).toHaveLength(3)
   })
 })

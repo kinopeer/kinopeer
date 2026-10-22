@@ -2,7 +2,6 @@ import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router'
 import type { Torrent } from '../api/qbittorrent'
-import { Banner } from '../components/Banner'
 import { EmptyState } from '../components/EmptyState'
 import { FilterChip } from '../components/FilterChip'
 import { Icon } from '../components/Icon'
@@ -15,6 +14,7 @@ import { useTitleMatches } from '../torrents/titleMatches'
 import { useMainData } from '../torrents/useMainData'
 import { DeleteTorrentDialog } from './DeleteTorrentDialog'
 import { DownloadItem } from './DownloadItem'
+import { OfflineBanner } from './OfflineBanner'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
 import './DownloadsScreen.css'
 
@@ -28,7 +28,7 @@ const SKELETON_ROWS = 5
 export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
   const { t } = useTranslation()
   const format = useFormatters()
-  const { data, offline, refresh } = useMainData(onSessionLost)
+  const { data, offline, updatedAt, refresh } = useMainData(onSessionLost)
   const location = useLocation()
   const navigate = useNavigate()
   // Set by the releases screen after adding a release, and by the torrent screen after deleting one.
@@ -42,6 +42,14 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
   const [query, setQuery] = useState('')
   const [actionsFor, setActionsFor] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
+  // Tell the user when qBittorrent answers again after an outage.
+  const [wasOffline, setWasOffline] = useState(offline)
+  const [reconnected, setReconnected] = useState(false)
+  if (offline !== wasOffline) {
+    setWasOffline(offline)
+    setReconnected(!offline)
+  }
+  const dismissReconnected = useCallback(() => setReconnected(false), [])
 
   const torrents = useMemo(() => (data ? Object.values(data.torrents).sort(compareByQueue) : []), [data])
   const matches = useTitleMatches(torrents)
@@ -106,11 +114,7 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
           )}
         </p>
 
-        {offline && (
-          <Banner tone="warning" title={t('downloads.offlineTitle')} actionLabel={t('common.retry')} onAction={refresh}>
-            {t('downloads.offlineBody')}
-          </Banner>
-        )}
+        {offline && data !== null && <OfflineBanner updatedAt={updatedAt} onRetry={refresh} />}
 
         {searchOpen && (
           <Input
@@ -139,7 +143,17 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
       </header>
 
       <section className="downloads-body" aria-label={t('downloads.title')} aria-busy={loading}>
-        {loading ? (
+        {loading && offline ? (
+          <EmptyState
+            icon="wifi-off"
+            tone="error"
+            title={t('offline.unreachableTitle')}
+            actionLabel={t('common.retry')}
+            onAction={refresh}
+          >
+            {t('offline.unreachableBody')}
+          </EmptyState>
+        ) : loading ? (
           <div className="downloads-list" role="status">
             <span className="sr-only">{t('downloads.loading')}</span>
             {Array.from({ length: SKELETON_ROWS }, (_, index) => (
@@ -209,6 +223,7 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
           }}
         />
       )}
+      {reconnected && <Toast message={t('offline.reconnected')} onDismiss={dismissReconnected} />}
       {added && <Toast message={t('add.added', { title: added })} onDismiss={dismissToast} />}
       {deleted && (
         <Toast

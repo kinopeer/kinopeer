@@ -115,6 +115,14 @@ describe('TorrentScreen', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Some.Home.Video' })).toBeInTheDocument()
   })
 
+  it('says when qBittorrent can’t be reached', async () => {
+    getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    renderScreen()
+    expect(await screen.findByRole('heading', { name: 'Can’t reach qBittorrent' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Dune: Part Two' })).toBeInTheDocument()
+  })
+
   it('says when the torrent is gone', async () => {
     renderScreen('missing')
     expect(await screen.findByRole('heading', { name: 'Torrent not found' })).toBeInTheDocument()
