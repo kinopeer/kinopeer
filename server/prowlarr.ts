@@ -23,6 +23,7 @@ const PREFIX = '/prowlarr/'
 const SEARCH_TYPES = new Set(['search', 'movie', 'tvsearch'])
 const MAX_TORRENT_BYTES = 20 * 1024 * 1024
 const MAX_REDIRECTS = 3
+const BENCODE_DICT = 0x64 // "d"
 
 /** What Kinoseed reads from Prowlarr's /api/v1/search results. */
 interface ProwlarrRelease {
@@ -78,7 +79,9 @@ function downloadUrl(base: string, token: string, apiKey: string): URL | undefin
   const params = new URLSearchParams(match[2])
   params.delete('apikey')
   params.set('apikey', apiKey)
-  return new URL(`${base}/${match[1]}/download?${params}`)
+  // The /api/ path, not Prowlarr's /{id}/download alias: proxies in front of Prowlarr (e.g. Umbrel's
+  // app auth) often let only /api/* through without their own login.
+  return new URL(`${base}/api/v1/indexer/${match[1]}/download?${params}`)
 }
 
 export function toRelease(item: ProwlarrRelease): Release | undefined {
@@ -148,7 +151,8 @@ async function download(base: string, apiKey: string, query: URLSearchParams, re
     if (!upstream.ok) return fail(response, 502, 'upstream')
 
     const bytes = new Uint8Array(await upstream.arrayBuffer())
-    if (bytes.length > MAX_TORRENT_BYTES) return fail(response, 502, 'upstream')
+    // A .torrent is a bencoded dictionary; anything else (say, a proxy's login page) is not one.
+    if (bytes.length > MAX_TORRENT_BYTES || bytes[0] !== BENCODE_DICT) return fail(response, 502, 'upstream')
     response.statusCode = 200
     response.setHeader('Content-Type', 'application/x-bittorrent')
     response.setHeader('Cache-Control', 'no-store')

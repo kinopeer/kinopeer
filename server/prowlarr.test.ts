@@ -127,9 +127,20 @@ describe('prowlarrMiddleware', () => {
     expect(response.status).toBe(200)
     expect(response.headers.get('content-type')).toBe('application/x-bittorrent')
     expect(await response.text()).toBe('d4:infod4:name4:Duneee')
-    expect(seen?.pathname).toBe('/1/download')
+    expect(seen?.pathname).toBe('/api/v1/indexer/1/download')
     expect(seen?.searchParams.get('link')).toBe('AAA')
     expect(seen?.searchParams.get('apikey')).toBe(KEY)
+  })
+
+  it('refuses an answer that is not a .torrent, like a proxy login page', async () => {
+    const prowlarr = await listen((_request, response) => {
+      response.setHeader('Content-Type', 'text/html')
+      response.end('<!doctype html><title>Login</title>')
+    })
+    const base = await kinoseed({ url: prowlarr, apiKey: KEY })
+    const response = await fetch(`${base}/prowlarr/download?token=${encodeURIComponent('1/download?link=A')}`)
+    expect(response.status).toBe(502)
+    expect(await response.json()).toEqual({ error: 'upstream' })
   })
 
   it('answers a redirect to a magnet link with the link', async () => {
