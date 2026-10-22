@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as prowlarr from '../api/prowlarr'
 import type { Release } from '../api/prowlarr'
+import * as qbt from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
 import type { MovieDetails, TvDetails } from '../api/tmdb'
 import { ReleasesScreen } from './ReleasesScreen'
@@ -14,8 +15,15 @@ vi.mock('../api/tmdb', async (importOriginal) => {
 })
 vi.mock('../api/prowlarr', async (importOriginal) => {
   const actual = await importOriginal<typeof prowlarr>()
-  return { ...actual, searchReleases: vi.fn() }
+  return { ...actual, searchReleases: vi.fn(), fetchRelease: vi.fn() }
 })
+vi.mock('../api/qbittorrent', async (importOriginal) => ({
+  ...(await importOriginal<typeof qbt>()),
+  addTorrents: vi.fn(),
+  getCategories: vi.fn(),
+  getDefaultSavePath: vi.fn(),
+  getMainData: vi.fn(),
+}))
 
 const getMovie = vi.mocked(tmdb.getMovie)
 const getTv = vi.mocked(tmdb.getTv)
@@ -40,6 +48,7 @@ function renderAt(path: string) {
       <Routes>
         <Route path="/title/:type/:id/releases" element={<ReleasesScreen />} />
         <Route path="/title/:type/:id" element={<h1>Title page</h1>} />
+        <Route path="/" element={<h1>Downloads</h1>} />
       </Routes>
     </MemoryRouter>,
   )
@@ -135,6 +144,24 @@ describe('ReleasesScreen', () => {
     renderAt('/title/movie/693134/releases')
     await userEvent.click(await screen.findByRole('button', { name: 'Try again' }))
     expect(await screen.findByRole('heading', { name: 'No releases found' })).toBeInTheDocument()
+  })
+
+  it('adds a release to qBittorrent tagged with the title and goes to downloads', async () => {
+    vi.mocked(prowlarr.fetchRelease).mockResolvedValue({ kind: 'magnet', uri: 'magnet:?xt=urn:btih:abc' })
+    vi.mocked(qbt.getCategories).mockResolvedValue([])
+    vi.mocked(qbt.getDefaultSavePath).mockResolvedValue('/data')
+    vi.mocked(qbt.getMainData).mockResolvedValue({ rid: 1 })
+    renderAt('/title/movie/693134/releases')
+    const [top] = await screen.findAllByRole('article')
+    await userEvent.click(within(top).getByRole('button', { name: 'Add to downloads' }))
+    const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+    expect(within(sheet).getByText(RELEASES[1].title)).toBeInTheDocument()
+    await userEvent.click(await within(sheet).findByRole('button', { name: /^Download/ }))
+
+    expect(vi.mocked(qbt.addTorrents)).toHaveBeenCalledWith(
+      expect.objectContaining({ urls: ['magnet:?xt=urn:btih:abc'], tags: ['tmdb:movie:693134'] }),
+    )
+    expect(await screen.findByRole('heading', { name: 'Downloads' })).toBeInTheDocument()
   })
 
   it('goes to the title page when opened directly', async () => {

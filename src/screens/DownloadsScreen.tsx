@@ -1,11 +1,13 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useLocation, useNavigate } from 'react-router'
 import { Banner } from '../components/Banner'
 import { EmptyState } from '../components/EmptyState'
 import { FilterChip } from '../components/FilterChip'
 import { Icon } from '../components/Icon'
 import { IconButton } from '../components/IconButton'
 import { Input } from '../components/Input'
+import { Toast } from '../components/Toast'
 import { useFormatters } from '../lib/format'
 import { STATUS_FILTERS, compareByQueue, matchesFilter, type StatusFilter } from '../torrents/status'
 import { useTitleMatches } from '../torrents/titleMatches'
@@ -24,6 +26,14 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
   const { t } = useTranslation()
   const format = useFormatters()
   const { data, offline, refresh } = useMainData(onSessionLost)
+  const location = useLocation()
+  const navigate = useNavigate()
+  // Set by the releases screen after adding a release.
+  const added = (location.state as { added?: string } | null)?.added
+  const dismissToast = useCallback(
+    () => void navigate(location.pathname, { replace: true, state: null }),
+    [navigate, location.pathname],
+  )
   const [filter, setFilter] = useState<StatusFilter>('all')
   const [searchOpen, setSearchOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -160,6 +170,7 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
           </ul>
         )}
       </section>
+      {added && <Toast message={t('add.added', { title: added })} onDismiss={dismissToast} />}
     </main>
   )
 }

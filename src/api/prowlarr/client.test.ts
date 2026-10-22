@@ -46,8 +46,8 @@ describe('searchReleases', () => {
 })
 
 describe('fetchRelease', () => {
-  it('uses a magnet link as is', async () => {
-    await expect(fetchRelease({ ...RELEASE, magnet: 'magnet:?xt=urn:btih:abc' })).resolves.toEqual({
+  it('uses a magnet link as is when there is no .torrent', async () => {
+    await expect(fetchRelease({ ...RELEASE, download: undefined, magnet: 'magnet:?xt=urn:btih:abc' })).resolves.toEqual({
       kind: 'magnet',
       uri: 'magnet:?xt=urn:btih:abc',
     })
@@ -62,6 +62,15 @@ describe('fetchRelease', () => {
     const file = (source as { file: File }).file
     expect(file.name).toBe('Dune Дюна (2021).torrent')
     expect(file.size).toBe(2)
+  })
+
+  it('prefers the .torrent and falls back to the magnet link', async () => {
+    const release = { ...RELEASE, magnet: 'magnet:?xt=urn:btih:abc' }
+    fetchMock.mockResolvedValueOnce(new Response(new Uint8Array([100]), { headers: { 'Content-Type': 'application/x-bittorrent' } }))
+    await expect(fetchRelease(release)).resolves.toMatchObject({ kind: 'torrent' })
+
+    json({ error: 'upstream' }, 502)
+    await expect(fetchRelease(release)).resolves.toEqual({ kind: 'magnet', uri: 'magnet:?xt=urn:btih:abc' })
   })
 
   it('returns the magnet link Prowlarr redirected to', async () => {

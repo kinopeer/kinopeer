@@ -1,5 +1,6 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
 import type { MainData, Torrent } from '../api/qbittorrent'
@@ -53,8 +54,12 @@ const SNAPSHOT: MainData = {
   server_state: { dl_info_speed: 4_300_000, up_info_speed: 120_000, free_space_on_disk: 1_210_000_000_000 },
 }
 
-function renderScreen() {
-  return render(<DownloadsScreen onSessionLost={vi.fn()} />)
+function renderScreen(state?: unknown) {
+  return render(
+    <MemoryRouter initialEntries={[{ pathname: '/', state }]}>
+      <DownloadsScreen onSessionLost={vi.fn()} />
+    </MemoryRouter>,
+  )
 }
 
 beforeEach(() => {
@@ -147,6 +152,11 @@ describe('DownloadsScreen', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Filter by name', pressed: true }))
     expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
     expect(screen.getAllByRole('listitem')).toHaveLength(3)
+  })
+
+  it('confirms a release added from the releases screen', async () => {
+    renderScreen({ added: 'Dune: Part Two' })
+    expect(screen.getByText('“Dune: Part Two” added to downloads')).toBeInTheDocument()
   })
 
   it('shows the empty state without torrents', async () => {

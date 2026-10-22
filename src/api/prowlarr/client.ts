@@ -51,12 +51,26 @@ export async function searchReleases(query: string, options: SearchOptions = {})
 
 export type ReleaseSource = { kind: 'magnet'; uri: string } | { kind: 'torrent'; file: File }
 
-/** Gets what qBittorrent needs to add a release: its magnet link or its .torrent file. */
+/**
+ * Gets what qBittorrent needs to add a release. The .torrent file comes first, because it lists the
+ * files before adding; the magnet link is the fallback.
+ */
 export async function fetchRelease(release: Release, signal?: AbortSignal): Promise<ReleaseSource> {
-  if (release.magnet) return { kind: 'magnet', uri: release.magnet }
-  if (!release.download) throw new ProwlarrError('The release has no download link', 404, 'not-found')
+  const magnet = release.magnet ? ({ kind: 'magnet', uri: release.magnet } as const) : undefined
+  if (!release.download) {
+    if (magnet) return magnet
+    throw new ProwlarrError('The release has no download link', 404, 'not-found')
+  }
+  try {
+    return await download(release, release.download, signal)
+  } catch (error) {
+    if (magnet && !signal?.aborted) return magnet
+    throw error
+  }
+}
 
-  const params = new URLSearchParams({ token: release.download })
+async function download(release: Release, token: string, signal?: AbortSignal): Promise<ReleaseSource> {
+  const params = new URLSearchParams({ token })
   const response = await fetch(`${PROWLARR_BASE}/download?${params}`, { credentials: 'omit', signal })
   if (!response.ok) throw await errorFor(response)
   if (response.headers.get('content-type')?.includes('application/json')) {
