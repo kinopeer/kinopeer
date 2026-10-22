@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { buildFileTree, fileName, initiallyOpen } from './fileTree'
 
 describe('buildFileTree', () => {
-  it('keeps the torrent’s folders as they are, in torrent order', () => {
+  it('keeps the torrent’s folders as they are', () => {
     const top = buildFileTree([
       { path: 'Show/Season 1/e01.mkv', size: 10 },
       { path: 'Show/Season 2/e01.mkv', size: 20 },
@@ -30,6 +30,18 @@ describe('buildFileTree', () => {
     expect(top.folders).toEqual([])
     expect(top.files).toEqual([0, 1])
     expect(initiallyOpen(top)).toEqual(new Set())
+  })
+
+  it('sorts folders and files by name, numbers by value', () => {
+    const top = buildFileTree([
+      { path: 'Season_10/s10e01.avi', size: 1 },
+      { path: 'Season_07/s07e01.avi', size: 1 },
+      { path: 'Season_01/s01e12.avi', size: 1 },
+      { path: 'Season_01/s01e01_Pilot.avi', size: 1 },
+      { path: 'Season_01/s01e02.avi', size: 1 },
+    ])
+    expect(top.folders.map((folder) => folder.name)).toEqual(['Season_01', 'Season_07', 'Season_10'])
+    expect(top.folders[0].files).toEqual([3, 4, 2])
   })
 
   it('names a file without its folders', () => {

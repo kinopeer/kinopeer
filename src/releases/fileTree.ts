@@ -3,16 +3,21 @@ export interface FileFolder {
   name: string
   /** Path from the torrent's top, without a trailing slash: a stable key. '' for the top itself. */
   path: string
-  /** Subfolders, in torrent order. */
+  /** Subfolders, by name. */
   folders: FileFolder[]
-  /** Indexes into the torrent's file list of the files directly in this folder, in torrent order. */
+  /** Indexes into the torrent's file list of the files directly in this folder, by name. */
   files: number[]
   /** Indexes of every file below this folder. */
   all: number[]
   size: number
 }
 
-/** The torrent's folders as they are in it, with no regrouping. */
+const byName = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
+
+/**
+ * The torrent's folders as they are in it, with no regrouping. Folders and files are sorted by name, numbers
+ * by value ("Season 2" before "Season 10"), like qBittorrent's own file list: a .torrent's order can be anything.
+ */
 export function buildFileTree(files: { path: string; size: number }[]): FileFolder {
   const top: FileFolder = { name: '', path: '', folders: [], files: [], all: [], size: 0 }
   const byPath = new Map<string, FileFolder>([['', top]])
@@ -35,6 +40,13 @@ export function buildFileTree(files: { path: string; size: number }[]): FileFold
     }
     folder.files.push(index)
   })
+  const name = (index: number) => fileName(files[index].path)
+  const sort = (folder: FileFolder) => {
+    folder.folders.sort((a, b) => byName.compare(a.name, b.name))
+    folder.files.sort((a, b) => byName.compare(name(a), name(b)))
+    folder.folders.forEach(sort)
+  }
+  sort(top)
   return top
 }
 
