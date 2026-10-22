@@ -1,0 +1,104 @@
+import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import * as prowlarr from '../api/prowlarr'
+import * as qbt from '../api/qbittorrent'
+import * as tmdb from '../api/tmdb'
+import { getSettings, resetSettings } from '../settings/settings'
+import { SettingsScreen } from './SettingsScreen'
+
+vi.mock('../api/qbittorrent', async (importOriginal) => ({
+  ...(await importOriginal<typeof qbt>()),
+  getAppVersion: vi.fn(),
+  getApiVersion: vi.fn(),
+  getCategories: vi.fn(),
+}))
+vi.mock('../api/prowlarr', async (importOriginal) => ({
+  ...(await importOriginal<typeof prowlarr>()),
+  getProwlarrStatus: vi.fn(),
+}))
+vi.mock('../api/tmdb', async (importOriginal) => ({
+  ...(await importOriginal<typeof tmdb>()),
+  checkTmdb: vi.fn(),
+}))
+
+function renderScreen(onSignOut = vi.fn()) {
+  render(
+    <MemoryRouter>
+      <SettingsScreen onSignOut={onSignOut} />
+    </MemoryRouter>,
+  )
+  return { onSignOut }
+}
+
+function connection(name: string) {
+  return within(screen.getByRole('region', { name: 'Connections' }))
+    .getByText(name)
+    .closest('li') as HTMLElement
+}
+
+beforeEach(() => {
+  vi.resetAllMocks()
+  resetSettings()
+  vi.mocked(qbt.getAppVersion).mockResolvedValue('v5.3.0')
+  vi.mocked(qbt.getApiVersion).mockResolvedValue('2.11.4')
+  vi.mocked(qbt.getCategories).mockResolvedValue([
+    { name: 'TV Shows', savePath: '/data/tv' },
+    { name: 'Movies', savePath: '/data/movies' },
+    { name: 'Anime', savePath: '' },
+  ])
+  vi.mocked(prowlarr.getProwlarrStatus).mockResolvedValue({ version: '1.24.3', indexers: 2 })
+  vi.mocked(tmdb.checkTmdb).mockResolvedValue()
+})
+
+describe('SettingsScreen', () => {
+  it('checks every connection when it opens', async () => {
+    renderScreen()
+    expect(await within(connection('qBittorrent')).findByText('Connected · qBittorrent v5.3.0 · API 2.11.4')).toBeInTheDocument()
+    expect(await within(connection('Prowlarr')).findByText('Connected · 2 indexers · v1.24.3')).toBeInTheDocument()
+    expect(await within(connection('TMDB')).findByText('Connected')).toBeInTheDocument()
+  })
+
+  it('explains failures and checks again on Test', async () => {
+    vi.mocked(prowlarr.getProwlarrStatus).mockRejectedValue(new prowlarr.ProwlarrSetupError(502, 'unauthorized'))
+    vi.mocked(tmdb.checkTmdb).mockRejectedValue(new tmdb.TmdbKeyError(401))
+    renderScreen()
+    expect(await within(connection('Prowlarr')).findByText('Not set up, or the API key was rejected')).toBeInTheDocument()
+    expect(await within(connection('TMDB')).findByText('The API key is missing or invalid')).toBeInTheDocument()
+
+    vi.mocked(prowlarr.getProwlarrStatus).mockResolvedValue({ version: '1.24.3', indexers: 1 })
+    await userEvent.click(within(connection('Prowlarr')).getByRole('button', { name: 'Test' }))
+    expect(await within(connection('Prowlarr')).findByText('Connected · 1 indexer · v1.24.3')).toBeInTheDocument()
+  })
+
+  it('saves download defaults', async () => {
+    renderScreen()
+    const movies = screen.getByRole('combobox', { name: 'Movies category' })
+    expect(await within(movies).findByRole('option', { name: 'Automatic (Movies)' })).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Series category' })).toHaveDisplayValue('Automatic (TV Shows)')
+
+    await userEvent.selectOptions(movies, 'Anime')
+    await userEvent.click(screen.getByRole('switch', { name: 'Start paused' }))
+    expect(getSettings()).toMatchObject({ movieCategory: 'Anime', startPaused: true, sequential: false })
+  })
+
+  it('chooses the TMDB language', async () => {
+    renderScreen()
+    const group = screen.getByRole('radiogroup', { name: 'Titles and descriptions' })
+    expect(within(group).getByRole('radio', { name: 'Auto' })).toHaveAttribute('aria-checked', 'true')
+    await userEvent.click(within(group).getByRole('radio', { name: 'Русский' }))
+    expect(getSettings().tmdbLanguage).toBe('ru-RU')
+  })
+
+  it('clears the cache and signs out', async () => {
+    localStorage.setItem('kinoseed.titleMatches.v2', '{}')
+    const { onSignOut } = renderScreen()
+    await userEvent.click(screen.getByRole('button', { name: /Clear cache/ }))
+    expect(localStorage.getItem('kinoseed.titleMatches.v2')).toBeNull()
+    expect(screen.getByText('Cache cleared')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Sign out' }))
+    expect(onSignOut).toHaveBeenCalled()
+  })
+})

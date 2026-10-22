@@ -1,4 +1,4 @@
-import type { MagnetResponse, ProwlarrErrorBody, Release, SearchType } from './types'
+import type { MagnetResponse, ProwlarrErrorBody, ProwlarrStatus, Release, SearchType } from './types'
 
 /** Same-origin prefix served by Kinoseed's Prowlarr bridge (server/prowlarr.ts). */
 export const PROWLARR_BASE = '/prowlarr'
@@ -47,6 +47,13 @@ export async function searchReleases(query: string, options: SearchOptions = {})
   const response = await fetch(`${PROWLARR_BASE}/search?${params}`, { credentials: 'omit', signal })
   if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) throw await errorFor(response)
   return (await response.json()) as Release[]
+}
+
+/** Checks the connection: Prowlarr's version and how many indexers are enabled. */
+export async function getProwlarrStatus(signal?: AbortSignal): Promise<ProwlarrStatus> {
+  const response = await fetch(`${PROWLARR_BASE}/status`, { credentials: 'omit', signal })
+  if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) throw await errorFor(response)
+  return (await response.json()) as ProwlarrStatus
 }
 
 export type ReleaseSource = { kind: 'magnet'; uri: string } | { kind: 'torrent'; file: File }

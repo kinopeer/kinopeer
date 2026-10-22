@@ -8,7 +8,7 @@ import App from './App'
 
 vi.mock('./api/qbittorrent', async (importOriginal) => {
   const actual = await importOriginal<typeof api>()
-  return { ...actual, getAppVersion: vi.fn(), getMainData: vi.fn(), login: vi.fn(), logout: vi.fn() }
+  return { ...actual, getAppVersion: vi.fn(), getApiVersion: vi.fn(), getCategories: vi.fn(), getMainData: vi.fn(), login: vi.fn(), logout: vi.fn() }
 })
 
 vi.mock('./api/tmdb', async (importOriginal) => {
@@ -30,6 +30,8 @@ const getMainData = vi.mocked(api.getMainData)
 beforeEach(() => {
   vi.resetAllMocks()
   getAppVersion.mockResolvedValue('v5.2.4')
+  vi.mocked(api.getApiVersion).mockResolvedValue('2.11.4')
+  vi.mocked(api.getCategories).mockResolvedValue([])
   getMainData.mockResolvedValue({ rid: 1, full_update: true, torrents: {}, server_state: {} })
   const empty = { titles: [], page: 1, totalPages: 1 }
   vi.mocked(tmdb.getTrending).mockResolvedValue(empty)
@@ -56,7 +58,7 @@ describe('App', () => {
     expect(within(nav).getByRole('link', { name: 'Search' })).toHaveAttribute('aria-current', 'page')
 
     await userEvent.click(within(nav).getByRole('link', { name: 'Settings' }))
-    expect(screen.getByText('Connected · qBittorrent v5.2.4')).toBeInTheDocument()
+    expect(await screen.findByText('Connected · qBittorrent v5.2.4 · API 2.11.4')).toBeInTheDocument()
   })
 
   it('sends unknown paths to downloads', async () => {
@@ -79,11 +81,11 @@ describe('App', () => {
 
   it('switches the theme on the root element', async () => {
     renderApp('/settings')
-    await userEvent.click(await screen.findByRole('button', { name: 'Light' }))
+    await userEvent.click(await screen.findByRole('radio', { name: 'Light' }))
     expect(document.documentElement.dataset.theme).toBe('light')
-    expect(screen.getByRole('button', { name: 'Light' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('radio', { name: 'Light' })).toHaveAttribute('aria-checked', 'true')
 
-    await userEvent.click(screen.getByRole('button', { name: 'Dark' }))
+    await userEvent.click(screen.getByRole('radio', { name: 'Dark' }))
     expect(document.documentElement.dataset.theme).toBe('dark')
   })
 
@@ -91,9 +93,9 @@ describe('App', () => {
     renderApp('/settings')
     expect(await screen.findByRole('heading', { name: 'Settings', level: 1 })).toBeInTheDocument()
 
-    await userEvent.click(screen.getByRole('button', { name: 'Русский' }))
+    await userEvent.click(within(screen.getByRole('radiogroup', { name: 'Language' })).getByRole('radio', { name: 'Русский' }))
     expect(screen.getByRole('heading', { name: 'Настройки', level: 1 })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Светлая' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Светлая' })).toBeInTheDocument()
     expect(document.documentElement.lang).toBe('ru')
     expect(localStorage.getItem('kinoseed.lang')).toBe('ru')
   })

@@ -92,6 +92,34 @@ describe('prowlarrMiddleware', () => {
     ])
   })
 
+  it('reports the version and enabled indexers', async () => {
+    const seen: (string | undefined)[] = []
+    const prowlarr = await listen((request, response) => {
+      seen.push(request.headers['x-api-key'] as string | undefined)
+      response.setHeader('Content-Type', 'application/json')
+      if (request.url === '/api/v1/system/status') return response.end(JSON.stringify({ version: '1.24.3' }))
+      if (request.url === '/api/v1/indexer') {
+        return response.end(JSON.stringify([{ enable: true }, { enable: false }, { enable: true }]))
+      }
+      response.statusCode = 404
+      response.end()
+    })
+    const response = await fetch(`${await kinoseed({ url: prowlarr, apiKey: KEY })}/prowlarr/status`)
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ version: '1.24.3', indexers: 2 })
+    expect(seen).toEqual([KEY, KEY])
+  })
+
+  it('reports a rejected key on the status check', async () => {
+    const prowlarr = await listen((_request, response) => {
+      response.statusCode = 401
+      response.end()
+    })
+    const response = await fetch(`${await kinoseed({ url: prowlarr, apiKey: KEY })}/prowlarr/status`)
+    expect(response.status).toBe(502)
+    expect(await response.json()).toEqual({ error: 'unauthorized' })
+  })
+
   it('rejects bad search parameters', async () => {
     const base = await kinoseed({ url: 'http://127.0.0.1:9', apiKey: KEY })
     expect((await fetch(`${base}/prowlarr/search?query=%20`)).status).toBe(400)

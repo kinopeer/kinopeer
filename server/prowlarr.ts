@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import type { MagnetResponse, ProwlarrErrorBody, Release } from '../src/api/prowlarr/types.ts'
+import type { MagnetResponse, ProwlarrErrorBody, ProwlarrStatus, Release } from '../src/api/prowlarr/types.ts'
 
 /**
  * Same-origin bridge to Prowlarr. Unlike a plain proxy it reshapes responses, because Prowlarr's
@@ -7,6 +7,7 @@ import type { MagnetResponse, ProwlarrErrorBody, Release } from '../src/api/prow
  *
  * GET /prowlarr/search?query=…&type=search|movie|tvsearch&categories=2000 → Release[]
  * GET /prowlarr/download?token=… → the .torrent file, or { magnet } when the release is a magnet link
+ * GET /prowlarr/status → { version, indexers }, to check the connection from Settings
  *
  * Runs as Vite middleware in dev and in the production server.
  */
@@ -162,6 +163,23 @@ async function download(base: string, apiKey: string, query: URLSearchParams, re
   fail(response, 502, 'upstream')
 }
 
+async function status(base: string, apiKey: string, _query: URLSearchParams, response: ServerResponse): Promise<void> {
+  const headers = { 'X-Api-Key': apiKey, Accept: 'application/json' }
+  const [system, indexers] = await Promise.all([
+    fetch(`${base}/api/v1/system/status`, { headers }),
+    fetch(`${base}/api/v1/indexer`, { headers }),
+  ])
+  if (system.status === 401 || indexers.status === 401) return fail(response, 502, 'unauthorized')
+  if (!system.ok || !indexers.ok) return fail(response, 502, 'upstream')
+
+  const { version } = (await system.json()) as { version?: string }
+  const list = (await indexers.json()) as { enable?: boolean }[]
+  send(response, 200, {
+    version: version ?? '',
+    indexers: list.filter((indexer) => indexer.enable).length,
+  } satisfies ProwlarrStatus)
+}
+
 export function prowlarrMiddleware(config: ProwlarrConfig): Middleware {
   const base = config.url?.trim().replace(/\/+$/, '')
   const apiKey = config.apiKey?.trim()
@@ -173,7 +191,7 @@ export function prowlarrMiddleware(config: ProwlarrConfig): Middleware {
     if (request.method !== 'GET') return fail(response, 404, 'not-found')
 
     const route = url.pathname.slice(PREFIX.length)
-    const handler = route === 'search' ? search : route === 'download' ? download : undefined
+    const handler = route === 'search' ? search : route === 'download' ? download : route === 'status' ? status : undefined
     if (!handler) return fail(response, 404, 'not-found')
     // Errors never echo upstream URLs: they would contain the API key.
     handler(base, apiKey, url.searchParams, response).catch(() => {

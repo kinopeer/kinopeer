@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import { ProwlarrSetupError, searchReleases, type Release } from '../api/prowlarr'
-import { TmdbError, getMovie, getTv, tmdbLanguage } from '../api/tmdb'
+import { TmdbError, getMovie, getTv } from '../api/tmdb'
 import { Badge } from '../components/Badge'
 import { Button } from '../components/Button'
 import { EmptyState } from '../components/EmptyState'
@@ -23,6 +23,7 @@ import {
 } from '../releases/parseRelease'
 import { qualityBadges } from '../releases/qualityBadges'
 import { releaseQuery, type TitleDetails as Details } from '../releases/releaseQuery'
+import { useTmdbLanguage } from '../settings/settings'
 import { AddReleaseSheet } from './AddReleaseSheet'
 import './ReleasesScreen.css'
 
@@ -84,14 +85,14 @@ function toggle<T>(list: T[], value: T): T[] {
 }
 
 export function ReleasesScreen() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
   const params = useParams()
   const type = params.type === 'movie' || params.type === 'tv' ? params.type : undefined
   const id = Number(params.id)
   const valid = type !== undefined && Number.isInteger(id) && id > 0
-  const language = tmdbLanguage(i18n.resolvedLanguage ?? i18n.language)
+  const language = useTmdbLanguage()
 
   const details = useRequest<Details>(valid ? `${type}|${id}|${language}` : null, async (signal) =>
     type === 'movie'
