@@ -1,6 +1,6 @@
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
-import { useSearchParams } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 import {
   TmdbKeyError,
   getPopular,
@@ -18,6 +18,7 @@ import { cx } from '../lib/cx'
 import { useDebouncedValue } from '../lib/useDebouncedValue'
 import { useRequest } from '../lib/useRequest'
 import { useTmdbLanguage } from '../settings/settings'
+import type { SettingsLocationState } from './SettingsScreen'
 import './SearchScreen.css'
 
 type TypeFilter = 'all' | MediaType
@@ -62,6 +63,7 @@ function subtitle(t: TFunction, title: Title): string {
 
 export function SearchScreen() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const query = params.get('q') ?? ''
   const type = parseType(params.get('type'))
@@ -136,7 +138,13 @@ export function SearchScreen() {
       <section className="search-body" aria-busy={loading}>
         {request.error ? (
           request.error instanceof TmdbKeyError ? (
-            <EmptyState icon="key" tone="error" title={t('search.keyTitle')}>
+            <EmptyState
+              icon="key"
+              tone="error"
+              title={t('search.keyTitle')}
+              actionLabel={t('tmdbKey.enter')}
+              onAction={() => navigate('/settings', { state: { editTmdbKey: true } satisfies SettingsLocationState })}
+            >
               {t('search.keyBody')}
             </EmptyState>
           ) : (

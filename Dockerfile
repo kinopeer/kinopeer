@@ -12,11 +12,15 @@ RUN npm run build && rm server/*.test.ts
 # Runtime: Node runs server/*.ts directly (type stripping), so no node_modules are needed.
 FROM node:24-alpine
 ENV NODE_ENV=production \
-    PORT=8080
+    PORT=8080 \
+    KINOSEED_DATA_DIR=/data
 WORKDIR /app
 COPY --from=build /app/package.json ./
 COPY --from=build /app/server ./server
 COPY --from=build /app/dist ./dist
+# Settings saved from the app (the TMDB key). Mount a volume here to keep them across updates.
+RUN mkdir /data && chown node:node /data
+VOLUME /data
 USER node
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \

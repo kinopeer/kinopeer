@@ -1,11 +1,14 @@
 import { useCallback, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useLocation } from 'react-router'
 import { ProwlarrSetupError, getProwlarrStatus } from '../api/prowlarr'
 import { getApiVersion, getAppVersion, getCategories } from '../api/qbittorrent'
 import { TmdbKeyError, checkTmdb } from '../api/tmdb'
 import { Button } from '../components/Button'
 import { Icon, type IconName } from '../components/Icon'
+import { IconButton } from '../components/IconButton'
 import { Segmented } from '../components/Segmented'
+import { Sheet } from '../components/Sheet'
 import { Toast } from '../components/Toast'
 import { Toggle } from '../components/Toggle'
 import { LANGUAGES } from '../i18n'
@@ -16,10 +19,16 @@ import type { ThemePreference } from '../theme/theme'
 import { useTheme } from '../theme/useTheme'
 import { categoryType, clearTitleMatchCache } from '../torrents/titleMatches'
 import { InstallSheet } from './InstallSheet'
+import { TmdbKeyForm } from './TmdbKeyForm'
 import './SettingsScreen.css'
 
 export interface SettingsScreenProps {
   onSignOut: () => void
+}
+
+/** Location state that opens the TMDB key sheet, e.g. from Search when the key is missing. */
+export interface SettingsLocationState {
+  editTmdbKey?: boolean
 }
 
 interface ConnectionRowProps {
@@ -30,10 +39,13 @@ interface ConnectionRowProps {
   /** Changes when the user asks to check again. */
   attempt: number
   onRetest: () => void
+  /** Accessible name of the edit button, shown only with `onEdit`. */
+  editLabel?: string
+  onEdit?: () => void
 }
 
 /** One service's connection: checked when the screen opens and again on Test. */
-function ConnectionRow({ name, icon, check, attempt, onRetest }: ConnectionRowProps) {
+function ConnectionRow({ name, icon, check, attempt, onRetest, editLabel, onEdit }: ConnectionRowProps) {
   const { t, i18n } = useTranslation()
   const result = useRequest(`${name}|${attempt}|${i18n.language}`, check)
   const state = result.loading ? 'loading' : result.error !== undefined ? 'error' : 'ok'
@@ -56,6 +68,7 @@ function ConnectionRow({ name, icon, check, attempt, onRetest }: ConnectionRowPr
           {message}
         </span>
       </span>
+      {onEdit && editLabel && <IconButton icon="key" label={editLabel} onClick={onEdit} />}
       <Button variant="secondary" size="sm" disabled={state === 'loading'} onClick={onRetest}>
         {t('settings.test')}
       </Button>
@@ -82,6 +95,12 @@ export function SettingsScreen({ onSignOut }: SettingsScreenProps) {
   const [cleared, setCleared] = useState(false)
   const installMethod = useInstallMethod()
   const [installSteps, setInstallSteps] = useState<ManualInstall | null>(null)
+  const location = useLocation()
+  const [editingKey, setEditingKey] = useState(
+    () => (location.state as SettingsLocationState | null)?.editTmdbKey === true,
+  )
+  const [keySaved, setKeySaved] = useState(false)
+  const dismissKeySaved = useCallback(() => setKeySaved(false), [])
   const retest = useCallback(() => setAttempt((n) => n + 1), [])
   const dismissCleared = useCallback(() => setCleared(false), [])
   const categories = useRequest('qbt|categories', () => getCategories())
@@ -167,7 +186,15 @@ export function SettingsScreen({ onSignOut }: SettingsScreenProps) {
         <ul className="settings-conns">
           <ConnectionRow name="qBittorrent" icon="server" check={checkQbittorrent} attempt={attempt} onRetest={retest} />
           <ConnectionRow name="Prowlarr" icon="search" check={checkProwlarr} attempt={attempt} onRetest={retest} />
-          <ConnectionRow name="TMDB" icon="film" check={checkTmdbKey} attempt={attempt} onRetest={retest} />
+          <ConnectionRow
+            name="TMDB"
+            icon="film"
+            check={checkTmdbKey}
+            attempt={attempt}
+            onRetest={retest}
+            editLabel={t('tmdbKey.change')}
+            onEdit={() => setEditingKey(true)}
+          />
         </ul>
         <p className="t-cap c3 settings-hint">{t('settings.connectionsHint')}</p>
       </Section>
@@ -268,7 +295,17 @@ export function SettingsScreen({ onSignOut }: SettingsScreenProps) {
       </Section>
 
       <InstallSheet platform={installSteps} onClose={() => setInstallSteps(null)} />
+      <Sheet open={editingKey} onClose={() => setEditingKey(false)} title={t('tmdbKey.sheetTitle')}>
+        <TmdbKeyForm
+          onSaved={() => {
+            setEditingKey(false)
+            setKeySaved(true)
+            retest()
+          }}
+        />
+      </Sheet>
       {cleared && <Toast message={t('settings.cacheCleared')} onDismiss={dismissCleared} />}
+      {keySaved && <Toast message={t('tmdbKey.saved')} onDismiss={dismissKeySaved} />}
     </main>
   )
 }

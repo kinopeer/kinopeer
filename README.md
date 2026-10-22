@@ -23,7 +23,7 @@ npm run build      # production build into dist/
 
 ## Production
 
-`npm run build && npm start` runs the production server (`server/main.ts`, plain Node 22.18+ with no dependencies): it serves the built app from `dist/` and the same `/qbt`, `/prowlarr`, `/tmdb` and `/tmdb-img` routes as the dev server, configured through the same environment variables. `PORT` (default 8080) and `HOST` (default `0.0.0.0`) set where it listens; `/healthz` answers `ok` while it runs.
+`npm run build && npm start` runs the production server (`server/main.ts`, plain Node 22.18+ with no dependencies): it serves the built app from `dist/` and the same `/qbt`, `/prowlarr`, `/tmdb` and `/tmdb-img` routes as the dev server, configured through the same environment variables. The TMDB key is entered in the app (onboarding or Settings) and kept by the server in `$KINOSEED_DATA_DIR/settings.json` (default `./data`, `/data` in the image); `TMDB_API_KEY` is only the fallback. `PORT` (default 8080) and `HOST` (default `0.0.0.0`) set where it listens; `/healthz` answers `ok` while it runs.
 
 The Docker image runs the same server:
 
@@ -35,7 +35,7 @@ Or without Compose:
 
 ```sh
 docker build -t kinoseed .
-docker run -p 8080:8080 --env-file .env.local kinoseed
+docker run -p 8080:8080 --env-file .env.local -v kinoseed-data:/data kinoseed
 ```
 
 The service worker needs HTTPS (or `localhost`), so over plain HTTP on the LAN the app works but can't be installed or open offline.

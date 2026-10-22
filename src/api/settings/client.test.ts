@@ -1,0 +1,48 @@
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
+import { SettingsError, getServerSettings, saveTmdbKey } from './client'
+
+let fetchMock: Mock<typeof fetch>
+
+function json(body: unknown, status = 200) {
+  fetchMock.mockResolvedValueOnce(new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } }))
+}
+
+beforeEach(() => {
+  fetchMock = vi.fn<typeof fetch>()
+  vi.stubGlobal('fetch', fetchMock)
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
+describe('getServerSettings', () => {
+  it('reads the settings', async () => {
+    json({ tmdb: { configured: true, source: 'env' } })
+    await expect(getServerSettings()).resolves.toEqual({ tmdb: { configured: true, source: 'env' } })
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/settings')
+  })
+
+  it('fails when the server has no settings route', async () => {
+    fetchMock.mockResolvedValueOnce(new Response('<!doctype html>', { headers: { 'Content-Type': 'text/html' } }))
+    await expect(getServerSettings()).rejects.toBeInstanceOf(SettingsError)
+  })
+})
+
+describe('saveTmdbKey', () => {
+  it('puts the key as JSON', async () => {
+    json({ tmdb: { configured: true, source: 'saved' } })
+    await expect(saveTmdbKey('abc')).resolves.toEqual({ tmdb: { configured: true, source: 'saved' } })
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toBe('/api/settings/tmdb')
+    expect(init?.method).toBe('PUT')
+    expect(init?.body).toBe('{"apiKey":"abc"}')
+  })
+
+  it('passes on why the server refused it', async () => {
+    json({ error: 'invalid-key' }, 422)
+    await expect(saveTmdbKey('bad')).rejects.toMatchObject({ status: 422, code: 'invalid-key' })
+    json({ error: 'unreachable' }, 502)
+    await expect(saveTmdbKey('abc')).rejects.toMatchObject({ code: 'unreachable' })
+  })
+})

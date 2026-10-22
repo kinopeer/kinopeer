@@ -1,9 +1,11 @@
 /// <reference types="vitest/config" />
+import { resolve } from 'node:path'
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { prowlarrMiddleware, type Middleware } from './server/prowlarr.ts'
 import { qbittorrentMiddleware } from './server/qbittorrent.ts'
+import { SettingsStore, settingsMiddleware, tmdbKey } from './server/settings.ts'
 import { tmdbMiddleware } from './server/tmdb.ts'
 
 /**
@@ -39,7 +41,7 @@ const pwa = VitePWA({
 })
 
 /**
- * Serves server/ middleware (/qbt/*, /prowlarr/*, /tmdb/* and /tmdb-img/*) in `vite` and
+ * Serves server/ middleware (/api/settings, /qbt/*, /prowlarr/*, /tmdb/* and /tmdb-img/*) in `vite` and
  * `vite preview`, as the production server (server/main.ts) does.
  */
 function serverRoutes(middlewares: Middleware[]): Plugin {
@@ -53,19 +55,22 @@ function serverRoutes(middlewares: Middleware[]): Plugin {
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
+  const store = new SettingsStore(resolve(env.KINOSEED_DATA_DIR || 'data'))
+  void store.load()
 
   return {
     plugins: [
       react(),
       pwa,
       serverRoutes([
+        settingsMiddleware({ store, envTmdbApiKey: env.TMDB_API_KEY }),
         qbittorrentMiddleware({
           url: env.QBITTORRENT_URL,
           username: env.QBITTORRENT_USERNAME,
           password: env.QBITTORRENT_PASSWORD,
         }),
         prowlarrMiddleware({ url: env.PROWLARR_URL, apiKey: env.PROWLARR_API_KEY }),
-        tmdbMiddleware({ apiKey: env.TMDB_API_KEY }),
+        tmdbMiddleware({ apiKey: () => tmdbKey(store, env.TMDB_API_KEY) }),
       ]),
     ],
     test: {

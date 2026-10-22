@@ -20,6 +20,7 @@ import { Poster } from '../components/Poster'
 import { useFormatters, type Formatters } from '../lib/format'
 import { useRequest } from '../lib/useRequest'
 import { useTmdbLanguage } from '../settings/settings'
+import type { SettingsLocationState } from './SettingsScreen'
 import './TitleScreen.css'
 
 type Details = ({ type: 'movie' } & MovieDetails) | ({ type: 'tv' } & TvDetails)
@@ -99,7 +100,13 @@ export function TitleScreen() {
             {t('title.notFoundBody')}
           </EmptyState>
         ) : request.error instanceof TmdbKeyError ? (
-          <EmptyState icon="key" tone="error" title={t('search.keyTitle')}>
+          <EmptyState
+              icon="key"
+              tone="error"
+              title={t('search.keyTitle')}
+              actionLabel={t('tmdbKey.enter')}
+              onAction={() => navigate('/settings', { state: { editTmdbKey: true } satisfies SettingsLocationState })}
+            >
             {t('search.keyBody')}
           </EmptyState>
         ) : (
