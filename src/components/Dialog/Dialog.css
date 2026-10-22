@@ -1,0 +1,65 @@
+.ks-dialog {
+  position: fixed;
+  width: min(400px, calc(100% - 40px));
+  max-height: calc(100dvh - 64px);
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--raised);
+  color: var(--text);
+  box-shadow: var(--shadow-2);
+}
+
+.ks-dialog[open] {
+  animation: ks-dialog-pop var(--d-base) var(--ease);
+}
+
+.ks-dialog::backdrop {
+  background: var(--scrim);
+  animation: ks-fade var(--d-base) var(--ease);
+}
+
+.ks-dialog-inner {
+  display: flex;
+  flex-direction: column;
+  padding: 24px 20px 16px;
+}
+
+.ks-dialog-icon {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 14px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.ks-dialog-danger .ks-dialog-icon {
+  background: var(--error-soft);
+  color: var(--error);
+}
+
+.ks-dialog-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.ks-dialog-actions > * {
+  flex: 1;
+}
+
+@keyframes ks-dialog-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

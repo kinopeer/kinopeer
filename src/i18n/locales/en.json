@@ -51,7 +51,9 @@
     "noMatchBody": "No torrents match these filters.",
     "resetFilters": "Reset filters",
     "progress": "{{name}}: progress",
-    "queuePosition": "Queue position {{position}}"
+    "queuePosition": "Queue position {{position}}",
+    "deleted": "Torrent deleted",
+    "deletedFiles": "Torrent and files deleted"
   },
   "format": {
     "B": "B",
@@ -199,5 +201,38 @@
     "files_other": "{{count}} files",
     "selectedSummary": "{{selected}} of {{count}} · {{size}}",
     "diskUsage": "Selected size against free space"
+  },
+  "torrent": {
+    "back": "Back",
+    "loading": "Loading torrent",
+    "notFoundTitle": "Torrent not found",
+    "notFoundBody": "It may have been deleted from qBittorrent.",
+    "backToDownloads": "Back to downloads",
+    "offlineBody": "Showing the last known state. Actions are paused until qBittorrent answers.",
+    "progressLabel": "Progress",
+    "eta": "ETA {{eta}}",
+    "ratioValue": "Ratio {{ratio}}",
+    "errorBody": "qBittorrent stopped this torrent because of an error, usually a disk or save path problem. Fix it, then resume.",
+    "missingFiles": "The files are missing from the save path. Put them back and resume, or delete the torrent.",
+    "pause": "Pause",
+    "resume": "Resume",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "actionFailed": "Couldn’t reach qBittorrent. Try again.",
+    "details": "Details",
+    "downloadSpeed": "Download speed",
+    "uploadSpeed": "Upload speed",
+    "seedsPeers": "Seeds / peers",
+    "ratio": "Ratio",
+    "savePath": "Save path",
+    "category": "Category",
+    "added": "Added",
+    "hash": "Info hash",
+    "trackers": "Trackers",
+    "trackersFailed": "Couldn’t load",
+    "deleteTitle": "Delete torrent?",
+    "deleteBody": "“{{title}}” will be removed from qBittorrent.",
+    "deleteFiles": "Also delete files · {{size}}",
+    "deleteFilesHint": "Files are removed from disk permanently."
   }
 }

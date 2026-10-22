@@ -51,7 +51,9 @@
     "noMatchBody": "Под эти фильтры не подходит ни один торрент.",
     "resetFilters": "Сбросить фильтры",
     "progress": "{{name}}: прогресс",
-    "queuePosition": "Место в очереди: {{position}}"
+    "queuePosition": "Место в очереди: {{position}}",
+    "deleted": "Торрент удалён",
+    "deletedFiles": "Торрент и файлы удалены"
   },
   "format": {
     "B": "Б",
@@ -218,5 +220,38 @@
     "files_other": "{{count}} файла",
     "selectedSummary": "{{selected}} из {{count}} · {{size}}",
     "diskUsage": "Объём выбранного относительно свободного места"
+  },
+  "torrent": {
+    "back": "Назад",
+    "loading": "Загружаем торрент",
+    "notFoundTitle": "Торрент не найден",
+    "notFoundBody": "Возможно, его удалили из qBittorrent.",
+    "backToDownloads": "К загрузкам",
+    "offlineBody": "Показываем последнее известное состояние. Действия недоступны, пока qBittorrent не ответит.",
+    "progressLabel": "Прогресс",
+    "eta": "Осталось {{eta}}",
+    "ratioValue": "Рейтинг {{ratio}}",
+    "errorBody": "qBittorrent остановил торрент из-за ошибки, обычно с диском или папкой сохранения. Исправьте её и продолжите загрузку.",
+    "missingFiles": "Файлы пропали из папки сохранения. Верните их и продолжите загрузку или удалите торрент.",
+    "pause": "Пауза",
+    "resume": "Продолжить",
+    "delete": "Удалить",
+    "cancel": "Отмена",
+    "actionFailed": "Не удалось связаться с qBittorrent. Попробуйте ещё раз.",
+    "details": "Подробности",
+    "downloadSpeed": "Скорость загрузки",
+    "uploadSpeed": "Скорость отдачи",
+    "seedsPeers": "Сиды / пиры",
+    "ratio": "Рейтинг",
+    "savePath": "Папка",
+    "category": "Категория",
+    "added": "Добавлен",
+    "hash": "Хеш",
+    "trackers": "Трекеры",
+    "trackersFailed": "Не удалось загрузить",
+    "deleteTitle": "Удалить торрент?",
+    "deleteBody": "«{{title}}» будет удалён из qBittorrent.",
+    "deleteFiles": "Удалить и файлы · {{size}}",
+    "deleteFilesHint": "Файлы будут безвозвратно удалены с диска."
   }
 }

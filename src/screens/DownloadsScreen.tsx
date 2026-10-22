@@ -28,8 +28,8 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
   const { data, offline, refresh } = useMainData(onSessionLost)
   const location = useLocation()
   const navigate = useNavigate()
-  // Set by the releases screen after adding a release.
-  const added = (location.state as { added?: string } | null)?.added
+  // Set by the releases screen after adding a release, and by the torrent screen after deleting one.
+  const { added, deleted } = (location.state ?? {}) as { added?: string; deleted?: 'torrent' | 'files' }
   const dismissToast = useCallback(
     () => void navigate(location.pathname, { replace: true, state: null }),
     [navigate, location.pathname],
@@ -171,6 +171,12 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
         )}
       </section>
       {added && <Toast message={t('add.added', { title: added })} onDismiss={dismissToast} />}
+      {deleted && (
+        <Toast
+          message={deleted === 'files' ? t('downloads.deletedFiles') : t('downloads.deleted')}
+          onDismiss={dismissToast}
+        />
+      )}
     </main>
   )
 }

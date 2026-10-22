@@ -154,6 +154,16 @@ describe('DownloadsScreen', () => {
     expect(screen.getAllByRole('listitem')).toHaveLength(3)
   })
 
+  it('links each row to the torrent page', async () => {
+    renderScreen()
+    expect(await screen.findByRole('link', { name: /Andor\.S02\.1080p/ })).toHaveAttribute('href', '/torrent/andor')
+  })
+
+  it('confirms a torrent deleted on the torrent page', async () => {
+    renderScreen({ deleted: 'files' })
+    expect(screen.getByText('Torrent and files deleted')).toBeInTheDocument()
+  })
+
   it('confirms a release added from the releases screen', async () => {
     renderScreen({ added: 'Dune: Part Two' })
     expect(screen.getByText('“Dune: Part Two” added to downloads')).toBeInTheDocument()
