@@ -212,14 +212,52 @@
   padding: 0;
 }
 
-.tf-group-name {
+.tf-folder {
+  border-bottom: 1px solid var(--border);
+}
+
+.tf-sub .tf-folder,
+.tf-sub .tf-file:last-child {
+  border-bottom: none;
+}
+
+.tf-folder-toggle {
+  width: 100%;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  min-height: 56px;
+  padding: 6px 4px;
+  margin-left: -4px;
+  border: none;
+  border-radius: 10px;
+  background: none;
+  color: var(--text);
+  text-align: left;
+}
+
+.tf-folder-text {
+  flex: 1;
   min-width: 0;
-  padding-top: 12px;
-  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+}
+
+.tf-folder-name {
+  font-size: 15px;
   font-weight: 600;
+}
+
+.tf-chevron {
+  transition: transform var(--d-base) var(--ease);
+}
+
+.tf-folder-toggle[aria-expanded='true'] .tf-chevron {
+  transform: rotate(180deg);
+}
+
+.tf-sub {
+  padding-left: 20px;
 }
 
 .tf-file {

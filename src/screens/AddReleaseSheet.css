@@ -240,7 +240,11 @@
 }
 
 .fp-files {
-  padding-bottom: 6px;
+  padding: 0 0 6px 20px;
+}
+
+.fp-files .fp-group {
+  border-bottom: none;
 }
 
 .fp-file {
@@ -248,11 +252,6 @@
   align-items: center;
   gap: 2px;
   min-height: 46px;
-  padding-left: 20px;
-}
-
-.fp-file.is-flat {
-  padding-left: 0;
   margin-left: -10px;
 }
 

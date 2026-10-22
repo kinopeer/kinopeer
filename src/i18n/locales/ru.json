@@ -241,7 +241,6 @@
     "selectNone": "Снять все",
     "done": "Готово",
     "rootFiles": "Другие файлы",
-    "season": "Сезон {{season}}",
     "files_one": "{{count}} файл",
     "files_few": "{{count}} файла",
     "files_many": "{{count}} файлов",

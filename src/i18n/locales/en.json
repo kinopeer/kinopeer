@@ -222,7 +222,6 @@
     "selectNone": "None",
     "done": "Done",
     "rootFiles": "Other files",
-    "season": "Season {{season}}",
     "files_one": "{{count}} file",
     "files_other": "{{count}} files",
     "selectedSummary": "{{selected}} of {{count}} · {{size}}",
