@@ -1,13 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams } from 'react-router'
-import {
-  MOVIE_CATEGORY,
-  ProwlarrSetupError,
-  TV_CATEGORY,
-  searchReleases,
-  type Release,
-} from '../api/prowlarr'
+import { ProwlarrSetupError, searchReleases, type Release } from '../api/prowlarr'
 import { TmdbError, getMovie, getTv, tmdbLanguage } from '../api/tmdb'
 import { Badge } from '../components/Badge'
 import { Button } from '../components/Button'
@@ -29,6 +23,7 @@ import {
 } from '../releases/parseRelease'
 import { qualityBadges } from '../releases/qualityBadges'
 import { releaseQuery, type TitleDetails as Details } from '../releases/releaseQuery'
+import { fitsType, searchCategories } from '../releases/searchCategories'
 import { AddReleaseSheet } from './AddReleaseSheet'
 import './ReleasesScreen.css'
 
@@ -106,7 +101,7 @@ export function ReleasesScreen() {
   )
   const query = details.data ? releaseQuery(details.data) : null
   const search = useRequest<Release[]>(query ? `${type}|${query}` : null, (signal) =>
-    searchReleases(query!, { categories: [type === 'tv' ? TV_CATEGORY : MOVIE_CATEGORY], signal }),
+    searchReleases(query!, { categories: searchCategories(type!), signal }),
   )
 
   const [filters, setFilters] = useState<Filters>(NO_FILTERS)
@@ -115,8 +110,11 @@ export function ReleasesScreen() {
   const [adding, setAdding] = useState<Row>()
 
   const rows = useMemo<Row[]>(
-    () => (search.data ?? []).map((release) => ({ release, info: parseRelease(release.title) })),
-    [search.data],
+    () =>
+      (search.data ?? [])
+        .map((release) => ({ release, info: parseRelease(release.title) }))
+        .filter((row) => fitsType(row.release, row.info, type!)),
+    [search.data, type],
   )
   const visible = useMemo(() => {
     const direction = sort.descending ? -1 : 1

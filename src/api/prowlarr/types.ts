@@ -1,6 +1,8 @@
 /** Newznab categories Prowlarr uses: 2000 movies, 5000 TV (subcategories like 2040 or 5070 fall under them). */
 export const MOVIE_CATEGORY = 2000
 export const TV_CATEGORY = 5000
+/** "Other": some indexers (RuTor) file every release here, movies and series included. */
+export const OTHER_CATEGORY = 8000
 
 export type SearchType = 'search' | 'movie' | 'tvsearch'
 
