@@ -53,7 +53,9 @@
     "progress": "{{name}}: progress",
     "queuePosition": "Queue position {{position}}",
     "deleted": "Torrent deleted",
-    "deletedFiles": "Torrent and files deleted"
+    "deletedFiles": "Torrent and files deleted",
+    "moreActions": "More actions: {{name}}",
+    "openDetails": "Open details"
   },
   "format": {
     "B": "B",
@@ -233,6 +235,16 @@
     "deleteTitle": "Delete torrent?",
     "deleteBody": "“{{title}}” will be removed from qBittorrent.",
     "deleteFiles": "Also delete files · {{size}}",
-    "deleteFilesHint": "Files are removed from disk permanently."
+    "deleteFilesHint": "Files are removed from disk permanently.",
+    "files": "Files",
+    "fileProgress": "{{name}}: progress",
+    "priorityOf": "Priority: {{name}}",
+    "prioritySkip": "Skip",
+    "priorityNormal": "Normal",
+    "priorityHigh": "High",
+    "priorityFailed": "Couldn’t change the priority. Try again.",
+    "filesFailed": "Couldn’t load the file list.",
+    "filesLoading": "Loading files",
+    "filesMetadata": "The file list appears once the torrent’s metadata arrives from peers."
   }
 }

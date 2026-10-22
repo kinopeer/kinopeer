@@ -181,31 +181,132 @@
   overflow-wrap: anywhere;
 }
 
-/* Delete confirmation */
-.torrent-delete-body {
-  margin-top: 6px;
-  overflow-wrap: anywhere;
+/* Files */
+.tf {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.torrent-delete-files {
+.tf-title {
+  margin-bottom: 4px;
+}
+
+.tf-count {
+  font-weight: 500;
+}
+
+.tf-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tf-skel {
+  height: 44px;
+}
+
+.tf-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tf-group-name {
   display: flex;
   align-items: center;
-  gap: 2px;
-  margin: 12px -10px 0;
+  gap: 8px;
+  min-width: 0;
+  padding-top: 12px;
+  font-size: 14px;
+  font-weight: 600;
 }
 
-.torrent-delete-files-text {
+.tf-file {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.tf-file.is-skipped .tf-file-body {
+  opacity: 0.5;
+}
+
+.tf-file-body {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.torrent-delete-files-text label {
-  display: block;
+.tf-file-name {
+  font-size: 13.5px;
   color: var(--text);
+}
+
+.tf-file-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tf-bar {
+  flex: 1;
+}
+
+.tf-meta {
+  flex: none;
+  font-size: 12px;
+  text-align: right;
+}
+
+.tf-priority {
+  padding: 0;
+}
+
+.tf-priority:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The select covers the chip plus the 48px hit area the chip's ::before gives other chips. */
+.tf-priority::before {
+  display: none;
+}
+
+.tf-priority select {
+  position: relative;
+  appearance: none;
+  height: calc(100% + 10px);
+  margin: -5px 0;
+  padding: 0 32px 0 14px;
+  border: none;
+  border-radius: inherit;
+  background: transparent;
+  color: inherit;
+  font: inherit;
   cursor: pointer;
 }
 
-.torrent-delete-hint {
-  font-size: 12px;
-  line-height: 16px;
+.tf-priority select:focus-visible {
+  outline: none;
+}
+
+.tf-priority select:disabled {
+  color: var(--disabled);
+  cursor: not-allowed;
+}
+
+.tf-priority .ks-ic {
+  position: absolute;
+  right: 12px;
+  pointer-events: none;
+}
+
+.tf-priority option {
+  background: var(--raised);
+  color: var(--text);
 }

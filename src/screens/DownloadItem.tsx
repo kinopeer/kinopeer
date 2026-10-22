@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import type { Torrent } from '../api/qbittorrent'
 import { posterUrl } from '../api/tmdb'
+import { IconButton } from '../components/IconButton'
 import { Poster } from '../components/Poster'
 import { ProgressBar } from '../components/ProgressBar'
 import { StatusChip } from '../components/StatusChip'
@@ -13,9 +14,11 @@ export interface DownloadItemProps {
   torrent: Torrent
   /** The TMDB title, once known; the row falls back to the release name. */
   match?: TitleMatch | null
+  /** Opens the row's actions. */
+  onMore: (torrent: Torrent) => void
 }
 
-export function DownloadItem({ torrent, match }: DownloadItemProps) {
+export function DownloadItem({ torrent, match, onMore }: DownloadItemProps) {
   const { t } = useTranslation()
   const format = useFormatters()
   const status = downloadStatus(torrent)
@@ -73,6 +76,12 @@ export function DownloadItem({ torrent, match }: DownloadItemProps) {
           </div>
         </div>
       </Link>
+      <IconButton
+        icon="more"
+        label={t('downloads.moreActions', { name: title })}
+        className="dl-more"
+        onClick={() => onMore(torrent)}
+      />
     </li>
   )
 }

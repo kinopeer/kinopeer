@@ -33,6 +33,11 @@ export function downloadStatus(torrent: Pick<Torrent, 'state'>): DownloadStatus 
   return STATUS_BY_STATE[torrent.state] ?? 'paused'
 }
 
+/** Statuses with something to stop; the rest offer Resume. */
+export function isRunning(status: DownloadStatus): boolean {
+  return status === 'downloading' || status === 'seeding' || status === 'queued' || status === 'checking'
+}
+
 export const STATUS_FILTERS = ['all', 'downloading', 'seeding', 'paused', 'completed', 'error'] as const
 export type StatusFilter = (typeof STATUS_FILTERS)[number]
 

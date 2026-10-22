@@ -10,7 +10,7 @@ import { DownloadsScreen } from './DownloadsScreen'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => {
   const actual = await importOriginal<typeof api>()
-  return { ...actual, getMainData: vi.fn() }
+  return { ...actual, getMainData: vi.fn(), stopTorrents: vi.fn(), startTorrents: vi.fn(), deleteTorrents: vi.fn() }
 })
 
 vi.mock('../api/tmdb', async (importOriginal) => {
@@ -157,6 +157,34 @@ describe('DownloadsScreen', () => {
   it('links each row to the torrent page', async () => {
     renderScreen()
     expect(await screen.findByRole('link', { name: /Andor\.S02\.1080p/ })).toHaveAttribute('href', '/torrent/andor')
+  })
+
+  it('pauses a torrent from the row menu', async () => {
+    vi.mocked(api.stopTorrents).mockResolvedValue()
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' }))
+    const sheet = screen.getByRole('dialog', { name: 'Andor.S02.1080p' })
+    expect(within(sheet).getByRole('link', { name: 'Open details' })).toHaveAttribute('href', '/torrent/andor')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Pause' }))
+    expect(api.stopTorrents).toHaveBeenCalledWith(['andor'])
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('offers Resume for a paused torrent', async () => {
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Alien.Romulus.2024.1080p' }))
+    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Resume' })).toBeInTheDocument()
+  })
+
+  it('deletes a torrent from the row menu after confirmation', async () => {
+    vi.mocked(api.deleteTorrents).mockResolvedValue()
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+    const confirm = screen.getByRole('alertdialog', { name: 'Delete torrent?' })
+    await userEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
+    expect(api.deleteTorrents).toHaveBeenCalledWith(['andor'], false)
+    expect(await screen.findByText('Torrent deleted')).toBeInTheDocument()
   })
 
   it('confirms a torrent deleted on the torrent page', async () => {
