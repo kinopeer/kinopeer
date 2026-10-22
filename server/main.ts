@@ -1,0 +1,84 @@
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { prowlarrMiddleware, type Middleware } from './prowlarr.ts'
+import { qbittorrentMiddleware } from './qbittorrent.ts'
+import { staticMiddleware } from './static.ts'
+import { tmdbMiddleware } from './tmdb.ts'
+
+/**
+ * The production server: the built app plus the same /qbt, /prowlarr, /tmdb and /tmdb-img routes
+ * the dev server has. Configured through environment variables only (see .env.example):
+ *
+ *   node server/main.ts
+ *
+ * PORT (default 8080), HOST (default 0.0.0.0) and KINOSEED_DIST (default ../dist) set where it
+ * listens and what it serves.
+ */
+export function createApp(env: NodeJS.ProcessEnv, root: string) {
+  const middlewares: Middleware[] = [
+    health,
+    qbittorrentMiddleware({ url: env.QBITTORRENT_URL, username: env.QBITTORRENT_USERNAME, password: env.QBITTORRENT_PASSWORD }),
+    prowlarrMiddleware({ url: env.PROWLARR_URL, apiKey: env.PROWLARR_API_KEY }),
+    tmdbMiddleware({ apiKey: env.TMDB_API_KEY }),
+    staticMiddleware({ root }),
+  ]
+
+  return createServer((request, response) => {
+    const run = (index: number) => {
+      const middleware = middlewares[index]
+      if (!middleware) return notFound(response)
+      try {
+        middleware(request, response, () => run(index + 1))
+      } catch {
+        if (!response.headersSent) internalError(response)
+      }
+    }
+    run(0)
+  })
+}
+
+/** For Docker's HEALTHCHECK and uptime monitors: the server is up (not whether qBittorrent is). */
+function health(request: IncomingMessage, response: ServerResponse, next: () => void) {
+  if (request.url !== '/healthz') return next()
+  response.setHeader('Content-Type', 'text/plain; charset=utf-8')
+  response.setHeader('Cache-Control', 'no-store')
+  response.end('ok')
+}
+
+function notFound(response: ServerResponse) {
+  response.statusCode = 404
+  response.setHeader('Content-Type', 'text/plain; charset=utf-8')
+  response.end('Not found')
+}
+
+function internalError(response: ServerResponse) {
+  response.statusCode = 500
+  response.setHeader('Content-Type', 'text/plain; charset=utf-8')
+  response.end('Internal error')
+}
+
+function main() {
+  const env = process.env
+  const port = Number(env.PORT || 8080)
+  const host = env.HOST || '0.0.0.0'
+  const root = resolve(env.KINOSEED_DIST || resolve(dirname(fileURLToPath(import.meta.url)), '../dist'))
+  const server = createApp(env, root)
+
+  server.listen(port, host, () => {
+    console.log(`[kinoseed] listening on http://${host}:${port}`)
+    const missing = ['QBITTORRENT_URL', 'TMDB_API_KEY', 'PROWLARR_URL', 'PROWLARR_API_KEY'].filter((name) => !env[name])
+    if (missing.length) console.warn(`[kinoseed] not set: ${missing.join(', ')}`)
+  })
+
+  // Docker sends SIGTERM on stop: finish open requests instead of waiting to be killed.
+  const stop = () => {
+    server.close(() => process.exit(0))
+    server.closeIdleConnections()
+    setTimeout(() => process.exit(0), 5000).unref()
+  }
+  process.on('SIGTERM', stop)
+  process.on('SIGINT', stop)
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main()

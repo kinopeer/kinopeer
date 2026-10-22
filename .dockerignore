@@ -1,0 +1,13 @@
+# Only what the build needs goes into the Docker build context. Never secrets.
+.git
+.github
+node_modules
+dist
+dist-ssr
+.env
+.env.*
+*.local
+*.log
+.DS_Store
+.vscode
+.idea

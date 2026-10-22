@@ -1,41 +1,10 @@
 /// <reference types="vitest/config" />
 import react from '@vitejs/plugin-react'
-import { defineConfig, loadEnv, type Plugin, type ProxyOptions } from 'vite'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { prowlarrMiddleware, type Middleware } from './server/prowlarr.ts'
 import { qbittorrentMiddleware } from './server/qbittorrent.ts'
-
-/** Browser cookies (e.g. the qBittorrent session) must never reach third parties. */
-const dropCookies: ProxyOptions['configure'] = (proxy) => {
-  proxy.on('proxyReq', (request) => request.removeHeader('cookie'))
-}
-
-/**
- * Same-origin proxy to the TMDB API that adds the key server-side, so it never reaches the browser:
- * /tmdb/search/multi?query=... → https://api.themoviedb.org/3/search/multi?query=...&api_key=$TMDB_API_KEY
- * Accepts either a v3 API key or a v4 read access token (a JWT, sent as a bearer token).
- */
-function tmdbProxy(key: string): ProxyOptions {
-  const isToken = key.startsWith('eyJ')
-  return {
-    target: 'https://api.themoviedb.org',
-    changeOrigin: true,
-    rewrite: (path) => {
-      const url = path.replace(/^\/tmdb/, '/3')
-      return isToken ? url : `${url}${url.includes('?') ? '&' : '?'}api_key=${encodeURIComponent(key)}`
-    },
-    headers: isToken ? { Authorization: `Bearer ${key}` } : undefined,
-    configure: dropCookies,
-  }
-}
-
-/** TMDB images through the same origin: /tmdb-img/w342/abc.jpg → https://image.tmdb.org/t/p/w342/abc.jpg */
-const tmdbImageProxy: ProxyOptions = {
-  target: 'https://image.tmdb.org',
-  changeOrigin: true,
-  rewrite: (path) => path.replace(/^\/tmdb-img/, '/t/p'),
-  configure: dropCookies,
-}
+import { tmdbMiddleware } from './server/tmdb.ts'
 
 /**
  * The PWA: web app manifest and a service worker (src/sw.ts) that precaches the app shell. Icons
@@ -70,8 +39,8 @@ const pwa = VitePWA({
 })
 
 /**
- * Serves server/ middleware (/qbt/* and /prowlarr/*) in `vite` and `vite preview`, as the
- * production server will.
+ * Serves server/ middleware (/qbt/*, /prowlarr/*, /tmdb/* and /tmdb-img/*) in `vite` and
+ * `vite preview`, as the production server (server/main.ts) does.
  */
 function serverRoutes(middlewares: Middleware[]): Plugin {
   return {
@@ -84,10 +53,6 @@ function serverRoutes(middlewares: Middleware[]): Plugin {
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const proxy: Record<string, ProxyOptions> = {}
-  // Regex keys: a plain '/tmdb' prefix would also catch '/tmdb-img'.
-  if (env.TMDB_API_KEY) proxy['^/tmdb/'] = tmdbProxy(env.TMDB_API_KEY.trim())
-  proxy['^/tmdb-img/'] = tmdbImageProxy
 
   return {
     plugins: [
@@ -100,10 +65,9 @@ export default defineConfig(({ mode }) => {
           password: env.QBITTORRENT_PASSWORD,
         }),
         prowlarrMiddleware({ url: env.PROWLARR_URL, apiKey: env.PROWLARR_API_KEY }),
+        tmdbMiddleware({ apiKey: env.TMDB_API_KEY }),
       ]),
     ],
-    server: { proxy },
-    preview: { proxy },
     test: {
       projects: [
         {
