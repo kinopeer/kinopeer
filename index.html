@@ -3,7 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0e1113" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Kinoseed" />
     <title>Kinoseed</title>
     <script>
       // Apply the saved theme before first paint to avoid a flash. Mirrors src/theme/theme.ts.
@@ -11,6 +15,7 @@
         var p = localStorage.getItem('kinoseed.theme')
         var light = p === 'light' || (p !== 'dark' && matchMedia('(prefers-color-scheme: light)').matches)
         document.documentElement.dataset.theme = light ? 'light' : 'dark'
+        document.querySelector('meta[name="theme-color"]').content = light ? '#f3f5f5' : '#0e1113'
       } catch (e) {}
     </script>
   </head>

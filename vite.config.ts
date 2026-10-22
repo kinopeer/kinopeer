@@ -1,6 +1,7 @@
 /// <reference types="vitest/config" />
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv, type Plugin, type ProxyOptions } from 'vite'
+import { VitePWA } from 'vite-plugin-pwa'
 import { prowlarrMiddleware, type Middleware } from './server/prowlarr.ts'
 import { qbittorrentMiddleware } from './server/qbittorrent.ts'
 
@@ -37,6 +38,38 @@ const tmdbImageProxy: ProxyOptions = {
 }
 
 /**
+ * The PWA: web app manifest and a service worker (src/sw.ts) that precaches the app shell. Icons
+ * come from scripts/render-icons.mjs. The service worker is off in `vite` dev; try it with
+ * `npm run build && npm run preview`.
+ */
+const pwa = VitePWA({
+  strategies: 'injectManifest',
+  srcDir: 'src',
+  filename: 'sw.ts',
+  injectRegister: 'script-defer',
+  manifest: {
+    id: '/',
+    name: 'Kinoseed',
+    short_name: 'Kinoseed',
+    description: 'Find movies and series, pick a release and download it with qBittorrent.',
+    start_url: '/',
+    scope: '/',
+    display: 'standalone',
+    orientation: 'any',
+    // --bg of the dark theme, the primary one (src/styles/tokens.css).
+    background_color: '#0e1113',
+    theme_color: '#0e1113',
+    icons: [
+      { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+      { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      { src: '/icons/icon-monochrome-512.png', sizes: '512x512', type: 'image/png', purpose: 'monochrome' },
+    ],
+  },
+  injectManifest: { globPatterns: ['**/*.{js,css,html,woff2,svg,png}'] },
+})
+
+/**
  * Serves server/ middleware (/qbt/* and /prowlarr/*) in `vite` and `vite preview`, as the
  * production server will.
  */
@@ -59,6 +92,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       react(),
+      pwa,
       serverRoutes([
         qbittorrentMiddleware({
           url: env.QBITTORRENT_URL,
