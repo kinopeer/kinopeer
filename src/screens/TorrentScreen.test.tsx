@@ -215,7 +215,7 @@ describe('TorrentScreen', () => {
     expect(main).toHaveValue('normal')
   })
 
-  it('shows the torrent’s folders as a tree', async () => {
+  it('shows the torrent’s folders as a tree, inside its own folder', async () => {
     getTorrentFiles.mockResolvedValue([
       { index: 0, name: 'Show/Season 1/Show.S01E01.mkv', size: 1e9, progress: 1, priority: 1 },
       { index: 1, name: 'Show/Season 2/Show.S02E01.mkv', size: 1e9, progress: 0, priority: 1 },
@@ -223,17 +223,16 @@ describe('TorrentScreen', () => {
     ])
     renderScreen()
     const files = await screen.findByRole('region', { name: /Files/ })
-    const show = await within(files).findByRole('button', { name: /^Show/ })
-    expect(show).toHaveAttribute('aria-expanded', 'true')
-    expect(within(files).getByRole('combobox', { name: 'Priority: Sample.mkv' })).toBeInTheDocument()
+    expect(await within(files).findByRole('combobox', { name: 'Priority: Sample.mkv' })).toBeInTheDocument()
+    expect(within(files).queryByRole('button', { name: /^Show/ })).not.toBeInTheDocument()
 
     const season2 = within(files).getByRole('button', { name: /Season 2/ })
     expect(season2).toHaveAttribute('aria-expanded', 'false')
     expect(season2).toHaveTextContent('1 file · 1.00 GB · 0%')
     await userEvent.click(season2)
     expect(within(files).getByRole('combobox', { name: 'Priority: Show.S02E01.mkv' })).toBeInTheDocument()
-    await userEvent.click(show)
-    expect(within(files).queryByRole('combobox', { name: 'Priority: Sample.mkv' })).not.toBeInTheDocument()
+    await userEvent.click(season2)
+    expect(within(files).queryByRole('combobox', { name: 'Priority: Show.S02E01.mkv' })).not.toBeInTheDocument()
   })
 
   it('explains an empty file list of a magnet link', async () => {

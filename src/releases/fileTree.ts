@@ -1,7 +1,7 @@
 /** A folder of a torrent, for the file lists. */
 export interface FileFolder {
   name: string
-  /** Path from the torrent's top, without a trailing slash: a stable key. '' for the top itself. */
+  /** Path from the torrent's top, without a trailing slash: a stable key. */
   path: string
   /** Subfolders, by name. */
   folders: FileFolder[]
@@ -15,8 +15,10 @@ export interface FileFolder {
 const byName = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
 
 /**
- * The torrent's folders as they are in it, with no regrouping. Folders and files are sorted by name, numbers
- * by value ("Season 2" before "Season 10"), like qBittorrent's own file list: a .torrent's order can be anything.
+ * The torrent's folders as they are in it, with no regrouping. When everything sits in one folder (the
+ * torrent's own, named like the release), the tree starts inside it: the name is shown elsewhere and the extra
+ * level only costs width. Folders and files are sorted by name, numbers by value ("Season 2" before
+ * "Season 10"), like qBittorrent's own file list: a .torrent's order can be anything.
  */
 export function buildFileTree(files: { path: string; size: number }[]): FileFolder {
   const top: FileFolder = { name: '', path: '', folders: [], files: [], all: [], size: 0 }
@@ -47,10 +49,10 @@ export function buildFileTree(files: { path: string; size: number }[]): FileFold
     folder.folders.forEach(sort)
   }
   sort(top)
-  return top
+  return top.folders.length === 1 && top.files.length === 0 ? { ...top.folders[0], name: '' } : top
 }
 
-/** Folders to show expanded at first: a torrent's single top folder, so its contents are visible. */
+/** Folders to show expanded at first: a single top folder, so its contents are visible. */
 export function initiallyOpen(top: FileFolder): Set<string> {
   return new Set(top.folders.length === 1 && top.files.length === 0 ? [top.folders[0].path] : [])
 }

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { buildFileTree, fileName, initiallyOpen } from './fileTree'
 
 describe('buildFileTree', () => {
-  it('keeps the torrent’s folders as they are', () => {
+  it('keeps the folders as they are, inside the torrent’s own folder', () => {
     const top = buildFileTree([
       { path: 'Show/Season 1/e01.mkv', size: 10 },
       { path: 'Show/Season 2/e01.mkv', size: 20 },
@@ -10,16 +10,29 @@ describe('buildFileTree', () => {
       { path: 'Show/Season 2/Extras/making-of.mkv', size: 3 },
       { path: 'Show/info.nfo', size: 1 },
     ])
-    expect(top.files).toEqual([])
-    expect(top.all).toEqual([0, 1, 2, 3, 4])
-    const [show] = top.folders
-    expect(show).toMatchObject({ name: 'Show', path: 'Show', files: [4], size: 39 })
-    expect(show.folders.map((folder) => [folder.path, folder.files, folder.size])).toEqual([
+    expect(top).toMatchObject({ name: '', path: 'Show', files: [4], all: [0, 1, 2, 3, 4], size: 39 })
+    expect(top.folders.map((folder) => [folder.path, folder.files, folder.size])).toEqual([
       ['Show/Season 1', [0, 2], 15],
       ['Show/Season 2', [1], 23],
     ])
-    expect(show.folders[1].folders[0]).toMatchObject({ name: 'Extras', all: [3] })
-    expect(initiallyOpen(top)).toEqual(new Set(['Show']))
+    expect(top.folders[1].folders[0]).toMatchObject({ name: 'Extras', all: [3] })
+    expect(initiallyOpen(top)).toEqual(new Set())
+  })
+
+  it('keeps several top folders, and one folder below the torrent’s own', () => {
+    expect(
+      buildFileTree([
+        { path: 'Movie/movie.mkv', size: 10 },
+        { path: 'Extras/trailer.mkv', size: 1 },
+      ]).folders.map((folder) => folder.name),
+    ).toEqual(['Extras', 'Movie'])
+
+    const top = buildFileTree([
+      { path: 'Show/Season 1/e01.mkv', size: 10 },
+      { path: 'Show/Season 1/e02.mkv', size: 10 },
+    ])
+    expect(top.folders.map((folder) => folder.path)).toEqual(['Show/Season 1'])
+    expect(initiallyOpen(top)).toEqual(new Set(['Show/Season 1']))
   })
 
   it('doesn’t regroup loose files', () => {

@@ -21,7 +21,7 @@ export interface FilePickerProps {
   onDone: () => void
 }
 
-/** The torrent's files as they are in it, with the torrent's own folder on top like qBittorrent shows it. */
+/** The torrent's files with its own folder, which .torrent paths leave out, so buildFileTree treats them like qBittorrent's. */
 function treeOf(meta: TorrentMeta): FileFolder {
   const single = meta.files.length === 1 && meta.files[0].path === meta.name
   return buildFileTree(
