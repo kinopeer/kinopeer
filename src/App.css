@@ -67,3 +67,22 @@
   min-height: 100dvh;
   padding-bottom: calc(66px + var(--safe-bottom));
 }
+
+.tmdb-key-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.tmdb-key-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.tmdb-key-link {
+  color: var(--accent-text);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

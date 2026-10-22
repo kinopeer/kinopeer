@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as prowlarr from '../api/prowlarr'
 import * as qbt from '../api/qbittorrent'
+import * as serverSettings from '../api/settings'
 import * as tmdb from '../api/tmdb'
 import { getSettings, resetSettings } from '../settings/settings'
 import { SettingsScreen } from './SettingsScreen'
@@ -18,14 +19,18 @@ vi.mock('../api/prowlarr', async (importOriginal) => ({
   ...(await importOriginal<typeof prowlarr>()),
   getProwlarrStatus: vi.fn(),
 }))
+vi.mock('../api/settings', async (importOriginal) => ({
+  ...(await importOriginal<typeof serverSettings>()),
+  saveTmdbKey: vi.fn(),
+}))
 vi.mock('../api/tmdb', async (importOriginal) => ({
   ...(await importOriginal<typeof tmdb>()),
   checkTmdb: vi.fn(),
 }))
 
-function renderScreen(onSignOut = vi.fn()) {
+function renderScreen(onSignOut = vi.fn(), state?: unknown) {
   render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[{ pathname: '/settings', state }]}>
       <SettingsScreen onSignOut={onSignOut} />
     </MemoryRouter>,
   )
@@ -70,6 +75,28 @@ describe('SettingsScreen', () => {
     vi.mocked(prowlarr.getProwlarrStatus).mockResolvedValue({ version: '1.24.3', indexers: 1 })
     await userEvent.click(within(connection('Prowlarr')).getByRole('button', { name: 'Test' }))
     expect(await within(connection('Prowlarr')).findByText('Connected · 1 indexer · v1.24.3')).toBeInTheDocument()
+  })
+
+  it('changes the TMDB key and checks the connection again', async () => {
+    vi.mocked(tmdb.checkTmdb).mockRejectedValue(new tmdb.TmdbKeyError(401))
+    vi.mocked(serverSettings.saveTmdbKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved' } })
+    renderScreen()
+    expect(await within(connection('TMDB')).findByText('The API key is missing or invalid')).toBeInTheDocument()
+
+    vi.mocked(tmdb.checkTmdb).mockResolvedValue()
+    await userEvent.click(within(connection('TMDB')).getByRole('button', { name: 'Change TMDB key' }))
+    const sheet = screen.getByRole('dialog', { name: 'TMDB key' })
+    await userEvent.type(within(sheet).getByLabelText('API key or read access token'), 'abc123')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
+
+    expect(serverSettings.saveTmdbKey).toHaveBeenCalledWith('abc123')
+    expect(await screen.findByText('TMDB key saved')).toBeInTheDocument()
+    expect(await within(connection('TMDB')).findByText('Connected')).toBeInTheDocument()
+  })
+
+  it('opens the TMDB key sheet when sent from a screen that needs the key', async () => {
+    renderScreen(vi.fn(), { editTmdbKey: true })
+    expect(screen.getByRole('dialog', { name: 'TMDB key' })).toBeInTheDocument()
   })
 
   it('saves download defaults', async () => {

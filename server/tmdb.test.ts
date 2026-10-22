@@ -71,13 +71,24 @@ describe('tmdbMiddleware', () => {
     expect(tmdb.seen).toEqual([{ url: '/3/movie/771', authorization: 'Bearer eyJhbGciOi.token', cookie: undefined }])
   })
 
+  it('reads the key on every request, so a key saved from the app applies at once', async () => {
+    const tmdb = await fakeTmdb()
+    let key: string | undefined
+    const app = await kinoseed({ apiKey: () => key, apiBase: `${tmdb.base}/3` })
+
+    expect((await fetch(`${app}/tmdb/movie/771`)).status).toBe(401)
+    key = 'saved'
+    expect((await fetch(`${app}/tmdb/movie/771`)).status).toBe(200)
+    expect(tmdb.seen.map((request) => request.url)).toEqual(['/3/movie/771?api_key=saved'])
+  })
+
   it('answers 401 without a key, so the app reports a missing key', async () => {
     const app = await kinoseed({})
 
     const response = await fetch(`${app}/tmdb/movie/771`)
 
     expect(response.status).toBe(401)
-    expect(await response.json()).toEqual({ status_message: 'TMDB_API_KEY is not set' })
+    expect(await response.json()).toEqual({ status_message: 'The TMDB API key is not set' })
   })
 
   it('serves images without a key, with their cache headers', async () => {

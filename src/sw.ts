@@ -21,7 +21,7 @@ cleanupOutdatedCaches()
 // left alone, and qBittorrent, Prowlarr and TMDB API answers are never cached: they must be live.
 registerRoute(
   new NavigationRoute(createHandlerBoundToURL('/index.html'), {
-    denylist: [/^\/(qbt|prowlarr|tmdb|tmdb-img)\//],
+    denylist: [/^\/(api|qbt|prowlarr|tmdb|tmdb-img)\//],
   }),
 )
 

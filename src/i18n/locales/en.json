@@ -100,7 +100,7 @@
     "errorTitle": "Couldn’t load from TMDB",
     "errorBody": "Check the connection and try again.",
     "keyTitle": "TMDB isn’t set up",
-    "keyBody": "Add a TMDB API key to the server configuration (TMDB_API_KEY)."
+    "keyBody": "Search needs a TMDB key. Enter it once and the Kinoseed server keeps it."
   },
   "title": {
     "movie": "Movie",
@@ -137,7 +137,7 @@
     "tmdbOk": "Connected",
     "tmdbKey": "The API key is missing or invalid",
     "tmdbError": "No answer from TMDB",
-    "connectionsHint": "Addresses and keys are set in the Kinoseed server configuration.",
+    "connectionsHint": "Service addresses are set in the Kinoseed server configuration.",
     "downloadDefaults": "Download defaults",
     "moviesCategory": "Movies category",
     "seriesCategory": "Series category",
@@ -308,5 +308,23 @@
       "confirm": "Click Add, and Kinoseed opens in its own window"
     },
     "gotIt": "Got it"
+  },
+  "tmdbKey": {
+    "title": "Connect TMDB",
+    "body": "Posters, search and metadata come from The Movie Database. Use a free API key (v3) or read access token. The key stays on the Kinoseed server.",
+    "help": "A key is free: sign in to themoviedb.org and copy the API Key or the API Read Access Token.",
+    "helpLink": "Open TMDB API settings",
+    "label": "API key or read access token",
+    "fieldHelp": "Kinoseed checks it with TMDB before saving.",
+    "save": "Save",
+    "skip": "Skip for now",
+    "invalid": "TMDB didn’t accept this key",
+    "unreachable": "TMDB isn’t answering. Try again in a moment.",
+    "storage": "The Kinoseed server couldn’t save the key. Check that its data folder is writable.",
+    "failed": "Couldn’t save the key. Try again.",
+    "saved": "TMDB key saved",
+    "change": "Change TMDB key",
+    "sheetTitle": "TMDB key",
+    "enter": "Enter key"
   }
 }

@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createApp } from './main.ts'
+import { SettingsStore } from './settings.ts'
 
 let root: string
 let server: Server
@@ -13,7 +14,7 @@ let app: string
 beforeAll(async () => {
   root = await mkdtemp(join(tmpdir(), 'kinoseed-main-'))
   await writeFile(join(root, 'index.html'), '<!doctype html><title>Kinoseed</title>')
-  server = createApp({}, root)
+  server = createApp({}, root, new SettingsStore(join(root, 'data')))
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
   app = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
 })
@@ -34,6 +35,7 @@ describe('createApp', () => {
     expect((await fetch(`${app}/qbt/api/v2/app/version`)).status).toBe(503)
     expect(await (await fetch(`${app}/prowlarr/status`)).json()).toEqual({ error: 'not-configured' })
     expect((await fetch(`${app}/tmdb/movie/771`)).status).toBe(401)
+    expect(await (await fetch(`${app}/api/settings`)).json()).toEqual({ tmdb: { configured: false, source: null } })
   })
 
   it('serves the app for its routes and 404 for missing files', async () => {

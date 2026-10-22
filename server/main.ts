@@ -3,24 +3,28 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { prowlarrMiddleware, type Middleware } from './prowlarr.ts'
 import { qbittorrentMiddleware } from './qbittorrent.ts'
+import { SettingsStore, settingsMiddleware, tmdbKey } from './settings.ts'
 import { staticMiddleware } from './static.ts'
 import { tmdbMiddleware } from './tmdb.ts'
 
 /**
- * The production server: the built app plus the same /qbt, /prowlarr, /tmdb and /tmdb-img routes
- * the dev server has. Configured through environment variables only (see .env.example):
+ * The production server: the built app plus the same /api/settings, /qbt, /prowlarr, /tmdb and
+ * /tmdb-img routes the dev server has. Configured through environment variables (see .env.example)
+ * and the settings saved from the app:
  *
  *   node server/main.ts
  *
  * PORT (default 8080), HOST (default 0.0.0.0) and KINOSEED_DIST (default ../dist) set where it
- * listens and what it serves.
+ * listens and what it serves; KINOSEED_DATA_DIR (default ./data) is where settings saved from the
+ * app are kept.
  */
-export function createApp(env: NodeJS.ProcessEnv, root: string) {
+export function createApp(env: NodeJS.ProcessEnv, root: string, store: SettingsStore) {
   const middlewares: Middleware[] = [
     health,
+    settingsMiddleware({ store, envTmdbApiKey: env.TMDB_API_KEY }),
     qbittorrentMiddleware({ url: env.QBITTORRENT_URL, username: env.QBITTORRENT_USERNAME, password: env.QBITTORRENT_PASSWORD }),
     prowlarrMiddleware({ url: env.PROWLARR_URL, apiKey: env.PROWLARR_API_KEY }),
-    tmdbMiddleware({ apiKey: env.TMDB_API_KEY }),
+    tmdbMiddleware({ apiKey: () => tmdbKey(store, env.TMDB_API_KEY) }),
     staticMiddleware({ root }),
   ]
 
@@ -58,16 +62,19 @@ function internalError(response: ServerResponse) {
   response.end('Internal error')
 }
 
-function main() {
+async function main() {
   const env = process.env
   const port = Number(env.PORT || 8080)
   const host = env.HOST || '0.0.0.0'
   const root = resolve(env.KINOSEED_DIST || resolve(dirname(fileURLToPath(import.meta.url)), '../dist'))
-  const server = createApp(env, root)
+  const store = new SettingsStore(resolve(env.KINOSEED_DATA_DIR || 'data'))
+  await store.load()
+  const server = createApp(env, root, store)
 
   server.listen(port, host, () => {
     console.log(`[kinoseed] listening on http://${host}:${port}`)
-    const missing = ['QBITTORRENT_URL', 'TMDB_API_KEY', 'PROWLARR_URL', 'PROWLARR_API_KEY'].filter((name) => !env[name])
+    const missing = ['QBITTORRENT_URL', 'PROWLARR_URL', 'PROWLARR_API_KEY'].filter((name) => !env[name])
+    if (!tmdbKey(store, env.TMDB_API_KEY)) missing.push('TMDB key (enter it in the app)')
     if (missing.length) console.warn(`[kinoseed] not set: ${missing.join(', ')}`)
   })
 
@@ -81,4 +88,4 @@ function main() {
   process.on('SIGINT', stop)
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main()
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) void main()
