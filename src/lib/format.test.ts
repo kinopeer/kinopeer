@@ -78,3 +78,13 @@ describe('age', () => {
     expect(ru().age(daysAgo(5 * 365), now)).toBe('5 лет')
   })
 })
+
+describe('since', () => {
+  it('says how long ago something updated', () => {
+    const now = 1_760_000_000_000
+    expect(en().since(now - 20_000, now)).toBe('just now')
+    expect(en().since(now - 5 * 60_000, now)).toBe('5 min ago')
+    expect(en().since(now - 125 * 60_000, now)).toBe('2 h ago')
+    expect(ru().since(now - 3 * 60_000, now)).toBe('3 мин назад')
+  })
+})

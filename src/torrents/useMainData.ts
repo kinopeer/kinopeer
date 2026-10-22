@@ -11,17 +11,20 @@ export interface MainDataState {
   data: SyncState | null
   /** The last request failed; `data` holds the last known state. */
   offline: boolean
+  /** When `data` last arrived (ms since epoch), or null before the first response. */
+  updatedAt: number | null
   /** Polls right away instead of waiting for the next tick. */
   refresh: () => void
 }
 
 /**
- * Polls /sync/maindata while the page is visible. Calls `onUnauthorized` once if the session
- * expires, and stops polling until remounted.
+ * Polls /sync/maindata while the page is visible, and right away when the device comes back
+ * online. Calls `onUnauthorized` once if the session expires, and stops polling until remounted.
  */
 export function useMainData(onUnauthorized: () => void): MainDataState {
   const [data, setData] = useState<SyncState | null>(null)
   const [offline, setOffline] = useState(false)
+  const [updatedAt, setUpdatedAt] = useState<number | null>(null)
   const refreshRef = useRef<() => void>(() => {})
   const onUnauthorizedRef = useRef(onUnauthorized)
 
@@ -49,6 +52,7 @@ export function useMainData(onUnauthorized: () => void): MainDataState {
         state = applyMainData(state, await getMainData(state.rid))
         if (stopped) return
         setData(state)
+        setUpdatedAt(Date.now())
         setOffline(false)
       } catch (error) {
         if (stopped) return
@@ -70,18 +74,22 @@ export function useMainData(onUnauthorized: () => void): MainDataState {
       else void poll()
     }
 
+    const onOnline = () => void poll()
+
     refreshRef.current = () => void poll()
     document.addEventListener('visibilitychange', onVisibilityChange)
+    window.addEventListener('online', onOnline)
     void poll()
 
     return () => {
       stopped = true
       clearTimeout(timer)
       document.removeEventListener('visibilitychange', onVisibilityChange)
+      window.removeEventListener('online', onOnline)
     }
   }, [])
 
   const refresh = useCallback(() => refreshRef.current(), [])
 
-  return { data, offline, refresh }
+  return { data, offline, updatedAt, refresh }
 }

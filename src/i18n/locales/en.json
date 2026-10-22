@@ -43,8 +43,6 @@
     "uploadSpeed": "Upload speed",
     "freeSpace": "{{size}} free",
     "loading": "Loading downloads",
-    "offlineTitle": "No connection to qBittorrent",
-    "offlineBody": "Showing the last known state. Retrying automatically.",
     "emptyTitle": "No downloads yet",
     "emptyBody": "Find a movie or series and pick a release — it shows up here with live progress.",
     "noMatchTitle": "Nothing matches",
@@ -70,7 +68,12 @@
     "etaDays": "{{days}}d {{hours}}h",
     "ageDays": "{{count}} d",
     "ageMonths": "{{count}} mo",
-    "ageYears": "{{count}} y"
+    "ageYears": "{{count}} y",
+    "justNow": "just now",
+    "minutesAgo_one": "{{count}} min ago",
+    "minutesAgo_other": "{{count}} min ago",
+    "hoursAgo_one": "{{count}} h ago",
+    "hoursAgo_other": "{{count}} h ago"
   },
   "nav": {
     "label": "Main",
@@ -233,7 +236,6 @@
     "notFoundTitle": "Torrent not found",
     "notFoundBody": "It may have been deleted from qBittorrent.",
     "backToDownloads": "Back to downloads",
-    "offlineBody": "Showing the last known state. Actions are paused until qBittorrent answers.",
     "progressLabel": "Progress",
     "eta": "ETA {{eta}}",
     "ratioValue": "Ratio {{ratio}}",
@@ -269,5 +271,18 @@
     "filesFailed": "Couldn’t load the file list.",
     "filesLoading": "Loading files",
     "filesMetadata": "The file list appears once the torrent’s metadata arrives from peers."
+  },
+  "offline": {
+    "title": "No connection to qBittorrent",
+    "updated": "Updated {{ago}} · actions paused",
+    "retrying": "Retrying automatically",
+    "unreachableTitle": "Can’t reach qBittorrent",
+    "unreachableBody": "Check that qBittorrent is running and the Kinoseed server can reach it. Retrying automatically.",
+    "reconnected": "Reconnected to qBittorrent"
+  },
+  "crash": {
+    "title": "Something went wrong",
+    "body": "Kinoseed hit an unexpected error. Reload the page to continue.",
+    "reload": "Reload"
   }
 }

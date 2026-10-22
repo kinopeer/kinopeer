@@ -43,8 +43,6 @@
     "uploadSpeed": "Скорость отдачи",
     "freeSpace": "{{size}} свободно",
     "loading": "Загружаем список",
-    "offlineTitle": "Нет связи с qBittorrent",
-    "offlineBody": "Показываем последнее известное состояние. Переподключаемся автоматически.",
     "emptyTitle": "Загрузок пока нет",
     "emptyBody": "Найдите фильм или сериал и выберите раздачу — она появится здесь с прогрессом.",
     "noMatchTitle": "Ничего не найдено",
@@ -73,7 +71,16 @@
     "ageYears_one": "{{count}} год",
     "ageYears_few": "{{count}} года",
     "ageYears_many": "{{count}} лет",
-    "ageYears_other": "{{count}} года"
+    "ageYears_other": "{{count}} года",
+    "justNow": "только что",
+    "minutesAgo_one": "{{count}} мин назад",
+    "minutesAgo_few": "{{count}} мин назад",
+    "minutesAgo_many": "{{count}} мин назад",
+    "minutesAgo_other": "{{count}} мин назад",
+    "hoursAgo_one": "{{count}} ч назад",
+    "hoursAgo_few": "{{count}} ч назад",
+    "hoursAgo_many": "{{count}} ч назад",
+    "hoursAgo_other": "{{count}} ч назад"
   },
   "nav": {
     "label": "Основное",
@@ -254,7 +261,6 @@
     "notFoundTitle": "Торрент не найден",
     "notFoundBody": "Возможно, его удалили из qBittorrent.",
     "backToDownloads": "К загрузкам",
-    "offlineBody": "Показываем последнее известное состояние. Действия недоступны, пока qBittorrent не ответит.",
     "progressLabel": "Прогресс",
     "eta": "Осталось {{eta}}",
     "ratioValue": "Рейтинг {{ratio}}",
@@ -290,5 +296,18 @@
     "filesFailed": "Не удалось загрузить список файлов.",
     "filesLoading": "Загружаем файлы",
     "filesMetadata": "Список файлов появится, когда пиры передадут метаданные торрента."
+  },
+  "offline": {
+    "title": "Нет связи с qBittorrent",
+    "updated": "Обновлено {{ago}} · действия недоступны",
+    "retrying": "Переподключаемся автоматически",
+    "unreachableTitle": "qBittorrent недоступен",
+    "unreachableBody": "Проверьте, что qBittorrent запущен и сервер Kinoseed может до него достучаться. Переподключаемся автоматически.",
+    "reconnected": "Снова на связи с qBittorrent"
+  },
+  "crash": {
+    "title": "Что-то пошло не так",
+    "body": "В Kinoseed произошла непредвиденная ошибка. Перезагрузите страницу, чтобы продолжить.",
+    "reload": "Перезагрузить"
   }
 }

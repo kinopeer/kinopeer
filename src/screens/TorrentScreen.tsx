@@ -24,6 +24,7 @@ import { useTitleMatches } from '../torrents/titleMatches'
 import { trackerHosts } from '../torrents/trackers'
 import { useMainData } from '../torrents/useMainData'
 import { DeleteTorrentDialog } from './DeleteTorrentDialog'
+import { OfflineBanner } from './OfflineBanner'
 import { TorrentFiles } from './TorrentFiles'
 import './TorrentScreen.css'
 
@@ -43,7 +44,7 @@ export function TorrentScreen({ onSessionLost }: TorrentScreenProps) {
   const navigate = useNavigate()
   const location = useLocation()
   const { hash = '' } = useParams()
-  const { data, offline, refresh } = useMainData(onSessionLost)
+  const { data, offline, updatedAt, refresh } = useMainData(onSessionLost)
   const torrent: Torrent | undefined = data?.torrents[hash]
 
   const torrents = useMemo(() => (torrent ? [torrent] : []), [torrent])
@@ -69,6 +70,23 @@ export function TorrentScreen({ onSessionLost }: TorrentScreenProps) {
       onClick={goBack}
     />
   )
+
+  if (data === null && offline) {
+    return (
+      <main className="torrent torrent-message">
+        {backButton}
+        <EmptyState
+          icon="wifi-off"
+          tone="error"
+          title={t('offline.unreachableTitle')}
+          actionLabel={t('common.retry')}
+          onAction={refresh}
+        >
+          {t('offline.unreachableBody')}
+        </EmptyState>
+      </main>
+    )
+  }
 
   if (data === null) {
     return (
@@ -171,11 +189,7 @@ export function TorrentScreen({ onSessionLost }: TorrentScreenProps) {
           </div>
         </div>
 
-        {offline && (
-          <Banner tone="warning" title={t('downloads.offlineTitle')} actionLabel={t('common.retry')} onAction={refresh}>
-            {t('torrent.offlineBody')}
-          </Banner>
-        )}
+        {offline && <OfflineBanner updatedAt={updatedAt} onRetry={refresh} />}
 
         <section className="ks-card torrent-card" aria-label={t('torrent.progressLabel')}>
           <div className="torrent-card-row">
