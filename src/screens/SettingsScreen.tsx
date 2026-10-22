@@ -9,11 +9,13 @@ import { Segmented } from '../components/Segmented'
 import { Toast } from '../components/Toast'
 import { Toggle } from '../components/Toggle'
 import { LANGUAGES } from '../i18n'
+import { promptInstall, useInstallMethod, type ManualInstall } from '../pwa/install'
 import { useRequest } from '../lib/useRequest'
 import { useSettings, type Settings } from '../settings/settings'
 import type { ThemePreference } from '../theme/theme'
 import { useTheme } from '../theme/useTheme'
 import { categoryType, clearTitleMatchCache } from '../torrents/titleMatches'
+import { InstallSheet } from './InstallSheet'
 import './SettingsScreen.css'
 
 export interface SettingsScreenProps {
@@ -78,6 +80,8 @@ export function SettingsScreen({ onSignOut }: SettingsScreenProps) {
   const [settings, update] = useSettings()
   const [attempt, setAttempt] = useState(0)
   const [cleared, setCleared] = useState(false)
+  const installMethod = useInstallMethod()
+  const [installSteps, setInstallSteps] = useState<ManualInstall | null>(null)
   const retest = useCallback(() => setAttempt((n) => n + 1), [])
   const dismissCleared = useCallback(() => setCleared(false), [])
   const categories = useRequest('qbt|categories', () => getCategories())
@@ -221,6 +225,23 @@ export function SettingsScreen({ onSignOut }: SettingsScreenProps) {
 
       <Section id="settings-about" title={t('settings.about')}>
         <ul className="ks-card settings-rows">
+          {installMethod && (
+            <li>
+              <button
+                type="button"
+                className="ks-row-btn"
+                onClick={() =>
+                  installMethod === 'prompt' ? void promptInstall() : setInstallSteps(installMethod)
+                }
+              >
+                <Icon name="download" className="c2" />
+                <span className="settings-row-text">
+                  <span>{t('settings.installApp')}</span>
+                  <span className="t-cap c3">{t('settings.installAppHint')}</span>
+                </span>
+              </button>
+            </li>
+          )}
           <li>
             <button
               type="button"
@@ -246,6 +267,7 @@ export function SettingsScreen({ onSignOut }: SettingsScreenProps) {
         </ul>
       </Section>
 
+      <InstallSheet platform={installSteps} onClose={() => setInstallSteps(null)} />
       {cleared && <Toast message={t('settings.cacheCleared')} onDismiss={dismissCleared} />}
     </main>
   )

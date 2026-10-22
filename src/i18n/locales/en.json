@@ -149,7 +149,9 @@
     "about": "About",
     "clearCache": "Clear cache",
     "clearCacheHint": "Matches torrents to TMDB titles again",
-    "cacheCleared": "Cache cleared"
+    "cacheCleared": "Cache cleared",
+    "installApp": "Install app",
+    "installAppHint": "Add Kinoseed to your home screen or dock"
   },
   "releases": {
     "title": "Releases",
@@ -284,5 +286,27 @@
     "title": "Something went wrong",
     "body": "Kinoseed hit an unexpected error. Reload the page to continue.",
     "reload": "Reload"
+  },
+  "install": {
+    "title": "Install Kinoseed",
+    "body": "Full screen and a faster launch, like a regular app.",
+    "action": "Install",
+    "iosHow": "On iPhone?",
+    "dismiss": "Close",
+    "ios": {
+      "title": "Add to Home Screen",
+      "subtitle": "iPhone and iPad",
+      "share": "Tap Share in the Safari toolbar",
+      "add": "Choose “Add to Home Screen”",
+      "confirm": "Tap Add, and Kinoseed opens full screen"
+    },
+    "mac": {
+      "title": "Add to Dock",
+      "subtitle": "Safari on a Mac",
+      "share": "Click Share in the Safari toolbar",
+      "add": "Choose “Add to Dock”",
+      "confirm": "Click Add, and Kinoseed opens in its own window"
+    },
+    "gotIt": "Got it"
   }
 }

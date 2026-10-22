@@ -1,0 +1,85 @@
+.install-icon {
+  flex: none;
+  border-radius: 12px;
+}
+
+.install-sheet-icon {
+  margin: 0 6px 0 16px;
+}
+
+.install-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px;
+  margin-bottom: var(--space-3);
+}
+
+.install-card-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.install-card-title {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.install-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.install-card-close {
+  margin: -8px -8px 0 0;
+}
+
+.install-steps {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.install-steps li {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 56px;
+}
+
+.install-step-n {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.install-step-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.install-step-icon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--sunken);
+  border: 1px solid var(--border);
+  color: var(--info);
+}

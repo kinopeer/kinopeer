@@ -14,6 +14,7 @@ import { useTitleMatches } from '../torrents/titleMatches'
 import { useMainData } from '../torrents/useMainData'
 import { DeleteTorrentDialog } from './DeleteTorrentDialog'
 import { DownloadItem } from './DownloadItem'
+import { InstallCard } from './InstallCard'
 import { OfflineBanner } from './OfflineBanner'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
 import './DownloadsScreen.css'
@@ -143,6 +144,7 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
       </header>
 
       <section className="downloads-body" aria-label={t('downloads.title')} aria-busy={loading}>
+        {!loading && <InstallCard />}
         {loading && offline ? (
           <EmptyState
             icon="wifi-off"

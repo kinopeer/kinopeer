@@ -101,4 +101,19 @@ describe('SettingsScreen', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Sign out' }))
     expect(onSignOut).toHaveBeenCalled()
   })
+
+  it('explains how to add the app to the Dock in Safari on a Mac', async () => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15',
+    )
+    renderScreen()
+    await userEvent.click(screen.getByRole('button', { name: /Install app/ }))
+    expect(screen.getByRole('dialog', { name: 'Add to Dock' })).toHaveTextContent('Choose “Add to Dock”')
+    vi.restoreAllMocks()
+  })
+
+  it('has no install row where the app can\'t be installed', () => {
+    renderScreen()
+    expect(screen.queryByRole('button', { name: /Install app/ })).not.toBeInTheDocument()
+  })
 })
