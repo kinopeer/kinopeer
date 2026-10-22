@@ -1,4 +1,5 @@
 /// <reference types="vitest/config" />
+import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
@@ -51,6 +52,8 @@ function serverRoutesPlugin(middlewares: Middleware[]): Plugin {
   }
 }
 
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
@@ -58,6 +61,8 @@ export default defineConfig(({ mode }) => {
   void store.load()
 
   return {
+    // Shown in Settings → About (src/version.d.ts).
+    define: { __APP_VERSION__: JSON.stringify(version) },
     plugins: [
       react(),
       pwa,

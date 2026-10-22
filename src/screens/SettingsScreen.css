@@ -171,3 +171,13 @@
   flex-direction: column;
   padding: 8px 0;
 }
+
+/* A row that only shows a value, laid out like .ks-row-btn. */
+.settings-row-static {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 0 16px;
+  font-size: 15px;
+}

@@ -248,6 +248,10 @@ export function SettingsScreen() {
 
       <Section id="settings-about" title={t('settings.about')}>
         <ul className="ks-card settings-rows">
+          <li className="settings-row-static">
+            <span className="settings-row-text">{t('settings.version')}</span>
+            <span className="c3 ks-num">{__APP_VERSION__}</span>
+          </li>
           {installMethod && (
             <li>
               <button
