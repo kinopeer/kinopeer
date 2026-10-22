@@ -2,7 +2,7 @@
 
 Kinoseed follows [semantic versioning](https://semver.org). While the version is 0.x, minor versions may change behavior and settings.
 
-## 0.1.0 - 2026-10-22
+## 0.1.0 - 2026-10-23
 
 The first release, for private testing on an Umbrel home server.
 
