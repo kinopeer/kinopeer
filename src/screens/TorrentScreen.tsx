@@ -2,7 +2,6 @@ import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import {
-  deleteTorrents,
   getTorrentTrackers,
   startTorrents,
   stopTorrents,
@@ -11,8 +10,6 @@ import {
 import { posterUrl } from '../api/tmdb'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
-import { Checkbox } from '../components/Checkbox'
-import { Dialog } from '../components/Dialog'
 import { EmptyState } from '../components/EmptyState'
 import { Icon } from '../components/Icon'
 import { IconButton } from '../components/IconButton'
@@ -22,19 +19,18 @@ import { StatusChip } from '../components/StatusChip'
 import { Toast } from '../components/Toast'
 import { useFormatters } from '../lib/format'
 import { useRequest } from '../lib/useRequest'
-import { downloadStatus, type DownloadStatus } from '../torrents/status'
+import { downloadStatus, isRunning } from '../torrents/status'
 import { useTitleMatches } from '../torrents/titleMatches'
 import { trackerHosts } from '../torrents/trackers'
 import { useMainData } from '../torrents/useMainData'
+import { DeleteTorrentDialog } from './DeleteTorrentDialog'
+import { TorrentFiles } from './TorrentFiles'
 import './TorrentScreen.css'
 
 export interface TorrentScreenProps {
   /** qBittorrent rejected the session cookie (expired or signed out elsewhere). */
   onSessionLost: () => void
 }
-
-/** Statuses with something to stop; the rest get a Resume button. */
-const RUNNING: DownloadStatus[] = ['downloading', 'seeding', 'queued', 'checking']
 
 /** "12 (340)": connected, then in the swarm when a tracker reported it. */
 function peerCount(connected: number, total: number | undefined): string {
@@ -57,9 +53,6 @@ export function TorrentScreen({ onSessionLost }: TorrentScreenProps) {
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
   const [confirming, setConfirming] = useState(false)
-  const [deleteFiles, setDeleteFiles] = useState(false)
-  const [deleting, setDeleting] = useState(false)
-  const [deleteFailed, setDeleteFailed] = useState(false)
   const dismissFailure = useCallback(() => setFailed(false), [])
 
   const trackers = useRequest(detailsOpen && torrent ? `trackers|${hash}` : null, () => getTorrentTrackers(hash))
@@ -115,7 +108,7 @@ export function TorrentScreen({ onSessionLost }: TorrentScreenProps) {
   }
 
   const status = downloadStatus(torrent)
-  const running = RUNNING.includes(status)
+  const running = isRunning(status)
   const downloading = status === 'downloading'
   const title = match?.title ?? torrent.name
   const poster = match ? posterUrl(match.posterPath, 'w342') : undefined
@@ -134,24 +127,6 @@ export function TorrentScreen({ onSessionLost }: TorrentScreenProps) {
     } finally {
       setBusy(false)
     }
-  }
-
-  const confirmDelete = async () => {
-    setDeleting(true)
-    setDeleteFailed(false)
-    try {
-      await deleteTorrents([hash], deleteFiles)
-      void navigate('/', { replace: true, state: { deleted: deleteFiles ? 'files' : 'torrent' } })
-    } catch {
-      setDeleteFailed(true)
-      setDeleting(false)
-    }
-  }
-
-  const openDelete = () => {
-    setDeleteFiles(false)
-    setDeleteFailed(false)
-    setConfirming(true)
   }
 
   const details: { key: string; label: string; value: string; mono?: boolean }[] = [
@@ -253,7 +228,7 @@ export function TorrentScreen({ onSessionLost }: TorrentScreenProps) {
               {t('torrent.resume')}
             </Button>
           )}
-          <Button variant="danger-ghost" icon="trash" block disabled={offline} onClick={openDelete}>
+          <Button variant="danger-ghost" icon="trash" block disabled={offline} onClick={() => setConfirming(true)}>
             {t('torrent.delete')}
           </Button>
         </div>
@@ -282,47 +257,20 @@ export function TorrentScreen({ onSessionLost }: TorrentScreenProps) {
             </dl>
           )}
         </section>
+
+        <TorrentFiles hash={hash} status={status} disabled={offline} />
       </div>
 
-      <Dialog
-        open={confirming}
-        onClose={() => setConfirming(false)}
-        title={t('torrent.deleteTitle')}
-        icon="trash"
-        tone="danger"
-        actions={
-          <>
-            <Button variant="secondary" block onClick={() => setConfirming(false)}>
-              {t('torrent.cancel')}
-            </Button>
-            <Button variant="danger" block loading={deleting} disabled={deleting} onClick={confirmDelete}>
-              {t('torrent.delete')}
-            </Button>
-          </>
-        }
-      >
-        <p className="t-body c2 torrent-delete-body">{t('torrent.deleteBody', { title })}</p>
-        <div className="torrent-delete-files">
-          <Checkbox
-            id="torrent-delete-files"
-            checked={deleteFiles}
-            onChange={setDeleteFiles}
-            label={t('torrent.deleteFiles', { size: format.size(torrent.size * torrent.progress) })}
-            aria-describedby={deleteFiles ? 'torrent-delete-hint' : undefined}
-          />
-          <div className="torrent-delete-files-text">
-            <label htmlFor="torrent-delete-files" className="t-label">
-              {t('torrent.deleteFiles', { size: format.size(torrent.size * torrent.progress) })}
-            </label>
-            {deleteFiles && (
-              <div id="torrent-delete-hint" className="c-err torrent-delete-hint">
-                {t('torrent.deleteFilesHint')}
-              </div>
-            )}
-          </div>
-        </div>
-        {deleteFailed && <Banner tone="error">{t('torrent.actionFailed')}</Banner>}
-      </Dialog>
+      {confirming && (
+        <DeleteTorrentDialog
+          torrent={torrent}
+          title={title}
+          onClose={() => setConfirming(false)}
+          onDeleted={(withFiles) =>
+            void navigate('/', { replace: true, state: { deleted: withFiles ? 'files' : 'torrent' } })
+          }
+        />
+      )}
 
       {failed && <Toast icon="alert" message={t('torrent.actionFailed')} onDismiss={dismissFailure} />}
     </main>

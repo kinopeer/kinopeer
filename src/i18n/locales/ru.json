@@ -53,7 +53,9 @@
     "progress": "{{name}}: прогресс",
     "queuePosition": "Место в очереди: {{position}}",
     "deleted": "Торрент удалён",
-    "deletedFiles": "Торрент и файлы удалены"
+    "deletedFiles": "Торрент и файлы удалены",
+    "moreActions": "Ещё действия: {{name}}",
+    "openDetails": "Подробности"
   },
   "format": {
     "B": "Б",
@@ -252,6 +254,16 @@
     "deleteTitle": "Удалить торрент?",
     "deleteBody": "«{{title}}» будет удалён из qBittorrent.",
     "deleteFiles": "Удалить и файлы · {{size}}",
-    "deleteFilesHint": "Файлы будут безвозвратно удалены с диска."
+    "deleteFilesHint": "Файлы будут безвозвратно удалены с диска.",
+    "files": "Файлы",
+    "fileProgress": "{{name}}: прогресс",
+    "priorityOf": "Приоритет: {{name}}",
+    "prioritySkip": "Не качать",
+    "priorityNormal": "Обычный",
+    "priorityHigh": "Высокий",
+    "priorityFailed": "Не удалось изменить приоритет. Попробуйте ещё раз.",
+    "filesFailed": "Не удалось загрузить список файлов.",
+    "filesLoading": "Загружаем файлы",
+    "filesMetadata": "Список файлов появится, когда пиры передадут метаданные торрента."
   }
 }

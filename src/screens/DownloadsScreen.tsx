@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router'
+import type { Torrent } from '../api/qbittorrent'
 import { Banner } from '../components/Banner'
 import { EmptyState } from '../components/EmptyState'
 import { FilterChip } from '../components/FilterChip'
@@ -12,7 +13,9 @@ import { useFormatters } from '../lib/format'
 import { STATUS_FILTERS, compareByQueue, matchesFilter, type StatusFilter } from '../torrents/status'
 import { useTitleMatches } from '../torrents/titleMatches'
 import { useMainData } from '../torrents/useMainData'
+import { DeleteTorrentDialog } from './DeleteTorrentDialog'
 import { DownloadItem } from './DownloadItem'
+import { TorrentActionsSheet } from './TorrentActionsSheet'
 import './DownloadsScreen.css'
 
 export interface DownloadsScreenProps {
@@ -37,6 +40,8 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
   const [filter, setFilter] = useState<StatusFilter>('all')
   const [searchOpen, setSearchOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const [actionsFor, setActionsFor] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<string | null>(null)
 
   const torrents = useMemo(() => (data ? Object.values(data.torrents).sort(compareByQueue) : []), [data])
   const matches = useTitleMatches(torrents)
@@ -52,6 +57,10 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
   }, [torrents, filter, query, matches])
 
   const loading = data === null
+  // Looked up on every render, so the sheet follows live status changes and closes if the torrent goes away.
+  const actionsTorrent = actionsFor ? data?.torrents[actionsFor] : undefined
+  const deleteTorrent = deleting ? data?.torrents[deleting] : undefined
+  const nameOf = (torrent: Torrent) => matches[torrent.hash]?.title ?? torrent.name
   const server = data?.server
 
   const toggleSearch = () => {
@@ -165,11 +174,41 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
         ) : (
           <ul className="downloads-list">
             {visible.map((torrent) => (
-              <DownloadItem key={torrent.hash} torrent={torrent} match={matches[torrent.hash]} />
+              <DownloadItem
+                key={torrent.hash}
+                torrent={torrent}
+                match={matches[torrent.hash]}
+                onMore={(target) => setActionsFor(target.hash)}
+              />
             ))}
           </ul>
         )}
       </section>
+      {actionsTorrent && (
+        <TorrentActionsSheet
+          torrent={actionsTorrent}
+          match={matches[actionsTorrent.hash]}
+          offline={offline}
+          onClose={() => setActionsFor(null)}
+          onChanged={refresh}
+          onDelete={() => {
+            setActionsFor(null)
+            setDeleting(actionsTorrent.hash)
+          }}
+        />
+      )}
+      {deleteTorrent && (
+        <DeleteTorrentDialog
+          torrent={deleteTorrent}
+          title={nameOf(deleteTorrent)}
+          onClose={() => setDeleting(null)}
+          onDeleted={(withFiles) => {
+            setDeleting(null)
+            refresh()
+            void navigate(location.pathname, { replace: true, state: { deleted: withFiles ? 'files' : 'torrent' } })
+          }}
+        />
+      )}
       {added && <Toast message={t('add.added', { title: added })} onDismiss={dismissToast} />}
       {deleted && (
         <Toast

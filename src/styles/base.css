@@ -88,6 +88,37 @@ h4 {
 .ks-hscroll { overflow-x: auto; scrollbar-width: none; }
 .ks-hscroll::-webkit-scrollbar { display: none; }
 .ks-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); }
+.ks-divider { height: 1px; background: var(--border); flex: none; }
+
+/* Full-width row button, as in menus and settings lists */
+.ks-row-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 16px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  color: var(--text);
+  font-size: 15px;
+  text-decoration: none;
+  transition: box-shadow var(--d-fast) var(--ease);
+}
+
+.ks-row-btn:hover:not(:disabled) {
+  box-shadow: inset 0 0 0 100px var(--hover);
+}
+
+.ks-row-btn:disabled {
+  color: var(--disabled);
+  cursor: not-allowed;
+}
+
+.ks-row-btn.is-danger:not(:disabled) {
+  color: var(--error);
+}
 
 /* Hidden visually, still read by screen readers. */
 .sr-only {

@@ -14,6 +14,8 @@ vi.mock('../api/qbittorrent', async (importOriginal) => {
     ...actual,
     getMainData: vi.fn(),
     getTorrentTrackers: vi.fn(),
+    getTorrentFiles: vi.fn(),
+    setFilePriority: vi.fn(),
     startTorrents: vi.fn(),
     stopTorrents: vi.fn(),
     deleteTorrents: vi.fn(),
@@ -27,6 +29,8 @@ vi.mock('../api/tmdb', async (importOriginal) => {
 
 const getMainData = vi.mocked(api.getMainData)
 const getTorrentTrackers = vi.mocked(api.getTorrentTrackers)
+const getTorrentFiles = vi.mocked(api.getTorrentFiles)
+const setFilePriority = vi.mocked(api.setFilePriority)
 const startTorrents = vi.mocked(api.startTorrents)
 const stopTorrents = vi.mocked(api.stopTorrents)
 const deleteTorrents = vi.mocked(api.deleteTorrents)
@@ -82,6 +86,11 @@ beforeEach(() => {
     release_date: '2024-02-27',
     poster_path: '/dune.jpg',
   } as Awaited<ReturnType<typeof tmdb.getMovie>>)
+  getTorrentFiles.mockResolvedValue([
+    { index: 0, name: 'Dune.Part.Two/Dune.Part.Two.mkv', size: 19_900_000_000, progress: 0.4, priority: 1 },
+    { index: 1, name: 'Dune.Part.Two/Extras.mkv', size: 1_500_000_000, progress: 0, priority: 0 },
+  ])
+  setFilePriority.mockResolvedValue()
   startTorrents.mockResolvedValue()
   stopTorrents.mockResolvedValue()
   deleteTorrents.mockResolvedValue()
@@ -95,7 +104,7 @@ describe('TorrentScreen', () => {
     expect(screen.getByText('Downloading')).toBeInTheDocument()
     expect(screen.getByText('42%')).toBeInTheDocument()
     expect(screen.getByText('ETA 12 min')).toBeInTheDocument()
-    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '42')
+    expect(screen.getByRole('progressbar', { name: 'Dune: Part Two: progress' })).toHaveAttribute('aria-valuenow', '42')
     expect(screen.getByRole('button', { name: 'Pause' })).toBeEnabled()
   })
 
@@ -182,5 +191,35 @@ describe('TorrentScreen', () => {
     await userEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
     expect(deleteTorrents).not.toHaveBeenCalled()
+  })
+
+  it('lists files with progress and changes their priority', async () => {
+    renderScreen()
+    const files = await screen.findByRole('region', { name: /Files/ })
+    expect(await within(files).findByText('Dune.Part.Two.mkv')).toBeInTheDocument()
+    expect(within(files).getByText('40% · 19.9 GB')).toBeInTheDocument()
+
+    const extras = within(files).getByRole('combobox', { name: 'Priority: Extras.mkv' })
+    expect(extras).toHaveValue('skip')
+    await userEvent.selectOptions(extras, 'high')
+    expect(setFilePriority).toHaveBeenCalledWith('dune', [1], 6)
+    expect(extras).toHaveValue('high')
+  })
+
+  it('reports a priority change qBittorrent refused', async () => {
+    setFilePriority.mockRejectedValue(new Error('offline'))
+    renderScreen()
+    const main = await screen.findByRole('combobox', { name: 'Priority: Dune.Part.Two.mkv' })
+    await userEvent.selectOptions(main, 'skip')
+    expect(await screen.findByText('Couldn’t change the priority. Try again.')).toBeInTheDocument()
+    expect(main).toHaveValue('normal')
+  })
+
+  it('explains an empty file list of a magnet link', async () => {
+    getTorrentFiles.mockResolvedValue([])
+    renderScreen()
+    expect(
+      await screen.findByText('The file list appears once the torrent’s metadata arrives from peers.'),
+    ).toBeInTheDocument()
   })
 })

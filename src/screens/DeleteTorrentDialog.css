@@ -1,0 +1,27 @@
+.delete-body {
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+}
+
+.delete-files {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 12px -10px 0;
+}
+
+.delete-files-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.delete-files-text label {
+  display: block;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.delete-hint {
+  font-size: 12px;
+  line-height: 16px;
+}
