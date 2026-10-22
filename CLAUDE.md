@@ -43,6 +43,7 @@ Run lint, typecheck, test and build before pushing. CI must be green before merg
 - UI copy is localized (Russian and English) with i18next. Never hardcode user-facing strings: add keys to both `src/i18n/locales/en.json` and `ru.json` (a test checks they match). Russian plurals need `_one`, `_few`, `_many` and `_other` keys.
 - Work in small, reviewable PRs, one roadmap step or less each. Branch names: `feat/…`, `fix/…`, `chore/…`, `docs/…`.
 - Never push to `main` directly; open a PR.
+- Anything to settle before the public release goes into `docs/RELEASE_CHECKLIST.md`.
 - Tests sit next to the code as `*.test.ts(x)`. Query by role and accessible name.
 - Accessibility is a requirement: real `<button>`/`<a>`/`<input>`, labels on icon-only buttons, touch targets ≥ 44px, visible focus, `prefers-reduced-motion` respected.
 
