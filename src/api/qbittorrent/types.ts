@@ -41,8 +41,12 @@ export interface Torrent {
   /** Seconds; 8640000 means infinity. */
   eta: number
   ratio: number
+  /** Connected seeds and peers. */
   num_seeds: number
   num_leechs: number
+  /** Seeds and peers in the swarm, as last reported by trackers; -1 when unknown. */
+  num_complete: number
+  num_incomplete: number
   category: string
   /** Comma-separated. */
   tags: string
@@ -135,4 +139,16 @@ export interface TorrentFile {
   /** 0–1. */
   progress: number
   priority: FilePriority
+}
+
+/** 0: disabled, 1: not contacted yet, 2: working, 3: updating, 4: not working. */
+export type TrackerStatus = 0 | 1 | 2 | 3 | 4
+
+/** The subset of /torrents/trackers fields Kinoseed uses. */
+export interface TorrentTracker {
+  /** Tracker URL, or "** [DHT] **", "** [PeX] **", "** [LSD] **" for the pseudo-trackers. */
+  url: string
+  status: TrackerStatus
+  /** The tracker's last message, e.g. an error. */
+  msg: string
 }

@@ -1,0 +1,211 @@
+.torrent {
+  position: relative;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  overflow-x: hidden;
+}
+
+.torrent-back {
+  position: absolute;
+  top: calc(var(--safe-top) + 12px);
+  left: 12px;
+  z-index: 5;
+}
+
+.torrent-message {
+  padding-top: calc(var(--safe-top) + 72px);
+}
+
+/* Blurred poster behind the header, fading into the page. */
+.torrent-hero {
+  position: relative;
+  height: 220px;
+  overflow: hidden;
+}
+
+.torrent-hero-art {
+  position: absolute;
+  inset: -40px;
+  width: calc(100% + 80px);
+  height: calc(100% + 80px);
+  max-width: none;
+  object-fit: cover;
+  filter: blur(26px);
+  transform: scale(1.1);
+}
+
+.torrent-hero-fade {
+  position: absolute;
+  inset: 0;
+  background: var(--hero-fade);
+}
+
+.torrent-body {
+  position: relative;
+  margin-top: -118px;
+  padding: 0 20px var(--space-8);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.torrent-head {
+  display: flex;
+  gap: 14px;
+  align-items: flex-end;
+}
+
+.torrent-poster {
+  width: 88px;
+  border-radius: 12px;
+  box-shadow: var(--shadow-2);
+}
+
+.torrent-skel-poster {
+  aspect-ratio: 2 / 3;
+  flex: none;
+}
+
+.torrent-skel-card {
+  height: 168px;
+  border-radius: var(--r-lg);
+}
+
+.torrent-head-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.torrent-title {
+  overflow-wrap: anywhere;
+}
+
+.torrent-release {
+  font-size: 12px;
+  line-height: 16px;
+  word-break: break-all;
+}
+
+.torrent-card {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.torrent-card-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.torrent-pct-row {
+  align-items: baseline;
+}
+
+.torrent-size {
+  margin-left: auto;
+}
+
+.torrent-pct {
+  font-size: 34px;
+  line-height: 38px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.torrent-speeds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.torrent-speeds > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.torrent-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.torrent-actions > * {
+  flex: 1;
+}
+
+.torrent-details {
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.torrent-details-head {
+  font: inherit;
+}
+
+.torrent-kv {
+  margin: 0;
+  padding-bottom: 8px;
+}
+
+.ks-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.ks-kv:last-child {
+  border-bottom: none;
+}
+
+.ks-kv > dt {
+  color: var(--text2);
+  flex: none;
+}
+
+.ks-kv > dd {
+  margin: 0;
+  text-align: right;
+  min-width: 0;
+}
+
+.torrent-kv-long {
+  overflow-wrap: anywhere;
+}
+
+/* Delete confirmation */
+.torrent-delete-body {
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+}
+
+.torrent-delete-files {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 12px -10px 0;
+}
+
+.torrent-delete-files-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.torrent-delete-files-text label {
+  display: block;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.torrent-delete-hint {
+  font-size: 12px;
+  line-height: 16px;
+}

@@ -19,4 +19,20 @@ describe('TabBar', () => {
     expect(screen.getByRole('link', { name: 'Search' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('link', { name: 'Downloads' })).not.toHaveAttribute('aria-current')
   })
+
+  it('highlights a tab for the screens inside it', () => {
+    render(
+      <MemoryRouter initialEntries={['/torrent/abc']}>
+        <TabBar
+          label="Main"
+          items={[
+            { to: '/', icon: 'download', label: 'Downloads', also: ['/torrent/'] },
+            { to: '/search', icon: 'search', label: 'Search' },
+          ]}
+        />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('link', { name: 'Downloads' })).toHaveClass('is-on')
+    expect(screen.getByRole('link', { name: 'Search' })).not.toHaveClass('is-on')
+  })
 })

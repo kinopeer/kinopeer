@@ -5,16 +5,19 @@ import {
   QbittorrentError,
   UnauthorizedError,
   addTorrents,
+  deleteTorrents,
   getAppVersion,
   getCategories,
   getDefaultSavePath,
   getMainData,
   getTorrentFiles,
+  getTorrentTrackers,
   getTorrents,
   login,
   logout,
   setFilePriority,
   startTorrents,
+  stopTorrents,
 } from './client'
 
 let fetchMock: Mock<typeof fetch>
@@ -206,5 +209,37 @@ describe('startTorrents', () => {
     respond('')
     await startTorrents(['a'])
     expect(lastCall().url).toBe('/qbt/api/v2/torrents/resume')
+  })
+})
+
+describe('stopTorrents', () => {
+  it('uses /torrents/stop, falling back to /torrents/pause on qBittorrent 4', async () => {
+    respond('')
+    await stopTorrents(['a'])
+    expect(lastCall().url).toBe('/qbt/api/v2/torrents/stop')
+    expect(String(lastCall().init.body)).toBe('hashes=a')
+
+    respond('Not Found', 404)
+    respond('')
+    await stopTorrents(['a'])
+    expect(lastCall().url).toBe('/qbt/api/v2/torrents/pause')
+  })
+})
+
+describe('deleteTorrents', () => {
+  it('posts the hashes and whether to delete files', async () => {
+    respond('')
+    await deleteTorrents(['a', 'b'], true)
+    expect(lastCall().url).toBe('/qbt/api/v2/torrents/delete')
+    expect(lastCall().init.method).toBe('POST')
+    expect(String(lastCall().init.body)).toBe('hashes=a%7Cb&deleteFiles=true')
+  })
+})
+
+describe('getTorrentTrackers', () => {
+  it('requests the trackers of one torrent', async () => {
+    respond(JSON.stringify([{ url: 'udp://tracker.example:80', status: 2, msg: '' }]))
+    await expect(getTorrentTrackers('abc')).resolves.toEqual([{ url: 'udp://tracker.example:80', status: 2, msg: '' }])
+    expect(lastCall().url).toBe('/qbt/api/v2/torrents/trackers?hash=abc')
   })
 })

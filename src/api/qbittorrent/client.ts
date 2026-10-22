@@ -1,4 +1,13 @@
-import type { AddTorrentOptions, Category, FilePriority, MainData, Torrent, TorrentFile, TorrentsQuery } from './types'
+import type {
+  AddTorrentOptions,
+  Category,
+  FilePriority,
+  MainData,
+  Torrent,
+  TorrentFile,
+  TorrentTracker,
+  TorrentsQuery,
+} from './types'
 
 /** Same-origin prefix bridged to qBittorrent's Web API by server/qbittorrent.ts. */
 export const QBITTORRENT_BASE = '/qbt/api/v2'
@@ -158,13 +167,33 @@ export async function setFilePriority(hash: string, ids: number[], priority: Fil
   await request('/torrents/filePrio', { method: 'POST', params: { hash, id: ids.join('|'), priority } })
 }
 
-/** Starts (resumes) torrents: /torrents/start on qBittorrent 5, /torrents/resume on 4.x. */
-export async function startTorrents(hashes: string[]): Promise<void> {
-  const params = { hashes: hashes.join('|') }
+/** Posts to a qBittorrent 5 endpoint, falling back to its 4.x name when that one doesn't exist. */
+async function postRenamed(path: string, legacyPath: string, params: Params): Promise<void> {
   try {
-    await request('/torrents/start', { method: 'POST', params })
+    await request(path, { method: 'POST', params })
   } catch (error) {
     if (!(error instanceof QbittorrentError && error.status === 404)) throw error
-    await request('/torrents/resume', { method: 'POST', params })
+    await request(legacyPath, { method: 'POST', params })
   }
+}
+
+/** Starts (resumes) torrents: /torrents/start on qBittorrent 5, /torrents/resume on 4.x. */
+export async function startTorrents(hashes: string[]): Promise<void> {
+  await postRenamed('/torrents/start', '/torrents/resume', { hashes: hashes.join('|') })
+}
+
+/** Stops (pauses) torrents: /torrents/stop on qBittorrent 5, /torrents/pause on 4.x. */
+export async function stopTorrents(hashes: string[]): Promise<void> {
+  await postRenamed('/torrents/stop', '/torrents/pause', { hashes: hashes.join('|') })
+}
+
+/** Removes torrents from qBittorrent, and with `deleteFiles` their downloaded data too. */
+export async function deleteTorrents(hashes: string[], deleteFiles: boolean): Promise<void> {
+  await request('/torrents/delete', { method: 'POST', params: { hashes: hashes.join('|'), deleteFiles } })
+}
+
+/** Trackers of a torrent, including the DHT, PeX and LSD pseudo-trackers. */
+export async function getTorrentTrackers(hash: string): Promise<TorrentTracker[]> {
+  const response = await request('/torrents/trackers', { params: { hash } })
+  return (await response.json()) as TorrentTracker[]
 }

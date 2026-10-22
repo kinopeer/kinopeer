@@ -74,12 +74,22 @@
 .ks-dl {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: 4px;
   padding: 10px;
   border-radius: 18px;
   background: var(--surface);
   border: 1px solid var(--border);
   position: relative;
+}
+
+.ks-dl-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 12px;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 12px;
 }
 
 .dl-poster {
