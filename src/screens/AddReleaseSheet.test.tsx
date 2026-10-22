@@ -6,6 +6,7 @@ import type { Release } from '../api/prowlarr'
 import * as qbt from '../api/qbittorrent'
 import * as adding from '../releases/addRelease'
 import { parseRelease } from '../releases/parseRelease'
+import { resetSettings, updateSettings } from '../settings/settings'
 import * as torrentFile from '../torrents/torrentFile'
 import { AddReleaseSheet } from './AddReleaseSheet'
 
@@ -67,6 +68,7 @@ function renderSheet(release = RELEASE) {
 
 beforeEach(() => {
   vi.resetAllMocks()
+  resetSettings()
   fetchRelease.mockResolvedValue({ kind: 'torrent', file: FILE })
   readTorrentFile.mockResolvedValue(META)
   vi.mocked(qbt.getCategories).mockResolvedValue([
@@ -122,6 +124,19 @@ describe('AddReleaseSheet', () => {
       expect.anything(),
       { tags: ['tmdb:tv:1396'], category: undefined, savePath: '/mnt/tv', paused: true, sequential: false, topOfQueue: true },
       { meta: META, skip: [] },
+    )
+  })
+
+  it('starts from the defaults in Settings', async () => {
+    updateSettings({ tvCategory: 'Movies', startPaused: true, sequential: true })
+    renderSheet()
+    const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+    expect(await within(sheet).findByText('Movies → /data/movies')).toBeInTheDocument()
+    await userEvent.click(await within(sheet).findByRole('button', { name: /^Download/ }))
+    expect(addRelease).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ category: 'Movies', paused: true, sequential: true }),
+      expect.anything(),
     )
   })
 

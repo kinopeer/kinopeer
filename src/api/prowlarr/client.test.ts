@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
-import { ProwlarrError, ProwlarrSetupError, fetchRelease, searchReleases } from './client'
+import { ProwlarrError, ProwlarrSetupError, fetchRelease, getProwlarrStatus, searchReleases } from './client'
 import { MOVIE_CATEGORY, type Release } from './types'
 
 let fetchMock: Mock<typeof fetch>
@@ -76,5 +76,16 @@ describe('fetchRelease', () => {
   it('returns the magnet link Prowlarr redirected to', async () => {
     json({ magnet: 'magnet:?xt=urn:btih:def' })
     await expect(fetchRelease(RELEASE)).resolves.toEqual({ kind: 'magnet', uri: 'magnet:?xt=urn:btih:def' })
+  })
+})
+
+describe('getProwlarrStatus', () => {
+  it('returns the version and indexer count, or a setup error', async () => {
+    json({ version: '1.24.3', indexers: 2 })
+    await expect(getProwlarrStatus()).resolves.toEqual({ version: '1.24.3', indexers: 2 })
+    expect(fetchMock.mock.calls[0][0]).toBe('/prowlarr/status')
+
+    json({ error: 'unauthorized' }, 502)
+    await expect(getProwlarrStatus()).rejects.toBeInstanceOf(ProwlarrSetupError)
   })
 })

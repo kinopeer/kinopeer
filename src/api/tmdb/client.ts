@@ -147,6 +147,11 @@ export function getTv(id: number, options: RequestOptions = {}): Promise<TvDetai
   return request<TvDetails>(`/tv/${id}`, {}, options)
 }
 
+/** Checks the connection and the key with TMDB's cheapest call. */
+export async function checkTmdb(signal?: AbortSignal): Promise<void> {
+  await request('/configuration', {}, { signal })
+}
+
 export function posterUrl(path: string | null, size: PosterSize = 'w342'): string | undefined {
   return path ? `${TMDB_IMAGE_BASE}/${size}${path}` : undefined
 }

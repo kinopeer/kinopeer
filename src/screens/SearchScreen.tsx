@@ -7,7 +7,6 @@ import {
   getTrending,
   posterUrl,
   searchTitles,
-  tmdbLanguage,
   type MediaType,
   type Title,
 } from '../api/tmdb'
@@ -18,6 +17,7 @@ import { PosterCard } from '../components/PosterCard'
 import { cx } from '../lib/cx'
 import { useDebouncedValue } from '../lib/useDebouncedValue'
 import { useRequest } from '../lib/useRequest'
+import { useTmdbLanguage } from '../settings/settings'
 import './SearchScreen.css'
 
 type TypeFilter = 'all' | MediaType
@@ -61,11 +61,11 @@ function subtitle(t: TFunction, title: Title): string {
 }
 
 export function SearchScreen() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const [params, setParams] = useSearchParams()
   const query = params.get('q') ?? ''
   const type = parseType(params.get('type'))
-  const language = tmdbLanguage(i18n.resolvedLanguage ?? i18n.language)
+  const language = useTmdbLanguage()
 
   const term = useDebouncedValue(query.trim(), SEARCH_DEBOUNCE_MS)
   const searching = query.trim().length > 0

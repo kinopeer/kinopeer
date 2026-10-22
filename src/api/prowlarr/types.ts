@@ -37,6 +37,14 @@ export interface MagnetResponse {
   magnet: string
 }
 
+/** Answer of /prowlarr/status. */
+export interface ProwlarrStatus {
+  /** Prowlarr's version, e.g. "1.24.3.4754". */
+  version: string
+  /** Enabled indexers. */
+  indexers: number
+}
+
 /** Error body of the /prowlarr routes. */
 export interface ProwlarrErrorBody {
   error: 'not-configured' | 'unauthorized' | 'unreachable' | 'bad-request' | 'not-found' | 'upstream'

@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from 'react-router'
+import { MemoryRouter, Route, Routes, useParams } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as tmdb from '../api/tmdb'
 import type { MovieDetails, TvDetails } from '../api/tmdb'
@@ -60,12 +60,17 @@ const SHOGUN = {
   tagline: '',
 } as TvDetails
 
+function ReleasesPage() {
+  const { type, id } = useParams()
+  return <h1>Releases page {`${type}/${id}`}</h1>
+}
+
 function renderAt(path: string, history: string[] = []) {
   return render(
     <MemoryRouter initialEntries={[...history, path]} initialIndex={history.length}>
       <Routes>
         <Route path="/title/:type/:id" element={<TitleScreen />} />
-        <Route path="/title/:type/:id/releases" element={<h1>Releases page</h1>} />
+        <Route path="/title/:type/:id/releases" element={<ReleasesPage />} />
         <Route path="/search" element={<h1>Search page</h1>} />
       </Routes>
     </MemoryRouter>,
@@ -136,7 +141,14 @@ describe('TitleScreen', () => {
   it('opens the releases for the title', async () => {
     renderAt('/title/movie/693134')
     await userEvent.click(await screen.findByRole('button', { name: 'Find releases' }))
-    expect(screen.getByRole('heading', { name: 'Releases page' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Releases page movie/693134' })).toBeInTheDocument()
+  })
+
+  it('opens the releases of a series although TMDB has its own type field', async () => {
+    getTv.mockResolvedValue({ ...SHOGUN, type: 'Scripted' } as typeof SHOGUN)
+    renderAt('/title/tv/126308')
+    await userEvent.click(await screen.findByRole('button', { name: 'Find releases' }))
+    expect(screen.getByRole('heading', { name: 'Releases page tv/126308' })).toBeInTheDocument()
   })
 
   it('explains how series releases work', async () => {

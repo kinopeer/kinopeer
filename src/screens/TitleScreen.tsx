@@ -7,7 +7,6 @@ import {
   getMovie,
   getTv,
   posterUrl,
-  tmdbLanguage,
   type MovieDetails,
   type TvDetails,
 } from '../api/tmdb'
@@ -20,6 +19,7 @@ import { IconButton } from '../components/IconButton'
 import { Poster } from '../components/Poster'
 import { useFormatters, type Formatters } from '../lib/format'
 import { useRequest } from '../lib/useRequest'
+import { useTmdbLanguage } from '../settings/settings'
 import './TitleScreen.css'
 
 type Details = ({ type: 'movie' } & MovieDetails) | ({ type: 'tv' } & TvDetails)
@@ -62,12 +62,12 @@ export function TitleScreen() {
   const type = params.type === 'movie' || params.type === 'tv' ? params.type : undefined
   const id = Number(params.id)
   const valid = type !== undefined && Number.isInteger(id) && id > 0
-  const language = tmdbLanguage(i18n.resolvedLanguage ?? i18n.language)
+  const language = useTmdbLanguage()
 
   const request = useRequest<Details>(valid ? `${type}|${id}|${language}` : null, async (signal) =>
     type === 'movie'
-      ? { type, ...(await getMovie(id, { language, signal })) }
-      : { type: 'tv', ...(await getTv(id, { language, signal })) },
+      ? { ...(await getMovie(id, { language, signal })), type }
+      : { ...(await getTv(id, { language, signal })), type: 'tv' },
   )
 
   // Opened from inside the app: go back. Opened from a shared link: there's nothing to go back to.

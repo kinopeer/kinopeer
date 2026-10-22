@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useTranslation } from 'react-i18next'
 import type { Torrent } from '../api/qbittorrent'
-import { getMovie, getTv, searchTitles, tmdbLanguage, toTitle, type MediaType, type Title } from '../api/tmdb'
+import { getMovie, getTv, searchTitles, toTitle, type MediaType, type Title } from '../api/tmdb'
+import { useTmdbLanguage } from '../settings/settings'
 import { parseName, tmdbTag, type ParsedName } from './parseName'
 
 /** What a download row needs from TMDB. */
@@ -157,8 +157,7 @@ const CONCURRENCY = 3
 export function useTitleMatches(
   torrents: (Pick<Torrent, 'hash' | 'name' | 'tags'> & { category?: string })[],
 ): Record<string, TitleMatch | null | undefined> {
-  const { i18n } = useTranslation()
-  const language = tmdbLanguage(i18n.resolvedLanguage ?? i18n.language)
+  const language = useTmdbLanguage()
   const [, setVersion] = useState(0)
 
   const lookups = useMemo(() => {

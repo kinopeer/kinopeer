@@ -39,7 +39,7 @@ function App() {
             <Route path="title/:type/:id/releases" element={<ReleasesScreen />} />
             <Route
               path="settings"
-              element={<SettingsScreen version={session.version} onSignOut={() => void signOut()} />}
+              element={<SettingsScreen onSignOut={() => void signOut()} />}
             />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

@@ -4,7 +4,7 @@
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: var(--space-8);
+  gap: 26px;
   padding: var(--safe-top) var(--space-4) var(--space-6);
 }
 
@@ -13,15 +13,161 @@
   align-items: center;
   min-height: 52px;
   margin-top: var(--space-2);
+  margin-bottom: -10px;
 }
 
 .settings-section {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-3);
+  gap: 8px;
 }
 
-.settings-section .screen-controls {
-  justify-content: flex-start;
+.settings-section-title {
+  padding: 0 4px;
+}
+
+.settings-hint {
+  padding: 0 4px;
+}
+
+.settings-conns {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Connection check row */
+.ks-conn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 10px 8px 10px 12px;
+  border-radius: 14px;
+  background: var(--sunken);
+  border: 1px solid var(--border);
+}
+
+.ks-conn-ic {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  background: var(--raised);
+  color: var(--text2);
+}
+
+.ks-conn.is-ok .ks-conn-ic {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.ks-conn.is-err {
+  border-color: color-mix(in srgb, var(--error) 45%, transparent);
+}
+
+.ks-conn.is-err .ks-conn-ic {
+  background: var(--error-soft);
+  color: var(--error);
+}
+
+.ks-conn.is-loading .ks-conn-ic {
+  color: var(--accent-text);
+}
+
+.settings-conn-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-conn-name {
+  font-weight: 600;
+}
+
+.settings-card {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ks-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.settings-field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-select {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.settings-select select {
+  appearance: none;
+  width: 100%;
+  height: 48px;
+  padding: 0 40px 0 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+}
+
+.settings-select select:disabled {
+  color: var(--disabled);
+}
+
+.settings-select > .ks-ic {
+  position: absolute;
+  right: 12px;
+  color: var(--text3);
+  pointer-events: none;
+}
+
+.settings-select option {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.settings-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+}
+
+.settings-toggle > .t-body {
+  flex: 1;
+}
+
+.settings-rows {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+}
+
+.settings-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0;
 }

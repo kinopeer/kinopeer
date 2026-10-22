@@ -5,7 +5,7 @@ import { Banner } from '../components/Banner'
 import { Icon } from '../components/Icon'
 import { ProgressBar } from '../components/ProgressBar'
 import { useFormatters } from '../lib/format'
-import { fileLabel, groupFiles, type FileGroup } from '../releases/fileGroups'
+import { buildFileTree, fileName, initiallyOpen, type FileFolder } from '../releases/fileTree'
 import type { DownloadStatus } from '../torrents/status'
 import { useTorrentFiles } from '../torrents/useTorrentFiles'
 
@@ -25,14 +25,25 @@ function priorityChoice(priority: FilePriority): PriorityChoice {
   return priority === 0 ? 'skip' : priority === 1 ? 'normal' : 'high'
 }
 
-/** A torrent's files with their progress and download priority, grouped by top folder. */
+/** A torrent's files with their progress and download priority, as the torrent's folder tree. */
 export function TorrentFiles({ hash, status, disabled }: TorrentFilesProps) {
   const { t } = useTranslation()
   const format = useFormatters()
   const { files, failed, setPriority } = useTorrentFiles(hash)
   const [saveFailed, setSaveFailed] = useState(false)
 
-  const groups = useMemo(() => groupFiles((files ?? []).map((file) => ({ path: file.name, size: file.size }))), [files])
+  const tree = useMemo(() => buildFileTree((files ?? []).map((file) => ({ path: file.name, size: file.size }))), [files])
+  // Folders the user opened or closed; the rest follow initiallyOpen, which needs the file list first.
+  const [toggled, setToggled] = useState<ReadonlySet<string>>(new Set())
+  const opened = initiallyOpen(tree)
+  const isOpen = (path: string) => opened.has(path) !== toggled.has(path)
+  const toggle = (path: string) =>
+    setToggled((current) => {
+      const next = new Set(current)
+      if (next.has(path)) next.delete(path)
+      else next.add(path)
+      return next
+    })
 
   const change = async (file: TorrentFile, choice: PriorityChoice) => {
     setSaveFailed(false)
@@ -43,9 +54,9 @@ export function TorrentFiles({ hash, status, disabled }: TorrentFilesProps) {
     }
   }
 
-  const fileRow = (position: number, group: FileGroup) => {
+  const fileRow = (position: number) => {
     const file = files![position]
-    const label = fileLabel(file.name, group)
+    const label = fileName(file.name)
     const choice = priorityChoice(file.priority)
     return (
       <li key={file.index} className={choice === 'skip' ? 'tf-file is-skipped' : 'tf-file'}>
@@ -82,6 +93,29 @@ export function TorrentFiles({ hash, status, disabled }: TorrentFilesProps) {
     )
   }
 
+  const folderRow = (folder: FileFolder) => {
+    const expanded = isOpen(folder.path)
+    const done = folder.all.reduce((sum, position) => sum + files![position].size * files![position].progress, 0)
+    return (
+      <li key={folder.path} className="tf-folder">
+        <button type="button" className="tf-folder-toggle" aria-expanded={expanded} onClick={() => toggle(folder.path)}>
+          <Icon name="folder" className="c2" />
+          <span className="tf-folder-text">
+            <span className="tf-folder-name ks-trunc">{folder.name}</span>
+            <span className="t-cap c3 ks-num">
+              {t('add.files', { count: folder.all.length })} · {format.size(folder.size)} ·{' '}
+              {format.percent(folder.size ? done / folder.size : 0)}
+            </span>
+          </span>
+          <Icon name="chevron-down" size={18} className="c3 tf-chevron" />
+        </button>
+        {expanded && <ul className="tf-list tf-sub">{contents(folder)}</ul>}
+      </li>
+    )
+  }
+
+  const contents = (folder: FileFolder) => [...folder.folders.map(folderRow), ...folder.files.map(fileRow)]
+
   return (
     <section className="tf" aria-labelledby="torrent-files-title" aria-busy={files === undefined}>
       <h2 id="torrent-files-title" className="t-h3 tf-title">
@@ -101,18 +135,8 @@ export function TorrentFiles({ hash, status, disabled }: TorrentFilesProps) {
         )
       ) : files.length === 0 ? (
         <p className="t-body c2">{t('torrent.filesMetadata')}</p>
-      ) : groups.length === 1 ? (
-        <ul className="tf-list">{groups[0].files.map((position) => fileRow(position, groups[0]))}</ul>
       ) : (
-        groups.map((group) => (
-          <div key={group.name} className="tf-group">
-            <h3 className="tf-group-name">
-              <Icon name="folder" size={18} className="c3" />
-              <span className="ks-trunc">{group.name || t('add.rootFiles')}</span>
-            </h3>
-            <ul className="tf-list">{group.files.map((position) => fileRow(position, group))}</ul>
-          </div>
-        ))
+        <ul className="tf-list">{contents(tree)}</ul>
       )}
     </section>
   )

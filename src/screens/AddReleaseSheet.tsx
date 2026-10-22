@@ -24,6 +24,7 @@ import { useRequest } from '../lib/useRequest'
 import { addRelease } from '../releases/addRelease'
 import type { ReleaseInfo } from '../releases/parseRelease'
 import { qualityBadges } from '../releases/qualityBadges'
+import { useSettings } from '../settings/settings'
 import { tmdbTagFor } from '../torrents/parseName'
 import { categoryType } from '../torrents/titleMatches'
 import { readTorrentFile, type TorrentMeta } from '../torrents/torrentFile'
@@ -85,16 +86,22 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   const [optionsOpen, setOptionsOpen] = useState(false)
   const [chosenCategory, setChosenCategory] = useState<string>()
   const [savePath, setSavePath] = useState('')
-  const [paused, setPaused] = useState(false)
-  const [sequential, setSequential] = useState(false)
+  const [settings] = useSettings()
+  const [paused, setPaused] = useState(settings.startPaused)
+  const [sequential, setSequential] = useState(settings.sequential)
   const [topOfQueue, setTopOfQueue] = useState(false)
   const [adding, setAdding] = useState(false)
   const [addError, setAddError] = useState<string>()
 
   const categories = where.data?.categories ?? []
-  // Until the user picks one, use the first category named like the title's type ("Movies", "TV").
+  // Until the user picks one: the default from Settings if qBittorrent still has it, else the first
+  // category named like the title's type ("Movies", "TV").
+  const preferred = title.type === 'movie' ? settings.movieCategory : settings.tvCategory
   const category =
-    chosenCategory ?? categories.find((candidate) => categoryType(candidate.name) === title.type)?.name ?? ''
+    chosenCategory ??
+    categories.find((candidate) => candidate.name === preferred)?.name ??
+    categories.find((candidate) => categoryType(candidate.name) === title.type)?.name ??
+    ''
   const categoryPath = categories.find((candidate) => candidate.name === category)?.savePath
   const defaultPath = categoryPath || where.data?.defaultPath || ''
   const destination = savePath.trim() || defaultPath

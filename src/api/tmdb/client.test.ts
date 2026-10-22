@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vite
 import {
   TmdbError,
   TmdbKeyError,
+  checkTmdb,
   getMovie,
   getPopular,
   getTrending,
@@ -136,5 +137,16 @@ describe('helpers', () => {
   it('maps app languages to TMDB ones', () => {
     expect(tmdbLanguage('ru')).toBe('ru-RU')
     expect(tmdbLanguage('en')).toBe('en-US')
+  })
+})
+
+describe('checkTmdb', () => {
+  it('asks for the configuration and reports a bad key', async () => {
+    respond({ images: {} })
+    await expect(checkTmdb()).resolves.toBeUndefined()
+    expect(lastUrl()).toBe('/tmdb/configuration')
+
+    respond({ status_message: 'Invalid API key' }, 401)
+    await expect(checkTmdb()).rejects.toBeInstanceOf(TmdbKeyError)
   })
 })
