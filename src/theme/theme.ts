@@ -32,8 +32,15 @@ export function resolveTheme(preference: ThemePreference, prefersLight: boolean)
   return preference
 }
 
+/**
+ * Browser and status bar color per theme: --bg from src/styles/tokens.css. A meta tag can't read
+ * CSS custom properties, and index.html sets it before the styles load.
+ */
+export const THEME_COLORS: Record<ResolvedTheme, string> = { dark: '#0e1113', light: '#f3f5f5' }
+
 export function applyTheme(theme: ResolvedTheme): void {
   document.documentElement.dataset.theme = theme
+  document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')?.setAttribute('content', THEME_COLORS[theme])
 }
 
 export function watchSystemTheme(onChange: (prefersLight: boolean) => void): () => void {
