@@ -25,7 +25,7 @@ function priorityChoice(priority: FilePriority): PriorityChoice {
   return priority === 0 ? 'skip' : priority === 1 ? 'normal' : 'high'
 }
 
-/** A torrent's files with their progress and download priority, grouped by top folder. */
+/** A torrent's files with their progress and download priority, grouped by folder or season. */
 export function TorrentFiles({ hash, status, disabled }: TorrentFilesProps) {
   const { t } = useTranslation()
   const format = useFormatters()
@@ -101,14 +101,14 @@ export function TorrentFiles({ hash, status, disabled }: TorrentFilesProps) {
         )
       ) : files.length === 0 ? (
         <p className="t-body c2">{t('torrent.filesMetadata')}</p>
-      ) : groups.length === 1 ? (
+      ) : groups.length === 1 && groups[0].key === 'root' ? (
         <ul className="tf-list">{groups[0].files.map((position) => fileRow(position, groups[0]))}</ul>
       ) : (
         groups.map((group) => (
-          <div key={group.name} className="tf-group">
+          <div key={group.key} className="tf-group">
             <h3 className="tf-group-name">
               <Icon name="folder" size={18} className="c3" />
-              <span className="ks-trunc">{group.name || t('add.rootFiles')}</span>
+              <span className="ks-trunc">{group.season ? t('add.season', { season: group.season }) : group.name || t('add.rootFiles')}</span>
             </h3>
             <ul className="tf-list">{group.files.map((position) => fileRow(position, group))}</ul>
           </div>

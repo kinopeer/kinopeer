@@ -21,12 +21,12 @@ export interface FilePickerProps {
   onDone: () => void
 }
 
-/** Full-height sheet to pick which files of a torrent to download, grouped by folder. */
+/** Full-height sheet to pick which files of a torrent to download, grouped by folder or season. */
 export function FilePicker({ meta, skipped, onChange, free, subtitle, onDone }: FilePickerProps) {
   const { t } = useTranslation()
   const format = useFormatters()
   const groups = useMemo(() => groupFiles(meta.files), [meta.files])
-  const flat = groups.length === 1
+  const flat = groups.length === 1 && groups[0].key === 'root'
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set())
 
   const setFiles = (indexes: number[], selected: boolean) => {
@@ -106,12 +106,12 @@ export function FilePicker({ meta, skipped, onChange, free, subtitle, onDone }: 
       ) : (
         <ul className="fp-list">
           {groups.map((group) => {
-            const name = group.name || t('add.rootFiles')
+            const name = group.season ? t('add.season', { season: group.season }) : group.name || t('add.rootFiles')
             const selected = group.files.filter((index) => !skipped.has(index)).length
             const state = selected === 0 ? false : selected === group.files.length ? true : 'mixed'
-            const expanded = open.has(group.name)
+            const expanded = open.has(group.key)
             return (
-              <li key={group.name} className="fp-group">
+              <li key={group.key} className="fp-group">
                 <div className="fp-group-head">
                   <Checkbox label={name} checked={state} onChange={(on) => setFiles(group.files, on)} />
                   <button
@@ -120,8 +120,8 @@ export function FilePicker({ meta, skipped, onChange, free, subtitle, onDone }: 
                     aria-expanded={expanded}
                     onClick={() => {
                       const next = new Set(open)
-                      if (expanded) next.delete(group.name)
-                      else next.add(group.name)
+                      if (expanded) next.delete(group.key)
+                      else next.add(group.key)
                       setOpen(next)
                     }}
                   >

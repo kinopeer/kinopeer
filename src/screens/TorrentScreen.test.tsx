@@ -215,6 +215,20 @@ describe('TorrentScreen', () => {
     expect(main).toHaveValue('normal')
   })
 
+  it('groups the episodes of a series pack by season', async () => {
+    getTorrentFiles.mockResolvedValue([
+      { index: 0, name: 'Breaking.Bad/Breaking.Bad.S01E01.mkv', size: 1e9, progress: 1, priority: 1 },
+      { index: 1, name: 'Breaking.Bad/Breaking.Bad.S02E01.mkv', size: 1e9, progress: 0, priority: 1 },
+      { index: 2, name: 'Breaking.Bad/Sample.mkv', size: 1e6, progress: 0, priority: 0 },
+    ])
+    renderScreen()
+    const files = await screen.findByRole('region', { name: /Files/ })
+    expect(
+      (await within(files).findAllByRole('heading', { level: 3 })).map((heading) => heading.textContent),
+    ).toEqual(['Season 1', 'Season 2', 'Other files'])
+    expect(within(files).getByRole('combobox', { name: 'Priority: Breaking.Bad.S02E01.mkv' })).toBeInTheDocument()
+  })
+
   it('explains an empty file list of a magnet link', async () => {
     getTorrentFiles.mockResolvedValue([])
     renderScreen()
