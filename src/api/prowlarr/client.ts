@@ -44,14 +44,14 @@ export async function searchReleases(query: string, options: SearchOptions = {})
   const { type = 'search', categories = [], signal } = options
   const params = new URLSearchParams({ query, type })
   for (const category of categories) params.append('categories', String(category))
-  const response = await fetch(`${PROWLARR_BASE}/search?${params}`, { credentials: 'omit', signal })
+  const response = await fetch(`${PROWLARR_BASE}/search?${params}`, { credentials: 'same-origin', signal })
   if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) throw await errorFor(response)
   return (await response.json()) as Release[]
 }
 
 /** Checks the connection: Prowlarr's version and how many indexers are enabled. */
 export async function getProwlarrStatus(signal?: AbortSignal): Promise<ProwlarrStatus> {
-  const response = await fetch(`${PROWLARR_BASE}/status`, { credentials: 'omit', signal })
+  const response = await fetch(`${PROWLARR_BASE}/status`, { credentials: 'same-origin', signal })
   if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) throw await errorFor(response)
   return (await response.json()) as ProwlarrStatus
 }
@@ -78,7 +78,7 @@ export async function fetchRelease(release: Release, signal?: AbortSignal): Prom
 
 async function download(release: Release, token: string, signal?: AbortSignal): Promise<ReleaseSource> {
   const params = new URLSearchParams({ token })
-  const response = await fetch(`${PROWLARR_BASE}/download?${params}`, { credentials: 'omit', signal })
+  const response = await fetch(`${PROWLARR_BASE}/download?${params}`, { credentials: 'same-origin', signal })
   if (!response.ok) throw await errorFor(response)
   if (response.headers.get('content-type')?.includes('application/json')) {
     return { kind: 'magnet', uri: ((await response.json()) as MagnetResponse).magnet }

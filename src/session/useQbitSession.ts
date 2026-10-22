@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
-import { UnauthorizedError, getAppVersion, login, logout } from '../api/qbittorrent'
+import { UnauthorizedError, getAppVersion } from '../api/qbittorrent'
+import { saveQbittorrentLogin } from '../api/settings'
 
 export type QbitSession =
   | { status: 'checking' }
-  /** Session is valid, or qBittorrent skips auth for this client (localhost / whitelisted subnet). */
+  /** The server's login works, or qBittorrent skips auth for it (localhost / whitelisted subnet). */
   | { status: 'connected'; version: string }
+  /** The server has no working qBittorrent login: the app asks for one. */
   | { status: 'signed-out' }
   /** qBittorrent or the proxy did not answer. */
   | { status: 'unreachable' }
@@ -36,18 +38,16 @@ export function useQbitSession() {
     }
   }, [])
 
-  /** Throws the client's typed errors so the form can show them; resolves once the session works. */
+  /**
+   * Saves the login on the server, which keeps it. Throws its SettingsError so the form can show
+   * why; resolves once qBittorrent answers.
+   */
   const signIn = useCallback(async (username: string, password: string) => {
-    await login(username, password)
+    await saveQbittorrentLogin(username, password)
     const next = await probe()
     setSession(next)
     if (next.status !== 'connected') throw new UnauthorizedError()
   }, [])
 
-  const signOut = useCallback(async () => {
-    await logout().catch(() => {})
-    setSession({ status: 'signed-out' })
-  }, [])
-
-  return { session, recheck, signIn, signOut }
+  return { session, recheck, signIn }
 }

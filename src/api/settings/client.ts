@@ -1,4 +1,4 @@
-import type { ServerSettings, SettingsErrorBody, TmdbKeyBody } from './types'
+import type { QbittorrentLoginBody, ServerSettings, SettingsErrorBody, TmdbKeyBody } from './types'
 
 /** Settings the Kinoseed server keeps (server/settings.ts). */
 export const SETTINGS_BASE = '/api/settings'
@@ -31,17 +31,30 @@ export async function getServerSettings(signal?: AbortSignal): Promise<ServerSet
   return (await response.json()) as ServerSettings
 }
 
+async function put<T>(path: string, body: T): Promise<ServerSettings> {
+  const response = await fetch(`${SETTINGS_BASE}/${path}`, {
+    method: 'PUT',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!response.ok || !isJson(response)) throw await errorFor(response)
+  return (await response.json()) as ServerSettings
+}
+
 /**
  * Saves the TMDB key on the server, which checks it with TMDB first. Rejects with a SettingsError:
  * code 'invalid-key' when TMDB refuses it, 'unreachable' when TMDB doesn't answer.
  */
-export async function saveTmdbKey(apiKey: string): Promise<ServerSettings> {
-  const response = await fetch(`${SETTINGS_BASE}/tmdb`, {
-    method: 'PUT',
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ apiKey } satisfies TmdbKeyBody),
-  })
-  if (!response.ok || !isJson(response)) throw await errorFor(response)
-  return (await response.json()) as ServerSettings
+export function saveTmdbKey(apiKey: string): Promise<ServerSettings> {
+  return put<TmdbKeyBody>('tmdb', { apiKey })
+}
+
+/**
+ * Saves the qBittorrent login on the server, which logs in with it first. Rejects with a
+ * SettingsError: code 'invalid-credentials', 'banned' (too many failed logins), 'unreachable', or
+ * 'not-configured' when the server has no QBITTORRENT_URL.
+ */
+export function saveQbittorrentLogin(username: string, password: string): Promise<ServerSettings> {
+  return put<QbittorrentLoginBody>('qbittorrent', { username, password })
 }

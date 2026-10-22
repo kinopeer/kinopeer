@@ -16,7 +16,7 @@ import './App.css'
 
 function App() {
   const { t } = useTranslation()
-  const { session, recheck, signIn, signOut } = useQbitSession()
+  const { session, recheck, signIn } = useQbitSession()
   const tmdb = useTmdbSetup(session.status === 'connected')
   const location = useLocation()
 
@@ -48,10 +48,7 @@ function App() {
               <Route path="search" element={<SearchScreen />} />
               <Route path="title/:type/:id" element={<TitleScreen />} />
               <Route path="title/:type/:id/releases" element={<ReleasesScreen />} />
-              <Route
-                path="settings"
-                element={<SettingsScreen onSignOut={() => void signOut()} />}
-              />
+              <Route path="settings" element={<SettingsScreen />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </ErrorBoundary>

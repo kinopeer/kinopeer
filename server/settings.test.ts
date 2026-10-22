@@ -4,7 +4,8 @@ import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { SettingsStore, settingsMiddleware, tmdbKey } from './settings.ts'
+import type { ServerSettings } from '../src/api/settings/types.ts'
+import { SettingsStore, qbittorrentCredentials, settingsMiddleware, tmdbKey } from './settings.ts'
 
 const servers: Server[] = []
 let dir: string
@@ -38,8 +39,39 @@ async function fakeTmdb() {
   return { apiBase: `${base}/3`, seen }
 }
 
-async function kinoseed(store: SettingsStore, options: { envKey?: string; apiBase?: string } = {}) {
-  const middleware = settingsMiddleware({ store, envTmdbApiKey: options.envKey, tmdbApiBase: options.apiBase })
+/** qBittorrent's login: accepts admin / "pass word", answers 403 (banned) to "banned". */
+async function fakeQbittorrent() {
+  let logins = 0
+  const base = await listen(async (request, response) => {
+    logins++
+    const chunks: Buffer[] = []
+    for await (const chunk of request as AsyncIterable<Buffer>) chunks.push(chunk)
+    const params = new URLSearchParams(Buffer.concat(chunks).toString())
+    if (params.get('username') === 'banned') {
+      response.statusCode = 403
+      return response.end('Forbidden')
+    }
+    if (params.get('username') !== 'admin' || params.get('password') !== 'pass word') {
+      response.statusCode = 401
+      return response.end('Unauthorized')
+    }
+    response.setHeader('Set-Cookie', 'SID=abc; HttpOnly')
+    response.end('Ok.')
+  })
+  return { base, logins: () => logins }
+}
+
+async function kinoseed(
+  store: SettingsStore,
+  options: { envKey?: string; apiBase?: string; qbittorrentUrl?: string; envUser?: string } = {},
+) {
+  const middleware = settingsMiddleware({
+    store,
+    envTmdbApiKey: options.envKey,
+    tmdbApiBase: options.apiBase,
+    qbittorrentUrl: options.qbittorrentUrl,
+    envQbittorrent: { username: options.envUser, password: 'adminadmin' },
+  })
   return listen((request, response) =>
     middleware(request, response, () => {
       response.statusCode = 404
@@ -86,18 +118,95 @@ describe('tmdbKey', () => {
   })
 })
 
+describe('qbittorrentCredentials', () => {
+  it('prefers the saved login over the environment', async () => {
+    const store = new SettingsStore(dir)
+    await store.load()
+    expect(qbittorrentCredentials(store, {})).toBeUndefined()
+    expect(qbittorrentCredentials(store, { username: 'admin', password: 'adminadmin' })).toEqual({
+      username: 'admin',
+      password: 'adminadmin',
+    })
+    await store.update({ qbittorrentUsername: 'me', qbittorrentPassword: 'secret' })
+    expect(qbittorrentCredentials(store, { username: 'admin', password: 'adminadmin' })).toEqual({
+      username: 'me',
+      password: 'secret',
+    })
+  })
+})
+
+function putLogin(app: string, body: unknown) {
+  return fetch(`${app}/api/settings/qbittorrent`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+}
+
+describe('settingsMiddleware: qBittorrent login', () => {
+  it('logs in before saving the login, and never echoes it', async () => {
+    const qbt = await fakeQbittorrent()
+    const store = new SettingsStore(dir)
+    const app = await kinoseed(store, { qbittorrentUrl: `${qbt.base}/`, envUser: 'admin' })
+    expect(((await (await fetch(`${app}/api/settings`)).json()) as ServerSettings).qbittorrent).toEqual({ configured: true, source: 'env' })
+
+    const response = await putLogin(app, { username: ' admin ', password: 'pass word' })
+
+    expect(response.status).toBe(200)
+    const text = await response.text()
+    expect(JSON.parse(text).qbittorrent).toEqual({ configured: true, source: 'saved' })
+    expect(text).not.toContain('pass word')
+    expect(qbittorrentCredentials(store, undefined)).toEqual({ username: 'admin', password: 'pass word' })
+  })
+
+  it('says why qBittorrent refused, and saves nothing', async () => {
+    const qbt = await fakeQbittorrent()
+    const store = new SettingsStore(dir)
+    const app = await kinoseed(store, { qbittorrentUrl: qbt.base })
+
+    const wrong = await putLogin(app, { username: 'admin', password: 'nope' })
+    expect(wrong.status).toBe(422)
+    expect(await wrong.json()).toEqual({ error: 'invalid-credentials' })
+    const banned = await putLogin(app, { username: 'banned', password: 'x' })
+    expect(banned.status).toBe(429)
+    expect(await banned.json()).toEqual({ error: 'banned' })
+    expect(qbittorrentCredentials(store, undefined)).toBeUndefined()
+  })
+
+  it('needs a qBittorrent address and a username', async () => {
+    const store = new SettingsStore(dir)
+    expect((await putLogin(await kinoseed(store), { username: 'admin', password: '' })).status).toBe(503)
+    const qbt = await fakeQbittorrent()
+    const app = await kinoseed(store, { qbittorrentUrl: qbt.base })
+    expect((await putLogin(app, { username: ' ', password: 'x' })).status).toBe(400)
+    expect((await putLogin(app, { username: 'admin' })).status).toBe(400)
+    expect(qbt.logins()).toBe(0)
+  })
+
+  it('says when qBittorrent is unreachable', async () => {
+    const app = await kinoseed(new SettingsStore(dir), { qbittorrentUrl: 'http://127.0.0.1:1' })
+    const response = await putLogin(app, { username: 'admin', password: 'x' })
+    expect(response.status).toBe(502)
+    expect(await response.json()).toEqual({ error: 'unreachable' })
+  })
+})
+
 describe('settingsMiddleware', () => {
   it('reports where the TMDB key comes from, never the key', async () => {
     const store = new SettingsStore(dir)
     expect(await (await fetch(`${await kinoseed(store)}/api/settings`)).json()).toEqual({
       tmdb: { configured: false, source: null },
+      qbittorrent: { configured: false, source: null },
     })
 
     const withEnv = await kinoseed(store, { envKey: 'env-key' })
     const response = await fetch(`${withEnv}/api/settings`)
     expect(response.headers.get('cache-control')).toBe('no-store')
     const text = await response.text()
-    expect(JSON.parse(text)).toEqual({ tmdb: { configured: true, source: 'env' } })
+    expect(JSON.parse(text)).toEqual({
+      tmdb: { configured: true, source: 'env' },
+      qbittorrent: { configured: false, source: null },
+    })
     expect(text).not.toContain('env-key')
   })
 
@@ -109,7 +218,7 @@ describe('settingsMiddleware', () => {
     const response = await putKey(app, ' good-key ')
 
     expect(response.status).toBe(200)
-    expect(await response.json()).toEqual({ tmdb: { configured: true, source: 'saved' } })
+    expect(((await response.json()) as ServerSettings).tmdb).toEqual({ configured: true, source: 'saved' })
     expect(tmdb.seen).toEqual(['/3/authentication?api_key=good-key'])
     expect(tmdbKey(store, 'env-key')).toBe('good-key')
   })
@@ -152,7 +261,7 @@ describe('settingsMiddleware', () => {
     expect((await putKey(app, 'two words')).status).toBe(400)
     expect((await putKey(app, 'good-key', 'application/x-www-form-urlencoded')).status).toBe(415)
     expect((await fetch(`${app}/api/settings/tmdb`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: '{' })).status).toBe(400)
-    expect((await fetch(`${app}/api/settings/qbittorrent`)).status).toBe(404)
+    expect((await fetch(`${app}/api/settings/other`)).status).toBe(404)
     expect(tmdb.seen).toEqual([])
   })
 

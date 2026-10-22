@@ -55,7 +55,7 @@ async function request<T>(path: string, params: Params, { language, signal }: Re
   }
   const query = search.toString()
   const response = await fetch(`${TMDB_BASE}${path}${query ? `?${query}` : ''}`, {
-    credentials: 'omit',
+    credentials: 'same-origin',
     headers: { Accept: 'application/json' },
     signal,
   })

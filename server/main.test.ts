@@ -35,7 +35,10 @@ describe('createApp', () => {
     expect((await fetch(`${app}/qbt/api/v2/app/version`)).status).toBe(503)
     expect(await (await fetch(`${app}/prowlarr/status`)).json()).toEqual({ error: 'not-configured' })
     expect((await fetch(`${app}/tmdb/movie/771`)).status).toBe(401)
-    expect(await (await fetch(`${app}/api/settings`)).json()).toEqual({ tmdb: { configured: false, source: null } })
+    expect(await (await fetch(`${app}/api/settings`)).json()).toEqual({
+      tmdb: { configured: false, source: null },
+      qbittorrent: { configured: false, source: null },
+    })
   })
 
   it('serves the app for its routes and 404 for missing files', async () => {

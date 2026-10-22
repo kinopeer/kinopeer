@@ -9,7 +9,7 @@ import App from './App'
 
 vi.mock('./api/qbittorrent', async (importOriginal) => {
   const actual = await importOriginal<typeof api>()
-  return { ...actual, getAppVersion: vi.fn(), getApiVersion: vi.fn(), getCategories: vi.fn(), getMainData: vi.fn(), login: vi.fn(), logout: vi.fn() }
+  return { ...actual, getAppVersion: vi.fn(), getApiVersion: vi.fn(), getCategories: vi.fn(), getMainData: vi.fn() }
 })
 
 vi.mock('./api/settings', async (importOriginal) => {
@@ -42,7 +42,7 @@ beforeEach(() => {
   const empty = { titles: [], page: 1, totalPages: 1 }
   vi.mocked(tmdb.getTrending).mockResolvedValue(empty)
   vi.mocked(tmdb.getPopular).mockResolvedValue(empty)
-  vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ tmdb: { configured: true, source: 'saved' } })
+  vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ tmdb: { configured: true, source: 'saved' }, qbittorrent: { configured: true, source: 'env' } })
 })
 
 afterEach(() => {
@@ -69,8 +69,8 @@ describe('App', () => {
   })
 
   it('asks for the TMDB key when the server has none, then goes in', async () => {
-    vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ tmdb: { configured: false, source: null } })
-    vi.mocked(serverSettings.saveTmdbKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved' } })
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ tmdb: { configured: false, source: null }, qbittorrent: { configured: true, source: 'env' } })
+    vi.mocked(serverSettings.saveTmdbKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved' }, qbittorrent: { configured: true, source: 'env' } })
     renderApp()
 
     expect(await screen.findByRole('heading', { name: 'Connect TMDB' })).toBeInTheDocument()
@@ -86,7 +86,7 @@ describe('App', () => {
   })
 
   it('shows why a TMDB key was refused', async () => {
-    vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ tmdb: { configured: false, source: null } })
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ tmdb: { configured: false, source: null }, qbittorrent: { configured: true, source: 'env' } })
     vi.mocked(serverSettings.saveTmdbKey).mockRejectedValue(new serverSettings.SettingsError(422, 'invalid-key'))
     renderApp()
 
@@ -98,7 +98,7 @@ describe('App', () => {
   })
 
   it('lets the TMDB key wait', async () => {
-    vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ tmdb: { configured: false, source: null } })
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ tmdb: { configured: false, source: null }, qbittorrent: { configured: true, source: 'env' } })
     renderApp()
     await userEvent.click(await screen.findByRole('button', { name: 'Skip for now' }))
     expect(await screen.findByRole('heading', { name: 'Downloads' })).toBeInTheDocument()

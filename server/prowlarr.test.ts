@@ -1,7 +1,10 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { createServer, type RequestListener, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { downloadToken, prowlarrMiddleware, type ProwlarrConfig } from './prowlarr.ts'
+import { downloadToken, prowlarrMiddleware, readProwlarrApiKey, type ProwlarrConfig } from './prowlarr.ts'
 
 const KEY = 'secret-key-123'
 const servers: Server[] = []
@@ -110,6 +113,21 @@ describe('prowlarrMiddleware', () => {
     expect(seen).toEqual([KEY, KEY])
   })
 
+  it('reads the key on every request when it is a function', async () => {
+    const seen: (string | undefined)[] = []
+    const prowlarr = await listen((request, response) => {
+      seen.push(request.headers['x-api-key'] as string | undefined)
+      response.setHeader('Content-Type', 'application/json')
+      response.end(request.url === '/api/v1/indexer' ? '[]' : '{"version":"2.6.5"}')
+    })
+    let key: string | undefined
+    const base = await kinoseed({ url: prowlarr, apiKey: async () => key })
+    expect((await fetch(`${base}/prowlarr/status`)).status).toBe(503)
+    key = KEY
+    expect((await fetch(`${base}/prowlarr/status`)).status).toBe(200)
+    expect(seen).toEqual([KEY, KEY])
+  })
+
   it('reports a rejected key on the status check', async () => {
     const prowlarr = await listen((_request, response) => {
       response.statusCode = 401
@@ -186,6 +204,22 @@ describe('prowlarrMiddleware', () => {
     const base = await kinoseed({ url: 'http://127.0.0.1:9', apiKey: KEY })
     for (const token of ['api/v1/indexer', '../1/download?link=a', '1/download']) {
       expect((await fetch(`${base}/prowlarr/download?token=${encodeURIComponent(token)}`)).status).toBe(400)
+    }
+  })
+})
+
+describe('readProwlarrApiKey', () => {
+  it('reads <ApiKey> from Prowlarr’s config.xml', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'kinoseed-prowlarr-'))
+    try {
+      const path = join(dir, 'config.xml')
+      await writeFile(path, '<Config>\n  <Port>9696</Port>\n  <ApiKey>0123abcd</ApiKey>\n</Config>\n')
+      expect(await readProwlarrApiKey(path)).toBe('0123abcd')
+      await writeFile(path, '<Config></Config>')
+      expect(await readProwlarrApiKey(path)).toBeUndefined()
+      expect(await readProwlarrApiKey(join(dir, 'missing.xml'))).toBeUndefined()
+    } finally {
+      await rm(dir, { recursive: true, force: true })
     }
   })
 })

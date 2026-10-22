@@ -60,13 +60,13 @@ afterEach(() => {
 })
 
 describe('searchTitles', () => {
-  it('queries the proxy without credentials and keeps only movies and series', async () => {
+  it('queries the proxy and keeps only movies and series', async () => {
     respond({ page: 1, total_pages: 3, total_results: 41, results: [dune, { media_type: 'person', id: 1, name: 'Zendaya' }, andor] })
 
     const page = await searchTitles('dune & co', { language: 'ru-RU' })
 
     expect(lastUrl()).toBe('/tmdb/search/multi?query=dune+%26+co&include_adult=false&language=ru-RU')
-    expect(fetchMock.mock.calls[0][1]).toMatchObject({ credentials: 'omit' })
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ credentials: 'same-origin' })
     expect(page).toMatchObject({ page: 1, totalPages: 3 })
     expect(page.titles.map((t) => [t.type, t.title, t.year])).toEqual([
       ['movie', 'Dune: Part Two', 2024],

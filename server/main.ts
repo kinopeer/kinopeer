@@ -1,9 +1,9 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { prowlarrMiddleware, type Middleware } from './prowlarr.ts'
+import { prowlarrMiddleware, readProwlarrApiKey, type Middleware } from './prowlarr.ts'
 import { qbittorrentMiddleware } from './qbittorrent.ts'
-import { SettingsStore, settingsMiddleware, tmdbKey } from './settings.ts'
+import { SettingsStore, qbittorrentCredentials, settingsMiddleware, tmdbKey } from './settings.ts'
 import { staticMiddleware } from './static.ts'
 import { tmdbMiddleware } from './tmdb.ts'
 
@@ -19,16 +19,32 @@ import { tmdbMiddleware } from './tmdb.ts'
  * app are kept.
  */
 export function createApp(env: NodeJS.ProcessEnv, root: string, store: SettingsStore) {
-  const middlewares: Middleware[] = [
-    health,
-    settingsMiddleware({ store, envTmdbApiKey: env.TMDB_API_KEY }),
-    qbittorrentMiddleware({ url: env.QBITTORRENT_URL, username: env.QBITTORRENT_USERNAME, password: env.QBITTORRENT_PASSWORD }),
-    prowlarrMiddleware({ url: env.PROWLARR_URL, apiKey: env.PROWLARR_API_KEY }),
-    tmdbMiddleware({ apiKey: () => tmdbKey(store, env.TMDB_API_KEY) }),
-    staticMiddleware({ root }),
-  ]
+  return createServer(chain([...serverRoutes(env, store), staticMiddleware({ root })]))
+}
 
-  return createServer((request, response) => {
+/**
+ * The server's own routes, shared with the Vite dev server. Besides the variables in .env.example,
+ * PROWLARR_CONFIG_XML points at Prowlarr's config.xml to read its API key from (the Umbrel package
+ * mounts it), used when PROWLARR_API_KEY is not set.
+ */
+export function serverRoutes(env: Record<string, string | undefined>, store: SettingsStore): Middleware[] {
+  const envQbittorrent = { username: env.QBITTORRENT_USERNAME, password: env.QBITTORRENT_PASSWORD }
+  const prowlarrConfig = env.PROWLARR_CONFIG_XML
+  return [
+    health,
+    settingsMiddleware({ store, envTmdbApiKey: env.TMDB_API_KEY, qbittorrentUrl: env.QBITTORRENT_URL, envQbittorrent }),
+    qbittorrentMiddleware({ url: env.QBITTORRENT_URL, credentials: () => qbittorrentCredentials(store, envQbittorrent) }),
+    prowlarrMiddleware({
+      url: env.PROWLARR_URL,
+      apiKey: async () => env.PROWLARR_API_KEY || (prowlarrConfig ? await readProwlarrApiKey(prowlarrConfig) : undefined),
+    }),
+    tmdbMiddleware({ apiKey: () => tmdbKey(store, env.TMDB_API_KEY) }),
+  ]
+}
+
+function chain(middlewares: Middleware[]) {
+  return (request: IncomingMessage, response: ServerResponse) => {
+
     const run = (index: number) => {
       const middleware = middlewares[index]
       if (!middleware) return notFound(response)
@@ -39,7 +55,7 @@ export function createApp(env: NodeJS.ProcessEnv, root: string, store: SettingsS
       }
     }
     run(0)
-  })
+  }
 }
 
 /** For Docker's HEALTHCHECK and uptime monitors: the server is up (not whether qBittorrent is). */
@@ -73,7 +89,8 @@ async function main() {
 
   server.listen(port, host, () => {
     console.log(`[kinoseed] listening on http://${host}:${port}`)
-    const missing = ['QBITTORRENT_URL', 'PROWLARR_URL', 'PROWLARR_API_KEY'].filter((name) => !env[name])
+    const missing = ['QBITTORRENT_URL', 'PROWLARR_URL'].filter((name) => !env[name])
+    if (!env.PROWLARR_API_KEY && !env.PROWLARR_CONFIG_XML) missing.push('PROWLARR_API_KEY')
     if (!tmdbKey(store, env.TMDB_API_KEY)) missing.push('TMDB key (enter it in the app)')
     if (missing.length) console.warn(`[kinoseed] not set: ${missing.join(', ')}`)
   })

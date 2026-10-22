@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
-import { SettingsError, getServerSettings, saveTmdbKey } from './client'
+import { SettingsError, getServerSettings, saveQbittorrentLogin, saveTmdbKey } from './client'
 
 let fetchMock: Mock<typeof fetch>
 
@@ -44,5 +44,18 @@ describe('saveTmdbKey', () => {
     await expect(saveTmdbKey('bad')).rejects.toMatchObject({ status: 422, code: 'invalid-key' })
     json({ error: 'unreachable' }, 502)
     await expect(saveTmdbKey('abc')).rejects.toMatchObject({ code: 'unreachable' })
+  })
+})
+
+describe('saveQbittorrentLogin', () => {
+  it('puts the login as JSON and passes refusals on', async () => {
+    json({ tmdb: { configured: true, source: 'saved' }, qbittorrent: { configured: true, source: 'saved' } })
+    await saveQbittorrentLogin('admin', 'p@ss')
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toBe('/api/settings/qbittorrent')
+    expect(init?.body).toBe('{"username":"admin","password":"p@ss"}')
+
+    json({ error: 'banned' }, 429)
+    await expect(saveQbittorrentLogin('admin', 'x')).rejects.toMatchObject({ status: 429, code: 'banned' })
   })
 })

@@ -1,7 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import {
-  InvalidCredentialsError,
-  IpBannedError,
   QbittorrentError,
   UnauthorizedError,
   addTorrents,
@@ -13,8 +11,6 @@ import {
   getTorrentFiles,
   getTorrentTrackers,
   getTorrents,
-  login,
-  logout,
   setFilePriority,
   startTorrents,
   stopTorrents,
@@ -40,39 +36,6 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('login', () => {
-  it('posts form-encoded credentials', async () => {
-    respond('Ok.')
-    await login('admin', 'p@ss&word')
-
-    const { url, init } = lastCall()
-    expect(url).toBe('/qbt/api/v2/auth/login')
-    expect(init.method).toBe('POST')
-    expect(init.credentials).toBe('same-origin')
-    expect(String(init.body)).toBe('username=admin&password=p%40ss%26word')
-  })
-
-  it('accepts an empty 204 as success', async () => {
-    respond('', 204)
-    await expect(login('admin', 'secret')).resolves.toBeUndefined()
-  })
-
-  it('rejects wrong credentials', async () => {
-    respond('Fails.')
-    await expect(login('admin', 'wrong')).rejects.toBeInstanceOf(InvalidCredentialsError)
-  })
-
-  it('rejects wrong credentials answered with 401 (qBittorrent 5.3+)', async () => {
-    respond('Unauthorized', 401)
-    await expect(login('admin', 'wrong')).rejects.toBeInstanceOf(InvalidCredentialsError)
-  })
-
-  it('reports an IP ban', async () => {
-    respond('Your IP address has been banned', 403)
-    await expect(login('admin', 'wrong')).rejects.toBeInstanceOf(IpBannedError)
-  })
-})
-
 describe('authenticated requests', () => {
   it('returns the app version', async () => {
     respond('v5.0.4\n')
@@ -92,12 +55,6 @@ describe('authenticated requests', () => {
     expect((error as QbittorrentError).status).toBe(502)
   })
 
-  it('logs out with a POST', async () => {
-    respond('')
-    await logout()
-    expect(lastCall().url).toBe('/qbt/api/v2/auth/logout')
-    expect(lastCall().init.method).toBe('POST')
-  })
 })
 
 describe('getTorrents', () => {

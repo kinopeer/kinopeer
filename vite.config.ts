@@ -3,10 +3,9 @@ import { resolve } from 'node:path'
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
-import { prowlarrMiddleware, type Middleware } from './server/prowlarr.ts'
-import { qbittorrentMiddleware } from './server/qbittorrent.ts'
-import { SettingsStore, settingsMiddleware, tmdbKey } from './server/settings.ts'
-import { tmdbMiddleware } from './server/tmdb.ts'
+import { serverRoutes } from './server/main.ts'
+import type { Middleware } from './server/prowlarr.ts'
+import { SettingsStore } from './server/settings.ts'
 
 /**
  * The PWA: web app manifest and a service worker (src/sw.ts) that precaches the app shell. Icons
@@ -44,7 +43,7 @@ const pwa = VitePWA({
  * Serves server/ middleware (/api/settings, /qbt/*, /prowlarr/*, /tmdb/* and /tmdb-img/*) in `vite` and
  * `vite preview`, as the production server (server/main.ts) does.
  */
-function serverRoutes(middlewares: Middleware[]): Plugin {
+function serverRoutesPlugin(middlewares: Middleware[]): Plugin {
   return {
     name: 'kinoseed-server',
     configureServer: (server) => middlewares.forEach((middleware) => server.middlewares.use(middleware)),
@@ -62,16 +61,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       pwa,
-      serverRoutes([
-        settingsMiddleware({ store, envTmdbApiKey: env.TMDB_API_KEY }),
-        qbittorrentMiddleware({
-          url: env.QBITTORRENT_URL,
-          username: env.QBITTORRENT_USERNAME,
-          password: env.QBITTORRENT_PASSWORD,
-        }),
-        prowlarrMiddleware({ url: env.PROWLARR_URL, apiKey: env.PROWLARR_API_KEY }),
-        tmdbMiddleware({ apiKey: () => tmdbKey(store, env.TMDB_API_KEY) }),
-      ]),
+      serverRoutesPlugin(serverRoutes(env, store)),
     ],
     test: {
       projects: [

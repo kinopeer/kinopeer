@@ -16,7 +16,7 @@
   },
   "connect": {
     "title": "Connect qBittorrent",
-    "body": "Sign in with your qBittorrent Web UI username and password.",
+    "body": "Sign in with your qBittorrent Web UI username and password. The Kinoseed server keeps them, so you only do this once.",
     "username": "Username",
     "password": "Password",
     "submit": "Connect",
@@ -124,7 +124,6 @@
   "settings": {
     "title": "Settings",
     "appearance": "Appearance",
-    "signOut": "Sign out",
     "connections": "Connections",
     "test": "Test",
     "testing": "Checking…",
