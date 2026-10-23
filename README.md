@@ -51,4 +51,8 @@ Versions follow [semver](https://semver.org) and are listed in [CHANGELOG.md](CH
    git tag v0.2.0 && git push origin v0.2.0
    ```
 
-The `Release` workflow then builds the `linux/amd64` and `linux/arm64` image into `ghcr.io/mrshakhov/kinoseed` (tags `0.2.0`, `0.2` and `latest`) and creates a GitHub Release with that version's changelog section and the image digest. It fails if the tag doesn't match `package.json` or the changelog has no section for the version. The image is private while the repository is.
+The `Release` workflow then builds the `linux/amd64` and `linux/arm64` image into `ghcr.io/mrshakhov/kinoseed` (tags `0.2.0`, `0.2` and `latest`) and creates a GitHub Release with that version's changelog section and the image digest. It fails if the tag doesn't match `package.json` or the changelog has no section for the version. The image is public, so Umbrel can pull it without a login; the repository stays private.
+
+## Umbrel
+
+Kinoseed installs on umbrelOS from the [Homelab Community App Store](https://github.com/MrShakhov/umbrel-homelab-store) (`homelab-kinoseed`, port 8795), next to Umbrel's qBittorrent and Prowlarr apps. After a release, bump `version`, `releaseNotes` and the image tag and digest (from the GitHub Release) in that repository's `homelab-kinoseed/` folder; Umbrel then offers the update.

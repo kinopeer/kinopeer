@@ -7,7 +7,8 @@ Things to settle before Kinoseed (the repo, the Docker image or both) goes publi
 - [ ] **License.** The repo has no `LICENSE` file yet.
 - [ ] **Secrets in history.** Before the repo goes public, scan the full git history for keys, passwords and local addresses (for example with `gitleaks detect`).
 - [ ] **Default qBittorrent login.** The Umbrel package tries qBittorrent's default `admin`/`adminadmin` before asking. Decide whether a public package should keep that or always ask.
-- [ ] **Public image and app store.** Make the `ghcr.io/mrshakhov/kinoseed` package public (so Umbrel pulls it without `docker login`), submit to the official Umbrel App Store (getumbrel/umbrel-apps: manifest, icon, gallery screenshots, release notes, multi-arch image pinned by digest), then make the private Community App Store public or retire it.
+- [ ] **Official Umbrel App Store.** The image (`ghcr.io/mrshakhov/kinoseed`) and the [Homelab Community App Store](https://github.com/MrShakhov/umbrel-homelab-store) are already public. Submit to getumbrel/umbrel-apps: manifest, icon, gallery screenshots, release notes, multi-arch image pinned by digest.
+- [ ] **Links in the Umbrel manifest.** `website`, `repo` and `support` in the store's `homelab-kinoseed/umbrel-app.yml` point at this repository, which is private, so they 404 for anyone else.
 - [ ] **HTTPS.** Service workers and installing the app need HTTPS on phones over the LAN (deferred from step 8).
 - [ ] **Plain Docker setup.** Onboarding works on a clean install outside Umbrel, with qBittorrent and Prowlarr set only through the environment.
 - [ ] **Deferred features.** Push notifications, the desktop layout with a details drawer, sorting, grid view and bulk actions in the downloads list, Jackett (only Prowlarr is implemented; drop it from the docs or add it).
