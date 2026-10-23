@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { MagnetResponse, ProwlarrErrorBody, ProwlarrStatus, Release } from '../src/api/prowlarr/types.ts'
 
@@ -14,7 +15,8 @@ import type { MagnetResponse, ProwlarrErrorBody, ProwlarrStatus, Release } from 
 export interface ProwlarrConfig {
   /** e.g. http://192.168.1.10:9696 */
   url?: string
-  apiKey?: string
+  /** A function when the key is read on every request, e.g. from Prowlarr's own config.xml. */
+  apiKey?: string | (() => Promise<string | undefined>)
 }
 
 type Next = (error?: unknown) => void
@@ -180,21 +182,35 @@ async function status(base: string, apiKey: string, _query: URLSearchParams, res
   } satisfies ProwlarrStatus)
 }
 
+/** Prowlarr's API key from its config.xml (<ApiKey>…</ApiKey>), or undefined when it can't be read. */
+export async function readProwlarrApiKey(configXmlPath: string): Promise<string | undefined> {
+  try {
+    const xml = await readFile(configXmlPath, 'utf8')
+    return /<ApiKey>\s*([^<\s]+)\s*<\/ApiKey>/.exec(xml)?.[1]
+  } catch {
+    return undefined
+  }
+}
+
 export function prowlarrMiddleware(config: ProwlarrConfig): Middleware {
   const base = config.url?.trim().replace(/\/+$/, '')
-  const apiKey = config.apiKey?.trim()
+  const getKey = typeof config.apiKey === 'function' ? config.apiKey : async () => config.apiKey as string | undefined
 
   return (request, response, next) => {
     const url = new URL(request.url ?? '/', 'http://kinoseed.local')
     if (!url.pathname.startsWith(PREFIX)) return next()
-    if (!base || !apiKey) return fail(response, 503, 'not-configured')
-    if (request.method !== 'GET') return fail(response, 404, 'not-found')
+    void (async () => {
+      const apiKey = (await getKey())?.trim()
+      if (!base || !apiKey) return fail(response, 503, 'not-configured')
+      if (request.method !== 'GET') return fail(response, 404, 'not-found')
 
-    const route = url.pathname.slice(PREFIX.length)
-    const handler = route === 'search' ? search : route === 'download' ? download : route === 'status' ? status : undefined
-    if (!handler) return fail(response, 404, 'not-found')
-    // Errors never echo upstream URLs: they would contain the API key.
-    handler(base, apiKey, url.searchParams, response).catch(() => {
+      const route = url.pathname.slice(PREFIX.length)
+      const handler =
+        route === 'search' ? search : route === 'download' ? download : route === 'status' ? status : undefined
+      if (!handler) return fail(response, 404, 'not-found')
+      // Errors never echo upstream URLs: they would contain the API key.
+      await handler(base, apiKey, url.searchParams, response)
+    })().catch(() => {
       if (!response.headersSent) fail(response, 502, 'unreachable')
       else response.end()
     })

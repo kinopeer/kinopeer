@@ -28,13 +28,12 @@ vi.mock('../api/tmdb', async (importOriginal) => ({
   checkTmdb: vi.fn(),
 }))
 
-function renderScreen(onSignOut = vi.fn(), state?: unknown) {
+function renderScreen(state?: unknown) {
   render(
     <MemoryRouter initialEntries={[{ pathname: '/settings', state }]}>
-      <SettingsScreen onSignOut={onSignOut} />
+      <SettingsScreen />
     </MemoryRouter>,
   )
-  return { onSignOut }
 }
 
 function connection(name: string) {
@@ -79,7 +78,7 @@ describe('SettingsScreen', () => {
 
   it('changes the TMDB key and checks the connection again', async () => {
     vi.mocked(tmdb.checkTmdb).mockRejectedValue(new tmdb.TmdbKeyError(401))
-    vi.mocked(serverSettings.saveTmdbKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved' } })
+    vi.mocked(serverSettings.saveTmdbKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved' }, qbittorrent: { configured: true, source: 'env' } })
     renderScreen()
     expect(await within(connection('TMDB')).findByText('The API key is missing or invalid')).toBeInTheDocument()
 
@@ -94,8 +93,16 @@ describe('SettingsScreen', () => {
     expect(await within(connection('TMDB')).findByText('Connected')).toBeInTheDocument()
   })
 
+  it('clears the cache', async () => {
+    localStorage.setItem('kinoseed.titleMatches.v2', '{}')
+    renderScreen()
+    await userEvent.click(screen.getByRole('button', { name: /Clear cache/ }))
+    expect(localStorage.getItem('kinoseed.titleMatches.v2')).toBeNull()
+    expect(screen.getByText('Cache cleared')).toBeInTheDocument()
+  })
+
   it('opens the TMDB key sheet when sent from a screen that needs the key', async () => {
-    renderScreen(vi.fn(), { editTmdbKey: true })
+    renderScreen({ editTmdbKey: true })
     expect(screen.getByRole('dialog', { name: 'TMDB key' })).toBeInTheDocument()
   })
 
@@ -118,16 +125,6 @@ describe('SettingsScreen', () => {
     expect(getSettings().tmdbLanguage).toBe('ru-RU')
   })
 
-  it('clears the cache and signs out', async () => {
-    localStorage.setItem('kinoseed.titleMatches.v2', '{}')
-    const { onSignOut } = renderScreen()
-    await userEvent.click(screen.getByRole('button', { name: /Clear cache/ }))
-    expect(localStorage.getItem('kinoseed.titleMatches.v2')).toBeNull()
-    expect(screen.getByText('Cache cleared')).toBeInTheDocument()
-
-    await userEvent.click(screen.getByRole('button', { name: 'Sign out' }))
-    expect(onSignOut).toHaveBeenCalled()
-  })
 
   it('explains how to add the app to the Dock in Safari on a Mac', async () => {
     vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(

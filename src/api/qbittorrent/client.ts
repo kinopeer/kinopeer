@@ -22,23 +22,7 @@ export class QbittorrentError extends Error {
   }
 }
 
-/** Wrong username or password. */
-export class InvalidCredentialsError extends QbittorrentError {
-  constructor() {
-    super('Invalid username or password', 200)
-    this.name = 'InvalidCredentialsError'
-  }
-}
-
-/** Too many failed logins: qBittorrent bans the client IP for a while. */
-export class IpBannedError extends QbittorrentError {
-  constructor() {
-    super('Too many failed login attempts; the IP is temporarily banned', 403)
-    this.name = 'IpBannedError'
-  }
-}
-
-/** No valid session cookie. */
+/** The server has no working qBittorrent login (the app asks for one, see src/api/settings). */
 export class UnauthorizedError extends QbittorrentError {
   constructor() {
     super('Not logged in to qBittorrent', 403)
@@ -73,25 +57,6 @@ async function request(
   if (response.status === 401 || response.status === 403) throw new UnauthorizedError()
   if (!response.ok) throw new QbittorrentError(`qBittorrent responded ${response.status}`, response.status)
   return response
-}
-
-export async function login(username: string, password: string): Promise<void> {
-  const response = await fetch(`${QBITTORRENT_BASE}/auth/login`, {
-    method: 'POST',
-    credentials: 'same-origin',
-    body: new URLSearchParams({ username, password }),
-  })
-  if (response.status === 403) throw new IpBannedError()
-  // qBittorrent 5.3+ answers wrong credentials with 401; older versions with 200 "Fails.".
-  if (response.status === 401) throw new InvalidCredentialsError()
-  if (!response.ok) throw new QbittorrentError(`qBittorrent responded ${response.status}`, response.status)
-  // Success is "Ok." (or an empty 204).
-  const text = (await response.text()).trim()
-  if (text === 'Fails.') throw new InvalidCredentialsError()
-}
-
-export async function logout(): Promise<void> {
-  await request('/auth/logout', { method: 'POST' })
 }
 
 /** qBittorrent version, e.g. "v5.0.4". Also a cheap way to check the session is valid. */

@@ -20,12 +20,12 @@ afterEach(() => {
 })
 
 describe('searchReleases', () => {
-  it('queries the bridge without cookies', async () => {
+  it('queries the bridge', async () => {
     json([RELEASE])
     await expect(searchReleases('Dune', { type: 'movie', categories: [MOVIE_CATEGORY] })).resolves.toEqual([RELEASE])
     const [url, init] = fetchMock.mock.calls[0]
     expect(url).toBe('/prowlarr/search?query=Dune&type=movie&categories=2000')
-    expect(init?.credentials).toBe('omit')
+    expect(init?.credentials).toBe('same-origin')
   })
 
   it('tells setup problems from other failures', async () => {

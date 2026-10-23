@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import { InvalidCredentialsError, IpBannedError } from '../api/qbittorrent'
+import { SettingsError } from '../api/settings'
 import { ConnectScreen } from './ConnectScreen'
 
 function setup(onSignIn = vi.fn().mockResolvedValue(undefined), props: { unreachable?: boolean } = {}) {
@@ -30,7 +30,7 @@ describe('ConnectScreen', () => {
   })
 
   it('shows wrong credentials on the password field', async () => {
-    setup(vi.fn().mockRejectedValue(new InvalidCredentialsError()))
+    setup(vi.fn().mockRejectedValue(new SettingsError(422, 'invalid-credentials')))
     await fillAndSubmit()
 
     const password = screen.getByLabelText('Password')
@@ -43,7 +43,7 @@ describe('ConnectScreen', () => {
   })
 
   it('explains an IP ban', async () => {
-    setup(vi.fn().mockRejectedValue(new IpBannedError()))
+    setup(vi.fn().mockRejectedValue(new SettingsError(429, 'banned')))
     await fillAndSubmit()
     expect(screen.getByRole('alert')).toHaveTextContent('qBittorrent has blocked this address')
   })

@@ -22,10 +22,6 @@ import { InstallSheet } from './InstallSheet'
 import { TmdbKeyForm } from './TmdbKeyForm'
 import './SettingsScreen.css'
 
-export interface SettingsScreenProps {
-  onSignOut: () => void
-}
-
 /** Location state that opens the TMDB key sheet, e.g. from Search when the key is missing. */
 export interface SettingsLocationState {
   editTmdbKey?: boolean
@@ -87,7 +83,7 @@ function Section({ id, title, children }: { id: string; title: string; children:
   )
 }
 
-export function SettingsScreen({ onSignOut }: SettingsScreenProps) {
+export function SettingsScreen() {
   const { t, i18n } = useTranslation()
   const { preference, setPreference } = useTheme()
   const [settings, update] = useSettings()
@@ -283,12 +279,6 @@ export function SettingsScreen({ onSignOut }: SettingsScreenProps) {
                 <span>{t('settings.clearCache')}</span>
                 <span className="t-cap c3">{t('settings.clearCacheHint')}</span>
               </span>
-            </button>
-          </li>
-          <li>
-            <button type="button" className="ks-row-btn" onClick={onSignOut}>
-              <Icon name="close" className="c2" />
-              <span className="settings-row-text">{t('settings.signOut')}</span>
             </button>
           </li>
         </ul>

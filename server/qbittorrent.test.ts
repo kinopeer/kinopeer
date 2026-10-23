@@ -90,29 +90,37 @@ describe('qbittorrentMiddleware', () => {
     expect((await fetch(`${base}/qbt/api/v2/app/version`)).status).toBe(503)
   })
 
-  it('passes the browser’s own session through without credentials', async () => {
+  it('never passes browser cookies on and keeps the browser away from /auth', async () => {
     const qbt = await fakeQbittorrent()
     const base = await kinoseed({ url: `${qbt.base}/` })
 
-    expect((await fetch(`${base}/qbt/api/v2/app/version`)).status).toBe(403)
+    const response = await fetch(`${base}/qbt/api/v2/app/version`, { headers: { Cookie: 'SID=sid1' } })
+    expect(response.status).toBe(403)
+    expect(qbt.seen.at(-1)).toMatchObject({ url: '/api/v2/app/version', cookie: undefined, origin: qbt.base })
+
     const login = await fetch(`${base}/qbt/api/v2/auth/login`, {
       method: 'POST',
       body: new URLSearchParams({ username: 'admin', password: 'pass word' }),
     })
-    const cookie = login.headers.get('set-cookie')
-    expect(cookie).toContain('SID=sid1')
+    expect(login.status).toBe(404)
+    expect(qbt.logins()).toBe(0)
+  })
 
-    const response = await fetch(`${base}/qbt/api/v2/torrents/info?filter=all`, {
-      headers: { Cookie: cookie!.split(';')[0] },
-    })
-    expect(response.status).toBe(200)
-    expect(await response.text()).toBe('v5.2.4')
-    expect(qbt.seen.at(-1)).toMatchObject({ url: '/api/v2/torrents/info?filter=all', cookie: 'SID=sid1', origin: qbt.base })
+  it('switches to new credentials as soon as they change', async () => {
+    const qbt = await fakeQbittorrent()
+    let credentials = { username: 'admin', password: 'wrong' }
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const base = await kinoseed({ url: qbt.base, credentials: () => credentials })
+
+    expect((await fetch(`${base}/qbt/api/v2/app/version`)).status).toBe(403)
+    credentials = { username: 'admin', password: 'pass word' }
+    expect((await fetch(`${base}/qbt/api/v2/app/version`)).status).toBe(200)
+    expect(qbt.logins()).toBe(2)
   })
 
   it('logs in once with configured credentials and keeps the session to itself', async () => {
     const qbt = await fakeQbittorrent()
-    const base = await kinoseed({ url: qbt.base, username: 'admin', password: 'pass word' })
+    const base = await kinoseed({ url: qbt.base, credentials: () => ({ username: 'admin', password: 'pass word' }) })
 
     const responses = await Promise.all(
       [1, 2, 3].map(() => fetch(`${base}/qbt/api/v2/app/version`, { headers: { Cookie: 'SID=browser' } })),
@@ -125,7 +133,7 @@ describe('qbittorrentMiddleware', () => {
 
   it('logs in again when the session expires and retries the request with its body', async () => {
     const qbt = await fakeQbittorrent()
-    const base = await kinoseed({ url: qbt.base, username: 'admin', password: 'pass word' })
+    const base = await kinoseed({ url: qbt.base, credentials: () => ({ username: 'admin', password: 'pass word' }) })
     await fetch(`${base}/qbt/api/v2/app/version`)
     qbt.sessions.clear()
 
@@ -141,26 +149,20 @@ describe('qbittorrentMiddleware', () => {
     expect(retried.body).toContain('magnet:?xt=urn:btih:abc')
   })
 
-  it.each([false, true])('falls back to the login form after wrong credentials without trying them again (legacy: %s)', async (legacy) => {
+  it.each([false, true])('stops using wrong credentials after one try, so the app asks for a login (legacy: %s)', async (legacy) => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const qbt = await fakeQbittorrent({ legacy })
-    const base = await kinoseed({ url: qbt.base, username: 'admin', password: 'wrong' })
+    const base = await kinoseed({ url: qbt.base, credentials: () => ({ username: 'admin', password: 'wrong' }) })
 
     expect((await fetch(`${base}/qbt/api/v2/app/version`)).status).toBe(403)
     expect((await fetch(`${base}/qbt/api/v2/app/version`)).status).toBe(403)
     expect(qbt.logins()).toBe(1)
     expect(warn).toHaveBeenCalledOnce()
     expect(String(warn.mock.calls[0][0])).not.toContain('wrong')
-
-    const login = await fetch(`${base}/qbt/api/v2/auth/login`, {
-      method: 'POST',
-      body: new URLSearchParams({ username: 'admin', password: 'pass word' }),
-    })
-    expect(login.headers.get('set-cookie')).toContain('SID=')
   })
 
   it('reports an unreachable qBittorrent and only proxies the API', async () => {
-    const down = await kinoseed({ url: 'http://127.0.0.1:9', username: 'admin', password: 'x' })
+    const down = await kinoseed({ url: 'http://127.0.0.1:9', credentials: () => ({ username: 'admin', password: 'x' }) })
     expect((await fetch(`${down}/qbt/api/v2/app/version`)).status).toBe(502)
 
     const qbt = await fakeQbittorrent()

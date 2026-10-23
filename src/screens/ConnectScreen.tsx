@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { InvalidCredentialsError, IpBannedError } from '../api/qbittorrent'
+import { SettingsError } from '../api/settings'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { Input } from '../components/Input'
@@ -10,7 +10,7 @@ export interface ConnectScreenProps {
   /** qBittorrent did not answer the session check. */
   unreachable?: boolean
   onRetry: () => void
-  /** Rejects with the qBittorrent client's typed errors. */
+  /** Rejects with a SettingsError saying why the server couldn't log in. */
   onSignIn: (username: string, password: string) => Promise<void>
 }
 
@@ -30,8 +30,9 @@ export function ConnectScreen({ unreachable, onRetry, onSignIn }: ConnectScreenP
     try {
       await onSignIn(username, password)
     } catch (e) {
-      if (e instanceof InvalidCredentialsError) setError('invalid')
-      else if (e instanceof IpBannedError) setError('banned')
+      const code = e instanceof SettingsError ? e.code : undefined
+      if (code === 'invalid-credentials') setError('invalid')
+      else if (code === 'banned') setError('banned')
       else setError('unreachable')
       setSubmitting(false)
     }
