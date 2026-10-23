@@ -161,6 +161,7 @@
     "tmdbLanguage": "Названия и описания",
     "tmdbAsApp": "Авто",
     "about": "О приложении",
+    "version": "Версия",
     "clearCache": "Очистить кэш",
     "clearCacheHint": "Заново сопоставит торренты с фильмами в TMDB",
     "cacheCleared": "Кэш очищен",

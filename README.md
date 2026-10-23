@@ -39,3 +39,16 @@ docker run -p 8080:8080 --env-file .env.local -v kinoseed-data:/data kinoseed
 ```
 
 The service worker needs HTTPS (or `localhost`), so over plain HTTP on the LAN the app works but can't be installed or open offline.
+
+## Releases
+
+Versions follow [semver](https://semver.org) and are listed in [CHANGELOG.md](CHANGELOG.md). Settings → About shows the running version. To release:
+
+1. In a PR, set `version` in `package.json` (and `package-lock.json`, e.g. with `npm version 0.2.0 --no-git-tag-version`) and add a `## 0.2.0 - YYYY-MM-DD` section to `CHANGELOG.md`.
+2. After it merges, tag `main` and push the tag:
+
+   ```sh
+   git tag v0.2.0 && git push origin v0.2.0
+   ```
+
+The `Release` workflow then builds the `linux/amd64` and `linux/arm64` image into `ghcr.io/mrshakhov/kinoseed` (tags `0.2.0`, `0.2` and `latest`) and creates a GitHub Release with that version's changelog section and the image digest. It fails if the tag doesn't match `package.json` or the changelog has no section for the version. The image is private while the repository is.

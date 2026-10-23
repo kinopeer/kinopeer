@@ -93,6 +93,12 @@ describe('SettingsScreen', () => {
     expect(await within(connection('TMDB')).findByText('Connected')).toBeInTheDocument()
   })
 
+  it('shows the app version', () => {
+    renderScreen()
+    const row = screen.getByText('Version').closest('li')!
+    expect(row).toHaveTextContent(__APP_VERSION__)
+  })
+
   it('clears the cache', async () => {
     localStorage.setItem('kinoseed.titleMatches.v2', '{}')
     renderScreen()

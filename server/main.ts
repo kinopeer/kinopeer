@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -86,9 +87,10 @@ async function main() {
   const store = new SettingsStore(resolve(env.KINOSEED_DATA_DIR || 'data'))
   await store.load()
   const server = createApp(env, root, store)
+  const { version } = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }
 
   server.listen(port, host, () => {
-    console.log(`[kinoseed] listening on http://${host}:${port}`)
+    console.log(`[kinoseed] ${version} listening on http://${host}:${port}`)
     const missing = ['QBITTORRENT_URL', 'PROWLARR_URL'].filter((name) => !env[name])
     if (!env.PROWLARR_API_KEY && !env.PROWLARR_CONFIG_XML) missing.push('PROWLARR_API_KEY')
     if (!tmdbKey(store, env.TMDB_API_KEY)) missing.push('TMDB key (enter it in the app)')

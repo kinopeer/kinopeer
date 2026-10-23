@@ -146,6 +146,7 @@
     "tmdbLanguage": "Titles and descriptions",
     "tmdbAsApp": "Auto",
     "about": "About",
+    "version": "Version",
     "clearCache": "Clear cache",
     "clearCacheHint": "Matches torrents to TMDB titles again",
     "cacheCleared": "Cache cleared",
