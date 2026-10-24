@@ -34,7 +34,7 @@ export function DownloadCard({ torrent, match, onMore }: DownloadItemProps) {
           </div>
         </Poster>
         <div className="dl-card-text">
-          <h2 className={match ? 'dl-card-title ks-trunc' : 'dl-card-title ks-clamp2'}>{title}</h2>
+          <h2 className="dl-card-title ks-clamp2">{title}</h2>
           <p className="dl-card-meta ks-trunc ks-num c3">{meta.join(' · ')}</p>
         </div>
       </Link>
