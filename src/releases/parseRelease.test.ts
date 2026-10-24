@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseRelease, seasonCoverage } from './parseRelease'
+import { episodeCoverage, parseRelease, releaseCoverage, seasonCoverage } from './parseRelease'
 
 describe('parseRelease', () => {
   it.each([
@@ -53,5 +53,30 @@ describe('parseRelease', () => {
   it('marks complete series and lists gaps', () => {
     expect(parseRelease('Shogun Complete Series 1080p').complete).toBe(true)
     expect(seasonCoverage({ seasons: [1, 3] })).toBe('S01, S03')
+  })
+})
+
+describe('episodeCoverage', () => {
+  it.each([
+    ['Severance.S02E01-E05.1080p.ATVP.WEB-DL', 'E01–05'],
+    ['Severance.S02E01-05.1080p', 'E01–05'],
+    ['Andor.S02E04.1080p.DSNP.WEB-DL', 'E04'],
+    ['Во все тяжкие / Сезон 5 / Серии 1-16 (2012-2013) BDRip 1080p', 'E01–16'],
+    ['Разделение / Сезон: 2 / Серии: 1-5 из 10 (2025) WEB-DL 1080p', 'E01–05'],
+    ['Severance.S01.1080p.ATVP.WEB-DL', undefined],
+    ['Дюна (2021) BDRip 1080p', undefined],
+  ])('reads the episodes of %s', (title, coverage) => {
+    expect(episodeCoverage(title)).toBe(coverage)
+  })
+})
+
+describe('releaseCoverage', () => {
+  it.each([
+    ['Severance.S02E01-E05.1080p.ATVP.WEB-DL', 'S02 E01–05'],
+    ['Severance.S01.1080p.ATVP.WEB-DL', 'S01'],
+    ['Во все тяжкие / Breaking Bad / Сезон: 1-5 / Серии: 1-62 из 62 (2008-2013) BDRip 1080p', 'S01–S05'],
+    ['Dune.Part.Two.2024.2160p.WEB-DL', undefined],
+  ])('describes %s', (title, coverage) => {
+    expect(releaseCoverage(title)).toBe(coverage)
   })
 })

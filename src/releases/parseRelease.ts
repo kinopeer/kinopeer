@@ -145,3 +145,27 @@ export function seasonCoverage(info: Pick<ReleaseInfo, 'seasons'>): string | und
   if (seasons.length === 1) return pad(seasons[0])
   return contiguous ? `${pad(seasons[0])}–${pad(seasons.at(-1)!)}` : seasons.map(pad).join(', ')
 }
+
+// "S02E01-E05", "S02E03", "Серии 1-5": the episodes a release covers within its season.
+const EPISODES = new RegExp(
+  `${EDGE_START}(?:s\\d{1,2}e(\\d{1,3})(?:\\s*[-–]\\s*e?(\\d{1,3}))?|(?:серии|серия|episodes?)[:\\s]*(\\d{1,3})(?:\\s*[-–]\\s*(\\d{1,3}))?)${EDGE_END}`,
+  'iu',
+)
+
+/** "E01–05", "E03", or undefined when the title doesn't name episodes. */
+export function episodeCoverage(title: string): string | undefined {
+  const match = EPISODES.exec(title.replace(/[._]+/g, ' '))
+  if (!match) return undefined
+  const from = Number(match[1] ?? match[3])
+  const to = match[2] ?? match[4]
+  const pad = (episode: number) => String(episode).padStart(2, '0')
+  return to !== undefined && Number(to) > from ? `E${pad(from)}–${pad(Number(to))}` : `E${pad(from)}`
+}
+
+/** "S02 E01–05" for part of one season, otherwise what `seasonCoverage` says. */
+export function releaseCoverage(title: string, info: Pick<ReleaseInfo, 'seasons'> = parseRelease(title)): string | undefined {
+  const seasons = seasonCoverage(info)
+  if (!seasons || info.seasons.length !== 1) return seasons
+  const episodes = episodeCoverage(title)
+  return episodes ? `${seasons} ${episodes}` : seasons
+}

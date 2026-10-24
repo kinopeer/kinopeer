@@ -130,3 +130,101 @@
 .title:has(.title-actions) {
   padding-bottom: 88px;
 }
+
+.title-in-dl {
+  align-self: flex-start;
+}
+
+/* "In downloads": the title's torrents, each opening its torrent screen. */
+.title-dls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.title-dls-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.title-dls-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.title-dl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 12px 8px 12px 14px;
+  border-radius: 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color var(--d-base) var(--ease);
+}
+
+.title-dl:hover {
+  border-color: var(--border-strong);
+}
+
+.title-dl-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.title-dl-release {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.title-dl-release .ks-badge {
+  flex: none;
+}
+
+.title-dl-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.title-dl-bar {
+  flex: 1;
+}
+
+.title-dl-pct {
+  min-width: 36px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: right;
+}
+
+.title-dl-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  font-size: 12px;
+}
+
+.title-dl-size {
+  margin-left: auto;
+}
+
+.title-dl-chevron {
+  flex: none;
+}

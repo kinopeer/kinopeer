@@ -15,6 +15,7 @@ import {
   lookupFor,
   pickBest,
   useTitleMatches,
+  useTitleTorrents,
 } from './titleMatches'
 
 vi.mock('../api/tmdb', async (importOriginal) => {
@@ -270,5 +271,31 @@ describe('clearTitleMatches', () => {
     await clearTitleMatches()
     expect(localStorage.getItem('kinoseed.titleMatches.v2')).toBeNull()
     expect(matchesApi.clearGuesses).toHaveBeenCalled()
+  })
+})
+
+describe('useTitleTorrents', () => {
+  const torrent = (hash: string, name: string, tags: string, added_on: number) => ({ hash, name, tags, added_on })
+
+  it("finds a title's torrents by tag, the user's choice and guesses, newest first", async () => {
+    server = {
+      chosen: { type: 'movie', id: 438631, source: 'user' },
+      moved: { type: 'movie', id: 841, source: 'user' },
+    }
+    searchTitles.mockResolvedValue({ titles: [DUNE_2021], page: 1, totalPages: 1 })
+    getMovie.mockResolvedValue({ id: 438631, title: 'Dune', release_date: '2021-09-15', poster_path: null } as Awaited<
+      ReturnType<typeof tmdb.getMovie>
+    >)
+    const torrents = [
+      torrent('tagged', 'Dune.2021.2160p', 'tmdb:movie:438631', 1),
+      torrent('chosen', 'Home.Video', '', 3),
+      torrent('guessed', 'Dune.2021.1080p.BluRay', '', 2),
+      torrent('moved', 'Dune.2021.720p', 'tmdb:movie:438631', 4),
+      torrent('other', 'Dune.Prophecy.S01', 'tmdb:tv:90228', 5),
+    ]
+    const { result } = renderHook(() => useTitleTorrents(torrents, 'movie', 438631))
+    // Tagged torrents count before any TMDB answer.
+    expect(result.current.map((t) => t.hash)).toContain('tagged')
+    await waitFor(() => expect(result.current.map((t) => t.hash)).toEqual(['chosen', 'guessed', 'tagged']))
   })
 })

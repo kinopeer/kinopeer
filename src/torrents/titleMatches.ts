@@ -264,3 +264,22 @@ export function useTitleMatches(
   for (const [hash, lookup] of Object.entries(lookups)) matches[hash] = readCache(`${language}|${lookup.key}`)
   return matches
 }
+
+/**
+ * A title's torrents, newest first: those the user chose it for, tagged with it, or guessed to be it.
+ * A tagged torrent counts right away; a guessed one once its guess is known.
+ */
+export function useTitleTorrents<T extends Pick<Torrent, 'hash' | 'name' | 'tags' | 'added_on'> & { category?: string }>(
+  torrents: T[],
+  type: MediaType,
+  id: number,
+): T[] {
+  const server = useServerMatches()
+  const matches = useTitleMatches(torrents)
+  return torrents
+    .filter((torrent) => {
+      const title = lookupFor(torrent, server?.[torrent.hash]).tag ?? matches[torrent.hash]
+      return title?.type === type && title.id === id
+    })
+    .sort((a, b) => b.added_on - a.added_on)
+}

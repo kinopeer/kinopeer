@@ -1,16 +1,35 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useParams } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import * as matchesApi from '../api/matches'
+import * as qbt from '../api/qbittorrent'
+import type { Torrent } from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
 import type { MovieDetails, TvDetails } from '../api/tmdb'
 import i18n from '../i18n'
+import { resetServerMatches } from '../torrents/serverMatches'
+import { GUESS_VERSION, clearTitleMatchCache } from '../torrents/titleMatches'
 import { TitleScreen } from './TitleScreen'
 
 vi.mock('../api/tmdb', async (importOriginal) => {
   const actual = await importOriginal<typeof tmdb>()
-  return { ...actual, getMovie: vi.fn(), getTv: vi.fn() }
+  return { ...actual, getMovie: vi.fn(), getTv: vi.fn(), searchTitles: vi.fn() }
 })
+
+vi.mock('../api/qbittorrent', async (importOriginal) => ({
+  ...(await importOriginal<typeof qbt>()),
+  getMainData: vi.fn(),
+}))
+
+vi.mock('../api/matches', async (importOriginal) => ({
+  ...(await importOriginal<typeof matchesApi>()),
+  getMatches: vi.fn(),
+  saveMatches: vi.fn(),
+}))
+
+const getMainData = vi.mocked(qbt.getMainData)
+const getMatches = vi.mocked(matchesApi.getMatches)
 
 const getMovie = vi.mocked(tmdb.getMovie)
 const getTv = vi.mocked(tmdb.getTv)
@@ -60,6 +79,24 @@ const SHOGUN = {
   tagline: '',
 } as TvDetails
 
+function torrent(name: string, fields: Partial<Torrent> = {}): Partial<Torrent> {
+  return {
+    name,
+    state: 'downloading',
+    progress: 0.41,
+    size: 14_800_000_000,
+    dlspeed: 6_200_000,
+    upspeed: 0,
+    tags: 'tmdb:tv:126308',
+    added_on: 1_760_000_000,
+    ...fields,
+  }
+}
+
+function torrents(byHash: Record<string, Partial<Torrent>>) {
+  getMainData.mockResolvedValue({ rid: 1, full_update: true, torrents: byHash, server_state: {} })
+}
+
 function ReleasesPage() {
   const { type, id } = useParams()
   return <h1>Releases page {`${type}/${id}`}</h1>
@@ -69,7 +106,8 @@ function renderAt(path: string, history: string[] = []) {
   return render(
     <MemoryRouter initialEntries={[...history, path]} initialIndex={history.length}>
       <Routes>
-        <Route path="/title/:type/:id" element={<TitleScreen />} />
+        <Route path="/title/:type/:id" element={<TitleScreen onSessionLost={vi.fn()} />} />
+        <Route path="/torrent/:hash" element={<h1>Torrent page</h1>} />
         <Route path="/title/:type/:id/releases" element={<ReleasesPage />} />
         <Route path="/search" element={<h1>Search page</h1>} />
       </Routes>
@@ -79,6 +117,11 @@ function renderAt(path: string, history: string[] = []) {
 
 beforeEach(() => {
   vi.resetAllMocks()
+  clearTitleMatchCache()
+  resetServerMatches()
+  getMatches.mockResolvedValue({})
+  vi.mocked(matchesApi.saveMatches).mockImplementation(async (changes) => changes as matchesApi.Matches)
+  torrents({})
   getMovie.mockResolvedValue(DUNE)
   getTv.mockResolvedValue(SHOGUN)
 })
@@ -154,5 +197,73 @@ describe('TitleScreen', () => {
   it('explains how series releases work', async () => {
     renderAt('/title/tv/126308')
     expect(await screen.findByRole('status')).toHaveTextContent('Releases are searched by show name')
+  })
+
+  describe('In downloads', () => {
+    it("lists the title's torrents, newest first, each opening its torrent screen", async () => {
+      torrents({
+        s1: torrent('Shogun.S01.1080p.DSNP.WEB-DL', { state: 'uploading', progress: 1, upspeed: 900_000, added_on: 1_750_000_000 }),
+        e1: torrent('Shogun.S01E01-E05.2160p.DSNP.WEB-DL', { added_on: 1_760_000_000 }),
+        dune: torrent('Dune.Part.Two.2024.2160p.WEB-DL', { tags: 'tmdb:movie:693134' }),
+      })
+      renderAt('/title/tv/126308')
+
+      const block = await screen.findByRole('region', { name: 'In downloads 2' })
+      const links = within(block).getAllByRole('link')
+      expect(links.map((link) => link.getAttribute('href'))).toEqual(['/torrent/e1', '/torrent/s1'])
+      expect(links[0]).toHaveAccessibleName('S01 E01–05, 2160p, Shogun.S01E01-E05.2160p.DSNP.WEB-DL, Downloading, 41%')
+      expect(links[0]).toHaveTextContent('↓ 6.2 MB/s')
+      expect(links[0]).toHaveTextContent('6.07 GB / 14.8 GB')
+      expect(links[1]).toHaveAccessibleName('S01, 1080p, Shogun.S01.1080p.DSNP.WEB-DL, Seeding, 100%')
+      expect(links[1]).toHaveTextContent('↑ 900 KB/s')
+      expect(within(links[1]).getByRole('progressbar', { name: 'Shogun.S01.1080p.DSNP.WEB-DL: progress' })).toHaveAttribute(
+        'aria-valuenow',
+        '100',
+      )
+      expect(screen.getByText('In downloads · 2')).toBeInTheDocument()
+
+      await userEvent.click(links[0])
+      expect(screen.getByRole('heading', { name: 'Torrent page' })).toBeInTheDocument()
+    })
+
+    it("shows a single torrent's progress in the header", async () => {
+      torrents({ dune: torrent('Dune.Part.Two.2024.2160p.WEB-DL', { tags: 'tmdb:movie:693134', progress: 0.64 }) })
+      renderAt('/title/movie/693134')
+      expect(await screen.findByText('In downloads · 64%')).toBeInTheDocument()
+      expect(screen.getByRole('region', { name: 'In downloads' })).toBeInTheDocument()
+    })
+
+    it('includes torrents guessed or chosen for the title, not those chosen for another', async () => {
+      getMatches.mockResolvedValue({
+        guessed: { type: 'tv', id: 126308, source: 'guess', version: GUESS_VERSION },
+        chosen: { type: 'tv', id: 126308, source: 'user' },
+        moved: { type: 'tv', id: 1, source: 'user' },
+      })
+      vi.mocked(tmdb.getTv).mockImplementation(async (id) => ({ ...SHOGUN, id }))
+      torrents({
+        guessed: torrent('Shogun.S01.720p', { tags: '' }),
+        chosen: torrent('Some.Release', { tags: '' }),
+        moved: torrent('Shogun.S02.1080p'),
+      })
+      renderAt('/title/tv/126308')
+      const block = await screen.findByRole('region', { name: 'In downloads 2' })
+      expect(within(block).getAllByRole('link').map((link) => link.getAttribute('href')).sort()).toEqual([
+        '/torrent/chosen',
+        '/torrent/guessed',
+      ])
+    })
+
+    it('stays hidden without torrents or when qBittorrent is unreachable', async () => {
+      torrents({ other: torrent('Other.Show.S01', { tags: 'tmdb:tv:1' }) })
+      const { unmount } = renderAt('/title/tv/126308')
+      expect(await screen.findByRole('heading', { level: 1, name: 'Сёгун' })).toBeInTheDocument()
+      expect(screen.queryByRole('region', { name: /In downloads/ })).not.toBeInTheDocument()
+      unmount()
+
+      getMainData.mockRejectedValue(new TypeError('Failed to fetch'))
+      renderAt('/title/tv/126308')
+      expect(await screen.findByRole('heading', { level: 1, name: 'Сёгун' })).toBeInTheDocument()
+      expect(screen.queryByRole('region', { name: /In downloads/ })).not.toBeInTheDocument()
+    })
   })
 })

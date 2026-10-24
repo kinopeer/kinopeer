@@ -46,7 +46,7 @@ function App() {
               <Route index element={<DownloadsScreen onSessionLost={() => void recheck()} />} />
               <Route path="torrent/:hash" element={<TorrentScreen onSessionLost={() => void recheck()} />} />
               <Route path="search" element={<SearchScreen />} />
-              <Route path="title/:type/:id" element={<TitleScreen />} />
+              <Route path="title/:type/:id" element={<TitleScreen onSessionLost={() => void recheck()} />} />
               <Route path="title/:type/:id/releases" element={<ReleasesScreen />} />
               <Route path="settings" element={<SettingsScreen />} />
               <Route path="*" element={<Navigate to="/" replace />} />
