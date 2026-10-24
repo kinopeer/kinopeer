@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { MatchesStore, matchesMiddleware } from './matches.ts'
 import { prowlarrMiddleware, readProwlarrApiKey, type Middleware } from './prowlarr.ts'
 import { qbittorrentMiddleware } from './qbittorrent.ts'
 import { SettingsStore, qbittorrentCredentials, settingsMiddleware, tmdbKey } from './settings.ts'
@@ -9,18 +10,28 @@ import { staticMiddleware } from './static.ts'
 import { tmdbMiddleware } from './tmdb.ts'
 
 /**
- * The production server: the built app plus the same /api/settings, /qbt, /prowlarr, /tmdb and
- * /tmdb-img routes the dev server has. Configured through environment variables (see .env.example)
+ * The production server: the built app plus the same /api/settings, /api/matches, /qbt, /prowlarr,
+ * /tmdb and /tmdb-img routes the dev server has. Configured through environment variables (see .env.example)
  * and the settings saved from the app:
  *
  *   node server/main.ts
  *
  * PORT (default 8080), HOST (default 0.0.0.0) and KINOSEED_DIST (default ../dist) set where it
  * listens and what it serves; KINOSEED_DATA_DIR (default ./data) is where settings saved from the
- * app are kept.
+ * app and torrent-to-title matches are kept.
  */
-export function createApp(env: NodeJS.ProcessEnv, root: string, store: SettingsStore) {
-  return createServer(chain([...serverRoutes(env, store), staticMiddleware({ root })]))
+export function createApp(env: NodeJS.ProcessEnv, root: string, stores: DataStores) {
+  return createServer(chain([...serverRoutes(env, stores), staticMiddleware({ root })]))
+}
+
+/** What the server keeps in its data directory. */
+export interface DataStores {
+  settings: SettingsStore
+  matches: MatchesStore
+}
+
+export function dataStores(dir: string): DataStores {
+  return { settings: new SettingsStore(dir), matches: new MatchesStore(dir) }
 }
 
 /**
@@ -28,12 +39,14 @@ export function createApp(env: NodeJS.ProcessEnv, root: string, store: SettingsS
  * PROWLARR_CONFIG_XML points at Prowlarr's config.xml to read its API key from (the Umbrel package
  * mounts it), used when PROWLARR_API_KEY is not set.
  */
-export function serverRoutes(env: Record<string, string | undefined>, store: SettingsStore): Middleware[] {
+export function serverRoutes(env: Record<string, string | undefined>, stores: DataStores): Middleware[] {
+  const store = stores.settings
   const envQbittorrent = { username: env.QBITTORRENT_USERNAME, password: env.QBITTORRENT_PASSWORD }
   const prowlarrConfig = env.PROWLARR_CONFIG_XML
   return [
     health,
     settingsMiddleware({ store, envTmdbApiKey: env.TMDB_API_KEY, qbittorrentUrl: env.QBITTORRENT_URL, envQbittorrent }),
+    matchesMiddleware(stores.matches),
     qbittorrentMiddleware({ url: env.QBITTORRENT_URL, credentials: () => qbittorrentCredentials(store, envQbittorrent) }),
     prowlarrMiddleware({
       url: env.PROWLARR_URL,
@@ -84,16 +97,16 @@ async function main() {
   const port = Number(env.PORT || 8080)
   const host = env.HOST || '0.0.0.0'
   const root = resolve(env.KINOSEED_DIST || resolve(dirname(fileURLToPath(import.meta.url)), '../dist'))
-  const store = new SettingsStore(resolve(env.KINOSEED_DATA_DIR || 'data'))
-  await store.load()
-  const server = createApp(env, root, store)
+  const stores = dataStores(resolve(env.KINOSEED_DATA_DIR || 'data'))
+  await Promise.all([stores.settings.load(), stores.matches.load()])
+  const server = createApp(env, root, stores)
   const { version } = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }
 
   server.listen(port, host, () => {
     console.log(`[kinoseed] ${version} listening on http://${host}:${port}`)
     const missing = ['QBITTORRENT_URL', 'PROWLARR_URL'].filter((name) => !env[name])
     if (!env.PROWLARR_API_KEY && !env.PROWLARR_CONFIG_XML) missing.push('PROWLARR_API_KEY')
-    if (!tmdbKey(store, env.TMDB_API_KEY)) missing.push('TMDB key (enter it in the app)')
+    if (!tmdbKey(stores.settings, env.TMDB_API_KEY)) missing.push('TMDB key (enter it in the app)')
     if (missing.length) console.warn(`[kinoseed] not set: ${missing.join(', ')}`)
   })
 

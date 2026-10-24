@@ -8,6 +8,10 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 - Downloads: a poster grid as a second view next to the list, with status and progress over each poster. The browser remembers the choice.
 
+### Changed
+
+- Titles guessed from release names are saved on the Kinoseed server, so every device shows the same title and poster and each torrent is guessed once. Clear cache in Settings has them guessed again.
+
 ## 0.1.0 - 2026-10-23
 
 The first release, for private testing on an Umbrel home server.

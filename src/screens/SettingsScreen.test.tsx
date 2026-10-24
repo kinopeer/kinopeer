@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import * as matches from '../api/matches'
 import * as prowlarr from '../api/prowlarr'
 import * as qbt from '../api/qbittorrent'
 import * as serverSettings from '../api/settings'
@@ -14,6 +15,10 @@ vi.mock('../api/qbittorrent', async (importOriginal) => ({
   getAppVersion: vi.fn(),
   getApiVersion: vi.fn(),
   getCategories: vi.fn(),
+}))
+vi.mock('../api/matches', async (importOriginal) => ({
+  ...(await importOriginal<typeof matches>()),
+  clearGuesses: vi.fn(),
 }))
 vi.mock('../api/prowlarr', async (importOriginal) => ({
   ...(await importOriginal<typeof prowlarr>()),
@@ -99,12 +104,14 @@ describe('SettingsScreen', () => {
     expect(row).toHaveTextContent(__APP_VERSION__)
   })
 
-  it('clears the cache', async () => {
+  it('clears the cache, with the guesses the server keeps', async () => {
     localStorage.setItem('kinoseed.titleMatches.v2', '{}')
+    vi.mocked(matches.clearGuesses).mockResolvedValue({})
     renderScreen()
     await userEvent.click(screen.getByRole('button', { name: /Clear cache/ }))
+    expect(await screen.findByText('Cache cleared')).toBeInTheDocument()
     expect(localStorage.getItem('kinoseed.titleMatches.v2')).toBeNull()
-    expect(screen.getByText('Cache cleared')).toBeInTheDocument()
+    expect(matches.clearGuesses).toHaveBeenCalled()
   })
 
   it('opens the TMDB key sheet when sent from a screen that needs the key', async () => {
