@@ -1,0 +1,24 @@
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Search the existing ideas first, and upvote one instead of posting a duplicate. Kinoseed doesn't do playback, Sonarr/Radarr-style automation, tracker logins or Jackett ([why](https://github.com/MrShakhov/kinoseed/blob/main/docs/SPEC.md)).
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What do you want to do in Kinoseed that's hard or impossible today?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: How could Kinoseed solve it? Screens, steps, examples from other apps.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Workarounds
+      description: What do you do now instead, for example in qBittorrent's own web UI?
