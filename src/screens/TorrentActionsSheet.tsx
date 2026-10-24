@@ -120,7 +120,7 @@ export function TorrentActionsSheet({
         {!askToConfirm && (
           <li>
             <button type="button" className="ks-row-btn" onClick={onChangeTitle}>
-              <Icon name="film" />
+              <Icon name="search" />
               {match ? t('match.changeTitle') : t('match.pickTitle')}
             </button>
           </li>

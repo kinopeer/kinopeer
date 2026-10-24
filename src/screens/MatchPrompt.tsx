@@ -27,7 +27,7 @@ export function MatchPrompt({ kind, busy, onChange, onConfirm, className }: Matc
       </p>
       {kind === 'guess' ? (
         <div className="match-prompt-actions">
-          <Button variant="secondary" icon="film" block disabled={busy} onClick={onChange}>
+          <Button variant="secondary" icon="search" block disabled={busy} onClick={onChange}>
             {t('match.change')}
           </Button>
           <Button variant="primary" icon="check" block loading={busy} disabled={busy} onClick={onConfirm}>
