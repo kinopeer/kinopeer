@@ -101,6 +101,7 @@ Manifest and icons; the service worker keeps the app shell available offline and
 
 | Date | Decision |
 | --- | --- |
+| 2026-10-24 | Two more ways to install are kept in mind: plain Docker without Umbrel, and Kinoseed as a qBittorrent Alternative WebUI with no server of its own (this reopens the 2026-10-20 decision as a second option, not a replacement). Until then, whatever the Kinoseed server does has a fallback in the browser or is an extra the app works without, and pure logic stays free of React, the DOM and Node. That's why guessing titles from release names stays in the browser rather than moving to the server. A hosted Kinoseed for other people's qBittorrent is dropped. |
 | 2026-10-24 | A guessed title asks "Is it right?" with Change and "Yes, right" (on the torrent screen and in the row menu) rather than a separate "Confirm match" menu item, which didn't say what it confirmed. Guessed rows in Downloads carry no marker. |
 | 2026-10-24 | Matches of deleted torrents are forgotten: right away when deleted from Kinoseed, otherwise after a week missing from qBittorrent (checked hourly). The week guards against qBittorrent listing nothing for a while after a restart. |
 | 2026-10-24 | Torrent-to-title matches are kept on the Kinoseed server (`/data/matches.json`), not in qBittorrent tags: qBittorrent's tag list stays clean and every device shows the same. A guess made in a browser is saved there; the user's choice wins over the `tmdb:` tag, which wins over a guess. Kinoseed still tags the torrents it adds. |
