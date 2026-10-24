@@ -2,10 +2,12 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import * as matchesApi from '../api/matches'
 import * as api from '../api/qbittorrent'
 import type { MainData, Torrent } from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
 import { getSettings, resetSettings, updateSettings } from '../settings/settings'
+import { resetServerMatches } from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
 import { DownloadsScreen } from './DownloadsScreen'
 
@@ -18,6 +20,12 @@ vi.mock('../api/tmdb', async (importOriginal) => {
   const actual = await importOriginal<typeof tmdb>()
   return { ...actual, searchTitles: vi.fn() }
 })
+
+vi.mock('../api/matches', async (importOriginal) => ({
+  ...(await importOriginal<typeof matchesApi>()),
+  getMatches: vi.fn(),
+  saveMatches: vi.fn(),
+}))
 
 const getMainData = vi.mocked(api.getMainData)
 const searchTitles = vi.mocked(tmdb.searchTitles)
@@ -55,6 +63,13 @@ const SNAPSHOT: MainData = {
   server_state: { dl_info_speed: 4_300_000, up_info_speed: 120_000, free_space_on_disk: 1_210_000_000_000 },
 }
 
+function title(type: tmdb.Title['type'], id: number, name: string, year: number): tmdb.Title {
+  return { type, id, title: name, originalTitle: name, year, overview: '', posterPath: null, backdropPath: null, rating: 8 }
+}
+
+const DUNE_TITLE = title('movie', 693134, 'Dune: Part Two', 2024)
+const ANDOR_TITLE = title('tv', 83867, 'Andor', 2022)
+
 function renderScreen(state?: unknown) {
   return render(
     <MemoryRouter initialEntries={[{ pathname: '/', state }]}>
@@ -66,6 +81,9 @@ function renderScreen(state?: unknown) {
 beforeEach(() => {
   vi.resetAllMocks()
   clearTitleMatchCache()
+  resetServerMatches()
+  vi.mocked(matchesApi.getMatches).mockResolvedValue({})
+  vi.mocked(matchesApi.saveMatches).mockImplementation(async (changes) => changes as matchesApi.Matches)
   resetSettings()
   getMainData.mockResolvedValue(SNAPSHOT)
   searchTitles.mockResolvedValue({ titles: [], page: 1, totalPages: 1 })
@@ -243,6 +261,35 @@ describe('DownloadsScreen', () => {
     await userEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
     expect(api.deleteTorrents).toHaveBeenCalledWith(['andor'], false)
     expect(await screen.findByText('Torrent deleted')).toBeInTheDocument()
+  })
+
+  it('asks in the row menu whether a guessed title is right, and saves the confirmation', async () => {
+    searchTitles.mockImplementation(async (query) => ({
+      titles: query === 'Dune Part Two' ? [DUNE_TITLE] : [],
+      page: 1,
+      totalPages: 1,
+    }))
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' }))
+    const sheet = screen.getByRole('dialog', { name: 'Dune: Part Two' })
+    expect(within(sheet).getByText('Matched by the release name. Is it right?')).toBeInTheDocument()
+    expect(within(sheet).queryByRole('button', { name: 'Change title' })).not.toBeInTheDocument()
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Yes, right' }))
+    expect(matchesApi.saveMatches).toHaveBeenCalledWith({ dune: { type: 'movie', id: 693134, source: 'user' } })
+    expect(await screen.findByText('Match confirmed')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('picks a title from the row menu for a torrent with none', async () => {
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' }))
+    searchTitles.mockResolvedValue({ titles: [ANDOR_TITLE], page: 1, totalPages: 1 })
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Pick title' }))
+    const sheet = screen.getByRole('dialog', { name: 'Pick title' })
+    await userEvent.click(await within(sheet).findByRole('button', { name: /^Andor/ }))
+    expect(matchesApi.saveMatches).toHaveBeenCalledWith({ andor: { type: 'tv', id: 83867, source: 'user' } })
+    expect(await screen.findByText('Title changed')).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'More actions: Andor' })).toBeInTheDocument()
   })
 
   it('confirms a torrent deleted on the torrent page', async () => {

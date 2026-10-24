@@ -161,6 +161,17 @@ export const TORRENTS: Torrent[] = [
   }),
 ]
 
+/** Not tagged by Kinoseed: its title is guessed from the release name, so the app asks whether it's right. */
+export const GUESSED = torrent('b1', {
+  name: 'Inception.2010.1080p.BluRay.x264-SPARKS',
+  state: 'uploading',
+  progress: 1,
+  size: 12.4 * GB,
+  ratio: 1.3,
+  upspeed: 640 * 1024,
+  added_on: NOW / 1000 - 30 * hour,
+})
+
 export function mainData(torrents: Torrent[] = TORRENTS): MainData {
   return {
     rid: 1,

@@ -50,12 +50,14 @@ A torrent's match is forgotten when the torrent is deleted from Kinoseed. For to
 - A row shows the TMDB poster and title, status, progress, speed, time left and queue position. The title comes from the user's choice, else the `tmdb:<movie|tv>:<id>` tag, else a guess from the release name. Guesses are saved on the server, so every device shows the same title and each torrent is guessed once.
 - A list or a poster grid (status and progress over the poster, percent and speed or size under it). The list is the default; the choice is remembered in the browser.
 - Filters by status and name, total speeds, free space.
-- Row menu: pause or resume, details, delete with or without files.
+- Row menu: pause or resume, details, change the title, delete with or without files. When the title was guessed from the release name, the menu asks "Matched by the release name. Is it right?" with Change and "Yes, right" instead of the Change title item.
 - Statuses: Downloading (the only one in the accent color), Seeding, Paused, Completed, Queued, Checking, Error.
 
 ### Torrent
 
-- Pause, resume, delete; progress, time left, ratio.
+- Pause, resume, delete; progress, time left, ratio. The More button opens the same menu as the row.
+- A guessed title gets the same "Is it right?" card under the heading; when no title was found, "Pick title".
+- Changing the title: a TMDB search that starts from the name read from the release, with All, Movies and Series; the current title comes first and is marked. Picking a title, or "Yes, right", saves it on the Kinoseed server as the user's choice, which wins over the tag and any guess.
 - Files as a tree, as in the torrent, without regrouping, but without the torrent's single root folder; sorted by name, numbers by value. Priorities: Skip, Normal, High.
 - Speeds, seeds and peers, save path, category, date added, info hash, trackers.
 - Clear messages for disk errors and missing files.
@@ -99,6 +101,7 @@ Manifest and icons; the service worker keeps the app shell available offline and
 
 | Date | Decision |
 | --- | --- |
+| 2026-10-24 | A guessed title asks "Is it right?" with Change and "Yes, right" (on the torrent screen and in the row menu) rather than a separate "Confirm match" menu item, which didn't say what it confirmed. Guessed rows in Downloads carry no marker. |
 | 2026-10-24 | Matches of deleted torrents are forgotten: right away when deleted from Kinoseed, otherwise after a week missing from qBittorrent (checked hourly). The week guards against qBittorrent listing nothing for a while after a restart. |
 | 2026-10-24 | Torrent-to-title matches are kept on the Kinoseed server (`/data/matches.json`), not in qBittorrent tags: qBittorrent's tag list stays clean and every device shows the same. A guess made in a browser is saved there; the user's choice wins over the `tmdb:` tag, which wins over a guess. Kinoseed still tags the torrents it adds. |
 | 2026-10-24 | Discussions are on before the public release; our own ideas go to Ideas too, not to issues. |

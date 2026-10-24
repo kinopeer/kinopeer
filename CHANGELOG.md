@@ -6,6 +6,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ### Added
 
+- Change a torrent's title: search TMDB from the row menu or the torrent screen's More button and pick the right movie or series. A title guessed from the release name asks whether it's right; "Yes, right" keeps it. The choice is saved on the Kinoseed server and shows on every device.
 - Downloads: a poster grid as a second view next to the list, with status and progress over each poster. The browser remembers the choice.
 
 ### Changed

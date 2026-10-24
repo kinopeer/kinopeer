@@ -259,3 +259,7 @@
 .actions-sheet .ks-status {
   flex: none;
 }
+
+.actions-prompt {
+  margin-bottom: var(--space-2);
+}
