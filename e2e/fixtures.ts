@@ -1,4 +1,5 @@
-import type { MainData, Torrent } from '../src/api/qbittorrent/types.ts'
+import type { Release } from '../src/api/prowlarr/types.ts'
+import type { MainData, Torrent, TorrentFile } from '../src/api/qbittorrent/types.ts'
 import type { MovieDetails, MovieResult, Paged, TvDetails, TvResult } from '../src/api/tmdb/types.ts'
 
 /** A TMDB title in both languages the app asks for. */
@@ -197,23 +198,162 @@ export function page(titles: FixtureTitle[], language: string): Paged<MovieResul
   return { page: 1, results: titles.map((title) => result(title, language)), total_pages: 1, total_results: titles.length }
 }
 
+const GENRES = {
+  en: [
+    { id: 878, name: 'Science Fiction' },
+    { id: 12, name: 'Adventure' },
+    { id: 18, name: 'Drama' },
+  ],
+  ru: [
+    { id: 878, name: 'фантастика' },
+    { id: 12, name: 'приключения' },
+    { id: 18, name: 'драма' },
+  ],
+}
+
+const OVERVIEW = {
+  en: 'A long overview, so the title page shows how a few lines of text wrap under the poster and the genres. It goes on for a while, the way TMDB overviews often do, and then ends.',
+  ru: 'Длинное описание, чтобы было видно, как несколько строк текста переносятся под постером и жанрами. Оно тянется какое-то время, как часто бывает в TMDB, а потом заканчивается.',
+}
+
 export function details(type: string, id: number, language: string): MovieDetails | TvDetails | undefined {
   const title = TITLES.find((item) => item.type === type && item.id === id)
   if (!title) return undefined
-  const common = { genres: [], tagline: '', status: 'Released' }
+  const lang = language.startsWith('ru') ? 'ru' : 'en'
+  const common = { genres: GENRES[lang], overview: OVERVIEW[lang], tagline: '', status: 'Released' }
   const item = result(title, language)
   return title.type === 'movie'
-    ? { ...(item as MovieResult), ...common, runtime: 150, imdb_id: null }
+    ? { ...(item as MovieResult), ...common, runtime: 166, imdb_id: null }
     : {
         ...(item as TvResult),
         ...common,
-        episode_run_time: [50],
+        episode_run_time: [58],
         last_air_date: null,
         in_production: false,
         number_of_seasons: 1,
         number_of_episodes: 10,
         seasons: [],
       }
+}
+
+const day = 86_400_000
+
+/** Releases for any search: the usual mix of trackers, qualities, voice-overs and very long names. */
+export const RELEASES: Release[] = [
+  {
+    id: 'r1',
+    title: 'Сёгун / Shōgun [S01] (2024) WEB-DL 2160p | HDR10, Dolby Vision | LostFilm, HDRezka Studio, Original',
+    indexer: 'RuTor',
+    size: 61.4 * GB,
+    seeders: 212,
+    leechers: 31,
+    publishDate: new Date(NOW - 3 * day).toISOString(),
+    categories: [5000],
+    download: 'shogun',
+  },
+  {
+    id: 'r2',
+    title: 'Shogun.2024.S01.2160p.DSNP.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-FLUX',
+    indexer: 'NNM-Club',
+    size: 72.9 * GB,
+    seeders: 148,
+    leechers: 12,
+    publishDate: new Date(NOW - 10 * day).toISOString(),
+    categories: [5000],
+    download: 'shogun',
+  },
+  {
+    id: 'r3',
+    title: 'Сёгун / Shogun [01x01-10 из 10] (2024) WEB-DL 1080p | NewStudio',
+    indexer: 'RuTor',
+    size: 21.7 * GB,
+    seeders: 96,
+    leechers: 8,
+    publishDate: new Date(NOW - 40 * day).toISOString(),
+    categories: [5000],
+    download: 'shogun',
+  },
+  {
+    id: 'r4',
+    title: 'Shogun.S01.1080p.BluRay.x264-ROVERS',
+    indexer: 'NNM-Club',
+    size: 38.2 * GB,
+    seeders: 41,
+    leechers: 3,
+    publishDate: new Date(NOW - 90 * day).toISOString(),
+    categories: [5040],
+    download: 'shogun',
+  },
+  {
+    id: 'r5',
+    title: 'Сёгун (1 сезон: 1-10 серии из 10) / Shōgun / 2024 / ПМ (HDrezka Studio) / WEB-DLRip 720p',
+    indexer: 'RuTor',
+    size: 9.6 * GB,
+    seeders: 12,
+    leechers: 1,
+    publishDate: new Date(NOW - 120 * day).toISOString(),
+    categories: [8000],
+    download: 'shogun',
+  },
+  {
+    id: 'r6',
+    title: 'Shogun S01E01 Anjin 720p HEVC x265',
+    indexer: 'RuTor',
+    size: 640 * MB,
+    seeders: 0,
+    leechers: 0,
+    publishDate: new Date(NOW - 200 * day).toISOString(),
+    categories: [5000],
+    magnet: 'magnet:?xt=urn:btih:0000000000000000000000000000000000000001',
+  },
+]
+
+const EPISODES = ['Anjin', 'Servants of Two Masters', 'Tomorrow Is Tomorrow', 'The Eightfold Fence', 'Broken to the Fist', 'Ladies of the Willow World', 'A Stick of Time', 'The Abyss of Life', 'Crimson Sky', 'A Dream of a Dream']
+
+/** The files of the Shōgun release: a season folder of episodes and subtitles, inside the torrent's own folder. */
+export const SHOGUN_FILES = [
+  ...EPISODES.map((name, index) => ({
+    path: `Episodes/Shogun.S01E${String(index + 1).padStart(2, '0')}.${name.replaceAll(' ', '.')}.2160p.mkv`,
+    size: Math.round((5.6 + (index % 3) * 0.4) * GB),
+  })),
+  { path: 'Subs/Russian.Forced.srt', size: 48 * 1024 },
+  { path: 'Subs/Russian.Full.srt', size: 112 * 1024 },
+  { path: 'Subs/English.SDH.srt', size: 126 * 1024 },
+  { path: 'Shogun.S01.nfo', size: 6 * 1024 },
+]
+
+/** qBittorrent's file list for the downloading Shōgun torrent: some files done, one skipped. */
+export function torrentFiles(): TorrentFile[] {
+  return SHOGUN_FILES.map((file, index) => ({
+    index,
+    name: `Shogun.S01.2160p/${file.path}`,
+    size: file.size,
+    progress: index < 2 ? 1 : index === 2 ? 0.37 : 0,
+    priority: index === 9 ? 0 : 1,
+  }))
+}
+
+function bencode(value: unknown): string {
+  if (typeof value === 'number') return `i${value}e`
+  if (typeof value === 'string') return `${new TextEncoder().encode(value).length}:${value}`
+  if (Array.isArray(value)) return `l${value.map(bencode).join('')}e`
+  const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : 1))
+  return `d${entries.map(([key, item]) => bencode(key) + bencode(item)).join('')}e`
+}
+
+/** A .torrent for the Shōgun release, enough for the browser to list its files. */
+export function shogunTorrent(): Buffer {
+  return Buffer.from(
+    bencode({
+      announce: 'http://tracker.invalid/announce',
+      info: {
+        name: 'Shogun.S01.2160p',
+        'piece length': 4 * 1024 * 1024,
+        pieces: 'x'.repeat(20),
+        files: SHOGUN_FILES.map((file) => ({ length: file.size, path: file.path.split('/') })),
+      },
+    }),
+  )
 }
 
 /**

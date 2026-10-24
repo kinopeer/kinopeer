@@ -1,5 +1,16 @@
 import { expect, type Page, type Route } from '@playwright/test'
-import { NOW, TITLES, TORRENTS, details, mainData, page as titlePage, posterSvg } from './fixtures.ts'
+import {
+  NOW,
+  RELEASES,
+  TITLES,
+  TORRENTS,
+  details,
+  mainData,
+  page as titlePage,
+  posterSvg,
+  shogunTorrent,
+  torrentFiles,
+} from './fixtures.ts'
 import type { Torrent } from '../src/api/qbittorrent/types.ts'
 
 export interface AppOptions {
@@ -33,7 +44,18 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
         if (options.goesOffline && polls > 1) return route.abort('connectionrefused')
         return json(route, mainData(torrents))
       }
-      if (pathname === '/qbt/api/v2/torrents/categories') return json(route, {})
+      if (pathname === '/qbt/api/v2/app/webapiVersion') return route.fulfill({ body: '2.11.4' })
+      if (pathname === '/qbt/api/v2/app/defaultSavePath') return route.fulfill({ body: '/downloads' })
+      if (pathname === '/qbt/api/v2/torrents/categories') {
+        return json(route, {
+          Movies: { name: 'Movies', savePath: '/downloads/movies' },
+          'TV Shows': { name: 'TV Shows', savePath: '/downloads/tv' },
+        })
+      }
+      if (pathname === '/qbt/api/v2/torrents/files') return json(route, torrentFiles())
+      if (pathname === '/qbt/api/v2/torrents/trackers') {
+        return json(route, [{ url: 'http://bt.example.org/announce', status: 2, msg: '' }])
+      }
       return route.fulfill({ body: 'Ok.' })
     },
   )
@@ -45,6 +67,7 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
       const language = url.searchParams.get('language') ?? 'en-US'
       const path = url.pathname.slice('/tmdb'.length)
       const query = url.searchParams.get('query')?.toLocaleLowerCase()
+      if (path === '/configuration') return json(route, {})
       if (path === '/search/multi') {
         const found = TITLES.filter((title) => [title.en, title.ru].some((name) => name.toLocaleLowerCase().includes(query ?? '')))
         return json(route, titlePage(found, language))
@@ -70,8 +93,16 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
   )
 
   await page.route(
-    (url) => url.pathname === '/prowlarr/status',
-    (route) => json(route, { version: '2.0.5', indexers: 2 }),
+    (url) => url.pathname.startsWith('/prowlarr/'),
+    (route) => {
+      const { pathname } = new URL(route.request().url())
+      if (pathname === '/prowlarr/status') return json(route, { version: '2.0.5.5160', indexers: 2 })
+      if (pathname === '/prowlarr/search') return json(route, RELEASES)
+      if (pathname === '/prowlarr/download') {
+        return route.fulfill({ contentType: 'application/x-bittorrent', body: shogunTorrent() })
+      }
+      return json(route, { error: 'not-found' }, 404)
+    },
   )
 }
 
