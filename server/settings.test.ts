@@ -197,6 +197,7 @@ describe('settingsMiddleware', () => {
     expect(await (await fetch(`${await kinoseed(store)}/api/settings`)).json()).toEqual({
       tmdb: { configured: false, source: null },
       qbittorrent: { configured: false, source: null },
+      downloads: null,
     })
 
     const withEnv = await kinoseed(store, { envKey: 'env-key' })
@@ -206,6 +207,7 @@ describe('settingsMiddleware', () => {
     expect(JSON.parse(text)).toEqual({
       tmdb: { configured: true, source: 'env' },
       qbittorrent: { configured: false, source: null },
+      downloads: null,
     })
     expect(text).not.toContain('env-key')
   })
@@ -269,5 +271,74 @@ describe('settingsMiddleware', () => {
     const app = await kinoseed(new SettingsStore(dir))
     expect(await (await fetch(`${app}/api/settingsx`)).text()).toBe('fallback')
     expect(await (await fetch(`${app}/settings`)).text()).toBe('fallback')
+  })
+})
+
+function patchDownloads(app: string, body: unknown, contentType = 'application/json') {
+  return fetch(`${app}/api/settings/downloads`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': contentType },
+    body: typeof body === 'string' ? body : JSON.stringify(body),
+  })
+}
+
+describe('settingsMiddleware: download defaults', () => {
+  it('saves only the defaults sent, so changes from two devices both stay', async () => {
+    const store = new SettingsStore(dir)
+    const app = await kinoseed(store)
+
+    const first = await patchDownloads(app, { movieCategory: 'Movies', startPaused: true })
+    expect(first.status).toBe(200)
+    expect(((await first.json()) as ServerSettings).downloads).toEqual({ movieCategory: 'Movies', startPaused: true })
+
+    await patchDownloads(app, { sequential: true, movieCategory: null })
+
+    const settings = (await (await fetch(`${app}/api/settings`)).json()) as ServerSettings
+    expect(settings.downloads).toEqual({ movieCategory: null, startPaused: true, sequential: true })
+    expect(JSON.parse(await readFile(join(dir, 'settings.json'), 'utf8'))).toEqual({
+      downloads: { movieCategory: null, startPaused: true, sequential: true },
+    })
+  })
+
+  it('keeps the secrets next to them', async () => {
+    const store = new SettingsStore(dir)
+    await store.update({ tmdbApiKey: 'abc' })
+    const app = await kinoseed(store)
+
+    await patchDownloads(app, { tvCategory: 'TV Shows' })
+
+    expect(tmdbKey(store, undefined)).toBe('abc')
+    expect(store.current.downloads).toEqual({ tvCategory: 'TV Shows' })
+  })
+
+  it('rejects unknown fields, wrong types and other methods, and saves nothing', async () => {
+    const store = new SettingsStore(dir)
+    const app = await kinoseed(store)
+
+    for (const body of [
+      { theme: 'dark' },
+      { startPaused: 'yes' },
+      { sequential: null },
+      { movieCategory: '' },
+      { movieCategory: 42 },
+      { tvCategory: 'x'.repeat(257) },
+      ['startPaused'],
+      null,
+      '{',
+    ]) {
+      expect((await patchDownloads(app, body)).status).toBe(400)
+    }
+    expect((await patchDownloads(app, { startPaused: true }, 'text/plain')).status).toBe(415)
+    expect((await fetch(`${app}/api/settings/downloads`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: '{}' })).status).toBe(404)
+    expect((await fetch(`${app}/api/settings/tmdb`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: '{}' })).status).toBe(404)
+    expect(store.current).toEqual({})
+  })
+
+  it('says when the data directory is not writable', async () => {
+    await writeFile(join(dir, 'file'), '')
+    const app = await kinoseed(new SettingsStore(join(dir, 'file', 'nested')))
+    const response = await patchDownloads(app, { startPaused: true })
+    expect(response.status).toBe(500)
+    expect(await response.json()).toEqual({ error: 'storage' })
   })
 })

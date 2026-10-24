@@ -37,6 +37,7 @@ describe('createApp', () => {
     expect(await (await fetch(`${app}/api/settings`)).json()).toEqual({
       tmdb: { configured: false, source: null },
       qbittorrent: { configured: false, source: null },
+      downloads: null,
     })
     expect(await (await fetch(`${app}/api/matches`)).json()).toEqual({})
   })

@@ -149,7 +149,7 @@
     "seriesCategory": "Series category",
     "categoryAuto": "Automatic ({{name}})",
     "categoryNone": "No category",
-    "defaultsHint": "Used when adding a release. You can still change them for each download.",
+    "defaultsHint": "Used when adding a release, the same on every device. You can still change them for each download.",
     "tmdbLanguage": "Titles and descriptions",
     "tmdbAsApp": "Auto",
     "about": "About",

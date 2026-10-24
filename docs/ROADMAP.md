@@ -18,7 +18,7 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 - [x] Torrent-to-title matches are kept on the server, the same on every device.
 - [x] The title page lists this title's torrents (by their matches), each linking to its torrent screen; the two screens stay separate.
 - [x] "Change title" and "Confirm" in the torrent menu: pick the title in TMDB, or accept the guess, and save it on the server.
-- [ ] Download defaults are kept on the server and are the same on every device.
+- [x] Download defaults are kept on the server and are the same on every device.
 - [x] On wide screens, a centered column of limited width until the desktop layout lands.
 
 ## 0.3: Managing downloads

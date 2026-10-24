@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -26,7 +26,9 @@ vi.mock('../api/prowlarr', async (importOriginal) => ({
 }))
 vi.mock('../api/settings', async (importOriginal) => ({
   ...(await importOriginal<typeof serverSettings>()),
+  getServerSettings: vi.fn(),
   saveTmdbKey: vi.fn(),
+  saveDownloadDefaults: vi.fn(),
 }))
 vi.mock('../api/tmdb', async (importOriginal) => ({
   ...(await importOriginal<typeof tmdb>()),
@@ -59,6 +61,16 @@ beforeEach(() => {
   ])
   vi.mocked(prowlarr.getProwlarrStatus).mockResolvedValue({ version: '1.24.3', indexers: 2 })
   vi.mocked(tmdb.checkTmdb).mockResolvedValue()
+  vi.mocked(serverSettings.getServerSettings).mockResolvedValue({
+    tmdb: { configured: true, source: 'saved' },
+    qbittorrent: { configured: true, source: 'env' },
+    downloads: null,
+  })
+  vi.mocked(serverSettings.saveDownloadDefaults).mockResolvedValue({
+    tmdb: { configured: true, source: 'saved' },
+    qbittorrent: { configured: true, source: 'env' },
+    downloads: {},
+  })
 })
 
 describe('SettingsScreen', () => {
@@ -83,7 +95,7 @@ describe('SettingsScreen', () => {
 
   it('changes the TMDB key and checks the connection again', async () => {
     vi.mocked(tmdb.checkTmdb).mockRejectedValue(new tmdb.TmdbKeyError(401))
-    vi.mocked(serverSettings.saveTmdbKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved' }, qbittorrent: { configured: true, source: 'env' } })
+    vi.mocked(serverSettings.saveTmdbKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved' }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
     renderScreen()
     expect(await within(connection('TMDB')).findByText('The API key is missing or invalid')).toBeInTheDocument()
 
@@ -128,6 +140,21 @@ describe('SettingsScreen', () => {
     await userEvent.selectOptions(movies, 'Anime')
     await userEvent.click(screen.getByRole('switch', { name: 'Start paused' }))
     expect(getSettings()).toMatchObject({ movieCategory: 'Anime', startPaused: true, sequential: false })
+    expect(serverSettings.saveDownloadDefaults).toHaveBeenCalledWith({ movieCategory: 'Anime' })
+    expect(serverSettings.saveDownloadDefaults).toHaveBeenCalledWith({ startPaused: true })
+    expect(screen.getByText(/the same on every device/)).toBeInTheDocument()
+  })
+
+  it("shows the download defaults the server keeps, set on another device", async () => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue({
+      tmdb: { configured: true, source: 'saved' },
+      qbittorrent: { configured: true, source: 'env' },
+      downloads: { tvCategory: 'Anime', sequential: true },
+    })
+    renderScreen()
+    await waitFor(() => expect(screen.getByRole('switch', { name: 'Sequential download' })).toBeChecked())
+    expect(screen.getByRole('combobox', { name: 'Series category' })).toHaveDisplayValue('Anime')
+    expect(screen.getByRole('switch', { name: 'Start paused' })).not.toBeChecked()
   })
 
   it('chooses the TMDB language', async () => {

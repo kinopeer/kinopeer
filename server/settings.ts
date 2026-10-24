@@ -1,5 +1,12 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import type { QbittorrentLoginBody, ServerSettings, SettingsErrorBody, TmdbKeyBody } from '../src/api/settings/types.ts'
+import type {
+  DownloadDefaults,
+  DownloadDefaultsBody,
+  QbittorrentLoginBody,
+  ServerSettings,
+  SettingsErrorBody,
+  TmdbKeyBody,
+} from '../src/api/settings/types.ts'
 import { isJsonRequest, readJson, sendJson } from './json.ts'
 import { JsonFile } from './jsonFile.ts'
 import type { Middleware } from './prowlarr.ts'
@@ -7,19 +14,22 @@ import { qbittorrentLogin, type QbittorrentCredentials } from './qbittorrent.ts'
 import { checkTmdbKey } from './tmdb.ts'
 
 /**
- * Settings the user enters in the app and the server keeps: the TMDB key and the qBittorrent
- * login. They live in settings.json in the data directory ($KINOSEED_DATA_DIR, /data in the Docker
- * image), readable only by the server. A saved value wins over the matching environment variables,
- * which stay as the defaults (the Umbrel package sets qBittorrent's) and for development.
+ * Settings the user enters in the app and the server keeps: the TMDB key, the qBittorrent login
+ * and the download defaults. They live in settings.json in the data directory ($KINOSEED_DATA_DIR,
+ * /data in the Docker image), readable only by the server. A saved secret wins over the matching
+ * environment variables, which stay as the defaults (the Umbrel package sets qBittorrent's) and for
+ * development.
  *
  * GET /api/settings → ServerSettings (only whether each secret is set, never its value)
  * PUT /api/settings/tmdb { apiKey } → checks the key with TMDB, saves it, answers ServerSettings
  * PUT /api/settings/qbittorrent { username, password } → logs in to qBittorrent, saves the login
+ * PATCH /api/settings/downloads { …some DownloadDefaults } → merges them in, answers ServerSettings
  */
 export interface StoredSettings {
   tmdbApiKey?: string
   qbittorrentUsername?: string
   qbittorrentPassword?: string
+  downloads?: Partial<DownloadDefaults>
 }
 
 export class SettingsStore extends JsonFile<StoredSettings> {
@@ -30,6 +40,11 @@ export class SettingsStore extends JsonFile<StoredSettings> {
   /** Merges `changes` in and saves them. */
   update(changes: StoredSettings): Promise<StoredSettings> {
     return this.change((current) => ({ ...current, ...changes }))
+  }
+
+  /** Merges in only the download defaults given, so two devices changing different ones keep both. */
+  updateDownloads(changes: DownloadDefaultsBody): Promise<StoredSettings> {
+    return this.change((current) => ({ ...current, downloads: { ...current.downloads, ...changes } }))
   }
 }
 
@@ -79,12 +94,13 @@ function snapshot(stored: StoredSettings, config: SettingsConfig): ServerSetting
   return {
     tmdb: status(stored.tmdbApiKey, config.envTmdbApiKey),
     qbittorrent: status(stored.qbittorrentUsername, config.envQbittorrent?.username),
+    downloads: stored.downloads ?? null,
   }
 }
 
-async function save(config: SettingsConfig, response: ServerResponse, changes: StoredSettings) {
+async function save(config: SettingsConfig, response: ServerResponse, saving: Promise<StoredSettings>) {
   try {
-    sendJson(response, 200, snapshot(await config.store.update(changes), config))
+    sendJson(response, 200, snapshot(await saving, config))
   } catch {
     console.warn('[kinoseed] could not write settings.json; is the data directory writable?')
     fail(response, 500, 'storage')
@@ -108,7 +124,7 @@ async function saveTmdbKey(config: SettingsConfig, request: IncomingMessage, res
     return fail(response, 502, 'unreachable')
   }
   if (!valid) return fail(response, 422, 'invalid-key')
-  await save(config, response, { tmdbApiKey: apiKey.trim() })
+  await save(config, response, config.store.update({ tmdbApiKey: apiKey.trim() }))
 }
 
 async function saveQbittorrentLogin(config: SettingsConfig, request: IncomingMessage, response: ServerResponse) {
@@ -133,7 +149,41 @@ async function saveQbittorrentLogin(config: SettingsConfig, request: IncomingMes
   }
   if (result.status === 'invalid') return fail(response, 422, 'invalid-credentials')
   if (result.status === 'banned') return fail(response, 429, 'banned')
-  await save(config, response, { qbittorrentUsername: username.trim(), qbittorrentPassword: password })
+  await save(config, response, config.store.update({ qbittorrentUsername: username.trim(), qbittorrentPassword: password }))
+}
+
+const MAX_CATEGORY_LENGTH = 256
+
+/** The changes in a PATCH body, or undefined when it holds anything but known, well-typed fields. */
+function downloadChanges(body: unknown): DownloadDefaultsBody | undefined {
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) return undefined
+  const changes: DownloadDefaultsBody = {}
+  for (const [key, value] of Object.entries(body)) {
+    if (key === 'movieCategory' || key === 'tvCategory') {
+      if (value !== null && (typeof value !== 'string' || !value.trim() || value.length > MAX_CATEGORY_LENGTH)) {
+        return undefined
+      }
+      changes[key] = value
+    } else if (key === 'startPaused' || key === 'sequential') {
+      if (typeof value !== 'boolean') return undefined
+      changes[key] = value
+    } else {
+      return undefined
+    }
+  }
+  return changes
+}
+
+async function saveDownloadDefaults(config: SettingsConfig, request: IncomingMessage, response: ServerResponse) {
+  let body: unknown
+  try {
+    body = await readJson(request, MAX_BODY_BYTES)
+  } catch {
+    return fail(response, 400, 'bad-request')
+  }
+  const changes = downloadChanges(body)
+  if (!changes) return fail(response, 400, 'bad-request')
+  await save(config, response, config.store.updateDownloads(changes))
 }
 
 export function settingsMiddleware(config: SettingsConfig): Middleware {
@@ -146,8 +196,14 @@ export function settingsMiddleware(config: SettingsConfig): Middleware {
       return
     }
     const handler =
-      path === `${PREFIX}/tmdb` ? saveTmdbKey : path === `${PREFIX}/qbittorrent` ? saveQbittorrentLogin : undefined
-    if (handler && request.method === 'PUT') {
+      path === `${PREFIX}/tmdb` && request.method === 'PUT'
+        ? saveTmdbKey
+        : path === `${PREFIX}/qbittorrent` && request.method === 'PUT'
+          ? saveQbittorrentLogin
+          : path === `${PREFIX}/downloads` && request.method === 'PATCH'
+            ? saveDownloadDefaults
+            : undefined
+    if (handler) {
       if (!isJsonRequest(request)) return fail(response, 415, 'bad-request')
       handler(config, request, response).catch(() => {
         if (!response.headersSent) fail(response, 500, 'storage')

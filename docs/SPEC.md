@@ -30,7 +30,7 @@ The `homelab-kinoseed` package from the Homelab App Store runs on port 8795, dep
 | Prowlarr API key | Environment or Prowlarr's `config.xml` | The Umbrel package |
 | qBittorrent login | `/data/settings.json`, else environment | The connect screen |
 | TMDB key | `/data/settings.json`, else environment | Onboarding or Settings |
-| Download defaults (categories, start paused, sequential) | Browser; moving to the server in 0.2 | Settings |
+| Download defaults (categories, start paused, sequential) | `/data/settings.json`; a copy in the browser | Settings |
 | Theme, interface language, TMDB language | Browser | Settings |
 | Torrent-to-TMDB matches | `/data/matches.json`; titles and posters cached in the browser | Guessed automatically; the torrent menu (0.2) |
 
@@ -89,7 +89,7 @@ Poster, year, runtime or number of seasons and episodes, rating, overview, and a
 
 ### Settings
 
-Appearance (theme, language), Connections (checks for qBittorrent, Prowlarr and TMDB, changing the TMDB key), download defaults, the language of TMDB titles and overviews, About (version, clear cache, install). Clearing the cache also forgets the server's guesses, so torrents are matched again; the user's choices stay. Service addresses can't be changed here: the package sets them.
+Appearance (theme, language), Connections (checks for qBittorrent, Prowlarr and TMDB, changing the TMDB key), download defaults (the same on every device; another device's change shows after a reload), the language of TMDB titles and overviews, About (version, clear cache, install). Clearing the cache also forgets the server's guesses, so torrents are matched again; the user's choices stay. Service addresses can't be changed here: the package sets them.
 
 ### Offline and errors
 
@@ -105,6 +105,7 @@ Manifest and icons; the service worker keeps the app shell available offline and
 
 | Date | Decision |
 | --- | --- |
+| 2026-10-24 | Download defaults (categories, start paused, sequential) are kept on the Kinoseed server, so every device adds releases the same way; each one is saved on its own, so changes on two devices don't undo each other. The browser keeps a copy and uses it when there's no server. Defaults set in a browser before 0.2 are sent to the server by the first browser that has them. Theme, interface language, TMDB language and the Downloads view stay per browser: they depend on the device. |
 | 2026-10-24 | Until the desktop layout (0.4), every screen on a wide screen, Search included, sits in one centered column 760px wide, and the tab bar's tabs stay over it. One width for all, so switching tabs doesn't shift the header; Search shows fewer posters per row than its old 1200px. |
 | 2026-10-24 | The title page's "In downloads" block shows each torrent as a separate card, newest first, with its season and episodes, rather than one merged entry per title. Small changes like this are built and tried on the test stand first, and the canvas is updated after. |
 | 2026-10-24 | Two more ways to install are kept in mind: plain Docker without Umbrel, and Kinoseed as a qBittorrent Alternative WebUI with no server of its own (this reopens the 2026-10-20 decision as a second option, not a replacement). Until then, whatever the Kinoseed server does has a fallback in the browser or is an extra the app works without, and pure logic stays free of React, the DOM and Node. That's why guessing titles from release names stays in the browser rather than moving to the server. A hosted Kinoseed for other people's qBittorrent is dropped. |

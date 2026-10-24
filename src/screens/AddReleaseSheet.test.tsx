@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as prowlarr from '../api/prowlarr'
@@ -138,6 +138,24 @@ describe('AddReleaseSheet', () => {
       expect.objectContaining({ category: 'Movies', paused: true, sequential: true }),
       expect.anything(),
     )
+  })
+
+  it('follows defaults that arrive after it opened, until the user flips them', async () => {
+    renderSheet()
+    const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Options' }))
+    const paused = within(sheet).getByRole('switch', { name: 'Start paused' })
+    const sequential = within(sheet).getByRole('switch', { name: 'Sequential download' })
+    expect(paused).not.toBeChecked()
+
+    // The server's defaults load while the sheet is open.
+    act(() => updateSettings({ startPaused: true }))
+    expect(paused).toBeChecked()
+
+    await userEvent.click(sequential)
+    act(() => updateSettings({ sequential: false, startPaused: false }))
+    expect(sequential).toBeChecked()
+    expect(paused).not.toBeChecked()
   })
 
   it('retries getting the torrent and adds a magnet link without file selection', async () => {
