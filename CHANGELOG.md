@@ -13,6 +13,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 ### Changed
 
 - Titles guessed from release names are saved on the Kinoseed server, so every device shows the same title and poster and each torrent is guessed once. Clear cache in Settings has them guessed again.
+- Download defaults in Settings (categories, start paused, sequential) are saved on the Kinoseed server and are the same on every device. Defaults already set in a browser are taken over the first time it opens the new version.
 - The saved title of a deleted torrent is forgotten: right away when it is deleted from Kinoseed, or after a week when it is deleted in qBittorrent itself.
 - On a computer or tablet, every screen, Search included, sits in the same centered column, and the tab bar's tabs stay over it instead of spreading across the window.
 

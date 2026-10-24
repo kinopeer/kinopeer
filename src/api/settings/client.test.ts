@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
-import { SettingsError, getServerSettings, saveQbittorrentLogin, saveTmdbKey } from './client'
+import { SettingsError, getServerSettings, saveDownloadDefaults, saveQbittorrentLogin, saveTmdbKey } from './client'
 
 let fetchMock: Mock<typeof fetch>
 
@@ -57,5 +57,25 @@ describe('saveQbittorrentLogin', () => {
 
     json({ error: 'banned' }, 429)
     await expect(saveQbittorrentLogin('admin', 'x')).rejects.toMatchObject({ status: 429, code: 'banned' })
+  })
+})
+
+describe('saveDownloadDefaults', () => {
+  it('patches only the given defaults, with the cookies Umbrel needs', async () => {
+    json({ downloads: { startPaused: true, movieCategory: null } })
+    await expect(saveDownloadDefaults({ startPaused: true, movieCategory: null })).resolves.toEqual({
+      downloads: { startPaused: true, movieCategory: null },
+    })
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toBe('/api/settings/downloads')
+    expect(init).toMatchObject({ method: 'PATCH', credentials: 'same-origin' })
+    expect(init?.body).toBe('{"startPaused":true,"movieCategory":null}')
+  })
+
+  it('fails when the server refuses them or has no such route', async () => {
+    json({ error: 'storage' }, 500)
+    await expect(saveDownloadDefaults({ sequential: true })).rejects.toMatchObject({ status: 500, code: 'storage' })
+    fetchMock.mockResolvedValueOnce(new Response('Not found', { status: 404 }))
+    await expect(saveDownloadDefaults({ sequential: true })).rejects.toBeInstanceOf(SettingsError)
   })
 })

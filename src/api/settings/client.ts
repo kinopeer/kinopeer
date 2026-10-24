@@ -1,4 +1,4 @@
-import type { QbittorrentLoginBody, ServerSettings, SettingsErrorBody, TmdbKeyBody } from './types'
+import type { DownloadDefaultsBody, QbittorrentLoginBody, ServerSettings, SettingsErrorBody, TmdbKeyBody } from './types'
 
 /** Settings the Kinoseed server keeps (server/settings.ts). */
 export const SETTINGS_BASE = '/api/settings'
@@ -31,9 +31,9 @@ export async function getServerSettings(signal?: AbortSignal): Promise<ServerSet
   return (await response.json()) as ServerSettings
 }
 
-async function put<T>(path: string, body: T): Promise<ServerSettings> {
+async function send<T>(method: 'PUT' | 'PATCH', path: string, body: T): Promise<ServerSettings> {
   const response = await fetch(`${SETTINGS_BASE}/${path}`, {
-    method: 'PUT',
+    method,
     credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -47,7 +47,7 @@ async function put<T>(path: string, body: T): Promise<ServerSettings> {
  * code 'invalid-key' when TMDB refuses it, 'unreachable' when TMDB doesn't answer.
  */
 export function saveTmdbKey(apiKey: string): Promise<ServerSettings> {
-  return put<TmdbKeyBody>('tmdb', { apiKey })
+  return send<TmdbKeyBody>('PUT', 'tmdb', { apiKey })
 }
 
 /**
@@ -56,5 +56,10 @@ export function saveTmdbKey(apiKey: string): Promise<ServerSettings> {
  * 'not-configured' when the server has no QBITTORRENT_URL.
  */
 export function saveQbittorrentLogin(username: string, password: string): Promise<ServerSettings> {
-  return put<QbittorrentLoginBody>('qbittorrent', { username, password })
+  return send<QbittorrentLoginBody>('PUT', 'qbittorrent', { username, password })
+}
+
+/** Saves some of the download defaults on the server; the others stay as they are. */
+export function saveDownloadDefaults(changes: DownloadDefaultsBody): Promise<ServerSettings> {
+  return send<DownloadDefaultsBody>('PATCH', 'downloads', changes)
 }

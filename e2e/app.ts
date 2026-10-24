@@ -90,7 +90,11 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
   await page.route(
     (url) => url.pathname === '/api/settings',
     (route) =>
-      json(route, { tmdb: { configured: true, source: 'saved' }, qbittorrent: { configured: true, source: 'saved' } }),
+      json(route, {
+        tmdb: { configured: true, source: 'saved' },
+        qbittorrent: { configured: true, source: 'saved' },
+        downloads: null,
+      }),
   )
 
   // Starts with no matches, so the app guesses titles from the release names and saves them.

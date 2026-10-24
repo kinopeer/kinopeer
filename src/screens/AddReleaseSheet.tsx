@@ -87,8 +87,11 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   const [chosenCategory, setChosenCategory] = useState<string>()
   const [savePath, setSavePath] = useState('')
   const [settings] = useSettings()
-  const [paused, setPaused] = useState(settings.startPaused)
-  const [sequential, setSequential] = useState(settings.sequential)
+  // The defaults from Settings until the user flips them, so defaults the server sends late still apply.
+  const [chosenPaused, setPaused] = useState<boolean>()
+  const [chosenSequential, setSequential] = useState<boolean>()
+  const paused = chosenPaused ?? settings.startPaused
+  const sequential = chosenSequential ?? settings.sequential
   const [topOfQueue, setTopOfQueue] = useState(false)
   const [adding, setAdding] = useState(false)
   const [addError, setAddError] = useState<string>()

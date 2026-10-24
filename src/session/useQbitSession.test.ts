@@ -47,7 +47,7 @@ describe('useQbitSession', () => {
 
   it('saves the login on the server and connects', async () => {
     getAppVersion.mockRejectedValueOnce(new api.UnauthorizedError()).mockResolvedValue('v5.2.4')
-    login.mockResolvedValue({ tmdb: { configured: true, source: 'saved' }, qbittorrent: { configured: true, source: 'saved' } })
+    login.mockResolvedValue({ tmdb: { configured: true, source: 'saved' }, qbittorrent: { configured: true, source: 'saved' }, downloads: null })
     const { result } = renderHook(() => useQbitSession())
     await waitFor(() => expect(result.current.session.status).toBe('signed-out'))
 
