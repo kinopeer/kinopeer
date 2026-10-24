@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
 import type { MainData, Torrent } from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
+import * as serverMatches from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
 import { TorrentScreen } from './TorrentScreen'
 
@@ -26,6 +27,11 @@ vi.mock('../api/tmdb', async (importOriginal) => {
   const actual = await importOriginal<typeof tmdb>()
   return { ...actual, getMovie: vi.fn(), searchTitles: vi.fn() }
 })
+
+vi.mock('../torrents/serverMatches', async (importOriginal) => ({
+  ...(await importOriginal<typeof serverMatches>()),
+  forgetMatches: vi.fn(),
+}))
 
 const getMainData = vi.mocked(api.getMainData)
 const getTorrentTrackers = vi.mocked(api.getTorrentTrackers)
@@ -190,6 +196,7 @@ describe('TorrentScreen', () => {
 
     await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
     expect(deleteTorrents).toHaveBeenCalledWith(['dune'], true)
+    expect(serverMatches.forgetMatches).toHaveBeenCalledWith(['dune'])
     expect(await screen.findByText(/Downloads list/)).toHaveTextContent('"deleted":"files"')
   })
 
@@ -199,6 +206,7 @@ describe('TorrentScreen', () => {
     await userEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
     expect(deleteTorrents).not.toHaveBeenCalled()
+    expect(serverMatches.forgetMatches).not.toHaveBeenCalled()
   })
 
   it('lists files with progress and changes their priority', async () => {

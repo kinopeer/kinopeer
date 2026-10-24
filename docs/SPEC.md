@@ -34,6 +34,8 @@ The `homelab-kinoseed` package from the Homelab App Store runs on port 8795, dep
 | Theme, interface language, TMDB language | Browser | Settings |
 | Torrent-to-TMDB matches | `/data/matches.json`; titles and posters cached in the browser | Guessed automatically; the torrent menu (0.2) |
 
+A torrent's match is forgotten when the torrent is deleted from Kinoseed. For torrents deleted elsewhere, the server checks qBittorrent's list every hour and forgets a match once its torrent has been missing for a week, so a qBittorrent that answers with an empty list after a restart, or a torrent added back, loses nothing.
+
 ## Screens
 
 ### First launch
@@ -97,6 +99,7 @@ Manifest and icons; the service worker keeps the app shell available offline and
 
 | Date | Decision |
 | --- | --- |
+| 2026-10-24 | Matches of deleted torrents are forgotten: right away when deleted from Kinoseed, otherwise after a week missing from qBittorrent (checked hourly). The week guards against qBittorrent listing nothing for a while after a restart. |
 | 2026-10-24 | Torrent-to-title matches are kept on the Kinoseed server (`/data/matches.json`), not in qBittorrent tags: qBittorrent's tag list stays clean and every device shows the same. A guess made in a browser is saved there; the user's choice wins over the `tmdb:` tag, which wins over a guess. Kinoseed still tags the torrents it adds. |
 | 2026-10-24 | Discussions are on before the public release; our own ideas go to Ideas too, not to issues. |
 | 2026-10-24 | Reordering the download queue is deferred until people ask for it ([#38](https://github.com/MrShakhov/kinoseed/issues/38)). Feature requests go to GitHub Discussions (Ideas) and are voted on there; issues are for bugs and accepted work. |

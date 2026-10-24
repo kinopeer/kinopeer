@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type RequestListener, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { qbittorrentMiddleware, type QbittorrentConfig } from './qbittorrent.ts'
+import { qbittorrentBridge, qbittorrentMiddleware, type QbittorrentConfig } from './qbittorrent.ts'
 
 const servers: Server[] = []
 
@@ -169,5 +169,20 @@ describe('qbittorrentMiddleware', () => {
     const base = await kinoseed({ url: qbt.base })
     expect((await fetch(`${base}/qbt/index.html`)).status).toBe(404)
     expect(qbt.seen).toEqual([])
+  })
+})
+
+describe('qbittorrentBridge.get', () => {
+  it('asks qBittorrent with the server’s session, logging in when needed', async () => {
+    const qbt = await fakeQbittorrent()
+    const bridge = qbittorrentBridge({ url: qbt.base, credentials: () => ({ username: 'admin', password: 'pass word' }) })
+    const response = await bridge.get('/api/v2/app/version')
+    expect(await response.text()).toBe('v5.2.4')
+    expect(qbt.logins()).toBe(1)
+    expect(qbt.seen.at(-1)).toMatchObject({ method: 'GET', url: '/api/v2/app/version', cookie: 'SID=sid1' })
+  })
+
+  it('fails without an address', async () => {
+    await expect(qbittorrentBridge({}).get('/api/v2/app/version')).rejects.toThrow()
   })
 })

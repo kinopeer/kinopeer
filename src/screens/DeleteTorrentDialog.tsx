@@ -6,6 +6,7 @@ import { Button } from '../components/Button'
 import { Checkbox } from '../components/Checkbox'
 import { Dialog } from '../components/Dialog'
 import { useFormatters } from '../lib/format'
+import { forgetMatches } from '../torrents/serverMatches'
 import './DeleteTorrentDialog.css'
 
 export interface DeleteTorrentDialogProps {
@@ -34,6 +35,7 @@ export function DeleteTorrentDialog({ torrent, title, onClose, onDeleted }: Dele
     setFailed(false)
     try {
       await deleteTorrents([torrent.hash], withFiles)
+      void forgetMatches([torrent.hash])
       onDeleted(withFiles)
     } catch {
       setFailed(true)

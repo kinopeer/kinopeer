@@ -12,7 +12,8 @@ import type { Middleware } from './prowlarr.ts'
  * answers 403 so the app asks for a login (server/settings.ts saves it). The browser can't reach
  * /auth/* itself, so it can't get the server's IP banned.
  *
- * Runs as Vite middleware in dev and in the production server.
+ * Runs as Vite middleware in dev and in the production server. The server's own jobs (the matches
+ * cleanup) go through the same session with `request`.
  */
 export interface QbittorrentCredentials {
   username: string
@@ -128,6 +129,32 @@ async function readBody(request: IncomingMessage): Promise<Buffer> {
   return Buffer.concat(chunks)
 }
 
+interface UpstreamRequest {
+  method: string
+  /** From /api/v2/… on. */
+  path: string
+  headers?: Record<string, string>
+  body?: Buffer
+}
+
+/** Sends a request to qBittorrent with the server's session, logging in again once if it expired. */
+async function send(base: string, session: ServerSession | undefined, upstream: UpstreamRequest): Promise<Response> {
+  const attempt = (cookie: string | undefined) => {
+    const headers: Record<string, string> = { ...upstream.headers, Origin: base, Referer: `${base}/` }
+    if (cookie) headers.Cookie = cookie
+    return fetch(`${base}${upstream.path}`, { method: upstream.method, headers, body: upstream.body, redirect: 'manual' })
+  }
+
+  let cookie = session?.usable ? await session.current() : undefined
+  let response = await attempt(cookie)
+  if (cookie !== undefined && response.status === 403) {
+    // The session expired or qBittorrent restarted: log in again and retry once.
+    cookie = await session!.renew(cookie)
+    if (cookie !== undefined) response = await attempt(cookie)
+  }
+  return response
+}
+
 async function forward(
   base: string,
   session: ServerSession | undefined,
@@ -135,22 +162,15 @@ async function forward(
   response: ServerResponse,
 ): Promise<void> {
   const method = request.method ?? 'GET'
-  const body = method === 'GET' || method === 'HEAD' ? undefined : await readBody(request)
-  const send = (cookie: string | undefined) => {
-    const headers: Record<string, string> = { Origin: base, Referer: `${base}/` }
-    if (cookie) headers.Cookie = cookie
-    if (request.headers['content-type']) headers['Content-Type'] = request.headers['content-type']
-    if (request.headers.accept) headers.Accept = request.headers.accept
-    return fetch(`${base}${request.url!.slice(PREFIX.length - 1)}`, { method, headers, body, redirect: 'manual' })
-  }
-
-  let cookie = session?.usable ? await session.current() : undefined
-  let upstream = await send(cookie)
-  if (cookie !== undefined && upstream.status === 403) {
-    // The session expired or qBittorrent restarted: log in again and retry once.
-    cookie = await session!.renew(cookie)
-    if (cookie !== undefined) upstream = await send(cookie)
-  }
+  const headers: Record<string, string> = {}
+  if (request.headers['content-type']) headers['Content-Type'] = request.headers['content-type']
+  if (request.headers.accept) headers.Accept = request.headers.accept
+  const upstream = await send(base, session, {
+    method,
+    path: request.url!.slice(PREFIX.length - 1),
+    headers,
+    body: method === 'GET' || method === 'HEAD' ? undefined : await readBody(request),
+  })
 
   response.statusCode = upstream.status
   for (const name of RESPONSE_HEADERS) {
@@ -176,11 +196,21 @@ function sessions(base: string | undefined, credentials: QbittorrentConfig['cred
   }
 }
 
-export function qbittorrentMiddleware(config: QbittorrentConfig): Middleware {
+export interface QbittorrentBridge {
+  middleware: Middleware
+  /**
+   * A GET of qBittorrent's Web API for the server itself, e.g. `/api/v2/torrents/info`, with the
+   * same session as the browsers'. Rejects when QBITTORRENT_URL isn't set or qBittorrent can't be
+   * reached.
+   */
+  get(path: string): Promise<Response>
+}
+
+export function qbittorrentBridge(config: QbittorrentConfig): QbittorrentBridge {
   const base = config.url?.trim().replace(/\/+$/, '')
   const currentSession = sessions(base, config.credentials)
 
-  return (request, response, next) => {
+  const middleware: Middleware = (request, response, next) => {
     const path = request.url ?? '/'
     if (!path.startsWith(PREFIX)) return next()
     const fail = (status: number, message: string) => {
@@ -197,4 +227,16 @@ export function qbittorrentMiddleware(config: QbittorrentConfig): Middleware {
       else fail(502, 'qBittorrent is unreachable')
     })
   }
+
+  return {
+    middleware,
+    get: async (path) => {
+      if (!base) throw new Error('QBITTORRENT_URL is not set')
+      return send(base, currentSession(), { method: 'GET', path })
+    },
+  }
+}
+
+export function qbittorrentMiddleware(config: QbittorrentConfig): Middleware {
+  return qbittorrentBridge(config).middleware
 }
