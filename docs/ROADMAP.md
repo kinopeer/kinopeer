@@ -13,7 +13,7 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 - [x] PWA: manifest, icons, install
 - [x] Production: Docker image, Umbrel package, releases
 
-## 0.2: The title as the center
+## Done: 0.2.0 (2026-10-24): The title as the center
 
 - [x] Torrent-to-title matches are kept on the server, the same on every device.
 - [x] The title page lists this title's torrents (by their matches), each linking to its torrent screen; the two screens stay separate.

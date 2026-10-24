@@ -85,4 +85,4 @@ Run lint, typecheck, test and build before pushing, and the screenshot tests whe
 
 ## Roadmap
 
-Steps 1–8 (skeleton through production) are done and shipped as 0.1.0. The plan from here is in `docs/ROADMAP.md`.
+Steps 1–8 (skeleton through production) shipped as 0.1.0; 0.2.0 (the title as the center) shipped on 2026-10-24. The plan from here is in `docs/ROADMAP.md`.

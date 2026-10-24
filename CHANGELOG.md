@@ -2,7 +2,9 @@
 
 Kinoseed follows [semantic versioning](https://semver.org). While the version is 0.x, minor versions may change behavior and settings.
 
-## Unreleased
+## 0.2.0 - 2026-10-24
+
+The title as the center: torrents are matched to their movie or series on the Kinoseed server, and the title page shows what's downloading.
 
 ### Added
 
