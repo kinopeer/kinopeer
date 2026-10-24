@@ -1,0 +1,116 @@
+# Product spec
+
+What Kinoseed does and why, as of version 0.1.0. Update it in the same PR that changes the behavior; add new decisions to the log at the end.
+
+## Goal
+
+Find a movie or a series, pick a release and download it without leaving Kinoseed. If a flow makes you switch to another app (a tracker's website, qBittorrent's own web UI), that's a gap to close.
+
+## Who it's for
+
+The owner of a home server running umbrelOS with the qBittorrent and Prowlarr apps. The main device is a phone, then a computer. The interface is in Russian and English.
+
+## What Kinoseed doesn't do
+
+- Play or stream video.
+- Automate downloads: no watchlists, RSS or automatic search for new episodes. That's Sonarr and Radarr; Kinoseed is for picking a specific release by hand.
+- Pick a season on the series page: a series is searched by name, and the seasons and episodes you want are picked in the file list.
+- Manage a media library or rename files.
+- Store tracker logins or get around site protection: trackers are set up in Prowlarr. Jackett is not supported.
+- Collect analytics.
+- Install outside Umbrel, for now.
+
+## Platform
+
+The `homelab-kinoseed` package from the Homelab App Store runs on port 8795, depends on the qBittorrent and Prowlarr apps and works without setup. The browser only talks to the Kinoseed server, on the same origin; the server talks to qBittorrent, Prowlarr and TMDB and keeps every secret to itself. Umbrel's login protects Kinoseed.
+
+| Setting | Where it's kept | Set by |
+| --- | --- | --- |
+| qBittorrent and Prowlarr addresses | Server environment | The Umbrel package |
+| Prowlarr API key | Environment or Prowlarr's `config.xml` | The Umbrel package |
+| qBittorrent login | `/data/settings.json`, else environment | The connect screen |
+| TMDB key | `/data/settings.json`, else environment | Onboarding or Settings |
+| Download defaults (categories, start paused, sequential) | Browser; moving to the server in 0.2 | Settings |
+| Theme, interface language, TMDB language | Browser | Settings |
+| Torrent-to-TMDB matches | Browser (cache) | Automatic |
+
+## Screens
+
+### First launch
+
+1. Kinoseed asks qBittorrent for its version. If the server is already signed in (the package's login or a saved one) or qBittorrent lets the network in without a password, there's no login form.
+2. Otherwise, the qBittorrent login form. The server tries a password once and doesn't retry after a rejection: qBittorrent bans the IP for an hour after five failures.
+3. The "Connect TMDB" step: a v3 API key or a v4 read access token, checked with TMDB before it's saved. It can be skipped; search then asks for the key later.
+
+### Downloads
+
+- Every qBittorrent torrent, refreshed every 2 seconds while the tab is visible.
+- A row shows the TMDB poster and title, status, progress, speed, time left and queue position. The title comes from the `tmdb:<movie|tv>:<id>` tag, or is guessed from the release name when there's none.
+- Filters by status and name, total speeds, free space.
+- Row menu: pause or resume, details, delete with or without files.
+- Statuses: Downloading (the only one in the accent color), Seeding, Paused, Completed, Queued, Checking, Error.
+
+### Torrent
+
+- Pause, resume, delete; progress, time left, ratio.
+- Files as a tree, as in the torrent, without regrouping, but without the torrent's single root folder; sorted by name, numbers by value. Priorities: Skip, Normal, High.
+- Speeds, seeds and peers, save path, category, date added, info hash, trackers.
+- Clear messages for disk errors and missing files.
+
+### Search
+
+Movies and series from TMDB with a type filter. An empty search shows trending this week and popular titles. The query and type live in the page URL.
+
+### Title
+
+Poster, year, runtime or number of seasons and episodes, rating, overview, and a "Find releases" button.
+
+### Releases
+
+- The query is the original title, plus the year for a movie. No category filter: some indexers (RuTor, for example) file everything under "Other".
+- Resolution, source, HDR, audio and seasons are read from the release name.
+- Filters: resolution, audio, source, minimum seeds, indexer. Sort by seeds, size or date.
+
+### Adding
+
+- Kinoseed gets only the `.torrent` (preferred, so files can be picked) or the magnet link from Prowlarr and adds it to qBittorrent itself. Prowlarr's own download clients aren't used.
+- Options: category (the default from Settings, else a qBittorrent category with a matching name such as Movies or TV Shows), save path, start paused, sequential, add to the top of the queue.
+- File selection and a free space check. With skipped files, the torrent is added stopped, the skipped files get priority 0, then it starts. A magnet link downloads every file.
+- The torrent gets the `tmdb:<movie|tv>:<id>` tag; after adding, the app goes to Downloads and shows a toast.
+
+### Settings
+
+Appearance (theme, language), Connections (checks for qBittorrent, Prowlarr and TMDB, changing the TMDB key), download defaults, the language of TMDB titles and overviews, About (version, clear cache, install). Service addresses can't be changed here: the package sets them.
+
+### Offline and errors
+
+- qBittorrent stops answering: the last state stays under a banner with its age, actions are disabled, retries are automatic.
+- Before the first answer: a "qBittorrent is unreachable" screen.
+- A screen crashes: an error screen with a Reload button.
+
+### App (PWA)
+
+Manifest and icons; the service worker keeps the app shell available offline and caches posters, and never caches qBittorrent, Prowlarr or TMDB data. A new version takes over right away. The service worker needs HTTPS, so it doesn't run over plain HTTP on the home network.
+
+## Decision log
+
+| Date | Decision |
+| --- | --- |
+| 2026-10-23 | Umbrel is the only supported install; other ways to install come later. |
+| 2026-10-23 | No Sonarr/Radarr-style automation and no season picker on the series page. |
+| 2026-10-23 | Prowlarr only; no Jackett. |
+| 2026-10-23 | Interface languages: Russian and English. |
+| 2026-10-23 | Everyone brings their own TMDB key; a built-in key is decided before the public release. |
+| 2026-10-23 | The Umbrel package tries the `admin`/`adminadmin` qBittorrent login once. |
+| 2026-10-23 | Version 1.0 is the public release. |
+| 2026-10-23 | HTTPS is deferred; the app runs over HTTP on the home network. |
+| 2026-10-22 | The TMDB key and the qBittorrent login are entered in the app and kept on the server; addresses come from the environment. |
+| 2026-10-22 | Files are shown as a tree, as in the torrent, without grouping by season. |
+| 2026-10-22 | Release search uses no category filter. |
+| 2026-10-21 | Search and adding happen inside Kinoseed; "find it in the browser and hand it over" was rejected. |
+| 2026-10-21 | Releases come from Prowlarr; Kinoseed doesn't scrape trackers. |
+| 2026-10-20 | Kinoseed is its own container with a proxy to qBittorrent, not a qBittorrent Alternative WebUI. |
+
+## Still open
+
+- **The title as the center.** Merge the title page and the torrent screen: under the overview, an "In downloads" block with this title's torrents; rows in Downloads open it; files and trackers open from there. A torrent with no TMDB match keeps its own screen. Design it on the canvas first, then build it (0.2).

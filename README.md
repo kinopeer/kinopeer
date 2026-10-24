@@ -1,58 +1,57 @@
 # Kinoseed
 
-A qBittorrent web UI built around movies and TV series. Metadata comes from [TMDB](https://www.themoviedb.org/).
+A qBittorrent web UI for movies and TV series. Find a movie or a series, pick a release found by Prowlarr and follow the download, all in one app on your phone or computer.
 
-## Development
+<p>
+  <img src="docs/screenshots/downloads.png" width="200" alt="Downloads with posters, progress and speeds">
+  <img src="docs/screenshots/search.png" width="200" alt="Search with trending and popular titles">
+  <img src="docs/screenshots/title.png" width="200" alt="A movie page with its overview and rating">
+  <img src="docs/screenshots/releases.png" width="200" alt="Releases found by Prowlarr with quality badges">
+</p>
 
-Requires Node.js 22.18+ and a qBittorrent instance with the Web UI enabled.
+## Features
 
-```sh
-cp .env.example .env.local   # then set QBITTORRENT_URL to your qBittorrent Web UI
-```
+- **Search.** Movies and series from TMDB, trending and popular picks, a title page with the overview and rating.
+- **Releases.** Search across all your Prowlarr indexers. Filter by resolution, source, HDR, audio, seeds and indexer; sort by seeds, size or date.
+- **Adding.** Category, save path, file selection (for example, only the seasons you want) and a free space check before the download starts.
+- **Downloads.** A live list with TMDB posters and titles, statuses, speeds and time left. Pause, resume, delete.
+- **Torrent details.** A file tree with priorities, seeds and peers, ratio, trackers.
+- **Made for the phone.** Russian and English, dark and light themes; when qBittorrent stops answering, you still see the last known state.
 
-The dev server proxies `/qbt/*` to `QBITTORRENT_URL`, so the app and the qBittorrent API share one origin (the same layout the production container will use). The server always holds the qBittorrent login itself and renews the session when it expires; the browser never talks to qBittorrent's auth. `QBITTORRENT_USERNAME` and `QBITTORRENT_PASSWORD` are the default login; if they are missing or wrong, the app asks for one and saves it on the server.
+Kinoseed doesn't play video and never downloads anything on its own: you pick every release.
 
-```sh
-npm install
-npm run dev        # dev server at http://localhost:5173
-npm test           # tests (Vitest)
-npm run lint       # linter (oxlint)
-npm run typecheck  # type check
-npm run build      # production build into dist/
-```
+## Install on Umbrel
 
-## Production
+Kinoseed currently supports umbrelOS only. It needs the **qBittorrent** and **Prowlarr** apps from the Umbrel App Store.
 
-`npm run build && npm start` runs the production server (`server/main.ts`, plain Node 22.18+ with no dependencies): it serves the built app from `dist/` and the same `/qbt`, `/prowlarr`, `/tmdb` and `/tmdb-img` routes as the dev server, configured through the same environment variables. The TMDB key is entered in the app (onboarding or Settings) and kept by the server in `$KINOSEED_DATA_DIR/settings.json` (default `./data`, `/data` in the image); `TMDB_API_KEY` is only the fallback. `PORT` (default 8080) and `HOST` (default `0.0.0.0`) set where it listens; `/healthz` answers `ok` while it runs.
+1. Open **App Store** → the **⋯** menu at the top right → **Community App Stores**.
+2. Paste `https://github.com/MrShakhov/umbrel-homelab-store` → **Add**.
+3. Open **Homelab App Store** → **Kinoseed** → **Install**.
+4. Kinoseed opens at `http://umbrel.local:8795`.
 
-The Docker image runs the same server:
+On first launch:
 
-```sh
-docker compose up --build   # builds the image and serves it at http://localhost:8080, settings from .env.local
-```
+- **qBittorrent** connects on its own with Umbrel's default login. If you changed it, Kinoseed asks for the login once and keeps it on your Umbrel.
+- **TMDB**: Kinoseed asks for a free [TMDB API key](https://www.themoviedb.org/settings/api). It is kept on your Umbrel too; change it in Settings.
+- **Prowlarr** needs no setup: Kinoseed reads its API key itself. Trackers are added as indexers in Prowlarr.
 
-Or without Compose:
+Umbrel offers updates when a new version is out. What changed is in [CHANGELOG.md](CHANGELOG.md).
 
-```sh
-docker build -t kinoseed .
-docker run -p 8080:8080 --env-file .env.local -v kinoseed-data:/data kinoseed
-```
+## On your phone
 
-The service worker needs HTTPS (or `localhost`), so over plain HTTP on the LAN the app works but can't be installed or open offline.
+Kinoseed is a web app (PWA). Over plain HTTP on your home network it works in the browser. Installing it to the home screen with offline support needs HTTPS, which is on the [roadmap](docs/ROADMAP.md).
 
-## Releases
+## Privacy and security
 
-Versions follow [semver](https://semver.org) and are listed in [CHANGELOG.md](CHANGELOG.md). Settings → About shows the running version. To release:
+- The TMDB and Prowlarr keys and the qBittorrent login stay on the Kinoseed server and never reach the browser.
+- Besides your qBittorrent and Prowlarr, Kinoseed only talks to TMDB, and only through its own server. No analytics, no telemetry.
+- Kinoseed never stores tracker logins: that's Prowlarr's job.
+- Kinoseed has no login of its own; on Umbrel, Umbrel's login protects it.
 
-1. In a PR, set `version` in `package.json` (and `package-lock.json`, e.g. with `npm version 0.2.0 --no-git-tag-version`) and add a `## 0.2.0 - YYYY-MM-DD` section to `CHANGELOG.md`.
-2. After it merges, tag `main` and push the tag:
+## For developers
 
-   ```sh
-   git tag v0.2.0 && git push origin v0.2.0
-   ```
+- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): running locally, server configuration, releases.
+- [docs/SPEC.md](docs/SPEC.md): what the product does and why.
+- [docs/ROADMAP.md](docs/ROADMAP.md): what's next.
 
-The `Release` workflow then builds the `linux/amd64` and `linux/arm64` image into `ghcr.io/mrshakhov/kinoseed` (tags `0.2.0`, `0.2` and `latest`) and creates a GitHub Release with that version's changelog section and the image digest. It fails if the tag doesn't match `package.json` or the changelog has no section for the version. The image is public, so Umbrel can pull it without a login; the repository stays private.
-
-## Umbrel
-
-Kinoseed installs on umbrelOS from the [Homelab Community App Store](https://github.com/MrShakhov/umbrel-homelab-store) (`homelab-kinoseed`, port 8795), next to Umbrel's qBittorrent and Prowlarr apps. After a release, bump `version`, `releaseNotes` and the image tag and digest (from the GitHub Release) in that repository's `homelab-kinoseed/` folder; Umbrel then offers the update.
+Movie and series data and posters come from [TMDB](https://www.themoviedb.org). This product uses the TMDB API but is not endorsed or certified by TMDB. The license will be chosen before the public release.
