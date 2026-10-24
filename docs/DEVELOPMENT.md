@@ -1,0 +1,59 @@
+# Development
+
+How to run Kinoseed locally, how the server is configured and how a release goes out. The detailed architecture and conventions are in [CLAUDE.md](../CLAUDE.md).
+
+## Requirements
+
+Node.js 22.18+ and qBittorrent with the Web UI on. Release search needs Prowlarr; metadata needs a TMDB key (it can be entered in the app).
+
+## Running
+
+```sh
+cp .env.example .env.local   # set QBITTORRENT_URL and PROWLARR_URL
+npm install
+npm run dev        # http://localhost:5173
+npm test           # tests (Vitest)
+npm run lint       # linter (oxlint)
+npm run typecheck  # type check
+npm run build      # production build into dist/
+npm start          # production server over dist/
+```
+
+The dev server has the same routes as production: `/qbt`, `/prowlarr`, `/tmdb`, `/tmdb-img`, `/api/settings`. Run lint, typecheck, test and build before pushing; CI runs the same on every PR and also builds and smoke-tests the Docker image. The service worker is off in `npm run dev`: try it with `npm run build && npm run preview`.
+
+## Server configuration
+
+The server reads environment variables (from `.env.local` in development). Whatever is entered in the app is saved to `$KINOSEED_DATA_DIR/settings.json` and wins over the environment.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `QBITTORRENT_URL` | none | qBittorrent Web UI address |
+| `QBITTORRENT_USERNAME`, `QBITTORRENT_PASSWORD` | none | Default login; a login entered in the app wins |
+| `PROWLARR_URL` | none | Prowlarr address |
+| `PROWLARR_API_KEY` | none | Prowlarr API key |
+| `PROWLARR_CONFIG_XML` | none | Path to Prowlarr's `config.xml` to read the key from when `PROWLARR_API_KEY` is not set (the Umbrel package does this) |
+| `TMDB_API_KEY` | none | Fallback TMDB key; a key entered in the app wins |
+| `KINOSEED_DATA_DIR` | `./data` (`/data` in the image) | Where `settings.json` is kept |
+| `PORT`, `HOST` | `8080`, `0.0.0.0` | Where the production server listens |
+| `KINOSEED_DIST` | `../dist` | What the production server serves |
+
+## Docker
+
+The image is built from `Dockerfile` (`node:24-alpine`, no `node_modules`). `docker compose up --build` runs it locally at `http://localhost:8080` with settings from `.env.local`. That's for checking the image, not a supported way to install. `/healthz` answers `ok` while the server runs.
+
+## Releasing
+
+1. In a PR, set `version` in `package.json` and `package-lock.json` (`npm version 0.2.0 --no-git-tag-version`) and add a `## 0.2.0 - YYYY-MM-DD` section to `CHANGELOG.md`.
+2. After it merges, tag `main` and push the tag: `git tag v0.2.0 && git push origin v0.2.0`.
+3. The `Release` workflow builds `ghcr.io/mrshakhov/kinoseed` for `linux/amd64` and `linux/arm64` (tags `0.2.0`, `0.2` and `latest`) and creates a GitHub Release with that version's changelog section and the image digest. It fails if the tag doesn't match `package.json` or the changelog has no section for the version.
+4. Update the Umbrel package (below).
+
+The image is public, so Umbrel can pull it without a login; the code repository is private for now.
+
+## Umbrel package
+
+The package lives in [umbrel-homelab-store](https://github.com/MrShakhov/umbrel-homelab-store), in `homelab-kinoseed/`. It sets the qBittorrent and Prowlarr addresses and the default qBittorrent login, and mounts Prowlarr's config folder read-only. After a release, bump `version` and `releaseNotes` in `umbrel-app.yml` and the image tag and digest (from the GitHub Release) in `docker-compose.yml`. Umbrel then offers the update.
+
+## Design
+
+The canvas with every screen and the design system live in Claude Design (links in CLAUDE.md). Colors, type and spacing come from the design system's tokens. When the app departs from the canvas, update the canvas too.
