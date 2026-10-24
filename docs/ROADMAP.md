@@ -41,7 +41,7 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 
 ## Later, no version yet
 
-Feature requests are collected as GitHub issues; a 👍 on an issue is a vote.
+Ideas are collected in GitHub Discussions (Ideas) once the repository is public, and the most upvoted ones get planned here.
 
 - Reordering the download queue ([#38](https://github.com/MrShakhov/kinoseed/issues/38)), when people ask for it.
 - Installing outside Umbrel, together with Kinoseed's own login.
