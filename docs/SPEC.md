@@ -32,7 +32,7 @@ The `homelab-kinoseed` package from the Homelab App Store runs on port 8795, dep
 | TMDB key | `/data/settings.json`, else environment | Onboarding or Settings |
 | Download defaults (categories, start paused, sequential) | `/data/settings.json`; a copy in the browser | Settings |
 | Theme, interface language, TMDB language | Browser | Settings |
-| Torrent-to-TMDB matches | `/data/matches.json`; titles and posters cached in the browser | Guessed automatically; the torrent menu (0.2) |
+| Torrent-to-TMDB matches | `/data/matches.json`; titles and posters cached in the browser | Guessed automatically; the torrent menu |
 
 A torrent's match is forgotten when the torrent is deleted from Kinoseed. For torrents deleted elsewhere, the server checks qBittorrent's list every hour and forgets a match once its torrent has been missing for a week, so a qBittorrent that answers with an empty list after a restart, or a torrent added back, loses nothing.
 
