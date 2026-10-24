@@ -1,6 +1,6 @@
 .rel {
   width: 100%;
-  max-width: 760px;
+  max-width: var(--column);
   margin: 0 auto;
 }
 

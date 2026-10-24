@@ -22,3 +22,12 @@ test.describe('light, English', () => {
     await expect(page).toHaveScreenshot('series-light-en.png')
   })
 })
+
+test.describe('wide screen', () => {
+  test.use({ viewport: { width: 1280, height: 800 } })
+
+  test('movie, dark, Russian', async ({ page }) => {
+    await openTitle(page, '/title/movie/693134', 'Дюна: Часть вторая')
+    await expect(page).toHaveScreenshot('movie-wide-dark-ru.png')
+  })
+})

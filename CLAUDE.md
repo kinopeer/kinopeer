@@ -78,6 +78,7 @@ Run lint, typecheck, test and build before pushing, and the screenshot tests whe
 - The design lives in Claude Design: the Kinoseed canvas (screens for mobile, desktop, states) at https://claude.ai/code/artifact/d36cd9ea-367d-40f4-9cca-b5ae066c5c19 and the Kinoseed design system (tokens, components, README) at https://claude.ai/artifact/Hezz9q11HdhKm5P2bW3MTn.
 - The design system's `tokens.json` is the source of truth for colors, type, spacing, radii, shadows and motion. Use the CSS custom properties, never raw hex values in components.
 - Dark theme is primary; light and "follow system" are supported.
+- Until the desktop layout (0.4), screens sit in a centered column of `--column` width on wide screens; the tab bar's tabs stay over it.
 - One accent color (teal). Status colors are separate from the accent; "downloading" is the only status in the accent color.
 - Font: Onest. Numbers that update (speeds, sizes, percentages) use tabular figures.
 - When the app departs from the canvas, update the canvas too so they stay in sync.
