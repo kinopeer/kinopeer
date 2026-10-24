@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { Matches, StoredMatch } from '../api/matches'
 import type { Torrent } from '../api/qbittorrent'
 import { getMovie, getTv, searchTitles, toTitle, type MediaType, type Title } from '../api/tmdb'
 import { useTmdbLanguage } from '../settings/settings'
 import { parseName, tmdbTag, type ParsedName } from './parseName'
+import { forgetServerGuesses, rememberMatches, useServerMatches } from './serverMatches'
 
 /** What a download row needs from TMDB. */
 export type TitleMatch = Pick<Title, 'type' | 'id' | 'title' | 'year' | 'posterPath'>
 
 interface Lookup {
   key: string
+  /** A known title: the user's choice, the `tmdb:` tag or a saved guess. */
   tag?: { type: Title['type']; id: number }
   parsed?: ParsedName
   /** From the qBittorrent category ("Movies", "TV Shows", "Сериалы"): a hint, not a filter. */
@@ -25,9 +28,25 @@ export function categoryType(category: string | undefined): MediaType | undefine
   return undefined
 }
 
-export function lookupFor(torrent: Pick<Torrent, 'name' | 'tags'> & { category?: string }): Lookup {
+// Bump when matching changes, so earlier guesses, in this browser and on the server, are redone.
+export const GUESS_VERSION = 2
+
+function known(type: MediaType, id: number): Lookup {
+  return { key: `id:${type}:${id}`, tag: { type, id } }
+}
+
+/**
+ * How to find a torrent's title: the user's choice first, then the `tmdb:` tag Kinoseed adds with a
+ * release, then a guess the server keeps, and only then a new guess from the release name.
+ */
+export function lookupFor(
+  torrent: Pick<Torrent, 'name' | 'tags'> & { category?: string },
+  stored?: StoredMatch,
+): Lookup {
+  if (stored?.source === 'user') return known(stored.type, stored.id)
   const tag = tmdbTag(torrent.tags ?? '')
-  if (tag) return { key: `id:${tag.type}:${tag.id}`, tag }
+  if (tag) return known(tag.type, tag.id)
+  if (stored?.source === 'guess' && stored.version === GUESS_VERSION) return known(stored.type, stored.id)
   const parsed = parseName(torrent.name)
   const hint = parsed.type ? undefined : categoryType(torrent.category)
   const type = parsed.type ?? (hint ? `~${hint}` : '')
@@ -92,12 +111,13 @@ async function resolve(lookup: Lookup, language: string, signal: AbortSignal): P
   return best ? slim(best) : null
 }
 
-// Matches are cached per browser so the list doesn't hit TMDB for every torrent on every visit.
-// Bump the version when matching changes, so earlier guesses are redone.
-const CACHE_KEY = 'kinoseed.titleMatches.v2'
+// Titles and guesses are cached per browser so the list doesn't hit TMDB for every torrent on every
+// visit; guesses are also saved on the server, so other devices don't have to make them again.
+const CACHE_KEY = `kinoseed.titleMatches.v${GUESS_VERSION}`
 const HIT_TTL_MS = 30 * 24 * 3600 * 1000
 const MISS_TTL_MS = 24 * 3600 * 1000
-const MAX_ENTRIES = 500
+// A guessed torrent takes two: its guess by name and its title by id.
+const MAX_ENTRIES = 1000
 
 interface CacheEntry {
   match: TitleMatch | null
@@ -123,9 +143,10 @@ function readCache(key: string, now = Date.now()): TitleMatch | null | undefined
   return now - entry.at < (entry.match ? HIT_TTL_MS : MISS_TTL_MS) ? entry.match : undefined
 }
 
-function writeCache(key: string, match: TitleMatch | null): void {
+function writeCache(changes: Record<string, TitleMatch | null>): void {
   const entries = loadCache()
-  entries[key] = { match, at: Date.now() }
+  const at = Date.now()
+  for (const [key, match] of Object.entries(changes)) entries[key] = { match, at }
   const keys = Object.keys(entries)
   if (keys.length > MAX_ENTRIES) {
     keys.sort((a, b) => entries[a].at - entries[b].at)
@@ -138,7 +159,13 @@ function writeCache(key: string, match: TitleMatch | null): void {
   }
 }
 
-/** For tests. */
+/** Forgets cached titles and guesses here and on the server; the user's choices stay. */
+export async function clearTitleMatches(): Promise<void> {
+  clearTitleMatchCache()
+  await forgetServerGuesses()
+}
+
+/** Forgets what this browser cached. */
 export function clearTitleMatchCache(): void {
   cache = undefined
   try {
@@ -158,20 +185,24 @@ export function useTitleMatches(
   torrents: (Pick<Torrent, 'hash' | 'name' | 'tags'> & { category?: string })[],
 ): Record<string, TitleMatch | null | undefined> {
   const language = useTmdbLanguage()
-  const [, setVersion] = useState(0)
+  const [version, setVersion] = useState(0)
+  const server = useServerMatches()
 
   const lookups = useMemo(() => {
     const byHash: Record<string, Lookup> = {}
-    for (const torrent of torrents) byHash[torrent.hash] = lookupFor(torrent)
+    for (const torrent of torrents) byHash[torrent.hash] = lookupFor(torrent, server?.[torrent.hash])
     return byHash
-  }, [torrents])
+  }, [torrents, server])
 
   const lookupsRef = useRef(lookups)
   useEffect(() => {
     lookupsRef.current = lookups
   })
 
-  const pendingKey = [...new Set(Object.values(lookups).map((lookup) => lookup.key))]
+  // New guesses wait for the server's matches: another device may have made them already.
+  const pendingKey = [
+    ...new Set(Object.values(lookups).flatMap((lookup) => (lookup.tag || server ? [lookup.key] : []))),
+  ]
     .filter((key) => readCache(`${language}|${key}`) === undefined)
     .sort()
     .join('\n')
@@ -186,7 +217,7 @@ export function useTitleMatches(
       for (let lookup = queue.shift(); lookup && !controller.signal.aborted; lookup = queue.shift()) {
         try {
           const match = await resolve(lookup, language, controller.signal)
-          writeCache(`${language}|${lookup.key}`, match)
+          writeCache({ [`${language}|${lookup.key}`]: match })
           setVersion((n) => n + 1)
         } catch {
           // Offline, no key or rate-limited: leave it unknown; the next visit tries again.
@@ -197,6 +228,23 @@ export function useTitleMatches(
     void Promise.all(Array.from({ length: CONCURRENCY }, worker))
     return () => controller.abort()
   }, [pendingKey, language])
+
+  // Guesses go to the server, so other devices show the same title without guessing. The title is
+  // cached under its id as well, which is how it is looked up once the server has the guess.
+  useEffect(() => {
+    if (!server) return
+    const guesses: Matches = {}
+    const titles: Record<string, TitleMatch> = {}
+    for (const [hash, lookup] of Object.entries(lookups)) {
+      const match = lookup.tag ? undefined : readCache(`${language}|${lookup.key}`)
+      if (!match) continue
+      guesses[hash] = { type: match.type, id: match.id, source: 'guess', version: GUESS_VERSION }
+      const idKey = `${language}|${known(match.type, match.id).key}`
+      if (readCache(idKey) === undefined) titles[idKey] = match
+    }
+    if (Object.keys(titles).length > 0) writeCache(titles)
+    rememberMatches(guesses)
+  }, [lookups, server, language, version])
 
   const matches: Record<string, TitleMatch | null | undefined> = {}
   for (const [hash, lookup] of Object.entries(lookups)) matches[hash] = readCache(`${language}|${lookup.key}`)

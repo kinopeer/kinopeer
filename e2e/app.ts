@@ -27,8 +27,9 @@ const json = (route: Route, body: unknown, status = 200) =>
   route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
 
 /**
- * Answers the server routes the app calls (/qbt, /tmdb, /tmdb-img, /prowlarr, /api/settings) from
- * fixtures. Matched by pathname, so Vite's own module paths such as /src/api/tmdb/ are left alone.
+ * Answers the server routes the app calls (/qbt, /tmdb, /tmdb-img, /prowlarr, /api/settings,
+ * /api/matches) from fixtures. Matched by pathname, so Vite's own module paths such as
+ * /src/api/tmdb/ are left alone.
  */
 async function mockServer(page: Page, options: AppOptions): Promise<void> {
   const torrents = options.torrents ?? TORRENTS
@@ -90,6 +91,18 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
     (url) => url.pathname === '/api/settings',
     (route) =>
       json(route, { tmdb: { configured: true, source: 'saved' }, qbittorrent: { configured: true, source: 'saved' } }),
+  )
+
+  // Starts with no matches, so the app guesses titles from the release names and saves them.
+  let matches = {}
+  await page.route(
+    (url) => url.pathname === '/api/matches',
+    (route) => {
+      const request = route.request()
+      if (request.method() === 'PATCH') matches = { ...matches, ...(request.postDataJSON() as object) }
+      if (request.method() === 'DELETE') matches = {}
+      return json(route, matches)
+    },
   )
 
   await page.route(

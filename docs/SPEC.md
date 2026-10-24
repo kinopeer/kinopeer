@@ -32,7 +32,7 @@ The `homelab-kinoseed` package from the Homelab App Store runs on port 8795, dep
 | TMDB key | `/data/settings.json`, else environment | Onboarding or Settings |
 | Download defaults (categories, start paused, sequential) | Browser; moving to the server in 0.2 | Settings |
 | Theme, interface language, TMDB language | Browser | Settings |
-| Torrent-to-TMDB matches | Browser (cache) | Automatic |
+| Torrent-to-TMDB matches | `/data/matches.json`; titles and posters cached in the browser | Guessed automatically; the torrent menu (0.2) |
 
 ## Screens
 
@@ -45,7 +45,7 @@ The `homelab-kinoseed` package from the Homelab App Store runs on port 8795, dep
 ### Downloads
 
 - Every qBittorrent torrent, refreshed every 2 seconds while the tab is visible.
-- A row shows the TMDB poster and title, status, progress, speed, time left and queue position. The title comes from the `tmdb:<movie|tv>:<id>` tag, or is guessed from the release name when there's none.
+- A row shows the TMDB poster and title, status, progress, speed, time left and queue position. The title comes from the user's choice, else the `tmdb:<movie|tv>:<id>` tag, else a guess from the release name. Guesses are saved on the server, so every device shows the same title and each torrent is guessed once.
 - A list or a poster grid (status and progress over the poster, percent and speed or size under it). The list is the default; the choice is remembered in the browser.
 - Filters by status and name, total speeds, free space.
 - Row menu: pause or resume, details, delete with or without files.
@@ -81,7 +81,7 @@ Poster, year, runtime or number of seasons and episodes, rating, overview, and a
 
 ### Settings
 
-Appearance (theme, language), Connections (checks for qBittorrent, Prowlarr and TMDB, changing the TMDB key), download defaults, the language of TMDB titles and overviews, About (version, clear cache, install). Service addresses can't be changed here: the package sets them.
+Appearance (theme, language), Connections (checks for qBittorrent, Prowlarr and TMDB, changing the TMDB key), download defaults, the language of TMDB titles and overviews, About (version, clear cache, install). Clearing the cache also forgets the server's guesses, so torrents are matched again; the user's choices stay. Service addresses can't be changed here: the package sets them.
 
 ### Offline and errors
 
@@ -97,6 +97,7 @@ Manifest and icons; the service worker keeps the app shell available offline and
 
 | Date | Decision |
 | --- | --- |
+| 2026-10-24 | Torrent-to-title matches are kept on the Kinoseed server (`/data/matches.json`), not in qBittorrent tags: qBittorrent's tag list stays clean and every device shows the same. A guess made in a browser is saved there; the user's choice wins over the `tmdb:` tag, which wins over a guess. Kinoseed still tags the torrents it adds. |
 | 2026-10-24 | Discussions are on before the public release; our own ideas go to Ideas too, not to issues. |
 | 2026-10-24 | Reordering the download queue is deferred until people ask for it ([#38](https://github.com/MrShakhov/kinoseed/issues/38)). Feature requests go to GitHub Discussions (Ideas) and are voted on there; issues are for bugs and accepted work. |
 | 2026-10-24 | No series stacks in Downloads: every torrent keeps its own row or card. A title's torrents are found from its page instead. |
@@ -119,4 +120,4 @@ Manifest and icons; the service worker keeps the app shell available offline and
 
 ## Still open
 
-- **The title as the center.** The title page and the torrent screen stay separate and are linked: under the overview, an "In downloads" block lists this title's torrents (from the `tmdb:` tag), each linking to its torrent screen. This is also how several torrents of one movie or series are seen together. Design it on the canvas first, then build it (0.2).
+- **The title as the center.** The title page and the torrent screen stay separate and are linked: under the overview, an "In downloads" block lists this title's torrents (by the same match the downloads list shows), each linking to its torrent screen. This is also how several torrents of one movie or series are seen together. Design it on the canvas first, then build it (0.2).

@@ -4,8 +4,7 @@ import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { createApp } from './main.ts'
-import { SettingsStore } from './settings.ts'
+import { createApp, dataStores } from './main.ts'
 
 let root: string
 let server: Server
@@ -14,7 +13,7 @@ let app: string
 beforeAll(async () => {
   root = await mkdtemp(join(tmpdir(), 'kinoseed-main-'))
   await writeFile(join(root, 'index.html'), '<!doctype html><title>Kinoseed</title>')
-  server = createApp({}, root, new SettingsStore(join(root, 'data')))
+  server = createApp({}, root, dataStores(join(root, 'data')))
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
   app = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
 })
@@ -39,6 +38,7 @@ describe('createApp', () => {
       tmdb: { configured: false, source: null },
       qbittorrent: { configured: false, source: null },
     })
+    expect(await (await fetch(`${app}/api/matches`)).json()).toEqual({})
   })
 
   it('serves the app for its routes and 404 for missing files', async () => {

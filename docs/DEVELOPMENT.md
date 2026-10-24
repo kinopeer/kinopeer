@@ -27,7 +27,7 @@ The dev server has the same routes as production: `/qbt`, `/prowlarr`, `/tmdb`, 
 Unit tests run in jsdom, which has no layout, so they can't catch a button in the wrong place or a title that doesn't clamp. Screenshot tests do: Playwright opens the built app (`vite preview`) in Chromium and compares each screen with a baseline PNG.
 
 - **What's covered:** Downloads (list and poster grid, empty, offline, the actions sheet), Search (browse rows and results), the title page (movie and series), Releases (results, the filters sheet, the add sheet and its file picker), torrent details (with files, and an error) and Settings. Mostly a phone in portrait (390×844), dark theme, Russian; some in the light theme in English and on a wide screen (1280×800). Specs are in `e2e/*.spec.ts`, baselines in `e2e/__screenshots__/`.
-- **No live services:** `e2e/app.ts` answers `/qbt`, `/tmdb`, `/tmdb-img`, `/prowlarr` and `/api/settings` from the fixtures in `e2e/fixtures.ts`, matched by URL pathname (a glob like `**/tmdb/**` would also catch Vite's `/src/api/tmdb/` modules). Posters are generated gradients and the release's `.torrent` is built there too. The app version in Settings is masked, so a version bump doesn't change the screenshots. The clock is frozen, animations are off and the service worker is blocked.
+- **No live services:** `e2e/app.ts` answers `/qbt`, `/tmdb`, `/tmdb-img`, `/prowlarr`, `/api/settings` and `/api/matches` from the fixtures in `e2e/fixtures.ts`, matched by URL pathname (a glob like `**/tmdb/**` would also catch Vite's `/src/api/tmdb/` modules). Posters are generated gradients and the release's `.torrent` is built there too. The app version in Settings is masked, so a version bump doesn't change the screenshots. The clock is frozen, animations are off and the service worker is blocked.
 - **Docker only:** fonts render differently on macOS and on other Linux setups (about 1% of pixels, enough to fail), so baselines are rendered only in the Playwright image. `npm run test:visual` runs the tests in it with Docker; `node_modules` for the container is kept in a Docker volume, not the host's. Arguments go to `playwright test`, e.g. `npm run test:visual -- e2e/search.spec.ts`.
 - **Changing the UI:** a PR that changes how a covered screen looks updates its baselines: `npm run test:visual:update`, check the new PNGs (GitHub shows image diffs in the PR) and commit them. Add a spec when a new screen or state needs one.
 - **In CI:** the `visual` job runs in the same image. When it fails, its `playwright-report` artifact has the expected, actual and diff images.
@@ -45,7 +45,7 @@ The server reads environment variables (from `.env.local` in development). Whate
 | `PROWLARR_API_KEY` | none | Prowlarr API key |
 | `PROWLARR_CONFIG_XML` | none | Path to Prowlarr's `config.xml` to read the key from when `PROWLARR_API_KEY` is not set (the Umbrel package does this) |
 | `TMDB_API_KEY` | none | Fallback TMDB key; a key entered in the app wins |
-| `KINOSEED_DATA_DIR` | `./data` (`/data` in the image) | Where `settings.json` is kept |
+| `KINOSEED_DATA_DIR` | `./data` (`/data` in the image) | Where `settings.json` and `matches.json` are kept |
 | `PORT`, `HOST` | `8080`, `0.0.0.0` | Where the production server listens |
 | `KINOSEED_DIST` | `../dist` | What the production server serves |
 

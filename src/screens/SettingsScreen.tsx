@@ -17,7 +17,7 @@ import { useRequest } from '../lib/useRequest'
 import { useSettings, type Settings } from '../settings/settings'
 import type { ThemePreference } from '../theme/theme'
 import { useTheme } from '../theme/useTheme'
-import { categoryType, clearTitleMatchCache } from '../torrents/titleMatches'
+import { categoryType, clearTitleMatches } from '../torrents/titleMatches'
 import { InstallSheet } from './InstallSheet'
 import { TmdbKeyForm } from './TmdbKeyForm'
 import './SettingsScreen.css'
@@ -274,8 +274,7 @@ export function SettingsScreen() {
               type="button"
               className="ks-row-btn"
               onClick={() => {
-                clearTitleMatchCache()
-                setCleared(true)
+                void clearTitleMatches().then(() => setCleared(true))
               }}
             >
               <Icon name="refresh" className="c2" />

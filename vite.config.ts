@@ -4,9 +4,8 @@ import { resolve } from 'node:path'
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
-import { serverRoutes } from './server/main.ts'
+import { dataStores, serverRoutes } from './server/main.ts'
 import type { Middleware } from './server/prowlarr.ts'
-import { SettingsStore } from './server/settings.ts'
 
 /**
  * The PWA: web app manifest and a service worker (src/sw.ts) that precaches the app shell. Icons
@@ -41,8 +40,8 @@ const pwa = VitePWA({
 })
 
 /**
- * Serves server/ middleware (/api/settings, /qbt/*, /prowlarr/*, /tmdb/* and /tmdb-img/*) in `vite` and
- * `vite preview`, as the production server (server/main.ts) does.
+ * Serves server/ middleware (/api/settings, /api/matches, /qbt/*, /prowlarr/*, /tmdb/* and
+ * /tmdb-img/*) in `vite` and `vite preview`, as the production server (server/main.ts) does.
  */
 function serverRoutesPlugin(middlewares: Middleware[]): Plugin {
   return {
@@ -57,8 +56,8 @@ const { version } = JSON.parse(readFileSync(new URL('./package.json', import.met
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const store = new SettingsStore(resolve(env.KINOSEED_DATA_DIR || 'data'))
-  void store.load()
+  const stores = dataStores(resolve(env.KINOSEED_DATA_DIR || 'data'))
+  void stores.settings.load()
 
   return {
     // Shown in Settings → About (src/version.d.ts).
@@ -66,7 +65,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       pwa,
-      serverRoutesPlugin(serverRoutes(env, store)),
+      serverRoutesPlugin(serverRoutes(env, stores)),
     ],
     test: {
       projects: [
