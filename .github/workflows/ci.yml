@@ -20,6 +20,25 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  visual:
+    runs-on: ubuntu-latest
+    # Baselines in e2e/__screenshots__ are rendered in this image (scripts/test-visual.sh); keep its
+    # tag on the @playwright/test version from package.json.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --ipc=host
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npx playwright test
+      - name: Upload the report with the screenshot diffs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 14
+
   docker:
     runs-on: ubuntu-latest
     steps:

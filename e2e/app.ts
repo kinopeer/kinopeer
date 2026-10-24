@@ -1,0 +1,117 @@
+import { expect, type Page, type Route } from '@playwright/test'
+import { NOW, TITLES, TORRENTS, details, mainData, page as titlePage, posterSvg } from './fixtures.ts'
+import type { Torrent } from '../src/api/qbittorrent/types.ts'
+
+export interface AppOptions {
+  theme?: 'dark' | 'light'
+  /** Interface language; Intl formatting follows the context's `locale`. */
+  lang?: 'ru' | 'en'
+  downloadsView?: 'list' | 'grid'
+  torrents?: Torrent[]
+  /** qBittorrent answers the first poll, then stops answering. */
+  goesOffline?: boolean
+}
+
+const json = (route: Route, body: unknown, status = 200) =>
+  route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
+
+/**
+ * Answers the server routes the app calls (/qbt, /tmdb, /tmdb-img, /prowlarr, /api/settings) from
+ * fixtures. Matched by pathname, so Vite's own module paths such as /src/api/tmdb/ are left alone.
+ */
+async function mockServer(page: Page, options: AppOptions): Promise<void> {
+  const torrents = options.torrents ?? TORRENTS
+  let polls = 0
+
+  await page.route(
+    (url) => url.pathname.startsWith('/qbt/'),
+    (route) => {
+      const { pathname } = new URL(route.request().url())
+      if (pathname === '/qbt/api/v2/app/version') return route.fulfill({ body: 'v5.3.0' })
+      if (pathname === '/qbt/api/v2/sync/maindata') {
+        polls += 1
+        if (options.goesOffline && polls > 1) return route.abort('connectionrefused')
+        return json(route, mainData(torrents))
+      }
+      if (pathname === '/qbt/api/v2/torrents/categories') return json(route, {})
+      return route.fulfill({ body: 'Ok.' })
+    },
+  )
+
+  await page.route(
+    (url) => url.pathname.startsWith('/tmdb/'),
+    (route) => {
+      const url = new URL(route.request().url())
+      const language = url.searchParams.get('language') ?? 'en-US'
+      const path = url.pathname.slice('/tmdb'.length)
+      const query = url.searchParams.get('query')?.toLocaleLowerCase()
+      if (path === '/search/multi') {
+        const found = TITLES.filter((title) => [title.en, title.ru].some((name) => name.toLocaleLowerCase().includes(query ?? '')))
+        return json(route, titlePage(found, language))
+      }
+      if (path.startsWith('/trending/')) return json(route, titlePage(TITLES, language))
+      if (path === '/movie/popular') return json(route, titlePage(TITLES.filter((title) => title.type === 'movie'), language))
+      if (path === '/tv/popular') return json(route, titlePage(TITLES.filter((title) => title.type === 'tv'), language))
+      const [, type, id] = path.split('/')
+      const found = details(type, Number(id), language)
+      return found ? json(route, found) : json(route, { status_message: 'Not found' }, 404)
+    },
+  )
+
+  await page.route(
+    (url) => url.pathname.startsWith('/tmdb-img/'),
+    (route) => route.fulfill({ contentType: 'image/svg+xml', body: posterSvg(new URL(route.request().url()).pathname) }),
+  )
+
+  await page.route(
+    (url) => url.pathname === '/api/settings',
+    (route) =>
+      json(route, { tmdb: { configured: true, source: 'saved' }, qbittorrent: { configured: true, source: 'saved' } }),
+  )
+
+  await page.route(
+    (url) => url.pathname === '/prowlarr/status',
+    (route) => json(route, { version: '2.0.5', indexers: 2 }),
+  )
+}
+
+/** Opens the app at `path` with mocked servers, a frozen clock and the given preferences. */
+export async function openApp(page: Page, path: string, options: AppOptions = {}): Promise<void> {
+  await page.clock.setFixedTime(NOW)
+  await page.addInitScript(
+    ({ theme, lang, downloadsView }) => {
+      localStorage.setItem('kinoseed.theme', theme)
+      localStorage.setItem('kinoseed.lang', lang)
+      localStorage.setItem('kinoseed.settings', JSON.stringify({ downloadsView }))
+      localStorage.setItem('kinoseed.installDismissed', '1')
+    },
+    { theme: options.theme ?? 'dark', lang: options.lang ?? 'ru', downloadsView: options.downloadsView ?? 'list' },
+  )
+  await mockServer(page, options)
+  await page.goto(path)
+}
+
+/**
+ * Waits until the fonts and every image have loaded, so the screenshot doesn't catch them midway.
+ * Lazy posters below the fold are loaded too, for full-page screenshots.
+ */
+export async function settle(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    for (const image of document.images) image.loading = 'eager'
+    return document.fonts.ready
+  })
+  await expect
+    .poll(() => page.evaluate(() => [...document.images].every((image) => image.complete && image.naturalWidth > 0)))
+    .toBe(true)
+}
+
+/**
+ * Makes the viewport as tall as the page, so a screenshot shows the whole list with the tab bar at
+ * the bottom. A full-page screenshot would leave the fixed tab bar over the middle of the list.
+ */
+export async function showWholePage(page: Page): Promise<void> {
+  const width = page.viewportSize()!.width
+  const height = await page.evaluate(() => document.documentElement.scrollHeight)
+  await page.setViewportSize({ width, height })
+  await settle(page)
+}

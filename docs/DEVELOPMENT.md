@@ -17,9 +17,21 @@ npm run lint       # linter (oxlint)
 npm run typecheck  # type check
 npm run build      # production build into dist/
 npm start          # production server over dist/
+npm run test:visual  # screenshot tests in Docker (below)
 ```
 
-The dev server has the same routes as production: `/qbt`, `/prowlarr`, `/tmdb`, `/tmdb-img`, `/api/settings`. Run lint, typecheck, test and build before pushing; CI runs the same on every PR and also builds and smoke-tests the Docker image. The service worker is off in `npm run dev`: try it with `npm run build && npm run preview`.
+The dev server has the same routes as production: `/qbt`, `/prowlarr`, `/tmdb`, `/tmdb-img`, `/api/settings`. Run lint, typecheck, test and build before pushing; CI runs the same on every PR, runs the screenshot tests and builds and smoke-tests the Docker image. The service worker is off in `npm run dev`: try it with `npm run build && npm run preview`.
+
+## Screenshot tests
+
+Unit tests run in jsdom, which has no layout, so they can't catch a button in the wrong place or a title that doesn't clamp. Screenshot tests do: Playwright opens the built app (`vite preview`) in Chromium and compares each screen with a baseline PNG.
+
+- **What's covered:** Downloads (list and poster grid, empty, offline, the actions sheet) and Search (browse rows and results). Mostly a phone in portrait (390×844), dark theme, Russian; some in the light theme in English and on a wide screen (1280×800). Specs are in `e2e/*.spec.ts`, baselines in `e2e/__screenshots__/`.
+- **No live services:** `e2e/app.ts` answers `/qbt`, `/tmdb`, `/tmdb-img`, `/prowlarr` and `/api/settings` from the fixtures in `e2e/fixtures.ts`, matched by URL pathname (a glob like `**/tmdb/**` would also catch Vite's `/src/api/tmdb/` modules). Posters are generated gradients. The clock is frozen, animations are off and the service worker is blocked.
+- **Docker only:** fonts render differently on macOS and on other Linux setups (about 1% of pixels, enough to fail), so baselines are rendered only in the Playwright image. `npm run test:visual` runs the tests in it with Docker; `node_modules` for the container is kept in a Docker volume, not the host's. Arguments go to `playwright test`, e.g. `npm run test:visual -- e2e/search.spec.ts`.
+- **Changing the UI:** a PR that changes how a covered screen looks updates its baselines: `npm run test:visual:update`, check the new PNGs (GitHub shows image diffs in the PR) and commit them. Add a spec when a new screen or state needs one.
+- **In CI:** the `visual` job runs in the same image. When it fails, its `playwright-report` artifact has the expected, actual and diff images.
+- **Upgrading Playwright:** `@playwright/test` in `package.json`, the image tag in `scripts/test-visual.sh` and in `.github/workflows/ci.yml` must name the same version; re-render the baselines after an upgrade.
 
 ## Server configuration
 

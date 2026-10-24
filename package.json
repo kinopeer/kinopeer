@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "start": "node server/main.ts",
     "test": "vitest run",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "test:visual": "scripts/test-visual.sh",
+    "test:visual:update": "scripts/test-visual.sh --update-snapshots"
   },
   "dependencies": {
     "@fontsource-variable/onest": "^5.3.1",
@@ -28,6 +30,7 @@
     "workbox-strategies": "^7.4.1"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.8",

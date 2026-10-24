@@ -24,7 +24,8 @@ A qBittorrent web UI built around movies and TV series. Find a title in TMDB, pi
 - Vite + React 19 + TypeScript (strict), Node.js 22.18+
 - oxlint for linting
 - Vitest + Testing Library (jsdom) for tests
-- GitHub Actions CI: lint, typecheck, test, build on every PR and on push to `main`
+- Playwright screenshot tests (`e2e/`), run in the Playwright Docker image
+- GitHub Actions CI: lint, typecheck, test, build and the screenshot tests on every PR and on push to `main`
 
 ## Commands
 
@@ -35,9 +36,11 @@ npm run lint       # oxlint
 npm run typecheck  # tsc -b
 npm run build      # production build into dist/
 npm start          # production server (server/main.ts) serving dist/
+npm run test:visual         # screenshot tests in Docker
+npm run test:visual:update  # re-render their baselines
 ```
 
-Run lint, typecheck, test and build before pushing. CI must be green before merge.
+Run lint, typecheck, test and build before pushing, and the screenshot tests when the UI changes. CI must be green before merge.
 
 ## Architecture
 
@@ -65,6 +68,7 @@ Run lint, typecheck, test and build before pushing. CI must be green before merg
 - Keep the docs current: when a change affects them, update them in the same PR. Behavior or a product decision → `docs/SPEC.md` (and its decision log); a shipped roadmap item → tick it in `docs/ROADMAP.md`; setup, environment variables or releases → `docs/DEVELOPMENT.md`; user-visible changes → `CHANGELOG.md` and, if needed, `README.md`; architecture → this file.
 - Anything to settle before the public release goes into `docs/RELEASE_CHECKLIST.md`.
 - Every PR covers what it changes with tests: each new or changed component, helper, setting and user flow. Tests sit next to the code as `*.test.ts(x)`. Query by role and accessible name. Pure layout changes that jsdom can't see are checked on a running app and said so in the PR.
+- A PR that changes how a screen covered by the screenshot tests looks updates its baselines (`npm run test:visual:update`) in the same PR. Baselines are rendered only in the Playwright Docker image, never on the host. Details: `docs/DEVELOPMENT.md`.
 - Accessibility is a requirement: real `<button>`/`<a>`/`<input>`, labels on icon-only buttons, touch targets ≥ 44px, visible focus, `prefers-reduced-motion` respected.
 
 ## Design
