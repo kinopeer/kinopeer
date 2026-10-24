@@ -31,6 +31,16 @@
   background: repeating-linear-gradient(135deg, var(--sunken) 0 8px, var(--surface) 8px 16px);
 }
 
+/* Darkens the bottom of the poster under overlaid status and progress. */
+.ks-poster-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 55%;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.75));
+}
+
 /* Over the poster: always white on dark, in both themes. */
 .ks-qpos {
   position: absolute;

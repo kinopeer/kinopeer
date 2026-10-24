@@ -53,7 +53,10 @@
     "deleted": "Torrent deleted",
     "deletedFiles": "Torrent and files deleted",
     "moreActions": "More actions: {{name}}",
-    "openDetails": "Open details"
+    "openDetails": "Open details",
+    "view": "View",
+    "viewList": "List",
+    "viewGrid": "Grid"
   },
   "format": {
     "B": "B",

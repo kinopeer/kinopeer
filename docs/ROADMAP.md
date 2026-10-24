@@ -24,7 +24,7 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 
 - [ ] Sorting the list.
 - [ ] Multi-select and bulk actions: pause, resume, delete.
-- [ ] A poster grid as a second view of the downloads list, as on the canvas.
+- [x] A poster grid as a second view of the downloads list, as on the canvas.
 - [ ] Reordering the download queue.
 
 ## 0.4: Desktop

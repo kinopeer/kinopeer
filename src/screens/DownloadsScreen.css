@@ -56,6 +56,12 @@
   padding: 4px var(--space-4);
 }
 
+.downloads-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -4px;
+}
+
 .downloads-body {
   flex: 1;
   padding-top: 4px;
@@ -68,6 +74,90 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* Poster grid: two columns on a phone, up to four in the column's full width. */
+.downloads-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 18px 12px;
+}
+
+.dl-card {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dl-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 12px;
+}
+
+.dl-card-main .ks-poster {
+  width: 100%;
+}
+
+@media (hover: hover) {
+  .dl-card-main:hover .ks-poster {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-2);
+  }
+}
+
+.dl-card-over {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.dl-card-over .ks-bar {
+  align-self: stretch;
+}
+
+.dl-card-skel-poster {
+  aspect-ratio: 2 / 3;
+  border-radius: 12px;
+}
+
+/* Room on the right for the actions button, which sits over the text. */
+.dl-card-text {
+  min-width: 0;
+  padding-right: 32px;
+}
+
+.dl-card-title {
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.dl-card-meta {
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.dl-card-more {
+  position: absolute;
+  right: -10px;
+  bottom: -6px;
+  color: var(--text3);
 }
 
 /* Download row */

@@ -46,6 +46,7 @@ The `homelab-kinoseed` package from the Homelab App Store runs on port 8795, dep
 
 - Every qBittorrent torrent, refreshed every 2 seconds while the tab is visible.
 - A row shows the TMDB poster and title, status, progress, speed, time left and queue position. The title comes from the `tmdb:<movie|tv>:<id>` tag, or is guessed from the release name when there's none.
+- A list or a poster grid (status and progress over the poster, percent and speed or size under it). The list is the default; the choice is remembered in the browser.
 - Filters by status and name, total speeds, free space.
 - Row menu: pause or resume, details, delete with or without files.
 - Statuses: Downloading (the only one in the accent color), Seeding, Paused, Completed, Queued, Checking, Error.
@@ -96,6 +97,7 @@ Manifest and icons; the service worker keeps the app shell available offline and
 
 | Date | Decision |
 | --- | --- |
+| 2026-10-24 | Downloads open as a list by default; the poster grid is a per-browser choice until the desktop layout decides its own default. |
 | 2026-10-23 | Umbrel is the only supported install; other ways to install come later. |
 | 2026-10-23 | No Sonarr/Radarr-style automation and no season picker on the series page. |
 | 2026-10-23 | Prowlarr only; no Jackett. |

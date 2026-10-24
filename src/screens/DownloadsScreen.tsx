@@ -7,12 +7,15 @@ import { FilterChip } from '../components/FilterChip'
 import { Icon } from '../components/Icon'
 import { IconButton } from '../components/IconButton'
 import { Input } from '../components/Input'
+import { Segmented } from '../components/Segmented'
 import { Toast } from '../components/Toast'
 import { useFormatters } from '../lib/format'
+import { useSettings } from '../settings/settings'
 import { STATUS_FILTERS, compareByQueue, matchesFilter, type StatusFilter } from '../torrents/status'
 import { useTitleMatches } from '../torrents/titleMatches'
 import { useMainData } from '../torrents/useMainData'
 import { DeleteTorrentDialog } from './DeleteTorrentDialog'
+import { DownloadCard, DownloadCardSkeleton } from './DownloadCard'
 import { DownloadItem } from './DownloadItem'
 import { InstallCard } from './InstallCard'
 import { OfflineBanner } from './OfflineBanner'
@@ -25,6 +28,7 @@ export interface DownloadsScreenProps {
 }
 
 const SKELETON_ROWS = 5
+const SKELETON_CARDS = 4
 
 export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
   const { t } = useTranslation()
@@ -38,6 +42,8 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
     () => void navigate(location.pathname, { replace: true, state: null }),
     [navigate, location.pathname],
   )
+  const [{ downloadsView: view }, updateSettings] = useSettings()
+  const grid = view === 'grid'
   const [filter, setFilter] = useState<StatusFilter>('all')
   const [searchOpen, setSearchOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -141,6 +147,19 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
             </FilterChip>
           ))}
         </div>
+
+        <div className="downloads-toolbar">
+          <Segmented
+            label={t('downloads.view')}
+            iconsOnly
+            options={[
+              { value: 'list', label: t('downloads.viewList'), icon: 'list' },
+              { value: 'grid', label: t('downloads.viewGrid'), icon: 'grid' },
+            ]}
+            value={view}
+            onChange={(downloadsView) => updateSettings({ downloadsView })}
+          />
+        </div>
       </header>
 
       <section className="downloads-body" aria-label={t('downloads.title')} aria-busy={loading}>
@@ -155,6 +174,13 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
           >
             {t('offline.unreachableBody')}
           </EmptyState>
+        ) : loading && grid ? (
+          <div className="downloads-grid" role="status">
+            <span className="sr-only">{t('downloads.loading')}</span>
+            {Array.from({ length: SKELETON_CARDS }, (_, index) => (
+              <DownloadCardSkeleton key={index} />
+            ))}
+          </div>
         ) : loading ? (
           <div className="downloads-list" role="status">
             <span className="sr-only">{t('downloads.loading')}</span>
@@ -188,15 +214,18 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
             {t('downloads.noMatchBody')}
           </EmptyState>
         ) : (
-          <ul className="downloads-list">
-            {visible.map((torrent) => (
-              <DownloadItem
-                key={torrent.hash}
-                torrent={torrent}
-                match={matches[torrent.hash]}
-                onMore={(target) => setActionsFor(target.hash)}
-              />
-            ))}
+          <ul className={grid ? 'downloads-grid' : 'downloads-list'}>
+            {visible.map((torrent) => {
+              const Item = grid ? DownloadCard : DownloadItem
+              return (
+                <Item
+                  key={torrent.hash}
+                  torrent={torrent}
+                  match={matches[torrent.hash]}
+                  onMore={(target) => setActionsFor(target.hash)}
+                />
+              )
+            })}
           </ul>
         )}
       </section>
