@@ -14,11 +14,18 @@ export interface Settings {
   sequential: boolean
   /** Language of titles and overviews from TMDB; 'app' follows the interface language. */
   tmdbLanguage: 'app' | 'en-US' | 'ru-RU'
+  /** How the downloads list is shown. */
+  downloadsView: 'list' | 'grid'
 }
 
 export const SETTINGS_STORAGE_KEY = 'kinoseed.settings'
 
-export const DEFAULT_SETTINGS: Settings = { startPaused: false, sequential: false, tmdbLanguage: 'app' }
+export const DEFAULT_SETTINGS: Settings = {
+  startPaused: false,
+  sequential: false,
+  tmdbLanguage: 'app',
+  downloadsView: 'list',
+}
 
 let current: Settings | undefined
 const listeners = new Set<() => void>()

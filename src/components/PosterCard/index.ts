@@ -1,1 +1,1 @@
-export { PosterCard, type PosterCardProps } from './PosterCard'
+export { PosterCard, PosterCardSkeleton, type PosterCardProps } from './PosterCard'

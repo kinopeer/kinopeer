@@ -1,4 +1,5 @@
 import type { Torrent, TorrentState } from '../api/qbittorrent'
+import type { Formatters } from '../lib/format'
 
 /** The design system's status set; each has its own chip and progress bar color. */
 export type DownloadStatus = 'downloading' | 'seeding' | 'paused' | 'completed' | 'queued' | 'checking' | 'error'
@@ -62,4 +63,15 @@ export function compareByQueue(a: Torrent, b: Torrent): number {
   if (aQueued && bQueued) return a.priority - b.priority
   if (aQueued !== bQueued) return aQueued ? -1 : 1
   return b.added_on - a.added_on
+}
+
+/** "↓ 4.3 MB/s" while downloading, "↑ …" while seeding, otherwise null. */
+export function transferSpeed(
+  torrent: Pick<Torrent, 'dlspeed' | 'upspeed'>,
+  status: DownloadStatus,
+  format: Formatters,
+): string | null {
+  if (status === 'downloading') return `↓ ${format.speed(torrent.dlspeed)}`
+  if (status === 'seeding') return `↑ ${format.speed(torrent.upspeed)}`
+  return null
 }

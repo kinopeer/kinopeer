@@ -53,7 +53,10 @@
     "deleted": "Торрент удалён",
     "deletedFiles": "Торрент и файлы удалены",
     "moreActions": "Ещё действия: {{name}}",
-    "openDetails": "Подробности"
+    "openDetails": "Подробности",
+    "view": "Вид",
+    "viewList": "Список",
+    "viewGrid": "Сетка"
   },
   "format": {
     "B": "Б",

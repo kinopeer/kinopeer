@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
 import type { MainData, Torrent } from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
+import { getSettings, resetSettings, updateSettings } from '../settings/settings'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
 import { DownloadsScreen } from './DownloadsScreen'
 
@@ -65,6 +66,7 @@ function renderScreen(state?: unknown) {
 beforeEach(() => {
   vi.resetAllMocks()
   clearTitleMatchCache()
+  resetSettings()
   getMainData.mockResolvedValue(SNAPSHOT)
   searchTitles.mockResolvedValue({ titles: [], page: 1, totalPages: 1 })
 })
@@ -117,6 +119,62 @@ describe('DownloadsScreen', () => {
     expect(within(dune).getByText('Dune.Part.Two.2024.2160p.WEB-DL')).toBeInTheDocument()
     expect(container.querySelector('img')).toHaveAttribute('src', '/tmdb-img/w185/dune.jpg')
     expect(within(dune).getByRole('progressbar', { name: 'Dune: Part Two: progress' })).toBeInTheDocument()
+  })
+
+  it('switches to a poster grid and remembers it', async () => {
+    searchTitles.mockImplementation(async (query) => ({
+      titles:
+        query === 'Dune Part Two'
+          ? [{ type: 'movie', id: 693134, title: 'Dune: Part Two', originalTitle: 'Dune: Part Two', year: 2024, overview: '', posterPath: '/dune.jpg', backdropPath: null, rating: 8 }]
+          : [],
+      page: 1,
+      totalPages: 1,
+    }))
+    const { container, unmount } = renderScreen()
+    await screen.findByText('Dune: Part Two')
+    const view = within(screen.getByRole('radiogroup', { name: 'View' }))
+    expect(view.getByRole('radio', { name: 'List', checked: true })).toBeInTheDocument()
+
+    await userEvent.click(view.getByRole('radio', { name: 'Grid' }))
+    expect(view.getByRole('radio', { name: 'Grid', checked: true })).toBeInTheDocument()
+    expect(getSettings().downloadsView).toBe('grid')
+    const [dune, andor] = screen.getAllByRole('listitem')
+    expect(within(dune).getByRole('heading')).toHaveTextContent('Dune: Part Two')
+    expect(within(dune).getByText('42% · ↓ 4.3 MB/s')).toBeInTheDocument()
+    expect(within(dune).getByText('Downloading')).toBeInTheDocument()
+    expect(within(dune).getByRole('progressbar', { name: 'Dune: Part Two: progress' })).toHaveAttribute('aria-valuenow', '42')
+    expect(within(dune).getByLabelText('Queue position 1')).toBeInTheDocument()
+    expect(within(dune).getByRole('link')).toHaveAttribute('href', '/torrent/dune')
+    expect(container.querySelector('img')).toHaveAttribute('src', '/tmdb-img/w342/dune.jpg')
+    expect(within(andor).getByText('100% · ↑ 120 KB/s')).toBeInTheDocument()
+    unmount()
+
+    renderScreen()
+    expect(await screen.findByRole('radio', { name: 'Grid', checked: true })).toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Alien.Romulus.2024.1080p' }))
+    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Resume' })).toBeInTheDocument()
+  })
+
+  it('shows the release name, a placeholder poster and the size in the grid until a title is matched', async () => {
+    updateSettings({ downloadsView: 'grid' })
+    const { container } = renderScreen()
+    const cards = await screen.findAllByRole('listitem')
+    const alien = within(cards[2])
+    expect(alien.getByRole('heading', { name: 'Alien.Romulus.2024.1080p' })).toBeInTheDocument()
+    expect(alien.getByText(/^10% · 1(\.00)?\sGB$/)).toBeInTheDocument()
+    expect(alien.getByText('Paused')).toBeInTheDocument()
+    expect(alien.queryByLabelText(/Queue position/)).not.toBeInTheDocument()
+    expect(container.querySelector('img')).toBeNull()
+    expect(container.querySelectorAll('.ks-poster-none')).toHaveLength(3)
+  })
+
+  it('shows placeholder cards while loading in the grid', () => {
+    updateSettings({ downloadsView: 'grid' })
+    getMainData.mockReturnValue(new Promise(() => {}))
+    const { container } = renderScreen()
+    expect(screen.getByRole('status')).toHaveTextContent('Loading downloads')
+    expect(container.querySelectorAll('.ks-pcard[aria-hidden="true"]')).toHaveLength(4)
+    expect(container.querySelector('.dl-skeleton')).toBeNull()
   })
 
   it('shows transfer totals and free space', async () => {

@@ -13,7 +13,7 @@ import {
 import { EmptyState } from '../components/EmptyState'
 import { IconButton } from '../components/IconButton'
 import { Input } from '../components/Input'
-import { PosterCard } from '../components/PosterCard'
+import { PosterCard, PosterCardSkeleton } from '../components/PosterCard'
 import { cx } from '../lib/cx'
 import { useDebouncedValue } from '../lib/useDebouncedValue'
 import { useRequest } from '../lib/useRequest'
@@ -159,20 +159,17 @@ export function SearchScreen() {
             </EmptyState>
           )
         ) : loading ? (
-          <div className="search-grid" role="status">
+          <div className="ks-poster-grid" role="status">
             <span className="sr-only">{t('search.loading')}</span>
             {Array.from({ length: 6 }, (_, index) => (
-              <div key={index} className="search-skel" aria-hidden="true">
-                <div className="ks-skel search-skel-poster" />
-                <div className="ks-skel" style={{ height: 12, width: '80%' }} />
-              </div>
+              <PosterCardSkeleton key={index} />
             ))}
           </div>
         ) : searching ? (
           results.length > 0 ? (
             <>
               <p className="t-cap c3 ks-num search-count">{t('search.results', { count: results.length })}</p>
-              <ul className="search-grid">
+              <ul className="ks-poster-grid">
                 {results.map((title) => (
                   <li key={`${title.type}-${title.id}`}>
                     <PosterCard

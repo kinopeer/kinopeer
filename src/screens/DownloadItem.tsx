@@ -7,7 +7,7 @@ import { Poster } from '../components/Poster'
 import { ProgressBar } from '../components/ProgressBar'
 import { StatusChip } from '../components/StatusChip'
 import { useFormatters } from '../lib/format'
-import { downloadStatus } from '../torrents/status'
+import { downloadStatus, transferSpeed } from '../torrents/status'
 import type { TitleMatch } from '../torrents/titleMatches'
 
 export interface DownloadItemProps {
@@ -25,12 +25,7 @@ export function DownloadItem({ torrent, match, onMore }: DownloadItemProps) {
   const partial = torrent.progress > 0 && torrent.progress < 1
   const title = match?.title ?? torrent.name
 
-  const speed =
-    status === 'downloading'
-      ? `↓ ${format.speed(torrent.dlspeed)}`
-      : status === 'seeding'
-        ? `↑ ${format.speed(torrent.upspeed)}`
-        : null
+  const speed = transferSpeed(torrent, status, format)
   const eta = status === 'downloading' && torrent.dlspeed > 0 ? format.eta(torrent.eta) : null
 
   return (

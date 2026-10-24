@@ -60,15 +60,6 @@
   margin-bottom: -16px;
 }
 
-.search-grid {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 18px 12px;
-}
-
 .search-row {
   display: flex;
   flex-direction: column;
@@ -86,17 +77,6 @@
 .search-row-list > li {
   flex: none;
   width: 156px;
-}
-
-.search-skel {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.search-skel-poster {
-  aspect-ratio: 2 / 3;
-  border-radius: 12px;
 }
 
 /* Underlined tabs (design system "Tabs"). */

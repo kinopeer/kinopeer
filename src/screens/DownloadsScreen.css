@@ -56,6 +56,12 @@
   padding: 4px var(--space-4);
 }
 
+.downloads-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -4px;
+}
+
 .downloads-body {
   flex: 1;
   padding-top: 4px;
@@ -68,6 +74,25 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.dl-card-over {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.dl-card-over .ks-bar {
+  align-self: stretch;
+}
+
+.dl-card-more {
+  color: var(--text3);
 }
 
 /* Download row */

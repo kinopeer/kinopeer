@@ -19,9 +19,19 @@
   font-size: 14px;
   font-weight: 500;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   transition:
     background-color var(--d-fast) var(--ease),
     color var(--d-fast) var(--ease);
+}
+
+.ks-seg-icons > button {
+  flex: none;
+  width: 44px;
+  padding: 0;
 }
 
 .ks-seg > button.is-on {
