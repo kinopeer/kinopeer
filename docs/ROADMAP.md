@@ -15,7 +15,7 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 
 ## 0.2: The title as the center
 
-- [ ] The title page knows when the title is already in downloads (from the `tmdb:` tag). First work out on the canvas whether it merges with the torrent screen ([SPEC](SPEC.md), "Still open").
+- [ ] The title page lists this title's torrents (from the `tmdb:` tag), each linking to its torrent screen; the two screens stay separate. Design it on the canvas first ([SPEC](SPEC.md), "Still open").
 - [ ] "Change title" in the torrent menu: search TMDB and write the `tmdb:` tag.
 - [ ] Download defaults are kept on the server and are the same on every device.
 - [ ] On wide screens, a centered column of limited width until the desktop layout lands.
@@ -49,5 +49,6 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 
 - Automatic downloads: watchlists, RSS, new episodes (that's Sonarr and Radarr).
 - Picking a season on the series page.
+- Series stacks in Downloads (several torrents of one series in one card); the title page lists a title's torrents instead. Revisit only if that turns out not to be enough.
 - Jackett.
 - Playing video.
