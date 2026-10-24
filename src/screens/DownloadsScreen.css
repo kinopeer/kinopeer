@@ -153,10 +153,13 @@
   line-height: 17px;
 }
 
+/* Level with the title line: the poster is 3/2 of the card's width, and a percentage margin
+   counts from the width, so this holds at any column size and title length. */
 .dl-card-more {
   position: absolute;
+  top: 0;
   right: -10px;
-  bottom: -6px;
+  margin-top: calc(150% - 4px);
   color: var(--text3);
 }
 
