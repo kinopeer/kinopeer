@@ -13,8 +13,10 @@ import { Toast } from '../components/Toast'
 import { useFormatters } from '../lib/format'
 import { useSettings } from '../settings/settings'
 import { STATUS_FILTERS, compareByQueue, matchesFilter, type StatusFilter } from '../torrents/status'
-import { useTitleMatches } from '../torrents/titleMatches'
+import { useServerMatches } from '../torrents/serverMatches'
+import { isGuessed, useTitleMatches } from '../torrents/titleMatches'
 import { useMainData } from '../torrents/useMainData'
+import { ChangeTitleSheet } from './ChangeTitleSheet'
 import { DeleteTorrentDialog } from './DeleteTorrentDialog'
 import { DownloadCard } from './DownloadCard'
 import { DownloadItem } from './DownloadItem'
@@ -50,6 +52,9 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
   const [query, setQuery] = useState('')
   const [actionsFor, setActionsFor] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [retitling, setRetitling] = useState<string | null>(null)
+  const [titleSaved, setTitleSaved] = useState<'changed' | 'confirmed' | null>(null)
+  const dismissTitleSaved = useCallback(() => setTitleSaved(null), [])
   // Tell the user when qBittorrent answers again after an outage.
   const [wasOffline, setWasOffline] = useState(offline)
   const [reconnected, setReconnected] = useState(false)
@@ -61,6 +66,7 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
 
   const torrents = useMemo(() => (data ? Object.values(data.torrents).sort(compareByQueue) : []), [data])
   const matches = useTitleMatches(torrents)
+  const serverMatches = useServerMatches()
   const visible = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase()
     return torrents.filter(
@@ -76,6 +82,7 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
   // Looked up on every render, so the sheet follows live status changes and closes if the torrent goes away.
   const actionsTorrent = actionsFor ? data?.torrents[actionsFor] : undefined
   const deleteTorrent = deleting ? data?.torrents[deleting] : undefined
+  const retitleTorrent = retitling ? data?.torrents[retitling] : undefined
   const nameOf = (torrent: Torrent) => matches[torrent.hash]?.title ?? torrent.name
   const server = data?.server
 
@@ -234,12 +241,32 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
         <TorrentActionsSheet
           torrent={actionsTorrent}
           match={matches[actionsTorrent.hash]}
+          guessed={isGuessed(actionsTorrent, serverMatches?.[actionsTorrent.hash])}
           offline={offline}
           onClose={() => setActionsFor(null)}
           onChanged={refresh}
           onDelete={() => {
             setActionsFor(null)
             setDeleting(actionsTorrent.hash)
+          }}
+          onChangeTitle={() => {
+            setActionsFor(null)
+            setRetitling(actionsTorrent.hash)
+          }}
+          onConfirmed={() => {
+            setActionsFor(null)
+            setTitleSaved('confirmed')
+          }}
+        />
+      )}
+      {retitleTorrent && (
+        <ChangeTitleSheet
+          torrent={retitleTorrent}
+          current={matches[retitleTorrent.hash]}
+          onClose={() => setRetitling(null)}
+          onChosen={(result) => {
+            setRetitling(null)
+            setTitleSaved(result)
           }}
         />
       )}
@@ -256,6 +283,12 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
         />
       )}
       {reconnected && <Toast message={t('offline.reconnected')} onDismiss={dismissReconnected} />}
+      {titleSaved && (
+        <Toast
+          message={titleSaved === 'confirmed' ? t('match.confirmed') : t('match.changed')}
+          onDismiss={dismissTitleSaved}
+        />
+      )}
       {added && <Toast message={t('add.added', { title: added })} onDismiss={dismissToast} />}
       {deleted && (
         <Toast

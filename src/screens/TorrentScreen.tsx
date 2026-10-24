@@ -19,12 +19,17 @@ import { StatusChip } from '../components/StatusChip'
 import { Toast } from '../components/Toast'
 import { useFormatters } from '../lib/format'
 import { useRequest } from '../lib/useRequest'
+import { useTmdbLanguage } from '../settings/settings'
 import { downloadStatus, isRunning } from '../torrents/status'
-import { useTitleMatches } from '../torrents/titleMatches'
+import { useServerMatches } from '../torrents/serverMatches'
+import { chooseTitle, isGuessed, useTitleMatches } from '../torrents/titleMatches'
 import { trackerHosts } from '../torrents/trackers'
 import { useMainData } from '../torrents/useMainData'
+import { ChangeTitleSheet } from './ChangeTitleSheet'
 import { DeleteTorrentDialog } from './DeleteTorrentDialog'
+import { MatchPrompt } from './MatchPrompt'
 import { OfflineBanner } from './OfflineBanner'
+import { TorrentActionsSheet } from './TorrentActionsSheet'
 import { TorrentFiles } from './TorrentFiles'
 import './TorrentScreen.css'
 
@@ -49,12 +54,19 @@ export function TorrentScreen({ onSessionLost }: TorrentScreenProps) {
 
   const torrents = useMemo(() => (torrent ? [torrent] : []), [torrent])
   const match = useTitleMatches(torrents)[hash]
+  const stored = useServerMatches()?.[hash]
+  const language = useTmdbLanguage()
 
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
   const [confirming, setConfirming] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [retitling, setRetitling] = useState(false)
+  const [savingTitle, setSavingTitle] = useState(false)
+  const [titleSaved, setTitleSaved] = useState<'changed' | 'confirmed' | 'failed' | null>(null)
   const dismissFailure = useCallback(() => setFailed(false), [])
+  const dismissTitleSaved = useCallback(() => setTitleSaved(null), [])
 
   const trackers = useRequest(detailsOpen && torrent ? `trackers|${hash}` : null, () => getTorrentTrackers(hash))
 
@@ -130,8 +142,8 @@ export function TorrentScreen({ onSessionLost }: TorrentScreenProps) {
   const downloading = status === 'downloading'
   const title = match?.title ?? torrent.name
   const poster = match ? posterUrl(match.posterPath, 'w342') : undefined
-  const language = i18n.resolvedLanguage ?? i18n.language
-  const ratio = torrent.ratio.toLocaleString(language, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const locale = i18n.resolvedLanguage ?? i18n.language
+  const ratio = torrent.ratio.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   const hosts = trackers.data ? trackerHosts(trackers.data) : undefined
 
   const toggleRunning = async () => {
@@ -144,6 +156,21 @@ export function TorrentScreen({ onSessionLost }: TorrentScreenProps) {
       setFailed(true)
     } finally {
       setBusy(false)
+    }
+  }
+
+  const guessed = !!match && isGuessed(torrent, stored)
+
+  const confirmTitle = async () => {
+    if (!match) return
+    setSavingTitle(true)
+    try {
+      await chooseTitle(hash, match, language)
+      setTitleSaved('confirmed')
+    } catch {
+      setTitleSaved('failed')
+    } finally {
+      setSavingTitle(false)
     }
   }
 
@@ -162,7 +189,7 @@ export function TorrentScreen({ onSessionLost }: TorrentScreenProps) {
       key: 'added',
       label: t('torrent.added'),
       value: torrent.added_on
-        ? new Date(torrent.added_on * 1000).toLocaleString(language, { dateStyle: 'medium', timeStyle: 'short' })
+        ? new Date(torrent.added_on * 1000).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' })
         : '—',
     },
     { key: 'hash', label: t('torrent.hash'), value: torrent.hash, mono: true },
@@ -176,6 +203,14 @@ export function TorrentScreen({ onSessionLost }: TorrentScreenProps) {
   return (
     <main className="torrent">
       {backButton}
+      <IconButton
+        icon="more"
+        variant="glass"
+        label={t('downloads.moreActions', { name: title })}
+        iconSize={22}
+        className="torrent-more"
+        onClick={() => setMenuOpen(true)}
+      />
       <div className="torrent-hero" aria-hidden="true">
         {poster && <img src={poster} alt="" className="torrent-hero-art" />}
         <div className="torrent-hero-fade" />
@@ -188,6 +223,11 @@ export function TorrentScreen({ onSessionLost }: TorrentScreenProps) {
             {match && <p className="torrent-release c3">{torrent.name}</p>}
           </div>
         </div>
+
+        {guessed && (
+          <MatchPrompt kind="guess" busy={savingTitle} onChange={() => setRetitling(true)} onConfirm={confirmTitle} />
+        )}
+        {match === null && <MatchPrompt kind="none" onChange={() => setRetitling(true)} />}
 
         {offline && <OfflineBanner updatedAt={updatedAt} onRetry={refresh} />}
 
@@ -286,7 +326,56 @@ export function TorrentScreen({ onSessionLost }: TorrentScreenProps) {
         />
       )}
 
+      {menuOpen && (
+        <TorrentActionsSheet
+          torrent={torrent}
+          match={match}
+          guessed={guessed}
+          offline={offline}
+          showDetails={false}
+          onClose={() => setMenuOpen(false)}
+          onChanged={refresh}
+          onDelete={() => {
+            setMenuOpen(false)
+            setConfirming(true)
+          }}
+          onChangeTitle={() => {
+            setMenuOpen(false)
+            setRetitling(true)
+          }}
+          onConfirmed={() => {
+            setMenuOpen(false)
+            setTitleSaved('confirmed')
+          }}
+        />
+      )}
+
+      {retitling && (
+        <ChangeTitleSheet
+          torrent={torrent}
+          current={match}
+          onClose={() => setRetitling(false)}
+          onChosen={(result) => {
+            setRetitling(false)
+            setTitleSaved(result)
+          }}
+        />
+      )}
+
       {failed && <Toast icon="alert" message={t('torrent.actionFailed')} onDismiss={dismissFailure} />}
+      {titleSaved && (
+        <Toast
+          icon={titleSaved === 'failed' ? 'alert' : 'check'}
+          message={
+            titleSaved === 'failed'
+              ? t('match.saveFailed')
+              : titleSaved === 'confirmed'
+                ? t('match.confirmed')
+                : t('match.changed')
+          }
+          onDismiss={dismissTitleSaved}
+        />
+      )}
     </main>
   )
 }

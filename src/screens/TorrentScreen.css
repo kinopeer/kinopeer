@@ -13,6 +13,13 @@
   z-index: 5;
 }
 
+.torrent-more {
+  position: absolute;
+  top: calc(var(--safe-top) + 12px);
+  right: 12px;
+  z-index: 5;
+}
+
 .torrent-message {
   padding-top: calc(var(--safe-top) + 72px);
 }

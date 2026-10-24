@@ -8,8 +8,10 @@ import { resetServerMatches } from './serverMatches'
 import {
   GUESS_VERSION,
   categoryType,
+  chooseTitle,
   clearTitleMatchCache,
   clearTitleMatches,
+  isGuessed,
   lookupFor,
   pickBest,
   useTitleMatches,
@@ -145,6 +147,15 @@ describe('lookupFor', () => {
   })
 })
 
+describe('isGuessed', () => {
+  it('is a guess unless the user chose the title or Kinoseed tagged the torrent', () => {
+    expect(isGuessed({ tags: '' })).toBe(true)
+    expect(isGuessed({ tags: '' }, { type: 'movie', id: 1, source: 'guess', version: GUESS_VERSION })).toBe(true)
+    expect(isGuessed({ tags: '' }, { type: 'movie', id: 1, source: 'user' })).toBe(false)
+    expect(isGuessed({ tags: 'hd, tmdb:movie:1' })).toBe(false)
+  })
+})
+
 describe('useTitleMatches', () => {
   const torrents = [
     { hash: 'a', name: 'Dune.2021.2160p.WEB-DL', tags: '' },
@@ -228,6 +239,27 @@ describe('useTitleMatches', () => {
     await waitFor(() => expect(result.current.d).toMatchObject({ id: 841 }))
     expect(result.current.a).toBeUndefined()
     expect(searchTitles).not.toHaveBeenCalled()
+  })
+})
+
+describe('chooseTitle', () => {
+  it('saves the user’s choice and shows its title everywhere without asking TMDB', async () => {
+    searchTitles.mockResolvedValue({ titles: [DUNE_2021], page: 1, totalPages: 1 })
+    const torrent = { hash: 'a', name: 'Dune.2021.2160p.WEB-DL', tags: '' }
+    const { result } = renderHook(() => useTitleMatches([torrent]))
+    await waitFor(() => expect(result.current.a).toMatchObject({ id: 438631 }))
+
+    await chooseTitle('a', DUNE_1984, 'en-US')
+    expect(server.a).toEqual({ type: 'movie', id: 841, source: 'user' })
+    await waitFor(() =>
+      expect(result.current.a).toEqual({ type: 'movie', id: 841, title: 'Dune', year: 1984, posterPath: '/841.jpg' }),
+    )
+    expect(getMovie).not.toHaveBeenCalled()
+  })
+
+  it('fails when the server doesn’t save it', async () => {
+    saveMatches.mockRejectedValue(new matchesApi.MatchesError(500))
+    await expect(chooseTitle('a', DUNE_1984, 'en-US')).rejects.toThrow()
   })
 })
 

@@ -277,6 +277,21 @@
     "filesLoading": "Loading files",
     "filesMetadata": "The file list appears once the torrent’s metadata arrives from peers."
   },
+  "match": {
+    "guessNote": "Matched by the release name. Is it right?",
+    "noTitle": "No title found for this release.",
+    "change": "Change",
+    "confirm": "Yes, right",
+    "changeTitle": "Change title",
+    "pickTitle": "Pick title",
+    "searchLabel": "Search TMDB",
+    "current": "Current",
+    "nothingFound": "Nothing found",
+    "hint": "Your choice is saved on the Kinoseed server and shows on every device.",
+    "saveFailed": "Couldn’t save the choice. Try again.",
+    "changed": "Title changed",
+    "confirmed": "Match confirmed"
+  },
   "offline": {
     "title": "No connection to qBittorrent",
     "updated": "Updated {{ago}} · actions paused",

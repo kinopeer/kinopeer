@@ -1,5 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react'
-import { clearGuesses, getMatches, saveMatches, type Matches } from '../api/matches'
+import { clearGuesses, getMatches, saveMatches, type Matches, type StoredMatch } from '../api/matches'
 
 /**
  * The torrent-to-title matches the Kinoseed server keeps (server/matches.ts), shared by every
@@ -94,6 +94,17 @@ export function rememberMatches(changes: Matches): void {
     pending[hash] = match
   }
   if (Object.keys(pending).length > 0) saveTimer ??= setTimeout(() => void save(), SAVE_DELAY_MS)
+}
+
+/**
+ * Saves the user's choice of title for a torrent right away; it wins over the `tmdb:` tag and any
+ * guess. Throws when the server didn't save it.
+ */
+export async function chooseMatch(hash: string, title: Pick<StoredMatch, 'type' | 'id'>): Promise<void> {
+  delete pending[hash]
+  matches = await saveMatches({ [hash]: { type: title.type, id: title.id, source: 'user' } })
+  failedAt = undefined
+  emit()
 }
 
 /** Forgets the matches of deleted torrents; if the server doesn't answer, its hourly check does. */

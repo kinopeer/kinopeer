@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/matches'
 import type { Matches } from '../api/matches'
-import { forgetMatches, forgetServerGuesses, rememberMatches, resetServerMatches, useServerMatches } from './serverMatches'
+import { chooseMatch, forgetMatches, forgetServerGuesses, rememberMatches, resetServerMatches, useServerMatches } from './serverMatches'
 
 vi.mock('../api/matches', async (importOriginal) => ({
   ...(await importOriginal<typeof api>()),
@@ -155,5 +155,27 @@ describe('forgetMatches', () => {
     await waitFor(() => expect(result.current).toEqual({ [B]: GUESS }))
     await act(() => forgetMatches([B]))
     expect(result.current).toEqual({ [B]: GUESS })
+  })
+})
+
+describe('chooseMatch', () => {
+  it('saves the user’s choice right away, over a guess still waiting to be saved', async () => {
+    getMatches.mockResolvedValue({ [B]: GUESS })
+    saveMatches.mockImplementation(async (changes) => ({ [B]: GUESS, ...(changes as Matches) }))
+    const { result } = renderHook(() => useServerMatches())
+    await waitFor(() => expect(result.current).toEqual({ [B]: GUESS }))
+
+    rememberMatches({ [A]: { type: 'tv', id: 5, source: 'guess', version: 2 } })
+    await act(() => chooseMatch(A, { type: 'movie', id: 1 }))
+    expect(saveMatches).toHaveBeenCalledWith({ [A]: USER })
+    expect(result.current).toEqual({ [B]: GUESS, [A]: USER })
+
+    await new Promise((resolve) => setTimeout(resolve, 1200))
+    expect(saveMatches).toHaveBeenCalledTimes(1)
+  })
+
+  it('fails when the server doesn’t save it', async () => {
+    saveMatches.mockRejectedValue(new api.MatchesError(500))
+    await expect(chooseMatch(A, { type: 'movie', id: 1 })).rejects.toThrow()
   })
 })

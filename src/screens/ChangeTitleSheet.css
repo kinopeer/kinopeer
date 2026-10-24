@@ -1,0 +1,91 @@
+/* Change title sheet: the search stays put while the results scroll. */
+.retitle-sheet {
+  height: calc(100dvh - 52px);
+}
+
+.retitle-sheet .ks-sheet-body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+
+.retitle-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 4px 20px 12px;
+  flex: none;
+}
+
+.retitle-results {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px 8px 8px;
+  border-top: 1px solid var(--border);
+}
+
+.retitle-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.retitle-row {
+  min-height: 76px;
+  padding: 8px 12px;
+  border-radius: 12px;
+}
+
+.retitle-poster {
+  width: 40px;
+  flex: none;
+  border-radius: 8px;
+}
+
+.retitle-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.retitle-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.retitle-name {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.retitle-current {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+}
+
+.retitle-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 12px;
+}
+
+.retitle-skel {
+  height: 60px;
+  border-radius: 12px;
+}
+
+.retitle-hint {
+  margin: 0;
+}

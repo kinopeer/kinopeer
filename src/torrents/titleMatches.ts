@@ -4,7 +4,7 @@ import type { Torrent } from '../api/qbittorrent'
 import { getMovie, getTv, searchTitles, toTitle, type MediaType, type Title } from '../api/tmdb'
 import { useTmdbLanguage } from '../settings/settings'
 import { parseName, tmdbTag, type ParsedName } from './parseName'
-import { forgetServerGuesses, rememberMatches, useServerMatches } from './serverMatches'
+import { chooseMatch, forgetServerGuesses, rememberMatches, useServerMatches } from './serverMatches'
 
 /** What a download row needs from TMDB. */
 export type TitleMatch = Pick<Title, 'type' | 'id' | 'title' | 'year' | 'posterPath'>
@@ -53,6 +53,11 @@ export function lookupFor(
   return { key: `q:${type}:${parsed.year ?? ''}:${parsed.title.toLocaleLowerCase()}`, parsed, hint }
 }
 
+/** Whether a torrent's title was guessed from its name: neither the user's choice nor the `tmdb:` tag. */
+export function isGuessed(torrent: Pick<Torrent, 'tags'>, stored?: StoredMatch): boolean {
+  return stored?.source !== 'user' && !tmdbTag(torrent.tags ?? '')
+}
+
 function normalize(text: string): string {
   return text
     .toLocaleLowerCase()
@@ -96,7 +101,7 @@ export function pickBest(titles: Title[], parsed: ParsedName, hint?: MediaType):
   return first(candidates.filter((title) => title.type === 'tv')) ?? null
 }
 
-function slim(title: Title): TitleMatch {
+function slim(title: TitleMatch): TitleMatch {
   return { type: title.type, id: title.id, title: title.title, year: title.year, posterPath: title.posterPath }
 }
 
@@ -157,6 +162,15 @@ function writeCache(changes: Record<string, TitleMatch | null>): void {
   } catch {
     // Storage full or blocked: the in-memory copy still saves requests for this session.
   }
+}
+
+/**
+ * Saves the user's choice of title for a torrent on the server (picking the guessed title confirms
+ * it). Its title is cached first, so every screen shows it without asking TMDB again.
+ */
+export async function chooseTitle(hash: string, title: TitleMatch, language: string): Promise<void> {
+  writeCache({ [`${language}|${known(title.type, title.id).key}`]: slim(title) })
+  await chooseMatch(hash, title)
 }
 
 /** Forgets cached titles and guesses here and on the server; the user's choices stay. */
