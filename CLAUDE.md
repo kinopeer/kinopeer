@@ -65,7 +65,9 @@ Run lint, typecheck, test and build before pushing, and the screenshot tests whe
 - Everything in the repo and on GitHub is in English: code, comments, docs, commit messages, PR titles and descriptions, issues.
 - UI copy is localized (Russian and English) with i18next. Never hardcode user-facing strings: add keys to both `src/i18n/locales/en.json` and `ru.json` (a test checks they match). Russian plurals need `_one`, `_few`, `_many` and `_other` keys.
 - Work in small, reviewable PRs, one roadmap step or less each. Branch names: `feat/…`, `fix/…`, `chore/…`, `docs/…`.
-- Never push to `main` directly; open a PR.
+- Never push to `main` directly; open a PR. Every PR targets `main`, never another feature branch: the owner squash-merges, often several in a row, and a stacked PR would land in its stale base. Work that depends on an open PR waits for it to merge, then rebases onto `main`. Merge only after the owner approves.
+- If a request is suboptimal by any measure (performance, workarounds in code, maintainability, security, UX, cost, complexity), say so and suggest alternatives before starting, and let the owner decide.
+- Feature ideas, ours included, go to GitHub Discussions → Ideas, so they can be upvoted. Issues are for bugs and for work we've decided to do. A deferred roadmap item moves to "Later" with a link to its idea.
 - Keep the docs current: when a change affects them, update them in the same PR. Behavior or a product decision → `docs/SPEC.md` (and its decision log); a shipped roadmap item → tick it in `docs/ROADMAP.md`; setup, environment variables or releases → `docs/DEVELOPMENT.md`; user-visible changes → `CHANGELOG.md` and, if needed, `README.md`; architecture → this file.
 - Anything to settle before the public release goes into `docs/RELEASE_CHECKLIST.md`.
 - Keep Kinoseed runnable without its server: plain Docker and a qBittorrent Alternative WebUI are planned (`docs/ROADMAP.md`, Later). A new server feature either has a browser fallback (as torrent-to-title matches do) or is an extra the app works without, and pure logic (name and release parsing, picking a title) imports no React, DOM or Node APIs.
@@ -82,6 +84,12 @@ Run lint, typecheck, test and build before pushing, and the screenshot tests whe
 - One accent color (teal). Status colors are separate from the accent; "downloading" is the only status in the accent color.
 - Font: Onest. Numbers that update (speeds, sizes, percentages) use tabular figures.
 - When the app departs from the canvas, update the canvas too so they stay in sync.
+- Draw on the canvas first only for new screens and big forks (several variants side by side). Small changes and blocks inside existing screens are built in code and shown on the test stand, and the canvas is updated once the owner approves. A canvas round is expensive: the prototype is one large file to read, edit and publish.
+
+## Workflow
+
+- The test stand is the dev server (`npm run dev`, port 5173) on the owner's machine, running the branch under review. Start it when a PR has UI changes so the owner can try them before merging, and stop it when they're done. Don't leave detached processes (nohup, launchd) running there.
+- A release follows `docs/DEVELOPMENT.md` → Releasing: a PR with the version, the `CHANGELOG.md` section and the "as of version" line at the top of `docs/SPEC.md`; after it merges, the `v*` tag (pushed from the owner's machine, because the cloud git proxy refuses tag pushes); then a PR to the store repo with the new version, release notes and image digest. Tagging and the store PR need the owner's go-ahead.
 
 ## Roadmap
 
