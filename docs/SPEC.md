@@ -97,6 +97,8 @@ Manifest and icons; the service worker keeps the app shell available offline and
 
 | Date | Decision |
 | --- | --- |
+| 2026-10-24 | No series stacks in Downloads: every torrent keeps its own row or card. A title's torrents are found from its page instead. |
+| 2026-10-24 | The title page and the torrent screen stay separate; the title page links to the screens of its torrents. |
 | 2026-10-24 | Downloads open as a list by default; the poster grid is a per-browser choice until the desktop layout decides its own default. |
 | 2026-10-23 | Umbrel is the only supported install; other ways to install come later. |
 | 2026-10-23 | No Sonarr/Radarr-style automation and no season picker on the series page. |
@@ -115,4 +117,4 @@ Manifest and icons; the service worker keeps the app shell available offline and
 
 ## Still open
 
-- **The title as the center.** Merge the title page and the torrent screen: under the overview, an "In downloads" block with this title's torrents; rows in Downloads open it; files and trackers open from there. A torrent with no TMDB match keeps its own screen. Design it on the canvas first, then build it (0.2).
+- **The title as the center.** The title page and the torrent screen stay separate and are linked: under the overview, an "In downloads" block lists this title's torrents (from the `tmdb:` tag), each linking to its torrent screen. This is also how several torrents of one movie or series are seen together. Design it on the canvas first, then build it (0.2).
