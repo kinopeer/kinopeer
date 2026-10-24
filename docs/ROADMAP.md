@@ -25,7 +25,6 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 - [ ] Sorting the list.
 - [ ] Multi-select and bulk actions: pause, resume, delete.
 - [x] A poster grid as a second view of the downloads list, as on the canvas.
-- [ ] Reordering the download queue.
 
 ## 0.4: Desktop
 
@@ -42,6 +41,9 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 
 ## Later, no version yet
 
+Feature requests are collected as GitHub issues; a 👍 on an issue is a vote.
+
+- Reordering the download queue ([#38](https://github.com/MrShakhov/kinoseed/issues/38)), when people ask for it.
 - Installing outside Umbrel, together with Kinoseed's own login.
 - More interface languages, if asked for.
 
