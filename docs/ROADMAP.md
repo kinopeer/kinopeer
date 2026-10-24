@@ -45,7 +45,8 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 Ideas are collected in [GitHub Discussions → Ideas](https://github.com/MrShakhov/kinoseed/discussions/categories/ideas), ours included; the most upvoted ones get planned here.
 
 - Reordering the download queue ([#38](https://github.com/MrShakhov/kinoseed/issues/38)), when people ask for it.
-- Installing outside Umbrel, together with Kinoseed's own login.
+- Installing with plain Docker, outside Umbrel, together with Kinoseed's own login.
+- Kinoseed as a qBittorrent Alternative WebUI, with no Kinoseed server: qBittorrent's API on the same origin, TMDB and Prowlarr called from the browser with the user's keys, settings and matches kept in qBittorrent's client data store (`clientdata`, qBittorrent 5.2+). Check first that Prowlarr accepts cross-origin API calls.
 - More interface languages, if asked for.
 
 ## Not planned
@@ -54,4 +55,5 @@ Ideas are collected in [GitHub Discussions → Ideas](https://github.com/MrShakh
 - Picking a season on the series page.
 - Series stacks in Downloads (several torrents of one series in one card); the title page lists a title's torrents instead. Revisit only if that turns out not to be enough.
 - Jackett.
+- A hosted Kinoseed on our own domain for other people's qBittorrent. Browsers keep a public HTTPS page away from a home-network qBittorrent unless it is set up by hand for CORS and HTTPS, and a server in the middle would hold other people's logins and keys.
 - Playing video.
