@@ -7,6 +7,7 @@ import { FilterChip } from '../components/FilterChip'
 import { Icon } from '../components/Icon'
 import { IconButton } from '../components/IconButton'
 import { Input } from '../components/Input'
+import { PosterCardSkeleton } from '../components/PosterCard'
 import { Segmented } from '../components/Segmented'
 import { Toast } from '../components/Toast'
 import { useFormatters } from '../lib/format'
@@ -15,7 +16,7 @@ import { STATUS_FILTERS, compareByQueue, matchesFilter, type StatusFilter } from
 import { useTitleMatches } from '../torrents/titleMatches'
 import { useMainData } from '../torrents/useMainData'
 import { DeleteTorrentDialog } from './DeleteTorrentDialog'
-import { DownloadCard, DownloadCardSkeleton } from './DownloadCard'
+import { DownloadCard } from './DownloadCard'
 import { DownloadItem } from './DownloadItem'
 import { InstallCard } from './InstallCard'
 import { OfflineBanner } from './OfflineBanner'
@@ -175,10 +176,10 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
             {t('offline.unreachableBody')}
           </EmptyState>
         ) : loading && grid ? (
-          <div className="downloads-grid" role="status">
+          <div className="ks-poster-grid" role="status">
             <span className="sr-only">{t('downloads.loading')}</span>
             {Array.from({ length: SKELETON_CARDS }, (_, index) => (
-              <DownloadCardSkeleton key={index} />
+              <PosterCardSkeleton key={index} />
             ))}
           </div>
         ) : loading ? (
@@ -214,7 +215,7 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
             {t('downloads.noMatchBody')}
           </EmptyState>
         ) : (
-          <ul className={grid ? 'downloads-grid' : 'downloads-list'}>
+          <ul className={grid ? 'ks-poster-grid' : 'downloads-list'}>
             {visible.map((torrent) => {
               const Item = grid ? DownloadCard : DownloadItem
               return (

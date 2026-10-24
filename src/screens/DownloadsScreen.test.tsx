@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
 import type { MainData, Torrent } from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
-import { getSettings, resetSettings } from '../settings/settings'
+import { getSettings, resetSettings, updateSettings } from '../settings/settings'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
 import { DownloadsScreen } from './DownloadsScreen'
 
@@ -153,6 +153,28 @@ describe('DownloadsScreen', () => {
     expect(await screen.findByRole('radio', { name: 'Grid', checked: true })).toBeInTheDocument()
     await userEvent.click(await screen.findByRole('button', { name: 'More actions: Alien.Romulus.2024.1080p' }))
     expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Resume' })).toBeInTheDocument()
+  })
+
+  it('shows the release name, a placeholder poster and the size in the grid until a title is matched', async () => {
+    updateSettings({ downloadsView: 'grid' })
+    const { container } = renderScreen()
+    const cards = await screen.findAllByRole('listitem')
+    const alien = within(cards[2])
+    expect(alien.getByRole('heading', { name: 'Alien.Romulus.2024.1080p' })).toBeInTheDocument()
+    expect(alien.getByText(/^10% · 1(\.00)?\sGB$/)).toBeInTheDocument()
+    expect(alien.getByText('Paused')).toBeInTheDocument()
+    expect(alien.queryByLabelText(/Queue position/)).not.toBeInTheDocument()
+    expect(container.querySelector('img')).toBeNull()
+    expect(container.querySelectorAll('.ks-poster-none')).toHaveLength(3)
+  })
+
+  it('shows placeholder cards while loading in the grid', () => {
+    updateSettings({ downloadsView: 'grid' })
+    getMainData.mockReturnValue(new Promise(() => {}))
+    const { container } = renderScreen()
+    expect(screen.getByRole('status')).toHaveTextContent('Loading downloads')
+    expect(container.querySelectorAll('.ks-pcard[aria-hidden="true"]')).toHaveLength(4)
+    expect(container.querySelector('.dl-skeleton')).toBeNull()
   })
 
   it('shows transfer totals and free space', async () => {

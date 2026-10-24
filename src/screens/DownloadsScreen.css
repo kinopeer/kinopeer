@@ -76,45 +76,6 @@
   gap: 10px;
 }
 
-/* Poster grid: two columns on a phone, up to four in the column's full width. */
-.downloads-grid {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 18px 12px;
-}
-
-.dl-card {
-  position: relative;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.dl-card-main {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-  color: inherit;
-  text-decoration: none;
-  border-radius: 12px;
-}
-
-.dl-card-main .ks-poster {
-  width: 100%;
-}
-
-@media (hover: hover) {
-  .dl-card-main:hover .ks-poster {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-2);
-  }
-}
-
 .dl-card-over {
   position: absolute;
   left: 10px;
@@ -130,36 +91,7 @@
   align-self: stretch;
 }
 
-.dl-card-skel-poster {
-  aspect-ratio: 2 / 3;
-  border-radius: 12px;
-}
-
-/* Room on the right for the actions button, which sits over the text. */
-.dl-card-text {
-  min-width: 0;
-  padding-right: 32px;
-}
-
-.dl-card-title {
-  font-size: 15px;
-  line-height: 20px;
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-
-.dl-card-meta {
-  font-size: 12px;
-  line-height: 17px;
-}
-
-/* Level with the title line: the poster is 3/2 of the card's width, and a percentage margin
-   counts from the width, so this holds at any column size and title length. */
 .dl-card-more {
-  position: absolute;
-  top: 0;
-  right: -10px;
-  margin-top: calc(150% - 4px);
   color: var(--text3);
 }
 

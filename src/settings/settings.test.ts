@@ -17,6 +17,16 @@ describe('settings', () => {
     expect(JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY)!)).toMatchObject({ movieCategory: 'Movies' })
   })
 
+  it('shows downloads as a list until a grid is picked, and remembers the pick', () => {
+    expect(getSettings().downloadsView).toBe('list')
+    const { result } = renderHook(() => useSettings())
+    act(() => result.current[1]({ downloadsView: 'grid' }))
+    expect(JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY)!)).toMatchObject({ downloadsView: 'grid' })
+    resetSettings()
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({ downloadsView: 'grid' }))
+    expect(getSettings().downloadsView).toBe('grid')
+  })
+
   it('ignores unreadable storage', () => {
     localStorage.setItem(SETTINGS_STORAGE_KEY, '{not json')
     expect(getSettings()).toEqual(DEFAULT_SETTINGS)

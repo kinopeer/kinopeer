@@ -64,7 +64,7 @@ Run lint, typecheck, test and build before pushing. CI must be green before merg
 - Never push to `main` directly; open a PR.
 - Keep the docs current: when a change affects them, update them in the same PR. Behavior or a product decision → `docs/SPEC.md` (and its decision log); a shipped roadmap item → tick it in `docs/ROADMAP.md`; setup, environment variables or releases → `docs/DEVELOPMENT.md`; user-visible changes → `CHANGELOG.md` and, if needed, `README.md`; architecture → this file.
 - Anything to settle before the public release goes into `docs/RELEASE_CHECKLIST.md`.
-- Tests sit next to the code as `*.test.ts(x)`. Query by role and accessible name.
+- Every PR covers what it changes with tests: each new or changed component, helper, setting and user flow. Tests sit next to the code as `*.test.ts(x)`. Query by role and accessible name. Pure layout changes that jsdom can't see are checked on a running app and said so in the PR.
 - Accessibility is a requirement: real `<button>`/`<a>`/`<input>`, labels on icon-only buttons, touch targets ≥ 44px, visible focus, `prefers-reduced-motion` respected.
 
 ## Design

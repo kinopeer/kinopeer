@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { Torrent, TorrentState } from '../api/qbittorrent'
-import { compareByQueue, downloadStatus, matchesFilter } from './status'
+import i18n from '../i18n'
+import { createFormatters } from '../lib/format'
+import { compareByQueue, downloadStatus, matchesFilter, transferSpeed } from './status'
 
 const torrent = (state: TorrentState, progress = 0.5) => ({ state, progress })
 
@@ -46,5 +48,19 @@ describe('compareByQueue', () => {
     const make = (hash: string, priority: number, added_on: number) => ({ hash, priority, added_on }) as Torrent
     const sorted = [make('old', -1, 1), make('q2', 2, 5), make('new', -1, 9), make('q1', 1, 3)].sort(compareByQueue)
     expect(sorted.map((t) => t.hash)).toEqual(['q1', 'q2', 'new', 'old'])
+  })
+})
+
+describe('transferSpeed', () => {
+  const format = createFormatters(i18n.t, 'en')
+  const speeds = { dlspeed: 4_300_000, upspeed: 120_000 }
+
+  it('shows the download speed while downloading and the upload speed while seeding', () => {
+    expect(transferSpeed(speeds, 'downloading', format)).toMatch(/^↓ 4\.3\sMB\/s$/)
+    expect(transferSpeed(speeds, 'seeding', format)).toMatch(/^↑ 120\sKB\/s$/)
+  })
+
+  it.each(['paused', 'completed', 'queued', 'checking', 'error'] as const)('shows nothing while %s', (status) => {
+    expect(transferSpeed(speeds, status, format)).toBeNull()
   })
 })
