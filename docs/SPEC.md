@@ -97,6 +97,7 @@ Manifest and icons; the service worker keeps the app shell available offline and
 
 | Date | Decision |
 | --- | --- |
+| 2026-10-24 | Discussions are on before the public release; our own ideas go to Ideas too, not to issues. |
 | 2026-10-24 | Reordering the download queue is deferred until people ask for it ([#38](https://github.com/MrShakhov/kinoseed/issues/38)). Feature requests go to GitHub Discussions (Ideas) and are voted on there; issues are for bugs and accepted work. |
 | 2026-10-24 | No series stacks in Downloads: every torrent keeps its own row or card. A title's torrents are found from its page instead. |
 | 2026-10-24 | The title page and the torrent screen stay separate; the title page links to the screens of its torrents. |
