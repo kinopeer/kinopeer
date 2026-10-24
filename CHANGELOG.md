@@ -6,6 +6,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ### Added
 
+- Title page: an "In downloads" block with a card for each of the title's torrents (season and episodes, resolution, progress, status), each opening its torrent screen, and a badge in the header. The torrent menu links back with "Movie page" or "Series page".
 - Change a torrent's title: search TMDB from the row menu or the torrent screen's More button and pick the right movie or series. A title guessed from the release name asks whether it's right; "Yes, right" keeps it. The choice is saved on the Kinoseed server and shows on every device.
 - Downloads: a poster grid as a second view next to the list, with status and progress over each poster. The browser remembers the choice.
 

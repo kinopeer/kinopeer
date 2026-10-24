@@ -241,6 +241,8 @@ describe('DownloadsScreen', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' }))
     const sheet = screen.getByRole('dialog', { name: 'Andor.S02.1080p' })
     expect(within(sheet).getByRole('link', { name: 'Open details' })).toHaveAttribute('href', '/torrent/andor')
+    // No title yet, so no title page to open.
+    expect(within(sheet).queryByRole('link', { name: /page$/ })).not.toBeInTheDocument()
     await userEvent.click(within(sheet).getByRole('button', { name: 'Pause' }))
     expect(api.stopTorrents).toHaveBeenCalledWith(['andor'])
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -274,6 +276,7 @@ describe('DownloadsScreen', () => {
     const sheet = screen.getByRole('dialog', { name: 'Dune: Part Two' })
     expect(within(sheet).getByText('Matched by the release name. Is it right?')).toBeInTheDocument()
     expect(within(sheet).queryByRole('button', { name: 'Change title' })).not.toBeInTheDocument()
+    expect(within(sheet).getByRole('link', { name: 'Movie page' })).toHaveAttribute('href', '/title/movie/693134')
     await userEvent.click(within(sheet).getByRole('button', { name: 'Yes, right' }))
     expect(matchesApi.saveMatches).toHaveBeenCalledWith({ dune: { type: 'movie', id: 693134, source: 'user' } })
     expect(await screen.findByText('Match confirmed')).toBeInTheDocument()
@@ -289,7 +292,11 @@ describe('DownloadsScreen', () => {
     await userEvent.click(await within(sheet).findByRole('button', { name: /^Andor/ }))
     expect(matchesApi.saveMatches).toHaveBeenCalledWith({ andor: { type: 'tv', id: 83867, source: 'user' } })
     expect(await screen.findByText('Title changed')).toBeInTheDocument()
-    expect(await screen.findByRole('button', { name: 'More actions: Andor' })).toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor' }))
+    expect(within(screen.getByRole('dialog', { name: 'Andor' })).getByRole('link', { name: 'Series page' })).toHaveAttribute(
+      'href',
+      '/title/tv/83867',
+    )
   })
 
   it('confirms a torrent deleted on the torrent page', async () => {

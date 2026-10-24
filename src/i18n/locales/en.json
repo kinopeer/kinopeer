@@ -54,6 +54,8 @@
     "deletedFiles": "Torrent and files deleted",
     "moreActions": "More actions: {{name}}",
     "openDetails": "Open details",
+    "moviePage": "Movie page",
+    "seriesPage": "Series page",
     "view": "View",
     "viewList": "List",
     "viewGrid": "Grid"
@@ -122,7 +124,9 @@
     "notFoundBody": "TMDB has no movie or series with this link.",
     "backToSearch": "Back to search",
     "findReleases": "Find releases",
-    "seriesHint": "Releases are searched by show name. Pick seasons in the file list after choosing a release."
+    "seriesHint": "Releases are searched by show name. Pick seasons in the file list after choosing a release.",
+    "inDownloads": "In downloads",
+    "inDownloadsBadge": "In downloads · {{value}}"
   },
   "settings": {
     "title": "Settings",

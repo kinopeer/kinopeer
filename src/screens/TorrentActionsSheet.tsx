@@ -109,6 +109,14 @@ export function TorrentActionsSheet({
             </Link>
           </li>
         )}
+        {match && (
+          <li>
+            <Link to={`/title/${match.type}/${match.id}`} className="ks-row-btn">
+              <Icon name={match.type === 'tv' ? 'tv' : 'film'} />
+              {match.type === 'tv' ? t('downloads.seriesPage') : t('downloads.moviePage')}
+            </Link>
+          </li>
+        )}
         {!askToConfirm && (
           <li>
             <button type="button" className="ks-row-btn" onClick={onChangeTitle}>

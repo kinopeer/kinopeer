@@ -1,4 +1,5 @@
 import type { TFunction } from 'i18next'
+import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import {
@@ -20,7 +21,10 @@ import { Poster } from '../components/Poster'
 import { useFormatters, type Formatters } from '../lib/format'
 import { useRequest } from '../lib/useRequest'
 import { useTmdbLanguage } from '../settings/settings'
+import { useTitleTorrents } from '../torrents/titleMatches'
+import { useMainData } from '../torrents/useMainData'
 import type { SettingsLocationState } from './SettingsScreen'
+import { TitleDownloads } from './TitleDownloads'
 import './TitleScreen.css'
 
 type Details = ({ type: 'movie' } & MovieDetails) | ({ type: 'tv' } & TvDetails)
@@ -54,7 +58,12 @@ function metaLine(t: TFunction, format: Formatters, details: Details): string {
     .join(' · ')
 }
 
-export function TitleScreen() {
+export interface TitleScreenProps {
+  /** qBittorrent rejected the session cookie (expired or signed out elsewhere). */
+  onSessionLost: () => void
+}
+
+export function TitleScreen({ onSessionLost }: TitleScreenProps) {
   const { t, i18n } = useTranslation()
   const format = useFormatters()
   const navigate = useNavigate()
@@ -64,6 +73,11 @@ export function TitleScreen() {
   const id = Number(params.id)
   const valid = type !== undefined && Number.isInteger(id) && id > 0
   const language = useTmdbLanguage()
+
+  // The title's torrents. While qBittorrent doesn't answer, the last known ones stay.
+  const { data } = useMainData(onSessionLost)
+  const torrents = useMemo(() => (data ? Object.values(data.torrents) : []), [data])
+  const downloads = useTitleTorrents(torrents, type ?? 'movie', valid ? id : 0)
 
   const request = useRequest<Details>(valid ? `${type}|${id}|${language}` : null, async (signal) =>
     type === 'movie'
@@ -159,6 +173,13 @@ export function TitleScreen() {
         <div className="title-head">
           <Poster src={poster} className="title-poster" />
           <div className="title-head-text">
+            {downloads.length > 0 && (
+              <Badge kind="coverage" icon="check" className="title-in-dl">
+                {t('title.inDownloadsBadge', {
+                  value: downloads.length > 1 ? downloads.length : format.percent(downloads[0].progress),
+                })}
+              </Badge>
+            )}
             <h1 className="t-h2 title-name">{name}</h1>
             {originalName && originalName !== name && (
               <p className="t-cap c3" lang={details.original_language}>
@@ -195,6 +216,7 @@ export function TitleScreen() {
             <p className="t-body c2">{details.overview}</p>
           </section>
         )}
+        <TitleDownloads torrents={downloads} />
         {details.type === 'tv' && <Banner tone="info">{t('title.seriesHint')}</Banner>}
       </div>
       <div className="title-actions">

@@ -1,10 +1,12 @@
 import { expect, test, type Page } from '@playwright/test'
-import { openApp, settle, type AppOptions } from './app.ts'
+import { openApp, showWholePage, type AppOptions } from './app.ts'
 
 async function openTitle(page: Page, path: string, name: string, options: AppOptions = {}) {
   await openApp(page, path, options)
   await expect(page.getByRole('heading', { level: 1, name })).toBeVisible()
-  await settle(page)
+  // The whole page, so the screenshot shows the "In downloads" block under the overview.
+  await expect(page.getByRole('region', { name: /^(In downloads|В загрузках)/ })).toBeVisible()
+  await showWholePage(page)
 }
 
 test('movie, dark, Russian', async ({ page }) => {

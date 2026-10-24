@@ -322,6 +322,7 @@ describe('TorrentScreen title matching', () => {
     await userEvent.click(screen.getByRole('button', { name: 'More actions: Dune: Part Two' }))
     const menu = screen.getByRole('dialog', { name: 'Dune: Part Two' })
     expect(within(menu).queryByRole('link', { name: 'Open details' })).not.toBeInTheDocument()
+    expect(within(menu).getByRole('link', { name: 'Movie page' })).toHaveAttribute('href', '/title/movie/693134')
     await userEvent.click(within(menu).getByRole('button', { name: 'Change title' }))
     const sheet = screen.getByRole('dialog', { name: 'Change title' })
     expect(await within(sheet).findByRole('button', { name: /^Dune: Part Two/ })).toHaveAttribute('aria-current', 'true')
