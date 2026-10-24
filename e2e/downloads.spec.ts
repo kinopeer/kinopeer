@@ -33,6 +33,16 @@ test.describe('downloads, phone', () => {
     await expect(page).toHaveScreenshot('grid-actions-dark-ru.png')
   })
 
+  test('sort sheet', async ({ page }) => {
+    await openDownloads(page)
+    await page.getByRole('button', { name: 'Сортировка: Приоритет' }).click()
+    // The radio itself is visually hidden; a tap lands on its row.
+    await page.getByRole('dialog').getByText('Размер', { exact: true }).click()
+    await expect(page.getByRole('radio', { name: 'Размер' })).toBeChecked()
+    await settle(page)
+    await expect(page).toHaveScreenshot('sort-dark-ru.png')
+  })
+
   test('nothing downloaded yet', async ({ page }) => {
     await openApp(page, '/', { torrents: [] })
     await expect(page.getByText('Загрузок пока нет')).toBeVisible()

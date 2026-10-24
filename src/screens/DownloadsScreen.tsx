@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router'
 import type { Torrent } from '../api/qbittorrent'
+import { Button } from '../components/Button'
 import { EmptyState } from '../components/EmptyState'
 import { FilterChip } from '../components/FilterChip'
 import { Icon } from '../components/Icon'
@@ -12,7 +13,8 @@ import { Segmented } from '../components/Segmented'
 import { Toast } from '../components/Toast'
 import { useFormatters } from '../lib/format'
 import { useSettings } from '../settings/settings'
-import { STATUS_FILTERS, compareByQueue, matchesFilter, type StatusFilter } from '../torrents/status'
+import { compareTorrents, knownSort } from '../torrents/sort'
+import { STATUS_FILTERS, matchesFilter, type StatusFilter } from '../torrents/status'
 import { useServerMatches } from '../torrents/serverMatches'
 import { isGuessed, useTitleMatches } from '../torrents/titleMatches'
 import { useMainData } from '../torrents/useMainData'
@@ -22,6 +24,7 @@ import { DownloadCard } from './DownloadCard'
 import { DownloadItem } from './DownloadItem'
 import { InstallCard } from './InstallCard'
 import { OfflineBanner } from './OfflineBanner'
+import { SortSheet } from './SortSheet'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
 import './DownloadsScreen.css'
 
@@ -45,8 +48,10 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
     () => void navigate(location.pathname, { replace: true, state: null }),
     [navigate, location.pathname],
   )
-  const [{ downloadsView: view }, updateSettings] = useSettings()
+  const [{ downloadsView: view, downloadsSort }, updateSettings] = useSettings()
   const grid = view === 'grid'
+  const sort = knownSort(downloadsSort)
+  const [sortOpen, setSortOpen] = useState(false)
   const [filter, setFilter] = useState<StatusFilter>('all')
   const [searchOpen, setSearchOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -64,19 +69,21 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
   }
   const dismissReconnected = useCallback(() => setReconnected(false), [])
 
-  const torrents = useMemo(() => (data ? Object.values(data.torrents).sort(compareByQueue) : []), [data])
+  const torrents = useMemo(() => (data ? Object.values(data.torrents) : []), [data])
   const matches = useTitleMatches(torrents)
   const serverMatches = useServerMatches()
   const visible = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase()
-    return torrents.filter(
-      (torrent) =>
-        matchesFilter(torrent, filter) &&
-        (!needle ||
-          torrent.name.toLocaleLowerCase().includes(needle) ||
-          !!matches[torrent.hash]?.title.toLocaleLowerCase().includes(needle)),
-    )
-  }, [torrents, filter, query, matches])
+    return torrents
+      .filter(
+        (torrent) =>
+          matchesFilter(torrent, filter) &&
+          (!needle ||
+            torrent.name.toLocaleLowerCase().includes(needle) ||
+            !!matches[torrent.hash]?.title.toLocaleLowerCase().includes(needle)),
+      )
+      .sort(compareTorrents(sort, (torrent) => matches[torrent.hash]?.title ?? torrent.name))
+  }, [torrents, filter, query, matches, sort])
 
   const loading = data === null
   // Looked up on every render, so the sheet follows live status changes and closes if the torrent goes away.
@@ -157,6 +164,17 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
         </div>
 
         <div className="downloads-toolbar">
+          <Button
+            variant="ghost"
+            size="sm"
+            icon="sort"
+            className="downloads-sort"
+            aria-haspopup="dialog"
+            aria-label={t('downloads.sortButton', { sort: t(`downloads.sorts.${sort}`) })}
+            onClick={() => setSortOpen(true)}
+          >
+            {t(`downloads.sorts.${sort}`)}
+          </Button>
           <Segmented
             label={t('downloads.view')}
             iconsOnly
@@ -230,6 +248,7 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
                   key={torrent.hash}
                   torrent={torrent}
                   match={matches[torrent.hash]}
+                  showQueue={sort === 'priority'}
                   onMore={(target) => setActionsFor(target.hash)}
                 />
               )
@@ -237,6 +256,12 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
           </ul>
         )}
       </section>
+      <SortSheet
+        open={sortOpen}
+        value={sort}
+        onChange={(downloadsSort) => updateSettings({ downloadsSort })}
+        onClose={() => setSortOpen(false)}
+      />
       {actionsTorrent && (
         <TorrentActionsSheet
           torrent={actionsTorrent}

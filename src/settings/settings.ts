@@ -2,6 +2,7 @@ import { useCallback, useEffect, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getServerSettings, saveDownloadDefaults, type DownloadDefaults } from '../api/settings'
 import { tmdbLanguage } from '../api/tmdb'
+import type { DownloadSort } from '../torrents/sort'
 
 /**
  * Preferences from the Settings screen, kept in this browser. The download defaults (categories,
@@ -22,6 +23,8 @@ export interface Settings {
   tmdbLanguage: 'app' | 'en-US' | 'ru-RU'
   /** How the downloads list is shown. */
   downloadsView: 'list' | 'grid'
+  /** How the downloads list is ordered. */
+  downloadsSort: DownloadSort
 }
 
 export const SETTINGS_STORAGE_KEY = 'kinoseed.settings'
@@ -31,6 +34,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sequential: false,
   tmdbLanguage: 'app',
   downloadsView: 'list',
+  downloadsSort: 'priority',
 }
 
 /** The settings the server keeps too. */

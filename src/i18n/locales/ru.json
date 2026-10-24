@@ -58,7 +58,20 @@
     "seriesPage": "Страница сериала",
     "view": "Вид",
     "viewList": "Список",
-    "viewGrid": "Сетка"
+    "viewGrid": "Сетка",
+    "sort": "Сортировка",
+    "sortButton": "Сортировка: {{sort}}",
+    "sortDone": "Готово",
+    "sortPriorityHint": "Порядок очереди",
+    "sorts": {
+      "priority": "Приоритет",
+      "added": "Дата добавления",
+      "name": "Название",
+      "progress": "Прогресс",
+      "size": "Размер",
+      "speed": "Скорость",
+      "eta": "Осталось"
+    }
   },
   "format": {
     "B": "Б",

@@ -32,6 +32,7 @@ The `homelab-kinoseed` package from the Homelab App Store runs on port 8795, dep
 | TMDB key | `/data/settings.json`, else environment | Onboarding or Settings |
 | Download defaults (categories, start paused, sequential) | `/data/settings.json`; a copy in the browser | Settings |
 | Theme, interface language, TMDB language | Browser | Settings |
+| Downloads view and sort | Browser | Downloads |
 | Torrent-to-TMDB matches | `/data/matches.json`; titles and posters cached in the browser | Guessed automatically; the torrent menu |
 
 A torrent's match is forgotten when the torrent is deleted from Kinoseed. For torrents deleted elsewhere, the server checks qBittorrent's list every hour and forgets a match once its torrent has been missing for a week, so a qBittorrent that answers with an empty list after a restart, or a torrent added back, loses nothing.
@@ -50,6 +51,7 @@ A torrent's match is forgotten when the torrent is deleted from Kinoseed. For to
 - A row shows the TMDB poster and title, status, progress, speed, time left and queue position. The title comes from the user's choice, else the `tmdb:<movie|tv>:<id>` tag, else a guess from the release name. Guesses are saved on the server, so every device shows the same title and each torrent is guessed once.
 - A list or a poster grid (status and progress over the poster, percent and speed or size under it). The list is the default; the choice is remembered in the browser.
 - Filters by status and name, total speeds, free space.
+- Sorting: Priority (qBittorrent's queue order, the default), Date added (newest first), Name (A to Z by the title the row shows), Progress (most first), Size (largest first), Speed (fastest download first, then upload), ETA (soonest done first; torrents without a time left go last). Ties keep the queue order. The queue position on the poster shows only with Priority. The sort is picked in a sheet and remembered in the browser.
 - Row menu: pause or resume, details, the title's page, change the title, delete with or without files. When the title was guessed from the release name, the menu asks "Matched by the release name. Is it right?" with Change and "Yes, right" instead of the Change title item.
 - Statuses: Downloading (the only one in the accent color), Seeding, Paused, Completed, Queued, Checking, Error.
 
@@ -105,6 +107,7 @@ Manifest and icons; the service worker keeps the app shell available offline and
 
 | Date | Decision |
 | --- | --- |
+| 2026-10-25 | Downloads sorting ships on its own: the sheet has the sort only, and the Movies/Series type filter from the canvas's "Sort & filter" sheet comes separately. The sort is remembered per browser, like the view, rather than on the server; it can move there later if the same order on every device turns out to matter. Picking a release doesn't reset the sort. |
 | 2026-10-24 | Download defaults (categories, start paused, sequential) are kept on the Kinoseed server, so every device adds releases the same way; each one is saved on its own, so changes on two devices don't undo each other. The browser keeps a copy and uses it when there's no server. Defaults set in a browser before 0.2 are sent to the server by the first browser that has them. Theme, interface language, TMDB language and the Downloads view stay per browser: they depend on the device. |
 | 2026-10-24 | Until the desktop layout (0.4), every screen on a wide screen, Search included, sits in one centered column 760px wide, and the tab bar's tabs stay over it. One width for all, so switching tabs doesn't shift the header; Search shows fewer posters per row than its old 1200px. |
 | 2026-10-24 | The title page's "In downloads" block shows each torrent as a separate card, newest first, with its season and episodes, rather than one merged entry per title. Small changes like this are built and tried on the test stand first, and the canvas is updated after. |
