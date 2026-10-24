@@ -43,6 +43,8 @@
   --sidebar: 248px;
   --sidebar-rail: 76px;
   --drawer: 460px;
+  /* Width of the centered column screens use on wide screens, until the desktop layout. */
+  --column: 760px;
 
   /* Accent scale */
   --teal-50: #e6fafb;

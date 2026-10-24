@@ -105,6 +105,7 @@ Manifest and icons; the service worker keeps the app shell available offline and
 
 | Date | Decision |
 | --- | --- |
+| 2026-10-24 | Until the desktop layout (0.4), every screen on a wide screen, Search included, sits in one centered column 760px wide, and the tab bar's tabs stay over it. One width for all, so switching tabs doesn't shift the header; Search shows fewer posters per row than its old 1200px. |
 | 2026-10-24 | The title page's "In downloads" block shows each torrent as a separate card, newest first, with its season and episodes, rather than one merged entry per title. Small changes like this are built and tried on the test stand first, and the canvas is updated after. |
 | 2026-10-24 | Two more ways to install are kept in mind: plain Docker without Umbrel, and Kinoseed as a qBittorrent Alternative WebUI with no server of its own (this reopens the 2026-10-20 decision as a second option, not a replacement). Until then, whatever the Kinoseed server does has a fallback in the browser or is an extra the app works without, and pure logic stays free of React, the DOM and Node. That's why guessing titles from release names stays in the browser rather than moving to the server. A hosted Kinoseed for other people's qBittorrent is dropped. |
 | 2026-10-24 | A guessed title asks "Is it right?" with Change and "Yes, right" (on the torrent screen and in the row menu) rather than a separate "Confirm match" menu item, which didn't say what it confirmed. Guessed rows in Downloads carry no marker. |

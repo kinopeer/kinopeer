@@ -1,7 +1,7 @@
 .title {
   position: relative;
   width: 100%;
-  max-width: 760px;
+  max-width: var(--column);
   margin: 0 auto;
   overflow-x: hidden;
 }
@@ -120,7 +120,7 @@
   bottom: calc(66px + var(--safe-bottom));
   z-index: 4;
   width: 100%;
-  max-width: 760px;
+  max-width: var(--column);
   margin: 0 auto;
   padding: 20px 16px 12px;
   background: linear-gradient(180deg, transparent, var(--bg) 34%);
