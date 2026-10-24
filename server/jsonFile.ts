@@ -34,10 +34,15 @@ export class JsonFile<T extends object> {
     return this.cache ?? ({} as T)
   }
 
-  /** Writes what `change` makes of the current contents, after any change still being written. */
+  /**
+   * Writes what `change` makes of the current contents, after any change still being written.
+   * Returning the current object unchanged writes nothing.
+   */
   change(change: (current: T) => T): Promise<T> {
     const run = this.writing.then(async () => {
-      const next = change(await this.load())
+      const current = await this.load()
+      const next = change(current)
+      if (next === current) return current
       await mkdir(this.dir, { recursive: true })
       const temporary = `${this.path}.${process.pid}.tmp`
       await writeFile(temporary, `${JSON.stringify(next, null, 2)}\n`, { mode: 0o600 })

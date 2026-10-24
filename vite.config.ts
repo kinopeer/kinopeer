@@ -4,8 +4,7 @@ import { resolve } from 'node:path'
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
-import { dataStores, serverRoutes } from './server/main.ts'
-import type { Middleware } from './server/prowlarr.ts'
+import { dataStores, kinoseedServer, type KinoseedServer } from './server/main.ts'
 
 /**
  * The PWA: web app manifest and a service worker (src/sw.ts) that precaches the app shell. Icons
@@ -41,14 +40,16 @@ const pwa = VitePWA({
 
 /**
  * Serves server/ middleware (/api/settings, /api/matches, /qbt/*, /prowlarr/*, /tmdb/* and
- * /tmdb-img/*) in `vite` and `vite preview`, as the production server (server/main.ts) does.
+ * /tmdb-img/*) and runs its jobs in `vite` and `vite preview`, as the production server
+ * (server/main.ts) does. Nothing runs in `vite build`.
  */
-function serverRoutesPlugin(middlewares: Middleware[]): Plugin {
-  return {
-    name: 'kinoseed-server',
-    configureServer: (server) => middlewares.forEach((middleware) => server.middlewares.use(middleware)),
-    configurePreviewServer: (server) => middlewares.forEach((middleware) => server.middlewares.use(middleware)),
+function serverRoutesPlugin(kinoseed: KinoseedServer): Plugin {
+  const serve = (server: { middlewares: { use: (middleware: KinoseedServer['routes'][number]) => unknown }; httpServer: { once: (event: 'close', listener: () => void) => unknown } | null }) => {
+    kinoseed.routes.forEach((middleware) => server.middlewares.use(middleware))
+    const stopJobs = kinoseed.startJobs()
+    server.httpServer?.once('close', stopJobs)
   }
+  return { name: 'kinoseed-server', configureServer: serve, configurePreviewServer: serve }
 }
 
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }
@@ -65,7 +66,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       pwa,
-      serverRoutesPlugin(serverRoutes(env, stores)),
+      serverRoutesPlugin(kinoseedServer(env, stores)),
     ],
     test: {
       projects: [

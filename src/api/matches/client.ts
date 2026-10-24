@@ -1,4 +1,4 @@
-import type { Matches } from './types'
+import type { Matches, MatchesPatch } from './types'
 
 /** Torrent-to-title matches the Kinoseed server keeps (server/matches.ts). */
 export const MATCHES_BASE = '/api/matches'
@@ -26,10 +26,10 @@ export async function getMatches(signal?: AbortSignal): Promise<Matches> {
 }
 
 /**
- * Saves matches by info hash and answers all the server has. A guess never replaces the user's
- * choice: the server keeps the choice and answers it.
+ * Saves matches by info hash (null forgets one) and answers all the server has. A guess never
+ * replaces the user's choice: the server keeps the choice and answers it.
  */
-export async function saveMatches(matches: Matches): Promise<Matches> {
+export async function saveMatches(matches: MatchesPatch): Promise<Matches> {
   return read(
     await fetch(MATCHES_BASE, {
       method: 'PATCH',

@@ -8,10 +8,15 @@ export interface StoredMatch {
   source: 'user' | 'guess'
   /** For a guess: the version of the matching that made it, so a newer version guesses again. */
   version?: number
+  /** Set by the server: since when (ms) qBittorrent hasn't had this torrent. */
+  missingSince?: number
 }
 
-/** Answer of GET /api/matches and body of PATCH /api/matches: matches by torrent info hash. */
+/** Answer of GET /api/matches and PATCH /api/matches: matches by torrent info hash. */
 export type Matches = Record<string, StoredMatch>
+
+/** Body of PATCH /api/matches: matches to save by info hash, null for one to forget. */
+export type MatchesPatch = Record<string, Omit<StoredMatch, 'missingSince'> | null>
 
 /** Error answers of /api/matches. */
 export interface MatchesErrorBody {

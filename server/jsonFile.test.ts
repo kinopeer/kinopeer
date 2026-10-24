@@ -42,6 +42,13 @@ describe('JsonFile', () => {
     expect(JSON.parse(await readFile(join(dir, 'data.json'), 'utf8'))).toEqual({ a: 1, b: 1, c: 1 })
   })
 
+  it('writes nothing when the change returns the contents unchanged', async () => {
+    const file = new JsonFile<Record<string, number>>(dir, 'data.json')
+    const loaded = await file.load()
+    expect(await file.change((current) => current)).toBe(loaded)
+    await expect(stat(join(dir, 'data.json'))).rejects.toThrow()
+  })
+
   it('keeps working after a failed write', async () => {
     const file = new JsonFile<Record<string, number>>(dir, 'data.json')
     await expect(

@@ -96,6 +96,21 @@ export function rememberMatches(changes: Matches): void {
   if (Object.keys(pending).length > 0) saveTimer ??= setTimeout(() => void save(), SAVE_DELAY_MS)
 }
 
+/** Forgets the matches of deleted torrents; if the server doesn't answer, its hourly check does. */
+export async function forgetMatches(hashes: string[]): Promise<void> {
+  if (hashes.length === 0) return
+  for (const hash of hashes) {
+    delete pending[hash]
+    for (const key of attempted) if (key.startsWith(`${hash}|`)) attempted.delete(key)
+  }
+  try {
+    matches = await saveMatches(Object.fromEntries(hashes.map((hash) => [hash, null])))
+    emit()
+  } catch {
+    // The server forgets them a week after qBittorrent stops listing them.
+  }
+}
+
 /** Forgets the server's guesses, so they are made again; the user's choices stay. */
 export async function forgetServerGuesses(): Promise<void> {
   pending = {}

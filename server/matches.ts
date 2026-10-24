@@ -1,4 +1,4 @@
-import type { Matches, MatchesErrorBody, StoredMatch } from '../src/api/matches/types.ts'
+import type { Matches, MatchesErrorBody, MatchesPatch, StoredMatch } from '../src/api/matches/types.ts'
 import { isJsonRequest, readJson, sendJson } from './json.ts'
 import { JsonFile } from './jsonFile.ts'
 import type { Middleware } from './prowlarr.ts'
@@ -6,11 +6,16 @@ import type { Middleware } from './prowlarr.ts'
 /**
  * Which TMDB title each torrent is, kept by the server so every device shows the same and
  * qBittorrent's tag list stays clean: the user's choice, or a guess a browser made from the release
- * name. They live in matches.json in the data directory, by info hash. Entries of torrents that are
- * gone stay: they are small, and the same torrent added again is the same title.
+ * name. They live in matches.json in the data directory, by info hash.
+ *
+ * A torrent deleted from Kinoseed has its match forgotten right away (PATCH with null). For torrents
+ * deleted elsewhere, the server checks qBittorrent's list every hour and forgets a match once its
+ * torrent has been gone for a week: qBittorrent may answer with an empty or partial list right
+ * after a restart, and a torrent added back within the week keeps its match.
  *
  * GET /api/matches → Matches
- * PATCH /api/matches Matches → saves them, except a guess over the user's choice; answers Matches
+ * PATCH /api/matches MatchesPatch → saves them, except a guess over the user's choice, and forgets
+ *   those set to null; answers Matches
  * DELETE /api/matches → forgets every guess (Settings → Clear cache), keeps the user's choices
  */
 export class MatchesStore extends JsonFile<Matches> {
@@ -18,15 +23,46 @@ export class MatchesStore extends JsonFile<Matches> {
     super(dir, 'matches.json')
   }
 
-  /** Saves `changes` over what is kept; a guess never replaces the user's choice. */
-  save(changes: Matches): Promise<Matches> {
+  /** Saves `changes` over what is kept and forgets those set to null; a guess never replaces the user's choice. */
+  save(changes: MatchesPatch): Promise<Matches> {
     return this.change((current) => {
       const next = { ...current }
       for (const [hash, match] of Object.entries(changes)) {
-        if (match.source === 'guess' && current[hash]?.source === 'user') continue
-        next[hash] = match
+        if (match === null) delete next[hash]
+        else if (match.source !== 'guess' || current[hash]?.source !== 'user') next[hash] = match
       }
       return next
+    })
+  }
+
+  /**
+   * Notes which torrents qBittorrent no longer has (`present` is every hash it has) and forgets those
+   * gone for `graceMs`; a torrent that is back loses its note.
+   */
+  prune(present: Set<string>, graceMs: number, now: number): Promise<Matches> {
+    return this.change((current) => {
+      let changed = false
+      const next: Matches = {}
+      for (const [hash, match] of Object.entries(current)) {
+        if (present.has(hash)) {
+          if (match.missingSince === undefined) {
+            next[hash] = match
+          } else {
+            const back = { ...match }
+            delete back.missingSince
+            next[hash] = back
+            changed = true
+          }
+        } else if (match.missingSince === undefined) {
+          next[hash] = { ...match, missingSince: now }
+          changed = true
+        } else if (now - match.missingSince < graceMs) {
+          next[hash] = match
+        } else {
+          changed = true
+        }
+      }
+      return changed ? next : current
     })
   }
 
@@ -61,12 +97,12 @@ function validMatch(value: unknown): value is StoredMatch {
   )
 }
 
-function validMatches(value: unknown): value is Matches {
+function validPatch(value: unknown): value is MatchesPatch {
   return (
     !!value &&
     typeof value === 'object' &&
     !Array.isArray(value) &&
-    Object.entries(value).every(([hash, match]) => HASH.test(hash) && validMatch(match))
+    Object.entries(value).every(([hash, match]) => HASH.test(hash) && (match === null || validMatch(match)))
   )
 }
 
@@ -84,7 +120,7 @@ export function matchesMiddleware(store: MatchesStore): Middleware {
     if (request.method !== 'PATCH') return fail(response, 405, 'bad-request')
     if (!isJsonRequest(request)) return fail(response, 415, 'bad-request')
     readJson(request, MAX_BODY_BYTES).then(
-      (body) => (validMatches(body) ? write(response, () => store.save(body)) : fail(response, 400, 'bad-request')),
+      (body) => (validPatch(body) ? write(response, () => store.save(body)) : fail(response, 400, 'bad-request')),
       () => fail(response, 400, 'bad-request'),
     )
   }
@@ -96,5 +132,58 @@ async function write(response: Parameters<Middleware>[1], change: () => Promise<
   } catch {
     console.warn('[kinoseed] could not write matches.json; is the data directory writable?')
     fail(response, 500, 'storage')
+  }
+}
+
+// The first check waits a minute after start, so qBittorrent has time to come up with the server.
+const FIRST_CHECK_MS = 60_000
+export const CHECK_INTERVAL_MS = 60 * 60_000
+export const MISSING_GRACE_MS = 7 * 24 * 60 * 60_000
+
+/** Every info hash qBittorrent has, or undefined when it didn't answer with its list. */
+export async function qbittorrentHashes(get: (path: string) => Promise<Response>): Promise<Set<string> | undefined> {
+  const response = await get('/api/v2/torrents/info')
+  if (!response.ok) return undefined
+  const torrents: unknown = await response.json()
+  if (!Array.isArray(torrents)) return undefined
+  return new Set(
+    torrents.flatMap((torrent: unknown) => {
+      const hash = (torrent as { hash?: unknown } | null)?.hash
+      return typeof hash === 'string' ? [hash] : []
+    }),
+  )
+}
+
+/**
+ * Checks qBittorrent's torrents every hour and forgets the matches of torrents gone for a week.
+ * When qBittorrent doesn't answer nothing changes. Returns a function that stops it.
+ */
+export function startMatchesCleanup(
+  store: MatchesStore,
+  hashes: () => Promise<Set<string> | undefined>,
+  options: { intervalMs?: number; graceMs?: number } = {},
+): () => void {
+  const graceMs = options.graceMs ?? MISSING_GRACE_MS
+  let running = false
+  const check = async () => {
+    if (running) return
+    running = true
+    try {
+      const present = await hashes()
+      if (present) await store.prune(present, graceMs, Date.now())
+    } catch {
+      // qBittorrent unreachable or matches.json not writable: the next check tries again.
+    } finally {
+      running = false
+    }
+  }
+  const first = setTimeout(() => void check(), FIRST_CHECK_MS)
+  const timer = setInterval(() => void check(), options.intervalMs ?? CHECK_INTERVAL_MS)
+  // Never keeps the process alive on its own (tests, `vite build`).
+  first.unref()
+  timer.unref()
+  return () => {
+    clearTimeout(first)
+    clearInterval(timer)
   }
 }

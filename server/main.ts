@@ -2,9 +2,9 @@ import { readFile } from 'node:fs/promises'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { MatchesStore, matchesMiddleware } from './matches.ts'
+import { MatchesStore, matchesMiddleware, qbittorrentHashes, startMatchesCleanup } from './matches.ts'
 import { prowlarrMiddleware, readProwlarrApiKey, type Middleware } from './prowlarr.ts'
-import { qbittorrentMiddleware } from './qbittorrent.ts'
+import { qbittorrentBridge } from './qbittorrent.ts'
 import { SettingsStore, qbittorrentCredentials, settingsMiddleware, tmdbKey } from './settings.ts'
 import { staticMiddleware } from './static.ts'
 import { tmdbMiddleware } from './tmdb.ts'
@@ -20,8 +20,8 @@ import { tmdbMiddleware } from './tmdb.ts'
  * listens and what it serves; KINOSEED_DATA_DIR (default ./data) is where settings saved from the
  * app and torrent-to-title matches are kept.
  */
-export function createApp(env: NodeJS.ProcessEnv, root: string, stores: DataStores) {
-  return createServer(chain([...serverRoutes(env, stores), staticMiddleware({ root })]))
+export function createApp(root: string, kinoseed: KinoseedServer) {
+  return createServer(chain([...kinoseed.routes, staticMiddleware({ root })]))
 }
 
 /** What the server keeps in its data directory. */
@@ -34,26 +34,41 @@ export function dataStores(dir: string): DataStores {
   return { settings: new SettingsStore(dir), matches: new MatchesStore(dir) }
 }
 
+export interface KinoseedServer {
+  /** The server's own routes, shared with the Vite dev server. */
+  routes: Middleware[]
+  /** Starts the background jobs (the hourly matches cleanup); returns a function that stops them. */
+  startJobs: () => () => void
+}
+
 /**
- * The server's own routes, shared with the Vite dev server. Besides the variables in .env.example,
- * PROWLARR_CONFIG_XML points at Prowlarr's config.xml to read its API key from (the Umbrel package
- * mounts it), used when PROWLARR_API_KEY is not set.
+ * The server's routes and jobs. Besides the variables in .env.example, PROWLARR_CONFIG_XML points
+ * at Prowlarr's config.xml to read its API key from (the Umbrel package mounts it), used when
+ * PROWLARR_API_KEY is not set.
  */
-export function serverRoutes(env: Record<string, string | undefined>, stores: DataStores): Middleware[] {
+export function kinoseedServer(env: Record<string, string | undefined>, stores: DataStores): KinoseedServer {
   const store = stores.settings
   const envQbittorrent = { username: env.QBITTORRENT_USERNAME, password: env.QBITTORRENT_PASSWORD }
   const prowlarrConfig = env.PROWLARR_CONFIG_XML
-  return [
-    health,
-    settingsMiddleware({ store, envTmdbApiKey: env.TMDB_API_KEY, qbittorrentUrl: env.QBITTORRENT_URL, envQbittorrent }),
-    matchesMiddleware(stores.matches),
-    qbittorrentMiddleware({ url: env.QBITTORRENT_URL, credentials: () => qbittorrentCredentials(store, envQbittorrent) }),
-    prowlarrMiddleware({
-      url: env.PROWLARR_URL,
-      apiKey: async () => env.PROWLARR_API_KEY || (prowlarrConfig ? await readProwlarrApiKey(prowlarrConfig) : undefined),
-    }),
-    tmdbMiddleware({ apiKey: () => tmdbKey(store, env.TMDB_API_KEY) }),
-  ]
+  const qbittorrent = qbittorrentBridge({
+    url: env.QBITTORRENT_URL,
+    credentials: () => qbittorrentCredentials(store, envQbittorrent),
+  })
+  return {
+    routes: [
+      health,
+      settingsMiddleware({ store, envTmdbApiKey: env.TMDB_API_KEY, qbittorrentUrl: env.QBITTORRENT_URL, envQbittorrent }),
+      matchesMiddleware(stores.matches),
+      qbittorrent.middleware,
+      prowlarrMiddleware({
+        url: env.PROWLARR_URL,
+        apiKey: async () => env.PROWLARR_API_KEY || (prowlarrConfig ? await readProwlarrApiKey(prowlarrConfig) : undefined),
+      }),
+      tmdbMiddleware({ apiKey: () => tmdbKey(store, env.TMDB_API_KEY) }),
+    ],
+    startJobs: () =>
+      env.QBITTORRENT_URL ? startMatchesCleanup(stores.matches, () => qbittorrentHashes(qbittorrent.get)) : () => {},
+  }
 }
 
 function chain(middlewares: Middleware[]) {
@@ -99,7 +114,9 @@ async function main() {
   const root = resolve(env.KINOSEED_DIST || resolve(dirname(fileURLToPath(import.meta.url)), '../dist'))
   const stores = dataStores(resolve(env.KINOSEED_DATA_DIR || 'data'))
   await Promise.all([stores.settings.load(), stores.matches.load()])
-  const server = createApp(env, root, stores)
+  const kinoseed = kinoseedServer(env, stores)
+  const server = createApp(root, kinoseed)
+  const stopJobs = kinoseed.startJobs()
   const { version } = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }
 
   server.listen(port, host, () => {
@@ -112,6 +129,7 @@ async function main() {
 
   // Docker sends SIGTERM on stop: finish open requests instead of waiting to be killed.
   const stop = () => {
+    stopJobs()
     server.close(() => process.exit(0))
     server.closeIdleConnections()
     setTimeout(() => process.exit(0), 5000).unref()

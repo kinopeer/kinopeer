@@ -3,13 +3,16 @@ import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Matches } from '../src/api/matches/types.ts'
-import { MatchesStore, matchesMiddleware } from './matches.ts'
+import { MatchesStore, matchesMiddleware, qbittorrentHashes, startMatchesCleanup } from './matches.ts'
 
 const A = 'a'.repeat(40)
 const B = 'b'.repeat(40)
 const V2 = 'c'.repeat(64)
+
+const USER = { type: 'movie', id: 1, source: 'user' } as const
+const GUESS = { type: 'tv', id: 2, source: 'guess', version: 2 } as const
 
 let dir: string
 let server: Server | undefined
@@ -71,6 +74,106 @@ describe('MatchesStore', () => {
     })
     expect(await store.clearGuesses()).toEqual({ [A]: { type: 'movie', id: 1, source: 'user' } })
   })
+
+  it('forgets matches set to null, the user’s choice too', async () => {
+    const store = new MatchesStore(dir)
+    await store.save({ [A]: USER, [B]: GUESS })
+    expect(await store.save({ [A]: null, [V2]: null })).toEqual({ [B]: GUESS })
+  })
+
+  it('forgets a torrent’s match only after qBittorrent has not had it for the whole grace period', async () => {
+    const store = new MatchesStore(dir)
+    await store.save({ [A]: USER, [B]: GUESS, [V2]: GUESS })
+
+    await store.prune(new Set([A, V2]), 100, 1000)
+    expect(store.current).toEqual({ [A]: USER, [B]: { ...GUESS, missingSince: 1000 }, [V2]: GUESS })
+
+    // Still within the grace period: the note keeps its first time.
+    await store.prune(new Set([A]), 100, 1050)
+    expect(store.current).toEqual({ [A]: USER, [B]: { ...GUESS, missingSince: 1000 }, [V2]: { ...GUESS, missingSince: 1050 } })
+
+    // V2 is back; B has been gone for the whole grace period.
+    await store.prune(new Set([A, V2]), 100, 1100)
+    expect(store.current).toEqual({ [A]: USER, [V2]: GUESS })
+    expect(JSON.parse(await readFile(join(dir, 'matches.json'), 'utf8'))).toEqual({ [A]: USER, [V2]: GUESS })
+  })
+
+  it('keeps the note when a torrent comes back as a new match is saved for it', async () => {
+    const store = new MatchesStore(dir)
+    await store.save({ [B]: GUESS })
+    await store.prune(new Set(), 100, 1000)
+    await store.save({ [B]: USER })
+    expect(store.current).toEqual({ [B]: USER })
+  })
+
+  it('writes nothing when every torrent is still there', async () => {
+    const store = new MatchesStore(dir)
+    await store.save({ [A]: USER })
+    await rm(join(dir, 'matches.json'))
+    expect(await store.prune(new Set([A, B]), 100, 1000)).toBe(store.current)
+    await expect(readFile(join(dir, 'matches.json'))).rejects.toThrow()
+  })
+})
+
+describe('qbittorrentHashes', () => {
+  it('answers every info hash qBittorrent has', async () => {
+    const get = vi.fn(async () => Response.json([{ hash: A, name: 'Dune' }, { hash: V2 }, { name: 'no hash' }, null]))
+    expect(await qbittorrentHashes(get)).toEqual(new Set([A, V2]))
+    expect(get).toHaveBeenCalledWith('/api/v2/torrents/info')
+  })
+
+  it('answers nothing when qBittorrent doesn’t answer with its list', async () => {
+    expect(await qbittorrentHashes(async () => new Response('Forbidden', { status: 403 }))).toBeUndefined()
+    expect(await qbittorrentHashes(async () => Response.json({ error: 'x' }))).toBeUndefined()
+  })
+})
+
+describe('startMatchesCleanup', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('checks a minute after start and then every hour, and stops', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval', 'clearTimeout', 'clearInterval', 'Date'] })
+    const store = new MatchesStore(dir)
+    await store.save({ [A]: USER, [B]: GUESS })
+    const hashes = vi.fn(async () => new Set([A]))
+    const prune = vi.spyOn(store, 'prune')
+    const stop = startMatchesCleanup(store, hashes, { graceMs: 1000 })
+
+    await vi.advanceTimersByTimeAsync(59_000)
+    expect(hashes).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(prune).toHaveBeenCalledWith(new Set([A]), 1000, Date.now())
+    // The file is written with real I/O.
+    await prune.mock.results[0]?.value
+    expect(store.current[B]?.missingSince).toBe(Date.now())
+
+    await vi.advanceTimersByTimeAsync(60 * 60_000)
+    expect(hashes).toHaveBeenCalledTimes(2)
+    await prune.mock.results[1]?.value
+    expect(store.current).toEqual({ [A]: USER })
+
+    stop()
+    await vi.advanceTimersByTimeAsync(2 * 60 * 60_000)
+    expect(hashes).toHaveBeenCalledTimes(2)
+  })
+
+  it('changes nothing and keeps checking when qBittorrent doesn’t answer', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval', 'clearTimeout', 'clearInterval'] })
+    const store = new MatchesStore(dir)
+    await store.save({ [A]: USER })
+    const hashes = vi
+      .fn<() => Promise<Set<string> | undefined>>()
+      .mockRejectedValueOnce(new TypeError('fetch failed'))
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValue(new Set([A]))
+    const stop = startMatchesCleanup(store, hashes, { intervalMs: 1000 })
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(hashes.mock.calls.length).toBeGreaterThanOrEqual(3)
+    expect(store.current).toEqual({ [A]: USER })
+    stop()
+  })
 })
 
 describe('matchesMiddleware', () => {
@@ -100,6 +203,14 @@ describe('matchesMiddleware', () => {
     expect(await response.json()).toEqual({ [A]: { type: 'movie', id: 1, source: 'user' } })
   })
 
+  it('forgets matches set to null', async () => {
+    const app = await kinoseed()
+    await patch(app, { [A]: USER, [B]: GUESS })
+    const response = await patch(app, { [A]: null })
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ [B]: GUESS })
+  })
+
   it('forgets guesses on DELETE', async () => {
     const app = await kinoseed()
     await patch(app, {
@@ -123,7 +234,7 @@ describe('matchesMiddleware', () => {
       { [A]: { ...good, source: 'tag' } },
       { [A]: { ...good, version: '2' } },
       { [A]: { ...good, title: 'Dune' } },
-      { [A]: good, [B]: null },
+      { [A]: good, [B]: false },
     ]) {
       const response = await patch(app, body)
       expect(response.status, JSON.stringify(body)).toBe(400)

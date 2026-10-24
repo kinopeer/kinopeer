@@ -50,7 +50,7 @@ beforeEach(() => {
   server = {}
   getMatches.mockImplementation(async () => ({ ...server }))
   saveMatches.mockImplementation(async (changes) => {
-    server = { ...server, ...changes }
+    server = { ...server, ...(changes as Matches) }
     return { ...server }
   })
 })
