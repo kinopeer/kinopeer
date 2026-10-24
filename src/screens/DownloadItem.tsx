@@ -14,11 +14,13 @@ export interface DownloadItemProps {
   torrent: Torrent
   /** The TMDB title, once known; the row falls back to the release name. */
   match?: TitleMatch | null
+  /** Shows the queue position on the poster; only the queue order makes it meaningful. */
+  showQueue?: boolean
   /** Opens the row's actions. */
   onMore: (torrent: Torrent) => void
 }
 
-export function DownloadItem({ torrent, match, onMore }: DownloadItemProps) {
+export function DownloadItem({ torrent, match, showQueue = true, onMore }: DownloadItemProps) {
   const { t } = useTranslation()
   const format = useFormatters()
   const status = downloadStatus(torrent)
@@ -32,7 +34,7 @@ export function DownloadItem({ torrent, match, onMore }: DownloadItemProps) {
     <li className="ks-dl">
       <Link to={`/torrent/${torrent.hash}`} className="ks-dl-main">
         <Poster className="dl-poster" src={match ? posterUrl(match.posterPath, 'w185') : undefined}>
-          {torrent.priority > 0 && (
+          {showQueue && torrent.priority > 0 && (
             <span className="ks-qpos" aria-label={t('downloads.queuePosition', { position: torrent.priority })}>
               #{torrent.priority}
             </span>

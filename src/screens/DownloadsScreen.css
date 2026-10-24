@@ -58,8 +58,40 @@
 
 .downloads-toolbar {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
   margin-top: -4px;
+}
+
+.downloads-sort {
+  min-width: 0;
+  margin-left: -8px;
+}
+
+.sort-options {
+  margin: 0 -12px;
+  padding: 0;
+  border: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.sort-option {
+  min-height: 48px;
+  padding: 0 12px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.sort-option:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.sort-option-label {
+  flex: 1;
+  min-width: 0;
 }
 
 .downloads-body {

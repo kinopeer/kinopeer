@@ -56,6 +56,13 @@ describe('settings', () => {
     expect(getSettings().downloadsView).toBe('grid')
   })
 
+  it('orders downloads by the queue until another sort is picked, and remembers the pick', () => {
+    expect(getSettings().downloadsSort).toBe('priority')
+    const { result } = renderHook(() => useSettings())
+    act(() => result.current[1]({ downloadsSort: 'added' }))
+    expect(JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY)!)).toMatchObject({ downloadsSort: 'added' })
+  })
+
   it('ignores unreadable storage', () => {
     localStorage.setItem(SETTINGS_STORAGE_KEY, '{not json')
     expect(getSettings()).toEqual(DEFAULT_SETTINGS)
@@ -119,7 +126,7 @@ describe('download defaults on the server', () => {
     expect(api.saveDownloadDefaults).toHaveBeenLastCalledWith({ movieCategory: null })
 
     vi.mocked(api.saveDownloadDefaults).mockClear()
-    act(() => result.current[1]({ downloadsView: 'grid', tmdbLanguage: 'ru-RU' }))
+    act(() => result.current[1]({ downloadsView: 'grid', downloadsSort: 'name', tmdbLanguage: 'ru-RU' }))
     expect(api.saveDownloadDefaults).not.toHaveBeenCalled()
   })
 

@@ -9,7 +9,7 @@ import { downloadStatus, transferSpeed } from '../torrents/status'
 import type { DownloadItemProps } from './DownloadItem'
 
 /** A download in the poster grid: status and progress over the poster, title and a short line under it. */
-export function DownloadCard({ torrent, match, onMore }: DownloadItemProps) {
+export function DownloadCard({ torrent, match, showQueue = true, onMore }: DownloadItemProps) {
   const { t } = useTranslation()
   const format = useFormatters()
   const status = downloadStatus(torrent)
@@ -25,7 +25,7 @@ export function DownloadCard({ torrent, match, onMore }: DownloadItemProps) {
         to={`/torrent/${torrent.hash}`}
         overlay={
           <>
-            {torrent.priority > 0 && (
+            {showQueue && torrent.priority > 0 && (
               <span className="ks-qpos" aria-label={t('downloads.queuePosition', { position: torrent.priority })}>
                 #{torrent.priority}
               </span>

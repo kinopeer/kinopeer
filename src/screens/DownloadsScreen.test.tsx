@@ -218,6 +218,47 @@ describe('DownloadsScreen', () => {
     expect(screen.getAllByRole('listitem')).toHaveLength(3)
   })
 
+  it('sorts the list, hides queue positions outside the queue order and remembers the sort', async () => {
+    const headings = () => screen.getAllByRole('listitem').map((item) => within(item).getByRole('heading').textContent)
+    const { unmount } = renderScreen()
+    await screen.findAllByRole('listitem')
+    await userEvent.click(screen.getByRole('button', { name: 'Sort: Priority' }))
+    const sheet = within(screen.getByRole('dialog', { name: 'Sort' }))
+    expect(sheet.getByRole('radio', { name: 'Priority', checked: true })).toBeInTheDocument()
+    expect(sheet.getByRole('radio', { name: 'Priority' })).toHaveAccessibleDescription('Queue order')
+
+    await userEvent.click(sheet.getByRole('radio', { name: 'Name' }))
+    expect(sheet.getByRole('radio', { name: 'Name', checked: true })).toBeInTheDocument()
+    expect(headings()).toEqual(['Alien.Romulus.2024.1080p', 'Andor.S02.1080p', 'Dune.Part.Two.2024.2160p.WEB-DL'])
+    expect(screen.queryByLabelText(/Queue position/)).not.toBeInTheDocument()
+    expect(getSettings().downloadsSort).toBe('name')
+
+    await userEvent.click(sheet.getByRole('button', { name: 'Done' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    unmount()
+
+    renderScreen()
+    await screen.findAllByRole('listitem')
+    expect(screen.getByRole('button', { name: 'Sort: Name' })).toHaveTextContent('Name')
+    expect(headings()[0]).toBe('Alien.Romulus.2024.1080p')
+  })
+
+  it('sorts by the TMDB title once matched', async () => {
+    updateSettings({ downloadsSort: 'name' })
+    searchTitles.mockImplementation(async (query) => ({
+      titles: query === 'Andor' ? [{ ...ANDOR_TITLE, title: 'Zorro' }] : [],
+      page: 1,
+      totalPages: 1,
+    }))
+    renderScreen()
+    await screen.findByText('Zorro')
+    expect(screen.getAllByRole('listitem').map((item) => within(item).getByRole('heading').textContent)).toEqual([
+      'Alien.Romulus.2024.1080p',
+      'Dune.Part.Two.2024.2160p.WEB-DL',
+      'Zorro2022',
+    ])
+  })
+
   it('filters by name', async () => {
     renderScreen()
     await screen.findAllByRole('listitem')

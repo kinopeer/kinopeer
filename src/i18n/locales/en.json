@@ -58,7 +58,20 @@
     "seriesPage": "Series page",
     "view": "View",
     "viewList": "List",
-    "viewGrid": "Grid"
+    "viewGrid": "Grid",
+    "sort": "Sort",
+    "sortButton": "Sort: {{sort}}",
+    "sortDone": "Done",
+    "sortPriorityHint": "Queue order",
+    "sorts": {
+      "priority": "Priority",
+      "added": "Date added",
+      "name": "Name",
+      "progress": "Progress",
+      "size": "Size",
+      "speed": "Speed",
+      "eta": "ETA"
+    }
   },
   "format": {
     "B": "B",

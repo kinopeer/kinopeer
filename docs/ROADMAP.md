@@ -23,7 +23,7 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 
 ## 0.3: Managing downloads
 
-- [ ] Sorting the list.
+- [x] Sorting the list.
 - [ ] Multi-select and bulk actions: pause, resume, delete.
 - [x] A poster grid as a second view of the downloads list, as on the canvas.
 
