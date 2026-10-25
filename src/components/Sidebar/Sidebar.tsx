@@ -17,14 +17,17 @@ export interface SidebarProps {
   label: string
   /** At the bottom, e.g. the qBittorrent status card; hidden in the rail. */
   footer?: ReactNode
+  /** The page to mark the item for, when it isn't the URL's: the page a drawer is open over. */
+  pathname?: string
 }
 
 /**
  * Desktop navigation in place of the tab bar, fixed along the left edge: an icon rail up to 1100px,
  * then with labels. The current item gets aria-current="page".
  */
-export function Sidebar({ items, label, footer }: SidebarProps) {
-  const { pathname } = useLocation()
+export function Sidebar({ items, label, footer, pathname: page }: SidebarProps) {
+  const location = useLocation()
+  const pathname = page ?? location.pathname
   return (
     <div className="ks-side">
       <div className="ks-side-brand">
@@ -36,7 +39,7 @@ export function Sidebar({ items, label, footer }: SidebarProps) {
       <nav className="ks-side-nav" aria-label={label}>
         {items.map((item) => (
           <NavLink key={item.to} to={item.to} end className={({ isActive }) =>
-              cx('ks-nav', isTabOn(item, isActive, pathname) && 'is-on')
+              cx('ks-nav', isTabOn(item, page === undefined ? isActive : page === item.to, pathname) && 'is-on')
             }>
             <Icon name={item.icon} size={22} />
             <span className="ks-nav-label">{item.label}</span>

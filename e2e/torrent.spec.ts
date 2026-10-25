@@ -64,6 +64,24 @@ test.describe('desktop drawer', () => {
     await expect(page.getByRole('link', { name: /^Сёгун/ })).toBeFocused()
   })
 
+  test('over the title page it was opened from, back to it on Escape, dark, Russian', async ({ page }) => {
+    await openApp(page, '/title/movie/693134')
+    await expect(page.getByRole('heading', { level: 1, name: 'Дюна: Часть вторая' })).toBeVisible()
+    const card = page.getByRole('region', { name: /^В загрузках/ }).getByRole('link').first()
+    await card.click()
+    const drawer = page.getByRole('dialog', { name: 'Дюна: Часть вторая' })
+    await expect(drawer.getByRole('heading', { level: 2, name: 'Дюна: Часть вторая' })).toBeVisible()
+    await expect(page).toHaveURL(/\/torrent\/\w+$/)
+    await expect(page.getByRole('heading', { level: 1, name: 'Загрузки' })).toHaveCount(0)
+    await settle(page)
+    await expect(page).toHaveScreenshot('desktop-drawer-over-title-dark-ru.png')
+
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    await expect(page).toHaveURL(/\/title\/movie\/693134$/)
+    await expect(card).toBeFocused()
+  })
+
   test.describe('light, English', () => {
     test.use({ locale: 'en-US' })
 

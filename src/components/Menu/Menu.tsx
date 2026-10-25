@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, type ButtonHTMLAttributes, type KeyboardEvent, type ReactNode } from 'react'
+import { useLayoutEffect, useRef, type ButtonHTMLAttributes, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { cx } from '../../lib/cx'
 import { Icon, type IconName } from '../Icon'
@@ -125,7 +125,7 @@ export function MenuItemRadio({ checked, label, hint, className, ...rest }: Menu
 
 export interface MenuLinkProps extends ItemContent {
   to: string
-  onClick?: () => void
+  onClick?: (event: MouseEvent<HTMLAnchorElement>) => void
 }
 
 export function MenuLink({ to, icon, onClick, children }: MenuLinkProps) {

@@ -1,10 +1,11 @@
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router'
+import { Link, useLocation } from 'react-router'
 import type { Torrent } from '../api/qbittorrent'
 import { Badge } from '../components/Badge'
 import { Icon } from '../components/Icon'
 import { ProgressBar } from '../components/ProgressBar'
 import { StatusChip } from '../components/StatusChip'
+import { overPage } from '../lib/background'
 import { useFormatters } from '../lib/format'
 import { parseRelease, releaseCoverage } from '../releases/parseRelease'
 import { downloadStatus, transferSpeed } from '../torrents/status'
@@ -14,7 +15,10 @@ export interface TitleDownloadsProps {
   torrents: Torrent[]
 }
 
-/** The title page's "In downloads" block: one card per torrent, each opening its torrent screen. */
+/**
+ * The title page's "In downloads" block: one card per torrent, each opening its torrent screen (on
+ * desktop, its drawer over the title page).
+ */
 export function TitleDownloads({ torrents }: TitleDownloadsProps) {
   const { t } = useTranslation()
   if (torrents.length === 0) return null
@@ -41,6 +45,7 @@ export function TitleDownloads({ torrents }: TitleDownloadsProps) {
 function TitleDownload({ torrent }: { torrent: Torrent }) {
   const { t } = useTranslation()
   const format = useFormatters()
+  const location = useLocation()
   const status = downloadStatus(torrent)
   const speed = transferSpeed(torrent, status, format)
   const partial = torrent.progress > 0 && torrent.progress < 1
@@ -53,7 +58,7 @@ function TitleDownload({ torrent }: { torrent: Torrent }) {
 
   return (
     <li>
-      <Link to={`/torrent/${torrent.hash}`} className="title-dl" aria-label={label}>
+      <Link to={`/torrent/${torrent.hash}`} state={overPage(location)} className="title-dl" aria-label={label}>
         <div className="title-dl-body">
           <div className="title-dl-release">
             {coverage && <Badge>{coverage}</Badge>}{' '}

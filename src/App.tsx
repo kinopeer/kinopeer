@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Navigate, Route, Routes, useLocation } from 'react-router'
 import { Sidebar, SidebarStatus, type SidebarItem } from './components/Sidebar'
 import { TabBar, type TabBarItem } from './components/TabBar'
+import { backgroundOf } from './lib/background'
 import { useIsDesktop } from './lib/useIsDesktop'
 import { ConnectScreen } from './screens/ConnectScreen'
 import { DownloadsScreen } from './screens/DownloadsScreen'
@@ -12,6 +13,7 @@ import { SearchScreen } from './screens/SearchScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
 import { TitleRoute } from './screens/TitleScreen'
 import { TmdbKeyScreen } from './screens/TmdbKeyScreen'
+import { TorrentDrawerOverPage } from './screens/TorrentDrawer'
 import { TorrentScreen } from './screens/TorrentScreen'
 import { useQbitSession } from './session/useQbitSession'
 import { useTmdbSetup } from './session/useTmdbSetup'
@@ -48,14 +50,20 @@ function App() {
         { to: '/settings', icon: 'settings', label: t('nav.settings') },
       ]
       const onSessionLost = () => void recheck()
-      // On desktop a torrent opens in a drawer over Downloads, so both paths are one screen there.
-      const screenKey = isDesktop && location.pathname.startsWith('/torrent/') ? '/' : location.pathname
+      // On desktop a torrent opened from a page (a link's background state) opens in a drawer over
+      // that page, which the routes keep rendering. Without one, it opens over Downloads.
+      const background =
+        isDesktop && location.pathname.startsWith('/torrent/') ? backgroundOf(location) : undefined
+      const page = background ?? location
+      // A torrent's drawer over Downloads is part of that screen.
+      const screenKey = isDesktop && page.pathname.startsWith('/torrent/') ? '/' : page.pathname
       return (
         <MainDataProvider onUnauthorized={onSessionLost}>
           <div className="app-shell">
             {/* Keyed by screen, so a crash on one screen goes away when the user switches tabs. */}
             <ErrorBoundary key={screenKey}>
-              <Routes>
+              {/* Always given a location, so the screens stay mounted when a drawer opens over them. */}
+              <Routes location={page}>
                 {isDesktop ? (
                   <Route element={<DownloadsWithDrawer onSessionLost={onSessionLost} onSelectingChange={setSelecting} />}>
                     <Route index />
@@ -74,8 +82,16 @@ function App() {
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </ErrorBoundary>
+            {background && (
+              <Routes>
+                <Route
+                  path="torrent/:hash"
+                  element={<TorrentDrawerOverPage background={background} onSessionLost={onSessionLost} />}
+                />
+              </Routes>
+            )}
             {isDesktop ? (
-              <AppSidebar items={tabs} version={session.version} />
+              <AppSidebar items={tabs} version={session.version} pathname={background?.pathname} />
             ) : (
               !selecting && <TabBar items={tabs} label={t('nav.label')} />
             )}
@@ -95,7 +111,7 @@ function App() {
 }
 
 /** The desktop sidebar with how many torrents are downloading and qBittorrent's status, from the shared poll. */
-function AppSidebar({ items, version }: { items: TabBarItem[]; version: string }) {
+function AppSidebar({ items, version, pathname }: { items: TabBarItem[]; version: string; pathname?: string }) {
   const { t } = useTranslation()
   const { data, offline } = useMainData()
   const downloading = data
@@ -110,6 +126,7 @@ function AppSidebar({ items, version }: { items: TabBarItem[]; version: string }
     <Sidebar
       items={withCount}
       label={t('nav.label')}
+      pathname={pathname}
       footer={
         <SidebarStatus
           version={version}
