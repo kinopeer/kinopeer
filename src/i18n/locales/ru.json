@@ -154,7 +154,8 @@
   },
   "sidebar": {
     "connected": "qBittorrent {{version}}",
-    "offline": "Нет связи с qBittorrent"
+    "offline": "Нет связи с qBittorrent",
+    "freeSpace": "Свободно"
   },
   "search": {
     "title": "Поиск",

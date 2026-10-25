@@ -73,16 +73,21 @@
   white-space: nowrap;
 }
 
-/* The count and the status card show only with the labels. */
-.ks-nav-count,
-.ks-side-foot {
-  display: none;
-}
-
+/* In the rail the count is a badge on the icon; with the labels it follows the label. */
 .ks-nav-count {
-  margin-left: auto;
-  font-size: 12px;
-  opacity: 0.85;
+  position: absolute;
+  top: 4px;
+  left: calc(50% + 4px);
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--r-full);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
 }
 
 .ks-side-foot {
@@ -90,12 +95,52 @@
   padding-top: 16px;
 }
 
-.ks-side-status {
+/* The rail's status: a narrow column with each number over its unit. The card replaces it with
+   the labels. */
+.ks-side-mini {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  border-radius: var(--r-md);
+  background: var(--sunken);
+  border: 1px solid var(--border);
+}
+
+.ks-side-mini-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ks-side-mini-value {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  color: var(--text2);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.ks-side-mini-value .ks-ic {
+  margin-right: 2px;
+}
+
+.ks-side-mini-unit {
+  color: var(--text3);
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.ks-side-card {
+  display: none;
   padding: 14px;
   border-radius: 16px;
   background: var(--sunken);
   border: 1px solid var(--border);
-  display: flex;
   flex-direction: column;
   gap: 10px;
 }
@@ -153,11 +198,25 @@
   }
 
   .ks-nav-count {
-    display: inline;
+    position: static;
+    min-width: 0;
+    height: auto;
+    margin-left: auto;
+    padding: 0;
+    background: none;
+    color: inherit;
+    font-size: 12px;
+    font-weight: inherit;
+    line-height: inherit;
+    opacity: 0.85;
   }
 
-  .ks-side-foot {
-    display: block;
+  .ks-side-card {
+    display: flex;
+  }
+
+  .ks-side-mini {
+    display: none;
   }
 
   .ks-nav-label {

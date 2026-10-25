@@ -47,8 +47,19 @@ h4 {
   margin: 0;
 }
 
+/* Every focus ring draws with --focus-ring. Rings show only for keyboard navigation: after a click
+   or tap (src/lib/inputModality.ts) they're off, though the browser may still match :focus-visible,
+   e.g. on a dialog's first button. */
+:root {
+  --focus-ring: 2px solid var(--accent);
+}
+
+:root[data-input='pointer'] {
+  --focus-ring: none;
+}
+
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: var(--focus-ring);
   outline-offset: 2px;
 }
 

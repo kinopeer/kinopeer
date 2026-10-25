@@ -1,6 +1,8 @@
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cx } from '../../lib/cx'
 import { useFormatters } from '../../lib/format'
+import { Icon } from '../Icon'
 
 export interface SidebarStatusProps {
   /** qBittorrent's version as it reports it, e.g. "v5.0.1". */
@@ -13,30 +15,61 @@ export interface SidebarStatusProps {
   freeSpace?: number
 }
 
-/** The qBittorrent card at the bottom of the sidebar: connection, total speeds, free space. */
+/** Splits a formatted size or speed into its number and unit, which the rail stacks. */
+function splitUnit(text: string): [string, string] {
+  const space = text.lastIndexOf('\u00a0')
+  return space < 0 ? [text, ''] : [text.slice(0, space), text.slice(space + 1)]
+}
+
+/**
+ * qBittorrent's status at the bottom of the sidebar: connection, total speeds, free space. A card
+ * with the labels; in the rail, a narrow column with each number over its unit.
+ */
 export function SidebarStatus({ version, offline, downloadSpeed, uploadSpeed, freeSpace }: SidebarStatusProps) {
   const { t } = useTranslation()
   const format = useFormatters()
   const speed = (value: number | undefined) => (value === undefined || offline ? '—' : format.speed(value))
+  const status = offline ? t('sidebar.offline') : t('sidebar.connected', { version })
+  const stacked = (label: string, text: string, icon: ReactNode) => {
+    const [value, unit] = splitUnit(text)
+    return (
+      <p className="ks-side-mini-stat">
+        <span className="ks-side-mini-value">
+          {icon}
+          <span className="sr-only">{label}</span> {value}
+        </span>
+        {unit && <span className="ks-side-mini-unit">{unit}</span>}
+      </p>
+    )
+  }
   return (
     <section className="ks-side-status" aria-label="qBittorrent">
-      <p className="ks-side-status-head t-cap">
-        <span className={cx('ks-side-dot', offline && 'is-off')} aria-hidden="true" />
-        <span className="ks-trunc">
-          {offline ? t('sidebar.offline') : t('sidebar.connected', { version })}
+      <div className="ks-side-card">
+        <p className="ks-side-status-head t-cap">
+          <span className={cx('ks-side-dot', offline && 'is-off')} aria-hidden="true" />
+          <span className="ks-trunc">{status}</span>
+        </p>
+        <p className="ks-side-status-speeds t-cap ks-num c2">
+          <span>
+            ↓<span className="sr-only">{t('downloads.downloadSpeed')}</span> {speed(downloadSpeed)}
+          </span>
+          <span>
+            ↑<span className="sr-only">{t('downloads.uploadSpeed')}</span> {speed(uploadSpeed)}
+          </span>
+        </p>
+        {freeSpace !== undefined && (
+          <p className="t-cap ks-num c3">{t('downloads.freeSpace', { size: format.size(freeSpace) })}</p>
+        )}
+      </div>
+      <div className="ks-side-mini ks-num">
+        <span className={cx('ks-side-dot', offline && 'is-off')} title={status}>
+          <span className="sr-only">{status}</span>
         </span>
-      </p>
-      <p className="ks-side-status-speeds t-cap ks-num c2">
-        <span>
-          ↓<span className="sr-only">{t('downloads.downloadSpeed')}</span> {speed(downloadSpeed)}
-        </span>
-        <span>
-          ↑<span className="sr-only">{t('downloads.uploadSpeed')}</span> {speed(uploadSpeed)}
-        </span>
-      </p>
-      {freeSpace !== undefined && (
-        <p className="t-cap ks-num c3">{t('downloads.freeSpace', { size: format.size(freeSpace) })}</p>
-      )}
+        {stacked(t('downloads.downloadSpeed'), speed(downloadSpeed), <span aria-hidden="true">↓</span>)}
+        {stacked(t('downloads.uploadSpeed'), speed(uploadSpeed), <span aria-hidden="true">↑</span>)}
+        {freeSpace !== undefined &&
+          stacked(t('sidebar.freeSpace'), format.size(freeSpace), <Icon name="disk" size={13} />)}
+      </div>
     </section>
   )
 }
