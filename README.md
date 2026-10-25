@@ -39,7 +39,7 @@ Umbrel offers updates when a new version is out. What changed is in [CHANGELOG.m
 
 ## On your phone
 
-Kinoseed is a web app (PWA). Over plain HTTP on your home network it works in the browser. Installing it to the home screen with offline support needs HTTPS, which is on the [roadmap](docs/ROADMAP.md).
+Kinoseed is a web app (PWA). Over plain HTTP on your home network it works in the browser, and on an iPhone or iPad you can add it to the Home Screen from Safari's Share menu to open it full screen. umbrelOS 2.0 also serves it over HTTPS (`https://umbrel.local:8795`): with the Umbrel certificate trusted on your device ([Umbrel's guide](https://umbrel.com/support/basics/accessing-your-umbrel-over-https)), Kinoseed installs as an app on Android and computers too and keeps its shell available offline.
 
 ## Privacy and security
 
