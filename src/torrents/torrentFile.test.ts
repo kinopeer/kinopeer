@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { InvalidTorrentError, readTorrentFile } from './torrentFile'
 
 type Value = number | string | Uint8Array | Value[] | { [key: string]: Value }
@@ -42,6 +42,8 @@ async function digest(algorithm: 'SHA-1' | 'SHA-256', value: Value): Promise<str
 }
 
 describe('readTorrentFile', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
   it('reads a multi-file torrent and hashes its info dictionary', async () => {
     const info: Value = {
       name: 'Дюна (2021) BDRip',
@@ -92,5 +94,13 @@ describe('readTorrentFile', () => {
     await expect(readTorrentFile(new TextEncoder().encode('<html>Cloudflare</html>'))).rejects.toBeInstanceOf(InvalidTorrentError)
     await expect(readTorrentFile(encode({ announce: 'x' }))).rejects.toBeInstanceOf(InvalidTorrentError)
     await expect(readTorrentFile(new Uint8Array())).rejects.toBeInstanceOf(InvalidTorrentError)
+  })
+
+  it('hashes without Web Crypto, as over plain HTTP', async () => {
+    const torrent = { announce: 'http://t', info: { name: 'Movie', length: 10, 'piece length': 16384, pieces } }
+    const expected = await digest('SHA-1', torrent.info)
+    vi.stubGlobal('crypto', {})
+    const meta = await readTorrentFile(encode(torrent))
+    expect(meta.infoHash).toBe(expected)
   })
 })

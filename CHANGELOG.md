@@ -2,6 +2,12 @@
 
 Kinoseed follows [semantic versioning](https://semver.org). While the version is 0.x, minor versions may change behavior and settings.
 
+## Unreleased
+
+### Fixed
+
+- Adding a `.torrent` over plain HTTP, Kinoseed's usual address on a home network: the file is read again, so picking files works there too. Browsers have no Web Crypto outside HTTPS, so the torrent's hash is now computed by Kinoseed itself when it has to.
+
 ## 0.4.0 - 2026-10-25
 
 Desktop: on a computer Kinoseed uses the whole window, with a sidebar, Downloads as a table or a poster grid, torrent details in a side drawer and a title's releases on its page.
