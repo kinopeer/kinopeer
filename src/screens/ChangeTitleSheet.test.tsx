@@ -48,7 +48,7 @@ beforeEach(() => {
 describe('ChangeTitleSheet', () => {
   it('searches TMDB for the name guessed from the release, the current title first', async () => {
     renderSheet({ type: 'tv', id: 94605, title: 'Мастер и Маргарита', year: 2005, posterPath: null })
-    expect(screen.getByRole('heading', { name: 'Change title' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Change title' })).toHaveClass('ks-sheet-lg')
     expect(screen.getByText(TORRENT.name)).toBeInTheDocument()
     expect(screen.getByRole('searchbox', { name: 'Search TMDB' })).toHaveValue('Master i Margarita')
 

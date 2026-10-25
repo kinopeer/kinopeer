@@ -72,3 +72,72 @@
   border-top: 1px solid var(--border);
   flex: none;
 }
+
+.ks-sheet-lg {
+  height: calc(100dvh - 52px);
+}
+
+/* Desktop: a centered modal instead of a bottom sheet. */
+@media (min-width: 1024px) {
+  .ks-sheet {
+    inset: 0;
+    width: min(600px, calc(100% - 48px));
+    max-width: none;
+    max-height: calc(100dvh - 64px);
+    margin: auto;
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    box-shadow: var(--shadow-2);
+  }
+
+  .ks-sheet[open] {
+    animation: ks-sheet-pop var(--d-base) var(--ease);
+  }
+
+  .ks-sheet-lg {
+    width: min(680px, calc(100% - 48px));
+    height: min(720px, calc(100dvh - 64px));
+  }
+
+  .ks-sheet-inner {
+    padding-bottom: 0;
+  }
+
+  .ks-grabber {
+    display: none;
+  }
+
+  .ks-sheet-head {
+    padding: 20px 16px 8px 24px;
+  }
+
+  .ks-sheet-head.has-leading {
+    padding: 16px 16px 8px 12px;
+  }
+
+  .ks-sheet-body {
+    padding: 6px 24px 18px;
+  }
+
+  .ks-sheet-foot {
+    padding: 16px 24px;
+  }
+
+  /* A button alone in the footer keeps its own width, on the right. */
+  .ks-sheet-foot > .ks-btn {
+    display: flex;
+    width: fit-content;
+    margin-left: auto;
+  }
+}
+
+@keyframes ks-sheet-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
