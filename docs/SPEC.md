@@ -26,6 +26,7 @@ The `homelab-kinoseed` package from the Homelab App Store runs on port 8795, dep
 
 | Setting | Where it's kept | Set by |
 | --- | --- | --- |
+| 2026-10-25 | Desktop Settings put download defaults and About in the left column and Appearance in the right, the other way round from the canvas, so reading the columns row by row follows the order on a phone and the keyboard order. About keeps its rows (version, install, clearing the cache with its hint) rather than the canvas's one line. Rows of posters in desktop Search show a thin scrollbar where the pointer is a mouse, which can't swipe them sideways. |
 | qBittorrent and Prowlarr addresses | Server environment | The Umbrel package |
 | Prowlarr API key | Environment or Prowlarr's `config.xml` | The Umbrel package |
 | qBittorrent login | `/data/settings.json`, else environment | The connect screen |
@@ -52,6 +53,8 @@ A torrent's match is forgotten when the torrent is deleted from Kinoseed. For to
 2. Otherwise, the qBittorrent login form. The server tries a password once and doesn't retry after a rejection: qBittorrent bans the IP for an hour after five failures.
 3. The "Connect TMDB" step: a v3 API key or a v4 read access token, checked with TMDB before it's saved. It can be skipped; search then asks for the key later.
 
+On desktop these steps show their form in a card centered in the window, without the sidebar.
+
 ### Downloads
 
 - Every qBittorrent torrent, refreshed every 2 seconds while the tab is visible.
@@ -77,6 +80,8 @@ A torrent's match is forgotten when the torrent is deleted from Kinoseed. For to
 
 Movies and series from TMDB with a type filter. An empty search shows trending this week and popular titles. The query and type live in the page URL.
 
+On desktop the screen fills the window beside the sidebar: the search field up to 640px wide, rows of larger posters (with a thin scrollbar for a mouse) and results in a grid as wide as the window.
+
 ### Title
 
 Poster, year, runtime or number of seasons and episodes, rating, overview, and a "Find releases" button.
@@ -101,6 +106,8 @@ Poster, year, runtime or number of seasons and episodes, rating, overview, and a
 ### Settings
 
 Appearance (theme, language), Connections (checks for qBittorrent, Prowlarr and TMDB, changing the TMDB key), download defaults (the same on every device; another device's change shows after a reload), the language of TMDB titles and overviews, About (version, clear cache, install). Clearing the cache also forgets the server's guesses, so torrents are matched again; the user's choices stay. Service addresses can't be changed here: the package sets them.
+
+On desktop the connections sit side by side across the top, then two columns: download defaults and About on the left, Appearance on the right.
 
 ### Offline and errors
 

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
-import { openApp, showWholePage, type AppOptions } from './app.ts'
+import { DESKTOP, DESKTOP_RAIL, openApp, showWholePage, type AppOptions } from './app.ts'
 
 // Masked, so a version bump doesn't change the screenshots.
 const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }
@@ -24,5 +24,32 @@ test.describe('light, English', () => {
   test('settings', async ({ page }) => {
     await openSettings(page, { theme: 'light', lang: 'en' })
     await expect(page).toHaveScreenshot('settings-light-en.png', { mask: [versionValue(page)] })
+  })
+})
+
+test.describe('desktop', () => {
+  test.use(DESKTOP)
+
+  test('dark, Russian', async ({ page }) => {
+    await openSettings(page)
+    await expect(page).toHaveScreenshot('desktop-dark-ru.png', { mask: [versionValue(page)] })
+  })
+
+  test.describe('light, English', () => {
+    test.use({ locale: 'en-US' })
+
+    test('settings', async ({ page }) => {
+      await openSettings(page, { theme: 'light', lang: 'en' })
+      await expect(page).toHaveScreenshot('desktop-light-en.png', { mask: [versionValue(page)] })
+    })
+  })
+})
+
+test.describe('desktop rail', () => {
+  test.use(DESKTOP_RAIL)
+
+  test('dark, Russian', async ({ page }) => {
+    await openSettings(page)
+    await expect(page).toHaveScreenshot('rail-dark-ru.png', { mask: [versionValue(page)] })
   })
 })

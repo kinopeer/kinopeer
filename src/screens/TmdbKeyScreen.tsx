@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { Button } from '../components/Button'
 import { TmdbKeyForm } from './TmdbKeyForm'
+import './ConnectScreen.css'
 
 export interface TmdbKeyScreenProps {
   onDone: () => void

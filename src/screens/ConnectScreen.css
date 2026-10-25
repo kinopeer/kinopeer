@@ -1,0 +1,11 @@
+/* Onboarding (connect and TMDB key): on desktop the form sits in a centered card. */
+@media (min-width: 1024px) {
+  .connect-form {
+    max-width: 480px;
+    padding: 32px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-2);
+  }
+}
