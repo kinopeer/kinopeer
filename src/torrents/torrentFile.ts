@@ -1,3 +1,5 @@
+import { digest, toHex, type DigestAlgorithm } from '../lib/digest'
+
 /** What a .torrent file holds that matters before adding it: its hash, name and files. */
 export interface TorrentMeta {
   /**
@@ -87,9 +89,9 @@ function text(value: BValue | undefined): string | undefined {
   return isBytes(value) ? new TextDecoder().decode(value) : undefined
 }
 
-async function hex(algorithm: 'SHA-1' | 'SHA-256', data: Uint8Array): Promise<string> {
-  const digest = new Uint8Array(await crypto.subtle.digest(algorithm, data as Uint8Array<ArrayBuffer>))
-  return Array.from(digest, (byte) => byte.toString(16).padStart(2, '0')).join('')
+// Not crypto.subtle directly: over plain HTTP, Kinoseed's usual address on a home network, there is none.
+async function hex(algorithm: DigestAlgorithm, data: Uint8Array): Promise<string> {
+  return toHex(await digest(algorithm, data))
 }
 
 /** v2 "file tree": nested dictionaries ending in { "": { length } }. */
