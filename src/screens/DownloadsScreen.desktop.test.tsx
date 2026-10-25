@@ -177,6 +177,29 @@ describe('DownloadsScreen on desktop', () => {
     expect(more).toHaveFocus()
   })
 
+  it('toggles each menu with its own button', async () => {
+    updateSettings({ downloadsDesktopView: 'list' })
+    renderScreen()
+    await tableRows()
+    const buttons = [
+      screen.getByRole('button', { name: 'More actions: Alien.Romulus.2024.1080p' }),
+      screen.getByRole('button', { name: 'Sort: Priority' }),
+      screen.getByRole('button', { name: /^Status: All/ }),
+    ]
+    for (const button of buttons) {
+      await userEvent.click(button)
+      expect(screen.getByRole('menu')).toBeInTheDocument()
+      await userEvent.click(button)
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+      expect(button).toHaveFocus()
+    }
+
+    // Another row's More moves the menu to that row.
+    await userEvent.click(buttons[0])
+    await userEvent.click(screen.getByRole('button', { name: 'More actions: Andor.S02.1080p' }))
+    expect(screen.getByRole('menu', { name: 'More actions: Andor.S02.1080p' })).toBeInTheDocument()
+  })
+
   it('sorts from a menu and filters by type beside it', async () => {
     updateSettings({ downloadsDesktopView: 'list' })
     renderScreen()

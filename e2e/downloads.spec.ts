@@ -154,6 +154,32 @@ test.describe('downloads, desktop', () => {
     await expect(page).toHaveScreenshot('desktop-select-dark-ru.png')
   })
 
+  test('a click anywhere on a row opens the details, or selects it', async ({ page }) => {
+    await openDownloads(page, { downloadsView: 'list' })
+    const row = () => page.getByRole('row').filter({ hasText: 'Оппенгеймер' })
+    // The row's own buttons keep working on their own.
+    await row().getByRole('button', { name: /^Ещё действия/ }).click()
+    await expect(page.getByRole('menu')).toBeVisible()
+    await row().getByRole('button', { name: /^Ещё действия/ }).click()
+    await expect(page.getByRole('menu')).toBeHidden()
+    await expect(page).toHaveURL(/\/$/)
+
+    await page.getByRole('button', { name: 'Выбрать', exact: true }).click()
+    // On the status chip, away from the title, where the row's overlay takes the click.
+    const onStatus = async () => {
+      const chip = await row().getByText('Пауза').boundingBox()
+      const box = await row().boundingBox()
+      await row().click({ position: { x: chip!.x - box!.x + 10, y: chip!.y - box!.y + 8 } })
+    }
+    await onStatus()
+    await expect(page.getByRole('checkbox', { name: 'Оппенгеймер' })).toHaveAttribute('aria-checked', 'true')
+    await page.getByRole('button', { name: 'Отмена' }).click()
+
+    await onStatus()
+    await expect(page).toHaveURL(/\/torrent\//)
+    await expect(page.getByRole('dialog')).toBeVisible()
+  })
+
   test('qBittorrent stops answering', async ({ page }) => {
     await openDownloads(page, { goesOffline: true })
     await expect(page.getByText('Нет связи с qBittorrent').first()).toBeVisible()

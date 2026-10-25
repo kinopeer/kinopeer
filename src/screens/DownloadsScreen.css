@@ -537,7 +537,33 @@
   min-width: 34px;
 }
 
+/* The title's link covers the whole row, so a click anywhere on it opens the details; the row's
+   own buttons sit above it. In selection mode the checkbox covers the row the same way. Both
+   overlays sit above the positioned cells after them (the poster, the status chip). */
+a.dl-row-main::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+}
+
+a.dl-row-main::after,
+.dl-row .dl-select::after {
+  z-index: 1;
+}
+
+a.dl-row-main:focus-visible {
+  outline: none;
+}
+
+a.dl-row-main:focus-visible::after {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
 .dl-row-actions {
+  position: relative;
+  z-index: 2;
   display: flex;
   justify-content: flex-end;
   gap: 2px;
@@ -607,9 +633,20 @@
     margin: 0;
   }
 
-  /* The filters on the left, how the list looks on the right. */
+  /* The filters on the left, how the list looks on the right. The menu buttons take the segmented
+     controls' height and surface, so the row reads as one set of controls. */
   .downloads-sort {
     margin-left: auto;
+  }
+
+  .downloads-toolbar > .ks-btn {
+    height: 46px;
+    border-radius: 13px;
+  }
+
+  .downloads-toolbar > .ks-btn-secondary {
+    background: var(--sunken);
+    border-color: var(--border);
   }
 
   .downloads-status-count {

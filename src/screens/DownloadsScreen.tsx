@@ -158,7 +158,12 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
     setQuery('')
   }
 
+  // On desktop the actions are a menu, and its More button toggles it.
   const openActions = (torrent: Torrent, anchor: HTMLElement) => {
+    if (actionsFor === torrent.hash && actionsAnchor === anchor) {
+      setActionsFor(null)
+      return
+    }
     setActionsFor(torrent.hash)
     setActionsAnchor(anchor)
   }
