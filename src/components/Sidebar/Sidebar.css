@@ -73,6 +73,59 @@
   white-space: nowrap;
 }
 
+/* The count and the status card show only with the labels. */
+.ks-nav-count,
+.ks-side-foot {
+  display: none;
+}
+
+.ks-nav-count {
+  margin-left: auto;
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.ks-side-foot {
+  margin-top: auto;
+  padding-top: 16px;
+}
+
+.ks-side-status {
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--sunken);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ks-side-status-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.ks-side-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+}
+
+.ks-side-dot.is-off {
+  background: var(--error);
+}
+
+.ks-side-status-speeds {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 @media (hover: hover) {
   .ks-nav:hover:not(.is-on) {
     box-shadow: inset 0 0 0 100px var(--hover);
@@ -97,6 +150,14 @@
   .ks-nav {
     justify-content: flex-start;
     padding: 0 12px;
+  }
+
+  .ks-nav-count {
+    display: inline;
+  }
+
+  .ks-side-foot {
+    display: block;
   }
 
   .ks-nav-label {

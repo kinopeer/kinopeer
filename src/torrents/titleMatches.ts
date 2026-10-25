@@ -56,6 +56,8 @@ export function lookupFor(
 /** The Downloads type filter: every torrent, or movies or series only. */
 export type TypeFilter = 'all' | MediaType
 
+export const TYPE_FILTERS: readonly TypeFilter[] = ['all', 'movie', 'tv']
+
 /**
  * Whether a torrent is a movie or a series: the matched title's type, else what the lookup knows
  * without TMDB (a known title, season markers in the name, the category). Undefined when nothing

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router'
-import type { Torrent } from '../api/qbittorrent'
+import { startTorrents, stopTorrents, type Torrent } from '../api/qbittorrent'
 import { Badge } from '../components/Badge'
 import { Button } from '../components/Button'
 import { EmptyState } from '../components/EmptyState'
@@ -13,20 +13,22 @@ import { PosterCardSkeleton } from '../components/PosterCard'
 import { Segmented } from '../components/Segmented'
 import { Toast } from '../components/Toast'
 import { useFormatters } from '../lib/format'
+import { useIsDesktop } from '../lib/useIsDesktop'
 import { useSettings } from '../settings/settings'
 import { compareTorrents, knownSort } from '../torrents/sort'
-import { STATUS_FILTERS, matchesFilter, type StatusFilter } from '../torrents/status'
+import { STATUS_FILTERS, downloadStatus, isRunning, matchesFilter, type StatusFilter } from '../torrents/status'
 import { useServerMatches } from '../torrents/serverMatches'
-import { isGuessed, titleType, useTitleMatches, type TypeFilter } from '../torrents/titleMatches'
+import { TYPE_FILTERS, isGuessed, titleType, useTitleMatches, type TypeFilter } from '../torrents/titleMatches'
 import { useMainData } from '../torrents/useMainData'
 import { BulkActionsBar } from './BulkActionsBar'
 import { ChangeTitleSheet } from './ChangeTitleSheet'
 import { DeleteTorrentDialog } from './DeleteTorrentDialog'
 import { DownloadCard } from './DownloadCard'
 import { DownloadItem } from './DownloadItem'
+import { DownloadRow, DownloadRowHeader } from './DownloadRow'
 import { InstallCard } from './InstallCard'
 import { OfflineBanner } from './OfflineBanner'
-import { SortSheet } from './SortSheet'
+import { SortMenu, SortSheet } from './SortSheet'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
 import './DownloadsScreen.css'
 
@@ -57,15 +59,27 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
     () => void navigate(location.pathname, { replace: true, state: null }),
     [navigate, location.pathname],
   )
-  const [{ downloadsView: view, downloadsSort }, updateSettings] = useSettings()
+  const isDesktop = useIsDesktop()
+  const [{ downloadsView, downloadsDesktopView, downloadsSort }, updateSettings] = useSettings()
+  // Each layout remembers its own view: the desktop's list is a table, and its grid is the default.
+  const view = isDesktop ? downloadsDesktopView : downloadsView
+  const setView = (next: 'list' | 'grid') =>
+    updateSettings(isDesktop ? { downloadsDesktopView: next } : { downloadsView: next })
   const grid = view === 'grid'
   const sort = knownSort(downloadsSort)
   const [sortOpen, setSortOpen] = useState(false)
+  const [sortAnchor, setSortAnchor] = useState<HTMLElement | null>(null)
   const [filter, setFilter] = useState<StatusFilter>('all')
   const [type, setType] = useState<TypeFilter>('all')
   const [searchOpen, setSearchOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [actionsFor, setActionsFor] = useState<string | null>(null)
+  // The More button that opened the actions: on desktop they are a menu next to it.
+  const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null)
+  // Being paused or resumed from a row's own button on desktop.
+  const [toggling, setToggling] = useState<ReadonlySet<string>>(new Set())
+  const [toggleFailed, setToggleFailed] = useState(false)
+  const dismissToggleFailed = useCallback(() => setToggleFailed(false), [])
   const [deleting, setDeleting] = useState<string[] | null>(null)
   // The selected hashes in selection mode, null outside it.
   const [selected, setSelected] = useState<ReadonlySet<string> | null>(null)
@@ -136,127 +150,229 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
     setQuery('')
   }
 
+  const openActions = (torrent: Torrent, anchor: HTMLElement) => {
+    setActionsFor(torrent.hash)
+    setActionsAnchor(anchor)
+  }
+
+  const toggleRunning = async (torrent: Torrent) => {
+    const { hash } = torrent
+    setToggling((current) => new Set(current).add(hash))
+    setToggleFailed(false)
+    try {
+      const status = downloadStatus(torrent)
+      await (isRunning(status) ? stopTorrents([hash]) : startTorrents([hash]))
+      refresh()
+    } catch {
+      setToggleFailed(true)
+    } finally {
+      setToggling((current) => {
+        const next = new Set(current)
+        next.delete(hash)
+        return next
+      })
+    }
+  }
+
   const resetFilters = () => {
     setFilter('all')
     setType('all')
     setQuery('')
   }
 
+  const selectionRow = (
+    <div className="downloads-title-row">
+      <Button variant="ghost" size="sm" onClick={() => setSelected(null)}>
+        {t('downloads.selectCancel')}
+      </Button>
+      <h1 className="t-h3 ks-num downloads-selected" aria-live="polite">
+        {t('downloads.selected', { count: selectedVisible.length })}
+      </h1>
+      <Button
+        variant="ghost"
+        size="sm"
+        disabled={visible.length === 0}
+        onClick={() => setSelected(new Set(allSelected ? [] : visible.map((torrent) => torrent.hash)))}
+      >
+        {allSelected ? t('downloads.selectNone') : t('downloads.selectAll')}
+      </Button>
+    </div>
+  )
+
+  const selectButton = (
+    <IconButton
+      icon="select"
+      label={t('downloads.select')}
+      iconSize={22}
+      disabled={offline || torrents.length === 0}
+      onClick={() => setSelected(new Set())}
+    />
+  )
+
+  const totals = (
+    <p className="downloads-totals t-cap ks-num c2">
+      <span className="downloads-total">
+        <Icon name="arrow-down" size={15} className="ca" />
+        <span className="sr-only">{t('downloads.downloadSpeed')}</span>
+        {server?.dl_info_speed === undefined ? '—' : format.speed(server.dl_info_speed)}
+      </span>
+      <span className="downloads-total">
+        <Icon name="arrow-up" size={15} className="downloads-up" />
+        <span className="sr-only">{t('downloads.uploadSpeed')}</span>
+        {server?.up_info_speed === undefined ? '—' : format.speed(server.up_info_speed)}
+      </span>
+      {server?.free_space_on_disk !== undefined && (
+        <span className="downloads-total downloads-free">
+          <Icon name="disk" size={15} />
+          {t('downloads.freeSpace', { size: format.size(server.free_space_on_disk) })}
+        </span>
+      )}
+    </p>
+  )
+
+  const offlineBanner = offline && data !== null && <OfflineBanner updatedAt={updatedAt} onRetry={refresh} />
+
+  const chips = (
+    <div className="downloads-chips ks-hscroll" role="group" aria-label={t('downloads.filtersLabel')}>
+      {STATUS_FILTERS.map((key) => (
+        <FilterChip
+          key={key}
+          selected={filter === key}
+          count={loading ? undefined : typed.filter((torrent) => matchesFilter(torrent, key)).length}
+          onClick={() => setFilter(key)}
+        >
+          {key === 'all' ? t('downloads.all') : t(`status.${key}`)}
+        </FilterChip>
+      ))}
+    </div>
+  )
+
+  const viewSwitch = (
+    <Segmented
+      label={t('downloads.view')}
+      iconsOnly
+      options={[
+        { value: 'list', label: t('downloads.viewList'), icon: 'list' },
+        { value: 'grid', label: t('downloads.viewGrid'), icon: 'grid' },
+      ]}
+      value={view}
+      onChange={setView}
+    />
+  )
+
+  const header = isDesktop ? (
+    // Desktop: the name filter always shows, and the type sits beside the sort, which is a menu.
+    <header className="downloads-head">
+      {selecting ? (
+        selectionRow
+      ) : (
+        <div className="downloads-title-row">
+          <h1 className="t-h1">{t('downloads.title')}</h1>
+          {totals}
+          <div className="downloads-head-tools">
+            <div className="downloads-filter">
+              <Input
+                icon="search"
+                type="search"
+                aria-label={t('downloads.search')}
+                placeholder={t('downloads.search')}
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </div>
+            {selectButton}
+          </div>
+        </div>
+      )}
+      {offlineBanner}
+      <div className="downloads-toolbar">
+        {chips}
+        <Segmented
+          label={t('downloads.type')}
+          options={TYPE_FILTERS.map((key) => ({
+            value: key,
+            label: key === 'all' ? t('downloads.all') : t(`downloads.types.${key}`),
+          }))}
+          value={type}
+          onChange={setType}
+        />
+        <Button
+          variant="secondary"
+          size="sm"
+          icon="sort"
+          className="downloads-sort"
+          aria-haspopup="menu"
+          aria-expanded={sortAnchor !== null}
+          aria-label={t('downloads.sortButton', { sort: t(`downloads.sorts.${sort}`) })}
+          onClick={(event) => setSortAnchor(sortAnchor ? null : event.currentTarget)}
+        >
+          {t(`downloads.sorts.${sort}`)}
+          <Icon name="chevron-down" size={14} />
+        </Button>
+        {viewSwitch}
+      </div>
+    </header>
+  ) : (
+    <header className="downloads-head">
+      {selecting ? (
+        selectionRow
+      ) : (
+        <div className="downloads-title-row">
+          <h1 className="t-h1">{t('downloads.title')}</h1>
+          <IconButton
+            icon="search"
+            label={t('downloads.search')}
+            active={searchOpen}
+            iconSize={22}
+            onClick={toggleSearch}
+          />
+          {selectButton}
+        </div>
+      )}
+
+      {totals}
+
+      {offlineBanner}
+
+      {searchOpen && (
+        <Input
+          icon="search"
+          type="search"
+          aria-label={t('downloads.search')}
+          placeholder={t('downloads.search')}
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          autoFocus
+        />
+      )}
+
+      {chips}
+
+      <div className="downloads-toolbar">
+        <Button
+          variant="ghost"
+          size="sm"
+          icon="sort"
+          className="downloads-sort"
+          aria-haspopup="dialog"
+          aria-label={
+            type === 'all'
+              ? t('downloads.sortButton', { sort: t(`downloads.sorts.${sort}`) })
+              : t('downloads.sortTypeButton', { sort: t(`downloads.sorts.${sort}`), type: t(`downloads.types.${type}`) })
+          }
+          onClick={() => setSortOpen(true)}
+        >
+          {t(`downloads.sorts.${sort}`)}
+          {type !== 'all' && <Badge className="downloads-type">{t(`downloads.types.${type}`)}</Badge>}
+        </Button>
+        {viewSwitch}
+      </div>
+    </header>
+  )
+
   return (
     <main className="downloads">
-      <header className="downloads-head">
-        {selecting ? (
-          <div className="downloads-title-row">
-            <Button variant="ghost" size="sm" onClick={() => setSelected(null)}>
-              {t('downloads.selectCancel')}
-            </Button>
-            <h1 className="t-h3 ks-num downloads-selected" aria-live="polite">
-              {t('downloads.selected', { count: selectedVisible.length })}
-            </h1>
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={visible.length === 0}
-              onClick={() => setSelected(new Set(allSelected ? [] : visible.map((torrent) => torrent.hash)))}
-            >
-              {allSelected ? t('downloads.selectNone') : t('downloads.selectAll')}
-            </Button>
-          </div>
-        ) : (
-          <div className="downloads-title-row">
-            <h1 className="t-h1">{t('downloads.title')}</h1>
-            <IconButton
-              icon="search"
-              label={t('downloads.search')}
-              active={searchOpen}
-              iconSize={22}
-              onClick={toggleSearch}
-            />
-            <IconButton
-              icon="select"
-              label={t('downloads.select')}
-              iconSize={22}
-              disabled={offline || torrents.length === 0}
-              onClick={() => setSelected(new Set())}
-            />
-          </div>
-        )}
-
-        <p className="downloads-totals t-cap ks-num c2">
-          <span className="downloads-total">
-            <Icon name="arrow-down" size={15} className="ca" />
-            <span className="sr-only">{t('downloads.downloadSpeed')}</span>
-            {server?.dl_info_speed === undefined ? '—' : format.speed(server.dl_info_speed)}
-          </span>
-          <span className="downloads-total">
-            <Icon name="arrow-up" size={15} className="downloads-up" />
-            <span className="sr-only">{t('downloads.uploadSpeed')}</span>
-            {server?.up_info_speed === undefined ? '—' : format.speed(server.up_info_speed)}
-          </span>
-          {server?.free_space_on_disk !== undefined && (
-            <span className="downloads-total downloads-free">
-              <Icon name="disk" size={15} />
-              {t('downloads.freeSpace', { size: format.size(server.free_space_on_disk) })}
-            </span>
-          )}
-        </p>
-
-        {offline && data !== null && <OfflineBanner updatedAt={updatedAt} onRetry={refresh} />}
-
-        {searchOpen && (
-          <Input
-            icon="search"
-            type="search"
-            aria-label={t('downloads.search')}
-            placeholder={t('downloads.search')}
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            autoFocus
-          />
-        )}
-
-        <div className="downloads-chips ks-hscroll" role="group" aria-label={t('downloads.filtersLabel')}>
-          {STATUS_FILTERS.map((key) => (
-            <FilterChip
-              key={key}
-              selected={filter === key}
-              count={loading ? undefined : typed.filter((torrent) => matchesFilter(torrent, key)).length}
-              onClick={() => setFilter(key)}
-            >
-              {key === 'all' ? t('downloads.all') : t(`status.${key}`)}
-            </FilterChip>
-          ))}
-        </div>
-
-        <div className="downloads-toolbar">
-          <Button
-            variant="ghost"
-            size="sm"
-            icon="sort"
-            className="downloads-sort"
-            aria-haspopup="dialog"
-            aria-label={
-              type === 'all'
-                ? t('downloads.sortButton', { sort: t(`downloads.sorts.${sort}`) })
-                : t('downloads.sortTypeButton', { sort: t(`downloads.sorts.${sort}`), type: t(`downloads.types.${type}`) })
-            }
-            onClick={() => setSortOpen(true)}
-          >
-            {t(`downloads.sorts.${sort}`)}
-            {type !== 'all' && <Badge className="downloads-type">{t(`downloads.types.${type}`)}</Badge>}
-          </Button>
-          <Segmented
-            label={t('downloads.view')}
-            iconsOnly
-            options={[
-              { value: 'list', label: t('downloads.viewList'), icon: 'list' },
-              { value: 'grid', label: t('downloads.viewGrid'), icon: 'grid' },
-            ]}
-            value={view}
-            onChange={(downloadsView) => updateSettings({ downloadsView })}
-          />
-        </div>
-      </header>
+      {header}
 
       <section className="downloads-body" aria-label={t('downloads.title')} aria-busy={loading}>
         {!loading && <InstallCard />}
@@ -309,6 +425,28 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           >
             {t('downloads.noMatchBody')}
           </EmptyState>
+        ) : isDesktop && !grid ? (
+          <div className="dl-table" role="table" aria-label={t('downloads.title')}>
+            <div role="rowgroup">
+              <DownloadRowHeader selecting={selecting} />
+            </div>
+            <div role="rowgroup" className="dl-table-body">
+              {visible.map((torrent) => (
+                <DownloadRow
+                  key={torrent.hash}
+                  torrent={torrent}
+                  match={matches[torrent.hash]}
+                  showQueue={sort === 'priority'}
+                  onMore={openActions}
+                  onToggleRunning={toggleRunning}
+                  busy={toggling.has(torrent.hash)}
+                  disabled={offline}
+                  selected={selected ? selected.has(torrent.hash) : undefined}
+                  onToggle={toggleSelected}
+                />
+              ))}
+            </div>
+          </div>
         ) : (
           <ul className={grid ? 'ks-poster-grid' : 'downloads-list'}>
             {visible.map((torrent) => {
@@ -319,7 +457,10 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
                   torrent={torrent}
                   match={matches[torrent.hash]}
                   showQueue={sort === 'priority'}
-                  onMore={(target) => setActionsFor(target.hash)}
+                  onMore={openActions}
+                  onToggleRunning={isDesktop ? toggleRunning : undefined}
+                  busy={toggling.has(torrent.hash)}
+                  disabled={offline}
                   selected={selected ? selected.has(torrent.hash) : undefined}
                   onToggle={toggleSelected}
                 />
@@ -328,8 +469,16 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           </ul>
         )}
       </section>
+      {isDesktop && sortAnchor && (
+        <SortMenu
+          anchor={sortAnchor}
+          value={sort}
+          onChange={(downloadsSort) => updateSettings({ downloadsSort })}
+          onClose={() => setSortAnchor(null)}
+        />
+      )}
       <SortSheet
-        open={sortOpen}
+        open={sortOpen && !isDesktop}
         value={sort}
         onChange={(downloadsSort) => updateSettings({ downloadsSort })}
         type={type}
@@ -342,6 +491,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           match={matches[actionsTorrent.hash]}
           guessed={isGuessed(actionsTorrent, serverMatches?.[actionsTorrent.hash])}
           offline={offline}
+          anchor={actionsAnchor}
           onClose={() => setActionsFor(null)}
           onChanged={refresh}
           onDelete={() => {
@@ -397,6 +547,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           }}
         />
       )}
+      {toggleFailed && <Toast icon="alert" message={t('torrent.actionFailed')} onDismiss={dismissToggleFailed} />}
       {reconnected && <Toast message={t('offline.reconnected')} onDismiss={dismissReconnected} />}
       {titleSaved && (
         <Toast

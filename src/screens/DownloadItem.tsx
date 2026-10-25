@@ -18,8 +18,14 @@ export interface DownloadItemProps {
   match?: TitleMatch | null
   /** Shows the queue position on the poster; only the queue order makes it meaningful. */
   showQueue?: boolean
-  /** Opens the row's actions. */
-  onMore: (torrent: Torrent) => void
+  /** Opens the row's actions, next to the More button on desktop. */
+  onMore: (torrent: Torrent, anchor: HTMLElement) => void
+  /** Pauses or resumes it, from a button of its own on desktop. */
+  onToggleRunning?: (torrent: Torrent) => void
+  /** Pausing or resuming it. */
+  busy?: boolean
+  /** qBittorrent is unreachable, so pausing and resuming are off. */
+  disabled?: boolean
   /** Set in selection mode: the row toggles a checkbox instead of opening the torrent, and has no More button. */
   selected?: boolean
   onToggle?: (torrent: Torrent) => void
@@ -96,7 +102,7 @@ export function DownloadItem({ torrent, match, showQueue = true, onMore, selecte
             icon="more"
             label={t('downloads.moreActions', { name: title })}
             className="dl-more"
-            onClick={() => onMore(torrent)}
+            onClick={(event) => onMore(torrent, event.currentTarget)}
           />
         </>
       )}
