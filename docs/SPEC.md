@@ -1,6 +1,6 @@
 # Product spec
 
-What Kinoseed does and why, as of version 0.2.0. Update it in the same PR that changes the behavior; add new decisions to the log at the end.
+What Kinoseed does and why, as of version 0.3.0. Update it in the same PR that changes the behavior; add new decisions to the log at the end.
 
 ## Goal
 
