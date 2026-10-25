@@ -7,11 +7,21 @@ import { ProgressBar } from '../components/ProgressBar'
 import { StatusChip } from '../components/StatusChip'
 import { cx } from '../lib/cx'
 import { useFormatters } from '../lib/format'
-import { downloadStatus, transferSpeed } from '../torrents/status'
+import { downloadStatus, isRunning, transferSpeed } from '../torrents/status'
 import type { DownloadItemProps } from './DownloadItem'
 
 /** A download in the poster grid: status and progress over the poster, title and a short line under it. */
-export function DownloadCard({ torrent, match, showQueue = true, onMore, selected, onToggle }: DownloadItemProps) {
+export function DownloadCard({
+  torrent,
+  match,
+  showQueue = true,
+  onMore,
+  onToggleRunning,
+  busy,
+  disabled,
+  selected,
+  onToggle,
+}: DownloadItemProps) {
   const { t } = useTranslation()
   const format = useFormatters()
   const status = downloadStatus(torrent)
@@ -47,11 +57,25 @@ export function DownloadCard({ torrent, match, showQueue = true, onMore, selecte
               icon="more"
               label={t('downloads.moreActions', { name: title })}
               className="dl-card-more"
-              onClick={() => onMore(torrent)}
+              aria-haspopup={onToggleRunning ? 'menu' : undefined}
+              onClick={(event) => onMore(torrent, event.currentTarget)}
             />
           )
         }
       />
+      {!selecting && onToggleRunning && (
+        // Over the poster's corner on desktop, shown on hover and focus.
+        <IconButton
+          icon={isRunning(status) ? 'pause' : 'play'}
+          variant="glass"
+          size="sm"
+          label={t(isRunning(status) ? 'downloads.pauseItem' : 'downloads.resumeItem', { name: title })}
+          className="dl-card-toggle"
+          data-theme="dark"
+          disabled={disabled || busy}
+          onClick={() => onToggleRunning(torrent)}
+        />
+      )}
       {selecting && (
         <Checkbox
           checked={selected}

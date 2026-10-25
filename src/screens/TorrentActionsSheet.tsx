@@ -5,9 +5,11 @@ import { startTorrents, stopTorrents, type Torrent } from '../api/qbittorrent'
 import { posterUrl } from '../api/tmdb'
 import { Banner } from '../components/Banner'
 import { Icon } from '../components/Icon'
+import { Menu, MenuDivider, MenuGroup, MenuItem, MenuLink } from '../components/Menu'
 import { Poster } from '../components/Poster'
 import { Sheet } from '../components/Sheet'
 import { StatusChip } from '../components/StatusChip'
+import { useIsDesktop } from '../lib/useIsDesktop'
 import { useTmdbLanguage } from '../settings/settings'
 import { downloadStatus, isRunning } from '../torrents/status'
 import { chooseTitle, type TitleMatch } from '../torrents/titleMatches'
@@ -22,6 +24,8 @@ export interface TorrentActionsSheetProps {
   offline: boolean
   /** Off on the torrent screen itself. */
   showDetails?: boolean
+  /** The More button that opened it: on desktop the actions are a menu next to it rather than a sheet. */
+  anchor?: HTMLElement | null
   onClose: () => void
   /** After pausing or resuming, so the list can refresh right away. */
   onChanged: () => void
@@ -32,13 +36,14 @@ export interface TorrentActionsSheetProps {
   onConfirmed: () => void
 }
 
-/** Bottom sheet with a download's actions, opened from its More button. */
+/** A download's actions, opened from its More button: a bottom sheet, or a menu on desktop. */
 export function TorrentActionsSheet({
   torrent,
   match,
   guessed,
   offline,
   showDetails = true,
+  anchor,
   onClose,
   onChanged,
   onDelete,
@@ -80,6 +85,60 @@ export function TorrentActionsSheet({
     }
   }
   const askToConfirm = !!match && guessed
+  const isDesktop = useIsDesktop()
+  const errors = (
+    <>
+      {failed && <Banner tone="error">{t('torrent.actionFailed')}</Banner>}
+      {saveFailed && <Banner tone="error">{t('match.saveFailed')}</Banner>}
+    </>
+  )
+
+  if (isDesktop && anchor) {
+    const changeTitle = match ? t('match.changeTitle') : t('match.pickTitle')
+    return (
+      <Menu
+        anchor={anchor}
+        label={t('downloads.moreActions', { name: match?.title ?? torrent.name })}
+        onClose={onClose}
+        footer={errors}
+      >
+        <MenuItem icon={running ? 'pause' : 'play'} disabled={offline || busy} onClick={toggle}>
+          {running ? t('torrent.pause') : t('torrent.resume')}
+        </MenuItem>
+        {showDetails && (
+          <MenuLink to={`/torrent/${torrent.hash}`} icon="info" onClick={onClose}>
+            {t('downloads.openDetails')}
+          </MenuLink>
+        )}
+        {match && (
+          <MenuLink to={`/title/${match.type}/${match.id}`} icon={match.type === 'tv' ? 'tv' : 'film'} onClick={onClose}>
+            {match.type === 'tv' ? t('downloads.seriesPage') : t('downloads.moviePage')}
+          </MenuLink>
+        )}
+        {askToConfirm ? (
+          <>
+            <MenuDivider />
+            <MenuGroup label={t('match.guessNote')}>
+              <MenuItem icon="search" disabled={confirming} onClick={onChangeTitle}>
+                {t('match.change')}
+              </MenuItem>
+              <MenuItem icon="check" disabled={confirming} onClick={confirm}>
+                {t('match.confirm')}
+              </MenuItem>
+            </MenuGroup>
+          </>
+        ) : (
+          <MenuItem icon="search" onClick={onChangeTitle}>
+            {changeTitle}
+          </MenuItem>
+        )}
+        <MenuDivider />
+        <MenuItem icon="trash" danger disabled={offline} onClick={onDelete}>
+          {t('torrent.delete')}
+        </MenuItem>
+      </Menu>
+    )
+  }
 
   return (
     <Sheet
@@ -133,8 +192,7 @@ export function TorrentActionsSheet({
           </button>
         </li>
       </ul>
-      {failed && <Banner tone="error">{t('torrent.actionFailed')}</Banner>}
-      {saveFailed && <Banner tone="error">{t('match.saveFailed')}</Banner>}
+      {errors}
     </Sheet>
   )
 }

@@ -21,8 +21,10 @@ export interface Settings {
   sequential: boolean
   /** Language of titles and overviews from TMDB; 'app' follows the interface language. */
   tmdbLanguage: 'app' | 'en-US' | 'ru-RU'
-  /** How the downloads list is shown. */
+  /** How the downloads list is shown on a phone or tablet. */
   downloadsView: 'list' | 'grid'
+  /** The same on desktop, kept apart because the layouts differ: a table or a wider grid. */
+  downloadsDesktopView: 'list' | 'grid'
   /** How the downloads list is ordered. */
   downloadsSort: DownloadSort
 }
@@ -34,6 +36,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sequential: false,
   tmdbLanguage: 'app',
   downloadsView: 'list',
+  downloadsDesktopView: 'grid',
   downloadsSort: 'priority',
 }
 

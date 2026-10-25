@@ -1,21 +1,29 @@
+import type { ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router'
 import { cx } from '../../lib/cx'
 import { Icon } from '../Icon'
 import { isTabOn, type TabBarItem } from '../TabBar'
 import './Sidebar.css'
 
+export interface SidebarItem extends TabBarItem {
+  /** A number after the label, such as how many torrents are downloading; hidden in the rail. */
+  count?: { value: number; label: string }
+}
+
 export interface SidebarProps {
   /** The same destinations as the tab bar's. */
-  items: TabBarItem[]
+  items: SidebarItem[]
   /** Accessible name of the navigation landmark. */
   label: string
+  /** At the bottom, e.g. the qBittorrent status card; hidden in the rail. */
+  footer?: ReactNode
 }
 
 /**
  * Desktop navigation in place of the tab bar, fixed along the left edge: an icon rail up to 1100px,
  * then with labels. The current item gets aria-current="page".
  */
-export function Sidebar({ items, label }: SidebarProps) {
+export function Sidebar({ items, label, footer }: SidebarProps) {
   const { pathname } = useLocation()
   return (
     <div className="ks-side">
@@ -32,9 +40,16 @@ export function Sidebar({ items, label }: SidebarProps) {
             }>
             <Icon name={item.icon} size={22} />
             <span className="ks-nav-label">{item.label}</span>
+            {item.count && (
+              <span className="ks-nav-count ks-num">
+                <span aria-hidden="true">{item.count.value}</span>
+                <span className="sr-only">, {item.count.label}</span>
+              </span>
+            )}
           </NavLink>
         ))}
       </nav>
+      {footer && <div className="ks-side-foot">{footer}</div>}
     </div>
   )
 }

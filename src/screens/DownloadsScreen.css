@@ -385,3 +385,223 @@
 .actions-prompt {
   margin-bottom: var(--space-2);
 }
+
+/* Desktop: the whole width beside the sidebar, the canvas's two-row header, a table or a wider grid. */
+.dl-table {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+}
+
+.dl-table-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dl-row {
+  --dl-cols: 36px 40px minmax(0, 1fr) 170px 130px 104px 76px 136px 84px;
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--dl-cols);
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  font-size: 13px;
+  transition:
+    background-color var(--d-fast) var(--ease),
+    border-color var(--d-fast) var(--ease);
+}
+
+/* Narrower windows, the icon rail's included: the size goes, the rest keep their room. */
+@container (max-width: 1000px) {
+  .dl-row {
+    --dl-cols: 28px 40px minmax(0, 1fr) 140px 120px 96px 76px 84px;
+  }
+
+  .dl-row-size {
+    display: none;
+  }
+}
+
+.dl-row-head {
+  padding-top: 0;
+  padding-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text3);
+}
+
+.dl-row.is-sel {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+
+@media (hover: hover) {
+  .dl-table-body .dl-row:not(.is-sel):hover {
+    background: var(--surface);
+    border-color: var(--border);
+  }
+
+  .dl-card-toggle {
+    opacity: 0;
+    transition: opacity var(--d-fast) var(--ease);
+  }
+
+  .dl-card:hover .dl-card-toggle,
+  .dl-card:focus-within .dl-card-toggle {
+    opacity: 1;
+  }
+}
+
+.dl-row-queue {
+  font-weight: 600;
+}
+
+.dl-row .dl-select {
+  margin-left: -8px;
+}
+
+.dl-row-poster {
+  width: 40px;
+  border-radius: 7px;
+}
+
+.dl-row-name {
+  min-width: 0;
+}
+
+.dl-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 4px 0;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 8px;
+}
+
+.dl-row-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dl-row-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.dl-row-year {
+  flex: none;
+}
+
+.dl-row-release {
+  font-size: 12px;
+}
+
+.dl-row .dl-progress {
+  margin-top: 0;
+}
+
+.dl-row .dl-pct {
+  min-width: 34px;
+}
+
+.dl-row-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.dl-row-actions .ks-icon-btn {
+  color: var(--text2);
+}
+
+.dl-card-toggle {
+  justify-self: end;
+  align-self: start;
+  margin: 8px;
+}
+
+@media (min-width: 1024px) {
+  .downloads {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .downloads-head {
+    gap: 16px;
+    padding: calc(28px + var(--safe-top)) 32px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .downloads-title-row {
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    min-height: 44px;
+  }
+
+  .downloads-title-row > .t-h1 {
+    flex: none;
+  }
+
+  .downloads-totals {
+    margin: 0;
+    gap: 16px;
+  }
+
+  .downloads-free {
+    margin-left: 0;
+  }
+
+  .downloads-head-tools {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .downloads-filter {
+    width: 280px;
+  }
+
+  .downloads-toolbar {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 8px;
+    margin: 0;
+  }
+
+  .downloads-toolbar .downloads-chips {
+    flex: 1;
+    min-width: 0;
+    flex-wrap: wrap;
+    margin: 0;
+    padding: 0;
+  }
+
+  .downloads-sort {
+    margin-left: 0;
+  }
+
+  .downloads-body {
+    padding: 20px 32px 48px;
+  }
+
+  /* Room for the bulk bar at the bottom. */
+  .downloads:has(.downloads-bulk) .downloads-body {
+    padding-bottom: 112px;
+  }
+
+  .downloads .ks-poster-grid {
+    grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
+    gap: 28px 20px;
+  }
+}

@@ -12,7 +12,8 @@
     "label": "Language"
   },
   "common": {
-    "retry": "Try again"
+    "retry": "Try again",
+    "close": "Close"
   },
   "connect": {
     "title": "Connect qBittorrent",
@@ -88,7 +89,20 @@
     "deletedMany_one": "{{count}} torrent deleted",
     "deletedMany_other": "{{count}} torrents deleted",
     "deletedManyFiles_one": "{{count}} torrent and its files deleted",
-    "deletedManyFiles_other": "{{count}} torrents and their files deleted"
+    "deletedManyFiles_other": "{{count}} torrents and their files deleted",
+    "pauseItem": "Pause: {{name}}",
+    "resumeItem": "Resume: {{name}}",
+    "columns": {
+      "select": "Select",
+      "poster": "Poster",
+      "title": "Title",
+      "progress": "Progress",
+      "status": "Status",
+      "speed": "Speed",
+      "eta": "ETA",
+      "size": "Size",
+      "actions": "Actions"
+    }
   },
   "format": {
     "B": "B",
@@ -114,7 +128,13 @@
     "label": "Main",
     "downloads": "Downloads",
     "search": "Search",
-    "settings": "Settings"
+    "settings": "Settings",
+    "downloading_one": "{{count}} downloading",
+    "downloading_other": "{{count}} downloading"
+  },
+  "sidebar": {
+    "connected": "qBittorrent {{version}}",
+    "offline": "No connection to qBittorrent"
   },
   "search": {
     "title": "Search",

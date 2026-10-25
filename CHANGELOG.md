@@ -7,6 +7,9 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 ### Added
 
 - On a computer (a window 1024px wide or more), a sidebar on the left replaces the tab bar: Downloads, Search and Settings with labels, or icons only in a narrower window. Screens use the rest of the window.
+- Downloads on a computer: a poster grid by default, or a table with columns for progress, status, speed, time left and size. Pause or resume right from a row or a poster, filter by name and type from the header, and sort or open a torrent's actions from menus.
+- Torrent details on a computer open in a drawer over Downloads instead of a page of their own.
+- The sidebar counts the torrents downloading and shows qBittorrent's version, speeds and free space.
 - On a computer, the title page has a wide header with the poster, and its releases appear right under it after you press Find releases: filters in drop-downs over a table of releases, which stay at the top while you scroll. Opening a title no longer waits for anything from Prowlarr.
 - Search and Settings on a computer: search fills the window with larger posters and a wider results grid; settings show the connections side by side and the other sections in two columns. The first-launch steps show their form in a centered card.
 - On a computer, sheets open as windows in the middle of the screen: adding a release, picking its files, changing a title, deleting torrents and the rest.

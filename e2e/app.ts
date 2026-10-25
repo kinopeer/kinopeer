@@ -17,6 +17,7 @@ export interface AppOptions {
   theme?: 'dark' | 'light'
   /** Interface language; Intl formatting follows the context's `locale`. */
   lang?: 'ru' | 'en'
+  /** The Downloads view; on a phone the list by default, on desktop the grid. */
   downloadsView?: 'list' | 'grid'
   torrents?: Torrent[]
   /** qBittorrent answers the first poll, then stops answering. */
@@ -135,10 +136,13 @@ export async function openApp(page: Page, path: string, options: AppOptions = {}
     ({ theme, lang, downloadsView }) => {
       localStorage.setItem('kinoseed.theme', theme)
       localStorage.setItem('kinoseed.lang', lang)
-      localStorage.setItem('kinoseed.settings', JSON.stringify({ downloadsView }))
+      localStorage.setItem(
+        'kinoseed.settings',
+        JSON.stringify({ downloadsView: downloadsView ?? 'list', downloadsDesktopView: downloadsView }),
+      )
       localStorage.setItem('kinoseed.installDismissed', '1')
     },
-    { theme: options.theme ?? 'dark', lang: options.lang ?? 'ru', downloadsView: options.downloadsView ?? 'list' },
+    { theme: options.theme ?? 'dark', lang: options.lang ?? 'ru', downloadsView: options.downloadsView },
   )
   await mockServer(page, options)
   await page.goto(path)

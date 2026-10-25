@@ -2,10 +2,11 @@ import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../components/Button'
 import { Icon } from '../components/Icon'
+import { Menu, MenuItemRadio } from '../components/Menu'
 import { Segmented } from '../components/Segmented'
 import { Sheet } from '../components/Sheet'
 import { DOWNLOAD_SORTS, type DownloadSort } from '../torrents/sort'
-import type { TypeFilter } from '../torrents/titleMatches'
+import { TYPE_FILTERS, type TypeFilter } from '../torrents/titleMatches'
 
 export interface SortSheetProps {
   open: boolean
@@ -15,8 +16,6 @@ export interface SortSheetProps {
   onTypeChange: (type: TypeFilter) => void
   onClose: () => void
 }
-
-const TYPE_FILTERS: TypeFilter[] = ['all', 'movie', 'tv']
 
 /** Picks the order of the downloads list and the type it shows. A pick applies right away; Done closes the sheet. */
 export function SortSheet({ open, value, onChange, type, onTypeChange, onClose }: SortSheetProps) {
@@ -74,5 +73,35 @@ export function SortSheet({ open, value, onChange, type, onTypeChange, onClose }
         </fieldset>
       </div>
     </Sheet>
+  )
+}
+
+export interface SortMenuProps {
+  /** The sort button. */
+  anchor: HTMLElement
+  value: DownloadSort
+  onChange: (sort: DownloadSort) => void
+  onClose: () => void
+}
+
+/** The sort on desktop: a menu under the sort button. The type is a segmented control beside it there. */
+export function SortMenu({ anchor, value, onChange, onClose }: SortMenuProps) {
+  const { t } = useTranslation()
+  return (
+    <Menu anchor={anchor} label={t('downloads.sort')} onClose={onClose}>
+      {DOWNLOAD_SORTS.map((sort) => (
+        <MenuItemRadio
+          key={sort}
+          checked={value === sort}
+          label={t(`downloads.sorts.${sort}`)}
+          hint={sort === 'priority' ? t('downloads.sortPriorityHint') : undefined}
+          onClick={() => {
+            onChange(sort)
+            onClose()
+            anchor.focus()
+          }}
+        />
+      ))}
+    </Menu>
   )
 }

@@ -116,6 +116,39 @@ describe('App', () => {
       expect(screen.getByRole('navigation', { name: 'Main' })).toBeInTheDocument()
     })
 
+    it('shows a torrent in a drawer over Downloads, polling once for both and the sidebar', async () => {
+      getMainData.mockResolvedValue({
+        rid: 1,
+        full_update: true,
+        torrents: {
+          dune: { name: 'Dune.2021.1080p', state: 'downloading', progress: 0.5, size: 1e9, priority: 1, ratio: 0 },
+          alien: { name: 'Alien.1979.1080p', state: 'stoppedDL', progress: 0.2, size: 1e9, priority: 2 },
+        },
+        server_state: { dl_info_speed: 4_300_000, up_info_speed: 0, free_space_on_disk: 1e12 },
+      })
+      renderApp('/torrent/dune')
+      expect(await screen.findByRole('dialog', { name: 'Dune.2021.1080p' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Downloads', level: 1 })).toBeInTheDocument()
+      const nav = screen.getByRole('navigation', { name: 'Main' })
+      expect(within(nav).getByRole('link', { name: /^Downloads.*1 downloading$/ })).toHaveClass('is-on')
+      expect(screen.getByRole('region', { name: 'qBittorrent' })).toHaveTextContent('qBittorrent v5.2.4')
+      expect(getMainData).toHaveBeenCalledTimes(1)
+    })
+
+    it('shows a torrent as a screen of its own on a phone', async () => {
+      vi.unstubAllGlobals()
+      getMainData.mockResolvedValue({
+        rid: 1,
+        full_update: true,
+        torrents: { dune: { name: 'Dune.2021.1080p', state: 'downloading', progress: 0.5, size: 1e9, priority: 1, ratio: 0 } },
+        server_state: {},
+      })
+      renderApp('/torrent/dune')
+      expect(await screen.findByRole('heading', { name: 'Dune.2021.1080p', level: 1 })).toBeInTheDocument()
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: 'Downloads' })).not.toBeInTheDocument()
+    })
+
     it('switches to the tab bar when the window gets narrow', async () => {
       const resize = stubDesktop()
       renderApp()

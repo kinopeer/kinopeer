@@ -56,6 +56,14 @@ describe('settings', () => {
     expect(getSettings().downloadsView).toBe('grid')
   })
 
+  it('shows downloads on desktop as a grid until a list is picked, apart from the phone view', () => {
+    expect(getSettings().downloadsDesktopView).toBe('grid')
+    const { result } = renderHook(() => useSettings())
+    act(() => result.current[1]({ downloadsDesktopView: 'list' }))
+    expect(result.current[0]).toMatchObject({ downloadsView: 'list', downloadsDesktopView: 'list' })
+    expect(JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY)!)).toMatchObject({ downloadsDesktopView: 'list' })
+  })
+
   it('orders downloads by the queue until another sort is picked, and remembers the pick', () => {
     expect(getSettings().downloadsSort).toBe('priority')
     const { result } = renderHook(() => useSettings())

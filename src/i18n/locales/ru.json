@@ -12,7 +12,8 @@
     "label": "Язык"
   },
   "common": {
-    "retry": "Повторить"
+    "retry": "Повторить",
+    "close": "Закрыть"
   },
   "connect": {
     "title": "Подключите qBittorrent",
@@ -94,7 +95,20 @@
     "deletedManyFiles_one": "Удалён {{count}} торрент с файлами",
     "deletedManyFiles_few": "Удалено {{count}} торрента с файлами",
     "deletedManyFiles_many": "Удалено {{count}} торрентов с файлами",
-    "deletedManyFiles_other": "Удалено {{count}} торрента с файлами"
+    "deletedManyFiles_other": "Удалено {{count}} торрента с файлами",
+    "pauseItem": "Пауза: {{name}}",
+    "resumeItem": "Продолжить: {{name}}",
+    "columns": {
+      "select": "Выбор",
+      "poster": "Постер",
+      "title": "Название",
+      "progress": "Прогресс",
+      "status": "Статус",
+      "speed": "Скорость",
+      "eta": "Осталось",
+      "size": "Размер",
+      "actions": "Действия"
+    }
   },
   "format": {
     "B": "Б",
@@ -127,7 +141,15 @@
     "label": "Основное",
     "downloads": "Загрузки",
     "search": "Поиск",
-    "settings": "Настройки"
+    "settings": "Настройки",
+    "downloading_one": "{{count}} загружается",
+    "downloading_few": "{{count}} загружаются",
+    "downloading_many": "{{count}} загружаются",
+    "downloading_other": "{{count}} загружаются"
+  },
+  "sidebar": {
+    "connected": "qBittorrent {{version}}",
+    "offline": "Нет связи с qBittorrent"
   },
   "search": {
     "title": "Поиск",

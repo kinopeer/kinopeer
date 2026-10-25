@@ -114,14 +114,39 @@ test.describe('downloads, wide screen', () => {
 test.describe('downloads, desktop', () => {
   test.use(DESKTOP)
 
-  test('list with the sidebar, dark, Russian', async ({ page }) => {
+  test('poster grid by default, dark, Russian', async ({ page }) => {
     await openDownloads(page)
-    await expect(page.getByRole('link', { name: 'Загрузки' })).toHaveAttribute('aria-current', 'page')
+    await expect(page.getByRole('link', { name: /^Загрузки/ })).toHaveAttribute('aria-current', 'page')
+    await expect(page.getByRole('region', { name: 'qBittorrent' })).toContainText('qBittorrent v5.3.0')
+    await expect(page.getByRole('table')).toHaveCount(0)
+    await expect(page).toHaveScreenshot('desktop-grid-dark-ru.png')
+  })
+
+  test('list as a table, dark, Russian', async ({ page }) => {
+    await openDownloads(page, { downloadsView: 'list' })
+    await expect(page.getByRole('table', { name: 'Загрузки' })).toBeVisible()
     await expect(page).toHaveScreenshot('desktop-list-dark-ru.png')
   })
 
+  test('a row’s actions as a menu', async ({ page }) => {
+    await openDownloads(page, { downloadsView: 'list' })
+    await page.getByRole('button', { name: 'Ещё действия: Дюна: Часть вторая' }).click()
+    await expect(page.getByRole('menu')).toBeVisible()
+    await settle(page)
+    await expect(page).toHaveScreenshot('desktop-menu-dark-ru.png')
+  })
+
+  test('the sort menu and series only', async ({ page }) => {
+    await openDownloads(page, { downloadsView: 'list' })
+    await page.getByRole('radio', { name: 'Сериалы' }).click()
+    await page.getByRole('button', { name: 'Сортировка: Приоритет' }).click()
+    await expect(page.getByRole('menuitemradio', { name: 'Приоритет' })).toHaveAttribute('aria-checked', 'true')
+    await settle(page)
+    await expect(page).toHaveScreenshot('desktop-sort-dark-ru.png')
+  })
+
   test('selection beside the sidebar', async ({ page }) => {
-    await openDownloads(page)
+    await openDownloads(page, { downloadsView: 'list' })
     await page.getByRole('button', { name: 'Выбрать', exact: true }).click()
     await page.getByRole('checkbox', { name: titles('ru')[0] }).first().click()
     await expect(page.getByRole('toolbar', { name: 'Выбрано: 1' })).toBeVisible()
@@ -129,12 +154,23 @@ test.describe('downloads, desktop', () => {
     await expect(page).toHaveScreenshot('desktop-select-dark-ru.png')
   })
 
+  test('qBittorrent stops answering', async ({ page }) => {
+    await openDownloads(page, { goesOffline: true })
+    await expect(page.getByText('Нет связи с qBittorrent').first()).toBeVisible()
+    await expect(page).toHaveScreenshot('desktop-offline-dark-ru.png')
+  })
+
   test.describe('light, English', () => {
     test.use({ locale: 'en-US' })
 
-    test('list with the sidebar', async ({ page }) => {
-      await openDownloads(page, { theme: 'light', lang: 'en' })
+    test('list as a table', async ({ page }) => {
+      await openDownloads(page, { theme: 'light', lang: 'en', downloadsView: 'list' })
       await expect(page).toHaveScreenshot('desktop-list-light-en.png')
+    })
+
+    test('poster grid', async ({ page }) => {
+      await openDownloads(page, { theme: 'light', lang: 'en' })
+      await expect(page).toHaveScreenshot('desktop-grid-light-en.png')
     })
   })
 })
@@ -143,8 +179,13 @@ test.describe('downloads, narrow desktop', () => {
   test.use(DESKTOP_RAIL)
 
   test('list with the icon rail', async ({ page }) => {
-    await openDownloads(page)
+    await openDownloads(page, { downloadsView: 'list' })
     await expect(page.getByRole('link', { name: 'Поиск' })).toBeVisible()
     await expect(page).toHaveScreenshot('rail-list-dark-ru.png')
+  })
+
+  test('poster grid with the icon rail', async ({ page }) => {
+    await openDownloads(page)
+    await expect(page).toHaveScreenshot('rail-grid-dark-ru.png')
   })
 })

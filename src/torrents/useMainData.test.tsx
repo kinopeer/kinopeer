@@ -1,6 +1,8 @@
-import { act, renderHook } from '@testing-library/react'
+import { act, render, renderHook } from '@testing-library/react'
+import { useEffect, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
+import { MainDataProvider } from './MainDataProvider'
 import { OFFLINE_POLL_INTERVAL_MS, POLL_INTERVAL_MS, useMainData } from './useMainData'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => {
@@ -79,5 +81,56 @@ describe('useMainData', () => {
     unmount()
     await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS * 3)
     expect(getMainData).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('MainDataProvider', () => {
+  const provider = (onUnauthorized: () => void) =>
+    function Wrapper({ children }: { children: ReactNode }) {
+      return <MainDataProvider onUnauthorized={onUnauthorized}>{children}</MainDataProvider>
+    }
+
+  it('shares one poll between everyone under it', async () => {
+    getMainData.mockResolvedValue({ rid: 1, full_update: true, torrents: { a: { name: 'A' } } })
+    const { result } = renderHook(() => [useMainData(), useMainData()], { wrapper: provider(vi.fn()) })
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    expect(getMainData).toHaveBeenCalledTimes(1)
+    expect(result.current[0].data).toBe(result.current[1].data)
+
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS))
+    expect(getMainData).toHaveBeenCalledTimes(2)
+  })
+
+  it('polls only while someone uses it, and starts again from the last state', async () => {
+    getMainData.mockResolvedValue({ rid: 1, full_update: true, torrents: { a: { name: 'A' } } })
+    let seen: string | undefined
+    function User() {
+      const name = useMainData().data?.torrents.a.name
+      useEffect(() => {
+        seen = name
+      }, [name])
+      return null
+    }
+    const app = (on: boolean) => <MainDataProvider onUnauthorized={vi.fn()}>{on && <User />}</MainDataProvider>
+    const { rerender } = render(app(true))
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    rerender(app(false))
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS * 3))
+    expect(getMainData).toHaveBeenCalledTimes(1)
+
+    seen = undefined
+    rerender(app(true))
+    expect(seen).toBe('A')
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    expect(getMainData).toHaveBeenCalledTimes(2)
+    expect(getMainData).toHaveBeenLastCalledWith(1)
+  })
+
+  it('reports an expired session to the provider’s handler', async () => {
+    getMainData.mockRejectedValue(new api.UnauthorizedError())
+    const onUnauthorized = vi.fn()
+    renderHook(() => useMainData(), { wrapper: provider(onUnauthorized) })
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS * 3))
+    expect(onUnauthorized).toHaveBeenCalledTimes(1)
   })
 })
