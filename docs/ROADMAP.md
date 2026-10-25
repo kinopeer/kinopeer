@@ -32,11 +32,6 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 
 - [x] A wide-screen layout with a details side panel, as on the canvas (1440).
 
-## 0.5: HTTPS and notifications
-
-- [ ] Choose and document an HTTPS setup for Umbrel (options: Tailscale Serve, your own domain with Let's Encrypt).
-- [ ] A "download finished" push notification.
-
 ## 1.0: Public release
 
 - [ ] [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) is done: license, TMDB key and attribution, a history scan for secrets, screenshots, the official Umbrel App Store.
@@ -56,5 +51,6 @@ Ideas are collected in [GitHub Discussions → Ideas](https://github.com/MrShakh
 - Picking a season on the series page.
 - Series stacks in Downloads (several torrents of one series in one card); the title page lists a title's torrents instead. Revisit only if that turns out not to be enough.
 - Jackett.
+- HTTPS set up by Kinoseed, and push notifications. umbrelOS 2.0 serves every app over HTTPS with its own local certificate (`https://umbrel.local:8795`), so there is nothing for Kinoseed to set up, and it works over plain HTTP. What HTTPS adds (offline shell, installing as an app on Android and desktop, Web Push) needs the Umbrel certificate trusted on each device and, for push on iPhone, the app on the Home Screen: too much setup for one "download finished" notification. Decided 2026-10-25.
 - A hosted Kinoseed on our own domain for other people's qBittorrent. Browsers keep a public HTTPS page away from a home-network qBittorrent unless it is set up by hand for CORS and HTTPS, and a server in the middle would hold other people's logins and keys.
 - Playing video.
