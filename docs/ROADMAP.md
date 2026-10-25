@@ -28,9 +28,9 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 - [x] Filtering the list by type: movies or series.
 - [x] Multi-select and bulk actions: pause, resume, delete.
 
-## 0.4: Desktop
+## Done: 0.4.0 (2026-10-25): Desktop
 
-- [ ] A wide-screen layout with a details side panel, as on the canvas (1440).
+- [x] A wide-screen layout with a details side panel, as on the canvas (1440).
 
 ## 0.5: HTTPS and notifications
 

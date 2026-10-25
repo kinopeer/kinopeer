@@ -1,6 +1,6 @@
 # Product spec
 
-What Kinoseed does and why, as of version 0.3.0. Update it in the same PR that changes the behavior; add new decisions to the log at the end.
+What Kinoseed does and why, as of version 0.4.0. Update it in the same PR that changes the behavior; add new decisions to the log at the end.
 
 ## Goal
 
@@ -129,6 +129,7 @@ Manifest and icons; the service worker keeps the app shell available offline and
 
 | Date | Decision |
 | --- | --- |
+| 2026-10-25 | The Claude Design canvas is no longer kept in sync with the app after 0.4.0: a sync round costs a lot (one large prototype file to read, edit and publish) for little use once the screens exist in code. The app, `docs/SPEC.md` and the design system's tokens are the reference; the canvas stays as a picture of 0.4.0 and is drawn on only when a new screen needs variants compared. |
 | 2026-10-25 | Keyboard navigation and focus management (tab order, where focus goes when a sheet, menu or drawer opens or closes) aren't a goal for now; the basics stay: real buttons and links, labels on icon-only buttons, 44px touch targets. Focus rings show only for keyboard navigation: after a click or tap they're off until the next key press, because browsers also show them when a dialog opens or the app moves focus, which looked like a stray highlight to people using a mouse. The icon rail shows the speeds and free space as a narrow column and the downloading count as a badge, rather than hiding them, so the status is there at every desktop width. The table's "#" column shows only when a torrent shown has a queue position, so the title gets the room otherwise. |
 | 2026-10-25 | On desktop the torrent drawer opens over the page its link is on (the title page as well as Downloads) instead of always over Downloads, so looking at a title's torrent doesn't leave the title: the link carries the page in the navigation state and the app keeps rendering that page under the drawer. Closing goes back one step in history, to the page as it was. A torrent's address loaded with no page behind it (a shared link, a new tab) shows Downloads under the drawer, as before. This supersedes "on desktop, `/torrent/:hash` shows Downloads with the torrent's details in a side drawer" below. |
 | 2026-10-25 | On desktop the status filter is one button that opens a menu of statuses with their counts, rather than the canvas's row of six chips: the chips, the type, the sort and the view need about 1100px, so below the canvas's 1440px they wrapped onto two or three rows. A dot on the button marks errors hidden by the picked status. Phones keep the chips, which scroll sideways. The desktop table gives its title the room the fixed columns leave, so it gets wider with the window, and keeps it readable (200px or more) by dropping the size and then moving the time left under the speed as the table narrows; the size comes back only where the title keeps about 380px beside it, so a wider window never shows a narrower title than a smaller one. The title is what a row is recognized by, and the size and time left are in the details drawer. |
