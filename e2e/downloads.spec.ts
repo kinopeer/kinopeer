@@ -226,6 +226,16 @@ test.describe('downloads, narrow desktop', () => {
   })
 })
 
+test.describe('downloads, full HD', () => {
+  test.use({ viewport: { width: 1920, height: 1080 } })
+
+  test('the table with its size column', async ({ page }) => {
+    await openDownloads(page, { downloadsView: 'list' })
+    await expect(page.getByRole('columnheader', { name: 'Размер' })).toBeVisible()
+    await expect(page).toHaveScreenshot('full-hd-list-dark-ru.png')
+  })
+})
+
 test.describe('downloads, labelled sidebar at its narrowest', () => {
   test.use({ viewport: { width: 1100, height: 800 } })
 

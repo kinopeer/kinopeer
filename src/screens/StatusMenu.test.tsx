@@ -45,6 +45,7 @@ describe('StatusMenu', () => {
 
     await userEvent.click(button)
     expect(screen.getByRole('menuitemradio', { name: 'Seeding, 13' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('menuitemradio', { name: 'Seeding, 13' })).toHaveFocus()
     expect(screen.getByRole('menuitemradio', { name: 'All, 15' })).toHaveAttribute('aria-checked', 'false')
   })
 

@@ -23,7 +23,8 @@ export interface MenuProps {
 const ITEMS = '[role^="menuitem"]:not(:disabled)'
 
 /**
- * A desktop popover menu, lined up with the right edge of its anchor by default. The first item gets focus;
+ * A desktop popover menu, lined up with the right edge of its anchor by default. The checked item,
+ * else the first one, gets focus;
  * arrow keys, Home and End move between items. Tab closes it and returns focus to the anchor; the
  * rest of closing is Popover's.
  */
@@ -32,7 +33,9 @@ export function Menu({ anchor, label, onClose, children, footer, align, classNam
 
   // After Popover's own layout effect, so the menu is in place before it takes the focus.
   useLayoutEffect(() => {
-    ref.current?.querySelector<HTMLElement>(ITEMS)?.focus({ preventScroll: true })
+    const menu = ref.current
+    const item = menu?.querySelector<HTMLElement>(`${ITEMS}[aria-checked="true"]`) ?? menu?.querySelector<HTMLElement>(ITEMS)
+    item?.focus({ preventScroll: true })
   }, [anchor])
 
   const onKeyDown = (event: KeyboardEvent) => {

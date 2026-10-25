@@ -22,7 +22,7 @@ function Harness({ onPick = vi.fn(), align }: { onPick?: (item: string) => void;
           <MenuLink to="/title/movie/1">Movie page</MenuLink>
           <MenuDivider />
           <MenuGroup label="Is it right?">
-            <MenuItemRadio checked label="Yes" hint="The guess" />
+            <MenuItemRadio checked={false} label="Yes" hint="The guess" />
           </MenuGroup>
           <MenuItem danger>Delete</MenuItem>
         </Menu>
@@ -40,7 +40,7 @@ describe('Menu', () => {
     await userEvent.keyboard('{ArrowDown}')
     expect(screen.getByRole('menuitem', { name: 'Movie page' })).toHaveFocus()
     await userEvent.keyboard('{ArrowDown}')
-    expect(screen.getByRole('menuitemradio', { name: 'Yes' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('menuitemradio', { name: 'Yes' })).toHaveAttribute('aria-checked', 'false')
     expect(screen.getByRole('menuitemradio', { name: 'Yes' })).toHaveFocus()
     await userEvent.keyboard('{End}')
     expect(screen.getByRole('menuitem', { name: 'Delete' })).toHaveFocus()
@@ -95,6 +95,28 @@ describe('Menu', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Open' }))
     expect(screen.getByRole('menu').parentElement).toHaveStyle({ left: '300px' })
     vi.restoreAllMocks()
+  })
+
+  it('focuses the checked option when it opens', async () => {
+    function Options() {
+      const [anchor, setAnchor] = useState<HTMLElement | null>(null)
+      return (
+        <>
+          <button type="button" onClick={(event) => setAnchor(event.currentTarget)}>
+            Sort
+          </button>
+          {anchor && (
+            <Menu anchor={anchor} label="Sort" onClose={() => setAnchor(null)}>
+              <MenuItemRadio checked={false} label="Name" />
+              <MenuItemRadio checked label="Size" />
+            </Menu>
+          )}
+        </>
+      )
+    }
+    render(<Options />)
+    await userEvent.click(screen.getByRole('button', { name: 'Sort' }))
+    expect(screen.getByRole('menuitemradio', { name: 'Size' })).toHaveFocus()
   })
 
   it('runs an item’s action', async () => {
