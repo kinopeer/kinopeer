@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { describe, expect, it } from 'vitest'
 import type { TabBarItem } from '../TabBar'
@@ -11,10 +11,10 @@ const items: TabBarItem[] = [
   { to: '/settings', icon: 'settings', label: 'Settings' },
 ]
 
-function renderSidebar(path: string) {
+function renderSidebar(path: string, pathname?: string) {
   render(
     <MemoryRouter initialEntries={[path]}>
-      <Sidebar label="Main" items={items} />
+      <Sidebar label="Main" items={items} pathname={pathname} />
     </MemoryRouter>,
   )
   return screen.getByRole('navigation', { name: 'Main' })
@@ -34,6 +34,17 @@ describe('Sidebar', () => {
     const nav = renderSidebar('/torrent/abc')
     expect(within(nav).getByRole('link', { name: 'Downloads' })).toHaveClass('is-on')
     expect(within(nav).getByRole('link', { name: 'Search' })).not.toHaveClass('is-on')
+  })
+
+  it('marks the item of the page a drawer is open over, rather than the URL’s', () => {
+    let nav = renderSidebar('/torrent/abc', '/title/movie/1')
+    expect(within(nav).getByRole('link', { name: 'Downloads' })).not.toHaveClass('is-on')
+    expect(within(nav).getByRole('link', { name: 'Search' })).not.toHaveClass('is-on')
+    cleanup()
+
+    nav = renderSidebar('/torrent/abc', '/search')
+    expect(within(nav).getByRole('link', { name: 'Search' })).toHaveClass('is-on')
+    expect(within(nav).getByRole('link', { name: 'Downloads' })).not.toHaveClass('is-on')
   })
 
   it('shows a count after an item, read out with its meaning, and a footer', () => {

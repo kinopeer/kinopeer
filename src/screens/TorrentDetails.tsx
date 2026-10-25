@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useLocation, useNavigate } from 'react-router'
+import { matchPath, useLocation, useNavigate } from 'react-router'
 import {
   getTorrentTrackers,
   startTorrents,
@@ -45,6 +45,10 @@ export interface TorrentDetailsProps {
    */
   onClose?: () => void
   titleId?: string
+  /** After deleting the torrent, in place of going to Downloads with a toast. */
+  onDeleted?: () => void
+  /** The path of the page the drawer is over, when it isn't Downloads. */
+  behind?: string
 }
 
 /** "12 (340)": connected, then in the swarm when a tracker reported it. */
@@ -57,7 +61,7 @@ function peerCount(connected: number, total: number | undefined): string {
  * (with "Is it right?" for a guess), details and files. A screen of its own on a phone, the
  * content of the details drawer on desktop.
  */
-export function TorrentDetails({ hash, onSessionLost, onClose, titleId }: TorrentDetailsProps) {
+export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDeleted, behind }: TorrentDetailsProps) {
   const { t, i18n } = useTranslation()
   const format = useFormatters()
   const navigate = useNavigate()
@@ -179,6 +183,10 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId }: Torren
   }
 
   const guessed = !!match && isGuessed(torrent, stored)
+  // The drawer is over this title's own page: going to the page is just closing the drawer.
+  const page = behind !== undefined ? matchPath({ path: '/title/:type/:id', end: false }, behind) : null
+  const onTitlePage =
+    match && page?.params.type === match.type && page.params.id === String(match.id) ? onClose : undefined
 
   const confirmTitle = async () => {
     if (!match) return
@@ -343,9 +351,12 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId }: Torren
           torrents={[torrent]}
           title={title}
           onClose={() => setConfirming(false)}
-          onDeleted={(withFiles) =>
-            void navigate('/', { replace: true, state: { deleted: withFiles ? 'files' : 'torrent' } })
-          }
+          onDeleted={(withFiles) => {
+            if (!onDeleted) return void navigate('/', { replace: true, state: { deleted: withFiles ? 'files' : 'torrent' } })
+            // The page behind shows the torrents too, so it hears of the deletion right away.
+            refresh()
+            onDeleted()
+          }}
         />
       )}
 
@@ -357,6 +368,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId }: Torren
           offline={offline}
           showDetails={false}
           anchor={menuAnchor}
+          onTitlePage={onTitlePage}
           onClose={() => setMenuAnchor(null)}
           onChanged={refresh}
           onDelete={() => {

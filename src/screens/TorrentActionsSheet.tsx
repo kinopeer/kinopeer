@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type MouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { startTorrents, stopTorrents, type Torrent } from '../api/qbittorrent'
@@ -26,6 +26,8 @@ export interface TorrentActionsSheetProps {
   showDetails?: boolean
   /** The More button that opened it: on desktop the actions are a menu next to it rather than a sheet. */
   anchor?: HTMLElement | null
+  /** Set when the title's page is already open under a drawer: its item closes the drawer instead. */
+  onTitlePage?: () => void
   onClose: () => void
   /** After pausing or resuming, so the list can refresh right away. */
   onChanged: () => void
@@ -44,6 +46,7 @@ export function TorrentActionsSheet({
   offline,
   showDetails = true,
   anchor,
+  onTitlePage,
   onClose,
   onChanged,
   onDelete,
@@ -85,6 +88,11 @@ export function TorrentActionsSheet({
     }
   }
   const askToConfirm = !!match && guessed
+  const openTitle = (event: MouseEvent) => {
+    if (!onTitlePage) return onClose()
+    event.preventDefault()
+    onTitlePage()
+  }
   const isDesktop = useIsDesktop()
   const errors = (
     <>
@@ -111,7 +119,7 @@ export function TorrentActionsSheet({
           </MenuLink>
         )}
         {match && (
-          <MenuLink to={`/title/${match.type}/${match.id}`} icon={match.type === 'tv' ? 'tv' : 'film'} onClick={onClose}>
+          <MenuLink to={`/title/${match.type}/${match.id}`} icon={match.type === 'tv' ? 'tv' : 'film'} onClick={openTitle}>
             {match.type === 'tv' ? t('downloads.seriesPage') : t('downloads.moviePage')}
           </MenuLink>
         )}
@@ -170,7 +178,7 @@ export function TorrentActionsSheet({
         )}
         {match && (
           <li>
-            <Link to={`/title/${match.type}/${match.id}`} className="ks-row-btn">
+            <Link to={`/title/${match.type}/${match.id}`} className="ks-row-btn" onClick={onTitlePage && openTitle}>
               <Icon name={match.type === 'tv' ? 'tv' : 'film'} />
               {match.type === 'tv' ? t('downloads.seriesPage') : t('downloads.moviePage')}
             </Link>
