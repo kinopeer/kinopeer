@@ -151,9 +151,15 @@
   inset: 0;
 }
 
+/* Without the More button the right padding matches the left, and the checkbox's box sits where the
+   poster starts in a normal row, so the content keeps its width and clears the row's edge. */
+.ks-dl.is-selecting {
+  padding-right: 10px;
+}
+
 .dl-row-check {
   align-self: center;
-  margin-left: -6px;
+  margin-left: -10px;
 }
 
 /* The checkbox sits in the poster's corner, laid over the card in one grid cell rather than
