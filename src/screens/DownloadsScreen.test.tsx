@@ -427,6 +427,8 @@ describe('DownloadsScreen selection', () => {
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^More actions/ })).not.toBeInTheDocument()
     expect(within(bulkBar()).getByRole('button', { name: 'Pause' })).toBeDisabled()
+    // Rows pad their right side like the left once the More button is gone.
+    for (const row of screen.getAllByRole('listitem')) expect(row).toHaveClass('is-selecting')
 
     await userEvent.click(screen.getByRole('checkbox', { name: 'Dune.Part.Two.2024.2160p.WEB-DL' }))
     await userEvent.click(screen.getByRole('checkbox', { name: 'Andor.S02.1080p' }))
@@ -517,6 +519,7 @@ describe('DownloadsScreen selection', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByRole('toolbar')).not.toBeInTheDocument()
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+    expect(screen.getAllByRole('listitem')[0]).not.toHaveClass('is-selecting')
     expect(onSelectingChange).toHaveBeenLastCalledWith(false)
 
     // A new selection starts empty.

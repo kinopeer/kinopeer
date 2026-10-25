@@ -81,7 +81,7 @@ export function DownloadItem({ torrent, match, showQueue = true, onMore, selecte
   )
 
   return (
-    <li className={cx('ks-dl', selected && 'is-sel')}>
+    <li className={cx('ks-dl', selecting && 'is-selecting', selected && 'is-sel')}>
       {selecting ? (
         <>
           <Checkbox checked={selected} label={title} className="dl-select dl-row-check" onChange={() => onToggle?.(torrent)} />
