@@ -27,6 +27,12 @@
   min-width: 0;
 }
 
+.downloads-selected {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+
 .downloads-totals {
   display: flex;
   align-items: center;
@@ -138,6 +144,64 @@
   color: var(--text3);
 }
 
+/* Selection mode. The checkbox covers its whole row or card, so tapping anywhere on it toggles. */
+.dl-select::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.dl-row-check {
+  align-self: center;
+  margin-left: -6px;
+}
+
+/* The checkbox sits in the poster's corner, laid over the card in one grid cell rather than
+   positioned, so its overlay above still spans the card. */
+.dl-card {
+  position: relative;
+  display: grid;
+}
+
+.dl-card > * {
+  grid-area: 1 / 1;
+}
+
+/* The same width with or without the More button, so entering selection doesn't reflow titles. */
+.dl-card .ks-pcard-text {
+  padding-right: 32px;
+}
+
+.dl-card-check {
+  justify-self: end;
+  align-self: start;
+  margin: 2px;
+}
+
+.dl-card-check[aria-checked='false'] > span {
+  background: var(--scrim);
+  border-color: var(--text);
+}
+
+.dl-card.is-sel .ks-poster {
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+}
+
+.downloads-bulk {
+  gap: 8px;
+  padding-top: 10px;
+  padding-bottom: max(10px, var(--safe-bottom));
+}
+
+/* Three buttons share a phone's width; sized by their labels, so "Продолжить" fits next to "Пауза". */
+.downloads-bulk .ks-btn {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  padding: 0 10px;
+  gap: 6px;
+}
+
 /* Download row */
 .ks-dl {
   display: flex;
@@ -148,6 +212,14 @@
   background: var(--surface);
   border: 1px solid var(--border);
   position: relative;
+  transition:
+    border-color var(--d-base) var(--ease),
+    background-color var(--d-base) var(--ease);
+}
+
+.ks-dl.is-sel {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
 }
 
 .ks-dl-main {

@@ -54,6 +54,24 @@ test.describe('downloads, phone', () => {
     await expect(page).toHaveScreenshot('series-dark-ru.png')
   })
 
+  test('selection in the list', async ({ page }) => {
+    await openDownloads(page)
+    await page.getByRole('button', { name: 'Выбрать', exact: true }).click()
+    for (const title of titles('ru').slice(0, 2)) await page.getByRole('checkbox', { name: title }).first().click()
+    await expect(page.getByRole('toolbar', { name: 'Выбрано: 2' })).toBeVisible()
+    await settle(page)
+    await expect(page).toHaveScreenshot('select-list-dark-ru.png')
+  })
+
+  test('selection in the poster grid', async ({ page }) => {
+    await openDownloads(page, { downloadsView: 'grid' })
+    await page.getByRole('button', { name: 'Выбрать', exact: true }).click()
+    await page.getByRole('checkbox', { name: titles('ru')[0] }).first().click()
+    await expect(page.getByRole('toolbar', { name: 'Выбрано: 1' })).toBeVisible()
+    await settle(page)
+    await expect(page).toHaveScreenshot('select-grid-dark-ru.png')
+  })
+
   test('nothing downloaded yet', async ({ page }) => {
     await openApp(page, '/', { torrents: [] })
     await expect(page.getByText('Загрузок пока нет')).toBeVisible()

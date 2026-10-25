@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router'
 import type { Torrent } from '../api/qbittorrent'
@@ -19,6 +19,7 @@ import { STATUS_FILTERS, matchesFilter, type StatusFilter } from '../torrents/st
 import { useServerMatches } from '../torrents/serverMatches'
 import { isGuessed, titleType, useTitleMatches, type TypeFilter } from '../torrents/titleMatches'
 import { useMainData } from '../torrents/useMainData'
+import { BulkActionsBar } from './BulkActionsBar'
 import { ChangeTitleSheet } from './ChangeTitleSheet'
 import { DeleteTorrentDialog } from './DeleteTorrentDialog'
 import { DownloadCard } from './DownloadCard'
@@ -32,19 +33,26 @@ import './DownloadsScreen.css'
 export interface DownloadsScreenProps {
   /** qBittorrent rejected the session cookie (expired or signed out elsewhere). */
   onSessionLost: () => void
+  /** Selection mode puts its actions bar in place of the tab bar, so the app hides the tab bar meanwhile. */
+  onSelectingChange?: (selecting: boolean) => void
 }
 
 const SKELETON_ROWS = 5
 const SKELETON_CARDS = 4
 
-export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
+export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsScreenProps) {
   const { t } = useTranslation()
   const format = useFormatters()
   const { data, offline, updatedAt, refresh } = useMainData(onSessionLost)
   const location = useLocation()
   const navigate = useNavigate()
   // Set by the releases screen after adding a release, and by the torrent screen after deleting one.
-  const { added, deleted } = (location.state ?? {}) as { added?: string; deleted?: 'torrent' | 'files' }
+  const { added, deleted, count } = (location.state ?? {}) as {
+    added?: string
+    deleted?: 'torrent' | 'files'
+    /** How many were deleted at once; one when not set. */
+    count?: number
+  }
   const dismissToast = useCallback(
     () => void navigate(location.pathname, { replace: true, state: null }),
     [navigate, location.pathname],
@@ -58,7 +66,15 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
   const [searchOpen, setSearchOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [actionsFor, setActionsFor] = useState<string | null>(null)
-  const [deleting, setDeleting] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<string[] | null>(null)
+  // The selected hashes in selection mode, null outside it.
+  const [selected, setSelected] = useState<ReadonlySet<string> | null>(null)
+  const selecting = selected !== null
+  useEffect(() => {
+    if (!selecting) return
+    onSelectingChange?.(true)
+    return () => onSelectingChange?.(false)
+  }, [selecting, onSelectingChange])
   const [retitling, setRetitling] = useState<string | null>(null)
   const [titleSaved, setTitleSaved] = useState<'changed' | 'confirmed' | null>(null)
   const dismissTitleSaved = useCallback(() => setTitleSaved(null), [])
@@ -97,10 +113,20 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
       .sort(compareTorrents(sort, (torrent) => matches[torrent.hash]?.title ?? torrent.name))
   }, [typed, filter, query, matches, sort])
 
+  // Only what's on screen counts, so a filter never leaves hidden torrents selected.
+  const selectedVisible = selected ? visible.filter((torrent) => selected.has(torrent.hash)) : []
+  const allSelected = visible.length > 0 && selectedVisible.length === visible.length
+  const toggleSelected = (torrent: Torrent) =>
+    setSelected((current) => {
+      const next = new Set(current)
+      if (!next.delete(torrent.hash)) next.add(torrent.hash)
+      return next
+    })
+
   const loading = data === null
   // Looked up on every render, so the sheet follows live status changes and closes if the torrent goes away.
   const actionsTorrent = actionsFor ? data?.torrents[actionsFor] : undefined
-  const deleteTorrent = deleting ? data?.torrents[deleting] : undefined
+  const deleteTorrents = (deleting ?? []).flatMap((hash) => data?.torrents[hash] ?? [])
   const retitleTorrent = retitling ? data?.torrents[retitling] : undefined
   const nameOf = (torrent: Torrent) => matches[torrent.hash]?.title ?? torrent.name
   const server = data?.server
@@ -119,16 +145,42 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
   return (
     <main className="downloads">
       <header className="downloads-head">
-        <div className="downloads-title-row">
-          <h1 className="t-h1">{t('downloads.title')}</h1>
-          <IconButton
-            icon="search"
-            label={t('downloads.search')}
-            active={searchOpen}
-            iconSize={22}
-            onClick={toggleSearch}
-          />
-        </div>
+        {selecting ? (
+          <div className="downloads-title-row">
+            <Button variant="ghost" size="sm" onClick={() => setSelected(null)}>
+              {t('downloads.selectCancel')}
+            </Button>
+            <h1 className="t-h3 ks-num downloads-selected" aria-live="polite">
+              {t('downloads.selected', { count: selectedVisible.length })}
+            </h1>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={visible.length === 0}
+              onClick={() => setSelected(new Set(allSelected ? [] : visible.map((torrent) => torrent.hash)))}
+            >
+              {allSelected ? t('downloads.selectNone') : t('downloads.selectAll')}
+            </Button>
+          </div>
+        ) : (
+          <div className="downloads-title-row">
+            <h1 className="t-h1">{t('downloads.title')}</h1>
+            <IconButton
+              icon="search"
+              label={t('downloads.search')}
+              active={searchOpen}
+              iconSize={22}
+              onClick={toggleSearch}
+            />
+            <IconButton
+              icon="select"
+              label={t('downloads.select')}
+              iconSize={22}
+              disabled={offline || torrents.length === 0}
+              onClick={() => setSelected(new Set())}
+            />
+          </div>
+        )}
 
         <p className="downloads-totals t-cap ks-num c2">
           <span className="downloads-total">
@@ -268,6 +320,8 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
                   match={matches[torrent.hash]}
                   showQueue={sort === 'priority'}
                   onMore={(target) => setActionsFor(target.hash)}
+                  selected={selected ? selected.has(torrent.hash) : undefined}
+                  onToggle={toggleSelected}
                 />
               )
             })}
@@ -292,7 +346,7 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
           onChanged={refresh}
           onDelete={() => {
             setActionsFor(null)
-            setDeleting(actionsTorrent.hash)
+            setDeleting([actionsTorrent.hash])
           }}
           onChangeTitle={() => {
             setActionsFor(null)
@@ -315,15 +369,31 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
           }}
         />
       )}
-      {deleteTorrent && (
+      {selecting && (
+        <BulkActionsBar
+          hashes={selectedVisible.map((torrent) => torrent.hash)}
+          label={t('downloads.selected', { count: selectedVisible.length })}
+          offline={offline}
+          onDone={() => {
+            setSelected(null)
+            refresh()
+          }}
+          onDelete={() => setDeleting(selectedVisible.map((torrent) => torrent.hash))}
+        />
+      )}
+      {deleteTorrents.length > 0 && (
         <DeleteTorrentDialog
-          torrent={deleteTorrent}
-          title={nameOf(deleteTorrent)}
+          torrents={deleteTorrents}
+          title={nameOf(deleteTorrents[0])}
           onClose={() => setDeleting(null)}
           onDeleted={(withFiles) => {
             setDeleting(null)
+            setSelected(null)
             refresh()
-            void navigate(location.pathname, { replace: true, state: { deleted: withFiles ? 'files' : 'torrent' } })
+            void navigate(location.pathname, {
+              replace: true,
+              state: { deleted: withFiles ? 'files' : 'torrent', count: deleteTorrents.length },
+            })
           }}
         />
       )}
@@ -337,7 +407,11 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
       {added && <Toast message={t('add.added', { title: added })} onDismiss={dismissToast} />}
       {deleted && (
         <Toast
-          message={deleted === 'files' ? t('downloads.deletedFiles') : t('downloads.deleted')}
+          message={
+            count && count > 1
+              ? t(deleted === 'files' ? 'downloads.deletedManyFiles' : 'downloads.deletedMany', { count })
+              : t(deleted === 'files' ? 'downloads.deletedFiles' : 'downloads.deleted')
+          }
           onDismiss={dismissToast}
         />
       )}

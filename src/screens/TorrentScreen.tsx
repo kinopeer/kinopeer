@@ -317,7 +317,7 @@ export function TorrentScreen({ onSessionLost }: TorrentScreenProps) {
 
       {confirming && (
         <DeleteTorrentDialog
-          torrent={torrent}
+          torrents={[torrent]}
           title={title}
           onClose={() => setConfirming(false)}
           onDeleted={(withFiles) =>

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, Route, Routes, useLocation } from 'react-router'
 import { TabBar, type TabBarItem } from './components/TabBar'
@@ -19,6 +20,8 @@ function App() {
   const { session, recheck, signIn } = useQbitSession()
   const tmdb = useTmdbSetup(session.status === 'connected')
   const location = useLocation()
+  // Selecting downloads puts the selection's actions in place of the tab bar.
+  const [selecting, setSelecting] = useState(false)
 
   const connecting = (
     <main className="screen home" aria-busy="true">
@@ -43,7 +46,7 @@ function App() {
           {/* Keyed by path, so a crash on one screen goes away when the user switches tabs. */}
           <ErrorBoundary key={location.pathname}>
             <Routes>
-              <Route index element={<DownloadsScreen onSessionLost={() => void recheck()} />} />
+              <Route index element={<DownloadsScreen onSessionLost={() => void recheck()} onSelectingChange={setSelecting} />} />
               <Route path="torrent/:hash" element={<TorrentScreen onSessionLost={() => void recheck()} />} />
               <Route path="search" element={<SearchScreen />} />
               <Route path="title/:type/:id" element={<TitleScreen onSessionLost={() => void recheck()} />} />
@@ -52,7 +55,7 @@ function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </ErrorBoundary>
-          <TabBar items={tabs} label={t('nav.label')} />
+          {!selecting && <TabBar items={tabs} label={t('nav.label')} />}
         </div>
       )
     }

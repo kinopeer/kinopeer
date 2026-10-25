@@ -10,19 +10,19 @@ import { forgetMatches } from '../torrents/serverMatches'
 import './DeleteTorrentDialog.css'
 
 export interface DeleteTorrentDialogProps {
-  torrent: Pick<Torrent, 'hash' | 'size' | 'progress'>
-  /** What the torrent is called on screen: the TMDB title or the release name. */
-  title: string
+  torrents: Pick<Torrent, 'hash' | 'size' | 'progress'>[]
+  /** What a single torrent is called on screen: the TMDB title or the release name. */
+  title?: string
   onClose: () => void
   /** After qBittorrent removed it. */
   onDeleted: (withFiles: boolean) => void
 }
 
 /**
- * Confirms deleting a torrent; render it while confirming, so it opens with "keep the files" each
- * time. The files are deleted too only when the user checks the box.
+ * Confirms deleting one torrent or several; render it while confirming, so it opens with "keep the
+ * files" each time. The files are deleted too only when the user checks the box.
  */
-export function DeleteTorrentDialog({ torrent, title, onClose, onDeleted }: DeleteTorrentDialogProps) {
+export function DeleteTorrentDialog({ torrents, title, onClose, onDeleted }: DeleteTorrentDialogProps) {
   const { t } = useTranslation()
   const format = useFormatters()
   const id = useId()
@@ -34,8 +34,9 @@ export function DeleteTorrentDialog({ torrent, title, onClose, onDeleted }: Dele
     setDeleting(true)
     setFailed(false)
     try {
-      await deleteTorrents([torrent.hash], withFiles)
-      void forgetMatches([torrent.hash])
+      const hashes = torrents.map((torrent) => torrent.hash)
+      await deleteTorrents(hashes, withFiles)
+      void forgetMatches(hashes)
       onDeleted(withFiles)
     } catch {
       setFailed(true)
@@ -44,13 +45,15 @@ export function DeleteTorrentDialog({ torrent, title, onClose, onDeleted }: Dele
     }
   }
 
-  const filesLabel = t('torrent.deleteFiles', { size: format.size(torrent.size * torrent.progress) })
+  const many = torrents.length > 1
+  const downloaded = torrents.reduce((sum, torrent) => sum + torrent.size * torrent.progress, 0)
+  const filesLabel = t('torrent.deleteFiles', { size: format.size(downloaded) })
 
   return (
     <Dialog
       open
       onClose={onClose}
-      title={t('torrent.deleteTitle')}
+      title={many ? t('torrent.deleteTitleMany') : t('torrent.deleteTitle')}
       icon="trash"
       tone="danger"
       actions={
@@ -64,7 +67,9 @@ export function DeleteTorrentDialog({ torrent, title, onClose, onDeleted }: Dele
         </>
       }
     >
-      <p className="t-body c2 delete-body">{t('torrent.deleteBody', { title })}</p>
+      <p className="t-body c2 delete-body">
+        {many ? t('torrent.deleteBodyMany', { count: torrents.length }) : t('torrent.deleteBody', { title })}
+      </p>
       <div className="delete-files">
         <Checkbox
           id={`${id}-files`}

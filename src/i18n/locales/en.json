@@ -78,7 +78,17 @@
     "types": {
       "movie": "Movies",
       "tv": "Series"
-    }
+    },
+    "select": "Select",
+    "selectCancel": "Cancel",
+    "selectAll": "Select all",
+    "selectNone": "Deselect all",
+    "selected_one": "{{count}} selected",
+    "selected_other": "{{count}} selected",
+    "deletedMany_one": "{{count}} torrent deleted",
+    "deletedMany_other": "{{count}} torrents deleted",
+    "deletedManyFiles_one": "{{count}} torrent and its files deleted",
+    "deletedManyFiles_other": "{{count}} torrents and their files deleted"
   },
   "format": {
     "B": "B",
@@ -288,6 +298,9 @@
     "trackersFailed": "Couldn’t load",
     "deleteTitle": "Delete torrent?",
     "deleteBody": "“{{title}}” will be removed from qBittorrent.",
+    "deleteTitleMany": "Delete torrents?",
+    "deleteBodyMany_one": "{{count}} torrent will be removed from qBittorrent.",
+    "deleteBodyMany_other": "{{count}} torrents will be removed from qBittorrent.",
     "deleteFiles": "Also delete files · {{size}}",
     "deleteFilesHint": "Files are removed from disk permanently.",
     "files": "Files",
