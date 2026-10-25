@@ -1,7 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, type ButtonHTMLAttributes, type KeyboardEvent, type ReactNode } from 'react'
+import { useLayoutEffect, useRef, type ButtonHTMLAttributes, type KeyboardEvent, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { cx } from '../../lib/cx'
 import { Icon, type IconName } from '../Icon'
+import { Popover } from '../Popover'
 import './Menu.css'
 
 export interface MenuProps {
@@ -17,54 +18,19 @@ export interface MenuProps {
   className?: string
 }
 
-const GAP = 6
-const MARGIN = 8
 const ITEMS = '[role^="menuitem"]:not(:disabled)'
 
 /**
- * A desktop popover menu (the design system's `ks-pop`), lined up with the right edge of its anchor.
- * The first item gets focus; arrow keys, Home and End move between items. Escape and Tab close it
- * and return focus to the anchor; so does a click outside, a scroll or a resize, without the focus.
- * Rendered in place rather than in a portal, so it works inside a modal dialog too.
+ * A desktop popover menu, lined up with the right edge of its anchor. The first item gets focus;
+ * arrow keys, Home and End move between items. Tab closes it and returns focus to the anchor; the
+ * rest of closing is Popover's.
  */
 export function Menu({ anchor, label, onClose, children, footer, className }: MenuProps) {
   const ref = useRef<HTMLDivElement>(null)
-  const onCloseRef = useRef(onClose)
-  useEffect(() => {
-    onCloseRef.current = onClose
-  }, [onClose])
 
+  // After Popover's own layout effect, so the menu is in place before it takes the focus.
   useLayoutEffect(() => {
-    const menu = ref.current
-    if (!menu) return
-    const box = anchor.getBoundingClientRect()
-    const { offsetWidth: width, offsetHeight: height } = menu
-    const below = box.bottom + GAP
-    const top = below + height > window.innerHeight - MARGIN && box.top - GAP - height >= MARGIN ? box.top - GAP - height : below
-    const left = Math.max(MARGIN, Math.min(box.right - width, window.innerWidth - width - MARGIN))
-    menu.style.top = `${top}px`
-    menu.style.left = `${left}px`
-    menu.querySelector<HTMLElement>(ITEMS)?.focus({ preventScroll: true })
-  }, [anchor])
-
-  useEffect(() => {
-    const close = () => onCloseRef.current()
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target as Node
-      // The anchor toggles the menu itself.
-      if (!ref.current?.contains(target) && !anchor.contains(target)) close()
-    }
-    const onScroll = (event: Event) => {
-      if (!ref.current?.contains(event.target as Node)) close()
-    }
-    document.addEventListener('pointerdown', onPointerDown, true)
-    window.addEventListener('scroll', onScroll, true)
-    window.addEventListener('resize', close)
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown, true)
-      window.removeEventListener('scroll', onScroll, true)
-      window.removeEventListener('resize', close)
-    }
+    ref.current?.querySelector<HTMLElement>(ITEMS)?.focus({ preventScroll: true })
   }, [anchor])
 
   const onKeyDown = (event: KeyboardEvent) => {
@@ -84,9 +50,7 @@ export function Menu({ anchor, label, onClose, children, footer, className }: Me
       case 'End':
         focus(-1)
         break
-      case 'Escape':
       case 'Tab':
-        // Escape would also close a dialog the menu sits in.
         onClose()
         anchor.focus()
         break
@@ -98,12 +62,12 @@ export function Menu({ anchor, label, onClose, children, footer, className }: Me
   }
 
   return (
-    <div ref={ref} className={cx('ks-pop ks-menu-pop', className)} onKeyDown={onKeyDown}>
-      <div role="menu" aria-label={label} className="ks-menu">
+    <Popover anchor={anchor} onClose={onClose} className={cx('ks-menu-pop', className)} onKeyDown={onKeyDown}>
+      <div ref={ref} role="menu" aria-label={label} className="ks-menu">
         {children}
       </div>
       {footer}
-    </div>
+    </Popover>
   )
 }
 
