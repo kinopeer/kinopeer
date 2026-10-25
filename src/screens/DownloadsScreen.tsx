@@ -29,6 +29,7 @@ import { DownloadRow, DownloadRowHeader } from './DownloadRow'
 import { InstallCard } from './InstallCard'
 import { OfflineBanner } from './OfflineBanner'
 import { SortMenu, SortSheet } from './SortSheet'
+import { StatusMenu } from './StatusMenu'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
 import './DownloadsScreen.css'
 
@@ -104,7 +105,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   const torrents = useMemo(() => (data ? Object.values(data.torrents) : []), [data])
   const matches = useTitleMatches(torrents)
   const serverMatches = useServerMatches()
-  // The status chips count within the picked type, so their numbers match the list.
+  // The status filter counts within the picked type, so its numbers match the list.
   const typed = useMemo(
     () =>
       type === 'all'
@@ -113,6 +114,13 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
             (torrent) => titleType(torrent, serverMatches?.[torrent.hash], matches[torrent.hash]) === type,
           ),
     [torrents, type, serverMatches, matches],
+  )
+  const counts = useMemo(
+    () =>
+      Object.fromEntries(
+        STATUS_FILTERS.map((key) => [key, typed.filter((torrent) => matchesFilter(torrent, key)).length]),
+      ) as Record<StatusFilter, number>,
+    [typed],
   )
   const visible = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase()
@@ -150,7 +158,12 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
     setQuery('')
   }
 
+  // On desktop the actions are a menu, and its More button toggles it.
   const openActions = (torrent: Torrent, anchor: HTMLElement) => {
+    if (actionsFor === torrent.hash && actionsAnchor === anchor) {
+      setActionsFor(null)
+      return
+    }
     setActionsFor(torrent.hash)
     setActionsAnchor(anchor)
   }
@@ -238,7 +251,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
         <FilterChip
           key={key}
           selected={filter === key}
-          count={loading ? undefined : typed.filter((torrent) => matchesFilter(torrent, key)).length}
+          count={loading ? undefined : counts[key]}
           onClick={() => setFilter(key)}
         >
           {key === 'all' ? t('downloads.all') : t(`status.${key}`)}
@@ -261,7 +274,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   )
 
   const header = isDesktop ? (
-    // Desktop: the name filter always shows, and the type sits beside the sort, which is a menu.
+    // Desktop: the name filter always shows; the status and the sort are menus, so the controls fit one row.
     <header className="downloads-head">
       {selecting ? (
         selectionRow
@@ -286,7 +299,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
       )}
       {offlineBanner}
       <div className="downloads-toolbar">
-        {chips}
+        <StatusMenu value={filter} onChange={setFilter} counts={loading ? undefined : counts} />
         <Segmented
           label={t('downloads.type')}
           options={TYPE_FILTERS.map((key) => ({

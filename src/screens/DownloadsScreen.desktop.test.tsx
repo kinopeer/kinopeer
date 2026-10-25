@@ -130,8 +130,9 @@ describe('DownloadsScreen on desktop', () => {
     )
     expect(within(dune).getByText('42%')).toBeInTheDocument()
     expect(within(dune).getByText('Downloading')).toBeInTheDocument()
-    expect(within(dune).getByText('↓ 4.3 MB/s')).toBeInTheDocument()
-    expect(within(dune).getByText('12 min')).toBeInTheDocument()
+    // The time left has its own column, and a copy under the speed for narrow tables (CSS shows one).
+    expect(cells[5]).toHaveTextContent(/^↓ 4\.3 MB\/s12 min$/)
+    expect(cells[6]).toHaveTextContent(/^12 min$/)
     expect(within(dune).getByText('8.99 GB / 21.4 GB')).toBeInTheDocument()
     expect(within(andor).getAllByText('—')).toHaveLength(1)
   })
@@ -176,6 +177,29 @@ describe('DownloadsScreen on desktop', () => {
     expect(more).toHaveFocus()
   })
 
+  it('toggles each menu with its own button', async () => {
+    updateSettings({ downloadsDesktopView: 'list' })
+    renderScreen()
+    await tableRows()
+    const buttons = [
+      screen.getByRole('button', { name: 'More actions: Alien.Romulus.2024.1080p' }),
+      screen.getByRole('button', { name: 'Sort: Priority' }),
+      screen.getByRole('button', { name: /^Status: All/ }),
+    ]
+    for (const button of buttons) {
+      await userEvent.click(button)
+      expect(screen.getByRole('menu')).toBeInTheDocument()
+      await userEvent.click(button)
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+      expect(button).toHaveFocus()
+    }
+
+    // Another row's More moves the menu to that row.
+    await userEvent.click(buttons[0])
+    await userEvent.click(screen.getByRole('button', { name: 'More actions: Andor.S02.1080p' }))
+    expect(screen.getByRole('menu', { name: 'More actions: Andor.S02.1080p' })).toBeInTheDocument()
+  })
+
   it('sorts from a menu and filters by type beside it', async () => {
     updateSettings({ downloadsDesktopView: 'list' })
     renderScreen()
@@ -197,6 +221,27 @@ describe('DownloadsScreen on desktop', () => {
 
     await userEvent.click(screen.getByRole('radio', { name: 'Series' }))
     expect((await tableRows()).map((row) => within(row).getByRole('link').textContent)).toEqual(['Andor.S02.1080p'])
+  })
+
+  it('filters by status from a menu in place of the chips, counting within the type', async () => {
+    getMainData.mockResolvedValue({
+      ...SNAPSHOT,
+      torrents: { ...SNAPSHOT.torrents, broken: torrent('broken', { name: 'Broken.2023.720p', state: 'missingFiles' }) },
+    })
+    renderScreen()
+    await screen.findAllByRole('listitem')
+    expect(screen.queryByRole('group', { name: 'Filter by status' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { pressed: false })).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Status: All, 4' }))
+    await userEvent.click(screen.getByRole('menuitemradio', { name: 'Paused, 1' }))
+    expect(screen.getAllByRole('listitem')).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Status: Paused, 1. With errors: 1' })).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('radio', { name: 'Series' }))
+    expect(screen.getByRole('button', { name: 'Status: Paused, 0' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Reset filters' }))
+    expect(screen.getByRole('button', { name: 'Status: All, 4' })).toBeInTheDocument()
   })
 
   it('keeps the name filter in the header', async () => {

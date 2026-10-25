@@ -154,6 +154,32 @@ test.describe('downloads, desktop', () => {
     await expect(page).toHaveScreenshot('desktop-select-dark-ru.png')
   })
 
+  test('a click anywhere on a row opens the details, or selects it', async ({ page }) => {
+    await openDownloads(page, { downloadsView: 'list' })
+    const row = () => page.getByRole('row').filter({ hasText: 'Оппенгеймер' })
+    // The row's own buttons keep working on their own.
+    await row().getByRole('button', { name: /^Ещё действия/ }).click()
+    await expect(page.getByRole('menu')).toBeVisible()
+    await row().getByRole('button', { name: /^Ещё действия/ }).click()
+    await expect(page.getByRole('menu')).toBeHidden()
+    await expect(page).toHaveURL(/\/$/)
+
+    await page.getByRole('button', { name: 'Выбрать', exact: true }).click()
+    // On the status chip, away from the title, where the row's overlay takes the click.
+    const onStatus = async () => {
+      const chip = await row().getByText('Пауза').boundingBox()
+      const box = await row().boundingBox()
+      await row().click({ position: { x: chip!.x - box!.x + 10, y: chip!.y - box!.y + 8 } })
+    }
+    await onStatus()
+    await expect(page.getByRole('checkbox', { name: 'Оппенгеймер' })).toHaveAttribute('aria-checked', 'true')
+    await page.getByRole('button', { name: 'Отмена' }).click()
+
+    await onStatus()
+    await expect(page).toHaveURL(/\/torrent\//)
+    await expect(page.getByRole('dialog')).toBeVisible()
+  })
+
   test('qBittorrent stops answering', async ({ page }) => {
     await openDownloads(page, { goesOffline: true })
     await expect(page.getByText('Нет связи с qBittorrent').first()).toBeVisible()
@@ -187,5 +213,35 @@ test.describe('downloads, narrow desktop', () => {
   test('poster grid with the icon rail', async ({ page }) => {
     await openDownloads(page)
     await expect(page).toHaveScreenshot('rail-grid-dark-ru.png')
+  })
+
+  test('the status menu, with errors hidden by the picked status', async ({ page }) => {
+    await openDownloads(page, { downloadsView: 'list' })
+    await page.getByRole('button', { name: /^Статус: Все/ }).click()
+    await page.getByRole('menuitemradio', { name: /^Раздаётся/ }).click()
+    await page.getByRole('button', { name: /^Статус: Раздаётся, \d+\. С ошибкой: 1$/ }).click()
+    await expect(page.getByRole('menuitemradio', { name: /^Раздаётся/ })).toHaveAttribute('aria-checked', 'true')
+    await settle(page)
+    await expect(page).toHaveScreenshot('rail-status-dark-ru.png')
+  })
+})
+
+test.describe('downloads, full HD', () => {
+  test.use({ viewport: { width: 1920, height: 1080 } })
+
+  test('the table with its size column', async ({ page }) => {
+    await openDownloads(page, { downloadsView: 'list' })
+    await expect(page.getByRole('columnheader', { name: 'Размер' })).toBeVisible()
+    await expect(page).toHaveScreenshot('full-hd-list-dark-ru.png')
+  })
+})
+
+test.describe('downloads, labelled sidebar at its narrowest', () => {
+  test.use({ viewport: { width: 1100, height: 800 } })
+
+  test('the table keeps room for the title', async ({ page }) => {
+    await openDownloads(page, { downloadsView: 'list' })
+    await expect(page.getByRole('columnheader', { name: 'Осталось' })).toBeHidden()
+    await expect(page).toHaveScreenshot('labelled-list-dark-ru.png')
   })
 })

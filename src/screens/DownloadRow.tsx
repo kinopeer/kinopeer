@@ -24,7 +24,9 @@ export function DownloadRowHeader({ selecting }: { selecting: boolean }) {
       <span role="columnheader">{t('downloads.columns.progress')}</span>
       <span role="columnheader">{t('downloads.columns.status')}</span>
       <span role="columnheader">{t('downloads.columns.speed')}</span>
-      <span role="columnheader">{t('downloads.columns.eta')}</span>
+      <span role="columnheader" className="dl-row-eta">
+        {t('downloads.columns.eta')}
+      </span>
       <span role="columnheader" className="dl-row-size">
         {t('downloads.columns.size')}
       </span>
@@ -38,7 +40,7 @@ export function DownloadRowHeader({ selecting }: { selecting: boolean }) {
 /**
  * A download in the desktop list, a row of a table: queue position, poster, title and release,
  * progress, status, speed, time left, size, then pause or resume and More. The title opens the
- * details drawer.
+ * details drawer. Narrower tables drop the size, then put the time left under the speed.
  */
 export function DownloadRow({
   torrent,
@@ -107,10 +109,12 @@ export function DownloadRow({
       <span role="cell">
         <StatusChip status={status}>{t(`status.${status}`)}</StatusChip>
       </span>
-      <span role="cell" className="ks-num c2">
+      <span role="cell" className="ks-num c2 dl-row-speed">
         {speed ?? '—'}
+        {/* Where the time left has no column of its own, it goes under the speed. */}
+        {eta && <span className="dl-row-eta-inline c3">{eta}</span>}
       </span>
-      <span role="cell" className="ks-num c3">
+      <span role="cell" className="ks-num c3 dl-row-eta">
         {eta ?? '—'}
       </span>
       <span role="cell" className="ks-num c2 dl-row-size">
