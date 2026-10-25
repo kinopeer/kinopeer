@@ -70,10 +70,10 @@ function title(type: tmdb.Title['type'], id: number, name: string, year: number)
 const DUNE_TITLE = title('movie', 693134, 'Dune: Part Two', 2024)
 const ANDOR_TITLE = title('tv', 83867, 'Andor', 2022)
 
-function renderScreen(state?: unknown) {
+function renderScreen(state?: unknown, onSelectingChange?: (selecting: boolean) => void) {
   return render(
     <MemoryRouter initialEntries={[{ pathname: '/', state }]}>
-      <DownloadsScreen onSessionLost={vi.fn()} />
+      <DownloadsScreen onSessionLost={vi.fn()} onSelectingChange={onSelectingChange} />
     </MemoryRouter>,
   )
 }
@@ -410,5 +410,131 @@ describe('DownloadsScreen', () => {
     expect(await screen.findByText('No connection to qBittorrent')).toBeInTheDocument()
     expect(screen.getByText('Updated just now · actions paused')).toBeInTheDocument()
     expect(screen.getAllByRole('listitem')).toHaveLength(3)
+  })
+})
+
+describe('DownloadsScreen selection', () => {
+  const bulkBar = () => screen.getByRole('toolbar')
+
+  it('selects downloads by tapping their rows and pauses them together', async () => {
+    vi.mocked(api.stopTorrents).mockResolvedValue()
+    const onSelectingChange = vi.fn()
+    renderScreen(undefined, onSelectingChange)
+    await userEvent.click(await screen.findByRole('button', { name: 'Select' }))
+    expect(onSelectingChange).toHaveBeenLastCalledWith(true)
+    expect(screen.getByRole('heading', { name: '0 selected' })).toBeInTheDocument()
+    // Rows toggle instead of opening the torrent, and have no menu.
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^More actions/ })).not.toBeInTheDocument()
+    expect(within(bulkBar()).getByRole('button', { name: 'Pause' })).toBeDisabled()
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Dune.Part.Two.2024.2160p.WEB-DL' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Andor.S02.1080p' }))
+    expect(screen.getByRole('heading', { name: '2 selected' })).toBeInTheDocument()
+    expect(screen.getByRole('toolbar', { name: '2 selected' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Dune.Part.Two.2024.2160p.WEB-DL', checked: true }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Alien.Romulus.2024.1080p' }))
+
+    await userEvent.click(within(bulkBar()).getByRole('button', { name: 'Pause' }))
+    expect(api.stopTorrents).toHaveBeenCalledWith(['andor', 'alien'])
+    expect(screen.queryByRole('toolbar')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Downloads' })).toBeInTheDocument()
+    expect(onSelectingChange).toHaveBeenLastCalledWith(false)
+  })
+
+  it('resumes the selected downloads', async () => {
+    vi.mocked(api.startTorrents).mockResolvedValue()
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'Select' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Alien.Romulus.2024.1080p' }))
+    await userEvent.click(within(bulkBar()).getByRole('button', { name: 'Resume' }))
+    expect(api.startTorrents).toHaveBeenCalledWith(['alien'])
+  })
+
+  it('keeps the selection and says so when qBittorrent doesn’t answer', async () => {
+    vi.mocked(api.stopTorrents).mockRejectedValue(new TypeError('Failed to fetch'))
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'Select' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Andor.S02.1080p' }))
+    await userEvent.click(within(bulkBar()).getByRole('button', { name: 'Pause' }))
+    expect(await screen.findByText('Couldn’t reach qBittorrent. Try again.')).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Andor.S02.1080p', checked: true })).toBeInTheDocument()
+  })
+
+  it('selects all the downloads on screen, and only those', async () => {
+    vi.mocked(api.stopTorrents).mockResolvedValue()
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'Select' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Select all' }))
+    expect(screen.getByRole('heading', { name: '3 selected' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Deselect all' }))
+    expect(screen.getByRole('heading', { name: '0 selected' })).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Select all' }))
+    // A filter leaves the hidden torrents out of the actions.
+    await userEvent.click(within(screen.getByRole('group', { name: 'Filter by status' })).getByRole('button', { name: 'Seeding 1' }))
+    expect(screen.getByRole('heading', { name: '1 selected' })).toBeInTheDocument()
+    await userEvent.click(within(bulkBar()).getByRole('button', { name: 'Pause' }))
+    expect(api.stopTorrents).toHaveBeenCalledWith(['andor'])
+  })
+
+  it('deletes the selected downloads after confirmation', async () => {
+    vi.mocked(api.deleteTorrents).mockResolvedValue()
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'Select' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Dune.Part.Two.2024.2160p.WEB-DL' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Alien.Romulus.2024.1080p' }))
+    await userEvent.click(within(bulkBar()).getByRole('button', { name: 'Delete' }))
+
+    const confirm = screen.getByRole('alertdialog', { name: 'Delete torrents?' })
+    expect(within(confirm).getByText('2 torrents will be removed from qBittorrent.')).toBeInTheDocument()
+    // 42% of 21.4 GB plus 10% of 1 GB downloaded.
+    await userEvent.click(within(confirm).getByRole('checkbox', { name: /^Also delete files · 9\.09\sGB$/ }))
+    await userEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
+    expect(api.deleteTorrents).toHaveBeenCalledWith(['dune', 'alien'], true)
+    expect(matchesApi.saveMatches).toHaveBeenCalledWith({ dune: null, alien: null })
+    expect(await screen.findByText('2 torrents and their files deleted')).toBeInTheDocument()
+    expect(screen.queryByRole('toolbar')).not.toBeInTheDocument()
+  })
+
+  it('selects cards in the poster grid', async () => {
+    vi.mocked(api.stopTorrents).mockResolvedValue()
+    updateSettings({ downloadsView: 'grid' })
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'Select' }))
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^More actions/ })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Andor.S02.1080p' }))
+    await userEvent.click(within(bulkBar()).getByRole('button', { name: 'Pause' }))
+    expect(api.stopTorrents).toHaveBeenCalledWith(['andor'])
+  })
+
+  it('leaves selection on Cancel', async () => {
+    const onSelectingChange = vi.fn()
+    renderScreen(undefined, onSelectingChange)
+    await userEvent.click(await screen.findByRole('button', { name: 'Select' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Andor.S02.1080p' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('toolbar')).not.toBeInTheDocument()
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+    expect(onSelectingChange).toHaveBeenLastCalledWith(false)
+
+    // A new selection starts empty.
+    await userEvent.click(screen.getByRole('button', { name: 'Select' }))
+    expect(screen.getByRole('heading', { name: '0 selected' })).toBeInTheDocument()
+  })
+
+  it('can’t select while qBittorrent is unreachable', async () => {
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'Select' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Andor.S02.1080p' }))
+    getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    window.dispatchEvent(new Event('online'))
+    expect(await screen.findByText('No connection to qBittorrent')).toBeInTheDocument()
+    for (const name of ['Pause', 'Resume', 'Delete']) {
+      expect(within(bulkBar()).getByRole('button', { name })).toBeDisabled()
+    }
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByRole('button', { name: 'Select' })).toBeDisabled()
   })
 })

@@ -8,6 +8,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 - Downloads: sort by priority (queue order), date added, name, progress, size, speed or time left. The browser remembers the choice.
 - Downloads: show only movies or only series, picked in the same sheet as the sort. Torrents without a matched title count as series when their name has season markers.
+- Downloads: select several torrents (Select in the header, in the list or the poster grid) and pause, resume or delete them at once.
 
 ## 0.2.0 - 2026-10-24
 

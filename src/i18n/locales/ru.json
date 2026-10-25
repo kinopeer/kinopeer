@@ -78,7 +78,23 @@
     "types": {
       "movie": "Фильмы",
       "tv": "Сериалы"
-    }
+    },
+    "select": "Выбрать",
+    "selectCancel": "Отмена",
+    "selectAll": "Выбрать все",
+    "selectNone": "Снять выбор",
+    "selected_one": "Выбрано: {{count}}",
+    "selected_few": "Выбрано: {{count}}",
+    "selected_many": "Выбрано: {{count}}",
+    "selected_other": "Выбрано: {{count}}",
+    "deletedMany_one": "Удалён {{count}} торрент",
+    "deletedMany_few": "Удалено {{count}} торрента",
+    "deletedMany_many": "Удалено {{count}} торрентов",
+    "deletedMany_other": "Удалено {{count}} торрента",
+    "deletedManyFiles_one": "Удалён {{count}} торрент с файлами",
+    "deletedManyFiles_few": "Удалено {{count}} торрента с файлами",
+    "deletedManyFiles_many": "Удалено {{count}} торрентов с файлами",
+    "deletedManyFiles_other": "Удалено {{count}} торрента с файлами"
   },
   "format": {
     "B": "Б",
@@ -313,6 +329,11 @@
     "trackersFailed": "Не удалось загрузить",
     "deleteTitle": "Удалить торрент?",
     "deleteBody": "«{{title}}» будет удалён из qBittorrent.",
+    "deleteTitleMany": "Удалить торренты?",
+    "deleteBodyMany_one": "{{count}} торрент будет удалён из qBittorrent.",
+    "deleteBodyMany_few": "{{count}} торрента будут удалены из qBittorrent.",
+    "deleteBodyMany_many": "{{count}} торрентов будут удалены из qBittorrent.",
+    "deleteBodyMany_other": "{{count}} торрента будут удалены из qBittorrent.",
     "deleteFiles": "Удалить и файлы · {{size}}",
     "deleteFilesHint": "Файлы будут безвозвратно удалены с диска.",
     "files": "Файлы",
