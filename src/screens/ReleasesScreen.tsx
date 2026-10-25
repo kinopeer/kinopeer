@@ -1,7 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams } from 'react-router'
-import { ProwlarrSetupError, searchReleases, type Release } from '../api/prowlarr'
 import { TmdbError, getMovie, getTv } from '../api/tmdb'
 import { Badge } from '../components/Badge'
 import { Button } from '../components/Button'
@@ -13,77 +12,16 @@ import { Segmented } from '../components/Segmented'
 import { Sheet } from '../components/Sheet'
 import { useFormatters } from '../lib/format'
 import { useRequest } from '../lib/useRequest'
-import {
-  parseRelease,
-  seasonCoverage,
-  type Audio,
-  type ReleaseInfo,
-  type Resolution,
-  type Source,
-} from '../releases/parseRelease'
+import { MIN_SEEDS, SORT_KEYS, summary, toggle, type ReleaseRow } from '../releases/filterReleases'
+import { seasonCoverage } from '../releases/parseRelease'
 import { qualityBadges } from '../releases/qualityBadges'
-import { releaseQuery, type TitleDetails as Details } from '../releases/releaseQuery'
+import type { TitleDetails as Details } from '../releases/releaseQuery'
 import { useTmdbLanguage } from '../settings/settings'
-import { AddReleaseSheet } from './AddReleaseSheet'
+import { AddingRelease, ReleasesBody } from './ReleasesBlock'
+import { AUDIO_LABEL, SORT_LABEL, useReleases } from './useReleases'
 import './ReleasesScreen.css'
 
-type AudioFilter = Audio | 'subs'
-type SortKey = 'seeds' | 'size' | 'date'
-
-interface Filters {
-  resolution: Resolution[]
-  audio: AudioFilter[]
-  source: Source[]
-  indexer: string[]
-  minSeeds: number
-}
-
-interface Row {
-  release: Release
-  info: ReleaseInfo
-}
-
-const NO_FILTERS: Filters = { resolution: [], audio: [], source: [], indexer: [], minSeeds: 0 }
-const RESOLUTIONS: Resolution[] = ['2160p', '1080p', '720p', 'SD']
-const AUDIO: AudioFilter[] = ['dub', 'mvo', 'avo2', 'avo1', 'orig', 'subs']
-const SOURCES: Source[] = ['REMUX', 'BluRay', 'BDRip', 'WEB-DL', 'WEBRip', 'HDTV', 'DVD']
-const MIN_SEEDS = [0, 10, 50, 100]
-const SORT_KEYS: SortKey[] = ['seeds', 'size', 'date']
-
-const AUDIO_LABEL = {
-  dub: 'releases.audioDub',
-  mvo: 'releases.audioMvo',
-  avo2: 'releases.audioAvo2',
-  avo1: 'releases.audioAvo1',
-  orig: 'releases.audioOrig',
-  subs: 'releases.audioSubs',
-} as const
-
-const SORT_LABEL = { seeds: 'releases.sortSeeds', size: 'releases.sortSize', date: 'releases.sortDate' } as const
-
-function matches(row: Row, filters: Filters): boolean {
-  const { info, release } = row
-  const has = <T,>(list: T[], value: T | undefined) => value !== undefined && list.includes(value)
-  return (
-    (!filters.resolution.length || has(filters.resolution, info.resolution)) &&
-    (!filters.source.length || has(filters.source, info.source)) &&
-    (!filters.indexer.length || has(filters.indexer, release.indexer)) &&
-    (!filters.audio.length ||
-      filters.audio.some((audio) => (audio === 'subs' ? info.subs : info.audio.includes(audio)))) &&
-    (release.seeders ?? 0) >= filters.minSeeds
-  )
-}
-
-function sortValue(row: Row, key: SortKey): number {
-  if (key === 'seeds') return row.release.seeders ?? 0
-  if (key === 'size') return row.release.size
-  return row.release.publishDate ? Date.parse(row.release.publishDate) : 0
-}
-
-function toggle<T>(list: T[], value: T): T[] {
-  return list.includes(value) ? list.filter((item) => item !== value) : [...list, value]
-}
-
+/** The phone's releases screen; on desktop the title page shows the releases (TitleReleases). */
 export function ReleasesScreen() {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -99,64 +37,17 @@ export function ReleasesScreen() {
       ? { ...(await getMovie(id, { language, signal })), type }
       : { ...(await getTv(id, { language, signal })), type: 'tv' },
   )
-  const query = details.data ? releaseQuery(details.data) : null
-  const search = useRequest<Release[]>(query ? `${type}|${query}` : null, (signal) =>
-    // No category filter: some indexers (RuTor) file every release under "Other".
-    searchReleases(query!, { signal }),
-  )
-
-  const [filters, setFilters] = useState<Filters>(NO_FILTERS)
-  const [sort, setSort] = useState<{ key: SortKey; descending: boolean }>({ key: 'seeds', descending: true })
+  const releases = useReleases(details.data)
+  const { filters, sort, active, visible, present, audioLabel, updateFilters } = releases
   const [sheetOpen, setSheetOpen] = useState(false)
-  const [adding, setAdding] = useState<Row>()
-
-  const rows = useMemo<Row[]>(
-    () => (search.data ?? []).map((release) => ({ release, info: parseRelease(release.title) })),
-    [search.data],
-  )
-  const visible = useMemo(() => {
-    const direction = sort.descending ? -1 : 1
-    return rows
-      .filter((row) => matches(row, filters))
-      .sort((a, b) => (sortValue(a, sort.key) - sortValue(b, sort.key)) * direction)
-  }, [rows, filters, sort])
-
-  // Only offer values the results have, plus whatever is already selected.
-  const present = useMemo(
-    () => ({
-      resolution: RESOLUTIONS.filter((value) => rows.some((row) => row.info.resolution === value)),
-      source: SOURCES.filter((value) => rows.some((row) => row.info.source === value)),
-      audio: AUDIO.filter((value) =>
-        rows.some((row) => (value === 'subs' ? row.info.subs : row.info.audio.includes(value))),
-      ),
-      indexer: [...new Set(rows.map((row) => row.release.indexer).filter(Boolean))].sort(),
-    }),
-    [rows],
-  )
 
   const goBack = () => (location.key !== 'default' ? navigate(-1) : navigate(`/title/${type}/${id}`))
-  const audioLabel = (value: AudioFilter) => t(AUDIO_LABEL[value])
   const name = details.data ? (details.data.type === 'movie' ? details.data.title : details.data.name) : ''
   const year =
     details.data &&
     (details.data.type === 'movie' ? details.data.release_date : details.data.first_air_date)?.slice(0, 4)
 
-  const active = [
-    ...filters.resolution.map((value) => ({ key: `r-${value}`, label: value, remove: { resolution: toggle(filters.resolution, value) } })),
-    ...filters.audio.map((value) => ({ key: `a-${value}`, label: audioLabel(value), remove: { audio: toggle(filters.audio, value) } })),
-    ...filters.source.map((value) => ({ key: `s-${value}`, label: value, remove: { source: toggle(filters.source, value) } })),
-    ...filters.indexer.map((value) => ({ key: `i-${value}`, label: value, remove: { indexer: toggle(filters.indexer, value) } })),
-    ...(filters.minSeeds
-      ? [{ key: 'seeds', label: t('releases.seedsPlus', { count: filters.minSeeds }), remove: { minSeeds: 0 } }]
-      : []),
-  ]
-  const summary = <T extends string>(values: T[], label: string, show: (value: T) => string = (value) => value) =>
-    values.length === 0 ? label : values.length === 1 ? show(values[0]) : `${show(values[0])} +${values.length - 1}`
-
-  const error = details.error ?? search.error
   const notFound = !valid || (details.error instanceof TmdbError && details.error.status === 404)
-  const loading = !error && (details.loading || search.loading || (!!query && !search.data))
-  const retry = details.error ? details.retry : search.retry
 
   let body
   if (notFound) {
@@ -165,81 +56,44 @@ export function ReleasesScreen() {
         {t('title.notFoundBody')}
       </EmptyState>
     )
-  } else if (error instanceof ProwlarrSetupError) {
+  } else if (details.error) {
     body = (
-      <EmptyState icon="key" tone="error" title={t('releases.setupTitle')}>
-        {t('releases.setupBody')}
-      </EmptyState>
-    )
-  } else if (error) {
-    body = (
-      <EmptyState icon="wifi-off" tone="error" title={t('releases.errorTitle')} actionLabel={t('common.retry')} actionIcon="refresh" onAction={retry}>
+      <EmptyState icon="wifi-off" tone="error" title={t('releases.errorTitle')} actionLabel={t('common.retry')} actionIcon="refresh" onAction={details.retry}>
         {t('releases.errorBody')}
-      </EmptyState>
-    )
-  } else if (loading) {
-    body = (
-      <div className="rel-list" role="status">
-        <span className="sr-only">{t('releases.loading')}</span>
-        {Array.from({ length: 4 }, (_, index) => (
-          <div key={index} className="ks-rel" aria-hidden="true">
-            <div className="ks-skel" style={{ height: 16, width: '90%' }} />
-            <div className="ks-skel" style={{ height: 16, width: '60%' }} />
-            <div className="ks-skel" style={{ height: 22, width: '40%' }} />
-          </div>
-        ))}
-      </div>
-    )
-  } else if (!rows.length) {
-    body = (
-      <EmptyState icon="folder" tone="muted" title={t('releases.noneTitle')} actionLabel={t('common.retry')} actionIcon="refresh" onAction={search.retry}>
-        {t('releases.noneBody')}
       </EmptyState>
     )
   } else {
     body = (
-      <>
-        {active.length > 0 && (
-          <div className="rel-active">
-            {active.map((filter) => (
-              <FilterChip
-                key={filter.key}
-                selected
-                trailingIcon="close"
-                aria-label={t('releases.removeFilter', { label: filter.label })}
-                onClick={() => setFilters({ ...filters, ...filter.remove })}
-              >
-                {filter.label}
-              </FilterChip>
+      <ReleasesBody
+        releases={releases}
+        skeleton={
+          <div className="rel-list">
+            {Array.from({ length: 4 }, (_, index) => (
+              <div key={index} className="ks-rel" aria-hidden="true">
+                <div className="ks-skel" style={{ height: 16, width: '90%' }} />
+                <div className="ks-skel" style={{ height: 16, width: '60%' }} />
+                <div className="ks-skel" style={{ height: 22, width: '40%' }} />
+              </div>
             ))}
-            <Button variant="ghost" size="sm" onClick={() => setFilters(NO_FILTERS)}>
-              {t('releases.clearAll')}
-            </Button>
           </div>
-        )}
-        {visible.length > 0 ? (
-          <>
-            <p className="t-cap c3 ks-num rel-count" aria-live="polite">
-              {t('releases.count', { shown: visible.length, count: rows.length })}
-            </p>
-            <ul className="rel-list">
-              {visible.map((row) => (
-                <li key={row.release.id}>
-                  <ReleaseCard row={row} onAdd={() => setAdding(row)} />
-                </li>
-              ))}
-            </ul>
-          </>
-        ) : (
-          <EmptyState icon="filter" tone="muted" title={t('releases.noMatchTitle')} actionLabel={t('releases.resetFilters')} onAction={() => setFilters(NO_FILTERS)}>
-            {t('releases.noMatchBody')}
-          </EmptyState>
-        )}
-      </>
+        }
+      >
+        <p className="t-cap c3 ks-num rel-count" aria-live="polite">
+          {t('releases.count', { shown: visible.length, count: releases.rows.length })}
+        </p>
+        <ul className="rel-list">
+          {visible.map((row) => (
+            <li key={row.release.id}>
+              <ReleaseCard row={row} onAdd={() => releases.setAdding(row)} />
+            </li>
+          ))}
+        </ul>
+      </ReleasesBody>
     )
   }
 
-  const ready = rows.length > 0 && !error && !loading
+  const loading = !notFound && !details.error && releases.status === 'loading'
+  const ready = !details.error && releases.status === 'ready'
 
   return (
     <main className="rel">
@@ -268,7 +122,7 @@ export function ReleasesScreen() {
             <FilterChip
               icon="sort"
               aria-label={`${t('releases.sort')}: ${t(SORT_LABEL[sort.key])}, ${t(sort.descending ? 'releases.descending' : 'releases.ascending')}`}
-              onClick={() => setSort({ ...sort, key: SORT_KEYS[(SORT_KEYS.indexOf(sort.key) + 1) % SORT_KEYS.length] })}
+              onClick={() => releases.setSort({ ...sort, key: SORT_KEYS[(SORT_KEYS.indexOf(sort.key) + 1) % SORT_KEYS.length] })}
             >
               {t(SORT_LABEL[sort.key])} {sort.descending ? '↓' : '↑'}
             </FilterChip>
@@ -285,7 +139,7 @@ export function ReleasesScreen() {
         onClose={() => setSheetOpen(false)}
         title={t('releases.filters')}
         action={
-          <Button variant="ghost" size="sm" disabled={!active.length} onClick={() => setFilters(NO_FILTERS)}>
+          <Button variant="ghost" size="sm" disabled={!active.length} onClick={releases.clearFilters}>
             {t('releases.reset')}
           </Button>
         }
@@ -300,26 +154,26 @@ export function ReleasesScreen() {
             label={t('releases.resolution')}
             options={[...new Set([...present.resolution, ...filters.resolution])]}
             selected={filters.resolution}
-            onToggle={(value) => setFilters({ ...filters, resolution: toggle(filters.resolution, value) })}
+            onToggle={(value) => updateFilters({ resolution: toggle(filters.resolution, value) })}
           />
           <OptionGroup
             label={t('releases.audio')}
             options={[...new Set([...present.audio, ...filters.audio])]}
             selected={filters.audio}
             show={audioLabel}
-            onToggle={(value) => setFilters({ ...filters, audio: toggle(filters.audio, value) })}
+            onToggle={(value) => updateFilters({ audio: toggle(filters.audio, value) })}
           />
           <OptionGroup
             label={t('releases.source')}
             options={[...new Set([...present.source, ...filters.source])]}
             selected={filters.source}
-            onToggle={(value) => setFilters({ ...filters, source: toggle(filters.source, value) })}
+            onToggle={(value) => updateFilters({ source: toggle(filters.source, value) })}
           />
           <div className="rel-group" role="group" aria-label={t('releases.minSeeds')}>
             <span className="ks-label">{t('releases.minSeeds')}</span>
             <div className="rel-options">
               {MIN_SEEDS.map((value) => (
-                <FilterChip key={value} selected={filters.minSeeds === value} onClick={() => setFilters({ ...filters, minSeeds: value })}>
+                <FilterChip key={value} selected={filters.minSeeds === value} onClick={() => updateFilters({ minSeeds: value })}>
                   {value ? `${value}+` : t('releases.any')}
                 </FilterChip>
               ))}
@@ -330,7 +184,7 @@ export function ReleasesScreen() {
               label={t('releases.indexer')}
               options={present.indexer}
               selected={filters.indexer}
-              onToggle={(value) => setFilters({ ...filters, indexer: toggle(filters.indexer, value) })}
+              onToggle={(value) => updateFilters({ indexer: toggle(filters.indexer, value) })}
             />
           )}
           <div className="rel-group">
@@ -340,30 +194,21 @@ export function ReleasesScreen() {
                 label={t('releases.sort')}
                 options={SORT_KEYS.map((key) => ({ value: key, label: t(SORT_LABEL[key]) }))}
                 value={sort.key}
-                onChange={(key) => setSort({ ...sort, key })}
+                onChange={(key) => releases.setSort({ ...sort, key })}
               />
               <IconButton
                 icon="sort-desc"
                 variant="filled"
                 label={t(sort.descending ? 'releases.descending' : 'releases.ascending')}
                 className={sort.descending ? undefined : 'rel-flip'}
-                onClick={() => setSort({ ...sort, descending: !sort.descending })}
+                onClick={() => releases.setSort({ ...sort, descending: !sort.descending })}
               />
             </div>
           </div>
         </div>
       </Sheet>
 
-      {adding && details.data && (
-        <AddReleaseSheet
-          key={adding.release.id}
-          release={adding.release}
-          info={adding.info}
-          title={{ type: details.data.type, id, name, posterPath: details.data.poster_path }}
-          onClose={() => setAdding(undefined)}
-          onAdded={() => navigate('/', { state: { added: name } })}
-        />
-      )}
+      <AddingRelease releases={releases} details={details.data} />
     </main>
   )
 }
@@ -396,7 +241,7 @@ function OptionGroup<T extends string>({
   )
 }
 
-function ReleaseCard({ row, onAdd }: { row: Row; onAdd: () => void }) {
+function ReleaseCard({ row, onAdd }: { row: ReleaseRow; onAdd: () => void }) {
   const { t, i18n } = useTranslation()
   const format = useFormatters()
   const [expanded, setExpanded] = useState(false)

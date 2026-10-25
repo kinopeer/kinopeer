@@ -285,7 +285,13 @@
     "setupTitle": "Prowlarr не подключён",
     "setupBody": "Задайте PROWLARR_URL и PROWLARR_API_KEY на сервере Kinoseed и проверьте ключ в Prowlarr → Settings → General.",
     "errorTitle": "Prowlarr не отвечает",
-    "errorBody": "Проверьте, что Prowlarr запущен и доступен с сервера Kinoseed."
+    "errorBody": "Проверьте, что Prowlarr запущен и доступен с сервера Kinoseed.",
+    "colRelease": "Раздача",
+    "colSize": "Размер",
+    "colSeeds": "Сиды",
+    "colPeers": "Пиры",
+    "colAge": "Возраст",
+    "add": "Добавить"
   },
   "add": {
     "title": "Добавить в загрузки",

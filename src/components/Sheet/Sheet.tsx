@@ -14,15 +14,31 @@ export interface SheetProps {
   action?: ReactNode
   /** Pinned under the scrolling content, e.g. the primary button. */
   footer?: ReactNode
+  /**
+   * `md` fits its content. `lg` is for long lists: full height on phones, and on desktop a wider
+   * modal of a fixed height.
+   */
+  size?: 'md' | 'lg'
   className?: string
   children: ReactNode
 }
 
 /**
- * Bottom sheet on a native modal <dialog>: focus moves in and stays there, Escape and a tap on the
- * backdrop close it, and focus returns to what opened it.
+ * Bottom sheet on a native modal <dialog>, a centered modal on desktop: focus moves in and stays
+ * there, Escape and a tap on the backdrop close it, and focus returns to what opened it.
  */
-export function Sheet({ open, onClose, title, subtitle, leading, action, footer, className, children }: SheetProps) {
+export function Sheet({
+  open,
+  onClose,
+  title,
+  subtitle,
+  leading,
+  action,
+  footer,
+  size = 'md',
+  className,
+  children,
+}: SheetProps) {
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = useId()
 
@@ -42,7 +58,7 @@ export function Sheet({ open, onClose, title, subtitle, leading, action, footer,
   return (
     <dialog
       ref={ref}
-      className={cx('ks-sheet', className)}
+      className={cx('ks-sheet', size === 'lg' && 'ks-sheet-lg', className)}
       aria-labelledby={titleId}
       onCancel={(event) => {
         event.preventDefault()

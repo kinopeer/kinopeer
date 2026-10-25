@@ -8,10 +8,9 @@ import { ConnectScreen } from './screens/ConnectScreen'
 import { DownloadsScreen } from './screens/DownloadsScreen'
 import { DownloadsWithDrawer } from './screens/DownloadsWithDrawer'
 import { ErrorBoundary } from './screens/ErrorBoundary'
-import { ReleasesScreen } from './screens/ReleasesScreen'
 import { SearchScreen } from './screens/SearchScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
-import { TitleScreen } from './screens/TitleScreen'
+import { TitleRoute } from './screens/TitleScreen'
 import { TmdbKeyScreen } from './screens/TmdbKeyScreen'
 import { TorrentScreen } from './screens/TorrentScreen'
 import { useQbitSession } from './session/useQbitSession'
@@ -69,8 +68,8 @@ function App() {
                   </>
                 )}
                 <Route path="search" element={<SearchScreen />} />
-                <Route path="title/:type/:id" element={<TitleScreen onSessionLost={onSessionLost} />} />
-                <Route path="title/:type/:id/releases" element={<ReleasesScreen />} />
+                <Route path="title/:type/:id" element={<TitleRoute onSessionLost={onSessionLost} />} />
+                <Route path="title/:type/:id/releases" element={<TitleRoute onSessionLost={onSessionLost} />} />
                 <Route path="settings" element={<SettingsScreen />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>

@@ -74,7 +74,7 @@ function ConnectionRow({ name, icon, check, attempt, onRetest, editLabel, onEdit
 
 function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
-    <section className="settings-section" aria-labelledby={id}>
+    <section className={`settings-section ${id}`} aria-labelledby={id}>
       <h2 id={id} className="ks-label settings-section-title">
         {title}
       </h2>

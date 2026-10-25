@@ -254,7 +254,13 @@
     "setupTitle": "Prowlarr isn’t connected",
     "setupBody": "Set PROWLARR_URL and PROWLARR_API_KEY on the Kinoseed server, and check the key in Prowlarr → Settings → General.",
     "errorTitle": "Couldn’t reach Prowlarr",
-    "errorBody": "Check that Prowlarr is running and reachable from the Kinoseed server."
+    "errorBody": "Check that Prowlarr is running and reachable from the Kinoseed server.",
+    "colRelease": "Release",
+    "colSize": "Size",
+    "colSeeds": "Seeds",
+    "colPeers": "Peers",
+    "colAge": "Age",
+    "add": "Add"
   },
   "add": {
     "title": "Add to downloads",
