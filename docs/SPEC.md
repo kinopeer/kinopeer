@@ -39,6 +39,12 @@ A torrent's match is forgotten when the torrent is deleted from Kinoseed. For to
 
 ## Screens
 
+### Navigation and layout
+
+- Phones and tablets (narrower than 1024px): a tab bar at the bottom with Downloads, Search and Settings. On a tablet, screens sit in a centered column 760px wide and the tabs stay over it.
+- Desktop (1024px and wider, the design system's breakpoint): a sidebar on the left with the Kinoseed logo and the same three destinations, in place of the tab bar. From 1100px it is 248px wide with labels; between 1024 and 1100px it is a 76px rail of icons, the labels kept for screen readers. Screens take the rest of the window. Until their own desktop layouts land in 0.4 they keep the 760px column, centered in that space.
+- Selecting downloads puts the bulk bar in place of the tab bar on a phone; on desktop the sidebar stays and the bulk bar sits at the bottom of the screen beside it.
+
 ### First launch
 
 1. Kinoseed asks qBittorrent for its version. If the server is already signed in (the package's login or a saved one) or qBittorrent lets the network in without a password, there's no login form.
@@ -109,6 +115,7 @@ Manifest and icons; the service worker keeps the app shell available offline and
 
 | Date | Decision |
 | --- | --- |
+| 2026-10-25 | The desktop layout (0.4) starts at 1024px, the design system's breakpoint; the sidebar is an icon rail up to 1100px, as the design system's README says. Below 1024px the phone layout stays, tablets included. On desktop, `/torrent/:hash` shows Downloads with the torrent's details in a side drawer rather than a page of its own, and the title page shows releases in place, searched only when the user presses "Find releases", so opening a title sends no request to Prowlarr. The desktop canvas predates 0.2 and 0.3, so where it lacks later features (the title's "In downloads" block, sort, the type filter, multi-select, changing a title) the app as built is the reference. In selection mode the sidebar stays: navigation is still useful, and leaving Downloads ends the selection. |
 | 2026-10-25 | Multi-select follows the canvas: a Select button rather than a long press (which a phone browser saves for its own menu and a desktop doesn't have), and the bulk bar in place of the tab bar. Bulk actions apply to the selected torrents the filters show. The poster grid gets selection too: a checkbox in the poster's corner, which the canvas didn't draw. |
 | 2026-10-25 | The Downloads type filter (All, Movies, Series) is in the "Sort & filter" sheet, as on the canvas. A torrent's type comes from its title, else from what is known without TMDB: season or episode markers in the name make it a series, then the qBittorrent category; with neither, it shows only under All. The canvas treated every unmatched torrent as a series, which would put unmatched movies and non-video torrents there. The type isn't remembered, like the status filter, so a release just added of another type isn't hidden; Reset filters resets it, and the status counts are within the type. |
 | 2026-10-25 | Downloads sorting ships on its own: the sheet has the sort only, and the Movies/Series type filter from the canvas's "Sort & filter" sheet comes separately. The sort is remembered per browser, like the view, rather than on the server; it can move there later if the same order on every device turns out to matter. Picking a release doesn't reset the sort. |

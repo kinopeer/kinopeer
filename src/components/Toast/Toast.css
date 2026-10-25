@@ -1,8 +1,8 @@
 .ks-toast {
   position: fixed;
-  left: 16px;
+  left: calc(var(--nav-left) + 16px);
   right: 16px;
-  bottom: calc(78px + var(--safe-bottom));
+  bottom: calc(var(--nav-bottom) + 12px);
   max-width: 560px;
   margin: 0 auto;
   display: flex;

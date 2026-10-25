@@ -112,12 +112,12 @@
   gap: 6px;
 }
 
-/* Pinned above the tab bar, fading the page out underneath. */
+/* Pinned above the tab bar (at the bottom on desktop), fading the page out underneath. */
 .title-actions {
   position: fixed;
-  left: 0;
+  left: var(--nav-left);
   right: 0;
-  bottom: calc(66px + var(--safe-bottom));
+  bottom: var(--nav-bottom);
   z-index: 4;
   width: 100%;
   max-width: var(--column);
