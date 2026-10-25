@@ -3,9 +3,9 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { MemoryRouter } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
-import { Menu, MenuDivider, MenuGroup, MenuItem, MenuItemRadio, MenuLink } from './Menu'
+import { Menu, type MenuProps, MenuDivider, MenuGroup, MenuItem, MenuItemRadio, MenuLink } from './Menu'
 
-function Harness({ onPick = vi.fn() }: { onPick?: (item: string) => void }) {
+function Harness({ onPick = vi.fn(), align }: { onPick?: (item: string) => void; align?: MenuProps['align'] }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   return (
     <MemoryRouter>
@@ -14,7 +14,7 @@ function Harness({ onPick = vi.fn() }: { onPick?: (item: string) => void }) {
       </button>
       <button type="button">Elsewhere</button>
       {anchor && (
-        <Menu anchor={anchor} label="Actions" onClose={() => setAnchor(null)} footer={<p>Footer</p>}>
+        <Menu anchor={anchor} label="Actions" align={align} onClose={() => setAnchor(null)} footer={<p>Footer</p>}>
           <MenuItem icon="pause" onClick={() => onPick('pause')}>
             Pause
           </MenuItem>
@@ -76,6 +76,25 @@ describe('Menu', () => {
     await userEvent.click(open)
     await userEvent.click(open)
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('lines up with the anchor’s right edge, or its left one when asked', async () => {
+    vi.spyOn(HTMLButtonElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      top: 100,
+      bottom: 136,
+      left: 300,
+      right: 400,
+    } as DOMRect)
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(220)
+    const { unmount } = render(<Harness />)
+    await userEvent.click(screen.getByRole('button', { name: 'Open' }))
+    expect(screen.getByRole('menu').parentElement).toHaveStyle({ left: '180px' })
+    unmount()
+
+    render(<Harness align="start" />)
+    await userEvent.click(screen.getByRole('button', { name: 'Open' }))
+    expect(screen.getByRole('menu').parentElement).toHaveStyle({ left: '300px' })
+    vi.restoreAllMocks()
   })
 
   it('runs an item’s action', async () => {

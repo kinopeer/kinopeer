@@ -188,4 +188,24 @@ test.describe('downloads, narrow desktop', () => {
     await openDownloads(page)
     await expect(page).toHaveScreenshot('rail-grid-dark-ru.png')
   })
+
+  test('the status menu, with errors hidden by the picked status', async ({ page }) => {
+    await openDownloads(page, { downloadsView: 'list' })
+    await page.getByRole('button', { name: /^Статус: Все/ }).click()
+    await page.getByRole('menuitemradio', { name: /^Раздаётся/ }).click()
+    await page.getByRole('button', { name: /^Статус: Раздаётся, \d+\. С ошибкой: 1$/ }).click()
+    await expect(page.getByRole('menuitemradio', { name: /^Раздаётся/ })).toHaveAttribute('aria-checked', 'true')
+    await settle(page)
+    await expect(page).toHaveScreenshot('rail-status-dark-ru.png')
+  })
+})
+
+test.describe('downloads, labelled sidebar at its narrowest', () => {
+  test.use({ viewport: { width: 1100, height: 800 } })
+
+  test('the table keeps room for the title', async ({ page }) => {
+    await openDownloads(page, { downloadsView: 'list' })
+    await expect(page.getByRole('columnheader', { name: 'Осталось' })).toBeHidden()
+    await expect(page).toHaveScreenshot('labelled-list-dark-ru.png')
+  })
 })

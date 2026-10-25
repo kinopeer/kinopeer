@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, type ButtonHTMLAttributes, type KeyboardEvent,
 import { Link } from 'react-router'
 import { cx } from '../../lib/cx'
 import { Icon, type IconName } from '../Icon'
-import { Popover } from '../Popover'
+import { Popover, type PopoverProps } from '../Popover'
 import './Menu.css'
 
 export interface MenuProps {
@@ -15,17 +15,19 @@ export interface MenuProps {
   children: ReactNode
   /** Under the items, outside the menu itself, e.g. an error message. */
   footer?: ReactNode
+  /** Which edge of the anchor it lines up with: the right one unless the anchor sits on the left. */
+  align?: PopoverProps['align']
   className?: string
 }
 
 const ITEMS = '[role^="menuitem"]:not(:disabled)'
 
 /**
- * A desktop popover menu, lined up with the right edge of its anchor. The first item gets focus;
+ * A desktop popover menu, lined up with the right edge of its anchor by default. The first item gets focus;
  * arrow keys, Home and End move between items. Tab closes it and returns focus to the anchor; the
  * rest of closing is Popover's.
  */
-export function Menu({ anchor, label, onClose, children, footer, className }: MenuProps) {
+export function Menu({ anchor, label, onClose, children, footer, align, className }: MenuProps) {
   const ref = useRef<HTMLDivElement>(null)
 
   // After Popover's own layout effect, so the menu is in place before it takes the focus.
@@ -62,7 +64,7 @@ export function Menu({ anchor, label, onClose, children, footer, className }: Me
   }
 
   return (
-    <Popover anchor={anchor} onClose={onClose} className={cx('ks-menu-pop', className)} onKeyDown={onKeyDown}>
+    <Popover anchor={anchor} onClose={onClose} align={align} className={cx('ks-menu-pop', className)} onKeyDown={onKeyDown}>
       <div ref={ref} role="menu" aria-label={label} className="ks-menu">
         {children}
       </div>
