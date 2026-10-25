@@ -400,7 +400,7 @@
 }
 
 .dl-row {
-  --dl-cols: 36px 40px minmax(0, 1fr) 170px 130px 104px 76px 136px 84px;
+  --dl-cols: 28px 40px minmax(0, 1fr) 160px 124px 100px 76px 136px 76px;
   position: relative;
   display: grid;
   grid-template-columns: var(--dl-cols);
@@ -415,14 +415,40 @@
     border-color var(--d-fast) var(--ease);
 }
 
-/* Narrower windows, the icon rail's included: the size goes, the rest keep their room. */
-@container (max-width: 1000px) {
+/* The title takes what the fixed columns leave, so it grows with the window: about 380px or more
+   with every column, so the size shows only from a 1240px table (a 1552px window); below that the
+   title keeps 260-430px. Below a 920px table the time left moves under the speed, keeping it at
+   200px or more. */
+@container (max-width: 1239px) {
   .dl-row {
-    --dl-cols: 28px 40px minmax(0, 1fr) 140px 120px 96px 76px 84px;
+    --dl-cols: 28px 40px minmax(0, 1fr) 140px 124px 100px 76px 76px;
   }
 
   .dl-row-size {
     display: none;
+  }
+}
+
+.dl-row-eta-inline {
+  display: none;
+}
+
+@container (max-width: 919px) {
+  .dl-row {
+    --dl-cols: 28px 40px minmax(0, 1fr) 120px 120px 96px 76px;
+  }
+
+  .dl-row-eta {
+    display: none;
+  }
+
+  .dl-row-speed {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .dl-row-eta-inline {
+    display: block;
   }
 }
 
@@ -513,7 +539,33 @@
   min-width: 34px;
 }
 
+/* The title's link covers the whole row, so a click anywhere on it opens the details; the row's
+   own buttons sit above it. In selection mode the checkbox covers the row the same way. Both
+   overlays sit above the positioned cells after them (the poster, the status chip). */
+a.dl-row-main::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+}
+
+a.dl-row-main::after,
+.dl-row .dl-select::after {
+  z-index: 1;
+}
+
+a.dl-row-main:focus-visible {
+  outline: none;
+}
+
+a.dl-row-main:focus-visible::after {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
 .dl-row-actions {
+  position: relative;
+  z-index: 2;
   display: flex;
   justify-content: flex-end;
   gap: 2px;
@@ -561,15 +613,19 @@
     margin-left: 0;
   }
 
+  /* Takes what's left of the row, so the name filter narrows rather than wrapping under the title. */
   .downloads-head-tools {
-    margin-left: auto;
+    flex: 1 1 240px;
+    min-width: 0;
     display: flex;
+    justify-content: flex-end;
     align-items: center;
     gap: 8px;
   }
 
   .downloads-filter {
-    width: 280px;
+    flex: 0 1 280px;
+    min-width: 0;
   }
 
   .downloads-toolbar {
@@ -579,16 +635,40 @@
     margin: 0;
   }
 
-  .downloads-toolbar .downloads-chips {
-    flex: 1;
-    min-width: 0;
-    flex-wrap: wrap;
-    margin: 0;
-    padding: 0;
+  /* The filters on the left, how the list looks on the right. */
+  .downloads-sort {
+    margin-left: auto;
   }
 
-  .downloads-sort {
-    margin-left: 0;
+  .downloads-status-count {
+    font-size: 12px;
+    color: var(--text3);
+  }
+
+  .ks-btn-tonal .downloads-status-count {
+    color: inherit;
+  }
+
+  /* Some torrents have errors while another status hides them. */
+  .downloads-status-dot {
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    width: 10px;
+    height: 10px;
+    border-radius: var(--r-full);
+    background: var(--error);
+    box-shadow: 0 0 0 2px var(--bg);
+  }
+
+  .downloads-status-menu .ks-menu-item .t-cap {
+    min-width: 2ch;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .downloads-status-menu .ks-menu-item.is-error .t-cap {
+    color: var(--error);
   }
 
   .downloads-body {
