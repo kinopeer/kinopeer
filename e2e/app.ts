@@ -23,6 +23,11 @@ export interface AppOptions {
   goesOffline?: boolean
 }
 
+/** The desktop layout at the canvas's width: `test.use(DESKTOP)` in a describe block. */
+export const DESKTOP = { viewport: { width: 1440, height: 900 } }
+/** The narrowest desktop width, where the sidebar is an icon rail without labels. */
+export const DESKTOP_RAIL = { viewport: { width: 1024, height: 768 } }
+
 const json = (route: Route, body: unknown, status = 200) =>
   route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
 

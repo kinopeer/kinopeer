@@ -194,9 +194,10 @@
 }
 
 .downloads-bulk {
+  /* Beside the sidebar on desktop; the buttons stay over the screens' column. */
+  left: var(--nav-left);
   gap: 8px;
-  padding-top: 10px;
-  padding-bottom: max(10px, var(--safe-bottom));
+  padding: 10px max(8px, calc((100% - var(--nav-left) - var(--column)) / 2 + 8px)) max(10px, var(--safe-bottom));
 }
 
 /* Three buttons share a phone's width; sized by their labels, so "Продолжить" fits next to "Пауза". */

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { openApp, settle, showWholePage, type AppOptions } from './app.ts'
+import { DESKTOP, DESKTOP_RAIL, openApp, settle, showWholePage, type AppOptions } from './app.ts'
 import { TITLES } from './fixtures.ts'
 
 /** The titles of the tagged fixture torrents, in the given language. */
@@ -108,5 +108,43 @@ test.describe('downloads, wide screen', () => {
     await openDownloads(page, { downloadsView: 'grid' })
     await showWholePage(page)
     await expect(page).toHaveScreenshot('grid-wide-dark-ru.png')
+  })
+})
+
+test.describe('downloads, desktop', () => {
+  test.use(DESKTOP)
+
+  test('list with the sidebar, dark, Russian', async ({ page }) => {
+    await openDownloads(page)
+    await expect(page.getByRole('link', { name: 'Загрузки' })).toHaveAttribute('aria-current', 'page')
+    await expect(page).toHaveScreenshot('desktop-list-dark-ru.png')
+  })
+
+  test('selection beside the sidebar', async ({ page }) => {
+    await openDownloads(page)
+    await page.getByRole('button', { name: 'Выбрать', exact: true }).click()
+    await page.getByRole('checkbox', { name: titles('ru')[0] }).first().click()
+    await expect(page.getByRole('toolbar', { name: 'Выбрано: 1' })).toBeVisible()
+    await settle(page)
+    await expect(page).toHaveScreenshot('desktop-select-dark-ru.png')
+  })
+
+  test.describe('light, English', () => {
+    test.use({ locale: 'en-US' })
+
+    test('list with the sidebar', async ({ page }) => {
+      await openDownloads(page, { theme: 'light', lang: 'en' })
+      await expect(page).toHaveScreenshot('desktop-list-light-en.png')
+    })
+  })
+})
+
+test.describe('downloads, narrow desktop', () => {
+  test.use(DESKTOP_RAIL)
+
+  test('list with the icon rail', async ({ page }) => {
+    await openDownloads(page)
+    await expect(page.getByRole('link', { name: 'Поиск' })).toBeVisible()
+    await expect(page).toHaveScreenshot('rail-list-dark-ru.png')
   })
 })

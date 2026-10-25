@@ -1,6 +1,7 @@
 import { NavLink, useLocation } from 'react-router'
 import { cx } from '../../lib/cx'
 import { Icon, type IconName } from '../Icon'
+import { isTabOn } from './isTabOn'
 import './TabBar.css'
 
 export interface TabBarItem {
@@ -24,7 +25,7 @@ export function TabBar({ items, label }: TabBarProps) {
     <nav className="ks-tabbar" aria-label={label}>
       {items.map((item) => (
         <NavLink key={item.to} to={item.to} end className={({ isActive }) =>
-            cx('ks-tab', (isActive || item.also?.some((prefix) => pathname.startsWith(prefix))) && 'is-on')
+            cx('ks-tab', isTabOn(item, isActive, pathname) && 'is-on')
           }>
           <Icon name={item.icon} size={24} />
           <span>{item.label}</span>

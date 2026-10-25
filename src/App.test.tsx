@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -6,6 +6,7 @@ import * as api from './api/qbittorrent'
 import * as serverSettings from './api/settings'
 import * as tmdb from './api/tmdb'
 import App from './App'
+import { stubDesktop } from './lib/stubDesktop'
 
 vi.mock('./api/qbittorrent', async (importOriginal) => {
   const actual = await importOriginal<typeof api>()
@@ -47,6 +48,7 @@ beforeEach(() => {
 
 afterEach(() => {
   localStorage.clear()
+  vi.unstubAllGlobals()
 })
 
 describe('App', () => {
@@ -82,6 +84,47 @@ describe('App', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(screen.getByRole('navigation', { name: 'Main' })).toBeInTheDocument()
+  })
+
+  describe('on desktop', () => {
+    beforeEach(() => {
+      stubDesktop()
+    })
+
+    it('navigates from the sidebar in place of the tab bar', async () => {
+      renderApp('/torrent/abc')
+      const nav = await screen.findByRole('navigation', { name: 'Main' })
+      expect(nav.closest('.ks-side')).not.toBeNull()
+      expect(document.querySelector('.ks-tabbar')).toBeNull()
+      expect(within(nav).getByRole('link', { name: 'Downloads' })).toHaveClass('is-on')
+
+      await userEvent.click(within(nav).getByRole('link', { name: 'Search' }))
+      expect(screen.getByRole('heading', { name: 'Search', level: 1 })).toBeInTheDocument()
+      expect(within(nav).getByRole('link', { name: 'Search' })).toHaveAttribute('aria-current', 'page')
+    })
+
+    it('keeps the sidebar while selecting downloads', async () => {
+      getMainData.mockResolvedValue({
+        rid: 1,
+        full_update: true,
+        torrents: { dune: { name: 'Dune.2021.1080p', state: 'downloading', progress: 0.5, size: 1e9, priority: 1 } },
+        server_state: {},
+      })
+      renderApp()
+      await userEvent.click(await screen.findByRole('button', { name: 'Select' }))
+      expect(screen.getByRole('toolbar', { name: '0 selected' })).toBeInTheDocument()
+      expect(screen.getByRole('navigation', { name: 'Main' })).toBeInTheDocument()
+    })
+
+    it('switches to the tab bar when the window gets narrow', async () => {
+      const resize = stubDesktop()
+      renderApp()
+      const nav = await screen.findByRole('navigation', { name: 'Main' })
+      expect(nav.closest('.ks-side')).not.toBeNull()
+
+      act(() => resize(false))
+      expect(screen.getByRole('navigation', { name: 'Main' })).toHaveClass('ks-tabbar')
+    })
   })
 
   it('asks for the TMDB key when the server has none, then goes in', async () => {

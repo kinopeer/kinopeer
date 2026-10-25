@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, Route, Routes, useLocation } from 'react-router'
+import { Sidebar } from './components/Sidebar'
 import { TabBar, type TabBarItem } from './components/TabBar'
+import { useIsDesktop } from './lib/useIsDesktop'
 import { ConnectScreen } from './screens/ConnectScreen'
 import { DownloadsScreen } from './screens/DownloadsScreen'
 import { ErrorBoundary } from './screens/ErrorBoundary'
@@ -20,7 +22,8 @@ function App() {
   const { session, recheck, signIn } = useQbitSession()
   const tmdb = useTmdbSetup(session.status === 'connected')
   const location = useLocation()
-  // Selecting downloads puts the selection's actions in place of the tab bar.
+  const isDesktop = useIsDesktop()
+  // Selecting downloads puts the selection's actions in place of the tab bar. The sidebar stays.
   const [selecting, setSelecting] = useState(false)
 
   const connecting = (
@@ -55,7 +58,11 @@ function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </ErrorBoundary>
-          {!selecting && <TabBar items={tabs} label={t('nav.label')} />}
+          {isDesktop ? (
+            <Sidebar items={tabs} label={t('nav.label')} />
+          ) : (
+            !selecting && <TabBar items={tabs} label={t('nav.label')} />
+          )}
         </div>
       )
     }

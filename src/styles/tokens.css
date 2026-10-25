@@ -43,8 +43,11 @@
   --sidebar: 248px;
   --sidebar-rail: 76px;
   --drawer: 460px;
-  /* Width of the centered column screens use on wide screens, until the desktop layout. */
+  /* Width of the centered column screens use on wide screens. */
   --column: 760px;
+  /* Room the app's navigation takes: the tab bar at the bottom, the sidebar on desktop (below). */
+  --nav-left: 0px;
+  --nav-bottom: calc(66px + var(--safe-bottom));
 
   /* Accent scale */
   --teal-50: #e6fafb;
@@ -64,6 +67,20 @@
   --toast-bg: #1b2226;
   --toast-text: #eef1f2;
   --toast-accent: #62d8dd;
+}
+
+/* The desktop layout (src/lib/breakpoints.ts): the sidebar replaces the tab bar. */
+@media (min-width: 1024px) {
+  :root {
+    --nav-left: var(--sidebar-rail);
+    --nav-bottom: 0px;
+  }
+}
+
+@media (min-width: 1100px) {
+  :root {
+    --nav-left: var(--sidebar);
+  }
 }
 
 :root,

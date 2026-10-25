@@ -61,11 +61,12 @@
   gap: var(--space-4);
 }
 
-/* Leaves room for the fixed tab bar. */
+/* Leaves room for the fixed tab bar, or the sidebar on desktop; screens fill the rest. */
 .app-shell {
   min-height: 100vh;
   min-height: 100dvh;
-  padding-bottom: calc(66px + var(--safe-bottom));
+  padding-bottom: var(--nav-bottom);
+  padding-left: var(--nav-left);
 }
 
 .tmdb-key-form {
