@@ -1,8 +1,4 @@
 /* Change title sheet: the search stays put while the results scroll. */
-.retitle-sheet {
-  height: calc(100dvh - 52px);
-}
-
 .retitle-sheet .ks-sheet-body {
   display: flex;
   flex-direction: column;
@@ -88,4 +84,14 @@
 
 .retitle-hint {
   margin: 0;
+}
+
+@media (min-width: 1024px) {
+  .retitle-controls {
+    padding: 4px 24px 12px;
+  }
+
+  .retitle-results {
+    padding: 6px 12px 8px;
+  }
 }

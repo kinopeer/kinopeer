@@ -76,6 +76,7 @@ export function ChangeTitleSheet({ torrent, current, onClose, onChosen }: Change
       subtitle={torrent.name}
       action={<IconButton icon="close" label={t('torrent.cancel')} onClick={onClose} />}
       footer={<p className="t-cap c3 retitle-hint">{t('match.hint')}</p>}
+      size="lg"
       className="retitle-sheet"
     >
       <div className="retitle-controls">

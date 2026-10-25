@@ -1,7 +1,3 @@
-.add-sheet.is-full {
-  height: calc(100dvh - 52px);
-}
-
 .add-body {
   display: flex;
   flex-direction: column;
@@ -283,4 +279,33 @@
   flex: 1;
   font-weight: 600;
   color: var(--text);
+}
+
+/* Desktop modal: buttons at their own width on the right, as in a dialog. */
+@media (min-width: 1024px) {
+  .add-foot {
+    align-items: flex-end;
+  }
+
+  .add-foot > .ks-btn {
+    width: auto;
+  }
+
+  .fp-foot {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 16px;
+  }
+
+  .fp-foot > :not(.ks-btn) {
+    grid-column: 1;
+    max-width: 360px;
+  }
+
+  .fp-foot > .ks-btn {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    width: auto;
+  }
 }
