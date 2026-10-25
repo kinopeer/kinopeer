@@ -1,6 +1,6 @@
 # Kinoseed
 
-A qBittorrent web UI built around movies and TV series. Find a title in TMDB, pick a release via Prowlarr, send it to qBittorrent, and manage downloads. No playback. Mobile-first PWA; a desktop layout is planned. Installs on umbrelOS.
+A qBittorrent web UI built around movies and TV series. Find a title in TMDB, pick a release via Prowlarr, send it to qBittorrent, and manage downloads. No playback. Mobile-first PWA with a desktop layout. Installs on umbrelOS.
 
 ## Product
 
@@ -79,16 +79,15 @@ Run lint, typecheck, test and build before pushing, and the screenshot tests whe
 
 ## Design
 
-- The design lives in Claude Design: the Kinoseed canvas (screens for mobile, desktop, states) at https://claude.ai/code/artifact/d36cd9ea-367d-40f4-9cca-b5ae066c5c19 and the Kinoseed design system (tokens, components, README) at https://claude.ai/artifact/Hezz9q11HdhKm5P2bW3MTn.
+- The design lives in Claude Design: the Kinoseed canvas (screens for mobile, desktop, states; a reference as of 0.4.0, no longer kept in sync) at https://claude.ai/code/artifact/d36cd9ea-367d-40f4-9cca-b5ae066c5c19 and the Kinoseed design system (tokens, components, README) at https://claude.ai/artifact/Hezz9q11HdhKm5P2bW3MTn.
 - The design system's `tokens.json` is the source of truth for colors, type, spacing, radii, shadows and motion. Use the CSS custom properties, never raw hex values in components.
 - Dark theme is primary; light and "follow system" are supported.
 - Desktop layout from 1024px (`DESKTOP_QUERY` in `src/lib/breakpoints.ts`; stylesheets repeat it as `@media (min-width: 1024px)`, since media queries can't use custom properties). There `App` renders `Sidebar` (`ks-side`, an icon rail up to 1100px, then 248px with labels) in place of `TabBar`. `useIsDesktop()` (`src/lib/useIsDesktop.ts`) is for behavior that differs on desktop (what renders); differences only in looks stay in CSS. In tests jsdom has no matchMedia, so the phone layout applies unless a test calls `stubDesktop()` (`src/lib/stubDesktop.ts`). Fixed elements offset themselves by `--nav-left` (the sidebar's width, 0 on phones) and `--nav-bottom` (the tab bar's height, 0 on desktop) from `tokens.css`. Screenshot tests use `DESKTOP` (1440×900) and `DESKTOP_RAIL` (1024×768) from `e2e/app.ts`.
 - Overlays: `Sheet` (`src/components/Sheet`) is a bottom sheet on phones and a centered modal on desktop, in CSS only; `size="lg"` is for long lists (full height on phones, 680×720 on desktop). `Dialog` is a centered confirmation (`alertdialog`) on both. Both are native modal `<dialog>`s in the top layer, so they ignore `--nav-left`. On desktop, `Popover` (`src/components/Popover`, the design system's `ks-pop`) opens next to its anchor button: rendered in place (so it works inside a modal `<dialog>` and keeps the tab order), it handles placement, Escape with focus back to the anchor, and closing on a click outside, focus leaving, a scroll or a resize (`follow` keeps it on an anchor in a sticky bar instead). `Menu` (`role="menu"` with arrow keys) is built on it; the desktop release filters use it directly.
-- Below the desktop breakpoint, screens sit in a centered column of `--column` width on wide screens; the tab bar's tabs stay over it. Until their desktop layouts land in 0.4, screens keep that column on desktop too, centered beside the sidebar.
+- Below the desktop breakpoint, screens sit in a centered column of `--column` width on wide screens; the tab bar's tabs stay over it.
 - One accent color (teal). Status colors are separate from the accent; "downloading" is the only status in the accent color.
 - Font: Onest. Numbers that update (speeds, sizes, percentages) use tabular figures.
-- When the app departs from the canvas, update the canvas too so they stay in sync.
-- Draw on the canvas first only for new screens and big forks (several variants side by side). Small changes and blocks inside existing screens are built in code and shown on the test stand, and the canvas is updated once the owner approves. A canvas round is expensive: the prototype is one large file to read, edit and publish.
+- The app, not the canvas, is the reference for how screens look and behave: changes are built in code and shown on the test stand, and the canvas isn't updated. Draw on the canvas only when the owner asks for it, e.g. to compare variants of a new screen side by side.
 
 ## Workflow
 
@@ -97,4 +96,4 @@ Run lint, typecheck, test and build before pushing, and the screenshot tests whe
 
 ## Roadmap
 
-Steps 1–8 (skeleton through production) shipped as 0.1.0; 0.2.0 (the title as the center) shipped on 2026-10-24; 0.3.0 (managing downloads) on 2026-10-25. The plan from here is in `docs/ROADMAP.md`.
+Steps 1–8 (skeleton through production) shipped as 0.1.0; 0.2.0 (the title as the center) shipped on 2026-10-24; 0.3.0 (managing downloads) and 0.4.0 (desktop) on 2026-10-25. The plan from here is in `docs/ROADMAP.md`.

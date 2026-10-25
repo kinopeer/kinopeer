@@ -16,7 +16,7 @@ A qBittorrent web UI for movies and TV series. Find a movie or a series, pick a 
 - **Adding.** Category, save path, file selection (for example, only the seasons you want) and a free space check before the download starts.
 - **Downloads.** A live list or poster grid with TMDB posters and titles, statuses, speeds and time left. Pause, resume, delete.
 - **Torrent details.** A file tree with priorities, seeds and peers, ratio, trackers.
-- **Made for the phone.** Russian and English, dark and light themes; when qBittorrent stops answering, you still see the last known state.
+- **Phone and computer.** On a computer: a sidebar, Downloads as a table or a poster grid, torrent details in a side drawer and a title's releases on its page. Russian and English, dark and light themes; when qBittorrent stops answering, you still see the last known state.
 
 Kinoseed doesn't play video and never downloads anything on its own: you pick every release.
 

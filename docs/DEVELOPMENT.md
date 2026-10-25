@@ -68,4 +68,4 @@ The package lives in [umbrel-homelab-store](https://github.com/MrShakhov/umbrel-
 
 ## Design
 
-The canvas with every screen and the design system live in Claude Design (links in CLAUDE.md). Colors, type and spacing come from the design system's tokens. When the app departs from the canvas, update the canvas too.
+The canvas with every screen and the design system live in Claude Design (links in CLAUDE.md). Colors, type and spacing come from the design system's tokens. The canvas is a reference as of 0.4.0 and is no longer kept in sync; the app is the reference for screens.
