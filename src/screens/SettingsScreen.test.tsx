@@ -180,4 +180,12 @@ describe('SettingsScreen', () => {
     renderScreen()
     expect(screen.queryByRole('button', { name: /Install app/ })).not.toBeInTheDocument()
   })
+
+  // The desktop columns put defaults and About on the left and Appearance on the right, so reading
+  // row by row follows this order.
+  it('lists the sections in the order the desktop columns read', () => {
+    renderScreen()
+    const names = screen.getAllByRole('region').map((region) => within(region).getByRole('heading').textContent)
+    expect(names).toEqual(['Connections', 'Download defaults', 'Appearance', 'About'])
+  })
 })
