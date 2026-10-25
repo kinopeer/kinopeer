@@ -633,20 +633,9 @@ a.dl-row-main:focus-visible::after {
     margin: 0;
   }
 
-  /* The filters on the left, how the list looks on the right. The menu buttons take the segmented
-     controls' height and surface, so the row reads as one set of controls. */
+  /* The filters on the left, how the list looks on the right. */
   .downloads-sort {
     margin-left: auto;
-  }
-
-  .downloads-toolbar > .ks-btn {
-    height: 46px;
-    border-radius: 13px;
-  }
-
-  .downloads-toolbar > .ks-btn-secondary {
-    background: var(--sunken);
-    border-color: var(--border);
   }
 
   .downloads-status-count {
