@@ -2,7 +2,9 @@
 
 Kinoseed follows [semantic versioning](https://semver.org). While the version is 0.x, minor versions may change behavior and settings.
 
-## Unreleased
+## 0.4.1 - 2026-10-25
+
+A fix for adding releases over plain HTTP.
 
 ### Fixed
 
