@@ -33,14 +33,25 @@ test.describe('downloads, phone', () => {
     await expect(page).toHaveScreenshot('grid-actions-dark-ru.png')
   })
 
-  test('sort sheet', async ({ page }) => {
+  test('sort and filter sheet', async ({ page }) => {
     await openDownloads(page)
     await page.getByRole('button', { name: 'Сортировка: Приоритет' }).click()
     // The radio itself is visually hidden; a tap lands on its row.
     await page.getByRole('dialog').getByText('Размер', { exact: true }).click()
     await expect(page.getByRole('radio', { name: 'Размер' })).toBeChecked()
+    await page.getByRole('radio', { name: 'Сериалы' }).click()
     await settle(page)
     await expect(page).toHaveScreenshot('sort-dark-ru.png')
+  })
+
+  test('series only, with the type badge', async ({ page }) => {
+    await openDownloads(page)
+    await page.getByRole('button', { name: 'Сортировка: Приоритет' }).click()
+    await page.getByRole('radio', { name: 'Сериалы' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Готово' }).click()
+    await expect(page.getByRole('button', { name: 'Сортировка: Приоритет, Сериалы' })).toBeVisible()
+    await settle(page)
+    await expect(page).toHaveScreenshot('series-dark-ru.png')
   })
 
   test('nothing downloaded yet', async ({ page }) => {

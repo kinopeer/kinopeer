@@ -60,7 +60,9 @@
     "viewList": "List",
     "viewGrid": "Grid",
     "sort": "Sort",
+    "sortFilter": "Sort & filter",
     "sortButton": "Sort: {{sort}}",
+    "sortTypeButton": "Sort: {{sort}}, {{type}}",
     "sortDone": "Done",
     "sortPriorityHint": "Queue order",
     "sorts": {
@@ -71,6 +73,11 @@
       "size": "Size",
       "speed": "Speed",
       "eta": "ETA"
+    },
+    "type": "Type",
+    "types": {
+      "movie": "Movies",
+      "tv": "Series"
     }
   },
   "format": {

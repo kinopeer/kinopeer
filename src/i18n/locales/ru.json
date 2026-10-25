@@ -60,7 +60,9 @@
     "viewList": "Список",
     "viewGrid": "Сетка",
     "sort": "Сортировка",
+    "sortFilter": "Сортировка и фильтр",
     "sortButton": "Сортировка: {{sort}}",
+    "sortTypeButton": "Сортировка: {{sort}}, {{type}}",
     "sortDone": "Готово",
     "sortPriorityHint": "Порядок очереди",
     "sorts": {
@@ -71,6 +73,11 @@
       "size": "Размер",
       "speed": "Скорость",
       "eta": "Осталось"
+    },
+    "type": "Тип",
+    "types": {
+      "movie": "Фильмы",
+      "tv": "Сериалы"
     }
   },
   "format": {

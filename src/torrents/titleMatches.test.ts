@@ -14,6 +14,7 @@ import {
   isGuessed,
   lookupFor,
   pickBest,
+  titleType,
   useTitleMatches,
   useTitleTorrents,
 } from './titleMatches'
@@ -145,6 +146,31 @@ describe('lookupFor', () => {
       hint: 'movie',
     })
     expect(lookupFor({ name: 'Show.S01.1080p', tags: '', category: 'Movies' })).toMatchObject({ key: 'q:tv::show', hint: undefined })
+  })
+})
+
+describe('titleType', () => {
+  const movie = { type: 'movie', id: 438631, title: 'Dune', year: 2021, posterPath: null } as const
+
+  it('takes the matched title’s type first', () => {
+    expect(titleType({ name: 'Dune.S01.1080p', tags: '' }, undefined, movie)).toBe('movie')
+  })
+
+  it('knows the type of a chosen, tagged or guessed title before TMDB answers', () => {
+    expect(titleType({ name: 'Dune.2021', tags: '' }, { type: 'tv', id: 1, source: 'user' })).toBe('tv')
+    expect(titleType({ name: 'Dune.2021', tags: 'tmdb:movie:438631' })).toBe('movie')
+    expect(titleType({ name: 'Dune.2021', tags: '' }, { type: 'tv', id: 2, source: 'guess', version: GUESS_VERSION })).toBe('tv')
+  })
+
+  it('falls back to season markers in the name, then the category', () => {
+    expect(titleType({ name: 'Andor.S02.1080p', tags: '' }, undefined, null)).toBe('tv')
+    expect(titleType({ name: 'Normal.2025.BDRemux', tags: '', category: 'Movies' }, undefined, null)).toBe('movie')
+    expect(titleType({ name: 'Andor.S02.1080p', tags: '', category: 'Movies' })).toBe('tv')
+  })
+
+  it('is unknown when nothing says', () => {
+    expect(titleType({ name: 'Alien.Romulus.2024.1080p', tags: '' }, undefined, null)).toBeUndefined()
+    expect(titleType({ name: 'Some.Program.v2', tags: '', category: 'Software' })).toBeUndefined()
   })
 })
 

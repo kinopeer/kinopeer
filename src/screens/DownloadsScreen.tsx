@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router'
 import type { Torrent } from '../api/qbittorrent'
+import { Badge } from '../components/Badge'
 import { Button } from '../components/Button'
 import { EmptyState } from '../components/EmptyState'
 import { FilterChip } from '../components/FilterChip'
@@ -16,7 +17,7 @@ import { useSettings } from '../settings/settings'
 import { compareTorrents, knownSort } from '../torrents/sort'
 import { STATUS_FILTERS, matchesFilter, type StatusFilter } from '../torrents/status'
 import { useServerMatches } from '../torrents/serverMatches'
-import { isGuessed, useTitleMatches } from '../torrents/titleMatches'
+import { isGuessed, titleType, useTitleMatches, type TypeFilter } from '../torrents/titleMatches'
 import { useMainData } from '../torrents/useMainData'
 import { ChangeTitleSheet } from './ChangeTitleSheet'
 import { DeleteTorrentDialog } from './DeleteTorrentDialog'
@@ -53,6 +54,7 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
   const sort = knownSort(downloadsSort)
   const [sortOpen, setSortOpen] = useState(false)
   const [filter, setFilter] = useState<StatusFilter>('all')
+  const [type, setType] = useState<TypeFilter>('all')
   const [searchOpen, setSearchOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [actionsFor, setActionsFor] = useState<string | null>(null)
@@ -72,9 +74,19 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
   const torrents = useMemo(() => (data ? Object.values(data.torrents) : []), [data])
   const matches = useTitleMatches(torrents)
   const serverMatches = useServerMatches()
+  // The status chips count within the picked type, so their numbers match the list.
+  const typed = useMemo(
+    () =>
+      type === 'all'
+        ? torrents
+        : torrents.filter(
+            (torrent) => titleType(torrent, serverMatches?.[torrent.hash], matches[torrent.hash]) === type,
+          ),
+    [torrents, type, serverMatches, matches],
+  )
   const visible = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase()
-    return torrents
+    return typed
       .filter(
         (torrent) =>
           matchesFilter(torrent, filter) &&
@@ -83,7 +95,7 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
             !!matches[torrent.hash]?.title.toLocaleLowerCase().includes(needle)),
       )
       .sort(compareTorrents(sort, (torrent) => matches[torrent.hash]?.title ?? torrent.name))
-  }, [torrents, filter, query, matches, sort])
+  }, [typed, filter, query, matches, sort])
 
   const loading = data === null
   // Looked up on every render, so the sheet follows live status changes and closes if the torrent goes away.
@@ -100,6 +112,7 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
 
   const resetFilters = () => {
     setFilter('all')
+    setType('all')
     setQuery('')
   }
 
@@ -155,7 +168,7 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
             <FilterChip
               key={key}
               selected={filter === key}
-              count={loading ? undefined : torrents.filter((torrent) => matchesFilter(torrent, key)).length}
+              count={loading ? undefined : typed.filter((torrent) => matchesFilter(torrent, key)).length}
               onClick={() => setFilter(key)}
             >
               {key === 'all' ? t('downloads.all') : t(`status.${key}`)}
@@ -170,10 +183,15 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
             icon="sort"
             className="downloads-sort"
             aria-haspopup="dialog"
-            aria-label={t('downloads.sortButton', { sort: t(`downloads.sorts.${sort}`) })}
+            aria-label={
+              type === 'all'
+                ? t('downloads.sortButton', { sort: t(`downloads.sorts.${sort}`) })
+                : t('downloads.sortTypeButton', { sort: t(`downloads.sorts.${sort}`), type: t(`downloads.types.${type}`) })
+            }
             onClick={() => setSortOpen(true)}
           >
             {t(`downloads.sorts.${sort}`)}
+            {type !== 'all' && <Badge className="downloads-type">{t(`downloads.types.${type}`)}</Badge>}
           </Button>
           <Segmented
             label={t('downloads.view')}
@@ -260,6 +278,8 @@ export function DownloadsScreen({ onSessionLost }: DownloadsScreenProps) {
         open={sortOpen}
         value={sort}
         onChange={(downloadsSort) => updateSettings({ downloadsSort })}
+        type={type}
+        onTypeChange={setType}
         onClose={() => setSortOpen(false)}
       />
       {actionsTorrent && (
