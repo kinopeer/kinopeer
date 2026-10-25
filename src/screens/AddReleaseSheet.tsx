@@ -165,7 +165,6 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
       open
       onClose={onClose}
       title={t('add.title')}
-      className="add-sheet"
       action={<IconButton icon="close" label={t('add.cancel')} onClick={onClose} />}
       footer={
         <div className="add-foot">
