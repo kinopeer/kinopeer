@@ -7,6 +7,12 @@
   margin: 0 6px 0 16px;
 }
 
+@media (min-width: 1024px) {
+  .install-sheet-icon {
+    margin-left: 12px;
+  }
+}
+
 .install-card {
   display: flex;
   align-items: flex-start;

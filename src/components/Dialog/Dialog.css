@@ -63,3 +63,24 @@
     transform: none;
   }
 }
+
+/* Desktop: wider, with the buttons at their own width on the right. */
+@media (min-width: 1024px) {
+  .ks-dialog {
+    width: min(440px, calc(100% - 48px));
+  }
+
+  .ks-dialog-inner {
+    padding: 24px;
+  }
+
+  .ks-dialog-actions {
+    justify-content: flex-end;
+    margin-top: 20px;
+  }
+
+  .ks-dialog .ks-dialog-actions > * {
+    flex: none;
+    width: auto;
+  }
+}

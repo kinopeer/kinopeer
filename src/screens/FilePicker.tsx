@@ -109,7 +109,7 @@ export function FilePicker({ meta, skipped, onChange, free, subtitle, onDone }: 
       onClose={onDone}
       title={t('add.selectFiles')}
       subtitle={subtitle}
-      className="add-sheet is-full"
+      size="lg"
       leading={<IconButton icon="chevron-left" label={t('add.back')} iconSize={24} onClick={onDone} />}
       footer={
         <div className="fp-foot">

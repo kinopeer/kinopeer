@@ -181,3 +181,70 @@
   padding: 0 16px;
   font-size: 15px;
 }
+
+/*
+ * Desktop: connections across the top, then two columns. Download defaults and About sit on the
+ * left and Appearance on the right, so the visual order follows the DOM order the phone keeps.
+ */
+@media (min-width: 1024px) {
+  .settings {
+    max-width: calc(1040px + 64px);
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      'title title'
+      'connections connections'
+      'defaults appearance'
+      'about appearance';
+    align-items: start;
+    gap: 24px;
+    padding: 28px 32px 56px;
+  }
+
+  .settings-title {
+    grid-area: title;
+    min-height: 0;
+    margin: 0;
+  }
+
+  .settings-connections {
+    grid-area: connections;
+  }
+
+  .settings-defaults {
+    grid-area: defaults;
+  }
+
+  .settings-appearance {
+    grid-area: appearance;
+  }
+
+  .settings-about {
+    grid-area: about;
+  }
+
+  .settings-section {
+    gap: 10px;
+  }
+
+  .settings-conns {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+    gap: 12px;
+  }
+
+  .settings-card {
+    padding: 20px;
+    gap: 18px;
+  }
+
+  .settings-row-static {
+    padding: 0 20px;
+  }
+
+  .settings-rows .ks-row-btn {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+}

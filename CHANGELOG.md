@@ -8,6 +8,8 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 - On a computer (a window 1024px wide or more), a sidebar on the left replaces the tab bar: Downloads, Search and Settings with labels, or icons only in a narrower window. Screens use the rest of the window.
 - On a computer, the title page has a wide header with the poster, and its releases appear right under it after you press Find releases: filters in drop-downs over a table of releases, which stay at the top while you scroll. Opening a title no longer waits for anything from Prowlarr.
+- Search and Settings on a computer: search fills the window with larger posters and a wider results grid; settings show the connections side by side and the other sections in two columns. The first-launch steps show their form in a centered card.
+- On a computer, sheets open as windows in the middle of the screen: adding a release, picking its files, changing a title, deleting torrents and the rest.
 
 ## 0.3.0 - 2026-10-25
 

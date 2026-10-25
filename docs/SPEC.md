@@ -26,6 +26,7 @@ The `homelab-kinoseed` package from the Homelab App Store runs on port 8795, dep
 
 | Setting | Where it's kept | Set by |
 | --- | --- | --- |
+| 2026-10-25 | Desktop Settings put download defaults and About in the left column and Appearance in the right, the other way round from the canvas, so reading the columns row by row follows the order on a phone and the keyboard order. About keeps its rows (version, install, clearing the cache with its hint) rather than the canvas's one line. Rows of posters in desktop Search show a thin scrollbar where the pointer is a mouse, which can't swipe them sideways. |
 | qBittorrent and Prowlarr addresses | Server environment | The Umbrel package |
 | Prowlarr API key | Environment or Prowlarr's `config.xml` | The Umbrel package |
 | qBittorrent login | `/data/settings.json`, else environment | The connect screen |
@@ -44,12 +45,15 @@ A torrent's match is forgotten when the torrent is deleted from Kinoseed. For to
 - Phones and tablets (narrower than 1024px): a tab bar at the bottom with Downloads, Search and Settings. On a tablet, screens sit in a centered column 760px wide and the tabs stay over it.
 - Desktop (1024px and wider, the design system's breakpoint): a sidebar on the left with the Kinoseed logo and the same three destinations, in place of the tab bar. From 1100px it is 248px wide with labels; between 1024 and 1100px it is a 76px rail of icons, the labels kept for screen readers. Screens take the rest of the window. Until their own desktop layouts land in 0.4 they keep the 760px column, centered in that space.
 - Selecting downloads puts the bulk bar in place of the tab bar on a phone; on desktop the sidebar stays and the bulk bar sits at the bottom of the screen beside it.
+- Sheets slide up from the bottom on a phone. On desktop the same sheets are modals in the middle of the window, over a dimmed backdrop that covers the sidebar too: 600px wide and as tall as their content, or 680 × 720px for long lists (picking files, changing a title), which on a phone take the full height. Confirmations (deleting torrents) are 440px wide with their buttons on the right. Escape and a click on the backdrop close them; focus stays inside and returns to what opened them.
 
 ### First launch
 
 1. Kinoseed asks qBittorrent for its version. If the server is already signed in (the package's login or a saved one) or qBittorrent lets the network in without a password, there's no login form.
 2. Otherwise, the qBittorrent login form. The server tries a password once and doesn't retry after a rejection: qBittorrent bans the IP for an hour after five failures.
 3. The "Connect TMDB" step: a v3 API key or a v4 read access token, checked with TMDB before it's saved. It can be skipped; search then asks for the key later.
+
+On desktop these steps show their form in a card centered in the window, without the sidebar.
 
 ### Downloads
 
@@ -75,6 +79,8 @@ A torrent's match is forgotten when the torrent is deleted from Kinoseed. For to
 ### Search
 
 Movies and series from TMDB with a type filter. An empty search shows trending this week and popular titles. The query and type live in the page URL.
+
+On desktop the screen fills the window beside the sidebar: the search field up to 640px wide, rows of larger posters (with a thin scrollbar for a mouse) and results in a grid as wide as the window.
 
 ### Title
 
@@ -104,6 +110,8 @@ Poster, year, runtime or number of seasons and episodes, rating, overview, and a
 
 Appearance (theme, language), Connections (checks for qBittorrent, Prowlarr and TMDB, changing the TMDB key), download defaults (the same on every device; another device's change shows after a reload), the language of TMDB titles and overviews, About (version, clear cache, install). Clearing the cache also forgets the server's guesses, so torrents are matched again; the user's choices stay. Service addresses can't be changed here: the package sets them.
 
+On desktop the connections sit side by side across the top, then two columns: download defaults and About on the left, Appearance on the right.
+
 ### Offline and errors
 
 - qBittorrent stops answering: the last state stays under a banner with its age, actions are disabled, retries are automatic.
@@ -119,6 +127,7 @@ Manifest and icons; the service worker keeps the app shell available offline and
 | Date | Decision |
 | --- | --- |
 | 2026-10-25 | Desktop releases are on the title page and searched only when "Find releases" is pressed (rather than on opening the title, or on a page of their own as on phones): a title opened to read about it costs no Prowlarr request, and the releases stay next to what they're for. The search gets its own address (`/title/:type/:id/releases`, the phone's releases address) so it can be linked and survives a reload; pressing the button replaces the title's address rather than adding one, so Back leaves the page instead of only hiding the releases. Filters open as popovers from a sticky bar, not the phone's sheet. |
+| 2026-10-25 | On desktop, sheets and dialogs become centered modals, as the canvas draws them (`ks-modal`), rather than bottom sheets or a separate component: every sheet works the same way on both, and a screen picks only the size (`Sheet size="lg"` for long lists). Footer buttons keep their own width on the right, like the canvas's modals. Sheets that are menus or quick pickers (the row menu, sort, release filters) are modals too for now; the screens' own desktop layouts may turn them into popovers. |
 | 2026-10-25 | The desktop layout (0.4) starts at 1024px, the design system's breakpoint; the sidebar is an icon rail up to 1100px, as the design system's README says. Below 1024px the phone layout stays, tablets included. On desktop, `/torrent/:hash` shows Downloads with the torrent's details in a side drawer rather than a page of its own, and the title page shows releases in place, searched only when the user presses "Find releases", so opening a title sends no request to Prowlarr. The desktop canvas predates 0.2 and 0.3, so where it lacks later features (the title's "In downloads" block, sort, the type filter, multi-select, changing a title) the app as built is the reference. In selection mode the sidebar stays: navigation is still useful, and leaving Downloads ends the selection. |
 | 2026-10-25 | Multi-select follows the canvas: a Select button rather than a long press (which a phone browser saves for its own menu and a desktop doesn't have), and the bulk bar in place of the tab bar. Bulk actions apply to the selected torrents the filters show. The poster grid gets selection too: a checkbox in the poster's corner, which the canvas didn't draw. |
 | 2026-10-25 | The Downloads type filter (All, Movies, Series) is in the "Sort & filter" sheet, as on the canvas. A torrent's type comes from its title, else from what is known without TMDB: season or episode markers in the name make it a series, then the qBittorrent category; with neither, it shows only under All. The canvas treated every unmatched torrent as a series, which would put unmatched movies and non-video torrents there. The type isn't remembered, like the status filter, so a release just added of another type isn't hidden; Reset filters resets it, and the status counts are within the type. |
