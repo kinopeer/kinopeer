@@ -228,3 +228,108 @@
 .title-dl-chevron {
   flex: none;
 }
+
+/* Desktop: the canvas's wide hero, with the releases under it once searched. */
+.title.title-desktop {
+  max-width: none;
+  /* A scroll container here would stop the releases' filter bar from sticking. */
+  overflow: visible;
+}
+
+.title-dhero {
+  position: relative;
+  min-height: 430px;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+}
+
+.title-dhero-art {
+  position: absolute;
+  inset: -60px;
+  width: calc(100% + 120px);
+  height: calc(100% + 120px);
+  max-width: none;
+  object-fit: cover;
+  filter: blur(40px) saturate(1.2);
+  transform: scale(1.1);
+}
+
+.title-desktop .title-dback {
+  position: absolute;
+  top: 20px;
+  left: 24px;
+  z-index: 1;
+}
+
+.title-dhead {
+  position: relative;
+  width: 100%;
+  max-width: 1240px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 32px;
+  padding: 72px 32px 28px;
+}
+
+.title-dposter {
+  flex: none;
+  width: 200px;
+  border-radius: 16px;
+  box-shadow: var(--shadow-2);
+}
+
+.title-dtext {
+  flex: 1 1 420px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 4px;
+}
+
+.title-dname {
+  font-size: 46px;
+  line-height: 50px;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+.title-dmeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+
+.title-dmeta .t-label {
+  font-weight: 400;
+}
+
+.title-doverview {
+  max-width: 680px;
+}
+
+.title-dactions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.title-dhint {
+  max-width: 360px;
+}
+
+/* "In downloads" on desktop: cards side by side under the hero. */
+.title-desktop > .title-dls {
+  padding: 12px 32px 0;
+}
+
+.title-desktop .title-dls-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 10px;
+}

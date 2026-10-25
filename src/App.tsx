@@ -7,10 +7,9 @@ import { useIsDesktop } from './lib/useIsDesktop'
 import { ConnectScreen } from './screens/ConnectScreen'
 import { DownloadsScreen } from './screens/DownloadsScreen'
 import { ErrorBoundary } from './screens/ErrorBoundary'
-import { ReleasesScreen } from './screens/ReleasesScreen'
 import { SearchScreen } from './screens/SearchScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
-import { TitleScreen } from './screens/TitleScreen'
+import { TitleRoute } from './screens/TitleScreen'
 import { TmdbKeyScreen } from './screens/TmdbKeyScreen'
 import { TorrentScreen } from './screens/TorrentScreen'
 import { useQbitSession } from './session/useQbitSession'
@@ -52,8 +51,8 @@ function App() {
               <Route index element={<DownloadsScreen onSessionLost={() => void recheck()} onSelectingChange={setSelecting} />} />
               <Route path="torrent/:hash" element={<TorrentScreen onSessionLost={() => void recheck()} />} />
               <Route path="search" element={<SearchScreen />} />
-              <Route path="title/:type/:id" element={<TitleScreen onSessionLost={() => void recheck()} />} />
-              <Route path="title/:type/:id/releases" element={<ReleasesScreen />} />
+              <Route path="title/:type/:id" element={<TitleRoute onSessionLost={() => void recheck()} />} />
+              <Route path="title/:type/:id/releases" element={<TitleRoute onSessionLost={() => void recheck()} />} />
               <Route path="settings" element={<SettingsScreen />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
