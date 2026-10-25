@@ -30,25 +30,13 @@
   border-bottom: 1px solid var(--border);
 }
 
-.title-rel-filter {
-  position: relative;
-}
-
+/* A filter's popover: its name over the values. */
 .title-rel-pop {
-  position: absolute;
-  top: 46px;
-  left: 0;
-  z-index: 25;
   width: 320px;
   padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  background: var(--raised);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  box-shadow: var(--shadow-2);
-  animation: ks-fade var(--d-fast) var(--ease);
 }
 
 .title-rel-options {

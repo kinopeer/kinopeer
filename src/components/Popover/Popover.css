@@ -1,0 +1,11 @@
+/* A desktop popover, placed next to its anchor by Popover. What goes inside sets its padding and width. */
+.ks-pop {
+  position: fixed;
+  z-index: 25;
+  max-width: calc(100vw - 16px);
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-2);
+  animation: ks-fade var(--d-fast) var(--ease);
+}

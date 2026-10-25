@@ -1,9 +1,10 @@
-import { useEffect, useId, useRef, useState, type ReactNode, type Ref } from 'react'
+import { useId, useState, type ReactNode, type Ref } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Badge } from '../components/Badge'
 import { Button } from '../components/Button'
 import { FilterChip } from '../components/FilterChip'
 import { IconButton } from '../components/IconButton'
+import { Popover } from '../components/Popover'
 import { Segmented } from '../components/Segmented'
 import { useFormatters } from '../lib/format'
 import { MIN_SEEDS, SORT_KEYS, summary, toggle, type ReleaseRow } from '../releases/filterReleases'
@@ -139,63 +140,45 @@ interface FilterPopoverProps {
   children: ReactNode
 }
 
-/** A filter chip opening its values in a popover; Escape or a click outside closes it. */
+/** A filter chip opening its values in a popover, which follows the chip in the sticky bar. */
 function FilterPopover({ name, label, selected, open, onOpenChange, children }: FilterPopoverProps) {
   const id = useId()
-  const wrap = useRef<HTMLDivElement>(null)
-  const onOpenChangeRef = useRef(onOpenChange)
-  useEffect(() => {
-    onOpenChangeRef.current = onOpenChange
-  })
-
-  useEffect(() => {
-    if (!open) return
-    const close = () => onOpenChangeRef.current(false)
-    const onPointerDown = (event: PointerEvent) => {
-      if (!wrap.current?.contains(event.target as Node)) close()
-    }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return
-      close()
-      wrap.current?.querySelector('button')?.focus()
-    }
-    document.addEventListener('pointerdown', onPointerDown)
-    document.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown)
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [open])
+  const [chip, setChip] = useState<HTMLButtonElement | null>(null)
 
   return (
-    <div
-      ref={wrap}
-      className="title-rel-filter"
-      onBlur={(event) => {
-        // Tabbing away closes it; a click elsewhere is handled on pointerdown.
-        const next = event.relatedTarget
-        if (open && next instanceof Node && !event.currentTarget.contains(next)) onOpenChange(false)
-      }}
-    >
+    <>
       <FilterChip
         selected={selected}
         trailingIcon="chevron-down"
         aria-haspopup="true"
         aria-expanded={open}
         aria-controls={open ? id : undefined}
-        onClick={() => onOpenChange(!open)}
+        onClick={(event) => {
+          setChip(event.currentTarget)
+          onOpenChange(!open)
+        }}
       >
         {label}
       </FilterChip>
-      {open && (
-        <div id={id} className="ks-pop title-rel-pop" role="group" aria-label={name}>
+      {open && chip && (
+        <Popover
+          id={id}
+          anchor={chip}
+          align="start"
+          offset={8}
+          follow
+          className="title-rel-pop"
+          role="group"
+          aria-label={name}
+          onClose={() => onOpenChange(false)}
+        >
           <span className="ks-label" aria-hidden="true">
             {name}
           </span>
           <div className="title-rel-options">{children}</div>
-        </div>
+        </Popover>
       )}
-    </div>
+    </>
   )
 }
 
