@@ -98,7 +98,7 @@ export function Menu({ anchor, label, onClose, children, footer, className }: Me
   }
 
   return (
-    <div ref={ref} className={cx('ks-pop', className)} onKeyDown={onKeyDown}>
+    <div ref={ref} className={cx('ks-pop ks-menu-pop', className)} onKeyDown={onKeyDown}>
       <div role="menu" aria-label={label} className="ks-menu">
         {children}
       </div>

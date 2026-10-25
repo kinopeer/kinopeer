@@ -30,7 +30,8 @@ test.describe('modals, desktop', () => {
   test('deleting a torrent, dark, Russian', async ({ page }) => {
     await openApp(page, '/')
     await page.getByRole('button', { name: 'Ещё действия: Дюна: Часть вторая' }).click()
-    await page.getByRole('button', { name: 'Удалить' }).click()
+    // On desktop a download's actions are a menu next to its More button.
+    await page.getByRole('menuitem', { name: 'Удалить' }).click()
     await expect(page.getByRole('alertdialog', { name: 'Удалить торрент?' })).toBeVisible()
     await settle(page)
     await expect(page).toHaveScreenshot('desktop-delete-dark-ru.png')
