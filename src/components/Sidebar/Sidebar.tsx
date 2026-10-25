@@ -6,7 +6,7 @@ import { isTabOn, type TabBarItem } from '../TabBar'
 import './Sidebar.css'
 
 export interface SidebarItem extends TabBarItem {
-  /** A number after the label, such as how many torrents are downloading; hidden in the rail. */
+  /** A number after the label, such as how many torrents are downloading; a badge on the icon in the rail. */
   count?: { value: number; label: string }
 }
 
@@ -15,7 +15,7 @@ export interface SidebarProps {
   items: SidebarItem[]
   /** Accessible name of the navigation landmark. */
   label: string
-  /** At the bottom, e.g. the qBittorrent status card; hidden in the rail. */
+  /** At the bottom, e.g. the qBittorrent status, which has its own look for the rail. */
   footer?: ReactNode
   /** The page to mark the item for, when it isn't the URL's: the page a drawer is open over. */
   pathname?: string

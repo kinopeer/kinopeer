@@ -312,8 +312,8 @@
   padding: 0;
 }
 
-.tf-priority:focus-within {
-  outline: 2px solid var(--accent);
+.tf-priority:has(select:focus-visible) {
+  outline: var(--focus-ring);
   outline-offset: 2px;
 }
 

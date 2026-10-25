@@ -11,12 +11,17 @@ import { useFormatters } from '../lib/format'
 import { downloadStatus, isRunning, transferSpeed } from '../torrents/status'
 import type { DownloadItemProps } from './DownloadItem'
 
-/** The desktop list's column headers, in the order of DownloadRow's cells. */
-export function DownloadRowHeader({ selecting }: { selecting: boolean }) {
+/**
+ * The desktop list's column headers, in the order of DownloadRow's cells. The first column, the
+ * checkboxes or the queue positions, is there only while selecting or with a position to show.
+ */
+export function DownloadRowHeader({ selecting, queue }: { selecting: boolean; queue: boolean }) {
   const { t } = useTranslation()
   return (
     <div className="dl-row dl-row-head" role="row">
-      <span role="columnheader">{selecting ? <span className="sr-only">{t('downloads.columns.select')}</span> : '#'}</span>
+      {(selecting || queue) && (
+        <span role="columnheader">{selecting ? <span className="sr-only">{t('downloads.columns.select')}</span> : '#'}</span>
+      )}
       <span role="columnheader">
         <span className="sr-only">{t('downloads.columns.poster')}</span>
       </span>
@@ -38,9 +43,10 @@ export function DownloadRowHeader({ selecting }: { selecting: boolean }) {
 }
 
 /**
- * A download in the desktop list, a row of a table: queue position, poster, title and release,
- * progress, status, speed, time left, size, then pause or resume and More. The title opens the
- * details drawer. Narrower tables drop the size, then put the time left under the speed.
+ * A download in the desktop list, a row of a table: queue position (with `showQueue`) or the
+ * checkbox, poster, title and release, progress, status, speed, time left, size, then pause or
+ * resume and More. The title opens the details drawer. Narrower tables drop the size, then put the
+ * time left under the speed.
  */
 export function DownloadRow({
   torrent,
@@ -75,16 +81,17 @@ export function DownloadRow({
 
   return (
     <div className={cx('dl-row', selected && 'is-sel')} role="row">
-      <span role="cell" className="dl-row-queue ks-num c3">
-        {selecting ? (
-          <Checkbox checked={selected} label={title} className="dl-select" onChange={() => onToggle?.(torrent)} />
-        ) : (
-          showQueue &&
-          torrent.priority > 0 && (
-            <span aria-label={t('downloads.queuePosition', { position: torrent.priority })}>{torrent.priority}</span>
-          )
-        )}
-      </span>
+      {(selecting || showQueue) && (
+        <span role="cell" className="dl-row-queue ks-num c3">
+          {selecting ? (
+            <Checkbox checked={selected} label={title} className="dl-select" onChange={() => onToggle?.(torrent)} />
+          ) : (
+            torrent.priority > 0 && (
+              <span aria-label={t('downloads.queuePosition', { position: torrent.priority })}>{torrent.priority}</span>
+            )
+          )}
+        </span>
+      )}
       <span role="cell">
         <Poster className="dl-row-poster" src={match ? posterUrl(match.posterPath, 'w92') : undefined} />
       </span>

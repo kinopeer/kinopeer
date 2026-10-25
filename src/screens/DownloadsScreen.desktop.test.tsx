@@ -137,6 +137,35 @@ describe('DownloadsScreen on desktop', () => {
     expect(within(andor).getAllByText('—')).toHaveLength(1)
   })
 
+  it('drops the "#" column when no torrent shown has a queue position', async () => {
+    updateSettings({ downloadsDesktopView: 'list', downloadsSort: 'name' })
+    const { unmount } = renderScreen()
+    let [row] = await tableRows()
+    let headers = within(screen.getByRole('table', { name: 'Downloads' })).getAllByRole('columnheader')
+    expect(headers.map((header) => header.textContent)).not.toContain('#')
+    expect(within(row).getAllByRole('cell')).toHaveLength(headers.length)
+    unmount()
+
+    // The queue order, but nothing is queued.
+    updateSettings({ downloadsSort: 'priority' })
+    getMainData.mockResolvedValue({
+      ...SNAPSHOT,
+      torrents: { andor: SNAPSHOT.torrents!.andor, alien: SNAPSHOT.torrents!.alien },
+    })
+    renderScreen()
+    ;[row] = await tableRows()
+    headers = within(screen.getByRole('table', { name: 'Downloads' })).getAllByRole('columnheader')
+    expect(headers[0]).toHaveTextContent('Poster')
+    expect(within(row).getAllByRole('cell')).toHaveLength(headers.length)
+
+    // Selecting brings the column back for the checkboxes.
+    await userEvent.click(screen.getByRole('button', { name: 'Select' }))
+    ;[row] = await tableRows()
+    headers = within(screen.getByRole('table', { name: 'Downloads' })).getAllByRole('columnheader')
+    expect(headers[0]).toHaveTextContent('Select')
+    expect(within(within(row).getAllByRole('cell')[0]).getByRole('checkbox')).toBeInTheDocument()
+  })
+
   it('pauses and resumes from a row', async () => {
     updateSettings({ downloadsDesktopView: 'list' })
     vi.mocked(api.stopTorrents).mockResolvedValue()

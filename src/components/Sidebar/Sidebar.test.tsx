@@ -66,15 +66,26 @@ describe('SidebarStatus', () => {
   it('shows qBittorrent’s version, total speeds and free space', () => {
     render(<SidebarStatus version="v5.0.1" offline={false} downloadSpeed={4_300_000} uploadSpeed={120_000} freeSpace={1_210_000_000_000} />)
     const card = screen.getByRole('region', { name: 'qBittorrent' })
-    expect(within(card).getByText('qBittorrent v5.0.1')).toBeInTheDocument()
+    expect(within(card).getAllByText('qBittorrent v5.0.1')).toHaveLength(2)
     expect(card).toHaveTextContent('↓Download speed 4.3 MB/s')
     expect(card).toHaveTextContent('↑Upload speed 120 KB/s')
     expect(within(card).getByText('1.21 TB free')).toBeInTheDocument()
   })
 
+  it('stacks each number over its unit for the rail', () => {
+    render(<SidebarStatus version="v5.0.1" offline={false} downloadSpeed={4_300_000} uploadSpeed={120_000} freeSpace={1_210_000_000_000} />)
+    const download = screen.getByText('MB/s').closest('p')
+    expect(download).toHaveTextContent(/^↓Download speed 4\.3MB\/s$/)
+    expect(screen.getByText('KB/s').closest('p')).toHaveTextContent(/^↑Upload speed 120KB\/s$/)
+    expect(screen.getByText('TB').closest('p')).toHaveTextContent(/^Free space 1\.21TB$/)
+    expect(screen.getByTitle('qBittorrent v5.0.1')).toBeInTheDocument()
+  })
+
   it('says when qBittorrent doesn’t answer', () => {
     render(<SidebarStatus version="v5.0.1" offline downloadSpeed={4_300_000} />)
-    expect(screen.getByText('No connection to qBittorrent')).toBeInTheDocument()
+    // In the card and in the rail's column.
+    expect(screen.getAllByText('No connection to qBittorrent')).toHaveLength(2)
     expect(screen.getByRole('region', { name: 'qBittorrent' })).toHaveTextContent('↓Download speed —')
+    expect(screen.queryByText('TB')).not.toBeInTheDocument()
   })
 })

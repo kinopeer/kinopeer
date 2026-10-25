@@ -12,6 +12,7 @@ import { Input } from '../components/Input'
 import { PosterCardSkeleton } from '../components/PosterCard'
 import { Segmented } from '../components/Segmented'
 import { Toast } from '../components/Toast'
+import { cx } from '../lib/cx'
 import { useFormatters } from '../lib/format'
 import { useIsDesktop } from '../lib/useIsDesktop'
 import { useSettings } from '../settings/settings'
@@ -134,6 +135,8 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
       )
       .sort(compareTorrents(sort, (torrent) => matches[torrent.hash]?.title ?? torrent.name))
   }, [typed, filter, query, matches, sort])
+  // The table's "#" column only when the queue order puts a position on some torrent shown.
+  const queueColumn = sort === 'priority' && visible.some((torrent) => torrent.priority > 0)
 
   // Only what's on screen counts, so a filter never leaves hidden torrents selected.
   const selectedVisible = selected ? visible.filter((torrent) => selected.has(torrent.hash)) : []
@@ -439,9 +442,9 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
             {t('downloads.noMatchBody')}
           </EmptyState>
         ) : isDesktop && !grid ? (
-          <div className="dl-table" role="table" aria-label={t('downloads.title')}>
+          <div className={cx('dl-table', (selecting || queueColumn) && 'has-lead')} role="table" aria-label={t('downloads.title')}>
             <div role="rowgroup">
-              <DownloadRowHeader selecting={selecting} />
+              <DownloadRowHeader selecting={selecting} queue={queueColumn} />
             </div>
             <div role="rowgroup" className="dl-table-body">
               {visible.map((torrent) => (
@@ -449,7 +452,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
                   key={torrent.hash}
                   torrent={torrent}
                   match={matches[torrent.hash]}
-                  showQueue={sort === 'priority'}
+                  showQueue={queueColumn}
                   onMore={openActions}
                   onToggleRunning={toggleRunning}
                   busy={toggling.has(torrent.hash)}

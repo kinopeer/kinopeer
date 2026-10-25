@@ -139,7 +139,8 @@
   },
   "sidebar": {
     "connected": "qBittorrent {{version}}",
-    "offline": "No connection to qBittorrent"
+    "offline": "No connection to qBittorrent",
+    "freeSpace": "Free space"
   },
   "search": {
     "title": "Search",
