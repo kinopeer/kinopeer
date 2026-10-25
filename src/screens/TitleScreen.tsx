@@ -1,7 +1,7 @@
 import type { TFunction } from 'i18next'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useLocation, useNavigate, useParams } from 'react-router'
+import { useLocation, useMatch, useNavigate, useParams } from 'react-router'
 import {
   TmdbError,
   TmdbKeyError,
@@ -19,12 +19,15 @@ import { Icon } from '../components/Icon'
 import { IconButton } from '../components/IconButton'
 import { Poster } from '../components/Poster'
 import { useFormatters, type Formatters } from '../lib/format'
+import { useIsDesktop } from '../lib/useIsDesktop'
 import { useRequest } from '../lib/useRequest'
 import { useTmdbLanguage } from '../settings/settings'
 import { useTitleTorrents } from '../torrents/titleMatches'
 import { useMainData } from '../torrents/useMainData'
+import { ReleasesScreen } from './ReleasesScreen'
 import type { SettingsLocationState } from './SettingsScreen'
 import { TitleDownloads } from './TitleDownloads'
+import { TitleReleases } from './TitleReleases'
 import './TitleScreen.css'
 
 type Details = ({ type: 'movie' } & MovieDetails) | ({ type: 'tv' } & TvDetails)
@@ -58,9 +61,26 @@ function metaLine(t: TFunction, format: Formatters, details: Details): string {
     .join(' · ')
 }
 
+const RELEASES_PATH = '/title/:type/:id/releases'
+
 export interface TitleScreenProps {
   /** qBittorrent rejected the session cookie (expired or signed out elsewhere). */
   onSessionLost: () => void
+}
+
+export interface TitleLocationState {
+  /** The title page was opened from a link, so Back has nowhere to go in the app. */
+  deepLink?: boolean
+}
+
+/**
+ * The title's routes. On a phone its releases are a screen of their own; on desktop they're on the
+ * title page, under the hero, and the releases path opens it with them searched.
+ */
+export function TitleRoute({ onSessionLost }: TitleScreenProps) {
+  const desktop = useIsDesktop()
+  const releases = useMatch(RELEASES_PATH) !== null
+  return releases && !desktop ? <ReleasesScreen /> : <TitleScreen onSessionLost={onSessionLost} />
 }
 
 export function TitleScreen({ onSessionLost }: TitleScreenProps) {
@@ -73,6 +93,10 @@ export function TitleScreen({ onSessionLost }: TitleScreenProps) {
   const id = Number(params.id)
   const valid = type !== undefined && Number.isInteger(id) && id > 0
   const language = useTmdbLanguage()
+  const desktop = useIsDesktop()
+  // On desktop the releases path is the title page with its releases searched.
+  const searched = useMatch(RELEASES_PATH) !== null && desktop
+  const releasesRef = useRef<HTMLElement>(null)
 
   // The title's torrents. While qBittorrent doesn't answer, the last known ones stay.
   const { data } = useMainData(onSessionLost)
@@ -86,8 +110,32 @@ export function TitleScreen({ onSessionLost }: TitleScreenProps) {
   )
 
   // Opened from inside the app: go back. Opened from a shared link: there's nothing to go back to.
-  const goBack = () => (location.key !== 'default' ? navigate(-1) : navigate('/search'))
-  const backButton = (
+  const deepLink = location.key === 'default' || (location.state as TitleLocationState | null)?.deepLink === true
+  const goBack = () => (deepLink ? navigate('/search') : navigate(-1))
+
+  const scrollToReleases = () =>
+    releasesRef.current?.scrollIntoView?.({
+      block: 'start',
+      behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+    })
+  const hasDetails = request.data !== undefined
+  // The releases appear once searched (the button, or a link to them): show them.
+  useEffect(() => {
+    if (searched && hasDetails) scrollToReleases()
+  }, [searched, hasDetails])
+
+  const findReleases = () => {
+    if (!desktop) return navigate(`/title/${type}/${id}/releases`)
+    if (searched) return scrollToReleases()
+    // The releases are part of the page, so Back still leaves it rather than hiding them.
+    navigate(`/title/${type}/${id}/releases`, { replace: true, state: { deepLink } satisfies TitleLocationState })
+  }
+
+  const backButton = desktop ? (
+    <Button variant="ghost" size="sm" icon="chevron-left" className="title-dback" onClick={goBack}>
+      {t('title.back')}
+    </Button>
+  ) : (
     <IconButton
       icon="chevron-left"
       variant="glass"
@@ -139,6 +187,25 @@ export function TitleScreen({ onSessionLost }: TitleScreenProps) {
   }
 
   const details = request.data
+  if (!details && desktop) {
+    return (
+      <main className="title title-desktop" aria-busy="true">
+        <div className="title-dhero">
+          {backButton}
+          <div className="title-dhead" role="status">
+            <span className="sr-only">{t('title.loading')}</span>
+            <div className="ks-skel title-dposter title-skel-poster" aria-hidden="true" />
+            <div className="title-dtext" aria-hidden="true">
+              <div className="ks-skel" style={{ height: 46, width: '60%' }} />
+              <div className="ks-skel" style={{ height: 16, width: '40%' }} />
+              <div className="ks-skel" style={{ height: 52, width: '80%' }} />
+            </div>
+          </div>
+        </div>
+      </main>
+    )
+  }
+
   if (!details) {
     return (
       <main className="title" aria-busy="true">
@@ -160,7 +227,76 @@ export function TitleScreen({ onSessionLost }: TitleScreenProps) {
 
   const name = details.type === 'movie' ? details.title : details.name
   const originalName = details.type === 'movie' ? details.original_title : details.original_name
-  const poster = posterUrl(details.poster_path, 'w342')
+  const poster = posterUrl(details.poster_path, desktop ? 'w500' : 'w342')
+  const inDownloads = downloads.length > 0 && (
+    <Badge kind="coverage" icon="check" className="title-in-dl">
+      {t('title.inDownloadsBadge', {
+        value: downloads.length > 1 ? downloads.length : format.percent(downloads[0].progress),
+      })}
+    </Badge>
+  )
+  const rating = details.vote_count > 0 && (
+    <p className="title-rating">
+      <Icon name="star" size={16} filled className="title-star" />
+      <span className="sr-only">{t('title.rating')}</span>
+      <span className="ks-num">{details.vote_average.toLocaleString(i18n.language, { maximumFractionDigits: 1, minimumFractionDigits: 1 })}</span>
+      <span className="t-cap c3">TMDB</span>
+    </p>
+  )
+  const genres = details.genres.length > 0 && (
+    <ul className="title-genres">
+      {details.genres.map((genre) => (
+        <li key={genre.id}>
+          <Badge>{genre.name}</Badge>
+        </li>
+      ))}
+    </ul>
+  )
+
+  if (desktop) {
+    return (
+      <main className="title title-desktop">
+        <div className="title-dhero">
+          {poster && <img src={poster} alt="" className="title-dhero-art" aria-hidden="true" />}
+          <div className="title-hero-fade" aria-hidden="true" />
+          {backButton}
+          <div className="title-dhead">
+            <Poster src={poster} className="title-dposter" />
+            <div className="title-dtext">
+              {inDownloads}
+              <h1 className="t-display title-dname">{name}</h1>
+              <div className="title-dmeta">
+                {originalName && originalName !== name && (
+                  <p className="t-label c2" lang={details.original_language}>
+                    {originalName}
+                  </p>
+                )}
+                <p className="t-label c2 ks-num">{metaLine(t, format, details)}</p>
+                {rating}
+                {genres}
+              </div>
+              {details.overview && (
+                <section aria-labelledby="title-overview">
+                  <h2 id="title-overview" className="sr-only">
+                    {t('title.overview')}
+                  </h2>
+                  <p className="t-body-lg c2 title-doverview">{details.overview}</p>
+                </section>
+              )}
+              <div className="title-dactions">
+                <Button size="lg" icon={searched ? 'arrow-down' : 'search'} onClick={findReleases}>
+                  {t('title.findReleases')}
+                </Button>
+                {details.type === 'tv' && <p className="t-cap c2 title-dhint">{t('title.seriesHint')}</p>}
+              </div>
+            </div>
+          </div>
+        </div>
+        <TitleDownloads torrents={downloads} />
+        {searched && <TitleReleases details={details} sectionRef={releasesRef} />}
+      </main>
+    )
+  }
 
   return (
     <main className="title">
@@ -173,13 +309,7 @@ export function TitleScreen({ onSessionLost }: TitleScreenProps) {
         <div className="title-head">
           <Poster src={poster} className="title-poster" />
           <div className="title-head-text">
-            {downloads.length > 0 && (
-              <Badge kind="coverage" icon="check" className="title-in-dl">
-                {t('title.inDownloadsBadge', {
-                  value: downloads.length > 1 ? downloads.length : format.percent(downloads[0].progress),
-                })}
-              </Badge>
-            )}
+            {inDownloads}
             <h1 className="t-h2 title-name">{name}</h1>
             {originalName && originalName !== name && (
               <p className="t-cap c3" lang={details.original_language}>
@@ -187,26 +317,11 @@ export function TitleScreen({ onSessionLost }: TitleScreenProps) {
               </p>
             )}
             <p className="t-cap c2 ks-num">{metaLine(t, format, details)}</p>
-            {details.vote_count > 0 && (
-              <p className="title-rating">
-                <Icon name="star" size={16} filled className="title-star" />
-                <span className="sr-only">{t('title.rating')}</span>
-                <span className="ks-num">{details.vote_average.toLocaleString(i18n.language, { maximumFractionDigits: 1, minimumFractionDigits: 1 })}</span>
-                <span className="t-cap c3">TMDB</span>
-              </p>
-            )}
+            {rating}
           </div>
         </div>
 
-        {details.genres.length > 0 && (
-          <ul className="title-genres">
-            {details.genres.map((genre) => (
-              <li key={genre.id}>
-                <Badge>{genre.name}</Badge>
-              </li>
-            ))}
-          </ul>
-        )}
+        {genres}
 
         {details.overview && (
           <section className="title-overview" aria-labelledby="title-overview">
@@ -220,7 +335,7 @@ export function TitleScreen({ onSessionLost }: TitleScreenProps) {
         {details.type === 'tv' && <Banner tone="info">{t('title.seriesHint')}</Banner>}
       </div>
       <div className="title-actions">
-        <Button size="lg" icon="search" block onClick={() => navigate(`/title/${details.type}/${details.id}/releases`)}>
+        <Button size="lg" icon="search" block onClick={findReleases}>
           {t('title.findReleases')}
         </Button>
       </div>

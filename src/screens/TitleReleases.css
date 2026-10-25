@@ -1,0 +1,152 @@
+/* The desktop title page's releases, under the hero. */
+.title-rel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 32px 64px;
+  scroll-margin-top: 8px;
+  /* Tall enough to scroll its heading to the top while the search runs or finds little. */
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.title-rel-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+/* Filters and sort, pinned to the top while the table scrolls under them. */
+.title-rel-bar {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.title-rel-filter {
+  position: relative;
+}
+
+.title-rel-pop {
+  position: absolute;
+  top: 46px;
+  left: 0;
+  z-index: 25;
+  width: 320px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-2);
+  animation: ks-fade var(--d-fast) var(--ease);
+}
+
+.title-rel-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.title-rel-sort {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* The table: the audio column shows from 1400px; narrower, audio sits under the name. */
+.title-rel-table {
+  --rel-cols: minmax(0, 1fr) 84px 64px 56px 104px 72px 112px;
+  display: flex;
+  flex-direction: column;
+}
+
+.title-rel-row {
+  display: grid;
+  grid-template-columns: var(--rel-cols);
+  align-items: start;
+  gap: 12px;
+  padding: 14px 12px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  font-size: 14px;
+  line-height: 20px;
+  transition:
+    background-color var(--d-fast) var(--ease),
+    border-color var(--d-fast) var(--ease);
+}
+
+@media (hover: hover) {
+  .title-rel-row:not(.title-rel-th):hover {
+    background: var(--surface);
+    border-color: var(--border);
+  }
+}
+
+.title-rel-th {
+  padding-top: 4px;
+  padding-bottom: 8px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text3);
+}
+
+.title-rel-release {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.title-rel-release .rel-name {
+  line-height: 20px;
+  border-radius: 6px;
+}
+
+.title-rel .title-rel-audio {
+  display: none;
+}
+
+.title-rel-size,
+.title-rel-seeds {
+  font-weight: 600;
+}
+
+.title-rel-small {
+  font-size: 13.5px;
+}
+
+.title-rel-add {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.title-rel-skel {
+  align-items: center;
+}
+
+@media (min-width: 1400px) {
+  .title-rel-table {
+    --rel-cols: minmax(0, 1fr) 210px 84px 64px 56px 116px 64px 112px;
+  }
+
+  .title-rel .title-rel-audio {
+    display: flex;
+  }
+
+  .title-rel .title-rel-audio-inline {
+    display: none;
+  }
+}

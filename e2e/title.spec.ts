@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { openApp, showWholePage, type AppOptions } from './app.ts'
+import { DESKTOP, DESKTOP_RAIL, openApp, showWholePage, type AppOptions } from './app.ts'
 
 async function openTitle(page: Page, path: string, name: string, options: AppOptions = {}) {
   await openApp(page, path, options)
@@ -29,5 +29,32 @@ test.describe('wide screen', () => {
   test('movie, dark, Russian', async ({ page }) => {
     await openTitle(page, '/title/movie/693134', 'Дюна: Часть вторая')
     await expect(page).toHaveScreenshot('movie-wide-dark-ru.png')
+  })
+})
+
+test.describe('desktop', () => {
+  test.use(DESKTOP)
+
+  test('movie, dark, Russian', async ({ page }) => {
+    await openTitle(page, '/title/movie/693134', 'Дюна: Часть вторая')
+    await expect(page).toHaveScreenshot('desktop-movie-dark-ru.png')
+  })
+
+  test.describe('light, English', () => {
+    test.use({ locale: 'en-US' })
+
+    test('series', async ({ page }) => {
+      await openTitle(page, '/title/tv/126308', 'Shōgun', { theme: 'light', lang: 'en' })
+      await expect(page).toHaveScreenshot('desktop-series-light-en.png')
+    })
+  })
+})
+
+test.describe('desktop, icon rail', () => {
+  test.use(DESKTOP_RAIL)
+
+  test('movie, dark, Russian', async ({ page }) => {
+    await openTitle(page, '/title/movie/693134', 'Дюна: Часть вторая')
+    await expect(page).toHaveScreenshot('rail-movie-dark-ru.png')
   })
 })

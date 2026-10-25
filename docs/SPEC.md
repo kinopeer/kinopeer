@@ -89,12 +89,15 @@ Poster, year, runtime or number of seasons and episodes, rating, overview, and a
 - "In downloads": under the overview, a card for each of this title's torrents (by the same match the downloads list shows: the user's choice, the tag or a guess), newest first. A card shows the season and episodes read from the release name ("S02 E01–05") and the resolution, the release name, progress, status, speed and size, and opens the torrent screen. Hidden when there are none, and when qBittorrent doesn't answer before the first refresh.
 - A badge in the header: "In downloads · 41%" for one torrent, "In downloads · 3" for several.
 - The way back: the torrent's menu (in Downloads and on the torrent screen) has "Movie page" or "Series page".
+- Desktop: a wide hero over the blurred poster (poster, title, original name, year and runtime or seasons, rating and genres in one line, the overview), with "Find releases" in it and the series hint beside the button. "In downloads" cards sit side by side under the hero. Opening the page sends no request to Prowlarr: pressing "Find releases" searches and shows the releases under the hero, scrolled to, and the address becomes the releases one. That address opens the page with the releases searched. Back leaves the page, whether or not the releases were searched; pressing the button again scrolls back to them.
 
 ### Releases
 
 - The query is the original title, plus the year for a movie. No category filter: some indexers (RuTor, for example) file everything under "Other".
 - Resolution, source, HDR, audio and seasons are read from the release name.
 - Filters: resolution, audio, source, minimum seeds, indexer. Sort by seeds, size or date.
+- Phone: a screen of its own with a back button; the filters are in a sheet and releases are cards.
+- Desktop: on the title page (see Title). A bar that stays at the top while scrolling holds a chip per filter, each opening its values in a popover (Escape or a click outside closes it), and the sort with its direction. Picked filters show as removable chips with "Clear all". Releases are a table: release name with season and quality badges, audio, size, seeds, peers, indexer, age and Add. Below 1400px the audio badges move under the name.
 
 ### Adding
 
@@ -123,6 +126,7 @@ Manifest and icons; the service worker keeps the app shell available offline and
 
 | Date | Decision |
 | --- | --- |
+| 2026-10-25 | Desktop releases are on the title page and searched only when "Find releases" is pressed (rather than on opening the title, or on a page of their own as on phones): a title opened to read about it costs no Prowlarr request, and the releases stay next to what they're for. The search gets its own address (`/title/:type/:id/releases`, the phone's releases address) so it can be linked and survives a reload; pressing the button replaces the title's address rather than adding one, so Back leaves the page instead of only hiding the releases. Filters open as popovers from a sticky bar, not the phone's sheet. |
 | 2026-10-25 | On desktop, sheets and dialogs become centered modals, as the canvas draws them (`ks-modal`), rather than bottom sheets or a separate component: every sheet works the same way on both, and a screen picks only the size (`Sheet size="lg"` for long lists). Footer buttons keep their own width on the right, like the canvas's modals. Sheets that are menus or quick pickers (the row menu, sort, release filters) are modals too for now; the screens' own desktop layouts may turn them into popovers. |
 | 2026-10-25 | The desktop layout (0.4) starts at 1024px, the design system's breakpoint; the sidebar is an icon rail up to 1100px, as the design system's README says. Below 1024px the phone layout stays, tablets included. On desktop, `/torrent/:hash` shows Downloads with the torrent's details in a side drawer rather than a page of its own, and the title page shows releases in place, searched only when the user presses "Find releases", so opening a title sends no request to Prowlarr. The desktop canvas predates 0.2 and 0.3, so where it lacks later features (the title's "In downloads" block, sort, the type filter, multi-select, changing a title) the app as built is the reference. In selection mode the sidebar stays: navigation is still useful, and leaving Downloads ends the selection. |
 | 2026-10-25 | Multi-select follows the canvas: a Select button rather than a long press (which a phone browser saves for its own menu and a desktop doesn't have), and the bulk bar in place of the tab bar. Bulk actions apply to the selected torrents the filters show. The poster grid gets selection too: a checkbox in the poster's corner, which the canvas didn't draw. |
