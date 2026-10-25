@@ -2,7 +2,9 @@
 
 Kinoseed follows [semantic versioning](https://semver.org). While the version is 0.x, minor versions may change behavior and settings.
 
-## Unreleased
+## 0.3.0 - 2026-10-25
+
+Managing downloads: sort the list, show only movies or series, and pause, resume or delete several torrents at once.
 
 ### Added
 

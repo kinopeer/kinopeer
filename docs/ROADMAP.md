@@ -21,9 +21,10 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 - [x] Download defaults are kept on the server and are the same on every device.
 - [x] On wide screens, a centered column of limited width until the desktop layout lands.
 
-## 0.3: Managing downloads
+## Done: 0.3.0 (2026-10-25): Managing downloads
 
 - [x] Sorting the list.
+- [x] Filtering the list by type: movies or series.
 - [x] Multi-select and bulk actions: pause, resume, delete.
 - [x] A poster grid as a second view of the downloads list, as on the canvas.
 
