@@ -223,7 +223,7 @@ describe('DownloadsScreen', () => {
     const { unmount } = renderScreen()
     await screen.findAllByRole('listitem')
     await userEvent.click(screen.getByRole('button', { name: 'Sort: Priority' }))
-    const sheet = within(screen.getByRole('dialog', { name: 'Sort' }))
+    const sheet = within(screen.getByRole('dialog', { name: 'Sort & filter' }))
     expect(sheet.getByRole('radio', { name: 'Priority', checked: true })).toBeInTheDocument()
     expect(sheet.getByRole('radio', { name: 'Priority' })).toHaveAccessibleDescription('Queue order')
 
@@ -241,6 +241,40 @@ describe('DownloadsScreen', () => {
     await screen.findAllByRole('listitem')
     expect(screen.getByRole('button', { name: 'Sort: Name' })).toHaveTextContent('Name')
     expect(headings()[0]).toBe('Alien.Romulus.2024.1080p')
+  })
+
+  it('filters by type, counting within it, and resets it with the other filters', async () => {
+    searchTitles.mockImplementation(async (query) => ({
+      titles: query === 'Dune Part Two' ? [DUNE_TITLE] : [],
+      page: 1,
+      totalPages: 1,
+    }))
+    renderScreen()
+    await screen.findByText('Dune: Part Two')
+    expect(screen.getByRole('button', { name: 'Sort: Priority' })).not.toHaveTextContent('Series')
+    await userEvent.click(screen.getByRole('button', { name: 'Sort: Priority' }))
+    const sheet = within(screen.getByRole('dialog', { name: 'Sort & filter' }))
+    const types = within(sheet.getByRole('radiogroup', { name: 'Type' }))
+    expect(types.getByRole('radio', { name: 'All', checked: true })).toBeInTheDocument()
+
+    // Season markers make Andor a series; Alien has no title and no markers, so it shows only under All.
+    await userEvent.click(types.getByRole('radio', { name: 'Series' }))
+    expect(screen.getAllByRole('listitem').map((item) => within(item).getByRole('heading').textContent)).toEqual([
+      'Andor.S02.1080p',
+    ])
+    await userEvent.click(types.getByRole('radio', { name: 'Movies' }))
+    expect(screen.getAllByRole('listitem').map((item) => within(item).getByRole('heading').textContent)).toEqual([
+      'Dune: Part Two2024',
+    ])
+    await userEvent.click(sheet.getByRole('button', { name: 'Done' }))
+    expect(screen.getByRole('button', { name: 'Sort: Priority, Movies' })).toHaveTextContent('Movies')
+
+    const filters = within(screen.getByRole('group', { name: 'Filter by status' }))
+    expect(filters.getByRole('button', { name: 'All 1', pressed: true })).toBeInTheDocument()
+    await userEvent.click(filters.getByRole('button', { name: 'Seeding 0' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Reset filters' }))
+    expect(screen.getAllByRole('listitem')).toHaveLength(3)
+    expect(screen.getByRole('button', { name: 'Sort: Priority' })).toBeInTheDocument()
   })
 
   it('sorts by the TMDB title once matched', async () => {

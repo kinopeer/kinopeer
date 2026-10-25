@@ -69,12 +69,23 @@
   margin-left: -8px;
 }
 
+.sort-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
 .sort-options {
   margin: 0 -12px;
   padding: 0;
   border: none;
   display: flex;
   flex-direction: column;
+}
+
+.sort-options legend {
+  padding: 0 12px;
+  margin-bottom: 4px;
 }
 
 .sort-option {

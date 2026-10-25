@@ -53,6 +53,24 @@ export function lookupFor(
   return { key: `q:${type}:${parsed.year ?? ''}:${parsed.title.toLocaleLowerCase()}`, parsed, hint }
 }
 
+/** The Downloads type filter: every torrent, or movies or series only. */
+export type TypeFilter = 'all' | MediaType
+
+/**
+ * Whether a torrent is a movie or a series: the matched title's type, else what the lookup knows
+ * without TMDB (a known title, season markers in the name, the category). Undefined when nothing
+ * says, so the torrent shows only under All.
+ */
+export function titleType(
+  torrent: Pick<Torrent, 'name' | 'tags'> & { category?: string },
+  stored?: StoredMatch,
+  match?: TitleMatch | null,
+): MediaType | undefined {
+  if (match) return match.type
+  const lookup = lookupFor(torrent, stored)
+  return lookup.tag?.type ?? lookup.parsed?.type ?? lookup.hint
+}
+
 /** Whether a torrent's title was guessed from its name: neither the user's choice nor the `tmdb:` tag. */
 export function isGuessed(torrent: Pick<Torrent, 'tags'>, stored?: StoredMatch): boolean {
   return stored?.source !== 'user' && !tmdbTag(torrent.tags ?? '')
