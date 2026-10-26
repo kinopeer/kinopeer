@@ -31,7 +31,11 @@ Unit tests run in jsdom, which has no layout, so they can't catch a button in th
 - **Docker only:** fonts render differently on macOS and on other Linux setups (about 1% of pixels, enough to fail), so baselines are rendered only in the Playwright image. `npm run test:visual` runs the tests in it with Docker; `node_modules` for the container is kept in a Docker volume, not the host's. Arguments go to `playwright test`, e.g. `npm run test:visual -- e2e/search.spec.ts`.
 - **Changing the UI:** a PR that changes how a covered screen looks updates its baselines: `npm run test:visual:update`, check the new PNGs (GitHub shows image diffs in the PR) and commit them. Add a spec when a new screen or state needs one.
 - **In CI:** the `visual` job runs in the same image. When it fails, its `playwright-report` artifact has the expected, actual and diff images.
-- **Upgrading Playwright:** `@playwright/test` in `package.json`, the image tag in `scripts/test-visual.sh` and in `.github/workflows/ci.yml` must name the same version; re-render the baselines after an upgrade.
+- **Upgrading Playwright:** `@playwright/test` in `package.json`, the image tag in `scripts/test-visual.sh`, `scripts/readme-screenshots.sh` and `.github/workflows/ci.yml` must name the same version; re-render the baselines after an upgrade.
+
+### README screenshots
+
+`npm run screenshots:readme` re-renders the screenshots in `docs/screenshots/` (`e2e/readme.shots.ts`, config `playwright.readme.config.ts`): four phone screens and two desktop ones, dark theme, Russian. It runs in the same Playwright image, but on the dev server, so titles and posters come from TMDB for real; qBittorrent and Prowlarr answer from the fixtures. Only `TMDB_API_KEY` goes into the container, from the environment or `.env.local`. Retake them when a screen in the README changes noticeably, check the PNGs and commit them; nothing compares them in CI.
 
 ## Server configuration
 
