@@ -23,7 +23,7 @@
 .ks-dialog-inner {
   display: flex;
   flex-direction: column;
-  padding: 24px 20px 16px;
+  padding: var(--space-6) var(--space-5) var(--space-4);
 }
 
 .ks-dialog-icon {
@@ -71,12 +71,12 @@
   }
 
   .ks-dialog-inner {
-    padding: 24px;
+    padding: var(--space-6);
   }
 
   .ks-dialog-actions {
     justify-content: flex-end;
-    margin-top: 20px;
+    margin-top: var(--space-5);
   }
 
   .ks-dialog .ks-dialog-actions > * {

@@ -4,12 +4,12 @@
 }
 
 .install-sheet-icon {
-  margin: 0 6px 0 16px;
+  margin: 0 6px 0 var(--space-4);
 }
 
 @media (min-width: 1024px) {
   .install-sheet-icon {
-    margin-left: 12px;
+    margin-left: var(--space-3);
   }
 }
 
@@ -45,10 +45,10 @@
 .install-steps {
   list-style: none;
   margin: 0;
-  padding: 4px 0 0;
+  padding: var(--space-1) 0 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .install-steps li {

@@ -1,9 +1,9 @@
 .ks-banner {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 8px 10px 14px;
-  border-radius: 14px;
+  gap: var(--space-3);
+  padding: 10px var(--space-2) 10px 14px;
+  border-radius: var(--r-md);
   background: var(--warning-soft);
   color: var(--text);
   border: 1px solid color-mix(in srgb, var(--warning) 40%, transparent);

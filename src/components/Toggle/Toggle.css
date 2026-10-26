@@ -2,7 +2,7 @@
   position: relative;
   width: 52px;
   height: 32px;
-  border-radius: 999px;
+  border-radius: var(--r-full);
   border: none;
   background: var(--border-strong);
   flex: none;

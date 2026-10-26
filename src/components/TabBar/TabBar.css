@@ -6,7 +6,7 @@
   z-index: 20;
   display: flex;
   /* The background spans the screen; on wide screens the tabs stay over the screens' column. */
-  padding: 6px max(8px, calc((100% - var(--column)) / 2 + 8px)) var(--safe-bottom);
+  padding: 6px max(var(--space-2), calc((100% - var(--column)) / 2 + var(--space-2))) var(--safe-bottom);
   background: var(--glass);
   -webkit-backdrop-filter: blur(20px) saturate(1.4);
   backdrop-filter: blur(20px) saturate(1.4);
