@@ -10,7 +10,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding: 4px 20px 12px;
+  padding: var(--space-1) var(--space-5) var(--space-3);
   flex: none;
 }
 
@@ -19,7 +19,7 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 6px 8px 8px;
+  padding: 6px var(--space-2) var(--space-2);
   border-top: 1px solid var(--border);
 }
 
@@ -34,7 +34,7 @@
 
 .retitle-row {
   min-height: 76px;
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
   border-radius: 12px;
 }
 
@@ -66,15 +66,15 @@
 .retitle-current {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   font-weight: 600;
 }
 
 .retitle-loading {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
 }
 
 .retitle-skel {
@@ -88,10 +88,10 @@
 
 @media (min-width: 1024px) {
   .retitle-controls {
-    padding: 4px 24px 12px;
+    padding: var(--space-1) var(--space-6) var(--space-3);
   }
 
   .retitle-results {
-    padding: 6px 12px 8px;
+    padding: 6px var(--space-3) var(--space-2);
   }
 }

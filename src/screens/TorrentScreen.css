@@ -51,10 +51,10 @@
 .torrent-body {
   position: relative;
   margin-top: -118px;
-  padding: 0 20px var(--space-8);
+  padding: 0 var(--space-5) var(--space-8);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .torrent-head {
@@ -84,7 +84,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .torrent-title {
@@ -98,10 +98,10 @@
 }
 
 .torrent-card {
-  padding: 16px;
+  padding: var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .torrent-card-row {
@@ -128,13 +128,13 @@
 .torrent-speeds {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .torrent-speeds > span {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .torrent-actions {
@@ -157,13 +157,13 @@
 
 .torrent-kv {
   margin: 0;
-  padding-bottom: 8px;
+  padding-bottom: var(--space-2);
 }
 
 .ks-kv {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--space-4);
   padding: 11px 0;
   border-bottom: 1px solid var(--border);
   font-size: 14px;
@@ -192,11 +192,11 @@
 .tf {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .tf-title {
-  margin-bottom: 4px;
+  margin-bottom: var(--space-1);
 }
 
 .tf-count {
@@ -234,10 +234,10 @@
   align-items: center;
   gap: 10px;
   min-height: 56px;
-  padding: 6px 4px;
+  padding: 6px var(--space-1);
   margin-left: -4px;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   background: none;
   color: var(--text);
   text-align: left;
@@ -264,7 +264,7 @@
 }
 
 .tf-sub {
-  padding-left: 20px;
+  padding-left: var(--space-5);
 }
 
 .tf-file {
@@ -295,7 +295,7 @@
 .tf-file-progress {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .tf-bar {
@@ -327,7 +327,7 @@
   appearance: none;
   height: calc(100% + 10px);
   margin: -5px 0;
-  padding: 0 32px 0 14px;
+  padding: 0 var(--space-8) 0 14px;
   border: none;
   border-radius: inherit;
   background: transparent;
@@ -404,7 +404,7 @@
 }
 
 .torrent-message.is-drawer {
-  padding: 72px 24px 32px;
+  padding: 72px var(--space-6) var(--space-8);
 }
 
 .torrent-close {
@@ -429,7 +429,7 @@
 
 .is-drawer .torrent-body {
   margin-top: -78px;
-  padding: 0 24px 32px;
+  padding: 0 var(--space-6) var(--space-8);
 }
 
 .is-drawer .torrent-poster {

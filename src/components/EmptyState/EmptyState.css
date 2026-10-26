@@ -4,7 +4,7 @@
   align-items: center;
   text-align: center;
   gap: 10px;
-  padding: 40px 28px;
+  padding: var(--space-10) 28px;
 }
 
 .ks-empty-ic {
@@ -34,5 +34,5 @@
 }
 
 .ks-empty-action {
-  margin-top: 8px;
+  margin-top: var(--space-2);
 }

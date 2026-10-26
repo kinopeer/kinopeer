@@ -7,9 +7,9 @@
   margin: 0 auto;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   min-height: 52px;
-  padding: 6px 16px;
+  padding: 6px var(--space-4);
   border-radius: 16px;
   background: var(--toast-bg);
   color: var(--toast-text);
