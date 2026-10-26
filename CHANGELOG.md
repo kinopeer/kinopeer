@@ -6,6 +6,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ### Fixed
 
+- Desktop: a link to a title's releases (or a reload of their address) opens the title page at the releases, instead of at the top with the hero. ([#72](https://github.com/MrShakhov/kinoseed/issues/72))
 - Releases: a resolution written in the name wins over a UHD or 4K marker, so "UHD BDRip 1080p" shows as 1080p, not 2160p. HDRip is a source of its own, with its own filter, instead of showing as BDRip.
 
 ## 0.4.2 - 2026-10-26

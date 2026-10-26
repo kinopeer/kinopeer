@@ -131,7 +131,7 @@ describe('TitleScreen on desktop', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Find releases' }))
     expect(screen.getByText('at /title/movie/693134/releases')).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Releases' })).toBeInTheDocument()
-    expect(scrollIntoView).toHaveBeenCalled()
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'smooth' })
     expect(await screen.findByText('3 of 3 releases')).toBeInTheDocument()
     expect(searchReleases).toHaveBeenCalledWith('Dune Part Two 2024', expect.anything())
     expect(names()).toEqual([RELEASES[1].title, RELEASES[0].title, RELEASES[2].title])
@@ -139,11 +139,14 @@ describe('TitleScreen on desktop', () => {
     expect(getMovie).toHaveBeenCalledTimes(1)
   })
 
-  it('shows the releases already searched when opened at their link', async () => {
+  it('shows the releases already searched when opened at their link, starting at them', async () => {
     renderAt('/title/movie/693134/releases')
     expect(await screen.findByRole('heading', { level: 1, name: 'Dune: Part Two' })).toBeInTheDocument()
+    // Opened at the releases, the page jumps to them (no scroll animation) as soon as it has the title.
+    expect(scrollIntoView).toHaveBeenCalledTimes(1)
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'auto' })
     expect(await screen.findByText('3 of 3 releases')).toBeInTheDocument()
-    expect(scrollIntoView).toHaveBeenCalled()
+    expect(scrollIntoView).toHaveBeenCalledTimes(1)
     expect(within(table()).getAllByRole('row')[1]).toHaveTextContent('9.40 GB')
     expect(within(table()).getAllByRole('row')[1]).toHaveTextContent('Dubbed')
   })
@@ -168,6 +171,7 @@ describe('TitleScreen on desktop', () => {
     scrollIntoView.mockClear()
     await userEvent.click(screen.getByRole('button', { name: 'Find releases' }))
     expect(scrollIntoView).toHaveBeenCalledTimes(1)
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'smooth' })
     expect(searchReleases).toHaveBeenCalledTimes(1)
   })
 

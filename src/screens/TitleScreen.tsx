@@ -1,5 +1,5 @@
 import type { TFunction } from 'i18next'
-import { useEffect, useMemo, useRef } from 'react'
+import { useLayoutEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useMatch, useNavigate, useParams } from 'react-router'
 import {
@@ -113,15 +113,23 @@ export function TitleScreen({ onSessionLost }: TitleScreenProps) {
   const deepLink = location.key === 'default' || (location.state as TitleLocationState | null)?.deepLink === true
   const goBack = () => (deepLink ? navigate('/search') : navigate(-1))
 
-  const scrollToReleases = () =>
+  const scrollToReleases = (behavior: ScrollBehavior = 'smooth') =>
     releasesRef.current?.scrollIntoView?.({
       block: 'start',
-      behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : behavior,
     })
   const hasDetails = request.data !== undefined
-  // The releases appear once searched (the button, or a link to them): show them.
-  useEffect(() => {
-    if (searched && hasDetails) scrollToReleases()
+  // The page opened at the releases' address (a link, a reload, Back to it), so it starts at them.
+  const openedAtReleases = useRef(searched)
+  // The releases appear once searched: show them. From the button, the page scrolls down to them.
+  // Opened at their address, it jumps there before it's painted: the user hasn't seen the hero, so
+  // there's nothing to scroll from, and a smooth scroll while the page is still loading is fragile
+  // (layout shifts from fonts and images, and the browser's own scrolling on load, cut it short).
+  useLayoutEffect(() => {
+    if (!searched || !hasDetails) return
+    const instant = openedAtReleases.current
+    openedAtReleases.current = false
+    scrollToReleases(instant ? 'auto' : 'smooth')
   }, [searched, hasDetails])
 
   const findReleases = () => {
