@@ -41,7 +41,7 @@ export function InstallSheet({ platform, onClose }: InstallSheetProps) {
       <ol className="install-steps">
         {STEPS.map(({ key, icon }, index) => (
           <li key={key}>
-            <span className="install-step-n ks-num" aria-hidden="true">
+            <span className="t-cap install-step-n ks-num" aria-hidden="true">
               {index + 1}
             </span>
             <span className="t-body install-step-text">{t(`install.${steps}.${key}`)}</span>

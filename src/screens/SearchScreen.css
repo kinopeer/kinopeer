@@ -92,8 +92,8 @@
   border: none;
   background: transparent;
   color: var(--text2);
+  font: var(--t-body);
   font-weight: 500;
-  font-size: 15px;
   white-space: nowrap;
   border-radius: var(--r-sm) var(--r-sm) 0 0;
 }

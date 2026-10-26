@@ -86,7 +86,6 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  font-size: 14px;
   font-weight: 600;
 }
 
@@ -189,8 +188,6 @@
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
-  font-size: 12px;
-  line-height: 16px;
 }
 
 .title-dl-release .ks-badge {
@@ -209,7 +206,6 @@
 
 .title-dl-pct {
   min-width: 36px;
-  font-size: 12px;
   font-weight: 600;
   text-align: right;
 }
@@ -219,7 +215,6 @@
   align-items: center;
   flex-wrap: wrap;
   gap: var(--space-1) var(--space-2);
-  font-size: 12px;
 }
 
 .title-dl-size {
@@ -291,8 +286,6 @@
 }
 
 .title-dname {
-  font-size: 46px;
-  line-height: 50px;
   text-wrap: balance;
   overflow-wrap: anywhere;
 }

@@ -56,14 +56,14 @@ export function DownloadItem({ torrent, match, showQueue = true, onMore, selecte
         <div className="dl-text">
           {match ? (
             <>
-              <h2 className="dl-heading">
+              <h2 className="t-body dl-heading">
                 <span className="dl-title ks-trunc">{match.title}</span>
                 {match.year && <span className="t-cap c3 ks-num dl-year">{match.year}</span>}
               </h2>
-              <p className="dl-release ks-trunc c3">{torrent.name}</p>
+              <p className="t-cap dl-release ks-trunc c3">{torrent.name}</p>
             </>
           ) : (
-            <h2 className="dl-title ks-clamp2">{torrent.name}</h2>
+            <h2 className="t-body dl-title ks-clamp2">{torrent.name}</h2>
           )}
         </div>
         <div className="dl-progress">
@@ -73,9 +73,9 @@ export function DownloadItem({ torrent, match, showQueue = true, onMore, selecte
             label={t('downloads.progress', { name: title })}
             className="dl-bar"
           />
-          <span className="dl-pct ks-num c2">{format.percent(torrent.progress)}</span>
+          <span className="t-cap dl-pct ks-num c2">{format.percent(torrent.progress)}</span>
         </div>
-        <div className="dl-meta ks-num">
+        <div className="t-cap dl-meta ks-num">
           <StatusChip status={status}>{t(`status.${status}`)}</StatusChip>
           {!downloading && speed && <span className="c2">{speed}</span>}
           <span className="dl-size c3">
@@ -87,7 +87,7 @@ export function DownloadItem({ torrent, match, showQueue = true, onMore, selecte
         {/* A download's speed and time left get their own row: with the chip and a "done / total"
             size they don't fit a phone's width, and wrapping left the size alone on a second line. */}
         {downloading && speed && (
-          <div className="dl-transfer ks-num">
+          <div className="t-cap dl-transfer ks-num">
             <span className="c2">{speed}</span>
             {eta && <span className="dl-eta c3">{eta}</span>}
           </div>

@@ -18,7 +18,7 @@ import type { DownloadItemProps } from './DownloadItem'
 export function DownloadRowHeader({ selecting, queue }: { selecting: boolean; queue: boolean }) {
   const { t } = useTranslation()
   return (
-    <div className="dl-row dl-row-head" role="row">
+    <div className="t-cap dl-row dl-row-head" role="row">
       {(selecting || queue) && (
         <span role="columnheader">{selecting ? <span className="sr-only">{t('downloads.columns.select')}</span> : '#'}</span>
       )}
@@ -72,15 +72,15 @@ export function DownloadRow({
   const heading = (
     <>
       <span className="dl-row-heading">
-        <span className="dl-row-title ks-trunc">{title}</span>
+        <span className="t-body dl-row-title ks-trunc">{title}</span>
         {match?.year && <span className="c3 ks-num dl-row-year">{match.year}</span>}
       </span>
-      {match && <span className="dl-row-release ks-trunc c3">{torrent.name}</span>}
+      {match && <span className="t-cap dl-row-release ks-trunc c3">{torrent.name}</span>}
     </>
   )
 
   return (
-    <div className={cx('dl-row', selected && 'is-sel')} role="row">
+    <div className={cx('t-cap dl-row', selected && 'is-sel')} role="row">
       {(selecting || showQueue) && (
         <span role="cell" className="dl-row-queue ks-num c3">
           {selecting ? (
@@ -111,7 +111,7 @@ export function DownloadRow({
           label={t('downloads.progress', { name: title })}
           className="dl-bar"
         />
-        <span className="dl-pct ks-num c2">{format.percent(torrent.progress)}</span>
+        <span className="t-cap dl-pct ks-num c2">{format.percent(torrent.progress)}</span>
       </span>
       <span role="cell">
         <StatusChip status={status}>{t(`status.${status}`)}</StatusChip>

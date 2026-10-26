@@ -30,9 +30,9 @@
 
 .ks-side-wordmark {
   display: none;
-  font-size: 22px;
+  font: var(--t-h2);
   font-weight: 700;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.04em; /* the wordmark: Onest Bold with its own tracking (design system → Logo) */
 }
 
 .ks-side-wordmark span {
@@ -54,7 +54,7 @@
   min-height: var(--touch-min);
   border-radius: var(--r-md);
   color: var(--text2);
-  font-size: 15px;
+  font: var(--t-body);
   font-weight: 500;
 }
 
@@ -73,7 +73,8 @@
   white-space: nowrap;
 }
 
-/* In the rail the count is a badge on the icon; with the labels it follows the label. */
+/* In the rail the count is a badge on the icon; with the labels it follows the label. Tabular
+   figures are set here, after the font shorthand, which would reset .ks-num. */
 .ks-nav-count {
   position: absolute;
   top: 4px;
@@ -84,10 +85,12 @@
   border-radius: var(--r-full);
   background: var(--accent);
   color: var(--on-accent);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 18px;
-  text-align: center;
+  font: var(--t-micro);
+  letter-spacing: var(--t-micro-tracking);
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .ks-side-foot {
@@ -118,9 +121,8 @@
   display: flex;
   align-items: center;
   color: var(--text2);
-  font-size: 12px;
+  font: var(--t-cap);
   font-weight: 600;
-  line-height: 16px;
   white-space: nowrap;
 }
 
@@ -130,8 +132,9 @@
 
 .ks-side-mini-unit {
   color: var(--text3);
-  font-size: 11px;
-  line-height: 14px;
+  font: var(--t-micro);
+  font-weight: 400;
+  letter-spacing: var(--t-micro-tracking);
 }
 
 .ks-side-card {
@@ -204,9 +207,10 @@
     padding: 0;
     background: none;
     color: inherit;
-    font-size: 12px;
+    font: var(--t-cap);
     font-weight: inherit;
-    line-height: inherit;
+    letter-spacing: normal;
+    font-variant-numeric: tabular-nums;
     opacity: 0.85;
   }
 

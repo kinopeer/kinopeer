@@ -54,10 +54,10 @@ export function FilePicker({ meta, skipped, onChange, free, subtitle, onDone }: 
     return (
       <li key={index} className="fp-file">
         <Checkbox label={label} checked={!skipped.has(index)} onChange={(selected) => setFiles([index], selected)} />
-        <span className="ks-trunc fp-file-name" title={label}>
+        <span className="t-cap ks-trunc fp-file-name" title={label}>
           {label}
         </span>
-        <span className="ks-num c3 fp-file-size">{format.size(file.size)}</span>
+        <span className="t-cap ks-num c3 fp-file-size">{format.size(file.size)}</span>
       </li>
     )
   }
@@ -83,13 +83,13 @@ export function FilePicker({ meta, skipped, onChange, free, subtitle, onDone }: 
           >
             <Icon name="folder" className="c2" />
             <span className="fp-group-text">
-              <span className="fp-group-name ks-trunc">{folder.name}</span>
+              <span className="t-body fp-group-name ks-trunc">{folder.name}</span>
               <span className="t-cap c3 ks-num">
                 {t('add.files', { count: folder.all.length })} · {format.size(folder.size)}
               </span>
             </span>
             {state === 'mixed' && (
-              <span className="ks-num ca fp-group-count">
+              <span className="t-cap ks-num ca fp-group-count">
                 {selected}/{folder.all.length}
               </span>
             )}

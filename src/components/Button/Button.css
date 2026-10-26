@@ -8,7 +8,7 @@
   padding: 0 var(--space-5);
   border-radius: var(--r-md);
   border: 1px solid transparent;
-  font-size: 16px;
+  font: var(--t-body);
   font-weight: 600;
   white-space: nowrap;
   user-select: none;
@@ -23,7 +23,8 @@
 .ks-btn-sm {
   height: 36px;
   padding: 0 var(--space-4);
-  font-size: 14px;
+  font: var(--t-label);
+  font-weight: 600;
   border-radius: var(--r-sm);
   gap: var(--space-2);
 }
@@ -37,7 +38,8 @@
 
 .ks-btn-lg {
   height: 56px;
-  font-size: 17px;
+  font: var(--t-body-lg);
+  font-weight: 600;
   border-radius: var(--r-md);
 }
 

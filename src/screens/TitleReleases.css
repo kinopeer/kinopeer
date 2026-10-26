@@ -67,8 +67,7 @@
   padding: var(--space-4) var(--space-3);
   border-radius: var(--r-md);
   border: 1px solid transparent;
-  font-size: 14px;
-  line-height: 20px;
+  font-weight: 400;
   transition:
     background-color var(--d-fast) var(--ease),
     border-color var(--d-fast) var(--ease);
@@ -84,10 +83,7 @@
 .title-rel-th {
   padding-top: var(--space-1);
   padding-bottom: var(--space-2);
-  font-size: 12px;
-  line-height: 16px;
   font-weight: 600;
-  letter-spacing: 0.02em;
   color: var(--text3);
 }
 
@@ -99,7 +95,6 @@
 }
 
 .title-rel-release .rel-name {
-  line-height: 20px;
   border-radius: var(--r-xs);
 }
 
@@ -110,10 +105,6 @@
 .title-rel-size,
 .title-rel-seeds {
   font-weight: 600;
-}
-
-.title-rel-small {
-  font-size: 13.5px;
 }
 
 .title-rel-add {

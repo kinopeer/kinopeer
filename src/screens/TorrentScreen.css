@@ -93,8 +93,6 @@
 }
 
 .torrent-release {
-  font-size: 12px;
-  line-height: 16px;
   word-break: break-all;
 }
 
@@ -117,13 +115,6 @@
 
 .torrent-size {
   margin-left: auto;
-}
-
-.torrent-pct {
-  font-size: 34px;
-  line-height: 38px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
 }
 
 .torrent-speeds {
@@ -167,7 +158,8 @@
   gap: var(--space-4);
   padding: var(--space-3) 0;
   border-bottom: 1px solid var(--border);
-  font-size: 14px;
+  font: var(--t-label);
+  font-weight: 400;
 }
 
 .ks-kv:last-child {
@@ -252,7 +244,6 @@
 }
 
 .tf-folder-name {
-  font-size: 15px;
   font-weight: 600;
 }
 
@@ -289,7 +280,6 @@
 }
 
 .tf-file-name {
-  font-size: 13.5px;
   color: var(--text);
 }
 
@@ -305,7 +295,6 @@
 
 .tf-meta {
   flex: none;
-  font-size: 12px;
   text-align: right;
 }
 

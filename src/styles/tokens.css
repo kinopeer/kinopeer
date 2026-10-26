@@ -9,6 +9,25 @@
   --font-sans: 'Onest Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
 
+  /* Type roles (tokens.json → type): the font shorthand of each, weight size/line-height family,
+     and the tracking of the roles that have one. base.css's .t-* classes read them, and so does a
+     component's own text through `font: var(--t-*)`. */
+  --t-display: 700 40px/44px var(--font-sans);
+  --t-display-tracking: -0.025em;
+  --t-h1: 700 28px/34px var(--font-sans);
+  --t-h1-tracking: -0.02em;
+  --t-h2: 650 22px/28px var(--font-sans);
+  --t-h2-tracking: -0.015em;
+  --t-h3: 600 18px/24px var(--font-sans);
+  --t-h3-tracking: -0.01em;
+  --t-body-lg: 400 17px/26px var(--font-sans);
+  --t-body: 400 15px/22px var(--font-sans);
+  --t-label: 500 14px/20px var(--font-sans);
+  --t-cap: 400 13px/18px var(--font-sans);
+  --t-micro: 600 11px/14px var(--font-sans);
+  --t-micro-tracking: 0.06em;
+  --t-mono: 400 12.5px/18px var(--font-mono);
+
   /* Spacing (4px grid) */
   --space-1: 4px;
   --space-2: 8px;

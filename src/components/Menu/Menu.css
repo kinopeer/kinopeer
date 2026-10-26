@@ -20,8 +20,8 @@
   border: none;
   background: transparent;
   border-radius: var(--r-sm);
-  font: inherit;
-  font-size: 14px;
+  font: var(--t-label);
+  font-weight: 400;
   color: var(--text);
   text-align: left;
   text-decoration: none;
