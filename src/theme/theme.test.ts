@@ -1,19 +1,41 @@
 /// <reference types="node" />
 import { readFileSync } from 'node:fs'
-import { afterEach, describe, expect, it } from 'vitest'
+import { renderHook, act } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   THEME_COLORS,
   THEME_STORAGE_KEY,
   applyTheme,
+  initTheme,
   readThemePreference,
   resolveTheme,
+  setThemePreference,
   writeThemePreference,
 } from './theme'
+import { useTheme } from './useTheme'
 
 afterEach(() => {
   localStorage.clear()
   delete document.documentElement.dataset.theme
+  vi.unstubAllGlobals()
 })
+
+/** Stubs matchMedia with a system that prefers light or dark; returns a function that switches it. */
+function stubSystemTheme(prefersLight: boolean): (prefersLight: boolean) => void {
+  const listeners = new Set<(event: MediaQueryListEvent) => void>()
+  const query = {
+    get matches() {
+      return prefersLight
+    },
+    addEventListener: (_: string, listener: (event: MediaQueryListEvent) => void) => listeners.add(listener),
+    removeEventListener: (_: string, listener: (event: MediaQueryListEvent) => void) => listeners.delete(listener),
+  }
+  vi.stubGlobal('matchMedia', () => query)
+  return (next) => {
+    prefersLight = next
+    listeners.forEach((listener) => listener({ matches: next } as MediaQueryListEvent))
+  }
+}
 
 describe('resolveTheme', () => {
   it('follows the system when preference is system', () => {
@@ -66,5 +88,72 @@ describe('applyTheme', () => {
       const block = tokens.slice(tokens.indexOf(`[data-theme='${theme}'] {`))
       expect(block).toMatch(new RegExp(`--bg: ${THEME_COLORS[theme]};`))
     }
+  })
+})
+
+describe('initTheme', () => {
+  it('applies the theme the preference and the system resolve to', () => {
+    stubSystemTheme(true)
+    initTheme()()
+    expect(document.documentElement.dataset.theme).toBe('light')
+  })
+
+  it('follows a change of the system theme while the preference is system', () => {
+    const setSystem = stubSystemTheme(false)
+    const stop = initTheme()
+    expect(document.documentElement.dataset.theme).toBe('dark')
+
+    setSystem(true)
+    expect(document.documentElement.dataset.theme).toBe('light')
+    setSystem(false)
+    expect(document.documentElement.dataset.theme).toBe('dark')
+    stop()
+  })
+
+  it('keeps an explicit theme when the system theme changes', () => {
+    const setSystem = stubSystemTheme(false)
+    const stop = initTheme()
+    setThemePreference('dark')
+
+    setSystem(true)
+    expect(document.documentElement.dataset.theme).toBe('dark')
+    stop()
+  })
+
+  it('follows the system again after switching back to system', () => {
+    const setSystem = stubSystemTheme(false)
+    const stop = initTheme()
+    setThemePreference('dark')
+    setThemePreference('system')
+
+    setSystem(true)
+    expect(document.documentElement.dataset.theme).toBe('light')
+    stop()
+  })
+
+  it('stops following the system once stopped', () => {
+    const setSystem = stubSystemTheme(false)
+    initTheme()()
+
+    setSystem(true)
+    expect(document.documentElement.dataset.theme).toBe('dark')
+  })
+})
+
+describe('useTheme', () => {
+  it('reads the saved preference', () => {
+    writeThemePreference('light')
+    const { result } = renderHook(() => useTheme())
+    expect(result.current.preference).toBe('light')
+  })
+
+  it('shares a change with every component that uses it', () => {
+    const first = renderHook(() => useTheme())
+    const second = renderHook(() => useTheme())
+
+    act(() => first.result.current.setPreference('light'))
+    expect(second.result.current.preference).toBe('light')
+    expect(readThemePreference()).toBe('light')
+    expect(document.documentElement.dataset.theme).toBe('light')
   })
 })
