@@ -81,7 +81,7 @@ On desktop these steps show their form in a card centered in the window, without
 
 ### Search
 
-Movies and series from TMDB with a type filter. An empty search shows trending this week and popular titles. The query and type live in the page URL.
+Movies and series from TMDB with a type filter. An empty search shows trending this week and popular titles. The query and type live in the page URL, and Back from a title returns to the results at the same scroll position.
 
 On desktop the screen fills the window beside the sidebar: the search field up to 640px wide, rows of larger posters (with a thin scrollbar for a mouse) and results in a grid as wide as the window.
 
