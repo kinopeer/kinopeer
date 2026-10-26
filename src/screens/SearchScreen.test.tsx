@@ -1,6 +1,6 @@
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router'
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as tmdb from '../api/tmdb'
 import type { Title } from '../api/tmdb'
@@ -113,6 +113,48 @@ describe('SearchScreen', () => {
     renderScreen()
     await userEvent.click(await screen.findByRole('button', { name: 'Try again' }))
     expect(await screen.findByRole('heading', { name: 'Trending this week' })).toBeInTheDocument()
+  })
+
+  it('comes back from a title at the same scroll position', async () => {
+    sessionStorage.clear()
+    const scrollTo = vi.fn()
+    window.scrollTo = scrollTo as unknown as typeof window.scrollTo
+    const scrolledTo = (y: number) => Object.defineProperty(window, 'scrollY', { value: y, configurable: true })
+    // The second search, on the way back, answers only when told to.
+    let answer = () => {}
+    searchTitles.mockImplementationOnce(async () => page([DUNE, ANDOR]))
+    searchTitles.mockImplementationOnce(
+      () => new Promise((resolve) => (answer = () => resolve(page([DUNE, ANDOR])))),
+    )
+    function TitlePage() {
+      const navigate = useNavigate()
+      return (
+        <button type="button" onClick={() => void navigate(-1)}>
+          Back
+        </button>
+      )
+    }
+    render(
+      <MemoryRouter initialEntries={['/search?q=dune']}>
+        <Routes>
+          <Route path="search" element={<SearchScreen />} />
+          <Route path="title/:type/:id" element={<TitlePage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await screen.findByText('2 results')
+    scrolledTo(720)
+    await userEvent.click(screen.getByRole('link', { name: /Andor/ }))
+    // The browser restores the scroll before the results are back, so it's clamped to the short page.
+    scrolledTo(80)
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(screen.getByRole('status')).toHaveTextContent('Loading')
+    expect(scrollTo).not.toHaveBeenCalled()
+
+    await act(async () => answer())
+    expect(screen.getByText('2 results')).toBeInTheDocument()
+    expect(scrollTo).toHaveBeenCalledWith(0, 720)
+    scrolledTo(0)
   })
 
   it('asks TMDB in the app language', async () => {

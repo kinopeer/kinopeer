@@ -7,6 +7,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 ### Fixed
 
 - Releases: a resolution written in the name wins over a UHD or 4K marker, so "UHD BDRip 1080p" shows as 1080p, not 2160p. HDRip is a source of its own, with its own filter, instead of showing as BDRip.
+- Search: going back from a title brings the results back at the same scroll position. Before, the list started from the top, because the results load again after the browser has already restored the scroll.
 
 ## 0.4.2 - 2026-10-26
 

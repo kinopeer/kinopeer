@@ -17,6 +17,7 @@ import { PosterCard, PosterCardSkeleton } from '../components/PosterCard'
 import { cx } from '../lib/cx'
 import { useDebouncedValue } from '../lib/useDebouncedValue'
 import { useRequest } from '../lib/useRequest'
+import { useScrollRestoration } from '../lib/useScrollRestoration'
 import { useTmdbLanguage } from '../settings/settings'
 import type { SettingsLocationState } from './SettingsScreen'
 import './SearchScreen.css'
@@ -94,6 +95,8 @@ export function SearchScreen() {
   const request = searching ? search : browse
   // Between a keystroke and the debounced request there's nothing to show for the new query yet.
   const loading = request.loading || (searching && term !== query.trim())
+  // Back from a title: the results load again, so the browser can't bring the scroll back itself.
+  useScrollRestoration(!loading)
 
   return (
     <main className="search">
