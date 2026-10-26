@@ -254,14 +254,16 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  /* The only spacing between the body's blocks (title, progress, status, a download's transfer
+     row): the blocks carry no margins of their own. */
+  gap: var(--space-2);
   padding-top: 1px;
 }
 
 .dl-text {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .ks-dl:not(.is-selecting) .dl-text {
@@ -298,8 +300,7 @@
 .dl-progress {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 4px;
+  gap: var(--space-2);
 }
 
 .dl-bar {
@@ -317,8 +318,7 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 4px 8px;
-  margin-top: 2px;
+  gap: var(--space-1) var(--space-2);
   font-size: 12px;
 }
 
@@ -326,13 +326,11 @@
   margin-left: auto;
 }
 
-/* A download's second row: the speed under the status, the time left under the size. With the
-   body's gap it sits 8px below the status row, as far as the progress bar is from the title. */
+/* A download's second row: the speed under the status, the time left under the size. */
 .dl-transfer {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin-top: var(--space-1);
   font-size: 12px;
   line-height: 16px;
 }
@@ -559,10 +557,6 @@
 
 .dl-row-release {
   font-size: 12px;
-}
-
-.dl-row .dl-progress {
-  margin-top: 0;
 }
 
 .dl-row .dl-pct {
