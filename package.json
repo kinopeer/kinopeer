@@ -12,7 +12,8 @@
     "test": "vitest run",
     "typecheck": "tsc -b",
     "test:visual": "scripts/test-visual.sh",
-    "test:visual:update": "scripts/test-visual.sh --update-snapshots"
+    "test:visual:update": "scripts/test-visual.sh --update-snapshots",
+    "screenshots:readme": "scripts/readme-screenshots.sh"
   },
   "dependencies": {
     "@fontsource-variable/onest": "^5.3.1",

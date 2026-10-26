@@ -5,8 +5,12 @@ A qBittorrent web UI for movies and TV series. Find a movie or a series, pick a 
 <p>
   <img src="docs/screenshots/downloads.png" width="200" alt="Downloads with posters, progress and speeds">
   <img src="docs/screenshots/search.png" width="200" alt="Search with trending and popular titles">
-  <img src="docs/screenshots/title.png" width="200" alt="A movie page with its overview and rating">
-  <img src="docs/screenshots/releases.png" width="200" alt="Releases found by Prowlarr with quality badges">
+  <img src="docs/screenshots/title.png" width="200" alt="A series page with its overview, rating and its download in progress">
+  <img src="docs/screenshots/releases.png" width="200" alt="Releases found by Prowlarr with season, quality and voice-over badges">
+</p>
+<p>
+  <img src="docs/screenshots/desktop-downloads.png" width="410" alt="Downloads on a computer: a table with posters, statuses and speeds, and the sidebar">
+  <img src="docs/screenshots/desktop-title.png" width="410" alt="A series page on a computer with its releases under the overview">
 </p>
 
 ## Features

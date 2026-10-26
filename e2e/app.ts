@@ -22,6 +22,8 @@ export interface AppOptions {
   torrents?: Torrent[]
   /** qBittorrent answers the first poll, then stops answering. */
   goesOffline?: boolean
+  /** Leaves /tmdb and /tmdb-img to the server, for real titles and posters (the README screenshots). */
+  realTmdb?: boolean
 }
 
 /** The desktop layout at the canvas's width: `test.use(DESKTOP)` in a describe block. */
@@ -67,31 +69,7 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
     },
   )
 
-  await page.route(
-    (url) => url.pathname.startsWith('/tmdb/'),
-    (route) => {
-      const url = new URL(route.request().url())
-      const language = url.searchParams.get('language') ?? 'en-US'
-      const path = url.pathname.slice('/tmdb'.length)
-      const query = url.searchParams.get('query')?.toLocaleLowerCase()
-      if (path === '/configuration') return json(route, {})
-      if (path === '/search/multi') {
-        const found = TITLES.filter((title) => [title.en, title.ru].some((name) => name.toLocaleLowerCase().includes(query ?? '')))
-        return json(route, titlePage(found, language))
-      }
-      if (path.startsWith('/trending/')) return json(route, titlePage(TITLES, language))
-      if (path === '/movie/popular') return json(route, titlePage(TITLES.filter((title) => title.type === 'movie'), language))
-      if (path === '/tv/popular') return json(route, titlePage(TITLES.filter((title) => title.type === 'tv'), language))
-      const [, type, id] = path.split('/')
-      const found = details(type, Number(id), language)
-      return found ? json(route, found) : json(route, { status_message: 'Not found' }, 404)
-    },
-  )
-
-  await page.route(
-    (url) => url.pathname.startsWith('/tmdb-img/'),
-    (route) => route.fulfill({ contentType: 'image/svg+xml', body: posterSvg(new URL(route.request().url()).pathname) }),
-  )
+  if (!options.realTmdb) await mockTmdb(page)
 
   await page.route(
     (url) => url.pathname === '/api/settings',
@@ -126,6 +104,35 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
       }
       return json(route, { error: 'not-found' }, 404)
     },
+  )
+}
+
+/** Answers /tmdb and /tmdb-img from the fixtures, with generated posters. */
+async function mockTmdb(page: Page): Promise<void> {
+  await page.route(
+    (url) => url.pathname.startsWith('/tmdb/'),
+    (route) => {
+      const url = new URL(route.request().url())
+      const language = url.searchParams.get('language') ?? 'en-US'
+      const path = url.pathname.slice('/tmdb'.length)
+      const query = url.searchParams.get('query')?.toLocaleLowerCase()
+      if (path === '/configuration') return json(route, {})
+      if (path === '/search/multi') {
+        const found = TITLES.filter((title) => [title.en, title.ru].some((name) => name.toLocaleLowerCase().includes(query ?? '')))
+        return json(route, titlePage(found, language))
+      }
+      if (path.startsWith('/trending/')) return json(route, titlePage(TITLES, language))
+      if (path === '/movie/popular') return json(route, titlePage(TITLES.filter((title) => title.type === 'movie'), language))
+      if (path === '/tv/popular') return json(route, titlePage(TITLES.filter((title) => title.type === 'tv'), language))
+      const [, type, id] = path.split('/')
+      const found = details(type, Number(id), language)
+      return found ? json(route, found) : json(route, { status_message: 'Not found' }, 404)
+    },
+  )
+
+  await page.route(
+    (url) => url.pathname.startsWith('/tmdb-img/'),
+    (route) => route.fulfill({ contentType: 'image/svg+xml', body: posterSvg(new URL(route.request().url()).pathname) }),
   )
 }
 

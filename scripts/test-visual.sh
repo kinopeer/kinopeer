@@ -1,7 +1,8 @@
 #!/bin/sh
 # Runs the screenshot tests (e2e/) in the Playwright Docker image, where the baselines are rendered,
 # so they match CI on any machine. Arguments go to `playwright test`, e.g. --update-snapshots.
-# The image tag must match @playwright/test in package.json and the visual job in ci.yml.
+# The image tag must match @playwright/test in package.json, scripts/readme-screenshots.sh and the
+# visual job in ci.yml.
 set -eu
 IMAGE=mcr.microsoft.com/playwright:v1.63.0-noble
 cd "$(dirname "$0")/.."
