@@ -27,6 +27,14 @@ describe('parseRelease', () => {
       { resolution: '1080p', source: 'REMUX', audio: ['dub', 'mvo', 'avo1'], subs: true },
     ],
     ['Arrival (2016) DVDRip | AVO', { resolution: 'SD', source: 'DVD', audio: ['avo1'] }],
+    [
+      'Дюна: Часть вторая / Dune: Part Two (2024) UHD BDRip-HEVC 1080p | HDR | D, P',
+      { resolution: '1080p', source: 'BDRip', codec: 'HEVC', hdr: ['HDR'] },
+    ],
+    ['Dune.Part.Two.2024.UHD.BluRay.HEVC-GROUP', { resolution: '2160p', source: 'BluRay', codec: 'HEVC' }],
+    ['Дюна: Часть вторая (2024) HDRip | Многоголосый', { source: 'HDRip', audio: ['mvo'] }],
+    ['Dune.Part.Two.2024.720p.HDRip.x264', { resolution: '720p', source: 'HDRip', codec: 'AVC' }],
+    ['Dune.Part.Two.2024.HDTVRip.XviD', { source: 'HDTV' }],
   ])('reads %s', (title, expected) => {
     expect(parseRelease(title)).toMatchObject(expected)
   })

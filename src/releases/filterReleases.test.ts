@@ -42,6 +42,11 @@ describe('presentValues', () => {
     expect(present.audio).toEqual(['dub', 'subs'])
     expect(present.indexer).toEqual(['Kinozal', 'RuTracker'])
   })
+
+  it('offers HDRip as a source of its own, after the WEB ones', () => {
+    const rows = [...ROWS, row('hdrip', 'Дюна: Часть вторая (2024) HDRip | Многоголосый', 1.5e9, 40, 'RuTor')]
+    expect(presentValues(rows).source).toEqual(['REMUX', 'BluRay', 'WEB-DL', 'HDRip'])
+  })
 })
 
 describe('summary and toggle', () => {

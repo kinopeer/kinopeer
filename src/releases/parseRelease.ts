@@ -1,6 +1,6 @@
 /** What a release title says about its quality, for badges and filters. */
 export type Resolution = '2160p' | '1080p' | '720p' | 'SD'
-export type Source = 'REMUX' | 'BluRay' | 'BDRip' | 'WEB-DL' | 'WEBRip' | 'HDTV' | 'DVD'
+export type Source = 'REMUX' | 'BluRay' | 'BDRip' | 'WEB-DL' | 'WEBRip' | 'HDRip' | 'HDTV' | 'DVD'
 export type Hdr = 'DV' | 'HDR10+' | 'HDR'
 export type Codec = 'HEVC' | 'AVC' | 'AV1'
 /** Dubbed, multi-voice, two-voice, single-voice voice-over, original track. */
@@ -24,17 +24,22 @@ const EDGE_START = '(?<![\\p{L}\\p{N}])'
 const EDGE_END = '(?![\\p{L}\\p{N}])'
 const word = (pattern: string) => new RegExp(`${EDGE_START}(?:${pattern})${EDGE_END}`, 'iu')
 
+// A number wins over a marker: "UHD BDRip 1080p" is a 1080p rip of a UHD disc.
 const RESOLUTIONS: [Resolution, RegExp][] = [
-  ['2160p', word('2160[pi]|4k|uhd')],
+  ['2160p', word('2160[pi]')],
   ['1080p', word('1080[pi]')],
   ['720p', word('720p')],
-  ['SD', word('480p|576p|sd|dvdrip|dvd5|dvd9|satrip|tvrip|vhsrip')],
+  ['SD', word('480p|576p')],
+  ['2160p', word('4k|uhd')],
+  ['SD', word('sd|dvdrip|dvd5|dvd9|satrip|tvrip|vhsrip')],
 ]
 
 const SOURCES: [Source, RegExp][] = [
   ['REMUX', word('(?:bd|uhd|blu-?ray)?[\\s.-]?remux|bdremux|uhdremux')],
-  ['BDRip', word('bdrip|brrip|bd-rip|hdrip|uhdrip|bdrip-avc|bdrip-hevc')],
+  ['BDRip', word('bdrip|brrip|bd-rip|uhdrip|bdrip-avc|bdrip-hevc')],
   ['WEBRip', word('web-?rip|webdlrip|web-dlrip')],
+  // An HD rip, usually of a WEB or HDTV source: not a Blu-ray one.
+  ['HDRip', word('hdrip')],
   ['WEB-DL', word('web-?dl|webdl|web')],
   ['BluRay', word('blu-?ray|bluray|bd(?:25|50|66|100)|uhd[\\s.-]?bd|bd')],
   ['HDTV', word('hdtv(?:rip)?|hdtvrip|tvrip|satrip')],
