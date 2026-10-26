@@ -3,20 +3,20 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 10px;
-  padding: var(--space-10) 28px;
+  gap: var(--space-3);
+  padding: var(--space-10) var(--space-8);
 }
 
 .ks-empty-ic {
   width: 72px;
   height: 72px;
-  border-radius: 24px;
+  border-radius: var(--r-xl);
   background: var(--accent-soft);
   color: var(--accent-text);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 6px;
+  margin-bottom: var(--space-2);
 }
 
 .ks-empty-ic.is-error {

@@ -4,6 +4,10 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ## Unreleased
 
+### Changed
+
+- Spacing and corner radii across the app follow the design system's scale (a 4px grid, six radii), so like things sit alike. Most gaps and paddings grew by a pixel or two; buttons, inputs, chips and cards are a little rounder.
+
 ### Fixed
 
 - Download cards on a phone: a download's speed and time left have their own row under the status and the "done / total" size, which no longer wraps onto a line of its own. The progress bar and these rows now use the card's full width, under the More button.

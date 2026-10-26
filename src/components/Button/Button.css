@@ -22,10 +22,10 @@
 
 .ks-btn-sm {
   height: 36px;
-  padding: 0 14px;
+  padding: 0 var(--space-4);
   font-size: 14px;
   border-radius: var(--r-sm);
-  gap: 6px;
+  gap: var(--space-2);
 }
 
 /* Extend the 36px button's hit area to 44px. */
@@ -38,7 +38,7 @@
 .ks-btn-lg {
   height: 56px;
   font-size: 17px;
-  border-radius: 16px;
+  border-radius: var(--r-md);
 }
 
 .ks-btn-block {

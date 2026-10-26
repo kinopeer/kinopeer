@@ -18,7 +18,7 @@
 .downloads-title-row {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-1);
   min-height: 52px;
 }
 
@@ -36,7 +36,7 @@
 .downloads-totals {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: var(--space-4);
   margin-top: -6px;
 }
 
@@ -52,7 +52,7 @@
 
 .downloads-free {
   margin-left: auto;
-  gap: 5px;
+  gap: var(--space-1);
 }
 
 .downloads-chips {
@@ -66,7 +66,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
+  gap: var(--space-2);
   margin-top: -4px;
 }
 
@@ -78,7 +78,7 @@
 .sort-sheet {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: var(--space-5);
 }
 
 .sort-options {
@@ -97,7 +97,7 @@
 .sort-option {
   min-height: 48px;
   padding: 0 var(--space-3);
-  border-radius: 12px;
+  border-radius: var(--r-md);
   cursor: pointer;
 }
 
@@ -122,7 +122,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-3);
 }
 
 .dl-card-over {
@@ -177,7 +177,7 @@
 .dl-card-check {
   justify-self: end;
   align-self: start;
-  margin: 2px;
+  margin: var(--space-1);
 }
 
 .dl-card-check[aria-checked='false'] > span {
@@ -193,7 +193,7 @@
   /* Beside the sidebar on desktop; the buttons stay over the screens' column. */
   left: var(--nav-left);
   gap: var(--space-2);
-  padding: 10px max(var(--space-2), calc((100% - var(--nav-left) - var(--column)) / 2 + var(--space-2))) max(10px, var(--safe-bottom));
+  padding: var(--space-3) max(var(--space-2), calc((100% - var(--nav-left) - var(--column)) / 2 + var(--space-2))) max(var(--space-3), var(--safe-bottom));
 }
 
 /* Three buttons share a phone's width; sized by their labels, so "Продолжить" fits next to "Пауза". */
@@ -201,8 +201,8 @@
   flex: 1 1 auto;
   width: auto;
   min-width: 0;
-  padding: 0 10px;
-  gap: 6px;
+  padding: 0 var(--space-3);
+  gap: var(--space-2);
 }
 
 /* Download row */
@@ -210,8 +210,8 @@
   display: flex;
   align-items: flex-start;
   gap: var(--space-1);
-  padding: 10px;
-  border-radius: 18px;
+  padding: var(--space-3);
+  border-radius: var(--r-lg);
   background: var(--surface);
   border: 1px solid var(--border);
   position: relative;
@@ -232,7 +232,7 @@
   gap: var(--space-3);
   color: inherit;
   text-decoration: none;
-  border-radius: 12px;
+  border-radius: var(--r-md);
 }
 
 /* In the card's corner, out of the flow: the title and release stop short of it (.dl-text), while
@@ -257,7 +257,6 @@
   /* The only spacing between the body's blocks (title, progress, status, a download's transfer
      row): the blocks carry no margins of their own. */
   gap: var(--space-2);
-  padding-top: 1px;
 }
 
 .dl-text {
@@ -267,7 +266,7 @@
 }
 
 .ks-dl:not(.is-selecting) .dl-text {
-  padding-right: 38px;
+  padding-right: calc(44px + var(--space-1)); /* past the More button in the corner */
 }
 
 .dl-title {
@@ -280,7 +279,7 @@
 .dl-heading {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  gap: var(--space-2);
   min-width: 0;
   font-size: 16px;
   line-height: 21px;
@@ -341,7 +340,7 @@
 
 /* Loading skeleton */
 .dl-skeleton {
-  padding: 10px;
+  padding: var(--space-3);
 }
 
 .dl-skel-poster {
@@ -355,7 +354,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-3);
   padding-top: var(--space-1);
 }
 
@@ -373,7 +372,7 @@
 .actions-poster {
   width: 40px;
   margin-left: var(--space-4);
-  border-radius: 8px;
+  border-radius: var(--r-sm);
 }
 
 .actions-list {
@@ -383,11 +382,11 @@
 }
 
 .actions-list .ks-row-btn {
-  border-radius: 12px;
+  border-radius: var(--r-md);
 }
 
 .actions-divider {
-  margin: 6px var(--space-2);
+  margin: var(--space-2) var(--space-2);
 }
 
 .actions-sheet .ks-sheet-title h2 {
@@ -482,7 +481,7 @@
 
 .dl-row-head {
   padding-top: 0;
-  padding-bottom: 6px;
+  padding-bottom: var(--space-2);
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -521,7 +520,7 @@
 
 .dl-row-poster {
   width: 40px;
-  border-radius: 7px;
+  border-radius: var(--r-xs);
 }
 
 .dl-row-name {
@@ -531,18 +530,18 @@
 .dl-row-main {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-1);
   min-width: 0;
   padding: var(--space-1) 0;
   color: inherit;
   text-decoration: none;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
 }
 
 .dl-row-heading {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  gap: var(--space-2);
   min-width: 0;
 }
 
@@ -592,7 +591,7 @@ a.dl-row-main:focus-visible::after {
   z-index: 2;
   display: flex;
   justify-content: flex-end;
-  gap: 2px;
+  gap: var(--space-1);
 }
 
 .dl-row-actions .ks-icon-btn {
@@ -614,7 +613,7 @@ a.dl-row-main:focus-visible::after {
 
   .downloads-head {
     gap: var(--space-4);
-    padding: calc(28px + var(--safe-top)) var(--space-8) var(--space-4);
+    padding: calc(var(--space-8) + var(--safe-top)) var(--space-8) var(--space-4);
     border-bottom: 1px solid var(--border);
   }
 
@@ -701,11 +700,11 @@ a.dl-row-main:focus-visible::after {
 
   /* Room for the bulk bar at the bottom. */
   .downloads:has(.downloads-bulk) .downloads-body {
-    padding-bottom: 112px;
+    padding-bottom: 112px; /* room for the bulk actions bar over the end of the list */
   }
 
   .downloads .ks-poster-grid {
     grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
-    gap: 28px var(--space-5);
+    gap: var(--space-8) var(--space-5);
   }
 }

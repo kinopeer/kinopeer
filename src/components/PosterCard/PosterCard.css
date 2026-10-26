@@ -5,7 +5,7 @@
   padding: 0;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 18px var(--space-3);
+  gap: var(--space-5) var(--space-3);
 }
 
 .ks-pcard {
@@ -20,7 +20,7 @@
   min-width: 0;
   color: inherit;
   text-decoration: none;
-  border-radius: 12px;
+  border-radius: var(--r-md);
 }
 
 .ks-pcard-main .ks-poster {
@@ -30,7 +30,7 @@
 .ks-pcard-text {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-1);
   min-width: 0;
 }
 
@@ -52,12 +52,12 @@
   position: absolute;
   top: 0;
   right: -10px;
-  margin-top: calc(150% - 4.5px);
+  margin-top: calc(150% - var(--space-1));
 }
 
 .ks-pcard-skel-poster {
   aspect-ratio: 2 / 3;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   margin-bottom: var(--space-2);
 }
 

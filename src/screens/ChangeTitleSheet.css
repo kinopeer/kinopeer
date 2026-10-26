@@ -19,7 +19,7 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 6px var(--space-2) var(--space-2);
+  padding: var(--space-2) var(--space-2) var(--space-2);
   border-top: 1px solid var(--border);
 }
 
@@ -29,19 +29,19 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-1);
 }
 
 .retitle-row {
   min-height: 76px;
   padding: var(--space-2) var(--space-3);
-  border-radius: 12px;
+  border-radius: var(--r-md);
 }
 
 .retitle-poster {
   width: 40px;
   flex: none;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
 }
 
 .retitle-poster img {
@@ -55,7 +55,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-1);
 }
 
 .retitle-name {
@@ -79,7 +79,7 @@
 
 .retitle-skel {
   height: 60px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
 }
 
 .retitle-hint {
@@ -92,6 +92,6 @@
   }
 
   .retitle-results {
-    padding: 6px var(--space-3) var(--space-2);
+    padding: var(--space-2) var(--space-3) var(--space-2);
   }
 }
