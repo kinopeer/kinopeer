@@ -1,13 +1,13 @@
 .add-body {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .add-release {
   display: flex;
-  gap: 12px;
-  padding: 12px;
+  gap: var(--space-3);
+  padding: var(--space-3);
   border-radius: 16px;
   background: var(--sunken);
   border: 1px solid var(--border);
@@ -73,14 +73,14 @@
   gap: 10px;
   min-height: 52px;
   padding: 0 14px;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   border: 1px solid var(--border);
 }
 
 .add-files {
   min-height: 60px;
   padding: 0 10px 0 14px;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   border: 1px solid var(--border-strong);
 }
 
@@ -103,7 +103,7 @@
 .add-dest {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   padding: 0 2px;
 }
 
@@ -115,17 +115,17 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-3);
   width: 100%;
   min-height: 52px;
-  padding: 0 4px;
+  padding: 0 var(--space-1);
   border: none;
   background: transparent;
   font-size: 15px;
   font-weight: 600;
   color: var(--text);
   text-align: left;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
 }
 
 .ks-acc-head > .ks-ic {
@@ -141,13 +141,13 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 2px 0 8px;
+  padding: 2px 0 var(--space-2);
 }
 
 .add-field {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .add-categories {
@@ -160,7 +160,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-3);
   min-height: 44px;
 }
 
@@ -172,8 +172,8 @@
 /* File picker */
 .fp-actions {
   display: flex;
-  gap: 8px;
-  padding-bottom: 8px;
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
 }
 
 .fp-list,
@@ -202,9 +202,9 @@
   align-items: center;
   gap: 10px;
   min-height: 52px;
-  padding: 6px 4px;
+  padding: 6px var(--space-1);
   border: none;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   background: none;
   color: var(--text);
   text-align: left;
@@ -236,7 +236,7 @@
 }
 
 .fp-files {
-  padding: 0 0 6px 20px;
+  padding: 0 0 6px var(--space-5);
 }
 
 .fp-files .fp-group {
@@ -259,7 +259,7 @@
 .fp-file-size {
   font-size: 12px;
   flex: none;
-  padding-left: 8px;
+  padding-left: var(--space-2);
 }
 
 .fp-foot {
@@ -272,7 +272,7 @@
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .fp-count {
@@ -295,7 +295,7 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    column-gap: 16px;
+    column-gap: var(--space-4);
   }
 
   .fp-foot > :not(.ks-btn) {

@@ -7,7 +7,7 @@
   display: flex;
   align-items: center;
   gap: 2px;
-  margin: 12px -10px 0;
+  margin: var(--space-3) -10px 0;
 }
 
 .delete-files-text {

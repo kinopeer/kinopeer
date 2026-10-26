@@ -44,7 +44,7 @@
 .title-body {
   position: relative;
   margin-top: -176px;
-  padding: 0 20px var(--space-8);
+  padding: 0 var(--space-5) var(--space-8);
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -52,13 +52,13 @@
 
 .title-head {
   display: flex;
-  gap: 16px;
+  gap: var(--space-4);
   align-items: flex-end;
 }
 
 .title-poster {
   width: 124px;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   box-shadow: var(--shadow-2);
 }
 
@@ -103,7 +103,7 @@
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .title-overview {
@@ -122,7 +122,7 @@
   width: 100%;
   max-width: var(--column);
   margin: 0 auto;
-  padding: 20px 16px 12px;
+  padding: var(--space-5) var(--space-4) var(--space-3);
   background: linear-gradient(180deg, transparent, var(--bg) 34%);
 }
 
@@ -145,7 +145,7 @@
 .title-dls-heading {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .title-dls-list {
@@ -154,15 +154,15 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .title-dl {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   min-height: 44px;
-  padding: 12px 8px 12px 14px;
+  padding: var(--space-3) var(--space-2) var(--space-3) 14px;
   border-radius: 18px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -199,7 +199,7 @@
 .title-dl-progress {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .title-dl-bar {
@@ -217,7 +217,7 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 4px 8px;
+  gap: var(--space-1) var(--space-2);
   font-size: 12px;
 }
 
@@ -269,8 +269,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 32px;
-  padding: 72px 32px 28px;
+  gap: var(--space-8);
+  padding: 72px var(--space-8) 28px;
 }
 
 .title-dposter {
@@ -285,8 +285,8 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding-bottom: 4px;
+  gap: var(--space-3);
+  padding-bottom: var(--space-1);
 }
 
 .title-dname {
@@ -300,7 +300,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 14px;
+  gap: var(--space-2) 14px;
 }
 
 .title-dmeta .t-label {
@@ -316,7 +316,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
 
 .title-dhint {
@@ -325,7 +325,7 @@
 
 /* "In downloads" on desktop: cards side by side under the hero. */
 .title-desktop > .title-dls {
-  padding: 12px 32px 0;
+  padding: var(--space-3) var(--space-8) 0;
 }
 
 .title-desktop .title-dls-list {

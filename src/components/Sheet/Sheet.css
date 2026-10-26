@@ -8,7 +8,7 @@
   padding: 0;
   border: none;
   border-top: 1px solid var(--border);
-  border-radius: 28px 28px 0 0;
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
   background: var(--raised);
   color: var(--text);
   box-shadow: var(--shadow-3);
@@ -36,7 +36,7 @@
 .ks-grabber {
   width: 36px;
   height: 5px;
-  margin: 8px auto 2px;
+  margin: var(--space-2) auto 2px;
   border-radius: 3px;
   background: var(--border-strong);
   flex: none;
@@ -45,13 +45,13 @@
 .ks-sheet-head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px 4px 20px;
+  gap: var(--space-2);
+  padding: 6px var(--space-2) var(--space-1) var(--space-5);
   flex: none;
 }
 
 .ks-sheet-head.has-leading {
-  padding-left: 4px;
+  padding-left: var(--space-1);
 }
 
 .ks-sheet-title {
@@ -64,11 +64,11 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 8px 20px 16px;
+  padding: var(--space-2) var(--space-5) var(--space-4);
 }
 
 .ks-sheet-foot {
-  padding: 12px 20px 8px;
+  padding: var(--space-3) var(--space-5) var(--space-2);
   border-top: 1px solid var(--border);
   flex: none;
 }
@@ -108,19 +108,19 @@
   }
 
   .ks-sheet-head {
-    padding: 20px 16px 8px 24px;
+    padding: var(--space-5) var(--space-4) var(--space-2) var(--space-6);
   }
 
   .ks-sheet-head.has-leading {
-    padding: 16px 16px 8px 12px;
+    padding: var(--space-4) var(--space-4) var(--space-2) var(--space-3);
   }
 
   .ks-sheet-body {
-    padding: 6px 24px 18px;
+    padding: 6px var(--space-6) 18px;
   }
 
   .ks-sheet-foot {
-    padding: 16px 24px;
+    padding: var(--space-4) var(--space-6);
   }
 
   /* A button alone in the footer keeps its own width, on the right. */

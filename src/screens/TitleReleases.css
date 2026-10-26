@@ -2,8 +2,8 @@
 .title-rel {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 12px 32px 64px;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-8) var(--space-16);
   scroll-margin-top: 8px;
   /* Tall enough to scroll its heading to the top while the search runs or finds little. */
   min-height: 100vh;
@@ -13,7 +13,7 @@
 .title-rel-heading {
   display: flex;
   align-items: baseline;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 /* Filters and sort, pinned to the top while the table scrolls under them. */
@@ -24,7 +24,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   padding: 10px 0;
   background: var(--bg);
   border-bottom: 1px solid var(--border);
@@ -42,14 +42,14 @@
 .title-rel-options {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .title-rel-sort {
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 /* The table: the audio column shows from 1400px; narrower, audio sits under the name. */
@@ -63,9 +63,9 @@
   display: grid;
   grid-template-columns: var(--rel-cols);
   align-items: start;
-  gap: 12px;
-  padding: 14px 12px;
-  border-radius: 14px;
+  gap: var(--space-3);
+  padding: 14px var(--space-3);
+  border-radius: var(--r-md);
   border: 1px solid transparent;
   font-size: 14px;
   line-height: 20px;
@@ -82,8 +82,8 @@
 }
 
 .title-rel-th {
-  padding-top: 4px;
-  padding-bottom: 8px;
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-2);
   font-size: 12px;
   line-height: 16px;
   font-weight: 600;
@@ -95,12 +95,12 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .title-rel-release .rel-name {
   line-height: 20px;
-  border-radius: 6px;
+  border-radius: var(--r-xs);
 }
 
 .title-rel .title-rel-audio {
