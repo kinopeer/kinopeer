@@ -2,6 +2,12 @@
 
 Kinoseed follows [semantic versioning](https://semver.org). While the version is 0.x, minor versions may change behavior and settings.
 
+## Unreleased
+
+### Fixed
+
+- Download cards on a phone: a download's speed and time left have their own row under the status and the "done / total" size, which no longer wraps onto a line of its own. The progress bar and these rows now use the card's full width, under the More button.
+
 ## 0.4.1 - 2026-10-25
 
 A fix for adding releases over plain HTTP.

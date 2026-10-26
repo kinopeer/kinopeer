@@ -8,6 +8,12 @@
       "port": 5173
     },
     {
+      "name": "dev-lan",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--host"],
+      "port": 5173
+    },
+    {
       "name": "preview",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "preview"],
