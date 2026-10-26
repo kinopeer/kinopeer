@@ -187,7 +187,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
           <Poster src={posterUrl(title.posterPath ?? null, 'w185')} className="add-poster" />
           <div className="add-release-text">
             <div className="t-label add-title">{title.name}</div>
-            <div className="ks-clamp2 c2 add-name">{release.title}</div>
+            <div className="t-cap ks-clamp2 c2 add-name">{release.title}</div>
             <div className="add-badges">
               {qualityBadges(info).map((badge) => (
                 <Badge key={badge.label} kind={badge.kind}>
@@ -195,7 +195,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
                 </Badge>
               ))}
             </div>
-            <div className="ks-num c2 add-meta">
+            <div className="t-cap ks-num c2 add-meta">
               <span className="add-size">{format.size(release.size)}</span>
               <span aria-label={t('releases.seeders', { count: release.seeders ?? 0 })}>
                 <Icon name="arrow-up" size={13} />
@@ -231,7 +231,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
                 {free !== undefined && ` · ${t('add.freeSpace', { size: format.size(free) })}`}
               </span>
             </span>
-            <span className="ca add-change">{t('add.change')}</span>
+            <span className="t-label ca add-change">{t('add.change')}</span>
             <Icon name="chevron-right" size={18} className="c3" />
           </button>
         )}

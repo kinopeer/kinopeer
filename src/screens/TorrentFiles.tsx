@@ -61,7 +61,7 @@ export function TorrentFiles({ hash, status, disabled }: TorrentFilesProps) {
     return (
       <li key={file.index} className={choice === 'skip' ? 'tf-file is-skipped' : 'tf-file'}>
         <div className="tf-file-body">
-          <div className="tf-file-name ks-trunc" title={label}>
+          <div className="t-cap tf-file-name ks-trunc" title={label}>
             {label}
           </div>
           <div className="tf-file-progress">
@@ -71,7 +71,7 @@ export function TorrentFiles({ hash, status, disabled }: TorrentFilesProps) {
               label={t('torrent.fileProgress', { name: label })}
               className="tf-bar"
             />
-            <span className="ks-num c3 tf-meta">
+            <span className="t-cap ks-num c3 tf-meta">
               {format.percent(file.progress)} · {format.size(file.size)}
             </span>
           </div>
@@ -101,7 +101,7 @@ export function TorrentFiles({ hash, status, disabled }: TorrentFilesProps) {
         <button type="button" className="tf-folder-toggle" aria-expanded={expanded} onClick={() => toggle(folder.path)}>
           <Icon name="folder" className="c2" />
           <span className="tf-folder-text">
-            <span className="tf-folder-name ks-trunc">{folder.name}</span>
+            <span className="t-body tf-folder-name ks-trunc">{folder.name}</span>
             <span className="t-cap c3 ks-num">
               {t('add.files', { count: folder.all.length })} · {format.size(folder.size)} ·{' '}
               {format.percent(folder.size ? done / folder.size : 0)}

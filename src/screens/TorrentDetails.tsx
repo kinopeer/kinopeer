@@ -251,7 +251,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
             <Heading id={titleId} className="t-h2 torrent-title">
               {title}
             </Heading>
-            {match && <p className="torrent-release c3">{torrent.name}</p>}
+            {match && <p className="t-cap torrent-release c3">{torrent.name}</p>}
           </div>
         </div>
 
@@ -272,7 +272,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
             </span>
           </div>
           <div className="torrent-card-row torrent-pct-row">
-            <span className="ks-num torrent-pct">{format.percent(torrent.progress)}</span>
+            <span className="t-h1 ks-num torrent-pct">{format.percent(torrent.progress)}</span>
             {downloading && (
               <span className="t-label c2 ks-num">{t('torrent.eta', { eta: format.eta(torrent.eta) })}</span>
             )}

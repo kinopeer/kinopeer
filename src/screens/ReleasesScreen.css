@@ -94,9 +94,6 @@
   background: none;
   color: var(--text);
   text-align: left;
-  font-size: 14px;
-  line-height: 19px;
-  font-weight: 500;
   word-break: break-word;
 }
 
@@ -114,7 +111,6 @@
   padding-top: var(--space-3);
   border-top: 1px solid var(--border);
   color: var(--text2);
-  font-size: 12.5px;
 }
 
 .rel-meta > span {

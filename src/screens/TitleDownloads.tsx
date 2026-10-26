@@ -60,7 +60,7 @@ function TitleDownload({ torrent }: { torrent: Torrent }) {
     <li>
       <Link to={`/torrent/${torrent.hash}`} state={overPage(location)} className="title-dl" aria-label={label}>
         <div className="title-dl-body">
-          <div className="title-dl-release">
+          <div className="t-cap title-dl-release">
             {coverage && <Badge>{coverage}</Badge>}{' '}
             {info.resolution && <Badge kind="res">{info.resolution}</Badge>}{' '}
             <span className="ks-trunc c3">{torrent.name}</span>
@@ -72,9 +72,9 @@ function TitleDownload({ torrent }: { torrent: Torrent }) {
               label={t('downloads.progress', { name: torrent.name })}
               className="title-dl-bar"
             />
-            <span className="title-dl-pct ks-num c2">{percent}</span>
+            <span className="t-cap title-dl-pct ks-num c2">{percent}</span>
           </div>
-          <div className="title-dl-meta ks-num">
+          <div className="t-cap title-dl-meta ks-num">
             <StatusChip status={status}>{statusLabel}</StatusChip>
             {speed && <span className="c2">{speed}</span>}
             <span className="title-dl-size c3">

@@ -44,7 +44,7 @@ export function StatusMenu({ value, onChange, counts }: StatusMenuProps) {
         onClick={(event) => setAnchor(anchor ? null : event.currentTarget)}
       >
         {value === 'all' ? t('downloads.allStatuses') : name(value)}
-        {count !== undefined && <span className="downloads-status-count ks-num">{count}</span>}
+        {count !== undefined && <span className="t-cap downloads-status-count ks-num">{count}</span>}
         <Icon name="chevron-down" size={14} />
         {errors > 0 && <span className="downloads-status-dot" />}
       </Button>

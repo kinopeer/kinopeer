@@ -7,6 +7,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 ### Changed
 
 - Spacing and corner radii across the app follow the design system's scale (a 4px grid, six radii), so like things sit alike. Most gaps and paddings grew by a pixel or two; buttons, inputs, chips and cards are a little rounder.
+- Text sizes follow the design system's type roles, so text of the same kind reads the same everywhere. Small meta text (release names, sizes, speeds, percentages) is a pixel larger; badges and the tab bar's labels half a pixel smaller; the title's name on a wide screen and the torrent's big percentage are a step smaller.
 
 ### Fixed
 

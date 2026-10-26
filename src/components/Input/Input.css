@@ -6,8 +6,7 @@
 }
 
 .ks-label {
-  font-size: 13px;
-  line-height: 18px;
+  font: var(--t-cap);
   font-weight: 500;
   color: var(--text2);
 }
@@ -19,8 +18,8 @@
   border-radius: var(--r-md);
   border: 1px solid var(--border-strong);
   background: var(--surface);
-  /* 16px keeps iOS Safari from zooming in on focus. */
-  font-size: 16px;
+  /* t-body-lg, not t-body: under 16px iOS Safari zooms in on focus. */
+  font: var(--t-body-lg);
   color: var(--text);
   transition:
     border-color var(--d-fast) var(--ease),
@@ -28,7 +27,7 @@
 }
 
 .ks-input.t-mono {
-  font-size: 14px;
+  font: var(--t-mono);
 }
 
 .ks-input::placeholder {
@@ -53,8 +52,7 @@
 }
 
 .ks-help {
-  font-size: 12.5px;
-  line-height: 17px;
+  font: var(--t-cap);
   color: var(--text3);
 }
 

@@ -10,9 +10,7 @@ html {
 
 body {
   margin: 0;
-  font-family: var(--font-sans);
-  font-size: 15px;
-  line-height: 22px;
+  font: var(--t-body);
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
@@ -73,17 +71,19 @@ h4 {
   }
 }
 
-/* Type scale */
-.t-display { font-size: 40px; line-height: 44px; font-weight: 700; letter-spacing: -0.025em; }
-.t-h1 { font-size: 28px; line-height: 34px; font-weight: 700; letter-spacing: -0.02em; }
-.t-h2 { font-size: 22px; line-height: 28px; font-weight: 650; letter-spacing: -0.015em; }
-.t-h3 { font-size: 18px; line-height: 24px; font-weight: 600; letter-spacing: -0.01em; }
-.t-body-lg { font-size: 17px; line-height: 26px; }
-.t-body { font-size: 15px; line-height: 22px; }
-.t-label { font-size: 14px; line-height: 20px; font-weight: 500; }
-.t-cap { font-size: 13px; line-height: 18px; }
-.t-micro { font-size: 11px; line-height: 14px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
-.t-mono { font-family: var(--font-mono); font-size: 12.5px; line-height: 18px; letter-spacing: 0; }
+/* Type scale: the roles from tokens.css. The font shorthand resets font-variant-numeric, so .ks-num
+   (below) must follow these, and a component that writes `font: var(--t-*)` on an element that
+   also needs tabular figures sets them after it. */
+.t-display { font: var(--t-display); letter-spacing: var(--t-display-tracking); }
+.t-h1 { font: var(--t-h1); letter-spacing: var(--t-h1-tracking); }
+.t-h2 { font: var(--t-h2); letter-spacing: var(--t-h2-tracking); }
+.t-h3 { font: var(--t-h3); letter-spacing: var(--t-h3-tracking); }
+.t-body-lg { font: var(--t-body-lg); }
+.t-body { font: var(--t-body); }
+.t-label { font: var(--t-label); }
+.t-cap { font: var(--t-cap); }
+.t-micro { font: var(--t-micro); letter-spacing: var(--t-micro-tracking); text-transform: uppercase; }
+.t-mono { font: var(--t-mono); letter-spacing: 0; }
 
 /* Text colors */
 .c1 { color: var(--text); }
@@ -113,7 +113,7 @@ h4 {
   background: transparent;
   text-align: left;
   color: var(--text);
-  font-size: 15px;
+  font: var(--t-body);
   text-decoration: none;
   transition: box-shadow var(--d-fast) var(--ease);
 }

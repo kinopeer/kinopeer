@@ -9,8 +9,7 @@
   border: 1px solid var(--border-strong);
   background: transparent;
   color: var(--text2);
-  font-size: 14px;
-  font-weight: 500;
+  font: var(--t-label);
   white-space: nowrap;
   flex: none;
   transition:
@@ -27,9 +26,9 @@
 }
 
 .ks-chip .n {
-  font-size: 12px;
-  color: var(--text3);
+  font: var(--t-cap);
   font-variant-numeric: tabular-nums;
+  color: var(--text3);
 }
 
 .ks-chip.is-on {

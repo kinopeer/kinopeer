@@ -34,8 +34,6 @@
 }
 
 .add-name {
-  font-size: 12.5px;
-  line-height: 17px;
   word-break: break-word;
 }
 
@@ -52,7 +50,6 @@
 .add-meta {
   display: flex;
   gap: var(--space-3);
-  font-size: 12.5px;
   align-items: center;
 }
 
@@ -96,7 +93,6 @@
 }
 
 .add-change {
-  font-size: 14px;
   font-weight: 600;
 }
 
@@ -121,7 +117,7 @@
   padding: 0 var(--space-1);
   border: none;
   background: transparent;
-  font-size: 15px;
+  font: var(--t-body);
   font-weight: 600;
   color: var(--text);
   text-align: left;
@@ -218,12 +214,10 @@
 }
 
 .fp-group-name {
-  font-size: 15px;
   font-weight: 600;
 }
 
 .fp-group-count {
-  font-size: 12.5px;
   font-weight: 600;
 }
 
@@ -253,11 +247,9 @@
 
 .fp-file-name {
   flex: 1;
-  font-size: 13px;
 }
 
 .fp-file-size {
-  font-size: 12px;
   flex: none;
   padding-left: var(--space-2);
 }

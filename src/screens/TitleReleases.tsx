@@ -186,7 +186,7 @@ function ReleasesTable({ releases }: { releases: Releases }) {
   const { t } = useTranslation()
   return (
     <div role="table" aria-label={t('releases.title')} className="title-rel-table">
-      <div role="row" className="title-rel-row title-rel-th">
+      <div role="row" className="t-cap title-rel-row title-rel-th">
         <span role="columnheader">{t('releases.colRelease')}</span>
         <span role="columnheader" className="title-rel-audio">
           {t('releases.audio')}
@@ -227,11 +227,11 @@ function ReleaseTableRow({ row, onAdd }: { row: ReleaseRow; onAdd: () => void })
   )
 
   return (
-    <div role="row" className="title-rel-row">
+    <div role="row" className="t-label title-rel-row">
       <div role="cell" className="title-rel-release">
         <button
           type="button"
-          className={expanded ? 'rel-name' : 'rel-name ks-clamp2'}
+          className={expanded ? 't-label rel-name' : 't-label rel-name ks-clamp2'}
           aria-expanded={expanded}
           onClick={() => setExpanded(!expanded)}
         >
@@ -266,10 +266,10 @@ function ReleaseTableRow({ row, onAdd }: { row: ReleaseRow; onAdd: () => void })
       <span role="cell" className="ks-num c2" aria-label={t('releases.leechers', { count: release.leechers ?? 0 })}>
         {(release.leechers ?? 0).toLocaleString(i18n.language)}
       </span>
-      <span role="cell" className="ks-trunc c2 title-rel-small">
+      <span role="cell" className="t-cap ks-trunc c2 title-rel-small">
         {release.indexer}
       </span>
-      <span role="cell" className="ks-num c3 title-rel-small">
+      <span role="cell" className="t-cap ks-num c3 title-rel-small">
         {release.publishDate ? format.age(release.publishDate) : ''}
       </span>
       <div role="cell" className="title-rel-add">
@@ -285,7 +285,7 @@ function TableSkeleton() {
   return (
     <div className="title-rel-table" aria-hidden="true">
       {Array.from({ length: 5 }, (_, index) => (
-        <div key={index} className="title-rel-row title-rel-skel">
+        <div key={index} className="t-label title-rel-row title-rel-skel">
           <div className="title-rel-release">
             <div className="ks-skel" style={{ height: 16, width: '85%' }} />
             <div className="ks-skel" style={{ height: 22, width: '45%' }} />

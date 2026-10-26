@@ -83,7 +83,7 @@ export function DeleteTorrentDialog({ torrents, title, onClose, onDeleted }: Del
             {filesLabel}
           </label>
           {withFiles && (
-            <div id={`${id}-hint`} className="c-err delete-hint">
+            <div id={`${id}-hint`} className="t-cap c-err delete-hint">
               {t('torrent.deleteFilesHint')}
             </div>
           )}

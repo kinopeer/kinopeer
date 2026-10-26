@@ -16,8 +16,7 @@
   box-shadow: var(--shadow-2);
   z-index: 40;
   animation: ks-up var(--d-slow) var(--ease);
-  font-size: 14px;
-  font-weight: 500;
+  font: var(--t-label);
 }
 
 .ks-toast > .ks-ic {

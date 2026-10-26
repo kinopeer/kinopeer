@@ -236,7 +236,7 @@ export function TitleScreen({ onSessionLost }: TitleScreenProps) {
     </Badge>
   )
   const rating = details.vote_count > 0 && (
-    <p className="title-rating">
+    <p className="t-label title-rating">
       <Icon name="star" size={16} filled className="title-star" />
       <span className="sr-only">{t('title.rating')}</span>
       <span className="ks-num">{details.vote_average.toLocaleString(i18n.language, { maximumFractionDigits: 1, minimumFractionDigits: 1 })}</span>

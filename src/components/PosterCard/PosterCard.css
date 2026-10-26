@@ -35,8 +35,7 @@
 }
 
 .ks-pcard-title {
-  font-size: 14px;
-  line-height: 19px;
+  font: var(--t-label);
   font-weight: 600;
   overflow-wrap: anywhere;
 }

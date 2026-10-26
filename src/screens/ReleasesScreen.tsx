@@ -261,7 +261,7 @@ function ReleaseCard({ row, onAdd }: { row: ReleaseRow; onAdd: () => void }) {
           )}
           <button
             type="button"
-            className={expanded ? 'rel-name' : 'rel-name ks-clamp2'}
+            className={expanded ? 't-label rel-name' : 't-label rel-name ks-clamp2'}
             aria-expanded={expanded}
             onClick={() => setExpanded(!expanded)}
           >
@@ -290,7 +290,7 @@ function ReleaseCard({ row, onAdd }: { row: ReleaseRow; onAdd: () => void }) {
           {info.subs && <Badge kind="subs">{t('releases.subs')}</Badge>}
         </div>
       )}
-      <div className="rel-meta ks-num">
+      <div className="t-cap rel-meta ks-num">
         <span className="rel-size">{format.size(release.size)}</span>
         <span
           className={seeders >= 100 ? 'c-ok' : seeders >= 20 ? 'c2' : 'c-warn'}

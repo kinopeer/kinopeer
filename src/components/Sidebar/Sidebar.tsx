@@ -44,7 +44,7 @@ export function Sidebar({ items, label, footer, pathname: page }: SidebarProps) 
             <Icon name={item.icon} size={22} />
             <span className="ks-nav-label">{item.label}</span>
             {item.count && (
-              <span className="ks-nav-count ks-num">
+              <span className="ks-nav-count">
                 <span aria-hidden="true">{item.count.value}</span>
                 <span className="sr-only">, {item.count.label}</span>
               </span>
