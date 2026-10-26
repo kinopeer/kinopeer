@@ -35,7 +35,7 @@ export const NO_FILTERS: Filters = { resolution: [], audio: [], source: [], inde
 export const DEFAULT_SORT: Sort = { key: 'seeds', descending: true }
 export const RESOLUTIONS: Resolution[] = ['2160p', '1080p', '720p', 'SD']
 export const AUDIO: AudioFilter[] = ['dub', 'mvo', 'avo2', 'avo1', 'orig', 'subs']
-export const SOURCES: Source[] = ['REMUX', 'BluRay', 'BDRip', 'WEB-DL', 'WEBRip', 'HDTV', 'DVD']
+export const SOURCES: Source[] = ['REMUX', 'BluRay', 'BDRip', 'WEB-DL', 'WEBRip', 'HDRip', 'HDTV', 'DVD']
 export const MIN_SEEDS = [0, 10, 50, 100]
 export const SORT_KEYS: SortKey[] = ['seeds', 'size', 'date']
 
