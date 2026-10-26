@@ -14,9 +14,7 @@ import { describe, expect, it } from 'vitest'
 const SRC = join(process.cwd(), 'src')
 
 // Stylesheets that still have to be moved onto the tokens.
-const SKIPPED = [
-  'src/screens/DownloadsScreen.css', // PR #78 edits it; converted once that merges.
-]
+const SKIPPED: string[] = []
 
 // Off-scale values the stylesheets had when the rule arrived, per file. Remove an entry when the
 // value goes; add nothing here, write a comment on the line instead.
@@ -40,6 +38,7 @@ const LEGACY_SPACING: Record<string, string[]> = {
   'src/screens/AddReleaseSheet.css': ['2px', '5px', '6px', '7px', '10px', '14px'],
   'src/screens/ChangeTitleSheet.css': ['2px', '6px'],
   'src/screens/DeleteTorrentDialog.css': ['2px', '6px'],
+  'src/screens/DownloadsScreen.css': ['1px', '2px', '5px', '6px', '10px', '14px', '18px', '28px', '38px', '112px'],
   'src/screens/Install.css': ['6px', '10px', '14px'],
   'src/screens/MatchPrompt.css': ['1px', '10px', '14px'],
   'src/screens/ReleasesScreen.css': ['2px', '5px', '6px', '10px', '14px'],
@@ -67,6 +66,7 @@ const LEGACY_RADIUS: Record<string, string[]> = {
   'src/components/StatusChip/StatusChip.css': ['1px'],
   'src/components/TabBar/TabBar.css': ['12px'],
   'src/components/Toast/Toast.css': ['16px'],
+  'src/screens/DownloadsScreen.css': ['7px', '8px', '12px', '18px'],
   'src/screens/AddReleaseSheet.css': ['9px', '16px'],
   'src/screens/ChangeTitleSheet.css': ['8px', '12px'],
   'src/screens/Install.css': ['12px'],
