@@ -121,6 +121,18 @@ describe('DownloadsScreen', () => {
     expect(row.getByLabelText('Queue position 1')).toBeInTheDocument()
   })
 
+  it('puts a download’s speed and ETA on their own row under the status and size', async () => {
+    renderScreen()
+    const [dune, andor] = await screen.findAllByRole('listitem')
+    const speed = within(dune).getByText('↓ 4.3 MB/s')
+    expect(speed.parentElement).toBe(within(dune).getByText('12 min').parentElement)
+    expect(speed.parentElement).not.toBe(within(dune).getByText('8.99 GB / 21.4 GB').parentElement)
+    // Seeding keeps the speed next to the status: a plain size fits beside them.
+    const upload = within(andor).getByText('↑ 120 KB/s')
+    expect(upload.parentElement).toBe(within(andor).getByText('Seeding').parentElement)
+    expect(upload.parentElement).toBe(within(andor).getByText(/^1(\.00)?\sGB$/).parentElement)
+  })
+
   it('shows the TMDB title and poster once matched, with the release name below', async () => {
     searchTitles.mockImplementation(async (query) => ({
       titles:
