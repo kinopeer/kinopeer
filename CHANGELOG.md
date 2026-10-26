@@ -2,7 +2,9 @@
 
 Kinoseed follows [semantic versioning](https://semver.org). While the version is 0.x, minor versions may change behavior and settings.
 
-## Unreleased
+## 0.4.2 - 2026-10-26
+
+Polish: spacing, corner radii and text sizes follow the design system across the app, the theme follows the system on every screen, and download cards on a phone lay out their speed and time left on a row of their own.
 
 ### Changed
 
