@@ -28,7 +28,7 @@
 .rel-chips {
   display: flex;
   gap: var(--space-2);
-  padding: 6px var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-2) var(--space-3);
 }
 
 .rel-body {
@@ -39,18 +39,18 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 10px;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
 }
 
 .rel-count {
-  margin-bottom: 10px;
+  margin-bottom: var(--space-3);
 }
 
 .rel-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-3);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -59,9 +59,9 @@
 .ks-rel {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 14px 14px var(--space-3);
-  border-radius: 18px;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4) var(--space-3);
+  border-radius: var(--r-lg);
   background: var(--surface);
   border: 1px solid var(--border);
 }
@@ -104,14 +104,14 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-1);
 }
 
 .rel-meta {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding-top: 10px;
+  padding-top: var(--space-3);
   border-top: 1px solid var(--border);
   color: var(--text2);
   font-size: 12.5px;
@@ -120,7 +120,7 @@
 .rel-meta > span {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-1);
 }
 
 .rel-size {
@@ -142,7 +142,7 @@
 .rel-group {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-3);
 }
 
 .rel-options {

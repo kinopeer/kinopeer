@@ -149,7 +149,7 @@ h4 {
   background: linear-gradient(90deg, var(--raised) 0%, var(--border) 50%, var(--raised) 100%);
   background-size: 200% 100%;
   animation: ks-shimmer 1.4s linear infinite;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
 }
 
 [data-theme='light'] .ks-skel {

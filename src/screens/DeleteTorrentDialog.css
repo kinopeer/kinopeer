@@ -1,12 +1,12 @@
 .delete-body {
-  margin-top: 6px;
+  margin-top: var(--space-2);
   overflow-wrap: anywhere;
 }
 
 .delete-files {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-1);
   margin: var(--space-3) -10px 0;
 }
 

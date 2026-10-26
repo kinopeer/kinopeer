@@ -8,20 +8,21 @@
 
 .torrent-back {
   position: absolute;
-  top: calc(var(--safe-top) + 12px);
-  left: 12px;
+  top: calc(var(--safe-top) + var(--space-3));
+  left: var(--space-3);
   z-index: 5;
 }
 
 .torrent-more {
   position: absolute;
-  top: calc(var(--safe-top) + 12px);
-  right: 12px;
+  top: calc(var(--safe-top) + var(--space-3));
+  right: var(--space-3);
   z-index: 5;
 }
 
+/* Below the floating buttons: --space-3 from the top, --touch-min tall, then a gap. */
 .torrent-message {
-  padding-top: calc(var(--safe-top) + 72px);
+  padding-top: calc(var(--safe-top) + var(--space-3) + var(--touch-min) + var(--space-4));
 }
 
 /* Blurred poster behind the header, fading into the page. */
@@ -59,13 +60,13 @@
 
 .torrent-head {
   display: flex;
-  gap: 14px;
+  gap: var(--space-4);
   align-items: flex-end;
 }
 
 .torrent-poster {
   width: 88px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   box-shadow: var(--shadow-2);
 }
 
@@ -107,7 +108,7 @@
 .torrent-card-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-3);
 }
 
 .torrent-pct-row {
@@ -139,7 +140,7 @@
 
 .torrent-actions {
   display: flex;
-  gap: 10px;
+  gap: var(--space-3);
 }
 
 .torrent-actions > * {
@@ -164,7 +165,7 @@
   display: flex;
   justify-content: space-between;
   gap: var(--space-4);
-  padding: 11px 0;
+  padding: var(--space-3) 0;
   border-bottom: 1px solid var(--border);
   font-size: 14px;
 }
@@ -206,7 +207,7 @@
 .tf-loading {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-3);
 }
 
 .tf-skel {
@@ -232,9 +233,9 @@
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-3);
   min-height: 56px;
-  padding: 6px var(--space-1);
+  padding: var(--space-2) var(--space-1);
   margin-left: -4px;
   border: none;
   border-radius: var(--r-sm);
@@ -270,8 +271,8 @@
 .tf-file {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 0;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
   border-bottom: 1px solid var(--border);
 }
 
@@ -284,7 +285,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-2);
 }
 
 .tf-file-name {
@@ -327,7 +328,7 @@
   appearance: none;
   height: calc(100% + 10px);
   margin: -5px 0;
-  padding: 0 var(--space-8) 0 14px;
+  padding: 0 var(--space-8) 0 var(--space-4);
   border: none;
   border-radius: inherit;
   background: transparent;
@@ -347,7 +348,7 @@
 
 .tf-priority .ks-ic {
   position: absolute;
-  right: 12px;
+  right: var(--space-3);
   pointer-events: none;
 }
 
@@ -404,13 +405,13 @@
 }
 
 .torrent-message.is-drawer {
-  padding: 72px var(--space-6) var(--space-8);
+  padding: calc(var(--space-3) + var(--touch-min) + var(--space-4)) var(--space-6) var(--space-8);
 }
 
 .torrent-close {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  top: var(--space-3);
+  right: var(--space-3);
   z-index: 5;
 }
 

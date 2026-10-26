@@ -25,7 +25,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
-  padding: 10px 0;
+  padding: var(--space-3) 0;
   background: var(--bg);
   border-bottom: 1px solid var(--border);
 }
@@ -33,10 +33,10 @@
 /* A filter's popover: its name over the values. */
 .title-rel-pop {
   width: 320px;
-  padding: 14px;
+  padding: var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-3);
 }
 
 .title-rel-options {
@@ -64,7 +64,7 @@
   grid-template-columns: var(--rel-cols);
   align-items: start;
   gap: var(--space-3);
-  padding: 14px var(--space-3);
+  padding: var(--space-4) var(--space-3);
   border-radius: var(--r-md);
   border: 1px solid transparent;
   font-size: 14px;

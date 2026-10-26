@@ -1,7 +1,7 @@
 .ks-poster {
   position: relative;
   aspect-ratio: 2 / 3;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   overflow: hidden;
   background: var(--raised);
   flex: none;
@@ -48,7 +48,7 @@
   left: 4px;
   min-width: 22px;
   height: 20px;
-  padding: 0 5px;
+  padding: 0 var(--space-1);
   border-radius: var(--r-xs);
   background: rgba(8, 10, 12, 0.8);
   color: #fff;

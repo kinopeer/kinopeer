@@ -8,14 +8,14 @@
   background: transparent;
   padding: 0;
   flex: none;
-  border-radius: 12px;
+  border-radius: var(--r-md);
 }
 
 .ks-check > span {
   position: relative;
   width: 22px;
   height: 22px;
-  border-radius: 7px;
+  border-radius: var(--r-xs);
   border: 2px solid var(--border-strong);
   display: flex;
   align-items: center;

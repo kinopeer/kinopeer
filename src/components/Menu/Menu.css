@@ -2,7 +2,7 @@
 .ks-pop.ks-menu-pop {
   min-width: 220px;
   max-width: min(320px, calc(100vw - 16px));
-  padding: 6px;
+  padding: var(--space-2);
 }
 
 .ks-menu {
@@ -13,7 +13,7 @@
 .ks-menu-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-3);
   width: 100%;
   min-height: 40px;
   padding: 0 var(--space-3);
@@ -59,7 +59,7 @@
 }
 
 .ks-menu-divider {
-  margin: var(--space-1) 6px;
+  margin: var(--space-1) var(--space-2);
 }
 
 .ks-menu-caption {
@@ -68,5 +68,5 @@
 }
 
 .ks-menu-pop .ks-banner {
-  margin: 6px 6px 2px;
+  margin: var(--space-2) var(--space-2) var(--space-1);
 }

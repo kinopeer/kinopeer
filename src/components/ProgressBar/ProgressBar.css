@@ -1,6 +1,6 @@
 .ks-bar {
   height: 4px;
-  border-radius: 2px;
+  border-radius: var(--r-full);
   background: var(--track);
   overflow: hidden;
   position: relative;
@@ -9,7 +9,7 @@
 
 .ks-bar-lg {
   height: 8px;
-  border-radius: 4px;
+  border-radius: var(--r-full);
 }
 
 .ks-bar > i {
