@@ -50,3 +50,38 @@ export function watchSystemTheme(onChange: (prefersLight: boolean) => void): () 
   query.addEventListener('change', listener)
   return () => query.removeEventListener('change', listener)
 }
+
+// The preference is shared by the whole page, so every screen that shows it stays in sync.
+let preference: ThemePreference | undefined
+const listeners = new Set<() => void>()
+
+export function getThemePreference(): ThemePreference {
+  preference ??= readThemePreference()
+  return preference
+}
+
+export function subscribeThemePreference(listener: () => void): () => void {
+  listeners.add(listener)
+  return () => listeners.delete(listener)
+}
+
+export function setThemePreference(next: ThemePreference): void {
+  writeThemePreference(next)
+  preference = next
+  applyTheme(resolveTheme(next, systemPrefersLight()))
+  listeners.forEach((listener) => listener())
+}
+
+/** Forgets the preference read from storage, so the next read starts over. For tests. */
+export function resetThemePreference(): void {
+  preference = undefined
+}
+
+/**
+ * Applies the theme and follows the system's light or dark setting for as long as the page is open,
+ * while the preference is system. Called once at startup; returns a function that stops it.
+ */
+export function initTheme(): () => void {
+  applyTheme(resolveTheme(getThemePreference(), systemPrefersLight()))
+  return watchSystemTheme((prefersLight) => applyTheme(resolveTheme(getThemePreference(), prefersLight)))
+}
