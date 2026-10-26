@@ -91,7 +91,7 @@ Run lint, typecheck, test and build before pushing, and the screenshot tests whe
 
 ## Workflow
 
-- The test stand is the dev server (`npm run dev`, port 5173) on the owner's machine, running the branch under review. Start it when a PR has UI changes so the owner can try them before merging, and stop it when they're done. Don't leave detached processes (nohup, launchd) running there. In the Claude desktop app, start it as the `dev` configuration in `.claude/launch.json` (`preview` runs `npm run preview` on port 4173 after a build); no secrets go in that file.
+- The test stand is the dev server (`npm run dev`, port 5173) on the owner's machine, running the branch under review. Start it when a PR has UI changes so the owner can try them before merging, and stop it when they're done. Don't leave detached processes (nohup, launchd) running there. In the Claude desktop app, start it as the `dev` configuration in `.claude/launch.json` (`dev-lan` is the same with `--host`, so the owner can open it on a phone at the Mac's LAN address; `preview` runs `npm run preview` on port 4173 after a build); no secrets go in that file.
 - A release follows `docs/DEVELOPMENT.md` → Releasing: a PR with the version, the `CHANGELOG.md` section and the "as of version" line at the top of `docs/SPEC.md`; after it merges, the `v*` tag (pushed from the owner's machine, because the cloud git proxy refuses tag pushes); then a PR to the store repo with the new version, release notes and image digest. Tagging and the store PR need the owner's go-ahead.
 
 ## Roadmap

@@ -39,7 +39,8 @@ export function DownloadItem({ torrent, match, showQueue = true, onMore, selecte
   const title = match?.title ?? torrent.name
 
   const speed = transferSpeed(torrent, status, format)
-  const eta = status === 'downloading' && torrent.dlspeed > 0 ? format.eta(torrent.eta) : null
+  const downloading = status === 'downloading'
+  const eta = downloading && torrent.dlspeed > 0 ? format.eta(torrent.eta) : null
   const selecting = selected !== undefined
 
   const content = (
@@ -52,17 +53,19 @@ export function DownloadItem({ torrent, match, showQueue = true, onMore, selecte
         )}
       </Poster>
       <div className="dl-body">
-        {match ? (
-          <>
-            <h2 className="dl-heading">
-              <span className="dl-title ks-trunc">{match.title}</span>
-              {match.year && <span className="t-cap c3 ks-num dl-year">{match.year}</span>}
-            </h2>
-            <p className="dl-release ks-trunc c3">{torrent.name}</p>
-          </>
-        ) : (
-          <h2 className="dl-title ks-clamp2">{torrent.name}</h2>
-        )}
+        <div className="dl-text">
+          {match ? (
+            <>
+              <h2 className="dl-heading">
+                <span className="dl-title ks-trunc">{match.title}</span>
+                {match.year && <span className="t-cap c3 ks-num dl-year">{match.year}</span>}
+              </h2>
+              <p className="dl-release ks-trunc c3">{torrent.name}</p>
+            </>
+          ) : (
+            <h2 className="dl-title ks-clamp2">{torrent.name}</h2>
+          )}
+        </div>
         <div className="dl-progress">
           <ProgressBar
             value={torrent.progress}
@@ -74,14 +77,21 @@ export function DownloadItem({ torrent, match, showQueue = true, onMore, selecte
         </div>
         <div className="dl-meta ks-num">
           <StatusChip status={status}>{t(`status.${status}`)}</StatusChip>
-          {speed && <span className="c2">{speed}</span>}
-          {eta && <span className="c3">{eta}</span>}
+          {!downloading && speed && <span className="c2">{speed}</span>}
           <span className="dl-size c3">
             {partial
               ? `${format.size(torrent.size * torrent.progress)} / ${format.size(torrent.size)}`
               : format.size(torrent.size)}
           </span>
         </div>
+        {/* A download's speed and time left get their own row: with the chip and a "done / total"
+            size they don't fit a phone's width, and wrapping left the size alone on a second line. */}
+        {downloading && speed && (
+          <div className="dl-transfer ks-num">
+            <span className="c2">{speed}</span>
+            {eta && <span className="dl-eta c3">{eta}</span>}
+          </div>
+        )}
       </div>
     </>
   )

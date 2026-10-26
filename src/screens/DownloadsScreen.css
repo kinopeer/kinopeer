@@ -151,12 +151,8 @@
   inset: 0;
 }
 
-/* Without the More button the right padding matches the left, and the checkbox's box sits where the
-   poster starts in a normal row, so the content keeps its width and clears the row's edge. */
-.ks-dl.is-selecting {
-  padding-right: 10px;
-}
-
+/* While selecting, the checkbox's box sits where the poster starts in a normal row, so the content
+   keeps its width and clears the row's edge. */
 .dl-row-check {
   align-self: center;
   margin-left: -10px;
@@ -214,7 +210,7 @@
   display: flex;
   align-items: flex-start;
   gap: 4px;
-  padding: 10px 4px 10px 10px;
+  padding: 10px;
   border-radius: 18px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -239,9 +235,12 @@
   border-radius: 12px;
 }
 
+/* In the card's corner, out of the flow: the title and release stop short of it (.dl-text), while
+   the progress bar and the rows below run the card's full width. */
 .dl-more {
-  flex: none;
-  margin-top: -6px;
+  position: absolute;
+  top: 4px;
+  right: 4px;
   color: var(--text3);
 }
 
@@ -257,6 +256,16 @@
   flex-direction: column;
   gap: 4px;
   padding-top: 1px;
+}
+
+.dl-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ks-dl:not(.is-selecting) .dl-text {
+  padding-right: 38px;
 }
 
 .dl-title {
@@ -314,6 +323,21 @@
 }
 
 .dl-size {
+  margin-left: auto;
+}
+
+/* A download's second row: the speed under the status, the time left under the size. With the
+   body's gap it sits 8px below the status row, as far as the progress bar is from the title. */
+.dl-transfer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.dl-eta {
   margin-left: auto;
 }
 
