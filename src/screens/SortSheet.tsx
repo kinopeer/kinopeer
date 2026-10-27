@@ -84,11 +84,14 @@ export interface SortMenuProps {
   onClose: () => void
 }
 
-/** The sort on desktop: a menu under the sort button. The type is a segmented control beside it there. */
+/**
+ * The sort on desktop: a menu under the sort button, which stays in the pinned header while the
+ * list scrolls. The type is a segmented control beside it there.
+ */
 export function SortMenu({ anchor, value, onChange, onClose }: SortMenuProps) {
   const { t } = useTranslation()
   return (
-    <Menu anchor={anchor} label={t('downloads.sort')} onClose={onClose}>
+    <Menu anchor={anchor} label={t('downloads.sort')} follow onClose={onClose}>
       {DOWNLOAD_SORTS.map((sort) => (
         <MenuItemRadio
           key={sort}
