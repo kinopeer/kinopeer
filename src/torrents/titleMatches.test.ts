@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as matchesApi from '../api/matches'
 import type { Matches } from '../api/matches'
 import * as tmdb from '../api/tmdb'
-import type { Title } from '../api/tmdb'
+import { title } from '../test/fixtures'
 import { resetServerMatches } from './serverMatches'
 import {
   GUESS_VERSION,
@@ -38,10 +38,6 @@ const saveMatches = vi.mocked(matchesApi.saveMatches)
 
 /** What the fake Kinoseed server keeps. */
 let server: Matches
-
-function title(type: Title['type'], id: number, name: string, year?: number): Title {
-  return { type, id, title: name, originalTitle: name, year, overview: '', posterPath: `/${id}.jpg`, backdropPath: null, rating: 7 }
-}
 
 const DUNE_1984 = title('movie', 841, 'Dune', 1984)
 const DUNE_2021 = title('movie', 438631, 'Dune', 2021)

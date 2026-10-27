@@ -1,14 +1,15 @@
-import { render, screen, within } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
+import { Route, Routes, useLocation } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as matchesApi from '../api/matches'
 import * as prowlarr from '../api/prowlarr'
-import type { Release } from '../api/prowlarr'
 import * as qbt from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
 import type { MovieDetails, TvDetails } from '../api/tmdb'
 import { stubDesktop } from '../lib/stubDesktop'
+import { DUNE_RELEASES } from '../test/fixtures'
+import { renderWithRouter } from '../test/render'
 import { resetServerMatches } from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
 import { TitleRoute } from './TitleScreen'
@@ -65,30 +66,21 @@ const SHOGUN = {
   genres: [],
 } as unknown as TvDetails
 
-function release(id: string, title: string, size: number, seeders: number, indexer = 'Kinozal'): Release {
-  return { id, title, indexer, size, seeders, leechers: 3, categories: [2000], download: `1/download?link=${id}`, infoUrl: `https://tracker.test/${id}` }
-}
-
-const RELEASES = [
-  release('a', 'Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX.DV.HDR10.HEVC-FGT', 78e9, 214, 'RuTracker'),
-  release('b', 'Дюна 2 / Dune: Part Two (2024) WEB-DL 1080p | Дубляж', 9.4e9, 2451),
-  release('c', 'Dune.Part.Two.2024.720p.BluRay.x264-VARYG', 4.7e9, 12),
-]
-
 function Where() {
   return <p>at {useLocation().pathname}</p>
 }
 
 function renderAt(path: string, history: string[] = []) {
-  return render(
-    <MemoryRouter initialEntries={[...history, path]} initialIndex={history.length}>
+  return renderWithRouter(
+    <>
       <Routes>
         <Route path="/title/:type/:id" element={<TitleRoute onSessionLost={vi.fn()} />} />
         <Route path="/title/:type/:id/releases" element={<TitleRoute onSessionLost={vi.fn()} />} />
         <Route path="/search" element={<h1>Search page</h1>} />
       </Routes>
       <Where />
-    </MemoryRouter>,
+    </>,
+    [...history, path],
   )
 }
 
@@ -111,7 +103,7 @@ beforeEach(() => {
   vi.mocked(qbt.getMainData).mockResolvedValue({ rid: 1, full_update: true, torrents: {}, server_state: {} })
   getMovie.mockResolvedValue(DUNE)
   getTv.mockResolvedValue(SHOGUN)
-  searchReleases.mockResolvedValue(RELEASES)
+  searchReleases.mockResolvedValue(DUNE_RELEASES)
 })
 
 afterEach(() => {
@@ -134,7 +126,7 @@ describe('TitleScreen on desktop', () => {
     expect(scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'smooth' })
     expect(await screen.findByText('3 of 3 releases')).toBeInTheDocument()
     expect(searchReleases).toHaveBeenCalledWith('Dune Part Two 2024', expect.anything())
-    expect(names()).toEqual([RELEASES[1].title, RELEASES[0].title, RELEASES[2].title])
+    expect(names()).toEqual([DUNE_RELEASES[1].title, DUNE_RELEASES[0].title, DUNE_RELEASES[2].title])
     // The page stays: the title isn't loaded again.
     expect(getMovie).toHaveBeenCalledTimes(1)
   })
@@ -186,7 +178,7 @@ describe('TitleScreen on desktop', () => {
     expect(within(popover).getAllByRole('button').map((option) => option.textContent)).toEqual(['2160p', '1080p', '720p'])
     await userEvent.click(within(popover).getByRole('button', { name: '2160p' }))
     expect(screen.getByText('1 of 3 releases')).toBeInTheDocument()
-    expect(names()).toEqual([RELEASES[0].title])
+    expect(names()).toEqual([DUNE_RELEASES[0].title])
     expect(screen.getByRole('button', { name: '2160p', expanded: true })).toHaveAttribute('aria-pressed', 'true')
 
     // Escape closes it and gives the focus back to its chip.
@@ -198,9 +190,9 @@ describe('TitleScreen on desktop', () => {
     expect(screen.getByText('3 of 3 releases')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('radio', { name: 'Size' }))
-    expect(names()).toEqual([RELEASES[0].title, RELEASES[1].title, RELEASES[2].title])
+    expect(names()).toEqual([DUNE_RELEASES[0].title, DUNE_RELEASES[1].title, DUNE_RELEASES[2].title])
     await userEvent.click(screen.getByRole('button', { name: 'Descending' }))
-    expect(names()).toEqual([RELEASES[2].title, RELEASES[1].title, RELEASES[0].title])
+    expect(names()).toEqual([DUNE_RELEASES[2].title, DUNE_RELEASES[1].title, DUNE_RELEASES[0].title])
   })
 
   it('closes a popover on a click outside it and opens one at a time', async () => {
@@ -239,7 +231,7 @@ describe('TitleScreen on desktop', () => {
     const [, top] = within(table()).getAllByRole('row')
     expect(within(top).getByRole('link', { name: 'Open on Kinozal' })).toHaveAttribute('href', 'https://tracker.test/b')
     await userEvent.click(within(top).getByRole('button', { name: 'Add to downloads' }))
-    expect(within(screen.getByRole('dialog', { name: 'Add to downloads' })).getByText(RELEASES[1].title)).toBeInTheDocument()
+    expect(within(screen.getByRole('dialog', { name: 'Add to downloads' })).getByText(DUNE_RELEASES[1].title)).toBeInTheDocument()
   })
 
   it('shows the series hint by the button and searches a series by name', async () => {

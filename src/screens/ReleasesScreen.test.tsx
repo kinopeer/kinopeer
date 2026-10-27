@@ -1,12 +1,13 @@
-import { render, screen, within } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from 'react-router'
+import { Route, Routes } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as prowlarr from '../api/prowlarr'
-import type { Release } from '../api/prowlarr'
 import * as qbt from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
 import type { MovieDetails, TvDetails } from '../api/tmdb'
+import { DUNE_RELEASES, release } from '../test/fixtures'
+import { renderWithRouter } from '../test/render'
 import { ReleasesScreen } from './ReleasesScreen'
 
 vi.mock('../api/tmdb', async (importOriginal) => {
@@ -32,25 +33,14 @@ const searchReleases = vi.mocked(prowlarr.searchReleases)
 const DUNE = { id: 693134, title: 'Dune: Part Two', original_title: 'Dune: Part Two', release_date: '2024-02-27' } as MovieDetails
 const BB = { id: 1396, name: 'Breaking Bad', original_name: 'Breaking Bad', first_air_date: '2008-01-20' } as TvDetails
 
-function release(id: string, title: string, size: number, seeders: number, indexer = 'Kinozal'): Release {
-  return { id, title, indexer, size, seeders, leechers: 3, categories: [2000], download: `1/download?link=${id}`, infoUrl: `https://tracker.test/${id}` }
-}
-
-const RELEASES = [
-  release('a', 'Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX.DV.HDR10.HEVC-FGT', 78e9, 214, 'RuTracker'),
-  release('b', 'Дюна 2 / Dune: Part Two (2024) WEB-DL 1080p | Дубляж', 9.4e9, 2451),
-  release('c', 'Dune.Part.Two.2024.720p.BluRay.x264-VARYG', 4.7e9, 12),
-]
-
 function renderAt(path: string) {
-  return render(
-    <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route path="/title/:type/:id/releases" element={<ReleasesScreen />} />
-        <Route path="/title/:type/:id" element={<h1>Title page</h1>} />
-        <Route path="/" element={<h1>Downloads</h1>} />
-      </Routes>
-    </MemoryRouter>,
+  return renderWithRouter(
+    <Routes>
+      <Route path="/title/:type/:id/releases" element={<ReleasesScreen />} />
+      <Route path="/title/:type/:id" element={<h1>Title page</h1>} />
+      <Route path="/" element={<h1>Downloads</h1>} />
+    </Routes>,
+    [path],
   )
 }
 
@@ -60,7 +50,7 @@ beforeEach(() => {
   vi.resetAllMocks()
   getMovie.mockResolvedValue(DUNE)
   getTv.mockResolvedValue(BB)
-  searchReleases.mockResolvedValue(RELEASES)
+  searchReleases.mockResolvedValue(DUNE_RELEASES)
 })
 
 describe('ReleasesScreen', () => {
@@ -71,7 +61,7 @@ describe('ReleasesScreen', () => {
     expect(await screen.findByText('3 of 3 releases')).toBeInTheDocument()
     expect(searchReleases).toHaveBeenCalledWith('Dune Part Two 2024', expect.not.objectContaining({ categories: expect.anything() }))
     expect(screen.getByText('Dune: Part Two · 2024')).toBeInTheDocument()
-    expect(names()).toEqual([RELEASES[1].title, RELEASES[0].title, RELEASES[2].title])
+    expect(names()).toEqual([DUNE_RELEASES[1].title, DUNE_RELEASES[0].title, DUNE_RELEASES[2].title])
 
     const [top] = screen.getAllByRole('article')
     expect(within(top).getByText('1080p')).toBeInTheDocument()
@@ -85,9 +75,9 @@ describe('ReleasesScreen', () => {
   it('sorts by size and expands a long name', async () => {
     renderAt('/title/movie/693134/releases')
     await userEvent.click(await screen.findByRole('button', { name: /^Sort: Seeds/ }))
-    expect(names()).toEqual([RELEASES[0].title, RELEASES[1].title, RELEASES[2].title])
+    expect(names()).toEqual([DUNE_RELEASES[0].title, DUNE_RELEASES[1].title, DUNE_RELEASES[2].title])
 
-    const name = screen.getByRole('button', { name: RELEASES[0].title })
+    const name = screen.getByRole('button', { name: DUNE_RELEASES[0].title })
     expect(name).toHaveAttribute('aria-expanded', 'false')
     await userEvent.click(name)
     expect(name).toHaveAttribute('aria-expanded', 'true')
@@ -105,7 +95,7 @@ describe('ReleasesScreen', () => {
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.getByText('1 of 3 releases')).toBeInTheDocument()
-    expect(names()).toEqual([RELEASES[0].title])
+    expect(names()).toEqual([DUNE_RELEASES[0].title])
     expect(screen.getByRole('button', { name: 'Filters 1' })).toHaveAttribute('aria-pressed', 'true')
 
     await userEvent.click(screen.getByRole('button', { name: 'Remove filter 2160p' }))
@@ -166,7 +156,7 @@ describe('ReleasesScreen', () => {
     const [top] = await screen.findAllByRole('article')
     await userEvent.click(within(top).getByRole('button', { name: 'Add to downloads' }))
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
-    expect(within(sheet).getByText(RELEASES[1].title)).toBeInTheDocument()
+    expect(within(sheet).getByText(DUNE_RELEASES[1].title)).toBeInTheDocument()
     await userEvent.click(await within(sheet).findByRole('button', { name: /^Download/ }))
 
     expect(vi.mocked(qbt.addTorrents)).toHaveBeenCalledWith(

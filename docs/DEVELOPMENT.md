@@ -13,29 +13,19 @@ cp .env.example .env.local   # set QBITTORRENT_URL and PROWLARR_URL
 npm install
 npm run dev        # http://localhost:5173
 npm test           # tests (Vitest)
+npm run test:coverage  # the same with a coverage report
 npm run lint       # linter (oxlint)
 npm run typecheck  # type check
 npm run build      # production build into dist/
 npm start          # production server over dist/
-npm run test:visual  # screenshot tests in Docker (below)
+npm run test:visual  # screenshot tests in Docker (docs/TESTING.md)
 ```
 
-The dev server has the same routes as production: `/qbt`, `/prowlarr`, `/tmdb`, `/tmdb-img`, `/api/settings`. Run lint, typecheck, test and build before pushing; CI runs the same on every PR, runs the screenshot tests and builds and smoke-tests the Docker image. The service worker is off in `npm run dev`: try it with `npm run build && npm run preview`.
+The dev server has the same routes as production: `/qbt`, `/prowlarr`, `/tmdb`, `/tmdb-img`, `/api/settings`. Run lint, typecheck, test and build before pushing; CI runs the same on every PR (the tests with coverage, whose totals land in the job summary), runs the screenshot tests and builds and smoke-tests the Docker image. The service worker is off in `npm run dev`: try it with `npm run build && npm run preview`.
 
-## Screenshot tests
+## Tests
 
-Unit tests run in jsdom, which has no layout, so they can't catch a button in the wrong place or a title that doesn't clamp. Screenshot tests do: Playwright opens the built app (`vite preview`) in Chromium and compares each screen with a baseline PNG.
-
-- **What's covered:** Downloads (list and poster grid, empty, offline, the actions sheet), Search (browse rows and results), the title page (movie and series), Releases (results, the filters sheet, the add sheet and its file picker), torrent details (with files, and an error) and Settings. Mostly a phone in portrait (390×844), dark theme, Russian; some in the light theme in English and on a wide screen (1280×800). Specs are in `e2e/*.spec.ts`, baselines in `e2e/__screenshots__/`.
-- **No live services:** `e2e/app.ts` answers `/qbt`, `/tmdb`, `/tmdb-img`, `/prowlarr`, `/api/settings` and `/api/matches` from the fixtures in `e2e/fixtures.ts`, matched by URL pathname (a glob like `**/tmdb/**` would also catch Vite's `/src/api/tmdb/` modules). Posters are generated gradients and the release's `.torrent` is built there too. The app version in Settings is masked, so a version bump doesn't change the screenshots. The clock is frozen, animations are off and the service worker is blocked.
-- **Docker only:** fonts render differently on macOS and on other Linux setups (about 1% of pixels, enough to fail), so baselines are rendered only in the Playwright image. `npm run test:visual` runs the tests in it with Docker; `node_modules` for the container is kept in a Docker volume, not the host's. Arguments go to `playwright test`, e.g. `npm run test:visual -- e2e/search.spec.ts`.
-- **Changing the UI:** a PR that changes how a covered screen looks updates its baselines. First run `npm run test:visual` as is: every failed screenshot leaves an expected, an actual and a diff image in `test-results/`, where the diff highlights only the changed pixels. Make sure nothing but the intended change is highlighted, then re-render with `npm run test:visual:update` and commit the PNGs (GitHub shows image diffs in the PR too). Say in the PR which screens changed and why. Add a spec when a new screen or state needs one.
-- **In CI:** the `visual` job runs in the same image. When it fails, its `playwright-report` artifact has the expected, actual and diff images.
-- **Upgrading Playwright:** `@playwright/test` in `package.json`, the image tag in `scripts/test-visual.sh`, `scripts/readme-screenshots.sh` and `.github/workflows/ci.yml` must name the same version; re-render the baselines after an upgrade.
-
-### README screenshots
-
-`npm run screenshots:readme` re-renders the screenshots in `docs/screenshots/` (`e2e/readme.shots.ts`, config `playwright.readme.config.ts`): four phone screens and two desktop ones, dark theme, Russian. It runs in the same Playwright image, but on the dev server, so titles and posters come from TMDB for real; qBittorrent and Prowlarr answer from the fixtures. Only `TMDB_API_KEY` goes into the container, from the environment or `.env.local`. Retake them when a screen in the README changes noticeably, check the PNGs and commit them; nothing compares them in CI.
+The test layers, the shared fixtures and fakes, coverage and the screenshot tests (incl. the README screenshots) are described in [TESTING.md](TESTING.md).
 
 ## Server configuration
 

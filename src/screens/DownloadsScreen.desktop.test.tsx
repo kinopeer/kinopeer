@@ -1,6 +1,5 @@
-import { render, screen, within } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as matchesApi from '../api/matches'
 import * as api from '../api/qbittorrent'
@@ -8,6 +7,8 @@ import type { MainData, Torrent } from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
 import { stubDesktop } from '../lib/stubDesktop'
 import { getSettings, resetSettings, updateSettings } from '../settings/settings'
+import { mainData, torrent as fixtureTorrent } from '../test/fixtures'
+import { renderWithRouter } from '../test/render'
 import { resetServerMatches } from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
 import { DownloadsScreen } from './DownloadsScreen'
@@ -31,26 +32,12 @@ vi.mock('../api/matches', async (importOriginal) => ({
 const getMainData = vi.mocked(api.getMainData)
 const searchTitles = vi.mocked(tmdb.searchTitles)
 
-function torrent(hash: string, fields: Partial<Torrent>): Partial<Torrent> {
-  return {
-    name: hash,
-    state: 'downloading',
-    progress: 0,
-    size: 1_000_000_000,
-    dlspeed: 0,
-    upspeed: 0,
-    eta: 8_640_000,
-    priority: -1,
-    added_on: 0,
-    ...fields,
-  }
-}
+/** A torrent as this screen's rows expect it: 1 GB and added at the epoch, the rest from the shared fixture. */
+const torrent = (hash: string, fields: Partial<Torrent>) => fixtureTorrent(hash, { size: 1_000_000_000, added_on: 0, ...fields })
 
-const SNAPSHOT: MainData = {
-  rid: 1,
-  full_update: true,
-  torrents: {
-    dune: torrent('dune', {
+const SNAPSHOT: MainData = mainData(
+  [
+    torrent('dune', {
       name: 'Dune.Part.Two.2024.2160p.WEB-DL',
       progress: 0.42,
       dlspeed: 4_300_000,
@@ -58,18 +45,14 @@ const SNAPSHOT: MainData = {
       priority: 1,
       size: 21_400_000_000,
     }),
-    andor: torrent('andor', { name: 'Andor.S02.1080p', state: 'uploading', progress: 1, upspeed: 120_000 }),
-    alien: torrent('alien', { name: 'Alien.Romulus.2024.1080p', state: 'stoppedDL', progress: 0.1 }),
-  },
-  server_state: { dl_info_speed: 4_300_000, up_info_speed: 120_000, free_space_on_disk: 1_210_000_000_000 },
-}
+    torrent('andor', { name: 'Andor.S02.1080p', state: 'uploading', progress: 1, upspeed: 120_000 }),
+    torrent('alien', { name: 'Alien.Romulus.2024.1080p', state: 'stoppedDL', progress: 0.1 }),
+  ],
+  { free_space_on_disk: 1_210_000_000_000 },
+)
 
 function renderScreen(state?: unknown, onSelectingChange?: (selecting: boolean) => void) {
-  return render(
-    <MemoryRouter initialEntries={[{ pathname: '/', state }]}>
-      <DownloadsScreen onSessionLost={vi.fn()} onSelectingChange={onSelectingChange} />
-    </MemoryRouter>,
-  )
+  return renderWithRouter(<DownloadsScreen onSessionLost={vi.fn()} onSelectingChange={onSelectingChange} />, [{ pathname: '/', state }])
 }
 
 beforeEach(() => {

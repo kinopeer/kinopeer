@@ -1,14 +1,13 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { createServer, get as httpGet, type IncomingHttpHeaders, type Server } from 'node:http'
-import type { AddressInfo } from 'node:net'
+import { get as httpGet, type IncomingHttpHeaders } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { brotliDecompressSync, gunzipSync } from 'node:zlib'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { pickEncoding, staticMiddleware } from './static.ts'
+import { closeServers, serve } from './test/fakes.ts'
 
 let root: string
-let server: Server
 let app: string
 const script = `console.log(${JSON.stringify('x'.repeat(4000))})`
 
@@ -22,19 +21,11 @@ beforeAll(async () => {
   await writeFile(join(root, 'icons', 'icon-192.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47]))
   await writeFile(join(tmpdir(), 'kinoseed-secret.txt'), 'secret')
 
-  const middleware = staticMiddleware({ root })
-  server = createServer((request, response) =>
-    middleware(request, response, () => {
-      response.statusCode = 404
-      response.end('fallback')
-    }),
-  )
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
-  app = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+  app = await serve(staticMiddleware({ root }))
 })
 
 afterAll(async () => {
-  await new Promise((resolve) => server.close(resolve))
+  await closeServers()
   await rm(root, { recursive: true, force: true })
 })
 

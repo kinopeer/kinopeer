@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
+import { renderWithRouter } from '../../test/render'
 import { PosterCard, PosterCardSkeleton } from './PosterCard'
 
 describe('PosterCard', () => {
@@ -20,11 +20,7 @@ describe('PosterCard', () => {
   })
 
   it('links the poster and text when given a target', () => {
-    render(
-      <MemoryRouter>
-        <PosterCard title="Dune" subtitle="Movie · 2021" to="/title/movie/438631" />
-      </MemoryRouter>,
-    )
+    renderWithRouter(<PosterCard title="Dune" subtitle="Movie · 2021" to="/title/movie/438631" />)
     const link = screen.getByRole('link', { name: /Dune/ })
     expect(link).toHaveAttribute('href', '/title/movie/438631')
     expect(within(link).getByRole('heading', { name: 'Dune' })).toBeInTheDocument()
@@ -32,19 +28,17 @@ describe('PosterCard', () => {
 
   it('puts the overlay on the poster and the action outside the link', async () => {
     const onMore = vi.fn()
-    const { container } = render(
-      <MemoryRouter>
-        <PosterCard
-          title="Dune"
-          to="/torrent/abc"
-          overlay={<span>Downloading</span>}
-          action={
-            <button type="button" onClick={onMore}>
-              More
-            </button>
-          }
-        />
-      </MemoryRouter>,
+    const { container } = renderWithRouter(
+      <PosterCard
+        title="Dune"
+        to="/torrent/abc"
+        overlay={<span>Downloading</span>}
+        action={
+          <button type="button" onClick={onMore}>
+            More
+          </button>
+        }
+      />,
     )
     expect(container.querySelector('.ks-poster')).toHaveTextContent('Downloading')
     expect(container.querySelector('.ks-pcard')).toHaveClass('has-action')

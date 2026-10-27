@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
+import { Route, Routes, useLocation } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as matchesApi from '../api/matches'
 import * as api from '../api/qbittorrent'
@@ -8,6 +8,7 @@ import type { MainData, Torrent } from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
 import { stubDesktop } from '../lib/stubDesktop'
 import { resetSettings, updateSettings } from '../settings/settings'
+import { renderWithRouter } from '../test/render'
 import { MainDataProvider } from '../torrents/MainDataProvider'
 import * as serverMatches from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
@@ -82,19 +83,18 @@ function Where() {
 
 /** The desktop routes as App sets them up, under the shared poll. */
 function renderApp(entries: string[]) {
-  return render(
-    <MemoryRouter initialEntries={entries} initialIndex={entries.length - 1}>
-      <MainDataProvider onUnauthorized={vi.fn()}>
-        <Routes>
-          <Route element={<DownloadsWithDrawer onSessionLost={vi.fn()} />}>
-            <Route index />
-            <Route path="torrent/:hash" />
-          </Route>
-          <Route path="title/:type/:id" element={<p>Title page</p>} />
-        </Routes>
-        <Where />
-      </MainDataProvider>
-    </MemoryRouter>,
+  return renderWithRouter(
+    <MainDataProvider onUnauthorized={vi.fn()}>
+      <Routes>
+        <Route element={<DownloadsWithDrawer onSessionLost={vi.fn()} />}>
+          <Route index />
+          <Route path="torrent/:hash" />
+        </Route>
+        <Route path="title/:type/:id" element={<p>Title page</p>} />
+      </Routes>
+      <Where />
+    </MainDataProvider>,
+    entries,
   )
 }
 

@@ -76,6 +76,23 @@ export default defineConfig(({ mode }) => {
         },
         { extends: true, test: { name: 'server', include: ['server/**/*.test.ts'], environment: 'node' } },
       ],
+      // `npm run test:coverage`: a table in the terminal and coverage/index.html. Measured and shown
+      // in CI, with no threshold (docs/TESTING.md). Test helpers, type-only modules and re-exports
+      // are left out, since they have no behavior to cover.
+      coverage: {
+        provider: 'v8',
+        include: ['src/**', 'server/**'],
+        exclude: [
+          '**/*.test.{ts,tsx}',
+          'src/test/**',
+          'src/test-setup.ts',
+          'server/test/**',
+          '**/*.d.ts',
+          '**/types.ts',
+          '**/index.ts',
+        ],
+        reporter: ['text', 'html'],
+      },
     },
   }
 })

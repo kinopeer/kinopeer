@@ -1,6 +1,6 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, useLocation, type To } from 'react-router'
+import { useLocation, type To } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as matchesApi from './api/matches'
 import * as api from './api/qbittorrent'
@@ -8,6 +8,7 @@ import * as serverSettings from './api/settings'
 import * as tmdb from './api/tmdb'
 import App from './App'
 import { stubDesktop } from './lib/stubDesktop'
+import { renderWithRouter } from './test/render'
 
 vi.mock('./api/qbittorrent', async (importOriginal) => {
   const actual = await importOriginal<typeof api>()
@@ -43,11 +44,12 @@ function Where() {
 }
 
 function renderApp(path: string | (Exclude<To, string> & { state?: unknown }) = '/') {
-  return render(
-    <MemoryRouter initialEntries={[path]}>
+  return renderWithRouter(
+    <>
       <App />
       <Where />
-    </MemoryRouter>,
+    </>,
+    [path],
   )
 }
 

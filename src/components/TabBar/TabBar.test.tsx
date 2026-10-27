@@ -1,36 +1,34 @@
-import { render, screen } from '@testing-library/react'
-import { MemoryRouter } from 'react-router'
+import { screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import { renderWithRouter } from '../../test/render'
 import { TabBar } from './TabBar'
 
 describe('TabBar', () => {
   it('marks the current tab', () => {
-    render(
-      <MemoryRouter initialEntries={['/search']}>
-        <TabBar
-          label="Main"
-          items={[
-            { to: '/', icon: 'download', label: 'Downloads' },
-            { to: '/search', icon: 'search', label: 'Search' },
-          ]}
-        />
-      </MemoryRouter>,
+    renderWithRouter(
+      <TabBar
+        label="Main"
+        items={[
+          { to: '/', icon: 'download', label: 'Downloads' },
+          { to: '/search', icon: 'search', label: 'Search' },
+        ]}
+      />,
+      ['/search'],
     )
     expect(screen.getByRole('link', { name: 'Search' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('link', { name: 'Downloads' })).not.toHaveAttribute('aria-current')
   })
 
   it('highlights a tab for the screens inside it', () => {
-    render(
-      <MemoryRouter initialEntries={['/torrent/abc']}>
-        <TabBar
-          label="Main"
-          items={[
-            { to: '/', icon: 'download', label: 'Downloads', also: ['/torrent/'] },
-            { to: '/search', icon: 'search', label: 'Search' },
-          ]}
-        />
-      </MemoryRouter>,
+    renderWithRouter(
+      <TabBar
+        label="Main"
+        items={[
+          { to: '/', icon: 'download', label: 'Downloads', also: ['/torrent/'] },
+          { to: '/search', icon: 'search', label: 'Search' },
+        ]}
+      />,
+      ['/torrent/abc'],
     )
     expect(screen.getByRole('link', { name: 'Downloads' })).toHaveClass('is-on')
     expect(screen.getByRole('link', { name: 'Search' })).not.toHaveClass('is-on')

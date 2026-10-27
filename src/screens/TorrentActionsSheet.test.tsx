@@ -1,10 +1,10 @@
-import { render, screen, within } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
 import type { Torrent } from '../api/qbittorrent'
 import { stubDesktop } from '../lib/stubDesktop'
+import { renderWithRouter } from '../test/render'
 import * as titleMatches from '../torrents/titleMatches'
 import { TorrentActionsSheet, type TorrentActionsSheetProps } from './TorrentActionsSheet'
 
@@ -32,11 +32,7 @@ function renderActions(props: Partial<TorrentActionsSheetProps> = {}) {
     onChangeTitle: vi.fn(),
     onConfirmed: vi.fn(),
   }
-  render(
-    <MemoryRouter>
-      <TorrentActionsSheet torrent={TORRENT} match={MATCH} offline={false} anchor={anchor} {...handlers} {...props} />
-    </MemoryRouter>,
-  )
+  renderWithRouter(<TorrentActionsSheet torrent={TORRENT} match={MATCH} offline={false} anchor={anchor} {...handlers} {...props} />)
   return handlers
 }
 

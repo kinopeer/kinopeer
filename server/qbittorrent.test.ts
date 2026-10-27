@@ -1,86 +1,13 @@
-import { createServer, type IncomingMessage, type RequestListener, type Server } from 'node:http'
-import type { AddressInfo } from 'node:net'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { qbittorrentBridge, qbittorrentMiddleware, type QbittorrentConfig } from './qbittorrent.ts'
+import { closeServers, fakeQbittorrent, serve } from './test/fakes.ts'
 
-const servers: Server[] = []
-
-async function listen(handler: RequestListener): Promise<string> {
-  const server = createServer(handler)
-  servers.push(server)
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
-  return `http://127.0.0.1:${(server.address() as AddressInfo).port}`
-}
-
-/** Kinoseed's side: the middleware, with a 404 fallback like Vite's. */
-function kinoseed(config: QbittorrentConfig): Promise<string> {
-  const middleware = qbittorrentMiddleware(config)
-  return listen((request, response) =>
-    middleware(request, response, () => {
-      response.statusCode = 404
-      response.end('fallback')
-    }),
-  )
-}
-
-async function bodyOf(request: IncomingMessage): Promise<string> {
-  const chunks: Buffer[] = []
-  for await (const chunk of request as AsyncIterable<Buffer>) chunks.push(chunk)
-  return Buffer.concat(chunks).toString()
-}
-
-interface Seen {
-  method?: string
-  url?: string
-  cookie?: string
-  origin?: string
-  contentType?: string
-  body: string
-}
-
-/** A qBittorrent with one user that hands out SID cookies and can expire them. */
-async function fakeQbittorrent({ legacy = false } = {}) {
-  const sessions = new Set<string>()
-  const seen: Seen[] = []
-  let logins = 0
-  const base = await listen(async (request, response) => {
-    const body = await bodyOf(request)
-    const url = request.url ?? ''
-    if (url === '/api/v2/auth/login') {
-      logins++
-      const params = new URLSearchParams(body)
-      if (params.get('username') !== 'admin' || params.get('password') !== 'pass word') {
-        // qBittorrent 5.3+ answers 401; older versions 200 "Fails.".
-        if (legacy) return response.end('Fails.')
-        response.statusCode = 401
-        return response.end('Unauthorized')
-      }
-      const sid = `sid${logins}`
-      sessions.add(sid)
-      response.setHeader('Set-Cookie', `SID=${sid}; HttpOnly; SameSite=Strict; path=/`)
-      return response.end('Ok.')
-    }
-    seen.push({
-      method: request.method,
-      url,
-      cookie: request.headers.cookie,
-      origin: request.headers.origin,
-      contentType: request.headers['content-type'],
-      body,
-    })
-    if (!sessions.has(/SID=(\w+)/.exec(request.headers.cookie ?? '')?.[1] ?? '')) {
-      response.statusCode = 403
-      return response.end('Forbidden')
-    }
-    response.setHeader('Content-Type', 'text/plain')
-    response.end('v5.2.4')
-  })
-  return { base, seen, sessions, logins: () => logins }
-}
+/** Kinoseed's side: the middleware under test. */
+const kinoseed = (config: QbittorrentConfig) => serve(qbittorrentMiddleware(config))
 
 afterEach(async () => {
   vi.restoreAllMocks()
-  await Promise.all(servers.splice(0).map((server) => new Promise((resolve) => server.close(resolve))))
+  await closeServers()
 })
 
 describe('qbittorrentMiddleware', () => {
