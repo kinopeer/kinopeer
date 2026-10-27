@@ -76,10 +76,11 @@ export default defineConfig(({ mode }) => {
         },
         { extends: true, test: { name: 'server', include: ['server/**/*.test.ts'], environment: 'node' } },
       ],
-      // `npm run test:coverage`: a table in the terminal and coverage/index.html. Measured and shown
-      // in CI, with no threshold (docs/TESTING.md). Test helpers, type-only modules and the barrels
-      // that only re-export (src/i18n/index.ts sets i18next up, so it counts) are left out, since
-      // they have no behavior to cover.
+      // `npm run test:coverage`: a table in the terminal and coverage/index.html; CI runs the same.
+      // Test helpers, type-only modules and the barrels that only re-export (src/i18n/index.ts sets
+      // i18next up, so it counts) are left out, since they have no behavior to cover. The thresholds
+      // are a ratchet (docs/TESTING.md → Coverage): two points under the totals when they were set,
+      // raised when the totals grow and stay there, never lowered to get a PR through.
       coverage: {
         provider: 'v8',
         include: ['src/**', 'server/**'],
@@ -94,6 +95,7 @@ export default defineConfig(({ mode }) => {
           'src/components/*/index.ts',
         ],
         reporter: ['text', 'html'],
+        thresholds: { lines: 94, statements: 92, functions: 91, branches: 90 },
       },
     },
   }

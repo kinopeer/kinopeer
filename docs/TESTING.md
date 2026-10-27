@@ -1,14 +1,15 @@
 # Testing
 
-How Kinoseed's tests are organized: six layers, each with one job, the shared test data and the
-fake services, coverage, and the screenshot tests. Running and releasing are in
+How Kinoseed's tests are organized: six layers, each with one job, and how to choose one; what to
+do with a bug; what no layer sees; the shared test data and the fake services; coverage and its
+threshold; the screenshot tests and the smoke journeys. Running and releasing are in
 [DEVELOPMENT.md](DEVELOPMENT.md); the conventions every PR follows are in [CLAUDE.md](../CLAUDE.md).
 
 ```sh
 npm test                    # layers 1–5 (Vitest), single run
 npm test -- --project app   # only the jsdom tests (src/)
 npm test -- --project server  # only the server and integration tests (server/)
-npm run test:coverage       # the same with coverage: a table in the terminal, coverage/index.html
+npm run test:coverage       # the same with coverage and its threshold: a table in the terminal, coverage/index.html
 npm run test:visual         # layer 6: screenshot tests in Docker
 npm run test:visual:update  # re-render their baselines
 npm run test:smoke          # layer 6: smoke journeys through the production server, no Docker
@@ -36,11 +37,128 @@ the layers: its routing rules are plain logic in `src/pwa/swRoutes.ts` (layer 1)
 
 ## Choosing a layer
 
-Written in a later PR.
+One behavior, one layer: every statement about what Kinoseed does lives in exactly one test, on the
+lowest layer that can see it. Higher layers meet that behavior only as a step towards the state they
+check: a screen test opens the sort sheet to reach a sorted list and doesn't re-check the order's
+rules, which `sort.test.ts` owns. Pick the layer by what the statement needs:
+
+| The statement | What it needs | Layer |
+| --- | --- | --- |
+| `parseRelease` reads 2160p and Dolby Vision from a release name | A function and its input | 1 |
+| `Sheet` closes when its `<dialog>` is cancelled with Escape | React and a DOM, no screen around it | 2 |
+| Downloads shows the error state, and Try again polls again | A screen with its API clients mocked | 3 |
+| The server never forwards the browser's cookies to qBittorrent | The server and a fake service, no browser code | 4 |
+| `/prowlarr/download` answers `{ magnet }` the way `src/api/prowlarr` reads it | Both ends of a route: the real client and the real server | 5 |
+| The filter bar stays at the top after a scroll | Layout, which jsdom hasn't | 6, a screenshot |
+| The qBittorrent session lives on the server only, behind a proxy that wants a cookie | A real browser and the real server together | 6, a smoke journey |
+
+Walk down the middle column: no React → 1; React but no screen's data → 2; a screen's data but no
+server → 3; the server but not the browser's code → 4; both ends → 5; layout, a service worker, a
+proxy or anything else only a browser does → 6, a screenshot when the question is how it looks and a
+journey when it's whether the pieces work together. In doubt, take the lower layer: it runs in
+milliseconds, fails with a precise message, and it's the one the layer above leans on.
+
+- **A lower layer already checks it.** Don't repeat it; use it as a step. A screen test that reaches
+  a state through sorting trusts the sort; a journey that adds a release trusts the file picker and
+  checks only what reached qBittorrent. A duplicate on purpose carries a comment saying what the
+  second layer sees that the first can't: the delete journey presses a real Escape in the drawer's
+  confirmation although `DownloadsWithDrawer.test.tsx` already sends the `cancel` event, because
+  jsdom never turns Escape into `cancel`, and only Chromium shows where the browser's own event and
+  React's dispatch meet.
+- **Roles and names, not classes.** Tests find elements by role and accessible name
+  (`getByRole('button', { name: 'Удалить' })`), so a test fails when the behavior changes, not when
+  a stylesheet does. The one place a class is the point is a layer-2 test of a design-system
+  component (`Button`, `IconButton`, `Dialog`): their classes are the contract with their CSS, so
+  `toHaveClass('ks-btn-primary')` is what such a test is about. Nowhere else.
+- **Helpers and fixtures.** Data every layer shares is in `src/test/fixtures.ts`, the rendering
+  helpers in `src/test/render.tsx`, the fake services in `server/test/fakes.ts`
+  ([Shared test data](#shared-test-data)). What one file uses stays in that file; the second copy of
+  a literal or a helper moves it to the shared place, as `DUNE_TORRENT` did. A service's new
+  behavior is an addition to its fake, with a comment on what the real service does and in which
+  version; an inline server is only for a test that needs the service to misbehave in one specific
+  way. `vi.mock` stays in each test file on purpose, so a reader sees what the test replaces without
+  opening another module.
+- **A flaky test is fixed or deleted.** Not retried, not skipped, not marked `fixme`: a retry hides
+  the instability and a skip hides the behavior (oxlint refuses `.skip` and `.only`). The one
+  exception today is the screenshot job in CI, which runs with `retries: 1` (`playwright.config.ts`):
+  three screens flaked in 3 of the last 27 green runs, from three different causes
+  ([#109](https://github.com/MrShakhov/kinoseed/issues/109)), and a red CI in one run of nine would
+  cost more than the retry while they are fixed. A retried run still says `N flaky` in the job's log,
+  so the retry doesn't make the flakes invisible, and it goes with that issue. The smoke config
+  inherits the setting through `...base` and loses it at the same time.
 
 ## When we find a bug
 
-Written in a later PR.
+A bug is two defects: one in the code and one in the tests that let it through. A `fix/` PR answers
+three questions: why it broke, why the tests didn't catch it, and what changes so this class of miss
+is caught from now on. The order of work:
+
+1. **An issue first.** A bug from the test stand, from Umbrel or from a test under construction
+   becomes an issue with the steps and the environment (phone or desktop, HTTP or HTTPS, the
+   qBittorrent version, where it was found) before anyone fixes it, so the fix can be checked against
+   what was seen and the label below has a place to live.
+2. **A red test on the lowest layer that sees it** (the table above), run to watch it fail on `main`.
+3. **The fix**, and the test goes green with everything else.
+4. **The record** in the PR and on the issue, below.
+
+The test lives where an ordinary test of that behavior would: next to the code, on its layer, named
+after the behavior ("stays open when Escape cancels its delete confirmation"). No `regressions/`
+folder and no "issue 123" in a test's name; a link to the issue in a comment only where the case
+isn't obvious from the name and the code.
+
+**Why the tests missed it** is one of six classes. Each has a label (`test-gap:<class>`) and an
+action besides the test itself:
+
+| Class | What it looks like in Kinoseed | What we do besides the test |
+| --- | --- | --- |
+| `uncovered` | Nobody sent `cancel` to a confirmation nested in the drawer (#107) | Add the test. A whole module or family of states without tests gets covered, not just the one case |
+| `wrong-layer` | A jsdom test asserted that the filter bar "stays at the top", which jsdom can't see | Move the statement to the layer that sees it (a screenshot after a scroll) and delete the old test |
+| `implementation` | A screen test's mock answered what the server never sends, so the screen passed against a fiction | Rewrite the test to the behavior the user sees; the contract between client and server goes to layer 5 |
+| `fake-drift` | qBittorrent 5.3 answers 401 to a wrong password; the fake still answered `200 "Fails."` | Fix the fake, with a comment on the real behavior and the version it was seen in, and run everything on the fixed fake |
+| `environment` | No `crypto.subtle` over plain HTTP; Umbrel's app_proxy wants a cookie on every fetch; the service worker served the old shell | Add the environment to layer 5 or 6 when it's cheap (the smoke stand's proxy is one); otherwise a line in [Known blind spots](#known-blind-spots) and a manual check in `RELEASE_CHECKLIST.md` |
+| `silent-test` | A test without an `expect`, a `.skip`, a screenshot that passes on retry | Fix or delete the test; where oxlint can catch the shape, a rule in `.oxlintrc.json` |
+
+The record: a **Why tests missed it** section in the PR (the template has it) with the class and
+what changes so the class is caught, and the `test-gap:<class>` label on the issue. A systemic
+finding (a blind spot, a fake that had drifted) also becomes a line in this file, in the same PR.
+There is no separate log: the closed issues with these labels are the history.
+
+Once per release, look at the pile ([RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) → Before every
+release): three bugs of one class since the last release are a problem of the system, not three
+accidents. Three `fake-drift` → compare the fakes with the live services on Umbrel by hand; three
+`wrong-layer` → the layer rule above reads badly, rewrite it; three `uncovered` in one area → that
+area gets a pass over its states, not three more tests; three `environment` → that environment goes
+into layer 6; three `implementation` → review the mocks in that area; three `silent-test` → a lint
+rule.
+
+Two rules next to this one:
+
+- A bug seen on the test stand or on Umbrel is an issue with the steps and the environment first,
+  then a `fix/` branch; not a fix from memory.
+- A test that fails during a planned change is not a bug. The test changes only when the new
+  behavior is written down in `SPEC.md` or `CHANGELOG.md`; an assertion is never loosened to make it
+  pass.
+
+In practice: #107 (Escape in the delete confirmation closed the drawer too) was found by the delete
+smoke journey while it was written, filed with the desktop layout and Chromium as its environment
+and labelled `test-gap:uncovered`, and fixed in #108 with a red jsdom test in
+`DownloadsWithDrawer.test.tsx` first, then the guard in `TorrentDrawer`, `Sheet` and `Dialog`; the
+journey now presses the real Escape it had skipped.
+
+## Known blind spots
+
+What no layer sees. Each is either checked by hand before a release ([RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)
+→ Before every release) or knowingly not checked; a bug from one of them is an `environment` miss,
+and its fix either adds the environment to a layer or adds a line here.
+
+| Blind spot | What the tests run instead | How it's covered |
+| --- | --- | --- |
+| A real phone: Safari on iOS, installing the PWA from Share → Add to Home Screen, the standalone window | Chromium at 390×844 in Docker | By hand on the owner's phone against `dev-lan` for a PR that changes a phone screen, and the checklist's phone pass before a release |
+| Umbrel's real app_proxy and HTTPS with Umbrel's certificate: the login redirect, the cookie's lifetime, the service worker under a certificate the phone had to trust | The smoke stand's proxy, which only refuses a fetch without the cookie, over plain HTTP | The checklist: after the Umbrel package updates, onboarding, a search and an add on the owner's Umbrel |
+| The real qBittorrent and Prowlarr: a version that changes an answer | The fakes in `server/test/fakes.ts`, written from qBittorrent 5.3 (401 on a wrong password; `legacy` for the older `200 "Fails."`) and Prowlarr 1.24, with the version in a comment where it matters | Not until someone hits it: then it's a `fake-drift` miss and the fake moves with the service. Three in a release → compare every fake with the live services by hand |
+| Plain HTTP without `crypto.subtle`: reading a `.torrent` with the SHA-1 fallback in a real browser | `src/lib/digest.ts` on layer 1 against known digests; every browser test runs on localhost, a secure context, where Web Crypto exists | The checklist: add a release over `http://` on the LAN, where the info hash must still match qBittorrent's |
+| TMDB for real: field shapes, missing posters, the language fallback, rate limits | The fake and the fixtures' titles | Only the README screenshots (`npm run screenshots:readme`, with a real key) and the test stand see the real API; nothing compares them, so a change in TMDB's answers arrives as a bug report |
+| Real time: the hour before a refused login is retried, the week before a missing torrent's match is forgotten, the hourly cleanup | Fake timers on layer 4 | Not checked for real; the logic is small and the timers are the only difference |
 
 ## Shared test data
 
@@ -120,9 +238,18 @@ since the clients import without file extensions; the rest of `server/` stays un
 `npm run test:coverage` runs the Vitest layers with `@vitest/coverage-v8` and prints a table per
 file, plus an HTML report in `coverage/` (git-ignored). It measures `src/` and `server/` without the
 tests themselves, `src/test/`, `server/test/`, type-only modules and the `index.ts` barrels of
-`src/api/*` and `src/components/*`, which only re-export (`vite.config.ts`). CI runs the same in the `check` job, adds the totals to the job summary
-(`scripts/coverage-summary.mjs`) and uploads the HTML report as the `coverage` artifact. There is
-no threshold: the numbers are there to see what a PR leaves uncovered, not to gate it.
+`src/api/*` and `src/components/*`, which only re-export (`vite.config.ts`). CI runs the same in the
+`check` job, adds the totals to the job summary (`scripts/coverage-summary.mjs`) and uploads the HTML
+report as the `coverage` artifact.
+
+The run fails under a threshold (`coverage.thresholds` in `vite.config.ts`): 94% of lines, 92% of
+statements, 91% of functions and 90% of branches, each two points under the totals of 2026-10-27
+(96.8, 94.7, 93.9 and 92.1), rounded down. The threshold is a ratchet: when the totals have grown and
+stayed there, raise it to two points under them, in the PR that got them there or in one of its own;
+never lower it to get a PR through. A PR that lowers the totals says why in its Tests section (a
+module left uncovered on purpose, with the reason). The numbers are there to show what a PR leaves
+uncovered; the threshold only keeps that from slipping by unnoticed. It applies to the whole run, so
+`npm run test:coverage -- --project server` alone fails it: coverage is measured over both projects.
 
 ## Lint rules for tests
 
