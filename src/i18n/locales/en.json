@@ -182,7 +182,9 @@
     "findReleases": "Find releases",
     "seriesHint": "Releases are searched by show name. Pick seasons in the file list after choosing a release.",
     "inDownloads": "In downloads",
-    "inDownloadsBadge": "In downloads · {{value}}"
+    "inDownloadsBadge": "In downloads · {{value}}",
+    "showMore": "Show more",
+    "showLess": "Show less"
   },
   "settings": {
     "title": "Settings",

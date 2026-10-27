@@ -19,6 +19,7 @@ export const ICONS = {
   'chevron-left': 'M15 5l-7 7 7 7',
   'chevron-right': 'M9 5l7 7-7 7',
   'chevron-down': 'M5 9l7 7 7-7',
+  'chevron-up': 'M5 15l7-7 7 7',
   'arrow-up': 'M12 19V5M6 11l6-6 6 6',
   'arrow-down': 'M12 5v14M6 13l6 6 6-6',
   'move-top': 'M6 4h12M12 20V9M7 13l5-5 5 5',

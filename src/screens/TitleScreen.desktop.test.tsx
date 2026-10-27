@@ -8,6 +8,7 @@ import * as qbt from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
 import type { MovieDetails, TvDetails } from '../api/tmdb'
 import { stubDesktop } from '../lib/stubDesktop'
+import { restoreLayout, stubLayout } from '../lib/stubLayout'
 import { DUNE_RELEASES } from '../test/fixtures'
 import { renderWithRouter } from '../test/render'
 import { resetServerMatches } from '../torrents/serverMatches'
@@ -108,6 +109,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  restoreLayout()
 })
 
 describe('TitleScreen on desktop', () => {
@@ -232,6 +234,20 @@ describe('TitleScreen on desktop', () => {
     expect(within(top).getByRole('link', { name: 'Open on Kinozal' })).toHaveAttribute('href', 'https://tracker.test/b')
     await userEvent.click(within(top).getByRole('button', { name: 'Add to downloads' }))
     expect(within(screen.getByRole('dialog', { name: 'Add to downloads' })).getByText(DUNE_RELEASES[1].title)).toBeInTheDocument()
+  })
+
+  it('cuts a long overview to a few lines, with Show more', async () => {
+    const overview = 'Paul Atreides unites with Chani and the Fremen while seeking revenge. '.repeat(8).trim()
+    getMovie.mockResolvedValue({ ...DUNE, overview })
+    // A 10-line overview cut to 5: taller than it shows.
+    stubLayout(130, 260)
+    renderAt('/title/movie/693134')
+    const text = await screen.findByText(overview)
+    expect(text).toHaveClass('is-clamped')
+    expect(screen.getByRole('region', { name: 'Overview' })).toContainElement(text)
+    await userEvent.click(screen.getByRole('button', { name: 'Show more' }))
+    expect(text).not.toHaveClass('is-clamped')
+    expect(screen.getByRole('button', { name: 'Show less' })).toHaveAttribute('aria-expanded', 'true')
   })
 
   it('shows the series hint by the button and searches a series by name', async () => {

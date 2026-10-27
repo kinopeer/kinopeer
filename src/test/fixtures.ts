@@ -251,12 +251,21 @@ const OVERVIEW = {
   ru: 'Длинное описание, чтобы было видно, как несколько строк текста переносятся под постером и жанрами. Оно тянется какое-то время, как часто бывает в TMDB, а потом заканчивается.',
 }
 
+/** Oppenheimer's overview is long on purpose: the desktop hero cuts it to a few lines with "Show more". */
+export const LONG_OVERVIEW_ID = 872585
+
+const LONG_OVERVIEW = {
+  en: 'A long overview, the way TMDB often has for a well-known title, so the desktop hero shows how it is cut to a few lines with a button for the rest. It begins with the setting and the years the story covers, goes on to the people around the main character and what each of them wants, and then to the project itself: the secrecy, the deadlines, the doubts and the arguments in the laboratory and outside it. After that it describes the test, the way the news of it spreads and what it changes for everyone involved, and finally the hearings years later, where the same people meet again with different roles. It does not end soon, and that is the point of it here.',
+  ru: 'Длинное описание, какое в TMDB часто бывает у известного фильма, чтобы было видно, как десктопный хиро обрезает его до нескольких строк с кнопкой для остального. Оно начинается с места действия и лет, которые охватывает история, переходит к людям вокруг главного героя и к тому, чего каждый из них хочет, а затем к самому проекту: к секретности, срокам, сомнениям и спорам в лаборатории и за её пределами. Потом оно рассказывает об испытании, о том, как расходится весть о нём и что оно меняет для всех участников, и наконец о слушаниях много лет спустя, где те же люди встречаются снова уже в других ролях. Заканчивается оно нескоро, и в этом здесь весь смысл.',
+}
+
 /** TMDB's details for a title in TITLES, or undefined for an unknown one. */
 export function details(type: string, id: number, language: string): MovieDetails | TvDetails | undefined {
   const title = TITLES.find((item) => item.type === type && item.id === id)
   if (!title) return undefined
   const lang = language.startsWith('ru') ? 'ru' : 'en'
-  const common = { genres: GENRES[lang], overview: OVERVIEW[lang], tagline: '', status: 'Released' }
+  const overview = id === LONG_OVERVIEW_ID ? LONG_OVERVIEW[lang] : OVERVIEW[lang]
+  const common = { genres: GENRES[lang], overview, tagline: '', status: 'Released' }
   const item = result(title, language)
   return title.type === 'movie'
     ? { ...(item as MovieResult), ...common, runtime: 166, imdb_id: null }

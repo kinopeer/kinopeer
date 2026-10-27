@@ -27,6 +27,7 @@ import { useMainData } from '../torrents/useMainData'
 import { ReleasesScreen } from './ReleasesScreen'
 import type { SettingsLocationState } from './SettingsScreen'
 import { TitleDownloads } from './TitleDownloads'
+import { TitleOverview } from './TitleOverview'
 import { TitleReleases } from './TitleReleases'
 import './TitleScreen.css'
 
@@ -283,14 +284,7 @@ export function TitleScreen({ onSessionLost }: TitleScreenProps) {
                 {rating}
                 {genres}
               </div>
-              {details.overview && (
-                <section aria-labelledby="title-overview">
-                  <h2 id="title-overview" className="sr-only">
-                    {t('title.overview')}
-                  </h2>
-                  <p className="t-body-lg c2 title-doverview">{details.overview}</p>
-                </section>
-              )}
+              {details.overview && <TitleOverview key={`${details.type}:${details.id}`} text={details.overview} />}
               <div className="title-dactions">
                 <Button size="lg" icon={searched ? 'arrow-down' : 'search'} onClick={findReleases}>
                   {t('title.findReleases')}
