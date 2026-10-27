@@ -1,6 +1,6 @@
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { Route, Routes, useParams } from 'react-router'
+import { Route, Routes, useLocation, useParams } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as matchesApi from '../api/matches'
 import * as qbt from '../api/qbittorrent'
@@ -95,6 +95,10 @@ function ReleasesPage() {
   return <h1>Releases page {`${type}/${id}`}</h1>
 }
 
+function SettingsPage() {
+  return <h1>Settings page {JSON.stringify(useLocation().state)}</h1>
+}
+
 function renderAt(path: string, history: string[] = []) {
   return renderWithRouter(
     <Routes>
@@ -102,6 +106,7 @@ function renderAt(path: string, history: string[] = []) {
       <Route path="/torrent/:hash" element={<h1>Torrent page</h1>} />
       <Route path="/title/:type/:id/releases" element={<ReleasesPage />} />
       <Route path="/search" element={<h1>Search page</h1>} />
+      <Route path="/settings" element={<SettingsPage />} />
     </Routes>,
     [...history, path],
   )
@@ -170,6 +175,14 @@ describe('TitleScreen', () => {
     renderAt('/title/movie/693134')
     await userEvent.click(await screen.findByRole('button', { name: 'Try again' }))
     expect(await screen.findByRole('heading', { level: 1, name: 'Dune: Part Two' })).toBeInTheDocument()
+  })
+
+  it('explains a missing TMDB key and sends the user to enter it in Settings', async () => {
+    getMovie.mockRejectedValue(new tmdb.TmdbKeyError(401))
+    renderAt('/title/movie/693134')
+    expect(await screen.findByRole('heading', { name: 'TMDB isn’t set up' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Enter key' }))
+    expect(screen.getByRole('heading', { name: /^Settings page/ })).toHaveTextContent('{"editTmdbKey":true}')
   })
 
   it('opens the releases for the title', async () => {

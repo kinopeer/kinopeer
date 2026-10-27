@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { SettingsError } from '../api/settings'
@@ -59,5 +59,19 @@ describe('ConnectScreen', () => {
     setup(vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
     await fillAndSubmit()
     expect(screen.getByRole('alert')).toHaveTextContent('qBittorrent is unreachable')
+  })
+
+  it('switches the theme and the language before signing in', async () => {
+    setup()
+    const theme = within(screen.getByRole('group', { name: 'Theme' }))
+    await userEvent.click(theme.getByRole('button', { name: 'Light' }))
+    expect(document.documentElement.dataset.theme).toBe('light')
+    expect(theme.getByRole('button', { name: 'Light' })).toHaveAttribute('aria-pressed', 'true')
+    expect(theme.getByRole('button', { name: 'Dark' })).toHaveAttribute('aria-pressed', 'false')
+
+    await userEvent.click(within(screen.getByRole('group', { name: 'Language' })).getByRole('button', { name: 'Русский' }))
+    expect(screen.getByRole('heading', { name: 'Подключите qBittorrent', level: 1 })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Русский' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Светлая' })).toHaveAttribute('aria-pressed', 'true')
   })
 })

@@ -28,8 +28,8 @@ describe('Sidebar', () => {
 
   it('highlights an item for the screens inside it', () => {
     const nav = renderSidebar('/torrent/abc')
+    // Which screens count is isTabOn's (isTabOn.test.ts); the item shows it with its class.
     expect(within(nav).getByRole('link', { name: 'Downloads' })).toHaveClass('is-on')
-    expect(within(nav).getByRole('link', { name: 'Search' })).not.toHaveClass('is-on')
   })
 
   it('marks the item of the page a drawer is open over, rather than the URL’s', () => {

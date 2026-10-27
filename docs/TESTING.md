@@ -28,7 +28,10 @@ Layers 1–5 run on every `npm test` in two Vitest projects (`vite.config.ts`): 
 `src/test-setup.ts` (jest-dom matchers, the interface language reset to English, Testing Library's
 cleanup, a no-op `window.scrollTo` since jsdom only logs "not implemented" for it); `server` is
 plain Node for `server/**/*.test.ts`, the integration tests included. Tests sit next to the code as
-`*.test.ts(x)` and query by role and accessible name.
+`*.test.ts(x)` and query by role and accessible name. The service worker is the one exception to
+the layers: its routing rules are plain logic in `src/pwa/swRoutes.ts` (layer 1), and
+`src/sw.test.ts` is a smoke test of `src/sw.ts` with workbox mocked, compiled with the worker's
+`tsconfig.sw.json` rather than the app's.
 
 ## Choosing a layer
 

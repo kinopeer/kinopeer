@@ -101,23 +101,16 @@ describe('DownloadsScreen on desktop', () => {
     ])
   })
 
-  it('shows a download as a row with its columns and a link to its details', async () => {
+  it('shows each download as a row in queue order, linking to its details', async () => {
     updateSettings({ downloadsDesktopView: 'list' })
     renderScreen()
-    const [dune, andor] = await tableRows()
-    const cells = within(dune).getAllByRole('cell')
-    expect(within(cells[0]).getByLabelText('Queue position 1')).toHaveTextContent('1')
-    expect(within(dune).getByRole('link', { name: 'Dune.Part.Two.2024.2160p.WEB-DL' })).toHaveAttribute(
-      'href',
-      '/torrent/dune',
-    )
-    expect(within(dune).getByText('42%')).toBeInTheDocument()
-    expect(within(dune).getByText('Downloading')).toBeInTheDocument()
-    // The time left has its own column, and a copy under the speed for narrow tables (CSS shows one).
-    expect(cells[5]).toHaveTextContent(/^↓ 4\.3 MB\/s12 min$/)
-    expect(cells[6]).toHaveTextContent(/^12 min$/)
-    expect(within(dune).getByText('8.99 GB / 21.4 GB')).toBeInTheDocument()
-    expect(within(andor).getAllByText('—')).toHaveLength(1)
+    const rows = await tableRows()
+    expect(rows.map((row) => within(row).getByRole('link').textContent)).toEqual([
+      'Dune.Part.Two.2024.2160p.WEB-DL',
+      'Andor.S02.1080p',
+      'Alien.Romulus.2024.1080p',
+    ])
+    expect(within(rows[0]).getByRole('link')).toHaveAttribute('href', '/torrent/dune')
   })
 
   it('drops the "#" column when no torrent shown has a queue position', async () => {

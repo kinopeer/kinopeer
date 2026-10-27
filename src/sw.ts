@@ -5,6 +5,7 @@ import { ExpirationPlugin } from 'workbox-expiration'
 import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching'
 import { NavigationRoute, registerRoute } from 'workbox-routing'
 import { CacheFirst } from 'workbox-strategies'
+import { API_DENYLIST, POSTER_CACHE, isPosterRequest } from './pwa/swRoutes'
 
 declare const self: ServiceWorkerGlobalScope
 
@@ -19,20 +20,16 @@ cleanupOutdatedCaches()
 
 // Every app route (/, /search, /title/…) opens the cached index.html. The server's own routes are
 // left alone, and qBittorrent, Prowlarr and TMDB API answers are never cached: they must be live.
-registerRoute(
-  new NavigationRoute(createHandlerBoundToURL('/index.html'), {
-    denylist: [/^\/(api|qbt|prowlarr|tmdb|tmdb-img)\//],
-  }),
-)
+registerRoute(new NavigationRoute(createHandlerBoundToURL('/index.html'), { denylist: API_DENYLIST }))
 
 // Posters and backdrops never change for a given URL, so keep them for a month.
 registerRoute(
-  ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/tmdb-img/'),
+  isPosterRequest,
   new CacheFirst({
-    cacheName: 'tmdb-images',
+    cacheName: POSTER_CACHE.cacheName,
     plugins: [
-      new CacheableResponsePlugin({ statuses: [200] }),
-      new ExpirationPlugin({ maxEntries: 500, maxAgeSeconds: 30 * 24 * 60 * 60, purgeOnQuotaError: true }),
+      new CacheableResponsePlugin({ statuses: [...POSTER_CACHE.statuses] }),
+      new ExpirationPlugin({ maxEntries: POSTER_CACHE.maxEntries, maxAgeSeconds: POSTER_CACHE.maxAgeSeconds, purgeOnQuotaError: true }),
     ],
   }),
 )
