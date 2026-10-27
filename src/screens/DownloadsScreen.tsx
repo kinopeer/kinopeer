@@ -196,12 +196,11 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
     setQuery('')
   }
 
+  // The count takes the title's place; both buttons sit together on the right, where the select
+  // button was, so the pointer is already there.
   const selectionRow = (
     <div className="downloads-title-row">
-      <Button variant="ghost" size="sm" onClick={() => setSelected(null)}>
-        {t('downloads.selectCancel')}
-      </Button>
-      <h1 className="t-h3 ks-num downloads-selected" aria-live="polite">
+      <h1 className="t-h3 ks-num" aria-live="polite">
         {t('downloads.selected', { count: selectedVisible.length })}
       </h1>
       <Button
@@ -211,6 +210,9 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
         onClick={() => setSelected(new Set(allSelected ? [] : visible.map((torrent) => torrent.hash)))}
       >
         {allSelected ? t('downloads.selectNone') : t('downloads.selectAll')}
+      </Button>
+      <Button variant="ghost" size="sm" onClick={() => setSelected(null)}>
+        {t('downloads.selectCancel')}
       </Button>
     </div>
   )
