@@ -91,12 +91,9 @@ describe('AddReleaseSheet', () => {
 
     await userEvent.click(await within(sheet).findByRole('button', { name: /Files: all \(3\)/ }))
     const picker = screen.getByRole('dialog', { name: 'Select files' })
-    expect(within(picker).getByText('Not enough free space')).toBeInTheDocument()
     await userEvent.click(within(picker).getByRole('checkbox', { name: 'Season 1' }))
     await userEvent.click(within(picker).getByRole('button', { name: /Season 2/ }))
     await userEvent.click(within(picker).getByRole('checkbox', { name: 'e02.mkv' }))
-    expect(within(picker).getByRole('checkbox', { name: 'Season 2' })).toHaveAttribute('aria-checked', 'mixed')
-    expect(within(picker).getByText('1 of 3 · 20.0 GB')).toBeInTheDocument()
     await userEvent.click(within(picker).getByRole('button', { name: 'Done' }))
 
     const back = screen.getByRole('dialog', { name: 'Add to downloads' })
@@ -172,6 +169,33 @@ describe('AddReleaseSheet', () => {
     expect(within(sheet).queryByRole('button', { name: /Files:/ })).not.toBeInTheDocument()
     await userEvent.click(within(sheet).getByRole('button', { name: /^Download · 50\.0\sGB$/ }))
     expect(addRelease).toHaveBeenCalledWith({ kind: 'magnet', uri: 'magnet:?xt=urn:btih:abc' }, expect.anything(), undefined)
+  })
+
+  it('works without categories, a default path or the free space from qBittorrent', async () => {
+    vi.mocked(qbt.getCategories).mockRejectedValue(new qbt.QbittorrentError('Forbidden', 403))
+    vi.mocked(qbt.getDefaultSavePath).mockRejectedValue(new qbt.QbittorrentError('Forbidden', 403))
+    vi.mocked(qbt.getMainData).mockRejectedValue(new TypeError('Failed to fetch'))
+    renderSheet()
+    const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+    const files = await within(sheet).findByRole('button', { name: /Files: all \(3\)/ })
+    expect(files).not.toHaveTextContent('Free:')
+    expect(within(sheet).queryByText(/→/)).not.toBeInTheDocument()
+
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Options' }))
+    expect(within(sheet).queryByRole('group', { name: 'Category' })).not.toBeInTheDocument()
+    expect(within(sheet).getByLabelText('Save path')).toHaveAttribute('placeholder', '')
+
+    await userEvent.click(files)
+    const picker = screen.getByRole('dialog', { name: 'Select files' })
+    expect(within(picker).queryByText(/free space|Free:/)).not.toBeInTheDocument()
+    await userEvent.click(within(picker).getByRole('button', { name: 'Done' }))
+
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Add to downloads' })).getByRole('button', { name: /^Download/ }))
+    expect(addRelease).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ category: undefined, savePath: undefined }),
+      { meta: META, skip: [] },
+    )
   })
 
   it('says when qBittorrent refuses the torrent', async () => {

@@ -67,6 +67,24 @@ describe('readTorrentFile', () => {
     })
   })
 
+  it('prefers the UTF-8 names and skips entries that aren’t files', async () => {
+    const info: Value = {
+      name: 'Dune (2021) BDRip',
+      'name.utf-8': 'Дюна (2021) BDRip',
+      'piece length': 262144,
+      pieces,
+      files: [
+        { length: 2_000_000_000, path: ['Dune.mkv'], 'path.utf-8': ['Дюна.mkv'] },
+        { length: 1024, path: 'not a list' },
+        { path: ['no', 'length.txt'] },
+        'not a dictionary',
+      ],
+    }
+    const meta = await readTorrentFile(encode({ info }))
+    expect(meta.name).toBe('Дюна (2021) BDRip')
+    expect(meta.files).toEqual([{ path: 'Дюна.mkv', size: 2_000_000_000 }])
+  })
+
   it('reads a single-file torrent', async () => {
     const info: Value = { length: 5000, name: 'Arrival.2016.mkv', 'piece length': 16384, pieces }
     const meta = await readTorrentFile(encode({ info }).buffer as ArrayBuffer)

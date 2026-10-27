@@ -56,6 +56,16 @@ describe('useQbitSession', () => {
     expect(result.current.session).toEqual({ status: 'connected', version: 'v5.2.4' })
   })
 
+  it('stays signed out when the server took the login but qBittorrent still refuses it', async () => {
+    getAppVersion.mockRejectedValue(new api.UnauthorizedError())
+    login.mockResolvedValue({ tmdb: { configured: true, source: 'saved' }, qbittorrent: { configured: true, source: 'saved' }, downloads: null })
+    const { result } = renderHook(() => useQbitSession())
+    await waitFor(() => expect(result.current.session.status).toBe('signed-out'))
+
+    await expect(act(() => result.current.signIn('admin', 'secret'))).rejects.toBeInstanceOf(api.UnauthorizedError)
+    expect(result.current.session).toEqual({ status: 'signed-out' })
+  })
+
   it('passes login errors through and stays signed out', async () => {
     getAppVersion.mockRejectedValue(new api.UnauthorizedError())
     login.mockRejectedValue(new settings.SettingsError(422, 'invalid-credentials'))

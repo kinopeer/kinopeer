@@ -30,7 +30,7 @@ describe('TabBar', () => {
       />,
       ['/torrent/abc'],
     )
+    // Which screens count is isTabOn's (isTabOn.test.ts); the tab shows it with its class.
     expect(screen.getByRole('link', { name: 'Downloads' })).toHaveClass('is-on')
-    expect(screen.getByRole('link', { name: 'Search' })).not.toHaveClass('is-on')
   })
 })

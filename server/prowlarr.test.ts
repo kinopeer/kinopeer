@@ -181,6 +181,40 @@ describe('prowlarrMiddleware', () => {
     expect(await response.json()).toEqual({ magnet: 'magnet:?xt=urn:btih:abc&dn=Dune' })
   })
 
+  it('follows a redirect to the tracker’s own link, without the key', async () => {
+    const seen: { url?: string; key?: string }[] = []
+    const prowlarr = await listen((request, response) => {
+      seen.push({ url: request.url, key: request.headers['x-api-key'] as string | undefined })
+      if (request.url!.startsWith('/api/v1/indexer/1/download')) {
+        response.statusCode = 302
+        response.setHeader('Location', '/tracker/dune.torrent')
+        return response.end()
+      }
+      response.setHeader('Content-Type', 'application/x-bittorrent')
+      response.end(Buffer.from('d4:infod4:name4:Duneee'))
+    })
+    const base = await kinoseed({ url: prowlarr, apiKey: KEY })
+    const response = await fetch(`${base}/prowlarr/download?token=${encodeURIComponent('1/download?link=A')}`)
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe('d4:infod4:name4:Duneee')
+    expect(seen).toEqual([
+      { url: `/api/v1/indexer/1/download?link=A&apikey=${KEY}`, key: KEY },
+      { url: '/tracker/dune.torrent', key: undefined },
+    ])
+  })
+
+  it('refuses a redirect to anything but a web address', async () => {
+    const prowlarr = await listen((_request, response) => {
+      response.statusCode = 302
+      response.setHeader('Location', 'ftp://tracker.test/dune.torrent')
+      response.end()
+    })
+    const base = await kinoseed({ url: prowlarr, apiKey: KEY })
+    const response = await fetch(`${base}/prowlarr/download?token=${encodeURIComponent('1/download?link=A')}`)
+    expect(response.status).toBe(502)
+    expect(await response.json()).toEqual({ error: 'upstream' })
+  })
+
   it('only downloads Prowlarr download links', async () => {
     const base = await kinoseed({ url: 'http://127.0.0.1:9', apiKey: KEY })
     for (const token of ['api/v1/indexer', '../1/download?link=a', '1/download']) {

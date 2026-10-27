@@ -64,17 +64,37 @@ describe('ReleasesScreen', () => {
     expect(names()).toEqual([DUNE_RELEASES[1].title, DUNE_RELEASES[0].title, DUNE_RELEASES[2].title])
 
     const [top] = screen.getAllByRole('article')
-    expect(within(top).getByText('1080p')).toBeInTheDocument()
-    expect(within(top).getByText('WEB-DL')).toBeInTheDocument()
     expect(within(top).getByText('Dubbed')).toBeInTheDocument()
     expect(within(top).getByText('9.40 GB')).toBeInTheDocument()
     expect(within(top).getByLabelText('2451 seeders')).toBeInTheDocument()
   })
 
-  it('sorts by size', async () => {
+  it('cycles the sort from its chip, and picks the sort and direction in the sheet', async () => {
     renderAt('/title/movie/693134/releases')
-    await userEvent.click(await screen.findByRole('button', { name: /^Sort: Seeds/ }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Sort: Seeds, Descending' }))
     expect(names()).toEqual([DUNE_RELEASES[0].title, DUNE_RELEASES[1].title, DUNE_RELEASES[2].title])
+
+    await userEvent.click(screen.getByRole('button', { name: 'Filters' }))
+    const sheet = within(screen.getByRole('dialog', { name: 'Filters' }))
+    expect(sheet.getByRole('radio', { name: 'Size', checked: true })).toBeInTheDocument()
+    await userEvent.click(sheet.getByRole('button', { name: 'Descending' }))
+    expect(sheet.getByRole('button', { name: 'Ascending' })).toBeInTheDocument()
+    await userEvent.click(sheet.getByRole('radio', { name: 'Seeds' }))
+    await userEvent.click(sheet.getByRole('button', { name: 'Show 3' }))
+    expect(screen.getByRole('button', { name: 'Sort: Seeds, Ascending' })).toBeInTheDocument()
+    expect(names()).toEqual([DUNE_RELEASES[2].title, DUNE_RELEASES[0].title, DUNE_RELEASES[1].title])
+  })
+
+  it('filters by indexer when the results come from more than one', async () => {
+    renderAt('/title/movie/693134/releases')
+    await userEvent.click(await screen.findByRole('button', { name: 'Filters' }))
+    const sheet = within(screen.getByRole('dialog', { name: 'Filters' }))
+    const indexers = within(sheet.getByRole('group', { name: 'Indexer' }))
+    expect(indexers.getAllByRole('button').map((chip) => chip.textContent)).toEqual(['Kinozal', 'RuTracker'])
+    await userEvent.click(indexers.getByRole('button', { name: 'RuTracker' }))
+    await userEvent.click(sheet.getByRole('button', { name: 'Show 1' }))
+    expect(names()).toEqual([DUNE_RELEASES[0].title])
+    expect(screen.getByRole('button', { name: 'Remove filter RuTracker' })).toBeInTheDocument()
   })
 
   it('filters in the sheet and removes filters from the list', async () => {

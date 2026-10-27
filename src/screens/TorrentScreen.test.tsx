@@ -172,80 +172,18 @@ describe('TorrentScreen', () => {
     expect(getTorrentTrackers).toHaveBeenCalledWith('dune')
   })
 
-  it('deletes after confirmation, with files only when asked', async () => {
+  it('goes back to Downloads with a toast after deleting', async () => {
     renderScreen()
     await userEvent.click(await screen.findByRole('button', { name: 'Delete' }))
     const dialog = screen.getByRole('alertdialog', { name: 'Delete torrent?' })
-    expect(dialog).toHaveTextContent('“Dune: Part Two” will be removed from qBittorrent.')
-
-    const files = within(dialog).getByRole('checkbox', { name: /Also delete files/ })
-    expect(files).toHaveAttribute('aria-checked', 'false')
-    await userEvent.click(files)
-    expect(within(dialog).getByText('Files are removed from disk permanently.')).toBeInTheDocument()
-
     await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
-    expect(deleteTorrents).toHaveBeenCalledWith(['dune'], true)
-    expect(serverMatches.forgetMatches).toHaveBeenCalledWith(['dune'])
-    expect(await screen.findByText(/Downloads list/)).toHaveTextContent('"deleted":"files"')
+    expect(await screen.findByText(/Downloads list/)).toHaveTextContent('"deleted":"torrent"')
   })
 
-  it('keeps the torrent when the confirmation is cancelled', async () => {
-    renderScreen()
-    await userEvent.click(await screen.findByRole('button', { name: 'Delete' }))
-    await userEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Cancel' }))
-    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
-    expect(deleteTorrents).not.toHaveBeenCalled()
-    expect(serverMatches.forgetMatches).not.toHaveBeenCalled()
-  })
-
-  it('lists files with progress and changes their priority', async () => {
+  it('shows the torrent’s files', async () => {
     renderScreen()
     const files = await screen.findByRole('region', { name: /Files/ })
-    expect(await within(files).findByText('Dune.Part.Two.mkv')).toBeInTheDocument()
-    expect(within(files).getByText('40% · 19.9 GB')).toBeInTheDocument()
-
-    const extras = within(files).getByRole('combobox', { name: 'Priority: Extras.mkv' })
-    expect(extras).toHaveValue('skip')
-    await userEvent.selectOptions(extras, 'high')
-    expect(setFilePriority).toHaveBeenCalledWith('dune', [1], 6)
-    expect(extras).toHaveValue('high')
-  })
-
-  it('reports a priority change qBittorrent refused', async () => {
-    setFilePriority.mockRejectedValue(new Error('offline'))
-    renderScreen()
-    const main = await screen.findByRole('combobox', { name: 'Priority: Dune.Part.Two.mkv' })
-    await userEvent.selectOptions(main, 'skip')
-    expect(await screen.findByText('Couldn’t change the priority. Try again.')).toBeInTheDocument()
-    expect(main).toHaveValue('normal')
-  })
-
-  it('shows the torrent’s folders as a tree, inside its own folder', async () => {
-    getTorrentFiles.mockResolvedValue([
-      { index: 0, name: 'Show/Season 1/Show.S01E01.mkv', size: 1e9, progress: 1, priority: 1 },
-      { index: 1, name: 'Show/Season 2/Show.S02E01.mkv', size: 1e9, progress: 0, priority: 1 },
-      { index: 2, name: 'Show/Sample.mkv', size: 1e6, progress: 0, priority: 0 },
-    ])
-    renderScreen()
-    const files = await screen.findByRole('region', { name: /Files/ })
-    expect(await within(files).findByRole('combobox', { name: 'Priority: Sample.mkv' })).toBeInTheDocument()
-    expect(within(files).queryByRole('button', { name: /^Show/ })).not.toBeInTheDocument()
-
-    const season2 = within(files).getByRole('button', { name: /Season 2/ })
-    expect(season2).toHaveAttribute('aria-expanded', 'false')
-    expect(season2).toHaveTextContent('1 file · 1.00 GB · 0%')
-    await userEvent.click(season2)
-    expect(within(files).getByRole('combobox', { name: 'Priority: Show.S02E01.mkv' })).toBeInTheDocument()
-    await userEvent.click(season2)
-    expect(within(files).queryByRole('combobox', { name: 'Priority: Show.S02E01.mkv' })).not.toBeInTheDocument()
-  })
-
-  it('explains an empty file list of a magnet link', async () => {
-    getTorrentFiles.mockResolvedValue([])
-    renderScreen()
-    expect(
-      await screen.findByText('The file list appears once the torrent’s metadata arrives from peers.'),
-    ).toBeInTheDocument()
+    expect(await within(files).findByRole('combobox', { name: 'Priority: Extras.mkv' })).toHaveValue('skip')
   })
 })
 

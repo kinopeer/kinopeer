@@ -7,6 +7,7 @@ const kinoseed = (config: QbittorrentConfig) => serve(qbittorrentMiddleware(conf
 
 afterEach(async () => {
   vi.restoreAllMocks()
+  vi.useRealTimers()
   await closeServers()
 })
 
@@ -86,6 +87,22 @@ describe('qbittorrentMiddleware', () => {
     expect(qbt.logins()).toBe(1)
     expect(warn).toHaveBeenCalledOnce()
     expect(String(warn.mock.calls[0][0])).not.toContain('wrong')
+  })
+
+  it('waits half a minute before logging in again after qBittorrent banned the address', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    const qbt = await fakeQbittorrent()
+    const base = await kinoseed({ url: qbt.base, credentials: () => ({ username: 'banned', password: 'pass word' }) })
+
+    // Meanwhile requests go without a session, so auth bypass would still work; here it doesn't.
+    expect((await fetch(`${base}/qbt/api/v2/app/version`)).status).toBe(403)
+    expect((await fetch(`${base}/qbt/api/v2/app/version`)).status).toBe(403)
+    expect(qbt.logins()).toBe(1)
+    expect(qbt.seen.map((request) => request.cookie)).toEqual([undefined, undefined])
+
+    vi.setSystemTime(Date.now() + 31_000)
+    expect((await fetch(`${base}/qbt/api/v2/app/version`)).status).toBe(403)
+    expect(qbt.logins()).toBe(2)
   })
 
   it('reports an unreachable qBittorrent and only proxies the API', async () => {

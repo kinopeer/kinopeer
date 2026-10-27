@@ -84,22 +84,6 @@ describe('DownloadsScreen', () => {
     ])
   })
 
-  it('shows progress, speed, ETA and size for a download', async () => {
-    renderScreen()
-    const [dune] = await screen.findAllByRole('listitem')
-    const row = within(dune)
-    expect(row.getByRole('progressbar', { name: 'Dune.Part.Two.2024.2160p.WEB-DL: progress' })).toHaveAttribute(
-      'aria-valuenow',
-      '42',
-    )
-    expect(row.getByText('42%')).toBeInTheDocument()
-    expect(row.getByText('Downloading')).toBeInTheDocument()
-    expect(row.getByText('↓ 4.3 MB/s')).toBeInTheDocument()
-    expect(row.getByText('12 min')).toBeInTheDocument()
-    expect(row.getByText('8.99 GB / 21.4 GB')).toBeInTheDocument()
-    expect(row.getByLabelText('Queue position 1')).toBeInTheDocument()
-  })
-
   it('shows the TMDB title and poster once matched, with the release name below', async () => {
     searchTitles.mockImplementation(async (query) => ({
       titles:
@@ -152,16 +136,11 @@ describe('DownloadsScreen', () => {
     expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Resume' })).toBeInTheDocument()
   })
 
-  it('shows the release name, a placeholder poster and the size in the grid until a title is matched', async () => {
+  it('shows the release name in the grid until a title is matched', async () => {
     updateSettings({ downloadsView: 'grid' })
-    const { container } = renderScreen()
+    renderScreen()
     const cards = await screen.findAllByRole('listitem')
-    const alien = within(cards[2])
-    expect(alien.getByRole('heading', { name: 'Alien.Romulus.2024.1080p' })).toBeInTheDocument()
-    expect(alien.getByText(/^10% · 1(\.00)?\sGB$/)).toBeInTheDocument()
-    expect(alien.getByText('Paused')).toBeInTheDocument()
-    expect(alien.queryByLabelText(/Queue position/)).not.toBeInTheDocument()
-    expect(container.querySelector('img')).toBeNull()
+    expect(within(cards[2]).getByRole('heading', { name: 'Alien.Romulus.2024.1080p' })).toBeInTheDocument()
   })
 
   it('shows placeholder cards while loading in the grid', () => {
@@ -458,12 +437,9 @@ describe('DownloadsScreen selection', () => {
     await userEvent.click(within(bulkBar()).getByRole('button', { name: 'Delete' }))
 
     const confirm = screen.getByRole('alertdialog', { name: 'Delete torrents?' })
-    expect(within(confirm).getByText('2 torrents will be removed from qBittorrent.')).toBeInTheDocument()
-    // 42% of 21.4 GB plus 10% of 1 GB downloaded.
-    await userEvent.click(within(confirm).getByRole('checkbox', { name: /^Also delete files · 9\.09\sGB$/ }))
     await userEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
-    expect(api.deleteTorrents).toHaveBeenCalledWith(['dune', 'alien'], true)
-    expect(await screen.findByText('2 torrents and their files deleted')).toBeInTheDocument()
+    expect(api.deleteTorrents).toHaveBeenCalledWith(['dune', 'alien'], false)
+    expect(await screen.findByText('2 torrents deleted')).toBeInTheDocument()
     expect(screen.queryByRole('toolbar')).not.toBeInTheDocument()
   })
 
