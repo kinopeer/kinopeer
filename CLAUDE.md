@@ -16,8 +16,8 @@ A qBittorrent web UI built around movies and TV series. Find a title in TMDB, pi
 | `docs/SPEC.md` | What the product does and doesn't, decision log |
 | `docs/ROADMAP.md` | Version plan |
 | `docs/DEVELOPMENT.md` | Running locally, environment variables, releases, the Umbrel package |
-| `docs/TESTING.md` | The test layers, shared fixtures and fakes, coverage, the screenshot tests, the smoke journeys |
-| `docs/RELEASE_CHECKLIST.md` | What to settle before the public release |
+| `docs/TESTING.md` | The test layers and how to choose one, what to do with a bug (the six `test-gap` classes), fixtures and fakes, coverage and its threshold, the screenshot tests, the smoke journeys, the blind spots |
+| `docs/RELEASE_CHECKLIST.md` | What to check before every release and what to settle before the public one |
 | `CHANGELOG.md` | User-facing changes per version |
 
 ## Stack
@@ -33,7 +33,7 @@ A qBittorrent web UI built around movies and TV series. Find a title in TMDB, pi
 ```sh
 npm run dev        # dev server at http://localhost:5173
 npm test           # Vitest, single run
-npm run test:coverage  # the same with a coverage report
+npm run test:coverage  # the same with a coverage report and its threshold
 npm run lint       # oxlint
 npm run typecheck  # tsc -b
 npm run build      # production build into dist/
@@ -74,10 +74,11 @@ Run lint, typecheck, test and build before pushing, and the screenshot tests whe
 - If a request is suboptimal by any measure (performance, workarounds in code, maintainability, security, UX, cost, complexity), say so and suggest alternatives before starting, and let the owner decide.
 - Feature ideas, ours included, go to GitHub Discussions → Ideas, so they can be upvoted. Issues are for bugs and for work we've decided to do. A deferred roadmap item moves to "Later" with a link to its idea.
 - Keep the docs current: when a change affects them, update them in the same PR. Behavior or a product decision → `docs/SPEC.md` (and its decision log); a shipped roadmap item → tick it in `docs/ROADMAP.md`; setup, environment variables or releases → `docs/DEVELOPMENT.md`; user-visible changes → `CHANGELOG.md` and, if needed, `README.md`; architecture → this file.
-- Anything to settle before the public release goes into `docs/RELEASE_CHECKLIST.md`.
+- Anything to settle before the public release goes into `docs/RELEASE_CHECKLIST.md`, which also lists what to check before every release.
 - Keep Kinoseed runnable without its server: plain Docker and a qBittorrent Alternative WebUI are planned (`docs/ROADMAP.md`, Later). A new server feature either has a browser fallback (as torrent-to-title matches do) or is an extra the app works without, and pure logic (name and release parsing, picking a title) imports no React, DOM or Node APIs.
-- Every PR covers what it changes with tests: each new or changed component, helper, setting and user flow. Tests sit next to the code as `*.test.ts(x)`. Query by role and accessible name. Pure layout changes that jsdom can't see are checked on a running app and said so in the PR. Which layer a test belongs to, the shared fixtures (`src/test/`) and the fake services (`server/test/`): `docs/TESTING.md`.
-- A PR that changes how a screen covered by the screenshot tests looks updates its baselines in the same PR, after checking Playwright's diffs, and lists the changed screens: `docs/TESTING.md` → Screenshot tests.
+- Every PR covers what it changes with tests, each statement on one layer, the lowest that sees it (`docs/TESTING.md` → Choosing a layer): tests sit next to the code as `*.test.ts(x)`, query by role and accessible name, and what jsdom can't see is checked on a running app and said so in the PR. A flaky test is fixed or deleted, never retried.
+- A bug is an issue first, with its steps, environment and a `test-gap:*` label, then a red test on its layer, then the fix; the PR's "Why tests missed it" section names the class (`docs/TESTING.md` → When we find a bug).
+- A PR that changes how a screen covered by the screenshot tests looks updates its baselines in the same PR and lists the changed screens: `docs/TESTING.md` → Screenshot tests.
 - Accessibility basics are a requirement: real `<button>`/`<a>`/`<input>`, labels on icon-only buttons, touch targets ≥ 44px, `prefers-reduced-motion` respected. Keyboard navigation and focus management (tab order, where focus goes when something opens or closes) aren't a goal for now. Focus rings show only on keyboard navigation: style them with `:focus-visible` and `outline: var(--focus-ring)`, which `src/lib/inputModality.ts` turns off after a click or tap, since browsers also match `:focus-visible` when a dialog opens or the app moves focus.
 
 ## Design

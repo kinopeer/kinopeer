@@ -139,6 +139,8 @@ async function parseAdd(body: Buffer, contentType: string | undefined): Promise<
  * /torrents/files answers `files` (set per hash by the test, 404 for a hash it doesn't have),
  * /torrents/filePrio changes their priorities, /torrents/start and /stop answer OK,
  * /torrents/delete takes the torrents off the list and records the call in `deleted`.
+ * Written from qBittorrent 5.3.x; when a newer version answers differently, change the fake here
+ * and say the version.
  */
 export async function fakeQbittorrent({
   legacy = false,
@@ -357,6 +359,8 @@ function toProwlarr(release: Release, base: string, apiKey: string) {
  * check; /api/v1/search answers `releases`, each with a download link that carries the key, as
  * Prowlarr's do; /api/v1/indexer/1/download serves by its `link`: "shogun" is the Shōgun .torrent
  * from the fixtures, "magnet" redirects to PROWLARR_MAGNET, anything else is 404.
+ * Written from Prowlarr 1.24.x; when a newer version answers differently, change the fake here and
+ * say the version.
  */
 export async function fakeProwlarr({ apiKey = 'prowlarr-key', releases = RELEASES }: { apiKey?: string; releases?: Release[] } = {}) {
   const seen: ProwlarrRequest[] = []

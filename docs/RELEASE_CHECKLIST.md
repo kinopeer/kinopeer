@@ -1,6 +1,18 @@
-# Before the public release
+# Release checklist
 
-Things to settle before Kinoseed (the repo, the Docker image or both) goes public. Add an item whenever something comes up that can wait until then; tick it off in the PR that settles it.
+What to check before every release, and what to settle before Kinoseed (the repo, the Docker image or both) goes public. Releasing itself is in [DEVELOPMENT.md](DEVELOPMENT.md) → Releasing.
+
+## Before every release
+
+Go through these for the release PR (the one with the version and the changelog section) and note what was found in its description.
+
+- **The test-gap pile.** List the issues closed since the last release with a `test-gap:*` label, one label at a time: `gh issue list --state closed --label test-gap:uncovered --search "closed:>YYYY-MM-DD"`, and the same for `wrong-layer`, `implementation`, `fake-drift`, `environment` and `silent-test`. Three of one class are a problem of the system, not three accidents; the action per class is in [TESTING.md](TESTING.md) → When we find a bug (three `fake-drift` → compare the fakes with the live services by hand, three `wrong-layer` → rewrite the layer rule, and so on).
+- **The suite itself.** New duplicates between layers (a statement checked twice without a comment saying what the second layer sees); the coverage totals against the threshold (`npm run test:coverage`; raise the threshold when the totals have grown, [TESTING.md](TESTING.md) → Coverage); `npm test` still under 15 seconds on the owner's Mac and the `visual` job still around a minute in CI, or find what got slow; no `flaky` in the recent `visual` job logs.
+- **By hand, what no layer sees** ([TESTING.md](TESTING.md) → Known blind spots), on `main` as it will be released: on the owner's phone (Safari on iOS, against `dev-lan`) open Downloads, a title and its releases, and check that the installed PWA still opens; after the Umbrel package updates, go through onboarding, a search and adding a release through Umbrel's app_proxy and HTTPS; add a release over plain `http://` on the LAN, where the info hash from the SHA-1 fallback must match qBittorrent's.
+
+## Before the public release
+
+Things to settle before Kinoseed goes public. Add an item whenever something comes up that can wait until then; tick it off in the PR that settles it.
 
 - [ ] **TMDB key.** For now everyone enters their own key. Decide whether Kinoseed ships a default one. A key in the code, the image or the git history is public: anyone can pull it out, misuse is tied to the owner's TMDB account, and a revoked key breaks every install at once. If there is a default, register a separate key for Kinoseed (not a personal one) and keep `TMDB_API_KEY` and the Settings sheet as overrides.
 - [ ] **TMDB attribution.** TMDB's API terms ask apps to show the TMDB logo and the notice "This product uses the TMDB API but is not endorsed or certified by TMDB." The README has it; the app doesn't yet (Settings → About would fit).
