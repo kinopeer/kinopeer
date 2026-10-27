@@ -14,6 +14,7 @@ import { Segmented } from '../components/Segmented'
 import { Toast } from '../components/Toast'
 import { cx } from '../lib/cx'
 import { useFormatters } from '../lib/format'
+import { useHeightVar } from '../lib/useHeightVar'
 import { useIsDesktop } from '../lib/useIsDesktop'
 import { useSettings } from '../settings/settings'
 import { compareTorrents, knownSort } from '../torrents/sort'
@@ -62,6 +63,9 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
     [navigate, location.pathname],
   )
   const isDesktop = useIsDesktop()
+  // The desktop header stays at the top while the list scrolls, and the table's column names stick
+  // right under it: its height (the filters wrap, the offline banner comes and goes) is theirs in CSS.
+  const headRef = useHeightVar('--downloads-head')
   const [{ downloadsView, downloadsDesktopView, downloadsSort }, updateSettings] = useSettings()
   // Each layout remembers its own view: the desktop's list is a table, and its grid is the default.
   const view = isDesktop ? downloadsDesktopView : downloadsView
@@ -280,7 +284,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
 
   const header = isDesktop ? (
     // Desktop: the name filter always shows; the status and the sort are menus, so the controls fit one row.
-    <header className="downloads-head">
+    <header ref={headRef} className="downloads-head">
       {selecting ? (
         selectionRow
       ) : (
@@ -331,61 +335,67 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
       </div>
     </header>
   ) : (
-    <header className="downloads-head">
-      {selecting ? (
-        selectionRow
-      ) : (
-        <div className="downloads-title-row">
-          <h1 className="t-h1">{t('downloads.title')}</h1>
-          <IconButton
+    // Phone: the title and the totals scroll away, while the bar with the filters, the sort and the
+    // view (and the selection's count and buttons, in place of the title) stays at the top.
+    <>
+      <header className="downloads-head">
+        {!selecting && (
+          <div className="downloads-title-row">
+            <h1 className="t-h1">{t('downloads.title')}</h1>
+            <IconButton
+              icon="search"
+              label={t('downloads.search')}
+              active={searchOpen}
+              iconSize={22}
+              onClick={toggleSearch}
+            />
+            {selectButton}
+          </div>
+        )}
+
+        {totals}
+
+        {offlineBanner}
+      </header>
+
+      <div className="downloads-bar">
+        {selecting && selectionRow}
+
+        {searchOpen && (
+          <Input
             icon="search"
-            label={t('downloads.search')}
-            active={searchOpen}
-            iconSize={22}
-            onClick={toggleSearch}
+            type="search"
+            aria-label={t('downloads.search')}
+            placeholder={t('downloads.search')}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            autoFocus
           />
-          {selectButton}
+        )}
+
+        {chips}
+
+        <div className="downloads-toolbar">
+          <Button
+            variant="ghost"
+            size="sm"
+            icon="sort"
+            className="downloads-sort"
+            aria-haspopup="dialog"
+            aria-label={
+              type === 'all'
+                ? t('downloads.sortButton', { sort: t(`downloads.sorts.${sort}`) })
+                : t('downloads.sortTypeButton', { sort: t(`downloads.sorts.${sort}`), type: t(`downloads.types.${type}`) })
+            }
+            onClick={() => setSortOpen(true)}
+          >
+            {t(`downloads.sorts.${sort}`)}
+            {type !== 'all' && <Badge className="downloads-type">{t(`downloads.types.${type}`)}</Badge>}
+          </Button>
+          {viewSwitch}
         </div>
-      )}
-
-      {totals}
-
-      {offlineBanner}
-
-      {searchOpen && (
-        <Input
-          icon="search"
-          type="search"
-          aria-label={t('downloads.search')}
-          placeholder={t('downloads.search')}
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          autoFocus
-        />
-      )}
-
-      {chips}
-
-      <div className="downloads-toolbar">
-        <Button
-          variant="ghost"
-          size="sm"
-          icon="sort"
-          className="downloads-sort"
-          aria-haspopup="dialog"
-          aria-label={
-            type === 'all'
-              ? t('downloads.sortButton', { sort: t(`downloads.sorts.${sort}`) })
-              : t('downloads.sortTypeButton', { sort: t(`downloads.sorts.${sort}`), type: t(`downloads.types.${type}`) })
-          }
-          onClick={() => setSortOpen(true)}
-        >
-          {t(`downloads.sorts.${sort}`)}
-          {type !== 'all' && <Badge className="downloads-type">{t(`downloads.types.${type}`)}</Badge>}
-        </Button>
-        {viewSwitch}
       </div>
-    </header>
+    </>
   )
 
   return (
@@ -445,7 +455,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           </EmptyState>
         ) : isDesktop && !grid ? (
           <div className={cx('dl-table', (selecting || queueColumn) && 'has-lead')} role="table" aria-label={t('downloads.title')}>
-            <div role="rowgroup">
+            <div role="rowgroup" className="dl-table-head">
               <DownloadRowHeader selecting={selecting} queue={queueColumn} />
             </div>
             <div role="rowgroup" className="dl-table-body">

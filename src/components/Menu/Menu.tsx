@@ -17,6 +17,8 @@ export interface MenuProps {
   footer?: ReactNode
   /** Which edge of the anchor it lines up with: the right one unless the anchor sits on the left. */
   align?: PopoverProps['align']
+  /** For an anchor in a sticky bar: the menu follows it on a scroll or a resize instead of closing. */
+  follow?: PopoverProps['follow']
   className?: string
 }
 
@@ -28,7 +30,7 @@ const ITEMS = '[role^="menuitem"]:not(:disabled)'
  * arrow keys, Home and End move between items. Tab closes it and returns focus to the anchor; the
  * rest of closing is Popover's.
  */
-export function Menu({ anchor, label, onClose, children, footer, align, className }: MenuProps) {
+export function Menu({ anchor, label, onClose, children, footer, align, follow, className }: MenuProps) {
   const ref = useRef<HTMLDivElement>(null)
 
   // After Popover's own layout effect, so the menu is in place before it takes the focus.
@@ -67,7 +69,7 @@ export function Menu({ anchor, label, onClose, children, footer, align, classNam
   }
 
   return (
-    <Popover anchor={anchor} onClose={onClose} align={align} className={cx('ks-menu-pop', className)} onKeyDown={onKeyDown}>
+    <Popover anchor={anchor} onClose={onClose} align={align} follow={follow} className={cx('ks-menu-pop', className)} onKeyDown={onKeyDown}>
       <div ref={ref} role="menu" aria-label={label} className="ks-menu">
         {children}
       </div>

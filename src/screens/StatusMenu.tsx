@@ -53,6 +53,7 @@ export function StatusMenu({ value, onChange, counts }: StatusMenuProps) {
           anchor={anchor}
           label={t('downloads.filtersLabel')}
           align="start"
+          follow
           className="downloads-status-menu"
           onClose={() => setAnchor(null)}
         >

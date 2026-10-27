@@ -1,11 +1,11 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { MemoryRouter } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
 import { Menu, type MenuProps, MenuDivider, MenuGroup, MenuItem, MenuItemRadio, MenuLink } from './Menu'
 
-function Harness({ onPick = vi.fn(), align }: { onPick?: (item: string) => void; align?: MenuProps['align'] }) {
+function Harness({ onPick = vi.fn(), align, follow }: { onPick?: (item: string) => void; align?: MenuProps['align']; follow?: boolean }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   return (
     <MemoryRouter>
@@ -14,7 +14,7 @@ function Harness({ onPick = vi.fn(), align }: { onPick?: (item: string) => void;
       </button>
       <button type="button">Elsewhere</button>
       {anchor && (
-        <Menu anchor={anchor} label="Actions" align={align} onClose={() => setAnchor(null)} footer={<p>Footer</p>}>
+        <Menu anchor={anchor} label="Actions" align={align} follow={follow} onClose={() => setAnchor(null)} footer={<p>Footer</p>}>
           <MenuItem icon="pause" onClick={() => onPick('pause')}>
             Pause
           </MenuItem>
@@ -117,6 +117,13 @@ describe('Menu', () => {
     render(<Options />)
     await userEvent.click(screen.getByRole('button', { name: 'Sort' }))
     expect(screen.getByRole('menuitemradio', { name: 'Size' })).toHaveFocus()
+  })
+
+  it('stays open on a scroll when it follows its anchor', async () => {
+    render(<Harness follow />)
+    await userEvent.click(screen.getByRole('button', { name: 'Open' }))
+    fireEvent.scroll(document)
+    expect(screen.getByRole('menu', { name: 'Actions' })).toBeInTheDocument()
   })
 
   it('runs an item’s action', async () => {
