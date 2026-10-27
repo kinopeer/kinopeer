@@ -21,8 +21,8 @@ const MATCHES: Matches = {
 /**
  * Deleting on desktop: one torrent with its files from the drawer, then two at once from the
  * list. qBittorrent gets each call on the server's session, the list drops the rows from the next
- * poll without a reload, the server forgets their matches, and Escape in the confirmation deletes
- * nothing.
+ * poll without a reload, the server forgets their matches, and Escape in either confirmation deletes
+ * nothing, closing only the confirmation.
  */
 test('deleting from the drawer with its files, then two at once from the list', async ({ page }) => {
   await resetStand({ torrents: TORRENTS_WITH_HASHES, matches: MATCHES })
@@ -40,6 +40,15 @@ test('deleting from the drawer with its files, then two at once from the list', 
 
   await drawer.getByRole('button', { name: 'Удалить' }).click()
   const confirm = page.getByRole('alertdialog', { name: 'Удалить торрент?' })
+  await expect(confirm).toBeVisible()
+  // Escape closes only the confirmation; the drawer it was opened from stays.
+  await page.keyboard.press('Escape')
+  await expect(confirm).toBeHidden()
+  await expect(drawer).toBeVisible()
+  await expect(page).toHaveURL(new RegExp(`/torrent/${hashOf('a5')}$`))
+  expect((await standState()).qbittorrent.deleted).toEqual([])
+
+  await drawer.getByRole('button', { name: 'Удалить' }).click()
   await confirm.getByRole('checkbox', { name: /^Удалить и файлы/ }).click()
   await confirm.getByRole('button', { name: 'Удалить' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Торрент и файлы удалены' })).toBeVisible()

@@ -60,6 +60,17 @@ describe('Dialog', () => {
     expect(onClose).toHaveBeenCalledTimes(2)
   })
 
+  it('stays open when a dialog inside it is cancelled', () => {
+    const onClose = vi.fn()
+    render(
+      <Dialog open onClose={onClose} title="Delete torrent?" actions={null}>
+        <dialog open aria-label="Confirm" />
+      </Dialog>,
+    )
+    fireEvent(screen.getByRole('dialog', { name: 'Confirm' }), new Event('cancel', { cancelable: true }))
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
   it('stays the same alert dialog on desktop, where only its styles change', () => {
     stubDesktop()
     renderDialog()

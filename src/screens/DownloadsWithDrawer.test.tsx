@@ -157,6 +157,20 @@ describe('the details drawer on desktop', () => {
     expect(screen.queryByRole('dialog', { name: 'Dune: Part Two' })).not.toBeInTheDocument()
   })
 
+  it('stays open when Escape cancels its delete confirmation', async () => {
+    renderApp(['/', '/torrent/dune'])
+    const drawer = await screen.findByRole('dialog', { name: 'Dune: Part Two' })
+    await userEvent.click(within(drawer).getByRole('button', { name: 'Delete' }))
+    const confirm = screen.getByRole('alertdialog', { name: 'Delete torrent?' })
+
+    // jsdom doesn't turn Escape into the dialog's cancel event, so it's sent the way a browser does.
+    fireEvent(confirm, new Event('cancel', { cancelable: true }))
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Dune: Part Two' })).toBeInTheDocument()
+    expect(where()).toBe('/torrent/dune')
+    expect(deleteTorrents).not.toHaveBeenCalled()
+  })
+
   describe('the More menu', () => {
     const openMenu = async (name = 'Dune: Part Two') => {
       const drawer = await screen.findByRole('dialog', { name })
@@ -175,7 +189,7 @@ describe('the details drawer on desktop', () => {
       expect(where()).toBe('/')
     })
 
-    it('opens the title search from Change title', async () => {
+    it('opens the title search from Change title, which Escape closes alone', async () => {
       vi.mocked(tmdb.searchTitles).mockResolvedValue({ titles: [title('movie', 693134, 'Dune: Part Two', 2024)], page: 1, totalPages: 1 })
       renderApp(['/torrent/dune'])
       const menu = await openMenu()
@@ -183,6 +197,11 @@ describe('the details drawer on desktop', () => {
       const sheet = screen.getByRole('dialog', { name: 'Change title' })
       expect(within(sheet).getByRole('searchbox', { name: 'Search TMDB' })).toHaveValue('Dune Part Two')
       expect(await within(sheet).findByRole('button', { name: /^Dune: Part Two/ })).toHaveAttribute('aria-current', 'true')
+
+      fireEvent(sheet, new Event('cancel', { cancelable: true }))
+      expect(screen.queryByRole('dialog', { name: 'Change title' })).not.toBeInTheDocument()
+      expect(screen.getByRole('dialog', { name: 'Dune: Part Two' })).toBeInTheDocument()
+      expect(where()).toBe('/torrent/dune')
     })
 
     it('confirms a guessed title with a toast', async () => {
