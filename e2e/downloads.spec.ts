@@ -36,8 +36,12 @@ test.describe('downloads, phone', () => {
   test('sort and filter sheet', async ({ page }) => {
     await openDownloads(page)
     await page.getByRole('button', { name: 'Сортировка: Приоритет' }).click()
-    // The radio itself is visually hidden behind its row.
-    await page.getByRole('radio', { name: 'Размер' }).check({ force: true })
+    const sheet = page.getByRole('dialog')
+    await expect(sheet).toBeVisible()
+    // The radio itself is visually hidden, so the click goes to its row, which waits for the sheet
+    // to finish sliding up; a forced click on the radio took its position from the first frame.
+    await sheet.getByText('Размер', { exact: true }).click()
+    await expect(page.getByRole('radio', { name: 'Размер' })).toBeChecked()
     await page.getByRole('radio', { name: 'Сериалы' }).click()
     await settle(page)
     await expect(page).toHaveScreenshot('sort-dark-ru.png')

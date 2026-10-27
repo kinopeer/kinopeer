@@ -13,10 +13,7 @@ export default defineConfig({
   snapshotPathTemplate: '{testDir}/__screenshots__/{testFileName}/{arg}{ext}',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  // A flaky test is fixed or deleted, not retried (docs/TESTING.md → Choosing a layer). This retry
-  // is a debt: three screens flake in about one CI run in nine (#109), and the job's log says
-  // `N flaky` whenever the retry hid one. Set it to 0 when that issue closes.
-  retries: process.env.CI ? 1 : 0,
+  retries: 0,
   // Two Chromiums fit the CI container (it runs with --ipc=host); locally Playwright picks.
   workers: process.env.CI ? 2 : undefined,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : [['list']],
