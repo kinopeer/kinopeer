@@ -7,8 +7,10 @@
 ## Tests
 
 <!-- Which layer each new or changed test is on (docs/TESTING.md → Choosing a layer) and what it
-     says. What is deliberately not covered and why: a layout change checked on the stand, a path
-     only a real service shows. -->
+     says. What is deliberately not covered and why, with one of the accepted reasons
+     (docs/TESTING.md → Saying why something is uncovered): looks checked on the stand or by a
+     baseline, a blind spot, an existing test that still covers it (name it), no behavior. The
+     review (/test-review) reads this first. -->
 <!-- Screenshot baselines changed: which screens and why, after checking the diffs in test-results/.
      Delete this hint when none changed. -->
 
