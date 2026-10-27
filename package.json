@@ -14,6 +14,7 @@
     "typecheck": "tsc -b",
     "test:visual": "scripts/test-visual.sh",
     "test:visual:update": "scripts/test-visual.sh --update-snapshots",
+    "test:smoke": "playwright test --config playwright.smoke.config.ts",
     "screenshots:readme": "scripts/readme-screenshots.sh"
   },
   "dependencies": {

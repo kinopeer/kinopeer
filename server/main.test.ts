@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { createApp, dataStores, kinoseedServer } from './main.ts'
+import { closeServers, fakeTmdb } from './test/fakes.ts'
 
 let root: string
 let server: Server
@@ -50,6 +51,22 @@ describe('createApp', () => {
 })
 
 describe('kinoseedServer', () => {
+  it('points the TMDB bridge at TMDB_API_URL and TMDB_IMAGE_URL', async () => {
+    const tmdb = await fakeTmdb()
+    const env = { TMDB_API_KEY: 'good-key', TMDB_API_URL: tmdb.apiBase, TMDB_IMAGE_URL: `${tmdb.base}/t/p` }
+    const server = createApp(root, kinoseedServer(env, dataStores(join(root, 'tmdb'))))
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+    try {
+      expect((await fetch(`${base}/tmdb/movie/693134`)).status).toBe(200)
+      expect((await fetch(`${base}/tmdb-img/w342/poster.jpg`)).headers.get('content-type')).toBe('image/jpeg')
+      expect(tmdb.seen.map((request) => request.url)).toEqual(['/3/movie/693134?api_key=good-key', '/t/p/w342/poster.jpg'])
+    } finally {
+      await new Promise((resolve) => server.close(resolve))
+      await closeServers()
+    }
+  })
+
   it('starts no jobs without qBittorrent', () => {
     const stores = dataStores(join(root, 'no-jobs'))
     const prune = vi.spyOn(stores.matches, 'prune')

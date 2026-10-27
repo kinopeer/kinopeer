@@ -44,8 +44,8 @@ export interface KinoseedServer {
 /**
  * The server's routes and jobs. Besides the variables in .env.example, PROWLARR_CONFIG_XML points
  * at Prowlarr's config.xml to read its API key from (the Umbrel package mounts it), used when
- * PROWLARR_API_KEY is not set, and TMDB_API_URL replaces TMDB's API address (the integration
- * tests point it at a fake).
+ * PROWLARR_API_KEY is not set, and TMDB_API_URL and TMDB_IMAGE_URL replace TMDB's API and image
+ * addresses (the integration and smoke tests point them at a fake).
  */
 export function kinoseedServer(env: Record<string, string | undefined>, stores: DataStores): KinoseedServer {
   const store = stores.settings
@@ -71,7 +71,11 @@ export function kinoseedServer(env: Record<string, string | undefined>, stores: 
         url: env.PROWLARR_URL,
         apiKey: async () => env.PROWLARR_API_KEY || (prowlarrConfig ? await readProwlarrApiKey(prowlarrConfig) : undefined),
       }),
-      tmdbMiddleware({ apiKey: () => tmdbKey(store, env.TMDB_API_KEY), apiBase: env.TMDB_API_URL }),
+      tmdbMiddleware({
+        apiKey: () => tmdbKey(store, env.TMDB_API_KEY),
+        apiBase: env.TMDB_API_URL,
+        imageBase: env.TMDB_IMAGE_URL,
+      }),
     ],
     startJobs: () =>
       env.QBITTORRENT_URL ? startMatchesCleanup(stores.matches, () => qbittorrentHashes(qbittorrent.get)) : () => {},

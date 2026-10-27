@@ -5,6 +5,7 @@
     { "path": "./tsconfig.node.json" },
     { "path": "./tsconfig.integration.json" },
     { "path": "./tsconfig.sw.json" },
-    { "path": "./tsconfig.e2e.json" }
+    { "path": "./tsconfig.e2e.json" },
+    { "path": "./tsconfig.smoke.json" }
   ]
 }

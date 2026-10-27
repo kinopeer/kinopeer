@@ -11,6 +11,7 @@ npm test -- --project server  # only the server and integration tests (server/)
 npm run test:coverage       # the same with coverage: a table in the terminal, coverage/index.html
 npm run test:visual         # layer 6: screenshot tests in Docker
 npm run test:visual:update  # re-render their baselines
+npm run test:smoke          # layer 6: smoke journeys through the production server, no Docker
 ```
 
 ## Layers
@@ -22,7 +23,7 @@ npm run test:visual:update  # re-render their baselines
 | 3 | Screens and flows | A screen or a user flow with the API clients mocked (`vi.mock('../api/…')`): what it shows for a state, what it calls, where it navigates | Real HTTP, the server, layout | Vitest + Testing Library + user-event, jsdom | `src/screens/*.test.tsx`, `src/App.test.tsx`, hooks in `src/session/`, `src/torrents/` | `npm test` |
 | 4 | Server | Each middleware under `server/` against fake qBittorrent, TMDB and Prowlarr servers started in the test: routing, headers, what reaches the service and what comes back | Browser code | Vitest, Node (`server` project) | `server/*.test.ts`, fakes in `server/test/fakes.ts` | `npm test -- --project server` |
 | 5 | Integration | The real clients in `src/api/*` calling the real `kinoseedServer()` in front of the fakes: both ends of each route agree on paths, bodies, cookies and errors, and the flows that cross several routes (login, adding a release, matches) | Rendering; a server without a route (the SPA fallback), which stays in the client tests | Vitest, Node | `server/integration/*.test.ts`, the stand in `server/test/integration.ts` | `npm test -- --project server` |
-| 6 | Screenshots | How the screens look: the built app in Chromium against baseline PNGs, with every server route mocked | Behavior, which the layers above cover faster | Playwright in Docker | `e2e/*.spec.ts`, baselines in `e2e/__screenshots__/` | `npm run test:visual` |
+| 6 | Browser | How the screens look: the built app in Chromium against baseline PNGs, with every server route mocked (screenshot tests). And four smoke journeys through the real production server behind a proxy that wants a cookie, with the services faked: the browser and the server together (smoke journeys) | Behavior, which the layers above cover faster | Playwright in Docker; Playwright on the host | `e2e/*.spec.ts`, baselines in `e2e/__screenshots__/`; `e2e/smoke/*.smoke.ts`, the stand in `e2e/smoke/stack.ts` | `npm run test:visual`; `npm run test:smoke` |
 
 Layers 1–5 run on every `npm test` in two Vitest projects (`vite.config.ts`): `app` is jsdom with
 `src/test-setup.ts` (jest-dom matchers, the interface language reset to English, Testing Library's
@@ -145,3 +146,62 @@ Unit tests run in jsdom, which has no layout, so they can't catch a button in th
 ### README screenshots
 
 `npm run screenshots:readme` re-renders the screenshots in `docs/screenshots/` (`e2e/readme.shots.ts`, config `playwright.readme.config.ts`): four phone screens and two desktop ones, dark theme, Russian. It runs in the same Playwright image, but on the dev server, so titles and posters come from TMDB for real; qBittorrent and Prowlarr answer from the fixtures. Only `TMDB_API_KEY` goes into the container, from the environment or `.env.local`. Retake them when a screen in the README changes noticeably, check the PNGs and commit them; nothing compares them in CI.
+
+## Smoke journeys
+
+The other half of layer 6: four journeys (`e2e/smoke/*.smoke.ts`, `npm run test:smoke`) drive the
+built app in Chromium against the real production server (`server/main.ts` serving `dist/`), with
+qBittorrent, Prowlarr and TMDB faked. They cover what no other layer can see: the screenshot tests
+mock every server route in the browser and the integration tests run the clients in Node, so
+nothing else puts a real browser and the real server together. No pixels are compared, so they
+need no Docker: Chromium on the host will do (`npx playwright install chromium`, once).
+
+- **What they check, that nothing else does.** Onboarding on a phone: a wrong password costs the
+  server exactly one login attempt, the right one gives the server its own session (the browser
+  holds no qBittorrent cookie, and `/qbt/api/v2/auth/*` from the page never reaches qBittorrent),
+  the login and the TMDB key land in `settings.json`, TMDB got the key check, a reload rides on
+  the server's session without logging in again, and no request the page sent carried a key
+  (`page.on('request')`). Search → title → releases → add on desktop, from a deep link the server's
+  SPA fallback serves: the `.torrent` travels Prowlarr → server → browser, the browser reads its
+  files, and qBittorrent gets the multipart add with the `tmdb:` tag, the category and
+  `stopped=true`, then the skipped file's priority, then the start, in that order; Prowlarr's key
+  was put back into the download link on the server only; the new torrent shows in Downloads
+  with its title. Deleting on desktop, one with its files from the drawer and two at once from
+  the list: each `torrents/delete` carries the server's session, the rows go with the next poll
+  without a reload, `matches.json` forgets the hashes, and Escape in the native confirmation
+  deletes nothing. The service worker: the shell is precached (behind the proxy, so with the
+  cookie) and served offline, where the app shows its own "unreachable" screen and comes back on
+  Retry; the caches hold posters and never `/qbt/`, `/prowlarr/`, `/tmdb/` or `/api/`. Every
+  journey also asserts the proxy refused nothing, so every fetch carried its cookie.
+- **What they don't.** Looks (the screenshot tests), and the branches of a flow (an error, an
+  empty state, a second qBittorrent version): a journey goes through once; its variations belong
+  to the layers above, which run in milliseconds.
+- **The stand** (`e2e/smoke/stack.ts`) starts the fakes from `server/test/fakes.ts`, a data
+  directory of its own (`mkdtemp`) and the server (`node server/main.ts` with `PORT`,
+  `KINOSEED_DIST=dist`, `KINOSEED_DATA_DIR`, the fakes' addresses in `QBITTORRENT_URL`,
+  `PROWLARR_URL`, `TMDB_API_URL` and `TMDB_IMAGE_URL`, and no login or key unless asked), and in
+  front of it a reverse proxy on the tests' `baseURL` that stands in for Umbrel's app_proxy: a
+  page load gets a session cookie, and every other request without it is refused with 401 (marked
+  with a header of its own), so a fetch without `credentials: 'same-origin'` fails its journey.
+  The journeys run in another process, so the stand has a control server (`e2e/smoke/control.ts`):
+  `resetStand()` restarts the server with a fresh data directory and fresh fakes in the state a
+  journey wants (configured or not, which torrents, which matches), and `standState()` reads what
+  the fakes saw (`seen`, `added`, `deleted`, the login count, the list) and what the server saved
+  (`settings.json`, `matches.json`). Playwright starts the stand as the config's `webServer`
+  (`playwright.smoke.config.ts`: `npm run build && node e2e/smoke/stack.ts`, the proxy on 4300,
+  the server on 4310 and the control server on 4320, one worker, service workers allowed). Locally
+  it reuses a stand already running: for a quick loop, build once, start
+  `node e2e/smoke/stack.ts` yourself and run `npx playwright test --config playwright.smoke.config.ts`.
+- **Adding a journey:** a `*.smoke.ts` in `e2e/smoke/` that starts with `resetStand(…)`, drives
+  the UI by role and name in Russian (the context's locale) and ends on `standState()` and on what
+  the page sent. Keep it to what a lower layer can't assert. A fake's new behavior goes into
+  `server/test/fakes.ts` as an addition, since the server and integration tests run on it; a
+  journey that needs the server's matches gives its torrents real-length hashes, which the
+  matches route insists on. The journeys share one stand and run one at a time, so they stay few
+  and short: the whole run takes about ten seconds.
+- **Typechecking:** the journeys and `control.ts` are under `tsconfig.e2e.json` (DOM types, for
+  what runs in the page); the stand is a Node program under `tsconfig.smoke.json`, since the
+  fakes it imports send `Buffer`s where the DOM's `fetch` types take none.
+- **In CI:** the `smoke` job runs on a plain runner, with Chromium cached by the Playwright
+  version, in about two minutes; when it fails, its `playwright-report-smoke` artifact has the
+  report and the traces (`trace: 'retain-on-failure'`).

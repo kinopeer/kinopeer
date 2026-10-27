@@ -56,6 +56,43 @@ jobs:
           path: playwright-report
           retention-days: 14
 
+  smoke:
+    # The smoke journeys through the production server (docs/TESTING.md → Smoke journeys): no
+    # screenshots, so a plain runner with Chromium, not the Playwright image.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Read the Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Cache Chromium
+        id: chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ steps.playwright.outputs.version }}
+      - name: Install Chromium and its system libraries
+        if: steps.chromium.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      - name: Install Chromium's system libraries
+        if: steps.chromium.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      - run: npm run test:smoke
+      - name: Upload the report with the traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-smoke
+          path: |
+            playwright-report
+            test-results
+          retention-days: 14
+
   docker:
     runs-on: ubuntu-latest
     steps:
