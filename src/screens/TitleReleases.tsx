@@ -11,6 +11,8 @@ import { MIN_SEEDS, SORT_KEYS, summary, toggle, type ReleaseRow } from '../relea
 import { seasonCoverage } from '../releases/parseRelease'
 import { qualityBadges } from '../releases/qualityBadges'
 import type { TitleDetails } from '../releases/releaseQuery'
+import { IndexerLink } from './IndexerLink'
+import { ReleaseName } from './ReleaseName'
 import { AddingRelease, ReleasesBody } from './ReleasesBlock'
 import { AUDIO_LABEL, SORT_LABEL, useReleases, type Releases } from './useReleases'
 import './ReleasesScreen.css'
@@ -210,7 +212,6 @@ function ReleasesTable({ releases }: { releases: Releases }) {
 function ReleaseTableRow({ row, onAdd }: { row: ReleaseRow; onAdd: () => void }) {
   const { t, i18n } = useTranslation()
   const format = useFormatters()
-  const [expanded, setExpanded] = useState(false)
   const { release, info } = row
   const coverage = seasonCoverage(info) ?? (info.complete ? t('releases.complete') : undefined)
   const seeders = release.seeders ?? 0
@@ -229,14 +230,7 @@ function ReleaseTableRow({ row, onAdd }: { row: ReleaseRow; onAdd: () => void })
   return (
     <div role="row" className="t-label title-rel-row">
       <div role="cell" className="title-rel-release">
-        <button
-          type="button"
-          className={expanded ? 't-label rel-name' : 't-label rel-name ks-clamp2'}
-          aria-expanded={expanded}
-          onClick={() => setExpanded(!expanded)}
-        >
-          {release.title}
-        </button>
+        <ReleaseName name={release.title} />
         {(coverage || badges.length > 0) && (
           <div className="rel-badges">
             {coverage && <Badge kind="coverage">{coverage}</Badge>}
@@ -266,8 +260,8 @@ function ReleaseTableRow({ row, onAdd }: { row: ReleaseRow; onAdd: () => void })
       <span role="cell" className="ks-num c2" aria-label={t('releases.leechers', { count: release.leechers ?? 0 })}>
         {(release.leechers ?? 0).toLocaleString(i18n.language)}
       </span>
-      <span role="cell" className="t-cap ks-trunc c2 title-rel-small">
-        {release.indexer}
+      <span role="cell" className="t-cap c2 title-rel-small title-rel-indexer">
+        <IndexerLink release={release} />
       </span>
       <span role="cell" className="t-cap ks-num c3 title-rel-small">
         {release.publishDate ? format.age(release.publishDate) : ''}

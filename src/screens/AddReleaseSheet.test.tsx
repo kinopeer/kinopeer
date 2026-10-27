@@ -38,6 +38,7 @@ const RELEASE: Release = {
   seeders: 486,
   categories: [5000],
   download: '1/download?link=bb',
+  infoUrl: 'https://tracker.test/bb',
 }
 const FILE = new File([new Uint8Array([1])], 'bb.torrent')
 const META = {
@@ -86,6 +87,7 @@ describe('AddReleaseSheet', () => {
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
     expect(sheet).not.toHaveClass('ks-sheet-lg')
     expect(within(sheet).getByText('Breaking Bad')).toBeInTheDocument()
+    expect(within(sheet).getByRole('link', { name: 'Open on Kinozal' })).toHaveAttribute('href', 'https://tracker.test/bb')
     expect(await within(sheet).findByText('TV → /data/tv')).toBeInTheDocument()
 
     await userEvent.click(await within(sheet).findByRole('button', { name: /Files: all \(3\)/ }))

@@ -66,7 +66,7 @@ const SHOGUN = {
 } as unknown as TvDetails
 
 function release(id: string, title: string, size: number, seeders: number, indexer = 'Kinozal'): Release {
-  return { id, title, indexer, size, seeders, leechers: 3, categories: [2000], download: `1/download?link=${id}` }
+  return { id, title, indexer, size, seeders, leechers: 3, categories: [2000], download: `1/download?link=${id}`, infoUrl: `https://tracker.test/${id}` }
 }
 
 const RELEASES = [
@@ -237,6 +237,7 @@ describe('TitleScreen on desktop', () => {
     renderAt('/title/movie/693134/releases')
     await screen.findByText('3 of 3 releases')
     const [, top] = within(table()).getAllByRole('row')
+    expect(within(top).getByRole('link', { name: 'Open on Kinozal' })).toHaveAttribute('href', 'https://tracker.test/b')
     await userEvent.click(within(top).getByRole('button', { name: 'Add to downloads' }))
     expect(within(screen.getByRole('dialog', { name: 'Add to downloads' })).getByText(RELEASES[1].title)).toBeInTheDocument()
   })

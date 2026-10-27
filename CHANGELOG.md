@@ -4,12 +4,17 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ## Unreleased
 
+### Added
+
+- Releases: the indexer's name on a release (the card on a phone, the table on desktop and the add sheet) links to the release's page on the tracker, in a new tab, for what Kinoseed doesn't show.
+
 ### Changed
 
 - Downloads: while selecting, the count stands on the left, where the title was, and "Select all" and "Cancel" sit together on the right, where the Select button is, so the pointer is already there.
 
 ### Fixed
 
+- Releases: a release name that fits in two lines no longer looks clickable on hover; only a clipped name is a button that shows the whole name.
 - Desktop: a link to a title's releases (or a reload of their address) opens the title page at the releases, instead of at the top with the hero. ([#72](https://github.com/MrShakhov/kinoseed/issues/72))
 - Releases: a resolution written in the name wins over a UHD or 4K marker, so "UHD BDRip 1080p" shows as 1080p, not 2160p. HDRip is a source of its own, with its own filter, instead of showing as BDRip.
 - Search: going back from a title brings the results back at the same scroll position. Before, the list started from the top, because the results load again after the browser has already restored the scroll.
