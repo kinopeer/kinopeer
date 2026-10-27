@@ -18,6 +18,7 @@ import { qualityBadges } from '../releases/qualityBadges'
 import type { TitleDetails as Details } from '../releases/releaseQuery'
 import { useTmdbLanguage } from '../settings/settings'
 import { IndexerLink } from './IndexerLink'
+import { ReleaseName } from './ReleaseName'
 import { AddingRelease, ReleasesBody } from './ReleasesBlock'
 import { AUDIO_LABEL, SORT_LABEL, useReleases } from './useReleases'
 import './ReleasesScreen.css'
@@ -245,7 +246,6 @@ function OptionGroup<T extends string>({
 function ReleaseCard({ row, onAdd }: { row: ReleaseRow; onAdd: () => void }) {
   const { t, i18n } = useTranslation()
   const format = useFormatters()
-  const [expanded, setExpanded] = useState(false)
   const { release, info } = row
   const coverage = seasonCoverage(info) ?? (info.complete ? t('releases.complete') : undefined)
   const seeders = release.seeders ?? 0
@@ -260,14 +260,7 @@ function ReleaseCard({ row, onAdd }: { row: ReleaseRow; onAdd: () => void }) {
               {coverage}
             </Badge>
           )}
-          <button
-            type="button"
-            className={expanded ? 't-label rel-name' : 't-label rel-name ks-clamp2'}
-            aria-expanded={expanded}
-            onClick={() => setExpanded(!expanded)}
-          >
-            {release.title}
-          </button>
+          <ReleaseName name={release.title} />
         </div>
         <IconButton icon="plus" variant="filled" label={t('add.title')} iconSize={22} className="rel-add" onClick={onAdd} />
       </div>
