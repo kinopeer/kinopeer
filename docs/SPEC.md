@@ -100,7 +100,7 @@ Poster, year, runtime or number of seasons and episodes, rating, overview, and a
 - Resolution, source, HDR, audio and seasons are read from the release name. A resolution written as a number wins over a UHD or 4K marker ("UHD BDRip 1080p" is 1080p). HDRip is a source of its own, not BDRip: it's an HD rip, usually of a WEB or HDTV source.
 - Filters: resolution, audio, source, minimum seeds, indexer. Sort by seeds, size or date.
 - The indexer's name on a release (the card, the table row and the add sheet) links to the release's page on the tracker, in a new tab, for what Kinoseed doesn't show: the description, screenshots, comments. Plain text when the indexer gives no page.
-- A release name is clipped to two lines; when it doesn't fit, it's a button that shows the whole name. A name that fits is plain text, so it doesn't look clickable.
+- A release name is clipped to two lines. On a phone a tap shows the whole name; on desktop the whole name is a tooltip on hover, and the name isn't a button.
 - Phone: a screen of its own with a back button; the filters are in a sheet and releases are cards.
 - Desktop: on the title page (see Title). A bar that stays at the top while scrolling holds a chip per filter, each opening its values in a popover (Escape or a click outside closes it), and the sort with its direction. Picked filters show as removable chips with "Clear all". Releases are a table: release name with season and quality badges, audio, size, seeds, peers, indexer, age and Add. Below 1400px the audio badges move under the name.
 
