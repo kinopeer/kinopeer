@@ -4,6 +4,10 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ## Unreleased
 
+### Changed
+
+- Downloads: while selecting, the count stands on the left, where the title was, and "Select all" and "Cancel" sit together on the right, where the Select button is, so the pointer is already there.
+
 ### Fixed
 
 - Desktop: a link to a title's releases (or a reload of their address) opens the title page at the releases, instead of at the top with the hero. ([#72](https://github.com/MrShakhov/kinoseed/issues/72))

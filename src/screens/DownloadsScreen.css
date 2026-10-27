@@ -27,12 +27,6 @@
   min-width: 0;
 }
 
-.downloads-selected {
-  flex: 1;
-  min-width: 0;
-  text-align: center;
-}
-
 .downloads-totals {
   display: flex;
   align-items: center;
