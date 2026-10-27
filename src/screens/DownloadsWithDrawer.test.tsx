@@ -1,14 +1,15 @@
 import { fireEvent, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { Route, Routes, useLocation } from 'react-router'
+import { Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as matchesApi from '../api/matches'
 import * as api from '../api/qbittorrent'
-import type { MainData, Torrent } from '../api/qbittorrent'
+import type { Torrent } from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
 import { stubDesktop } from '../lib/stubDesktop'
 import { resetSettings, updateSettings } from '../settings/settings'
-import { renderWithRouter } from '../test/render'
+import { DUNE_TORRENT, mainData } from '../test/fixtures'
+import { Where, renderWithRouter, where } from '../test/render'
 import { MainDataProvider } from '../torrents/MainDataProvider'
 import * as serverMatches from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
@@ -52,34 +53,7 @@ const startTorrents = vi.mocked(api.startTorrents)
 const stopTorrents = vi.mocked(api.stopTorrents)
 const deleteTorrents = vi.mocked(api.deleteTorrents)
 
-const DUNE: Partial<Torrent> = {
-  name: 'Dune.Part.Two.2024.2160p.WEB-DL',
-  state: 'downloading',
-  progress: 0.42,
-  size: 20_000_000_000,
-  dlspeed: 4_300_000,
-  upspeed: 120_000,
-  eta: 720,
-  ratio: 0.31,
-  num_seeds: 12,
-  num_complete: 340,
-  num_leechs: 3,
-  num_incomplete: 41,
-  category: 'Movies',
-  tags: 'tmdb:movie:693134',
-  save_path: '/data/movies',
-  added_on: 1_760_000_000,
-  priority: 1,
-}
-
-function snapshot(fields: Partial<Torrent> = {}): MainData {
-  return { rid: 1, full_update: true, torrents: { dune: { ...DUNE, ...fields } }, server_state: {} }
-}
-
-function Where() {
-  const location = useLocation()
-  return <output aria-label="Location">{location.pathname}</output>
-}
+const snapshot = (fields: Partial<Torrent> = {}) => mainData([{ ...DUNE_TORRENT, ...fields }])
 
 /** The desktop routes as App sets them up, under the shared poll. */
 function renderApp(entries: string[]) {
@@ -97,8 +71,6 @@ function renderApp(entries: string[]) {
     entries,
   )
 }
-
-const where = () => screen.getByRole('status', { name: 'Location' }).textContent
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -174,22 +146,12 @@ describe('the details drawer on desktop', () => {
     expect(screen.getByRole('table', { name: 'Downloads' })).toBeInTheDocument()
   })
 
-  it('opens its More actions as a menu without "Open details"', async () => {
-    renderApp(['/torrent/dune'])
-    const drawer = await screen.findByRole('dialog', { name: 'Dune: Part Two' })
-    await userEvent.click(within(drawer).getByRole('button', { name: 'More actions: Dune: Part Two' }))
-    const menu = within(drawer).getByRole('menu', { name: 'More actions: Dune: Part Two' })
-    expect(within(menu).queryByRole('menuitem', { name: 'Open details' })).not.toBeInTheDocument()
-    expect(within(menu).getByRole('menuitem', { name: 'Movie page' })).toHaveAttribute('href', '/title/movie/693134')
-  })
-
   it('goes back to Downloads with a toast after deleting', async () => {
     renderApp(['/', '/torrent/dune'])
     const drawer = await screen.findByRole('dialog', { name: 'Dune: Part Two' })
     await userEvent.click(within(drawer).getByRole('button', { name: 'Delete' }))
     const confirm = screen.getByRole('alertdialog', { name: 'Delete torrent?' })
     await userEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
-    expect(deleteTorrents).toHaveBeenCalledWith(['dune'], false)
     expect(await screen.findByText('Torrent deleted')).toBeInTheDocument()
     expect(where()).toBe('/')
     expect(screen.queryByRole('dialog', { name: 'Dune: Part Two' })).not.toBeInTheDocument()

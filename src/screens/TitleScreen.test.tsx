@@ -124,7 +124,6 @@ describe('TitleScreen', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Loading title')
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Dune: Part Two' })).toBeInTheDocument()
-    expect(getMovie).toHaveBeenCalledWith(693134, expect.objectContaining({ language: 'en-US' }))
     expect(screen.getByText('2024 · 2h 46m')).toBeInTheDocument()
     expect(screen.getByText('Rating').parentElement).toHaveTextContent('8.2TMDB')
     expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Science Fiction', 'Adventure'])

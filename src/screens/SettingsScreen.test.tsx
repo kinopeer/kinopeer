@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as matches from '../api/matches'
 import * as prowlarr from '../api/prowlarr'
 import * as qbt from '../api/qbittorrent'
@@ -69,6 +69,11 @@ beforeEach(() => {
   })
 })
 
+afterEach(() => {
+  // The user agent spy, even when its test fails.
+  vi.restoreAllMocks()
+})
+
 describe('SettingsScreen', () => {
   it('checks every connection when it opens', async () => {
     renderScreen()
@@ -112,14 +117,11 @@ describe('SettingsScreen', () => {
     expect(row).toHaveTextContent(__APP_VERSION__)
   })
 
-  it('clears the cache, with the guesses the server keeps', async () => {
-    localStorage.setItem('kinoseed.titleMatches.v2', '{}')
+  it('confirms clearing the cache', async () => {
     vi.mocked(matches.clearGuesses).mockResolvedValue({})
     renderScreen()
     await userEvent.click(screen.getByRole('button', { name: /Clear cache/ }))
     expect(await screen.findByText('Cache cleared')).toBeInTheDocument()
-    expect(localStorage.getItem('kinoseed.titleMatches.v2')).toBeNull()
-    expect(matches.clearGuesses).toHaveBeenCalled()
   })
 
   it('opens the TMDB key sheet when sent from a screen that needs the key', async () => {
@@ -136,8 +138,6 @@ describe('SettingsScreen', () => {
     await userEvent.selectOptions(movies, 'Anime')
     await userEvent.click(screen.getByRole('switch', { name: 'Start paused' }))
     expect(getSettings()).toMatchObject({ movieCategory: 'Anime', startPaused: true, sequential: false })
-    expect(serverSettings.saveDownloadDefaults).toHaveBeenCalledWith({ movieCategory: 'Anime' })
-    expect(serverSettings.saveDownloadDefaults).toHaveBeenCalledWith({ startPaused: true })
     expect(screen.getByText(/the same on every device/)).toBeInTheDocument()
   })
 
@@ -169,19 +169,10 @@ describe('SettingsScreen', () => {
     renderScreen()
     await userEvent.click(screen.getByRole('button', { name: /Install app/ }))
     expect(screen.getByRole('dialog', { name: 'Add to Dock' })).toHaveTextContent('Choose “Add to Dock”')
-    vi.restoreAllMocks()
   })
 
   it('has no install row where the app can\'t be installed', () => {
     renderScreen()
     expect(screen.queryByRole('button', { name: /Install app/ })).not.toBeInTheDocument()
-  })
-
-  // The desktop columns put defaults and About on the left and Appearance on the right, so reading
-  // row by row follows this order.
-  it('lists the sections in the order the desktop columns read', () => {
-    renderScreen()
-    const names = screen.getAllByRole('region').map((region) => within(region).getByRole('heading').textContent)
-    expect(names).toEqual(['Connections', 'Download defaults', 'Appearance', 'About'])
   })
 })

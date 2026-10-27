@@ -43,8 +43,9 @@ Written in a later PR.
 The fixtures and helpers live in two folders; a test imports what it needs and keeps anything only
 it uses next to itself.
 
-- **`src/test/fixtures.ts`:** the data every layer shares. Torrents (`torrent()`, `TORRENTS`,
-  `GUESSED`, `mainData()`), TMDB titles as the API returns them (`TITLES`, `page()`, `details()`)
+- **`src/test/fixtures.ts`:** the data every layer shares. Torrents (`torrent()`, whose byte counts
+  follow its `size` and `progress`; `TORRENTS`, `GUESSED`, `DUNE_TORRENT`, `mainData()`), TMDB
+  titles as the API returns them (`TITLES`, `page()`, `details()`)
   and as the app's client maps them (`title()`), Prowlarr releases (`release()`, `RELEASES`,
   `DUNE_RELEASES`), the Shōgun torrent's files (`SHOGUN_FILES`, `torrentFiles()`, the `.torrent`
   bytes from `shogunTorrent()`) and `NOW`, the time the screenshot tests freeze the clock at. It is
@@ -56,8 +57,9 @@ it uses next to itself.
   rather than copying the function. The screenshot baselines are rendered from this module, so a
   change to a name, size, date, order or `NOW` re-renders them.
 - **`src/test/render.tsx`:** `renderWithRouter(ui, entries)` renders under a `MemoryRouter` at the
-  last of `entries`, for screens that read the URL or navigate. API mocks stay in each test file
-  (`vi.mock`, hoisted), so a reader sees what the test replaces without opening another module.
+  last of `entries`, for screens that read the URL or navigate; `<Where />` rendered next to them
+  shows the current path, which `where()` reads back. API mocks stay in each test file (`vi.mock`,
+  hoisted), so a reader sees what the test replaces without opening another module.
 - **`server/test/fakes.ts`:** `listen(handler)` starts a handler on a free port and returns its
   origin, `serve(middleware)` does the same for the middleware under test with Vite's 404 fallback,
   `closeServers()` closes everything in `afterEach`, `bodyOf(request)` reads a body.
@@ -113,8 +115,8 @@ since the clients import without file extensions; the rest of `server/` stays un
 
 `npm run test:coverage` runs the Vitest layers with `@vitest/coverage-v8` and prints a table per
 file, plus an HTML report in `coverage/` (git-ignored). It measures `src/` and `server/` without the
-tests themselves, `src/test/`, `server/test/`, type-only modules and `index.ts` re-exports
-(`vite.config.ts`). CI runs the same in the `check` job, adds the totals to the job summary
+tests themselves, `src/test/`, `server/test/`, type-only modules and the `index.ts` barrels of
+`src/api/*` and `src/components/*`, which only re-export (`vite.config.ts`). CI runs the same in the `check` job, adds the totals to the job summary
 (`scripts/coverage-summary.mjs`) and uploads the HTML report as the `coverage` artifact. There is
 no threshold: the numbers are there to see what a PR leaves uncovered, not to gate it.
 

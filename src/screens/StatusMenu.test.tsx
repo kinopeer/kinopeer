@@ -49,25 +49,22 @@ describe('StatusMenu', () => {
     expect(screen.getByRole('menuitemradio', { name: 'All, 15' })).toHaveAttribute('aria-checked', 'false')
   })
 
+  // The error mark is in the button's name: "With errors" shows only when another status hides them.
   it('marks the button when another status hides torrents with errors', async () => {
-    const { container } = render(<Harness initial="seeding" />)
+    render(<Harness initial="seeding" />)
     expect(screen.getByRole('button', { name: 'Status: Seeding, 13. With errors: 2' })).toBeInTheDocument()
-    expect(container.querySelector('.downloads-status-dot')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: /^Status: Seeding/ }))
     await userEvent.click(screen.getByRole('menuitemradio', { name: 'Error, 2' }))
     expect(screen.getByRole('button', { name: 'Status: Error, 2' })).toBeInTheDocument()
-    expect(container.querySelector('.downloads-status-dot')).not.toBeInTheDocument()
   })
 
   it('has no error mark when nothing has errors, or when all statuses show', () => {
-    const { container, rerender } = render(<Harness initial="seeding" counts={{ ...COUNTS, error: 0 }} />)
+    const { rerender } = render(<Harness initial="seeding" counts={{ ...COUNTS, error: 0 }} />)
     expect(screen.getByRole('button', { name: 'Status: Seeding, 13' })).toBeInTheDocument()
-    expect(container.querySelector('.downloads-status-dot')).not.toBeInTheDocument()
 
     rerender(<StatusMenu value="all" onChange={vi.fn()} counts={COUNTS} />)
     expect(screen.getByRole('button', { name: 'Status: All, 15' })).toBeInTheDocument()
-    expect(container.querySelector('.downloads-status-dot')).not.toBeInTheDocument()
   })
 
   it('leaves the counts out while loading', async () => {

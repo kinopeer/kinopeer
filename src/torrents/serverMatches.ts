@@ -16,7 +16,7 @@ const listeners = new Set<() => void>()
 // When the server didn't answer, the next screen that needs the matches asks again after this.
 const RETRY_MS = 60_000
 // Guesses are saved in batches: the first visit to a long list guesses many at once.
-const SAVE_DELAY_MS = 1_000
+export const SAVE_DELAY_MS = 1_000
 const SAVE_BATCH = 500
 
 let pending: Matches = {}

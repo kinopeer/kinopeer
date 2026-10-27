@@ -1,8 +1,16 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/matches'
 import type { Matches } from '../api/matches'
-import { chooseMatch, forgetMatches, forgetServerGuesses, rememberMatches, resetServerMatches, useServerMatches } from './serverMatches'
+import {
+  SAVE_DELAY_MS,
+  chooseMatch,
+  forgetMatches,
+  forgetServerGuesses,
+  rememberMatches,
+  resetServerMatches,
+  useServerMatches,
+} from './serverMatches'
 
 vi.mock('../api/matches', async (importOriginal) => ({
   ...(await importOriginal<typeof api>()),
@@ -23,7 +31,16 @@ const GUESS = { type: 'tv', id: 2, source: 'guess', version: 2 } as const
 beforeEach(() => {
   vi.resetAllMocks()
   resetServerMatches()
+  // The batched save waits SAVE_DELAY_MS: fake timers, advancing with the clock so waitFor still polls.
+  vi.useFakeTimers({ shouldAdvanceTime: true })
 })
+
+afterEach(() => {
+  vi.useRealTimers()
+})
+
+/** Runs the batched save that rememberMatches scheduled. */
+const flushSave = () => act(() => vi.advanceTimersByTimeAsync(SAVE_DELAY_MS))
 
 describe('useServerMatches', () => {
   it('loads the matches once for every screen', async () => {
@@ -44,21 +61,16 @@ describe('useServerMatches', () => {
   })
 
   it('asks again a minute after the server didn’t answer', async () => {
-    vi.useFakeTimers({ toFake: ['Date'] })
-    try {
-      getMatches.mockRejectedValueOnce(new api.MatchesError(502)).mockResolvedValue({ [A]: USER })
-      const first = renderHook(() => useServerMatches())
-      await waitFor(() => expect(first.result.current).toEqual({}))
-      renderHook(() => useServerMatches())
-      expect(getMatches).toHaveBeenCalledTimes(1)
+    getMatches.mockRejectedValueOnce(new api.MatchesError(502)).mockResolvedValue({ [A]: USER })
+    const first = renderHook(() => useServerMatches())
+    await waitFor(() => expect(first.result.current).toEqual({}))
+    renderHook(() => useServerMatches())
+    expect(getMatches).toHaveBeenCalledTimes(1)
 
-      vi.setSystemTime(Date.now() + 61_000)
-      const later = renderHook(() => useServerMatches())
-      await waitFor(() => expect(later.result.current).toEqual({ [A]: USER }))
-      expect(first.result.current).toEqual({ [A]: USER })
-    } finally {
-      vi.useRealTimers()
-    }
+    vi.setSystemTime(Date.now() + 61_000)
+    const later = renderHook(() => useServerMatches())
+    await waitFor(() => expect(later.result.current).toEqual({ [A]: USER }))
+    expect(first.result.current).toEqual({ [A]: USER })
   })
 })
 
@@ -69,11 +81,10 @@ describe('rememberMatches', () => {
     const { result } = renderHook(() => useServerMatches())
     await waitFor(() => expect(result.current).toBeDefined())
 
-    act(() => {
-      rememberMatches({ [A]: USER })
-      rememberMatches({ [B]: GUESS })
-    })
-    await waitFor(() => expect(result.current).toEqual({ [A]: USER, [B]: GUESS }), { timeout: 3000 })
+    rememberMatches({ [A]: USER })
+    rememberMatches({ [B]: GUESS })
+    await flushSave()
+    expect(result.current).toEqual({ [A]: USER, [B]: GUESS })
     expect(saveMatches).toHaveBeenCalledTimes(1)
     expect(saveMatches).toHaveBeenCalledWith({ [B]: GUESS })
   })
@@ -85,9 +96,10 @@ describe('rememberMatches', () => {
     await waitFor(() => expect(result.current).toEqual({}))
 
     rememberMatches({ [B]: GUESS })
-    await waitFor(() => expect(saveMatches).toHaveBeenCalledTimes(1), { timeout: 3000 })
+    await flushSave()
+    expect(saveMatches).toHaveBeenCalledTimes(1)
     rememberMatches({ [B]: GUESS })
-    await new Promise((resolve) => setTimeout(resolve, 1200))
+    await flushSave()
     expect(saveMatches).toHaveBeenCalledTimes(1)
     expect(result.current).toEqual({})
   })
@@ -105,7 +117,8 @@ describe('forgetServerGuesses', () => {
     expect(result.current).toEqual({ [A]: USER })
 
     rememberMatches({ [B]: GUESS })
-    await waitFor(() => expect(result.current).toEqual({ [A]: USER, [B]: GUESS }), { timeout: 3000 })
+    await flushSave()
+    expect(result.current).toEqual({ [A]: USER, [B]: GUESS })
   })
 
   it('keeps the guesses when the server doesn’t answer', async () => {
@@ -132,7 +145,8 @@ describe('forgetMatches', () => {
     expect(result.current).toEqual({ [A]: USER })
 
     rememberMatches({ [B]: GUESS })
-    await waitFor(() => expect(result.current).toEqual({ [A]: USER, [B]: GUESS }), { timeout: 3000 })
+    await flushSave()
+    expect(result.current).toEqual({ [A]: USER, [B]: GUESS })
   })
 
   it('drops a guess still waiting to be saved', async () => {
@@ -143,7 +157,7 @@ describe('forgetMatches', () => {
 
     rememberMatches({ [B]: GUESS })
     await act(() => forgetMatches([B]))
-    await new Promise((resolve) => setTimeout(resolve, 1200))
+    await flushSave()
     expect(saveMatches).toHaveBeenCalledTimes(1)
     expect(saveMatches).toHaveBeenCalledWith({ [B]: null })
   })
@@ -170,7 +184,7 @@ describe('chooseMatch', () => {
     expect(saveMatches).toHaveBeenCalledWith({ [A]: USER })
     expect(result.current).toEqual({ [B]: GUESS, [A]: USER })
 
-    await new Promise((resolve) => setTimeout(resolve, 1200))
+    await flushSave()
     expect(saveMatches).toHaveBeenCalledTimes(1)
   })
 

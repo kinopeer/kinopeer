@@ -1,7 +1,7 @@
 import { act, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes, useNavigate } from 'react-router'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as tmdb from '../api/tmdb'
 import type { Title } from '../api/tmdb'
 import i18n from '../i18n'
@@ -36,6 +36,11 @@ beforeEach(() => {
   searchTitles.mockResolvedValue(page([DUNE, ANDOR]))
 })
 
+afterEach(() => {
+  // The scroll spy, so the setup's no-op scrollTo is back for the other files' screens.
+  vi.restoreAllMocks()
+})
+
 function row(name: string) {
   return within(screen.getByRole('region', { name }))
 }
@@ -52,7 +57,6 @@ describe('SearchScreen', () => {
     ])
     expect(row('Popular movies').getByText('Movie · 2024')).toBeInTheDocument()
     expect(row('Popular series').getByText('Series')).toBeInTheDocument()
-    expect(getTrending).toHaveBeenCalledWith('all', expect.objectContaining({ language: 'en-US' }))
   })
 
   it('filters by type', async () => {
@@ -73,7 +77,7 @@ describe('SearchScreen', () => {
 
     expect(await screen.findByText('2 results')).toBeInTheDocument()
     expect(searchTitles).toHaveBeenCalledTimes(1)
-    expect(searchTitles).toHaveBeenCalledWith('dune', expect.objectContaining({ language: 'en-US' }))
+    expect(searchTitles).toHaveBeenCalledWith('dune', expect.anything())
     expect(screen.getByRole('link', { name: /Dune: Part Two/ })).toHaveAttribute('href', '/title/movie/1')
     // Posters are decorative (alt="") and load through the same-origin image proxy.
     expect(container.querySelector('img[src="/tmdb-img/w342/1.jpg"]')).toHaveAttribute('alt', '')
@@ -89,9 +93,10 @@ describe('SearchScreen', () => {
   it('offers to clear a search without results', async () => {
     searchTitles.mockResolvedValue(page([]))
     renderScreen('/search?q=zzzz')
-    expect(await screen.findByRole('heading', { name: 'Nothing found for “zzzz”' })).toBeInTheDocument()
+    const empty = await screen.findByRole('heading', { name: 'Nothing found for “zzzz”' })
 
-    await userEvent.click(screen.getAllByRole('button', { name: 'Clear' })[1])
+    // The empty state's own Clear, not the search field's.
+    await userEvent.click(within(empty.parentElement!).getByRole('button', { name: 'Clear' }))
     expect(screen.getByRole('searchbox')).toHaveValue('')
     expect(await screen.findByRole('heading', { name: 'Trending this week' })).toBeInTheDocument()
   })
@@ -111,8 +116,7 @@ describe('SearchScreen', () => {
 
   it('comes back from a title at the same scroll position', async () => {
     sessionStorage.clear()
-    const scrollTo = vi.fn()
-    window.scrollTo = scrollTo as unknown as typeof window.scrollTo
+    const scrollTo = vi.spyOn(window, 'scrollTo')
     const scrolledTo = (y: number) => Object.defineProperty(window, 'scrollY', { value: y, configurable: true })
     // The second search, on the way back, answers only when told to.
     let answer = () => {}

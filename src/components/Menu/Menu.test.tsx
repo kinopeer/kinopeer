@@ -1,20 +1,20 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { MemoryRouter } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
-import { Menu, type MenuProps, MenuDivider, MenuGroup, MenuItem, MenuItemRadio, MenuLink } from './Menu'
+import { Menu, MenuDivider, MenuGroup, MenuItem, MenuItemRadio, MenuLink } from './Menu'
 
-function Harness({ onPick = vi.fn(), align, follow }: { onPick?: (item: string) => void; align?: MenuProps['align']; follow?: boolean }) {
+// Placement, the click outside, the anchor's toggle and `follow` are Popover's, tested there.
+function Harness({ onPick = vi.fn() }: { onPick?: (item: string) => void }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   return (
     <MemoryRouter>
       <button type="button" onClick={(event) => setAnchor(anchor ? null : event.currentTarget)}>
         Open
       </button>
-      <button type="button">Elsewhere</button>
       {anchor && (
-        <Menu anchor={anchor} label="Actions" align={align} follow={follow} onClose={() => setAnchor(null)} footer={<p>Footer</p>}>
+        <Menu anchor={anchor} label="Actions" onClose={() => setAnchor(null)} footer={<p>Footer</p>}>
           <MenuItem icon="pause" onClick={() => onPick('pause')}>
             Pause
           </MenuItem>
@@ -66,37 +66,6 @@ describe('Menu', () => {
     expect(open).toHaveFocus()
   })
 
-  it('closes on a click outside, and the anchor toggles it', async () => {
-    render(<Harness />)
-    const open = screen.getByRole('button', { name: 'Open' })
-    await userEvent.click(open)
-    await userEvent.click(screen.getByRole('button', { name: 'Elsewhere' }))
-    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
-
-    await userEvent.click(open)
-    await userEvent.click(open)
-    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
-  })
-
-  it('lines up with the anchor’s right edge, or its left one when asked', async () => {
-    vi.spyOn(HTMLButtonElement.prototype, 'getBoundingClientRect').mockReturnValue({
-      top: 100,
-      bottom: 136,
-      left: 300,
-      right: 400,
-    } as DOMRect)
-    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(220)
-    const { unmount } = render(<Harness />)
-    await userEvent.click(screen.getByRole('button', { name: 'Open' }))
-    expect(screen.getByRole('menu').parentElement).toHaveStyle({ left: '180px' })
-    unmount()
-
-    render(<Harness align="start" />)
-    await userEvent.click(screen.getByRole('button', { name: 'Open' }))
-    expect(screen.getByRole('menu').parentElement).toHaveStyle({ left: '300px' })
-    vi.restoreAllMocks()
-  })
-
   it('focuses the checked option when it opens', async () => {
     function Options() {
       const [anchor, setAnchor] = useState<HTMLElement | null>(null)
@@ -117,13 +86,6 @@ describe('Menu', () => {
     render(<Options />)
     await userEvent.click(screen.getByRole('button', { name: 'Sort' }))
     expect(screen.getByRole('menuitemradio', { name: 'Size' })).toHaveFocus()
-  })
-
-  it('stays open on a scroll when it follows its anchor', async () => {
-    render(<Harness follow />)
-    await userEvent.click(screen.getByRole('button', { name: 'Open' }))
-    fireEvent.scroll(document)
-    expect(screen.getByRole('menu', { name: 'Actions' })).toBeInTheDocument()
   })
 
   it('runs an item’s action', async () => {

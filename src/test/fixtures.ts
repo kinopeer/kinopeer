@@ -21,18 +21,23 @@ const day = 86_400_000
 
 // qBittorrent
 
-/** A torrent as /sync/maindata reports it: a 10 GB download at rest, added at NOW. */
+/**
+ * A torrent as /sync/maindata reports it: a 10 GB download at rest, added at NOW. The byte counts
+ * follow `size` and `progress` unless given, as qBittorrent's do.
+ */
 export function torrent(hash: string, fields: Partial<Torrent> = {}): Torrent {
+  const size = fields.size ?? 10 * GB
+  const downloaded = Math.round(size * (fields.progress ?? 0))
   return {
     hash,
     name: hash,
     state: 'downloading',
     progress: 0,
-    size: 10 * GB,
-    total_size: 10 * GB,
-    downloaded: 0,
+    size,
+    total_size: size,
+    downloaded,
     uploaded: 0,
-    amount_left: 10 * GB,
+    amount_left: size - downloaded,
     dlspeed: 0,
     upspeed: 0,
     eta: 8_640_000,
@@ -150,6 +155,26 @@ export const TORRENTS: Torrent[] = [
     added_on: NOW / 1000 - 120 * hour,
   }),
 ]
+
+/** A Dune download in progress, tagged by Kinoseed: the torrent the details tests open. */
+export const DUNE_TORRENT = torrent('dune', {
+  name: 'Dune.Part.Two.2024.2160p.WEB-DL',
+  tags: tmdbTag('movie', 693134),
+  category: 'Movies',
+  progress: 0.42,
+  size: 20_000_000_000,
+  dlspeed: 4_300_000,
+  upspeed: 120_000,
+  eta: 720,
+  ratio: 0.31,
+  num_seeds: 12,
+  num_complete: 340,
+  num_leechs: 3,
+  num_incomplete: 41,
+  save_path: '/data/movies',
+  added_on: 1_760_000_000,
+  priority: 1,
+})
 
 /** Not tagged by Kinoseed: its title is guessed from the release name, so the app asks whether it's right. */
 export const GUESSED = torrent('b1', {

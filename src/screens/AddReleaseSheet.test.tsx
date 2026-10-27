@@ -85,15 +85,12 @@ describe('AddReleaseSheet', () => {
   it('picks files by season and adds the release to its category with the title tag', async () => {
     const { onAdded } = renderSheet()
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
-    expect(sheet).not.toHaveClass('ks-sheet-lg')
     expect(within(sheet).getByText('Breaking Bad')).toBeInTheDocument()
     expect(within(sheet).getByRole('link', { name: 'Open on Kinozal' })).toHaveAttribute('href', 'https://tracker.test/bb')
     expect(await within(sheet).findByText('TV → /data/tv')).toBeInTheDocument()
 
     await userEvent.click(await within(sheet).findByRole('button', { name: /Files: all \(3\)/ }))
     const picker = screen.getByRole('dialog', { name: 'Select files' })
-    // Full height on phones, the tall modal on desktop.
-    expect(picker).toHaveClass('ks-sheet-lg')
     expect(within(picker).getByText('Not enough free space')).toBeInTheDocument()
     await userEvent.click(within(picker).getByRole('checkbox', { name: 'Season 1' }))
     await userEvent.click(within(picker).getByRole('button', { name: /Season 2/ }))

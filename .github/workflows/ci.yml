@@ -19,8 +19,15 @@ jobs:
       - run: npm run typecheck
       - run: npm run test:coverage -- --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary
       - name: Add the coverage totals to the job summary
+        # When the tests fail, this shows what they still covered; when they never ran (a lint or
+        # type error), there is no report and nothing to add.
         if: always()
-        run: node scripts/coverage-summary.mjs coverage/coverage-summary.json >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          if [ -f coverage/coverage-summary.json ]; then
+            node scripts/coverage-summary.mjs coverage/coverage-summary.json >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No coverage report: the tests didn't run." >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Upload the HTML coverage report
         if: always()
         uses: actions/upload-artifact@v4
