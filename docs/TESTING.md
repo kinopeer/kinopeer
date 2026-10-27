@@ -82,6 +82,25 @@ milliseconds, fails with a precise message, and it's the one the layer above lea
   the instability and a skip hides the behavior (oxlint refuses `.skip` and `.only`). Both Playwright
   configs run with `retries: 0`, so a screenshot or a journey that fails once fails the job.
 
+### Saying why something is uncovered
+
+A change without a test says so in the PR's Tests section, with the reason, and the reason is one
+of these:
+
+- **Looks and layout:** CSS, spacing, a token; checked on the test stand or by a screenshot
+  baseline, and the PR says which.
+- **A blind spot:** only a real phone, Umbrel's proxy, a real service version or real time shows
+  it ([Known blind spots](#known-blind-spots)); the PR names the spot and, when the checklist has a
+  manual check for it, that it was done.
+- **Covered already:** a refactor or a move that an existing test still asserts; the PR names that
+  test by its `it` title, and the reviewer opens it.
+- **No behavior:** docs, comments, CI and config, types, generated files, a re-export.
+
+"Trivial", "later", "tested manually" without saying what and where, or a reason that doesn't fit
+the diff are not reasons: the change gets its test or the PR explains itself better. The review
+(`/test-review`, [Reviewing a PR's tests](#reviewing-a-prs-tests)) reads this section first and
+checks the reasons before it looks for missing tests.
+
 ## When we find a bug
 
 A bug is two defects: one in the code and one in the tests that let it through. A `fix/` PR answers
@@ -251,6 +270,19 @@ uncovered; the threshold only keeps that from slipping by unnoticed. It applies 
 oxlint runs its `vitest` plugin on the test files (`.oxlintrc.json`): no two tests with the same
 title, no `.skip` or `.only` left behind, every test has an `expect`, no test defined inside a
 condition.
+
+## Reviewing a PR's tests
+
+Before a PR merges, its tests are reviewed against this file with the `test-review` skill
+(`.claude/skills/test-review/SKILL.md`): `/test-review <PR number>` in a Claude Code session, or
+`/test-review` for the current branch. It reads the PR's description first (the Tests section's
+layers, what is declared uncovered and why, the changed baselines, a fix's "Why tests missed it"),
+then checks the diff: every change covered or explained with an accepted reason, nothing lost when
+a test is deleted, each assertion on its layer, behavior rather than implementation, fakes true to
+the services, no sleeps or forced clicks, baselines listed, docs matching the code, the threshold
+not lowered. It reports findings with the rule each breaks and a verdict. It doesn't look for bugs
+in the code (`/code-review` does) and doesn't run the suite (CI does). A reviewer without the skill
+goes through the same list by hand; the skill is the list.
 
 ## Screenshot tests
 
