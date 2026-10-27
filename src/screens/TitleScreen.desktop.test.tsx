@@ -97,7 +97,7 @@ const names = () =>
   within(table())
     .getAllByRole('row')
     .slice(1)
-    .map((row) => within(row).getAllByRole('button')[0].textContent)
+    .map((row) => within(row).getAllByTitle(/./)[0].textContent)
 
 const scrollIntoView = vi.fn()
 
