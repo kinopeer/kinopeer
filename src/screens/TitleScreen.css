@@ -264,7 +264,8 @@
   max-width: 1240px;
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  /* The poster stays by the title however long the overview is. */
+  align-items: flex-start;
   gap: var(--space-8);
   padding: var(--space-16) var(--space-8) var(--space-8);
 }
@@ -282,7 +283,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding-bottom: var(--space-1);
 }
 
 .title-dname {
@@ -303,6 +303,23 @@
 
 .title-doverview {
   max-width: 680px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+/* A long overview shows five lines until "Show more". */
+.title-doverview-text.is-clamped {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  overflow: hidden;
+}
+
+/* Takes the ghost button's padding back, so its label lines up with the text above. */
+.title-doverview-more {
+  margin-left: calc(-1 * var(--space-4));
 }
 
 .title-dactions {

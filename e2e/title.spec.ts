@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { DESKTOP, DESKTOP_RAIL, openApp, showWholePage, type AppOptions } from './app.ts'
+import { LONG_OVERVIEW_ID } from './fixtures.ts'
 
 async function openTitle(page: Page, path: string, name: string, options: AppOptions = {}) {
   await openApp(page, path, options)
@@ -47,6 +48,15 @@ test.describe('desktop', () => {
       await openTitle(page, '/title/tv/126308', 'Shōgun', { theme: 'light', lang: 'en' })
       await expect(page).toHaveScreenshot('desktop-series-light-en.png')
     })
+  })
+
+  test('a long overview is cut to a few lines, and Show more opens it', async ({ page }) => {
+    await openTitle(page, `/title/movie/${LONG_OVERVIEW_ID}`, 'Оппенгеймер')
+    await expect(page).toHaveScreenshot('desktop-long-overview-dark-ru.png')
+    await page.getByRole('button', { name: 'Подробнее' }).click()
+    await expect(page.getByRole('button', { name: 'Свернуть' })).toBeVisible()
+    await showWholePage(page)
+    await expect(page).toHaveScreenshot('desktop-long-overview-open-dark-ru.png')
   })
 })
 
