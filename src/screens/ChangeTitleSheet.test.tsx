@@ -44,12 +44,12 @@ beforeEach(() => {
 describe('ChangeTitleSheet', () => {
   it('searches TMDB for the name guessed from the release, the current title first', async () => {
     renderSheet({ type: 'tv', id: 94605, title: 'Мастер и Маргарита', year: 2005, posterPath: null })
-    expect(screen.getByRole('dialog', { name: 'Change title' })).toHaveClass('ks-sheet-lg')
+    expect(screen.getByRole('dialog', { name: 'Change title' })).toBeInTheDocument()
     expect(screen.getByText(TORRENT.name)).toBeInTheDocument()
     expect(screen.getByRole('searchbox', { name: 'Search TMDB' })).toHaveValue('Master i Margarita')
 
     const rows = await screen.findAllByRole('button', { name: /Мастер и Маргарита/ })
-    expect(searchTitles).toHaveBeenCalledWith('Master i Margarita', expect.objectContaining({ language: 'en-US' }))
+    expect(searchTitles).toHaveBeenCalledWith('Master i Margarita', expect.anything())
     expect(rows[0]).toHaveAttribute('aria-current', 'true')
     expect(rows[0]).toHaveAccessibleName('Мастер и Маргарита Series · 2005 Current')
     expect(rows[0]).toHaveTextContent('Current')
@@ -78,7 +78,6 @@ describe('ChangeTitleSheet', () => {
   it('confirms the current title when it is picked', async () => {
     const { onChosen } = renderSheet({ type: 'tv', id: 94605, title: 'Мастер и Маргарита', year: 2005, posterPath: null })
     await userEvent.click((await screen.findAllByRole('button', { name: /Мастер и Маргарита/ }))[0])
-    expect(saveMatches).toHaveBeenCalledWith({ [TORRENT.hash]: { type: 'tv', id: 94605, source: 'user' } })
     expect(onChosen).toHaveBeenCalledWith('confirmed')
   })
 

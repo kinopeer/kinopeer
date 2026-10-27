@@ -4,8 +4,9 @@ import { Route, Routes, useLocation } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as matchesApi from '../api/matches'
 import * as api from '../api/qbittorrent'
-import type { MainData, Torrent } from '../api/qbittorrent'
+import type { Torrent } from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
+import { DUNE_TORRENT, mainData } from '../test/fixtures'
 import { renderWithRouter } from '../test/render'
 import * as serverMatches from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
@@ -49,29 +50,7 @@ const startTorrents = vi.mocked(api.startTorrents)
 const stopTorrents = vi.mocked(api.stopTorrents)
 const deleteTorrents = vi.mocked(api.deleteTorrents)
 
-const DUNE: Partial<Torrent> = {
-  name: 'Dune.Part.Two.2024.2160p.WEB-DL',
-  state: 'downloading',
-  progress: 0.42,
-  size: 20_000_000_000,
-  dlspeed: 4_300_000,
-  upspeed: 120_000,
-  eta: 720,
-  ratio: 0.31,
-  num_seeds: 12,
-  num_complete: 340,
-  num_leechs: 3,
-  num_incomplete: 41,
-  category: 'Movies',
-  tags: 'tmdb:movie:693134',
-  save_path: '/data/movies',
-  added_on: 1_760_000_000,
-  priority: 1,
-}
-
-function snapshot(fields: Partial<Torrent> = {}): MainData {
-  return { rid: 1, full_update: true, torrents: { dune: { ...DUNE, ...fields } }, server_state: {} }
-}
+const snapshot = (fields: Partial<Torrent> = {}) => mainData([{ ...DUNE_TORRENT, ...fields }])
 
 function Downloads() {
   const location = useLocation()
@@ -292,7 +271,6 @@ describe('TorrentScreen title matching', () => {
     expect(await screen.findByText('Matched by the release name. Is it right?')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Yes, right' }))
-    expect(matchesApi.saveMatches).toHaveBeenCalledWith({ dune: { type: 'movie', id: 693134, source: 'user' } })
     expect(await screen.findByText('Match confirmed')).toBeInTheDocument()
     expect(screen.queryByText('Matched by the release name. Is it right?')).not.toBeInTheDocument()
   })

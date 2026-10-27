@@ -1,10 +1,10 @@
-import { renderHook, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, renderHook, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as matchesApi from '../api/matches'
 import type { Matches } from '../api/matches'
 import * as tmdb from '../api/tmdb'
 import { title } from '../test/fixtures'
-import { resetServerMatches } from './serverMatches'
+import { SAVE_DELAY_MS, resetServerMatches } from './serverMatches'
 import {
   GUESS_VERSION,
   categoryType,
@@ -54,6 +54,13 @@ beforeEach(() => {
     return { ...server }
   })
 })
+
+afterEach(() => {
+  vi.useRealTimers()
+})
+
+/** Runs the batched save of the guesses made so far (serverMatches waits SAVE_DELAY_MS for more). */
+const flushSave = () => act(() => vi.advanceTimersByTimeAsync(SAVE_DELAY_MS))
 
 describe('pickBest', () => {
   it('prefers the release year for movies', () => {
@@ -224,13 +231,15 @@ describe('useTitleMatches', () => {
   })
 
   it('saves new guesses on the server, and then shows them without asking TMDB again', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
     searchTitles.mockResolvedValue({ titles: [DUNE_2021], page: 1, totalPages: 1 })
     const { result } = renderHook(() => useTitleMatches(torrents.slice(0, 2)))
     await waitFor(() => expect(result.current.a).toMatchObject({ id: 438631 }))
-    await waitFor(() => expect(server).toEqual({
+    await flushSave()
+    expect(server).toEqual({
       a: { type: 'movie', id: 438631, source: 'guess', version: GUESS_VERSION },
       b: { type: 'movie', id: 438631, source: 'guess', version: GUESS_VERSION },
-    }), { timeout: 3000 })
+    })
     expect(result.current.a).toMatchObject({ id: 438631 })
     expect(saveMatches).toHaveBeenCalledTimes(1)
     expect(searchTitles).toHaveBeenCalledTimes(1)
@@ -238,20 +247,22 @@ describe('useTitleMatches', () => {
   })
 
   it('saves guesses this browser made before, and none for tagged torrents', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
     searchTitles.mockResolvedValue({ titles: [DUNE_2021], page: 1, totalPages: 1 })
     getMovie.mockResolvedValue({ ...DUNE_1984, title: 'Dune', original_title: 'Dune', release_date: '1984-12-14', poster_path: '/841.jpg' } as never)
     getMatches.mockRejectedValueOnce(new matchesApi.MatchesError(502))
     saveMatches.mockRejectedValueOnce(new matchesApi.MatchesError(502))
     const offline = renderHook(() => useTitleMatches([torrents[0], torrents[3]]))
     await waitFor(() => expect(offline.result.current.a).toMatchObject({ id: 438631 }))
-    await waitFor(() => expect(saveMatches).toHaveBeenCalledTimes(1), { timeout: 3000 })
+    await flushSave()
+    expect(saveMatches).toHaveBeenCalledTimes(1)
     offline.unmount()
 
     resetServerMatches()
-    renderHook(() => useTitleMatches([torrents[0], torrents[3]]))
-    await waitFor(() => expect(server).toEqual({ a: { type: 'movie', id: 438631, source: 'guess', version: GUESS_VERSION } }), {
-      timeout: 3000,
-    })
+    const { result } = renderHook(() => useTitleMatches([torrents[0], torrents[3]]))
+    await waitFor(() => expect(result.current.a).toMatchObject({ id: 438631 }))
+    await flushSave()
+    expect(server).toEqual({ a: { type: 'movie', id: 438631, source: 'guess', version: GUESS_VERSION } })
     expect(searchTitles).toHaveBeenCalledTimes(1)
   })
 

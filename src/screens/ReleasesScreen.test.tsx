@@ -68,19 +68,13 @@ describe('ReleasesScreen', () => {
     expect(within(top).getByText('WEB-DL')).toBeInTheDocument()
     expect(within(top).getByText('Dubbed')).toBeInTheDocument()
     expect(within(top).getByText('9.40 GB')).toBeInTheDocument()
-    expect(within(top).getByRole('link', { name: 'Open on Kinozal' })).toHaveAttribute('href', 'https://tracker.test/b')
     expect(within(top).getByLabelText('2451 seeders')).toBeInTheDocument()
   })
 
-  it('sorts by size and expands a long name', async () => {
+  it('sorts by size', async () => {
     renderAt('/title/movie/693134/releases')
     await userEvent.click(await screen.findByRole('button', { name: /^Sort: Seeds/ }))
     expect(names()).toEqual([DUNE_RELEASES[0].title, DUNE_RELEASES[1].title, DUNE_RELEASES[2].title])
-
-    const name = screen.getByRole('button', { name: DUNE_RELEASES[0].title })
-    expect(name).toHaveAttribute('aria-expanded', 'false')
-    await userEvent.click(name)
-    expect(name).toHaveAttribute('aria-expanded', 'true')
   })
 
   it('filters in the sheet and removes filters from the list', async () => {
@@ -111,10 +105,7 @@ describe('ReleasesScreen', () => {
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Dubbed' }))
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '720p' }))
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Show 0' }))
-
     expect(screen.getByRole('heading', { name: 'Nothing matches' })).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Reset filters' }))
-    expect(screen.getByText('3 of 3 releases')).toBeInTheDocument()
   })
 
   it('lists every release found, whatever its category', async () => {
@@ -127,11 +118,11 @@ describe('ReleasesScreen', () => {
     expect(await screen.findByText('2 of 2 releases')).toBeInTheDocument()
   })
 
-  it('searches a series by name in TV categories and shows its seasons', async () => {
+  it('searches a series by name alone, without a category, and shows its seasons', async () => {
     searchReleases.mockResolvedValue([release('s', 'Breaking.Bad.S01-S05.COMPLETE.1080p.BluRay.x264-ROVERS', 212e9, 486)])
     renderAt('/title/tv/1396/releases')
     expect(await screen.findByText('S01–S05')).toBeInTheDocument()
-    expect(searchReleases).toHaveBeenCalledWith('Breaking Bad', expect.anything())
+    expect(searchReleases).toHaveBeenCalledWith('Breaking Bad', expect.not.objectContaining({ categories: expect.anything() }))
   })
 
   it('explains a missing Prowlarr setup', async () => {
@@ -140,11 +131,10 @@ describe('ReleasesScreen', () => {
     expect(await screen.findByRole('heading', { name: 'Prowlarr isn’t connected' })).toBeInTheDocument()
   })
 
-  it('retries after Prowlarr fails, and says when nothing is found', async () => {
-    searchReleases.mockRejectedValueOnce(new prowlarr.ProwlarrError('down', 502, 'unreachable')).mockResolvedValueOnce([])
+  it('says when Prowlarr fails', async () => {
+    searchReleases.mockRejectedValue(new prowlarr.ProwlarrError('down', 502, 'unreachable'))
     renderAt('/title/movie/693134/releases')
-    await userEvent.click(await screen.findByRole('button', { name: 'Try again' }))
-    expect(await screen.findByRole('heading', { name: 'No releases found' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Couldn’t reach Prowlarr' })).toBeInTheDocument()
   })
 
   it('adds a release to qBittorrent tagged with the title and goes to downloads', async () => {

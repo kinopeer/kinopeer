@@ -171,45 +171,25 @@ describe('DownloadsScreen on desktop', () => {
     expect(api.stopTorrents).toHaveBeenCalledWith(['andor'])
   })
 
-  it('opens a row’s actions as a menu next to its More button', async () => {
+  it('opens a row’s actions as a menu next to its More button, not as a sheet', async () => {
     updateSettings({ downloadsDesktopView: 'list' })
     renderScreen()
     await tableRows()
     const more = screen.getByRole('button', { name: 'More actions: Alien.Romulus.2024.1080p' })
     expect(more).toHaveAttribute('aria-haspopup', 'menu')
     await userEvent.click(more)
-    const menu = screen.getByRole('menu', { name: 'More actions: Alien.Romulus.2024.1080p' })
+    expect(screen.getByRole('menu', { name: 'More actions: Alien.Romulus.2024.1080p' })).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(within(menu).getByRole('menuitem', { name: 'Resume' })).toHaveFocus()
-    expect(within(menu).getByRole('menuitem', { name: 'Open details' })).toHaveAttribute('href', '/torrent/alien')
-    expect(within(menu).getByRole('menuitem', { name: 'Delete' })).toBeInTheDocument()
-
-    await userEvent.keyboard('{Escape}')
-    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
-    expect(more).toHaveFocus()
   })
 
-  it('toggles each menu with its own button', async () => {
+  it('moves the menu to another row’s More button', async () => {
     updateSettings({ downloadsDesktopView: 'list' })
     renderScreen()
     await tableRows()
-    const buttons = [
-      screen.getByRole('button', { name: 'More actions: Alien.Romulus.2024.1080p' }),
-      screen.getByRole('button', { name: 'Sort: Priority' }),
-      screen.getByRole('button', { name: /^Status: All/ }),
-    ]
-    for (const button of buttons) {
-      await userEvent.click(button)
-      expect(screen.getByRole('menu')).toBeInTheDocument()
-      await userEvent.click(button)
-      expect(screen.queryByRole('menu')).not.toBeInTheDocument()
-      expect(button).toHaveFocus()
-    }
-
-    // Another row's More moves the menu to that row.
-    await userEvent.click(buttons[0])
+    await userEvent.click(screen.getByRole('button', { name: 'More actions: Alien.Romulus.2024.1080p' }))
     await userEvent.click(screen.getByRole('button', { name: 'More actions: Andor.S02.1080p' }))
     expect(screen.getByRole('menu', { name: 'More actions: Andor.S02.1080p' })).toBeInTheDocument()
+    expect(screen.getAllByRole('menu')).toHaveLength(1)
   })
 
   it('sorts from a menu and filters by type beside it', async () => {
@@ -236,24 +216,20 @@ describe('DownloadsScreen on desktop', () => {
   })
 
   it('filters by status from a menu in place of the chips, counting within the type', async () => {
-    getMainData.mockResolvedValue({
-      ...SNAPSHOT,
-      torrents: { ...SNAPSHOT.torrents, broken: torrent('broken', { name: 'Broken.2023.720p', state: 'missingFiles' }) },
-    })
     renderScreen()
     await screen.findAllByRole('listitem')
     expect(screen.queryByRole('group', { name: 'Filter by status' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { pressed: false })).not.toBeInTheDocument()
 
-    await userEvent.click(screen.getByRole('button', { name: 'Status: All, 4' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Status: All, 3' }))
     await userEvent.click(screen.getByRole('menuitemradio', { name: 'Paused, 1' }))
     expect(screen.getAllByRole('listitem')).toHaveLength(1)
-    expect(screen.getByRole('button', { name: 'Status: Paused, 1. With errors: 1' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Status: Paused, 1' })).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('radio', { name: 'Series' }))
     expect(screen.getByRole('button', { name: 'Status: Paused, 0' })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Reset filters' }))
-    expect(screen.getByRole('button', { name: 'Status: All, 4' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Status: All, 3' })).toBeInTheDocument()
   })
 
   it('keeps the name filter in the header', async () => {

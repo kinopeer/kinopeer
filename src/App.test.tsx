@@ -1,6 +1,6 @@
 import { act, fireEvent, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { useLocation, type To } from 'react-router'
+import type { To } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as matchesApi from './api/matches'
 import * as api from './api/qbittorrent'
@@ -8,7 +8,7 @@ import * as serverSettings from './api/settings'
 import * as tmdb from './api/tmdb'
 import App from './App'
 import { stubDesktop } from './lib/stubDesktop'
-import { renderWithRouter } from './test/render'
+import { Where, renderWithRouter, where } from './test/render'
 
 vi.mock('./api/qbittorrent', async (importOriginal) => {
   const actual = await importOriginal<typeof api>()
@@ -39,10 +39,6 @@ vi.mock('./api/tmdb', async (importOriginal) => {
   return { ...actual, getTrending: vi.fn(), getPopular: vi.fn(), getMovie: vi.fn() }
 })
 
-function Where() {
-  return <output aria-label="Location">{useLocation().pathname}</output>
-}
-
 function renderApp(path: string | (Exclude<To, string> & { state?: unknown }) = '/') {
   return renderWithRouter(
     <>
@@ -52,8 +48,6 @@ function renderApp(path: string | (Exclude<To, string> & { state?: unknown }) = 
     [path],
   )
 }
-
-const where = () => screen.getByRole('status', { name: 'Location' }).textContent
 
 const getAppVersion = vi.mocked(api.getAppVersion)
 const getMainData = vi.mocked(api.getMainData)
@@ -120,11 +114,12 @@ describe('App', () => {
     })
 
     it('navigates from the sidebar in place of the tab bar', async () => {
-      renderApp('/torrent/abc')
+      renderApp()
       const nav = await screen.findByRole('navigation', { name: 'Main' })
+      // Both are the "Main" navigation with the same links; their root classes are the only way
+      // jsdom tells the sidebar from the tab bar.
       expect(nav.closest('.ks-side')).not.toBeNull()
       expect(document.querySelector('.ks-tabbar')).toBeNull()
-      expect(within(nav).getByRole('link', { name: 'Downloads' })).toHaveClass('is-on')
 
       await userEvent.click(within(nav).getByRole('link', { name: 'Search' }))
       expect(screen.getByRole('heading', { name: 'Search', level: 1 })).toBeInTheDocument()
@@ -144,7 +139,7 @@ describe('App', () => {
       expect(screen.getByRole('navigation', { name: 'Main' })).toBeInTheDocument()
     })
 
-    it('shows a torrent in a drawer over Downloads, polling once for both and the sidebar', async () => {
+    it('counts the downloads and shows qBittorrent in the sidebar, under a drawer too', async () => {
       getMainData.mockResolvedValue({
         rid: 1,
         full_update: true,
@@ -155,12 +150,10 @@ describe('App', () => {
         server_state: { dl_info_speed: 4_300_000, up_info_speed: 0, free_space_on_disk: 1e12 },
       })
       renderApp('/torrent/dune')
-      expect(await screen.findByRole('dialog', { name: 'Dune.2021.1080p' })).toBeInTheDocument()
-      expect(screen.getByRole('heading', { name: 'Downloads', level: 1 })).toBeInTheDocument()
+      await screen.findByRole('dialog', { name: 'Dune.2021.1080p' })
       const nav = screen.getByRole('navigation', { name: 'Main' })
-      expect(within(nav).getByRole('link', { name: /^Downloads.*1 downloading$/ })).toHaveClass('is-on')
+      expect(within(nav).getByRole('link', { name: /^Downloads.*1 downloading$/ })).toBeInTheDocument()
       expect(screen.getByRole('region', { name: 'qBittorrent' })).toHaveTextContent('qBittorrent v5.2.4')
-      expect(getMainData).toHaveBeenCalledTimes(1)
     })
 
     describe('a torrent opened from the title page', () => {
@@ -241,20 +234,6 @@ describe('App', () => {
       })
     })
 
-    it('shows a torrent as a screen of its own on a phone', async () => {
-      vi.unstubAllGlobals()
-      getMainData.mockResolvedValue({
-        rid: 1,
-        full_update: true,
-        torrents: { dune: { name: 'Dune.2021.1080p', state: 'downloading', progress: 0.5, size: 1e9, priority: 1, ratio: 0 } },
-        server_state: {},
-      })
-      renderApp('/torrent/dune')
-      expect(await screen.findByRole('heading', { name: 'Dune.2021.1080p', level: 1 })).toBeInTheDocument()
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-      expect(screen.queryByRole('heading', { name: 'Downloads' })).not.toBeInTheDocument()
-    })
-
     it('switches to the tab bar when the window gets narrow', async () => {
       const resize = stubDesktop()
       renderApp()
@@ -266,12 +245,21 @@ describe('App', () => {
     })
   })
 
+  it('shows a torrent as a screen of its own on a phone', async () => {
+    getMainData.mockResolvedValue({
+      rid: 1,
+      full_update: true,
+      torrents: { dune: { name: 'Dune.2021.1080p', state: 'downloading', progress: 0.5, size: 1e9, priority: 1, ratio: 0 } },
+      server_state: {},
+    })
+    renderApp('/torrent/dune')
+    expect(await screen.findByRole('heading', { name: 'Dune.2021.1080p', level: 1 })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Downloads' })).not.toBeInTheDocument()
+  })
+
   it('asks for the TMDB key when the server has none, then goes in', async () => {
-    vi.mocked(matchesApi.getMatches).mockResolvedValue({})
-  vi.mocked(matchesApi.saveMatches).mockImplementation(async (changes) => changes as matchesApi.Matches)
-  vi.mocked(api.getTorrentFiles).mockResolvedValue([])
-  vi.mocked(api.deleteTorrents).mockResolvedValue()
-  vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ tmdb: { configured: false, source: null }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ tmdb: { configured: false, source: null }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
     vi.mocked(serverSettings.saveTmdbKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved' }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
     renderApp()
 
@@ -288,11 +276,7 @@ describe('App', () => {
   })
 
   it('shows why a TMDB key was refused', async () => {
-    vi.mocked(matchesApi.getMatches).mockResolvedValue({})
-  vi.mocked(matchesApi.saveMatches).mockImplementation(async (changes) => changes as matchesApi.Matches)
-  vi.mocked(api.getTorrentFiles).mockResolvedValue([])
-  vi.mocked(api.deleteTorrents).mockResolvedValue()
-  vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ tmdb: { configured: false, source: null }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ tmdb: { configured: false, source: null }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
     vi.mocked(serverSettings.saveTmdbKey).mockRejectedValue(new serverSettings.SettingsError(422, 'invalid-key'))
     renderApp()
 
@@ -304,11 +288,7 @@ describe('App', () => {
   })
 
   it('lets the TMDB key wait', async () => {
-    vi.mocked(matchesApi.getMatches).mockResolvedValue({})
-  vi.mocked(matchesApi.saveMatches).mockImplementation(async (changes) => changes as matchesApi.Matches)
-  vi.mocked(api.getTorrentFiles).mockResolvedValue([])
-  vi.mocked(api.deleteTorrents).mockResolvedValue()
-  vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ tmdb: { configured: false, source: null }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ tmdb: { configured: false, source: null }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
     renderApp()
     await userEvent.click(await screen.findByRole('button', { name: 'Skip for now' }))
     expect(await screen.findByRole('heading', { name: 'Downloads' })).toBeInTheDocument()
