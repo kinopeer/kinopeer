@@ -10,6 +10,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ### Changed
 
+- Downloads: the filters, the sort and the view stay at the top while the list scrolls (on a phone the title and the totals scroll away; on desktop the whole header stays, with the table's column names under it), and so do the count, "Select all" and "Cancel" while selecting.
 - Downloads: while selecting, the count stands on the left, where the title was, and "Select all" and "Cancel" sit together on the right, where the Select button is, so the pointer is already there.
 
 ### Fixed

@@ -456,6 +456,20 @@ describe('DownloadsScreen selection', () => {
     expect(onSelectingChange).toHaveBeenLastCalledWith(false)
   })
 
+  it('puts the count and its buttons in the bar with the filters, which stays at the top', async () => {
+    renderScreen()
+    await screen.findAllByRole('listitem')
+    const bar = screen.getByRole('group', { name: 'Filter by status' }).parentElement!
+    expect(bar).toHaveClass('downloads-bar')
+    expect(bar).toContainElement(screen.getByRole('button', { name: 'Sort: Priority' }))
+    expect(bar).not.toContainElement(screen.getByRole('heading', { name: 'Downloads' }))
+
+    await userEvent.click(screen.getByRole('button', { name: 'Select' }))
+    expect(bar).toContainElement(screen.getByRole('heading', { name: '0 selected' }))
+    expect(bar).toContainElement(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('heading', { name: 'Downloads' })).not.toBeInTheDocument()
+  })
+
   it('resumes the selected downloads', async () => {
     vi.mocked(api.startTorrents).mockResolvedValue()
     renderScreen()
