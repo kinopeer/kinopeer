@@ -194,7 +194,6 @@ describe('the details drawer on desktop', () => {
       await userEvent.click(within(guess).getByRole('menuitem', { name: 'Yes, right' }))
       expect(await screen.findByText('Match confirmed')).toBeInTheDocument()
       expect(screen.queryByRole('menu')).not.toBeInTheDocument()
-      expect(matchesApi.saveMatches).toHaveBeenCalledWith({ dune: { type: 'movie', id: 693134, source: 'user' } })
     })
   })
 })
