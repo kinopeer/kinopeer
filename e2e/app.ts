@@ -185,10 +185,20 @@ export async function settle(page: Page): Promise<void> {
 /**
  * Makes the viewport as tall as the page, so a screenshot shows the whole list with the tab bar at
  * the bottom. A full-page screenshot would leave the fixed tab bar over the middle of the list.
+ *
+ * The page is only its final height once the fonts and images have loaded (the fallback font wraps
+ * text differently), and a taller viewport can lay it out again, so it is measured after settling,
+ * and again after each resize, until the height stops changing.
  */
 export async function showWholePage(page: Page): Promise<void> {
   const width = page.viewportSize()!.width
-  const height = await page.evaluate(() => document.documentElement.scrollHeight)
-  await page.setViewportSize({ width, height })
-  await settle(page)
+  let height = 0
+  for (let round = 0; round < 5; round++) {
+    await settle(page)
+    const measured = await page.evaluate(() => document.documentElement.scrollHeight)
+    if (measured === height) return
+    height = measured
+    await page.setViewportSize({ width, height })
+  }
+  throw new Error(`The page's height kept changing after five measurements (last ${height}px)`)
 }

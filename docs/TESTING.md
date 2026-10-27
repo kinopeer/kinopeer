@@ -79,13 +79,8 @@ milliseconds, fails with a precise message, and it's the one the layer above lea
   way. `vi.mock` stays in each test file on purpose, so a reader sees what the test replaces without
   opening another module.
 - **A flaky test is fixed or deleted.** Not retried, not skipped, not marked `fixme`: a retry hides
-  the instability and a skip hides the behavior (oxlint refuses `.skip` and `.only`). The one
-  exception today is the screenshot job in CI, which runs with `retries: 1` (`playwright.config.ts`):
-  three screens flaked in 3 of the last 27 green runs, from three different causes
-  ([#109](https://github.com/MrShakhov/kinoseed/issues/109)), and a red CI in one run of nine would
-  cost more than the retry while they are fixed. A retried run still says `N flaky` in the job's log,
-  so the retry doesn't make the flakes invisible, and it goes with that issue. The smoke config
-  inherits the setting through `...base` and loses it at the same time.
+  the instability and a skip hides the behavior (oxlint refuses `.skip` and `.only`). Both Playwright
+  configs run with `retries: 0`, so a screenshot or a journey that fails once fails the job.
 
 ## When we find a bug
 
