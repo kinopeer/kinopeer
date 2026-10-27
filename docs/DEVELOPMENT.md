@@ -39,6 +39,7 @@ The server reads environment variables (from `.env.local` in development). Whate
 | `PROWLARR_API_KEY` | none | Prowlarr API key |
 | `PROWLARR_CONFIG_XML` | none | Path to Prowlarr's `config.xml` to read the key from when `PROWLARR_API_KEY` is not set (the Umbrel package does this) |
 | `TMDB_API_KEY` | none | Fallback TMDB key; a key entered in the app wins |
+| `TMDB_API_URL` | `https://api.themoviedb.org/3` | TMDB's API address; the integration tests point it at a fake |
 | `KINOSEED_DATA_DIR` | `./data` (`/data` in the image) | Where `settings.json` and `matches.json` are kept |
 | `PORT`, `HOST` | `8080`, `0.0.0.0` | Where the production server listens |
 | `KINOSEED_DIST` | `../dist` | What the production server serves |
