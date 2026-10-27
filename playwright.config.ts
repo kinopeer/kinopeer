@@ -8,6 +8,8 @@ import { defineConfig, devices } from '@playwright/test'
  */
 export default defineConfig({
   testDir: 'e2e',
+  // The smoke journeys have their own config (playwright.smoke.config.ts).
+  testIgnore: '**/smoke/**',
   snapshotPathTemplate: '{testDir}/__screenshots__/{testFileName}/{arg}{ext}',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,

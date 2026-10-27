@@ -16,7 +16,7 @@ A qBittorrent web UI built around movies and TV series. Find a title in TMDB, pi
 | `docs/SPEC.md` | What the product does and doesn't, decision log |
 | `docs/ROADMAP.md` | Version plan |
 | `docs/DEVELOPMENT.md` | Running locally, environment variables, releases, the Umbrel package |
-| `docs/TESTING.md` | The test layers, shared fixtures and fakes, coverage, the screenshot tests |
+| `docs/TESTING.md` | The test layers, shared fixtures and fakes, coverage, the screenshot tests, the smoke journeys |
 | `docs/RELEASE_CHECKLIST.md` | What to settle before the public release |
 | `CHANGELOG.md` | User-facing changes per version |
 
@@ -25,8 +25,8 @@ A qBittorrent web UI built around movies and TV series. Find a title in TMDB, pi
 - Vite + React 19 + TypeScript (strict), Node.js 22.18+
 - oxlint for linting
 - Vitest + Testing Library (jsdom) for tests
-- Playwright screenshot tests (`e2e/`), run in the Playwright Docker image
-- GitHub Actions CI: lint, typecheck, test, build and the screenshot tests on every PR and on push to `main`
+- Playwright screenshot tests (`e2e/`), run in the Playwright Docker image, and smoke journeys through the production server (`e2e/smoke/`), run on the host
+- GitHub Actions CI: lint, typecheck, test, build, the screenshot tests and the smoke journeys on every PR and on push to `main`
 
 ## Commands
 
@@ -40,6 +40,7 @@ npm run build      # production build into dist/
 npm start          # production server (server/main.ts) serving dist/
 npm run test:visual         # screenshot tests in Docker
 npm run test:visual:update  # re-render their baselines
+npm run test:smoke          # smoke journeys in Chromium through the production server, no Docker
 ```
 
 Run lint, typecheck, test and build before pushing, and the screenshot tests when the UI changes. CI must be green before merge.

@@ -8,7 +8,7 @@ import { createServer, type IncomingMessage, type RequestListener, type Server, 
 import type { AddressInfo } from 'node:net'
 import type { Release } from '../../src/api/prowlarr/types.ts'
 import type { MainData, Torrent, TorrentFile, TorrentTracker } from '../../src/api/qbittorrent/types.ts'
-import { RELEASES, TORRENTS, details, mainData, shogunTorrent } from '../../src/test/fixtures.ts'
+import { RELEASES, TITLES, TORRENTS, details, mainData, page, shogunTorrent } from '../../src/test/fixtures.ts'
 
 type Middleware = (request: IncomingMessage, response: ServerResponse, next: () => void) => unknown
 
@@ -85,6 +85,18 @@ export interface AddedTorrent {
   topOfQueue: boolean
 }
 
+/** A call of /torrents/delete as the fake qBittorrent got it. */
+export interface DeletedTorrents {
+  hashes: string[]
+  deleteFiles: boolean
+}
+
+/** What the fake qBittorrent answers on /torrents/categories. */
+export const CATEGORIES = {
+  Movies: { name: 'Movies', savePath: '/downloads/movies' },
+  'TV Shows': { name: 'TV Shows', savePath: '/downloads/tv' },
+}
+
 /** What the fake qBittorrent answers on /torrents/trackers. */
 export const TRACKERS: TorrentTracker[] = [
   { url: '** [DHT] **', status: 2, msg: '' },
@@ -120,16 +132,38 @@ async function parseAdd(body: Buffer, contentType: string | undefined): Promise<
  * A qBittorrent with one user, admin / "pass word", that hands out SID cookies and can expire them
  * (`sessions.clear()`). A wrong password gets 401 (qBittorrent 5.3+), or 200 "Fails." with
  * `legacy`; the user "banned" gets 403, as from an IP qBittorrent has banned. Every other path
- * needs a live session: the version, `torrents` as /torrents/info and /sync/maindata (a full
- * update for rid 0, `mainDataDelta` after), TRACKERS, and adding: /torrents/add records what came
- * in `added`, /torrents/files answers `files` (set per hash by the test, 404 for a hash it doesn't
- * have), /torrents/filePrio changes their priorities, /torrents/start and /stop answer OK.
+ * needs a live session: the versions, the default save path and CATEGORIES, `torrents` (a copy,
+ * returned as `torrents`) as /torrents/info and /sync/maindata (a full update for rid 0,
+ * `mainDataDelta` after, plus what was added or deleted since the last poll), TRACKERS, and
+ * adding: /torrents/add records what came in `added` (and lists what `listAdded` makes of it),
+ * /torrents/files answers `files` (set per hash by the test, 404 for a hash it doesn't have),
+ * /torrents/filePrio changes their priorities, /torrents/start and /stop answer OK,
+ * /torrents/delete takes the torrents off the list and records the call in `deleted`.
  */
-export async function fakeQbittorrent({ legacy = false, torrents = TORRENTS }: { legacy?: boolean; torrents?: Torrent[] } = {}) {
+export async function fakeQbittorrent({
+  legacy = false,
+  torrents = TORRENTS,
+  listAdded,
+}: {
+  legacy?: boolean
+  torrents?: Torrent[]
+  /**
+   * What qBittorrent lists for a torrent after /torrents/add: a torrent it returns joins the list
+   * and the next /sync/maindata delta reports it, as qBittorrent's does. Without it, adding only
+   * records `added`.
+   */
+  listAdded?: (added: AddedTorrent) => Torrent | undefined
+} = {}) {
   const sessions = new Set<string>()
   const seen: QbittorrentRequest[] = []
   const added: AddedTorrent[] = []
+  const deleted: DeletedTorrents[] = []
   const files = new Map<string, TorrentFile[]>()
+  // A copy, so deleting never changes the fixtures.
+  const listing = [...torrents]
+  // Added and deleted since the last poll, for the next delta.
+  const pendingAdded: Torrent[] = []
+  const pendingRemoved: string[] = []
   let logins = 0
   const base = await listen(async (request, response) => {
     const bytes = await bytesOf(request)
@@ -163,17 +197,48 @@ export async function fakeQbittorrent({ legacy = false, torrents = TORRENTS }: {
     switch (pathname) {
       case '/api/v2/app/version':
         return text(response, 'v5.2.4')
+      case '/api/v2/app/webapiVersion':
+        return text(response, '2.11.4')
+      case '/api/v2/app/defaultSavePath':
+        return text(response, '/downloads')
+      case '/api/v2/torrents/categories':
+        return json(response, CATEGORIES)
       case '/api/v2/torrents/info':
-        return json(response, torrents)
+        return json(response, listing)
       case '/api/v2/sync/maindata': {
         const rid = Number(searchParams.get('rid') ?? 0)
-        return json(response, rid ? mainDataDelta(torrents, rid) : mainData(torrents))
+        if (!rid) {
+          pendingAdded.length = 0
+          pendingRemoved.length = 0
+          return json(response, mainData(listing))
+        }
+        const delta: MainData = listing.length ? mainDataDelta(listing, rid) : { rid: rid + 1 }
+        for (const { hash, ...fields } of pendingAdded.splice(0)) delta.torrents = { ...delta.torrents, [hash]: fields }
+        if (pendingRemoved.length) delta.torrents_removed = pendingRemoved.splice(0)
+        return json(response, delta)
       }
       case '/api/v2/torrents/trackers':
         return json(response, TRACKERS)
-      case '/api/v2/torrents/add':
-        added.push(await parseAdd(bytes, request.headers['content-type']))
+      case '/api/v2/torrents/add': {
+        const item = await parseAdd(bytes, request.headers['content-type'])
+        added.push(item)
+        const listed = listAdded?.(item)
+        if (listed) {
+          listing.push(listed)
+          pendingAdded.push(listed)
+        }
         return text(response, 'Ok.')
+      }
+      case '/api/v2/torrents/delete': {
+        const hashes = (params.get('hashes') ?? '').split('|').filter(Boolean)
+        deleted.push({ hashes, deleteFiles: params.get('deleteFiles') === 'true' })
+        for (const hash of hashes) {
+          const index = listing.findIndex((torrent) => torrent.hash === hash)
+          if (index >= 0) listing.splice(index, 1)
+          pendingRemoved.push(hash)
+        }
+        return text(response, '')
+      }
       case '/api/v2/torrents/files': {
         const list = files.get(searchParams.get('hash') ?? '')
         return list ? json(response, list) : text(response, 'Not Found', 404)
@@ -191,7 +256,7 @@ export async function fakeQbittorrent({ legacy = false, torrents = TORRENTS }: {
         return text(response, 'Not Found', 404)
     }
   })
-  return { base, seen, sessions, added, files, logins: () => logins }
+  return { base, seen, sessions, added, deleted, files, torrents: listing, logins: () => logins }
 }
 
 // TMDB
@@ -211,7 +276,8 @@ const TMDB_BAD_KEYS = new Set(['bad-key', 'Bearer eyJbad'])
  * "good-key" or the bearer token "eyJgood" and answers `{ success }`; every API call with the key
  * "bad-key" or the token "eyJbad" is 401; `/3/movie/:id` and `/3/tv/:id` answer the fixtures'
  * details, or TMDB's 404 for a title they don't have; `/3/configuration` is an empty one; `/t/p/*`
- * is a JPEG; anything else is an empty result list with a tracking cookie, which Kinoseed must not
+ * is a JPEG; `/3/search/multi` answers the fixtures' titles whose name contains the query, when any
+ * does; anything else is an empty result list with a tracking cookie, which Kinoseed must not
  * pass on.
  */
 export async function fakeTmdb() {
@@ -241,6 +307,11 @@ export async function fakeTmdb() {
         : json(response, { status_code: 34, status_message: 'The resource you requested could not be found.' }, 404)
     }
     if (pathname === '/3/configuration') return json(response, { images: {} })
+    if (pathname === '/3/search/multi') {
+      const query = (searchParams.get('query') ?? '').toLocaleLowerCase()
+      const found = TITLES.filter((item) => query && [item.en, item.ru].some((name) => name.toLocaleLowerCase().includes(query)))
+      if (found.length) return json(response, page(found, searchParams.get('language') ?? 'en-US'))
+    }
     response.setHeader('Content-Type', 'application/json;charset=utf-8')
     response.setHeader('Set-Cookie', 'tracking=1')
     response.end(JSON.stringify({ results: [] }))
