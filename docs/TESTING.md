@@ -5,9 +5,9 @@ fake services, coverage, and the screenshot tests. Running and releasing are in
 [DEVELOPMENT.md](DEVELOPMENT.md); the conventions every PR follows are in [CLAUDE.md](../CLAUDE.md).
 
 ```sh
-npm test                    # layers 1–4 (Vitest), single run
+npm test                    # layers 1–5 (Vitest), single run
 npm test -- --project app   # only the jsdom tests (src/)
-npm test -- --project server  # only the server tests (server/)
+npm test -- --project server  # only the server and integration tests (server/)
 npm run test:coverage       # the same with coverage: a table in the terminal, coverage/index.html
 npm run test:visual         # layer 6: screenshot tests in Docker
 npm run test:visual:update  # re-render their baselines
@@ -21,14 +21,14 @@ npm run test:visual:update  # re-render their baselines
 | 2 | Components | A shared component renders its props with the right roles and names and reacts to input (`src/components/`) | Layout and looks, which jsdom has none of | Vitest + Testing Library, jsdom | `src/components/*/*.test.tsx` | `npm test` |
 | 3 | Screens and flows | A screen or a user flow with the API clients mocked (`vi.mock('../api/…')`): what it shows for a state, what it calls, where it navigates | Real HTTP, the server, layout | Vitest + Testing Library + user-event, jsdom | `src/screens/*.test.tsx`, `src/App.test.tsx`, hooks in `src/session/`, `src/torrents/` | `npm test` |
 | 4 | Server | Each middleware under `server/` against fake qBittorrent, TMDB and Prowlarr servers started in the test: routing, headers, what reaches the service and what comes back | Browser code | Vitest, Node (`server` project) | `server/*.test.ts`, fakes in `server/test/fakes.ts` | `npm test -- --project server` |
-| 5 | Integration | The real clients in `src/api/*` calling the real `kinoseedServer()` in front of the fakes: both ends of each route agree on paths, bodies and errors | Rendering | Vitest, Node | `server/integration/` (written in a later PR) | `npm test -- --project server` |
+| 5 | Integration | The real clients in `src/api/*` calling the real `kinoseedServer()` in front of the fakes: both ends of each route agree on paths, bodies, cookies and errors, and the flows that cross several routes (login, adding a release, matches) | Rendering; a server without a route (the SPA fallback), which stays in the client tests | Vitest, Node | `server/integration/*.test.ts`, the stand in `server/test/integration.ts` | `npm test -- --project server` |
 | 6 | Screenshots | How the screens look: the built app in Chromium against baseline PNGs, with every server route mocked | Behavior, which the layers above cover faster | Playwright in Docker | `e2e/*.spec.ts`, baselines in `e2e/__screenshots__/` | `npm run test:visual` |
 
-Layers 1–4 run on every `npm test` in two Vitest projects (`vite.config.ts`): `app` is jsdom with
+Layers 1–5 run on every `npm test` in two Vitest projects (`vite.config.ts`): `app` is jsdom with
 `src/test-setup.ts` (jest-dom matchers, the interface language reset to English, Testing Library's
 cleanup, a no-op `window.scrollTo` since jsdom only logs "not implemented" for it); `server` is
-plain Node for `server/**/*.test.ts`. Tests sit next to the code as `*.test.ts(x)` and query by
-role and accessible name.
+plain Node for `server/**/*.test.ts`, the integration tests included. Tests sit next to the code as
+`*.test.ts(x)` and query by role and accessible name.
 
 ## Choosing a layer
 
@@ -62,9 +62,52 @@ it uses next to itself.
   origin, `serve(middleware)` does the same for the middleware under test with Vite's 404 fallback,
   `closeServers()` closes everything in `afterEach`, `bodyOf(request)` reads a body.
   `fakeQbittorrent()` is a qBittorrent with one user that hands out SID cookies, can expire them
-  and records the requests past the login; `fakeTmdb()` answers the API, the authentication check
-  and the image host, recording what reached it. A test that needs a service to misbehave in one
-  specific way (a 401, a hanging download) writes that handler inline with `listen`.
+  and records the requests past the login; behind the login it serves the fixtures' torrents
+  (`/torrents/info`, `/sync/maindata` with a delta after the first `rid`), the trackers, and adding
+  (`/torrents/add` is parsed into `added`, `/torrents/files` answers the `files` a test set for a
+  hash, `/torrents/filePrio` changes them, `/torrents/start` and `/stop` answer OK). `fakeTmdb()`
+  answers the API (a title's details from the fixtures, TMDB's 404 for one it doesn't have, 401 for
+  the key `bad-key`), the authentication check (`good-key` passes) and the image host, recording
+  what reached it. `fakeProwlarr()` wants its key in `X-Api-Key` (401 otherwise) and answers the
+  status check, a search with the fixtures' releases (their download links carry the key, as
+  Prowlarr's do) and a download: the Shōgun `.torrent` for the link `shogun`, a redirect to a magnet
+  link for `magnet`, 404 for anything else. A test that needs a service to misbehave in one specific
+  way (a hanging download, an answer that isn't a `.torrent`) writes that handler inline with
+  `listen`.
+- **`server/test/integration.ts`:** the stand for layer 5, below.
+
+## Integration tests
+
+Layer 5 checks the contract between a client in `src/api/*` and the route in `server/` that serves
+it, which no other layer sees whole: the screens mock the clients, the client tests mock `fetch`,
+the server tests send requests by hand. `startKinoseed()` (`server/test/integration.ts`) starts the
+three fakes, a data directory of its own (`mkdtemp`) and the real `kinoseedServer()` with an
+environment pointing at them (`QBITTORRENT_URL`, `PROWLARR_URL`, `TMDB_API_URL`, …, logged in to
+qBittorrent as admin), chained the way `server/main.ts` chains the routes; `stopKinoseed()` in
+`afterEach` closes everything, restores `fetch` and removes the directory. A test passes `env` to
+change the environment (a variable set to `undefined` is unset: no login, no Prowlarr, a dead
+port), `writableData: false` to make every write fail, and the fakes' options.
+
+The clients call `fetch('/qbt/api/…')` with a path, as in the browser, which Node's `fetch` can't
+resolve, so the stand stubs `globalThis.fetch` with an adapter: a request for a path goes to the
+stand's origin with the cookies of a jar (what the server or a proxy in front of it set with
+`Set-Cookie` comes back as `Cookie`, as `credentials: 'same-origin'` does), and a request for a
+full URL, the server's own to the fakes, goes out untouched. It answers nothing itself: every
+response is the real server's. The stand records what the server got from the browser
+(`received`, with the cookies), keeps a copy of every answer (`responses`, to check that a key or
+a password is in none of them) and exposes the stores, so a test can look at what was saved.
+
+The files are one per service (`qbittorrent`, `prowlarr`, `tmdb`, `settings`, `matches`) and
+`flows.test.ts` for what crosses several routes: logging in to qBittorrent, adding a release from
+Prowlarr's result to a started torrent with files skipped (`src/releases/addRelease.ts` with the
+real `readTorrentFile`, which Node runs as is: `crypto.subtle`, `File` and `FormData` are there),
+and a guess against the user's choice in the matches. To add a contract, call the client, then
+check what the fake saw (`qbittorrent.seen`, `prowlarr.seen`, `tmdb.seen`), what the server
+answered and what it saved; a service's new behavior goes into its fake, not inline. The tests
+wait for nothing real: `addRelease` gets a `wait` that resolves at once, and the fakes answer at
+once. They are typechecked by `tsconfig.integration.json`, with the bundler's module resolution,
+since the clients import without file extensions; the rest of `server/` stays under
+`tsconfig.node.json`, which checks the `.ts` imports Node needs.
 
 ## Coverage
 

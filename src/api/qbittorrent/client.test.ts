@@ -1,15 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import {
   QbittorrentError,
-  UnauthorizedError,
   addTorrents,
   deleteTorrents,
-  getAppVersion,
   getCategories,
   getDefaultSavePath,
-  getMainData,
   getTorrentFiles,
-  getTorrentTrackers,
   getTorrents,
   setFilePriority,
   startTorrents,
@@ -36,34 +32,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('authenticated requests', () => {
-  it('returns the app version', async () => {
-    respond('v5.0.4\n')
-    await expect(getAppVersion()).resolves.toBe('v5.0.4')
-    expect(lastCall().url).toBe('/qbt/api/v2/app/version')
-  })
-
-  it('throws UnauthorizedError without a session', async () => {
-    respond('Forbidden', 403)
-    await expect(getAppVersion()).rejects.toBeInstanceOf(UnauthorizedError)
-  })
-
-  it('throws QbittorrentError with the status on other failures', async () => {
-    respond('Bad Gateway', 502)
-    const error = await getAppVersion().catch((e: unknown) => e)
-    expect(error).toBeInstanceOf(QbittorrentError)
-    expect((error as QbittorrentError).status).toBe(502)
-  })
-
-})
-
 describe('getTorrents', () => {
-  it('requests all torrents without a query string by default', async () => {
-    respond('[]')
-    await expect(getTorrents()).resolves.toEqual([])
-    expect(lastCall().url).toBe('/qbt/api/v2/torrents/info')
-  })
-
   it('encodes the query and joins hashes with a pipe', async () => {
     respond('[{"hash":"abc","name":"Dune"}]')
     const torrents = await getTorrents({ filter: 'downloading', sort: 'added_on', reverse: true, hashes: ['a', 'b'] })
@@ -77,14 +46,6 @@ describe('getTorrents', () => {
       reverse: 'true',
       hashes: 'a|b',
     })
-  })
-})
-
-describe('getMainData', () => {
-  it('passes the response id and returns the parsed delta', async () => {
-    respond(JSON.stringify({ rid: 8, torrents: { abc: { progress: 0.5 } } }))
-    await expect(getMainData(7)).resolves.toEqual({ rid: 8, torrents: { abc: { progress: 0.5 } } })
-    expect(lastCall().url).toBe('/qbt/api/v2/sync/maindata?rid=7')
   })
 })
 
@@ -190,13 +151,5 @@ describe('deleteTorrents', () => {
     expect(lastCall().url).toBe('/qbt/api/v2/torrents/delete')
     expect(lastCall().init.method).toBe('POST')
     expect(String(lastCall().init.body)).toBe('hashes=a%7Cb&deleteFiles=true')
-  })
-})
-
-describe('getTorrentTrackers', () => {
-  it('requests the trackers of one torrent', async () => {
-    respond(JSON.stringify([{ url: 'udp://tracker.example:80', status: 2, msg: '' }]))
-    await expect(getTorrentTrackers('abc')).resolves.toEqual([{ url: 'udp://tracker.example:80', status: 2, msg: '' }])
-    expect(lastCall().url).toBe('/qbt/api/v2/torrents/trackers?hash=abc')
   })
 })

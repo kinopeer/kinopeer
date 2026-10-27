@@ -1,8 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import {
-  TmdbError,
   TmdbKeyError,
-  checkTmdb,
   getMovie,
   getPopular,
   getTrending,
@@ -83,22 +81,11 @@ describe('searchTitles', () => {
 })
 
 describe('errors', () => {
-  it('reports a rejected key', async () => {
-    respond({ status_code: 7, status_message: 'Invalid API key' }, 401)
-    await expect(getMovie(1)).rejects.toBeInstanceOf(TmdbKeyError)
-  })
-
   it('reports a missing proxy route as a key problem', async () => {
     respond('Not Found', 404, 'text/plain')
     await expect(getMovie(1)).rejects.toBeInstanceOf(TmdbKeyError)
   })
 
-  it('keeps TMDB’s own 404 as a plain error', async () => {
-    respond({ status_code: 34, status_message: 'Not found' }, 404)
-    const error = await getMovie(1).catch((e: unknown) => e)
-    expect(error).toBeInstanceOf(TmdbError)
-    expect(error).not.toBeInstanceOf(TmdbKeyError)
-  })
 })
 
 describe('getTrending', () => {
@@ -137,16 +124,5 @@ describe('helpers', () => {
   it('maps app languages to TMDB ones', () => {
     expect(tmdbLanguage('ru')).toBe('ru-RU')
     expect(tmdbLanguage('en')).toBe('en-US')
-  })
-})
-
-describe('checkTmdb', () => {
-  it('asks for the configuration and reports a bad key', async () => {
-    respond({ images: {} })
-    await expect(checkTmdb()).resolves.toBeUndefined()
-    expect(lastUrl()).toBe('/tmdb/configuration')
-
-    respond({ status_message: 'Invalid API key' }, 401)
-    await expect(checkTmdb()).rejects.toBeInstanceOf(TmdbKeyError)
   })
 })

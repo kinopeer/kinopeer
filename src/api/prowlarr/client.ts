@@ -84,5 +84,7 @@ async function download(release: Release, token: string, signal?: AbortSignal): 
     return { kind: 'magnet', uri: ((await response.json()) as MagnetResponse).magnet }
   }
   const name = `${release.title.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim() || 'release'}.torrent`
-  return { kind: 'torrent', file: new File([await response.arrayBuffer()], name, { type: 'application/x-bittorrent' }) }
+  // A view, not the buffer itself: typed as a blob part by the DOM's and Node's File alike.
+  const bytes = new Uint8Array(await response.arrayBuffer())
+  return { kind: 'torrent', file: new File([bytes], name, { type: 'application/x-bittorrent' }) }
 }

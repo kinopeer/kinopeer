@@ -34,10 +34,10 @@ describe('tmdbMiddleware', () => {
     let key: string | undefined
     const app = await kinoseed({ apiKey: () => key, apiBase: `${tmdb.base}/3` })
 
-    expect((await fetch(`${app}/tmdb/movie/771`)).status).toBe(401)
+    expect((await fetch(`${app}/tmdb/movie/693134`)).status).toBe(401)
     key = 'saved'
-    expect((await fetch(`${app}/tmdb/movie/771`)).status).toBe(200)
-    expect(tmdb.seen.map((request) => request.url)).toEqual(['/3/movie/771?api_key=saved'])
+    expect((await fetch(`${app}/tmdb/movie/693134`)).status).toBe(200)
+    expect(tmdb.seen.map((request) => request.url)).toEqual(['/3/movie/693134?api_key=saved'])
   })
 
   it('answers 401 without a key, so the app reports a missing key', async () => {
