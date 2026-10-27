@@ -22,6 +22,10 @@ export interface AppOptions {
   torrents?: Torrent[]
   /** qBittorrent answers the first poll, then stops answering. */
   goesOffline?: boolean
+  /** The server rejects the login sent from the connect screen as a wrong login or password. */
+  wrongLogin?: boolean
+  /** Prowlarr doesn't answer the server's connection check. */
+  prowlarrDown?: boolean
   /** Leaves /tmdb and /tmdb-img to the server, for real titles and posters (the README screenshots). */
   realTmdb?: boolean
 }
@@ -80,6 +84,12 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
         downloads: null,
       }),
   )
+  if (options.wrongLogin) {
+    await page.route(
+      (url) => url.pathname === '/api/settings/qbittorrent',
+      (route) => json(route, { error: 'invalid-credentials' }, 422),
+    )
+  }
 
   // Starts with no matches, so the app guesses titles from the release names and saves them.
   let matches = {}
@@ -97,7 +107,10 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
     (url) => url.pathname.startsWith('/prowlarr/'),
     (route) => {
       const { pathname } = new URL(route.request().url())
-      if (pathname === '/prowlarr/status') return json(route, { version: '2.0.5.5160', indexers: 2 })
+      if (pathname === '/prowlarr/status') {
+        if (options.prowlarrDown) return json(route, { error: 'unreachable' }, 502)
+        return json(route, { version: '2.0.5.5160', indexers: 2 })
+      }
       if (pathname === '/prowlarr/search') return json(route, RELEASES)
       if (pathname === '/prowlarr/download') {
         return route.fulfill({ contentType: 'application/x-bittorrent', body: shogunTorrent() })

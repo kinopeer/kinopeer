@@ -12,6 +12,8 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
+  // Two Chromiums fit the CI container (it runs with --ipc=host); locally Playwright picks.
+  workers: process.env.CI ? 2 : undefined,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : [['list']],
   expect: {
     toHaveScreenshot: { animations: 'disabled', caret: 'hide' },

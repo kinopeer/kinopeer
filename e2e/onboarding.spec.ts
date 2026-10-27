@@ -1,9 +1,9 @@
 import { expect, test, type Page } from '@playwright/test'
-import { DESKTOP, openApp, settle } from './app.ts'
+import { DESKTOP, openApp, settle, type AppOptions } from './app.ts'
 
 /** Opens the app, then answers as a fresh install would and reloads, so the given setup step shows. */
-async function openOnboarding(page: Page, step: 'connect' | 'tmdb') {
-  await openApp(page, '/')
+async function openOnboarding(page: Page, step: 'connect' | 'tmdb', options: AppOptions = {}) {
+  await openApp(page, '/', options)
   // Routes added later take precedence over the app's mocks.
   if (step === 'connect') {
     await page.route(
@@ -42,5 +42,16 @@ test.describe('onboarding, desktop', () => {
     await openOnboarding(page, 'tmdb')
     await expect(page.getByRole('textbox', { name: 'Ключ API или токен доступа' })).toBeVisible()
     await expect(page).toHaveScreenshot('desktop-tmdb-key-dark-ru.png')
+  })
+})
+
+test.describe('onboarding, phone', () => {
+  test('a wrong password, dark, Russian', async ({ page }) => {
+    await openOnboarding(page, 'connect', { wrongLogin: true })
+    await page.getByRole('textbox', { name: 'Логин' }).fill('admin')
+    await page.getByLabel('Пароль').fill('wrong')
+    await page.getByRole('button', { name: 'Подключить' }).click()
+    await expect(page.getByText('Неверный логин или пароль')).toBeVisible()
+    await expect(page).toHaveScreenshot('connect-invalid-dark-ru.png')
   })
 })

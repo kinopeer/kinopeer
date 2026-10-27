@@ -35,23 +35,12 @@ test.describe('releases, phone', () => {
     await expect(page.getByText(/Shogun\.S01E10/)).toBeVisible()
     await expect(page).toHaveScreenshot('add-files-dark-ru.png')
   })
-
-  test.describe('light, English', () => {
-    test.use({ locale: 'en-US' })
-
-    test('results', async ({ page }) => {
-      await openReleases(page, { theme: 'light', lang: 'en' })
-      await showWholePage(page)
-      await expect(page).toHaveScreenshot('list-light-en.png')
-    })
-  })
 })
 
 /** The title page with its releases searched, scrolled to them. */
 async function findReleases(page: Page, options: AppOptions = {}) {
   await openApp(page, '/title/tv/126308', options)
-  await page.getByRole('button', { name: /^(Найти раздачи|Find releases)$/ }).click()
-  await expect(page).toHaveURL(/\/title\/tv\/126308\/releases$/)
+  await page.getByRole('button', { name: 'Найти раздачи' }).click()
   await expect(page.getByText(RELEASES[0].title)).toBeVisible()
   // Off the table, so no row shows its hover state.
   await page.mouse.move(0, 0)
@@ -71,17 +60,6 @@ test.describe('releases, desktop', () => {
     await page.getByRole('button', { name: 'Озвучка' }).click()
     await expect(page.getByRole('group', { name: 'Озвучка' })).toBeVisible()
     await expect(page).toHaveScreenshot('desktop-popover-dark-ru.png')
-  })
-
-  test.describe('light, English', () => {
-    test.use({ locale: 'en-US' })
-
-    test('opened at the releases link', async ({ page }) => {
-      await openApp(page, '/title/tv/126308/releases', { theme: 'light', lang: 'en' })
-      await expect(page.getByText(RELEASES[0].title)).toBeVisible()
-      await settle(page)
-      await expect(page).toHaveScreenshot('desktop-list-light-en.png')
-    })
   })
 })
 

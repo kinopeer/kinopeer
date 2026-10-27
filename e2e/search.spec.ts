@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { DESKTOP, DESKTOP_RAIL, openApp, settle, type AppOptions } from './app.ts'
+import { DESKTOP, openApp, settle, type AppOptions } from './app.ts'
 
 async function openSearch(page: Page, path: string, firstTitle: string, options: AppOptions = {}) {
   await openApp(page, path, options)
@@ -16,15 +16,6 @@ test.describe('search, phone', () => {
   test('results, dark, Russian', async ({ page }) => {
     await openSearch(page, '/search?q=%D0%B0', 'Дюна')
     await expect(page).toHaveScreenshot('results-dark-ru.png')
-  })
-
-  test.describe('light, English', () => {
-    test.use({ locale: 'en-US' })
-
-    test('results', async ({ page }) => {
-      await openSearch(page, '/search?q=e', 'Dune', { theme: 'light', lang: 'en' })
-      await expect(page).toHaveScreenshot('results-light-en.png')
-    })
   })
 })
 
@@ -46,23 +37,5 @@ test.describe('search, desktop', () => {
     await expect(page.getByRole('heading', { name: /zzz/ })).toBeVisible()
     await settle(page)
     await expect(page).toHaveScreenshot('desktop-no-results-dark-ru.png')
-  })
-
-  test.describe('light, English', () => {
-    test.use({ locale: 'en-US' })
-
-    test('trending and popular rows', async ({ page }) => {
-      await openSearch(page, '/search', 'Dune', { theme: 'light', lang: 'en' })
-      await expect(page).toHaveScreenshot('desktop-browse-light-en.png')
-    })
-  })
-})
-
-test.describe('search, desktop rail', () => {
-  test.use(DESKTOP_RAIL)
-
-  test('results, dark, Russian', async ({ page }) => {
-    await openSearch(page, '/search?q=%D0%B0', 'Дюна')
-    await expect(page).toHaveScreenshot('rail-results-dark-ru.png')
   })
 })

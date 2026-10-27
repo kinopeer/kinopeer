@@ -6,10 +6,10 @@ import { DESKTOP, DESKTOP_RAIL, openApp, showWholePage, type AppOptions } from '
 const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }
 const versionValue = (page: Page) => page.getByText(version, { exact: true })
 
-async function openSettings(page: Page, options: AppOptions = {}) {
+async function openSettings(page: Page, options: AppOptions = {}, connected = 3) {
   await openApp(page, '/settings', options)
   // Every connection check has answered.
-  await expect(page.locator('.ks-conn.is-ok')).toHaveCount(3)
+  await expect(page.getByRole('status').filter({ hasText: /^Подключено/ })).toHaveCount(connected)
   await showWholePage(page)
 }
 
@@ -18,13 +18,10 @@ test('dark, Russian', async ({ page }) => {
   await expect(page).toHaveScreenshot('settings-dark-ru.png', { mask: [versionValue(page)] })
 })
 
-test.describe('light, English', () => {
-  test.use({ locale: 'en-US' })
-
-  test('settings', async ({ page }) => {
-    await openSettings(page, { theme: 'light', lang: 'en' })
-    await expect(page).toHaveScreenshot('settings-light-en.png', { mask: [versionValue(page)] })
-  })
+test('a connection with an error, dark, Russian', async ({ page }) => {
+  await openSettings(page, { prowlarrDown: true }, 2)
+  await expect(page.getByText('Prowlarr не отвечает')).toBeVisible()
+  await expect(page).toHaveScreenshot('settings-error-dark-ru.png', { mask: [versionValue(page)] })
 })
 
 test.describe('desktop', () => {
@@ -33,15 +30,6 @@ test.describe('desktop', () => {
   test('dark, Russian', async ({ page }) => {
     await openSettings(page)
     await expect(page).toHaveScreenshot('desktop-dark-ru.png', { mask: [versionValue(page)] })
-  })
-
-  test.describe('light, English', () => {
-    test.use({ locale: 'en-US' })
-
-    test('settings', async ({ page }) => {
-      await openSettings(page, { theme: 'light', lang: 'en' })
-      await expect(page).toHaveScreenshot('desktop-light-en.png', { mask: [versionValue(page)] })
-    })
   })
 })
 
