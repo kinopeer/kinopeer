@@ -17,6 +17,7 @@ import { seasonCoverage } from '../releases/parseRelease'
 import { qualityBadges } from '../releases/qualityBadges'
 import type { TitleDetails as Details } from '../releases/releaseQuery'
 import { useTmdbLanguage } from '../settings/settings'
+import { IndexerLink } from './IndexerLink'
 import { AddingRelease, ReleasesBody } from './ReleasesBlock'
 import { AUDIO_LABEL, SORT_LABEL, useReleases } from './useReleases'
 import './ReleasesScreen.css'
@@ -303,7 +304,7 @@ function ReleaseCard({ row, onAdd }: { row: ReleaseRow; onAdd: () => void }) {
           <Icon name="arrow-down" size={13} />
           {(release.leechers ?? 0).toLocaleString(i18n.language)}
         </span>
-        <span className="ks-trunc rel-indexer">{release.indexer}</span>
+        <IndexerLink release={release} className="rel-indexer" />
         {release.publishDate && <span className="c3">{format.age(release.publishDate)}</span>}
       </div>
     </article>

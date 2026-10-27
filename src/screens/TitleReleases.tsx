@@ -11,6 +11,7 @@ import { MIN_SEEDS, SORT_KEYS, summary, toggle, type ReleaseRow } from '../relea
 import { seasonCoverage } from '../releases/parseRelease'
 import { qualityBadges } from '../releases/qualityBadges'
 import type { TitleDetails } from '../releases/releaseQuery'
+import { IndexerLink } from './IndexerLink'
 import { AddingRelease, ReleasesBody } from './ReleasesBlock'
 import { AUDIO_LABEL, SORT_LABEL, useReleases, type Releases } from './useReleases'
 import './ReleasesScreen.css'
@@ -266,8 +267,8 @@ function ReleaseTableRow({ row, onAdd }: { row: ReleaseRow; onAdd: () => void })
       <span role="cell" className="ks-num c2" aria-label={t('releases.leechers', { count: release.leechers ?? 0 })}>
         {(release.leechers ?? 0).toLocaleString(i18n.language)}
       </span>
-      <span role="cell" className="t-cap ks-trunc c2 title-rel-small">
-        {release.indexer}
+      <span role="cell" className="t-cap c2 title-rel-small title-rel-indexer">
+        <IndexerLink release={release} />
       </span>
       <span role="cell" className="t-cap ks-num c3 title-rel-small">
         {release.publishDate ? format.age(release.publishDate) : ''}

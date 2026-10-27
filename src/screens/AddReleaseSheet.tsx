@@ -29,6 +29,7 @@ import { tmdbTagFor } from '../torrents/parseName'
 import { categoryType } from '../torrents/titleMatches'
 import { readTorrentFile, type TorrentMeta } from '../torrents/torrentFile'
 import { FilePicker } from './FilePicker'
+import { IndexerLink } from './IndexerLink'
 import './AddReleaseSheet.css'
 
 export interface AddReleaseSheetProps {
@@ -201,7 +202,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
                 <Icon name="arrow-up" size={13} />
                 {(release.seeders ?? 0).toLocaleString(i18n.language)}
               </span>
-              <span className="ks-trunc">{release.indexer}</span>
+              <IndexerLink release={release} />
             </div>
           </div>
         </div>

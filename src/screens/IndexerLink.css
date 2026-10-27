@@ -1,0 +1,34 @@
+.indexer {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.indexer-link {
+  position: relative;
+  border-radius: var(--r-xs);
+}
+
+/* Extend the one-line link's hit area to the touch target, without moving the row. */
+.indexer-link::before {
+  content: '';
+  position: absolute;
+  inset: calc((100% - var(--touch-min)) / 2) 0;
+}
+
+.indexer-link > .ks-ic {
+  flex: none;
+}
+
+.indexer-link:focus-visible {
+  outline: var(--focus-ring);
+}
+
+@media (hover: hover) {
+  .indexer-link:hover {
+    color: var(--text);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}

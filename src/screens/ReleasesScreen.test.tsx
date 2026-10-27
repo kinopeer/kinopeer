@@ -33,7 +33,7 @@ const DUNE = { id: 693134, title: 'Dune: Part Two', original_title: 'Dune: Part 
 const BB = { id: 1396, name: 'Breaking Bad', original_name: 'Breaking Bad', first_air_date: '2008-01-20' } as TvDetails
 
 function release(id: string, title: string, size: number, seeders: number, indexer = 'Kinozal'): Release {
-  return { id, title, indexer, size, seeders, leechers: 3, categories: [2000], download: `1/download?link=${id}` }
+  return { id, title, indexer, size, seeders, leechers: 3, categories: [2000], download: `1/download?link=${id}`, infoUrl: `https://tracker.test/${id}` }
 }
 
 const RELEASES = [
@@ -78,6 +78,7 @@ describe('ReleasesScreen', () => {
     expect(within(top).getByText('WEB-DL')).toBeInTheDocument()
     expect(within(top).getByText('Dubbed')).toBeInTheDocument()
     expect(within(top).getByText('9.40 GB')).toBeInTheDocument()
+    expect(within(top).getByRole('link', { name: 'Open on Kinozal' })).toHaveAttribute('href', 'https://tracker.test/b')
     expect(within(top).getByLabelText('2451 seeders')).toBeInTheDocument()
   })
 

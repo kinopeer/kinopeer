@@ -107,6 +107,11 @@
   font-weight: 600;
 }
 
+.title-rel-indexer {
+  display: flex;
+  min-width: 0;
+}
+
 .title-rel-add {
   display: flex;
   justify-content: flex-end;

@@ -4,6 +4,10 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ## Unreleased
 
+### Added
+
+- Releases: the indexer's name on a release (the card on a phone, the table on desktop and the add sheet) links to the release's page on the tracker, in a new tab, for what Kinoseed doesn't show.
+
 ### Changed
 
 - Downloads: while selecting, the count stands on the left, where the title was, and "Select all" and "Cancel" sit together on the right, where the Select button is, so the pointer is already there.

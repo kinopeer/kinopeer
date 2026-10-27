@@ -252,6 +252,7 @@
     "source": "Источник",
     "minSeeds": "Мин. сидов",
     "indexer": "Индексатор",
+    "openOnTracker": "Открыть на {{indexer}}",
     "any": "Любое",
     "sort": "Сортировка",
     "sortSeeds": "Сиды",
