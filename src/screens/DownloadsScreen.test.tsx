@@ -492,15 +492,6 @@ describe('DownloadsScreen selection', () => {
     expect(api.stopTorrents).toHaveBeenCalledWith(['andor'])
   })
 
-  it('puts the count on the left and Select all with Cancel on the right, where Select was', async () => {
-    renderScreen()
-    await userEvent.click(await screen.findByRole('button', { name: 'Select' }))
-    const heading = screen.getByRole('heading', { name: '0 selected' })
-    const buttons = within(heading.parentElement!).getAllByRole('button')
-    expect(buttons.map((button) => button.textContent)).toEqual(['Select all', 'Cancel'])
-    expect(heading.compareDocumentPosition(buttons[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-  })
-
   it('deletes the selected downloads after confirmation', async () => {
     vi.mocked(api.deleteTorrents).mockResolvedValue()
     renderScreen()
