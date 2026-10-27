@@ -44,6 +44,9 @@ export function Dialog({ open, onClose, title, icon, tone, actions, className, c
       className={cx('ks-dialog', tone && `ks-dialog-${tone}`, className)}
       aria-labelledby={titleId}
       onCancel={(event) => {
+        // React passes cancel up its own tree, so Escape in a dialog opened from inside this one
+        // would close this one too.
+        if (event.target !== event.currentTarget) return
         event.preventDefault()
         onClose()
       }}

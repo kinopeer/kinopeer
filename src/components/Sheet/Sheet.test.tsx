@@ -43,6 +43,17 @@ describe('Sheet', () => {
     expect(onClose).toHaveBeenCalledTimes(2)
   })
 
+  it('stays open when a dialog inside it is cancelled', () => {
+    const onClose = vi.fn()
+    render(
+      <Sheet open onClose={onClose} title="Add release">
+        <dialog open aria-label="Confirm" />
+      </Sheet>,
+    )
+    fireEvent(screen.getByRole('dialog', { name: 'Confirm' }), new Event('cancel', { cancelable: true }))
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
   it('takes the large size for long lists', () => {
     renderSheet({ size: 'lg' })
     expect(screen.getByRole('dialog')).toHaveClass('ks-sheet', 'ks-sheet-lg')

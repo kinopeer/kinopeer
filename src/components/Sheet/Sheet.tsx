@@ -61,6 +61,9 @@ export function Sheet({
       className={cx('ks-sheet', size === 'lg' && 'ks-sheet-lg', className)}
       aria-labelledby={titleId}
       onCancel={(event) => {
+        // React passes cancel up its own tree, so Escape in a dialog opened from inside this one
+        // would close this one too.
+        if (event.target !== event.currentTarget) return
         event.preventDefault()
         onClose()
       }}

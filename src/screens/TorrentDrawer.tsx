@@ -42,6 +42,9 @@ export function TorrentDrawer({ hash, onClose, onSessionLost, onDeleted, behind 
       aria-modal="true"
       aria-labelledby={titleId}
       onCancel={(event) => {
+        // React passes cancel up its own tree, so Escape in a dialog opened from inside this one
+        // (the drawer's delete confirmation) would close this one too.
+        if (event.target !== event.currentTarget) return
         event.preventDefault()
         onClose()
       }}
