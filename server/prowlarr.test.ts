@@ -1,35 +1,16 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { createServer, type RequestListener, type Server } from 'node:http'
-import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { downloadToken, prowlarrMiddleware, readProwlarrApiKey, type ProwlarrConfig } from './prowlarr.ts'
+import { closeServers, listen, serve } from './test/fakes.ts'
 
 const KEY = 'secret-key-123'
-const servers: Server[] = []
 
-async function listen(handler: RequestListener): Promise<string> {
-  const server = createServer(handler)
-  servers.push(server)
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
-  return `http://127.0.0.1:${(server.address() as AddressInfo).port}`
-}
+/** Kinoseed's side: the middleware under test. */
+const kinoseed = (config: ProwlarrConfig) => serve(prowlarrMiddleware(config))
 
-/** Kinoseed's side: the middleware, with a 404 fallback like Vite's. */
-function kinoseed(config: ProwlarrConfig): Promise<string> {
-  const middleware = prowlarrMiddleware(config)
-  return listen((request, response) =>
-    middleware(request, response, () => {
-      response.statusCode = 404
-      response.end('fallback')
-    }),
-  )
-}
-
-afterEach(async () => {
-  await Promise.all(servers.splice(0).map((server) => new Promise((resolve) => server.close(resolve))))
-})
+afterEach(closeServers)
 
 describe('downloadToken', () => {
   it('keeps the indexer and link but drops the API key', () => {

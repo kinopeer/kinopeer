@@ -16,6 +16,7 @@ A qBittorrent web UI built around movies and TV series. Find a title in TMDB, pi
 | `docs/SPEC.md` | What the product does and doesn't, decision log |
 | `docs/ROADMAP.md` | Version plan |
 | `docs/DEVELOPMENT.md` | Running locally, environment variables, releases, the Umbrel package |
+| `docs/TESTING.md` | The test layers, shared fixtures and fakes, coverage, the screenshot tests |
 | `docs/RELEASE_CHECKLIST.md` | What to settle before the public release |
 | `CHANGELOG.md` | User-facing changes per version |
 
@@ -32,6 +33,7 @@ A qBittorrent web UI built around movies and TV series. Find a title in TMDB, pi
 ```sh
 npm run dev        # dev server at http://localhost:5173
 npm test           # Vitest, single run
+npm run test:coverage  # the same with a coverage report
 npm run lint       # oxlint
 npm run typecheck  # tsc -b
 npm run build      # production build into dist/
@@ -73,8 +75,8 @@ Run lint, typecheck, test and build before pushing, and the screenshot tests whe
 - Keep the docs current: when a change affects them, update them in the same PR. Behavior or a product decision → `docs/SPEC.md` (and its decision log); a shipped roadmap item → tick it in `docs/ROADMAP.md`; setup, environment variables or releases → `docs/DEVELOPMENT.md`; user-visible changes → `CHANGELOG.md` and, if needed, `README.md`; architecture → this file.
 - Anything to settle before the public release goes into `docs/RELEASE_CHECKLIST.md`.
 - Keep Kinoseed runnable without its server: plain Docker and a qBittorrent Alternative WebUI are planned (`docs/ROADMAP.md`, Later). A new server feature either has a browser fallback (as torrent-to-title matches do) or is an extra the app works without, and pure logic (name and release parsing, picking a title) imports no React, DOM or Node APIs.
-- Every PR covers what it changes with tests: each new or changed component, helper, setting and user flow. Tests sit next to the code as `*.test.ts(x)`. Query by role and accessible name. Pure layout changes that jsdom can't see are checked on a running app and said so in the PR.
-- A PR that changes how a screen covered by the screenshot tests looks updates its baselines in the same PR. First run `npm run test:visual` without updating and look at the expected/actual/diff images Playwright writes to `test-results/` for each failed screenshot: only the intended pixels may differ. Then re-render with `npm run test:visual:update`, and list in the PR which screens changed and why. Baselines are rendered only in the Playwright Docker image, never on the host. Details: `docs/DEVELOPMENT.md`.
+- Every PR covers what it changes with tests: each new or changed component, helper, setting and user flow. Tests sit next to the code as `*.test.ts(x)`. Query by role and accessible name. Pure layout changes that jsdom can't see are checked on a running app and said so in the PR. Which layer a test belongs to, the shared fixtures (`src/test/`) and the fake services (`server/test/`): `docs/TESTING.md`.
+- A PR that changes how a screen covered by the screenshot tests looks updates its baselines in the same PR, after checking Playwright's diffs, and lists the changed screens: `docs/TESTING.md` → Screenshot tests.
 - Accessibility basics are a requirement: real `<button>`/`<a>`/`<input>`, labels on icon-only buttons, touch targets ≥ 44px, `prefers-reduced-motion` respected. Keyboard navigation and focus management (tab order, where focus goes when something opens or closes) aren't a goal for now. Focus rings show only on keyboard navigation: style them with `:focus-visible` and `outline: var(--focus-ring)`, which `src/lib/inputModality.ts` turns off after a click or tap, since browsers also match `:focus-visible` when a dialog opens or the app moves focus.
 
 ## Design

@@ -1,10 +1,12 @@
-import { act, render, screen, within } from '@testing-library/react'
+import { act, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes, useNavigate } from 'react-router'
+import { Route, Routes, useNavigate } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as tmdb from '../api/tmdb'
 import type { Title } from '../api/tmdb'
 import i18n from '../i18n'
+import { title } from '../test/fixtures'
+import { renderWithRouter } from '../test/render'
 import { SearchScreen } from './SearchScreen'
 
 vi.mock('../api/tmdb', async (importOriginal) => {
@@ -16,10 +18,6 @@ const searchTitles = vi.mocked(tmdb.searchTitles)
 const getTrending = vi.mocked(tmdb.getTrending)
 const getPopular = vi.mocked(tmdb.getPopular)
 
-function title(type: Title['type'], id: number, name: string, year?: number): Title {
-  return { type, id, title: name, originalTitle: name, year, overview: '', posterPath: `/${id}.jpg`, backdropPath: null, rating: 7 }
-}
-
 const page = (titles: Title[]) => ({ titles, page: 1, totalPages: 1 })
 
 const DUNE = title('movie', 1, 'Dune: Part Two', 2024)
@@ -28,11 +26,7 @@ const ALIEN = title('movie', 3, 'Alien: Romulus', 2024)
 const SHOGUN = title('tv', 4, 'Shōgun')
 
 function renderScreen(path = '/search') {
-  return render(
-    <MemoryRouter initialEntries={[path]}>
-      <SearchScreen />
-    </MemoryRouter>,
-  )
+  return renderWithRouter(<SearchScreen />, [path])
 }
 
 beforeEach(() => {
@@ -134,13 +128,12 @@ describe('SearchScreen', () => {
         </button>
       )
     }
-    render(
-      <MemoryRouter initialEntries={['/search?q=dune']}>
-        <Routes>
-          <Route path="search" element={<SearchScreen />} />
-          <Route path="title/:type/:id" element={<TitlePage />} />
-        </Routes>
-      </MemoryRouter>,
+    renderWithRouter(
+      <Routes>
+        <Route path="search" element={<SearchScreen />} />
+        <Route path="title/:type/:id" element={<TitlePage />} />
+      </Routes>,
+      ['/search?q=dune'],
     )
     await screen.findByText('2 results')
     scrolledTo(720)

@@ -1,81 +1,34 @@
 import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
-import { createServer, type RequestListener, type Server } from 'node:http'
-import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { ServerSettings } from '../src/api/settings/types.ts'
 import { SettingsStore, qbittorrentCredentials, settingsMiddleware, tmdbKey } from './settings.ts'
+import { closeServers, fakeQbittorrent, fakeTmdb, serve } from './test/fakes.ts'
 
-const servers: Server[] = []
 let dir: string
-
-async function listen(handler: RequestListener): Promise<string> {
-  const server = createServer(handler)
-  servers.push(server)
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
-  return `http://127.0.0.1:${(server.address() as AddressInfo).port}`
-}
 
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'kinoseed-settings-'))
 })
 
 afterEach(async () => {
-  await Promise.all(servers.splice(0).map((server) => new Promise((resolve) => server.close(resolve))))
+  await closeServers()
   await rm(dir, { recursive: true, force: true })
 })
 
-/** TMDB's /authentication: accepts "good-key" and the bearer token "eyJgood". */
-async function fakeTmdb() {
-  const seen: string[] = []
-  const base = await listen((request, response) => {
-    seen.push(request.url ?? '')
-    const ok = request.url === '/3/authentication?api_key=good-key' || request.headers.authorization === 'Bearer eyJgood'
-    response.statusCode = ok ? 200 : 401
-    response.setHeader('Content-Type', 'application/json')
-    response.end(JSON.stringify({ success: ok }))
-  })
-  return { apiBase: `${base}/3`, seen }
-}
-
-/** qBittorrent's login: accepts admin / "pass word", answers 403 (banned) to "banned". */
-async function fakeQbittorrent() {
-  let logins = 0
-  const base = await listen(async (request, response) => {
-    logins++
-    const chunks: Buffer[] = []
-    for await (const chunk of request as AsyncIterable<Buffer>) chunks.push(chunk)
-    const params = new URLSearchParams(Buffer.concat(chunks).toString())
-    if (params.get('username') === 'banned') {
-      response.statusCode = 403
-      return response.end('Forbidden')
-    }
-    if (params.get('username') !== 'admin' || params.get('password') !== 'pass word') {
-      response.statusCode = 401
-      return response.end('Unauthorized')
-    }
-    response.setHeader('Set-Cookie', 'SID=abc; HttpOnly')
-    response.end('Ok.')
-  })
-  return { base, logins: () => logins }
-}
-
-async function kinoseed(
+/** Kinoseed's side: the middleware under test, with the environment a test wants. */
+function kinoseed(
   store: SettingsStore,
   options: { envKey?: string; apiBase?: string; qbittorrentUrl?: string; envUser?: string } = {},
 ) {
-  const middleware = settingsMiddleware({
-    store,
-    envTmdbApiKey: options.envKey,
-    tmdbApiBase: options.apiBase,
-    qbittorrentUrl: options.qbittorrentUrl,
-    envQbittorrent: { username: options.envUser, password: 'adminadmin' },
-  })
-  return listen((request, response) =>
-    middleware(request, response, () => {
-      response.statusCode = 404
-      response.end('fallback')
+  return serve(
+    settingsMiddleware({
+      store,
+      envTmdbApiKey: options.envKey,
+      tmdbApiBase: options.apiBase,
+      qbittorrentUrl: options.qbittorrentUrl,
+      envQbittorrent: { username: options.envUser, password: 'adminadmin' },
     }),
   )
 }
@@ -221,7 +174,7 @@ describe('settingsMiddleware', () => {
 
     expect(response.status).toBe(200)
     expect(((await response.json()) as ServerSettings).tmdb).toEqual({ configured: true, source: 'saved' })
-    expect(tmdb.seen).toEqual(['/3/authentication?api_key=good-key'])
+    expect(tmdb.seen.map((request) => request.url)).toEqual(['/3/authentication?api_key=good-key'])
     expect(tmdbKey(store, 'env-key')).toBe('good-key')
   })
 
@@ -264,7 +217,7 @@ describe('settingsMiddleware', () => {
     expect((await putKey(app, 'good-key', 'application/x-www-form-urlencoded')).status).toBe(415)
     expect((await fetch(`${app}/api/settings/tmdb`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: '{' })).status).toBe(400)
     expect((await fetch(`${app}/api/settings/other`)).status).toBe(404)
-    expect(tmdb.seen).toEqual([])
+    expect(tmdb.seen.map((request) => request.url)).toEqual([])
   })
 
   it('leaves other paths alone', async () => {

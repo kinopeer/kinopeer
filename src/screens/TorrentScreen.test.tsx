@@ -1,11 +1,12 @@
-import { render, screen, within } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
+import { Route, Routes, useLocation } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as matchesApi from '../api/matches'
 import * as api from '../api/qbittorrent'
 import type { MainData, Torrent } from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
+import { renderWithRouter } from '../test/render'
 import * as serverMatches from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
 import { TorrentScreen } from './TorrentScreen'
@@ -78,13 +79,12 @@ function Downloads() {
 }
 
 function renderScreen(hash = 'dune') {
-  return render(
-    <MemoryRouter initialEntries={['/', `/torrent/${hash}`]} initialIndex={1}>
-      <Routes>
-        <Route path="/" element={<Downloads />} />
-        <Route path="/torrent/:hash" element={<TorrentScreen onSessionLost={vi.fn()} />} />
-      </Routes>
-    </MemoryRouter>,
+  return renderWithRouter(
+    <Routes>
+      <Route path="/" element={<Downloads />} />
+      <Route path="/torrent/:hash" element={<TorrentScreen onSessionLost={vi.fn()} />} />
+    </Routes>,
+    ['/', `/torrent/${hash}`],
   )
 }
 

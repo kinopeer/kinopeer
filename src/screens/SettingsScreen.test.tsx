@@ -1,6 +1,5 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as matches from '../api/matches'
 import * as prowlarr from '../api/prowlarr'
@@ -8,6 +7,7 @@ import * as qbt from '../api/qbittorrent'
 import * as serverSettings from '../api/settings'
 import * as tmdb from '../api/tmdb'
 import { getSettings, resetSettings } from '../settings/settings'
+import { renderWithRouter } from '../test/render'
 import { SettingsScreen } from './SettingsScreen'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
@@ -36,11 +36,7 @@ vi.mock('../api/tmdb', async (importOriginal) => ({
 }))
 
 function renderScreen(state?: unknown) {
-  render(
-    <MemoryRouter initialEntries={[{ pathname: '/settings', state }]}>
-      <SettingsScreen />
-    </MemoryRouter>,
-  )
+  renderWithRouter(<SettingsScreen />, [{ pathname: '/settings', state }])
 }
 
 function connection(name: string) {

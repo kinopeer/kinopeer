@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as matchesApi from '../api/matches'
 import * as tmdb from '../api/tmdb'
-import type { Title } from '../api/tmdb'
+import { title } from '../test/fixtures'
 import { resetServerMatches } from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
 import { ChangeTitleSheet } from './ChangeTitleSheet'
@@ -22,12 +22,8 @@ vi.mock('../api/matches', async (importOriginal) => ({
 const searchTitles = vi.mocked(tmdb.searchTitles)
 const saveMatches = vi.mocked(matchesApi.saveMatches)
 
-function title(type: Title['type'], id: number, name: string, year?: number, originalTitle = name): Title {
-  return { type, id, title: name, originalTitle, year, overview: '', posterPath: null, backdropPath: null, rating: 7 }
-}
-
-const MASTER_SERIES = title('tv', 94605, 'Мастер и Маргарита', 2005)
-const MASTER_MOVIE = title('movie', 801688, 'Мастер и Маргарита', 2024, 'The Master and Margarita')
+const MASTER_SERIES = title('tv', 94605, 'Мастер и Маргарита', 2005, { posterPath: null })
+const MASTER_MOVIE = title('movie', 801688, 'Мастер и Маргарита', 2024, { originalTitle: 'The Master and Margarita', posterPath: null })
 const TORRENT = { hash: 'a'.repeat(40), name: 'Master.i.Margarita.2005.S01.1080p.WEB-DL' }
 
 function renderSheet(current: Parameters<typeof ChangeTitleSheet>[0]['current'] = null) {

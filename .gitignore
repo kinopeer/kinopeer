@@ -30,3 +30,6 @@ CLAUDE.local.md
 # Screenshot tests
 /test-results
 /playwright-report
+
+# npm run test:coverage
+/coverage

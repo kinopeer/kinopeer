@@ -1,6 +1,6 @@
 import { cleanup, render, screen, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router'
 import { describe, expect, it } from 'vitest'
+import { renderWithRouter } from '../../test/render'
 import type { TabBarItem } from '../TabBar'
 import { Sidebar } from './Sidebar'
 import { SidebarStatus } from './SidebarStatus'
@@ -12,11 +12,7 @@ const items: TabBarItem[] = [
 ]
 
 function renderSidebar(path: string, pathname?: string) {
-  render(
-    <MemoryRouter initialEntries={[path]}>
-      <Sidebar label="Main" items={items} pathname={pathname} />
-    </MemoryRouter>,
-  )
+  renderWithRouter(<Sidebar label="Main" items={items} pathname={pathname} />, [path])
   return screen.getByRole('navigation', { name: 'Main' })
 }
 
@@ -48,14 +44,12 @@ describe('Sidebar', () => {
   })
 
   it('shows a count after an item, read out with its meaning, and a footer', () => {
-    render(
-      <MemoryRouter>
-        <Sidebar
-          label="Main"
-          items={[{ ...items[0], count: { value: 2, label: '2 downloading' } }, ...items.slice(1)]}
-          footer={<p>Status</p>}
-        />
-      </MemoryRouter>,
+    renderWithRouter(
+      <Sidebar
+        label="Main"
+        items={[{ ...items[0], count: { value: 2, label: '2 downloading' } }, ...items.slice(1)]}
+        footer={<p>Status</p>}
+      />,
     )
     expect(screen.getByRole('link', { name: /^Downloads.*2 downloading$/ })).toBeInTheDocument()
     expect(screen.getByText('Status')).toBeInTheDocument()

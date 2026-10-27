@@ -1,6 +1,6 @@
-import { render, screen, within } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes, useParams } from 'react-router'
+import { Route, Routes, useParams } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as matchesApi from '../api/matches'
 import * as qbt from '../api/qbittorrent'
@@ -8,6 +8,8 @@ import type { Torrent } from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
 import type { MovieDetails, TvDetails } from '../api/tmdb'
 import i18n from '../i18n'
+import { mainData, torrent } from '../test/fixtures'
+import { renderWithRouter } from '../test/render'
 import { resetServerMatches } from '../torrents/serverMatches'
 import { GUESS_VERSION, clearTitleMatchCache } from '../torrents/titleMatches'
 import { TitleScreen } from './TitleScreen'
@@ -79,22 +81,13 @@ const SHOGUN = {
   tagline: '',
 } as TvDetails
 
-function torrent(name: string, fields: Partial<Torrent> = {}): Partial<Torrent> {
-  return {
-    name,
-    state: 'downloading',
-    progress: 0.41,
-    size: 14_800_000_000,
-    dlspeed: 6_200_000,
-    upspeed: 0,
-    tags: 'tmdb:tv:126308',
-    added_on: 1_760_000_000,
-    ...fields,
-  }
+/** A downloading torrent of the Shōgun series, as the title's "In downloads" block lists it. */
+function download(hash: string, name: string, fields: Partial<Torrent> = {}): Torrent {
+  return torrent(hash, { name, progress: 0.41, size: 14_800_000_000, dlspeed: 6_200_000, tags: 'tmdb:tv:126308', added_on: 1_760_000_000, ...fields })
 }
 
-function torrents(byHash: Record<string, Partial<Torrent>>) {
-  getMainData.mockResolvedValue({ rid: 1, full_update: true, torrents: byHash, server_state: {} })
+function torrents(...list: Torrent[]) {
+  getMainData.mockResolvedValue(mainData(list))
 }
 
 function ReleasesPage() {
@@ -103,15 +96,14 @@ function ReleasesPage() {
 }
 
 function renderAt(path: string, history: string[] = []) {
-  return render(
-    <MemoryRouter initialEntries={[...history, path]} initialIndex={history.length}>
-      <Routes>
-        <Route path="/title/:type/:id" element={<TitleScreen onSessionLost={vi.fn()} />} />
-        <Route path="/torrent/:hash" element={<h1>Torrent page</h1>} />
-        <Route path="/title/:type/:id/releases" element={<ReleasesPage />} />
-        <Route path="/search" element={<h1>Search page</h1>} />
-      </Routes>
-    </MemoryRouter>,
+  return renderWithRouter(
+    <Routes>
+      <Route path="/title/:type/:id" element={<TitleScreen onSessionLost={vi.fn()} />} />
+      <Route path="/torrent/:hash" element={<h1>Torrent page</h1>} />
+      <Route path="/title/:type/:id/releases" element={<ReleasesPage />} />
+      <Route path="/search" element={<h1>Search page</h1>} />
+    </Routes>,
+    [...history, path],
   )
 }
 
@@ -121,7 +113,7 @@ beforeEach(() => {
   resetServerMatches()
   getMatches.mockResolvedValue({})
   vi.mocked(matchesApi.saveMatches).mockImplementation(async (changes) => changes as matchesApi.Matches)
-  torrents({})
+  torrents()
   getMovie.mockResolvedValue(DUNE)
   getTv.mockResolvedValue(SHOGUN)
 })
@@ -201,11 +193,11 @@ describe('TitleScreen', () => {
 
   describe('In downloads', () => {
     it("lists the title's torrents, newest first, each opening its torrent screen", async () => {
-      torrents({
-        s1: torrent('Shogun.S01.1080p.DSNP.WEB-DL', { state: 'uploading', progress: 1, upspeed: 900_000, added_on: 1_750_000_000 }),
-        e1: torrent('Shogun.S01E01-E05.2160p.DSNP.WEB-DL', { added_on: 1_760_000_000 }),
-        dune: torrent('Dune.Part.Two.2024.2160p.WEB-DL', { tags: 'tmdb:movie:693134' }),
-      })
+      torrents(
+        download('s1', 'Shogun.S01.1080p.DSNP.WEB-DL', { state: 'uploading', progress: 1, upspeed: 900_000, added_on: 1_750_000_000 }),
+        download('e1', 'Shogun.S01E01-E05.2160p.DSNP.WEB-DL', { added_on: 1_760_000_000 }),
+        download('dune', 'Dune.Part.Two.2024.2160p.WEB-DL', { tags: 'tmdb:movie:693134' }),
+      )
       renderAt('/title/tv/126308')
 
       const block = await screen.findByRole('region', { name: 'In downloads 2' })
@@ -227,7 +219,7 @@ describe('TitleScreen', () => {
     })
 
     it("shows a single torrent's progress in the header", async () => {
-      torrents({ dune: torrent('Dune.Part.Two.2024.2160p.WEB-DL', { tags: 'tmdb:movie:693134', progress: 0.64 }) })
+      torrents(download('dune', 'Dune.Part.Two.2024.2160p.WEB-DL', { tags: 'tmdb:movie:693134', progress: 0.64 }))
       renderAt('/title/movie/693134')
       expect(await screen.findByText('In downloads · 64%')).toBeInTheDocument()
       expect(screen.getByRole('region', { name: 'In downloads' })).toBeInTheDocument()
@@ -240,11 +232,11 @@ describe('TitleScreen', () => {
         moved: { type: 'tv', id: 1, source: 'user' },
       })
       vi.mocked(tmdb.getTv).mockImplementation(async (id) => ({ ...SHOGUN, id }))
-      torrents({
-        guessed: torrent('Shogun.S01.720p', { tags: '' }),
-        chosen: torrent('Some.Release', { tags: '' }),
-        moved: torrent('Shogun.S02.1080p'),
-      })
+      torrents(
+        download('guessed', 'Shogun.S01.720p', { tags: '' }),
+        download('chosen', 'Some.Release', { tags: '' }),
+        download('moved', 'Shogun.S02.1080p'),
+      )
       renderAt('/title/tv/126308')
       const block = await screen.findByRole('region', { name: 'In downloads 2' })
       expect(within(block).getAllByRole('link').map((link) => link.getAttribute('href')).sort()).toEqual([
@@ -254,7 +246,7 @@ describe('TitleScreen', () => {
     })
 
     it('stays hidden without torrents or when qBittorrent is unreachable', async () => {
-      torrents({ other: torrent('Other.Show.S01', { tags: 'tmdb:tv:1' }) })
+      torrents(download('other', 'Other.Show.S01', { tags: 'tmdb:tv:1' }))
       const { unmount } = renderAt('/title/tv/126308')
       expect(await screen.findByRole('heading', { level: 1, name: 'Сёгун' })).toBeInTheDocument()
       expect(screen.queryByRole('region', { name: /In downloads/ })).not.toBeInTheDocument()

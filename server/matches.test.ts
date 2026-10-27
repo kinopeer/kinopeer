@@ -1,11 +1,10 @@
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
-import { createServer, type Server } from 'node:http'
-import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Matches } from '../src/api/matches/types.ts'
 import { MatchesStore, matchesMiddleware, qbittorrentHashes, startMatchesCleanup } from './matches.ts'
+import { closeServers, serve } from './test/fakes.ts'
 
 const A = 'a'.repeat(40)
 const B = 'b'.repeat(40)
@@ -15,29 +14,18 @@ const USER = { type: 'movie', id: 1, source: 'user' } as const
 const GUESS = { type: 'tv', id: 2, source: 'guess', version: 2 } as const
 
 let dir: string
-let server: Server | undefined
 
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'kinoseed-matches-'))
 })
 
 afterEach(async () => {
-  if (server) await new Promise((resolve) => server!.close(resolve))
-  server = undefined
+  await closeServers()
   await rm(dir, { recursive: true, force: true })
 })
 
-async function kinoseed(store = new MatchesStore(dir)): Promise<string> {
-  const middleware = matchesMiddleware(store)
-  server = createServer((request, response) =>
-    middleware(request, response, () => {
-      response.statusCode = 404
-      response.end('fallback')
-    }),
-  )
-  await new Promise<void>((resolve) => server!.listen(0, '127.0.0.1', resolve))
-  return `http://127.0.0.1:${(server.address() as AddressInfo).port}`
-}
+/** Kinoseed's side: the middleware under test over `store`. */
+const kinoseed = (store = new MatchesStore(dir)) => serve(matchesMiddleware(store))
 
 function patch(app: string, body: unknown, contentType = 'application/json') {
   return fetch(`${app}/api/matches`, {

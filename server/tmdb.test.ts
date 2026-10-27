@@ -1,53 +1,11 @@
-import { createServer, type RequestListener, type Server } from 'node:http'
-import type { AddressInfo } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
 import { tmdbMiddleware, type TmdbConfig } from './tmdb.ts'
+import { closeServers, fakeTmdb, serve } from './test/fakes.ts'
 
-const servers: Server[] = []
+/** Kinoseed's side: the middleware under test. */
+const kinoseed = (config: TmdbConfig) => serve(tmdbMiddleware(config))
 
-async function listen(handler: RequestListener): Promise<string> {
-  const server = createServer(handler)
-  servers.push(server)
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
-  return `http://127.0.0.1:${(server.address() as AddressInfo).port}`
-}
-
-afterEach(async () => {
-  await Promise.all(servers.splice(0).map((server) => new Promise((resolve) => server.close(resolve))))
-})
-
-interface Seen {
-  url?: string
-  authorization?: string
-  cookie?: string
-}
-
-/** TMDB's API and image hosts, recording what reached them. */
-async function fakeTmdb() {
-  const seen: Seen[] = []
-  const base = await listen((request, response) => {
-    seen.push({ url: request.url, authorization: request.headers.authorization, cookie: request.headers.cookie })
-    if (request.url?.startsWith('/t/p/')) {
-      response.setHeader('Content-Type', 'image/jpeg')
-      response.setHeader('Cache-Control', 'max-age=31536000')
-      return response.end(Buffer.from([0xff, 0xd8, 0xff]))
-    }
-    response.setHeader('Content-Type', 'application/json;charset=utf-8')
-    response.setHeader('Set-Cookie', 'tracking=1')
-    response.end(JSON.stringify({ results: [] }))
-  })
-  return { base, seen }
-}
-
-async function kinoseed(config: TmdbConfig): Promise<string> {
-  const middleware = tmdbMiddleware(config)
-  return listen((request, response) =>
-    middleware(request, response, () => {
-      response.statusCode = 404
-      response.end('fallback')
-    }),
-  )
-}
+afterEach(closeServers)
 
 describe('tmdbMiddleware', () => {
   it('adds a v3 key as a query parameter and drops browser cookies', async () => {

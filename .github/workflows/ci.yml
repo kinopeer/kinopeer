@@ -17,7 +17,17 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm test
+      - run: npm run test:coverage -- --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary
+      - name: Add the coverage totals to the job summary
+        if: always()
+        run: node scripts/coverage-summary.mjs coverage/coverage-summary.json >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload the HTML coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage
+          retention-days: 14
       - run: npm run build
 
   visual:
