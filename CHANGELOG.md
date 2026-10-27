@@ -10,7 +10,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ### Changed
 
-- Desktop: on the title page the poster stays at the top of the hero, by the title, however long the overview is, and an overview longer than five lines is cut with "Show more" that opens the rest in place. Before, a long overview left the poster at the bottom with empty space above it.
+- Desktop: on the title page the poster stays at the top of the hero, by the title, however long the overview is, and an overview longer than five lines is cut with "Show more" that opens the rest in place, the blurred background staying put. Before, a long overview left the poster at the bottom with empty space above it.
 - Downloads: while selecting, the count stands on the left, where the title was, and "Select all" and "Cancel" sit together on the right, where the Select button is, so the pointer is already there.
 
 ### Fixed

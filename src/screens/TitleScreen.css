@@ -235,7 +235,8 @@
 .title-dhero {
   position: relative;
   min-height: 430px;
-  overflow: hidden;
+  /* clip, not hidden: the art overflows, and a hidden overflow could still be scrolled by scrollIntoView. */
+  overflow: clip;
   display: flex;
   align-items: flex-end;
 }
@@ -247,6 +248,9 @@
   height: calc(100% + 120px);
   max-width: none;
   object-fit: cover;
+  /* Pinned to the top: when the hero grows (Show more), more of it shows below instead of it moving. */
+  object-position: 50% 0;
+  transform-origin: top;
   filter: blur(40px) saturate(1.2);
   transform: scale(1.1);
 }
