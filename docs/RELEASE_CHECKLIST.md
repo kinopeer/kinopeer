@@ -15,7 +15,7 @@ Go through these for the release PR (the one with the version and the changelog 
 Things to settle before Kinoseed goes public. Add an item whenever something comes up that can wait until then; tick it off in the PR that settles it.
 
 - [ ] **TMDB key.** For now everyone enters their own key. Decide whether Kinoseed ships a default one. A key in the code, the image or the git history is public: anyone can pull it out, misuse is tied to the owner's TMDB account, and a revoked key breaks every install at once. If there is a default, register a separate key for Kinoseed (not a personal one) and keep `TMDB_API_KEY` and the Settings sheet as overrides.
-- [ ] **TMDB attribution.** TMDB's API terms ask apps to show the TMDB logo and the notice "This product uses the TMDB API but is not endorsed or certified by TMDB." The README has it; the app doesn't yet (Settings → About would fit).
+- [x] **TMDB attribution.** TMDB's API terms ask apps to show the TMDB logo and the notice "This product uses the TMDB API but is not endorsed or certified by TMDB." Done 2026-10-28: the README has it, and so does Settings → About, with TMDB's stacked logo.
 - [ ] **License.** The repo has no `LICENSE` file yet. Candidates: GPL-3.0 (like Sonarr and Radarr, forks stay open) or MIT.
 - [ ] **Secrets in history.** Before the repo goes public, scan the full git history for keys, passwords and local addresses (for example with `gitleaks detect`).
 - [x] **Default qBittorrent login.** Settled 2026-10-23: the Umbrel package keeps `admin`/`adminadmin`. It is Umbrel's default, it is tried once, and Kinoseed asks for the login after that.

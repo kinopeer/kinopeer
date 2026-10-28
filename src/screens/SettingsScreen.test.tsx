@@ -171,6 +171,29 @@ describe('SettingsScreen', () => {
     expect(screen.getByRole('dialog', { name: 'Add to Dock' })).toHaveTextContent('Choose “Add to Dock”')
   })
 
+  it('links to Ideas, a bug report with the version filled in, and the source code', () => {
+    renderScreen()
+    const about = screen.getByRole('region', { name: 'About' })
+    expect(within(about).getByRole('link', { name: /Suggest an idea/ })).toHaveAttribute(
+      'href',
+      'https://github.com/MrShakhov/kinoseed/discussions/categories/ideas',
+    )
+    expect(within(about).getByRole('link', { name: /Report a bug/ })).toHaveAttribute(
+      'href',
+      `https://github.com/MrShakhov/kinoseed/issues/new?template=bug_report.yml&version=${__APP_VERSION__}`,
+    )
+    const source = within(about).getByRole('link', { name: /Kinoseed on GitHub/ })
+    expect(source).toHaveAttribute('href', 'https://github.com/MrShakhov/kinoseed')
+    expect(source).toHaveAttribute('target', '_blank')
+  })
+
+  it('credits TMDB with its logo and the notice its terms ask for', () => {
+    renderScreen()
+    const about = screen.getByRole('region', { name: 'About' })
+    expect(within(about).getByRole('img', { name: 'TMDB' })).toBeInTheDocument()
+    expect(about).toHaveTextContent('This product uses the TMDB API but is not endorsed or certified by TMDB.')
+  })
+
   it('has no install row where the app can\'t be installed', () => {
     renderScreen()
     expect(screen.queryByRole('button', { name: /Install app/ })).not.toBeInTheDocument()

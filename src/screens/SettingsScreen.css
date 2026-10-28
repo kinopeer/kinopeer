@@ -181,6 +181,25 @@
   padding: 0 var(--space-4);
 }
 
+/* TMDB's attribution: their logo, unchanged, and the notice their terms ask for. */
+.settings-tmdb {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-2) var(--space-1);
+}
+
+.settings-tmdb-logo {
+  flex: none;
+  /* TMDB's terms: their logo less prominent than Kinoseed's (34px in the sidebar), aspect ratio kept. */
+  height: 24px;
+  width: auto;
+}
+
+.settings-tmdb > p {
+  margin: 0;
+}
+
 /*
  * Desktop: connections across the top, then two columns. Download defaults and About sit on the
  * left and Appearance on the right, so the visual order follows the DOM order the phone keeps.

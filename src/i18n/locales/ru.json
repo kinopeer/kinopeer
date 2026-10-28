@@ -239,7 +239,14 @@
     "clearCacheHint": "Заново сопоставит торренты с фильмами в TMDB",
     "cacheCleared": "Кэш очищен",
     "installApp": "Установить приложение",
-    "installAppHint": "Добавить Kinoseed на экран «Домой» или в Dock"
+    "installAppHint": "Добавить Kinoseed на экран «Домой» или в Dock",
+    "ideas": "Предложить идею",
+    "ideasHint": "В Discussions на GitHub, где за идеи голосуют",
+    "reportBug": "Сообщить об ошибке",
+    "reportBugHint": "Issue на GitHub с шагами и версиями",
+    "sourceCode": "Kinoseed на GitHub",
+    "sourceCodeHint": "Исходный код, релизы и список изменений",
+    "tmdbNotice": "Данные о фильмах и сериалах и постеры берутся из TMDB. Этот продукт использует TMDB API, но не одобрен и не сертифицирован TMDB."
   },
   "releases": {
     "title": "Раздачи",
