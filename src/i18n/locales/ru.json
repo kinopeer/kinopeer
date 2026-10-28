@@ -9,7 +9,8 @@
     "light": "Светлая"
   },
   "language": {
-    "label": "Язык"
+    "label": "Язык",
+    "system": "Системный"
   },
   "common": {
     "retry": "Повторить",
@@ -165,6 +166,8 @@
     "all": "Все",
     "movies": "Фильмы",
     "series": "Сериалы",
+    "year": "Год",
+    "yearLabel": "Год выхода",
     "newOnDigital": "Новинки в цифре",
     "newEpisodes": "Новые серии",
     "bestOfYear": "Лучшее за год",
@@ -175,6 +178,8 @@
     "loading": "Загружаем",
     "noResultsTitle": "По запросу «{{query}}» ничего нет",
     "noResultsBody": "Проверьте написание или попробуйте оригинальное название.",
+    "noResultsYearBody": "За {{year}} год ничего нет. Попробуйте другой год или сбросьте его.",
+    "clearYear": "Сбросить год",
     "errorTitle": "Не удалось загрузить данные TMDB",
     "errorBody": "Проверьте соединение и попробуйте ещё раз.",
     "keyTitle": "TMDB не настроен",
@@ -202,6 +207,8 @@
     "backToSearch": "Вернуться к поиску",
     "findReleases": "Найти раздачи",
     "seriesHint": "Раздачи ищутся по названию сериала. Нужные сезоны выберете в списке файлов.",
+    "recommendations": "Рекомендации",
+    "similar": "Похожее",
     "inDownloads": "В загрузках",
     "inDownloadsBadge": "В загрузках · {{value}}",
     "showMore": "Подробнее",
@@ -239,7 +246,16 @@
     "clearCacheHint": "Заново сопоставит торренты с фильмами в TMDB",
     "cacheCleared": "Кэш очищен",
     "installApp": "Установить приложение",
-    "installAppHint": "Добавить Kinoseed на экран «Домой» или в Dock"
+    "installAppHint": "Добавить Kinoseed на экран «Домой» или в Dock",
+    "ideas": "Предложить идею",
+    "ideasHint": "В Discussions на GitHub, где за идеи голосуют",
+    "reportBug": "Сообщить об ошибке",
+    "reportBugHint": "Issue на GitHub с шагами и версиями",
+    "sourceCode": "Kinoseed на GitHub",
+    "sourceCodeHint": "Исходный код, релизы и список изменений",
+    "opensInNewTab": "(откроется в новой вкладке)",
+    "tmdbSource": "Данные о фильмах и сериалах и постеры берутся из TMDB.",
+    "tmdbNotice": "This product uses the TMDB API but is not endorsed or certified by TMDB."
   },
   "releases": {
     "title": "Раздачи",
@@ -312,6 +328,7 @@
     "savePath": "Папка сохранения",
     "startPaused": "Добавить на паузе",
     "sequential": "Последовательная загрузка",
+    "firstLastPieces": "Загружать крайние части первыми",
     "addTop": "В начало очереди",
     "filesAll": "Файлы: все ({{count}})",
     "filesSome": "Файлы: {{selected}} из {{count}}",

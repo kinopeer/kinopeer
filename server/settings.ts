@@ -225,6 +225,13 @@ async function saveQbittorrentLogin(config: SettingsConfig, request: IncomingMes
 
 const MAX_CATEGORY_LENGTH = 256
 
+type BooleanDefault = { [K in keyof DownloadDefaults]: DownloadDefaults[K] extends boolean ? K : never }[keyof DownloadDefaults]
+
+/** The on/off defaults: a Record, so a boolean added to DownloadDefaults fails typecheck until it's here. */
+const BOOLEAN_DEFAULTS: Record<BooleanDefault, true> = { startPaused: true, sequential: true, firstLastPieces: true }
+
+const isBooleanDefault = (key: string): key is BooleanDefault => Object.hasOwn(BOOLEAN_DEFAULTS, key)
+
 /** The changes in a PATCH body, or undefined when it holds anything but known, well-typed fields. */
 function downloadChanges(body: unknown): DownloadDefaultsBody | undefined {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) return undefined
@@ -235,7 +242,7 @@ function downloadChanges(body: unknown): DownloadDefaultsBody | undefined {
         return undefined
       }
       changes[key] = value
-    } else if (key === 'startPaused' || key === 'sequential') {
+    } else if (isBooleanDefault(key)) {
       if (typeof value !== 'boolean') return undefined
       changes[key] = value
     } else {

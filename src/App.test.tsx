@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { To } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -153,6 +153,19 @@ describe('App', () => {
       const nav = screen.getByRole('navigation', { name: 'Main' })
       expect(within(nav).getByRole('link', { name: /^Downloads.*1 downloading$/ })).toBeInTheDocument()
       expect(screen.getByRole('region', { name: 'qBittorrent' })).toHaveTextContent('qBittorrent v5.2.4')
+    })
+
+    it('shows no free space in the sidebar when qBittorrent reports 0, which means it can’t tell', async () => {
+      getMainData.mockResolvedValue({
+        rid: 1,
+        full_update: true,
+        torrents: {},
+        server_state: { dl_info_speed: 4_300_000, up_info_speed: 0, free_space_on_disk: 0 },
+      })
+      renderApp('/settings')
+      const card = await screen.findByRole('region', { name: 'qBittorrent' })
+      await waitFor(() => expect(card).toHaveTextContent('4.3 MB/s'))
+      expect(card).not.toHaveTextContent(/free/i)
     })
 
     describe('a torrent opened from the title page', () => {
@@ -335,6 +348,6 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Настройки', level: 1 })).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: 'Светлая' })).toBeInTheDocument()
     expect(document.documentElement.lang).toBe('ru')
-    expect(localStorage.getItem('kinoseed.lang')).toBe('ru')
+    expect(localStorage.getItem('kinoseed.language')).toBe('ru')
   })
 })

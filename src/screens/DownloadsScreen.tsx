@@ -17,6 +17,7 @@ import { useFormatters } from '../lib/format'
 import { useHeightVar } from '../lib/useHeightVar'
 import { useIsDesktop } from '../lib/useIsDesktop'
 import { useSettings } from '../settings/settings'
+import { freeSpace } from '../torrents/freeSpace'
 import { compareTorrents, knownSort } from '../torrents/sort'
 import { STATUS_FILTERS, downloadStatus, isRunning, matchesFilter, type StatusFilter } from '../torrents/status'
 import { useServerMatches } from '../torrents/serverMatches'
@@ -159,6 +160,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   const retitleTorrent = retitling ? data?.torrents[retitling] : undefined
   const nameOf = (torrent: Torrent) => matches[torrent.hash]?.title ?? torrent.name
   const server = data?.server
+  const free = freeSpace(server?.free_space_on_disk)
 
   const toggleSearch = () => {
     setSearchOpen((open) => !open)
@@ -243,10 +245,10 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
         <span className="sr-only">{t('downloads.uploadSpeed')}</span>
         {server?.up_info_speed === undefined ? '—' : format.speed(server.up_info_speed)}
       </span>
-      {server?.free_space_on_disk !== undefined && (
+      {free !== undefined && (
         <span className="downloads-total downloads-free">
           <Icon name="disk" size={15} />
-          {t('downloads.freeSpace', { size: format.size(server.free_space_on_disk) })}
+          {t('downloads.freeSpace', { size: format.size(free) })}
         </span>
       )}
     </p>

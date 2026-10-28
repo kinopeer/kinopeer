@@ -246,12 +246,12 @@ describe('settingsMiddleware: download defaults', () => {
     expect(first.status).toBe(200)
     expect(((await first.json()) as ServerSettings).downloads).toEqual({ movieCategory: 'Movies', startPaused: true })
 
-    await patchDownloads(app, { sequential: true, movieCategory: null })
+    await patchDownloads(app, { sequential: true, firstLastPieces: true, movieCategory: null })
 
     const settings = (await (await fetch(`${app}/api/settings`)).json()) as ServerSettings
-    expect(settings.downloads).toEqual({ movieCategory: null, startPaused: true, sequential: true })
+    expect(settings.downloads).toEqual({ movieCategory: null, startPaused: true, sequential: true, firstLastPieces: true })
     expect(JSON.parse(await readFile(join(dir, 'settings.json'), 'utf8'))).toEqual({
-      downloads: { movieCategory: null, startPaused: true, sequential: true },
+      downloads: { movieCategory: null, startPaused: true, sequential: true, firstLastPieces: true },
     })
   })
 
@@ -274,6 +274,7 @@ describe('settingsMiddleware: download defaults', () => {
       { theme: 'dark' },
       { startPaused: 'yes' },
       { sequential: null },
+      { firstLastPieces: 'true' },
       { movieCategory: '' },
       { movieCategory: 42 },
       { tvCategory: 'x'.repeat(257) },

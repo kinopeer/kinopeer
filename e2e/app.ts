@@ -140,9 +140,27 @@ async function mockTmdb(page: Page): Promise<void> {
         const found = TITLES.filter((title) => [title.en, title.ru].some((name) => name.toLocaleLowerCase().includes(query ?? '')))
         return json(route, titlePage(found, language))
       }
+      // A search by year: one type, released (or first aired) that year.
+      if (path === '/search/movie' || path === '/search/tv') {
+        const type = path === '/search/movie' ? 'movie' : 'tv'
+        const year = url.searchParams.get(type === 'movie' ? 'primary_release_year' : 'first_air_date_year')
+        const found = TITLES.filter(
+          (title) =>
+            title.type === type &&
+            title.date.startsWith(`${year}-`) &&
+            [title.en, title.ru].some((name) => name.toLocaleLowerCase().includes(query ?? '')),
+        )
+        return json(route, titlePage(found, language))
+      }
       if (path === '/discover/movie') return json(route, titlePage(TITLES.filter((title) => title.type === 'movie'), language))
       if (path === '/discover/tv') return json(route, titlePage(TITLES.filter((title) => title.type === 'tv'), language))
-      const [, type, id] = path.split('/')
+      const [, type, id, list] = path.split('/')
+      // A movie's recommendations are the other movies; a series has none, so it shows similar ones.
+      if (list === 'recommendations' || list === 'similar') {
+        const related = list === 'recommendations' ? type === 'movie' : type === 'tv'
+        const others = TITLES.filter((title) => related && title.type === type && title.id !== Number(id))
+        return json(route, titlePage(others, language))
+      }
       const found = details(type, Number(id), language)
       return found ? json(route, found) : json(route, { status_message: 'Not found' }, 404)
     },
@@ -160,7 +178,7 @@ export async function openApp(page: Page, path: string, options: AppOptions = {}
   await page.addInitScript(
     ({ theme, lang, downloadsView }) => {
       localStorage.setItem('kinoseed.theme', theme)
-      localStorage.setItem('kinoseed.lang', lang)
+      localStorage.setItem('kinoseed.language', lang)
       localStorage.setItem(
         'kinoseed.settings',
         JSON.stringify({ downloadsView: downloadsView ?? 'list', downloadsDesktopView: downloadsView }),
