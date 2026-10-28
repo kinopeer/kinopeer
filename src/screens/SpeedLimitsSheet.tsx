@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { setSpeedLimits, type Torrent } from '../api/qbittorrent'
 import { Banner } from '../components/Banner'
@@ -18,6 +18,9 @@ export interface SpeedLimitsSheetProps {
   onChanged: () => void
 }
 
+type Direction = 'download' | 'upload'
+const DIRECTIONS: Direction[] = ['download', 'upload']
+
 /** Download and upload speed limits of one torrent; an empty field means no limit. */
 export function SpeedLimitsSheet({ torrent, title, offline, onClose, onChanged }: SpeedLimitsSheetProps) {
   const { t, i18n } = useTranslation()
@@ -26,27 +29,42 @@ export function SpeedLimitsSheet({ torrent, title, offline, onClose, onChanged }
     const language = i18n.resolvedLanguage ?? i18n.language
     return { download: limitToField(torrent.dl_limit, language), upload: limitToField(torrent.up_limit, language) }
   })
-  const [download, setDownload] = useState(initial.download)
-  const [upload, setUpload] = useState(initial.upload)
+  const [text, setText] = useState(initial)
+  // The fields a failed save sent: qBittorrent may have taken them, so they're sent again even when
+  // their text is back as it was.
+  const [resend, setResend] = useState({ download: false, upload: false })
   const [saving, setSaving] = useState(false)
   const [failed, setFailed] = useState(false)
-  const downloadLimit = changedLimit(initial.download, download)
-  const uploadLimit = changedLimit(initial.upload, upload)
-  const valid = downloadLimit !== null && uploadLimit !== null
+  // A save that answers after the sheet was closed mustn't close the one opened since.
+  const open = useRef(true)
+  useEffect(() => {
+    open.current = true
+    return () => {
+      open.current = false
+    }
+  }, [])
+  const download = changedLimit(initial.download, text.download, resend.download)
+  const upload = changedLimit(initial.upload, text.upload, resend.upload)
+  const limits = { download, upload }
+  const valid = download !== null && upload !== null
 
   const save = async (event: FormEvent) => {
     event.preventDefault()
-    if (!valid || offline) return
-    if (downloadLimit === undefined && uploadLimit === undefined) return onClose()
+    if (!valid || offline || saving) return
+    if (download === undefined && upload === undefined) return onClose()
     setSaving(true)
     setFailed(false)
     try {
-      await setSpeedLimits([torrent.hash], { download: downloadLimit, upload: uploadLimit })
+      await setSpeedLimits([torrent.hash], { download, upload })
       onChanged()
-      onClose()
+      if (open.current) onClose()
     } catch {
       // One of the two requests may have gone through: show the list what was applied.
       onChanged()
+      setResend((sent) => ({
+        download: sent.download || download !== undefined,
+        upload: sent.upload || upload !== undefined,
+      }))
       setFailed(true)
       setSaving(false)
     }
@@ -55,22 +73,20 @@ export function SpeedLimitsSheet({ torrent, title, offline, onClose, onChanged }
   return (
     <Sheet open onClose={onClose} title={t('limits.title')} subtitle={title}>
       <form className="limits-form" onSubmit={save}>
-        <Input
-          label={t('limits.download')}
-          inputMode="decimal"
-          help={t('limits.hint')}
-          value={download}
-          onChange={(event) => setDownload(event.target.value)}
-          error={downloadLimit === null && !isUnfinished(download) ? t('limits.invalid') : false}
-        />
-        <Input
-          label={t('limits.upload')}
-          inputMode="decimal"
-          help={t('limits.hint')}
-          value={upload}
-          onChange={(event) => setUpload(event.target.value)}
-          error={uploadLimit === null && !isUnfinished(upload) ? t('limits.invalid') : false}
-        />
+        {DIRECTIONS.map((direction) => (
+          <Input
+            key={direction}
+            label={t(`limits.${direction}`)}
+            inputMode="decimal"
+            help={t('limits.hint')}
+            value={text[direction]}
+            onChange={(event) => {
+              const value = event.target.value
+              setText((fields) => ({ ...fields, [direction]: value }))
+            }}
+            error={limits[direction] === null && !isUnfinished(text[direction]) ? t('limits.invalid') : false}
+          />
+        ))}
         {failed && <Banner tone="error">{t('limits.failed')}</Banner>}
         <Button type="submit" variant="primary" size="lg" block loading={saving} disabled={!valid || saving || offline}>
           {t('limits.save')}

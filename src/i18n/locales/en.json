@@ -479,7 +479,7 @@
     "hint": "Empty: no limit",
     "invalid": "Enter a number from 0.001 to 2147, or leave it empty for no limit",
     "save": "Save limits",
-    "failed": "Couldn't save the limits, or saved only some of them. Check the connection to qBittorrent and try again.",
+    "failed": "Couldn’t save the limits, or saved only some of them. Check the connection to qBittorrent and try again.",
     "downloadRow": "Download limit",
     "uploadRow": "Upload limit"
   }

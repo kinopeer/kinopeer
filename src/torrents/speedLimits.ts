@@ -9,7 +9,8 @@ const MAX_LIMIT = 2_147_483_647
 export function limitToField(bytes: number | undefined, language: string): string {
   // Also when qBittorrent doesn't report it, so the field doesn't show NaN.
   if (!(bytes !== undefined && bytes > 0)) return ''
-  const value = Math.max(0.001, Math.round((bytes / MB) * 1000) / 1000)
+  // Rounded down at the top, so the largest limit fills as one `fieldToLimit` takes back.
+  const value = Math.min(Math.max(0.001, Math.round((bytes / MB) * 1000) / 1000), Math.floor(MAX_LIMIT / 1000) / 1000)
   return value.toLocaleString(language, { maximumFractionDigits: 3, useGrouping: false })
 }
 
@@ -31,7 +32,8 @@ export function fieldToLimit(text: string): number | null {
 }
 
 /** The limit to send for a field: undefined when its text is as it was, so a limit set elsewhere in
- *  units the field rounds (qBittorrent's own UI uses KiB/s) stays exactly as it was. */
-export function changedLimit(initial: string, text: string): number | null | undefined {
-  return text.trim() === initial ? undefined : fieldToLimit(text)
+ *  units the field rounds (qBittorrent's own UI uses KiB/s) stays exactly as it was. `resend` is for a
+ *  field a failed save sent, which qBittorrent may have taken: it goes out whatever its text. */
+export function changedLimit(initial: string, text: string, resend = false): number | null | undefined {
+  return !resend && text.trim() === initial ? undefined : fieldToLimit(text)
 }

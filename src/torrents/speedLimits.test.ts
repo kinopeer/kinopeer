@@ -58,6 +58,12 @@ describe('limitToField and fieldToLimit', () => {
     expect(fieldToLimit('3000')).toBeNull()
     expect(fieldToLimit('9'.repeat(40))).toBeNull()
   })
+
+  it('fills the largest limit qBittorrent stores as one the field takes back', () => {
+    expect(limitToField(2_147_483_647, 'en')).toBe('2147.483')
+    expect(fieldToLimit(limitToField(2_147_483_647, 'en'))).toBe(2_147_483_000)
+    expect(fieldToLimit(limitToField(2_147_000_600, 'en'))).not.toBeNull()
+  })
 })
 
 describe('changedLimit', () => {
@@ -67,5 +73,11 @@ describe('changedLimit', () => {
     expect(changedLimit('0.512', '1')).toBe(1_000_000)
     expect(changedLimit('0.512', '')).toBe(0)
     expect(changedLimit('', 'x')).toBeNull()
+  })
+
+  it('sends a field that went out in a failed save even when its text is back as it was', () => {
+    expect(changedLimit('1', '1', true)).toBe(1_000_000)
+    expect(changedLimit('', '', true)).toBe(0)
+    expect(changedLimit('', 'x', true)).toBeNull()
   })
 })

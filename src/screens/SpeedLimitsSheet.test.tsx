@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { fireEvent, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
@@ -64,6 +64,36 @@ describe('SpeedLimitsSheet', () => {
     expect(api.setSpeedLimits).toHaveBeenCalledTimes(1)
   })
 
+  it('takes a second submit while the first save is pending as nothing', () => {
+    vi.mocked(api.setSpeedLimits).mockReturnValue(new Promise(() => {}))
+    renderSheet()
+    fireEvent.change(screen.getByRole('textbox', { name: 'Download limit, MB/s' }), { target: { value: '3' } })
+    // Submitted on the form itself, as another submit control would, past the disabled Save button.
+    const form = screen.getByRole('button', { name: 'Save limits' }).closest('form')!
+    fireEvent.submit(form)
+    fireEvent.submit(form)
+    expect(api.setSpeedLimits).toHaveBeenCalledTimes(1)
+  })
+
+  it('sends again the limits a failed save sent, so one that did go through can be put back', async () => {
+    // The download limit went from 1 to 2 MB/s, the upload request failed.
+    vi.mocked(api.setSpeedLimits).mockRejectedValueOnce(new Error('upload')).mockResolvedValueOnce()
+    renderSheet({ dl_limit: 1_000_000 })
+    const download = screen.getByRole('textbox', { name: 'Download limit, MB/s' })
+    const upload = screen.getByRole('textbox', { name: 'Upload limit, MB/s' })
+    await userEvent.clear(download)
+    await userEvent.type(download, '2')
+    await userEvent.type(upload, '3')
+    await userEvent.click(screen.getByRole('button', { name: 'Save limits' }))
+    expect(await screen.findByText(/Couldn’t save the limits/)).toBeInTheDocument()
+
+    await userEvent.clear(download)
+    await userEvent.type(download, '1')
+    await userEvent.clear(upload)
+    await userEvent.click(screen.getByRole('button', { name: 'Save limits' }))
+    expect(api.setSpeedLimits).toHaveBeenLastCalledWith(['h1'], { download: 1_000_000, upload: 0 })
+  })
+
   it('removes a limit when its field is cleared', async () => {
     vi.mocked(api.setSpeedLimits).mockResolvedValue()
     renderSheet({ dl_limit: 1_000_000, up_limit: 300_000 })
@@ -107,7 +137,7 @@ describe('SpeedLimitsSheet', () => {
     await userEvent.type(screen.getByRole('textbox', { name: 'Download limit, MB/s' }), '3')
     await userEvent.type(screen.getByRole('textbox', { name: 'Upload limit, MB/s' }), '1')
     await userEvent.click(screen.getByRole('button', { name: 'Save limits' }))
-    expect(await screen.findByText(/Couldn't save the limits, or saved only some/)).toBeInTheDocument()
+    expect(await screen.findByText(/Couldn’t save the limits, or saved only some/)).toBeInTheDocument()
     expect(handlers.onChanged).toHaveBeenCalled()
     expect(handlers.onClose).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Save limits' })).toBeEnabled()
