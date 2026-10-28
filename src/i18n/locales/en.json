@@ -416,5 +416,17 @@
     "change": "Change TMDB key",
     "sheetTitle": "TMDB key",
     "enter": "Enter key"
+  },
+  "limits": {
+    "title": "Speed limits",
+    "download": "Download limit, MB/s",
+    "upload": "Upload limit, MB/s",
+    "unlimited": "Unlimited",
+    "hint": "Leave a field empty to remove its limit.",
+    "invalid": "Enter a number, e.g. 2.5",
+    "save": "Save limits",
+    "failed": "Couldn't save the limits. Check the connection to qBittorrent and try again.",
+    "downloadRow": "Download limit",
+    "uploadRow": "Upload limit"
   }
 }

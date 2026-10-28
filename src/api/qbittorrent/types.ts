@@ -38,6 +38,9 @@ export interface Torrent {
   amount_left: number
   dlspeed: number
   upspeed: number
+  /** Speed limits in bytes/s; 0 or -1 when there is none. */
+  dl_limit: number
+  up_limit: number
   /** Seconds; 8640000 means infinity. */
   eta: number
   ratio: number

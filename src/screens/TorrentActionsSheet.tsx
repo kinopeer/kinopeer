@@ -14,6 +14,7 @@ import { useTmdbLanguage } from '../settings/settings'
 import { downloadStatus, isRunning } from '../torrents/status'
 import { chooseTitle, type TitleMatch } from '../torrents/titleMatches'
 import { MatchPrompt } from './MatchPrompt'
+import { SpeedLimitsSheet } from './SpeedLimitsSheet'
 
 export interface TorrentActionsSheetProps {
   torrent: Torrent
@@ -59,6 +60,7 @@ export function TorrentActionsSheet({
   const [failed, setFailed] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [saveFailed, setSaveFailed] = useState(false)
+  const [editingLimits, setEditingLimits] = useState(false)
   const status = downloadStatus(torrent)
   const running = isRunning(status)
 
@@ -101,6 +103,10 @@ export function TorrentActionsSheet({
     </>
   )
 
+  if (editingLimits) {
+    return <SpeedLimitsSheet torrent={torrent} title={match?.title ?? torrent.name} onClose={onClose} onChanged={onChanged} />
+  }
+
   if (isDesktop && anchor) {
     const changeTitle = match ? t('match.changeTitle') : t('match.pickTitle')
     return (
@@ -112,6 +118,9 @@ export function TorrentActionsSheet({
       >
         <MenuItem icon={running ? 'pause' : 'play'} disabled={offline || busy} onClick={toggle}>
           {running ? t('torrent.pause') : t('torrent.resume')}
+        </MenuItem>
+        <MenuItem icon="sort-desc" disabled={offline} onClick={() => setEditingLimits(true)}>
+          {t('limits.title')}
         </MenuItem>
         {showDetails && (
           <MenuLink to={`/torrent/${torrent.hash}`} icon="info" onClick={onClose}>
@@ -166,6 +175,12 @@ export function TorrentActionsSheet({
           <button type="button" className="ks-row-btn" disabled={offline || busy} onClick={toggle}>
             <Icon name={running ? 'pause' : 'play'} />
             {running ? t('torrent.pause') : t('torrent.resume')}
+          </button>
+        </li>
+        <li>
+          <button type="button" className="ks-row-btn" disabled={offline} onClick={() => setEditingLimits(true)}>
+            <Icon name="sort-desc" />
+            {t('limits.title')}
           </button>
         </li>
         {showDetails && (

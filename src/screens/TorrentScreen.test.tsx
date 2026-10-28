@@ -172,6 +172,15 @@ describe('TorrentScreen', () => {
     expect(getTorrentTrackers).toHaveBeenCalledWith('dune')
   })
 
+  it('lists only the speed limits that are set among the details', async () => {
+    getTorrentTrackers.mockResolvedValue([])
+    getMainData.mockResolvedValue(snapshot({ dl_limit: 2_500_000, up_limit: 0 }))
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'Details' }))
+    expect(screen.getByText('Download limit', { selector: 'dt' }).nextElementSibling).toHaveTextContent('2.5 MB/s')
+    expect(screen.queryByText('Upload limit', { selector: 'dt' })).not.toBeInTheDocument()
+  })
+
   it('goes back to Downloads with a toast after deleting', async () => {
     renderScreen()
     await userEvent.click(await screen.findByRole('button', { name: 'Delete' }))

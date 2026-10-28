@@ -12,6 +12,7 @@ vi.mock('../api/qbittorrent', async (importOriginal) => ({
   ...(await importOriginal<typeof api>()),
   stopTorrents: vi.fn(),
   startTorrents: vi.fn(),
+  setSpeedLimits: vi.fn(),
 }))
 
 vi.mock('../torrents/titleMatches', async (importOriginal) => ({
@@ -47,12 +48,31 @@ afterEach(() => {
 })
 
 describe('TorrentActionsSheet on desktop', () => {
-  it('is a menu: resume, details, the title page, change title, delete', async () => {
+  it('opens the speed limits from the menu and saves them', async () => {
+    vi.mocked(api.setSpeedLimits).mockResolvedValue()
+    const handlers = renderActions({ torrent: { ...TORRENT, dl_limit: 2_000_000, up_limit: 0 } })
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Speed limits' }))
+    const sheet = screen.getByRole('dialog', { name: 'Speed limits' })
+    expect(within(sheet).getByRole('textbox', { name: 'Download limit, MB/s' })).toHaveValue('2')
+    await userEvent.type(within(sheet).getByRole('textbox', { name: 'Upload limit, MB/s' }), '0.5')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save limits' }))
+    expect(api.setSpeedLimits).toHaveBeenCalledWith(['b1'], { download: 2_000_000, upload: 500_000 })
+    expect(handlers.onChanged).toHaveBeenCalled()
+    expect(handlers.onClose).toHaveBeenCalled()
+  })
+
+  it('disables the speed limits while qBittorrent is offline', () => {
+    renderActions({ offline: true })
+    expect(screen.getByRole('menuitem', { name: 'Speed limits' })).toBeDisabled()
+  })
+
+  it('is a menu: resume, speed limits, details, the title page, change title, delete', async () => {
     vi.mocked(api.startTorrents).mockResolvedValue()
     const handlers = renderActions()
     const menu = screen.getByRole('menu', { name: 'More actions: Inception' })
     expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
       'Resume',
+      'Speed limits',
       'Open details',
       'Movie page',
       'Change title',

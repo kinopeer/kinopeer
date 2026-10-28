@@ -6,6 +6,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ### Added
 
+- Downloads: speed limits per torrent. "Speed limits" in a torrent's More menu sets its download and upload limits in MB/s (an empty field removes a limit), and the torrent's details list the limits that are set.
 - Releases: the indexer's name on a release (the card on a phone, the table on desktop and the add sheet) links to the release's page on the tracker, in a new tab, for what Kinoseed doesn't show.
 
 ### Changed

@@ -8,6 +8,7 @@ import {
   getTorrentFiles,
   getTorrents,
   setFilePriority,
+  setSpeedLimits,
   startTorrents,
   stopTorrents,
 } from './client'
@@ -113,6 +114,17 @@ describe('torrent files', () => {
   it('skips an empty priority change', async () => {
     await setFilePriority('h1', [], 0)
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('setSpeedLimits', () => {
+  it('sets the download limit, then the upload limit, in bytes/s', async () => {
+    respond('')
+    respond('')
+    await setSpeedLimits(['a', 'b'], { download: 2_000_000, upload: 0 })
+    const [download, upload] = fetchMock.mock.calls.map(([url, init]) => [String(url), String(init!.body)])
+    expect(download).toEqual(['/qbt/api/v2/torrents/setDownloadLimit', 'hashes=a%7Cb&limit=2000000'])
+    expect(upload).toEqual(['/qbt/api/v2/torrents/setUploadLimit', 'hashes=a%7Cb&limit=0'])
   })
 })
 

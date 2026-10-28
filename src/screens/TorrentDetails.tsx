@@ -204,6 +204,8 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
   const details: { key: string; label: string; value: string; mono?: boolean }[] = [
     { key: 'down', label: t('torrent.downloadSpeed'), value: downloading ? format.speed(torrent.dlspeed) : '—' },
     { key: 'up', label: t('torrent.uploadSpeed'), value: format.speed(torrent.upspeed) },
+    ...(torrent.dl_limit > 0 ? [{ key: 'dl-limit', label: t('limits.downloadRow'), value: format.speed(torrent.dl_limit) }] : []),
+    ...(torrent.up_limit > 0 ? [{ key: 'up-limit', label: t('limits.uploadRow'), value: format.speed(torrent.up_limit) }] : []),
     {
       key: 'peers',
       label: t('torrent.seedsPeers'),
