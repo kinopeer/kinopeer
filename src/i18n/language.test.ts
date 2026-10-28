@@ -95,6 +95,12 @@ describe('language preference storage', () => {
     expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('ru')
   })
 
+  it("turns a language saved before the System option that the app doesn't have into system", () => {
+    stubBrowserLanguages(['en-US'])
+    localStorage.setItem(LEGACY_LANGUAGE_STORAGE_KEY, 'de')
+    expect(readLanguagePreference()).toBe('system')
+  })
+
   it('defaults to system when storage is unavailable', () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new Error('blocked')
@@ -173,6 +179,23 @@ describe('following the browser', () => {
     await act(async () => window.dispatchEvent(new StorageEvent('storage', { key: LANGUAGE_STORAGE_KEY })))
     expect(result.current.preference).toBe('ru')
     expect(i18n.language).toBe('ru')
+  })
+
+  it('ignores a change to another key in another tab, and goes back to system when storage is cleared', async () => {
+    stubBrowserLanguages(['en-US'])
+    await act(async () => setLanguagePreference('ru'))
+    stopFollowing = initLanguage()
+    const { result } = renderHook(() => useLanguage())
+
+    // Written straight to storage, as another tab would, without this tab's store knowing.
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, 'en')
+    await act(async () => window.dispatchEvent(new StorageEvent('storage', { key: 'kinoseed.theme' })))
+    expect(result.current.preference).toBe('ru')
+
+    localStorage.clear()
+    await act(async () => window.dispatchEvent(new StorageEvent('storage', { key: null })))
+    expect(result.current.preference).toBe('system')
+    expect(i18n.language).toBe('en')
   })
 
   it('stops following the browser once stopped', () => {

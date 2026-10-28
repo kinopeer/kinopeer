@@ -15,7 +15,7 @@ const THEME_OPTIONS: { value: ThemePreference; icon: IconName }[] = [
 
 /** Temporary theme and language switchers until the Settings screen exists. */
 export function Preferences() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { preference, setPreference } = useTheme()
   const language = useLanguage()
 
@@ -36,13 +36,14 @@ export function Preferences() {
         {LANGUAGES.map(({ code, name }) => (
           <Button
             key={code}
-            variant={language.preference === code ? 'tonal' : 'ghost'}
+            variant={i18n.resolvedLanguage === code ? 'tonal' : 'ghost'}
             size="sm"
             lang={code}
-            // Neither is pressed while the language follows the browser (System, chosen in Settings),
-            // so tapping either one, the language shown included, is a choice that pins it.
-            aria-pressed={language.preference === code}
-            onClick={() => language.setPreference(code)}
+            aria-pressed={i18n.resolvedLanguage === code}
+            onClick={() => {
+              // Tapping the language already shown while it follows the browser keeps System.
+              if (language.preference !== 'system' || i18n.resolvedLanguage !== code) language.setPreference(code)
+            }}
           >
             {name}
           </Button>

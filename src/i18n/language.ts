@@ -11,8 +11,9 @@ export type LanguagePreference = 'system' | Language
 export const LANGUAGE_STORAGE_KEY = 'kinoseed.language'
 
 /**
- * Where the language detector before the System option saved the detected language on every start,
- * so a value there can't tell a language the user picked from one that was detected.
+ * Where the language detector before the System option saved the language: the one it detected on
+ * the first start, or one the user picked later. It never detected again once something was saved,
+ * so a value there may be a pick or the browser's language of back then.
  */
 export const LEGACY_LANGUAGE_STORAGE_KEY = 'kinoseed.lang'
 
@@ -24,8 +25,8 @@ export function toLanguage(tag: string): Language | null {
 
 /**
  * Moves a language saved before the System option to the preference, once: the browser's own
- * language becomes system, since keeping it changes nothing the user sees, and another language
- * stays, since only a pick could have saved it. Null when there's nothing to move.
+ * language becomes system and another one stays as a choice, so either way the user sees the
+ * language they saw before. Null when there's nothing to move.
  */
 function migrateLegacyPreference(): LanguagePreference | null {
   const legacy = localStorage.getItem(LEGACY_LANGUAGE_STORAGE_KEY)

@@ -76,14 +76,12 @@ describe('ConnectScreen', () => {
     expect(screen.getByRole('button', { name: 'Светлая' })).toHaveAttribute('aria-pressed', 'true')
   })
 
-  it('presses no language while it follows the browser, and pins the one shown when tapped', async () => {
+  it('keeps following the browser when the language already shown is tapped', async () => {
     setup()
     const language = within(screen.getByRole('group', { name: 'Language' }))
-    expect(language.getByRole('button', { name: 'English' })).toHaveAttribute('aria-pressed', 'false')
-    expect(language.getByRole('button', { name: 'Русский' })).toHaveAttribute('aria-pressed', 'false')
+    expect(language.getByRole('button', { name: 'English' })).toHaveAttribute('aria-pressed', 'true')
 
     await userEvent.click(language.getByRole('button', { name: 'English' }))
-    expect(language.getByRole('button', { name: 'English' })).toHaveAttribute('aria-pressed', 'true')
-    expect(localStorage.getItem('kinoseed.language')).toBe('en')
+    expect(localStorage.getItem('kinoseed.language')).toBeNull()
   })
 })
