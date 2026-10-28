@@ -199,9 +199,16 @@ describe('Sheet', () => {
       expect(onClose).toHaveBeenCalledOnce()
     })
 
-    it("waits out the opening slide, but not a spring back, which it catches where it is", () => {
+    it('takes over the opening slide where it has got to, and a spring back where it is', () => {
+      // Where the browser has the sheet: partway up its opening slide, then down its spring back.
+      let at = 'translateY(60px)'
+      // A finished slide no longer moves it.
+      const finish = vi.fn(() => {
+        at = 'none'
+      })
       class CSSAnimation {
         playState = 'running'
+        finish = finish
       }
       vi.stubGlobal('CSSAnimation', CSSAnimation)
       vi.stubGlobal(
@@ -214,27 +221,59 @@ describe('Sheet', () => {
         },
       )
       renderSheet()
-      const animations: object[] = [new CSSAnimation()]
-      Object.defineProperty(dialog(), 'getAnimations', { value: () => animations })
-      pointer('pointerDown', handle(), 100)
-      pointer('pointerMove', handle(), 160, 100)
-      expect(dialog().style.transform).toBe('')
-
-      // Halfway back up from a short drag: the transition, not the keyframes. The browser reports
-      // where the transition has it; the inline transform is already empty.
-      animations.splice(0, 1, { playState: 'running' })
-      const computed = window.getComputedStyle
       const sheet = dialog()
+      const computed = window.getComputedStyle
       vi.spyOn(window, 'getComputedStyle').mockImplementation((element) => {
         const style = computed(element)
         if (element !== sheet) return style
-        return new Proxy(style, { get: (target, key) => (key === 'transform' ? 'translateY(30px)' : Reflect.get(target, key)) })
+        return new Proxy(style, { get: (target, key) => (key === 'transform' ? at : Reflect.get(target, key)) })
       })
-      pointer('pointerDown', handle(), 100)
-      // Held there, rather than jumping back to the top before the first move.
-      expect(dialog().style.transform).toBe('translateY(30px)')
+      const animations: object[] = [new CSSAnimation()]
+      Object.defineProperty(sheet, 'getAnimations', { value: () => animations })
+      pointer('pointerDown', handle(), 100, 0)
+      expect(finish).toHaveBeenCalledOnce()
+      // Held there, rather than jumping to where the slide ends.
+      expect(sheet.style.transform).toBe('translateY(60px)')
       pointer('pointerMove', handle(), 110, 100)
-      expect(dialog().style.transform).toBe('translateY(40px)')
+      expect(sheet.style.transform).toBe('translateY(70px)')
+      pointer('pointerUp', handle(), 110, 1000)
+
+      // Halfway back up from that short drag: the transition, not the keyframes, which it leaves be.
+      animations.splice(0, 1, { playState: 'running', finish })
+      at = 'translateY(30px)'
+      pointer('pointerDown', handle(), 100, 2000)
+      expect(sheet.style.transform).toBe('translateY(30px)')
+      pointer('pointerMove', handle(), 110, 2100)
+      expect(sheet.style.transform).toBe('translateY(40px)')
+      expect(finish).toHaveBeenCalledOnce()
+    })
+
+    it('starts afresh after a press whose pointer was already gone', () => {
+      const setPointerCapture = vi.fn().mockImplementationOnce(() => {
+        throw new DOMException('No active pointer', 'NotFoundError')
+      })
+      Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', { value: setPointerCapture, configurable: true })
+      // An error out of a handler reaches the page, not the test.
+      const errors = vi.fn((event: ErrorEvent) => event.preventDefault())
+      window.addEventListener('error', errors)
+      try {
+        const onClose = renderSheet()
+        pointer('pointerDown', handle(), 100, 0)
+        pointer('pointerMove', handle(), 160, 100)
+        expect(dialog().style.transform).toBe('')
+        expect(errors).not.toHaveBeenCalled()
+        slowDrag(handle(), 100, 300)
+        expect(onClose).toHaveBeenCalledOnce()
+      } finally {
+        window.removeEventListener('error', errors)
+        Reflect.deleteProperty(HTMLElement.prototype, 'setPointerCapture')
+      }
+    })
+
+    it("keeps an image in its title row from starting the browser's own drag", () => {
+      renderSheet({ leading: <img src="/poster.jpg" alt="Dune" /> })
+      // fireEvent says whether the event went through: false once its default is prevented.
+      expect(fireEvent.dragStart(screen.getByRole('img', { name: 'Dune' }))).toBe(false)
     })
 
     it('takes a tap on its top while it springs back for a tap, however far down it is', () => {
@@ -480,6 +519,20 @@ describe('Sheet', () => {
         const { animate } = stubAnimate()
         const style = document.createElement('style')
         style.textContent = '.ks-sheet { transition-duration: 0.25s; }'
+        document.head.append(style)
+        try {
+          renderSheet()
+          slowDrag(handle(), 100, 300)
+          expect(animate).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ duration: 250 }))
+        } finally {
+          style.remove()
+        }
+      })
+
+      it("slides off for as long as its transform's transition when the stylesheet lists several", () => {
+        const { animate } = stubAnimate()
+        const style = document.createElement('style')
+        style.textContent = '.ks-sheet { transition-property: opacity, transform; transition-duration: 0s, 0.25s; }'
         document.head.append(style)
         try {
           renderSheet()
