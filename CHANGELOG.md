@@ -16,6 +16,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ### Fixed
 
+- Phone: a sheet (sort and filters, adding a release, a torrent's actions…) closes when dragged down by its grabber or title, as the grabber suggests, and the screen behind it no longer scrolls under the finger. ([#114](https://github.com/MrShakhov/kinoseed/issues/114))
 - Desktop: a release name no longer looks clickable on hover (a click did nothing when the name fit in two lines); the whole name is a tooltip on hover instead. On a phone a tap still shows the whole name.
 - Desktop: Escape in the delete confirmation or the title search opened from a torrent's details closes only that, not the details too. ([#107](https://github.com/MrShakhov/kinoseed/issues/107))
 - Desktop: a link to a title's releases (or a reload of their address) opens the title page at the releases, instead of at the top with the hero. ([#72](https://github.com/MrShakhov/kinoseed/issues/72))

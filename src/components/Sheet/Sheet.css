@@ -33,6 +33,17 @@
   padding-bottom: var(--safe-bottom);
 }
 
+/* The grabber and the title row: dragging it down on a phone closes the sheet, so the browser
+   neither scrolls nor selects text under that finger. */
+.ks-sheet-handle {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 .ks-grabber {
   width: 36px;
   height: 5px;
@@ -105,6 +116,12 @@
 
   .ks-grabber {
     display: none;
+  }
+
+  .ks-sheet-handle {
+    touch-action: auto;
+    -webkit-user-select: auto;
+    user-select: auto;
   }
 
   .ks-sheet-head {

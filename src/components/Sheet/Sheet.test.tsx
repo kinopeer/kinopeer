@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { createEvent, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { stubDesktop } from '../../lib/stubDesktop'
@@ -62,6 +62,79 @@ describe('Sheet', () => {
   it('is medium by default', () => {
     renderSheet()
     expect(screen.getByRole('dialog')).not.toHaveClass('ks-sheet-lg')
+  })
+
+  describe('dragged down by its top on a phone', () => {
+    // The grabber and the title row are the handle; the grabber itself is aria-hidden.
+    const handle = () => screen.getByRole('heading', { name: 'Add release' })
+
+    // fireEvent can't set timeStamp, which the flick's speed is measured from.
+    const pointer = (type: 'pointerDown' | 'pointerMove' | 'pointerUp', target: Element, clientY: number, timeStamp: number) => {
+      const event = createEvent[type](target, { pointerId: 1, clientY, button: 0 })
+      Object.defineProperty(event, 'timeStamp', { value: timeStamp })
+      fireEvent(target, event)
+    }
+
+    const drag = (target: Element, from: number, to: number, ms = 300) => {
+      pointer('pointerDown', target, from, 0)
+      pointer('pointerMove', target, (from + to) / 2, ms / 2)
+      pointer('pointerMove', target, to, ms)
+      pointer('pointerUp', target, to, ms)
+    }
+
+    it('follows the finger while dragged', () => {
+      renderSheet()
+      fireEvent.pointerDown(handle(), { pointerId: 1, clientY: 100, button: 0 })
+      fireEvent.pointerMove(handle(), { pointerId: 1, clientY: 160 })
+      expect(screen.getByRole('dialog').style.transform).toBe('translateY(60px)')
+    })
+
+    it('closes once dragged far enough', () => {
+      const onClose = renderSheet()
+      drag(handle(), 100, 300)
+      expect(onClose).toHaveBeenCalledOnce()
+    })
+
+    it('closes on a quick flick, however short', () => {
+      const onClose = renderSheet()
+      drag(handle(), 100, 140, 40)
+      expect(onClose).toHaveBeenCalledOnce()
+    })
+
+    it('goes back up when let go after a short, slow drag', () => {
+      const onClose = renderSheet()
+      drag(handle(), 100, 140, 400)
+      expect(onClose).not.toHaveBeenCalled()
+      expect(screen.getByRole('dialog').style.transform).toBe('')
+    })
+
+    it('never goes above where it opened', () => {
+      renderSheet()
+      fireEvent.pointerDown(handle(), { pointerId: 1, clientY: 300, button: 0 })
+      fireEvent.pointerMove(handle(), { pointerId: 1, clientY: 100 })
+      expect(screen.getByRole('dialog').style.transform).toBe('translateY(0px)')
+    })
+
+    it('leaves the buttons in its title row to their taps', () => {
+      const onClose = renderSheet({ action: <button type="button">Reset</button> })
+      drag(screen.getByRole('button', { name: 'Reset' }), 100, 300)
+      expect(onClose).not.toHaveBeenCalled()
+      expect(screen.getByRole('dialog').style.transform).toBe('')
+    })
+
+    it("doesn't drag from its scrolling content", () => {
+      const onClose = renderSheet()
+      drag(screen.getByText('Options'), 100, 300)
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it("doesn't drag on desktop, where it is a centered modal", () => {
+      stubDesktop()
+      const onClose = renderSheet()
+      drag(handle(), 100, 300)
+      expect(onClose).not.toHaveBeenCalled()
+      expect(screen.getByRole('dialog').style.transform).toBe('')
+    })
   })
 
   it('stays the same dialog on desktop, where only its styles make it a centered modal', () => {

@@ -1,5 +1,6 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useRef, type PointerEvent, type ReactNode } from 'react'
 import { cx } from '../../lib/cx'
+import { useIsDesktop } from '../../lib/useIsDesktop'
 import './Sheet.css'
 
 export interface SheetProps {
@@ -23,9 +24,25 @@ export interface SheetProps {
   children: ReactNode
 }
 
+/** How far down a let-go sheet closes: this many px, or this share of its height if that's more. */
+const CLOSE_DISTANCE = 96
+const CLOSE_SHARE = 0.3
+/** A flick down at least this fast (px/ms) closes it however short it was. */
+const CLOSE_SPEED = 0.5
+
+interface Drag {
+  pointerId: number
+  startY: number
+  y: number
+  time: number
+  /** Px/ms, from the last two samples. */
+  speed: number
+}
+
 /**
  * Bottom sheet on a native modal <dialog>, a centered modal on desktop: focus moves in and stays
- * there, Escape and a tap on the backdrop close it, and focus returns to what opened it.
+ * there, Escape and a tap on the backdrop close it, and focus returns to what opened it. On a phone
+ * its top (the grabber and the title row) also drags it down to close it.
  */
 export function Sheet({
   open,
@@ -41,11 +58,18 @@ export function Sheet({
 }: SheetProps) {
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = useId()
+  const isDesktop = useIsDesktop()
+  const drag = useRef<Drag | null>(null)
+  const exit = useRef<Animation | null>(null)
 
   useEffect(() => {
     const dialog = ref.current
     if (!dialog) return
     if (open && !dialog.open) {
+      // Where a drag left it, from the last time it was open.
+      exit.current?.cancel()
+      exit.current = null
+      dialog.style.transform = ''
       // jsdom has no showModal; the open attribute is enough there.
       if (typeof dialog.showModal === 'function') dialog.showModal()
       else dialog.setAttribute('open', '')
@@ -54,6 +78,57 @@ export function Sheet({
       else dialog.removeAttribute('open')
     }
   }, [open])
+
+  const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    // On desktop it's a centered modal with no grabber; the title row's buttons keep their taps; a
+    // sheet already sliding out is on its way to closing.
+    if (isDesktop || exit.current || event.button !== 0 || (event.target as Element).closest('button, a, input')) return
+    drag.current = { pointerId: event.pointerId, startY: event.clientY, y: event.clientY, time: event.timeStamp, speed: 0 }
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+    if (ref.current) ref.current.style.transition = 'none'
+  }
+
+  const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    const current = drag.current
+    const dialog = ref.current
+    if (!current || !dialog || event.pointerId !== current.pointerId) return
+    const elapsed = event.timeStamp - current.time
+    if (elapsed > 0) current.speed = (event.clientY - current.y) / elapsed
+    current.y = event.clientY
+    current.time = event.timeStamp
+    dialog.style.transform = `translateY(${Math.max(0, current.y - current.startY)}px)`
+  }
+
+  const onPointerEnd = (event: PointerEvent<HTMLDivElement>) => {
+    const current = drag.current
+    const dialog = ref.current
+    if (!current || !dialog || event.pointerId !== current.pointerId) return
+    drag.current = null
+    const distance = current.y - current.startY
+    const far = distance >= Math.max(CLOSE_DISTANCE, dialog.offsetHeight * CLOSE_SHARE)
+    if (event.type === 'pointerup' && distance > 0 && (far || current.speed >= CLOSE_SPEED)) {
+      slideOut(dialog)
+      return
+    }
+    dialog.style.transition = 'transform var(--d-base) var(--ease)'
+    dialog.style.transform = ''
+  }
+
+  /** Finishes the swipe off the screen, then closes; the open effect puts it back next time. */
+  const slideOut = (dialog: HTMLDialogElement) => {
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (reduced || typeof dialog.animate !== 'function') {
+      onClose()
+      return
+    }
+    const style = getComputedStyle(dialog)
+    exit.current = dialog.animate([{ transform: dialog.style.transform }, { transform: 'translateY(100%)' }], {
+      duration: parseFloat(style.getPropertyValue('--d-base')) || 200,
+      easing: style.getPropertyValue('--ease-in') || 'ease-in',
+      fill: 'forwards',
+    })
+    exit.current.finished.then(onClose, () => {})
+  }
 
   return (
     <dialog
@@ -74,16 +149,24 @@ export function Sheet({
     >
       {open && (
         <div className="ks-sheet-inner">
-          <div className="ks-grabber" aria-hidden="true" />
-          <div className={leading ? 'ks-sheet-head has-leading' : 'ks-sheet-head'}>
-            {leading}
-            <div className="ks-sheet-title">
-              <h2 id={titleId} className="t-h3">
-                {title}
-              </h2>
-              {subtitle && <div className="t-cap c3 ks-trunc">{subtitle}</div>}
+          <div
+            className="ks-sheet-handle"
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerEnd}
+            onPointerCancel={onPointerEnd}
+          >
+            <div className="ks-grabber" aria-hidden="true" />
+            <div className={leading ? 'ks-sheet-head has-leading' : 'ks-sheet-head'}>
+              {leading}
+              <div className="ks-sheet-title">
+                <h2 id={titleId} className="t-h3">
+                  {title}
+                </h2>
+                {subtitle && <div className="t-cap c3 ks-trunc">{subtitle}</div>}
+              </div>
+              {action}
             </div>
-            {action}
           </div>
           <div className="ks-sheet-body">{children}</div>
           {footer && <div className="ks-sheet-foot">{footer}</div>}

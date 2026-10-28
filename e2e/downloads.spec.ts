@@ -47,6 +47,30 @@ test.describe('downloads, phone', () => {
     await expect(page).toHaveScreenshot('sort-dark-ru.png')
   })
 
+  test('the sort sheet closes when dragged down by its top, and the list behind it stays put', async ({ page }) => {
+    await openDownloads(page)
+    await page.getByRole('button', { name: 'Сортировка: Приоритет' }).click()
+    const sheet = page.getByRole('dialog')
+    await expect(sheet).toBeVisible()
+    await settle(page)
+    expect(await page.evaluate(() => document.documentElement.scrollHeight > window.innerHeight)).toBe(true)
+
+    // A wheel over the backdrop stands in for a finger: both scrolled the page under a modal <dialog>.
+    await page.mouse.move(195, 40)
+    await page.mouse.wheel(0, 600)
+    await page.waitForTimeout(100)
+    expect(await page.evaluate(() => window.scrollY)).toBe(0)
+
+    const title = sheet.getByRole('heading').first()
+    const box = await title.boundingBox()
+    if (!box) throw new Error('The sheet has no title')
+    await page.mouse.move(box.x + 10, box.y + box.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(box.x + 10, box.y + 300, { steps: 10 })
+    await page.mouse.up()
+    await expect(sheet).toBeHidden()
+  })
+
   test('series only, with the type badge', async ({ page }) => {
     await openDownloads(page)
     await page.getByRole('button', { name: 'Сортировка: Приоритет' }).click()

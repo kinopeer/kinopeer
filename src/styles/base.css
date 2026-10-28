@@ -8,6 +8,12 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+/* The page behind an open modal (a sheet, a dialog, the torrent drawer) stays put: a modal <dialog>
+   makes it inert but still lets it scroll, under a finger on iOS Safari above all. */
+html:has(:modal) {
+  overflow: hidden;
+}
+
 body {
   margin: 0;
   font: var(--t-body);
