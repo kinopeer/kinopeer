@@ -24,7 +24,8 @@ import { checkTmdbKey } from './tmdb.ts'
  * GET /api/settings → ServerSettings (only whether each secret is set, never its value)
  * PUT /api/settings/tmdb { apiKey } → checks the key with TMDB, saves it, answers ServerSettings
  * PUT /api/settings/prowlarr { apiKey } → checks the key with Prowlarr, saves it, answers ServerSettings
- * DELETE /api/settings/prowlarr → forgets the saved key, so the environment's or config.xml's applies again
+ * DELETE /api/settings/prowlarr → forgets the saved key, so the environment's or config.xml's applies
+ *   again; refused (409) when the server has no key of its own
  * PUT /api/settings/qbittorrent { username, password } → logs in to qBittorrent, saves the login
  * PATCH /api/settings/downloads { …some DownloadDefaults } → merges them in, answers ServerSettings
  */
@@ -117,14 +118,22 @@ function status(saved: string | undefined, env: string | undefined): ServerSetti
   return { configured: source !== null, source }
 }
 
-async function snapshot(stored: StoredSettings, config: SettingsConfig): Promise<ServerSettings> {
-  // A key in Prowlarr's config.xml counts as the server's own configuration, like the variable.
-  const envProwlarr =
+/** The server's own Prowlarr key: a key in config.xml counts as its configuration, like the variable. */
+async function serverProwlarrKey(config: SettingsConfig): Promise<string | undefined> {
+  return (
     config.envProwlarrApiKey?.trim() ||
-    (config.prowlarrConfigXml ? await readProwlarrApiKey(config.prowlarrConfigXml) : undefined)
+    (config.prowlarrConfigXml ? (await readProwlarrApiKey(config.prowlarrConfigXml))?.trim() : undefined) ||
+    undefined
+  )
+}
+
+async function snapshot(stored: StoredSettings, config: SettingsConfig): Promise<ServerSettings> {
+  // Reads config.xml on every GET (a small local file): the answer says whether the server has a
+  // key of its own, which decides whether a saved key can be forgotten.
+  const envProwlarr = await serverProwlarrKey(config)
   return {
     tmdb: status(stored.tmdbApiKey, config.envTmdbApiKey),
-    prowlarr: status(stored.prowlarrApiKey, envProwlarr),
+    prowlarr: { ...status(stored.prowlarrApiKey, envProwlarr), serverKey: Boolean(envProwlarr) },
     qbittorrent: status(stored.qbittorrentUsername, config.envQbittorrent?.username),
     downloads: stored.downloads ?? null,
   }
@@ -172,14 +181,21 @@ async function saveProwlarrKey(config: SettingsConfig, request: IncomingMessage,
   const apiKey = (body as Partial<ProwlarrKeyBody> | null)?.apiKey
   if (typeof apiKey !== 'string' || !apiKey.trim() || /\s/.test(apiKey.trim())) return fail(response, 400, 'bad-request')
 
-  let valid: boolean
+  let result: Awaited<ReturnType<typeof checkProwlarrKey>>
   try {
-    valid = await checkProwlarrKey(base, apiKey.trim())
+    result = await checkProwlarrKey(base, apiKey.trim())
   } catch {
     return fail(response, 502, 'unreachable')
   }
-  if (!valid) return fail(response, 422, 'invalid-key')
+  if (result === 'invalid') return fail(response, 422, 'invalid-key')
+  if (result === 'not-prowlarr') return fail(response, 502, 'not-prowlarr')
   await save(config, response, config.store.update({ prowlarrApiKey: apiKey.trim() }))
+}
+
+/** Forgets the saved key, only when the server has one of its own to fall back on. */
+async function forgetProwlarrKey(config: SettingsConfig, _request: IncomingMessage, response: ServerResponse) {
+  if (!(await serverProwlarrKey(config))) return fail(response, 409, 'no-server-key')
+  await save(config, response, config.store.update({ prowlarrApiKey: undefined }))
 }
 
 async function saveQbittorrentLogin(config: SettingsConfig, request: IncomingMessage, response: ServerResponse) {
@@ -246,10 +262,6 @@ export function settingsMiddleware(config: SettingsConfig): Middleware {
     const path = new URL(request.url ?? '/', 'http://kinoseed.local').pathname
     if (path !== PREFIX && !path.startsWith(`${PREFIX}/`)) return next()
 
-    if (path === `${PREFIX}/prowlarr` && request.method === 'DELETE') {
-      void save(config, response, config.store.update({ prowlarrApiKey: undefined }))
-      return
-    }
     if (path === PREFIX && request.method === 'GET') {
       void config.store
         .load()
@@ -262,6 +274,8 @@ export function settingsMiddleware(config: SettingsConfig): Middleware {
         ? saveTmdbKey
         : path === `${PREFIX}/prowlarr` && request.method === 'PUT'
           ? saveProwlarrKey
+          : path === `${PREFIX}/prowlarr` && request.method === 'DELETE'
+            ? forgetProwlarrKey
           : path === `${PREFIX}/qbittorrent` && request.method === 'PUT'
           ? saveQbittorrentLogin
           : path === `${PREFIX}/downloads` && request.method === 'PATCH'

@@ -60,7 +60,7 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 
 - [ ] Installing with plain Docker, outside Umbrel, together with Kinoseed's own login.
 - [ ] Onboarding works on a clean install with qBittorrent and Prowlarr set only through the environment.
-- [ ] A Prowlarr API key field in Settings, kept on the server like the TMDB key, for installs that can't read Prowlarr's `config.xml`.
+- [x] A Prowlarr API key field in Settings, kept on the server like the TMDB key, for installs that can't read Prowlarr's `config.xml`.
 
 ## 1.0: Public release
 

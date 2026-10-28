@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { SettingsError, getServerSettings, saveDownloadDefaults, saveProwlarrKey, saveQbittorrentLogin, saveTmdbKey } from '../../src/api/settings/client.ts'
+import { SettingsError, getServerSettings, saveDownloadDefaults, forgetProwlarrKey, saveProwlarrKey, saveQbittorrentLogin, saveTmdbKey } from '../../src/api/settings/client.ts'
 import { getProwlarrStatus } from '../../src/api/prowlarr/client.ts'
 import { startKinoseed, stopKinoseed } from '../test/integration.ts'
 
@@ -13,7 +13,7 @@ describe('settings client through /api/settings', () => {
     const { responses } = await startKinoseed()
     await expect(getServerSettings()).resolves.toEqual({
       tmdb: { configured: true, source: 'env' },
-      prowlarr: { configured: true, source: 'env' },
+      prowlarr: { configured: true, source: 'env', serverKey: true },
       qbittorrent: { configured: true, source: 'env' },
       downloads: null,
     })
@@ -33,9 +33,12 @@ describe('settings client through /api/settings', () => {
     await expect(getProwlarrStatus()).rejects.toThrow()
     await expect(saveProwlarrKey('wrong-key')).rejects.toMatchObject({ status: 422, code: 'invalid-key' })
 
-    await expect(saveProwlarrKey(prowlarr.apiKey)).resolves.toMatchObject({ prowlarr: { configured: true, source: 'saved' } })
+    await expect(saveProwlarrKey(prowlarr.apiKey)).resolves.toMatchObject({ prowlarr: { configured: true, source: 'saved', serverKey: true } })
     expect(stores.settings.current.prowlarrApiKey).toBe(prowlarr.apiKey)
     await expect(getProwlarrStatus()).resolves.toMatchObject({ indexers: expect.any(Number) })
+
+    await expect(forgetProwlarrKey()).resolves.toMatchObject({ prowlarr: { source: 'env' } })
+    expect(stores.settings.current.prowlarrApiKey).toBeUndefined()
   })
 
   it('passes on why the server refused a key', async () => {

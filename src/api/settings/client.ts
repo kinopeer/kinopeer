@@ -53,15 +53,24 @@ export function saveTmdbKey(apiKey: string): Promise<ServerSettings> {
 /**
  * Saves the Prowlarr API key on the server, which checks it with Prowlarr first. Rejects with a
  * SettingsError: code 'invalid-key' when Prowlarr refuses it, 'unreachable' when Prowlarr doesn't
- * answer, or 'not-configured' when the server has no PROWLARR_URL.
+ * answer, 'not-prowlarr' when PROWLARR_URL answers but isn't Prowlarr, or 'not-configured' when the
+ * server has no PROWLARR_URL.
  */
 export function saveProwlarrKey(apiKey: string): Promise<ServerSettings> {
   return send<ProwlarrKeyBody>('PUT', 'prowlarr', { apiKey })
 }
 
-/** Forgets the saved Prowlarr key, so the server's own (environment or Prowlarr's config.xml) applies. */
+/**
+ * Forgets the saved Prowlarr key, so the server's own (environment or Prowlarr's config.xml)
+ * applies. Rejects with code 'no-server-key' when the server has none to fall back on.
+ */
 export async function forgetProwlarrKey(): Promise<ServerSettings> {
-  const response = await fetch(`${SETTINGS_BASE}/prowlarr`, { method: 'DELETE', credentials: 'same-origin' })
+  // The JSON content type, as on every request that changes something (server/json.ts).
+  const response = await fetch(`${SETTINGS_BASE}/prowlarr`, {
+    method: 'DELETE',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+  })
   if (!response.ok || !isJson(response)) throw await errorFor(response)
   return (await response.json()) as ServerSettings
 }

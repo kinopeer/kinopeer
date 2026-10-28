@@ -18,7 +18,7 @@ async function openOnboarding(page: Page, step: 'connect' | 'tmdb', options: App
           contentType: 'application/json',
           body: JSON.stringify({
             tmdb: { configured: false, source: null },
-            prowlarr: { configured: true, source: 'env' },
+            prowlarr: { configured: true, source: 'env', serverKey: true },
             qbittorrent: { configured: true, source: 'saved' },
             downloads: null,
           }),

@@ -7,49 +7,55 @@ import { Input } from '../components/Input'
 
 export interface ProwlarrKeyFormProps {
   onSaved: (settings: ServerSettings) => void
-  /** A key saved from the app is in use: offer to forget it for the server's own. */
-  saved?: boolean
+  /** The saved key was forgotten: the server's own applies again. */
+  onForgotten: (settings: ServerSettings) => void
+  /** A key saved from the app is in use and the server has one of its own: offer to go back to it. */
+  canForget?: boolean
 }
 
-type FormError = 'invalid' | 'unreachable' | 'not-configured' | 'storage' | 'failed' | null
+type FormError =
+  | 'invalid'
+  | 'unreachable'
+  | 'not-prowlarr'
+  | 'not-configured'
+  | 'no-server-key'
+  | 'storage'
+  | 'failed'
+  | 'forget-failed'
+  | null
+
+const KNOWN_ERRORS = new Set<string>(['unreachable', 'not-prowlarr', 'not-configured', 'no-server-key', 'storage'])
+
+function formError(e: unknown, kind: 'save' | 'forget'): FormError {
+  const code = e instanceof SettingsError ? e.code : undefined
+  if (kind === 'save' && (code === 'invalid-key' || code === 'bad-request')) return 'invalid'
+  if (code && KNOWN_ERRORS.has(code)) return code as FormError
+  return kind === 'save' ? 'failed' : 'forget-failed'
+}
 
 /** The Prowlarr key field: the server checks the key with Prowlarr, then keeps it. */
-export function ProwlarrKeyForm({ onSaved, saved = false }: ProwlarrKeyFormProps) {
+export function ProwlarrKeyForm({ onSaved, onForgotten, canForget = false }: ProwlarrKeyFormProps) {
   const { t } = useTranslation()
   const [apiKey, setApiKey] = useState('')
-  const [saving, setSaving] = useState(false)
+  // One request at a time: saving and forgetting at once would race for what the server keeps.
+  const [busy, setBusy] = useState<'save' | 'forget' | null>(null)
   const [error, setError] = useState<FormError>(null)
 
-  const [forgetting, setForgetting] = useState(false)
-
-  const forget = async () => {
-    setForgetting(true)
+  const run = async (kind: 'save' | 'forget', request: () => Promise<ServerSettings>, done: (settings: ServerSettings) => void) => {
+    if (busy) return
+    setBusy(kind)
     setError(null)
     try {
-      onSaved(await forgetProwlarrKey())
+      done(await request())
     } catch (e) {
-      setError(e instanceof SettingsError && e.code === 'storage' ? 'storage' : 'failed')
-      setForgetting(false)
+      setError(formError(e, kind))
+      setBusy(null)
     }
   }
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    setSaving(true)
-    setError(null)
-    try {
-      onSaved(await saveProwlarrKey(apiKey.trim()))
-    } catch (e) {
-      const code = e instanceof SettingsError ? e.code : undefined
-      setError(
-        code === 'invalid-key' || code === 'bad-request'
-          ? 'invalid'
-          : code === 'unreachable' || code === 'not-configured' || code === 'storage'
-            ? code
-            : 'failed',
-      )
-      setSaving(false)
-    }
+    void run('save', () => saveProwlarrKey(apiKey.trim()), onSaved)
   }
 
   return (
@@ -57,9 +63,12 @@ export function ProwlarrKeyForm({ onSaved, saved = false }: ProwlarrKeyFormProps
       <p className="t-body c2">{t('prowlarrKey.help')}</p>
 
       {error === 'unreachable' && <Banner tone="error">{t('prowlarrKey.unreachable')}</Banner>}
+      {error === 'not-prowlarr' && <Banner tone="error">{t('prowlarrKey.notProwlarr')}</Banner>}
       {error === 'not-configured' && <Banner tone="error">{t('prowlarrKey.notConfigured')}</Banner>}
-      {error === 'storage' && <Banner tone="error">{t('tmdbKey.storage')}</Banner>}
-      {error === 'failed' && <Banner tone="error">{t('tmdbKey.failed')}</Banner>}
+      {error === 'no-server-key' && <Banner tone="error">{t('prowlarrKey.noServerKey')}</Banner>}
+      {error === 'storage' && <Banner tone="error">{t('prowlarrKey.storage')}</Banner>}
+      {error === 'failed' && <Banner tone="error">{t('prowlarrKey.failed')}</Banner>}
+      {error === 'forget-failed' && <Banner tone="error">{t('prowlarrKey.forgetFailed')}</Banner>}
 
       <Input
         label={t('prowlarrKey.label')}
@@ -80,11 +89,19 @@ export function ProwlarrKeyForm({ onSaved, saved = false }: ProwlarrKeyFormProps
       />
 
       <div className="key-form-actions">
-        <Button type="submit" size="lg" block loading={saving}>
-          {t('tmdbKey.save')}
+        <Button type="submit" size="lg" block loading={busy === 'save'} disabled={busy === 'forget'}>
+          {t('prowlarrKey.save')}
         </Button>
-        {saved && (
-          <Button type="button" variant="secondary" size="lg" block loading={forgetting} onClick={forget}>
+        {canForget && (
+          <Button
+            type="button"
+            variant="secondary"
+            size="lg"
+            block
+            loading={busy === 'forget'}
+            disabled={busy === 'save'}
+            onClick={() => void run('forget', forgetProwlarrKey, onForgotten)}
+          >
             {t('prowlarrKey.forget')}
           </Button>
         )}

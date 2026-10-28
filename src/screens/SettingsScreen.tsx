@@ -4,7 +4,7 @@ import { useLocation } from 'react-router'
 import { ProwlarrSetupError, getProwlarrStatus } from '../api/prowlarr'
 import { getApiVersion, getAppVersion, getCategories } from '../api/qbittorrent'
 import { TmdbKeyError, checkTmdb } from '../api/tmdb'
-import { getServerSettings } from '../api/settings'
+import { getServerSettings, type ServerSettings } from '../api/settings'
 import { Button } from '../components/Button'
 import { Icon, type IconName } from '../components/Icon'
 import { IconButton } from '../components/IconButton'
@@ -96,11 +96,14 @@ export function SettingsScreen() {
   )
   const [editingProwlarrKey, setEditingProwlarrKey] = useState(false)
   const [prowlarrKeyVersion, setProwlarrKeyVersion] = useState(0)
-  const [keySaved, setKeySaved] = useState<'tmdb' | 'prowlarr' | null>(null)
+  const [keySaved, setKeySaved] = useState<'tmdb' | 'prowlarr' | 'prowlarr-forgotten' | null>(null)
   const dismissKeySaved = useCallback(() => setKeySaved(null), [])
   const dismissCleared = useCallback(() => setCleared(false), [])
   const categories = useRequest('qbt|categories', () => getCategories())
-  const server = useRequest(`server|settings|${attempt}`, () => getServerSettings())
+  // Loaded once; a saved or forgotten key answers with the new settings, which replace it.
+  const serverLoad = useRequest('server|settings', (signal) => getServerSettings(signal))
+  const [serverChanged, setServerChanged] = useState<ServerSettings | null>(null)
+  const server = serverChanged ?? serverLoad.data
   const names = (categories.data ?? []).map((category) => category.name).sort((a, b) => a.localeCompare(b))
 
   const checkQbittorrent = async () => {
@@ -307,17 +310,29 @@ export function SettingsScreen() {
       </Sheet>
       <Sheet open={editingProwlarrKey} onClose={() => setEditingProwlarrKey(false)} title={t('prowlarrKey.sheetTitle')}>
         <ProwlarrKeyForm
-          saved={server.data?.prowlarr?.source === 'saved'}
-          onSaved={() => {
+          canForget={server?.prowlarr.source === 'saved' && server.prowlarr.serverKey}
+          onSaved={(changed) => {
+            setServerChanged(changed)
             setEditingProwlarrKey(false)
             setKeySaved('prowlarr')
+            setProwlarrKeyVersion((n) => n + 1)
+          }}
+          onForgotten={(changed) => {
+            setServerChanged(changed)
+            setEditingProwlarrKey(false)
+            setKeySaved('prowlarr-forgotten')
             setProwlarrKeyVersion((n) => n + 1)
           }}
         />
       </Sheet>
       {cleared && <Toast message={t('settings.cacheCleared')} onDismiss={dismissCleared} />}
       {keySaved && (
-        <Toast message={t(keySaved === 'tmdb' ? 'tmdbKey.saved' : 'prowlarrKey.saved')} onDismiss={dismissKeySaved} />
+        <Toast
+          message={t(
+            keySaved === 'tmdb' ? 'tmdbKey.saved' : keySaved === 'prowlarr' ? 'prowlarrKey.saved' : 'prowlarrKey.forgotten',
+          )}
+          onDismiss={dismissKeySaved}
+        />
       )}
     </main>
   )

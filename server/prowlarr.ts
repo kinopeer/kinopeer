@@ -183,16 +183,18 @@ async function status(base: string, apiKey: string, _query: URLSearchParams, res
 }
 
 /**
- * Whether Prowlarr at `base` takes `apiKey`: false when it answers 401, throws when it doesn't
- * answer or answers anything else unexpected.
+ * Whether Prowlarr at `base` takes `apiKey`: 'invalid' when it answers 401, 'not-prowlarr' when
+ * the answer isn't Prowlarr's status (a proxy's login page, an app's index.html). Throws when it
+ * doesn't answer or answers with another error.
  */
-export async function checkProwlarrKey(base: string, apiKey: string): Promise<boolean> {
+export async function checkProwlarrKey(base: string, apiKey: string): Promise<'valid' | 'invalid' | 'not-prowlarr'> {
   const response = await fetch(`${base}/api/v1/system/status`, {
     headers: { 'X-Api-Key': apiKey, Accept: 'application/json' },
   })
-  if (response.status === 401) return false
+  if (response.status === 401) return 'invalid'
   if (!response.ok) throw new Error(`Prowlarr answered ${response.status}`)
-  return true
+  const body = (await response.json().catch(() => undefined)) as { version?: unknown } | undefined
+  return typeof body?.version === 'string' ? 'valid' : 'not-prowlarr'
 }
 
 /** Prowlarr's API key from its config.xml (<ApiKey>…</ApiKey>), or undefined when it can't be read. */
