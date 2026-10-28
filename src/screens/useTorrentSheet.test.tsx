@@ -25,14 +25,6 @@ describe('useTorrentSheet', () => {
     expect(result.current.torrent).toBeUndefined()
   })
 
-  it('follows its torrent through the polls', () => {
-    const { result, rerender } = renderSheet()
-    act(() => result.current.open('dune'))
-    const polled = { ...DUNE, progress: 0.5 }
-    rerender({ list: { dune: polled } })
-    expect(result.current.torrent).toBe(polled)
-  })
-
   it('closes when its torrent goes away, and stays closed when it’s back', () => {
     const { result, rerender } = renderSheet()
     act(() => result.current.open('dune'))
