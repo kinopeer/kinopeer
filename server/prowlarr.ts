@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import type { MagnetResponse, ProwlarrErrorBody, ProwlarrStatus, Release } from '../src/api/prowlarr/types.ts'
+import type { FailingIndexers, MagnetResponse, ProwlarrErrorBody, ProwlarrStatus, Release } from '../src/api/prowlarr/types.ts'
 
 /**
  * Same-origin bridge to Prowlarr. Unlike a plain proxy it reshapes responses, because Prowlarr's
@@ -9,6 +9,8 @@ import type { MagnetResponse, ProwlarrErrorBody, ProwlarrStatus, Release } from 
  * GET /prowlarr/search?query=…&type=search|movie|tvsearch&categories=2000 → Release[]
  * GET /prowlarr/download?token=… → the .torrent file, or { magnet } when the release is a magnet link
  * GET /prowlarr/status → { version, indexers }, to check the connection from Settings
+ * GET /prowlarr/failing?since=ISO → { indexers: names }, the enabled indexers that failed since then
+ *   or that Prowlarr has put on hold after failures (its search skips those and says nothing)
  *
  * Runs as Vite middleware in dev and in the production server.
  */
@@ -182,6 +184,65 @@ async function status(base: string, apiKey: string, _query: URLSearchParams, res
   } satisfies ProwlarrStatus)
 }
 
+/** What Kinoseed reads from Prowlarr's /api/v1/indexer. */
+interface ProwlarrIndexer {
+  id?: number
+  name?: string
+  enable?: boolean
+}
+
+/** What Kinoseed reads from Prowlarr's /api/v1/indexerstatus: indexers that have failed lately. */
+interface ProwlarrIndexerStatus {
+  indexerId?: number
+  /** ISO date until which Prowlarr skips the indexer. */
+  disabledTill?: string
+  mostRecentFailure?: string
+}
+
+/**
+ * Names of enabled indexers that failed at or after `since`, or that are on hold now. Prowlarr's
+ * search answers 200 with whatever the other indexers found, so this is the only way to tell.
+ */
+export function failingIndexers(
+  indexers: ProwlarrIndexer[],
+  statuses: ProwlarrIndexerStatus[],
+  since: number,
+  now: number,
+): string[] {
+  const failed = new Set(
+    statuses
+      .filter(
+        (status) =>
+          Date.parse(status.disabledTill ?? '') > now || Date.parse(status.mostRecentFailure ?? '') >= since,
+      )
+      .map((status) => status.indexerId),
+  )
+  return indexers
+    .filter((indexer) => indexer.enable && indexer.name && failed.has(indexer.id))
+    .map((indexer) => indexer.name!)
+    .sort((a, b) => a.localeCompare(b))
+}
+
+async function failing(base: string, apiKey: string, query: URLSearchParams, response: ServerResponse): Promise<void> {
+  const since = Date.parse(query.get('since') ?? '')
+  if (Number.isNaN(since)) return fail(response, 400, 'bad-request')
+  const headers = { 'X-Api-Key': apiKey, Accept: 'application/json' }
+  const [indexers, statuses] = await Promise.all([
+    fetch(`${base}/api/v1/indexer`, { headers }),
+    fetch(`${base}/api/v1/indexerstatus`, { headers }),
+  ])
+  if (indexers.status === 401 || statuses.status === 401) return fail(response, 502, 'unauthorized')
+  if (!indexers.ok || !statuses.ok) return fail(response, 502, 'upstream')
+  send(response, 200, {
+    indexers: failingIndexers(
+      (await indexers.json()) as ProwlarrIndexer[],
+      (await statuses.json()) as ProwlarrIndexerStatus[],
+      since,
+      Date.now(),
+    ),
+  } satisfies FailingIndexers)
+}
+
 /** Prowlarr's API key from its config.xml (<ApiKey>…</ApiKey>), or undefined when it can't be read. */
 export async function readProwlarrApiKey(configXmlPath: string): Promise<string | undefined> {
   try {
@@ -206,7 +267,15 @@ export function prowlarrMiddleware(config: ProwlarrConfig): Middleware {
 
       const route = url.pathname.slice(PREFIX.length)
       const handler =
-        route === 'search' ? search : route === 'download' ? download : route === 'status' ? status : undefined
+        route === 'search'
+          ? search
+          : route === 'download'
+            ? download
+            : route === 'status'
+              ? status
+              : route === 'failing'
+                ? failing
+                : undefined
       if (!handler) return fail(response, 404, 'not-found')
       // Errors never echo upstream URLs: they would contain the API key.
       await handler(base, apiKey, url.searchParams, response)

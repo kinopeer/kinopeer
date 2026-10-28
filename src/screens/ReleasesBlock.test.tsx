@@ -14,6 +14,7 @@ function releases(fields: Partial<Releases> = {}): Releases {
   return {
     status: 'ready',
     retry: vi.fn(),
+    failing: [],
     rows: ROWS,
     visible: ROWS,
     present: { resolution: [], audio: [], source: [], indexer: [] },
@@ -99,5 +100,16 @@ describe('ReleasesBody', () => {
     renderBody(releases())
     expect(screen.getByText('The list')).toBeInTheDocument()
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  it('names the indexers that didn’t answer, also when nothing was found', () => {
+    const { unmount } = renderBody(releases({ failing: ['Kinozal'] }))
+    expect(screen.getByRole('status')).toHaveTextContent('1 indexer didn’t answer: Kinozal')
+    expect(screen.getByText('The list')).toBeInTheDocument()
+    unmount()
+
+    renderBody(releases({ status: 'none', rows: [], visible: [], failing: ['Kinozal', 'RuTracker'] }))
+    expect(screen.getByRole('status')).toHaveTextContent('2 indexers didn’t answer: Kinozal, RuTracker')
+    expect(screen.getByRole('heading', { name: 'No releases found' })).toBeInTheDocument()
   })
 })

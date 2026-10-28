@@ -112,6 +112,7 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
         return json(route, { version: '2.0.5.5160', indexers: 2 })
       }
       if (pathname === '/prowlarr/search') return json(route, RELEASES)
+      if (pathname === '/prowlarr/failing') return json(route, { indexers: [] })
       if (pathname === '/prowlarr/download') {
         return route.fulfill({ contentType: 'application/x-bittorrent', body: shogunTorrent() })
       }

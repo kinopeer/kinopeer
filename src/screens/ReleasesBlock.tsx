@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
+import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { EmptyState } from '../components/EmptyState'
 import { FilterChip } from '../components/FilterChip'
@@ -44,13 +45,17 @@ export function ReleasesBody({ releases, skeleton, children }: ReleasesBodyProps
       )
     case 'none':
       return (
-        <EmptyState icon="folder" tone="muted" title={t('releases.noneTitle')} actionLabel={t('common.retry')} actionIcon="refresh" onAction={releases.retry}>
-          {t('releases.noneBody')}
-        </EmptyState>
+        <>
+          <FailingIndexers releases={releases} />
+          <EmptyState icon="folder" tone="muted" title={t('releases.noneTitle')} actionLabel={t('common.retry')} actionIcon="refresh" onAction={releases.retry}>
+            {t('releases.noneBody')}
+          </EmptyState>
+        </>
       )
   }
   return (
     <>
+      <FailingIndexers releases={releases} />
       <ActiveFilters releases={releases} />
       {releases.visible.length > 0 ? (
         children
@@ -60,6 +65,18 @@ export function ReleasesBody({ releases, skeleton, children }: ReleasesBodyProps
         </EmptyState>
       )}
     </>
+  )
+}
+
+/** A quiet note that some indexers didn't answer, so their releases are missing. */
+function FailingIndexers({ releases }: { releases: Releases }) {
+  const { t } = useTranslation()
+  const { failing } = releases
+  if (!failing.length) return null
+  return (
+    <Banner tone="info" icon="alert">
+      {t('releases.failingIndexers', { count: failing.length, names: failing.join(', ') })}
+    </Banner>
   )
 }
 

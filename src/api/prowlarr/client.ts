@@ -1,4 +1,4 @@
-import type { MagnetResponse, ProwlarrErrorBody, ProwlarrStatus, Release, SearchType } from './types'
+import type { FailingIndexers, MagnetResponse, ProwlarrErrorBody, ProwlarrStatus, Release, SearchType } from './types'
 
 /** Same-origin prefix served by Kinoseed's Prowlarr bridge (server/prowlarr.ts). */
 export const PROWLARR_BASE = '/prowlarr'
@@ -47,6 +47,17 @@ export async function searchReleases(query: string, options: SearchOptions = {})
   const response = await fetch(`${PROWLARR_BASE}/search?${params}`, { credentials: 'same-origin', signal })
   if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) throw await errorFor(response)
   return (await response.json()) as Release[]
+}
+
+/**
+ * Names of the enabled indexers that failed since `since` (a search's start) or that Prowlarr has
+ * put on hold, so a search can say whose results are missing.
+ */
+export async function getFailingIndexers(since: Date, signal?: AbortSignal): Promise<string[]> {
+  const params = new URLSearchParams({ since: since.toISOString() })
+  const response = await fetch(`${PROWLARR_BASE}/failing?${params}`, { credentials: 'same-origin', signal })
+  if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) throw await errorFor(response)
+  return ((await response.json()) as FailingIndexers).indexers
 }
 
 /** Checks the connection: Prowlarr's version and how many indexers are enabled. */

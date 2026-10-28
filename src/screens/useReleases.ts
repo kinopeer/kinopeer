@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ProwlarrSetupError, searchReleases, type Release } from '../api/prowlarr'
+import { ProwlarrSetupError, getFailingIndexers, searchReleases, type Release } from '../api/prowlarr'
 import { useRequest } from '../lib/useRequest'
 import {
   DEFAULT_SORT,
@@ -41,6 +41,8 @@ export type ReleasesStatus = 'loading' | 'setup' | 'error' | 'none' | 'ready'
 export interface Releases {
   status: ReleasesStatus
   retry: () => void
+  /** Names of the indexers that didn't answer this search, so their releases are missing. */
+  failing: string[]
   /** Every release found. */
   rows: ReleaseRow[]
   /** The releases the filters let through, sorted. */
@@ -58,6 +60,23 @@ export interface Releases {
   setAdding: (row: ReleaseRow | undefined) => void
 }
 
+interface Found {
+  releases: Release[]
+  failing: string[]
+}
+
+/**
+ * Searches, then asks which indexers failed since the search started: Prowlarr answers with what
+ * the others found and says nothing about the rest. Without that answer the search still counts.
+ */
+async function find(query: string, signal: AbortSignal): Promise<Found> {
+  const started = new Date()
+  // No category filter: some indexers (RuTor) file every release under "Other".
+  const releases = await searchReleases(query, { signal })
+  const failing = await getFailingIndexers(started, signal).catch((): string[] => [])
+  return { releases, failing }
+}
+
 /**
  * Searches Prowlarr for the title's releases once `details` is known and `enabled`, and keeps the
  * filters, the sort and the release being added: what the phone's releases screen and the desktop
@@ -66,17 +85,14 @@ export interface Releases {
 export function useReleases(details: TitleDetails | undefined, enabled = true): Releases {
   const { t } = useTranslation()
   const query = details && enabled ? releaseQuery(details) : null
-  const search = useRequest<Release[]>(query ? `${details!.type}|${query}` : null, (signal) =>
-    // No category filter: some indexers (RuTor) file every release under "Other".
-    searchReleases(query!, { signal }),
-  )
+  const search = useRequest<Found>(query ? `${details!.type}|${query}` : null, (signal) => find(query!, signal))
 
   const [filters, setFilters] = useState<Filters>(NO_FILTERS)
   const [sort, setSort] = useState<Sort>(DEFAULT_SORT)
   const [adding, setAdding] = useState<ReleaseRow>()
 
   const rows = useMemo<ReleaseRow[]>(
-    () => (search.data ?? []).map((release) => ({ release, info: parseRelease(release.title) })),
+    () => (search.data?.releases ?? []).map((release) => ({ release, info: parseRelease(release.title) })),
     [search.data],
   )
   const visible = useMemo(() => filterReleases(rows, filters, sort), [rows, filters, sort])
@@ -107,6 +123,7 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
   return {
     status,
     retry: search.retry,
+    failing: search.data?.failing ?? [],
     rows,
     visible,
     present,

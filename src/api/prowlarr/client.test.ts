@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
-import { ProwlarrSetupError, fetchRelease, searchReleases } from './client'
+import { ProwlarrSetupError, fetchRelease, getFailingIndexers, searchReleases } from './client'
 import type { Release } from './types'
 
 let fetchMock: Mock<typeof fetch>
@@ -20,6 +20,14 @@ describe('searchReleases', () => {
     // The SPA fallback answering instead of the bridge.
     fetchMock.mockResolvedValueOnce(new Response('<!doctype html>', { headers: { 'Content-Type': 'text/html' } }))
     await expect(searchReleases('a')).rejects.toBeInstanceOf(ProwlarrSetupError)
+  })
+})
+
+describe('getFailingIndexers', () => {
+  it('asks for the failures since the given time and answers with their names', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json({ indexers: ['Kinozal'] }))
+    await expect(getFailingIndexers(new Date('2026-10-28T00:59:00Z'))).resolves.toEqual(['Kinozal'])
+    expect(fetchMock.mock.calls[0][0]).toBe('/prowlarr/failing?since=2026-10-28T00%3A59%3A00.000Z')
   })
 })
 

@@ -45,6 +45,12 @@ export interface ProwlarrStatus {
   indexers: number
 }
 
+/** Answer of /prowlarr/failing. */
+export interface FailingIndexers {
+  /** Names of the enabled indexers that failed, sorted. */
+  indexers: string[]
+}
+
 /** Error body of the /prowlarr routes. */
 export interface ProwlarrErrorBody {
   error: 'not-configured' | 'unauthorized' | 'unreachable' | 'bad-request' | 'not-found' | 'upstream'

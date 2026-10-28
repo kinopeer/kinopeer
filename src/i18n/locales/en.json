@@ -269,7 +269,9 @@
     "colSeeds": "Seeds",
     "colPeers": "Peers",
     "colAge": "Age",
-    "add": "Add"
+    "add": "Add",
+    "failingIndexers_one": "{{count}} indexer didn’t answer: {{names}}",
+    "failingIndexers_other": "{{count}} indexers didn’t answer: {{names}}"
   },
   "add": {
     "title": "Add to downloads",

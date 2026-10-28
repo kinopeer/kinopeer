@@ -16,7 +16,7 @@ vi.mock('../api/tmdb', async (importOriginal) => {
 })
 vi.mock('../api/prowlarr', async (importOriginal) => {
   const actual = await importOriginal<typeof prowlarr>()
-  return { ...actual, searchReleases: vi.fn(), fetchRelease: vi.fn() }
+  return { ...actual, searchReleases: vi.fn(), getFailingIndexers: vi.fn(), fetchRelease: vi.fn() }
 })
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
   ...(await importOriginal<typeof qbt>()),
@@ -51,6 +51,7 @@ beforeEach(() => {
   getMovie.mockResolvedValue(DUNE)
   getTv.mockResolvedValue(BB)
   searchReleases.mockResolvedValue(DUNE_RELEASES)
+  vi.mocked(prowlarr.getFailingIndexers).mockResolvedValue([])
 })
 
 describe('ReleasesScreen', () => {
@@ -149,6 +150,20 @@ describe('ReleasesScreen', () => {
     searchReleases.mockRejectedValue(new prowlarr.ProwlarrSetupError(503, 'not-configured'))
     renderAt('/title/movie/693134/releases')
     expect(await screen.findByRole('heading', { name: 'Prowlarr isn’t connected' })).toBeInTheDocument()
+  })
+
+  it('asks which indexers failed after searching and names them', async () => {
+    vi.mocked(prowlarr.getFailingIndexers).mockResolvedValue(['Kinozal', 'RuTracker'])
+    renderAt('/title/movie/693134/releases')
+    expect(await screen.findByText('2 indexers didn’t answer: Kinozal, RuTracker')).toBeInTheDocument()
+    expect(screen.getAllByRole('article')).toHaveLength(DUNE_RELEASES.length)
+  })
+
+  it('still lists releases when it can’t tell which indexers failed', async () => {
+    vi.mocked(prowlarr.getFailingIndexers).mockRejectedValue(new prowlarr.ProwlarrError('down', 502, 'upstream'))
+    renderAt('/title/movie/693134/releases')
+    expect(await screen.findAllByRole('article')).toHaveLength(DUNE_RELEASES.length)
+    expect(screen.queryByText(/didn’t answer/)).not.toBeInTheDocument()
   })
 
   it('says when Prowlarr fails', async () => {

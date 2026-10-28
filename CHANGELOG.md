@@ -7,6 +7,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 ### Added
 
 - Releases: the indexer's name on a release (the card on a phone, the table on desktop and the add sheet) links to the release's page on the tracker, in a new tab, for what Kinoseed doesn't show.
+- Releases: when indexers fail during a search (blocked, timed out, or put on hold by Prowlarr after failures), a quiet note above the results names them, so missing releases aren't a mystery.
 
 ### Changed
 
