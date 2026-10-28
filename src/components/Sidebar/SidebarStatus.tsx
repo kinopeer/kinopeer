@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cx } from '../../lib/cx'
+import { Button } from '../Button'
 import { useFormatters } from '../../lib/format'
 import { Icon } from '../Icon'
+import { IconButton } from '../IconButton'
 
 export interface SidebarStatusProps {
   /** qBittorrent's version as it reports it, e.g. "v5.0.1". */
@@ -13,6 +15,10 @@ export interface SidebarStatusProps {
   downloadSpeed?: number
   uploadSpeed?: number
   freeSpace?: number
+  /** Whether qBittorrent's alternative speed limits apply; the switch shows only once it's known. */
+  altSpeedLimits?: boolean
+  altSpeedDisabled?: boolean
+  onToggleAltSpeed?: () => void
 }
 
 /** Splits a formatted size or speed into its number and unit, which the rail stacks. */
@@ -22,10 +28,20 @@ function splitUnit(text: string): [string, string] {
 }
 
 /**
- * qBittorrent's status at the bottom of the sidebar: connection, total speeds, free space. A card
- * with the labels; in the rail, a narrow column with each number over its unit.
+ * qBittorrent's status at the bottom of the sidebar: connection, total speeds, free space and the
+ * alternative speed limits switch. A card with the labels; in the rail, a narrow column with each
+ * number over its unit and the switch as an icon.
  */
-export function SidebarStatus({ version, offline, downloadSpeed, uploadSpeed, freeSpace }: SidebarStatusProps) {
+export function SidebarStatus({
+  version,
+  offline,
+  downloadSpeed,
+  uploadSpeed,
+  freeSpace,
+  altSpeedLimits,
+  altSpeedDisabled,
+  onToggleAltSpeed,
+}: SidebarStatusProps) {
   const { t } = useTranslation()
   const format = useFormatters()
   const speed = (value: number | undefined) => (value === undefined || offline ? '—' : format.speed(value))
@@ -42,6 +58,7 @@ export function SidebarStatus({ version, offline, downloadSpeed, uploadSpeed, fr
       </p>
     )
   }
+  const showAltSpeed = altSpeedLimits !== undefined && onToggleAltSpeed !== undefined
   return (
     <section className="ks-side-status" aria-label="qBittorrent">
       <div className="ks-side-card">
@@ -60,6 +77,20 @@ export function SidebarStatus({ version, offline, downloadSpeed, uploadSpeed, fr
         {freeSpace !== undefined && (
           <p className="t-cap ks-num c3">{t('downloads.freeSpace', { size: format.size(freeSpace) })}</p>
         )}
+        {showAltSpeed && (
+          <Button
+            variant={altSpeedLimits ? 'tonal' : 'secondary'}
+            size="sm"
+            icon="turtle"
+            block
+            title={t('speedLimits.alt')}
+            aria-pressed={altSpeedLimits}
+            disabled={altSpeedDisabled}
+            onClick={onToggleAltSpeed}
+          >
+            {t('speedLimits.short')}
+          </Button>
+        )}
       </div>
       <div className="ks-side-mini ks-num">
         <span className={cx('ks-side-dot', offline && 'is-off')} title={status}>
@@ -69,6 +100,15 @@ export function SidebarStatus({ version, offline, downloadSpeed, uploadSpeed, fr
         {stacked(t('downloads.uploadSpeed'), speed(uploadSpeed), <span aria-hidden="true">↑</span>)}
         {freeSpace !== undefined &&
           stacked(t('sidebar.freeSpace'), format.size(freeSpace), <Icon name="disk" size={13} />)}
+        {showAltSpeed && (
+          <IconButton
+            icon="turtle"
+            label={t('speedLimits.alt')}
+            active={altSpeedLimits}
+            disabled={altSpeedDisabled}
+            onClick={onToggleAltSpeed}
+          />
+        )}
       </div>
     </section>
   )
