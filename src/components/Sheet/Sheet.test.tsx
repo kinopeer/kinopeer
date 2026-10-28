@@ -188,7 +188,8 @@ describe('Sheet', () => {
         </Sheet>
       )
       const { rerender } = render(sheet(true))
-      pointer('pointerDown', handle(), 100)
+      // A second finger, so the drag left behind can't be mistaken for the new one.
+      pointer('pointerDown', handle(), 100, 0, { pointerId: 7 })
       rerender(sheet(false))
       rerender(sheet(true))
       slowDrag(handle(), 100, 300)
@@ -405,8 +406,8 @@ describe('Sheet', () => {
         expect(dialog().style.transform).toBe('translateY(50px)')
       })
 
-      it('drops the slide when it opens again', async () => {
-        const { animation, finish } = stubAnimate()
+      it('drops the slide when it opens again after closing another way mid-slide', () => {
+        const { animation } = stubAnimate()
         const onClose = vi.fn()
         const sheet = (open: boolean) => (
           <Sheet open={open} onClose={onClose} title="Add release">
@@ -415,8 +416,8 @@ describe('Sheet', () => {
         )
         const { rerender } = render(sheet(true))
         slowDrag(handle(), 100, 300)
-        finish()
-        await vi.waitFor(() => expect(onClose).toHaveBeenCalledOnce())
+        fireEvent(dialog(), new Event('cancel', { cancelable: true }))
+        expect(onClose).toHaveBeenCalledOnce()
         rerender(sheet(false))
         rerender(sheet(true))
         expect(animation.cancel).toHaveBeenCalledOnce()
