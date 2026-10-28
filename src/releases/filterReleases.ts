@@ -111,6 +111,11 @@ export function remember(remembered: RememberedFilters, change: Partial<Filters>
   }
 }
 
+/** Stored remembered filters with every filter, a missing one empty. */
+export function knownReleaseFilters(stored: Partial<RememberedFilters> | undefined): RememberedFilters {
+  return { ...NO_REMEMBERED_FILTERS, ...stored }
+}
+
 /** A stored sort if it's one the releases have, else the default. */
 export function knownReleaseSort(sort: Partial<Sort> | undefined): Sort {
   return sort?.key && SORT_KEYS.includes(sort.key) ? { key: sort.key, descending: sort.descending ?? true } : DEFAULT_SORT

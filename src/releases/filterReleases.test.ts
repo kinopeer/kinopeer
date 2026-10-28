@@ -4,8 +4,10 @@ import {
   DEFAULT_SORT,
   NO_FILTERS,
   filterReleases,
+  knownReleaseFilters,
   knownReleaseSort,
   presentValues,
+  remember,
   startingFilters,
   summary,
   toggle,
@@ -71,6 +73,29 @@ describe('startingFilters', () => {
       minSeeds: 50,
     })
   })
+
+  it('sets aside a minimum of seeds none of the releases reaches', () => {
+    expect(startingFilters({ resolution: [], audio: [], source: [], minSeeds: 5000 }, ROWS).minSeeds).toBe(0)
+  })
+})
+
+describe('remember', () => {
+  const remembered: RememberedFilters = { resolution: ['2160p'], audio: ['dub'], source: [], minSeeds: 0 }
+
+  it('replaces only the filters a change sets', () => {
+    expect(remember(remembered, { minSeeds: 10 })).toEqual({ ...remembered, minSeeds: 10 })
+  })
+
+  it('leaves the remembered filters as they were on an indexer change', () => {
+    expect(remember(remembered, { indexer: ['Kinozal'] })).toEqual(remembered)
+  })
+})
+
+describe('knownReleaseFilters', () => {
+  it('fills in a filter the stored ones lack as empty', () => {
+    expect(knownReleaseFilters({ resolution: ['2160p'] })).toEqual({ resolution: ['2160p'], audio: [], source: [], minSeeds: 0 })
+    expect(knownReleaseFilters(undefined)).toEqual({ resolution: [], audio: [], source: [], minSeeds: 0 })
+  })
 })
 
 describe('knownReleaseSort', () => {
@@ -78,6 +103,8 @@ describe('knownReleaseSort', () => {
     expect(knownReleaseSort({ key: 'date', descending: false })).toEqual({ key: 'date', descending: false })
     expect(knownReleaseSort({ key: 'peers' as never, descending: false })).toEqual(DEFAULT_SORT)
     expect(knownReleaseSort(undefined)).toEqual(DEFAULT_SORT)
+    // Stored without a direction: most first, as by default.
+    expect(knownReleaseSort({ key: 'size' })).toEqual({ key: 'size', descending: true })
   })
 })
 

@@ -6,6 +6,7 @@ import {
   NO_FILTERS,
   NO_REMEMBERED_FILTERS,
   filterReleases,
+  knownReleaseFilters,
   knownReleaseSort,
   presentValues,
   remember,
@@ -85,8 +86,7 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
     () => (search.data ?? []).map((release) => ({ release, info: parseRelease(release.title) })),
     [search.data],
   )
-  // Spread over the empty filters, so a stored value missing one of them still has it.
-  const remembered = useMemo(() => ({ ...NO_REMEMBERED_FILTERS, ...settings.releaseFilters }), [settings.releaseFilters])
+  const remembered = useMemo(() => knownReleaseFilters(settings.releaseFilters), [settings.releaseFilters])
   const starting = useMemo(() => startingFilters(remembered, rows), [remembered, rows])
   const filters = picked ?? starting
   const sort = useMemo(() => knownReleaseSort(settings.releaseSort), [settings.releaseSort])

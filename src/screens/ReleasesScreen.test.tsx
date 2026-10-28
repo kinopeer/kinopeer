@@ -206,14 +206,12 @@ describe('ReleasesScreen', () => {
       expect(names()).toEqual([DUNE_RELEASES[0].title, DUNE_RELEASES[1].title])
     })
 
-    it('sets aside a remembered filter no release meets, and keeps it for the next title', async () => {
-      updateSettings({ releaseFilters: { resolution: ['2160p'], audio: [], source: [], minSeeds: 5000 } })
+    it('sets aside a remembered filter no release has, and keeps it through a pick in another filter', async () => {
+      updateSettings({ releaseFilters: { resolution: ['2160p'], audio: [], source: [], minSeeds: 0 } })
       searchReleases.mockResolvedValue([DUNE_RELEASES[1], DUNE_RELEASES[2]])
       const first = renderAt('/title/movie/693134/releases')
       expect(await screen.findByText('2 of 2 releases')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Filters' })).toHaveAttribute('aria-pressed', 'false')
-
-      // A pick replaces what was set aside in its own filter only.
       await userEvent.click(screen.getByRole('button', { name: 'Filters' }))
       await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '10+' }))
       first.unmount()
