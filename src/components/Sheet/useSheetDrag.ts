@@ -19,12 +19,22 @@ interface Drag {
 
 type Handler = (event: PointerEvent<HTMLElement>) => void
 
-export interface SheetDragHandlers {
-  onPointerDown: Handler
-  onPointerMove: Handler
-  onPointerUp: Handler
-  onPointerCancel: Handler
-  onLostPointerCapture: Handler
+export interface SheetDrag {
+  /** For the handle. */
+  handle: {
+    onPointerDown: Handler
+    onPointerMove: Handler
+    onPointerUp: Handler
+    onPointerCancel: Handler
+    onLostPointerCapture: Handler
+  }
+  /** For the dialog: a new press forgets the last drag. */
+  onPointerDownCapture: () => void
+  /**
+   * Whether a click is the end of a drag rather than a tap: a drag let go over the backdrop can end
+   * in a click on the dialog itself, which would read as a tap on the backdrop.
+   */
+  endsDrag: () => boolean
 }
 
 /**
@@ -36,8 +46,9 @@ export interface SheetDragHandlers {
 export function useSheetDrag(
   ref: RefObject<HTMLDialogElement | null>,
   { open, onClose, enabled }: { open: boolean; onClose: () => void; enabled: boolean },
-): SheetDragHandlers {
+): SheetDrag {
   const drag = useRef<Drag | null>(null)
+  const dragged = useRef(false)
   const exit = useRef<Animation | null>(null)
   const [closeAsked, setCloseAsked] = useState(0)
 
@@ -117,6 +128,7 @@ export function useSheetDrag(
     if (event.type === 'lostpointercapture' && event.target !== event.currentTarget) return
     if (!current || !dialog || event.pointerId !== current.pointerId) return
     drag.current = null
+    dragged.current = current.moving
     end(event.currentTarget)
     const release = {
       distance: current.y - current.startY,
@@ -150,7 +162,17 @@ export function useSheetDrag(
     }, () => {})
   }
 
-  return { onPointerDown, onPointerMove, onPointerUp: onPointerEnd, onPointerCancel: onPointerEnd, onLostPointerCapture: onPointerEnd }
+  return {
+    handle: { onPointerDown, onPointerMove, onPointerUp: onPointerEnd, onPointerCancel: onPointerEnd, onLostPointerCapture: onPointerEnd },
+    onPointerDownCapture: () => {
+      dragged.current = false
+    },
+    endsDrag: () => {
+      const was = dragged.current
+      dragged.current = false
+      return was
+    },
+  }
 }
 
 /** The slide off the screen, or null where there are no Web Animations or the browser refuses it. */

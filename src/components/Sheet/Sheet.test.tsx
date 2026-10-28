@@ -225,6 +225,23 @@ describe('Sheet', () => {
       expect(dialog().style.transform).toBe('translateY(40px)')
     })
 
+    it("doesn't take a drag let go over the backdrop for a tap on it", () => {
+      const onClose = renderSheet()
+      slowDrag(handle(), 100, 140)
+      // Where the browser sends the click to the nearest common ancestor: the dialog itself.
+      fireEvent.click(dialog())
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it('takes a tap on the backdrop after a drag that ended without a click', () => {
+      const onClose = renderSheet()
+      // A touch drag sends no click at all.
+      slowDrag(handle(), 100, 140)
+      fireEvent.pointerDown(dialog())
+      fireEvent.click(dialog())
+      expect(onClose).toHaveBeenCalledOnce()
+    })
+
     it('goes back up when let go after a short, slow drag', () => {
       const onClose = renderSheet()
       slowDrag(handle(), 100, 140)

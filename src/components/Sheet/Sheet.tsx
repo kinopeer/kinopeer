@@ -73,14 +73,16 @@ export function Sheet({
         event.preventDefault()
         onClose()
       }}
+      onPointerDownCapture={drag.onPointerDownCapture}
       onClick={(event) => {
+        if (drag.endsDrag()) return
         // A click on the dialog box itself, outside its content, is a click on the backdrop.
         if (event.target === event.currentTarget) onClose()
       }}
     >
       {open && (
         <div className="ks-sheet-inner">
-          <div className="ks-sheet-handle" {...drag}>
+          <div className="ks-sheet-handle" {...drag.handle}>
             <div className="ks-grabber" aria-hidden="true" />
             <div className={leading ? 'ks-sheet-head has-leading' : 'ks-sheet-head'}>
               {leading}
