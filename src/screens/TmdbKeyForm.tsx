@@ -45,7 +45,7 @@ export function TmdbKeyForm({ onSaved, secondary }: TmdbKeyFormProps) {
   }
 
   return (
-    <form className="tmdb-key-form" onSubmit={handleSubmit}>
+    <form className="key-form" onSubmit={handleSubmit}>
       <p className="t-body c2">
         {t('tmdbKey.help')}{' '}
         <a className="tmdb-key-link" href={TMDB_API_SETTINGS_URL} target="_blank" rel="noreferrer">
@@ -75,7 +75,7 @@ export function TmdbKeyForm({ onSaved, secondary }: TmdbKeyFormProps) {
         help={t('tmdbKey.fieldHelp')}
       />
 
-      <div className="tmdb-key-actions">
+      <div className="key-form-actions">
         <Button type="submit" size="lg" block loading={saving}>
           {t('tmdbKey.save')}
         </Button>

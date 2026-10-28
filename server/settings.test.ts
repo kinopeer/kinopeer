@@ -3,8 +3,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { ServerSettings } from '../src/api/settings/types.ts'
-import { SettingsStore, qbittorrentCredentials, settingsMiddleware, tmdbKey } from './settings.ts'
-import { closeServers, fakeQbittorrent, fakeTmdb, serve } from './test/fakes.ts'
+import { SettingsStore, prowlarrKey, qbittorrentCredentials, settingsMiddleware, tmdbKey } from './settings.ts'
+import { closeServers, fakeProwlarr, fakeQbittorrent, fakeTmdb, serve } from './test/fakes.ts'
 
 let dir: string
 
@@ -149,6 +149,7 @@ describe('settingsMiddleware', () => {
     const store = new SettingsStore(dir)
     expect(await (await fetch(`${await kinoseed(store)}/api/settings`)).json()).toEqual({
       tmdb: { configured: false, source: null },
+      prowlarr: { configured: false, source: null, serverKey: false },
       qbittorrent: { configured: false, source: null },
       downloads: null,
     })
@@ -159,6 +160,7 @@ describe('settingsMiddleware', () => {
     const text = await response.text()
     expect(JSON.parse(text)).toEqual({
       tmdb: { configured: true, source: 'env' },
+      prowlarr: { configured: false, source: null, serverKey: false },
       qbittorrent: { configured: false, source: null },
       downloads: null,
     })
@@ -294,5 +296,160 @@ describe('settingsMiddleware: download defaults', () => {
     const response = await patchDownloads(app, { startPaused: true })
     expect(response.status).toBe(500)
     expect(await response.json()).toEqual({ error: 'storage' })
+  })
+})
+
+describe('prowlarrKey', () => {
+  it('takes the saved key, else the variable, else the one in config.xml', async () => {
+    const store = new SettingsStore(dir)
+    await store.load()
+    const configXml = join(dir, 'config.xml')
+    await writeFile(configXml, '<Config><ApiKey>file-key</ApiKey></Config>')
+
+    expect(await prowlarrKey(store, undefined, undefined)).toBeUndefined()
+    expect(await prowlarrKey(store, undefined, join(dir, 'missing.xml'))).toBeUndefined()
+    expect(await prowlarrKey(store, undefined, configXml)).toBe('file-key')
+    expect(await prowlarrKey(store, ' env-key ', configXml)).toBe('env-key')
+    await store.update({ prowlarrApiKey: 'saved-key' })
+    expect(await prowlarrKey(store, 'env-key', configXml)).toBe('saved-key')
+  })
+})
+
+describe('settingsMiddleware: Prowlarr key', () => {
+  function app(store: SettingsStore, options: { url?: string; envKey?: string; configXml?: string } = {}) {
+    return serve(
+      settingsMiddleware({
+        store,
+        prowlarrUrl: options.url,
+        envProwlarrApiKey: options.envKey,
+        prowlarrConfigXml: options.configXml,
+      }),
+    )
+  }
+
+  function put(base: string, apiKey: unknown) {
+    return fetch(`${base}/api/settings/prowlarr`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey }),
+    })
+  }
+
+  function forget(base: string) {
+    return fetch(`${base}/api/settings/prowlarr`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } })
+  }
+
+  async function prowlarrStatus(base: string) {
+    return ((await (await fetch(`${base}/api/settings`)).json()) as ServerSettings).prowlarr
+  }
+
+  it("reports a key from the variable or Prowlarr's config.xml as the server's, never the key", async () => {
+    const store = new SettingsStore(dir)
+    const configXml = join(dir, 'config.xml')
+    await writeFile(configXml, '<Config><ApiKey>file-key</ApiKey></Config>')
+
+    expect(await prowlarrStatus(await app(store, { configXml: join(dir, 'missing.xml') }))).toEqual({ configured: false, source: null, serverKey: false })
+    expect(await prowlarrStatus(await app(store, { envKey: 'env-key' }))).toEqual({ configured: true, source: 'env', serverKey: true })
+    const withFile = await app(store, { configXml })
+    expect(await prowlarrStatus(withFile)).toEqual({ configured: true, source: 'env', serverKey: true })
+    expect(await (await fetch(`${withFile}/api/settings`)).text()).not.toContain('file-key')
+  })
+
+  it('checks a new key with Prowlarr before saving it', async () => {
+    const prowlarr = await fakeProwlarr({ apiKey: 'good-key' })
+    const store = new SettingsStore(dir)
+    const base = await app(store, { url: `${prowlarr.base}/`, envKey: 'env-key' })
+
+    const response = await put(base, ' good-key ')
+
+    expect(response.status).toBe(200)
+    expect(((await response.json()) as ServerSettings).prowlarr).toEqual({ configured: true, source: 'saved', serverKey: true })
+    expect(prowlarr.seen.map((request) => request.url)).toEqual(['/api/v1/system/status'])
+    expect(await prowlarrKey(store, 'env-key', undefined)).toBe('good-key')
+  })
+
+  it('refuses a key Prowlarr rejects and keeps the old one', async () => {
+    const prowlarr = await fakeProwlarr({ apiKey: 'good-key' })
+    const store = new SettingsStore(dir)
+    await store.update({ prowlarrApiKey: 'old-key' })
+    const base = await app(store, { url: prowlarr.base })
+
+    const response = await put(base, 'wrong-key')
+
+    expect(response.status).toBe(422)
+    expect(await response.json()).toEqual({ error: 'invalid-key' })
+    expect(await prowlarrKey(store, undefined, undefined)).toBe('old-key')
+  })
+
+  it('says when Prowlarr is unreachable or not set up', async () => {
+    const unreachable = await put(await app(new SettingsStore(dir), { url: 'http://127.0.0.1:1' }), 'good-key')
+    expect(unreachable.status).toBe(502)
+    expect(await unreachable.json()).toEqual({ error: 'unreachable' })
+
+    const noUrl = await put(await app(new SettingsStore(dir)), 'good-key')
+    expect(noUrl.status).toBe(503)
+    expect(await noUrl.json()).toEqual({ error: 'not-configured' })
+  })
+
+  it('forgets a saved key, so the one in config.xml applies again', async () => {
+    const store = new SettingsStore(dir)
+    await store.update({ prowlarrApiKey: 'saved-key' })
+    const configXml = join(dir, 'config.xml')
+    await writeFile(configXml, '<Config><ApiKey>file-key</ApiKey></Config>')
+    const base = await app(store, { configXml })
+
+    const response = await forget(base)
+
+    expect(response.status).toBe(200)
+    expect(((await response.json()) as ServerSettings).prowlarr).toEqual({ configured: true, source: 'env', serverKey: true })
+    expect(await prowlarrKey(store, undefined, configXml)).toBe('file-key')
+  })
+
+  it('keeps a saved key when the server has none of its own to fall back on', async () => {
+    const store = new SettingsStore(dir)
+    await store.update({ prowlarrApiKey: 'saved-key' })
+    const base = await app(store, { configXml: join(dir, 'missing.xml') })
+    expect(await prowlarrStatus(base)).toEqual({ configured: true, source: 'saved', serverKey: false })
+
+    const response = await forget(base)
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toEqual({ error: 'no-server-key' })
+    expect(await prowlarrKey(store, undefined, undefined)).toBe('saved-key')
+  })
+
+  it('forgets a key only on a request marked as JSON', async () => {
+    const store = new SettingsStore(dir)
+    await store.update({ prowlarrApiKey: 'saved-key' })
+    const base = await app(store, { envKey: 'env-key' })
+
+    expect((await fetch(`${base}/api/settings/prowlarr`, { method: 'DELETE' })).status).toBe(415)
+    expect(await prowlarrKey(store, 'env-key', undefined)).toBe('saved-key')
+  })
+
+  it("doesn't save a key when the address answers but isn't Prowlarr", async () => {
+    // A proxy's login page or an app's index.html answers 200 to any path and any key.
+    const notProwlarr = await serve((_request, response) => {
+      response.setHeader('Content-Type', 'text/html')
+      response.end('<!doctype html><title>Sign in</title>')
+    })
+    const store = new SettingsStore(dir)
+    const base = await app(store, { url: notProwlarr })
+
+    const response = await put(base, 'any-key')
+
+    expect(response.status).toBe(502)
+    expect(await response.json()).toEqual({ error: 'not-prowlarr' })
+    expect(store.current.prowlarrApiKey).toBeUndefined()
+  })
+
+  it('rejects malformed keys without asking Prowlarr', async () => {
+    const prowlarr = await fakeProwlarr()
+    const base = await app(new SettingsStore(dir), { url: prowlarr.base })
+
+    expect((await put(base, '')).status).toBe(400)
+    expect((await put(base, 42)).status).toBe(400)
+    expect((await put(base, 'two words')).status).toBe(400)
+    expect(prowlarr.seen).toEqual([])
   })
 })

@@ -61,10 +61,12 @@ export function Dialog({ open, onClose, title, icon, tone, actions, className, c
               <Icon name={icon} size={24} />
             </div>
           )}
-          <h2 id={titleId} className="t-h3">
-            {title}
-          </h2>
-          {children}
+          <div className="ks-dialog-body">
+            <h2 id={titleId} className="t-h3">
+              {title}
+            </h2>
+            {children}
+          </div>
           <div className="ks-dialog-actions">{actions}</div>
         </div>
       )}

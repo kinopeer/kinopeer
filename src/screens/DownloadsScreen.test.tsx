@@ -1,6 +1,6 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import * as matchesApi from '../api/matches'
 import * as api from '../api/qbittorrent'
 import type { MainData, Torrent } from '../api/qbittorrent'
@@ -12,9 +12,26 @@ import { resetServerMatches } from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
 import { DownloadsScreen } from './DownloadsScreen'
 
+/** Hides the page, which stops the poll until the test ends. */
+function stopPolling() {
+  const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(true)
+  document.dispatchEvent(new Event('visibilitychange'))
+  onTestFinished(() => hidden.mockRestore())
+}
+
 vi.mock('../api/qbittorrent', async (importOriginal) => {
   const actual = await importOriginal<typeof api>()
-  return { ...actual, getMainData: vi.fn(), stopTorrents: vi.fn(), startTorrents: vi.fn(), deleteTorrents: vi.fn(), getSaveLocations: vi.fn(), setTorrentLocation: vi.fn() }
+  return {
+    ...actual,
+    getMainData: vi.fn(),
+    stopTorrents: vi.fn(),
+    startTorrents: vi.fn(),
+    deleteTorrents: vi.fn(),
+    recheckTorrents: vi.fn(),
+    reannounceTorrents: vi.fn(),
+    getSaveLocations: vi.fn(),
+    setTorrentLocation: vi.fn(),
+  }
 })
 
 vi.mock('../api/tmdb', async (importOriginal) => {
@@ -305,17 +322,67 @@ describe('DownloadsScreen', () => {
     vi.mocked(api.setTorrentLocation).mockResolvedValue()
     renderScreen()
     await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' }))
+    // A hidden page doesn't poll, so only the screen's own refresh can bring qBittorrent's next answer.
+    stopPolling()
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Move files…' }))
     const sheet = screen.getByRole('dialog', { name: 'Move files' })
     const field = within(sheet).getByRole('textbox', { name: 'Folder' })
     await userEvent.clear(field)
     await userEvent.type(field, '/media/tv')
-    const polls = vi.mocked(api.getMainData).mock.calls.length
+    // The list asks qBittorrent again right after the move, so the row shows the move without a poll.
+    getMainData.mockResolvedValue({
+      ...SNAPSHOT,
+      torrents: { ...SNAPSHOT.torrents, andor: { ...SNAPSHOT.torrents!.andor, state: 'moving' } },
+    })
     await userEvent.click(within(sheet).getByRole('button', { name: 'Move' }))
     expect(api.setTorrentLocation).toHaveBeenCalledWith(['andor'], '/media/tv')
-    expect(await screen.findByText('Moving files to /media/tv')).toBeInTheDocument()
-    // The count is the behavior: the screen polls again right after the move, so the new folder shows.
-    await vi.waitFor(() => expect(vi.mocked(api.getMainData).mock.calls.length).toBeGreaterThan(polls))
+    expect(await screen.findByRole('status')).toHaveTextContent('Moving files to /media/tv')
+    const andor = screen.getByRole('link', { name: /Andor\.S02\.1080p/ }).closest('li')!
+    expect(await within(andor).findByText('Checking', { exact: true })).toBeInTheDocument()
+  })
+
+  it('reannounces a torrent from the row menu, and rechecks it after confirmation', async () => {
+    vi.mocked(api.recheckTorrents).mockResolvedValue()
+    vi.mocked(api.reannounceTorrents).mockResolvedValue()
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' }))
+    // A hidden page doesn't poll, so only the screen's own refresh can bring qBittorrent's next answer.
+    stopPolling()
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Reannounce' }))
+    expect(api.reannounceTorrents).toHaveBeenCalledWith(['andor'])
+    expect(await screen.findByRole('status')).toHaveTextContent('Announced to the trackers')
+
+    await userEvent.click(screen.getByRole('button', { name: 'More actions: Andor.S02.1080p' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Force recheck' }))
+    const confirm = screen.getByRole('alertdialog', { name: 'Recheck the files?' })
+    // The list asks qBittorrent again right after the recheck, so the row shows Checking without a poll.
+    getMainData.mockResolvedValue({
+      ...SNAPSHOT,
+      torrents: { ...SNAPSHOT.torrents, andor: { ...SNAPSHOT.torrents!.andor, state: 'checkingUP' } },
+    })
+    await userEvent.click(within(confirm).getByRole('button', { name: 'Force recheck' }))
+    expect(api.recheckTorrents).toHaveBeenCalledWith(['andor'])
+    expect(await screen.findByRole('status')).toHaveTextContent('Checking the files')
+    const andor = screen.getByRole('link', { name: /Andor\.S02\.1080p/ }).closest('li')!
+    expect(await within(andor).findByText('Checking', { exact: true })).toBeInTheDocument()
+  })
+
+  it('drops a recheck confirmation whose torrent went away, so it doesn’t open again when the torrent is back', async () => {
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Force recheck' }))
+    expect(screen.getByRole('alertdialog', { name: 'Recheck the files?' })).toBeInTheDocument()
+
+    const { andor, ...others } = SNAPSHOT.torrents!
+    getMainData.mockResolvedValue({ ...SNAPSHOT, torrents: others })
+    window.dispatchEvent(new Event('online'))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'More actions: Andor.S02.1080p' })).not.toBeInTheDocument())
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+
+    getMainData.mockResolvedValue({ ...SNAPSHOT, torrents: { ...others, andor } })
+    window.dispatchEvent(new Event('online'))
+    expect(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' })).toBeInTheDocument()
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })
 
   it('asks in the row menu whether a guessed title is right, and saves the confirmation', async () => {

@@ -69,13 +69,13 @@
   padding-left: var(--nav-left);
 }
 
-.tmdb-key-form {
+.key-form {
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
 }
 
-.tmdb-key-actions {
+.key-form-actions {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
