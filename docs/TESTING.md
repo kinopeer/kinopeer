@@ -97,6 +97,11 @@ milliseconds, fails with a precise message, and it's the one the layer above lea
   version; an inline server is only for a test that needs the service to misbehave in one specific
   way. `vi.mock` stays in each test file on purpose, so a reader sees what the test replaces without
   opening another module.
+- **A sheet that sends a request for one torrent.** It goes through `useTorrentSheet`, whose own
+  tests own when the sheet is open: closed, its torrent gone, or replaced by another with the same
+  hash. The feature's hook tests, with its harness, say where the request's outcome goes in each of
+  those cases (the sheet, opened again or not, or a toast) and that it isn't sent twice while in
+  flight, as `useMoveTorrent.test.tsx` and `useSpeedLimits.test.tsx` do.
 - **A flaky test is fixed or deleted.** Not retried, not skipped, not marked `fixme`: a retry hides
   the instability and a skip hides the behavior (oxlint refuses `.skip` and `.only`). Both Playwright
   configs run with `retries: 0`, so a screenshot or a journey that fails once fails the job.

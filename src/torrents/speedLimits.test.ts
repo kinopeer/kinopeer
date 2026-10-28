@@ -11,6 +11,7 @@ describe('limitToField and fieldToLimit', () => {
     expect(limitToField(-1, 'en')).toBe('')
     // A qBittorrent that doesn't report it: no limit known, rather than "NaN".
     expect(limitToField(undefined, 'en')).toBe('')
+    expect(limitToField(Number.NaN, 'en')).toBe('')
   })
 
   it("writes the language's decimal separator and no grouping", () => {

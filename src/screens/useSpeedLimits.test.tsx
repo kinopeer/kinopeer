@@ -1,0 +1,192 @@
+import { fireEvent, render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import * as api from '../api/qbittorrent'
+import type { Torrent } from '../api/qbittorrent'
+import { torrent } from '../test/fixtures'
+import { useSpeedLimits } from './useSpeedLimits'
+
+vi.mock('../api/qbittorrent', async (importOriginal) => ({
+  ...(await importOriginal<typeof api>()),
+  setSpeedLimits: vi.fn(),
+}))
+
+const setSpeedLimits = vi.mocked(api.setSpeedLimits)
+
+const ANDOR = torrent('andor', { name: 'Andor.S02.1080p' })
+const ALIEN = torrent('alien', { name: 'Alien.Romulus.2024.1080p' })
+
+function Harness({ torrents, refresh }: { torrents: Record<string, Torrent>; refresh: () => void }) {
+  const limits = useSpeedLimits({ torrents, offline: false, refresh, titleOf: (item) => `Title of ${item.name}` })
+  return (
+    <section aria-label="Screen">
+      {Object.keys(torrents).map((hash) => (
+        <button key={hash} type="button" onClick={() => limits.open(hash)}>
+          Open {hash}
+        </button>
+      ))}
+      {limits.element}
+    </section>
+  )
+}
+
+function renderLimits(torrents: Record<string, Torrent> = { andor: ANDOR, alien: ALIEN }) {
+  const refresh = vi.fn()
+  const view = render(<Harness torrents={torrents} refresh={refresh} />)
+  const open = async (hash = 'andor') => {
+    await userEvent.click(screen.getByRole('button', { name: `Open ${hash}` }))
+    return screen.getByRole('dialog', { name: 'Speed limits' })
+  }
+  const save = async (sheet: HTMLElement, download: string) => {
+    await userEvent.type(within(sheet).getByRole('textbox', { name: 'Download limit, MB/s' }), download)
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save limits' }))
+  }
+  // Escape, which jsdom doesn't turn into the dialog's cancel event.
+  const dismiss = (sheet: HTMLElement) => fireEvent(sheet, new Event('cancel', { cancelable: true }))
+  const rerender = (next: Record<string, Torrent>) => view.rerender(<Harness torrents={next} refresh={refresh} />)
+  return { refresh, open, save, dismiss, rerender }
+}
+
+/** A save that settles when the test says so. */
+function pendingSave() {
+  const settle = { saved: () => {}, refused: () => {} }
+  setSpeedLimits.mockReturnValueOnce(
+    new Promise<void>((resolve, reject) => {
+      settle.saved = resolve
+      settle.refused = () => reject(new Error('500'))
+    }),
+  )
+  return settle
+}
+
+const FAILED_CLOSED = 'Couldn’t save the speed limits of Title of Andor.S02.1080p, or saved only some. Open them again to check.'
+
+beforeEach(() => {
+  vi.resetAllMocks()
+})
+
+describe('useSpeedLimits', () => {
+  it('opens for a torrent with its title, saves the limits for it, closes and asks qBittorrent again', async () => {
+    setSpeedLimits.mockResolvedValue()
+    const { open, save, refresh } = renderLimits()
+    const sheet = await open()
+    expect(within(sheet).getByText('Title of Andor.S02.1080p')).toBeInTheDocument()
+    await save(sheet, '2')
+    expect(setSpeedLimits).toHaveBeenCalledWith(['andor'], { download: 2_000_000, upload: undefined })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(refresh).toHaveBeenCalled()
+  })
+
+  it('keeps the sheet open with the failure and asks qBittorrent again, since one of the two may have gone through', async () => {
+    setSpeedLimits.mockRejectedValue(new Error('500'))
+    const { open, save, refresh } = renderLimits()
+    const sheet = await open()
+    await save(sheet, '2')
+    expect(await within(sheet).findByText(/Couldn’t save the limits, or saved only some/)).toBeInTheDocument()
+    expect(refresh).toHaveBeenCalled()
+    expect(within(sheet).getByRole('button', { name: 'Save limits' })).toBeEnabled()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('sends the limits once, however often the form is submitted while they’re being saved', async () => {
+    pendingSave()
+    const { open } = renderLimits()
+    const sheet = await open()
+    fireEvent.change(within(sheet).getByRole('textbox', { name: 'Download limit, MB/s' }), { target: { value: '3' } })
+    // Submitted on the form itself, as Enter in a field would, past the disabled Save button.
+    const form = within(sheet).getByRole('button', { name: 'Save limits' }).closest('form')!
+    fireEvent.submit(form)
+    fireEvent.submit(form)
+    // A second request could land after the first and leave qBittorrent with either.
+    expect(setSpeedLimits).toHaveBeenCalledTimes(1)
+  })
+
+  it('says in a toast when a save fails after its sheet was closed', async () => {
+    const settle = pendingSave()
+    const { open, save, dismiss, refresh } = renderLimits()
+    const sheet = await open()
+    await save(sheet, '2')
+    dismiss(sheet)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    settle.refused()
+    expect(await screen.findByRole('status')).toHaveTextContent(FAILED_CLOSED)
+    expect(refresh).toHaveBeenCalled()
+  })
+
+  it('says in a toast when a save fails after its torrent went away', async () => {
+    const settle = pendingSave()
+    const { open, save, rerender } = renderLimits()
+    await save(await open(), '2')
+    rerender({ alien: ALIEN })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    settle.refused()
+    expect(await screen.findByRole('status')).toHaveTextContent(FAILED_CLOSED)
+  })
+
+  it('shows a save from a closed sheet in the one opened again for the same torrent, and closes that once saved', async () => {
+    const settle = pendingSave()
+    const { open, save, dismiss } = renderLimits()
+    const first = await open()
+    await save(first, '2')
+    dismiss(first)
+    const again = await open()
+    // Still being saved, so it can't be sent a second time.
+    expect(within(again).getByRole('button', { name: /Save limits/ })).toBeDisabled()
+    settle.saved()
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('says in the sheet opened again for the same torrent that the save from the closed one failed', async () => {
+    const settle = pendingSave()
+    const { open, save, dismiss } = renderLimits()
+    const first = await open()
+    await save(first, '2')
+    dismiss(first)
+    const again = await open()
+    settle.refused()
+    expect(await within(again).findByText(/Couldn’t save the limits, or saved only some/)).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('keeps a sheet opened for another torrent since when a save from a closed sheet comes back', async () => {
+    const settle = pendingSave()
+    const { open, save, dismiss, refresh } = renderLimits()
+    const andor = await open('andor')
+    await save(andor, '2')
+    dismiss(andor)
+    const alien = await open('alien')
+    expect(within(alien).getByText('Title of Alien.Romulus.2024.1080p')).toBeInTheDocument()
+    expect(within(alien).getByRole('button', { name: 'Save limits' })).toBeEnabled()
+    settle.saved()
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalled())
+    expect(screen.getByRole('dialog', { name: 'Speed limits' })).toBe(alien)
+    expect(within(alien).getByRole('button', { name: 'Save limits' })).toBeEnabled()
+  })
+
+  it('says in a toast, not in a sheet opened for another torrent since, that a save from a closed sheet failed', async () => {
+    const settle = pendingSave()
+    const { open, save, dismiss } = renderLimits()
+    const andor = await open('andor')
+    await save(andor, '2')
+    dismiss(andor)
+    const alien = await open('alien')
+    settle.refused()
+    expect(await screen.findByRole('status')).toHaveTextContent(FAILED_CLOSED)
+    expect(within(alien).queryByText(/Couldn’t save the limits/)).not.toBeInTheDocument()
+  })
+
+  it('keeps a torrent’s save busy when another torrent’s earlier save settles', async () => {
+    const andorSave = pendingSave()
+    pendingSave()
+    const { open, save, dismiss, refresh } = renderLimits()
+    const andor = await open('andor')
+    await save(andor, '2')
+    dismiss(andor)
+    const alien = await open('alien')
+    await save(alien, '3')
+    andorSave.saved()
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalled())
+    // A second tap would send alien's limits again.
+    expect(within(alien).getByRole('button', { name: /Save limits/ })).toBeDisabled()
+  })
+})

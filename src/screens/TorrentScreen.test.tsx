@@ -265,6 +265,23 @@ describe('TorrentScreen', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('qBittorrent couldn’t create that folder.')
   })
 
+  it('says the speed limits failed when the torrent is gone by the time qBittorrent answers', async () => {
+    let refuse = () => {}
+    vi.mocked(api.setSpeedLimits).mockReturnValue(new Promise<void>((_resolve, reject) => (refuse = () => reject(new Error('500')))))
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Dune: Part Two' })).getByRole('button', { name: 'Speed limits' }))
+    const sheet = screen.getByRole('dialog', { name: 'Speed limits' })
+    await userEvent.type(within(sheet).getByRole('textbox', { name: 'Download limit, MB/s' }), '2')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save limits' }))
+
+    getMainData.mockResolvedValue(mainData([]))
+    window.dispatchEvent(new Event('online'))
+    expect(await screen.findByText('Torrent not found')).toBeInTheDocument()
+    refuse()
+    expect(await screen.findByRole('status')).toHaveTextContent(/^Couldn’t save the speed limits of .+, or saved only some/)
+  })
+
   it('reannounces, and rechecks after a confirmation, from the More menu, each with a toast', async () => {
     vi.mocked(api.recheckTorrents).mockResolvedValue()
     vi.mocked(api.reannounceTorrents).mockResolvedValue()

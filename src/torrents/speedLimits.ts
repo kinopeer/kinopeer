@@ -9,8 +9,8 @@ export const MAX_MB = 2147
 /** A limit in bytes/s as the field's text, with the language's decimal separator: empty when there
  *  is none. Three decimals keep qBittorrent's smallest limit, 1 KiB/s, from showing as 0. */
 export function limitToField(bytes: number | undefined, language: string): string {
-  // Also when qBittorrent doesn't report it, so the field doesn't show NaN.
-  if (bytes === undefined || bytes <= 0) return ''
+  // Also when qBittorrent doesn't report it or sends something else, so the field doesn't show NaN.
+  if (bytes === undefined || !(bytes > 0)) return ''
   // Kept within the field's bounds, so what it fills is what it takes back. A limit above the
   // maximum, set elsewhere, stays as it is while its field is untouched.
   const value = Math.min(Math.max(MIN_MB, Math.round((bytes / MB) * 1000) / 1000), MAX_MB)

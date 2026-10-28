@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { Torrent } from '../api/qbittorrent'
+import { setSpeedLimits, type Torrent } from '../api/qbittorrent'
 import { Toast } from '../components/Toast'
-import { SpeedLimitsSheet } from './SpeedLimitsSheet'
+import { SpeedLimitsSheet, type SentLimits, type SpeedLimitsChange } from './SpeedLimitsSheet'
+import { useTorrentSheet } from './useTorrentSheet'
 
 export interface SpeedLimits {
   /** Opens "Speed limits" for a torrent in `torrents`. */
@@ -13,8 +14,9 @@ export interface SpeedLimits {
 
 /**
  * "Speed limits" for a screen, in the shape of `useMoveTorrent`: the sheet for one of its torrents,
- * which closes when the torrent goes away or is replaced by another with the same hash, and a save
- * that answers after the sheet was closed neither closes a sheet opened since nor fails unsaid.
+ * and the save itself, which outlives the sheet. A sheet for that torrent, the one that sent the save
+ * or one opened again since, shows it in flight, closes when it's saved and says when it failed; with
+ * no such sheet, a failure is a toast on the screen.
  */
 export function useSpeedLimits({ torrents, offline, refresh, titleOf }: {
   /** The screen's torrents: the sheet is for one of them, and closes when it's gone. */
@@ -26,65 +28,52 @@ export function useSpeedLimits({ torrents, offline, refresh, titleOf }: {
   titleOf: (torrent: Torrent) => string
 }): SpeedLimits {
   const { t } = useTranslation()
-  // The torrent the sheet is open for, by when it was added: one re-added with the same hash is
-  // another torrent, so the sheet doesn't come back for it.
-  const [opened, setOpened] = useState<{ hash: string; addedOn: number } | null>(null)
+  const { torrent, open: openSheet, close, showing } = useTorrentSheet(torrents)
+  const [savingFor, setSavingFor] = useState<string | null>(null)
+  // The fields the last failed save sent, for the torrent whose sheet shows it.
+  const [failure, setFailure] = useState<{ hash: string; sent: SentLimits } | null>(null)
   // The title of a torrent whose save failed after its sheet was closed.
   const [failedFor, setFailedFor] = useState<string | null>(null)
-  const candidate = opened ? torrents?.[opened.hash] : undefined
-  const torrent = candidate?.added_on === opened?.addedOn ? candidate : undefined
-  // Gone (deleted elsewhere) or replaced: forgotten, so the sheet doesn't open again when the same
-  // torrent is back.
-  if (opened && torrents && !torrent) setOpened(null)
-  // Read when a save settles, to tell whether its sheet still shows: set by the handlers, and the
-  // screen's torrents after each render.
-  const openFor = useRef<string | null>(null)
-  const latest = useRef(torrents)
-  useEffect(() => {
-    latest.current = torrents
-  })
-  useEffect(
-    () => () => {
-      openFor.current = null
-    },
-    [],
-  )
 
   const open = useCallback(
     (hash: string) => {
-      const next = torrents?.[hash]
-      if (!next) return
-      openFor.current = hash
-      setOpened({ hash, addedOn: next.added_on })
+      openSheet(hash)
+      setFailure(null)
     },
-    [torrents],
+    [openSheet],
   )
-  const close = () => {
-    openFor.current = null
-    setOpened(null)
-  }
   const dismiss = useCallback(() => setFailedFor(null), [])
-  const showing = (target: Torrent) =>
-    openFor.current === target.hash && latest.current?.[target.hash]?.added_on === target.added_on
+
+  const save = async (target: Torrent, limits: SpeedLimitsChange) => {
+    setSavingFor(target.hash)
+    setFailure(null)
+    try {
+      await setSpeedLimits([target.hash], limits)
+      if (showing(target)) close()
+    } catch {
+      const sent = { download: limits.download !== undefined, upload: limits.upload !== undefined }
+      if (showing(target)) setFailure({ hash: target.hash, sent })
+      else setFailedFor(titleOf(target))
+    } finally {
+      // Either way, show what qBittorrent took: after a failure one of the two may have gone through.
+      refresh()
+      // Another torrent's save may have started meanwhile, and is still being sent.
+      setSavingFor((current) => (current === target.hash ? null : current))
+    }
+  }
 
   const element = (
     <>
       {torrent && (
         <SpeedLimitsSheet
-          key={`${torrent.hash}:${torrent.added_on}`}
+          key={torrent.hash}
           torrent={torrent}
           title={titleOf(torrent)}
           offline={offline}
+          saving={savingFor === torrent.hash}
+          failure={failure?.hash === torrent.hash ? failure.sent : undefined}
+          onSave={(limits) => void save(torrent, limits)}
           onClose={close}
-          onSaved={() => {
-            refresh()
-            if (showing(torrent)) close()
-          }}
-          onFailed={() => {
-            // One of the two requests may have gone through: show what was applied.
-            refresh()
-            if (!showing(torrent)) setFailedFor(titleOf(torrent))
-          }}
         />
       )}
       {failedFor !== null && (

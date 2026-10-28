@@ -1,45 +1,34 @@
-import { fireEvent, screen } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import * as api from '../api/qbittorrent'
+import { describe, expect, it, vi } from 'vitest'
 import i18n from '../i18n'
 import { torrent } from '../test/fixtures'
 import { renderWithRouter } from '../test/render'
-import { SpeedLimitsSheet } from './SpeedLimitsSheet'
-
-vi.mock('../api/qbittorrent', async (importOriginal) => ({
-  ...(await importOriginal<typeof api>()),
-  setSpeedLimits: vi.fn(),
-}))
-
-beforeEach(() => {
-  vi.resetAllMocks()
-})
+import { SpeedLimitsSheet, type SpeedLimitsSheetProps } from './SpeedLimitsSheet'
 
 describe('SpeedLimitsSheet', () => {
-  function renderSheet(fields = {}, offline = false) {
-    const handlers = { onClose: vi.fn(), onSaved: vi.fn(), onFailed: vi.fn() }
-    renderWithRouter(<SpeedLimitsSheet torrent={torrent('h1', fields)} title="Inception" offline={offline} {...handlers} />)
+  function renderSheet(fields = {}, props: Partial<SpeedLimitsSheetProps> = {}) {
+    const handlers = { onClose: vi.fn(), onSave: vi.fn() }
+    renderWithRouter(
+      <SpeedLimitsSheet torrent={torrent('h1', fields)} title="Inception" offline={false} saving={false} {...handlers} {...props} />,
+    )
     return handlers
   }
 
   it("can't save while qBittorrent is unreachable, but keeps what was typed", async () => {
-    renderSheet({}, true)
+    renderSheet({}, { offline: true })
     await userEvent.type(screen.getByRole('textbox', { name: 'Download limit, MB/s' }), '3')
     expect(screen.getByRole('textbox', { name: 'Download limit, MB/s' })).toHaveValue('3')
     expect(screen.getByRole('button', { name: 'Save limits' })).toBeDisabled()
   })
 
-  it('saves a changed limit, then says so, which closes it', async () => {
-    vi.mocked(api.setSpeedLimits).mockResolvedValue()
+  it('sends only the changed limit', async () => {
     const handlers = renderSheet()
     await userEvent.type(screen.getByRole('textbox', { name: 'Upload limit, MB/s' }), '0,5')
     await userEvent.click(screen.getByRole('button', { name: 'Save limits' }))
-    expect(api.setSpeedLimits).toHaveBeenCalledWith(['h1'], { download: undefined, upload: 500_000 })
-    expect(handlers.onSaved).toHaveBeenCalled()
-    expect(handlers.onFailed).not.toHaveBeenCalled()
+    expect(handlers.onSave).toHaveBeenCalledWith({ download: undefined, upload: 500_000 })
+    expect(handlers.onClose).not.toHaveBeenCalled()
   })
-
   it('says under each field that an empty one means no limit', () => {
     renderSheet()
     expect(screen.getByRole('textbox', { name: 'Download limit, MB/s' })).toHaveAccessibleDescription('Empty: no limit')
@@ -53,62 +42,37 @@ describe('SpeedLimitsSheet', () => {
   })
 
   it("disables Save while the limits are being saved, so they aren't sent twice", async () => {
-    vi.mocked(api.setSpeedLimits).mockReturnValue(new Promise(() => {}))
-    renderSheet()
+    const handlers = renderSheet({}, { saving: true })
     await userEvent.type(screen.getByRole('textbox', { name: 'Download limit, MB/s' }), '3')
-    await userEvent.click(screen.getByRole('button', { name: 'Save limits' }))
     expect(screen.getByRole('button', { name: /Save limits/ })).toBeDisabled()
-    // Neither another click nor Enter in a field sends them again while the first save is pending.
+    // Neither a click nor Enter in a field sends them while a save is in flight.
     await userEvent.click(screen.getByRole('button', { name: /Save limits/ }))
     await userEvent.type(screen.getByRole('textbox', { name: 'Download limit, MB/s' }), '{Enter}')
-    expect(api.setSpeedLimits).toHaveBeenCalledTimes(1)
-  })
-
-  it('takes a second submit while the first save is pending as nothing', () => {
-    vi.mocked(api.setSpeedLimits).mockReturnValue(new Promise(() => {}))
-    renderSheet()
-    fireEvent.change(screen.getByRole('textbox', { name: 'Download limit, MB/s' }), { target: { value: '3' } })
-    // Submitted on the form itself, as another submit control would, past the disabled Save button.
-    const form = screen.getByRole('button', { name: 'Save limits' }).closest('form')!
-    fireEvent.submit(form)
-    fireEvent.submit(form)
-    expect(api.setSpeedLimits).toHaveBeenCalledTimes(1)
+    expect(handlers.onSave).not.toHaveBeenCalled()
   })
 
   it('sends again the limits a failed save sent, so one that did go through can be put back', async () => {
-    // The download limit went from 1 to 2 MB/s, the upload request failed.
-    vi.mocked(api.setSpeedLimits).mockRejectedValueOnce(new Error('upload')).mockResolvedValueOnce()
-    renderSheet({ dl_limit: 1_000_000 })
-    const download = screen.getByRole('textbox', { name: 'Download limit, MB/s' })
-    const upload = screen.getByRole('textbox', { name: 'Upload limit, MB/s' })
-    await userEvent.clear(download)
-    await userEvent.type(download, '2')
-    await userEvent.type(upload, '3')
+    // The download limit was 1 MB/s; a save sent both fields and failed, maybe after taking one.
+    const handlers = renderSheet({ dl_limit: 1_000_000 }, { failure: { download: true, upload: true } })
+    expect(screen.getByRole('textbox', { name: 'Download limit, MB/s' })).toHaveValue('1')
     await userEvent.click(screen.getByRole('button', { name: 'Save limits' }))
-    expect(await screen.findByText(/Couldn’t save the limits/)).toBeInTheDocument()
-
-    await userEvent.clear(download)
-    await userEvent.type(download, '1')
-    await userEvent.clear(upload)
-    await userEvent.click(screen.getByRole('button', { name: 'Save limits' }))
-    expect(api.setSpeedLimits).toHaveBeenLastCalledWith(['h1'], { download: 1_000_000, upload: 0 })
+    expect(handlers.onSave).toHaveBeenCalledWith({ download: 1_000_000, upload: 0 })
   })
 
   it('removes a limit when its field is cleared', async () => {
-    vi.mocked(api.setSpeedLimits).mockResolvedValue()
-    renderSheet({ dl_limit: 1_000_000, up_limit: 300_000 })
+    const handlers = renderSheet({ dl_limit: 1_000_000, up_limit: 300_000 })
     await userEvent.clear(screen.getByRole('textbox', { name: 'Download limit, MB/s' }))
     await userEvent.click(screen.getByRole('button', { name: 'Save limits' }))
-    expect(api.setSpeedLimits).toHaveBeenCalledWith(['h1'], { download: 0, upload: undefined })
+    expect(handlers.onSave).toHaveBeenCalledWith({ download: 0, upload: undefined })
   })
 
   it('closes without saving when nothing changed', async () => {
     const handlers = renderSheet({ dl_limit: 4096 })
     expect(screen.getByRole('textbox', { name: 'Download limit, MB/s' })).toHaveValue('0.004')
     await userEvent.click(screen.getByRole('button', { name: 'Save limits' }))
-    // onClose has run, so the save is over: an unchanged field is never sent, not even as is.
+    // An unchanged field is never sent, not even as is.
     expect(handlers.onClose).toHaveBeenCalled()
-    expect(api.setSpeedLimits).not.toHaveBeenCalled()
+    expect(handlers.onSave).not.toHaveBeenCalled()
   })
 
   it("doesn't save a value that isn't a number", async () => {
@@ -117,6 +81,16 @@ describe('SpeedLimitsSheet', () => {
     await userEvent.type(upload, 'abc')
     expect(upload).toHaveAccessibleDescription('Enter a number from 0.001 to 2147, or leave it empty for no limit')
     expect(screen.getByRole('button', { name: 'Save limits' })).toBeDisabled()
+  })
+
+  it("writes the bounds in that message with the interface language's decimal separator", async () => {
+    await i18n.changeLanguage('ru')
+    renderSheet()
+    const upload = screen.getByRole('textbox', { name: 'Лимит отдачи, МБ/с' })
+    await userEvent.type(upload, 'abc')
+    expect(upload).toHaveAccessibleDescription(
+      'Введите число от 0,001 до 2147 или оставьте поле пустым, чтобы снять лимит',
+    )
   })
 
   it('shows no error for a lone separator, the start of a decimal like ,5, but saves only once it is one', async () => {
@@ -130,17 +104,9 @@ describe('SpeedLimitsSheet', () => {
     expect(screen.getByRole('button', { name: 'Save limits' })).toBeEnabled()
   })
 
-  it('keeps the sheet open with an error when qBittorrent refuses, and says it failed, for the list to refresh', async () => {
-    // The download limit may already be applied when the upload request fails.
-    vi.mocked(api.setSpeedLimits).mockRejectedValue(new Error('down'))
-    const handlers = renderSheet()
-    await userEvent.type(screen.getByRole('textbox', { name: 'Download limit, MB/s' }), '3')
-    await userEvent.type(screen.getByRole('textbox', { name: 'Upload limit, MB/s' }), '1')
-    await userEvent.click(screen.getByRole('button', { name: 'Save limits' }))
-    expect(await screen.findByText(/Couldn’t save the limits, or saved only some/)).toBeInTheDocument()
-    expect(handlers.onFailed).toHaveBeenCalled()
-    expect(handlers.onSaved).not.toHaveBeenCalled()
-    expect(handlers.onClose).not.toHaveBeenCalled()
+  it('says a failed save failed, and lets it be tried again', () => {
+    renderSheet({}, { failure: { download: true, upload: false } })
+    expect(screen.getByText(/Couldn’t save the limits, or saved only some/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Save limits' })).toBeEnabled()
   })
 })

@@ -75,12 +75,8 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
 
   const torrents = useMemo(() => (torrent ? [torrent] : []), [torrent])
   const match = useTitleMatches(torrents)[hash]
-  const limits = useSpeedLimits({
-    torrents: data?.torrents,
-    offline,
-    refresh,
-    titleOf: (torrent) => match?.title ?? torrent.name,
-  })
+  const titleOf = (item: Torrent) => match?.title ?? item.name
+  const limits = useSpeedLimits({ torrents: data?.torrents, offline, refresh, titleOf })
   const stored = useServerMatches()?.[hash]
   const language = useTmdbLanguage()
 
@@ -184,7 +180,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
   const status = downloadStatus(torrent)
   const running = isRunning(status)
   const downloading = status === 'downloading'
-  const title = match?.title ?? torrent.name
+  const title = titleOf(torrent)
   const poster = match ? posterUrl(match.posterPath, 'w342') : undefined
   const locale = i18n.resolvedLanguage ?? i18n.language
   const ratio = torrent.ratio.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })

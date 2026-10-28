@@ -3,6 +3,7 @@ import { QbittorrentError, setTorrentLocation, UnauthorizedError, type Torrent }
 import { MoveOutcomeContext, type MoveOutcome } from './moveOutcome'
 import { MoveOutcomeToast } from './MoveOutcomeToast'
 import { MoveTorrentSheet, type MoveFailure } from './MoveTorrentSheet'
+import { useTorrentSheet } from './useTorrentSheet'
 
 /** Why qBittorrent didn't take the folder, as a translation key. */
 function failureKey(error: unknown): MoveFailure {
@@ -33,9 +34,7 @@ export function useMoveTorrent({ torrents, offline, refresh }: {
   /** After qBittorrent took the folder, so the screen shows it right away. */
   refresh: () => void
 }): MoveTorrent {
-  // The torrent the sheet is open for, by when it was added: one re-added with the same hash is
-  // another torrent, so the sheet doesn't come back for it.
-  const [opened, setOpened] = useState<{ hash: string; addedOn: number } | null>(null)
+  const { torrent, open: openSheet, close, showing } = useTorrentSheet(torrents)
   const [sendingFor, setSendingFor] = useState<string | null>(null)
   const [failure, setFailure] = useState<MoveFailure>()
   const [outcome, setOutcome] = useState<MoveOutcome | null>(null)
@@ -44,42 +43,21 @@ export function useMoveTorrent({ torrents, offline, refresh }: {
   const shared = useContext(MoveOutcomeContext)
   const mounted = useRef(false)
   const report = (next: MoveOutcome) => (mounted.current || !shared ? setOutcome(next) : shared(next))
-  const candidate = opened ? torrents?.[opened.hash] : undefined
-  const torrent = candidate?.added_on === opened?.addedOn ? candidate : undefined
-  // Read when a move settles, to tell whether its sheet still shows: set by the handlers, and the
-  // screen's torrents after each render.
-  const openFor = useRef<string | null>(null)
-  const latest = useRef(torrents)
-  useEffect(() => {
-    latest.current = torrents
-  })
   useEffect(() => {
     mounted.current = true
     return () => {
       mounted.current = false
-      // A screen that's gone shows no sheet, so a move that settles after it reports in a toast.
-      openFor.current = null
     }
   }, [])
 
   const open = useCallback(
     (hash: string) => {
-      const next = torrents?.[hash]
-      if (!next) return
-      openFor.current = hash
-      setOpened({ hash, addedOn: next.added_on })
+      openSheet(hash)
       setFailure(undefined)
     },
-    [torrents],
+    [openSheet],
   )
-  const close = () => {
-    openFor.current = null
-    setOpened(null)
-  }
   const dismiss = useCallback(() => setOutcome(null), [])
-
-  const showing = (target: Torrent) =>
-    openFor.current === target.hash && latest.current?.[target.hash]?.added_on === target.added_on
 
   const move = async (target: Torrent, location: string) => {
     setSendingFor(target.hash)
