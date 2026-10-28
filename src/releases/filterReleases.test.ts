@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import type { Release } from '../api/prowlarr'
-import { DEFAULT_SORT, NO_FILTERS, filterReleases, presentValues, summary, toggle, type ReleaseRow } from './filterReleases'
+import {
+  DEFAULT_SORT,
+  NO_FILTERS,
+  filterReleases,
+  knownReleaseSort,
+  presentValues,
+  startingFilters,
+  summary,
+  toggle,
+  type ReleaseRow,
+  type RememberedFilters,
+} from './filterReleases'
 import { parseRelease } from './parseRelease'
 
 function row(id: string, title: string, size: number, seeders: number, indexer: string, publishDate?: string): ReleaseRow {
@@ -46,6 +57,27 @@ describe('presentValues', () => {
   it('offers HDRip as a source of its own, after the WEB ones', () => {
     const rows = [...ROWS, row('hdrip', 'Дюна: Часть вторая (2024) HDRip | Многоголосый', 1.5e9, 40, 'RuTor')]
     expect(presentValues(rows).source).toEqual(['REMUX', 'BluRay', 'WEB-DL', 'HDRip'])
+  })
+})
+
+describe('startingFilters', () => {
+  it('keeps the remembered values the results have and drops the rest', () => {
+    const remembered: RememberedFilters = { resolution: ['2160p', 'SD'], audio: ['mvo', 'subs'], source: ['WEB-DL', 'DVD'], minSeeds: 50 }
+    expect(startingFilters(remembered, ROWS)).toEqual({
+      resolution: ['2160p'],
+      audio: ['subs'],
+      source: ['WEB-DL'],
+      indexer: [],
+      minSeeds: 50,
+    })
+  })
+})
+
+describe('knownReleaseSort', () => {
+  it('takes a stored sort the releases have, else the default', () => {
+    expect(knownReleaseSort({ key: 'date', descending: false })).toEqual({ key: 'date', descending: false })
+    expect(knownReleaseSort({ key: 'peers' as never, descending: false })).toEqual(DEFAULT_SORT)
+    expect(knownReleaseSort(undefined)).toEqual(DEFAULT_SORT)
   })
 })
 

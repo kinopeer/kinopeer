@@ -2,6 +2,7 @@ import { useCallback, useEffect, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getServerSettings, saveDownloadDefaults, type DownloadDefaults } from '../api/settings'
 import { tmdbLanguage } from '../api/tmdb'
+import { DEFAULT_SORT, NO_REMEMBERED_FILTERS, type RememberedFilters, type Sort } from '../releases/filterReleases'
 import type { DownloadSort } from '../torrents/sort'
 
 /**
@@ -27,6 +28,10 @@ export interface Settings {
   downloadsDesktopView: 'list' | 'grid'
   /** How the downloads list is ordered. */
   downloadsSort: DownloadSort
+  /** The release filters picked last, which the next title's search starts from. */
+  releaseFilters: RememberedFilters
+  /** How releases are ordered. */
+  releaseSort: Sort
 }
 
 export const SETTINGS_STORAGE_KEY = 'kinoseed.settings'
@@ -38,6 +43,8 @@ export const DEFAULT_SETTINGS: Settings = {
   downloadsView: 'list',
   downloadsDesktopView: 'grid',
   downloadsSort: 'priority',
+  releaseFilters: NO_REMEMBERED_FILTERS,
+  releaseSort: DEFAULT_SORT,
 }
 
 /** The settings the server keeps too. */

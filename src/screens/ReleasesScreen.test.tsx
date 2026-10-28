@@ -6,6 +6,7 @@ import * as prowlarr from '../api/prowlarr'
 import * as qbt from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
 import type { MovieDetails, TvDetails } from '../api/tmdb'
+import { resetSettings, updateSettings } from '../settings/settings'
 import { DUNE_RELEASES, release } from '../test/fixtures'
 import { renderWithRouter } from '../test/render'
 import { ReleasesScreen } from './ReleasesScreen'
@@ -47,6 +48,8 @@ function renderAt(path: string) {
 const names = () => screen.getAllByRole('article').map((card) => within(card).getAllByRole('button')[0].textContent)
 
 beforeEach(() => {
+  // Filters and the sort are remembered in the browser between searches.
+  resetSettings()
   vi.resetAllMocks()
   getMovie.mockResolvedValue(DUNE)
   getTv.mockResolvedValue(BB)
@@ -179,5 +182,59 @@ describe('ReleasesScreen', () => {
     renderAt('/title/movie/693134/releases')
     await userEvent.click(screen.getByRole('button', { name: 'Back' }))
     expect(screen.getByRole('heading', { name: 'Title page' })).toBeInTheDocument()
+  })
+
+  describe('remembering filters', () => {
+    it('starts the next search from the filters and the sort picked last, but not the indexer', async () => {
+      const first = renderAt('/title/movie/693134/releases')
+      await userEvent.click(await screen.findByRole('button', { name: 'Filters' }))
+      const sheet = within(screen.getByRole('dialog', { name: 'Filters' }))
+      await userEvent.click(sheet.getByRole('button', { name: '2160p' }))
+      await userEvent.click(sheet.getByRole('button', { name: '1080p' }))
+      await userEvent.click(sheet.getByRole('button', { name: '100+' }))
+      await userEvent.click(within(sheet.getByRole('group', { name: 'Indexer' })).getByRole('button', { name: 'RuTracker' }))
+      await userEvent.click(sheet.getByRole('radio', { name: 'Size' }))
+      first.unmount()
+
+      renderAt('/title/tv/1396/releases')
+      expect(await screen.findByText('2 of 3 releases')).toBeInTheDocument()
+      for (const label of ['2160p', '1080p', '100+ seeds']) {
+        expect(screen.getByRole('button', { name: `Remove filter ${label}` })).toBeInTheDocument()
+      }
+      expect(screen.queryByRole('button', { name: 'Remove filter RuTracker' })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Sort: Size, Descending' })).toBeInTheDocument()
+      expect(names()).toEqual([DUNE_RELEASES[0].title, DUNE_RELEASES[1].title])
+    })
+
+    it('sets aside a remembered filter no release meets, and keeps it for the next title', async () => {
+      updateSettings({ releaseFilters: { resolution: ['2160p'], audio: [], source: [], minSeeds: 5000 } })
+      searchReleases.mockResolvedValue([DUNE_RELEASES[1], DUNE_RELEASES[2]])
+      const first = renderAt('/title/movie/693134/releases')
+      expect(await screen.findByText('2 of 2 releases')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Filters' })).toHaveAttribute('aria-pressed', 'false')
+
+      // A pick replaces what was set aside in its own filter only.
+      await userEvent.click(screen.getByRole('button', { name: 'Filters' }))
+      await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '10+' }))
+      first.unmount()
+
+      searchReleases.mockResolvedValue(DUNE_RELEASES)
+      renderAt('/title/tv/1396/releases')
+      expect(await screen.findByText('1 of 3 releases')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Remove filter 2160p' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Remove filter 10+ seeds' })).toBeInTheDocument()
+    })
+
+    it('forgets the filters on Clear all, and keeps the sort', async () => {
+      updateSettings({ releaseFilters: { resolution: ['2160p'], audio: [], source: [], minSeeds: 0 }, releaseSort: { key: 'size', descending: false } })
+      const first = renderAt('/title/movie/693134/releases')
+      await userEvent.click(await screen.findByRole('button', { name: 'Clear all' }))
+      first.unmount()
+
+      renderAt('/title/tv/1396/releases')
+      expect(await screen.findByText('3 of 3 releases')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /^Remove filter/ })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Sort: Size, Ascending' })).toBeInTheDocument()
+    })
   })
 })

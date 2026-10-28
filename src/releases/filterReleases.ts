@@ -12,6 +12,9 @@ export interface Filters {
   minSeeds: number
 }
 
+/** The filters a search starts from, remembered from the last one: all but the indexer. */
+export type RememberedFilters = Omit<Filters, 'indexer'>
+
 export interface Sort {
   key: SortKey
   descending: boolean
@@ -32,6 +35,7 @@ export interface PresentValues {
 }
 
 export const NO_FILTERS: Filters = { resolution: [], audio: [], source: [], indexer: [], minSeeds: 0 }
+export const NO_REMEMBERED_FILTERS: RememberedFilters = { resolution: [], audio: [], source: [], minSeeds: 0 }
 export const DEFAULT_SORT: Sort = { key: 'seeds', descending: true }
 export const RESOLUTIONS: Resolution[] = ['2160p', '1080p', '720p', 'SD']
 export const AUDIO: AudioFilter[] = ['dub', 'mvo', 'avo2', 'avo1', 'orig', 'subs']
@@ -77,6 +81,39 @@ export function presentValues(rows: ReleaseRow[]): PresentValues {
     audio: AUDIO.filter((value) => rows.some((row) => hasAudio(row.info, value))),
     indexer: [...new Set(rows.map((row) => row.release.indexer).filter(Boolean))].sort(),
   }
+}
+
+/**
+ * A search's filters at the start, from the remembered ones. A remembered value none of the
+ * releases has is set aside, and so is a minimum of seeds none of them reaches: a usual 2160p
+ * doesn't hide every release of a title that has no 2160p, and applies again on the next title that
+ * has some. The indexer always starts unpicked.
+ */
+export function startingFilters(remembered: RememberedFilters, rows: ReleaseRow[]): Filters {
+  const present = presentValues(rows)
+  const reached = rows.some((row) => (row.release.seeders ?? 0) >= remembered.minSeeds)
+  return {
+    resolution: remembered.resolution.filter((value) => present.resolution.includes(value)),
+    audio: remembered.audio.filter((value) => present.audio.includes(value)),
+    source: remembered.source.filter((value) => present.source.includes(value)),
+    indexer: [],
+    minSeeds: reached ? remembered.minSeeds : 0,
+  }
+}
+
+/** The remembered filters after a change: the filters it sets, but not the indexer. */
+export function remember(remembered: RememberedFilters, change: Partial<Filters>): RememberedFilters {
+  return {
+    resolution: change.resolution ?? remembered.resolution,
+    audio: change.audio ?? remembered.audio,
+    source: change.source ?? remembered.source,
+    minSeeds: change.minSeeds ?? remembered.minSeeds,
+  }
+}
+
+/** A stored sort if it's one the releases have, else the default. */
+export function knownReleaseSort(sort: Partial<Sort> | undefined): Sort {
+  return sort?.key && SORT_KEYS.includes(sort.key) ? { key: sort.key, descending: sort.descending ?? true } : DEFAULT_SORT
 }
 
 export function toggle<T>(list: T[], value: T): T[] {

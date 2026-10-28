@@ -6,6 +6,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ### Added
 
+- Releases: the filters and the sort are remembered in the browser, so the next title's releases start with the resolution, audio, source and seeds you usually pick (the indexer starts unpicked each time). A remembered filter none of a title's releases meets is skipped for that title instead of hiding everything. Clear all forgets the filters.
 - Releases: the indexer's name on a release (the card on a phone, the table on desktop and the add sheet) links to the release's page on the tracker, in a new tab, for what Kinoseed doesn't show.
 
 ### Changed

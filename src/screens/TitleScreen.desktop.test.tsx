@@ -9,6 +9,7 @@ import * as tmdb from '../api/tmdb'
 import type { MovieDetails, TvDetails } from '../api/tmdb'
 import { stubDesktop } from '../lib/stubDesktop'
 import { restoreLayout, stubLayout } from '../lib/stubLayout'
+import { resetSettings } from '../settings/settings'
 import { DUNE_RELEASES } from '../test/fixtures'
 import { Where, renderWithRouter, where } from '../test/render'
 import { resetServerMatches } from '../torrents/serverMatches'
@@ -91,6 +92,8 @@ const names = () =>
 const scrollIntoView = vi.fn()
 
 beforeEach(() => {
+  // Filters and the sort are remembered in the browser between searches.
+  resetSettings()
   vi.resetAllMocks()
   stubDesktop()
   Element.prototype.scrollIntoView = scrollIntoView

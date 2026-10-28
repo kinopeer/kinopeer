@@ -3,10 +3,13 @@ import { useTranslation } from 'react-i18next'
 import { ProwlarrSetupError, searchReleases, type Release } from '../api/prowlarr'
 import { useRequest } from '../lib/useRequest'
 import {
-  DEFAULT_SORT,
   NO_FILTERS,
+  NO_REMEMBERED_FILTERS,
   filterReleases,
+  knownReleaseSort,
   presentValues,
+  remember,
+  startingFilters,
   toggle,
   type AudioFilter,
   type Filters,
@@ -16,6 +19,7 @@ import {
 } from '../releases/filterReleases'
 import { parseRelease } from '../releases/parseRelease'
 import { releaseQuery, type TitleDetails } from '../releases/releaseQuery'
+import { useSettings } from '../settings/settings'
 
 export const AUDIO_LABEL = {
   dub: 'releases.audioDub',
@@ -61,7 +65,8 @@ export interface Releases {
 /**
  * Searches Prowlarr for the title's releases once `details` is known and `enabled`, and keeps the
  * filters, the sort and the release being added: what the phone's releases screen and the desktop
- * title page share.
+ * title page share. The filters start from the ones picked last (`startingFilters`), and a pick is
+ * remembered for the next title; the sort is remembered as it is.
  */
 export function useReleases(details: TitleDetails | undefined, enabled = true): Releases {
   const { t } = useTranslation()
@@ -71,14 +76,20 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
     searchReleases(query!, { signal }),
   )
 
-  const [filters, setFilters] = useState<Filters>(NO_FILTERS)
-  const [sort, setSort] = useState<Sort>(DEFAULT_SORT)
+  const [settings, updateSettings] = useSettings()
+  // Undefined until the user changes a filter in this search; till then they follow the remembered ones.
+  const [picked, setPicked] = useState<Filters>()
   const [adding, setAdding] = useState<ReleaseRow>()
 
   const rows = useMemo<ReleaseRow[]>(
     () => (search.data ?? []).map((release) => ({ release, info: parseRelease(release.title) })),
     [search.data],
   )
+  // Spread over the empty filters, so a stored value missing one of them still has it.
+  const remembered = useMemo(() => ({ ...NO_REMEMBERED_FILTERS, ...settings.releaseFilters }), [settings.releaseFilters])
+  const starting = useMemo(() => startingFilters(remembered, rows), [remembered, rows])
+  const filters = picked ?? starting
+  const sort = useMemo(() => knownReleaseSort(settings.releaseSort), [settings.releaseSort])
   const visible = useMemo(() => filterReleases(rows, filters, sort), [rows, filters, sort])
   const present = useMemo(() => presentValues(rows), [rows])
 
@@ -111,11 +122,17 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
     visible,
     present,
     filters,
-    updateFilters: (change) => setFilters({ ...filters, ...change }),
-    clearFilters: () => setFilters(NO_FILTERS),
+    updateFilters: (change) => {
+      setPicked({ ...filters, ...change })
+      updateSettings({ releaseFilters: remember(remembered, change) })
+    },
+    clearFilters: () => {
+      setPicked(NO_FILTERS)
+      updateSettings({ releaseFilters: NO_REMEMBERED_FILTERS })
+    },
     active,
     sort,
-    setSort,
+    setSort: (releaseSort) => updateSettings({ releaseSort }),
     audioLabel,
     adding,
     setAdding,
