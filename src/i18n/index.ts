@@ -27,6 +27,9 @@ void i18n.use(initReactI18next).init({
   interpolation: { escapeValue: false },
 })
 
-watchSystemLanguage()
+// Follows the browser's languages for as long as the page is open, while the preference is system.
+watchSystemLanguage((language) => {
+  if (getLanguagePreference() === 'system') void i18n.changeLanguage(language)
+})
 
 export default i18n

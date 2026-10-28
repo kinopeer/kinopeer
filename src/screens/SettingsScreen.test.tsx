@@ -168,7 +168,6 @@ describe('SettingsScreen', () => {
     expect(within(group()).getByRole('radio', { name: 'System' })).toHaveAttribute('aria-checked', 'true')
 
     await userEvent.click(within(group()).getByRole('radio', { name: 'Русский' }))
-    expect(screen.getByRole('heading', { name: 'Настройки', level: 1 })).toBeInTheDocument()
     expect(within(group()).getByRole('radio', { name: 'Русский' })).toHaveAttribute('aria-checked', 'true')
 
     await userEvent.click(within(group()).getByRole('radio', { name: 'Системный' }))

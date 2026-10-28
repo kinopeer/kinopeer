@@ -40,6 +40,12 @@ describe('systemLanguage', () => {
     stubBrowserLanguages(['uk-UA', 'ru-RU'])
     expect(systemLanguage()).toBe('ru')
   })
+
+  it("reads the browser's one language where it has no list", () => {
+    stubBrowserLanguages([])
+    vi.spyOn(navigator, 'language', 'get').mockReturnValue('ru-RU')
+    expect(systemLanguage()).toBe('ru')
+  })
 })
 
 describe('resolveLanguage', () => {
@@ -95,6 +101,14 @@ describe('setLanguagePreference', () => {
     expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('en')
   })
 
+  it('still switches for this page when storage is unavailable', async () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    await act(async () => setLanguagePreference('ru'))
+    expect(i18n.language).toBe('ru')
+  })
+
   it('updates every hook that shows it', () => {
     const first = renderHook(() => useLanguage())
     const second = renderHook(() => useLanguage())
@@ -122,21 +136,21 @@ describe('following the browser', () => {
   it('keeps an explicit language when the browser changes', async () => {
     const changeBrowserLanguages = stubBrowserLanguages(['en-US'])
     setLanguagePreference('en')
-    const stop = watchSystemLanguage()
 
     await act(async () => changeBrowserLanguages(['ru-RU']))
     expect(i18n.language).toBe('en')
-    stop()
   })
 
-  it('stops following once stopped', async () => {
+  it('stops following the browser once stopped', () => {
     const changeBrowserLanguages = stubBrowserLanguages(['en-US'])
-    const languageChanged = vi.spyOn(i18n, 'changeLanguage')
-    const stop = watchSystemLanguage()
-    stop()
+    const onChange = vi.fn()
+    const stop = watchSystemLanguage(onChange)
 
-    await act(async () => changeBrowserLanguages(['ru-RU']))
-    // Only the app's own listener answered, not the stopped one.
-    expect(languageChanged).toHaveBeenCalledTimes(1)
+    changeBrowserLanguages(['ru-RU'])
+    expect(onChange).toHaveBeenLastCalledWith('ru')
+
+    stop()
+    changeBrowserLanguages(['en-US'])
+    expect(onChange).toHaveBeenCalledTimes(1)
   })
 })

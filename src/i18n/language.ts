@@ -85,13 +85,11 @@ export function resetLanguagePreference(): void {
 }
 
 /**
- * Follows the browser's languages for as long as the page is open, while the preference is system.
- * Returns a function that stops it.
+ * Calls onChange with the browser's language whenever the browser's languages change (the
+ * `languagechange` event). Returns a function that stops it.
  */
-export function watchSystemLanguage(): () => void {
-  const listener = () => {
-    if (getLanguagePreference() === 'system') void i18n.changeLanguage(systemLanguage())
-  }
+export function watchSystemLanguage(onChange: (language: Language) => void): () => void {
+  const listener = () => onChange(systemLanguage())
   window.addEventListener('languagechange', listener)
   return () => window.removeEventListener('languagechange', listener)
 }
