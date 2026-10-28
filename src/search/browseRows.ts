@@ -21,15 +21,16 @@ const DIGITAL_OR_PHYSICAL = '4|5'
 const SCRIPTED = '2|4'
 
 /** A digital or disc release this recent counts as new. */
-export const NEW_ON_DIGITAL_DAYS = 60
+const NEW_ON_DIGITAL_DAYS = 60
 /** A series with an episode aired this recently has new episodes. */
-export const NEW_EPISODES_DAYS = 14
-/** A film first released longer ago than this isn't new, though a reissue gives it a fresh disc date. */
-const NEW_FILM_DAYS = 365
+const NEW_EPISODES_DAYS = 14
+/**
+ * A film first released longer ago than this isn't new, though a reissue gives it a fresh disc
+ * date. The first release is often a festival premiere, a year or more before digital.
+ */
+const NEW_FILM_DAYS = 540
 /** Best of the year: released on digital or disc within this many days… */
 const BEST_OF_YEAR_DAYS = 365
-/** …first released no longer ago than this (festival premieres come months before digital)… */
-const BEST_OF_YEAR_FILM_DAYS = 540
 /** …and rated by enough people for the average to mean something. */
 const BEST_OF_YEAR_MIN_VOTES = 300
 
@@ -40,7 +41,9 @@ function daysBefore(today: Date, days: number): string {
 
 /** The Discover queries for the rows, in the order they show, for the given day. */
 export function browseRowQueries(today: Date): BrowseRowQuery[] {
-  const now = daysBefore(today, 0)
+  // Up to tomorrow in UTC: east of UTC it's already the next day there, and a release dated today
+  // there should show.
+  const now = daysBefore(today, -1)
   return [
     {
       key: 'newOnDigital',
@@ -72,7 +75,7 @@ export function browseRowQueries(today: Date): BrowseRowQuery[] {
         with_release_type: DIGITAL_OR_PHYSICAL,
         'release_date.gte': daysBefore(today, BEST_OF_YEAR_DAYS),
         'release_date.lte': now,
-        'primary_release_date.gte': daysBefore(today, BEST_OF_YEAR_FILM_DAYS),
+        'primary_release_date.gte': daysBefore(today, NEW_FILM_DAYS),
         'vote_count.gte': BEST_OF_YEAR_MIN_VOTES,
         sort_by: 'vote_average.desc',
         include_adult: false,

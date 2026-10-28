@@ -115,10 +115,23 @@ describe('SearchScreen', () => {
   })
 
   it('retries after a network error', async () => {
-    discoverTitles.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    const offline = new TypeError('Failed to fetch')
+    discoverTitles.mockRejectedValueOnce(offline).mockRejectedValueOnce(offline).mockRejectedValueOnce(offline)
     renderScreen()
     await userEvent.click(await screen.findByRole('button', { name: 'Try again' }))
     expect(await screen.findByRole('heading', { name: 'New on digital' })).toBeInTheDocument()
+  })
+
+  it('leaves out a row whose query fails and shows the others', async () => {
+    const answer = discoverTitles.getMockImplementation()!
+    discoverTitles.mockImplementation(async (type, params, options) => {
+      if (type === 'tv') throw new tmdb.TmdbError('TMDB responded 422', 422)
+      return answer(type, params, options)
+    })
+    renderScreen()
+    expect(await screen.findByRole('heading', { name: 'New on digital' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Best of the year' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'New episodes' })).not.toBeInTheDocument()
   })
 
   it('comes back from a title at the same scroll position', async () => {

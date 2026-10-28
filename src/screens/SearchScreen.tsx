@@ -37,13 +37,19 @@ interface BrowseRow extends Omit<BrowseRowQuery, 'params'> {
   titles: Title[]
 }
 
+/** A row whose query fails is left out; the screen shows an error only when every row fails or the key is wrong. */
 async function loadBrowseRows(language: string, signal: AbortSignal): Promise<BrowseRow[]> {
-  return Promise.all(
+  const results = await Promise.allSettled(
     browseRowQueries(new Date()).map(async ({ params, ...row }) => ({
       ...row,
       titles: (await discoverTitles(row.type, params, { language, signal })).titles,
     })),
   )
+  const failures = results.flatMap((result) => (result.status === 'rejected' ? [result.reason as unknown] : []))
+  const keyError = failures.find((reason) => reason instanceof TmdbKeyError)
+  if (keyError) throw keyError
+  if (failures.length === results.length) throw failures[0]
+  return results.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []))
 }
 
 function parseType(value: string | null): TypeFilter {

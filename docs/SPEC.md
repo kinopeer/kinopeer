@@ -84,11 +84,11 @@ On desktop these steps show their form in a card centered in the window, without
 
 Movies and series from TMDB with a type filter. An empty search shows rows of titles that are likely on torrents already, in good quality, rather than what's in cinemas:
 
-- "New on digital": movies out on digital or disc in the last 60 days, first released no more than a year ago, most popular first.
+- "New on digital": movies out on digital or disc in the last 60 days, first released (often at a festival) no more than about 18 months ago, most popular first.
 - "New episodes": scripted series and miniseries with an episode aired in the last 14 days, most popular first (talk shows, news and reality are left out).
 - "Best of the year": movies out on digital or disc in the last year (first released no more than about 18 months ago), rated by at least 300 people, best rated first.
 
-A release date in any country counts. The type filter hides the rows of the other type. The query and type live in the page URL, and Back from a title returns to the results at the same scroll position.
+A release date in any country counts, up to the current day anywhere. The type filter hides the rows of the other type. A row whose query fails is left out; the error shows only when every row fails. The query and type live in the page URL, and Back from a title returns to the results at the same scroll position.
 
 On desktop the screen fills the window beside the sidebar: the search field up to 640px wide, rows of larger posters (with a thin scrollbar for a mouse) and results in a grid as wide as the window.
 
