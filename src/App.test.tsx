@@ -188,6 +188,18 @@ describe('App', () => {
       },
     )
 
+    it('keeps Downloads mounted when a torrent opens in the drawer over it', async () => {
+      const torrent = { name: 'Dune.Part.Two.2024.2160p.WEB-DL', state: 'downloading', progress: 0.5, size: 1e9, priority: 1, ratio: 0 }
+      getMainData.mockResolvedValue({ rid: 1, full_update: true, torrents: { dune: torrent }, server_state: {} })
+      renderApp('/')
+      const heading = await screen.findByRole('heading', { name: 'Downloads', level: 1 })
+      await userEvent.click(await screen.findByRole('link', { name: /Dune\.Part\.Two/ }))
+      expect(await screen.findByRole('dialog')).toBeInTheDocument()
+      expect(where()).toBe('/torrent/dune')
+      // The same heading element: a remounted screen would have put a new one in its place.
+      expect(heading).toBeInTheDocument()
+    })
+
     it('clears a crashed screen when the sidebar opens another', async () => {
       // React and the error boundary log the crash; keep the test output clean.
       vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -207,7 +219,7 @@ describe('App', () => {
           ? ({ ...duneDetails, genres: null } as unknown as tmdb.MovieDetails)
           : ({ ...duneDetails, id, title: 'Arrival' } as tmdb.MovieDetails),
       )
-      // A link from outside the app's screens, as a related title's poster would be.
+      // An address change from outside the crashed screen, as typing a URL or going Back would be.
       renderWithRouter(
         <>
           <App />

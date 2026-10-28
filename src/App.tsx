@@ -56,7 +56,7 @@ function App() {
       // On desktop a torrent opened from a page (a link's background state) opens in a drawer over
       // that page, which the routes keep rendering. Without one, it opens over Downloads.
       const background =
-        isDesktop && location.pathname.startsWith('/torrent/') ? backgroundOf(location) : undefined
+        isDesktop && isTorrentPath(location.pathname) ? backgroundOf(location) : undefined
       const page = background ?? location
       const screenKey = screenKeyOf(page.pathname, isDesktop)
       return (
@@ -69,12 +69,12 @@ function App() {
                 {isDesktop ? (
                   <Route element={<DownloadsWithDrawer onSessionLost={onSessionLost} onSelectingChange={setSelecting} />}>
                     <Route index />
-                    <Route path="torrent/:hash" />
+                    <Route path={TORRENT_PATH} />
                   </Route>
                 ) : (
                   <>
                     <Route index element={<DownloadsScreen onSessionLost={onSessionLost} onSelectingChange={setSelecting} />} />
-                    <Route path="torrent/:hash" element={<TorrentScreen onSessionLost={onSessionLost} />} />
+                    <Route path={TORRENT_PATH} element={<TorrentScreen onSessionLost={onSessionLost} />} />
                   </>
                 )}
                 <Route path="search" element={<SearchScreen />} />
@@ -87,7 +87,7 @@ function App() {
             {background && (
               <Routes>
                 <Route
-                  path="torrent/:hash"
+                  path={TORRENT_PATH}
                   element={<TorrentDrawerOverPage background={background} onSessionLost={onSessionLost} />}
                 />
               </Routes>
@@ -112,7 +112,9 @@ function App() {
   }
 }
 
-/** The desktop sidebar with how many torrents are downloading and qBittorrent's status, from the shared poll. */
+const TORRENT_PATH = '/torrent/:hash'
+const isTorrentPath = (pathname: string) => matchPath(TORRENT_PATH, pathname) !== null
+
 /**
  * What the error boundary is keyed by, so a crash on one screen goes away on the next. A torrent's
  * drawer over Downloads is part of that screen, and on desktop a title's releases are part of its
@@ -120,11 +122,12 @@ function App() {
  */
 function screenKeyOf(pathname: string, isDesktop: boolean): string {
   if (!isDesktop) return pathname
-  if (matchPath('/torrent/:hash', pathname)) return '/'
+  if (isTorrentPath(pathname)) return '/'
   const title = matchPath(TITLE_PATH, pathname) ?? matchPath(RELEASES_PATH, pathname)
   return title ? `/title/${title.params.type}/${title.params.id}` : pathname
 }
 
+/** The desktop sidebar with how many torrents are downloading and qBittorrent's status, from the shared poll. */
 function AppSidebar({ items, version, pathname }: { items: TabBarItem[]; version: string; pathname?: string }) {
   const { t } = useTranslation()
   const main = useMainData()
