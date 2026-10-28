@@ -9,6 +9,7 @@ import * as tmdb from '../api/tmdb'
 import type { MovieDetails, TvDetails } from '../api/tmdb'
 import { stubDesktop } from '../lib/stubDesktop'
 import { restoreLayout, stubLayout } from '../lib/stubLayout'
+import { resetSettings, updateSettings } from '../settings/settings'
 import { DUNE_RELEASES } from '../test/fixtures'
 import { Where, renderWithRouter, where } from '../test/render'
 import { resetServerMatches } from '../torrents/serverMatches'
@@ -91,6 +92,8 @@ const names = () =>
 const scrollIntoView = vi.fn()
 
 beforeEach(() => {
+  // Filters and the sort are remembered in the browser between searches.
+  resetSettings()
   vi.resetAllMocks()
   stubDesktop()
   Element.prototype.scrollIntoView = scrollIntoView
@@ -229,6 +232,15 @@ describe('TitleScreen on desktop', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Audio' }))
     await userEvent.click(screen.getByRole('button', { name: 'Dubbed' }))
     expect(screen.getByRole('heading', { name: 'Nothing matches' })).toBeInTheDocument()
+  })
+
+  it('names a remembered filter no release meets, and forgets it on Forget', async () => {
+    updateSettings({ releaseFilters: { resolution: ['SD'], audio: [], source: [], minSeeds: 0 } })
+    renderAt('/title/movie/693134/releases')
+    expect(await screen.findByText('3 of 3 releases')).toBeInTheDocument()
+    expect(screen.getByText('Remembered filters not applied: SD')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Forget' }))
+    expect(screen.queryByText(/^Remembered filters not applied/)).not.toBeInTheDocument()
   })
 
   it('opens the add sheet for a release', async () => {

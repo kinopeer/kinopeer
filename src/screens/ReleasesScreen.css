@@ -53,6 +53,21 @@
   gap: var(--space-2);
 }
 
+.rel-aside {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* On a phone the text wraps beside Forget rather than pushing it onto a line of its own. */
+.rel-aside > p {
+  min-width: 0;
+}
+
+.rel-aside > button {
+  flex: none;
+}
+
 .rel-list {
   display: flex;
   flex-direction: column;

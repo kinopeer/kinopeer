@@ -2,6 +2,9 @@ import { expect, test, type Page } from '@playwright/test'
 import { DESKTOP, DESKTOP_RAIL, openApp, settle, showWholePage, type AppOptions } from './app.ts'
 import { GB, RELEASES } from './fixtures.ts'
 
+/** A remembered 2160p, which these releases have, and a dub, which none of them has. */
+const REMEMBERED = { resolution: ['2160p'], audio: ['dub'], source: [], minSeeds: 0 }
+
 async function openReleases(page: Page, options: AppOptions = {}) {
   await openApp(page, '/title/tv/126308/releases', options)
   await expect(page.getByText(RELEASES[0].title)).toBeVisible()
@@ -13,6 +16,12 @@ test.describe('releases, phone', () => {
     await openReleases(page)
     await showWholePage(page)
     await expect(page).toHaveScreenshot('list-dark-ru.png')
+  })
+
+  test('remembered filters, one set aside', async ({ page }) => {
+    await openReleases(page, { releaseFilters: REMEMBERED })
+    await expect(page.getByText('Запомненные фильтры не применены: Дубляж')).toBeVisible()
+    await expect(page).toHaveScreenshot('remembered-dark-ru.png')
   })
 
   test('some indexers didn’t answer', async ({ page }) => {
@@ -76,6 +85,12 @@ test.describe('releases, desktop', () => {
   test('searched from the title page, dark, Russian', async ({ page }) => {
     await findReleases(page)
     await expect(page).toHaveScreenshot('desktop-list-dark-ru.png')
+  })
+
+  test('remembered filters, one set aside', async ({ page }) => {
+    await findReleases(page, { releaseFilters: REMEMBERED })
+    await expect(page.getByText('Запомненные фильтры не применены: Дубляж')).toBeVisible()
+    await expect(page).toHaveScreenshot('desktop-remembered-dark-ru.png')
   })
 
   test('some indexers didn’t answer', async ({ page }) => {

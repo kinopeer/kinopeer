@@ -6,6 +6,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ### Added
 
+- Releases: the filters and the sort are remembered in the browser, so the next title's releases start with the resolution, audio, source and seeds you usually pick (the indexer starts unpicked each time). A remembered filter a title's releases don't meet is skipped for that title instead of hiding everything, and named above the list with Forget. Clear all forgets the filters.
 - Downloads: speed limits per torrent. "Speed limits" in a torrent's More menu sets its download and upload limits in MB/s (an empty field removes a limit), and the torrent's details list the limits that are set.
 - Downloads: "Move files…" in a torrent's More menu moves its files to another folder through qBittorrent, with the folders qBittorrent already knows one tap away.
 - Settings → About: links to suggest an idea, report a bug (with the version filled in) and the source code on GitHub, and TMDB's logo with the notice that Kinoseed uses the TMDB API but isn't endorsed or certified by TMDB, as TMDB's terms ask.
