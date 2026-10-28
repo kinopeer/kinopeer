@@ -314,7 +314,11 @@ export function SettingsScreen() {
         </ul>
         <div className="settings-tmdb">
           <img className="settings-tmdb-logo" src={tmdbLogo} alt="TMDB" width={56} height={24} />
-          <p className="t-cap c3">{t('settings.tmdbNotice')}</p>
+          <p className="t-cap c3">
+            {t('settings.tmdbSource')}{' '}
+            {/* TMDB's required wording, in English in every language. */}
+            <span lang="en">{t('settings.tmdbNotice')}</span>
+          </p>
         </div>
       </Section>
 

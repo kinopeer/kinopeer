@@ -246,7 +246,8 @@
     "reportBugHint": "Issue на GitHub с шагами и версиями",
     "sourceCode": "Kinoseed на GitHub",
     "sourceCodeHint": "Исходный код, релизы и список изменений",
-    "tmdbNotice": "Данные о фильмах и сериалах и постеры берутся из TMDB. Этот продукт использует TMDB API, но не одобрен и не сертифицирован TMDB."
+    "tmdbSource": "Данные о фильмах и сериалах и постеры берутся из TMDB.",
+    "tmdbNotice": "This product uses the TMDB API but is not endorsed or certified by TMDB."
   },
   "releases": {
     "title": "Раздачи",

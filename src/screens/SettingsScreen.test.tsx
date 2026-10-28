@@ -6,6 +6,7 @@ import * as prowlarr from '../api/prowlarr'
 import * as qbt from '../api/qbittorrent'
 import * as serverSettings from '../api/settings'
 import * as tmdb from '../api/tmdb'
+import i18n from '../i18n'
 import { getSettings, resetSettings } from '../settings/settings'
 import { renderWithRouter } from '../test/render'
 import { SettingsScreen } from './SettingsScreen'
@@ -186,11 +187,15 @@ describe('SettingsScreen', () => {
     }
   })
 
-  it('credits TMDB with its logo and the notice its terms ask for', () => {
+  it("credits TMDB with its logo and the notice its terms ask for, in TMDB's English in any language", async () => {
+    await i18n.changeLanguage('ru')
     renderScreen()
-    const about = screen.getByRole('region', { name: 'About' })
+    const about = screen.getByRole('region', { name: 'О приложении' })
     expect(within(about).getByRole('img', { name: 'TMDB' })).toBeInTheDocument()
-    expect(about).toHaveTextContent('This product uses the TMDB API but is not endorsed or certified by TMDB.')
+    expect(about).toHaveTextContent('Данные о фильмах и сериалах и постеры берутся из TMDB.')
+    expect(
+      within(about).getByText('This product uses the TMDB API but is not endorsed or certified by TMDB.'),
+    ).toHaveAttribute('lang', 'en')
   })
 
   it('has no install row where the app can\'t be installed', () => {

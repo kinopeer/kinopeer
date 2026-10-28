@@ -223,7 +223,8 @@
     "reportBugHint": "An issue on GitHub with the steps and your versions",
     "sourceCode": "Kinoseed on GitHub",
     "sourceCodeHint": "Source code, releases and what's changed",
-    "tmdbNotice": "Movie and series data and posters come from TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB."
+    "tmdbSource": "Movie and series data and posters come from TMDB.",
+    "tmdbNotice": "This product uses the TMDB API but is not endorsed or certified by TMDB."
   },
   "releases": {
     "title": "Releases",
