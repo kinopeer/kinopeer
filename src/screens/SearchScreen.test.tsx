@@ -91,9 +91,11 @@ describe('SearchScreen', () => {
 
   it('says so when the type picked has nothing to show, and tries again', async () => {
     const answer = discoverTitles.getMockImplementation()!
-    discoverTitles.mockImplementation(async (type, params, options) =>
-      type === 'tv' ? page([]) : answer(type, params, options),
-    )
+    // The movie rows fail: only the picked type's rows decide between the note and the error.
+    discoverTitles.mockImplementation(async (type) => {
+      if (type === 'movie') throw new TypeError('Failed to fetch')
+      return page([])
+    })
     renderScreen('/search?type=tv')
     expect(await screen.findByRole('heading', { name: 'Nothing to suggest right now' })).toBeInTheDocument()
 
