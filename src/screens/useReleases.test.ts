@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as prowlarr from '../api/prowlarr'
 import type { MovieDetails } from '../api/tmdb'
 import type { TitleDetails } from '../releases/releaseQuery'
-import { resetSettings } from '../settings/settings'
+import { SETTINGS_STORAGE_KEY, resetSettings } from '../settings/settings'
 import { DUNE_RELEASES } from '../test/fixtures'
 import { useReleases } from './useReleases'
 
@@ -31,5 +31,13 @@ describe('useReleases', () => {
     rerender({ details: movie(2, 'Arrival') })
     await waitFor(() => expect(prowlarr.searchReleases).toHaveBeenCalledWith('Arrival 2024', expect.anything()))
     expect(result.current.filters.indexer).toEqual([])
+  })
+
+  it('leaves the stored settings alone on an indexer pick, which isn\'t remembered', async () => {
+    const { result } = renderHook(() => useReleases(movie(1, 'Dune')))
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    act(() => result.current.updateFilters({ indexer: ['RuTracker'] }))
+    expect(result.current.filters.indexer).toEqual(['RuTracker'])
+    expect(localStorage.getItem(SETTINGS_STORAGE_KEY)).toBeNull()
   })
 })

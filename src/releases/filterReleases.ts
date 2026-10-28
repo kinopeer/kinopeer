@@ -94,56 +94,62 @@ const GIVE_WAY: (keyof RememberedFilters)[] = ['minSeeds', 'source', 'audio', 'r
  * resolution last. The indexer always starts unpicked.
  */
 export function startingFilters(remembered: RememberedFilters, rows: ReleaseRow[], present: PresentValues): Filters {
-  const filters: Filters = {
+  const kept: Filters = {
     resolution: remembered.resolution.filter((value) => present.resolution.includes(value)),
     audio: remembered.audio.filter((value) => present.audio.includes(value)),
     source: remembered.source.filter((value) => present.source.includes(value)),
     indexer: [],
     minSeeds: remembered.minSeeds,
   }
+  const matches = (filters: Filters) => rows.some((row) => matchesFilters(row, filters))
+  let filters = kept
+  const dropped: (keyof RememberedFilters)[] = []
   for (const key of GIVE_WAY) {
-    if (rows.some((row) => matchesFilters(row, filters))) break
-    Object.assign(filters, { [key]: NO_REMEMBERED_FILTERS[key] })
+    if (matches(filters)) break
+    filters = { ...filters, [key]: NO_REMEMBERED_FILTERS[key] }
+    dropped.push(key)
+  }
+  // A filter dropped on the way may not have been in the way: put it back if releases still match.
+  for (const key of dropped.reverse()) {
+    const restored = { ...filters, [key]: kept[key] }
+    if (matches(restored)) filters = restored
   }
   return filters
 }
 
 /**
  * The remembered filters after a change: the filters it sets, but not the indexer. A changed list
- * keeps the remembered values these releases don't have, since they weren't offered to keep.
+ * keeps the remembered values the search didn't apply (set aside), since they weren't on screen to
+ * keep or take off.
  */
-export function remember(remembered: RememberedFilters, change: Partial<Filters>, present: PresentValues): RememberedFilters {
-  const list = <T>(changed: T[] | undefined, kept: T[], offered: T[]) =>
-    changed ? [...changed, ...kept.filter((value) => !offered.includes(value) && !changed.includes(value))] : kept
+export function remember(remembered: RememberedFilters, change: Partial<Filters>, filters: Filters): RememberedFilters {
+  const list = <T>(changed: T[] | undefined, kept: T[], shown: T[]) =>
+    changed ? [...changed, ...kept.filter((value) => !shown.includes(value) && !changed.includes(value))] : kept
   return {
-    resolution: list(change.resolution, remembered.resolution, present.resolution),
-    audio: list(change.audio, remembered.audio, present.audio),
-    source: list(change.source, remembered.source, present.source),
+    resolution: list(change.resolution, remembered.resolution, filters.resolution),
+    audio: list(change.audio, remembered.audio, filters.audio),
+    source: list(change.source, remembered.source, filters.source),
     minSeeds: change.minSeeds ?? remembered.minSeeds,
   }
 }
 
-/** The remembered filters the search's filters don't apply: those set aside, or a different seeds minimum. */
-export function setAside(remembered: RememberedFilters, filters: Filters): RememberedFilters {
-  return {
-    resolution: remembered.resolution.filter((value) => !filters.resolution.includes(value)),
-    audio: remembered.audio.filter((value) => !filters.audio.includes(value)),
-    source: remembered.source.filter((value) => !filters.source.includes(value)),
-    minSeeds: remembered.minSeeds !== filters.minSeeds ? remembered.minSeeds : 0,
-  }
+/**
+ * The remembered filters split by whether the search's filters apply them: `aside` is what was set
+ * aside, `applied` what's left once those are forgotten.
+ */
+export function split(remembered: RememberedFilters, filters: Filters): { applied: RememberedFilters; aside: RememberedFilters } {
+  const part = <T>(values: T[], shown: T[], keep: boolean) => values.filter((value) => shown.includes(value) === keep)
+  const seedsApplied = remembered.minSeeds === filters.minSeeds
+  const side = (keep: boolean): RememberedFilters => ({
+    resolution: part(remembered.resolution, filters.resolution, keep),
+    audio: part(remembered.audio, filters.audio, keep),
+    source: part(remembered.source, filters.source, keep),
+    minSeeds: seedsApplied === keep ? remembered.minSeeds : 0,
+  })
+  return { applied: side(true), aside: side(false) }
 }
 
-/** The remembered filters the search's filters apply: what's left once those set aside are forgotten. */
-export function applied(remembered: RememberedFilters, filters: Filters): RememberedFilters {
-  return {
-    resolution: remembered.resolution.filter((value) => filters.resolution.includes(value)),
-    audio: remembered.audio.filter((value) => filters.audio.includes(value)),
-    source: remembered.source.filter((value) => filters.source.includes(value)),
-    minSeeds: remembered.minSeeds === filters.minSeeds ? remembered.minSeeds : 0,
-  }
-}
-
-/** Remembered filters as stored, with anything that isn't a known value dropped. */
+/** Remembered filters as stored, with anything that isn't a value the filters offer dropped. */
 export function knownReleaseFilters(stored: unknown): RememberedFilters {
   const value = (typeof stored === 'object' && stored) || {}
   const known = <T>(list: unknown, values: readonly T[]): T[] =>
@@ -153,13 +159,15 @@ export function knownReleaseFilters(stored: unknown): RememberedFilters {
     resolution: known(resolution, RESOLUTIONS),
     audio: known(audio, AUDIO),
     source: known(source, SOURCES),
-    minSeeds: typeof minSeeds === 'number' && Number.isFinite(minSeeds) && minSeeds > 0 ? minSeeds : 0,
+    minSeeds: MIN_SEEDS.includes(minSeeds as number) ? (minSeeds as number) : 0,
   }
 }
 
 /** A stored sort if it's one the releases have, else the default. */
 export function knownReleaseSort(sort: Partial<Sort> | undefined): Sort {
-  return sort?.key && SORT_KEYS.includes(sort.key) ? { key: sort.key, descending: sort.descending ?? true } : DEFAULT_SORT
+  return sort?.key && SORT_KEYS.includes(sort.key)
+    ? { key: sort.key, descending: typeof sort.descending === 'boolean' ? sort.descending : true }
+    : DEFAULT_SORT
 }
 
 export function toggle<T>(list: T[], value: T): T[] {

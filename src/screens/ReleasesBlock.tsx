@@ -90,7 +90,7 @@ function ActiveFilters({ releases }: { releases: Releases }) {
 
 /** The remembered filters this search doesn't apply, and Forget. */
 function SetAsideFilters({ releases }: { releases: Releases }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { aside, audioLabel } = releases
   const labels = [
     ...aside.resolution,
@@ -101,7 +101,11 @@ function SetAsideFilters({ releases }: { releases: Releases }) {
   if (!labels.length) return null
   return (
     <div className="rel-aside">
-      <p className="t-cap c3">{t('releases.setAside', { filters: labels.join(', ') })}</p>
+      <p className="t-cap c3">
+        {t('releases.setAside', {
+          filters: new Intl.ListFormat(i18n.resolvedLanguage ?? i18n.language, { type: 'conjunction' }).format(labels),
+        })}
+      </p>
       <Button variant="ghost" size="sm" onClick={releases.forgetAside}>
         {t('releases.forget')}
       </Button>

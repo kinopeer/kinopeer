@@ -100,7 +100,7 @@ describe('ReleasesBody', () => {
   it('names the remembered filters the search sets aside, and forgets them on Forget', async () => {
     const search = releases({ aside: { resolution: ['2160p'], audio: ['dub'], source: [], minSeeds: 100 }, audioLabel: () => 'Dubbed' })
     renderBody(search)
-    expect(screen.getByText('Remembered filters not applied: 2160p, Dubbed, 100+ seeds')).toBeInTheDocument()
+    expect(screen.getByText('Remembered filters not applied: 2160p, Dubbed, and 100+ seeds')).toBeInTheDocument()
     expect(screen.getByText('The list')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Forget' }))
     expect(search.forgetAside).toHaveBeenCalledOnce()

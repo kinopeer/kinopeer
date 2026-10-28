@@ -206,21 +206,20 @@ describe('ReleasesScreen', () => {
       expect(names()).toEqual([DUNE_RELEASES[0].title, DUNE_RELEASES[1].title])
     })
 
-    it('sets aside a remembered value no release has, and keeps it through a pick in the same filter', async () => {
-      updateSettings({ releaseFilters: { resolution: ['2160p'], audio: [], source: [], minSeeds: 0 } })
-      searchReleases.mockResolvedValue([DUNE_RELEASES[1], DUNE_RELEASES[2]])
+    it('keeps a remembered value set aside through a pick in the same filter', async () => {
+      // No 2160p release is a WEB-DL, so the source gives way and WEB-DL is set aside.
+      updateSettings({ releaseFilters: { resolution: ['2160p'], audio: [], source: ['WEB-DL'], minSeeds: 0 } })
       const first = renderAt('/title/movie/693134/releases')
-      expect(await screen.findByText('2 of 2 releases')).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Filters' })).toHaveAttribute('aria-pressed', 'false')
-      await userEvent.click(screen.getByRole('button', { name: 'Filters' }))
-      await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '1080p' }))
+      expect(await screen.findByText('Remembered filters not applied: WEB-DL')).toBeInTheDocument()
+      await userEvent.click(screen.getByRole('button', { name: 'Filters 1' }))
+      await userEvent.click(within(screen.getByRole('group', { name: 'Source' })).getByRole('button', { name: 'BluRay' }))
       first.unmount()
 
-      searchReleases.mockResolvedValue(DUNE_RELEASES)
+      searchReleases.mockResolvedValue([DUNE_RELEASES[1], DUNE_RELEASES[2]])
       renderAt('/title/tv/1396/releases')
-      expect(await screen.findByText('2 of 3 releases')).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Remove filter 2160p' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Remove filter 1080p' })).toBeInTheDocument()
+      expect(await screen.findByText('2 of 2 releases')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Remove filter WEB-DL' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Remove filter BluRay' })).toBeInTheDocument()
     })
 
     it('forgets only the remembered filters set aside on Forget', async () => {

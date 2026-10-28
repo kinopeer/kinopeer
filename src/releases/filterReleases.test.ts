@@ -3,13 +3,12 @@ import type { Release } from '../api/prowlarr'
 import {
   DEFAULT_SORT,
   NO_FILTERS,
-  applied,
   filterReleases,
   knownReleaseFilters,
   knownReleaseSort,
   presentValues,
   remember,
-  setAside,
+  split,
   startingFilters,
   summary,
   toggle,
@@ -88,39 +87,58 @@ describe('startingFilters', () => {
     // No 2160p release is a BluRay or dubbed: the source goes, then the audio.
     expect(start({ resolution: ['2160p'], audio: ['dub'], source: ['BluRay'] })).toMatchObject({ resolution: ['2160p'], audio: [], source: [] })
   })
+
+  it('puts back a filter that gave way when the releases still match with it', () => {
+    // Only BluRay releases are dubbed: the seeds give way, then the source, and then the seeds come back.
+    const rows = [
+      row('web', 'Film.2024.1080p.WEB-DL.x264', 1e9, 150, 'A'),
+      row('dub', 'Фильм (2024) BluRay 1080p | Дубляж', 1e9, 50, 'A'),
+      row('dead', 'Фильм (2024) BluRay 720p | Дубляж', 1e9, 5, 'A'),
+    ]
+    const remembered: RememberedFilters = { resolution: [], audio: ['dub'], source: ['WEB-DL'], minSeeds: 10 }
+    expect(startingFilters(remembered, rows, presentValues(rows))).toMatchObject({ audio: ['dub'], source: [], minSeeds: 10 })
+  })
 })
 
 describe('remember', () => {
-  const present = presentValues(ROWS)
   const remembered: RememberedFilters = { resolution: ['2160p'], audio: ['dub'], source: [], minSeeds: 0 }
+  const shown = { ...NO_FILTERS, resolution: ['2160p' as const], audio: ['dub' as const] }
 
   it('replaces only the filters a change sets', () => {
-    expect(remember(remembered, { minSeeds: 10 }, present)).toEqual({ ...remembered, minSeeds: 10 })
+    expect(remember(remembered, { minSeeds: 10 }, shown)).toEqual({ ...remembered, minSeeds: 10 })
   })
 
   it('leaves the remembered filters as they were on an indexer change', () => {
-    expect(remember(remembered, { indexer: ['Kinozal'] }, present)).toEqual(remembered)
+    expect(remember(remembered, { indexer: ['Kinozal'] }, shown)).toEqual(remembered)
   })
 
-  it('keeps the values the results lack in a changed filter, and forgets the ones taken off', () => {
+  it('keeps the values set aside in a changed filter, and forgets the ones taken off', () => {
+    // SD is set aside: the search shows 1080p only.
     const usual: RememberedFilters = { ...remembered, resolution: ['SD', '1080p'] }
-    expect(remember(usual, { resolution: ['1080p', '720p'] }, present).resolution).toEqual(['1080p', '720p', 'SD'])
-    expect(remember(usual, { resolution: [] }, present).resolution).toEqual(['SD'])
+    const filters = { ...shown, resolution: ['1080p' as const] }
+    expect(remember(usual, { resolution: ['1080p', '720p'] }, filters).resolution).toEqual(['1080p', '720p', 'SD'])
+    expect(remember(usual, { resolution: [] }, filters).resolution).toEqual(['SD'])
+    // The dub gave way, though some release has it: picking another audio keeps it too.
+    expect(remember(remembered, { audio: ['orig'] }, { ...shown, audio: [] }).audio).toEqual(['orig', 'dub'])
   })
 })
 
-describe('setAside and applied', () => {
-  it('split the remembered filters by whether the search applies them', () => {
+describe('split', () => {
+  it('splits the remembered filters by whether the search applies them', () => {
     const remembered: RememberedFilters = { resolution: ['2160p', '1080p'], audio: ['dub'], source: [], minSeeds: 100 }
     const filters = { ...NO_FILTERS, resolution: ['1080p' as const], audio: ['dub' as const] }
-    expect(setAside(remembered, filters)).toEqual({ resolution: ['2160p'], audio: [], source: [], minSeeds: 100 })
-    expect(applied(remembered, filters)).toEqual({ resolution: ['1080p'], audio: ['dub'], source: [], minSeeds: 0 })
+    expect(split(remembered, filters)).toEqual({
+      applied: { resolution: ['1080p'], audio: ['dub'], source: [], minSeeds: 0 },
+      aside: { resolution: ['2160p'], audio: [], source: [], minSeeds: 100 },
+    })
   })
 })
 
 describe('knownReleaseFilters', () => {
-  it('keeps only known values, a missing or malformed filter empty', () => {
-    expect(knownReleaseFilters({ resolution: ['2160p'] })).toEqual({ resolution: ['2160p'], audio: [], source: [], minSeeds: 0 })
+  it('keeps only the values the filters offer, a missing or malformed filter empty', () => {
+    expect(knownReleaseFilters({ resolution: ['2160p'], minSeeds: 50 })).toEqual({ resolution: ['2160p'], audio: [], source: [], minSeeds: 50 })
+    // Not one of the seeds options (Any, 10+, 50+, 100+), so no option could show it as picked.
+    expect(knownReleaseFilters({ minSeeds: 37 }).minSeeds).toBe(0)
     expect(knownReleaseFilters({ resolution: null, audio: 'dub', source: ['WEB-DL', 'VHS', 3], minSeeds: '10' })).toEqual({
       resolution: [],
       audio: [],
@@ -139,6 +157,7 @@ describe('knownReleaseSort', () => {
     expect(knownReleaseSort(undefined)).toEqual(DEFAULT_SORT)
     // Stored without a direction: most first, as by default.
     expect(knownReleaseSort({ key: 'size' })).toEqual({ key: 'size', descending: true })
+    expect(knownReleaseSort({ key: 'size', descending: 'false' as never })).toEqual({ key: 'size', descending: true })
   })
 })
 

@@ -32,6 +32,9 @@
 }
 
 .rel-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
   padding: var(--space-3) var(--space-4) var(--space-12);
 }
 
@@ -40,14 +43,12 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
-  margin-bottom: var(--space-3);
 }
 
 .rel-aside {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin-bottom: var(--space-3);
 }
 
 /* On a phone the text wraps beside Forget rather than pushing it onto a line of its own. */
@@ -57,10 +58,6 @@
 
 .rel-aside > button {
   flex: none;
-}
-
-.rel-count {
-  margin-bottom: var(--space-3);
 }
 
 .rel-list {

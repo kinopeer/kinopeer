@@ -5,13 +5,12 @@ import { useRequest } from '../lib/useRequest'
 import {
   NO_FILTERS,
   NO_REMEMBERED_FILTERS,
-  applied,
   filterReleases,
   knownReleaseFilters,
   knownReleaseSort,
   presentValues,
   remember,
-  setAside,
+  split,
   startingFilters,
   toggle,
   type AudioFilter,
@@ -101,7 +100,7 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
   const filters = picked?.key === key ? picked.filters : starting
   const sort = useMemo(() => knownReleaseSort(settings.releaseSort), [settings.releaseSort])
   const visible = useMemo(() => filterReleases(rows, filters, sort), [rows, filters, sort])
-  const aside = useMemo(() => setAside(remembered, filters), [remembered, filters])
+  const { applied, aside } = useMemo(() => split(remembered, filters), [remembered, filters])
 
   const audioLabel = (value: AudioFilter) => t(AUDIO_LABEL[value])
   const active: ActiveFilter[] = [
@@ -134,7 +133,10 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
     filters,
     updateFilters: (change) => {
       setPicked({ key, filters: { ...filters, ...change } })
-      updateSettings({ releaseFilters: remember(remembered, change, present) })
+      // The indexer isn't remembered: a pick of it alone leaves the settings as they are.
+      if (Object.keys(change).some((name) => name !== 'indexer')) {
+        updateSettings({ releaseFilters: remember(remembered, change, filters) })
+      }
     },
     clearFilters: () => {
       setPicked({ key, filters: NO_FILTERS })
@@ -142,7 +144,7 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
     },
     active,
     aside,
-    forgetAside: () => updateSettings({ releaseFilters: applied(remembered, filters) }),
+    forgetAside: () => updateSettings({ releaseFilters: applied }),
     sort,
     setSort: (releaseSort) => updateSettings({ releaseSort }),
     audioLabel,
