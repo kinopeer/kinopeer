@@ -9,7 +9,8 @@
     "light": "Светлая"
   },
   "language": {
-    "label": "Язык"
+    "label": "Язык",
+    "system": "Системный"
   },
   "common": {
     "retry": "Повторить",
@@ -202,6 +203,8 @@
     "backToSearch": "Вернуться к поиску",
     "findReleases": "Найти раздачи",
     "seriesHint": "Раздачи ищутся по названию сериала. Нужные сезоны выберете в списке файлов.",
+    "recommendations": "Рекомендации",
+    "similar": "Похожее",
     "inDownloads": "В загрузках",
     "inDownloadsBadge": "В загрузках · {{value}}",
     "showMore": "Подробнее",
@@ -314,6 +317,7 @@
     "savePath": "Папка сохранения",
     "startPaused": "Добавить на паузе",
     "sequential": "Последовательная загрузка",
+    "firstLastPieces": "Загружать крайние части первыми",
     "addTop": "В начало очереди",
     "filesAll": "Файлы: все ({{count}})",
     "filesSome": "Файлы: {{selected}} из {{count}}",

@@ -16,6 +16,8 @@ export interface DownloadDefaults {
   startPaused: boolean
   /** New downloads fetch pieces in order. */
   sequential: boolean
+  /** New downloads fetch each file's first and last pieces first. */
+  firstLastPieces: boolean
 }
 
 /** Answer of GET /api/settings. Secrets never leave the server, only whether they are set. */

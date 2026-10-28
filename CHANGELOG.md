@@ -7,7 +7,10 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 ### Added
 
 - Releases: the filters and the sort are remembered in the browser, so the next title's releases start with the resolution, audio, source and seeds you usually pick (the indexer starts unpicked each time). A remembered filter a title's releases don't meet is skipped for that title instead of hiding everything, and named above the list with Forget. Clear all forgets the filters.
+- Settings: the interface language has a System option, like the theme: Kinoseed follows the browser's languages (Russian or English, else English) and switches when they change. It's on for new browsers, and for existing ones whose saved language is the browser's own; a different language picked before stays.
+- Title page: a row of posters at the end of the page with what to watch next, TMDB's recommendations for the movie or series, or similar titles when TMDB has no recommendations. Each poster opens its title page.
 - Adding a release: a warning when the selected files are larger than the free space on qBittorrent's disk, with how much is missing. The release can still be added.
+- Adding a release: "First and last pieces first" next to "Sequential download", in the add sheet's options and as a download default in Settings, which fetches the start and end of each file early; together with sequential download, a player can open a file before it's fully downloaded.
 - Releases: the indexer's name on a release (the card on a phone, the table on desktop and the add sheet) links to the release's page on the tracker, in a new tab, for what Kinoseed doesn't show.
 
 ### Changed
@@ -19,12 +22,15 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ### Fixed
 
+- When qBittorrent can't tell its free space (it reports 0), Downloads, the sidebar and the add sheet's files row no longer say "0 B free", and the file picker no longer says "Not enough free space". ([#137](https://github.com/MrShakhov/kinoseed/issues/137))
 - Desktop: a release name no longer looks clickable on hover (a click did nothing when the name fit in two lines); the whole name is a tooltip on hover instead. On a phone a tap still shows the whole name.
 - Desktop: Escape in the delete confirmation or the title search opened from a torrent's details closes only that, not the details too. ([#107](https://github.com/MrShakhov/kinoseed/issues/107))
 - Desktop: a link to a title's releases (or a reload of their address) opens the title page at the releases, instead of at the top with the hero. ([#72](https://github.com/MrShakhov/kinoseed/issues/72))
 - Releases: a resolution written in the name wins over a UHD or 4K marker, so "UHD BDRip 1080p" shows as 1080p, not 2160p. HDRip is a source of its own, with its own filter, instead of showing as BDRip.
 - Search: going back from a title brings the results back at the same scroll position. Before, the list started from the top, because the results load again after the browser has already restored the scroll.
 - Settings: Test on a connection checks only that service, and saving a new TMDB key checks only TMDB. Before, every connection was checked again. ([#113](https://github.com/MrShakhov/kinoseed/issues/113))
+- Settings: switching the language while a connection is being checked no longer leaves it on "Testing…" when the earlier check answers last. ([#139](https://github.com/MrShakhov/kinoseed/issues/139))
+- Search: typing and then clearing the field while the rows load no longer shows only the rows that had loaded, as if loading were done. ([#139](https://github.com/MrShakhov/kinoseed/issues/139))
 
 ## 0.4.2 - 2026-10-26
 

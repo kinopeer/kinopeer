@@ -11,7 +11,8 @@ import { Segmented } from '../components/Segmented'
 import { Sheet } from '../components/Sheet'
 import { Toast } from '../components/Toast'
 import { Toggle } from '../components/Toggle'
-import { LANGUAGES } from '../i18n'
+import { LANGUAGES, type LanguagePreference } from '../i18n'
+import { useLanguage } from '../i18n/useLanguage'
 import { promptInstall, useInstallMethod, type ManualInstall } from '../pwa/install'
 import { useRequest } from '../lib/useRequest'
 import { useSettings, type Settings } from '../settings/settings'
@@ -80,9 +81,13 @@ function Section({ id, title, children }: { id: string; title: string; children:
   )
 }
 
+/** The download defaults that are on/off switches, in order; each is labelled by `add.<key>`. */
+const DEFAULT_SWITCHES = ['startPaused', 'sequential', 'firstLastPieces'] as const satisfies readonly (keyof Settings)[]
+
 export function SettingsScreen() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { preference, setPreference } = useTheme()
+  const language = useLanguage()
   const [settings, update] = useSettings()
   const [tmdbKeyVersion, setTmdbKeyVersion] = useState(0)
   const [cleared, setCleared] = useState(false)
@@ -163,7 +168,10 @@ export function SettingsScreen() {
     { value: 'dark', label: t('theme.dark') },
     { value: 'light', label: t('theme.light') },
   ]
-  const languageOptions = LANGUAGES.map((language) => ({ value: language.code as string, label: language.name }))
+  const languageOptions: { value: LanguagePreference; label: string }[] = [
+    { value: 'system', label: t('language.system') },
+    ...LANGUAGES.map((language) => ({ value: language.code, label: language.name })),
+  ]
   const tmdbOptions: { value: Settings['tmdbLanguage']; label: string }[] = [
     { value: 'app', label: t('settings.tmdbAsApp') },
     { value: 'en-US', label: 'English' },
@@ -195,22 +203,12 @@ export function SettingsScreen() {
         <div className="ks-card settings-card">
           {categoryField('movie')}
           {categoryField('tv')}
-          <div className="settings-toggle">
-            <span className="t-body">{t('add.startPaused')}</span>
-            <Toggle
-              label={t('add.startPaused')}
-              checked={settings.startPaused}
-              onChange={(startPaused) => update({ startPaused })}
-            />
-          </div>
-          <div className="settings-toggle">
-            <span className="t-body">{t('add.sequential')}</span>
-            <Toggle
-              label={t('add.sequential')}
-              checked={settings.sequential}
-              onChange={(sequential) => update({ sequential })}
-            />
-          </div>
+          {DEFAULT_SWITCHES.map((key) => (
+            <div key={key} className="settings-toggle">
+              <span className="t-body">{t(`add.${key}`)}</span>
+              <Toggle label={t(`add.${key}`)} checked={settings[key]} onChange={(on) => update({ [key]: on })} />
+            </div>
+          ))}
         </div>
         <p className="t-cap c3 settings-hint">{t('settings.defaultsHint')}</p>
       </Section>
@@ -225,8 +223,8 @@ export function SettingsScreen() {
             <span className="ks-label">{t('language.label')}</span>
             <Segmented
               options={languageOptions}
-              value={i18n.resolvedLanguage ?? 'en'}
-              onChange={(code) => void i18n.changeLanguage(code)}
+              value={language.preference}
+              onChange={language.setPreference}
               label={t('language.label')}
             />
           </div>
