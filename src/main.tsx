@@ -9,9 +9,11 @@ import App from './App.tsx'
 import { trackInputModality } from './lib/inputModality'
 import { listenForInstallPrompt } from './pwa/install'
 import { ErrorBoundary } from './screens/ErrorBoundary'
+import { initLanguage } from './i18n/language'
 import { initTheme } from './theme/theme'
 
 initTheme()
+initLanguage()
 listenForInstallPrompt()
 trackInputModality()
 

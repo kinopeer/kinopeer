@@ -9,7 +9,8 @@
     "light": "Light"
   },
   "language": {
-    "label": "Language"
+    "label": "Language",
+    "system": "System"
   },
   "common": {
     "retry": "Try again",
@@ -155,6 +156,8 @@
     "all": "All",
     "movies": "Movies",
     "series": "Series",
+    "year": "Year",
+    "yearLabel": "Release year",
     "newOnDigital": "New on digital",
     "newEpisodes": "New episodes",
     "bestOfYear": "Best of the year",
@@ -163,6 +166,8 @@
     "loading": "Loading",
     "noResultsTitle": "Nothing found for “{{query}}”",
     "noResultsBody": "Check the spelling or try the original title.",
+    "noResultsYearBody": "Nothing from {{year}}. Try another year or clear it.",
+    "clearYear": "Clear the year",
     "errorTitle": "Couldn’t load from TMDB",
     "errorBody": "Check the connection and try again.",
     "keyTitle": "TMDB isn’t set up",
@@ -223,7 +228,16 @@
     "clearCacheHint": "Matches torrents to TMDB titles again",
     "cacheCleared": "Cache cleared",
     "installApp": "Install app",
-    "installAppHint": "Add Kinoseed to your home screen or dock"
+    "installAppHint": "Add Kinoseed to your home screen or dock",
+    "ideas": "Suggest an idea",
+    "ideasHint": "In Discussions on GitHub, where ideas are upvoted",
+    "reportBug": "Report a bug",
+    "reportBugHint": "An issue on GitHub with the steps and your versions",
+    "sourceCode": "Kinoseed on GitHub",
+    "sourceCodeHint": "Source code, releases and what's changed",
+    "opensInNewTab": "(opens in a new tab)",
+    "tmdbSource": "Movie and series data and posters come from TMDB.",
+    "tmdbNotice": "This product uses the TMDB API but is not endorsed or certified by TMDB."
   },
   "releases": {
     "title": "Releases",
@@ -288,6 +302,7 @@
     "savePath": "Save path",
     "startPaused": "Start paused",
     "sequential": "Sequential download",
+    "firstLastPieces": "First and last pieces first",
     "addTop": "Add to top of queue",
     "filesAll": "Files: all ({{count}})",
     "filesSome": "Files: {{selected}} of {{count}}",
@@ -328,6 +343,15 @@
     "pause": "Pause",
     "resume": "Resume",
     "delete": "Delete",
+    "recheck": "Force recheck",
+    "recheckChecking": "Already being checked",
+    "recheckNoMetadata": "Once the magnet link has its metadata",
+    "reannounce": "Reannounce",
+    "reannounceOff": "Only while downloading or seeding",
+    "recheckTitle": "Recheck the files?",
+    "recheckBody": "qBittorrent will read the downloaded data of “{{title}}” again. The torrent shows as checking until it’s done, and pieces that fail the check are downloaded again.",
+    "rechecking": "Checking the files",
+    "reannounced": "Announced to the trackers",
     "cancel": "Cancel",
     "actionFailed": "Couldn’t reach qBittorrent. Try again.",
     "details": "Details",
@@ -426,5 +450,24 @@
     "change": "Change TMDB key",
     "sheetTitle": "TMDB key",
     "enter": "Enter key"
+  },
+  "prowlarrKey": {
+    "help": "Find the key in Prowlarr: Settings → General → Security → API Key.",
+    "label": "Prowlarr API key",
+    "fieldHelp": "Kinoseed checks it with Prowlarr before saving. It stays on the Kinoseed server.",
+    "invalid": "Prowlarr didn’t accept this key",
+    "unreachable": "Prowlarr isn’t answering. Check that it’s running and try again.",
+    "notConfigured": "The Kinoseed server doesn’t know Prowlarr’s address (PROWLARR_URL).",
+    "saved": "Prowlarr key saved",
+    "change": "Change Prowlarr key",
+    "sheetTitle": "Prowlarr key",
+    "forget": "Use the server’s key",
+    "notProwlarr": "The Prowlarr address on the Kinoseed server answers, but not like Prowlarr. Check PROWLARR_URL.",
+    "noServerKey": "The Kinoseed server has no Prowlarr key of its own, so the saved one stays.",
+    "forgotten": "Using the server’s Prowlarr key",
+    "save": "Save",
+    "storage": "The Kinoseed server couldn’t save the change. Check that its data folder is writable.",
+    "failed": "Couldn’t save the key. Try again.",
+    "forgetFailed": "Couldn’t switch to the server’s key. Try again."
   }
 }

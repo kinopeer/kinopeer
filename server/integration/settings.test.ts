@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { SettingsError, getServerSettings, saveDownloadDefaults, saveQbittorrentLogin, saveTmdbKey } from '../../src/api/settings/client.ts'
+import { SettingsError, getServerSettings, saveDownloadDefaults, forgetProwlarrKey, saveProwlarrKey, saveQbittorrentLogin, saveTmdbKey } from '../../src/api/settings/client.ts'
+import { getProwlarrStatus } from '../../src/api/prowlarr/client.ts'
 import { startKinoseed, stopKinoseed } from '../test/integration.ts'
 
 afterEach(async () => {
@@ -12,6 +13,7 @@ describe('settings client through /api/settings', () => {
     const { responses } = await startKinoseed()
     await expect(getServerSettings()).resolves.toEqual({
       tmdb: { configured: true, source: 'env' },
+      prowlarr: { configured: true, source: 'env', serverKey: true },
       qbittorrent: { configured: true, source: 'env' },
       downloads: null,
     })
@@ -24,6 +26,20 @@ describe('settings client through /api/settings', () => {
     expect(tmdb.seen).toEqual([{ url: '/3/authentication?api_key=good-key', authorization: undefined, cookie: undefined }])
     expect(stores.settings.current.tmdbApiKey).toBe('good-key')
     await expect(getServerSettings()).resolves.toMatchObject({ tmdb: { configured: true, source: 'saved' } })
+  })
+
+  it('saves a Prowlarr key that then wins over a stale PROWLARR_API_KEY', async () => {
+    const { prowlarr, stores } = await startKinoseed({ env: { PROWLARR_API_KEY: 'stale-key' } })
+    await expect(getProwlarrStatus()).rejects.toThrow()
+    await expect(saveProwlarrKey('wrong-key')).rejects.toMatchObject({ status: 422, code: 'invalid-key' })
+
+    await expect(saveProwlarrKey(prowlarr.apiKey)).resolves.toMatchObject({ prowlarr: { configured: true, source: 'saved', serverKey: true } })
+    expect(stores.settings.current.prowlarrApiKey).toBe(prowlarr.apiKey)
+    await expect(getProwlarrStatus()).resolves.toMatchObject({ indexers: expect.any(Number) })
+
+    await expect(forgetProwlarrKey()).resolves.toMatchObject({ prowlarr: { source: 'env' } })
+    expect(stores.settings.current.prowlarrApiKey).toBeUndefined()
+    await expect(getProwlarrStatus()).rejects.toThrow()
   })
 
   it('passes on why the server refused a key', async () => {

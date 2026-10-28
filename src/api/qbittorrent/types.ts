@@ -119,6 +119,8 @@ export interface AddTorrentOptions {
    */
   stopCondition?: 'MetadataReceived' | 'FilesChecked'
   sequentialDownload?: boolean
+  /** Fetch the first and last pieces of each file first. */
+  firstLastPiecePrio?: boolean
   /** Put the torrent first in the download queue (qBittorrent 4.4+). */
   addToTopOfQueue?: boolean
 }

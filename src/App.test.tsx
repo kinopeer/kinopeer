@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { To } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -65,7 +65,7 @@ beforeEach(() => {
   vi.mocked(matchesApi.saveMatches).mockImplementation(async (changes) => changes as matchesApi.Matches)
   vi.mocked(api.getTorrentFiles).mockResolvedValue([])
   vi.mocked(api.deleteTorrents).mockResolvedValue()
-  vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ tmdb: { configured: true, source: 'saved' }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
+  vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ tmdb: { configured: true, source: 'saved' }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
 })
 
 afterEach(() => {
@@ -164,6 +164,19 @@ describe('App', () => {
       await userEvent.click(await within(status).findByRole('button', { name: 'Alt. speed limits' }))
       expect(api.toggleSpeedLimitsMode).toHaveBeenCalled()
       expect(await screen.findByText('Couldn’t switch the speed limits. Try again.')).toBeInTheDocument()
+    })
+
+    it('shows no free space in the sidebar when qBittorrent reports 0, which means it can’t tell', async () => {
+      getMainData.mockResolvedValue({
+        rid: 1,
+        full_update: true,
+        torrents: {},
+        server_state: { dl_info_speed: 4_300_000, up_info_speed: 0, free_space_on_disk: 0 },
+      })
+      renderApp('/settings')
+      const card = await screen.findByRole('region', { name: 'qBittorrent' })
+      await waitFor(() => expect(card).toHaveTextContent('4.3 MB/s'))
+      expect(card).not.toHaveTextContent(/free/i)
     })
 
     describe('a torrent opened from the title page', () => {
@@ -269,8 +282,8 @@ describe('App', () => {
   })
 
   it('asks for the TMDB key when the server has none, then goes in', async () => {
-    vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ tmdb: { configured: false, source: null }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
-    vi.mocked(serverSettings.saveTmdbKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved' }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ tmdb: { configured: false, source: null }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
+    vi.mocked(serverSettings.saveTmdbKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved' }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
     renderApp()
 
     expect(await screen.findByRole('heading', { name: 'Connect TMDB' })).toBeInTheDocument()
@@ -286,7 +299,7 @@ describe('App', () => {
   })
 
   it('shows why a TMDB key was refused', async () => {
-    vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ tmdb: { configured: false, source: null }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ tmdb: { configured: false, source: null }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
     vi.mocked(serverSettings.saveTmdbKey).mockRejectedValue(new serverSettings.SettingsError(422, 'invalid-key'))
     renderApp()
 
@@ -298,7 +311,7 @@ describe('App', () => {
   })
 
   it('lets the TMDB key wait', async () => {
-    vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ tmdb: { configured: false, source: null }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ tmdb: { configured: false, source: null }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
     renderApp()
     await userEvent.click(await screen.findByRole('button', { name: 'Skip for now' }))
     expect(await screen.findByRole('heading', { name: 'Downloads' })).toBeInTheDocument()
@@ -346,6 +359,6 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Настройки', level: 1 })).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: 'Светлая' })).toBeInTheDocument()
     expect(document.documentElement.lang).toBe('ru')
-    expect(localStorage.getItem('kinoseed.lang')).toBe('ru')
+    expect(localStorage.getItem('kinoseed.language')).toBe('ru')
   })
 })

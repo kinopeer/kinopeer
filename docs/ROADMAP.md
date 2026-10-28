@@ -36,7 +36,7 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 
 ## 0.6: Small features and fixes
 
-- [ ] "First and last pieces first" next to sequential download: a download default in Settings and a switch in the add sheet (qBittorrent's `firstLastPiecePrio`).
+- [x] "First and last pieces first" next to sequential download: a download default in Settings and a switch in the add sheet (qBittorrent's `firstLastPiecePrio`).
 - [ ] Bottom sheets on a phone close with a swipe down on the handle, and the page behind them doesn't scroll while one is open.
 - [x] Settings → Connections: "Test" on a card checks only that connection, not all three.
 - [ ] Interface language: a "System" option that follows the browser's language, like the system theme.
@@ -48,11 +48,13 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 
 - [ ] Search: a "Popular on your trackers" row, built by the server from what Prowlarr's indexers list without a query (or their RSS), kept to 2160p releases, matched with TMDB and ranked by seeders. Check first what the indexers actually return without a query.
 - [x] The title page: "Recommendations" from TMDB, or "Similar titles" when it has none, in one row (see the decision log in SPEC.md).
-- [ ] Search: filters by year and genre.
+- [x] Search: filter by year.
+- [ ] Search: filter by genre.
 
 ## 0.8: Torrent control
 
-- [ ] Torrent details: per-torrent speed limits, recheck, reannounce and moving the files to another folder.
+- [x] Torrent details: recheck and reannounce.
+- [ ] Torrent details: per-torrent speed limits and moving the files to another folder.
 - [x] A switch for qBittorrent's alternative speed limits in the sidebar (on a phone, in the Downloads title row).
 - [ ] Releases: which indexers failed, and why, when a search comes back partly empty.
 
@@ -60,7 +62,7 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 
 - [ ] Installing with plain Docker, outside Umbrel, together with Kinoseed's own login.
 - [ ] Onboarding works on a clean install with qBittorrent and Prowlarr set only through the environment.
-- [ ] A Prowlarr API key field in Settings, kept on the server like the TMDB key, for installs that can't read Prowlarr's `config.xml`.
+- [x] A Prowlarr API key field in Settings, kept on the server like the TMDB key, for installs that can't read Prowlarr's `config.xml`.
 
 ## 1.0: Public release
 

@@ -9,7 +9,8 @@
     "light": "Светлая"
   },
   "language": {
-    "label": "Язык"
+    "label": "Язык",
+    "system": "Системный"
   },
   "common": {
     "retry": "Повторить",
@@ -170,6 +171,8 @@
     "all": "Все",
     "movies": "Фильмы",
     "series": "Сериалы",
+    "year": "Год",
+    "yearLabel": "Год выхода",
     "newOnDigital": "Новинки в цифре",
     "newEpisodes": "Новые серии",
     "bestOfYear": "Лучшее за год",
@@ -180,6 +183,8 @@
     "loading": "Загружаем",
     "noResultsTitle": "По запросу «{{query}}» ничего нет",
     "noResultsBody": "Проверьте написание или попробуйте оригинальное название.",
+    "noResultsYearBody": "За {{year}} год ничего нет. Попробуйте другой год или сбросьте его.",
+    "clearYear": "Сбросить год",
     "errorTitle": "Не удалось загрузить данные TMDB",
     "errorBody": "Проверьте соединение и попробуйте ещё раз.",
     "keyTitle": "TMDB не настроен",
@@ -246,7 +251,16 @@
     "clearCacheHint": "Заново сопоставит торренты с фильмами в TMDB",
     "cacheCleared": "Кэш очищен",
     "installApp": "Установить приложение",
-    "installAppHint": "Добавить Kinoseed на экран «Домой» или в Dock"
+    "installAppHint": "Добавить Kinoseed на экран «Домой» или в Dock",
+    "ideas": "Предложить идею",
+    "ideasHint": "В Discussions на GitHub, где за идеи голосуют",
+    "reportBug": "Сообщить об ошибке",
+    "reportBugHint": "Issue на GitHub с шагами и версиями",
+    "sourceCode": "Kinoseed на GitHub",
+    "sourceCodeHint": "Исходный код, релизы и список изменений",
+    "opensInNewTab": "(откроется в новой вкладке)",
+    "tmdbSource": "Данные о фильмах и сериалах и постеры берутся из TMDB.",
+    "tmdbNotice": "This product uses the TMDB API but is not endorsed or certified by TMDB."
   },
   "releases": {
     "title": "Раздачи",
@@ -319,6 +333,7 @@
     "savePath": "Папка сохранения",
     "startPaused": "Добавить на паузе",
     "sequential": "Последовательная загрузка",
+    "firstLastPieces": "Загружать крайние части первыми",
     "addTop": "В начало очереди",
     "filesAll": "Файлы: все ({{count}})",
     "filesSome": "Файлы: {{selected}} из {{count}}",
@@ -361,6 +376,15 @@
     "pause": "Пауза",
     "resume": "Продолжить",
     "delete": "Удалить",
+    "recheck": "Перепроверить",
+    "recheckChecking": "Проверка уже идёт",
+    "recheckNoMetadata": "Когда magnet-ссылка получит метаданные",
+    "reannounce": "Переанонсировать",
+    "reannounceOff": "Только во время загрузки или раздачи",
+    "recheckTitle": "Перепроверить файлы?",
+    "recheckBody": "qBittorrent заново прочитает скачанные данные «{{title}}». До конца проверки торрент будет в статусе проверки, а части, которые её не пройдут, скачаются заново.",
+    "rechecking": "Проверка файлов началась",
+    "reannounced": "Анонс отправлен трекерам",
     "cancel": "Отмена",
     "actionFailed": "Не удалось связаться с qBittorrent. Попробуйте ещё раз.",
     "details": "Подробности",
@@ -461,5 +485,24 @@
     "change": "Сменить ключ TMDB",
     "sheetTitle": "Ключ TMDB",
     "enter": "Ввести ключ"
+  },
+  "prowlarrKey": {
+    "help": "Ключ есть в Prowlarr: Settings → General → Security → API Key.",
+    "label": "API-ключ Prowlarr",
+    "fieldHelp": "Kinoseed проверит его в Prowlarr перед сохранением. Ключ хранится на сервере Kinoseed.",
+    "invalid": "Prowlarr не принял этот ключ",
+    "unreachable": "Prowlarr не отвечает. Проверьте, что он запущен, и попробуйте ещё раз.",
+    "notConfigured": "Сервер Kinoseed не знает адрес Prowlarr (PROWLARR_URL).",
+    "saved": "Ключ Prowlarr сохранён",
+    "change": "Сменить ключ Prowlarr",
+    "sheetTitle": "Ключ Prowlarr",
+    "forget": "Использовать ключ сервера",
+    "notProwlarr": "Адрес Prowlarr на сервере Kinoseed отвечает, но не как Prowlarr. Проверьте PROWLARR_URL.",
+    "noServerKey": "У сервера Kinoseed нет своего ключа Prowlarr, поэтому сохранённый остаётся.",
+    "forgotten": "Используется ключ Prowlarr с сервера",
+    "save": "Сохранить",
+    "storage": "Сервер Kinoseed не смог сохранить изменение. Проверьте, что папка данных доступна для записи.",
+    "failed": "Не удалось сохранить ключ. Попробуйте ещё раз.",
+    "forgetFailed": "Не удалось перейти на ключ сервера. Попробуйте ещё раз."
   }
 }
