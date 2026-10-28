@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { UnauthorizedError, toggleSpeedLimitsMode } from '../api/qbittorrent'
 import { EMPTY_SYNC_STATE } from './sync'
 import { useAltSpeedLimits } from './useAltSpeedLimits'
@@ -29,7 +29,16 @@ function renderAlt(initial: MainDataState) {
   return renderHook((state: MainDataState) => useAltSpeedLimits(state), { initialProps: initial })
 }
 
+/** The pinned clock: qBittorrent takes a switch at NOW, polls are sent before or after it. */
+const NOW = Date.UTC(2026, 9, 28, 12)
+
+beforeEach(() => {
+  // Only Date is pinned, so waitFor's own timers still run.
+  vi.setSystemTime(NOW)
+})
+
 afterEach(() => {
+  vi.useRealTimers()
   toggleMock.mockReset()
   refresh.mockReset()
 })
@@ -47,7 +56,6 @@ describe('useAltSpeedLimits', () => {
   it('shows the new state right away and keeps it until a poll sent after the switch', async () => {
     toggleMock.mockResolvedValue()
     const { result, rerender } = renderAlt(main(false))
-    const before = Date.now() - 1
     act(() => result.current.toggle())
     expect(toggleMock).toHaveBeenCalledOnce()
     expect(result.current).toMatchObject({ on: true, disabled: true })
@@ -55,13 +63,13 @@ describe('useAltSpeedLimits', () => {
     await waitFor(() => expect(refresh).toHaveBeenCalled())
     expect(result.current).toMatchObject({ on: true, disabled: false })
     // A poll that was on its way before the switch answers only now, with the old state.
-    rerender(main(false, { requestedAt: before, updatedAt: Date.now() + 500 }))
+    rerender(main(false, { requestedAt: NOW - 1, updatedAt: NOW + 500 }))
     expect(result.current.on).toBe(true)
 
-    rerender(main(true, { requestedAt: Date.now() + 1_000 }))
+    rerender(main(true, { requestedAt: NOW + 1_000 }))
     expect(result.current.on).toBe(true)
     // From then on the poll decides, e.g. after a switch in qBittorrent's own UI.
-    rerender(main(false, { requestedAt: Date.now() + 3_000 }))
+    rerender(main(false, { requestedAt: NOW + 3_000 }))
     expect(result.current.on).toBe(false)
   })
 
@@ -71,7 +79,7 @@ describe('useAltSpeedLimits', () => {
     act(() => result.current.toggle())
     await waitFor(() => expect(refresh).toHaveBeenCalled())
     // qBittorrent's scheduler switched the limits back.
-    rerender(main(false, { requestedAt: Date.now() + 1_000 }))
+    rerender(main(false, { requestedAt: NOW + 1_000 }))
     expect(result.current).toMatchObject({ on: false, disabled: false })
   })
 
@@ -85,6 +93,17 @@ describe('useAltSpeedLimits', () => {
 
     act(() => result.current.dismissFailed())
     expect(result.current.failed).toBe(false)
+  })
+
+  it('forgets a failure when the switch is pressed again', async () => {
+    toggleMock.mockRejectedValueOnce(new Error('down')).mockResolvedValueOnce()
+    const { result } = renderAlt(main(false))
+    act(() => result.current.toggle())
+    await waitFor(() => expect(result.current.failed).toBe(true))
+
+    act(() => result.current.toggle())
+    expect(result.current).toMatchObject({ on: true, failed: false })
+    await waitFor(() => expect(refresh).toHaveBeenCalled())
   })
 
   it('leaves an expired session to the poll, which reports it', async () => {

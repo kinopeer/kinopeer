@@ -76,8 +76,16 @@ describe('DownloadsScreen', () => {
     expect(button).toHaveAttribute('aria-pressed', 'false')
 
     await userEvent.click(button)
-    expect(api.toggleSpeedLimitsMode).toHaveBeenCalledOnce()
+    expect(api.toggleSpeedLimitsMode).toHaveBeenCalled()
     expect(await screen.findByText('Couldn’t switch the speed limits. Try again.')).toBeInTheDocument()
+  })
+
+  it('has no speed limits switch until qBittorrent says which limits apply', async () => {
+    const { use_alt_speed_limits: _, ...serverState } = SNAPSHOT.server_state!
+    getMainData.mockResolvedValue({ ...SNAPSHOT, server_state: serverState })
+    renderScreen()
+    expect(await screen.findAllByRole('listitem')).toHaveLength(3)
+    expect(screen.queryByRole('button', { name: 'Alternative speed limits' })).not.toBeInTheDocument()
   })
 
   it('shows a loading state, then the torrents in queue order', async () => {

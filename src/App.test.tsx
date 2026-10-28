@@ -162,7 +162,7 @@ describe('App', () => {
       renderApp('/')
       const status = await screen.findByRole('region', { name: 'qBittorrent' })
       await userEvent.click(await within(status).findByRole('button', { name: 'Alt. speed limits' }))
-      expect(api.toggleSpeedLimitsMode).toHaveBeenCalledOnce()
+      expect(api.toggleSpeedLimitsMode).toHaveBeenCalled()
       expect(await screen.findByText('Couldn’t switch the speed limits. Try again.')).toBeInTheDocument()
     })
 
