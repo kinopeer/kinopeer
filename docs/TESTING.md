@@ -114,9 +114,15 @@ them:
   screen that hasn't loaded.
 - **Two causes, one test.** A test about one cause keeps the others out: a swipe test about the
   distance uses a slow swipe, so the flick rule can't pass it for the wrong reason.
-- **The clock.** Vitest runs in UTC (`env` in `vite.config.ts`), the same on the owner's Mac and in
-  CI; a test that reads the time pins it with `vi.setSystemTime` and, when it's about another time
-  zone, sets that zone itself.
+- **The clock.** Vitest runs in UTC (`env` in `vite.config.ts`), the same on any machine and in
+  CI; a test that reads the time pins it with `vi.setSystemTime`, and one about another time zone
+  sets it with `vi.stubEnv('TZ', …)` and puts it back with `vi.unstubAllEnvs()` in its `afterEach`
+  or `afterAll`, as `browseRows.test.ts` does. A `process.env.TZ` assigned by hand stays for the
+  rest of the file.
+
+The Seen red column is the author's word, and the review can only read the tests for these shapes.
+If retros keep finding check K tagged `clear`, the next step is a mechanism, not a sentence: a
+mutation run over the changed files in CI.
 
 ### Saying why something is uncovered
 
@@ -148,7 +154,7 @@ A bug is two defects: one in the code and one in the tests that let it through. 
 three questions: why it broke, why the tests didn't catch it, and what changes so this class of miss
 is caught from now on. The order of work:
 
-1. **An issue first.** A bug from the test stand, from Umbrel or from a test under construction
+1. **An issue first.** A bug that reached `main`, from the test stand, from Umbrel or from a test under construction
    becomes an issue with the steps and the environment (phone or desktop, HTTP or HTTPS, the
    qBittorrent version, where it was found) before anyone fixes it, so the fix can be checked against
    what was seen and the label below has a place to live. The bug report form
@@ -287,9 +293,10 @@ and a guess against the user's choice in the matches. To add a contract, call th
 what the fake saw (`qbittorrent.seen`, `prowlarr.seen`, `tmdb.seen`), what the server answered and
 what it saved; a service's new behavior goes into its fake, not inline. The tests wait for nothing
 real: `addRelease` gets a `wait` that resolves at once, and the fakes answer at once. A new or
-changed route under `server/` gets its test here in the same PR, and when the route reaches a
-service, that service's fake in `server/test/fakes.ts` learns the new request in the same PR too, so
-the client tests and the smoke journeys don't drift from it. The integration tests are typechecked by
+changed route that a client in `src/api/*` calls gets its test here in the same PR, and when the
+route reaches a service, that service's fake in `server/test/fakes.ts` learns the new request in the
+same PR too, so the client tests and the smoke journeys don't drift from it. A route no client calls
+(`/healthz`, the static files, a job) stays on layer 4. The integration tests are typechecked by
 `tsconfig.integration.json`, with the bundler's module resolution, since the clients import without
 file extensions; the rest of `server/` stays under `tsconfig.node.json`, which checks the `.ts`
 imports Node needs.
@@ -343,8 +350,10 @@ Three steps, each by whoever can do it best:
 
 Each round is one comment on the PR headed `Test review, round <n>`, findings first, each tagged
 with its check and whether the rule behind it was clear ([below](#improving-the-system)), then the
-verdict. A real bug that `/code-review` finds in an open PR is fixed there with a red test first;
-the next test-review round records the missed test as a finding under check A.
+verdict. A real bug that `/code-review` finds in an open PR's own change is fixed in that PR, red
+test first, without an issue: it never reached `main`. The next test-review round records the
+missed test as a finding under check A. A bug that reached `main` follows
+[When we find a bug](#when-we-find-a-bug).
 
 ## Improving the system
 
@@ -361,6 +370,9 @@ one of:
 - `clear`: the rule says it plainly and the PR didn't follow it.
 - `gap`: no rule covers it, or the one here can be read the other way.
 - `conflict`: this file and the skill (or the template, or `CLAUDE.md`) say different things.
+
+Each finding is tagged once, in the round that first reports it. A later round that finds it still
+open lists it as `still open (round <n>)` with no tag, and the retro counts each PR's findings once.
 
 The review comments are the log: no other file to keep in sync. Escaped bugs keep their own
 record, the `test-gap:*` labels ([When we find a bug](#when-we-find-a-bug)).
