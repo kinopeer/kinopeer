@@ -91,8 +91,10 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   // The defaults from Settings until the user flips them, so defaults the server sends late still apply.
   const [chosenPaused, setPaused] = useState<boolean>()
   const [chosenSequential, setSequential] = useState<boolean>()
+  const [chosenFirstLast, setFirstLast] = useState<boolean>()
   const paused = chosenPaused ?? settings.startPaused
   const sequential = chosenSequential ?? settings.sequential
+  const firstLastPieces = chosenFirstLast ?? settings.firstLastPieces
   const [topOfQueue, setTopOfQueue] = useState(false)
   const [adding, setAdding] = useState(false)
   const [addError, setAddError] = useState<string>()
@@ -131,6 +133,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
           savePath: savePath.trim() || undefined,
           paused,
           sequential,
+          firstLastPieces,
           topOfQueue,
         },
         meta && { meta, skip: [...skipped] },
@@ -158,6 +161,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   const toggles = [
     { label: t('add.startPaused'), checked: paused, set: setPaused },
     { label: t('add.sequential'), checked: sequential, set: setSequential },
+    { label: t('add.firstLastPieces'), checked: firstLastPieces, set: setFirstLast },
     { label: t('add.addTop'), checked: topOfQueue, set: setTopOfQueue },
   ]
 

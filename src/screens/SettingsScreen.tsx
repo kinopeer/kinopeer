@@ -215,6 +215,14 @@ export function SettingsScreen() {
               onChange={(sequential) => update({ sequential })}
             />
           </div>
+          <div className="settings-toggle">
+            <span className="t-body">{t('add.firstLastPieces')}</span>
+            <Toggle
+              label={t('add.firstLastPieces')}
+              checked={settings.firstLastPieces}
+              onChange={(firstLastPieces) => update({ firstLastPieces })}
+            />
+          </div>
         </div>
         <p className="t-cap c3 settings-hint">{t('settings.defaultsHint')}</p>
       </Section>

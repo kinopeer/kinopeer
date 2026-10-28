@@ -6,7 +6,7 @@ import type { DownloadSort } from '../torrents/sort'
 
 /**
  * Preferences from the Settings screen, kept in this browser. The download defaults (categories,
- * start paused, sequential) are also kept on the Kinoseed server, so every device has the same:
+ * start paused, sequential, first and last pieces) are also kept on the Kinoseed server, so every device has the same:
  * the server's win when they load, and changes go to both. Without the server they stay in this
  * browser only. Connection settings live on the server alone.
  */
@@ -19,6 +19,8 @@ export interface Settings {
   startPaused: boolean
   /** New downloads fetch pieces in order. */
   sequential: boolean
+  /** New downloads fetch each file's first and last pieces first, so a player can open it early. */
+  firstLastPieces: boolean
   /** Language of titles and overviews from TMDB; 'app' follows the interface language. */
   tmdbLanguage: 'app' | 'en-US' | 'ru-RU'
   /** How the downloads list is shown on a phone or tablet. */
@@ -34,6 +36,7 @@ export const SETTINGS_STORAGE_KEY = 'kinoseed.settings'
 export const DEFAULT_SETTINGS: Settings = {
   startPaused: false,
   sequential: false,
+  firstLastPieces: false,
   tmdbLanguage: 'app',
   downloadsView: 'list',
   downloadsDesktopView: 'grid',
@@ -41,7 +44,7 @@ export const DEFAULT_SETTINGS: Settings = {
 }
 
 /** The settings the server keeps too. */
-const SERVER_KEYS = ['movieCategory', 'tvCategory', 'startPaused', 'sequential'] as const
+const SERVER_KEYS = ['movieCategory', 'tvCategory', 'startPaused', 'sequential', 'firstLastPieces'] as const
 type ServerKey = (typeof SERVER_KEYS)[number]
 
 let current: Settings | undefined

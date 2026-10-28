@@ -31,7 +31,7 @@ The `homelab-kinoseed` package from the Homelab App Store runs on port 8795, dep
 | Prowlarr API key | Environment or Prowlarr's `config.xml` | The Umbrel package |
 | qBittorrent login | `/data/settings.json`, else environment | The connect screen |
 | TMDB key | `/data/settings.json`, else environment | Onboarding or Settings |
-| Download defaults (categories, start paused, sequential) | `/data/settings.json`; a copy in the browser | Settings |
+| Download defaults (categories, start paused, sequential, first and last pieces first) | `/data/settings.json`; a copy in the browser | Settings |
 | Theme, interface language, TMDB language | Browser | Settings |
 | Downloads view and sort | Browser | Downloads |
 | Torrent-to-TMDB matches | `/data/matches.json`; titles and posters cached in the browser | Guessed automatically; the torrent menu |
@@ -108,7 +108,7 @@ Poster, year, runtime or number of seasons and episodes, rating, overview, and a
 ### Adding
 
 - Kinoseed gets only the `.torrent` (preferred, so files can be picked) or the magnet link from Prowlarr and adds it to qBittorrent itself. Prowlarr's own download clients aren't used.
-- Options: category (the default from Settings, else a qBittorrent category with a matching name such as Movies or TV Shows), save path, start paused, sequential, add to the top of the queue.
+- Options: category (the default from Settings, else a qBittorrent category with a matching name such as Movies or TV Shows), save path, start paused, sequential, first and last pieces first, add to the top of the queue.
 - File selection and a free space check. With skipped files, the torrent is added stopped, the skipped files get priority 0, then it starts. A magnet link downloads every file.
 - The torrent gets the `tmdb:<movie|tv>:<id>` tag; after adding, the app goes to Downloads and shows a toast.
 
@@ -132,6 +132,7 @@ Manifest and icons; the service worker keeps the app shell available offline and
 
 | Date | Decision |
 | --- | --- |
+| 2026-10-28 | "First and last pieces first" (qBittorrent's `firstLastPiecePrio`) is an option when adding and a download default next to "Sequential download", kept on the server like the others and off by default, as in qBittorrent. Together with sequential download it lets a player open a file before it's complete; on its own it lets a player read the file's index early. It's set when adding only: changing it on a torrent already added would need options on the torrent page that Kinoseed doesn't have for sequential download either. |
 | 2026-10-27 | In the desktop hero the poster is aligned with the title at the top (the canvas aligned the text's bottom with the poster's), and an overview longer than five lines is cut with "Show more". With the bottom alignment a long overview (Russian TMDB overviews often run to ten lines) left the poster hanging at the bottom with empty space above it and the title far from it, and the hero grew with the text, pushing "Find releases" down. Five lines is about the poster's height, so a typical overview still shows whole. |
 | 2026-10-27 | Downloads keeps its controls on screen while the list scrolls, as Search and the releases already do: a long list otherwise leaves the filters, the sort and the selection's count and Cancel out of reach, with the bulk bar still fixed at the bottom. On a phone only the bar with the chips, the sort and the view (the selection row while selecting) is pinned, not the whole header: the title and the totals would cost a quarter of the screen for nothing that's acted on. On desktop there's room for the whole header, and the table's column names stick under it. |
 | 2026-10-27 | The indexer's name on a release links to the release's page on the tracker. Leaving Kinoseed for a tracker's site is still a gap in the flow, but this link is an exit for what Kinoseed doesn't show (the description, screenshots, comments, the exact audio tracks), not a step in it: the release is picked and added here. Tracker logins stay out of scope. The name is the link rather than a button of its own: the card and the table are already dense, and the name already says where the release is from. |

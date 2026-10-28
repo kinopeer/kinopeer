@@ -164,7 +164,7 @@ function downloadChanges(body: unknown): DownloadDefaultsBody | undefined {
         return undefined
       }
       changes[key] = value
-    } else if (key === 'startPaused' || key === 'sequential') {
+    } else if (key === 'startPaused' || key === 'sequential' || key === 'firstLastPieces') {
       if (typeof value !== 'boolean') return undefined
       changes[key] = value
     } else {
