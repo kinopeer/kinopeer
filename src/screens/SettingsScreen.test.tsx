@@ -94,11 +94,32 @@ describe('SettingsScreen', () => {
     expect(await within(connection('Prowlarr')).findByText('Connected · 1 indexer · v1.24.3')).toBeInTheDocument()
   })
 
+  it.each([
+    { name: 'qBittorrent', check: qbt.getAppVersion, ok: 'Connected · qBittorrent v5.3.0 · API 2.11.4' },
+    { name: 'Prowlarr', check: prowlarr.getProwlarrStatus, ok: 'Connected · 2 indexers · v1.24.3' },
+    { name: 'TMDB', check: tmdb.checkTmdb, ok: 'Connected' },
+  ])('checks only $name again on its Test', async ({ name, check, ok }) => {
+    const checks = [qbt.getAppVersion, prowlarr.getProwlarrStatus, tmdb.checkTmdb]
+    renderScreen()
+    for (const row of ['qBittorrent', 'Prowlarr', 'TMDB']) {
+      expect(await within(connection(row)).findByText(/^Connected/)).toBeInTheDocument()
+    }
+    for (const fn of checks) vi.mocked(fn).mockClear()
+
+    await userEvent.click(within(connection(name)).getByRole('button', { name: 'Test' }))
+    expect(await within(connection(name)).findByText(ok)).toBeInTheDocument()
+    for (const fn of checks) expect(fn).toHaveBeenCalledTimes(fn === check ? 1 : 0)
+  })
+
   it('changes the TMDB key and checks the connection again', async () => {
     vi.mocked(tmdb.checkTmdb).mockRejectedValue(new tmdb.TmdbKeyError(401))
     vi.mocked(serverSettings.saveTmdbKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved' }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
     renderScreen()
     expect(await within(connection('TMDB')).findByText('The API key is missing or invalid')).toBeInTheDocument()
+    expect(await within(connection('Prowlarr')).findByText(/^Connected/)).toBeInTheDocument()
+    expect(await within(connection('qBittorrent')).findByText(/^Connected/)).toBeInTheDocument()
+    vi.mocked(qbt.getAppVersion).mockClear()
+    vi.mocked(prowlarr.getProwlarrStatus).mockClear()
 
     vi.mocked(tmdb.checkTmdb).mockResolvedValue()
     await userEvent.click(within(connection('TMDB')).getByRole('button', { name: 'Change TMDB key' }))
@@ -109,6 +130,8 @@ describe('SettingsScreen', () => {
     expect(serverSettings.saveTmdbKey).toHaveBeenCalledWith('abc123')
     expect(await screen.findByText('TMDB key saved')).toBeInTheDocument()
     expect(await within(connection('TMDB')).findByText('Connected')).toBeInTheDocument()
+    expect(qbt.getAppVersion).not.toHaveBeenCalled()
+    expect(prowlarr.getProwlarrStatus).not.toHaveBeenCalled()
   })
 
   it('shows the app version', () => {
