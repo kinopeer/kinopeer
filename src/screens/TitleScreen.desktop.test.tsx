@@ -129,7 +129,7 @@ describe('TitleScreen on desktop', () => {
     expect(getMovie).toHaveBeenCalledTimes(1)
   })
 
-  it('shows the recommendations at the end of the page, under the releases', async () => {
+  it('keeps the recommendations on the page with the releases searched', async () => {
     vi.mocked(tmdb.getRecommendations).mockResolvedValue({
       titles: [tmdb.toTitle({ ...DUNE, id: 438631, title: 'Dune' }, 'movie')],
       page: 1,
@@ -137,10 +137,9 @@ describe('TitleScreen on desktop', () => {
     })
     renderAt('/title/movie/693134/releases')
 
+    expect(await screen.findByRole('region', { name: 'Releases' })).toBeInTheDocument()
     const row = await screen.findByRole('region', { name: 'Recommendations' })
     expect(within(row).getByRole('link', { name: /Dune/ })).toHaveAttribute('href', '/title/movie/438631')
-    const releases = screen.getByRole('region', { name: 'Releases' })
-    expect(releases.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('shows the releases already searched when opened at their link, starting at them', async () => {

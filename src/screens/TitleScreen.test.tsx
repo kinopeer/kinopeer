@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes, useLocation, useParams } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -126,11 +126,12 @@ beforeEach(() => {
 })
 
 describe('TitleScreen', () => {
-  it('suggests what to watch next under the title, and opens a suggested title', async () => {
+  it('suggests what to watch next under the title, and opens a suggested title with its own suggestions', async () => {
     const dune = { ...DUNE, id: 438631, title: 'Dune', release_date: '2021-09-15' }
+    const interstellar = { ...DUNE, id: 157336, title: 'Interstellar', release_date: '2014-11-05' }
     getMovie.mockImplementation(async (id) => (id === dune.id ? dune : DUNE))
     vi.mocked(tmdb.getRecommendations).mockImplementation(async (_type, id) => ({
-      titles: id === DUNE.id ? [tmdb.toTitle(dune, 'movie')] : [],
+      titles: [tmdb.toTitle(id === DUNE.id ? dune : interstellar, 'movie')],
       page: 1,
       totalPages: 1,
     }))
@@ -139,10 +140,10 @@ describe('TitleScreen', () => {
     const row = await screen.findByRole('region', { name: 'Recommendations' })
     await userEvent.click(within(row).getByRole('link', { name: /Dune/ }))
     expect(await screen.findByRole('heading', { level: 1, name: 'Dune' })).toBeInTheDocument()
-    expect(getMovie).toHaveBeenLastCalledWith(438631, expect.anything())
-    // Nothing is recommended for that one, and similar titles are asked for in their place.
-    await waitFor(() => expect(tmdb.getSimilar).toHaveBeenCalledWith('movie', 438631, expect.anything()))
-    expect(screen.queryByRole('region', { name: 'Recommendations' })).not.toBeInTheDocument()
+    // The row follows the title on the page, not the one it was opened from.
+    const next = await screen.findByRole('region', { name: 'Recommendations' })
+    expect(await within(next).findByRole('link', { name: /Interstellar/ })).toHaveAttribute('href', '/title/movie/157336')
+    expect(within(next).queryByRole('link', { name: /^Dune/ })).not.toBeInTheDocument()
   })
 
   it('shows a movie', async () => {

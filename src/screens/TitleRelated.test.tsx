@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as tmdb from '../api/tmdb'
 import type { Title } from '../api/tmdb'
@@ -19,6 +19,11 @@ function title(id: number, name: string, fields: Partial<Title> = {}): Title {
 
 function page(...titles: Title[]): tmdb.TitlePage {
   return { titles, page: 1, totalPages: 1 }
+}
+
+/** Lets the mocked answers arrive and be rendered: they're all settled promises, done within a macrotask. */
+async function answered() {
+  await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
 }
 
 function renderRelated(id = 693134) {
@@ -43,6 +48,7 @@ describe('TitleRelated', () => {
       ['InterstellarMovie', '/title/movie/157336'],
     ])
     expect(getRecommendations).toHaveBeenCalledWith('movie', 693134, expect.objectContaining({ language: 'en-US' }))
+    // A call count is the only way to see that no second request goes out.
     expect(getSimilar).not.toHaveBeenCalled()
   })
 
@@ -65,15 +71,19 @@ describe('TitleRelated', () => {
 
   it('shows nothing when both lists are empty', async () => {
     const { container } = renderRelated()
-    await waitFor(() => expect(getSimilar).toHaveBeenCalled())
+    // Both answers are in and applied, so this checks the empty lists, not the loading state.
+    await answered()
+    expect(getSimilar).toHaveBeenCalled()
     expect(container).toBeEmptyDOMElement()
   })
 
   it('shows nothing when TMDB fails, since the page works without it', async () => {
     getRecommendations.mockRejectedValue(new TypeError('Failed to fetch'))
     const { container } = renderRelated()
-    await waitFor(() => expect(getRecommendations).toHaveBeenCalled())
+    // The failure is in and applied, so this checks the error state, not the loading state.
+    await answered()
     expect(container).toBeEmptyDOMElement()
+    // A call count is the only way to see that no fallback request goes out after a failure.
     expect(getSimilar).not.toHaveBeenCalled()
   })
 })
