@@ -15,6 +15,7 @@ export interface AddReleaseOptions {
   savePath?: string
   paused: boolean
   sequential: boolean
+  firstLastPieces: boolean
   topOfQueue: boolean
 }
 
@@ -76,6 +77,7 @@ export async function addRelease(
     savePath: options.savePath,
     stopped: partial || options.paused,
     sequentialDownload: options.sequential,
+    firstLastPiecePrio: options.firstLastPieces,
     addToTopOfQueue: options.topOfQueue,
   })
   if (!partial) return

@@ -102,7 +102,15 @@ describe('AddReleaseSheet', () => {
 
     expect(addRelease).toHaveBeenCalledWith(
       { kind: 'torrent', file: FILE },
-      { tags: ['tmdb:tv:1396'], category: 'TV', savePath: undefined, paused: false, sequential: false, topOfQueue: false },
+      {
+        tags: ['tmdb:tv:1396'],
+        category: 'TV',
+        savePath: undefined,
+        paused: false,
+        sequential: false,
+        firstLastPieces: false,
+        topOfQueue: false,
+      },
       { meta: META, skip: [0, 2] },
     )
     expect(onAdded).toHaveBeenCalled()
@@ -115,26 +123,35 @@ describe('AddReleaseSheet', () => {
     await userEvent.click(await within(sheet).findByRole('button', { name: 'No category' }))
     await userEvent.type(within(sheet).getByLabelText('Save path'), '/mnt/tv')
     await userEvent.click(within(sheet).getByRole('switch', { name: 'Start paused' }))
+    await userEvent.click(within(sheet).getByRole('switch', { name: 'First and last pieces first' }))
     await userEvent.click(within(sheet).getByRole('switch', { name: 'Add to top of queue' }))
     expect(within(sheet).getByText('/mnt/tv')).toBeInTheDocument()
     await userEvent.click(await within(sheet).findByRole('button', { name: /^Download/ }))
 
     expect(addRelease).toHaveBeenCalledWith(
       expect.anything(),
-      { tags: ['tmdb:tv:1396'], category: undefined, savePath: '/mnt/tv', paused: true, sequential: false, topOfQueue: true },
+      {
+        tags: ['tmdb:tv:1396'],
+        category: undefined,
+        savePath: '/mnt/tv',
+        paused: true,
+        sequential: false,
+        firstLastPieces: true,
+        topOfQueue: true,
+      },
       { meta: META, skip: [] },
     )
   })
 
   it('starts from the defaults in Settings', async () => {
-    updateSettings({ tvCategory: 'Movies', startPaused: true, sequential: true })
+    updateSettings({ tvCategory: 'Movies', startPaused: true, sequential: true, firstLastPieces: true })
     renderSheet()
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
     expect(await within(sheet).findByText('Movies → /data/movies')).toBeInTheDocument()
     await userEvent.click(await within(sheet).findByRole('button', { name: /^Download/ }))
     expect(addRelease).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ category: 'Movies', paused: true, sequential: true }),
+      expect.objectContaining({ category: 'Movies', paused: true, sequential: true, firstLastPieces: true }),
       expect.anything(),
     )
   })
@@ -145,11 +162,14 @@ describe('AddReleaseSheet', () => {
     await userEvent.click(within(sheet).getByRole('button', { name: 'Options' }))
     const paused = within(sheet).getByRole('switch', { name: 'Start paused' })
     const sequential = within(sheet).getByRole('switch', { name: 'Sequential download' })
+    const firstLast = within(sheet).getByRole('switch', { name: 'First and last pieces first' })
     expect(paused).not.toBeChecked()
+    expect(firstLast).not.toBeChecked()
 
     // The server's defaults load while the sheet is open.
-    act(() => updateSettings({ startPaused: true }))
+    act(() => updateSettings({ startPaused: true, firstLastPieces: true }))
     expect(paused).toBeChecked()
+    expect(firstLast).toBeChecked()
 
     await userEvent.click(sequential)
     act(() => updateSettings({ sequential: false, startPaused: false }))

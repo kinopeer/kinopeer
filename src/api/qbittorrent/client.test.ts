@@ -69,14 +69,22 @@ describe('addTorrents', () => {
     expect(form.has('savepath')).toBe(false)
     expect(form.has('stopCondition')).toBe(false)
     expect(form.has('sequentialDownload')).toBe(false)
+    expect(form.has('firstLastPiecePrio')).toBe(false)
   })
 
-  it('sends the queue and sequential download options', async () => {
+  it('sends the queue and piece order options', async () => {
     respond('Ok.')
-    await addTorrents({ urls: ['magnet:?xt=urn:btih:abc'], savePath: '/data/tv', sequentialDownload: true, addToTopOfQueue: true })
+    await addTorrents({
+      urls: ['magnet:?xt=urn:btih:abc'],
+      savePath: '/data/tv',
+      sequentialDownload: true,
+      firstLastPiecePrio: true,
+      addToTopOfQueue: true,
+    })
     const form = lastCall().init.body as FormData
     expect(form.get('savepath')).toBe('/data/tv')
     expect(form.get('sequentialDownload')).toBe('true')
+    expect(form.get('firstLastPiecePrio')).toBe('true')
     expect(form.get('addToTopOfQueue')).toBe('true')
   })
 
