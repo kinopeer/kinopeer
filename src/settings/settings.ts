@@ -6,9 +6,9 @@ import type { DownloadSort } from '../torrents/sort'
 
 /**
  * Preferences from the Settings screen, kept in this browser. The download defaults (categories,
- * start paused, sequential, first and last pieces) are also kept on the Kinoseed server, so every device has the same:
- * the server's win when they load, and changes go to both. Without the server they stay in this
- * browser only. Connection settings live on the server alone.
+ * start paused, sequential, first and last pieces first) are also kept on the Kinoseed server, so
+ * every device has the same: the server's win when they load, and changes go to both. Without the
+ * server they stay in this browser only. Connection settings live on the server alone.
  */
 export interface Settings {
   /** qBittorrent category for new movie downloads; undefined picks one named like "Movies". */

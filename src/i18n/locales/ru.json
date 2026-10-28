@@ -312,7 +312,7 @@
     "savePath": "Папка сохранения",
     "startPaused": "Добавить на паузе",
     "sequential": "Последовательная загрузка",
-    "firstLastPieces": "Сначала первая и последняя части",
+    "firstLastPieces": "Загружать крайние части первыми",
     "addTop": "В начало очереди",
     "filesAll": "Файлы: все ({{count}})",
     "filesSome": "Файлы: {{selected}} из {{count}}",
