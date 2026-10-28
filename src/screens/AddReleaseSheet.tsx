@@ -117,11 +117,11 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   const fileCount = meta?.files.length ?? 0
   const selectedCount = fileCount - skipped.size
   const free = where.data?.free
-  // qBittorrent reports the free space where its default save path is (negative when it can't tell).
+  // qBittorrent reports the free space where its default save path is (0 or negative when it can't tell).
   // A warning, not a block: the space may be freed before the download finishes, or the save path may
   // be on another disk. Only once the torrent is read, so a .torrent's own file sizes count.
   const lowSpace =
-    prepared.data && free !== undefined && free >= 0 && selectedSize > free
+    prepared.data && free !== undefined && free > 0 && selectedSize > free
       ? { free: format.size(free), missing: format.size(selectedSize - free) }
       : undefined
 

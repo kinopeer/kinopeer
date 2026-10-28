@@ -231,8 +231,8 @@ describe('AddReleaseSheet', () => {
     expect(screen.queryByText('Not enough free space')).not.toBeInTheDocument()
   })
 
-  it('doesn’t warn when qBittorrent reports the free space as unknown', async () => {
-    vi.mocked(qbt.getMainData).mockResolvedValue({ rid: 1, server_state: { free_space_on_disk: -1 } })
+  it.each([0, -1])('doesn’t warn when qBittorrent reports %s free, which means it can’t tell', async (free) => {
+    vi.mocked(qbt.getMainData).mockResolvedValue({ rid: 1, server_state: { free_space_on_disk: free } })
     renderSheet()
     expect(await screen.findByRole('button', { name: /Files: all \(3\)/ })).toBeInTheDocument()
     expect(screen.queryByText('Not enough free space')).not.toBeInTheDocument()
@@ -240,11 +240,11 @@ describe('AddReleaseSheet', () => {
 
   it('warns about a magnet link by the release size', async () => {
     fetchRelease.mockResolvedValue({ kind: 'magnet', uri: 'magnet:?xt=urn:btih:abc' })
-    vi.mocked(qbt.getMainData).mockResolvedValue({ rid: 1, server_state: { free_space_on_disk: 0 } })
+    vi.mocked(qbt.getMainData).mockResolvedValue({ rid: 1, server_state: { free_space_on_disk: 10e9 } })
     renderSheet()
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
     expect(await within(sheet).findByText(/Magnet link: all files/)).toBeInTheDocument()
-    expect(await within(sheet).findByText(/50\.0\sGB short of this download\. Free up space before it finishes\./)).toBeInTheDocument()
+    expect(await within(sheet).findByText(/40\.0\sGB short of this download\. Free up space before it finishes\./)).toBeInTheDocument()
     expect(within(sheet).getByRole('button', { name: /^Download/ })).toBeEnabled()
   })
 
