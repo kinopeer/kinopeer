@@ -348,3 +348,12 @@
   grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
   gap: var(--space-3);
 }
+
+/* Recommendations: the row lines up with the body's text, and its cards scroll to the screen's edge. */
+.title-body .poster-row {
+  --poster-row-gutter: var(--space-5);
+}
+
+.title-desktop > .poster-row {
+  padding: var(--space-6) var(--space-8) var(--space-12);
+}

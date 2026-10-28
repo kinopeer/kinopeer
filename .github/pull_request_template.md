@@ -6,13 +6,20 @@
 
 ## Tests
 
-<!-- Which layer each new or changed test is on (docs/TESTING.md → Choosing a layer) and what it
-     says. What is deliberately not covered and why, with one of the accepted reasons
-     (docs/TESTING.md → Saying why something is uncovered): looks checked on the stand or by a
-     baseline, a blind spot, an existing test that still covers it (name it), no behavior. The
-     review (/test-review) reads this first. -->
-<!-- Screenshot baselines changed: which screens and why, after checking the diffs in test-results/.
-     Delete this hint when none changed. -->
+<!-- One row per new or changed test. Layer: its number and name from docs/TESTING.md → Layers
+     ("3, screens, stores and clients"). Seen red: you broke the code it covers and watched it fail
+     (docs/TESTING.md → A test that can fail). The review (/test-review) reads this first. -->
+
+| Test (file › it) | Layer | What it says | Seen red |
+| --- | --- | --- | --- |
+|  |  |  |  |
+
+Not covered: <!-- each part of the diff without a test: the part — an accepted reason
+     (docs/TESTING.md → Saying why something is uncovered) — the specifics: what was looked at on
+     the stand, the blind spot, the `it` that covers it. Or "nothing". -->
+
+Baselines: <!-- each changed or new PNG — what changed and why — diff looked at | re-rendered with
+     --update-snapshots=all | new, opened. Or "none". -->
 
 ## Docs
 
