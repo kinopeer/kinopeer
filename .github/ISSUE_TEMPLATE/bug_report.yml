@@ -101,5 +101,5 @@ body:
     id: logs
     attributes:
       label: Logs
-      description: Kinoseed's logs around the time it happened, if you have them (on umbrelOS, right-click Kinoseed's icon → Troubleshoot).
+      description: Kinoseed's logs around the time it happened, if you have them (on umbrelOS, right-click Kinoseed's icon → Troubleshoot, or Settings → Troubleshoot → App).
       render: text
