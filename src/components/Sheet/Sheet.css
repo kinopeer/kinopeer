@@ -12,6 +12,8 @@
   background: var(--raised);
   color: var(--text);
   box-shadow: var(--shadow-3);
+  /* Springs back up after a short drag; a drag in progress turns it off. */
+  transition: transform var(--d-base) var(--ease);
 }
 
 .ks-sheet[open] {
@@ -31,6 +33,22 @@
   display: flex;
   flex-direction: column;
   padding-bottom: var(--safe-bottom);
+}
+
+/* The grabber and the title row: dragging it down on a phone closes the sheet, so the browser
+   doesn't scroll under that finger. Its text (the subtitle is a torrent's or a release's name)
+   stays selectable except while it's being dragged. */
+.ks-sheet-handle {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  touch-action: none;
+}
+
+.ks-sheet-handle.is-dragging,
+.ks-sheet-handle.is-dragging * {
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .ks-grabber {
@@ -94,6 +112,11 @@
     animation: ks-sheet-pop var(--d-base) var(--ease);
   }
 
+  /* Nothing drags here, so nothing springs back. */
+  .ks-sheet {
+    transition: none;
+  }
+
   .ks-sheet-lg {
     width: min(680px, calc(100% - 48px));
     height: min(720px, calc(100dvh - 64px));
@@ -105,6 +128,10 @@
 
   .ks-grabber {
     display: none;
+  }
+
+  .ks-sheet-handle {
+    touch-action: auto;
   }
 
   .ks-sheet-head {
