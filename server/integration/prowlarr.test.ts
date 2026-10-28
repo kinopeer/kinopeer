@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { ProwlarrError, ProwlarrSetupError, fetchRelease, getProwlarrStatus, searchReleases } from '../../src/api/prowlarr/client.ts'
+import { ProwlarrError, ProwlarrSetupError, fetchRelease, getFailingIndexers, getProwlarrStatus, searchReleases } from '../../src/api/prowlarr/client.ts'
 import { TV_CATEGORY, type Release } from '../../src/api/prowlarr/types.ts'
 import { RELEASES, shogunTorrent } from '../../src/test/fixtures.ts'
 import { PROWLARR_MAGNET } from '../test/fakes.ts'
@@ -67,5 +67,25 @@ describe('Prowlarr client through /prowlarr', () => {
 
     await startKinoseed({ env: { PROWLARR_API_KEY: 'wrong-key' } })
     await expect(getProwlarrStatus()).rejects.toBeInstanceOf(ProwlarrSetupError)
+  })
+
+  it('names the indexers that failed during a search, from the server and Prowlarr together', async () => {
+    const recently = new Date(Date.now() - 1_000).toISOString()
+    const { prowlarr } = await startKinoseed({
+      prowlarr: {
+        indexerStatus: [
+          { indexerId: 2, mostRecentFailure: recently },
+          // Disabled in Prowlarr: not one the search asked.
+          { indexerId: 3, mostRecentFailure: recently },
+        ],
+      },
+    })
+    await expect(getFailingIndexers(60_000)).resolves.toEqual(['NNM-Club'])
+    expect(prowlarr.seen.map((request) => request.url).sort()).toEqual(['/api/v1/indexer', '/api/v1/indexerstatus'])
+  })
+
+  it('passes a rejected key on the failing-indexers check to the client as a server error', async () => {
+    await startKinoseed({ env: { PROWLARR_API_KEY: 'wrong-key' } })
+    await expect(getFailingIndexers(0)).rejects.toMatchObject({ status: 502, code: 'unauthorized' })
   })
 })

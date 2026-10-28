@@ -14,6 +14,12 @@ describe('Banner', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Offline')
   })
 
+  it('leaves announcing to a live region around it', () => {
+    render(<Banner live={false}>Offline</Banner>)
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByText('Offline')).toBeInTheDocument()
+  })
+
   it('renders the action', async () => {
     const onAction = vi.fn()
     render(<Banner actionLabel="Retry" onAction={onAction} />)
