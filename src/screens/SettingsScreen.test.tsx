@@ -95,11 +95,11 @@ describe('SettingsScreen', () => {
   })
 
   it.each([
-    { name: 'qBittorrent', check: qbt.getAppVersion, ok: 'Connected · qBittorrent v5.3.0 · API 2.11.4' },
-    { name: 'Prowlarr', check: prowlarr.getProwlarrStatus, ok: 'Connected · 2 indexers · v1.24.3' },
-    { name: 'TMDB', check: tmdb.checkTmdb, ok: 'Connected' },
-  ])('checks only $name again on its Test', async ({ name, check, ok }) => {
-    const checks = [qbt.getAppVersion, prowlarr.getProwlarrStatus, tmdb.checkTmdb]
+    { name: 'qBittorrent', called: [qbt.getAppVersion, qbt.getApiVersion], ok: 'Connected · qBittorrent v5.3.0 · API 2.11.4' },
+    { name: 'Prowlarr', called: [prowlarr.getProwlarrStatus], ok: 'Connected · 2 indexers · v1.24.3' },
+    { name: 'TMDB', called: [tmdb.checkTmdb], ok: 'Connected' },
+  ])('checks only $name again on its Test', async ({ name, called, ok }) => {
+    const checks = [qbt.getAppVersion, qbt.getApiVersion, prowlarr.getProwlarrStatus, tmdb.checkTmdb]
     renderScreen()
     for (const row of ['qBittorrent', 'Prowlarr', 'TMDB']) {
       expect(await within(connection(row)).findByText(/^Connected/)).toBeInTheDocument()
@@ -108,7 +108,7 @@ describe('SettingsScreen', () => {
 
     await userEvent.click(within(connection(name)).getByRole('button', { name: 'Test' }))
     expect(await within(connection(name)).findByText(ok)).toBeInTheDocument()
-    for (const fn of checks) expect(fn).toHaveBeenCalledTimes(fn === check ? 1 : 0)
+    for (const fn of checks) expect(fn).toHaveBeenCalledTimes(called.some((c) => c === fn) ? 1 : 0)
   })
 
   it('changes the TMDB key and checks the connection again', async () => {
@@ -119,6 +119,7 @@ describe('SettingsScreen', () => {
     expect(await within(connection('Prowlarr')).findByText(/^Connected/)).toBeInTheDocument()
     expect(await within(connection('qBittorrent')).findByText(/^Connected/)).toBeInTheDocument()
     vi.mocked(qbt.getAppVersion).mockClear()
+    vi.mocked(qbt.getApiVersion).mockClear()
     vi.mocked(prowlarr.getProwlarrStatus).mockClear()
 
     vi.mocked(tmdb.checkTmdb).mockResolvedValue()
@@ -131,6 +132,7 @@ describe('SettingsScreen', () => {
     expect(await screen.findByText('TMDB key saved')).toBeInTheDocument()
     expect(await within(connection('TMDB')).findByText('Connected')).toBeInTheDocument()
     expect(qbt.getAppVersion).not.toHaveBeenCalled()
+    expect(qbt.getApiVersion).not.toHaveBeenCalled()
     expect(prowlarr.getProwlarrStatus).not.toHaveBeenCalled()
   })
 

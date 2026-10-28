@@ -32,17 +32,15 @@ interface ConnectionRowProps {
   icon: IconName
   /** Resolves to the success message, rejects with the error message. */
   check: () => Promise<string>
-  /** Changes when what the row checks has changed, e.g. a new TMDB key, so it checks again. */
-  version?: number
   /** Accessible name of the edit button, shown only with `onEdit`. */
   editLabel?: string
   onEdit?: () => void
 }
 
 /** One service's connection: checked when the screen opens and again, on its own, on Test. */
-function ConnectionRow({ name, icon, check, version = 0, editLabel, onEdit }: ConnectionRowProps) {
+function ConnectionRow({ name, icon, check, editLabel, onEdit }: ConnectionRowProps) {
   const { t, i18n } = useTranslation()
-  const result = useRequest(`${name}|${version}|${i18n.language}`, check)
+  const result = useRequest(`${name}|${i18n.language}`, check)
   const state = result.loading ? 'loading' : result.error !== undefined ? 'error' : 'ok'
   const message = result.loading
     ? t('settings.testing')
@@ -180,11 +178,12 @@ export function SettingsScreen() {
         <ul className="settings-conns">
           <ConnectionRow name="qBittorrent" icon="server" check={checkQbittorrent} />
           <ConnectionRow name="Prowlarr" icon="search" check={checkProwlarr} />
+          {/* A new key remounts the row, so it checks again. */}
           <ConnectionRow
+            key={tmdbKeyVersion}
             name="TMDB"
             icon="film"
             check={checkTmdbKey}
-            version={tmdbKeyVersion}
             editLabel={t('tmdbKey.change')}
             onEdit={() => setEditingKey(true)}
           />
