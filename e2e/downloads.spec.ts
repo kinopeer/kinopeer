@@ -144,7 +144,7 @@ test.describe('downloads, desktop', () => {
   test('alternative speed limits on, in the sidebar’s card', async ({ page }) => {
     await openDownloads(page, { altSpeedLimits: true })
     const card = page.getByRole('region', { name: 'qBittorrent' })
-    await expect(card.getByRole('button', { name: 'Альтернативные лимиты скорости', pressed: true })).toBeVisible()
+    await expect(card.getByRole('button', { name: 'Альт. лимиты', pressed: true })).toBeVisible()
     await expect(card).toHaveScreenshot('desktop-alt-speed-on-dark-ru.png')
   })
 

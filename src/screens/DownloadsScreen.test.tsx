@@ -69,14 +69,15 @@ beforeEach(() => {
 })
 
 describe('DownloadsScreen', () => {
-  it('switches qBittorrent’s alternative speed limits from the header', async () => {
-    vi.mocked(api.toggleSpeedLimitsMode).mockResolvedValue()
+  it('switches qBittorrent’s alternative speed limits from the header, and says when that fails', async () => {
+    vi.mocked(api.toggleSpeedLimitsMode).mockRejectedValue(new TypeError('Failed to fetch'))
     renderScreen()
     const button = await screen.findByRole('button', { name: 'Alternative speed limits' })
     expect(button).toHaveAttribute('aria-pressed', 'false')
 
     await userEvent.click(button)
     expect(api.toggleSpeedLimitsMode).toHaveBeenCalledOnce()
+    expect(await screen.findByText('Couldn’t switch the speed limits. Try again.')).toBeInTheDocument()
   })
 
   it('shows a loading state, then the torrents in queue order', async () => {

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Navigate, Route, Routes, useLocation } from 'react-router'
 import { Sidebar, SidebarStatus, type SidebarItem } from './components/Sidebar'
 import { TabBar, type TabBarItem } from './components/TabBar'
+import { Toast } from './components/Toast'
 import { backgroundOf } from './lib/background'
 import { useIsDesktop } from './lib/useIsDesktop'
 import { ConnectScreen } from './screens/ConnectScreen'
@@ -126,23 +127,28 @@ function AppSidebar({ items, version, pathname }: { items: TabBarItem[]; version
       : item,
   )
   return (
-    <Sidebar
-      items={withCount}
-      label={t('nav.label')}
-      pathname={pathname}
-      footer={
-        <SidebarStatus
-          version={version}
-          offline={offline}
-          downloadSpeed={data?.server.dl_info_speed}
-          uploadSpeed={data?.server.up_info_speed}
-          freeSpace={data?.server.free_space_on_disk}
-          altSpeedLimits={altSpeed.on}
-          altSpeedDisabled={altSpeed.disabled}
-          onToggleAltSpeed={altSpeed.toggle}
-        />
-      }
-    />
+    <>
+      <Sidebar
+        items={withCount}
+        label={t('nav.label')}
+        pathname={pathname}
+        footer={
+          <SidebarStatus
+            version={version}
+            offline={offline}
+            downloadSpeed={data?.server.dl_info_speed}
+            uploadSpeed={data?.server.up_info_speed}
+            freeSpace={data?.server.free_space_on_disk}
+            altSpeedLimits={altSpeed.on}
+            altSpeedDisabled={altSpeed.disabled}
+            onToggleAltSpeed={altSpeed.toggle}
+          />
+        }
+      />
+      {altSpeed.failed && (
+        <Toast icon="alert" message={t('speedLimits.failed')} onDismiss={altSpeed.dismissFailed} />
+      )}
+    </>
   )
 }
 

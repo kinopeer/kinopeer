@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cx } from '../../lib/cx'
+import { Button } from '../Button'
 import { useFormatters } from '../../lib/format'
 import { Icon } from '../Icon'
 import { IconButton } from '../IconButton'
@@ -77,16 +78,18 @@ export function SidebarStatus({
           <p className="t-cap ks-num c3">{t('downloads.freeSpace', { size: format.size(freeSpace) })}</p>
         )}
         {showAltSpeed && (
-          <button
-            type="button"
-            className={cx('ks-side-alt', altSpeedLimits && 'is-on')}
+          <Button
+            variant={altSpeedLimits ? 'tonal' : 'secondary'}
+            size="sm"
+            icon="turtle"
+            block
+            title={t('speedLimits.alt')}
             aria-pressed={altSpeedLimits}
             disabled={altSpeedDisabled}
             onClick={onToggleAltSpeed}
           >
-            <Icon name="turtle" size={16} />
-            {t('speedLimits.alt')}
-          </button>
+            {t('speedLimits.short')}
+          </Button>
         )}
       </div>
       <div className="ks-side-mini ks-num">
@@ -101,7 +104,6 @@ export function SidebarStatus({
           <IconButton
             icon="turtle"
             label={t('speedLimits.alt')}
-            size="sm"
             active={altSpeedLimits}
             disabled={altSpeedDisabled}
             onClick={onToggleAltSpeed}
