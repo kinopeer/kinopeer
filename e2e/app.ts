@@ -28,6 +28,8 @@ export interface AppOptions {
   prowlarrDown?: boolean
   /** Indexers Prowlarr says failed during the release search. */
   failingIndexers?: string[]
+  /** qBittorrent's free space in bytes, instead of the fixtures' 1.82 TB. */
+  freeSpace?: number
   /** Leaves /tmdb and /tmdb-img to the server, for real titles and posters (the README screenshots). */
   realTmdb?: boolean
 }
@@ -57,7 +59,10 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
       if (pathname === '/qbt/api/v2/sync/maindata') {
         polls += 1
         if (options.goesOffline && polls > 1) return route.abort('connectionrefused')
-        return json(route, mainData(torrents))
+        return json(
+          route,
+          mainData(torrents, options.freeSpace === undefined ? {} : { free_space_on_disk: options.freeSpace }),
+        )
       }
       if (pathname === '/qbt/api/v2/app/webapiVersion') return route.fulfill({ body: '2.11.4' })
       if (pathname === '/qbt/api/v2/app/defaultSavePath') return route.fulfill({ body: '/downloads' })
@@ -137,9 +142,8 @@ async function mockTmdb(page: Page): Promise<void> {
         const found = TITLES.filter((title) => [title.en, title.ru].some((name) => name.toLocaleLowerCase().includes(query ?? '')))
         return json(route, titlePage(found, language))
       }
-      if (path.startsWith('/trending/')) return json(route, titlePage(TITLES, language))
-      if (path === '/movie/popular') return json(route, titlePage(TITLES.filter((title) => title.type === 'movie'), language))
-      if (path === '/tv/popular') return json(route, titlePage(TITLES.filter((title) => title.type === 'tv'), language))
+      if (path === '/discover/movie') return json(route, titlePage(TITLES.filter((title) => title.type === 'movie'), language))
+      if (path === '/discover/tv') return json(route, titlePage(TITLES.filter((title) => title.type === 'tv'), language))
       const [, type, id] = path.split('/')
       const found = details(type, Number(id), language)
       return found ? json(route, found) : json(route, { status_message: 'Not found' }, 404)

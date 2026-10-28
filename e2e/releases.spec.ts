@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { DESKTOP, DESKTOP_RAIL, openApp, settle, showWholePage, type AppOptions } from './app.ts'
-import { RELEASES } from './fixtures.ts'
+import { GB, RELEASES } from './fixtures.ts'
 
 async function openReleases(page: Page, options: AppOptions = {}) {
   await openApp(page, '/title/tv/126308/releases', options)
@@ -40,6 +40,15 @@ test.describe('releases, phone', () => {
     await page.getByRole('button', { name: /^Episodes/ }).click()
     await expect(page.getByText(/Shogun\.S01E10/)).toBeVisible()
     await expect(page).toHaveScreenshot('add-files-dark-ru.png')
+  })
+
+  test('adding a release larger than the free space', async ({ page }) => {
+    await openReleases(page, { freeSpace: 48 * GB })
+    await page.getByRole('button', { name: 'Добавить в загрузки' }).first().click()
+    await expect(page.getByText('Недостаточно места')).toBeVisible()
+    await expect(page.getByRole('button', { name: /Файлы: все \(14\)/ })).toBeVisible()
+    await settle(page)
+    await expect(page).toHaveScreenshot('add-low-space-dark-ru.png')
   })
 })
 
