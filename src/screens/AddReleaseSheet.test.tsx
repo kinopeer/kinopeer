@@ -1,4 +1,4 @@
-import { act, render, screen, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as prowlarr from '../api/prowlarr'
@@ -224,18 +224,37 @@ describe('AddReleaseSheet', () => {
     expect(within(sheet).queryByText(/Skip some files/)).not.toBeInTheDocument()
   })
 
-  it('doesn’t warn by the release size while the torrent can’t be read', async () => {
+  it('doesn’t warn by the release size when the torrent can’t be fetched', async () => {
     fetchRelease.mockRejectedValue(new prowlarr.ProwlarrError('down', 502, 'upstream'))
     renderSheet()
-    expect(await screen.findByText('Couldn’t get the torrent from Prowlarr.')).toBeInTheDocument()
-    expect(screen.queryByText('Not enough free space')).not.toBeInTheDocument()
+    const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+    expect(await within(sheet).findByText('TV → /data/tv')).toBeInTheDocument()
+    expect(await within(sheet).findByText('Couldn’t get the torrent from Prowlarr.')).toBeInTheDocument()
+    expect(within(sheet).queryByText('Not enough free space')).not.toBeInTheDocument()
   })
 
-  it.each([0, -1])('doesn’t warn when qBittorrent reports %s free, which means it can’t tell', async (free) => {
+  it('doesn’t warn by the release size when the .torrent can’t be read', async () => {
+    readTorrentFile.mockRejectedValue(new Error('not bencoded'))
+    renderSheet()
+    const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+    expect(await within(sheet).findByText('TV → /data/tv')).toBeInTheDocument()
+    await waitFor(() => expect(within(sheet).getByRole('button', { name: /^Download · 50\.0\sGB$/ })).toBeEnabled())
+    expect(within(sheet).queryByText('Not enough free space')).not.toBeInTheDocument()
+  })
+
+  it.each([0, -1])('treats %s free as unknown: no warning and no free space shown', async (free) => {
     vi.mocked(qbt.getMainData).mockResolvedValue({ rid: 1, server_state: { free_space_on_disk: free } })
     renderSheet()
-    expect(await screen.findByRole('button', { name: /Files: all \(3\)/ })).toBeInTheDocument()
-    expect(screen.queryByText('Not enough free space')).not.toBeInTheDocument()
+    const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+    expect(await within(sheet).findByText('TV → /data/tv')).toBeInTheDocument()
+    const files = await within(sheet).findByRole('button', { name: /Files: all \(3\)/ })
+    expect(files).not.toHaveTextContent('Free:')
+    expect(within(sheet).queryByText('Not enough free space')).not.toBeInTheDocument()
+
+    await userEvent.click(files)
+    const picker = screen.getByRole('dialog', { name: 'Select files' })
+    expect(within(picker).queryByText('Not enough free space')).not.toBeInTheDocument()
+    expect(within(picker).queryByText(/Free:/)).not.toBeInTheDocument()
   })
 
   it('warns about a magnet link by the release size', async () => {
