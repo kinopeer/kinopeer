@@ -1,9 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import {
   TmdbKeyError,
+  discoverTitles,
   getMovie,
-  getPopular,
-  getTrending,
   posterUrl,
   searchTitles,
   tmdbLanguage,
@@ -88,20 +87,12 @@ describe('errors', () => {
 
 })
 
-describe('getTrending', () => {
-  it('defaults to all titles this week', async () => {
-    respond({ page: 1, total_pages: 1, total_results: 1, results: [dune] })
-    await getTrending()
-    expect(lastUrl()).toBe('/tmdb/trending/all/week')
-  })
-})
-
-describe('getPopular', () => {
-  it('tags results with the requested type', async () => {
+describe('discoverTitles', () => {
+  it('passes the filters and tags results with the requested type', async () => {
     const { media_type: _, ...tv } = andor
     respond({ page: 1, total_pages: 1, total_results: 1, results: [tv] })
-    const page = await getPopular('tv', { language: 'en-US' })
-    expect(lastUrl()).toBe('/tmdb/tv/popular?language=en-US')
+    const page = await discoverTitles('tv', { sort_by: 'popularity.desc', 'air_date.gte': '2026-10-14' }, { language: 'en-US' })
+    expect(lastUrl()).toBe('/tmdb/discover/tv?sort_by=popularity.desc&air_date.gte=2026-10-14&language=en-US')
     expect(page.titles[0]).toMatchObject({ type: 'tv', title: 'Andor' })
   })
 })

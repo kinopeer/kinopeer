@@ -11,12 +11,11 @@ import { SearchScreen } from './SearchScreen'
 
 vi.mock('../api/tmdb', async (importOriginal) => {
   const actual = await importOriginal<typeof tmdb>()
-  return { ...actual, searchTitles: vi.fn(), getTrending: vi.fn(), getPopular: vi.fn() }
+  return { ...actual, searchTitles: vi.fn(), discoverTitles: vi.fn() }
 })
 
 const searchTitles = vi.mocked(tmdb.searchTitles)
-const getTrending = vi.mocked(tmdb.getTrending)
-const getPopular = vi.mocked(tmdb.getPopular)
+const discoverTitles = vi.mocked(tmdb.discoverTitles)
 
 const page = (titles: Title[]) => ({ titles, page: 1, totalPages: 1 })
 
@@ -31,8 +30,9 @@ function renderScreen(path = '/search') {
 
 beforeEach(() => {
   vi.resetAllMocks()
-  getTrending.mockResolvedValue(page([DUNE, ANDOR]))
-  getPopular.mockImplementation(async (type) => page(type === 'movie' ? [ALIEN] : [SHOGUN]))
+  discoverTitles.mockImplementation(async (type, params) =>
+    page(type === 'tv' ? [ANDOR, SHOGUN] : params.sort_by === 'popularity.desc' ? [DUNE] : [ALIEN]),
+  )
   searchTitles.mockResolvedValue(page([DUNE, ANDOR]))
 })
 
@@ -46,29 +46,36 @@ function row(name: string) {
 }
 
 describe('SearchScreen', () => {
-  it('shows trending and popular titles before a search', async () => {
+  it('shows titles likely on torrents already before a search', async () => {
     renderScreen()
     expect(screen.getByRole('status')).toHaveTextContent('Loading')
-    expect(await screen.findByRole('heading', { name: 'Trending this week' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'New on digital' })).toBeInTheDocument()
 
-    expect(row('Trending this week').getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual([
-      'Dune: Part Two',
+    expect(screen.getByRole('heading', { name: 'New episodes' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Best of the year' })).toBeInTheDocument()
+    expect(row('New on digital').getByRole('link', { name: /Dune: Part Two/ })).toHaveAttribute('href', '/title/movie/1')
+    expect(row('New episodes').getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual([
       'Andor',
+      'Shōgun',
     ])
-    expect(row('Popular movies').getByText('Movie · 2024')).toBeInTheDocument()
-    expect(row('Popular series').getByText('Series')).toBeInTheDocument()
+    expect(row('New episodes').getByText('Series')).toBeInTheDocument()
+    expect(row('Best of the year').getByText('Movie · 2024')).toBeInTheDocument()
   })
 
   it('filters by type', async () => {
     renderScreen()
-    await screen.findByRole('heading', { name: 'Trending this week' })
+    await screen.findByRole('heading', { name: 'New on digital' })
     const types = within(screen.getByRole('group', { name: 'Type' }))
     expect(types.getByRole('button', { name: 'All', pressed: true })).toBeInTheDocument()
 
     await userEvent.click(types.getByRole('button', { name: 'Series' }))
-    expect(screen.queryByRole('heading', { name: 'Popular movies' })).not.toBeInTheDocument()
-    expect(row('Trending this week').queryByText('Dune: Part Two')).not.toBeInTheDocument()
-    expect(row('Trending this week').getByText('Andor')).toBeInTheDocument()
+    expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual(['New episodes'])
+
+    await userEvent.click(types.getByRole('button', { name: 'Movies' }))
+    expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual([
+      'New on digital',
+      'Best of the year',
+    ])
   })
 
   it('searches after typing stops', async () => {
@@ -98,20 +105,33 @@ describe('SearchScreen', () => {
     // The empty state's own Clear, not the search field's.
     await userEvent.click(within(empty.parentElement!).getByRole('button', { name: 'Clear' }))
     expect(screen.getByRole('searchbox')).toHaveValue('')
-    expect(await screen.findByRole('heading', { name: 'Trending this week' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'New on digital' })).toBeInTheDocument()
   })
 
   it('explains a missing TMDB key', async () => {
-    getTrending.mockRejectedValue(new tmdb.TmdbKeyError(401))
+    discoverTitles.mockRejectedValue(new tmdb.TmdbKeyError(401))
     renderScreen()
     expect(await screen.findByRole('heading', { name: 'TMDB isn’t set up' })).toBeInTheDocument()
   })
 
   it('retries after a network error', async () => {
-    getTrending.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    const offline = new TypeError('Failed to fetch')
+    discoverTitles.mockRejectedValueOnce(offline).mockRejectedValueOnce(offline).mockRejectedValueOnce(offline)
     renderScreen()
     await userEvent.click(await screen.findByRole('button', { name: 'Try again' }))
-    expect(await screen.findByRole('heading', { name: 'Trending this week' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'New on digital' })).toBeInTheDocument()
+  })
+
+  it('leaves out a row whose query fails and shows the others', async () => {
+    const answer = discoverTitles.getMockImplementation()!
+    discoverTitles.mockImplementation(async (type, params, options) => {
+      if (type === 'tv') throw new tmdb.TmdbError('TMDB responded 422', 422)
+      return answer(type, params, options)
+    })
+    renderScreen()
+    expect(await screen.findByRole('heading', { name: 'New on digital' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Best of the year' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'New episodes' })).not.toBeInTheDocument()
   })
 
   it('comes back from a title at the same scroll position', async () => {
@@ -157,7 +177,7 @@ describe('SearchScreen', () => {
   it('asks TMDB in the app language', async () => {
     await i18n.changeLanguage('ru')
     renderScreen()
-    expect(await screen.findByRole('heading', { name: 'В тренде на этой неделе' })).toBeInTheDocument()
-    expect(getPopular).toHaveBeenCalledWith('movie', expect.objectContaining({ language: 'ru-RU' }))
+    expect(await screen.findByRole('heading', { name: 'Новинки в цифре' })).toBeInTheDocument()
+    expect(discoverTitles).toHaveBeenCalledWith('movie', expect.anything(), expect.objectContaining({ language: 'ru-RU' }))
   })
 })

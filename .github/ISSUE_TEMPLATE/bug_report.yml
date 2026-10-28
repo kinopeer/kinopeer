@@ -1,0 +1,105 @@
+name: Report a bug
+description: Something in Kinoseed doesn't work as it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Search the [open issues](https://github.com/MrShakhov/kinoseed/issues) first and add what's new to an existing one instead of opening a duplicate. Ideas and missing features go to [Discussions → Ideas](https://github.com/MrShakhov/kinoseed/discussions/categories/ideas).
+
+        Leave out passwords, API keys and your own addresses: Kinoseed never shows its keys, but a screenshot of another app or a log might.
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: From opening Kinoseed to the problem, one step per line. Name the screen, the button and the title or release, so someone else can follow them.
+      placeholder: |
+        1. Open Search and find "Dune: Part Two".
+        2. Press Find releases, then Add on the first release.
+        3. Press Download.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead
+      description: The error message word for word, if there was one. Screenshots or a screen recording help; drag them in here.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Kinoseed version
+      description: Settings → About → Version.
+      placeholder: "0.4.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: Install
+      options:
+        - umbrelOS (Homelab App Store)
+        - From source (npm run dev or npm start)
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: opened
+    attributes:
+      label: How you open Kinoseed
+      options:
+        - In a browser over HTTP (http://…)
+        - In a browser over HTTPS (https://…)
+        - As an installed app (Home Screen, dock or PWA)
+    validations:
+      required: true
+  - type: dropdown
+    id: layout
+    attributes:
+      label: Layout
+      description: The computer layout has a sidebar; it shows in windows 1024px wide or wider.
+      options:
+        - Phone (tab bar at the bottom)
+        - Computer (sidebar on the left)
+        - Both
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device and browser
+      placeholder: iPhone 15, iOS 18.4, Safari
+    validations:
+      required: true
+  - type: input
+    id: qbittorrent
+    attributes:
+      label: qBittorrent version
+      description: Settings → Connections shows it.
+      placeholder: "5.1.2"
+    validations:
+      required: true
+  - type: input
+    id: prowlarr
+    attributes:
+      label: Prowlarr version
+      description: Settings → Connections shows it. Needed when the bug is about finding or adding releases.
+      placeholder: "1.37.0"
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: How often it happens, whether it started after an update, anything you already tried.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Kinoseed's logs around the time it happened, if you have them (on umbrelOS, right-click Kinoseed's icon → Troubleshoot, or Settings → Troubleshoot → App).
+      render: text

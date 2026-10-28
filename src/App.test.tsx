@@ -36,7 +36,7 @@ vi.mock('./api/settings', async (importOriginal) => {
 
 vi.mock('./api/tmdb', async (importOriginal) => {
   const actual = await importOriginal<typeof tmdb>()
-  return { ...actual, getTrending: vi.fn(), getPopular: vi.fn(), getMovie: vi.fn() }
+  return { ...actual, discoverTitles: vi.fn(), getMovie: vi.fn() }
 })
 
 function renderApp(path: string | (Exclude<To, string> & { state?: unknown }) = '/') {
@@ -59,8 +59,7 @@ beforeEach(() => {
   vi.mocked(api.getCategories).mockResolvedValue([])
   getMainData.mockResolvedValue({ rid: 1, full_update: true, torrents: {}, server_state: {} })
   const empty = { titles: [], page: 1, totalPages: 1 }
-  vi.mocked(tmdb.getTrending).mockResolvedValue(empty)
-  vi.mocked(tmdb.getPopular).mockResolvedValue(empty)
+  vi.mocked(tmdb.discoverTitles).mockResolvedValue(empty)
   vi.mocked(matchesApi.getMatches).mockResolvedValue({})
   vi.mocked(matchesApi.saveMatches).mockImplementation(async (changes) => changes as matchesApi.Matches)
   vi.mocked(api.getTorrentFiles).mockResolvedValue([])
