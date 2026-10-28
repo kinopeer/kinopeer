@@ -347,7 +347,8 @@
     "priorityFailed": "Couldn’t change the priority. Try again.",
     "filesFailed": "Couldn’t load the file list.",
     "filesLoading": "Loading files",
-    "filesMetadata": "The file list appears once the torrent’s metadata arrives from peers."
+    "filesMetadata": "The file list appears once the torrent’s metadata arrives from peers.",
+    "move": "Move files…"
   },
   "match": {
     "guessNote": "Matched by the release name. Is it right?",
@@ -416,5 +417,15 @@
     "change": "Change TMDB key",
     "sheetTitle": "TMDB key",
     "enter": "Enter key"
+  },
+  "move": {
+    "title": "Move files",
+    "cancel": "Cancel",
+    "location": "Folder",
+    "known": "qBittorrent folders",
+    "submit": "Move",
+    "note": "qBittorrent moves the files in the background; the torrent keeps going from the new folder.",
+    "failed": "Couldn’t move the files. qBittorrent may have no access to that folder.",
+    "moved": "Moving files to {{location}}"
   }
 }

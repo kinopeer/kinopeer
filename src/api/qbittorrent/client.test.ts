@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import {
   QbittorrentError,
+  UnauthorizedError,
   addTorrents,
   deleteTorrents,
   getCategories,
@@ -8,6 +9,7 @@ import {
   getTorrentFiles,
   getTorrents,
   setFilePriority,
+  setTorrentLocation,
   startTorrents,
   stopTorrents,
 } from './client'
@@ -151,5 +153,23 @@ describe('deleteTorrents', () => {
     expect(lastCall().url).toBe('/qbt/api/v2/torrents/delete')
     expect(lastCall().init.method).toBe('POST')
     expect(String(lastCall().init.body)).toBe('hashes=a%7Cb&deleteFiles=true')
+  })
+})
+
+describe('setTorrentLocation', () => {
+  it('posts the hashes and the new folder', async () => {
+    respond('')
+    await setTorrentLocation(['a', 'b'], '/downloads/Movies')
+    expect(lastCall().url).toBe('/qbt/api/v2/torrents/setLocation')
+    expect(lastCall().init.method).toBe('POST')
+    expect(String(lastCall().init.body)).toBe('hashes=a%7Cb&location=%2Fdownloads%2FMovies')
+  })
+
+  it('reports a folder qBittorrent cannot write to as an error, not a lost session', async () => {
+    respond('', 403)
+    const error = await setTorrentLocation(['a'], '/root').catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(QbittorrentError)
+    expect(error).not.toBeInstanceOf(UnauthorizedError)
+    expect(error).toMatchObject({ status: 403 })
   })
 })

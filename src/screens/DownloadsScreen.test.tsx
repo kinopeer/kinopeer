@@ -14,7 +14,7 @@ import { DownloadsScreen } from './DownloadsScreen'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => {
   const actual = await importOriginal<typeof api>()
-  return { ...actual, getMainData: vi.fn(), stopTorrents: vi.fn(), startTorrents: vi.fn(), deleteTorrents: vi.fn() }
+  return { ...actual, getMainData: vi.fn(), stopTorrents: vi.fn(), startTorrents: vi.fn(), deleteTorrents: vi.fn(), getCategories: vi.fn(), getDefaultSavePath: vi.fn(), setTorrentLocation: vi.fn() }
 })
 
 vi.mock('../api/tmdb', async (importOriginal) => {
@@ -290,6 +290,23 @@ describe('DownloadsScreen', () => {
     await userEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
     expect(api.deleteTorrents).toHaveBeenCalledWith(['andor'], false)
     expect(await screen.findByText('Torrent deleted')).toBeInTheDocument()
+  })
+
+  it('moves a torrent’s files from the row menu and says where', async () => {
+    vi.mocked(api.getCategories).mockResolvedValue([])
+    vi.mocked(api.getDefaultSavePath).mockResolvedValue('/downloads')
+    vi.mocked(api.setTorrentLocation).mockResolvedValue()
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Move files…' }))
+    const sheet = screen.getByRole('dialog', { name: 'Move files' })
+    const field = within(sheet).getByRole('textbox', { name: 'Folder' })
+    await userEvent.clear(field)
+    await userEvent.type(field, '/media/tv')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Move' }))
+    expect(api.setTorrentLocation).toHaveBeenCalledWith(['andor'], '/media/tv')
+    expect(await screen.findByText('Moving files to /media/tv')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Move files' })).not.toBeInTheDocument()
   })
 
   it('asks in the row menu whether a guessed title is right, and saves the confirmation', async () => {

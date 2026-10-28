@@ -32,6 +32,8 @@ export interface TorrentActionsSheetProps {
   /** After pausing or resuming, so the list can refresh right away. */
   onChanged: () => void
   onDelete: () => void
+  /** Opens "Move files". */
+  onMove: () => void
   /** Opens the title search. */
   onChangeTitle: () => void
   /** After the guessed title was confirmed. */
@@ -50,6 +52,7 @@ export function TorrentActionsSheet({
   onClose,
   onChanged,
   onDelete,
+  onMove,
   onChangeTitle,
   onConfirmed,
 }: TorrentActionsSheetProps) {
@@ -140,6 +143,9 @@ export function TorrentActionsSheet({
             {changeTitle}
           </MenuItem>
         )}
+        <MenuItem icon="folder" disabled={offline} onClick={onMove}>
+          {t('torrent.move')}
+        </MenuItem>
         <MenuDivider />
         <MenuItem icon="trash" danger disabled={offline} onClick={onDelete}>
           {t('torrent.delete')}
@@ -192,6 +198,12 @@ export function TorrentActionsSheet({
             </button>
           </li>
         )}
+        <li>
+          <button type="button" className="ks-row-btn" disabled={offline} onClick={onMove}>
+            <Icon name="folder" />
+            {t('torrent.move')}
+          </button>
+        </li>
         <li className="ks-divider actions-divider" aria-hidden="true" />
         <li>
           <button type="button" className="ks-row-btn is-danger" disabled={offline} onClick={onDelete}>

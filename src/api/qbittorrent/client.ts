@@ -157,6 +157,20 @@ export async function deleteTorrents(hashes: string[], deleteFiles: boolean): Pr
   await request('/torrents/delete', { method: 'POST', params: { hashes: hashes.join('|'), deleteFiles } })
 }
 
+/**
+ * Moves torrents' files to `location`, creating it if needed. qBittorrent answers 403 when it can't
+ * write there and 409 when it can't create the folder; the 403 isn't a lost session here, so it
+ * comes back as a plain QbittorrentError.
+ */
+export async function setTorrentLocation(hashes: string[], location: string): Promise<void> {
+  try {
+    await request('/torrents/setLocation', { method: 'POST', params: { hashes: hashes.join('|'), location } })
+  } catch (error) {
+    if (error instanceof UnauthorizedError) throw new QbittorrentError('qBittorrent cannot write to that folder', 403)
+    throw error
+  }
+}
+
 /** Trackers of a torrent, including the DHT, PeX and LSD pseudo-trackers. */
 export async function getTorrentTrackers(hash: string): Promise<TorrentTracker[]> {
   const response = await request('/torrents/trackers', { params: { hash } })

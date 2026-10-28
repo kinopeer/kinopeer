@@ -26,6 +26,7 @@ The `homelab-kinoseed` package from the Homelab App Store runs on port 8795, dep
 
 | Setting | Where it's kept | Set by |
 | --- | --- | --- |
+| 2026-10-28 | Moving a torrent's files is one torrent at a time from its More menu, through qBittorrent's own move (`setLocation`), which also works on qBittorrent 4.x. The folder is free text plus qBittorrent's known folders, because Kinoseed can't browse the disk qBittorrent sees; the category isn't changed with it, since a category is also a label. Moving several selected torrents at once can come later. |
 | 2026-10-25 | Desktop Settings put download defaults and About in the left column and Appearance in the right, the other way round from the canvas, so reading the columns row by row follows the order on a phone and the keyboard order. About keeps its rows (version, install, clearing the cache with its hint) rather than the canvas's one line. Rows of posters in desktop Search show a thin scrollbar where the pointer is a mouse, which can't swipe them sideways. |
 | qBittorrent and Prowlarr addresses | Server environment | The Umbrel package |
 | Prowlarr API key | Environment or Prowlarr's `config.xml` | The Umbrel package |
@@ -67,7 +68,7 @@ On desktop these steps show their form in a card centered in the window, without
 - A type filter: All, Movies or Series. A torrent's type is its title's; a torrent without a title yet counts as a series when its name has season or episode markers, or by its qBittorrent category ("Movies", "TV Shows"), and otherwise shows only under All. The status chips (the status menu on desktop) count within the type. A badge with the type sits next to the sort while it isn't All. Like the status filter, the type lasts while the screen is open, and Reset filters resets it too.
 - Sorting: Priority (qBittorrent's queue order, the default), Date added (newest first), Name (A to Z by the title the row shows), Progress (most first), Size (largest first), Speed (fastest download first, then upload), ETA (soonest done first; torrents without a time left go last). Ties keep the queue order. The queue position on the poster shows only with Priority. The sort and the type are picked in the "Sort & filter" sheet; the sort is remembered in the browser.
 - Selection: the Select button in the header turns rows and cards into checkboxes (tapping anywhere on one toggles it) and puts Pause, Resume and Delete in place of the tab bar. The header shows how many are selected, with Cancel and "Select all" ("Deselect all" once everything shown is selected). Only the torrents the filters show count, so a filter never leaves hidden ones selected. Delete asks once for all of them, with the same "Also delete files" box and the total downloaded size. After an action the selection ends; if qBittorrent doesn't answer, it stays. Selecting is off while qBittorrent is unreachable.
-- Row menu: pause or resume, details, the title's page, change the title, delete with or without files. When the title was guessed from the release name, the menu asks "Matched by the release name. Is it right?" with Change and "Yes, right" instead of the Change title item.
+- Row menu: pause or resume, details, the title's page, change the title, move the files, delete with or without files. When the title was guessed from the release name, the menu asks "Matched by the release name. Is it right?" with Change and "Yes, right" instead of the Change title item.
 - Statuses: Downloading (the only one in the accent color), Seeding, Paused, Completed, Queued, Checking, Error.
 
 ### Torrent
@@ -78,6 +79,7 @@ On desktop these steps show their form in a card centered in the window, without
 - Changing the title: a TMDB search that starts from the name read from the release, with All, Movies and Series; the current title comes first and is marked. Picking a title, or "Yes, right", saves it on the Kinoseed server as the user's choice, which wins over the tag and any guess.
 - Files as a tree, as in the torrent, without regrouping, but without the torrent's single root folder; sorted by name, numbers by value. Priorities: Skip, Normal, High.
 - Speeds, seeds and peers, save path, category, date added, info hash, trackers.
+- Moving the files: "Move files…" in the More menu opens a sheet with the folder, starting at the current one, and the folders qBittorrent already knows (its default save path and the categories' paths) as chips. Move hands the folder to qBittorrent, which creates it if needed and moves the files in the background; a toast says where they're going. The torrent's category stays as it is. If qBittorrent can't write there, the sheet stays open with an error. Off while qBittorrent is unreachable.
 - Clear messages for disk errors and missing files.
 
 ### Search
