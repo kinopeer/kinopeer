@@ -3,6 +3,7 @@ import type {
   Category,
   FilePriority,
   MainData,
+  SaveLocations,
   Torrent,
   TorrentFile,
   TorrentTracker,
@@ -121,13 +122,31 @@ export async function getDefaultSavePath(): Promise<string> {
   return (await response.text()).trim()
 }
 
-/** Categories by name and the default save path, each empty when qBittorrent doesn't answer. */
-export async function getSaveLocations(): Promise<{ categories: Category[]; defaultPath: string }> {
-  const [categories, defaultPath] = await Promise.all([
+/** The preferences that decide where qBittorrent puts a category's torrents. */
+interface FolderPreferences {
+  auto_tmm_enabled?: boolean
+  /** qBittorrent 4.4+. */
+  use_category_paths_in_manual_mode?: boolean
+  use_subcategories?: boolean
+}
+
+/** Categories by name, the default save path and how qBittorrent uses category folders. */
+export async function getSaveLocations(): Promise<SaveLocations> {
+  const [categories, defaultPath, preferences] = await Promise.all([
     getCategories().catch(() => []),
     getDefaultSavePath().catch(() => ''),
+    request('/app/preferences').then(
+      (response) => response.json() as Promise<FolderPreferences>,
+      // qBittorrent's defaults: manual mode, no subcategories.
+      (): FolderPreferences => ({}),
+    ),
   ])
-  return { categories: categories.sort((a, b) => a.name.localeCompare(b.name)), defaultPath }
+  return {
+    categories: categories.sort((a, b) => a.name.localeCompare(b.name)),
+    defaultPath,
+    categoryPaths: !!(preferences.auto_tmm_enabled || preferences.use_category_paths_in_manual_mode),
+    subcategories: !!preferences.use_subcategories,
+  }
 }
 
 /** Files of a torrent, in index order. Empty until a magnet link's metadata has arrived. */

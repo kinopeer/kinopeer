@@ -104,4 +104,10 @@ describe('TorrentActionsSheet on desktop', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Move files…' }))
     expect(handlers.onMove).toHaveBeenCalled()
   })
+
+  it('needs qBittorrent to move files on a phone too', () => {
+    vi.unstubAllGlobals()
+    renderActions({ offline: true })
+    expect(screen.getByRole('button', { name: 'Move files…' })).toBeDisabled()
+  })
 })

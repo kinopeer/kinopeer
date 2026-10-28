@@ -77,6 +77,8 @@ beforeEach(() => {
       { name: 'TV', savePath: '/data/tv' },
     ],
     defaultPath: '/data',
+    categoryPaths: true,
+    subcategories: false,
   })
   vi.mocked(qbt.getMainData).mockResolvedValue({ rid: 1, server_state: { free_space_on_disk: 40e9 } })
   addRelease.mockResolvedValue()
@@ -172,18 +174,20 @@ describe('AddReleaseSheet', () => {
     expect(addRelease).toHaveBeenCalledWith({ kind: 'magnet', uri: 'magnet:?xt=urn:btih:abc' }, expect.anything(), undefined)
   })
 
-  it('shows a category’s relative folder under the default save path', async () => {
+  it('shows the default save path for a category when qBittorrent doesn’t use category folders', async () => {
     vi.mocked(qbt.getSaveLocations).mockResolvedValue({
-      categories: [{ name: 'TV', savePath: 'shows' }],
+      categories: [{ name: 'TV', savePath: '/data/tv' }],
       defaultPath: '/data',
+      categoryPaths: false,
+      subcategories: false,
     })
     renderSheet()
-    expect(await screen.findByText('TV → /data/shows')).toBeInTheDocument()
+    expect(await screen.findByText('TV → /data')).toBeInTheDocument()
   })
 
   it('works without categories, a default path or the free space from qBittorrent', async () => {
     // getSaveLocations turns qBittorrent's refusals into empty answers.
-    vi.mocked(qbt.getSaveLocations).mockResolvedValue({ categories: [], defaultPath: '' })
+    vi.mocked(qbt.getSaveLocations).mockResolvedValue({ categories: [], defaultPath: '', categoryPaths: false, subcategories: false })
     vi.mocked(qbt.getMainData).mockRejectedValue(new TypeError('Failed to fetch'))
     renderSheet()
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })

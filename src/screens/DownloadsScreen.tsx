@@ -25,7 +25,6 @@ import { useMainData } from '../torrents/useMainData'
 import { BulkActionsBar } from './BulkActionsBar'
 import { ChangeTitleSheet } from './ChangeTitleSheet'
 import { DeleteTorrentDialog } from './DeleteTorrentDialog'
-import { MoveTorrentSheet } from './MoveTorrentSheet'
 import { DownloadCard } from './DownloadCard'
 import { DownloadItem } from './DownloadItem'
 import { DownloadRow, DownloadRowHeader } from './DownloadRow'
@@ -34,6 +33,7 @@ import { OfflineBanner } from './OfflineBanner'
 import { SortMenu, SortSheet } from './SortSheet'
 import { StatusMenu } from './StatusMenu'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
+import { useMoveTorrent } from './useMoveTorrent'
 import './DownloadsScreen.css'
 
 export interface DownloadsScreenProps {
@@ -88,9 +88,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   const [toggleFailed, setToggleFailed] = useState(false)
   const dismissToggleFailed = useCallback(() => setToggleFailed(false), [])
   const [deleting, setDeleting] = useState<string[] | null>(null)
-  const [moving, setMoving] = useState<string | null>(null)
-  const [moved, setMoved] = useState<string | null>(null)
-  const dismissMoved = useCallback(() => setMoved(null), [])
+  const move = useMoveTorrent({ torrents: data?.torrents, offline, refresh })
   // The selected hashes in selection mode, null outside it.
   const [selected, setSelected] = useState<ReadonlySet<string> | null>(null)
   const selecting = selected !== null
@@ -532,7 +530,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           }}
           onMove={() => {
             setActionsFor(null)
-            setMoving(actionsTorrent.hash)
+            move.open(actionsTorrent.hash)
           }}
           onChangeTitle={() => {
             setActionsFor(null)
@@ -544,17 +542,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           }}
         />
       )}
-      {moving && data?.torrents[moving] && (
-        <MoveTorrentSheet
-          torrent={data.torrents[moving]}
-          onClose={() => setMoving(null)}
-          onMoved={(location) => {
-            setMoving(null)
-            setMoved(location)
-            refresh()
-          }}
-        />
-      )}
+      {move.element}
       {retitleTorrent && (
         <ChangeTitleSheet
           torrent={retitleTorrent}
@@ -595,7 +583,6 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
         />
       )}
       {toggleFailed && <Toast icon="alert" message={t('torrent.actionFailed')} onDismiss={dismissToggleFailed} />}
-      {moved && <Toast icon="folder" message={t('move.moved', { location: moved })} onDismiss={dismissMoved} />}
       {reconnected && <Toast message={t('offline.reconnected')} onDismiss={dismissReconnected} />}
       {titleSaved && (
         <Toast

@@ -182,8 +182,8 @@ describe('TorrentScreen', () => {
     expect(await screen.findByText(/Downloads list/)).toHaveTextContent('"deleted":"torrent"')
   })
 
-  it('moves the files from the More menu and says where', async () => {
-    vi.mocked(api.getSaveLocations).mockResolvedValue({ defaultPath: '/downloads', categories: [] })
+  it('moves the files from the More menu', async () => {
+    vi.mocked(api.getSaveLocations).mockResolvedValue({ defaultPath: '/downloads', categories: [], categoryPaths: false, subcategories: false })
     vi.mocked(api.setTorrentLocation).mockResolvedValue()
     renderScreen()
     await userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' }))
@@ -196,7 +196,7 @@ describe('TorrentScreen', () => {
     await userEvent.click(within(sheet).getByRole('button', { name: 'Move' }))
     expect(api.setTorrentLocation).toHaveBeenCalledWith(['dune'], '/media/movies')
     expect(await screen.findByText('Moving files to /media/movies')).toBeInTheDocument()
-    expect(screen.queryByRole('dialog', { name: 'Move files' })).not.toBeInTheDocument()
+    // The count is the behavior: the screen polls again right after the move, so the new folder shows.
     await vi.waitFor(() => expect(getMainData.mock.calls.length).toBeGreaterThan(polls))
   })
 

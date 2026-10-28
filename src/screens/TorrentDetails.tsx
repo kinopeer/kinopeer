@@ -28,10 +28,10 @@ import { trackerHosts } from '../torrents/trackers'
 import { useMainData } from '../torrents/useMainData'
 import { ChangeTitleSheet } from './ChangeTitleSheet'
 import { DeleteTorrentDialog } from './DeleteTorrentDialog'
-import { MoveTorrentSheet } from './MoveTorrentSheet'
 import { MatchPrompt } from './MatchPrompt'
 import { OfflineBanner } from './OfflineBanner'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
+import { useMoveTorrent } from './useMoveTorrent'
 import { TorrentFiles } from './TorrentFiles'
 import './TorrentScreen.css'
 
@@ -68,6 +68,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
   const navigate = useNavigate()
   const location = useLocation()
   const { data, offline, updatedAt, refresh } = useMainData(onSessionLost)
+  const move = useMoveTorrent({ torrents: data?.torrents, offline, refresh })
   const torrent: Torrent | undefined = data?.torrents[hash]
 
   const torrents = useMemo(() => (torrent ? [torrent] : []), [torrent])
@@ -86,9 +87,6 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
   const [titleSaved, setTitleSaved] = useState<'changed' | 'confirmed' | 'failed' | null>(null)
   const dismissFailure = useCallback(() => setFailed(false), [])
   const dismissTitleSaved = useCallback(() => setTitleSaved(null), [])
-  const [moving, setMoving] = useState(false)
-  const [moved, setMoved] = useState<string | null>(null)
-  const dismissMoved = useCallback(() => setMoved(null), [])
 
   const trackers = useRequest(detailsOpen && torrent ? `trackers|${hash}` : null, () => getTorrentTrackers(hash))
 
@@ -381,7 +379,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
           }}
           onMove={() => {
             setMenuAnchor(null)
-            setMoving(true)
+            move.open(torrent.hash)
           }}
           onChangeTitle={() => {
             setMenuAnchor(null)
@@ -394,17 +392,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
         />
       )}
 
-      {moving && (
-        <MoveTorrentSheet
-          torrent={torrent}
-          onClose={() => setMoving(false)}
-          onMoved={(location) => {
-            setMoving(false)
-            setMoved(location)
-            refresh()
-          }}
-        />
-      )}
+      {move.element}
 
       {retitling && (
         <ChangeTitleSheet
@@ -419,7 +407,6 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
       )}
 
       {failed && <Toast icon="alert" message={t('torrent.actionFailed')} onDismiss={dismissFailure} />}
-      {moved && <Toast icon="folder" message={t('move.moved', { location: moved })} onDismiss={dismissMoved} />}
       {titleSaved && (
         <Toast
           icon={titleSaved === 'failed' ? 'alert' : 'check'}

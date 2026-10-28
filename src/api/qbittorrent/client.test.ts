@@ -184,23 +184,37 @@ describe('setTorrentLocation', () => {
 })
 
 describe('getSaveLocations', () => {
-  it('gets the categories sorted by name and the default save path', async () => {
-    fetchMock.mockImplementation(async (url) =>
-      String(url).endsWith('/torrents/categories')
-        ? new Response('{"TV":{"name":"TV","savePath":""},"Movies":{"name":"Movies","savePath":"/m"}}')
-        : new Response('/downloads\n'),
-    )
+  const answer = (preferences: string) => async (url: string | URL | Request) => {
+    const path = String(url)
+    if (path.endsWith('/torrents/categories'))
+      return new Response('{"TV":{"name":"TV","savePath":""},"Movies":{"name":"Movies","savePath":"/m"}}')
+    if (path.endsWith('/app/preferences')) return new Response(preferences)
+    return new Response('/downloads\n')
+  }
+
+  it('gets the categories by name, the default save path and how qBittorrent uses category folders', async () => {
+    fetchMock.mockImplementation(answer('{"auto_tmm_enabled":false,"use_category_paths_in_manual_mode":true,"use_subcategories":true}'))
     expect(await getSaveLocations()).toEqual({
       categories: [
         { name: 'Movies', savePath: '/m' },
         { name: 'TV', savePath: '' },
       ],
       defaultPath: '/downloads',
+      categoryPaths: true,
+      subcategories: true,
     })
   })
 
-  it('does without what qBittorrent doesn’t answer', async () => {
+  it('uses category folders for new torrents only with automatic management or category paths in manual mode', async () => {
+    fetchMock.mockImplementation(answer('{"auto_tmm_enabled":true,"use_category_paths_in_manual_mode":false}'))
+    expect(await getSaveLocations()).toMatchObject({ categoryPaths: true, subcategories: false })
+    // qBittorrent before 4.4 has no category paths in manual mode.
+    fetchMock.mockImplementation(answer('{"auto_tmm_enabled":false}'))
+    expect(await getSaveLocations()).toMatchObject({ categoryPaths: false })
+  })
+
+  it('does without what qBittorrent doesn’t answer, with its defaults', async () => {
     fetchMock.mockResolvedValue(new Response('', { status: 500 }))
-    expect(await getSaveLocations()).toEqual({ categories: [], defaultPath: '' })
+    expect(await getSaveLocations()).toEqual({ categories: [], defaultPath: '', categoryPaths: false, subcategories: false })
   })
 })

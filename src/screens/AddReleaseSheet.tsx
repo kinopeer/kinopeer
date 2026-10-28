@@ -4,7 +4,7 @@ import { fetchRelease, type Release, type ReleaseSource } from '../api/prowlarr'
 import {
   QbittorrentError,
   getMainData,
-  type Category,
+  type SaveLocations,
   getSaveLocations,
 } from '../api/qbittorrent'
 import { posterUrl, type MediaType } from '../api/tmdb'
@@ -24,7 +24,7 @@ import { addRelease } from '../releases/addRelease'
 import type { ReleaseInfo } from '../releases/parseRelease'
 import { qualityBadges } from '../releases/qualityBadges'
 import { useSettings } from '../settings/settings'
-import { categoryFolder } from '../torrents/folders'
+import { addFolder } from '../torrents/folders'
 import { tmdbTagFor } from '../torrents/parseName'
 import { categoryType } from '../torrents/titleMatches'
 import { readTorrentFile, type TorrentMeta } from '../torrents/torrentFile'
@@ -48,9 +48,7 @@ interface Prepared {
   meta?: TorrentMeta
 }
 
-interface Locations {
-  categories: Category[]
-  defaultPath: string
+interface Locations extends SaveLocations {
   free?: number
 }
 
@@ -105,8 +103,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
     categories.find((candidate) => candidate.name === preferred)?.name ??
     categories.find((candidate) => categoryType(candidate.name) === title.type)?.name ??
     ''
-  const chosen = categories.find((candidate) => candidate.name === category)
-  const defaultPath = (chosen && categoryFolder(chosen, where.data?.defaultPath ?? '')) || where.data?.defaultPath || ''
+  const defaultPath = where.data ? addFolder(category, where.data) : ''
   const destination = savePath.trim() || defaultPath
 
   const selectedSize = useMemo(

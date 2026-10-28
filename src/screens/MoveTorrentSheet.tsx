@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { getSaveLocations, QbittorrentError, setTorrentLocation, UnauthorizedError, type Torrent } from '../api/qbittorrent'
+import { getSaveLocations, type Torrent } from '../api/qbittorrent'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { FilterChip } from '../components/FilterChip'
@@ -11,68 +11,46 @@ import { useRequest } from '../lib/useRequest'
 import { knownFolders, sameFolder } from '../torrents/folders'
 import './MoveTorrentSheet.css'
 
+/** Why qBittorrent didn't take a folder, as a translation key. */
+export type MoveFailure = 'move.noAccess' | 'move.cantCreate' | 'torrent.actionFailed'
+
 export interface MoveTorrentSheetProps {
   torrent: Torrent
+  /** qBittorrent is unreachable: Move is off. */
+  offline: boolean
+  /** The move is being sent. */
+  sending: boolean
+  /** Why qBittorrent didn't take the last folder. */
+  failure?: MoveFailure
+  onMove: (location: string) => void
   onClose: () => void
-  /** After qBittorrent took the new folder; it moves the files in the background. */
-  onMoved: (location: string) => void
 }
 
-type Failure = 'move.noAccess' | 'move.cantCreate' | 'torrent.actionFailed'
-
-/** The banner's text for why qBittorrent didn't take the folder. */
-function failureKey(error: unknown): Failure {
-  if (error instanceof QbittorrentError && !(error instanceof UnauthorizedError)) {
-    if (error.status === 403) return 'move.noAccess'
-    if (error.status === 409) return 'move.cantCreate'
-  }
-  // A lost session included: the Downloads poll notices it and asks for the login.
-  return 'torrent.actionFailed'
-}
-
-/** "Move to…": sends a torrent's files to another folder through qBittorrent. */
-export function MoveTorrentSheet({ torrent, onClose, onMoved }: MoveTorrentSheetProps) {
+/** "Move files": a folder for a torrent's files, typed or picked from the ones qBittorrent knows. */
+export function MoveTorrentSheet({ torrent, offline, sending, failure, onMove, onClose }: MoveTorrentSheetProps) {
   const { t } = useTranslation()
   const where = useRequest('qbt|save-locations', () => getSaveLocations())
-  const folders = where.data ? knownFolders(where.data.categories, where.data.defaultPath) : []
+  const folders = where.data ? knownFolders(where.data) : []
   const [location, setLocation] = useState(torrent.save_path)
-  const [moving, setMoving] = useState(false)
-  const [failure, setFailure] = useState<Failure>()
   const target = location.trim()
   const unchanged = sameFolder(target) === sameFolder(torrent.save_path)
-  // Kept open until qBittorrent answers, so a failure has somewhere to show.
-  const close = () => {
-    if (!moving) onClose()
-  }
-
-  const move = async () => {
-    setMoving(true)
-    setFailure(undefined)
-    try {
-      await setTorrentLocation([torrent.hash], target)
-      onMoved(target)
-    } catch (error) {
-      setFailure(failureKey(error))
-      setMoving(false)
-    }
-  }
 
   return (
     <Sheet
       open
-      onClose={close}
+      onClose={onClose}
       title={t('move.title')}
       subtitle={torrent.name}
-      action={<IconButton icon="close" label={t('move.cancel')} disabled={moving} onClick={close} />}
+      action={<IconButton icon="close" label={t('move.cancel')} onClick={onClose} />}
       footer={
         <Button
           variant="primary"
           size="lg"
           icon="folder"
           block
-          loading={moving}
-          disabled={!target || unchanged || moving}
-          onClick={() => void move()}
+          loading={sending}
+          disabled={!target || unchanged || sending || offline}
+          onClick={() => onMove(target)}
         >
           {t('move.submit')}
         </Button>
@@ -107,4 +85,3 @@ export function MoveTorrentSheet({ torrent, onClose, onMoved }: MoveTorrentSheet
     </Sheet>
   )
 }
-

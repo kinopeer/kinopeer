@@ -97,6 +97,9 @@ export const CATEGORIES = {
   'TV Shows': { name: 'TV Shows', savePath: '/downloads/tv' },
 }
 
+/** What the fake qBittorrent answers on /app/preferences: the few fields Kinoseed reads, as qBittorrent's defaults. */
+export const PREFERENCES = { auto_tmm_enabled: false, use_category_paths_in_manual_mode: false, use_subcategories: false }
+
 /** What the fake qBittorrent answers on /torrents/trackers. */
 export const TRACKERS: TorrentTracker[] = [
   { url: '** [DHT] **', status: 2, msg: '' },
@@ -138,7 +141,10 @@ async function parseAdd(body: Buffer, contentType: string | undefined): Promise<
  * adding: /torrents/add records what came in `added` (and lists what `listAdded` makes of it),
  * /torrents/files answers `files` (set per hash by the test, 404 for a hash it doesn't have),
  * /torrents/filePrio changes their priorities, /torrents/start and /stop answer OK,
- * /torrents/delete takes the torrents off the list and records the call in `deleted`.
+ * /torrents/delete takes the torrents off the list and records the call in `deleted`,
+ * /torrents/setLocation moves torrents to `location` (403 for a folder under /readonly, which
+ * qBittorrent can't write to, and 409 under /unmakeable, a folder it can't create), and
+ * /app/preferences answers PREFERENCES.
  * Written from qBittorrent 5.3.x; when a newer version answers differently, change the fake here
  * and say the version.
  */
@@ -205,6 +211,8 @@ export async function fakeQbittorrent({
         return text(response, '/downloads')
       case '/api/v2/torrents/categories':
         return json(response, CATEGORIES)
+      case '/api/v2/app/preferences':
+        return json(response, PREFERENCES)
       case '/api/v2/torrents/info':
         return json(response, listing)
       case '/api/v2/sync/maindata': {
@@ -254,6 +262,16 @@ export async function fakeQbittorrent({
       case '/api/v2/torrents/start':
       case '/api/v2/torrents/stop':
         return text(response, '')
+      case '/api/v2/torrents/setLocation': {
+        // qBittorrent 5.x: "Cannot write to directory" and "Cannot make save path" in the body.
+        const location = params.get('location') ?? ''
+        if (location.startsWith('/readonly')) return text(response, 'Cannot write to directory', 403)
+        if (location.startsWith('/unmakeable')) return text(response, 'Cannot make save path', 409)
+        const hashes = new Set((params.get('hashes') ?? '').split('|'))
+        for (const [index, torrent] of listing.entries())
+          if (hashes.has(torrent.hash)) listing[index] = { ...torrent, save_path: location }
+        return text(response, '')
+      }
       default:
         return text(response, 'Not Found', 404)
     }
