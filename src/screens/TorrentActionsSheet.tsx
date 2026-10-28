@@ -127,7 +127,7 @@ export function TorrentActionsSheet({
         <MenuItem icon={running ? 'pause' : 'play'} disabled={offline || busy} onClick={toggle}>
           {running ? t('torrent.pause') : t('torrent.resume')}
         </MenuItem>
-        <MenuItem icon="sort-desc" disabled={offline || busy} onClick={() => setEditingLimits(true)}>
+        <MenuItem icon="gauge" disabled={offline || busy} onClick={() => setEditingLimits(true)}>
           {t('limits.title')}
         </MenuItem>
         {showDetails && (
@@ -187,7 +187,7 @@ export function TorrentActionsSheet({
         </li>
         <li>
           <button type="button" className="ks-row-btn" disabled={offline || busy} onClick={() => setEditingLimits(true)}>
-            <Icon name="sort-desc" />
+            <Icon name="gauge" />
             {t('limits.title')}
           </button>
         </li>
