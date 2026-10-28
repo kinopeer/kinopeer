@@ -43,7 +43,7 @@ per query, ranked by seeders, plus Rutor's real 24-hour top.
 
 ## Data flow
 
-1. **Server job**, every 3 hours (hourly is possible; see the questions), started by `startJobs()`
+1. **Server job**, every 3 hours (decision 5), started by `startJobs()`
    only when Prowlarr is configured, the first run on the first request to the row.
 2. `GET /api/v1/indexer`, keep enabled torrent indexers; skip ones `indexerstatus` disables.
 3. **One indexer at a time** (`indexerIds=<id>`, not one fan-out), so a slow FlareSolverr indexer
@@ -56,7 +56,7 @@ per query, ranked by seeders, plus Rutor's real 24-hour top.
    most ~40 new lookups per run. No confident match → the release is left out.
 6. **Rank** in a rolling window: keep releases seen in the last 14 days by guid, with their latest
    seeders. A title's score is the sum of its releases' seeders, each halved per 7 days of age
-   (`publishDate`); a title on several trackers adds up. Top 20 movies and top 20 series.
+   (`publishDate`); a title on several trackers adds up. Top 20 movies and top 20 series (decision 1).
 7. **Store** `{ updatedAt, releases, titles }` in `$KINOSEED_DATA_DIR/popular.json` through
    `server/jsonFile.ts`. `GET /api/popular` returns `{ updatedAt, movies: [{ id, score, trackers }],
    tv: [...] }`, ids only; the browser fetches names and posters through `/tmdb` in its own
@@ -88,15 +88,29 @@ indexer per visit instead of a few times a day.
 - **Indexer settings change results.** Kinozal's "Sort requested from site" decides which ~50
   releases come back; "Strip Cyrillic Letters" (default on) helps TMDB matching.
 
-## Questions for Alfred
+## Decisions
 
-1. Movies only, or a series row too?
-2. Replace "Trending this week" and the TMDB rows, or sit above them?
-3. All enabled indexers, or a choice of indexers in Settings?
-4. 4K only, or fall back to 1080p for titles with no 4K release?
-5. Every 3 hours, or hourly? A 14-day window?
-6. A complementary TMDB-only row ("out digitally in the last 30 days", `discover` with
-   `with_release_type=4`) is cheap and needs no Prowlarr. Worth a separate idea?
+Settled without Alfred on 2026-10-28 so the work could go on; each is a default, change any you
+disagree with.
+
+1. **Movies and series, as two rows.** Decision (default, change if you disagree): "4K movies on
+   your trackers" first, "4K series on your trackers" under it; a row with fewer than 5 titles is
+   hidden, since 4K series packs are rarer.
+2. **Above the TMDB rows, not instead of them.** Decision (default, change if you disagree): the
+   tracker rows open the Search screen; "Trending this week" and the popular rows stay below for
+   discovery and are all that shows without Prowlarr.
+3. **All enabled torrent indexers, no setting.** Decision (default, change if you disagree):
+   Prowlarr's own Enable switch already picks the indexers; a per-indexer choice in Settings can come
+   later if a noisy indexer spoils the row.
+4. **4K only, no 1080p fallback.** Decision (default, change if you disagree): the row exists to
+   show what is out in good quality; a 1080p fallback would bring back the titles it is meant to
+   filter out.
+5. **Every 3 hours, a 14-day window.** Decision (default, change if you disagree): seeders change
+   slowly and Kinozal goes through FlareSolverr, so hourly would add load for little gain; 14 days
+   keeps a title on the row about as long as it stays in a tracker's top.
+6. **No TMDB "out digitally" row in this feature.** Decision (default, change if you disagree): it
+   is cheap and works without Prowlarr, but it answers a different question ("released", not "out
+   in 4K"); it goes to Ideas in GitHub Discussions as its own proposal.
 
 ## Checklist to run on your Prowlarr
 
