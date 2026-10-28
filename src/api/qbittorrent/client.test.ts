@@ -118,7 +118,14 @@ describe('torrent files', () => {
 })
 
 describe('setSpeedLimits', () => {
-  it('sets the download limit, then the upload limit, in bytes/s', async () => {
+  it('sends both limits at once rather than one after the other', async () => {
+    fetchMock.mockReturnValueOnce(new Promise(() => {}))
+    respond('')
+    void setSpeedLimits(['a'], { download: 1_000_000, upload: 1_000_000 })
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+  })
+
+  it('sets the download and the upload limit in bytes/s', async () => {
     respond('')
     respond('')
     await setSpeedLimits(['a', 'b'], { download: 2_000_000, upload: 0 })

@@ -2,6 +2,7 @@ import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
+import i18n from '../i18n'
 import { torrent } from '../test/fixtures'
 import { renderWithRouter } from '../test/render'
 import { SpeedLimitsSheet } from './SpeedLimitsSheet'
@@ -39,6 +40,26 @@ describe('SpeedLimitsSheet', () => {
     expect(handlers.onClose).toHaveBeenCalled()
   })
 
+  it('says under each field that an empty one means no limit', () => {
+    renderSheet()
+    expect(screen.getByRole('textbox', { name: 'Download limit, MB/s' })).toHaveAccessibleDescription('Empty: no limit')
+    expect(screen.getByRole('textbox', { name: 'Upload limit, MB/s' })).toHaveAccessibleDescription('Empty: no limit')
+  })
+
+  it("puts the field's error in place of its hint", async () => {
+    renderSheet()
+    const upload = screen.getByRole('textbox', { name: 'Upload limit, MB/s' })
+    await userEvent.type(upload, 'abc')
+    expect(upload).toHaveAccessibleDescription('Enter a number up to 2147, e.g. 2.5')
+    expect(screen.getAllByText('Empty: no limit')).toHaveLength(1)
+  })
+
+  it("fills the fields with the interface language's decimal separator", async () => {
+    await i18n.changeLanguage('ru')
+    renderSheet({ dl_limit: 2_500_000 })
+    expect(screen.getByRole('textbox', { name: 'Лимит загрузки, МБ/с' })).toHaveValue('2,5')
+  })
+
   it('removes a limit when its field is cleared', async () => {
     vi.mocked(api.setSpeedLimits).mockResolvedValue()
     renderSheet({ dl_limit: 1_000_000, up_limit: 300_000 })
@@ -58,7 +79,7 @@ describe('SpeedLimitsSheet', () => {
   it("doesn't save a value that isn't a number", async () => {
     renderSheet()
     await userEvent.type(screen.getByRole('textbox', { name: 'Upload limit, MB/s' }), 'abc')
-    expect(screen.getByText('Enter a number, e.g. 2.5')).toBeInTheDocument()
+    expect(screen.getByText('Enter a number up to 2147, e.g. 2.5')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Save limits' })).toBeDisabled()
   })
 

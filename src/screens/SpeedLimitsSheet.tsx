@@ -19,9 +19,12 @@ export interface SpeedLimitsSheetProps {
 
 /** Download and upload speed limits of one torrent; an empty field means no limit. */
 export function SpeedLimitsSheet({ torrent, title, offline, onClose, onChanged }: SpeedLimitsSheetProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   // What the fields showed when the sheet opened: an unchanged field isn't sent.
-  const [initial] = useState(() => ({ download: limitToField(torrent.dl_limit), upload: limitToField(torrent.up_limit) }))
+  const [initial] = useState(() => {
+    const language = i18n.resolvedLanguage ?? i18n.language
+    return { download: limitToField(torrent.dl_limit, language), upload: limitToField(torrent.up_limit, language) }
+  })
   const [download, setDownload] = useState(initial.download)
   const [upload, setUpload] = useState(initial.upload)
   const [saving, setSaving] = useState(false)
@@ -32,7 +35,7 @@ export function SpeedLimitsSheet({ torrent, title, offline, onClose, onChanged }
 
   const save = async (event: FormEvent) => {
     event.preventDefault()
-    if (downloadLimit === null || uploadLimit === null || offline) return
+    if (!valid || offline) return
     if (downloadLimit === undefined && uploadLimit === undefined) return onClose()
     setSaving(true)
     setFailed(false)
@@ -41,7 +44,7 @@ export function SpeedLimitsSheet({ torrent, title, offline, onClose, onChanged }
       onChanged()
       onClose()
     } catch {
-      // The first of the two requests may have gone through: show the list what was applied.
+      // One of the two requests may have gone through: show the list what was applied.
       onChanged()
       setFailed(true)
       setSaving(false)
@@ -49,12 +52,13 @@ export function SpeedLimitsSheet({ torrent, title, offline, onClose, onChanged }
   }
 
   return (
-    <Sheet open onClose={onClose} title={t('limits.title')} subtitle={title} className="limits-sheet">
+    <Sheet open onClose={onClose} title={t('limits.title')} subtitle={title}>
       <form className="limits-form" onSubmit={save}>
         <Input
           label={t('limits.download')}
           inputMode="decimal"
           placeholder={t('limits.unlimited')}
+          help={t('limits.hint')}
           value={download}
           onChange={(event) => setDownload(event.target.value)}
           error={downloadLimit === null ? t('limits.invalid') : false}
@@ -63,11 +67,11 @@ export function SpeedLimitsSheet({ torrent, title, offline, onClose, onChanged }
           label={t('limits.upload')}
           inputMode="decimal"
           placeholder={t('limits.unlimited')}
+          help={t('limits.hint')}
           value={upload}
           onChange={(event) => setUpload(event.target.value)}
           error={uploadLimit === null ? t('limits.invalid') : false}
         />
-        <p className="t-cap c3">{t('limits.hint')}</p>
         {failed && <Banner tone="error">{t('limits.failed')}</Banner>}
         <Button type="submit" variant="primary" size="lg" block loading={saving} disabled={!valid || saving || offline}>
           {t('limits.save')}

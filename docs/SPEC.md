@@ -76,7 +76,7 @@ On desktop these steps show their form in a card centered in the window, without
 - Pause, resume, delete; progress, time left, ratio. The More button opens the same menu as the row.
 - A guessed title gets the same "Is it right?" card under the heading; when no title was found, "Pick title".
 - Changing the title: a TMDB search that starts from the name read from the release, with All, Movies and Series; the current title comes first and is marked. Picking a title, or "Yes, right", saves it on the Kinoseed server as the user's choice, which wins over the tag and any guess.
-- Speed limits: download and upload limits of this torrent in MB/s, in a sheet of their own (a menu can't hold a form); an empty field means no limit. The menu item is off while qBittorrent is unreachable or a pause or resume is in flight; an open sheet keeps its fields but can't save until qBittorrent answers.
+- Speed limits: download and upload limits of this torrent in MB/s (up to 2147, the most qBittorrent stores), in a sheet of their own (a menu can't hold a form); an empty field means no limit. The menu item is off while qBittorrent is unreachable or a pause or resume is in flight; an open sheet keeps its fields but can't save until qBittorrent answers.
 - Files as a tree, as in the torrent, without regrouping, but without the torrent's single root folder; sorted by name, numbers by value. Priorities: Skip, Normal, High.
 - Speeds, speed limits (only those that are set), seeds and peers, save path, category, date added, info hash, trackers.
 - Clear messages for disk errors and missing files.
