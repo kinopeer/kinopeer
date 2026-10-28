@@ -194,7 +194,7 @@ describe('App', () => {
       renderApp('/')
       const heading = await screen.findByRole('heading', { name: 'Downloads', level: 1 })
       await userEvent.click(await screen.findByRole('link', { name: /Dune\.Part\.Two/ }))
-      expect(await screen.findByRole('dialog')).toBeInTheDocument()
+      expect(await screen.findByRole('dialog', { name: 'Dune.Part.Two.2024.2160p.WEB-DL' })).toBeInTheDocument()
       expect(where()).toBe('/torrent/dune')
       // The same heading element: a remounted screen would have put a new one in its place.
       expect(heading).toBeInTheDocument()
