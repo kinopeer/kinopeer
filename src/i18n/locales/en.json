@@ -286,6 +286,7 @@
     "savePath": "Save path",
     "startPaused": "Start paused",
     "sequential": "Sequential download",
+    "firstLastPieces": "First and last pieces first",
     "addTop": "Add to top of queue",
     "filesAll": "Files: all ({{count}})",
     "filesSome": "Files: {{selected}} of {{count}}",
