@@ -3,8 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router'
 import {
   TmdbKeyError,
-  getPopular,
-  getTrending,
+  discoverTitles,
   posterUrl,
   searchTitles,
   type MediaType,
@@ -18,6 +17,7 @@ import { cx } from '../lib/cx'
 import { useDebouncedValue } from '../lib/useDebouncedValue'
 import { useRequest } from '../lib/useRequest'
 import { useScrollRestoration } from '../lib/useScrollRestoration'
+import { browseRowQueries, type BrowseRowQuery } from '../search/browseRows'
 import { useTmdbLanguage } from '../settings/settings'
 import type { SettingsLocationState } from './SettingsScreen'
 import './SearchScreen.css'
@@ -33,24 +33,17 @@ const TYPE_FILTERS = [
 /** Wait this long after the last keystroke before searching. */
 export const SEARCH_DEBOUNCE_MS = 350
 
-interface BrowseRow {
-  key: 'trending' | 'popularMovies' | 'popularSeries'
-  /** Undefined: mixed movies and series. */
-  type?: MediaType
+interface BrowseRow extends Omit<BrowseRowQuery, 'params'> {
   titles: Title[]
 }
 
 async function loadBrowseRows(language: string, signal: AbortSignal): Promise<BrowseRow[]> {
-  const [trending, movies, series] = await Promise.all([
-    getTrending('all', { language, signal }),
-    getPopular('movie', { language, signal }),
-    getPopular('tv', { language, signal }),
-  ])
-  return [
-    { key: 'trending', titles: trending.titles },
-    { key: 'popularMovies', type: 'movie', titles: movies.titles },
-    { key: 'popularSeries', type: 'tv', titles: series.titles },
-  ]
+  return Promise.all(
+    browseRowQueries(new Date()).map(async ({ params, ...row }) => ({
+      ...row,
+      titles: (await discoverTitles(row.type, params, { language, signal })).titles,
+    })),
+  )
 }
 
 function parseType(value: string | null): TypeFilter {
@@ -89,9 +82,7 @@ export function SearchScreen() {
 
   const matchesType = (title: Title) => type === 'all' || title.type === type
   const results = search.data?.titles.filter(matchesType) ?? []
-  const rows = (browse.data ?? [])
-    .filter((row) => !row.type || type === 'all' || row.type === type)
-    .map((row) => ({ ...row, titles: row.titles.filter(matchesType) }))
+  const rows = (browse.data ?? []).filter((row) => type === 'all' || row.type === type)
   const request = searching ? search : browse
   // Between a keystroke and the debounced request there's nothing to show for the new query yet.
   const loading = request.loading || (searching && term !== query.trim())

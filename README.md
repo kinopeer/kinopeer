@@ -4,7 +4,7 @@ A qBittorrent web UI for movies and TV series. Find a movie or a series, pick a 
 
 <p>
   <img src="docs/screenshots/downloads.png" width="200" alt="Downloads with posters, progress and speeds">
-  <img src="docs/screenshots/search.png" width="200" alt="Search with trending and popular titles">
+  <img src="docs/screenshots/search.png" width="200" alt="Search with new on digital, new episodes and the best of the year">
   <img src="docs/screenshots/title.png" width="200" alt="A series page with its overview, rating and its download in progress">
   <img src="docs/screenshots/releases.png" width="200" alt="Releases found by Prowlarr with season, quality and voice-over badges">
 </p>
@@ -15,7 +15,7 @@ A qBittorrent web UI for movies and TV series. Find a movie or a series, pick a 
 
 ## Features
 
-- **Search.** Movies and series from TMDB, trending and popular picks, a title page with the overview and rating.
+- **Search.** Movies and series from TMDB, picks of what's out on digital and new episodes, a title page with the overview and rating.
 - **Releases.** Search across all your Prowlarr indexers. Filter by resolution, source, HDR, audio, seeds and indexer; sort by seeds, size or date.
 - **Adding.** Category, save path, file selection (for example, only the seasons you want) and a free space check before the download starts.
 - **Downloads.** A live list or poster grid with TMDB posters and titles, statuses, speeds and time left. Pause, resume, delete.
