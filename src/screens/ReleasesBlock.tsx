@@ -5,6 +5,7 @@ import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { EmptyState } from '../components/EmptyState'
 import { FilterChip } from '../components/FilterChip'
+import { formatList } from '../i18n/formatList'
 import type { TitleDetails } from '../releases/releaseQuery'
 import { AddReleaseSheet } from './AddReleaseSheet'
 import type { Releases } from './useReleases'
@@ -56,6 +57,7 @@ export function ReleasesBody({ releases, skeleton, children }: ReleasesBodyProps
   return (
     <>
       <FailingIndexers releases={releases} />
+      <SetAsideFilters releases={releases} />
       <ActiveFilters releases={releases} />
       {releases.visible.length > 0 ? (
         children
@@ -76,7 +78,7 @@ export function ReleasesBody({ releases, skeleton, children }: ReleasesBodyProps
 function FailingIndexers({ releases }: { releases: Releases }) {
   const { t, i18n } = useTranslation()
   const { failing } = releases
-  const names = new Intl.ListFormat(i18n.language, { type: 'conjunction', style: 'narrow' }).format(failing)
+  const names = formatList(failing, i18n, 'narrow')
   return (
     <div role="status" className="rel-note">
       {failing.length > 0 && (
@@ -107,6 +109,31 @@ function ActiveFilters({ releases }: { releases: Releases }) {
       ))}
       <Button variant="ghost" size="sm" onClick={releases.clearFilters}>
         {t('releases.clearAll')}
+      </Button>
+    </div>
+  )
+}
+
+/** The remembered filters this search doesn't apply, and Forget. */
+function SetAsideFilters({ releases }: { releases: Releases }) {
+  const { t, i18n } = useTranslation()
+  const { aside, audioLabel } = releases
+  const labels = [
+    ...aside.resolution,
+    ...aside.audio.map(audioLabel),
+    ...aside.source,
+    ...(aside.minSeeds ? [t('releases.seedsPlus', { count: aside.minSeeds })] : []),
+  ]
+  if (!labels.length) return null
+  return (
+    <div className="rel-aside">
+      <p className="t-cap c3">
+        {t('releases.setAside', {
+          filters: formatList(labels, i18n),
+        })}
+      </p>
+      <Button variant="ghost" size="sm" onClick={releases.forgetAside}>
+        {t('releases.forget')}
       </Button>
     </div>
   )

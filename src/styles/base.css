@@ -8,6 +8,17 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+/* On a touch screen the page behind an open modal (a sheet, a dialog) stays put: a modal <dialog>
+   makes it inert but still lets it scroll under a finger, on iOS Safari above all. Not under a
+   mouse, where hiding a classic scrollbar (Windows) would shift the page by its width. That leaves
+   out a touch laptop whose main pointer is its trackpad, where the page can still scroll under a
+   finger: the same scrollbar would shift there. */
+@media (pointer: coarse) {
+  html:has(:modal) {
+    overflow: hidden;
+  }
+}
+
 body {
   margin: 0;
   font: var(--t-body);

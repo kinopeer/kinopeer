@@ -262,6 +262,8 @@
     "ascending": "Ascending",
     "reset": "Reset",
     "clearAll": "Clear all",
+    "setAside": "Remembered filters not applied: {{filters}}",
+    "forget": "Forget",
     "show_one": "Show {{count}}",
     "show_other": "Show {{count}}",
     "removeFilter": "Remove filter {{label}}",
