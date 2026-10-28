@@ -28,4 +28,11 @@ describe('locales', () => {
       }
     }
   })
+
+  it("keep TMDB's required notice in its English wording", () => {
+    // TMDB's API terms ask for this exact text, so no language translates it (Settings → About).
+    for (const locale of [en, ru]) {
+      expect(locale.settings.tmdbNotice).toBe('This product uses the TMDB API but is not endorsed or certified by TMDB.')
+    }
+  })
 })

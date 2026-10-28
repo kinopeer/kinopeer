@@ -79,6 +79,43 @@ describe('searchTitles', () => {
     await searchTitles('x', { signal: controller.signal })
     expect(fetchMock.mock.calls[0][1]?.signal).toBe(controller.signal)
   })
+
+  it('with a year, searches movies and series by their own year', async () => {
+    respond({ page: 1, total_pages: 2, total_results: 21, results: [] })
+    respond({ page: 1, total_pages: 1, total_results: 0, results: [] })
+
+    const page = await searchTitles('star', { year: 2022, language: 'en-US' })
+
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+      '/tmdb/search/movie?query=star&include_adult=false&primary_release_year=2022&language=en-US',
+      '/tmdb/search/tv?query=star&include_adult=false&first_air_date_year=2022&language=en-US',
+    ])
+    expect(page).toMatchObject({ page: 1, totalPages: 2 })
+  })
+
+  it('with a year, interleaves movies and series by popularity, each keeping TMDB\'s order', async () => {
+    const { media_type: _movie, ...movie } = dune
+    const { media_type: _tv, ...tv } = andor
+    // TMDB puts the exact title first, though it's the least popular of the movies.
+    respond({
+      page: 1,
+      total_pages: 1,
+      total_results: 2,
+      results: [
+        { ...movie, id: 1, title: 'The Thing', popularity: 10 },
+        { ...movie, id: 2, title: 'Swamp Thing', popularity: 50 },
+      ],
+    })
+    respond({ page: 1, total_pages: 1, total_results: 1, results: [{ ...tv, id: 3, name: 'Things', popularity: 30 }] })
+
+    const page = await searchTitles('the thing', { year: 1982 })
+
+    expect(page.titles.map((t) => [t.type, t.title])).toEqual([
+      ['tv', 'Things'],
+      ['movie', 'The Thing'],
+      ['movie', 'Swamp Thing'],
+    ])
+  })
 })
 
 describe('errors', () => {

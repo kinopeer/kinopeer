@@ -6,6 +6,8 @@ import * as prowlarr from '../api/prowlarr'
 import * as qbt from '../api/qbittorrent'
 import * as serverSettings from '../api/settings'
 import * as tmdb from '../api/tmdb'
+import i18n from '../i18n'
+import { BUG_REPORT_URL, IDEAS_URL, REPO_URL } from '../lib/links'
 import { getSettings, resetSettings } from '../settings/settings'
 import { renderWithRouter } from '../test/render'
 import { SettingsScreen } from './SettingsScreen'
@@ -209,6 +211,31 @@ describe('SettingsScreen', () => {
     renderScreen()
     await userEvent.click(screen.getByRole('button', { name: /Install app/ }))
     expect(screen.getByRole('dialog', { name: 'Add to Dock' })).toHaveTextContent('Choose “Add to Dock”')
+  })
+
+  it('links to Ideas, a bug report and the source code, each in a new tab and saying so', () => {
+    renderScreen()
+    const about = screen.getByRole('region', { name: 'About' })
+    const links: [RegExp, string][] = [
+      [/Suggest an idea.*\(opens in a new tab\)/, IDEAS_URL],
+      [/Report a bug.*\(opens in a new tab\)/, BUG_REPORT_URL],
+      [/Kinoseed on GitHub.*\(opens in a new tab\)/, REPO_URL],
+    ]
+    for (const [name, href] of links) {
+      const link = within(about).getByRole('link', { name })
+      expect(link).toHaveAttribute('href', href)
+      expect(link).toHaveAttribute('target', '_blank')
+    }
+  })
+
+  it('credits TMDB with its logo, and keeps the notice in English on a Russian screen', async () => {
+    await i18n.changeLanguage('ru')
+    renderScreen()
+    const about = screen.getByRole('region', { name: 'О приложении' })
+    expect(within(about).getByRole('img', { name: 'TMDB' })).toBeInTheDocument()
+    expect(about).toHaveTextContent('Данные о фильмах и сериалах и постеры берутся из TMDB.')
+    // The notice's wording is locales.test.ts's; here, that it's marked as English for screen readers.
+    expect(within(about).getByText(i18n.t('settings.tmdbNotice'))).toHaveAttribute('lang', 'en')
   })
 
   it('has no install row where the app can\'t be installed', () => {
