@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes, useLocation } from 'react-router'
 import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
@@ -30,6 +30,8 @@ vi.mock('../api/qbittorrent', async (importOriginal) => {
     startTorrents: vi.fn(),
     stopTorrents: vi.fn(),
     deleteTorrents: vi.fn(),
+    getSaveLocations: vi.fn(),
+    setTorrentLocation: vi.fn(),
     recheckTorrents: vi.fn(),
     setSpeedLimits: vi.fn(),
     reannounceTorrents: vi.fn(),
@@ -218,6 +220,49 @@ describe('TorrentScreen', () => {
     const dialog = screen.getByRole('alertdialog', { name: 'Delete torrent?' })
     await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
     expect(await screen.findByText(/Downloads list/)).toHaveTextContent('"deleted":"torrent"')
+  })
+
+  it('moves the files from the More menu', async () => {
+    vi.mocked(api.getSaveLocations).mockResolvedValue({ defaultPath: '/downloads', categories: [], categoryPaths: false, subcategories: false })
+    vi.mocked(api.setTorrentLocation).mockResolvedValue()
+    getTorrentTrackers.mockResolvedValue([])
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'Details' }))
+    const savePath = screen.getByText('Save path', { selector: 'dt' }).nextElementSibling
+    await userEvent.click(screen.getByRole('button', { name: 'More actions: Dune: Part Two' }))
+    // A hidden page doesn't poll, so only the screen's own refresh can bring qBittorrent's next answer.
+    stopPolling()
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Dune: Part Two' })).getByRole('button', { name: 'Move files…' }))
+    const sheet = screen.getByRole('dialog', { name: 'Move files' })
+    const field = within(sheet).getByRole('textbox', { name: 'Folder' })
+    await userEvent.clear(field)
+    await userEvent.type(field, '/media/movies')
+    // The screen asks qBittorrent again right after the move, so the new folder shows without a poll.
+    getMainData.mockResolvedValue(snapshot({ save_path: '/media/movies' }))
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Move' }))
+    expect(api.setTorrentLocation).toHaveBeenCalledWith(['dune'], '/media/movies')
+    expect(await screen.findByRole('status')).toHaveTextContent('Moving files to /media/movies')
+    await waitFor(() => expect(savePath).toHaveTextContent('/media/movies'))
+  })
+
+  it('says how a move went when the torrent is gone by the time qBittorrent answers', async () => {
+    vi.mocked(api.getSaveLocations).mockResolvedValue({ defaultPath: '/downloads', categories: [], categoryPaths: false, subcategories: false })
+    let fail = (_error: unknown) => {}
+    vi.mocked(api.setTorrentLocation).mockReturnValue(new Promise<void>((_resolve, reject) => (fail = reject)))
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Dune: Part Two' })).getByRole('button', { name: 'Move files…' }))
+    const sheet = screen.getByRole('dialog', { name: 'Move files' })
+    const field = within(sheet).getByRole('textbox', { name: 'Folder' })
+    await userEvent.clear(field)
+    await userEvent.type(field, '/media/movies')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Move' }))
+
+    getMainData.mockResolvedValue(mainData([]))
+    window.dispatchEvent(new Event('online'))
+    expect(await screen.findByText('Torrent not found')).toBeInTheDocument()
+    fail(new api.QbittorrentError('conflict', 409))
+    expect(await screen.findByRole('status')).toHaveTextContent('qBittorrent couldn’t create that folder.')
   })
 
   it('reannounces, and rechecks after a confirmation, from the More menu, each with a toast', async () => {

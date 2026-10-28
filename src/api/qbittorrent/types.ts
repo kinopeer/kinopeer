@@ -134,6 +134,16 @@ export interface Category {
   savePath: string
 }
 
+/** Where qBittorrent saves torrents, as `getSaveLocations` reads it. */
+export interface SaveLocations {
+  categories: Category[]
+  defaultPath: string
+  /** New torrents go to their category's folder: automatic management by default, or category paths in manual mode. */
+  categoryPaths: boolean
+  /** A subcategory without a path of its own goes under its parent's folder. */
+  subcategories: boolean
+}
+
 /** 0: skip, 1: normal, 6: high, 7: maximum. */
 export type FilePriority = 0 | 1 | 6 | 7
 

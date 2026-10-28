@@ -3,6 +3,7 @@ import type {
   Category,
   FilePriority,
   MainData,
+  SaveLocations,
   Torrent,
   TorrentFile,
   TorrentTracker,
@@ -132,6 +133,32 @@ export async function getDefaultSavePath(): Promise<string> {
   return (await response.text()).trim()
 }
 
+/** The preferences that decide where qBittorrent puts a category's torrents. */
+interface FolderPreferences {
+  auto_tmm_enabled?: boolean
+  /** qBittorrent 4.4+. */
+  use_category_paths_in_manual_mode?: boolean
+  use_subcategories?: boolean
+}
+
+/** Categories by name, the default save path and how qBittorrent uses category folders. */
+export async function getSaveLocations(): Promise<SaveLocations> {
+  const [categories, defaultPath, preferences] = await Promise.all([
+    getCategories().catch(() => []),
+    getDefaultSavePath().catch(() => ''),
+    request('/app/preferences')
+      .then((response) => response.json() as Promise<FolderPreferences>)
+      // qBittorrent's defaults: manual mode, no subcategories.
+      .catch((): FolderPreferences => ({})),
+  ])
+  return {
+    categories: categories.sort((a, b) => a.name.localeCompare(b.name)),
+    defaultPath,
+    categoryPaths: !!(preferences.auto_tmm_enabled || preferences.use_category_paths_in_manual_mode),
+    subcategories: !!preferences.use_subcategories,
+  }
+}
+
 /** Files of a torrent, in index order. Empty until a magnet link's metadata has arrived. */
 export async function getTorrentFiles(hash: string): Promise<TorrentFile[]> {
   const response = await request('/torrents/files', { params: { hash } })
@@ -190,6 +217,21 @@ export async function reannounceTorrents(hashes: string[]): Promise<void> {
 /** Removes torrents from qBittorrent, and with `deleteFiles` their downloaded data too. */
 export async function deleteTorrents(hashes: string[], deleteFiles: boolean): Promise<void> {
   await request('/torrents/delete', { method: 'POST', params: { hashes: hashes.join('|'), deleteFiles } })
+}
+
+/**
+ * Moves torrents' files to `location`, creating it if needed. qBittorrent answers 409 when it can't
+ * create the folder and 403 when it can't write there, but 403 is also its answer without a
+ * session: the version check, which needs only a session, tells the two apart.
+ */
+export async function setTorrentLocation(hashes: string[], location: string): Promise<void> {
+  try {
+    await request('/torrents/setLocation', { method: 'POST', params: { hashes: hashes.join('|'), location } })
+  } catch (error) {
+    if (!(error instanceof UnauthorizedError)) throw error
+    await getAppVersion()
+    throw new QbittorrentError('qBittorrent cannot write to that folder', 403)
+  }
 }
 
 /** Trackers of a torrent, including the DHT, PeX and LSD pseudo-trackers. */

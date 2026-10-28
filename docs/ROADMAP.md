@@ -54,8 +54,8 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 ## 0.8: Torrent control
 
 - [x] Torrent details: recheck and reannounce.
+- [x] Moving a torrent's files to another folder, from its More menu.
 - [x] Torrent details: per-torrent speed limits.
-- [ ] Torrent details: moving the files to another folder.
 - [x] A switch for qBittorrent's alternative speed limits in the sidebar (on a phone, in the Downloads title row).
 - [x] Releases: which indexers failed when a search comes back partly empty. Not why: Prowlarr's API keeps only when an indexer failed, and the reason stays in its logs.
 

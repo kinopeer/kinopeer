@@ -33,6 +33,7 @@ import { OfflineBanner } from './OfflineBanner'
 import { RecheckDialog } from './RecheckDialog'
 import { SpeedLimitsSheet } from './SpeedLimitsSheet'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
+import { useMoveTorrent } from './useMoveTorrent'
 import { TorrentFiles } from './TorrentFiles'
 import './TorrentScreen.css'
 
@@ -69,6 +70,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
   const navigate = useNavigate()
   const location = useLocation()
   const { data, offline, updatedAt, refresh } = useMainData(onSessionLost)
+  const move = useMoveTorrent({ torrents: data?.torrents, offline, refresh })
   const torrent: Torrent | undefined = data?.torrents[hash]
 
   const torrents = useMemo(() => (torrent ? [torrent] : []), [torrent])
@@ -168,6 +170,8 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
         >
           {t('torrent.notFoundBody')}
         </EmptyState>
+        {/* A move sent before the torrent went away still says how it went. */}
+        {move.element}
       </Root>
     )
   }
@@ -389,6 +393,10 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
             setMenuAnchor(null)
             setConfirming(true)
           }}
+          onMove={() => {
+            setMenuAnchor(null)
+            move.open(torrent.hash)
+          }}
           onRecheck={() => {
             setMenuAnchor(null)
             setRechecking(true)
@@ -412,6 +420,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
         />
       )}
 
+      {move.element}
       {rechecking && (
         <RecheckDialog
           hash={hash}

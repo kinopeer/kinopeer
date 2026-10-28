@@ -385,7 +385,8 @@
     "priorityFailed": "Couldn’t change the priority. Try again.",
     "filesFailed": "Couldn’t load the file list.",
     "filesLoading": "Loading files",
-    "filesMetadata": "The file list appears once the torrent’s metadata arrives from peers."
+    "filesMetadata": "The file list appears once the torrent’s metadata arrives from peers.",
+    "move": "Move files…"
   },
   "match": {
     "guessNote": "Matched by the release name. Is it right?",
@@ -454,6 +455,17 @@
     "change": "Change TMDB key",
     "sheetTitle": "TMDB key",
     "enter": "Enter key"
+  },
+  "move": {
+    "title": "Move files",
+    "location": "Folder",
+    "absolute": "Type the full path, starting with / (or a drive such as D:\\ on Windows).",
+    "known": "qBittorrent folders",
+    "submit": "Move",
+    "note": "qBittorrent moves the files in the background, and the torrent carries on from the new folder. It keeps its category, but the category no longer decides its folder.",
+    "moved": "Moving files to {{location}}",
+    "noAccess": "qBittorrent has no access to that folder.",
+    "cantCreate": "qBittorrent couldn’t create that folder."
   },
   "prowlarrKey": {
     "help": "Find the key in Prowlarr: Settings → General → Security → API Key.",

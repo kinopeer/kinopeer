@@ -31,6 +31,7 @@ function renderActions(props: Partial<TorrentActionsSheetProps> = {}) {
     onClose: vi.fn(),
     onChanged: vi.fn(),
     onDelete: vi.fn(),
+    onMove: vi.fn(),
     onRecheck: vi.fn(),
     onSpeedLimits: vi.fn(),
     onReannounced: vi.fn(),
@@ -67,7 +68,7 @@ describe('TorrentActionsSheet on desktop', () => {
     expect(screen.getByRole('menuitem', { name: 'Speed limits' })).toBeDisabled()
   })
 
-  it('is a menu: resume, reannounce, recheck, speed limits, details, the title page, change title, delete', async () => {
+  it('is a menu: resume, reannounce, recheck, speed limits, details, the title page, change title, move, delete', async () => {
     vi.mocked(api.startTorrents).mockResolvedValue()
     const handlers = renderActions()
     const menu = screen.getByRole('menu', { name: 'More actions: Inception' })
@@ -79,6 +80,7 @@ describe('TorrentActionsSheet on desktop', () => {
       'Open details',
       'Movie page',
       'Change title',
+      'Move files…',
       'Delete',
     ]
     const items = within(menu).getAllByRole('menuitem')
@@ -172,6 +174,17 @@ describe('TorrentActionsSheet on desktop', () => {
     await userEvent.click(screen.getByRole('menuitem', { name: 'Resume' }))
     expect(await screen.findByText('Couldn’t reach qBittorrent. Try again.')).toBeInTheDocument()
   })
+
+  it('opens Move files', async () => {
+    const handlers = renderActions()
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Move files…' }))
+    expect(handlers.onMove).toHaveBeenCalled()
+  })
+
+  it('needs qBittorrent to move files', () => {
+    renderActions({ offline: true })
+    expect(screen.getByRole('menuitem', { name: 'Move files…' })).toBeDisabled()
+  })
 })
 
 describe('TorrentActionsSheet on a phone', () => {
@@ -179,10 +192,18 @@ describe('TorrentActionsSheet on a phone', () => {
     vi.unstubAllGlobals()
   })
 
-  it('is a sheet without an anchor or on a phone', () => {
-    renderActions()
+  it('is a sheet without an anchor or on a phone', async () => {
+    const handlers = renderActions()
     expect(screen.getByRole('dialog', { name: 'Inception' })).toBeInTheDocument()
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Move files…' }))
+    expect(handlers.onMove).toHaveBeenCalled()
+  })
+
+  it('needs qBittorrent to move files on a phone too', () => {
+    vi.unstubAllGlobals()
+    renderActions({ offline: true })
+    expect(screen.getByRole('button', { name: 'Move files…' })).toBeDisabled()
   })
 
   it('leaves the speed limits to the sheet its screen opens, and turns them off while qBittorrent is unreachable', async () => {
