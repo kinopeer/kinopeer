@@ -139,6 +139,18 @@ async function mockTmdb(page: Page): Promise<void> {
         const found = TITLES.filter((title) => [title.en, title.ru].some((name) => name.toLocaleLowerCase().includes(query ?? '')))
         return json(route, titlePage(found, language))
       }
+      // A search by year: one type, released (or first aired) that year.
+      if (path === '/search/movie' || path === '/search/tv') {
+        const type = path === '/search/movie' ? 'movie' : 'tv'
+        const year = url.searchParams.get(type === 'movie' ? 'primary_release_year' : 'first_air_date_year')
+        const found = TITLES.filter(
+          (title) =>
+            title.type === type &&
+            title.date.startsWith(`${year}-`) &&
+            [title.en, title.ru].some((name) => name.toLocaleLowerCase().includes(query ?? '')),
+        )
+        return json(route, titlePage(found, language))
+      }
       if (path === '/discover/movie') return json(route, titlePage(TITLES.filter((title) => title.type === 'movie'), language))
       if (path === '/discover/tv') return json(route, titlePage(TITLES.filter((title) => title.type === 'tv'), language))
       const [, type, id, list] = path.split('/')

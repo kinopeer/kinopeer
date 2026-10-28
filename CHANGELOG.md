@@ -8,6 +8,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 - Title page: a row of posters at the end of the page with what to watch next, TMDB's recommendations for the movie or series, or similar titles when TMDB has no recommendations. Each poster opens its title page.
 - Adding a release: a warning when the selected files are larger than the free space on qBittorrent's disk, with how much is missing. The release can still be added.
+- Search: a year field beside Movies and Series, shown while searching, finds only titles that came out that year (for a series, the year it started), so a remake or an old film with a popular namesake is easy to find. The year stays in the address with the query, so Back from a title keeps it.
 - Releases: the indexer's name on a release (the card on a phone, the table on desktop and the add sheet) links to the release's page on the tracker, in a new tab, for what Kinoseed doesn't show.
 
 ### Changed
