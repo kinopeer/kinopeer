@@ -13,6 +13,8 @@ export interface MainDataSnapshot {
   offline: boolean
   /** When `data` last arrived (ms since epoch), or null before the first response. */
   updatedAt: number | null
+  /** When the request that brought `data` was sent: what happened before that is in `data`. */
+  requestedAt: number | null
 }
 
 export interface MainDataState extends MainDataSnapshot {
@@ -36,7 +38,7 @@ export interface MainDataStore {
  */
 export function createMainDataStore(): MainDataStore {
   let onUnauthorized = () => {}
-  let snapshot: MainDataSnapshot = { data: null, offline: false, updatedAt: null }
+  let snapshot: MainDataSnapshot = { data: null, offline: false, updatedAt: null, requestedAt: null }
   let state = EMPTY_SYNC_STATE
   const listeners = new Set<() => void>()
   let timer: ReturnType<typeof setTimeout> | undefined
@@ -61,9 +63,10 @@ export function createMainDataStore(): MainDataStore {
     clearTimeout(timer)
     let delay = POLL_INTERVAL_MS
     try {
+      const requestedAt = Date.now()
       state = applyMainData(state, await getMainData(state.rid))
       if (!running) return
-      update({ data: state, updatedAt: Date.now(), offline: false })
+      update({ data: state, updatedAt: Date.now(), requestedAt, offline: false })
     } catch (error) {
       if (!running) return
       if (error instanceof UnauthorizedError) {

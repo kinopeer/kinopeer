@@ -55,7 +55,7 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 
 - [x] Torrent details: recheck and reannounce.
 - [ ] Torrent details: per-torrent speed limits and moving the files to another folder.
-- [ ] A switch for qBittorrent's alternative speed limits in the sidebar.
+- [x] A switch for qBittorrent's alternative speed limits in the sidebar (on a phone, in the Downloads title row).
 - [ ] Releases: which indexers failed, and why, when a search comes back partly empty.
 
 ## 0.9: Beyond Umbrel

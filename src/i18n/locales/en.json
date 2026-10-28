@@ -143,6 +143,11 @@
     "offline": "No connection to qBittorrent",
     "freeSpace": "Free space"
   },
+  "speedLimits": {
+    "alt": "Alternative speed limits",
+    "short": "Alt. speed limits",
+    "failed": "Couldn’t switch the speed limits. Try again."
+  },
   "search": {
     "title": "Search",
     "placeholder": "Movies and series",
