@@ -98,6 +98,12 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
     () => (search.data?.releases ?? []).map((release) => ({ release, info: parseRelease(release.title) })),
     [search.data],
   )
+  // Prowlarr dates an indexer's last failure from any client's query (Sonarr, Radarr, its own tests),
+  // so an indexer whose releases are in these results did answer this search.
+  const missing = useMemo(() => {
+    const answered = new Set(rows.map((row) => row.release.indexer))
+    return (failing.data ?? []).filter((name) => !answered.has(name))
+  }, [failing.data, rows])
   const visible = useMemo(() => filterReleases(rows, filters, sort), [rows, filters, sort])
   const present = useMemo(() => presentValues(rows), [rows])
 
@@ -126,7 +132,7 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
   return {
     status,
     retry: search.retry,
-    failing: failing.data ?? [],
+    failing: missing,
     rows,
     visible,
     present,

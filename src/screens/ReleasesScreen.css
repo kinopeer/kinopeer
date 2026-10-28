@@ -38,6 +38,11 @@
   padding: var(--space-3) var(--space-4) var(--space-12);
 }
 
+/* Empty until the failed indexers are known: takes back the gap it would add. */
+.rel-note:empty {
+  margin-bottom: calc(-1 * var(--space-3));
+}
+
 .rel-active {
   display: flex;
   flex-wrap: wrap;

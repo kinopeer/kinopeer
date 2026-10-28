@@ -48,6 +48,11 @@ describe('failingIndexers', () => {
   it('names none when nothing failed', () => {
     expect(failingIndexers(indexers, [], since, now)).toEqual([])
   })
+
+  it('never counts a row without an id as a failure', () => {
+    const statuses = [{ mostRecentFailure: '2026-10-28T00:59:30Z' }]
+    expect(failingIndexers([...indexers, { name: 'No id', enable: true }], statuses, since, now)).toEqual([])
+  })
 })
 
 describe('prowlarrMiddleware', () => {
@@ -193,9 +198,22 @@ describe('prowlarrMiddleware', () => {
     expect(seen.map(({ path }) => path).sort()).toEqual(['/api/v1/indexer', '/api/v1/indexerstatus'])
     expect(seen.every(({ key }) => key === KEY)).toBe(true)
 
-    for (const within of ['', '-5', 'soon', '1.5']) {
+    // More than ten minutes is no search's: Prowlarr keeps an indexer's last failure after it recovers.
+    for (const within of ['', '-5', 'soon', '1.5', '600001', '99999999999999']) {
       expect((await fetch(`${base}/prowlarr/failing?within=${within}`)).status).toBe(400)
     }
+  })
+
+  it('doesn’t fetch the indexer list when nothing failed', async () => {
+    const seen: string[] = []
+    const prowlarr = await listen((request, response) => {
+      seen.push(request.url!)
+      response.setHeader('Content-Type', 'application/json')
+      response.end('[]')
+    })
+    const response = await fetch(`${await kinoseed({ url: prowlarr, apiKey: KEY })}/prowlarr/failing?within=60000`)
+    expect(await response.json()).toEqual({ indexers: [] })
+    expect(seen).toEqual(['/api/v1/indexerstatus'])
   })
 
   it('reports a rejected key, a failing Prowlarr and one too slow to answer', async () => {

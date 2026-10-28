@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -157,20 +157,24 @@ describe('ReleasesScreen', () => {
     vi.mocked(prowlarr.getFailingIndexers).mockReturnValue(new Promise((resolve) => (answer = resolve)))
     renderAt('/title/movie/693134/releases')
     expect(await screen.findAllByRole('article')).toHaveLength(DUNE_RELEASES.length)
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    // The live region is there, empty, before the answer, so a screen reader announces the note.
+    const note = screen.getByRole('status')
+    expect(note).toBeEmptyDOMElement()
     // Asked once the search answered, with how long ago it started.
     expect(prowlarr.getFailingIndexers).toHaveBeenCalledWith(expect.any(Number), expect.any(AbortSignal))
     expect(vi.mocked(prowlarr.getFailingIndexers).mock.calls[0][0]).toBeGreaterThanOrEqual(0)
 
-    answer(['Kinozal', 'RuTracker'])
-    expect(await screen.findByRole('status')).toHaveTextContent('Kinozal, RuTracker')
+    // RuTracker's releases are in this search's results: its failure was another client's query.
+    answer(['NNM-Club', 'RuTracker'])
+    await waitFor(() => expect(note).toHaveTextContent('NNM-Club'))
+    expect(note).not.toHaveTextContent('RuTracker')
   })
 
   it('still lists releases when it can’t tell which indexers failed', async () => {
     vi.mocked(prowlarr.getFailingIndexers).mockRejectedValue(new prowlarr.ProwlarrError('down', 502, 'upstream'))
     renderAt('/title/movie/693134/releases')
     expect(await screen.findAllByRole('article')).toHaveLength(DUNE_RELEASES.length)
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
   })
 
   it('says when Prowlarr fails', async () => {

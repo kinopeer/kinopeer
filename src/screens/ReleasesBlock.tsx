@@ -68,15 +68,22 @@ export function ReleasesBody({ releases, skeleton, children }: ReleasesBodyProps
   )
 }
 
-/** A quiet note that some indexers didn't answer, so their releases are missing. */
+/**
+ * A quiet note that some indexers didn't answer, so their releases are missing. The names come after
+ * the results, so the live region is there, empty, from the start: screen readers announce a change
+ * inside a region, often not a region that appears with its text.
+ */
 function FailingIndexers({ releases }: { releases: Releases }) {
   const { t } = useTranslation()
   const { failing } = releases
-  if (!failing.length) return null
   return (
-    <Banner tone="info" icon="alert">
-      {t('releases.failingIndexers', { count: failing.length, names: failing.join(', ') })}
-    </Banner>
+    <div role="status" className="rel-note">
+      {failing.length > 0 && (
+        <Banner tone="info" live={false}>
+          {t('releases.failingIndexers', { count: failing.length, names: failing.join(', ') })}
+        </Banner>
+      )}
+    </div>
   )
 }
 

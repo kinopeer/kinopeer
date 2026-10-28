@@ -204,6 +204,20 @@ interface ProwlarrIndexerStatus {
   mostRecentFailure?: string
 }
 
+/** Ids of the indexers that failed at or after `since`, or that are on hold now. */
+function failedIds(statuses: ProwlarrIndexerStatus[], since: number, now: number): Set<number> {
+  return new Set(
+    statuses
+      .filter(
+        (status) =>
+          Date.parse(status.disabledTill ?? '') > now || Date.parse(status.mostRecentFailure ?? '') >= since,
+      )
+      .map((status) => status.indexerId)
+      // A row without an id is malformed, never a failure.
+      .filter((id): id is number => typeof id === 'number'),
+  )
+}
+
 /**
  * Names of enabled indexers that failed at or after `since`, or that are on hold now. Prowlarr's
  * search answers 200 with whatever the other indexers found, so this is the only way to tell.
@@ -214,19 +228,15 @@ export function failingIndexers(
   since: number,
   now: number,
 ): string[] {
-  const failed = new Set(
-    statuses
-      .filter(
-        (status) =>
-          Date.parse(status.disabledTill ?? '') > now || Date.parse(status.mostRecentFailure ?? '') >= since,
-      )
-      .map((status) => status.indexerId),
-  )
+  const failed = failedIds(statuses, since, now)
   return indexers
-    .filter((indexer) => indexer.enable && indexer.name && failed.has(indexer.id))
+    .filter((indexer) => indexer.enable && indexer.name && typeof indexer.id === 'number' && failed.has(indexer.id))
     .map((indexer) => indexer.name!)
     .sort((a, b) => a.localeCompare(b))
 }
+
+/** Longer ago than any search takes; Prowlarr keeps an indexer's last failure after it recovers. */
+const MAX_WITHIN_MS = 10 * 60 * 1000
 
 /**
  * `within` is how long ago the search started, measured by the browser on its own monotonic clock:
@@ -236,24 +246,38 @@ export function failingIndexers(
 function failing(timeoutMs: number): Handler {
   return async (base, apiKey, query, response) => {
     const within = query.get('within') ?? ''
-    if (!/^\d+$/.test(within)) return fail(response, 400, 'bad-request')
+    if (!/^\d+$/.test(within) || Number(within) > MAX_WITHIN_MS) return fail(response, 400, 'bad-request')
     const since = Date.now() - Number(within)
     // A note beside the results isn't worth a request that hangs: give up and say unreachable.
     const init = { headers: { 'X-Api-Key': apiKey, Accept: 'application/json' }, signal: AbortSignal.timeout(timeoutMs) }
-    const [indexers, statuses] = await Promise.all([
-      fetch(`${base}/api/v1/indexer`, init),
-      fetch(`${base}/api/v1/indexerstatus`, init),
-    ])
-    if (indexers.status === 401 || statuses.status === 401) return fail(response, 502, 'unauthorized')
-    if (!indexers.ok || !statuses.ok) return fail(response, 502, 'upstream')
-    send(response, 200, {
-      indexers: failingIndexers(
-        (await indexers.json()) as ProwlarrIndexer[],
-        (await statuses.json()) as ProwlarrIndexerStatus[],
-        since,
-        Date.now(),
-      ),
-    } satisfies FailingIndexers)
+    const get = async (path: string): Promise<unknown> => {
+      const upstream = await fetch(`${base}${path}`, init)
+      if (!upstream.ok) {
+        // Free the connection now rather than when the body is collected.
+        await upstream.body?.cancel()
+        throw new UpstreamError(upstream.status === 401 ? 'unauthorized' : 'upstream')
+      }
+      return upstream.json()
+    }
+    try {
+      const statuses = (await get('/api/v1/indexerstatus')) as ProwlarrIndexerStatus[]
+      // The indexer list carries every indexer's full definition: fetch it only to name a failure.
+      if (!failedIds(statuses, since, Date.now()).size) return send(response, 200, { indexers: [] } satisfies FailingIndexers)
+      const indexers = (await get('/api/v1/indexer')) as ProwlarrIndexer[]
+      send(response, 200, { indexers: failingIndexers(indexers, statuses, since, Date.now()) } satisfies FailingIndexers)
+    } catch (error) {
+      if (error instanceof UpstreamError) return fail(response, 502, error.code)
+      throw error
+    }
+  }
+}
+
+class UpstreamError extends Error {
+  readonly code: 'unauthorized' | 'upstream'
+
+  constructor(code: 'unauthorized' | 'upstream') {
+    super(code)
+    this.code = code
   }
 }
 

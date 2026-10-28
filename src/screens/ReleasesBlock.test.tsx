@@ -103,7 +103,13 @@ describe('ReleasesBody', () => {
   })
 
   it('names the indexers that didn’t answer, also when nothing was found', () => {
-    const { unmount } = renderBody(releases({ failing: ['Kinozal'] }))
+    const { rerender, unmount } = renderBody(releases())
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+    rerender(
+      <ReleasesBody releases={releases({ failing: ['Kinozal'] })} skeleton={<p>Skeleton</p>}>
+        <p>The list</p>
+      </ReleasesBody>,
+    )
     expect(screen.getByRole('status')).toHaveTextContent('1 indexer didn’t answer: Kinozal')
     expect(screen.getByText('The list')).toBeInTheDocument()
     unmount()
