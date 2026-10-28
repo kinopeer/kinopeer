@@ -8,7 +8,7 @@ import { IconButton } from '../components/IconButton'
 import { Input } from '../components/Input'
 import { Sheet } from '../components/Sheet'
 import { useRequest } from '../lib/useRequest'
-import { knownFolders, sameFolder } from '../torrents/folders'
+import { isAbsolute, knownFolders, sameFolder } from '../torrents/folders'
 import './MoveTorrentSheet.css'
 
 /** Why qBittorrent didn't take a folder, as a translation key. */
@@ -34,6 +34,9 @@ export function MoveTorrentSheet({ torrent, offline, sending, failure, onMove, o
   const [location, setLocation] = useState(torrent.save_path)
   const target = location.trim()
   const unchanged = sameFolder(target) === sameFolder(torrent.save_path)
+  // qBittorrent checks a relative path against its own working directory but saves under the default
+  // save path, and doesn't expand ~, so only a full path is sent.
+  const relative = !!target && !isAbsolute(target)
 
   return (
     <Sheet
@@ -41,7 +44,7 @@ export function MoveTorrentSheet({ torrent, offline, sending, failure, onMove, o
       onClose={onClose}
       title={t('move.title')}
       subtitle={torrent.name}
-      action={<IconButton icon="close" label={t('move.cancel')} onClick={onClose} />}
+      action={<IconButton icon="close" label={t('torrent.cancel')} onClick={onClose} />}
       footer={
         <Button
           variant="primary"
@@ -49,19 +52,19 @@ export function MoveTorrentSheet({ torrent, offline, sending, failure, onMove, o
           icon="folder"
           block
           loading={sending}
-          disabled={!target || unchanged || sending || offline}
+          disabled={!target || relative || unchanged || sending || offline}
           onClick={() => onMove(target)}
         >
           {t('move.submit')}
         </Button>
       }
-      className="move-sheet"
     >
       <div className="move-body">
         <Input
           label={t('move.location')}
           value={location}
           mono
+          error={relative ? t('move.absolute') : undefined}
           autoCapitalize="off"
           autoCorrect="off"
           spellCheck={false}

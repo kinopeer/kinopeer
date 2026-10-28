@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { SaveLocations } from '../api/qbittorrent'
-import { addFolder, categoryFolder, knownFolders } from './folders'
+import { addFolder, categoryFolder, isAbsolute, knownFolders } from './folders'
 
 const locations = (fields: Partial<SaveLocations> = {}): SaveLocations => ({
   categories: [],
@@ -8,6 +8,21 @@ const locations = (fields: Partial<SaveLocations> = {}): SaveLocations => ({
   categoryPaths: true,
   subcategories: false,
   ...fields,
+})
+
+describe('isAbsolute', () => {
+  it('takes a path from the root or from a Windows drive', () => {
+    expect(isAbsolute('/media/movies')).toBe(true)
+    expect(isAbsolute('D:\\Movies')).toBe(true)
+    expect(isAbsolute('d:/Movies')).toBe(true)
+  })
+
+  it('doesn’t take a relative path, a bare drive or ~, which qBittorrent doesn’t expand', () => {
+    expect(isAbsolute('Movies')).toBe(false)
+    expect(isAbsolute('./Movies')).toBe(false)
+    expect(isAbsolute('D:Movies')).toBe(false)
+    expect(isAbsolute('~/Movies')).toBe(false)
+  })
 })
 
 describe('categoryFolder', () => {

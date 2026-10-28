@@ -449,8 +449,8 @@
   },
   "move": {
     "title": "Move files",
-    "cancel": "Cancel",
     "location": "Folder",
+    "absolute": "Type the full path, starting with / (or a drive such as D:\\ on Windows).",
     "known": "qBittorrent folders",
     "submit": "Move",
     "note": "qBittorrent moves the files in the background, and the torrent carries on from the new folder. It keeps its category, but the category no longer decides its folder.",

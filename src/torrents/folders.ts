@@ -4,6 +4,11 @@ const ABSOLUTE = /^([/\\]|[A-Za-z]:[/\\])/
 // What qBittorrent's Utils::Fs::toValidPath replaces in a category name used as a folder.
 const INVALID = /[:?"*<>|]+/g
 
+/** A full path qBittorrent can take as it is: from the root, or from a drive on Windows. */
+export function isAbsolute(path: string): boolean {
+  return ABSOLUTE.test(path)
+}
+
 /** Joins a relative path to a folder with the folder's own separator (Windows paths use \). */
 function join(folder: string, path: string): string {
   const separator = folder.includes('\\') && !folder.includes('/') ? '\\' : '/'
@@ -18,7 +23,7 @@ function join(folder: string, path: string): string {
  */
 export function categoryFolder(name: string, locations: SaveLocations): string {
   const path = locations.categories.find((category) => category.name === name)?.savePath
-  if (path && ABSOLUTE.test(path)) return path
+  if (path && isAbsolute(path)) return path
   let base = locations.defaultPath
   let relative = path
   if (!relative) {

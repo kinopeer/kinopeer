@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { useTranslation } from 'react-i18next'
+import { useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { QbittorrentError, setTorrentLocation, UnauthorizedError, type Torrent } from '../api/qbittorrent'
-import { Toast } from '../components/Toast'
+import { MoveOutcomeContext, type MoveOutcome } from './moveOutcome'
+import { MoveOutcomeToast } from './MoveOutcomeToast'
 import { MoveTorrentSheet, type MoveFailure } from './MoveTorrentSheet'
 
 /** Why qBittorrent didn't take the folder, as a translation key. */
@@ -14,8 +14,6 @@ function failureKey(error: unknown): MoveFailure {
   return 'torrent.actionFailed'
 }
 
-type Outcome = { moved: string } | { failed: MoveFailure }
-
 export interface MoveTorrent {
   /** Opens "Move files" for a torrent in `torrents`. */
   open: (hash: string) => void
@@ -26,6 +24,7 @@ export interface MoveTorrent {
 /**
  * "Move files" for a screen: the sheet for one of its torrents, and the move itself, which outlives
  * the sheet, so a move that fails after the sheet was closed (or its torrent went away) still says so.
+ * Under a `MoveOutcomeProvider` (in `App`), a move that settles after the screen is gone says so too.
  */
 export function useMoveTorrent({ torrents, offline, refresh }: {
   /** The screen's torrents: the sheet is for one of them, and closes when it's gone. */
@@ -34,13 +33,17 @@ export function useMoveTorrent({ torrents, offline, refresh }: {
   /** After qBittorrent took the folder, so the screen shows it right away. */
   refresh: () => void
 }): MoveTorrent {
-  const { t } = useTranslation()
   // The torrent the sheet is open for, by when it was added: one re-added with the same hash is
   // another torrent, so the sheet doesn't come back for it.
   const [opened, setOpened] = useState<{ hash: string; addedOn: number } | null>(null)
   const [sendingFor, setSendingFor] = useState<string | null>(null)
   const [failure, setFailure] = useState<MoveFailure>()
-  const [outcome, setOutcome] = useState<Outcome | null>(null)
+  const [outcome, setOutcome] = useState<MoveOutcome | null>(null)
+  // The screen's own toast shows inside it (a drawer is a modal dialog, above anything outside it);
+  // once the screen is gone, App's.
+  const shared = useContext(MoveOutcomeContext)
+  const mounted = useRef(false)
+  const report = (next: MoveOutcome) => (mounted.current || !shared ? setOutcome(next) : shared(next))
   const candidate = opened ? torrents?.[opened.hash] : undefined
   const torrent = candidate?.added_on === opened?.addedOn ? candidate : undefined
   // Read when a move settles, to tell whether its sheet still shows: set by the handlers, and the
@@ -50,6 +53,14 @@ export function useMoveTorrent({ torrents, offline, refresh }: {
   useEffect(() => {
     latest.current = torrents
   })
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+      // A screen that's gone shows no sheet, so a move that settles after it reports in a toast.
+      openFor.current = null
+    }
+  }, [])
 
   const open = useCallback(
     (hash: string) => {
@@ -76,14 +87,15 @@ export function useMoveTorrent({ torrents, offline, refresh }: {
     try {
       await setTorrentLocation([target.hash], location)
       if (showing(target)) close()
-      setOutcome({ moved: location })
+      report({ moved: location })
       refresh()
     } catch (error) {
       const key = failureKey(error)
       if (showing(target)) setFailure(key)
-      else setOutcome({ failed: key })
+      else report({ failed: key })
     } finally {
-      setSendingFor(null)
+      // Another torrent's move may have started meanwhile, and is still being sent.
+      setSendingFor((current) => (current === target.hash ? null : current))
     }
   }
 
@@ -100,13 +112,7 @@ export function useMoveTorrent({ torrents, offline, refresh }: {
           onClose={close}
         />
       )}
-      {outcome && (
-        <Toast
-          icon={'moved' in outcome ? 'folder' : 'alert'}
-          message={'moved' in outcome ? t('move.moved', { location: outcome.moved }) : t(outcome.failed)}
-          onDismiss={dismiss}
-        />
-      )}
+      {outcome && <MoveOutcomeToast outcome={outcome} onDismiss={dismiss} />}
     </>
   )
   return { open, element }
