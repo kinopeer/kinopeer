@@ -42,9 +42,9 @@ interface BrowseRow extends Omit<BrowseRowQuery, 'params'> {
 }
 
 /**
- * Loads every row. An empty one is left out, a failed one comes back with its error and no titles.
- * Throws a key error from any row, so a wrong key shows the key screen, and throws when every row
- * fails.
+ * Loads every row. An empty one is left out, a failed one comes back with its error and no titles
+ * (the screen shows that error when no row of the type picked is left). A key error from any row is
+ * thrown, so a wrong key shows the key screen.
  */
 async function loadBrowseRows(language: string, signal: AbortSignal): Promise<BrowseRow[]> {
   const queries = browseRowQueries(new Date())
@@ -54,7 +54,6 @@ async function loadBrowseRows(language: string, signal: AbortSignal): Promise<Br
   const failures = results.flatMap((result) => (result.status === 'rejected' ? [result.reason as unknown] : []))
   const keyError = failures.find((reason) => reason instanceof TmdbKeyError)
   if (keyError) throw keyError
-  if (failures.length === results.length) throw failures[0]
   return queries
     .map(({ key, type }, index): BrowseRow => {
       const result = results[index]
