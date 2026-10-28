@@ -186,6 +186,8 @@
     "backToSearch": "Back to search",
     "findReleases": "Find releases",
     "seriesHint": "Releases are searched by show name. Pick seasons in the file list after choosing a release.",
+    "recommendations": "Recommendations",
+    "similar": "Similar titles",
     "inDownloads": "In downloads",
     "inDownloadsBadge": "In downloads · {{value}}",
     "showMore": "Show more",
