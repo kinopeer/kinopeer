@@ -67,7 +67,11 @@ async function locations(): Promise<Locations> {
     getCategories().catch(() => []),
     getDefaultSavePath().catch(() => ''),
     getMainData(0).then(
-      (data) => data.server_state?.free_space_on_disk,
+      (data) => {
+        // 0 or less means qBittorrent can't tell, e.g. before its first disk check.
+        const free = data.server_state?.free_space_on_disk
+        return free !== undefined && free > 0 ? free : undefined
+      },
       () => undefined,
     ),
   ])
@@ -117,11 +121,12 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   const fileCount = meta?.files.length ?? 0
   const selectedCount = fileCount - skipped.size
   const free = where.data?.free
-  // qBittorrent reports the free space where its default save path is (0 or negative when it can't tell).
-  // A warning, not a block: the space may be freed before the download finishes, or the save path may
-  // be on another disk. Only once the torrent is read, so a .torrent's own file sizes count.
+  // qBittorrent reports the free space where its default save path is. A warning, not a block: the
+  // space may be freed before the download finishes, or the save path may be on another disk. Only by
+  // known sizes: a read .torrent's files or a magnet's release size, not an unreadable .torrent's.
+  const knownSize = meta !== undefined || prepared.data?.source.kind === 'magnet'
   const lowSpace =
-    prepared.data && free !== undefined && free > 0 && selectedSize > free
+    knownSize && free !== undefined && selectedSize > free
       ? { free: format.size(free), missing: format.size(selectedSize - free) }
       : undefined
 
