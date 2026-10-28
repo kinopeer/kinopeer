@@ -91,16 +91,26 @@ describe('SearchScreen', () => {
 
   it('says so when the type picked has nothing to show, and tries again', async () => {
     const answer = discoverTitles.getMockImplementation()!
-    discoverTitles.mockImplementation(async (type, params, options) => {
-      if (type === 'tv') throw new tmdb.TmdbError('TMDB responded 422', 422)
-      return answer(type, params, options)
-    })
+    discoverTitles.mockImplementation(async (type, params, options) =>
+      type === 'tv' ? page([]) : answer(type, params, options),
+    )
     renderScreen('/search?type=tv')
     expect(await screen.findByRole('heading', { name: 'Nothing to suggest right now' })).toBeInTheDocument()
 
     discoverTitles.mockImplementation(answer)
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
     expect(await screen.findByRole('heading', { name: 'New episodes' })).toBeInTheDocument()
+  })
+
+  it('shows an error when the type picked has only failed rows', async () => {
+    const answer = discoverTitles.getMockImplementation()!
+    discoverTitles.mockImplementation(async (type, params, options) => {
+      if (type === 'tv') throw new TypeError('Failed to fetch')
+      return answer(type, params, options)
+    })
+    renderScreen('/search?type=tv')
+    expect(await screen.findByRole('heading', { name: 'Couldn’t load from TMDB' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Nothing to suggest right now' })).not.toBeInTheDocument()
   })
 
   it('searches after typing stops', async () => {
@@ -135,6 +145,13 @@ describe('SearchScreen', () => {
 
   it('explains a missing TMDB key', async () => {
     discoverTitles.mockRejectedValue(new tmdb.TmdbKeyError(401))
+    renderScreen()
+    expect(await screen.findByRole('heading', { name: 'TMDB isn’t set up' })).toBeInTheDocument()
+  })
+
+  it('explains a missing TMDB key when another row failed first for another reason', async () => {
+    discoverTitles.mockRejectedValue(new tmdb.TmdbKeyError(401))
+    discoverTitles.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     renderScreen()
     expect(await screen.findByRole('heading', { name: 'TMDB isn’t set up' })).toBeInTheDocument()
   })
