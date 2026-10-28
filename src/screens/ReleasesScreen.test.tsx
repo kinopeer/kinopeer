@@ -171,8 +171,9 @@ describe('ReleasesScreen', () => {
     // The live region is there, empty, before the answer, so a screen reader announces the note.
     const note = screen.getByRole('status')
     expect(note).toBeEmptyDOMElement()
-    // Asked once the search answered, with how long ago it started.
-    expect(prowlarr.getFailingIndexers).toHaveBeenCalledWith(3000, expect.any(AbortSignal))
+    // Asked once the search answered, with how long ago it started. The request starts in an effect,
+    // which can run after the list shows, so wait for it.
+    await waitFor(() => expect(prowlarr.getFailingIndexers).toHaveBeenCalledWith(3000, expect.any(AbortSignal)))
 
     // RuTracker's releases are in this search's results: its failure was another client's query.
     answer(['NNM-Club', 'RuTracker'])
