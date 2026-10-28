@@ -10,10 +10,12 @@ import { trackInputModality } from './lib/inputModality'
 import { listenForInstallPrompt } from './pwa/install'
 import { ErrorBoundary } from './screens/ErrorBoundary'
 import { initLanguage } from './i18n/language'
+import { initSettingsSync } from './settings/settings'
 import { initTheme } from './theme/theme'
 
 initTheme()
 initLanguage()
+initSettingsSync()
 listenForInstallPrompt()
 trackInputModality()
 
