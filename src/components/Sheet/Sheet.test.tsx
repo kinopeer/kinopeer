@@ -152,6 +152,8 @@ describe('Sheet', () => {
       slowDrag(handle(), 100, 140)
       expect(onClose).not.toHaveBeenCalled()
       expect(dialog().style.transform).toBe('')
+      // The stylesheet's transition springs it back, not one left inline by the drag.
+      expect(dialog().style.transition).toBe('')
     })
 
     it('goes back up when the browser cancels the drag, however far it went', () => {
@@ -218,6 +220,7 @@ describe('Sheet', () => {
       rerender(sheet(false))
       rerender(sheet(true))
       expect(dialog().style.transform).toBe('')
+      expect(dialog().style.transition).toBe('')
     })
 
     describe('sliding off the screen, with motion', () => {
@@ -245,6 +248,20 @@ describe('Sheet', () => {
 
         finish()
         await vi.waitFor(() => expect(onClose).toHaveBeenCalledOnce())
+      })
+
+      it('slides off for as long as its own transition, in whatever unit the stylesheet gives it', () => {
+        const { animate } = stubAnimate()
+        const style = document.createElement('style')
+        style.textContent = '.ks-sheet { transition-duration: 0.25s; }'
+        document.head.append(style)
+        try {
+          renderSheet()
+          slowDrag(handle(), 100, 300)
+          expect(animate).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ duration: 250 }))
+        } finally {
+          style.remove()
+        }
       })
 
       it('closes once when closed another way while sliding off', async () => {

@@ -12,6 +12,8 @@
   background: var(--raised);
   color: var(--text);
   box-shadow: var(--shadow-3);
+  /* Springs back up after a short drag; a drag in progress turns it off. */
+  transition: transform var(--d-base) var(--ease);
 }
 
 .ks-sheet[open] {

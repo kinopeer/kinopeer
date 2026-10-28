@@ -14,6 +14,12 @@ html:has(:modal) {
   overflow: hidden;
 }
 
+/* With classic scrollbars (Windows) the page keeps the scrollbar's room while the lock above hides
+   it, so nothing behind the modal shifts sideways. */
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   margin: 0;
   font: var(--t-body);

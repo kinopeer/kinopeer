@@ -72,6 +72,7 @@ export function Sheet({
       exit.current?.cancel()
       exit.current = null
       dialog.style.transform = ''
+      dialog.style.transition = ''
       // jsdom has no showModal; the open attribute is enough there.
       if (typeof dialog.showModal === 'function') dialog.showModal()
       else dialog.setAttribute('open', '')
@@ -120,20 +121,24 @@ export function Sheet({
       slideOut(dialog)
       return
     }
-    dialog.style.transition = 'transform var(--d-base) var(--ease)'
+    // Back to the stylesheet's transition, which springs it back up.
+    dialog.style.transition = ''
     dialog.style.transform = ''
   }
 
   /** Finishes the swipe off the screen, then closes; the open effect puts it back next time. */
   const slideOut = (dialog: HTMLDialogElement) => {
-    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    if (reduced || typeof dialog.animate !== 'function') {
+    if (typeof dialog.animate !== 'function') {
       onClose()
       return
     }
+    dialog.style.transition = ''
     const style = getComputedStyle(dialog)
+    // As long as the spring back: the sheet's own transition, which the browser reports in seconds
+    // whatever unit the token uses, and which reduced motion already cuts to almost nothing.
+    const duration = parseFloat(style.transitionDuration) * 1000
     exit.current = dialog.animate([{ transform: dialog.style.transform }, { transform: 'translateY(100%)' }], {
-      duration: parseFloat(style.getPropertyValue('--d-base')) || 200,
+      duration: Number.isFinite(duration) ? duration : 0,
       easing: style.getPropertyValue('--ease-in') || 'ease-in',
       fill: 'forwards',
     })
