@@ -29,6 +29,8 @@ const CLOSE_DISTANCE = 96
 const CLOSE_SHARE = 0.3
 /** A flick down at least this fast (px/ms) closes it however short it was. */
 const CLOSE_SPEED = 0.5
+/** Ms without a move before letting go after which the flick no longer counts. */
+const FLICK_WINDOW = 100
 
 interface Drag {
   pointerId: number
@@ -79,10 +81,16 @@ export function Sheet({
     }
   }, [open])
 
+  // An unmounted sheet's slide must not close whatever opens next.
+  useEffect(() => () => exit.current?.cancel(), [])
+
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     // On desktop it's a centered modal with no grabber; the title row's buttons keep their taps; a
     // sheet already sliding out is on its way to closing.
-    if (isDesktop || exit.current || event.button !== 0 || (event.target as Element).closest('button, a, input')) return
+    if (isDesktop || drag.current || exit.current || event.button !== 0) return
+    if ((event.target as Element).closest('button, a, input')) return
+    // The opening slide animates transform too and would hide the drag until it ends.
+    if (ref.current?.getAnimations?.().some((animation) => animation.playState === 'running')) return
     drag.current = { pointerId: event.pointerId, startY: event.clientY, y: event.clientY, time: event.timeStamp, speed: 0 }
     event.currentTarget.setPointerCapture?.(event.pointerId)
     if (ref.current) ref.current.style.transition = 'none'
@@ -104,6 +112,8 @@ export function Sheet({
     const dialog = ref.current
     if (!current || !dialog || event.pointerId !== current.pointerId) return
     drag.current = null
+    // Held still before letting go: no move came to say the flick had stopped.
+    if (event.timeStamp - current.time > FLICK_WINDOW) current.speed = 0
     const distance = current.y - current.startY
     const far = distance >= Math.max(CLOSE_DISTANCE, dialog.offsetHeight * CLOSE_SHARE)
     if (event.type === 'pointerup' && distance > 0 && (far || current.speed >= CLOSE_SPEED)) {
@@ -127,7 +137,11 @@ export function Sheet({
       easing: style.getPropertyValue('--ease-in') || 'ease-in',
       fill: 'forwards',
     })
-    exit.current.finished.then(onClose, () => {})
+    const animation = exit.current
+    // Closed another way meanwhile (Escape, the backdrop) or opened again: not this slide's to close.
+    animation.finished.then(() => {
+      if (exit.current === animation && dialog.open) onClose()
+    }, () => {})
   }
 
   return (

@@ -60,8 +60,9 @@ test.describe('downloads, phone', () => {
     await page.mouse.move(195, 40)
     await page.mouse.wheel(0, 600)
 
-    // Sheet.test.tsx owns when a drag closes the sheet; this sees what jsdom can't: the real <dialog>,
-    // pointer capture keeping the moves on the title once the pointer leaves it, and touch-action.
+    // Sheet.test.tsx owns when a drag closes the sheet; this sees what jsdom can't: the real <dialog>
+    // and pointer capture keeping the moves on the title once the pointer leaves it. A mouse sends no
+    // touch input, so touch-action stays with the real-phone blind spot.
     const title = sheet.getByRole('heading', { name: 'Сортировка и фильтр' })
     const box = await title.boundingBox()
     if (!box) throw new Error('The sheet has no title')

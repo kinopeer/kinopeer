@@ -128,6 +128,25 @@ describe('Sheet', () => {
       expect(onClose).toHaveBeenCalledOnce()
     })
 
+    it('goes back up when held still after a flick before letting go', () => {
+      const onClose = renderSheet()
+      pointer('pointerDown', handle(), 100, 0)
+      pointer('pointerMove', handle(), 120, 20)
+      pointer('pointerMove', handle(), 140, 40)
+      pointer('pointerUp', handle(), 140, 1000)
+      expect(onClose).not.toHaveBeenCalled()
+      expect(dialog().style.transform).toBe('')
+    })
+
+    it('ignores a second finger while one is dragging', () => {
+      renderSheet()
+      pointer('pointerDown', handle(), 100)
+      pointer('pointerMove', handle(), 180, 100)
+      pointer('pointerDown', handle(), 300, 150, { pointerId: 2 })
+      pointer('pointerMove', handle(), 200, 200)
+      expect(dialog().style.transform).toBe('translateY(100px)')
+    })
+
     it('goes back up when let go after a short, slow drag', () => {
       const onClose = renderSheet()
       slowDrag(handle(), 100, 140)
@@ -226,6 +245,24 @@ describe('Sheet', () => {
 
         finish()
         await vi.waitFor(() => expect(onClose).toHaveBeenCalledOnce())
+      })
+
+      it('closes once when closed another way while sliding off', async () => {
+        const { finish } = stubAnimate()
+        const onClose = vi.fn()
+        const sheet = (open: boolean) => (
+          <Sheet open={open} onClose={onClose} title="Add release">
+            <p>Options</p>
+          </Sheet>
+        )
+        const { rerender } = render(sheet(true))
+        slowDrag(handle(), 100, 300)
+        fireEvent(dialog(), new Event('cancel', { cancelable: true }))
+        rerender(sheet(false))
+        finish()
+        await Promise.resolve()
+        await Promise.resolve()
+        expect(onClose).toHaveBeenCalledOnce()
       })
 
       it('drops the slide when it opens again', async () => {
