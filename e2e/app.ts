@@ -165,7 +165,7 @@ export async function openApp(page: Page, path: string, options: AppOptions = {}
   await page.addInitScript(
     ({ theme, lang, downloadsView }) => {
       localStorage.setItem('kinoseed.theme', theme)
-      localStorage.setItem('kinoseed.lang', lang)
+      localStorage.setItem('kinoseed.language', lang)
       localStorage.setItem(
         'kinoseed.settings',
         JSON.stringify({ downloadsView: downloadsView ?? 'list', downloadsDesktopView: downloadsView }),
