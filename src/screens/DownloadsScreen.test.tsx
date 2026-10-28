@@ -31,6 +31,7 @@ vi.mock('../api/qbittorrent', async (importOriginal) => {
     reannounceTorrents: vi.fn(),
     getSaveLocations: vi.fn(),
     setTorrentLocation: vi.fn(),
+    toggleSpeedLimitsMode: vi.fn(),
   }
 })
 
@@ -86,6 +87,25 @@ beforeEach(() => {
 })
 
 describe('DownloadsScreen', () => {
+  it('switches qBittorrent’s alternative speed limits from the header, and says when that fails', async () => {
+    vi.mocked(api.toggleSpeedLimitsMode).mockRejectedValue(new TypeError('Failed to fetch'))
+    renderScreen()
+    const button = await screen.findByRole('button', { name: 'Alternative speed limits' })
+    expect(button).toHaveAttribute('aria-pressed', 'false')
+
+    await userEvent.click(button)
+    expect(api.toggleSpeedLimitsMode).toHaveBeenCalled()
+    expect(await screen.findByText('Couldn’t switch the speed limits. Try again.')).toBeInTheDocument()
+  })
+
+  it('has no speed limits switch until qBittorrent says which limits apply', async () => {
+    const { use_alt_speed_limits: _, ...serverState } = SNAPSHOT.server_state!
+    getMainData.mockResolvedValue({ ...SNAPSHOT, server_state: serverState })
+    renderScreen()
+    expect(await screen.findAllByRole('listitem')).toHaveLength(3)
+    expect(screen.queryByRole('button', { name: 'Alternative speed limits' })).not.toBeInTheDocument()
+  })
+
   it('shows a loading state, then the torrents in queue order', async () => {
     getMainData.mockReturnValueOnce(new Promise(() => {}))
     const { unmount } = renderScreen()

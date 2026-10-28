@@ -15,6 +15,7 @@ import {
   setTorrentLocation,
   startTorrents,
   stopTorrents,
+  toggleSpeedLimitsMode,
 } from './client'
 
 let fetchMock: Mock<typeof fetch>
@@ -247,5 +248,14 @@ describe('getSaveLocations', () => {
   it('does without what qBittorrent doesn’t answer, with its defaults', async () => {
     fetchMock.mockResolvedValue(new Response('', { status: 500 }))
     expect(await getSaveLocations()).toEqual({ categories: [], defaultPath: '', categoryPaths: false, subcategories: false })
+  })
+})
+
+describe('toggleSpeedLimitsMode', () => {
+  it('posts to /transfer/toggleSpeedLimitsMode', async () => {
+    respond('')
+    await toggleSpeedLimitsMode()
+    expect(lastCall().url).toBe('/qbt/api/v2/transfer/toggleSpeedLimitsMode')
+    expect(lastCall().init.method).toBe('POST')
   })
 })

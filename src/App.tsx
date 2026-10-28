@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Navigate, Route, Routes, useLocation } from 'react-router'
 import { Sidebar, SidebarStatus, type SidebarItem } from './components/Sidebar'
 import { TabBar, type TabBarItem } from './components/TabBar'
+import { Toast } from './components/Toast'
 import { backgroundOf } from './lib/background'
 import { useIsDesktop } from './lib/useIsDesktop'
 import { ConnectScreen } from './screens/ConnectScreen'
@@ -20,6 +21,7 @@ import { useQbitSession } from './session/useQbitSession'
 import { useTmdbSetup } from './session/useTmdbSetup'
 import { freeSpace } from './torrents/freeSpace'
 import { downloadStatus } from './torrents/status'
+import { useAltSpeedLimits } from './torrents/useAltSpeedLimits'
 import { MainDataProvider } from './torrents/MainDataProvider'
 import { useMainData } from './torrents/useMainData'
 import './App.css'
@@ -117,7 +119,9 @@ function App() {
 /** The desktop sidebar with how many torrents are downloading and qBittorrent's status, from the shared poll. */
 function AppSidebar({ items, version, pathname }: { items: TabBarItem[]; version: string; pathname?: string }) {
   const { t } = useTranslation()
-  const { data, offline } = useMainData()
+  const main = useMainData()
+  const { data, offline } = main
+  const altSpeed = useAltSpeedLimits(main)
   const downloading = data
     ? Object.values(data.torrents).filter((torrent) => downloadStatus(torrent) === 'downloading').length
     : 0
@@ -127,20 +131,28 @@ function AppSidebar({ items, version, pathname }: { items: TabBarItem[]; version
       : item,
   )
   return (
-    <Sidebar
-      items={withCount}
-      label={t('nav.label')}
-      pathname={pathname}
-      footer={
-        <SidebarStatus
-          version={version}
-          offline={offline}
-          downloadSpeed={data?.server.dl_info_speed}
-          uploadSpeed={data?.server.up_info_speed}
-          freeSpace={freeSpace(data?.server.free_space_on_disk)}
-        />
-      }
-    />
+    <>
+      <Sidebar
+        items={withCount}
+        label={t('nav.label')}
+        pathname={pathname}
+        footer={
+          <SidebarStatus
+            version={version}
+            offline={offline}
+            downloadSpeed={data?.server.dl_info_speed}
+            uploadSpeed={data?.server.up_info_speed}
+            freeSpace={freeSpace(data?.server.free_space_on_disk)}
+            altSpeedLimits={altSpeed.on}
+            altSpeedDisabled={altSpeed.disabled}
+            onToggleAltSpeed={altSpeed.toggle}
+          />
+        }
+      />
+      {altSpeed.failed && (
+        <Toast icon="alert" message={t('speedLimits.failed')} onDismiss={altSpeed.dismissFailed} />
+      )}
+    </>
   )
 }
 

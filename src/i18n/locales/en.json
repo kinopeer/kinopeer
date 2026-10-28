@@ -143,6 +143,11 @@
     "offline": "No connection to qBittorrent",
     "freeSpace": "Free space"
   },
+  "speedLimits": {
+    "alt": "Alternative speed limits",
+    "short": "Alt. speed limits",
+    "failed": "Couldn’t switch the speed limits. Try again."
+  },
   "search": {
     "title": "Search",
     "placeholder": "Movies and series",
@@ -166,7 +171,9 @@
     "errorTitle": "Couldn’t load from TMDB",
     "errorBody": "Check the connection and try again.",
     "keyTitle": "TMDB isn’t set up",
-    "keyBody": "Search needs a TMDB key. Enter it once and the Kinoseed server keeps it."
+    "keyBody": "Search needs a TMDB key. Enter it once and the Kinoseed server keeps it.",
+    "browseEmptyTitle": "Nothing to suggest right now",
+    "browseEmptyBody": "TMDB has no picks at the moment. Try again later, or search by name."
   },
   "title": {
     "movie": "Movie",
