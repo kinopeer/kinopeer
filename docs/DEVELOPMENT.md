@@ -36,8 +36,8 @@ The server reads environment variables (from `.env.local` in development). Whate
 | `QBITTORRENT_URL` | none | qBittorrent Web UI address |
 | `QBITTORRENT_USERNAME`, `QBITTORRENT_PASSWORD` | none | Default login; a login entered in the app wins |
 | `PROWLARR_URL` | none | Prowlarr address |
-| `PROWLARR_API_KEY` | none | Prowlarr API key |
-| `PROWLARR_CONFIG_XML` | none | Path to Prowlarr's `config.xml` to read the key from when `PROWLARR_API_KEY` is not set (the Umbrel package does this) |
+| `PROWLARR_API_KEY` | none | Prowlarr API key; a key entered in the app wins |
+| `PROWLARR_CONFIG_XML` | none | Path to Prowlarr's `config.xml` to read the key from when neither a key entered in the app nor `PROWLARR_API_KEY` is set (the Umbrel package does this) |
 | `TMDB_API_KEY` | none | Fallback TMDB key; a key entered in the app wins |
 | `TMDB_API_URL` | `https://api.themoviedb.org/3` | TMDB's API address; the integration and smoke tests point it at a fake |
 | `TMDB_IMAGE_URL` | `https://image.tmdb.org/t/p` | TMDB's image address, the same way |

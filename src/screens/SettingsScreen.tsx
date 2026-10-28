@@ -4,6 +4,7 @@ import { useLocation } from 'react-router'
 import { ProwlarrSetupError, getProwlarrStatus } from '../api/prowlarr'
 import { getApiVersion, getAppVersion, getCategories } from '../api/qbittorrent'
 import { TmdbKeyError, checkTmdb } from '../api/tmdb'
+import { getServerSettings, type ServerSettings } from '../api/settings'
 import { Button } from '../components/Button'
 import { Icon, type IconName } from '../components/Icon'
 import { IconButton } from '../components/IconButton'
@@ -22,6 +23,7 @@ import { useTheme } from '../theme/useTheme'
 import { categoryType, clearTitleMatches } from '../torrents/titleMatches'
 import tmdbLogo from '../assets/tmdb-logo.svg'
 import { InstallSheet } from './InstallSheet'
+import { ProwlarrKeyForm } from './ProwlarrKeyForm'
 import { TmdbKeyForm } from './TmdbKeyForm'
 import './SettingsScreen.css'
 
@@ -139,10 +141,16 @@ export function SettingsScreen() {
   const [editingKey, setEditingKey] = useState(
     () => (location.state as SettingsLocationState | null)?.editTmdbKey === true,
   )
-  const [keySaved, setKeySaved] = useState(false)
-  const dismissKeySaved = useCallback(() => setKeySaved(false), [])
+  const [editingProwlarrKey, setEditingProwlarrKey] = useState(false)
+  const [prowlarrKeyVersion, setProwlarrKeyVersion] = useState(0)
+  const [keySaved, setKeySaved] = useState<'tmdb' | 'prowlarr' | 'prowlarr-forgotten' | null>(null)
+  const dismissKeySaved = useCallback(() => setKeySaved(null), [])
   const dismissCleared = useCallback(() => setCleared(false), [])
   const categories = useRequest('qbt|categories', () => getCategories())
+  // Loaded once; a saved or forgotten key answers with the new settings, which replace it.
+  const serverLoad = useRequest('server|settings', (signal) => getServerSettings(signal))
+  const [serverChanged, setServerChanged] = useState<ServerSettings | null>(null)
+  const server = serverChanged ?? serverLoad.data
   const names = (categories.data ?? []).map((category) => category.name).sort((a, b) => a.localeCompare(b))
 
   const checkQbittorrent = async () => {
@@ -227,8 +235,15 @@ export function SettingsScreen() {
       <Section id="settings-connections" title={t('settings.connections')}>
         <ul className="settings-conns">
           <ConnectionRow name="qBittorrent" icon="server" check={checkQbittorrent} />
-          <ConnectionRow name="Prowlarr" icon="search" check={checkProwlarr} />
           {/* A new key remounts the row, so it checks again. */}
+          <ConnectionRow
+            key={`prowlarr-${prowlarrKeyVersion}`}
+            name="Prowlarr"
+            icon="search"
+            check={checkProwlarr}
+            editLabel={t('prowlarrKey.change')}
+            onEdit={() => setEditingProwlarrKey(true)}
+          />
           <ConnectionRow
             key={tmdbKeyVersion}
             name="TMDB"
@@ -325,13 +340,37 @@ export function SettingsScreen() {
         <TmdbKeyForm
           onSaved={() => {
             setEditingKey(false)
-            setKeySaved(true)
+            setKeySaved('tmdb')
             setTmdbKeyVersion((n) => n + 1)
           }}
         />
       </Sheet>
+      <Sheet open={editingProwlarrKey} onClose={() => setEditingProwlarrKey(false)} title={t('prowlarrKey.sheetTitle')}>
+        <ProwlarrKeyForm
+          canForget={server?.prowlarr.source === 'saved' && server.prowlarr.serverKey}
+          onSaved={(changed) => {
+            setServerChanged(changed)
+            setEditingProwlarrKey(false)
+            setKeySaved('prowlarr')
+            setProwlarrKeyVersion((n) => n + 1)
+          }}
+          onForgotten={(changed) => {
+            setServerChanged(changed)
+            setEditingProwlarrKey(false)
+            setKeySaved('prowlarr-forgotten')
+            setProwlarrKeyVersion((n) => n + 1)
+          }}
+        />
+      </Sheet>
       {cleared && <Toast message={t('settings.cacheCleared')} onDismiss={dismissCleared} />}
-      {keySaved && <Toast message={t('tmdbKey.saved')} onDismiss={dismissKeySaved} />}
+      {keySaved && (
+        <Toast
+          message={t(
+            keySaved === 'tmdb' ? 'tmdbKey.saved' : keySaved === 'prowlarr' ? 'prowlarrKey.saved' : 'prowlarrKey.forgotten',
+          )}
+          onDismiss={dismissKeySaved}
+        />
+      )}
     </main>
   )
 }
