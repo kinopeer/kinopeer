@@ -62,13 +62,14 @@ test('search → title → releases → add with a file skipped → in Downloads
   ])
   expect(stand.qbittorrent.torrents).toContain(SHOGUN_HASH)
 
-  // The server searched with Prowlarr's key and put it back into the download link it had
-  // stripped for the browser; it asked TMDB with the saved key. The page saw neither key.
-  expect(stand.prowlarr.seen.map((request) => request.url)).toEqual([
-    expect.stringMatching(/^\/api\/v1\/search\?query=/),
-    `/api/v1/indexer/1/download?link=shogun&apikey=${PROWLARR_KEY}`,
-  ])
-  expect(stand.prowlarr.seen.map((request) => request.key)).toEqual([PROWLARR_KEY, PROWLARR_KEY])
+  // The server searched with Prowlarr's key, asked which indexers failed (both lists at once, in
+  // either order) and put the key back into the download link it had stripped for the browser; it
+  // asked TMDB with the saved key. The page saw neither key.
+  const [searched, ...rest] = stand.prowlarr.seen.map((request) => request.url)
+  expect(searched).toMatch(/^\/api\/v1\/search\?query=/)
+  expect(rest.slice(0, 2).sort()).toEqual(['/api/v1/indexer', '/api/v1/indexerstatus'])
+  expect(rest.slice(2)).toEqual([`/api/v1/indexer/1/download?link=shogun&apikey=${PROWLARR_KEY}`])
+  expect(stand.prowlarr.seen.map((request) => request.key)).toEqual(Array(4).fill(PROWLARR_KEY))
   expect(stand.tmdb.seen.map((request) => request.url)).toContain(`/3/tv/126308?language=ru-RU&api_key=${TMDB_KEY}`)
   for (const url of urls) {
     expect(url).not.toContain(PROWLARR_KEY)

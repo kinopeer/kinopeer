@@ -378,6 +378,8 @@ export async function fakeProwlarr({ apiKey = 'prowlarr-key', releases = RELEASE
         { id: 3, name: 'Kinozal', enable: false },
       ])
     }
+    // Nothing has failed lately.
+    if (pathname === '/api/v1/indexerstatus') return json(response, [])
     if (pathname === '/api/v1/search') {
       return json(
         response,
