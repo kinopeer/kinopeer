@@ -63,6 +63,14 @@ export function useSheetDrag(
     close.current = onClose
   })
 
+  /** Back where it opens, with any slide dropped and the stylesheet's transition. */
+  const putBack = (dialog: HTMLDialogElement) => {
+    exit.current?.cancel()
+    exit.current = null
+    dialog.style.transform = ''
+    dialog.style.transition = ''
+  }
+
   useEffect(() => {
     // A drag the sheet closed under (a second finger tapped Done) never got its end event.
     drag.current = null
@@ -81,14 +89,6 @@ export function useSheetDrag(
     const dialog = ref.current
     if (closeAsked && open && dialog) putBack(dialog)
   }, [closeAsked, open, ref])
-
-  /** Back where it opens, with any slide dropped and the stylesheet's transition. */
-  const putBack = (dialog: HTMLDialogElement) => {
-    exit.current?.cancel()
-    exit.current = null
-    dialog.style.transform = ''
-    dialog.style.transition = ''
-  }
 
   const end = (handle: HTMLElement) => handle.classList.remove('is-dragging')
 
