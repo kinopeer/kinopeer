@@ -110,7 +110,7 @@ Poster, year, runtime or number of seasons and episodes, rating, overview, and a
 - Kinoseed gets only the `.torrent` (preferred, so files can be picked) or the magnet link from Prowlarr and adds it to qBittorrent itself. Prowlarr's own download clients aren't used.
 - Options: category (the default from Settings, else a qBittorrent category with a matching name such as Movies or TV Shows), save path, start paused, sequential, add to the top of the queue.
 - File selection and a free space check. With skipped files, the torrent is added stopped, the skipped files get priority 0, then it starts. A magnet link downloads every file.
-- When what's selected (the chosen files, or the release's size for a magnet link) is larger than qBittorrent's free space, the sheet warns with how much is missing. It doesn't block adding: space can be freed before the download finishes, and qBittorrent reports the free space of its default save path only, so a save path on another disk may have room.
+- When what's selected (the chosen files, or the release's size for a magnet link) is larger than qBittorrent's free space, the sheet warns with how much is missing, once the torrent is read. It doesn't block adding: space can be freed before the download finishes, and qBittorrent reports the free space of its default save path only, so a save path on another disk may have room.
 - The torrent gets the `tmdb:<movie|tv>:<id>` tag; after adding, the app goes to Downloads and shows a toast.
 
 ### Settings
