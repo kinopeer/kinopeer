@@ -110,7 +110,9 @@ is caught from now on. The order of work:
 1. **An issue first.** A bug from the test stand, from Umbrel or from a test under construction
    becomes an issue with the steps and the environment (phone or desktop, HTTP or HTTPS, the
    qBittorrent version, where it was found) before anyone fixes it, so the fix can be checked against
-   what was seen and the label below has a place to live.
+   what was seen and the label below has a place to live. The bug report form
+   (`.github/ISSUE_TEMPLATE/bug_report.yml`) asks for all of these; the `test-gap:*` label comes
+   later, from whoever finds why the tests missed it.
 2. **A red test on the lowest layer that sees it** (the table above), run to watch it fail on `main`.
 3. **The fix**, and the test goes green with everything else.
 4. **The record** in the PR and on the issue, below.
