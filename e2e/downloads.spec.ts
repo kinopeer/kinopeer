@@ -29,6 +29,8 @@ test.describe('downloads, phone', () => {
     await openDownloads(page, { downloadsView: 'grid' })
     await page.getByRole('button', { name: 'Ещё действия: Дюна: Часть вторая' }).click()
     await expect(page.getByRole('dialog')).toBeVisible()
+    // The sheet opens under the pointer that opened it, which would hover one of its rows.
+    await page.mouse.move(0, 0)
     await settle(page)
     await expect(page).toHaveScreenshot('grid-actions-dark-ru.png')
   })

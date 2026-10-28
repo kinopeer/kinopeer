@@ -57,9 +57,11 @@ describe('SpeedLimitsSheet', () => {
     renderSheet()
     await userEvent.type(screen.getByRole('textbox', { name: 'Download limit, MB/s' }), '3')
     await userEvent.click(screen.getByRole('button', { name: 'Save limits' }))
-    // One call: the click went through, and a second one couldn't follow while it's pending.
-    expect(api.setSpeedLimits).toHaveBeenCalledTimes(1)
     expect(screen.getByRole('button', { name: /Save limits/ })).toBeDisabled()
+    // Neither another click nor Enter in a field sends them again while the first save is pending.
+    await userEvent.click(screen.getByRole('button', { name: /Save limits/ }))
+    await userEvent.type(screen.getByRole('textbox', { name: 'Download limit, MB/s' }), '{Enter}')
+    expect(api.setSpeedLimits).toHaveBeenCalledTimes(1)
   })
 
   it('removes a limit when its field is cleared', async () => {
@@ -83,8 +85,19 @@ describe('SpeedLimitsSheet', () => {
     renderSheet()
     const upload = screen.getByRole('textbox', { name: 'Upload limit, MB/s' })
     await userEvent.type(upload, 'abc')
-    expect(upload).toHaveAccessibleDescription('Enter a number from 0.001 to 2147, e.g. 2.5')
+    expect(upload).toHaveAccessibleDescription('Enter a number from 0.001 to 2147, or leave it empty for no limit')
     expect(screen.getByRole('button', { name: 'Save limits' })).toBeDisabled()
+  })
+
+  it('shows no error for a lone separator, the start of a decimal like ,5, but saves only once it is one', async () => {
+    renderSheet()
+    const download = screen.getByRole('textbox', { name: 'Download limit, MB/s' })
+    await userEvent.type(download, ',')
+    expect(download).toHaveAccessibleDescription('Empty: no limit')
+    expect(download).not.toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByRole('button', { name: 'Save limits' })).toBeDisabled()
+    await userEvent.type(download, '5')
+    expect(screen.getByRole('button', { name: 'Save limits' })).toBeEnabled()
   })
 
   it('keeps the sheet open with an error when qBittorrent refuses, and refreshes the list for a partial save', async () => {

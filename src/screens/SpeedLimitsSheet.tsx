@@ -5,7 +5,8 @@ import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { Input } from '../components/Input'
 import { Sheet } from '../components/Sheet'
-import { changedLimit, limitToField } from '../torrents/speedLimits'
+import { changedLimit, isUnfinished, limitToField } from '../torrents/speedLimits'
+import './SpeedLimitsSheet.css'
 
 export interface SpeedLimitsSheetProps {
   torrent: Torrent
@@ -60,7 +61,7 @@ export function SpeedLimitsSheet({ torrent, title, offline, onClose, onChanged }
           help={t('limits.hint')}
           value={download}
           onChange={(event) => setDownload(event.target.value)}
-          error={downloadLimit === null ? t('limits.invalid') : false}
+          error={downloadLimit === null && !isUnfinished(download) ? t('limits.invalid') : false}
         />
         <Input
           label={t('limits.upload')}
@@ -68,7 +69,7 @@ export function SpeedLimitsSheet({ torrent, title, offline, onClose, onChanged }
           help={t('limits.hint')}
           value={upload}
           onChange={(event) => setUpload(event.target.value)}
-          error={uploadLimit === null ? t('limits.invalid') : false}
+          error={uploadLimit === null && !isUnfinished(upload) ? t('limits.invalid') : false}
         />
         {failed && <Banner tone="error">{t('limits.failed')}</Banner>}
         <Button type="submit" variant="primary" size="lg" block loading={saving} disabled={!valid || saving || offline}>

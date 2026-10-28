@@ -7,6 +7,8 @@ import {
   getDefaultSavePath,
   getTorrentFiles,
   getTorrents,
+  reannounceTorrents,
+  recheckTorrents,
   setFilePriority,
   setSpeedLimits,
   startTorrents,
@@ -142,6 +144,8 @@ describe('setSpeedLimits', () => {
     const saving = setSpeedLimits(['a'], { download: 1_000_000, upload: 1_000_000 }).finally(() => (settled = true))
     saving.catch(() => {})
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    // A macrotask tick runs every pending microtask, so a rejection that didn't wait for the upload
+    // request would have settled the promise by now.
     await new Promise((resolve) => setTimeout(resolve, 0))
     expect(settled).toBe(false)
     answerUpload(new Response(''))
@@ -189,6 +193,22 @@ describe('stopTorrents', () => {
     respond('')
     await stopTorrents(['a'])
     expect(lastCall().url).toBe('/qbt/api/v2/torrents/pause')
+  })
+})
+
+describe('recheckTorrents and reannounceTorrents', () => {
+  it('post the hashes joined with a pipe', async () => {
+    respond('')
+    await recheckTorrents(['a', 'b'])
+    expect(lastCall().url).toBe('/qbt/api/v2/torrents/recheck')
+    expect(lastCall().init.method).toBe('POST')
+    expect(String(lastCall().init.body)).toBe('hashes=a%7Cb')
+
+    respond('')
+    await reannounceTorrents(['a'])
+    expect(lastCall().url).toBe('/qbt/api/v2/torrents/reannounce')
+    expect(lastCall().init.method).toBe('POST')
+    expect(String(lastCall().init.body)).toBe('hashes=a')
   })
 })
 

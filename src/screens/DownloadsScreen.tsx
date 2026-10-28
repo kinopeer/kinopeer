@@ -33,6 +33,8 @@ import { InstallCard } from './InstallCard'
 import { OfflineBanner } from './OfflineBanner'
 import { SortMenu, SortSheet } from './SortSheet'
 import { StatusMenu } from './StatusMenu'
+import { RecheckDialog } from './RecheckDialog'
+import { SpeedLimitsSheet } from './SpeedLimitsSheet'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
 import './DownloadsScreen.css'
 
@@ -88,6 +90,11 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   const [toggleFailed, setToggleFailed] = useState(false)
   const dismissToggleFailed = useCallback(() => setToggleFailed(false), [])
   const [deleting, setDeleting] = useState<string[] | null>(null)
+  const [rechecking, setRechecking] = useState<string | null>(null)
+  const [limiting, setLimiting] = useState<string | null>(null)
+  // A recheck or reannounce qBittorrent took, said in a toast.
+  const [notice, setNotice] = useState<'rechecking' | 'reannounced' | null>(null)
+  const dismissNotice = useCallback(() => setNotice(null), [])
   // The selected hashes in selection mode, null outside it.
   const [selected, setSelected] = useState<ReadonlySet<string> | null>(null)
   const selecting = selected !== null
@@ -158,6 +165,12 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   const actionsTorrent = actionsFor ? data?.torrents[actionsFor] : undefined
   const deleteTorrents = (deleting ?? []).flatMap((hash) => data?.torrents[hash] ?? [])
   const retitleTorrent = retitling ? data?.torrents[retitling] : undefined
+  const recheckTorrent = rechecking ? data?.torrents[rechecking] : undefined
+  // The torrent went away while its confirmation was open (deleted elsewhere): forget it, so the
+  // confirmation doesn't open again if the same torrent is added back.
+  if (rechecking && data && !recheckTorrent) setRechecking(null)
+  const limitsTorrent = limiting ? data?.torrents[limiting] : undefined
+  if (limiting && data && !limitsTorrent) setLimiting(null)
   const nameOf = (torrent: Torrent) => matches[torrent.hash]?.title ?? torrent.name
   const server = data?.server
   const free = freeSpace(server?.free_space_on_disk)
@@ -528,6 +541,18 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
             setActionsFor(null)
             setDeleting([actionsTorrent.hash])
           }}
+          onRecheck={() => {
+            setActionsFor(null)
+            setRechecking(actionsTorrent.hash)
+          }}
+          onSpeedLimits={() => {
+            setActionsFor(null)
+            setLimiting(actionsTorrent.hash)
+          }}
+          onReannounced={() => {
+            setActionsFor(null)
+            setNotice('reannounced')
+          }}
           onChangeTitle={() => {
             setActionsFor(null)
             setRetitling(actionsTorrent.hash)
@@ -561,6 +586,27 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           onDelete={() => setDeleting(selectedVisible.map((torrent) => torrent.hash))}
         />
       )}
+      {recheckTorrent && (
+        <RecheckDialog
+          hash={recheckTorrent.hash}
+          title={nameOf(recheckTorrent)}
+          onClose={() => setRechecking(null)}
+          onRechecked={() => {
+            setRechecking(null)
+            setNotice('rechecking')
+            refresh()
+          }}
+        />
+      )}
+      {limitsTorrent && (
+        <SpeedLimitsSheet
+          torrent={limitsTorrent}
+          title={nameOf(limitsTorrent)}
+          offline={offline}
+          onClose={() => setLimiting(null)}
+          onChanged={refresh}
+        />
+      )}
       {deleteTorrents.length > 0 && (
         <DeleteTorrentDialog
           torrents={deleteTorrents}
@@ -577,6 +623,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           }}
         />
       )}
+      {notice && <Toast message={t(`torrent.${notice}`)} onDismiss={dismissNotice} />}
       {toggleFailed && <Toast icon="alert" message={t('torrent.actionFailed')} onDismiss={dismissToggleFailed} />}
       {reconnected && <Toast message={t('offline.reconnected')} onDismiss={dismissReconnected} />}
       {titleSaved && (

@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as matches from '../api/matches'
@@ -6,6 +6,8 @@ import * as prowlarr from '../api/prowlarr'
 import * as qbt from '../api/qbittorrent'
 import * as serverSettings from '../api/settings'
 import * as tmdb from '../api/tmdb'
+import i18n from '../i18n'
+import { BUG_REPORT_URL, IDEAS_URL, REPO_URL } from '../lib/links'
 import { getSettings, resetSettings } from '../settings/settings'
 import { renderWithRouter } from '../test/render'
 import { SettingsScreen } from './SettingsScreen'
@@ -28,6 +30,8 @@ vi.mock('../api/settings', async (importOriginal) => ({
   ...(await importOriginal<typeof serverSettings>()),
   getServerSettings: vi.fn(),
   saveTmdbKey: vi.fn(),
+  saveProwlarrKey: vi.fn(),
+  forgetProwlarrKey: vi.fn(),
   saveDownloadDefaults: vi.fn(),
 }))
 vi.mock('../api/tmdb', async (importOriginal) => ({
@@ -59,11 +63,13 @@ beforeEach(() => {
   vi.mocked(tmdb.checkTmdb).mockResolvedValue()
   vi.mocked(serverSettings.getServerSettings).mockResolvedValue({
     tmdb: { configured: true, source: 'saved' },
+    prowlarr: { configured: true, source: 'env', serverKey: true },
     qbittorrent: { configured: true, source: 'env' },
     downloads: null,
   })
   vi.mocked(serverSettings.saveDownloadDefaults).mockResolvedValue({
     tmdb: { configured: true, source: 'saved' },
+    prowlarr: { configured: true, source: 'env', serverKey: true },
     qbittorrent: { configured: true, source: 'env' },
     downloads: {},
   })
@@ -113,7 +119,7 @@ describe('SettingsScreen', () => {
 
   it('changes the TMDB key and checks the connection again', async () => {
     vi.mocked(tmdb.checkTmdb).mockRejectedValue(new tmdb.TmdbKeyError(401))
-    vi.mocked(serverSettings.saveTmdbKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved' }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
+    vi.mocked(serverSettings.saveTmdbKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved' }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
     renderScreen()
     expect(await within(connection('TMDB')).findByText('The API key is missing or invalid')).toBeInTheDocument()
     expect(await within(connection('Prowlarr')).findByText(/^Connected/)).toBeInTheDocument()
@@ -134,6 +140,70 @@ describe('SettingsScreen', () => {
     expect(qbt.getAppVersion).not.toHaveBeenCalled()
     expect(qbt.getApiVersion).not.toHaveBeenCalled()
     expect(prowlarr.getProwlarrStatus).not.toHaveBeenCalled()
+  })
+
+  it('changes the Prowlarr key and checks the connection again', async () => {
+    vi.mocked(prowlarr.getProwlarrStatus).mockRejectedValue(new prowlarr.ProwlarrSetupError(503, 'not-configured'))
+    vi.mocked(serverSettings.saveProwlarrKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved' }, prowlarr: { configured: true, source: 'saved', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
+    renderScreen()
+    expect(await within(connection('Prowlarr')).findByText('Not set up, or the API key was rejected')).toBeInTheDocument()
+
+    vi.mocked(prowlarr.getProwlarrStatus).mockResolvedValue({ version: '1.24.3', indexers: 2 })
+    await userEvent.click(within(connection('Prowlarr')).getByRole('button', { name: 'Change Prowlarr key' }))
+    const sheet = screen.getByRole('dialog', { name: 'Prowlarr key' })
+    await userEvent.type(within(sheet).getByLabelText('Prowlarr API key'), 'abc123')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
+
+    expect(await screen.findByText('Prowlarr key saved')).toBeInTheDocument()
+    expect(await within(connection('Prowlarr')).findByText(/2 indexers/)).toBeInTheDocument()
+
+    // The settings the save answered with are what the sheet goes by now, without loading them again.
+    await userEvent.click(within(connection('Prowlarr')).getByRole('button', { name: 'Change Prowlarr key' }))
+    expect(within(screen.getByRole('dialog', { name: 'Prowlarr key' })).getByRole('button', { name: 'Use the server’s key' })).toBeInTheDocument()
+  })
+
+  it("goes back from a saved Prowlarr key to the server's and checks the connection again", async () => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue({
+      tmdb: { configured: true, source: 'saved' },
+      prowlarr: { configured: true, source: 'saved', serverKey: true },
+      qbittorrent: { configured: true, source: 'env' },
+      downloads: null,
+    })
+    vi.mocked(serverSettings.forgetProwlarrKey).mockResolvedValue({
+      tmdb: { configured: true, source: 'saved' },
+      prowlarr: { configured: true, source: 'env', serverKey: true },
+      qbittorrent: { configured: true, source: 'env' },
+      downloads: null,
+    })
+    renderScreen()
+    expect(await within(connection('Prowlarr')).findByText(/2 indexers/)).toBeInTheDocument()
+
+    vi.mocked(prowlarr.getProwlarrStatus).mockResolvedValue({ version: '1.24.3', indexers: 1 })
+    await userEvent.click(within(connection('Prowlarr')).getByRole('button', { name: 'Change Prowlarr key' }))
+    const sheet = screen.getByRole('dialog', { name: 'Prowlarr key' })
+    await userEvent.click(await within(sheet).findByRole('button', { name: 'Use the server’s key' }))
+
+    expect(await screen.findByText('Using the server’s Prowlarr key')).toBeInTheDocument()
+    expect(screen.queryByText('Prowlarr key saved')).not.toBeInTheDocument()
+    expect(await within(connection('Prowlarr')).findByText(/1 indexer/)).toBeInTheDocument()
+  })
+
+  it("doesn't offer the server's Prowlarr key when the server has none", async () => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue({
+      tmdb: { configured: true, source: 'saved' },
+      prowlarr: { configured: true, source: 'saved', serverKey: false },
+      qbittorrent: { configured: true, source: 'env' },
+      downloads: null,
+    })
+    renderScreen()
+    // Let the settings load, so the button's absence isn't only the moment before they arrive.
+    await waitFor(() => expect(serverSettings.getServerSettings).toHaveBeenCalled())
+    await act(() => Promise.all(vi.mocked(serverSettings.getServerSettings).mock.results.map((result) => result.value)))
+
+    await userEvent.click(within(connection('Prowlarr')).getByRole('button', { name: 'Change Prowlarr key' }))
+    const sheet = screen.getByRole('dialog', { name: 'Prowlarr key' })
+    expect(within(sheet).getByLabelText('Prowlarr API key')).toBeInTheDocument()
+    expect(within(sheet).queryByRole('button', { name: 'Use the server’s key' })).not.toBeInTheDocument()
   })
 
   it('shows the app version', () => {
@@ -170,6 +240,7 @@ describe('SettingsScreen', () => {
   it("shows the download defaults the server keeps, set on another device", async () => {
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue({
       tmdb: { configured: true, source: 'saved' },
+      prowlarr: { configured: true, source: 'env', serverKey: true },
       qbittorrent: { configured: true, source: 'env' },
       downloads: { tvCategory: 'Anime', sequential: true, firstLastPieces: true },
     })
@@ -209,6 +280,31 @@ describe('SettingsScreen', () => {
     renderScreen()
     await userEvent.click(screen.getByRole('button', { name: /Install app/ }))
     expect(screen.getByRole('dialog', { name: 'Add to Dock' })).toHaveTextContent('Choose “Add to Dock”')
+  })
+
+  it('links to Ideas, a bug report and the source code, each in a new tab and saying so', () => {
+    renderScreen()
+    const about = screen.getByRole('region', { name: 'About' })
+    const links: [RegExp, string][] = [
+      [/Suggest an idea.*\(opens in a new tab\)/, IDEAS_URL],
+      [/Report a bug.*\(opens in a new tab\)/, BUG_REPORT_URL],
+      [/Kinoseed on GitHub.*\(opens in a new tab\)/, REPO_URL],
+    ]
+    for (const [name, href] of links) {
+      const link = within(about).getByRole('link', { name })
+      expect(link).toHaveAttribute('href', href)
+      expect(link).toHaveAttribute('target', '_blank')
+    }
+  })
+
+  it('credits TMDB with its logo, and keeps the notice in English on a Russian screen', async () => {
+    await i18n.changeLanguage('ru')
+    renderScreen()
+    const about = screen.getByRole('region', { name: 'О приложении' })
+    expect(within(about).getByRole('img', { name: 'TMDB' })).toBeInTheDocument()
+    expect(about).toHaveTextContent('Данные о фильмах и сериалах и постеры берутся из TMDB.')
+    // The notice's wording is locales.test.ts's; here, that it's marked as English for screen readers.
+    expect(within(about).getByText(i18n.t('settings.tmdbNotice'))).toHaveAttribute('lang', 'en')
   })
 
   it('has no install row where the app can\'t be installed', () => {

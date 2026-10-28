@@ -1,7 +1,7 @@
-import { useState, type MouseEvent } from 'react'
+import { useId, useState, type MouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
-import { startTorrents, stopTorrents, type Torrent } from '../api/qbittorrent'
+import { reannounceTorrents, startTorrents, stopTorrents, type Torrent } from '../api/qbittorrent'
 import { posterUrl } from '../api/tmdb'
 import { Banner } from '../components/Banner'
 import { Icon } from '../components/Icon'
@@ -11,10 +11,9 @@ import { Sheet } from '../components/Sheet'
 import { StatusChip } from '../components/StatusChip'
 import { useIsDesktop } from '../lib/useIsDesktop'
 import { useTmdbLanguage } from '../settings/settings'
-import { downloadStatus, isRunning } from '../torrents/status'
+import { downloadStatus, hasMetadata, isRunning } from '../torrents/status'
 import { chooseTitle, type TitleMatch } from '../torrents/titleMatches'
 import { MatchPrompt } from './MatchPrompt'
-import { SpeedLimitsSheet } from './SpeedLimitsSheet'
 
 export interface TorrentActionsSheetProps {
   torrent: Torrent
@@ -33,6 +32,12 @@ export interface TorrentActionsSheetProps {
   /** After pausing or resuming, so the list can refresh right away. */
   onChanged: () => void
   onDelete: () => void
+  /** Opens the recheck confirmation. */
+  onRecheck: () => void
+  /** Opens the speed limits sheet. */
+  onSpeedLimits: () => void
+  /** After qBittorrent took the reannounce, so the screen can say so. */
+  onReannounced: () => void
   /** Opens the title search. */
   onChangeTitle: () => void
   /** After the guessed title was confirmed. */
@@ -51,6 +56,9 @@ export function TorrentActionsSheet({
   onClose,
   onChanged,
   onDelete,
+  onRecheck,
+  onSpeedLimits,
+  onReannounced,
   onChangeTitle,
   onConfirmed,
 }: TorrentActionsSheetProps) {
@@ -60,9 +68,22 @@ export function TorrentActionsSheet({
   const [failed, setFailed] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [saveFailed, setSaveFailed] = useState(false)
-  const [editingLimits, setEditingLimits] = useState(false)
   const status = downloadStatus(torrent)
   const running = isRunning(status)
+  // qBittorrent ignores both where they can't run (libtorrent announces only for a started torrent,
+  // and there's nothing to check before a magnet link has its metadata, whatever its state), so the
+  // toast would be untrue.
+  const canReannounce = status === 'downloading' || status === 'seeding'
+  const noMetadata = !hasMetadata(torrent)
+  const canRecheck = status !== 'checking' && !noMetadata
+  // Why an item is off, under its label.
+  const reannounceHint = canReannounce ? undefined : t('torrent.reannounceOff')
+  const recheckHint = canRecheck
+    ? undefined
+    : noMetadata
+      ? t('torrent.recheckNoMetadata')
+      : t('torrent.recheckChecking')
+  const hintId = useId()
 
   const toggle = async () => {
     setBusy(true)
@@ -71,6 +92,18 @@ export function TorrentActionsSheet({
       await (running ? stopTorrents([torrent.hash]) : startTorrents([torrent.hash]))
       onChanged()
       onClose()
+    } catch {
+      setFailed(true)
+      setBusy(false)
+    }
+  }
+
+  const reannounce = async () => {
+    setBusy(true)
+    setFailed(false)
+    try {
+      await reannounceTorrents([torrent.hash])
+      onReannounced()
     } catch {
       setFailed(true)
       setBusy(false)
@@ -103,18 +136,6 @@ export function TorrentActionsSheet({
     </>
   )
 
-  if (editingLimits) {
-    return (
-      <SpeedLimitsSheet
-        torrent={torrent}
-        title={match?.title ?? torrent.name}
-        offline={offline}
-        onClose={onClose}
-        onChanged={onChanged}
-      />
-    )
-  }
-
   if (isDesktop && anchor) {
     const changeTitle = match ? t('match.changeTitle') : t('match.pickTitle')
     return (
@@ -127,7 +148,13 @@ export function TorrentActionsSheet({
         <MenuItem icon={running ? 'pause' : 'play'} disabled={offline || busy} onClick={toggle}>
           {running ? t('torrent.pause') : t('torrent.resume')}
         </MenuItem>
-        <MenuItem icon="gauge" disabled={offline || busy} onClick={() => setEditingLimits(true)}>
+        <MenuItem icon="refresh" disabled={offline || busy || !canReannounce} hint={reannounceHint} onClick={reannounce}>
+          {t('torrent.reannounce')}
+        </MenuItem>
+        <MenuItem icon="check-circle" disabled={offline || busy || !canRecheck} hint={recheckHint} onClick={onRecheck}>
+          {t('torrent.recheck')}
+        </MenuItem>
+        <MenuItem icon="gauge" disabled={offline} onClick={onSpeedLimits}>
           {t('limits.title')}
         </MenuItem>
         {showDetails && (
@@ -186,7 +213,35 @@ export function TorrentActionsSheet({
           </button>
         </li>
         <li>
-          <button type="button" className="ks-row-btn" disabled={offline || busy} onClick={() => setEditingLimits(true)}>
+          <button
+            type="button"
+            className="ks-row-btn"
+            disabled={offline || busy || !canReannounce}
+            aria-describedby={reannounceHint ? `${hintId}-reannounce` : undefined}
+            onClick={reannounce}
+          >
+            <Icon name="refresh" />
+            <RowText id={`${hintId}-reannounce`} hint={reannounceHint}>
+              {t('torrent.reannounce')}
+            </RowText>
+          </button>
+        </li>
+        <li>
+          <button
+            type="button"
+            className="ks-row-btn"
+            disabled={offline || busy || !canRecheck}
+            aria-describedby={recheckHint ? `${hintId}-recheck` : undefined}
+            onClick={onRecheck}
+          >
+            <Icon name="check-circle" />
+            <RowText id={`${hintId}-recheck`} hint={recheckHint}>
+              {t('torrent.recheck')}
+            </RowText>
+          </button>
+        </li>
+        <li>
+          <button type="button" className="ks-row-btn" disabled={offline} onClick={onSpeedLimits}>
             <Icon name="gauge" />
             {t('limits.title')}
           </button>
@@ -225,5 +280,18 @@ export function TorrentActionsSheet({
       </ul>
       {errors}
     </Sheet>
+  )
+}
+
+/** A sheet row's label, with a dimmed hint under it (the button's description) when there is one. */
+function RowText({ id, hint, children }: { id: string; hint?: string; children: string }) {
+  if (!hint) return children
+  return (
+    <span className="ks-row-text">
+      <span>{children}</span>
+      <span id={id} className="ks-row-hint" aria-hidden="true">
+        {hint}
+      </span>
+    </span>
   )
 }

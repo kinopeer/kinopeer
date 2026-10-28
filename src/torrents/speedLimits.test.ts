@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { changedLimit, fieldToLimit, limitToField } from './speedLimits'
+import { changedLimit, fieldToLimit, isUnfinished, limitToField } from './speedLimits'
 
 describe('limitToField and fieldToLimit', () => {
   it('shows a limit in MB/s and no limit as an empty field', () => {
@@ -9,6 +9,8 @@ describe('limitToField and fieldToLimit', () => {
     expect(limitToField(100, 'en')).toBe('0.001')
     expect(limitToField(0, 'en')).toBe('')
     expect(limitToField(-1, 'en')).toBe('')
+    // A qBittorrent that doesn't report it: no limit known, rather than "NaN".
+    expect(limitToField(undefined, 'en')).toBe('')
   })
 
   it("writes the language's decimal separator and no grouping", () => {
@@ -35,6 +37,14 @@ describe('limitToField and fieldToLimit', () => {
     expect(fieldToLimit('5.')).toBe(5_000_000)
     expect(fieldToLimit('.5')).toBe(500_000)
     expect(fieldToLimit(',5')).toBe(500_000)
+  })
+
+  it('tells a lone separator, the start of a decimal like ,5, from a wrong value', () => {
+    expect(isUnfinished('.')).toBe(true)
+    expect(isUnfinished(' , ')).toBe(true)
+    expect(isUnfinished('')).toBe(false)
+    expect(isUnfinished('abc')).toBe(false)
+    expect(isUnfinished('1.2.3')).toBe(false)
   })
 
   it('rejects a positive limit too small to be one, rather than reading it as no limit', () => {

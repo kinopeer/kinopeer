@@ -1,6 +1,6 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import * as matchesApi from '../api/matches'
 import * as api from '../api/qbittorrent'
 import type { MainData, Torrent } from '../api/qbittorrent'
@@ -12,9 +12,25 @@ import { resetServerMatches } from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
 import { DownloadsScreen } from './DownloadsScreen'
 
+/** Hides the page, which stops the poll until the test ends. */
+function stopPolling() {
+  const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(true)
+  document.dispatchEvent(new Event('visibilitychange'))
+  onTestFinished(() => hidden.mockRestore())
+}
+
 vi.mock('../api/qbittorrent', async (importOriginal) => {
   const actual = await importOriginal<typeof api>()
-  return { ...actual, getMainData: vi.fn(), stopTorrents: vi.fn(), startTorrents: vi.fn(), deleteTorrents: vi.fn() }
+  return {
+    ...actual,
+    getMainData: vi.fn(),
+    stopTorrents: vi.fn(),
+    startTorrents: vi.fn(),
+    deleteTorrents: vi.fn(),
+    recheckTorrents: vi.fn(),
+    reannounceTorrents: vi.fn(),
+    setSpeedLimits: vi.fn(),
+  }
 })
 
 vi.mock('../api/tmdb', async (importOriginal) => {
@@ -298,6 +314,112 @@ describe('DownloadsScreen', () => {
     await userEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
     expect(api.deleteTorrents).toHaveBeenCalledWith(['andor'], false)
     expect(await screen.findByText('Torrent deleted')).toBeInTheDocument()
+  })
+
+  it('reannounces a torrent from the row menu, and rechecks it after confirmation', async () => {
+    vi.mocked(api.recheckTorrents).mockResolvedValue()
+    vi.mocked(api.reannounceTorrents).mockResolvedValue()
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' }))
+    // A hidden page doesn't poll, so only the screen's own refresh can bring qBittorrent's next answer.
+    stopPolling()
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Reannounce' }))
+    expect(api.reannounceTorrents).toHaveBeenCalledWith(['andor'])
+    expect(await screen.findByRole('status')).toHaveTextContent('Announced to the trackers')
+
+    await userEvent.click(screen.getByRole('button', { name: 'More actions: Andor.S02.1080p' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Force recheck' }))
+    const confirm = screen.getByRole('alertdialog', { name: 'Recheck the files?' })
+    // The list asks qBittorrent again right after the recheck, so the row shows Checking without a poll.
+    getMainData.mockResolvedValue({
+      ...SNAPSHOT,
+      torrents: { ...SNAPSHOT.torrents, andor: { ...SNAPSHOT.torrents!.andor, state: 'checkingUP' } },
+    })
+    await userEvent.click(within(confirm).getByRole('button', { name: 'Force recheck' }))
+    expect(api.recheckTorrents).toHaveBeenCalledWith(['andor'])
+    expect(await screen.findByRole('status')).toHaveTextContent('Checking the files')
+    const andor = screen.getByRole('link', { name: /Andor\.S02\.1080p/ }).closest('li')!
+    expect(await within(andor).findByText('Checking', { exact: true })).toBeInTheDocument()
+  })
+
+  it('drops a recheck confirmation whose torrent went away, so it doesn’t open again when the torrent is back', async () => {
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Force recheck' }))
+    expect(screen.getByRole('alertdialog', { name: 'Recheck the files?' })).toBeInTheDocument()
+
+    const { andor, ...others } = SNAPSHOT.torrents!
+    getMainData.mockResolvedValue({ ...SNAPSHOT, torrents: others })
+    window.dispatchEvent(new Event('online'))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'More actions: Andor.S02.1080p' })).not.toBeInTheDocument())
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+
+    getMainData.mockResolvedValue({ ...SNAPSHOT, torrents: { ...others, andor } })
+    window.dispatchEvent(new Event('online'))
+    expect(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' })).toBeInTheDocument()
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+  })
+
+  it('sets a torrent’s speed limits from the row menu, and asks qBittorrent again right away', async () => {
+    vi.mocked(api.setSpeedLimits).mockResolvedValue()
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' }))
+    // A hidden page doesn't poll, so only the screen's own refresh can bring qBittorrent's next answer.
+    stopPolling()
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Speed limits' }))
+    const sheet = screen.getByRole('dialog', { name: 'Speed limits' })
+    expect(within(sheet).getByText('Andor.S02.1080p')).toBeInTheDocument()
+    await userEvent.type(within(sheet).getByRole('textbox', { name: 'Download limit, MB/s' }), '2')
+    getMainData.mockResolvedValue({
+      ...SNAPSHOT,
+      torrents: { ...SNAPSHOT.torrents, andor: { ...SNAPSHOT.torrents!.andor, dl_limit: 2_000_000 } },
+    })
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save limits' }))
+    expect(api.setSpeedLimits).toHaveBeenCalledWith(['andor'], { download: 2_000_000, upload: undefined })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    // Opened again, the sheet starts from the limit qBittorrent now reports.
+    await userEvent.click(screen.getByRole('button', { name: 'More actions: Andor.S02.1080p' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Speed limits' }))
+    expect(await screen.findByRole('textbox', { name: 'Download limit, MB/s' })).toHaveValue('2')
+  })
+
+  it('keeps the speed limits open when the title confirmation sent before them comes back', async () => {
+    searchTitles.mockImplementation(async (query) => ({
+      titles: query === 'Dune Part Two' ? [DUNE_TITLE] : [],
+      page: 1,
+      totalPages: 1,
+    }))
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' }))
+    let saved = () => {}
+    vi.mocked(matchesApi.saveMatches).mockImplementation(
+      (changes) => new Promise((resolve) => (saved = () => resolve(changes as matchesApi.Matches))),
+    )
+    const actions = screen.getByRole('dialog', { name: 'Dune: Part Two' })
+    await userEvent.click(within(actions).getByRole('button', { name: 'Yes, right' }))
+    await userEvent.click(within(actions).getByRole('button', { name: 'Speed limits' }))
+    saved()
+    expect(await screen.findByText('Match confirmed')).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Speed limits' })).toBeInTheDocument()
+  })
+
+  it('drops the speed limits whose torrent went away, so they don’t open again when the torrent is back', async () => {
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Speed limits' }))
+    expect(screen.getByRole('dialog', { name: 'Speed limits' })).toBeInTheDocument()
+
+    const { andor, ...others } = SNAPSHOT.torrents!
+    getMainData.mockResolvedValue({ ...SNAPSHOT, torrents: others })
+    window.dispatchEvent(new Event('online'))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'More actions: Andor.S02.1080p' })).not.toBeInTheDocument())
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    getMainData.mockResolvedValue({ ...SNAPSHOT, torrents: { ...others, andor } })
+    window.dispatchEvent(new Event('online'))
+    expect(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
   it('asks in the row menu whether a guessed title is right, and saves the confirmation', async () => {

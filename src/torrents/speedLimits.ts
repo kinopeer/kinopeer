@@ -6,10 +6,16 @@ const MAX_LIMIT = 2_147_483_647
 
 /** A limit in bytes/s as the field's text, with the language's decimal separator: empty when there
  *  is none. Three decimals keep qBittorrent's smallest limit, 1 KiB/s, from showing as 0. */
-export function limitToField(bytes: number, language: string): string {
-  if (bytes <= 0) return ''
+export function limitToField(bytes: number | undefined, language: string): string {
+  // Also when qBittorrent doesn't report it, so the field doesn't show NaN.
+  if (!(bytes !== undefined && bytes > 0)) return ''
   const value = Math.max(0.001, Math.round((bytes / MB) * 1000) / 1000)
   return value.toLocaleString(language, { maximumFractionDigits: 3, useGrouping: false })
+}
+
+/** A lone decimal separator: the start of a decimal like `,5`, not a number yet but no mistake either. */
+export function isUnfinished(text: string): boolean {
+  return /^[.,]$/.test(text.trim())
 }
 
 /** The field's text as bytes/s: 0 for an empty field or 0, null when it isn't a decimal number or

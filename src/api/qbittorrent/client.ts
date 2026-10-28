@@ -177,6 +177,16 @@ export async function setSpeedLimits(hashes: string[], limits: { download?: numb
   if (failed) throw failed.reason
 }
 
+/** Rechecks torrents' downloaded data against their hashes; qBittorrent shows them as checking meanwhile. */
+export async function recheckTorrents(hashes: string[]): Promise<void> {
+  await request('/torrents/recheck', { method: 'POST', params: { hashes: hashes.join('|') } })
+}
+
+/** Announces torrents to all their trackers right away, without waiting for the next interval. */
+export async function reannounceTorrents(hashes: string[]): Promise<void> {
+  await request('/torrents/reannounce', { method: 'POST', params: { hashes: hashes.join('|') } })
+}
+
 /** Removes torrents from qBittorrent, and with `deleteFiles` their downloaded data too. */
 export async function deleteTorrents(hashes: string[], deleteFiles: boolean): Promise<void> {
   await request('/torrents/delete', { method: 'POST', params: { hashes: hashes.join('|'), deleteFiles } })
