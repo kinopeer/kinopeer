@@ -189,7 +189,7 @@ describe('App', () => {
     )
 
     it('keeps Downloads mounted when a torrent opens in the drawer over it', async () => {
-      const torrent = { name: 'Dune.Part.Two.2024.2160p.WEB-DL', state: 'downloading', progress: 0.5, size: 1e9, priority: 1, ratio: 0 }
+      const torrent = { name: 'Dune.Part.Two.2024.2160p.WEB-DL', state: 'downloading', progress: 0.5, size: 1e9, priority: 1, ratio: 0 } as const
       getMainData.mockResolvedValue({ rid: 1, full_update: true, torrents: { dune: torrent }, server_state: {} })
       renderApp('/')
       const heading = await screen.findByRole('heading', { name: 'Downloads', level: 1 })
