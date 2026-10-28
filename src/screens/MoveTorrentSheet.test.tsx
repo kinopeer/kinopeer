@@ -28,6 +28,7 @@ beforeEach(() => {
   vi.mocked(api.getCategories).mockResolvedValue([
     { name: 'Movies', savePath: '/media/movies' },
     { name: 'Other', savePath: '' },
+    { name: 'Misc', savePath: '/downloads/' },
   ])
   setTorrentLocation.mockResolvedValue()
 })
