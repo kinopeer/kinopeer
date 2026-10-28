@@ -14,21 +14,16 @@ export interface SpeedLimitsChange {
   upload?: number
 }
 
-/** Which fields a failed save sent: qBittorrent may have taken them. */
-export interface SentLimits {
-  download: boolean
-  upload: boolean
-}
-
 export interface SpeedLimitsSheetProps {
   torrent: Torrent
   title: string
   /** qBittorrent is unreachable: the fields stay editable, saving waits until it answers. */
   offline: boolean
-  /** A save for this torrent is in flight, from this sheet or one closed before it opened. */
-  saving: boolean
-  /** The last save failed, having sent these fields. */
-  failure?: SentLimits
+  /** The limits being saved for this torrent, from this sheet or one closed before it opened, which
+   *  this one then starts from. */
+  pending?: SpeedLimitsChange
+  /** The last save failed, having sent these limits: qBittorrent may have taken some. */
+  failure?: SpeedLimitsChange
   /** Sends the changed limits; the screen closes the sheet once qBittorrent took them. */
   onSave: (limits: SpeedLimitsChange) => void
   /** Closed without saving: dismissed, or nothing changed. */
@@ -39,7 +34,7 @@ type Direction = 'download' | 'upload'
 const DIRECTIONS: Direction[] = ['download', 'upload']
 
 /** Download and upload speed limits of one torrent; an empty field means no limit. */
-export function SpeedLimitsSheet({ torrent, title, offline, saving, failure, onSave, onClose }: SpeedLimitsSheetProps) {
+export function SpeedLimitsSheet({ torrent, title, offline, pending, failure, onSave, onClose }: SpeedLimitsSheetProps) {
   const { t, i18n } = useTranslation()
   // What the fields showed when the sheet opened: an unchanged field isn't sent.
   const language = i18n.resolvedLanguage ?? i18n.language
@@ -47,11 +42,16 @@ export function SpeedLimitsSheet({ torrent, title, offline, saving, failure, onS
     download: limitToField(torrent.dl_limit, language),
     upload: limitToField(torrent.up_limit, language),
   }))
-  const [text, setText] = useState(initial)
+  // Opened while a save is in flight, the fields show what it sends, as the sheet that sent it did.
+  const [text, setText] = useState(() => ({
+    download: pending?.download === undefined ? initial.download : limitToField(pending.download, language),
+    upload: pending?.upload === undefined ? initial.upload : limitToField(pending.upload, language),
+  }))
+  const saving = pending !== undefined
   // A field a failed save sent goes out again even when its text is back as it was, since
   // qBittorrent may have taken it.
-  const download = changedLimit(initial.download, text.download, failure?.download)
-  const upload = changedLimit(initial.upload, text.upload, failure?.upload)
+  const download = changedLimit(initial.download, text.download, failure?.download !== undefined)
+  const upload = changedLimit(initial.upload, text.upload, failure?.upload !== undefined)
   const limits = { download, upload }
   const valid = download !== null && upload !== null
   const invalid = t('limits.invalid', { min: MIN_MB.toLocaleString(language), max: MAX_MB })

@@ -10,7 +10,7 @@ describe('SpeedLimitsSheet', () => {
   function renderSheet(fields = {}, props: Partial<SpeedLimitsSheetProps> = {}) {
     const handlers = { onClose: vi.fn(), onSave: vi.fn() }
     renderWithRouter(
-      <SpeedLimitsSheet torrent={torrent('h1', fields)} title="Inception" offline={false} saving={false} {...handlers} {...props} />,
+      <SpeedLimitsSheet torrent={torrent('h1', fields)} title="Inception" offline={false} {...handlers} {...props} />,
     )
     return handlers
   }
@@ -42,8 +42,7 @@ describe('SpeedLimitsSheet', () => {
   })
 
   it("disables Save while the limits are being saved, so they aren't sent twice", async () => {
-    const handlers = renderSheet({}, { saving: true })
-    await userEvent.type(screen.getByRole('textbox', { name: 'Download limit, MB/s' }), '3')
+    const handlers = renderSheet({}, { pending: { download: 3_000_000 } })
     expect(screen.getByRole('button', { name: /Save limits/ })).toBeDisabled()
     // Neither a click nor Enter in a field sends them while a save is in flight.
     await userEvent.click(screen.getByRole('button', { name: /Save limits/ }))
@@ -52,11 +51,18 @@ describe('SpeedLimitsSheet', () => {
   })
 
   it('sends again the limits a failed save sent, so one that did go through can be put back', async () => {
-    // The download limit was 1 MB/s; a save sent both fields and failed, maybe after taking one.
-    const handlers = renderSheet({ dl_limit: 1_000_000 }, { failure: { download: true, upload: true } })
+    // The download limit was 1 MB/s; a save sent 2 and 3 MB/s and failed, maybe after taking one.
+    const handlers = renderSheet({ dl_limit: 1_000_000 }, { failure: { download: 2_000_000, upload: 3_000_000 } })
     expect(screen.getByRole('textbox', { name: 'Download limit, MB/s' })).toHaveValue('1')
     await userEvent.click(screen.getByRole('button', { name: 'Save limits' }))
     expect(handlers.onSave).toHaveBeenCalledWith({ download: 1_000_000, upload: 0 })
+  })
+
+  it('starts from the limits being saved when opened while a save is in flight, as the sheet that sent them did', () => {
+    renderSheet({ dl_limit: 1_000_000, up_limit: 300_000 }, { pending: { download: 5_000_000, upload: 0 } })
+    expect(screen.getByRole('textbox', { name: 'Download limit, MB/s' })).toHaveValue('5')
+    expect(screen.getByRole('textbox', { name: 'Upload limit, MB/s' })).toHaveValue('')
+    expect(screen.getByRole('button', { name: /Save limits/ })).toBeDisabled()
   })
 
   it('removes a limit when its field is cleared', async () => {
@@ -105,7 +111,7 @@ describe('SpeedLimitsSheet', () => {
   })
 
   it('says a failed save failed, and lets it be tried again', () => {
-    renderSheet({}, { failure: { download: true, upload: false } })
+    renderSheet({}, { failure: { download: 2_000_000 } })
     expect(screen.getByText(/Couldn’t save the limits, or saved only some/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Save limits' })).toBeEnabled()
   })

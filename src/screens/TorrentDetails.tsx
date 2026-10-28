@@ -75,8 +75,10 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
 
   const torrents = useMemo(() => (torrent ? [torrent] : []), [torrent])
   const match = useTitleMatches(torrents)[hash]
+  // Only this screen's torrent, so its title is the one the sheet and a failure's toast name.
+  const own = useMemo(() => (data ? (torrent ? { [hash]: torrent } : {}) : undefined), [data, torrent, hash])
   const titleOf = (item: Torrent) => match?.title ?? item.name
-  const limits = useSpeedLimits({ torrents: data?.torrents, offline, refresh, titleOf })
+  const limits = useSpeedLimits({ torrents: own, offline, refresh, titleOf })
   const stored = useServerMatches()?.[hash]
   const language = useTmdbLanguage()
 

@@ -1,24 +1,30 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Torrent } from '../api/qbittorrent'
 
-export interface TorrentSheet {
+/** How a request settled, and whether a sheet still showed its torrent then (else the outcome is
+ *  said elsewhere, in a toast). */
+export type Settled = { showing: boolean } & ({ ok: true } | { ok: false; error: unknown })
+
+export interface TorrentSheet<Payload> {
   /** The torrent the sheet shows, while it's open and its torrent is among the screen's. */
   torrent: Torrent | undefined
   /** Opens the sheet for a torrent among the screen's. */
   open: (hash: string) => void
   close: () => void
-  /** Whether a sheet shows this torrent now, for a request it sent that settles later: the sheet
-   *  may have been closed, or its torrent gone or replaced by another with the same hash. */
-  showing: (target: Torrent) => boolean
+  /** What's being sent for a torrent, while it is: a sheet for it, opened again or not, shows it busy. */
+  pending: (hash: string) => Payload | undefined
+  /** Sends a request for a torrent, which outlives the sheet, and says how it settled. */
+  send: (target: Torrent, payload: Payload, request: () => Promise<void>) => Promise<Settled>
 }
 
 /**
- * Which torrent a screen's per-torrent sheet (Move files, Speed limits) is open for. The sheet closes
- * when its torrent goes away or another torrent with the same hash replaces it, and stays closed when
- * that torrent comes back. A request the sheet sends outlives it, so the hook that sends it keeps
- * whether it's in flight and how it went, and asks `showing` where to say so.
+ * A screen's sheet for one of its torrents (Move files, Speed limits) and the requests it sends. The
+ * sheet closes when its torrent goes away or another torrent with the same hash replaces it, and
+ * stays closed when that torrent comes back. A request outlives the sheet: each torrent's stays
+ * pending until it settles, and then says whether a sheet still shows that torrent (the one that
+ * sent it or one opened since), so the feature knows where to say how it went.
  */
-export function useTorrentSheet(torrents: Record<string, Torrent> | undefined): TorrentSheet {
+export function useTorrentSheet<Payload>(torrents: Record<string, Torrent> | undefined): TorrentSheet<Payload> {
   // The torrent the sheet is open for, by when it was added: one re-added with the same hash is
   // another torrent, so the sheet doesn't come back for it.
   const [opened, setOpened] = useState<{ hash: string; addedOn: number } | null>(null)
@@ -27,8 +33,11 @@ export function useTorrentSheet(torrents: Record<string, Torrent> | undefined): 
   // Gone (deleted elsewhere) or replaced: forgotten, so the sheet doesn't open again when the same
   // torrent is back.
   if (opened && torrents && !torrent) setOpened(null)
-  // The torrent the sheet shows, read when a request settles: set as each render commits, before
-  // anything else can run, so a request never sees a sheet that's gone.
+  // What's being sent, by torrent: one request per torrent at a time, whichever sheet sent it.
+  const [inFlight, setInFlight] = useState<ReadonlyMap<string, Payload>>(() => new Map())
+  // The torrent the sheet shows, read when a request settles: set right away by open and close, which
+  // may run outside an event React renders at once (a sheet dragged away closes when its animation
+  // ends), and as each render commits, for a torrent that went away meanwhile.
   const shown = useRef<Torrent | undefined>(undefined)
   useLayoutEffect(() => {
     shown.current = torrent
@@ -45,14 +54,33 @@ export function useTorrentSheet(torrents: Record<string, Torrent> | undefined): 
     (hash: string) => {
       const next = torrents?.[hash]
       if (!next) return
+      shown.current = next
       setOpened({ hash, addedOn: next.added_on })
     },
     [torrents],
   )
-  const close = useCallback(() => setOpened(null), [])
-  const showing = useCallback(
-    (target: Torrent) => shown.current?.hash === target.hash && shown.current.added_on === target.added_on,
-    [],
-  )
-  return { torrent, open, close, showing }
+  const close = useCallback(() => {
+    shown.current = undefined
+    setOpened(null)
+  }, [])
+  const showing = (target: Torrent) =>
+    shown.current?.hash === target.hash && shown.current.added_on === target.added_on
+  const pending = (hash: string) => inFlight.get(hash)
+
+  const send = async (target: Torrent, payload: Payload, request: () => Promise<void>): Promise<Settled> => {
+    setInFlight((current) => new Map(current).set(target.hash, payload))
+    try {
+      await request()
+      return { ok: true, showing: showing(target) }
+    } catch (error) {
+      return { ok: false, error, showing: showing(target) }
+    } finally {
+      setInFlight((current) => {
+        const next = new Map(current)
+        next.delete(target.hash)
+        return next
+      })
+    }
+  }
+  return { torrent, open, close, pending, send }
 }

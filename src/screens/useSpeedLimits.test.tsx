@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
 import type { Torrent } from '../api/qbittorrent'
 import { torrent } from '../test/fixtures'
@@ -188,5 +188,92 @@ describe('useSpeedLimits', () => {
     await vi.waitFor(() => expect(refresh).toHaveBeenCalled())
     // A second tap would send alien's limits again.
     expect(within(alien).getByRole('button', { name: /Save limits/ })).toBeDisabled()
+  })
+
+  it('sends again the limits a failed save sent, though they were put back, since qBittorrent may have taken them', async () => {
+    // The download limit went from 1 to 2 MB/s and the upload one from none to 3; one request failed.
+    setSpeedLimits.mockRejectedValueOnce(new Error('upload')).mockResolvedValueOnce()
+    const { open } = renderLimits({ andor: { ...ANDOR, dl_limit: 1_000_000 } })
+    const sheet = await open()
+    const download = within(sheet).getByRole('textbox', { name: 'Download limit, MB/s' })
+    const upload = within(sheet).getByRole('textbox', { name: 'Upload limit, MB/s' })
+    await userEvent.clear(download)
+    await userEvent.type(download, '2')
+    await userEvent.type(upload, '3')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save limits' }))
+    expect(await within(sheet).findByText(/Couldn’t save the limits/)).toBeInTheDocument()
+
+    await userEvent.clear(download)
+    await userEvent.type(download, '1')
+    await userEvent.clear(upload)
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save limits' }))
+    expect(setSpeedLimits).toHaveBeenLastCalledWith(['andor'], { download: 1_000_000, upload: 0 })
+  })
+
+  it('starts a sheet opened again mid-save from the limits being saved, so a retry after a failure sends those', async () => {
+    const settle = pendingSave()
+    const { open, dismiss } = renderLimits({ andor: { ...ANDOR, dl_limit: 1_000_000 }, alien: ALIEN })
+    const first = await open()
+    const field = within(first).getByRole('textbox', { name: 'Download limit, MB/s' })
+    await userEvent.clear(field)
+    await userEvent.type(field, '5')
+    await userEvent.click(within(first).getByRole('button', { name: 'Save limits' }))
+    dismiss(first)
+    const again = await open()
+
+    setSpeedLimits.mockResolvedValueOnce()
+    settle.refused()
+    expect(await within(again).findByText(/Couldn’t save the limits/)).toBeInTheDocument()
+    await userEvent.click(within(again).getByRole('button', { name: 'Save limits' }))
+    // Not the 1 MB/s the torrent had when it was opened again, which would undo a part that went through.
+    expect(setSpeedLimits).toHaveBeenLastCalledWith(['andor'], { download: 5_000_000, upload: undefined })
+  })
+
+  it('keeps a torrent’s save pending after another torrent’s save started, so it isn’t sent twice', async () => {
+    const andorSave = pendingSave()
+    pendingSave()
+    const { open, save, dismiss } = renderLimits()
+    const andor = await open('andor')
+    await save(andor, '2')
+    dismiss(andor)
+    const alien = await open('alien')
+    await save(alien, '3')
+    dismiss(alien)
+    const again = await open('andor')
+    expect(within(again).getByRole('button', { name: /Save limits/ })).toBeDisabled()
+    andorSave.saved()
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+})
+
+describe('useSpeedLimits toasts', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('shows a toast its full time for each failure, though the title is the same as the last one’s', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    const { open, dismiss } = renderLimits()
+    const failAfterClosing = async () => {
+      const settle = pendingSave()
+      const sheet = await open()
+      await user.type(within(sheet).getByRole('textbox', { name: 'Download limit, MB/s' }), '2')
+      await user.click(within(sheet).getByRole('button', { name: 'Save limits' }))
+      dismiss(sheet)
+      settle.refused()
+      expect(await screen.findByRole('status')).toHaveTextContent(FAILED_CLOSED)
+    }
+    await failAfterClosing()
+    act(() => vi.advanceTimersByTime(3000))
+    await failAfterClosing()
+    // 5 s after the first failure, 2 s after the second: the toast stays for the second's 4 s.
+    act(() => vi.advanceTimersByTime(2000))
+    expect(screen.getByRole('status')).toHaveTextContent(FAILED_CLOSED)
+    act(() => vi.advanceTimersByTime(2500))
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 })

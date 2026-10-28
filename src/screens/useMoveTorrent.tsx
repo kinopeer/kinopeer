@@ -34,8 +34,7 @@ export function useMoveTorrent({ torrents, offline, refresh }: {
   /** After qBittorrent took the folder, so the screen shows it right away. */
   refresh: () => void
 }): MoveTorrent {
-  const { torrent, open: openSheet, close, showing } = useTorrentSheet(torrents)
-  const [sendingFor, setSendingFor] = useState<string | null>(null)
+  const { torrent, open: openSheet, close, pending, send } = useTorrentSheet<string>(torrents)
   const [failure, setFailure] = useState<MoveFailure>()
   const [outcome, setOutcome] = useState<MoveOutcome | null>(null)
   // The screen's own toast shows inside it (a drawer is a modal dialog, above anything outside it);
@@ -60,20 +59,16 @@ export function useMoveTorrent({ torrents, offline, refresh }: {
   const dismiss = useCallback(() => setOutcome(null), [])
 
   const move = async (target: Torrent, location: string) => {
-    setSendingFor(target.hash)
     setFailure(undefined)
-    try {
-      await setTorrentLocation([target.hash], location)
-      if (showing(target)) close()
+    const settled = await send(target, location, () => setTorrentLocation([target.hash], location))
+    if (settled.ok) {
+      if (settled.showing) close()
       report({ moved: location })
       refresh()
-    } catch (error) {
-      const key = failureKey(error)
-      if (showing(target)) setFailure(key)
+    } else {
+      const key = failureKey(settled.error)
+      if (settled.showing) setFailure(key)
       else report({ failed: key })
-    } finally {
-      // Another torrent's move may have started meanwhile, and is still being sent.
-      setSendingFor((current) => (current === target.hash ? null : current))
     }
   }
 
@@ -84,7 +79,7 @@ export function useMoveTorrent({ torrents, offline, refresh }: {
           key={torrent.hash}
           torrent={torrent}
           offline={offline}
-          sending={sendingFor === torrent.hash}
+          sending={pending(torrent.hash) !== undefined}
           failure={failure}
           onMove={(location) => void move(torrent, location)}
           onClose={close}
