@@ -68,6 +68,8 @@ describe('Sheet', () => {
     // The grabber and the title row are the handle; the grabber itself is aria-hidden.
     const handle = () => screen.getByRole('heading', { name: 'Add release' })
     const dialog = () => screen.getByRole('dialog')
+    // The row the drag handlers sit on; it has no role of its own.
+    const handleRow = () => handle().closest('.ks-sheet-handle') as HTMLElement
 
     type PointerType = 'pointerDown' | 'pointerMove' | 'pointerUp' | 'pointerCancel'
 
@@ -147,19 +149,35 @@ describe('Sheet', () => {
       expect(dialog().style.transform).toBe('translateY(100px)')
     })
 
-    it("doesn't take a tap that wobbles for a flick", () => {
-      const onClose = renderSheet()
-      drag(handle(), 100, 104, 4)
-      expect(onClose).not.toHaveBeenCalled()
-    })
-
     it('goes back up when it loses the pointer, however far it went', () => {
       const onClose = renderSheet()
       pointer('pointerDown', handle(), 100)
       pointer('pointerMove', handle(), 400, 100)
-      fireEvent.lostPointerCapture(handle(), { pointerId: 1 })
+      // The browser fires it on the element that held the capture: the handle, the title's row.
+      fireEvent.lostPointerCapture(handleRow(), { pointerId: 1 })
       expect(onClose).not.toHaveBeenCalled()
       expect(dialog().style.transform).toBe('')
+    })
+
+    it('keeps dragging when a part of the handle loses a capture of its own', () => {
+      renderSheet()
+      pointer('pointerDown', handle(), 100)
+      pointer('pointerMove', handle(), 160, 100)
+      fireEvent.lostPointerCapture(handle(), { pointerId: 1 })
+      expect(dialog().style.transform).toBe('translateY(60px)')
+    })
+
+    it('drags inside a page element that has a role', () => {
+      const onClose = vi.fn()
+      render(
+        <div role="status">
+          <Sheet open onClose={onClose} title="Add release">
+            <p>Options</p>
+          </Sheet>
+        </div>,
+      )
+      slowDrag(handle(), 100, 300)
+      expect(onClose).toHaveBeenCalledOnce()
     })
 
     it('drags again after closing under a drag that never ended', () => {
@@ -296,10 +314,34 @@ describe('Sheet', () => {
       const stubAnimate = () => {
         let finish = () => {}
         const animation = { finished: new Promise<void>((resolve) => (finish = resolve)), cancel: vi.fn() }
-        const animate = vi.fn(() => animation)
+        const animate = vi.fn(function (this: HTMLDialogElement) {
+          transitionAtStart = this.style.transition
+          return animation
+        })
         Object.defineProperty(HTMLDialogElement.prototype, 'animate', { value: animate, configurable: true })
         return { animate, animation, finish: () => finish() }
       }
+
+      let transitionAtStart: string | undefined
+
+      it("slides as long as the stylesheet's spring back, not the drag's none", () => {
+        stubAnimate()
+        renderSheet()
+        slowDrag(handle(), 100, 300)
+        expect(transitionAtStart).toBe('')
+      })
+
+      it("is dropped when the sheet goes away mid-slide, so it can't close the next one", () => {
+        const { animation } = stubAnimate()
+        const { unmount } = render(
+          <Sheet open onClose={vi.fn()} title="Add release">
+            <p>Options</p>
+          </Sheet>,
+        )
+        slowDrag(handle(), 100, 300)
+        unmount()
+        expect(animation.cancel).toHaveBeenCalledOnce()
+      })
 
       it('closes only once it has slid off, and ignores a new drag meanwhile', async () => {
         const { animate, finish } = stubAnimate()

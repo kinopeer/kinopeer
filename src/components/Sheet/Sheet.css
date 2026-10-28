@@ -36,8 +36,8 @@
 }
 
 /* The grabber and the title row: dragging it down on a phone closes the sheet, so the browser
-   doesn't scroll under that finger. The subtitle (a torrent's or a release's name) stays
-   selectable; the title doesn't, so a drag from it doesn't select it. */
+   doesn't scroll under that finger. Its text (the subtitle is a torrent's or a release's name)
+   stays selectable except while it's being dragged. */
 .ks-sheet-handle {
   display: flex;
   flex-direction: column;
@@ -45,7 +45,8 @@
   touch-action: none;
 }
 
-.ks-sheet-handle h2 {
+.ks-sheet-handle.is-dragging,
+.ks-sheet-handle.is-dragging * {
   -webkit-user-select: none;
   user-select: none;
 }
@@ -128,10 +129,6 @@
     touch-action: auto;
   }
 
-  .ks-sheet-handle h2 {
-    -webkit-user-select: auto;
-    user-select: auto;
-  }
 
   .ks-sheet-head {
     padding: var(--space-5) var(--space-4) var(--space-2) var(--space-6);
