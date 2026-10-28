@@ -41,7 +41,7 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 - [x] Settings → Connections: "Test" on a card checks only that connection, not all three.
 - [ ] Interface language: a "System" option that follows the browser's language, like the system theme.
 - [x] Search: rows of what's likely on torrents already ("New on digital", "New episodes", "Best of the year") from TMDB's release dates, in place of the trending and popular rows, which are mostly too new to be on trackers yet.
-- [ ] Releases: the quality filters are remembered in the browser.
+- [x] Releases: the quality filters are remembered in the browser.
 - [x] Adding: a warning when the files picked don't fit in qBittorrent's free space.
 
 ## 0.7: Search and discovery

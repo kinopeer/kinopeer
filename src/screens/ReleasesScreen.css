@@ -43,6 +43,14 @@
   margin-bottom: var(--space-3);
 }
 
+.rel-aside {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
 .rel-count {
   margin-bottom: var(--space-3);
 }

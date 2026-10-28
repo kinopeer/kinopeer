@@ -206,21 +206,38 @@ describe('ReleasesScreen', () => {
       expect(names()).toEqual([DUNE_RELEASES[0].title, DUNE_RELEASES[1].title])
     })
 
-    it('sets aside a remembered filter no release has, and keeps it through a pick in another filter', async () => {
+    it('sets aside a remembered value no release has, and keeps it through a pick in the same filter', async () => {
       updateSettings({ releaseFilters: { resolution: ['2160p'], audio: [], source: [], minSeeds: 0 } })
       searchReleases.mockResolvedValue([DUNE_RELEASES[1], DUNE_RELEASES[2]])
       const first = renderAt('/title/movie/693134/releases')
       expect(await screen.findByText('2 of 2 releases')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Filters' })).toHaveAttribute('aria-pressed', 'false')
       await userEvent.click(screen.getByRole('button', { name: 'Filters' }))
-      await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '10+' }))
+      await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '1080p' }))
+      first.unmount()
+
+      searchReleases.mockResolvedValue(DUNE_RELEASES)
+      renderAt('/title/tv/1396/releases')
+      expect(await screen.findByText('2 of 3 releases')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Remove filter 2160p' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Remove filter 1080p' })).toBeInTheDocument()
+    })
+
+    it('forgets only the remembered filters set aside on Forget', async () => {
+      updateSettings({ releaseFilters: { resolution: ['2160p'], audio: ['dub'], source: [], minSeeds: 0 } })
+      searchReleases.mockResolvedValue([DUNE_RELEASES[1], DUNE_RELEASES[2]])
+      const first = renderAt('/title/movie/693134/releases')
+      expect(await screen.findByText('Remembered filters not applied: 2160p')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Remove filter Dubbed' })).toBeInTheDocument()
+      await userEvent.click(screen.getByRole('button', { name: 'Forget' }))
+      expect(screen.queryByText(/^Remembered filters not applied/)).not.toBeInTheDocument()
       first.unmount()
 
       searchReleases.mockResolvedValue(DUNE_RELEASES)
       renderAt('/title/tv/1396/releases')
       expect(await screen.findByText('1 of 3 releases')).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Remove filter 2160p' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Remove filter 10+ seeds' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Remove filter Dubbed' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Remove filter 2160p' })).not.toBeInTheDocument()
     })
 
     it('forgets the filters on Clear all, and keeps the sort', async () => {

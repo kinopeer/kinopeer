@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import { DEFAULT_SORT, NO_FILTERS } from '../releases/filterReleases'
+import { DEFAULT_SORT, NO_FILTERS, NO_REMEMBERED_FILTERS } from '../releases/filterReleases'
 import { parseRelease } from '../releases/parseRelease'
 import { DUNE_RELEASES } from '../test/fixtures'
 import { ReleasesBody } from './ReleasesBlock'
@@ -21,6 +21,8 @@ function releases(fields: Partial<Releases> = {}): Releases {
     updateFilters: vi.fn(),
     clearFilters: vi.fn(),
     active: [],
+    aside: NO_REMEMBERED_FILTERS,
+    forgetAside: vi.fn(),
     sort: DEFAULT_SORT,
     setSort: vi.fn(),
     audioLabel: (value) => value,
@@ -93,6 +95,15 @@ describe('ReleasesBody', () => {
     expect(search.updateFilters).toHaveBeenCalledWith({ resolution: [] })
     await userEvent.click(screen.getByRole('button', { name: 'Clear all' }))
     expect(search.clearFilters).toHaveBeenCalledOnce()
+  })
+
+  it('names the remembered filters the search sets aside, and forgets them on Forget', async () => {
+    const search = releases({ aside: { resolution: ['2160p'], audio: ['dub'], source: [], minSeeds: 100 }, audioLabel: () => 'Dubbed' })
+    renderBody(search)
+    expect(screen.getByText('Remembered filters not applied: 2160p, Dubbed, 100+ seeds')).toBeInTheDocument()
+    expect(screen.getByText('The list')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Forget' }))
+    expect(search.forgetAside).toHaveBeenCalledOnce()
   })
 
   it('shows no filter row without picked filters', () => {

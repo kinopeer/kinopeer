@@ -51,6 +51,7 @@ export function ReleasesBody({ releases, skeleton, children }: ReleasesBodyProps
   }
   return (
     <>
+      <SetAsideFilters releases={releases} />
       <ActiveFilters releases={releases} />
       {releases.visible.length > 0 ? (
         children
@@ -82,6 +83,27 @@ function ActiveFilters({ releases }: { releases: Releases }) {
       ))}
       <Button variant="ghost" size="sm" onClick={releases.clearFilters}>
         {t('releases.clearAll')}
+      </Button>
+    </div>
+  )
+}
+
+/** The remembered filters this search doesn't apply, and Forget. */
+function SetAsideFilters({ releases }: { releases: Releases }) {
+  const { t } = useTranslation()
+  const { aside, audioLabel } = releases
+  const labels = [
+    ...aside.resolution,
+    ...aside.audio.map(audioLabel),
+    ...aside.source,
+    ...(aside.minSeeds ? [t('releases.seedsPlus', { count: aside.minSeeds })] : []),
+  ]
+  if (!labels.length) return null
+  return (
+    <div className="rel-aside">
+      <p className="t-cap c3">{t('releases.setAside', { filters: labels.join(', ') })}</p>
+      <Button variant="ghost" size="sm" onClick={releases.forgetAside}>
+        {t('releases.forget')}
       </Button>
     </div>
   )

@@ -1,0 +1,35 @@
+import { act, renderHook, waitFor } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import * as prowlarr from '../api/prowlarr'
+import type { MovieDetails } from '../api/tmdb'
+import type { TitleDetails } from '../releases/releaseQuery'
+import { resetSettings } from '../settings/settings'
+import { DUNE_RELEASES } from '../test/fixtures'
+import { useReleases } from './useReleases'
+
+vi.mock('../api/prowlarr', async (importOriginal) => {
+  const actual = await importOriginal<typeof prowlarr>()
+  return { ...actual, searchReleases: vi.fn() }
+})
+
+const movie = (id: number, title: string): TitleDetails =>
+  ({ type: 'movie', id, title, original_title: title, release_date: '2024-02-27' }) as { type: 'movie' } & MovieDetails
+
+beforeEach(() => {
+  vi.resetAllMocks()
+  resetSettings()
+  vi.mocked(prowlarr.searchReleases).mockResolvedValue(DUNE_RELEASES)
+})
+
+describe('useReleases', () => {
+  it("starts another title's search without the last one's picks", async () => {
+    const { result, rerender } = renderHook(({ details }) => useReleases(details), { initialProps: { details: movie(1, 'Dune') } })
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    act(() => result.current.updateFilters({ indexer: ['RuTracker'] }))
+    expect(result.current.filters.indexer).toEqual(['RuTracker'])
+
+    rerender({ details: movie(2, 'Arrival') })
+    await waitFor(() => expect(prowlarr.searchReleases).toHaveBeenCalledWith('Arrival 2024', expect.anything()))
+    expect(result.current.filters.indexer).toEqual([])
+  })
+})

@@ -5,17 +5,20 @@ import { useRequest } from '../lib/useRequest'
 import {
   NO_FILTERS,
   NO_REMEMBERED_FILTERS,
+  applied,
   filterReleases,
   knownReleaseFilters,
   knownReleaseSort,
   presentValues,
   remember,
+  setAside,
   startingFilters,
   toggle,
   type AudioFilter,
   type Filters,
   type PresentValues,
   type ReleaseRow,
+  type RememberedFilters,
   type Sort,
 } from '../releases/filterReleases'
 import { parseRelease } from '../releases/parseRelease'
@@ -55,6 +58,10 @@ export interface Releases {
   updateFilters: (change: Partial<Filters>) => void
   clearFilters: () => void
   active: ActiveFilter[]
+  /** Remembered filters this search doesn't apply, because no release (or none together) meets them. */
+  aside: RememberedFilters
+  /** Forgets the remembered filters this search doesn't apply. */
+  forgetAside: () => void
   sort: Sort
   setSort: (sort: Sort) => void
   audioLabel: (value: AudioFilter) => string
@@ -72,26 +79,29 @@ export interface Releases {
 export function useReleases(details: TitleDetails | undefined, enabled = true): Releases {
   const { t } = useTranslation()
   const query = details && enabled ? releaseQuery(details) : null
-  const search = useRequest<Release[]>(query ? `${details!.type}|${query}` : null, (signal) =>
+  const key = query ? `${details!.type}|${query}` : null
+  const search = useRequest<Release[]>(key, (signal) =>
     // No category filter: some indexers (RuTor) file every release under "Other".
     searchReleases(query!, { signal }),
   )
 
   const [settings, updateSettings] = useSettings()
-  // Undefined until the user changes a filter in this search; till then they follow the remembered ones.
-  const [picked, setPicked] = useState<Filters>()
+  // Unset until the user changes a filter in this search; till then they follow the remembered ones.
+  const [picked, setPicked] = useState<{ key: string | null; filters: Filters }>()
   const [adding, setAdding] = useState<ReleaseRow>()
 
   const rows = useMemo<ReleaseRow[]>(
     () => (search.data ?? []).map((release) => ({ release, info: parseRelease(release.title) })),
     [search.data],
   )
+  const present = useMemo(() => presentValues(rows), [rows])
   const remembered = useMemo(() => knownReleaseFilters(settings.releaseFilters), [settings.releaseFilters])
-  const starting = useMemo(() => startingFilters(remembered, rows), [remembered, rows])
-  const filters = picked ?? starting
+  const starting = useMemo(() => startingFilters(remembered, rows, present), [remembered, rows, present])
+  // Picks from another search (another title) don't carry over.
+  const filters = picked?.key === key ? picked.filters : starting
   const sort = useMemo(() => knownReleaseSort(settings.releaseSort), [settings.releaseSort])
   const visible = useMemo(() => filterReleases(rows, filters, sort), [rows, filters, sort])
-  const present = useMemo(() => presentValues(rows), [rows])
+  const aside = useMemo(() => setAside(remembered, filters), [remembered, filters])
 
   const audioLabel = (value: AudioFilter) => t(AUDIO_LABEL[value])
   const active: ActiveFilter[] = [
@@ -123,14 +133,16 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
     present,
     filters,
     updateFilters: (change) => {
-      setPicked({ ...filters, ...change })
-      updateSettings({ releaseFilters: remember(remembered, change) })
+      setPicked({ key, filters: { ...filters, ...change } })
+      updateSettings({ releaseFilters: remember(remembered, change, present) })
     },
     clearFilters: () => {
-      setPicked(NO_FILTERS)
+      setPicked({ key, filters: NO_FILTERS })
       updateSettings({ releaseFilters: NO_REMEMBERED_FILTERS })
     },
     active,
+    aside,
+    forgetAside: () => updateSettings({ releaseFilters: applied(remembered, filters) }),
     sort,
     setSort: (releaseSort) => updateSettings({ releaseSort }),
     audioLabel,
