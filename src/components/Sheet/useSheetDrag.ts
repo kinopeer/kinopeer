@@ -5,18 +5,22 @@ import { shouldClose } from './sheetDrag'
 const CONTROLS = 'button, a, input, select, textarea, label, summary, [role]'
 /** Px a pointer moves before it's a drag rather than a press (a long-press still selects text). */
 const DRAG_SLOP = 4
+/** Ms of moves the release speed is measured over, so one jittery pair of events isn't a flick. */
+const SPEED_WINDOW = 80
 
 interface Drag {
   pointerId: number
+  /** Where the pointer went down, for the slop. */
+  downY: number
+  /** Where a drag from the sheet's resting place would have started (the sheet may be mid-spring). */
   startY: number
   y: number
   time: number
-  /** Px/ms, from the last two samples. */
-  speed: number
+  /** The moves within the last SPEED_WINDOW ms, oldest first. */
+  samples: { y: number; time: number }[]
   /** Moved past the slop: selection is off and any started selection is cleared. */
   moving: boolean
 }
-
 type Handler = (event: PointerEvent<HTMLElement>) => void
 
 export interface SheetDrag {
@@ -41,7 +45,8 @@ export interface SheetDrag {
  * Dragging a sheet down by its handle: the drag follows the finger inline, the spring back is the
  * stylesheet's transition and the slide off the screen a Web Animation of the same length, after
  * which `onClose` runs. A parent that keeps the sheet open (its next render still has `open`) gets
- * it back in view.
+ * it back in view. So `onClose` closes it with a plain state update, as every caller does: one that
+ * closes later (in a transition, after an await) sees it come back before it goes.
  */
 export function useSheetDrag(
   ref: RefObject<HTMLDialogElement | null>,
@@ -94,10 +99,11 @@ export function useSheetDrag(
     const offset = currentOffset(dialog)
     drag.current = {
       pointerId: event.pointerId,
+      downY: event.clientY,
       startY: event.clientY - offset,
       y: event.clientY,
       time: event.timeStamp,
-      speed: 0,
+      samples: [{ y: event.clientY, time: event.timeStamp }],
       moving: false,
     }
     event.currentTarget.setPointerCapture?.(event.pointerId)
@@ -109,13 +115,13 @@ export function useSheetDrag(
     const current = drag.current
     const dialog = ref.current
     if (!current || !dialog || event.pointerId !== current.pointerId) return
-    if (!current.moving && Math.abs(event.clientY - current.y) >= DRAG_SLOP) {
+    if (!current.moving && Math.abs(event.clientY - current.downY) >= DRAG_SLOP) {
       current.moving = true
       event.currentTarget.classList.add('is-dragging')
       window.getSelection?.()?.removeAllRanges()
     }
-    const elapsed = event.timeStamp - current.time
-    if (elapsed > 0) current.speed = (event.clientY - current.y) / elapsed
+    current.samples.push({ y: event.clientY, time: event.timeStamp })
+    while (current.samples.length > 2 && event.timeStamp - current.samples[0].time > SPEED_WINDOW) current.samples.shift()
     current.y = event.clientY
     current.time = event.timeStamp
     dialog.style.transform = `translateY(${Math.max(0, current.y - current.startY)}px)`
@@ -132,7 +138,7 @@ export function useSheetDrag(
     end(event.currentTarget)
     const release = {
       distance: current.y - current.startY,
-      speed: current.speed,
+      speed: speedOf(current.samples),
       idle: event.timeStamp - current.time,
       height: dialog.offsetHeight,
     }
@@ -179,19 +185,27 @@ export function useSheetDrag(
 function slide(dialog: HTMLDialogElement): Animation | null {
   if (typeof dialog.animate !== 'function') return null
   const style = getComputedStyle(dialog)
-  // As long as the spring back: the sheet's own transition, which the browser reports in seconds
-  // whatever unit the token uses, and which reduced motion already cuts to almost nothing.
-  const duration = parseFloat(style.transitionDuration) * 1000
   try {
     return dialog.animate([{ transform: dialog.style.transform }, { transform: 'translateY(100%)' }], {
-      duration: Number.isFinite(duration) ? duration : 0,
+      // As long as the spring back: the sheet's own transition, which the browser reports in seconds
+      // whatever unit the token uses, and which reduced motion already cuts to almost nothing.
+      duration: parseFloat(style.transitionDuration) * 1000,
       easing: style.getPropertyValue('--ease-in').trim() || 'ease-in',
       fill: 'forwards',
     })
   } catch {
-    // An easing the browser can't parse: close without the slide rather than hang halfway down.
+    // An easing or a duration the browser can't take: close without the slide rather than hang
+    // halfway down.
     return null
   }
+}
+
+/** Px/ms down over the samples kept: from the oldest to the newest. */
+function speedOf(samples: Drag['samples']): number {
+  const first = samples[0]
+  const last = samples[samples.length - 1]
+  const elapsed = last.time - first.time
+  return elapsed > 0 ? (last.y - first.y) / elapsed : 0
 }
 
 function isCssAnimation(animation: Animation): boolean {

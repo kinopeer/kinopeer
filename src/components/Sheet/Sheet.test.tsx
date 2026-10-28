@@ -6,6 +6,7 @@ import { Sheet } from './Sheet'
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
 })
 
 const renderSheet = (props: Partial<Parameters<typeof Sheet>[0]> = {}) => {
@@ -76,7 +77,8 @@ describe('Sheet', () => {
     // fireEvent can't set timeStamp, which the flick's speed is measured from.
     const pointer = (type: PointerType, target: Element, clientY: number, timeStamp = 0, init: { pointerId?: number; button?: number } = {}) => {
       const event = createEvent[type](target, { pointerId: 1, button: 0, clientY, ...init })
-      Object.defineProperty(event, 'timeStamp', { value: timeStamp })
+      // From 1s on: React reads a timeStamp of 0 as missing and takes Date.now() instead.
+      Object.defineProperty(event, 'timeStamp', { value: 1000 + timeStamp })
       fireEvent(target, event)
     }
 
@@ -115,12 +117,13 @@ describe('Sheet', () => {
       expect(onClose).toHaveBeenCalledOnce()
     })
 
-    it('needs 30% of its height when that is further than the fixed distance', () => {
+    it('needs a share of its height when that is further than the fixed distance', () => {
       const onClose = renderSheet()
       Object.defineProperty(dialog(), 'offsetHeight', { value: 1000 })
-      slowDrag(handle(), 100, 380)
+      // Far enough for a short sheet, not for this one; the rule's edges are sheetDrag.test's.
+      slowDrag(handle(), 100, 300)
       expect(onClose).not.toHaveBeenCalled()
-      slowDrag(handle(), 100, 420)
+      slowDrag(handle(), 100, 500)
       expect(onClose).toHaveBeenCalledOnce()
     })
 
@@ -217,10 +220,19 @@ describe('Sheet', () => {
       pointer('pointerMove', handle(), 160, 100)
       expect(dialog().style.transform).toBe('')
 
-      // Halfway back up from a short drag: the transition, not the keyframes.
+      // Halfway back up from a short drag: the transition, not the keyframes. The browser reports
+      // where the transition has it; the inline transform is already empty.
       animations.splice(0, 1, { playState: 'running' })
-      dialog().style.transform = 'translateY(30px)'
+      const computed = window.getComputedStyle
+      const sheet = dialog()
+      vi.spyOn(window, 'getComputedStyle').mockImplementation((element) => {
+        const style = computed(element)
+        if (element !== sheet) return style
+        return new Proxy(style, { get: (target, key) => (key === 'transform' ? 'translateY(30px)' : Reflect.get(target, key)) })
+      })
       pointer('pointerDown', handle(), 100)
+      // Held there, rather than jumping back to the top before the first move.
+      expect(dialog().style.transform).toBe('translateY(30px)')
       pointer('pointerMove', handle(), 110, 100)
       expect(dialog().style.transform).toBe('translateY(40px)')
     })
@@ -230,6 +242,56 @@ describe('Sheet', () => {
       slowDrag(handle(), 100, 140)
       // Where the browser sends the click to the nearest common ancestor: the dialog itself.
       fireEvent.click(dialog())
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it('counts a slow drag of small steps as a drag, not a tap', () => {
+      const onClose = renderSheet()
+      pointer('pointerDown', handle(), 100, 0)
+      for (let step = 1; step <= 10; step++) pointer('pointerMove', handle(), 100 + step, step * 50)
+      pointer('pointerUp', handle(), 110, 500)
+      fireEvent.click(dialog())
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it('turns off text selection on its top once moved a few px, even in small steps, until let go', () => {
+      renderSheet()
+      pointer('pointerDown', handle(), 100, 0)
+      pointer('pointerMove', handle(), 102, 50)
+      expect(handleRow()).not.toHaveClass('is-dragging')
+      pointer('pointerMove', handle(), 104, 100)
+      expect(handleRow()).toHaveClass('is-dragging')
+      pointer('pointerUp', handle(), 104, 100)
+      expect(handleRow()).not.toHaveClass('is-dragging')
+    })
+
+    it('leaves text selection alone on a press that only wobbles', () => {
+      const removeAllRanges = vi.fn()
+      vi.stubGlobal('getSelection', () => ({ removeAllRanges }))
+      renderSheet()
+      pointer('pointerDown', handle(), 100, 0)
+      pointer('pointerMove', handle(), 103, 50)
+      pointer('pointerMove', handle(), 97, 100)
+      expect(handleRow()).not.toHaveClass('is-dragging')
+      expect(removeAllRanges).not.toHaveBeenCalled()
+    })
+
+    it('clears a selection a long-press started once it becomes a drag', () => {
+      const removeAllRanges = vi.fn()
+      vi.stubGlobal('getSelection', () => ({ removeAllRanges }))
+      renderSheet()
+      pointer('pointerDown', handle(), 100, 0)
+      pointer('pointerMove', handle(), 106, 50)
+      expect(removeAllRanges).toHaveBeenCalledOnce()
+    })
+
+    it("doesn't take one jittery pair of moves at the end of a slow drag for a flick", () => {
+      const onClose = renderSheet()
+      pointer('pointerDown', handle(), 100, 0)
+      for (let step = 1; step <= 9; step++) pointer('pointerMove', handle(), 100 + step * 2.5, step * 50)
+      // Two moves a millisecond apart, as iOS sometimes sends them: 1 px/ms on their own.
+      pointer('pointerMove', handle(), 123.5, 451)
+      pointer('pointerUp', handle(), 123.5, 451)
       expect(onClose).not.toHaveBeenCalled()
     })
 
@@ -330,6 +392,7 @@ describe('Sheet', () => {
 
     describe('sliding off the screen, with motion', () => {
       const stubAnimate = () => {
+        transitionAtStart = undefined
         let finish = () => {}
         const animation = { finished: new Promise<void>((resolve) => (finish = resolve)), cancel: vi.fn() }
         const animate = vi.fn(function (this: HTMLDialogElement) {

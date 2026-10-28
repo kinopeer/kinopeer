@@ -8,16 +8,12 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
-/* On a phone the page behind an open modal (a sheet, a dialog) stays put: a modal <dialog> makes it
-   inert but still lets it scroll under a finger, on iOS Safari above all. Not on desktop, where
-   hiding a classic scrollbar (Windows) would shift the page by its width. */
-html:has(:modal) {
-  overflow: hidden;
-}
-
-@media (min-width: 1024px) {
+/* On a touch screen the page behind an open modal (a sheet, a dialog) stays put: a modal <dialog>
+   makes it inert but still lets it scroll under a finger, on iOS Safari above all. Not under a
+   mouse, where hiding a classic scrollbar (Windows) would shift the page by its width. */
+@media (pointer: coarse) {
   html:has(:modal) {
-    overflow: visible;
+    overflow: hidden;
   }
 }
 

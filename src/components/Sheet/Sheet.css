@@ -112,6 +112,11 @@
     animation: ks-sheet-pop var(--d-base) var(--ease);
   }
 
+  /* Nothing drags here, so nothing springs back. */
+  .ks-sheet {
+    transition: none;
+  }
+
   .ks-sheet-lg {
     width: min(680px, calc(100% - 48px));
     height: min(720px, calc(100dvh - 64px));
@@ -128,7 +133,6 @@
   .ks-sheet-handle {
     touch-action: auto;
   }
-
 
   .ks-sheet-head {
     padding: var(--space-5) var(--space-4) var(--space-2) var(--space-6);

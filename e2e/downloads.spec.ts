@@ -47,38 +47,6 @@ test.describe('downloads, phone', () => {
     await expect(page).toHaveScreenshot('sort-dark-ru.png')
   })
 
-  test('the sort sheet closes when dragged down by its top, and the list behind it stays put', async ({ page }) => {
-    await openDownloads(page)
-    await page.getByRole('button', { name: 'Сортировка: Приоритет' }).click()
-    const sheet = page.getByRole('dialog', { name: 'Сортировка и фильтр' })
-    await expect(sheet).toBeVisible()
-    await settle(page)
-    expect(await page.evaluate(() => document.documentElement.scrollHeight > window.innerHeight + 600)).toBe(true)
-
-    // A wheel over the backdrop stands in for a finger: both scrolled the page under a modal <dialog>.
-    // What it did shows below, once the sheet is closed.
-    await page.mouse.move(195, 40)
-    await page.mouse.wheel(0, 600)
-
-    // Sheet.test.tsx owns when a drag closes the sheet; this sees what jsdom can't: the real <dialog>
-    // and pointer capture keeping the moves on the title once the pointer leaves it. A mouse sends no
-    // touch input, so touch-action stays with the real-phone blind spot.
-    const title = sheet.getByRole('heading', { name: 'Сортировка и фильтр' })
-    const box = await title.boundingBox()
-    if (!box) throw new Error('The sheet has no title')
-    await page.mouse.move(box.x + 10, box.y + box.height / 2)
-    await page.mouse.down()
-    await page.mouse.move(box.x + 10, box.y + 300, { steps: 10 })
-    await page.mouse.up()
-    await expect(sheet).toBeHidden()
-
-    // A shorter wheel now scrolls the page by just that much, so the first one under the sheet did
-    // nothing (it would have left the page at 600 or more), and this one being handled means that one
-    // was too.
-    await page.mouse.wheel(0, 200)
-    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(200)
-  })
-
   test('series only, with the type badge', async ({ page }) => {
     await openDownloads(page)
     await page.getByRole('button', { name: 'Сортировка: Приоритет' }).click()
@@ -271,4 +239,41 @@ test.describe('downloads, labelled sidebar at its narrowest', () => {
     await expect(page.getByRole('columnheader', { name: 'Осталось' })).toBeHidden()
     await expect(page).toHaveScreenshot('labelled-list-dark-ru.png')
   })
+})
+
+// The scroll lock is for touch screens (pointer: coarse), which hasTouch makes this Chromium one.
+test.describe('downloads, phone with a touch screen', () => {
+  test.use({ hasTouch: true })
+
+    test('the sort sheet closes when dragged down by its top, and the list behind it stays put', async ({ page }) => {
+      await openDownloads(page)
+      await page.getByRole('button', { name: 'Сортировка: Приоритет' }).click()
+      const sheet = page.getByRole('dialog', { name: 'Сортировка и фильтр' })
+      await expect(sheet).toBeVisible()
+      await settle(page)
+      expect(await page.evaluate(() => document.documentElement.scrollHeight > window.innerHeight + 600)).toBe(true)
+
+      // A wheel over the backdrop stands in for a finger: both scrolled the page under a modal <dialog>.
+      // What it did shows below, once the sheet is closed.
+      await page.mouse.move(195, 40)
+      await page.mouse.wheel(0, 600)
+
+      // Sheet.test.tsx owns when a drag closes the sheet; this sees what jsdom can't: the real <dialog>
+      // and pointer capture keeping the moves on the title once the pointer leaves it. A mouse sends no
+      // touch input, so touch-action stays with the real-phone blind spot.
+      const title = sheet.getByRole('heading', { name: 'Сортировка и фильтр' })
+      const box = await title.boundingBox()
+      if (!box) throw new Error('The sheet has no title')
+      await page.mouse.move(box.x + 10, box.y + box.height / 2)
+      await page.mouse.down()
+      await page.mouse.move(box.x + 10, box.y + 300, { steps: 10 })
+      await page.mouse.up()
+      await expect(sheet).toBeHidden()
+
+      // A shorter wheel now scrolls the page by just that much, so the first one under the sheet did
+      // nothing (it would have left the page at 600 or more), and this one being handled means that one
+      // was too.
+      await page.mouse.wheel(0, 200)
+      await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(200)
+    })
 })
