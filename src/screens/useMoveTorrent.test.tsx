@@ -14,7 +14,7 @@ vi.mock('../api/qbittorrent', async (importOriginal) => ({
 const getSaveLocations = vi.mocked(api.getSaveLocations)
 const setTorrentLocation = vi.mocked(api.setTorrentLocation)
 
-const DUNE = { hash: 'dune', name: 'Dune.Part.Two.2024.2160p', save_path: '/downloads' } as Torrent
+const DUNE = { hash: 'dune', name: 'Dune.Part.Two.2024.2160p', save_path: '/downloads', added_on: 1 } as Torrent
 
 function Harness({ torrents = { dune: DUNE }, offline = false, refresh }: {
   torrents?: Record<string, Torrent>
@@ -139,14 +139,25 @@ describe('useMoveTorrent', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('qBittorrent has no access to that folder.')
   })
 
-  it('closes when the torrent is gone, and opens again for it later', async () => {
+  it('closes when the torrent is gone, and stays closed when it’s added again', async () => {
     const { open, rerender } = renderMove()
     await open()
     rerender({ torrents: {} })
     expect(screen.queryByRole('dialog', { name: 'Move files' })).not.toBeInTheDocument()
-    rerender({ torrents: { dune: DUNE } })
+    const readded = { ...DUNE, added_on: 2 }
+    rerender({ torrents: { dune: readded } })
     expect(screen.queryByRole('dialog', { name: 'Move files' })).not.toBeInTheDocument()
     expect(await open()).toBeInTheDocument()
+  })
+
+  it('reports a failed move whose torrent went away in a toast', async () => {
+    let fail = (_error: unknown) => {}
+    setTorrentLocation.mockReturnValue(new Promise<void>((_resolve, reject) => (fail = reject)))
+    const { open, moveTo, rerender } = renderMove()
+    await moveTo(await open(), '/media/new')
+    rerender({ torrents: {} })
+    fail(new api.QbittorrentError('conflict', 409))
+    expect(await screen.findByRole('status')).toHaveTextContent('qBittorrent couldn’t create that folder.')
   })
 
   it('can’t move while qBittorrent is unreachable', async () => {

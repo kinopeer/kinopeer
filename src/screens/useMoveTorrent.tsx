@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { QbittorrentError, setTorrentLocation, UnauthorizedError, type Torrent } from '../api/qbittorrent'
 import { Toast } from '../components/Toast'
@@ -28,48 +28,59 @@ export interface MoveTorrent {
  * the sheet, so a move that fails after the sheet was closed (or its torrent went away) still says so.
  */
 export function useMoveTorrent({ torrents, offline, refresh }: {
-  /** The screen's torrents: the sheet closes when its torrent is gone. */
+  /** The screen's torrents: the sheet is for one of them, and closes when it's gone. */
   torrents: Record<string, Torrent> | undefined
   offline: boolean
   /** After qBittorrent took the folder, so the screen shows it right away. */
   refresh: () => void
 }): MoveTorrent {
   const { t } = useTranslation()
-  const [hash, setHash] = useState<string | null>(null)
+  // The torrent the sheet is open for, by when it was added: one re-added with the same hash is
+  // another torrent, so the sheet doesn't come back for it.
+  const [opened, setOpened] = useState<{ hash: string; addedOn: number } | null>(null)
   const [sendingFor, setSendingFor] = useState<string | null>(null)
   const [failure, setFailure] = useState<MoveFailure>()
   const [outcome, setOutcome] = useState<Outcome | null>(null)
-  // The sheet that's open now, read when a move settles: a later sheet isn't this move's.
+  const candidate = opened ? torrents?.[opened.hash] : undefined
+  const torrent = candidate?.added_on === opened?.addedOn ? candidate : undefined
+  // Read when a move settles, to tell whether its sheet still shows: set by the handlers, and the
+  // screen's torrents after each render.
   const openFor = useRef<string | null>(null)
-  const torrent = hash ? torrents?.[hash] : undefined
-  if (hash && torrents && !torrent) {
-    // The torrent is gone: forget the sheet, so it doesn't come back if the hash does.
-    openFor.current = null
-    setHash(null)
-  }
+  const latest = useRef(torrents)
+  useEffect(() => {
+    latest.current = torrents
+  })
 
-  const open = useCallback((next: string) => {
-    openFor.current = next
-    setHash(next)
-    setFailure(undefined)
-  }, [])
+  const open = useCallback(
+    (hash: string) => {
+      const next = torrents?.[hash]
+      if (!next) return
+      openFor.current = hash
+      setOpened({ hash, addedOn: next.added_on })
+      setFailure(undefined)
+    },
+    [torrents],
+  )
   const close = () => {
     openFor.current = null
-    setHash(null)
+    setOpened(null)
   }
   const dismiss = useCallback(() => setOutcome(null), [])
+
+  const showing = (target: Torrent) =>
+    openFor.current === target.hash && latest.current?.[target.hash]?.added_on === target.added_on
 
   const move = async (target: Torrent, location: string) => {
     setSendingFor(target.hash)
     setFailure(undefined)
     try {
       await setTorrentLocation([target.hash], location)
-      if (openFor.current === target.hash) close()
+      if (showing(target)) close()
       setOutcome({ moved: location })
       refresh()
     } catch (error) {
       const key = failureKey(error)
-      if (openFor.current === target.hash) setFailure(key)
+      if (showing(target)) setFailure(key)
       else setOutcome({ failed: key })
     } finally {
       setSendingFor(null)
