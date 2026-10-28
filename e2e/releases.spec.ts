@@ -15,6 +15,12 @@ test.describe('releases, phone', () => {
     await expect(page).toHaveScreenshot('list-dark-ru.png')
   })
 
+  test('some indexers didn’t answer', async ({ page }) => {
+    await openReleases(page, { failingIndexers: ['Kinozal', 'RuTracker'] })
+    await expect(page.getByText('2 индексатора не ответили: Kinozal, RuTracker')).toBeVisible()
+    await expect(page).toHaveScreenshot('failing-indexers-dark-ru.png')
+  })
+
   test('filters sheet', async ({ page }) => {
     await openReleases(page)
     await page.getByRole('button', { name: /^Фильтры/ }).click()

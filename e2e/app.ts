@@ -26,6 +26,8 @@ export interface AppOptions {
   wrongLogin?: boolean
   /** Prowlarr doesn't answer the server's connection check. */
   prowlarrDown?: boolean
+  /** Indexers Prowlarr says failed during the release search. */
+  failingIndexers?: string[]
   /** Leaves /tmdb and /tmdb-img to the server, for real titles and posters (the README screenshots). */
   realTmdb?: boolean
 }
@@ -112,7 +114,7 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
         return json(route, { version: '2.0.5.5160', indexers: 2 })
       }
       if (pathname === '/prowlarr/search') return json(route, RELEASES)
-      if (pathname === '/prowlarr/failing') return json(route, { indexers: [] })
+      if (pathname === '/prowlarr/failing') return json(route, { indexers: options.failingIndexers ?? [] })
       if (pathname === '/prowlarr/download') {
         return route.fulfill({ contentType: 'application/x-bittorrent', body: shogunTorrent() })
       }
