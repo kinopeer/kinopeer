@@ -1,4 +1,4 @@
-import type { MagnetResponse, ProwlarrErrorBody, ProwlarrStatus, Release, SearchType } from './types'
+import { MAX_FAILING_WITHIN_MS, type FailingIndexers, type MagnetResponse, type ProwlarrErrorBody, type ProwlarrStatus, type Release, type SearchType } from './types'
 
 /** Same-origin prefix served by Kinoseed's Prowlarr bridge (server/prowlarr.ts). */
 export const PROWLARR_BASE = '/prowlarr'
@@ -47,6 +47,20 @@ export async function searchReleases(query: string, options: SearchOptions = {})
   const response = await fetch(`${PROWLARR_BASE}/search?${params}`, { credentials: 'same-origin', signal })
   if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) throw await errorFor(response)
   return (await response.json()) as Release[]
+}
+
+/**
+ * Names of the enabled indexers that failed in the last `elapsedMs` (since a search started) or
+ * that Prowlarr has put on hold, so a search can say whose results are missing. A duration rather
+ * than a time, so the server dates it by its own clock, not this device's.
+ */
+export async function getFailingIndexers(elapsedMs: number, signal?: AbortSignal): Promise<string[]> {
+  // The server takes ten minutes at most. A page left open longer (or a clock that kept counting
+  // through sleep) still gets a note about the last ten minutes.
+  const params = new URLSearchParams({ within: String(Math.min(MAX_FAILING_WITHIN_MS, Math.max(0, Math.round(elapsedMs)))) })
+  const response = await fetch(`${PROWLARR_BASE}/failing?${params}`, { credentials: 'same-origin', signal })
+  if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) throw await errorFor(response)
+  return ((await response.json()) as FailingIndexers).indexers
 }
 
 /** Checks the connection: Prowlarr's version and how many indexers are enabled. */
