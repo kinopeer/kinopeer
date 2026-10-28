@@ -110,7 +110,9 @@ is caught from now on. The order of work:
 1. **An issue first.** A bug from the test stand, from Umbrel or from a test under construction
    becomes an issue with the steps and the environment (phone or desktop, HTTP or HTTPS, the
    qBittorrent version, where it was found) before anyone fixes it, so the fix can be checked against
-   what was seen and the label below has a place to live.
+   what was seen and the label below has a place to live. The bug report form
+   (`.github/ISSUE_TEMPLATE/bug_report.yml`) asks for all of these; the `test-gap:*` label comes
+   later, from whoever finds why the tests missed it.
 2. **A red test on the lowest layer that sees it** (the table above), run to watch it fail on `main`.
 3. **The fix**, and the test goes green with everything else.
 4. **The record** in the PR and on the issue, below.
@@ -289,7 +291,7 @@ goes through the same list by hand; the skill is the list.
 Unit tests run in jsdom, which has no layout, so they can't catch a button in the wrong place or a title that doesn't clamp. Screenshot tests do: Playwright opens the built app (`vite preview`) in Chromium and compares each screen with a baseline PNG.
 
 - **What's covered:** what only the browser sees, one baseline per layout or state, in the dark theme and Russian unless said otherwise. Specs are in `e2e/*.spec.ts`, baselines in `e2e/__screenshots__/`.
-  - A phone (390×844): Downloads (list and poster grid, the sort and filter sheet, the actions sheet, selection, empty, offline, the sticky filter bar after a scroll), Search (browse rows and results), the title page (movie and series), Releases (results, the filters sheet, the add sheet and its file picker), torrent details (with files, a guessed title, changing the title, an error), Settings (and a connection with an error) and the connect screen with a wrong password.
+  - A phone (390×844): Downloads (list and poster grid, the sort and filter sheet, the actions sheet, selection, empty, offline, the sticky filter bar after a scroll), Search (browse rows and results), the title page (movie and series), Releases (results, the filters sheet, the add sheet, also with too little free space, and its file picker), torrent details (with files, a guessed title, changing the title, an error), Settings (and a connection with an error) and the connect screen with a wrong password.
   - A tablet (768×1024): Downloads in the centered column, with the tab bar over it.
   - Desktop (1440×900): the sidebar with labels, Downloads as a grid and as a table (the row and sort menus, selection, offline, the sticky header and column names after a scroll), Search (incl. no results), the title page (incl. the long overview with Show more), releases under the hero with a filter popover, the torrent drawer over Downloads and over the title page, the add and delete modals, Settings and onboarding. The icon rail (1024×768) in the status menu, releases and Settings; the labelled sidebar at its narrowest (1100×800) and full HD (1920×1080) for the table's columns.
   - The light theme in English twice, where its colors show on every status and on the sidebar: the Downloads list on the phone and the grid on desktop.
