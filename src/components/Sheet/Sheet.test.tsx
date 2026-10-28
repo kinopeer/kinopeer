@@ -67,31 +67,58 @@ describe('Sheet', () => {
   describe('dragged down by its top on a phone', () => {
     // The grabber and the title row are the handle; the grabber itself is aria-hidden.
     const handle = () => screen.getByRole('heading', { name: 'Add release' })
+    const dialog = () => screen.getByRole('dialog')
+
+    type PointerType = 'pointerDown' | 'pointerMove' | 'pointerUp' | 'pointerCancel'
 
     // fireEvent can't set timeStamp, which the flick's speed is measured from.
-    const pointer = (type: 'pointerDown' | 'pointerMove' | 'pointerUp', target: Element, clientY: number, timeStamp: number) => {
-      const event = createEvent[type](target, { pointerId: 1, clientY, button: 0 })
+    const pointer = (type: PointerType, target: Element, clientY: number, timeStamp = 0, init: { pointerId?: number; button?: number } = {}) => {
+      const event = createEvent[type](target, { pointerId: 1, button: 0, clientY, ...init })
       Object.defineProperty(event, 'timeStamp', { value: timeStamp })
       fireEvent(target, event)
     }
 
-    const drag = (target: Element, from: number, to: number, ms = 300) => {
+    /** Down, two moves and up over `ms`; the last half of the way sets the speed it's let go at. */
+    const drag = (target: Element, from: number, to: number, ms: number, end: PointerType = 'pointerUp') => {
       pointer('pointerDown', target, from, 0)
       pointer('pointerMove', target, (from + to) / 2, ms / 2)
       pointer('pointerMove', target, to, ms)
-      pointer('pointerUp', target, to, ms)
+      pointer(end, target, to, ms)
     }
+
+    // 200px in a second ends at 0.2 px/ms, too slow for a flick, so only the distance can close it.
+    const slowDrag = (target: Element, from: number, to: number) => drag(target, from, to, 1000)
+
+    afterEach(() => {
+      Reflect.deleteProperty(HTMLDialogElement.prototype, 'animate')
+    })
 
     it('follows the finger while dragged', () => {
       renderSheet()
-      fireEvent.pointerDown(handle(), { pointerId: 1, clientY: 100, button: 0 })
-      fireEvent.pointerMove(handle(), { pointerId: 1, clientY: 160 })
-      expect(screen.getByRole('dialog').style.transform).toBe('translateY(60px)')
+      pointer('pointerDown', handle(), 100)
+      pointer('pointerMove', handle(), 160)
+      expect(dialog().style.transform).toBe('translateY(60px)')
     })
 
-    it('closes once dragged far enough', () => {
+    it('never goes above where it opened', () => {
+      renderSheet()
+      pointer('pointerDown', handle(), 300)
+      pointer('pointerMove', handle(), 100)
+      expect(dialog().style.transform).toBe('translateY(0px)')
+    })
+
+    it('closes once dragged far enough, however slowly', () => {
       const onClose = renderSheet()
-      drag(handle(), 100, 300)
+      slowDrag(handle(), 100, 300)
+      expect(onClose).toHaveBeenCalledOnce()
+    })
+
+    it('needs 30% of its height when that is further than the fixed distance', () => {
+      const onClose = renderSheet()
+      Object.defineProperty(dialog(), 'offsetHeight', { value: 1000 })
+      slowDrag(handle(), 100, 380)
+      expect(onClose).not.toHaveBeenCalled()
+      slowDrag(handle(), 100, 420)
       expect(onClose).toHaveBeenCalledOnce()
     })
 
@@ -103,37 +130,121 @@ describe('Sheet', () => {
 
     it('goes back up when let go after a short, slow drag', () => {
       const onClose = renderSheet()
-      drag(handle(), 100, 140, 400)
+      slowDrag(handle(), 100, 140)
       expect(onClose).not.toHaveBeenCalled()
-      expect(screen.getByRole('dialog').style.transform).toBe('')
+      expect(dialog().style.transform).toBe('')
     })
 
-    it('never goes above where it opened', () => {
-      renderSheet()
-      fireEvent.pointerDown(handle(), { pointerId: 1, clientY: 300, button: 0 })
-      fireEvent.pointerMove(handle(), { pointerId: 1, clientY: 100 })
-      expect(screen.getByRole('dialog').style.transform).toBe('translateY(0px)')
+    it('goes back up when the browser cancels the drag, however far it went', () => {
+      const onClose = renderSheet()
+      drag(handle(), 100, 400, 100, 'pointerCancel')
+      expect(onClose).not.toHaveBeenCalled()
+      expect(dialog().style.transform).toBe('')
     })
 
-    it('leaves the buttons in its title row to their taps', () => {
-      const onClose = renderSheet({ action: <button type="button">Reset</button> })
-      drag(screen.getByRole('button', { name: 'Reset' }), 100, 300)
+    it('follows only the pointer that started the drag', () => {
+      const onClose = renderSheet()
+      pointer('pointerDown', handle(), 100)
+      pointer('pointerMove', handle(), 400, 100, { pointerId: 2 })
+      pointer('pointerUp', handle(), 400, 100, { pointerId: 2 })
+      expect(dialog().style.transform).toBe('')
       expect(onClose).not.toHaveBeenCalled()
-      expect(screen.getByRole('dialog').style.transform).toBe('')
+    })
+
+    it("doesn't drag with a mouse button other than the main one", () => {
+      const onClose = renderSheet()
+      pointer('pointerDown', handle(), 100, 0, { button: 2 })
+      pointer('pointerMove', handle(), 400, 100)
+      pointer('pointerUp', handle(), 400, 100)
+      expect(dialog().style.transform).toBe('')
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it.each([
+      ['a button', () => <button type="button">Reset</button>, () => screen.getByRole('button', { name: 'Reset' })],
+      ['a link', () => <a href="/help">Help</a>, () => screen.getByRole('link', { name: 'Help' })],
+      ['a field', () => <input aria-label="Find" />, () => screen.getByRole('textbox', { name: 'Find' })],
+    ])('leaves %s in its title row to its taps', (_, action, target) => {
+      const onClose = renderSheet({ action: action() })
+      slowDrag(target(), 100, 300)
+      expect(onClose).not.toHaveBeenCalled()
+      expect(dialog().style.transform).toBe('')
     })
 
     it("doesn't drag from its scrolling content", () => {
       const onClose = renderSheet()
-      drag(screen.getByText('Options'), 100, 300)
+      slowDrag(screen.getByText('Options'), 100, 300)
       expect(onClose).not.toHaveBeenCalled()
+      expect(dialog().style.transform).toBe('')
     })
 
     it("doesn't drag on desktop, where it is a centered modal", () => {
       stubDesktop()
       const onClose = renderSheet()
-      drag(handle(), 100, 300)
+      slowDrag(handle(), 100, 300)
       expect(onClose).not.toHaveBeenCalled()
-      expect(screen.getByRole('dialog').style.transform).toBe('')
+      expect(dialog().style.transform).toBe('')
+    })
+
+    it('opens again where it belongs after being dragged closed', () => {
+      const onClose = vi.fn()
+      const sheet = (open: boolean) => (
+        <Sheet open={open} onClose={onClose} title="Add release">
+          <p>Options</p>
+        </Sheet>
+      )
+      const { rerender } = render(sheet(true))
+      slowDrag(handle(), 100, 300)
+      expect(onClose).toHaveBeenCalledOnce()
+      rerender(sheet(false))
+      rerender(sheet(true))
+      expect(dialog().style.transform).toBe('')
+    })
+
+    describe('sliding off the screen, with motion', () => {
+      const stubAnimate = () => {
+        let finish = () => {}
+        const animation = { finished: new Promise<void>((resolve) => (finish = resolve)), cancel: vi.fn() }
+        const animate = vi.fn(() => animation)
+        Object.defineProperty(HTMLDialogElement.prototype, 'animate', { value: animate, configurable: true })
+        return { animate, animation, finish: () => finish() }
+      }
+
+      it('closes only once it has slid off, and ignores a new drag meanwhile', async () => {
+        const { animate, finish } = stubAnimate()
+        const onClose = renderSheet()
+        slowDrag(handle(), 100, 300)
+        expect(animate).toHaveBeenCalledWith(
+          [{ transform: 'translateY(200px)' }, { transform: 'translateY(100%)' }],
+          expect.objectContaining({ fill: 'forwards' }),
+        )
+        expect(onClose).not.toHaveBeenCalled()
+
+        pointer('pointerDown', handle(), 100)
+        pointer('pointerMove', handle(), 150)
+        expect(dialog().style.transform).toBe('translateY(200px)')
+
+        finish()
+        await vi.waitFor(() => expect(onClose).toHaveBeenCalledOnce())
+      })
+
+      it('drops the slide when it opens again', async () => {
+        const { animation, finish } = stubAnimate()
+        const onClose = vi.fn()
+        const sheet = (open: boolean) => (
+          <Sheet open={open} onClose={onClose} title="Add release">
+            <p>Options</p>
+          </Sheet>
+        )
+        const { rerender } = render(sheet(true))
+        slowDrag(handle(), 100, 300)
+        finish()
+        await vi.waitFor(() => expect(onClose).toHaveBeenCalledOnce())
+        rerender(sheet(false))
+        rerender(sheet(true))
+        expect(animation.cancel).toHaveBeenCalledOnce()
+        expect(dialog().style.transform).toBe('')
+      })
     })
   })
 

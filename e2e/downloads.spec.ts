@@ -50,18 +50,19 @@ test.describe('downloads, phone', () => {
   test('the sort sheet closes when dragged down by its top, and the list behind it stays put', async ({ page }) => {
     await openDownloads(page)
     await page.getByRole('button', { name: 'Сортировка: Приоритет' }).click()
-    const sheet = page.getByRole('dialog')
+    const sheet = page.getByRole('dialog', { name: 'Сортировка и фильтр' })
     await expect(sheet).toBeVisible()
     await settle(page)
-    expect(await page.evaluate(() => document.documentElement.scrollHeight > window.innerHeight)).toBe(true)
+    expect(await page.evaluate(() => document.documentElement.scrollHeight > window.innerHeight + 600)).toBe(true)
 
     // A wheel over the backdrop stands in for a finger: both scrolled the page under a modal <dialog>.
+    // What it did shows below, once the sheet is closed.
     await page.mouse.move(195, 40)
     await page.mouse.wheel(0, 600)
-    await page.waitForTimeout(100)
-    expect(await page.evaluate(() => window.scrollY)).toBe(0)
 
-    const title = sheet.getByRole('heading').first()
+    // Sheet.test.tsx owns when a drag closes the sheet; this sees what jsdom can't: the real <dialog>,
+    // pointer capture keeping the moves on the title once the pointer leaves it, and touch-action.
+    const title = sheet.getByRole('heading', { name: 'Сортировка и фильтр' })
     const box = await title.boundingBox()
     if (!box) throw new Error('The sheet has no title')
     await page.mouse.move(box.x + 10, box.y + box.height / 2)
@@ -69,6 +70,12 @@ test.describe('downloads, phone', () => {
     await page.mouse.move(box.x + 10, box.y + 300, { steps: 10 })
     await page.mouse.up()
     await expect(sheet).toBeHidden()
+
+    // A shorter wheel now scrolls the page by just that much, so the first one under the sheet did
+    // nothing (it would have left the page at 600 or more), and this one being handled means that one
+    // was too.
+    await page.mouse.wheel(0, 200)
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(200)
   })
 
   test('series only, with the type badge', async ({ page }) => {
