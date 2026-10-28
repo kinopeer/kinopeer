@@ -40,6 +40,8 @@ export function torrent(hash: string, fields: Partial<Torrent> = {}): Torrent {
     amount_left: size - downloaded,
     dlspeed: 0,
     upspeed: 0,
+    dl_limit: 0,
+    up_limit: 0,
     eta: 8_640_000,
     ratio: 0,
     num_seeds: 0,

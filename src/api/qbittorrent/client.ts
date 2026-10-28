@@ -190,6 +190,20 @@ export async function stopTorrents(hashes: string[]): Promise<void> {
   await postRenamed('/torrents/stop', '/torrents/pause', { hashes: hashes.join('|') })
 }
 
+/** Sets per-torrent speed limits in bytes/s; 0 removes a limit, and a limit left out stays as it is. */
+export async function setSpeedLimits(hashes: string[], limits: { download?: number; upload?: number }): Promise<void> {
+  const joined = hashes.join('|')
+  const set = (path: string, limit: number | undefined) =>
+    limit === undefined ? undefined : request(path, { method: 'POST', params: { hashes: joined, limit } })
+  // Both run at once, and a failure waits for the other request, so a refresh after it sees both.
+  const results = await Promise.allSettled([
+    set('/torrents/setDownloadLimit', limits.download),
+    set('/torrents/setUploadLimit', limits.upload),
+  ])
+  const failed = results.find((result): result is PromiseRejectedResult => result.status === 'rejected')
+  if (failed) throw failed.reason
+}
+
 /** Rechecks torrents' downloaded data against their hashes; qBittorrent shows them as checking meanwhile. */
 export async function recheckTorrents(hashes: string[]): Promise<void> {
   await request('/torrents/recheck', { method: 'POST', params: { hashes: hashes.join('|') } })
