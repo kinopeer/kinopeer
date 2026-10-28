@@ -5,7 +5,9 @@ import {
   getAppVersion,
   getMainData,
   getTorrentTrackers,
+  getSaveLocations,
   getTorrents,
+  setTorrentLocation,
 } from '../../src/api/qbittorrent/client.ts'
 import { TORRENTS, mainData } from '../../src/test/fixtures.ts'
 import { TRACKERS, mainDataDelta } from '../test/fakes.ts'
@@ -56,5 +58,41 @@ describe('qBittorrent client through /qbt', () => {
     const { qbittorrent } = await startKinoseed()
     await expect(getTorrentTrackers('a1')).resolves.toEqual(TRACKERS)
     expect(qbittorrent.seen.map((request) => request.url)).toEqual(['/api/v2/torrents/trackers?hash=a1'])
+  })
+
+  it('reads the save locations: the categories, the default save path and the preferences that place them', async () => {
+    await startKinoseed()
+    await expect(getSaveLocations()).resolves.toEqual({
+      categories: [
+        { name: 'Movies', savePath: '/downloads/movies' },
+        { name: 'TV Shows', savePath: '/downloads/tv' },
+      ],
+      defaultPath: '/downloads',
+      categoryPaths: false,
+      subcategories: false,
+    })
+  })
+
+  it('moves a torrent’s files', async () => {
+    const { qbittorrent } = await startKinoseed()
+    await setTorrentLocation([TORRENTS[0].hash], '/media/movies')
+    expect(qbittorrent.torrents[0].save_path).toBe('/media/movies')
+  })
+
+  it('tells a folder qBittorrent can’t write to or create from a lost session', async () => {
+    const { qbittorrent } = await startKinoseed()
+    const denied = await setTorrentLocation([TORRENTS[0].hash], '/readonly/movies').catch((error: unknown) => error)
+    expect(denied).toBeInstanceOf(QbittorrentError)
+    expect(denied).not.toBeInstanceOf(UnauthorizedError)
+    expect(denied).toMatchObject({ status: 403 })
+    // The server takes qBittorrent's 403 for an expired session and logs in again once before
+    // passing it on; the browser's session check then tells it's the folder.
+    expect(qbittorrent.logins()).toBe(2)
+    await expect(setTorrentLocation([TORRENTS[0].hash], '/unmakeable/movies')).rejects.toMatchObject({ status: 409 })
+  })
+
+  it('reports a lost session on a move when the server has no login', async () => {
+    await startKinoseed({ env: { QBITTORRENT_USERNAME: undefined, QBITTORRENT_PASSWORD: undefined } })
+    await expect(setTorrentLocation([TORRENTS[0].hash], '/media/movies')).rejects.toBeInstanceOf(UnauthorizedError)
   })
 })

@@ -29,6 +29,8 @@ vi.mock('../api/qbittorrent', async (importOriginal) => {
     deleteTorrents: vi.fn(),
     recheckTorrents: vi.fn(),
     reannounceTorrents: vi.fn(),
+    getSaveLocations: vi.fn(),
+    setTorrentLocation: vi.fn(),
     toggleSpeedLimitsMode: vi.fn(),
   }
 })
@@ -333,6 +335,30 @@ describe('DownloadsScreen', () => {
     await userEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
     expect(api.deleteTorrents).toHaveBeenCalledWith(['andor'], false)
     expect(await screen.findByText('Torrent deleted')).toBeInTheDocument()
+  })
+
+  it('moves a torrent’s files from the row menu and says where', async () => {
+    vi.mocked(api.getSaveLocations).mockResolvedValue({ defaultPath: '/downloads', categories: [], categoryPaths: false, subcategories: false })
+    vi.mocked(api.setTorrentLocation).mockResolvedValue()
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' }))
+    // A hidden page doesn't poll, so only the screen's own refresh can bring qBittorrent's next answer.
+    stopPolling()
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Move files…' }))
+    const sheet = screen.getByRole('dialog', { name: 'Move files' })
+    const field = within(sheet).getByRole('textbox', { name: 'Folder' })
+    await userEvent.clear(field)
+    await userEvent.type(field, '/media/tv')
+    // The list asks qBittorrent again right after the move, so the row shows the move without a poll.
+    getMainData.mockResolvedValue({
+      ...SNAPSHOT,
+      torrents: { ...SNAPSHOT.torrents, andor: { ...SNAPSHOT.torrents!.andor, state: 'moving' } },
+    })
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Move' }))
+    expect(api.setTorrentLocation).toHaveBeenCalledWith(['andor'], '/media/tv')
+    expect(await screen.findByRole('status')).toHaveTextContent('Moving files to /media/tv')
+    const andor = screen.getByRole('link', { name: /Andor\.S02\.1080p/ }).closest('li')!
+    expect(await within(andor).findByText('Checking', { exact: true })).toBeInTheDocument()
   })
 
   it('reannounces a torrent from the row menu, and rechecks it after confirmation', async () => {

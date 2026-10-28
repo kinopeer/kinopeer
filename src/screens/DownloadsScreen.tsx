@@ -36,6 +36,7 @@ import { SortMenu, SortSheet } from './SortSheet'
 import { StatusMenu } from './StatusMenu'
 import { RecheckDialog } from './RecheckDialog'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
+import { useMoveTorrent } from './useMoveTorrent'
 import './DownloadsScreen.css'
 
 export interface DownloadsScreenProps {
@@ -91,6 +92,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   const [toggleFailed, setToggleFailed] = useState(false)
   const dismissToggleFailed = useCallback(() => setToggleFailed(false), [])
   const [deleting, setDeleting] = useState<string[] | null>(null)
+  const move = useMoveTorrent({ torrents: data?.torrents, offline, refresh })
   const [rechecking, setRechecking] = useState<string | null>(null)
   // A recheck or reannounce qBittorrent took, said in a toast.
   const [notice, setNotice] = useState<'rechecking' | 'reannounced' | null>(null)
@@ -540,6 +542,10 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
             setActionsFor(null)
             setDeleting([actionsTorrent.hash])
           }}
+          onMove={() => {
+            setActionsFor(null)
+            move.open(actionsTorrent.hash)
+          }}
           onRecheck={() => {
             setActionsFor(null)
             setRechecking(actionsTorrent.hash)
@@ -558,6 +564,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           }}
         />
       )}
+      {move.element}
       {retitleTorrent && (
         <ChangeTitleSheet
           torrent={retitleTorrent}

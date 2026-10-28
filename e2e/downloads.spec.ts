@@ -41,6 +41,16 @@ test.describe('downloads, phone', () => {
     await expect(page).toHaveScreenshot('grid-actions-dark-ru.png')
   })
 
+  test('moving the files', async ({ page }) => {
+    await openDownloads(page, { downloadsView: 'grid' })
+    await page.getByRole('button', { name: 'Ещё действия: Дюна: Часть вторая' }).click()
+    await page.getByRole('button', { name: 'Перенести файлы…' }).click()
+    const sheet = page.getByRole('dialog', { name: 'Перенести файлы' })
+    await expect(sheet.getByRole('group', { name: 'Папки qBittorrent' })).toBeVisible()
+    await settle(page)
+    await expect(page).toHaveScreenshot('move-dark-ru.png')
+  })
+
   test('sort and filter sheet', async ({ page }) => {
     await openDownloads(page)
     await page.getByRole('button', { name: 'Сортировка: Приоритет' }).click()
