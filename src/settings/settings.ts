@@ -2,6 +2,14 @@ import { useCallback, useEffect, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getServerSettings, saveDownloadDefaults, type DownloadDefaults } from '../api/settings'
 import { tmdbLanguage } from '../api/tmdb'
+import {
+  DEFAULT_SORT,
+  NO_REMEMBERED_FILTERS,
+  knownReleaseFilters,
+  knownReleaseSort,
+  type RememberedFilters,
+  type Sort,
+} from '../releases/filterReleases'
 import type { DownloadSort } from '../torrents/sort'
 
 /**
@@ -29,6 +37,10 @@ export interface Settings {
   downloadsDesktopView: 'list' | 'grid'
   /** How the downloads list is ordered. */
   downloadsSort: DownloadSort
+  /** The release filters picked last, which the next title's search starts from. */
+  releaseFilters: RememberedFilters
+  /** How releases are ordered. */
+  releaseSort: Sort
 }
 
 export const SETTINGS_STORAGE_KEY = 'kinoseed.settings'
@@ -41,6 +53,8 @@ export const DEFAULT_SETTINGS: Settings = {
   downloadsView: 'list',
   downloadsDesktopView: 'grid',
   downloadsSort: 'priority',
+  releaseFilters: NO_REMEMBERED_FILTERS,
+  releaseSort: DEFAULT_SORT,
 }
 
 type ServerKey = keyof DownloadDefaults
@@ -61,7 +75,13 @@ const listeners = new Set<() => void>()
 function read(): Settings {
   try {
     const stored = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) ?? '{}') as Partial<Settings>
-    return { ...DEFAULT_SETTINGS, ...stored }
+    return {
+      ...DEFAULT_SETTINGS,
+      ...stored,
+      // Checked here, so a value from another version or a hand edit can't break a screen that reads them.
+      releaseFilters: knownReleaseFilters(stored.releaseFilters),
+      releaseSort: knownReleaseSort(stored.releaseSort),
+    }
   } catch {
     // Unreadable or blocked storage: start from the defaults.
     return DEFAULT_SETTINGS

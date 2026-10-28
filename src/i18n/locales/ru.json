@@ -287,6 +287,8 @@
     "ascending": "По возрастанию",
     "reset": "Сбросить",
     "clearAll": "Сбросить все",
+    "setAside": "Запомненные фильтры не применены: {{filters}}",
+    "forget": "Забыть",
     "show_one": "Показать {{count}}",
     "show_few": "Показать {{count}}",
     "show_many": "Показать {{count}}",

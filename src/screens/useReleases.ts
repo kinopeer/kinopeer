@@ -3,19 +3,24 @@ import { useTranslation } from 'react-i18next'
 import { ProwlarrSetupError, getFailingIndexers, searchReleases, type Release } from '../api/prowlarr'
 import { useRequest } from '../lib/useRequest'
 import {
-  DEFAULT_SORT,
   NO_FILTERS,
+  NO_REMEMBERED_FILTERS,
   filterReleases,
   presentValues,
+  remember,
+  split,
+  startingFilters,
   toggle,
   type AudioFilter,
   type Filters,
   type PresentValues,
   type ReleaseRow,
+  type RememberedFilters,
   type Sort,
 } from '../releases/filterReleases'
 import { parseRelease } from '../releases/parseRelease'
 import { releaseQuery, type TitleDetails } from '../releases/releaseQuery'
+import { useSettings } from '../settings/settings'
 
 export const AUDIO_LABEL = {
   dub: 'releases.audioDub',
@@ -52,6 +57,10 @@ export interface Releases {
   updateFilters: (change: Partial<Filters>) => void
   clearFilters: () => void
   active: ActiveFilter[]
+  /** Remembered filters this search doesn't apply, because no release (or none together) meets them. */
+  aside: RememberedFilters
+  /** Forgets the remembered filters this search doesn't apply. */
+  forgetAside: () => void
   sort: Sort
   setSort: (sort: Sort) => void
   audioLabel: (value: AudioFilter) => string
@@ -75,7 +84,8 @@ async function find(query: string, signal: AbortSignal): Promise<Found> {
 /**
  * Searches Prowlarr for the title's releases once `details` is known and `enabled`, and keeps the
  * filters, the sort and the release being added: what the phone's releases screen and the desktop
- * title page share.
+ * title page share. The filters start from the ones picked last (`startingFilters`), and a pick is
+ * remembered for the next title; the sort is remembered as it is.
  */
 export function useReleases(details: TitleDetails | undefined, enabled = true): Releases {
   const { t } = useTranslation()
@@ -90,8 +100,9 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
     getFailingIndexers(performance.now() - started!, signal),
   )
 
-  const [filters, setFilters] = useState<Filters>(NO_FILTERS)
-  const [sort, setSort] = useState<Sort>(DEFAULT_SORT)
+  const [settings, updateSettings] = useSettings()
+  // Unset until the user changes a filter in this search; till then they follow the remembered ones.
+  const [picked, setPicked] = useState<{ key: string | null; filters: Filters }>()
   const [adding, setAdding] = useState<ReleaseRow>()
 
   const rows = useMemo<ReleaseRow[]>(
@@ -104,8 +115,14 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
     const answered = new Set(rows.map((row) => row.release.indexer))
     return (failing.data ?? []).filter((name) => !answered.has(name))
   }, [failing.data, rows])
-  const visible = useMemo(() => filterReleases(rows, filters, sort), [rows, filters, sort])
   const present = useMemo(() => presentValues(rows), [rows])
+  const { releaseFilters: remembered, releaseSort: sort } = settings
+  // Picks from another search (another title) don't carry over.
+  const own = picked?.key === key ? picked.filters : undefined
+  // The starting filters are worked out only until the first pick, which every later pick builds on.
+  const filters = useMemo(() => own ?? startingFilters(remembered, rows, present), [own, remembered, rows, present])
+  const visible = useMemo(() => filterReleases(rows, filters, sort), [rows, filters, sort])
+  const { applied, aside } = useMemo(() => split(remembered, filters), [remembered, filters])
 
   const audioLabel = (value: AudioFilter) => t(AUDIO_LABEL[value])
   const active: ActiveFilter[] = [
@@ -137,11 +154,22 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
     visible,
     present,
     filters,
-    updateFilters: (change) => setFilters({ ...filters, ...change }),
-    clearFilters: () => setFilters(NO_FILTERS),
+    updateFilters: (change) => {
+      setPicked({ key, filters: { ...filters, ...change } })
+      // The indexer isn't remembered: a pick of it alone leaves the settings as they are.
+      if (Object.keys(change).some((name) => name !== 'indexer')) {
+        updateSettings({ releaseFilters: remember(remembered, change, filters) })
+      }
+    },
+    clearFilters: () => {
+      setPicked({ key, filters: NO_FILTERS })
+      updateSettings({ releaseFilters: NO_REMEMBERED_FILTERS })
+    },
     active,
+    aside,
+    forgetAside: () => updateSettings({ releaseFilters: applied }),
     sort,
-    setSort,
+    setSort: (releaseSort) => updateSettings({ releaseSort }),
     audioLabel,
     adding,
     setAdding,
