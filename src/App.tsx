@@ -18,6 +18,7 @@ import { TorrentScreen } from './screens/TorrentScreen'
 import { useQbitSession } from './session/useQbitSession'
 import { useTmdbSetup } from './session/useTmdbSetup'
 import { downloadStatus } from './torrents/status'
+import { useAltSpeedLimits } from './torrents/useAltSpeedLimits'
 import { MainDataProvider } from './torrents/MainDataProvider'
 import { useMainData } from './torrents/useMainData'
 import './App.css'
@@ -113,7 +114,9 @@ function App() {
 /** The desktop sidebar with how many torrents are downloading and qBittorrent's status, from the shared poll. */
 function AppSidebar({ items, version, pathname }: { items: TabBarItem[]; version: string; pathname?: string }) {
   const { t } = useTranslation()
-  const { data, offline } = useMainData()
+  const main = useMainData()
+  const { data, offline } = main
+  const altSpeed = useAltSpeedLimits(main)
   const downloading = data
     ? Object.values(data.torrents).filter((torrent) => downloadStatus(torrent) === 'downloading').length
     : 0
@@ -134,6 +137,9 @@ function AppSidebar({ items, version, pathname }: { items: TabBarItem[]; version
           downloadSpeed={data?.server.dl_info_speed}
           uploadSpeed={data?.server.up_info_speed}
           freeSpace={data?.server.free_space_on_disk}
+          altSpeedLimits={altSpeed.on}
+          altSpeedDisabled={altSpeed.disabled}
+          onToggleAltSpeed={altSpeed.toggle}
         />
       }
     />

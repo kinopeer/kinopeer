@@ -201,6 +201,7 @@ export function mainData(torrents: Torrent[] = TORRENTS, serverState: Partial<Se
       up_info_speed: torrents.reduce((sum, item) => sum + item.upspeed, 0),
       free_space_on_disk: 1.82 * 1024 * GB,
       connection_status: 'connected',
+      use_alt_speed_limits: false,
       ...serverState,
     },
   }

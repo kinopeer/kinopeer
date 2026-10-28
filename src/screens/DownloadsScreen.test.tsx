@@ -14,7 +14,7 @@ import { DownloadsScreen } from './DownloadsScreen'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => {
   const actual = await importOriginal<typeof api>()
-  return { ...actual, getMainData: vi.fn(), stopTorrents: vi.fn(), startTorrents: vi.fn(), deleteTorrents: vi.fn() }
+  return { ...actual, getMainData: vi.fn(), stopTorrents: vi.fn(), startTorrents: vi.fn(), deleteTorrents: vi.fn(), toggleSpeedLimitsMode: vi.fn() }
 })
 
 vi.mock('../api/tmdb', async (importOriginal) => {
@@ -69,6 +69,16 @@ beforeEach(() => {
 })
 
 describe('DownloadsScreen', () => {
+  it('switches qBittorrent’s alternative speed limits from the header', async () => {
+    vi.mocked(api.toggleSpeedLimitsMode).mockResolvedValue()
+    renderScreen()
+    const button = await screen.findByRole('button', { name: 'Alternative speed limits' })
+    expect(button).toHaveAttribute('aria-pressed', 'false')
+
+    await userEvent.click(button)
+    expect(api.toggleSpeedLimitsMode).toHaveBeenCalledOnce()
+  })
+
   it('shows a loading state, then the torrents in queue order', async () => {
     getMainData.mockReturnValueOnce(new Promise(() => {}))
     const { unmount } = renderScreen()

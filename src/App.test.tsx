@@ -20,6 +20,7 @@ vi.mock('./api/qbittorrent', async (importOriginal) => {
     getMainData: vi.fn(),
     getTorrentFiles: vi.fn(),
     deleteTorrents: vi.fn(),
+    toggleSpeedLimitsMode: vi.fn(),
   }
 })
 
@@ -153,6 +154,20 @@ describe('App', () => {
       const nav = screen.getByRole('navigation', { name: 'Main' })
       expect(within(nav).getByRole('link', { name: /^Downloads.*1 downloading$/ })).toBeInTheDocument()
       expect(screen.getByRole('region', { name: 'qBittorrent' })).toHaveTextContent('qBittorrent v5.2.4')
+    })
+
+    it('switches the alternative speed limits from the sidebar', async () => {
+      getMainData.mockResolvedValue({ rid: 1, full_update: true, torrents: {}, server_state: { use_alt_speed_limits: false } })
+      vi.mocked(api.toggleSpeedLimitsMode).mockResolvedValue()
+      renderApp('/')
+      const status = await screen.findByRole('region', { name: 'qBittorrent' })
+      // The card's button and the rail's icon: the same switch, one shown at a time.
+      const buttons = await within(status).findAllByRole('button', { name: 'Alternative speed limits' })
+      for (const button of buttons) {
+        await vi.waitFor(() => expect(button).toBeEnabled())
+        await userEvent.click(button)
+      }
+      expect(api.toggleSpeedLimitsMode).toHaveBeenCalledTimes(buttons.length)
     })
 
     describe('a torrent opened from the title page', () => {

@@ -21,6 +21,7 @@ import { compareTorrents, knownSort } from '../torrents/sort'
 import { STATUS_FILTERS, downloadStatus, isRunning, matchesFilter, type StatusFilter } from '../torrents/status'
 import { useServerMatches } from '../torrents/serverMatches'
 import { TYPE_FILTERS, isGuessed, titleType, useTitleMatches, type TypeFilter } from '../torrents/titleMatches'
+import { useAltSpeedLimits } from '../torrents/useAltSpeedLimits'
 import { useMainData } from '../torrents/useMainData'
 import { BulkActionsBar } from './BulkActionsBar'
 import { ChangeTitleSheet } from './ChangeTitleSheet'
@@ -48,7 +49,9 @@ const SKELETON_CARDS = 4
 export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsScreenProps) {
   const { t } = useTranslation()
   const format = useFormatters()
-  const { data, offline, updatedAt, refresh } = useMainData(onSessionLost)
+  const main = useMainData(onSessionLost)
+  const { data, offline, updatedAt, refresh } = main
+  const altSpeed = useAltSpeedLimits(main)
   const location = useLocation()
   const navigate = useNavigate()
   // Set by the releases screen after adding a release, and by the torrent screen after deleting one.
@@ -342,6 +345,17 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
         {!selecting && (
           <div className="downloads-title-row">
             <h1 className="t-h1">{t('downloads.title')}</h1>
+            {altSpeed.on !== undefined && (
+              // On desktop the switch is in the sidebar's qBittorrent card.
+              <IconButton
+                icon="turtle"
+                label={t('speedLimits.alt')}
+                active={altSpeed.on}
+                disabled={altSpeed.disabled}
+                iconSize={22}
+                onClick={altSpeed.toggle}
+              />
+            )}
             <IconButton
               icon="search"
               label={t('downloads.search')}

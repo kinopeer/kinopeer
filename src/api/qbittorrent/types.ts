@@ -87,6 +87,8 @@ export interface ServerState {
   up_info_speed: number
   free_space_on_disk: number
   connection_status: 'connected' | 'firewalled' | 'disconnected'
+  /** qBittorrent applies its alternative speed limits instead of the global ones. */
+  use_alt_speed_limits: boolean
 }
 
 /**

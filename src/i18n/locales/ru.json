@@ -157,6 +157,9 @@
     "offline": "Нет связи с qBittorrent",
     "freeSpace": "Свободно"
   },
+  "speedLimits": {
+    "alt": "Альтернативные лимиты скорости"
+  },
   "search": {
     "title": "Поиск",
     "placeholder": "Фильмы и сериалы",
