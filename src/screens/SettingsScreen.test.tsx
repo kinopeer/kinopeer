@@ -7,6 +7,7 @@ import * as qbt from '../api/qbittorrent'
 import * as serverSettings from '../api/settings'
 import * as tmdb from '../api/tmdb'
 import i18n from '../i18n'
+import { BUG_REPORT_URL, IDEAS_URL, REPO_URL } from '../lib/links'
 import { getSettings, resetSettings } from '../settings/settings'
 import { renderWithRouter } from '../test/render'
 import { SettingsScreen } from './SettingsScreen'
@@ -176,15 +177,19 @@ describe('SettingsScreen', () => {
     renderScreen()
     const about = screen.getByRole('region', { name: 'About' })
     const links: [RegExp, string][] = [
-      [/Suggest an idea/, 'https://github.com/MrShakhov/kinoseed/discussions/categories/ideas'],
-      [/Report a bug/, `https://github.com/MrShakhov/kinoseed/issues/new?template=bug_report.yml&version=${__APP_VERSION__}`],
-      [/Kinoseed on GitHub/, 'https://github.com/MrShakhov/kinoseed'],
+      [/Suggest an idea/, IDEAS_URL],
+      [/Report a bug/, BUG_REPORT_URL],
+      [/Kinoseed on GitHub/, REPO_URL],
     ]
     for (const [name, href] of links) {
       const link = within(about).getByRole('link', { name })
       expect(link).toHaveAttribute('href', href)
       expect(link).toHaveAttribute('target', '_blank')
     }
+    const bugReport = new URL(BUG_REPORT_URL)
+    expect(bugReport.pathname).toBe('/MrShakhov/kinoseed/issues/new')
+    expect(bugReport.searchParams.get('template')).toBe('bug_report.yml')
+    expect(bugReport.searchParams.get('version')).toBe(__APP_VERSION__)
   })
 
   it("credits TMDB with its logo and the notice its terms ask for, in TMDB's English in any language", async () => {

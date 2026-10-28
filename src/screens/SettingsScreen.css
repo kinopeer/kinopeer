@@ -191,8 +191,8 @@
 
 .settings-tmdb-logo {
   flex: none;
-  /* TMDB's terms: their logo less prominent than Kinoseed's (34px in the sidebar), aspect ratio kept. */
-  height: 24px;
+  /* TMDB's terms: their logo less prominent than Kinoseed's (34x34 in the sidebar), aspect ratio kept. */
+  height: 18px;
   width: auto;
 }
 
