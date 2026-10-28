@@ -40,8 +40,9 @@ interface BrowseRow extends Omit<BrowseRowQuery, 'params'> {
 }
 
 /**
- * Loads every row; a failed one comes back marked, with no titles. Throws only when every row
- * fails, with the key error if there is one, so a wrong key shows the key screen.
+ * Loads every row. An empty one is left out, a failed one comes back marked, with no titles.
+ * Throws only when every row fails, with the key error if there is one, so a wrong key shows the
+ * key screen.
  */
 async function loadBrowseRows(language: string, signal: AbortSignal): Promise<BrowseRow[]> {
   const queries = browseRowQueries(new Date())
@@ -52,10 +53,12 @@ async function loadBrowseRows(language: string, signal: AbortSignal): Promise<Br
   if (failures.length === results.length) {
     throw failures.find((reason) => reason instanceof TmdbKeyError) ?? failures[0]
   }
-  return queries.map(({ key, type }, index) => {
-    const result = results[index]
-    return result.status === 'fulfilled' ? { key, type, titles: result.value.titles } : { key, type, titles: [], failed: true }
-  })
+  return queries
+    .map(({ key, type }, index): BrowseRow => {
+      const result = results[index]
+      return result.status === 'fulfilled' ? { key, type, titles: result.value.titles } : { key, type, titles: [], failed: true }
+    })
+    .filter((row) => row.failed || row.titles.length > 0)
 }
 
 function parseType(value: string | null): TypeFilter {
@@ -95,8 +98,8 @@ export function SearchScreen() {
   const matchesType = (title: Title) => type === 'all' || title.type === type
   const results = search.data?.titles.filter(matchesType) ?? []
   const typeRows = (browse.data ?? []).filter((row) => type === 'all' || row.type === type)
-  // An empty or failed row has nothing to show, not even its heading.
-  const rows = typeRows.filter((row) => row.titles.length > 0)
+  // A failed row has nothing to show, not even its heading.
+  const rows = typeRows.filter((row) => !row.failed)
   // Nothing left because the type's rows failed, not because TMDB had nothing: an error, not "nothing to suggest".
   const browseFailed = rows.length === 0 && typeRows.some((row) => row.failed)
   const request = searching ? search : browse
