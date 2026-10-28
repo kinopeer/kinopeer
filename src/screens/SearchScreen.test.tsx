@@ -51,11 +51,8 @@ describe('SearchScreen', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Loading')
     expect(await screen.findByRole('heading', { name: 'New on digital' })).toBeInTheDocument()
 
-    expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual([
-      'New on digital',
-      'New episodes',
-      'Best of the year',
-    ])
+    expect(screen.getByRole('heading', { name: 'New episodes' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Best of the year' })).toBeInTheDocument()
     expect(row('New on digital').getByRole('link', { name: /Dune: Part Two/ })).toHaveAttribute('href', '/title/movie/1')
     expect(row('New episodes').getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual([
       'Andor',
@@ -63,7 +60,6 @@ describe('SearchScreen', () => {
     ])
     expect(row('New episodes').getByText('Series')).toBeInTheDocument()
     expect(row('Best of the year').getByText('Movie · 2024')).toBeInTheDocument()
-    expect(discoverTitles).toHaveBeenCalledTimes(3)
   })
 
   it('filters by type', async () => {

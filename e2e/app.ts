@@ -134,12 +134,7 @@ async function mockTmdb(page: Page): Promise<void> {
         const found = TITLES.filter((title) => [title.en, title.ru].some((name) => name.toLocaleLowerCase().includes(query ?? '')))
         return json(route, titlePage(found, language))
       }
-      if (path === '/discover/movie') {
-        const movies = TITLES.filter((title) => title.type === 'movie')
-        // The best-rated row in another order, so the two movie rows don't look the same.
-        const sorted = url.searchParams.get('sort_by') === 'vote_average.desc' ? movies.toReversed() : movies
-        return json(route, titlePage(sorted, language))
-      }
+      if (path === '/discover/movie') return json(route, titlePage(TITLES.filter((title) => title.type === 'movie'), language))
       if (path === '/discover/tv') return json(route, titlePage(TITLES.filter((title) => title.type === 'tv'), language))
       const [, type, id] = path.split('/')
       const found = details(type, Number(id), language)

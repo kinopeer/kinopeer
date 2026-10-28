@@ -1,8 +1,17 @@
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { browseRowQueries } from './browseRows'
 
-// Late in the evening in UTC+3 is already the next day there; dates are UTC days.
+// 20:30 on the 27th in New York, already the 28th in UTC: the dates are UTC days, not local ones.
 const TODAY = new Date('2026-10-28T00:30:00Z')
+const timeZone = process.env.TZ
+
+beforeAll(() => {
+  process.env.TZ = 'America/New_York'
+})
+
+afterAll(() => {
+  process.env.TZ = timeZone
+})
 
 function query(key: string) {
   const found = browseRowQueries(TODAY).find((row) => row.key === key)
@@ -20,15 +29,14 @@ describe('browseRowQueries', () => {
   })
 
   it('finds movies out on digital or disc in the last 60 days, in any country, most popular first', () => {
-    const { params } = query('newOnDigital')
-    expect(params).toMatchObject({
+    expect(query('newOnDigital').params).toEqual({
       with_release_type: '4|5',
       'release_date.gte': '2026-08-29',
       'release_date.lte': '2026-10-28',
+      'primary_release_date.gte': '2025-10-28',
       sort_by: 'popularity.desc',
       include_adult: false,
     })
-    expect(params).not.toHaveProperty('region')
   })
 
   it('leaves out old films with a fresh disc release', () => {
