@@ -6,9 +6,9 @@ import type { DownloadSort } from '../torrents/sort'
 
 /**
  * Preferences from the Settings screen, kept in this browser. The download defaults (categories,
- * start paused, sequential) are also kept on the Kinoseed server, so every device has the same:
- * the server's win when they load, and changes go to both. Without the server they stay in this
- * browser only. Connection settings live on the server alone.
+ * start paused, sequential, first and last pieces first) are also kept on the Kinoseed server, so
+ * every device has the same: the server's win when they load, and changes go to both. Without the
+ * server they stay in this browser only. Connection settings live on the server alone.
  */
 export interface Settings {
   /** qBittorrent category for new movie downloads; undefined picks one named like "Movies". */
@@ -19,6 +19,8 @@ export interface Settings {
   startPaused: boolean
   /** New downloads fetch pieces in order. */
   sequential: boolean
+  /** New downloads fetch the start and end of each file first (with sequential, a player can open it early). */
+  firstLastPieces: boolean
   /** Language of titles and overviews from TMDB; 'app' follows the interface language. */
   tmdbLanguage: 'app' | 'en-US' | 'ru-RU'
   /** How the downloads list is shown on a phone or tablet. */
@@ -34,15 +36,24 @@ export const SETTINGS_STORAGE_KEY = 'kinoseed.settings'
 export const DEFAULT_SETTINGS: Settings = {
   startPaused: false,
   sequential: false,
+  firstLastPieces: false,
   tmdbLanguage: 'app',
   downloadsView: 'list',
   downloadsDesktopView: 'grid',
   downloadsSort: 'priority',
 }
 
-/** The settings the server keeps too. */
-const SERVER_KEYS = ['movieCategory', 'tvCategory', 'startPaused', 'sequential'] as const
-type ServerKey = (typeof SERVER_KEYS)[number]
+type ServerKey = keyof DownloadDefaults
+
+/** The settings the server keeps too: a Record, so a default added to DownloadDefaults fails typecheck until it's here. */
+const SERVER_KEY_SET: Record<ServerKey, true> = {
+  movieCategory: true,
+  tvCategory: true,
+  startPaused: true,
+  sequential: true,
+  firstLastPieces: true,
+}
+const SERVER_KEYS = Object.keys(SERVER_KEY_SET) as ServerKey[]
 
 let current: Settings | undefined
 const listeners = new Set<() => void>()
