@@ -16,8 +16,7 @@ vi.mock('../api/prowlarr', async (importOriginal) => ({
 }))
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
   ...(await importOriginal<typeof qbt>()),
-  getCategories: vi.fn(),
-  getDefaultSavePath: vi.fn(),
+  getSaveLocations: vi.fn(),
   getMainData: vi.fn(),
 }))
 vi.mock('../releases/addRelease', () => ({ addRelease: vi.fn() }))
@@ -72,11 +71,13 @@ beforeEach(() => {
   resetSettings()
   fetchRelease.mockResolvedValue({ kind: 'torrent', file: FILE })
   readTorrentFile.mockResolvedValue(META)
-  vi.mocked(qbt.getCategories).mockResolvedValue([
-    { name: 'Movies', savePath: '/data/movies' },
-    { name: 'TV', savePath: '/data/tv' },
-  ])
-  vi.mocked(qbt.getDefaultSavePath).mockResolvedValue('/data')
+  vi.mocked(qbt.getSaveLocations).mockResolvedValue({
+    categories: [
+      { name: 'Movies', savePath: '/data/movies' },
+      { name: 'TV', savePath: '/data/tv' },
+    ],
+    defaultPath: '/data',
+  })
   vi.mocked(qbt.getMainData).mockResolvedValue({ rid: 1, server_state: { free_space_on_disk: 40e9 } })
   addRelease.mockResolvedValue()
 })
@@ -171,9 +172,18 @@ describe('AddReleaseSheet', () => {
     expect(addRelease).toHaveBeenCalledWith({ kind: 'magnet', uri: 'magnet:?xt=urn:btih:abc' }, expect.anything(), undefined)
   })
 
+  it('shows a category’s relative folder under the default save path', async () => {
+    vi.mocked(qbt.getSaveLocations).mockResolvedValue({
+      categories: [{ name: 'TV', savePath: 'shows' }],
+      defaultPath: '/data',
+    })
+    renderSheet()
+    expect(await screen.findByText('TV → /data/shows')).toBeInTheDocument()
+  })
+
   it('works without categories, a default path or the free space from qBittorrent', async () => {
-    vi.mocked(qbt.getCategories).mockRejectedValue(new qbt.QbittorrentError('Forbidden', 403))
-    vi.mocked(qbt.getDefaultSavePath).mockRejectedValue(new qbt.QbittorrentError('Forbidden', 403))
+    // getSaveLocations turns qBittorrent's refusals into empty answers.
+    vi.mocked(qbt.getSaveLocations).mockResolvedValue({ categories: [], defaultPath: '' })
     vi.mocked(qbt.getMainData).mockRejectedValue(new TypeError('Failed to fetch'))
     renderSheet()
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })

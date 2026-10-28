@@ -427,8 +427,9 @@
     "location": "Folder",
     "known": "qBittorrent folders",
     "submit": "Move",
-    "note": "qBittorrent moves the files in the background; the torrent keeps going from the new folder.",
-    "failed": "Couldn’t move the files. qBittorrent may have no access to that folder.",
-    "moved": "Moving files to {{location}}"
+    "note": "qBittorrent moves the files in the background, and the torrent carries on from the new folder. It keeps its category, but the category no longer decides its folder.",
+    "moved": "Moving files to {{location}}",
+    "noAccess": "qBittorrent has no access to that folder.",
+    "cantCreate": "qBittorrent couldn’t create that folder."
   }
 }

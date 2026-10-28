@@ -3,10 +3,9 @@ import { useTranslation } from 'react-i18next'
 import { fetchRelease, type Release, type ReleaseSource } from '../api/prowlarr'
 import {
   QbittorrentError,
-  getCategories,
-  getDefaultSavePath,
   getMainData,
   type Category,
+  getSaveLocations,
 } from '../api/qbittorrent'
 import { posterUrl, type MediaType } from '../api/tmdb'
 import { Badge } from '../components/Badge'
@@ -25,6 +24,7 @@ import { addRelease } from '../releases/addRelease'
 import type { ReleaseInfo } from '../releases/parseRelease'
 import { qualityBadges } from '../releases/qualityBadges'
 import { useSettings } from '../settings/settings'
+import { categoryFolder } from '../torrents/folders'
 import { tmdbTagFor } from '../torrents/parseName'
 import { categoryType } from '../torrents/titleMatches'
 import { readTorrentFile, type TorrentMeta } from '../torrents/torrentFile'
@@ -63,15 +63,14 @@ async function prepare(release: Release, signal: AbortSignal): Promise<Prepared>
 }
 
 async function locations(): Promise<Locations> {
-  const [categories, defaultPath, free] = await Promise.all([
-    getCategories().catch(() => []),
-    getDefaultSavePath().catch(() => ''),
+  const [saved, free] = await Promise.all([
+    getSaveLocations(),
     getMainData(0).then(
       (data) => data.server_state?.free_space_on_disk,
       () => undefined,
     ),
   ])
-  return { categories: categories.sort((a, b) => a.name.localeCompare(b.name)), defaultPath, free }
+  return { ...saved, free }
 }
 
 /** "Add to downloads": destination, options and file selection for one release. */
@@ -106,8 +105,8 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
     categories.find((candidate) => candidate.name === preferred)?.name ??
     categories.find((candidate) => categoryType(candidate.name) === title.type)?.name ??
     ''
-  const categoryPath = categories.find((candidate) => candidate.name === category)?.savePath
-  const defaultPath = categoryPath || where.data?.defaultPath || ''
+  const chosen = categories.find((candidate) => candidate.name === category)
+  const defaultPath = (chosen && categoryFolder(chosen, where.data?.defaultPath ?? '')) || where.data?.defaultPath || ''
   const destination = savePath.trim() || defaultPath
 
   const selectedSize = useMemo(

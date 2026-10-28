@@ -121,6 +121,15 @@ export async function getDefaultSavePath(): Promise<string> {
   return (await response.text()).trim()
 }
 
+/** Categories by name and the default save path, each empty when qBittorrent doesn't answer. */
+export async function getSaveLocations(): Promise<{ categories: Category[]; defaultPath: string }> {
+  const [categories, defaultPath] = await Promise.all([
+    getCategories().catch(() => []),
+    getDefaultSavePath().catch(() => ''),
+  ])
+  return { categories: categories.sort((a, b) => a.name.localeCompare(b.name)), defaultPath }
+}
+
 /** Files of a torrent, in index order. Empty until a magnet link's metadata has arrived. */
 export async function getTorrentFiles(hash: string): Promise<TorrentFile[]> {
   const response = await request('/torrents/files', { params: { hash } })
@@ -158,16 +167,17 @@ export async function deleteTorrents(hashes: string[], deleteFiles: boolean): Pr
 }
 
 /**
- * Moves torrents' files to `location`, creating it if needed. qBittorrent answers 403 when it can't
- * write there and 409 when it can't create the folder; the 403 isn't a lost session here, so it
- * comes back as a plain QbittorrentError.
+ * Moves torrents' files to `location`, creating it if needed. qBittorrent answers 409 when it can't
+ * create the folder and 403 when it can't write there, but 403 is also its answer without a
+ * session: the version check, which needs only a session, tells the two apart.
  */
 export async function setTorrentLocation(hashes: string[], location: string): Promise<void> {
   try {
     await request('/torrents/setLocation', { method: 'POST', params: { hashes: hashes.join('|'), location } })
   } catch (error) {
-    if (error instanceof UnauthorizedError) throw new QbittorrentError('qBittorrent cannot write to that folder', 403)
-    throw error
+    if (!(error instanceof UnauthorizedError)) throw error
+    await getAppVersion()
+    throw new QbittorrentError('qBittorrent cannot write to that folder', 403)
   }
 }
 

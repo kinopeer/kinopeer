@@ -6,6 +6,7 @@ import {
   deleteTorrents,
   getCategories,
   getDefaultSavePath,
+  getSaveLocations,
   getTorrentFiles,
   getTorrents,
   setFilePriority,
@@ -167,9 +168,39 @@ describe('setTorrentLocation', () => {
 
   it('reports a folder qBittorrent cannot write to as an error, not a lost session', async () => {
     respond('', 403)
+    respond('v5.0.4')
     const error = await setTorrentLocation(['a'], '/root').catch((caught: unknown) => caught)
+    expect(lastCall().url).toBe('/qbt/api/v2/app/version')
     expect(error).toBeInstanceOf(QbittorrentError)
     expect(error).not.toBeInstanceOf(UnauthorizedError)
     expect(error).toMatchObject({ status: 403 })
+  })
+
+  it('reports a lost session when qBittorrent refuses everything', async () => {
+    respond('', 403)
+    respond('', 403)
+    await expect(setTorrentLocation(['a'], '/root')).rejects.toBeInstanceOf(UnauthorizedError)
+  })
+})
+
+describe('getSaveLocations', () => {
+  it('gets the categories sorted by name and the default save path', async () => {
+    fetchMock.mockImplementation(async (url) =>
+      String(url).endsWith('/torrents/categories')
+        ? new Response('{"TV":{"name":"TV","savePath":""},"Movies":{"name":"Movies","savePath":"/m"}}')
+        : new Response('/downloads\n'),
+    )
+    expect(await getSaveLocations()).toEqual({
+      categories: [
+        { name: 'Movies', savePath: '/m' },
+        { name: 'TV', savePath: '' },
+      ],
+      defaultPath: '/downloads',
+    })
+  })
+
+  it('does without what qBittorrent doesn’t answer', async () => {
+    fetchMock.mockResolvedValue(new Response('', { status: 500 }))
+    expect(await getSaveLocations()).toEqual({ categories: [], defaultPath: '' })
   })
 })

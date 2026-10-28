@@ -7,29 +7,39 @@ import { MoveTorrentSheet } from './MoveTorrentSheet'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
   ...(await importOriginal<typeof api>()),
-  getCategories: vi.fn(),
-  getDefaultSavePath: vi.fn(),
+  getSaveLocations: vi.fn(),
   setTorrentLocation: vi.fn(),
 }))
 
+const getSaveLocations = vi.mocked(api.getSaveLocations)
 const setTorrentLocation = vi.mocked(api.setTorrentLocation)
 
 const DUNE = { hash: 'dune', name: 'Dune.Part.Two.2024.2160p', save_path: '/downloads/' } as Torrent
 
 function renderSheet() {
+  const onClose = vi.fn()
   const onMoved = vi.fn()
-  render(<MoveTorrentSheet torrent={DUNE} onClose={vi.fn()} onMoved={onMoved} />)
-  return { onMoved, field: screen.getByRole('textbox', { name: 'Folder' }), submit: screen.getByRole('button', { name: 'Move' }) }
+  render(<MoveTorrentSheet torrent={DUNE} onClose={onClose} onMoved={onMoved} />)
+  const field = screen.getByRole('textbox', { name: 'Folder' })
+  const submit = screen.getByRole('button', { name: 'Move' })
+  const moveTo = async (folder: string) => {
+    await userEvent.clear(field)
+    await userEvent.type(field, folder)
+    await userEvent.click(submit)
+  }
+  return { onClose, onMoved, field, submit, moveTo }
 }
 
 beforeEach(() => {
   vi.resetAllMocks()
-  vi.mocked(api.getDefaultSavePath).mockResolvedValue('/downloads/')
-  vi.mocked(api.getCategories).mockResolvedValue([
-    { name: 'Movies', savePath: '/media/movies' },
-    { name: 'Other', savePath: '' },
-    { name: 'Misc', savePath: '/downloads/' },
-  ])
+  getSaveLocations.mockResolvedValue({
+    defaultPath: '/downloads/',
+    categories: [
+      { name: 'Movies', savePath: '/media/movies' },
+      { name: 'TV', savePath: 'shows' },
+      { name: 'Other', savePath: '' },
+    ],
+  })
   setTorrentLocation.mockResolvedValue()
 })
 
@@ -38,28 +48,54 @@ describe('MoveTorrentSheet', () => {
     const { field, submit } = renderSheet()
     expect(field).toHaveValue('/downloads/')
     expect(submit).toBeDisabled()
-    await userEvent.click(await screen.findByRole('button', { name: '/media/movies' }))
-    expect(field).toHaveValue('/media/movies')
-    expect(screen.getAllByRole('button', { name: /^\// })).toHaveLength(2)
+    const folders = await screen.findByRole('group', { name: 'qBittorrent folders' })
+    expect(folders).toHaveTextContent('/downloads/' + '/media/movies' + '/downloads/shows' + '/downloads/Other')
+    await userEvent.click(screen.getByRole('button', { name: '/downloads/shows' }))
+    expect(field).toHaveValue('/downloads/shows')
+    expect(submit).toBeEnabled()
   })
 
-  it('moves to the folder typed and reports it', async () => {
-    const { field, submit, onMoved } = renderSheet()
-    await userEvent.clear(field)
-    await userEvent.type(field, ' /media/new ')
-    await userEvent.click(submit)
+  it('takes a typed folder when qBittorrent knows none', async () => {
+    getSaveLocations.mockResolvedValue({ defaultPath: '', categories: [] })
+    const { moveTo, onMoved } = renderSheet()
+    await moveTo('/media/new')
+    expect(screen.queryByRole('group', { name: 'qBittorrent folders' })).not.toBeInTheDocument()
+    expect(onMoved).toHaveBeenCalledWith('/media/new')
+  })
+
+  it('moves to the folder typed, trimmed, and reports it', async () => {
+    const { moveTo, onMoved } = renderSheet()
+    await moveTo(' /media/new ')
     expect(setTorrentLocation).toHaveBeenCalledWith(['dune'], '/media/new')
     expect(onMoved).toHaveBeenCalledWith('/media/new')
   })
 
-  it('stays open with an error when qBittorrent refuses', async () => {
-    setTorrentLocation.mockRejectedValue(new api.QbittorrentError('no access', 403))
-    const { field, submit, onMoved } = renderSheet()
-    await userEvent.clear(field)
-    await userEvent.type(field, '/root')
-    await userEvent.click(submit)
-    expect(await screen.findByText(/Couldn’t move the files/)).toBeInTheDocument()
+  it('says why qBittorrent refused, and stays open', async () => {
+    const { moveTo, onMoved, submit } = renderSheet()
+    setTorrentLocation.mockRejectedValueOnce(new api.QbittorrentError('no access', 403))
+    await moveTo('/root')
+    expect(await screen.findByText('qBittorrent has no access to that folder.')).toBeInTheDocument()
+    setTorrentLocation.mockRejectedValueOnce(new api.QbittorrentError('conflict', 409))
+    await moveTo('/media/nope')
+    expect(await screen.findByText('qBittorrent couldn’t create that folder.')).toBeInTheDocument()
+    expect(screen.queryByText('qBittorrent has no access to that folder.')).not.toBeInTheDocument()
+    setTorrentLocation.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    await moveTo('/media/later')
+    expect(await screen.findByText('Couldn’t reach qBittorrent. Try again.')).toBeInTheDocument()
     expect(onMoved).not.toHaveBeenCalled()
     expect(submit).toBeEnabled()
+  })
+
+  it('can’t be closed while the move is being sent', async () => {
+    let finish = () => {}
+    setTorrentLocation.mockReturnValue(new Promise<void>((resolve) => (finish = resolve)))
+    const { moveTo, onClose, onMoved } = renderSheet()
+    await moveTo('/media/new')
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled()
+    // A click on the dialog itself is a click on the backdrop.
+    await userEvent.click(screen.getByRole('dialog'))
+    expect(onClose).not.toHaveBeenCalled()
+    finish()
+    await vi.waitFor(() => expect(onMoved).toHaveBeenCalledWith('/media/new'))
   })
 })

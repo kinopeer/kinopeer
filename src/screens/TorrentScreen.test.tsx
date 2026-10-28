@@ -23,6 +23,8 @@ vi.mock('../api/qbittorrent', async (importOriginal) => {
     startTorrents: vi.fn(),
     stopTorrents: vi.fn(),
     deleteTorrents: vi.fn(),
+    getSaveLocations: vi.fn(),
+    setTorrentLocation: vi.fn(),
   }
 })
 
@@ -178,6 +180,24 @@ describe('TorrentScreen', () => {
     const dialog = screen.getByRole('alertdialog', { name: 'Delete torrent?' })
     await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
     expect(await screen.findByText(/Downloads list/)).toHaveTextContent('"deleted":"torrent"')
+  })
+
+  it('moves the files from the More menu and says where', async () => {
+    vi.mocked(api.getSaveLocations).mockResolvedValue({ defaultPath: '/downloads', categories: [] })
+    vi.mocked(api.setTorrentLocation).mockResolvedValue()
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Dune: Part Two' })).getByRole('button', { name: 'Move files…' }))
+    const sheet = screen.getByRole('dialog', { name: 'Move files' })
+    const field = within(sheet).getByRole('textbox', { name: 'Folder' })
+    await userEvent.clear(field)
+    await userEvent.type(field, '/media/movies')
+    const polls = getMainData.mock.calls.length
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Move' }))
+    expect(api.setTorrentLocation).toHaveBeenCalledWith(['dune'], '/media/movies')
+    expect(await screen.findByText('Moving files to /media/movies')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Move files' })).not.toBeInTheDocument()
+    await vi.waitFor(() => expect(getMainData.mock.calls.length).toBeGreaterThan(polls))
   })
 
   it('shows the torrent’s files', async () => {

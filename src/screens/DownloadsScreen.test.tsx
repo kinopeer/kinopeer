@@ -14,7 +14,7 @@ import { DownloadsScreen } from './DownloadsScreen'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => {
   const actual = await importOriginal<typeof api>()
-  return { ...actual, getMainData: vi.fn(), stopTorrents: vi.fn(), startTorrents: vi.fn(), deleteTorrents: vi.fn(), getCategories: vi.fn(), getDefaultSavePath: vi.fn(), setTorrentLocation: vi.fn() }
+  return { ...actual, getMainData: vi.fn(), stopTorrents: vi.fn(), startTorrents: vi.fn(), deleteTorrents: vi.fn(), getSaveLocations: vi.fn(), setTorrentLocation: vi.fn() }
 })
 
 vi.mock('../api/tmdb', async (importOriginal) => {
@@ -293,8 +293,7 @@ describe('DownloadsScreen', () => {
   })
 
   it('moves a torrent’s files from the row menu and says where', async () => {
-    vi.mocked(api.getCategories).mockResolvedValue([])
-    vi.mocked(api.getDefaultSavePath).mockResolvedValue('/downloads')
+    vi.mocked(api.getSaveLocations).mockResolvedValue({ defaultPath: '/downloads', categories: [] })
     vi.mocked(api.setTorrentLocation).mockResolvedValue()
     renderScreen()
     await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' }))
