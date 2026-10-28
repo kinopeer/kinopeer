@@ -35,14 +35,14 @@ export const SEARCH_DEBOUNCE_MS = 350
 
 interface BrowseRow extends Omit<BrowseRowQuery, 'params'> {
   titles: Title[]
-  /** Its query failed, so it has no titles and shows only as an error when no other row is left. */
-  failed?: boolean
+  /** Why its query failed: it has no titles and shows only as this error when no other row is left. */
+  error?: unknown
 }
 
 /**
- * Loads every row. An empty one is left out, a failed one comes back marked, with no titles.
- * Throws only when every row fails, with the key error if there is one, so a wrong key shows the
- * key screen.
+ * Loads every row. An empty one is left out, a failed one comes back with its error and no titles.
+ * Throws a key error from any row, so a wrong key shows the key screen, and throws when every row
+ * fails.
  */
 async function loadBrowseRows(language: string, signal: AbortSignal): Promise<BrowseRow[]> {
   const queries = browseRowQueries(new Date())
@@ -50,15 +50,17 @@ async function loadBrowseRows(language: string, signal: AbortSignal): Promise<Br
     queries.map(({ type, params }) => discoverTitles(type, params, { language, signal })),
   )
   const failures = results.flatMap((result) => (result.status === 'rejected' ? [result.reason as unknown] : []))
-  if (failures.length === results.length) {
-    throw failures.find((reason) => reason instanceof TmdbKeyError) ?? failures[0]
-  }
+  const keyError = failures.find((reason) => reason instanceof TmdbKeyError)
+  if (keyError) throw keyError
+  if (failures.length === results.length) throw failures[0]
   return queries
     .map(({ key, type }, index): BrowseRow => {
       const result = results[index]
-      return result.status === 'fulfilled' ? { key, type, titles: result.value.titles } : { key, type, titles: [], failed: true }
+      return result.status === 'fulfilled'
+        ? { key, type, titles: result.value.titles }
+        : { key, type, titles: [], error: result.reason }
     })
-    .filter((row) => row.failed || row.titles.length > 0)
+    .filter((row) => row.error !== undefined || row.titles.length > 0)
 }
 
 function parseType(value: string | null): TypeFilter {
@@ -99,10 +101,10 @@ export function SearchScreen() {
   const results = search.data?.titles.filter(matchesType) ?? []
   const typeRows = (browse.data ?? []).filter((row) => type === 'all' || row.type === type)
   // A failed row has nothing to show, not even its heading.
-  const rows = typeRows.filter((row) => !row.failed)
-  // Nothing left because the type's rows failed, not because TMDB had nothing: an error, not "nothing to suggest".
-  const browseFailed = rows.length === 0 && typeRows.some((row) => row.failed)
+  const rows = typeRows.filter((row) => row.error === undefined)
   const request = searching ? search : browse
+  // Nothing left because the type's rows failed, not because TMDB had nothing: their error, not "nothing to suggest".
+  const error = request.error ?? (rows.length === 0 ? typeRows.find((row) => row.error !== undefined)?.error : undefined)
   // Between a keystroke and the debounced request there's nothing to show for the new query yet.
   const loading = request.loading || (searching && term !== query.trim())
   // Back from a title: the results load again, so the browser can't bring the scroll back itself.
@@ -149,8 +151,8 @@ export function SearchScreen() {
       </header>
 
       <section className="search-body" aria-busy={loading}>
-        {request.error || (!searching && !loading && browseFailed) ? (
-          request.error instanceof TmdbKeyError ? (
+        {error ? (
+          error instanceof TmdbKeyError ? (
             <EmptyState
               icon="key"
               tone="error"

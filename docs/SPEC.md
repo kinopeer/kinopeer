@@ -88,7 +88,7 @@ Movies and series from TMDB with a type filter. An empty search shows rows of ti
 - "New episodes": scripted series and miniseries with an episode aired in the last 14 days, most popular first (talk shows, news and reality are left out).
 - "Best of the year": movies out on digital or disc in the last year (first released no more than about 18 months ago), rated by at least 300 people, best rated first.
 
-A release date in any country counts, up to the current day anywhere. The type filter hides the rows of the other type. A row whose query fails or comes back empty is left out, heading and all. When the type picked has no rows left, Search shows the error if its rows failed (the key screen if the key is wrong) and a note that there's nothing to suggest if TMDB had nothing; both have Try again. The query and type live in the page URL, and Back from a title returns to the results at the same scroll position.
+A release date in any country counts, up to the current day anywhere. The type filter hides the rows of the other type. A row whose query fails or comes back empty is left out, heading and all. When the type picked has no rows left, Search shows the error if its rows failed and a note that there's nothing to suggest if TMDB had nothing; both have Try again. A wrong key shows the key screen, even if some rows load. The query and type live in the page URL, and Back from a title returns to the results at the same scroll position.
 
 On desktop the screen fills the window beside the sidebar: the search field up to 640px wide, rows of larger posters (with a thin scrollbar for a mouse) and results in a grid as wide as the window.
 

@@ -111,6 +111,10 @@ describe('SearchScreen', () => {
     renderScreen('/search?type=tv')
     expect(await screen.findByRole('heading', { name: 'Couldn’t load from TMDB' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Nothing to suggest right now' })).not.toBeInTheDocument()
+
+    discoverTitles.mockImplementation(answer)
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByRole('heading', { name: 'New episodes' })).toBeInTheDocument()
   })
 
   it('searches after typing stops', async () => {
@@ -149,9 +153,12 @@ describe('SearchScreen', () => {
     expect(await screen.findByRole('heading', { name: 'TMDB isn’t set up' })).toBeInTheDocument()
   })
 
-  it('explains a missing TMDB key when another row failed first for another reason', async () => {
-    discoverTitles.mockRejectedValue(new tmdb.TmdbKeyError(401))
-    discoverTitles.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+  it('explains a missing TMDB key even when another row loads', async () => {
+    const answer = discoverTitles.getMockImplementation()!
+    discoverTitles.mockImplementation(async (type, params, options) => {
+      if (type === 'tv') throw new tmdb.TmdbKeyError(401)
+      return answer(type, params, options)
+    })
     renderScreen()
     expect(await screen.findByRole('heading', { name: 'TMDB isn’t set up' })).toBeInTheDocument()
   })
