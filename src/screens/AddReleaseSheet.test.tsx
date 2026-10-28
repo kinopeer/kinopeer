@@ -162,11 +162,14 @@ describe('AddReleaseSheet', () => {
     await userEvent.click(within(sheet).getByRole('button', { name: 'Options' }))
     const paused = within(sheet).getByRole('switch', { name: 'Start paused' })
     const sequential = within(sheet).getByRole('switch', { name: 'Sequential download' })
+    const firstLast = within(sheet).getByRole('switch', { name: 'First and last pieces first' })
     expect(paused).not.toBeChecked()
+    expect(firstLast).not.toBeChecked()
 
     // The server's defaults load while the sheet is open.
-    act(() => updateSettings({ startPaused: true }))
+    act(() => updateSettings({ startPaused: true, firstLastPieces: true }))
     expect(paused).toBeChecked()
+    expect(firstLast).toBeChecked()
 
     await userEvent.click(sequential)
     act(() => updateSettings({ sequential: false, startPaused: false }))
