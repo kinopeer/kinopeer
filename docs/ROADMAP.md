@@ -55,7 +55,7 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 
 - [x] Torrent details: recheck and reannounce.
 - [ ] Torrent details: per-torrent speed limits and moving the files to another folder.
-- [ ] A switch for qBittorrent's alternative speed limits in the sidebar.
+- [x] A switch for qBittorrent's alternative speed limits in the sidebar (on a phone, in the Downloads title row).
 - [x] Releases: which indexers failed when a search comes back partly empty. Not why: Prowlarr's API keeps only when an indexer failed, and the reason stays in its logs.
 
 ## 0.9: Beyond Umbrel

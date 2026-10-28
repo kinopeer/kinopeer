@@ -183,3 +183,8 @@ export async function getTorrentTrackers(hash: string): Promise<TorrentTracker[]
   const response = await request('/torrents/trackers', { params: { hash } })
   return (await response.json()) as TorrentTracker[]
 }
+
+/** Switches between qBittorrent's global and alternative speed limits; `use_alt_speed_limits` shows which apply. */
+export async function toggleSpeedLimitsMode(): Promise<void> {
+  await request('/transfer/toggleSpeedLimitsMode', { method: 'POST' })
+}

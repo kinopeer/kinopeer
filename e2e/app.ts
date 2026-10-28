@@ -22,6 +22,8 @@ export interface AppOptions {
   torrents?: Torrent[]
   /** qBittorrent answers the first poll, then stops answering. */
   goesOffline?: boolean
+  /** qBittorrent's alternative speed limits apply. */
+  altSpeedLimits?: boolean
   /** The server rejects the login sent from the connect screen as a wrong login or password. */
   wrongLogin?: boolean
   /** Prowlarr doesn't answer the server's connection check. */
@@ -63,7 +65,10 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
         if (options.goesOffline && polls > 1) return route.abort('connectionrefused')
         return json(
           route,
-          mainData(torrents, options.freeSpace === undefined ? {} : { free_space_on_disk: options.freeSpace }),
+          mainData(torrents, {
+            use_alt_speed_limits: options.altSpeedLimits ?? false,
+            ...(options.freeSpace === undefined ? {} : { free_space_on_disk: options.freeSpace }),
+          }),
         )
       }
       if (pathname === '/qbt/api/v2/app/webapiVersion') return route.fulfill({ body: '2.11.4' })

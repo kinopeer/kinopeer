@@ -12,6 +12,7 @@ import {
   setFilePriority,
   startTorrents,
   stopTorrents,
+  toggleSpeedLimitsMode,
 } from './client'
 
 let fetchMock: Mock<typeof fetch>
@@ -177,5 +178,14 @@ describe('deleteTorrents', () => {
     expect(lastCall().url).toBe('/qbt/api/v2/torrents/delete')
     expect(lastCall().init.method).toBe('POST')
     expect(String(lastCall().init.body)).toBe('hashes=a%7Cb&deleteFiles=true')
+  })
+})
+
+describe('toggleSpeedLimitsMode', () => {
+  it('posts to /transfer/toggleSpeedLimitsMode', async () => {
+    respond('')
+    await toggleSpeedLimitsMode()
+    expect(lastCall().url).toBe('/qbt/api/v2/transfer/toggleSpeedLimitsMode')
+    expect(lastCall().init.method).toBe('POST')
   })
 })

@@ -20,6 +20,7 @@ vi.mock('./api/qbittorrent', async (importOriginal) => {
     getMainData: vi.fn(),
     getTorrentFiles: vi.fn(),
     deleteTorrents: vi.fn(),
+    toggleSpeedLimitsMode: vi.fn(),
   }
 })
 
@@ -153,6 +154,16 @@ describe('App', () => {
       const nav = screen.getByRole('navigation', { name: 'Main' })
       expect(within(nav).getByRole('link', { name: /^Downloads.*1 downloading$/ })).toBeInTheDocument()
       expect(screen.getByRole('region', { name: 'qBittorrent' })).toHaveTextContent('qBittorrent v5.2.4')
+    })
+
+    it('switches the alternative speed limits from the sidebar, and says when that fails', async () => {
+      getMainData.mockResolvedValue({ rid: 1, full_update: true, torrents: {}, server_state: { use_alt_speed_limits: false } })
+      vi.mocked(api.toggleSpeedLimitsMode).mockRejectedValue(new TypeError('Failed to fetch'))
+      renderApp('/')
+      const status = await screen.findByRole('region', { name: 'qBittorrent' })
+      await userEvent.click(await within(status).findByRole('button', { name: 'Alt. speed limits' }))
+      expect(api.toggleSpeedLimitsMode).toHaveBeenCalled()
+      expect(await screen.findByText('Couldn’t switch the speed limits. Try again.')).toBeInTheDocument()
     })
 
     it('shows no free space in the sidebar when qBittorrent reports 0, which means it can’t tell', async () => {
