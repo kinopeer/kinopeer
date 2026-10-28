@@ -69,13 +69,38 @@ describe('SearchScreen', () => {
     expect(types.getByRole('button', { name: 'All', pressed: true })).toBeInTheDocument()
 
     await userEvent.click(types.getByRole('button', { name: 'Series' }))
-    expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual(['New episodes'])
+    expect(screen.getByRole('heading', { name: 'New episodes' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'New on digital' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Best of the year' })).not.toBeInTheDocument()
 
     await userEvent.click(types.getByRole('button', { name: 'Movies' }))
-    expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual([
-      'New on digital',
-      'Best of the year',
-    ])
+    expect(screen.getByRole('heading', { name: 'New on digital' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Best of the year' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'New episodes' })).not.toBeInTheDocument()
+  })
+
+  it('hides an empty row', async () => {
+    const answer = discoverTitles.getMockImplementation()!
+    discoverTitles.mockImplementation(async (type, params, options) =>
+      type === 'tv' ? page([]) : answer(type, params, options),
+    )
+    renderScreen()
+    expect(await screen.findByRole('heading', { name: 'New on digital' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'New episodes' })).not.toBeInTheDocument()
+  })
+
+  it('says so when the type picked has nothing to show, and tries again', async () => {
+    const answer = discoverTitles.getMockImplementation()!
+    discoverTitles.mockImplementation(async (type, params, options) => {
+      if (type === 'tv') throw new tmdb.TmdbError('TMDB responded 422', 422)
+      return answer(type, params, options)
+    })
+    renderScreen('/search?type=tv')
+    expect(await screen.findByRole('heading', { name: 'Nothing to suggest right now' })).toBeInTheDocument()
+
+    discoverTitles.mockImplementation(answer)
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByRole('heading', { name: 'New episodes' })).toBeInTheDocument()
   })
 
   it('searches after typing stops', async () => {
@@ -115,10 +140,12 @@ describe('SearchScreen', () => {
   })
 
   it('retries after a network error', async () => {
-    const offline = new TypeError('Failed to fetch')
-    discoverTitles.mockRejectedValueOnce(offline).mockRejectedValueOnce(offline).mockRejectedValueOnce(offline)
+    const answer = discoverTitles.getMockImplementation()!
+    discoverTitles.mockRejectedValue(new TypeError('Failed to fetch'))
     renderScreen()
-    await userEvent.click(await screen.findByRole('button', { name: 'Try again' }))
+    const retry = await screen.findByRole('button', { name: 'Try again' })
+    discoverTitles.mockImplementation(answer)
+    await userEvent.click(retry)
     expect(await screen.findByRole('heading', { name: 'New on digital' })).toBeInTheDocument()
   })
 

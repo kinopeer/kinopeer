@@ -37,7 +37,7 @@ interface BrowseRow extends Omit<BrowseRowQuery, 'params'> {
   titles: Title[]
 }
 
-/** A row whose query fails is left out; the screen shows an error only when every row fails or the key is wrong. */
+/** A row whose query fails is left out; the screen shows an error only when every row fails (as with a wrong key). */
 async function loadBrowseRows(language: string, signal: AbortSignal): Promise<BrowseRow[]> {
   const results = await Promise.allSettled(
     browseRowQueries(new Date()).map(async ({ params, ...row }) => ({
@@ -46,8 +46,6 @@ async function loadBrowseRows(language: string, signal: AbortSignal): Promise<Br
     })),
   )
   const failures = results.flatMap((result) => (result.status === 'rejected' ? [result.reason as unknown] : []))
-  const keyError = failures.find((reason) => reason instanceof TmdbKeyError)
-  if (keyError) throw keyError
   if (failures.length === results.length) throw failures[0]
   return results.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []))
 }
@@ -88,7 +86,8 @@ export function SearchScreen() {
 
   const matchesType = (title: Title) => type === 'all' || title.type === type
   const results = search.data?.titles.filter(matchesType) ?? []
-  const rows = (browse.data ?? []).filter((row) => type === 'all' || row.type === type)
+  // An empty row (or one that failed and was left out) has nothing to show, not even its heading.
+  const rows = (browse.data ?? []).filter((row) => row.titles.length > 0 && (type === 'all' || row.type === type))
   const request = searching ? search : browse
   // Between a keystroke and the debounced request there's nothing to show for the new query yet.
   const loading = request.loading || (searching && term !== query.trim())
@@ -193,6 +192,16 @@ export function SearchScreen() {
               {t('search.noResultsBody')}
             </EmptyState>
           )
+        ) : rows.length === 0 ? (
+          <EmptyState
+            icon="search"
+            tone="muted"
+            title={t('search.browseEmptyTitle')}
+            actionLabel={t('common.retry')}
+            onAction={request.retry}
+          >
+            {t('search.browseEmptyBody')}
+          </EmptyState>
         ) : (
           rows.map((row) => (
             <section key={row.key} className="search-row" aria-labelledby={`search-row-${row.key}`}>

@@ -161,7 +161,9 @@
     "errorTitle": "Couldn’t load from TMDB",
     "errorBody": "Check the connection and try again.",
     "keyTitle": "TMDB isn’t set up",
-    "keyBody": "Search needs a TMDB key. Enter it once and the Kinoseed server keeps it."
+    "keyBody": "Search needs a TMDB key. Enter it once and the Kinoseed server keeps it.",
+    "browseEmptyTitle": "Nothing to suggest right now",
+    "browseEmptyBody": "TMDB has no picks of this type at the moment. Try again later, or search by name."
   },
   "title": {
     "movie": "Movie",
