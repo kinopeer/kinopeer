@@ -240,6 +240,25 @@ describe('prowlarrMiddleware', () => {
     expect(await slow.json()).toEqual({ error: 'unreachable' })
   })
 
+  it('reports a rejected key and a failing Prowlarr on the indexer list, asked after a failure', async () => {
+    const listFailing = (status: number) =>
+      listen((request, response) => {
+        response.setHeader('Content-Type', 'application/json')
+        if (request.url === '/api/v1/indexer') {
+          response.statusCode = status
+          return response.end('[]')
+        }
+        response.end(JSON.stringify([{ indexerId: 1, mostRecentFailure: new Date().toISOString() }]))
+      })
+    const rejected = await fetch(`${await kinoseed({ url: await listFailing(401), apiKey: KEY })}/prowlarr/failing?within=60000`)
+    expect(rejected.status).toBe(502)
+    expect(await rejected.json()).toEqual({ error: 'unauthorized' })
+
+    const broken = await fetch(`${await kinoseed({ url: await listFailing(500), apiKey: KEY })}/prowlarr/failing?within=60000`)
+    expect(broken.status).toBe(502)
+    expect(await broken.json()).toEqual({ error: 'upstream' })
+  })
+
   it('downloads a .torrent through Prowlarr with the key added back', async () => {
     let seen: URL | undefined
     const prowlarr = await listen((request, response) => {

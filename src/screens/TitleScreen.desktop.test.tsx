@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -21,7 +21,7 @@ vi.mock('../api/tmdb', async (importOriginal) => {
 })
 vi.mock('../api/prowlarr', async (importOriginal) => {
   const actual = await importOriginal<typeof prowlarr>()
-  return { ...actual, searchReleases: vi.fn(), fetchRelease: vi.fn() }
+  return { ...actual, searchReleases: vi.fn(), getFailingIndexers: vi.fn(), fetchRelease: vi.fn() }
 })
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
   ...(await importOriginal<typeof qbt>()),
@@ -101,6 +101,7 @@ beforeEach(() => {
   getMovie.mockResolvedValue(DUNE)
   getTv.mockResolvedValue(SHOGUN)
   searchReleases.mockResolvedValue(DUNE_RELEASES)
+  vi.mocked(prowlarr.getFailingIndexers).mockResolvedValue([])
   vi.mocked(tmdb.getRecommendations).mockResolvedValue({ titles: [], page: 1, totalPages: 1 })
   vi.mocked(tmdb.getSimilar).mockResolvedValue({ titles: [], page: 1, totalPages: 1 })
 })
@@ -127,6 +128,13 @@ describe('TitleScreen on desktop', () => {
     expect(names()).toEqual([DUNE_RELEASES[1].title, DUNE_RELEASES[0].title, DUNE_RELEASES[2].title])
     // The page stays: the title isn't loaded again.
     expect(getMovie).toHaveBeenCalledTimes(1)
+  })
+
+  it('names the indexers that didn’t answer in the releases section', async () => {
+    vi.mocked(prowlarr.getFailingIndexers).mockResolvedValue(['NNM-Club'])
+    renderAt('/title/movie/693134/releases')
+    const section = await screen.findByRole('region', { name: 'Releases' })
+    await waitFor(() => expect(within(section).getByRole('status')).toHaveTextContent('NNM-Club'))
   })
 
   it('keeps the recommendations on the page with the releases searched', async () => {

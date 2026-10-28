@@ -82,7 +82,9 @@ describe('Prowlarr client through /prowlarr', () => {
     })
     await expect(getFailingIndexers(60_000)).resolves.toEqual(['NNM-Club'])
     expect(prowlarr.seen.map((request) => request.url).sort()).toEqual(['/api/v1/indexer', '/api/v1/indexerstatus'])
+  })
 
+  it('passes a rejected key on the failing-indexers check to the client as a server error', async () => {
     await startKinoseed({ env: { PROWLARR_API_KEY: 'wrong-key' } })
     await expect(getFailingIndexers(0)).rejects.toMatchObject({ status: 502, code: 'unauthorized' })
   })
