@@ -7,9 +7,12 @@ import {
   getDefaultSavePath,
   getTorrentFiles,
   getTorrents,
+  reannounceTorrents,
+  recheckTorrents,
   setFilePriority,
   startTorrents,
   stopTorrents,
+  toggleSpeedLimitsMode,
 } from './client'
 
 let fetchMock: Mock<typeof fetch>
@@ -152,6 +155,22 @@ describe('stopTorrents', () => {
   })
 })
 
+describe('recheckTorrents and reannounceTorrents', () => {
+  it('post the hashes joined with a pipe', async () => {
+    respond('')
+    await recheckTorrents(['a', 'b'])
+    expect(lastCall().url).toBe('/qbt/api/v2/torrents/recheck')
+    expect(lastCall().init.method).toBe('POST')
+    expect(String(lastCall().init.body)).toBe('hashes=a%7Cb')
+
+    respond('')
+    await reannounceTorrents(['a'])
+    expect(lastCall().url).toBe('/qbt/api/v2/torrents/reannounce')
+    expect(lastCall().init.method).toBe('POST')
+    expect(String(lastCall().init.body)).toBe('hashes=a')
+  })
+})
+
 describe('deleteTorrents', () => {
   it('posts the hashes and whether to delete files', async () => {
     respond('')
@@ -159,5 +178,14 @@ describe('deleteTorrents', () => {
     expect(lastCall().url).toBe('/qbt/api/v2/torrents/delete')
     expect(lastCall().init.method).toBe('POST')
     expect(String(lastCall().init.body)).toBe('hashes=a%7Cb&deleteFiles=true')
+  })
+})
+
+describe('toggleSpeedLimitsMode', () => {
+  it('posts to /transfer/toggleSpeedLimitsMode', async () => {
+    respond('')
+    await toggleSpeedLimitsMode()
+    expect(lastCall().url).toBe('/qbt/api/v2/transfer/toggleSpeedLimitsMode')
+    expect(lastCall().init.method).toBe('POST')
   })
 })

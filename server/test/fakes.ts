@@ -358,13 +358,23 @@ function toProwlarr(release: Release, base: string, apiKey: string) {
 /**
  * A Prowlarr that needs `apiKey` in X-Api-Key on every API call (401 otherwise) and records what
  * reached it. /api/v1/system/status and /api/v1/indexer (two enabled, one not) serve the status
- * check; /api/v1/search answers `releases`, each with a download link that carries the key, as
- * Prowlarr's do; /api/v1/indexer/1/download serves by its `link`: "shogun" is the Shōgun .torrent
+ * check; /api/v1/indexerstatus answers `indexerStatus`, the indexers that failed lately (none by
+ * default), with the fields of Prowlarr's IndexerStatusResource that Kinoseed reads;
+ * /api/v1/search answers `releases`, each with a download link that carries the key, as Prowlarr's
+ * do; /api/v1/indexer/1/download serves by its `link`: "shogun" is the Shōgun .torrent
  * from the fixtures, "magnet" redirects to PROWLARR_MAGNET, anything else is 404.
  * Written from Prowlarr 1.24.x; when a newer version answers differently, change the fake here and
  * say the version.
  */
-export async function fakeProwlarr({ apiKey = 'prowlarr-key', releases = RELEASES }: { apiKey?: string; releases?: Release[] } = {}) {
+export async function fakeProwlarr({
+  apiKey = 'prowlarr-key',
+  releases = RELEASES,
+  indexerStatus = [],
+}: {
+  apiKey?: string
+  releases?: Release[]
+  indexerStatus?: { indexerId: number; mostRecentFailure?: string; disabledTill?: string }[]
+} = {}) {
   const seen: ProwlarrRequest[] = []
   const base = await listen((request, response) => {
     const url = request.url ?? ''
@@ -380,6 +390,7 @@ export async function fakeProwlarr({ apiKey = 'prowlarr-key', releases = RELEASE
         { id: 3, name: 'Kinozal', enable: false },
       ])
     }
+    if (pathname === '/api/v1/indexerstatus') return json(response, indexerStatus)
     if (pathname === '/api/v1/search') {
       return json(
         response,

@@ -64,6 +64,19 @@ describe('useMainData', () => {
     expect(getMainData).toHaveBeenCalledTimes(2)
   })
 
+  it('says when the request behind the data was sent', async () => {
+    let answer: (data: api.MainData) => void = () => {}
+    getMainData.mockReturnValueOnce(new Promise((resolve) => (answer = resolve)))
+    const { result } = renderHook(() => useMainData(vi.fn()))
+    expect(result.current.requestedAt).toBeNull()
+    const sentAt = Date.now()
+
+    await act(() => vi.advanceTimersByTimeAsync(500))
+    await act(async () => answer({ rid: 1, full_update: true }))
+    expect(result.current.requestedAt).toBe(sentAt)
+    expect(result.current.updatedAt).toBe(sentAt + 500)
+  })
+
   it('reports an expired session once and stops', async () => {
     getMainData.mockRejectedValue(new api.UnauthorizedError())
     const onUnauthorized = vi.fn()

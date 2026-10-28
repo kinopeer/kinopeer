@@ -143,6 +143,11 @@
     "offline": "No connection to qBittorrent",
     "freeSpace": "Free space"
   },
+  "speedLimits": {
+    "alt": "Alternative speed limits",
+    "short": "Alt. speed limits",
+    "failed": "Couldn’t switch the speed limits. Try again."
+  },
   "search": {
     "title": "Search",
     "placeholder": "Movies and series",
@@ -166,7 +171,9 @@
     "errorTitle": "Couldn’t load from TMDB",
     "errorBody": "Check the connection and try again.",
     "keyTitle": "TMDB isn’t set up",
-    "keyBody": "Search needs a TMDB key. Enter it once and the Kinoseed server keeps it."
+    "keyBody": "Search needs a TMDB key. Enter it once and the Kinoseed server keeps it.",
+    "browseEmptyTitle": "Nothing to suggest right now",
+    "browseEmptyBody": "TMDB has no picks at the moment. Try again later, or search by name."
   },
   "title": {
     "movie": "Movie",
@@ -285,7 +292,9 @@
     "colSeeds": "Seeds",
     "colPeers": "Peers",
     "colAge": "Age",
-    "add": "Add"
+    "add": "Add",
+    "failingIndexers_one": "{{count}} indexer didn’t answer: {{names}}",
+    "failingIndexers_other": "{{count}} indexers didn’t answer: {{names}}"
   },
   "add": {
     "title": "Add to downloads",
@@ -338,6 +347,15 @@
     "pause": "Pause",
     "resume": "Resume",
     "delete": "Delete",
+    "recheck": "Force recheck",
+    "recheckChecking": "Already being checked",
+    "recheckNoMetadata": "Once the magnet link has its metadata",
+    "reannounce": "Reannounce",
+    "reannounceOff": "Only while downloading or seeding",
+    "recheckTitle": "Recheck the files?",
+    "recheckBody": "qBittorrent will read the downloaded data of “{{title}}” again. The torrent shows as checking until it’s done, and pieces that fail the check are downloaded again.",
+    "rechecking": "Checking the files",
+    "reannounced": "Announced to the trackers",
     "cancel": "Cancel",
     "actionFailed": "Couldn’t reach qBittorrent. Try again.",
     "details": "Details",
@@ -436,5 +454,24 @@
     "change": "Change TMDB key",
     "sheetTitle": "TMDB key",
     "enter": "Enter key"
+  },
+  "prowlarrKey": {
+    "help": "Find the key in Prowlarr: Settings → General → Security → API Key.",
+    "label": "Prowlarr API key",
+    "fieldHelp": "Kinoseed checks it with Prowlarr before saving. It stays on the Kinoseed server.",
+    "invalid": "Prowlarr didn’t accept this key",
+    "unreachable": "Prowlarr isn’t answering. Check that it’s running and try again.",
+    "notConfigured": "The Kinoseed server doesn’t know Prowlarr’s address (PROWLARR_URL).",
+    "saved": "Prowlarr key saved",
+    "change": "Change Prowlarr key",
+    "sheetTitle": "Prowlarr key",
+    "forget": "Use the server’s key",
+    "notProwlarr": "The Prowlarr address on the Kinoseed server answers, but not like Prowlarr. Check PROWLARR_URL.",
+    "noServerKey": "The Kinoseed server has no Prowlarr key of its own, so the saved one stays.",
+    "forgotten": "Using the server’s Prowlarr key",
+    "save": "Save",
+    "storage": "The Kinoseed server couldn’t save the change. Check that its data folder is writable.",
+    "failed": "Couldn’t save the key. Try again.",
+    "forgetFailed": "Couldn’t switch to the server’s key. Try again."
   }
 }

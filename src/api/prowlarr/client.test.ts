@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
-import { ProwlarrSetupError, fetchRelease, searchReleases } from './client'
+import { ProwlarrSetupError, fetchRelease, getFailingIndexers, searchReleases } from './client'
 import type { Release } from './types'
 
 let fetchMock: Mock<typeof fetch>
@@ -20,6 +20,25 @@ describe('searchReleases', () => {
     // The SPA fallback answering instead of the bridge.
     fetchMock.mockResolvedValueOnce(new Response('<!doctype html>', { headers: { 'Content-Type': 'text/html' } }))
     await expect(searchReleases('a')).rejects.toBeInstanceOf(ProwlarrSetupError)
+  })
+})
+
+describe('getFailingIndexers', () => {
+  it('says how long ago the search started, in whole milliseconds, and answers with the names', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json({ indexers: ['Kinozal'] }))
+    await expect(getFailingIndexers(1234.6)).resolves.toEqual(['Kinozal'])
+    expect(fetchMock.mock.calls[0][0]).toBe('/prowlarr/failing?within=1235')
+  })
+
+  it('asks about ten minutes at most, however long the page waited', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json({ indexers: [] }))
+    await getFailingIndexers(45 * 60 * 1000)
+    expect(fetchMock.mock.calls[0][0]).toBe('/prowlarr/failing?within=600000')
+  })
+
+  it('rejects when the server can’t tell', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json({ error: 'upstream' }, { status: 502 }))
+    await expect(getFailingIndexers(0)).rejects.toMatchObject({ status: 502, code: 'upstream' })
   })
 })
 

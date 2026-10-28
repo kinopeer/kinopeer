@@ -46,9 +46,10 @@ export interface RequestOptions {
   signal?: AbortSignal
 }
 
-type Params = Record<string, string | number | boolean | undefined>
+/** Query parameters for a TMDB call, e.g. Discover's filters; undefined ones are left out. */
+export type QueryParams = Record<string, string | number | boolean | undefined>
 
-async function request<T>(path: string, params: Params, { language, signal }: RequestOptions): Promise<T> {
+async function request<T>(path: string, params: QueryParams, { language, signal }: RequestOptions): Promise<T> {
   const search = new URLSearchParams()
   for (const [key, value] of Object.entries({ ...params, language })) {
     if (value !== undefined) search.set(key, String(value))
@@ -165,13 +166,10 @@ export async function searchTitles(query: string, options: SearchOptions = {}): 
   }
 }
 
-/** TMDB Discover's filters, e.g. `{ sort_by: 'popularity.desc', 'release_date.gte': '2026-09-01' }`. */
-export type DiscoverParams = Record<string, string | number | boolean>
-
 /** Movies or series matching Discover's filters. */
 export async function discoverTitles(
   type: MediaType,
-  params: DiscoverParams,
+  params: QueryParams,
   options: RequestOptions = {},
 ): Promise<TitlePage> {
   const data = await request<Paged<MovieResult | TvResult>>(`/discover/${type}`, params, options)

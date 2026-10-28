@@ -67,7 +67,7 @@ export function DeleteTorrentDialog({ torrents, title, onClose, onDeleted }: Del
         </>
       }
     >
-      <p className="t-body c2 delete-body">
+      <p className="t-body c2">
         {many ? t('torrent.deleteBodyMany', { count: torrents.length }) : t('torrent.deleteBody', { title })}
       </p>
       <div className="delete-files">

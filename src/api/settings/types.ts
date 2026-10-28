@@ -6,6 +6,14 @@ export interface SecretStatus {
   source: KeySource | null
 }
 
+export interface ProwlarrKeyStatus extends SecretStatus {
+  /**
+   * The server has a key of its own (PROWLARR_API_KEY or a readable config.xml), which applies once
+   * a saved key is forgotten.
+   */
+  serverKey: boolean
+}
+
 /** Defaults for adding a release, the same on every device. */
 export interface DownloadDefaults {
   /** qBittorrent category for new movie downloads; null picks one named like "Movies". */
@@ -23,6 +31,8 @@ export interface DownloadDefaults {
 /** Answer of GET /api/settings. Secrets never leave the server, only whether they are set. */
 export interface ServerSettings {
   tmdb: SecretStatus
+  /** The Prowlarr API key: 'env' covers PROWLARR_API_KEY and the key in Prowlarr's config.xml. */
+  prowlarr: ProwlarrKeyStatus
   /** The login the server uses for qBittorrent. */
   qbittorrent: SecretStatus
   /** The download defaults saved so far; null until any is saved. */
@@ -34,6 +44,11 @@ export type DownloadDefaultsBody = Partial<DownloadDefaults>
 
 /** Body of PUT /api/settings/tmdb. */
 export interface TmdbKeyBody {
+  apiKey: string
+}
+
+/** Body of PUT /api/settings/prowlarr. */
+export interface ProwlarrKeyBody {
   apiKey: string
 }
 
@@ -52,6 +67,8 @@ export interface SettingsErrorBody {
     | 'banned'
     | 'not-configured'
     | 'unreachable'
+    | 'not-prowlarr'
+    | 'no-server-key'
     | 'storage'
     | 'not-found'
 }

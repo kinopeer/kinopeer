@@ -101,6 +101,12 @@ describe('DownloadsScreen on desktop', () => {
     ])
   })
 
+  it('leaves the speed limits switch to the sidebar', async () => {
+    renderScreen()
+    expect(await screen.findAllByRole('listitem')).toHaveLength(3)
+    expect(screen.queryByRole('button', { name: 'Alternative speed limits' })).not.toBeInTheDocument()
+  })
+
   it('shows each download as a row in queue order, linking to its details', async () => {
     updateSettings({ downloadsDesktopView: 'list' })
     renderScreen()

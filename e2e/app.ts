@@ -22,10 +22,16 @@ export interface AppOptions {
   torrents?: Torrent[]
   /** qBittorrent answers the first poll, then stops answering. */
   goesOffline?: boolean
+  /** qBittorrent's alternative speed limits apply. */
+  altSpeedLimits?: boolean
   /** The server rejects the login sent from the connect screen as a wrong login or password. */
   wrongLogin?: boolean
   /** Prowlarr doesn't answer the server's connection check. */
   prowlarrDown?: boolean
+  /** Indexers Prowlarr says failed during the release search. */
+  failingIndexers?: string[]
+  /** Prowlarr finds nothing for the release search. */
+  noReleases?: boolean
   /** qBittorrent's free space in bytes, instead of the fixtures' 1.82 TB. */
   freeSpace?: number
   /** Leaves /tmdb and /tmdb-img to the server, for real titles and posters (the README screenshots). */
@@ -59,7 +65,10 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
         if (options.goesOffline && polls > 1) return route.abort('connectionrefused')
         return json(
           route,
-          mainData(torrents, options.freeSpace === undefined ? {} : { free_space_on_disk: options.freeSpace }),
+          mainData(torrents, {
+            use_alt_speed_limits: options.altSpeedLimits ?? false,
+            ...(options.freeSpace === undefined ? {} : { free_space_on_disk: options.freeSpace }),
+          }),
         )
       }
       if (pathname === '/qbt/api/v2/app/webapiVersion') return route.fulfill({ body: '2.11.4' })
@@ -85,6 +94,7 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
     (route) =>
       json(route, {
         tmdb: { configured: true, source: 'saved' },
+        prowlarr: { configured: true, source: 'env', serverKey: true },
         qbittorrent: { configured: true, source: 'saved' },
         downloads: null,
       }),
@@ -116,7 +126,8 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
         if (options.prowlarrDown) return json(route, { error: 'unreachable' }, 502)
         return json(route, { version: '2.0.5.5160', indexers: 2 })
       }
-      if (pathname === '/prowlarr/search') return json(route, RELEASES)
+      if (pathname === '/prowlarr/search') return json(route, options.noReleases ? [] : RELEASES)
+      if (pathname === '/prowlarr/failing') return json(route, { indexers: options.failingIndexers ?? [] })
       if (pathname === '/prowlarr/download') {
         return route.fulfill({ contentType: 'application/x-bittorrent', body: shogunTorrent() })
       }

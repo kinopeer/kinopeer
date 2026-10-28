@@ -140,6 +140,18 @@ h4 {
   color: var(--error);
 }
 
+/* A row's or a menu item's label with a dimmed hint under it, e.g. why it's off. */
+.ks-row-text {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-1) 0;
+}
+
+.ks-row-hint {
+  font: var(--t-cap);
+  color: var(--text3);
+}
+
 /* Hidden visually, still read by screen readers. */
 .sr-only {
   position: absolute;
