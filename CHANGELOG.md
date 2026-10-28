@@ -30,6 +30,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ### Fixed
 
+- Preferences changed in one tab are no longer undone by a change in another tab open since before: each tab reads them again when another saves them.
 - Adding a release: the save path field no longer zooms the page in on an iPhone, and the folder shown under the options is the one qBittorrent will use: a category's folder only when qBittorrent puts new torrents there (automatic management, or category paths in manual mode), placed as qBittorrent places it.
 - Desktop: "Find releases" on a title page no longer reloads the whole page: the hero, an opened overview and the rest stay as they were, and the page scrolls smoothly down to the releases. ([#138](https://github.com/MrShakhov/kinoseed/issues/138))
 - When qBittorrent can't tell its free space (it reports 0), Downloads, the sidebar and the add sheet's files row no longer say "0 B free", and the file picker no longer says "Not enough free space". ([#137](https://github.com/MrShakhov/kinoseed/issues/137))

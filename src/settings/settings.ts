@@ -192,6 +192,14 @@ export function resetSettings(): void {
   }
 }
 
+// A change saved in another tab (null: storage cleared): read the settings again, so this tab shows
+// it and its next change doesn't write the old copy over it.
+window.addEventListener('storage', (event) => {
+  if (event.key !== SETTINGS_STORAGE_KEY && event.key !== null) return
+  current = read()
+  listeners.forEach((listener) => listener())
+})
+
 function subscribe(listener: () => void): () => void {
   listeners.add(listener)
   return () => listeners.delete(listener)

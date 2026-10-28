@@ -76,6 +76,17 @@ describe('settings', () => {
     expect(getSettings()).toEqual(DEFAULT_SETTINGS)
   })
 
+  it('takes a change saved in another tab, and keeps it through a change here', () => {
+    const { result } = renderHook(() => useSettings())
+    act(() => {
+      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({ releaseSort: { key: 'size', descending: false } }))
+      window.dispatchEvent(new StorageEvent('storage', { key: SETTINGS_STORAGE_KEY }))
+    })
+    expect(result.current[0].releaseSort).toEqual({ key: 'size', descending: false })
+    act(() => result.current[1]({ downloadsView: 'grid' }))
+    expect(JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY)!)).toMatchObject({ releaseSort: { key: 'size', descending: false }, downloadsView: 'grid' })
+  })
+
   it('keeps only the release filters and sort it knows from storage', () => {
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({ releaseFilters: { resolution: null, audio: ['dub', 'x'] }, releaseSort: 'size' }))
     expect(getSettings()).toMatchObject({
