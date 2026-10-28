@@ -8,7 +8,7 @@ async function openSearch(page: Page, path: string, firstTitle: string, options:
 }
 
 test.describe('search, phone', () => {
-  test('trending and popular rows, dark, Russian', async ({ page }) => {
+  test('browse rows, dark, Russian', async ({ page }) => {
     await openSearch(page, '/search', 'Дюна')
     await expect(page).toHaveScreenshot('browse-dark-ru.png')
   })
@@ -22,7 +22,7 @@ test.describe('search, phone', () => {
 test.describe('search, desktop', () => {
   test.use(DESKTOP)
 
-  test('trending and popular rows, dark, Russian', async ({ page }) => {
+  test('browse rows, dark, Russian', async ({ page }) => {
     await openSearch(page, '/search', 'Дюна')
     await expect(page).toHaveScreenshot('desktop-browse-dark-ru.png')
   })

@@ -11,6 +11,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ### Changed
 
+- Search: before a search the rows show what's likely on torrents already: "New on digital" (movies out on digital or disc in the last two months), "New episodes" (series with an episode in the last two weeks) and "Best of the year" (the best rated movies out on digital or disc in the last year). Before, they showed TMDB's trending and popular titles, often still in cinemas and not on torrents yet.
 - Desktop: on the title page the poster stays at the top of the hero, by the title, however long the overview is, and an overview longer than five lines is cut with "Show more" that opens the rest in place, the blurred background staying put. Before, a long overview left the poster at the bottom with empty space above it.
 - Downloads: the filters, the sort and the view stay at the top while the list scrolls (on a phone the title and the totals scroll away; on desktop the whole header stays, with the table's column names under it), and so do the count, "Select all" and "Cancel" while selecting.
 - Downloads: while selecting, the count stands on the left, where the title was, and "Select all" and "Cancel" sit together on the right, where the Select button is, so the pointer is already there.
