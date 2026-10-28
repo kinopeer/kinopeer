@@ -84,7 +84,7 @@ describe('SettingsScreen', () => {
     expect(await within(connection('TMDB')).findByText('Connected')).toBeInTheDocument()
   })
 
-  it('explains failures and checks again on Test', async () => {
+  it('explains failures and shows the service connected after Test', async () => {
     vi.mocked(prowlarr.getProwlarrStatus).mockRejectedValue(new prowlarr.ProwlarrSetupError(502, 'unauthorized'))
     vi.mocked(tmdb.checkTmdb).mockRejectedValue(new tmdb.TmdbKeyError(401))
     renderScreen()
@@ -96,11 +96,33 @@ describe('SettingsScreen', () => {
     expect(await within(connection('Prowlarr')).findByText('Connected · 1 indexer · v1.24.3')).toBeInTheDocument()
   })
 
+  it.each([
+    { name: 'qBittorrent', called: [qbt.getAppVersion, qbt.getApiVersion], ok: 'Connected · qBittorrent v5.3.0 · API 2.11.4' },
+    { name: 'Prowlarr', called: [prowlarr.getProwlarrStatus], ok: 'Connected · 2 indexers · v1.24.3' },
+    { name: 'TMDB', called: [tmdb.checkTmdb], ok: 'Connected' },
+  ])('checks only $name again on its Test', async ({ name, called, ok }) => {
+    const checks = [qbt.getAppVersion, qbt.getApiVersion, prowlarr.getProwlarrStatus, tmdb.checkTmdb]
+    renderScreen()
+    for (const row of ['qBittorrent', 'Prowlarr', 'TMDB']) {
+      expect(await within(connection(row)).findByText(/^Connected/)).toBeInTheDocument()
+    }
+    for (const fn of checks) vi.mocked(fn).mockClear()
+
+    await userEvent.click(within(connection(name)).getByRole('button', { name: 'Test' }))
+    expect(await within(connection(name)).findByText(ok)).toBeInTheDocument()
+    for (const fn of checks) expect(fn).toHaveBeenCalledTimes(called.some((c) => c === fn) ? 1 : 0)
+  })
+
   it('changes the TMDB key and checks the connection again', async () => {
     vi.mocked(tmdb.checkTmdb).mockRejectedValue(new tmdb.TmdbKeyError(401))
     vi.mocked(serverSettings.saveTmdbKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved' }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
     renderScreen()
     expect(await within(connection('TMDB')).findByText('The API key is missing or invalid')).toBeInTheDocument()
+    expect(await within(connection('Prowlarr')).findByText(/^Connected/)).toBeInTheDocument()
+    expect(await within(connection('qBittorrent')).findByText(/^Connected/)).toBeInTheDocument()
+    vi.mocked(qbt.getAppVersion).mockClear()
+    vi.mocked(qbt.getApiVersion).mockClear()
+    vi.mocked(prowlarr.getProwlarrStatus).mockClear()
 
     vi.mocked(tmdb.checkTmdb).mockResolvedValue()
     await userEvent.click(within(connection('TMDB')).getByRole('button', { name: 'Change TMDB key' }))
@@ -111,6 +133,9 @@ describe('SettingsScreen', () => {
     expect(serverSettings.saveTmdbKey).toHaveBeenCalledWith('abc123')
     expect(await screen.findByText('TMDB key saved')).toBeInTheDocument()
     expect(await within(connection('TMDB')).findByText('Connected')).toBeInTheDocument()
+    expect(qbt.getAppVersion).not.toHaveBeenCalled()
+    expect(qbt.getApiVersion).not.toHaveBeenCalled()
+    expect(prowlarr.getProwlarrStatus).not.toHaveBeenCalled()
   })
 
   it('shows the app version', () => {
@@ -173,34 +198,29 @@ describe('SettingsScreen', () => {
     expect(screen.getByRole('dialog', { name: 'Add to Dock' })).toHaveTextContent('Choose “Add to Dock”')
   })
 
-  it('links to Ideas, a bug report with the version filled in, and the source code, each in a new tab', () => {
+  it('links to Ideas, a bug report and the source code, each in a new tab and saying so', () => {
     renderScreen()
     const about = screen.getByRole('region', { name: 'About' })
     const links: [RegExp, string][] = [
-      [/Suggest an idea/, IDEAS_URL],
-      [/Report a bug/, BUG_REPORT_URL],
-      [/Kinoseed on GitHub/, REPO_URL],
+      [/Suggest an idea.*\(opens in a new tab\)/, IDEAS_URL],
+      [/Report a bug.*\(opens in a new tab\)/, BUG_REPORT_URL],
+      [/Kinoseed on GitHub.*\(opens in a new tab\)/, REPO_URL],
     ]
     for (const [name, href] of links) {
       const link = within(about).getByRole('link', { name })
       expect(link).toHaveAttribute('href', href)
       expect(link).toHaveAttribute('target', '_blank')
     }
-    const bugReport = new URL(BUG_REPORT_URL)
-    expect(bugReport.pathname).toBe('/MrShakhov/kinoseed/issues/new')
-    expect(bugReport.searchParams.get('template')).toBe('bug_report.yml')
-    expect(bugReport.searchParams.get('version')).toBe(__APP_VERSION__)
   })
 
-  it("credits TMDB with its logo and the notice its terms ask for, in TMDB's English in any language", async () => {
+  it('credits TMDB with its logo, and keeps the notice in English on a Russian screen', async () => {
     await i18n.changeLanguage('ru')
     renderScreen()
     const about = screen.getByRole('region', { name: 'О приложении' })
     expect(within(about).getByRole('img', { name: 'TMDB' })).toBeInTheDocument()
     expect(about).toHaveTextContent('Данные о фильмах и сериалах и постеры берутся из TMDB.')
-    expect(
-      within(about).getByText('This product uses the TMDB API but is not endorsed or certified by TMDB.'),
-    ).toHaveAttribute('lang', 'en')
+    // The notice's wording is locales.test.ts's; here, that it's marked as English for screen readers.
+    expect(within(about).getByText(i18n.t('settings.tmdbNotice'))).toHaveAttribute('lang', 'en')
   })
 
   it('has no install row where the app can\'t be installed', () => {

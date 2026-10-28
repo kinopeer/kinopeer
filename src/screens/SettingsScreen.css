@@ -196,10 +196,6 @@
   width: auto;
 }
 
-.settings-tmdb > p {
-  margin: 0;
-}
-
 /*
  * Desktop: connections across the top, then two columns. Download defaults and About sit on the
  * left and Appearance on the right, so the visual order follows the DOM order the phone keeps.
