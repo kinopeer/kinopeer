@@ -76,19 +76,30 @@ milliseconds, fails with a precise message, and it's the one the layer above lea
   confirmation although `DownloadsWithDrawer.test.tsx` already sends the `cancel` event, because
   jsdom never turns Escape into `cancel`, and only Chromium shows where the browser's own event and
   React's dispatch meet.
-- **What a mock may be asked.** A layer-3 test may assert what it hands off to: an API client or a
-  domain action (`addRelease`, `chooseTitle`, `forgetMatches`), and with what arguments, when that
-  hand-off is the screen's behavior ("Save sends the new category", "Delete forgets the match").
-  It asserts a count only when the count is the behavior (a duplicate request, nothing sent
-  until…), with `not.toHaveBeenCalled()` or `toHaveBeenCalledTimes(n)` and a comment saying why
-  the count matters. It never asserts calls to anything else (i18n, a hook, a helper), and it
-  doesn't re-assert what the action does with those arguments, which the action's own test owns:
-  the shape `chooseTitle` saves is `titleMatches.test.ts`'s.
+- **What a mock may be asked.** A layer-3 test may assert what it hands off to, and with what
+  arguments, when that hand-off is the screen's behavior: an API client or a domain action
+  (`addRelease`, `chooseTitle`, `forgetMatches`), a callback prop it reports to (`onSaved`,
+  `onClose`), or a browser API it drives (`scrollIntoView`). "Save sends the new category",
+  "Delete forgets the match", "a failed save doesn't report success". It asserts a count only when
+  the count is the behavior (a duplicate request, nothing sent until…), with
+  `not.toHaveBeenCalled()` or `toHaveBeenCalledTimes(n)`, and with a comment saying why the count
+  matters unless the test's name already says it. It never asserts calls to anything else (i18n, a
+  hook, a helper), and it doesn't re-assert what the action does with those arguments, which the
+  action's own test owns: the shape `chooseTitle` saves is `titleMatches.test.ts`'s. An argument
+  the test isn't about may be `expect.anything()` when another test in the file asserts it (the
+  options in `AddReleaseSheet.test.tsx`'s magnet test); standing in for the argument the test's
+  name is about, it hides the check.
 - **Roles and names, not classes.** Tests find elements by role and accessible name
   (`getByRole('button', { name: 'Удалить' })`), so a test fails when the behavior changes, not when
-  a stylesheet does. The one place a class is the point is a layer-2 test of a design-system
-  component (`Button`, `IconButton`, `Dialog`): their classes are the contract with their CSS, so
-  `toHaveClass('ks-btn-primary')` is what such a test is about. Nowhere else.
+  a stylesheet does. A class is the point in a layer-2 test of a design-system component
+  (`Button`, `IconButton`, `Dialog`): their classes are the contract with their CSS, so
+  `toHaveClass('ks-btn-primary')` is what such a test is about. Elsewhere a class is asserted only
+  where it is the only trace in the DOM of what the test says, with a comment saying so: a state
+  that only CSS shows (`is-clamped` on a cut overview, next to the button's `aria-expanded`; `is-on`
+  on the tab highlighted for the page behind a drawer), or the root class that tells the sidebar
+  from the tab bar, which share one role and name. Errors and confirmations are found by their
+  `alert` or `status` role, which is also what a screen reader announces, unless several share the
+  role on that screen.
 - **Helpers and fixtures.** Data every layer shares is in `src/test/fixtures.ts`, the rendering
   helpers in `src/test/render.tsx`, the fake services in `server/test/fakes.ts`
   ([Shared test data](#shared-test-data)). What one file uses stays in that file; the second copy of

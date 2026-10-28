@@ -124,6 +124,7 @@ describe('SearchScreen', () => {
     await userEvent.type(screen.getByRole('searchbox', { name: 'Search' }), 'dune')
 
     expect(await screen.findByText('2 results')).toBeInTheDocument()
+    // One search for the whole word, not one per key typed.
     expect(searchTitles).toHaveBeenCalledTimes(1)
     expect(searchTitles).toHaveBeenCalledWith('dune', expect.anything())
     expect(screen.getByRole('link', { name: /Dune: Part Two/ })).toHaveAttribute('href', '/title/movie/1')

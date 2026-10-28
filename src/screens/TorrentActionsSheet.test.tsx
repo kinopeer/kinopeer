@@ -172,7 +172,7 @@ describe('TorrentActionsSheet on desktop', () => {
     vi.mocked(api.startTorrents).mockRejectedValue(new Error('500'))
     renderActions()
     await userEvent.click(screen.getByRole('menuitem', { name: 'Resume' }))
-    expect(await screen.findByText('Couldn’t reach qBittorrent. Try again.')).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent('Couldn’t reach qBittorrent. Try again.')
   })
 
   it('opens Move files', async () => {
@@ -233,7 +233,7 @@ describe('TorrentActionsSheet on a phone', () => {
     const sheet = screen.getByRole('dialog', { name: 'Inception' })
     await userEvent.click(within(sheet).getByRole('button', { name: 'Reannounce' }))
     expect(api.reannounceTorrents).toHaveBeenCalledWith(['b1'])
-    expect(await within(sheet).findByText('Couldn’t reach qBittorrent. Try again.')).toBeInTheDocument()
+    expect(await within(sheet).findByRole('alert')).toHaveTextContent('Couldn’t reach qBittorrent. Try again.')
     expect(handlers.onReannounced).not.toHaveBeenCalled()
   })
 })

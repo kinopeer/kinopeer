@@ -263,7 +263,7 @@ describe('AddReleaseSheet', () => {
     renderSheet()
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
     expect(await within(sheet).findByText('TV → /data/tv')).toBeInTheDocument()
-    expect(await within(sheet).findByText('Couldn’t get the torrent from Prowlarr.')).toBeInTheDocument()
+    expect(await within(sheet).findByRole('alert')).toHaveTextContent('Couldn’t get the torrent from Prowlarr.')
     expect(within(sheet).queryByText('Not enough free space')).not.toBeInTheDocument()
   })
 

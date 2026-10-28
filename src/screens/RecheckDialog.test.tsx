@@ -34,7 +34,7 @@ describe('RecheckDialog', () => {
     vi.mocked(api.recheckTorrents).mockRejectedValue(new Error('500'))
     const handlers = renderDialog()
     await userEvent.click(screen.getByRole('button', { name: 'Force recheck' }))
-    expect(await screen.findByText('Couldn’t reach qBittorrent. Try again.')).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent('Couldn’t reach qBittorrent. Try again.')
     expect(handlers.onRechecked).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Force recheck' })).toBeEnabled()
   })

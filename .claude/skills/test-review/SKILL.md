@@ -69,13 +69,16 @@ trusted.
   named in the PR that isn't the table's number and name (a sheet in `src/screens/` called layer
   2, "unit", "integration" for a jsdom test) → finding.
 - **D. Behavior, not implementation.** The rule is `docs/TESTING.md` → Choosing a layer → What a
-  mock may be asked. Asserting what a screen hands off to (an API client or a domain action such as
-  `addRelease`, `chooseTitle`, `forgetMatches`) and with what arguments is fine when that hand-off
-  is the screen's behavior. Findings: re-asserting what the action does with those arguments,
-  which its own test owns (the shape `chooseTitle` saves is `titleMatches.test`'s); a call
-  assertion on anything else (i18n, a hook, a helper); a count that isn't itself the behavior, or
-  a behavioral count without a comment saying why it matters; CSS classes anywhere but a design-system component's own test;
-  `expect.anything()` standing in for a real check.
+  mock may be asked. Asserting what a screen hands off to (an API client, a domain action such as
+  `addRelease`, `chooseTitle`, `forgetMatches`, a callback prop such as `onSaved`, a browser API
+  such as `scrollIntoView`) and with what arguments is fine when that hand-off is the screen's
+  behavior. Findings: re-asserting what the action does with those arguments, which its own test
+  owns (the shape `chooseTitle` saves is `titleMatches.test`'s); a call assertion on anything else
+  (i18n, a hook, a helper); a count that isn't itself the behavior, or a behavioral count whose
+  reason neither a comment nor the test's name gives; a class outside a design-system component's
+  own test, unless a comment says it's the only trace in the DOM of what the test says (Roles and
+  names, not classes); `expect.anything()` for the argument the test's name is about, or for one no
+  other test in the file asserts.
 - **E. Fakes and fixtures stay true.** A new or changed answer in `server/test/fakes.ts` is
   compared with the middleware it imitates (`server/*.ts`: status codes, `error` codes, body
   shapes) and with what the real service does; a mismatch is `fake-drift` in the making. Shared
@@ -83,8 +86,10 @@ trusted.
   version in its comment. A literal that copies a fixture instead of importing it, and a fixture
   the baselines render from changed without re-rendering them → findings.
 - **F. Hygiene.** Real timers or sleeps, `waitFor` with a `timeout` above the default, a spy
-  restored inside `it` instead of `afterEach`, a stubbed global left in place, index-based queries
-  (`getAllByRole(...)[1]`), `getByText` where a role and name exist, `{ force: true }` on a hidden
+  restored inside `it` instead of `afterEach`, a stubbed global left in place, an index-based query
+  for an element that has a name of its own (`getAllByRole('button')[1]`; an index is fine when the
+  position is what the test says, as the first row after a sort), `getByText` where a role and name
+  exist (an error or confirmation in its own `alert` or `status`), `{ force: true }` on a hidden
   control, `.skip`/`.only`/`.todo`/`fixme`, `retries` above 0, a test title that no longer says what
   the body does → findings.
 - **G. Baselines.** Each changed or new PNG is listed in the PR with what changed, why, and how it

@@ -87,7 +87,7 @@ const names = () =>
   within(table())
     .getAllByRole('row')
     .slice(1)
-    .map((row) => within(row).getAllByTitle(/./)[0].textContent)
+    .map((row) => within(row).getByTitle(/./).textContent)
 
 const scrollIntoView = vi.fn()
 
@@ -186,6 +186,7 @@ describe('TitleScreen on desktop', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Find releases' }))
     expect(scrollIntoView).toHaveBeenCalledTimes(1)
     expect(scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'smooth' })
+    // Pressed again, it only scrolls: the releases already found aren't searched again.
     expect(searchReleases).toHaveBeenCalledTimes(1)
   })
 
@@ -260,11 +261,10 @@ describe('TitleScreen on desktop', () => {
     // A 10-line overview cut to 5: taller than it shows.
     stubLayout(130, 260)
     renderAt('/title/movie/693134')
+    // How it cuts and opens is TitleOverview.test.tsx's; here, that the hero has it.
     const text = await screen.findByText(overview)
-    expect(text).toHaveClass('is-clamped')
     expect(screen.getByRole('region', { name: 'Overview' })).toContainElement(text)
     await userEvent.click(screen.getByRole('button', { name: 'Show more' }))
-    expect(text).not.toHaveClass('is-clamped')
     expect(screen.getByRole('button', { name: 'Show less' })).toHaveAttribute('aria-expanded', 'true')
   })
 

@@ -159,7 +159,7 @@ describe('DownloadsScreen on desktop', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Resume: Alien.Romulus.2024.1080p' }))
     expect(api.startTorrents).toHaveBeenCalledWith(['alien'])
-    expect(await screen.findByText('Couldn’t reach qBittorrent. Try again.')).toBeInTheDocument()
+    expect(await screen.findByRole('status')).toHaveTextContent('Couldn’t reach qBittorrent. Try again.')
   })
 
   it('pauses from the poster grid too', async () => {

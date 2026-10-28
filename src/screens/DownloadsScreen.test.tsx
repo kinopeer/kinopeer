@@ -96,7 +96,7 @@ describe('DownloadsScreen', () => {
 
     await userEvent.click(button)
     expect(api.toggleSpeedLimitsMode).toHaveBeenCalled()
-    expect(await screen.findByText('Couldn’t switch the speed limits. Try again.')).toBeInTheDocument()
+    expect(await screen.findByRole('status')).toHaveTextContent('Couldn’t switch the speed limits. Try again.')
   })
 
   it('has no speed limits switch until qBittorrent says which limits apply', async () => {
@@ -557,7 +557,7 @@ describe('DownloadsScreen', () => {
 
     getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     window.dispatchEvent(new Event('online'))
-    expect(await screen.findByText('No connection to qBittorrent')).toBeInTheDocument()
+    expect(await screen.findByRole('status')).toHaveTextContent('No connection to qBittorrent')
     expect(screen.getByText('Updated just now · actions paused')).toBeInTheDocument()
     expect(screen.getAllByRole('listitem')).toHaveLength(3)
   })
@@ -607,7 +607,7 @@ describe('DownloadsScreen selection', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Select' }))
     await userEvent.click(screen.getByRole('checkbox', { name: 'Andor.S02.1080p' }))
     await userEvent.click(within(bulkBar()).getByRole('button', { name: 'Pause' }))
-    expect(await screen.findByText('Couldn’t reach qBittorrent. Try again.')).toBeInTheDocument()
+    expect(await screen.findByRole('status')).toHaveTextContent('Couldn’t reach qBittorrent. Try again.')
     expect(screen.getByRole('checkbox', { name: 'Andor.S02.1080p', checked: true })).toBeInTheDocument()
   })
 
@@ -676,7 +676,7 @@ describe('DownloadsScreen selection', () => {
     await userEvent.click(screen.getByRole('checkbox', { name: 'Andor.S02.1080p' }))
     getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     window.dispatchEvent(new Event('online'))
-    expect(await screen.findByText('No connection to qBittorrent')).toBeInTheDocument()
+    expect(await screen.findByRole('status')).toHaveTextContent('No connection to qBittorrent')
     for (const name of ['Pause', 'Resume', 'Delete']) {
       expect(within(bulkBar()).getByRole('button', { name })).toBeDisabled()
     }

@@ -153,7 +153,7 @@ describe('TorrentScreen', () => {
     stopTorrents.mockRejectedValue(new Error('offline'))
     renderScreen()
     await userEvent.click(await screen.findByRole('button', { name: 'Pause' }))
-    expect(await screen.findByText('Couldn’t reach qBittorrent. Try again.')).toBeInTheDocument()
+    expect(await screen.findByRole('status')).toHaveTextContent('Couldn’t reach qBittorrent. Try again.')
   })
 
   it('explains an error state', async () => {

@@ -291,6 +291,7 @@ describe('App', () => {
         expect(screen.getByRole('heading', { name: 'Dune: Part Two', level: 1 })).toBeInTheDocument()
         expect(screen.queryByRole('heading', { name: 'Downloads' })).not.toBeInTheDocument()
         const nav = screen.getByRole('navigation', { name: 'Main' })
+        // The highlight is the only trace of the page behind the drawer: aria-current follows the URL.
         expect(within(nav).getByRole('link', { name: /^Downloads/ })).not.toHaveClass('is-on')
 
         fireEvent(drawer, new Event('cancel', { cancelable: true }))
@@ -337,6 +338,7 @@ describe('App', () => {
       expect(nav.closest('.ks-side')).not.toBeNull()
 
       act(() => resize(false))
+      // The root class tells the tab bar from the sidebar, as above.
       expect(screen.getByRole('navigation', { name: 'Main' })).toHaveClass('ks-tabbar')
     })
   })

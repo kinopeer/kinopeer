@@ -86,7 +86,7 @@ describe('ChangeTitleSheet', () => {
     const { onChosen } = renderSheet()
     const row = (await screen.findAllByRole('button', { name: /Мастер и Маргарита/ }))[0]
     await userEvent.click(row)
-    expect(await screen.findByText('Couldn’t save the choice. Try again.')).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent('Couldn’t save the choice. Try again.')
     expect(onChosen).not.toHaveBeenCalled()
     expect(row).toBeEnabled()
     await userEvent.click(row)

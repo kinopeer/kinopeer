@@ -138,7 +138,7 @@ describe('useMoveTorrent', () => {
     expect(within(sheet).queryByText('qBittorrent has no access to that folder.')).not.toBeInTheDocument()
     setTorrentLocation.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     await moveTo(sheet, '/media/later')
-    expect(await within(sheet).findByText('Couldn’t reach qBittorrent. Try again.')).toBeInTheDocument()
+    expect(await within(sheet).findByRole('alert')).toHaveTextContent('Couldn’t reach qBittorrent. Try again.')
     expect(within(sheet).getByRole('button', { name: 'Move' })).toBeEnabled()
   })
 
@@ -168,7 +168,7 @@ describe('useMoveTorrent', () => {
     const { open, moveTo } = renderMove()
     const sheet = await open()
     await moveTo(sheet, '/media/later')
-    expect(await within(sheet).findByText('Couldn’t reach qBittorrent. Try again.')).toBeInTheDocument()
+    expect(await within(sheet).findByRole('alert')).toHaveTextContent('Couldn’t reach qBittorrent. Try again.')
     expect(within(sheet).queryByText('qBittorrent has no access to that folder.')).not.toBeInTheDocument()
   })
 

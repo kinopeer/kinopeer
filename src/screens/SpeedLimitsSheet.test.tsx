@@ -85,7 +85,7 @@ describe('SpeedLimitsSheet', () => {
     await userEvent.type(download, '2')
     await userEvent.type(upload, '3')
     await userEvent.click(screen.getByRole('button', { name: 'Save limits' }))
-    expect(await screen.findByText(/Couldn’t save the limits/)).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Couldn’t save the limits/)
 
     await userEvent.clear(download)
     await userEvent.type(download, '1')
@@ -137,7 +137,7 @@ describe('SpeedLimitsSheet', () => {
     await userEvent.type(screen.getByRole('textbox', { name: 'Download limit, MB/s' }), '3')
     await userEvent.type(screen.getByRole('textbox', { name: 'Upload limit, MB/s' }), '1')
     await userEvent.click(screen.getByRole('button', { name: 'Save limits' }))
-    expect(await screen.findByText(/Couldn’t save the limits, or saved only some/)).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Couldn’t save the limits, or saved only some/)
     expect(handlers.onChanged).toHaveBeenCalled()
     expect(handlers.onClose).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Save limits' })).toBeEnabled()

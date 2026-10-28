@@ -13,6 +13,7 @@ describe('ReleaseName', () => {
     render(<ReleaseName name={NAME} />)
     const button = screen.getByRole('button', { name: NAME })
     expect(button).toHaveAttribute('aria-expanded', 'false')
+    // The clamp class is the only trace in the DOM of the two-line cut, which jsdom can't lay out.
     expect(button).toHaveClass('ks-clamp2')
 
     await userEvent.click(button)

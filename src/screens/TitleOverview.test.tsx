@@ -13,6 +13,7 @@ describe('TitleOverview', () => {
     stubLayout(130, 260)
     render(<TitleOverview text={TEXT} />)
     const text = screen.getByText(TEXT)
+    // is-clamped is the only trace in the DOM of the five-line cut, which jsdom can't lay out.
     expect(text).toHaveClass('is-clamped')
     expect(screen.getByRole('region', { name: 'Overview' })).toContainElement(text)
     const more = screen.getByRole('button', { name: 'Show more' })

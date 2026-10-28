@@ -79,6 +79,7 @@ describe('DeleteTorrentDialog', () => {
     await remove()
     expect(within(dialog).getByRole('alert')).toHaveTextContent('Couldn’t reach qBittorrent. Try again.')
     expect(onDeleted).not.toHaveBeenCalled()
+    // The torrent is still there, so its title match must stay too.
     expect(forgetMatches).not.toHaveBeenCalled()
     expect(within(dialog).getByRole('button', { name: 'Delete' })).toBeEnabled()
 

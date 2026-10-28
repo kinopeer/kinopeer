@@ -45,7 +45,8 @@ function renderAt(path: string) {
   )
 }
 
-const names = () => screen.getAllByRole('article').map((card) => within(card).getAllByRole('button')[0].textContent)
+// The name is the card's button that opens and closes it on a phone (ReleaseName).
+const names = () => screen.getAllByRole('article').map((card) => within(card).getByRole('button', { expanded: false }).textContent)
 
 beforeEach(() => {
   // Filters and the sort are remembered in the browser between searches.
