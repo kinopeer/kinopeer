@@ -386,6 +386,20 @@ describe('settingsMiddleware: Prowlarr key', () => {
     expect(await noUrl.json()).toEqual({ error: 'not-configured' })
   })
 
+  it('forgets a saved key, so the one in config.xml applies again', async () => {
+    const store = new SettingsStore(dir)
+    await store.update({ prowlarrApiKey: 'saved-key' })
+    const configXml = join(dir, 'config.xml')
+    await writeFile(configXml, '<Config><ApiKey>file-key</ApiKey></Config>')
+    const base = await app(store, { configXml })
+
+    const response = await fetch(`${base}/api/settings/prowlarr`, { method: 'DELETE' })
+
+    expect(response.status).toBe(200)
+    expect(((await response.json()) as ServerSettings).prowlarr).toEqual({ configured: true, source: 'env' })
+    expect(await prowlarrKey(store, undefined, configXml)).toBe('file-key')
+  })
+
   it('rejects malformed keys without asking Prowlarr', async () => {
     const prowlarr = await fakeProwlarr()
     const base = await app(new SettingsStore(dir), { url: prowlarr.base })

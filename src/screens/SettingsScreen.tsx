@@ -4,6 +4,7 @@ import { useLocation } from 'react-router'
 import { ProwlarrSetupError, getProwlarrStatus } from '../api/prowlarr'
 import { getApiVersion, getAppVersion, getCategories } from '../api/qbittorrent'
 import { TmdbKeyError, checkTmdb } from '../api/tmdb'
+import { getServerSettings } from '../api/settings'
 import { Button } from '../components/Button'
 import { Icon, type IconName } from '../components/Icon'
 import { IconButton } from '../components/IconButton'
@@ -99,6 +100,7 @@ export function SettingsScreen() {
   const dismissKeySaved = useCallback(() => setKeySaved(null), [])
   const dismissCleared = useCallback(() => setCleared(false), [])
   const categories = useRequest('qbt|categories', () => getCategories())
+  const server = useRequest(`server|settings|${attempt}`, () => getServerSettings())
   const names = (categories.data ?? []).map((category) => category.name).sort((a, b) => a.localeCompare(b))
 
   const checkQbittorrent = async () => {
@@ -305,6 +307,7 @@ export function SettingsScreen() {
       </Sheet>
       <Sheet open={editingProwlarrKey} onClose={() => setEditingProwlarrKey(false)} title={t('prowlarrKey.sheetTitle')}>
         <ProwlarrKeyForm
+          saved={server.data?.prowlarr?.source === 'saved'}
           onSaved={() => {
             setEditingProwlarrKey(false)
             setKeySaved('prowlarr')

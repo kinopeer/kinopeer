@@ -1,22 +1,37 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { SettingsError, saveProwlarrKey, type ServerSettings } from '../api/settings'
+import { SettingsError, forgetProwlarrKey, saveProwlarrKey, type ServerSettings } from '../api/settings'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { Input } from '../components/Input'
 
 export interface ProwlarrKeyFormProps {
   onSaved: (settings: ServerSettings) => void
+  /** A key saved from the app is in use: offer to forget it for the server's own. */
+  saved?: boolean
 }
 
 type FormError = 'invalid' | 'unreachable' | 'not-configured' | 'storage' | 'failed' | null
 
 /** The Prowlarr key field: the server checks the key with Prowlarr, then keeps it. */
-export function ProwlarrKeyForm({ onSaved }: ProwlarrKeyFormProps) {
+export function ProwlarrKeyForm({ onSaved, saved = false }: ProwlarrKeyFormProps) {
   const { t } = useTranslation()
   const [apiKey, setApiKey] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<FormError>(null)
+
+  const [forgetting, setForgetting] = useState(false)
+
+  const forget = async () => {
+    setForgetting(true)
+    setError(null)
+    try {
+      onSaved(await forgetProwlarrKey())
+    } catch (e) {
+      setError(e instanceof SettingsError && e.code === 'storage' ? 'storage' : 'failed')
+      setForgetting(false)
+    }
+  }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -68,6 +83,11 @@ export function ProwlarrKeyForm({ onSaved }: ProwlarrKeyFormProps) {
         <Button type="submit" size="lg" block loading={saving}>
           {t('tmdbKey.save')}
         </Button>
+        {saved && (
+          <Button type="button" variant="secondary" size="lg" block loading={forgetting} onClick={forget}>
+            {t('prowlarrKey.forget')}
+          </Button>
+        )}
       </div>
     </form>
   )

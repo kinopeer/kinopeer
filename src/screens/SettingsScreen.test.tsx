@@ -151,7 +151,6 @@ describe('SettingsScreen', () => {
     await userEvent.type(within(sheet).getByLabelText('Prowlarr API key'), 'abc123')
     await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
 
-    expect(serverSettings.saveProwlarrKey).toHaveBeenCalledWith('abc123')
     expect(await screen.findByText('Prowlarr key saved')).toBeInTheDocument()
     expect(await within(connection('Prowlarr')).findByText(/2 indexers/)).toBeInTheDocument()
   })

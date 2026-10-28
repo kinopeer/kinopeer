@@ -59,6 +59,13 @@ export function saveProwlarrKey(apiKey: string): Promise<ServerSettings> {
   return send<ProwlarrKeyBody>('PUT', 'prowlarr', { apiKey })
 }
 
+/** Forgets the saved Prowlarr key, so the server's own (environment or Prowlarr's config.xml) applies. */
+export async function forgetProwlarrKey(): Promise<ServerSettings> {
+  const response = await fetch(`${SETTINGS_BASE}/prowlarr`, { method: 'DELETE', credentials: 'same-origin' })
+  if (!response.ok || !isJson(response)) throw await errorFor(response)
+  return (await response.json()) as ServerSettings
+}
+
 /**
  * Saves the qBittorrent login on the server, which logs in with it first. Rejects with a
  * SettingsError: code 'invalid-credentials', 'banned' (too many failed logins), 'unreachable', or

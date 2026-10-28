@@ -24,6 +24,7 @@ import { checkTmdbKey } from './tmdb.ts'
  * GET /api/settings → ServerSettings (only whether each secret is set, never its value)
  * PUT /api/settings/tmdb { apiKey } → checks the key with TMDB, saves it, answers ServerSettings
  * PUT /api/settings/prowlarr { apiKey } → checks the key with Prowlarr, saves it, answers ServerSettings
+ * DELETE /api/settings/prowlarr → forgets the saved key, so the environment's or config.xml's applies again
  * PUT /api/settings/qbittorrent { username, password } → logs in to qBittorrent, saves the login
  * PATCH /api/settings/downloads { …some DownloadDefaults } → merges them in, answers ServerSettings
  */
@@ -245,6 +246,10 @@ export function settingsMiddleware(config: SettingsConfig): Middleware {
     const path = new URL(request.url ?? '/', 'http://kinoseed.local').pathname
     if (path !== PREFIX && !path.startsWith(`${PREFIX}/`)) return next()
 
+    if (path === `${PREFIX}/prowlarr` && request.method === 'DELETE') {
+      void save(config, response, config.store.update({ prowlarrApiKey: undefined }))
+      return
+    }
     if (path === PREFIX && request.method === 'GET') {
       void config.store
         .load()

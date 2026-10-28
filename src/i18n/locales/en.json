@@ -429,6 +429,7 @@
     "notConfigured": "The Kinoseed server doesn’t know Prowlarr’s address (PROWLARR_URL).",
     "saved": "Prowlarr key saved",
     "change": "Change Prowlarr key",
-    "sheetTitle": "Prowlarr key"
+    "sheetTitle": "Prowlarr key",
+    "forget": "Use the server’s key"
   }
 }

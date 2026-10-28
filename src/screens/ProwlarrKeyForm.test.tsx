@@ -8,6 +8,7 @@ import { ProwlarrKeyForm } from './ProwlarrKeyForm'
 vi.mock('../api/settings', async (importOriginal) => ({
   ...(await importOriginal<typeof serverSettings>()),
   saveProwlarrKey: vi.fn(),
+  forgetProwlarrKey: vi.fn(),
 }))
 
 const saveProwlarrKey = vi.mocked(serverSettings.saveProwlarrKey)
@@ -19,9 +20,9 @@ const SAVED: ServerSettings = {
   downloads: null,
 }
 
-function renderForm() {
+function renderForm(saved = false) {
   const onSaved = vi.fn()
-  render(<ProwlarrKeyForm onSaved={onSaved} />)
+  render(<ProwlarrKeyForm onSaved={onSaved} saved={saved} />)
   return { onSaved, field: screen.getByLabelText('Prowlarr API key'), save: screen.getByRole('button', { name: 'Save' }) }
 }
 
@@ -39,8 +40,11 @@ describe('ProwlarrKeyForm', () => {
     await vi.waitFor(() => expect(onSaved).toHaveBeenCalledWith(SAVED))
   })
 
-  it('marks the key invalid when Prowlarr refuses it, until it is edited', async () => {
-    saveProwlarrKey.mockRejectedValue(new serverSettings.SettingsError(422, 'invalid-key'))
+  it.each([
+    [422, 'invalid-key'],
+    [400, 'bad-request'],
+  ] as const)('marks the key invalid when the server refuses it (%s %s), until it is edited', async (status, code) => {
+    saveProwlarrKey.mockRejectedValue(new serverSettings.SettingsError(status, code))
     const { onSaved, field, save } = renderForm()
     await userEvent.type(field, 'wrong')
     await userEvent.click(save)
@@ -56,11 +60,26 @@ describe('ProwlarrKeyForm', () => {
     ['unreachable', 'Prowlarr isn’t answering. Check that it’s running and try again.'],
     ['not-configured', 'The Kinoseed server doesn’t know Prowlarr’s address (PROWLARR_URL).'],
     ['storage', 'The Kinoseed server couldn’t save the key. Check that its data folder is writable.'],
+    [undefined, 'Couldn’t save the key. Try again.'],
   ] as const)('says why the key could not be saved (%s)', async (code, message) => {
     saveProwlarrKey.mockRejectedValue(new serverSettings.SettingsError(502, code))
     const { field, save } = renderForm()
     await userEvent.type(field, 'abc123')
     await userEvent.click(save)
     expect(await screen.findByText(message)).toBeInTheDocument()
+  })
+
+  it("offers to forget a saved key for the server's own only while one is saved", async () => {
+    const SERVER: ServerSettings = { ...SAVED, prowlarr: { configured: true, source: 'env' } }
+    vi.mocked(serverSettings.forgetProwlarrKey).mockResolvedValue(SERVER)
+    const { onSaved } = renderForm(true)
+    await userEvent.click(screen.getByRole('button', { name: 'Use the server’s key' }))
+    await vi.waitFor(() => expect(onSaved).toHaveBeenCalledWith(SERVER))
+    expect(saveProwlarrKey).not.toHaveBeenCalled()
+  })
+
+  it('has no forget button without a saved key', () => {
+    renderForm()
+    expect(screen.queryByRole('button', { name: 'Use the server’s key' })).not.toBeInTheDocument()
   })
 })
