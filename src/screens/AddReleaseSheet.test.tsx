@@ -224,6 +224,20 @@ describe('AddReleaseSheet', () => {
     expect(within(sheet).queryByText(/Skip some files/)).not.toBeInTheDocument()
   })
 
+  it('doesn’t warn by the release size while the torrent can’t be read', async () => {
+    fetchRelease.mockRejectedValue(new prowlarr.ProwlarrError('down', 502, 'upstream'))
+    renderSheet()
+    expect(await screen.findByText('Couldn’t get the torrent from Prowlarr.')).toBeInTheDocument()
+    expect(screen.queryByText('Not enough free space')).not.toBeInTheDocument()
+  })
+
+  it('doesn’t warn when qBittorrent reports the free space as unknown', async () => {
+    vi.mocked(qbt.getMainData).mockResolvedValue({ rid: 1, server_state: { free_space_on_disk: -1 } })
+    renderSheet()
+    expect(await screen.findByRole('button', { name: /Files: all \(3\)/ })).toBeInTheDocument()
+    expect(screen.queryByText('Not enough free space')).not.toBeInTheDocument()
+  })
+
   it('warns about a magnet link by the release size', async () => {
     fetchRelease.mockResolvedValue({ kind: 'magnet', uri: 'magnet:?xt=urn:btih:abc' })
     vi.mocked(qbt.getMainData).mockResolvedValue({ rid: 1, server_state: { free_space_on_disk: 0 } })
