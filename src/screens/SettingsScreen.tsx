@@ -33,18 +33,15 @@ interface ConnectionRowProps {
   icon: IconName
   /** Resolves to the success message, rejects with the error message. */
   check: () => Promise<string>
-  /** Changes when the user asks to check again. */
-  attempt: number
-  onRetest: () => void
   /** Accessible name of the edit button, shown only with `onEdit`. */
   editLabel?: string
   onEdit?: () => void
 }
 
-/** One service's connection: checked when the screen opens and again on Test. */
-function ConnectionRow({ name, icon, check, attempt, onRetest, editLabel, onEdit }: ConnectionRowProps) {
+/** One service's connection: checked when the screen opens and again, on its own, on Test. */
+function ConnectionRow({ name, icon, check, editLabel, onEdit }: ConnectionRowProps) {
   const { t, i18n } = useTranslation()
-  const result = useRequest(`${name}|${attempt}|${i18n.language}`, check)
+  const result = useRequest(`${name}|${i18n.language}`, check)
   const state = result.loading ? 'loading' : result.error !== undefined ? 'error' : 'ok'
   const message = result.loading
     ? t('settings.testing')
@@ -66,7 +63,7 @@ function ConnectionRow({ name, icon, check, attempt, onRetest, editLabel, onEdit
         </span>
       </span>
       {onEdit && editLabel && <IconButton icon="key" label={editLabel} onClick={onEdit} />}
-      <Button variant="secondary" size="sm" disabled={state === 'loading'} onClick={onRetest}>
+      <Button variant="secondary" size="sm" disabled={state === 'loading'} onClick={result.retry}>
         {t('settings.test')}
       </Button>
     </li>
@@ -89,7 +86,7 @@ export function SettingsScreen() {
   const { preference, setPreference } = useTheme()
   const language = useLanguage()
   const [settings, update] = useSettings()
-  const [attempt, setAttempt] = useState(0)
+  const [tmdbKeyVersion, setTmdbKeyVersion] = useState(0)
   const [cleared, setCleared] = useState(false)
   const installMethod = useInstallMethod()
   const [installSteps, setInstallSteps] = useState<ManualInstall | null>(null)
@@ -99,7 +96,6 @@ export function SettingsScreen() {
   )
   const [keySaved, setKeySaved] = useState(false)
   const dismissKeySaved = useCallback(() => setKeySaved(false), [])
-  const retest = useCallback(() => setAttempt((n) => n + 1), [])
   const dismissCleared = useCallback(() => setCleared(false), [])
   const categories = useRequest('qbt|categories', () => getCategories())
   const names = (categories.data ?? []).map((category) => category.name).sort((a, b) => a.localeCompare(b))
@@ -185,14 +181,14 @@ export function SettingsScreen() {
 
       <Section id="settings-connections" title={t('settings.connections')}>
         <ul className="settings-conns">
-          <ConnectionRow name="qBittorrent" icon="server" check={checkQbittorrent} attempt={attempt} onRetest={retest} />
-          <ConnectionRow name="Prowlarr" icon="search" check={checkProwlarr} attempt={attempt} onRetest={retest} />
+          <ConnectionRow name="qBittorrent" icon="server" check={checkQbittorrent} />
+          <ConnectionRow name="Prowlarr" icon="search" check={checkProwlarr} />
+          {/* A new key remounts the row, so it checks again. */}
           <ConnectionRow
+            key={tmdbKeyVersion}
             name="TMDB"
             icon="film"
             check={checkTmdbKey}
-            attempt={attempt}
-            onRetest={retest}
             editLabel={t('tmdbKey.change')}
             onEdit={() => setEditingKey(true)}
           />
@@ -298,7 +294,7 @@ export function SettingsScreen() {
           onSaved={() => {
             setEditingKey(false)
             setKeySaved(true)
-            retest()
+            setTmdbKeyVersion((n) => n + 1)
           }}
         />
       </Sheet>

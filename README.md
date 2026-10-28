@@ -52,6 +52,12 @@ Kinoseed is a web app (PWA). Over plain HTTP on your home network it works in th
 - Kinoseed never stores tracker logins: that's Prowlarr's job.
 - Kinoseed has no login of its own; on Umbrel, Umbrel's login protects it.
 
+## Ideas and bugs
+
+- **An idea or a missing feature:** post it in [Discussions → Ideas](https://github.com/MrShakhov/kinoseed/discussions/categories/ideas), or upvote one that's already there.
+- **A bug:** [report it](https://github.com/MrShakhov/kinoseed/issues/new?template=bug_report.yml) with the steps and your versions; Settings → About and Settings → Connections show them.
+- **A question about installing or using Kinoseed:** ask in [Discussions → Q&A](https://github.com/MrShakhov/kinoseed/discussions/categories/q-a).
+
 ## For developers
 
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): running locally, server configuration, releases.

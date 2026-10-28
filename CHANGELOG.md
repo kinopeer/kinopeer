@@ -7,6 +7,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 ### Added
 
 - Settings: the interface language has a System option, like the theme: Kinoseed follows the browser's languages (Russian or English, else English) and switches when they change. New browsers start with it; a language already chosen stays.
+- Adding a release: a warning when the selected files are larger than the free space on qBittorrent's disk, with how much is missing. The release can still be added.
 - Releases: the indexer's name on a release (the card on a phone, the table on desktop and the add sheet) links to the release's page on the tracker, in a new tab, for what Kinoseed doesn't show.
 
 ### Changed
@@ -22,6 +23,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 - Desktop: a link to a title's releases (or a reload of their address) opens the title page at the releases, instead of at the top with the hero. ([#72](https://github.com/MrShakhov/kinoseed/issues/72))
 - Releases: a resolution written in the name wins over a UHD or 4K marker, so "UHD BDRip 1080p" shows as 1080p, not 2160p. HDRip is a source of its own, with its own filter, instead of showing as BDRip.
 - Search: going back from a title brings the results back at the same scroll position. Before, the list started from the top, because the results load again after the browser has already restored the scroll.
+- Settings: Test on a connection checks only that service, and saving a new TMDB key checks only TMDB. Before, every connection was checked again. ([#113](https://github.com/MrShakhov/kinoseed/issues/113))
 
 ## 0.4.2 - 2026-10-26
 
