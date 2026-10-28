@@ -9,7 +9,8 @@
     "light": "Light"
   },
   "language": {
-    "label": "Language"
+    "label": "Language",
+    "system": "System"
   },
   "common": {
     "retry": "Try again",
@@ -181,6 +182,8 @@
     "backToSearch": "Back to search",
     "findReleases": "Find releases",
     "seriesHint": "Releases are searched by show name. Pick seasons in the file list after choosing a release.",
+    "recommendations": "Recommendations",
+    "similar": "Similar titles",
     "inDownloads": "In downloads",
     "inDownloadsBadge": "In downloads · {{value}}",
     "showMore": "Show more",
@@ -281,6 +284,7 @@
     "savePath": "Save path",
     "startPaused": "Start paused",
     "sequential": "Sequential download",
+    "firstLastPieces": "First and last pieces first",
     "addTop": "Add to top of queue",
     "filesAll": "Files: all ({{count}})",
     "filesSome": "Files: {{selected}} of {{count}}",

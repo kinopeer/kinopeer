@@ -32,7 +32,10 @@ export function useRequest<T>(key: string | null, load: (signal: AbortSignal) =>
     if (key === null) return
     const controller = new AbortController()
     loadRef.current(controller.signal).then(
-      (data) => setSettled({ key, attempt, data }),
+      // A load can resolve after its abort (it ignored the signal, or settled some parts first).
+      (data) => {
+        if (!controller.signal.aborted) setSettled({ key, attempt, data })
+      },
       (error: unknown) => {
         if (!controller.signal.aborted) setSettled({ key, attempt, error })
       },
