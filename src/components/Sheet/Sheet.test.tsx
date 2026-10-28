@@ -93,8 +93,14 @@ describe('Sheet', () => {
     // 200px in a second ends at 0.2 px/ms, too slow for a flick, so only the distance can close it.
     const slowDrag = (target: Element, from: number, to: number) => drag(target, from, to, 1000)
 
+    // An error out of a handler reaches the page, not the test.
+    const pageErrors = vi.fn((event: ErrorEvent) => event.preventDefault())
+
     afterEach(() => {
       Reflect.deleteProperty(HTMLDialogElement.prototype, 'animate')
+      Reflect.deleteProperty(HTMLElement.prototype, 'setPointerCapture')
+      window.removeEventListener('error', pageErrors)
+      pageErrors.mockClear()
     })
 
     it('follows the finger while dragged', () => {
@@ -202,9 +208,12 @@ describe('Sheet', () => {
     it('takes over the opening slide where it has got to, and a spring back where it is', () => {
       // Where the browser has the sheet: partway up its opening slide, then down its spring back.
       let at = 'translateY(60px)'
-      // A finished slide no longer moves it.
+      // And how far it has faded in.
+      let faded = '0.4'
+      // A finished slide no longer moves it, and has it fully faded in.
       const finish = vi.fn(() => {
         at = 'none'
+        faded = '1'
       })
       class CSSAnimation {
         playState = 'running'
@@ -226,7 +235,8 @@ describe('Sheet', () => {
       vi.spyOn(window, 'getComputedStyle').mockImplementation((element) => {
         const style = computed(element)
         if (element !== sheet) return style
-        return new Proxy(style, { get: (target, key) => (key === 'transform' ? at : Reflect.get(target, key)) })
+        const now: Record<string, string> = { transform: at, opacity: faded }
+        return new Proxy(style, { get: (target, key) => (typeof key === 'string' && key in now ? now[key] : Reflect.get(target, key)) })
       })
       const animations: object[] = [new CSSAnimation()]
       Object.defineProperty(sheet, 'getAnimations', { value: () => animations })
@@ -234,18 +244,53 @@ describe('Sheet', () => {
       expect(finish).toHaveBeenCalledOnce()
       // Held there, rather than jumping to where the slide ends.
       expect(sheet.style.transform).toBe('translateY(60px)')
+      // And as faded in, rather than turning opaque under the finger.
+      expect(sheet.style.opacity).toBe('0.4')
       pointer('pointerMove', handle(), 110, 100)
       expect(sheet.style.transform).toBe('translateY(70px)')
       pointer('pointerUp', handle(), 110, 1000)
+      // The stylesheet's transition fades in the rest.
+      expect(sheet.style.opacity).toBe('')
 
       // Halfway back up from that short drag: the transition, not the keyframes, which it leaves be.
       animations.splice(0, 1, { playState: 'running', finish })
       at = 'translateY(30px)'
       pointer('pointerDown', handle(), 100, 2000)
       expect(sheet.style.transform).toBe('translateY(30px)')
+      expect(sheet.style.opacity).toBe('')
       pointer('pointerMove', handle(), 110, 2100)
       expect(sheet.style.transform).toBe('translateY(40px)')
       expect(finish).toHaveBeenCalledOnce()
+    })
+
+    it('opens fully faded in after a drag that cut its opening slide short closed it', () => {
+      vi.stubGlobal(
+        'CSSAnimation',
+        class {
+          playState = 'running'
+          finish = () => {}
+        },
+      )
+      const onClose = vi.fn()
+      const sheet = (open: boolean) => (
+        <Sheet open={open} onClose={onClose} title="Add release">
+          <p>Options</p>
+        </Sheet>
+      )
+      const { rerender } = render(sheet(true))
+      const element = dialog()
+      const computed = window.getComputedStyle
+      vi.spyOn(window, 'getComputedStyle').mockImplementation((target) => {
+        const style = computed(target)
+        if (target !== element) return style
+        return new Proxy(style, { get: (from, key) => (key === 'opacity' ? '0.4' : Reflect.get(from, key)) })
+      })
+      Object.defineProperty(element, 'getAnimations', { value: () => [new CSSAnimation()] })
+      slowDrag(handle(), 100, 300)
+      expect(onClose).toHaveBeenCalledOnce()
+      rerender(sheet(false))
+      rerender(sheet(true))
+      expect(dialog().style.opacity).toBe('')
     })
 
     it('starts afresh after a press whose pointer was already gone', () => {
@@ -253,21 +298,14 @@ describe('Sheet', () => {
         throw new DOMException('No active pointer', 'NotFoundError')
       })
       Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', { value: setPointerCapture, configurable: true })
-      // An error out of a handler reaches the page, not the test.
-      const errors = vi.fn((event: ErrorEvent) => event.preventDefault())
-      window.addEventListener('error', errors)
-      try {
-        const onClose = renderSheet()
-        pointer('pointerDown', handle(), 100, 0)
-        pointer('pointerMove', handle(), 160, 100)
-        expect(dialog().style.transform).toBe('')
-        expect(errors).not.toHaveBeenCalled()
-        slowDrag(handle(), 100, 300)
-        expect(onClose).toHaveBeenCalledOnce()
-      } finally {
-        window.removeEventListener('error', errors)
-        Reflect.deleteProperty(HTMLElement.prototype, 'setPointerCapture')
-      }
+      window.addEventListener('error', pageErrors)
+      const onClose = renderSheet()
+      pointer('pointerDown', handle(), 100, 0)
+      pointer('pointerMove', handle(), 160, 100)
+      expect(dialog().style.transform).toBe('')
+      expect(pageErrors).not.toHaveBeenCalled()
+      slowDrag(handle(), 100, 300)
+      expect(onClose).toHaveBeenCalledOnce()
     })
 
     it('takes a tap on its top while it springs back for a tap, however far down it is', () => {

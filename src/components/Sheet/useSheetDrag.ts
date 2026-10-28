@@ -69,6 +69,7 @@ export function useSheetDrag(
     exit.current = null
     dialog.style.transform = ''
     dialog.style.transition = ''
+    dialog.style.opacity = ''
   }
 
   useEffect(() => {
@@ -101,6 +102,7 @@ export function useSheetDrag(
     if (!dialog) return
     // Where it is now, also partway through the opening slide or a spring back.
     const offset = currentOffset(dialog)
+    const { opacity } = getComputedStyle(dialog)
     try {
       event.currentTarget.setPointerCapture?.(event.pointerId)
     } catch {
@@ -108,11 +110,16 @@ export function useSheetDrag(
       return
     }
     // The opening slide (a CSS animation) animates transform too and would hide the drag until it
-    // ends, so the drag takes over from where it has got to. A spring back (a CSS transition) gives
+    // ends, so the drag takes over from where it has got to, its fade in included, which the
+    // stylesheet's transition finishes once the drag ends. A spring back (a CSS transition) gives
     // way to the inline transform by itself.
+    let opening = false
     for (const animation of dialog.getAnimations?.() ?? []) {
-      if (isCssAnimation(animation) && animation.playState === 'running') animation.finish()
+      if (!isCssAnimation(animation) || animation.playState !== 'running') continue
+      animation.finish()
+      opening = true
     }
+    if (opening) dialog.style.opacity = opacity
     drag.current = {
       pointerId: event.pointerId,
       downY: event.clientY,
@@ -165,6 +172,7 @@ export function useSheetDrag(
     // Back to the stylesheet's transition, which springs it back up.
     dialog.style.transition = ''
     dialog.style.transform = ''
+    dialog.style.opacity = ''
   }
 
   /** Finishes the swipe off the screen, then closes; the open effect puts it back next time. */

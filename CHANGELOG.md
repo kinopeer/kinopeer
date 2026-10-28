@@ -33,7 +33,8 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 - Desktop: "Find releases" on a title page no longer reloads the whole page: the hero, an opened overview and the rest stay as they were, and the page scrolls smoothly down to the releases. ([#138](https://github.com/MrShakhov/kinoseed/issues/138))
 - When qBittorrent can't tell its free space (it reports 0), Downloads, the sidebar and the add sheet's files row no longer say "0 B free", and the file picker no longer says "Not enough free space". ([#137](https://github.com/MrShakhov/kinoseed/issues/137))
 - Phone: a sheet (sort and filters, adding a release, a torrent's actions…) closes when dragged down by its grabber or title, as the grabber suggests, and the screen behind it no longer scrolls under the finger. ([#114](https://github.com/MrShakhov/kinoseed/issues/114))
-- Phone: a sheet also follows a drag that starts on the poster at its top, and one that starts while the sheet is still sliding up. ([#150](https://github.com/MrShakhov/kinoseed/issues/150))
+- Phone: a sheet also follows a drag that starts while it is still sliding up. ([#150](https://github.com/MrShakhov/kinoseed/issues/150))
+- In a narrow window, a sheet follows a mouse drag that starts on the poster at its top, instead of springing back. ([#150](https://github.com/MrShakhov/kinoseed/issues/150))
 - Desktop: a release name no longer looks clickable on hover (a click did nothing when the name fit in two lines); the whole name is a tooltip on hover instead. On a phone a tap still shows the whole name.
 - Desktop: Escape in the delete confirmation or the title search opened from a torrent's details closes only that, not the details too. ([#107](https://github.com/MrShakhov/kinoseed/issues/107))
 - Desktop: a link to a title's releases (or a reload of their address) opens the title page at the releases, instead of at the top with the hero. ([#72](https://github.com/MrShakhov/kinoseed/issues/72))
