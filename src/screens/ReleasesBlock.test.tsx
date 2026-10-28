@@ -6,6 +6,7 @@ import { parseRelease } from '../releases/parseRelease'
 import { DUNE_RELEASES } from '../test/fixtures'
 import { ReleasesBody } from './ReleasesBlock'
 import type { Releases } from './useReleases'
+import { saying } from '../test/render'
 
 const ROWS = DUNE_RELEASES.map((release) => ({ release, info: parseRelease(release.title) }))
 
@@ -121,12 +122,12 @@ describe('ReleasesBody', () => {
         <p>The list</p>
       </ReleasesBody>,
     )
-    expect(screen.getByRole('status')).toHaveTextContent('1 indexer didn’t answer: Kinozal')
+    expect(screen.getByRole('status', { name: saying('1 indexer didn’t answer: Kinozal') })).toBeInTheDocument()
     expect(screen.getByText('The list')).toBeInTheDocument()
     unmount()
 
     renderBody(releases({ status: 'none', rows: [], visible: [], failing: ['Kinozal', 'RuTracker'] }))
-    expect(screen.getByRole('status')).toHaveTextContent('2 indexers didn’t answer: Kinozal, RuTracker')
+    expect(screen.getByRole('status', { name: saying('2 indexers didn’t answer: Kinozal, RuTracker') })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'No releases found' })).toBeInTheDocument()
   })
 })

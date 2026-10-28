@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
 import i18n from '../i18n'
 import { torrent } from '../test/fixtures'
-import { renderWithRouter } from '../test/render'
+import { renderWithRouter, saying } from '../test/render'
 import { SpeedLimitsSheet } from './SpeedLimitsSheet'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
@@ -85,7 +85,7 @@ describe('SpeedLimitsSheet', () => {
     await userEvent.type(download, '2')
     await userEvent.type(upload, '3')
     await userEvent.click(screen.getByRole('button', { name: 'Save limits' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent(/Couldn’t save the limits/)
+    expect(await screen.findByRole('alert', { name: saying(/Couldn’t save the limits/) })).toBeInTheDocument()
 
     await userEvent.clear(download)
     await userEvent.type(download, '1')
@@ -137,7 +137,7 @@ describe('SpeedLimitsSheet', () => {
     await userEvent.type(screen.getByRole('textbox', { name: 'Download limit, MB/s' }), '3')
     await userEvent.type(screen.getByRole('textbox', { name: 'Upload limit, MB/s' }), '1')
     await userEvent.click(screen.getByRole('button', { name: 'Save limits' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent(/Couldn’t save the limits, or saved only some/)
+    expect(await screen.findByRole('alert', { name: saying(/Couldn’t save the limits, or saved only some/) })).toBeInTheDocument()
     expect(handlers.onChanged).toHaveBeenCalled()
     expect(handlers.onClose).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Save limits' })).toBeEnabled()

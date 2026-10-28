@@ -134,8 +134,8 @@ describe('App', () => {
     it('navigates from the sidebar in place of the tab bar', async () => {
       renderApp()
       const nav = await screen.findByRole('navigation', { name: 'Main' })
-      // Both are the "Main" navigation with the same links; their root classes are the only way
-      // jsdom tells the sidebar from the tab bar.
+      // Both are the "Main" navigation with the same links: the root class is what lays one out as the
+      // sidebar and the other as the tab bar, and nothing else tells them apart.
       expect(nav.closest('.ks-side')).not.toBeNull()
       expect(document.querySelector('.ks-tabbar')).toBeNull()
 
@@ -291,7 +291,8 @@ describe('App', () => {
         expect(screen.getByRole('heading', { name: 'Dune: Part Two', level: 1 })).toBeInTheDocument()
         expect(screen.queryByRole('heading', { name: 'Downloads' })).not.toBeInTheDocument()
         const nav = screen.getByRole('navigation', { name: 'Main' })
-        // The highlight is the only trace of the page behind the drawer: aria-current follows the URL.
+        // is-on is what highlights the page behind the drawer; aria-current follows the URL, so it
+        // can't name that page.
         expect(within(nav).getByRole('link', { name: /^Downloads/ })).not.toHaveClass('is-on')
 
         fireEvent(drawer, new Event('cancel', { cancelable: true }))

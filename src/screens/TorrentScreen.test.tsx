@@ -7,7 +7,7 @@ import * as api from '../api/qbittorrent'
 import type { Torrent } from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
 import { DUNE_TORRENT, mainData } from '../test/fixtures'
-import { renderWithRouter } from '../test/render'
+import { renderWithRouter, saying } from '../test/render'
 import * as serverMatches from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
 import { TorrentScreen } from './TorrentScreen'
@@ -153,13 +153,13 @@ describe('TorrentScreen', () => {
     stopTorrents.mockRejectedValue(new Error('offline'))
     renderScreen()
     await userEvent.click(await screen.findByRole('button', { name: 'Pause' }))
-    expect(await screen.findByRole('status')).toHaveTextContent('Couldn’t reach qBittorrent. Try again.')
+    expect(await screen.findByRole('status', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
   })
 
   it('explains an error state', async () => {
     getMainData.mockResolvedValue(snapshot({ state: 'missingFiles' }))
     renderScreen()
-    expect(await screen.findByRole('alert')).toHaveTextContent('The files are missing from the save path.')
+    expect(await screen.findByRole('alert', { name: saying(/The files are missing from the save path\./) })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Resume' })).toBeInTheDocument()
   })
 
@@ -241,7 +241,7 @@ describe('TorrentScreen', () => {
     getMainData.mockResolvedValue(snapshot({ save_path: '/media/movies' }))
     await userEvent.click(within(sheet).getByRole('button', { name: 'Move' }))
     expect(api.setTorrentLocation).toHaveBeenCalledWith(['dune'], '/media/movies')
-    expect(await screen.findByRole('status')).toHaveTextContent('Moving files to /media/movies')
+    expect(await screen.findByRole('status', { name: saying('Moving files to /media/movies') })).toBeInTheDocument()
     await waitFor(() => expect(savePath).toHaveTextContent('/media/movies'))
   })
 
@@ -262,7 +262,7 @@ describe('TorrentScreen', () => {
     window.dispatchEvent(new Event('online'))
     expect(await screen.findByText('Torrent not found')).toBeInTheDocument()
     fail(new api.QbittorrentError('conflict', 409))
-    expect(await screen.findByRole('status')).toHaveTextContent('qBittorrent couldn’t create that folder.')
+    expect(await screen.findByRole('status', { name: saying('qBittorrent couldn’t create that folder.') })).toBeInTheDocument()
   })
 
   it('reannounces, and rechecks after a confirmation, from the More menu, each with a toast', async () => {
@@ -274,7 +274,7 @@ describe('TorrentScreen', () => {
     stopPolling()
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Reannounce' }))
     expect(api.reannounceTorrents).toHaveBeenCalledWith(['dune'])
-    expect(await screen.findByRole('status')).toHaveTextContent('Announced to the trackers')
+    expect(await screen.findByRole('status', { name: saying('Announced to the trackers') })).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'More actions: Dune: Part Two' }))
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Force recheck' }))
@@ -283,7 +283,7 @@ describe('TorrentScreen', () => {
     getMainData.mockResolvedValue(snapshot({ state: 'checkingDL' }))
     await userEvent.click(within(dialog).getByRole('button', { name: 'Force recheck' }))
     expect(api.recheckTorrents).toHaveBeenCalledWith(['dune'])
-    expect(await screen.findByRole('status')).toHaveTextContent('Checking the files')
+    expect(await screen.findByRole('status', { name: saying('Checking the files') })).toBeInTheDocument()
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
     const progress = screen.getByRole('region', { name: 'Progress' })
     expect(await within(progress).findByText('Checking', { exact: true })).toBeInTheDocument()
@@ -334,7 +334,7 @@ describe('TorrentScreen title matching', () => {
     expect(await screen.findByText('Matched by the release name. Is it right?')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Yes, right' }))
-    expect(await screen.findByRole('status')).toHaveTextContent('Match confirmed')
+    expect(await screen.findByRole('status', { name: saying('Match confirmed') })).toBeInTheDocument()
     expect(screen.queryByText('Matched by the release name. Is it right?')).not.toBeInTheDocument()
   })
 
@@ -349,7 +349,7 @@ describe('TorrentScreen title matching', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Change' }))
     const sheet = screen.getByRole('dialog', { name: 'Change title' })
     await userEvent.click(await within(sheet).findByRole('button', { name: /^Dune Movie · 1984$/ }))
-    expect(await screen.findByRole('status')).toHaveTextContent('Title changed')
+    expect(await screen.findByRole('status', { name: saying('Title changed') })).toBeInTheDocument()
     expect(await screen.findByRole('heading', { level: 1, name: 'Dune' })).toBeInTheDocument()
     expect(screen.queryByText('Matched by the release name. Is it right?')).not.toBeInTheDocument()
   })

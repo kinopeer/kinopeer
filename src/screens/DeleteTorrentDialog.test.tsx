@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
 import * as serverMatches from '../torrents/serverMatches'
 import { DeleteTorrentDialog } from './DeleteTorrentDialog'
+import { saying } from '../test/render'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
   ...(await importOriginal<typeof api>()),
@@ -77,7 +78,7 @@ describe('DeleteTorrentDialog', () => {
     deleteTorrents.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     const { onDeleted, dialog, remove } = renderDialog()
     await remove()
-    expect(within(dialog).getByRole('alert')).toHaveTextContent('Couldn’t reach qBittorrent. Try again.')
+    expect(within(dialog).getByRole('alert', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
     expect(onDeleted).not.toHaveBeenCalled()
     // The torrent is still there, so its title match must stay too.
     expect(forgetMatches).not.toHaveBeenCalled()

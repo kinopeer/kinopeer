@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
 import { RecheckDialog } from './RecheckDialog'
+import { saying } from '../test/render'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
   ...(await importOriginal<typeof api>()),
@@ -34,7 +35,7 @@ describe('RecheckDialog', () => {
     vi.mocked(api.recheckTorrents).mockRejectedValue(new Error('500'))
     const handlers = renderDialog()
     await userEvent.click(screen.getByRole('button', { name: 'Force recheck' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('Couldn’t reach qBittorrent. Try again.')
+    expect(await screen.findByRole('alert', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
     expect(handlers.onRechecked).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Force recheck' })).toBeEnabled()
   })

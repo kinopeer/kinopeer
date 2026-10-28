@@ -7,6 +7,7 @@ import { title } from '../test/fixtures'
 import { resetServerMatches } from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
 import { ChangeTitleSheet } from './ChangeTitleSheet'
+import { saying } from '../test/render'
 
 vi.mock('../api/tmdb', async (importOriginal) => ({
   ...(await importOriginal<typeof tmdb>()),
@@ -86,7 +87,7 @@ describe('ChangeTitleSheet', () => {
     const { onChosen } = renderSheet()
     const row = await screen.findByRole('button', { name: /Movie · 2024/ })
     await userEvent.click(row)
-    expect(await screen.findByRole('alert')).toHaveTextContent('Couldn’t save the choice. Try again.')
+    expect(await screen.findByRole('alert', { name: saying('Couldn’t save the choice. Try again.') })).toBeInTheDocument()
     expect(onChosen).not.toHaveBeenCalled()
     expect(row).toBeEnabled()
     await userEvent.click(row)

@@ -8,7 +8,7 @@ import * as tmdb from '../api/tmdb'
 import type { MovieDetails, TvDetails } from '../api/tmdb'
 import { resetSettings, updateSettings } from '../settings/settings'
 import { DUNE_RELEASES, release } from '../test/fixtures'
-import { renderWithRouter } from '../test/render'
+import { renderWithRouter, saying } from '../test/render'
 import { ReleasesScreen } from './ReleasesScreen'
 
 vi.mock('../api/tmdb', async (importOriginal) => {
@@ -65,7 +65,7 @@ afterEach(() => {
 describe('ReleasesScreen', () => {
   it('searches by original title and year and lists releases by seeders', async () => {
     renderAt('/title/movie/693134/releases')
-    expect(screen.getByRole('status')).toHaveTextContent('Searching releases')
+    expect(screen.getByRole('status', { name: saying('Searching releases') })).toBeInTheDocument()
 
     expect(await screen.findByText('3 of 3 releases')).toBeInTheDocument()
     expect(searchReleases).toHaveBeenCalledWith('Dune Part Two 2024', expect.not.objectContaining({ categories: expect.anything() }))

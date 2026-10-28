@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { SettingsError } from '../api/settings'
 import { ConnectScreen } from './ConnectScreen'
+import { saying } from '../test/render'
 
 function setup(onSignIn = vi.fn().mockResolvedValue(undefined), props: { unreachable?: boolean } = {}) {
   const onRetry = vi.fn()
@@ -45,12 +46,12 @@ describe('ConnectScreen', () => {
   it('explains an IP ban', async () => {
     setup(vi.fn().mockRejectedValue(new SettingsError(429, 'banned')))
     await fillAndSubmit()
-    expect(screen.getByRole('alert')).toHaveTextContent('qBittorrent has blocked this address')
+    expect(screen.getByRole('alert', { name: saying(/qBittorrent has blocked this address/) })).toBeInTheDocument()
   })
 
   it('reports an unreachable server and offers a retry', async () => {
     const { onRetry } = setup(undefined, { unreachable: true })
-    expect(screen.getByRole('alert')).toHaveTextContent('qBittorrent is unreachable')
+    expect(screen.getByRole('alert', { name: saying('qBittorrent is unreachable') })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
     expect(onRetry).toHaveBeenCalled()
   })
@@ -58,7 +59,7 @@ describe('ConnectScreen', () => {
   it('treats network errors during sign-in as unreachable', async () => {
     setup(vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
     await fillAndSubmit()
-    expect(screen.getByRole('alert')).toHaveTextContent('qBittorrent is unreachable')
+    expect(screen.getByRole('alert', { name: saying('qBittorrent is unreachable') })).toBeInTheDocument()
   })
 
   it('switches the theme and the language before signing in', async () => {

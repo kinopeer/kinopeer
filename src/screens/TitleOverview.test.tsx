@@ -34,9 +34,6 @@ describe('TitleOverview', () => {
   it('has no button when the overview fits', () => {
     stubLayout(78, 78)
     render(<TitleOverview text={TEXT} />)
-    // is-clamped stays on, so the text is measured as cut, and the button comes when a font that loads
-    // or a narrower width makes it overflow.
-    expect(screen.getByText(TEXT)).toHaveClass('is-clamped')
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 

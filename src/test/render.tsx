@@ -22,9 +22,20 @@ export function Where() {
 
 export const where = () => screen.getByRole('status', { name: 'Location' }).textContent
 
+const normalized = (text: string | null) => (text ?? '').replace(/\s+/g, ' ').trim()
+
 /**
- * Picks a live region by what it says, for a screen where several share the role (a toast over a list
- * that is a status region itself): a status or alert takes no name from its text, so
- * `findByRole('status', { name: saying('Torrent deleted') })` matches it on its text instead.
+ * Picks a live region (a toast, an error banner) by what it says, as the `name` in
+ * `findByRole('status', { name: saying('Torrent deleted') })`: a status or alert takes no name from its
+ * text. Like `getByText`, a string matches a whole text, the region's or one of its elements' (a
+ * banner's title or body), so "12 torrents deleted" isn't "2 torrents deleted"; a RegExp is for a
+ * part of a longer message. It waits for that text even while other regions with the role are up.
  */
-export const saying = (text: string) => (_name: string, element: Element) => element.textContent?.includes(text) ?? false
+export function saying(text: string | RegExp) {
+  const says = (node: Element) =>
+    typeof text === 'string' ? normalized(node.textContent) === text : text.test(normalized(node.textContent))
+  const matcher = (_name: string, element: Element) => [element, ...element.querySelectorAll('*')].some(says)
+  // What a failed query prints in place of the function's source.
+  matcher.toString = () => `saying(${String(text)})`
+  return matcher
+}

@@ -9,6 +9,7 @@ import { parseRelease } from '../releases/parseRelease'
 import { resetSettings, updateSettings } from '../settings/settings'
 import * as torrentFile from '../torrents/torrentFile'
 import { AddReleaseSheet } from './AddReleaseSheet'
+import { saying } from '../test/render'
 
 vi.mock('../api/prowlarr', async (importOriginal) => ({
   ...(await importOriginal<typeof prowlarr>()),
@@ -263,7 +264,7 @@ describe('AddReleaseSheet', () => {
     renderSheet()
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
     expect(await within(sheet).findByText('TV → /data/tv')).toBeInTheDocument()
-    expect(await within(sheet).findByRole('alert')).toHaveTextContent('Couldn’t get the torrent from Prowlarr.')
+    expect(await within(sheet).findByRole('alert', { name: saying('Couldn’t get the torrent from Prowlarr.') })).toBeInTheDocument()
     expect(within(sheet).queryByText('Not enough free space')).not.toBeInTheDocument()
   })
 
@@ -305,7 +306,7 @@ describe('AddReleaseSheet', () => {
     addRelease.mockRejectedValue(new qbt.QbittorrentError('Fails.', 200))
     const { onAdded } = renderSheet()
     await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('may already be in your downloads')
+    expect(await screen.findByRole('alert', { name: saying(/may already be in your downloads/) })).toBeInTheDocument()
     expect(onAdded).not.toHaveBeenCalled()
   })
 })

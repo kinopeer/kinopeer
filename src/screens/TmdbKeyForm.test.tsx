@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as serverSettings from '../api/settings'
 import type { ServerSettings } from '../api/settings'
 import { TmdbKeyForm } from './TmdbKeyForm'
+import { saying } from '../test/render'
 
 vi.mock('../api/settings', async (importOriginal) => ({
   ...(await importOriginal<typeof serverSettings>()),
@@ -76,13 +77,13 @@ describe('TmdbKeyForm', () => {
     const { field, save } = renderForm()
     await userEvent.type(field, 'abc123')
     await userEvent.click(save)
-    expect(screen.getByRole('alert')).toHaveTextContent(message)
+    expect(screen.getByRole('alert', { name: saying(message) })).toBeInTheDocument()
     expect(field).not.toHaveAttribute('aria-invalid')
     expect(field).toHaveValue('abc123')
 
     // Nothing but a SettingsError's code tells the failures apart: a network error is "failed" too.
     saveTmdbKey.mockRejectedValue(new TypeError('Failed to fetch'))
     await userEvent.click(save)
-    expect(screen.getByRole('alert')).toHaveTextContent('Couldn’t save the key. Try again.')
+    expect(screen.getByRole('alert', { name: saying('Couldn’t save the key. Try again.') })).toBeInTheDocument()
   })
 })

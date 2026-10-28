@@ -8,7 +8,7 @@ import * as tmdb from '../api/tmdb'
 import { stubDesktop } from '../lib/stubDesktop'
 import { getSettings, resetSettings, updateSettings } from '../settings/settings'
 import { mainData, torrent as fixtureTorrent } from '../test/fixtures'
-import { renderWithRouter } from '../test/render'
+import { renderWithRouter, saying } from '../test/render'
 import { resetServerMatches } from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
 import { DownloadsScreen } from './DownloadsScreen'
@@ -159,7 +159,7 @@ describe('DownloadsScreen on desktop', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Resume: Alien.Romulus.2024.1080p' }))
     expect(api.startTorrents).toHaveBeenCalledWith(['alien'])
-    expect(await screen.findByRole('status')).toHaveTextContent('Couldn’t reach qBittorrent. Try again.')
+    expect(await screen.findByRole('status', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
   })
 
   it('pauses from the poster grid too', async () => {

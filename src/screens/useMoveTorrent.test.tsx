@@ -5,6 +5,7 @@ import * as api from '../api/qbittorrent'
 import type { Torrent } from '../api/qbittorrent'
 import { MoveOutcomeProvider } from './MoveOutcomeToast'
 import { useMoveTorrent } from './useMoveTorrent'
+import { saying } from '../test/render'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
   ...(await importOriginal<typeof api>()),
@@ -121,7 +122,7 @@ describe('useMoveTorrent', () => {
     const { open, moveTo, refresh } = renderMove()
     await moveTo(await open(), ' /media/new ')
     expect(setTorrentLocation).toHaveBeenCalledWith(['dune'], '/media/new')
-    expect(await screen.findByRole('status')).toHaveTextContent('Moving files to /media/new')
+    expect(await screen.findByRole('status', { name: saying('Moving files to /media/new') })).toBeInTheDocument()
     expect(screen.queryByRole('dialog', { name: 'Move files' })).not.toBeInTheDocument()
     expect(refresh).toHaveBeenCalled()
   })
@@ -131,14 +132,14 @@ describe('useMoveTorrent', () => {
     const sheet = await open()
     setTorrentLocation.mockRejectedValueOnce(new api.QbittorrentError('no access', 403))
     await moveTo(sheet, '/root')
-    expect(await within(sheet).findByRole('alert')).toHaveTextContent('qBittorrent has no access to that folder.')
+    expect(await within(sheet).findByRole('alert', { name: saying('qBittorrent has no access to that folder.') })).toBeInTheDocument()
     setTorrentLocation.mockRejectedValueOnce(new api.QbittorrentError('conflict', 409))
     await moveTo(sheet, '/media/nope')
-    expect(await within(sheet).findByRole('alert')).toHaveTextContent('qBittorrent couldn’t create that folder.')
+    expect(await within(sheet).findByRole('alert', { name: saying('qBittorrent couldn’t create that folder.') })).toBeInTheDocument()
     expect(within(sheet).queryByText('qBittorrent has no access to that folder.')).not.toBeInTheDocument()
     setTorrentLocation.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     await moveTo(sheet, '/media/later')
-    expect(await within(sheet).findByRole('alert')).toHaveTextContent('Couldn’t reach qBittorrent. Try again.')
+    expect(await within(sheet).findByRole('alert', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
     expect(within(sheet).getByRole('button', { name: 'Move' })).toBeEnabled()
   })
 
@@ -147,7 +148,7 @@ describe('useMoveTorrent', () => {
     const sheet = await open()
     setTorrentLocation.mockRejectedValueOnce(new api.QbittorrentError('no access', 403))
     await moveTo(sheet, '/root')
-    expect(await within(sheet).findByRole('alert')).toHaveTextContent('qBittorrent has no access to that folder.')
+    expect(await within(sheet).findByRole('alert', { name: saying('qBittorrent has no access to that folder.') })).toBeInTheDocument()
     setTorrentLocation.mockReturnValueOnce(new Promise(() => {}))
     await userEvent.click(within(sheet).getByRole('button', { name: 'Move' }))
     expect(within(sheet).queryByText('qBittorrent has no access to that folder.')).not.toBeInTheDocument()
@@ -158,7 +159,7 @@ describe('useMoveTorrent', () => {
     const sheet = await open()
     setTorrentLocation.mockRejectedValueOnce(new api.QbittorrentError('no access', 403))
     await moveTo(sheet, '/root')
-    expect(await within(sheet).findByRole('alert')).toHaveTextContent('qBittorrent has no access to that folder.')
+    expect(await within(sheet).findByRole('alert', { name: saying('qBittorrent has no access to that folder.') })).toBeInTheDocument()
     await userEvent.click(within(sheet).getByRole('button', { name: 'Cancel' }))
     expect(within(await open()).queryByText('qBittorrent has no access to that folder.')).not.toBeInTheDocument()
   })
@@ -168,7 +169,7 @@ describe('useMoveTorrent', () => {
     const { open, moveTo } = renderMove()
     const sheet = await open()
     await moveTo(sheet, '/media/later')
-    expect(await within(sheet).findByRole('alert')).toHaveTextContent('Couldn’t reach qBittorrent. Try again.')
+    expect(await within(sheet).findByRole('alert', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
     expect(within(sheet).queryByText('qBittorrent has no access to that folder.')).not.toBeInTheDocument()
   })
 
@@ -181,7 +182,7 @@ describe('useMoveTorrent', () => {
     await userEvent.click(within(sheet).getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByRole('dialog', { name: 'Move files' })).not.toBeInTheDocument()
     fail(new api.QbittorrentError('no access', 403))
-    expect(await screen.findByRole('status')).toHaveTextContent('qBittorrent has no access to that folder.')
+    expect(await screen.findByRole('status', { name: saying('qBittorrent has no access to that folder.') })).toBeInTheDocument()
   })
 
   it('closes when the torrent is gone, and stays closed when it’s added again', async () => {
@@ -202,7 +203,7 @@ describe('useMoveTorrent', () => {
     await moveTo(await open(), '/media/new')
     rerender({ torrents: {} })
     fail(new api.QbittorrentError('conflict', 409))
-    expect(await screen.findByRole('status')).toHaveTextContent('qBittorrent couldn’t create that folder.')
+    expect(await screen.findByRole('status', { name: saying('qBittorrent couldn’t create that folder.') })).toBeInTheDocument()
   })
 
   it('can’t move while qBittorrent is unreachable', async () => {
@@ -223,7 +224,7 @@ describe('useMoveTorrent', () => {
     const andor = await open('andor')
     await moveTo(andor, '/media/tv')
     settle[0]()
-    expect(await screen.findByRole('status')).toHaveTextContent('Moving files to /media/movies')
+    expect(await screen.findByRole('status', { name: saying('Moving files to /media/movies') })).toBeInTheDocument()
     // A second tap would send andor's move again.
     expect(within(andor).getByRole('button', { name: 'Move' })).toBeDisabled()
   })
@@ -250,8 +251,7 @@ describe('useMoveTorrent under App’s MoveOutcomeProvider', () => {
   it('says how the move went inside the screen while it’s there, since a drawer is a modal dialog', async () => {
     renderInApp()
     await moveTo('/media/new')
-    const toast = await screen.findByRole('status')
-    expect(toast).toHaveTextContent('Moving files to /media/new')
+    const toast = await screen.findByRole('status', { name: saying('Moving files to /media/new') })
     expect(within(screen.getByRole('region', { name: 'Screen' })).getByRole('status')).toBe(toast)
   })
 
@@ -263,6 +263,6 @@ describe('useMoveTorrent under App’s MoveOutcomeProvider', () => {
     await moveTo('/media/new')
     leave()
     fail(new api.QbittorrentError('conflict', 409))
-    expect(await screen.findByRole('status')).toHaveTextContent('qBittorrent couldn’t create that folder.')
+    expect(await screen.findByRole('status', { name: saying('qBittorrent couldn’t create that folder.') })).toBeInTheDocument()
   })
 })

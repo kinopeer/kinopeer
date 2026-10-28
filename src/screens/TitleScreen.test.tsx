@@ -9,7 +9,7 @@ import * as tmdb from '../api/tmdb'
 import type { MovieDetails, TvDetails } from '../api/tmdb'
 import i18n from '../i18n'
 import { mainData, torrent } from '../test/fixtures'
-import { renderWithRouter } from '../test/render'
+import { renderWithRouter, saying } from '../test/render'
 import { resetServerMatches } from '../torrents/serverMatches'
 import { GUESS_VERSION, clearTitleMatchCache } from '../torrents/titleMatches'
 import { TitleScreen } from './TitleScreen'
@@ -148,7 +148,7 @@ describe('TitleScreen', () => {
 
   it('shows a movie', async () => {
     const { container } = renderAt('/title/movie/693134')
-    expect(screen.getByRole('status')).toHaveTextContent('Loading title')
+    expect(screen.getByRole('status', { name: saying('Loading title') })).toBeInTheDocument()
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Dune: Part Two' })).toBeInTheDocument()
     expect(screen.getByText('2024 · 2h 46m')).toBeInTheDocument()
@@ -224,7 +224,7 @@ describe('TitleScreen', () => {
 
   it('explains how series releases work', async () => {
     renderAt('/title/tv/126308')
-    expect(await screen.findByRole('status')).toHaveTextContent('Releases are searched by show name')
+    expect(await screen.findByRole('status', { name: saying(/Releases are searched by show name/) })).toBeInTheDocument()
   })
 
   describe('In downloads', () => {

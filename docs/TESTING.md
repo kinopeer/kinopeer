@@ -101,13 +101,15 @@ milliseconds, fails with a precise message, and it's the one the layer above lea
   for the page behind a drawer, or the root class that tells the sidebar from the tab bar, which
   share one role and name. A decorative image has no role: it is found by its `src`
   (`img[src="…"]`), or by its frame's class, with a comment, where another image shares the `src`
-  (the title page's poster and backdrop). Errors and confirmations are found by their `alert` or
-  `status` role, which is also what a screen reader announces; where several share the role on a
-  screen (a toast over a list that is a status region itself), `saying(text)` from
-  `src/test/render.tsx` picks one by its text (`{ name: saying('Torrent deleted') }`). An element
-  with a name of its own is found by it, not by its index in a list (`getAllByRole('button')[1]`);
-  an index is for a position the test is about, as the first row after a sort or the current title
-  first.
+  (the title page's poster and backdrop). Errors, confirmations and other live messages are found by
+  their `alert` or `status` role, which is also what a screen reader announces, and their text
+  through `saying()` from `src/test/render.tsx`, as the query's `{ name: saying('Torrent deleted')
+  }`. A string matches the whole text, as `getByText` does, so "12 torrents deleted" isn't "2
+  torrents deleted"; a RegExp is for a part of a longer message. A bare `findByRole('status')` takes
+  whatever status is up first (a list that is a status region, an earlier toast), and
+  `toHaveTextContent` then matches a part. An element with a name of its own is found by it, not by
+  its index in a list (`getAllByRole('button')[1]`); an index is for a position the test is about,
+  as the first row after a sort or the current title first.
 - **Helpers and fixtures.** Data every layer shares is in `src/test/fixtures.ts`, the rendering
   helpers in `src/test/render.tsx`, the fake services in `server/test/fakes.ts`
   ([Shared test data](#shared-test-data)). What one file uses stays in that file; the second copy of
@@ -265,9 +267,8 @@ it uses next to itself.
 - **`src/test/render.tsx`:** `renderWithRouter(ui, entries)` renders under a `MemoryRouter` at the
   last of `entries`, for screens that read the URL or navigate; `<Where />` rendered next to them
   shows the current path, which `where()` reads back. `saying(text)` matches a live region by its
-  text, as a `name` for `findByRole('status')` or `'alert'` where several share the role. API mocks
-  stay in each test file (`vi.mock`, hoisted), so a reader sees what the test replaces without
-  opening another module.
+  text, as the `name` for `findByRole('status')` or `'alert'`. API mocks stay in each test file
+  (`vi.mock`, hoisted), so a reader sees what the test replaces without opening another module.
 - **`server/test/fakes.ts`:** `listen(handler)` starts a handler on a free port and returns its
   origin, `serve(middleware)` does the same for the middleware under test with Vite's 404 fallback,
   `closeServers()` closes everything in `afterEach`, `bodyOf(request)` reads a body.
