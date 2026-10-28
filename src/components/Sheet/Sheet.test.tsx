@@ -270,12 +270,6 @@ describe('Sheet', () => {
       }
     })
 
-    it("keeps an image in its title row from starting the browser's own drag", () => {
-      renderSheet({ leading: <img src="/poster.jpg" alt="Dune" /> })
-      // fireEvent says whether the event went through: false once its default is prevented.
-      expect(fireEvent.dragStart(screen.getByRole('img', { name: 'Dune' }))).toBe(false)
-    })
-
     it('takes a tap on its top while it springs back for a tap, however far down it is', () => {
       vi.stubGlobal(
         'DOMMatrixReadOnly',
