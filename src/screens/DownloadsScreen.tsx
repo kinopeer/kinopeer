@@ -22,7 +22,8 @@ import { compareTorrents, knownSort } from '../torrents/sort'
 import { STATUS_FILTERS, downloadStatus, isRunning, matchesFilter, type StatusFilter } from '../torrents/status'
 import { useServerMatches } from '../torrents/serverMatches'
 import { TYPE_FILTERS, isGuessed, titleType, useTitleMatches, type TypeFilter } from '../torrents/titleMatches'
-import { useMainData } from '../torrents/useMainData'
+import { useAltSpeedLimits } from '../torrents/useAltSpeedLimits'
+import { useMainData, type MainDataState } from '../torrents/useMainData'
 import { BulkActionsBar } from './BulkActionsBar'
 import { ChangeTitleSheet } from './ChangeTitleSheet'
 import { DeleteTorrentDialog } from './DeleteTorrentDialog'
@@ -33,6 +34,7 @@ import { InstallCard } from './InstallCard'
 import { OfflineBanner } from './OfflineBanner'
 import { SortMenu, SortSheet } from './SortSheet'
 import { StatusMenu } from './StatusMenu'
+import { RecheckDialog } from './RecheckDialog'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
 import './DownloadsScreen.css'
 
@@ -49,7 +51,8 @@ const SKELETON_CARDS = 4
 export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsScreenProps) {
   const { t } = useTranslation()
   const format = useFormatters()
-  const { data, offline, updatedAt, refresh } = useMainData(onSessionLost)
+  const main = useMainData(onSessionLost)
+  const { data, offline, updatedAt, refresh } = main
   const location = useLocation()
   const navigate = useNavigate()
   // Set by the releases screen after adding a release, and by the torrent screen after deleting one.
@@ -88,6 +91,10 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   const [toggleFailed, setToggleFailed] = useState(false)
   const dismissToggleFailed = useCallback(() => setToggleFailed(false), [])
   const [deleting, setDeleting] = useState<string[] | null>(null)
+  const [rechecking, setRechecking] = useState<string | null>(null)
+  // A recheck or reannounce qBittorrent took, said in a toast.
+  const [notice, setNotice] = useState<'rechecking' | 'reannounced' | null>(null)
+  const dismissNotice = useCallback(() => setNotice(null), [])
   // The selected hashes in selection mode, null outside it.
   const [selected, setSelected] = useState<ReadonlySet<string> | null>(null)
   const selecting = selected !== null
@@ -158,6 +165,10 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   const actionsTorrent = actionsFor ? data?.torrents[actionsFor] : undefined
   const deleteTorrents = (deleting ?? []).flatMap((hash) => data?.torrents[hash] ?? [])
   const retitleTorrent = retitling ? data?.torrents[retitling] : undefined
+  const recheckTorrent = rechecking ? data?.torrents[rechecking] : undefined
+  // The torrent went away while its confirmation was open (deleted elsewhere): forget it, so the
+  // confirmation doesn't open again if the same torrent is added back.
+  if (rechecking && data && !recheckTorrent) setRechecking(null)
   const nameOf = (torrent: Torrent) => matches[torrent.hash]?.title ?? torrent.name
   const server = data?.server
   const free = freeSpace(server?.free_space_on_disk)
@@ -344,6 +355,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
         {!selecting && (
           <div className="downloads-title-row">
             <h1 className="t-h1">{t('downloads.title')}</h1>
+            <AltSpeedButton main={main} />
             <IconButton
               icon="search"
               label={t('downloads.search')}
@@ -528,6 +540,14 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
             setActionsFor(null)
             setDeleting([actionsTorrent.hash])
           }}
+          onRecheck={() => {
+            setActionsFor(null)
+            setRechecking(actionsTorrent.hash)
+          }}
+          onReannounced={() => {
+            setActionsFor(null)
+            setNotice('reannounced')
+          }}
           onChangeTitle={() => {
             setActionsFor(null)
             setRetitling(actionsTorrent.hash)
@@ -561,6 +581,18 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           onDelete={() => setDeleting(selectedVisible.map((torrent) => torrent.hash))}
         />
       )}
+      {recheckTorrent && (
+        <RecheckDialog
+          hash={recheckTorrent.hash}
+          title={nameOf(recheckTorrent)}
+          onClose={() => setRechecking(null)}
+          onRechecked={() => {
+            setRechecking(null)
+            setNotice('rechecking')
+            refresh()
+          }}
+        />
+      )}
       {deleteTorrents.length > 0 && (
         <DeleteTorrentDialog
           torrents={deleteTorrents}
@@ -577,6 +609,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           }}
         />
       )}
+      {notice && <Toast message={t(`torrent.${notice}`)} onDismiss={dismissNotice} />}
       {toggleFailed && <Toast icon="alert" message={t('torrent.actionFailed')} onDismiss={dismissToggleFailed} />}
       {reconnected && <Toast message={t('offline.reconnected')} onDismiss={dismissReconnected} />}
       {titleSaved && (
@@ -597,5 +630,28 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
         />
       )}
     </main>
+  )
+}
+
+/**
+ * The phone's alternative speed limits switch in the title row, with its own toast when a switch
+ * fails. Rendered only on phones, so it owns the switch there; on desktop the sidebar's card does.
+ */
+function AltSpeedButton({ main }: { main: MainDataState }) {
+  const { t } = useTranslation()
+  const altSpeed = useAltSpeedLimits(main)
+  if (altSpeed.on === undefined) return null
+  return (
+    <>
+      <IconButton
+        icon="turtle"
+        label={t('speedLimits.alt')}
+        active={altSpeed.on}
+        disabled={altSpeed.disabled}
+        iconSize={22}
+        onClick={altSpeed.toggle}
+      />
+      {altSpeed.failed && <Toast icon="alert" message={t('speedLimits.failed')} onDismiss={altSpeed.dismissFailed} />}
+    </>
   )
 }

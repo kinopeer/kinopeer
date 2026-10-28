@@ -1,13 +1,8 @@
-.delete-body {
-  margin-top: var(--space-2);
-  overflow-wrap: anywhere;
-}
-
 .delete-files {
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  margin: var(--space-3) -10px 0;
+  margin: 0 -10px; /* the checkbox's touch target reaches past the text's edge */
 }
 
 .delete-files-text {

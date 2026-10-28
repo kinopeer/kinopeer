@@ -18,7 +18,9 @@ function Harness({ onPick = vi.fn() }: { onPick?: (item: string) => void }) {
           <MenuItem icon="pause" onClick={() => onPick('pause')}>
             Pause
           </MenuItem>
-          <MenuItem disabled>Disabled</MenuItem>
+          <MenuItem disabled hint="Not now">
+            Disabled
+          </MenuItem>
           <MenuLink to="/title/movie/1">Movie page</MenuLink>
           <MenuDivider />
           <MenuGroup label="Is it right?">
@@ -95,5 +97,11 @@ describe('Menu', () => {
     await userEvent.click(screen.getByRole('menuitem', { name: 'Pause' }))
     expect(onPick).toHaveBeenCalledWith('pause')
     expect(screen.getByRole('menuitem', { name: 'Movie page' })).toHaveAttribute('href', '/title/movie/1')
+  })
+
+  it('shows an item’s hint under its label as its description', async () => {
+    render(<Harness />)
+    await userEvent.click(screen.getByRole('button', { name: 'Open' }))
+    expect(screen.getByRole('menuitem', { name: 'Disabled' })).toHaveAccessibleDescription('Not now')
   })
 })

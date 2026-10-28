@@ -45,8 +45,38 @@
   right: 2px;
 }
 
+/* The tabs sit on the head's bottom border; the year field stands right after them. */
+.search-filters {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
 .search-types {
   margin: 0 -6px;
+}
+
+.search-year {
+  /* Gives way on narrow phones, down to what four digits need. */
+  flex: 0 1 88px;
+  min-width: 56px;
+  display: flex;
+  align-items: center;
+  height: 44px; /* the tabs' height: the label is the touch target, so the row doesn't grow */
+}
+
+.search-year .ks-input {
+  height: 36px; /* smaller than the tabs, so it sits inside their row */
+  /* The text is centered, so a small padding only shows when the field has shrunk to four digits. */
+  padding: 0 var(--space-1);
+  text-align: center;
+}
+
+/* Phones narrower than 360px: tighter tabs leave the year field room on their row. */
+@media (max-width: 359px) {
+  .ks-tabs.search-types > button {
+    padding: 0 var(--space-3);
+  }
 }
 
 .search-body {

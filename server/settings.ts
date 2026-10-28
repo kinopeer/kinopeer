@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type {
   DownloadDefaults,
   DownloadDefaultsBody,
+  ProwlarrKeyBody,
   QbittorrentLoginBody,
   ServerSettings,
   SettingsErrorBody,
@@ -9,24 +10,28 @@ import type {
 } from '../src/api/settings/types.ts'
 import { isJsonRequest, readJson, sendJson } from './json.ts'
 import { JsonFile } from './jsonFile.ts'
-import type { Middleware } from './prowlarr.ts'
+import { checkProwlarrKey, readProwlarrApiKey, type Middleware } from './prowlarr.ts'
 import { qbittorrentLogin, type QbittorrentCredentials } from './qbittorrent.ts'
 import { checkTmdbKey } from './tmdb.ts'
 
 /**
- * Settings the user enters in the app and the server keeps: the TMDB key, the qBittorrent login
- * and the download defaults. They live in settings.json in the data directory ($KINOSEED_DATA_DIR,
+ * Settings the user enters in the app and the server keeps: the TMDB key, the Prowlarr key, the
+ * qBittorrent login and the download defaults. They live in settings.json in the data directory ($KINOSEED_DATA_DIR,
  * /data in the Docker image), readable only by the server. A saved secret wins over the matching
  * environment variables, which stay as the defaults (the Umbrel package sets qBittorrent's) and for
  * development.
  *
  * GET /api/settings → ServerSettings (only whether each secret is set, never its value)
  * PUT /api/settings/tmdb { apiKey } → checks the key with TMDB, saves it, answers ServerSettings
+ * PUT /api/settings/prowlarr { apiKey } → checks the key with Prowlarr, saves it, answers ServerSettings
+ * DELETE /api/settings/prowlarr → forgets the saved key, so the environment's or config.xml's applies
+ *   again; refused (409) when the server has no key of its own
  * PUT /api/settings/qbittorrent { username, password } → logs in to qBittorrent, saves the login
  * PATCH /api/settings/downloads { …some DownloadDefaults } → merges them in, answers ServerSettings
  */
 export interface StoredSettings {
   tmdbApiKey?: string
+  prowlarrApiKey?: string
   qbittorrentUsername?: string
   qbittorrentPassword?: string
   downloads?: Partial<DownloadDefaults>
@@ -52,6 +57,12 @@ export interface SettingsConfig {
   store: SettingsStore
   /** TMDB_API_KEY from the environment, the fallback. */
   envTmdbApiKey?: string
+  /** PROWLARR_URL, to check a key before saving it. */
+  prowlarrUrl?: string
+  /** PROWLARR_API_KEY, the fallback. */
+  envProwlarrApiKey?: string
+  /** PROWLARR_CONFIG_XML, Prowlarr's config.xml to read its key from, the last fallback. */
+  prowlarrConfigXml?: string
   /** QBITTORRENT_URL, to check a login before saving it. */
   qbittorrentUrl?: string
   /** QBITTORRENT_USERNAME and QBITTORRENT_PASSWORD, the fallback. */
@@ -63,6 +74,23 @@ export interface SettingsConfig {
 /** The TMDB key the bridge uses: the saved one, else the environment's. */
 export function tmdbKey(store: SettingsStore, envKey: string | undefined): string | undefined {
   return store.current.tmdbApiKey?.trim() || envKey?.trim() || undefined
+}
+
+/**
+ * The Prowlarr key the bridge uses: the saved one, else PROWLARR_API_KEY, else the one in Prowlarr's
+ * config.xml (read on every call, so a key changed in Prowlarr is picked up).
+ */
+export async function prowlarrKey(
+  store: SettingsStore,
+  envKey: string | undefined,
+  configXml: string | undefined,
+): Promise<string | undefined> {
+  return (
+    store.current.prowlarrApiKey?.trim() ||
+    envKey?.trim() ||
+    (configXml ? (await readProwlarrApiKey(configXml))?.trim() : undefined) ||
+    undefined
+  )
 }
 
 /** The qBittorrent login the bridge uses: the saved one, else the environment's. */
@@ -90,9 +118,22 @@ function status(saved: string | undefined, env: string | undefined): ServerSetti
   return { configured: source !== null, source }
 }
 
-function snapshot(stored: StoredSettings, config: SettingsConfig): ServerSettings {
+/** The server's own Prowlarr key: a key in config.xml counts as its configuration, like the variable. */
+async function serverProwlarrKey(config: SettingsConfig): Promise<string | undefined> {
+  return (
+    config.envProwlarrApiKey?.trim() ||
+    (config.prowlarrConfigXml ? (await readProwlarrApiKey(config.prowlarrConfigXml))?.trim() : undefined) ||
+    undefined
+  )
+}
+
+async function snapshot(stored: StoredSettings, config: SettingsConfig): Promise<ServerSettings> {
+  // Reads config.xml on every GET (a small local file): the answer says whether the server has a
+  // key of its own, which decides whether a saved key can be forgotten.
+  const envProwlarr = await serverProwlarrKey(config)
   return {
     tmdb: status(stored.tmdbApiKey, config.envTmdbApiKey),
+    prowlarr: { ...status(stored.prowlarrApiKey, envProwlarr), serverKey: Boolean(envProwlarr) },
     qbittorrent: status(stored.qbittorrentUsername, config.envQbittorrent?.username),
     downloads: stored.downloads ?? null,
   }
@@ -100,7 +141,8 @@ function snapshot(stored: StoredSettings, config: SettingsConfig): ServerSetting
 
 async function save(config: SettingsConfig, response: ServerResponse, saving: Promise<StoredSettings>) {
   try {
-    sendJson(response, 200, snapshot(await saving, config))
+    const stored = await saving
+    sendJson(response, 200, await snapshot(stored, config))
   } catch {
     console.warn('[kinoseed] could not write settings.json; is the data directory writable?')
     fail(response, 500, 'storage')
@@ -125,6 +167,35 @@ async function saveTmdbKey(config: SettingsConfig, request: IncomingMessage, res
   }
   if (!valid) return fail(response, 422, 'invalid-key')
   await save(config, response, config.store.update({ tmdbApiKey: apiKey.trim() }))
+}
+
+async function saveProwlarrKey(config: SettingsConfig, request: IncomingMessage, response: ServerResponse) {
+  const base = config.prowlarrUrl?.trim().replace(/\/+$/, '')
+  if (!base) return fail(response, 503, 'not-configured')
+  let body: unknown
+  try {
+    body = await readJson(request, MAX_BODY_BYTES)
+  } catch {
+    return fail(response, 400, 'bad-request')
+  }
+  const apiKey = (body as Partial<ProwlarrKeyBody> | null)?.apiKey
+  if (typeof apiKey !== 'string' || !apiKey.trim() || /\s/.test(apiKey.trim())) return fail(response, 400, 'bad-request')
+
+  let result: Awaited<ReturnType<typeof checkProwlarrKey>>
+  try {
+    result = await checkProwlarrKey(base, apiKey.trim())
+  } catch {
+    return fail(response, 502, 'unreachable')
+  }
+  if (result === 'invalid') return fail(response, 422, 'invalid-key')
+  if (result === 'not-prowlarr') return fail(response, 502, 'not-prowlarr')
+  await save(config, response, config.store.update({ prowlarrApiKey: apiKey.trim() }))
+}
+
+/** Forgets the saved key, only when the server has one of its own to fall back on. */
+async function forgetProwlarrKey(config: SettingsConfig, _request: IncomingMessage, response: ServerResponse) {
+  if (!(await serverProwlarrKey(config))) return fail(response, 409, 'no-server-key')
+  await save(config, response, config.store.update({ prowlarrApiKey: undefined }))
 }
 
 async function saveQbittorrentLogin(config: SettingsConfig, request: IncomingMessage, response: ServerResponse) {
@@ -199,13 +270,20 @@ export function settingsMiddleware(config: SettingsConfig): Middleware {
     if (path !== PREFIX && !path.startsWith(`${PREFIX}/`)) return next()
 
     if (path === PREFIX && request.method === 'GET') {
-      void config.store.load().then((stored) => sendJson(response, 200, snapshot(stored, config)))
+      void config.store
+        .load()
+        .then((stored) => snapshot(stored, config))
+        .then((settings) => sendJson(response, 200, settings))
       return
     }
     const handler =
       path === `${PREFIX}/tmdb` && request.method === 'PUT'
         ? saveTmdbKey
-        : path === `${PREFIX}/qbittorrent` && request.method === 'PUT'
+        : path === `${PREFIX}/prowlarr` && request.method === 'PUT'
+          ? saveProwlarrKey
+          : path === `${PREFIX}/prowlarr` && request.method === 'DELETE'
+            ? forgetProwlarrKey
+          : path === `${PREFIX}/qbittorrent` && request.method === 'PUT'
           ? saveQbittorrentLogin
           : path === `${PREFIX}/downloads` && request.method === 'PATCH'
             ? saveDownloadDefaults
