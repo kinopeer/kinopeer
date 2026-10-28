@@ -14,6 +14,7 @@ Go through these for the release PR (the one with the version and the changelog 
 
 Things to settle before Kinoseed goes public. Add an item whenever something comes up that can wait until then; tick it off in the PR that settles it.
 
+- [ ] **README search screenshot.** `docs/screenshots/search.png` still shows the old trending and popular rows (Search shows new on digital, new episodes and the best of the year since 0.6). Retake it with `npm run screenshots:readme`, which needs a TMDB key, and update its alt text in `README.md`.
 - [ ] **TMDB key.** For now everyone enters their own key. Decide whether Kinoseed ships a default one. A key in the code, the image or the git history is public: anyone can pull it out, misuse is tied to the owner's TMDB account, and a revoked key breaks every install at once. If there is a default, register a separate key for Kinoseed (not a personal one) and keep `TMDB_API_KEY` and the Settings sheet as overrides.
 - [ ] **TMDB attribution.** TMDB's API terms ask apps to show the TMDB logo and the notice "This product uses the TMDB API but is not endorsed or certified by TMDB." The README has it; the app doesn't yet (Settings → About would fit).
 - [ ] **License.** The repo has no `LICENSE` file yet. Candidates: GPL-3.0 (like Sonarr and Radarr, forks stay open) or MIT.

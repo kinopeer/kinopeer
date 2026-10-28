@@ -38,11 +38,11 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 
 - [ ] "First and last pieces first" next to sequential download: a download default in Settings and a switch in the add sheet (qBittorrent's `firstLastPiecePrio`).
 - [ ] Bottom sheets on a phone close with a swipe down on the handle, and the page behind them doesn't scroll while one is open.
-- [ ] Settings → Connections: "Check" on a card checks only that connection, not all three.
+- [x] Settings → Connections: "Test" on a card checks only that connection, not all three.
 - [ ] Interface language: a "System" option that follows the browser's language, like the system theme.
-- [ ] Search: "New on digital" rows from TMDB's digital release dates (released digitally in the last weeks, by popularity) in place of the trending and popular rows, which are mostly too new to be on trackers yet.
+- [x] Search: rows of what's likely on torrents already ("New on digital", "New episodes", "Best of the year") from TMDB's release dates, in place of the trending and popular rows, which are mostly too new to be on trackers yet.
 - [ ] Releases: the quality filters are remembered in the browser.
-- [ ] Adding: a warning when the files picked don't fit in qBittorrent's free space.
+- [x] Adding: a warning when the files picked don't fit in qBittorrent's free space.
 
 ## 0.7: Search and discovery
 
