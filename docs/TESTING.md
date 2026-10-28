@@ -2,7 +2,8 @@
 
 How Kinoseed's tests are organized: six layers, each with one job, and how to choose one; what to
 do with a bug; what no layer sees; the shared test data and the fake services; coverage and its
-threshold; the screenshot tests and the smoke journeys. Running and releasing are in
+threshold; how a PR's tests are reviewed and how review findings change these rules; the
+screenshot tests and the smoke journeys. Running and releasing are in
 [DEVELOPMENT.md](DEVELOPMENT.md); the conventions every PR follows are in [CLAUDE.md](../CLAUDE.md).
 
 ```sh
@@ -20,8 +21,8 @@ npm run test:smoke          # layer 6: smoke journeys through the production ser
 | # | Layer | What it checks | What it doesn't | Tool | Where | Run |
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | Pure logic | Parsing release and torrent names, picking a title, filtering and sorting, formatting, the SHA-1 fallback: functions that import no React, DOM or Node APIs | Rendering, the network | Vitest | `*.test.ts` next to the module (`src/releases/`, `src/torrents/`, `src/lib/`, `server/json.ts`) | `npm test` |
-| 2 | Components | A shared component renders its props with the right roles and names and reacts to input (`src/components/`) | Layout and looks, which jsdom has none of | Vitest + Testing Library, jsdom | `src/components/*/*.test.tsx` | `npm test` |
-| 3 | Screens and flows | A screen or a user flow with the API clients mocked (`vi.mock('../api/…')`): what it shows for a state, what it calls, where it navigates | Real HTTP, the server, layout | Vitest + Testing Library + user-event, jsdom | `src/screens/*.test.tsx`, `src/App.test.tsx`, hooks in `src/session/`, `src/torrents/` | `npm test` |
+| 2 | Components and generic hooks | A shared component renders its props with the right roles and names and reacts to input; a hook that knows nothing of the app's data does its job in a DOM (`useIsDesktop`, `useHeightVar`, `useScrollRestoration`, the theme) | Layout and looks, which jsdom has none of; the app's data | Vitest + Testing Library, jsdom | `src/components/*/*.test.tsx`, the hooks in `src/lib/`, `src/theme/` | `npm test` |
+| 3 | Screens, stores and clients | A screen or a user flow with the API clients mocked (`vi.mock('../api/…')`): what it shows for a state, what it sends, where it navigates. A hook or a store that holds the app's data, with the clients mocked. An API client with `fetch` stubbed: the request it builds and how it reads each answer, errors included | Real HTTP, the server, layout | Vitest + Testing Library + user-event, jsdom | `src/screens/*.test.tsx` (sheets and dialogs included), `src/App.test.tsx`, the hooks and stores in `src/session/`, `src/torrents/`, `src/settings/`, the clients in `src/api/*/` | `npm test` |
 | 4 | Server | Each middleware under `server/` against fake qBittorrent, TMDB and Prowlarr servers started in the test: routing, headers, what reaches the service and what comes back | Browser code | Vitest, Node (`server` project) | `server/*.test.ts`, fakes in `server/test/fakes.ts` | `npm test -- --project server` |
 | 5 | Integration | The real clients in `src/api/*` calling the real `kinoseedServer()` in front of the fakes: both ends of each route agree on paths, bodies, cookies and errors, and the flows that cross several routes (login, adding a release, matches) | Rendering; a server without a route (the SPA fallback), which stays in the client tests | Vitest, Node | `server/integration/*.test.ts`, the stand in `server/test/integration.ts` | `npm test -- --project server` |
 | 6 | Browser | How the screens look: the built app in Chromium against baseline PNGs, with every server route mocked (screenshot tests). And four smoke journeys through the real production server behind a proxy that wants a cookie, with the services faked: the browser and the server together (smoke journeys) | Behavior, which the layers above cover faster | Playwright in Docker; Playwright on the host | `e2e/*.spec.ts`, baselines in `e2e/__screenshots__/`; `e2e/smoke/*.smoke.ts`, the stand in `e2e/smoke/stack.ts` | `npm run test:visual`; `npm run test:smoke` |
@@ -35,7 +36,17 @@ the layers: its routing rules are plain logic in `src/pwa/swRoutes.ts` (layer 1)
 `src/sw.test.ts` is a smoke test of `src/sw.ts` with workbox mocked, compiled with the worker's
 `tsconfig.sw.json` rather than the app's.
 
+A test in `src/screens/` is layer 3, a sheet or a dialog included: layer 2 is only what knows
+nothing of the app's data. A PR names a test's layer by its number and its name in this table
+("layer 3, screens, stores and clients"); *unit*, *component* and *integration* aren't layer names
+here, and a layer named wrong keeps the review from checking that it's the lowest one.
+
 ## Choosing a layer
+
+A change is every new behavior and every new branch, error paths included: a status mapped to a
+message, a `.catch` that swallows or reports, an action disabled offline or while busy, a fallback
+for data an older version stored. Each one gets a test or an accepted reason
+([below](#saying-why-something-is-uncovered)), like any other branch.
 
 One behavior, one layer: every statement about what Kinoseed does lives in exactly one test, on the
 lowest layer that can see it. Higher layers meet that behavior only as a step towards the state they
@@ -65,6 +76,14 @@ milliseconds, fails with a precise message, and it's the one the layer above lea
   confirmation although `DownloadsWithDrawer.test.tsx` already sends the `cancel` event, because
   jsdom never turns Escape into `cancel`, and only Chromium shows where the browser's own event and
   React's dispatch meet.
+- **What a mock may be asked.** A layer-3 test may assert what it hands off to: an API client or a
+  domain action (`addRelease`, `chooseTitle`, `forgetMatches`), and with what arguments, when that
+  hand-off is the screen's behavior ("Save sends the new category", "Delete forgets the match").
+  It asserts a count only when the count is the behavior (a duplicate request, nothing sent
+  until…), with `not.toHaveBeenCalled()` or `toHaveBeenCalledTimes(n)` and a comment saying why
+  the count matters. It never asserts calls to anything else (i18n, a hook, a helper), and it
+  doesn't re-assert what the action does with those arguments, which the action's own test owns:
+  the shape `chooseTitle` saves is `titleMatches.test.ts`'s.
 - **Roles and names, not classes.** Tests find elements by role and accessible name
   (`getByRole('button', { name: 'Удалить' })`), so a test fails when the behavior changes, not when
   a stylesheet does. The one place a class is the point is a layer-2 test of a design-system
@@ -82,18 +101,47 @@ milliseconds, fails with a precise message, and it's the one the layer above lea
   the instability and a skip hides the behavior (oxlint refuses `.skip` and `.only`). Both Playwright
   configs run with `retries: 0`, so a screenshot or a journey that fails once fails the job.
 
+### A test that can fail
+
+A test counts once it has been seen to fail. Before marking a PR ready, its author breaks the code
+each new or changed test covers (removes the guard, flips the condition, returns early), sees the
+test go red, puts the code back, and says so in the PR's Tests table. A test that stays green with
+the behavior it names removed is a `silent-test` miss in the making. Three shapes cause most of
+them:
+
+- **An absence asserted too early.** `queryBy…` is null, `not.toHaveBeenCalled()`,
+  `toBeEmptyDOMElement()` prove something only after the same test has seen that the answer it waits
+  for arrived (a text the answer renders, the mock's promise resolved); before that they pass on a
+  screen that hasn't loaded.
+- **Two causes, one test.** A test about one cause keeps the others out: a swipe test about the
+  distance uses a slow swipe, so the flick rule can't pass it for the wrong reason.
+- **The clock.** Vitest runs in UTC (`env` in `vite.config.ts`), the same on any machine and in
+  CI; a test that reads the time pins it with `vi.setSystemTime`, and one about another time zone
+  sets it with `vi.stubEnv('TZ', …)` and puts it back with `vi.unstubAllEnvs()` in its `afterEach`
+  or `afterAll`, as `browseRows.test.ts` does. A `process.env.TZ` assigned by hand stays for the
+  rest of the file.
+
+The Seen red column is the author's word, and the review can only read the tests for these shapes.
+If retros keep finding check K tagged `clear`, the next step is a mechanism, not a sentence: a
+mutation run over the changed files in CI.
+
 ### Saying why something is uncovered
 
 A change without a test says so in the PR's Tests section, with the reason, and the reason is one
 of these:
 
-- **Looks and layout:** CSS, spacing, a token; checked on the test stand or by a screenshot
-  baseline, and the PR says which.
+- **Looks and layout:** CSS, spacing, a token in a screen that already exists; checked on the test
+  stand or by a screenshot baseline, and the PR says which and what was looked at. A new screen,
+  sheet or dialog gets a baseline instead, and so does a new state whose layout differs from the
+  ones covered (an empty or error state with its own arrangement, not only other text).
 - **A blind spot:** only a real phone, Umbrel's proxy, a real service version or real time shows
   it ([Known blind spots](#known-blind-spots)); the PR names the spot and, when the checklist has a
   manual check for it, that it was done.
 - **Covered already:** a refactor or a move that an existing test still asserts; the PR names that
-  test by its `it` title, and the reviewer opens it.
+  test by its `it` title, and the reviewer opens it. It holds only when that test executes this
+  very path. Each place that wires a shared component (a second screen that opens the same sheet,
+  the phone and the desktop variant of one action) gets a step of its own that proves the wiring:
+  the control is there and does the thing. "Same code as in X" isn't a reason.
 - **No behavior:** docs, comments, CI and config, types, generated files, a re-export.
 
 "Trivial", "later", "tested manually" without saying what and where, or a reason that doesn't fit
@@ -107,7 +155,7 @@ A bug is two defects: one in the code and one in the tests that let it through. 
 three questions: why it broke, why the tests didn't catch it, and what changes so this class of miss
 is caught from now on. The order of work:
 
-1. **An issue first.** A bug from the test stand, from Umbrel or from a test under construction
+1. **An issue first.** A bug that reached `main`, from the test stand, from Umbrel or from a test under construction
    becomes an issue with the steps and the environment (phone or desktop, HTTP or HTTPS, the
    qBittorrent version, where it was found) before anyone fixes it, so the fix can be checked against
    what was seen and the label below has a place to live. The bug report form
@@ -132,7 +180,7 @@ action besides the test itself:
 | `implementation` | A screen test's mock answered what the server never sends, so the screen passed against a fiction | Rewrite the test to the behavior the user sees; the contract between client and server goes to layer 5 |
 | `fake-drift` | qBittorrent 5.3 answers 401 to a wrong password; the fake still answered `200 "Fails."` | Fix the fake, with a comment on the real behavior and the version it was seen in, and run everything on the fixed fake |
 | `environment` | No `crypto.subtle` over plain HTTP; Umbrel's app_proxy wants a cookie on every fetch; the service worker served the old shell | Add the environment to layer 5 or 6 when it's cheap (the smoke stand's proxy is one); otherwise a line in [Known blind spots](#known-blind-spots) and a manual check in `RELEASE_CHECKLIST.md` |
-| `silent-test` | A test without an `expect`, a `.skip`, a screenshot that passes on retry | Fix or delete the test; where oxlint can catch the shape, a rule in `.oxlintrc.json` |
+| `silent-test` | A test that passes with the behavior it names removed: no `expect`, a `.skip`, an absence checked before the answer arrived, a screenshot that passes on retry | Fix or delete the test; where oxlint can catch the shape, a rule in `.oxlintrc.json` |
 
 The record: a **Why tests missed it** section in the PR (the template has it) with the class and
 what changes so the class is caught, and the `test-gap:<class>` label on the issue. A systemic
@@ -145,7 +193,8 @@ accidents. Three `fake-drift` → compare the fakes with the live services on Um
 `wrong-layer` → the layer rule above reads badly, rewrite it; three `uncovered` in one area → that
 area gets a pass over its states, not three more tests; three `environment` → that environment goes
 into layer 6; three `implementation` → review the mocks in that area; three `silent-test` → a lint
-rule.
+rule. The same count also runs over review findings, more often:
+[Improving the system](#improving-the-system).
 
 Two rules next to this one:
 
@@ -241,13 +290,17 @@ The files are one per service (`qbittorrent`, `prowlarr`, `tmdb`, `settings`, `m
 `flows.test.ts` for what crosses several routes: logging in to qBittorrent, adding a release from
 Prowlarr's result to a started torrent with files skipped (`src/releases/addRelease.ts` with the
 real `readTorrentFile`, which Node runs as is: `crypto.subtle`, `File` and `FormData` are there),
-and a guess against the user's choice in the matches. To add a contract, call the client, then
-check what the fake saw (`qbittorrent.seen`, `prowlarr.seen`, `tmdb.seen`), what the server
-answered and what it saved; a service's new behavior goes into its fake, not inline. The tests
-wait for nothing real: `addRelease` gets a `wait` that resolves at once, and the fakes answer at
-once. They are typechecked by `tsconfig.integration.json`, with the bundler's module resolution,
-since the clients import without file extensions; the rest of `server/` stays under
-`tsconfig.node.json`, which checks the `.ts` imports Node needs.
+and a guess against the user's choice in the matches. To add a contract, call the client, then check
+what the fake saw (`qbittorrent.seen`, `prowlarr.seen`, `tmdb.seen`), what the server answered and
+what it saved; a service's new behavior goes into its fake, not inline. The tests wait for nothing
+real: `addRelease` gets a `wait` that resolves at once, and the fakes answer at once. A new or
+changed route that a client in `src/api/*` calls gets its test here in the same PR, and when the
+route reaches a service, that service's fake in `server/test/fakes.ts` learns the new request in the
+same PR too, so the client tests and the smoke journeys don't drift from it. A route no client calls
+(`/healthz`, the static files, a job) stays on layer 4. The integration tests are typechecked by
+`tsconfig.integration.json`, with the bundler's module resolution, since the clients import without
+file extensions; the rest of `server/` stays under `tsconfig.node.json`, which checks the `.ts`
+imports Node needs.
 
 ## Coverage
 
@@ -275,16 +328,88 @@ condition.
 
 ## Reviewing a PR's tests
 
-Before a PR merges, its tests are reviewed against this file with the `test-review` skill
-(`.claude/skills/test-review/SKILL.md`): `/test-review <PR number>` in a Claude Code session, or
-`/test-review` for the current branch. It reads the PR's description first (the Tests section's
-layers, what is declared uncovered and why, the changed baselines, a fix's "Why tests missed it"),
-then checks the diff: every change covered or explained with an accepted reason, nothing lost when
-a test is deleted, each assertion on its layer, behavior rather than implementation, fakes true to
-the services, no sleeps or forced clicks, baselines listed, docs matching the code, the threshold
-not lowered. It reports findings with the rule each breaks and a verdict. It doesn't look for bugs
-in the code (`/code-review` does) and doesn't run the suite (CI does). A reviewer without the skill
-goes through the same list by hand; the skill is the list.
+Three steps, each by whoever can do it best:
+
+1. **The author checks what doesn't need judgment** before marking the PR ready: every new or
+   changed test seen red ([A test that can fail](#a-test-that-can-fail)), and the Tests section
+   filled in by the template, one row per test with its layer, and every uncovered part with its
+   reason. Rereading one's own tests for judgment finds little: the author sees what they meant to
+   write.
+2. **A separate session reviews**, one that didn't write the PR and sees only its diff and
+   description: `/test-review <PR number>` with the `test-review` skill
+   (`.claude/skills/test-review/SKILL.md`) and `/code-review` for bugs in the code. The skill reads
+   the PR's description first (the Tests section's layers, what is declared uncovered and why, the
+   changed baselines, a fix's "Why tests missed it"), then checks the diff: every change covered or
+   explained with an accepted reason, nothing lost when a test is deleted, each assertion on its
+   layer, behavior rather than implementation, each test able to fail, fakes true to the services,
+   no sleeps or forced clicks, baselines listed, docs matching the code, the threshold not lowered.
+   It doesn't run the suite (CI does). A reviewer without the skill goes through the same list by
+   hand; the skill is the list.
+3. **A second round after the fixes**, by the same reviewer: every flagged line again, and every
+   test added or changed to fix a finding gets all the checks, since a test written to answer a
+   review is a new test. More rounds until the verdict is "ready to merge".
+
+Each round is one comment on the PR headed `Test review, round <n>`, findings first, each tagged
+with its check and whether the rule behind it was clear ([below](#improving-the-system)), then the
+verdict. A real bug that `/code-review` finds in an open PR's own change is fixed in that PR, red
+test first, without an issue: it never reached `main`. The next test-review round records the
+missed test as a finding under check A. A bug that reached `main` follows
+[When we find a bug](#when-we-find-a-bug).
+
+## Improving the system
+
+The rules in this file, the skill and the PR template are a system that should need less and less
+correcting. Every review finding says something about it: either the author slipped on a clear
+rule, or the rule was missing, unclear, or said one thing here and another in the skill. A retro
+reads those findings in batches and changes the system where a finding repeats, until a batch
+changes nothing.
+
+**What each finding carries.** Besides the file, the defect and the fix, the review tags it
+`[<check> · <rule>]`: the check is the skill's letter (A–K, the same in every round), the rule is
+one of:
+
+- `clear`: the rule says it plainly and the PR didn't follow it.
+- `gap`: no rule covers it, or the one here can be read the other way.
+- `conflict`: this file and the skill (or the template, or `CLAUDE.md`) say different things.
+
+Each finding is tagged once, in the round that first reports it. A later round that finds it still
+open lists it as `still open (round <n>)` with no tag, and the retro counts each PR's findings once.
+
+The review comments are the log: no other file to keep in sync. Escaped bugs keep their own
+record, the `test-gap:*` labels ([When we find a bug](#when-we-find-a-bug)).
+
+**When.** Once ten PRs have merged that no row of the table below lists, and at every release
+([RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) → Before every release), whichever comes first. The
+review counts them: when it finds ten or more, its verdict line says "retro due", and the
+coordinator of the work (the owner, or the session that hands out PRs) starts it. A
+fresh session runs the retro, not one that wrote or reviewed the PRs in the batch. A `conflict`
+doesn't wait for it: the reviewer says in the report what disagrees with what, and the next docs PR
+settles it.
+
+**How.** Collect the `Test review, round <n>` comments of the merged PRs no row lists yet (the
+batch) and the `test-gap:*` issues closed since the last retro, and count the findings by check and by rule:
+
+- Three or more of one check tagged `gap` → rewrite or add the rule, with an example from the
+  findings.
+- Three or more of one check tagged `clear` → the rule is fine and isn't being followed: move it
+  closer to where the author works, preferring, in this order, a lint rule or a CI check, a
+  default in a script or config (as the UTC time zone in `vite.config.ts` is), a column or prompt
+  in the PR template, a line in the author's checks above. Another sentence in this file is the
+  last resort.
+- Every `conflict` → one wording, the same in each place.
+- A rule that no finding touched in three retros and that nobody can name a case for → consider
+  deleting it. The system should get shorter as often as longer.
+
+The changes go into one docs PR, reviewed like any other, which adds a row to the table below and
+says which counts each change answers, so the next retro sees whether that count fell.
+
+**Done.** The system is stable when two retros in a row change no rules and the last batch averages
+under one blocking finding per PR. From then on the retro runs once per release only, and any new
+`gap` or `conflict` starts the ten-PR cadence again.
+
+| Retro | PRs | Ready on the first round | Blocking findings per PR | Escaped bugs | What changed |
+| --- | --- | --- | --- | --- | --- |
+| 2026-10-28 | #116–#135, 16 with code | 3 of 16 | 1.25 (20) | 0 | Layers 2 and 3 renamed and widened, mock assertions, a test that can fail, wiring places, error paths, routes and fakes, baselines, the Tests table, the review rounds, this section, TZ pinned to UTC |
 
 ## Screenshot tests
 
@@ -298,7 +423,7 @@ Unit tests run in jsdom, which has no layout, so they can't catch a button in th
   - A behavioral `expect` in a spec only gets a screen to its state, or checks what jsdom can't see (where a click lands, sticky positioning, a container query, a real `<dialog>`); behavior itself is layers 1–4.
 - **No live services:** `e2e/app.ts` answers `/qbt`, `/tmdb`, `/tmdb-img`, `/prowlarr`, `/api/settings` and `/api/matches` from the shared fixtures (`src/test/fixtures.ts` through `e2e/fixtures.ts`), matched by URL pathname (a glob like `**/tmdb/**` would also catch Vite's `/src/api/tmdb/` modules). Posters are generated gradients and the release's `.torrent` is built from the fixtures too. The app version in Settings is masked, so a version bump doesn't change the screenshots. The clock is frozen, animations are off and the service worker is blocked.
 - **Docker only:** fonts render differently on macOS and on other Linux setups (about 1% of pixels, enough to fail), so baselines are rendered only in the Playwright image. `npm run test:visual` runs the tests in it with Docker; `node_modules` for the container is kept in a Docker volume, not the host's. Arguments go to `playwright test`, e.g. `npm run test:visual -- e2e/search.spec.ts`.
-- **Changing the UI:** a PR that changes how a covered screen looks updates its baselines. First run `npm run test:visual` as is: every failed screenshot leaves an expected, an actual and a diff image in `test-results/`, where the diff highlights only the changed pixels. Make sure nothing but the intended change is highlighted, then re-render with `npm run test:visual:update` and commit the PNGs (GitHub shows image diffs in the PR too). Say in the PR which screens changed and why. Add a spec when a new screen or state needs one.
+- **Changing the UI:** a PR that changes how a covered screen looks updates its baselines. First run `npm run test:visual` as is: every failed screenshot leaves an expected, an actual and a diff image in `test-results/`, where the diff highlights only the changed pixels. Make sure nothing but the intended change is highlighted, then re-render with `npm run test:visual:update` and commit the PNGs (GitHub shows image diffs in the PR too). A change too small to fail its screenshot (a hover shade, a pixel of padding) is under the threshold, and the plain update keeps the old PNG: re-render that spec with `npm run test:visual -- --update-snapshots=all e2e/<spec>.spec.ts` and commit only the PNGs of the screens you meant to change. Open every new baseline and check that it shows what its test's name says. The PR lists each PNG with what changed and how it was checked: the diff looked at, re-rendered with `=all`, or new and opened. Add a spec when a new screen, sheet, dialog or state needs one ([Saying why something is uncovered](#saying-why-something-is-uncovered)).
 - **In CI:** the `visual` job runs in the same image, on two workers (`playwright.config.ts`; locally Playwright picks). When it fails, its `playwright-report` artifact has the expected, actual and diff images.
 - **Upgrading Playwright:** `@playwright/test` in `package.json`, the image tag in `scripts/test-visual.sh`, `scripts/readme-screenshots.sh` and `.github/workflows/ci.yml` must name the same version; re-render the baselines after an upgrade.
 
