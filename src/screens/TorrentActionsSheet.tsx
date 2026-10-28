@@ -1,7 +1,7 @@
 import { useState, type MouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
-import { startTorrents, stopTorrents, type Torrent } from '../api/qbittorrent'
+import { reannounceTorrents, startTorrents, stopTorrents, type Torrent } from '../api/qbittorrent'
 import { posterUrl } from '../api/tmdb'
 import { Banner } from '../components/Banner'
 import { Icon } from '../components/Icon'
@@ -32,6 +32,10 @@ export interface TorrentActionsSheetProps {
   /** After pausing or resuming, so the list can refresh right away. */
   onChanged: () => void
   onDelete: () => void
+  /** Opens the recheck confirmation. */
+  onRecheck: () => void
+  /** After qBittorrent took the reannounce, so the screen can say so. */
+  onReannounced: () => void
   /** Opens the title search. */
   onChangeTitle: () => void
   /** After the guessed title was confirmed. */
@@ -50,6 +54,8 @@ export function TorrentActionsSheet({
   onClose,
   onChanged,
   onDelete,
+  onRecheck,
+  onReannounced,
   onChangeTitle,
   onConfirmed,
 }: TorrentActionsSheetProps) {
@@ -61,6 +67,10 @@ export function TorrentActionsSheet({
   const [saveFailed, setSaveFailed] = useState(false)
   const status = downloadStatus(torrent)
   const running = isRunning(status)
+  // qBittorrent ignores both where they can't run (libtorrent announces only for a started torrent,
+  // and there's nothing to check before a magnet has its metadata), so the toast would be untrue.
+  const canReannounce = status === 'downloading' || status === 'seeding'
+  const canRecheck = status !== 'checking' && torrent.state !== 'metaDL' && torrent.state !== 'forcedMetaDL'
 
   const toggle = async () => {
     setBusy(true)
@@ -69,6 +79,18 @@ export function TorrentActionsSheet({
       await (running ? stopTorrents([torrent.hash]) : startTorrents([torrent.hash]))
       onChanged()
       onClose()
+    } catch {
+      setFailed(true)
+      setBusy(false)
+    }
+  }
+
+  const reannounce = async () => {
+    setBusy(true)
+    setFailed(false)
+    try {
+      await reannounceTorrents([torrent.hash])
+      onReannounced()
     } catch {
       setFailed(true)
       setBusy(false)
@@ -112,6 +134,12 @@ export function TorrentActionsSheet({
       >
         <MenuItem icon={running ? 'pause' : 'play'} disabled={offline || busy} onClick={toggle}>
           {running ? t('torrent.pause') : t('torrent.resume')}
+        </MenuItem>
+        <MenuItem icon="refresh" disabled={offline || busy || !canReannounce} onClick={reannounce}>
+          {t('torrent.reannounce')}
+        </MenuItem>
+        <MenuItem icon="check-circle" disabled={offline || busy || !canRecheck} onClick={onRecheck}>
+          {t('torrent.recheck')}
         </MenuItem>
         {showDetails && (
           <MenuLink to={`/torrent/${torrent.hash}`} icon="info" onClick={onClose}>
@@ -166,6 +194,18 @@ export function TorrentActionsSheet({
           <button type="button" className="ks-row-btn" disabled={offline || busy} onClick={toggle}>
             <Icon name={running ? 'pause' : 'play'} />
             {running ? t('torrent.pause') : t('torrent.resume')}
+          </button>
+        </li>
+        <li>
+          <button type="button" className="ks-row-btn" disabled={offline || busy || !canReannounce} onClick={reannounce}>
+            <Icon name="refresh" />
+            {t('torrent.reannounce')}
+          </button>
+        </li>
+        <li>
+          <button type="button" className="ks-row-btn" disabled={offline || busy || !canRecheck} onClick={onRecheck}>
+            <Icon name="check-circle" />
+            {t('torrent.recheck')}
           </button>
         </li>
         {showDetails && (

@@ -23,6 +23,8 @@ vi.mock('../api/qbittorrent', async (importOriginal) => {
     startTorrents: vi.fn(),
     stopTorrents: vi.fn(),
     deleteTorrents: vi.fn(),
+    recheckTorrents: vi.fn(),
+    reannounceTorrents: vi.fn(),
   }
 })
 
@@ -178,6 +180,44 @@ describe('TorrentScreen', () => {
     const dialog = screen.getByRole('alertdialog', { name: 'Delete torrent?' })
     await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
     expect(await screen.findByText(/Downloads list/)).toHaveTextContent('"deleted":"torrent"')
+  })
+
+  it('reannounces, and rechecks after a confirmation, from the More menu, each with a toast', async () => {
+    vi.mocked(api.recheckTorrents).mockResolvedValue()
+    vi.mocked(api.reannounceTorrents).mockResolvedValue()
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Reannounce' }))
+    expect(api.reannounceTorrents).toHaveBeenCalledWith(['dune'])
+    expect(await screen.findByRole('status')).toHaveTextContent('Announced to the trackers')
+
+    await userEvent.click(screen.getByRole('button', { name: 'More actions: Dune: Part Two' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Force recheck' }))
+    const dialog = screen.getByRole('alertdialog', { name: 'Recheck the files?' })
+    // The screen asks qBittorrent again right after the recheck, so it shows Checking without waiting for the poll.
+    getMainData.mockResolvedValue(snapshot({ state: 'checkingDL' }))
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Force recheck' }))
+    expect(api.recheckTorrents).toHaveBeenCalledWith(['dune'])
+    expect(await screen.findByRole('status')).toHaveTextContent('Checking the files')
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    const progress = screen.getByRole('region', { name: 'Progress' })
+    expect(await within(progress).findByText('Checking', { exact: true }, { timeout: 1000 })).toBeInTheDocument()
+  })
+
+  it('drops a recheck confirmation whose torrent went away, so it doesn’t open again when the torrent is back', async () => {
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Force recheck' }))
+    expect(screen.getByRole('alertdialog', { name: 'Recheck the files?' })).toBeInTheDocument()
+
+    getMainData.mockResolvedValue(mainData([]))
+    window.dispatchEvent(new Event('online'))
+    expect(await screen.findByText('Torrent not found')).toBeInTheDocument()
+
+    getMainData.mockResolvedValue(snapshot())
+    window.dispatchEvent(new Event('online'))
+    expect(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' })).toBeInTheDocument()
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })
 
   it('shows the torrent’s files', async () => {
