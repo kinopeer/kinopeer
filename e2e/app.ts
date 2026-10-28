@@ -26,6 +26,8 @@ export interface AppOptions {
   wrongLogin?: boolean
   /** Prowlarr doesn't answer the server's connection check. */
   prowlarrDown?: boolean
+  /** qBittorrent's free space in bytes, instead of the fixtures' 1.82 TB. */
+  freeSpace?: number
   /** Leaves /tmdb and /tmdb-img to the server, for real titles and posters (the README screenshots). */
   realTmdb?: boolean
 }
@@ -55,7 +57,10 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
       if (pathname === '/qbt/api/v2/sync/maindata') {
         polls += 1
         if (options.goesOffline && polls > 1) return route.abort('connectionrefused')
-        return json(route, mainData(torrents))
+        return json(
+          route,
+          mainData(torrents, options.freeSpace === undefined ? {} : { free_space_on_disk: options.freeSpace }),
+        )
       }
       if (pathname === '/qbt/api/v2/app/webapiVersion') return route.fulfill({ body: '2.11.4' })
       if (pathname === '/qbt/api/v2/app/defaultSavePath') return route.fulfill({ body: '/downloads' })

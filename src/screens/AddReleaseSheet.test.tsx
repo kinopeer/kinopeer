@@ -179,6 +179,7 @@ describe('AddReleaseSheet', () => {
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
     const files = await within(sheet).findByRole('button', { name: /Files: all \(3\)/ })
     expect(files).not.toHaveTextContent('Free:')
+    expect(within(sheet).queryByText('Not enough free space')).not.toBeInTheDocument()
     expect(within(sheet).queryByText(/→/)).not.toBeInTheDocument()
 
     await userEvent.click(within(sheet).getByRole('button', { name: 'Options' }))
@@ -196,6 +197,33 @@ describe('AddReleaseSheet', () => {
       expect.objectContaining({ category: undefined, savePath: undefined }),
       { meta: META, skip: [] },
     )
+  })
+
+  it('warns while the selected files need more than the free space, without blocking the download', async () => {
+    renderSheet()
+    const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+    expect(await within(sheet).findByText('Not enough free space')).toBeInTheDocument()
+    expect(
+      await within(sheet).findByText(/^40\.0\sGB free on qBittorrent’s disk, 10\.0\sGB short of this download\. Skip some files/),
+    ).toBeInTheDocument()
+    expect(within(sheet).getByRole('button', { name: /^Download · 50\.0\sGB$/ })).toBeEnabled()
+
+    await userEvent.click(within(sheet).getByRole('button', { name: /Files: all \(3\)/ }))
+    const picker = screen.getByRole('dialog', { name: 'Select files' })
+    await userEvent.click(within(picker).getByRole('checkbox', { name: 'Season 1' }))
+    await userEvent.click(within(picker).getByRole('button', { name: 'Done' }))
+    // 40 GB selected fits exactly.
+    expect(within(screen.getByRole('dialog', { name: 'Add to downloads' })).queryByText('Not enough free space')).not.toBeInTheDocument()
+  })
+
+  it('warns about a magnet link by the release size', async () => {
+    fetchRelease.mockResolvedValue({ kind: 'magnet', uri: 'magnet:?xt=urn:btih:abc' })
+    vi.mocked(qbt.getMainData).mockResolvedValue({ rid: 1, server_state: { free_space_on_disk: 0 } })
+    renderSheet()
+    const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+    expect(await within(sheet).findByText(/Magnet link: all files/)).toBeInTheDocument()
+    expect(await within(sheet).findByText(/50\.0\sGB short of this download\. Free up space before it finishes\./)).toBeInTheDocument()
+    expect(within(sheet).getByRole('button', { name: /^Download/ })).toBeEnabled()
   })
 
   it('says when qBittorrent refuses the torrent', async () => {

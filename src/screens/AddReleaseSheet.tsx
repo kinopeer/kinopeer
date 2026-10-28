@@ -117,6 +117,9 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   const fileCount = meta?.files.length ?? 0
   const selectedCount = fileCount - skipped.size
   const free = where.data?.free
+  // qBittorrent reports the free space where its default save path is. A warning, not a block: the
+  // space may be freed before the download finishes, or the save path may be on another disk.
+  const shortfall = free !== undefined && selectedSize > free ? selectedSize - free : undefined
 
   const add = async () => {
     if (!prepared.data) return
@@ -237,6 +240,12 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
           </button>
         )}
         {prepared.data?.source.kind === 'magnet' && <p className="t-cap c3">{t('add.magnetFiles')}</p>}
+        {shortfall !== undefined && free !== undefined && (
+          <Banner icon="disk" title={t('add.notEnough')}>
+            {t('add.lowSpace', { free: format.size(free), missing: format.size(shortfall) })}{' '}
+            {meta && fileCount > 1 ? t('add.lowSpaceSkip') : t('add.lowSpaceFree')}
+          </Banner>
+        )}
 
         {destination && (
           <div className="t-cap c2 add-dest">
