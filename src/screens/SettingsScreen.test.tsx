@@ -171,20 +171,19 @@ describe('SettingsScreen', () => {
     expect(screen.getByRole('dialog', { name: 'Add to Dock' })).toHaveTextContent('Choose “Add to Dock”')
   })
 
-  it('links to Ideas, a bug report with the version filled in, and the source code', () => {
+  it('links to Ideas, a bug report with the version filled in, and the source code, each in a new tab', () => {
     renderScreen()
     const about = screen.getByRole('region', { name: 'About' })
-    expect(within(about).getByRole('link', { name: /Suggest an idea/ })).toHaveAttribute(
-      'href',
-      'https://github.com/MrShakhov/kinoseed/discussions/categories/ideas',
-    )
-    expect(within(about).getByRole('link', { name: /Report a bug/ })).toHaveAttribute(
-      'href',
-      `https://github.com/MrShakhov/kinoseed/issues/new?template=bug_report.yml&version=${__APP_VERSION__}`,
-    )
-    const source = within(about).getByRole('link', { name: /Kinoseed on GitHub/ })
-    expect(source).toHaveAttribute('href', 'https://github.com/MrShakhov/kinoseed')
-    expect(source).toHaveAttribute('target', '_blank')
+    const links: [RegExp, string][] = [
+      [/Suggest an idea/, 'https://github.com/MrShakhov/kinoseed/discussions/categories/ideas'],
+      [/Report a bug/, `https://github.com/MrShakhov/kinoseed/issues/new?template=bug_report.yml&version=${__APP_VERSION__}`],
+      [/Kinoseed on GitHub/, 'https://github.com/MrShakhov/kinoseed'],
+    ]
+    for (const [name, href] of links) {
+      const link = within(about).getByRole('link', { name })
+      expect(link).toHaveAttribute('href', href)
+      expect(link).toHaveAttribute('target', '_blank')
+    }
   })
 
   it('credits TMDB with its logo and the notice its terms ask for', () => {
