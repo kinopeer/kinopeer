@@ -16,6 +16,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 - Search: a year field beside Movies and Series, shown while searching, finds only titles that came out that year (for a series, the year it started), so a remake or an old film with a popular namesake is easy to find. The year stays in the address with the query, so Back from a title keeps it.
 - Adding a release: "First and last pieces first" next to "Sequential download", in the add sheet's options and as a download default in Settings, which fetches the start and end of each file early; together with sequential download, a player can open a file before it's fully downloaded.
 - Releases: the indexer's name on a release (the card on a phone, the table on desktop and the add sheet) links to the release's page on the tracker, in a new tab, for what Kinoseed doesn't show.
+- Releases: when indexers fail during a search (blocked, timed out, or put on hold by Prowlarr after failures), a quiet note above the results names them, so missing releases aren't a mystery.
 
 ### Changed
 

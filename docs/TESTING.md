@@ -258,7 +258,7 @@ it uses next to itself.
   answers the API (a title's details from the fixtures, TMDB's 404 for one it doesn't have, 401 for
   the key `bad-key`), the authentication check (`good-key` passes) and the image host, recording
   what reached it. `fakeProwlarr()` wants its key in `X-Api-Key` (401 otherwise) and answers the
-  status check, a search with the fixtures' releases (their download links carry the key, as
+  status check, the indexers' status (`indexerStatus`, none failed by default), a search with the fixtures' releases (their download links carry the key, as
   Prowlarr's do) and a download: the Shōgun `.torrent` for the link `shogun`, a redirect to a magnet
   link for `magnet`, 404 for anything else. A test that needs a service to misbehave in one specific
   way (a hanging download, an answer that isn't a `.torrent`) writes that handler inline with
