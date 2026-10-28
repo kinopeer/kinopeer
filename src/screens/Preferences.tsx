@@ -3,6 +3,7 @@ import { Button } from '../components/Button'
 import type { IconName } from '../components/Icon'
 import { IconButton } from '../components/IconButton'
 import { LANGUAGES } from '../i18n'
+import { useLanguage } from '../i18n/useLanguage'
 import type { ThemePreference } from '../theme/theme'
 import { useTheme } from '../theme/useTheme'
 
@@ -16,6 +17,7 @@ const THEME_OPTIONS: { value: ThemePreference; icon: IconName }[] = [
 export function Preferences() {
   const { t, i18n } = useTranslation()
   const { preference, setPreference } = useTheme()
+  const { setPreference: setLanguage } = useLanguage()
 
   return (
     <div className="screen-controls">
@@ -38,7 +40,7 @@ export function Preferences() {
             size="sm"
             lang={language.code}
             aria-pressed={i18n.resolvedLanguage === language.code}
-            onClick={() => void i18n.changeLanguage(language.code)}
+            onClick={() => setLanguage(language.code)}
           >
             {language.name}
           </Button>

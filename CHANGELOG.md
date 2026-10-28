@@ -6,6 +6,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ### Added
 
+- Settings: the interface language has a System option, like the theme: Kinoseed follows the browser's languages (Russian or English, else English) and switches when they change. New browsers start with it; a language already chosen stays.
 - Releases: the indexer's name on a release (the card on a phone, the table on desktop and the add sheet) links to the release's page on the tracker, in a new tab, for what Kinoseed doesn't show.
 
 ### Changed

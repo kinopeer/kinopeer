@@ -9,7 +9,8 @@
     "light": "Светлая"
   },
   "language": {
-    "label": "Язык"
+    "label": "Язык",
+    "system": "Системный"
   },
   "common": {
     "retry": "Повторить",
