@@ -69,6 +69,9 @@ export default defineConfig(({ mode }) => {
       serverRoutesPlugin(kinoseedServer(env, stores)),
     ],
     test: {
+      // One time zone everywhere, so a test that reads local time passes in any machine's local
+      // zone and in CI alike; a test about another zone stubs it (docs/TESTING.md → A test that can fail).
+      env: { TZ: 'UTC' },
       projects: [
         {
           extends: true,

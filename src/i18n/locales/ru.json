@@ -203,6 +203,8 @@
     "backToSearch": "Вернуться к поиску",
     "findReleases": "Найти раздачи",
     "seriesHint": "Раздачи ищутся по названию сериала. Нужные сезоны выберете в списке файлов.",
+    "recommendations": "Рекомендации",
+    "similar": "Похожее",
     "inDownloads": "В загрузках",
     "inDownloadsBadge": "В загрузках · {{value}}",
     "showMore": "Подробнее",

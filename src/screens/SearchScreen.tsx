@@ -1,4 +1,3 @@
-import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router'
 import {
@@ -19,8 +18,10 @@ import { useRequest } from '../lib/useRequest'
 import { useScrollRestoration } from '../lib/useScrollRestoration'
 import { browseRowQueries, type BrowseRowQuery } from '../search/browseRows'
 import { useTmdbLanguage } from '../settings/settings'
+import { PosterRow } from './PosterRow'
 import type { SettingsLocationState } from './SettingsScreen'
 import './SearchScreen.css'
+import { titleSubtitle } from './titleSubtitle'
 
 type TypeFilter = 'all' | MediaType
 
@@ -54,11 +55,6 @@ async function loadBrowseRows(language: string, signal: AbortSignal): Promise<Br
 
 function parseType(value: string | null): TypeFilter {
   return value === 'movie' || value === 'tv' ? value : 'all'
-}
-
-function subtitle(t: TFunction, title: Title): string {
-  const type = t(title.type === 'movie' ? 'title.movie' : 'title.series')
-  return title.year ? t('title.subtitle', { type, year: title.year }) : type
 }
 
 export function SearchScreen() {
@@ -174,7 +170,7 @@ export function SearchScreen() {
                   <li key={`${title.type}-${title.id}`}>
                     <PosterCard
                       title={title.title}
-                      subtitle={subtitle(t, title)}
+                      subtitle={titleSubtitle(t, title)}
                       posterUrl={posterUrl(title.posterPath, 'w342')}
                       to={`/title/${title.type}/${title.id}`}
                     />
@@ -195,23 +191,7 @@ export function SearchScreen() {
           )
         ) : (
           rows.map((row) => (
-            <section key={row.key} className="search-row" aria-labelledby={`search-row-${row.key}`}>
-              <h2 id={`search-row-${row.key}`} className="t-h3 search-row-title">
-                {t(`search.${row.key}`)}
-              </h2>
-              <ul className="search-row-list ks-hscroll">
-                {row.titles.map((title) => (
-                  <li key={`${title.type}-${title.id}`}>
-                    <PosterCard
-                      title={title.title}
-                      subtitle={subtitle(t, title)}
-                      posterUrl={posterUrl(title.posterPath, 'w342')}
-                      to={`/title/${title.type}/${title.id}`}
-                    />
-                  </li>
-                ))}
-              </ul>
-            </section>
+            <PosterRow key={row.key} id={`search-row-${row.key}`} heading={t(`search.${row.key}`)} titles={row.titles} />
           ))
         )}
       </section>
