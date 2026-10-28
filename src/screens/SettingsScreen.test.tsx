@@ -162,7 +162,8 @@ describe('SettingsScreen', () => {
 
     await userEvent.selectOptions(movies, 'Anime')
     await userEvent.click(screen.getByRole('switch', { name: 'Start paused' }))
-    expect(getSettings()).toMatchObject({ movieCategory: 'Anime', startPaused: true, sequential: false })
+    await userEvent.click(screen.getByRole('switch', { name: 'First and last pieces first' }))
+    expect(getSettings()).toMatchObject({ movieCategory: 'Anime', startPaused: true, sequential: false, firstLastPieces: true })
     expect(screen.getByText(/the same on every device/)).toBeInTheDocument()
   })
 
@@ -170,10 +171,11 @@ describe('SettingsScreen', () => {
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue({
       tmdb: { configured: true, source: 'saved' },
       qbittorrent: { configured: true, source: 'env' },
-      downloads: { tvCategory: 'Anime', sequential: true },
+      downloads: { tvCategory: 'Anime', sequential: true, firstLastPieces: true },
     })
     renderScreen()
     await waitFor(() => expect(screen.getByRole('switch', { name: 'Sequential download' })).toBeChecked())
+    expect(screen.getByRole('switch', { name: 'First and last pieces first' })).toBeChecked()
     expect(screen.getByRole('combobox', { name: 'Series category' })).toHaveDisplayValue('Anime')
     expect(screen.getByRole('switch', { name: 'Start paused' })).not.toBeChecked()
   })
@@ -186,6 +188,19 @@ describe('SettingsScreen', () => {
     expect(getSettings().tmdbLanguage).toBe('ru-RU')
   })
 
+  it("follows the browser's language until another language is chosen, and again after System", async () => {
+    vi.spyOn(navigator, 'languages', 'get').mockReturnValue(['en-US'])
+    renderScreen()
+    const group = () => screen.getByRole('radiogroup', { name: /^(Language|Язык)$/ })
+    expect(within(group()).getByRole('radio', { name: 'System' })).toHaveAttribute('aria-checked', 'true')
+
+    await userEvent.click(within(group()).getByRole('radio', { name: 'Русский' }))
+    expect(within(group()).getByRole('radio', { name: 'Русский' })).toHaveAttribute('aria-checked', 'true')
+
+    await userEvent.click(within(group()).getByRole('radio', { name: 'Системный' }))
+    expect(screen.getByRole('heading', { name: 'Settings', level: 1 })).toBeInTheDocument()
+    expect(within(group()).getByRole('radio', { name: 'System' })).toHaveAttribute('aria-checked', 'true')
+  })
 
   it('explains how to add the app to the Dock in Safari on a Mac', async () => {
     vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(

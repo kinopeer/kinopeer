@@ -45,8 +45,38 @@
   right: 2px;
 }
 
+/* The tabs sit on the head's bottom border; the year field stands right after them. */
+.search-filters {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
 .search-types {
   margin: 0 -6px;
+}
+
+.search-year {
+  /* Gives way on narrow phones, down to what four digits need. */
+  flex: 0 1 88px;
+  min-width: 56px;
+  display: flex;
+  align-items: center;
+  height: 44px; /* the tabs' height: the label is the touch target, so the row doesn't grow */
+}
+
+.search-year .ks-input {
+  height: 36px; /* smaller than the tabs, so it sits inside their row */
+  /* The text is centered, so a small padding only shows when the field has shrunk to four digits. */
+  padding: 0 var(--space-1);
+  text-align: center;
+}
+
+/* Phones narrower than 360px: tighter tabs leave the year field room on their row. */
+@media (max-width: 359px) {
+  .ks-tabs.search-types > button {
+    padding: 0 var(--space-3);
+  }
 }
 
 .search-body {
@@ -58,25 +88,6 @@
 
 .search-count {
   margin-bottom: -16px;
-}
-
-.search-row {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.search-row-list {
-  list-style: none;
-  margin: 0 calc(-1 * var(--space-4));
-  padding: 0 var(--space-4);
-  display: flex;
-  gap: var(--space-3);
-}
-
-.search-row-list > li {
-  flex: none;
-  width: 156px;
 }
 
 /* Underlined tabs (design system "Tabs"). */
@@ -156,37 +167,5 @@
 
   .search-body > .ks-empty {
     margin-top: var(--space-10);
-  }
-
-  .search-row {
-    gap: var(--space-4);
-  }
-
-  .search-row-list {
-    margin: 0 -32px;
-    padding: var(--space-1) var(--space-8) var(--space-2);
-    gap: var(--space-5);
-  }
-
-  .search-row-list > li {
-    width: 168px;
-  }
-}
-
-/* A mouse can't swipe the rows sideways, so show a thin scrollbar to drag. */
-@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
-  .search-row-list {
-    scrollbar-width: thin;
-    scrollbar-color: var(--border-strong) transparent;
-  }
-
-  .search-row-list::-webkit-scrollbar {
-    display: block;
-    height: 8px;
-  }
-
-  .search-row-list::-webkit-scrollbar-thumb {
-    border-radius: var(--r-full);
-    background: var(--border-strong);
   }
 }

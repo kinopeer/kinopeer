@@ -9,7 +9,8 @@
     "light": "Light"
   },
   "language": {
-    "label": "Language"
+    "label": "Language",
+    "system": "System"
   },
   "common": {
     "retry": "Try again",
@@ -150,6 +151,8 @@
     "all": "All",
     "movies": "Movies",
     "series": "Series",
+    "year": "Year",
+    "yearLabel": "Release year",
     "newOnDigital": "New on digital",
     "newEpisodes": "New episodes",
     "bestOfYear": "Best of the year",
@@ -158,6 +161,8 @@
     "loading": "Loading",
     "noResultsTitle": "Nothing found for “{{query}}”",
     "noResultsBody": "Check the spelling or try the original title.",
+    "noResultsYearBody": "Nothing from {{year}}. Try another year or clear it.",
+    "clearYear": "Clear the year",
     "errorTitle": "Couldn’t load from TMDB",
     "errorBody": "Check the connection and try again.",
     "keyTitle": "TMDB isn’t set up",
@@ -183,6 +188,8 @@
     "backToSearch": "Back to search",
     "findReleases": "Find releases",
     "seriesHint": "Releases are searched by show name. Pick seasons in the file list after choosing a release.",
+    "recommendations": "Recommendations",
+    "similar": "Similar titles",
     "inDownloads": "In downloads",
     "inDownloadsBadge": "In downloads · {{value}}",
     "showMore": "Show more",
@@ -283,6 +290,7 @@
     "savePath": "Save path",
     "startPaused": "Start paused",
     "sequential": "Sequential download",
+    "firstLastPieces": "First and last pieces first",
     "addTop": "Add to top of queue",
     "filesAll": "Files: all ({{count}})",
     "filesSome": "Files: {{selected}} of {{count}}",

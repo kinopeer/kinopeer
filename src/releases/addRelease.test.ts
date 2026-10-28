@@ -12,7 +12,7 @@ const getTorrentFiles = vi.mocked(qbt.getTorrentFiles)
 const setFilePriority = vi.mocked(qbt.setFilePriority)
 const startTorrents = vi.mocked(qbt.startTorrents)
 
-const OPTIONS: AddReleaseOptions = { tags: ['tmdb:tv:1396'], category: 'TV', paused: false, sequential: false, topOfQueue: true }
+const OPTIONS: AddReleaseOptions = { tags: ['tmdb:tv:1396'], category: 'TV', paused: false, sequential: false, firstLastPieces: false, topOfQueue: true }
 const FILE = new File([new Uint8Array([1])], 'bb.torrent')
 const META = {
   infoHash: 'abc123',
@@ -39,7 +39,7 @@ beforeEach(() => {
 
 describe('addRelease', () => {
   it('adds a magnet link with the options and nothing more', async () => {
-    await addRelease({ kind: 'magnet', uri: 'magnet:?xt=urn:btih:abc' }, { ...OPTIONS, paused: true, sequential: true })
+    await addRelease({ kind: 'magnet', uri: 'magnet:?xt=urn:btih:abc' }, { ...OPTIONS, paused: true, sequential: true, firstLastPieces: true })
     expect(addTorrents).toHaveBeenCalledWith({
       urls: ['magnet:?xt=urn:btih:abc'],
       tags: ['tmdb:tv:1396'],
@@ -47,6 +47,7 @@ describe('addRelease', () => {
       savePath: undefined,
       stopped: true,
       sequentialDownload: true,
+      firstLastPiecePrio: true,
       addToTopOfQueue: true,
     })
     expect(getTorrentFiles).not.toHaveBeenCalled()
