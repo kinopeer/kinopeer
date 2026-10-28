@@ -126,6 +126,17 @@ describe('remember', () => {
     // The dub gave way, though some release has it: picking another audio keeps it too.
     expect(remember(remembered, { audio: ['orig'] }, { ...shown, audio: [] }).audio).toEqual(['orig', 'dub'])
   })
+
+  it('keeps a minimum of seeds that gave way through a pick of Any', () => {
+    const usual: RememberedFilters = { ...remembered, minSeeds: 100 }
+    // 100+ gave way, so the seeds show Any: picking Any again changes nothing.
+    expect(remember(usual, { minSeeds: 0 }, shown).minSeeds).toBe(100)
+    expect(remember(usual, { minSeeds: 10 }, shown).minSeeds).toBe(10)
+    // Applied, 100+ is on screen, so picking Any takes it off.
+    expect(remember(usual, { minSeeds: 0 }, { ...shown, minSeeds: 100 }).minSeeds).toBe(0)
+    // Another tab saved 100+ while this search shows 10+: picking 10+ again keeps it.
+    expect(remember(usual, { minSeeds: 10 }, { ...shown, minSeeds: 10 }).minSeeds).toBe(10)
+  })
 })
 
 describe('split', () => {
