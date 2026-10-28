@@ -16,7 +16,7 @@ import { TitleScreen } from './TitleScreen'
 
 vi.mock('../api/tmdb', async (importOriginal) => {
   const actual = await importOriginal<typeof tmdb>()
-  return { ...actual, getMovie: vi.fn(), getTv: vi.fn(), searchTitles: vi.fn() }
+  return { ...actual, getMovie: vi.fn(), getTv: vi.fn(), searchTitles: vi.fn(), getRecommendations: vi.fn(), getSimilar: vi.fn() }
 })
 
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
@@ -121,9 +121,31 @@ beforeEach(() => {
   torrents()
   getMovie.mockResolvedValue(DUNE)
   getTv.mockResolvedValue(SHOGUN)
+  vi.mocked(tmdb.getRecommendations).mockResolvedValue({ titles: [], page: 1, totalPages: 1 })
+  vi.mocked(tmdb.getSimilar).mockResolvedValue({ titles: [], page: 1, totalPages: 1 })
 })
 
 describe('TitleScreen', () => {
+  it('suggests what to watch next under the title, and opens a suggested title with its own suggestions', async () => {
+    const dune = { ...DUNE, id: 438631, title: 'Dune', release_date: '2021-09-15' }
+    const interstellar = { ...DUNE, id: 157336, title: 'Interstellar', release_date: '2014-11-05' }
+    getMovie.mockImplementation(async (id) => (id === dune.id ? dune : DUNE))
+    vi.mocked(tmdb.getRecommendations).mockImplementation(async (_type, id) => ({
+      titles: [tmdb.toTitle(id === DUNE.id ? dune : interstellar, 'movie')],
+      page: 1,
+      totalPages: 1,
+    }))
+    renderAt('/title/movie/693134')
+
+    const row = await screen.findByRole('region', { name: 'Recommendations' })
+    await userEvent.click(within(row).getByRole('link', { name: /Dune/ }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Dune' })).toBeInTheDocument()
+    // The row follows the title on the page, not the one it was opened from.
+    const next = await screen.findByRole('region', { name: 'Recommendations' })
+    expect(await within(next).findByRole('link', { name: /Interstellar/ })).toHaveAttribute('href', '/title/movie/157336')
+    expect(within(next).queryByRole('link', { name: /^Dune/ })).not.toBeInTheDocument()
+  })
+
   it('shows a movie', async () => {
     const { container } = renderAt('/title/movie/693134')
     expect(screen.getByRole('status')).toHaveTextContent('Loading title')
