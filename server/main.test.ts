@@ -37,6 +37,7 @@ describe('createApp', () => {
     expect((await fetch(`${app}/tmdb/movie/771`)).status).toBe(401)
     expect(await (await fetch(`${app}/api/settings`)).json()).toEqual({
       tmdb: { configured: false, source: null },
+      prowlarr: { configured: false, source: null, serverKey: false },
       qbittorrent: { configured: false, source: null },
       downloads: null,
     })

@@ -1,4 +1,4 @@
-import type { DownloadDefaultsBody, QbittorrentLoginBody, ServerSettings, SettingsErrorBody, TmdbKeyBody } from './types'
+import type { DownloadDefaultsBody, ProwlarrKeyBody, QbittorrentLoginBody, ServerSettings, SettingsErrorBody, TmdbKeyBody } from './types'
 
 /** Settings the Kinoseed server keeps (server/settings.ts). */
 export const SETTINGS_BASE = '/api/settings'
@@ -48,6 +48,31 @@ async function send<T>(method: 'PUT' | 'PATCH', path: string, body: T): Promise<
  */
 export function saveTmdbKey(apiKey: string): Promise<ServerSettings> {
   return send<TmdbKeyBody>('PUT', 'tmdb', { apiKey })
+}
+
+/**
+ * Saves the Prowlarr API key on the server, which checks it with Prowlarr first. Rejects with a
+ * SettingsError: code 'invalid-key' when Prowlarr refuses it, 'unreachable' when Prowlarr doesn't
+ * answer, 'not-prowlarr' when PROWLARR_URL answers but isn't Prowlarr, or 'not-configured' when the
+ * server has no PROWLARR_URL.
+ */
+export function saveProwlarrKey(apiKey: string): Promise<ServerSettings> {
+  return send<ProwlarrKeyBody>('PUT', 'prowlarr', { apiKey })
+}
+
+/**
+ * Forgets the saved Prowlarr key, so the server's own (environment or Prowlarr's config.xml)
+ * applies. Rejects with code 'no-server-key' when the server has none to fall back on.
+ */
+export async function forgetProwlarrKey(): Promise<ServerSettings> {
+  // The JSON content type, as on every request that changes something (server/json.ts).
+  const response = await fetch(`${SETTINGS_BASE}/prowlarr`, {
+    method: 'DELETE',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+  })
+  if (!response.ok || !isJson(response)) throw await errorFor(response)
+  return (await response.json()) as ServerSettings
 }
 
 /**

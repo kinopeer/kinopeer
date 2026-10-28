@@ -108,6 +108,81 @@ describe('SearchScreen', () => {
     expect(await screen.findByRole('heading', { name: 'New on digital' })).toBeInTheDocument()
   })
 
+  it('searches once by a typed year', async () => {
+    searchTitles.mockResolvedValue(page([DUNE, ANDOR]))
+    renderScreen('/search?q=star&type=tv')
+    await screen.findByText('1 result')
+
+    await userEvent.type(screen.getByRole('textbox', { name: 'Release year' }), '20x22')
+    // The old results go while the year waits for the debounce.
+    expect(screen.getByRole('status')).toHaveTextContent('Loading')
+
+    expect(await screen.findByText('1 result')).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Release year' })).toHaveValue('2022')
+    // Typing the digits doesn't search for 2, 20 and 202 on the way.
+    expect(searchTitles.mock.calls.map(([query, options]) => [query, options?.year])).toEqual([
+      ['star', undefined],
+      ['star', 2022],
+    ])
+  })
+
+  it('switches the type of a search by year without searching again', async () => {
+    searchTitles.mockResolvedValue(page([DUNE, ANDOR]))
+    renderScreen('/search?q=star&year=2022&type=tv')
+    expect(await screen.findByRole('heading', { name: 'Andor' })).toBeInTheDocument()
+
+    await userEvent.click(within(screen.getByRole('group', { name: 'Type' })).getByRole('button', { name: 'Movies' }))
+
+    expect(screen.getByRole('heading', { name: 'Dune: Part Two' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Andor' })).not.toBeInTheDocument()
+    // With a year both types come in one search, so a tab switch filters them instead of asking TMDB again.
+    expect(searchTitles).toHaveBeenCalledTimes(1)
+  })
+
+  it('marks a year out of range and searches without it', async () => {
+    renderScreen('/search?q=dune&year=1850')
+    await screen.findByText('2 results')
+
+    expect(screen.getByRole('textbox', { name: 'Release year' })).toBeInvalid()
+    expect(searchTitles).toHaveBeenCalledWith('dune', expect.objectContaining({ year: undefined }))
+  })
+
+  it('restores the year from the URL, shows it only while searching and clears it with the query', async () => {
+    renderScreen('/search?q=dune&year=2024')
+    expect(screen.getByRole('textbox', { name: 'Release year' })).toHaveValue('2024')
+    await screen.findByText('2 results')
+    expect(searchTitles).toHaveBeenCalledWith('dune', expect.objectContaining({ year: 2024 }))
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear' }))
+    expect(await screen.findByRole('heading', { name: 'New on digital' })).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: 'Release year' })).not.toBeInTheDocument()
+
+    // Clearing the query starts over, so the next search has no year.
+    await userEvent.type(screen.getByRole('searchbox'), 'alien')
+    expect(screen.getByRole('textbox', { name: 'Release year' })).toHaveValue('')
+  })
+
+  it('drops the year when the query is deleted by hand', async () => {
+    renderScreen('/search?q=it&year=2024')
+    await screen.findByText('2 results')
+
+    await userEvent.clear(screen.getByRole('searchbox'))
+    await userEvent.type(screen.getByRole('searchbox'), 'alien')
+
+    expect(screen.getByRole('textbox', { name: 'Release year' })).toHaveValue('')
+  })
+
+  it('offers to clear the year when nothing came out that year', async () => {
+    searchTitles.mockImplementation(async (_query, options) => page(options?.year ? [] : [DUNE]))
+    renderScreen('/search?q=dune&year=1950')
+    const empty = await screen.findByRole('heading', { name: 'Nothing found for “dune”' })
+    expect(within(empty.parentElement!).getByText('Nothing from 1950. Try another year or clear it.')).toBeInTheDocument()
+
+    await userEvent.click(within(empty.parentElement!).getByRole('button', { name: 'Clear the year' }))
+    expect(await screen.findByText('1 result')).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Release year' })).toHaveValue('')
+  })
+
   it('explains a missing TMDB key', async () => {
     discoverTitles.mockRejectedValue(new tmdb.TmdbKeyError(401))
     renderScreen()

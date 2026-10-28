@@ -48,7 +48,8 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 
 - [ ] Search: a "Popular on your trackers" row, built by the server from what Prowlarr's indexers list without a query (or their RSS), kept to 2160p releases, matched with TMDB and ranked by seeders. Check first what the indexers actually return without a query.
 - [x] The title page: "Recommendations" from TMDB, or "Similar titles" when it has none, in one row (see the decision log in SPEC.md).
-- [ ] Search: filters by year and genre.
+- [x] Search: filter by year.
+- [ ] Search: filter by genre.
 
 ## 0.8: Torrent control
 
@@ -61,7 +62,7 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 
 - [ ] Installing with plain Docker, outside Umbrel, together with Kinoseed's own login.
 - [ ] Onboarding works on a clean install with qBittorrent and Prowlarr set only through the environment.
-- [ ] A Prowlarr API key field in Settings, kept on the server like the TMDB key, for installs that can't read Prowlarr's `config.xml`.
+- [x] A Prowlarr API key field in Settings, kept on the server like the TMDB key, for installs that can't read Prowlarr's `config.xml`.
 
 ## 1.0: Public release
 
