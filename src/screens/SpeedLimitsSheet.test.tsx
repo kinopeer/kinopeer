@@ -27,7 +27,15 @@ describe('SpeedLimitsSheet', () => {
     renderSheet({ dl_limit: 1_000_000, up_limit: 300_000 })
     await userEvent.clear(screen.getByRole('textbox', { name: 'Download limit, MB/s' }))
     await userEvent.click(screen.getByRole('button', { name: 'Save limits' }))
-    expect(api.setSpeedLimits).toHaveBeenCalledWith(['h1'], { download: 0, upload: 300_000 })
+    expect(api.setSpeedLimits).toHaveBeenCalledWith(['h1'], { download: 0, upload: undefined })
+  })
+
+  it('closes without saving when nothing changed', async () => {
+    const handlers = renderSheet({ dl_limit: 4096 })
+    expect(screen.getByRole('textbox', { name: 'Download limit, MB/s' })).toHaveValue('0.004')
+    await userEvent.click(screen.getByRole('button', { name: 'Save limits' }))
+    expect(api.setSpeedLimits).not.toHaveBeenCalled()
+    expect(handlers.onClose).toHaveBeenCalled()
   })
 
   it("doesn't save a value that isn't a number", async () => {

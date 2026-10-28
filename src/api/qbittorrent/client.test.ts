@@ -126,6 +126,12 @@ describe('setSpeedLimits', () => {
     expect(download).toEqual(['/qbt/api/v2/torrents/setDownloadLimit', 'hashes=a%7Cb&limit=2000000'])
     expect(upload).toEqual(['/qbt/api/v2/torrents/setUploadLimit', 'hashes=a%7Cb&limit=0'])
   })
+
+  it('leaves a limit that is left out as it is', async () => {
+    respond('')
+    await setSpeedLimits(['a'], { upload: 1_000_000 })
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual(['/qbt/api/v2/torrents/setUploadLimit'])
+  })
 })
 
 describe('startTorrents', () => {

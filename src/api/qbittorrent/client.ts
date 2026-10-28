@@ -152,11 +152,15 @@ export async function stopTorrents(hashes: string[]): Promise<void> {
   await postRenamed('/torrents/stop', '/torrents/pause', { hashes: hashes.join('|') })
 }
 
-/** Sets per-torrent speed limits in bytes/s; 0 removes a limit. */
-export async function setSpeedLimits(hashes: string[], limits: { download: number; upload: number }): Promise<void> {
+/** Sets per-torrent speed limits in bytes/s; 0 removes a limit, and a limit left out stays as it is. */
+export async function setSpeedLimits(hashes: string[], limits: { download?: number; upload?: number }): Promise<void> {
   const joined = hashes.join('|')
-  await request('/torrents/setDownloadLimit', { method: 'POST', params: { hashes: joined, limit: limits.download } })
-  await request('/torrents/setUploadLimit', { method: 'POST', params: { hashes: joined, limit: limits.upload } })
+  if (limits.download !== undefined) {
+    await request('/torrents/setDownloadLimit', { method: 'POST', params: { hashes: joined, limit: limits.download } })
+  }
+  if (limits.upload !== undefined) {
+    await request('/torrents/setUploadLimit', { method: 'POST', params: { hashes: joined, limit: limits.upload } })
+  }
 }
 
 /** Removes torrents from qBittorrent, and with `deleteFiles` their downloaded data too. */

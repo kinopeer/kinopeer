@@ -5,7 +5,7 @@ import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { Input } from '../components/Input'
 import { Sheet } from '../components/Sheet'
-import { fieldToLimit, limitToField } from '../torrents/speedLimits'
+import { changedLimit, limitToField } from '../torrents/speedLimits'
 
 export interface SpeedLimitsSheetProps {
   torrent: Torrent
@@ -18,17 +18,20 @@ export interface SpeedLimitsSheetProps {
 /** Download and upload speed limits of one torrent; an empty field means no limit. */
 export function SpeedLimitsSheet({ torrent, title, onClose, onChanged }: SpeedLimitsSheetProps) {
   const { t } = useTranslation()
-  const [download, setDownload] = useState(() => limitToField(torrent.dl_limit))
-  const [upload, setUpload] = useState(() => limitToField(torrent.up_limit))
+  // What the fields showed when the sheet opened: an unchanged field isn't sent.
+  const [initial] = useState(() => ({ download: limitToField(torrent.dl_limit), upload: limitToField(torrent.up_limit) }))
+  const [download, setDownload] = useState(initial.download)
+  const [upload, setUpload] = useState(initial.upload)
   const [saving, setSaving] = useState(false)
   const [failed, setFailed] = useState(false)
-  const downloadLimit = fieldToLimit(download)
-  const uploadLimit = fieldToLimit(upload)
+  const downloadLimit = changedLimit(initial.download, download)
+  const uploadLimit = changedLimit(initial.upload, upload)
   const valid = downloadLimit !== null && uploadLimit !== null
 
   const save = async (event: FormEvent) => {
     event.preventDefault()
     if (downloadLimit === null || uploadLimit === null) return
+    if (downloadLimit === undefined && uploadLimit === undefined) return onClose()
     setSaving(true)
     setFailed(false)
     try {
