@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type RefObject } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type DragEvent, type PointerEvent, type RefObject } from 'react'
 import { shouldClose } from './sheetDrag'
 
 /** What a pointer-down in the title row leaves alone: its controls keep their taps. */
@@ -31,6 +31,7 @@ export interface SheetDrag {
     onPointerUp: Handler
     onPointerCancel: Handler
     onLostPointerCapture: Handler
+    onDragStart: (event: DragEvent<HTMLElement>) => void
   }
   /** For the dialog: a new press forgets the last drag. */
   onPointerDownCapture: () => void
@@ -62,16 +63,21 @@ export function useSheetDrag(
     close.current = onClose
   })
 
-  useEffect(() => {
-    // A drag the sheet closed under (a second finger tapped Done) never got its end event.
-    drag.current = null
-    const dialog = ref.current
-    if (!open || !dialog) return
-    // Where a drag left it, from the last time it was open.
+  /** Back where it opens, with any slide dropped and the stylesheet's transition. */
+  const putBack = (dialog: HTMLDialogElement) => {
     exit.current?.cancel()
     exit.current = null
     dialog.style.transform = ''
     dialog.style.transition = ''
+    dialog.style.opacity = ''
+  }
+
+  useEffect(() => {
+    // A drag the sheet closed under (a second finger tapped Done) never got its end event.
+    drag.current = null
+    const dialog = ref.current
+    // Where a drag left it, from the last time it was open.
+    if (open && dialog) putBack(dialog)
   }, [open, ref])
 
   // An unmounted sheet's slide must not close whatever opens next.
@@ -82,10 +88,7 @@ export function useSheetDrag(
   // modal holding the page.
   useLayoutEffect(() => {
     const dialog = ref.current
-    if (!closeAsked || !open || !dialog) return
-    exit.current?.cancel()
-    exit.current = null
-    dialog.style.transform = ''
+    if (closeAsked && open && dialog) putBack(dialog)
   }, [closeAsked, open, ref])
 
   const end = (handle: HTMLElement) => handle.classList.remove('is-dragging')
@@ -97,11 +100,25 @@ export function useSheetDrag(
     if (control && event.currentTarget.contains(control)) return
     const dialog = ref.current
     if (!dialog) return
+    // Where it is now, also partway through the opening slide or a spring back, read before the
+    // slide is finished below (computed styles are live).
+    const { transform, opacity } = getComputedStyle(dialog)
+    const offset = offsetOf(transform)
+    try {
+      event.currentTarget.setPointerCapture?.(event.pointerId)
+    } catch {
+      // The pointer is already gone: without the capture its end could land anywhere and never come.
+      return
+    }
     // The opening slide (a CSS animation) animates transform too and would hide the drag until it
-    // ends. A spring back still running (a CSS transition) is caught where it is instead.
-    const animations = dialog.getAnimations?.() ?? []
-    if (animations.some((animation) => isCssAnimation(animation) && animation.playState === 'running')) return
-    const offset = currentOffset(dialog)
+    // ends, so the drag takes over from where it has got to. A spring back (a CSS transition) gives
+    // way to the inline transform by itself.
+    for (const animation of dialog.getAnimations?.() ?? []) {
+      if (isCssAnimation(animation) && animation.playState === 'running') animation.finish()
+    }
+    // Partway faded in, by that slide or by the transition after a drag that cut it short: held there
+    // while dragging, and the stylesheet's transition fades in the rest once the drag ends.
+    if (parseFloat(opacity) < 1) dialog.style.opacity = opacity
     drag.current = {
       pointerId: event.pointerId,
       downY: event.clientY,
@@ -111,7 +128,6 @@ export function useSheetDrag(
       samples: [{ y: event.clientY, time: event.timeStamp }],
       moving: false,
     }
-    event.currentTarget.setPointerCapture?.(event.pointerId)
     dialog.style.transition = 'none'
     if (offset > 0) dialog.style.transform = `translateY(${offset}px)`
   }
@@ -155,6 +171,7 @@ export function useSheetDrag(
     // Back to the stylesheet's transition, which springs it back up.
     dialog.style.transition = ''
     dialog.style.transform = ''
+    dialog.style.opacity = ''
   }
 
   /** Finishes the swipe off the screen, then closes; the open effect puts it back next time. */
@@ -179,7 +196,17 @@ export function useSheetDrag(
   }
 
   return {
-    handle: { onPointerDown, onPointerMove, onPointerUp: onPointerEnd, onPointerCancel: onPointerEnd, onLostPointerCapture: onPointerEnd },
+    handle: {
+      onPointerDown,
+      onPointerMove,
+      onPointerUp: onPointerEnd,
+      onPointerCancel: onPointerEnd,
+      onLostPointerCapture: onPointerEnd,
+      // An image in the title row (a poster) would start the browser's own drag and cancel this one.
+      onDragStart: (event) => {
+        if (enabled) event.preventDefault()
+      },
+    },
     onPointerDownCapture: () => {
       dragged.current = false
     },
@@ -199,7 +226,7 @@ function slide(dialog: HTMLDialogElement): Animation | null {
     return dialog.animate([{ transform: dialog.style.transform }, { transform: 'translateY(100%)' }], {
       // As long as the spring back: the sheet's own transition, which the browser reports in seconds
       // whatever unit the token uses, and which reduced motion already cuts to almost nothing.
-      duration: parseFloat(style.transitionDuration) * 1000,
+      duration: transformDuration(style),
       easing: style.getPropertyValue('--ease-in').trim() || 'ease-in',
       fill: 'forwards',
     })
@@ -208,6 +235,18 @@ function slide(dialog: HTMLDialogElement): Animation | null {
     // halfway down.
     return null
   }
+}
+
+/**
+ * Ms of the stylesheet's transition on transform: the duration in the same place in the list as
+ * `transform` (or `all`) in the properties, else the first.
+ */
+function transformDuration(style: CSSStyleDeclaration): number {
+  const properties = style.transitionProperty.split(',').map((property) => property.trim())
+  const durations = style.transitionDuration.split(',')
+  // The last entry wins, as in the browser.
+  const index = Math.max(0, properties.findLastIndex((property) => property === 'transform' || property === 'all'))
+  return parseFloat(durations[index % durations.length]) * 1000
 }
 
 /** Px/ms down over the samples kept: from the oldest to the newest. */
@@ -222,9 +261,8 @@ function isCssAnimation(animation: Animation): boolean {
   return typeof CSSAnimation !== 'undefined' && animation instanceof CSSAnimation
 }
 
-/** How far down the sheet is now, e.g. partway through springing back. */
-function currentOffset(dialog: HTMLDialogElement): number {
-  const transform = getComputedStyle(dialog).transform
+/** How far down a computed transform has the sheet, e.g. partway through springing back. */
+function offsetOf(transform: string): number {
   if (!transform || transform === 'none' || typeof DOMMatrixReadOnly === 'undefined') return 0
   return Math.max(0, new DOMMatrixReadOnly(transform).m42)
 }

@@ -41,6 +41,24 @@ test.describe('downloads, phone', () => {
     await expect(page).toHaveScreenshot('grid-actions-dark-ru.png')
   })
 
+  test('the actions sheet closes when dragged down by its poster', async ({ page }) => {
+    await openDownloads(page, { downloadsView: 'grid' })
+    await page.getByRole('button', { name: 'Ещё действия: Дюна: Часть вторая' }).click()
+    const sheet = page.getByRole('dialog')
+    await expect(sheet).toBeVisible()
+    await settle(page)
+    // A mouse on an image starts the browser's own drag, which jsdom doesn't have. The poster is
+    // decorative (no name), so it's found by its class.
+    const poster = sheet.locator('.actions-poster img')
+    const box = await poster.boundingBox()
+    if (!box) throw new Error('The sheet has no poster')
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(box.x + box.width / 2, box.y + 300, { steps: 10 })
+    await page.mouse.up()
+    await expect(sheet).toBeHidden()
+  })
+
   test('speed limits sheet from the actions sheet', async ({ page }) => {
     await openDownloads(page, { downloadsView: 'grid' })
     await page.getByRole('button', { name: 'Ещё действия: Дюна: Часть вторая' }).click()
