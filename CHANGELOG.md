@@ -6,6 +6,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ### Added
 
+- Downloads: "Move files…" in a torrent's More menu moves its files to another folder through qBittorrent, with the folders qBittorrent already knows one tap away.
 - Settings → About: links to suggest an idea, report a bug (with the version filled in) and the source code on GitHub, and TMDB's logo with the notice that Kinoseed uses the TMDB API but isn't endorsed or certified by TMDB, as TMDB's terms ask.
 - Settings: the interface language has a System option, like the theme: Kinoseed follows the browser's languages (Russian or English, else English) and switches when they change. It's on for new browsers, and for existing ones whose saved language is the browser's own; a different language picked before stays.
 - Title page: a row of posters at the end of the page with what to watch next, TMDB's recommendations for the movie or series, or similar titles when TMDB has no recommendations. Each poster opens its title page.
@@ -27,6 +28,8 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ### Fixed
 
+- Adding a release: the save path field no longer zooms the page in on an iPhone, and the folder shown under the options is the one qBittorrent will use: a category's folder only when qBittorrent puts new torrents there (automatic management, or category paths in manual mode), placed as qBittorrent places it.
+- Desktop: "Find releases" on a title page no longer reloads the whole page: the hero, an opened overview and the rest stay as they were, and the page scrolls smoothly down to the releases. ([#138](https://github.com/MrShakhov/kinoseed/issues/138))
 - When qBittorrent can't tell its free space (it reports 0), Downloads, the sidebar and the add sheet's files row no longer say "0 B free", and the file picker no longer says "Not enough free space". ([#137](https://github.com/MrShakhov/kinoseed/issues/137))
 - Phone: a sheet (sort and filters, adding a release, a torrent's actions…) closes when dragged down by its grabber or title, as the grabber suggests, and the screen behind it no longer scrolls under the finger. ([#114](https://github.com/MrShakhov/kinoseed/issues/114))
 - Desktop: a release name no longer looks clickable on hover (a click did nothing when the name fit in two lines); the whole name is a tooltip on hover instead. On a phone a tap still shows the whole name.
