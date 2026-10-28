@@ -2,7 +2,8 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { downloadToken, prowlarrMiddleware, readProwlarrApiKey, type ProwlarrConfig } from './prowlarr.ts'
+import { MAX_FAILING_WITHIN_MS } from '../src/api/prowlarr/types.ts'
+import { MAX_WITHIN_MS, downloadToken, failedIds, indexerNames, prowlarrMiddleware, readProwlarrApiKey, type ProwlarrConfig } from './prowlarr.ts'
 import { closeServers, listen, serve } from './test/fakes.ts'
 
 const KEY = 'secret-key-123'
@@ -22,6 +23,43 @@ describe('downloadToken', () => {
   })
 })
 
+describe('failedIds and indexerNames', () => {
+  it('takes the same longest window as the client sends', () => {
+    expect(MAX_WITHIN_MS).toBe(MAX_FAILING_WITHIN_MS)
+  })
+
+  const now = Date.parse('2026-10-28T01:00:00Z')
+  const since = Date.parse('2026-10-28T00:59:00Z')
+  const indexers = [
+    { id: 1, name: 'RuTracker', enable: true },
+    { id: 2, name: 'Kinozal', enable: true },
+    { id: 3, name: 'Old', enable: false },
+    { id: 4, name: 'Fine', enable: true },
+    { id: 5, name: 'Earlier', enable: true },
+  ]
+
+  it('names enabled indexers that failed during the search or are on hold, sorted', () => {
+    const statuses = [
+      { indexerId: 1, mostRecentFailure: '2026-10-28T00:59:30Z' },
+      { indexerId: 2, disabledTill: '2026-10-28T02:00:00Z', mostRecentFailure: '2026-10-27T20:00:00Z' },
+      { indexerId: 3, disabledTill: '2026-10-28T02:00:00Z' },
+      { indexerId: 4, disabledTill: '2026-10-28T00:30:00Z' },
+      // Failed before this search and isn't on hold: an older failure, not this search's.
+      { indexerId: 5, mostRecentFailure: '2026-10-28T00:58:59Z' },
+    ]
+    expect(indexerNames(indexers, failedIds(statuses, since, now))).toEqual(['Kinozal', 'RuTracker'])
+  })
+
+  it('names none when nothing failed', () => {
+    expect(indexerNames(indexers, failedIds([], since, now))).toEqual([])
+  })
+
+  it('never counts a row without an id as a failure', () => {
+    const statuses = [{ mostRecentFailure: '2026-10-28T00:59:30Z' }]
+    expect(indexerNames([...indexers, { name: 'No id', enable: true }], failedIds(statuses, since, now))).toEqual([])
+  })
+})
+
 describe('prowlarrMiddleware', () => {
   it('passes other paths on and reports a missing configuration', async () => {
     const base = await kinoseed({})
@@ -29,6 +67,15 @@ describe('prowlarrMiddleware', () => {
     const response = await fetch(`${base}/prowlarr/search?query=dune`)
     expect(response.status).toBe(503)
     expect(await response.json()).toEqual({ error: 'not-configured' })
+  })
+
+  it('answers unknown routes, an inherited name included, with 404', async () => {
+    const base = await kinoseed({ url: 'http://127.0.0.1:9', apiKey: KEY })
+    for (const route of ['nope', 'constructor', 'toString']) {
+      const response = await fetch(`${base}/prowlarr/${route}`)
+      expect(response.status, route).toBe(404)
+      expect(await response.json()).toEqual({ error: 'not-found' })
+    }
   })
 
   it('searches with the key and strips it from the results', async () => {
@@ -138,6 +185,111 @@ describe('prowlarrMiddleware', () => {
     const down = await fetch(`${(await kinoseed({ url: 'http://127.0.0.1:9', apiKey: KEY }))}/prowlarr/search?query=a`)
     expect(down.status).toBe(502)
     expect(await down.text()).toBe('{"error":"unreachable"}')
+  })
+
+  it('asks Prowlarr which indexers failed since the search started, by its own clock', async () => {
+    const seen: { path: string; key?: string }[] = []
+    const prowlarr = await listen((request, response) => {
+      seen.push({ path: request.url!, key: request.headers['x-api-key'] as string })
+      response.setHeader('Content-Type', 'application/json')
+      const ago = (ms: number) => new Date(Date.now() - ms).toISOString()
+      response.end(
+        JSON.stringify(
+          request.url === '/api/v1/indexer'
+            ? [{ id: 1, name: 'RuTracker', enable: true }, { id: 2, name: 'Kinozal', enable: true }]
+            : [
+                { indexerId: 1, mostRecentFailure: ago(120_000) },
+                { indexerId: 2, mostRecentFailure: ago(5_000) },
+              ],
+        ),
+      )
+    })
+    const base = await kinoseed({ url: prowlarr, apiKey: KEY })
+    // The search started 60 s ago: Kinozal failed during it, RuTracker before it.
+    const response = await fetch(`${base}/prowlarr/failing?within=60000`)
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ indexers: ['Kinozal'] })
+    expect(seen.map(({ path }) => path).sort()).toEqual(['/api/v1/indexer', '/api/v1/indexerstatus'])
+    expect(seen.every(({ key }) => key === KEY)).toBe(true)
+
+    // More than ten minutes is no search's: Prowlarr keeps an indexer's last failure after it recovers.
+    for (const within of ['', '-5', 'soon', '1.5', '600001', '99999999999999']) {
+      expect((await fetch(`${base}/prowlarr/failing?within=${within}`)).status).toBe(400)
+    }
+  })
+
+  it('doesn’t fetch the indexer list when nothing failed', async () => {
+    const seen: string[] = []
+    const prowlarr = await listen((request, response) => {
+      seen.push(request.url!)
+      response.setHeader('Content-Type', 'application/json')
+      response.end('[]')
+    })
+    const response = await fetch(`${await kinoseed({ url: prowlarr, apiKey: KEY })}/prowlarr/failing?within=60000`)
+    expect(await response.json()).toEqual({ indexers: [] })
+    expect(seen).toEqual(['/api/v1/indexerstatus'])
+  })
+
+  it('reports a rejected key, a failing Prowlarr and one too slow to answer', async () => {
+    const answering = (status: number) =>
+      listen((request, response) => {
+        response.statusCode = request.url === '/api/v1/indexerstatus' ? status : 200
+        response.setHeader('Content-Type', 'application/json')
+        response.end('[]')
+      })
+    const rejected = await fetch(`${await kinoseed({ url: await answering(401), apiKey: KEY })}/prowlarr/failing?within=0`)
+    expect(rejected.status).toBe(502)
+    expect(await rejected.json()).toEqual({ error: 'unauthorized' })
+
+    const broken = await fetch(`${await kinoseed({ url: await answering(500), apiKey: KEY })}/prowlarr/failing?within=0`)
+    expect(broken.status).toBe(502)
+    expect(await broken.json()).toEqual({ error: 'upstream' })
+
+    // indexerstatus never answers: the server gives up instead of holding the request.
+    const hanging = await listen((request, response) => {
+      if (request.url !== '/api/v1/indexerstatus') response.end('[]')
+    })
+    const slow = await fetch(`${await kinoseed({ url: hanging, apiKey: KEY, failingTimeoutMs: 50 })}/prowlarr/failing?within=0`)
+    expect(slow.status).toBe(502)
+    expect(await slow.json()).toEqual({ error: 'unreachable' })
+  })
+
+  it('reports a rejected key and a failing Prowlarr on the indexer list, asked after a failure', async () => {
+    const listFailing = (status: number) =>
+      listen((request, response) => {
+        response.setHeader('Content-Type', 'application/json')
+        if (request.url === '/api/v1/indexer') {
+          response.statusCode = status
+          return response.end('[]')
+        }
+        response.end(JSON.stringify([{ indexerId: 1, mostRecentFailure: new Date().toISOString() }]))
+      })
+    const rejected = await fetch(`${await kinoseed({ url: await listFailing(401), apiKey: KEY })}/prowlarr/failing?within=60000`)
+    expect(rejected.status).toBe(502)
+    expect(await rejected.json()).toEqual({ error: 'unauthorized' })
+
+    const broken = await fetch(`${await kinoseed({ url: await listFailing(500), apiKey: KEY })}/prowlarr/failing?within=60000`)
+    expect(broken.status).toBe(502)
+    expect(await broken.json()).toEqual({ error: 'upstream' })
+  })
+
+  it('reports an answer that isn’t a list, like a proxy’s login page, as upstream', async () => {
+    const answering = (path: string, body: string) =>
+      listen((request, response) => {
+        response.setHeader('Content-Type', 'application/json')
+        if (request.url === path) return response.end(body)
+        response.end(JSON.stringify(request.url === '/api/v1/indexerstatus' ? [{ indexerId: 1, mostRecentFailure: new Date().toISOString() }] : []))
+      })
+    for (const [path, body] of [
+      ['/api/v1/indexerstatus', '<!doctype html><title>Login</title>'],
+      ['/api/v1/indexerstatus', '{}'],
+      ['/api/v1/indexer', '<!doctype html><title>Login</title>'],
+      ['/api/v1/indexer', '{"records":[]}'],
+    ]) {
+      const response = await fetch(`${await kinoseed({ url: await answering(path, body), apiKey: KEY })}/prowlarr/failing?within=60000`)
+      expect(response.status, `${path} ${body}`).toBe(502)
+      expect(await response.json()).toEqual({ error: 'upstream' })
+    }
   })
 
   it('downloads a .torrent through Prowlarr with the key added back', async () => {

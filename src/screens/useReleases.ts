@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ProwlarrSetupError, searchReleases, type Release } from '../api/prowlarr'
+import { ProwlarrSetupError, getFailingIndexers, searchReleases, type Release } from '../api/prowlarr'
 import { useRequest } from '../lib/useRequest'
 import {
   NO_FILTERS,
@@ -48,6 +48,8 @@ export type ReleasesStatus = 'loading' | 'setup' | 'error' | 'none' | 'ready'
 export interface Releases {
   status: ReleasesStatus
   retry: () => void
+  /** Names of the indexers that didn't answer this search, so their releases are missing. */
+  failing: string[]
   /** Every release found. */
   rows: ReleaseRow[]
   /** The releases the filters let through, sorted. */
@@ -69,6 +71,18 @@ export interface Releases {
   setAdding: (row: ReleaseRow | undefined) => void
 }
 
+interface Found {
+  releases: Release[]
+  /** performance.now() when the search started. */
+  started: number
+}
+
+async function find(query: string, signal: AbortSignal): Promise<Found> {
+  const started = performance.now()
+  // No category filter: some indexers (RuTor) file every release under "Other".
+  return { releases: await searchReleases(query, { signal }), started }
+}
+
 /**
  * Searches Prowlarr for the title's releases once `details` is known and `enabled`, and keeps the
  * filters, the sort and the release being added: what the phone's releases screen and the desktop
@@ -79,9 +93,13 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
   const { t } = useTranslation()
   const query = details && enabled ? releaseQuery(details) : null
   const key = query ? `${details!.type}|${query}` : null
-  const search = useRequest<Release[]>(key, (signal) =>
-    // No category filter: some indexers (RuTor) file every release under "Other".
-    searchReleases(query!, { signal }),
+  const search = useRequest<Found>(key, (signal) => find(query!, signal))
+  // Prowlarr answers with what the working indexers found and says nothing about the rest, so once
+  // the search answers, ask which failed since it started. The releases don't wait for it, and
+  // without an answer there's just no note.
+  const started = search.data?.started
+  const failing = useRequest<string[]>(started === undefined ? null : `${key}|${started}`, (signal) =>
+    getFailingIndexers(performance.now() - started!, signal),
   )
 
   const [settings, updateSettings] = useSettings()
@@ -90,9 +108,15 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
   const [adding, setAdding] = useState<ReleaseRow>()
 
   const rows = useMemo<ReleaseRow[]>(
-    () => (search.data ?? []).map((release) => ({ release, info: parseRelease(release.title) })),
+    () => (search.data?.releases ?? []).map((release) => ({ release, info: parseRelease(release.title) })),
     [search.data],
   )
+  // Prowlarr dates an indexer's last failure from any client's query (Sonarr, Radarr, its own tests),
+  // so an indexer whose releases are in these results did answer this search.
+  const missing = useMemo(() => {
+    const answered = new Set(rows.map((row) => row.release.indexer))
+    return (failing.data ?? []).filter((name) => !answered.has(name))
+  }, [failing.data, rows])
   const present = useMemo(() => presentValues(rows), [rows])
   const remembered = useMemo(() => knownReleaseFilters(settings.releaseFilters), [settings.releaseFilters])
   const starting = useMemo(() => startingFilters(remembered, rows, present), [remembered, rows, present])
@@ -127,6 +151,7 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
   return {
     status,
     retry: search.retry,
+    failing: missing,
     rows,
     visible,
     present,

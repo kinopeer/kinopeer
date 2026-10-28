@@ -24,6 +24,20 @@ test.describe('releases, phone', () => {
     await expect(page).toHaveScreenshot('remembered-dark-ru.png')
   })
 
+  test('some indexers didn’t answer', async ({ page }) => {
+    await openReleases(page, { failingIndexers: ['Kinozal', 'RuTracker'] })
+    await expect(page.getByRole('status')).toHaveText('2 индексатора не ответили: Kinozal, RuTracker')
+    await expect(page).toHaveScreenshot('failing-indexers-dark-ru.png')
+  })
+
+  test('some indexers didn’t answer and nothing was found', async ({ page }) => {
+    await openApp(page, '/title/tv/126308/releases', { failingIndexers: ['Kinozal', 'RuTracker'], noReleases: true })
+    await expect(page.getByRole('heading', { name: 'Раздачи не найдены' })).toBeVisible()
+    await expect(page.getByRole('status')).toHaveText('2 индексатора не ответили: Kinozal, RuTracker')
+    await settle(page)
+    await expect(page).toHaveScreenshot('failing-indexers-none-dark-ru.png')
+  })
+
   test('filters sheet', async ({ page }) => {
     await openReleases(page)
     await page.getByRole('button', { name: /^Фильтры/ }).click()
@@ -77,6 +91,12 @@ test.describe('releases, desktop', () => {
     await findReleases(page, { releaseFilters: REMEMBERED })
     await expect(page.getByText('Запомненные фильтры не применены: Дубляж')).toBeVisible()
     await expect(page).toHaveScreenshot('desktop-remembered-dark-ru.png')
+  })
+
+  test('some indexers didn’t answer', async ({ page }) => {
+    await findReleases(page, { failingIndexers: ['Kinozal', 'RuTracker'] })
+    await expect(page.getByRole('status')).toHaveText('2 индексатора не ответили: Kinozal, RuTracker')
+    await expect(page).toHaveScreenshot('desktop-failing-indexers-dark-ru.png')
   })
 
   test('a filter popover', async ({ page }) => {

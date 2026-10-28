@@ -13,6 +13,8 @@ export interface BannerProps {
   actionLabel?: string
   onAction?: () => void
   actionDisabled?: boolean
+  /** False when a live region around the banner announces it instead. */
+  live?: boolean
   className?: string
   children?: ReactNode
 }
@@ -30,13 +32,14 @@ export function Banner({
   actionLabel,
   onAction,
   actionDisabled,
+  live = true,
   className,
   children,
 }: BannerProps) {
   return (
     <div
       className={cx('ks-banner', tone !== 'warning' && `ks-banner-${tone}`, className)}
-      role={tone === 'error' ? 'alert' : 'status'}
+      role={live ? (tone === 'error' ? 'alert' : 'status') : undefined}
     >
       <Icon name={icon ?? DEFAULT_ICON[tone]} size={20} />
       <div className="ks-banner-body">

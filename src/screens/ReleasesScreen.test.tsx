@@ -1,7 +1,7 @@
-import { screen, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as prowlarr from '../api/prowlarr'
 import * as qbt from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
@@ -17,7 +17,7 @@ vi.mock('../api/tmdb', async (importOriginal) => {
 })
 vi.mock('../api/prowlarr', async (importOriginal) => {
   const actual = await importOriginal<typeof prowlarr>()
-  return { ...actual, searchReleases: vi.fn(), fetchRelease: vi.fn() }
+  return { ...actual, searchReleases: vi.fn(), getFailingIndexers: vi.fn(), fetchRelease: vi.fn() }
 })
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
   ...(await importOriginal<typeof qbt>()),
@@ -54,6 +54,11 @@ beforeEach(() => {
   getMovie.mockResolvedValue(DUNE)
   getTv.mockResolvedValue(BB)
   searchReleases.mockResolvedValue(DUNE_RELEASES)
+  vi.mocked(prowlarr.getFailingIndexers).mockResolvedValue([])
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
 })
 
 describe('ReleasesScreen', () => {
@@ -152,6 +157,42 @@ describe('ReleasesScreen', () => {
     searchReleases.mockRejectedValue(new prowlarr.ProwlarrSetupError(503, 'not-configured'))
     renderAt('/title/movie/693134/releases')
     expect(await screen.findByRole('heading', { name: 'Prowlarr isn’t connected' })).toBeInTheDocument()
+  })
+
+  it('lists the releases without waiting to hear which indexers failed, then names them', async () => {
+    // The search starts at 1000 ms and answers at 4000 ms.
+    let now = 1000
+    vi.spyOn(performance, 'now').mockImplementation(() => now)
+    searchReleases.mockImplementation(async () => {
+      now = 4000
+      return DUNE_RELEASES
+    })
+    let answer!: (names: string[]) => void
+    vi.mocked(prowlarr.getFailingIndexers).mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    renderAt('/title/movie/693134/releases')
+    expect(await screen.findAllByRole('article')).toHaveLength(DUNE_RELEASES.length)
+    // The live region is there, empty, before the answer, so a screen reader announces the note.
+    const note = screen.getByRole('status')
+    expect(note).toBeEmptyDOMElement()
+    // Asked once the search answered, with how long ago it started. The request starts in an effect,
+    // which can run after the list shows, so wait for it.
+    await waitFor(() => expect(prowlarr.getFailingIndexers).toHaveBeenCalledWith(3000, expect.any(AbortSignal)))
+
+    // RuTracker's releases are in this search's results: its failure was another client's query.
+    answer(['NNM-Club', 'RuTracker'])
+    await waitFor(() => expect(note).toHaveTextContent('NNM-Club'))
+    expect(note).not.toHaveTextContent('RuTracker')
+  })
+
+  it('still lists releases when it can’t tell which indexers failed', async () => {
+    let fail!: (error: unknown) => void
+    vi.mocked(prowlarr.getFailingIndexers).mockReturnValue(new Promise((_, reject) => (fail = reject)))
+    renderAt('/title/movie/693134/releases')
+    expect(await screen.findAllByRole('article')).toHaveLength(DUNE_RELEASES.length)
+
+    await act(async () => fail(new prowlarr.ProwlarrError('down', 502, 'upstream')))
+    expect(screen.getAllByRole('article')).toHaveLength(DUNE_RELEASES.length)
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
   })
 
   it('says when Prowlarr fails', async () => {

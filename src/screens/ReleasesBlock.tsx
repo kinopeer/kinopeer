@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
+import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { EmptyState } from '../components/EmptyState'
 import { FilterChip } from '../components/FilterChip'
@@ -44,13 +45,17 @@ export function ReleasesBody({ releases, skeleton, children }: ReleasesBodyProps
       )
     case 'none':
       return (
-        <EmptyState icon="folder" tone="muted" title={t('releases.noneTitle')} actionLabel={t('common.retry')} actionIcon="refresh" onAction={releases.retry}>
-          {t('releases.noneBody')}
-        </EmptyState>
+        <>
+          <FailingIndexers releases={releases} />
+          <EmptyState icon="folder" tone="muted" title={t('releases.noneTitle')} actionLabel={t('common.retry')} actionIcon="refresh" onAction={releases.retry}>
+            {t('releases.noneBody')}
+          </EmptyState>
+        </>
       )
   }
   return (
     <>
+      <FailingIndexers releases={releases} />
       <SetAsideFilters releases={releases} />
       <ActiveFilters releases={releases} />
       {releases.visible.length > 0 ? (
@@ -61,6 +66,26 @@ export function ReleasesBody({ releases, skeleton, children }: ReleasesBodyProps
         </EmptyState>
       )}
     </>
+  )
+}
+
+/**
+ * A quiet note that some indexers didn't answer, so their releases are missing. The names come after
+ * the results, so the live region is there, empty, from the start: screen readers announce a change
+ * inside a region, often not a region that appears with its text.
+ */
+function FailingIndexers({ releases }: { releases: Releases }) {
+  const { t, i18n } = useTranslation()
+  const { failing } = releases
+  const names = new Intl.ListFormat(i18n.language, { type: 'conjunction', style: 'narrow' }).format(failing)
+  return (
+    <div role="status" className="rel-note">
+      {failing.length > 0 && (
+        <Banner tone="info" live={false}>
+          {t('releases.failingIndexers', { count: failing.length, names })}
+        </Banner>
+      )}
+    </div>
   )
 }
 
