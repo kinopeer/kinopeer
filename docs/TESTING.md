@@ -76,13 +76,14 @@ milliseconds, fails with a precise message, and it's the one the layer above lea
   confirmation although `DownloadsWithDrawer.test.tsx` already sends the `cancel` event, because
   jsdom never turns Escape into `cancel`, and only Chromium shows where the browser's own event and
   React's dispatch meet.
-- **What a mock may be asked.** A layer-3 test may assert which request its API mock received and
-  with what arguments when that request is the screen's behavior ("Save sends the new category").
+- **What a mock may be asked.** A layer-3 test may assert what it hands off to: an API client or a
+  domain action (`addRelease`, `chooseTitle`, `forgetMatches`), and with what arguments, when that
+  hand-off is the screen's behavior ("Save sends the new category", "Delete forgets the match").
   It asserts a count only when the count is the behavior (a duplicate request, nothing sent
   until…), with `not.toHaveBeenCalled()` or `toHaveBeenCalledTimes(n)` and a comment saying why
-  the count matters. It never counts calls to a module that isn't an API client (i18n, a hook, a
-  helper), and it doesn't re-assert a payload a lower layer owns: the shape `saveMatches` is called
-  with is `titleMatches.test.ts`'s.
+  the count matters. It never asserts calls to anything else (i18n, a hook, a helper), and it
+  doesn't re-assert what the action does with those arguments, which the action's own test owns:
+  the shape `chooseTitle` saves is `titleMatches.test.ts`'s.
 - **Roles and names, not classes.** Tests find elements by role and accessible name
   (`getByRole('button', { name: 'Удалить' })`), so a test fails when the behavior changes, not when
   a stylesheet does. The one place a class is the point is a layer-2 test of a design-system
@@ -377,14 +378,16 @@ open lists it as `still open (round <n>)` with no tag, and the retro counts each
 The review comments are the log: no other file to keep in sync. Escaped bugs keep their own
 record, the `test-gap:*` labels ([When we find a bug](#when-we-find-a-bug)).
 
-**When.** After every ten PRs with code merged since the last retro, and at every release
-([RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) → Before every release), whichever comes first. A
+**When.** Once ten PRs have merged that no row of the table below lists, and at every release
+([RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) → Before every release), whichever comes first. The
+review counts them: when it finds ten or more, its verdict line says "retro due", and the
+coordinator of the work (the owner, or the session that hands out PRs) starts it. A
 fresh session runs the retro, not one that wrote or reviewed the PRs in the batch. A `conflict`
 doesn't wait for it: the reviewer says in the report what disagrees with what, and the next docs PR
 settles it.
 
-**How.** Collect the `Test review, round <n>` comments of the PRs merged since the last retro and
-the `test-gap:*` issues closed since then, and count the findings by check and by rule:
+**How.** Collect the `Test review, round <n>` comments of the merged PRs no row lists yet (the
+batch) and the `test-gap:*` issues closed since the last retro, and count the findings by check and by rule:
 
 - Three or more of one check tagged `gap` → rewrite or add the rule, with an example from the
   findings.

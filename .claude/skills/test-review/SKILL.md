@@ -69,11 +69,12 @@ trusted.
   named in the PR that isn't the table's number and name (a sheet in `src/screens/` called layer
   2, "unit", "integration" for a jsdom test) → finding.
 - **D. Behavior, not implementation.** The rule is `docs/TESTING.md` → Choosing a layer → What a
-  mock may be asked. Asserting which request an API mock received and with what arguments is fine
-  when that request is the screen's behavior. Findings: a payload a lower layer owns (the shape
-  `saveMatches` is called with is `titleMatches.test`'s); a call count on a module that isn't an
-  API client, or a count that isn't itself the behavior, or a behavioral count without a comment
-  saying why it matters; CSS classes anywhere but a design-system component's own test;
+  mock may be asked. Asserting what a screen hands off to (an API client or a domain action such as
+  `addRelease`, `chooseTitle`, `forgetMatches`) and with what arguments is fine when that hand-off
+  is the screen's behavior. Findings: re-asserting what the action does with those arguments,
+  which its own test owns (the shape `chooseTitle` saves is `titleMatches.test`'s); a call
+  assertion on anything else (i18n, a hook, a helper); a count that isn't itself the behavior, or
+  a behavioral count without a comment saying why it matters; CSS classes anywhere but a design-system component's own test;
   `expect.anything()` standing in for a real check.
 - **E. Fakes and fixtures stay true.** A new or changed answer in `server/test/fakes.ts` is
   compared with the middleware it imitates (`server/*.ts`: status codes, `error` codes, body
@@ -109,7 +110,8 @@ trusted.
 ## 4. Report
 
 Findings first, most severe first: blocking (B, D, E with a drift, I missing, K, A without a
-reason), then should-fix (C, F, G, H, J), then nits. One line per finding: `file:line`, the defect,
+reason), then should-fix (C, F, G, H, J), then nits. Each defect is one finding under one check:
+a new sheet or state without a baseline is G, not also A. One line per finding: `file:line`, the defect,
 the rule (a few words from `docs/TESTING.md`), the fix, and the tag `[<check> · <rule>]`: the
 check's letter, and `clear` when the rule says it plainly, `gap` when no rule covers it or the rule
 reads both ways, `conflict` when `docs/TESTING.md` and this skill (or the PR template, or
@@ -117,7 +119,10 @@ reads both ways, `conflict` when `docs/TESTING.md` and this skill (or the PR tem
 it. The tags feed the retro (`docs/TESTING.md` → Improving the system); tag honestly, a `gap` is
 not the author's fault.
 
-Then one verdict line: **ready to merge** or **needs changes**, with the count per severity.
+Then one verdict line: **ready to merge** or **needs changes**, with the count per severity. Add
+"retro due" to it when ten or more merged PRs are missing from the retro table in
+`docs/TESTING.md` → Improving the system (list the merged PRs since that table's last date and
+take out the ones its rows name).
 Nothing else: no summary of the PR, no praise, no repeat of what the PR description already says.
 On a PR, post the report as one comment headed `Test review, round <n>`:
 `gh api repos/{owner}/{repo}/issues/<n>/comments -F body=@report.md`, or the GitHub MCP tools. Hand the blocking and
