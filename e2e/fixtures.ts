@@ -5,7 +5,7 @@
  */
 import { shogunTorrent as shogunTorrentBytes } from '../src/test/fixtures.ts'
 
-export { GUESSED, LONG_OVERVIEW_ID, NOW, RELEASES, TITLES, TORRENTS, details, mainData, page, torrentFiles } from '../src/test/fixtures.ts'
+export { GB, GUESSED, LONG_OVERVIEW_ID, NOW, RELEASES, TITLES, TORRENTS, details, mainData, page, torrentFiles } from '../src/test/fixtures.ts'
 
 /** A .torrent for the Shōgun release, as `route.fulfill` wants it. */
 export function shogunTorrent(): Buffer {
