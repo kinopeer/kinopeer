@@ -252,7 +252,7 @@ describe('useMoveTorrent', () => {
     await userEvent.click(within(first).getByRole('button', { name: 'Cancel' }))
     const again = await open()
     fail(new api.QbittorrentError('no access', 403))
-    expect(await within(again).findByText('qBittorrent has no access to that folder.')).toBeInTheDocument()
+    expect(await within(again).findByRole('alert', { name: saying('qBittorrent has no access to that folder.') })).toBeInTheDocument()
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 

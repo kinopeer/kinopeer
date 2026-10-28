@@ -517,7 +517,7 @@ describe('DownloadsScreen', () => {
     getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     window.dispatchEvent(new Event('online'))
     expect(await screen.findByRole('status', { name: saying('No connection to qBittorrent') })).toBeInTheDocument()
-    expect(screen.getByText('Updated just now · actions paused')).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: saying('Updated just now · actions paused') })).toBeInTheDocument()
     expect(screen.getAllByRole('listitem')).toHaveLength(3)
   })
 })

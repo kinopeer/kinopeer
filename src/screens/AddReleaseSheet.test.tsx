@@ -257,7 +257,7 @@ describe('AddReleaseSheet', () => {
     readTorrentFile.mockResolvedValue({ ...META, files: [{ path: 'Breaking Bad', size: 50e9 }] })
     renderSheet()
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
-    expect(await within(sheet).findByText(/10\.0\sGB short of this download\. Free up space before it finishes\.$/)).toBeInTheDocument()
+    expect(await within(sheet).findByRole('status', { name: saying(/10\.0\sGB short of this download\. Free up space before it finishes\.$/) })).toBeInTheDocument()
     expect(within(sheet).queryByText(/Skip some files/)).not.toBeInTheDocument()
   })
 
