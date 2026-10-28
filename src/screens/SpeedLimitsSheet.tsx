@@ -39,6 +39,8 @@ export function SpeedLimitsSheet({ torrent, title, onClose, onChanged }: SpeedLi
       onChanged()
       onClose()
     } catch {
+      // The first of the two requests may have gone through: show the list what was applied.
+      onChanged()
       setFailed(true)
       setSaving(false)
     }

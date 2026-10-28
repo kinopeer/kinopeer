@@ -52,7 +52,8 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 
 ## 0.8: Torrent control
 
-- [ ] Torrent details: per-torrent speed limits, recheck, reannounce and moving the files to another folder.
+- [x] Torrent details: per-torrent speed limits.
+- [ ] Torrent details: recheck, reannounce and moving the files to another folder.
 - [ ] A switch for qBittorrent's alternative speed limits in the sidebar.
 - [ ] Releases: which indexers failed, and why, when a search comes back partly empty.
 

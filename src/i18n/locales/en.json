@@ -428,7 +428,7 @@
     "hint": "Leave a field empty to remove its limit.",
     "invalid": "Enter a number, e.g. 2.5",
     "save": "Save limits",
-    "failed": "Couldn't save the limits. Check the connection to qBittorrent and try again.",
+    "failed": "Couldn't save the limits, or saved only some of them. Check the connection to qBittorrent and try again.",
     "downloadRow": "Download limit",
     "uploadRow": "Upload limit"
   }

@@ -33,6 +33,19 @@ test.describe('downloads, phone', () => {
     await expect(page).toHaveScreenshot('grid-actions-dark-ru.png')
   })
 
+  test('speed limits sheet from the actions sheet', async ({ page }) => {
+    await openDownloads(page, { downloadsView: 'grid' })
+    await page.getByRole('button', { name: 'Ещё действия: Дюна: Часть вторая' }).click()
+    await page.getByRole('button', { name: 'Лимиты скорости' }).click()
+    const sheet = page.getByRole('dialog', { name: 'Лимиты скорости' })
+    // One field with a limit and one left empty, so both states show.
+    const download = sheet.getByRole('textbox', { name: 'Лимит загрузки, МБ/с' })
+    await download.fill('2,5')
+    await download.blur()
+    await settle(page)
+    await expect(page).toHaveScreenshot('speed-limits-dark-ru.png')
+  })
+
   test('sort and filter sheet', async ({ page }) => {
     await openDownloads(page)
     await page.getByRole('button', { name: 'Сортировка: Приоритет' }).click()
