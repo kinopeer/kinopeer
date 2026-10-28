@@ -11,6 +11,7 @@ describe('limitToField and fieldToLimit', () => {
     expect(limitToField(-1, 'en')).toBe('')
     // A qBittorrent that doesn't report it: no limit known, rather than "NaN".
     expect(limitToField(undefined, 'en')).toBe('')
+    expect(limitToField(Number.NaN, 'en')).toBe('')
   })
 
   it("writes the language's decimal separator and no grouping", () => {
@@ -54,15 +55,16 @@ describe('limitToField and fieldToLimit', () => {
 
   it("rejects a limit above what qBittorrent stores, which it would wrap or read as no limit", () => {
     expect(fieldToLimit('2147')).toBe(2_147_000_000)
+    expect(fieldToLimit('2147.4')).toBeNull()
     expect(fieldToLimit('2148')).toBeNull()
     expect(fieldToLimit('3000')).toBeNull()
     expect(fieldToLimit('9'.repeat(40))).toBeNull()
   })
 
-  it('fills the largest limit qBittorrent stores as one the field takes back', () => {
-    expect(limitToField(2_147_483_647, 'en')).toBe('2147.483')
-    expect(fieldToLimit(limitToField(2_147_483_647, 'en'))).toBe(2_147_483_000)
-    expect(fieldToLimit(limitToField(2_147_000_600, 'en'))).not.toBeNull()
+  it('fills a limit above the field\'s maximum as the maximum, which the field takes back', () => {
+    expect(limitToField(2_147_483_647, 'en')).toBe('2147')
+    expect(limitToField(2_147_000_600, 'en')).toBe('2147')
+    expect(fieldToLimit(limitToField(2_147_483_647, 'en'))).toBe(2_147_000_000)
   })
 })
 

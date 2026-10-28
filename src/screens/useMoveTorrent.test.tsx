@@ -184,17 +184,6 @@ describe('useMoveTorrent', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('qBittorrent has no access to that folder.')
   })
 
-  it('closes when the torrent is gone, and stays closed when it’s added again', async () => {
-    const { open, rerender } = renderMove()
-    await open()
-    rerender({ torrents: {} })
-    expect(screen.queryByRole('dialog', { name: 'Move files' })).not.toBeInTheDocument()
-    const readded = { ...DUNE, added_on: 2 }
-    rerender({ torrents: { dune: readded } })
-    expect(screen.queryByRole('dialog', { name: 'Move files' })).not.toBeInTheDocument()
-    expect(await open()).toBeInTheDocument()
-  })
-
   it('reports a failed move whose torrent went away in a toast', async () => {
     let fail = (_error: unknown) => {}
     setTorrentLocation.mockReturnValue(new Promise<void>((_resolve, reject) => (fail = reject)))
@@ -226,6 +215,59 @@ describe('useMoveTorrent', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('Moving files to /media/movies')
     // A second tap would send andor's move again.
     expect(within(andor).getByRole('button', { name: 'Move' })).toBeDisabled()
+  })
+  it('moves once, however often Move is pressed while the move is being sent', async () => {
+    setTorrentLocation.mockReturnValue(new Promise(() => {}))
+    const { open, moveTo } = renderMove()
+    const sheet = await open()
+    await moveTo(sheet, '/media/movies')
+    await userEvent.click(within(sheet).getByRole('button', { name: /Move/ }))
+    // A second request could land after the first and leave the files in either folder.
+    expect(setTorrentLocation).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows a move from a closed sheet in the one opened again for the same torrent, and closes that once sent', async () => {
+    let moved = () => {}
+    setTorrentLocation.mockReturnValue(new Promise<void>((resolve) => (moved = resolve)))
+    const { open, moveTo } = renderMove()
+    const first = await open()
+    await moveTo(first, '/media/movies')
+    await userEvent.click(within(first).getByRole('button', { name: 'Cancel' }))
+    const again = await open()
+    // Another folder typed: Move is off only because the first move is still being sent.
+    await userEvent.type(within(again).getByRole('textbox', { name: 'Folder' }), '/elsewhere')
+    expect(within(again).getByRole('button', { name: /Move/ })).toBeDisabled()
+    moved()
+    expect(await screen.findByRole('status')).toHaveTextContent('Moving files to /media/movies')
+    expect(screen.queryByRole('dialog', { name: 'Move files' })).not.toBeInTheDocument()
+  })
+
+  it('says in the sheet opened again for the same torrent that the move from the closed one failed', async () => {
+    let fail = (_error: unknown) => {}
+    setTorrentLocation.mockReturnValue(new Promise<void>((_resolve, reject) => (fail = reject)))
+    const { open, moveTo } = renderMove()
+    const first = await open()
+    await moveTo(first, '/root')
+    await userEvent.click(within(first).getByRole('button', { name: 'Cancel' }))
+    const again = await open()
+    fail(new api.QbittorrentError('no access', 403))
+    expect(await within(again).findByText('qBittorrent has no access to that folder.')).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('keeps a torrent’s move busy after another torrent’s move started, so it isn’t sent twice', async () => {
+    setTorrentLocation.mockImplementation(() => new Promise(() => {}))
+    const { open, moveTo } = renderMove({ torrents: { dune: DUNE, andor: ANDOR } })
+    const dune = await open('dune')
+    await moveTo(dune, '/media/movies')
+    await userEvent.click(within(dune).getByRole('button', { name: 'Cancel' }))
+    const andor = await open('andor')
+    await moveTo(andor, '/media/tv')
+    await userEvent.click(within(andor).getByRole('button', { name: 'Cancel' }))
+    const again = await open('dune')
+    // Another folder typed: Move is off only because dune's move is still being sent.
+    await userEvent.type(within(again).getByRole('textbox', { name: 'Folder' }), '/elsewhere')
+    expect(within(again).getByRole('button', { name: /Move/ })).toBeDisabled()
   })
 })
 

@@ -1,16 +1,19 @@
 /** Limits are entered in MB/s, the unit `format.speed` shows (decimal, like the rest of the app). */
 const MB = 1_000_000
 
-/** qBittorrent keeps a limit in an int: a larger one wraps around, or reads as no limit. */
-const MAX_LIMIT = 2_147_483_647
+/** The field's bounds in MB/s. qBittorrent keeps a limit in an int (2 147 483 647 B/s): a larger one
+ *  wraps around, or reads as no limit, so the field stops at the last whole MB/s under it. */
+export const MIN_MB = 0.001
+export const MAX_MB = 2147
 
 /** A limit in bytes/s as the field's text, with the language's decimal separator: empty when there
  *  is none. Three decimals keep qBittorrent's smallest limit, 1 KiB/s, from showing as 0. */
 export function limitToField(bytes: number | undefined, language: string): string {
-  // Also when qBittorrent doesn't report it, so the field doesn't show NaN.
-  if (!(bytes !== undefined && bytes > 0)) return ''
-  // Rounded down at the top, so the largest limit fills as one `fieldToLimit` takes back.
-  const value = Math.min(Math.max(0.001, Math.round((bytes / MB) * 1000) / 1000), Math.floor(MAX_LIMIT / 1000) / 1000)
+  // Also when qBittorrent doesn't report it or sends something else, so the field doesn't show NaN.
+  if (bytes === undefined || !(bytes > 0)) return ''
+  // Kept within the field's bounds, so what it fills is what it takes back. A limit above the
+  // maximum, set elsewhere, stays as it is while its field is untouched.
+  const value = Math.min(Math.max(MIN_MB, Math.round((bytes / MB) * 1000) / 1000), MAX_MB)
   return value.toLocaleString(language, { maximumFractionDigits: 3, useGrouping: false })
 }
 
@@ -28,7 +31,7 @@ export function fieldToLimit(text: string): number | null {
   if (!/^(\d+([.,]\d*)?|[.,]\d+)$/.test(trimmed)) return null
   const value = Number(trimmed.replace(',', '.'))
   const bytes = Math.round(value * MB)
-  return (value > 0 && bytes < 1000) || bytes > MAX_LIMIT ? null : bytes
+  return (value > 0 && bytes < MIN_MB * MB) || bytes > MAX_MB * MB ? null : bytes
 }
 
 /** The limit to send for a field: undefined when its text is as it was, so a limit set elsewhere in
