@@ -19,7 +19,7 @@ export interface Settings {
   startPaused: boolean
   /** New downloads fetch pieces in order. */
   sequential: boolean
-  /** New downloads fetch each file's first and last pieces first, so a player can open it early. */
+  /** New downloads fetch the start and end of each file first (with sequential, a player can open it early). */
   firstLastPieces: boolean
   /** Language of titles and overviews from TMDB; 'app' follows the interface language. */
   tmdbLanguage: 'app' | 'en-US' | 'ru-RU'
@@ -43,9 +43,17 @@ export const DEFAULT_SETTINGS: Settings = {
   downloadsSort: 'priority',
 }
 
-/** The settings the server keeps too. */
-const SERVER_KEYS = ['movieCategory', 'tvCategory', 'startPaused', 'sequential', 'firstLastPieces'] as const
-type ServerKey = (typeof SERVER_KEYS)[number]
+type ServerKey = keyof DownloadDefaults
+
+/** The settings the server keeps too: a Record, so a default added to DownloadDefaults fails typecheck until it's here. */
+const SERVER_KEY_SET: Record<ServerKey, true> = {
+  movieCategory: true,
+  tvCategory: true,
+  startPaused: true,
+  sequential: true,
+  firstLastPieces: true,
+}
+const SERVER_KEYS = Object.keys(SERVER_KEY_SET) as ServerKey[]
 
 let current: Settings | undefined
 const listeners = new Set<() => void>()

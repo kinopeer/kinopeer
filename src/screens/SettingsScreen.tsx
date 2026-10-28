@@ -80,6 +80,9 @@ function Section({ id, title, children }: { id: string; title: string; children:
   )
 }
 
+/** The download defaults that are on/off switches, in order; each is labelled by `add.<key>`. */
+const DEFAULT_SWITCHES = ['startPaused', 'sequential', 'firstLastPieces'] as const satisfies readonly (keyof Settings)[]
+
 export function SettingsScreen() {
   const { t, i18n } = useTranslation()
   const { preference, setPreference } = useTheme()
@@ -195,30 +198,12 @@ export function SettingsScreen() {
         <div className="ks-card settings-card">
           {categoryField('movie')}
           {categoryField('tv')}
-          <div className="settings-toggle">
-            <span className="t-body">{t('add.startPaused')}</span>
-            <Toggle
-              label={t('add.startPaused')}
-              checked={settings.startPaused}
-              onChange={(startPaused) => update({ startPaused })}
-            />
-          </div>
-          <div className="settings-toggle">
-            <span className="t-body">{t('add.sequential')}</span>
-            <Toggle
-              label={t('add.sequential')}
-              checked={settings.sequential}
-              onChange={(sequential) => update({ sequential })}
-            />
-          </div>
-          <div className="settings-toggle">
-            <span className="t-body">{t('add.firstLastPieces')}</span>
-            <Toggle
-              label={t('add.firstLastPieces')}
-              checked={settings.firstLastPieces}
-              onChange={(firstLastPieces) => update({ firstLastPieces })}
-            />
-          </div>
+          {DEFAULT_SWITCHES.map((key) => (
+            <div key={key} className="settings-toggle">
+              <span className="t-body">{t(`add.${key}`)}</span>
+              <Toggle label={t(`add.${key}`)} checked={settings[key]} onChange={(on) => update({ [key]: on })} />
+            </div>
+          ))}
         </div>
         <p className="t-cap c3 settings-hint">{t('settings.defaultsHint')}</p>
       </Section>
