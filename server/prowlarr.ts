@@ -229,7 +229,6 @@ export function indexerNames(indexers: ProwlarrIndexer[], ids: Set<number>): str
     .sort((a, b) => a.localeCompare(b))
 }
 
-
 /**
  * The longest `within` accepted, as the client's MAX_FAILING_WITHIN_MS (a value, so not imported:
  * the image carries server/ without src/; a test keeps them equal).
@@ -279,6 +278,21 @@ class UpstreamError extends Error {
     super(code)
     this.code = code
   }
+}
+
+/**
+ * Whether Prowlarr at `base` takes `apiKey`: 'invalid' when it answers 401, 'not-prowlarr' when
+ * the answer isn't Prowlarr's status (a proxy's login page, an app's index.html). Throws when it
+ * doesn't answer or answers with another error.
+ */
+export async function checkProwlarrKey(base: string, apiKey: string): Promise<'valid' | 'invalid' | 'not-prowlarr'> {
+  const response = await fetch(`${base}/api/v1/system/status`, {
+    headers: { 'X-Api-Key': apiKey, Accept: 'application/json' },
+  })
+  if (response.status === 401) return 'invalid'
+  if (!response.ok) throw new Error(`Prowlarr answered ${response.status}`)
+  const body = (await response.json().catch(() => undefined)) as { version?: unknown } | undefined
+  return typeof body?.version === 'string' ? 'valid' : 'not-prowlarr'
 }
 
 /** Prowlarr's API key from its config.xml (<ApiKey>…</ApiKey>), or undefined when it can't be read. */

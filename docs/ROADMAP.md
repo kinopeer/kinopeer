@@ -53,7 +53,8 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 
 ## 0.8: Torrent control
 
-- [ ] Torrent details: per-torrent speed limits, recheck, reannounce and moving the files to another folder.
+- [x] Torrent details: recheck and reannounce.
+- [ ] Torrent details: per-torrent speed limits and moving the files to another folder.
 - [ ] A switch for qBittorrent's alternative speed limits in the sidebar.
 - [x] Releases: which indexers failed when a search comes back partly empty. Not why: Prowlarr's API keeps only when an indexer failed, and the reason stays in its logs.
 
@@ -61,7 +62,7 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 
 - [ ] Installing with plain Docker, outside Umbrel, together with Kinoseed's own login.
 - [ ] Onboarding works on a clean install with qBittorrent and Prowlarr set only through the environment.
-- [ ] A Prowlarr API key field in Settings, kept on the server like the TMDB key, for installs that can't read Prowlarr's `config.xml`.
+- [x] A Prowlarr API key field in Settings, kept on the server like the TMDB key, for installs that can't read Prowlarr's `config.xml`.
 
 ## 1.0: Public release
 

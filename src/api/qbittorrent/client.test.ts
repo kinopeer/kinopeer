@@ -7,6 +7,8 @@ import {
   getDefaultSavePath,
   getTorrentFiles,
   getTorrents,
+  reannounceTorrents,
+  recheckTorrents,
   setFilePriority,
   startTorrents,
   stopTorrents,
@@ -149,6 +151,22 @@ describe('stopTorrents', () => {
     respond('')
     await stopTorrents(['a'])
     expect(lastCall().url).toBe('/qbt/api/v2/torrents/pause')
+  })
+})
+
+describe('recheckTorrents and reannounceTorrents', () => {
+  it('post the hashes joined with a pipe', async () => {
+    respond('')
+    await recheckTorrents(['a', 'b'])
+    expect(lastCall().url).toBe('/qbt/api/v2/torrents/recheck')
+    expect(lastCall().init.method).toBe('POST')
+    expect(String(lastCall().init.body)).toBe('hashes=a%7Cb')
+
+    respond('')
+    await reannounceTorrents(['a'])
+    expect(lastCall().url).toBe('/qbt/api/v2/torrents/reannounce')
+    expect(lastCall().init.method).toBe('POST')
+    expect(String(lastCall().init.body)).toBe('hashes=a')
   })
 })
 

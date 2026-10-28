@@ -21,8 +21,8 @@ export async function readJson(request: IncomingMessage, maxBytes: number): Prom
 }
 
 /**
- * Only JSON bodies change anything: a cross-site form can't send one without a CORS preflight,
- * which never succeeds here.
+ * Only requests marked as JSON change anything (a DELETE too, with the header and no body): a
+ * cross-site form can't send that content type without a CORS preflight, which never succeeds here.
  */
 export function isJsonRequest(request: IncomingMessage): boolean {
   return request.headers['content-type']?.startsWith('application/json') ?? false

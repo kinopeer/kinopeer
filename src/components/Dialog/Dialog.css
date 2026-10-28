@@ -26,6 +26,14 @@
   padding: var(--space-6) var(--space-5) var(--space-4);
 }
 
+/* The title and what the dialog says under it; a release name can be one long word. */
+.ks-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  overflow-wrap: anywhere;
+}
+
 .ks-dialog-icon {
   width: 48px;
   height: 48px;
