@@ -214,6 +214,26 @@ describe('TorrentScreen', () => {
     await waitFor(() => expect(savePath).toHaveTextContent('/media/movies'))
   })
 
+  it('says how a move went when the torrent is gone by the time qBittorrent answers', async () => {
+    vi.mocked(api.getSaveLocations).mockResolvedValue({ defaultPath: '/downloads', categories: [], categoryPaths: false, subcategories: false })
+    let fail = (_error: unknown) => {}
+    vi.mocked(api.setTorrentLocation).mockReturnValue(new Promise<void>((_resolve, reject) => (fail = reject)))
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Dune: Part Two' })).getByRole('button', { name: 'Move files…' }))
+    const sheet = screen.getByRole('dialog', { name: 'Move files' })
+    const field = within(sheet).getByRole('textbox', { name: 'Folder' })
+    await userEvent.clear(field)
+    await userEvent.type(field, '/media/movies')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Move' }))
+
+    getMainData.mockResolvedValue(mainData([]))
+    window.dispatchEvent(new Event('online'))
+    expect(await screen.findByText('Torrent not found')).toBeInTheDocument()
+    fail(new api.QbittorrentError('conflict', 409))
+    expect(await screen.findByRole('status')).toHaveTextContent('qBittorrent couldn’t create that folder.')
+  })
+
   it('reannounces, and rechecks after a confirmation, from the More menu, each with a toast', async () => {
     vi.mocked(api.recheckTorrents).mockResolvedValue()
     vi.mocked(api.reannounceTorrents).mockResolvedValue()

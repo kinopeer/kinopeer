@@ -167,6 +167,8 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
         >
           {t('torrent.notFoundBody')}
         </EmptyState>
+        {/* A move sent before the torrent went away still says how it went. */}
+        {move.element}
       </Root>
     )
   }
