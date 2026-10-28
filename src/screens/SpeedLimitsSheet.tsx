@@ -57,7 +57,6 @@ export function SpeedLimitsSheet({ torrent, title, offline, onClose, onChanged }
         <Input
           label={t('limits.download')}
           inputMode="decimal"
-          placeholder={t('limits.unlimited')}
           help={t('limits.hint')}
           value={download}
           onChange={(event) => setDownload(event.target.value)}
@@ -66,7 +65,6 @@ export function SpeedLimitsSheet({ torrent, title, offline, onClose, onChanged }
         <Input
           label={t('limits.upload')}
           inputMode="decimal"
-          placeholder={t('limits.unlimited')}
           help={t('limits.hint')}
           value={upload}
           onChange={(event) => setUpload(event.target.value)}

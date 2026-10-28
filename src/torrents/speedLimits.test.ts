@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { changedLimit, fieldToLimit, limitToField, MAX_LIMIT } from './speedLimits'
+import { changedLimit, fieldToLimit, limitToField } from './speedLimits'
 
 describe('limitToField and fieldToLimit', () => {
   it('shows a limit in MB/s and no limit as an empty field', () => {
@@ -43,7 +43,6 @@ describe('limitToField and fieldToLimit', () => {
   })
 
   it("rejects a limit above what qBittorrent stores, which it would wrap or read as no limit", () => {
-    expect(MAX_LIMIT).toBe(2_147_483_647)
     expect(fieldToLimit('2147')).toBe(2_147_000_000)
     expect(fieldToLimit('2148')).toBeNull()
     expect(fieldToLimit('3000')).toBeNull()

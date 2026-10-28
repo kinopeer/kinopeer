@@ -168,7 +168,13 @@ export async function setSpeedLimits(hashes: string[], limits: { download?: numb
   const joined = hashes.join('|')
   const set = (path: string, limit: number | undefined) =>
     limit === undefined ? undefined : request(path, { method: 'POST', params: { hashes: joined, limit } })
-  await Promise.all([set('/torrents/setDownloadLimit', limits.download), set('/torrents/setUploadLimit', limits.upload)])
+  // Both run at once, and a failure waits for the other request, so a refresh after it sees both.
+  const results = await Promise.allSettled([
+    set('/torrents/setDownloadLimit', limits.download),
+    set('/torrents/setUploadLimit', limits.upload),
+  ])
+  const failed = results.find((result): result is PromiseRejectedResult => result.status === 'rejected')
+  if (failed) throw failed.reason
 }
 
 /** Removes torrents from qBittorrent, and with `deleteFiles` their downloaded data too. */

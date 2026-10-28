@@ -2,7 +2,7 @@
 const MB = 1_000_000
 
 /** qBittorrent keeps a limit in an int: a larger one wraps around, or reads as no limit. */
-export const MAX_LIMIT = 2_147_483_647
+const MAX_LIMIT = 2_147_483_647
 
 /** A limit in bytes/s as the field's text, with the language's decimal separator: empty when there
  *  is none. Three decimals keep qBittorrent's smallest limit, 1 KiB/s, from showing as 0. */

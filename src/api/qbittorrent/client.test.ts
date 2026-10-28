@@ -130,7 +130,22 @@ describe('setSpeedLimits', () => {
     fetchMock.mockReturnValueOnce(new Promise(() => {}))
     respond('')
     void setSpeedLimits(['a'], { download: 1_000_000, upload: 1_000_000 })
+    // Two calls while the first never answers: the upload request didn't wait for it.
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+  })
+
+  it('fails only once both requests are over, so the caller never refreshes with one still in flight', async () => {
+    respond('Bad', 500)
+    let answerUpload!: (response: Response) => void
+    fetchMock.mockReturnValueOnce(new Promise((resolve) => (answerUpload = resolve)))
+    let settled = false
+    const saving = setSpeedLimits(['a'], { download: 1_000_000, upload: 1_000_000 }).finally(() => (settled = true))
+    saving.catch(() => {})
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(settled).toBe(false)
+    answerUpload(new Response(''))
+    await expect(saving).rejects.toThrow('qBittorrent responded 500')
   })
 
   it('sets the download and the upload limit in bytes/s', async () => {
