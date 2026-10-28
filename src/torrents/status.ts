@@ -35,6 +35,15 @@ export function downloadStatus(torrent: Pick<Torrent, 'state'>): DownloadStatus 
 }
 
 /** Statuses with something to stop; the rest offer Resume. */
+/**
+ * Whether qBittorrent has the torrent's metadata (its files and pieces). A magnet link has none
+ * until peers send it, whatever its state: qBittorrent reports its total size as -1 until then, on
+ * 4.x and 5.x alike (5.x also sends `has_metadata`).
+ */
+export function hasMetadata(torrent: Pick<Torrent, 'total_size'>): boolean {
+  return torrent.total_size !== -1
+}
+
 export function isRunning(status: DownloadStatus): boolean {
   return status === 'downloading' || status === 'seeding' || status === 'queued' || status === 'checking'
 }

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, type ButtonHTMLAttributes, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
+import { useId, useLayoutEffect, useRef, type ButtonHTMLAttributes, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { cx } from '../../lib/cx'
 import { Icon, type IconName } from '../Icon'
@@ -85,13 +85,32 @@ interface ItemContent {
 
 export interface MenuItemProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'>, ItemContent {
   danger?: boolean
+  /** Under the label, dimmed, as the item's description: e.g. why it's off. */
+  hint?: string
 }
 
-export function MenuItem({ icon, danger, children, className, ...rest }: MenuItemProps) {
+export function MenuItem({ icon, danger, hint, children, className, ...rest }: MenuItemProps) {
+  const hintId = useId()
   return (
-    <button {...rest} type="button" role="menuitem" tabIndex={-1} className={cx('ks-menu-item', danger && 'is-danger', className)}>
+    <button
+      {...rest}
+      type="button"
+      role="menuitem"
+      tabIndex={-1}
+      aria-describedby={hint ? hintId : undefined}
+      className={cx('ks-menu-item', danger && 'is-danger', className)}
+    >
       {icon && <Icon name={icon} size={18} />}
-      {children}
+      {hint ? (
+        <span className="ks-row-text">
+          <span>{children}</span>
+          <span id={hintId} className="ks-row-hint" aria-hidden="true">
+            {hint}
+          </span>
+        </span>
+      ) : (
+        children
+      )}
     </button>
   )
 }
