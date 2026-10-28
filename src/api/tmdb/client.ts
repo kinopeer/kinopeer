@@ -111,6 +111,11 @@ function toTitlePage(data: Paged<MovieResult | TvResult | PersonResult>): TitleP
   }
 }
 
+/** A page from an endpoint that lists one type and omits media_type (discover, similar). */
+function toTypedPage(data: Paged<MovieResult | TvResult>, type: MediaType): TitlePage {
+  return { titles: data.results.map((item) => toTitle(item, type)), page: data.page, totalPages: data.total_pages }
+}
+
 /** Movies and series matching the query; people are left out. */
 export async function searchTitles(query: string, options: RequestOptions & { page?: number } = {}): Promise<TitlePage> {
   const data = await request<Paged<MovieResult | TvResult | PersonResult>>(
@@ -131,8 +136,7 @@ export async function discoverTitles(
   options: RequestOptions = {},
 ): Promise<TitlePage> {
   const data = await request<Paged<MovieResult | TvResult>>(`/discover/${type}`, params, options)
-  // Discover omits media_type.
-  return { titles: data.results.map((item) => toTitle(item, type)), page: data.page, totalPages: data.total_pages }
+  return toTypedPage(data, type)
 }
 
 /** Titles TMDB recommends to people who liked this one, of the same type. */
@@ -151,9 +155,8 @@ async function getRelated(
   list: 'recommendations' | 'similar',
   options: RequestOptions,
 ): Promise<TitlePage> {
-  const data = await request<Paged<MovieResult | TvResult>>(`/${type}/${id}/${list}`, {}, options)
-  // Similar titles come without media_type; both lists hold only the title's own type.
-  return { titles: data.results.map((item) => toTitle(item, type)), page: data.page, totalPages: data.total_pages }
+  // Both lists hold only the title's own type.
+  return toTypedPage(await request<Paged<MovieResult | TvResult>>(`/${type}/${id}/${list}`, {}, options), type)
 }
 
 export function getMovie(id: number, options: RequestOptions = {}): Promise<MovieDetails> {

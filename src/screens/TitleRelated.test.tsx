@@ -69,6 +69,15 @@ describe('TitleRelated', () => {
     expect(within(row).getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual(['/title/movie/438631'])
   })
 
+  it('falls back to similar titles when the only recommendation is the title itself', async () => {
+    getRecommendations.mockResolvedValue(page(title(693134, 'Dune: Part Two')))
+    getSimilar.mockResolvedValue(page(title(438631, 'Dune')))
+    renderRelated(693134)
+
+    const row = await screen.findByRole('region', { name: 'Similar titles' })
+    expect(within(row).getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual(['/title/movie/438631'])
+  })
+
   it('shows nothing when both lists are empty', async () => {
     const { container } = renderRelated()
     // Both answers are in and applied, so this checks the empty lists, not the loading state.

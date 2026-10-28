@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { getRecommendations, getSimilar, type MediaType, type Title } from '../api/tmdb'
+import { getRecommendations, getSimilar, type MediaType, type Title, type TitlePage } from '../api/tmdb'
 import { useRequest } from '../lib/useRequest'
 import { PosterRow } from './PosterRow'
 
@@ -23,18 +23,18 @@ export interface TitleRelatedProps {
 export function TitleRelated({ type, id, language }: TitleRelatedProps) {
   const { t } = useTranslation()
   const request = useRequest<Related>(`${type}|${id}|${language}|related`, async (signal) => {
-    const recommended = await getRecommendations(type, id, { language, signal })
-    if (recommended.titles.length > 0) return { kind: 'recommendations', titles: recommended.titles }
-    return { kind: 'similar', titles: (await getSimilar(type, id, { language, signal })).titles }
+    // TMDB can list the title among its own, so it's left out before deciding whether to fall back.
+    const others = (page: TitlePage) => page.titles.filter((title) => title.id !== id)
+    const recommended = others(await getRecommendations(type, id, { language, signal }))
+    if (recommended.length > 0) return { kind: 'recommendations', titles: recommended }
+    return { kind: 'similar', titles: others(await getSimilar(type, id, { language, signal })) }
   })
-  // TMDB can list the title among its own similar ones.
-  const titles = request.data?.titles.filter((title) => title.id !== id) ?? []
-  if (!request.data || titles.length === 0) return null
+  if (!request.data || request.data.titles.length === 0) return null
   return (
     <PosterRow
       id="title-related"
       heading={t(request.data.kind === 'recommendations' ? 'title.recommendations' : 'title.similar')}
-      titles={titles}
+      titles={request.data.titles}
     />
   )
 }
