@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
 import { TorrentFiles } from './TorrentFiles'
+import { saying } from '../test/render'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
   ...(await importOriginal<typeof api>()),
@@ -30,7 +31,7 @@ beforeEach(() => {
 describe('TorrentFiles', () => {
   it('shows a loading state, then the files with their progress and count', async () => {
     const files = renderFiles()
-    expect(within(files).getByRole('status')).toHaveTextContent('Loading files')
+    expect(within(files).getByRole('status', { name: saying('Loading files') })).toBeInTheDocument()
     expect(files).toHaveAttribute('aria-busy', 'true')
 
     expect(await within(files).findByText('Dune.Part.Two.mkv')).toBeInTheDocument()
@@ -54,7 +55,7 @@ describe('TorrentFiles', () => {
     const files = renderFiles()
     const main = await within(files).findByRole('combobox', { name: 'Priority: Dune.Part.Two.mkv' })
     await userEvent.selectOptions(main, 'skip')
-    expect(await within(files).findByRole('alert')).toHaveTextContent('Couldn’t change the priority. Try again.')
+    expect(await within(files).findByRole('alert', { name: saying('Couldn’t change the priority. Try again.') })).toBeInTheDocument()
     expect(main).toHaveValue('normal')
   })
 
@@ -92,7 +93,7 @@ describe('TorrentFiles', () => {
   it('says when the list can’t be loaded at all', async () => {
     getTorrentFiles.mockRejectedValue(new TypeError('Failed to fetch'))
     const files = renderFiles()
-    expect(await within(files).findByRole('alert')).toHaveTextContent('Couldn’t load the file list.')
+    expect(await within(files).findByRole('alert', { name: saying('Couldn’t load the file list.') })).toBeInTheDocument()
     expect(within(files).queryByRole('status')).not.toBeInTheDocument()
   })
 })

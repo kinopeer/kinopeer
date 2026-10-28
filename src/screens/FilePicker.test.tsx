@@ -87,6 +87,7 @@ describe('FilePicker', () => {
     const onDone = vi.fn()
     const picker = renderPicker({ onDone })
     await userEvent.click(picker.getByRole('button', { name: 'Back' }))
+    expect(onDone).toHaveBeenCalledTimes(1)
     await userEvent.click(picker.getByRole('button', { name: 'Done' }))
     expect(onDone).toHaveBeenCalledTimes(2)
   })

@@ -6,7 +6,7 @@ import * as tmdb from '../api/tmdb'
 import type { Title } from '../api/tmdb'
 import i18n from '../i18n'
 import { title } from '../test/fixtures'
-import { renderWithRouter } from '../test/render'
+import { renderWithRouter, saying } from '../test/render'
 import { SearchScreen } from './SearchScreen'
 
 vi.mock('../api/tmdb', async (importOriginal) => {
@@ -48,7 +48,7 @@ function row(name: string) {
 describe('SearchScreen', () => {
   it('shows titles likely on torrents already before a search', async () => {
     renderScreen()
-    expect(screen.getByRole('status')).toHaveTextContent('Loading')
+    expect(screen.getByRole('status', { name: saying('Loading') })).toBeInTheDocument()
     expect(await screen.findByRole('heading', { name: 'New on digital' })).toBeInTheDocument()
 
     expect(screen.getByRole('heading', { name: 'New episodes' })).toBeInTheDocument()
@@ -124,6 +124,7 @@ describe('SearchScreen', () => {
     await userEvent.type(screen.getByRole('searchbox', { name: 'Search' }), 'dune')
 
     expect(await screen.findByText('2 results')).toBeInTheDocument()
+    // One search for the whole word, not one per key typed.
     expect(searchTitles).toHaveBeenCalledTimes(1)
     expect(searchTitles).toHaveBeenCalledWith('dune', expect.anything())
     expect(screen.getByRole('link', { name: /Dune: Part Two/ })).toHaveAttribute('href', '/title/movie/1')
@@ -156,7 +157,7 @@ describe('SearchScreen', () => {
 
     await userEvent.type(screen.getByRole('textbox', { name: 'Release year' }), '20x22')
     // The old results go while the year waits for the debounce.
-    expect(screen.getByRole('status')).toHaveTextContent('Loading')
+    expect(screen.getByRole('status', { name: saying('Loading') })).toBeInTheDocument()
 
     expect(await screen.findByText('1 result')).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'Release year' })).toHaveValue('2022')
@@ -293,7 +294,7 @@ describe('SearchScreen', () => {
     // The browser restores the scroll before the results are back, so it's clamped to the short page.
     scrolledTo(80)
     await userEvent.click(screen.getByRole('button', { name: 'Back' }))
-    expect(screen.getByRole('status')).toHaveTextContent('Loading')
+    expect(screen.getByRole('status', { name: saying('Loading') })).toBeInTheDocument()
     expect(scrollTo).not.toHaveBeenCalled()
 
     await act(async () => answer())

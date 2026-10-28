@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as serverSettings from '../api/settings'
 import type { ServerSettings } from '../api/settings'
 import { ProwlarrKeyForm } from './ProwlarrKeyForm'
+import { saying } from '../test/render'
 
 vi.mock('../api/settings', async (importOriginal) => ({
   ...(await importOriginal<typeof serverSettings>()),
@@ -76,7 +77,7 @@ describe('ProwlarrKeyForm', () => {
     const { field, save } = renderForm()
     await userEvent.type(field, 'abc123')
     await userEvent.click(save)
-    expect(await screen.findByText(message)).toBeInTheDocument()
+    expect(await screen.findByRole('alert', { name: saying(message) })).toBeInTheDocument()
   })
 
   it("goes back to the server's key and hands the settings on", async () => {
@@ -102,7 +103,7 @@ describe('ProwlarrKeyForm', () => {
     const { onForgotten } = renderForm(true)
     const forget = screen.getByRole('button', { name: 'Use the server’s key' })
     await userEvent.click(forget)
-    expect(await screen.findByText(message)).toBeInTheDocument()
+    expect(await screen.findByRole('alert', { name: saying(message) })).toBeInTheDocument()
     expect(onForgotten).not.toHaveBeenCalled()
 
     await userEvent.click(forget)

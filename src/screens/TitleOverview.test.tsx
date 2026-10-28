@@ -13,6 +13,8 @@ describe('TitleOverview', () => {
     stubLayout(130, 260)
     render(<TitleOverview text={TEXT} />)
     const text = screen.getByText(TEXT)
+    // is-clamped is what cuts the text to five lines (aria-expanded says only whether it's open), and
+    // jsdom can't lay the cut out.
     expect(text).toHaveClass('is-clamped')
     expect(screen.getByRole('region', { name: 'Overview' })).toContainElement(text)
     const more = screen.getByRole('button', { name: 'Show more' })
@@ -32,7 +34,6 @@ describe('TitleOverview', () => {
   it('has no button when the overview fits', () => {
     stubLayout(78, 78)
     render(<TitleOverview text={TEXT} />)
-    expect(screen.getByText(TEXT)).toHaveClass('is-clamped')
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 

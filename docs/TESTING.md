@@ -76,19 +76,40 @@ milliseconds, fails with a precise message, and it's the one the layer above lea
   confirmation although `DownloadsWithDrawer.test.tsx` already sends the `cancel` event, because
   jsdom never turns Escape into `cancel`, and only Chromium shows where the browser's own event and
   React's dispatch meet.
-- **What a mock may be asked.** A layer-3 test may assert what it hands off to: an API client or a
-  domain action (`addRelease`, `chooseTitle`, `forgetMatches`), and with what arguments, when that
-  hand-off is the screen's behavior ("Save sends the new category", "Delete forgets the match").
-  It asserts a count only when the count is the behavior (a duplicate request, nothing sent
-  until…), with `not.toHaveBeenCalled()` or `toHaveBeenCalledTimes(n)` and a comment saying why
-  the count matters. It never asserts calls to anything else (i18n, a hook, a helper), and it
-  doesn't re-assert what the action does with those arguments, which the action's own test owns:
-  the shape `chooseTitle` saves is `titleMatches.test.ts`'s.
+- **What a mock may be asked.** A layer-3 test may assert what it hands off to, and with what
+  arguments, when that hand-off is the screen's behavior: an API client or a domain action
+  (`addRelease`, `chooseTitle`, `forgetMatches`), a callback prop it reports to (`onSaved`,
+  `onClose`), or a browser API it drives (`scrollIntoView`). "Save sends the new category", "Delete
+  forgets the match", "a failed save doesn't report success". It asserts a count only when the count
+  is the behavior (a duplicate request, nothing sent until…), with `not.toHaveBeenCalled()` or
+  `toHaveBeenCalledTimes(n)`, and with a comment saying why the count matters unless the test's name
+  already says it. It never asserts calls to anything else (i18n, a hook, a helper), and it doesn't
+  re-assert what the action does with those arguments, which the action's own test owns: the shape
+  `chooseTitle` saves is `titleMatches.test.ts`'s. An argument the test isn't about may be
+  `expect.anything()` when another test in the file asserts it (the options in
+  `AddReleaseSheet.test.tsx`'s magnet test), or the test of the shared hook that makes the call (a
+  releases search's options are `useReleases.test.ts`'s); standing in for the argument the test's
+  name is about, it hides the check.
 - **Roles and names, not classes.** Tests find elements by role and accessible name
   (`getByRole('button', { name: 'Удалить' })`), so a test fails when the behavior changes, not when
-  a stylesheet does. The one place a class is the point is a layer-2 test of a design-system
-  component (`Button`, `IconButton`, `Dialog`): their classes are the contract with their CSS, so
-  `toHaveClass('ks-btn-primary')` is what such a test is about. Nowhere else.
+  a stylesheet does. A class is the point in a layer-2 test of a design-system component (`Button`,
+  `IconButton`, `Dialog`): their classes are the contract with their CSS, so
+  `toHaveClass('ks-btn-primary')` is what such a test is about. Elsewhere a class is asserted only
+  where the class itself does what the test says and no role or attribute shows it, with a comment
+  saying what it does: the cut of a clamped text (`is-clamped`, `ks-clamp2`: the button's
+  `aria-expanded` says whether it's open, the class is what cuts it), `is-on` on the tab highlighted
+  for the page behind a drawer, or the root class that tells the sidebar from the tab bar, which
+  share one role and name. A decorative image has no role: it is found by its `src`
+  (`img[src="…"]`), or by its frame's class, with a comment, where another image shares the `src`
+  (the title page's poster and backdrop). Errors, confirmations and other live messages are found by
+  their `alert` or `status` role, which is also what a screen reader announces, and their text
+  through `saying()` from `src/test/render.tsx`, as the query's `{ name: saying('Torrent deleted')
+  }`. A string matches the whole text, as `getByText` does, so "12 torrents deleted" isn't "2
+  torrents deleted"; a RegExp is for a part of a longer message. A bare `findByRole('status')` takes
+  whatever status is up first (a list that is a status region, an earlier toast), and
+  `toHaveTextContent` then matches a part. An element with a name of its own is found by it, not by
+  its index in a list (`getAllByRole('button')[1]`); an index is for a position the test is about,
+  as the first row after a sort or the current title first.
 - **Helpers and fixtures.** Data every layer shares is in `src/test/fixtures.ts`, the rendering
   helpers in `src/test/render.tsx`, the fake services in `server/test/fakes.ts`
   ([Shared test data](#shared-test-data)). What one file uses stays in that file; the second copy of
@@ -252,8 +273,9 @@ it uses next to itself.
   change to a name, size, date, order or `NOW` re-renders them.
 - **`src/test/render.tsx`:** `renderWithRouter(ui, entries)` renders under a `MemoryRouter` at the
   last of `entries`, for screens that read the URL or navigate; `<Where />` rendered next to them
-  shows the current path, which `where()` reads back. API mocks stay in each test file (`vi.mock`,
-  hoisted), so a reader sees what the test replaces without opening another module.
+  shows the current path, which `where()` reads back. `saying(text)` matches a live region by its
+  text, as the `name` for `findByRole('status')` or `'alert'`. API mocks stay in each test file
+  (`vi.mock`, hoisted), so a reader sees what the test replaces without opening another module.
 - **`server/test/fakes.ts`:** `listen(handler)` starts a handler on a free port and returns its
   origin, `serve(middleware)` does the same for the middleware under test with Vite's 404 fallback,
   `closeServers()` closes everything in `afterEach`, `bodyOf(request)` reads a body.

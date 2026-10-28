@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import i18n from '../i18n'
 import { torrent } from '../test/fixtures'
-import { renderWithRouter } from '../test/render'
+import { renderWithRouter, saying } from '../test/render'
 import { SpeedLimitsSheet, type SpeedLimitsSheetProps } from './SpeedLimitsSheet'
 
 describe('SpeedLimitsSheet', () => {
@@ -112,7 +112,7 @@ describe('SpeedLimitsSheet', () => {
 
   it('says a failed save failed, and lets it be tried again', () => {
     renderSheet({}, { failure: { download: 2_000_000 } })
-    expect(screen.getByText(/Couldn’t save the limits, or saved only some/)).toBeInTheDocument()
+    expect(screen.getByRole('alert', { name: saying(/Couldn’t save the limits, or saved only some/) })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Save limits' })).toBeEnabled()
   })
 })

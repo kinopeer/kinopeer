@@ -9,6 +9,7 @@ import { parseRelease } from '../releases/parseRelease'
 import { resetSettings, updateSettings } from '../settings/settings'
 import * as torrentFile from '../torrents/torrentFile'
 import { AddReleaseSheet } from './AddReleaseSheet'
+import { saying } from '../test/render'
 
 vi.mock('../api/prowlarr', async (importOriginal) => ({
   ...(await importOriginal<typeof prowlarr>()),
@@ -236,9 +237,11 @@ describe('AddReleaseSheet', () => {
   it('warns while the selected files need more than the free space, without blocking the download', async () => {
     renderSheet()
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
-    expect(await within(sheet).findByText('Not enough free space')).toBeInTheDocument()
+    expect(await within(sheet).findByRole('status', { name: saying('Not enough free space') })).toBeInTheDocument()
     expect(
-      await within(sheet).findByText(/^40\.0\sGB free on qBittorrent’s disk, 10\.0\sGB short of this download\. Skip some files/),
+      within(sheet).getByRole('status', {
+        name: saying(/^40\.0\sGB free on qBittorrent’s disk, 10\.0\sGB short of this download\. Skip some files/),
+      }),
     ).toBeInTheDocument()
     expect(within(sheet).getByRole('button', { name: /^Download · 50\.0\sGB$/ })).toBeEnabled()
 
@@ -254,7 +257,7 @@ describe('AddReleaseSheet', () => {
     readTorrentFile.mockResolvedValue({ ...META, files: [{ path: 'Breaking Bad', size: 50e9 }] })
     renderSheet()
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
-    expect(await within(sheet).findByText(/10\.0\sGB short of this download\. Free up space before it finishes\.$/)).toBeInTheDocument()
+    expect(await within(sheet).findByRole('status', { name: saying(/10\.0\sGB short of this download\. Free up space before it finishes\.$/) })).toBeInTheDocument()
     expect(within(sheet).queryByText(/Skip some files/)).not.toBeInTheDocument()
   })
 
@@ -263,7 +266,7 @@ describe('AddReleaseSheet', () => {
     renderSheet()
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
     expect(await within(sheet).findByText('TV → /data/tv')).toBeInTheDocument()
-    expect(await within(sheet).findByText('Couldn’t get the torrent from Prowlarr.')).toBeInTheDocument()
+    expect(await within(sheet).findByRole('alert', { name: saying('Couldn’t get the torrent from Prowlarr.') })).toBeInTheDocument()
     expect(within(sheet).queryByText('Not enough free space')).not.toBeInTheDocument()
   })
 
@@ -297,7 +300,9 @@ describe('AddReleaseSheet', () => {
     renderSheet()
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
     expect(await within(sheet).findByText(/Magnet link: all files/)).toBeInTheDocument()
-    expect(await within(sheet).findByText(/40\.0\sGB short of this download\. Free up space before it finishes\./)).toBeInTheDocument()
+    expect(
+      await within(sheet).findByRole('status', { name: saying(/40\.0\sGB short of this download\. Free up space before it finishes\./) }),
+    ).toBeInTheDocument()
     expect(within(sheet).getByRole('button', { name: /^Download/ })).toBeEnabled()
   })
 
@@ -305,7 +310,7 @@ describe('AddReleaseSheet', () => {
     addRelease.mockRejectedValue(new qbt.QbittorrentError('Fails.', 200))
     const { onAdded } = renderSheet()
     await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('may already be in your downloads')
+    expect(await screen.findByRole('alert', { name: saying(/may already be in your downloads/) })).toBeInTheDocument()
     expect(onAdded).not.toHaveBeenCalled()
   })
 })

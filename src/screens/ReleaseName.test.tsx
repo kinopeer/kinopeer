@@ -13,6 +13,8 @@ describe('ReleaseName', () => {
     render(<ReleaseName name={NAME} />)
     const button = screen.getByRole('button', { name: NAME })
     expect(button).toHaveAttribute('aria-expanded', 'false')
+    // ks-clamp2 is what cuts the name to two lines (aria-expanded says only whether it's open), and
+    // jsdom can't lay the cut out.
     expect(button).toHaveClass('ks-clamp2')
 
     await userEvent.click(button)

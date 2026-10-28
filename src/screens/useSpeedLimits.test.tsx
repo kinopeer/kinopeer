@@ -5,6 +5,7 @@ import * as api from '../api/qbittorrent'
 import type { Torrent } from '../api/qbittorrent'
 import { torrent } from '../test/fixtures'
 import { useSpeedLimits } from './useSpeedLimits'
+import { saying } from '../test/render'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
   ...(await importOriginal<typeof api>()),
@@ -82,7 +83,7 @@ describe('useSpeedLimits', () => {
     const { open, save, refresh } = renderLimits()
     const sheet = await open()
     await save(sheet, '2')
-    expect(await within(sheet).findByText(/Couldn’t save the limits, or saved only some/)).toBeInTheDocument()
+    expect(await within(sheet).findByRole('alert', { name: saying(/Couldn’t save the limits, or saved only some/) })).toBeInTheDocument()
     expect(refresh).toHaveBeenCalled()
     expect(within(sheet).getByRole('button', { name: 'Save limits' })).toBeEnabled()
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
@@ -144,7 +145,7 @@ describe('useSpeedLimits', () => {
     dismiss(first)
     const again = await open()
     settle.refused()
-    expect(await within(again).findByText(/Couldn’t save the limits, or saved only some/)).toBeInTheDocument()
+    expect(await within(again).findByRole('alert', { name: saying(/Couldn’t save the limits, or saved only some/) })).toBeInTheDocument()
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
@@ -201,7 +202,7 @@ describe('useSpeedLimits', () => {
     await userEvent.type(download, '2')
     await userEvent.type(upload, '3')
     await userEvent.click(within(sheet).getByRole('button', { name: 'Save limits' }))
-    expect(await within(sheet).findByText(/Couldn’t save the limits/)).toBeInTheDocument()
+    expect(await within(sheet).findByRole('alert', { name: saying(/Couldn’t save the limits/) })).toBeInTheDocument()
 
     await userEvent.clear(download)
     await userEvent.type(download, '1')
@@ -223,7 +224,7 @@ describe('useSpeedLimits', () => {
 
     setSpeedLimits.mockResolvedValueOnce()
     settle.refused()
-    expect(await within(again).findByText(/Couldn’t save the limits/)).toBeInTheDocument()
+    expect(await within(again).findByRole('alert', { name: saying(/Couldn’t save the limits/) })).toBeInTheDocument()
     await userEvent.click(within(again).getByRole('button', { name: 'Save limits' }))
     // Not the 1 MB/s the torrent had when it was opened again, which would undo a part that went through.
     expect(setSpeedLimits).toHaveBeenLastCalledWith(['andor'], { download: 5_000_000, upload: undefined })

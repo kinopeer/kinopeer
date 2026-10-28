@@ -7,7 +7,7 @@ import type { MainData, Torrent } from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
 import { getSettings, resetSettings, updateSettings } from '../settings/settings'
 import { mainData, title, torrent as fixtureTorrent } from '../test/fixtures'
-import { renderWithRouter } from '../test/render'
+import { renderWithRouter, saying } from '../test/render'
 import { resetServerMatches } from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
 import { DownloadsScreen } from './DownloadsScreen'
@@ -96,7 +96,7 @@ describe('DownloadsScreen', () => {
 
     await userEvent.click(button)
     expect(api.toggleSpeedLimitsMode).toHaveBeenCalled()
-    expect(await screen.findByText('Couldn’t switch the speed limits. Try again.')).toBeInTheDocument()
+    expect(await screen.findByRole('status', { name: saying('Couldn’t switch the speed limits. Try again.') })).toBeInTheDocument()
   })
 
   it('has no speed limits switch until qBittorrent says which limits apply', async () => {
@@ -110,7 +110,7 @@ describe('DownloadsScreen', () => {
   it('shows a loading state, then the torrents in queue order', async () => {
     getMainData.mockReturnValueOnce(new Promise(() => {}))
     const { unmount } = renderScreen()
-    expect(screen.getByRole('status')).toHaveTextContent('Loading downloads')
+    expect(screen.getByRole('status', { name: saying('Loading downloads') })).toBeInTheDocument()
     unmount()
 
     renderScreen()
@@ -335,7 +335,7 @@ describe('DownloadsScreen', () => {
     const confirm = screen.getByRole('alertdialog', { name: 'Delete torrent?' })
     await userEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
     expect(api.deleteTorrents).toHaveBeenCalledWith(['andor'], false)
-    expect(await screen.findByText('Torrent deleted')).toBeInTheDocument()
+    expect(await screen.findByRole('status', { name: saying('Torrent deleted') })).toBeInTheDocument()
   })
 
   it('moves a torrent’s files from the row menu and says where', async () => {
@@ -357,7 +357,7 @@ describe('DownloadsScreen', () => {
     })
     await userEvent.click(within(sheet).getByRole('button', { name: 'Move' }))
     expect(api.setTorrentLocation).toHaveBeenCalledWith(['andor'], '/media/tv')
-    expect(await screen.findByRole('status')).toHaveTextContent('Moving files to /media/tv')
+    expect(await screen.findByRole('status', { name: saying('Moving files to /media/tv') })).toBeInTheDocument()
     const andor = screen.getByRole('link', { name: /Andor\.S02\.1080p/ }).closest('li')!
     expect(await within(andor).findByText('Checking', { exact: true })).toBeInTheDocument()
   })
@@ -371,7 +371,7 @@ describe('DownloadsScreen', () => {
     stopPolling()
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Reannounce' }))
     expect(api.reannounceTorrents).toHaveBeenCalledWith(['andor'])
-    expect(await screen.findByRole('status')).toHaveTextContent('Announced to the trackers')
+    expect(await screen.findByRole('status', { name: saying('Announced to the trackers') })).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'More actions: Andor.S02.1080p' }))
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Force recheck' }))
@@ -383,7 +383,7 @@ describe('DownloadsScreen', () => {
     })
     await userEvent.click(within(confirm).getByRole('button', { name: 'Force recheck' }))
     expect(api.recheckTorrents).toHaveBeenCalledWith(['andor'])
-    expect(await screen.findByRole('status')).toHaveTextContent('Checking the files')
+    expect(await screen.findByRole('status', { name: saying('Checking the files') })).toBeInTheDocument()
     const andor = screen.getByRole('link', { name: /Andor\.S02\.1080p/ }).closest('li')!
     expect(await within(andor).findByText('Checking', { exact: true })).toBeInTheDocument()
   })
@@ -447,7 +447,7 @@ describe('DownloadsScreen', () => {
     await userEvent.click(within(actions).getByRole('button', { name: 'Yes, right' }))
     await userEvent.click(within(actions).getByRole('button', { name: 'Speed limits' }))
     saved()
-    expect(await screen.findByText('Match confirmed')).toBeInTheDocument()
+    expect(await screen.findByRole('status', { name: saying('Match confirmed') })).toBeInTheDocument()
     expect(screen.getByRole('dialog', { name: 'Speed limits' })).toBeInTheDocument()
   })
 
@@ -464,7 +464,7 @@ describe('DownloadsScreen', () => {
     expect(within(sheet).queryByRole('button', { name: 'Change title' })).not.toBeInTheDocument()
     expect(within(sheet).getByRole('link', { name: 'Movie page' })).toHaveAttribute('href', '/title/movie/693134')
     await userEvent.click(within(sheet).getByRole('button', { name: 'Yes, right' }))
-    expect(await screen.findByText('Match confirmed')).toBeInTheDocument()
+    expect(await screen.findByRole('status', { name: saying('Match confirmed') })).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
@@ -475,7 +475,7 @@ describe('DownloadsScreen', () => {
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Pick title' }))
     const sheet = screen.getByRole('dialog', { name: 'Pick title' })
     await userEvent.click(await within(sheet).findByRole('button', { name: /^Andor/ }))
-    expect(await screen.findByText('Title changed')).toBeInTheDocument()
+    expect(await screen.findByRole('status', { name: saying('Title changed') })).toBeInTheDocument()
     await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor' }))
     expect(within(screen.getByRole('dialog', { name: 'Andor' })).getByRole('link', { name: 'Series page' })).toHaveAttribute(
       'href',
@@ -485,12 +485,12 @@ describe('DownloadsScreen', () => {
 
   it('confirms a torrent deleted on the torrent page', async () => {
     renderScreen({ deleted: 'files' })
-    expect(screen.getByText('Torrent and files deleted')).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: saying('Torrent and files deleted') })).toBeInTheDocument()
   })
 
   it('confirms a release added from the releases screen', async () => {
     renderScreen({ added: 'Dune: Part Two' })
-    expect(screen.getByText('“Dune: Part Two” added to downloads')).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: saying('“Dune: Part Two” added to downloads') })).toBeInTheDocument()
   })
 
   it('shows the empty state without torrents', async () => {
@@ -507,7 +507,7 @@ describe('DownloadsScreen', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
     expect(await screen.findAllByRole('listitem')).toHaveLength(3)
     expect(screen.queryByRole('heading', { name: 'Can’t reach qBittorrent' })).not.toBeInTheDocument()
-    expect(screen.getByText('Reconnected to qBittorrent')).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: saying('Reconnected to qBittorrent') })).toBeInTheDocument()
   })
 
   it('keeps the last state with its age when qBittorrent stops answering', async () => {
@@ -516,8 +516,8 @@ describe('DownloadsScreen', () => {
 
     getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     window.dispatchEvent(new Event('online'))
-    expect(await screen.findByText('No connection to qBittorrent')).toBeInTheDocument()
-    expect(screen.getByText('Updated just now · actions paused')).toBeInTheDocument()
+    expect(await screen.findByRole('status', { name: saying('No connection to qBittorrent') })).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: saying('Updated just now · actions paused') })).toBeInTheDocument()
     expect(screen.getAllByRole('listitem')).toHaveLength(3)
   })
 })
@@ -566,7 +566,7 @@ describe('DownloadsScreen selection', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Select' }))
     await userEvent.click(screen.getByRole('checkbox', { name: 'Andor.S02.1080p' }))
     await userEvent.click(within(bulkBar()).getByRole('button', { name: 'Pause' }))
-    expect(await screen.findByText('Couldn’t reach qBittorrent. Try again.')).toBeInTheDocument()
+    expect(await screen.findByRole('status', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: 'Andor.S02.1080p', checked: true })).toBeInTheDocument()
   })
 
@@ -598,7 +598,7 @@ describe('DownloadsScreen selection', () => {
     const confirm = screen.getByRole('alertdialog', { name: 'Delete torrents?' })
     await userEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
     expect(api.deleteTorrents).toHaveBeenCalledWith(['dune', 'alien'], false)
-    expect(await screen.findByText('2 torrents deleted')).toBeInTheDocument()
+    expect(await screen.findByRole('status', { name: saying('2 torrents deleted') })).toBeInTheDocument()
     expect(screen.queryByRole('toolbar')).not.toBeInTheDocument()
   })
 
@@ -635,7 +635,7 @@ describe('DownloadsScreen selection', () => {
     await userEvent.click(screen.getByRole('checkbox', { name: 'Andor.S02.1080p' }))
     getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     window.dispatchEvent(new Event('online'))
-    expect(await screen.findByText('No connection to qBittorrent')).toBeInTheDocument()
+    expect(await screen.findByRole('status', { name: saying('No connection to qBittorrent') })).toBeInTheDocument()
     for (const name of ['Pause', 'Resume', 'Delete']) {
       expect(within(bulkBar()).getByRole('button', { name })).toBeDisabled()
     }

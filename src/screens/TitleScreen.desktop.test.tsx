@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -11,7 +11,7 @@ import { stubDesktop } from '../lib/stubDesktop'
 import { restoreLayout, stubLayout } from '../lib/stubLayout'
 import { resetSettings, updateSettings } from '../settings/settings'
 import { DUNE_RELEASES } from '../test/fixtures'
-import { Where, renderWithRouter, where } from '../test/render'
+import { Where, renderWithRouter, saying, where } from '../test/render'
 import { resetServerMatches } from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
 import { TitleRoute } from './TitleScreen'
@@ -87,7 +87,7 @@ const names = () =>
   within(table())
     .getAllByRole('row')
     .slice(1)
-    .map((row) => within(row).getAllByTitle(/./)[0].textContent)
+    .map((row) => within(row).getByTitle(/./).textContent)
 
 const scrollIntoView = vi.fn()
 
@@ -118,6 +118,7 @@ describe('TitleScreen on desktop', () => {
   it('shows the hero with a larger poster and searches no releases until Find releases is pressed', async () => {
     const { container } = renderAt('/title/movie/693134')
     await screen.findByRole('heading', { level: 1, name: 'Dune: Part Two' })
+    // The poster is decorative and the backdrop the same image: only the frame's class tells them apart.
     expect(container.querySelector('.title-dposter img')).toHaveAttribute('src', '/tmdb-img/w500/dune.jpg')
     expect(screen.queryByRole('region', { name: 'Releases' })).not.toBeInTheDocument()
     expect(searchReleases).not.toHaveBeenCalled()
@@ -137,7 +138,7 @@ describe('TitleScreen on desktop', () => {
     vi.mocked(prowlarr.getFailingIndexers).mockResolvedValue(['NNM-Club'])
     renderAt('/title/movie/693134/releases')
     const section = await screen.findByRole('region', { name: 'Releases' })
-    await waitFor(() => expect(within(section).getByRole('status')).toHaveTextContent('NNM-Club'))
+    expect(await within(section).findByRole('status', { name: saying(/NNM-Club/) })).toBeInTheDocument()
   })
 
   it('keeps the recommendations on the page with the releases searched', async () => {
@@ -186,6 +187,7 @@ describe('TitleScreen on desktop', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Find releases' }))
     expect(scrollIntoView).toHaveBeenCalledTimes(1)
     expect(scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'smooth' })
+    // Pressed again, it only scrolls: the releases already found aren't searched again.
     expect(searchReleases).toHaveBeenCalledTimes(1)
   })
 
@@ -254,18 +256,16 @@ describe('TitleScreen on desktop', () => {
     expect(within(screen.getByRole('dialog', { name: 'Add to downloads' })).getByText(DUNE_RELEASES[1].title)).toBeInTheDocument()
   })
 
-  it('cuts a long overview to a few lines, with Show more', async () => {
+  it('shows a long overview in the hero, with Show more', async () => {
     const overview = 'Paul Atreides unites with Chani and the Fremen while seeking revenge. '.repeat(8).trim()
     getMovie.mockResolvedValue({ ...DUNE, overview })
     // A 10-line overview cut to 5: taller than it shows.
     stubLayout(130, 260)
     renderAt('/title/movie/693134')
+    // How it cuts and opens is TitleOverview.test.tsx's; here, that the hero has it.
     const text = await screen.findByText(overview)
-    expect(text).toHaveClass('is-clamped')
     expect(screen.getByRole('region', { name: 'Overview' })).toContainElement(text)
-    await userEvent.click(screen.getByRole('button', { name: 'Show more' }))
-    expect(text).not.toHaveClass('is-clamped')
-    expect(screen.getByRole('button', { name: 'Show less' })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('button', { name: 'Show more' })).toBeInTheDocument()
   })
 
   it('shows the series hint by the button and searches a series by name', async () => {

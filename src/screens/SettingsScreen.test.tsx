@@ -9,7 +9,7 @@ import * as tmdb from '../api/tmdb'
 import i18n from '../i18n'
 import { BUG_REPORT_URL, IDEAS_URL, REPO_URL } from '../lib/links'
 import { getSettings, resetSettings } from '../settings/settings'
-import { renderWithRouter } from '../test/render'
+import { renderWithRouter, saying } from '../test/render'
 import { SettingsScreen } from './SettingsScreen'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
@@ -83,21 +83,21 @@ afterEach(() => {
 describe('SettingsScreen', () => {
   it('checks every connection when it opens', async () => {
     renderScreen()
-    expect(await within(connection('qBittorrent')).findByText('Connected · qBittorrent v5.3.0 · API 2.11.4')).toBeInTheDocument()
-    expect(await within(connection('Prowlarr')).findByText('Connected · 2 indexers · v1.24.3')).toBeInTheDocument()
-    expect(await within(connection('TMDB')).findByText('Connected')).toBeInTheDocument()
+    expect(await within(connection('qBittorrent')).findByRole('status', { name: saying('Connected · qBittorrent v5.3.0 · API 2.11.4') })).toBeInTheDocument()
+    expect(await within(connection('Prowlarr')).findByRole('status', { name: saying('Connected · 2 indexers · v1.24.3') })).toBeInTheDocument()
+    expect(await within(connection('TMDB')).findByRole('status', { name: saying('Connected') })).toBeInTheDocument()
   })
 
   it('explains failures and shows the service connected after Test', async () => {
     vi.mocked(prowlarr.getProwlarrStatus).mockRejectedValue(new prowlarr.ProwlarrSetupError(502, 'unauthorized'))
     vi.mocked(tmdb.checkTmdb).mockRejectedValue(new tmdb.TmdbKeyError(401))
     renderScreen()
-    expect(await within(connection('Prowlarr')).findByText('Not set up, or the API key was rejected')).toBeInTheDocument()
-    expect(await within(connection('TMDB')).findByText('The API key is missing or invalid')).toBeInTheDocument()
+    expect(await within(connection('Prowlarr')).findByRole('status', { name: saying('Not set up, or the API key was rejected') })).toBeInTheDocument()
+    expect(await within(connection('TMDB')).findByRole('status', { name: saying('The API key is missing or invalid') })).toBeInTheDocument()
 
     vi.mocked(prowlarr.getProwlarrStatus).mockResolvedValue({ version: '1.24.3', indexers: 1 })
     await userEvent.click(within(connection('Prowlarr')).getByRole('button', { name: 'Test' }))
-    expect(await within(connection('Prowlarr')).findByText('Connected · 1 indexer · v1.24.3')).toBeInTheDocument()
+    expect(await within(connection('Prowlarr')).findByRole('status', { name: saying('Connected · 1 indexer · v1.24.3') })).toBeInTheDocument()
   })
 
   it.each([
@@ -108,12 +108,12 @@ describe('SettingsScreen', () => {
     const checks = [qbt.getAppVersion, qbt.getApiVersion, prowlarr.getProwlarrStatus, tmdb.checkTmdb]
     renderScreen()
     for (const row of ['qBittorrent', 'Prowlarr', 'TMDB']) {
-      expect(await within(connection(row)).findByText(/^Connected/)).toBeInTheDocument()
+      expect(await within(connection(row)).findByRole('status', { name: saying(/^Connected/) })).toBeInTheDocument()
     }
     for (const fn of checks) vi.mocked(fn).mockClear()
 
     await userEvent.click(within(connection(name)).getByRole('button', { name: 'Test' }))
-    expect(await within(connection(name)).findByText(ok)).toBeInTheDocument()
+    expect(await within(connection(name)).findByRole('status', { name: saying(ok) })).toBeInTheDocument()
     for (const fn of checks) expect(fn).toHaveBeenCalledTimes(called.some((c) => c === fn) ? 1 : 0)
   })
 
@@ -121,9 +121,9 @@ describe('SettingsScreen', () => {
     vi.mocked(tmdb.checkTmdb).mockRejectedValue(new tmdb.TmdbKeyError(401))
     vi.mocked(serverSettings.saveTmdbKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved' }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
     renderScreen()
-    expect(await within(connection('TMDB')).findByText('The API key is missing or invalid')).toBeInTheDocument()
-    expect(await within(connection('Prowlarr')).findByText(/^Connected/)).toBeInTheDocument()
-    expect(await within(connection('qBittorrent')).findByText(/^Connected/)).toBeInTheDocument()
+    expect(await within(connection('TMDB')).findByRole('status', { name: saying('The API key is missing or invalid') })).toBeInTheDocument()
+    expect(await within(connection('Prowlarr')).findByRole('status', { name: saying(/^Connected/) })).toBeInTheDocument()
+    expect(await within(connection('qBittorrent')).findByRole('status', { name: saying(/^Connected/) })).toBeInTheDocument()
     vi.mocked(qbt.getAppVersion).mockClear()
     vi.mocked(qbt.getApiVersion).mockClear()
     vi.mocked(prowlarr.getProwlarrStatus).mockClear()
@@ -135,8 +135,8 @@ describe('SettingsScreen', () => {
     await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
 
     expect(serverSettings.saveTmdbKey).toHaveBeenCalledWith('abc123')
-    expect(await screen.findByText('TMDB key saved')).toBeInTheDocument()
-    expect(await within(connection('TMDB')).findByText('Connected')).toBeInTheDocument()
+    expect(await screen.findByRole('status', { name: saying('TMDB key saved') })).toBeInTheDocument()
+    expect(await within(connection('TMDB')).findByRole('status', { name: saying('Connected') })).toBeInTheDocument()
     expect(qbt.getAppVersion).not.toHaveBeenCalled()
     expect(qbt.getApiVersion).not.toHaveBeenCalled()
     expect(prowlarr.getProwlarrStatus).not.toHaveBeenCalled()
@@ -146,7 +146,7 @@ describe('SettingsScreen', () => {
     vi.mocked(prowlarr.getProwlarrStatus).mockRejectedValue(new prowlarr.ProwlarrSetupError(503, 'not-configured'))
     vi.mocked(serverSettings.saveProwlarrKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved' }, prowlarr: { configured: true, source: 'saved', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
     renderScreen()
-    expect(await within(connection('Prowlarr')).findByText('Not set up, or the API key was rejected')).toBeInTheDocument()
+    expect(await within(connection('Prowlarr')).findByRole('status', { name: saying('Not set up, or the API key was rejected') })).toBeInTheDocument()
 
     vi.mocked(prowlarr.getProwlarrStatus).mockResolvedValue({ version: '1.24.3', indexers: 2 })
     await userEvent.click(within(connection('Prowlarr')).getByRole('button', { name: 'Change Prowlarr key' }))
@@ -154,8 +154,8 @@ describe('SettingsScreen', () => {
     await userEvent.type(within(sheet).getByLabelText('Prowlarr API key'), 'abc123')
     await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
 
-    expect(await screen.findByText('Prowlarr key saved')).toBeInTheDocument()
-    expect(await within(connection('Prowlarr')).findByText(/2 indexers/)).toBeInTheDocument()
+    expect(await screen.findByRole('status', { name: saying('Prowlarr key saved') })).toBeInTheDocument()
+    expect(await within(connection('Prowlarr')).findByRole('status', { name: saying(/2 indexers/) })).toBeInTheDocument()
 
     // The settings the save answered with are what the sheet goes by now, without loading them again.
     await userEvent.click(within(connection('Prowlarr')).getByRole('button', { name: 'Change Prowlarr key' }))
@@ -176,16 +176,16 @@ describe('SettingsScreen', () => {
       downloads: null,
     })
     renderScreen()
-    expect(await within(connection('Prowlarr')).findByText(/2 indexers/)).toBeInTheDocument()
+    expect(await within(connection('Prowlarr')).findByRole('status', { name: saying(/2 indexers/) })).toBeInTheDocument()
 
     vi.mocked(prowlarr.getProwlarrStatus).mockResolvedValue({ version: '1.24.3', indexers: 1 })
     await userEvent.click(within(connection('Prowlarr')).getByRole('button', { name: 'Change Prowlarr key' }))
     const sheet = screen.getByRole('dialog', { name: 'Prowlarr key' })
     await userEvent.click(await within(sheet).findByRole('button', { name: 'Use the server’s key' }))
 
-    expect(await screen.findByText('Using the server’s Prowlarr key')).toBeInTheDocument()
+    expect(await screen.findByRole('status', { name: saying('Using the server’s Prowlarr key') })).toBeInTheDocument()
     expect(screen.queryByText('Prowlarr key saved')).not.toBeInTheDocument()
-    expect(await within(connection('Prowlarr')).findByText(/1 indexer/)).toBeInTheDocument()
+    expect(await within(connection('Prowlarr')).findByRole('status', { name: saying(/1 indexer/) })).toBeInTheDocument()
   })
 
   it("doesn't offer the server's Prowlarr key when the server has none", async () => {
@@ -216,7 +216,7 @@ describe('SettingsScreen', () => {
     vi.mocked(matches.clearGuesses).mockResolvedValue({})
     renderScreen()
     await userEvent.click(screen.getByRole('button', { name: /Clear cache/ }))
-    expect(await screen.findByText('Cache cleared')).toBeInTheDocument()
+    expect(await screen.findByRole('status', { name: saying('Cache cleared') })).toBeInTheDocument()
   })
 
   it('opens the TMDB key sheet when sent from a screen that needs the key', async () => {

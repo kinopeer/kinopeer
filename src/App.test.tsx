@@ -9,7 +9,7 @@ import * as serverSettings from './api/settings'
 import * as tmdb from './api/tmdb'
 import App from './App'
 import { stubDesktop } from './lib/stubDesktop'
-import { Where, renderWithRouter, where } from './test/render'
+import { Where, renderWithRouter, saying, where } from './test/render'
 
 vi.mock('./api/qbittorrent', async (importOriginal) => {
   const actual = await importOriginal<typeof api>()
@@ -134,8 +134,8 @@ describe('App', () => {
     it('navigates from the sidebar in place of the tab bar', async () => {
       renderApp()
       const nav = await screen.findByRole('navigation', { name: 'Main' })
-      // Both are the "Main" navigation with the same links; their root classes are the only way
-      // jsdom tells the sidebar from the tab bar.
+      // Both are the "Main" navigation with the same links: the root class is what lays one out as the
+      // sidebar and the other as the tab bar, and nothing else tells them apart.
       expect(nav.closest('.ks-side')).not.toBeNull()
       expect(document.querySelector('.ks-tabbar')).toBeNull()
 
@@ -243,7 +243,7 @@ describe('App', () => {
       const status = await screen.findByRole('region', { name: 'qBittorrent' })
       await userEvent.click(await within(status).findByRole('button', { name: 'Alt. speed limits' }))
       expect(api.toggleSpeedLimitsMode).toHaveBeenCalled()
-      expect(await screen.findByText('Couldn’t switch the speed limits. Try again.')).toBeInTheDocument()
+      expect(await screen.findByRole('status', { name: saying('Couldn’t switch the speed limits. Try again.') })).toBeInTheDocument()
     })
 
     it('shows no free space in the sidebar when qBittorrent reports 0, which means it can’t tell', async () => {
@@ -291,6 +291,8 @@ describe('App', () => {
         expect(screen.getByRole('heading', { name: 'Dune: Part Two', level: 1 })).toBeInTheDocument()
         expect(screen.queryByRole('heading', { name: 'Downloads' })).not.toBeInTheDocument()
         const nav = screen.getByRole('navigation', { name: 'Main' })
+        // is-on is what highlights the page behind the drawer; aria-current follows the URL, so it
+        // can't name that page.
         expect(within(nav).getByRole('link', { name: /^Downloads/ })).not.toHaveClass('is-on')
 
         fireEvent(drawer, new Event('cancel', { cancelable: true }))
@@ -337,6 +339,7 @@ describe('App', () => {
       expect(nav.closest('.ks-side')).not.toBeNull()
 
       act(() => resize(false))
+      // The root class tells the tab bar from the sidebar, as above.
       expect(screen.getByRole('navigation', { name: 'Main' })).toHaveClass('ks-tabbar')
     })
   })
@@ -378,7 +381,7 @@ describe('App', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Back' }))
     expect(await screen.findByRole('heading', { name: 'Downloads' })).toBeInTheDocument()
     fail(new api.QbittorrentError('conflict', 409))
-    expect(await screen.findByText('qBittorrent couldn’t create that folder.')).toBeInTheDocument()
+    expect(await screen.findByRole('status', { name: saying('qBittorrent couldn’t create that folder.') })).toBeInTheDocument()
   })
 
   it('asks for the TMDB key when the server has none, then goes in', async () => {
