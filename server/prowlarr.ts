@@ -204,8 +204,11 @@ interface ProwlarrIndexerStatus {
   mostRecentFailure?: string
 }
 
-/** Ids of the indexers that failed at or after `since`, or that are on hold now. */
-function failedIds(statuses: ProwlarrIndexerStatus[], since: number, now: number): Set<number> {
+/**
+ * Ids of the indexers that failed at or after `since`, or that are on hold now. Prowlarr's search
+ * answers 200 with whatever the other indexers found, so this is the only way to tell.
+ */
+export function failedIds(statuses: ProwlarrIndexerStatus[], since: number, now: number): Set<number> {
   return new Set(
     statuses
       .filter(
@@ -218,25 +221,20 @@ function failedIds(statuses: ProwlarrIndexerStatus[], since: number, now: number
   )
 }
 
-/**
- * Names of enabled indexers that failed at or after `since`, or that are on hold now. Prowlarr's
- * search answers 200 with whatever the other indexers found, so this is the only way to tell.
- */
-export function failingIndexers(
-  indexers: ProwlarrIndexer[],
-  statuses: ProwlarrIndexerStatus[],
-  since: number,
-  now: number,
-): string[] {
-  const failed = failedIds(statuses, since, now)
+/** Names of the enabled indexers among `ids`, sorted. */
+export function indexerNames(indexers: ProwlarrIndexer[], ids: Set<number>): string[] {
   return indexers
-    .filter((indexer) => indexer.enable && indexer.name && typeof indexer.id === 'number' && failed.has(indexer.id))
+    .filter((indexer) => indexer.enable && indexer.name && typeof indexer.id === 'number' && ids.has(indexer.id))
     .map((indexer) => indexer.name!)
     .sort((a, b) => a.localeCompare(b))
 }
 
-/** Longer ago than any search takes; Prowlarr keeps an indexer's last failure after it recovers. */
-const MAX_WITHIN_MS = 10 * 60 * 1000
+
+/**
+ * The longest `within` accepted, as the client's MAX_FAILING_WITHIN_MS (a value, so not imported:
+ * the image carries server/ without src/; a test keeps them equal).
+ */
+export const MAX_WITHIN_MS = 10 * 60 * 1000
 
 /**
  * `within` is how long ago the search started, measured by the browser on its own monotonic clock:
@@ -250,21 +248,23 @@ function failing(timeoutMs: number): Handler {
     const since = Date.now() - Number(within)
     // A note beside the results isn't worth a request that hangs: give up and say unreachable.
     const init = { headers: { 'X-Api-Key': apiKey, Accept: 'application/json' }, signal: AbortSignal.timeout(timeoutMs) }
-    const get = async (path: string): Promise<unknown> => {
+    /** A list from Prowlarr; anything else (an error, a proxy's login page) is an UpstreamError. */
+    const list = async (path: string): Promise<unknown[]> => {
       const upstream = await fetch(`${base}${path}`, init)
       if (!upstream.ok) {
         // Free the connection now rather than when the body is collected.
         await upstream.body?.cancel()
         throw new UpstreamError(upstream.status === 401 ? 'unauthorized' : 'upstream')
       }
-      return upstream.json()
+      const body: unknown = await upstream.json().catch(() => undefined)
+      if (!Array.isArray(body)) throw new UpstreamError('upstream')
+      return body
     }
     try {
-      const statuses = (await get('/api/v1/indexerstatus')) as ProwlarrIndexerStatus[]
+      const failed = failedIds((await list('/api/v1/indexerstatus')) as ProwlarrIndexerStatus[], since, Date.now())
       // The indexer list carries every indexer's full definition: fetch it only to name a failure.
-      if (!failedIds(statuses, since, Date.now()).size) return send(response, 200, { indexers: [] } satisfies FailingIndexers)
-      const indexers = (await get('/api/v1/indexer')) as ProwlarrIndexer[]
-      send(response, 200, { indexers: failingIndexers(indexers, statuses, since, Date.now()) } satisfies FailingIndexers)
+      const indexers = failed.size ? ((await list('/api/v1/indexer')) as ProwlarrIndexer[]) : []
+      send(response, 200, { indexers: indexerNames(indexers, failed) } satisfies FailingIndexers)
     } catch (error) {
       if (error instanceof UpstreamError) return fail(response, 502, error.code)
       throw error
@@ -294,7 +294,7 @@ export async function readProwlarrApiKey(configXmlPath: string): Promise<string 
 export function prowlarrMiddleware(config: ProwlarrConfig): Middleware {
   const base = config.url?.trim().replace(/\/+$/, '')
   const getKey = typeof config.apiKey === 'function' ? config.apiKey : async () => config.apiKey as string | undefined
-  const failingHandler = failing(config.failingTimeoutMs ?? 5000)
+  const handlers: Record<string, Handler> = { search, download, status, failing: failing(config.failingTimeoutMs ?? 5000) }
 
   return (request, response, next) => {
     const url = new URL(request.url ?? '/', 'http://kinoseed.local')
@@ -305,16 +305,8 @@ export function prowlarrMiddleware(config: ProwlarrConfig): Middleware {
       if (request.method !== 'GET') return fail(response, 404, 'not-found')
 
       const route = url.pathname.slice(PREFIX.length)
-      const handler =
-        route === 'search'
-          ? search
-          : route === 'download'
-            ? download
-            : route === 'status'
-              ? status
-              : route === 'failing'
-                ? failingHandler
-                : undefined
+      // Own keys only, so /prowlarr/constructor is a 404 like any unknown route.
+      const handler = Object.hasOwn(handlers, route) ? handlers[route] : undefined
       if (!handler) return fail(response, 404, 'not-found')
       // Errors never echo upstream URLs: they would contain the API key.
       await handler(base, apiKey, url.searchParams, response)

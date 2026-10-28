@@ -45,6 +45,12 @@ export interface ProwlarrStatus {
   indexers: number
 }
 
+/**
+ * The longest `within` /prowlarr/failing accepts: longer than any search takes. Prowlarr keeps an
+ * indexer's last failure after it recovers, so a longer window would name old failures.
+ */
+export const MAX_FAILING_WITHIN_MS = 10 * 60 * 1000
+
 /** Answer of /prowlarr/failing. */
 export interface FailingIndexers {
   /** Names of the enabled indexers that failed, sorted. */

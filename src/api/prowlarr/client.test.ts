@@ -30,6 +30,12 @@ describe('getFailingIndexers', () => {
     expect(fetchMock.mock.calls[0][0]).toBe('/prowlarr/failing?within=1235')
   })
 
+  it('asks about ten minutes at most, however long the page waited', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json({ indexers: [] }))
+    await getFailingIndexers(45 * 60 * 1000)
+    expect(fetchMock.mock.calls[0][0]).toBe('/prowlarr/failing?within=600000')
+  })
+
   it('rejects when the server can’t tell', async () => {
     fetchMock.mockResolvedValueOnce(Response.json({ error: 'upstream' }, { status: 502 }))
     await expect(getFailingIndexers(0)).rejects.toMatchObject({ status: 502, code: 'upstream' })

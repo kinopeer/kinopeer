@@ -2,7 +2,8 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { downloadToken, failingIndexers, prowlarrMiddleware, readProwlarrApiKey, type ProwlarrConfig } from './prowlarr.ts'
+import { MAX_FAILING_WITHIN_MS } from '../src/api/prowlarr/types.ts'
+import { MAX_WITHIN_MS, downloadToken, failedIds, indexerNames, prowlarrMiddleware, readProwlarrApiKey, type ProwlarrConfig } from './prowlarr.ts'
 import { closeServers, listen, serve } from './test/fakes.ts'
 
 const KEY = 'secret-key-123'
@@ -22,7 +23,11 @@ describe('downloadToken', () => {
   })
 })
 
-describe('failingIndexers', () => {
+describe('failedIds and indexerNames', () => {
+  it('takes the same longest window as the client sends', () => {
+    expect(MAX_WITHIN_MS).toBe(MAX_FAILING_WITHIN_MS)
+  })
+
   const now = Date.parse('2026-10-28T01:00:00Z')
   const since = Date.parse('2026-10-28T00:59:00Z')
   const indexers = [
@@ -42,16 +47,16 @@ describe('failingIndexers', () => {
       // Failed before this search and isn't on hold: an older failure, not this search's.
       { indexerId: 5, mostRecentFailure: '2026-10-28T00:58:59Z' },
     ]
-    expect(failingIndexers(indexers, statuses, since, now)).toEqual(['Kinozal', 'RuTracker'])
+    expect(indexerNames(indexers, failedIds(statuses, since, now))).toEqual(['Kinozal', 'RuTracker'])
   })
 
   it('names none when nothing failed', () => {
-    expect(failingIndexers(indexers, [], since, now)).toEqual([])
+    expect(indexerNames(indexers, failedIds([], since, now))).toEqual([])
   })
 
   it('never counts a row without an id as a failure', () => {
     const statuses = [{ mostRecentFailure: '2026-10-28T00:59:30Z' }]
-    expect(failingIndexers([...indexers, { name: 'No id', enable: true }], statuses, since, now)).toEqual([])
+    expect(indexerNames([...indexers, { name: 'No id', enable: true }], failedIds(statuses, since, now))).toEqual([])
   })
 })
 
@@ -62,6 +67,15 @@ describe('prowlarrMiddleware', () => {
     const response = await fetch(`${base}/prowlarr/search?query=dune`)
     expect(response.status).toBe(503)
     expect(await response.json()).toEqual({ error: 'not-configured' })
+  })
+
+  it('answers unknown routes, an inherited name included, with 404', async () => {
+    const base = await kinoseed({ url: 'http://127.0.0.1:9', apiKey: KEY })
+    for (const route of ['nope', 'constructor', 'toString']) {
+      const response = await fetch(`${base}/prowlarr/${route}`)
+      expect(response.status, route).toBe(404)
+      expect(await response.json()).toEqual({ error: 'not-found' })
+    }
   })
 
   it('searches with the key and strips it from the results', async () => {
@@ -257,6 +271,25 @@ describe('prowlarrMiddleware', () => {
     const broken = await fetch(`${await kinoseed({ url: await listFailing(500), apiKey: KEY })}/prowlarr/failing?within=60000`)
     expect(broken.status).toBe(502)
     expect(await broken.json()).toEqual({ error: 'upstream' })
+  })
+
+  it('reports an answer that isn’t a list, like a proxy’s login page, as upstream', async () => {
+    const answering = (path: string, body: string) =>
+      listen((request, response) => {
+        response.setHeader('Content-Type', 'application/json')
+        if (request.url === path) return response.end(body)
+        response.end(JSON.stringify(request.url === '/api/v1/indexerstatus' ? [{ indexerId: 1, mostRecentFailure: new Date().toISOString() }] : []))
+      })
+    for (const [path, body] of [
+      ['/api/v1/indexerstatus', '<!doctype html><title>Login</title>'],
+      ['/api/v1/indexerstatus', '{}'],
+      ['/api/v1/indexer', '<!doctype html><title>Login</title>'],
+      ['/api/v1/indexer', '{"records":[]}'],
+    ]) {
+      const response = await fetch(`${await kinoseed({ url: await answering(path, body), apiKey: KEY })}/prowlarr/failing?within=60000`)
+      expect(response.status, `${path} ${body}`).toBe(502)
+      expect(await response.json()).toEqual({ error: 'upstream' })
+    }
   })
 
   it('downloads a .torrent through Prowlarr with the key added back', async () => {

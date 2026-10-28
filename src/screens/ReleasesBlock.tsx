@@ -74,13 +74,14 @@ export function ReleasesBody({ releases, skeleton, children }: ReleasesBodyProps
  * inside a region, often not a region that appears with its text.
  */
 function FailingIndexers({ releases }: { releases: Releases }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { failing } = releases
+  const names = new Intl.ListFormat(i18n.language, { type: 'conjunction', style: 'narrow' }).format(failing)
   return (
     <div role="status" className="rel-note">
       {failing.length > 0 && (
         <Banner tone="info" live={false}>
-          {t('releases.failingIndexers', { count: failing.length, names: failing.join(', ') })}
+          {t('releases.failingIndexers', { count: failing.length, names })}
         </Banner>
       )}
     </div>
