@@ -49,7 +49,7 @@ describe('ChangeTitleSheet', () => {
     expect(screen.getByRole('searchbox', { name: 'Search TMDB' })).toHaveValue('Master i Margarita')
 
     const rows = await screen.findAllByRole('button', { name: /Мастер и Маргарита/ })
-    expect(searchTitles).toHaveBeenCalledWith('Master i Margarita', expect.anything())
+    expect(searchTitles).toHaveBeenCalledWith('Master i Margarita', { language: 'en-US', signal: expect.any(AbortSignal) })
     expect(rows[0]).toHaveAttribute('aria-current', 'true')
     expect(rows[0]).toHaveAccessibleName('Мастер и Маргарита Series · 2005 Current')
     expect(rows[0]).toHaveTextContent('Current')
@@ -70,21 +70,21 @@ describe('ChangeTitleSheet', () => {
 
   it('saves the picked title as the user’s choice', async () => {
     const { onChosen } = renderSheet({ type: 'tv', id: 94605, title: 'Мастер и Маргарита', year: 2005, posterPath: null })
-    await userEvent.click((await screen.findAllByRole('button', { name: /Мастер и Маргарита/ }))[1])
+    await userEvent.click(await screen.findByRole('button', { name: /Movie · 2024/ }))
     expect(saveMatches).toHaveBeenCalledWith({ [TORRENT.hash]: { type: 'movie', id: 801688, source: 'user' } })
     expect(onChosen).toHaveBeenCalledWith('changed')
   })
 
   it('confirms the current title when it is picked', async () => {
     const { onChosen } = renderSheet({ type: 'tv', id: 94605, title: 'Мастер и Маргарита', year: 2005, posterPath: null })
-    await userEvent.click((await screen.findAllByRole('button', { name: /Мастер и Маргарита/ }))[0])
+    await userEvent.click(await screen.findByRole('button', { name: /Series · 2005 Current/ }))
     expect(onChosen).toHaveBeenCalledWith('confirmed')
   })
 
   it('says when the choice couldn’t be saved and lets the user try again', async () => {
     saveMatches.mockRejectedValueOnce(new matchesApi.MatchesError(500))
     const { onChosen } = renderSheet()
-    const row = (await screen.findAllByRole('button', { name: /Мастер и Маргарита/ }))[0]
+    const row = await screen.findByRole('button', { name: /Movie · 2024/ })
     await userEvent.click(row)
     expect(await screen.findByRole('alert')).toHaveTextContent('Couldn’t save the choice. Try again.')
     expect(onChosen).not.toHaveBeenCalled()

@@ -9,7 +9,7 @@ import * as tmdb from '../api/tmdb'
 import i18n from '../i18n'
 import { BUG_REPORT_URL, IDEAS_URL, REPO_URL } from '../lib/links'
 import { getSettings, resetSettings } from '../settings/settings'
-import { renderWithRouter } from '../test/render'
+import { renderWithRouter, saying } from '../test/render'
 import { SettingsScreen } from './SettingsScreen'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
@@ -135,7 +135,7 @@ describe('SettingsScreen', () => {
     await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
 
     expect(serverSettings.saveTmdbKey).toHaveBeenCalledWith('abc123')
-    expect(await screen.findByText('TMDB key saved')).toBeInTheDocument()
+    expect(await screen.findByRole('status', { name: saying('TMDB key saved') })).toBeInTheDocument()
     expect(await within(connection('TMDB')).findByText('Connected')).toBeInTheDocument()
     expect(qbt.getAppVersion).not.toHaveBeenCalled()
     expect(qbt.getApiVersion).not.toHaveBeenCalled()
@@ -154,7 +154,7 @@ describe('SettingsScreen', () => {
     await userEvent.type(within(sheet).getByLabelText('Prowlarr API key'), 'abc123')
     await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
 
-    expect(await screen.findByText('Prowlarr key saved')).toBeInTheDocument()
+    expect(await screen.findByRole('status', { name: saying('Prowlarr key saved') })).toBeInTheDocument()
     expect(await within(connection('Prowlarr')).findByText(/2 indexers/)).toBeInTheDocument()
 
     // The settings the save answered with are what the sheet goes by now, without loading them again.
@@ -183,7 +183,7 @@ describe('SettingsScreen', () => {
     const sheet = screen.getByRole('dialog', { name: 'Prowlarr key' })
     await userEvent.click(await within(sheet).findByRole('button', { name: 'Use the server’s key' }))
 
-    expect(await screen.findByText('Using the server’s Prowlarr key')).toBeInTheDocument()
+    expect(await screen.findByRole('status', { name: saying('Using the server’s Prowlarr key') })).toBeInTheDocument()
     expect(screen.queryByText('Prowlarr key saved')).not.toBeInTheDocument()
     expect(await within(connection('Prowlarr')).findByText(/1 indexer/)).toBeInTheDocument()
   })
@@ -216,7 +216,7 @@ describe('SettingsScreen', () => {
     vi.mocked(matches.clearGuesses).mockResolvedValue({})
     renderScreen()
     await userEvent.click(screen.getByRole('button', { name: /Clear cache/ }))
-    expect(await screen.findByText('Cache cleared')).toBeInTheDocument()
+    expect(await screen.findByRole('status', { name: saying('Cache cleared') })).toBeInTheDocument()
   })
 
   it('opens the TMDB key sheet when sent from a screen that needs the key', async () => {

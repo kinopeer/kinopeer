@@ -7,7 +7,7 @@ import type { MainData, Torrent } from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
 import { getSettings, resetSettings, updateSettings } from '../settings/settings'
 import { mainData, title, torrent as fixtureTorrent } from '../test/fixtures'
-import { renderWithRouter } from '../test/render'
+import { renderWithRouter, saying } from '../test/render'
 import { resetServerMatches } from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
 import { DownloadsScreen } from './DownloadsScreen'
@@ -335,7 +335,7 @@ describe('DownloadsScreen', () => {
     const confirm = screen.getByRole('alertdialog', { name: 'Delete torrent?' })
     await userEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
     expect(api.deleteTorrents).toHaveBeenCalledWith(['andor'], false)
-    expect(await screen.findByText('Torrent deleted')).toBeInTheDocument()
+    expect(await screen.findByRole('status')).toHaveTextContent('Torrent deleted')
   })
 
   it('moves a torrent’s files from the row menu and says where', async () => {
@@ -470,7 +470,7 @@ describe('DownloadsScreen', () => {
     await userEvent.click(within(actions).getByRole('button', { name: 'Yes, right' }))
     await userEvent.click(within(actions).getByRole('button', { name: 'Speed limits' }))
     saved()
-    expect(await screen.findByText('Match confirmed')).toBeInTheDocument()
+    expect(await screen.findByRole('status')).toHaveTextContent('Match confirmed')
     expect(screen.getByRole('dialog', { name: 'Speed limits' })).toBeInTheDocument()
   })
 
@@ -505,7 +505,7 @@ describe('DownloadsScreen', () => {
     expect(within(sheet).queryByRole('button', { name: 'Change title' })).not.toBeInTheDocument()
     expect(within(sheet).getByRole('link', { name: 'Movie page' })).toHaveAttribute('href', '/title/movie/693134')
     await userEvent.click(within(sheet).getByRole('button', { name: 'Yes, right' }))
-    expect(await screen.findByText('Match confirmed')).toBeInTheDocument()
+    expect(await screen.findByRole('status')).toHaveTextContent('Match confirmed')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
@@ -516,7 +516,7 @@ describe('DownloadsScreen', () => {
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Pick title' }))
     const sheet = screen.getByRole('dialog', { name: 'Pick title' })
     await userEvent.click(await within(sheet).findByRole('button', { name: /^Andor/ }))
-    expect(await screen.findByText('Title changed')).toBeInTheDocument()
+    expect(await screen.findByRole('status')).toHaveTextContent('Title changed')
     await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor' }))
     expect(within(screen.getByRole('dialog', { name: 'Andor' })).getByRole('link', { name: 'Series page' })).toHaveAttribute(
       'href',
@@ -526,12 +526,12 @@ describe('DownloadsScreen', () => {
 
   it('confirms a torrent deleted on the torrent page', async () => {
     renderScreen({ deleted: 'files' })
-    expect(screen.getByText('Torrent and files deleted')).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: saying('Torrent and files deleted') })).toBeInTheDocument()
   })
 
   it('confirms a release added from the releases screen', async () => {
     renderScreen({ added: 'Dune: Part Two' })
-    expect(screen.getByText('“Dune: Part Two” added to downloads')).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: saying('“Dune: Part Two” added to downloads') })).toBeInTheDocument()
   })
 
   it('shows the empty state without torrents', async () => {
@@ -548,7 +548,7 @@ describe('DownloadsScreen', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
     expect(await screen.findAllByRole('listitem')).toHaveLength(3)
     expect(screen.queryByRole('heading', { name: 'Can’t reach qBittorrent' })).not.toBeInTheDocument()
-    expect(screen.getByText('Reconnected to qBittorrent')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Reconnected to qBittorrent')
   })
 
   it('keeps the last state with its age when qBittorrent stops answering', async () => {
@@ -639,7 +639,7 @@ describe('DownloadsScreen selection', () => {
     const confirm = screen.getByRole('alertdialog', { name: 'Delete torrents?' })
     await userEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
     expect(api.deleteTorrents).toHaveBeenCalledWith(['dune', 'alien'], false)
-    expect(await screen.findByText('2 torrents deleted')).toBeInTheDocument()
+    expect(await screen.findByRole('status')).toHaveTextContent('2 torrents deleted')
     expect(screen.queryByRole('toolbar')).not.toBeInTheDocument()
   })
 

@@ -76,9 +76,10 @@ trusted.
   owns (the shape `chooseTitle` saves is `titleMatches.test`'s); a call assertion on anything else
   (i18n, a hook, a helper); a count that isn't itself the behavior, or a behavioral count whose
   reason neither a comment nor the test's name gives; a class outside a design-system component's
-  own test, unless a comment says it's the only trace in the DOM of what the test says (Roles and
-  names, not classes); `expect.anything()` for the argument the test's name is about, or for one no
-  other test in the file asserts.
+  own test, unless the class itself does what the test says, no role or attribute shows it, and a
+  comment says what it does (Roles and names, not classes); `expect.anything()` for the argument the
+  test's name is about, or for one that neither another test in the file nor the shared hook's own
+  test asserts (a releases search's options are `useReleases.test`'s).
 - **E. Fakes and fixtures stay true.** A new or changed answer in `server/test/fakes.ts` is
   compared with the middleware it imitates (`server/*.ts`: status codes, `error` codes, body
   shapes) and with what the real service does; a mismatch is `fake-drift` in the making. Shared
@@ -88,8 +89,10 @@ trusted.
 - **F. Hygiene.** Real timers or sleeps, `waitFor` with a `timeout` above the default, a spy
   restored inside `it` instead of `afterEach`, a stubbed global left in place, an index-based query
   for an element that has a name of its own (`getAllByRole('button')[1]`; an index is fine when the
-  position is what the test says, as the first row after a sort), `getByText` where a role and name
-  exist (an error or confirmation in its own `alert` or `status`), `{ force: true }` on a hidden
+  position is what the test says, as the first row after a sort or the current title first),
+  `getByText` where a role and name exist (an error or confirmation in its `alert` or `status`;
+  where several share the role on a screen, `saying(text)` from `src/test/render.tsx` picks one), a
+  class selector for a decorative image whose `src` alone finds it, `{ force: true }` on a hidden
   control, `.skip`/`.only`/`.todo`/`fixme`, `retries` above 0, a test title that no longer says what
   the body does → findings.
 - **G. Baselines.** Each changed or new PNG is listed in the PR with what changed, why, and how it

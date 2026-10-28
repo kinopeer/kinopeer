@@ -155,6 +155,8 @@ describe('TitleScreen', () => {
     expect(screen.getByText('Rating').parentElement).toHaveTextContent('8.2TMDB')
     expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Science Fiction', 'Adventure'])
     expect(screen.getByRole('region', { name: 'Overview' })).toHaveTextContent('Paul Atreides')
+    // The poster is decorative, so it has no role, and the hero's backdrop is the same image: only the
+    // frame's class tells the two apart.
     expect(container.querySelector('.title-poster img')).toHaveAttribute('src', '/tmdb-img/w342/dune.jpg')
   })
 

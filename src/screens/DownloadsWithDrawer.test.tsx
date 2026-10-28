@@ -9,7 +9,7 @@ import * as tmdb from '../api/tmdb'
 import { stubDesktop } from '../lib/stubDesktop'
 import { resetSettings, updateSettings } from '../settings/settings'
 import { DUNE_TORRENT, mainData, title } from '../test/fixtures'
-import { Where, renderWithRouter, where } from '../test/render'
+import { Where, renderWithRouter, saying, where } from '../test/render'
 import { MainDataProvider } from '../torrents/MainDataProvider'
 import * as serverMatches from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
@@ -152,7 +152,7 @@ describe('the details drawer on desktop', () => {
     await userEvent.click(within(drawer).getByRole('button', { name: 'Delete' }))
     const confirm = screen.getByRole('alertdialog', { name: 'Delete torrent?' })
     await userEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
-    expect(await screen.findByText('Torrent deleted')).toBeInTheDocument()
+    expect(await screen.findByRole('status', { name: saying('Torrent deleted') })).toBeInTheDocument()
     expect(where()).toBe('/')
     expect(screen.queryByRole('dialog', { name: 'Dune: Part Two' })).not.toBeInTheDocument()
   })
@@ -185,7 +185,7 @@ describe('the details drawer on desktop', () => {
       expect(screen.queryByRole('menu')).not.toBeInTheDocument()
       const confirm = screen.getByRole('alertdialog', { name: 'Delete torrent?' })
       await userEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
-      expect(await screen.findByText('Torrent deleted')).toBeInTheDocument()
+      expect(await screen.findByRole('status', { name: saying('Torrent deleted') })).toBeInTheDocument()
       expect(where()).toBe('/')
     })
 
@@ -211,7 +211,7 @@ describe('the details drawer on desktop', () => {
       const menu = await openMenu()
       const guess = within(menu).getByRole('group', { name: 'Matched by the release name. Is it right?' })
       await userEvent.click(within(guess).getByRole('menuitem', { name: 'Yes, right' }))
-      expect(await screen.findByText('Match confirmed')).toBeInTheDocument()
+      expect(await screen.findByRole('status', { name: saying('Match confirmed') })).toBeInTheDocument()
       expect(screen.queryByRole('menu')).not.toBeInTheDocument()
     })
   })

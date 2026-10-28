@@ -76,7 +76,7 @@ describe('ProwlarrKeyForm', () => {
     const { field, save } = renderForm()
     await userEvent.type(field, 'abc123')
     await userEvent.click(save)
-    expect(await screen.findByText(message)).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent(message)
   })
 
   it("goes back to the server's key and hands the settings on", async () => {
@@ -102,7 +102,7 @@ describe('ProwlarrKeyForm', () => {
     const { onForgotten } = renderForm(true)
     const forget = screen.getByRole('button', { name: 'Use the server’s key' })
     await userEvent.click(forget)
-    expect(await screen.findByText(message)).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent(message)
     expect(onForgotten).not.toHaveBeenCalled()
 
     await userEvent.click(forget)

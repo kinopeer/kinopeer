@@ -118,6 +118,7 @@ describe('TitleScreen on desktop', () => {
   it('shows the hero with a larger poster and searches no releases until Find releases is pressed', async () => {
     const { container } = renderAt('/title/movie/693134')
     await screen.findByRole('heading', { level: 1, name: 'Dune: Part Two' })
+    // The poster is decorative and the backdrop the same image: only the frame's class tells them apart.
     expect(container.querySelector('.title-dposter img')).toHaveAttribute('src', '/tmdb-img/w500/dune.jpg')
     expect(screen.queryByRole('region', { name: 'Releases' })).not.toBeInTheDocument()
     expect(searchReleases).not.toHaveBeenCalled()
@@ -255,7 +256,7 @@ describe('TitleScreen on desktop', () => {
     expect(within(screen.getByRole('dialog', { name: 'Add to downloads' })).getByText(DUNE_RELEASES[1].title)).toBeInTheDocument()
   })
 
-  it('cuts a long overview to a few lines, with Show more', async () => {
+  it('shows a long overview in the hero, with Show more', async () => {
     const overview = 'Paul Atreides unites with Chani and the Fremen while seeking revenge. '.repeat(8).trim()
     getMovie.mockResolvedValue({ ...DUNE, overview })
     // A 10-line overview cut to 5: taller than it shows.
@@ -264,8 +265,7 @@ describe('TitleScreen on desktop', () => {
     // How it cuts and opens is TitleOverview.test.tsx's; here, that the hero has it.
     const text = await screen.findByText(overview)
     expect(screen.getByRole('region', { name: 'Overview' })).toContainElement(text)
-    await userEvent.click(screen.getByRole('button', { name: 'Show more' }))
-    expect(screen.getByRole('button', { name: 'Show less' })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('button', { name: 'Show more' })).toBeInTheDocument()
   })
 
   it('shows the series hint by the button and searches a series by name', async () => {

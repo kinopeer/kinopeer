@@ -334,7 +334,7 @@ describe('TorrentScreen title matching', () => {
     expect(await screen.findByText('Matched by the release name. Is it right?')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Yes, right' }))
-    expect(await screen.findByText('Match confirmed')).toBeInTheDocument()
+    expect(await screen.findByRole('status')).toHaveTextContent('Match confirmed')
     expect(screen.queryByText('Matched by the release name. Is it right?')).not.toBeInTheDocument()
   })
 
@@ -349,7 +349,7 @@ describe('TorrentScreen title matching', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Change' }))
     const sheet = screen.getByRole('dialog', { name: 'Change title' })
     await userEvent.click(await within(sheet).findByRole('button', { name: /^Dune Movie · 1984$/ }))
-    expect(await screen.findByText('Title changed')).toBeInTheDocument()
+    expect(await screen.findByRole('status')).toHaveTextContent('Title changed')
     expect(await screen.findByRole('heading', { level: 1, name: 'Dune' })).toBeInTheDocument()
     expect(screen.queryByText('Matched by the release name. Is it right?')).not.toBeInTheDocument()
   })

@@ -9,7 +9,7 @@ import * as serverSettings from './api/settings'
 import * as tmdb from './api/tmdb'
 import App from './App'
 import { stubDesktop } from './lib/stubDesktop'
-import { Where, renderWithRouter, where } from './test/render'
+import { Where, renderWithRouter, saying, where } from './test/render'
 
 vi.mock('./api/qbittorrent', async (importOriginal) => {
   const actual = await importOriginal<typeof api>()
@@ -243,7 +243,7 @@ describe('App', () => {
       const status = await screen.findByRole('region', { name: 'qBittorrent' })
       await userEvent.click(await within(status).findByRole('button', { name: 'Alt. speed limits' }))
       expect(api.toggleSpeedLimitsMode).toHaveBeenCalled()
-      expect(await screen.findByText('Couldn’t switch the speed limits. Try again.')).toBeInTheDocument()
+      expect(await screen.findByRole('status', { name: saying('Couldn’t switch the speed limits. Try again.') })).toBeInTheDocument()
     })
 
     it('shows no free space in the sidebar when qBittorrent reports 0, which means it can’t tell', async () => {
@@ -380,7 +380,7 @@ describe('App', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Back' }))
     expect(await screen.findByRole('heading', { name: 'Downloads' })).toBeInTheDocument()
     fail(new api.QbittorrentError('conflict', 409))
-    expect(await screen.findByText('qBittorrent couldn’t create that folder.')).toBeInTheDocument()
+    expect(await screen.findByRole('status', { name: saying('qBittorrent couldn’t create that folder.') })).toBeInTheDocument()
   })
 
   it('asks for the TMDB key when the server has none, then goes in', async () => {

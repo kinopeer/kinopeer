@@ -21,3 +21,10 @@ export function Where() {
 }
 
 export const where = () => screen.getByRole('status', { name: 'Location' }).textContent
+
+/**
+ * Picks a live region by what it says, for a screen where several share the role (a toast over a list
+ * that is a status region itself): a status or alert takes no name from its text, so
+ * `findByRole('status', { name: saying('Torrent deleted') })` matches it on its text instead.
+ */
+export const saying = (text: string) => (_name: string, element: Element) => element.textContent?.includes(text) ?? false
