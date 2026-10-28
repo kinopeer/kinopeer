@@ -29,7 +29,7 @@ describe('useReleases', () => {
     expect(result.current.filters.indexer).toEqual(['RuTracker'])
 
     rerender({ details: movie(2, 'Arrival') })
-    await waitFor(() => expect(prowlarr.searchReleases).toHaveBeenCalledWith('Arrival 2024', expect.anything()))
+    await waitFor(() => expect(prowlarr.searchReleases).toHaveBeenCalledWith('Arrival 2024', { signal: expect.any(AbortSignal) }))
     expect(result.current.filters.indexer).toEqual([])
   })
 

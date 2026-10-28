@@ -82,10 +82,15 @@ describe('startingFilters', () => {
   })
 
   it('lets filters that match no release together give way, the seeds first and the resolution last', () => {
-    // The 2160p release has 214 seeds; the one with 1000+ is 1080p.
-    expect(start({ resolution: ['2160p'], minSeeds: 1000 })).toMatchObject({ resolution: ['2160p'], minSeeds: 0 })
-    // No 2160p release is a BluRay or dubbed: the source goes, then the audio.
-    expect(start({ resolution: ['2160p'], audio: ['dub'], source: ['BluRay'] })).toMatchObject({ resolution: ['2160p'], audio: [], source: [] })
+    // Each pair below matches a release with either filter alone, so the order decides which stays.
+    const first = (remembered: Partial<RememberedFilters>, rows: ReleaseRow[]) =>
+      startingFilters({ resolution: [], audio: [], source: [], minSeeds: 0, ...remembered }, rows, presentValues(rows))
+    const seedsOrSource = [row('web', 'Film.2024.1080p.WEB-DL', 1e9, 5, 'A'), row('bd', 'Film.2024.1080p.BluRay', 1e9, 100, 'A')]
+    expect(first({ source: ['WEB-DL'], minSeeds: 10 }, seedsOrSource)).toMatchObject({ source: ['WEB-DL'], minSeeds: 0 })
+    const sourceOrAudio = [row('web', 'Film.2024.1080p.WEB-DL', 1e9, 100, 'A'), row('dub', 'Фильм (2024) BluRay 1080p | Дубляж', 1e9, 100, 'A')]
+    expect(first({ source: ['WEB-DL'], audio: ['dub'] }, sourceOrAudio)).toMatchObject({ source: [], audio: ['dub'] })
+    const audioOrResolution = [row('uhd', 'Film.2024.2160p.WEB-DL', 1e9, 100, 'A'), row('dub', 'Фильм (2024) WEB-DL 1080p | Дубляж', 1e9, 100, 'A')]
+    expect(first({ resolution: ['2160p'], audio: ['dub'] }, audioOrResolution)).toMatchObject({ resolution: ['2160p'], audio: [] })
   })
 
   it('puts back a filter that gave way when the releases still match with it', () => {
