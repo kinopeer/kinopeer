@@ -121,7 +121,7 @@ export function startingFilters(remembered: RememberedFilters, rows: ReleaseRow[
 /**
  * The remembered filters after a change: the filters it sets, but not the indexer. A changed list
  * keeps the remembered values the search didn't apply (set aside), since they weren't on screen to
- * keep or take off.
+ * keep or take off, and a minimum of seeds set aside stays through a pick of Any.
  */
 export function remember(remembered: RememberedFilters, change: Partial<Filters>, filters: Filters): RememberedFilters {
   const list = <T>(changed: T[] | undefined, kept: T[], shown: T[]) =>
@@ -130,7 +130,8 @@ export function remember(remembered: RememberedFilters, change: Partial<Filters>
     resolution: list(change.resolution, remembered.resolution, filters.resolution),
     audio: list(change.audio, remembered.audio, filters.audio),
     source: list(change.source, remembered.source, filters.source),
-    minSeeds: change.minSeeds ?? remembered.minSeeds,
+    // Any picked while the remembered minimum was set aside (Any shown) changes nothing.
+    minSeeds: change.minSeeds === undefined || (change.minSeeds === 0 && filters.minSeeds === 0) ? remembered.minSeeds : change.minSeeds,
   }
 }
 
