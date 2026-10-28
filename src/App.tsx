@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Navigate, Route, Routes, useLocation } from 'react-router'
+import { Navigate, Route, Routes, matchPath, useLocation } from 'react-router'
 import { Sidebar, SidebarStatus, type SidebarItem } from './components/Sidebar'
 import { TabBar, type TabBarItem } from './components/TabBar'
 import { Toast } from './components/Toast'
@@ -13,7 +13,7 @@ import { ErrorBoundary } from './screens/ErrorBoundary'
 import { MoveOutcomeProvider } from './screens/MoveOutcomeToast'
 import { SearchScreen } from './screens/SearchScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
-import { TitleRoute } from './screens/TitleScreen'
+import { RELEASES_PATH, TITLE_PATH, TitleRoute } from './screens/TitleScreen'
 import { TmdbKeyScreen } from './screens/TmdbKeyScreen'
 import { TorrentDrawerOverPage } from './screens/TorrentDrawer'
 import { TorrentScreen } from './screens/TorrentScreen'
@@ -57,10 +57,9 @@ function App() {
       // On desktop a torrent opened from a page (a link's background state) opens in a drawer over
       // that page, which the routes keep rendering. Without one, it opens over Downloads.
       const background =
-        isDesktop && location.pathname.startsWith('/torrent/') ? backgroundOf(location) : undefined
+        isDesktop && isTorrentPath(location.pathname) ? backgroundOf(location) : undefined
       const page = background ?? location
-      // A torrent's drawer over Downloads is part of that screen.
-      const screenKey = isDesktop && page.pathname.startsWith('/torrent/') ? '/' : page.pathname
+      const screenKey = screenKeyOf(page.pathname, isDesktop)
       return (
         <MainDataProvider onUnauthorized={onSessionLost}>
           <MoveOutcomeProvider>
@@ -72,17 +71,17 @@ function App() {
                   {isDesktop ? (
                     <Route element={<DownloadsWithDrawer onSessionLost={onSessionLost} onSelectingChange={setSelecting} />}>
                       <Route index />
-                      <Route path="torrent/:hash" />
+                      <Route path={TORRENT_PATH} />
                     </Route>
                   ) : (
                     <>
                       <Route index element={<DownloadsScreen onSessionLost={onSessionLost} onSelectingChange={setSelecting} />} />
-                      <Route path="torrent/:hash" element={<TorrentScreen onSessionLost={onSessionLost} />} />
+                      <Route path={TORRENT_PATH} element={<TorrentScreen onSessionLost={onSessionLost} />} />
                     </>
                   )}
                   <Route path="search" element={<SearchScreen />} />
-                  <Route path="title/:type/:id" element={<TitleRoute onSessionLost={onSessionLost} />} />
-                  <Route path="title/:type/:id/releases" element={<TitleRoute onSessionLost={onSessionLost} />} />
+                  <Route path={TITLE_PATH} element={<TitleRoute onSessionLost={onSessionLost} />} />
+                  <Route path={RELEASES_PATH} element={<TitleRoute onSessionLost={onSessionLost} />} />
                   <Route path="settings" element={<SettingsScreen />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
@@ -90,7 +89,7 @@ function App() {
               {background && (
                 <Routes>
                   <Route
-                    path="torrent/:hash"
+                    path={TORRENT_PATH}
                     element={<TorrentDrawerOverPage background={background} onSessionLost={onSessionLost} />}
                   />
                 </Routes>
@@ -114,6 +113,21 @@ function App() {
         />
       )
   }
+}
+
+const TORRENT_PATH = '/torrent/:hash'
+const isTorrentPath = (pathname: string) => matchPath(TORRENT_PATH, pathname) !== null
+
+/**
+ * What the error boundary is keyed by, so a crash on one screen goes away on the next. A torrent's
+ * drawer over Downloads is part of that screen, and on desktop a title's releases are part of its
+ * page (a phone shows them on a screen of their own).
+ */
+function screenKeyOf(pathname: string, isDesktop: boolean): string {
+  if (!isDesktop) return pathname
+  if (isTorrentPath(pathname)) return '/'
+  const title = matchPath(TITLE_PATH, pathname) ?? matchPath(RELEASES_PATH, pathname)
+  return title ? `/title/${title.params.type}/${title.params.id}` : pathname
 }
 
 /** The desktop sidebar with how many torrents are downloading and qBittorrent's status, from the shared poll. */

@@ -17,6 +17,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 - Search: a year field beside Movies and Series, shown while searching, finds only titles that came out that year (for a series, the year it started), so a remake or an old film with a popular namesake is easy to find. The year stays in the address with the query, so Back from a title keeps it.
 - Adding a release: "First and last pieces first" next to "Sequential download", in the add sheet's options and as a download default in Settings, which fetches the start and end of each file early; together with sequential download, a player can open a file before it's fully downloaded.
 - Releases: the indexer's name on a release (the card on a phone, the table on desktop and the add sheet) links to the release's page on the tracker, in a new tab, for what Kinoseed doesn't show.
+- Releases: when indexers fail during a search (blocked, timed out, or put on hold by Prowlarr after failures), a quiet note above the results names them, so missing releases aren't a mystery.
 
 ### Changed
 
@@ -28,6 +29,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 ### Fixed
 
 - Adding a release: the save path field no longer zooms the page in on an iPhone, and the folder shown under the options is the one qBittorrent will use: a category's folder only when qBittorrent puts new torrents there (automatic management, or category paths in manual mode), placed as qBittorrent places it.
+- Desktop: "Find releases" on a title page no longer reloads the whole page: the hero, an opened overview and the rest stay as they were, and the page scrolls smoothly down to the releases. ([#138](https://github.com/MrShakhov/kinoseed/issues/138))
 - When qBittorrent can't tell its free space (it reports 0), Downloads, the sidebar and the add sheet's files row no longer say "0 B free", and the file picker no longer says "Not enough free space". ([#137](https://github.com/MrShakhov/kinoseed/issues/137))
 - Desktop: a release name no longer looks clickable on hover (a click did nothing when the name fit in two lines); the whole name is a tooltip on hover instead. On a phone a tap still shows the whole name.
 - Desktop: Escape in the delete confirmation or the title search opened from a torrent's details closes only that, not the details too. ([#107](https://github.com/MrShakhov/kinoseed/issues/107))

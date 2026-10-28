@@ -323,7 +323,11 @@
     "colSeeds": "Сиды",
     "colPeers": "Пиры",
     "colAge": "Возраст",
-    "add": "Добавить"
+    "add": "Добавить",
+    "failingIndexers_one": "{{count}} индексатор не ответил: {{names}}",
+    "failingIndexers_few": "{{count}} индексатора не ответили: {{names}}",
+    "failingIndexers_many": "{{count}} индексаторов не ответили: {{names}}",
+    "failingIndexers_other": "{{count}} индексатора не ответили: {{names}}"
   },
   "add": {
     "title": "Добавить в загрузки",

@@ -1,8 +1,9 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { To } from 'react-router'
+import { Link, type To } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as matchesApi from './api/matches'
+import * as prowlarr from './api/prowlarr'
 import * as api from './api/qbittorrent'
 import * as serverSettings from './api/settings'
 import * as tmdb from './api/tmdb'
@@ -30,6 +31,11 @@ vi.mock('./api/matches', async (importOriginal) => ({
   ...(await importOriginal<typeof matchesApi>()),
   getMatches: vi.fn(),
   saveMatches: vi.fn(),
+}))
+
+vi.mock('./api/prowlarr', async (importOriginal) => ({
+  ...(await importOriginal<typeof prowlarr>()),
+  searchReleases: vi.fn(),
 }))
 
 vi.mock('./api/settings', async (importOriginal) => {
@@ -73,7 +79,17 @@ beforeEach(() => {
 afterEach(() => {
   localStorage.clear()
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
 })
+
+const duneDetails = {
+  id: 693134,
+  title: 'Dune: Part Two',
+  original_title: 'Dune: Part Two',
+  release_date: '2024-02-27',
+  poster_path: null,
+  genres: [],
+} as unknown as tmdb.MovieDetails
 
 describe('App', () => {
   it('goes straight in when qBittorrent needs no login', async () => {
@@ -158,6 +174,68 @@ describe('App', () => {
       expect(screen.getByRole('region', { name: 'qBittorrent' })).toHaveTextContent('qBittorrent v5.2.4')
     })
 
+    // A trailing slash is the same route to React Router, so it has to be the same screen too.
+    it.each(['/title/movie/693134', '/title/movie/693134/'])(
+      'keeps the title page at %s mounted when Find releases opens its releases',
+      async (path) => {
+        vi.mocked(tmdb.getMovie).mockResolvedValue(duneDetails)
+        vi.mocked(prowlarr.searchReleases).mockResolvedValue([])
+        renderApp(path)
+        const heading = await screen.findByRole('heading', { name: 'Dune: Part Two', level: 1 })
+        await userEvent.click(screen.getByRole('button', { name: 'Find releases' }))
+        expect(where()).toBe('/title/movie/693134/releases')
+        await screen.findByRole('region', { name: 'Releases' })
+        // The same heading element: a remounted page would have put a new one in its place.
+        expect(heading).toBeInTheDocument()
+      },
+    )
+
+    it('keeps Downloads mounted when a torrent opens in the drawer over it', async () => {
+      const torrent = { name: 'Dune.Part.Two.2024.2160p.WEB-DL', state: 'downloading', progress: 0.5, size: 1e9, priority: 1, ratio: 0 } as const
+      getMainData.mockResolvedValue({ rid: 1, full_update: true, torrents: { dune: torrent }, server_state: {} })
+      renderApp('/')
+      const heading = await screen.findByRole('heading', { name: 'Downloads', level: 1 })
+      await userEvent.click(await screen.findByRole('link', { name: /Dune\.Part\.Two/ }))
+      expect(await screen.findByRole('dialog', { name: 'Dune.Part.Two.2024.2160p.WEB-DL' })).toBeInTheDocument()
+      expect(where()).toBe('/torrent/dune')
+      // The same heading element: a remounted screen would have put a new one in its place.
+      expect(heading).toBeInTheDocument()
+    })
+
+    it('clears a crashed screen when the sidebar opens another', async () => {
+      // React and the error boundary log the crash; keep the test output clean.
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+      vi.mocked(tmdb.getMovie).mockResolvedValue({ ...duneDetails, genres: null } as unknown as tmdb.MovieDetails)
+      renderApp('/title/movie/693134')
+      expect(await screen.findByRole('heading', { name: 'Something went wrong' })).toBeInTheDocument()
+
+      await userEvent.click(within(screen.getByRole('navigation')).getByRole('link', { name: 'Settings' }))
+      expect(await screen.findByRole('heading', { name: 'Settings', level: 1 })).toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: 'Something went wrong' })).not.toBeInTheDocument()
+    })
+
+    it('clears a crashed title page when another title opens', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+      vi.mocked(tmdb.getMovie).mockImplementation(async (id) =>
+        id === 693134
+          ? ({ ...duneDetails, genres: null } as unknown as tmdb.MovieDetails)
+          : ({ ...duneDetails, id, title: 'Arrival' } as tmdb.MovieDetails),
+      )
+      // An address change from outside the crashed screen, as typing a URL or going Back would be.
+      renderWithRouter(
+        <>
+          <App />
+          <Link to="/title/movie/329865">Another title</Link>
+        </>,
+        ['/title/movie/693134'],
+      )
+      expect(await screen.findByRole('heading', { name: 'Something went wrong' })).toBeInTheDocument()
+
+      await userEvent.click(screen.getByRole('link', { name: 'Another title' }))
+      expect(await screen.findByRole('heading', { name: 'Arrival', level: 1 })).toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: 'Something went wrong' })).not.toBeInTheDocument()
+    })
+
     it('switches the alternative speed limits from the sidebar, and says when that fails', async () => {
       getMainData.mockResolvedValue({ rid: 1, full_update: true, torrents: {}, server_state: { use_alt_speed_limits: false } })
       vi.mocked(api.toggleSpeedLimitsMode).mockRejectedValue(new TypeError('Failed to fetch'))
@@ -194,14 +272,7 @@ describe('App', () => {
 
       beforeEach(() => {
         getMainData.mockResolvedValue({ rid: 1, full_update: true, torrents: { dune }, server_state: {} })
-        vi.mocked(tmdb.getMovie).mockResolvedValue({
-          id: 693134,
-          title: 'Dune: Part Two',
-          original_title: 'Dune: Part Two',
-          release_date: '2024-02-27',
-          poster_path: null,
-          genres: [],
-        } as unknown as tmdb.MovieDetails)
+        vi.mocked(tmdb.getMovie).mockResolvedValue(duneDetails)
       })
 
       /** The title page, then the drawer opened from its "In downloads" card. */
