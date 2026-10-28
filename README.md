@@ -15,7 +15,7 @@ A qBittorrent web UI for movies and TV series. Find a movie or a series, pick a 
 
 ## Features
 
-- **Search.** Movies and series from TMDB, trending and popular picks, a title page with the overview and rating.
+- **Search.** Movies and series from TMDB, picks of what's out on digital and new episodes, a title page with the overview and rating.
 - **Releases.** Search across all your Prowlarr indexers. Filter by resolution, source, HDR, audio, seeds and indexer; sort by seeds, size or date.
 - **Adding.** Category, save path, file selection (for example, only the seasons you want) and a free space check before the download starts.
 - **Downloads.** A live list or poster grid with TMDB posters and titles, statuses, speeds and time left. Pause, resume, delete.
@@ -51,6 +51,12 @@ Kinoseed is a web app (PWA). Over plain HTTP on your home network it works in th
 - Besides your qBittorrent and Prowlarr, Kinoseed only talks to TMDB, and only through its own server. No analytics, no telemetry.
 - Kinoseed never stores tracker logins: that's Prowlarr's job.
 - Kinoseed has no login of its own; on Umbrel, Umbrel's login protects it.
+
+## Ideas and bugs
+
+- **An idea or a missing feature:** post it in [Discussions → Ideas](https://github.com/MrShakhov/kinoseed/discussions/categories/ideas), or upvote one that's already there.
+- **A bug:** [report it](https://github.com/MrShakhov/kinoseed/issues/new?template=bug_report.yml) with the steps and your versions; Settings → About and Settings → Connections show them.
+- **A question about installing or using Kinoseed:** ask in [Discussions → Q&A](https://github.com/MrShakhov/kinoseed/discussions/categories/q-a).
 
 ## For developers
 

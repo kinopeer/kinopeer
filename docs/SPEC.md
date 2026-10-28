@@ -82,7 +82,13 @@ On desktop these steps show their form in a card centered in the window, without
 
 ### Search
 
-Movies and series from TMDB with a type filter. An empty search shows trending this week and popular titles. The query and type live in the page URL, and Back from a title returns to the results at the same scroll position.
+Movies and series from TMDB with a type filter. An empty search shows rows of titles that are likely on torrents already, in good quality, rather than what's in cinemas:
+
+- "New on digital": movies out on digital or disc in the last 60 days, first released (often at a festival) no more than about 18 months ago, most popular first.
+- "New episodes": scripted series and miniseries with an episode aired in the last 14 days, most popular first (talk shows, news and reality are left out).
+- "Best of the year": movies out on digital or disc in the last year (first released no more than about 18 months ago), rated by at least 300 people, best rated first.
+
+A release date in any country counts, up to the current day anywhere. The type filter hides the rows of the other type. A row whose query fails is left out; the error shows only when every row fails. The query and type live in the page URL, and Back from a title returns to the results at the same scroll position.
 
 On desktop the screen fills the window beside the sidebar: the search field up to 640px wide, rows of larger posters (with a thin scrollbar for a mouse) and results in a grid as wide as the window.
 
@@ -110,6 +116,7 @@ Poster, year, runtime or number of seasons and episodes, rating, overview, and a
 - Kinoseed gets only the `.torrent` (preferred, so files can be picked) or the magnet link from Prowlarr and adds it to qBittorrent itself. Prowlarr's own download clients aren't used.
 - Options: category (the default from Settings, else a qBittorrent category with a matching name such as Movies or TV Shows), save path, start paused, sequential, add to the top of the queue.
 - File selection and a free space check. With skipped files, the torrent is added stopped, the skipped files get priority 0, then it starts. A magnet link downloads every file.
+- When what's selected (the chosen files, or the release's size for a magnet link) is larger than qBittorrent's free space, the sheet warns with how much is missing, once the torrent is read (not when qBittorrent reports 0 or less, which means it can't tell). It doesn't block adding: space can be freed before the download finishes, and qBittorrent reports the free space of its default save path only, so a save path on another disk may have room.
 - The torrent gets the `tmdb:<movie|tv>:<id>` tag; after adding, the app goes to Downloads and shows a toast.
 
 ### Settings
@@ -132,6 +139,8 @@ Manifest and icons; the service worker keeps the app shell available offline and
 
 | Date | Decision |
 | --- | --- |
+| 2026-10-28 | Search's rows before a search show what's likely on torrents already, instead of TMDB's trending and popular lists, which lead with titles still in cinemas or not out yet. A movie's WEB-DL appears with its digital release and a Blu-ray rip with the disc, so the movie rows filter by those release dates (TMDB Discover's release types 4 and 5). A series' episodes are on the trackers within hours of airing, so its row is series with an episode aired lately. No region is passed, so a release in any country counts: the first digital release anywhere is what puts a release on the trackers, and the user's country says nothing about that. A tracker's own top (such as Kinozal's 4K top) was rejected: Kinoseed doesn't scrape trackers, and the useful ones sit behind Cloudflare. |
+| 2026-10-28 | Versions 0.6 to 0.9 are planned before 1.0 (`docs/ROADMAP.md`): small features and fixes, search and discovery, torrent control, installing beyond Umbrel. Search's TMDB trending and popular rows show titles mostly too new to be on trackers, so they give way to titles released digitally in the last weeks (0.6) and to a row of what is popular on the user's own trackers, taken from Prowlarr (0.7). That row doesn't scrape a tracker's top list behind Cloudflare or any other site protection: whatever the user's Prowlarr (with FlareSolverr, if they run it) returns is all Kinoseed sees. Ideas from GitHub Discussions (the queue order, transliterated names) aren't taken into these versions and stay under Later. |
 | 2026-10-27 | In the desktop hero the poster is aligned with the title at the top (the canvas aligned the text's bottom with the poster's), and an overview longer than five lines is cut with "Show more". With the bottom alignment a long overview (Russian TMDB overviews often run to ten lines) left the poster hanging at the bottom with empty space above it and the title far from it, and the hero grew with the text, pushing "Find releases" down. Five lines is about the poster's height, so a typical overview still shows whole. |
 | 2026-10-27 | Downloads keeps its controls on screen while the list scrolls, as Search and the releases already do: a long list otherwise leaves the filters, the sort and the selection's count and Cancel out of reach, with the bulk bar still fixed at the bottom. On a phone only the bar with the chips, the sort and the view (the selection row while selecting) is pinned, not the whole header: the title and the totals would cost a quarter of the screen for nothing that's acted on. On desktop there's room for the whole header, and the table's column names stick under it. |
 | 2026-10-27 | The indexer's name on a release links to the release's page on the tracker. Leaving Kinoseed for a tracker's site is still a gap in the flow, but this link is an exit for what Kinoseed doesn't show (the description, screenshots, comments, the exact audio tracks), not a step in it: the release is picked and added here. Tracker logins stay out of scope. The name is the link rather than a button of its own: the card and the table are already dense, and the name already says where the release is from. |

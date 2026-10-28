@@ -6,10 +6,12 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ### Added
 
+- Adding a release: a warning when the selected files are larger than the free space on qBittorrent's disk, with how much is missing. The release can still be added.
 - Releases: the indexer's name on a release (the card on a phone, the table on desktop and the add sheet) links to the release's page on the tracker, in a new tab, for what Kinoseed doesn't show.
 
 ### Changed
 
+- Search: before a search the rows show what's likely on torrents already: "New on digital" (movies out on digital or disc in the last two months), "New episodes" (series with an episode in the last two weeks) and "Best of the year" (the best rated movies out on digital or disc in the last year). Before, they showed TMDB's trending and popular titles, often still in cinemas and not on torrents yet.
 - Desktop: on the title page the poster stays at the top of the hero, by the title, however long the overview is, and an overview longer than five lines is cut with "Show more" that opens the rest in place, the blurred background staying put. Before, a long overview left the poster at the bottom with empty space above it.
 - Downloads: the filters, the sort and the view stay at the top while the list scrolls (on a phone the title and the totals scroll away; on desktop the whole header stays, with the table's column names under it), and so do the count, "Select all" and "Cancel" while selecting.
 - Downloads: while selecting, the count stands on the left, where the title was, and "Select all" and "Cancel" sit together on the right, where the Select button is, so the pointer is already there.
@@ -22,6 +24,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 - Desktop: a link to a title's releases (or a reload of their address) opens the title page at the releases, instead of at the top with the hero. ([#72](https://github.com/MrShakhov/kinoseed/issues/72))
 - Releases: a resolution written in the name wins over a UHD or 4K marker, so "UHD BDRip 1080p" shows as 1080p, not 2160p. HDRip is a source of its own, with its own filter, instead of showing as BDRip.
 - Search: going back from a title brings the results back at the same scroll position. Before, the list started from the top, because the results load again after the browser has already restored the scroll.
+- Settings: Test on a connection checks only that service, and saving a new TMDB key checks only TMDB. Before, every connection was checked again. ([#113](https://github.com/MrShakhov/kinoseed/issues/113))
 
 ## 0.4.2 - 2026-10-26
 
