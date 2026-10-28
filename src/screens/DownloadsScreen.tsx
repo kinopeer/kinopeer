@@ -35,9 +35,9 @@ import { OfflineBanner } from './OfflineBanner'
 import { SortMenu, SortSheet } from './SortSheet'
 import { StatusMenu } from './StatusMenu'
 import { RecheckDialog } from './RecheckDialog'
-import { SpeedLimitsSheet } from './SpeedLimitsSheet'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
 import { useMoveTorrent } from './useMoveTorrent'
+import { useSpeedLimits } from './useSpeedLimits'
 import './DownloadsScreen.css'
 
 export interface DownloadsScreenProps {
@@ -95,7 +95,6 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   const [deleting, setDeleting] = useState<string[] | null>(null)
   const move = useMoveTorrent({ torrents: data?.torrents, offline, refresh })
   const [rechecking, setRechecking] = useState<string | null>(null)
-  const [limiting, setLimiting] = useState<string | null>(null)
   // A recheck or reannounce qBittorrent took, said in a toast.
   const [notice, setNotice] = useState<'rechecking' | 'reannounced' | null>(null)
   const dismissNotice = useCallback(() => setNotice(null), [])
@@ -121,6 +120,12 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
 
   const torrents = useMemo(() => (data ? Object.values(data.torrents) : []), [data])
   const matches = useTitleMatches(torrents)
+  const limits = useSpeedLimits({
+    torrents: data?.torrents,
+    offline,
+    refresh,
+    titleOf: (torrent) => matches[torrent.hash]?.title ?? torrent.name,
+  })
   const serverMatches = useServerMatches()
   // The status filter counts within the picked type, so its numbers match the list.
   const typed = useMemo(
@@ -173,8 +178,6 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   // The torrent went away while its confirmation was open (deleted elsewhere): forget it, so the
   // confirmation doesn't open again if the same torrent is added back.
   if (rechecking && data && !recheckTorrent) setRechecking(null)
-  const limitsTorrent = limiting ? data?.torrents[limiting] : undefined
-  if (limiting && data && !limitsTorrent) setLimiting(null)
   const nameOf = (torrent: Torrent) => matches[torrent.hash]?.title ?? torrent.name
   const server = data?.server
   const free = freeSpace(server?.free_space_on_disk)
@@ -556,7 +559,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           }}
           onSpeedLimits={() => {
             setActionsFor(null)
-            setLimiting(actionsTorrent.hash)
+            limits.open(actionsTorrent.hash)
           }}
           onReannounced={() => {
             setActionsFor(null)
@@ -608,15 +611,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           }}
         />
       )}
-      {limitsTorrent && (
-        <SpeedLimitsSheet
-          torrent={limitsTorrent}
-          title={nameOf(limitsTorrent)}
-          offline={offline}
-          onClose={() => setLimiting(null)}
-          onChanged={refresh}
-        />
-      )}
+      {limits.element}
       {deleteTorrents.length > 0 && (
         <DeleteTorrentDialog
           torrents={deleteTorrents}

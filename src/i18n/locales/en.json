@@ -491,9 +491,10 @@
     "download": "Download limit, MB/s",
     "upload": "Upload limit, MB/s",
     "hint": "Empty: no limit",
-    "invalid": "Enter a number from 0.001 to 2147, or leave it empty for no limit",
+    "invalid": "Enter a number from {{min}} to {{max}}, or leave it empty for no limit",
     "save": "Save limits",
     "failed": "Couldn’t save the limits, or saved only some of them. Check the connection to qBittorrent and try again.",
+    "failedClosed": "Couldn’t save the speed limits of {{title}}, or saved only some. Open them again to check.",
     "downloadRow": "Download limit",
     "uploadRow": "Upload limit"
   }

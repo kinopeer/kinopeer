@@ -31,9 +31,9 @@ import { DeleteTorrentDialog } from './DeleteTorrentDialog'
 import { MatchPrompt } from './MatchPrompt'
 import { OfflineBanner } from './OfflineBanner'
 import { RecheckDialog } from './RecheckDialog'
-import { SpeedLimitsSheet } from './SpeedLimitsSheet'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
 import { useMoveTorrent } from './useMoveTorrent'
+import { useSpeedLimits } from './useSpeedLimits'
 import { TorrentFiles } from './TorrentFiles'
 import './TorrentScreen.css'
 
@@ -75,6 +75,12 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
 
   const torrents = useMemo(() => (torrent ? [torrent] : []), [torrent])
   const match = useTitleMatches(torrents)[hash]
+  const limits = useSpeedLimits({
+    torrents: data?.torrents,
+    offline,
+    refresh,
+    titleOf: (torrent) => match?.title ?? torrent.name,
+  })
   const stored = useServerMatches()?.[hash]
   const language = useTmdbLanguage()
 
@@ -86,7 +92,6 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
   const [retitling, setRetitling] = useState(false)
   const [rechecking, setRechecking] = useState(false)
-  const [limiting, setLimiting] = useState(false)
   // A recheck or reannounce qBittorrent took, said in a toast.
   const [notice, setNotice] = useState<'rechecking' | 'reannounced' | null>(null)
   const dismissNotice = useCallback(() => setNotice(null), [])
@@ -115,10 +120,9 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
     />
   )
 
-  // The torrent went away while its recheck confirmation or speed limits were open (deleted
-  // elsewhere): forget them, so they don't open again if the same torrent is added back.
+  // The torrent went away while its recheck confirmation was open (deleted elsewhere): forget it, so
+  // the confirmation doesn't open again if the same torrent is added back.
   if (rechecking && data && !torrent) setRechecking(false)
-  if (limiting && data && !torrent) setLimiting(false)
 
   if (data === null && offline) {
     return (
@@ -170,8 +174,9 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
         >
           {t('torrent.notFoundBody')}
         </EmptyState>
-        {/* A move sent before the torrent went away still says how it went. */}
+        {/* A move or limits sent before the torrent went away still say how they went. */}
         {move.element}
+        {limits.element}
       </Root>
     )
   }
@@ -403,7 +408,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
           }}
           onSpeedLimits={() => {
             setMenuAnchor(null)
-            setLimiting(true)
+            limits.open(torrent.hash)
           }}
           onReannounced={() => {
             setMenuAnchor(null)
@@ -434,9 +439,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
         />
       )}
 
-      {limiting && (
-        <SpeedLimitsSheet torrent={torrent} title={title} offline={offline} onClose={() => setLimiting(false)} onChanged={refresh} />
-      )}
+      {limits.element}
 
       {retitling && (
         <ChangeTitleSheet

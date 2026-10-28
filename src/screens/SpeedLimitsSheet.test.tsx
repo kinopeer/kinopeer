@@ -18,7 +18,7 @@ beforeEach(() => {
 
 describe('SpeedLimitsSheet', () => {
   function renderSheet(fields = {}, offline = false) {
-    const handlers = { onClose: vi.fn(), onChanged: vi.fn() }
+    const handlers = { onClose: vi.fn(), onSaved: vi.fn(), onFailed: vi.fn() }
     renderWithRouter(<SpeedLimitsSheet torrent={torrent('h1', fields)} title="Inception" offline={offline} {...handlers} />)
     return handlers
   }
@@ -30,14 +30,14 @@ describe('SpeedLimitsSheet', () => {
     expect(screen.getByRole('button', { name: 'Save limits' })).toBeDisabled()
   })
 
-  it('saves a changed limit, then refreshes the list and closes', async () => {
+  it('saves a changed limit, then says so, which closes it', async () => {
     vi.mocked(api.setSpeedLimits).mockResolvedValue()
     const handlers = renderSheet()
     await userEvent.type(screen.getByRole('textbox', { name: 'Upload limit, MB/s' }), '0,5')
     await userEvent.click(screen.getByRole('button', { name: 'Save limits' }))
     expect(api.setSpeedLimits).toHaveBeenCalledWith(['h1'], { download: undefined, upload: 500_000 })
-    expect(handlers.onChanged).toHaveBeenCalled()
-    expect(handlers.onClose).toHaveBeenCalled()
+    expect(handlers.onSaved).toHaveBeenCalled()
+    expect(handlers.onFailed).not.toHaveBeenCalled()
   })
 
   it('says under each field that an empty one means no limit', () => {
@@ -130,7 +130,7 @@ describe('SpeedLimitsSheet', () => {
     expect(screen.getByRole('button', { name: 'Save limits' })).toBeEnabled()
   })
 
-  it('keeps the sheet open with an error when qBittorrent refuses, and refreshes the list for a partial save', async () => {
+  it('keeps the sheet open with an error when qBittorrent refuses, and says it failed, for the list to refresh', async () => {
     // The download limit may already be applied when the upload request fails.
     vi.mocked(api.setSpeedLimits).mockRejectedValue(new Error('down'))
     const handlers = renderSheet()
@@ -138,7 +138,8 @@ describe('SpeedLimitsSheet', () => {
     await userEvent.type(screen.getByRole('textbox', { name: 'Upload limit, MB/s' }), '1')
     await userEvent.click(screen.getByRole('button', { name: 'Save limits' }))
     expect(await screen.findByText(/Couldn’t save the limits, or saved only some/)).toBeInTheDocument()
-    expect(handlers.onChanged).toHaveBeenCalled()
+    expect(handlers.onFailed).toHaveBeenCalled()
+    expect(handlers.onSaved).not.toHaveBeenCalled()
     expect(handlers.onClose).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Save limits' })).toBeEnabled()
   })

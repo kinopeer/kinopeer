@@ -454,6 +454,37 @@ describe('DownloadsScreen', () => {
     expect(screen.getByRole('dialog', { name: 'Speed limits' })).toHaveTextContent('Alien.Romulus.2024.1080p')
   })
 
+  it('says in a toast when a save from a closed sheet fails', async () => {
+    let refuse = () => {}
+    vi.mocked(api.setSpeedLimits).mockReturnValue(new Promise((_, reject) => (refuse = () => reject(new Error('500')))))
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Speed limits' }))
+    const sheet = screen.getByRole('dialog', { name: 'Speed limits' })
+    await userEvent.type(within(sheet).getByRole('textbox', { name: 'Download limit, MB/s' }), '2')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save limits' }))
+    fireEvent(sheet, new Event('cancel', { cancelable: true }))
+    refuse()
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Couldn’t save the speed limits of Andor.S02.1080p, or saved only some. Open them again to check.',
+    )
+  })
+
+  it('closes the speed limits when their torrent is replaced by another with the same hash', async () => {
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Speed limits' }))
+    expect(screen.getByRole('dialog', { name: 'Speed limits' })).toBeInTheDocument()
+
+    // Deleted and added again between two polls: the same hash, added later.
+    getMainData.mockResolvedValue({
+      ...SNAPSHOT,
+      torrents: { ...SNAPSHOT.torrents, andor: { ...SNAPSHOT.torrents!.andor, added_on: 1_000 } },
+    })
+    window.dispatchEvent(new Event('online'))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
   it('keeps the speed limits open when the title confirmation sent before them comes back', async () => {
     searchTitles.mockImplementation(async (query) => ({
       titles: query === 'Dune Part Two' ? [DUNE_TITLE] : [],
