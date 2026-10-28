@@ -26,6 +26,7 @@ import type { ReleaseInfo } from '../releases/parseRelease'
 import { qualityBadges } from '../releases/qualityBadges'
 import { useSettings } from '../settings/settings'
 import { tmdbTagFor } from '../torrents/parseName'
+import { freeSpace } from '../torrents/freeSpace'
 import { categoryType } from '../torrents/titleMatches'
 import { readTorrentFile, type TorrentMeta } from '../torrents/torrentFile'
 import { FilePicker } from './FilePicker'
@@ -67,11 +68,7 @@ async function locations(): Promise<Locations> {
     getCategories().catch(() => []),
     getDefaultSavePath().catch(() => ''),
     getMainData(0).then(
-      (data) => {
-        // 0 or less means qBittorrent can't tell, e.g. before its first disk check.
-        const free = data.server_state?.free_space_on_disk
-        return free !== undefined && free > 0 ? free : undefined
-      },
+      (data) => freeSpace(data.server_state?.free_space_on_disk),
       () => undefined,
     ),
   ])
