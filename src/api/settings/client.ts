@@ -1,4 +1,4 @@
-import type { DownloadDefaultsBody, QbittorrentLoginBody, ServerSettings, SettingsErrorBody, TmdbKeyBody } from './types'
+import type { DownloadDefaultsBody, ProwlarrKeyBody, QbittorrentLoginBody, ServerSettings, SettingsErrorBody, TmdbKeyBody } from './types'
 
 /** Settings the Kinoseed server keeps (server/settings.ts). */
 export const SETTINGS_BASE = '/api/settings'
@@ -48,6 +48,15 @@ async function send<T>(method: 'PUT' | 'PATCH', path: string, body: T): Promise<
  */
 export function saveTmdbKey(apiKey: string): Promise<ServerSettings> {
   return send<TmdbKeyBody>('PUT', 'tmdb', { apiKey })
+}
+
+/**
+ * Saves the Prowlarr API key on the server, which checks it with Prowlarr first. Rejects with a
+ * SettingsError: code 'invalid-key' when Prowlarr refuses it, 'unreachable' when Prowlarr doesn't
+ * answer, or 'not-configured' when the server has no PROWLARR_URL.
+ */
+export function saveProwlarrKey(apiKey: string): Promise<ServerSettings> {
+  return send<ProwlarrKeyBody>('PUT', 'prowlarr', { apiKey })
 }
 
 /**

@@ -3,9 +3,9 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { MatchesStore, matchesMiddleware, qbittorrentHashes, startMatchesCleanup } from './matches.ts'
-import { prowlarrMiddleware, readProwlarrApiKey, type Middleware } from './prowlarr.ts'
+import { prowlarrMiddleware, type Middleware } from './prowlarr.ts'
 import { qbittorrentBridge } from './qbittorrent.ts'
-import { SettingsStore, qbittorrentCredentials, settingsMiddleware, tmdbKey } from './settings.ts'
+import { SettingsStore, prowlarrKey, qbittorrentCredentials, settingsMiddleware, tmdbKey } from './settings.ts'
 import { staticMiddleware } from './static.ts'
 import { tmdbMiddleware } from './tmdb.ts'
 
@@ -64,12 +64,15 @@ export function kinoseedServer(env: Record<string, string | undefined>, stores: 
         tmdbApiBase: env.TMDB_API_URL,
         qbittorrentUrl: env.QBITTORRENT_URL,
         envQbittorrent,
+        prowlarrUrl: env.PROWLARR_URL,
+        envProwlarrApiKey: env.PROWLARR_API_KEY,
+        prowlarrConfigXml: prowlarrConfig,
       }),
       matchesMiddleware(stores.matches),
       qbittorrent.middleware,
       prowlarrMiddleware({
         url: env.PROWLARR_URL,
-        apiKey: async () => env.PROWLARR_API_KEY || (prowlarrConfig ? await readProwlarrApiKey(prowlarrConfig) : undefined),
+        apiKey: () => prowlarrKey(store, env.PROWLARR_API_KEY, prowlarrConfig),
       }),
       tmdbMiddleware({
         apiKey: () => tmdbKey(store, env.TMDB_API_KEY),

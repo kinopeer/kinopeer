@@ -182,6 +182,19 @@ async function status(base: string, apiKey: string, _query: URLSearchParams, res
   } satisfies ProwlarrStatus)
 }
 
+/**
+ * Whether Prowlarr at `base` takes `apiKey`: false when it answers 401, throws when it doesn't
+ * answer or answers anything else unexpected.
+ */
+export async function checkProwlarrKey(base: string, apiKey: string): Promise<boolean> {
+  const response = await fetch(`${base}/api/v1/system/status`, {
+    headers: { 'X-Api-Key': apiKey, Accept: 'application/json' },
+  })
+  if (response.status === 401) return false
+  if (!response.ok) throw new Error(`Prowlarr answered ${response.status}`)
+  return true
+}
+
 /** Prowlarr's API key from its config.xml (<ApiKey>…</ApiKey>), or undefined when it can't be read. */
 export async function readProwlarrApiKey(configXmlPath: string): Promise<string | undefined> {
   try {

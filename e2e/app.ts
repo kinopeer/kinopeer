@@ -85,6 +85,7 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
     (route) =>
       json(route, {
         tmdb: { configured: true, source: 'saved' },
+        prowlarr: { configured: true, source: 'env' },
         qbittorrent: { configured: true, source: 'saved' },
         downloads: null,
       }),

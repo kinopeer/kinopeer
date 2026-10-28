@@ -59,11 +59,13 @@ beforeEach(() => {
   vi.mocked(tmdb.checkTmdb).mockResolvedValue()
   vi.mocked(serverSettings.getServerSettings).mockResolvedValue({
     tmdb: { configured: true, source: 'saved' },
+    prowlarr: { configured: true, source: 'env' },
     qbittorrent: { configured: true, source: 'env' },
     downloads: null,
   })
   vi.mocked(serverSettings.saveDownloadDefaults).mockResolvedValue({
     tmdb: { configured: true, source: 'saved' },
+    prowlarr: { configured: true, source: 'env' },
     qbittorrent: { configured: true, source: 'env' },
     downloads: {},
   })
@@ -113,7 +115,7 @@ describe('SettingsScreen', () => {
 
   it('changes the TMDB key and checks the connection again', async () => {
     vi.mocked(tmdb.checkTmdb).mockRejectedValue(new tmdb.TmdbKeyError(401))
-    vi.mocked(serverSettings.saveTmdbKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved' }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
+    vi.mocked(serverSettings.saveTmdbKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved' }, prowlarr: { configured: true, source: 'env' }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
     renderScreen()
     expect(await within(connection('TMDB')).findByText('The API key is missing or invalid')).toBeInTheDocument()
     expect(await within(connection('Prowlarr')).findByText(/^Connected/)).toBeInTheDocument()
@@ -169,6 +171,7 @@ describe('SettingsScreen', () => {
   it("shows the download defaults the server keeps, set on another device", async () => {
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue({
       tmdb: { configured: true, source: 'saved' },
+      prowlarr: { configured: true, source: 'env' },
       qbittorrent: { configured: true, source: 'env' },
       downloads: { tvCategory: 'Anime', sequential: true },
     })
