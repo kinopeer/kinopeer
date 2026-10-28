@@ -10,12 +10,6 @@
   min-height: 100dvh;
 }
 
-.title-rel-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
 .title-rel-heading {
   display: flex;
   align-items: baseline;
