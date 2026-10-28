@@ -82,6 +82,7 @@ export interface AddedTorrent {
   savePath?: string
   stopped: boolean
   sequential: boolean
+  firstLastPieces: boolean
   topOfQueue: boolean
 }
 
@@ -127,6 +128,7 @@ async function parseAdd(body: Buffer, contentType: string | undefined): Promise<
     savePath: field('savepath'),
     stopped: field('stopped') === 'true',
     sequential: field('sequentialDownload') === 'true',
+    firstLastPieces: field('firstLastPiecePrio') === 'true',
     topOfQueue: field('addToTopOfQueue') === 'true',
   }
 }

@@ -17,6 +17,7 @@ import { TorrentDrawerOverPage } from './screens/TorrentDrawer'
 import { TorrentScreen } from './screens/TorrentScreen'
 import { useQbitSession } from './session/useQbitSession'
 import { useTmdbSetup } from './session/useTmdbSetup'
+import { freeSpace } from './torrents/freeSpace'
 import { downloadStatus } from './torrents/status'
 import { MainDataProvider } from './torrents/MainDataProvider'
 import { useMainData } from './torrents/useMainData'
@@ -133,7 +134,7 @@ function AppSidebar({ items, version, pathname }: { items: TabBarItem[]; version
           offline={offline}
           downloadSpeed={data?.server.dl_info_speed}
           uploadSpeed={data?.server.up_info_speed}
-          freeSpace={data?.server.free_space_on_disk}
+          freeSpace={freeSpace(data?.server.free_space_on_disk)}
         />
       }
     />

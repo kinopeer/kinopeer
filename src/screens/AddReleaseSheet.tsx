@@ -26,6 +26,7 @@ import { qualityBadges } from '../releases/qualityBadges'
 import { useSettings } from '../settings/settings'
 import { addFolder } from '../torrents/folders'
 import { tmdbTagFor } from '../torrents/parseName'
+import { freeSpace } from '../torrents/freeSpace'
 import { categoryType } from '../torrents/titleMatches'
 import { readTorrentFile, type TorrentMeta } from '../torrents/torrentFile'
 import { FilePicker } from './FilePicker'
@@ -64,7 +65,7 @@ async function locations(): Promise<Locations> {
   const [saved, free] = await Promise.all([
     getSaveLocations(),
     getMainData(0).then(
-      (data) => data.server_state?.free_space_on_disk,
+      (data) => freeSpace(data.server_state?.free_space_on_disk),
       () => undefined,
     ),
   ])
@@ -88,8 +89,10 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   // The defaults from Settings until the user flips them, so defaults the server sends late still apply.
   const [chosenPaused, setPaused] = useState<boolean>()
   const [chosenSequential, setSequential] = useState<boolean>()
+  const [chosenFirstLast, setFirstLast] = useState<boolean>()
   const paused = chosenPaused ?? settings.startPaused
   const sequential = chosenSequential ?? settings.sequential
+  const firstLastPieces = chosenFirstLast ?? settings.firstLastPieces
   const [topOfQueue, setTopOfQueue] = useState(false)
   const [adding, setAdding] = useState(false)
   const [addError, setAddError] = useState<string>()
@@ -113,11 +116,12 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   const fileCount = meta?.files.length ?? 0
   const selectedCount = fileCount - skipped.size
   const free = where.data?.free
-  // qBittorrent reports the free space where its default save path is (0 or negative when it can't tell).
-  // A warning, not a block: the space may be freed before the download finishes, or the save path may
-  // be on another disk. Only once the torrent is read, so a .torrent's own file sizes count.
+  // qBittorrent reports the free space where its default save path is. A warning, not a block: the
+  // space may be freed before the download finishes, or the save path may be on another disk. Only by
+  // known sizes: a read .torrent's files or a magnet's release size, not an unreadable .torrent's.
+  const knownSize = meta !== undefined || prepared.data?.source.kind === 'magnet'
   const lowSpace =
-    prepared.data && free !== undefined && free > 0 && selectedSize > free
+    knownSize && free !== undefined && selectedSize > free
       ? { free: format.size(free), missing: format.size(selectedSize - free) }
       : undefined
 
@@ -134,6 +138,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
           savePath: savePath.trim() || undefined,
           paused,
           sequential,
+          firstLastPieces,
           topOfQueue,
         },
         meta && { meta, skip: [...skipped] },
@@ -161,6 +166,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   const toggles = [
     { label: t('add.startPaused'), checked: paused, set: setPaused },
     { label: t('add.sequential'), checked: sequential, set: setSequential },
+    { label: t('add.firstLastPieces'), checked: firstLastPieces, set: setFirstLast },
     { label: t('add.addTop'), checked: topOfQueue, set: setTopOfQueue },
   ]
 

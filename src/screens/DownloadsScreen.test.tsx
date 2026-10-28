@@ -160,6 +160,14 @@ describe('DownloadsScreen', () => {
     expect(screen.getByText('Upload speed').parentElement).toHaveTextContent('120 KB/s')
   })
 
+  it('shows no free space when qBittorrent reports 0, which means it can’t tell', async () => {
+    getMainData.mockResolvedValue({ ...SNAPSHOT, server_state: { ...SNAPSHOT.server_state, free_space_on_disk: 0 } })
+    renderScreen()
+    expect(await screen.findByText('Download speed')).toBeInTheDocument()
+    expect(screen.getByText('Download speed').parentElement).toHaveTextContent('4.3 MB/s')
+    expect(screen.queryByText(/free$/)).not.toBeInTheDocument()
+  })
+
   it('filters by status with counts', async () => {
     renderScreen()
     await screen.findAllByRole('listitem')

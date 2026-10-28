@@ -67,7 +67,7 @@ describe('adding a release', () => {
     const skip = [10, 11, 12, 13] // the subtitles and the .nfo
     await addRelease(
       source,
-      { tags: [tmdbTag('tv', 126308)], category: 'TV Shows', paused: false, sequential: true, topOfQueue: false },
+      { tags: [tmdbTag('tv', 126308)], category: 'TV Shows', paused: false, sequential: true, firstLastPieces: true, topOfQueue: false },
       { meta, skip },
       () => Promise.resolve(),
     )
@@ -87,6 +87,7 @@ describe('adding a release', () => {
         savePath: undefined,
         stopped: true,
         sequential: true,
+        firstLastPieces: true,
         topOfQueue: false,
       },
     ])

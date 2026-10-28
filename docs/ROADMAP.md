@@ -36,7 +36,7 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 
 ## 0.6: Small features and fixes
 
-- [ ] "First and last pieces first" next to sequential download: a download default in Settings and a switch in the add sheet (qBittorrent's `firstLastPiecePrio`).
+- [x] "First and last pieces first" next to sequential download: a download default in Settings and a switch in the add sheet (qBittorrent's `firstLastPiecePrio`).
 - [ ] Bottom sheets on a phone close with a swipe down on the handle, and the page behind them doesn't scroll while one is open.
 - [x] Settings → Connections: "Test" on a card checks only that connection, not all three.
 - [ ] Interface language: a "System" option that follows the browser's language, like the system theme.

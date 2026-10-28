@@ -91,8 +91,18 @@ export async function getMainData(rid = 0): Promise<MainData> {
  * none of them could be added (invalid file, or the torrent is already there).
  */
 export async function addTorrents(options: AddTorrentOptions): Promise<void> {
-  const { files = [], urls = [], tags = [], category, savePath, stopped, stopCondition, sequentialDownload, addToTopOfQueue } =
-    options
+  const {
+    files = [],
+    urls = [],
+    tags = [],
+    category,
+    savePath,
+    stopped,
+    stopCondition,
+    sequentialDownload,
+    firstLastPiecePrio,
+    addToTopOfQueue,
+  } = options
   const form = new FormData()
   for (const file of files) form.append('torrents', file, file.name)
   if (urls.length) form.append('urls', urls.join('\n'))
@@ -101,6 +111,7 @@ export async function addTorrents(options: AddTorrentOptions): Promise<void> {
   if (savePath) form.append('savepath', savePath)
   if (stopCondition) form.append('stopCondition', stopCondition)
   if (sequentialDownload) form.append('sequentialDownload', 'true')
+  if (firstLastPiecePrio) form.append('firstLastPiecePrio', 'true')
   if (addToTopOfQueue) form.append('addToTopOfQueue', 'true')
   if (stopped !== undefined) {
     // qBittorrent 5 renamed "paused" to "stopped"; send both so 4.x works too.
