@@ -122,7 +122,7 @@ describe('Sheet', () => {
       expect(onClose).toHaveBeenCalledOnce()
     })
 
-    it('closes on a quick flick, however short', () => {
+    it('closes on a quick flick, a short way', () => {
       const onClose = renderSheet()
       drag(handle(), 100, 140, 40)
       expect(onClose).toHaveBeenCalledOnce()
@@ -145,6 +145,65 @@ describe('Sheet', () => {
       pointer('pointerDown', handle(), 300, 150, { pointerId: 2 })
       pointer('pointerMove', handle(), 200, 200)
       expect(dialog().style.transform).toBe('translateY(100px)')
+    })
+
+    it("doesn't take a tap that wobbles for a flick", () => {
+      const onClose = renderSheet()
+      drag(handle(), 100, 104, 4)
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it('goes back up when it loses the pointer, however far it went', () => {
+      const onClose = renderSheet()
+      pointer('pointerDown', handle(), 100)
+      pointer('pointerMove', handle(), 400, 100)
+      fireEvent.lostPointerCapture(handle(), { pointerId: 1 })
+      expect(onClose).not.toHaveBeenCalled()
+      expect(dialog().style.transform).toBe('')
+    })
+
+    it('drags again after closing under a drag that never ended', () => {
+      const onClose = vi.fn()
+      const sheet = (open: boolean) => (
+        <Sheet open={open} onClose={onClose} title="Add release">
+          <p>Options</p>
+        </Sheet>
+      )
+      const { rerender } = render(sheet(true))
+      pointer('pointerDown', handle(), 100)
+      rerender(sheet(false))
+      rerender(sheet(true))
+      slowDrag(handle(), 100, 300)
+      expect(onClose).toHaveBeenCalledOnce()
+    })
+
+    it("waits out the opening slide, but not a spring back, which it catches where it is", () => {
+      class CSSAnimation {
+        playState = 'running'
+      }
+      vi.stubGlobal('CSSAnimation', CSSAnimation)
+      vi.stubGlobal(
+        'DOMMatrixReadOnly',
+        class {
+          m42: number
+          constructor(transform: string) {
+            this.m42 = Number(/translateY\((\d+)px\)/.exec(transform)?.[1] ?? 0)
+          }
+        },
+      )
+      renderSheet()
+      const animations: object[] = [new CSSAnimation()]
+      Object.defineProperty(dialog(), 'getAnimations', { value: () => animations })
+      pointer('pointerDown', handle(), 100)
+      pointer('pointerMove', handle(), 160, 100)
+      expect(dialog().style.transform).toBe('')
+
+      // Halfway back up from a short drag: the transition, not the keyframes.
+      animations.splice(0, 1, { playState: 'running' })
+      dialog().style.transform = 'translateY(30px)'
+      pointer('pointerDown', handle(), 100)
+      pointer('pointerMove', handle(), 110, 100)
+      expect(dialog().style.transform).toBe('translateY(40px)')
     })
 
     it('goes back up when let go after a short, slow drag', () => {
@@ -185,6 +244,16 @@ describe('Sheet', () => {
       ['a button', () => <button type="button">Reset</button>, () => screen.getByRole('button', { name: 'Reset' })],
       ['a link', () => <a href="/help">Help</a>, () => screen.getByRole('link', { name: 'Help' })],
       ['a field', () => <input aria-label="Find" />, () => screen.getByRole('textbox', { name: 'Find' })],
+      [
+        'a select',
+        () => (
+          <select aria-label="Order">
+            <option>Name</option>
+          </select>
+        ),
+        () => screen.getByRole('combobox', { name: 'Order' }),
+      ],
+      ['a switch', () => <span role="switch" aria-checked="false" aria-label="Paused" />, () => screen.getByRole('switch', { name: 'Paused' })],
     ])('leaves %s in its title row to its taps', (_, action, target) => {
       const onClose = renderSheet({ action: action() })
       slowDrag(target(), 100, 300)
@@ -280,6 +349,18 @@ describe('Sheet', () => {
         await Promise.resolve()
         await Promise.resolve()
         expect(onClose).toHaveBeenCalledOnce()
+      })
+
+      it('comes back into view when the parent keeps it open', async () => {
+        const { animation, finish } = stubAnimate()
+        renderSheet({ onClose: () => {} })
+        slowDrag(handle(), 100, 300)
+        finish()
+        await vi.waitFor(() => expect(animation.cancel).toHaveBeenCalledOnce())
+        expect(dialog().style.transform).toBe('')
+        pointer('pointerDown', handle(), 100)
+        pointer('pointerMove', handle(), 150, 100)
+        expect(dialog().style.transform).toBe('translateY(50px)')
       })
 
       it('drops the slide when it opens again', async () => {

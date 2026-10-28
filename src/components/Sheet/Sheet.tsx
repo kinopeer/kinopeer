@@ -27,10 +27,15 @@ export interface SheetProps {
 /** How far down a let-go sheet closes: this many px, or this share of its height if that's more. */
 const CLOSE_DISTANCE = 96
 const CLOSE_SHARE = 0.3
-/** A flick down at least this fast (px/ms) closes it however short it was. */
+/** A flick down at least this fast (px/ms) and this far (px, so a wobbly tap isn't one) closes it. */
 const CLOSE_SPEED = 0.5
+const FLICK_DISTANCE = 20
 /** Ms without a move before letting go after which the flick no longer counts. */
 const FLICK_WINDOW = 100
+/** Ms after `onClose` by which a parent that closes the sheet has done so; else it comes back. */
+const CLOSE_GRACE = 100
+/** What a pointer-down in the title row leaves alone: its controls keep their taps. */
+const CONTROLS = 'button, a, input, select, textarea, label, summary, [role]'
 
 interface Drag {
   pointerId: number
@@ -46,6 +51,17 @@ interface Drag {
  * there, Escape and a tap on the backdrop close it, and focus returns to what opened it. On a phone
  * its top (the grabber and the title row) also drags it down to close it.
  */
+function isCssAnimation(animation: Animation): boolean {
+  return typeof CSSAnimation !== 'undefined' && animation instanceof CSSAnimation
+}
+
+/** How far down the sheet is now, e.g. partway through springing back. */
+function currentOffset(dialog: HTMLDialogElement): number {
+  const transform = getComputedStyle(dialog).transform
+  if (!transform || transform === 'none' || typeof DOMMatrixReadOnly === 'undefined') return 0
+  return Math.max(0, new DOMMatrixReadOnly(transform).m42)
+}
+
 export function Sheet({
   open,
   onClose,
@@ -67,6 +83,8 @@ export function Sheet({
   useEffect(() => {
     const dialog = ref.current
     if (!dialog) return
+    // A drag the sheet closed under (a second finger tapped Done) never got its end event.
+    drag.current = null
     if (open && !dialog.open) {
       // Where a drag left it, from the last time it was open.
       exit.current?.cancel()
@@ -89,12 +107,24 @@ export function Sheet({
     // On desktop it's a centered modal with no grabber; the title row's buttons keep their taps; a
     // sheet already sliding out is on its way to closing.
     if (isDesktop || drag.current || exit.current || event.button !== 0) return
-    if ((event.target as Element).closest('button, a, input')) return
-    // The opening slide animates transform too and would hide the drag until it ends.
-    if (ref.current?.getAnimations?.().some((animation) => animation.playState === 'running')) return
-    drag.current = { pointerId: event.pointerId, startY: event.clientY, y: event.clientY, time: event.timeStamp, speed: 0 }
+    if ((event.target as Element).closest(CONTROLS)) return
+    const dialog = ref.current
+    if (!dialog) return
+    // The opening slide (a CSS animation) animates transform too and would hide the drag until it
+    // ends. A spring back still running (a CSS transition) is caught where it is instead.
+    const animations = dialog.getAnimations?.() ?? []
+    if (animations.some((animation) => isCssAnimation(animation) && animation.playState === 'running')) return
+    const offset = currentOffset(dialog)
+    drag.current = {
+      pointerId: event.pointerId,
+      startY: event.clientY - offset,
+      y: event.clientY,
+      time: event.timeStamp,
+      speed: 0,
+    }
     event.currentTarget.setPointerCapture?.(event.pointerId)
-    if (ref.current) ref.current.style.transition = 'none'
+    dialog.style.transition = 'none'
+    if (offset > 0) dialog.style.transform = `translateY(${offset}px)`
   }
 
   const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
@@ -117,7 +147,8 @@ export function Sheet({
     if (event.timeStamp - current.time > FLICK_WINDOW) current.speed = 0
     const distance = current.y - current.startY
     const far = distance >= Math.max(CLOSE_DISTANCE, dialog.offsetHeight * CLOSE_SHARE)
-    if (event.type === 'pointerup' && distance > 0 && (far || current.speed >= CLOSE_SPEED)) {
+    const flick = distance >= FLICK_DISTANCE && current.speed >= CLOSE_SPEED
+    if (event.type === 'pointerup' && (far || flick)) {
       slideOut(dialog)
       return
     }
@@ -145,7 +176,16 @@ export function Sheet({
     const animation = exit.current
     // Closed another way meanwhile (Escape, the backdrop) or opened again: not this slide's to close.
     animation.finished.then(() => {
-      if (exit.current === animation && dialog.open) onClose()
+      if (exit.current !== animation || !dialog.open) return
+      onClose()
+      // A parent that kept it open (busy, or a navigation that didn't happen) gets it back in view,
+      // rather than an invisible modal holding the page.
+      setTimeout(() => {
+        if (exit.current !== animation || !dialog.open) return
+        animation.cancel()
+        exit.current = null
+        dialog.style.transform = ''
+      }, CLOSE_GRACE)
     }, () => {})
   }
 
@@ -174,6 +214,7 @@ export function Sheet({
             onPointerMove={onPointerMove}
             onPointerUp={onPointerEnd}
             onPointerCancel={onPointerEnd}
+            onLostPointerCapture={onPointerEnd}
           >
             <div className="ks-grabber" aria-hidden="true" />
             <div className={leading ? 'ks-sheet-head has-leading' : 'ks-sheet-head'}>

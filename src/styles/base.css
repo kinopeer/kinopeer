@@ -8,10 +8,13 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
-/* The page behind an open modal (a sheet, a dialog, the torrent drawer) stays put: a modal <dialog>
-   makes it inert but still lets it scroll, under a finger on iOS Safari above all. */
-html:has(:modal) {
-  overflow: hidden;
+/* On a phone the page behind an open modal (a sheet, a dialog) stays put: a modal <dialog> makes it
+   inert but still lets it scroll under a finger, on iOS Safari above all. Not on desktop, where
+   hiding a classic scrollbar (Windows) would shift the page by its width. */
+@media (max-width: 1023.98px) {
+  html:has(:modal) {
+    overflow: hidden;
+  }
 }
 
 body {

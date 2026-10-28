@@ -36,12 +36,16 @@
 }
 
 /* The grabber and the title row: dragging it down on a phone closes the sheet, so the browser
-   neither scrolls nor selects text under that finger. */
+   doesn't scroll under that finger. The subtitle (a torrent's or a release's name) stays
+   selectable; the title doesn't, so a drag from it doesn't select it. */
 .ks-sheet-handle {
   display: flex;
   flex-direction: column;
   flex: none;
   touch-action: none;
+}
+
+.ks-sheet-handle h2 {
   -webkit-user-select: none;
   user-select: none;
 }
@@ -122,6 +126,9 @@
 
   .ks-sheet-handle {
     touch-action: auto;
+  }
+
+  .ks-sheet-handle h2 {
     -webkit-user-select: auto;
     user-select: auto;
   }
