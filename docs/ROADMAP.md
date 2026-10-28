@@ -32,16 +32,47 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 
 - [x] A wide-screen layout with a details side panel, as on the canvas (1440).
 
+0.5 (HTTPS and notifications) was dropped on 2026-10-25; see Not planned. Versions 0.6 to 0.9 were planned on 2026-10-28.
+
+## 0.6: Small features and fixes
+
+- [ ] "First and last pieces first" next to sequential download: a download default in Settings and a switch in the add sheet (qBittorrent's `firstLastPiecePrio`).
+- [ ] Bottom sheets on a phone close with a swipe down on the handle, and the page behind them doesn't scroll while one is open.
+- [x] Settings → Connections: "Test" on a card checks only that connection, not all three.
+- [ ] Interface language: a "System" option that follows the browser's language, like the system theme.
+- [x] Search: rows of what's likely on torrents already ("New on digital", "New episodes", "Best of the year") from TMDB's release dates, in place of the trending and popular rows, which are mostly too new to be on trackers yet.
+- [ ] Releases: the quality filters are remembered in the browser.
+- [x] Adding: a warning when the files picked don't fit in qBittorrent's free space.
+
+## 0.7: Search and discovery
+
+- [ ] Search: a "Popular on your trackers" row, built by the server from what Prowlarr's indexers list without a query (or their RSS), kept to 2160p releases, matched with TMDB and ranked by seeders. Check first what the indexers actually return without a query.
+- [ ] The title page: "Similar" and "Recommended" rows from TMDB.
+- [ ] Search: filters by year and genre.
+
+## 0.8: Torrent control
+
+- [x] Moving a torrent's files to another folder, from its More menu.
+- [ ] Torrent details: per-torrent speed limits, recheck and reannounce.
+- [ ] A switch for qBittorrent's alternative speed limits in the sidebar.
+- [ ] Releases: which indexers failed, and why, when a search comes back partly empty.
+
+## 0.9: Beyond Umbrel
+
+- [ ] Installing with plain Docker, outside Umbrel, together with Kinoseed's own login.
+- [ ] Onboarding works on a clean install with qBittorrent and Prowlarr set only through the environment.
+- [ ] A Prowlarr API key field in Settings, kept on the server like the TMDB key, for installs that can't read Prowlarr's `config.xml`.
+
 ## 1.0: Public release
 
-- [ ] [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) is done: license, TMDB key and attribution, a history scan for secrets, screenshots, the official Umbrel App Store.
+- [ ] [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) is done: license, TMDB key and attribution, a history scan for secrets, a bug report template and links to Ideas, required checks on `main`, screenshots, the official Umbrel App Store.
 
 ## Later, no version yet
 
 Ideas are collected in [GitHub Discussions → Ideas](https://github.com/MrShakhov/kinoseed/discussions/categories/ideas), ours included; the most upvoted ones get planned here.
 
-- Reordering the download queue ([#38](https://github.com/MrShakhov/kinoseed/issues/38)), when people ask for it.
-- Installing with plain Docker, outside Umbrel, together with Kinoseed's own login.
+- Reordering the download queue ([idea #44](https://github.com/MrShakhov/kinoseed/discussions/44)), when people ask for it.
+- Finding titles by transliterated names ([idea #87](https://github.com/MrShakhov/kinoseed/discussions/87)), when people ask for it.
 - Kinoseed as a qBittorrent Alternative WebUI, with no Kinoseed server: qBittorrent's API on the same origin, TMDB and Prowlarr called from the browser with the user's keys, settings and matches kept in qBittorrent's client data store (`clientdata`, qBittorrent 5.2+). Check first that Prowlarr accepts cross-origin API calls.
 - More interface languages, if asked for.
 
