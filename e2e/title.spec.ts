@@ -5,8 +5,10 @@ import { LONG_OVERVIEW_ID } from './fixtures.ts'
 async function openTitle(page: Page, path: string, name: string, options: AppOptions = {}) {
   await openApp(page, path, options)
   await expect(page.getByRole('heading', { level: 1, name })).toBeVisible()
-  // The whole page, so the screenshot shows the "In downloads" block under the overview.
+  // The whole page, so the screenshot shows the "In downloads" block under the overview and the row
+  // at the end: recommendations for a movie, similar titles for a series (see the mocks).
   await expect(page.getByRole('region', { name: /^В загрузках/ })).toBeVisible()
+  await expect(page.getByRole('region', { name: /^(Рекомендации|Похожее)$/ })).toBeVisible()
   await showWholePage(page)
 }
 

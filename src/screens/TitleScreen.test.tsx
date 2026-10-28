@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes, useLocation, useParams } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -16,7 +16,7 @@ import { TitleScreen } from './TitleScreen'
 
 vi.mock('../api/tmdb', async (importOriginal) => {
   const actual = await importOriginal<typeof tmdb>()
-  return { ...actual, getMovie: vi.fn(), getTv: vi.fn(), searchTitles: vi.fn() }
+  return { ...actual, getMovie: vi.fn(), getTv: vi.fn(), searchTitles: vi.fn(), getRecommendations: vi.fn(), getSimilar: vi.fn() }
 })
 
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
@@ -121,9 +121,30 @@ beforeEach(() => {
   torrents()
   getMovie.mockResolvedValue(DUNE)
   getTv.mockResolvedValue(SHOGUN)
+  vi.mocked(tmdb.getRecommendations).mockResolvedValue({ titles: [], page: 1, totalPages: 1 })
+  vi.mocked(tmdb.getSimilar).mockResolvedValue({ titles: [], page: 1, totalPages: 1 })
 })
 
 describe('TitleScreen', () => {
+  it('suggests what to watch next under the title, and opens a suggested title', async () => {
+    const dune = { ...DUNE, id: 438631, title: 'Dune', release_date: '2021-09-15' }
+    getMovie.mockImplementation(async (id) => (id === dune.id ? dune : DUNE))
+    vi.mocked(tmdb.getRecommendations).mockImplementation(async (_type, id) => ({
+      titles: id === DUNE.id ? [tmdb.toTitle(dune, 'movie')] : [],
+      page: 1,
+      totalPages: 1,
+    }))
+    renderAt('/title/movie/693134')
+
+    const row = await screen.findByRole('region', { name: 'Recommendations' })
+    await userEvent.click(within(row).getByRole('link', { name: /Dune/ }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Dune' })).toBeInTheDocument()
+    expect(getMovie).toHaveBeenLastCalledWith(438631, expect.anything())
+    // Nothing is recommended for that one, and similar titles are asked for in their place.
+    await waitFor(() => expect(tmdb.getSimilar).toHaveBeenCalledWith('movie', 438631, expect.anything()))
+    expect(screen.queryByRole('region', { name: 'Recommendations' })).not.toBeInTheDocument()
+  })
+
   it('shows a movie', async () => {
     const { container } = renderAt('/title/movie/693134')
     expect(screen.getByRole('status')).toHaveTextContent('Loading title')

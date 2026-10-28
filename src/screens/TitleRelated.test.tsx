@@ -1,0 +1,79 @@
+import { screen, waitFor, within } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import * as tmdb from '../api/tmdb'
+import type { Title } from '../api/tmdb'
+import { renderWithRouter } from '../test/render'
+import { TitleRelated } from './TitleRelated'
+
+vi.mock('../api/tmdb', async (importOriginal) => {
+  const actual = await importOriginal<typeof tmdb>()
+  return { ...actual, getRecommendations: vi.fn(), getSimilar: vi.fn() }
+})
+
+const getRecommendations = vi.mocked(tmdb.getRecommendations)
+const getSimilar = vi.mocked(tmdb.getSimilar)
+
+function title(id: number, name: string, fields: Partial<Title> = {}): Title {
+  return { type: 'movie', id, title: name, originalTitle: name, overview: '', posterPath: `/${id}.jpg`, backdropPath: null, rating: 7, ...fields }
+}
+
+function page(...titles: Title[]): tmdb.TitlePage {
+  return { titles, page: 1, totalPages: 1 }
+}
+
+function renderRelated(id = 693134) {
+  return renderWithRouter(<TitleRelated type="movie" id={id} language="en-US" />)
+}
+
+beforeEach(() => {
+  vi.resetAllMocks()
+  getRecommendations.mockResolvedValue(page())
+  getSimilar.mockResolvedValue(page())
+})
+
+describe('TitleRelated', () => {
+  it("shows TMDB's recommendations as links to their titles, without asking for similar ones", async () => {
+    getRecommendations.mockResolvedValue(page(title(438631, 'Dune', { year: 2021 }), title(157336, 'Interstellar')))
+    renderRelated()
+
+    const row = await screen.findByRole('region', { name: 'Recommendations' })
+    const links = within(row).getAllByRole('link')
+    expect(links.map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
+      ['DuneMovie · 2021', '/title/movie/438631'],
+      ['InterstellarMovie', '/title/movie/157336'],
+    ])
+    expect(getRecommendations).toHaveBeenCalledWith('movie', 693134, expect.objectContaining({ language: 'en-US' }))
+    expect(getSimilar).not.toHaveBeenCalled()
+  })
+
+  it('falls back to similar titles when nothing is recommended', async () => {
+    getSimilar.mockResolvedValue(page(title(438631, 'Dune')))
+    renderRelated()
+
+    const row = await screen.findByRole('region', { name: 'Similar titles' })
+    expect(within(row).getByRole('link', { name: /Dune/ })).toHaveAttribute('href', '/title/movie/438631')
+    expect(getSimilar).toHaveBeenCalledWith('movie', 693134, expect.objectContaining({ language: 'en-US' }))
+  })
+
+  it('leaves the title itself out of the row', async () => {
+    getRecommendations.mockResolvedValue(page(title(693134, 'Dune: Part Two'), title(438631, 'Dune')))
+    renderRelated(693134)
+
+    const row = await screen.findByRole('region', { name: 'Recommendations' })
+    expect(within(row).getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual(['/title/movie/438631'])
+  })
+
+  it('shows nothing when both lists are empty', async () => {
+    const { container } = renderRelated()
+    await waitFor(() => expect(getSimilar).toHaveBeenCalled())
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('shows nothing when TMDB fails, since the page works without it', async () => {
+    getRecommendations.mockRejectedValue(new TypeError('Failed to fetch'))
+    const { container } = renderRelated()
+    await waitFor(() => expect(getRecommendations).toHaveBeenCalled())
+    expect(container).toBeEmptyDOMElement()
+    expect(getSimilar).not.toHaveBeenCalled()
+  })
+})

@@ -137,7 +137,13 @@ async function mockTmdb(page: Page): Promise<void> {
       if (path.startsWith('/trending/')) return json(route, titlePage(TITLES, language))
       if (path === '/movie/popular') return json(route, titlePage(TITLES.filter((title) => title.type === 'movie'), language))
       if (path === '/tv/popular') return json(route, titlePage(TITLES.filter((title) => title.type === 'tv'), language))
-      const [, type, id] = path.split('/')
+      const [, type, id, list] = path.split('/')
+      // A movie's recommendations are the other movies; a series has none, so it shows similar ones.
+      if (list === 'recommendations' || list === 'similar') {
+        const related = list === 'recommendations' ? type === 'movie' : type === 'tv'
+        const others = TITLES.filter((title) => related && title.type === type && title.id !== Number(id))
+        return json(route, titlePage(others, language))
+      }
       const found = details(type, Number(id), language)
       return found ? json(route, found) : json(route, { status_message: 'Not found' }, 404)
     },

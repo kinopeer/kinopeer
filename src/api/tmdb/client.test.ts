@@ -3,6 +3,8 @@ import {
   TmdbKeyError,
   getMovie,
   getPopular,
+  getRecommendations,
+  getSimilar,
   getTrending,
   posterUrl,
   searchTitles,
@@ -103,6 +105,23 @@ describe('getPopular', () => {
     const page = await getPopular('tv', { language: 'en-US' })
     expect(lastUrl()).toBe('/tmdb/tv/popular?language=en-US')
     expect(page.titles[0]).toMatchObject({ type: 'tv', title: 'Andor' })
+  })
+})
+
+describe('related titles', () => {
+  it('asks for the recommendations of a title and tags them with its type', async () => {
+    respond({ page: 1, total_pages: 2, total_results: 40, results: [andor] })
+    const page = await getRecommendations('tv', 83867, { language: 'ru-RU' })
+    expect(lastUrl()).toBe('/tmdb/tv/83867/recommendations?language=ru-RU')
+    expect(page).toMatchObject({ page: 1, totalPages: 2, titles: [{ type: 'tv', id: 83867, title: 'Andor' }] })
+  })
+
+  it('tags similar titles, which come without media_type, with the title type', async () => {
+    const { media_type: _, ...movie } = dune
+    respond({ page: 1, total_pages: 1, total_results: 1, results: [movie] })
+    const page = await getSimilar('movie', 438631)
+    expect(lastUrl()).toBe('/tmdb/movie/438631/similar')
+    expect(page.titles[0]).toMatchObject({ type: 'movie', id: 693134 })
   })
 })
 

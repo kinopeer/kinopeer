@@ -6,6 +6,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ### Added
 
+- Title page: a row of posters at the end of the page with what to watch next, TMDB's recommendations for the movie or series, or similar titles when TMDB has no recommendations. Each poster opens its title page.
 - Releases: the indexer's name on a release (the card on a phone, the table on desktop and the add sheet) links to the release's page on the tracker, in a new tab, for what Kinoseed doesn't show.
 
 ### Changed

@@ -17,7 +17,7 @@ import { TitleRoute } from './TitleScreen'
 
 vi.mock('../api/tmdb', async (importOriginal) => {
   const actual = await importOriginal<typeof tmdb>()
-  return { ...actual, getMovie: vi.fn(), getTv: vi.fn(), searchTitles: vi.fn() }
+  return { ...actual, getMovie: vi.fn(), getTv: vi.fn(), searchTitles: vi.fn(), getRecommendations: vi.fn(), getSimilar: vi.fn() }
 })
 vi.mock('../api/prowlarr', async (importOriginal) => {
   const actual = await importOriginal<typeof prowlarr>()
@@ -101,6 +101,8 @@ beforeEach(() => {
   getMovie.mockResolvedValue(DUNE)
   getTv.mockResolvedValue(SHOGUN)
   searchReleases.mockResolvedValue(DUNE_RELEASES)
+  vi.mocked(tmdb.getRecommendations).mockResolvedValue({ titles: [], page: 1, totalPages: 1 })
+  vi.mocked(tmdb.getSimilar).mockResolvedValue({ titles: [], page: 1, totalPages: 1 })
 })
 
 afterEach(() => {
@@ -125,6 +127,20 @@ describe('TitleScreen on desktop', () => {
     expect(names()).toEqual([DUNE_RELEASES[1].title, DUNE_RELEASES[0].title, DUNE_RELEASES[2].title])
     // The page stays: the title isn't loaded again.
     expect(getMovie).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows the recommendations at the end of the page, under the releases', async () => {
+    vi.mocked(tmdb.getRecommendations).mockResolvedValue({
+      titles: [tmdb.toTitle({ ...DUNE, id: 438631, title: 'Dune' }, 'movie')],
+      page: 1,
+      totalPages: 1,
+    })
+    renderAt('/title/movie/693134/releases')
+
+    const row = await screen.findByRole('region', { name: 'Recommendations' })
+    expect(within(row).getByRole('link', { name: /Dune/ })).toHaveAttribute('href', '/title/movie/438631')
+    const releases = screen.getByRole('region', { name: 'Releases' })
+    expect(releases.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('shows the releases already searched when opened at their link, starting at them', async () => {
