@@ -39,6 +39,7 @@ describe('settings client through /api/settings', () => {
 
     await expect(forgetProwlarrKey()).resolves.toMatchObject({ prowlarr: { source: 'env' } })
     expect(stores.settings.current.prowlarrApiKey).toBeUndefined()
+    await expect(getProwlarrStatus()).rejects.toThrow()
   })
 
   it('passes on why the server refused a key', async () => {
