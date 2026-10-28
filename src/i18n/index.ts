@@ -1,6 +1,6 @@
 import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
-import { getLanguagePreference, LANGUAGES, resolveLanguage, watchSystemLanguage } from './language'
+import { getLanguagePreference, LANGUAGES, resolveLanguage } from './language'
 import en from './locales/en.json'
 import ru from './locales/ru.json'
 
@@ -22,14 +22,7 @@ void i18n.use(initReactI18next).init({
   lng: resolveLanguage(getLanguagePreference()),
   supportedLngs: LANGUAGES.map((l) => l.code),
   fallbackLng: 'en',
-  nonExplicitSupportedLngs: true,
-  load: 'languageOnly',
   interpolation: { escapeValue: false },
-})
-
-// Follows the browser's languages for as long as the page is open, while the preference is system.
-watchSystemLanguage((language) => {
-  if (getLanguagePreference() === 'system') void i18n.changeLanguage(language)
 })
 
 export default i18n

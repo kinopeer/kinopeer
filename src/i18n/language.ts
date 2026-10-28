@@ -93,3 +93,11 @@ export function watchSystemLanguage(onChange: (language: Language) => void): () 
   window.addEventListener('languagechange', listener)
   return () => window.removeEventListener('languagechange', listener)
 }
+
+/**
+ * Follows the browser's languages for as long as the page is open, while the preference is system.
+ * Called once at startup; returns a function that stops it.
+ */
+export function initLanguage(): () => void {
+  return watchSystemLanguage(() => void i18n.changeLanguage(resolveLanguage(getLanguagePreference())))
+}

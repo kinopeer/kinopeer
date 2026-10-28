@@ -75,4 +75,10 @@ describe('ConnectScreen', () => {
     expect(localStorage.getItem('kinoseed.lang')).toBe('ru')
     expect(screen.getByRole('button', { name: 'Светлая' })).toHaveAttribute('aria-pressed', 'true')
   })
+
+  it('keeps following the browser when the language already shown is tapped', async () => {
+    setup()
+    await userEvent.click(within(screen.getByRole('group', { name: 'Language' })).getByRole('button', { name: 'English' }))
+    expect(localStorage.getItem('kinoseed.lang')).toBeNull()
+  })
 })

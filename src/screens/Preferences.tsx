@@ -17,7 +17,7 @@ const THEME_OPTIONS: { value: ThemePreference; icon: IconName }[] = [
 export function Preferences() {
   const { t, i18n } = useTranslation()
   const { preference, setPreference } = useTheme()
-  const { setPreference: setLanguage } = useLanguage()
+  const language = useLanguage()
 
   return (
     <div className="screen-controls">
@@ -33,16 +33,19 @@ export function Preferences() {
         ))}
       </div>
       <div className="screen-group" role="group" aria-label={t('language.label')}>
-        {LANGUAGES.map((language) => (
+        {LANGUAGES.map(({ code, name }) => (
           <Button
-            key={language.code}
-            variant={i18n.resolvedLanguage === language.code ? 'tonal' : 'ghost'}
+            key={code}
+            variant={i18n.resolvedLanguage === code ? 'tonal' : 'ghost'}
             size="sm"
-            lang={language.code}
-            aria-pressed={i18n.resolvedLanguage === language.code}
-            onClick={() => setLanguage(language.code)}
+            lang={code}
+            aria-pressed={i18n.resolvedLanguage === code}
+            onClick={() => {
+              // Tapping the language already shown while it follows the browser keeps System.
+              if (language.preference !== 'system' || i18n.resolvedLanguage !== code) language.setPreference(code)
+            }}
           >
-            {language.name}
+            {name}
           </Button>
         ))}
       </div>

@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import i18n from '.'
 import {
   LANGUAGE_STORAGE_KEY,
+  initLanguage,
   readLanguagePreference,
   resolveLanguage,
   setLanguagePreference,
@@ -109,23 +110,30 @@ describe('setLanguagePreference', () => {
     expect(i18n.language).toBe('ru')
   })
 
-  it('updates every hook that shows it', () => {
+  it('updates every hook that shows it', async () => {
     const first = renderHook(() => useLanguage())
     const second = renderHook(() => useLanguage())
     expect(first.result.current.preference).toBe('system')
 
-    act(() => first.result.current.setPreference('ru'))
+    await act(async () => first.result.current.setPreference('ru'))
     expect(first.result.current.preference).toBe('ru')
     expect(second.result.current.preference).toBe('ru')
   })
 })
 
 describe('following the browser', () => {
+  let stopFollowing = () => {}
+
+  afterEach(() => {
+    stopFollowing()
+    stopFollowing = () => {}
+  })
+
   it("switches when the browser's languages change while the preference is system", async () => {
     const changeBrowserLanguages = stubBrowserLanguages(['en-US'])
-    setLanguagePreference('system')
+    await act(async () => setLanguagePreference('system'))
+    stopFollowing = initLanguage()
 
-    // The listener the app installs when it starts.
     await act(async () => changeBrowserLanguages(['ru-RU', 'en-US']))
     expect(i18n.language).toBe('ru')
 
@@ -135,7 +143,8 @@ describe('following the browser', () => {
 
   it('keeps an explicit language when the browser changes', async () => {
     const changeBrowserLanguages = stubBrowserLanguages(['en-US'])
-    setLanguagePreference('en')
+    await act(async () => setLanguagePreference('en'))
+    stopFollowing = initLanguage()
 
     await act(async () => changeBrowserLanguages(['ru-RU']))
     expect(i18n.language).toBe('en')
