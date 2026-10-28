@@ -104,4 +104,4 @@ Run lint, typecheck, test and build before pushing, and the screenshot tests whe
 
 ## Roadmap
 
-Steps 1–8 (skeleton through production) shipped as 0.1.0; 0.2.0 (the title as the center) shipped on 2026-10-24; 0.3.0 (managing downloads) and 0.4.0 (desktop) on 2026-10-25. 0.5 (HTTPS and notifications) was dropped on 2026-10-25. The plan from here is in `docs/ROADMAP.md`.
+Steps 1–8 (skeleton through production) shipped as 0.1.0; 0.2.0 (the title as the center) shipped on 2026-10-24; 0.3.0 (managing downloads) and 0.4.0 (desktop) on 2026-10-25. 0.5 (HTTPS and notifications) was dropped on 2026-10-25. Planned on 2026-10-28: 0.6 (small features and fixes), 0.7 (search and discovery), 0.8 (torrent control), 0.9 (beyond Umbrel), then 1.0 (public release, `docs/RELEASE_CHECKLIST.md`). The details are in `docs/ROADMAP.md`.
