@@ -36,7 +36,7 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 
 ## 0.6: Small features and fixes
 
-- [ ] "First and last pieces first" next to sequential download: a download default in Settings and a switch in the add sheet (qBittorrent's `firstLastPiecePrio`).
+- [x] "First and last pieces first" next to sequential download: a download default in Settings and a switch in the add sheet (qBittorrent's `firstLastPiecePrio`).
 - [ ] Bottom sheets on a phone close with a swipe down on the handle, and the page behind them doesn't scroll while one is open.
 - [x] Settings → Connections: "Test" on a card checks only that connection, not all three.
 - [ ] Interface language: a "System" option that follows the browser's language, like the system theme.
@@ -48,7 +48,8 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 
 - [ ] Search: a "Popular on your trackers" row, built by the server from what Prowlarr's indexers list without a query (or their RSS), kept to 2160p releases, matched with TMDB and ranked by seeders. Check first what the indexers actually return without a query.
 - [x] The title page: "Recommendations" from TMDB, or "Similar titles" when it has none, in one row (see the decision log in SPEC.md).
-- [ ] Search: filters by year and genre.
+- [x] Search: filter by year.
+- [ ] Search: filter by genre.
 
 ## 0.8: Torrent control
 
