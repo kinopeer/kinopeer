@@ -7,6 +7,7 @@ import {
   DEFAULT_SETTINGS,
   SETTINGS_STORAGE_KEY,
   getSettings,
+  initSettingsSync,
   loadServerSettings,
   resetSettings,
   useSettings,
@@ -76,17 +77,6 @@ describe('settings', () => {
     expect(getSettings()).toEqual(DEFAULT_SETTINGS)
   })
 
-  it('takes a change saved in another tab, and keeps it through a change here', () => {
-    const { result } = renderHook(() => useSettings())
-    act(() => {
-      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({ releaseSort: { key: 'size', descending: false } }))
-      window.dispatchEvent(new StorageEvent('storage', { key: SETTINGS_STORAGE_KEY }))
-    })
-    expect(result.current[0].releaseSort).toEqual({ key: 'size', descending: false })
-    act(() => result.current[1]({ downloadsView: 'grid' }))
-    expect(JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY)!)).toMatchObject({ releaseSort: { key: 'size', descending: false }, downloadsView: 'grid' })
-  })
-
   it('keeps only the release filters and sort it knows from storage', () => {
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({ releaseFilters: { resolution: null, audio: ['dub', 'x'] }, releaseSort: 'size' }))
     expect(getSettings()).toMatchObject({
@@ -102,6 +92,61 @@ describe('settings', () => {
     expect(result.current[0]).toBe('ru-RU')
     act(() => result.current[1]({ tmdbLanguage: 'en-US' }))
     expect(result.current[0]).toBe('en-US')
+  })
+})
+
+describe('settings saved in another tab', () => {
+  let stop: () => void
+  beforeEach(() => {
+    stop = initSettingsSync()
+  })
+  afterEach(() => stop())
+
+  const SIZE_SORT = { releaseSort: { key: 'size', descending: false } }
+  // What another tab's save looks like here: storage changed, then an event about it.
+  function saveElsewhere(stored: object, key: string | null = SETTINGS_STORAGE_KEY, storageArea: Storage = localStorage) {
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(stored))
+    window.dispatchEvent(new StorageEvent('storage', { key, storageArea }))
+  }
+
+  it('takes a change saved in another tab, and keeps it through a change here', () => {
+    const { result } = renderHook(() => useSettings())
+    act(() => saveElsewhere(SIZE_SORT))
+    expect(result.current[0].releaseSort).toEqual({ key: 'size', descending: false })
+    act(() => result.current[1]({ downloadsView: 'grid' }))
+    expect(JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY)!)).toMatchObject({ ...SIZE_SORT, downloadsView: 'grid' })
+  })
+
+  it('goes back to the defaults when another tab clears storage', () => {
+    const { result } = renderHook(() => useSettings())
+    act(() => saveElsewhere(SIZE_SORT))
+    act(() => {
+      localStorage.clear()
+      window.dispatchEvent(new StorageEvent('storage', { key: null, storageArea: localStorage }))
+    })
+    expect(result.current[0]).toEqual(DEFAULT_SETTINGS)
+  })
+
+  it('ignores a change to another key or to session storage', () => {
+    const { result } = renderHook(() => useSettings())
+    act(() => saveElsewhere(SIZE_SORT, 'kinoseed.theme'))
+    act(() => saveElsewhere(SIZE_SORT, null, sessionStorage))
+    expect(result.current[0].releaseSort).toEqual(DEFAULT_SETTINGS.releaseSort)
+  })
+
+  it('stops following other tabs once stopped', () => {
+    const { result } = renderHook(() => useSettings())
+    stop()
+    act(() => saveElsewhere(SIZE_SORT))
+    expect(result.current[0].releaseSort).toEqual(DEFAULT_SETTINGS.releaseSort)
+  })
+
+  it('keeps the settings it has when another tab saved the same', () => {
+    const { result } = renderHook(() => useSettings())
+    act(() => result.current[1]({ downloadsView: 'grid' }))
+    const before = result.current[0]
+    act(() => saveElsewhere({ ...before }))
+    expect(result.current[0]).toBe(before)
   })
 })
 

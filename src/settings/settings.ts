@@ -70,11 +70,15 @@ const SERVER_KEY_SET: Record<ServerKey, true> = {
 const SERVER_KEYS = Object.keys(SERVER_KEY_SET) as ServerKey[]
 
 let current: Settings | undefined
+// The stored string the settings were last read from or saved as, so another tab's event that brings
+// nothing new changes nothing here.
+let lastStored: string | null | undefined
 const listeners = new Set<() => void>()
 
 function read(): Settings {
   try {
-    const stored = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) ?? '{}') as Partial<Settings>
+    lastStored = localStorage.getItem(SETTINGS_STORAGE_KEY)
+    const stored = JSON.parse(lastStored ?? '{}') as Partial<Settings>
     return {
       ...DEFAULT_SETTINGS,
       ...stored,
@@ -95,8 +99,10 @@ export function getSettings(): Settings {
 
 function apply(changes: Partial<Settings>): void {
   current = { ...getSettings(), ...changes }
+  const stored = JSON.stringify(current)
   try {
-    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(current))
+    localStorage.setItem(SETTINGS_STORAGE_KEY, stored)
+    lastStored = stored
   } catch {
     // Not persisted; the change still applies until the page reloads.
   }
@@ -180,6 +186,7 @@ export function updateSettings(changes: Partial<Settings>): void {
 /** For tests. */
 export function resetSettings(): void {
   current = undefined
+  lastStored = undefined
   generation += 1
   loaded = false
   loading = false
@@ -192,13 +199,28 @@ export function resetSettings(): void {
   }
 }
 
-// A change saved in another tab (null: storage cleared): read the settings again, so this tab shows
-// it and its next change doesn't write the old copy over it.
-window.addEventListener('storage', (event) => {
-  if (event.key !== SETTINGS_STORAGE_KEY && event.key !== null) return
-  current = read()
-  listeners.forEach((listener) => listener())
-})
+/**
+ * Follows the settings another tab saves, or storage cleared there: reads them again, so this tab
+ * shows them and its next change doesn't write its old copy over them. Called once at startup;
+ * returns a function that stops it.
+ */
+export function initSettingsSync(): () => void {
+  const onStorage = (event: StorageEvent) => {
+    if (event.storageArea !== localStorage) return
+    if (event.key !== SETTINGS_STORAGE_KEY && event.key !== null) return
+    let stored: string | null
+    try {
+      stored = localStorage.getItem(SETTINGS_STORAGE_KEY)
+    } catch {
+      return
+    }
+    if (stored === lastStored) return
+    current = read()
+    listeners.forEach((listener) => listener())
+  }
+  window.addEventListener('storage', onStorage)
+  return () => window.removeEventListener('storage', onStorage)
+}
 
 function subscribe(listener: () => void): () => void {
   listeners.add(listener)
