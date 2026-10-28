@@ -5,6 +5,7 @@ import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { EmptyState } from '../components/EmptyState'
 import { FilterChip } from '../components/FilterChip'
+import { formatList } from '../i18n/formatList'
 import type { TitleDetails } from '../releases/releaseQuery'
 import { AddReleaseSheet } from './AddReleaseSheet'
 import type { Releases } from './useReleases'
@@ -77,7 +78,7 @@ export function ReleasesBody({ releases, skeleton, children }: ReleasesBodyProps
 function FailingIndexers({ releases }: { releases: Releases }) {
   const { t, i18n } = useTranslation()
   const { failing } = releases
-  const names = new Intl.ListFormat(i18n.language, { type: 'conjunction', style: 'narrow' }).format(failing)
+  const names = formatList(failing, i18n, 'narrow')
   return (
     <div role="status" className="rel-note">
       {failing.length > 0 && (
@@ -128,7 +129,7 @@ function SetAsideFilters({ releases }: { releases: Releases }) {
     <div className="rel-aside">
       <p className="t-cap c3">
         {t('releases.setAside', {
-          filters: new Intl.ListFormat(i18n.resolvedLanguage ?? i18n.language, { type: 'conjunction' }).format(labels),
+          filters: formatList(labels, i18n),
         })}
       </p>
       <Button variant="ghost" size="sm" onClick={releases.forgetAside}>

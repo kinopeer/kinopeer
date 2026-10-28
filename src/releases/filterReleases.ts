@@ -35,7 +35,8 @@ export interface PresentValues {
 }
 
 export const NO_FILTERS: Filters = { resolution: [], audio: [], source: [], indexer: [], minSeeds: 0 }
-export const NO_REMEMBERED_FILTERS: RememberedFilters = { resolution: [], audio: [], source: [], minSeeds: 0 }
+const { indexer: _indexer, ...noRemembered } = NO_FILTERS
+export const NO_REMEMBERED_FILTERS: RememberedFilters = noRemembered
 export const DEFAULT_SORT: Sort = { key: 'seeds', descending: true }
 export const RESOLUTIONS: Resolution[] = ['2160p', '1080p', '720p', 'SD']
 export const AUDIO: AudioFilter[] = ['dub', 'mvo', 'avo2', 'avo1', 'orig', 'subs']
@@ -164,7 +165,8 @@ export function knownReleaseFilters(stored: unknown): RememberedFilters {
 }
 
 /** A stored sort if it's one the releases have, else the default. */
-export function knownReleaseSort(sort: Partial<Sort> | undefined): Sort {
+export function knownReleaseSort(stored: unknown): Sort {
+  const sort = stored as Partial<Sort> | null | undefined
   return sort?.key && SORT_KEYS.includes(sort.key)
     ? { key: sort.key, descending: typeof sort.descending === 'boolean' ? sort.descending : true }
     : DEFAULT_SORT

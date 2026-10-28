@@ -6,8 +6,6 @@ import {
   NO_FILTERS,
   NO_REMEMBERED_FILTERS,
   filterReleases,
-  knownReleaseFilters,
-  knownReleaseSort,
   presentValues,
   remember,
   split,
@@ -118,11 +116,11 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
     return (failing.data ?? []).filter((name) => !answered.has(name))
   }, [failing.data, rows])
   const present = useMemo(() => presentValues(rows), [rows])
-  const remembered = useMemo(() => knownReleaseFilters(settings.releaseFilters), [settings.releaseFilters])
-  const starting = useMemo(() => startingFilters(remembered, rows, present), [remembered, rows, present])
+  const { releaseFilters: remembered, releaseSort: sort } = settings
   // Picks from another search (another title) don't carry over.
-  const filters = picked?.key === key ? picked.filters : starting
-  const sort = useMemo(() => knownReleaseSort(settings.releaseSort), [settings.releaseSort])
+  const own = picked?.key === key ? picked.filters : undefined
+  // The starting filters are worked out only until the first pick, which every later pick builds on.
+  const filters = useMemo(() => own ?? startingFilters(remembered, rows, present), [own, remembered, rows, present])
   const visible = useMemo(() => filterReleases(rows, filters, sort), [rows, filters, sort])
   const { applied, aside } = useMemo(() => split(remembered, filters), [remembered, filters])
 

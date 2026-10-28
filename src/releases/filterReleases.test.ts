@@ -160,6 +160,8 @@ describe('knownReleaseSort', () => {
     expect(knownReleaseSort({ key: 'date', descending: false })).toEqual({ key: 'date', descending: false })
     expect(knownReleaseSort({ key: 'peers' as never, descending: false })).toEqual(DEFAULT_SORT)
     expect(knownReleaseSort(undefined)).toEqual(DEFAULT_SORT)
+    expect(knownReleaseSort(null)).toEqual(DEFAULT_SORT)
+    expect(knownReleaseSort('size')).toEqual(DEFAULT_SORT)
     // Stored without a direction: most first, as by default.
     expect(knownReleaseSort({ key: 'size' })).toEqual({ key: 'size', descending: true })
     expect(knownReleaseSort({ key: 'size', descending: 'false' as never })).toEqual({ key: 'size', descending: true })

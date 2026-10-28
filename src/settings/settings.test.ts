@@ -76,6 +76,14 @@ describe('settings', () => {
     expect(getSettings()).toEqual(DEFAULT_SETTINGS)
   })
 
+  it('keeps only the release filters and sort it knows from storage', () => {
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({ releaseFilters: { resolution: null, audio: ['dub', 'x'] }, releaseSort: 'size' }))
+    expect(getSettings()).toMatchObject({
+      releaseFilters: { resolution: [], audio: ['dub'], source: [], minSeeds: 0 },
+      releaseSort: { key: 'seeds', descending: true },
+    })
+  })
+
   it('follows the app language for TMDB unless one is chosen', async () => {
     const { result } = renderHook(() => [useTmdbLanguage(), useSettings()[1]] as const)
     expect(result.current[0]).toBe('en-US')
