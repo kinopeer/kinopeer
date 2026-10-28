@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import type { To } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as matchesApi from './api/matches'
+import * as prowlarr from './api/prowlarr'
 import * as api from './api/qbittorrent'
 import * as serverSettings from './api/settings'
 import * as tmdb from './api/tmdb'
@@ -27,6 +28,11 @@ vi.mock('./api/matches', async (importOriginal) => ({
   ...(await importOriginal<typeof matchesApi>()),
   getMatches: vi.fn(),
   saveMatches: vi.fn(),
+}))
+
+vi.mock('./api/prowlarr', async (importOriginal) => ({
+  ...(await importOriginal<typeof prowlarr>()),
+  searchReleases: vi.fn(),
 }))
 
 vi.mock('./api/settings', async (importOriginal) => {
@@ -153,6 +159,24 @@ describe('App', () => {
       const nav = screen.getByRole('navigation', { name: 'Main' })
       expect(within(nav).getByRole('link', { name: /^Downloads.*1 downloading$/ })).toBeInTheDocument()
       expect(screen.getByRole('region', { name: 'qBittorrent' })).toHaveTextContent('qBittorrent v5.2.4')
+    })
+
+    it('keeps the title page mounted when Find releases opens its releases', async () => {
+      vi.mocked(tmdb.getMovie).mockResolvedValue({
+        id: 693134,
+        title: 'Dune: Part Two',
+        original_title: 'Dune: Part Two',
+        release_date: '2024-02-27',
+        poster_path: null,
+        genres: [],
+      } as unknown as tmdb.MovieDetails)
+      vi.mocked(prowlarr.searchReleases).mockResolvedValue([])
+      renderApp('/title/movie/693134')
+      const heading = await screen.findByRole('heading', { name: 'Dune: Part Two', level: 1 })
+      await userEvent.click(screen.getByRole('button', { name: 'Find releases' }))
+      expect(where()).toBe('/title/movie/693134/releases')
+      // The same heading element: a remounted page would have put a new one in its place.
+      expect(heading).toBeInTheDocument()
     })
 
     describe('a torrent opened from the title page', () => {

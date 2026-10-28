@@ -55,8 +55,13 @@ function App() {
       const background =
         isDesktop && location.pathname.startsWith('/torrent/') ? backgroundOf(location) : undefined
       const page = background ?? location
-      // A torrent's drawer over Downloads is part of that screen.
-      const screenKey = isDesktop && page.pathname.startsWith('/torrent/') ? '/' : page.pathname
+      // A torrent's drawer over Downloads is part of that screen, and on desktop a title's releases
+      // are part of its page (a phone shows them on a screen of their own).
+      const screenKey = !isDesktop
+        ? page.pathname
+        : page.pathname.startsWith('/torrent/')
+          ? '/'
+          : page.pathname.replace(/^(\/title\/[^/]+\/[^/]+)\/releases$/, '$1')
       return (
         <MainDataProvider onUnauthorized={onSessionLost}>
           <div className="app-shell">
