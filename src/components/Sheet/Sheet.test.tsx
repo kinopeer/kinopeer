@@ -237,6 +237,27 @@ describe('Sheet', () => {
       expect(dialog().style.transform).toBe('translateY(40px)')
     })
 
+    it('takes a tap on its top while it springs back for a tap, however far down it is', () => {
+      vi.stubGlobal(
+        'DOMMatrixReadOnly',
+        class {
+          m42 = 300
+        },
+      )
+      const onClose = renderSheet()
+      const computed = window.getComputedStyle
+      const sheet = dialog()
+      vi.spyOn(window, 'getComputedStyle').mockImplementation((element) => {
+        const style = computed(element)
+        if (element !== sheet) return style
+        return new Proxy(style, { get: (target, key) => (key === 'transform' ? 'translateY(300px)' : Reflect.get(target, key)) })
+      })
+      pointer('pointerDown', handle(), 100, 0)
+      pointer('pointerUp', handle(), 100, 50)
+      expect(onClose).not.toHaveBeenCalled()
+      expect(dialog().style.transform).toBe('')
+    })
+
     it("doesn't take a drag let go over the backdrop for a tap on it", () => {
       const onClose = renderSheet()
       slowDrag(handle(), 100, 140)
@@ -282,7 +303,20 @@ describe('Sheet', () => {
       renderSheet()
       pointer('pointerDown', handle(), 100, 0)
       pointer('pointerMove', handle(), 106, 50)
+      pointer('pointerMove', handle(), 120, 100)
+      // Once, as the drag starts, not again on every move after it.
       expect(removeAllRanges).toHaveBeenCalledOnce()
+    })
+
+    it('takes a flick at the end of a slow drag for a flick', () => {
+      const onClose = renderSheet()
+      pointer('pointerDown', handle(), 100, 0)
+      for (let step = 1; step <= 3; step++) pointer('pointerMove', handle(), 100 + step * 5, step * 100)
+      // 40px in the last 40ms: the slow start is older than the window the speed is measured over.
+      pointer('pointerMove', handle(), 135, 320)
+      pointer('pointerMove', handle(), 155, 340)
+      pointer('pointerUp', handle(), 155, 340)
+      expect(onClose).toHaveBeenCalledOnce()
     })
 
     it("doesn't take one jittery pair of moves at the end of a slow drag for a flick", () => {
@@ -466,6 +500,37 @@ describe('Sheet', () => {
         const onClose = renderSheet()
         slowDrag(handle(), 100, 300)
         expect(onClose).toHaveBeenCalledOnce()
+      })
+
+      it("closes with the parent's latest callback once it has slid off", async () => {
+        const { finish } = stubAnimate()
+        const first = vi.fn()
+        const latest = vi.fn()
+        const sheet = (onClose: () => void) => (
+          <Sheet open onClose={onClose} title="Add release">
+            <p>Options</p>
+          </Sheet>
+        )
+        const { rerender } = render(sheet(first))
+        slowDrag(handle(), 100, 300)
+        rerender(sheet(latest))
+        finish()
+        await vi.waitFor(() => expect(latest).toHaveBeenCalledOnce())
+        expect(first).not.toHaveBeenCalled()
+      })
+
+      it('comes back into view when the browser refuses the slide and the parent keeps it open', () => {
+        Object.defineProperty(HTMLDialogElement.prototype, 'animate', {
+          value: () => {
+            throw new TypeError('Invalid easing')
+          },
+          configurable: true,
+        })
+        const onClose = vi.fn()
+        renderSheet({ onClose })
+        slowDrag(handle(), 100, 300)
+        expect(onClose).toHaveBeenCalledOnce()
+        expect(dialog().style.transform).toBe('')
       })
 
       it('closes once when closed another way while sliding off', async () => {

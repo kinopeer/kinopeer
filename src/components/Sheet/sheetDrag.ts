@@ -7,7 +7,7 @@ export const FLICK_DISTANCE = 20
 /** Ms without a move before letting go after which the flick no longer counts. */
 export const FLICK_WINDOW = 100
 
-export interface Release {
+export interface LetGo {
   /** Px down from where the drag started; negative is up. */
   distance: number
   /** Px/ms down at the last move. */
@@ -19,7 +19,7 @@ export interface Release {
 }
 
 /** Whether a sheet let go after a drag closes, or springs back. */
-export function shouldClose({ distance, speed, idle, height }: Release): boolean {
+export function shouldClose({ distance, speed, idle, height }: LetGo): boolean {
   if (distance >= Math.max(CLOSE_DISTANCE, height * CLOSE_SHARE)) return true
   // Held still before letting go: no move came to say the flick had stopped.
   return idle <= FLICK_WINDOW && distance >= FLICK_DISTANCE && speed >= CLOSE_SPEED

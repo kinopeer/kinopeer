@@ -75,6 +75,9 @@ export function Sheet({
       }}
       onPointerDownCapture={drag.onPointerDownCapture}
       onClick={(event) => {
+        // Pointer Events 3 sends the click after a captured drag to the handle, but a browser that
+        // predates it sends it to where the press and the release meet, which can be the dialog.
+        // Chromium follows the spec; Safari is unverified, so this stays.
         if (drag.endsDrag()) return
         // A click on the dialog box itself, outside its content, is a click on the backdrop.
         if (event.target === event.currentTarget) onClose()

@@ -56,6 +56,11 @@ export function useSheetDrag(
   const dragged = useRef(false)
   const exit = useRef<Animation | null>(null)
   const [closeAsked, setCloseAsked] = useState(0)
+  // The slide ends a transition after the pointer-up: the parent's callback by then, not that render's.
+  const close = useRef(onClose)
+  useLayoutEffect(() => {
+    close.current = onClose
+  })
 
   useEffect(() => {
     // A drag the sheet closed under (a second finger tapped Done) never got its end event.
@@ -77,8 +82,8 @@ export function useSheetDrag(
   // modal holding the page.
   useLayoutEffect(() => {
     const dialog = ref.current
-    if (!closeAsked || !open || !exit.current || !dialog) return
-    exit.current.cancel()
+    if (!closeAsked || !open || !dialog) return
+    exit.current?.cancel()
     exit.current = null
     dialog.style.transform = ''
   }, [closeAsked, open, ref])
@@ -142,7 +147,8 @@ export function useSheetDrag(
       idle: event.timeStamp - current.time,
       height: dialog.offsetHeight,
     }
-    if (event.type === 'pointerup' && shouldClose(release)) {
+    // A press that never moved is a tap, even on a sheet caught partway down its spring back.
+    if (event.type === 'pointerup' && current.moving && shouldClose(release)) {
       slideOut(dialog)
       return
     }
@@ -156,16 +162,20 @@ export function useSheetDrag(
     dialog.style.transition = ''
     const animation = slide(dialog)
     if (!animation) {
-      onClose()
+      askToClose()
       return
     }
     exit.current = animation
     // Closed another way meanwhile (Escape, the backdrop) or opened again: not this slide's to close.
     animation.finished.then(() => {
       if (exit.current !== animation || !dialog.open) return
-      onClose()
-      setCloseAsked((count) => count + 1)
+      askToClose()
     }, () => {})
+  }
+
+  const askToClose = () => {
+    close.current()
+    setCloseAsked((count) => count + 1)
   }
 
   return {
