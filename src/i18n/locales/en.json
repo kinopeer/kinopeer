@@ -223,7 +223,16 @@
     "clearCacheHint": "Matches torrents to TMDB titles again",
     "cacheCleared": "Cache cleared",
     "installApp": "Install app",
-    "installAppHint": "Add Kinoseed to your home screen or dock"
+    "installAppHint": "Add Kinoseed to your home screen or dock",
+    "ideas": "Suggest an idea",
+    "ideasHint": "In Discussions on GitHub, where ideas are upvoted",
+    "reportBug": "Report a bug",
+    "reportBugHint": "An issue on GitHub with the steps and your versions",
+    "sourceCode": "Kinoseed on GitHub",
+    "sourceCodeHint": "Source code, releases and what's changed",
+    "opensInNewTab": "(opens in a new tab)",
+    "tmdbSource": "Movie and series data and posters come from TMDB.",
+    "tmdbNotice": "This product uses the TMDB API but is not endorsed or certified by TMDB."
   },
   "releases": {
     "title": "Releases",
