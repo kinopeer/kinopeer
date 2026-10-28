@@ -82,7 +82,7 @@ describe('SettingsScreen', () => {
     expect(await within(connection('TMDB')).findByText('Connected')).toBeInTheDocument()
   })
 
-  it('explains failures and checks again on Test', async () => {
+  it('explains failures and shows the service connected after Test', async () => {
     vi.mocked(prowlarr.getProwlarrStatus).mockRejectedValue(new prowlarr.ProwlarrSetupError(502, 'unauthorized'))
     vi.mocked(tmdb.checkTmdb).mockRejectedValue(new tmdb.TmdbKeyError(401))
     renderScreen()
