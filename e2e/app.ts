@@ -75,6 +75,8 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
       }
       if (pathname === '/qbt/api/v2/app/webapiVersion') return route.fulfill({ body: '2.11.4' })
       if (pathname === '/qbt/api/v2/app/defaultSavePath') return route.fulfill({ body: '/downloads' })
+      // Automatic management on, so new torrents go to their category's folder, as the add sheet shows.
+      if (pathname === '/qbt/api/v2/app/preferences') return json(route, { auto_tmm_enabled: true })
       if (pathname === '/qbt/api/v2/torrents/categories') {
         return json(route, {
           Movies: { name: 'Movies', savePath: '/downloads/movies' },

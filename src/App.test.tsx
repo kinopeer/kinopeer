@@ -21,6 +21,8 @@ vi.mock('./api/qbittorrent', async (importOriginal) => {
     getMainData: vi.fn(),
     getTorrentFiles: vi.fn(),
     deleteTorrents: vi.fn(),
+    getSaveLocations: vi.fn(),
+    setTorrentLocation: vi.fn(),
     toggleSpeedLimitsMode: vi.fn(),
   }
 })
@@ -350,6 +352,33 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Dune.2021.1080p', level: 1 })).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Downloads' })).not.toBeInTheDocument()
+  })
+
+  it('says how a move went after the torrent’s screen was left while it was being sent', async () => {
+    getMainData.mockResolvedValue({
+      rid: 1,
+      full_update: true,
+      torrents: {
+        dune: { name: 'Dune.2021.1080p', state: 'downloading', progress: 0.5, size: 1e9, priority: 1, ratio: 0, save_path: '/downloads', added_on: 1 },
+      },
+      server_state: {},
+    })
+    vi.mocked(api.getSaveLocations).mockResolvedValue({ defaultPath: '/downloads', categories: [], categoryPaths: false, subcategories: false })
+    let fail = (_error: unknown) => {}
+    vi.mocked(api.setTorrentLocation).mockReturnValue(new Promise<void>((_resolve, reject) => (fail = reject)))
+    renderApp('/torrent/dune')
+    await userEvent.click(await screen.findByRole('button', { name: /^More actions/ }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Move files…' }))
+    const sheet = screen.getByRole('dialog', { name: 'Move files' })
+    const field = within(sheet).getByRole('textbox', { name: 'Folder' })
+    await userEvent.clear(field)
+    await userEvent.type(field, '/media/new')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Move' }))
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Cancel' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(await screen.findByRole('heading', { name: 'Downloads' })).toBeInTheDocument()
+    fail(new api.QbittorrentError('conflict', 409))
+    expect(await screen.findByText('qBittorrent couldn’t create that folder.')).toBeInTheDocument()
   })
 
   it('asks for the TMDB key when the server has none, then goes in', async () => {
