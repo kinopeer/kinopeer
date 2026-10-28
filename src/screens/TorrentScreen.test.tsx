@@ -33,6 +33,7 @@ vi.mock('../api/qbittorrent', async (importOriginal) => {
     getSaveLocations: vi.fn(),
     setTorrentLocation: vi.fn(),
     recheckTorrents: vi.fn(),
+    setSpeedLimits: vi.fn(),
     reannounceTorrents: vi.fn(),
   }
 })
@@ -181,6 +182,36 @@ describe('TorrentScreen', () => {
     expect(value('Info hash')).toHaveTextContent('dune')
     expect(await screen.findByText('bt.rutor.info, opentor.net')).toBeInTheDocument()
     expect(getTorrentTrackers).toHaveBeenCalledWith('dune')
+  })
+
+  it.each([0, -1])('lists only the speed limits that are set among the details (no upload limit reported as %i)', async (none) => {
+    getTorrentTrackers.mockResolvedValue([])
+    getMainData.mockResolvedValue(snapshot({ dl_limit: 2_500_000, up_limit: none }))
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'Details' }))
+    // The download limit's row has rendered, so the upload limit's absence is a real one.
+    expect(screen.getByText('Download limit', { selector: 'dt' }).nextElementSibling).toHaveTextContent('2.5 MB/s')
+    expect(screen.queryByText('Upload limit', { selector: 'dt' })).not.toBeInTheDocument()
+  })
+
+  it('sets the speed limits from the More menu and lists them among the details right away', async () => {
+    vi.mocked(api.setSpeedLimits).mockResolvedValue()
+    getTorrentTrackers.mockResolvedValue([])
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'Details' }))
+    await userEvent.click(screen.getByRole('button', { name: 'More actions: Dune: Part Two' }))
+    // A hidden page doesn't poll, so only the screen's own refresh can bring qBittorrent's next answer.
+    stopPolling()
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Speed limits' }))
+    const sheet = screen.getByRole('dialog', { name: 'Speed limits' })
+    expect(within(sheet).getByText('Dune: Part Two')).toBeInTheDocument()
+    await userEvent.type(within(sheet).getByRole('textbox', { name: 'Upload limit, MB/s' }), '0.5')
+    getMainData.mockResolvedValue(snapshot({ up_limit: 500_000 }))
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save limits' }))
+    // What the sheet sends is its own tests' business; here, that it's for this torrent.
+    expect(vi.mocked(api.setSpeedLimits).mock.calls[0][0]).toEqual(['dune'])
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect((await screen.findByText('Upload limit', { selector: 'dt' })).nextElementSibling).toHaveTextContent('500 KB/s')
   })
 
   it('goes back to Downloads with a toast after deleting', async () => {

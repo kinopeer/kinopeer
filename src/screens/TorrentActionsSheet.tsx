@@ -36,6 +36,8 @@ export interface TorrentActionsSheetProps {
   onMove: () => void
   /** Opens the recheck confirmation. */
   onRecheck: () => void
+  /** Opens the speed limits sheet. */
+  onSpeedLimits: () => void
   /** After qBittorrent took the reannounce, so the screen can say so. */
   onReannounced: () => void
   /** Opens the title search. */
@@ -58,6 +60,7 @@ export function TorrentActionsSheet({
   onDelete,
   onMove,
   onRecheck,
+  onSpeedLimits,
   onReannounced,
   onChangeTitle,
   onConfirmed,
@@ -154,6 +157,9 @@ export function TorrentActionsSheet({
         <MenuItem icon="check-circle" disabled={offline || busy || !canRecheck} hint={recheckHint} onClick={onRecheck}>
           {t('torrent.recheck')}
         </MenuItem>
+        <MenuItem icon="gauge" disabled={offline} onClick={onSpeedLimits}>
+          {t('limits.title')}
+        </MenuItem>
         {showDetails && (
           <MenuLink to={`/torrent/${torrent.hash}`} icon="info" onClick={onClose}>
             {t('downloads.openDetails')}
@@ -238,6 +244,12 @@ export function TorrentActionsSheet({
             <RowText id={`${hintId}-recheck`} hint={recheckHint}>
               {t('torrent.recheck')}
             </RowText>
+          </button>
+        </li>
+        <li>
+          <button type="button" className="ks-row-btn" disabled={offline} onClick={onSpeedLimits}>
+            <Icon name="gauge" />
+            {t('limits.title')}
           </button>
         </li>
         {showDetails && (
