@@ -454,5 +454,16 @@
     "change": "Сменить ключ TMDB",
     "sheetTitle": "Ключ TMDB",
     "enter": "Ввести ключ"
+  },
+  "prowlarrKey": {
+    "help": "Ключ есть в Prowlarr: Settings → General → Security → API Key.",
+    "label": "API-ключ Prowlarr",
+    "fieldHelp": "Kinoseed проверит его в Prowlarr перед сохранением. Ключ хранится на сервере Kinoseed.",
+    "invalid": "Prowlarr не принял этот ключ",
+    "unreachable": "Prowlarr не отвечает. Проверьте, что он запущен, и попробуйте ещё раз.",
+    "notConfigured": "Сервер Kinoseed не знает адрес Prowlarr (PROWLARR_URL).",
+    "saved": "Ключ Prowlarr сохранён",
+    "change": "Сменить ключ Prowlarr",
+    "sheetTitle": "Ключ Prowlarr"
   }
 }

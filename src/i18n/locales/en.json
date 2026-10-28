@@ -419,5 +419,16 @@
     "change": "Change TMDB key",
     "sheetTitle": "TMDB key",
     "enter": "Enter key"
+  },
+  "prowlarrKey": {
+    "help": "Find the key in Prowlarr: Settings → General → Security → API Key.",
+    "label": "Prowlarr API key",
+    "fieldHelp": "Kinoseed checks it with Prowlarr before saving. It stays on the Kinoseed server.",
+    "invalid": "Prowlarr didn’t accept this key",
+    "unreachable": "Prowlarr isn’t answering. Check that it’s running and try again.",
+    "notConfigured": "The Kinoseed server doesn’t know Prowlarr’s address (PROWLARR_URL).",
+    "saved": "Prowlarr key saved",
+    "change": "Change Prowlarr key",
+    "sheetTitle": "Prowlarr key"
   }
 }

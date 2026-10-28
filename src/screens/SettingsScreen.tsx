@@ -19,6 +19,7 @@ import type { ThemePreference } from '../theme/theme'
 import { useTheme } from '../theme/useTheme'
 import { categoryType, clearTitleMatches } from '../torrents/titleMatches'
 import { InstallSheet } from './InstallSheet'
+import { ProwlarrKeyForm } from './ProwlarrKeyForm'
 import { TmdbKeyForm } from './TmdbKeyForm'
 import './SettingsScreen.css'
 
@@ -92,8 +93,10 @@ export function SettingsScreen() {
   const [editingKey, setEditingKey] = useState(
     () => (location.state as SettingsLocationState | null)?.editTmdbKey === true,
   )
-  const [keySaved, setKeySaved] = useState(false)
-  const dismissKeySaved = useCallback(() => setKeySaved(false), [])
+  const [editingProwlarrKey, setEditingProwlarrKey] = useState(false)
+  const [prowlarrKeyVersion, setProwlarrKeyVersion] = useState(0)
+  const [keySaved, setKeySaved] = useState<'tmdb' | 'prowlarr' | null>(null)
+  const dismissKeySaved = useCallback(() => setKeySaved(null), [])
   const dismissCleared = useCallback(() => setCleared(false), [])
   const categories = useRequest('qbt|categories', () => getCategories())
   const names = (categories.data ?? []).map((category) => category.name).sort((a, b) => a.localeCompare(b))
@@ -177,8 +180,15 @@ export function SettingsScreen() {
       <Section id="settings-connections" title={t('settings.connections')}>
         <ul className="settings-conns">
           <ConnectionRow name="qBittorrent" icon="server" check={checkQbittorrent} />
-          <ConnectionRow name="Prowlarr" icon="search" check={checkProwlarr} />
           {/* A new key remounts the row, so it checks again. */}
+          <ConnectionRow
+            key={`prowlarr-${prowlarrKeyVersion}`}
+            name="Prowlarr"
+            icon="search"
+            check={checkProwlarr}
+            editLabel={t('prowlarrKey.change')}
+            onEdit={() => setEditingProwlarrKey(true)}
+          />
           <ConnectionRow
             key={tmdbKeyVersion}
             name="TMDB"
@@ -288,13 +298,24 @@ export function SettingsScreen() {
         <TmdbKeyForm
           onSaved={() => {
             setEditingKey(false)
-            setKeySaved(true)
+            setKeySaved('tmdb')
             setTmdbKeyVersion((n) => n + 1)
           }}
         />
       </Sheet>
+      <Sheet open={editingProwlarrKey} onClose={() => setEditingProwlarrKey(false)} title={t('prowlarrKey.sheetTitle')}>
+        <ProwlarrKeyForm
+          onSaved={() => {
+            setEditingProwlarrKey(false)
+            setKeySaved('prowlarr')
+            setProwlarrKeyVersion((n) => n + 1)
+          }}
+        />
+      </Sheet>
       {cleared && <Toast message={t('settings.cacheCleared')} onDismiss={dismissCleared} />}
-      {keySaved && <Toast message={t('tmdbKey.saved')} onDismiss={dismissKeySaved} />}
+      {keySaved && (
+        <Toast message={t(keySaved === 'tmdb' ? 'tmdbKey.saved' : 'prowlarrKey.saved')} onDismiss={dismissKeySaved} />
+      )}
     </main>
   )
 }

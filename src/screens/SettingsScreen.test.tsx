@@ -28,6 +28,7 @@ vi.mock('../api/settings', async (importOriginal) => ({
   ...(await importOriginal<typeof serverSettings>()),
   getServerSettings: vi.fn(),
   saveTmdbKey: vi.fn(),
+  saveProwlarrKey: vi.fn(),
   saveDownloadDefaults: vi.fn(),
 }))
 vi.mock('../api/tmdb', async (importOriginal) => ({
@@ -136,6 +137,23 @@ describe('SettingsScreen', () => {
     expect(qbt.getAppVersion).not.toHaveBeenCalled()
     expect(qbt.getApiVersion).not.toHaveBeenCalled()
     expect(prowlarr.getProwlarrStatus).not.toHaveBeenCalled()
+  })
+
+  it('changes the Prowlarr key and checks the connection again', async () => {
+    vi.mocked(prowlarr.getProwlarrStatus).mockRejectedValue(new prowlarr.ProwlarrSetupError(503, 'not-configured'))
+    vi.mocked(serverSettings.saveProwlarrKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved' }, prowlarr: { configured: true, source: 'saved' }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
+    renderScreen()
+    expect(await within(connection('Prowlarr')).findByText('Not set up, or the API key was rejected')).toBeInTheDocument()
+
+    vi.mocked(prowlarr.getProwlarrStatus).mockResolvedValue({ version: '1.24.3', indexers: 2 })
+    await userEvent.click(within(connection('Prowlarr')).getByRole('button', { name: 'Change Prowlarr key' }))
+    const sheet = screen.getByRole('dialog', { name: 'Prowlarr key' })
+    await userEvent.type(within(sheet).getByLabelText('Prowlarr API key'), 'abc123')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
+
+    expect(serverSettings.saveProwlarrKey).toHaveBeenCalledWith('abc123')
+    expect(await screen.findByText('Prowlarr key saved')).toBeInTheDocument()
+    expect(await within(connection('Prowlarr')).findByText(/2 indexers/)).toBeInTheDocument()
   })
 
   it('shows the app version', () => {

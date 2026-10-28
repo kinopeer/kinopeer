@@ -44,7 +44,7 @@ export interface KinoseedServer {
 /**
  * The server's routes and jobs. Besides the variables in .env.example, PROWLARR_CONFIG_XML points
  * at Prowlarr's config.xml to read its API key from (the Umbrel package mounts it), used when
- * PROWLARR_API_KEY is not set, and TMDB_API_URL and TMDB_IMAGE_URL replace TMDB's API and image
+ * neither a key saved from the app nor PROWLARR_API_KEY is set, and TMDB_API_URL and TMDB_IMAGE_URL replace TMDB's API and image
  * addresses (the integration and smoke tests point them at a fake).
  */
 export function kinoseedServer(env: Record<string, string | undefined>, stores: DataStores): KinoseedServer {

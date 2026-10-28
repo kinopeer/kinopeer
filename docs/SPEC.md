@@ -28,7 +28,7 @@ The `homelab-kinoseed` package from the Homelab App Store runs on port 8795, dep
 | --- | --- | --- |
 | 2026-10-25 | Desktop Settings put download defaults and About in the left column and Appearance in the right, the other way round from the canvas, so reading the columns row by row follows the order on a phone and the keyboard order. About keeps its rows (version, install, clearing the cache with its hint) rather than the canvas's one line. Rows of posters in desktop Search show a thin scrollbar where the pointer is a mouse, which can't swipe them sideways. |
 | qBittorrent and Prowlarr addresses | Server environment | The Umbrel package |
-| Prowlarr API key | Environment or Prowlarr's `config.xml` | The Umbrel package |
+| Prowlarr API key | `/data/settings.json`, else environment, else Prowlarr's `config.xml` | The Umbrel package, or Settings |
 | qBittorrent login | `/data/settings.json`, else environment | The connect screen |
 | TMDB key | `/data/settings.json`, else environment | Onboarding or Settings |
 | Download defaults (categories, start paused, sequential) | `/data/settings.json`; a copy in the browser | Settings |
@@ -121,7 +121,7 @@ Poster, year, runtime or number of seasons and episodes, rating, overview, and a
 
 ### Settings
 
-Appearance (theme, language), Connections (checks for qBittorrent, Prowlarr and TMDB, changing the TMDB key), download defaults (the same on every device; another device's change shows after a reload), the language of TMDB titles and overviews, About (version, clear cache, install). Clearing the cache also forgets the server's guesses, so torrents are matched again; the user's choices stay. Service addresses can't be changed here: the package sets them.
+Appearance (theme, language), Connections (checks for qBittorrent, Prowlarr and TMDB, changing the TMDB and Prowlarr keys), download defaults (the same on every device; another device's change shows after a reload), the language of TMDB titles and overviews, About (version, clear cache, install). Clearing the cache also forgets the server's guesses, so torrents are matched again; the user's choices stay. Service addresses can't be changed here: the package sets them.
 
 On desktop the connections sit side by side across the top, then two columns: download defaults and About on the left, Appearance on the right.
 
@@ -139,6 +139,7 @@ Manifest and icons; the service worker keeps the app shell available offline and
 
 | Date | Decision |
 | --- | --- |
+| 2026-10-28 | The Prowlarr API key can be entered in Settings → Connections and is kept on the server like the TMDB key, checked with Prowlarr's `/api/v1/system/status` before saving. A saved key wins over `PROWLARR_API_KEY`, which wins over the key read from Prowlarr's `config.xml`. Reading `config.xml` stays the default on Umbrel, so nothing needs setting up; the field is the fallback for when the package can't mount Prowlarr's data (an App Store review may refuse it) and for installs without that file. GET `/api/settings` reports a key from the variable or the file both as the server's (`env`). |
 | 2026-10-28 | Search's rows before a search show what's likely on torrents already, instead of TMDB's trending and popular lists, which lead with titles still in cinemas or not out yet. A movie's WEB-DL appears with its digital release and a Blu-ray rip with the disc, so the movie rows filter by those release dates (TMDB Discover's release types 4 and 5). A series' episodes are on the trackers within hours of airing, so its row is series with an episode aired lately. No region is passed, so a release in any country counts: the first digital release anywhere is what puts a release on the trackers, and the user's country says nothing about that. A tracker's own top (such as Kinozal's 4K top) was rejected: Kinoseed doesn't scrape trackers, and the useful ones sit behind Cloudflare. |
 | 2026-10-28 | Versions 0.6 to 0.9 are planned before 1.0 (`docs/ROADMAP.md`): small features and fixes, search and discovery, torrent control, installing beyond Umbrel. Search's TMDB trending and popular rows show titles mostly too new to be on trackers, so they give way to titles released digitally in the last weeks (0.6) and to a row of what is popular on the user's own trackers, taken from Prowlarr (0.7). That row doesn't scrape a tracker's top list behind Cloudflare or any other site protection: whatever the user's Prowlarr (with FlareSolverr, if they run it) returns is all Kinoseed sees. Ideas from GitHub Discussions (the queue order, transliterated names) aren't taken into these versions and stay under Later. |
 | 2026-10-27 | In the desktop hero the poster is aligned with the title at the top (the canvas aligned the text's bottom with the poster's), and an overview longer than five lines is cut with "Show more". With the bottom alignment a long overview (Russian TMDB overviews often run to ten lines) left the poster hanging at the bottom with empty space above it and the title far from it, and the hero grew with the text, pushing "Find releases" down. Five lines is about the poster's height, so a typical overview still shows whole. |
