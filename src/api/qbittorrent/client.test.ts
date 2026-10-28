@@ -221,6 +221,11 @@ describe('getSaveLocations', () => {
     expect(await getSaveLocations()).toMatchObject({ categoryPaths: false })
   })
 
+  it('takes qBittorrent’s defaults when its preferences can’t be read', async () => {
+    fetchMock.mockImplementation(answer('<!doctype html>'))
+    expect(await getSaveLocations()).toMatchObject({ defaultPath: '/downloads', categoryPaths: false, subcategories: false })
+  })
+
   it('does without what qBittorrent doesn’t answer, with its defaults', async () => {
     fetchMock.mockResolvedValue(new Response('', { status: 500 }))
     expect(await getSaveLocations()).toEqual({ categories: [], defaultPath: '', categoryPaths: false, subcategories: false })

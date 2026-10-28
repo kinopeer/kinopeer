@@ -146,11 +146,10 @@ export async function getSaveLocations(): Promise<SaveLocations> {
   const [categories, defaultPath, preferences] = await Promise.all([
     getCategories().catch(() => []),
     getDefaultSavePath().catch(() => ''),
-    request('/app/preferences').then(
-      (response) => response.json() as Promise<FolderPreferences>,
+    request('/app/preferences')
+      .then((response) => response.json() as Promise<FolderPreferences>)
       // qBittorrent's defaults: manual mode, no subcategories.
-      (): FolderPreferences => ({}),
-    ),
+      .catch((): FolderPreferences => ({})),
   ])
   return {
     categories: categories.sort((a, b) => a.name.localeCompare(b.name)),
