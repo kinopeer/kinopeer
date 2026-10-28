@@ -12,6 +12,7 @@ import {
   reannounceTorrents,
   recheckTorrents,
   setFilePriority,
+  setSpeedLimits,
   setTorrentLocation,
   startTorrents,
   stopTorrents,
@@ -127,6 +128,47 @@ describe('torrent files', () => {
   it('skips an empty priority change', async () => {
     await setFilePriority('h1', [], 0)
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('setSpeedLimits', () => {
+  it('sends both limits at once rather than one after the other', async () => {
+    fetchMock.mockReturnValueOnce(new Promise(() => {}))
+    respond('')
+    void setSpeedLimits(['a'], { download: 1_000_000, upload: 1_000_000 })
+    // Two calls while the first never answers: the upload request didn't wait for it.
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+  })
+
+  it('fails only once both requests are over, so the caller never refreshes with one still in flight', async () => {
+    respond('Bad', 500)
+    let answerUpload!: (response: Response) => void
+    fetchMock.mockReturnValueOnce(new Promise((resolve) => (answerUpload = resolve)))
+    let settled = false
+    const saving = setSpeedLimits(['a'], { download: 1_000_000, upload: 1_000_000 }).finally(() => (settled = true))
+    saving.catch(() => {})
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    // A macrotask tick runs every pending microtask, so a rejection that didn't wait for the upload
+    // request would have settled the promise by now.
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(settled).toBe(false)
+    answerUpload(new Response(''))
+    await expect(saving).rejects.toThrow('qBittorrent responded 500')
+  })
+
+  it('sets the download and the upload limit in bytes/s', async () => {
+    respond('')
+    respond('')
+    await setSpeedLimits(['a', 'b'], { download: 2_000_000, upload: 0 })
+    const [download, upload] = fetchMock.mock.calls.map(([url, init]) => [String(url), String(init!.body)])
+    expect(download).toEqual(['/qbt/api/v2/torrents/setDownloadLimit', 'hashes=a%7Cb&limit=2000000'])
+    expect(upload).toEqual(['/qbt/api/v2/torrents/setUploadLimit', 'hashes=a%7Cb&limit=0'])
+  })
+
+  it('leaves a limit that is left out as it is', async () => {
+    respond('')
+    await setSpeedLimits(['a'], { upload: 1_000_000 })
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual(['/qbt/api/v2/torrents/setUploadLimit'])
   })
 })
 

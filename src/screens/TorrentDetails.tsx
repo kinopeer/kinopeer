@@ -31,6 +31,7 @@ import { DeleteTorrentDialog } from './DeleteTorrentDialog'
 import { MatchPrompt } from './MatchPrompt'
 import { OfflineBanner } from './OfflineBanner'
 import { RecheckDialog } from './RecheckDialog'
+import { SpeedLimitsSheet } from './SpeedLimitsSheet'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
 import { useMoveTorrent } from './useMoveTorrent'
 import { TorrentFiles } from './TorrentFiles'
@@ -85,6 +86,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
   const [retitling, setRetitling] = useState(false)
   const [rechecking, setRechecking] = useState(false)
+  const [limiting, setLimiting] = useState(false)
   // A recheck or reannounce qBittorrent took, said in a toast.
   const [notice, setNotice] = useState<'rechecking' | 'reannounced' | null>(null)
   const dismissNotice = useCallback(() => setNotice(null), [])
@@ -113,9 +115,10 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
     />
   )
 
-  // The torrent went away while its recheck confirmation was open (deleted elsewhere): forget it, so
-  // the confirmation doesn't open again if the same torrent is added back.
+  // The torrent went away while its recheck confirmation or speed limits were open (deleted
+  // elsewhere): forget them, so they don't open again if the same torrent is added back.
   if (rechecking && data && !torrent) setRechecking(false)
+  if (limiting && data && !torrent) setLimiting(false)
 
   if (data === null && offline) {
     return (
@@ -217,6 +220,8 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
   const details: { key: string; label: string; value: string; mono?: boolean }[] = [
     { key: 'down', label: t('torrent.downloadSpeed'), value: downloading ? format.speed(torrent.dlspeed) : '—' },
     { key: 'up', label: t('torrent.uploadSpeed'), value: format.speed(torrent.upspeed) },
+    ...(torrent.dl_limit > 0 ? [{ key: 'dl-limit', label: t('limits.downloadRow'), value: format.speed(torrent.dl_limit) }] : []),
+    ...(torrent.up_limit > 0 ? [{ key: 'up-limit', label: t('limits.uploadRow'), value: format.speed(torrent.up_limit) }] : []),
     {
       key: 'peers',
       label: t('torrent.seedsPeers'),
@@ -396,6 +401,10 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
             setMenuAnchor(null)
             setRechecking(true)
           }}
+          onSpeedLimits={() => {
+            setMenuAnchor(null)
+            setLimiting(true)
+          }}
           onReannounced={() => {
             setMenuAnchor(null)
             setNotice('reannounced')
@@ -423,6 +432,10 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
             refresh()
           }}
         />
+      )}
+
+      {limiting && (
+        <SpeedLimitsSheet torrent={torrent} title={title} offline={offline} onClose={() => setLimiting(false)} onChanged={refresh} />
       )}
 
       {retitling && (

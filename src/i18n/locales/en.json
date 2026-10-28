@@ -485,5 +485,16 @@
     "storage": "The Kinoseed server couldn’t save the change. Check that its data folder is writable.",
     "failed": "Couldn’t save the key. Try again.",
     "forgetFailed": "Couldn’t switch to the server’s key. Try again."
+  },
+  "limits": {
+    "title": "Speed limits",
+    "download": "Download limit, MB/s",
+    "upload": "Upload limit, MB/s",
+    "hint": "Empty: no limit",
+    "invalid": "Enter a number from 0.001 to 2147, or leave it empty for no limit",
+    "save": "Save limits",
+    "failed": "Couldn’t save the limits, or saved only some of them. Check the connection to qBittorrent and try again.",
+    "downloadRow": "Download limit",
+    "uploadRow": "Upload limit"
   }
 }

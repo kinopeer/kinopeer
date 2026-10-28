@@ -6,6 +6,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ### Added
 
+- Downloads: speed limits per torrent. "Speed limits" in a torrent's More menu sets its download and upload limits in MB/s (an empty field removes a limit), and the torrent's details list the limits that are set.
 - Downloads: "Move files…" in a torrent's More menu moves its files to another folder through qBittorrent, with the folders qBittorrent already knows one tap away.
 - Settings → About: links to suggest an idea, report a bug (with the version filled in) and the source code on GitHub, and TMDB's logo with the notice that Kinoseed uses the TMDB API but isn't endorsed or certified by TMDB, as TMDB's terms ask.
 - Settings: the interface language has a System option, like the theme: Kinoseed follows the browser's languages (Russian or English, else English) and switches when they change. It's on for new browsers, and for existing ones whose saved language is the browser's own; a different language picked before stays.

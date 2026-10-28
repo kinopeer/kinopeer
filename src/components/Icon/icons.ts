@@ -56,6 +56,8 @@ export const ICONS = {
   'plus-square': 'M8 4h8a4 4 0 0 1 4 4v8a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V8a4 4 0 0 1 4-4zM12 8v8M8 12h8',
   turtle: 'M2.5 14a8.5 8 0 0 1 17 0zM19 11h1a2 2 0 0 1 0 4h-1M6 14v3.5M16 14v3.5M7.5 14l1.5-4.5h4l1.5 4.5',
   'sort-desc': 'M4 6h10M4 12h7M4 18h4M17 5v14M13 15l4 4 4-4',
+  // Not in the design system's set yet: drawn in its style for speed limits.
+  gauge: 'M6.3 18.4a8 8 0 1 1 11.4 0M12 13.5l3.5-4',
 } as const
 
 export type IconName = keyof typeof ICONS
