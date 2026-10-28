@@ -60,6 +60,15 @@ describe('SpeedLimitsSheet', () => {
     expect(screen.getByRole('textbox', { name: 'Лимит загрузки, МБ/с' })).toHaveValue('2,5')
   })
 
+  it("disables Save while the limits are being saved, so they aren't sent twice", async () => {
+    vi.mocked(api.setSpeedLimits).mockReturnValue(new Promise(() => {}))
+    renderSheet()
+    await userEvent.type(screen.getByRole('textbox', { name: 'Download limit, MB/s' }), '3')
+    await userEvent.click(screen.getByRole('button', { name: 'Save limits' }))
+    expect(api.setSpeedLimits).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('button', { name: /Save limits/ })).toBeDisabled()
+  })
+
   it('removes a limit when its field is cleared', async () => {
     vi.mocked(api.setSpeedLimits).mockResolvedValue()
     renderSheet({ dl_limit: 1_000_000, up_limit: 300_000 })
@@ -72,8 +81,9 @@ describe('SpeedLimitsSheet', () => {
     const handlers = renderSheet({ dl_limit: 4096 })
     expect(screen.getByRole('textbox', { name: 'Download limit, MB/s' })).toHaveValue('0.004')
     await userEvent.click(screen.getByRole('button', { name: 'Save limits' }))
-    expect(api.setSpeedLimits).not.toHaveBeenCalled()
+    // onClose has run, so the save is over: an unchanged field is never sent, not even as is.
     expect(handlers.onClose).toHaveBeenCalled()
+    expect(api.setSpeedLimits).not.toHaveBeenCalled()
   })
 
   it("doesn't save a value that isn't a number", async () => {

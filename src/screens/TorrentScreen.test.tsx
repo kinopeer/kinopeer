@@ -172,11 +172,12 @@ describe('TorrentScreen', () => {
     expect(getTorrentTrackers).toHaveBeenCalledWith('dune')
   })
 
-  it('lists only the speed limits that are set among the details', async () => {
+  it.each([0, -1])('lists only the speed limits that are set among the details (no upload limit reported as %i)', async (none) => {
     getTorrentTrackers.mockResolvedValue([])
-    getMainData.mockResolvedValue(snapshot({ dl_limit: 2_500_000, up_limit: 0 }))
+    getMainData.mockResolvedValue(snapshot({ dl_limit: 2_500_000, up_limit: none }))
     renderScreen()
     await userEvent.click(await screen.findByRole('button', { name: 'Details' }))
+    // The download limit's row has rendered, so the upload limit's absence is a real one.
     expect(screen.getByText('Download limit', { selector: 'dt' }).nextElementSibling).toHaveTextContent('2.5 MB/s')
     expect(screen.queryByText('Upload limit', { selector: 'dt' })).not.toBeInTheDocument()
   })
