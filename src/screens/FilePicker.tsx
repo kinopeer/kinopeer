@@ -8,6 +8,7 @@ import { ProgressBar } from '../components/ProgressBar'
 import { Sheet } from '../components/Sheet'
 import { useFormatters } from '../lib/format'
 import { buildFileTree, fileName, initiallyOpen, type FileFolder } from '../releases/fileTree'
+import { freeSpace } from '../torrents/freeSpace'
 import type { TorrentMeta } from '../torrents/torrentFile'
 
 export interface FilePickerProps {
@@ -15,7 +16,7 @@ export interface FilePickerProps {
   /** Indexes into `meta.files` that won't be downloaded. */
   skipped: ReadonlySet<number>
   onChange: (skipped: ReadonlySet<number>) => void
-  /** Free space where the torrent goes, when qBittorrent reported it. */
+  /** Free space where the torrent goes, as qBittorrent reports it; 0 or less means it can't tell. */
   free?: number
   subtitle: string
   onDone: () => void
@@ -30,7 +31,7 @@ function treeOf(meta: TorrentMeta): FileFolder {
 }
 
 /** Full-height sheet to pick which files of a torrent to download, as a folder tree. */
-export function FilePicker({ meta, skipped, onChange, free, subtitle, onDone }: FilePickerProps) {
+export function FilePicker({ meta, skipped, onChange, free: reported, subtitle, onDone }: FilePickerProps) {
   const { t } = useTranslation()
   const format = useFormatters()
   const tree = useMemo(() => treeOf(meta), [meta])
@@ -46,6 +47,7 @@ export function FilePicker({ meta, skipped, onChange, free, subtitle, onDone }: 
   }
   const selectedCount = meta.files.length - skipped.size
   const selectedSize = meta.files.reduce((sum, file, index) => (skipped.has(index) ? sum : sum + file.size), 0)
+  const free = freeSpace(reported)
   const tooBig = free !== undefined && selectedSize > free
 
   const fileRow = (index: number) => {
@@ -127,7 +129,7 @@ export function FilePicker({ meta, skipped, onChange, free, subtitle, onDone }: 
               </span>
             )}
           </div>
-          {free !== undefined && free > 0 && (
+          {free !== undefined && (
             <ProgressBar
               value={Math.min(1, selectedSize / free)}
               status={tooBig ? 'error' : 'downloading'}
