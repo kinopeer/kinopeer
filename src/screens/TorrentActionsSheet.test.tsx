@@ -110,8 +110,14 @@ describe('TorrentActionsSheet on desktop', () => {
     expect(screen.getByRole('menuitem', { name: 'Force recheck' })).toBeEnabled()
     errored.unmount()
 
+    // A magnet link added paused or queued has no metadata either, though its state doesn't say so.
+    const stoppedMagnet = renderActions({ torrent: { ...TORRENT, state: 'stoppedDL', total_size: -1 } })
+    expect(screen.getByRole('menuitem', { name: 'Force recheck' })).toBeDisabled()
+    expect(screen.getByRole('menuitem', { name: 'Force recheck' })).toHaveAccessibleDescription('Once the magnet link has its metadata')
+    stoppedMagnet.unmount()
+
     // A magnet still fetching its metadata has peers to find but no data to check.
-    renderActions({ torrent: { ...TORRENT, state: 'metaDL' } })
+    renderActions({ torrent: { ...TORRENT, state: 'metaDL', total_size: -1 } })
     expect(screen.getByRole('menuitem', { name: 'Reannounce' })).toBeEnabled()
     expect(screen.getByRole('menuitem', { name: 'Reannounce' })).not.toHaveAccessibleDescription()
     expect(screen.getByRole('menuitem', { name: 'Force recheck' })).toBeDisabled()
@@ -161,12 +167,12 @@ describe('TorrentActionsSheet on desktop', () => {
 
   it('says under a sheet row why it’s off', () => {
     vi.unstubAllGlobals()
-    renderActions({ torrent: { ...TORRENT, state: 'forcedMetaDL' } })
+    renderActions({ torrent: { ...TORRENT, state: 'queuedDL', total_size: -1 } })
     const sheet = screen.getByRole('dialog', { name: 'Inception' })
     const recheck = within(sheet).getByRole('button', { name: 'Force recheck' })
     expect(recheck).toBeDisabled()
     expect(recheck).toHaveAccessibleDescription('Once the magnet link has its metadata')
-    expect(within(sheet).getByRole('button', { name: 'Reannounce' })).not.toHaveAccessibleDescription()
+    expect(within(sheet).getByRole('button', { name: 'Reannounce' })).toHaveAccessibleDescription('Only while downloading or seeding')
   })
 
   it('a failed reannounce shows the error in the sheet and doesn’t report success', async () => {

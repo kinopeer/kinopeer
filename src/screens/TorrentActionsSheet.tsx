@@ -11,7 +11,7 @@ import { Sheet } from '../components/Sheet'
 import { StatusChip } from '../components/StatusChip'
 import { useIsDesktop } from '../lib/useIsDesktop'
 import { useTmdbLanguage } from '../settings/settings'
-import { downloadStatus, isRunning } from '../torrents/status'
+import { downloadStatus, hasMetadata, isRunning } from '../torrents/status'
 import { chooseTitle, type TitleMatch } from '../torrents/titleMatches'
 import { MatchPrompt } from './MatchPrompt'
 
@@ -68,15 +68,16 @@ export function TorrentActionsSheet({
   const status = downloadStatus(torrent)
   const running = isRunning(status)
   // qBittorrent ignores both where they can't run (libtorrent announces only for a started torrent,
-  // and there's nothing to check before a magnet has its metadata), so the toast would be untrue.
+  // and there's nothing to check before a magnet link has its metadata, whatever its state), so the
+  // toast would be untrue.
   const canReannounce = status === 'downloading' || status === 'seeding'
-  const fetchingMetadata = torrent.state === 'metaDL' || torrent.state === 'forcedMetaDL'
-  const canRecheck = status !== 'checking' && !fetchingMetadata
+  const noMetadata = !hasMetadata(torrent)
+  const canRecheck = status !== 'checking' && !noMetadata
   // Why an item is off, under its label.
   const reannounceHint = canReannounce ? undefined : t('torrent.reannounceOff')
   const recheckHint = canRecheck
     ? undefined
-    : fetchingMetadata
+    : noMetadata
       ? t('torrent.recheckNoMetadata')
       : t('torrent.recheckChecking')
   const hintId = useId()
@@ -274,9 +275,9 @@ export function TorrentActionsSheet({
 function RowText({ id, hint, children }: { id: string; hint?: string; children: string }) {
   if (!hint) return children
   return (
-    <span className="actions-text">
+    <span className="ks-row-text">
       <span>{children}</span>
-      <span id={id} className="t-cap c3" aria-hidden="true">
+      <span id={id} className="ks-row-hint" aria-hidden="true">
         {hint}
       </span>
     </span>

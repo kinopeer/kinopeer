@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Torrent, TorrentState } from '../api/qbittorrent'
 import i18n from '../i18n'
 import { createFormatters } from '../lib/format'
-import { compareByQueue, downloadStatus, matchesFilter, transferSpeed } from './status'
+import { compareByQueue, downloadStatus, hasMetadata, matchesFilter, transferSpeed } from './status'
 
 const torrent = (state: TorrentState, progress = 0.5) => ({ state, progress })
 
@@ -21,6 +21,14 @@ describe('downloadStatus', () => {
     ['missingFiles', 'error'],
   ] as const)('maps %s to %s', (state, status) => {
     expect(downloadStatus({ state })).toBe(status)
+  })
+})
+
+describe('hasMetadata', () => {
+  it('is false only while qBittorrent reports the total size as -1', () => {
+    expect(hasMetadata({ total_size: -1 })).toBe(false)
+    expect(hasMetadata({ total_size: 0 })).toBe(true)
+    expect(hasMetadata({ total_size: 4_000_000_000 })).toBe(true)
   })
 })
 

@@ -102,9 +102,9 @@ export function MenuItem({ icon, danger, hint, children, className, ...rest }: M
     >
       {icon && <Icon name={icon} size={18} />}
       {hint ? (
-        <span className="ks-menu-text">
+        <span className="ks-row-text">
           <span>{children}</span>
-          <span id={hintId} className="ks-menu-hint" aria-hidden="true">
+          <span id={hintId} className="ks-row-hint" aria-hidden="true">
             {hint}
           </span>
         </span>
