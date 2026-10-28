@@ -62,7 +62,8 @@ function metaLine(t: TFunction, format: Formatters, details: Details): string {
     .join(' · ')
 }
 
-const RELEASES_PATH = '/title/:type/:id/releases'
+export const TITLE_PATH = '/title/:type/:id'
+export const RELEASES_PATH = `${TITLE_PATH}/releases`
 
 export interface TitleScreenProps {
   /** qBittorrent rejected the session cookie (expired or signed out elsewhere). */

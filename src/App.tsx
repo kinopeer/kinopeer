@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Navigate, Route, Routes, useLocation } from 'react-router'
+import { Navigate, Route, Routes, matchPath, useLocation } from 'react-router'
 import { Sidebar, SidebarStatus, type SidebarItem } from './components/Sidebar'
 import { TabBar, type TabBarItem } from './components/TabBar'
 import { backgroundOf } from './lib/background'
@@ -11,7 +11,7 @@ import { DownloadsWithDrawer } from './screens/DownloadsWithDrawer'
 import { ErrorBoundary } from './screens/ErrorBoundary'
 import { SearchScreen } from './screens/SearchScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
-import { TitleRoute } from './screens/TitleScreen'
+import { RELEASES_PATH, TITLE_PATH, TitleRoute } from './screens/TitleScreen'
 import { TmdbKeyScreen } from './screens/TmdbKeyScreen'
 import { TorrentDrawerOverPage } from './screens/TorrentDrawer'
 import { TorrentScreen } from './screens/TorrentScreen'
@@ -55,13 +55,7 @@ function App() {
       const background =
         isDesktop && location.pathname.startsWith('/torrent/') ? backgroundOf(location) : undefined
       const page = background ?? location
-      // A torrent's drawer over Downloads is part of that screen, and on desktop a title's releases
-      // are part of its page (a phone shows them on a screen of their own).
-      const screenKey = !isDesktop
-        ? page.pathname
-        : page.pathname.startsWith('/torrent/')
-          ? '/'
-          : page.pathname.replace(/^(\/title\/[^/]+\/[^/]+)\/releases$/, '$1')
+      const screenKey = screenKeyOf(page.pathname, isDesktop)
       return (
         <MainDataProvider onUnauthorized={onSessionLost}>
           <div className="app-shell">
@@ -81,8 +75,8 @@ function App() {
                   </>
                 )}
                 <Route path="search" element={<SearchScreen />} />
-                <Route path="title/:type/:id" element={<TitleRoute onSessionLost={onSessionLost} />} />
-                <Route path="title/:type/:id/releases" element={<TitleRoute onSessionLost={onSessionLost} />} />
+                <Route path={TITLE_PATH} element={<TitleRoute onSessionLost={onSessionLost} />} />
+                <Route path={RELEASES_PATH} element={<TitleRoute onSessionLost={onSessionLost} />} />
                 <Route path="settings" element={<SettingsScreen />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
@@ -116,6 +110,18 @@ function App() {
 }
 
 /** The desktop sidebar with how many torrents are downloading and qBittorrent's status, from the shared poll. */
+/**
+ * What the error boundary is keyed by, so a crash on one screen goes away on the next. A torrent's
+ * drawer over Downloads is part of that screen, and on desktop a title's releases are part of its
+ * page (a phone shows them on a screen of their own).
+ */
+function screenKeyOf(pathname: string, isDesktop: boolean): string {
+  if (!isDesktop) return pathname
+  if (matchPath('/torrent/:hash', pathname)) return '/'
+  const title = matchPath(TITLE_PATH, pathname) ?? matchPath(RELEASES_PATH, pathname)
+  return title ? `/title/${title.params.type}/${title.params.id}` : pathname
+}
+
 function AppSidebar({ items, version, pathname }: { items: TabBarItem[]; version: string; pathname?: string }) {
   const { t } = useTranslation()
   const { data, offline } = useMainData()
