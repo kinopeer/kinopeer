@@ -28,6 +28,8 @@ export interface AppOptions {
   prowlarrDown?: boolean
   /** qBittorrent's free space in bytes, instead of the fixtures' 1.82 TB. */
   freeSpace?: number
+  /** The release filters remembered from earlier searches. */
+  releaseFilters?: unknown
   /** Leaves /tmdb and /tmdb-img to the server, for real titles and posters (the README screenshots). */
   realTmdb?: boolean
 }
@@ -163,16 +165,16 @@ async function mockTmdb(page: Page): Promise<void> {
 export async function openApp(page: Page, path: string, options: AppOptions = {}): Promise<void> {
   await page.clock.setFixedTime(NOW)
   await page.addInitScript(
-    ({ theme, lang, downloadsView }) => {
+    ({ theme, lang, downloadsView, releaseFilters }) => {
       localStorage.setItem('kinoseed.theme', theme)
       localStorage.setItem('kinoseed.language', lang)
       localStorage.setItem(
         'kinoseed.settings',
-        JSON.stringify({ downloadsView: downloadsView ?? 'list', downloadsDesktopView: downloadsView }),
+        JSON.stringify({ downloadsView: downloadsView ?? 'list', downloadsDesktopView: downloadsView, releaseFilters }),
       )
       localStorage.setItem('kinoseed.installDismissed', '1')
     },
-    { theme: options.theme ?? 'dark', lang: options.lang ?? 'ru', downloadsView: options.downloadsView },
+    { theme: options.theme ?? 'dark', lang: options.lang ?? 'ru', downloadsView: options.downloadsView, releaseFilters: options.releaseFilters },
   )
   await mockServer(page, options)
   await page.goto(path)

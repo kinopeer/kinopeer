@@ -88,19 +88,18 @@ const GIVE_WAY: (keyof RememberedFilters)[] = ['minSeeds', 'source', 'audio', 'r
 
 /**
  * A search's filters at the start, from the remembered ones. A remembered value none of the
- * releases has is set aside, and so is a minimum of seeds none of them reaches: a usual 2160p
- * doesn't hide every release of a title that has no 2160p, and applies again on the next title that
- * has some. If what's left still matches no release together, filters give way one at a time, the
- * seeds first and the resolution last. The indexer always starts unpicked.
+ * releases has is set aside: a usual 2160p doesn't hide every release of a title that has no 2160p,
+ * and applies again on the next title that has some. If what's left matches no release together,
+ * filters give way one at a time, the seeds first (so a minimum none of them reaches goes) and the
+ * resolution last. The indexer always starts unpicked.
  */
 export function startingFilters(remembered: RememberedFilters, rows: ReleaseRow[], present: PresentValues): Filters {
-  const reached = rows.some((row) => (row.release.seeders ?? 0) >= remembered.minSeeds)
   const filters: Filters = {
     resolution: remembered.resolution.filter((value) => present.resolution.includes(value)),
     audio: remembered.audio.filter((value) => present.audio.includes(value)),
     source: remembered.source.filter((value) => present.source.includes(value)),
     indexer: [],
-    minSeeds: reached ? remembered.minSeeds : 0,
+    minSeeds: remembered.minSeeds,
   }
   for (const key of GIVE_WAY) {
     if (rows.some((row) => matchesFilters(row, filters))) break

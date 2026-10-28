@@ -45,10 +45,18 @@
 
 .rel-aside {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
   margin-bottom: var(--space-3);
+}
+
+/* On a phone the text wraps beside Forget rather than pushing it onto a line of its own. */
+.rel-aside > p {
+  min-width: 0;
+}
+
+.rel-aside > button {
+  flex: none;
 }
 
 .rel-count {
