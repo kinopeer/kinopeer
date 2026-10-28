@@ -24,6 +24,35 @@ describe('useRequest', () => {
     expect(result.current).toMatchObject({ data: 'fresh', loading: false })
   })
 
+  it("keeps the new key's data when the old key's load resolves after it", async () => {
+    const resolvers: Record<string, (value: string) => void> = {}
+    const { result, rerender } = renderHook(({ key }) =>
+      useRequest(key, () => new Promise<string>((resolve) => (resolvers[key] = resolve))),
+      { initialProps: { key: 'a' } },
+    )
+    rerender({ key: 'b' })
+
+    await act(async () => resolvers.b('fresh'))
+    await act(async () => resolvers.a('stale'))
+    expect(result.current).toMatchObject({ data: 'fresh', loading: false })
+  })
+
+  it('drops a load that resolves after its key went away, so the key loads afresh when it comes back', async () => {
+    const resolvers: ((value: string) => void)[] = []
+    const { result, rerender } = renderHook(({ key }: { key: string | null }) =>
+      useRequest(key, () => new Promise<string>((resolve) => resolvers.push(resolve))),
+      { initialProps: { key: 'a' as string | null } },
+    )
+    rerender({ key: null })
+    // An aborted load can still resolve, e.g. Promise.allSettled with the parts done before the abort.
+    await act(async () => resolvers[0]('partial'))
+
+    rerender({ key: 'a' })
+    expect(result.current).toMatchObject({ data: undefined, loading: true })
+    await act(async () => resolvers[1]('whole'))
+    expect(result.current).toMatchObject({ data: 'whole', loading: false })
+  })
+
   it('skips a null key', () => {
     const load = vi.fn()
     const { result } = renderHook(() => useRequest(null, load))
