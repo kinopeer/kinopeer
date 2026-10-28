@@ -10,13 +10,15 @@ import { changedLimit, limitToField } from '../torrents/speedLimits'
 export interface SpeedLimitsSheetProps {
   torrent: Torrent
   title: string
+  /** qBittorrent is unreachable: the fields stay editable, saving waits until it answers. */
+  offline: boolean
   onClose: () => void
   /** After the limits were saved, so the list can refresh right away. */
   onChanged: () => void
 }
 
 /** Download and upload speed limits of one torrent; an empty field means no limit. */
-export function SpeedLimitsSheet({ torrent, title, onClose, onChanged }: SpeedLimitsSheetProps) {
+export function SpeedLimitsSheet({ torrent, title, offline, onClose, onChanged }: SpeedLimitsSheetProps) {
   const { t } = useTranslation()
   // What the fields showed when the sheet opened: an unchanged field isn't sent.
   const [initial] = useState(() => ({ download: limitToField(torrent.dl_limit), upload: limitToField(torrent.up_limit) }))
@@ -30,7 +32,7 @@ export function SpeedLimitsSheet({ torrent, title, onClose, onChanged }: SpeedLi
 
   const save = async (event: FormEvent) => {
     event.preventDefault()
-    if (downloadLimit === null || uploadLimit === null) return
+    if (downloadLimit === null || uploadLimit === null || offline) return
     if (downloadLimit === undefined && uploadLimit === undefined) return onClose()
     setSaving(true)
     setFailed(false)
@@ -67,7 +69,7 @@ export function SpeedLimitsSheet({ torrent, title, onClose, onChanged }: SpeedLi
         />
         <p className="t-cap c3">{t('limits.hint')}</p>
         {failed && <Banner tone="error">{t('limits.failed')}</Banner>}
-        <Button type="submit" variant="primary" size="lg" block loading={saving} disabled={!valid || saving}>
+        <Button type="submit" variant="primary" size="lg" block loading={saving} disabled={!valid || saving || offline}>
           {t('limits.save')}
         </Button>
       </form>

@@ -55,6 +55,13 @@ describe('TorrentActionsSheet on desktop', () => {
     expect(screen.getByRole('dialog', { name: 'Speed limits' })).toBeInTheDocument()
   })
 
+  it('disables the speed limits while a pause or resume is in flight, so its closing can\'t drop the sheet', async () => {
+    vi.mocked(api.startTorrents).mockReturnValue(new Promise(() => {}))
+    renderActions()
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Resume' }))
+    expect(screen.getByRole('menuitem', { name: 'Speed limits' })).toBeDisabled()
+  })
+
   it('disables the speed limits while qBittorrent is offline', () => {
     renderActions({ offline: true })
     expect(screen.getByRole('menuitem', { name: 'Speed limits' })).toBeDisabled()
@@ -102,6 +109,14 @@ describe('TorrentActionsSheet on desktop', () => {
     renderActions()
     expect(screen.getByRole('dialog', { name: 'Inception' })).toBeInTheDocument()
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('disables the speed limits on the phone sheet while a pause or resume is in flight', async () => {
+    vi.unstubAllGlobals()
+    vi.mocked(api.startTorrents).mockReturnValue(new Promise(() => {}))
+    renderActions()
+    await userEvent.click(screen.getByRole('button', { name: 'Resume' }))
+    expect(screen.getByRole('button', { name: 'Speed limits' })).toBeDisabled()
   })
 
   it('opens the speed limits sheet from the phone sheet', async () => {

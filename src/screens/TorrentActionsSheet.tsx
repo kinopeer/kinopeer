@@ -104,7 +104,15 @@ export function TorrentActionsSheet({
   )
 
   if (editingLimits) {
-    return <SpeedLimitsSheet torrent={torrent} title={match?.title ?? torrent.name} onClose={onClose} onChanged={onChanged} />
+    return (
+      <SpeedLimitsSheet
+        torrent={torrent}
+        title={match?.title ?? torrent.name}
+        offline={offline}
+        onClose={onClose}
+        onChanged={onChanged}
+      />
+    )
   }
 
   if (isDesktop && anchor) {
@@ -119,7 +127,7 @@ export function TorrentActionsSheet({
         <MenuItem icon={running ? 'pause' : 'play'} disabled={offline || busy} onClick={toggle}>
           {running ? t('torrent.pause') : t('torrent.resume')}
         </MenuItem>
-        <MenuItem icon="sort-desc" disabled={offline} onClick={() => setEditingLimits(true)}>
+        <MenuItem icon="sort-desc" disabled={offline || busy} onClick={() => setEditingLimits(true)}>
           {t('limits.title')}
         </MenuItem>
         {showDetails && (
@@ -178,7 +186,7 @@ export function TorrentActionsSheet({
           </button>
         </li>
         <li>
-          <button type="button" className="ks-row-btn" disabled={offline} onClick={() => setEditingLimits(true)}>
+          <button type="button" className="ks-row-btn" disabled={offline || busy} onClick={() => setEditingLimits(true)}>
             <Icon name="sort-desc" />
             {t('limits.title')}
           </button>

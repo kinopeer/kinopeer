@@ -16,11 +16,18 @@ beforeEach(() => {
 })
 
 describe('SpeedLimitsSheet', () => {
-  function renderSheet(fields = {}) {
+  function renderSheet(fields = {}, offline = false) {
     const handlers = { onClose: vi.fn(), onChanged: vi.fn() }
-    renderWithRouter(<SpeedLimitsSheet torrent={torrent('h1', fields)} title="Inception" {...handlers} />)
+    renderWithRouter(<SpeedLimitsSheet torrent={torrent('h1', fields)} title="Inception" offline={offline} {...handlers} />)
     return handlers
   }
+
+  it("can't save while qBittorrent is unreachable, but keeps what was typed", async () => {
+    renderSheet({}, true)
+    await userEvent.type(screen.getByRole('textbox', { name: 'Download limit, MB/s' }), '3')
+    expect(screen.getByRole('textbox', { name: 'Download limit, MB/s' })).toHaveValue('3')
+    expect(screen.getByRole('button', { name: 'Save limits' })).toBeDisabled()
+  })
 
   it('saves a changed limit, then refreshes the list and closes', async () => {
     vi.mocked(api.setSpeedLimits).mockResolvedValue()
