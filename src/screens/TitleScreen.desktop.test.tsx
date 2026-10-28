@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -11,7 +11,7 @@ import { stubDesktop } from '../lib/stubDesktop'
 import { restoreLayout, stubLayout } from '../lib/stubLayout'
 import { resetSettings, updateSettings } from '../settings/settings'
 import { DUNE_RELEASES } from '../test/fixtures'
-import { Where, renderWithRouter, where } from '../test/render'
+import { Where, renderWithRouter, saying, where } from '../test/render'
 import { resetServerMatches } from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
 import { TitleRoute } from './TitleScreen'
@@ -138,7 +138,7 @@ describe('TitleScreen on desktop', () => {
     vi.mocked(prowlarr.getFailingIndexers).mockResolvedValue(['NNM-Club'])
     renderAt('/title/movie/693134/releases')
     const section = await screen.findByRole('region', { name: 'Releases' })
-    await waitFor(() => expect(within(section).getByRole('status')).toHaveTextContent('NNM-Club'))
+    expect(await within(section).findByRole('status', { name: saying(/NNM-Club/) })).toBeInTheDocument()
   })
 
   it('keeps the recommendations on the page with the releases searched', async () => {

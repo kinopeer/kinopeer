@@ -237,8 +237,12 @@ describe('AddReleaseSheet', () => {
   it('warns while the selected files need more than the free space, without blocking the download', async () => {
     renderSheet()
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
-    const warning = await within(sheet).findByRole('status', { name: saying('Not enough free space') })
-    expect(warning).toHaveTextContent(/40\.0\sGB free on qBittorrent’s disk, 10\.0\sGB short of this download\. Skip some files/)
+    expect(await within(sheet).findByRole('status', { name: saying('Not enough free space') })).toBeInTheDocument()
+    expect(
+      within(sheet).getByRole('status', {
+        name: saying(/^40\.0\sGB free on qBittorrent’s disk, 10\.0\sGB short of this download\. Skip some files/),
+      }),
+    ).toBeInTheDocument()
     expect(within(sheet).getByRole('button', { name: /^Download · 50\.0\sGB$/ })).toBeEnabled()
 
     await userEvent.click(within(sheet).getByRole('button', { name: /Files: all \(3\)/ }))
