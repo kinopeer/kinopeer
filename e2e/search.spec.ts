@@ -17,6 +17,16 @@ test.describe('search, phone', () => {
     await openSearch(page, '/search?q=%D0%B0', 'Дюна')
     await expect(page).toHaveScreenshot('results-dark-ru.png')
   })
+
+  test.describe('a narrow phone', () => {
+    // A common Android width, where the year field has to give way beside the tabs.
+    test.use({ viewport: { width: 360, height: 800 } })
+
+    test('results for a year, dark, Russian', async ({ page }) => {
+      await openSearch(page, '/search?q=%D0%B0&year=2022', 'Разделение')
+      await expect(page).toHaveScreenshot('narrow-year-results-dark-ru.png')
+    })
+  })
 })
 
 test.describe('search, desktop', () => {

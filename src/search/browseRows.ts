@@ -1,4 +1,4 @@
-import type { DiscoverParams, MediaType } from '../api/tmdb'
+import type { MediaType, QueryParams } from '../api/tmdb'
 
 /**
  * The rows the Search screen shows before a search: titles that are likely on torrents already,
@@ -12,7 +12,7 @@ import type { DiscoverParams, MediaType } from '../api/tmdb'
 export interface BrowseRowQuery {
   key: 'newOnDigital' | 'newEpisodes' | 'bestOfYear'
   type: MediaType
-  params: DiscoverParams
+  params: QueryParams
 }
 
 /** TMDB's release types: 4 is digital, 5 physical (DVD, Blu-ray). `|` means either. */
@@ -43,7 +43,7 @@ function daysBefore(today: Date, days: number): string {
 export function browseRowQueries(today: Date): BrowseRowQuery[] {
   // Up to tomorrow in UTC: east of UTC it's already the next day there, and a release dated today
   // there should show.
-  const now = daysBefore(today, -1)
+  const upTo = daysBefore(today, -1)
   return [
     {
       key: 'newOnDigital',
@@ -51,7 +51,7 @@ export function browseRowQueries(today: Date): BrowseRowQuery[] {
       params: {
         with_release_type: DIGITAL_OR_PHYSICAL,
         'release_date.gte': daysBefore(today, NEW_ON_DIGITAL_DAYS),
-        'release_date.lte': now,
+        'release_date.lte': upTo,
         'primary_release_date.gte': daysBefore(today, NEW_FILM_DAYS),
         sort_by: 'popularity.desc',
         include_adult: false,
@@ -63,7 +63,7 @@ export function browseRowQueries(today: Date): BrowseRowQuery[] {
       params: {
         with_type: SCRIPTED,
         'air_date.gte': daysBefore(today, NEW_EPISODES_DAYS),
-        'air_date.lte': now,
+        'air_date.lte': upTo,
         sort_by: 'popularity.desc',
         include_adult: false,
       },
@@ -74,7 +74,7 @@ export function browseRowQueries(today: Date): BrowseRowQuery[] {
       params: {
         with_release_type: DIGITAL_OR_PHYSICAL,
         'release_date.gte': daysBefore(today, BEST_OF_YEAR_DAYS),
-        'release_date.lte': now,
+        'release_date.lte': upTo,
         'primary_release_date.gte': daysBefore(today, NEW_FILM_DAYS),
         'vote_count.gte': BEST_OF_YEAR_MIN_VOTES,
         sort_by: 'vote_average.desc',

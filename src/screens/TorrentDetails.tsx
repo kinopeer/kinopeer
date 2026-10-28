@@ -30,6 +30,7 @@ import { ChangeTitleSheet } from './ChangeTitleSheet'
 import { DeleteTorrentDialog } from './DeleteTorrentDialog'
 import { MatchPrompt } from './MatchPrompt'
 import { OfflineBanner } from './OfflineBanner'
+import { RecheckDialog } from './RecheckDialog'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
 import { TorrentFiles } from './TorrentFiles'
 import './TorrentScreen.css'
@@ -57,9 +58,9 @@ function peerCount(connected: number, total: number | undefined): string {
 }
 
 /**
- * What Kinoseed shows about a torrent: status and progress, pause, resume and delete, the title
- * (with "Is it right?" for a guess), details and files. A screen of its own on a phone, the
- * content of the details drawer on desktop.
+ * What Kinoseed shows about a torrent: status and progress, pause, resume and delete (recheck and
+ * reannounce in its More menu), the title (with "Is it right?" for a guess), details and files. A
+ * screen of its own on a phone, the content of the details drawer on desktop.
  */
 export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDeleted, behind }: TorrentDetailsProps) {
   const { t, i18n } = useTranslation()
@@ -81,6 +82,10 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
   // The More button, while its actions are open.
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
   const [retitling, setRetitling] = useState(false)
+  const [rechecking, setRechecking] = useState(false)
+  // A recheck or reannounce qBittorrent took, said in a toast.
+  const [notice, setNotice] = useState<'rechecking' | 'reannounced' | null>(null)
+  const dismissNotice = useCallback(() => setNotice(null), [])
   const [savingTitle, setSavingTitle] = useState(false)
   const [titleSaved, setTitleSaved] = useState<'changed' | 'confirmed' | 'failed' | null>(null)
   const dismissFailure = useCallback(() => setFailed(false), [])
@@ -105,6 +110,10 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
       onClick={goBack}
     />
   )
+
+  // The torrent went away while its recheck confirmation was open (deleted elsewhere): forget it, so
+  // the confirmation doesn't open again if the same torrent is added back.
+  if (rechecking && data && !torrent) setRechecking(false)
 
   if (data === null && offline) {
     return (
@@ -375,6 +384,14 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
             setMenuAnchor(null)
             setConfirming(true)
           }}
+          onRecheck={() => {
+            setMenuAnchor(null)
+            setRechecking(true)
+          }}
+          onReannounced={() => {
+            setMenuAnchor(null)
+            setNotice('reannounced')
+          }}
           onChangeTitle={() => {
             setMenuAnchor(null)
             setRetitling(true)
@@ -382,6 +399,19 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
           onConfirmed={() => {
             setMenuAnchor(null)
             setTitleSaved('confirmed')
+          }}
+        />
+      )}
+
+      {rechecking && (
+        <RecheckDialog
+          hash={hash}
+          title={title}
+          onClose={() => setRechecking(false)}
+          onRechecked={() => {
+            setRechecking(false)
+            setNotice('rechecking')
+            refresh()
           }}
         />
       )}
@@ -398,6 +428,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
         />
       )}
 
+      {notice && <Toast message={t(`torrent.${notice}`)} onDismiss={dismissNotice} />}
       {failed && <Toast icon="alert" message={t('torrent.actionFailed')} onDismiss={dismissFailure} />}
       {titleSaved && (
         <Toast

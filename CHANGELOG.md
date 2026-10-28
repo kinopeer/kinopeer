@@ -6,13 +6,20 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ### Added
 
+- Settings → About: links to suggest an idea, report a bug (with the version filled in) and the source code on GitHub, and TMDB's logo with the notice that Kinoseed uses the TMDB API but isn't endorsed or certified by TMDB, as TMDB's terms ask.
+- Settings: the interface language has a System option, like the theme: Kinoseed follows the browser's languages (Russian or English, else English) and switches when they change. It's on for new browsers, and for existing ones whose saved language is the browser's own; a different language picked before stays.
 - Title page: a row of posters at the end of the page with what to watch next, TMDB's recommendations for the movie or series, or similar titles when TMDB has no recommendations. Each poster opens its title page.
 - Adding a release: a warning when the selected files are larger than the free space on qBittorrent's disk, with how much is missing. The release can still be added.
+- Downloads: a turtle button switches qBittorrent's alternative speed limits on and off, and is highlighted while they apply. On a phone it's in the Downloads title row; on desktop in the sidebar's qBittorrent card (an icon in the narrow sidebar).
+- Downloads and the torrent screen: "Reannounce" and "Force recheck" in a torrent's More menu. Reannounce asks the trackers for peers right away; force recheck, after a confirmation, has qBittorrent check the downloaded data again and download any broken pieces.
+- Settings: the Prowlarr API key can be entered on the Prowlarr connection (the key button). Kinoseed checks it with Prowlarr, keeps it on its server, and uses it instead of the key it reads from Prowlarr's own files, for when that key can't be read. "Use the server's key" in the same sheet goes back to reading it from Prowlarr.
+- Search: a year field beside Movies and Series, shown while searching, finds only titles that came out that year (for a series, the year it started), so a remake or an old film with a popular namesake is easy to find. The year stays in the address with the query, so Back from a title keeps it.
+- Adding a release: "First and last pieces first" next to "Sequential download", in the add sheet's options and as a download default in Settings, which fetches the start and end of each file early; together with sequential download, a player can open a file before it's fully downloaded.
 - Releases: the indexer's name on a release (the card on a phone, the table on desktop and the add sheet) links to the release's page on the tracker, in a new tab, for what Kinoseed doesn't show.
 
 ### Changed
 
-- Search: before a search the rows show what's likely on torrents already: "New on digital" (movies out on digital or disc in the last two months), "New episodes" (series with an episode in the last two weeks) and "Best of the year" (the best rated movies out on digital or disc in the last year). Before, they showed TMDB's trending and popular titles, often still in cinemas and not on torrents yet.
+- Search: before a search the rows show what's likely on torrents already: "New on digital" (movies out on digital or disc in the last two months), "New episodes" (series with an episode in the last two weeks) and "Best of the year" (the best rated movies out on digital or disc in the last year). Before, they showed TMDB's trending and popular titles, often still in cinemas and not on torrents yet. A row TMDB has nothing for, or that fails to load, is hidden; when the type picked has no rows left, Search says so (or shows the error) with Try again.
 - Desktop: on the title page the poster stays at the top of the hero, by the title, however long the overview is, and an overview longer than five lines is cut with "Show more" that opens the rest in place, the blurred background staying put. Before, a long overview left the poster at the bottom with empty space above it.
 - Downloads: the filters, the sort and the view stay at the top while the list scrolls (on a phone the title and the totals scroll away; on desktop the whole header stays, with the table's column names under it), and so do the count, "Select all" and "Cancel" while selecting.
 - Downloads: while selecting, the count stands on the left, where the title was, and "Select all" and "Cancel" sit together on the right, where the Select button is, so the pointer is already there.
@@ -20,12 +27,15 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 ### Fixed
 
 - Desktop: "Find releases" on a title page no longer reloads the whole page: the hero, an opened overview and the rest stay as they were, and the page scrolls smoothly down to the releases. ([#138](https://github.com/MrShakhov/kinoseed/issues/138))
+- When qBittorrent can't tell its free space (it reports 0), Downloads, the sidebar and the add sheet's files row no longer say "0 B free", and the file picker no longer says "Not enough free space". ([#137](https://github.com/MrShakhov/kinoseed/issues/137))
 - Desktop: a release name no longer looks clickable on hover (a click did nothing when the name fit in two lines); the whole name is a tooltip on hover instead. On a phone a tap still shows the whole name.
 - Desktop: Escape in the delete confirmation or the title search opened from a torrent's details closes only that, not the details too. ([#107](https://github.com/MrShakhov/kinoseed/issues/107))
 - Desktop: a link to a title's releases (or a reload of their address) opens the title page at the releases, instead of at the top with the hero. ([#72](https://github.com/MrShakhov/kinoseed/issues/72))
 - Releases: a resolution written in the name wins over a UHD or 4K marker, so "UHD BDRip 1080p" shows as 1080p, not 2160p. HDRip is a source of its own, with its own filter, instead of showing as BDRip.
 - Search: going back from a title brings the results back at the same scroll position. Before, the list started from the top, because the results load again after the browser has already restored the scroll.
 - Settings: Test on a connection checks only that service, and saving a new TMDB key checks only TMDB. Before, every connection was checked again. ([#113](https://github.com/MrShakhov/kinoseed/issues/113))
+- Settings: switching the language while a connection is being checked no longer leaves it on "Testing…" when the earlier check answers last. ([#139](https://github.com/MrShakhov/kinoseed/issues/139))
+- Search: typing and then clearing the field while the rows load no longer shows only the rows that had loaded, as if loading were done. ([#139](https://github.com/MrShakhov/kinoseed/issues/139))
 
 ## 0.4.2 - 2026-10-26
 

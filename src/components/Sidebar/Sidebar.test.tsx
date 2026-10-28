@@ -1,5 +1,6 @@
 import { cleanup, render, screen, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
 import { renderWithRouter } from '../../test/render'
 import type { TabBarItem } from '../TabBar'
 import { Sidebar } from './Sidebar'
@@ -81,5 +82,31 @@ describe('SidebarStatus', () => {
     expect(screen.getAllByText('No connection to qBittorrent')).toHaveLength(2)
     expect(screen.getByRole('region', { name: 'qBittorrent' })).toHaveTextContent('↓Download speed —')
     expect(screen.queryByText('TB')).not.toBeInTheDocument()
+  })
+
+  it('switches the alternative speed limits from the card and from the rail', async () => {
+    const onToggle = vi.fn()
+    const { rerender } = render(
+      <SidebarStatus version="v5.0.1" offline={false} altSpeedLimits={false} onToggleAltSpeed={onToggle} />,
+    )
+    // The card's labelled button (a short label) and the rail's icon button.
+    const buttons = screen.getAllByRole('button', { name: /^Alt(ernative|\.) speed limits$/ })
+    expect(buttons).toHaveLength(2)
+    for (const button of buttons) {
+      expect(button).toHaveAttribute('aria-pressed', 'false')
+      await userEvent.click(button)
+    }
+    expect(onToggle).toHaveBeenCalledTimes(buttons.length)
+
+    rerender(<SidebarStatus version="v5.0.1" offline={false} altSpeedLimits altSpeedDisabled onToggleAltSpeed={onToggle} />)
+    for (const button of screen.getAllByRole('button', { name: /^Alt(ernative|\.) speed limits$/ })) {
+      expect(button).toHaveAttribute('aria-pressed', 'true')
+      expect(button).toBeDisabled()
+    }
+  })
+
+  it('has no switch until qBittorrent says which limits apply', () => {
+    render(<SidebarStatus version="v5.0.1" offline={false} onToggleAltSpeed={() => {}} />)
+    expect(screen.queryByRole('button', { name: /speed limits/ })).not.toBeInTheDocument()
   })
 })

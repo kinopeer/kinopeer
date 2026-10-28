@@ -25,10 +25,18 @@ test.describe('downloads, phone', () => {
     await expect(page).toHaveScreenshot('grid-dark-ru.png')
   })
 
+  test('alternative speed limits on', async ({ page }) => {
+    await openDownloads(page, { altSpeedLimits: true })
+    await expect(page.getByRole('button', { name: 'Альтернативные лимиты скорости', pressed: true })).toBeVisible()
+    await expect(page).toHaveScreenshot('alt-speed-on-dark-ru.png')
+  })
+
   test('actions sheet from the grid', async ({ page }) => {
     await openDownloads(page, { downloadsView: 'grid' })
     await page.getByRole('button', { name: 'Ещё действия: Дюна: Часть вторая' }).click()
     await expect(page.getByRole('dialog')).toBeVisible()
+    // The sheet opens under the pointer that opened it, which would hover one of its rows.
+    await page.mouse.move(0, 0)
     await settle(page)
     await expect(page).toHaveScreenshot('grid-actions-dark-ru.png')
   })
@@ -135,6 +143,13 @@ test.describe('downloads, desktop', () => {
     await expect(page).toHaveScreenshot('desktop-list-dark-ru.png')
   })
 
+  test('alternative speed limits on, in the sidebar’s card', async ({ page }) => {
+    await openDownloads(page, { altSpeedLimits: true })
+    const card = page.getByRole('region', { name: 'qBittorrent' })
+    await expect(card.getByRole('button', { name: 'Альт. лимиты', pressed: true })).toBeVisible()
+    await expect(card).toHaveScreenshot('desktop-alt-speed-on-dark-ru.png')
+  })
+
   test('the header and the column names stay at the top while the table scrolls', async ({ page }) => {
     await openDownloads(page, { downloadsView: 'list' })
     // As far as the page goes: the first rows pass under the header and the column names.
@@ -209,6 +224,13 @@ test.describe('downloads, desktop', () => {
 
 test.describe('downloads, narrow desktop', () => {
   test.use(DESKTOP_RAIL)
+
+  test('alternative speed limits on, in the rail', async ({ page }) => {
+    await openDownloads(page, { altSpeedLimits: true })
+    const status = page.getByRole('region', { name: 'qBittorrent' })
+    await expect(status.getByRole('button', { name: 'Альтернативные лимиты скорости', pressed: true })).toBeVisible()
+    await expect(status).toHaveScreenshot('rail-alt-speed-on-dark-ru.png')
+  })
 
   test('the status menu, with errors hidden by the picked status', async ({ page }) => {
     await openDownloads(page, { downloadsView: 'list' })

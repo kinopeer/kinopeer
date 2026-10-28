@@ -22,6 +22,8 @@ export interface AppOptions {
   torrents?: Torrent[]
   /** qBittorrent answers the first poll, then stops answering. */
   goesOffline?: boolean
+  /** qBittorrent's alternative speed limits apply. */
+  altSpeedLimits?: boolean
   /** The server rejects the login sent from the connect screen as a wrong login or password. */
   wrongLogin?: boolean
   /** Prowlarr doesn't answer the server's connection check. */
@@ -59,7 +61,10 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
         if (options.goesOffline && polls > 1) return route.abort('connectionrefused')
         return json(
           route,
-          mainData(torrents, options.freeSpace === undefined ? {} : { free_space_on_disk: options.freeSpace }),
+          mainData(torrents, {
+            use_alt_speed_limits: options.altSpeedLimits ?? false,
+            ...(options.freeSpace === undefined ? {} : { free_space_on_disk: options.freeSpace }),
+          }),
         )
       }
       if (pathname === '/qbt/api/v2/app/webapiVersion') return route.fulfill({ body: '2.11.4' })
@@ -85,6 +90,7 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
     (route) =>
       json(route, {
         tmdb: { configured: true, source: 'saved' },
+        prowlarr: { configured: true, source: 'env', serverKey: true },
         qbittorrent: { configured: true, source: 'saved' },
         downloads: null,
       }),
@@ -139,6 +145,18 @@ async function mockTmdb(page: Page): Promise<void> {
         const found = TITLES.filter((title) => [title.en, title.ru].some((name) => name.toLocaleLowerCase().includes(query ?? '')))
         return json(route, titlePage(found, language))
       }
+      // A search by year: one type, released (or first aired) that year.
+      if (path === '/search/movie' || path === '/search/tv') {
+        const type = path === '/search/movie' ? 'movie' : 'tv'
+        const year = url.searchParams.get(type === 'movie' ? 'primary_release_year' : 'first_air_date_year')
+        const found = TITLES.filter(
+          (title) =>
+            title.type === type &&
+            title.date.startsWith(`${year}-`) &&
+            [title.en, title.ru].some((name) => name.toLocaleLowerCase().includes(query ?? '')),
+        )
+        return json(route, titlePage(found, language))
+      }
       if (path === '/discover/movie') return json(route, titlePage(TITLES.filter((title) => title.type === 'movie'), language))
       if (path === '/discover/tv') return json(route, titlePage(TITLES.filter((title) => title.type === 'tv'), language))
       const [, type, id, list] = path.split('/')
@@ -165,7 +183,7 @@ export async function openApp(page: Page, path: string, options: AppOptions = {}
   await page.addInitScript(
     ({ theme, lang, downloadsView }) => {
       localStorage.setItem('kinoseed.theme', theme)
-      localStorage.setItem('kinoseed.lang', lang)
+      localStorage.setItem('kinoseed.language', lang)
       localStorage.setItem(
         'kinoseed.settings',
         JSON.stringify({ downloadsView: downloadsView ?? 'list', downloadsDesktopView: downloadsView }),

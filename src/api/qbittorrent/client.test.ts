@@ -7,9 +7,12 @@ import {
   getDefaultSavePath,
   getTorrentFiles,
   getTorrents,
+  reannounceTorrents,
+  recheckTorrents,
   setFilePriority,
   startTorrents,
   stopTorrents,
+  toggleSpeedLimitsMode,
 } from './client'
 
 let fetchMock: Mock<typeof fetch>
@@ -68,14 +71,22 @@ describe('addTorrents', () => {
     expect(form.has('savepath')).toBe(false)
     expect(form.has('stopCondition')).toBe(false)
     expect(form.has('sequentialDownload')).toBe(false)
+    expect(form.has('firstLastPiecePrio')).toBe(false)
   })
 
-  it('sends the queue and sequential download options', async () => {
+  it('sends the queue and piece order options', async () => {
     respond('Ok.')
-    await addTorrents({ urls: ['magnet:?xt=urn:btih:abc'], savePath: '/data/tv', sequentialDownload: true, addToTopOfQueue: true })
+    await addTorrents({
+      urls: ['magnet:?xt=urn:btih:abc'],
+      savePath: '/data/tv',
+      sequentialDownload: true,
+      firstLastPiecePrio: true,
+      addToTopOfQueue: true,
+    })
     const form = lastCall().init.body as FormData
     expect(form.get('savepath')).toBe('/data/tv')
     expect(form.get('sequentialDownload')).toBe('true')
+    expect(form.get('firstLastPiecePrio')).toBe('true')
     expect(form.get('addToTopOfQueue')).toBe('true')
   })
 
@@ -144,6 +155,22 @@ describe('stopTorrents', () => {
   })
 })
 
+describe('recheckTorrents and reannounceTorrents', () => {
+  it('post the hashes joined with a pipe', async () => {
+    respond('')
+    await recheckTorrents(['a', 'b'])
+    expect(lastCall().url).toBe('/qbt/api/v2/torrents/recheck')
+    expect(lastCall().init.method).toBe('POST')
+    expect(String(lastCall().init.body)).toBe('hashes=a%7Cb')
+
+    respond('')
+    await reannounceTorrents(['a'])
+    expect(lastCall().url).toBe('/qbt/api/v2/torrents/reannounce')
+    expect(lastCall().init.method).toBe('POST')
+    expect(String(lastCall().init.body)).toBe('hashes=a')
+  })
+})
+
 describe('deleteTorrents', () => {
   it('posts the hashes and whether to delete files', async () => {
     respond('')
@@ -151,5 +178,14 @@ describe('deleteTorrents', () => {
     expect(lastCall().url).toBe('/qbt/api/v2/torrents/delete')
     expect(lastCall().init.method).toBe('POST')
     expect(String(lastCall().init.body)).toBe('hashes=a%7Cb&deleteFiles=true')
+  })
+})
+
+describe('toggleSpeedLimitsMode', () => {
+  it('posts to /transfer/toggleSpeedLimitsMode', async () => {
+    respond('')
+    await toggleSpeedLimitsMode()
+    expect(lastCall().url).toBe('/qbt/api/v2/transfer/toggleSpeedLimitsMode')
+    expect(lastCall().init.method).toBe('POST')
   })
 })

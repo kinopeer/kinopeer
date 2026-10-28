@@ -46,9 +46,10 @@ export interface RequestOptions {
   signal?: AbortSignal
 }
 
-type Params = Record<string, string | number | boolean | undefined>
+/** Query parameters for a TMDB call, e.g. Discover's filters; undefined ones are left out. */
+export type QueryParams = Record<string, string | number | boolean | undefined>
 
-async function request<T>(path: string, params: Params, { language, signal }: RequestOptions): Promise<T> {
+async function request<T>(path: string, params: QueryParams, { language, signal }: RequestOptions): Promise<T> {
   const search = new URLSearchParams()
   for (const [key, value] of Object.entries({ ...params, language })) {
     if (value !== undefined) search.set(key, String(value))
@@ -116,23 +117,59 @@ function toTypedPage(data: Paged<MovieResult | TvResult>, type: MediaType): Titl
   return { titles: data.results.map((item) => toTitle(item, type)), page: data.page, totalPages: data.total_pages }
 }
 
-/** Movies and series matching the query; people are left out. */
-export async function searchTitles(query: string, options: RequestOptions & { page?: number } = {}): Promise<TitlePage> {
-  const data = await request<Paged<MovieResult | TvResult | PersonResult>>(
-    '/search/multi',
-    { query, page: options.page, include_adult: false },
-    options,
-  )
-  return toTitlePage(data)
+export interface SearchOptions extends RequestOptions {
+  page?: number
+  /** Only titles released (movies) or first aired (series) that year. */
+  year?: number
 }
 
-/** TMDB Discover's filters, e.g. `{ sort_by: 'popularity.desc', 'release_date.gte': '2026-09-01' }`. */
-export type DiscoverParams = Record<string, string | number | boolean>
+/**
+ * Two lists in TMDB's order made one: the more popular of the two heads goes first, so each list keeps its own
+ * order (relevance to the query, which an exact title with few views still tops) and only their interleaving
+ * follows popularity.
+ */
+function interleaveByPopularity<T extends { popularity: number }>(a: T[], b: T[]): T[] {
+  const merged: T[] = []
+  let i = 0
+  let j = 0
+  while (i < a.length && j < b.length) merged.push(a[i].popularity >= b[j].popularity ? a[i++] : b[j++])
+  return [...merged, ...a.slice(i), ...b.slice(j)]
+}
+
+/**
+ * Movies and series matching the query; people are left out. `/search/multi` has no year filter, so with a year
+ * it searches movies and series apart, each with its own year parameter, and interleaves the two lists.
+ */
+export async function searchTitles(query: string, options: SearchOptions = {}): Promise<TitlePage> {
+  const { year, page } = options
+  if (year === undefined) {
+    const data = await request<Paged<MovieResult | TvResult | PersonResult>>(
+      '/search/multi',
+      { query, page, include_adult: false },
+      options,
+    )
+    return toTitlePage(data)
+  }
+  const [movies, series] = await Promise.all([
+    request<Paged<MovieResult>>('/search/movie', { query, page, include_adult: false, primary_release_year: year }, options),
+    request<Paged<TvResult>>('/search/tv', { query, page, include_adult: false, first_air_date_year: year }, options),
+  ])
+  // These endpoints omit media_type.
+  const titles = interleaveByPopularity(
+    movies.results.map((item) => ({ popularity: item.popularity, title: toTitle(item, 'movie') })),
+    series.results.map((item) => ({ popularity: item.popularity, title: toTitle(item, 'tv') })),
+  )
+  return {
+    titles: titles.map(({ title }) => title),
+    page: page ?? 1,
+    totalPages: Math.max(movies.total_pages, series.total_pages),
+  }
+}
 
 /** Movies or series matching Discover's filters. */
 export async function discoverTitles(
   type: MediaType,
-  params: DiscoverParams,
+  params: QueryParams,
   options: RequestOptions = {},
 ): Promise<TitlePage> {
   const data = await request<Paged<MovieResult | TvResult>>(`/discover/${type}`, params, options)

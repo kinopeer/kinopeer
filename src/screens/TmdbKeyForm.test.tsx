@@ -14,6 +14,7 @@ const saveTmdbKey = vi.mocked(serverSettings.saveTmdbKey)
 
 const SAVED: ServerSettings = {
   tmdb: { configured: true, source: 'saved' },
+  prowlarr: { configured: true, source: 'env', serverKey: true },
   qbittorrent: { configured: true, source: 'env' },
   downloads: null,
 }
