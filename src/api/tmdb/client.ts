@@ -121,21 +121,17 @@ export async function searchTitles(query: string, options: RequestOptions & { pa
   return toTitlePage(data)
 }
 
-export async function getTrending(
-  type: MediaType | 'all' = 'all',
-  options: RequestOptions & { window?: 'day' | 'week' } = {},
-): Promise<TitlePage> {
-  const data = await request<Paged<MovieResult | TvResult | PersonResult>>(
-    `/trending/${type}/${options.window ?? 'week'}`,
-    {},
-    options,
-  )
-  return toTitlePage(data)
-}
+/** TMDB Discover's filters, e.g. `{ sort_by: 'popularity.desc', 'release_date.gte': '2026-09-01' }`. */
+export type DiscoverParams = Record<string, string | number | boolean>
 
-export async function getPopular(type: MediaType, options: RequestOptions = {}): Promise<TitlePage> {
-  const data = await request<Paged<MovieResult | TvResult>>(`/${type}/popular`, {}, options)
-  // These endpoints omit media_type.
+/** Movies or series matching Discover's filters. */
+export async function discoverTitles(
+  type: MediaType,
+  params: DiscoverParams,
+  options: RequestOptions = {},
+): Promise<TitlePage> {
+  const data = await request<Paged<MovieResult | TvResult>>(`/discover/${type}`, params, options)
+  // Discover omits media_type.
   return { titles: data.results.map((item) => toTitle(item, type)), page: data.page, totalPages: data.total_pages }
 }
 
