@@ -237,10 +237,8 @@ describe('AddReleaseSheet', () => {
   it('warns while the selected files need more than the free space, without blocking the download', async () => {
     renderSheet()
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
-    expect(await within(sheet).findByText('Not enough free space')).toBeInTheDocument()
-    expect(
-      await within(sheet).findByText(/^40\.0\sGB free on qBittorrent’s disk, 10\.0\sGB short of this download\. Skip some files/),
-    ).toBeInTheDocument()
+    const warning = await within(sheet).findByRole('status', { name: saying('Not enough free space') })
+    expect(warning).toHaveTextContent(/40\.0\sGB free on qBittorrent’s disk, 10\.0\sGB short of this download\. Skip some files/)
     expect(within(sheet).getByRole('button', { name: /^Download · 50\.0\sGB$/ })).toBeEnabled()
 
     await userEvent.click(within(sheet).getByRole('button', { name: /Files: all \(3\)/ }))
@@ -298,7 +296,9 @@ describe('AddReleaseSheet', () => {
     renderSheet()
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
     expect(await within(sheet).findByText(/Magnet link: all files/)).toBeInTheDocument()
-    expect(await within(sheet).findByText(/40\.0\sGB short of this download\. Free up space before it finishes\./)).toBeInTheDocument()
+    expect(
+      await within(sheet).findByRole('status', { name: saying(/40\.0\sGB short of this download\. Free up space before it finishes\./) }),
+    ).toBeInTheDocument()
     expect(within(sheet).getByRole('button', { name: /^Download/ })).toBeEnabled()
   })
 
