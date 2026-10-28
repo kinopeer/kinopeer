@@ -2,6 +2,18 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { useRequest } from './useRequest'
 
+interface Load {
+  promise: Promise<string>
+  resolve: (value: string) => void
+  reject: (reason: unknown) => void
+}
+
+function load(): Load {
+  const result = {} as Load
+  result.promise = new Promise<string>((resolve, reject) => Object.assign(result, { resolve, reject }))
+  return result
+}
+
 describe('useRequest', () => {
   it('loads per key and ignores responses for an old key', async () => {
     const resolvers: Record<string, (value: string) => void> = {}
@@ -24,17 +36,32 @@ describe('useRequest', () => {
     expect(result.current).toMatchObject({ data: 'fresh', loading: false })
   })
 
-  it("keeps the new key's data when the old key's load resolves after it", async () => {
-    const resolvers: Record<string, (value: string) => void> = {}
+  it.each(['resolves', 'rejects'] as const)("keeps the new key's data when the old key's load %s after it", async (late) => {
+    const loads: Record<string, Load> = {}
     const { result, rerender } = renderHook(({ key }) =>
-      useRequest(key, () => new Promise<string>((resolve) => (resolvers[key] = resolve))),
+      useRequest(key, () => (loads[key] = load()).promise),
       { initialProps: { key: 'a' } },
     )
     rerender({ key: 'b' })
 
-    await act(async () => resolvers.b('fresh'))
-    await act(async () => resolvers.a('stale'))
-    expect(result.current).toMatchObject({ data: 'fresh', loading: false })
+    await act(async () => loads.b.resolve('fresh'))
+    await act(async () => (late === 'resolves' ? loads.a.resolve('stale') : loads.a.reject(new Error('stale'))))
+    expect(result.current).toMatchObject({ data: 'fresh', error: undefined, loading: false })
+  })
+
+  it.each(['resolves', 'rejects'] as const)("keeps a retry's data when the attempt before it %s after it", async (late) => {
+    const loads: Load[] = []
+    const { result } = renderHook(() =>
+      useRequest('k', () => {
+        loads.push(load())
+        return loads[loads.length - 1].promise
+      }),
+    )
+    act(() => result.current.retry())
+
+    await act(async () => loads[1].resolve('fresh'))
+    await act(async () => (late === 'resolves' ? loads[0].resolve('stale') : loads[0].reject(new Error('stale'))))
+    expect(result.current).toMatchObject({ data: 'fresh', error: undefined, loading: false })
   })
 
   it('drops a load that resolves after its key went away, so the key loads afresh when it comes back', async () => {

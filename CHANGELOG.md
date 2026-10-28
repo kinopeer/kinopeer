@@ -25,7 +25,8 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 - Releases: a resolution written in the name wins over a UHD or 4K marker, so "UHD BDRip 1080p" shows as 1080p, not 2160p. HDRip is a source of its own, with its own filter, instead of showing as BDRip.
 - Search: going back from a title brings the results back at the same scroll position. Before, the list started from the top, because the results load again after the browser has already restored the scroll.
 - Settings: Test on a connection checks only that service, and saving a new TMDB key checks only TMDB. Before, every connection was checked again. ([#113](https://github.com/MrShakhov/kinoseed/issues/113))
-- A slow answer that arrives after Kinoseed stopped waiting for it is ignored. Before, a connection in Settings could stay on "Testing…" after switching the language mid-check, and Search could show only some of its rows after typing and clearing the field while they loaded. ([#139](https://github.com/MrShakhov/kinoseed/issues/139))
+- Settings: switching the language while a connection is being checked no longer leaves it on "Testing…" when the earlier check answers last. ([#139](https://github.com/MrShakhov/kinoseed/issues/139))
+- Search: typing and then clearing the field while the rows load no longer shows only the rows that had loaded, as if loading were done. ([#139](https://github.com/MrShakhov/kinoseed/issues/139))
 
 ## 0.4.2 - 2026-10-26
 
