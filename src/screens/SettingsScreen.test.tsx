@@ -6,6 +6,8 @@ import * as prowlarr from '../api/prowlarr'
 import * as qbt from '../api/qbittorrent'
 import * as serverSettings from '../api/settings'
 import * as tmdb from '../api/tmdb'
+import i18n from '../i18n'
+import { BUG_REPORT_URL, IDEAS_URL, REPO_URL } from '../lib/links'
 import { getSettings, resetSettings } from '../settings/settings'
 import { renderWithRouter } from '../test/render'
 import { SettingsScreen } from './SettingsScreen'
@@ -162,7 +164,8 @@ describe('SettingsScreen', () => {
 
     await userEvent.selectOptions(movies, 'Anime')
     await userEvent.click(screen.getByRole('switch', { name: 'Start paused' }))
-    expect(getSettings()).toMatchObject({ movieCategory: 'Anime', startPaused: true, sequential: false })
+    await userEvent.click(screen.getByRole('switch', { name: 'First and last pieces first' }))
+    expect(getSettings()).toMatchObject({ movieCategory: 'Anime', startPaused: true, sequential: false, firstLastPieces: true })
     expect(screen.getByText(/the same on every device/)).toBeInTheDocument()
   })
 
@@ -170,10 +173,11 @@ describe('SettingsScreen', () => {
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue({
       tmdb: { configured: true, source: 'saved' },
       qbittorrent: { configured: true, source: 'env' },
-      downloads: { tvCategory: 'Anime', sequential: true },
+      downloads: { tvCategory: 'Anime', sequential: true, firstLastPieces: true },
     })
     renderScreen()
     await waitFor(() => expect(screen.getByRole('switch', { name: 'Sequential download' })).toBeChecked())
+    expect(screen.getByRole('switch', { name: 'First and last pieces first' })).toBeChecked()
     expect(screen.getByRole('combobox', { name: 'Series category' })).toHaveDisplayValue('Anime')
     expect(screen.getByRole('switch', { name: 'Start paused' })).not.toBeChecked()
   })
@@ -186,6 +190,19 @@ describe('SettingsScreen', () => {
     expect(getSettings().tmdbLanguage).toBe('ru-RU')
   })
 
+  it("follows the browser's language until another language is chosen, and again after System", async () => {
+    vi.spyOn(navigator, 'languages', 'get').mockReturnValue(['en-US'])
+    renderScreen()
+    const group = () => screen.getByRole('radiogroup', { name: /^(Language|Язык)$/ })
+    expect(within(group()).getByRole('radio', { name: 'System' })).toHaveAttribute('aria-checked', 'true')
+
+    await userEvent.click(within(group()).getByRole('radio', { name: 'Русский' }))
+    expect(within(group()).getByRole('radio', { name: 'Русский' })).toHaveAttribute('aria-checked', 'true')
+
+    await userEvent.click(within(group()).getByRole('radio', { name: 'Системный' }))
+    expect(screen.getByRole('heading', { name: 'Settings', level: 1 })).toBeInTheDocument()
+    expect(within(group()).getByRole('radio', { name: 'System' })).toHaveAttribute('aria-checked', 'true')
+  })
 
   it('explains how to add the app to the Dock in Safari on a Mac', async () => {
     vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
@@ -194,6 +211,31 @@ describe('SettingsScreen', () => {
     renderScreen()
     await userEvent.click(screen.getByRole('button', { name: /Install app/ }))
     expect(screen.getByRole('dialog', { name: 'Add to Dock' })).toHaveTextContent('Choose “Add to Dock”')
+  })
+
+  it('links to Ideas, a bug report and the source code, each in a new tab and saying so', () => {
+    renderScreen()
+    const about = screen.getByRole('region', { name: 'About' })
+    const links: [RegExp, string][] = [
+      [/Suggest an idea.*\(opens in a new tab\)/, IDEAS_URL],
+      [/Report a bug.*\(opens in a new tab\)/, BUG_REPORT_URL],
+      [/Kinoseed on GitHub.*\(opens in a new tab\)/, REPO_URL],
+    ]
+    for (const [name, href] of links) {
+      const link = within(about).getByRole('link', { name })
+      expect(link).toHaveAttribute('href', href)
+      expect(link).toHaveAttribute('target', '_blank')
+    }
+  })
+
+  it('credits TMDB with its logo, and keeps the notice in English on a Russian screen', async () => {
+    await i18n.changeLanguage('ru')
+    renderScreen()
+    const about = screen.getByRole('region', { name: 'О приложении' })
+    expect(within(about).getByRole('img', { name: 'TMDB' })).toBeInTheDocument()
+    expect(about).toHaveTextContent('Данные о фильмах и сериалах и постеры берутся из TMDB.')
+    // The notice's wording is locales.test.ts's; here, that it's marked as English for screen readers.
+    expect(within(about).getByText(i18n.t('settings.tmdbNotice'))).toHaveAttribute('lang', 'en')
   })
 
   it('has no install row where the app can\'t be installed', () => {

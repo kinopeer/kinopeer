@@ -11,13 +11,16 @@ import { Segmented } from '../components/Segmented'
 import { Sheet } from '../components/Sheet'
 import { Toast } from '../components/Toast'
 import { Toggle } from '../components/Toggle'
-import { LANGUAGES } from '../i18n'
+import { LANGUAGES, type LanguagePreference } from '../i18n'
+import { useLanguage } from '../i18n/useLanguage'
+import { BUG_REPORT_URL, IDEAS_URL, REPO_URL } from '../lib/links'
 import { promptInstall, useInstallMethod, type ManualInstall } from '../pwa/install'
 import { useRequest } from '../lib/useRequest'
 import { useSettings, type Settings } from '../settings/settings'
 import type { ThemePreference } from '../theme/theme'
 import { useTheme } from '../theme/useTheme'
 import { categoryType, clearTitleMatches } from '../torrents/titleMatches'
+import tmdbLogo from '../assets/tmdb-logo.svg'
 import { InstallSheet } from './InstallSheet'
 import { TmdbKeyForm } from './TmdbKeyForm'
 import './SettingsScreen.css'
@@ -80,9 +83,53 @@ function Section({ id, title, children }: { id: string; title: string; children:
   )
 }
 
+type AboutRowProps = {
+  icon: IconName
+  label: string
+  hint: string
+} & (
+  /** A page on GitHub, opened in a new tab… */
+  | { href: string; onClick?: never }
+  /** …or an action. */
+  | { onClick: () => void; href?: never }
+)
+
+/** A row in About: an action, or a page on GitHub opened in a new tab. */
+function AboutRow({ icon, label, hint, href, onClick }: AboutRowProps) {
+  const { t } = useTranslation()
+  const content = (
+    <>
+      <Icon name={icon} className="c2" />
+      <span className="settings-row-text">
+        <span>{label}</span>
+        <span className="t-cap c3">{hint}</span>
+      </span>
+    </>
+  )
+  return (
+    <li>
+      {href !== undefined ? (
+        <a className="ks-row-btn" href={href} target="_blank" rel="noreferrer">
+          {content}
+          <Icon name="external-link" className="c3" />
+          <span className="sr-only">{t('settings.opensInNewTab')}</span>
+        </a>
+      ) : (
+        <button type="button" className="ks-row-btn" onClick={onClick}>
+          {content}
+        </button>
+      )}
+    </li>
+  )
+}
+
+/** The download defaults that are on/off switches, in order; each is labelled by `add.<key>`. */
+const DEFAULT_SWITCHES = ['startPaused', 'sequential', 'firstLastPieces'] as const satisfies readonly (keyof Settings)[]
+
 export function SettingsScreen() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { preference, setPreference } = useTheme()
+  const language = useLanguage()
   const [settings, update] = useSettings()
   const [tmdbKeyVersion, setTmdbKeyVersion] = useState(0)
   const [cleared, setCleared] = useState(false)
@@ -163,7 +210,10 @@ export function SettingsScreen() {
     { value: 'dark', label: t('theme.dark') },
     { value: 'light', label: t('theme.light') },
   ]
-  const languageOptions = LANGUAGES.map((language) => ({ value: language.code as string, label: language.name }))
+  const languageOptions: { value: LanguagePreference; label: string }[] = [
+    { value: 'system', label: t('language.system') },
+    ...LANGUAGES.map((language) => ({ value: language.code, label: language.name })),
+  ]
   const tmdbOptions: { value: Settings['tmdbLanguage']; label: string }[] = [
     { value: 'app', label: t('settings.tmdbAsApp') },
     { value: 'en-US', label: 'English' },
@@ -195,22 +245,12 @@ export function SettingsScreen() {
         <div className="ks-card settings-card">
           {categoryField('movie')}
           {categoryField('tv')}
-          <div className="settings-toggle">
-            <span className="t-body">{t('add.startPaused')}</span>
-            <Toggle
-              label={t('add.startPaused')}
-              checked={settings.startPaused}
-              onChange={(startPaused) => update({ startPaused })}
-            />
-          </div>
-          <div className="settings-toggle">
-            <span className="t-body">{t('add.sequential')}</span>
-            <Toggle
-              label={t('add.sequential')}
-              checked={settings.sequential}
-              onChange={(sequential) => update({ sequential })}
-            />
-          </div>
+          {DEFAULT_SWITCHES.map((key) => (
+            <div key={key} className="settings-toggle">
+              <span className="t-body">{t(`add.${key}`)}</span>
+              <Toggle label={t(`add.${key}`)} checked={settings[key]} onChange={(on) => update({ [key]: on })} />
+            </div>
+          ))}
         </div>
         <p className="t-cap c3 settings-hint">{t('settings.defaultsHint')}</p>
       </Section>
@@ -225,8 +265,8 @@ export function SettingsScreen() {
             <span className="ks-label">{t('language.label')}</span>
             <Segmented
               options={languageOptions}
-              value={i18n.resolvedLanguage ?? 'en'}
-              onChange={(code) => void i18n.changeLanguage(code)}
+              value={language.preference}
+              onChange={language.setPreference}
               label={t('language.label')}
             />
           </div>
@@ -249,38 +289,35 @@ export function SettingsScreen() {
             <span className="c3 ks-num">{__APP_VERSION__}</span>
           </li>
           {installMethod && (
-            <li>
-              <button
-                type="button"
-                className="ks-row-btn"
-                onClick={() =>
-                  installMethod === 'prompt' ? void promptInstall() : setInstallSteps(installMethod)
-                }
-              >
-                <Icon name="download" className="c2" />
-                <span className="settings-row-text">
-                  <span>{t('settings.installApp')}</span>
-                  <span className="t-cap c3">{t('settings.installAppHint')}</span>
-                </span>
-              </button>
-            </li>
+            <AboutRow
+              icon="download"
+              label={t('settings.installApp')}
+              hint={t('settings.installAppHint')}
+              onClick={() => (installMethod === 'prompt' ? void promptInstall() : setInstallSteps(installMethod))}
+            />
           )}
-          <li>
-            <button
-              type="button"
-              className="ks-row-btn"
-              onClick={() => {
-                void clearTitleMatches().then(() => setCleared(true))
-              }}
-            >
-              <Icon name="refresh" className="c2" />
-              <span className="settings-row-text">
-                <span>{t('settings.clearCache')}</span>
-                <span className="t-cap c3">{t('settings.clearCacheHint')}</span>
-              </span>
-            </button>
-          </li>
+          <AboutRow
+            icon="refresh"
+            label={t('settings.clearCache')}
+            hint={t('settings.clearCacheHint')}
+            onClick={() => {
+              void clearTitleMatches().then(() => setCleared(true))
+            }}
+          />
         </ul>
+        <ul className="ks-card settings-rows">
+          <AboutRow href={IDEAS_URL} icon="star" label={t('settings.ideas')} hint={t('settings.ideasHint')} />
+          <AboutRow href={BUG_REPORT_URL} icon="alert" label={t('settings.reportBug')} hint={t('settings.reportBugHint')} />
+          <AboutRow href={REPO_URL} icon="globe" label={t('settings.sourceCode')} hint={t('settings.sourceCodeHint')} />
+        </ul>
+        <div className="settings-tmdb">
+          <img className="settings-tmdb-logo" src={tmdbLogo} alt="TMDB" width={42} height={18} />
+          <p className="t-cap c3">
+            {t('settings.tmdbSource')}{' '}
+            {/* TMDB's required wording, in English in every language. */}
+            <span lang="en">{t('settings.tmdbNotice')}</span>
+          </p>
+        </div>
       </Section>
 
       <InstallSheet platform={installSteps} onClose={() => setInstallSteps(null)} />

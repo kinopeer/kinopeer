@@ -28,6 +28,7 @@ import { ReleasesScreen } from './ReleasesScreen'
 import type { SettingsLocationState } from './SettingsScreen'
 import { TitleDownloads } from './TitleDownloads'
 import { TitleOverview } from './TitleOverview'
+import { TitleRelated } from './TitleRelated'
 import { TitleReleases } from './TitleReleases'
 import './TitleScreen.css'
 
@@ -296,6 +297,7 @@ export function TitleScreen({ onSessionLost }: TitleScreenProps) {
         </div>
         <TitleDownloads torrents={downloads} />
         {searched && <TitleReleases details={details} sectionRef={releasesRef} />}
+        <TitleRelated type={details.type} id={details.id} language={language} />
       </main>
     )
   }
@@ -335,6 +337,7 @@ export function TitleScreen({ onSessionLost }: TitleScreenProps) {
         )}
         <TitleDownloads torrents={downloads} />
         {details.type === 'tv' && <Banner tone="info">{t('title.seriesHint')}</Banner>}
+        <TitleRelated type={details.type} id={details.id} language={language} />
       </div>
       <div className="title-actions">
         <Button size="lg" icon="search" block onClick={findReleases}>
