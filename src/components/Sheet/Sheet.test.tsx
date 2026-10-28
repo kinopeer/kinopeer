@@ -376,6 +376,18 @@ describe('Sheet', () => {
         }
       })
 
+      it("closes without the slide when the browser refuses it, rather than hang halfway down", () => {
+        Object.defineProperty(HTMLDialogElement.prototype, 'animate', {
+          value: () => {
+            throw new TypeError('Invalid easing')
+          },
+          configurable: true,
+        })
+        const onClose = renderSheet()
+        slowDrag(handle(), 100, 300)
+        expect(onClose).toHaveBeenCalledOnce()
+      })
+
       it('closes once when closed another way while sliding off', async () => {
         const { finish } = stubAnimate()
         const onClose = vi.fn()
