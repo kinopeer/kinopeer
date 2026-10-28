@@ -9,8 +9,9 @@ import type { FailingIndexers, MagnetResponse, ProwlarrErrorBody, ProwlarrStatus
  * GET /prowlarr/search?query=…&type=search|movie|tvsearch&categories=2000 → Release[]
  * GET /prowlarr/download?token=… → the .torrent file, or { magnet } when the release is a magnet link
  * GET /prowlarr/status → { version, indexers }, to check the connection from Settings
- * GET /prowlarr/failing?since=ISO → { indexers: names }, the enabled indexers that failed since then
- *   or that Prowlarr has put on hold after failures (its search skips those and says nothing)
+ * GET /prowlarr/failing?within=ms → { indexers: names }, the enabled indexers that failed in the last
+ *   `within` ms (since a search started) or that Prowlarr has put on hold after failures (its search
+ *   skips those and says nothing)
  *
  * Runs as Vite middleware in dev and in the production server.
  */
@@ -19,6 +20,8 @@ export interface ProwlarrConfig {
   url?: string
   /** A function when the key is read on every request, e.g. from Prowlarr's own config.xml. */
   apiKey?: string | (() => Promise<string | undefined>)
+  /** How long /prowlarr/failing waits for Prowlarr. Default 5 s. */
+  failingTimeoutMs?: number
 }
 
 type Next = (error?: unknown) => void
@@ -111,6 +114,8 @@ export function toRelease(item: ProwlarrRelease): Release | undefined {
     tmdbId: item.tmdbId || undefined,
   }
 }
+
+type Handler = (base: string, apiKey: string, query: URLSearchParams, response: ServerResponse) => Promise<void>
 
 async function search(base: string, apiKey: string, query: URLSearchParams, response: ServerResponse): Promise<void> {
   const term = query.get('query')?.trim()
@@ -223,24 +228,33 @@ export function failingIndexers(
     .sort((a, b) => a.localeCompare(b))
 }
 
-async function failing(base: string, apiKey: string, query: URLSearchParams, response: ServerResponse): Promise<void> {
-  const since = Date.parse(query.get('since') ?? '')
-  if (Number.isNaN(since)) return fail(response, 400, 'bad-request')
-  const headers = { 'X-Api-Key': apiKey, Accept: 'application/json' }
-  const [indexers, statuses] = await Promise.all([
-    fetch(`${base}/api/v1/indexer`, { headers }),
-    fetch(`${base}/api/v1/indexerstatus`, { headers }),
-  ])
-  if (indexers.status === 401 || statuses.status === 401) return fail(response, 502, 'unauthorized')
-  if (!indexers.ok || !statuses.ok) return fail(response, 502, 'upstream')
-  send(response, 200, {
-    indexers: failingIndexers(
-      (await indexers.json()) as ProwlarrIndexer[],
-      (await statuses.json()) as ProwlarrIndexerStatus[],
-      since,
-      Date.now(),
-    ),
-  } satisfies FailingIndexers)
+/**
+ * `within` is how long ago the search started, measured by the browser on its own monotonic clock:
+ * a duration, so a phone whose clock is off still asks about the right moment, which the server
+ * dates by its own clock (on the same machine as Prowlarr's, on Umbrel).
+ */
+function failing(timeoutMs: number): Handler {
+  return async (base, apiKey, query, response) => {
+    const within = query.get('within') ?? ''
+    if (!/^\d+$/.test(within)) return fail(response, 400, 'bad-request')
+    const since = Date.now() - Number(within)
+    // A note beside the results isn't worth a request that hangs: give up and say unreachable.
+    const init = { headers: { 'X-Api-Key': apiKey, Accept: 'application/json' }, signal: AbortSignal.timeout(timeoutMs) }
+    const [indexers, statuses] = await Promise.all([
+      fetch(`${base}/api/v1/indexer`, init),
+      fetch(`${base}/api/v1/indexerstatus`, init),
+    ])
+    if (indexers.status === 401 || statuses.status === 401) return fail(response, 502, 'unauthorized')
+    if (!indexers.ok || !statuses.ok) return fail(response, 502, 'upstream')
+    send(response, 200, {
+      indexers: failingIndexers(
+        (await indexers.json()) as ProwlarrIndexer[],
+        (await statuses.json()) as ProwlarrIndexerStatus[],
+        since,
+        Date.now(),
+      ),
+    } satisfies FailingIndexers)
+  }
 }
 
 /** Prowlarr's API key from its config.xml (<ApiKey>…</ApiKey>), or undefined when it can't be read. */
@@ -256,6 +270,7 @@ export async function readProwlarrApiKey(configXmlPath: string): Promise<string 
 export function prowlarrMiddleware(config: ProwlarrConfig): Middleware {
   const base = config.url?.trim().replace(/\/+$/, '')
   const getKey = typeof config.apiKey === 'function' ? config.apiKey : async () => config.apiKey as string | undefined
+  const failingHandler = failing(config.failingTimeoutMs ?? 5000)
 
   return (request, response, next) => {
     const url = new URL(request.url ?? '/', 'http://kinoseed.local')
@@ -274,7 +289,7 @@ export function prowlarrMiddleware(config: ProwlarrConfig): Middleware {
             : route === 'status'
               ? status
               : route === 'failing'
-                ? failing
+                ? failingHandler
                 : undefined
       if (!handler) return fail(response, 404, 'not-found')
       // Errors never echo upstream URLs: they would contain the API key.

@@ -50,11 +50,12 @@ export async function searchReleases(query: string, options: SearchOptions = {})
 }
 
 /**
- * Names of the enabled indexers that failed since `since` (a search's start) or that Prowlarr has
- * put on hold, so a search can say whose results are missing.
+ * Names of the enabled indexers that failed in the last `elapsedMs` (since a search started) or
+ * that Prowlarr has put on hold, so a search can say whose results are missing. A duration rather
+ * than a time, so the server dates it by its own clock, not this device's.
  */
-export async function getFailingIndexers(since: Date, signal?: AbortSignal): Promise<string[]> {
-  const params = new URLSearchParams({ since: since.toISOString() })
+export async function getFailingIndexers(elapsedMs: number, signal?: AbortSignal): Promise<string[]> {
+  const params = new URLSearchParams({ within: String(Math.max(0, Math.round(elapsedMs))) })
   const response = await fetch(`${PROWLARR_BASE}/failing?${params}`, { credentials: 'same-origin', signal })
   if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) throw await errorFor(response)
   return ((await response.json()) as FailingIndexers).indexers

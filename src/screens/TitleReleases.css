@@ -52,6 +52,13 @@
   gap: var(--space-2);
 }
 
+/* The note about failed indexers, the picked filters and the table. */
+.title-rel-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
 /* The table: the audio column shows from 1400px; narrower, audio sits under the name. */
 .title-rel-table {
   --rel-cols: minmax(0, 1fr) 84px 64px 56px 104px 72px 112px;

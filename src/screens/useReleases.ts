@@ -62,19 +62,14 @@ export interface Releases {
 
 interface Found {
   releases: Release[]
-  failing: string[]
+  /** performance.now() when the search started. */
+  started: number
 }
 
-/**
- * Searches, then asks which indexers failed since the search started: Prowlarr answers with what
- * the others found and says nothing about the rest. Without that answer the search still counts.
- */
 async function find(query: string, signal: AbortSignal): Promise<Found> {
-  const started = new Date()
+  const started = performance.now()
   // No category filter: some indexers (RuTor) file every release under "Other".
-  const releases = await searchReleases(query, { signal })
-  const failing = await getFailingIndexers(started, signal).catch((): string[] => [])
-  return { releases, failing }
+  return { releases: await searchReleases(query, { signal }), started }
 }
 
 /**
@@ -85,7 +80,15 @@ async function find(query: string, signal: AbortSignal): Promise<Found> {
 export function useReleases(details: TitleDetails | undefined, enabled = true): Releases {
   const { t } = useTranslation()
   const query = details && enabled ? releaseQuery(details) : null
-  const search = useRequest<Found>(query ? `${details!.type}|${query}` : null, (signal) => find(query!, signal))
+  const key = query ? `${details!.type}|${query}` : null
+  const search = useRequest<Found>(key, (signal) => find(query!, signal))
+  // Prowlarr answers with what the working indexers found and says nothing about the rest, so once
+  // the search answers, ask which failed since it started. The releases don't wait for it, and
+  // without an answer there's just no note.
+  const started = search.data?.started
+  const failing = useRequest<string[]>(started === undefined ? null : `${key}|${started}`, (signal) =>
+    getFailingIndexers(performance.now() - started!, signal),
+  )
 
   const [filters, setFilters] = useState<Filters>(NO_FILTERS)
   const [sort, setSort] = useState<Sort>(DEFAULT_SORT)
@@ -123,7 +126,7 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
   return {
     status,
     retry: search.retry,
-    failing: search.data?.failing ?? [],
+    failing: failing.data ?? [],
     rows,
     visible,
     present,

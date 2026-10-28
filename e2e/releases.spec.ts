@@ -17,7 +17,7 @@ test.describe('releases, phone', () => {
 
   test('some indexers didn’t answer', async ({ page }) => {
     await openReleases(page, { failingIndexers: ['Kinozal', 'RuTracker'] })
-    await expect(page.getByText('2 индексатора не ответили: Kinozal, RuTracker')).toBeVisible()
+    await expect(page.getByRole('status')).toHaveText('2 индексатора не ответили: Kinozal, RuTracker')
     await expect(page).toHaveScreenshot('failing-indexers-dark-ru.png')
   })
 
@@ -68,6 +68,12 @@ test.describe('releases, desktop', () => {
   test('searched from the title page, dark, Russian', async ({ page }) => {
     await findReleases(page)
     await expect(page).toHaveScreenshot('desktop-list-dark-ru.png')
+  })
+
+  test('some indexers didn’t answer', async ({ page }) => {
+    await findReleases(page, { failingIndexers: ['Kinozal', 'RuTracker'] })
+    await expect(page.getByRole('status')).toHaveText('2 индексатора не ответили: Kinozal, RuTracker')
+    await expect(page).toHaveScreenshot('desktop-failing-indexers-dark-ru.png')
   })
 
   test('a filter popover', async ({ page }) => {

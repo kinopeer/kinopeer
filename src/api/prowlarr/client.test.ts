@@ -24,10 +24,15 @@ describe('searchReleases', () => {
 })
 
 describe('getFailingIndexers', () => {
-  it('asks for the failures since the given time and answers with their names', async () => {
+  it('says how long ago the search started, in whole milliseconds, and answers with the names', async () => {
     fetchMock.mockResolvedValueOnce(Response.json({ indexers: ['Kinozal'] }))
-    await expect(getFailingIndexers(new Date('2026-10-28T00:59:00Z'))).resolves.toEqual(['Kinozal'])
-    expect(fetchMock.mock.calls[0][0]).toBe('/prowlarr/failing?since=2026-10-28T00%3A59%3A00.000Z')
+    await expect(getFailingIndexers(1234.6)).resolves.toEqual(['Kinozal'])
+    expect(fetchMock.mock.calls[0][0]).toBe('/prowlarr/failing?within=1235')
+  })
+
+  it('rejects when the server can’t tell', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json({ error: 'upstream' }, { status: 502 }))
+    await expect(getFailingIndexers(0)).rejects.toMatchObject({ status: 502, code: 'upstream' })
   })
 })
 
