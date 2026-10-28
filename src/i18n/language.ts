@@ -8,7 +8,13 @@ export const LANGUAGES = [
 export type Language = (typeof LANGUAGES)[number]['code']
 export type LanguagePreference = 'system' | Language
 
-export const LANGUAGE_STORAGE_KEY = 'kinoseed.lang'
+export const LANGUAGE_STORAGE_KEY = 'kinoseed.language'
+
+/**
+ * Where the language detector before the System option saved the detected language on every start,
+ * so a value there can't tell a language the user picked from one that was detected.
+ */
+export const LEGACY_LANGUAGE_STORAGE_KEY = 'kinoseed.lang'
 
 /** The app's language for a tag by its base language ('ru-RU' → 'ru'), or null if the app doesn't have it. */
 export function toLanguage(tag: string): Language | null {
@@ -17,15 +23,26 @@ export function toLanguage(tag: string): Language | null {
 }
 
 /**
- * The saved preference, else system. Before the System option the language detector saved the
- * detected language here on every start, so a value from then is taken as the user's choice: it
- * can't be told apart from one they picked, and keeping it changes nothing they see.
+ * Moves a language saved before the System option to the preference, once: the browser's own
+ * language becomes system, since keeping it changes nothing the user sees, and another language
+ * stays, since only a pick could have saved it. Null when there's nothing to move.
  */
+function migrateLegacyPreference(): LanguagePreference | null {
+  const legacy = localStorage.getItem(LEGACY_LANGUAGE_STORAGE_KEY)
+  if (legacy === null) return null
+  const language = toLanguage(legacy)
+  const preference = language && language !== systemLanguage() ? language : 'system'
+  localStorage.setItem(LANGUAGE_STORAGE_KEY, preference)
+  localStorage.removeItem(LEGACY_LANGUAGE_STORAGE_KEY)
+  return preference
+}
+
+/** The saved preference, else one moved from before the System option, else system. */
 export function readLanguagePreference(): LanguagePreference {
   try {
     const value = localStorage.getItem(LANGUAGE_STORAGE_KEY)
-    if (value === 'system') return value
-    if (value) return toLanguage(value) ?? 'system'
+    if (value === 'system' || LANGUAGES.some((language) => language.code === value)) return value as LanguagePreference
+    return migrateLegacyPreference() ?? 'system'
   } catch {
     // Storage can be unavailable (private mode, blocked site data).
   }
@@ -95,9 +112,22 @@ export function watchSystemLanguage(onChange: (language: Language) => void): () 
 }
 
 /**
- * Follows the browser's languages for as long as the page is open, while the preference is system.
- * Called once at startup; returns a function that stops it.
+ * Follows the browser's languages for as long as the page is open, while the preference is system,
+ * and a preference changed in another tab. Called once at startup; returns a function that stops it.
  */
 export function initLanguage(): () => void {
-  return watchSystemLanguage(() => void i18n.changeLanguage(resolveLanguage(getLanguagePreference())))
+  const apply = () => void i18n.changeLanguage(resolveLanguage(getLanguagePreference()))
+  const stopWatching = watchSystemLanguage(apply)
+  // A choice made in another tab: read it again (null is storage cleared).
+  const onStorage = (event: StorageEvent) => {
+    if (event.key !== LANGUAGE_STORAGE_KEY && event.key !== null) return
+    preference = undefined
+    apply()
+    listeners.forEach((listener) => listener())
+  }
+  window.addEventListener('storage', onStorage)
+  return () => {
+    stopWatching()
+    window.removeEventListener('storage', onStorage)
+  }
 }

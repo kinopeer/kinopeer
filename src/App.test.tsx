@@ -335,6 +335,6 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Настройки', level: 1 })).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: 'Светлая' })).toBeInTheDocument()
     expect(document.documentElement.lang).toBe('ru')
-    expect(localStorage.getItem('kinoseed.lang')).toBe('ru')
+    expect(localStorage.getItem('kinoseed.language')).toBe('ru')
   })
 })

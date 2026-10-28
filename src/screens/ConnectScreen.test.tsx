@@ -72,13 +72,18 @@ describe('ConnectScreen', () => {
     await userEvent.click(within(screen.getByRole('group', { name: 'Language' })).getByRole('button', { name: 'Русский' }))
     expect(screen.getByRole('heading', { name: 'Подключите qBittorrent', level: 1 })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Русский' })).toHaveAttribute('aria-pressed', 'true')
-    expect(localStorage.getItem('kinoseed.lang')).toBe('ru')
+    expect(localStorage.getItem('kinoseed.language')).toBe('ru')
     expect(screen.getByRole('button', { name: 'Светлая' })).toHaveAttribute('aria-pressed', 'true')
   })
 
-  it('keeps following the browser when the language already shown is tapped', async () => {
+  it('presses no language while it follows the browser, and pins the one shown when tapped', async () => {
     setup()
-    await userEvent.click(within(screen.getByRole('group', { name: 'Language' })).getByRole('button', { name: 'English' }))
-    expect(localStorage.getItem('kinoseed.lang')).toBeNull()
+    const language = within(screen.getByRole('group', { name: 'Language' }))
+    expect(language.getByRole('button', { name: 'English' })).toHaveAttribute('aria-pressed', 'false')
+    expect(language.getByRole('button', { name: 'Русский' })).toHaveAttribute('aria-pressed', 'false')
+
+    await userEvent.click(language.getByRole('button', { name: 'English' }))
+    expect(language.getByRole('button', { name: 'English' })).toHaveAttribute('aria-pressed', 'true')
+    expect(localStorage.getItem('kinoseed.language')).toBe('en')
   })
 })
