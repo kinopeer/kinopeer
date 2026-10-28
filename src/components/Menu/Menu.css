@@ -54,6 +54,17 @@
   min-width: 0;
 }
 
+.ks-menu-text {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-1) 0;
+}
+
+.ks-menu-hint {
+  font: var(--t-cap);
+  color: var(--text3);
+}
+
 .ks-menu-check.is-off {
   visibility: hidden;
 }

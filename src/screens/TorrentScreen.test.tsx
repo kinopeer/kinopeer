@@ -1,7 +1,7 @@
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes, useLocation } from 'react-router'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import * as matchesApi from '../api/matches'
 import * as api from '../api/qbittorrent'
 import type { Torrent } from '../api/qbittorrent'
@@ -11,6 +11,13 @@ import { renderWithRouter } from '../test/render'
 import * as serverMatches from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
 import { TorrentScreen } from './TorrentScreen'
+
+/** Hides the page, which stops the poll until the test ends. */
+function stopPolling() {
+  const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(true)
+  document.dispatchEvent(new Event('visibilitychange'))
+  onTestFinished(() => hidden.mockRestore())
+}
 
 vi.mock('../api/qbittorrent', async (importOriginal) => {
   const actual = await importOriginal<typeof api>()
@@ -187,6 +194,8 @@ describe('TorrentScreen', () => {
     vi.mocked(api.reannounceTorrents).mockResolvedValue()
     renderScreen()
     await userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' }))
+    // A hidden page doesn't poll, so only the screen's own refresh can bring qBittorrent's next answer.
+    stopPolling()
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Reannounce' }))
     expect(api.reannounceTorrents).toHaveBeenCalledWith(['dune'])
     expect(await screen.findByRole('status')).toHaveTextContent('Announced to the trackers')
@@ -194,14 +203,14 @@ describe('TorrentScreen', () => {
     await userEvent.click(screen.getByRole('button', { name: 'More actions: Dune: Part Two' }))
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Force recheck' }))
     const dialog = screen.getByRole('alertdialog', { name: 'Recheck the files?' })
-    // The screen asks qBittorrent again right after the recheck, so it shows Checking without waiting for the poll.
+    // The screen asks qBittorrent again right after the recheck, so it shows Checking without a poll.
     getMainData.mockResolvedValue(snapshot({ state: 'checkingDL' }))
     await userEvent.click(within(dialog).getByRole('button', { name: 'Force recheck' }))
     expect(api.recheckTorrents).toHaveBeenCalledWith(['dune'])
     expect(await screen.findByRole('status')).toHaveTextContent('Checking the files')
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
     const progress = screen.getByRole('region', { name: 'Progress' })
-    expect(await within(progress).findByText('Checking', { exact: true }, { timeout: 1000 })).toBeInTheDocument()
+    expect(await within(progress).findByText('Checking', { exact: true })).toBeInTheDocument()
   })
 
   it('drops a recheck confirmation whose torrent went away, so it doesn’t open again when the torrent is back', async () => {

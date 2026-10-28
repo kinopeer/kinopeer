@@ -57,7 +57,7 @@ describe('TorrentActionsSheet on desktop', () => {
     vi.mocked(api.startTorrents).mockResolvedValue()
     const handlers = renderActions()
     const menu = screen.getByRole('menu', { name: 'More actions: Inception' })
-    expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+    const names = [
       'Resume',
       'Reannounce',
       'Force recheck',
@@ -65,7 +65,10 @@ describe('TorrentActionsSheet on desktop', () => {
       'Movie page',
       'Change title',
       'Delete',
-    ])
+    ]
+    const items = within(menu).getAllByRole('menuitem')
+    expect(items).toHaveLength(names.length)
+    names.forEach((name, index) => expect(items[index]).toHaveAccessibleName(name))
     await userEvent.click(within(menu).getByRole('menuitem', { name: 'Resume' }))
     expect(api.startTorrents).toHaveBeenCalledWith(['b1'])
     expect(handlers.onChanged).toHaveBeenCalled()
@@ -87,15 +90,18 @@ describe('TorrentActionsSheet on desktop', () => {
     expect(api.recheckTorrents).not.toHaveBeenCalled()
   })
 
-  it('reannounces only a running torrent and rechecks only one with data that isn’t being checked', () => {
+  it('reannounces only a running torrent and rechecks only one with data that isn’t being checked, saying why not', () => {
     const { unmount } = renderActions()
     expect(screen.getByRole('menuitem', { name: 'Reannounce' })).toBeDisabled()
+    expect(screen.getByRole('menuitem', { name: 'Reannounce' })).toHaveAccessibleDescription('Only while downloading or seeding')
     expect(screen.getByRole('menuitem', { name: 'Force recheck' })).toBeEnabled()
+    expect(screen.getByRole('menuitem', { name: 'Force recheck' })).not.toHaveAccessibleDescription()
     unmount()
 
     const checking = renderActions({ torrent: { ...TORRENT, state: 'checkingDL' } })
     expect(screen.getByRole('menuitem', { name: 'Reannounce' })).toBeDisabled()
     expect(screen.getByRole('menuitem', { name: 'Force recheck' })).toBeDisabled()
+    expect(screen.getByRole('menuitem', { name: 'Force recheck' })).toHaveAccessibleDescription('Already being checked')
     checking.unmount()
 
     // qBittorrent stops a torrent in error, so it isn't announcing; its data can be checked.
@@ -107,7 +113,9 @@ describe('TorrentActionsSheet on desktop', () => {
     // A magnet still fetching its metadata has peers to find but no data to check.
     renderActions({ torrent: { ...TORRENT, state: 'metaDL' } })
     expect(screen.getByRole('menuitem', { name: 'Reannounce' })).toBeEnabled()
+    expect(screen.getByRole('menuitem', { name: 'Reannounce' })).not.toHaveAccessibleDescription()
     expect(screen.getByRole('menuitem', { name: 'Force recheck' })).toBeDisabled()
+    expect(screen.getByRole('menuitem', { name: 'Force recheck' })).toHaveAccessibleDescription('Once the magnet link has its metadata')
   })
 
   it('turns reannounce and recheck off while qBittorrent is unreachable', () => {
@@ -149,6 +157,16 @@ describe('TorrentActionsSheet on desktop', () => {
     renderActions()
     expect(screen.getByRole('dialog', { name: 'Inception' })).toBeInTheDocument()
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('says under a sheet row why it’s off', () => {
+    vi.unstubAllGlobals()
+    renderActions({ torrent: { ...TORRENT, state: 'forcedMetaDL' } })
+    const sheet = screen.getByRole('dialog', { name: 'Inception' })
+    const recheck = within(sheet).getByRole('button', { name: 'Force recheck' })
+    expect(recheck).toBeDisabled()
+    expect(recheck).toHaveAccessibleDescription('Once the magnet link has its metadata')
+    expect(within(sheet).getByRole('button', { name: 'Reannounce' })).not.toHaveAccessibleDescription()
   })
 
   it('a failed reannounce shows the error in the sheet and doesn’t report success', async () => {
