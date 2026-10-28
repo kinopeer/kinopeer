@@ -100,9 +100,10 @@ export function useSheetDrag(
     if (control && event.currentTarget.contains(control)) return
     const dialog = ref.current
     if (!dialog) return
-    // Where it is now, also partway through the opening slide or a spring back.
-    const offset = currentOffset(dialog)
-    const { opacity } = getComputedStyle(dialog)
+    // Where it is now, also partway through the opening slide or a spring back, read before the
+    // slide is finished below (computed styles are live).
+    const { transform, opacity } = getComputedStyle(dialog)
+    const offset = offsetOf(transform)
     try {
       event.currentTarget.setPointerCapture?.(event.pointerId)
     } catch {
@@ -110,16 +111,14 @@ export function useSheetDrag(
       return
     }
     // The opening slide (a CSS animation) animates transform too and would hide the drag until it
-    // ends, so the drag takes over from where it has got to, its fade in included, which the
-    // stylesheet's transition finishes once the drag ends. A spring back (a CSS transition) gives
+    // ends, so the drag takes over from where it has got to. A spring back (a CSS transition) gives
     // way to the inline transform by itself.
-    let opening = false
     for (const animation of dialog.getAnimations?.() ?? []) {
-      if (!isCssAnimation(animation) || animation.playState !== 'running') continue
-      animation.finish()
-      opening = true
+      if (isCssAnimation(animation) && animation.playState === 'running') animation.finish()
     }
-    if (opening) dialog.style.opacity = opacity
+    // Partway faded in, by that slide or by the transition after a drag that cut it short: held there
+    // while dragging, and the stylesheet's transition fades in the rest once the drag ends.
+    if (parseFloat(opacity) < 1) dialog.style.opacity = opacity
     drag.current = {
       pointerId: event.pointerId,
       downY: event.clientY,
@@ -204,7 +203,9 @@ export function useSheetDrag(
       onPointerCancel: onPointerEnd,
       onLostPointerCapture: onPointerEnd,
       // An image in the title row (a poster) would start the browser's own drag and cancel this one.
-      onDragStart: (event) => event.preventDefault(),
+      onDragStart: (event) => {
+        if (enabled) event.preventDefault()
+      },
     },
     onPointerDownCapture: () => {
       dragged.current = false
@@ -243,7 +244,8 @@ function slide(dialog: HTMLDialogElement): Animation | null {
 function transformDuration(style: CSSStyleDeclaration): number {
   const properties = style.transitionProperty.split(',').map((property) => property.trim())
   const durations = style.transitionDuration.split(',')
-  const index = Math.max(0, properties.findIndex((property) => property === 'transform' || property === 'all'))
+  // The last entry wins, as in the browser.
+  const index = Math.max(0, properties.findLastIndex((property) => property === 'transform' || property === 'all'))
   return parseFloat(durations[index % durations.length]) * 1000
 }
 
@@ -259,9 +261,8 @@ function isCssAnimation(animation: Animation): boolean {
   return typeof CSSAnimation !== 'undefined' && animation instanceof CSSAnimation
 }
 
-/** How far down the sheet is now, e.g. partway through springing back. */
-function currentOffset(dialog: HTMLDialogElement): number {
-  const transform = getComputedStyle(dialog).transform
+/** How far down a computed transform has the sheet, e.g. partway through springing back. */
+function offsetOf(transform: string): number {
   if (!transform || transform === 'none' || typeof DOMMatrixReadOnly === 'undefined') return 0
   return Math.max(0, new DOMMatrixReadOnly(transform).m42)
 }

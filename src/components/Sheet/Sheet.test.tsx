@@ -261,6 +261,15 @@ describe('Sheet', () => {
       pointer('pointerMove', handle(), 110, 2100)
       expect(sheet.style.transform).toBe('translateY(40px)')
       expect(finish).toHaveBeenCalledOnce()
+      pointer('pointerUp', handle(), 110, 3000)
+
+      // Fading in the rest after the first drag (a transition too) when grabbed again: held there,
+      // rather than turning opaque when the drag stops the transition.
+      animations.splice(0, 1)
+      at = 'none'
+      faded = '0.7'
+      pointer('pointerDown', handle(), 100, 4000)
+      expect(sheet.style.opacity).toBe('0.7')
     })
 
     it('opens fully faded in after a drag that cut its opening slide short closed it', () => {
@@ -471,6 +480,13 @@ describe('Sheet', () => {
       expect(dialog().style.transform).toBe('')
     })
 
+    it("leaves the browser's own drag of an image in its title row alone on desktop, where nothing drags it", () => {
+      stubDesktop()
+      renderSheet({ leading: <img src="/poster.jpg" alt="Dune" /> })
+      // fireEvent says whether the event went through: false once its default is prevented.
+      expect(fireEvent.dragStart(screen.getByRole('img', { name: 'Dune' }))).toBe(true)
+    })
+
     it("doesn't drag on desktop, where it is a centered modal", () => {
       stubDesktop()
       const onClose = renderSheet()
@@ -564,7 +580,8 @@ describe('Sheet', () => {
       it("slides off for as long as its transform's transition when the stylesheet lists several", () => {
         const { animate } = stubAnimate()
         const style = document.createElement('style')
-        style.textContent = '.ks-sheet { transition-property: opacity, transform; transition-duration: 0s, 0.25s; }'
+        // Not the first entry, and the last of the two that cover transform, which is the one that counts.
+        style.textContent = '.ks-sheet { transition-property: all, transform; transition-duration: 0s, 0.25s; }'
         document.head.append(style)
         try {
           renderSheet()
