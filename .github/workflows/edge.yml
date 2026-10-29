@@ -26,11 +26,6 @@ on:
   # Builds main's head again, e.g. after a run whose store step failed.
   workflow_dispatch:
 
-# Squash merges often land in a row: only the newest one is built.
-concurrency:
-  group: edge
-  cancel-in-progress: true
-
 permissions:
   contents: read
   packages: write
@@ -44,6 +39,11 @@ jobs:
   edge:
     # A dispatch can pick any branch; only main goes to the edge store.
     if: github.ref == 'refs/heads/main'
+    # Squash merges often land in a row: only the newest one is built. On the job, not the
+    # workflow, so a skipped dispatch from another branch doesn't cancel main's build.
+    concurrency:
+      group: edge
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -51,21 +51,49 @@ jobs:
           # The release notes list the commits since the build the store points at.
           fetch-depth: 0
 
-      - name: Name the build
+      - id: check
+        name: Check what the store runs
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           commit="$(git rev-parse --short=7 HEAD)"
           echo "COMMIT=$commit" >> "$GITHUB_ENV"
           echo "VERSION=$(node -p "require('./package.json').version")+$commit" >> "$GITHUB_ENV"
+          # umbrelOS offers an update whenever the version differs from the installed one, so the
+          # store never moves to this commit or an older one: a re-run of an earlier push would
+          # offer a downgrade. Only one run at a time gets here, so the store can't change before
+          # the last step.
+          previous="$(gh api "repos/$STORE/contents/$APP/umbrel-app.yml" -H 'Accept: application/vnd.github.raw' | yq '.version' | sed -n 's/.*+//p')"
+          if [ -n "$previous" ] && git cat-file -e "$previous^{commit}" 2>/dev/null; then
+            if git merge-base --is-ancestor HEAD "$previous"; then
+              echo "The edge store already points at $previous, which has this commit."
+              echo "build=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            range="$previous..HEAD"
+          else
+            range="-1"
+          fi
+          {
+            echo 'NOTES<<END_OF_NOTES'
+            git log --format='- %s' "$range"
+            echo 'END_OF_NOTES'
+          } >> "$GITHUB_ENV"
+          echo "build=true" >> "$GITHUB_OUTPUT"
 
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - if: steps.check.outputs.build == 'true'
+        uses: docker/setup-qemu-action@v3
+      - if: steps.check.outputs.build == 'true'
+        uses: docker/setup-buildx-action@v3
+      - if: steps.check.outputs.build == 'true'
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - id: build
+        if: steps.check.outputs.build == 'true'
         name: Build and push the image
         uses: docker/build-push-action@v6
         with:
@@ -80,33 +108,20 @@ jobs:
           cache-from: type=gha,scope=edge
           cache-to: type=gha,scope=edge,mode=max
 
-      - uses: actions/checkout@v4
+      - if: steps.check.outputs.build == 'true'
+        uses: actions/checkout@v4
         with:
           repository: ${{ env.STORE }}
           # A deploy key with write access to the edge store only.
           ssh-key: ${{ secrets.EDGE_STORE_DEPLOY_KEY }}
           path: store
 
-      - name: Point Kinoseed Edge at the new image
+      - if: steps.check.outputs.build == 'true'
+        name: Point Kinoseed Edge at the new image
         working-directory: store/${{ env.APP }}
         env:
           IMAGE_REF: ${{ env.IMAGE }}:sha-${{ env.COMMIT }}@${{ steps.build.outputs.digest }}
         run: |
-          # umbrelOS offers an update whenever the version differs from the installed one, so the
-          # store never moves to this commit or an older one: a re-run of an earlier push would
-          # offer a downgrade.
-          previous="$(yq '.version' umbrel-app.yml | sed -n 's/.*+//p')"
-          if [ -n "$previous" ] && git -C "$GITHUB_WORKSPACE" cat-file -e "$previous^{commit}" 2>/dev/null; then
-            if git -C "$GITHUB_WORKSPACE" merge-base --is-ancestor HEAD "$previous"; then
-              echo "The edge store already points at $previous, which has this commit."
-              exit 0
-            fi
-            range="$previous..HEAD"
-          else
-            range="-1"
-          fi
-          NOTES="$(git -C "$GITHUB_WORKSPACE" log --format='- %s' "$range")"
-          export NOTES
           yq -i '.version = strenv(VERSION) | .releaseNotes = strenv(NOTES)' umbrel-app.yml
           yq -i '.services.web.image = strenv(IMAGE_REF)' docker-compose.yml
           git config user.name 'github-actions[bot]'
