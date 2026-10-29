@@ -340,9 +340,9 @@ tests themselves, `src/test/`, `server/test/`, type-only modules and the `index.
 `check` job, adds the totals to the job summary (`scripts/coverage-summary.mjs`) and uploads the HTML
 report as the `coverage` artifact.
 
-The run fails under a threshold (`coverage.thresholds` in `vite.config.ts`): 94% of lines, 92% of
-statements, 91% of functions and 90% of branches, each two points under the totals of 2026-10-27
-(96.8, 94.7, 93.9 and 92.1), rounded down. The threshold is a ratchet: when the totals have grown and
+The run fails under a threshold (`coverage.thresholds` in `vite.config.ts`): 95% of lines, 93% of
+statements, 93% of functions and 91% of branches, each two points under the totals of 2026-10-29
+(97.46, 95.69, 95.24 and 93.56), rounded down. The threshold is a ratchet: when the totals have grown and
 stayed there, raise it to two points under them, in the PR that got them there or in one of its own;
 never lower it to get a PR through. A PR that lowers the totals says why in its Tests section (a
 module left uncovered on purpose, with the reason). The numbers are there to show what a PR leaves

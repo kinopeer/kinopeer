@@ -32,9 +32,9 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 
 - [x] A wide-screen layout with a details side panel, as on the canvas (1440).
 
-0.5 (HTTPS and notifications) was dropped on 2026-10-25; see Not planned. Versions 0.6 to 0.9 were planned on 2026-10-28.
+0.5 (HTTPS and notifications) was dropped on 2026-10-25; see Not planned. Versions 0.6 to 0.9 were planned on 2026-10-28; 0.6.0 shipped what was ready of them, and on 2026-10-29 the rest was renumbered: 0.8 (torrent control) shipped in full, so 0.9 (beyond Umbrel) became 0.8.
 
-## 0.6: Small features and fixes
+## Done: 0.6.0 (2026-10-29): Small features, torrent control, discovery
 
 - [x] "First and last pieces first" next to sequential download: a download default in Settings and a switch in the add sheet (qBittorrent's `firstLastPiecePrio`).
 - [x] Bottom sheets on a phone close with a swipe down on the handle, and the page behind them doesn't scroll while one is open.
@@ -43,26 +43,23 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 - [x] Search: rows of what's likely on torrents already ("New on digital", "New episodes", "Best of the year") from TMDB's release dates, in place of the trending and popular rows, which are mostly too new to be on trackers yet.
 - [x] Releases: the quality filters are remembered in the browser.
 - [x] Adding: a warning when the files picked don't fit in qBittorrent's free space.
-
-## 0.7: Search and discovery
-
-- [ ] Search: a "Popular on your trackers" row, built by the server from what Prowlarr's indexers list without a query (or their RSS), kept to 2160p releases, matched with TMDB and ranked by seeders. Check first what the indexers actually return without a query.
 - [x] The title page: "Recommendations" from TMDB, or "Similar titles" when it has none, in one row (see the decision log in SPEC.md).
 - [x] Search: filter by year.
-
-## 0.8: Torrent control
-
 - [x] Torrent details: recheck and reannounce.
 - [x] Moving a torrent's files to another folder, from its More menu.
 - [x] Torrent details: per-torrent speed limits.
 - [x] A switch for qBittorrent's alternative speed limits in the sidebar (on a phone, in the Downloads title row).
 - [x] Releases: which indexers failed when a search comes back partly empty. Not why: Prowlarr's API keeps only when an indexer failed, and the reason stays in its logs.
+- [x] A Prowlarr API key field in Settings, kept on the server like the TMDB key, for installs that can't read Prowlarr's `config.xml`.
 
-## 0.9: Beyond Umbrel
+## 0.7: Search and discovery
+
+- [ ] Search: a "Popular on your trackers" row, built by the server from what Prowlarr's indexers list without a query (or their RSS), kept to 2160p releases, matched with TMDB and ranked by seeders. Check first what the indexers actually return without a query.
+
+## 0.8: Beyond Umbrel
 
 - [ ] Installing with plain Docker, outside Umbrel, together with Kinoseed's own login.
 - [ ] Onboarding works on a clean install with qBittorrent and Prowlarr set only through the environment.
-- [x] A Prowlarr API key field in Settings, kept on the server like the TMDB key, for installs that can't read Prowlarr's `config.xml`.
 
 ## 1.0: Public release
 
