@@ -69,10 +69,11 @@
   --nav-bottom: calc(66px + var(--safe-bottom));
   /* The part of the page above the on-screen keyboard, which Safari on iOS and Chrome on Android open
      over the page: `trackKeyboardInset` (src/lib/keyboardInset.ts) sets them on <html> while it's
-     open. The inset is from the layout viewport's bottom. */
+     open. The inset is from the layout viewport's bottom; `--keyboard-open` is 1 while it's open. */
   --keyboard-inset: 0px;
   --visible-top: 0px;
   --visible-height: 100dvh;
+  --keyboard-open: 0;
 
   /* Accent scale */
   --teal-50: #e6fafb;

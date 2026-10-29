@@ -30,13 +30,13 @@ export function keyboardArea({ layoutHeight, height, offsetTop, scale }: Viewpor
   }
 }
 
-const PROPERTIES = ['--keyboard-inset', '--visible-top', '--visible-height']
+const PROPERTIES = ['--keyboard-inset', '--visible-top', '--visible-height', '--keyboard-open']
 
 /** Inputs that take a tap, not typing, so focusing one closes the keyboard. */
 const UNTYPED = new Set(['button', 'checkbox', 'color', 'file', 'hidden', 'image', 'radio', 'range', 'reset', 'submit'])
 
 /** Whether focus on this element keeps the on-screen keyboard open. */
-function opensKeyboard(element: Element | null): boolean {
+export function opensKeyboard(element: Element | null): boolean {
   if (element?.tagName === 'TEXTAREA') return true
   return element?.tagName === 'INPUT' && !UNTYPED.has((element as HTMLInputElement).type)
 }
@@ -44,7 +44,7 @@ function opensKeyboard(element: Element | null): boolean {
 /**
  * While the on-screen keyboard is open, keeps on <html> where the part of the page above it is:
  * `--keyboard-inset` (from the layout viewport's bottom), `--visible-top` and `--visible-height`, so
- * a sheet sits in it. Safari on iOS and Chrome on Android open the keyboard over the page and
+ * a sheet sits in it, and `--keyboard-open` (1), so it can keep its distance. Safari on iOS and Chrome on Android open the keyboard over the page and
  * shrink only the visual viewport, so `bottom: 0` and `100dvh` stay behind it. Returns a function
  * that stops it.
  *
@@ -68,6 +68,7 @@ export function trackKeyboardInset(view: Window = window): () => void {
     root.style.setProperty('--keyboard-inset', `${area.inset}px`)
     root.style.setProperty('--visible-top', `${area.top}px`)
     root.style.setProperty('--visible-height', `${area.height}px`)
+    root.style.setProperty('--keyboard-open', '1')
   }
   // Moving from one field to the next sends both in one task, so the sheet doesn't move in between.
   doc.addEventListener('focusout', clear)

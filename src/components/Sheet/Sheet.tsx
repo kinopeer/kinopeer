@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { cx } from '../../lib/cx'
+import { holdPage } from '../../lib/holdPage'
 import { useIsDesktop } from '../../lib/useIsDesktop'
 import './Sheet.css'
 import { useSheetDrag } from './useSheetDrag'
@@ -47,6 +48,9 @@ export function Sheet({
   // On desktop it's a centered modal with no grabber.
   const isDesktop = useIsDesktop()
   const drag = useSheetDrag(ref, { open, onClose, enabled: !isDesktop })
+
+  // Before showModal, which focuses the first field.
+  useEffect(() => (open ? holdPage() : undefined), [open])
 
   useEffect(() => {
     const dialog = ref.current

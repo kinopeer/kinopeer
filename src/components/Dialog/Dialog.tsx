@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { cx } from '../../lib/cx'
+import { holdPage } from '../../lib/holdPage'
 import { Icon, type IconName } from '../Icon'
 import './Dialog.css'
 
@@ -23,6 +24,8 @@ export interface DialogProps {
 export function Dialog({ open, onClose, title, icon, tone, actions, className, children }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = useId()
+
+  useEffect(() => (open ? holdPage() : undefined), [open])
 
   useEffect(() => {
     const dialog = ref.current

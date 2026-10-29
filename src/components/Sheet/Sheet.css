@@ -1,15 +1,17 @@
-/* Above the on-screen keyboard and no taller than what it leaves visible (tokens.css). */
+/* Above the on-screen keyboard and no taller than what it leaves visible (tokens.css). While the
+   keyboard is open, a gap apart from it, with its bottom corners rounded too. */
 .ks-sheet {
+  --keyboard-gap: calc(var(--keyboard-open) * var(--space-2));
   position: fixed;
-  inset: auto 0 var(--keyboard-inset);
+  inset: auto 0 calc(var(--keyboard-inset) + var(--keyboard-gap));
   width: 100%;
   max-width: 640px;
-  max-height: calc(var(--visible-height) - 52px);
+  max-height: calc(var(--visible-height) - var(--keyboard-gap) - 52px);
   margin: 0 auto;
   padding: 0;
   border: none;
   border-top: 1px solid var(--border);
-  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  border-radius: var(--r-xl) var(--r-xl) calc(var(--keyboard-open) * var(--r-xl)) calc(var(--keyboard-open) * var(--r-xl));
   background: var(--raised);
   color: var(--text);
   box-shadow: var(--shadow-3);
@@ -101,7 +103,7 @@
 }
 
 .ks-sheet-lg {
-  height: calc(var(--visible-height) - 52px);
+  height: calc(var(--visible-height) - var(--keyboard-gap) - 52px);
 }
 
 /* Desktop: a centered modal instead of a bottom sheet, centered above the keyboard on a tablet. */
