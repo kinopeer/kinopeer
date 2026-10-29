@@ -46,7 +46,9 @@
   box-shadow: 0 0 0 3px var(--error-soft);
 }
 
-.ks-input:disabled {
+/* Read-only keeps focus (and a phone's keyboard) where disabled would drop it, but looks the same. */
+.ks-input:disabled,
+.ks-input:read-only {
   background: var(--sunken);
   color: var(--disabled);
   border-color: var(--border);
