@@ -45,6 +45,10 @@ jobs:
       group: edge
       cancel-in-progress: true
     runs-on: ubuntu-latest
+    # With pipefail, so a failed read of the store fails the run instead of looking like a first build.
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
         with:
