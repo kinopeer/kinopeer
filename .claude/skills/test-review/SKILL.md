@@ -128,13 +128,18 @@ reads both ways, `conflict` when `docs/TESTING.md` and this skill (or the PR tem
 it. The tags feed the retro (`docs/TESTING.md` → Improving the system); tag honestly, a `gap` is
 not the author's fault.
 
-Then one verdict line: **ready to merge** or **needs changes**, with the count per severity. Add
+Then one verdict line: **ready to merge** or **needs changes**, with the count per severity and the
+commit reviewed, `**Verdict: ready to merge** at <short sha>`: the PR merges only on a posted
+"ready to merge" at its current head (`docs/TESTING.md` → Reviewing a PR's tests). Add
 "retro due" to it when ten or more merged PRs are missing from the retro table in
 `docs/TESTING.md` → Improving the system (list the merged PRs since that table's last date and
 take out the ones its rows name).
 Nothing else: no summary of the PR, no praise, no repeat of what the PR description already says.
 On a PR, post the report as one comment headed `Test review, round <n>`:
-`gh api repos/{owner}/{repo}/issues/<n>/comments -F body=@report.md`, or the GitHub MCP tools. Hand the blocking and
+`gh api repos/{owner}/{repo}/issues/<n>/comments -F body=@report.md`, or the GitHub MCP tools.
+Post every round, also when the review runs in a side session: a report left in a chat is invisible
+to whoever merges and to the retro. If posting is refused, say so in the chat, so the merge waits
+for it. Hand the blocking and
 should-fix findings to the PR's author (a session or a person).
 
 **Round 2 and later**, once the author says the findings are fixed: check every line flagged in
