@@ -3,6 +3,13 @@ import { opensKeyboard } from './keyboardInset'
 /** Where a field goes while Safari decides whether to scroll to it: far above the page's top. */
 const OUT_OF_VIEW = 'translateY(-2000px)'
 
+/**
+ * How long a field stays out of view when focus moves to it with the keyboard already open and no
+ * tap on it (the keyboard's previous and next buttons): Safari centers such a field a moment after
+ * focus, not at it (40-60 ms in the iOS Simulator), so a frame isn't enough.
+ */
+const NAVIGATION_HOLD_MS = 100
+
 /** How far a finger moves before its swipe has a direction, in pixels, like a sheet's drag. */
 const SLOP = 4
 
@@ -21,8 +28,9 @@ let stop: (() => void) | null = null
  * - a swipe moves the page only through a box under the finger that has more to show along the
  *   swipe (the sheet's body, a row of chips across); two fingers still zoom;
  * - a field that opens the keyboard moves far above the page's top for the frame in which it gets
- *   focus, so Safari scrolls nothing to show it; then it's brought into view in its own scroller
- *   (the sheet's body), once the keyboard has opened;
+ *   focus, so Safari scrolls nothing to show it (for `NAVIGATION_HOLD_MS` when the keyboard's
+ *   arrows moved focus there); then it's brought into view in its own scroller (the sheet's body),
+ *   once the keyboard has opened;
  * - if the page scrolls anyway, it goes back to where it was when the hold began, so nothing may
  *   scroll the page on purpose while a modal is open.
  *
@@ -48,12 +56,15 @@ function start(view: Window): () => void {
   let touch: { x: number; y: number; target: EventTarget | null } | null = null
   let scrolls: boolean | null = null
   let field: HTMLElement | null = null
+  // What the last finger went down on, until a focus reads it.
+  let tapped: EventTarget | null = null
 
   const onTouchStart = (event: TouchEvent) => {
     // The first finger's, which goes on swiping after a pinch.
     const first = event.touches[0]
     touch = first ? { x: first.clientX, y: first.clientY, target: first.target ?? event.target } : null
     scrolls = null
+    tapped = event.target
   }
   const onTouchMove = (event: TouchEvent) => {
     if (event.touches.length > 1) return
@@ -80,14 +91,19 @@ function start(view: Window): () => void {
     const target = event.target
     if (!(target instanceof HTMLElement) || !opensKeyboard(target)) return
     field = target
+    const byTap = tapped instanceof Node && target.contains(tapped)
+    tapped = null
     // Focused again before the frame that puts it back: that frame still has its own transform.
     if (target.style.transform === OUT_OF_VIEW) return
     const transform = target.style.transform
     target.style.transform = OUT_OF_VIEW
-    view.requestAnimationFrame(() => {
+    const back = () => {
       target.style.transform = transform
       reveal()
-    })
+    }
+    const keyboardOpen = !!viewport && viewport.height < view.innerHeight
+    if (keyboardOpen && !byTap) view.setTimeout(back, NAVIGATION_HOLD_MS)
+    else view.requestAnimationFrame(back)
   }
   const onScroll = () => view.scrollTo(scrollX, scrollY)
 

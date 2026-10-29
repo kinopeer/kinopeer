@@ -164,6 +164,57 @@ describe('holdPage', () => {
     expect(field.style.transform).toBe('scale(1)')
   })
 
+  it("keeps a field the keyboard's arrows moved focus to out of the page until Safari has looked", () => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
+    vi.stubGlobal('visualViewport', Object.assign(new EventTarget(), { height: 410 }))
+    vi.stubGlobal('innerHeight', 714)
+    stubScreen()
+    hold()
+    const field = document.createElement('input')
+    document.body.append(field)
+
+    field.focus()
+    nextFrame()
+    expect(field.style.transform).toBe('translateY(-2000px)')
+    vi.advanceTimersByTime(100)
+    expect(field.style.transform).toBe('')
+    vi.useRealTimers()
+  })
+
+  it('puts a tapped field back after a frame, the keyboard open or not', () => {
+    vi.stubGlobal('visualViewport', Object.assign(new EventTarget(), { height: 410 }))
+    vi.stubGlobal('innerHeight', 714)
+    stubScreen()
+    hold()
+    const field = document.createElement('input')
+    document.body.append(field)
+
+    swipe(field, [])
+    field.focus()
+    nextFrame()
+    expect(field.style.transform).toBe('')
+  })
+
+  it('takes a tap for the focus it led to only', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
+    vi.stubGlobal('visualViewport', Object.assign(new EventTarget(), { height: 410 }))
+    vi.stubGlobal('innerHeight', 714)
+    stubScreen()
+    hold()
+    const [first, second] = [document.createElement('input'), document.createElement('input')]
+    document.body.append(first, second)
+
+    swipe(first, [])
+    first.focus()
+    nextFrame()
+    second.focus()
+    first.focus()
+    nextFrame()
+    expect(first.style.transform).toBe('translateY(-2000px)')
+    vi.advanceTimersByTime(100)
+    vi.useRealTimers()
+  })
+
   it('puts a field focused again before that frame back where it was', () => {
     stubScreen()
     hold()
