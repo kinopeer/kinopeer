@@ -30,6 +30,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ### Fixed
 
+- Desktop: clicking a disabled item in a menu, such as Reannounce on a paused torrent, no longer closes the menu in a torrent's drawer, and the arrow keys keep working in it afterwards. ([#159](https://github.com/MrShakhov/kinoseed/issues/159))
 - Settings: when qBittorrent was unreachable as Settings opened, Test on its card now also loads the categories, so the Movies and Series category selects work without reopening Settings. ([#132](https://github.com/MrShakhov/kinoseed/issues/132))
 - Preferences changed in one tab are no longer undone by a change in another tab open since before: each tab reads them again when another saves them. ([#154](https://github.com/MrShakhov/kinoseed/issues/154))
 - Adding a release: the save path field no longer zooms the page in on an iPhone, and the folder shown under the options is the one qBittorrent will use: a category's folder only when qBittorrent puts new torrents there (automatic management, or category paths in manual mode), placed as qBittorrent places it.
