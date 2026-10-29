@@ -6,7 +6,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ### Fixed
 
-- Phone: the on-screen keyboard no longer covers a sheet's fields in Safari on iOS (Speed limits, Move files, Change title): the sheet rises above the keyboard while it's open.
+- Phone: the on-screen keyboard no longer covers a sheet's fields (Speed limits, Move files, Change title), as it did in Safari on iOS: the sheet rises above the keyboard and fits in what it leaves visible.
 
 ## 0.6.0 - 2026-10-29
 

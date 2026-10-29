@@ -12,6 +12,23 @@ async function openDownloads(page: Page, options: AppOptions = {}) {
   await settle(page)
 }
 
+/**
+ * Sets what trackKeyboardInset sets while the on-screen keyboard is open (Chromium has none to open):
+ * the page visible above it, `top` pixels down the layout viewport when the browser scrolled to
+ * show the field.
+ */
+async function openKeyboard(page: Page, { height, top = 0 }: { height: number; top?: number }) {
+  await page.evaluate(
+    ({ height, top }) => {
+      const style = document.documentElement.style
+      style.setProperty('--keyboard-inset', `${innerHeight - top - height}px`)
+      style.setProperty('--visible-top', `${top}px`)
+      style.setProperty('--visible-height', `${height}px`)
+    },
+    { height, top },
+  )
+}
+
 test.describe('downloads, phone', () => {
   test('list, dark, Russian', async ({ page }) => {
     await openDownloads(page)
@@ -76,11 +93,20 @@ test.describe('downloads, phone', () => {
     await openDownloads(page, { downloadsView: 'grid' })
     await page.getByRole('button', { name: 'Ещё действия: Дюна: Часть вторая' }).click()
     await page.getByRole('button', { name: 'Лимиты скорости', exact: true }).click()
-    // What trackKeyboardInset sets while iOS Safari's keyboard covers the page's bottom, which
-    // Chromium has no keyboard to open over.
-    await page.evaluate(() => document.documentElement.style.setProperty('--keyboard-inset', '336px'))
+    await openKeyboard(page, { height: 508 })
     await settle(page)
     await expect(page).toHaveScreenshot('speed-limits-keyboard-dark-ru.png')
+  })
+
+  test('a tall sheet within the page left above the keyboard, scrolled to its field', async ({ page }) => {
+    await openDownloads(page, { downloadsView: 'grid' })
+    await page.getByRole('button', { name: 'Ещё действия: Дюна: Часть вторая' }).click()
+    await page.getByRole('button', { name: 'Перенести файлы…' }).click()
+    const sheet = page.getByRole('dialog', { name: 'Перенести файлы' })
+    await expect(sheet.getByRole('group', { name: 'Папки qBittorrent' })).toBeVisible()
+    await openKeyboard(page, { height: 508, top: 120 })
+    await settle(page)
+    await expect(page).toHaveScreenshot('move-keyboard-dark-ru.png')
   })
 
   test('moving the files', async ({ page }) => {
@@ -276,6 +302,16 @@ test.describe('downloads, desktop', () => {
 
 test.describe('downloads, narrow desktop', () => {
   test.use(DESKTOP_RAIL)
+
+  test('a modal centered above the on-screen keyboard', async ({ page }) => {
+    await openDownloads(page, { downloadsView: 'list' })
+    await page.getByRole('button', { name: 'Ещё действия: Дюна: Часть вторая' }).click()
+    await page.getByRole('menuitem', { name: 'Лимиты скорости' }).click()
+    await expect(page.getByRole('dialog', { name: 'Лимиты скорости' })).toBeVisible()
+    await openKeyboard(page, { height: 420 })
+    await settle(page)
+    await expect(page).toHaveScreenshot('desktop-speed-limits-keyboard-dark-ru.png')
+  })
 
   test('alternative speed limits on, in the rail', async ({ page }) => {
     await openDownloads(page, { altSpeedLimits: true })

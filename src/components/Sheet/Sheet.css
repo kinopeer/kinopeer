@@ -1,10 +1,10 @@
-/* Above the on-screen keyboard, which iOS Safari opens over the page's bottom. */
+/* Above the on-screen keyboard and no taller than what it leaves visible (tokens.css). */
 .ks-sheet {
   position: fixed;
   inset: auto 0 var(--keyboard-inset);
   width: 100%;
   max-width: 640px;
-  max-height: calc(100dvh - 52px - var(--keyboard-inset));
+  max-height: calc(var(--visible-height) - 52px);
   margin: 0 auto;
   padding: 0;
   border: none;
@@ -97,16 +97,16 @@
 }
 
 .ks-sheet-lg {
-  height: calc(100dvh - 52px - var(--keyboard-inset));
+  height: calc(var(--visible-height) - 52px);
 }
 
 /* Desktop: a centered modal instead of a bottom sheet, centered above the keyboard on a tablet. */
 @media (min-width: 1024px) {
   .ks-sheet {
-    inset: 0 0 var(--keyboard-inset);
+    inset: var(--visible-top) 0 var(--keyboard-inset);
     width: min(600px, calc(100% - 48px));
     max-width: none;
-    max-height: calc(100dvh - 64px - var(--keyboard-inset));
+    max-height: calc(var(--visible-height) - 64px);
     margin: auto;
     border: 1px solid var(--border);
     border-radius: var(--r-xl);
@@ -124,7 +124,7 @@
 
   .ks-sheet-lg {
     width: min(680px, calc(100% - 48px));
-    height: min(720px, calc(100dvh - 64px - var(--keyboard-inset)));
+    height: min(720px, calc(var(--visible-height) - 64px));
   }
 
   .ks-sheet-inner {

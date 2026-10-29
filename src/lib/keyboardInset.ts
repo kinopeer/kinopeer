@@ -17,16 +17,20 @@ export function keyboardInset({ layoutHeight, height, offsetTop, scale }: Viewpo
   return Math.max(0, Math.round(layoutHeight - offsetTop - height))
 }
 
+const PROPERTIES = ['--keyboard-inset', '--visible-top', '--visible-height']
+
 /**
- * Keeps `--keyboard-inset` on <html> at the height the on-screen keyboard covers, so a sheet at the
- * bottom of the screen sits above it. iOS Safari shrinks only the visual viewport when the keyboard
- * opens, so `bottom: 0` and `100dvh` stay behind it; a browser that shrinks the layout viewport
- * instead (Chrome on Android) leaves it unset. Returns a function that stops it.
+ * While the on-screen keyboard is open, keeps on <html> where the part of the page above it is:
+ * `--keyboard-inset` (from the layout viewport's bottom), `--visible-top` and `--visible-height`, so
+ * a sheet sits in it. Safari on iOS and Chrome on Android open the keyboard over the page and
+ * shrink only the visual viewport, so `bottom: 0` and `100dvh` stay behind it. Returns a function
+ * that stops it.
  */
 export function trackKeyboardInset(view: Window = window): () => void {
   const viewport = view.visualViewport
   const root = view.document.documentElement
   if (!viewport) return () => {}
+  const clear = () => PROPERTIES.forEach((property) => root.style.removeProperty(property))
   const update = () => {
     const inset = keyboardInset({
       layoutHeight: view.innerHeight,
@@ -34,8 +38,10 @@ export function trackKeyboardInset(view: Window = window): () => void {
       offsetTop: viewport.offsetTop,
       scale: viewport.scale,
     })
-    if (inset > 0) root.style.setProperty('--keyboard-inset', `${inset}px`)
-    else root.style.removeProperty('--keyboard-inset')
+    if (inset === 0) return clear()
+    root.style.setProperty('--keyboard-inset', `${inset}px`)
+    root.style.setProperty('--visible-top', `${Math.round(viewport.offsetTop)}px`)
+    root.style.setProperty('--visible-height', `${Math.floor(viewport.height)}px`)
   }
   viewport.addEventListener('resize', update)
   viewport.addEventListener('scroll', update)
@@ -43,6 +49,6 @@ export function trackKeyboardInset(view: Window = window): () => void {
   return () => {
     viewport.removeEventListener('resize', update)
     viewport.removeEventListener('scroll', update)
-    root.style.removeProperty('--keyboard-inset')
+    clear()
   }
 }
