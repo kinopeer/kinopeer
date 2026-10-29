@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { stubDesktop } from '../../lib/stubDesktop'
+import { stubTouchScreen, swipeMovesPage } from '../../lib/stubTouchScreen'
 import { Dialog } from './Dialog'
 
 afterEach(() => {
@@ -69,6 +70,17 @@ describe('Dialog', () => {
     )
     fireEvent(screen.getByRole('dialog', { name: 'Confirm' }), new Event('cancel', { cancelable: true }))
     expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('keeps the page behind it still on a touch screen while open, and lets it go once closed', () => {
+    stubTouchScreen()
+    const dialog = (open: boolean) => (
+      <Dialog open={open} onClose={() => {}} title="Delete torrent?" actions={<button type="button">Delete</button>} />
+    )
+    const { rerender } = render(dialog(true))
+    expect(swipeMovesPage()).toBe(false)
+    rerender(dialog(false))
+    expect(swipeMovesPage()).toBe(true)
   })
 
   it('stays the same alert dialog on desktop, where only its styles change', () => {

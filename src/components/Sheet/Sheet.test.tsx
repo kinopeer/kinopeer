@@ -2,6 +2,7 @@ import { createEvent, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { stubDesktop } from '../../lib/stubDesktop'
+import { stubTouchScreen, swipeMovesPage } from '../../lib/stubTouchScreen'
 import { Sheet } from './Sheet'
 
 afterEach(() => {
@@ -683,6 +684,19 @@ describe('Sheet', () => {
         expect(dialog().style.transform).toBe('')
       })
     })
+  })
+
+  it('keeps the page behind it still on a touch screen while open, and lets it go once closed', () => {
+    stubTouchScreen()
+    const sheet = (open: boolean) => (
+      <Sheet open={open} onClose={() => {}} title="Speed limits">
+        <input aria-label="Download limit" />
+      </Sheet>
+    )
+    const { rerender } = render(sheet(true))
+    expect(swipeMovesPage()).toBe(false)
+    rerender(sheet(false))
+    expect(swipeMovesPage()).toBe(true)
   })
 
   it('stays the same dialog on desktop, where only its styles make it a centered modal', () => {

@@ -65,6 +65,7 @@ function focusField(type = 'text') {
 }
 
 const inset = () => root.style.getPropertyValue('--keyboard-inset')
+const open = () => root.style.getPropertyValue('--keyboard-open')
 const visible = () => [root.style.getPropertyValue('--visible-top'), root.style.getPropertyValue('--visible-height')]
 
 describe('trackKeyboardInset', () => {
@@ -77,10 +78,12 @@ describe('trackKeyboardInset', () => {
     resize(508)
     expect(inset()).toBe('336px')
     expect(visible()).toEqual(['0px', '508px'])
+    expect(open()).toBe('1')
 
     resize(844)
     expect(inset()).toBe('')
     expect(visible()).toEqual(['', ''])
+    expect(open()).toBe('')
   })
 
   it('follows the visual viewport scrolling', () => {

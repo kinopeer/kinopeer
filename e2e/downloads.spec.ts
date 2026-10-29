@@ -26,6 +26,7 @@ async function openKeyboard(page: Page, { height, top = 0 }: { height: number; t
     style.setProperty('--keyboard-inset', `${area.inset}px`)
     style.setProperty('--visible-top', `${area.top}px`)
     style.setProperty('--visible-height', `${area.height}px`)
+    style.setProperty('--keyboard-open', '1')
   }, area)
 }
 
