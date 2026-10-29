@@ -86,4 +86,3 @@ Ideas are collected in [GitHub Discussions → Ideas](https://github.com/MrShakh
 - HTTPS set up by Kinoseed, and push notifications. umbrelOS 2.0 serves every app over HTTPS with its own local certificate (`https://umbrel.local:8795`), so there is nothing for Kinoseed to set up, and it works over plain HTTP. What HTTPS adds (offline shell, installing as an app on Android and desktop, Web Push) needs the Umbrel certificate trusted on each device and, for push on iPhone, the app on the Home Screen: too much setup for one "download finished" notification. Decided 2026-10-25.
 - A hosted Kinoseed on our own domain for other people's qBittorrent. Browsers keep a public HTTPS page away from a home-network qBittorrent unless it is set up by hand for CORS and HTTPS, and a server in the middle would hold other people's logins and keys.
 - Playing video.
-- A genre filter in Search: TMDB's search has no genre parameter, and it isn't wanted. Dropped from 0.7 on 2026-10-29.
