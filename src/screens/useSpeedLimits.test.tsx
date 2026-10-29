@@ -93,9 +93,10 @@ describe('useSpeedLimits', () => {
     pendingSave()
     const { open } = renderLimits()
     const sheet = await open()
-    fireEvent.change(within(sheet).getByRole('textbox', { name: 'Download limit, MB/s' }), { target: { value: '3' } })
+    const field = within(sheet).getByRole('textbox', { name: 'Download limit, MB/s' })
+    fireEvent.change(field, { target: { value: '3' } })
     // Submitted on the form itself, as Enter in a field would, past the disabled Save button.
-    const form = within(sheet).getByRole('button', { name: 'Save limits' }).closest('form')!
+    const form = field.closest('form')!
     fireEvent.submit(form)
     fireEvent.submit(form)
     // A second request could land after the first and leave qBittorrent with either.

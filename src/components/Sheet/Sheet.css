@@ -14,10 +14,14 @@
   color: var(--text);
   box-shadow: var(--shadow-3);
   /* Springs back up after a short drag, and fades in the rest of the way from a drag that cut the
-     opening slide short; a drag in progress turns it off. */
+     opening slide short; a drag in progress turns it off. It also follows the keyboard up and down
+     instead of jumping when the browser reports its new size. */
   transition:
     transform var(--d-base) var(--ease),
-    opacity var(--d-base) var(--ease);
+    opacity var(--d-base) var(--ease),
+    bottom var(--d-slow) var(--ease),
+    max-height var(--d-slow) var(--ease),
+    height var(--d-slow) var(--ease);
 }
 
 .ks-sheet[open] {
@@ -117,9 +121,13 @@
     animation: ks-sheet-pop var(--d-base) var(--ease);
   }
 
-  /* Nothing drags here, so nothing springs back. */
+  /* Nothing drags here, so nothing springs back; it only follows the keyboard (an iPad). */
   .ks-sheet {
-    transition: none;
+    transition:
+      top var(--d-slow) var(--ease),
+      bottom var(--d-slow) var(--ease),
+      max-height var(--d-slow) var(--ease),
+      height var(--d-slow) var(--ease);
   }
 
   .ks-sheet-lg {
