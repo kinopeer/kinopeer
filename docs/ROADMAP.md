@@ -36,7 +36,7 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 
 ## Done: 0.6.0 (2026-10-29): Small features and fixes
 
-0.6.0 also shipped every ticked item of 0.7, 0.8 and 0.9 below; those versions keep only what's left.
+0.6.0 also shipped the ticked items of 0.7, 0.8 and 0.9 below, which stay where they are, ticked. The versions keep their numbers: the next release is 0.7.
 
 - [x] "First and last pieces first" next to sequential download: a download default in Settings and a switch in the add sheet (qBittorrent's `firstLastPiecePrio`).
 - [x] Bottom sheets on a phone close with a swipe down on the handle, and the page behind them doesn't scroll while one is open.
@@ -52,9 +52,7 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 - [x] The title page: "Recommendations" from TMDB, or "Similar titles" when it has none, in one row (see the decision log in SPEC.md).
 - [x] Search: filter by year.
 
-## 0.8: Torrent control
-
-All of it shipped in 0.6.0.
+## Done: 0.8 (shipped in 0.6.0): Torrent control
 
 - [x] Torrent details: recheck and reannounce.
 - [x] Moving a torrent's files to another folder, from its More menu.
