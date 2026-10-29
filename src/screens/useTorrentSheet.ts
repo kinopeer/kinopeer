@@ -56,7 +56,8 @@ export function useTorrentSheet<Payload>(torrents: Record<string, Torrent> | und
     },
     [],
   )
-  const [failed, setFailed] = useState<{ hash: string; sent: Payload; error: unknown } | null>(null)
+  // Kept only while a sheet shows the request's torrent, and cleared by open: always the shown torrent's.
+  const [failed, setFailed] = useState<{ sent: Payload; error: unknown } | null>(null)
 
   const open = useCallback(
     (hash: string) => {
@@ -84,7 +85,7 @@ export function useTorrentSheet<Payload>(torrents: Record<string, Torrent> | und
       return { ok: true, showing: showing(target) }
     } catch (error) {
       if (!showing(target)) return { ok: false, error, showing: false }
-      setFailed({ hash: target.hash, sent: payload, error })
+      setFailed({ sent: payload, error })
       return { ok: false, error, showing: true }
     } finally {
       setInFlight((current) => {
@@ -94,6 +95,5 @@ export function useTorrentSheet<Payload>(torrents: Record<string, Torrent> | und
       })
     }
   }
-  const failure = failed && failed.hash === torrent?.hash ? { sent: failed.sent, error: failed.error } : undefined
-  return { torrent, open, close, pending, failure, send }
+  return { torrent, open, close, pending, failure: failed ?? undefined, send }
 }
