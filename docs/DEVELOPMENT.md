@@ -66,13 +66,13 @@ The package lives in [umbrel-homelab-store](https://github.com/MrShakhov/umbrel-
 
 ## Edge builds
 
-Kinoseed Edge is `main` running on the owner's Umbrel next to the released app, so changes get used day to day before a release. The `Edge` workflow (`.github/workflows/edge.yml`) runs on every push to `main` that changes what goes into the image (not docs, tests or `e2e/`), and only the newest of several pushes in a row is built:
+Kinoseed Edge is `main` running on the owner's Umbrel next to the released app, so changes get used day to day before a release. The `Edge` workflow (`.github/workflows/edge.yml`) runs on every push to `main` that changes what goes into the image (its `paths` list: the app's and the server's sources without their tests, `public/`, the build config), and only the newest of several pushes in a row is built:
 
 1. It builds `ghcr.io/mrshakhov/kinoseed` for `linux/arm64` only (the Raspberry Pi), tagged `edge` and `sha-<commit>`. The build passes `KINOSEED_COMMIT`, so Settings → About and bug reports show the version with the commit, `0.6.0+abc1234`; release images leave it out.
 2. It commits to the edge store, [umbrel-homelab-edge](https://github.com/MrShakhov/umbrel-homelab-edge) (store id `homelab-edge`, app `homelab-edge-kinoseed`, port 8796): the image by tag and digest in `docker-compose.yml`, and in `umbrel-app.yml` that version and the commit subjects since the previous edge build as release notes. It pushes with a deploy key that can write to that repository only, kept in the `EDGE_STORE_DEPLOY_KEY` secret.
 3. umbrelOS checks community stores every 5 minutes and offers an update whenever the version differs from the installed one; the owner installs it from the App Store.
 
-Nothing in the edge store is edited by hand. Its package is the released one's with another id, name and port: it keeps its own settings and torrent-to-title matches, and works with the same qBittorrent and Prowlarr, so what it does to torrents is real. To build a commit again, run the workflow from the Actions tab (`workflow_dispatch`).
+Nothing in the edge store is edited by hand. Its package is the released one's with another id, name and port: it keeps its own settings and torrent-to-title matches, and works with the same qBittorrent and Prowlarr, so what it does to torrents is real. The store only moves forward: a run for a commit the store already has (a re-run of an older push) leaves it as it is. When a run's store step failed, re-run it, or run the workflow from the Actions tab (`workflow_dispatch`), which builds main's head and ignores other branches.
 
 ## Design
 

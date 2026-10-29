@@ -6,8 +6,24 @@ name: Edge
 on:
   push:
     branches: [main]
-    # None of these end up in the image.
-    paths-ignore: ['docs/**', '**/*.md', 'e2e/**', '**/*.test.ts', '**/*.test.tsx', '.claude/**']
+    # What the image is built from, so a push that changes nothing in it publishes no update.
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - package.json
+      - package-lock.json
+      - index.html
+      - vite.config.ts
+      - 'tsconfig*.json'
+      - 'src/**'
+      - 'server/**'
+      - 'public/**'
+      - .github/workflows/edge.yml
+      - '!**/*.test.ts'
+      - '!**/*.test.tsx'
+      - '!src/test/**'
+      - '!server/test/**'
+  # Builds main's head again, e.g. after a run whose store step failed.
   workflow_dispatch:
 
 # Squash merges often land in a row: only the newest one is built.
@@ -26,6 +42,8 @@ env:
 
 jobs:
   edge:
+    # A dispatch can pick any branch; only main goes to the edge store.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -74,13 +92,15 @@ jobs:
         env:
           IMAGE_REF: ${{ env.IMAGE }}:sha-${{ env.COMMIT }}@${{ steps.build.outputs.digest }}
         run: |
-          # umbrelOS offers an update whenever the version differs from the installed one.
-          if [ "$(yq '.version' umbrel-app.yml)" = "$VERSION" ]; then
-            echo "The edge store already points at $VERSION."
-            exit 0
-          fi
+          # umbrelOS offers an update whenever the version differs from the installed one, so the
+          # store never moves to this commit or an older one: a re-run of an earlier push would
+          # offer a downgrade.
           previous="$(yq '.version' umbrel-app.yml | sed -n 's/.*+//p')"
           if [ -n "$previous" ] && git -C "$GITHUB_WORKSPACE" cat-file -e "$previous^{commit}" 2>/dev/null; then
+            if git -C "$GITHUB_WORKSPACE" merge-base --is-ancestor HEAD "$previous"; then
+              echo "The edge store already points at $previous, which has this commit."
+              exit 0
+            fi
             range="$previous..HEAD"
           else
             range="-1"
