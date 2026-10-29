@@ -120,11 +120,13 @@ milliseconds, fails with a precise message, and it's the one the layer above lea
   opening another module.
 - **A sheet that sends a request for one torrent.** It goes through `useTorrentSheet`, whose own
   tests own when the sheet is open (closed, its torrent gone, or replaced by another with the same
-  hash) and which requests are pending. The feature's hook tests, with its harness, say where the
-  request's outcome goes in each of those cases (the sheet that sent it, one opened again for the
-  same torrent, or a toast) and that it isn't sent twice while in flight: pressed again, from the
-  sheet opened again, and after another torrent's request started. `useMoveTorrent.test.tsx` and
-  `useSpeedLimits.test.tsx` do.
+  hash), which requests are pending, and which failure a sheet keeps and when it's cleared. The
+  feature's hook tests, with its harness, say where the request's outcome goes in each of those
+  cases (the sheet that sent it, one opened again for the same torrent, or a toast), that it isn't
+  sent twice while in flight (pressed again, from the sheet opened again, and after another
+  torrent's request started), that a sheet opened again starts from what's in flight, and that its
+  fields can't be changed meanwhile. `useMoveTorrent.test.tsx` and `useSpeedLimits.test.tsx` do,
+  with what a sheet does with what's in flight alone in its own tests (`SpeedLimitsSheet.test.tsx`).
 - **A flaky test is fixed or deleted.** Not retried, not skipped, not marked `fixme`: a retry hides
   the instability and a skip hides the behavior (oxlint refuses `.skip` and `.only`). Both Playwright
   configs run with `retries: 0`, so a screenshot or a journey that fails once fails the job.

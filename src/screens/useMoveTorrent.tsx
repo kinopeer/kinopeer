@@ -34,8 +34,7 @@ export function useMoveTorrent({ torrents, offline, refresh }: {
   /** After qBittorrent took the folder, so the screen shows it right away. */
   refresh: () => void
 }): MoveTorrent {
-  const { torrent, open: openSheet, close, pending, send } = useTorrentSheet<string>(torrents)
-  const [failure, setFailure] = useState<MoveFailure>()
+  const { torrent, open, close, pending, failure, send } = useTorrentSheet<string>(torrents)
   const [outcome, setOutcome] = useState<MoveOutcome | null>(null)
   // The screen's own toast shows inside it (a drawer is a modal dialog, above anything outside it);
   // once the screen is gone, App's.
@@ -49,26 +48,16 @@ export function useMoveTorrent({ torrents, offline, refresh }: {
     }
   }, [])
 
-  const open = useCallback(
-    (hash: string) => {
-      openSheet(hash)
-      setFailure(undefined)
-    },
-    [openSheet],
-  )
   const dismiss = useCallback(() => setOutcome(null), [])
 
   const move = async (target: Torrent, location: string) => {
-    setFailure(undefined)
     const settled = await send(target, location, () => setTorrentLocation([target.hash], location))
     if (settled.ok) {
       if (settled.showing) close()
       report({ moved: location })
       refresh()
-    } else {
-      const key = failureKey(settled.error)
-      if (settled.showing) setFailure(key)
-      else report({ failed: key })
+    } else if (!settled.showing) {
+      report({ failed: failureKey(settled.error) })
     }
   }
 
@@ -79,8 +68,8 @@ export function useMoveTorrent({ torrents, offline, refresh }: {
           key={torrent.hash}
           torrent={torrent}
           offline={offline}
-          sending={pending(torrent.hash) !== undefined}
-          failure={failure}
+          pending={pending(torrent.hash)}
+          failure={failure && failureKey(failure.error)}
           onMove={(location) => void move(torrent, location)}
           onClose={close}
         />

@@ -93,6 +93,8 @@ export function SpeedLimitsSheet({ torrent, title, offline, pending, failure, on
             inputMode="decimal"
             help={t('limits.hint')}
             value={text[direction]}
+            // What's typed while the limits are saved would be lost when that closes the sheet.
+            readOnly={saving}
             onChange={(event) => {
               const value = event.target.value
               setText((fields) => ({ ...fields, [direction]: value }))

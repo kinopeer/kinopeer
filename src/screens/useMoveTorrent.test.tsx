@@ -235,8 +235,7 @@ describe('useMoveTorrent', () => {
     await moveTo(first, '/media/movies')
     await userEvent.click(within(first).getByRole('button', { name: 'Cancel' }))
     const again = await open()
-    // Another folder typed: Move is off only because the first move is still being sent.
-    await userEvent.type(within(again).getByRole('textbox', { name: 'Folder' }), '/elsewhere')
+    expect(within(again).getByRole('textbox', { name: 'Folder' })).toHaveValue('/media/movies')
     expect(within(again).getByRole('button', { name: /Move/ })).toBeDisabled()
     moved()
     expect(await screen.findByRole('status')).toHaveTextContent('Moving files to /media/movies')
@@ -266,9 +265,37 @@ describe('useMoveTorrent', () => {
     await moveTo(andor, '/media/tv')
     await userEvent.click(within(andor).getByRole('button', { name: 'Cancel' }))
     const again = await open('dune')
-    // Another folder typed: Move is off only because dune's move is still being sent.
-    await userEvent.type(within(again).getByRole('textbox', { name: 'Folder' }), '/elsewhere')
+    // At the folder being sent, not the torrent's: Move is off only because dune's move is in flight.
+    expect(within(again).getByRole('textbox', { name: 'Folder' })).toHaveValue('/media/movies')
     expect(within(again).getByRole('button', { name: /Move/ })).toBeDisabled()
+  })
+
+  it('starts a sheet opened again mid-move from the folder being sent, so a retry after a failure sends that one', async () => {
+    let fail = (_error: unknown) => {}
+    setTorrentLocation.mockReturnValueOnce(new Promise<void>((_resolve, reject) => (fail = reject)))
+    const { open, moveTo } = renderMove()
+    const first = await open()
+    await moveTo(first, '/media/movies')
+    await userEvent.click(within(first).getByRole('button', { name: 'Cancel' }))
+    const again = await open()
+    fail(new TypeError('Failed to fetch'))
+    expect(await within(again).findByRole('alert', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
+    await userEvent.click(within(again).getByRole('button', { name: 'Move' }))
+    // Not the torrent's own folder, which the sheet would have started from.
+    expect(setTorrentLocation).toHaveBeenCalledTimes(2)
+    expect(setTorrentLocation).toHaveBeenLastCalledWith(['dune'], '/media/movies')
+  })
+
+  it('keeps the folder as it is while the move is being sent, since a folder typed then would be lost', async () => {
+    setTorrentLocation.mockReturnValue(new Promise(() => {}))
+    const { open, moveTo } = renderMove()
+    const sheet = await open()
+    const folders = await within(sheet).findByRole('group', { name: 'qBittorrent folders' })
+    await moveTo(sheet, '/media/new')
+    const field = within(sheet).getByRole('textbox', { name: 'Folder' })
+    await userEvent.type(field, '/elsewhere')
+    expect(field).toHaveValue('/media/new')
+    expect(within(folders).getByRole('button', { name: '/media/movies' })).toBeDisabled()
   })
 })
 

@@ -70,24 +70,55 @@ describe('useTorrentSheet', () => {
     expect(await sent).toEqual({ ok: false, error: '500', showing: true })
   })
 
-  it('says no sheet shows a request’s torrent once it was closed, gone, replaced or its screen left', async () => {
-    const readded = { ...DUNE, added_on: DUNE.added_on + 60 }
-    const cases: [string, (view: ReturnType<typeof renderSheet>) => void][] = [
-      ['closed', (view) => act(() => view.result.current.close())],
-      ['gone', (view) => view.rerender({ list: {} })],
-      ['replaced', (view) => view.rerender({ list: { dune: readded } })],
-      ['left', (view) => view.unmount()],
-    ]
-    for (const [, leave] of cases) {
-      const view = renderSheet()
-      act(() => view.result.current.open('dune'))
-      const pending = request()
-      const sent = view.result.current.send(DUNE, 'a', () => pending.promise)
-      leave(view)
-      await act(async () => pending.resolve())
-      expect(await sent).toEqual({ ok: true, showing: false })
-      view.unmount()
-    }
+  it.each<[string, (view: ReturnType<typeof renderSheet>) => void]>([
+    ['closed', (view) => act(() => view.result.current.close())],
+    ['gone', (view) => view.rerender({ list: {} })],
+    ['replaced', (view) => view.rerender({ list: { dune: { ...DUNE, added_on: DUNE.added_on + 60 } } })],
+    ['its screen left', (view) => view.unmount()],
+  ])('says no sheet shows a request’s torrent once it was %s', async (_case, leave) => {
+    const view = renderSheet()
+    act(() => view.result.current.open('dune'))
+    const pending = request()
+    const sent = view.result.current.send(DUNE, 'a', () => pending.promise)
+    leave(view)
+    await act(async () => pending.resolve())
+    expect(await sent).toEqual({ ok: true, showing: false })
+  })
+
+  it('keeps a failed request for the sheet that shows its torrent, with what it sent, until a sheet opens or sends again', async () => {
+    const { result } = renderSheet()
+    act(() => result.current.open('dune'))
+    const first = request()
+    const sent = result.current.send(DUNE, '/root', () => first.promise)
+    await act(async () => first.reject('403'))
+    await sent
+    expect(result.current.failure).toEqual({ sent: '/root', error: '403' })
+
+    const second = request()
+    act(() => void result.current.send(DUNE, '/media', () => second.promise))
+    expect(result.current.failure).toBeUndefined()
+    await act(async () => second.reject('409'))
+    expect(result.current.failure).toEqual({ sent: '/media', error: '409' })
+    act(() => result.current.open('dune'))
+    expect(result.current.failure).toBeUndefined()
+  })
+
+  it('keeps the failure a sheet shows when a request for a torrent no sheet shows fails, as that one’s said elsewhere', async () => {
+    const alien = torrent('alien')
+    const { result } = renderHook(() => useTorrentSheet<string>({ dune: DUNE, alien }))
+    act(() => result.current.open('dune'))
+    const dune = request()
+    let duneSent!: Promise<unknown>
+    act(() => {
+      duneSent = result.current.send(DUNE, '/media', () => dune.promise)
+    })
+    act(() => result.current.open('alien'))
+    const other = request()
+    act(() => void result.current.send(alien, '/tv', () => other.promise))
+    await act(async () => other.reject('403'))
+    await act(async () => dune.reject('409'))
+    expect(await duneSent).toEqual({ ok: false, error: '409', showing: false })
+    expect(result.current.failure).toEqual({ sent: '/tv', error: '403' })
   })
 
   it('knows a sheet was closed or opened as soon as it’s asked, before React renders it', async () => {
