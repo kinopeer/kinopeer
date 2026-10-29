@@ -1,9 +1,10 @@
+/* Above the on-screen keyboard and no taller than what it leaves visible (tokens.css). */
 .ks-sheet {
   position: fixed;
-  inset: auto 0 0;
+  inset: auto 0 var(--keyboard-inset);
   width: 100%;
   max-width: 640px;
-  max-height: calc(100dvh - 52px);
+  max-height: calc(var(--visible-height) - 52px);
   margin: 0 auto;
   padding: 0;
   border: none;
@@ -13,10 +14,14 @@
   color: var(--text);
   box-shadow: var(--shadow-3);
   /* Springs back up after a short drag, and fades in the rest of the way from a drag that cut the
-     opening slide short; a drag in progress turns it off. */
+     opening slide short; a drag in progress turns it off. It also follows the keyboard up and down
+     instead of jumping when the browser reports its new size. */
   transition:
     transform var(--d-base) var(--ease),
-    opacity var(--d-base) var(--ease);
+    opacity var(--d-base) var(--ease),
+    bottom var(--d-slow) var(--ease),
+    max-height var(--d-slow) var(--ease),
+    height var(--d-slow) var(--ease);
 }
 
 .ks-sheet[open] {
@@ -35,7 +40,8 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding-bottom: var(--safe-bottom);
+  /* The keyboard covers the home indicator's area. */
+  padding-bottom: max(0px, calc(var(--safe-bottom) - var(--keyboard-inset)));
 }
 
 /* The grabber and the title row: dragging it down on a phone closes the sheet, so the browser
@@ -95,16 +101,16 @@
 }
 
 .ks-sheet-lg {
-  height: calc(100dvh - 52px);
+  height: calc(var(--visible-height) - 52px);
 }
 
-/* Desktop: a centered modal instead of a bottom sheet. */
+/* Desktop: a centered modal instead of a bottom sheet, centered above the keyboard on a tablet. */
 @media (min-width: 1024px) {
   .ks-sheet {
-    inset: 0;
+    inset: var(--visible-top) 0 var(--keyboard-inset);
     width: min(600px, calc(100% - 48px));
     max-width: none;
-    max-height: calc(100dvh - 64px);
+    max-height: calc(var(--visible-height) - 64px);
     margin: auto;
     border: 1px solid var(--border);
     border-radius: var(--r-xl);
@@ -115,14 +121,18 @@
     animation: ks-sheet-pop var(--d-base) var(--ease);
   }
 
-  /* Nothing drags here, so nothing springs back. */
+  /* Nothing drags here, so nothing springs back; it only follows the keyboard (an iPad). */
   .ks-sheet {
-    transition: none;
+    transition:
+      top var(--d-slow) var(--ease),
+      bottom var(--d-slow) var(--ease),
+      max-height var(--d-slow) var(--ease),
+      height var(--d-slow) var(--ease);
   }
 
   .ks-sheet-lg {
     width: min(680px, calc(100% - 48px));
-    height: min(720px, calc(100dvh - 64px));
+    height: min(720px, calc(var(--visible-height) - 64px));
   }
 
   .ks-sheet-inner {

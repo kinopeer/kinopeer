@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { DESKTOP, DESKTOP_RAIL, openApp, settle, showWholePage, type AppOptions } from './app.ts'
+import { keyboardArea } from '../src/lib/keyboardInset.ts'
 import { TITLES } from './fixtures.ts'
 
 /** The titles of the tagged fixture torrents, in the given language. */
@@ -10,6 +11,22 @@ async function openDownloads(page: Page, options: AppOptions = {}) {
   const lang = options.lang ?? 'ru'
   for (const title of titles(lang)) await expect(page.getByText(title, { exact: true }).first()).toBeVisible()
   await settle(page)
+}
+
+/**
+ * Sets what trackKeyboardInset sets while the on-screen keyboard is open (Chromium has none to open),
+ * by its own rule: the page visible above it, `top` pixels down the layout viewport when the
+ * browser scrolled to show the field.
+ */
+async function openKeyboard(page: Page, { height, top = 0 }: { height: number; top?: number }) {
+  const layoutHeight = page.viewportSize()!.height
+  const area = keyboardArea({ layoutHeight, height, offsetTop: top, scale: 1 })!
+  await page.evaluate((area) => {
+    const style = document.documentElement.style
+    style.setProperty('--keyboard-inset', `${area.inset}px`)
+    style.setProperty('--visible-top', `${area.top}px`)
+    style.setProperty('--visible-height', `${area.height}px`)
+  }, area)
 }
 
 test.describe('downloads, phone', () => {
@@ -70,6 +87,26 @@ test.describe('downloads, phone', () => {
     await download.blur()
     await settle(page)
     await expect(page).toHaveScreenshot('speed-limits-dark-ru.png')
+  })
+
+  test('speed limits sheet above the on-screen keyboard', async ({ page }) => {
+    await openDownloads(page, { downloadsView: 'grid' })
+    await page.getByRole('button', { name: 'Ещё действия: Дюна: Часть вторая' }).click()
+    await page.getByRole('button', { name: 'Лимиты скорости', exact: true }).click()
+    await openKeyboard(page, { height: 508 })
+    await settle(page)
+    await expect(page).toHaveScreenshot('speed-limits-keyboard-dark-ru.png')
+  })
+
+  test('a tall sheet within the page left above the keyboard, scrolled to its field', async ({ page }) => {
+    await openDownloads(page, { downloadsView: 'grid' })
+    await page.getByRole('button', { name: 'Ещё действия: Дюна: Часть вторая' }).click()
+    await page.getByRole('button', { name: 'Перенести файлы…' }).click()
+    const sheet = page.getByRole('dialog', { name: 'Перенести файлы' })
+    await expect(sheet.getByRole('group', { name: 'Папки qBittorrent' })).toBeVisible()
+    await openKeyboard(page, { height: 508, top: 120 })
+    await settle(page)
+    await expect(page).toHaveScreenshot('move-keyboard-dark-ru.png')
   })
 
   test('moving the files', async ({ page }) => {
@@ -265,6 +302,16 @@ test.describe('downloads, desktop', () => {
 
 test.describe('downloads, narrow desktop', () => {
   test.use(DESKTOP_RAIL)
+
+  test('a modal centered above the on-screen keyboard', async ({ page }) => {
+    await openDownloads(page, { downloadsView: 'list' })
+    await page.getByRole('button', { name: 'Ещё действия: Дюна: Часть вторая' }).click()
+    await page.getByRole('menuitem', { name: 'Лимиты скорости' }).click()
+    await expect(page.getByRole('dialog', { name: 'Лимиты скорости' })).toBeVisible()
+    await openKeyboard(page, { height: 420 })
+    await settle(page)
+    await expect(page).toHaveScreenshot('desktop-speed-limits-keyboard-dark-ru.png')
+  })
 
   test('alternative speed limits on, in the rail', async ({ page }) => {
     await openDownloads(page, { altSpeedLimits: true })

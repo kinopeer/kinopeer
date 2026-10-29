@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useId, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Torrent } from '../api/qbittorrent'
 import { Banner } from '../components/Banner'
@@ -36,6 +36,7 @@ const DIRECTIONS: Direction[] = ['download', 'upload']
 /** Download and upload speed limits of one torrent; an empty field means no limit. */
 export function SpeedLimitsSheet({ torrent, title, offline, pending, failure, onSave, onClose }: SpeedLimitsSheetProps) {
   const { t, i18n } = useTranslation()
+  const formId = useId()
   // What the fields showed when the sheet opened: an unchanged field isn't sent.
   const language = i18n.resolvedLanguage ?? i18n.language
   const [initial] = useState(() => ({
@@ -64,8 +65,27 @@ export function SpeedLimitsSheet({ torrent, title, offline, pending, failure, on
   }
 
   return (
-    <Sheet open onClose={onClose} title={t('limits.title')} subtitle={title}>
-      <form className="limits-form" onSubmit={save}>
+    <Sheet
+      open
+      onClose={onClose}
+      title={t('limits.title')}
+      subtitle={title}
+      // Pinned under the fields, so it stays in sight when the keyboard leaves them too little room.
+      footer={
+        <Button
+          type="submit"
+          form={formId}
+          variant="primary"
+          size="lg"
+          block
+          loading={saving}
+          disabled={!valid || saving || offline}
+        >
+          {t('limits.save')}
+        </Button>
+      }
+    >
+      <form id={formId} className="limits-form" onSubmit={save}>
         {DIRECTIONS.map((direction) => (
           <Input
             key={direction}
@@ -81,9 +101,6 @@ export function SpeedLimitsSheet({ torrent, title, offline, pending, failure, on
           />
         ))}
         {failure && <Banner tone="error">{t('limits.failed')}</Banner>}
-        <Button type="submit" variant="primary" size="lg" block loading={saving} disabled={!valid || saving || offline}>
-          {t('limits.save')}
-        </Button>
       </form>
     </Sheet>
   )

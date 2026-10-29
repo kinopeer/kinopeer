@@ -67,6 +67,12 @@
   /* Room the app's navigation takes: the tab bar at the bottom, the sidebar on desktop (below). */
   --nav-left: 0px;
   --nav-bottom: calc(66px + var(--safe-bottom));
+  /* The part of the page above the on-screen keyboard, which Safari on iOS and Chrome on Android open
+     over the page: `trackKeyboardInset` (src/lib/keyboardInset.ts) sets them on <html> while it's
+     open. The inset is from the layout viewport's bottom. */
+  --keyboard-inset: 0px;
+  --visible-top: 0px;
+  --visible-height: 100dvh;
 
   /* Accent scale */
   --teal-50: #e6fafb;

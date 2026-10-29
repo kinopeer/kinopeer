@@ -2,6 +2,12 @@
 
 Kinoseed follows [semantic versioning](https://semver.org). While the version is 0.x, minor versions may change behavior and settings.
 
+## Unreleased
+
+### Fixed
+
+- Phone: the on-screen keyboard no longer covers a sheet's fields (Speed limits, Move files, Change title), as it did in Safari on iOS: the sheet moves up with the keyboard and fits in what it leaves visible, and Save in Speed limits stays pinned at its bottom, as Move does in Move files.
+
 ## 0.6.0 - 2026-10-29
 
 More control over torrents and an easier way to find what to download: per-torrent speed limits, moving files, reannounce and recheck, and the alternative speed limits switch; Search rows of what's likely on torrents already, a year filter and recommendations on the title page; releases that remember your filters and name the indexers that failed. Sheets on a phone close with a swipe down, and a long list of fixes.
