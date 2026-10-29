@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { DESKTOP, DESKTOP_RAIL, openApp, settle, showWholePage, type AppOptions } from './app.ts'
+import { keyboardArea } from '../src/lib/keyboardInset.ts'
 import { TITLES } from './fixtures.ts'
 
 /** The titles of the tagged fixture torrents, in the given language. */
@@ -13,20 +14,19 @@ async function openDownloads(page: Page, options: AppOptions = {}) {
 }
 
 /**
- * Sets what trackKeyboardInset sets while the on-screen keyboard is open (Chromium has none to open):
- * the page visible above it, `top` pixels down the layout viewport when the browser scrolled to
- * show the field.
+ * Sets what trackKeyboardInset sets while the on-screen keyboard is open (Chromium has none to open),
+ * by its own rule: the page visible above it, `top` pixels down the layout viewport when the
+ * browser scrolled to show the field.
  */
 async function openKeyboard(page: Page, { height, top = 0 }: { height: number; top?: number }) {
-  await page.evaluate(
-    ({ height, top }) => {
-      const style = document.documentElement.style
-      style.setProperty('--keyboard-inset', `${innerHeight - top - height}px`)
-      style.setProperty('--visible-top', `${top}px`)
-      style.setProperty('--visible-height', `${height}px`)
-    },
-    { height, top },
-  )
+  const layoutHeight = page.viewportSize()!.height
+  const area = keyboardArea({ layoutHeight, height, offsetTop: top, scale: 1 })!
+  await page.evaluate((area) => {
+    const style = document.documentElement.style
+    style.setProperty('--keyboard-inset', `${area.inset}px`)
+    style.setProperty('--visible-top', `${area.top}px`)
+    style.setProperty('--visible-height', `${area.height}px`)
+  }, area)
 }
 
 test.describe('downloads, phone', () => {
