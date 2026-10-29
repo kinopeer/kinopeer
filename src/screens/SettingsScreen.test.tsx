@@ -270,17 +270,19 @@ describe('SettingsScreen', () => {
   })
 
   it('loads categories that failed when qBittorrent is checked again in another language', async () => {
-    vi.mocked(qbt.getCategories).mockRejectedValueOnce(new Error('offline'))
+    let fail: (error: Error) => void = () => {}
+    vi.mocked(qbt.getCategories).mockReturnValueOnce(new Promise((_resolve, reject) => (fail = reject)))
     renderScreen()
     expect(await within(connection('qBittorrent')).findByRole('status', { name: saying(/^Connected/) })).toBeInTheDocument()
     await waitFor(() => expect(qbt.getCategories).toHaveBeenCalled())
+    await act(async () => fail(new Error('offline')))
+    expect(screen.getByRole('combobox', { name: 'Movies category' })).toBeDisabled()
 
     const language = screen.getByRole('radiogroup', { name: 'Language' })
     await userEvent.click(within(language).getByRole('radio', { name: 'Русский' }))
     const movies = screen.getByRole('combobox', { name: 'Категория фильмов' })
     expect(await within(movies).findByRole('option', { name: 'Автоматически (Movies)' })).toBeInTheDocument()
     expect(movies).toBeEnabled()
-    await userEvent.click(within(screen.getByRole('radiogroup', { name: 'Язык' })).getByRole('radio', { name: 'Системный' }))
   })
 
   it("shows the download defaults the server keeps, set on another device", async () => {

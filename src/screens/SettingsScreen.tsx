@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useEffectEvent, useState, type ReactNode } from 'react'
+import { useCallback, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router'
 import { ProwlarrSetupError, getProwlarrStatus } from '../api/prowlarr'
@@ -40,22 +40,12 @@ interface ConnectionRowProps {
   /** Accessible name of the edit button, shown only with `onEdit`. */
   editLabel?: string
   onEdit?: () => void
-  /** Called each time the check passes, on opening, on Test or in a new language. */
-  onConnected?: () => void
 }
 
-/**
- * One service's connection: checked when the screen opens and again, on its own, on Test. The
- * screen hears of each passing check through `onConnected`, for what else it loads from the service.
- */
-function ConnectionRow({ name, icon, check, editLabel, onEdit, onConnected }: ConnectionRowProps) {
+/** One service's connection: checked when the screen opens and again, on its own, on Test. */
+function ConnectionRow({ name, icon, check, editLabel, onEdit }: ConnectionRowProps) {
   const { t, i18n } = useTranslation()
   const result = useRequest(`${name}|${i18n.language}`, check)
-  const connected = useEffectEvent(() => onConnected?.())
-  // A check that runs again clears `data` first, so this fires once per passing check.
-  useEffect(() => {
-    if (result.data !== undefined) connected()
-  }, [result.data])
   const state = result.loading ? 'loading' : result.error !== undefined ? 'error' : 'ok'
   const message = result.loading
     ? t('settings.testing')
@@ -156,8 +146,8 @@ export function SettingsScreen() {
   const [keySaved, setKeySaved] = useState<'tmdb' | 'prowlarr' | 'prowlarr-forgotten' | null>(null)
   const dismissKeySaved = useCallback(() => setKeySaved(null), [])
   const dismissCleared = useCallback(() => setCleared(false), [])
-  // Asked after each passing qBittorrent check while they're missing, so a check that finds it back
-  // loads them, and loaded selects don't empty on Test.
+  // Asked after each passing qBittorrent check (on opening, on Test, in a new language) while
+  // they're missing, so a check that finds it back loads them, and loaded selects don't empty on Test.
   const [categoriesLoad, setCategoriesLoad] = useState(0)
   const categories = useRequest(categoriesLoad === 0 ? null : `qbt|categories|${categoriesLoad}`, () => getCategories())
   // Loaded once; a saved or forgotten key answers with the new settings, which replace it.
@@ -169,6 +159,7 @@ export function SettingsScreen() {
   const checkQbittorrent = async () => {
     try {
       const [app, api] = await Promise.all([getAppVersion(), getApiVersion()])
+      if (categories.data === undefined) setCategoriesLoad((n) => n + 1)
       return t('settings.qbtOk', { version: app, api })
     } catch {
       throw new Error(t('settings.qbtError'))
@@ -247,14 +238,7 @@ export function SettingsScreen() {
 
       <Section id="settings-connections" title={t('settings.connections')}>
         <ul className="settings-conns">
-          <ConnectionRow
-            name="qBittorrent"
-            icon="server"
-            check={checkQbittorrent}
-            onConnected={() => {
-              if (categories.data === undefined) setCategoriesLoad((n) => n + 1)
-            }}
-          />
+          <ConnectionRow name="qBittorrent" icon="server" check={checkQbittorrent} />
           {/* A new key remounts the row, so it checks again. */}
           <ConnectionRow
             key={`prowlarr-${prowlarrKeyVersion}`}
