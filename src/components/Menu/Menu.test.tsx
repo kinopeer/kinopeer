@@ -54,6 +54,15 @@ describe('Menu', () => {
     expect(screen.getByText('Footer')).toBeInTheDocument()
   })
 
+  it('keeps the arrow keys working after a click on a disabled item', async () => {
+    render(<Harness />)
+    await userEvent.click(screen.getByRole('button', { name: 'Open' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Disabled' }))
+    expect(screen.getByRole('menu', { name: 'Actions' })).toBeInTheDocument()
+    await userEvent.keyboard('{ArrowDown}')
+    expect(screen.getByRole('menuitem', { name: 'Pause' })).toHaveFocus()
+  })
+
   it('closes on Escape and Tab, with focus back on the anchor', async () => {
     render(<Harness />)
     const open = screen.getByRole('button', { name: 'Open' })

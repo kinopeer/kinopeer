@@ -90,8 +90,10 @@ export function Popover({ anchor, onClose, align = 'end', offset = 6, follow = f
     }
   }, [anchor, align, offset, follow])
 
+  // Focusable, so a click on something in it that can't take the focus (a disabled item, text)
+  // focuses the popover, not an ancestor such as a modal dialog, which would close it.
   return (
-    <div {...rest} ref={ref} className={cx('ks-pop', className)}>
+    <div tabIndex={-1} {...rest} ref={ref} className={cx('ks-pop', className)}>
       {children}
     </div>
   )

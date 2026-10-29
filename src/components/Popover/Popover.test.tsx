@@ -6,20 +6,25 @@ import { Popover, type PopoverProps } from './Popover'
 
 type Options = Partial<Pick<PopoverProps, 'align' | 'offset' | 'follow'>>
 
+// The wrapper takes the focus like the modal dialog a popover can sit in: a click on something that
+// can't take it focuses the nearest ancestor that can.
 function Harness(options: Options) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   return (
-    <>
+    <div tabIndex={-1}>
       <button type="button" onClick={(event) => setAnchor(anchor ? null : event.currentTarget)}>
         Open
       </button>
       {anchor && (
         <Popover {...options} anchor={anchor} role="group" aria-label="Filters" onClose={() => setAnchor(null)}>
           <button type="button">Inside</button>
+          <button type="button" disabled>
+            Off
+          </button>
         </Popover>
       )}
       <button type="button">Elsewhere</button>
-    </>
+    </div>
   )
 }
 
@@ -98,6 +103,14 @@ describe('Popover', () => {
     await userEvent.click(anchor)
     await userEvent.click(anchor)
     expect(screen.queryByRole('group')).not.toBeInTheDocument()
+  })
+
+  it('stays open with the focus in it after a click on something in it that can’t take the focus', async () => {
+    const { popover } = await open()
+    await userEvent.click(screen.getByRole('button', { name: 'Inside' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Off' }))
+    expect(popover).toBeInTheDocument()
+    expect(popover).toHaveFocus()
   })
 
   it('keeps the tab order and closes once the focus leaves it', async () => {
