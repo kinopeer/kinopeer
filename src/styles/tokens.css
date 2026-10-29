@@ -67,6 +67,9 @@
   /* Room the app's navigation takes: the tab bar at the bottom, the sidebar on desktop (below). */
   --nav-left: 0px;
   --nav-bottom: calc(66px + var(--safe-bottom));
+  /* What the on-screen keyboard covers where the browser doesn't shrink the page for it (iOS
+     Safari): `trackKeyboardInset` (src/lib/keyboardInset.ts) sets it on <html> while it's open. */
+  --keyboard-inset: 0px;
 
   /* Accent scale */
   --teal-50: #e6fafb;

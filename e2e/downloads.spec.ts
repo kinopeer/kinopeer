@@ -72,6 +72,17 @@ test.describe('downloads, phone', () => {
     await expect(page).toHaveScreenshot('speed-limits-dark-ru.png')
   })
 
+  test('speed limits sheet above the on-screen keyboard', async ({ page }) => {
+    await openDownloads(page, { downloadsView: 'grid' })
+    await page.getByRole('button', { name: 'Ещё действия: Дюна: Часть вторая' }).click()
+    await page.getByRole('button', { name: 'Лимиты скорости', exact: true }).click()
+    // What trackKeyboardInset sets while iOS Safari's keyboard covers the page's bottom, which
+    // Chromium has no keyboard to open over.
+    await page.evaluate(() => document.documentElement.style.setProperty('--keyboard-inset', '336px'))
+    await settle(page)
+    await expect(page).toHaveScreenshot('speed-limits-keyboard-dark-ru.png')
+  })
+
   test('moving the files', async ({ page }) => {
     await openDownloads(page, { downloadsView: 'grid' })
     await page.getByRole('button', { name: 'Ещё действия: Дюна: Часть вторая' }).click()
