@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useEffectEvent, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router'
 import { ProwlarrSetupError, getProwlarrStatus } from '../api/prowlarr'
@@ -40,14 +40,22 @@ interface ConnectionRowProps {
   /** Accessible name of the edit button, shown only with `onEdit`. */
   editLabel?: string
   onEdit?: () => void
-  /** Called on Test as well, for what else the screen loads from this service. */
-  onTest?: () => void
+  /** Called each time the check passes, on opening, on Test or in a new language. */
+  onConnected?: () => void
 }
 
-/** One service's connection: checked when the screen opens and again, on its own, on Test. */
-function ConnectionRow({ name, icon, check, editLabel, onEdit, onTest }: ConnectionRowProps) {
+/**
+ * One service's connection: checked when the screen opens and again, on its own, on Test. The
+ * screen hears of each passing check through `onConnected`, for what else it loads from the service.
+ */
+function ConnectionRow({ name, icon, check, editLabel, onEdit, onConnected }: ConnectionRowProps) {
   const { t, i18n } = useTranslation()
   const result = useRequest(`${name}|${i18n.language}`, check)
+  const connected = useEffectEvent(() => onConnected?.())
+  // A check that runs again clears `data` first, so this fires once per passing check.
+  useEffect(() => {
+    if (result.data !== undefined) connected()
+  }, [result.data])
   const state = result.loading ? 'loading' : result.error !== undefined ? 'error' : 'ok'
   const message = result.loading
     ? t('settings.testing')
@@ -69,15 +77,7 @@ function ConnectionRow({ name, icon, check, editLabel, onEdit, onTest }: Connect
         </span>
       </span>
       {onEdit && editLabel && <IconButton icon="key" label={editLabel} onClick={onEdit} />}
-      <Button
-        variant="secondary"
-        size="sm"
-        disabled={state === 'loading'}
-        onClick={() => {
-          result.retry()
-          onTest?.()
-        }}
-      >
+      <Button variant="secondary" size="sm" disabled={state === 'loading'} onClick={result.retry}>
         {t('settings.test')}
       </Button>
     </li>
@@ -156,7 +156,10 @@ export function SettingsScreen() {
   const [keySaved, setKeySaved] = useState<'tmdb' | 'prowlarr' | 'prowlarr-forgotten' | null>(null)
   const dismissKeySaved = useCallback(() => setKeySaved(null), [])
   const dismissCleared = useCallback(() => setCleared(false), [])
-  const categories = useRequest('qbt|categories', () => getCategories())
+  // Asked after each passing qBittorrent check while they're missing, so a check that finds it back
+  // loads them, and loaded selects don't empty on Test.
+  const [categoriesLoad, setCategoriesLoad] = useState(0)
+  const categories = useRequest(categoriesLoad === 0 ? null : `qbt|categories|${categoriesLoad}`, () => getCategories())
   // Loaded once; a saved or forgotten key answers with the new settings, which replace it.
   const serverLoad = useRequest('server|settings', (signal) => getServerSettings(signal))
   const [serverChanged, setServerChanged] = useState<ServerSettings | null>(null)
@@ -244,12 +247,13 @@ export function SettingsScreen() {
 
       <Section id="settings-connections" title={t('settings.connections')}>
         <ul className="settings-conns">
-          {/* Test loads the categories again only when they failed, so loaded selects don't empty for a moment. */}
           <ConnectionRow
             name="qBittorrent"
             icon="server"
             check={checkQbittorrent}
-            onTest={categories.error !== undefined ? categories.retry : undefined}
+            onConnected={() => {
+              if (categories.data === undefined) setCategoriesLoad((n) => n + 1)
+            }}
           />
           {/* A new key remounts the row, so it checks again. */}
           <ConnectionRow

@@ -111,6 +111,7 @@ describe('SettingsScreen', () => {
     for (const row of ['qBittorrent', 'Prowlarr', 'TMDB']) {
       expect(await within(connection(row)).findByRole('status', { name: saying(/^Connected/) })).toBeInTheDocument()
     }
+    expect(await within(screen.getByRole('combobox', { name: 'Movies category' })).findByRole('option', { name: 'Anime' })).toBeInTheDocument()
     for (const fn of checks) vi.mocked(fn).mockClear()
 
     await userEvent.click(within(connection(name)).getByRole('button', { name: 'Test' }))
@@ -244,7 +245,6 @@ describe('SettingsScreen', () => {
     renderScreen()
     expect(await within(connection('qBittorrent')).findByRole('status', { name: saying('No answer from qBittorrent') })).toBeInTheDocument()
     const movies = screen.getByRole('combobox', { name: 'Movies category' })
-    await waitFor(() => expect(qbt.getCategories).toHaveBeenCalled())
     expect(movies).toBeDisabled()
 
     vi.mocked(qbt.getAppVersion).mockResolvedValue('v5.3.0')
@@ -252,6 +252,35 @@ describe('SettingsScreen', () => {
     await userEvent.click(within(connection('qBittorrent')).getByRole('button', { name: 'Test' }))
     expect(await within(movies).findByRole('option', { name: 'Automatic (Movies)' })).toBeInTheDocument()
     expect(movies).toBeEnabled()
+  })
+
+  it('loads the categories on a Test pressed while they are still loading and then fail', async () => {
+    let fail: (error: Error) => void = () => {}
+    vi.mocked(qbt.getCategories).mockReturnValueOnce(new Promise((_resolve, reject) => (fail = reject)))
+    renderScreen()
+    expect(await within(connection('qBittorrent')).findByRole('status', { name: saying(/^Connected/) })).toBeInTheDocument()
+    await waitFor(() => expect(qbt.getCategories).toHaveBeenCalled())
+
+    await userEvent.click(within(connection('qBittorrent')).getByRole('button', { name: 'Test' }))
+    expect(await within(connection('qBittorrent')).findByRole('status', { name: saying(/^Connected/) })).toBeInTheDocument()
+    await act(async () => fail(new Error('offline')))
+    const movies = screen.getByRole('combobox', { name: 'Movies category' })
+    expect(await within(movies).findByRole('option', { name: 'Automatic (Movies)' })).toBeInTheDocument()
+    expect(movies).toBeEnabled()
+  })
+
+  it('loads categories that failed when qBittorrent is checked again in another language', async () => {
+    vi.mocked(qbt.getCategories).mockRejectedValueOnce(new Error('offline'))
+    renderScreen()
+    expect(await within(connection('qBittorrent')).findByRole('status', { name: saying(/^Connected/) })).toBeInTheDocument()
+    await waitFor(() => expect(qbt.getCategories).toHaveBeenCalled())
+
+    const language = screen.getByRole('radiogroup', { name: 'Language' })
+    await userEvent.click(within(language).getByRole('radio', { name: 'Русский' }))
+    const movies = screen.getByRole('combobox', { name: 'Категория фильмов' })
+    expect(await within(movies).findByRole('option', { name: 'Автоматически (Movies)' })).toBeInTheDocument()
+    expect(movies).toBeEnabled()
+    await userEvent.click(within(screen.getByRole('radiogroup', { name: 'Язык' })).getByRole('radio', { name: 'Системный' }))
   })
 
   it("shows the download defaults the server keeps, set on another device", async () => {
@@ -264,7 +293,8 @@ describe('SettingsScreen', () => {
     renderScreen()
     await waitFor(() => expect(screen.getByRole('switch', { name: 'Sequential download' })).toBeChecked())
     expect(screen.getByRole('switch', { name: 'First and last pieces first' })).toBeChecked()
-    expect(screen.getByRole('combobox', { name: 'Series category' })).toHaveDisplayValue('Anime')
+    // The categories load once qBittorrent's check passes.
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Series category' })).toHaveDisplayValue('Anime'))
     expect(screen.getByRole('switch', { name: 'Start paused' })).not.toBeChecked()
   })
 
