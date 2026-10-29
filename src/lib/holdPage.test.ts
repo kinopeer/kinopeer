@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { holdPage } from './holdPage'
 import { stubDesktop } from './stubDesktop'
-import { stubTouchScreen, swipeMovesPage } from './stubTouchScreen'
+import { stubTouchScreen, swipe, swipeMovesPage } from './stubTouchScreen'
 
 let releases: (() => void)[] = []
 let frames: FrameRequestCallback[] = []
@@ -101,6 +101,46 @@ describe('holdPage', () => {
     hold()
     const body = scroller({ overflowing: true }).box
     expect(swipeMovesPage(scroller({ overflowing: false, parent: body }).child)).toBe(true)
+  })
+
+  it('keeps the page still under a finger that was already down when the hold began', () => {
+    stubScreen()
+    hold()
+    const body = scroller({ overflowing: true }).child
+    expect(swipe(body, [{ dx: 0, dy: -50 }], { down: false })).toEqual([false])
+  })
+
+  it('waits for a direction before deciding, so a start too short to have one locks nothing', () => {
+    stubScreen()
+    hold()
+    const row = scroller({ overflowing: true, axis: 'x' }).child
+    expect(swipe(row, [{ dx: 0, dy: 0 }, { dx: -50, dy: 0 }])).toEqual([true, true])
+    const body = scroller({ overflowing: true }).child
+    expect(swipe(body, [{ dx: 1, dy: 0 }, { dx: 1, dy: -50 }])).toEqual([true, true])
+  })
+
+  it('keeps even a start too short to have a direction off the page where nothing scrolls', () => {
+    stubScreen()
+    hold()
+    const backdrop = document.createElement('div')
+    document.body.append(backdrop)
+    expect(swipe(backdrop, [{ dx: 1, dy: 1 }])).toEqual([false])
+  })
+
+  it('looks under the first finger, which goes on swiping after a pinch', () => {
+    stubScreen()
+    hold()
+    const backdrop = document.createElement('div')
+    document.body.append(backdrop)
+    const body = scroller({ overflowing: true }).child
+    expect(swipe(backdrop, [{ dx: 0, dy: -50 }], { first: body })).toEqual([true])
+  })
+
+  it('keeps a swipe to the direction it first went', () => {
+    stubScreen()
+    hold()
+    const row = scroller({ overflowing: true, axis: 'x' }).child
+    expect(swipe(row, [{ dx: 0, dy: 20 }, { dx: 80, dy: 20 }])).toEqual([false, false])
   })
 
   it('still zooms with two fingers', () => {

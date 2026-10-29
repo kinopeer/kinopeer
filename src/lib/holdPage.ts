@@ -3,6 +3,9 @@ import { opensKeyboard } from './keyboardInset'
 /** Where a field goes while Safari decides whether to scroll to it: far above the page's top. */
 const OUT_OF_VIEW = 'translateY(-2000px)'
 
+/** How far a finger moves before its swipe has a direction, in pixels, like a sheet's drag. */
+const SLOP = 4
+
 type Axis = 'x' | 'y'
 
 let holds = 0
@@ -47,18 +50,24 @@ function start(view: Window): () => void {
   let field: HTMLElement | null = null
 
   const onTouchStart = (event: TouchEvent) => {
+    // The first finger's, which goes on swiping after a pinch.
     const first = event.touches[0]
-    touch = first ? { x: first.clientX, y: first.clientY, target: event.target } : null
+    touch = first ? { x: first.clientX, y: first.clientY, target: first.target ?? event.target } : null
     scrolls = null
   }
   const onTouchMove = (event: TouchEvent) => {
     if (event.touches.length > 1) return
+    const first = event.touches[0]
+    // A finger that was already down when the hold began.
+    if (!touch || !first) return event.preventDefault()
     if (scrolls === null) {
-      const first = event.touches[0]
-      if (!touch || !first) return event.preventDefault()
       const dx = first.clientX - touch.x
       const dy = first.clientY - touch.y
-      if (!dx && !dy) return
+      // Too short to have a direction yet: the page moves under it only if nothing could scroll.
+      if (Math.abs(dx) < SLOP && Math.abs(dy) < SLOP) {
+        if (!scrollerOf(touch.target, 'x', view) && !scrollerOf(touch.target, 'y', view)) event.preventDefault()
+        return
+      }
       // Decided once per swipe, along the way it first went.
       scrolls = scrollerOf(touch.target, Math.abs(dx) > Math.abs(dy) ? 'x' : 'y', view) !== null
     }
