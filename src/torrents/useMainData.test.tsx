@@ -64,6 +64,23 @@ describe('useMainData', () => {
     expect(getMainData).toHaveBeenCalledTimes(2)
   })
 
+  it('polls again as soon as the poll in flight is answered when refreshed meanwhile, since that one went out before', async () => {
+    let answer: (data: api.MainData) => void = () => {}
+    getMainData.mockReturnValueOnce(new Promise((resolve) => (answer = resolve))).mockResolvedValue({ rid: 2 })
+    const { result } = renderHook(() => useMainData(vi.fn()))
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    act(() => result.current.refresh())
+    expect(getMainData).toHaveBeenCalledTimes(1)
+
+    await act(async () => answer({ rid: 1, full_update: true }))
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    // Not at the next tick, 2 s later.
+    expect(getMainData).toHaveBeenCalledTimes(2)
+    // Then back to the usual interval.
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS - 1))
+    expect(getMainData).toHaveBeenCalledTimes(2)
+  })
+
   it('says when the request behind the data was sent', async () => {
     let answer: (data: api.MainData) => void = () => {}
     getMainData.mockReturnValueOnce(new Promise((resolve) => (answer = resolve)))

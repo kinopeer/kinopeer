@@ -406,6 +406,18 @@ describe('DownloadsScreen', () => {
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })
 
+  it('drops a recheck confirmation when another torrent with the same hash replaces its torrent between two polls', async () => {
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Force recheck' }))
+    expect(screen.getByRole('alertdialog', { name: 'Recheck the files?' })).toBeInTheDocument()
+
+    const { andor, ...others } = SNAPSHOT.torrents!
+    getMainData.mockResolvedValue({ ...SNAPSHOT, torrents: { ...others, andor: { ...andor, added_on: andor.added_on! + 60 } } })
+    window.dispatchEvent(new Event('online'))
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+  })
+
   it('sets a torrent’s speed limits from the row menu, and asks qBittorrent again right away', async () => {
     vi.mocked(api.setSpeedLimits).mockResolvedValue()
     renderScreen()

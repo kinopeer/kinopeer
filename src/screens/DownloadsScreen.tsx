@@ -94,7 +94,9 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   const dismissToggleFailed = useCallback(() => setToggleFailed(false), [])
   const [deleting, setDeleting] = useState<string[] | null>(null)
   const move = useMoveTorrent({ torrents: data?.torrents, offline, refresh })
-  const [rechecking, setRechecking] = useState<string | null>(null)
+  // The torrent whose recheck confirmation is open, by when it was added: one re-added with the same
+  // hash is another torrent.
+  const [rechecking, setRechecking] = useState<{ hash: string; addedOn: number } | null>(null)
   // A recheck or reannounce qBittorrent took, said in a toast.
   const [notice, setNotice] = useState<'rechecking' | 'reannounced' | null>(null)
   const dismissNotice = useCallback(() => setNotice(null), [])
@@ -170,9 +172,10 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   const actionsTorrent = actionsFor ? data?.torrents[actionsFor] : undefined
   const deleteTorrents = (deleting ?? []).flatMap((hash) => data?.torrents[hash] ?? [])
   const retitleTorrent = retitling ? data?.torrents[retitling] : undefined
-  const recheckTorrent = rechecking ? data?.torrents[rechecking] : undefined
-  // The torrent went away while its confirmation was open (deleted elsewhere): forget it, so the
-  // confirmation doesn't open again if the same torrent is added back.
+  const recheckCandidate = rechecking ? data?.torrents[rechecking.hash] : undefined
+  const recheckTorrent = recheckCandidate?.added_on === rechecking?.addedOn ? recheckCandidate : undefined
+  // The torrent went away while its confirmation was open (deleted elsewhere) or another with the same
+  // hash replaced it: forget it, so the confirmation doesn't open again if the same torrent is back.
   if (rechecking && data && !recheckTorrent) setRechecking(null)
   const server = data?.server
   const free = freeSpace(server?.free_space_on_disk)
@@ -550,7 +553,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           }}
           onRecheck={() => {
             setActionsFor(null)
-            setRechecking(actionsTorrent.hash)
+            setRechecking({ hash: actionsTorrent.hash, addedOn: actionsTorrent.added_on })
           }}
           onSpeedLimits={() => {
             setActionsFor(null)

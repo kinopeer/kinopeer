@@ -322,6 +322,19 @@ describe('TorrentScreen', () => {
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })
 
+  it('drops a recheck confirmation when another torrent with the same hash replaces its torrent between two polls', async () => {
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Force recheck' }))
+    expect(screen.getByRole('alertdialog', { name: 'Recheck the files?' })).toBeInTheDocument()
+
+    getMainData.mockResolvedValue(snapshot({ added_on: DUNE_TORRENT.added_on + 60 }))
+    window.dispatchEvent(new Event('online'))
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+    // The screen now shows the torrent that replaced it.
+    expect(screen.getByRole('button', { name: 'More actions: Dune: Part Two' })).toBeInTheDocument()
+  })
+
   it('shows the torrent’s files', async () => {
     renderScreen()
     const files = await screen.findByRole('region', { name: /Files/ })

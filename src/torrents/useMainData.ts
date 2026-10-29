@@ -45,6 +45,9 @@ export function createMainDataStore(): MainDataStore {
   let idleTimer: ReturnType<typeof setTimeout> | undefined
   let running = false
   let inFlight = false
+  // Refreshed while a poll was in flight: that request went out before what the caller changed, so
+  // poll again as soon as it's answered.
+  let refreshed = false
   let unauthorized = false
 
   const update = (changes: Partial<MainDataSnapshot>) => {
@@ -60,6 +63,7 @@ export function createMainDataStore(): MainDataStore {
   const poll = async () => {
     if (inFlight || !running) return
     inFlight = true
+    refreshed = false
     clearTimeout(timer)
     let delay = POLL_INTERVAL_MS
     try {
@@ -80,7 +84,7 @@ export function createMainDataStore(): MainDataStore {
     } finally {
       inFlight = false
     }
-    schedule(delay)
+    schedule(refreshed ? 0 : delay)
   }
 
   const onVisibilityChange = () => {
@@ -116,7 +120,10 @@ export function createMainDataStore(): MainDataStore {
       }
     },
     getSnapshot: () => snapshot,
-    refresh: () => void poll(),
+    refresh: () => {
+      if (inFlight) refreshed = true
+      else void poll()
+    },
     setUnauthorizedHandler: (handler) => {
       onUnauthorized = handler
     },
