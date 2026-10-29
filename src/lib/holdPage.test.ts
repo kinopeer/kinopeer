@@ -62,6 +62,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   releases.forEach((release) => release())
   releases = []
   frames = []
@@ -175,13 +176,13 @@ describe('holdPage', () => {
 
     field.focus()
     nextFrame()
+    vi.advanceTimersByTime(99)
     expect(field.style.transform).toBe('translateY(-2000px)')
-    vi.advanceTimersByTime(100)
+    vi.advanceTimersByTime(1)
     expect(field.style.transform).toBe('')
-    vi.useRealTimers()
   })
 
-  it('puts a tapped field back after a frame, the keyboard open or not', () => {
+  it('puts a tapped field back after a frame with the keyboard open', () => {
     vi.stubGlobal('visualViewport', Object.assign(new EventTarget(), { height: 410 }))
     vi.stubGlobal('innerHeight', 714)
     stubScreen()
@@ -211,8 +212,38 @@ describe('holdPage', () => {
     first.focus()
     nextFrame()
     expect(first.style.transform).toBe('translateY(-2000px)')
+  })
+
+  it('takes no swipe for a tap', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
+    vi.stubGlobal('visualViewport', Object.assign(new EventTarget(), { height: 410 }))
+    vi.stubGlobal('innerHeight', 714)
+    stubScreen()
+    hold()
+    const body = scroller({ overflowing: true }).box
+    const field = document.createElement('input')
+    body.append(field)
+
+    swipe(field, [{ dx: 0, dy: -50 }])
+    field.focus()
+    nextFrame()
+    expect(field.style.transform).toBe('translateY(-2000px)')
+  })
+
+  it('leaves the box alone while the field is out of view, then scrolls it in', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
+    const viewport = Object.assign(new EventTarget(), { height: 410 })
+    vi.stubGlobal('visualViewport', viewport)
+    vi.stubGlobal('innerHeight', 714)
+    stubScreen()
+    hold()
+    const { box, field } = fieldInBody(420)
+
+    field.focus()
+    viewport.dispatchEvent(new Event('resize'))
+    expect(box.scrollTop).toBe(0)
     vi.advanceTimersByTime(100)
-    vi.useRealTimers()
+    expect(box.scrollTop).toBe(168)
   })
 
   it('puts a field focused again before that frame back where it was', () => {

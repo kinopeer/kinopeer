@@ -56,7 +56,7 @@ function start(view: Window): () => void {
   let touch: { x: number; y: number; target: EventTarget | null } | null = null
   let scrolls: boolean | null = null
   let field: HTMLElement | null = null
-  // What the last finger went down on, until a focus reads it.
+  // What the last finger went down on, until it moves off as a swipe or a focus reads it.
   let tapped: EventTarget | null = null
 
   const onTouchStart = (event: TouchEvent) => {
@@ -79,13 +79,15 @@ function start(view: Window): () => void {
         if (!scrollerOf(touch.target, 'x', view) && !scrollerOf(touch.target, 'y', view)) event.preventDefault()
         return
       }
+      tapped = null
       // Decided once per swipe, along the way it first went.
       scrolls = scrollerOf(touch.target, Math.abs(dx) > Math.abs(dy) ? 'x' : 'y', view) !== null
     }
     if (!scrolls) event.preventDefault()
   }
   const reveal = () => {
-    if (field && doc.activeElement === field) bringIntoView(field, view)
+    // Out of view, it would be measured 2000px up; the end of the hold reveals it.
+    if (field && doc.activeElement === field && field.style.transform !== OUT_OF_VIEW) bringIntoView(field, view)
   }
   const onFocus = (event: FocusEvent) => {
     const target = event.target
