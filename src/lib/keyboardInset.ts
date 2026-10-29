@@ -44,9 +44,9 @@ export function opensKeyboard(element: Element | null): boolean {
 /**
  * While the on-screen keyboard is open, keeps on <html> where the part of the page above it is:
  * `--keyboard-inset` (from the layout viewport's bottom), `--visible-top` and `--visible-height`, so
- * a sheet sits in it, and `--keyboard-open` (1), so it can keep its distance. Safari on iOS and Chrome on Android open the keyboard over the page and
- * shrink only the visual viewport, so `bottom: 0` and `100dvh` stay behind it. Returns a function
- * that stops it.
+ * a sheet sits in it, and `--keyboard-open` (1), so it can keep its distance. Safari on iOS and
+ * Chrome on Android open the keyboard over the page and shrink only the visual viewport, so
+ * `bottom: 0` and `100dvh` stay behind it. Returns a function that stops it.
  *
  * The keyboard is open only while a field has focus, and Safari reports its new size only once it
  * has slid away, so the area goes as soon as focus leaves the field, together with the keyboard.

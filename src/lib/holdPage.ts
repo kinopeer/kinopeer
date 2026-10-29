@@ -3,6 +3,8 @@ import { opensKeyboard } from './keyboardInset'
 /** Where a field goes while Safari decides whether to scroll to it: far above the page's top. */
 const OUT_OF_VIEW = 'translateY(-2000px)'
 
+type Axis = 'x' | 'y'
+
 let holds = 0
 let stop: (() => void) | null = null
 
@@ -13,12 +15,13 @@ let stop: (() => void) | null = null
  * keyboard (`trackKeyboardInset`), and a swipe that nothing in the modal scrolls pans the page. So,
  * until every hold is released:
  *
- * - a swipe that starts outside anything that scrolls, or on something that has nothing to scroll,
- *   doesn't move the page;
+ * - a swipe moves the page only through a box under the finger that has more to show along the
+ *   swipe (the sheet's body, a row of chips across); two fingers still zoom;
  * - a field that opens the keyboard moves far above the page's top for the frame in which it gets
  *   focus, so Safari scrolls nothing to show it; then it's brought into view in its own scroller
  *   (the sheet's body), once the keyboard has opened;
- * - if the page scrolls anyway, it goes back.
+ * - if the page scrolls anyway, it goes back to where it was when the hold began, so nothing may
+ *   scroll the page on purpose while a modal is open.
  *
  * Returns a function that releases this hold. Not under a mouse, like base.css.
  */
@@ -39,16 +42,27 @@ function start(view: Window): () => void {
   const doc = view.document
   const viewport = view.visualViewport
   const { scrollX, scrollY } = view
-  let scroller: Element | null = null
+  let touch: { x: number; y: number; target: EventTarget | null } | null = null
+  let scrolls: boolean | null = null
   let field: HTMLElement | null = null
 
   const onTouchStart = (event: TouchEvent) => {
-    scroller = scrollerOf(event.target, view)
+    const first = event.touches[0]
+    touch = first ? { x: first.clientX, y: first.clientY, target: event.target } : null
+    scrolls = null
   }
   const onTouchMove = (event: TouchEvent) => {
-    // `overscroll-behavior: contain` keeps a swipe to its scroller only while it has something to
-    // scroll; otherwise the swipe goes on to the page.
-    if (!scroller || !overflows(scroller)) event.preventDefault()
+    if (event.touches.length > 1) return
+    if (scrolls === null) {
+      const first = event.touches[0]
+      if (!touch || !first) return event.preventDefault()
+      const dx = first.clientX - touch.x
+      const dy = first.clientY - touch.y
+      if (!dx && !dy) return
+      // Decided once per swipe, along the way it first went.
+      scrolls = scrollerOf(touch.target, Math.abs(dx) > Math.abs(dy) ? 'x' : 'y', view) !== null
+    }
+    if (!scrolls) event.preventDefault()
   }
   const reveal = () => {
     if (field && doc.activeElement === field) bringIntoView(field, view)
@@ -57,6 +71,8 @@ function start(view: Window): () => void {
     const target = event.target
     if (!(target instanceof HTMLElement) || !opensKeyboard(target)) return
     field = target
+    // Focused again before the frame that puts it back: that frame still has its own transform.
+    if (target.style.transform === OUT_OF_VIEW) return
     const transform = target.style.transform
     target.style.transform = OUT_OF_VIEW
     view.requestAnimationFrame(() => {
@@ -81,25 +97,26 @@ function start(view: Window): () => void {
   }
 }
 
-/** The nearest element from the target up that scrolls its content, or null. */
-function scrollerOf(target: EventTarget | null, view: Window): Element | null {
+/** The nearest element from the target up that scrolls along the axis and has more to show. */
+function scrollerOf(target: EventTarget | null, axis: Axis, view: Window): Element | null {
   for (let node = target instanceof Element ? target : null; node; node = node.parentElement) {
     const { overflowX, overflowY } = view.getComputedStyle(node)
-    if (/auto|scroll/.test(overflowY) || /auto|scroll/.test(overflowX)) return node
+    if (/auto|scroll/.test(axis === 'x' ? overflowX : overflowY) && overflows(node, axis)) return node
   }
   return null
 }
 
-function overflows(element: Element): boolean {
-  return element.scrollHeight > element.clientHeight || element.scrollWidth > element.clientWidth
+function overflows(element: Element, axis: Axis): boolean {
+  return axis === 'x' ? element.scrollWidth > element.clientWidth : element.scrollHeight > element.clientHeight
 }
 
 /** Scrolls the field's own scroller, not the page, the least that shows all of the field. */
 function bringIntoView(field: HTMLElement, view: Window) {
-  const scroller = scrollerOf(field.parentElement, view)
+  const scroller = scrollerOf(field.parentElement, 'y', view)
   if (!scroller) return
   const box = scroller.getBoundingClientRect()
   const rect = field.getBoundingClientRect()
   if (rect.top < box.top) scroller.scrollTop -= box.top - rect.top
+  // A field taller than the box keeps its top in view.
   else if (rect.bottom > box.bottom) scroller.scrollTop += Math.min(rect.bottom - box.bottom, rect.top - box.top)
 }
