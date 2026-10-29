@@ -384,7 +384,8 @@ with its check and whether the rule behind it was clear ([below](#improving-the-
 verdict with the commit both reviews saw (`**Verdict: ready to merge** at <short sha>`). Every round
 is posted, whichever session runs it: a review that stays in a chat is invisible to whoever merges
 and to the retro. A PR merges only on a posted "ready to merge" at its current head; any commit
-after that verdict, a merge of `main` included, needs another round. A real bug that
+after that verdict, a merge of `main` included, needs another round, which checks only what the PR's
+own diff adds or changes. A real bug that
 `/code-review` finds in an open PR's own change is fixed in that PR, red test first, without an
 issue: it never reached `main`. The next test-review round records the missed test as a finding
 under check A. A bug that reached `main` follows

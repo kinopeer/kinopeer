@@ -146,8 +146,9 @@ for it. Hand the blocking and
 should-fix findings to the PR's author (a session or a person).
 
 **Round 2 and later**, once the author says the findings are fixed, or a commit lands after a
-**ready to merge**: check every line flagged in
-the previous round, and run all the checks on every test added or changed since then, since a test
-written to answer a finding is a new test. New findings are tagged like the first round's; one
+**ready to merge**: check every line flagged in the previous round, and run all the checks on every
+test the PR's own diff (`origin/main...HEAD`) adds or changes since then, since a test written to
+answer a finding is a new test. Tests a merge of `main` brought were reviewed in their own PRs. New
+findings are tagged like the first round's; one
 still open from an earlier round is listed as `still open (round <n>)` with no tag, so the retro
 counts it once. Repeat until the verdict is **ready to merge**.
