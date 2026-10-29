@@ -9,3 +9,9 @@
   box-shadow: var(--shadow-2);
   animation: ks-fade var(--d-fast) var(--ease);
 }
+
+/* It takes the focus only from a click on something in it that can't (Popover.tsx), never from the
+   keyboard, so a key pressed afterwards shouldn't ring the whole popover. */
+.ks-pop:focus-visible {
+  outline: none;
+}
