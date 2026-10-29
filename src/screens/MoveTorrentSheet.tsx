@@ -18,8 +18,9 @@ export interface MoveTorrentSheetProps {
   torrent: Torrent
   /** qBittorrent is unreachable: Move is off. */
   offline: boolean
-  /** The move is being sent. */
-  sending: boolean
+  /** The folder being sent for this torrent, from this sheet or one closed before it opened, which
+   *  this one then starts from. */
+  pending?: string
   /** Why qBittorrent didn't take the last folder. */
   failure?: MoveFailure
   onMove: (location: string) => void
@@ -27,11 +28,13 @@ export interface MoveTorrentSheetProps {
 }
 
 /** "Move files": a folder for a torrent's files, typed or picked from the ones qBittorrent knows. */
-export function MoveTorrentSheet({ torrent, offline, sending, failure, onMove, onClose }: MoveTorrentSheetProps) {
+export function MoveTorrentSheet({ torrent, offline, pending, failure, onMove, onClose }: MoveTorrentSheetProps) {
   const { t } = useTranslation()
   const where = useRequest('qbt|save-locations', () => getSaveLocations())
   const folders = where.data ? knownFolders(where.data) : []
-  const [location, setLocation] = useState(torrent.save_path)
+  // Opened while a move is in flight, the field shows the folder it sends, as the sheet that sent it did.
+  const [location, setLocation] = useState(pending ?? torrent.save_path)
+  const sending = pending !== undefined
   const target = location.trim()
   const unchanged = sameFolder(target) === sameFolder(torrent.save_path)
   // qBittorrent checks a relative path against its own working directory but saves under the default
@@ -68,6 +71,8 @@ export function MoveTorrentSheet({ torrent, offline, sending, failure, onMove, o
           autoCapitalize="off"
           autoCorrect="off"
           spellCheck={false}
+          // What's typed while the move is sent would be lost when it closes the sheet.
+          readOnly={sending}
           onChange={(event) => setLocation(event.target.value)}
         />
         {folders.length > 0 && (
@@ -75,7 +80,12 @@ export function MoveTorrentSheet({ torrent, offline, sending, failure, onMove, o
             <span className="ks-label">{t('move.known')}</span>
             <div className="move-chips">
               {folders.map((folder) => (
-                <FilterChip key={folder} selected={sameFolder(folder) === sameFolder(target)} onClick={() => setLocation(folder)}>
+                <FilterChip
+                  key={folder}
+                  selected={sameFolder(folder) === sameFolder(target)}
+                  disabled={sending}
+                  onClick={() => setLocation(folder)}
+                >
                   {folder}
                 </FilterChip>
               ))}

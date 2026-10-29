@@ -28,33 +28,21 @@ export function useSpeedLimits({ torrents, offline, refresh, titleOf }: {
   titleOf: (torrent: Torrent) => string
 }): SpeedLimits {
   const { t } = useTranslation()
-  const { torrent, open: openSheet, close, pending, send } = useTorrentSheet<SpeedLimitsChange>(torrents)
-  // The limits the last failed save sent, for the torrent whose sheet shows it.
-  const [failure, setFailure] = useState<{ hash: string; sent: SpeedLimitsChange } | null>(null)
+  const { torrent, open, close, pending, failure, send } = useTorrentSheet<SpeedLimitsChange>(torrents)
   // A save that failed after its sheet was closed; each one a toast of its own, though the title is
   // the same as the last one's.
   const [failedFor, setFailedFor] = useState<{ title: string; id: number } | null>(null)
   const failures = useRef(0)
 
-  const open = useCallback(
-    (hash: string) => {
-      openSheet(hash)
-      setFailure(null)
-    },
-    [openSheet],
-  )
   const dismiss = useCallback(() => setFailedFor(null), [])
 
   const save = async (target: Torrent, limits: SpeedLimitsChange) => {
-    setFailure(null)
     const settled = await send(target, limits, () => setSpeedLimits([target.hash], limits))
     // Either way, show what qBittorrent took: after a failure one of the two may have gone through.
     refresh()
     if (settled.ok) {
       if (settled.showing) close()
-    } else if (settled.showing) {
-      setFailure({ hash: target.hash, sent: limits })
-    } else {
+    } else if (!settled.showing) {
       failures.current += 1
       setFailedFor({ title: titleOf(target), id: failures.current })
     }
@@ -69,7 +57,7 @@ export function useSpeedLimits({ torrents, offline, refresh, titleOf }: {
           title={titleOf(torrent)}
           offline={offline}
           pending={pending(torrent.hash)}
-          failure={failure?.hash === torrent.hash ? failure.sent : undefined}
+          failure={failure?.sent}
           onSave={(limits) => void save(torrent, limits)}
           onClose={close}
         />

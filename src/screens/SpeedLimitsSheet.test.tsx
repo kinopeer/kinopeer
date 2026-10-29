@@ -50,6 +50,15 @@ describe('SpeedLimitsSheet', () => {
     expect(handlers.onSave).not.toHaveBeenCalled()
   })
 
+  it('keeps the fields as they are while the limits are being saved, since what’s typed then would be lost', async () => {
+    renderSheet({}, { pending: { download: 3_000_000 } })
+    const field = screen.getByRole('textbox', { name: 'Download limit, MB/s' })
+    await userEvent.type(field, '5')
+    expect(field).toHaveValue('3')
+    await userEvent.type(screen.getByRole('textbox', { name: 'Upload limit, MB/s' }), '5')
+    expect(screen.getByRole('textbox', { name: 'Upload limit, MB/s' })).toHaveValue('')
+  })
+
   it('sends again the limits a failed save sent, so one that did go through can be put back', async () => {
     // The download limit was 1 MB/s; a save sent 2 and 3 MB/s and failed, maybe after taking one.
     const handlers = renderSheet({ dl_limit: 1_000_000 }, { failure: { download: 2_000_000, upload: 3_000_000 } })

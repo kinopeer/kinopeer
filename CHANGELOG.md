@@ -7,6 +7,8 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 ### Fixed
 
 - Phone: the on-screen keyboard no longer covers a sheet's fields (Speed limits, Move files, Change title), as it did in Safari on iOS: the sheet moves up with the keyboard and fits in what it leaves visible, and Save in Speed limits stays pinned at its bottom, as Move does in Move files.
+- Move files: opened again while a move is still being sent, the sheet shows the folder being sent, not the torrent's current one, so trying again after a failure sends that folder.
+- Move files, Speed limits: the fields can't be changed while a move or save is being sent; what was typed then was lost when the sheet closed.
 - Phone: with the keyboard open, swiping a sheet or moving between its fields no longer scrolls the page behind it in Safari on iOS, so the sheet doesn't jerk either; the sheet also keeps a small gap above the keyboard.
 
 ## 0.6.0 - 2026-10-29
