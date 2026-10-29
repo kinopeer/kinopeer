@@ -40,10 +40,12 @@ interface ConnectionRowProps {
   /** Accessible name of the edit button, shown only with `onEdit`. */
   editLabel?: string
   onEdit?: () => void
+  /** Called on Test as well, for what else the screen loads from this service. */
+  onTest?: () => void
 }
 
 /** One service's connection: checked when the screen opens and again, on its own, on Test. */
-function ConnectionRow({ name, icon, check, editLabel, onEdit }: ConnectionRowProps) {
+function ConnectionRow({ name, icon, check, editLabel, onEdit, onTest }: ConnectionRowProps) {
   const { t, i18n } = useTranslation()
   const result = useRequest(`${name}|${i18n.language}`, check)
   const state = result.loading ? 'loading' : result.error !== undefined ? 'error' : 'ok'
@@ -67,7 +69,15 @@ function ConnectionRow({ name, icon, check, editLabel, onEdit }: ConnectionRowPr
         </span>
       </span>
       {onEdit && editLabel && <IconButton icon="key" label={editLabel} onClick={onEdit} />}
-      <Button variant="secondary" size="sm" disabled={state === 'loading'} onClick={result.retry}>
+      <Button
+        variant="secondary"
+        size="sm"
+        disabled={state === 'loading'}
+        onClick={() => {
+          result.retry()
+          onTest?.()
+        }}
+      >
         {t('settings.test')}
       </Button>
     </li>
@@ -234,7 +244,13 @@ export function SettingsScreen() {
 
       <Section id="settings-connections" title={t('settings.connections')}>
         <ul className="settings-conns">
-          <ConnectionRow name="qBittorrent" icon="server" check={checkQbittorrent} />
+          {/* Test loads the categories again only when they failed, so loaded selects don't empty for a moment. */}
+          <ConnectionRow
+            name="qBittorrent"
+            icon="server"
+            check={checkQbittorrent}
+            onTest={categories.error !== undefined ? categories.retry : undefined}
+          />
           {/* A new key remounts the row, so it checks again. */}
           <ConnectionRow
             key={`prowlarr-${prowlarrKeyVersion}`}

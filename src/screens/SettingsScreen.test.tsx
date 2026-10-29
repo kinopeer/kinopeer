@@ -105,7 +105,8 @@ describe('SettingsScreen', () => {
     { name: 'Prowlarr', called: [prowlarr.getProwlarrStatus], ok: 'Connected · 2 indexers · v1.24.3' },
     { name: 'TMDB', called: [tmdb.checkTmdb], ok: 'Connected' },
   ])('checks only $name again on its Test', async ({ name, called, ok }) => {
-    const checks = [qbt.getAppVersion, qbt.getApiVersion, prowlarr.getProwlarrStatus, tmdb.checkTmdb]
+    // Loaded categories aren't asked again either, so the selects don't empty for a moment.
+    const checks = [qbt.getAppVersion, qbt.getApiVersion, qbt.getCategories, prowlarr.getProwlarrStatus, tmdb.checkTmdb]
     renderScreen()
     for (const row of ['qBittorrent', 'Prowlarr', 'TMDB']) {
       expect(await within(connection(row)).findByRole('status', { name: saying(/^Connected/) })).toBeInTheDocument()
@@ -235,6 +236,22 @@ describe('SettingsScreen', () => {
     await userEvent.click(screen.getByRole('switch', { name: 'First and last pieces first' }))
     expect(getSettings()).toMatchObject({ movieCategory: 'Anime', startPaused: true, sequential: false, firstLastPieces: true })
     expect(screen.getByText(/the same on every device/)).toBeInTheDocument()
+  })
+
+  it('loads the categories when Test finds qBittorrent back', async () => {
+    vi.mocked(qbt.getAppVersion).mockRejectedValue(new Error('offline'))
+    vi.mocked(qbt.getCategories).mockRejectedValue(new Error('offline'))
+    renderScreen()
+    expect(await within(connection('qBittorrent')).findByRole('status', { name: saying('No answer from qBittorrent') })).toBeInTheDocument()
+    const movies = screen.getByRole('combobox', { name: 'Movies category' })
+    await waitFor(() => expect(qbt.getCategories).toHaveBeenCalled())
+    expect(movies).toBeDisabled()
+
+    vi.mocked(qbt.getAppVersion).mockResolvedValue('v5.3.0')
+    vi.mocked(qbt.getCategories).mockResolvedValue([{ name: 'Movies', savePath: '/data/movies' }])
+    await userEvent.click(within(connection('qBittorrent')).getByRole('button', { name: 'Test' }))
+    expect(await within(movies).findByRole('option', { name: 'Automatic (Movies)' })).toBeInTheDocument()
+    expect(movies).toBeEnabled()
   })
 
   it("shows the download defaults the server keeps, set on another device", async () => {
