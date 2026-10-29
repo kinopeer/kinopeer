@@ -64,6 +64,16 @@ The image is public, so Umbrel can pull it without a login; the code repository 
 
 The package lives in [umbrel-homelab-store](https://github.com/MrShakhov/umbrel-homelab-store), in `homelab-kinoseed/`. It sets the qBittorrent and Prowlarr addresses and the default qBittorrent login, and mounts Prowlarr's config folder read-only. After a release, bump `version` and `releaseNotes` in `umbrel-app.yml` and the image tag and digest (from the GitHub Release) in `docker-compose.yml`. Umbrel then offers the update.
 
+## Edge builds
+
+Kinoseed Edge is `main` running on the owner's Umbrel next to the released app, so changes get used day to day before a release. The `Edge` workflow (`.github/workflows/edge.yml`) runs on every push to `main` that changes what goes into the image (not docs, tests or `e2e/`), and only the newest of several pushes in a row is built:
+
+1. It builds `ghcr.io/mrshakhov/kinoseed` for `linux/arm64` only (the Raspberry Pi), tagged `edge` and `sha-<commit>`. The build passes `KINOSEED_COMMIT`, so Settings → About and bug reports show the version with the commit, `0.6.0+abc1234`; release images leave it out.
+2. It commits to the edge store, [umbrel-homelab-edge](https://github.com/MrShakhov/umbrel-homelab-edge) (store id `homelab-edge`, app `homelab-edge-kinoseed`, port 8796): the image by tag and digest in `docker-compose.yml`, and in `umbrel-app.yml` that version and the commit subjects since the previous edge build as release notes. It pushes with a deploy key that can write to that repository only, kept in the `EDGE_STORE_DEPLOY_KEY` secret.
+3. umbrelOS checks community stores every 5 minutes and offers an update whenever the version differs from the installed one; the owner installs it from the App Store.
+
+Nothing in the edge store is edited by hand. Its package is the released one's with another id, name and port: it keeps its own settings and torrent-to-title matches, and works with the same qBittorrent and Prowlarr, so what it does to torrents is real. To build a commit again, run the workflow from the Actions tab (`workflow_dispatch`).
+
 ## Design
 
 The canvas with every screen and the design system live in Claude Design (links in CLAUDE.md). Colors, type and spacing come from the design system's tokens. The canvas is a reference as of 0.4.0 and is no longer kept in sync; the app is the reference for screens.

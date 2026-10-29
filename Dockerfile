@@ -7,6 +7,8 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
+# Edge builds pass the short commit, which Settings → About shows after the version (vite.config.ts).
+ARG KINOSEED_COMMIT=""
 RUN npm run build && rm server/*.test.ts
 
 # Runtime: Node runs server/*.ts directly (type stripping), so no node_modules are needed.

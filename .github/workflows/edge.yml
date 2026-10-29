@@ -1,0 +1,95 @@
+name: Edge
+
+# Every push to main builds ghcr.io/mrshakhov/kinoseed:edge for the Raspberry Pi and points the
+# Kinoseed Edge app in the edge store at it, so umbrelOS offers it as an update within minutes
+# (docs/DEVELOPMENT.md → Edge builds).
+on:
+  push:
+    branches: [main]
+    # None of these end up in the image.
+    paths-ignore: ['docs/**', '**/*.md', 'e2e/**', '**/*.test.ts', '**/*.test.tsx', '.claude/**']
+  workflow_dispatch:
+
+# Squash merges often land in a row: only the newest one is built.
+concurrency:
+  group: edge
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/mrshakhov/kinoseed
+  STORE: MrShakhov/umbrel-homelab-edge
+  APP: homelab-edge-kinoseed
+
+jobs:
+  edge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The release notes list the commits since the build the store points at.
+          fetch-depth: 0
+
+      - name: Name the build
+        run: |
+          commit="$(git rev-parse --short=7 HEAD)"
+          echo "COMMIT=$commit" >> "$GITHUB_ENV"
+          echo "VERSION=$(node -p "require('./package.json').version")+$commit" >> "$GITHUB_ENV"
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: build
+        name: Build and push the image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          # The home server is a Raspberry Pi; release images are built for amd64 too.
+          platforms: linux/arm64
+          push: true
+          build-args: KINOSEED_COMMIT=${{ env.COMMIT }}
+          tags: |
+            ${{ env.IMAGE }}:edge
+            ${{ env.IMAGE }}:sha-${{ env.COMMIT }}
+          cache-from: type=gha,scope=edge
+          cache-to: type=gha,scope=edge,mode=max
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.STORE }}
+          # A deploy key with write access to the edge store only.
+          ssh-key: ${{ secrets.EDGE_STORE_DEPLOY_KEY }}
+          path: store
+
+      - name: Point Kinoseed Edge at the new image
+        working-directory: store/${{ env.APP }}
+        env:
+          IMAGE_REF: ${{ env.IMAGE }}:sha-${{ env.COMMIT }}@${{ steps.build.outputs.digest }}
+        run: |
+          # umbrelOS offers an update whenever the version differs from the installed one.
+          if [ "$(yq '.version' umbrel-app.yml)" = "$VERSION" ]; then
+            echo "The edge store already points at $VERSION."
+            exit 0
+          fi
+          previous="$(yq '.version' umbrel-app.yml | sed -n 's/.*+//p')"
+          if [ -n "$previous" ] && git -C "$GITHUB_WORKSPACE" cat-file -e "$previous^{commit}" 2>/dev/null; then
+            range="$previous..HEAD"
+          else
+            range="-1"
+          fi
+          NOTES="$(git -C "$GITHUB_WORKSPACE" log --format='- %s' "$range")"
+          export NOTES
+          yq -i '.version = strenv(VERSION) | .releaseNotes = strenv(NOTES)' umbrel-app.yml
+          yq -i '.services.web.image = strenv(IMAGE_REF)' docker-compose.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -am "Kinoseed Edge $VERSION"
+          git push

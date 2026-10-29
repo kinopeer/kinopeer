@@ -61,8 +61,9 @@ export default defineConfig(({ mode }) => {
   void stores.settings.load()
 
   return {
-    // Shown in Settings → About (src/version.d.ts).
-    define: { __APP_VERSION__: JSON.stringify(version) },
+    // Shown in Settings → About (src/version.d.ts). Edge builds of main (.github/workflows/edge.yml)
+    // pass the commit, so the version says which one is running: 0.6.0+abc1234.
+    define: { __APP_VERSION__: JSON.stringify(env.KINOSEED_COMMIT ? `${version}+${env.KINOSEED_COMMIT}` : version) },
     plugins: [
       react(),
       pwa,
