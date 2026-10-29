@@ -10,6 +10,8 @@ async function openSettings(page: Page, options: AppOptions = {}, connected = 3)
   await openApp(page, '/settings', options)
   // Every connection check has answered.
   await expect(page.getByRole('status').filter({ hasText: /^Подключено/ })).toHaveCount(connected)
+  // The categories, asked once qBittorrent's check passes.
+  await expect(page.getByRole('combobox', { name: 'Категория фильмов' })).toBeEnabled()
   await showWholePage(page)
 }
 

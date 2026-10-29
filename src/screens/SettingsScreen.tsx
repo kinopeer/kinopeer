@@ -146,7 +146,10 @@ export function SettingsScreen() {
   const [keySaved, setKeySaved] = useState<'tmdb' | 'prowlarr' | 'prowlarr-forgotten' | null>(null)
   const dismissKeySaved = useCallback(() => setKeySaved(null), [])
   const dismissCleared = useCallback(() => setCleared(false), [])
-  const categories = useRequest('qbt|categories', () => getCategories())
+  // Asked after each passing qBittorrent check (on opening, on Test, in a new language) while
+  // they're missing, so a check that finds it back loads them, and loaded selects don't empty on Test.
+  const [categoriesLoad, setCategoriesLoad] = useState(0)
+  const categories = useRequest(categoriesLoad === 0 ? null : `qbt|categories|${categoriesLoad}`, () => getCategories())
   // Loaded once; a saved or forgotten key answers with the new settings, which replace it.
   const serverLoad = useRequest('server|settings', (signal) => getServerSettings(signal))
   const [serverChanged, setServerChanged] = useState<ServerSettings | null>(null)
@@ -156,6 +159,7 @@ export function SettingsScreen() {
   const checkQbittorrent = async () => {
     try {
       const [app, api] = await Promise.all([getAppVersion(), getApiVersion()])
+      if (categories.data === undefined) setCategoriesLoad((n) => n + 1)
       return t('settings.qbtOk', { version: app, api })
     } catch {
       throw new Error(t('settings.qbtError'))
