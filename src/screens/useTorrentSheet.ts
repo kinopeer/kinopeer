@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { Torrent } from '../api/qbittorrent'
+import { requestKey, type Settled } from '../torrents/torrentRequests'
+import { useTorrentRequests } from '../torrents/useTorrentRequests'
 import { useTorrentOverlay } from './useTorrentOverlay'
 
-/** How a request settled, and whether a sheet still showed its torrent then (else the outcome is
- *  said elsewhere, in a toast). */
-export type Settled = { showing: boolean } & ({ ok: true } | { ok: false; error: unknown })
+export type { Settled } from '../torrents/torrentRequests'
 
 export interface TorrentSheet<Payload> {
   /** The torrent the sheet shows, while it's open and its torrent is among the screen's. */
@@ -12,31 +12,32 @@ export interface TorrentSheet<Payload> {
   /** Opens the sheet for a torrent among the screen's. */
   open: (hash: string) => void
   close: () => void
-  /** What's being sent for a torrent, while it is: a sheet for it, opened again or not, shows it busy. */
+  /** What's being sent for a torrent, while it is, from any screen: a sheet for it shows it busy. */
   pending: (hash: string) => Payload | undefined
   /** The last request for the sheet's torrent failed while a sheet showed it: what it sent and why.
    *  Gone when a sheet opens or sends again. */
   failure: { sent: Payload; error: unknown } | undefined
-  /** Sends a request for a torrent, which outlives the sheet, and says how it settled. */
-  send: (target: Torrent, payload: Payload, request: () => Promise<void>) => Promise<Settled>
+  /**
+   * Sends a request for a torrent, which outlives the sheet, and says how it settled; nothing when
+   * one of this kind is already in flight for it.
+   */
+  send: (target: Torrent, payload: Payload, request: () => Promise<void>) => Promise<Settled | undefined>
 }
 
 /**
- * A screen's sheet for one of its torrents (Move files, Speed limits) and the requests it sends. The
- * sheet closes when its torrent goes away or another torrent with the same hash replaces it, and
- * stays closed when that torrent comes back (`useTorrentOverlay`). A request outlives the sheet: each torrent's stays
- * pending until it settles, and then says whether a sheet still shows that torrent (the one that
- * sent it or one opened since), so the feature knows where to say how it went. A failure a sheet
- * shows stays here, for the sheet to say.
+ * A screen's sheet of one kind (Move files, Speed limits) for one of its torrents, and the requests it
+ * sends. The sheet closes when its torrent goes away or another torrent with the same hash replaces
+ * it, and stays closed when that torrent comes back (`useTorrentOverlay`). The requests are the app's
+ * (`useTorrentRequests`), shared with the same kind of sheet on other screens: one per torrent at a
+ * time, shown busy in any sheet for it, and when it settles every sheet that shows the torrent then
+ * (the one that sent it, one opened again since, one on another screen) closes, or keeps the failure
+ * to say it. `send` says whether one did, so the feature knows to say it elsewhere otherwise.
  */
-export function useTorrentSheet<Payload>(torrents: Record<string, Torrent> | undefined): TorrentSheet<Payload> {
+export function useTorrentSheet<Payload>(kind: string, torrents: Record<string, Torrent> | undefined): TorrentSheet<Payload> {
   const overlay = useTorrentOverlay(torrents)
   const { torrent } = overlay
-  // What's being sent, by torrent: one request per torrent at a time, whichever sheet sent it. By hash
-  // alone, not when it was added: qBittorrent applies a request to the hash, so one still in flight
-  // for a torrent deleted and added again goes to the new one, and its sheet shows it busy rather
-  // than letting it go out twice.
-  const [inFlight, setInFlight] = useState<ReadonlyMap<string, Payload>>(() => new Map())
+  const requests = useTorrentRequests()
+  const inFlight = useSyncExternalStore(requests.subscribe, requests.getSnapshot)
   // The torrent the sheet shows, read when a request settles: set right away by open and close, which
   // may run outside an event React renders at once (a sheet dragged away closes when its animation
   // ends), and as each render commits, for a torrent that went away meanwhile.
@@ -44,13 +45,6 @@ export function useTorrentSheet<Payload>(torrents: Record<string, Torrent> | und
   useLayoutEffect(() => {
     shown.current = torrent
   })
-  // A screen that's gone shows no sheet: a request that settles after it says so elsewhere.
-  useEffect(
-    () => () => {
-      shown.current = undefined
-    },
-    [],
-  )
   // Kept only while a sheet shows the request's torrent, and cleared by open: always the shown torrent's.
   const [failed, setFailed] = useState<{ sent: Payload; error: unknown } | null>(null)
 
@@ -68,27 +62,27 @@ export function useTorrentSheet<Payload>(torrents: Record<string, Torrent> | und
     shown.current = undefined
     closeOverlay()
   }, [closeOverlay])
-  const showing = (target: Torrent) =>
-    shown.current?.hash === target.hash && shown.current.added_on === target.added_on
-  const pending = (hash: string) => inFlight.get(hash)
 
-  const send = async (target: Torrent, payload: Payload, request: () => Promise<void>): Promise<Settled> => {
-    setInFlight((current) => new Map(current).set(target.hash, payload))
-    setFailed(null)
-    try {
-      await request()
-      return { ok: true, showing: showing(target) }
-    } catch (error) {
-      if (!showing(target)) return { ok: false, error, showing: false }
-      setFailed({ sent: payload, error })
-      return { ok: false, error, showing: true }
-    } finally {
-      setInFlight((current) => {
-        const next = new Map(current)
-        next.delete(target.hash)
-        return next
-      })
+  // While the screen is here, it hears how each request of its kind settled, whichever screen sent it.
+  useEffect(() => {
+    const stop = requests.watch(kind, {
+      shows: (target) => shown.current?.hash === target.hash && shown.current.added_on === target.added_on,
+      settled: (outcome, sent) => {
+        if (outcome.ok) close()
+        else setFailed({ sent: sent as Payload, error: outcome.error })
+      },
+    })
+    return () => {
+      stop()
+      // A screen that's gone shows no sheet: a request that settles after it says so elsewhere.
+      shown.current = undefined
     }
+  }, [requests, kind, close])
+
+  const pending = (hash: string) => inFlight.get(requestKey(kind, hash)) as Payload | undefined
+  const send = (target: Torrent, payload: Payload, request: () => Promise<void>) => {
+    setFailed(null)
+    return requests.send(kind, target, payload, request)
   }
   return { torrent, open, close, pending, failure: failed ?? undefined, send }
 }

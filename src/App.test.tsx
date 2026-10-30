@@ -357,7 +357,8 @@ describe('App', () => {
     expect(screen.queryByRole('heading', { name: 'Downloads' })).not.toBeInTheDocument()
   })
 
-  it('says how a move went after the torrent’s screen was left while it was being sent', async () => {
+  /** One torrent in qBittorrent, and its folders, for the move steps below. */
+  const givenDuneToMove = () => {
     getMainData.mockResolvedValue({
       rid: 1,
       full_update: true,
@@ -367,6 +368,10 @@ describe('App', () => {
       server_state: {},
     })
     vi.mocked(api.getSaveLocations).mockResolvedValue({ defaultPath: '/downloads', categories: [], categoryPaths: false, subcategories: false })
+  }
+
+  it('says how a move went after the torrent’s screen was left while it was being sent', async () => {
+    givenDuneToMove()
     let fail = (_error: unknown) => {}
     vi.mocked(api.setTorrentLocation).mockReturnValue(new Promise<void>((_resolve, reject) => (fail = reject)))
     renderApp('/torrent/dune')
@@ -382,6 +387,29 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Downloads' })).toBeInTheDocument()
     fail(new api.QbittorrentError('conflict', 409))
     expect(await screen.findByRole('status', { name: saying('qBittorrent couldn’t create that folder.') })).toBeInTheDocument()
+  })
+
+  it('shows a move sent from the torrent’s screen busy in Downloads’ sheet for that torrent, so it isn’t sent twice', async () => {
+    givenDuneToMove()
+    vi.mocked(api.setTorrentLocation).mockReturnValue(new Promise<void>(() => {}))
+    renderApp('/torrent/dune')
+    await userEvent.click(await screen.findByRole('button', { name: /^More actions/ }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Move files…' }))
+    const sheet = screen.getByRole('dialog', { name: 'Move files' })
+    const field = within(sheet).getByRole('textbox', { name: 'Folder' })
+    await userEvent.clear(field)
+    await userEvent.type(field, '/media/new')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Move' }))
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Cancel' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }))
+
+    // Downloads, another screen, shares the move through App's requests.
+    await userEvent.click(await screen.findByRole('button', { name: /^More actions/ }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Move files…' }))
+    const again = screen.getByRole('dialog', { name: 'Move files' })
+    expect(within(again).getByRole('textbox', { name: 'Folder' })).toHaveValue('/media/new')
+    expect(within(again).getByRole('button', { name: /Move/ })).toBeDisabled()
+    expect(api.setTorrentLocation).toHaveBeenCalledOnce()
   })
 
   it('asks for the TMDB key when the server has none, then goes in', async () => {

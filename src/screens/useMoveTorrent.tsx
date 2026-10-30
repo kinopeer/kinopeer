@@ -34,14 +34,15 @@ export function useMoveTorrent({ torrents, offline, refresh }: {
   /** After qBittorrent took the folder, so the screen shows it right away. */
   refresh: () => void
 }): MoveTorrent {
-  const { torrent, open, close, pending, failure, send } = useTorrentSheet<string>(torrents)
+  const { torrent, open, close, pending, failure, send } = useTorrentSheet<string>('move', torrents)
   const { t } = useTranslation()
   const toast = useToast()
 
   const move = async (target: Torrent, location: string) => {
     const settled = await send(target, location, () => setTorrentLocation([target.hash], location))
+    if (!settled) return
+    // A sheet that shows the torrent closed on its own, or kept the failure to say it.
     if (settled.ok) {
-      if (settled.showing) close()
       toast.show(t('move.moved', { location }), { icon: 'folder' })
       refresh()
     } else if (!settled.showing) {
