@@ -384,6 +384,37 @@ describe('App', () => {
     expect(await screen.findByRole('status', { name: saying('qBittorrent couldn’t create that folder.') })).toBeInTheDocument()
   })
 
+  it('shows a move sent from the torrent’s screen busy in Downloads’ sheet for that torrent, so it isn’t sent twice', async () => {
+    getMainData.mockResolvedValue({
+      rid: 1,
+      full_update: true,
+      torrents: {
+        dune: { name: 'Dune.2021.1080p', state: 'downloading', progress: 0.5, size: 1e9, priority: 1, ratio: 0, save_path: '/downloads', added_on: 1 },
+      },
+      server_state: {},
+    })
+    vi.mocked(api.getSaveLocations).mockResolvedValue({ defaultPath: '/downloads', categories: [], categoryPaths: false, subcategories: false })
+    vi.mocked(api.setTorrentLocation).mockReturnValue(new Promise<void>(() => {}))
+    renderApp('/torrent/dune')
+    await userEvent.click(await screen.findByRole('button', { name: /^More actions/ }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Move files…' }))
+    const sheet = screen.getByRole('dialog', { name: 'Move files' })
+    const field = within(sheet).getByRole('textbox', { name: 'Folder' })
+    await userEvent.clear(field)
+    await userEvent.type(field, '/media/new')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Move' }))
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Cancel' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }))
+
+    // Downloads, another screen, shares the move through App's requests.
+    await userEvent.click(await screen.findByRole('button', { name: /^More actions/ }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Move files…' }))
+    const again = screen.getByRole('dialog', { name: 'Move files' })
+    expect(within(again).getByRole('textbox', { name: 'Folder' })).toHaveValue('/media/new')
+    expect(within(again).getByRole('button', { name: /Move/ })).toBeDisabled()
+    expect(api.setTorrentLocation).toHaveBeenCalledOnce()
+  })
+
   it('asks for the TMDB key when the server has none, then goes in', async () => {
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ tmdb: { configured: false, source: null }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
     vi.mocked(serverSettings.saveTmdbKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved' }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null })

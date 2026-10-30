@@ -81,6 +81,7 @@ export function createTorrentRequests(): TorrentRequests {
       watchers.set(kind, ofKind.add(watcher))
       return () => {
         ofKind.delete(watcher)
+        if (ofKind.size === 0) watchers.delete(kind)
       }
     },
   }
