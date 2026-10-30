@@ -11,8 +11,8 @@ export type Settled = Outcome & { showing: boolean }
 export interface RequestWatcher {
   /** Whether it shows this torrent now, asked when a request for it settles. */
   shows: (target: Torrent) => boolean
-  /** A request for the torrent it shows settled, having sent `sent`. */
-  settled: (outcome: Outcome, sent: unknown) => void
+  /** A request for the torrent it shows settled, having sent `sent` for `targets`. */
+  settled: (outcome: Outcome, sent: unknown, targets: readonly Torrent[]) => void
 }
 
 /** What's in flight, by `requestKey`. Replaced, never changed, so it can be a snapshot. */
@@ -139,7 +139,7 @@ export function createTorrentRequests(poll?: RequestsPoll): TorrentRequests {
       // Asked before any is told, since a watcher told may stop showing the torrent (a sheet closes).
       const ofKind = [...(watchers.get(kind) ?? [])]
       const showing = targets.map((item) => ofKind.filter((watcher) => watcher.shows(item)))
-      new Set(showing.flat()).forEach((watcher) => watcher.settled(outcome, payload))
+      new Set(showing.flat()).forEach((watcher) => watcher.settled(outcome, payload, targets))
       return { ...outcome, showing: showing.every((shownBy) => shownBy.length > 0) }
     },
     watch(kind, watcher) {

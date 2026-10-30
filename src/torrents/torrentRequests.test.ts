@@ -63,7 +63,7 @@ describe('createTorrentRequests', () => {
     const sent = requests.send('move', DUNE, '/media', () => move.promise)
     move.reject('409')
     expect(await sent).toEqual({ ok: false, error: '409', showing: true })
-    expect(drawer.settled).toHaveBeenCalledWith({ ok: false, error: '409' }, '/media')
+    expect(drawer.settled).toHaveBeenCalledWith({ ok: false, error: '409' }, '/media', [DUNE])
     expect(downloads.settled).not.toHaveBeenCalled()
     expect(limits.settled).not.toHaveBeenCalled()
   })

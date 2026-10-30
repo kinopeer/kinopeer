@@ -84,11 +84,11 @@ describe('usePauseResume', () => {
       wrapper: Providers,
     })
     expect(await act(() => result.current.row.toggle(DUNE))).toMatchObject({ ok: false, showing: true })
-    expect(settled).toHaveBeenLastCalledWith({ ok: false, error: expect.any(TypeError) })
+    expect(settled).toHaveBeenLastCalledWith({ ok: false, error: expect.any(TypeError) }, [DUNE])
     expect(screen.queryByRole('status', { name: saying(FAILED) })).not.toBeInTheDocument()
 
     await act(() => result.current.row.toggle(DUNE))
-    expect(settled).toHaveBeenLastCalledWith({ ok: true })
+    expect(settled).toHaveBeenLastCalledWith({ ok: true }, [DUNE])
     // Not another torrent that took its hash.
     await act(() => result.current.row.toggle({ ...DUNE, added_on: 9 }))
     expect(settled).toHaveBeenCalledTimes(2)

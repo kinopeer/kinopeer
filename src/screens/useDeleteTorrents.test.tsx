@@ -97,7 +97,7 @@ describe('useDeleteTorrents', () => {
     expect(screen.getByRole('status', { name: 'Gone' })).toHaveTextContent('dune,alien')
   })
 
-  it('tells the screen that sent it while it’s there, and only says so once it’s gone', async () => {
+  it('only says so, without telling the screen, once the screen that sent it is gone', async () => {
     let answer = () => {}
     deleteTorrents.mockReturnValueOnce(new Promise((resolve) => (answer = resolve))).mockResolvedValueOnce()
     const { open, onDeleted, leaveDownloads } = renderScreens()
@@ -135,14 +135,30 @@ describe('useDeleteTorrents', () => {
     expect(button).toHaveAttribute('aria-busy', 'true')
     expect(deleteTorrents).toHaveBeenCalledOnce()
 
-    // The confirmation that shows the torrent then closes, wherever the delete was sent from.
+    // Then the confirmation keeps only what's left, wherever the delete was sent from.
     answer()
     expect(await screen.findByRole('status', { name: saying('Torrent deleted') })).toBeInTheDocument()
+    expect(selection).toBeInTheDocument()
+    expect(selection).toHaveAccessibleName('Delete torrent?')
+    expect(selection).toHaveTextContent('“Alien.1979.1080p” will be removed from qBittorrent.')
+    expect(within(selection).getByRole('button', { name: 'Delete' })).toBeEnabled()
+  })
+
+  it('closes a confirmation once a delete sent from elsewhere took all it shows', async () => {
+    let answer = () => {}
+    deleteTorrents.mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    const { open } = renderScreens()
+    const selection = await open('Selection')
+    await confirmIn(selection)
+    await userEvent.click(within(selection).getByRole('button', { name: 'Cancel' }))
+    await open('Downloads')
+    answer()
+    expect(await screen.findByRole('status', { name: saying('2 torrents deleted') })).toBeInTheDocument()
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })
 
-  it('keeps a failure in the confirmation that shows the torrents, not in a toast as well, and forgets nothing', async () => {
-    deleteTorrents.mockRejectedValue(new TypeError('Failed to fetch'))
+  it('keeps a failure in the confirmation that shows the torrents, not in a toast as well, until it’s tried again', async () => {
+    deleteTorrents.mockRejectedValueOnce(new TypeError('Failed to fetch')).mockReturnValueOnce(new Promise(() => {}))
     const { open } = renderScreens()
     const dialog = await open('Selection')
     await confirmIn(dialog)
@@ -151,6 +167,10 @@ describe('useDeleteTorrents', () => {
     expect(screen.queryByRole('status', { name: saying(FAILED) })).not.toBeInTheDocument()
     expect(forgetMatches).not.toHaveBeenCalled()
     expect(screen.getByRole('status', { name: 'Gone' })).toHaveTextContent(/^$/)
+
+    await confirmIn(dialog)
+    expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Delete' })).toHaveAttribute('aria-busy', 'true')
   })
 
   it('says a failure in a toast once its confirmation closed, which the next try takes back', async () => {

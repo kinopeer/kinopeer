@@ -15,3 +15,5 @@ export const REQUEST_KINDS = {
   /** Deleting torrents, with their files or without: its confirmation. */
   delete: 'delete',
 } as const
+
+export type RequestKind = (typeof REQUEST_KINDS)[keyof typeof REQUEST_KINDS]

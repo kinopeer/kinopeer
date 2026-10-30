@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { Torrent } from '../api/qbittorrent'
+import type { RequestKind } from '../torrents/requestKinds'
 import { requestKey, type SendOptions, type Settled } from '../torrents/torrentRequests'
 import { useTorrentRequests } from '../torrents/useTorrentRequests'
 import { useTorrentOverlay } from './useTorrentOverlay'
@@ -39,7 +40,7 @@ export interface TorrentSheet<Payload> {
  * since, one on another screen) closes, or keeps the failure to say it. `send` says whether one
  * did, so the feature knows to say it elsewhere otherwise.
  */
-export function useTorrentSheet<Payload>(kind: string, torrents: Record<string, Torrent> | undefined): TorrentSheet<Payload> {
+export function useTorrentSheet<Payload>(kind: RequestKind, torrents: Record<string, Torrent> | undefined): TorrentSheet<Payload> {
   const overlay = useTorrentOverlay(torrents)
   const { torrent } = overlay
   const requests = useTorrentRequests()

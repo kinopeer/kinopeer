@@ -45,11 +45,20 @@ export function useDeleteTorrents({ torrents, titleOf, onDeleted }: {
   if (confirming && torrents && shown.length === 0) setConfirming(null)
 
   // The confirmation shows its torrents, so it says how a delete of them went, wherever it was sent
-  // from: it closes, or shows the failure.
+  // from: it keeps those left, closing once none is, or shows the failure.
   const { busy, send } = useTorrentAction(
     REQUEST_KINDS.delete,
     shown.length > 0
-      ? { torrents: shown, settled: (outcome) => (outcome.ok ? setConfirming(null) : setFailed(true)) }
+      ? {
+          torrents: shown,
+          settled: (outcome, targets) => {
+            if (!outcome.ok) return setFailed(true)
+            setConfirming((refs) => {
+              const left = refs?.filter((ref) => !targets.some((item) => item.hash === ref.hash)) ?? []
+              return left.length > 0 ? left : null
+            })
+          },
+        }
       : undefined,
   )
 
