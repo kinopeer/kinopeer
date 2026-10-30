@@ -178,6 +178,16 @@ describe('the details drawer on desktop', () => {
       return within(drawer).getByRole('menu', { name: `More actions: ${name}` })
     }
 
+    it('opens and closes from its More button, which says whether it’s open', async () => {
+      renderApp(['/', '/torrent/dune'])
+      await openMenu()
+      const more = within(screen.getByRole('dialog', { name: 'Dune: Part Two' })).getByRole('button', { name: 'More actions: Dune: Part Two' })
+      expect(more).toHaveAttribute('aria-expanded', 'true')
+      await userEvent.click(more)
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+      expect(more).toHaveAttribute('aria-expanded', 'false')
+    })
+
     it('deletes after confirming', async () => {
       renderApp(['/', '/torrent/dune'])
       const menu = await openMenu()
