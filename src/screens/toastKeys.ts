@@ -9,6 +9,8 @@ export const TOAST_KEYS = {
   reannounce: 'reannounce-failed',
   /** A forced recheck: the confirmation on any screen. */
   recheck: 'recheck-failed',
+  /** Deleting torrents: the confirmation for a row, the selection or the torrent's details. */
+  delete: 'delete-failed',
   /** Switching the alternative speed limits. */
   altSpeed: 'alt-speed-failed',
 } as const

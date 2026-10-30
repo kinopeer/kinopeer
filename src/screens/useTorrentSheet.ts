@@ -31,12 +31,13 @@ export interface TorrentSheet<Payload> {
 
 /**
  * A screen's sheet of one kind (Move files, Speed limits, the recheck confirmation) for one of its
- * torrents, and the requests it sends. The sheet closes when its torrent goes away or another torrent with the same hash replaces
- * it, and stays closed when that torrent comes back (`useTorrentOverlay`). The requests are the app's
- * (`useTorrentRequests`), shared with the same kind of sheet on other screens: one per torrent at a
- * time, shown busy in any sheet for it, and when it settles every sheet that shows the torrent then
- * (the one that sent it, one opened again since, one on another screen) closes, or keeps the failure
- * to say it. `send` says whether one did, so the feature knows to say it elsewhere otherwise.
+ * torrents, and the requests it sends. The sheet closes when its torrent goes away or another
+ * torrent with the same hash replaces it, and stays closed when that torrent comes back
+ * (`useTorrentOverlay`). The requests are the app's (`useTorrentRequests`), shared with the same
+ * kind of sheet on other screens: one per torrent at a time, shown busy in any sheet for it, and
+ * when it settles every sheet that shows the torrent then (the one that sent it, one opened again
+ * since, one on another screen) closes, or keeps the failure to say it. `send` says whether one
+ * did, so the feature knows to say it elsewhere otherwise.
  */
 export function useTorrentSheet<Payload>(kind: string, torrents: Record<string, Torrent> | undefined): TorrentSheet<Payload> {
   const overlay = useTorrentOverlay(torrents)

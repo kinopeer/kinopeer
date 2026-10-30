@@ -569,21 +569,16 @@ describe('DownloadsScreen', () => {
     )
   })
 
-  it('confirms a torrent deleted on the torrent page', async () => {
-    renderScreen({ deleted: 'files' })
-    expect(screen.getByRole('status', { name: saying('Torrent and files deleted') })).toBeInTheDocument()
-  })
-
-  it('says a deletion once: the entry’s state goes, so Back or a reload doesn’t say it again', async () => {
+  it('says an added release once: the entry’s state goes, so Back or a reload doesn’t say it again', async () => {
     const State = () => <output aria-label="Location state">{JSON.stringify(useLocation().state)}</output>
     renderWithRouter(
       <>
         <DownloadsScreen onSessionLost={vi.fn()} />
         <State />
       </>,
-      [{ pathname: '/', state: { deleted: 'files' } }],
+      [{ pathname: '/', state: { added: 'Dune: Part Two' } }],
     )
-    expect(screen.getByRole('status', { name: saying('Torrent and files deleted') })).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: saying('“Dune: Part Two” added to downloads') })).toBeInTheDocument()
     await waitFor(() => expect(screen.getByRole('status', { name: 'Location state' })).toHaveTextContent('null'))
   })
 

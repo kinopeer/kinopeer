@@ -74,7 +74,7 @@ describe('useReannounce', () => {
     reannounceTorrents.mockRejectedValueOnce(new TypeError('Failed to fetch')).mockResolvedValueOnce()
     const settled = vi.fn<ActionWatcher['settled']>()
     const { result } = renderHook(
-      () => ({ downloads: useReannounce(), menu: useReannounce({ torrent: DUNE, settled }) }),
+      () => ({ downloads: useReannounce(), menu: useReannounce({ torrents: [DUNE], settled }) }),
       { wrapper: Providers },
     )
     expect(await act(() => result.current.downloads.reannounce(DUNE))).toMatchObject({ ok: false, showing: true })

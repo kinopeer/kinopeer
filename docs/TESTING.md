@@ -134,15 +134,17 @@ milliseconds, fails with a precise message, and it's the one the layer above lea
   sheet opened again starts from what's in flight, and that its fields can't be changed meanwhile.
   `useMoveTorrent.test.tsx` and `useSpeedLimits.test.tsx` do, with what a sheet does with what's in
   flight alone in its own tests (`SpeedLimitsSheet.test.tsx`).
-- **A request that expects a state** (pause and resume, recheck). The store's tests own which torrents a
-  request sends, when the state is kept and the poll asked again, and `withExpected` when the poll
-  has the final word; `useMainData.test.tsx` shows the state through the two providers.
+- **A request that expects a state** (pause and resume, recheck, delete). The store's tests own
+  which torrents a request sends, when the state is kept and the poll asked again, the order the
+  states apply in, and `withExpected` when the poll has the final word (a torrent taken away
+  included); `useMainData.test.tsx` shows the state through the two providers.
   `usePauseResume.test.tsx` owns busy across places, the toast and its key, and a watcher taking the
   outcome. Each place that pauses or resumes gets one test that it goes through the shared requests
   (busy from a request sent elsewhere, or left out of a bulk one), and `App.test.tsx` one step that
-  `App` links the requests to its poll. A kind of its own (reannounce, recheck) has its hook's test
-  for the same (`useReannounce.test.tsx`, `useRecheck.test.tsx`, the state it expects included) and
-  a wiring test per place, as above.
+  `App` links the requests to its poll. A kind of its own (reannounce, recheck, delete) has its
+  hook's test for the same (`useReannounce.test.tsx`, `useRecheck.test.tsx`,
+  `useDeleteTorrents.test.tsx`, the state it expects included) and a wiring test per place, as
+  above.
 - **A flaky test is fixed or deleted.** Not retried, not skipped, not marked `fixme`: a retry hides
   the instability and a skip hides the behavior (oxlint refuses `.skip` and `.only`). Both Playwright
   configs run with `retries: 0`, so a screenshot or a journey that fails once fails the job.

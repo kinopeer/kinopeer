@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { QbittorrentError, setTorrentLocation, UnauthorizedError, type Torrent } from '../api/qbittorrent'
 import { useToast } from '../components/Toast'
+import { REQUEST_KINDS } from '../torrents/requestKinds'
 import { MoveTorrentSheet, type MoveFailure } from './MoveTorrentSheet'
 import { useTorrentSheet } from './useTorrentSheet'
 
@@ -34,7 +35,7 @@ export function useMoveTorrent({ torrents, offline, refresh }: {
   /** After qBittorrent took the folder, so the screen shows it right away. */
   refresh: () => void
 }): MoveTorrent {
-  const { torrent, open, close, pending, failure, send } = useTorrentSheet<string>('move', torrents)
+  const { torrent, open, close, pending, failure, send } = useTorrentSheet<string>(REQUEST_KINDS.move, torrents)
   const { t } = useTranslation()
   const toast = useToast()
 

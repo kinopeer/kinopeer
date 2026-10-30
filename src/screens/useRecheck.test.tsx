@@ -38,7 +38,7 @@ function Screen({ name, torrents }: { name: string; torrents: Record<string, Tor
 function Expected() {
   const requests = useTorrentRequests()
   const expected = useSyncExternalStore(requests.subscribe, requests.getExpected)
-  return <output aria-label="Expected">{[...expected.values()].map((item) => item.expect(DUNE).state).join()}</output>
+  return <output aria-label="Expected">{[...expected.values()].map((item) => item.expect(DUNE)?.state).join()}</output>
 }
 
 function Providers({ children }: { children: ReactNode }) {

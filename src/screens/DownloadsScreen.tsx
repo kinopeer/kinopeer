@@ -25,7 +25,6 @@ import { TYPE_FILTERS, isGuessed, titleType, useTitleMatches, type TypeFilter } 
 import { useMainData, type MainDataState } from '../torrents/useMainData'
 import { BulkActionsBar } from './BulkActionsBar'
 import { ChangeTitleSheet } from './ChangeTitleSheet'
-import { DeleteTorrentDialog } from './DeleteTorrentDialog'
 import { DownloadCard } from './DownloadCard'
 import { DownloadItem } from './DownloadItem'
 import { DownloadRow, DownloadRowHeader } from './DownloadRow'
@@ -35,11 +34,12 @@ import { SortMenu, SortSheet } from './SortSheet'
 import { StatusMenu } from './StatusMenu'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
 import { useAltSpeedSwitch } from './useAltSpeedSwitch'
+import { useDeleteTorrents } from './useDeleteTorrents'
 import { useMoveTorrent } from './useMoveTorrent'
 import { usePauseResume } from './usePauseResume'
 import { useRecheck } from './useRecheck'
 import { useSpeedLimits } from './useSpeedLimits'
-import { findTorrent, refTo, useTorrentOverlay, type TorrentRef } from './useTorrentOverlay'
+import { useTorrentOverlay } from './useTorrentOverlay'
 import './DownloadsScreen.css'
 
 export interface DownloadsScreenProps {
@@ -59,26 +59,15 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   const { data, offline, updatedAt, refresh } = main
   const location = useLocation()
   const navigate = useNavigate()
-  // Set by the releases screen after adding a release, and by the torrent screen after deleting one.
-  const { added, deleted, count } = (location.state ?? {}) as {
-    added?: string
-    deleted?: 'torrent' | 'files'
-    /** How many were deleted at once; one when not set. */
-    count?: number
-  }
+  // Set by the releases screen after adding a release.
+  const { added } = (location.state ?? {}) as { added?: string }
   const toast = useToast()
   // Said once: the state goes, so Back or a reload doesn't say it again.
   useEffect(() => {
-    if (!added && !deleted) return
-    toast.show(
-      added
-        ? t('add.added', { title: added })
-        : count && count > 1
-          ? t(deleted === 'files' ? 'downloads.deletedManyFiles' : 'downloads.deletedMany', { count })
-          : t(deleted === 'files' ? 'downloads.deletedFiles' : 'downloads.deleted'),
-    )
+    if (!added) return
+    toast.show(t('add.added', { title: added }))
     void navigate(location.pathname, { replace: true, state: null })
-  }, [added, deleted, count, toast, t, navigate, location.pathname])
+  }, [added, toast, t, navigate, location.pathname])
   const isDesktop = useIsDesktop()
   // The desktop header stays at the top while the list scrolls, and the table's column names stick
   // right under it: its height (the filters wrap, the offline banner comes and goes) is theirs in CSS.
@@ -100,8 +89,6 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   // The More button that opened the actions: on desktop they are a menu next to it.
   const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null)
   const pauseResume = usePauseResume()
-  // The torrents a delete confirmation is open for, the row's or the selection's.
-  const [deleting, setDeleting] = useState<TorrentRef[] | null>(null)
   const move = useMoveTorrent({ torrents: data?.torrents, offline, refresh })
   // The selected hashes in selection mode, null outside it.
   const [selected, setSelected] = useState<ReadonlySet<string> | null>(null)
@@ -126,6 +113,12 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   const nameOf = (torrent: Torrent) => matches[torrent.hash]?.title ?? torrent.name
   const limits = useSpeedLimits({ torrents: data?.torrents, offline, refresh, titleOf: nameOf })
   const recheck = useRecheck({ torrents: data?.torrents, titleOf: nameOf })
+  // A row's or the selection's; the selection ends once its torrents are deleted.
+  const remove = useDeleteTorrents({
+    torrents: data?.torrents,
+    titleOf: nameOf,
+    onDeleted: () => setSelected(null),
+  })
   const serverMatches = useServerMatches()
   // The status filter counts within the picked type, so its numbers match the list.
   const typed = useMemo(
@@ -172,10 +165,6 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   const loading = data === null
   // Looked up on every render, so the sheet follows live status changes and closes if the torrent goes away.
   const actionsTorrent = actions.torrent
-  // Without those that went away or were replaced since; none left, the confirmation is forgotten, so
-  // it doesn't open again if the same torrent is back.
-  const deleteTorrents = (deleting ?? []).flatMap((ref) => findTorrent(data?.torrents, ref) ?? [])
-  if (deleting && data && deleteTorrents.length === 0) setDeleting(null)
   const server = data?.server
   const free = freeSpace(server?.free_space_on_disk)
 
@@ -527,7 +516,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           onClose={() => actions.close()}
           onDelete={() => {
             actions.close()
-            setDeleting([refTo(actionsTorrent)])
+            remove.open([actionsTorrent])
           }}
           onMove={() => {
             actions.close()
@@ -569,27 +558,12 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           label={t('downloads.selected', { count: selectedVisible.length })}
           offline={offline}
           onDone={() => setSelected(null)}
-          onDelete={() => setDeleting(selectedVisible.map(refTo))}
+          onDelete={() => remove.open(selectedVisible)}
         />
       )}
       {recheck.element}
       {limits.element}
-      {deleteTorrents.length > 0 && (
-        <DeleteTorrentDialog
-          torrents={deleteTorrents}
-          title={nameOf(deleteTorrents[0])}
-          onClose={() => setDeleting(null)}
-          onDeleted={(withFiles) => {
-            setDeleting(null)
-            setSelected(null)
-            refresh()
-            void navigate(location.pathname, {
-              replace: true,
-              state: { deleted: withFiles ? 'files' : 'torrent', count: deleteTorrents.length },
-            })
-          }}
-        />
-      )}
+      {remove.element}
     </main>
   )
 }

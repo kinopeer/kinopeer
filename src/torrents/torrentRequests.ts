@@ -18,10 +18,13 @@ export interface RequestWatcher {
 /** What's in flight, by `requestKey`. Replaced, never changed, so it can be a snapshot. */
 export type InFlight = ReadonlyMap<string, unknown>
 
+/** The state a request gives a torrent, or none when it takes the torrent away (a delete). */
+export type Expect = (torrent: Torrent) => Torrent | undefined
+
 /** A state qBittorrent took for a torrent, shown until a poll sent at `after` or later says. */
 export interface Expectation {
   hash: string
-  expect: (torrent: Torrent) => Torrent
+  expect: Expect
   /** When qBittorrent answered the request (ms since epoch). */
   after: number
 }
@@ -41,10 +44,10 @@ export interface SendOptions {
    * (`withExpected`) until a poll sent after the answer has the final word, even if it disagrees.
    * The poll is asked again when the request settles, either way.
    */
-  expect?: (torrent: Torrent) => Torrent
+  expect?: Expect
 }
 
-/** The app's requests to qBittorrent about torrents (moving files, speed limits, pausing and resuming). */
+/** The app's requests to qBittorrent about torrents (`REQUEST_KINDS`). */
 export interface TorrentRequests {
   subscribe: (listener: () => void) => () => void
   getSnapshot: () => InFlight
@@ -121,7 +124,11 @@ export function createTorrentRequests(poll?: RequestsPoll): TorrentRequests {
         // Without the ones a poll has had its word on since, so they don't pile up.
         const polled = poll?.getSnapshot().requestedAt ?? null
         const next = new Map([...expected].filter(([, item]) => polled === null || polled < item.after))
-        targets.forEach((item, index) => next.set(keys[index], { hash: item.hash, expect, after }))
+        // Taken out first, so the order they're applied in is the order qBittorrent took them.
+        targets.forEach((item, index) => {
+          next.delete(keys[index])
+          next.set(keys[index], { hash: item.hash, expect, after })
+        })
         expected = next
       }
       notify()
@@ -148,8 +155,9 @@ export function createTorrentRequests(poll?: RequestsPoll): TorrentRequests {
 
 /**
  * The poll's state with the states requests expect, for the torrents a poll sent before qBittorrent
- * answered them still has old. A poll sent at the same millisecond as the answer or later went out
- * after qBittorrent took the request, so it has the final word.
+ * answered them still has old, without those a request takes away. A poll sent at the same
+ * millisecond as the answer or later went out after qBittorrent took the request, so it has the
+ * final word.
  */
 export function withExpected(data: SyncState | null, requestedAt: number | null, expected: Expected): SyncState | null {
   if (!data || expected.size === 0) return data
@@ -158,7 +166,9 @@ export function withExpected(data: SyncState | null, requestedAt: number | null,
     const torrent = (torrents ?? data.torrents)[hash]
     if (!torrent || (requestedAt !== null && requestedAt >= after)) continue
     torrents ??= { ...data.torrents }
-    torrents[hash] = expect(torrent)
+    const shown = expect(torrent)
+    if (shown) torrents[hash] = shown
+    else delete torrents[hash]
   }
   return torrents ? { ...data, torrents } : data
 }

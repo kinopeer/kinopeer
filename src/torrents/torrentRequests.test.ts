@@ -162,6 +162,16 @@ describe('createTorrentRequests linked to a poll', () => {
     await requests.send('pause', ALIEN, false, () => Promise.resolve(), { expect: paused })
     expect([...requests.getExpected().keys()]).toEqual([requestKey('pause', 'alien')])
   })
+
+  it('applies the states in the order qBittorrent took their requests, one sent again last', async () => {
+    const requests = createTorrentRequests(poll())
+    const checking = (item: typeof DUNE) => ({ ...item, state: 'checkingDL' as const })
+    await requests.send('pause', DUNE, false, () => Promise.resolve(), { expect: paused })
+    await requests.send('recheck', DUNE, true, () => Promise.resolve(), { expect: checking })
+    await requests.send('pause', DUNE, false, () => Promise.resolve(), { expect: paused })
+    const data = applyMainData(EMPTY_SYNC_STATE, mainData([DUNE]))
+    expect(withExpected(data, null, requests.getExpected())?.torrents.dune.state).toBe('stoppedDL')
+  })
 })
 
 describe('withExpected', () => {
@@ -180,6 +190,12 @@ describe('withExpected', () => {
   it('leaves the word to a poll sent when qBittorrent took it or later', () => {
     expect(withExpected(data, 1_000, new Map([pausedAt(1_000)]))).toBe(data)
     expect(withExpected(data, 1_500, new Map([pausedAt(1_000)]))).toBe(data)
+  })
+
+  it('takes away a torrent a request expects gone', () => {
+    const shown = withExpected(data, 900, new Map([[requestKey('delete', 'dune'), { hash: 'dune', after: 1_000, expect: () => undefined }]]))
+    expect(Object.keys(shown?.torrents ?? {})).toEqual(['alien'])
+    expect(data.torrents.dune).toBeDefined()
   })
 
   it('leaves out a torrent that went away, and has nothing to show before the first poll', () => {
