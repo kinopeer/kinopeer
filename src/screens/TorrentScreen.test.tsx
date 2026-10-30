@@ -331,7 +331,7 @@ describe('TorrentScreen', () => {
     getMainData.mockResolvedValue(snapshot({ added_on: DUNE_TORRENT.added_on + 60 }))
     window.dispatchEvent(new Event('online'))
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
-    // The screen now shows the torrent that replaced it.
+    // The replaced torrent isn't taken for a missing one: the screen stays, not "Torrent not found".
     expect(screen.getByRole('button', { name: 'More actions: Dune: Part Two' })).toBeInTheDocument()
   })
 
