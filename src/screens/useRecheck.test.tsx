@@ -6,7 +6,7 @@ import * as api from '../api/qbittorrent'
 import type { Torrent } from '../api/qbittorrent'
 import { ToastProvider } from '../components/Toast'
 import { torrent } from '../test/fixtures'
-import { saying } from '../test/render'
+import { findToastOnPage, saying } from '../test/render'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
 import { useTorrentRequests } from '../torrents/useTorrentRequests'
 import { useRecheck } from './useRecheck'
@@ -81,7 +81,7 @@ describe('useRecheck', () => {
 
     await confirmIn(dialog)
     expect(recheckTorrents).toHaveBeenCalledWith(['dune'])
-    expect(await screen.findByRole('status', { name: saying(CHECKING) })).toBeInTheDocument()
+    expect(await findToastOnPage(CHECKING)).toBeInTheDocument()
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
     expect(screen.getByRole('status', { name: 'Expected' })).toHaveTextContent('checkingDL')
   })
@@ -102,7 +102,7 @@ describe('useRecheck', () => {
 
     // The confirmation that shows the torrent then closes, wherever the recheck was sent from.
     answer()
-    expect(await screen.findByRole('status', { name: saying(CHECKING) })).toBeInTheDocument()
+    expect(await findToastOnPage(CHECKING)).toBeInTheDocument()
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })
 

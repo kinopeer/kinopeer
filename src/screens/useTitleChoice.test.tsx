@@ -6,7 +6,7 @@ import type { Torrent } from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
 import { ToastProvider } from '../components/Toast'
 import { title, torrent } from '../test/fixtures'
-import { saying } from '../test/render'
+import { findToastOnPage, saying } from '../test/render'
 import * as titleMatches from '../torrents/titleMatches'
 import type { TitleMatch } from '../torrents/titleMatches'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
@@ -98,7 +98,7 @@ describe('useChangeTitle', () => {
     const open = renderScreens()
     await userEvent.click(movieIn(await open('Downloads')))
     expect(chooseTitle).toHaveBeenCalledWith('master', MOVIE, 'en-US')
-    expect(await screen.findByRole('status', { name: saying('Title changed') })).toBeInTheDocument()
+    expect(await findToastOnPage('Title changed')).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
@@ -106,7 +106,7 @@ describe('useChangeTitle', () => {
     const open = renderScreens()
     const sheet = await open('Downloads')
     await userEvent.click(within(sheet).getByRole('button', { name: /Series · 2005 Current/ }))
-    expect(await screen.findByRole('status', { name: saying('Match confirmed') })).toBeInTheDocument()
+    expect(await findToastOnPage('Match confirmed')).toBeInTheDocument()
   })
 
   it('shows a pick sent from one screen busy in another’s sheet, and doesn’t send another', async () => {

@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -9,7 +9,7 @@ import * as tmdb from '../api/tmdb'
 import { stubDesktop } from '../lib/stubDesktop'
 import { resetSettings, updateSettings } from '../settings/settings'
 import { DUNE_TORRENT, mainData, title } from '../test/fixtures'
-import { Where, renderWithRouter, saying, where } from '../test/render'
+import { findToastOnPage, renderWithRouter, saying, Where, where } from '../test/render'
 import { MainDataProvider } from '../torrents/MainDataProvider'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
 import * as serverMatches from '../torrents/serverMatches'
@@ -157,11 +157,8 @@ describe('the details drawer on desktop', () => {
     await userEvent.click(within(drawer).getByRole('button', { name: 'Delete' }))
     const confirm = screen.getByRole('alertdialog', { name: 'Delete torrent?' })
     await userEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
-    // The toast shows in the top open modal and moves to the page once the drawer is gone, so it's
-    // looked for only then: one found in the drawer would be gone by the next assertion.
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Dune: Part Two' })).not.toBeInTheDocument())
+    expect(await findToastOnPage('Torrent deleted')).toBeInTheDocument()
     expect(where()).toBe('/')
-    expect(await screen.findByRole('status', { name: saying('Torrent deleted') })).toBeInTheDocument()
   })
 
   it('shows a toast from Downloads inside the drawer, since the page behind it is inert', async () => {
@@ -348,10 +345,8 @@ describe('the details drawer on desktop', () => {
       expect(screen.queryByRole('menu')).not.toBeInTheDocument()
       const confirm = screen.getByRole('alertdialog', { name: 'Delete torrent?' })
       await userEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
-      // Once the drawer is gone, as above.
-      await waitFor(() => expect(where()).toBe('/'))
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-      expect(await screen.findByRole('status', { name: saying('Torrent deleted') })).toBeInTheDocument()
+      expect(await findToastOnPage('Torrent deleted')).toBeInTheDocument()
+      expect(where()).toBe('/')
     })
 
     it('opens the title search from Change title, which Escape closes alone', async () => {

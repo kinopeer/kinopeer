@@ -1,7 +1,8 @@
 /* oxlint-disable react/only-export-components -- test helpers, never hot-reloaded */
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { MemoryRouter, useLocation, type InitialEntry } from 'react-router'
+import { expect } from 'vitest'
 import { ToastProvider } from '../components/Toast'
 
 /**
@@ -40,4 +41,14 @@ export function saying(text: string | RegExp) {
   // What a failed query prints in place of the function's source.
   matcher.toString = () => `saying(${String(text)})`
   return matcher
+}
+
+/**
+ * The toast that says `text`, once no sheet, dialog or drawer is open. A toast shown while one is
+ * open shows inside it and moves to the page when it closes, so one found before it closed would be
+ * detached by the next assertion, and the test would fail only now and then (#190).
+ */
+export async function findToastOnPage(text: string | RegExp) {
+  await waitFor(() => expect(document.querySelector('dialog[open]')).toBeNull())
+  return screen.findByRole('status', { name: saying(text) })
 }

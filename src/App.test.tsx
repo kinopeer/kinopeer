@@ -9,7 +9,7 @@ import * as serverSettings from './api/settings'
 import * as tmdb from './api/tmdb'
 import App from './App'
 import { stubDesktop } from './lib/stubDesktop'
-import { Where, renderWithRouter, saying, where } from './test/render'
+import { findToastOnPage, renderWithRouter, saying, Where, where } from './test/render'
 
 vi.mock('./api/qbittorrent', async (importOriginal) => {
   const actual = await importOriginal<typeof api>()
@@ -319,7 +319,7 @@ describe('App', () => {
         await userEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
         expect(api.deleteTorrents).toHaveBeenCalledWith(['dune'], false)
         expect(await screen.findByText('/title/movie/693134')).toBeInTheDocument()
-        expect(screen.getByRole('status', { name: saying('Torrent deleted') })).toBeInTheDocument()
+        expect(await findToastOnPage('Torrent deleted')).toBeInTheDocument()
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
         await vi.waitFor(() => expect(screen.queryByRole('region', { name: 'In downloads' })).not.toBeInTheDocument())
       })
