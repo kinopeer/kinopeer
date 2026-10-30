@@ -7,6 +7,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 ### Fixed
 
 - Desktop: Move files or Speed limits opened in a torrent's drawer while a move or save sent from Downloads is still on its way shows it busy, with what's being sent, instead of letting it be sent twice; then it closes, or says why it failed, in the drawer.
+- Pause and resume: one on its way for a torrent shows busy in every place that pauses or resumes it (a row's button, the More menu, the torrent's details or drawer, the selection's bar), instead of letting it be sent twice. Once qBittorrent took it, the torrent shows Paused or its running status right away, everywhere, instead of after the next update. ([#182](https://github.com/MrShakhov/kinoseed/issues/182))
 - Toasts no longer hide each other: up to three show at once, stacked, each for its own 4 seconds. A toast from the page behind an open sheet, dialog or torrent drawer now shows on top of it instead of behind its backdrop, so a move or a speed limits save that failed after its sheet was closed is no longer missed on desktop.
 - Phone: the on-screen keyboard no longer covers a sheet's fields (Speed limits, Move files, Change title), as it did in Safari on iOS: the sheet moves up with the keyboard and fits in what it leaves visible, and Save in Speed limits stays pinned at its bottom, as Move does in Move files.
 - Move files: opened again while a move is still being sent, the sheet shows the folder being sent, not the torrent's current one, so trying again after a failure sends that folder.

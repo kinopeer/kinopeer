@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Torrent, TorrentState } from '../api/qbittorrent'
 import i18n from '../i18n'
 import { createFormatters } from '../lib/format'
-import { compareByQueue, downloadStatus, hasMetadata, matchesFilter, transferSpeed } from './status'
+import { compareByQueue, downloadStatus, hasMetadata, matchesFilter, transferSpeed, withRunning } from './status'
 
 const torrent = (state: TorrentState, progress = 0.5) => ({ state, progress })
 
@@ -56,6 +56,29 @@ describe('compareByQueue', () => {
     const make = (hash: string, priority: number, added_on: number) => ({ hash, priority, added_on }) as Torrent
     const sorted = [make('old', -1, 1), make('q2', 2, 5), make('new', -1, 9), make('q1', 1, 3)].sort(compareByQueue)
     expect(sorted.map((t) => t.hash)).toEqual(['q1', 'q2', 'new', 'old'])
+  })
+})
+
+describe('withRunning', () => {
+  const make = (state: TorrentState, progress: number) => ({ hash: 'dune', state, progress }) as Torrent
+
+  it('stops a running torrent, as Paused or, once finished, Completed', () => {
+    expect(withRunning(make('downloading', 0.5), false).state).toBe('stoppedDL')
+    expect(withRunning(make('queuedDL', 0.5), false).state).toBe('stoppedDL')
+    expect(withRunning(make('uploading', 1), false).state).toBe('stoppedUP')
+  })
+
+  it('starts a stopped one with nothing moving yet, downloading or, once finished, seeding', () => {
+    expect(withRunning(make('stoppedDL', 0.5), true).state).toBe('stalledDL')
+    expect(withRunning(make('error', 0.5), true).state).toBe('stalledDL')
+    expect(withRunning(make('pausedUP', 1), true).state).toBe('stalledUP')
+  })
+
+  it('leaves a torrent that already is that way as qBittorrent reports it', () => {
+    const paused = make('pausedDL', 0.5)
+    expect(withRunning(paused, false)).toBe(paused)
+    const queued = make('queuedDL', 0.5)
+    expect(withRunning(queued, true)).toBe(queued)
   })
 })
 

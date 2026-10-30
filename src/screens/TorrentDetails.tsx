@@ -1,12 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { matchPath, useLocation, useNavigate } from 'react-router'
-import {
-  getTorrentTrackers,
-  startTorrents,
-  stopTorrents,
-  type Torrent,
-} from '../api/qbittorrent'
+import { getTorrentTrackers, type Torrent } from '../api/qbittorrent'
 import { posterUrl } from '../api/tmdb'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
@@ -32,8 +27,8 @@ import { MatchPrompt } from './MatchPrompt'
 import { OfflineBanner } from './OfflineBanner'
 import { RecheckDialog } from './RecheckDialog'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
-import { TOAST_KEYS } from './toastKeys'
 import { useMoveTorrent } from './useMoveTorrent'
+import { usePauseResume } from './usePauseResume'
 import { useSpeedLimits } from './useSpeedLimits'
 import { useTorrentOverlay } from './useTorrentOverlay'
 import { TorrentFiles } from './TorrentFiles'
@@ -86,7 +81,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
   const language = useTmdbLanguage()
 
   const [detailsOpen, setDetailsOpen] = useState(false)
-  const [busy, setBusy] = useState(false)
+  const pauseResume = usePauseResume()
   // Each closes when another torrent with the same hash replaces this screen's.
   const confirm = useTorrentOverlay(own)
   const menu = useTorrentOverlay(own)
@@ -192,18 +187,9 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
   const ratio = torrent.ratio.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   const hosts = trackers.data ? trackerHosts(trackers.data) : undefined
 
-  const toggleRunning = async () => {
-    setBusy(true)
-    toast.dismiss(TOAST_KEYS.pauseResume)
-    try {
-      await (running ? stopTorrents([hash]) : startTorrents([hash]))
-      refresh()
-    } catch {
-      toast.show(t('torrent.actionFailed'), { icon: 'alert', key: TOAST_KEYS.pauseResume })
-    } finally {
-      setBusy(false)
-    }
-  }
+  // Busy while a pause or resume sent from anywhere (a row's button under the drawer) is in flight.
+  const busy = pauseResume.busy(hash)
+  const toggleRunning = () => void pauseResume.toggle(torrent)
 
   const guessed = !!match && isGuessed(torrent, stored)
   // The drawer is over this title's own page: going to the page is just closing the drawer.
@@ -399,7 +385,6 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
           anchor={menuOpen}
           onTitlePage={onTitlePage}
           onClose={closeMenu}
-          onChanged={refresh}
           onDelete={() => {
             closeMenu()
             confirm.open(hash)

@@ -1,8 +1,9 @@
 import type { Torrent } from '../api/qbittorrent'
+import type { SyncState } from './sync'
 
 export type Outcome = { ok: true } | { ok: false; error: unknown }
 
-/** How a request settled, and whether something showing its torrent took the outcome (else the
+/** How a request settled, and whether something showing its torrents took the outcome (else the
  *  caller says it elsewhere, in a toast). */
 export type Settled = Outcome & { showing: boolean }
 
@@ -17,15 +18,49 @@ export interface RequestWatcher {
 /** What's in flight, by `requestKey`. Replaced, never changed, so it can be a snapshot. */
 export type InFlight = ReadonlyMap<string, unknown>
 
-/** The app's requests to qBittorrent about one torrent (moving its files, its speed limits). */
+/** A state qBittorrent took for a torrent, shown until a poll sent at `after` or later says. */
+export interface Expectation {
+  hash: string
+  expect: (torrent: Torrent) => Torrent
+  /** When qBittorrent answered the request (ms since epoch). */
+  after: number
+}
+
+/** The states requests set, by `requestKey`. Replaced, never changed, so it can be a snapshot. */
+export type Expected = ReadonlyMap<string, Expectation>
+
+/** The poll the requests keep in step with: polled again after a request, asked when it was last sent. */
+export interface RequestsPoll {
+  refresh: () => void
+  getSnapshot: () => { requestedAt: number | null }
+}
+
+export interface SendOptions {
+  /**
+   * The state the request gives a torrent: once qBittorrent took it, the torrent shows that state
+   * (`withExpected`) until a poll sent after the answer has the final word, even if it disagrees.
+   * The poll is asked again when the request settles, either way.
+   */
+  expect?: (torrent: Torrent) => Torrent
+}
+
+/** The app's requests to qBittorrent about torrents (moving files, speed limits, pausing and resuming). */
 export interface TorrentRequests {
   subscribe: (listener: () => void) => () => void
   getSnapshot: () => InFlight
+  getExpected: () => Expected
   /**
-   * Sends a request of a kind for a torrent and says how it settled, or nothing when one of that kind
-   * is already in flight for it: it never goes out twice.
+   * Sends a request of a kind for one torrent or several in one go, and says how it settled. A torrent
+   * with one of that kind in flight is left out, so it never goes out twice; with none left, nothing
+   * is sent and it says nothing. `request` gets the hashes that are sent.
    */
-  send: (kind: string, target: Torrent, payload: unknown, request: () => Promise<void>) => Promise<Settled | undefined>
+  send: (
+    kind: string,
+    target: Torrent | readonly Torrent[],
+    payload: unknown,
+    request: (hashes: string[]) => Promise<void>,
+    options?: SendOptions,
+  ) => Promise<Settled | undefined>
   /** Hands the outcome of each request of a kind to `watcher` while it shows the request's torrent. */
   watch: (kind: string, watcher: RequestWatcher) => () => void
 }
@@ -40,17 +75,17 @@ export const requestKey = (kind: string, hash: string) => `${kind}|${hash}`
 /**
  * Requests in flight, shared by every screen under one store, so a sheet for a torrent shows a
  * request sent from another screen (Downloads under the drawer) and gets its outcome. The outcome
- * goes to every watcher of the kind showing the torrent when it settles; with none, the caller says it.
+ * goes to every watcher of the kind showing one of its torrents when it settles; when some torrent
+ * has none, the caller says it. Linked to `poll`, it polls again after a request that expects a
+ * state, and keeps that state only until a poll has it.
  */
-export function createTorrentRequests(): TorrentRequests {
+export function createTorrentRequests(poll?: RequestsPoll): TorrentRequests {
   let inFlight: InFlight = new Map()
+  let expected: Expected = new Map()
   const listeners = new Set<() => void>()
   const watchers = new Map<string, Set<RequestWatcher>>()
 
-  const set = (next: InFlight) => {
-    inFlight = next
-    listeners.forEach((listener) => listener())
-  }
+  const notify = () => listeners.forEach((listener) => listener())
 
   return {
     subscribe(listener) {
@@ -58,23 +93,47 @@ export function createTorrentRequests(): TorrentRequests {
       return () => listeners.delete(listener)
     },
     getSnapshot: () => inFlight,
-    async send(kind, target, payload, request) {
-      const key = requestKey(kind, target.hash)
-      if (inFlight.has(key)) return undefined
-      set(new Map(inFlight).set(key, payload))
+    getExpected: () => expected,
+    async send(kind, target, payload, request, options) {
+      const targets = (Array.isArray(target) ? target : [target]).filter(
+        (item: Torrent) => !inFlight.has(requestKey(kind, item.hash)),
+      )
+      if (targets.length === 0) return undefined
+      const keys = targets.map((item) => requestKey(kind, item.hash))
+      const sending = new Map(inFlight)
+      keys.forEach((key) => sending.set(key, payload))
+      inFlight = sending
+      notify()
+
       let outcome: Outcome
       try {
-        await request()
+        await request(targets.map((item) => item.hash))
         outcome = { ok: true }
       } catch (error) {
         outcome = { ok: false, error }
       }
-      const next = new Map(inFlight)
-      next.delete(key)
-      set(next)
-      const showing = [...(watchers.get(kind) ?? [])].filter((watcher) => watcher.shows(target))
-      showing.forEach((watcher) => watcher.settled(outcome, payload))
-      return { ...outcome, showing: showing.length > 0 }
+      const settled = new Map(inFlight)
+      keys.forEach((key) => settled.delete(key))
+      inFlight = settled
+      const { expect } = options ?? {}
+      if (outcome.ok && expect) {
+        const after = Date.now()
+        // Without the ones a poll has had its word on since, so they don't pile up.
+        const polled = poll?.getSnapshot().requestedAt ?? null
+        const next = new Map([...expected].filter(([, item]) => polled === null || polled < item.after))
+        targets.forEach((item, index) => next.set(keys[index], { hash: item.hash, expect, after }))
+        expected = next
+      }
+      notify()
+      // Then a poll has the torrents' state, whichever way it went. Move files and speed limits still
+      // poll again themselves.
+      if (expect) poll?.refresh()
+
+      // Asked before any is told, since a watcher told may stop showing the torrent (a sheet closes).
+      const ofKind = [...(watchers.get(kind) ?? [])]
+      const showing = targets.map((item) => ofKind.filter((watcher) => watcher.shows(item)))
+      new Set(showing.flat()).forEach((watcher) => watcher.settled(outcome, payload))
+      return { ...outcome, showing: showing.every((shownBy) => shownBy.length > 0) }
     },
     watch(kind, watcher) {
       const ofKind = watchers.get(kind) ?? new Set()
@@ -85,4 +144,21 @@ export function createTorrentRequests(): TorrentRequests {
       }
     },
   }
+}
+
+/**
+ * The poll's state with the states requests expect, for the torrents a poll sent before qBittorrent
+ * answered them still has old. A poll sent at the same millisecond as the answer or later went out
+ * after qBittorrent took the request, so it has the final word.
+ */
+export function withExpected(data: SyncState | null, requestedAt: number | null, expected: Expected): SyncState | null {
+  if (!data || expected.size === 0) return data
+  let torrents: Record<string, Torrent> | undefined
+  for (const { hash, expect, after } of expected.values()) {
+    const torrent = (torrents ?? data.torrents)[hash]
+    if (!torrent || (requestedAt !== null && requestedAt >= after)) continue
+    torrents ??= { ...data.torrents }
+    torrents[hash] = expect(torrent)
+  }
+  return torrents ? { ...data, torrents } : data
 }

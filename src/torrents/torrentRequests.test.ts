@@ -1,6 +1,8 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { torrent } from '../test/fixtures'
-import { createTorrentRequests, requestKey, type RequestWatcher } from './torrentRequests'
+import { mainData } from '../test/fixtures'
+import { applyMainData, EMPTY_SYNC_STATE } from './sync'
+import { createTorrentRequests, requestKey, withExpected, type Expectation, type RequestWatcher } from './torrentRequests'
 
 const DUNE = torrent('dune')
 const ALIEN = torrent('alien')
@@ -74,5 +76,114 @@ describe('createTorrentRequests', () => {
     stop()
     expect(await requests.send('move', DUNE, '/media', () => Promise.resolve())).toEqual({ ok: true, showing: false })
     expect(gone.settled).not.toHaveBeenCalled()
+  })
+
+  it('sends several torrents in one request, leaving out those with one of the kind in flight', async () => {
+    const requests = createTorrentRequests()
+    void requests.send('pause', DUNE, false, () => new Promise(() => {}))
+    const bulk = vi.fn(() => new Promise<void>(() => {}))
+    void requests.send('pause', [DUNE, ALIEN], true, bulk)
+    // Dune's is on its way: a second could land after it and undo it.
+    expect(bulk).toHaveBeenCalledWith(['alien'])
+    expect(requests.getSnapshot().get(requestKey('pause', 'dune'))).toBe(false)
+    expect(requests.getSnapshot().get(requestKey('pause', 'alien'))).toBe(true)
+
+    const none = vi.fn(() => Promise.resolve())
+    expect(await requests.send('pause', [DUNE, ALIEN], true, none)).toBeUndefined()
+    expect(none).not.toHaveBeenCalled()
+  })
+
+  it('says something took the outcome of a request for several torrents only when something shows each', async () => {
+    const requests = createTorrentRequests()
+    const drawer = watcher((target) => target.hash === 'dune')
+    requests.watch('pause', drawer)
+    expect(await requests.send('pause', [DUNE, ALIEN], false, () => Promise.resolve())).toEqual({ ok: true, showing: false })
+    // Told once, though it shows one of them.
+    expect(drawer.settled).toHaveBeenCalledOnce()
+    expect(await requests.send('pause', [DUNE], false, () => Promise.resolve())).toEqual({ ok: true, showing: true })
+  })
+
+  it('asks every watcher whether it shows the torrent before telling any, since one told may stop', async () => {
+    const requests = createTorrentRequests()
+    let open = true
+    requests.watch('move', { shows: () => open, settled: () => (open = false) })
+    const other: RequestWatcher = { shows: () => open, settled: vi.fn() }
+    requests.watch('move', other)
+    expect(await requests.send('move', DUNE, '/media', () => Promise.resolve())).toEqual({ ok: true, showing: true })
+    expect(other.settled).toHaveBeenCalled()
+  })
+})
+
+describe('createTorrentRequests linked to a poll', () => {
+  const poll = (requestedAt: number | null = null) => ({ refresh: vi.fn(), getSnapshot: () => ({ requestedAt }) })
+  const paused = (item: typeof DUNE) => ({ ...item, state: 'stoppedDL' as const })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('keeps the state a request expects from when qBittorrent took it, and polls again', async () => {
+    vi.useFakeTimers({ now: 5_000 })
+    const linked = poll()
+    const requests = createTorrentRequests(linked)
+    const stop = request()
+    const sent = requests.send('pause', [DUNE, ALIEN], false, () => stop.promise, { expect: paused })
+    // Not before qBittorrent took it.
+    expect(requests.getExpected().size).toBe(0)
+    vi.setSystemTime(7_000)
+    stop.resolve()
+    await sent
+    expect(requests.getExpected().get(requestKey('pause', 'dune'))).toEqual({ hash: 'dune', expect: paused, after: 7_000 })
+    expect(requests.getExpected().get(requestKey('pause', 'alien'))).toMatchObject({ hash: 'alien', after: 7_000 })
+    expect(linked.refresh).toHaveBeenCalledOnce()
+  })
+
+  it('expects nothing when the request failed, and polls again to show what qBittorrent has', async () => {
+    const linked = poll()
+    const requests = createTorrentRequests(linked)
+    await requests.send('pause', DUNE, false, () => Promise.reject(new Error('500')), { expect: paused })
+    expect(requests.getExpected().size).toBe(0)
+    expect(linked.refresh).toHaveBeenCalledOnce()
+  })
+
+  it('leaves the poll to a request that expects no state', async () => {
+    const linked = poll()
+    await createTorrentRequests(linked).send('move', DUNE, '/media', () => Promise.resolve())
+    expect(linked.refresh).not.toHaveBeenCalled()
+  })
+
+  it('forgets the states a poll has had its word on when it keeps a new one', async () => {
+    vi.useFakeTimers({ now: 1_000 })
+    let requestedAt: number | null = null
+    const requests = createTorrentRequests({ refresh: vi.fn(), getSnapshot: () => ({ requestedAt }) })
+    await requests.send('pause', DUNE, false, () => Promise.resolve(), { expect: paused })
+    requestedAt = 1_000
+    vi.setSystemTime(2_000)
+    await requests.send('pause', ALIEN, false, () => Promise.resolve(), { expect: paused })
+    expect([...requests.getExpected().keys()]).toEqual([requestKey('pause', 'alien')])
+  })
+})
+
+describe('withExpected', () => {
+  const data = applyMainData(EMPTY_SYNC_STATE, mainData([DUNE, ALIEN]))
+  const pausedAt = (after: number, hash = 'dune'): [string, Expectation] => [
+    requestKey('pause', hash),
+    { hash, after, expect: (item) => ({ ...item, state: 'stoppedDL' }) },
+  ]
+
+  it('shows the expected state while the poll’s state is from a request sent before qBittorrent took it', () => {
+    const shown = withExpected(data, 900, new Map([pausedAt(1_000)]))
+    expect(shown?.torrents.dune.state).toBe('stoppedDL')
+    expect(shown?.torrents.alien).toBe(data.torrents.alien)
+  })
+
+  it('leaves the word to a poll sent when qBittorrent took it or later', () => {
+    expect(withExpected(data, 1_000, new Map([pausedAt(1_000)]))).toBe(data)
+    expect(withExpected(data, 1_500, new Map([pausedAt(1_000)]))).toBe(data)
+  })
+
+  it('leaves out a torrent that went away, and has nothing to show before the first poll', () => {
+    expect(withExpected(data, 900, new Map([pausedAt(1_000, 'gone')]))).toBe(data)
+    expect(withExpected(null, null, new Map([pausedAt(1_000)]))).toBeNull()
   })
 })

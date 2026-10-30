@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { UnauthorizedError, getMainData } from '../api/qbittorrent'
 import { EMPTY_SYNC_STATE, applyMainData, type SyncState } from './sync'
+import { withExpected, type Expected } from './torrentRequests'
+import { TorrentRequestsContext } from './useTorrentRequests'
 
 export const POLL_INTERVAL_MS = 2_000
 /** Slower retries while qBittorrent doesn't answer. */
@@ -133,11 +135,19 @@ export function createMainDataStore(): MainDataStore {
 /** The app's shared poll, provided by `MainDataProvider`. */
 export const MainDataContext = createContext<MainDataStore | null>(null)
 
+const NOTHING_EXPECTED: Expected = new Map()
+const noRequests = () => () => {}
+const nothingExpected = () => NOTHING_EXPECTED
+
 /**
  * qBittorrent's torrents and server state. Inside `MainDataProvider` every caller shares its poll
  * (and the provider's `onUnauthorized` applies); elsewhere, as in tests, the caller polls on its own.
+ * Under a `TorrentRequestsProvider` a torrent shows the state a request gave it (paused, resumed)
+ * from when qBittorrent took it until a poll sent after that has it.
  */
 export function useMainData(onUnauthorized?: () => void): MainDataState {
+  const requests = useContext(TorrentRequestsContext)
+  const expected = useSyncExternalStore(requests?.subscribe ?? noRequests, requests?.getExpected ?? nothingExpected)
   const shared = useContext(MainDataContext)
   const [own] = useState(() => (shared ? null : createMainDataStore()))
   useEffect(() => {
@@ -145,5 +155,8 @@ export function useMainData(onUnauthorized?: () => void): MainDataState {
   }, [own, onUnauthorized])
   const store = shared ?? own!
   const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot)
-  return useMemo(() => ({ ...snapshot, refresh: store.refresh }), [snapshot, store])
+  return useMemo(
+    () => ({ ...snapshot, data: withExpected(snapshot.data, snapshot.requestedAt, expected), refresh: store.refresh }),
+    [snapshot, expected, store],
+  )
 }

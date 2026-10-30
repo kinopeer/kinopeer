@@ -11,6 +11,7 @@ import { mainData, torrent as fixtureTorrent } from '../test/fixtures'
 import { renderWithRouter, saying } from '../test/render'
 import { resetServerMatches } from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
+import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
 import { DownloadsScreen } from './DownloadsScreen'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => {
@@ -263,5 +264,24 @@ describe('DownloadsScreen on desktop', () => {
     await userEvent.click(screen.getByRole('checkbox', { name: 'Andor.S02.1080p' }))
     expect(screen.getByRole('toolbar', { name: '1 selected' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Andor.S02.1080p' })).not.toBeInTheDocument()
+  })
+
+  it('pauses the selected torrents in one request, without one whose pause is already on its way', async () => {
+    updateSettings({ downloadsDesktopView: 'list' })
+    vi.mocked(api.stopTorrents).mockReturnValue(new Promise(() => {}))
+    renderWithRouter(
+      <TorrentRequestsProvider>
+        <DownloadsScreen onSessionLost={vi.fn()} />
+      </TorrentRequestsProvider>,
+    )
+    await tableRows()
+    await userEvent.click(screen.getByRole('button', { name: 'Pause: Dune.Part.Two.2024.2160p.WEB-DL' }))
+    expect(screen.getByRole('button', { name: 'Pause: Dune.Part.Two.2024.2160p.WEB-DL' })).toBeDisabled()
+    await userEvent.click(screen.getByRole('button', { name: 'Select' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: /^Dune/ }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Andor.S02.1080p' }))
+    await userEvent.click(within(screen.getByRole('toolbar', { name: '2 selected' })).getByRole('button', { name: 'Pause' }))
+    expect(api.stopTorrents).toHaveBeenLastCalledWith(['andor'])
+    expect(api.stopTorrents).toHaveBeenCalledTimes(2)
   })
 })

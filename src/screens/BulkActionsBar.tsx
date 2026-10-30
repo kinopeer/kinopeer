@@ -1,41 +1,37 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { startTorrents, stopTorrents } from '../api/qbittorrent'
+import type { Torrent } from '../api/qbittorrent'
 import { Button } from '../components/Button'
-import { useToast } from '../components/Toast'
-import { TOAST_KEYS } from './toastKeys'
+import { usePauseResume } from './usePauseResume'
 
 export interface BulkActionsBarProps {
   /** The selected torrents. */
-  hashes: string[]
+  torrents: Torrent[]
   /** Accessible name of the toolbar, such as "2 selected". */
   label: string
   /** qBittorrent is unreachable: every action is disabled. */
   offline: boolean
-  /** After pausing or resuming. */
+  /** After qBittorrent took a pause or resume. */
   onDone: () => void
   /** Asks to confirm deleting the selected torrents. */
   onDelete: () => void
 }
 
-/** Pause, Resume and Delete for the selected downloads, in place of the tab bar. */
-export function BulkActionsBar({ hashes, label, offline, onDone, onDelete }: BulkActionsBarProps) {
+/**
+ * Pause, Resume and Delete for the selected downloads, in place of the tab bar. Pause and Resume send
+ * one request for every selected torrent without a pause or resume in flight, which each shows busy.
+ */
+export function BulkActionsBar({ torrents, label, offline, onDone, onDelete }: BulkActionsBarProps) {
   const { t } = useTranslation()
   const [busy, setBusy] = useState<'pause' | 'resume' | null>(null)
-  const toast = useToast()
-  const disabled = hashes.length === 0 || offline || busy !== null
+  const pauseResume = usePauseResume()
+  const disabled = torrents.length === 0 || offline || busy !== null
 
   const run = async (action: 'pause' | 'resume') => {
     setBusy(action)
-    toast.dismiss(TOAST_KEYS.pauseResume)
-    try {
-      await (action === 'pause' ? stopTorrents(hashes) : startTorrents(hashes))
-      onDone()
-    } catch {
-      toast.show(t('torrent.actionFailed'), { icon: 'alert', key: TOAST_KEYS.pauseResume })
-    } finally {
-      setBusy(null)
-    }
+    const settled = await pauseResume.set(torrents, action === 'resume')
+    setBusy(null)
+    if (settled?.ok) onDone()
   }
 
   return (

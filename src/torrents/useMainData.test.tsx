@@ -3,7 +3,9 @@ import { useEffect, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
 import { MainDataProvider } from './MainDataProvider'
+import { TorrentRequestsProvider } from './TorrentRequestsProvider'
 import { OFFLINE_POLL_INTERVAL_MS, POLL_INTERVAL_MS, useMainData } from './useMainData'
+import { useTorrentRequests } from './useTorrentRequests'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => {
   const actual = await importOriginal<typeof api>()
@@ -162,5 +164,50 @@ describe('MainDataProvider', () => {
     renderHook(() => useMainData(), { wrapper: provider(onUnauthorized) })
     await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS * 3))
     expect(onUnauthorized).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('useMainData under a TorrentRequestsProvider', () => {
+  function Providers({ children }: { children: ReactNode }) {
+    return (
+      <MainDataProvider onUnauthorized={vi.fn()}>
+        <TorrentRequestsProvider>{children}</TorrentRequestsProvider>
+      </MainDataProvider>
+    )
+  }
+
+  it('shows the state a request expects until a poll sent after qBittorrent took it, which has the final word', async () => {
+    const downloading = { rid: 1, full_update: true, torrents: { a: { name: 'A', state: 'downloading' as const } } }
+    let answerEarlier = () => {}
+    getMainData
+      .mockResolvedValueOnce(downloading)
+      .mockReturnValueOnce(new Promise((resolve) => (answerEarlier = () => resolve(downloading))))
+      // qBittorrent's scheduler started it again: the poll after the request says so.
+      .mockResolvedValueOnce(downloading)
+    const { result } = renderHook(() => ({ main: useMainData(), requests: useTorrentRequests() }), { wrapper: Providers })
+    await act(() => vi.advanceTimersByTimeAsync(0))
+
+    // A poll goes out, then qBittorrent takes a pause before that poll is answered.
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS))
+    expect(getMainData).toHaveBeenCalledTimes(2)
+    let pause = () => {}
+    const sent = result.current.requests.send('pause', result.current.main.data!.torrents.a, false, () => new Promise((resolve) => (pause = resolve)), {
+      expect: (torrent) => ({ ...torrent, state: 'stoppedDL' }),
+    })
+    await act(() => vi.advanceTimersByTimeAsync(500))
+    expect(result.current.main.data?.torrents.a.state).toBe('downloading')
+    await act(async () => {
+      pause()
+      await sent
+    })
+    expect(result.current.main.data?.torrents.a.state).toBe('stoppedDL')
+
+    // The poll sent before is answered with the old state, which the expected one stays over.
+    await act(async () => answerEarlier())
+    expect(result.current.main.data?.torrents.a.state).toBe('stoppedDL')
+    // The poll the request asked for goes out once that one is answered, and decides.
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    expect(getMainData).toHaveBeenCalledTimes(3)
+    expect(result.current.main.data?.torrents.a.state).toBe('downloading')
   })
 })

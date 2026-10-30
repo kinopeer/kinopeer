@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { act, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
@@ -6,7 +6,9 @@ import type { Torrent } from '../api/qbittorrent'
 import { stubDesktop } from '../lib/stubDesktop'
 import { renderWithRouter, saying } from '../test/render'
 import * as titleMatches from '../torrents/titleMatches'
+import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
 import { TorrentActionsSheet, type TorrentActionsSheetProps } from './TorrentActionsSheet'
+import { usePauseResume } from './usePauseResume'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
   ...(await importOriginal<typeof api>()),
@@ -24,12 +26,21 @@ vi.mock('../torrents/titleMatches', async (importOriginal) => ({
 const TORRENT = { hash: 'b1', name: 'Inception.2010.1080p', state: 'stoppedDL', progress: 0.3 } as Torrent
 const MATCH: titleMatches.TitleMatch = { type: 'movie', id: 27205, title: 'Inception', year: 2010, posterPath: null }
 
+/** Pauses or resumes the torrent from another place under the same requests, as a row's button does. */
+function Elsewhere() {
+  const pauseResume = usePauseResume()
+  return (
+    <button type="button" onClick={() => void pauseResume.toggle(TORRENT)}>
+      Resume elsewhere
+    </button>
+  )
+}
+
 function renderActions(props: Partial<TorrentActionsSheetProps> = {}) {
   const anchor = document.createElement('button')
   document.body.append(anchor)
   const handlers = {
     onClose: vi.fn(),
-    onChanged: vi.fn(),
     onDelete: vi.fn(),
     onMove: vi.fn(),
     onRecheck: vi.fn(),
@@ -39,7 +50,10 @@ function renderActions(props: Partial<TorrentActionsSheetProps> = {}) {
     onConfirmed: vi.fn(),
   }
   const { unmount } = renderWithRouter(
-    <TorrentActionsSheet torrent={TORRENT} match={MATCH} offline={false} anchor={anchor} {...handlers} {...props} />,
+    <TorrentRequestsProvider>
+      <Elsewhere />
+      <TorrentActionsSheet torrent={TORRENT} match={MATCH} offline={false} anchor={anchor} {...handlers} {...props} />
+    </TorrentRequestsProvider>,
   )
   return { ...handlers, unmount }
 }
@@ -88,7 +102,6 @@ describe('TorrentActionsSheet on desktop', () => {
     names.forEach((name, index) => expect(items[index]).toHaveAccessibleName(name))
     await userEvent.click(within(menu).getByRole('menuitem', { name: 'Resume' }))
     expect(api.startTorrents).toHaveBeenCalledWith(['b1'])
-    expect(handlers.onChanged).toHaveBeenCalled()
     expect(handlers.onClose).toHaveBeenCalled()
   })
 
@@ -168,11 +181,26 @@ describe('TorrentActionsSheet on desktop', () => {
     expect(handlers.onConfirmed).toHaveBeenCalled()
   })
 
-  it('shows a failure under the items', async () => {
+  it('shows a failure under the items, not in a toast as well', async () => {
     vi.mocked(api.startTorrents).mockRejectedValue(new Error('500'))
     renderActions()
     await userEvent.click(screen.getByRole('menuitem', { name: 'Resume' }))
     expect(await screen.findByRole('alert', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: saying('Couldn’t reach qBittorrent. Try again.') })).not.toBeInTheDocument()
+  })
+
+  it('turns Resume off while one sent from elsewhere is in flight, then says how it went', async () => {
+    let refuse = () => {}
+    vi.mocked(api.startTorrents).mockReturnValue(new Promise((_resolve, reject) => (refuse = () => reject(new Error('500')))))
+    renderActions()
+    await userEvent.click(screen.getByRole('button', { name: 'Resume elsewhere' }))
+    expect(screen.getByRole('menuitem', { name: 'Resume' })).toBeDisabled()
+    expect(screen.getByRole('menuitem', { name: 'Force recheck' })).toBeDisabled()
+
+    await act(async () => refuse())
+    expect(screen.getByRole('alert', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Resume' })).toBeEnabled()
+    expect(api.startTorrents).toHaveBeenCalledOnce()
   })
 
   it('opens Move files', async () => {
