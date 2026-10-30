@@ -6,7 +6,7 @@ import * as api from '../api/qbittorrent'
 import type { Torrent } from '../api/qbittorrent'
 import { ToastProvider } from '../components/Toast'
 import { torrent } from '../test/fixtures'
-import { saying } from '../test/render'
+import { findToastOnPage, saying } from '../test/render'
 import * as serverMatches from '../torrents/serverMatches'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
 import { useTorrentRequests } from '../torrents/useTorrentRequests'
@@ -91,7 +91,7 @@ describe('useDeleteTorrents', () => {
 
     await confirmIn(dialog)
     expect(deleteTorrents).toHaveBeenCalledWith(['dune', 'alien'], true)
-    expect(await screen.findByRole('status', { name: saying('2 torrents and their files deleted') })).toBeInTheDocument()
+    expect(await findToastOnPage('2 torrents and their files deleted')).toBeInTheDocument()
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
     expect(forgetMatches).toHaveBeenCalledWith(['dune', 'alien'])
     expect(screen.getByRole('status', { name: 'Gone' })).toHaveTextContent('dune,alien')
@@ -153,7 +153,7 @@ describe('useDeleteTorrents', () => {
     await userEvent.click(within(selection).getByRole('button', { name: 'Cancel' }))
     await open('Downloads')
     answer()
-    expect(await screen.findByRole('status', { name: saying('2 torrents deleted') })).toBeInTheDocument()
+    expect(await findToastOnPage('2 torrents deleted')).toBeInTheDocument()
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })
 

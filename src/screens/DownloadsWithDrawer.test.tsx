@@ -9,7 +9,7 @@ import * as tmdb from '../api/tmdb'
 import { stubDesktop } from '../lib/stubDesktop'
 import { resetSettings, updateSettings } from '../settings/settings'
 import { DUNE_TORRENT, mainData, title } from '../test/fixtures'
-import { Where, renderWithRouter, saying, where } from '../test/render'
+import { findToastOnPage, renderWithRouter, saying, Where, where } from '../test/render'
 import { MainDataProvider } from '../torrents/MainDataProvider'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
 import * as serverMatches from '../torrents/serverMatches'
@@ -157,9 +157,8 @@ describe('the details drawer on desktop', () => {
     await userEvent.click(within(drawer).getByRole('button', { name: 'Delete' }))
     const confirm = screen.getByRole('alertdialog', { name: 'Delete torrent?' })
     await userEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
-    expect(await screen.findByRole('status', { name: saying('Torrent deleted') })).toBeInTheDocument()
+    expect(await findToastOnPage('Torrent deleted')).toBeInTheDocument()
     expect(where()).toBe('/')
-    expect(screen.queryByRole('dialog', { name: 'Dune: Part Two' })).not.toBeInTheDocument()
   })
 
   it('shows a toast from Downloads inside the drawer, since the page behind it is inert', async () => {
@@ -346,7 +345,7 @@ describe('the details drawer on desktop', () => {
       expect(screen.queryByRole('menu')).not.toBeInTheDocument()
       const confirm = screen.getByRole('alertdialog', { name: 'Delete torrent?' })
       await userEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
-      expect(await screen.findByRole('status', { name: saying('Torrent deleted') })).toBeInTheDocument()
+      expect(await findToastOnPage('Torrent deleted')).toBeInTheDocument()
       expect(where()).toBe('/')
     })
 

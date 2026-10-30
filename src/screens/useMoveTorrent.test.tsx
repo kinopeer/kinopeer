@@ -5,7 +5,7 @@ import * as api from '../api/qbittorrent'
 import type { Torrent } from '../api/qbittorrent'
 import { ToastProvider } from '../components/Toast'
 import { useMoveTorrent } from './useMoveTorrent'
-import { saying } from '../test/render'
+import { findToastOnPage, saying } from '../test/render'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
   ...(await importOriginal<typeof api>()),
@@ -124,7 +124,7 @@ describe('useMoveTorrent', () => {
     const { open, moveTo, refresh } = renderMove()
     await moveTo(await open(), ' /media/new ')
     expect(setTorrentLocation).toHaveBeenCalledWith(['dune'], '/media/new')
-    expect(await screen.findByRole('status', { name: saying('Moving files to /media/new') })).toBeInTheDocument()
+    expect(await findToastOnPage('Moving files to /media/new')).toBeInTheDocument()
     expect(screen.queryByRole('dialog', { name: 'Move files' })).not.toBeInTheDocument()
     expect(refresh).toHaveBeenCalled()
   })

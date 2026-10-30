@@ -8,7 +8,7 @@ import type { MainData, Torrent } from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
 import { getSettings, resetSettings, updateSettings } from '../settings/settings'
 import { mainData, title, torrent as fixtureTorrent } from '../test/fixtures'
-import { renderWithRouter, saying } from '../test/render'
+import { findToastOnPage, renderWithRouter, saying } from '../test/render'
 import { resetServerMatches } from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
 import { DownloadsScreen } from './DownloadsScreen'
@@ -336,7 +336,7 @@ describe('DownloadsScreen', () => {
     const confirm = screen.getByRole('alertdialog', { name: 'Delete torrent?' })
     await userEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
     expect(api.deleteTorrents).toHaveBeenCalledWith(['andor'], false)
-    expect(await screen.findByRole('status', { name: saying('Torrent deleted') })).toBeInTheDocument()
+    expect(await findToastOnPage('Torrent deleted')).toBeInTheDocument()
   })
 
   it('moves a torrent’s files from the row menu and says where', async () => {
@@ -358,7 +358,7 @@ describe('DownloadsScreen', () => {
     })
     await userEvent.click(within(sheet).getByRole('button', { name: 'Move' }))
     expect(api.setTorrentLocation).toHaveBeenCalledWith(['andor'], '/media/tv')
-    expect(await screen.findByRole('status', { name: saying('Moving files to /media/tv') })).toBeInTheDocument()
+    expect(await findToastOnPage('Moving files to /media/tv')).toBeInTheDocument()
     const andor = screen.getByRole('link', { name: /Andor\.S02\.1080p/ }).closest('li')!
     expect(await within(andor).findByText('Checking', { exact: true })).toBeInTheDocument()
   })
@@ -370,7 +370,7 @@ describe('DownloadsScreen', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' }))
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Reannounce' }))
     expect(api.reannounceTorrents).toHaveBeenCalledWith(['andor'])
-    expect(await screen.findByRole('status', { name: saying('Announced to the trackers') })).toBeInTheDocument()
+    expect(await findToastOnPage('Announced to the trackers')).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'More actions: Andor.S02.1080p' }))
@@ -379,7 +379,7 @@ describe('DownloadsScreen', () => {
     expect(confirm).toHaveTextContent('Andor.S02.1080p')
     await userEvent.click(within(confirm).getByRole('button', { name: 'Force recheck' }))
     expect(api.recheckTorrents).toHaveBeenCalledWith(['andor'])
-    expect(await screen.findByRole('status', { name: saying('Checking the files') })).toBeInTheDocument()
+    expect(await findToastOnPage('Checking the files')).toBeInTheDocument()
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })
 
@@ -550,7 +550,7 @@ describe('DownloadsScreen', () => {
     expect(within(sheet).queryByRole('button', { name: 'Change title' })).not.toBeInTheDocument()
     expect(within(sheet).getByRole('link', { name: 'Movie page' })).toHaveAttribute('href', '/title/movie/693134')
     await userEvent.click(within(sheet).getByRole('button', { name: 'Yes, right' }))
-    expect(await screen.findByRole('status', { name: saying('Match confirmed') })).toBeInTheDocument()
+    expect(await findToastOnPage('Match confirmed')).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
@@ -561,7 +561,7 @@ describe('DownloadsScreen', () => {
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Pick title' }))
     const sheet = screen.getByRole('dialog', { name: 'Pick title' })
     await userEvent.click(await within(sheet).findByRole('button', { name: /^Andor/ }))
-    expect(await screen.findByRole('status', { name: saying('Title changed') })).toBeInTheDocument()
+    expect(await findToastOnPage('Title changed')).toBeInTheDocument()
     await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor' }))
     expect(within(screen.getByRole('dialog', { name: 'Andor' })).getByRole('link', { name: 'Series page' })).toHaveAttribute(
       'href',
@@ -697,7 +697,7 @@ describe('DownloadsScreen selection', () => {
     const confirm = screen.getByRole('alertdialog', { name: 'Delete torrents?' })
     await userEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
     expect(api.deleteTorrents).toHaveBeenCalledWith(['dune', 'alien'], false)
-    expect(await screen.findByRole('status', { name: saying('2 torrents deleted') })).toBeInTheDocument()
+    expect(await findToastOnPage('2 torrents deleted')).toBeInTheDocument()
     expect(screen.queryByRole('toolbar')).not.toBeInTheDocument()
   })
 
