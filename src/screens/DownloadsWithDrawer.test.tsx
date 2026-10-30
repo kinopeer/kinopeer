@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from '@testing-library/react'
+import { act, fireEvent, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -198,6 +198,25 @@ describe('the details drawer on desktop', () => {
     expect(await within(again).findByRole('alert', { name: saying(/Couldn’t save the limits/) })).toBeInTheDocument()
     expect(screen.queryByRole('status', { name: saying(/Couldn’t save the speed limits of/) })).not.toBeInTheDocument()
     expect(api.setSpeedLimits).toHaveBeenCalledOnce()
+  })
+
+  it('shows a pause sent from a row busy in the drawer, then the torrent paused as soon as qBittorrent took it', async () => {
+    let answer = () => {}
+    stopTorrents.mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    renderApp(['/'])
+    await userEvent.click(await screen.findByRole('button', { name: 'Pause: Dune: Part Two' }))
+    await userEvent.click(screen.getByRole('link', { name: /^Dune: Part Two/ }))
+    const drawer = await screen.findByRole('dialog', { name: 'Dune: Part Two' })
+    // Busy with what the row sends, so it can't go out a second time.
+    expect(within(drawer).getByRole('button', { name: 'Pause' })).toBeDisabled()
+    expect(stopTorrents).toHaveBeenCalledOnce()
+
+    // The poll asked for after it hasn't answered yet: the drawer and the row show it paused already.
+    getMainData.mockReturnValue(new Promise(() => {}))
+    await act(async () => answer())
+    expect(within(drawer).getByRole('button', { name: 'Resume' })).toBeEnabled()
+    expect(within(drawer).getByText('Paused')).toBeInTheDocument()
+    expect(getMainData).toHaveBeenCalledTimes(2)
   })
 
   it('stays open when Escape cancels its delete confirmation', async () => {

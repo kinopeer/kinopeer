@@ -1,7 +1,7 @@
 import { useId, useState, type MouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
-import { reannounceTorrents, startTorrents, stopTorrents, type Torrent } from '../api/qbittorrent'
+import { reannounceTorrents, type Torrent } from '../api/qbittorrent'
 import { posterUrl } from '../api/tmdb'
 import { Banner } from '../components/Banner'
 import { Icon } from '../components/Icon'
@@ -14,6 +14,7 @@ import { useTmdbLanguage } from '../settings/settings'
 import { downloadStatus, hasMetadata, isRunning } from '../torrents/status'
 import { chooseTitle, type TitleMatch } from '../torrents/titleMatches'
 import { MatchPrompt } from './MatchPrompt'
+import { usePauseResume } from './usePauseResume'
 
 export interface TorrentActionsSheetProps {
   torrent: Torrent
@@ -28,9 +29,8 @@ export interface TorrentActionsSheetProps {
   anchor?: HTMLElement | null
   /** Set when the title's page is already open under a drawer: its item closes the drawer instead. */
   onTitlePage?: () => void
+  /** Also once qBittorrent took a pause or resume for its torrent, from here or elsewhere. */
   onClose: () => void
-  /** After pausing or resuming, so the list can refresh right away. */
-  onChanged: () => void
   onDelete: () => void
   /** Opens "Move files". */
   onMove: () => void
@@ -56,7 +56,6 @@ export function TorrentActionsSheet({
   anchor,
   onTitlePage,
   onClose,
-  onChanged,
   onDelete,
   onMove,
   onRecheck,
@@ -67,8 +66,15 @@ export function TorrentActionsSheet({
 }: TorrentActionsSheetProps) {
   const { t } = useTranslation()
   const language = useTmdbLanguage()
-  const [busy, setBusy] = useState(false)
+  // Reannouncing; a pause or resume is the app's (`usePauseResume`), busy wherever it was sent from.
+  const [reannouncing, setReannouncing] = useState(false)
   const [failed, setFailed] = useState(false)
+  // The menu shows the torrent, so it says how its pause or resume went: it closes, or shows the failure.
+  const pauseResume = usePauseResume({
+    torrent,
+    settled: (outcome) => (outcome.ok ? onClose() : setFailed(true)),
+  })
+  const busy = reannouncing || pauseResume.busy(torrent.hash)
   const [confirming, setConfirming] = useState(false)
   const [saveFailed, setSaveFailed] = useState(false)
   const status = downloadStatus(torrent)
@@ -88,28 +94,20 @@ export function TorrentActionsSheet({
       : t('torrent.recheckChecking')
   const hintId = useId()
 
-  const toggle = async () => {
-    setBusy(true)
+  const toggle = () => {
     setFailed(false)
-    try {
-      await (running ? stopTorrents([torrent.hash]) : startTorrents([torrent.hash]))
-      onChanged()
-      onClose()
-    } catch {
-      setFailed(true)
-      setBusy(false)
-    }
+    void pauseResume.toggle(torrent)
   }
 
   const reannounce = async () => {
-    setBusy(true)
+    setReannouncing(true)
     setFailed(false)
     try {
       await reannounceTorrents([torrent.hash])
       onReannounced()
     } catch {
       setFailed(true)
-      setBusy(false)
+      setReannouncing(false)
     }
   }
 

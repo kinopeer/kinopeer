@@ -24,6 +24,7 @@ vi.mock('./api/qbittorrent', async (importOriginal) => {
     getSaveLocations: vi.fn(),
     setTorrentLocation: vi.fn(),
     toggleSpeedLimitsMode: vi.fn(),
+    stopTorrents: vi.fn(),
   }
 })
 
@@ -410,6 +411,18 @@ describe('App', () => {
     expect(within(again).getByRole('textbox', { name: 'Folder' })).toHaveValue('/media/new')
     expect(within(again).getByRole('button', { name: /Move/ })).toBeDisabled()
     expect(api.setTorrentLocation).toHaveBeenCalledOnce()
+  })
+
+  it('shows a torrent paused as soon as qBittorrent took the pause, before the poll it asks for answers', async () => {
+    givenDuneToMove()
+    vi.mocked(api.stopTorrents).mockResolvedValue()
+    renderApp('/')
+    await userEvent.click(await screen.findByRole('button', { name: /^More actions/ }))
+    getMainData.mockReturnValue(new Promise(() => {}))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Pause' }))
+    // App's requests are linked to its poll: they asked it again and show the state meanwhile.
+    expect(await within(screen.getByRole('listitem')).findByText('Paused')).toBeInTheDocument()
+    expect(getMainData).toHaveBeenCalledTimes(2)
   })
 
   it('asks for the TMDB key when the server has none, then goes in', async () => {

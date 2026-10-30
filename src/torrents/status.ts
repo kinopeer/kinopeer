@@ -48,6 +48,18 @@ export function isRunning(status: DownloadStatus): boolean {
   return status === 'downloading' || status === 'seeding' || status === 'queued' || status === 'checking'
 }
 
+/**
+ * The torrent as qBittorrent will report it once it took a pause (stopped) or a resume (started,
+ * nothing moving yet), by whether it's finished; unchanged when it already is that way, so a
+ * qBittorrent 4.x `pausedDL` stays itself.
+ */
+export function withRunning(torrent: Torrent, running: boolean): Torrent {
+  if (isRunning(downloadStatus(torrent)) === running) return torrent
+  const finished = torrent.progress >= 1
+  const state: TorrentState = running ? (finished ? 'stalledUP' : 'stalledDL') : finished ? 'stoppedUP' : 'stoppedDL'
+  return { ...torrent, state }
+}
+
 export const STATUS_FILTERS = ['all', 'downloading', 'seeding', 'paused', 'completed', 'error'] as const
 export type StatusFilter = (typeof STATUS_FILTERS)[number]
 

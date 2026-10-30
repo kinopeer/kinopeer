@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router'
-import { startTorrents, stopTorrents, type Torrent } from '../api/qbittorrent'
+import type { Torrent } from '../api/qbittorrent'
 import { Badge } from '../components/Badge'
 import { Button } from '../components/Button'
 import { EmptyState } from '../components/EmptyState'
@@ -19,7 +19,7 @@ import { useIsDesktop } from '../lib/useIsDesktop'
 import { useSettings } from '../settings/settings'
 import { freeSpace } from '../torrents/freeSpace'
 import { compareTorrents, knownSort } from '../torrents/sort'
-import { STATUS_FILTERS, downloadStatus, isRunning, matchesFilter, type StatusFilter } from '../torrents/status'
+import { STATUS_FILTERS, matchesFilter, type StatusFilter } from '../torrents/status'
 import { useServerMatches } from '../torrents/serverMatches'
 import { TYPE_FILTERS, isGuessed, titleType, useTitleMatches, type TypeFilter } from '../torrents/titleMatches'
 import { useMainData, type MainDataState } from '../torrents/useMainData'
@@ -35,9 +35,9 @@ import { SortMenu, SortSheet } from './SortSheet'
 import { StatusMenu } from './StatusMenu'
 import { RecheckDialog } from './RecheckDialog'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
-import { TOAST_KEYS } from './toastKeys'
 import { useAltSpeedSwitch } from './useAltSpeedSwitch'
 import { useMoveTorrent } from './useMoveTorrent'
+import { usePauseResume } from './usePauseResume'
 import { useSpeedLimits } from './useSpeedLimits'
 import { findTorrent, refTo, useTorrentOverlay, type TorrentRef } from './useTorrentOverlay'
 import './DownloadsScreen.css'
@@ -99,8 +99,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   const actions = useTorrentOverlay(data?.torrents)
   // The More button that opened the actions: on desktop they are a menu next to it.
   const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null)
-  // Being paused or resumed from a row's own button on desktop.
-  const [toggling, setToggling] = useState<ReadonlySet<string>>(new Set())
+  const pauseResume = usePauseResume()
   // The torrents a delete confirmation is open for, the row's or the selection's.
   const [deleting, setDeleting] = useState<TorrentRef[] | null>(null)
   const move = useMoveTorrent({ torrents: data?.torrents, offline, refresh })
@@ -195,24 +194,8 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
     setActionsAnchor(anchor)
   }
 
-  const toggleRunning = async (torrent: Torrent) => {
-    const { hash } = torrent
-    setToggling((current) => new Set(current).add(hash))
-    toast.dismiss(TOAST_KEYS.pauseResume)
-    try {
-      const status = downloadStatus(torrent)
-      await (isRunning(status) ? stopTorrents([hash]) : startTorrents([hash]))
-      refresh()
-    } catch {
-      toast.show(t('torrent.actionFailed'), { icon: 'alert', key: TOAST_KEYS.pauseResume })
-    } finally {
-      setToggling((current) => {
-        const next = new Set(current)
-        next.delete(hash)
-        return next
-      })
-    }
-  }
+  const toggleRunning = (torrent: Torrent) => void pauseResume.toggle(torrent)
+
 
   const resetFilters = () => {
     setFilter('all')
@@ -488,7 +471,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
                   showQueue={queueColumn}
                   onMore={openActions}
                   onToggleRunning={toggleRunning}
-                  busy={toggling.has(torrent.hash)}
+                  busy={pauseResume.busy(torrent.hash)}
                   disabled={offline}
                   selected={selected ? selected.has(torrent.hash) : undefined}
                   onToggle={toggleSelected}
@@ -508,7 +491,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
                   showQueue={sort === 'priority'}
                   onMore={openActions}
                   onToggleRunning={isDesktop ? toggleRunning : undefined}
-                  busy={toggling.has(torrent.hash)}
+                  busy={pauseResume.busy(torrent.hash)}
                   disabled={offline}
                   selected={selected ? selected.has(torrent.hash) : undefined}
                   onToggle={toggleSelected}
@@ -542,7 +525,6 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           offline={offline}
           anchor={actionsAnchor}
           onClose={() => actions.close()}
-          onChanged={refresh}
           onDelete={() => {
             actions.close()
             setDeleting([refTo(actionsTorrent)])
@@ -587,13 +569,10 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
       )}
       {selecting && (
         <BulkActionsBar
-          hashes={selectedVisible.map((torrent) => torrent.hash)}
+          torrents={selectedVisible}
           label={t('downloads.selected', { count: selectedVisible.length })}
           offline={offline}
-          onDone={() => {
-            setSelected(null)
-            refresh()
-          }}
+          onDone={() => setSelected(null)}
           onDelete={() => setDeleting(selectedVisible.map(refTo))}
         />
       )}
