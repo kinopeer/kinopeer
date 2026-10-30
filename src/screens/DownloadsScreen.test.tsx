@@ -418,6 +418,67 @@ describe('DownloadsScreen', () => {
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
   })
 
+  it('drops a delete confirmation whose torrent went away, so it doesn’t open again when the torrent is back', async () => {
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+    expect(screen.getByRole('alertdialog', { name: 'Delete torrent?' })).toBeInTheDocument()
+
+    const { andor, ...others } = SNAPSHOT.torrents!
+    getMainData.mockResolvedValue({ ...SNAPSHOT, torrents: others })
+    window.dispatchEvent(new Event('online'))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'More actions: Andor.S02.1080p' })).not.toBeInTheDocument())
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+
+    getMainData.mockResolvedValue({ ...SNAPSHOT, torrents: { ...others, andor } })
+    window.dispatchEvent(new Event('online'))
+    expect(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' })).toBeInTheDocument()
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+  })
+
+  it.each<[string, () => Promise<void>, () => HTMLElement | null]>([
+    [
+      'the row menu',
+      async () => userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' })),
+      () => screen.queryByRole('dialog', { name: 'Andor.S02.1080p' }),
+    ],
+    [
+      'the delete confirmation',
+      async () => {
+        await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' }))
+        await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+      },
+      () => screen.queryByRole('alertdialog', { name: 'Delete torrent?' }),
+    ],
+    [
+      'the selection’s delete confirmation',
+      async () => {
+        await userEvent.click(await screen.findByRole('button', { name: 'Select' }))
+        await userEvent.click(screen.getByRole('checkbox', { name: 'Andor.S02.1080p' }))
+        await userEvent.click(within(screen.getByRole('toolbar')).getByRole('button', { name: 'Delete' }))
+      },
+      () => screen.queryByRole('alertdialog', { name: 'Delete torrent?' }),
+    ],
+    [
+      'the title sheet',
+      async () => {
+        await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' }))
+        await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Pick title' }))
+      },
+      () => screen.queryByRole('dialog', { name: 'Pick title' }),
+    ],
+  ])('closes %s when another torrent with the same hash replaces its torrent between two polls', async (_overlay, open, overlay) => {
+    renderScreen()
+    await open()
+    expect(overlay()).toBeInTheDocument()
+
+    const { andor, ...others } = SNAPSHOT.torrents!
+    getMainData.mockResolvedValue({ ...SNAPSHOT, torrents: { ...others, andor: { ...andor, added_on: andor.added_on! + 60 } } })
+    window.dispatchEvent(new Event('online'))
+    // Confirming a delete then would delete the torrent that replaced it.
+    await waitFor(() => expect(overlay()).not.toBeInTheDocument())
+  })
+
   it('sets a torrent’s speed limits from the row menu, and asks qBittorrent again right away', async () => {
     vi.mocked(api.setSpeedLimits).mockResolvedValue()
     renderScreen()

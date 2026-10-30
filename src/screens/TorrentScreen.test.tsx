@@ -335,6 +335,37 @@ describe('TorrentScreen', () => {
     expect(screen.getByRole('button', { name: 'More actions: Dune: Part Two' })).toBeInTheDocument()
   })
 
+  it.each<[string, () => Promise<void>, () => HTMLElement | null]>([
+    [
+      'the More menu',
+      async () => userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' })),
+      () => screen.queryByRole('dialog', { name: 'Dune: Part Two' }),
+    ],
+    [
+      'the delete confirmation',
+      async () => userEvent.click(await screen.findByRole('button', { name: 'Delete' })),
+      () => screen.queryByRole('alertdialog', { name: 'Delete torrent?' }),
+    ],
+    [
+      'the title sheet',
+      async () => {
+        vi.mocked(tmdb.searchTitles).mockResolvedValue({ titles: [], page: 1, totalPages: 1 })
+        await userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' }))
+        await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Change title' }))
+      },
+      () => screen.queryByRole('dialog', { name: 'Change title' }),
+    ],
+  ])('closes %s when another torrent with the same hash replaces its torrent between two polls', async (_overlay, open, overlay) => {
+    renderScreen()
+    await open()
+    expect(overlay()).toBeInTheDocument()
+
+    getMainData.mockResolvedValue(snapshot({ added_on: DUNE_TORRENT.added_on + 60 }))
+    window.dispatchEvent(new Event('online'))
+    // Confirming a delete then would delete the torrent that replaced it.
+    await waitFor(() => expect(overlay()).not.toBeInTheDocument())
+  })
+
   it('shows the torrent’s files', async () => {
     renderScreen()
     const files = await screen.findByRole('region', { name: /Files/ })

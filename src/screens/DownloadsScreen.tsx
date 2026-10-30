@@ -38,6 +38,7 @@ import { RecheckDialog } from './RecheckDialog'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
 import { useMoveTorrent } from './useMoveTorrent'
 import { useSpeedLimits } from './useSpeedLimits'
+import { findTorrent, refTo, useTorrentOverlay, type TorrentRef } from './useTorrentOverlay'
 import './DownloadsScreen.css'
 
 export interface DownloadsScreenProps {
@@ -85,18 +86,17 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   const [type, setType] = useState<TypeFilter>('all')
   const [searchOpen, setSearchOpen] = useState(false)
   const [query, setQuery] = useState('')
-  const [actionsFor, setActionsFor] = useState<string | null>(null)
+  const actions = useTorrentOverlay(data?.torrents)
   // The More button that opened the actions: on desktop they are a menu next to it.
   const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null)
   // Being paused or resumed from a row's own button on desktop.
   const [toggling, setToggling] = useState<ReadonlySet<string>>(new Set())
   const [toggleFailed, setToggleFailed] = useState(false)
   const dismissToggleFailed = useCallback(() => setToggleFailed(false), [])
-  const [deleting, setDeleting] = useState<string[] | null>(null)
+  // The torrents a delete confirmation is open for, the row's or the selection's.
+  const [deleting, setDeleting] = useState<TorrentRef[] | null>(null)
   const move = useMoveTorrent({ torrents: data?.torrents, offline, refresh })
-  // The torrent whose recheck confirmation is open, by when it was added: one re-added with the same
-  // hash is another torrent.
-  const [rechecking, setRechecking] = useState<{ hash: string; addedOn: number } | null>(null)
+  const recheck = useTorrentOverlay(data?.torrents)
   // A recheck or reannounce qBittorrent took, said in a toast.
   const [notice, setNotice] = useState<'rechecking' | 'reannounced' | null>(null)
   const dismissNotice = useCallback(() => setNotice(null), [])
@@ -108,7 +108,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
     onSelectingChange?.(true)
     return () => onSelectingChange?.(false)
   }, [selecting, onSelectingChange])
-  const [retitling, setRetitling] = useState<string | null>(null)
+  const retitle = useTorrentOverlay(data?.torrents)
   const [titleSaved, setTitleSaved] = useState<'changed' | 'confirmed' | null>(null)
   const dismissTitleSaved = useCallback(() => setTitleSaved(null), [])
   // Tell the user when qBittorrent answers again after an outage.
@@ -169,14 +169,11 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
 
   const loading = data === null
   // Looked up on every render, so the sheet follows live status changes and closes if the torrent goes away.
-  const actionsTorrent = actionsFor ? data?.torrents[actionsFor] : undefined
-  const deleteTorrents = (deleting ?? []).flatMap((hash) => data?.torrents[hash] ?? [])
-  const retitleTorrent = retitling ? data?.torrents[retitling] : undefined
-  const recheckCandidate = rechecking ? data?.torrents[rechecking.hash] : undefined
-  const recheckTorrent = recheckCandidate?.added_on === rechecking?.addedOn ? recheckCandidate : undefined
-  // The torrent went away while its confirmation was open (deleted elsewhere) or another with the same
-  // hash replaced it: forget it, so the confirmation doesn't open again if the same torrent is back.
-  if (rechecking && data && !recheckTorrent) setRechecking(null)
+  const actionsTorrent = actions.torrent
+  // Without those that went away or were replaced since; none left, the confirmation is forgotten, so
+  // it doesn't open again if the same torrent is back.
+  const deleteTorrents = (deleting ?? []).flatMap((ref) => findTorrent(data?.torrents, ref) ?? [])
+  if (deleting && data && deleteTorrents.length === 0) setDeleting(null)
   const server = data?.server
   const free = freeSpace(server?.free_space_on_disk)
 
@@ -187,11 +184,11 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
 
   // On desktop the actions are a menu, and its More button toggles it.
   const openActions = (torrent: Torrent, anchor: HTMLElement) => {
-    if (actionsFor === torrent.hash && actionsAnchor === anchor) {
-      setActionsFor(null)
+    if (actionsTorrent?.hash === torrent.hash && actionsAnchor === anchor) {
+      actions.close()
       return
     }
-    setActionsFor(torrent.hash)
+    actions.open(torrent.hash)
     setActionsAnchor(anchor)
   }
 
@@ -541,46 +538,46 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           guessed={isGuessed(actionsTorrent, serverMatches?.[actionsTorrent.hash])}
           offline={offline}
           anchor={actionsAnchor}
-          onClose={() => setActionsFor(null)}
+          onClose={() => actions.close()}
           onChanged={refresh}
           onDelete={() => {
-            setActionsFor(null)
-            setDeleting([actionsTorrent.hash])
+            actions.close()
+            setDeleting([refTo(actionsTorrent)])
           }}
           onMove={() => {
-            setActionsFor(null)
+            actions.close()
             move.open(actionsTorrent.hash)
           }}
           onRecheck={() => {
-            setActionsFor(null)
-            setRechecking({ hash: actionsTorrent.hash, addedOn: actionsTorrent.added_on })
+            actions.close()
+            recheck.open(actionsTorrent.hash)
           }}
           onSpeedLimits={() => {
-            setActionsFor(null)
+            actions.close()
             limits.open(actionsTorrent.hash)
           }}
           onReannounced={() => {
-            setActionsFor(null)
+            actions.close()
             setNotice('reannounced')
           }}
           onChangeTitle={() => {
-            setActionsFor(null)
-            setRetitling(actionsTorrent.hash)
+            actions.close()
+            retitle.open(actionsTorrent.hash)
           }}
           onConfirmed={() => {
-            setActionsFor(null)
+            actions.close()
             setTitleSaved('confirmed')
           }}
         />
       )}
       {move.element}
-      {retitleTorrent && (
+      {retitle.torrent && (
         <ChangeTitleSheet
-          torrent={retitleTorrent}
-          current={matches[retitleTorrent.hash]}
-          onClose={() => setRetitling(null)}
+          torrent={retitle.torrent}
+          current={matches[retitle.torrent.hash]}
+          onClose={() => retitle.close()}
           onChosen={(result) => {
-            setRetitling(null)
+            retitle.close()
             setTitleSaved(result)
           }}
         />
@@ -594,16 +591,16 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
             setSelected(null)
             refresh()
           }}
-          onDelete={() => setDeleting(selectedVisible.map((torrent) => torrent.hash))}
+          onDelete={() => setDeleting(selectedVisible.map(refTo))}
         />
       )}
-      {recheckTorrent && (
+      {recheck.torrent && (
         <RecheckDialog
-          hash={recheckTorrent.hash}
-          title={nameOf(recheckTorrent)}
-          onClose={() => setRechecking(null)}
+          hash={recheck.torrent.hash}
+          title={nameOf(recheck.torrent)}
+          onClose={() => recheck.close()}
           onRechecked={() => {
-            setRechecking(null)
+            recheck.close()
             setNotice('rechecking')
             refresh()
           }}
