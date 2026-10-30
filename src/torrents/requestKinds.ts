@@ -14,6 +14,8 @@ export const REQUEST_KINDS = {
   recheck: 'recheck',
   /** Deleting torrents, with their files or without: its confirmation. */
   delete: 'delete',
+  /** Saving the torrent's title: Change title, or "Yes, right" for a guessed one. */
+  title: 'title',
 } as const
 
 export type RequestKind = (typeof REQUEST_KINDS)[keyof typeof REQUEST_KINDS]

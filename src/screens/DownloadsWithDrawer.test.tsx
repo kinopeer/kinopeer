@@ -246,7 +246,7 @@ describe('the details drawer on desktop', () => {
     expect(screen.getByRole('status', { name: saying('Checking the files') })).toBeInTheDocument()
   })
 
-  it('shows a delete sent from Downloads busy in the drawer’s confirmation, then the torrent gone as soon as qBittorrent took it', async () => {
+  it('shows a delete sent from Downloads busy in the drawer, with nothing else to send, then the torrent gone as soon as qBittorrent took it', async () => {
     let answer = () => {}
     deleteTorrents.mockReturnValue(new Promise((resolve) => (answer = resolve)))
     renderApp(['/'])
@@ -259,10 +259,15 @@ describe('the details drawer on desktop', () => {
 
     await userEvent.click(screen.getByRole('link', { name: /^Dune: Part Two/ }))
     const drawer = await screen.findByRole('dialog', { name: 'Dune: Part Two' })
-    await userEvent.click(within(drawer).getByRole('button', { name: 'Delete' }))
-    // Busy with what Downloads sends, so it can't go out a second time.
-    const again = screen.getByRole('alertdialog', { name: 'Delete torrent?' })
-    expect(within(again).getByRole('button', { name: 'Delete' })).toBeDisabled()
+    // Busy with what Downloads sends, so it can't go out a second time, and nothing else is sent meanwhile.
+    const remove = within(drawer).getByRole('button', { name: 'Delete' })
+    expect(remove).toBeDisabled()
+    expect(remove).toHaveAttribute('aria-busy', 'true')
+    expect(within(drawer).getByRole('button', { name: 'Pause' })).toBeDisabled()
+    await userEvent.click(within(drawer).getByRole('button', { name: 'More actions: Dune: Part Two' }))
+    for (const name of ['Pause', 'Speed limits', 'Move files…', 'Delete']) {
+      expect(within(drawer).getByRole('menuitem', { name })).toBeDisabled()
+    }
     expect(deleteTorrents).toHaveBeenCalledOnce()
 
     // The poll asked for after it hasn't answered yet: the torrent is gone from both already.
@@ -341,5 +346,31 @@ describe('the details drawer on desktop', () => {
       expect(await screen.findByRole('status', { name: saying('Match confirmed') })).toBeInTheDocument()
       expect(screen.queryByRole('menu')).not.toBeInTheDocument()
     })
+  })
+
+  it('shows "Yes, right" sent from a row’s menu busy in the drawer, then says it once', async () => {
+    getMainData.mockResolvedValue(snapshot({ tags: '' }))
+    vi.mocked(tmdb.searchTitles).mockResolvedValue({ titles: [title('movie', 693134, 'Dune: Part Two', 2024)], page: 1, totalPages: 1 })
+    let saved = () => {}
+    vi.mocked(matchesApi.saveMatches).mockImplementation(
+      (changes) => new Promise((resolve) => (saved = () => resolve(changes as matchesApi.Matches))),
+    )
+    renderApp(['/'])
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' }))
+    const guess = screen.getByRole('group', { name: 'Matched by the release name. Is it right?' })
+    await userEvent.click(within(guess).getByRole('menuitem', { name: 'Yes, right' }))
+    await userEvent.keyboard('{Escape}')
+
+    await userEvent.click(screen.getByRole('link', { name: /^Dune: Part Two/ }))
+    const drawer = await screen.findByRole('dialog', { name: 'Dune: Part Two' })
+    const confirm = within(drawer).getByRole('button', { name: 'Yes, right' })
+    expect(confirm).toBeDisabled()
+    expect(confirm).toHaveAttribute('aria-busy', 'true')
+    expect(within(drawer).getByRole('button', { name: 'Change' })).toBeDisabled()
+    expect(matchesApi.saveMatches).toHaveBeenCalledOnce()
+
+    await act(async () => saved())
+    expect(screen.getAllByRole('status', { name: saying('Match confirmed') })).toHaveLength(1)
+    expect(within(drawer).queryByRole('button', { name: 'Yes, right' })).not.toBeInTheDocument()
   })
 })

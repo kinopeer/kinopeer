@@ -132,8 +132,9 @@ milliseconds, fails with a precise message, and it's the one the layer above lea
   it, one opened again for the same torrent, or a toast), that it isn't sent twice while in flight
   (pressed again, from the sheet opened again, and after another torrent's request started), that a
   sheet opened again starts from what's in flight, and that its fields can't be changed meanwhile.
-  `useMoveTorrent.test.tsx` and `useSpeedLimits.test.tsx` do, with what a sheet does with what's in
-  flight alone in its own tests (`SpeedLimitsSheet.test.tsx`).
+  `useMoveTorrent.test.tsx`, `useSpeedLimits.test.tsx` and `useChooseTitle.test.tsx` do, with what a
+  sheet does with what's in flight alone in its own tests (`SpeedLimitsSheet.test.tsx`,
+  `ChangeTitleSheet.test.tsx`).
 - **A request that expects a state** (pause and resume, recheck, delete). The store's tests own
   which torrents a request sends, when the state is kept and the poll asked again, the order the
   states apply in, and `withExpected` when the poll has the final word (a torrent taken away

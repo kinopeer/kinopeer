@@ -9,6 +9,10 @@ import { chooseMatch, forgetServerGuesses, rememberMatches, useServerMatches } f
 /** What a download row needs from TMDB. */
 export type TitleMatch = Pick<Title, 'type' | 'id' | 'title' | 'year' | 'posterPath'>
 
+/** Whether two titles are the same TMDB title. */
+export const sameTitle = (a: Pick<Title, 'type' | 'id'> | null | undefined, b: Pick<Title, 'type' | 'id'> | null | undefined) =>
+  !!a && !!b && a.type === b.type && a.id === b.id
+
 interface Lookup {
   key: string
   /** A known title: the user's choice, the `tmdb:` tag or a saved guess. */
