@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
-import type { TorrentFile } from '../api/qbittorrent'
+import type { Torrent, TorrentFile } from '../api/qbittorrent'
 import { ToastProvider } from '../components/Toast'
 import { torrent } from '../test/fixtures'
 import { saying } from '../test/render'
@@ -25,8 +25,8 @@ const FILES: TorrentFile[] = [
 const FAILED = 'Couldn’t change the priority. Try again.'
 
 /** A file list for Dune, as the torrent's page has: `list` is what its poll says. */
-function List({ name, list }: { name: string; list: TorrentFilesState }) {
-  const priorities = useFilePriorities(DUNE, list)
+function List({ name, list, target = DUNE }: { name: string; list: TorrentFilesState; target?: Torrent }) {
+  const priorities = useFilePriorities(target, list)
   return (
     <section aria-label={name}>
       <output aria-label="Priorities">{priorities.files?.map((file) => file.priority).join()}</output>
@@ -164,5 +164,15 @@ describe('useFilePriorities', () => {
     pendingChange()
     await lists.in('Page').press('Extras high')
     expect(screen.queryByRole('status', { name: saying(FAILED) })).not.toBeInTheDocument()
+  })
+
+  it('leaves a failure to a toast when the list shows another torrent with the same hash, added again', async () => {
+    const change = pendingChange()
+    const view = render(<List name="Page" list={POLLED} />, { wrapper: Providers })
+    await userEvent.click(screen.getByRole('button', { name: 'Extras high' }))
+    view.rerender(<List name="Page" list={POLLED} target={{ ...DUNE, added_on: 2 }} />)
+    await change.fail()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('status', { name: saying(FAILED) })).toBeInTheDocument()
   })
 })
