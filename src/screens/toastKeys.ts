@@ -14,6 +14,8 @@ export const TOAST_KEYS = {
   delete: 'delete-failed',
   /** Saving a torrent's title: Change title, or "Yes, right" in the More menu or the torrent's details. */
   title: 'title-failed',
+  /** A file's priority: the file list in the torrent's details. */
+  filePriority: 'file-priority-failed',
   /** Switching the alternative speed limits. */
   altSpeed: 'alt-speed-failed',
 } as const

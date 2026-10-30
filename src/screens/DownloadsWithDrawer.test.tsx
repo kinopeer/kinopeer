@@ -307,6 +307,31 @@ describe('the details drawer on desktop', () => {
     for (const file of within(drawer).getAllByRole('combobox', { name: /^Priority:/ })) expect(file).toBeDisabled()
   })
 
+  it('shows a priority change sent before the drawer was closed busy when it opens again, then keeps it over an older poll', async () => {
+    getTorrentFiles.mockResolvedValue([
+      { index: 0, name: 'Dune.Part.Two/Dune.Part.Two.mkv', size: 19_900_000_000, progress: 0.4, priority: 1 },
+      { index: 1, name: 'Dune.Part.Two/Extras.mkv', size: 1_500_000_000, progress: 0, priority: 0 },
+    ])
+    let answer = () => {}
+    setFilePriority.mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    renderApp(['/', '/torrent/dune'])
+    const first = await screen.findByRole('dialog', { name: 'Dune: Part Two' })
+    await userEvent.selectOptions(await within(first).findByRole('combobox', { name: 'Priority: Extras.mkv' }), 'high')
+    await userEvent.click(within(first).getByRole('button', { name: 'Close' }))
+
+    await userEvent.click(await screen.findByRole('link', { name: /^Dune: Part Two/ }))
+    const drawer = await screen.findByRole('dialog', { name: 'Dune: Part Two' })
+    const extras = await within(drawer).findByRole('combobox', { name: 'Priority: Extras.mkv' })
+    expect(extras).toHaveValue('high')
+    expect(extras).toBeDisabled()
+    expect(setFilePriority).toHaveBeenCalledOnce()
+
+    // The drawer's poll went out before qBittorrent answered, so it still has the old priority.
+    await act(async () => answer())
+    expect(extras).toBeEnabled()
+    expect(extras).toHaveValue('high')
+  })
+
   it('stays open when Escape cancels its delete confirmation', async () => {
     renderApp(['/', '/torrent/dune'])
     const drawer = await screen.findByRole('dialog', { name: 'Dune: Part Two' })

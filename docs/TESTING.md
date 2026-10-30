@@ -149,7 +149,9 @@ milliseconds, fails with a precise message, and it's the one the layer above lea
   `App` links the requests to its poll. A kind of its own (reannounce, recheck, delete) has its
   hook's test for the same (`useReannounce.test.tsx`, `useRecheck.test.tsx`,
   `useDeleteTorrents.test.tsx`, the state it expects included) and a wiring test per place, as
-  above.
+  above. File priorities keep their state against the files poll instead, so
+  `useFilePriorities.test.tsx` owns when it gives way to that poll, besides busy per file and where
+  a failure goes.
 - **A flaky test is fixed or deleted.** Not retried, not skipped, not marked `fixme`: a retry hides
   the instability and a skip hides the behavior (oxlint refuses `.skip` and `.only`). Both Playwright
   configs run with `retries: 0`, so a screenshot or a journey that fails once fails the job.

@@ -45,6 +45,8 @@ export interface SendOptions {
    * The poll is asked again when the request settles, either way.
    */
   expect?: Expect
+  /** A part of each torrent the request is about (a file), so one per part is in flight, not per torrent. */
+  part?: string
 }
 
 /** The app's requests to qBittorrent about torrents (`REQUEST_KINDS`). */
@@ -71,9 +73,10 @@ export interface TorrentRequests {
 /**
  * By hash alone, not when the torrent was added: qBittorrent applies a request to the hash, so one
  * still in flight for a torrent deleted and added again goes to the new one, which shows it busy
- * rather than letting it go out twice.
+ * rather than letting it go out twice. With `part`, for that part of the torrent (`SendOptions`).
  */
-export const requestKey = (kind: string, hash: string) => `${kind}|${hash}`
+export const requestKey = (kind: string, hash: string, part?: string) =>
+  part === undefined ? `${kind}|${hash}` : `${kind}|${hash}|${part}`
 
 /**
  * Requests in flight, shared by every screen under one store, so a sheet for a torrent shows a
@@ -98,11 +101,12 @@ export function createTorrentRequests(poll?: RequestsPoll): TorrentRequests {
     getSnapshot: () => inFlight,
     getExpected: () => expected,
     async send(kind, target, payload, request, options) {
+      const { expect, part } = options ?? {}
       const targets = (Array.isArray(target) ? target : [target]).filter(
-        (item: Torrent) => !inFlight.has(requestKey(kind, item.hash)),
+        (item: Torrent) => !inFlight.has(requestKey(kind, item.hash, part)),
       )
       if (targets.length === 0) return undefined
-      const keys = targets.map((item) => requestKey(kind, item.hash))
+      const keys = targets.map((item) => requestKey(kind, item.hash, part))
       const sending = new Map(inFlight)
       keys.forEach((key) => sending.set(key, payload))
       inFlight = sending
@@ -118,7 +122,6 @@ export function createTorrentRequests(poll?: RequestsPoll): TorrentRequests {
       const settled = new Map(inFlight)
       keys.forEach((key) => settled.delete(key))
       inFlight = settled
-      const { expect } = options ?? {}
       if (outcome.ok && expect) {
         const after = Date.now()
         // Without the ones a poll has had its word on since, so they don't pile up.

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { FilePriority, TorrentFile } from '../api/qbittorrent'
+import type { FilePriority, Torrent } from '../api/qbittorrent'
 import { Banner } from '../components/Banner'
 import { Icon } from '../components/Icon'
 import { ProgressBar } from '../components/ProgressBar'
@@ -8,12 +8,13 @@ import { useFormatters } from '../lib/format'
 import { buildFileTree, fileName, initiallyOpen, type FileFolder } from '../releases/fileTree'
 import type { DownloadStatus } from '../torrents/status'
 import { useTorrentFiles } from '../torrents/useTorrentFiles'
+import { useFilePriorities } from './useFilePriorities'
 
 export interface TorrentFilesProps {
-  hash: string
+  torrent: Torrent
   /** The torrent's status, for the color of the progress bars. */
   status: DownloadStatus
-  /** qBittorrent is unreachable: priorities can't be changed. */
+  /** qBittorrent is unreachable, or the torrent is being deleted: priorities can't be changed. */
   disabled?: boolean
 }
 
@@ -25,12 +26,18 @@ function priorityChoice(priority: FilePriority): PriorityChoice {
   return priority === 0 ? 'skip' : priority === 1 ? 'normal' : 'high'
 }
 
-/** A torrent's files with their progress and download priority, as the torrent's folder tree. */
-export function TorrentFiles({ hash, status, disabled }: TorrentFilesProps) {
+/**
+ * A torrent's files with their progress and download priority, as the torrent's folder tree. A
+ * file's priority change is on its way while its picker is off (`useFilePriorities`).
+ */
+export function TorrentFiles({ torrent, status, disabled }: TorrentFilesProps) {
   const { t } = useTranslation()
   const format = useFormatters()
-  const { files, failed, setPriority } = useTorrentFiles(hash)
-  const [saveFailed, setSaveFailed] = useState(false)
+  const list = useTorrentFiles(torrent.hash)
+  const { failed } = list
+  const priorities = useFilePriorities(torrent, list)
+  const { files } = priorities
+  const saveFailed = priorities.failed
 
   const tree = useMemo(() => buildFileTree((files ?? []).map((file) => ({ path: file.name, size: file.size }))), [files])
   // Folders the user opened or closed; the rest follow initiallyOpen, which needs the file list first.
@@ -45,19 +52,11 @@ export function TorrentFiles({ hash, status, disabled }: TorrentFilesProps) {
       return next
     })
 
-  const change = async (file: TorrentFile, choice: PriorityChoice) => {
-    setSaveFailed(false)
-    try {
-      await setPriority([file.index], PRIORITY_VALUE[choice])
-    } catch {
-      setSaveFailed(true)
-    }
-  }
-
   const fileRow = (position: number) => {
     const file = files![position]
     const label = fileName(file.name)
     const choice = priorityChoice(file.priority)
+    const busy = priorities.busy(file.index)
     return (
       <li key={file.index} className={choice === 'skip' ? 'tf-file is-skipped' : 'tf-file'}>
         <div className="tf-file-body">
@@ -80,8 +79,9 @@ export function TorrentFiles({ hash, status, disabled }: TorrentFilesProps) {
           <select
             aria-label={t('torrent.priorityOf', { name: label })}
             value={choice}
-            disabled={disabled}
-            onChange={(event) => void change(file, event.target.value as PriorityChoice)}
+            aria-busy={busy || undefined}
+            disabled={disabled || busy}
+            onChange={(event) => priorities.set(file.index, PRIORITY_VALUE[event.target.value as PriorityChoice])}
           >
             <option value="skip">{t('torrent.prioritySkip')}</option>
             <option value="normal">{t('torrent.priorityNormal')}</option>
