@@ -357,7 +357,8 @@ describe('App', () => {
     expect(screen.queryByRole('heading', { name: 'Downloads' })).not.toBeInTheDocument()
   })
 
-  it('says how a move went after the torrent’s screen was left while it was being sent', async () => {
+  /** One torrent in qBittorrent, and its folders, for the move steps below. */
+  const givenDuneToMove = () => {
     getMainData.mockResolvedValue({
       rid: 1,
       full_update: true,
@@ -367,6 +368,10 @@ describe('App', () => {
       server_state: {},
     })
     vi.mocked(api.getSaveLocations).mockResolvedValue({ defaultPath: '/downloads', categories: [], categoryPaths: false, subcategories: false })
+  }
+
+  it('says how a move went after the torrent’s screen was left while it was being sent', async () => {
+    givenDuneToMove()
     let fail = (_error: unknown) => {}
     vi.mocked(api.setTorrentLocation).mockReturnValue(new Promise<void>((_resolve, reject) => (fail = reject)))
     renderApp('/torrent/dune')
@@ -385,15 +390,7 @@ describe('App', () => {
   })
 
   it('shows a move sent from the torrent’s screen busy in Downloads’ sheet for that torrent, so it isn’t sent twice', async () => {
-    getMainData.mockResolvedValue({
-      rid: 1,
-      full_update: true,
-      torrents: {
-        dune: { name: 'Dune.2021.1080p', state: 'downloading', progress: 0.5, size: 1e9, priority: 1, ratio: 0, save_path: '/downloads', added_on: 1 },
-      },
-      server_state: {},
-    })
-    vi.mocked(api.getSaveLocations).mockResolvedValue({ defaultPath: '/downloads', categories: [], categoryPaths: false, subcategories: false })
+    givenDuneToMove()
     vi.mocked(api.setTorrentLocation).mockReturnValue(new Promise<void>(() => {}))
     renderApp('/torrent/dune')
     await userEvent.click(await screen.findByRole('button', { name: /^More actions/ }))
