@@ -127,7 +127,6 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
     />
   )
 
-
   if (data === null && offline) {
     return (
       <Root className={cx('torrent torrent-message', drawer && 'is-drawer')}>
