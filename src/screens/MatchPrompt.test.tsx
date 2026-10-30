@@ -21,6 +21,17 @@ describe('MatchPrompt', () => {
     expect(screen.getByRole('button', { name: 'Yes, right' })).toHaveAttribute('aria-busy', 'true')
   })
 
+  it('turns off every button when nothing can be chosen, whichever it asks', () => {
+    const { unmount } = render(<MatchPrompt kind="guess" disabled onChange={vi.fn()} onConfirm={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'Change' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Yes, right' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Yes, right' })).not.toHaveAttribute('aria-busy')
+    unmount()
+
+    render(<MatchPrompt kind="none" disabled onChange={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'Pick title' })).toBeDisabled()
+  })
+
   it('offers to pick a title when none was found', async () => {
     const onChange = vi.fn()
     render(<MatchPrompt kind="none" onChange={onChange} />)
