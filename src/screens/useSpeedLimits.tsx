@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { setSpeedLimits, type Torrent } from '../api/qbittorrent'
 import { useToast } from '../components/Toast'
+import { REQUEST_KINDS } from '../torrents/requestKinds'
 import { SpeedLimitsSheet, type SpeedLimitsChange } from './SpeedLimitsSheet'
 import { useTorrentSheet } from './useTorrentSheet'
 
@@ -28,7 +29,7 @@ export function useSpeedLimits({ torrents, offline, refresh, titleOf }: {
   titleOf: (torrent: Torrent) => string
 }): SpeedLimits {
   const { t } = useTranslation()
-  const { torrent, open, close, pending, failure, send } = useTorrentSheet<SpeedLimitsChange>('limits', torrents)
+  const { torrent, open, close, pending, failure, send } = useTorrentSheet<SpeedLimitsChange>(REQUEST_KINDS.limits, torrents)
   const toast = useToast()
 
   const save = async (target: Torrent, limits: SpeedLimitsChange) => {

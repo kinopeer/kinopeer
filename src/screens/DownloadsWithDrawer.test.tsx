@@ -246,6 +246,34 @@ describe('the details drawer on desktop', () => {
     expect(screen.getByRole('status', { name: saying('Checking the files') })).toBeInTheDocument()
   })
 
+  it('shows a delete sent from Downloads busy in the drawer’s confirmation, then the torrent gone as soon as qBittorrent took it', async () => {
+    let answer = () => {}
+    deleteTorrents.mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    renderApp(['/'])
+    await userEvent.click(await screen.findByRole('button', { name: /^More actions: Dune/ }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Delete' }))
+    const confirm = screen.getByRole('alertdialog', { name: 'Delete torrent?' })
+    await userEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
+    // Closed while it's sent, as Escape does.
+    fireEvent(confirm, new Event('cancel', { cancelable: true }))
+
+    await userEvent.click(screen.getByRole('link', { name: /^Dune: Part Two/ }))
+    const drawer = await screen.findByRole('dialog', { name: 'Dune: Part Two' })
+    await userEvent.click(within(drawer).getByRole('button', { name: 'Delete' }))
+    // Busy with what Downloads sends, so it can't go out a second time.
+    const again = screen.getByRole('alertdialog', { name: 'Delete torrent?' })
+    expect(within(again).getByRole('button', { name: 'Delete' })).toBeDisabled()
+    expect(deleteTorrents).toHaveBeenCalledOnce()
+
+    // The poll asked for after it hasn't answered yet: the torrent is gone from both already.
+    getMainData.mockReturnValue(new Promise(() => {}))
+    await act(async () => answer())
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(within(drawer).getByRole('heading', { name: 'Torrent not found' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /^Dune: Part Two/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('status', { name: saying('Torrent deleted') })).toBeInTheDocument()
+  })
+
   it('stays open when Escape cancels its delete confirmation', async () => {
     renderApp(['/', '/torrent/dune'])
     const drawer = await screen.findByRole('dialog', { name: 'Dune: Part Two' })

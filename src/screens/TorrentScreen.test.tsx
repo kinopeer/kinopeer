@@ -1,6 +1,6 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { Route, Routes, useLocation } from 'react-router'
+import { Route, Routes } from 'react-router'
 import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import * as matchesApi from '../api/matches'
 import * as api from '../api/qbittorrent'
@@ -64,18 +64,14 @@ const deleteTorrents = vi.mocked(api.deleteTorrents)
 
 const snapshot = (fields: Partial<Torrent> = {}) => mainData([{ ...DUNE_TORRENT, ...fields }])
 
-function Downloads() {
-  const location = useLocation()
-  return <p>Downloads list {JSON.stringify(location.state)}</p>
-}
-
-function renderScreen(hash = 'dune') {
+function renderScreen(hash = 'dune', from = '/') {
   return renderWithRouter(
     <Routes>
-      <Route path="/" element={<Downloads />} />
+      <Route path="/" element={<p>Downloads list</p>} />
+      <Route path="/search" element={<p>Search page</p>} />
       <Route path="/torrent/:hash" element={<TorrentScreen onSessionLost={vi.fn()} />} />
     </Routes>,
-    ['/', `/torrent/${hash}`],
+    [from, `/torrent/${hash}`],
   )
 }
 
@@ -223,7 +219,24 @@ describe('TorrentScreen', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Delete' }))
     const dialog = screen.getByRole('alertdialog', { name: 'Delete torrent?' })
     await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
-    expect(await screen.findByText(/Downloads list/)).toHaveTextContent('"deleted":"torrent"')
+    expect(await screen.findByText('Downloads list')).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: saying('Torrent deleted') })).toBeInTheDocument()
+  })
+
+  it('stays where the user went when a delete settles after they left the page', async () => {
+    let answer = () => {}
+    deleteTorrents.mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    renderScreen('dune', '/search')
+    await userEvent.click(await screen.findByRole('button', { name: 'Delete' }))
+    const dialog = screen.getByRole('alertdialog', { name: 'Delete torrent?' })
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(screen.getByText('Search page')).toBeInTheDocument()
+
+    await act(async () => answer())
+    expect(screen.getByRole('status', { name: saying('Torrent deleted') })).toBeInTheDocument()
+    expect(screen.getByText('Search page')).toBeInTheDocument()
   })
 
   it('moves the files from the More menu', async () => {

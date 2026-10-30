@@ -2,13 +2,11 @@ import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { startTorrents, stopTorrents, type Torrent } from '../api/qbittorrent'
 import { useToast } from '../components/Toast'
+import { REQUEST_KINDS } from '../torrents/requestKinds'
 import { downloadStatus, isRunning, withRunning } from '../torrents/status'
 import type { Settled } from '../torrents/torrentRequests'
 import { TOAST_KEYS } from './toastKeys'
 import { useTorrentAction, type ActionWatcher } from './useTorrentAction'
-
-/** The requests' kind for pausing and resuming: one at a time per torrent, whichever it is. */
-export const PAUSE_RESUME = 'pause-resume'
 
 export interface PauseResume {
   /** Whether a pause or resume is in flight for the torrent, sent from anywhere. */
@@ -31,7 +29,7 @@ export interface PauseResume {
 export function usePauseResume(watcher?: ActionWatcher): PauseResume {
   const { t } = useTranslation()
   const toast = useToast()
-  const { busy, send } = useTorrentAction(PAUSE_RESUME, watcher)
+  const { busy, send } = useTorrentAction(REQUEST_KINDS.pauseResume, watcher)
 
   const set = useCallback(
     async (targets: readonly Torrent[], running: boolean) => {

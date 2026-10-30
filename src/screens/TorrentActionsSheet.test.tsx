@@ -6,11 +6,11 @@ import type { Torrent } from '../api/qbittorrent'
 import { stubDesktop } from '../lib/stubDesktop'
 import { renderWithRouter, saying } from '../test/render'
 import * as titleMatches from '../torrents/titleMatches'
+import { REQUEST_KINDS } from '../torrents/requestKinds'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
 import { TorrentActionsSheet, type TorrentActionsSheetProps } from './TorrentActionsSheet'
 import { usePauseResume } from './usePauseResume'
 import { useReannounce } from './useReannounce'
-import { RECHECK } from './useRecheck'
 import { useTorrentRequests } from '../torrents/useTorrentRequests'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
@@ -47,7 +47,7 @@ function Elsewhere({ torrent = TORRENT }: { torrent?: Torrent }) {
       </button>
       <button
         type="button"
-        onClick={() => void requests.send(RECHECK, torrent, true, (hashes) => api.recheckTorrents(hashes))}
+        onClick={() => void requests.send(REQUEST_KINDS.recheck, torrent, true, (hashes) => api.recheckTorrents(hashes))}
       >
         Recheck elsewhere
       </button>

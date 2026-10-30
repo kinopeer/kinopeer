@@ -11,12 +11,12 @@ import { Sheet } from '../components/Sheet'
 import { StatusChip } from '../components/StatusChip'
 import { useIsDesktop } from '../lib/useIsDesktop'
 import { useTmdbLanguage } from '../settings/settings'
+import { REQUEST_KINDS } from '../torrents/requestKinds'
 import { downloadStatus, hasMetadata, isRunning } from '../torrents/status'
 import { chooseTitle, type TitleMatch } from '../torrents/titleMatches'
 import { MatchPrompt } from './MatchPrompt'
 import { usePauseResume } from './usePauseResume'
 import { useReannounce } from './useReannounce'
-import { RECHECK } from './useRecheck'
 import { useTorrentAction, type ActionWatcher } from './useTorrentAction'
 
 export interface TorrentActionsSheetProps {
@@ -69,11 +69,14 @@ export function TorrentActionsSheet({
   const [failed, setFailed] = useState(false)
   // The menu shows the torrent, so it says how its pause, resume or reannounce went, wherever it was
   // sent from: it closes, or shows the failure.
-  const watcher: ActionWatcher = { torrent, settled: (outcome) => (outcome.ok ? onClose() : setFailed(true)) }
+  const watcher: ActionWatcher = {
+    torrents: [torrent],
+    settled: (outcome) => (outcome.ok ? onClose() : setFailed(true)),
+  }
   const pauseResume = usePauseResume(watcher)
   const reannounce = useReannounce(watcher)
   // A recheck is sent from its confirmation, and says itself how it went.
-  const recheck = useTorrentAction(RECHECK)
+  const recheck = useTorrentAction(REQUEST_KINDS.recheck)
   // One of its requests at a time, from here or elsewhere.
   const busy = pauseResume.busy(torrent.hash) || reannounce.busy(torrent.hash) || recheck.busy(torrent.hash)
   const [confirming, setConfirming] = useState(false)

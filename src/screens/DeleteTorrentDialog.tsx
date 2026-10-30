@@ -1,49 +1,35 @@
 import { useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { deleteTorrents, type Torrent } from '../api/qbittorrent'
+import type { Torrent } from '../api/qbittorrent'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { Checkbox } from '../components/Checkbox'
 import { Dialog } from '../components/Dialog'
 import { useFormatters } from '../lib/format'
-import { forgetMatches } from '../torrents/serverMatches'
 import './DeleteTorrentDialog.css'
 
 export interface DeleteTorrentDialogProps {
   torrents: Pick<Torrent, 'hash' | 'size' | 'progress'>[]
   /** What a single torrent is called on screen: the TMDB title or the release name. */
   title?: string
+  /** A delete for one of the torrents is on its way, sent from here or elsewhere. */
+  busy: boolean
+  /** The last delete failed while this showed the torrents. */
+  failed: boolean
+  onConfirm: (withFiles: boolean) => void
   onClose: () => void
-  /** After qBittorrent removed it. */
-  onDeleted: (withFiles: boolean) => void
 }
 
 /**
  * Confirms deleting one torrent or several; render it while confirming, so it opens with "keep the
- * files" each time. The files are deleted too only when the user checks the box.
+ * files" each time. The files are deleted too only when the user checks the box. `useDeleteTorrents`
+ * renders it and sends the delete.
  */
-export function DeleteTorrentDialog({ torrents, title, onClose, onDeleted }: DeleteTorrentDialogProps) {
+export function DeleteTorrentDialog({ torrents, title, busy, failed, onConfirm, onClose }: DeleteTorrentDialogProps) {
   const { t } = useTranslation()
   const format = useFormatters()
   const id = useId()
   const [withFiles, setWithFiles] = useState(false)
-  const [deleting, setDeleting] = useState(false)
-  const [failed, setFailed] = useState(false)
-
-  const confirm = async () => {
-    setDeleting(true)
-    setFailed(false)
-    try {
-      const hashes = torrents.map((torrent) => torrent.hash)
-      await deleteTorrents(hashes, withFiles)
-      void forgetMatches(hashes)
-      onDeleted(withFiles)
-    } catch {
-      setFailed(true)
-    } finally {
-      setDeleting(false)
-    }
-  }
 
   const many = torrents.length > 1
   const downloaded = torrents.reduce((sum, torrent) => sum + torrent.size * torrent.progress, 0)
@@ -61,7 +47,7 @@ export function DeleteTorrentDialog({ torrents, title, onClose, onDeleted }: Del
           <Button variant="secondary" block onClick={onClose}>
             {t('torrent.cancel')}
           </Button>
-          <Button variant="danger" block loading={deleting} disabled={deleting} onClick={confirm}>
+          <Button variant="danger" block loading={busy} disabled={busy} onClick={() => onConfirm(withFiles)}>
             {t('torrent.delete')}
           </Button>
         </>

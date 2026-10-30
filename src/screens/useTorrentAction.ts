@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react'
 import type { Torrent } from '../api/qbittorrent'
+import type { RequestKind } from '../torrents/requestKinds'
 import { requestKey, type Outcome, type SendOptions, type Settled } from '../torrents/torrentRequests'
 import { useTorrentRequests } from '../torrents/useTorrentRequests'
 
@@ -15,10 +16,14 @@ export interface TorrentAction {
   ) => Promise<Settled | undefined>
 }
 
-/** Something that shows one torrent and says itself how a request of a kind for it went (the More menu). */
+/**
+ * Something that shows torrents and says itself how a request of a kind for them went (the More
+ * menu, the delete confirmation).
+ */
 export interface ActionWatcher {
-  torrent: Torrent
-  settled: (outcome: Outcome) => void
+  torrents: readonly Torrent[]
+  /** A request for some of them settled, sent for `targets`. */
+  settled: (outcome: Outcome, targets: readonly Torrent[]) => void
 }
 
 /**
@@ -26,7 +31,7 @@ export interface ActionWatcher {
  * busy, wherever it was sent from. With `watcher`, the place takes the outcome of each one for the
  * torrent it shows, so the caller doesn't say it elsewhere.
  */
-export function useTorrentAction(kind: string, watcher?: ActionWatcher): TorrentAction {
+export function useTorrentAction(kind: RequestKind, watcher?: ActionWatcher): TorrentAction {
   const requests = useTorrentRequests()
   const inFlight = useSyncExternalStore(requests.subscribe, requests.getSnapshot)
 
@@ -39,8 +44,9 @@ export function useTorrentAction(kind: string, watcher?: ActionWatcher): Torrent
   useEffect(() => {
     if (!watching) return
     return requests.watch(kind, {
-      shows: (target) => shown.current?.torrent.hash === target.hash && shown.current.torrent.added_on === target.added_on,
-      settled: (outcome) => shown.current?.settled(outcome),
+      shows: (target) =>
+        !!shown.current?.torrents.some((item) => item.hash === target.hash && item.added_on === target.added_on),
+      settled: (outcome, _sent, targets) => shown.current?.settled(outcome, targets),
     })
   }, [requests, kind, watching])
 

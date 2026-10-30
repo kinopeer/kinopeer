@@ -2,13 +2,11 @@ import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { recheckTorrents, type Torrent } from '../api/qbittorrent'
 import { useToast } from '../components/Toast'
+import { REQUEST_KINDS } from '../torrents/requestKinds'
 import { withChecking } from '../torrents/status'
 import { RecheckDialog } from './RecheckDialog'
 import { TOAST_KEYS } from './toastKeys'
 import { useTorrentSheet } from './useTorrentSheet'
-
-/** The requests' kind for a forced recheck. */
-export const RECHECK = 'recheck'
 
 export interface Recheck {
   /** Opens the confirmation for a torrent in `torrents`. */
@@ -29,7 +27,7 @@ export function useRecheck({ torrents, titleOf }: {
   /** What a torrent is called on the screen. */
   titleOf: (torrent: Torrent) => string
 }): Recheck {
-  const { torrent, open, close, pending, failure, send } = useTorrentSheet<true>(RECHECK, torrents)
+  const { torrent, open, close, pending, failure, send } = useTorrentSheet<true>(REQUEST_KINDS.recheck, torrents)
   const { t } = useTranslation()
   const toast = useToast()
 

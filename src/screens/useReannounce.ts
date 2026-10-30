@@ -2,12 +2,10 @@ import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { reannounceTorrents, type Torrent } from '../api/qbittorrent'
 import { useToast } from '../components/Toast'
+import { REQUEST_KINDS } from '../torrents/requestKinds'
 import type { Settled } from '../torrents/torrentRequests'
 import { TOAST_KEYS } from './toastKeys'
 import { useTorrentAction, type ActionWatcher } from './useTorrentAction'
-
-/** The requests' kind for reannouncing. */
-export const REANNOUNCE = 'reannounce'
 
 export interface Reannounce {
   /** Whether a reannounce is in flight for the torrent, sent from anywhere. */
@@ -25,7 +23,7 @@ export interface Reannounce {
 export function useReannounce(watcher?: ActionWatcher): Reannounce {
   const { t } = useTranslation()
   const toast = useToast()
-  const { busy, send } = useTorrentAction(REANNOUNCE, watcher)
+  const { busy, send } = useTorrentAction(REQUEST_KINDS.reannounce, watcher)
 
   const reannounce = useCallback(
     async (torrent: Torrent) => {

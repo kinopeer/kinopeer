@@ -22,10 +22,10 @@ import { chooseTitle, isGuessed, useTitleMatches } from '../torrents/titleMatche
 import { trackerHosts } from '../torrents/trackers'
 import { useMainData } from '../torrents/useMainData'
 import { ChangeTitleSheet } from './ChangeTitleSheet'
-import { DeleteTorrentDialog } from './DeleteTorrentDialog'
 import { MatchPrompt } from './MatchPrompt'
 import { OfflineBanner } from './OfflineBanner'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
+import { useDeleteTorrents } from './useDeleteTorrents'
 import { useMoveTorrent } from './useMoveTorrent'
 import { usePauseResume } from './usePauseResume'
 import { useRecheck } from './useRecheck'
@@ -45,7 +45,7 @@ export interface TorrentDetailsProps {
    */
   onClose?: () => void
   titleId?: string
-  /** After deleting the torrent, in place of going to Downloads with a toast. */
+  /** After deleting the torrent, in place of going to Downloads. */
   onDeleted?: () => void
   /** The path of the page the drawer is over, when it isn't Downloads. */
   behind?: string
@@ -78,13 +78,18 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
   const titleOf = (item: Torrent) => match?.title ?? item.name
   const limits = useSpeedLimits({ torrents: own, offline, refresh, titleOf })
   const recheck = useRecheck({ torrents: own, titleOf })
+  // Once it's deleted there's nothing to show here: on to Downloads, or what the drawer says.
+  const remove = useDeleteTorrents({
+    torrents: own,
+    titleOf,
+    onDeleted: () => (onDeleted ? onDeleted() : void navigate('/', { replace: true })),
+  })
   const stored = useServerMatches()?.[hash]
   const language = useTmdbLanguage()
 
   const [detailsOpen, setDetailsOpen] = useState(false)
   const pauseResume = usePauseResume()
-  // Each closes when another torrent with the same hash replaces this screen's.
-  const confirm = useTorrentOverlay(own)
+  // Closes when another torrent with the same hash replaces this screen's.
   const menu = useTorrentOverlay(own)
   // The More button that opened the actions, which on desktop are a menu next to it.
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
@@ -328,7 +333,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
               {t('torrent.resume')}
             </Button>
           )}
-          <Button variant="danger-ghost" icon="trash" block disabled={offline} onClick={() => confirm.open(hash)}>
+          <Button variant="danger-ghost" icon="trash" block disabled={offline} onClick={() => remove.open([torrent])}>
             {t('torrent.delete')}
           </Button>
         </div>
@@ -361,19 +366,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
         <TorrentFiles hash={hash} status={status} disabled={offline} />
       </div>
 
-      {confirm.torrent && (
-        <DeleteTorrentDialog
-          torrents={[torrent]}
-          title={title}
-          onClose={confirm.close}
-          onDeleted={(withFiles) => {
-            if (!onDeleted) return void navigate('/', { replace: true, state: { deleted: withFiles ? 'files' : 'torrent' } })
-            // The page behind shows the torrents too, so it hears of the deletion right away.
-            refresh()
-            onDeleted()
-          }}
-        />
-      )}
+      {remove.element}
 
       {menuOpen && (
         <TorrentActionsSheet
@@ -387,7 +380,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
           onClose={closeMenu}
           onDelete={() => {
             closeMenu()
-            confirm.open(hash)
+            remove.open([torrent])
           }}
           onMove={() => {
             closeMenu()
