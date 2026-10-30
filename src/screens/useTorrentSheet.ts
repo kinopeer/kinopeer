@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { Torrent } from '../api/qbittorrent'
-import { requestKey, type Settled } from '../torrents/torrentRequests'
+import { requestKey, type SendOptions, type Settled } from '../torrents/torrentRequests'
 import { useTorrentRequests } from '../torrents/useTorrentRequests'
 import { useTorrentOverlay } from './useTorrentOverlay'
 
@@ -19,14 +19,19 @@ export interface TorrentSheet<Payload> {
   failure: { sent: Payload; error: unknown } | undefined
   /**
    * Sends a request for a torrent, which outlives the sheet, and says how it settled; nothing when
-   * one of this kind is already in flight for it.
+   * one of this kind is already in flight for it. `options` as in `TorrentRequests.send`.
    */
-  send: (target: Torrent, payload: Payload, request: () => Promise<void>) => Promise<Settled | undefined>
+  send: (
+    target: Torrent,
+    payload: Payload,
+    request: () => Promise<void>,
+    options?: SendOptions,
+  ) => Promise<Settled | undefined>
 }
 
 /**
- * A screen's sheet of one kind (Move files, Speed limits) for one of its torrents, and the requests it
- * sends. The sheet closes when its torrent goes away or another torrent with the same hash replaces
+ * A screen's sheet of one kind (Move files, Speed limits, the recheck confirmation) for one of its
+ * torrents, and the requests it sends. The sheet closes when its torrent goes away or another torrent with the same hash replaces
  * it, and stays closed when that torrent comes back (`useTorrentOverlay`). The requests are the app's
  * (`useTorrentRequests`), shared with the same kind of sheet on other screens: one per torrent at a
  * time, shown busy in any sheet for it, and when it settles every sheet that shows the torrent then
@@ -80,9 +85,9 @@ export function useTorrentSheet<Payload>(kind: string, torrents: Record<string, 
   }, [requests, kind, close])
 
   const pending = (hash: string) => inFlight.get(requestKey(kind, hash)) as Payload | undefined
-  const send = (target: Torrent, payload: Payload, request: () => Promise<void>) => {
+  const send = (target: Torrent, payload: Payload, request: () => Promise<void>, options?: SendOptions) => {
     setFailed(null)
-    return requests.send(kind, target, payload, request)
+    return requests.send(kind, target, payload, request, options)
   }
   return { torrent, open, close, pending, failure: failed ?? undefined, send }
 }

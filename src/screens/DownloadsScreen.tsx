@@ -33,11 +33,11 @@ import { InstallCard } from './InstallCard'
 import { OfflineBanner } from './OfflineBanner'
 import { SortMenu, SortSheet } from './SortSheet'
 import { StatusMenu } from './StatusMenu'
-import { RecheckDialog } from './RecheckDialog'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
 import { useAltSpeedSwitch } from './useAltSpeedSwitch'
 import { useMoveTorrent } from './useMoveTorrent'
 import { usePauseResume } from './usePauseResume'
+import { useRecheck } from './useRecheck'
 import { useSpeedLimits } from './useSpeedLimits'
 import { findTorrent, refTo, useTorrentOverlay, type TorrentRef } from './useTorrentOverlay'
 import './DownloadsScreen.css'
@@ -103,7 +103,6 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   // The torrents a delete confirmation is open for, the row's or the selection's.
   const [deleting, setDeleting] = useState<TorrentRef[] | null>(null)
   const move = useMoveTorrent({ torrents: data?.torrents, offline, refresh })
-  const recheck = useTorrentOverlay(data?.torrents)
   // The selected hashes in selection mode, null outside it.
   const [selected, setSelected] = useState<ReadonlySet<string> | null>(null)
   const selecting = selected !== null
@@ -126,6 +125,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   const matches = useTitleMatches(torrents)
   const nameOf = (torrent: Torrent) => matches[torrent.hash]?.title ?? torrent.name
   const limits = useSpeedLimits({ torrents: data?.torrents, offline, refresh, titleOf: nameOf })
+  const recheck = useRecheck({ torrents: data?.torrents, titleOf: nameOf })
   const serverMatches = useServerMatches()
   // The status filter counts within the picked type, so its numbers match the list.
   const typed = useMemo(
@@ -541,10 +541,6 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
             actions.close()
             limits.open(actionsTorrent.hash)
           }}
-          onReannounced={() => {
-            actions.close()
-            toast.show(t('torrent.reannounced'))
-          }}
           onChangeTitle={() => {
             actions.close()
             retitle.open(actionsTorrent.hash)
@@ -576,18 +572,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           onDelete={() => setDeleting(selectedVisible.map(refTo))}
         />
       )}
-      {recheck.torrent && (
-        <RecheckDialog
-          hash={recheck.torrent.hash}
-          title={nameOf(recheck.torrent)}
-          onClose={() => recheck.close()}
-          onRechecked={() => {
-            recheck.close()
-            toast.show(t('torrent.rechecking'))
-            refresh()
-          }}
-        />
-      )}
+      {recheck.element}
       {limits.element}
       {deleteTorrents.length > 0 && (
         <DeleteTorrentDialog

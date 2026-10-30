@@ -5,6 +5,10 @@
 export const TOAST_KEYS = {
   /** Pausing or resuming torrents: a row's button, the torrent's details, the selection's bar. */
   pauseResume: 'pause-resume-failed',
+  /** Reannouncing: the More menu on any screen. */
+  reannounce: 'reannounce-failed',
+  /** A forced recheck: the confirmation on any screen. */
+  recheck: 'recheck-failed',
   /** Switching the alternative speed limits. */
   altSpeed: 'alt-speed-failed',
 } as const

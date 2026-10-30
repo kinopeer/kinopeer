@@ -25,10 +25,10 @@ import { ChangeTitleSheet } from './ChangeTitleSheet'
 import { DeleteTorrentDialog } from './DeleteTorrentDialog'
 import { MatchPrompt } from './MatchPrompt'
 import { OfflineBanner } from './OfflineBanner'
-import { RecheckDialog } from './RecheckDialog'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
 import { useMoveTorrent } from './useMoveTorrent'
 import { usePauseResume } from './usePauseResume'
+import { useRecheck } from './useRecheck'
 import { useSpeedLimits } from './useSpeedLimits'
 import { useTorrentOverlay } from './useTorrentOverlay'
 import { TorrentFiles } from './TorrentFiles'
@@ -77,6 +77,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
   const own = useMemo(() => (loaded ? (torrent ? { [hash]: torrent } : {}) : undefined), [loaded, torrent, hash])
   const titleOf = (item: Torrent) => match?.title ?? item.name
   const limits = useSpeedLimits({ torrents: own, offline, refresh, titleOf })
+  const recheck = useRecheck({ torrents: own, titleOf })
   const stored = useServerMatches()?.[hash]
   const language = useTmdbLanguage()
 
@@ -93,7 +94,6 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
     menu.close()
   }
   const retitle = useTorrentOverlay(own)
-  const recheck = useTorrentOverlay(own)
   const [savingTitle, setSavingTitle] = useState(false)
   const toast = useToast()
   const titleSaved = (result: 'changed' | 'confirmed' | 'failed') =>
@@ -401,10 +401,6 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
             closeMenu()
             limits.open(torrent.hash)
           }}
-          onReannounced={() => {
-            closeMenu()
-            toast.show(t('torrent.reannounced'))
-          }}
           onChangeTitle={() => {
             closeMenu()
             retitle.open(hash)
@@ -417,18 +413,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
       )}
 
       {move.element}
-      {recheck.torrent && (
-        <RecheckDialog
-          hash={hash}
-          title={title}
-          onClose={recheck.close}
-          onRechecked={() => {
-            recheck.close()
-            toast.show(t('torrent.rechecking'))
-            refresh()
-          }}
-        />
-      )}
+      {recheck.element}
 
       {limits.element}
 

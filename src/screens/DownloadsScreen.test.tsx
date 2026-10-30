@@ -368,25 +368,19 @@ describe('DownloadsScreen', () => {
     vi.mocked(api.reannounceTorrents).mockResolvedValue()
     renderScreen()
     await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' }))
-    // A hidden page doesn't poll, so only the screen's own refresh can bring qBittorrent's next answer.
-    stopPolling()
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Reannounce' }))
     expect(api.reannounceTorrents).toHaveBeenCalledWith(['andor'])
     expect(await screen.findByRole('status', { name: saying('Announced to the trackers') })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'More actions: Andor.S02.1080p' }))
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Force recheck' }))
     const confirm = screen.getByRole('alertdialog', { name: 'Recheck the files?' })
-    // The list asks qBittorrent again right after the recheck, so the row shows Checking without a poll.
-    getMainData.mockResolvedValue({
-      ...SNAPSHOT,
-      torrents: { ...SNAPSHOT.torrents, andor: { ...SNAPSHOT.torrents!.andor, state: 'checkingUP' } },
-    })
+    expect(confirm).toHaveTextContent('Andor.S02.1080p')
     await userEvent.click(within(confirm).getByRole('button', { name: 'Force recheck' }))
     expect(api.recheckTorrents).toHaveBeenCalledWith(['andor'])
     expect(await screen.findByRole('status', { name: saying('Checking the files') })).toBeInTheDocument()
-    const andor = screen.getByRole('link', { name: /Andor\.S02\.1080p/ }).closest('li')!
-    expect(await within(andor).findByText('Checking', { exact: true })).toBeInTheDocument()
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })
 
   it('drops a recheck confirmation whose torrent went away, so it doesn’t open again when the torrent is back', async () => {

@@ -60,6 +60,15 @@ export function withRunning(torrent: Torrent, running: boolean): Torrent {
   return { ...torrent, state }
 }
 
+/**
+ * The torrent as qBittorrent will report it once it took a forced recheck: checking, as a download
+ * or, once finished, a seed, stopped or not; unchanged when it's being checked already.
+ */
+export function withChecking(torrent: Torrent): Torrent {
+  if (downloadStatus(torrent) === 'checking') return torrent
+  return { ...torrent, state: torrent.progress >= 1 ? 'checkingUP' : 'checkingDL' }
+}
+
 export const STATUS_FILTERS = ['all', 'downloading', 'seeding', 'paused', 'completed', 'error'] as const
 export type StatusFilter = (typeof STATUS_FILTERS)[number]
 

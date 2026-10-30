@@ -6,7 +6,8 @@ import { ToastProvider } from '../components/Toast'
 import { torrent } from '../test/fixtures'
 import { saying } from '../test/render'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
-import { usePauseResume, type PauseResumeWatcher } from './usePauseResume'
+import { usePauseResume } from './usePauseResume'
+import type { ActionWatcher } from './useTorrentAction'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
   ...(await importOriginal<typeof api>()),
@@ -78,7 +79,7 @@ describe('usePauseResume', () => {
 
   it('leaves how it went to the place that shows the torrent, wherever it was sent from', async () => {
     stopTorrents.mockRejectedValueOnce(new TypeError('Failed to fetch')).mockResolvedValueOnce()
-    const settled = vi.fn<PauseResumeWatcher['settled']>()
+    const settled = vi.fn<ActionWatcher['settled']>()
     const { result } = renderHook(() => ({ row: usePauseResume(), menu: usePauseResume({ torrent: DUNE, settled }) }), {
       wrapper: Providers,
     })

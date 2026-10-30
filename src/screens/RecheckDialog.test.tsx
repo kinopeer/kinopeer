@@ -1,49 +1,43 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import * as api from '../api/qbittorrent'
-import { RecheckDialog } from './RecheckDialog'
+import { describe, expect, it, vi } from 'vitest'
+import { RecheckDialog, type RecheckDialogProps } from './RecheckDialog'
 import { saying } from '../test/render'
 
-vi.mock('../api/qbittorrent', async (importOriginal) => ({
-  ...(await importOriginal<typeof api>()),
-  recheckTorrents: vi.fn(),
-}))
-
-function renderDialog() {
-  const handlers = { onClose: vi.fn(), onRechecked: vi.fn() }
-  render(<RecheckDialog hash="dune" title="Dune: Part Two" {...handlers} />)
+function renderDialog(props: Partial<RecheckDialogProps> = {}) {
+  const handlers = { onClose: vi.fn(), onConfirm: vi.fn() }
+  render(<RecheckDialog title="Dune: Part Two" busy={false} failed={false} {...handlers} {...props} />)
   return handlers
 }
 
-beforeEach(() => {
-  vi.resetAllMocks()
-})
-
 describe('RecheckDialog', () => {
   it('says what a recheck does and starts it on confirm', async () => {
-    vi.mocked(api.recheckTorrents).mockResolvedValue()
     const handlers = renderDialog()
     const dialog = screen.getByRole('alertdialog', { name: 'Recheck the files?' })
     expect(dialog).toHaveTextContent('qBittorrent will read the downloaded data of “Dune: Part Two” again.')
     await userEvent.click(screen.getByRole('button', { name: 'Force recheck' }))
-    expect(api.recheckTorrents).toHaveBeenCalledWith(['dune'])
-    expect(handlers.onRechecked).toHaveBeenCalled()
+    expect(handlers.onConfirm).toHaveBeenCalled()
   })
 
-  it('stays open with an error when qBittorrent doesn’t answer', async () => {
-    vi.mocked(api.recheckTorrents).mockRejectedValue(new Error('500'))
-    const handlers = renderDialog()
-    await userEvent.click(screen.getByRole('button', { name: 'Force recheck' }))
-    expect(await screen.findByRole('alert', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
-    expect(handlers.onRechecked).not.toHaveBeenCalled()
+  it('is busy while the recheck is on its way, and can still be closed', async () => {
+    const handlers = renderDialog({ busy: true })
+    const confirm = screen.getByRole('button', { name: 'Force recheck' })
+    expect(confirm).toBeDisabled()
+    expect(confirm).toHaveAttribute('aria-busy', 'true')
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(handlers.onClose).toHaveBeenCalled()
+  })
+
+  it('says a failure and can be confirmed again', () => {
+    renderDialog({ failed: true })
+    expect(screen.getByRole('alert', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Force recheck' })).toBeEnabled()
   })
 
-  it('cancels without a request', async () => {
+  it('cancels without confirming', async () => {
     const handlers = renderDialog()
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(handlers.onClose).toHaveBeenCalled()
-    expect(api.recheckTorrents).not.toHaveBeenCalled()
+    expect(handlers.onConfirm).not.toHaveBeenCalled()
   })
 })

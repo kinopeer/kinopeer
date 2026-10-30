@@ -1,7 +1,7 @@
 import { useId, useState, type MouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
-import { reannounceTorrents, type Torrent } from '../api/qbittorrent'
+import type { Torrent } from '../api/qbittorrent'
 import { posterUrl } from '../api/tmdb'
 import { Banner } from '../components/Banner'
 import { Icon } from '../components/Icon'
@@ -15,6 +15,9 @@ import { downloadStatus, hasMetadata, isRunning } from '../torrents/status'
 import { chooseTitle, type TitleMatch } from '../torrents/titleMatches'
 import { MatchPrompt } from './MatchPrompt'
 import { usePauseResume } from './usePauseResume'
+import { useReannounce } from './useReannounce'
+import { RECHECK } from './useRecheck'
+import { useTorrentAction, type ActionWatcher } from './useTorrentAction'
 
 export interface TorrentActionsSheetProps {
   torrent: Torrent
@@ -29,7 +32,7 @@ export interface TorrentActionsSheetProps {
   anchor?: HTMLElement | null
   /** Set when the title's page is already open under a drawer: its item closes the drawer instead. */
   onTitlePage?: () => void
-  /** Also once qBittorrent took a pause or resume for its torrent, from here or elsewhere. */
+  /** Also once qBittorrent took a pause, resume or reannounce for its torrent, from here or elsewhere. */
   onClose: () => void
   onDelete: () => void
   /** Opens "Move files". */
@@ -38,8 +41,6 @@ export interface TorrentActionsSheetProps {
   onRecheck: () => void
   /** Opens the speed limits sheet. */
   onSpeedLimits: () => void
-  /** After qBittorrent took the reannounce, so the screen can say so. */
-  onReannounced: () => void
   /** Opens the title search. */
   onChangeTitle: () => void
   /** After the guessed title was confirmed. */
@@ -60,21 +61,21 @@ export function TorrentActionsSheet({
   onMove,
   onRecheck,
   onSpeedLimits,
-  onReannounced,
   onChangeTitle,
   onConfirmed,
 }: TorrentActionsSheetProps) {
   const { t } = useTranslation()
   const language = useTmdbLanguage()
-  // Reannouncing; a pause or resume is the app's (`usePauseResume`), busy wherever it was sent from.
-  const [reannouncing, setReannouncing] = useState(false)
   const [failed, setFailed] = useState(false)
-  // The menu shows the torrent, so it says how its pause or resume went: it closes, or shows the failure.
-  const pauseResume = usePauseResume({
-    torrent,
-    settled: (outcome) => (outcome.ok ? onClose() : setFailed(true)),
-  })
-  const busy = reannouncing || pauseResume.busy(torrent.hash)
+  // The menu shows the torrent, so it says how its pause, resume or reannounce went, wherever it was
+  // sent from: it closes, or shows the failure.
+  const watcher: ActionWatcher = { torrent, settled: (outcome) => (outcome.ok ? onClose() : setFailed(true)) }
+  const pauseResume = usePauseResume(watcher)
+  const reannounce = useReannounce(watcher)
+  // A recheck is sent from its confirmation, and says itself how it went.
+  const recheck = useTorrentAction(RECHECK)
+  // One of its requests at a time, from here or elsewhere.
+  const busy = pauseResume.busy(torrent.hash) || reannounce.busy(torrent.hash) || recheck.busy(torrent.hash)
   const [confirming, setConfirming] = useState(false)
   const [saveFailed, setSaveFailed] = useState(false)
   const status = downloadStatus(torrent)
@@ -99,16 +100,9 @@ export function TorrentActionsSheet({
     void pauseResume.toggle(torrent)
   }
 
-  const reannounce = async () => {
-    setReannouncing(true)
+  const announce = () => {
     setFailed(false)
-    try {
-      await reannounceTorrents([torrent.hash])
-      onReannounced()
-    } catch {
-      setFailed(true)
-      setReannouncing(false)
-    }
+    void reannounce.reannounce(torrent)
   }
 
   const confirm = async () => {
@@ -149,7 +143,7 @@ export function TorrentActionsSheet({
         <MenuItem icon={running ? 'pause' : 'play'} disabled={offline || busy} onClick={toggle}>
           {running ? t('torrent.pause') : t('torrent.resume')}
         </MenuItem>
-        <MenuItem icon="refresh" disabled={offline || busy || !canReannounce} hint={reannounceHint} onClick={reannounce}>
+        <MenuItem icon="refresh" disabled={offline || busy || !canReannounce} hint={reannounceHint} onClick={announce}>
           {t('torrent.reannounce')}
         </MenuItem>
         <MenuItem icon="check-circle" disabled={offline || busy || !canRecheck} hint={recheckHint} onClick={onRecheck}>
@@ -222,7 +216,7 @@ export function TorrentActionsSheet({
             className="ks-row-btn"
             disabled={offline || busy || !canReannounce}
             aria-describedby={reannounceHint ? `${hintId}-reannounce` : undefined}
-            onClick={reannounce}
+            onClick={announce}
           >
             <Icon name="refresh" />
             <RowText id={`${hintId}-reannounce`} hint={reannounceHint}>
