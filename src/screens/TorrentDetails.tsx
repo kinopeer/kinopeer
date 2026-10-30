@@ -76,7 +76,8 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
   const torrents = useMemo(() => (torrent ? [torrent] : []), [torrent])
   const match = useTitleMatches(torrents)[hash]
   // Only this screen's torrent, so its title is the one the sheet and a failure's toast name.
-  const own = useMemo(() => (data ? (torrent ? { [hash]: torrent } : {}) : undefined), [data, torrent, hash])
+  const loaded = data !== null
+  const own = useMemo(() => (loaded ? (torrent ? { [hash]: torrent } : {}) : undefined), [loaded, torrent, hash])
   const titleOf = (item: Torrent) => match?.title ?? item.name
   const limits = useSpeedLimits({ torrents: own, offline, refresh, titleOf })
   const stored = useServerMatches()?.[hash]
@@ -89,7 +90,9 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
   // The More button, while its actions are open.
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
   const [retitling, setRetitling] = useState(false)
-  const [rechecking, setRechecking] = useState(false)
+  // When the torrent whose recheck confirmation is open was added: one re-added with the same hash is
+  // another torrent.
+  const [rechecking, setRechecking] = useState<number | null>(null)
   // A recheck or reannounce qBittorrent took, said in a toast.
   const [notice, setNotice] = useState<'rechecking' | 'reannounced' | null>(null)
   const dismissNotice = useCallback(() => setNotice(null), [])
@@ -118,9 +121,10 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
     />
   )
 
-  // The torrent went away while its recheck confirmation was open (deleted elsewhere): forget it, so
-  // the confirmation doesn't open again if the same torrent is added back.
-  if (rechecking && data && !torrent) setRechecking(false)
+  // The torrent went away while its recheck confirmation was open (deleted elsewhere) or another with
+  // the same hash replaced it: forget it, so the confirmation doesn't open again if the same torrent
+  // is back.
+  if (rechecking !== null && data && torrent?.added_on !== rechecking) setRechecking(null)
 
   if (data === null && offline) {
     return (
@@ -402,7 +406,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
           }}
           onRecheck={() => {
             setMenuAnchor(null)
-            setRechecking(true)
+            setRechecking(torrent.added_on)
           }}
           onSpeedLimits={() => {
             setMenuAnchor(null)
@@ -424,13 +428,13 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
       )}
 
       {move.element}
-      {rechecking && (
+      {rechecking !== null && (
         <RecheckDialog
           hash={hash}
           title={title}
-          onClose={() => setRechecking(false)}
+          onClose={() => setRechecking(null)}
           onRechecked={() => {
-            setRechecking(false)
+            setRechecking(null)
             setNotice('rechecking')
             refresh()
           }}
