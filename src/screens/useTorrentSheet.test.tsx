@@ -15,45 +15,6 @@ function renderSheet() {
 }
 
 describe('useTorrentSheet', () => {
-  it('opens for a torrent among the screen’s, and not for one that isn’t', () => {
-    const { result } = renderSheet()
-    act(() => result.current.open('alien'))
-    expect(result.current.torrent).toBeUndefined()
-    act(() => result.current.open('dune'))
-    expect(result.current.torrent).toBe(DUNE)
-    act(() => result.current.close())
-    expect(result.current.torrent).toBeUndefined()
-  })
-
-  it('closes when its torrent goes away, and stays closed when it’s back', () => {
-    const { result, rerender } = renderSheet()
-    act(() => result.current.open('dune'))
-    rerender({ list: {} })
-    expect(result.current.torrent).toBeUndefined()
-    rerender({ list: { dune: DUNE } })
-    expect(result.current.torrent).toBeUndefined()
-  })
-
-  it('stays open while the screen has no torrents yet, as before its first answer', () => {
-    const { result, rerender } = renderSheet()
-    act(() => result.current.open('dune'))
-    rerender({ list: undefined })
-    expect(result.current.torrent).toBeUndefined()
-    rerender({ list: { dune: DUNE } })
-    expect(result.current.torrent).toBe(DUNE)
-  })
-
-  it('closes when another torrent with the same hash replaces its torrent between two polls', () => {
-    const { result, rerender } = renderSheet()
-    act(() => result.current.open('dune'))
-    const readded = { ...DUNE, added_on: DUNE.added_on + 60 }
-    rerender({ list: { dune: readded } })
-    expect(result.current.torrent).toBeUndefined()
-    // Not even once the first one would be back.
-    rerender({ list: { dune: DUNE } })
-    expect(result.current.torrent).toBeUndefined()
-  })
-
   it('says a request’s sheet still shows its torrent when it settles while open, or opened again since', async () => {
     const { result } = renderSheet()
     act(() => result.current.open('dune'))

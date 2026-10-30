@@ -181,6 +181,17 @@ describe('DownloadsScreen on desktop', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
+  it('closes the menu from its own More button', async () => {
+    updateSettings({ downloadsDesktopView: 'list' })
+    renderScreen()
+    await tableRows()
+    const more = screen.getByRole('button', { name: 'More actions: Alien.Romulus.2024.1080p' })
+    await userEvent.click(more)
+    expect(screen.getByRole('menu', { name: 'More actions: Alien.Romulus.2024.1080p' })).toBeInTheDocument()
+    await userEvent.click(more)
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
   it('moves the menu to another row’s More button', async () => {
     updateSettings({ downloadsDesktopView: 'list' })
     renderScreen()

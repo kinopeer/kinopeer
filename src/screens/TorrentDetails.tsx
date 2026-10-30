@@ -34,6 +34,7 @@ import { RecheckDialog } from './RecheckDialog'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
 import { useMoveTorrent } from './useMoveTorrent'
 import { useSpeedLimits } from './useSpeedLimits'
+import { useTorrentOverlay } from './useTorrentOverlay'
 import { TorrentFiles } from './TorrentFiles'
 import './TorrentScreen.css'
 
@@ -86,13 +87,18 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
-  const [confirming, setConfirming] = useState(false)
-  // The More button, while its actions are open.
+  // Each closes when another torrent with the same hash replaces this screen's.
+  const confirm = useTorrentOverlay(own)
+  const menu = useTorrentOverlay(own)
+  // The More button that opened the actions, which on desktop are a menu next to it.
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
-  const [retitling, setRetitling] = useState(false)
-  // When the torrent whose recheck confirmation is open was added: one re-added with the same hash is
-  // another torrent.
-  const [rechecking, setRechecking] = useState<number | null>(null)
+  const menuOpen = menu.torrent ? menuAnchor : null
+  const closeMenu = () => {
+    setMenuAnchor(null)
+    menu.close()
+  }
+  const retitle = useTorrentOverlay(own)
+  const recheck = useTorrentOverlay(own)
   // A recheck or reannounce qBittorrent took, said in a toast.
   const [notice, setNotice] = useState<'rechecking' | 'reannounced' | null>(null)
   const dismissNotice = useCallback(() => setNotice(null), [])
@@ -120,11 +126,6 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
       onClick={goBack}
     />
   )
-
-  // The torrent went away while its recheck confirmation was open (deleted elsewhere) or another with
-  // the same hash replaced it: forget it, so the confirmation doesn't open again if the same torrent
-  // is back.
-  if (rechecking !== null && data && torrent?.added_on !== rechecking) setRechecking(null)
 
   if (data === null && offline) {
     return (
@@ -262,8 +263,12 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
         iconSize={22}
         className="torrent-more"
         aria-haspopup={drawer ? 'menu' : undefined}
-        aria-expanded={drawer ? menuAnchor !== null : undefined}
-        onClick={(event) => setMenuAnchor(menuAnchor && drawer ? null : event.currentTarget)}
+        aria-expanded={drawer ? menuOpen !== null : undefined}
+        onClick={(event) => {
+          if (menuOpen && drawer) return closeMenu()
+          setMenuAnchor(event.currentTarget)
+          menu.open(hash)
+        }}
       />
       <div className="torrent-hero" aria-hidden="true">
         {poster && <img src={poster} alt="" className="torrent-hero-art" />}
@@ -281,9 +286,9 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
         </div>
 
         {guessed && (
-          <MatchPrompt kind="guess" busy={savingTitle} onChange={() => setRetitling(true)} onConfirm={confirmTitle} />
+          <MatchPrompt kind="guess" busy={savingTitle} onChange={() => retitle.open(hash)} onConfirm={confirmTitle} />
         )}
-        {match === null && <MatchPrompt kind="none" onChange={() => setRetitling(true)} />}
+        {match === null && <MatchPrompt kind="none" onChange={() => retitle.open(hash)} />}
 
         {offline && <OfflineBanner updatedAt={updatedAt} onRetry={refresh} />}
 
@@ -338,7 +343,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
               {t('torrent.resume')}
             </Button>
           )}
-          <Button variant="danger-ghost" icon="trash" block disabled={offline} onClick={() => setConfirming(true)}>
+          <Button variant="danger-ghost" icon="trash" block disabled={offline} onClick={() => confirm.open(hash)}>
             {t('torrent.delete')}
           </Button>
         </div>
@@ -371,11 +376,11 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
         <TorrentFiles hash={hash} status={status} disabled={offline} />
       </div>
 
-      {confirming && (
+      {confirm.torrent && (
         <DeleteTorrentDialog
           torrents={[torrent]}
           title={title}
-          onClose={() => setConfirming(false)}
+          onClose={confirm.close}
           onDeleted={(withFiles) => {
             if (!onDeleted) return void navigate('/', { replace: true, state: { deleted: withFiles ? 'files' : 'torrent' } })
             // The page behind shows the torrents too, so it hears of the deletion right away.
@@ -385,56 +390,56 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
         />
       )}
 
-      {menuAnchor && (
+      {menuOpen && (
         <TorrentActionsSheet
           torrent={torrent}
           match={match}
           guessed={guessed}
           offline={offline}
           showDetails={false}
-          anchor={menuAnchor}
+          anchor={menuOpen}
           onTitlePage={onTitlePage}
-          onClose={() => setMenuAnchor(null)}
+          onClose={closeMenu}
           onChanged={refresh}
           onDelete={() => {
-            setMenuAnchor(null)
-            setConfirming(true)
+            closeMenu()
+            confirm.open(hash)
           }}
           onMove={() => {
-            setMenuAnchor(null)
+            closeMenu()
             move.open(torrent.hash)
           }}
           onRecheck={() => {
-            setMenuAnchor(null)
-            setRechecking(torrent.added_on)
+            closeMenu()
+            recheck.open(hash)
           }}
           onSpeedLimits={() => {
-            setMenuAnchor(null)
+            closeMenu()
             limits.open(torrent.hash)
           }}
           onReannounced={() => {
-            setMenuAnchor(null)
+            closeMenu()
             setNotice('reannounced')
           }}
           onChangeTitle={() => {
-            setMenuAnchor(null)
-            setRetitling(true)
+            closeMenu()
+            retitle.open(hash)
           }}
           onConfirmed={() => {
-            setMenuAnchor(null)
+            closeMenu()
             setTitleSaved('confirmed')
           }}
         />
       )}
 
       {move.element}
-      {rechecking !== null && (
+      {recheck.torrent && (
         <RecheckDialog
           hash={hash}
           title={title}
-          onClose={() => setRechecking(null)}
+          onClose={recheck.close}
           onRechecked={() => {
-            setRechecking(null)
+            recheck.close()
             setNotice('rechecking')
             refresh()
           }}
@@ -443,13 +448,13 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
 
       {limits.element}
 
-      {retitling && (
+      {retitle.torrent && (
         <ChangeTitleSheet
           torrent={torrent}
           current={match}
-          onClose={() => setRetitling(false)}
+          onClose={retitle.close}
           onChosen={(result) => {
-            setRetitling(false)
+            retitle.close()
             setTitleSaved(result)
           }}
         />

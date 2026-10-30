@@ -10,7 +10,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 - Move files: opened again while a move is still being sent, the sheet shows the folder being sent, not the torrent's current one, so trying again after a failure sends that folder.
 - Move files, Speed limits: the fields can't be changed while a move or save is being sent; what was typed then was lost when the sheet closed.
 - Downloads, torrent details: after an action (pause, speed limits, moving files and others) the new state shows right away even when Kinoseed was already asking qBittorrent for an update, instead of up to 2 seconds later.
-- A recheck confirmation closes when its torrent is deleted and added again between two updates, as the Speed limits and Move files sheets do, instead of staying open for the new one.
+- A torrent's menu, its delete and recheck confirmations and Change title close when the torrent is deleted and added again between two updates, as the Speed limits and Move files sheets do, instead of staying open for the new one. Confirming a delete then could delete the torrent added again.
 - Phone: with the keyboard open, swiping a sheet or moving between its fields no longer scrolls the page behind it in Safari on iOS, so the sheet doesn't jerk either; the sheet also keeps a small gap above the keyboard.
 
 ## 0.6.0 - 2026-10-29
