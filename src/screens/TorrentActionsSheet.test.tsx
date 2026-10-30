@@ -11,6 +11,7 @@ import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
 import { TorrentActionsSheet, type TorrentActionsSheetProps } from './TorrentActionsSheet'
 import { usePauseResume } from './usePauseResume'
 import { useReannounce } from './useReannounce'
+import { useConfirmTitle } from './useTitleChoice'
 import { useTorrentRequests } from '../torrents/useTorrentRequests'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
@@ -31,14 +32,22 @@ const MATCH: titleMatches.TitleMatch = { type: 'movie', id: 27205, title: 'Incep
 
 /**
  * Sends the torrent's requests from another place under the same requests: a resume (a row's button),
- * a reannounce (the menu on another screen) and a recheck (a confirmation).
+ * a reannounce (the menu on another screen), a recheck and a delete (confirmations) and "Yes, right"
+ * (the torrent's details).
  */
 function Elsewhere({ torrent = TORRENT }: { torrent?: Torrent }) {
   const pauseResume = usePauseResume()
   const reannounce = useReannounce()
+  const confirmTitle = useConfirmTitle()
   const requests = useTorrentRequests()
   return (
     <>
+      <button type="button" onClick={() => void requests.send(REQUEST_KINDS.delete, torrent, false, () => new Promise(() => {}))}>
+        Delete elsewhere
+      </button>
+      <button type="button" onClick={() => void confirmTitle.confirm(torrent, MATCH)}>
+        Confirm elsewhere
+      </button>
       <button type="button" onClick={() => void pauseResume.toggle(torrent)}>
         Resume elsewhere
       </button>
@@ -65,7 +74,6 @@ function renderActions(props: Partial<TorrentActionsSheetProps> = {}) {
     onRecheck: vi.fn(),
     onSpeedLimits: vi.fn(),
     onChangeTitle: vi.fn(),
-    onConfirmed: vi.fn(),
   }
   const { unmount } = renderWithRouter(
     <TorrentRequestsProvider>
@@ -218,7 +226,40 @@ describe('TorrentActionsSheet on desktop', () => {
     expect(handlers.onChangeTitle).toHaveBeenCalled()
     await userEvent.click(within(group).getByRole('menuitem', { name: 'Yes, right' }))
     expect(titleMatches.chooseTitle).toHaveBeenCalledWith('b1', MATCH, expect.any(String))
-    expect(handlers.onConfirmed).toHaveBeenCalled()
+    expect(handlers.onClose).toHaveBeenCalled()
+    expect(await screen.findByRole('status', { name: saying('Match confirmed') })).toBeInTheDocument()
+  })
+
+  it('turns the guess’s items off while a title save sent from elsewhere is in flight, then shows its failure', async () => {
+    let refuse = () => {}
+    vi.mocked(titleMatches.chooseTitle).mockReturnValue(new Promise((_resolve, reject) => (refuse = () => reject(new Error('500')))))
+    renderActions({ guessed: true })
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm elsewhere' }))
+    const group = screen.getByRole('group', { name: 'Matched by the release name. Is it right?' })
+    expect(within(group).getByRole('menuitem', { name: 'Change' })).toBeDisabled()
+    expect(within(group).getByRole('menuitem', { name: 'Yes, right' })).toBeDisabled()
+
+    await act(async () => refuse())
+    expect(screen.getByRole('alert', { name: saying('Couldn’t save the choice. Try again.') })).toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: saying('Couldn’t save the choice. Try again.') })).not.toBeInTheDocument()
+    expect(within(group).getByRole('menuitem', { name: 'Yes, right' })).toBeEnabled()
+    expect(titleMatches.chooseTitle).toHaveBeenCalledOnce()
+  })
+
+  it('turns off everything that sends something for a torrent being deleted', async () => {
+    const { unmount } = renderActions({ torrent: { ...TORRENT, state: 'stalledDL' } })
+    await userEvent.click(screen.getByRole('button', { name: 'Delete elsewhere' }))
+    for (const name of ['Pause', 'Reannounce', 'Force recheck', 'Speed limits', 'Change title', 'Move files…', 'Delete']) {
+      expect(screen.getByRole('menuitem', { name })).toBeDisabled()
+    }
+    unmount()
+
+    // "Yes, right" landing after the delete would keep a title for a torrent that's gone.
+    renderActions({ guessed: true })
+    await userEvent.click(screen.getByRole('button', { name: 'Delete elsewhere' }))
+    const group = screen.getByRole('group', { name: 'Matched by the release name. Is it right?' })
+    expect(within(group).getByRole('menuitem', { name: 'Change' })).toBeDisabled()
+    expect(within(group).getByRole('menuitem', { name: 'Yes, right' })).toBeDisabled()
   })
 
   it('shows a failure under the items, not in a toast as well', async () => {
@@ -266,6 +307,22 @@ describe('TorrentActionsSheet on a phone', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Move files…' }))
     expect(handlers.onMove).toHaveBeenCalled()
+  })
+
+  it('turns off everything that sends something for a torrent being deleted on a phone too', async () => {
+    const { unmount } = renderActions({ torrent: { ...TORRENT, state: 'stalledDL' } })
+    await userEvent.click(screen.getByRole('button', { name: 'Delete elsewhere' }))
+    const sheet = screen.getByRole('dialog', { name: 'Inception' })
+    for (const name of ['Pause', 'Reannounce', 'Force recheck', 'Speed limits', 'Change title', 'Move files…', 'Delete']) {
+      expect(within(sheet).getByRole('button', { name })).toBeDisabled()
+    }
+    unmount()
+
+    renderActions({ guessed: true })
+    await userEvent.click(screen.getByRole('button', { name: 'Delete elsewhere' }))
+    const guessed = screen.getByRole('dialog', { name: 'Inception' })
+    expect(within(guessed).getByRole('button', { name: 'Change' })).toBeDisabled()
+    expect(within(guessed).getByRole('button', { name: 'Yes, right' })).toBeDisabled()
   })
 
   it('needs qBittorrent to move files on a phone too', () => {

@@ -11,17 +11,15 @@ import { IconButton } from '../components/IconButton'
 import { Poster } from '../components/Poster'
 import { ProgressBar } from '../components/ProgressBar'
 import { StatusChip } from '../components/StatusChip'
-import { useToast } from '../components/Toast'
 import { cx } from '../lib/cx'
 import { useFormatters } from '../lib/format'
 import { useRequest } from '../lib/useRequest'
-import { useTmdbLanguage } from '../settings/settings'
+import { REQUEST_KINDS } from '../torrents/requestKinds'
 import { downloadStatus, isRunning } from '../torrents/status'
 import { useServerMatches } from '../torrents/serverMatches'
-import { chooseTitle, isGuessed, useTitleMatches } from '../torrents/titleMatches'
+import { isGuessed, useTitleMatches } from '../torrents/titleMatches'
 import { trackerHosts } from '../torrents/trackers'
 import { useMainData } from '../torrents/useMainData'
-import { ChangeTitleSheet } from './ChangeTitleSheet'
 import { MatchPrompt } from './MatchPrompt'
 import { OfflineBanner } from './OfflineBanner'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
@@ -30,6 +28,8 @@ import { useMoveTorrent } from './useMoveTorrent'
 import { usePauseResume } from './usePauseResume'
 import { useRecheck } from './useRecheck'
 import { useSpeedLimits } from './useSpeedLimits'
+import { useChangeTitle, useConfirmTitle } from './useTitleChoice'
+import { useTorrentAction } from './useTorrentAction'
 import { useTorrentOverlay } from './useTorrentOverlay'
 import { TorrentFiles } from './TorrentFiles'
 import './TorrentScreen.css'
@@ -85,10 +85,11 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
     onDeleted: () => (onDeleted ? onDeleted() : void navigate('/', { replace: true })),
   })
   const stored = useServerMatches()?.[hash]
-  const language = useTmdbLanguage()
 
   const [detailsOpen, setDetailsOpen] = useState(false)
   const pauseResume = usePauseResume()
+  // Nothing is sent for a torrent being deleted, from here or elsewhere.
+  const deleting = useTorrentAction(REQUEST_KINDS.delete).busy(hash)
   // Closes when another torrent with the same hash replaces this screen's.
   const menu = useTorrentOverlay(own)
   // The More button that opened the actions, which on desktop are a menu next to it.
@@ -98,13 +99,8 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
     setMenuAnchor(null)
     menu.close()
   }
-  const retitle = useTorrentOverlay(own)
-  const [savingTitle, setSavingTitle] = useState(false)
-  const toast = useToast()
-  const titleSaved = (result: 'changed' | 'confirmed' | 'failed') =>
-    result === 'failed'
-      ? toast.show(t('match.saveFailed'), { icon: 'alert' })
-      : toast.show(result === 'confirmed' ? t('match.confirmed') : t('match.changed'))
+  const retitle = useChangeTitle({ torrents: own, matchOf: () => match })
+  const confirmTitle = useConfirmTitle()
 
   const trackers = useRequest(detailsOpen && torrent ? `trackers|${hash}` : null, () => getTorrentTrackers(hash))
 
@@ -193,7 +189,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
   const hosts = trackers.data ? trackerHosts(trackers.data) : undefined
 
   // Busy while a pause or resume sent from anywhere (a row's button under the drawer) is in flight.
-  const busy = pauseResume.busy(hash)
+  const toggling = pauseResume.busy(hash)
   const toggleRunning = () => void pauseResume.toggle(torrent)
 
   const guessed = !!match && isGuessed(torrent, stored)
@@ -201,19 +197,6 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
   const page = behind !== undefined ? matchPath({ path: '/title/:type/:id', end: false }, behind) : null
   const onTitlePage =
     match && page?.params.type === match.type && page.params.id === String(match.id) ? onClose : undefined
-
-  const confirmTitle = async () => {
-    if (!match) return
-    setSavingTitle(true)
-    try {
-      await chooseTitle(hash, match, language)
-      titleSaved('confirmed')
-    } catch {
-      titleSaved('failed')
-    } finally {
-      setSavingTitle(false)
-    }
-  }
 
   const details: { key: string; label: string; value: string; mono?: boolean }[] = [
     { key: 'down', label: t('torrent.downloadSpeed'), value: downloading ? format.speed(torrent.dlspeed) : '—' },
@@ -276,9 +259,15 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
         </div>
 
         {guessed && (
-          <MatchPrompt kind="guess" busy={savingTitle} onChange={() => retitle.open(hash)} onConfirm={confirmTitle} />
+          <MatchPrompt
+            kind="guess"
+            busy={confirmTitle.busy(hash)}
+            disabled={deleting}
+            onChange={() => retitle.open(hash)}
+            onConfirm={() => void confirmTitle.confirm(torrent, match)}
+          />
         )}
-        {match === null && <MatchPrompt kind="none" onChange={() => retitle.open(hash)} />}
+        {match === null && <MatchPrompt kind="none" disabled={deleting} onChange={() => retitle.open(hash)} />}
 
         {offline && <OfflineBanner updatedAt={updatedAt} onRetry={refresh} />}
 
@@ -325,15 +314,22 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
 
         <div className="torrent-actions">
           {running ? (
-            <Button variant="secondary" icon="pause" block loading={busy} disabled={offline || busy} onClick={toggleRunning}>
+            <Button variant="secondary" icon="pause" block loading={toggling} disabled={offline || toggling || deleting} onClick={toggleRunning}>
               {t('torrent.pause')}
             </Button>
           ) : (
-            <Button variant="primary" icon="play" block loading={busy} disabled={offline || busy} onClick={toggleRunning}>
+            <Button variant="primary" icon="play" block loading={toggling} disabled={offline || toggling || deleting} onClick={toggleRunning}>
               {t('torrent.resume')}
             </Button>
           )}
-          <Button variant="danger-ghost" icon="trash" block disabled={offline} onClick={() => remove.open([torrent])}>
+          <Button
+            variant="danger-ghost"
+            icon="trash"
+            block
+            loading={deleting}
+            disabled={offline || deleting}
+            onClick={() => remove.open([torrent])}
+          >
             {t('torrent.delete')}
           </Button>
         </div>
@@ -363,7 +359,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
           )}
         </section>
 
-        <TorrentFiles hash={hash} status={status} disabled={offline} />
+        <TorrentFiles hash={hash} status={status} disabled={offline || deleting} />
       </div>
 
       {remove.element}
@@ -398,10 +394,6 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
             closeMenu()
             retitle.open(hash)
           }}
-          onConfirmed={() => {
-            closeMenu()
-            titleSaved('confirmed')
-          }}
         />
       )}
 
@@ -410,17 +402,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
 
       {limits.element}
 
-      {retitle.torrent && (
-        <ChangeTitleSheet
-          torrent={torrent}
-          current={match}
-          onClose={retitle.close}
-          onChosen={(result) => {
-            retitle.close()
-            titleSaved(result)
-          }}
-        />
-      )}
+      {retitle.element}
     </Root>
   )
 }

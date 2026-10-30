@@ -14,6 +14,7 @@ import {
   isGuessed,
   lookupFor,
   pickBest,
+  sameTitle,
   titleType,
   useTitleMatches,
   useTitleTorrents,
@@ -111,6 +112,16 @@ describe('pickBest', () => {
     const mayday = { ...title('tv', 4, 'Расследования авиакатастроф', 2003), originalTitle: 'Mayday' }
     expect(pickBest([special, mayday], { title: 'Air Crash Investigation' }, 'tv')).toBe(mayday)
     expect(pickBest([special], { title: 'Air Crash Investigation' }, 'tv')).toBe(special)
+  })
+})
+
+describe('sameTitle', () => {
+  it('is the same TMDB title by type and id, and never a missing one', () => {
+    expect(sameTitle({ type: 'tv', id: 1 }, { type: 'tv', id: 1 })).toBe(true)
+    expect(sameTitle({ type: 'tv', id: 1 }, { type: 'movie', id: 1 })).toBe(false)
+    expect(sameTitle({ type: 'tv', id: 1 }, { type: 'tv', id: 2 })).toBe(false)
+    expect(sameTitle(null, null)).toBe(false)
+    expect(sameTitle({ type: 'tv', id: 1 }, undefined)).toBe(false)
   })
 })
 

@@ -14,7 +14,7 @@ import { useDebouncedValue } from '../lib/useDebouncedValue'
 import { useRequest } from '../lib/useRequest'
 import { useTmdbLanguage } from '../settings/settings'
 import { parseName } from '../torrents/parseName'
-import { chooseTitle, type TitleMatch } from '../torrents/titleMatches'
+import { sameTitle, type TitleMatch } from '../torrents/titleMatches'
 import { SEARCH_DEBOUNCE_MS } from './SearchScreen'
 import './ChangeTitleSheet.css'
 
@@ -24,9 +24,12 @@ export interface ChangeTitleSheetProps {
   torrent: Pick<Torrent, 'hash' | 'name'>
   /** The title shown for the torrent now, if any. */
   current?: TitleMatch | null
+  /** A title being saved for the torrent, picked here or elsewhere: every pick is off meanwhile. */
+  saving?: Pick<TitleMatch, 'type' | 'id'>
+  /** The last save failed while this showed the torrent. */
+  failed: boolean
+  onPick: (title: Title) => void
   onClose: () => void
-  /** After the choice is saved: `confirmed` when the user kept the current title. */
-  onChosen: (result: 'changed' | 'confirmed') => void
 }
 
 function details(t: TFunction, title: Title): string {
@@ -35,38 +38,24 @@ function details(t: TFunction, title: Title): string {
 }
 
 /**
- * Finds the torrent's title in TMDB, starting from the name guessed from the release, and saves
- * the pick on the Kinoseed server as the user's choice.
+ * Finds the torrent's title in TMDB, starting from the name guessed from the release, for the user
+ * to pick. `useChangeTitle` renders it and saves the pick on the Kinoseed server as their choice.
  */
-export function ChangeTitleSheet({ torrent, current, onClose, onChosen }: ChangeTitleSheetProps) {
+export function ChangeTitleSheet({ torrent, current, saving, failed, onPick, onClose }: ChangeTitleSheetProps) {
   const { t } = useTranslation()
   const language = useTmdbLanguage()
   const [query, setQuery] = useState(() => parseName(torrent.name).title)
   const [type, setType] = useState<TypeFilter>('all')
-  const [saving, setSaving] = useState<string | null>(null)
-  const [failed, setFailed] = useState(false)
 
   const term = useDebouncedValue(query.trim(), SEARCH_DEBOUNCE_MS)
   const search = useRequest(term ? `retitle|${language}|${term}` : null, (signal) =>
     searchTitles(term, { language, signal }),
   )
-  const isCurrent = (title: Title) => !!current && title.type === current.type && title.id === current.id
+  const isCurrent = (title: Title) => sameTitle(title, current)
   const results = (search.data?.titles ?? [])
     .filter((title) => type === 'all' || title.type === type)
     .sort((a, b) => Number(isCurrent(b)) - Number(isCurrent(a)))
   const loading = !!query.trim() && (search.loading || term !== query.trim())
-
-  const pick = async (title: Title) => {
-    setSaving(`${title.type}:${title.id}`)
-    setFailed(false)
-    try {
-      await chooseTitle(torrent.hash, title, language)
-      onChosen(isCurrent(title) ? 'confirmed' : 'changed')
-    } catch {
-      setFailed(true)
-      setSaving(null)
-    }
-  }
 
   return (
     <Sheet
@@ -142,15 +131,16 @@ export function ChangeTitleSheet({ torrent, current, onClose, onChosen }: Change
               const key = `${title.type}:${title.id}`
               const poster = posterUrl(title.posterPath, 'w185')
               const selected = isCurrent(title)
+              const busy = sameTitle(title, saving)
               return (
                 <li key={key}>
                   <button
                     type="button"
                     className="ks-row-btn retitle-row"
                     aria-current={selected || undefined}
-                    aria-busy={saving === key || undefined}
-                    disabled={saving !== null}
-                    onClick={() => void pick(title)}
+                    aria-busy={busy || undefined}
+                    disabled={saving !== undefined}
+                    onClick={() => onPick(title)}
                   >
                     <span className="ks-poster retitle-poster">
                       {poster ? (
@@ -165,7 +155,7 @@ export function ChangeTitleSheet({ torrent, current, onClose, onChosen }: Change
                       <span className="t-label ks-trunc retitle-name">{title.title}</span>{' '}
                       <span className="t-cap c3 ks-num ks-trunc">{details(t, title)}</span>
                     </span>{' '}
-                    {saving === key ? (
+                    {busy ? (
                       <span className="ks-spin" aria-hidden="true" />
                     ) : (
                       selected && (

@@ -10,13 +10,13 @@ import { Poster } from '../components/Poster'
 import { Sheet } from '../components/Sheet'
 import { StatusChip } from '../components/StatusChip'
 import { useIsDesktop } from '../lib/useIsDesktop'
-import { useTmdbLanguage } from '../settings/settings'
 import { REQUEST_KINDS } from '../torrents/requestKinds'
 import { downloadStatus, hasMetadata, isRunning } from '../torrents/status'
-import { chooseTitle, type TitleMatch } from '../torrents/titleMatches'
+import type { TitleMatch } from '../torrents/titleMatches'
 import { MatchPrompt } from './MatchPrompt'
 import { usePauseResume } from './usePauseResume'
 import { useReannounce } from './useReannounce'
+import { useConfirmTitle } from './useTitleChoice'
 import { useTorrentAction, type ActionWatcher } from './useTorrentAction'
 
 export interface TorrentActionsSheetProps {
@@ -32,7 +32,10 @@ export interface TorrentActionsSheetProps {
   anchor?: HTMLElement | null
   /** Set when the title's page is already open under a drawer: its item closes the drawer instead. */
   onTitlePage?: () => void
-  /** Also once qBittorrent took a pause, resume or reannounce for its torrent, from here or elsewhere. */
+  /**
+   * Also once qBittorrent took a pause, resume or reannounce for its torrent, or its title was
+   * confirmed, from here or elsewhere.
+   */
   onClose: () => void
   onDelete: () => void
   /** Opens "Move files". */
@@ -43,8 +46,6 @@ export interface TorrentActionsSheetProps {
   onSpeedLimits: () => void
   /** Opens the title search. */
   onChangeTitle: () => void
-  /** After the guessed title was confirmed. */
-  onConfirmed: () => void
 }
 
 /** A download's actions, opened from its More button: a bottom sheet, or a menu on desktop. */
@@ -62,11 +63,10 @@ export function TorrentActionsSheet({
   onRecheck,
   onSpeedLimits,
   onChangeTitle,
-  onConfirmed,
 }: TorrentActionsSheetProps) {
   const { t } = useTranslation()
-  const language = useTmdbLanguage()
   const [failed, setFailed] = useState(false)
+  const [saveFailed, setSaveFailed] = useState(false)
   // The menu shows the torrent, so it says how its pause, resume or reannounce went, wherever it was
   // sent from: it closes, or shows the failure.
   const watcher: ActionWatcher = {
@@ -75,12 +75,20 @@ export function TorrentActionsSheet({
   }
   const pauseResume = usePauseResume(watcher)
   const reannounce = useReannounce(watcher)
-  // A recheck is sent from its confirmation, and says itself how it went.
+  // And how "Yes, right" went, the failure under its own message.
+  const title = useConfirmTitle({
+    torrents: [torrent],
+    settled: (outcome) => (outcome.ok ? onClose() : setSaveFailed(true)),
+  })
+  // A recheck or a delete is sent from its confirmation, and says itself how it went.
   const recheck = useTorrentAction(REQUEST_KINDS.recheck)
+  // Nothing is sent for a torrent being deleted: a title saved after it would stay for a torrent
+  // that's gone.
+  const deleting = useTorrentAction(REQUEST_KINDS.delete).busy(torrent.hash)
   // One of its requests at a time, from here or elsewhere.
-  const busy = pauseResume.busy(torrent.hash) || reannounce.busy(torrent.hash) || recheck.busy(torrent.hash)
-  const [confirming, setConfirming] = useState(false)
-  const [saveFailed, setSaveFailed] = useState(false)
+  const busy =
+    pauseResume.busy(torrent.hash) || reannounce.busy(torrent.hash) || recheck.busy(torrent.hash) || deleting
+  const confirming = title.busy(torrent.hash)
   const status = downloadStatus(torrent)
   const running = isRunning(status)
   // qBittorrent ignores both where they can't run (libtorrent announces only for a started torrent,
@@ -108,17 +116,10 @@ export function TorrentActionsSheet({
     void reannounce.reannounce(torrent)
   }
 
-  const confirm = async () => {
+  const confirm = () => {
     if (!match) return
-    setConfirming(true)
     setSaveFailed(false)
-    try {
-      await chooseTitle(torrent.hash, match, language)
-      onConfirmed()
-    } catch {
-      setSaveFailed(true)
-      setConfirming(false)
-    }
+    void title.confirm(torrent, match)
   }
   const askToConfirm = !!match && guessed
   const openTitle = (event: MouseEvent) => {
@@ -152,7 +153,7 @@ export function TorrentActionsSheet({
         <MenuItem icon="check-circle" disabled={offline || busy || !canRecheck} hint={recheckHint} onClick={onRecheck}>
           {t('torrent.recheck')}
         </MenuItem>
-        <MenuItem icon="gauge" disabled={offline} onClick={onSpeedLimits}>
+        <MenuItem icon="gauge" disabled={offline || deleting} onClick={onSpeedLimits}>
           {t('limits.title')}
         </MenuItem>
         {showDetails && (
@@ -169,24 +170,24 @@ export function TorrentActionsSheet({
           <>
             <MenuDivider />
             <MenuGroup label={t('match.guessNote')}>
-              <MenuItem icon="search" disabled={confirming} onClick={onChangeTitle}>
+              <MenuItem icon="search" disabled={confirming || deleting} onClick={onChangeTitle}>
                 {t('match.change')}
               </MenuItem>
-              <MenuItem icon="check" disabled={confirming} onClick={confirm}>
+              <MenuItem icon="check" disabled={confirming || deleting} onClick={confirm}>
                 {t('match.confirm')}
               </MenuItem>
             </MenuGroup>
           </>
         ) : (
-          <MenuItem icon="search" onClick={onChangeTitle}>
+          <MenuItem icon="search" disabled={deleting} onClick={onChangeTitle}>
             {changeTitle}
           </MenuItem>
         )}
-        <MenuItem icon="folder" disabled={offline} onClick={onMove}>
+        <MenuItem icon="folder" disabled={offline || deleting} onClick={onMove}>
           {t('torrent.move')}
         </MenuItem>
         <MenuDivider />
-        <MenuItem icon="trash" danger disabled={offline} onClick={onDelete}>
+        <MenuItem icon="trash" danger disabled={offline || deleting} onClick={onDelete}>
           {t('torrent.delete')}
         </MenuItem>
       </Menu>
@@ -204,7 +205,14 @@ export function TorrentActionsSheet({
       className="actions-sheet"
     >
       {askToConfirm && (
-        <MatchPrompt kind="guess" busy={confirming} onChange={onChangeTitle} onConfirm={confirm} className="actions-prompt" />
+        <MatchPrompt
+          kind="guess"
+          busy={confirming}
+          disabled={deleting}
+          onChange={onChangeTitle}
+          onConfirm={confirm}
+          className="actions-prompt"
+        />
       )}
       <ul className="actions-list">
         <li>
@@ -242,7 +250,7 @@ export function TorrentActionsSheet({
           </button>
         </li>
         <li>
-          <button type="button" className="ks-row-btn" disabled={offline} onClick={onSpeedLimits}>
+          <button type="button" className="ks-row-btn" disabled={offline || deleting} onClick={onSpeedLimits}>
             <Icon name="gauge" />
             {t('limits.title')}
           </button>
@@ -265,21 +273,21 @@ export function TorrentActionsSheet({
         )}
         {!askToConfirm && (
           <li>
-            <button type="button" className="ks-row-btn" onClick={onChangeTitle}>
+            <button type="button" className="ks-row-btn" disabled={deleting} onClick={onChangeTitle}>
               <Icon name="search" />
               {match ? t('match.changeTitle') : t('match.pickTitle')}
             </button>
           </li>
         )}
         <li>
-          <button type="button" className="ks-row-btn" disabled={offline} onClick={onMove}>
+          <button type="button" className="ks-row-btn" disabled={offline || deleting} onClick={onMove}>
             <Icon name="folder" />
             {t('torrent.move')}
           </button>
         </li>
         <li className="ks-divider actions-divider" aria-hidden="true" />
         <li>
-          <button type="button" className="ks-row-btn is-danger" disabled={offline} onClick={onDelete}>
+          <button type="button" className="ks-row-btn is-danger" disabled={offline || deleting} onClick={onDelete}>
             <Icon name="trash" />
             {t('torrent.delete')}
           </button>

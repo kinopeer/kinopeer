@@ -24,7 +24,6 @@ import { useServerMatches } from '../torrents/serverMatches'
 import { TYPE_FILTERS, isGuessed, titleType, useTitleMatches, type TypeFilter } from '../torrents/titleMatches'
 import { useMainData, type MainDataState } from '../torrents/useMainData'
 import { BulkActionsBar } from './BulkActionsBar'
-import { ChangeTitleSheet } from './ChangeTitleSheet'
 import { DownloadCard } from './DownloadCard'
 import { DownloadItem } from './DownloadItem'
 import { DownloadRow, DownloadRowHeader } from './DownloadRow'
@@ -39,6 +38,7 @@ import { useMoveTorrent } from './useMoveTorrent'
 import { usePauseResume } from './usePauseResume'
 import { useRecheck } from './useRecheck'
 import { useSpeedLimits } from './useSpeedLimits'
+import { useChangeTitle } from './useTitleChoice'
 import { useTorrentOverlay } from './useTorrentOverlay'
 import './DownloadsScreen.css'
 
@@ -98,8 +98,6 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
     onSelectingChange?.(true)
     return () => onSelectingChange?.(false)
   }, [selecting, onSelectingChange])
-  const retitle = useTorrentOverlay(data?.torrents)
-  const titleSaved = (result: 'changed' | 'confirmed') => toast.show(result === 'confirmed' ? t('match.confirmed') : t('match.changed'))
   // Tell the user when qBittorrent answers again after an outage.
   const wasOffline = useRef(offline)
   useEffect(() => {
@@ -110,6 +108,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
 
   const torrents = useMemo(() => (data ? Object.values(data.torrents) : []), [data])
   const matches = useTitleMatches(torrents)
+  const retitle = useChangeTitle({ torrents: data?.torrents, matchOf: (torrent) => matches[torrent.hash] })
   const nameOf = (torrent: Torrent) => matches[torrent.hash]?.title ?? torrent.name
   const limits = useSpeedLimits({ torrents: data?.torrents, offline, refresh, titleOf: nameOf })
   const recheck = useRecheck({ torrents: data?.torrents, titleOf: nameOf })
@@ -534,24 +533,10 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
             actions.close()
             retitle.open(actionsTorrent.hash)
           }}
-          onConfirmed={() => {
-            actions.close()
-            titleSaved('confirmed')
-          }}
         />
       )}
       {move.element}
-      {retitle.torrent && (
-        <ChangeTitleSheet
-          torrent={retitle.torrent}
-          current={matches[retitle.torrent.hash]}
-          onClose={() => retitle.close()}
-          onChosen={(result) => {
-            retitle.close()
-            titleSaved(result)
-          }}
-        />
-      )}
+      {retitle.element}
       {selecting && (
         <BulkActionsBar
           torrents={selectedVisible}

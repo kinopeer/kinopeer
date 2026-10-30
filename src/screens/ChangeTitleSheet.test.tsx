@@ -1,12 +1,9 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import * as matchesApi from '../api/matches'
 import * as tmdb from '../api/tmdb'
 import { title } from '../test/fixtures'
-import { resetServerMatches } from '../torrents/serverMatches'
-import { clearTitleMatchCache } from '../torrents/titleMatches'
-import { ChangeTitleSheet } from './ChangeTitleSheet'
+import { ChangeTitleSheet, type ChangeTitleSheetProps } from './ChangeTitleSheet'
 import { saying } from '../test/render'
 
 vi.mock('../api/tmdb', async (importOriginal) => ({
@@ -14,32 +11,23 @@ vi.mock('../api/tmdb', async (importOriginal) => ({
   searchTitles: vi.fn(),
 }))
 
-vi.mock('../api/matches', async (importOriginal) => ({
-  ...(await importOriginal<typeof matchesApi>()),
-  getMatches: vi.fn(),
-  saveMatches: vi.fn(),
-}))
-
 const searchTitles = vi.mocked(tmdb.searchTitles)
-const saveMatches = vi.mocked(matchesApi.saveMatches)
 
 const MASTER_SERIES = title('tv', 94605, 'Мастер и Маргарита', 2005, { posterPath: null })
 const MASTER_MOVIE = title('movie', 801688, 'Мастер и Маргарита', 2024, { originalTitle: 'The Master and Margarita', posterPath: null })
 const TORRENT = { hash: 'a'.repeat(40), name: 'Master.i.Margarita.2005.S01.1080p.WEB-DL' }
 
-function renderSheet(current: Parameters<typeof ChangeTitleSheet>[0]['current'] = null) {
-  const onChosen = vi.fn()
-  const onClose = vi.fn()
-  render(<ChangeTitleSheet torrent={TORRENT} current={current} onClose={onClose} onChosen={onChosen} />)
-  return { onChosen, onClose }
+const SERIES_MATCH = { type: 'tv' as const, id: 94605, title: 'Мастер и Маргарита', year: 2005, posterPath: null }
+
+function renderSheet(current: ChangeTitleSheetProps['current'] = null, props: Partial<ChangeTitleSheetProps> = {}) {
+  const handlers = { onPick: vi.fn(), onClose: vi.fn() }
+  render(<ChangeTitleSheet torrent={TORRENT} current={current} failed={false} {...handlers} {...props} />)
+  return handlers
 }
 
 beforeEach(() => {
   vi.resetAllMocks()
-  clearTitleMatchCache()
-  resetServerMatches()
   searchTitles.mockResolvedValue({ titles: [MASTER_MOVIE, MASTER_SERIES], page: 1, totalPages: 1 })
-  saveMatches.mockImplementation(async (changes) => changes as matchesApi.Matches)
 })
 
 describe('ChangeTitleSheet', () => {
@@ -69,29 +57,28 @@ describe('ChangeTitleSheet', () => {
     expect(rows[0]).toHaveTextContent('Movie · 2024')
   })
 
-  it('saves the picked title as the user’s choice', async () => {
-    const { onChosen } = renderSheet({ type: 'tv', id: 94605, title: 'Мастер и Маргарита', year: 2005, posterPath: null })
+  it('picks a title', async () => {
+    const { onPick } = renderSheet(SERIES_MATCH)
     await userEvent.click(await screen.findByRole('button', { name: /Movie · 2024/ }))
-    expect(saveMatches).toHaveBeenCalledWith({ [TORRENT.hash]: { type: 'movie', id: 801688, source: 'user' } })
-    expect(onChosen).toHaveBeenCalledWith('changed')
+    expect(onPick).toHaveBeenCalledWith(MASTER_MOVIE)
   })
 
-  it('confirms the current title when it is picked', async () => {
-    const { onChosen } = renderSheet({ type: 'tv', id: 94605, title: 'Мастер и Маргарита', year: 2005, posterPath: null })
-    await userEvent.click(await screen.findByRole('button', { name: /Series · 2005 Current/ }))
-    expect(onChosen).toHaveBeenCalledWith('confirmed')
+  it('shows the title being saved busy, and every pick off meanwhile', async () => {
+    const { onPick } = renderSheet(SERIES_MATCH, { saving: { type: 'movie', id: 801688 } })
+    const movie = await screen.findByRole('button', { name: /Movie · 2024/ })
+    const series = screen.getByRole('button', { name: /Series · 2005/ })
+    expect(movie).toHaveAttribute('aria-busy', 'true')
+    expect(movie).toBeDisabled()
+    expect(series).not.toHaveAttribute('aria-busy')
+    expect(series).toBeDisabled()
+    await userEvent.click(series)
+    expect(onPick).not.toHaveBeenCalled()
   })
 
-  it('says when the choice couldn’t be saved and lets the user try again', async () => {
-    saveMatches.mockRejectedValueOnce(new matchesApi.MatchesError(500))
-    const { onChosen } = renderSheet()
-    const row = await screen.findByRole('button', { name: /Movie · 2024/ })
-    await userEvent.click(row)
-    expect(await screen.findByRole('alert', { name: saying('Couldn’t save the choice. Try again.') })).toBeInTheDocument()
-    expect(onChosen).not.toHaveBeenCalled()
-    expect(row).toBeEnabled()
-    await userEvent.click(row)
-    await waitFor(() => expect(onChosen).toHaveBeenCalledWith('changed'))
+  it('says when the choice couldn’t be saved, and can be picked again', async () => {
+    renderSheet(null, { failed: true })
+    expect(screen.getByRole('alert', { name: saying('Couldn’t save the choice. Try again.') })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /Movie · 2024/ })).toBeEnabled()
   })
 
   it('searches again as the user types, and says when nothing is found', async () => {
