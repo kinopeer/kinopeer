@@ -3,17 +3,21 @@ import { getTorrentFiles, type TorrentFile } from '../api/qbittorrent'
 
 export const FILES_POLL_INTERVAL_MS = 3_000
 
-export interface TorrentFilesState {
-  /** Undefined until the first response arrives. */
-  files?: TorrentFile[]
+export type TorrentFilesState = {
   /** The last request failed; `files` holds the last known list. */
   failed: boolean
-  /**
-   * When the poll whose answer `files` is was sent (ms since epoch), so a change qBittorrent took
-   * after it can be shown over it.
-   */
-  requestedAt?: number
-}
+} & (
+  | {
+      files: TorrentFile[]
+      /**
+       * When the poll whose answer `files` is was sent (ms since epoch), so a change qBittorrent
+       * took after it can be shown over it.
+       */
+      requestedAt: number
+    }
+  /** Until the first response arrives. */
+  | { files?: undefined; requestedAt?: undefined }
+)
 
 /** Polls a torrent's files (progress and priorities) while the page is visible. */
 export function useTorrentFiles(hash: string): TorrentFilesState {
@@ -54,6 +58,6 @@ export function useTorrentFiles(hash: string): TorrentFilesState {
     }
   }, [hash])
 
-  const current = loaded?.hash === hash ? loaded : undefined
-  return { files: current?.files, failed, requestedAt: current?.requestedAt }
+  if (loaded?.hash !== hash) return { failed }
+  return { files: loaded.files, requestedAt: loaded.requestedAt, failed }
 }

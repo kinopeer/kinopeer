@@ -1,9 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
 import { setFilePriority, type FilePriority, type Torrent, type TorrentFile } from '../api/qbittorrent'
 import { useToast } from '../components/Toast'
 import { REQUEST_KINDS } from '../torrents/requestKinds'
-import { requestKey } from '../torrents/torrentRequests'
+import { requestKey, type InFlight } from '../torrents/torrentRequests'
 import type { TorrentFilesState } from '../torrents/useTorrentFiles'
 import { useTorrentRequests } from '../torrents/useTorrentRequests'
 import { TOAST_KEYS } from './toastKeys'
@@ -13,6 +13,10 @@ interface PriorityChange {
   index: number
   priority: FilePriority
 }
+
+/** What's being sent for a torrent's file, while it is. */
+const pendingIn = (inFlight: InFlight, hash: string, index: number) =>
+  inFlight.get(requestKey(REQUEST_KINDS.filePriority, hash, String(index))) as PriorityChange | undefined
 
 /** A priority qBittorrent took for a file, shown until a poll sent at `after` or later says. */
 interface Taken extends PriorityChange {
@@ -66,20 +70,25 @@ export function useFilePriorities(torrent: Torrent, list: TorrentFilesState): Fi
     [requests],
   )
 
-  const pending = (index: number) =>
-    inFlight.get(requestKey(REQUEST_KINDS.filePriority, torrent.hash, String(index))) as PriorityChange | undefined
-  const priorityOf = (file: TorrentFile) => {
-    const sending = pending(file.index)
-    if (sending) return sending.priority
-    const kept = taken.get(file.index)
-    // A poll sent at the same millisecond as the answer or later went out after qBittorrent took it.
-    if (kept && (list.requestedAt === undefined || list.requestedAt < kept.after)) return kept.priority
-    return file.priority
-  }
-  const files = list.files?.map((file) => {
-    const priority = priorityOf(file)
-    return priority === file.priority ? file : { ...file, priority }
-  })
+  const { hash } = torrent
+  // Built again only when the poll, what's in flight or what qBittorrent took changes, so the list's
+  // tree is too.
+  const { files: polled, requestedAt } = list
+  const files = useMemo(() => {
+    if (polled === undefined) return undefined
+    const priorityOf = (file: TorrentFile) => {
+      const sending = pendingIn(inFlight, hash, file.index)
+      if (sending) return sending.priority
+      const kept = taken.get(file.index)
+      // A poll sent at the same millisecond as the answer or later went out after qBittorrent took it.
+      if (kept && requestedAt < kept.after) return kept.priority
+      return file.priority
+    }
+    return polled.map((file) => {
+      const priority = priorityOf(file)
+      return priority === file.priority ? file : { ...file, priority }
+    })
+  }, [polled, requestedAt, inFlight, taken, hash])
 
   const set = async (index: number, priority: FilePriority) => {
     toast.dismiss(TOAST_KEYS.filePriority)
@@ -98,7 +107,7 @@ export function useFilePriorities(torrent: Torrent, list: TorrentFilesState): Fi
 
   return {
     files,
-    busy: (index) => pending(index) !== undefined,
+    busy: (index) => pendingIn(inFlight, hash, index) !== undefined,
     failed,
     set: (index, priority) => void set(index, priority),
   }

@@ -73,7 +73,8 @@ export interface TorrentRequests {
 /**
  * By hash alone, not when the torrent was added: qBittorrent applies a request to the hash, so one
  * still in flight for a torrent deleted and added again goes to the new one, which shows it busy
- * rather than letting it go out twice. With `part`, for that part of the torrent (`SendOptions`).
+ * rather than letting it go out twice. With `part`, for that part of the torrent (`SendOptions`),
+ * which the torrent's own key doesn't cover: a part's request isn't found by `requestKey(kind, hash)`.
  */
 export const requestKey = (kind: string, hash: string, part?: string) =>
   part === undefined ? `${kind}|${hash}` : `${kind}|${hash}|${part}`

@@ -1,4 +1,4 @@
-import { act, render, screen, within } from '@testing-library/react'
+import { act, render, renderHook, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -164,6 +164,21 @@ describe('useFilePriorities', () => {
     pendingChange()
     await lists.in('Page').press('Extras high')
     expect(screen.queryByRole('status', { name: saying(FAILED) })).not.toBeInTheDocument()
+  })
+
+  it('gives the same files back while nothing it shows changed, so the list doesn’t build its tree again', async () => {
+    const { result, rerender } = renderHook(({ list }) => useFilePriorities(DUNE, list), {
+      wrapper: Providers,
+      initialProps: { list: POLLED },
+    })
+    const first = result.current.files
+    rerender({ list: POLLED })
+    expect(result.current.files).toBe(first)
+
+    pendingChange()
+    act(() => result.current.set(1, 6))
+    expect(result.current.files).not.toBe(first)
+    expect(result.current.files?.map((file) => file.priority)).toEqual([1, 6])
   })
 
   it('leaves a failure to a toast when the list shows another torrent with the same hash, added again', async () => {
