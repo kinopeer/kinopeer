@@ -2,6 +2,7 @@ import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import type { Torrent } from '../api/qbittorrent'
 import { torrent } from '../test/fixtures'
+import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
 import { useTorrentSheet } from './useTorrentSheet'
 
 const DUNE = torrent('dune')
@@ -9,7 +10,7 @@ const DUNE = torrent('dune')
 type Torrents = Record<string, Torrent> | undefined
 
 function renderSheet() {
-  return renderHook(({ list }: { list: Torrents }) => useTorrentSheet<string>(list), {
+  return renderHook(({ list }: { list: Torrents }) => useTorrentSheet<string>('move', list), {
     initialProps: { list: { dune: DUNE } as Torrents },
   })
 }
@@ -66,7 +67,7 @@ describe('useTorrentSheet', () => {
 
   it('keeps the failure a sheet shows when a request for a torrent no sheet shows fails, as that one’s said elsewhere', async () => {
     const alien = torrent('alien')
-    const { result } = renderHook(() => useTorrentSheet<string>({ dune: DUNE, alien }))
+    const { result } = renderHook(() => useTorrentSheet<string>('move', { dune: DUNE, alien }))
     act(() => result.current.open('dune'))
     const dune = request()
     let duneSent!: Promise<unknown>
@@ -106,7 +107,7 @@ describe('useTorrentSheet', () => {
 
   it('keeps each torrent’s request pending until that one settles', async () => {
     const alien = torrent('alien')
-    const { result } = renderHook(() => useTorrentSheet<string>({ dune: DUNE, alien }))
+    const { result } = renderHook(() => useTorrentSheet<string>('move', { dune: DUNE, alien }))
     const dune = request()
     const other = request()
     let sent!: Promise<unknown>
@@ -121,6 +122,50 @@ describe('useTorrentSheet', () => {
     expect(result.current.pending('dune')).toBeUndefined()
     // Settling another torrent's request doesn't end this one.
     expect(result.current.pending('alien')).toBe('/tv')
+  })
+})
+
+describe('useTorrentSheet on two screens under one TorrentRequestsProvider', () => {
+  /** Downloads and the drawer over it, each with its own sheet of the same kind. */
+  function renderScreens() {
+    return renderHook(
+      () => ({
+        downloads: useTorrentSheet<string>('move', { dune: DUNE }),
+        drawer: useTorrentSheet<string>('move', { dune: DUNE }),
+      }),
+      { wrapper: TorrentRequestsProvider },
+    )
+  }
+
+  it('shows a request sent from one screen busy on the other, and closes the other’s sheet once it goes through', async () => {
+    const { result } = renderScreens()
+    const sending = request()
+    let sent!: Promise<unknown>
+    act(() => {
+      sent = result.current.downloads.send(DUNE, '/media', () => sending.promise)
+    })
+    act(() => result.current.drawer.open('dune'))
+    expect(result.current.drawer.pending('dune')).toBe('/media')
+    // It doesn't go out a second time from there.
+    expect(await result.current.drawer.send(DUNE, '/tv', () => Promise.resolve())).toBeUndefined()
+
+    await act(async () => sending.resolve())
+    expect(await sent).toEqual({ ok: true, showing: true })
+    expect(result.current.drawer.torrent).toBeUndefined()
+  })
+
+  it('keeps the failure in the other screen’s sheet, which then says it', async () => {
+    const { result } = renderScreens()
+    const sending = request()
+    let sent!: Promise<unknown>
+    act(() => {
+      sent = result.current.downloads.send(DUNE, '/media', () => sending.promise)
+    })
+    act(() => result.current.drawer.open('dune'))
+    await act(async () => sending.reject('409'))
+    expect(await sent).toEqual({ ok: false, error: '409', showing: true })
+    expect(result.current.drawer.failure).toEqual({ sent: '/media', error: '409' })
+    expect(result.current.downloads.failure).toBeUndefined()
   })
 })
 

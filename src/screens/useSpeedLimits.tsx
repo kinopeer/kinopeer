@@ -28,16 +28,16 @@ export function useSpeedLimits({ torrents, offline, refresh, titleOf }: {
   titleOf: (torrent: Torrent) => string
 }): SpeedLimits {
   const { t } = useTranslation()
-  const { torrent, open, close, pending, failure, send } = useTorrentSheet<SpeedLimitsChange>(torrents)
+  const { torrent, open, close, pending, failure, send } = useTorrentSheet<SpeedLimitsChange>('limits', torrents)
   const toast = useToast()
 
   const save = async (target: Torrent, limits: SpeedLimitsChange) => {
     const settled = await send(target, limits, () => setSpeedLimits([target.hash], limits))
+    if (!settled) return
     // Either way, show what qBittorrent took: after a failure one of the two may have gone through.
     refresh()
-    if (settled.ok) {
-      if (settled.showing) close()
-    } else if (!settled.showing) {
+    // A sheet that shows the torrent closed on its own, or kept the failure to say it.
+    if (!settled.ok && !settled.showing) {
       toast.show(t('limits.failedClosed', { title: titleOf(target) }), { icon: 'alert' })
     }
   }

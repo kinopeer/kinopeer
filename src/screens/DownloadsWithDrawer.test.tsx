@@ -11,6 +11,7 @@ import { resetSettings, updateSettings } from '../settings/settings'
 import { DUNE_TORRENT, mainData, title } from '../test/fixtures'
 import { Where, renderWithRouter, saying, where } from '../test/render'
 import { MainDataProvider } from '../torrents/MainDataProvider'
+import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
 import * as serverMatches from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
 import { DownloadsWithDrawer } from './DownloadsWithDrawer'
@@ -26,6 +27,7 @@ vi.mock('../api/qbittorrent', async (importOriginal) => {
     startTorrents: vi.fn(),
     stopTorrents: vi.fn(),
     deleteTorrents: vi.fn(),
+    setSpeedLimits: vi.fn(),
   }
 })
 
@@ -55,18 +57,20 @@ const deleteTorrents = vi.mocked(api.deleteTorrents)
 
 const snapshot = (fields: Partial<Torrent> = {}) => mainData([{ ...DUNE_TORRENT, ...fields }])
 
-/** The desktop routes as App sets them up, under the shared poll. */
+/** The desktop routes as App sets them up, under the shared poll and requests. */
 function renderApp(entries: string[]) {
   return renderWithRouter(
     <MainDataProvider onUnauthorized={vi.fn()}>
-      <Routes>
-        <Route element={<DownloadsWithDrawer onSessionLost={vi.fn()} />}>
-          <Route index />
-          <Route path="torrent/:hash" />
-        </Route>
-        <Route path="title/:type/:id" element={<p>Title page</p>} />
-      </Routes>
-      <Where />
+      <TorrentRequestsProvider>
+        <Routes>
+          <Route element={<DownloadsWithDrawer onSessionLost={vi.fn()} />}>
+            <Route index />
+            <Route path="torrent/:hash" />
+          </Route>
+          <Route path="title/:type/:id" element={<p>Title page</p>} />
+        </Routes>
+        <Where />
+      </TorrentRequestsProvider>
     </MainDataProvider>,
     entries,
   )
@@ -167,6 +171,33 @@ describe('the details drawer on desktop', () => {
     window.dispatchEvent(new Event('online'))
     // Downloads says it, under the drawer.
     expect(await within(drawer).findByRole('status', { name: saying('Reconnected to qBittorrent') })).toBeInTheDocument()
+  })
+
+  it('shows speed limits sent from Downloads in the drawer’s sheet for that torrent, busy, and says there how they went', async () => {
+    let refuse = () => {}
+    vi.mocked(api.setSpeedLimits).mockReturnValue(new Promise((_resolve, reject) => (refuse = () => reject(new Error('500')))))
+    renderApp(['/'])
+    await userEvent.click(await screen.findByRole('button', { name: /^More actions: Dune/ }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Speed limits' }))
+    const first = screen.getByRole('dialog', { name: 'Speed limits' })
+    await userEvent.type(within(first).getByRole('textbox', { name: 'Download limit, MB/s' }), '2')
+    await userEvent.click(within(first).getByRole('button', { name: 'Save limits' }))
+    // Closed while it's sent, as Escape does.
+    fireEvent(first, new Event('cancel', { cancelable: true }))
+
+    await userEvent.click(screen.getByRole('link', { name: /^Dune: Part Two/ }))
+    const drawer = await screen.findByRole('dialog', { name: 'Dune: Part Two' })
+    await userEvent.click(within(drawer).getByRole('button', { name: 'More actions: Dune: Part Two' }))
+    await userEvent.click(within(drawer).getByRole('menuitem', { name: 'Speed limits' }))
+    const again = screen.getByRole('dialog', { name: 'Speed limits' })
+    // Busy with what Downloads sends, so it can't go out a second time.
+    expect(within(again).getByRole('textbox', { name: 'Download limit, MB/s' })).toHaveValue('2')
+    expect(within(again).getByRole('button', { name: /Save limits/ })).toBeDisabled()
+
+    refuse()
+    expect(await within(again).findByRole('alert', { name: saying(/Couldn’t save the limits/) })).toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: saying(/Couldn’t save the speed limits of/) })).not.toBeInTheDocument()
+    expect(api.setSpeedLimits).toHaveBeenCalledOnce()
   })
 
   it('stays open when Escape cancels its delete confirmation', async () => {

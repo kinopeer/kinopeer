@@ -22,6 +22,7 @@ import { useTmdbSetup } from './session/useTmdbSetup'
 import { freeSpace } from './torrents/freeSpace'
 import { downloadStatus } from './torrents/status'
 import { MainDataProvider } from './torrents/MainDataProvider'
+import { TorrentRequestsProvider } from './torrents/TorrentRequestsProvider'
 import { useMainData } from './torrents/useMainData'
 import './App.css'
 
@@ -62,43 +63,45 @@ function App() {
       return (
         <MainDataProvider onUnauthorized={onSessionLost}>
           <ToastProvider>
-            <div className="app-shell">
-              {/* Keyed by screen, so a crash on one screen goes away when the user switches tabs. */}
-              <ErrorBoundary key={screenKey}>
-                {/* Always given a location, so the screens stay mounted when a drawer opens over them. */}
-                <Routes location={page}>
-                  {isDesktop ? (
-                    <Route element={<DownloadsWithDrawer onSessionLost={onSessionLost} onSelectingChange={setSelecting} />}>
-                      <Route index />
-                      <Route path={TORRENT_PATH} />
-                    </Route>
-                  ) : (
-                    <>
-                      <Route index element={<DownloadsScreen onSessionLost={onSessionLost} onSelectingChange={setSelecting} />} />
-                      <Route path={TORRENT_PATH} element={<TorrentScreen onSessionLost={onSessionLost} />} />
-                    </>
-                  )}
-                  <Route path="search" element={<SearchScreen />} />
-                  <Route path={TITLE_PATH} element={<TitleRoute onSessionLost={onSessionLost} />} />
-                  <Route path={RELEASES_PATH} element={<TitleRoute onSessionLost={onSessionLost} />} />
-                  <Route path="settings" element={<SettingsScreen />} />
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-              </ErrorBoundary>
-              {background && (
-                <Routes>
-                  <Route
-                    path={TORRENT_PATH}
-                    element={<TorrentDrawerOverPage background={background} onSessionLost={onSessionLost} />}
-                  />
-                </Routes>
-              )}
-              {isDesktop ? (
-                <AppSidebar items={tabs} version={session.version} pathname={background?.pathname} />
-              ) : (
-                !selecting && <TabBar items={tabs} label={t('nav.label')} />
-              )}
-            </div>
+            <TorrentRequestsProvider>
+              <div className="app-shell">
+                {/* Keyed by screen, so a crash on one screen goes away when the user switches tabs. */}
+                <ErrorBoundary key={screenKey}>
+                  {/* Always given a location, so the screens stay mounted when a drawer opens over them. */}
+                  <Routes location={page}>
+                    {isDesktop ? (
+                      <Route element={<DownloadsWithDrawer onSessionLost={onSessionLost} onSelectingChange={setSelecting} />}>
+                        <Route index />
+                        <Route path={TORRENT_PATH} />
+                      </Route>
+                    ) : (
+                      <>
+                        <Route index element={<DownloadsScreen onSessionLost={onSessionLost} onSelectingChange={setSelecting} />} />
+                        <Route path={TORRENT_PATH} element={<TorrentScreen onSessionLost={onSessionLost} />} />
+                      </>
+                    )}
+                    <Route path="search" element={<SearchScreen />} />
+                    <Route path={TITLE_PATH} element={<TitleRoute onSessionLost={onSessionLost} />} />
+                    <Route path={RELEASES_PATH} element={<TitleRoute onSessionLost={onSessionLost} />} />
+                    <Route path="settings" element={<SettingsScreen />} />
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                </ErrorBoundary>
+                {background && (
+                  <Routes>
+                    <Route
+                      path={TORRENT_PATH}
+                      element={<TorrentDrawerOverPage background={background} onSessionLost={onSessionLost} />}
+                    />
+                  </Routes>
+                )}
+                {isDesktop ? (
+                  <AppSidebar items={tabs} version={session.version} pathname={background?.pathname} />
+                ) : (
+                  !selecting && <TabBar items={tabs} label={t('nav.label')} />
+                )}
+              </div>
+            </TorrentRequestsProvider>
           </ToastProvider>
         </MainDataProvider>
       )
