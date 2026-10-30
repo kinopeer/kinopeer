@@ -45,6 +45,8 @@ describe('ToastProvider', () => {
     act(() => toasts.show('Title changed'))
     act(() => toasts.show('Couldn’t reach qBittorrent. Try again.'))
     expect(messages()).toEqual(['Checking the files', 'Title changed', 'Couldn’t reach qBittorrent. Try again.'])
+    // The pushed-out toast's times went with it: two for each toast left (slid in, gone).
+    expect(vi.getTimerCount()).toBe(6)
   })
 
   it('takes each toast away after its own time', () => {
@@ -144,5 +146,18 @@ describe('ToastProvider', () => {
     // Gone 4 s after it was shown, not 4 s after it moved.
     act(() => vi.advanceTimersByTime(1000))
     expect(messages()).toEqual([])
+  })
+
+  it('marks a toast settled once it has slid in, so shown again in another layer it doesn’t slide in again', () => {
+    render(
+      <ToastProvider>
+        <Shows />
+      </ToastProvider>,
+    )
+    act(() => toasts.show('Checking the files'))
+    // `is-settled` is what turns the slide-in off (Toast.css): a toast moved into a modal is drawn anew.
+    expect(screen.getByRole('status')).not.toHaveClass('is-settled')
+    act(() => vi.advanceTimersByTime(400))
+    expect(screen.getByRole('status')).toHaveClass('is-settled')
   })
 })

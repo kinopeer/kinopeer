@@ -24,30 +24,46 @@ interface Shown extends Omit<ToastOptions, 'key'> {
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Shown[]>([])
   const [layers, setLayers] = useState<HTMLElement[]>([])
+  // The toasts as last set, read by show and dismiss, which decide what goes before they set them.
+  const shown = useRef<Shown[]>([])
   const nextId = useRef(0)
   const timers = useRef(new Map<number, ReturnType<typeof setTimeout>[]>())
 
-  const remove = useCallback((drop: (toast: Shown) => boolean) => {
-    setToasts((current) => {
-      const gone = current.filter(drop)
-      gone.forEach((toast) => timers.current.get(toast.id)?.forEach(clearTimeout))
-      gone.forEach((toast) => timers.current.delete(toast.id))
-      return gone.length > 0 ? current.filter((toast) => !drop(toast)) : current
-    })
+  const set = useCallback((next: Shown[]) => {
+    shown.current = next
+    setToasts(next)
   }, [])
+  const forget = useCallback((gone: Shown[]) => {
+    for (const toast of gone) {
+      timers.current.get(toast.id)?.forEach(clearTimeout)
+      timers.current.delete(toast.id)
+    }
+  }, [])
+  const remove = useCallback(
+    (drop: (toast: Shown) => boolean) => {
+      const gone = shown.current.filter(drop)
+      if (gone.length === 0) return
+      forget(gone)
+      set(shown.current.filter((toast) => !drop(toast)))
+    },
+    [forget, set],
+  )
 
   const show = useCallback(
     (message: string, { key = message, ...options }: ToastOptions = {}) => {
       nextId.current += 1
       const id = nextId.current
-      remove((toast) => toast.key === key)
-      setToasts((current) => [...current, { id, key, message, settled: false, ...options }].slice(-MAX_TOASTS))
+      const same = shown.current.filter((toast) => toast.key === key)
+      const next = [...shown.current.filter((toast) => toast.key !== key), { id, key, message, settled: false, ...options }]
+      // The same key, and the oldest past the stack's size, go with their times.
+      forget([...same, ...next.slice(0, -MAX_TOASTS)])
+      set(next.slice(-MAX_TOASTS))
       timers.current.set(id, [
-        setTimeout(() => setToasts((current) => current.map((toast) => (toast.id === id ? { ...toast, settled: true } : toast))), SETTLE_MS),
+        setTimeout(() => set(shown.current.map((toast) => (toast.id === id ? { ...toast, settled: true } : toast))), SETTLE_MS),
         setTimeout(() => remove((toast) => toast.id === id), TOAST_DURATION),
       ])
     },
-    [remove],
+    [forget, remove, set],
   )
   const dismiss = useCallback((key: string) => remove((toast) => toast.key === key), [remove])
   useEffect(() => {
