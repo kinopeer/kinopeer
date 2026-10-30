@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router'
 import { startTorrents, stopTorrents, type Torrent } from '../api/qbittorrent'
@@ -11,7 +11,7 @@ import { IconButton } from '../components/IconButton'
 import { Input } from '../components/Input'
 import { PosterCardSkeleton } from '../components/PosterCard'
 import { Segmented } from '../components/Segmented'
-import { Toast } from '../components/Toast'
+import { useToast } from '../components/Toast'
 import { cx } from '../lib/cx'
 import { useFormatters } from '../lib/format'
 import { useHeightVar } from '../lib/useHeightVar'
@@ -65,10 +65,19 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
     /** How many were deleted at once; one when not set. */
     count?: number
   }
-  const dismissToast = useCallback(
-    () => void navigate(location.pathname, { replace: true, state: null }),
-    [navigate, location.pathname],
-  )
+  const toast = useToast()
+  // Said once: the state goes, so Back or a reload doesn't say it again.
+  useEffect(() => {
+    if (!added && !deleted) return
+    toast(
+      added
+        ? t('add.added', { title: added })
+        : count && count > 1
+          ? t(deleted === 'files' ? 'downloads.deletedManyFiles' : 'downloads.deletedMany', { count })
+          : t(deleted === 'files' ? 'downloads.deletedFiles' : 'downloads.deleted'),
+    )
+    void navigate(location.pathname, { replace: true, state: null })
+  }, [added, deleted, count, toast, t, navigate, location.pathname])
   const isDesktop = useIsDesktop()
   // The desktop header stays at the top while the list scrolls, and the table's column names stick
   // right under it: its height (the filters wrap, the offline banner comes and goes) is theirs in CSS.
@@ -91,15 +100,10 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null)
   // Being paused or resumed from a row's own button on desktop.
   const [toggling, setToggling] = useState<ReadonlySet<string>>(new Set())
-  const [toggleFailed, setToggleFailed] = useState(false)
-  const dismissToggleFailed = useCallback(() => setToggleFailed(false), [])
   // The torrents a delete confirmation is open for, the row's or the selection's.
   const [deleting, setDeleting] = useState<TorrentRef[] | null>(null)
   const move = useMoveTorrent({ torrents: data?.torrents, offline, refresh })
   const recheck = useTorrentOverlay(data?.torrents)
-  // A recheck or reannounce qBittorrent took, said in a toast.
-  const [notice, setNotice] = useState<'rechecking' | 'reannounced' | null>(null)
-  const dismissNotice = useCallback(() => setNotice(null), [])
   // The selected hashes in selection mode, null outside it.
   const [selected, setSelected] = useState<ReadonlySet<string> | null>(null)
   const selecting = selected !== null
@@ -109,16 +113,14 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
     return () => onSelectingChange?.(false)
   }, [selecting, onSelectingChange])
   const retitle = useTorrentOverlay(data?.torrents)
-  const [titleSaved, setTitleSaved] = useState<'changed' | 'confirmed' | null>(null)
-  const dismissTitleSaved = useCallback(() => setTitleSaved(null), [])
+  const titleSaved = (result: 'changed' | 'confirmed') => toast(result === 'confirmed' ? t('match.confirmed') : t('match.changed'))
   // Tell the user when qBittorrent answers again after an outage.
-  const [wasOffline, setWasOffline] = useState(offline)
-  const [reconnected, setReconnected] = useState(false)
-  if (offline !== wasOffline) {
-    setWasOffline(offline)
-    setReconnected(!offline)
-  }
-  const dismissReconnected = useCallback(() => setReconnected(false), [])
+  const wasOffline = useRef(offline)
+  useEffect(() => {
+    if (offline === wasOffline.current) return
+    wasOffline.current = offline
+    if (!offline) toast(t('offline.reconnected'))
+  }, [offline, toast, t])
 
   const torrents = useMemo(() => (data ? Object.values(data.torrents) : []), [data])
   const matches = useTitleMatches(torrents)
@@ -195,13 +197,12 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   const toggleRunning = async (torrent: Torrent) => {
     const { hash } = torrent
     setToggling((current) => new Set(current).add(hash))
-    setToggleFailed(false)
     try {
       const status = downloadStatus(torrent)
       await (isRunning(status) ? stopTorrents([hash]) : startTorrents([hash]))
       refresh()
     } catch {
-      setToggleFailed(true)
+      toast(t('torrent.actionFailed'), { icon: 'alert' })
     } finally {
       setToggling((current) => {
         const next = new Set(current)
@@ -558,7 +559,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           }}
           onReannounced={() => {
             actions.close()
-            setNotice('reannounced')
+            toast(t('torrent.reannounced'))
           }}
           onChangeTitle={() => {
             actions.close()
@@ -566,7 +567,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           }}
           onConfirmed={() => {
             actions.close()
-            setTitleSaved('confirmed')
+            titleSaved('confirmed')
           }}
         />
       )}
@@ -578,7 +579,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           onClose={() => retitle.close()}
           onChosen={(result) => {
             retitle.close()
-            setTitleSaved(result)
+            titleSaved(result)
           }}
         />
       )}
@@ -601,7 +602,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           onClose={() => recheck.close()}
           onRechecked={() => {
             recheck.close()
-            setNotice('rechecking')
+            toast(t('torrent.rechecking'))
             refresh()
           }}
         />
@@ -623,49 +624,30 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           }}
         />
       )}
-      {notice && <Toast message={t(`torrent.${notice}`)} onDismiss={dismissNotice} />}
-      {toggleFailed && <Toast icon="alert" message={t('torrent.actionFailed')} onDismiss={dismissToggleFailed} />}
-      {reconnected && <Toast message={t('offline.reconnected')} onDismiss={dismissReconnected} />}
-      {titleSaved && (
-        <Toast
-          message={titleSaved === 'confirmed' ? t('match.confirmed') : t('match.changed')}
-          onDismiss={dismissTitleSaved}
-        />
-      )}
-      {added && <Toast message={t('add.added', { title: added })} onDismiss={dismissToast} />}
-      {deleted && (
-        <Toast
-          message={
-            count && count > 1
-              ? t(deleted === 'files' ? 'downloads.deletedManyFiles' : 'downloads.deletedMany', { count })
-              : t(deleted === 'files' ? 'downloads.deletedFiles' : 'downloads.deleted')
-          }
-          onDismiss={dismissToast}
-        />
-      )}
     </main>
   )
 }
 
 /**
- * The phone's alternative speed limits switch in the title row, with its own toast when a switch
- * fails. Rendered only on phones, so it owns the switch there; on desktop the sidebar's card does.
+ * The phone's alternative speed limits switch in the title row, with a toast when a switch fails.
+ * Rendered only on phones, so it owns the switch there; on desktop the sidebar's card does.
  */
 function AltSpeedButton({ main }: { main: MainDataState }) {
   const { t } = useTranslation()
-  const altSpeed = useAltSpeedLimits(main)
+  const toast = useToast()
+  const altSpeed = useAltSpeedLimits(
+    main,
+    useCallback(() => toast(t('speedLimits.failed'), { icon: 'alert' }), [toast, t]),
+  )
   if (altSpeed.on === undefined) return null
   return (
-    <>
-      <IconButton
-        icon="turtle"
-        label={t('speedLimits.alt')}
-        active={altSpeed.on}
-        disabled={altSpeed.disabled}
-        iconSize={22}
-        onClick={altSpeed.toggle}
-      />
-      {altSpeed.failed && <Toast icon="alert" message={t('speedLimits.failed')} onDismiss={altSpeed.dismissFailed} />}
-    </>
+    <IconButton
+      icon="turtle"
+      label={t('speedLimits.alt')}
+      active={altSpeed.on}
+      disabled={altSpeed.disabled}
+      iconSize={22}
+      onClick={altSpeed.toggle}
+    />
   )
 }

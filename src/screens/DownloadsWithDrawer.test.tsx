@@ -157,6 +157,18 @@ describe('the details drawer on desktop', () => {
     expect(screen.queryByRole('dialog', { name: 'Dune: Part Two' })).not.toBeInTheDocument()
   })
 
+  it('shows a toast from Downloads inside the drawer, since the page behind it is inert', async () => {
+    renderApp(['/', '/torrent/dune'])
+    const drawer = await screen.findByRole('dialog', { name: 'Dune: Part Two' })
+    getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    window.dispatchEvent(new Event('online'))
+    expect(await within(drawer).findByText('No connection to qBittorrent')).toBeInTheDocument()
+
+    window.dispatchEvent(new Event('online'))
+    // Downloads says it, under the drawer.
+    expect(await within(drawer).findByRole('status', { name: saying('Reconnected to qBittorrent') })).toBeInTheDocument()
+  })
+
   it('stays open when Escape cancels its delete confirmation', async () => {
     renderApp(['/', '/torrent/dune'])
     const drawer = await screen.findByRole('dialog', { name: 'Dune: Part Two' })

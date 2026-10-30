@@ -6,6 +6,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ### Fixed
 
+- Toasts no longer hide each other: up to three show at once, stacked, each for its own 4 seconds. A toast from the page behind an open sheet, dialog or torrent drawer now shows on top of it instead of behind its backdrop, so a move or a speed limits save that failed after its sheet was closed is no longer missed on desktop.
 - Phone: the on-screen keyboard no longer covers a sheet's fields (Speed limits, Move files, Change title), as it did in Safari on iOS: the sheet moves up with the keyboard and fits in what it leaves visible, and Save in Speed limits stays pinned at its bottom, as Move does in Move files.
 - Move files: opened again while a move is still being sent, the sheet shows the folder being sent, not the torrent's current one, so trying again after a failure sends that folder.
 - Move files, Speed limits: the fields can't be changed while a move or save is being sent; what was typed then was lost when the sheet closed.

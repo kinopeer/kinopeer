@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { matchPath, useLocation, useNavigate } from 'react-router'
 import {
@@ -16,7 +16,7 @@ import { IconButton } from '../components/IconButton'
 import { Poster } from '../components/Poster'
 import { ProgressBar } from '../components/ProgressBar'
 import { StatusChip } from '../components/StatusChip'
-import { Toast } from '../components/Toast'
+import { useToast } from '../components/Toast'
 import { cx } from '../lib/cx'
 import { useFormatters } from '../lib/format'
 import { useRequest } from '../lib/useRequest'
@@ -86,7 +86,6 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
 
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [failed, setFailed] = useState(false)
   // Each closes when another torrent with the same hash replaces this screen's.
   const confirm = useTorrentOverlay(own)
   const menu = useTorrentOverlay(own)
@@ -99,13 +98,12 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
   }
   const retitle = useTorrentOverlay(own)
   const recheck = useTorrentOverlay(own)
-  // A recheck or reannounce qBittorrent took, said in a toast.
-  const [notice, setNotice] = useState<'rechecking' | 'reannounced' | null>(null)
-  const dismissNotice = useCallback(() => setNotice(null), [])
   const [savingTitle, setSavingTitle] = useState(false)
-  const [titleSaved, setTitleSaved] = useState<'changed' | 'confirmed' | 'failed' | null>(null)
-  const dismissFailure = useCallback(() => setFailed(false), [])
-  const dismissTitleSaved = useCallback(() => setTitleSaved(null), [])
+  const toast = useToast()
+  const titleSaved = (result: 'changed' | 'confirmed' | 'failed') =>
+    result === 'failed'
+      ? toast(t('match.saveFailed'), { icon: 'alert' })
+      : toast(result === 'confirmed' ? t('match.confirmed') : t('match.changed'))
 
   const trackers = useRequest(detailsOpen && torrent ? `trackers|${hash}` : null, () => getTorrentTrackers(hash))
 
@@ -195,12 +193,11 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
 
   const toggleRunning = async () => {
     setBusy(true)
-    setFailed(false)
     try {
       await (running ? stopTorrents([hash]) : startTorrents([hash]))
       refresh()
     } catch {
-      setFailed(true)
+      toast(t('torrent.actionFailed'), { icon: 'alert' })
     } finally {
       setBusy(false)
     }
@@ -217,9 +214,9 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
     setSavingTitle(true)
     try {
       await chooseTitle(hash, match, language)
-      setTitleSaved('confirmed')
+      titleSaved('confirmed')
     } catch {
-      setTitleSaved('failed')
+      titleSaved('failed')
     } finally {
       setSavingTitle(false)
     }
@@ -419,7 +416,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
           }}
           onReannounced={() => {
             closeMenu()
-            setNotice('reannounced')
+            toast(t('torrent.reannounced'))
           }}
           onChangeTitle={() => {
             closeMenu()
@@ -427,7 +424,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
           }}
           onConfirmed={() => {
             closeMenu()
-            setTitleSaved('confirmed')
+            titleSaved('confirmed')
           }}
         />
       )}
@@ -440,7 +437,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
           onClose={recheck.close}
           onRechecked={() => {
             recheck.close()
-            setNotice('rechecking')
+            toast(t('torrent.rechecking'))
             refresh()
           }}
         />
@@ -455,24 +452,8 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
           onClose={retitle.close}
           onChosen={(result) => {
             retitle.close()
-            setTitleSaved(result)
+            titleSaved(result)
           }}
-        />
-      )}
-
-      {notice && <Toast message={t(`torrent.${notice}`)} onDismiss={dismissNotice} />}
-      {failed && <Toast icon="alert" message={t('torrent.actionFailed')} onDismiss={dismissFailure} />}
-      {titleSaved && (
-        <Toast
-          icon={titleSaved === 'failed' ? 'alert' : 'check'}
-          message={
-            titleSaved === 'failed'
-              ? t('match.saveFailed')
-              : titleSaved === 'confirmed'
-                ? t('match.confirmed')
-                : t('match.changed')
-          }
-          onDismiss={dismissTitleSaved}
         />
       )}
     </Root>

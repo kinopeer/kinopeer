@@ -1,16 +1,15 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, Route, Routes, matchPath, useLocation } from 'react-router'
 import { Sidebar, SidebarStatus, type SidebarItem } from './components/Sidebar'
 import { TabBar, type TabBarItem } from './components/TabBar'
-import { Toast } from './components/Toast'
+import { ToastProvider, useToast } from './components/Toast'
 import { backgroundOf } from './lib/background'
 import { useIsDesktop } from './lib/useIsDesktop'
 import { ConnectScreen } from './screens/ConnectScreen'
 import { DownloadsScreen } from './screens/DownloadsScreen'
 import { DownloadsWithDrawer } from './screens/DownloadsWithDrawer'
 import { ErrorBoundary } from './screens/ErrorBoundary'
-import { MoveOutcomeProvider } from './screens/MoveOutcomeToast'
 import { SearchScreen } from './screens/SearchScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
 import { RELEASES_PATH, TITLE_PATH, TitleRoute } from './screens/TitleScreen'
@@ -62,7 +61,7 @@ function App() {
       const screenKey = screenKeyOf(page.pathname, isDesktop)
       return (
         <MainDataProvider onUnauthorized={onSessionLost}>
-          <MoveOutcomeProvider>
+          <ToastProvider>
             <div className="app-shell">
               {/* Keyed by screen, so a crash on one screen goes away when the user switches tabs. */}
               <ErrorBoundary key={screenKey}>
@@ -100,7 +99,7 @@ function App() {
                 !selecting && <TabBar items={tabs} label={t('nav.label')} />
               )}
             </div>
-          </MoveOutcomeProvider>
+          </ToastProvider>
         </MainDataProvider>
       )
     }
@@ -135,7 +134,11 @@ function AppSidebar({ items, version, pathname }: { items: TabBarItem[]; version
   const { t } = useTranslation()
   const main = useMainData()
   const { data, offline } = main
-  const altSpeed = useAltSpeedLimits(main)
+  const toast = useToast()
+  const altSpeed = useAltSpeedLimits(
+    main,
+    useCallback(() => toast(t('speedLimits.failed'), { icon: 'alert' }), [toast, t]),
+  )
   const downloading = data
     ? Object.values(data.torrents).filter((torrent) => downloadStatus(torrent) === 'downloading').length
     : 0
@@ -145,28 +148,23 @@ function AppSidebar({ items, version, pathname }: { items: TabBarItem[]; version
       : item,
   )
   return (
-    <>
-      <Sidebar
-        items={withCount}
-        label={t('nav.label')}
-        pathname={pathname}
-        footer={
-          <SidebarStatus
-            version={version}
-            offline={offline}
-            downloadSpeed={data?.server.dl_info_speed}
-            uploadSpeed={data?.server.up_info_speed}
-            freeSpace={freeSpace(data?.server.free_space_on_disk)}
-            altSpeedLimits={altSpeed.on}
-            altSpeedDisabled={altSpeed.disabled}
-            onToggleAltSpeed={altSpeed.toggle}
-          />
-        }
-      />
-      {altSpeed.failed && (
-        <Toast icon="alert" message={t('speedLimits.failed')} onDismiss={altSpeed.dismissFailed} />
-      )}
-    </>
+    <Sidebar
+      items={withCount}
+      label={t('nav.label')}
+      pathname={pathname}
+      footer={
+        <SidebarStatus
+          version={version}
+          offline={offline}
+          downloadSpeed={data?.server.dl_info_speed}
+          uploadSpeed={data?.server.up_info_speed}
+          freeSpace={freeSpace(data?.server.free_space_on_disk)}
+          altSpeedLimits={altSpeed.on}
+          altSpeedDisabled={altSpeed.disabled}
+          onToggleAltSpeed={altSpeed.toggle}
+        />
+      }
+    />
   )
 }
 
