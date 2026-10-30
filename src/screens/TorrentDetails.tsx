@@ -23,12 +23,12 @@ import { useMainData } from '../torrents/useMainData'
 import { MatchPrompt } from './MatchPrompt'
 import { OfflineBanner } from './OfflineBanner'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
-import { useChangeTitle, useConfirmTitle } from './useChooseTitle'
 import { useDeleteTorrents } from './useDeleteTorrents'
 import { useMoveTorrent } from './useMoveTorrent'
 import { usePauseResume } from './usePauseResume'
 import { useRecheck } from './useRecheck'
 import { useSpeedLimits } from './useSpeedLimits'
+import { useChangeTitle, useConfirmTitle } from './useTitleChoice'
 import { useTorrentAction } from './useTorrentAction'
 import { useTorrentOverlay } from './useTorrentOverlay'
 import { TorrentFiles } from './TorrentFiles'
@@ -198,7 +198,6 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
   const onTitlePage =
     match && page?.params.type === match.type && page.params.id === String(match.id) ? onClose : undefined
 
-
   const details: { key: string; label: string; value: string; mono?: boolean }[] = [
     { key: 'down', label: t('torrent.downloadSpeed'), value: downloading ? format.speed(torrent.dlspeed) : '—' },
     { key: 'up', label: t('torrent.uploadSpeed'), value: format.speed(torrent.upspeed) },
@@ -263,11 +262,12 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
           <MatchPrompt
             kind="guess"
             busy={confirmTitle.busy(hash)}
+            disabled={deleting}
             onChange={() => retitle.open(hash)}
             onConfirm={() => void confirmTitle.confirm(torrent, match)}
           />
         )}
-        {match === null && <MatchPrompt kind="none" onChange={() => retitle.open(hash)} />}
+        {match === null && <MatchPrompt kind="none" disabled={deleting} onChange={() => retitle.open(hash)} />}
 
         {offline && <OfflineBanner updatedAt={updatedAt} onRetry={refresh} />}
 
@@ -359,7 +359,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
           )}
         </section>
 
-        <TorrentFiles hash={hash} status={status} disabled={offline} />
+        <TorrentFiles hash={hash} status={status} disabled={offline || deleting} />
       </div>
 
       {remove.element}

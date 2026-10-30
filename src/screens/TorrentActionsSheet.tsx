@@ -14,9 +14,9 @@ import { REQUEST_KINDS } from '../torrents/requestKinds'
 import { downloadStatus, hasMetadata, isRunning } from '../torrents/status'
 import type { TitleMatch } from '../torrents/titleMatches'
 import { MatchPrompt } from './MatchPrompt'
-import { useConfirmTitle } from './useChooseTitle'
 import { usePauseResume } from './usePauseResume'
 import { useReannounce } from './useReannounce'
+import { useConfirmTitle } from './useTitleChoice'
 import { useTorrentAction, type ActionWatcher } from './useTorrentAction'
 
 export interface TorrentActionsSheetProps {
@@ -82,7 +82,8 @@ export function TorrentActionsSheet({
   })
   // A recheck or a delete is sent from its confirmation, and says itself how it went.
   const recheck = useTorrentAction(REQUEST_KINDS.recheck)
-  // Nothing is sent for a torrent being deleted.
+  // Nothing is sent for a torrent being deleted: a title saved after it would stay for a torrent
+  // that's gone.
   const deleting = useTorrentAction(REQUEST_KINDS.delete).busy(torrent.hash)
   // One of its requests at a time, from here or elsewhere.
   const busy =
@@ -169,16 +170,16 @@ export function TorrentActionsSheet({
           <>
             <MenuDivider />
             <MenuGroup label={t('match.guessNote')}>
-              <MenuItem icon="search" disabled={confirming} onClick={onChangeTitle}>
+              <MenuItem icon="search" disabled={confirming || deleting} onClick={onChangeTitle}>
                 {t('match.change')}
               </MenuItem>
-              <MenuItem icon="check" disabled={confirming} onClick={confirm}>
+              <MenuItem icon="check" disabled={confirming || deleting} onClick={confirm}>
                 {t('match.confirm')}
               </MenuItem>
             </MenuGroup>
           </>
         ) : (
-          <MenuItem icon="search" onClick={onChangeTitle}>
+          <MenuItem icon="search" disabled={deleting} onClick={onChangeTitle}>
             {changeTitle}
           </MenuItem>
         )}
@@ -204,7 +205,14 @@ export function TorrentActionsSheet({
       className="actions-sheet"
     >
       {askToConfirm && (
-        <MatchPrompt kind="guess" busy={confirming} onChange={onChangeTitle} onConfirm={confirm} className="actions-prompt" />
+        <MatchPrompt
+          kind="guess"
+          busy={confirming}
+          disabled={deleting}
+          onChange={onChangeTitle}
+          onConfirm={confirm}
+          className="actions-prompt"
+        />
       )}
       <ul className="actions-list">
         <li>
@@ -265,7 +273,7 @@ export function TorrentActionsSheet({
         )}
         {!askToConfirm && (
           <li>
-            <button type="button" className="ks-row-btn" onClick={onChangeTitle}>
+            <button type="button" className="ks-row-btn" disabled={deleting} onClick={onChangeTitle}>
               <Icon name="search" />
               {match ? t('match.changeTitle') : t('match.pickTitle')}
             </button>

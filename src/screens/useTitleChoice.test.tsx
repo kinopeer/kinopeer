@@ -2,28 +2,26 @@ import { act, render, renderHook, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import * as matchesApi from '../api/matches'
 import type { Torrent } from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
 import { ToastProvider } from '../components/Toast'
 import { title, torrent } from '../test/fixtures'
 import { saying } from '../test/render'
-import { resetServerMatches } from '../torrents/serverMatches'
-import { clearTitleMatchCache, type TitleMatch } from '../torrents/titleMatches'
+import * as titleMatches from '../torrents/titleMatches'
+import type { TitleMatch } from '../torrents/titleMatches'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
 import type { ActionWatcher } from './useTorrentAction'
-import { useChangeTitle, useConfirmTitle } from './useChooseTitle'
+import { useChangeTitle, useConfirmTitle } from './useTitleChoice'
 
 vi.mock('../api/tmdb', async (importOriginal) => ({
   ...(await importOriginal<typeof tmdb>()),
   searchTitles: vi.fn(),
 }))
-vi.mock('../api/matches', async (importOriginal) => ({
-  ...(await importOriginal<typeof matchesApi>()),
-  getMatches: vi.fn(),
-  saveMatches: vi.fn(),
+vi.mock('../torrents/titleMatches', async (importOriginal) => ({
+  ...(await importOriginal<typeof titleMatches>()),
+  chooseTitle: vi.fn(),
 }))
-const saveMatches = vi.mocked(matchesApi.saveMatches)
+const chooseTitle = vi.mocked(titleMatches.chooseTitle)
 
 const SERIES = title('tv', 94605, 'Мастер и Маргарита', 2005, { posterPath: null })
 const MOVIE = title('movie', 801688, 'Мастер и Маргарита', 2024, { originalTitle: 'The Master and Margarita', posterPath: null })
@@ -77,11 +75,11 @@ function renderScreens() {
 function pendingSave() {
   let answer = () => {}
   let fail = () => {}
-  saveMatches.mockImplementationOnce(
-    (changes) =>
+  chooseTitle.mockImplementationOnce(
+    () =>
       new Promise((resolve, reject) => {
-        answer = () => resolve(changes as matchesApi.Matches)
-        fail = () => reject(new matchesApi.MatchesError(500))
+        answer = () => resolve()
+        fail = () => reject(new Error('500'))
       }),
   )
   return { answer: () => act(async () => answer()), fail: () => act(async () => fail()) }
@@ -91,18 +89,15 @@ const movieIn = (sheet: HTMLElement) => within(sheet).getByRole('button', { name
 
 beforeEach(() => {
   vi.resetAllMocks()
-  clearTitleMatchCache()
-  resetServerMatches()
-  vi.mocked(matchesApi.getMatches).mockResolvedValue({})
   vi.mocked(tmdb.searchTitles).mockResolvedValue({ titles: [MOVIE, SERIES], page: 1, totalPages: 1 })
-  saveMatches.mockImplementation(async (changes) => changes as matchesApi.Matches)
+  chooseTitle.mockResolvedValue()
 })
 
 describe('useChangeTitle', () => {
   it('saves the picked title as the user’s choice, closes and says it changed', async () => {
     const open = renderScreens()
     await userEvent.click(movieIn(await open('Downloads')))
-    expect(saveMatches).toHaveBeenCalledWith({ master: { type: 'movie', id: 801688, source: 'user' } })
+    expect(chooseTitle).toHaveBeenCalledWith('master', MOVIE, 'en-US')
     expect(await screen.findByRole('status', { name: saying('Title changed') })).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
@@ -126,7 +121,7 @@ describe('useChangeTitle', () => {
     for (const row of within(drawer).getAllByRole('button', { name: /Мастер и Маргарита/ })) expect(row).toBeDisabled()
     // "Yes, right" is the same save.
     expect(screen.getByRole('button', { name: 'Yes, right in Downloads' })).toBeDisabled()
-    expect(saveMatches).toHaveBeenCalledOnce()
+    expect(chooseTitle).toHaveBeenCalledOnce()
 
     await save.answer()
     expect(screen.getByRole('status', { name: saying('Title changed') })).toBeInTheDocument()
@@ -165,21 +160,17 @@ describe('useChangeTitle', () => {
 })
 
 describe('useConfirmTitle', () => {
-  function Watched({ children }: { children: ReactNode }) {
-    return <Providers>{children}</Providers>
-  }
-
   it('keeps the guessed title as the user’s choice and says so, busy everywhere until it’s saved', async () => {
     const save = pendingSave()
-    const { result } = renderHook(() => ({ menu: useConfirmTitle(), details: useConfirmTitle() }), { wrapper: Watched })
+    const { result } = renderHook(() => ({ menu: useConfirmTitle(), details: useConfirmTitle() }), { wrapper: Providers })
     let sent!: Promise<unknown>
     act(() => {
       sent = result.current.menu.confirm(MASTER, GUESS)
     })
     expect(result.current.details.busy('master')).toBe(true)
     await expect(result.current.details.confirm(MASTER, GUESS)).resolves.toBeUndefined()
-    expect(saveMatches).toHaveBeenCalledOnce()
-    expect(saveMatches).toHaveBeenCalledWith({ master: { type: 'tv', id: 94605, source: 'user' } })
+    expect(chooseTitle).toHaveBeenCalledOnce()
+    expect(chooseTitle).toHaveBeenCalledWith('master', GUESS, 'en-US')
 
     await save.answer()
     await sent
@@ -191,15 +182,15 @@ describe('useConfirmTitle', () => {
     const settled = vi.fn<ActionWatcher['settled']>()
     const watcher: ActionWatcher = { torrents: [MASTER as Torrent], settled }
     const { result } = renderHook(() => ({ menu: useConfirmTitle(watcher), details: useConfirmTitle() }), {
-      wrapper: Watched,
+      wrapper: Providers,
     })
-    saveMatches.mockRejectedValueOnce(new matchesApi.MatchesError(500))
+    chooseTitle.mockRejectedValueOnce(new Error('500'))
     await act(async () => void (await result.current.details.confirm(MASTER, GUESS)))
-    expect(settled).toHaveBeenLastCalledWith({ ok: false, error: expect.any(matchesApi.MatchesError) }, [MASTER])
+    expect(settled).toHaveBeenLastCalledWith({ ok: false, error: expect.any(Error) }, [MASTER])
     expect(screen.queryByRole('status', { name: saying(FAILED) })).not.toBeInTheDocument()
 
-    const { result: alone } = renderHook(() => useConfirmTitle(), { wrapper: Watched })
-    saveMatches.mockRejectedValueOnce(new matchesApi.MatchesError(500))
+    const { result: alone } = renderHook(() => useConfirmTitle(), { wrapper: Providers })
+    chooseTitle.mockRejectedValueOnce(new Error('500'))
     await act(async () => void (await alone.current.confirm(MASTER, GUESS)))
     expect(screen.getByRole('status', { name: saying(FAILED) })).toBeInTheDocument()
   })

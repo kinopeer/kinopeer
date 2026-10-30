@@ -9,6 +9,8 @@ export interface MatchPromptProps {
   kind: 'guess' | 'none'
   /** Saving the confirmation. */
   busy?: boolean
+  /** Nothing can be chosen now (the torrent is being deleted). */
+  disabled?: boolean
   /** Opens the title search. */
   onChange: () => void
   /** Keeps the guessed title as the user's choice. */
@@ -17,7 +19,7 @@ export interface MatchPromptProps {
 }
 
 /** Asks the user to check a title guessed from the release name, or to pick one when none was found. */
-export function MatchPrompt({ kind, busy, onChange, onConfirm, className }: MatchPromptProps) {
+export function MatchPrompt({ kind, busy, disabled, onChange, onConfirm, className }: MatchPromptProps) {
   const { t } = useTranslation()
   return (
     <div className={cx('match-prompt', className)}>
@@ -27,15 +29,15 @@ export function MatchPrompt({ kind, busy, onChange, onConfirm, className }: Matc
       </p>
       {kind === 'guess' ? (
         <div className="match-prompt-actions">
-          <Button variant="secondary" icon="search" block disabled={busy} onClick={onChange}>
+          <Button variant="secondary" icon="search" block disabled={busy || disabled} onClick={onChange}>
             {t('match.change')}
           </Button>
-          <Button variant="primary" icon="check" block loading={busy} disabled={busy} onClick={onConfirm}>
+          <Button variant="primary" icon="check" block loading={busy} disabled={busy || disabled} onClick={onConfirm}>
             {t('match.confirm')}
           </Button>
         </div>
       ) : (
-        <Button variant="secondary" icon="search" block onClick={onChange}>
+        <Button variant="secondary" icon="search" block disabled={disabled} onClick={onChange}>
           {t('match.pickTitle')}
         </Button>
       )}

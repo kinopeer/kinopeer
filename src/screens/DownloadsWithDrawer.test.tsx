@@ -246,7 +246,11 @@ describe('the details drawer on desktop', () => {
     expect(screen.getByRole('status', { name: saying('Checking the files') })).toBeInTheDocument()
   })
 
-  it('shows a delete sent from Downloads busy in the drawer, with nothing else to send, then the torrent gone as soon as qBittorrent took it', async () => {
+  it.each([
+    ['downloading', undefined, 'Pause'],
+    ['stopped', { state: 'stoppedDL' as const }, 'Resume'],
+  ])('shows a delete sent from Downloads busy in the drawer, with nothing else to send, then the torrent gone as soon as qBittorrent took it (%s)', async (_state, fields, toggle) => {
+    getMainData.mockResolvedValue(snapshot(fields))
     let answer = () => {}
     deleteTorrents.mockReturnValue(new Promise((resolve) => (answer = resolve)))
     renderApp(['/'])
@@ -263,9 +267,10 @@ describe('the details drawer on desktop', () => {
     const remove = within(drawer).getByRole('button', { name: 'Delete' })
     expect(remove).toBeDisabled()
     expect(remove).toHaveAttribute('aria-busy', 'true')
-    expect(within(drawer).getByRole('button', { name: 'Pause' })).toBeDisabled()
+    expect(within(drawer).getByRole('button', { name: toggle })).toBeDisabled()
+    expect(within(drawer).getByRole('button', { name: toggle })).not.toHaveAttribute('aria-busy')
     await userEvent.click(within(drawer).getByRole('button', { name: 'More actions: Dune: Part Two' }))
-    for (const name of ['Pause', 'Speed limits', 'Move files…', 'Delete']) {
+    for (const name of [toggle, 'Speed limits', 'Move files…', 'Delete']) {
       expect(within(drawer).getByRole('menuitem', { name })).toBeDisabled()
     }
     expect(deleteTorrents).toHaveBeenCalledOnce()
@@ -277,6 +282,27 @@ describe('the details drawer on desktop', () => {
     expect(within(drawer).getByRole('heading', { name: 'Torrent not found' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /^Dune: Part Two/ })).not.toBeInTheDocument()
     expect(screen.getByRole('status', { name: saying('Torrent deleted') })).toBeInTheDocument()
+  })
+
+  it('turns off the title and the files of a torrent being deleted, so nothing is kept for it once it’s gone', async () => {
+    getMainData.mockResolvedValue(snapshot({ tags: '' }))
+    vi.mocked(tmdb.searchTitles).mockResolvedValue({ titles: [title('movie', 693134, 'Dune: Part Two', 2024)], page: 1, totalPages: 1 })
+    getTorrentFiles.mockResolvedValue([
+      { index: 0, name: 'Dune.Part.Two/Dune.Part.Two.mkv', size: 19_900_000_000, progress: 0.4, priority: 1 },
+      { index: 1, name: 'Dune.Part.Two/Extras.mkv', size: 1_500_000_000, progress: 0, priority: 0 },
+    ])
+    deleteTorrents.mockReturnValue(new Promise(() => {}))
+    renderApp(['/', '/torrent/dune'])
+    const drawer = await screen.findByRole('dialog', { name: 'Dune: Part Two' })
+    expect(await within(drawer).findByRole('combobox', { name: 'Priority: Extras.mkv' })).toBeEnabled()
+    await userEvent.click(within(drawer).getByRole('button', { name: 'Delete' }))
+    const confirm = screen.getByRole('alertdialog', { name: 'Delete torrent?' })
+    await userEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
+    fireEvent(confirm, new Event('cancel', { cancelable: true }))
+
+    expect(within(drawer).getByRole('button', { name: 'Yes, right' })).toBeDisabled()
+    expect(within(drawer).getByRole('button', { name: 'Change' })).toBeDisabled()
+    for (const file of within(drawer).getAllByRole('combobox', { name: /^Priority:/ })) expect(file).toBeDisabled()
   })
 
   it('stays open when Escape cancels its delete confirmation', async () => {
