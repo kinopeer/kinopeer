@@ -162,7 +162,7 @@ describe('the details drawer on desktop', () => {
     const drawer = await screen.findByRole('dialog', { name: 'Dune: Part Two' })
     getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     window.dispatchEvent(new Event('online'))
-    expect(await within(drawer).findByText('No connection to qBittorrent')).toBeInTheDocument()
+    expect(await within(drawer).findByRole('status', { name: saying('No connection to qBittorrent') })).toBeInTheDocument()
 
     window.dispatchEvent(new Event('online'))
     // Downloads says it, under the drawer.

@@ -49,7 +49,7 @@ describe('Dialog', () => {
 
   it('is where the app’s toasts show while it’s open, since the page behind it is inert', () => {
     const Toaster = () => {
-      const show = useToast()
+      const { show } = useToast()
       return <button type="button" onClick={() => show('Checking the files')}>Toast</button>
     }
     render(

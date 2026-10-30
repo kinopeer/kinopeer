@@ -10,6 +10,8 @@
   flex-direction: column;
   gap: var(--space-2);
   z-index: 40;
+  /* Nothing in it is interactive: taps reach what's under it, a sheet's footer included. */
+  pointer-events: none;
 }
 
 .ks-toast {
@@ -29,4 +31,9 @@
 .ks-toast > .ks-ic {
   color: var(--toast-accent);
   flex: none;
+}
+
+/* Shown again in another layer once it's in place (a modal opened or closed): no second slide-in. */
+.ks-toast.is-settled {
+  animation: none;
 }

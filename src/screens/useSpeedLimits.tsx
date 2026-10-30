@@ -38,7 +38,7 @@ export function useSpeedLimits({ torrents, offline, refresh, titleOf }: {
     if (settled.ok) {
       if (settled.showing) close()
     } else if (!settled.showing) {
-      toast(t('limits.failedClosed', { title: titleOf(target) }), { icon: 'alert' })
+      toast.show(t('limits.failedClosed', { title: titleOf(target) }), { icon: 'alert' })
     }
   }
 

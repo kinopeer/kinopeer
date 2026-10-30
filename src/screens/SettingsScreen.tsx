@@ -317,7 +317,7 @@ export function SettingsScreen() {
             label={t('settings.clearCache')}
             hint={t('settings.clearCacheHint')}
             onClick={() => {
-              void clearTitleMatches().then(() => toast(t('settings.cacheCleared')))
+              void clearTitleMatches().then(() => toast.show(t('settings.cacheCleared')))
             }}
           />
         </ul>
@@ -341,7 +341,7 @@ export function SettingsScreen() {
         <TmdbKeyForm
           onSaved={() => {
             setEditingKey(false)
-            toast(t('tmdbKey.saved'))
+            toast.show(t('tmdbKey.saved'))
             setTmdbKeyVersion((n) => n + 1)
           }}
         />
@@ -352,13 +352,13 @@ export function SettingsScreen() {
           onSaved={(changed) => {
             setServerChanged(changed)
             setEditingProwlarrKey(false)
-            toast(t('prowlarrKey.saved'))
+            toast.show(t('prowlarrKey.saved'))
             setProwlarrKeyVersion((n) => n + 1)
           }}
           onForgotten={(changed) => {
             setServerChanged(changed)
             setEditingProwlarrKey(false)
-            toast(t('prowlarrKey.forgotten'))
+            toast.show(t('prowlarrKey.forgotten'))
             setProwlarrKeyVersion((n) => n + 1)
           }}
         />

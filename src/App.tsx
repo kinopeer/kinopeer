@@ -1,9 +1,9 @@
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, Route, Routes, matchPath, useLocation } from 'react-router'
 import { Sidebar, SidebarStatus, type SidebarItem } from './components/Sidebar'
 import { TabBar, type TabBarItem } from './components/TabBar'
-import { ToastProvider, useToast } from './components/Toast'
+import { ToastProvider } from './components/Toast'
 import { backgroundOf } from './lib/background'
 import { useIsDesktop } from './lib/useIsDesktop'
 import { ConnectScreen } from './screens/ConnectScreen'
@@ -16,11 +16,11 @@ import { RELEASES_PATH, TITLE_PATH, TitleRoute } from './screens/TitleScreen'
 import { TmdbKeyScreen } from './screens/TmdbKeyScreen'
 import { TorrentDrawerOverPage } from './screens/TorrentDrawer'
 import { TorrentScreen } from './screens/TorrentScreen'
+import { useAltSpeedSwitch } from './screens/useAltSpeedSwitch'
 import { useQbitSession } from './session/useQbitSession'
 import { useTmdbSetup } from './session/useTmdbSetup'
 import { freeSpace } from './torrents/freeSpace'
 import { downloadStatus } from './torrents/status'
-import { useAltSpeedLimits } from './torrents/useAltSpeedLimits'
 import { MainDataProvider } from './torrents/MainDataProvider'
 import { useMainData } from './torrents/useMainData'
 import './App.css'
@@ -134,11 +134,7 @@ function AppSidebar({ items, version, pathname }: { items: TabBarItem[]; version
   const { t } = useTranslation()
   const main = useMainData()
   const { data, offline } = main
-  const toast = useToast()
-  const altSpeed = useAltSpeedLimits(
-    main,
-    useCallback(() => toast(t('speedLimits.failed'), { icon: 'alert' }), [toast, t]),
-  )
+  const altSpeed = useAltSpeedSwitch(main)
   const downloading = data
     ? Object.values(data.torrents).filter((torrent) => downloadStatus(torrent) === 'downloading').length
     : 0

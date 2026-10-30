@@ -2,7 +2,7 @@ import { act, render, screen, within } from '@testing-library/react'
 import { useEffect, useRef } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ToastProvider } from './ToastProvider'
-import { useToast, useToastLayer } from './useToast'
+import { useToast, useToastLayer, type Toasts } from './useToast'
 
 beforeEach(() => {
   vi.useFakeTimers()
@@ -12,13 +12,13 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-let show: ReturnType<typeof useToast> = () => {}
+let toasts: Toasts
 
 /** Hands the test `show`, to call with whatever message it needs. */
 function Shows() {
   const toast = useToast()
   useEffect(() => {
-    show = toast
+    toasts = toast
   }, [toast])
   return null
 }
@@ -39,11 +39,11 @@ describe('ToastProvider', () => {
         <Shows />
       </ToastProvider>,
     )
-    act(() => show('Moving files to /media'))
-    act(() => show('Checking the files'))
+    act(() => toasts.show('Moving files to /media'))
+    act(() => toasts.show('Checking the files'))
     expect(messages()).toEqual(['Moving files to /media', 'Checking the files'])
-    act(() => show('Title changed'))
-    act(() => show('Couldn’t reach qBittorrent. Try again.'))
+    act(() => toasts.show('Title changed'))
+    act(() => toasts.show('Couldn’t reach qBittorrent. Try again.'))
     expect(messages()).toEqual(['Checking the files', 'Title changed', 'Couldn’t reach qBittorrent. Try again.'])
   })
 
@@ -53,9 +53,9 @@ describe('ToastProvider', () => {
         <Shows />
       </ToastProvider>,
     )
-    act(() => show('Moving files to /media'))
+    act(() => toasts.show('Moving files to /media'))
     act(() => vi.advanceTimersByTime(3000))
-    act(() => show('Checking the files'))
+    act(() => toasts.show('Checking the files'))
     act(() => vi.advanceTimersByTime(1000))
     expect(messages()).toEqual(['Checking the files'])
     act(() => vi.advanceTimersByTime(3000))
@@ -68,10 +68,10 @@ describe('ToastProvider', () => {
         <Shows />
       </ToastProvider>,
     )
-    act(() => show('Couldn’t reach qBittorrent. Try again.'))
-    act(() => show('Checking the files'))
+    act(() => toasts.show('Couldn’t reach qBittorrent. Try again.'))
+    act(() => toasts.show('Checking the files'))
     act(() => vi.advanceTimersByTime(3000))
-    act(() => show('Couldn’t reach qBittorrent. Try again.'))
+    act(() => toasts.show('Couldn’t reach qBittorrent. Try again.'))
     expect(messages()).toEqual(['Checking the files', 'Couldn’t reach qBittorrent. Try again.'])
     act(() => vi.advanceTimersByTime(3000))
     expect(messages()).toEqual(['Couldn’t reach qBittorrent. Try again.'])
@@ -84,7 +84,7 @@ describe('ToastProvider', () => {
         <Layer open />
       </ToastProvider>,
     )
-    act(() => show('Checking the files'))
+    act(() => toasts.show('Checking the files'))
     expect(within(screen.getByRole('dialog', { name: 'Sheet' })).getByRole('status')).toHaveTextContent('Checking the files')
 
     rerender(
@@ -106,8 +106,43 @@ describe('ToastProvider', () => {
         <Layer open />
       </ToastProvider>,
     )
-    act(() => show('Checking the files'))
+    act(() => toasts.show('Checking the files'))
     expect(within(screen.getByRole('dialog', { name: 'Sheet' })).getByRole('status')).toBeInTheDocument()
     expect(within(screen.getByRole('dialog', { name: 'Drawer' })).queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('replaces a toast with the same key, though its message differs, and takes it back by key', () => {
+    render(
+      <ToastProvider>
+        <Shows />
+      </ToastProvider>,
+    )
+    act(() => toasts.show('Couldn’t pause', { key: 'pause' }))
+    act(() => toasts.show('Checking the files'))
+    act(() => toasts.show('Couldn’t reach qBittorrent', { key: 'pause' }))
+    expect(messages()).toEqual(['Checking the files', 'Couldn’t reach qBittorrent'])
+    act(() => toasts.dismiss('pause'))
+    expect(messages()).toEqual(['Checking the files'])
+  })
+
+  it('keeps a toast’s time when a modal opens over it and it moves inside', () => {
+    const { rerender } = render(
+      <ToastProvider>
+        <Shows />
+        <Layer open={false} />
+      </ToastProvider>,
+    )
+    act(() => toasts.show('Checking the files'))
+    act(() => vi.advanceTimersByTime(3000))
+    rerender(
+      <ToastProvider>
+        <Shows />
+        <Layer open />
+      </ToastProvider>,
+    )
+    expect(within(screen.getByRole('dialog', { name: 'Sheet' })).getByRole('status')).toBeInTheDocument()
+    // Gone 4 s after it was shown, not 4 s after it moved.
+    act(() => vi.advanceTimersByTime(1000))
+    expect(messages()).toEqual([])
   })
 })

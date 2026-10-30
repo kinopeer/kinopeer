@@ -1,44 +1,75 @@
-import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { Toast } from './Toast'
+import { cx } from '../../lib/cx'
+import { TOAST_DURATION, ToastView } from './Toast'
 import { MAX_TOASTS, ToastContext, type ToastOptions } from './useToast'
 
-interface Shown extends ToastOptions {
+/** How long a toast takes to slide in; a toast shown again after that, in another layer, doesn't. */
+const SETTLE_MS = 400
+
+interface Shown extends Omit<ToastOptions, 'key'> {
   id: number
+  key: string
   message: string
+  /** Done sliding in. */
+  settled: boolean
 }
 
 /**
  * The app's toasts, a stack of up to `MAX_TOASTS` above the tab bar, each gone after its own time.
  * While a modal is open they show inside the top one: the page outside a modal `<dialog>` is inert,
- * so a toast there would sit behind its backdrop, unread by screen readers.
+ * so a toast there would sit behind its backdrop, unread by screen readers. The times are kept here,
+ * not in the toasts, since the stack is rendered again in another layer when a modal opens or closes.
  */
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Shown[]>([])
   const [layers, setLayers] = useState<HTMLElement[]>([])
   const nextId = useRef(0)
+  const timers = useRef(new Map<number, ReturnType<typeof setTimeout>[]>())
 
-  const show = useCallback((message: string, options: ToastOptions = {}) => {
-    nextId.current += 1
-    const id = nextId.current
-    setToasts((current) =>
-      [...current.filter((toast) => toast.message !== message), { id, message, ...options }].slice(-MAX_TOASTS),
-    )
+  const remove = useCallback((drop: (toast: Shown) => boolean) => {
+    setToasts((current) => {
+      const gone = current.filter(drop)
+      gone.forEach((toast) => timers.current.get(toast.id)?.forEach(clearTimeout))
+      gone.forEach((toast) => timers.current.delete(toast.id))
+      return gone.length > 0 ? current.filter((toast) => !drop(toast)) : current
+    })
   }, [])
-  const dismiss = useCallback((id: number) => setToasts((current) => current.filter((toast) => toast.id !== id)), [])
+
+  const show = useCallback(
+    (message: string, { key = message, ...options }: ToastOptions = {}) => {
+      nextId.current += 1
+      const id = nextId.current
+      remove((toast) => toast.key === key)
+      setToasts((current) => [...current, { id, key, message, settled: false, ...options }].slice(-MAX_TOASTS))
+      timers.current.set(id, [
+        setTimeout(() => setToasts((current) => current.map((toast) => (toast.id === id ? { ...toast, settled: true } : toast))), SETTLE_MS),
+        setTimeout(() => remove((toast) => toast.id === id), TOAST_DURATION),
+      ])
+    },
+    [remove],
+  )
+  const dismiss = useCallback((key: string) => remove((toast) => toast.key === key), [remove])
+  useEffect(() => {
+    const pending = timers.current
+    return () => pending.forEach((ids) => ids.forEach(clearTimeout))
+  }, [])
+
   const addLayer = useCallback((layer: HTMLElement) => {
     setLayers((current) => [...current, layer])
     return () => setLayers((current) => current.filter((item) => item !== layer))
   }, [])
-  const value = useMemo(() => ({ show, addLayer }), [show, addLayer])
+  const value = useMemo(() => ({ show, dismiss, addLayer }), [show, dismiss, addLayer])
 
   const stack = toasts.length > 0 && (
     <div className="ks-toasts">
       {toasts.map((toast) => (
-        <ShownToast key={toast.id} toast={toast} onDismiss={dismiss} />
+        <ToastView key={toast.id} message={toast.message} icon={toast.icon} className={cx(toast.settled && 'is-settled')} />
       ))}
     </div>
   )
+  // Layers are added as their modals open (effects run child first, as showModal does), so the last
+  // one is on top.
   const top = layers.at(-1)
   return (
     <ToastContext value={value}>
@@ -46,9 +77,4 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {top && stack ? createPortal(stack, top) : stack}
     </ToastContext>
   )
-}
-
-function ShownToast({ toast, onDismiss }: { toast: Shown; onDismiss: (id: number) => void }) {
-  const dismiss = useCallback(() => onDismiss(toast.id), [onDismiss, toast.id])
-  return <Toast message={toast.message} icon={toast.icon} onDismiss={dismiss} />
 }

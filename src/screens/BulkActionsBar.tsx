@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { startTorrents, stopTorrents } from '../api/qbittorrent'
 import { Button } from '../components/Button'
 import { useToast } from '../components/Toast'
+import { TOAST_KEYS } from './toastKeys'
 
 export interface BulkActionsBarProps {
   /** The selected torrents. */
@@ -26,11 +27,12 @@ export function BulkActionsBar({ hashes, label, offline, onDone, onDelete }: Bul
 
   const run = async (action: 'pause' | 'resume') => {
     setBusy(action)
+    toast.dismiss(TOAST_KEYS.pauseResume)
     try {
       await (action === 'pause' ? stopTorrents(hashes) : startTorrents(hashes))
       onDone()
     } catch {
-      toast(t('torrent.actionFailed'), { icon: 'alert' })
+      toast.show(t('torrent.actionFailed'), { icon: 'alert', key: TOAST_KEYS.pauseResume })
     } finally {
       setBusy(null)
     }

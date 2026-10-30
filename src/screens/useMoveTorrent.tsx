@@ -38,15 +38,14 @@ export function useMoveTorrent({ torrents, offline, refresh }: {
   const { t } = useTranslation()
   const toast = useToast()
 
-
   const move = async (target: Torrent, location: string) => {
     const settled = await send(target, location, () => setTorrentLocation([target.hash], location))
     if (settled.ok) {
       if (settled.showing) close()
-      toast(t('move.moved', { location }), { icon: 'folder' })
+      toast.show(t('move.moved', { location }), { icon: 'folder' })
       refresh()
     } else if (!settled.showing) {
-      toast(t(failureKey(settled.error)), { icon: 'alert' })
+      toast.show(t(failureKey(settled.error)), { icon: 'alert' })
     }
   }
 

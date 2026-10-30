@@ -32,6 +32,7 @@ import { MatchPrompt } from './MatchPrompt'
 import { OfflineBanner } from './OfflineBanner'
 import { RecheckDialog } from './RecheckDialog'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
+import { TOAST_KEYS } from './toastKeys'
 import { useMoveTorrent } from './useMoveTorrent'
 import { useSpeedLimits } from './useSpeedLimits'
 import { useTorrentOverlay } from './useTorrentOverlay'
@@ -102,8 +103,8 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
   const toast = useToast()
   const titleSaved = (result: 'changed' | 'confirmed' | 'failed') =>
     result === 'failed'
-      ? toast(t('match.saveFailed'), { icon: 'alert' })
-      : toast(result === 'confirmed' ? t('match.confirmed') : t('match.changed'))
+      ? toast.show(t('match.saveFailed'), { icon: 'alert' })
+      : toast.show(result === 'confirmed' ? t('match.confirmed') : t('match.changed'))
 
   const trackers = useRequest(detailsOpen && torrent ? `trackers|${hash}` : null, () => getTorrentTrackers(hash))
 
@@ -193,11 +194,12 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
 
   const toggleRunning = async () => {
     setBusy(true)
+    toast.dismiss(TOAST_KEYS.pauseResume)
     try {
       await (running ? stopTorrents([hash]) : startTorrents([hash]))
       refresh()
     } catch {
-      toast(t('torrent.actionFailed'), { icon: 'alert' })
+      toast.show(t('torrent.actionFailed'), { icon: 'alert', key: TOAST_KEYS.pauseResume })
     } finally {
       setBusy(false)
     }
@@ -416,7 +418,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
           }}
           onReannounced={() => {
             closeMenu()
-            toast(t('torrent.reannounced'))
+            toast.show(t('torrent.reannounced'))
           }}
           onChangeTitle={() => {
             closeMenu()
@@ -437,7 +439,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
           onClose={recheck.close}
           onRechecked={() => {
             recheck.close()
-            toast(t('torrent.rechecking'))
+            toast.show(t('torrent.rechecking'))
             refresh()
           }}
         />

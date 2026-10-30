@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router'
 import { startTorrents, stopTorrents, type Torrent } from '../api/qbittorrent'
@@ -22,7 +22,6 @@ import { compareTorrents, knownSort } from '../torrents/sort'
 import { STATUS_FILTERS, downloadStatus, isRunning, matchesFilter, type StatusFilter } from '../torrents/status'
 import { useServerMatches } from '../torrents/serverMatches'
 import { TYPE_FILTERS, isGuessed, titleType, useTitleMatches, type TypeFilter } from '../torrents/titleMatches'
-import { useAltSpeedLimits } from '../torrents/useAltSpeedLimits'
 import { useMainData, type MainDataState } from '../torrents/useMainData'
 import { BulkActionsBar } from './BulkActionsBar'
 import { ChangeTitleSheet } from './ChangeTitleSheet'
@@ -36,6 +35,8 @@ import { SortMenu, SortSheet } from './SortSheet'
 import { StatusMenu } from './StatusMenu'
 import { RecheckDialog } from './RecheckDialog'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
+import { TOAST_KEYS } from './toastKeys'
+import { useAltSpeedSwitch } from './useAltSpeedSwitch'
 import { useMoveTorrent } from './useMoveTorrent'
 import { useSpeedLimits } from './useSpeedLimits'
 import { findTorrent, refTo, useTorrentOverlay, type TorrentRef } from './useTorrentOverlay'
@@ -69,7 +70,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   // Said once: the state goes, so Back or a reload doesn't say it again.
   useEffect(() => {
     if (!added && !deleted) return
-    toast(
+    toast.show(
       added
         ? t('add.added', { title: added })
         : count && count > 1
@@ -113,13 +114,13 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
     return () => onSelectingChange?.(false)
   }, [selecting, onSelectingChange])
   const retitle = useTorrentOverlay(data?.torrents)
-  const titleSaved = (result: 'changed' | 'confirmed') => toast(result === 'confirmed' ? t('match.confirmed') : t('match.changed'))
+  const titleSaved = (result: 'changed' | 'confirmed') => toast.show(result === 'confirmed' ? t('match.confirmed') : t('match.changed'))
   // Tell the user when qBittorrent answers again after an outage.
   const wasOffline = useRef(offline)
   useEffect(() => {
     if (offline === wasOffline.current) return
     wasOffline.current = offline
-    if (!offline) toast(t('offline.reconnected'))
+    if (!offline) toast.show(t('offline.reconnected'))
   }, [offline, toast, t])
 
   const torrents = useMemo(() => (data ? Object.values(data.torrents) : []), [data])
@@ -197,12 +198,13 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   const toggleRunning = async (torrent: Torrent) => {
     const { hash } = torrent
     setToggling((current) => new Set(current).add(hash))
+    toast.dismiss(TOAST_KEYS.pauseResume)
     try {
       const status = downloadStatus(torrent)
       await (isRunning(status) ? stopTorrents([hash]) : startTorrents([hash]))
       refresh()
     } catch {
-      toast(t('torrent.actionFailed'), { icon: 'alert' })
+      toast.show(t('torrent.actionFailed'), { icon: 'alert', key: TOAST_KEYS.pauseResume })
     } finally {
       setToggling((current) => {
         const next = new Set(current)
@@ -559,7 +561,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           }}
           onReannounced={() => {
             actions.close()
-            toast(t('torrent.reannounced'))
+            toast.show(t('torrent.reannounced'))
           }}
           onChangeTitle={() => {
             actions.close()
@@ -602,7 +604,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           onClose={() => recheck.close()}
           onRechecked={() => {
             recheck.close()
-            toast(t('torrent.rechecking'))
+            toast.show(t('torrent.rechecking'))
             refresh()
           }}
         />
@@ -634,11 +636,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
  */
 function AltSpeedButton({ main }: { main: MainDataState }) {
   const { t } = useTranslation()
-  const toast = useToast()
-  const altSpeed = useAltSpeedLimits(
-    main,
-    useCallback(() => toast(t('speedLimits.failed'), { icon: 'alert' }), [toast, t]),
-  )
+  const altSpeed = useAltSpeedSwitch(main)
   if (altSpeed.on === undefined) return null
   return (
     <IconButton
