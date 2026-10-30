@@ -12,6 +12,7 @@ vi.mock('../api/qbittorrent', async (importOriginal) => ({
 const toggleMock = vi.mocked(toggleSpeedLimitsMode)
 
 const refresh = vi.fn()
+const onFailed = vi.fn()
 
 /** The poll's state: `requestedAt` is when the request behind it was sent, `updatedAt` when it answered. */
 interface PollState {
@@ -26,7 +27,7 @@ function main(alt: boolean | undefined, { offline = false, requestedAt = 0, upda
 }
 
 function renderAlt(initial: MainDataState) {
-  return renderHook((state: MainDataState) => useAltSpeedLimits(state), { initialProps: initial })
+  return renderHook((state: MainDataState) => useAltSpeedLimits(state, onFailed), { initialProps: initial })
 }
 
 /** The pinned clock: qBittorrent takes a switch at NOW, polls are sent before or after it. */
@@ -41,6 +42,7 @@ afterEach(() => {
   vi.useRealTimers()
   toggleMock.mockReset()
   refresh.mockReset()
+  onFailed.mockReset()
 })
 
 describe('useAltSpeedLimits', () => {
@@ -88,22 +90,21 @@ describe('useAltSpeedLimits', () => {
     const { result } = renderAlt(main(false))
     act(() => result.current.toggle())
     expect(result.current.on).toBe(true)
-    await waitFor(() => expect(result.current).toMatchObject({ on: false, disabled: false, failed: true }))
+    await waitFor(() => expect(result.current).toMatchObject({ on: false, disabled: false }))
+    expect(onFailed).toHaveBeenCalledOnce()
     expect(refresh).not.toHaveBeenCalled()
-
-    act(() => result.current.dismissFailed())
-    expect(result.current.failed).toBe(false)
   })
 
-  it('forgets a failure when the switch is pressed again', async () => {
+  it('says each failure, and not a switch that went through after one', async () => {
     toggleMock.mockRejectedValueOnce(new Error('down')).mockResolvedValueOnce()
     const { result } = renderAlt(main(false))
     act(() => result.current.toggle())
-    await waitFor(() => expect(result.current.failed).toBe(true))
+    await waitFor(() => expect(onFailed).toHaveBeenCalledOnce())
 
     act(() => result.current.toggle())
-    expect(result.current).toMatchObject({ on: true, failed: false })
+    expect(result.current.on).toBe(true)
     await waitFor(() => expect(refresh).toHaveBeenCalled())
+    expect(onFailed).toHaveBeenCalledOnce()
   })
 
   it('leaves an expired session to the poll, which reports it', async () => {
@@ -111,6 +112,7 @@ describe('useAltSpeedLimits', () => {
     const { result } = renderAlt(main(false))
     act(() => result.current.toggle())
     await waitFor(() => expect(refresh).toHaveBeenCalled())
-    expect(result.current).toMatchObject({ on: false, failed: false })
+    expect(result.current.on).toBe(false)
+    expect(onFailed).not.toHaveBeenCalled()
   })
 })

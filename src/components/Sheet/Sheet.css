@@ -183,3 +183,18 @@
     transform: none;
   }
 }
+
+/* Toasts while a sheet is open show inside it (ToastProvider). A phone's bottom sheet covers where
+   they'd be, its footer above the tab bar, so they show at the top of what the keyboard leaves. */
+.ks-sheet > .ks-toasts {
+  top: calc(var(--visible-top) + 12px);
+  bottom: auto;
+}
+
+@media (min-width: 1024px) {
+  /* A centered modal leaves the bottom free. */
+  .ks-sheet > .ks-toasts {
+    top: auto;
+    bottom: calc(var(--nav-bottom) + 12px);
+  }
+}

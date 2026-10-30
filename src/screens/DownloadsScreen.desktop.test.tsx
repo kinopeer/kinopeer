@@ -160,6 +160,11 @@ describe('DownloadsScreen on desktop', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Resume: Alien.Romulus.2024.1080p' }))
     expect(api.startTorrents).toHaveBeenCalledWith(['alien'])
     expect(await screen.findByRole('status', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
+
+    // Tried again: the failure goes at once, not after its time.
+    vi.mocked(api.startTorrents).mockReturnValue(new Promise(() => {}))
+    await userEvent.click(screen.getByRole('button', { name: 'Resume: Alien.Romulus.2024.1080p' }))
+    expect(screen.queryByRole('status', { name: saying('Couldn’t reach qBittorrent. Try again.') })).not.toBeInTheDocument()
   })
 
   it('pauses from the poster grid too', async () => {

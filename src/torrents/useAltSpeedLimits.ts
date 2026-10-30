@@ -8,9 +8,6 @@ export interface AltSpeedLimits {
   /** Nothing to toggle: qBittorrent doesn't answer, hasn't said yet, or a switch is on its way. */
   disabled: boolean
   toggle: () => void
-  /** The last switch didn't reach qBittorrent, for the caller to say so. */
-  failed: boolean
-  dismissFailed: () => void
 }
 
 /**
@@ -18,21 +15,23 @@ export interface AltSpeedLimits {
  * no second poll starts); one caller per layout owns the switch. A toggle shows the new state right
  * away and keeps it until a poll sent after qBittorrent took the request, which then decides even
  * if it disagrees (qBittorrent's scheduler or its own UI switched them back). A failed request drops
- * it and sets `failed`; an expired session goes through the poll, which reports it.
+ * it and calls `onFailed`, for the caller to say so; an expired session goes through the poll, which
+ * reports it.
  */
-export function useAltSpeedLimits({ data, offline, requestedAt, refresh }: MainDataState): AltSpeedLimits {
+export function useAltSpeedLimits(
+  { data, offline, requestedAt, refresh }: MainDataState,
+  onFailed: () => void,
+): AltSpeedLimits {
   const polled = data?.server.use_alt_speed_limits
   // The state asked for, and when qBittorrent took the request (Infinity while it's on its way). A
   // poll already on its way then was sent before the switch, so only a later one has the final word.
   const [wanted, setWanted] = useState<{ on: boolean; after: number } | null>(null)
-  const [failed, setFailed] = useState(false)
   if (wanted && requestedAt !== null && requestedAt > wanted.after) setWanted(null)
 
   const on = wanted ? wanted.on : polled
   const sending = wanted?.after === Infinity
   const toggle = useCallback(() => {
     if (on === undefined) return
-    setFailed(false)
     setWanted({ on: !on, after: Infinity })
     toggleSpeedLimitsMode().then(
       () => {
@@ -43,11 +42,10 @@ export function useAltSpeedLimits({ data, offline, requestedAt, refresh }: MainD
         setWanted(null)
         // The poll gets the same 403 and hands it to the session's handler.
         if (error instanceof UnauthorizedError) refresh()
-        else setFailed(true)
+        else onFailed()
       },
     )
-  }, [on, refresh])
-  const dismissFailed = useCallback(() => setFailed(false), [])
+  }, [on, refresh, onFailed])
 
-  return { on, disabled: offline || on === undefined || sending, toggle, failed, dismissFailed }
+  return { on, disabled: offline || on === undefined || sending, toggle }
 }

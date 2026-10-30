@@ -1,0 +1,10 @@
+/**
+ * Keys of failure toasts said in more than one place, so trying the action again anywhere takes the
+ * failure back (`useToast().dismiss`) rather than leaving it up for its full time.
+ */
+export const TOAST_KEYS = {
+  /** Pausing or resuming torrents: a row's button, the torrent's details, the selection's bar. */
+  pauseResume: 'pause-resume-failed',
+  /** Switching the alternative speed limits. */
+  altSpeed: 'alt-speed-failed',
+} as const

@@ -1,8 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { stubDesktop } from '../../lib/stubDesktop'
 import { stubTouchScreen, swipeMovesPage } from '../../lib/stubTouchScreen'
+import { ToastProvider, useToast } from '../Toast'
 import { Dialog } from './Dialog'
 
 afterEach(() => {
@@ -44,6 +45,21 @@ describe('Dialog', () => {
     expect(dialog).toHaveTextContent('Dune will be removed.')
     await userEvent.click(screen.getByRole('button', { name: 'Delete' }))
     expect(onConfirm).toHaveBeenCalledOnce()
+  })
+
+  it('is where the app’s toasts show while it’s open, since the page behind it is inert', () => {
+    const Toaster = () => {
+      const { show } = useToast()
+      return <button type="button" onClick={() => show('Checking the files')}>Toast</button>
+    }
+    render(
+      <ToastProvider>
+        <Toaster />
+        <Dialog open onClose={vi.fn()} title="Delete torrent?" actions={null}>Dune will be removed.</Dialog>
+      </ToastProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Toast', hidden: true }))
+    expect(within(screen.getByRole('alertdialog', { name: 'Delete torrent?' })).getByRole('status')).toHaveTextContent('Checking the files')
   })
 
   it('renders nothing inside while closed', () => {

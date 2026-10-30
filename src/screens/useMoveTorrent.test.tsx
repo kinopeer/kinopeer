@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
 import type { Torrent } from '../api/qbittorrent'
-import { MoveOutcomeProvider } from './MoveOutcomeToast'
+import { ToastProvider } from '../components/Toast'
 import { useMoveTorrent } from './useMoveTorrent'
 import { saying } from '../test/render'
 
@@ -39,7 +39,7 @@ function Harness({ torrents = { dune: DUNE }, offline = false, refresh }: {
 
 function renderMove(props: { torrents?: Record<string, Torrent>; offline?: boolean } = {}) {
   const refresh = vi.fn()
-  const view = render(<Harness refresh={refresh} {...props} />)
+  const view = render(<Harness refresh={refresh} {...props} />, { wrapper: ToastProvider })
   const open = async (hash = 'dune') => {
     await userEvent.click(screen.getByRole('button', { name: `Open ${hash}` }))
     return screen.getByRole('dialog', { name: 'Move files' })
@@ -52,7 +52,9 @@ function renderMove(props: { torrents?: Record<string, Torrent>; offline?: boole
   }
   const rerender = (next: { torrents?: Record<string, Torrent>; offline?: boolean }) =>
     view.rerender(<Harness refresh={refresh} {...props} {...next} />)
-  return { refresh, open, moveTo, rerender }
+  // The screen goes away; the app's toasts stay.
+  const leave = () => view.rerender(<></>)
+  return { refresh, open, moveTo, rerender, leave }
 }
 
 beforeEach(() => {
@@ -299,37 +301,13 @@ describe('useMoveTorrent', () => {
   })
 })
 
-describe('useMoveTorrent under App’s MoveOutcomeProvider', () => {
-  function renderInApp() {
-    const view = render(
-      <MoveOutcomeProvider>
-        <Harness refresh={vi.fn()} />
-      </MoveOutcomeProvider>,
-    )
-    return { leave: () => view.rerender(<MoveOutcomeProvider>{null}</MoveOutcomeProvider>) }
-  }
-  const moveTo = async (folder: string) => {
-    await userEvent.click(screen.getByRole('button', { name: 'Open dune' }))
-    const sheet = screen.getByRole('dialog', { name: 'Move files' })
-    const field = within(sheet).getByRole('textbox', { name: 'Folder' })
-    await userEvent.clear(field)
-    await userEvent.type(field, folder)
-    await userEvent.click(within(sheet).getByRole('button', { name: 'Move' }))
-  }
-
-  it('says how the move went inside the screen while it’s there, since a drawer is a modal dialog', async () => {
-    renderInApp()
-    await moveTo('/media/new')
-    const toast = await screen.findByRole('status', { name: saying('Moving files to /media/new') })
-    expect(within(screen.getByRole('region', { name: 'Screen' })).getByRole('status')).toBe(toast)
-  })
-
-  it('says how the move went once the screen that started it is gone', async () => {
+describe('useMoveTorrent once its screen is gone', () => {
+  it('says how the move went', async () => {
     let fail = (_error: unknown) => {}
     setTorrentLocation.mockReturnValue(new Promise<void>((_resolve, reject) => (fail = reject)))
-    const { leave } = renderInApp()
+    const { open, moveTo, leave } = renderMove()
     // Left with the sheet still open, as Back does on a phone.
-    await moveTo('/media/new')
+    await moveTo(await open(), '/media/new')
     leave()
     fail(new api.QbittorrentError('conflict', 409))
     expect(await screen.findByRole('status', { name: saying('qBittorrent couldn’t create that folder.') })).toBeInTheDocument()

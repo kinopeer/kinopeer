@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { cx } from '../../lib/cx'
 import { holdPage } from '../../lib/holdPage'
 import { Icon, type IconName } from '../Icon'
+import { useToastLayer } from '../Toast'
 import './Dialog.css'
 
 export interface DialogProps {
@@ -39,6 +40,8 @@ export function Dialog({ open, onClose, title, icon, tone, actions, className, c
       else dialog.removeAttribute('open')
     }
   }, [open])
+  // After showModal: toasts show inside the top modal, since the page outside it is inert.
+  useToastLayer(ref, open)
 
   return (
     <dialog

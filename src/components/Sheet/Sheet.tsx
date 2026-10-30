@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { cx } from '../../lib/cx'
 import { holdPage } from '../../lib/holdPage'
 import { useIsDesktop } from '../../lib/useIsDesktop'
+import { useToastLayer } from '../Toast'
 import './Sheet.css'
 import { useSheetDrag } from './useSheetDrag'
 
@@ -64,6 +65,8 @@ export function Sheet({
       else dialog.removeAttribute('open')
     }
   }, [open])
+  // After showModal: toasts show inside the top modal, since the page outside it is inert.
+  useToastLayer(ref, open)
 
   return (
     <dialog

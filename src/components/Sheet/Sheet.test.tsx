@@ -1,8 +1,9 @@
-import { createEvent, fireEvent, render, screen } from '@testing-library/react'
+import { createEvent, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { stubDesktop } from '../../lib/stubDesktop'
 import { stubTouchScreen, swipeMovesPage } from '../../lib/stubTouchScreen'
+import { ToastProvider, useToast } from '../Toast'
 import { Sheet } from './Sheet'
 
 afterEach(() => {
@@ -27,6 +28,21 @@ describe('Sheet', () => {
     expect(dialog).toHaveTextContent('Dune')
     expect(dialog).toHaveTextContent('Options')
     expect(screen.getByRole('button', { name: 'Download' })).toBeInTheDocument()
+  })
+
+  it('is where the app’s toasts show while it’s open, since the page behind it is inert', () => {
+    const Toaster = () => {
+      const { show } = useToast()
+      return <button type="button" onClick={() => show('Checking the files')}>Toast</button>
+    }
+    render(
+      <ToastProvider>
+        <Toaster />
+        <Sheet open onClose={vi.fn()} title="Add release">Options</Sheet>
+      </ToastProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Toast', hidden: true }))
+    expect(within(screen.getByRole('dialog', { name: 'Add release' })).getByRole('status')).toHaveTextContent('Checking the files')
   })
 
   it('renders nothing inside while closed', () => {

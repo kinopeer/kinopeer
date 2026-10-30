@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef } from 'react'
 import { useLocation, useNavigate, useParams, type Location } from 'react-router'
+import { useToastLayer } from '../components/Toast'
 import { TorrentDetails, type TorrentDetailsProps } from './TorrentDetails'
 
 export interface TorrentDrawerProps extends Pick<TorrentDetailsProps, 'onDeleted' | 'behind'> {
@@ -34,6 +35,8 @@ export function TorrentDrawer({ hash, onClose, onSessionLost, onDeleted, behind 
       if (opener?.isConnected) opener.focus({ preventScroll: true })
     }
   }, [])
+  // After showModal: toasts show inside the drawer, since the page behind it is inert.
+  useToastLayer(ref)
 
   return (
     <dialog

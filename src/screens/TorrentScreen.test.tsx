@@ -149,11 +149,15 @@ describe('TorrentScreen', () => {
     expect(startTorrents).toHaveBeenCalledWith(['dune'])
   })
 
-  it('reports a failed action', async () => {
+  it('reports a failed action, and takes the failure back once it’s tried again', async () => {
     stopTorrents.mockRejectedValue(new Error('offline'))
     renderScreen()
     await userEvent.click(await screen.findByRole('button', { name: 'Pause' }))
     expect(await screen.findByRole('status', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
+
+    stopTorrents.mockReturnValue(new Promise(() => {}))
+    await userEvent.click(screen.getByRole('button', { name: 'Pause' }))
+    expect(screen.queryByRole('status', { name: saying('Couldn’t reach qBittorrent. Try again.') })).not.toBeInTheDocument()
   })
 
   it('explains an error state', async () => {

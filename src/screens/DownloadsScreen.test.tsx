@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
+import { useLocation } from 'react-router'
 import * as matchesApi from '../api/matches'
 import * as api from '../api/qbittorrent'
 import type { MainData, Torrent } from '../api/qbittorrent'
@@ -579,6 +580,19 @@ describe('DownloadsScreen', () => {
     expect(screen.getByRole('status', { name: saying('Torrent and files deleted') })).toBeInTheDocument()
   })
 
+  it('says a deletion once: the entry’s state goes, so Back or a reload doesn’t say it again', async () => {
+    const State = () => <output aria-label="Location state">{JSON.stringify(useLocation().state)}</output>
+    renderWithRouter(
+      <>
+        <DownloadsScreen onSessionLost={vi.fn()} />
+        <State />
+      </>,
+      [{ pathname: '/', state: { deleted: 'files' } }],
+    )
+    expect(screen.getByRole('status', { name: saying('Torrent and files deleted') })).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('status', { name: 'Location state' })).toHaveTextContent('null'))
+  })
+
   it('confirms a release added from the releases screen', async () => {
     renderScreen({ added: 'Dune: Part Two' })
     expect(screen.getByRole('status', { name: saying('“Dune: Part Two” added to downloads') })).toBeInTheDocument()
@@ -659,6 +673,11 @@ describe('DownloadsScreen selection', () => {
     await userEvent.click(within(bulkBar()).getByRole('button', { name: 'Pause' }))
     expect(await screen.findByRole('status', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: 'Andor.S02.1080p', checked: true })).toBeInTheDocument()
+
+    // Tried again: the failure goes at once, not after its time.
+    vi.mocked(api.stopTorrents).mockReturnValue(new Promise(() => {}))
+    await userEvent.click(within(bulkBar()).getByRole('button', { name: 'Pause' }))
+    expect(screen.queryByRole('status', { name: saying('Couldn’t reach qBittorrent. Try again.') })).not.toBeInTheDocument()
   })
 
   it('selects all the downloads on screen, and only those', async () => {

@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
 import type { Torrent } from '../api/qbittorrent'
 import { torrent } from '../test/fixtures'
+import { ToastProvider } from '../components/Toast'
 import { useSpeedLimits } from './useSpeedLimits'
 import { saying } from '../test/render'
 
@@ -33,7 +34,7 @@ function Harness({ torrents, refresh }: { torrents: Record<string, Torrent>; ref
 
 function renderLimits(torrents: Record<string, Torrent> = { andor: ANDOR, alien: ALIEN }) {
   const refresh = vi.fn()
-  const view = render(<Harness torrents={torrents} refresh={refresh} />)
+  const view = render(<Harness torrents={torrents} refresh={refresh} />, { wrapper: ToastProvider })
   const open = async (hash = 'andor') => {
     await userEvent.click(screen.getByRole('button', { name: `Open ${hash}` }))
     return screen.getByRole('dialog', { name: 'Speed limits' })

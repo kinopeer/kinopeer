@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router'
 import { ProwlarrSetupError, getProwlarrStatus } from '../api/prowlarr'
@@ -10,7 +10,7 @@ import { Icon, type IconName } from '../components/Icon'
 import { IconButton } from '../components/IconButton'
 import { Segmented } from '../components/Segmented'
 import { Sheet } from '../components/Sheet'
-import { Toast } from '../components/Toast'
+import { useToast } from '../components/Toast'
 import { Toggle } from '../components/Toggle'
 import { LANGUAGES, type LanguagePreference } from '../i18n'
 import { useLanguage } from '../i18n/useLanguage'
@@ -134,7 +134,6 @@ export function SettingsScreen() {
   const language = useLanguage()
   const [settings, update] = useSettings()
   const [tmdbKeyVersion, setTmdbKeyVersion] = useState(0)
-  const [cleared, setCleared] = useState(false)
   const installMethod = useInstallMethod()
   const [installSteps, setInstallSteps] = useState<ManualInstall | null>(null)
   const location = useLocation()
@@ -143,9 +142,7 @@ export function SettingsScreen() {
   )
   const [editingProwlarrKey, setEditingProwlarrKey] = useState(false)
   const [prowlarrKeyVersion, setProwlarrKeyVersion] = useState(0)
-  const [keySaved, setKeySaved] = useState<'tmdb' | 'prowlarr' | 'prowlarr-forgotten' | null>(null)
-  const dismissKeySaved = useCallback(() => setKeySaved(null), [])
-  const dismissCleared = useCallback(() => setCleared(false), [])
+  const toast = useToast()
   // Asked after each passing qBittorrent check (on opening, on Test, in a new language) while
   // they're missing, so a check that finds it back loads them, and loaded selects don't empty on Test.
   const [categoriesLoad, setCategoriesLoad] = useState(0)
@@ -320,7 +317,7 @@ export function SettingsScreen() {
             label={t('settings.clearCache')}
             hint={t('settings.clearCacheHint')}
             onClick={() => {
-              void clearTitleMatches().then(() => setCleared(true))
+              void clearTitleMatches().then(() => toast.show(t('settings.cacheCleared')))
             }}
           />
         </ul>
@@ -344,7 +341,7 @@ export function SettingsScreen() {
         <TmdbKeyForm
           onSaved={() => {
             setEditingKey(false)
-            setKeySaved('tmdb')
+            toast.show(t('tmdbKey.saved'))
             setTmdbKeyVersion((n) => n + 1)
           }}
         />
@@ -355,26 +352,17 @@ export function SettingsScreen() {
           onSaved={(changed) => {
             setServerChanged(changed)
             setEditingProwlarrKey(false)
-            setKeySaved('prowlarr')
+            toast.show(t('prowlarrKey.saved'))
             setProwlarrKeyVersion((n) => n + 1)
           }}
           onForgotten={(changed) => {
             setServerChanged(changed)
             setEditingProwlarrKey(false)
-            setKeySaved('prowlarr-forgotten')
+            toast.show(t('prowlarrKey.forgotten'))
             setProwlarrKeyVersion((n) => n + 1)
           }}
         />
       </Sheet>
-      {cleared && <Toast message={t('settings.cacheCleared')} onDismiss={dismissCleared} />}
-      {keySaved && (
-        <Toast
-          message={t(
-            keySaved === 'tmdb' ? 'tmdbKey.saved' : keySaved === 'prowlarr' ? 'prowlarrKey.saved' : 'prowlarrKey.forgotten',
-          )}
-          onDismiss={dismissKeySaved}
-        />
-      )}
     </main>
   )
 }
