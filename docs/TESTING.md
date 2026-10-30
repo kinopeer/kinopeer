@@ -107,7 +107,10 @@ milliseconds, fails with a precise message, and it's the one the layer above lea
   }`. A string matches the whole text, as `getByText` does, so "12 torrents deleted" isn't "2
   torrents deleted"; a RegExp is for a part of a longer message. A bare `findByRole('status')` takes
   whatever status is up first (a list that is a status region, an earlier toast), and
-  `toHaveTextContent` then matches a part. An element with a name of its own is found by it, not by
+  `toHaveTextContent` then matches a part. A toast shown while a modal is open moves to the next
+  layer when the modal closes, so a test that closes one waits for it to be gone before looking for
+  the toast. A toast found in the modal is detached by the next assertion, and the test fails only
+  now and then (#190). An element with a name of its own is found by it, not by
   its index in a list (`getAllByRole('button')[1]`); an index is for a position the test is about,
   as the first row after a sort or the current title first.
 - **Helpers and fixtures.** Data every layer shares is in `src/test/fixtures.ts`, the rendering
