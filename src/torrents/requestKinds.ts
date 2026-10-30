@@ -16,6 +16,12 @@ export const REQUEST_KINDS = {
   delete: 'delete',
   /** Saving the torrent's title: Change title, or "Yes, right" for a guessed one. */
   title: 'title',
+  /**
+   * A file's download priority: the torrent's file list, one per file (`SendOptions.part`). Keyed
+   * with the file, so a check for the torrent alone (`requestKey(kind, hash)`) never sees them: one
+   * that means "anything in flight for this torrent" has to look for parts too.
+   */
+  filePriority: 'file-priority',
 } as const
 
 export type RequestKind = (typeof REQUEST_KINDS)[keyof typeof REQUEST_KINDS]

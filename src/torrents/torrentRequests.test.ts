@@ -114,6 +114,19 @@ describe('createTorrentRequests', () => {
   })
 })
 
+describe('createTorrentRequests with parts', () => {
+  it('keeps one request per part of a torrent, so another part goes out while one is in flight', async () => {
+    const requests = createTorrentRequests()
+    const first = request()
+    void requests.send('file', DUNE, 6, () => first.promise, { part: '0' })
+    expect(await requests.send('file', DUNE, 0, () => Promise.resolve(), { part: '0' })).toBeUndefined()
+    await expect(requests.send('file', DUNE, 0, () => Promise.resolve(), { part: '1' })).resolves.toMatchObject({ ok: true })
+    expect(requests.getSnapshot().get(requestKey('file', 'dune', '0'))).toBe(6)
+    expect(requests.getSnapshot().has(requestKey('file', 'dune'))).toBe(false)
+    first.resolve()
+  })
+})
+
 describe('createTorrentRequests linked to a poll', () => {
   const poll = (requestedAt: number | null = null) => ({ refresh: vi.fn(), getSnapshot: () => ({ requestedAt }) })
   const paused = (item: typeof DUNE) => ({ ...item, state: 'stoppedDL' as const })

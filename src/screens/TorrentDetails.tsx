@@ -359,7 +359,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
           )}
         </section>
 
-        <TorrentFiles hash={hash} status={status} disabled={offline || deleting} />
+        <TorrentFiles torrent={torrent} status={status} disabled={offline || deleting} />
       </div>
 
       {remove.element}

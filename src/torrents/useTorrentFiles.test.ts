@@ -7,11 +7,9 @@ import { FILES_POLL_INTERVAL_MS, useTorrentFiles } from './useTorrentFiles'
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
   ...(await importOriginal<typeof api>()),
   getTorrentFiles: vi.fn(),
-  setFilePriority: vi.fn(),
 }))
 
 const getTorrentFiles = vi.mocked(api.getTorrentFiles)
-const setFilePriority = vi.mocked(api.setFilePriority)
 
 const FILES: TorrentFile[] = [
   { index: 0, name: 'Dune/Dune.mkv', size: 19e9, progress: 0.4, priority: 1 },
@@ -33,7 +31,6 @@ beforeEach(() => {
   vi.resetAllMocks()
   vi.useFakeTimers()
   getTorrentFiles.mockResolvedValue(FILES)
-  setFilePriority.mockResolvedValue()
 })
 
 afterEach(() => {
@@ -82,21 +79,13 @@ describe('useTorrentFiles', () => {
     expect(result.current.failed).toBe(false)
   })
 
-  it('shows a changed priority as soon as qBittorrent accepts it, without waiting for a poll', async () => {
+  it('says when the poll whose answer it shows was sent', async () => {
+    vi.setSystemTime(1_000)
     const { result } = renderHook(() => useTorrentFiles('dune'))
     await settle()
-    await act(() => result.current.setPriority([1], 6))
-    expect(setFilePriority).toHaveBeenCalledWith('dune', [1], 6)
-    expect(result.current.files?.map((file) => file.priority)).toEqual([1, 6])
-    expect(getTorrentFiles).toHaveBeenCalledTimes(1)
-  })
-
-  it('leaves the priorities alone when qBittorrent refuses the change', async () => {
-    setFilePriority.mockRejectedValue(new Error('offline'))
-    const { result } = renderHook(() => useTorrentFiles('dune'))
-    await settle()
-    await expect(act(() => result.current.setPriority([0], 0))).rejects.toThrow()
-    expect(result.current.files?.map((file) => file.priority)).toEqual([1, 0])
+    expect(result.current.requestedAt).toBe(1_000)
+    await nextPoll()
+    expect(result.current.requestedAt).toBe(1_000 + FILES_POLL_INTERVAL_MS)
   })
 
   it('shows nothing of the previous torrent while another one loads', async () => {

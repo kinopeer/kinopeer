@@ -2,6 +2,8 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
+import { ToastProvider } from '../components/Toast'
+import { DUNE_TORRENT } from '../test/fixtures'
 import { TorrentFiles } from './TorrentFiles'
 import { saying } from '../test/render'
 
@@ -15,7 +17,7 @@ const getTorrentFiles = vi.mocked(api.getTorrentFiles)
 const setFilePriority = vi.mocked(api.setFilePriority)
 
 function renderFiles(disabled = false) {
-  render(<TorrentFiles hash="dune" status="downloading" disabled={disabled} />)
+  render(<TorrentFiles torrent={DUNE_TORRENT} status="downloading" disabled={disabled} />, { wrapper: ToastProvider })
   return screen.getByRole('region', { name: /Files/ })
 }
 
@@ -48,6 +50,17 @@ describe('TorrentFiles', () => {
     await userEvent.selectOptions(extras, 'high')
     expect(setFilePriority).toHaveBeenCalledWith('dune', [1], 6)
     expect(extras).toHaveValue('high')
+  })
+
+  it('turns a file’s priority off while its change is on its way, showing what’s being sent, and only that file’s', async () => {
+    setFilePriority.mockReturnValue(new Promise(() => {}))
+    const files = renderFiles()
+    const extras = await within(files).findByRole('combobox', { name: 'Priority: Extras.mkv' })
+    await userEvent.selectOptions(extras, 'high')
+    expect(extras).toHaveValue('high')
+    expect(extras).toBeDisabled()
+    expect(extras).toHaveAttribute('aria-busy', 'true')
+    expect(within(files).getByRole('combobox', { name: 'Priority: Dune.Part.Two.mkv' })).toBeEnabled()
   })
 
   it('reports a priority change qBittorrent refused, keeping the old one', async () => {
