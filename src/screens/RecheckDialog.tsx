@@ -1,40 +1,26 @@
-import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { recheckTorrents } from '../api/qbittorrent'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { Dialog } from '../components/Dialog'
 
 export interface RecheckDialogProps {
-  hash: string
   /** What the torrent is called on screen: the TMDB title or the release name. */
   title: string
+  /** A recheck for the torrent is on its way, sent from here or elsewhere. */
+  busy: boolean
+  /** The last recheck failed while this showed the torrent. */
+  failed: boolean
+  onConfirm: () => void
   onClose: () => void
-  /** After qBittorrent started the check. */
-  onRechecked: () => void
 }
 
 /**
  * Confirms a forced recheck: qBittorrent reads all the downloaded data again, the torrent shows as
- * checking until it's done, and pieces that fail the check are downloaded again.
+ * checking until it's done, and pieces that fail the check are downloaded again. `useRecheck` renders
+ * it and sends the recheck.
  */
-export function RecheckDialog({ hash, title, onClose, onRechecked }: RecheckDialogProps) {
+export function RecheckDialog({ title, busy, failed, onConfirm, onClose }: RecheckDialogProps) {
   const { t } = useTranslation()
-  const [checking, setChecking] = useState(false)
-  const [failed, setFailed] = useState(false)
-
-  const confirm = async () => {
-    setChecking(true)
-    setFailed(false)
-    try {
-      await recheckTorrents([hash])
-      onRechecked()
-    } catch {
-      setFailed(true)
-      setChecking(false)
-    }
-  }
-
   return (
     <Dialog
       open
@@ -46,7 +32,7 @@ export function RecheckDialog({ hash, title, onClose, onRechecked }: RecheckDial
           <Button variant="secondary" block onClick={onClose}>
             {t('torrent.cancel')}
           </Button>
-          <Button variant="primary" block loading={checking} disabled={checking} onClick={confirm}>
+          <Button variant="primary" block loading={busy} disabled={busy} onClick={onConfirm}>
             {t('torrent.recheck')}
           </Button>
         </>

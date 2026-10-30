@@ -28,6 +28,7 @@ vi.mock('../api/qbittorrent', async (importOriginal) => {
     stopTorrents: vi.fn(),
     deleteTorrents: vi.fn(),
     setSpeedLimits: vi.fn(),
+    recheckTorrents: vi.fn(),
   }
 })
 
@@ -217,6 +218,32 @@ describe('the details drawer on desktop', () => {
     expect(within(drawer).getByRole('button', { name: 'Resume' })).toBeEnabled()
     expect(within(drawer).getByText('Paused')).toBeInTheDocument()
     expect(getMainData).toHaveBeenCalledTimes(2)
+  })
+
+  it('shows a recheck sent from Downloads busy in the drawer’s menu, then the torrent checking as soon as qBittorrent took it', async () => {
+    let answer = () => {}
+    vi.mocked(api.recheckTorrents).mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    renderApp(['/'])
+    await userEvent.click(await screen.findByRole('button', { name: /^More actions: Dune/ }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Force recheck' }))
+    const confirm = screen.getByRole('alertdialog', { name: 'Recheck the files?' })
+    await userEvent.click(within(confirm).getByRole('button', { name: 'Force recheck' }))
+    // Closed while it's sent, as Escape does.
+    fireEvent(confirm, new Event('cancel', { cancelable: true }))
+
+    await userEvent.click(screen.getByRole('link', { name: /^Dune: Part Two/ }))
+    const drawer = await screen.findByRole('dialog', { name: 'Dune: Part Two' })
+    await userEvent.click(within(drawer).getByRole('button', { name: 'More actions: Dune: Part Two' }))
+    // Busy with what Downloads sends, so it can't go out a second time.
+    expect(within(drawer).getByRole('menuitem', { name: 'Force recheck' })).toBeDisabled()
+    expect(api.recheckTorrents).toHaveBeenCalledOnce()
+
+    // The poll asked for after it hasn't answered yet: the drawer shows the torrent checking already.
+    getMainData.mockReturnValue(new Promise(() => {}))
+    await act(async () => answer())
+    expect(within(drawer).getByText('Checking')).toBeInTheDocument()
+    expect(within(drawer).getByRole('menuitem', { name: 'Force recheck' })).toHaveAccessibleDescription('Already being checked')
+    expect(screen.getByRole('status', { name: saying('Checking the files') })).toBeInTheDocument()
   })
 
   it('stays open when Escape cancels its delete confirmation', async () => {

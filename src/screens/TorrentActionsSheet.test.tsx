@@ -9,6 +9,9 @@ import * as titleMatches from '../torrents/titleMatches'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
 import { TorrentActionsSheet, type TorrentActionsSheetProps } from './TorrentActionsSheet'
 import { usePauseResume } from './usePauseResume'
+import { useReannounce } from './useReannounce'
+import { RECHECK } from './useRecheck'
+import { useTorrentRequests } from '../torrents/useTorrentRequests'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
   ...(await importOriginal<typeof api>()),
@@ -26,13 +29,29 @@ vi.mock('../torrents/titleMatches', async (importOriginal) => ({
 const TORRENT = { hash: 'b1', name: 'Inception.2010.1080p', state: 'stoppedDL', progress: 0.3 } as Torrent
 const MATCH: titleMatches.TitleMatch = { type: 'movie', id: 27205, title: 'Inception', year: 2010, posterPath: null }
 
-/** Pauses or resumes the torrent from another place under the same requests, as a row's button does. */
-function Elsewhere() {
+/**
+ * Sends the torrent's requests from another place under the same requests: a resume (a row's button),
+ * a reannounce (the menu on another screen) and a recheck (a confirmation).
+ */
+function Elsewhere({ torrent = TORRENT }: { torrent?: Torrent }) {
   const pauseResume = usePauseResume()
+  const reannounce = useReannounce()
+  const requests = useTorrentRequests()
   return (
-    <button type="button" onClick={() => void pauseResume.toggle(TORRENT)}>
-      Resume elsewhere
-    </button>
+    <>
+      <button type="button" onClick={() => void pauseResume.toggle(torrent)}>
+        Resume elsewhere
+      </button>
+      <button type="button" onClick={() => void reannounce.reannounce(torrent)}>
+        Reannounce elsewhere
+      </button>
+      <button
+        type="button"
+        onClick={() => void requests.send(RECHECK, torrent, true, (hashes) => api.recheckTorrents(hashes))}
+      >
+        Recheck elsewhere
+      </button>
+    </>
   )
 }
 
@@ -45,13 +64,12 @@ function renderActions(props: Partial<TorrentActionsSheetProps> = {}) {
     onMove: vi.fn(),
     onRecheck: vi.fn(),
     onSpeedLimits: vi.fn(),
-    onReannounced: vi.fn(),
     onChangeTitle: vi.fn(),
     onConfirmed: vi.fn(),
   }
   const { unmount } = renderWithRouter(
     <TorrentRequestsProvider>
-      <Elsewhere />
+      <Elsewhere torrent={props.torrent} />
       <TorrentActionsSheet torrent={TORRENT} match={MATCH} offline={false} anchor={anchor} {...handlers} {...props} />
     </TorrentRequestsProvider>,
   )
@@ -105,12 +123,34 @@ describe('TorrentActionsSheet on desktop', () => {
     expect(handlers.onClose).toHaveBeenCalled()
   })
 
-  it('reannounces a running torrent right away', async () => {
+  it('reannounces a running torrent right away, then closes and says so', async () => {
     vi.mocked(api.reannounceTorrents).mockResolvedValue()
     const handlers = renderActions({ torrent: { ...TORRENT, state: 'stalledDL' } })
     await userEvent.click(screen.getByRole('menuitem', { name: 'Reannounce' }))
     expect(api.reannounceTorrents).toHaveBeenCalledWith(['b1'])
-    expect(handlers.onReannounced).toHaveBeenCalled()
+    expect(await screen.findByRole('status', { name: saying('Announced to the trackers') })).toBeInTheDocument()
+    expect(handlers.onClose).toHaveBeenCalled()
+  })
+
+  it('turns the items off while a reannounce or a recheck sent from elsewhere is in flight, then says how a reannounce went', async () => {
+    let refuse = () => {}
+    vi.mocked(api.reannounceTorrents).mockReturnValue(new Promise((_resolve, reject) => (refuse = () => reject(new Error('500')))))
+    let answer = () => {}
+    vi.mocked(api.recheckTorrents).mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    renderActions({ torrent: { ...TORRENT, state: 'stalledDL' } })
+    await userEvent.click(screen.getByRole('button', { name: 'Recheck elsewhere' }))
+    expect(screen.getByRole('menuitem', { name: 'Force recheck' })).toBeDisabled()
+    expect(screen.getByRole('menuitem', { name: 'Reannounce' })).toBeDisabled()
+    await act(async () => answer())
+    expect(screen.getByRole('menuitem', { name: 'Reannounce' })).toBeEnabled()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Reannounce elsewhere' }))
+    expect(screen.getByRole('menuitem', { name: 'Reannounce' })).toBeDisabled()
+    expect(screen.getByRole('menuitem', { name: 'Pause' })).toBeDisabled()
+    await act(async () => refuse())
+    expect(await screen.findByRole('alert', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: saying('Couldn’t reach qBittorrent. Try again.') })).not.toBeInTheDocument()
+    expect(api.reannounceTorrents).toHaveBeenCalledOnce()
   })
 
   it('leaves the recheck to the confirmation its screen opens', async () => {
@@ -262,6 +302,7 @@ describe('TorrentActionsSheet on a phone', () => {
     await userEvent.click(within(sheet).getByRole('button', { name: 'Reannounce' }))
     expect(api.reannounceTorrents).toHaveBeenCalledWith(['b1'])
     expect(await within(sheet).findByRole('alert', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
-    expect(handlers.onReannounced).not.toHaveBeenCalled()
+    expect(handlers.onClose).not.toHaveBeenCalled()
+    expect(screen.queryByRole('status', { name: saying('Couldn’t reach qBittorrent. Try again.') })).not.toBeInTheDocument()
   })
 })

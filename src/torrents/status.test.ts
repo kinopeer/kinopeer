@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Torrent, TorrentState } from '../api/qbittorrent'
 import i18n from '../i18n'
 import { createFormatters } from '../lib/format'
-import { compareByQueue, downloadStatus, hasMetadata, matchesFilter, transferSpeed, withRunning } from './status'
+import { compareByQueue, downloadStatus, hasMetadata, matchesFilter, transferSpeed, withChecking, withRunning } from './status'
 
 const torrent = (state: TorrentState, progress = 0.5) => ({ state, progress })
 
@@ -79,6 +79,22 @@ describe('withRunning', () => {
     expect(withRunning(paused, false)).toBe(paused)
     const queued = make('queuedDL', 0.5)
     expect(withRunning(queued, true)).toBe(queued)
+  })
+})
+
+describe('withChecking', () => {
+  const make = (state: TorrentState, progress: number) => ({ hash: 'dune', state, progress }) as Torrent
+
+  it('checks a torrent with data, downloading or, once finished, seeding, whether it runs or not', () => {
+    expect(withChecking(make('downloading', 0.5)).state).toBe('checkingDL')
+    expect(withChecking(make('stoppedDL', 0.5)).state).toBe('checkingDL')
+    expect(withChecking(make('uploading', 1)).state).toBe('checkingUP')
+    expect(withChecking(make('stoppedUP', 1)).state).toBe('checkingUP')
+  })
+
+  it('leaves a torrent already being checked as qBittorrent reports it', () => {
+    const checking = make('checkingResumeData', 1)
+    expect(withChecking(checking)).toBe(checking)
   })
 })
 

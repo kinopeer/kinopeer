@@ -291,23 +291,19 @@ describe('TorrentScreen', () => {
     vi.mocked(api.reannounceTorrents).mockResolvedValue()
     renderScreen()
     await userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' }))
-    // A hidden page doesn't poll, so only the screen's own refresh can bring qBittorrent's next answer.
-    stopPolling()
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Reannounce' }))
     expect(api.reannounceTorrents).toHaveBeenCalledWith(['dune'])
     expect(await screen.findByRole('status', { name: saying('Announced to the trackers') })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'More actions: Dune: Part Two' }))
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Force recheck' }))
     const dialog = screen.getByRole('alertdialog', { name: 'Recheck the files?' })
-    // The screen asks qBittorrent again right after the recheck, so it shows Checking without a poll.
-    getMainData.mockResolvedValue(snapshot({ state: 'checkingDL' }))
+    expect(dialog).toHaveTextContent('Dune: Part Two')
     await userEvent.click(within(dialog).getByRole('button', { name: 'Force recheck' }))
     expect(api.recheckTorrents).toHaveBeenCalledWith(['dune'])
     expect(await screen.findByRole('status', { name: saying('Checking the files') })).toBeInTheDocument()
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
-    const progress = screen.getByRole('region', { name: 'Progress' })
-    expect(await within(progress).findByText('Checking', { exact: true })).toBeInTheDocument()
   })
 
   it('drops a recheck confirmation whose torrent went away, so it doesn’t open again when the torrent is back', async () => {
