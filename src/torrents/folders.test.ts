@@ -40,6 +40,20 @@ describe('categoryFolder', () => {
     expect(categoryFolder('Movies', windows)).toBe('C:\\Downloads\\films\\hd')
   })
 
+  it('takes a backslash as a separator under a Windows folder, and as part of a folder’s name elsewhere', () => {
+    const categories = [{ name: 'Movies', savePath: 'films\\hd' }]
+    expect(categoryFolder('Movies', locations({ defaultPath: 'C:\\Downloads', categories }))).toBe('C:\\Downloads\\films\\hd')
+    expect(categoryFolder('Movies', locations({ defaultPath: '/downloads', categories }))).toBe('/downloads/films\\hd')
+    expect(categoryFolder('Movies', locations({ defaultPath: '/media/a\\b', categories }))).toBe('/media/a\\b/films\\hd')
+  })
+
+  it('leaves one separator where a folder’s end or a relative path repeats them', () => {
+    const where = locations({ defaultPath: '/downloads//', categories: [{ name: 'Movies', savePath: 'films//hd' }] })
+    expect(categoryFolder('Movies', where)).toBe('/downloads/films/hd')
+    const windows = locations({ defaultPath: 'C:\\Downloads\\\\', categories: [{ name: 'Movies', savePath: 'films\\\\hd' }] })
+    expect(categoryFolder('Movies', windows)).toBe('C:\\Downloads\\films\\hd')
+  })
+
   it('names the folder of a category without a path after the category, made valid as qBittorrent does', () => {
     const where = locations({ categories: [{ name: 'TV', savePath: '' }, { name: 'A:B*?C', savePath: '' }] })
     expect(categoryFolder('TV', where)).toBe('/downloads/TV')

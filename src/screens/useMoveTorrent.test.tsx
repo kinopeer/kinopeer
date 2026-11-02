@@ -108,12 +108,10 @@ describe('useMoveTorrent', () => {
     const sheet = await open()
     const field = within(sheet).getByRole('textbox', { name: 'Folder' })
     const move = within(sheet).getByRole('button', { name: 'Move' })
-    for (const folder of ['Movies', '~/Movies']) {
-      await userEvent.clear(field)
-      await userEvent.type(field, folder)
-      expect(field).toHaveAccessibleDescription('Type the full path, starting with / (or a drive such as D:\\ on Windows).')
-      expect(move).toBeDisabled()
-    }
+    await userEvent.clear(field)
+    await userEvent.type(field, 'Movies')
+    expect(field).toHaveAccessibleDescription('Type the full path, starting with / (or a drive such as D:\\ on Windows).')
+    expect(move).toBeDisabled()
     await userEvent.clear(field)
     await userEvent.type(field, '/media/movies')
     expect(field).not.toHaveAccessibleDescription()

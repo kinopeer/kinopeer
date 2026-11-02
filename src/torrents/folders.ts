@@ -9,10 +9,14 @@ export function isAbsolute(path: string): boolean {
   return ABSOLUTE.test(path)
 }
 
-/** Joins a relative path to a folder with the folder's own separator (Windows paths use \). */
+/**
+ * Joins a relative path to a folder with the folder's own separator. Windows paths use \, which
+ * elsewhere is an ordinary character in a folder's name.
+ */
 function join(folder: string, path: string): string {
-  const separator = folder.includes('\\') && !folder.includes('/') ? '\\' : '/'
-  return `${folder.replace(/[/\\]+$/, '')}${separator}${path.split(/[/\\]+/).join(separator)}`
+  const windows = folder.includes('\\') && !folder.includes('/')
+  const separator = windows ? '\\' : '/'
+  return `${folder.replace(/[/\\]+$/, '')}${separator}${path.split(windows ? /[/\\]+/ : /\/+/).join(separator)}`
 }
 
 /**
