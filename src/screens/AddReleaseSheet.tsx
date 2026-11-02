@@ -1,12 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { fetchRelease, type Release, type ReleaseSource } from '../api/prowlarr'
-import {
-  QbittorrentError,
-  getMainData,
-  type SaveLocations,
-  getSaveLocations,
-} from '../api/qbittorrent'
+import { QbittorrentError, getSaveLocations } from '../api/qbittorrent'
 import { posterUrl, type MediaType } from '../api/tmdb'
 import { Badge } from '../components/Badge'
 import { Banner } from '../components/Banner'
@@ -29,6 +24,7 @@ import { tmdbTagFor } from '../torrents/parseName'
 import { freeSpace } from '../torrents/freeSpace'
 import { categoryType } from '../torrents/titleMatches'
 import { readTorrentFile, type TorrentMeta } from '../torrents/torrentFile'
+import { useMainData } from '../torrents/useMainData'
 import { FilePicker } from './FilePicker'
 import { IndexerLink } from './IndexerLink'
 import './AddReleaseSheet.css'
@@ -49,10 +45,6 @@ interface Prepared {
   meta?: TorrentMeta
 }
 
-interface Locations extends SaveLocations {
-  free?: number
-}
-
 async function prepare(release: Release, signal: AbortSignal): Promise<Prepared> {
   const source = await fetchRelease(release, signal)
   if (source.kind === 'magnet') return { source }
@@ -61,23 +53,13 @@ async function prepare(release: Release, signal: AbortSignal): Promise<Prepared>
   return { source, meta }
 }
 
-async function locations(): Promise<Locations> {
-  const [saved, free] = await Promise.all([
-    getSaveLocations(),
-    getMainData(0).then(
-      (data) => freeSpace(data.server_state?.free_space_on_disk),
-      () => undefined,
-    ),
-  ])
-  return { ...saved, free }
-}
-
 /** "Add to downloads": destination, options and file selection for one release. */
 export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddReleaseSheetProps) {
   const { t, i18n } = useTranslation()
   const format = useFormatters()
   const prepared = useRequest(`release|${release.id}`, (signal) => prepare(release, signal))
-  const where = useRequest('qbt|locations', () => locations())
+  const where = useRequest('qbt|locations', getSaveLocations)
+  const { data: main } = useMainData()
 
   const meta = prepared.data?.meta
   const [skipped, setSkipped] = useState<ReadonlySet<number>>(new Set())
@@ -115,7 +97,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   )
   const fileCount = meta?.files.length ?? 0
   const selectedCount = fileCount - skipped.size
-  const free = where.data?.free
+  const free = freeSpace(main?.server.free_space_on_disk)
   // qBittorrent reports the free space where its default save path is. A warning, not a block: the
   // space may be freed before the download finishes, or the save path may be on another disk. Only by
   // known sizes: a read .torrent's files or a magnet's release size, not an unreadable .torrent's.

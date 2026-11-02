@@ -21,6 +21,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 - A torrent's menu, its delete and recheck confirmations and Change title close when the torrent is deleted and added again between two updates, as the Speed limits and Move files sheets do, instead of staying open for the new one. Confirming a delete then could delete the torrent added again.
 - Phone: the title page's Find releases bar sits right on the tab bar; the page no longer shows through a thin strip between them as it scrolls. ([#194](https://github.com/MrShakhov/kinoseed/issues/194))
 - Phone: with the keyboard open, swiping a sheet or moving between its fields no longer scrolls the page behind it in Safari on iOS, so the sheet doesn't jerk either; the sheet also keeps a small gap above the keyboard.
+- Adding a release: opening the sheet no longer asks qBittorrent for the whole list of torrents, twice over, just for the free space. The free space and the warning about it now stay current while the sheet is open.
 
 ## 0.6.0 - 2026-10-29
 
