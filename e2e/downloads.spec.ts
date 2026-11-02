@@ -388,11 +388,12 @@ test.describe('downloads, phone with a touch screen', () => {
     expect(end).toBeGreaterThan(0)
     await settle(page)
 
-    // Not click(): it would scroll the page to the button first.
-    await page.getByRole('button', { name: 'Ещё действия: Дюна: Часть вторая' }).dispatchEvent('click')
+    await page.getByRole('button', { name: /^Ещё действия:/ }).last().click()
     await page.getByRole('button', { name: 'Перенести файлы…' }).click()
     const sheet = page.getByRole('dialog', { name: 'Перенести файлы' })
     await expect(sheet).toBeVisible()
+    // The pin's own transition over, or how soon Escape comes decides what this test can see.
+    await page.waitForFunction(() => document.body.getAnimations().length === 0)
     await page.keyboard.press('Escape')
     await expect(sheet).toBeHidden()
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(end)

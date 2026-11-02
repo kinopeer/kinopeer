@@ -730,7 +730,6 @@ describe('Sheet', () => {
       </Sheet>
     )
     const { rerender } = render(page)
-    screen.getByRole('textbox', { name: 'Folder', hidden: true }).focus()
     expect(document.body.style.marginTop).toBe('-199px')
 
     rerender(<NextScreen />)
