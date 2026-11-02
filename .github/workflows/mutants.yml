@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        base: ['efb153a~1', '513e4e1~1']
+        base: ['HEAD']
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
