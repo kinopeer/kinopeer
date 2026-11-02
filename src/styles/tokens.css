@@ -66,7 +66,9 @@
   --column: 760px;
   /* Room the app's navigation takes: the tab bar at the bottom, the sidebar on desktop (below). */
   --nav-left: 0px;
-  --nav-bottom: calc(66px + var(--safe-bottom));
+  /* The tab bar's height, which `.ks-tabbar` takes from here: its 8px top padding, a 52px tab and
+     its 1px top border, over the home indicator. Anything pinned above it meets it exactly. */
+  --nav-bottom: calc(61px + var(--safe-bottom));
   /* The part of the page above the on-screen keyboard, which Safari on iOS and Chrome on Android open
      over the page: `trackKeyboardInset` (src/lib/keyboardInset.ts) sets them on <html> while it's
      open. The inset is from the layout viewport's bottom; `--keyboard-open` is 1 while it's open. */
