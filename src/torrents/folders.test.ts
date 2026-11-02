@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { SaveLocations } from '../api/qbittorrent'
-import { addFolder, categoryFolder, isAbsolute, knownFolders } from './folders'
+import { addFolder, categoryFolder, isAbsolute, knownFolders, sameFolder } from './folders'
 
 const locations = (fields: Partial<SaveLocations> = {}): SaveLocations => ({
   categories: [],
@@ -40,6 +40,21 @@ describe('categoryFolder', () => {
     expect(categoryFolder('Movies', windows)).toBe('C:\\Downloads\\films\\hd')
   })
 
+  it('takes a backslash as a separator under a Windows folder, and as part of a folder’s name elsewhere', () => {
+    const categories = [{ name: 'Movies', savePath: 'films\\hd' }]
+    expect(categoryFolder('Movies', locations({ defaultPath: 'C:\\Downloads', categories }))).toBe('C:\\Downloads\\films\\hd')
+    expect(categoryFolder('Movies', locations({ defaultPath: '/downloads', categories }))).toBe('/downloads/films\\hd')
+    expect(categoryFolder('Movies', locations({ defaultPath: '/media/a\\b', categories }))).toBe('/media/a\\b/films\\hd')
+    expect(categoryFolder('Movies', locations({ defaultPath: '/media/a\\', categories }))).toBe('/media/a\\/films\\hd')
+  })
+
+  it('leaves one separator where a folder’s end or a relative path repeats them', () => {
+    const where = locations({ defaultPath: '/downloads//', categories: [{ name: 'Movies', savePath: 'films//hd' }] })
+    expect(categoryFolder('Movies', where)).toBe('/downloads/films/hd')
+    const windows = locations({ defaultPath: 'C:\\Downloads\\\\', categories: [{ name: 'Movies', savePath: 'films\\\\hd' }] })
+    expect(categoryFolder('Movies', windows)).toBe('C:\\Downloads\\films\\hd')
+  })
+
   it('names the folder of a category without a path after the category, made valid as qBittorrent does', () => {
     const where = locations({ categories: [{ name: 'TV', savePath: '' }, { name: 'A:B*?C', savePath: '' }] })
     expect(categoryFolder('TV', where)).toBe('/downloads/TV')
@@ -75,6 +90,12 @@ describe('addFolder', () => {
   })
 })
 
+describe('sameFolder', () => {
+  it('keeps the root, which is all separator', () => {
+    expect(sameFolder('/')).toBe('/')
+  })
+})
+
 describe('knownFolders', () => {
   it('lists the default save path, then each category’s folder once', () => {
     const categories = [
@@ -84,6 +105,13 @@ describe('knownFolders', () => {
       { name: 'Films', savePath: '/media/movies/' },
     ]
     expect(knownFolders(locations({ categories }))).toEqual(['/downloads', '/media/movies', '/downloads/Other'])
+  })
+
+  it('takes a trailing backslash for a separator only on a Windows folder', () => {
+    const windows = [{ name: 'A', savePath: 'D:\\Movies' }, { name: 'B', savePath: 'D:\\Movies\\' }]
+    expect(knownFolders(locations({ categories: windows }))).toEqual(['/downloads', 'D:\\Movies'])
+    const posix = [{ name: 'A', savePath: '/media/a' }, { name: 'B', savePath: '/media/a\\' }]
+    expect(knownFolders(locations({ categories: posix }))).toEqual(['/downloads', '/media/a', '/media/a\\'])
   })
 
   it('offers the categories’ folders in manual mode too, as places to move to', () => {
