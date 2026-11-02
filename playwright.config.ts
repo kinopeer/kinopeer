@@ -32,8 +32,9 @@ export default defineConfig({
     // The service worker would answer requests the tests mock.
     serviceWorkers: 'block',
     trace: 'retain-on-failure',
-    // Chromium chooses LCD or grayscale text per raster tile, by timing the page can't wait for: one
-    // run in CI drew two rows of text in grayscale over LCD baselines (#145). Grayscale always.
+    // Left to itself, Chromium now and then draws part of a page's text in grayscale instead of LCD.
+    // Two screenshots in CI came out so (#145); what triggers it wasn't found, and a page can't see
+    // it, so a test can't wait it out. Grayscale always.
     launchOptions: { args: ['--disable-lcd-text'] },
   },
   projects: [{ name: 'chromium' }],
