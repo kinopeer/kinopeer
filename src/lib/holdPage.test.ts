@@ -415,6 +415,21 @@ describe('holdPage', () => {
     expect(box.scrollTop).toBe(68)
   })
 
+  it('leaves the page alone when what has focus in a modal opens no keyboard', () => {
+    stubScreen()
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
+    const modal = document.createElement('dialog')
+    modal.setAttribute('open', '')
+    const button = document.createElement('button')
+    modal.append(button)
+    document.body.append(modal)
+    button.focus()
+
+    hold()
+    expect(document.body.style.marginTop).toBe('')
+    expect(window.scrollTo).not.toHaveBeenCalled()
+  })
+
   it('leaves the page alone when the field with focus is on the page, with the keyboard open over it', () => {
     stubScreen()
     vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
