@@ -16,6 +16,9 @@ env:
 jobs:
   release:
     runs-on: ubuntu-latest
+    # For a hang: a healthy run takes about 2 minutes. More room than Edge, since releases are rare
+    # and one that times out has to be re-run by hand.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 

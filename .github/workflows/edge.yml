@@ -45,6 +45,8 @@ jobs:
       group: edge
       cancel-in-progress: true
     runs-on: ubuntu-latest
+    # For a hang: a healthy run takes about 2 minutes, a build with nothing cached longer.
+    timeout-minutes: 10
     # With pipefail, so a failed read of the store fails the run instead of looking like a first build.
     defaults:
       run:
