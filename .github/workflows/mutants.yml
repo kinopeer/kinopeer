@@ -10,10 +10,16 @@ on:
       - 'src/**'
       - 'server/**'
   workflow_dispatch:
+  push:
+    branches: [chore/mutants-trial]
 
 jobs:
   mutants:
     if: ${{ !github.event.pull_request.draft }}
+    strategy:
+      fail-fast: false
+      matrix:
+        base: ['efb153a~1', '513e4e1~1']
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -32,6 +38,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run --silent test:mutants > mutants.md
+        env:
+          MUTANTS_BASE: ${{ matrix.base }}
       - name: Post the survivors on the PR
         env:
           GH_TOKEN: ${{ github.token }}
