@@ -206,6 +206,8 @@
 .downloads-bulk {
   /* Beside the sidebar on desktop; the buttons stay over the screens' column. */
   left: var(--nav-left);
+  /* Its own height, not the tab bar's: it has bigger buttons and shows on desktop too. */
+  height: auto;
   gap: var(--space-2);
   padding: var(--space-3) max(var(--space-2), calc((100% - var(--nav-left) - var(--column)) / 2 + var(--space-2))) max(var(--space-3), var(--safe-bottom));
 }
