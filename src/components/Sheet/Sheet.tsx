@@ -52,7 +52,7 @@ export function Sheet({
 
   // Before showModal, which focuses the first field. A layout effect, so a sheet that goes with its
   // screen puts the page back before the next screen's layout effects restore their own place.
-  useLayoutEffect(() => (open ? holdPage() : undefined), [open])
+  useLayoutEffect(() => (open ? holdPage(ref.current) : undefined), [open])
 
   useEffect(() => {
     const dialog = ref.current

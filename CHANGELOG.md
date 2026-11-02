@@ -24,6 +24,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 - Phone: with the keyboard open, swiping a sheet or moving between its fields no longer scrolls the page behind it in Safari on iOS, so the sheet doesn't jerk either; the sheet also keeps a small gap above the keyboard.
 - Adding a release: opening the sheet no longer asks qBittorrent for the whole list of torrents, twice over, just for the free space. The free space and the warning about it now stay current while the sheet is open.
 - Phone: tapping a field in a sheet (Move files, Speed limits and others) with the list scrolled down no longer makes the filters disappear behind it, cuts its dimmed backdrop short or brings back a collapsed toolbar in Safari on iOS. ([#175](https://github.com/MrShakhov/kinoseed/issues/175))
+- Phone: the first tap on a field in a sheet no longer makes the page and the sheet jump for a moment. ([#203](https://github.com/MrShakhov/kinoseed/issues/203))
 
 ## 0.6.0 - 2026-10-29
 

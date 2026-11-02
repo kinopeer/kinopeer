@@ -377,6 +377,28 @@ test.describe('downloads, labelled sidebar at its narrowest', () => {
 test.describe('downloads, phone with a touch screen', () => {
   test.use({ hasTouch: true })
 
+  // This Chromium runs with reduced motion, where base.css gives everything a 1 ms transition. A
+  // margin on <body> still on its way back would shorten the page under the scroll back.
+  test('the list comes back to its end once a sheet with a field is closed', async ({ page }) => {
+    await openDownloads(page, { downloadsView: 'grid' })
+    const end = await page.evaluate(() => {
+      window.scrollTo(0, document.documentElement.scrollHeight)
+      return window.scrollY
+    })
+    expect(end).toBeGreaterThan(0)
+    await settle(page)
+
+    await page.getByRole('button', { name: /^Ещё действия:/ }).last().click()
+    await page.getByRole('button', { name: 'Перенести файлы…' }).click()
+    const sheet = page.getByRole('dialog', { name: 'Перенести файлы' })
+    await expect(sheet).toBeVisible()
+    // The pin's own transition over, or how soon Escape comes decides what this test can see.
+    await page.waitForFunction(() => document.body.getAnimations().length === 0)
+    await page.keyboard.press('Escape')
+    await expect(sheet).toBeHidden()
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(end)
+  })
+
   test('the sort sheet closes when dragged down by its top, and the list behind it stays put', async ({ page }) => {
     await openDownloads(page)
     await page.getByRole('button', { name: 'Сортировка: Приоритет' }).click()
