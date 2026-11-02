@@ -11,6 +11,7 @@ npm test                    # layers 1–5 (Vitest), single run
 npm test -- --project app   # only the jsdom tests (src/)
 npm test -- --project server  # only the server and integration tests (server/)
 npm run test:coverage       # the same with coverage and its threshold: a table in the terminal, coverage/index.html
+npm run test:mutants        # breaks the lines this branch changes, lists the breaks no test noticed
 npm run test:visual         # layer 6: screenshot tests in Docker
 npm run test:visual:update  # re-render their baselines
 npm run test:smoke          # layer 6: smoke journeys through the production server, no Docker
@@ -48,10 +49,23 @@ message, a `.catch` that swallows or reports, an action disabled offline or whil
 for data an older version stored. Each one gets a test or an accepted reason
 ([below](#saying-why-something-is-uncovered)), like any other branch.
 
+Most bugs that reach `main` sit next to the state a PR changed, not in it. So go through the
+neighbours of a change, and answer each that applies with a test or a reason:
+
+- **Another place:** what else shows or sends the same thing, on the phone and on desktop, in the
+  drawer and on the page (#180, #182)? Does it see this state, or does it send the request again?
+- **Later:** what if the sheet was closed, the screen left, or the torrent went away or was replaced
+  before the answer came (#172, #174, #184)?
+- **Meanwhile:** what if the user presses it again, reopens the sheet or types while the request is
+  in flight (#171, #186)?
+- **The next poll:** does a poll sent before the change undo it (#192)?
+
 One behavior, one layer: every statement about what Kinoseed does lives in exactly one test, on the
 lowest layer that can see it. Higher layers meet that behavior only as a step towards the state they
 check: a screen test opens the sort sheet to reach a sorted list and doesn't re-check the order's
-rules, which `sort.test.ts` owns. Pick the layer by what the statement needs:
+rules, which `sort.test.ts` owns. A sentence in this file that says which test owns a statement is
+a claim like any other: a PR that moves the statement updates the sentence. Pick the layer by what
+the statement needs:
 
 | The statement | What it needs | Layer |
 | --- | --- | --- |
@@ -116,11 +130,11 @@ milliseconds, fails with a precise message, and it's the one the layer above lea
   after a sort or the current title first.
 - **Helpers and fixtures.** Data every layer shares is in `src/test/fixtures.ts`, the rendering
   helpers in `src/test/render.tsx`, the fake services in `server/test/fakes.ts`
-  ([Shared test data](#shared-test-data)). What one file uses stays in that file; the second copy of
-  a literal or a helper moves it to the shared place, as `DUNE_TORRENT` did. A service's new
-  behavior is an addition to its fake, with a comment on what the real service does and in which
-  version; an inline server is only for a test that needs the service to misbehave in one specific
-  way. `vi.mock` stays in each test file on purpose, so a reader sees what the test replaces without
+  ([Shared test data](#shared-test-data)). The second copy of a literal or a helper moves it one
+  level up: two tests in a file share a `const` or a wrapper at the top of that file, and a second
+  file moves it to the shared place, as `DUNE_TORRENT` did. A service's new behavior is an addition
+  to its fake, with a comment on what the real service does and in which version; an inline server
+  is only for a test that needs the service to misbehave in one specific way. `vi.mock` stays in each test file on purpose, so a reader sees what the test replaces without
   opening another module.
 - **An overlay for one torrent** (a menu, a sheet, a confirmation) is open through
   `useTorrentOverlay`, whose tests own when it's open (closed, its torrent gone, or replaced by
@@ -158,11 +172,32 @@ milliseconds, fails with a precise message, and it's the one the layer above lea
 
 ### A test that can fail
 
-A test counts once it has been seen to fail. Before marking a PR ready, its author breaks the code
-each new or changed test covers (removes the guard, flips the condition, returns early), sees the
-test go red, puts the code back, and says so in the PR's Tests table. A test that stays green with
-the behavior it names removed is a `silent-test` miss in the making. Three shapes cause most of
-them:
+A test counts once it has been seen to fail, and the breaking starts from the diff, not from the
+tests: an author who breaks what their tests cover never reaches the branch they wrote no test for.
+Before marking a PR ready, the author does both of these and says so in the PR:
+
+1. **`npm run test:mutants`.** Stryker takes the production lines the branch has committed since
+   `origin/main`, breaks them one small change at a time (a condition always true, a body emptied)
+   and runs the tests that reach each one. A break no test notices survives, and the report lists it
+   by file and line. The PR's `Mutants` line gives the count and says what each survivor is: a test
+   was added, an accepted reason ([below](#saying-why-something-is-uncovered)), or equivalent (no
+   test could tell it from the original, and why). Stryker leaves plain values alone (a
+   `disabled={disabled}`, a provider around a screen, a number, a text) and can't see code that isn't
+   there, so a prop passed down still needs breaking by hand and a missing branch is a question for
+   the [neighbours](#choosing-a-layer).
+2. **Each new or changed test seen red.** Break the code it covers (remove the guard, flip the
+   condition, return early), watch the test fail, put the code back, and say so in the Tests table.
+
+CI runs the same (`.github/workflows/mutants.yml`) once per PR head, not on every push: when a PR is
+opened ready or marked ready, or when started by hand (`gh workflow run mutants.yml --ref
+<branch>`), and posts the survivors on the PR at that commit. They don't fail the job, since an
+equivalent mutant would fail it for good; a survivor the PR doesn't account for is a review finding.
+When production lines changed after CI's run, or a PR with production lines has no CI comment
+(Actions out of minutes), the reviewer runs `npm run test:mutants` locally at the head and says in
+the round what it saw; the reviewer doesn't dispatch the workflow.
+
+A test that stays green with the behavior it names removed is a `silent-test` miss in the making.
+Three shapes cause most of them:
 
 - **An absence asserted too early.** `queryBy…` is null, `not.toHaveBeenCalled()`,
   `toBeEmptyDOMElement()` prove something only after the same test has seen that the answer it waits
@@ -176,9 +211,8 @@ them:
   or `afterAll`, as `browseRows.test.ts` does. A `process.env.TZ` assigned by hand stays for the
   rest of the file.
 
-The Seen red column is the author's word, and the review can only read the tests for these shapes.
-If retros keep finding check K tagged `clear`, the next step is a mechanism, not a sentence: a
-mutation run over the changed files in CI.
+The Seen red column is the author's word, and the review can only read the tests for these shapes;
+the survivors in CI's comment are not.
 
 ### Saying why something is uncovered
 
@@ -225,7 +259,7 @@ after the behavior ("stays open when Escape cancels its delete confirmation"). N
 folder and no "issue 123" in a test's name; a link to the issue in a comment only where the case
 isn't obvious from the name and the code.
 
-**Why the tests missed it** is one of six classes. Each has a label (`test-gap:<class>`) and an
+**Why the tests missed it** is one of seven classes. Each has a label (`test-gap:<class>`) and an
 action besides the test itself:
 
 | Class | What it looks like in Kinoseed | What we do besides the test |
@@ -235,10 +269,13 @@ action besides the test itself:
 | `implementation` | A screen test's mock answered what the server never sends, so the screen passed against a fiction | Rewrite the test to the behavior the user sees; the contract between client and server goes to layer 5 |
 | `fake-drift` | qBittorrent 5.3 answers 401 to a wrong password; the fake still answered `200 "Fails."` | Fix the fake, with a comment on the real behavior and the version it was seen in, and run everything on the fixed fake |
 | `environment` | No `crypto.subtle` over plain HTTP; Umbrel's app_proxy wants a cookie on every fetch; the service worker served the old shell | Add the environment to layer 5 or 6 when it's cheap (the smoke stand's proxy is one); otherwise a line in [Known blind spots](#known-blind-spots) and a manual check in `RELEASE_CHECKLIST.md` |
-| `silent-test` | A test that passes with the behavior it names removed: no `expect`, a `.skip`, an absence checked before the answer arrived, a screenshot that passes on retry | Fix or delete the test; where oxlint can catch the shape, a rule in `.oxlintrc.json` |
+| `silent-test` | A test that passes with the behavior it names removed: no `expect`, a `.skip`, an absence checked before the answer arrived | Fix or delete the test; where oxlint can catch the shape, a rule in `.oxlintrc.json` |
+| `flaky` | Not a bug that reached anyone, but a test that fails now and then: a toast found inside a modal that was closing (#190), a screenshot off by a few pixels on one run in CI (#145) | Fix or delete the test; where a helper can take the shape away, add it, as `findToastOnPage` did. The retro counts these apart from escaped bugs |
 
 The record: a **Why tests missed it** section in the PR (the template has it) with the class and
-what changes so the class is caught, and the `test-gap:<class>` label on the issue. A systemic
+what changes so the class is caught, and the `test-gap:<class>` label on the issue. A PR that fixes
+a flaky test carries the same record, whatever its branch prefix; one flake can't be shown red on
+demand, so it says how often the test failed and how many runs it now passes. A systemic
 finding (a blind spot, a fake that had drifted) also becomes a line in this file, in the same PR.
 There is no separate log: the closed issues with these labels are the history.
 
@@ -386,10 +423,10 @@ condition.
 
 Three steps, each by whoever can do it best:
 
-1. **The author checks what doesn't need judgment** before marking the PR ready: every new or
-   changed test seen red ([A test that can fail](#a-test-that-can-fail)), and the Tests section
-   filled in by the template, one row per test with its layer, and every uncovered part with its
-   reason. Rereading one's own tests for judgment finds little: the author sees what they meant to
+1. **The author checks what doesn't need judgment** before marking the PR ready: `npm run
+   test:mutants` with every survivor accounted for and every new or changed test seen red ([A test
+   that can fail](#a-test-that-can-fail)), and the Tests section filled in by the template, one row
+   per test with its layer, and every uncovered part with its reason. Rereading one's own tests for judgment finds little: the author sees what they meant to
    write.
 2. **A separate session reviews**, one that didn't write the PR and sees only its diff and
    description: `/test-review <PR number>` with the `test-review` skill
@@ -399,7 +436,9 @@ Three steps, each by whoever can do it best:
    explained with an accepted reason, nothing lost when a test is deleted, each assertion on its
    layer, behavior rather than implementation, each test able to fail, fakes true to the services,
    no sleeps or forced clicks, baselines listed, docs matching the code, the threshold not lowered.
-   It doesn't run the suite (CI does). A reviewer without the skill goes through the same list by
+   It doesn't run the suite (CI does), and it compares CI's survivors with the PR's `Mutants`
+   line, running the mutants itself only when [A test that can fail](#a-test-that-can-fail) says
+   so. A reviewer without the skill goes through the same list by
    hand; the skill is the list.
 3. **A second round after the fixes**, by the same reviewer: every flagged line again, and every
    test added or changed to fix a finding gets all the checks, since a test written to answer a
@@ -463,7 +502,9 @@ batch) and the `test-gap:*` issues closed since the last retro, and count the fi
   deleting it. The system should get shorter as often as longer.
 
 The changes go into one docs PR, reviewed like any other, which adds a row to the table below and
-says which counts each change answers, so the next retro sees whether that count fell.
+says which counts each change answers, so the next retro sees whether that count fell. The row and
+the PR name the set behind each count (which PRs, which issues, closed since when), and `flaky`
+issues are counted apart from escaped bugs.
 
 **Done.** The system is stable when two retros in a row change no rules and the last batch averages
 under one blocking finding per PR. From then on the retro runs once per release only, and any new
@@ -471,6 +512,7 @@ under one blocking finding per PR. From then on the retro runs once per release 
 
 | Retro | PRs | Ready on the first round | Blocking findings per PR | Escaped bugs | What changed |
 | --- | --- | --- | --- | --- | --- |
+| 2026-10-30 | #163–#193, 14 with code | 4 of 16 reviewed, 3 of 14 with code; #179 merged without a round, the one breach of the gate | 1.36 (19 in the 14 with code) | 12 closed since the last retro (10 `uncovered`, 2 `environment`), plus 1 `flaky` (#190) | `npm run test:mutants` and one CI run per PR head, survivors accounted for in the PR (A·clear 12, K·clear 4, B·clear 2). The neighbours of a change (10 `uncovered`). A second copy inside a file, fake timers, comments on assertions (F·gap 4). Who owns a test, and the set behind a retro's counts (H·gap 3). A docs prompt in the template, and wrapping is no finding (H·clear 8). The `flaky` class (I·gap 1). A `/code-review` bug is recorded under check A, which the skill now says, so A will rise next retro. Checks D and K in the skill point here. The gate stays as it is, docs-only PRs included |
 | 2026-10-29 | #136–#162, 10 with code | 2 of 11 reviewed (10 with code and #136) | 0.9 (9 in the 10 with code), plus 3 in #136 | 10 closed since the last retro (8 `uncovered`, 2 `environment`) | Every round is posted with the commit both reviews saw, and a PR merges only on a posted "ready to merge" at its head. Nothing else: most of the batch and every escaped bug were written before #136, so the next batch judges the new rules |
 | 2026-10-28 | #116–#135, 16 with code | 3 of 16 | 1.25 (20) | 0 | Layers 2 and 3 renamed and widened, mock assertions, a test that can fail, wiring places, error paths, routes and fakes, baselines, the Tests table, the review rounds, this section, TZ pinned to UTC |
 
