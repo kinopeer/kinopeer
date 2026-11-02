@@ -446,9 +446,7 @@ verdict with the commit both reviews saw (`**Verdict: ready to merge** at <short
 is posted, whichever session runs it: a review that stays in a chat is invisible to whoever merges
 and to the retro. A PR merges only on a posted "ready to merge" at its current head; any commit
 after that verdict, a merge of `main` included, needs another round, which checks only what the PR's
-own diff adds or changes. A docs-only PR that doesn't touch the test rules (this file, the skill,
-the PR template, `.oxlintrc.json`, the test conventions in `CLAUDE.md`) skips the round and merges on
-the owner's approval. A real bug that
+own diff adds or changes. A real bug that
 `/code-review` finds in an open PR's own change is fixed in that PR, red test first, without an
 issue: it never reached `main`. The next test-review round records the missed test as a finding
 under check A. A bug that reached `main` follows
@@ -509,7 +507,7 @@ under one blocking finding per PR. From then on the retro runs once per release 
 
 | Retro | PRs | Ready on the first round | Blocking findings per PR | Escaped bugs | What changed |
 | --- | --- | --- | --- | --- | --- |
-| 2026-10-30 | #163–#193, 14 with code | 4 of 16 reviewed, 3 of 14 with code | 1.36 (19 in the 14 with code) | 12 closed since the last retro (10 `uncovered`, 2 `environment`), plus 1 `flaky` (#190) | `npm run test:mutants` and one CI run per PR head, survivors accounted for in the PR (A·clear 12, K·clear 4, B·clear 2). The neighbours of a change (10 `uncovered`). A second copy inside a file, fake timers, comments on assertions (F·gap 4). Who owns a test, and the set behind a retro's counts (H·gap 3). A docs prompt in the template, and wrapping is no finding (H·clear 8). The `flaky` class (I·gap 1). A `/code-review` bug is recorded under check A, which the skill now says, so A will rise next retro. Checks D and K in the skill point here. A docs-only PR outside the test rules skips the round |
+| 2026-10-30 | #163–#193, 14 with code | 4 of 16 reviewed, 3 of 14 with code; #179 merged without a round, the one breach of the gate | 1.36 (19 in the 14 with code) | 12 closed since the last retro (10 `uncovered`, 2 `environment`), plus 1 `flaky` (#190) | `npm run test:mutants` and one CI run per PR head, survivors accounted for in the PR (A·clear 12, K·clear 4, B·clear 2). The neighbours of a change (10 `uncovered`). A second copy inside a file, fake timers, comments on assertions (F·gap 4). Who owns a test, and the set behind a retro's counts (H·gap 3). A docs prompt in the template, and wrapping is no finding (H·clear 8). The `flaky` class (I·gap 1). A `/code-review` bug is recorded under check A, which the skill now says, so A will rise next retro. Checks D and K in the skill point here. The gate stays as it is, docs-only PRs included |
 | 2026-10-29 | #136–#162, 10 with code | 2 of 11 reviewed (10 with code and #136) | 0.9 (9 in the 10 with code), plus 3 in #136 | 10 closed since the last retro (8 `uncovered`, 2 `environment`) | Every round is posted with the commit both reviews saw, and a PR merges only on a posted "ready to merge" at its head. Nothing else: most of the batch and every escaped bug were written before #136, so the next batch judges the new rules |
 | 2026-10-28 | #116–#135, 16 with code | 3 of 16 | 1.25 (20) | 0 | Layers 2 and 3 renamed and widened, mock assertions, a test that can fail, wiring places, error paths, routes and fakes, baselines, the Tests table, the review rounds, this section, TZ pinned to UTC |
 

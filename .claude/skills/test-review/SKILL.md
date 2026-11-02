@@ -40,8 +40,7 @@ follows the conversation's language. Code, file paths and quotes stay as they ar
 Group the changed files: production code (`src/` outside tests, `server/*.ts`), tests
 (`*.test.ts(x)`, `e2e/`), shared test data (`src/test/`, `server/test/`), baselines, config
 (`vite.config.ts`, `playwright*.config.ts`, `.oxlintrc.json`, `tsconfig*.json`, CI) and docs. Each
-group has its own checks below; a PR without production changes skips A. A docs-only PR that doesn't
-touch the test rules isn't reviewed (`docs/TESTING.md` → Reviewing a PR's tests).
+group has its own checks below; a PR without production changes skips A.
 
 ## 3. Checks
 
