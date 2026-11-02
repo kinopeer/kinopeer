@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { SaveLocations } from '../api/qbittorrent'
-import { addFolder, categoryFolder, isAbsolute, knownFolders } from './folders'
+import { addFolder, categoryFolder, isAbsolute, knownFolders, sameFolder } from './folders'
 
 const locations = (fields: Partial<SaveLocations> = {}): SaveLocations => ({
   categories: [],
@@ -87,6 +87,12 @@ describe('addFolder', () => {
   it('is the default save path in qBittorrent’s default manual mode, or without a category', () => {
     expect(addFolder('TV', { ...where, categoryPaths: false })).toBe('/downloads')
     expect(addFolder('', where)).toBe('/downloads')
+  })
+})
+
+describe('sameFolder', () => {
+  it('keeps the root, which is all separator', () => {
+    expect(sameFolder('/')).toBe('/')
   })
 })
 
