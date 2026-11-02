@@ -1,4 +1,4 @@
-import { opensKeyboard } from './keyboardInset'
+import { keyboardArea, opensKeyboard } from './keyboardInset'
 
 /** Where a field goes while Safari decides whether to scroll to it: far above the page's top. */
 const OUT_OF_VIEW = 'translateY(-2000px)'
@@ -22,7 +22,7 @@ const PINNED_AT = 1
 type Axis = 'x' | 'y'
 
 let holds = 0
-let stop: (() => void) | null = null
+let current: { stop: () => void; pinAhead: () => void } | null = null
 /**
  * Keeps the page behind an open modal still on a touch screen. `overflow: hidden` on <html>
  * (base.css) stops a finger on the page, but with the on-screen keyboard open iOS Safari still
@@ -36,32 +36,36 @@ let stop: (() => void) | null = null
  *   focus, so Safari scrolls nothing to show it (for `NAVIGATION_HOLD_MS` when the keyboard's
  *   arrows moved focus there); then it's brought into view in its own scroller (the sheet's body),
  *   once the keyboard has opened;
- * - from the start of the hold, the window sits by the top (`PINNED_AT`) and the body's negative
- *   margin keeps the page where it was: on a page scrolled further, opening the keyboard takes the
- *   window to the top in Safari whatever a sheet's field is, and scrolling back from there leaves
- *   the layout viewport behind, up by the keyboard's height, with sticky bars and the backdrop in
- *   it. It's done as the modal opens because doing it as a field gets focus, while the keyboard
- *   starts to rise, shows on a phone: the margin reaches the screen before the scroll does. With
- *   the keyboard already open over the page, it waits for a field in the modal;
+ * - from the moment a modal with such a field opens, the window sits by the top (`PINNED_AT`) and
+ *   the body's negative margin keeps the page where it was: on a page scrolled further, opening the
+ *   keyboard takes the window to the top in Safari whatever a sheet's field is, and scrolling back
+ *   from there leaves the layout viewport behind, up by the keyboard's height, with sticky bars and
+ *   the backdrop in it. Doing this when a field gets focus, with the page and the sheet in place
+ *   until then, made them jump on a phone, likely because the margin reached the screen before the
+ *   scroll did. With the keyboard already open over the page, or a field that came later, it waits
+ *   for the field's focus. A modal with no such field leaves the page alone: nothing opens the
+ *   keyboard, and a link in it leaves the page's real place for the browser to bring back;
  * - if the page scrolls anyway, it goes back to where the hold keeps it, so nothing may scroll the
  *   page on purpose while a modal is open.
  *
- * Returns a function that releases this hold. Not under a mouse, like base.css.
+ * `modal` is the modal being opened, with its contents committed. Returns a function that releases
+ * this hold. Not under a mouse, like base.css.
  */
-export function holdPage(view: Window = window): () => void {
+export function holdPage(modal?: Element | null, view: Window = window): () => void {
   if (!view.matchMedia?.('(pointer: coarse)').matches) return () => {}
-  if (holds++ === 0) stop = start(view)
+  if (holds++ === 0) current = start(view)
+  if (modal && Array.from(modal.querySelectorAll('input, textarea')).some(opensKeyboard)) current?.pinAhead()
   let released = false
   return () => {
     if (released) return
     released = true
     if (--holds > 0) return
-    stop?.()
-    stop = null
+    current?.stop()
+    current = null
   }
 }
 
-function start(view: Window): () => void {
+function start(view: Window) {
   const doc = view.document
   const viewport = view.visualViewport
   const { scrollX, scrollY } = view
@@ -100,7 +104,14 @@ function start(view: Window): () => void {
     }
     if (!scrolls) event.preventDefault()
   }
-  const keyboardOpen = () => !!viewport && viewport.height < view.innerHeight
+  const keyboardOpen = () =>
+    !!viewport &&
+    !!keyboardArea({
+      layoutHeight: view.innerHeight,
+      height: viewport.height,
+      offsetTop: viewport.offsetTop,
+      scale: viewport.scale,
+    })
   const reveal = () => {
     // Out of view, it would be measured 2000px up; the end of the hold reveals it.
     if (field && doc.activeElement === field && field.style.transform !== OUT_OF_VIEW) bringIntoView(field, view)
@@ -142,17 +153,21 @@ function start(view: Window): () => void {
   view.addEventListener('scroll', onScroll)
   // The keyboard opening shrinks the sheet, which can hide the field again.
   viewport?.addEventListener('resize', reveal)
-  if (!keyboardOpen()) pin()
   // Its focus came before this hold: StrictMode's second effect run, after showModal focused it.
   const focused = doc.activeElement
   if (focused instanceof HTMLElement && opensKeyboard(focused)) field = focused
-  return () => {
-    doc.removeEventListener('touchstart', onTouchStart, { capture: true })
-    doc.removeEventListener('touchmove', onTouchMove, { capture: true })
-    doc.removeEventListener('focus', onFocus, true)
-    view.removeEventListener('scroll', onScroll)
-    viewport?.removeEventListener('resize', reveal)
-    unpin?.()
+  return {
+    stop() {
+      doc.removeEventListener('touchstart', onTouchStart, { capture: true })
+      doc.removeEventListener('touchmove', onTouchMove, { capture: true })
+      doc.removeEventListener('focus', onFocus, true)
+      view.removeEventListener('scroll', onScroll)
+      viewport?.removeEventListener('resize', reveal)
+      unpin?.()
+    },
+    pinAhead() {
+      if (!keyboardOpen()) pin()
+    },
   }
 }
 

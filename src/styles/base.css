@@ -80,6 +80,12 @@ h4 {
     animation-iteration-count: 1 !important;
     transition-duration: 1ms !important;
   }
+
+  /* Its margin goes back in one step when a modal lets the page go (holdPage.ts): on its way, the
+     page would be too short for the scroll back. */
+  body {
+    transition-duration: 0s !important;
+  }
 }
 
 /* Type scale: the roles from tokens.css. The font shorthand resets font-variant-numeric, so .ks-num

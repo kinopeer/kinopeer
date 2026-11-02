@@ -90,6 +90,15 @@ describe('Dialog', () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 
+  it('leaves the page where it is when it holds no text field', () => {
+    stubTouchScreen()
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(200)
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    render(<Dialog open onClose={() => {}} title="Delete" actions={<button type="button">Delete</button>}>{null}</Dialog>)
+    expect(document.body.style.marginTop).toBe('')
+    expect(scrollTo).not.toHaveBeenCalled()
+  })
+
   it('puts the page back before the next screen\'s layout effects, so it can restore its own place', () => {
     stubTouchScreen()
     vi.spyOn(window, 'scrollY', 'get').mockReturnValue(200)
