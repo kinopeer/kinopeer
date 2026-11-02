@@ -27,7 +27,7 @@ export function Dialog({ open, onClose, title, icon, tone, actions, className, c
   const titleId = useId()
 
   // A layout effect, as in Sheet: the page is back before the next screen's layout effects.
-  useLayoutEffect(() => (open ? holdPage() : undefined), [open])
+  useLayoutEffect(() => (open ? holdPage(ref.current) : undefined), [open])
 
   useEffect(() => {
     const dialog = ref.current

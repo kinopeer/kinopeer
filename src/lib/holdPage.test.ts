@@ -13,10 +13,26 @@ function stubScreen({ coarse = true } = {}) {
   vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => frames.push(callback))
 }
 
-const hold = () => {
-  const release = holdPage()
+const hold = (modal?: Element) => {
+  const release = holdPage(modal)
   releases.push(release)
   return release
+}
+
+/** A modal with a text field in it, as `Sheet` and `Dialog` hand it over once it's committed. */
+function modalWithField() {
+  const modal = document.createElement('dialog')
+  const field = document.createElement('input')
+  modal.append(field)
+  document.body.append(modal)
+  return { modal, field }
+}
+
+/** A visual viewport: `height` is 410 for one with the keyboard open over the page, by default. */
+function stubViewport(size: { height?: number; scale?: number } = { height: 410 }) {
+  const viewport = Object.assign(new EventTarget(), size)
+  vi.stubGlobal('visualViewport', viewport)
+  return viewport
 }
 
 const nextFrame = () => {
@@ -168,7 +184,7 @@ describe('holdPage', () => {
 
   it("keeps a field the keyboard's arrows moved focus to out of the page until Safari has looked", () => {
     vi.useFakeTimers({ toFake: ['setTimeout'] })
-    vi.stubGlobal('visualViewport', Object.assign(new EventTarget(), { height: 410 }))
+    stubViewport()
     vi.stubGlobal('innerHeight', 714)
     stubScreen()
     hold()
@@ -184,7 +200,7 @@ describe('holdPage', () => {
   })
 
   it('puts a tapped field back after a frame with the keyboard open', () => {
-    vi.stubGlobal('visualViewport', Object.assign(new EventTarget(), { height: 410 }))
+    stubViewport()
     vi.stubGlobal('innerHeight', 714)
     stubScreen()
     hold()
@@ -199,7 +215,7 @@ describe('holdPage', () => {
 
   it('takes a tap for the focus it led to only', () => {
     vi.useFakeTimers({ toFake: ['setTimeout'] })
-    vi.stubGlobal('visualViewport', Object.assign(new EventTarget(), { height: 410 }))
+    stubViewport()
     vi.stubGlobal('innerHeight', 714)
     stubScreen()
     hold()
@@ -217,7 +233,7 @@ describe('holdPage', () => {
 
   it('takes no swipe for a tap', () => {
     vi.useFakeTimers({ toFake: ['setTimeout'] })
-    vi.stubGlobal('visualViewport', Object.assign(new EventTarget(), { height: 410 }))
+    stubViewport()
     vi.stubGlobal('innerHeight', 714)
     stubScreen()
     hold()
@@ -233,8 +249,7 @@ describe('holdPage', () => {
 
   it('leaves the box alone while the field is out of view, then scrolls it in', () => {
     vi.useFakeTimers({ toFake: ['setTimeout'] })
-    const viewport = Object.assign(new EventTarget(), { height: 410 })
-    vi.stubGlobal('visualViewport', viewport)
+    const viewport = stubViewport()
     vi.stubGlobal('innerHeight', 714)
     stubScreen()
     hold()
@@ -291,8 +306,7 @@ describe('holdPage', () => {
   })
 
   it('keeps the top of a field taller than its box in view', () => {
-    const viewport = new EventTarget()
-    vi.stubGlobal('visualViewport', viewport)
+    const viewport = stubViewport({ height: window.innerHeight })
     stubScreen()
     hold()
     const { box, field } = fieldInBody(200, 120)
@@ -303,8 +317,7 @@ describe('holdPage', () => {
   })
 
   it('scrolls the field into view again once the keyboard has shrunk its box', () => {
-    const viewport = new EventTarget()
-    vi.stubGlobal('visualViewport', viewport)
+    const viewport = stubViewport({ height: window.innerHeight })
     stubScreen()
     hold()
     const { box, field } = fieldInBody(200)
@@ -317,8 +330,7 @@ describe('holdPage', () => {
   })
 
   it('leaves the box alone when the field lost focus before the keyboard resized it', () => {
-    const viewport = new EventTarget()
-    vi.stubGlobal('visualViewport', viewport)
+    const viewport = stubViewport({ height: window.innerHeight })
     stubScreen()
     hold()
     const { box, field } = fieldInBody(200)
@@ -337,117 +349,134 @@ describe('holdPage', () => {
     expect(window.scrollTo).toHaveBeenCalledWith(0, 300)
   })
 
-  it('keeps the window a pixel from the top from a field\'s focus on, the page where it was', () => {
+  it('keeps the window a pixel from the top from the moment a modal with a field opens, the page where it was', () => {
     stubScreen()
     vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
-    hold()
-    const field = document.createElement('input')
-    document.body.append(field)
-
-    field.focus()
+    hold(modalWithField().modal)
     expect(document.body.style.marginTop).toBe('-299px')
     expect(window.scrollTo).toHaveBeenLastCalledWith(0, 1)
 
     window.dispatchEvent(new Event('scroll'))
     expect(window.scrollTo).toHaveBeenCalledTimes(2)
     expect(window.scrollTo).toHaveBeenLastCalledWith(0, 1)
+  })
 
-    field.blur()
+  it('leaves the page where it is for a modal with no field that opens the keyboard', () => {
+    stubScreen()
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
+    const modal = document.createElement('dialog')
+    const checkbox = document.createElement('input')
+    checkbox.type = 'checkbox'
+    modal.append(checkbox, document.createElement('button'))
+    document.body.append(modal)
+
+    hold(modal)
+    expect(document.body.style.marginTop).toBe('')
+    expect(window.scrollTo).not.toHaveBeenCalled()
+  })
+
+  it('takes the page for a modal with a field that opens over one without', () => {
+    stubScreen()
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
+    hold(document.createElement('dialog'))
+    hold(modalWithField().modal)
     expect(document.body.style.marginTop).toBe('-299px')
   })
 
   it('leaves a page pulled past its top alone too', () => {
     stubScreen()
     vi.spyOn(window, 'scrollY', 'get').mockReturnValue(-30)
-    hold()
-    const field = document.createElement('input')
-    document.body.append(field)
-
-    field.focus()
+    hold(modalWithField().modal)
     expect(document.body.style.marginTop).toBe('')
     expect(window.scrollTo).not.toHaveBeenCalled()
   })
 
   it('leaves a page at the top where it is, so a field brings no scroll', () => {
     stubScreen()
-    hold()
-    const field = document.createElement('input')
-    document.body.append(field)
-
+    const { modal, field } = modalWithField()
+    hold(modal)
     field.focus()
     expect(document.body.style.marginTop).toBe('')
     expect(window.scrollTo).not.toHaveBeenCalled()
   })
 
-  it('leaves the page where it is until a field that opens the keyboard gets focus', () => {
+  it('takes a viewport as tall as the window for a closed keyboard', () => {
+    stubViewport({ height: window.innerHeight })
     stubScreen()
     vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
-    hold()
+    hold(modalWithField().modal)
+    expect(document.body.style.marginTop).toBe('-299px')
+  })
+
+  it('takes a viewport a fraction of a pixel short for a closed keyboard', () => {
+    stubViewport({ height: window.innerHeight - 0.4 })
+    stubScreen()
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
+    hold(modalWithField().modal)
+    expect(document.body.style.marginTop).toBe('-299px')
+  })
+
+  it('takes a viewport pinch zoom shrank for a closed keyboard', () => {
+    stubViewport({ height: 410, scale: 2 })
+    stubScreen()
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
+    hold(modalWithField().modal)
+    expect(document.body.style.marginTop).toBe('-299px')
+  })
+
+  it('waits for a field that opens the keyboard while the keyboard is open over the page', () => {
+    stubViewport()
+    stubScreen()
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
+    const { modal, field } = modalWithField()
     const checkbox = document.createElement('input')
     checkbox.type = 'checkbox'
-    document.body.append(checkbox)
+    modal.append(checkbox)
+    hold(modal)
+    expect(document.body.style.marginTop).toBe('')
+    expect(window.scrollTo).not.toHaveBeenCalled()
 
     checkbox.focus()
     expect(document.body.style.marginTop).toBe('')
-    expect(window.scrollTo).not.toHaveBeenCalled()
+
+    field.focus()
+    expect(document.body.style.marginTop).toBe('-299px')
+    expect(window.scrollTo).toHaveBeenLastCalledWith(0, 1)
   })
 
-  it('takes a field in an open modal that has focus when the hold begins, as StrictMode\'s second effect run finds it', () => {
-    const viewport = new EventTarget()
-    vi.stubGlobal('visualViewport', viewport)
+  it('takes a field that has focus when the hold begins, as StrictMode\'s second effect run finds it', () => {
+    const viewport = stubViewport({ height: window.innerHeight })
     stubScreen()
-    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
     const release = hold()
     const { box, field } = fieldInBody(200)
-    const modal = document.createElement('dialog')
-    modal.setAttribute('open', '')
-    modal.append(box)
-    document.body.append(modal)
     field.focus()
     release()
-    expect(document.body.style.marginTop).toBe('')
 
     hold()
-    expect(document.body.style.marginTop).toBe('-299px')
-
     nextFrame()
     shrink(box, viewport)
     expect(box.scrollTop).toBe(68)
   })
 
-  it('leaves the page alone when what has focus in a modal opens no keyboard', () => {
+  it('leaves the box alone when what has focus when the hold begins opens no keyboard', () => {
+    const viewport = stubViewport({ height: window.innerHeight })
     stubScreen()
-    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
-    const modal = document.createElement('dialog')
-    modal.setAttribute('open', '')
-    const button = document.createElement('button')
-    modal.append(button)
-    document.body.append(modal)
-    button.focus()
-
-    hold()
-    expect(document.body.style.marginTop).toBe('')
-    expect(window.scrollTo).not.toHaveBeenCalled()
-  })
-
-  it('leaves the page alone when the field with focus is on the page, with the keyboard open over it', () => {
-    stubScreen()
-    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
-    const field = document.createElement('input')
-    document.body.append(field)
+    const { box, field } = fieldInBody(200)
+    field.type = 'checkbox'
     field.focus()
 
     hold()
-    expect(document.body.style.marginTop).toBe('')
-    expect(window.scrollTo).not.toHaveBeenCalled()
+    shrink(box, viewport)
+    expect(box.scrollTop).toBe(0)
   })
 
   it('moves the window once, however many fields get focus', () => {
     stubScreen()
     vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
-    const release = hold()
-    const [first, second] = [document.createElement('input'), document.createElement('input')]
-    document.body.append(first, second)
+    const { modal, field: first } = modalWithField()
+    const second = document.createElement('input')
+    modal.append(second)
+    const release = hold(modal)
 
     first.focus()
     second.focus()
@@ -461,12 +490,9 @@ describe('holdPage', () => {
   it('puts the page back once the last hold is released', () => {
     stubScreen()
     vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
-    const release = hold()
-    const inner = hold()
     document.body.style.marginTop = '8px'
-    const field = document.createElement('input')
-    document.body.append(field)
-    field.focus()
+    const release = hold(modalWithField().modal)
+    const inner = hold()
 
     inner()
     expect(document.body.style.marginTop).toBe('-299px')

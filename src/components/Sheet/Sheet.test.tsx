@@ -703,6 +703,15 @@ describe('Sheet', () => {
     })
   })
 
+  it('leaves the page where it is when it holds no text field', () => {
+    stubTouchScreen()
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(200)
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    render(<Sheet open onClose={() => {}} title="Move files">{null}</Sheet>)
+    expect(document.body.style.marginTop).toBe('')
+    expect(scrollTo).not.toHaveBeenCalled()
+  })
+
   it('puts the page back before the next screen\'s layout effects, so it can restore its own place', () => {
     stubTouchScreen()
     vi.spyOn(window, 'scrollY', 'get').mockReturnValue(200)
@@ -721,7 +730,6 @@ describe('Sheet', () => {
       </Sheet>
     )
     const { rerender } = render(page)
-    screen.getByRole('textbox', { name: 'Folder', hidden: true }).focus()
     expect(document.body.style.marginTop).toBe('-199px')
 
     rerender(<NextScreen />)
