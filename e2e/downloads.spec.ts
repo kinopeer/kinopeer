@@ -171,6 +171,17 @@ test.describe('downloads, phone', () => {
     await expect(page).toHaveScreenshot('list-scrolled-dark-ru.png')
   })
 
+  test('the list stays out of the status bar above the pinned filters', async ({ page }) => {
+    // Chromium's own safe area is empty: this gives env(safe-area-inset-top) a notched iPhone's.
+    const devTools = await page.context().newCDPSession(page)
+    await devTools.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 59 } })
+    await openDownloads(page, { downloadsView: 'grid' })
+    await page.evaluate(() => window.scrollTo(0, 600))
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(600)
+    await expect(page.getByRole('heading', { level: 1, name: 'Загрузки' })).not.toBeInViewport()
+    await expect(page).toHaveScreenshot('grid-scrolled-safe-area-dark-ru.png')
+  })
+
   test('nothing downloaded yet', async ({ page }) => {
     await openApp(page, '/', { torrents: [] })
     await expect(page.getByText('Загрузок пока нет')).toBeVisible()
