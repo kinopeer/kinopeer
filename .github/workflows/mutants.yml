@@ -1,7 +1,7 @@
 name: Mutants
 
-# One run per PR head, not one per push: when a PR is opened ready or marked ready, and by hand after
-# later commits (docs/TESTING.md → A test that can fail). Survivors don't fail the job; its comment
+# One run per PR head, not one per push: when a PR is opened ready or marked ready, or when started by
+# hand (docs/TESTING.md → A test that can fail). Survivors don't fail the job; its comment
 # is the count the review compares with the PR's Mutants line.
 on:
   pull_request:
