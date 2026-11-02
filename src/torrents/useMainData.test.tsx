@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
 import { MainDataProvider } from './MainDataProvider'
 import { TorrentRequestsProvider } from './TorrentRequestsProvider'
-import { OFFLINE_POLL_INTERVAL_MS, POLL_INTERVAL_MS, useMainData } from './useMainData'
+import { OFFLINE_POLL_INTERVAL_MS, POLL_INTERVAL_MS, useFreeSpace, useMainData } from './useMainData'
 import { useTorrentRequests } from './useTorrentRequests'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => {
@@ -113,6 +113,38 @@ describe('useMainData', () => {
     unmount()
     await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS * 3)
     expect(getMainData).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('useFreeSpace', () => {
+  it('polls on its own outside a provider and renders only when the free space changes', async () => {
+    getMainData.mockResolvedValue({ rid: 1, full_update: true, server_state: { free_space_on_disk: 40e9, dl_info_speed: 1 } })
+    let renders = 0
+    const { result } = renderHook(() => {
+      renders += 1
+      return useFreeSpace()
+    })
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    expect(result.current).toBe(40e9)
+    const settled = renders
+
+    getMainData.mockResolvedValue({ rid: 2, server_state: { dl_info_speed: 2 } })
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS))
+    expect(getMainData).toHaveBeenCalledTimes(2)
+    expect(renders).toBe(settled)
+
+    getMainData.mockResolvedValue({ rid: 3, server_state: { free_space_on_disk: 30e9 } })
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS))
+    expect(result.current).toBe(30e9)
+  })
+
+  it('shares the provider’s poll', async () => {
+    getMainData.mockResolvedValue({ rid: 1, full_update: true, server_state: { free_space_on_disk: 40e9 } })
+    const wrapper = ({ children }: { children: ReactNode }) => <MainDataProvider onUnauthorized={vi.fn()}>{children}</MainDataProvider>
+    const { result } = renderHook(() => [useMainData(), useFreeSpace()] as const, { wrapper })
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    expect(getMainData).toHaveBeenCalledTimes(1)
+    expect(result.current[1]).toBe(40e9)
   })
 })
 
