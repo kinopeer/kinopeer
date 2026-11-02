@@ -1,6 +1,7 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { Profiler, type ReactNode } from 'react'
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import * as prowlarr from '../api/prowlarr'
 import type { Release } from '../api/prowlarr'
 import * as qbt from '../api/qbittorrent'
@@ -8,6 +9,7 @@ import * as adding from '../releases/addRelease'
 import { parseRelease } from '../releases/parseRelease'
 import { resetSettings, updateSettings } from '../settings/settings'
 import * as torrentFile from '../torrents/torrentFile'
+import { MainDataContext, createMainDataStore, type MainDataStore } from '../torrents/useMainData'
 import { AddReleaseSheet } from './AddReleaseSheet'
 import { saying } from '../test/render'
 
@@ -27,6 +29,8 @@ vi.mock('../torrents/torrentFile', async (importOriginal) => ({
 }))
 
 const fetchRelease = vi.mocked(prowlarr.fetchRelease)
+const getMainData = vi.mocked(qbt.getMainData)
+const commits = vi.fn()
 const addRelease = vi.mocked(adding.addRelease)
 const readTorrentFile = vi.mocked(torrentFile.readTorrentFile)
 
@@ -52,7 +56,15 @@ const META = {
   totalSize: 50e9,
 }
 
-function renderSheet(release = RELEASE) {
+/** The app's shared poll, in use by a screen and answered once. */
+async function runningPoll() {
+  const store = createMainDataStore()
+  onTestFinished(store.subscribe(() => {}))
+  await waitFor(() => expect(store.getSnapshot().data).not.toBeNull())
+  return store
+}
+
+function renderSheet(release = RELEASE, store?: MainDataStore) {
   const onAdded = vi.fn()
   const onClose = vi.fn()
   render(
@@ -63,6 +75,17 @@ function renderSheet(release = RELEASE) {
       onClose={onClose}
       onAdded={onAdded}
     />,
+    {
+      wrapper:
+        store &&
+        (({ children }: { children: ReactNode }) => (
+          <MainDataContext value={store}>
+            <Profiler id="sheet" onRender={commits}>
+              {children}
+            </Profiler>
+          </MainDataContext>
+        )),
+    },
   )
   return { onAdded, onClose }
 }
@@ -81,7 +104,7 @@ beforeEach(() => {
     categoryPaths: true,
     subcategories: false,
   })
-  vi.mocked(qbt.getMainData).mockResolvedValue({ rid: 1, server_state: { free_space_on_disk: 40e9 } })
+  getMainData.mockResolvedValue({ rid: 1, server_state: { free_space_on_disk: 40e9 } })
   addRelease.mockResolvedValue()
 })
 
@@ -209,7 +232,7 @@ describe('AddReleaseSheet', () => {
   it('works without categories, a default path or the free space from qBittorrent', async () => {
     // getSaveLocations turns qBittorrent's refusals into empty answers.
     vi.mocked(qbt.getSaveLocations).mockResolvedValue({ categories: [], defaultPath: '', categoryPaths: false, subcategories: false })
-    vi.mocked(qbt.getMainData).mockRejectedValue(new TypeError('Failed to fetch'))
+    getMainData.mockRejectedValue(new TypeError('Failed to fetch'))
     renderSheet()
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
     const files = await within(sheet).findByRole('button', { name: /Files: all \(3\)/ })
@@ -253,6 +276,65 @@ describe('AddReleaseSheet', () => {
     expect(within(screen.getByRole('dialog', { name: 'Add to downloads' })).queryByText('Not enough free space')).not.toBeInTheDocument()
   })
 
+  it('takes the free space from the poll another screen runs, without asking qBittorrent for everything again', async () => {
+    const store = await runningPoll()
+    renderSheet(RELEASE, store)
+    const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+    expect(await within(sheet).findByRole('status', { name: saying('Not enough free space') })).toBeInTheDocument()
+    // rid 0 asks for every torrent, and it would make the poll's next answer a full one too.
+    expect(getMainData.mock.calls.filter(([rid]) => rid === 0)).toHaveLength(1)
+  })
+
+  it('doesn’t wait for the free space: the warning comes with the poll’s first answer', async () => {
+    let answer: (data: qbt.MainData) => void = () => {}
+    getMainData.mockReturnValueOnce(new Promise((resolve) => (answer = resolve)))
+    renderSheet()
+    const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+    expect(await within(sheet).findByText('TV → /data/tv')).toBeInTheDocument()
+    const files = await within(sheet).findByRole('button', { name: /Files: all \(3\)/ })
+    expect(files).not.toHaveTextContent('Free:')
+    expect(within(sheet).queryByRole('status', { name: saying('Not enough free space') })).not.toBeInTheDocument()
+
+    answer({ rid: 1, server_state: { free_space_on_disk: 40e9 } })
+    expect(await within(sheet).findByRole('status', { name: saying('Not enough free space') })).toBeInTheDocument()
+    expect(files).toHaveTextContent(/Free: 40\.0\sGB/)
+  })
+
+  it('keeps the warning and the file picker current with the poll while it’s open', async () => {
+    const store = await runningPoll()
+    renderSheet(RELEASE, store)
+    const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+    await within(sheet).findByRole('status', { name: saying('Not enough free space') })
+    await userEvent.click(await within(sheet).findByRole('button', { name: /Files: all \(3\)/ }))
+    const picker = screen.getByRole('dialog', { name: 'Select files' })
+    expect(within(picker).getByText('Not enough free space')).toBeInTheDocument()
+
+    getMainData.mockResolvedValue({ rid: 2, server_state: { free_space_on_disk: 80e9 } })
+    act(() => store.refresh())
+    expect(await within(picker).findByText(/Free: 80\.0\sGB/)).toBeInTheDocument()
+    expect(within(picker).queryByText('Not enough free space')).not.toBeInTheDocument()
+
+    await userEvent.click(within(picker).getByRole('button', { name: 'Done' }))
+    const back = screen.getByRole('dialog', { name: 'Add to downloads' })
+    expect(within(back).getByRole('button', { name: /Files: all \(3\)/ })).toHaveTextContent(/Free: 80\.0\sGB/)
+    expect(within(back).queryByRole('status', { name: saying('Not enough free space') })).not.toBeInTheDocument()
+  })
+
+  it('doesn’t render again, the file picker included, for a poll that leaves the free space as it was', async () => {
+    const store = await runningPoll()
+    renderSheet(RELEASE, store)
+    const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+    await within(sheet).findByRole('status', { name: saying('Not enough free space') })
+    await userEvent.click(await within(sheet).findByRole('button', { name: /Files: all \(3\)/ }))
+    screen.getByRole('dialog', { name: 'Select files' })
+    const settled = commits.mock.calls.length
+
+    getMainData.mockResolvedValue({ rid: 2, server_state: { dl_info_speed: 1 } })
+    act(() => store.refresh())
+    await waitFor(() => expect(store.getSnapshot().data?.server.dl_info_speed).toBe(1))
+    expect(commits).toHaveBeenCalledTimes(settled)
+  })
+
   it('asks only to free up space for a one-file torrent, which has no files to skip', async () => {
     readTorrentFile.mockResolvedValue({ ...META, files: [{ path: 'Breaking Bad', size: 50e9 }] })
     renderSheet()
@@ -263,7 +345,7 @@ describe('AddReleaseSheet', () => {
 
   it('doesn’t warn by the release size when the torrent can’t be fetched', async () => {
     fetchRelease.mockRejectedValue(new prowlarr.ProwlarrError('down', 502, 'upstream'))
-    renderSheet()
+    renderSheet(RELEASE, await runningPoll())
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
     expect(await within(sheet).findByText('TV → /data/tv')).toBeInTheDocument()
     expect(await within(sheet).findByRole('alert', { name: saying('Couldn’t get the torrent from Prowlarr.') })).toBeInTheDocument()
@@ -272,7 +354,7 @@ describe('AddReleaseSheet', () => {
 
   it('doesn’t warn by the release size when the .torrent can’t be read', async () => {
     readTorrentFile.mockRejectedValue(new Error('not bencoded'))
-    renderSheet()
+    renderSheet(RELEASE, await runningPoll())
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
     expect(await within(sheet).findByText('TV → /data/tv')).toBeInTheDocument()
     await waitFor(() => expect(within(sheet).getByRole('button', { name: /^Download · 50\.0\sGB$/ })).toBeEnabled())
@@ -280,8 +362,8 @@ describe('AddReleaseSheet', () => {
   })
 
   it.each([0, -1])('treats %s free as unknown: no warning and no free space shown', async (free) => {
-    vi.mocked(qbt.getMainData).mockResolvedValue({ rid: 1, server_state: { free_space_on_disk: free } })
-    renderSheet()
+    getMainData.mockResolvedValue({ rid: 1, server_state: { free_space_on_disk: free } })
+    renderSheet(RELEASE, await runningPoll())
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
     expect(await within(sheet).findByText('TV → /data/tv')).toBeInTheDocument()
     const files = await within(sheet).findByRole('button', { name: /Files: all \(3\)/ })
@@ -296,7 +378,7 @@ describe('AddReleaseSheet', () => {
 
   it('warns about a magnet link by the release size', async () => {
     fetchRelease.mockResolvedValue({ kind: 'magnet', uri: 'magnet:?xt=urn:btih:abc' })
-    vi.mocked(qbt.getMainData).mockResolvedValue({ rid: 1, server_state: { free_space_on_disk: 10e9 } })
+    getMainData.mockResolvedValue({ rid: 1, server_state: { free_space_on_disk: 10e9 } })
     renderSheet()
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
     expect(await within(sheet).findByText(/Magnet link: all files/)).toBeInTheDocument()
