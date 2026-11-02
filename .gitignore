@@ -33,3 +33,7 @@ CLAUDE.local.md
 
 # npm run test:coverage
 /coverage
+
+# npm run test:mutants
+/reports
+/.stryker-tmp

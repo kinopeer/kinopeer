@@ -1,0 +1,42 @@
+name: Mutants
+
+# One run per PR head, not one per push: when a PR is opened ready or marked ready, and by hand after
+# later commits (docs/TESTING.md → A test that can fail). Survivors don't fail the job; its comment
+# is the count the review compares with the PR's Mutants line.
+on:
+  pull_request:
+    types: [opened, ready_for_review]
+    paths:
+      - 'src/**'
+      - 'server/**'
+  workflow_dispatch:
+
+jobs:
+  mutants:
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The branch itself rather than its merge with main, whole, so the script can find the
+          # lines the branch changed.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run --silent test:mutants > mutants.md
+      - name: Post the survivors on the PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: |
+          cat mutants.md >> "$GITHUB_STEP_SUMMARY"
+          pr=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number')
+          if [ -n "$pr" ]; then gh pr comment "$pr" --body-file mutants.md; fi
