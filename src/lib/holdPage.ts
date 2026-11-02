@@ -150,6 +150,12 @@ function start(view: Window): () => void {
   view.addEventListener('scroll', onScroll)
   // The keyboard opening shrinks the sheet, which can hide the field again.
   viewport?.addEventListener('resize', reveal)
+  // Its focus came before this hold: StrictMode's second effect run, after showModal focused it.
+  const focused = doc.activeElement
+  if (focused instanceof HTMLElement && opensKeyboard(focused)) {
+    field = focused
+    pin()
+  }
   return () => {
     doc.removeEventListener('touchstart', onTouchStart, { capture: true })
     doc.removeEventListener('touchmove', onTouchMove, { capture: true })

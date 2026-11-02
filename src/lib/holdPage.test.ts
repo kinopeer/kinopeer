@@ -377,6 +377,25 @@ describe('holdPage', () => {
     expect(window.scrollTo).not.toHaveBeenCalled()
   })
 
+  it('takes a field that has focus when the hold begins, as StrictMode\'s second effect run finds it', () => {
+    const viewport = new EventTarget()
+    vi.stubGlobal('visualViewport', viewport)
+    stubScreen()
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
+    const release = hold()
+    const { box, field } = fieldInBody(200)
+    field.focus()
+    release()
+    expect(document.body.style.marginTop).toBe('')
+
+    hold()
+    expect(document.body.style.marginTop).toBe('-299px')
+
+    nextFrame()
+    shrink(box, viewport)
+    expect(box.scrollTop).toBe(68)
+  })
+
   it('moves the window once, however many fields get focus', () => {
     stubScreen()
     vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
