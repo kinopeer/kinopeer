@@ -18,6 +18,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "preview"],
       "port": 4173
+    },
+    {
+      "name": "preview-lan",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "preview", "--", "--host"],
+      "port": 4173
     }
   ]
 }
