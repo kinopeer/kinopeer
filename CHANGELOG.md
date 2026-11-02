@@ -2,15 +2,17 @@
 
 Kinoseed follows [semantic versioning](https://semver.org). While the version is 0.x, minor versions may change behavior and settings.
 
-## Unreleased
+## 0.6.1 - 2026-11-02
+
+Fixes: sheets on a phone stay above the keyboard and keep the page behind them still in Safari on iOS, an action on a torrent can't go out twice from different places and says when it fails, and toasts stack instead of hiding each other.
 
 ### Fixed
 
 - Add to downloads, Move files: a category's relative path with a backslash in a folder's name no longer shows as two folders when qBittorrent runs on Linux or macOS. ([#147](https://github.com/MrShakhov/kinoseed/issues/147))
 - Downloads on a phone: the list no longer shows through above the pinned filters, behind the clock and the battery. ([#197](https://github.com/MrShakhov/kinoseed/issues/197))
 - Desktop: Move files or Speed limits opened in a torrent's drawer while a move or save sent from Downloads is still on its way shows it busy, with what's being sent, instead of letting it be sent twice; then it closes, or says why it failed, in the drawer.
-- Pause and resume: one on its way for a torrent shows busy in every place that pauses or resumes it (a row's button, the More menu, the torrent's details or drawer, the selection's bar), instead of letting it be sent twice. Once qBittorrent took it, the torrent shows Paused or its running status right away, everywhere, instead of after the next update. ([#182](https://github.com/MrShakhov/kinoseed/issues/182))
-- Reannounce and force recheck: one on its way for a torrent shows busy in its More menu and recheck confirmation, on any screen, instead of letting it be sent twice after the menu or the confirmation was closed and opened again; a failure then is said in a toast instead of nowhere. Once qBittorrent took a recheck, the torrent shows Checking right away. ([#184](https://github.com/MrShakhov/kinoseed/issues/184))
+- Pause and resume: one on its way for a torrent shows busy in every place that pauses or resumes it (a row's button, the More menu, the torrent's details or drawer, the selection's bar), instead of letting it be sent twice. ([#182](https://github.com/MrShakhov/kinoseed/issues/182))
+- Reannounce and force recheck: one on its way for a torrent shows busy in its More menu and recheck confirmation, on any screen, instead of letting it be sent twice after the menu or the confirmation was closed and opened again; a failure then is said in a toast instead of nowhere. ([#184](https://github.com/MrShakhov/kinoseed/issues/184))
 - Delete: one on its way for a torrent shows busy in every delete confirmation for it (a row's, the selection's, the torrent's details or drawer), instead of letting it be sent twice after the confirmation was closed and opened again; a failure then is said in a toast instead of nowhere. Once qBittorrent took it, the torrents are gone from Downloads right away instead of after the next update. On a phone, a delete that finishes after you left the torrent's page no longer takes you to Downloads. ([#186](https://github.com/MrShakhov/kinoseed/issues/186))
 - Change title and "Yes, right": a title save on its way for a torrent shows busy in Change title opened again and in every "Yes, right" for it (the More menu, the torrent's details or drawer), instead of letting another one be sent; a failure after the sheet or menu was closed is said in a toast instead of nowhere. While a torrent is being deleted, its menu and details no longer let anything else be sent for it. ([#188](https://github.com/MrShakhov/kinoseed/issues/188))
 - File priorities: a change on its way for a file shows what's being sent and can't be sent again, also after leaving the torrent's page and coming back, instead of letting a second change race it; the list no longer shows the old priority again when an update sent before qBittorrent answered comes in; a failure after leaving the page is said in a toast instead of nowhere. ([#192](https://github.com/MrShakhov/kinoseed/issues/192))
@@ -18,7 +20,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 - Phone: the on-screen keyboard no longer covers a sheet's fields (Speed limits, Move files, Change title), as it did in Safari on iOS: the sheet moves up with the keyboard and fits in what it leaves visible, and Save in Speed limits stays pinned at its bottom, as Move does in Move files.
 - Move files: opened again while a move is still being sent, the sheet shows the folder being sent, not the torrent's current one, so trying again after a failure sends that folder.
 - Move files, Speed limits: the fields can't be changed while a move or save is being sent; what was typed then was lost when the sheet closed.
-- Downloads, torrent details: after an action (pause, speed limits, moving files and others) the new state shows right away even when Kinoseed was already asking qBittorrent for an update, instead of up to 2 seconds later.
+- Downloads, torrent details: after an action (pause, speed limits, moving files and others) Kinoseed asks qBittorrent for an update again even when it was already asking for one, instead of waiting up to 2 seconds for the next.
 - A torrent's menu, its delete and recheck confirmations and Change title close when the torrent is deleted and added again between two updates, as the Speed limits and Move files sheets do, instead of staying open for the new one. Confirming a delete then could delete the torrent added again.
 - Phone: the title page's Find releases bar sits right on the tab bar; the page no longer shows through a thin strip between them as it scrolls. ([#194](https://github.com/MrShakhov/kinoseed/issues/194))
 - Phone: with the keyboard open, swiping a sheet or moving between its fields no longer scrolls the page behind it in Safari on iOS, so the sheet doesn't jerk either; the sheet also keeps a small gap above the keyboard.
