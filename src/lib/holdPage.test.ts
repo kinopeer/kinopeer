@@ -369,6 +369,14 @@ describe('holdPage', () => {
     expect(window.scrollTo).not.toHaveBeenCalled()
   })
 
+  it('takes a viewport as tall as the window for a closed keyboard', () => {
+    vi.stubGlobal('visualViewport', Object.assign(new EventTarget(), { height: window.innerHeight }))
+    stubScreen()
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
+    hold()
+    expect(document.body.style.marginTop).toBe('-299px')
+  })
+
   it('waits for a field in the modal while the keyboard is open over the page', () => {
     vi.stubGlobal('visualViewport', Object.assign(new EventTarget(), { height: 410 }))
     stubScreen()
