@@ -19,9 +19,10 @@ follows the conversation's language. Code, file paths and quotes stay as they ar
   which Claude Code cloud sessions are refused. Then `git fetch origin <head.ref>` and diff
   `origin/main...origin/<head.ref>`, leaving PNGs out.
   Without a number: the current branch, `git diff origin/main...HEAD` plus uncommitted changes.
-- From the **Tests** section take three lists: the tests the author added or changed, with the
+- From the **Tests** section take four lists: the tests the author added or changed, with the
   layer named for each and whether it was seen red; **what is declared uncovered and the reason
-  given**; which screenshot baselines changed, why, and how each was checked. From a `fix/` PR
+  given**; the `Mutants` line and what it says of each survivor; which screenshot baselines changed,
+  why, and how each was checked. From a `fix/` PR or the fix of a flaky test
   also take the **Why tests missed it** section (class and action), the linked issue
   (`Closes #n`) and that issue's `test-gap:*` label.
 - A declared-uncovered part is reviewed for its reason, not asked for a test. The accepted
@@ -39,7 +40,8 @@ follows the conversation's language. Code, file paths and quotes stay as they ar
 Group the changed files: production code (`src/` outside tests, `server/*.ts`), tests
 (`*.test.ts(x)`, `e2e/`), shared test data (`src/test/`, `server/test/`), baselines, config
 (`vite.config.ts`, `playwright*.config.ts`, `.oxlintrc.json`, `tsconfig*.json`, CI) and docs. Each
-group has its own checks below; a PR without production changes skips A.
+group has its own checks below; a PR without production changes skips A. A docs-only PR that doesn't
+touch the test rules isn't reviewed (`docs/TESTING.md` → Reviewing a PR's tests).
 
 ## 3. Checks
 
@@ -54,8 +56,10 @@ trusted.
   disabled offline or while busy, a fallback for older stored data. Each place that wires a shared
   component needs its own step; "same code as in X" isn't *covered already*. A new or changed
   route that a client in `src/api/*` calls needs a test in `server/integration/`, and its service's
-  fake the new request, in the same PR; a route no client calls needs its layer-4 test. Missing → check the Tests section's reasons (step 1) → otherwise a
-  finding.
+  fake the new request, in the same PR; a route no client calls needs its layer-4 test. Ask the
+  neighbours of the change too (`docs/TESTING.md` → Choosing a layer). Missing → check the Tests
+  section's reasons (step 1) → otherwise a finding. A bug `/code-review` found in the PR's own change
+  since the last round is a finding here too: the test that should have caught it was missing.
 - **B. Nothing is lost.** For every deleted `it(...)` or deleted assertion, name the test on the
   same or a lower layer that still asserts it, and open it to see that it does. None → finding. In
   Playwright, an assertion that also waited for a state the screenshot needs (a text that appears
@@ -68,53 +72,43 @@ trusted.
   the order of sections, "stays at the top") → wrong layer, it belongs to a screenshot. A layer
   named in the PR that isn't the table's number and name (a sheet in `src/screens/` called layer
   2, "unit", "integration" for a jsdom test) → finding.
-- **D. Behavior, not implementation.** The rule is `docs/TESTING.md` → Choosing a layer → What a
-  mock may be asked. Asserting what a screen hands off to (an API client, a domain action such as
-  `addRelease`, `chooseTitle`, `forgetMatches`, a callback prop such as `onSaved`, a browser API
-  such as `scrollIntoView`) and with what arguments is fine when that hand-off is the screen's
-  behavior. Findings: re-asserting what the action does with those arguments, which its own test
-  owns (the shape `chooseTitle` saves is `titleMatches.test`'s); a call assertion on anything else
-  (i18n, a hook, a helper); a count that isn't itself the behavior, or a behavioral count whose
-  reason neither a comment nor the test's name gives; a class outside a design-system component's
-  own test, other than the cases `docs/TESTING.md` → Roles and names, not classes lists (a class
-  that itself does what the test says, the sidebar's and tab bar's root classes, a decorative
-  image's frame), each with a comment saying what the class does; `expect.anything()` for the
-  argument the test's name is about, or for one that neither another test in the file nor the shared
-  hook's own test asserts (a releases search's options are `useReleases.test`'s).
+- **D. Behavior, not implementation.** A test that breaks `docs/TESTING.md` → Choosing a layer →
+  What a mock may be asked, or Roles and names, not classes → finding.
 - **E. Fakes and fixtures stay true.** A new or changed answer in `server/test/fakes.ts` is
   compared with the middleware it imitates (`server/*.ts`: status codes, `error` codes, body
   shapes) and with what the real service does; a mismatch is `fake-drift` in the making. Shared
   fakes change by addition unless the PR says why; a fake that gains behavior names the service
   version in its comment. A literal that copies a fixture instead of importing it, and a fixture
   the baselines render from changed without re-rendering them → findings.
-- **F. Hygiene.** Real timers or sleeps, `waitFor` with a `timeout` above the default, a spy
-  restored inside `it` instead of `afterEach`, a stubbed global left in place, an index-based query
+- **F. Hygiene.** Real timers or sleeps, `waitFor` with a `timeout` above the default, a spy or
+  fake timers restored inside `it` instead of `afterEach`, a stubbed global left in place, a second
+  copy of a literal or a wrapper in one file, an index-based query
   for an element that has a name of its own (`getAllByRole('button')[1]`; an index is fine when the
   position is what the test says, as the first row after a sort or the current title first),
   `getByText` where a role and name exist, and an error or confirmation found by text or by a bare
   `findByRole('alert'|'status')` with `toHaveTextContent` instead of `{ name: saying(text) }` from
   `src/test/render.tsx`, a class selector for a decorative image whose `src` alone finds it, `{
   force: true }` on a hidden control, `.skip`/`.only`/`.todo`/`fixme`, `retries` above 0, a test
-  title that no longer says what the body does → findings.
+  title or a comment on an assertion that says more than the body checks → findings.
 - **G. Baselines.** Each changed or new PNG is listed in the PR with what changed, why, and how it
   was checked: the diff in `test-results/` looked at, re-rendered with `--update-snapshots=all`
   (a change under the threshold), or new and opened. The listed reason matches the screen. Open
   each new baseline yourself: it shows the state its test name promises. A new screen, sheet,
   dialog or a state with its own layout that has no baseline, only "checked on the stand" → finding.
 - **H. Docs match the code.** A claim the PR adds to `docs/TESTING.md` or `CLAUDE.md` (a comment
-  that exists, a command, a number, a file) is checked against the diff and the tree.
-- **I. A `fix/` PR carries its record.** The issue is linked and labelled `test-gap:<class>`; the
+  that exists, a command, a number, a file) is checked against the diff and the tree, and so is one
+  the diff makes stale, a sentence saying which test owns a statement above all. How a paragraph
+  wraps is not a finding.
+- **I. A `fix/` PR carries its record.** So does the fix of a flaky test. The issue is linked and labelled `test-gap:<class>`; the
   PR says the new test was red before the fix; the class fits the story in the PR; "what changes so
   this class is caught" names a concrete change, not a wish. Missing or vague → finding.
 - **J. Coverage.** `coverage.thresholds` in `vite.config.ts` are not lowered; a PR that says the
   totals fell gives a reason in its Tests section.
-- **K. Each test can fail.** The Tests table says each new or changed test was seen red; a test
-  without that, or one you can see would stay green with its behavior removed, → finding. Read
-  each new test for the shapes in `docs/TESTING.md` → A test that can fail: an absence
-  (`queryBy…` null, `not.toHaveBeenCalled()`) asserted before the test has seen the answer it
-  waits for; a test about one cause that another cause also passes (a "distance" swipe that is
-  also a flick); time read without `vi.setSystemTime`; a time zone set by hand on `process.env.TZ`
-  instead of `vi.stubEnv` with `vi.unstubAllEnvs()` after.
+- **K. Each test can fail.** The Tests table says each new or changed test was seen red, and the
+  `Mutants` line accounts for each survivor in CI's comment on the PR (the latest one, at its
+  commit), an `equivalent` with a reason you agree with; missing either, or a test you can see would
+  stay green with its behavior removed, → finding. Read each new test for the shapes in
+  `docs/TESTING.md` → A test that can fail.
 
 ## 4. Report
 
