@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { UnauthorizedError, getMainData } from '../api/qbittorrent'
+import { freeSpace } from './freeSpace'
 import { EMPTY_SYNC_STATE, applyMainData, type SyncState } from './sync'
 import { withExpected, type Expected } from './torrentRequests'
 import { TorrentRequestsContext } from './useTorrentRequests'
@@ -139,6 +140,16 @@ const NOTHING_EXPECTED: Expected = new Map()
 const noRequests = () => () => {}
 const nothingExpected = () => NOTHING_EXPECTED
 
+/** The provider's store, or outside a provider the caller's own, with `onUnauthorized` if it has one. */
+function useStore(onUnauthorized?: () => void): MainDataStore {
+  const shared = useContext(MainDataContext)
+  const [own] = useState(() => (shared ? null : createMainDataStore()))
+  useEffect(() => {
+    if (own && onUnauthorized) own.setUnauthorizedHandler(onUnauthorized)
+  }, [own, onUnauthorized])
+  return shared ?? own!
+}
+
 /**
  * qBittorrent's torrents and server state. Inside `MainDataProvider` every caller shares its poll
  * (and the provider's `onUnauthorized` applies); elsewhere, as in tests, the caller polls on its own.
@@ -148,15 +159,19 @@ const nothingExpected = () => NOTHING_EXPECTED
 export function useMainData(onUnauthorized?: () => void): MainDataState {
   const requests = useContext(TorrentRequestsContext)
   const expected = useSyncExternalStore(requests?.subscribe ?? noRequests, requests?.getExpected ?? nothingExpected)
-  const shared = useContext(MainDataContext)
-  const [own] = useState(() => (shared ? null : createMainDataStore()))
-  useEffect(() => {
-    if (own && onUnauthorized) own.setUnauthorizedHandler(onUnauthorized)
-  }, [own, onUnauthorized])
-  const store = shared ?? own!
+  const store = useStore(onUnauthorized)
   const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot)
   return useMemo(
     () => ({ ...snapshot, data: withExpected(snapshot.data, snapshot.requestedAt, expected), refresh: store.refresh }),
     [snapshot, expected, store],
   )
+}
+
+/**
+ * qBittorrent's free space (`freeSpace`), through the same poll as `useMainData` but rendering only
+ * when it changes, not on every poll, for a screen that needs nothing else from it.
+ */
+export function useFreeSpace(): number | undefined {
+  const store = useStore()
+  return useSyncExternalStore(store.subscribe, () => freeSpace(store.getSnapshot().data?.server.free_space_on_disk))
 }

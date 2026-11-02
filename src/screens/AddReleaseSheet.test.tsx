@@ -1,6 +1,6 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { ReactNode } from 'react'
+import { Profiler, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import * as prowlarr from '../api/prowlarr'
 import type { Release } from '../api/prowlarr'
@@ -30,6 +30,7 @@ vi.mock('../torrents/torrentFile', async (importOriginal) => ({
 
 const fetchRelease = vi.mocked(prowlarr.fetchRelease)
 const getMainData = vi.mocked(qbt.getMainData)
+const commits = vi.fn()
 const addRelease = vi.mocked(adding.addRelease)
 const readTorrentFile = vi.mocked(torrentFile.readTorrentFile)
 
@@ -74,7 +75,17 @@ function renderSheet(release = RELEASE, store?: MainDataStore) {
       onClose={onClose}
       onAdded={onAdded}
     />,
-    { wrapper: store && (({ children }: { children: ReactNode }) => <MainDataContext value={store}>{children}</MainDataContext>) },
+    {
+      wrapper:
+        store &&
+        (({ children }: { children: ReactNode }) => (
+          <MainDataContext value={store}>
+            <Profiler id="sheet" onRender={commits}>
+              {children}
+            </Profiler>
+          </MainDataContext>
+        )),
+    },
   )
   return { onAdded, onClose }
 }
@@ -282,7 +293,7 @@ describe('AddReleaseSheet', () => {
     expect(await within(sheet).findByText('TV → /data/tv')).toBeInTheDocument()
     const files = await within(sheet).findByRole('button', { name: /Files: all \(3\)/ })
     expect(files).not.toHaveTextContent('Free:')
-    expect(within(sheet).queryByText('Not enough free space')).not.toBeInTheDocument()
+    expect(within(sheet).queryByRole('status', { name: saying('Not enough free space') })).not.toBeInTheDocument()
 
     answer({ rid: 1, server_state: { free_space_on_disk: 40e9 } })
     expect(await within(sheet).findByRole('status', { name: saying('Not enough free space') })).toBeInTheDocument()
@@ -306,7 +317,22 @@ describe('AddReleaseSheet', () => {
     await userEvent.click(within(picker).getByRole('button', { name: 'Done' }))
     const back = screen.getByRole('dialog', { name: 'Add to downloads' })
     expect(within(back).getByRole('button', { name: /Files: all \(3\)/ })).toHaveTextContent(/Free: 80\.0\sGB/)
-    expect(within(back).queryByText('Not enough free space')).not.toBeInTheDocument()
+    expect(within(back).queryByRole('status', { name: saying('Not enough free space') })).not.toBeInTheDocument()
+  })
+
+  it('doesn’t render again, the file picker included, for a poll that leaves the free space as it was', async () => {
+    const store = await runningPoll()
+    renderSheet(RELEASE, store)
+    const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+    await within(sheet).findByRole('status', { name: saying('Not enough free space') })
+    await userEvent.click(await within(sheet).findByRole('button', { name: /Files: all \(3\)/ }))
+    screen.getByRole('dialog', { name: 'Select files' })
+    const settled = commits.mock.calls.length
+
+    getMainData.mockResolvedValue({ rid: 2, server_state: { dl_info_speed: 1 } })
+    act(() => store.refresh())
+    await waitFor(() => expect(store.getSnapshot().data?.server.dl_info_speed).toBe(1))
+    expect(commits).toHaveBeenCalledTimes(settled)
   })
 
   it('asks only to free up space for a one-file torrent, which has no files to skip', async () => {
@@ -319,7 +345,7 @@ describe('AddReleaseSheet', () => {
 
   it('doesn’t warn by the release size when the torrent can’t be fetched', async () => {
     fetchRelease.mockRejectedValue(new prowlarr.ProwlarrError('down', 502, 'upstream'))
-    renderSheet()
+    renderSheet(RELEASE, await runningPoll())
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
     expect(await within(sheet).findByText('TV → /data/tv')).toBeInTheDocument()
     expect(await within(sheet).findByRole('alert', { name: saying('Couldn’t get the torrent from Prowlarr.') })).toBeInTheDocument()
@@ -328,7 +354,7 @@ describe('AddReleaseSheet', () => {
 
   it('doesn’t warn by the release size when the .torrent can’t be read', async () => {
     readTorrentFile.mockRejectedValue(new Error('not bencoded'))
-    renderSheet()
+    renderSheet(RELEASE, await runningPoll())
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
     expect(await within(sheet).findByText('TV → /data/tv')).toBeInTheDocument()
     await waitFor(() => expect(within(sheet).getByRole('button', { name: /^Download · 50\.0\sGB$/ })).toBeEnabled())
@@ -337,7 +363,7 @@ describe('AddReleaseSheet', () => {
 
   it.each([0, -1])('treats %s free as unknown: no warning and no free space shown', async (free) => {
     getMainData.mockResolvedValue({ rid: 1, server_state: { free_space_on_disk: free } })
-    renderSheet()
+    renderSheet(RELEASE, await runningPoll())
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
     expect(await within(sheet).findByText('TV → /data/tv')).toBeInTheDocument()
     const files = await within(sheet).findByRole('button', { name: /Files: all \(3\)/ })

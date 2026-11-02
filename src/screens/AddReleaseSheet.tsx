@@ -21,10 +21,9 @@ import { qualityBadges } from '../releases/qualityBadges'
 import { useSettings } from '../settings/settings'
 import { addFolder } from '../torrents/folders'
 import { tmdbTagFor } from '../torrents/parseName'
-import { freeSpace } from '../torrents/freeSpace'
 import { categoryType } from '../torrents/titleMatches'
 import { readTorrentFile, type TorrentMeta } from '../torrents/torrentFile'
-import { useMainData } from '../torrents/useMainData'
+import { useFreeSpace } from '../torrents/useMainData'
 import { FilePicker } from './FilePicker'
 import { IndexerLink } from './IndexerLink'
 import './AddReleaseSheet.css'
@@ -59,7 +58,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   const format = useFormatters()
   const prepared = useRequest(`release|${release.id}`, (signal) => prepare(release, signal))
   const where = useRequest('qbt|locations', getSaveLocations)
-  const { data: main } = useMainData()
+  const free = useFreeSpace()
 
   const meta = prepared.data?.meta
   const [skipped, setSkipped] = useState<ReadonlySet<number>>(new Set())
@@ -97,7 +96,6 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   )
   const fileCount = meta?.files.length ?? 0
   const selectedCount = fileCount - skipped.size
-  const free = freeSpace(main?.server.free_space_on_disk)
   // qBittorrent reports the free space where its default save path is. A warning, not a block: the
   // space may be freed before the download finishes, or the save path may be on another disk. Only by
   // known sizes: a read .torrent's files or a magnet's release size, not an unreadable .torrent's.
