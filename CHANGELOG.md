@@ -23,6 +23,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 - Phone: the title page's Find releases bar sits right on the tab bar; the page no longer shows through a thin strip between them as it scrolls. ([#194](https://github.com/MrShakhov/kinoseed/issues/194))
 - Phone: with the keyboard open, swiping a sheet or moving between its fields no longer scrolls the page behind it in Safari on iOS, so the sheet doesn't jerk either; the sheet also keeps a small gap above the keyboard.
 - Phone: tapping a field in a sheet (Move files, Speed limits and others) with the list scrolled down no longer makes the filters disappear behind it, cuts its dimmed backdrop short or brings back a collapsed toolbar in Safari on iOS. ([#175](https://github.com/MrShakhov/kinoseed/issues/175))
+- Phone: the first tap on a field in a sheet no longer makes the page and the sheet jump for a moment. ([#203](https://github.com/MrShakhov/kinoseed/issues/203))
 
 ## 0.6.0 - 2026-10-29
 

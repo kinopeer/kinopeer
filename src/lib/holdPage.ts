@@ -14,8 +14,8 @@ const NAVIGATION_HOLD_MS = 100
 const SLOP = 4
 
 /**
- * Where the window sits once a field has had focus, in pixels. Not the very top: going there
- * brings Safari's collapsed toolbar back, which shrinks the viewport under an open sheet.
+ * Where the window sits during a hold, in pixels. Not the very top: going there brings Safari's
+ * collapsed toolbar back, which shrinks the viewport under an open sheet.
  */
 const PINNED_AT = 1
 
@@ -36,11 +36,13 @@ let stop: (() => void) | null = null
  *   focus, so Safari scrolls nothing to show it (for `NAVIGATION_HOLD_MS` when the keyboard's
  *   arrows moved focus there); then it's brought into view in its own scroller (the sheet's body),
  *   once the keyboard has opened;
- * - from the first such field on, the window sits by the top (`PINNED_AT`) and the body's negative
+ * - from the start of the hold, the window sits by the top (`PINNED_AT`) and the body's negative
  *   margin keeps the page where it was: on a page scrolled further, opening the keyboard takes the
  *   window to the top in Safari whatever a sheet's field is, and scrolling back from there leaves
  *   the layout viewport behind, up by the keyboard's height, with sticky bars and the backdrop in
- *   it;
+ *   it. It's done as the modal opens because doing it as a field gets focus, while the keyboard
+ *   starts to rise, shows on a phone: the margin reaches the screen before the scroll does. With
+ *   the keyboard already open over the page, it waits for a field in the modal;
  * - if the page scrolls anyway, it goes back to where the hold keeps it, so nothing may scroll the
  *   page on purpose while a modal is open.
  *
@@ -98,6 +100,7 @@ function start(view: Window): () => void {
     }
     if (!scrolls) event.preventDefault()
   }
+  const keyboardOpen = () => !!viewport && viewport.height < view.innerHeight
   const reveal = () => {
     // Out of view, it would be measured 2000px up; the end of the hold reveals it.
     if (field && doc.activeElement === field && field.style.transform !== OUT_OF_VIEW) bringIntoView(field, view)
@@ -128,8 +131,7 @@ function start(view: Window): () => void {
       target.style.transform = transform
       reveal()
     }
-    const keyboardOpen = !!viewport && viewport.height < view.innerHeight
-    if (keyboardOpen && !byTap) view.setTimeout(back, NAVIGATION_HOLD_MS)
+    if (keyboardOpen() && !byTap) view.setTimeout(back, NAVIGATION_HOLD_MS)
     else view.requestAnimationFrame(back)
   }
   const onScroll = () => view.scrollTo(scrollX, top)
@@ -140,13 +142,10 @@ function start(view: Window): () => void {
   view.addEventListener('scroll', onScroll)
   // The keyboard opening shrinks the sheet, which can hide the field again.
   viewport?.addEventListener('resize', reveal)
-  // Its focus came before this hold: StrictMode's second effect run, after showModal focused it. A
-  // field on the page is left alone: the keyboard is open already, and it loses focus to the modal.
+  if (!keyboardOpen()) pin()
+  // Its focus came before this hold: StrictMode's second effect run, after showModal focused it.
   const focused = doc.activeElement
-  if (focused instanceof HTMLElement && opensKeyboard(focused) && focused.closest('dialog[open]')) {
-    field = focused
-    pin()
-  }
+  if (focused instanceof HTMLElement && opensKeyboard(focused)) field = focused
   return () => {
     doc.removeEventListener('touchstart', onTouchStart, { capture: true })
     doc.removeEventListener('touchmove', onTouchMove, { capture: true })
