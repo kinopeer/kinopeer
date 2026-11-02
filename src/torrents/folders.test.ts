@@ -45,6 +45,7 @@ describe('categoryFolder', () => {
     expect(categoryFolder('Movies', locations({ defaultPath: 'C:\\Downloads', categories }))).toBe('C:\\Downloads\\films\\hd')
     expect(categoryFolder('Movies', locations({ defaultPath: '/downloads', categories }))).toBe('/downloads/films\\hd')
     expect(categoryFolder('Movies', locations({ defaultPath: '/media/a\\b', categories }))).toBe('/media/a\\b/films\\hd')
+    expect(categoryFolder('Movies', locations({ defaultPath: '/media/a\\', categories }))).toBe('/media/a\\/films\\hd')
   })
 
   it('leaves one separator where a folder’s end or a relative path repeats them', () => {
@@ -98,6 +99,13 @@ describe('knownFolders', () => {
       { name: 'Films', savePath: '/media/movies/' },
     ]
     expect(knownFolders(locations({ categories }))).toEqual(['/downloads', '/media/movies', '/downloads/Other'])
+  })
+
+  it('takes a trailing backslash for a separator only on a Windows folder', () => {
+    const windows = [{ name: 'A', savePath: 'D:\\Movies' }, { name: 'B', savePath: 'D:\\Movies\\' }]
+    expect(knownFolders(locations({ categories: windows }))).toEqual(['/downloads', 'D:\\Movies'])
+    const posix = [{ name: 'A', savePath: '/media/a' }, { name: 'B', savePath: '/media/a\\' }]
+    expect(knownFolders(locations({ categories: posix }))).toEqual(['/downloads', '/media/a', '/media/a\\'])
   })
 
   it('offers the categories’ folders in manual mode too, as places to move to', () => {

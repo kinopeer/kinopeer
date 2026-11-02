@@ -9,14 +9,20 @@ export function isAbsolute(path: string): boolean {
   return ABSOLUTE.test(path)
 }
 
-/**
- * Joins a relative path to a folder with the folder's own separator. Windows paths use \, which
- * elsewhere is an ordinary character in a folder's name.
- */
+/** Windows paths use \, which elsewhere is an ordinary character in a folder's name. */
+function isWindows(folder: string): boolean {
+  return folder.includes('\\') && !folder.includes('/')
+}
+
+function withoutTrailingSeparator(folder: string): string {
+  return folder.replace(isWindows(folder) ? /[/\\]+$/ : /\/+$/, '')
+}
+
+/** Joins a relative path to a folder with the folder's own separator. */
 function join(folder: string, path: string): string {
-  const windows = folder.includes('\\') && !folder.includes('/')
+  const windows = isWindows(folder)
   const separator = windows ? '\\' : '/'
-  return `${folder.replace(/[/\\]+$/, '')}${separator}${path.split(windows ? /[/\\]+/ : /\/+/).join(separator)}`
+  return `${withoutTrailingSeparator(folder)}${separator}${path.split(windows ? /[/\\]+/ : /\/+/).join(separator)}`
 }
 
 /**
@@ -63,5 +69,5 @@ export function knownFolders(locations: SaveLocations): string[] {
 
 /** A folder as qBittorrent treats it, for comparing: without a trailing separator. */
 export function sameFolder(path: string): string {
-  return path.length > 1 ? path.replace(/[/\\]+$/, '') : path
+  return path.length > 1 ? withoutTrailingSeparator(path) : path
 }
