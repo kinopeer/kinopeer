@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { StrictMode } from 'react'
 import { Link, MemoryRouter, Route, Routes, useNavigate } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { holdPage } from './holdPage'
+import { stubTouchScreen } from './stubTouchScreen'
 import { useScrollRestoration } from './useScrollRestoration'
 
 function Screen({ ready }: { ready: boolean }) {
@@ -55,6 +57,7 @@ beforeEach(() => {
 
 afterEach(() => {
   scrolledTo(0)
+  vi.unstubAllGlobals()
 })
 
 describe('useScrollRestoration', () => {
@@ -100,6 +103,25 @@ describe('useScrollRestoration', () => {
     await user.click(screen.getByRole('button', { name: 'Back' }))
     expect(scrollTo).toHaveBeenLastCalledWith(0, 900)
     view.unmount()
+  })
+
+  it('saves where the page is while a modal holds the window at the top', async () => {
+    stubTouchScreen()
+    const user = userEvent.setup()
+    render(app(true))
+    scrolledTo(640)
+    const release = holdPage()
+    const field = document.createElement('input')
+    document.body.append(field)
+    field.focus()
+    scrolledTo(0)
+
+    await user.click(screen.getByRole('link', { name: 'Open' }))
+    release()
+    field.remove()
+    scrollTo.mockClear()
+    await user.click(screen.getByRole('button', { name: 'Back' }))
+    expect(scrollTo).toHaveBeenCalledWith(0, 640)
   })
 
   it('works under StrictMode, whose extra effect run must not save the clamped position', async () => {

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { holdPage } from './holdPage'
+import { holdPage, pageScrollY } from './holdPage'
 import { stubDesktop } from './stubDesktop'
 import { stubTouchScreen, swipe, swipeMovesPage } from './stubTouchScreen'
 
@@ -69,6 +69,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
   document.body.replaceChildren()
+  document.body.removeAttribute('style')
 })
 
 describe('holdPage', () => {
@@ -334,6 +335,82 @@ describe('holdPage', () => {
     hold()
     window.dispatchEvent(new Event('scroll'))
     expect(window.scrollTo).toHaveBeenCalledWith(0, 300)
+  })
+
+  it('takes the page to the top while a field has focus, so Safari has nothing to scroll back', () => {
+    stubScreen()
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
+    hold()
+    const field = document.createElement('input')
+    document.body.append(field)
+
+    field.focus()
+    expect(document.body.style.marginTop).toBe('-300px')
+    expect(window.scrollTo).toHaveBeenLastCalledWith(0, 0)
+
+    window.dispatchEvent(new Event('scroll'))
+    expect(window.scrollTo).toHaveBeenLastCalledWith(0, 0)
+  })
+
+  it('leaves the page where it is until a field that opens the keyboard gets focus', () => {
+    stubScreen()
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
+    hold()
+    const checkbox = document.createElement('input')
+    checkbox.type = 'checkbox'
+    document.body.append(checkbox)
+
+    checkbox.focus()
+    expect(document.body.style.marginTop).toBe('')
+    expect(window.scrollTo).not.toHaveBeenCalled()
+  })
+
+  it('takes the page to the top once, however many fields get focus', () => {
+    stubScreen()
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
+    const release = hold()
+    const [first, second] = [document.createElement('input'), document.createElement('input')]
+    document.body.append(first, second)
+
+    first.focus()
+    second.focus()
+    release()
+    expect(document.body.style.marginTop).toBe('')
+    expect(window.scrollTo).toHaveBeenLastCalledWith(0, 300)
+  })
+
+  it('puts the page back once the last hold is released', () => {
+    stubScreen()
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
+    const release = hold()
+    const inner = hold()
+    document.body.style.marginTop = '8px'
+    const field = document.createElement('input')
+    document.body.append(field)
+    field.focus()
+
+    inner()
+    expect(document.body.style.marginTop).toBe('-300px')
+    release()
+    expect(document.body.style.marginTop).toBe('8px')
+    expect(window.scrollTo).toHaveBeenLastCalledWith(0, 300)
+  })
+
+  it('still says where the page is while the window is at the top', () => {
+    stubScreen()
+    const scrollY = vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
+    const release = hold()
+    const field = document.createElement('input')
+    document.body.append(field)
+    expect(pageScrollY()).toBe(300)
+
+    field.focus()
+    scrollY.mockReturnValue(0)
+    expect(pageScrollY()).toBe(300)
+
+    release()
+    scrollY.mockReturnValue(120)
+    expect(pageScrollY()).toBe(120)
   })
 
   it('holds until every hold is released', () => {

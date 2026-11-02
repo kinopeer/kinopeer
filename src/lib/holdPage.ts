@@ -17,6 +17,13 @@ type Axis = 'x' | 'y'
 
 let holds = 0
 let stop: (() => void) | null = null
+/** Where the page is while its hold keeps the window at the top. */
+let pinnedAt: number | null = null
+
+/** How far the page is scrolled, also while `holdPage` keeps the window at the top. */
+export function pageScrollY(view: Window = window): number {
+  return pinnedAt ?? view.scrollY
+}
 
 /**
  * Keeps the page behind an open modal still on a touch screen. `overflow: hidden` on <html>
@@ -31,8 +38,12 @@ let stop: (() => void) | null = null
  *   focus, so Safari scrolls nothing to show it (for `NAVIGATION_HOLD_MS` when the keyboard's
  *   arrows moved focus there); then it's brought into view in its own scroller (the sheet's body),
  *   once the keyboard has opened;
- * - if the page scrolls anyway, it goes back to where it was when the hold began, so nothing may
- *   scroll the page on purpose while a modal is open.
+ * - from the first such field on, the window sits at the top and the body's negative margin keeps
+ *   the page where it was: opening the keyboard takes the window to the top in Safari whatever a
+ *   sheet's field is, and scrolling back from there leaves the layout viewport behind, up by the
+ *   keyboard's height, with sticky bars and the backdrop in it;
+ * - if the page scrolls anyway, it goes back to where the hold keeps it, so nothing may scroll the
+ *   page on purpose while a modal is open.
  *
  * Returns a function that releases this hold. Not under a mouse, like base.css.
  */
@@ -53,6 +64,9 @@ function start(view: Window): () => void {
   const doc = view.document
   const viewport = view.visualViewport
   const { scrollX, scrollY } = view
+  // Where the window goes back to if it scrolls.
+  let top = scrollY
+  let unpin: (() => void) | null = null
   let touch: { x: number; y: number; target: EventTarget | null } | null = null
   let scrolls: boolean | null = null
   let field: HTMLElement | null = null
@@ -89,9 +103,23 @@ function start(view: Window): () => void {
     // Out of view, it would be measured 2000px up; the end of the hold reveals it.
     if (field && doc.activeElement === field && field.style.transform !== OUT_OF_VIEW) bringIntoView(field, view)
   }
+  const pin = () => {
+    if (unpin || scrollY === 0) return
+    const { marginTop } = doc.body.style
+    pinnedAt = scrollY
+    top = 0
+    doc.body.style.marginTop = `${-scrollY}px`
+    view.scrollTo(scrollX, 0)
+    unpin = () => {
+      pinnedAt = null
+      doc.body.style.marginTop = marginTop
+      view.scrollTo(scrollX, scrollY)
+    }
+  }
   const onFocus = (event: FocusEvent) => {
     const target = event.target
     if (!(target instanceof HTMLElement) || !opensKeyboard(target)) return
+    pin()
     field = target
     const byTap = tapped instanceof Node && target.contains(tapped)
     tapped = null
@@ -107,7 +135,7 @@ function start(view: Window): () => void {
     if (keyboardOpen && !byTap) view.setTimeout(back, NAVIGATION_HOLD_MS)
     else view.requestAnimationFrame(back)
   }
-  const onScroll = () => view.scrollTo(scrollX, scrollY)
+  const onScroll = () => view.scrollTo(scrollX, top)
 
   doc.addEventListener('touchstart', onTouchStart, { capture: true, passive: true })
   doc.addEventListener('touchmove', onTouchMove, { capture: true, passive: false })
@@ -121,6 +149,7 @@ function start(view: Window): () => void {
     doc.removeEventListener('focus', onFocus, true)
     view.removeEventListener('scroll', onScroll)
     viewport?.removeEventListener('resize', reveal)
+    unpin?.()
   }
 }
 

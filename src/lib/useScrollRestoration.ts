@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from 'react'
 import { useLocation, useNavigationType } from 'react-router'
+import { pageScrollY } from './holdPage'
 
 /** The window's scroll position per history entry (`location.key`), in sessionStorage so it outlives a reload. */
 const STORAGE_PREFIX = 'kinoseed.scroll:'
@@ -50,7 +51,7 @@ export function useScrollRestoration(ready: boolean): void {
   useLayoutEffect(
     () => () => {
       // Runs before the next screen's content replaces this one, so the position is still intact.
-      if (settledKey.current === key) savePosition(key, window.scrollY)
+      if (settledKey.current === key) savePosition(key, pageScrollY())
     },
     [key],
   )
