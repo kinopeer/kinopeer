@@ -17,7 +17,8 @@ interface Settled<T> {
 
 /**
  * Runs `load` whenever `key` changes (null skips it) and aborts the previous run, so a slow
- * response for an old key never overwrites a newer one. `load` may change between renders.
+ * response for an old key never overwrites a newer one. `load` passes the signal on to its requests,
+ * so an aborted one is cancelled rather than only ignored, and may change between renders.
  */
 export function useRequest<T>(key: string | null, load: (signal: AbortSignal) => Promise<T>): RequestState<T> {
   const loadRef = useRef(load)

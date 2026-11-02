@@ -57,7 +57,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   const { t, i18n } = useTranslation()
   const format = useFormatters()
   const prepared = useRequest(`release|${release.id}`, (signal) => prepare(release, signal))
-  const where = useRequest('qbt|locations', getSaveLocations)
+  const where = useRequest('qbt|locations', (signal) => getSaveLocations(signal))
   const free = useFreeSpace()
 
   const meta = prepared.data?.meta

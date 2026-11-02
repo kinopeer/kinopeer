@@ -4,10 +4,13 @@ import {
   UnauthorizedError,
   addTorrents,
   deleteTorrents,
+  getApiVersion,
+  getAppVersion,
   getCategories,
   getDefaultSavePath,
   getSaveLocations,
   getTorrentFiles,
+  getTorrentTrackers,
   getTorrents,
   reannounceTorrents,
   recheckTorrents,
@@ -97,6 +100,25 @@ describe('addTorrents', () => {
   it('reports a torrent qBittorrent refused', async () => {
     respond('Fails.')
     await expect(addTorrents({ urls: ['magnet:?xt=urn:btih:abc'] })).rejects.toBeInstanceOf(QbittorrentError)
+  })
+})
+
+describe('what a screen can cancel', () => {
+  const { signal } = new AbortController()
+
+  it.each([
+    { name: 'getAppVersion', read: () => getAppVersion(signal), requests: 1 },
+    { name: 'getApiVersion', read: () => getApiVersion(signal), requests: 1 },
+    { name: 'getCategories', read: () => getCategories(signal), requests: 1 },
+    { name: 'getDefaultSavePath', read: () => getDefaultSavePath(signal), requests: 1 },
+    { name: 'getSaveLocations', read: () => getSaveLocations(signal), requests: 3 },
+    { name: 'getTorrentTrackers', read: () => getTorrentTrackers('abc', signal), requests: 1 },
+  ])('$name hands the signal to every request', async ({ read, requests }) => {
+    fetchMock.mockImplementation(async () => new Response('{}'))
+    await read()
+
+    expect(fetchMock).toHaveBeenCalledTimes(requests)
+    for (const [, init] of fetchMock.mock.calls) expect(init?.signal).toBe(signal)
   })
 })
 

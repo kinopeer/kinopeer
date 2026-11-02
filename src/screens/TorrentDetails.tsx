@@ -102,7 +102,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
   const retitle = useChangeTitle({ torrents: own, matchOf: () => match })
   const confirmTitle = useConfirmTitle()
 
-  const trackers = useRequest(detailsOpen && torrent ? `trackers|${hash}` : null, () => getTorrentTrackers(hash))
+  const trackers = useRequest(detailsOpen && torrent ? `trackers|${hash}` : null, (signal) => getTorrentTrackers(hash, signal))
 
   const drawer = onClose !== undefined
   const Root = drawer ? 'div' : 'main'

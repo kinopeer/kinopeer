@@ -40,7 +40,7 @@ vi.mock('../api/tmdb', async (importOriginal) => ({
 }))
 
 function renderScreen(state?: unknown) {
-  renderWithRouter(<SettingsScreen />, [{ pathname: '/settings', state }])
+  return renderWithRouter(<SettingsScreen />, [{ pathname: '/settings', state }])
 }
 
 function connection(name: string) {
@@ -117,6 +117,31 @@ describe('SettingsScreen', () => {
     await userEvent.click(within(connection(name)).getByRole('button', { name: 'Test' }))
     expect(await within(connection(name)).findByRole('status', { name: saying(ok) })).toBeInTheDocument()
     for (const fn of checks) expect(fn).toHaveBeenCalledTimes(called.some((c) => c === fn) ? 1 : 0)
+  })
+
+  it('cancels the checks still running when the screen closes', async () => {
+    const running = new Promise<never>(() => {})
+    vi.mocked(qbt.getAppVersion).mockReturnValue(running)
+    vi.mocked(qbt.getApiVersion).mockReturnValue(running)
+    vi.mocked(prowlarr.getProwlarrStatus).mockReturnValue(running)
+    vi.mocked(tmdb.checkTmdb).mockReturnValue(running)
+    const { unmount } = renderScreen()
+    const checks = [qbt.getAppVersion, qbt.getApiVersion, prowlarr.getProwlarrStatus, tmdb.checkTmdb]
+    await waitFor(() => {
+      for (const check of checks) expect(vi.mocked(check).mock.lastCall?.[0]?.aborted).toBe(false)
+    })
+
+    unmount()
+    for (const check of checks) expect(vi.mocked(check).mock.lastCall?.[0]?.aborted).toBe(true)
+  })
+
+  it('cancels loading the categories when the screen closes', async () => {
+    vi.mocked(qbt.getCategories).mockReturnValue(new Promise(() => {}))
+    const { unmount } = renderScreen()
+    await waitFor(() => expect(vi.mocked(qbt.getCategories).mock.lastCall?.[0]?.aborted).toBe(false))
+
+    unmount()
+    expect(vi.mocked(qbt.getCategories).mock.lastCall?.[0]?.aborted).toBe(true)
   })
 
   it('changes the TMDB key and checks the connection again', async () => {

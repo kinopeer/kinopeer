@@ -36,7 +36,7 @@ interface ConnectionRowProps {
   name: string
   icon: IconName
   /** Resolves to the success message, rejects with the error message. */
-  check: () => Promise<string>
+  check: (signal: AbortSignal) => Promise<string>
   /** Accessible name of the edit button, shown only with `onEdit`. */
   editLabel?: string
   onEdit?: () => void
@@ -146,16 +146,16 @@ export function SettingsScreen() {
   // Asked after each passing qBittorrent check (on opening, on Test, in a new language) while
   // they're missing, so a check that finds it back loads them, and loaded selects don't empty on Test.
   const [categoriesLoad, setCategoriesLoad] = useState(0)
-  const categories = useRequest(categoriesLoad === 0 ? null : `qbt|categories|${categoriesLoad}`, () => getCategories())
+  const categories = useRequest(categoriesLoad === 0 ? null : `qbt|categories|${categoriesLoad}`, (signal) => getCategories(signal))
   // Loaded once; a saved or forgotten key answers with the new settings, which replace it.
   const serverLoad = useRequest('server|settings', (signal) => getServerSettings(signal))
   const [serverChanged, setServerChanged] = useState<ServerSettings | null>(null)
   const server = serverChanged ?? serverLoad.data
   const names = (categories.data ?? []).map((category) => category.name).sort((a, b) => a.localeCompare(b))
 
-  const checkQbittorrent = async () => {
+  const checkQbittorrent = async (signal: AbortSignal) => {
     try {
-      const [app, api] = await Promise.all([getAppVersion(), getApiVersion()])
+      const [app, api] = await Promise.all([getAppVersion(signal), getApiVersion(signal)])
       if (categories.data === undefined) setCategoriesLoad((n) => n + 1)
       return t('settings.qbtOk', { version: app, api })
     } catch {
@@ -163,18 +163,18 @@ export function SettingsScreen() {
     }
   }
 
-  const checkProwlarr = async () => {
+  const checkProwlarr = async (signal: AbortSignal) => {
     try {
-      const status = await getProwlarrStatus()
+      const status = await getProwlarrStatus(signal)
       return t('settings.prowlarrOk', { count: status.indexers, version: status.version })
     } catch (error) {
       throw new Error(error instanceof ProwlarrSetupError ? t('settings.prowlarrSetup') : t('settings.prowlarrError'))
     }
   }
 
-  const checkTmdbKey = async () => {
+  const checkTmdbKey = async (signal: AbortSignal) => {
     try {
-      await checkTmdb()
+      await checkTmdb(signal)
       return t('settings.tmdbOk')
     } catch (error) {
       throw new Error(error instanceof TmdbKeyError ? t('settings.tmdbKey') : t('settings.tmdbError'))
