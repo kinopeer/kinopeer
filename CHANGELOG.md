@@ -6,6 +6,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ### Fixed
 
+- Downloads on a phone: the list no longer shows through above the pinned filters, behind the clock and the battery. ([#197](https://github.com/MrShakhov/kinoseed/issues/197))
 - Desktop: Move files or Speed limits opened in a torrent's drawer while a move or save sent from Downloads is still on its way shows it busy, with what's being sent, instead of letting it be sent twice; then it closes, or says why it failed, in the drawer.
 - Pause and resume: one on its way for a torrent shows busy in every place that pauses or resumes it (a row's button, the More menu, the torrent's details or drawer, the selection's bar), instead of letting it be sent twice. Once qBittorrent took it, the torrent shows Paused or its running status right away, everywhere, instead of after the next update. ([#182](https://github.com/MrShakhov/kinoseed/issues/182))
 - Reannounce and force recheck: one on its way for a torrent shows busy in its More menu and recheck confirmation, on any screen, instead of letting it be sent twice after the menu or the confirmation was closed and opened again; a failure then is said in a toast instead of nowhere. Once qBittorrent took a recheck, the torrent shows Checking right away. ([#184](https://github.com/MrShakhov/kinoseed/issues/184))
@@ -18,6 +19,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 - Move files, Speed limits: the fields can't be changed while a move or save is being sent; what was typed then was lost when the sheet closed.
 - Downloads, torrent details: after an action (pause, speed limits, moving files and others) the new state shows right away even when Kinoseed was already asking qBittorrent for an update, instead of up to 2 seconds later.
 - A torrent's menu, its delete and recheck confirmations and Change title close when the torrent is deleted and added again between two updates, as the Speed limits and Move files sheets do, instead of staying open for the new one. Confirming a delete then could delete the torrent added again.
+- Phone: the title page's Find releases bar sits right on the tab bar; the page no longer shows through a thin strip between them as it scrolls. ([#194](https://github.com/MrShakhov/kinoseed/issues/194))
 - Phone: with the keyboard open, swiping a sheet or moving between its fields no longer scrolls the page behind it in Safari on iOS, so the sheet doesn't jerk either; the sheet also keeps a small gap above the keyboard.
 - Phone: tapping a field in a sheet (Move files, Speed limits and others) with the list scrolled down no longer makes the filters disappear behind it, cuts its dimmed backdrop short or brings back a collapsed toolbar in Safari on iOS. ([#175](https://github.com/MrShakhov/kinoseed/issues/175))
 

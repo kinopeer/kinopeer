@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { DESKTOP, openApp, showWholePage, type AppOptions } from './app.ts'
+import { DESKTOP, openApp, settle, showWholePage, type AppOptions } from './app.ts'
 import { LONG_OVERVIEW_ID } from './fixtures.ts'
 
 async function openTitle(page: Page, path: string, name: string, options: AppOptions = {}) {
@@ -20,6 +20,20 @@ test('movie, dark, Russian', async ({ page }) => {
 test('series, dark, Russian', async ({ page }) => {
   await openTitle(page, '/title/tv/126308', 'Сёгун')
   await expect(page).toHaveScreenshot('series-dark-ru.png')
+})
+
+test('the pinned Find releases bar meets the tab bar while the page scrolls under it', async ({ page }) => {
+  await openApp(page, '/title/tv/126308')
+  const related = page.getByRole('region', { name: 'Похожее' })
+  await expect(related).toBeVisible()
+  await settle(page)
+  // The similar titles' posters under the pinned bar and the tab bar, so a gap between them shows.
+  await related.evaluate((row) => window.scrollTo(0, row.getBoundingClientRect().top + window.scrollY - 500))
+  // The bar has no role of its own: its class is the opaque background that has to reach the tab bar.
+  const bar = await page.locator('.title-actions').boundingBox()
+  const tabs = await page.getByRole('navigation', { name: 'Основное' }).boundingBox()
+  expect(bar!.y + bar!.height).toBe(tabs!.y)
+  await expect(page).toHaveScreenshot('series-scrolled-dark-ru.png')
 })
 
 test.describe('desktop', () => {

@@ -13,6 +13,12 @@ async function openDownloads(page: Page, options: AppOptions = {}) {
   await settle(page)
 }
 
+/** Chromium's own safe area is empty: this gives env(safe-area-inset-top) a notched iPhone's. */
+async function emulateNotch(page: Page) {
+  const devTools = await page.context().newCDPSession(page)
+  await devTools.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 59 } })
+}
+
 /**
  * Sets what trackKeyboardInset sets while the on-screen keyboard is open (Chromium has none to open),
  * by its own rule: the page visible above it, `top` pixels down the layout viewport when the
@@ -171,6 +177,15 @@ test.describe('downloads, phone', () => {
     await expect(page).toHaveScreenshot('list-scrolled-dark-ru.png')
   })
 
+  test('the list stays out of the status bar above the pinned filters', async ({ page }) => {
+    await emulateNotch(page)
+    await openDownloads(page, { downloadsView: 'grid' })
+    await page.evaluate(() => window.scrollTo(0, 600))
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(600)
+    await expect(page.getByRole('heading', { level: 1, name: 'Загрузки' })).not.toBeInViewport()
+    await expect(page).toHaveScreenshot('grid-scrolled-safe-area-dark-ru.png')
+  })
+
   test('nothing downloaded yet', async ({ page }) => {
     await openApp(page, '/', { torrents: [] })
     await expect(page.getByText('Загрузок пока нет')).toBeVisible()
@@ -227,6 +242,12 @@ test.describe('downloads, desktop', () => {
     const card = page.getByRole('region', { name: 'qBittorrent' })
     await expect(card.getByRole('button', { name: 'Альт. лимиты', pressed: true })).toBeVisible()
     await expect(card).toHaveScreenshot('desktop-alt-speed-on-dark-ru.png')
+  })
+
+  test('the header takes the safe area once, with no strip above it', async ({ page }) => {
+    await emulateNotch(page)
+    await openDownloads(page, { downloadsView: 'grid' })
+    await expect(page).toHaveScreenshot('desktop-grid-safe-area-dark-ru.png')
   })
 
   test('the header and the column names stay at the top while the table scrolls', async ({ page }) => {
