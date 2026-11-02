@@ -14,8 +14,8 @@ const NAVIGATION_HOLD_MS = 100
 const SLOP = 4
 
 /**
- * Where the window sits while a field has focus, in pixels. Not the very top: going there brings
- * Safari's collapsed toolbar back, which shrinks the viewport under an open sheet.
+ * Where the window sits once a field has had focus, in pixels. Not the very top: going there
+ * brings Safari's collapsed toolbar back, which shrinks the viewport under an open sheet.
  */
 const PINNED_AT = 1
 
@@ -23,14 +23,6 @@ type Axis = 'x' | 'y'
 
 let holds = 0
 let stop: (() => void) | null = null
-/** Where the page is while its hold keeps the window by the top. */
-let pinnedAt: number | null = null
-
-/** How far the page is scrolled, also while `holdPage` keeps the window by the top. */
-export function pageScrollY(view: Window = window): number {
-  return pinnedAt ?? view.scrollY
-}
-
 /**
  * Keeps the page behind an open modal still on a touch screen. `overflow: hidden` on <html>
  * (base.css) stops a finger on the page, but with the on-screen keyboard open iOS Safari still
@@ -111,14 +103,12 @@ function start(view: Window): () => void {
     if (field && doc.activeElement === field && field.style.transform !== OUT_OF_VIEW) bringIntoView(field, view)
   }
   const pin = () => {
-    if (unpin || scrollY === 0) return
+    if (unpin || scrollY <= 0) return
     const { marginTop } = doc.body.style
-    pinnedAt = scrollY
     top = PINNED_AT
     doc.body.style.marginTop = `${PINNED_AT - scrollY}px`
     view.scrollTo(scrollX, PINNED_AT)
     unpin = () => {
-      pinnedAt = null
       doc.body.style.marginTop = marginTop
       view.scrollTo(scrollX, scrollY)
     }
@@ -150,9 +140,10 @@ function start(view: Window): () => void {
   view.addEventListener('scroll', onScroll)
   // The keyboard opening shrinks the sheet, which can hide the field again.
   viewport?.addEventListener('resize', reveal)
-  // Its focus came before this hold: StrictMode's second effect run, after showModal focused it.
+  // Its focus came before this hold: StrictMode's second effect run, after showModal focused it. A
+  // field on the page is left alone: the keyboard is open already, and it loses focus to the modal.
   const focused = doc.activeElement
-  if (focused instanceof HTMLElement && opensKeyboard(focused)) {
+  if (focused instanceof HTMLElement && opensKeyboard(focused) && focused.closest('dialog[open]')) {
     field = focused
     pin()
   }

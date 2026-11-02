@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, type ReactNode } from 'react'
 import { cx } from '../../lib/cx'
 import { holdPage } from '../../lib/holdPage'
 import { useIsDesktop } from '../../lib/useIsDesktop'
@@ -50,8 +50,9 @@ export function Sheet({
   const isDesktop = useIsDesktop()
   const drag = useSheetDrag(ref, { open, onClose, enabled: !isDesktop })
 
-  // Before showModal, which focuses the first field.
-  useEffect(() => (open ? holdPage() : undefined), [open])
+  // Before showModal, which focuses the first field. A layout effect, so a sheet that goes with its
+  // screen puts the page back before the next screen's layout effects restore their own place.
+  useLayoutEffect(() => (open ? holdPage() : undefined), [open])
 
   useEffect(() => {
     const dialog = ref.current
