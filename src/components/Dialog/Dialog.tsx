@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, type ReactNode } from 'react'
 import { cx } from '../../lib/cx'
 import { holdPage } from '../../lib/holdPage'
 import { Icon, type IconName } from '../Icon'
@@ -26,7 +26,8 @@ export function Dialog({ open, onClose, title, icon, tone, actions, className, c
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = useId()
 
-  useEffect(() => (open ? holdPage() : undefined), [open])
+  // A layout effect, as in Sheet: the page is back before the next screen's layout effects.
+  useLayoutEffect(() => (open ? holdPage() : undefined), [open])
 
   useEffect(() => {
     const dialog = ref.current

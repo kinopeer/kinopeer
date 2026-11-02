@@ -69,6 +69,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
   document.body.replaceChildren()
+  document.body.removeAttribute('style')
 })
 
 describe('holdPage', () => {
@@ -334,6 +335,144 @@ describe('holdPage', () => {
     hold()
     window.dispatchEvent(new Event('scroll'))
     expect(window.scrollTo).toHaveBeenCalledWith(0, 300)
+  })
+
+  it('keeps the window a pixel from the top from a field\'s focus on, the page where it was', () => {
+    stubScreen()
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
+    hold()
+    const field = document.createElement('input')
+    document.body.append(field)
+
+    field.focus()
+    expect(document.body.style.marginTop).toBe('-299px')
+    expect(window.scrollTo).toHaveBeenLastCalledWith(0, 1)
+
+    window.dispatchEvent(new Event('scroll'))
+    expect(window.scrollTo).toHaveBeenCalledTimes(2)
+    expect(window.scrollTo).toHaveBeenLastCalledWith(0, 1)
+
+    field.blur()
+    expect(document.body.style.marginTop).toBe('-299px')
+  })
+
+  it('leaves a page pulled past its top alone too', () => {
+    stubScreen()
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(-30)
+    hold()
+    const field = document.createElement('input')
+    document.body.append(field)
+
+    field.focus()
+    expect(document.body.style.marginTop).toBe('')
+    expect(window.scrollTo).not.toHaveBeenCalled()
+  })
+
+  it('leaves a page at the top where it is, so a field brings no scroll', () => {
+    stubScreen()
+    hold()
+    const field = document.createElement('input')
+    document.body.append(field)
+
+    field.focus()
+    expect(document.body.style.marginTop).toBe('')
+    expect(window.scrollTo).not.toHaveBeenCalled()
+  })
+
+  it('leaves the page where it is until a field that opens the keyboard gets focus', () => {
+    stubScreen()
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
+    hold()
+    const checkbox = document.createElement('input')
+    checkbox.type = 'checkbox'
+    document.body.append(checkbox)
+
+    checkbox.focus()
+    expect(document.body.style.marginTop).toBe('')
+    expect(window.scrollTo).not.toHaveBeenCalled()
+  })
+
+  it('takes a field in an open modal that has focus when the hold begins, as StrictMode\'s second effect run finds it', () => {
+    const viewport = new EventTarget()
+    vi.stubGlobal('visualViewport', viewport)
+    stubScreen()
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
+    const release = hold()
+    const { box, field } = fieldInBody(200)
+    const modal = document.createElement('dialog')
+    modal.setAttribute('open', '')
+    modal.append(box)
+    document.body.append(modal)
+    field.focus()
+    release()
+    expect(document.body.style.marginTop).toBe('')
+
+    hold()
+    expect(document.body.style.marginTop).toBe('-299px')
+
+    nextFrame()
+    shrink(box, viewport)
+    expect(box.scrollTop).toBe(68)
+  })
+
+  it('leaves the page alone when what has focus in a modal opens no keyboard', () => {
+    stubScreen()
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
+    const modal = document.createElement('dialog')
+    modal.setAttribute('open', '')
+    const button = document.createElement('button')
+    modal.append(button)
+    document.body.append(modal)
+    button.focus()
+
+    hold()
+    expect(document.body.style.marginTop).toBe('')
+    expect(window.scrollTo).not.toHaveBeenCalled()
+  })
+
+  it('leaves the page alone when the field with focus is on the page, with the keyboard open over it', () => {
+    stubScreen()
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
+    const field = document.createElement('input')
+    document.body.append(field)
+    field.focus()
+
+    hold()
+    expect(document.body.style.marginTop).toBe('')
+    expect(window.scrollTo).not.toHaveBeenCalled()
+  })
+
+  it('moves the window once, however many fields get focus', () => {
+    stubScreen()
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
+    const release = hold()
+    const [first, second] = [document.createElement('input'), document.createElement('input')]
+    document.body.append(first, second)
+
+    first.focus()
+    second.focus()
+    expect(window.scrollTo).toHaveBeenCalledTimes(1)
+
+    release()
+    expect(document.body.style.marginTop).toBe('')
+    expect(window.scrollTo).toHaveBeenLastCalledWith(0, 300)
+  })
+
+  it('puts the page back once the last hold is released', () => {
+    stubScreen()
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
+    const release = hold()
+    const inner = hold()
+    document.body.style.marginTop = '8px'
+    const field = document.createElement('input')
+    document.body.append(field)
+    field.focus()
+
+    inner()
+    expect(document.body.style.marginTop).toBe('-299px')
+    release()
+    expect(document.body.style.marginTop).toBe('8px')
+    expect(window.scrollTo).toHaveBeenLastCalledWith(0, 300)
   })
 
   it('holds until every hold is released', () => {

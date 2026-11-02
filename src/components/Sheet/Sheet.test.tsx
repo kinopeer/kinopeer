@@ -1,5 +1,6 @@
 import { createEvent, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useLayoutEffect } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { stubDesktop } from '../../lib/stubDesktop'
 import { stubTouchScreen, swipeMovesPage } from '../../lib/stubTouchScreen'
@@ -700,6 +701,32 @@ describe('Sheet', () => {
         expect(dialog().style.transform).toBe('')
       })
     })
+  })
+
+  it('puts the page back before the next screen\'s layout effects, so it can restore its own place', () => {
+    stubTouchScreen()
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(200)
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    let marginThere: string | null = null
+    const NextScreen = () => {
+      useLayoutEffect(() => {
+        marginThere = document.body.style.marginTop
+        window.scrollTo(0, 640)
+      }, [])
+      return <h1>Next</h1>
+    }
+    const page = (
+      <Sheet open onClose={() => {}} title="Move files">
+        <input aria-label="Folder" />
+      </Sheet>
+    )
+    const { rerender } = render(page)
+    screen.getByRole('textbox', { name: 'Folder', hidden: true }).focus()
+    expect(document.body.style.marginTop).toBe('-199px')
+
+    rerender(<NextScreen />)
+    expect(marginThere).toBe('')
+    expect(scrollTo).toHaveBeenLastCalledWith(0, 640)
   })
 
   it('keeps the page behind it still on a touch screen while open, and lets it go once closed', () => {
