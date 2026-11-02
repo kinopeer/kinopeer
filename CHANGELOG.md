@@ -6,6 +6,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ### Fixed
 
+- Downloads on a phone: the list no longer shows through above the pinned filters, behind the clock and the battery. ([#197](https://github.com/MrShakhov/kinoseed/issues/197))
 - Desktop: Move files or Speed limits opened in a torrent's drawer while a move or save sent from Downloads is still on its way shows it busy, with what's being sent, instead of letting it be sent twice; then it closes, or says why it failed, in the drawer.
 - Pause and resume: one on its way for a torrent shows busy in every place that pauses or resumes it (a row's button, the More menu, the torrent's details or drawer, the selection's bar), instead of letting it be sent twice. Once qBittorrent took it, the torrent shows Paused or its running status right away, everywhere, instead of after the next update. ([#182](https://github.com/MrShakhov/kinoseed/issues/182))
 - Reannounce and force recheck: one on its way for a torrent shows busy in its More menu and recheck confirmation, on any screen, instead of letting it be sent twice after the menu or the confirmation was closed and opened again; a failure then is said in a toast instead of nowhere. Once qBittorrent took a recheck, the torrent shows Checking right away. ([#184](https://github.com/MrShakhov/kinoseed/issues/184))
