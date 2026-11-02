@@ -98,16 +98,21 @@ trusted.
   that exists, a command, a number, a file) is checked against the diff and the tree, and so is one
   the diff makes stale, a sentence saying which test owns a statement above all. How a paragraph
   wraps is not a finding.
-- **I. A `fix/` PR carries its record.** So does the fix of a flaky test. The issue is linked and labelled `test-gap:<class>`; the
-  PR says the new test was red before the fix; the class fits the story in the PR; "what changes so
-  this class is caught" names a concrete change, not a wish. Missing or vague → finding.
+- **I. A `fix/` PR carries its record.** So does the fix of a flaky test. The issue is linked and
+  labelled `test-gap:<class>`; a bug's fix says the new test was red before the fix, and a flaky
+  test's fix says how often the test failed and how many runs it now passes; the class fits the
+  story in the PR; "what changes so this class is caught" names a concrete change, not a wish.
+  Missing or vague → finding.
 - **J. Coverage.** `coverage.thresholds` in `vite.config.ts` are not lowered; a PR that says the
   totals fell gives a reason in its Tests section.
 - **K. Each test can fail.** The Tests table says each new or changed test was seen red, and the
   `Mutants` line accounts for each survivor in CI's comment on the PR (the latest one, at its
   commit), an `equivalent` with a reason you agree with; missing either, or a test you can see would
-  stay green with its behavior removed, → finding. Read each new test for the shapes in
-  `docs/TESTING.md` → A test that can fail.
+  stay green with its behavior removed, → finding. When production lines changed after CI's run,
+  or a PR with production lines has no CI comment (Actions out of minutes), the reviewer runs `npm
+  run test:mutants` locally at the head and says in the round what it saw; the reviewer doesn't
+  dispatch the workflow. Read each new test for the shapes in `docs/TESTING.md` → A test that can
+  fail.
 
 ## 4. Report
 

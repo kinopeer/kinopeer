@@ -189,9 +189,12 @@ Before marking a PR ready, the author does both of these and says so in the PR:
    condition, return early), watch the test fail, put the code back, and say so in the Tests table.
 
 CI runs the same (`.github/workflows/mutants.yml`) once per PR head, not on every push: when a PR is
-opened ready or marked ready, or by hand after later commits (`gh workflow run mutants.yml --ref
+opened ready or marked ready, or when started by hand (`gh workflow run mutants.yml --ref
 <branch>`), and posts the survivors on the PR at that commit. They don't fail the job, since an
 equivalent mutant would fail it for good; a survivor the PR doesn't account for is a review finding.
+When production lines changed after CI's run, or a PR with production lines has no CI comment
+(Actions out of minutes), the reviewer runs `npm run test:mutants` locally at the head and says in
+the round what it saw; the reviewer doesn't dispatch the workflow.
 
 A test that stays green with the behavior it names removed is a `silent-test` miss in the making.
 Three shapes cause most of them:
@@ -271,7 +274,8 @@ action besides the test itself:
 
 The record: a **Why tests missed it** section in the PR (the template has it) with the class and
 what changes so the class is caught, and the `test-gap:<class>` label on the issue. A PR that fixes
-a flaky test carries the same record, whatever its branch prefix. A systemic
+a flaky test carries the same record, whatever its branch prefix; one flake can't be shown red on
+demand, so it says how often the test failed and how many runs it now passes. A systemic
 finding (a blind spot, a fake that had drifted) also becomes a line in this file, in the same PR.
 There is no separate log: the closed issues with these labels are the history.
 
@@ -432,8 +436,9 @@ Three steps, each by whoever can do it best:
    explained with an accepted reason, nothing lost when a test is deleted, each assertion on its
    layer, behavior rather than implementation, each test able to fail, fakes true to the services,
    no sleeps or forced clicks, baselines listed, docs matching the code, the threshold not lowered.
-   It doesn't run the suite or the mutants (CI does); it compares CI's survivors with the PR's
-   `Mutants` line. A reviewer without the skill goes through the same list by
+   It doesn't run the suite (CI does), and it compares CI's survivors with the PR's `Mutants`
+   line, running the mutants itself only when [A test that can fail](#a-test-that-can-fail) says
+   so. A reviewer without the skill goes through the same list by
    hand; the skill is the list.
 3. **A second round after the fixes**, by the same reviewer: every flagged line again, and every
    test added or changed to fix a finding gets all the checks, since a test written to answer a

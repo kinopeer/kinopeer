@@ -26,17 +26,21 @@ jobs:
           # lines the branch changed.
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
+          # The token can write to PRs, and `npm ci` and the branch's own code run after this.
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
       - run: npm ci
       - run: npm run --silent test:mutants > mutants.md
+      - run: cat mutants.md >> "$GITHUB_STEP_SUMMARY"
       - name: Post the survivors on the PR
+        # A fork's PR gets a read-only token, and the job summary above still has them.
+        if: ${{ !github.event.pull_request.head.repo.fork }}
         env:
           GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ github.head_ref || github.ref_name }}
         run: |
-          cat mutants.md >> "$GITHUB_STEP_SUMMARY"
           pr=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number')
           if [ -n "$pr" ]; then gh pr comment "$pr" --body-file mutants.md; fi
