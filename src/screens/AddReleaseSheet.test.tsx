@@ -67,7 +67,7 @@ async function runningPoll() {
 function renderSheet(release = RELEASE, store?: MainDataStore) {
   const onAdded = vi.fn()
   const onClose = vi.fn()
-  render(
+  const { unmount } = render(
     <AddReleaseSheet
       release={release}
       info={parseRelease(release.title)}
@@ -87,7 +87,7 @@ function renderSheet(release = RELEASE, store?: MainDataStore) {
         )),
     },
   )
-  return { onAdded, onClose }
+  return { onAdded, onClose, unmount }
 }
 
 beforeEach(() => {
@@ -216,6 +216,15 @@ describe('AddReleaseSheet', () => {
     expect(within(sheet).queryByRole('button', { name: /Files:/ })).not.toBeInTheDocument()
     await userEvent.click(within(sheet).getByRole('button', { name: /^Download · 50\.0\sGB$/ }))
     expect(addRelease).toHaveBeenCalledWith({ kind: 'magnet', uri: 'magnet:?xt=urn:btih:abc' }, expect.anything(), undefined)
+  })
+
+  it('cancels asking for the folders when the sheet goes away', async () => {
+    vi.mocked(qbt.getSaveLocations).mockReturnValue(new Promise(() => {}))
+    const { unmount } = renderSheet()
+    await waitFor(() => expect(vi.mocked(qbt.getSaveLocations).mock.lastCall?.[0]?.aborted).toBe(false))
+
+    unmount()
+    expect(vi.mocked(qbt.getSaveLocations).mock.lastCall?.[0]?.aborted).toBe(true)
   })
 
   it('shows the default save path for a category when qBittorrent doesn’t use category folders', async () => {

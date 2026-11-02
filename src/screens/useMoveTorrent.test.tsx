@@ -83,6 +83,16 @@ describe('useMoveTorrent', () => {
     expect(within(sheet).getByRole('button', { name: 'Move' })).toBeEnabled()
   })
 
+  it('cancels asking for the folders when the sheet goes away', async () => {
+    getSaveLocations.mockReturnValue(new Promise(() => {}))
+    const { open, leave } = renderMove()
+    await open()
+    expect(getSaveLocations.mock.lastCall?.[0]?.aborted).toBe(false)
+
+    leave()
+    expect(getSaveLocations.mock.lastCall?.[0]?.aborted).toBe(true)
+  })
+
   it('takes the current folder with a trailing separator as no move', async () => {
     const { open } = renderMove()
     const sheet = await open()

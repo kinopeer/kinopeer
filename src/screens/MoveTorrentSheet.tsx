@@ -30,7 +30,7 @@ export interface MoveTorrentSheetProps {
 /** "Move files": a folder for a torrent's files, typed or picked from the ones qBittorrent knows. */
 export function MoveTorrentSheet({ torrent, offline, pending, failure, onMove, onClose }: MoveTorrentSheetProps) {
   const { t } = useTranslation()
-  const where = useRequest('qbt|save-locations', () => getSaveLocations())
+  const where = useRequest('qbt|save-locations', (signal) => getSaveLocations(signal))
   const folders = where.data ? knownFolders(where.data) : []
   // Opened while a move is in flight, the field shows the folder it sends, as the sheet that sent it did.
   const [location, setLocation] = useState(pending ?? torrent.save_path)

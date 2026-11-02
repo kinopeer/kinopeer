@@ -43,7 +43,7 @@ function toSearchParams(params: Params): URLSearchParams {
 
 async function request(
   path: string,
-  init: { method?: 'GET' | 'POST'; params?: Params; form?: FormData } = {},
+  init: { method?: 'GET' | 'POST'; params?: Params; form?: FormData; signal?: AbortSignal } = {},
 ): Promise<Response> {
   const { method = init.form ? 'POST' : 'GET', params = {} } = init
   const search = toSearchParams(params)
@@ -53,6 +53,7 @@ async function request(
     method,
     credentials: 'same-origin',
     body: method === 'POST' ? (init.form ?? search) : undefined,
+    signal: init.signal,
   })
 
   if (response.status === 401 || response.status === 403) throw new UnauthorizedError()
@@ -61,14 +62,14 @@ async function request(
 }
 
 /** qBittorrent version, e.g. "v5.0.4". Also a cheap way to check the session is valid. */
-export async function getAppVersion(): Promise<string> {
-  const response = await request('/app/version')
+export async function getAppVersion(signal?: AbortSignal): Promise<string> {
+  const response = await request('/app/version', { signal })
   return (await response.text()).trim()
 }
 
 /** Web API version, e.g. "2.11.4". */
-export async function getApiVersion(): Promise<string> {
-  const response = await request('/app/webapiVersion')
+export async function getApiVersion(signal?: AbortSignal): Promise<string> {
+  const response = await request('/app/webapiVersion', { signal })
   return (await response.text()).trim()
 }
 
@@ -122,14 +123,14 @@ export async function addTorrents(options: AddTorrentOptions): Promise<void> {
   if ((await response.text()).trim() === 'Fails.') throw new QbittorrentError('qBittorrent could not add the torrent', 200)
 }
 
-export async function getCategories(): Promise<Category[]> {
-  const response = await request('/torrents/categories')
+export async function getCategories(signal?: AbortSignal): Promise<Category[]> {
+  const response = await request('/torrents/categories', { signal })
   return Object.values((await response.json()) as Record<string, Category>)
 }
 
 /** Where torrents go without a category or a save path of their own. */
-export async function getDefaultSavePath(): Promise<string> {
-  const response = await request('/app/defaultSavePath')
+export async function getDefaultSavePath(signal?: AbortSignal): Promise<string> {
+  const response = await request('/app/defaultSavePath', { signal })
   return (await response.text()).trim()
 }
 
@@ -142,11 +143,11 @@ interface FolderPreferences {
 }
 
 /** Categories by name, the default save path and how qBittorrent uses category folders. */
-export async function getSaveLocations(): Promise<SaveLocations> {
+export async function getSaveLocations(signal?: AbortSignal): Promise<SaveLocations> {
   const [categories, defaultPath, preferences] = await Promise.all([
-    getCategories().catch(() => []),
-    getDefaultSavePath().catch(() => ''),
-    request('/app/preferences')
+    getCategories(signal).catch(() => []),
+    getDefaultSavePath(signal).catch(() => ''),
+    request('/app/preferences', { signal })
       .then((response) => response.json() as Promise<FolderPreferences>)
       // qBittorrent's defaults: manual mode, no subcategories.
       .catch((): FolderPreferences => ({})),
@@ -235,8 +236,8 @@ export async function setTorrentLocation(hashes: string[], location: string): Pr
 }
 
 /** Trackers of a torrent, including the DHT, PeX and LSD pseudo-trackers. */
-export async function getTorrentTrackers(hash: string): Promise<TorrentTracker[]> {
-  const response = await request('/torrents/trackers', { params: { hash } })
+export async function getTorrentTrackers(hash: string, signal?: AbortSignal): Promise<TorrentTracker[]> {
+  const response = await request('/torrents/trackers', { params: { hash }, signal })
   return (await response.json()) as TorrentTracker[]
 }
 

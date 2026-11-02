@@ -181,7 +181,7 @@ describe('TorrentScreen', () => {
     expect(value('Category')).toHaveTextContent('Movies')
     expect(value('Info hash')).toHaveTextContent('dune')
     expect(await screen.findByText('bt.rutor.info, opentor.net')).toBeInTheDocument()
-    expect(getTorrentTrackers).toHaveBeenCalledWith('dune')
+    expect(getTorrentTrackers).toHaveBeenCalledWith('dune', expect.any(AbortSignal))
   })
 
   it.each([0, -1])('lists only the speed limits that are set among the details (no upload limit reported as %i)', async (none) => {
