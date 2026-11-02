@@ -13,14 +13,20 @@ const NAVIGATION_HOLD_MS = 100
 /** How far a finger moves before its swipe has a direction, in pixels, like a sheet's drag. */
 const SLOP = 4
 
+/**
+ * Where the window sits while a field has focus, in pixels. Not the very top: going there brings
+ * Safari's collapsed toolbar back, which shrinks the viewport under an open sheet.
+ */
+const PINNED_AT = 1
+
 type Axis = 'x' | 'y'
 
 let holds = 0
 let stop: (() => void) | null = null
-/** Where the page is while its hold keeps the window at the top. */
+/** Where the page is while its hold keeps the window by the top. */
 let pinnedAt: number | null = null
 
-/** How far the page is scrolled, also while `holdPage` keeps the window at the top. */
+/** How far the page is scrolled, also while `holdPage` keeps the window by the top. */
 export function pageScrollY(view: Window = window): number {
   return pinnedAt ?? view.scrollY
 }
@@ -38,10 +44,11 @@ export function pageScrollY(view: Window = window): number {
  *   focus, so Safari scrolls nothing to show it (for `NAVIGATION_HOLD_MS` when the keyboard's
  *   arrows moved focus there); then it's brought into view in its own scroller (the sheet's body),
  *   once the keyboard has opened;
- * - from the first such field on, the window sits at the top and the body's negative margin keeps
- *   the page where it was: opening the keyboard takes the window to the top in Safari whatever a
- *   sheet's field is, and scrolling back from there leaves the layout viewport behind, up by the
- *   keyboard's height, with sticky bars and the backdrop in it;
+ * - from the first such field on, the window sits by the top (`PINNED_AT`) and the body's negative
+ *   margin keeps the page where it was: on a page scrolled further, opening the keyboard takes the
+ *   window to the top in Safari whatever a sheet's field is, and scrolling back from there leaves
+ *   the layout viewport behind, up by the keyboard's height, with sticky bars and the backdrop in
+ *   it;
  * - if the page scrolls anyway, it goes back to where the hold keeps it, so nothing may scroll the
  *   page on purpose while a modal is open.
  *
@@ -107,9 +114,9 @@ function start(view: Window): () => void {
     if (unpin || scrollY === 0) return
     const { marginTop } = doc.body.style
     pinnedAt = scrollY
-    top = 0
-    doc.body.style.marginTop = `${-scrollY}px`
-    view.scrollTo(scrollX, 0)
+    top = PINNED_AT
+    doc.body.style.marginTop = `${PINNED_AT - scrollY}px`
+    view.scrollTo(scrollX, PINNED_AT)
     unpin = () => {
       pinnedAt = null
       doc.body.style.marginTop = marginTop

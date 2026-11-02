@@ -105,7 +105,7 @@ describe('useScrollRestoration', () => {
     view.unmount()
   })
 
-  it('saves where the page is while a modal holds the window at the top', async () => {
+  it('saves where the page is while a modal holds the window by the top', async () => {
     stubTouchScreen()
     const user = userEvent.setup()
     render(app(true))
@@ -114,7 +114,7 @@ describe('useScrollRestoration', () => {
     const field = document.createElement('input')
     document.body.append(field)
     field.focus()
-    scrolledTo(0)
+    scrolledTo(1)
 
     await user.click(screen.getByRole('link', { name: 'Open' }))
     release()

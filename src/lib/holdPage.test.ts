@@ -337,7 +337,7 @@ describe('holdPage', () => {
     expect(window.scrollTo).toHaveBeenCalledWith(0, 300)
   })
 
-  it('takes the page to the top while a field has focus, so Safari has nothing to scroll back', () => {
+  it('keeps the window a pixel from the top while a field has focus, the page where it was', () => {
     stubScreen()
     vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
     hold()
@@ -345,11 +345,23 @@ describe('holdPage', () => {
     document.body.append(field)
 
     field.focus()
-    expect(document.body.style.marginTop).toBe('-300px')
-    expect(window.scrollTo).toHaveBeenLastCalledWith(0, 0)
+    expect(document.body.style.marginTop).toBe('-299px')
+    expect(window.scrollTo).toHaveBeenLastCalledWith(0, 1)
 
     window.dispatchEvent(new Event('scroll'))
-    expect(window.scrollTo).toHaveBeenLastCalledWith(0, 0)
+    expect(window.scrollTo).toHaveBeenCalledTimes(2)
+    expect(window.scrollTo).toHaveBeenLastCalledWith(0, 1)
+  })
+
+  it('leaves a page at the top where it is, so a field brings no scroll', () => {
+    stubScreen()
+    hold()
+    const field = document.createElement('input')
+    document.body.append(field)
+
+    field.focus()
+    expect(document.body.style.marginTop).toBe('')
+    expect(window.scrollTo).not.toHaveBeenCalled()
   })
 
   it('leaves the page where it is until a field that opens the keyboard gets focus', () => {
@@ -365,7 +377,7 @@ describe('holdPage', () => {
     expect(window.scrollTo).not.toHaveBeenCalled()
   })
 
-  it('takes the page to the top once, however many fields get focus', () => {
+  it('moves the window once, however many fields get focus', () => {
     stubScreen()
     vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
     const release = hold()
@@ -390,13 +402,13 @@ describe('holdPage', () => {
     field.focus()
 
     inner()
-    expect(document.body.style.marginTop).toBe('-300px')
+    expect(document.body.style.marginTop).toBe('-299px')
     release()
     expect(document.body.style.marginTop).toBe('8px')
     expect(window.scrollTo).toHaveBeenLastCalledWith(0, 300)
   })
 
-  it('still says where the page is while the window is at the top', () => {
+  it('still says where the page is while the window is by the top', () => {
     stubScreen()
     const scrollY = vi.spyOn(window, 'scrollY', 'get').mockReturnValue(300)
     const release = hold()
@@ -405,7 +417,7 @@ describe('holdPage', () => {
     expect(pageScrollY()).toBe(300)
 
     field.focus()
-    scrollY.mockReturnValue(0)
+    scrollY.mockReturnValue(1)
     expect(pageScrollY()).toBe(300)
 
     release()
