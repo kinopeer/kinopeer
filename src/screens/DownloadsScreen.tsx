@@ -18,7 +18,7 @@ import { useHeightVar } from '../lib/useHeightVar'
 import { useIsDesktop } from '../lib/useIsDesktop'
 import { useSettings } from '../settings/settings'
 import { freeSpace } from '../torrents/freeSpace'
-import { compareTorrents, knownSort } from '../torrents/sort'
+import { clickedOrder, compareTorrents, usualOrder, type DownloadOrder, type DownloadSort } from '../torrents/sort'
 import { STATUS_FILTERS, matchesFilter, type StatusFilter } from '../torrents/status'
 import { useServerMatches } from '../torrents/serverMatches'
 import { TYPE_FILTERS, isGuessed, titleType, useTitleMatches, type TypeFilter } from '../torrents/titleMatches'
@@ -72,13 +72,20 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   // The desktop header stays at the top while the list scrolls, and the table's column names stick
   // right under it: its height (the filters wrap, the offline banner comes and goes) is theirs in CSS.
   const headRef = useHeightVar('--downloads-head')
-  const [{ downloadsView, downloadsDesktopView, downloadsSort }, updateSettings] = useSettings()
+  const [{ downloadsView, downloadsDesktopView, downloadsSort: sort, downloadsSortDescending }, updateSettings] = useSettings()
   // Each layout remembers its own view: the desktop's list is a table, and its grid is the default.
   const view = isDesktop ? downloadsDesktopView : downloadsView
   const setView = (next: 'list' | 'grid') =>
     updateSettings(isDesktop ? { downloadsDesktopView: next } : { downloadsView: next })
   const grid = view === 'grid'
-  const sort = knownSort(downloadsSort)
+  // The direction is desktop's alone, where the column headers and the sort button show it; the
+  // phone's sort sheet has none, so the list there is in the sort's usual direction.
+  const descending = isDesktop ? downloadsSortDescending : usualOrder(sort).descending
+  const order = useMemo(() => ({ sort, descending }), [sort, descending])
+  const setOrder = (next: DownloadOrder) =>
+    updateSettings({ downloadsSort: next.sort, downloadsSortDescending: next.descending })
+  // A pick from the menu or the sheet is that sort in its usual direction.
+  const pickSort = (next: DownloadSort) => setOrder(usualOrder(next))
   const [sortOpen, setSortOpen] = useState(false)
   const [sortAnchor, setSortAnchor] = useState<HTMLElement | null>(null)
   const [filter, setFilter] = useState<StatusFilter>('all')
@@ -146,10 +153,11 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
             torrent.name.toLocaleLowerCase().includes(needle) ||
             !!matches[torrent.hash]?.title.toLocaleLowerCase().includes(needle)),
       )
-      .sort(compareTorrents(sort, (torrent) => matches[torrent.hash]?.title ?? torrent.name))
-  }, [typed, filter, query, matches, sort])
-  // The table's "#" column only when the queue order puts a position on some torrent shown.
-  const queueColumn = sort === 'priority' && visible.some((torrent) => torrent.priority > 0)
+      .sort(compareTorrents(order, (torrent) => matches[torrent.hash]?.title ?? torrent.name))
+  }, [typed, filter, query, matches, order])
+  // The table's "#" column only when the queue order puts a position on some torrent shown, or while
+  // that order is reversed, so its header is there to turn it back once the queue has emptied.
+  const queueColumn = sort === 'priority' && (descending || visible.some((torrent) => torrent.priority > 0))
 
   // Only what's on screen counts, so a filter never leaves hidden torrents selected.
   const selectedVisible = selected ? visible.filter((torrent) => selected.has(torrent.hash)) : []
@@ -312,11 +320,15 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
         <Button
           variant="secondary"
           size="sm"
-          icon="sort"
-          className="downloads-sort"
+          // Its icon shows the direction, upside down for ascending, as the releases' direction button does.
+          icon="sort-desc"
+          className={cx('downloads-sort', !descending && 'is-ascending')}
           aria-haspopup="menu"
           aria-expanded={sortAnchor !== null}
-          aria-label={t('downloads.sortButton', { sort: t(`downloads.sorts.${sort}`) })}
+          aria-label={t('downloads.sortOrderButton', {
+            sort: t(`downloads.sorts.${sort}`),
+            direction: t(descending ? 'downloads.descending' : 'downloads.ascending'),
+          })}
           onClick={(event) => setSortAnchor(sortAnchor ? null : event.currentTarget)}
         >
           {t(`downloads.sorts.${sort}`)}
@@ -448,7 +460,12 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
         ) : isDesktop && !grid ? (
           <div className={cx('dl-table', (selecting || queueColumn) && 'has-lead')} role="table" aria-label={t('downloads.title')}>
             <div role="rowgroup" className="dl-table-head">
-              <DownloadRowHeader selecting={selecting} queue={queueColumn} />
+              <DownloadRowHeader
+                selecting={selecting}
+                queue={queueColumn}
+                order={order}
+                onSort={(next) => setOrder(clickedOrder(order, next))}
+              />
             </div>
             <div role="rowgroup" className="dl-table-body">
               {visible.map((torrent) => (
@@ -493,14 +510,14 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
         <SortMenu
           anchor={sortAnchor}
           value={sort}
-          onChange={(downloadsSort) => updateSettings({ downloadsSort })}
+          onChange={pickSort}
           onClose={() => setSortAnchor(null)}
         />
       )}
       <SortSheet
         open={sortOpen && !isDesktop}
         value={sort}
-        onChange={(downloadsSort) => updateSettings({ downloadsSort })}
+        onChange={pickSort}
         type={type}
         onTypeChange={setType}
         onClose={() => setSortOpen(false)}

@@ -24,14 +24,46 @@ function renderRow(props: Partial<DownloadItemProps> = {}, torrent: Torrent = DU
 }
 
 describe('DownloadRowHeader', () => {
+  const BY_QUEUE = { order: { sort: 'priority', descending: false }, onSort: () => {} } as const
+
   it('names the columns, with the first one only while selecting or with queue positions', () => {
-    const { rerender } = renderWithRouter(<DownloadRowHeader selecting={false} queue={false} />)
+    const { rerender } = renderWithRouter(<DownloadRowHeader selecting={false} queue={false} {...BY_QUEUE} />)
     const names = () => screen.getAllByRole('columnheader').map((header) => header.textContent)
     expect(names()).toEqual(['Poster', 'Title', 'Progress', 'Status', 'Speed', 'ETA', 'Size', 'Actions'])
-    rerender(<DownloadRowHeader selecting={false} queue />)
-    expect(names()[0]).toBe('#')
-    rerender(<DownloadRowHeader selecting queue={false} />)
+    rerender(<DownloadRowHeader selecting={false} queue {...BY_QUEUE} />)
+    expect(names()[0]).toBe('# Priority')
+    rerender(<DownloadRowHeader selecting queue={false} {...BY_QUEUE} />)
     expect(names()[0]).toBe('Select')
+    // The checkboxes' column sorts nothing.
+    expect(within(screen.getAllByRole('columnheader')[0]).queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  it('makes every column but the status and the unnamed ones a sort button, and says which one sorts the list', async () => {
+    const onSort = vi.fn()
+    const { rerender } = renderWithRouter(
+      <DownloadRowHeader selecting={false} queue order={{ sort: 'size', descending: true }} onSort={onSort} />,
+    )
+    const buttons = screen.getAllByRole('columnheader').map((header) => within(header).queryByRole('button')?.textContent ?? null)
+    // The queue column's "#" is followed by the sort's name, hidden, so the name still starts with what shows.
+    expect(screen.getByRole('button', { name: '# Priority' })).toBeInTheDocument()
+    expect(buttons).toEqual(['# Priority', null, 'Title', 'Progress', null, 'Speed', 'ETA', 'Size', null])
+    const sorted = () =>
+      screen
+        .getAllByRole('columnheader')
+        .filter((header) => header.hasAttribute('aria-sort'))
+        .map((header) => [header.textContent, header.getAttribute('aria-sort')])
+    expect(sorted()).toEqual([['Size', 'descending']])
+
+    await userEvent.click(screen.getByRole('button', { name: 'Title' }))
+    expect(onSort).toHaveBeenCalledWith('name')
+
+    rerender(<DownloadRowHeader selecting={false} queue order={{ sort: 'priority', descending: true }} onSort={onSort} />)
+    expect(sorted()).toEqual([['# Priority', 'descending']])
+    rerender(<DownloadRowHeader selecting={false} queue order={{ sort: 'eta', descending: false }} onSort={onSort} />)
+    expect(sorted()).toEqual([['ETA', 'ascending']])
+    // Date added has no column.
+    rerender(<DownloadRowHeader selecting={false} queue order={{ sort: 'added', descending: true }} onSort={onSort} />)
+    expect(sorted()).toEqual([])
   })
 })
 

@@ -71,6 +71,9 @@
     "sortFilter": "Сортировка и фильтр",
     "sortButton": "Сортировка: {{sort}}",
     "sortTypeButton": "Сортировка: {{sort}}, {{type}}",
+    "sortOrderButton": "Сортировка: {{sort}}, {{direction}}",
+    "ascending": "по возрастанию",
+    "descending": "по убыванию",
     "sortDone": "Готово",
     "sortPriorityHint": "Порядок очереди",
     "sorts": {

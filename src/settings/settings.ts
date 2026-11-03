@@ -10,7 +10,7 @@ import {
   type RememberedFilters,
   type Sort,
 } from '../releases/filterReleases'
-import type { DownloadSort } from '../torrents/sort'
+import { knownOrder, type DownloadSort } from '../torrents/sort'
 
 /**
  * Preferences from the Settings screen, kept in this browser. The download defaults (categories,
@@ -37,6 +37,8 @@ export interface Settings {
   downloadsDesktopView: 'list' | 'grid'
   /** How the downloads list is ordered. */
   downloadsSort: DownloadSort
+  /** Its direction, which only desktop shows and changes; set together with the sort. */
+  downloadsSortDescending: boolean
   /** The release filters picked last, which the next title's search starts from. */
   releaseFilters: RememberedFilters
   /** How releases are ordered. */
@@ -53,6 +55,7 @@ export const DEFAULT_SETTINGS: Settings = {
   downloadsView: 'list',
   downloadsDesktopView: 'grid',
   downloadsSort: 'priority',
+  downloadsSortDescending: false,
   releaseFilters: NO_REMEMBERED_FILTERS,
   releaseSort: DEFAULT_SORT,
 }
@@ -79,10 +82,13 @@ function read(): Settings {
   try {
     lastStored = localStorage.getItem(SETTINGS_STORAGE_KEY)
     const stored = JSON.parse(lastStored ?? '{}') as Partial<Settings>
+    const order = knownOrder(stored.downloadsSort, stored.downloadsSortDescending)
     return {
       ...DEFAULT_SETTINGS,
       ...stored,
       // Checked here, so a value from another version or a hand edit can't break a screen that reads them.
+      downloadsSort: order.sort,
+      downloadsSortDescending: order.descending,
       releaseFilters: knownReleaseFilters(stored.releaseFilters),
       releaseSort: knownReleaseSort(stored.releaseSort),
     }

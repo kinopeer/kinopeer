@@ -1,9 +1,29 @@
 import type { Torrent } from '../api/qbittorrent'
-import { compareByQueue, downloadStatus } from './status'
+import { compareByQueue, downloadStatus, showsSpeed } from './status'
 
 /** Orders for the downloads list; `priority` is qBittorrent's queue order. */
 export const DOWNLOAD_SORTS = ['priority', 'added', 'name', 'progress', 'size', 'speed', 'eta'] as const
 export type DownloadSort = (typeof DOWNLOAD_SORTS)[number]
+
+/** A sort and its direction. */
+export interface DownloadOrder {
+  sort: DownloadSort
+  descending: boolean
+}
+
+/**
+ * Each sort's usual direction, the one a menu pick or a column's first click gives: the queue from
+ * its first position, newest, A to Z, most progress, largest, fastest, soonest done.
+ */
+const USUALLY_DESCENDING: Record<DownloadSort, boolean> = {
+  priority: false,
+  added: true,
+  name: false,
+  progress: true,
+  size: true,
+  speed: true,
+  eta: false,
+}
 
 type Compare = (a: Torrent, b: Torrent) => number
 
@@ -15,33 +35,66 @@ function timeLeft(torrent: Torrent): number | null {
     : null
 }
 
-function byTimeLeft(a: Torrent, b: Torrent): number {
-  const aLeft = timeLeft(a)
-  const bLeft = timeLeft(b)
-  if (aLeft === null || bLeft === null) return aLeft === bLeft ? 0 : aLeft === null ? 1 : -1
-  return aLeft - bLeft
+/** How a sort compares, smallest first; `has` is for a value some torrents lack. */
+interface SortKey {
+  compare: Compare
+  has?: (torrent: Torrent) => boolean
+}
+
+function sortKey(sort: DownloadSort, titleOf: (torrent: Torrent) => string): SortKey {
+  switch (sort) {
+    case 'priority':
+      return { compare: (a, b) => a.priority - b.priority, has: (torrent) => torrent.priority > 0 }
+    case 'added':
+      return { compare: (a, b) => a.added_on - b.added_on }
+    case 'name':
+      return {
+        compare: (a, b) => titleOf(a).localeCompare(titleOf(b), undefined, { numeric: true, sensitivity: 'base' }),
+      }
+    case 'progress':
+      return { compare: (a, b) => a.progress - b.progress }
+    case 'size':
+      return { compare: (a, b) => a.size - b.size }
+    case 'speed':
+      return { compare: (a, b) => a.dlspeed - b.dlspeed || a.upspeed - b.upspeed, has: (torrent) => showsSpeed(downloadStatus(torrent)) }
+    case 'eta':
+      return { compare: (a, b) => timeLeft(a)! - timeLeft(b)!, has: (torrent) => timeLeft(torrent) !== null }
+  }
 }
 
 /**
- * Compares torrents for `sort`, with ties in queue order. Each order has one direction: newest,
- * A to Z by `titleOf` (the title the row shows), most progress, largest, fastest (download speed,
- * then upload), soonest done (torrents without a time left go last).
+ * Compares torrents for `order`, with ties in queue order: by queue position, date added, the title
+ * the row shows (`titleOf`, numbers by value), progress, size, speed (download, then upload) or time
+ * left. Torrents without a queue position, a speed shown or a time left go last in either direction.
  */
-export function compareTorrents(sort: DownloadSort, titleOf: (torrent: Torrent) => string): Compare {
-  const first: Compare | undefined = {
-    priority: undefined,
-    added: (a: Torrent, b: Torrent) => b.added_on - a.added_on,
-    name: (a: Torrent, b: Torrent) =>
-      titleOf(a).localeCompare(titleOf(b), undefined, { numeric: true, sensitivity: 'base' }),
-    progress: (a: Torrent, b: Torrent) => b.progress - a.progress,
-    size: (a: Torrent, b: Torrent) => b.size - a.size,
-    speed: (a: Torrent, b: Torrent) => b.dlspeed - a.dlspeed || b.upspeed - a.upspeed,
-    eta: byTimeLeft,
-  }[sort]
-  return first ? (a, b) => first(a, b) || compareByQueue(a, b) : compareByQueue
+export function compareTorrents(order: DownloadOrder, titleOf: (torrent: Torrent) => string): Compare {
+  const { compare, has } = sortKey(order.sort, titleOf)
+  const direction = order.descending ? -1 : 1
+  return (a, b) => {
+    if (has) {
+      const aHas = has(a)
+      if (aHas !== has(b)) return aHas ? -1 : 1
+      if (!aHas) return compareByQueue(a, b)
+    }
+    return direction * compare(a, b) || compareByQueue(a, b)
+  }
 }
 
-/** A stored sort that's no longer offered falls back to the queue. */
-export function knownSort(sort: string | undefined): DownloadSort {
-  return DOWNLOAD_SORTS.includes(sort as DownloadSort) ? (sort as DownloadSort) : 'priority'
+/** `sort` in its usual direction. */
+export function usualOrder(sort: DownloadSort): DownloadOrder {
+  return { sort, descending: USUALLY_DESCENDING[sort] }
+}
+
+/**
+ * A stored sort and direction: a sort that's no longer offered falls back to the queue, and one
+ * stored without a direction (before there was one) takes its usual direction.
+ */
+export function knownOrder(sort: unknown, descending: unknown): DownloadOrder {
+  const known = DOWNLOAD_SORTS.includes(sort as DownloadSort) ? (sort as DownloadSort) : 'priority'
+  return typeof descending === 'boolean' && known === sort ? { sort: known, descending } : usualOrder(known)
+}
+
+/** The order after a click on `sort`'s column: reversed if it's the current sort, else its usual direction. */
+export function clickedOrder(current: DownloadOrder, sort: DownloadSort): DownloadOrder {
+  return current.sort === sort ? { sort, descending: !current.descending } : usualOrder(sort)
 }

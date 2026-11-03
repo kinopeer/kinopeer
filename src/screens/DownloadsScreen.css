@@ -100,6 +100,11 @@
   margin-left: -8px;
 }
 
+/* Desktop's sort button: its icon points down for a descending sort and up for an ascending one. */
+.downloads-sort.is-ascending .ks-ic:first-child {
+  transform: scaleY(-1);
+}
+
 .sort-sheet {
   display: flex;
   flex-direction: column;
@@ -522,6 +527,32 @@
   padding-bottom: var(--space-2);
   font-weight: 600;
   color: var(--text3);
+}
+
+/* A sortable column's name: plain text until hovered, brighter with an arrow while the list is in its order. */
+.dl-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: color var(--d-fast) var(--ease);
+}
+
+.dl-sort.is-on,
+.dl-sort:hover {
+  color: var(--text);
+}
+
+.dl-sort:focus-visible {
+  outline: var(--focus-ring);
+  border-radius: var(--r-xs);
 }
 
 .dl-row.is-sel {
