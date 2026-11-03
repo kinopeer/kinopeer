@@ -9,6 +9,7 @@ import App from './App.tsx'
 import { trackInputModality } from './lib/inputModality'
 import { trackKeyboardInset } from './lib/keyboardInset'
 import { listenForInstallPrompt } from './pwa/install'
+import { startUpdateChecks } from './pwa/updates'
 import { ErrorBoundary } from './screens/ErrorBoundary'
 import { initLanguage } from './i18n/language'
 import { initSettingsSync } from './settings/settings'
@@ -18,6 +19,7 @@ initTheme()
 initLanguage()
 initSettingsSync()
 listenForInstallPrompt()
+startUpdateChecks()
 trackInputModality()
 trackKeyboardInset()
 

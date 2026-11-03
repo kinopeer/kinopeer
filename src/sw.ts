@@ -10,7 +10,7 @@ import { API_DENYLIST, POSTER_CACHE, isPosterRequest } from './pwa/swRoutes'
 declare const self: ServiceWorkerGlobalScope
 
 // A new version takes over right away. The app loads as one bundle (no lazy chunks), so a page
-// that is already open keeps working, and the next launch opens the new version.
+// that is already open keeps working; src/pwa/updates.ts reloads it into the new version.
 void self.skipWaiting()
 clientsClaim()
 

@@ -9,6 +9,7 @@ import * as serverSettings from './api/settings'
 import * as tmdb from './api/tmdb'
 import App from './App'
 import { stubDesktop } from './lib/stubDesktop'
+import { markReloadedFor } from './pwa/updates'
 import { findToastOnPage, renderWithRouter, saying, Where, where } from './test/render'
 
 vi.mock('./api/qbittorrent', async (importOriginal) => {
@@ -96,6 +97,17 @@ describe('App', () => {
   it('goes straight in when qBittorrent needs no login', async () => {
     renderApp()
     expect(await screen.findByRole('heading', { name: 'Downloads' })).toBeInTheDocument()
+  })
+
+  it('says the app was updated after reloading for a new version, once', async () => {
+    markReloadedFor(__APP_VERSION__)
+    const { unmount } = renderApp()
+    expect(await findToastOnPage(`Kinoseed updated to ${__APP_VERSION__}`)).toBeInTheDocument()
+    unmount()
+
+    renderApp()
+    await screen.findByRole('heading', { name: 'Downloads' })
+    expect(screen.queryByRole('status', { name: saying(/Kinoseed updated/) })).not.toBeInTheDocument()
   })
 
   it('navigates between tabs', async () => {

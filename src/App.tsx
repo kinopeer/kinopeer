@@ -1,11 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, Route, Routes, matchPath, useLocation } from 'react-router'
 import { Sidebar, SidebarStatus, type SidebarItem } from './components/Sidebar'
 import { TabBar, type TabBarItem } from './components/TabBar'
-import { ToastProvider } from './components/Toast'
+import { ToastProvider, useToast } from './components/Toast'
 import { backgroundOf } from './lib/background'
 import { useIsDesktop } from './lib/useIsDesktop'
+import { takeJustUpdated } from './pwa/updates'
 import { ConnectScreen } from './screens/ConnectScreen'
 import { DownloadsScreen } from './screens/DownloadsScreen'
 import { DownloadsWithDrawer } from './screens/DownloadsWithDrawer'
@@ -63,6 +64,7 @@ function App() {
       return (
         <MainDataProvider onUnauthorized={onSessionLost}>
           <ToastProvider>
+            <UpdatedToast />
             <TorrentRequestsProvider>
               <div className="app-shell">
                 {/* Keyed by screen, so a crash on one screen goes away when the user switches tabs. */}
@@ -115,6 +117,16 @@ function App() {
         />
       )
   }
+}
+
+/** Says the app was updated when this page is the reload `startUpdateChecks` did for a new version. */
+function UpdatedToast() {
+  const { t } = useTranslation()
+  const toast = useToast()
+  useEffect(() => {
+    if (takeJustUpdated()) toast.show(t('app.updated', { version: __APP_VERSION__ }), { icon: 'check' })
+  }, [t, toast])
+  return null
 }
 
 const TORRENT_PATH = '/torrent/:hash'
