@@ -57,7 +57,7 @@ function aboutRow(label: string) {
 beforeEach(() => {
   vi.resetAllMocks()
   resetSettings()
-  vi.mocked(qbt.getAppVersion).mockResolvedValue('v5.3.0')
+  vi.mocked(qbt.getAppVersion).mockResolvedValue('5.3.0')
   vi.mocked(qbt.getCategories).mockResolvedValue([
     { name: 'TV Shows', savePath: '/data/tv' },
     { name: 'Movies', savePath: '/data/movies' },
@@ -263,7 +263,6 @@ describe('SettingsScreen', () => {
   it("shows the versions of Kinoseed, qBittorrent and Prowlarr and Prowlarr's indexers from the connection checks", async () => {
     renderScreen()
     expect(aboutRow('Kinoseed version')).toHaveTextContent(__APP_VERSION__)
-    // qBittorrent's "v" goes, so its version is written like the others.
     await waitFor(() => expect(aboutRow('qBittorrent version')).toHaveTextContent(/^qBittorrent version5\.3\.0$/))
     await waitFor(() => expect(aboutRow('Prowlarr version')).toHaveTextContent(/^Prowlarr version1\.24\.3$/))
     expect(aboutRow('Prowlarr indexers')).toHaveTextContent(/^Prowlarr indexers2$/)
@@ -316,7 +315,7 @@ describe('SettingsScreen', () => {
     const movies = screen.getByRole('combobox', { name: 'Movies category' })
     expect(movies).toBeDisabled()
 
-    vi.mocked(qbt.getAppVersion).mockResolvedValue('v5.3.0')
+    vi.mocked(qbt.getAppVersion).mockResolvedValue('5.3.0')
     vi.mocked(qbt.getCategories).mockResolvedValue([{ name: 'Movies', savePath: '/data/movies' }])
     await userEvent.click(within(connection('qBittorrent')).getByRole('button', { name: 'Test' }))
     expect(await within(movies).findByRole('option', { name: 'Automatic (Movies)' })).toBeInTheDocument()

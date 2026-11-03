@@ -32,7 +32,7 @@ describe('logging in to qBittorrent', () => {
 
     // The right one is saved and used from then on, by the server.
     await expect(saveQbittorrentLogin('admin', 'pass word')).resolves.toMatchObject({ qbittorrent: { configured: true, source: 'saved' } })
-    await expect(getAppVersion()).resolves.toBe('v5.2.4')
+    await expect(getAppVersion()).resolves.toBe('5.2.4')
     expect(qbittorrent.seen.at(-1)).toMatchObject({ url: '/api/v2/app/version', cookie: 'SID=sid3' })
     expect(cookies.all()).toEqual({})
     for (const response of responses) expect(await response.text()).not.toMatch(/pass word|SID=/)

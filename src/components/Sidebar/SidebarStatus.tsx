@@ -7,7 +7,7 @@ import { Icon } from '../Icon'
 import { IconButton } from '../IconButton'
 
 export interface SidebarStatusProps {
-  /** qBittorrent's version as it reports it, e.g. "v5.0.1". */
+  /** qBittorrent's version, e.g. "5.0.1". */
   version: string
   /** qBittorrent stopped answering. */
   offline: boolean

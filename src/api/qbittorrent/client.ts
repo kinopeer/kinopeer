@@ -61,10 +61,13 @@ async function request(
   return response
 }
 
-/** qBittorrent version, e.g. "v5.0.4". Also a cheap way to check the session is valid. */
+/**
+ * qBittorrent version, e.g. "5.0.4": qBittorrent answers "v5.0.4", and the "v" goes so it's written
+ * like Kinoseed's and Prowlarr's. Also a cheap way to check the session is valid.
+ */
 export async function getAppVersion(signal?: AbortSignal): Promise<string> {
   const response = await request('/app/version', { signal })
-  return (await response.text()).trim()
+  return (await response.text()).trim().replace(/^v/, '')
 }
 
 export async function getTorrents(query: TorrentsQuery = {}): Promise<Torrent[]> {

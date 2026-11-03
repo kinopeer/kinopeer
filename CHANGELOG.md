@@ -6,7 +6,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ### Changed
 
-- Settings: the Connections cards say only whether each service is connected, and Prowlarr's warns when it has no indexers, since search finds nothing then. The qBittorrent and Prowlarr versions and the number of indexers are in About now, next to Kinoseed's version, for a bug report; qBittorrent's API version is gone. On desktop About spans the width, its two cards side by side. ([#221](https://github.com/MrShakhov/kinoseed/issues/221))
+- Settings: the Connections cards say only whether each service is connected, and Prowlarr's warns when it has no indexers, since search finds nothing then. The qBittorrent and Prowlarr versions and the number of indexers are in About now, next to Kinoseed's version, for a bug report; qBittorrent's API version is gone, and its version is written without a "v" (5.3.0), like the others, in About and in the desktop sidebar. On desktop About spans the width, its two cards side by side. ([#221](https://github.com/MrShakhov/kinoseed/issues/221))
 
 ### Fixed
 

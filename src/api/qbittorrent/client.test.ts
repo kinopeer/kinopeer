@@ -247,6 +247,14 @@ describe('deleteTorrents', () => {
   })
 })
 
+describe('getAppVersion', () => {
+  it("reads qBittorrent's version without its \"v\", as Kinoseed and Prowlarr write theirs", async () => {
+    respond('v5.0.4\n')
+    await expect(getAppVersion()).resolves.toBe('5.0.4')
+    expect(lastCall().url).toBe('/qbt/api/v2/app/version')
+  })
+})
+
 describe('setTorrentLocation', () => {
   it('posts the hashes and the new folder', async () => {
     respond('')

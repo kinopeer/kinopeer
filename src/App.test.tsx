@@ -64,7 +64,7 @@ const getMainData = vi.mocked(api.getMainData)
 
 beforeEach(() => {
   vi.resetAllMocks()
-  getAppVersion.mockResolvedValue('v5.2.4')
+  getAppVersion.mockResolvedValue('5.2.4')
   vi.mocked(api.getCategories).mockResolvedValue([])
   getMainData.mockResolvedValue({ rid: 1, full_update: true, torrents: {}, server_state: {} })
   const empty = { titles: [], page: 1, totalPages: 1 }
@@ -185,7 +185,7 @@ describe('App', () => {
       await screen.findByRole('dialog', { name: 'Dune.2021.1080p' })
       const nav = screen.getByRole('navigation', { name: 'Main' })
       expect(within(nav).getByRole('link', { name: /^Downloads.*1 downloading$/ })).toBeInTheDocument()
-      expect(screen.getByRole('region', { name: 'qBittorrent' })).toHaveTextContent('qBittorrent v5.2.4')
+      expect(screen.getByRole('region', { name: 'qBittorrent' })).toHaveTextContent('qBittorrent 5.2.4')
     })
 
     // A trailing slash is the same route to React Router, so it has to be the same screen too.
@@ -487,7 +487,7 @@ describe('App', () => {
   })
 
   it('returns to sign-in when the session expires while polling', async () => {
-    getAppVersion.mockReset().mockResolvedValueOnce('v5.2.4').mockRejectedValue(new api.UnauthorizedError())
+    getAppVersion.mockReset().mockResolvedValueOnce('5.2.4').mockRejectedValue(new api.UnauthorizedError())
     getMainData.mockRejectedValue(new api.UnauthorizedError())
     renderApp()
     expect(await screen.findByRole('heading', { name: 'Connect qBittorrent' })).toBeInTheDocument()

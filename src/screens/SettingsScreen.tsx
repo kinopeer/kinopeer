@@ -330,8 +330,7 @@ export function SettingsScreen() {
       <Section id="settings-about" title={t('settings.about')}>
         <ul className="ks-card settings-rows">
           <AboutValue label={t('settings.version')} value={__APP_VERSION__} />
-          {/* "v5.3.0" from qBittorrent, written like the others. */}
-          <AboutValue label={t('settings.qbtVersion')} value={qbittorrent.data?.replace(/^v/, '')} />
+          <AboutValue label={t('settings.qbtVersion')} value={qbittorrent.data} />
           <AboutValue label={t('settings.prowlarrVersion')} value={prowlarr.data?.version} />
           <AboutValue label={t('settings.indexers')} value={prowlarr.data?.indexers} />
           {installMethod && (

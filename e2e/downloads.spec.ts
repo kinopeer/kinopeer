@@ -227,7 +227,7 @@ test.describe('downloads, desktop', () => {
   test('poster grid by default, dark, Russian', async ({ page }) => {
     await openDownloads(page)
     // The sidebar's card loads the version with its own request, after the list has its titles.
-    await expect(page.getByRole('region', { name: 'qBittorrent' })).toContainText('qBittorrent v5.3.0')
+    await expect(page.getByRole('region', { name: 'qBittorrent' })).toContainText('qBittorrent 5.3.0')
     await expect(page).toHaveScreenshot('desktop-grid-dark-ru.png')
   })
 
