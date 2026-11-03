@@ -4,6 +4,7 @@
 set -eu
 cd "$(dirname "$0")/.."
 . scripts/playwright-docker.sh
+prepare_node_modules_volume
 exec docker run --rm --init --ipc=host \
   -v "$PWD":/work -v "$NODE_MODULES_VOLUME":/work/node_modules -w /work \
   -e CI="${CI:-}" -e PLAYWRIGHT_IMAGE \

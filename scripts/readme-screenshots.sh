@@ -13,6 +13,7 @@ if [ -z "${TMDB_API_KEY:-}" ]; then
   exit 1
 fi
 export TMDB_API_KEY
+prepare_node_modules_volume
 exec docker run --rm --init --ipc=host \
   -v "$PWD":/work -v "$NODE_MODULES_VOLUME":/work/node_modules -w /work \
   -e TMDB_API_KEY -e PLAYWRIGHT_IMAGE \
