@@ -13,34 +13,28 @@ beforeEach(() => {
   resetStateLag()
 })
 
-/** Lets a read that was answered settle. */
-const settle = () => new Promise((resolve) => setTimeout(resolve))
-
 describe('stateLag', () => {
-  it('is qBittorrent’s default refresh interval and a margin until the interval is read', async () => {
+  it('is qBittorrent’s default refresh interval and a margin until the interval is read', () => {
     getRefreshInterval.mockReturnValue(new Promise(() => {}))
     expect(stateLag()).toBe(DEFAULT_REFRESH_INTERVAL_MS + STATE_LAG_MARGIN_MS)
-    readRefreshInterval()
-    await settle()
+    void readRefreshInterval()
     expect(stateLag()).toBe(DEFAULT_REFRESH_INTERVAL_MS + STATE_LAG_MARGIN_MS)
   })
 
   it('is qBittorrent’s refresh interval and a margin once read, which happens once per page', async () => {
     getRefreshInterval.mockResolvedValue(5_000)
-    readRefreshInterval()
-    readRefreshInterval()
-    await settle()
+    void readRefreshInterval()
+    await readRefreshInterval()
     expect(stateLag()).toBe(5_000 + STATE_LAG_MARGIN_MS)
-    readRefreshInterval()
+    await readRefreshInterval()
     expect(getRefreshInterval).toHaveBeenCalledOnce()
   })
 
   it('keeps the default when qBittorrent doesn’t say, without asking again', async () => {
     getRefreshInterval.mockResolvedValue(undefined)
-    readRefreshInterval()
-    await settle()
+    await readRefreshInterval()
     expect(stateLag()).toBe(DEFAULT_REFRESH_INTERVAL_MS + STATE_LAG_MARGIN_MS)
-    readRefreshInterval()
+    await readRefreshInterval()
     expect(getRefreshInterval).toHaveBeenCalledOnce()
   })
 
@@ -49,24 +43,22 @@ describe('stateLag', () => {
     getRefreshInterval
       .mockReturnValueOnce(new Promise((resolve) => (answerEarlier = resolve)))
       .mockReturnValueOnce(new Promise(() => {}))
-    readRefreshInterval()
+    const earlier = readRefreshInterval()
     resetStateLag()
-    readRefreshInterval()
+    void readRefreshInterval()
     answerEarlier(5_000)
-    await settle()
+    await earlier
     expect(stateLag()).toBe(DEFAULT_REFRESH_INTERVAL_MS + STATE_LAG_MARGIN_MS)
     // The read after the reset is still on its way.
-    readRefreshInterval()
+    void readRefreshInterval()
     expect(getRefreshInterval).toHaveBeenCalledTimes(2)
   })
 
   it('reads it again the next time after a failure', async () => {
     getRefreshInterval.mockRejectedValueOnce(new TypeError('Failed to fetch')).mockResolvedValueOnce(3_000)
-    readRefreshInterval()
-    await settle()
+    await readRefreshInterval()
     expect(stateLag()).toBe(DEFAULT_REFRESH_INTERVAL_MS + STATE_LAG_MARGIN_MS)
-    readRefreshInterval()
-    await settle()
+    await readRefreshInterval()
     expect(stateLag()).toBe(3_000 + STATE_LAG_MARGIN_MS)
   })
 })

@@ -36,8 +36,9 @@ export function usePauseResume(watcher?: ActionWatcher): PauseResume {
   const set = useCallback(
     async (targets: readonly Torrent[], running: boolean) => {
       toast.dismiss(TOAST_KEYS.pauseResume)
-      // Alongside the request, so qBittorrent's interval is known by the time it answers.
-      readRefreshInterval()
+      // Alongside the request, so qBittorrent's interval is usually known by the time it answers;
+      // if not, its default holds this one.
+      void readRefreshInterval()
       const settled = await send(
         targets,
         running,

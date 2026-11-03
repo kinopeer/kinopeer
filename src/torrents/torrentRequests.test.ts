@@ -184,12 +184,12 @@ describe('createTorrentRequests linked to a poll', () => {
     let requestedAt: number | null = null
     const requests = createTorrentRequests({ refresh: vi.fn(), getSnapshot: () => ({ requestedAt }) })
     await requests.send('pause', DUNE, false, () => Promise.resolve(), { expect: paused })
-    await requests.send('recheck', DUNE, true, () => Promise.resolve(), { expect: paused, hold: () => 1_000 })
+    await requests.send('held', DUNE, true, () => Promise.resolve(), { expect: paused, hold: () => 1_000 })
     requestedAt = 1_000
     vi.setSystemTime(2_000)
     await requests.send('pause', ALIEN, false, () => Promise.resolve(), { expect: paused })
-    // The recheck's hold isn't over for the poll sent at 1 000.
-    expect([...requests.getExpected().keys()]).toEqual([requestKey('recheck', 'dune'), requestKey('pause', 'alien')])
+    // The held one's hold isn't over for the poll sent at 1 000.
+    expect([...requests.getExpected().keys()]).toEqual([requestKey('held', 'dune'), requestKey('pause', 'alien')])
   })
 
   it('applies the states in the order qBittorrent took their requests, one sent again last', async () => {

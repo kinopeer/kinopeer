@@ -7,26 +7,27 @@ export const STATE_LAG_MARGIN_MS = 500
 
 // Read once per page, again after a failure.
 let refreshInterval: number | undefined
-let reading = false
-// Bumped by resetStateLag, so a read from before it is ignored.
-let generation = 0
+let reading: Promise<void> | undefined
 
-async function read(started: number): Promise<void> {
-  try {
-    const interval = await getRefreshInterval()
-    if (started === generation) refreshInterval = interval ?? DEFAULT_REFRESH_INTERVAL_MS
-  } catch {
+/**
+ * Reads qBittorrent's refresh interval for `stateLag`, unless it's read or being read, and settles
+ * once it's read or the read failed.
+ */
+export function readRefreshInterval(): Promise<void> {
+  if (refreshInterval !== undefined) return Promise.resolve()
+  if (reading) return reading
+  const read: Promise<void> = getRefreshInterval()
+    .then((interval) => {
+      // Unless `resetStateLag` came in between.
+      if (reading === read) refreshInterval = interval ?? DEFAULT_REFRESH_INTERVAL_MS
+    })
     // qBittorrent didn't answer: its default applies until the next pause or resume reads it again.
-  } finally {
-    if (started === generation) reading = false
-  }
-}
-
-/** Starts reading qBittorrent's refresh interval for `stateLag`, unless it's read or being read. */
-export function readRefreshInterval(): void {
-  if (refreshInterval !== undefined || reading) return
-  reading = true
-  void read(generation)
+    .catch(() => {})
+    .finally(() => {
+      if (reading === read) reading = undefined
+    })
+  reading = read
+  return read
 }
 
 /**
@@ -42,6 +43,5 @@ export function stateLag(): number {
 /** For tests. */
 export function resetStateLag(): void {
   refreshInterval = undefined
-  reading = false
-  generation += 1
+  reading = undefined
 }

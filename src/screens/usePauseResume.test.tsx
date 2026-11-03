@@ -38,6 +38,7 @@ function Providers({ children }: { children: ReactNode }) {
 beforeEach(() => {
   vi.resetAllMocks()
   resetStateLag()
+  getRefreshInterval.mockResolvedValue(undefined)
 })
 
 afterEach(() => {

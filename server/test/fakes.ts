@@ -99,7 +99,12 @@ export const CATEGORIES = {
 }
 
 /** What the fake qBittorrent answers on /app/preferences: the few fields Kinoseed reads, as qBittorrent's defaults. */
-export const PREFERENCES = { auto_tmm_enabled: false, use_category_paths_in_manual_mode: false, use_subcategories: false }
+export const PREFERENCES = {
+  auto_tmm_enabled: false,
+  use_category_paths_in_manual_mode: false,
+  use_subcategories: false,
+  refresh_interval: 1500,
+}
 
 /** What the fake qBittorrent answers on /torrents/trackers. */
 export const TRACKERS: TorrentTracker[] = [
