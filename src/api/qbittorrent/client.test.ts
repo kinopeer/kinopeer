@@ -4,7 +4,6 @@ import {
   UnauthorizedError,
   addTorrents,
   deleteTorrents,
-  getApiVersion,
   getAppVersion,
   getCategories,
   getDefaultSavePath,
@@ -109,7 +108,6 @@ describe('what a screen can cancel', () => {
 
   it.each([
     { name: 'getAppVersion', read: () => getAppVersion(signal), requests: 1 },
-    { name: 'getApiVersion', read: () => getApiVersion(signal), requests: 1 },
     { name: 'getCategories', read: () => getCategories(signal), requests: 1 },
     { name: 'getDefaultSavePath', read: () => getDefaultSavePath(signal), requests: 1 },
     { name: 'getSaveLocations', read: () => getSaveLocations(signal), requests: 3 },

@@ -28,6 +28,8 @@ export interface AppOptions {
   wrongLogin?: boolean
   /** Prowlarr doesn't answer the server's connection check. */
   prowlarrDown?: boolean
+  /** How many indexers Prowlarr has set up, instead of 2. */
+  prowlarrIndexers?: number
   /** Indexers Prowlarr says failed during the release search. */
   failingIndexers?: string[]
   /** Prowlarr finds nothing for the release search. */
@@ -73,7 +75,6 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
           }),
         )
       }
-      if (pathname === '/qbt/api/v2/app/webapiVersion') return route.fulfill({ body: '2.11.4' })
       if (pathname === '/qbt/api/v2/app/defaultSavePath') return route.fulfill({ body: '/downloads' })
       // Automatic management on, so new torrents go to their category's folder, as the add sheet shows.
       if (pathname === '/qbt/api/v2/app/preferences') return json(route, { auto_tmm_enabled: true })
@@ -128,7 +129,7 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
       const { pathname } = new URL(route.request().url())
       if (pathname === '/prowlarr/status') {
         if (options.prowlarrDown) return json(route, { error: 'unreachable' }, 502)
-        return json(route, { version: '2.0.5.5160', indexers: 2 })
+        return json(route, { version: '2.0.5.5160', indexers: options.prowlarrIndexers ?? 2 })
       }
       if (pathname === '/prowlarr/search') return json(route, options.noReleases ? [] : RELEASES)
       if (pathname === '/prowlarr/failing') return json(route, { indexers: options.failingIndexers ?? [] })

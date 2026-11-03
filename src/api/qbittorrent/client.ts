@@ -67,12 +67,6 @@ export async function getAppVersion(signal?: AbortSignal): Promise<string> {
   return (await response.text()).trim()
 }
 
-/** Web API version, e.g. "2.11.4". */
-export async function getApiVersion(signal?: AbortSignal): Promise<string> {
-  const response = await request('/app/webapiVersion', { signal })
-  return (await response.text()).trim()
-}
-
 export async function getTorrents(query: TorrentsQuery = {}): Promise<Torrent[]> {
   const { hashes, ...rest } = query
   const response = await request('/torrents/info', {

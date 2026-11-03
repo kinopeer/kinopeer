@@ -4,6 +4,10 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ## Unreleased
 
+### Changed
+
+- Settings: the Connections cards say only whether each service is connected, and Prowlarr's warns when it has no indexers, since search finds nothing then. The qBittorrent and Prowlarr versions and the number of indexers are in About now, next to Kinoseed's version, for a bug report; qBittorrent's API version is gone. On desktop About spans the width, its two cards side by side. ([#221](https://github.com/MrShakhov/kinoseed/issues/221))
+
 ### Fixed
 
 - Pause and resume: the torrent's new status shows as soon as qBittorrent takes it and stays, instead of showing only after the next update, up to a few seconds later. ([#209](https://github.com/MrShakhov/kinoseed/issues/209))

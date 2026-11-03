@@ -15,7 +15,6 @@ import { SettingsScreen } from './SettingsScreen'
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
   ...(await importOriginal<typeof qbt>()),
   getAppVersion: vi.fn(),
-  getApiVersion: vi.fn(),
   getCategories: vi.fn(),
 }))
 vi.mock('../api/matches', async (importOriginal) => ({
@@ -49,11 +48,16 @@ function connection(name: string) {
     .closest('li') as HTMLElement
 }
 
+function aboutRow(label: string) {
+  return within(screen.getByRole('region', { name: 'About' }))
+    .getByText(label)
+    .closest('li') as HTMLElement
+}
+
 beforeEach(() => {
   vi.resetAllMocks()
   resetSettings()
   vi.mocked(qbt.getAppVersion).mockResolvedValue('v5.3.0')
-  vi.mocked(qbt.getApiVersion).mockResolvedValue('2.11.4')
   vi.mocked(qbt.getCategories).mockResolvedValue([
     { name: 'TV Shows', savePath: '/data/tv' },
     { name: 'Movies', savePath: '/data/movies' },
@@ -83,9 +87,16 @@ afterEach(() => {
 describe('SettingsScreen', () => {
   it('checks every connection when it opens', async () => {
     renderScreen()
-    expect(await within(connection('qBittorrent')).findByRole('status', { name: saying('Connected · qBittorrent v5.3.0 · API 2.11.4') })).toBeInTheDocument()
-    expect(await within(connection('Prowlarr')).findByRole('status', { name: saying('Connected · 2 indexers · v1.24.3') })).toBeInTheDocument()
-    expect(await within(connection('TMDB')).findByRole('status', { name: saying('Connected') })).toBeInTheDocument()
+    for (const name of ['qBittorrent', 'Prowlarr', 'TMDB']) {
+      expect(await within(connection(name)).findByRole('status', { name: saying('Connected') })).toBeInTheDocument()
+    }
+  })
+
+  it('warns that Prowlarr has no indexers, since search finds nothing then', async () => {
+    vi.mocked(prowlarr.getProwlarrStatus).mockResolvedValue({ version: '1.24.3', indexers: 0 })
+    renderScreen()
+    expect(await within(connection('Prowlarr')).findByRole('status', { name: saying('Connected · no indexers') })).toBeInTheDocument()
+    expect(aboutRow('Prowlarr indexers')).toHaveTextContent(/0$/)
   })
 
   it('explains failures and shows the service connected after Test', async () => {
@@ -95,38 +106,44 @@ describe('SettingsScreen', () => {
     expect(await within(connection('Prowlarr')).findByRole('status', { name: saying('Not set up, or the API key was rejected') })).toBeInTheDocument()
     expect(await within(connection('TMDB')).findByRole('status', { name: saying('The API key is missing or invalid') })).toBeInTheDocument()
 
+    // About has nothing to show for a service that fails, and says nothing of why.
+    expect(aboutRow('Prowlarr version')).toHaveTextContent(/^Prowlarr version—Unknown$/)
+    expect(aboutRow('Prowlarr indexers')).toHaveTextContent(/^Prowlarr indexers—Unknown$/)
+
     vi.mocked(prowlarr.getProwlarrStatus).mockResolvedValue({ version: '1.24.3', indexers: 1 })
     await userEvent.click(within(connection('Prowlarr')).getByRole('button', { name: 'Test' }))
-    expect(await within(connection('Prowlarr')).findByRole('status', { name: saying('Connected · 1 indexer · v1.24.3') })).toBeInTheDocument()
+    expect(await within(connection('Prowlarr')).findByRole('status', { name: saying('Connected') })).toBeInTheDocument()
+    // About shows what Test's check answered.
+    expect(aboutRow('Prowlarr version')).toHaveTextContent(/1\.24\.3$/)
+    expect(aboutRow('Prowlarr indexers')).toHaveTextContent(/1$/)
   })
 
   it.each([
-    { name: 'qBittorrent', called: [qbt.getAppVersion, qbt.getApiVersion], ok: 'Connected · qBittorrent v5.3.0 · API 2.11.4' },
-    { name: 'Prowlarr', called: [prowlarr.getProwlarrStatus], ok: 'Connected · 2 indexers · v1.24.3' },
-    { name: 'TMDB', called: [tmdb.checkTmdb], ok: 'Connected' },
-  ])('checks only $name again on its Test', async ({ name, called, ok }) => {
+    { name: 'qBittorrent', called: [qbt.getAppVersion] },
+    { name: 'Prowlarr', called: [prowlarr.getProwlarrStatus] },
+    { name: 'TMDB', called: [tmdb.checkTmdb] },
+  ])('checks only $name again on its Test', async ({ name, called }) => {
     // Loaded categories aren't asked again either, so the selects don't empty for a moment.
-    const checks = [qbt.getAppVersion, qbt.getApiVersion, qbt.getCategories, prowlarr.getProwlarrStatus, tmdb.checkTmdb]
+    const checks = [qbt.getAppVersion, qbt.getCategories, prowlarr.getProwlarrStatus, tmdb.checkTmdb]
     renderScreen()
     for (const row of ['qBittorrent', 'Prowlarr', 'TMDB']) {
-      expect(await within(connection(row)).findByRole('status', { name: saying(/^Connected/) })).toBeInTheDocument()
+      expect(await within(connection(row)).findByRole('status', { name: saying('Connected') })).toBeInTheDocument()
     }
     expect(await within(screen.getByRole('combobox', { name: 'Movies category' })).findByRole('option', { name: 'Anime' })).toBeInTheDocument()
     for (const fn of checks) vi.mocked(fn).mockClear()
 
     await userEvent.click(within(connection(name)).getByRole('button', { name: 'Test' }))
-    expect(await within(connection(name)).findByRole('status', { name: saying(ok) })).toBeInTheDocument()
+    expect(await within(connection(name)).findByRole('status', { name: saying('Connected') })).toBeInTheDocument()
     for (const fn of checks) expect(fn).toHaveBeenCalledTimes(called.some((c) => c === fn) ? 1 : 0)
   })
 
   it('cancels the checks still running when the screen closes', async () => {
     const running = new Promise<never>(() => {})
     vi.mocked(qbt.getAppVersion).mockReturnValue(running)
-    vi.mocked(qbt.getApiVersion).mockReturnValue(running)
     vi.mocked(prowlarr.getProwlarrStatus).mockReturnValue(running)
     vi.mocked(tmdb.checkTmdb).mockReturnValue(running)
     const { unmount } = renderScreen()
-    const checks = [qbt.getAppVersion, qbt.getApiVersion, prowlarr.getProwlarrStatus, tmdb.checkTmdb]
+    const checks = [qbt.getAppVersion, prowlarr.getProwlarrStatus, tmdb.checkTmdb]
     await waitFor(() => {
       for (const check of checks) expect(vi.mocked(check).mock.lastCall?.[0]?.aborted).toBe(false)
     })
@@ -152,7 +169,6 @@ describe('SettingsScreen', () => {
     expect(await within(connection('Prowlarr')).findByRole('status', { name: saying(/^Connected/) })).toBeInTheDocument()
     expect(await within(connection('qBittorrent')).findByRole('status', { name: saying(/^Connected/) })).toBeInTheDocument()
     vi.mocked(qbt.getAppVersion).mockClear()
-    vi.mocked(qbt.getApiVersion).mockClear()
     vi.mocked(prowlarr.getProwlarrStatus).mockClear()
 
     vi.mocked(tmdb.checkTmdb).mockResolvedValue()
@@ -165,7 +181,6 @@ describe('SettingsScreen', () => {
     expect(await findToastOnPage('TMDB key saved')).toBeInTheDocument()
     expect(await within(connection('TMDB')).findByRole('status', { name: saying('Connected') })).toBeInTheDocument()
     expect(qbt.getAppVersion).not.toHaveBeenCalled()
-    expect(qbt.getApiVersion).not.toHaveBeenCalled()
     expect(prowlarr.getProwlarrStatus).not.toHaveBeenCalled()
   })
 
@@ -182,7 +197,7 @@ describe('SettingsScreen', () => {
     await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
 
     expect(await findToastOnPage('Prowlarr key saved')).toBeInTheDocument()
-    expect(await within(connection('Prowlarr')).findByRole('status', { name: saying(/2 indexers/) })).toBeInTheDocument()
+    expect(await within(connection('Prowlarr')).findByRole('status', { name: saying('Connected') })).toBeInTheDocument()
 
     // The settings the save answered with are what the sheet goes by now, without loading them again.
     await userEvent.click(within(connection('Prowlarr')).getByRole('button', { name: 'Change Prowlarr key' }))
@@ -203,7 +218,8 @@ describe('SettingsScreen', () => {
       downloads: null,
     })
     renderScreen()
-    expect(await within(connection('Prowlarr')).findByRole('status', { name: saying(/2 indexers/) })).toBeInTheDocument()
+    expect(await within(connection('Prowlarr')).findByRole('status', { name: saying('Connected') })).toBeInTheDocument()
+    expect(aboutRow('Prowlarr indexers')).toHaveTextContent(/2$/)
 
     vi.mocked(prowlarr.getProwlarrStatus).mockResolvedValue({ version: '1.24.3', indexers: 1 })
     await userEvent.click(within(connection('Prowlarr')).getByRole('button', { name: 'Change Prowlarr key' }))
@@ -212,7 +228,9 @@ describe('SettingsScreen', () => {
 
     expect(await findToastOnPage('Using the server’s Prowlarr key')).toBeInTheDocument()
     expect(screen.queryByText('Prowlarr key saved')).not.toBeInTheDocument()
-    expect(await within(connection('Prowlarr')).findByRole('status', { name: saying(/1 indexer/) })).toBeInTheDocument()
+    // Checked again with the server's key, which sees another set of indexers.
+    await waitFor(() => expect(aboutRow('Prowlarr indexers')).toHaveTextContent(/1$/))
+    expect(within(connection('Prowlarr')).getByRole('status', { name: saying('Connected') })).toBeInTheDocument()
   })
 
   it("doesn't offer the server's Prowlarr key when the server has none", async () => {
@@ -233,10 +251,27 @@ describe('SettingsScreen', () => {
     expect(within(sheet).queryByRole('button', { name: 'Use the server’s key' })).not.toBeInTheDocument()
   })
 
-  it('shows the app version', () => {
+  it("shows the versions of Kinoseed, qBittorrent and Prowlarr and Prowlarr's indexers from the connection checks", async () => {
     renderScreen()
-    const row = screen.getByText('Version').closest('li')!
-    expect(row).toHaveTextContent(__APP_VERSION__)
+    expect(aboutRow('Kinoseed version')).toHaveTextContent(__APP_VERSION__)
+    // qBittorrent's "v" goes, so its version is written like the others.
+    await waitFor(() => expect(aboutRow('qBittorrent version')).toHaveTextContent(/^qBittorrent version5\.3\.0$/))
+    await waitFor(() => expect(aboutRow('Prowlarr version')).toHaveTextContent(/^Prowlarr version1\.24\.3$/))
+    expect(aboutRow('Prowlarr indexers')).toHaveTextContent(/^Prowlarr indexers2$/)
+    // Asked once, by Connections: About starts no checks of its own.
+    expect(qbt.getAppVersion).toHaveBeenCalledTimes(1)
+    expect(prowlarr.getProwlarrStatus).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows no versions in About while the services are being checked', async () => {
+    const running = new Promise<never>(() => {})
+    vi.mocked(qbt.getAppVersion).mockReturnValue(running)
+    vi.mocked(prowlarr.getProwlarrStatus).mockReturnValue(running)
+    renderScreen()
+    expect(await within(connection('Prowlarr')).findByRole('status', { name: saying('Checking…') })).toBeInTheDocument()
+    for (const label of ['qBittorrent version', 'Prowlarr version', 'Prowlarr indexers']) {
+      expect(aboutRow(label)).toHaveTextContent(new RegExp(`^${label}—Unknown$`))
+    }
   })
 
   it('confirms clearing the cache', async () => {
@@ -294,20 +329,20 @@ describe('SettingsScreen', () => {
     expect(movies).toBeEnabled()
   })
 
-  it('loads categories that failed when qBittorrent is checked again in another language', async () => {
-    let fail: (error: Error) => void = () => {}
-    vi.mocked(qbt.getCategories).mockReturnValueOnce(new Promise((_resolve, reject) => (fail = reject)))
+  it('says the connections in a new language without checking them again', async () => {
     renderScreen()
-    expect(await within(connection('qBittorrent')).findByRole('status', { name: saying(/^Connected/) })).toBeInTheDocument()
-    await waitFor(() => expect(qbt.getCategories).toHaveBeenCalled())
-    await act(async () => fail(new Error('offline')))
-    expect(screen.getByRole('combobox', { name: 'Movies category' })).toBeDisabled()
+    for (const name of ['qBittorrent', 'Prowlarr', 'TMDB']) {
+      expect(await within(connection(name)).findByRole('status', { name: saying('Connected') })).toBeInTheDocument()
+    }
+    const checks = [qbt.getAppVersion, prowlarr.getProwlarrStatus, tmdb.checkTmdb]
+    for (const fn of checks) vi.mocked(fn).mockClear()
 
     const language = screen.getByRole('radiogroup', { name: 'Language' })
     await userEvent.click(within(language).getByRole('radio', { name: 'Русский' }))
-    const movies = screen.getByRole('combobox', { name: 'Категория фильмов' })
-    expect(await within(movies).findByRole('option', { name: 'Автоматически (Movies)' })).toBeInTheDocument()
-    expect(movies).toBeEnabled()
+    const connections = screen.getByRole('region', { name: 'Подключения' })
+    expect(within(connections).getAllByRole('status', { name: saying('Подключено') })).toHaveLength(3)
+    // The checks' answers don't depend on the language, so a new one asks nothing again.
+    for (const fn of checks) expect(fn).not.toHaveBeenCalled()
   })
 
   it("shows the download defaults the server keeps, set on another device", async () => {
