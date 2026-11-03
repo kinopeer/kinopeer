@@ -53,8 +53,11 @@ async function newWorkerInControl(): Promise<boolean> {
   }
 }
 
-/** A sheet, a dialog or the drawer: a reload would throw away what's in it. */
-const somethingOpen = () => document.querySelector('dialog[open]') !== null
+/**
+ * A sheet, a dialog or the drawer, or a field being filled outside them (a login, a key in
+ * Settings, often left to copy the rest): a reload would throw away what's in it.
+ */
+const somethingOpen = () => document.querySelector('dialog[open], input:focus, textarea:focus') !== null
 
 function reloadedFor(): string | null {
   try {

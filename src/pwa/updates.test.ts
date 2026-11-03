@@ -133,6 +133,22 @@ describe('startUpdateChecks', () => {
     expect(reload).toHaveBeenCalledOnce()
   })
 
+  it('waits while a field outside a dialog is being filled', async () => {
+    // A key half typed in Settings while the user went to copy the rest.
+    const field = document.body.appendChild(document.createElement('input'))
+    field.focus()
+    serverHas(NEW)
+    stop = startUpdateChecks(reload)
+    await settle()
+    expect(reload).not.toHaveBeenCalled()
+
+    field.blur()
+    setHidden(true)
+    setHidden(false)
+    await settle()
+    expect(reload).toHaveBeenCalledOnce()
+  })
+
   it('reloads once for a version, so a page that stays old doesn\'t reload again and again', async () => {
     serverHas(NEW)
     stop = startUpdateChecks(reload)
