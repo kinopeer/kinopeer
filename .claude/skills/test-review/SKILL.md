@@ -19,10 +19,11 @@ follows the conversation's language. Code, file paths and quotes stay as they ar
   which Claude Code cloud sessions are refused. Then `git fetch origin <head.ref>` and diff
   `origin/main...origin/<head.ref>`, leaving PNGs out.
   Without a number: the current branch, `git diff origin/main...HEAD` plus uncommitted changes.
-- From the **Tests** section take four lists: the tests the author added or changed, with the
+- From the **Tests** section take six lists: the tests the author added or changed, with the
   layer named for each and whether it was seen red; **what is declared uncovered and the reason
-  given**; the `Mutants` line and what it says of each survivor; which screenshot baselines changed,
-  why, and how each was checked. From a `fix/` PR or the fix of a flaky test
+  given**; the answer to each neighbour (`Neighbours`); the `Mutants` line and what it says of each
+  survivor; what was broken by hand (`Broken by hand`); which screenshot baselines changed, why, and
+  how each was checked. From a `fix/` PR or the fix of a flaky test
   also take the **Why tests missed it** section (class and action), the linked issue
   (`Closes #n`) and that issue's `test-gap:*` label.
 - A declared-uncovered part is reviewed for its reason, not asked for a test. The accepted
@@ -56,7 +57,9 @@ trusted.
   component needs its own step; "same code as in X" isn't *covered already*. A new or changed
   route that a client in `src/api/*` calls needs a test in `server/integration/`, and its service's
   fake the new request, in the same PR; a route no client calls needs its layer-4 test. Ask the
-  neighbours of the change too (`docs/TESTING.md` → Choosing a layer). Missing → check the Tests
+  neighbours of the change too (`docs/TESTING.md` → Choosing a layer: another place, later,
+  meanwhile, the next poll, the edges), and check the PR's `Neighbours` lines against them: one left
+  blank, or answered with a test that doesn't run that case, is a finding. Missing → check the Tests
   section's reasons (step 1) → otherwise a finding. A bug `/code-review` found in the PR's own change
   since the last round is a finding here too: the test that should have caught it was missing.
 - **B. Nothing is lost.** For every deleted `it(...)` or deleted assertion, name the test on the
@@ -84,6 +87,9 @@ trusted.
   copy of a literal or a wrapper in one file, an index-based query
   for an element that has a name of its own (`getAllByRole('button')[1]`; an index is fine when the
   position is what the test says, as the first row after a sort or the current title first),
+  an absence asserted by counting the others instead of by name, test data with a behavior the test
+  isn't about (a `recheck` given a hold it never has in the app), a flush through
+  `setTimeout(resolve)` (a real timer, even at no delay),
   `getByText` where a role and name exist, and an error or confirmation found by text or by a bare
   `findByRole('alert'|'status')` with `toHaveTextContent` instead of `{ name: saying(text) }` from
   `src/test/render.tsx`, a class selector for a decorative image whose `src` alone finds it, `{
@@ -96,31 +102,37 @@ trusted.
   dialog or a state with its own layout that has no baseline, only "checked on the stand" → finding.
 - **H. Docs match the code.** A claim the PR adds to `docs/TESTING.md` or `CLAUDE.md` (a comment
   that exists, a command, a number, a file) is checked against the diff and the tree, and so is one
-  the diff makes stale, a sentence saying which test owns a statement above all. How a paragraph
-  wraps is not a finding.
+  the diff makes stale, a sentence saying which test owns a statement above all: grep `docs/`,
+  `CLAUDE.md` and `README.md` for each number or name the diff changes (a width, a version, a count).
+  A list in the docs that the change adds to gains the new item (the screens in `docs/TESTING.md` →
+  Screenshot tests, SPEC's decision log, newest first, the blind spots), and a manual check the PR
+  adds says what has to be in place for it to pass. How a paragraph wraps is not a finding.
 - **I. A `fix/` PR carries its record.** So does the fix of a flaky test. The issue is linked and
   labelled `test-gap:<class>`; a bug's fix says the new test was red before the fix, and a flaky
   test's fix says how often the test failed and how many runs it now passes; the class fits the
   story in the PR; "what changes so this class is caught" names a concrete change, not a wish.
   Missing or vague → finding.
-- **J. Coverage.** `coverage.thresholds` in `vite.config.ts` are not lowered; a PR that says the
-  totals fell gives a reason in its Tests section.
 - **K. Each test can fail.** The Tests table says each new or changed test was seen red, and the
   `Mutants` line accounts for each survivor in CI's comment on the PR (the latest one, at its
   commit), an `equivalent` with a reason you agree with; missing either, or a test you can see would
   stay green with its behavior removed, → finding. When production lines changed after CI's run,
   or a PR with production lines has no CI comment (Actions out of minutes), the reviewer runs `npm
   run test:mutants` locally at the head and says in the round what it saw; the reviewer doesn't
-  dispatch the workflow. Read each new test for the shapes in `docs/TESTING.md` → A test that can
-  fail.
+  dispatch the workflow. An `equivalent` that only a test's own reset keeps alive isn't one. The
+  `Broken by hand` line covers what the changed lines hold of the list in `docs/TESTING.md` → A test
+  that can fail (a dependency array, one operand of a condition, a selector's alternatives, which
+  value a guard reads, a prop passed down); one of them left out, where you can see a test would
+  stay green with it broken, → finding. Read each new test for the shapes in `docs/TESTING.md` → A
+  test that can fail.
 
 ## 4. Report
 
 Findings first, most severe first: blocking (B, D, E with a drift, I missing, K, A without a
-reason), then should-fix (C, F, G, H, J), then nits. Each defect is one finding under one check:
+reason), then should-fix (C, F, G, H), then nits. Each defect is one finding under one check:
 a new sheet or state without a baseline is G, not also A. One line per finding: `file:line`, the defect,
 the rule (a few words from `docs/TESTING.md`), the fix, and the tag `[<check> · <rule>]`: the
-check's letter, and `clear` when the rule says it plainly, `gap` when no rule covers it or the rule
+check's letter (there is no J: coverage left the checks on 2026-11-03, and its rule stays in
+`docs/TESTING.md` → Coverage), and `clear` when the rule says it plainly, `gap` when no rule covers it or the rule
 reads both ways, `conflict` when `docs/TESTING.md` and this skill (or the PR template, or
 `CLAUDE.md`) disagree. Say in one line what a `conflict` is between, so the next docs PR can settle
 it. The tags feed the retro (`docs/TESTING.md` → Improving the system); tag honestly, a `gap` is
