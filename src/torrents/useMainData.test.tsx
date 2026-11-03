@@ -238,6 +238,22 @@ describe('useMainData', () => {
     expect(getMainData).toHaveBeenCalledTimes(1)
   })
 
+  it('doesn’t report an expired session that answers a poll after everyone left', async () => {
+    let reject: (error: Error) => void = () => {}
+    getMainData.mockReturnValueOnce(new Promise((_resolve, fail) => (reject = fail)))
+    const onUnauthorized = vi.fn()
+    const { unmount } = renderHook(() => useMainData(onUnauthorized))
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    unmount()
+    // The store stops a moment after its last subscriber leaves.
+    await vi.advanceTimersByTimeAsync(0)
+
+    reject(new api.UnauthorizedError())
+    await vi.advanceTimersByTimeAsync(0)
+    expect(getMainData).toHaveBeenCalledTimes(1)
+    expect(onUnauthorized).not.toHaveBeenCalled()
+  })
+
   it('stops polling on unmount', async () => {
     getMainData.mockResolvedValue({ rid: 1 })
     const { unmount } = renderHook(() => useMainData(vi.fn()))
