@@ -2,9 +2,30 @@ import { describe, expect, it } from 'vitest'
 import type { Torrent, TorrentState } from '../api/qbittorrent'
 import i18n from '../i18n'
 import { createFormatters } from '../lib/format'
-import { compareByQueue, downloadStatus, hasMetadata, matchesFilter, transferSpeed, withChecking, withRunning } from './status'
+import {
+  compareByQueue,
+  downloadStatus,
+  hasMetadata,
+  matchesFilter,
+  showsSpeed,
+  transferSpeed,
+  withChecking,
+  withRunning,
+  type DownloadStatus,
+} from './status'
 
 const torrent = (state: TorrentState, progress = 0.5) => ({ state, progress })
+
+/** Every status: a Record, so a status added to DownloadStatus fails typecheck until it's here. */
+const STATUSES = Object.keys({
+  downloading: true,
+  seeding: true,
+  paused: true,
+  completed: true,
+  queued: true,
+  checking: true,
+  error: true,
+} satisfies Record<DownloadStatus, true>) as DownloadStatus[]
 
 describe('downloadStatus', () => {
   it.each([
@@ -117,4 +138,12 @@ describe('transferSpeed', () => {
   it.each(['paused', 'completed', 'queued', 'checking', 'error'] as const)('shows nothing while %s', (status) => {
     expect(transferSpeed(speeds, status, format)).toBeNull()
   })
+
+  // The speed sort keeps torrents without a speed last by showsSpeed, so it and the row can't disagree.
+  it.each(STATUSES)(
+    'shows a speed while %s exactly when showsSpeed says so',
+    (status) => {
+      expect(transferSpeed(speeds, status, format) !== null).toBe(showsSpeed(status))
+    },
+  )
 })

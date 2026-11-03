@@ -1,5 +1,5 @@
 import type { Torrent } from '../api/qbittorrent'
-import { compareByQueue, downloadStatus } from './status'
+import { compareByQueue, downloadStatus, showsSpeed } from './status'
 
 /** Orders for the downloads list; `priority` is qBittorrent's queue order. */
 export const DOWNLOAD_SORTS = ['priority', 'added', 'name', 'progress', 'size', 'speed', 'eta'] as const
@@ -35,12 +35,6 @@ function timeLeft(torrent: Torrent): number | null {
     : null
 }
 
-/** Whether the row shows a speed: only while downloading or seeding (0 B/s included), else "—". */
-function showsSpeed(torrent: Torrent): boolean {
-  const status = downloadStatus(torrent)
-  return status === 'downloading' || status === 'seeding'
-}
-
 /** How a sort compares, smallest first; `has` is for a value some torrents lack. */
 interface SortKey {
   compare: Compare
@@ -62,7 +56,7 @@ function sortKey(sort: DownloadSort, titleOf: (torrent: Torrent) => string): Sor
     case 'size':
       return { compare: (a, b) => a.size - b.size }
     case 'speed':
-      return { compare: (a, b) => a.dlspeed - b.dlspeed || a.upspeed - b.upspeed, has: showsSpeed }
+      return { compare: (a, b) => a.dlspeed - b.dlspeed || a.upspeed - b.upspeed, has: (torrent) => showsSpeed(downloadStatus(torrent)) }
     case 'eta':
       return { compare: (a, b) => timeLeft(a)! - timeLeft(b)!, has: (torrent) => timeLeft(torrent) !== null }
   }
