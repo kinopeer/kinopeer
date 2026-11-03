@@ -27,7 +27,7 @@ interface State {
 }
 
 function kept(entry: string, search: string | null): State | null {
-  const results = search === null ? undefined : keptResults(entry, search)
+  const results = keptResults(entry, search)
   return results ? { search: search!, results } : null
 }
 
@@ -50,7 +50,7 @@ export function useSearchResults(
     loadRef.current = load
   })
 
-  const current = search !== null && state?.search === search ? state : null
+  const current = state?.search === search ? state : null
   const loaded = current?.results !== undefined
 
   useEffect(() => {
@@ -84,8 +84,9 @@ export function useSearchResults(
     if (!results || current?.loadingMore) return
     const controller = new AbortController()
     more.current = controller
+    // Aborted when the search changes, so the state it changes is still this search's.
     const update = (change: (state: State) => State) =>
-      setState((state) => (!controller.signal.aborted && state?.search === search ? change(state) : state))
+      setState((state) => (controller.signal.aborted ? state : change(state!)))
     setState({ search: search!, results, loadingMore: true })
     loadRef.current(results.page + 1, controller.signal).then(
       (page) => update((state) => ({ search: state.search, results: appendPage(state.results!, page) })),

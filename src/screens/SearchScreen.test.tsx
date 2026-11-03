@@ -207,6 +207,18 @@ describe('SearchScreen', () => {
     expect(screen.getByRole('button', { name: 'Show more' })).toBeEnabled()
   })
 
+  it('says when a search fails, and tries again', async () => {
+    let answer = () => {}
+    searchTitles.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    searchTitles.mockImplementationOnce(() => new Promise((resolve) => (answer = () => resolve(page([DUNE, ANDOR])))))
+    renderScreen('/search?q=dune')
+    await userEvent.click(await screen.findByRole('button', { name: 'Try again' }))
+    expect(screen.getByRole('status', { name: saying('Loading') })).toBeInTheDocument()
+
+    await act(async () => answer())
+    expect(screen.getByText('About 2 results')).toBeInTheDocument()
+  })
+
   it('drops a next page that answers after the search changed', async () => {
     let answer = () => {}
     searchTitles.mockResolvedValueOnce(page([DUNE], { totalPages: 2 }))
@@ -332,6 +344,17 @@ describe('SearchScreen', () => {
     expect(await screen.findByRole('heading', { name: 'New on digital' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Best of the year' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'New episodes' })).not.toBeInTheDocument()
+  })
+
+  it('cancels a next page on its way when the screen is left', async () => {
+    searchTitles.mockResolvedValueOnce(page([DUNE], { totalPages: 2 }))
+    searchTitles.mockImplementationOnce(() => new Promise(() => {}))
+    const { unmount } = renderScreen('/search?q=dune')
+    await userEvent.click(await screen.findByRole('button', { name: 'Show more' }))
+
+    unmount()
+
+    expect(searchTitles.mock.calls[1][1]?.signal?.aborted).toBe(true)
   })
 
   describe('back from a title', () => {

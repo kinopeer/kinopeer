@@ -46,8 +46,8 @@ export function keepResults(entry: string, search: string, results: SearchResult
   if (kept.size > KEPT_SEARCHES) kept.delete(kept.keys().next().value!)
 }
 
-/** The results kept for the entry, if they are of this search. */
-export function keptResults(entry: string, search: string): SearchResults | undefined {
+/** The results kept for the entry, if they are of this search (none for no search). */
+export function keptResults(entry: string, search: string | null): SearchResults | undefined {
   const found = kept.get(entry)
   return found?.search === search ? found.results : undefined
 }

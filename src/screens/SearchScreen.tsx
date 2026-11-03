@@ -86,7 +86,7 @@ export function SearchScreen() {
   // A type searches TMDB for that type alone, so its count and its pages are of that type.
   const searchType = type === 'all' ? undefined : type
   const search = useSearchResults(
-    searching && term ? `${language}|${term}|${year ?? ''}|${type}` : null,
+    searching && term ? `${language}|${term}|${year}|${type}` : null,
     (page, signal) => searchTitles(term, { language, signal, year, page, type: searchType }),
   )
   const browse = useRequest(searching ? null : `browse|${language}`, (signal) => loadBrowseRows(language, signal))
