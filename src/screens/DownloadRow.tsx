@@ -10,6 +10,7 @@ import { cx } from '../lib/cx'
 import { useFormatters } from '../lib/format'
 import { downloadStatus, isRunning, transferSpeed } from '../torrents/status'
 import type { DownloadItemProps } from './DownloadItem'
+import { SpeedLimitMark } from './SpeedLimitMark'
 
 /**
  * The desktop list's column headers, in the order of DownloadRow's cells. The first column, the
@@ -44,8 +45,8 @@ export function DownloadRowHeader({ selecting, queue }: { selecting: boolean; qu
 
 /**
  * A download in the desktop list, a row of a table: queue position (with `showQueue`) or the
- * checkbox, poster, title and release, progress, status, speed, time left, size, then pause or
- * resume and More. The title opens the details drawer. Narrower tables drop the size, then put the
+ * checkbox, poster, title and release, progress, status, speed with the torrent's own limits, time
+ * left, size, then pause or resume and More. The title opens the details drawer. Narrower tables drop the size, then put the
  * time left under the speed.
  */
 export function DownloadRow({
@@ -117,7 +118,11 @@ export function DownloadRow({
         <StatusChip status={status}>{t(`status.${status}`)}</StatusChip>
       </span>
       <span role="cell" className="ks-num c2 dl-row-speed">
-        {speed ?? '—'}
+        {/* The limits next to the speed, also in place of one: the status cell has no room for them. */}
+        <span className="dl-row-rate">
+          {speed ?? '—'}
+          <SpeedLimitMark torrent={torrent} />
+        </span>
         {/* Where the time left has no column of its own, it goes under the speed. */}
         {eta && <span className="dl-row-eta-inline c3">{eta}</span>}
       </span>

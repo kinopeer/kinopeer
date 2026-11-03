@@ -1,3 +1,6 @@
+import type { TFunction } from 'i18next'
+import type { Formatters } from '../lib/format'
+
 /** Limits are entered in MB/s, the unit `format.speed` shows (decimal, like the rest of the app). */
 const MB = 1_000_000
 
@@ -39,4 +42,33 @@ export function fieldToLimit(text: string): number | null {
  *  field a failed save sent, which qBittorrent may have taken: it goes out whatever its text. */
 export function changedLimit(initial: string, text: string, resend = false): number | null | undefined {
   return !resend && text.trim() === initial ? undefined : fieldToLimit(text)
+}
+
+/** A torrent's own speed limits in bytes/s, each only when it's set, and at least one of them. */
+export type OwnLimits = { download: number; upload?: number } | { download?: undefined; upload: number }
+
+/** The limits set on the torrent itself, null when neither is: qBittorrent reports no limit as 0 or
+ *  -1. The alternative and global limits aren't the torrent's and aren't here. */
+export function ownLimits(torrent: { dl_limit: number; up_limit: number }): OwnLimits | null {
+  // Also when qBittorrent doesn't report one, as for limitToField.
+  const upload = torrent.up_limit > 0 ? torrent.up_limit : undefined
+  if (torrent.dl_limit > 0) return { download: torrent.dl_limit, upload }
+  return upload === undefined ? null : { upload }
+}
+
+/**
+ * The limits in words: "Download up to 25 MB/s, upload up to 1 MB/s" (`value`, the More menu's
+ * hint), or the same named as speed limits (`mark`, the mark's accessible name).
+ */
+export function describeLimits(limits: OwnLimits, kind: 'mark' | 'value', t: TFunction, format: Formatters): string {
+  if (limits.download === undefined) {
+    const speed = format.speed(limits.upload)
+    return kind === 'mark' ? t('limits.markUpload', { speed }) : t('limits.valueUpload', { speed })
+  }
+  if (limits.upload === undefined) {
+    const speed = format.speed(limits.download)
+    return kind === 'mark' ? t('limits.markDownload', { speed }) : t('limits.valueDownload', { speed })
+  }
+  const values = { download: format.speed(limits.download), upload: format.speed(limits.upload) }
+  return kind === 'mark' ? t('limits.markBoth', values) : t('limits.valueBoth', values)
 }

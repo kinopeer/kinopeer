@@ -63,6 +63,19 @@ describe('DownloadRow', () => {
     expect(cells[6]).toHaveTextContent(/^20\.0 GB$/)
   })
 
+  it('marks the torrent’s own speed limits in the speed cell, next to the speed or its dash', () => {
+    const downloading = renderRow({}, { ...DUNE_TORRENT, dl_limit: 5_000_000, up_limit: 500_000 })
+    expect(
+      within(downloading.cells[5]).getByRole('img', {
+        name: 'Speed limits: download up to 5.0\u00a0MB/s, upload up to 500\u00a0KB/s',
+      }),
+    ).toBeInTheDocument()
+
+    const paused = renderRow({ showQueue: false }, { ...DUNE_TORRENT, hash: 'alien', state: 'stoppedDL', dl_limit: 5_000_000 })
+    expect(paused.cells[4]).toHaveTextContent(/^—↓$/)
+    expect(within(paused.cells[4]).getByRole('img', { name: 'Speed limit: download up to 5.0\u00a0MB/s' })).toBeInTheDocument()
+  })
+
   it('pauses a running torrent and resumes a stopped one from its own button, unless disabled', async () => {
     const running = renderRow({ match: DUNE_MATCH })
     await userEvent.click(within(running.row).getByRole('button', { name: 'Pause: Dune: Part Two' }))

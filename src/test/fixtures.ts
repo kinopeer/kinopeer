@@ -62,7 +62,7 @@ export function torrent(hash: string, fields: Partial<Torrent> = {}): Torrent {
 /** The tag Kinoseed puts on a torrent it adds, so its title is known without guessing. */
 export const tmdbTag = (type: 'movie' | 'tv', id: number) => `tmdb:${type}:${id}`
 
-/** Every status the design has, a queue position, and a release TMDB doesn't know. */
+/** Every status the design has, a queue position, speed limits, and a release TMDB doesn't know. */
 export const TORRENTS: Torrent[] = [
   torrent('a1', {
     name: 'Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX.HDR.DV.TrueHD.Atmos-FGT',
@@ -77,6 +77,9 @@ export const TORRENTS: Torrent[] = [
     num_seeds: 54,
     num_leechs: 9,
     priority: 1,
+    // Speed limits of its own, in bytes/s: here the download, on Severance the upload, on
+    // Oppenheimer both.
+    dl_limit: 25_000_000,
     added_on: NOW / 1000 - hour,
   }),
   torrent('a2', {
@@ -108,6 +111,7 @@ export const TORRENTS: Torrent[] = [
     size: 24.1 * GB,
     upspeed: 640 * 1024,
     ratio: 1.42,
+    up_limit: 1_000_000,
     added_on: NOW / 1000 - 26 * hour,
   }),
   torrent('a5', {
@@ -117,6 +121,8 @@ export const TORRENTS: Torrent[] = [
     state: 'stoppedDL',
     progress: 0.41,
     size: 18.7 * GB,
+    dl_limit: 5_000_000,
+    up_limit: 500_000,
     added_on: NOW / 1000 - 30 * hour,
   }),
   torrent('a6', {

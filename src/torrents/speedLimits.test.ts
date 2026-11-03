@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { changedLimit, fieldToLimit, isUnfinished, limitToField } from './speedLimits'
+import i18n from '../i18n'
+import { createFormatters } from '../lib/format'
+import { changedLimit, describeLimits, fieldToLimit, isUnfinished, limitToField, ownLimits } from './speedLimits'
 
 describe('limitToField and fieldToLimit', () => {
   it('shows a limit in MB/s and no limit as an empty field', () => {
@@ -81,5 +83,30 @@ describe('changedLimit', () => {
     expect(changedLimit('1', '1', true)).toBe(1_000_000)
     expect(changedLimit('', '', true)).toBe(0)
     expect(changedLimit('', 'x', true)).toBeNull()
+  })
+})
+
+describe('ownLimits', () => {
+  it('takes a limit above 0 in either direction or both', () => {
+    expect(ownLimits({ dl_limit: 2_000_000, up_limit: 0 })).toEqual({ download: 2_000_000 })
+    expect(ownLimits({ dl_limit: -1, up_limit: 500_000 })).toEqual({ upload: 500_000 })
+    expect(ownLimits({ dl_limit: 1024, up_limit: 1 })).toEqual({ download: 1024, upload: 1 })
+  })
+
+  it('has none for 0 or -1, which qBittorrent reports for no limit', () => {
+    expect(ownLimits({ dl_limit: 0, up_limit: 0 })).toBeNull()
+    expect(ownLimits({ dl_limit: -1, up_limit: -1 })).toBeNull()
+  })
+})
+
+describe('describeLimits', () => {
+  const format = createFormatters(i18n.t, 'en')
+
+  it('says the limits under the More menu’s item without naming them again', () => {
+    expect(describeLimits({ download: 25_000_000 }, 'value', i18n.t, format)).toBe('Download up to 25.0 MB/s')
+    expect(describeLimits({ upload: 1_000_000 }, 'value', i18n.t, format)).toBe('Upload up to 1.0 MB/s')
+    expect(describeLimits({ download: 5_000_000, upload: 500_000 }, 'value', i18n.t, format)).toBe(
+      'Download up to 5.0 MB/s, upload up to 500 KB/s',
+    )
   })
 })

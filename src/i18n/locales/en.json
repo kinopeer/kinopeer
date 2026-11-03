@@ -503,6 +503,12 @@
     "failed": "Couldn’t save the limits, or saved only some of them. Check the connection to qBittorrent and try again.",
     "failedClosed": "Couldn’t save the speed limits of {{title}}, or saved only some. Open them again to check.",
     "downloadRow": "Download limit",
-    "uploadRow": "Upload limit"
+    "uploadRow": "Upload limit",
+    "markDownload": "Speed limit: download up to {{speed}}",
+    "markUpload": "Speed limit: upload up to {{speed}}",
+    "markBoth": "Speed limits: download up to {{download}}, upload up to {{upload}}",
+    "valueDownload": "Download up to {{speed}}",
+    "valueUpload": "Upload up to {{speed}}",
+    "valueBoth": "Download up to {{download}}, upload up to {{upload}}"
   }
 }
