@@ -99,7 +99,12 @@ export const CATEGORIES = {
 }
 
 /** What the fake qBittorrent answers on /app/preferences: the few fields Kinoseed reads, as qBittorrent's defaults. */
-export const PREFERENCES = { auto_tmm_enabled: false, use_category_paths_in_manual_mode: false, use_subcategories: false }
+export const PREFERENCES = {
+  auto_tmm_enabled: false,
+  use_category_paths_in_manual_mode: false,
+  use_subcategories: false,
+  refresh_interval: 1500,
+}
 
 /** What the fake qBittorrent answers on /torrents/trackers. */
 export const TRACKERS: TorrentTracker[] = [
@@ -142,7 +147,9 @@ async function parseAdd(body: Buffer, contentType: string | undefined): Promise<
  * `mainDataDelta` after, plus what was added or deleted since the last poll), TRACKERS, and
  * adding: /torrents/add records what came in `added` (and lists what `listAdded` makes of it),
  * /torrents/files answers `files` (set per hash by the test, 404 for a hash it doesn't have),
- * /torrents/filePrio changes their priorities, /torrents/start and /stop answer OK,
+ * /torrents/filePrio changes their priorities, /torrents/start and /stop answer OK and leave the
+ * torrents' state as it is (qBittorrent 5.1 reports the new one only at its next refresh, 1.5 s
+ * by default, so polls sent before then still have the old one),
  * /torrents/delete takes the torrents off the list and records the call in `deleted`,
  * /torrents/setLocation moves torrents to `location` (403 for a folder under /readonly, which
  * qBittorrent can't write to, and 409 under /unmakeable, a folder it can't create), and

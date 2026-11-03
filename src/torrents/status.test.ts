@@ -68,6 +68,13 @@ describe('withRunning', () => {
     expect(withRunning(make('uploading', 1), false).state).toBe('stoppedUP')
   })
 
+  it('has nothing moving once stopped, though the poll still has the speeds from before', () => {
+    const seeding = { ...make('uploading', 1), dlspeed: 0, upspeed: 2_048 }
+    expect(withRunning(seeding, false)).toMatchObject({ dlspeed: 0, upspeed: 0 })
+    const downloading = { ...make('downloading', 0.5), dlspeed: 4_096, upspeed: 512 }
+    expect(withRunning(downloading, false)).toMatchObject({ dlspeed: 0, upspeed: 0 })
+  })
+
   it('starts a stopped one with nothing moving yet, downloading or, once finished, seeding', () => {
     expect(withRunning(make('stoppedDL', 0.5), true).state).toBe('stalledDL')
     expect(withRunning(make('error', 0.5), true).state).toBe('stalledDL')

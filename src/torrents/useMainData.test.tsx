@@ -214,7 +214,7 @@ describe('useMainData under a TorrentRequestsProvider', () => {
     getMainData
       .mockResolvedValueOnce(downloading)
       .mockReturnValueOnce(new Promise((resolve) => (answerEarlier = () => resolve(downloading))))
-      // qBittorrent's scheduler started it again: the poll after the request says so.
+      // A request that holds nothing: the poll after it says what qBittorrent has.
       .mockResolvedValueOnce(downloading)
     const { result } = renderHook(() => ({ main: useMainData(), requests: useTorrentRequests() }), { wrapper: Providers })
     await act(() => vi.advanceTimersByTimeAsync(0))
@@ -240,6 +240,34 @@ describe('useMainData under a TorrentRequestsProvider', () => {
     // The poll the request asked for goes out once that one is answered, and decides.
     await act(() => vi.advanceTimersByTimeAsync(0))
     expect(getMainData).toHaveBeenCalledTimes(3)
+    expect(result.current.main.data?.torrents.a.state).toBe('downloading')
+  })
+
+  it('keeps the state over the polls sent within the request’s hold, then leaves the word to qBittorrent', async () => {
+    const downloading = { rid: 1, full_update: true, torrents: { a: { name: 'A', state: 'downloading' as const } } }
+    // qBittorrent reports a pause only at its next refresh: until then it answers with nothing new.
+    getMainData.mockResolvedValueOnce(downloading).mockResolvedValue({ rid: 1 })
+    const { result } = renderHook(() => ({ main: useMainData(), requests: useTorrentRequests() }), { wrapper: Providers })
+    await act(() => vi.advanceTimersByTimeAsync(0))
+
+    await act(() =>
+      result.current.requests.send('pause', result.current.main.data!.torrents.a, false, () => Promise.resolve(), {
+        expect: (torrent) => ({ ...torrent, state: 'stoppedDL' }),
+        hold: () => POLL_INTERVAL_MS + 500,
+      }),
+    )
+    // The poll the request asked for, and the next one, are sent within the hold.
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    expect(getMainData).toHaveBeenCalledTimes(2)
+    expect(result.current.main.data?.torrents.a.state).toBe('stoppedDL')
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS))
+    expect(getMainData).toHaveBeenCalledTimes(3)
+    expect(result.current.main.data?.torrents.a.state).toBe('stoppedDL')
+
+    // Still downloading in the first poll sent after the hold: that's qBittorrent's word (its
+    // scheduler started it again).
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS))
+    expect(getMainData).toHaveBeenCalledTimes(4)
     expect(result.current.main.data?.torrents.a.state).toBe('downloading')
   })
 })

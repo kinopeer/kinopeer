@@ -2,6 +2,12 @@
 
 Kinoseed follows [semantic versioning](https://semver.org). While the version is 0.x, minor versions may change behavior and settings.
 
+## Unreleased
+
+### Fixed
+
+- Pause and resume: the torrent's new status shows as soon as qBittorrent takes it and stays, instead of showing only after the next update, up to a few seconds later. ([#209](https://github.com/MrShakhov/kinoseed/issues/209))
+
 ## 0.6.1 - 2026-11-02
 
 Fixes: sheets on a phone stay above the keyboard and keep the page behind them still in Safari on iOS, an action on a torrent can't go out twice from different places and says when it fails, and toasts stack instead of hiding each other.
