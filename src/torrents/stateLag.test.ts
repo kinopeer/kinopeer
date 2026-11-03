@@ -44,6 +44,22 @@ describe('stateLag', () => {
     expect(getRefreshInterval).toHaveBeenCalledOnce()
   })
 
+  it('ignores a read from before a reset', async () => {
+    let answerEarlier = (_interval: number) => {}
+    getRefreshInterval
+      .mockReturnValueOnce(new Promise((resolve) => (answerEarlier = resolve)))
+      .mockReturnValueOnce(new Promise(() => {}))
+    readRefreshInterval()
+    resetStateLag()
+    readRefreshInterval()
+    answerEarlier(5_000)
+    await settle()
+    expect(stateLag()).toBe(DEFAULT_REFRESH_INTERVAL_MS + STATE_LAG_MARGIN_MS)
+    // The read after the reset is still on its way.
+    readRefreshInterval()
+    expect(getRefreshInterval).toHaveBeenCalledTimes(2)
+  })
+
   it('reads it again the next time after a failure', async () => {
     getRefreshInterval.mockRejectedValueOnce(new TypeError('Failed to fetch')).mockResolvedValueOnce(3_000)
     readRefreshInterval()
