@@ -22,11 +22,11 @@ beforeEach(() => {
 
 describe('useQbitSession', () => {
   it('is connected when qBittorrent answers (the server’s login or auth bypass)', async () => {
-    getAppVersion.mockResolvedValue('v5.2.4')
+    getAppVersion.mockResolvedValue('5.2.4')
     const { result } = renderHook(() => useQbitSession())
 
     expect(result.current.session).toEqual({ status: 'checking' })
-    await waitFor(() => expect(result.current.session).toEqual({ status: 'connected', version: 'v5.2.4' }))
+    await waitFor(() => expect(result.current.session).toEqual({ status: 'connected', version: '5.2.4' }))
   })
 
   it('asks to sign in when there is no session', async () => {
@@ -40,20 +40,20 @@ describe('useQbitSession', () => {
     const { result } = renderHook(() => useQbitSession())
     await waitFor(() => expect(result.current.session).toEqual({ status: 'unreachable' }))
 
-    getAppVersion.mockResolvedValue('v5.2.4')
+    getAppVersion.mockResolvedValue('5.2.4')
     await act(() => result.current.recheck())
-    expect(result.current.session).toEqual({ status: 'connected', version: 'v5.2.4' })
+    expect(result.current.session).toEqual({ status: 'connected', version: '5.2.4' })
   })
 
   it('saves the login on the server and connects', async () => {
-    getAppVersion.mockRejectedValueOnce(new api.UnauthorizedError()).mockResolvedValue('v5.2.4')
+    getAppVersion.mockRejectedValueOnce(new api.UnauthorizedError()).mockResolvedValue('5.2.4')
     login.mockResolvedValue({ tmdb: { configured: true, source: 'saved' }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'saved' }, downloads: null })
     const { result } = renderHook(() => useQbitSession())
     await waitFor(() => expect(result.current.session.status).toBe('signed-out'))
 
     await act(() => result.current.signIn('admin', 'secret'))
     expect(login).toHaveBeenCalledWith('admin', 'secret')
-    expect(result.current.session).toEqual({ status: 'connected', version: 'v5.2.4' })
+    expect(result.current.session).toEqual({ status: 'connected', version: '5.2.4' })
   })
 
   it('stays signed out when the server took the login but qBittorrent still refuses it', async () => {

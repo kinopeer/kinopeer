@@ -4,7 +4,6 @@ import {
   UnauthorizedError,
   addTorrents,
   deleteTorrents,
-  getApiVersion,
   getAppVersion,
   getCategories,
   getDefaultSavePath,
@@ -109,7 +108,6 @@ describe('what a screen can cancel', () => {
 
   it.each([
     { name: 'getAppVersion', read: () => getAppVersion(signal), requests: 1 },
-    { name: 'getApiVersion', read: () => getApiVersion(signal), requests: 1 },
     { name: 'getCategories', read: () => getCategories(signal), requests: 1 },
     { name: 'getDefaultSavePath', read: () => getDefaultSavePath(signal), requests: 1 },
     { name: 'getSaveLocations', read: () => getSaveLocations(signal), requests: 3 },
@@ -246,6 +244,14 @@ describe('deleteTorrents', () => {
     expect(lastCall().url).toBe('/qbt/api/v2/torrents/delete')
     expect(lastCall().init.method).toBe('POST')
     expect(String(lastCall().init.body)).toBe('hashes=a%7Cb&deleteFiles=true')
+  })
+})
+
+describe('getAppVersion', () => {
+  it("reads qBittorrent's version without its \"v\", as Kinoseed and Prowlarr write theirs", async () => {
+    respond('v5.0.4\n')
+    await expect(getAppVersion()).resolves.toBe('5.0.4')
+    expect(lastCall().url).toBe('/qbt/api/v2/app/version')
   })
 })
 

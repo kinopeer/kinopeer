@@ -26,6 +26,12 @@ test('a connection with an error, dark, Russian', async ({ page }) => {
   await expect(page).toHaveScreenshot('settings-error-dark-ru.png', { mask: [versionValue(page)] })
 })
 
+test('Prowlarr without indexers, dark, Russian', async ({ page }) => {
+  await openSettings(page, { prowlarrIndexers: 0 })
+  await expect(page.getByText('Подключено · нет индексаторов')).toBeVisible()
+  await expect(page).toHaveScreenshot('settings-no-indexers-dark-ru.png', { mask: [versionValue(page)] })
+})
+
 test.describe('desktop', () => {
   test.use(DESKTOP)
 

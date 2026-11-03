@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router'
 import { ProwlarrSetupError, getProwlarrStatus } from '../api/prowlarr'
-import { getApiVersion, getAppVersion, getCategories } from '../api/qbittorrent'
+import { getAppVersion, getCategories } from '../api/qbittorrent'
 import { TmdbKeyError, checkTmdb } from '../api/tmdb'
 import { getServerSettings, type ServerSettings } from '../api/settings'
 import { Button } from '../components/Button'
@@ -16,7 +16,7 @@ import { LANGUAGES, type LanguagePreference } from '../i18n'
 import { useLanguage } from '../i18n/useLanguage'
 import { BUG_REPORT_URL, IDEAS_URL, REPO_URL } from '../lib/links'
 import { promptInstall, useInstallMethod, type ManualInstall } from '../pwa/install'
-import { useRequest } from '../lib/useRequest'
+import { useRequest, type RequestState } from '../lib/useRequest'
 import { useSettings, type Settings } from '../settings/settings'
 import type { ThemePreference } from '../theme/theme'
 import { useTheme } from '../theme/useTheme'
@@ -32,44 +32,76 @@ export interface SettingsLocationState {
   editTmdbKey?: boolean
 }
 
+/** What a connection's card says: still checking, connected (perhaps with a warning), or why not. */
+type ConnectionStatus = { state: 'loading' } | { state: 'ok' | 'warn' | 'error'; message: string }
+
+/** The status of a check: `ok` describes what it answered, `failed` why it failed. */
+function connectionStatus<T>(
+  check: RequestState<T>,
+  ok: (data: T) => { message: string; warn?: boolean },
+  failed: (error: unknown) => string,
+): ConnectionStatus {
+  if (check.loading) return { state: 'loading' }
+  if (check.error !== undefined) return { state: 'error', message: failed(check.error) }
+  const { message, warn } = ok(check.data as T)
+  return { state: warn ? 'warn' : 'ok', message }
+}
+
+const CONNECTION_CLASS = { loading: 'is-loading', ok: 'is-ok', warn: 'is-warn', error: 'is-err' } as const
+const MESSAGE_CLASS = { loading: 'c2', ok: 'c2', warn: 'c-warn', error: 'c-err' } as const
+
 interface ConnectionRowProps {
   name: string
   icon: IconName
-  /** Resolves to the success message, rejects with the error message. */
-  check: (signal: AbortSignal) => Promise<string>
+  status: ConnectionStatus
+  /** Runs the check again. */
+  onTest: () => void
   /** Accessible name of the edit button, shown only with `onEdit`. */
   editLabel?: string
   onEdit?: () => void
 }
 
-/** One service's connection: checked when the screen opens and again, on its own, on Test. */
-function ConnectionRow({ name, icon, check, editLabel, onEdit }: ConnectionRowProps) {
-  const { t, i18n } = useTranslation()
-  const result = useRequest(`${name}|${i18n.language}`, check)
-  const state = result.loading ? 'loading' : result.error !== undefined ? 'error' : 'ok'
-  const message = result.loading
-    ? t('settings.testing')
-    : result.error !== undefined
-      ? result.error instanceof Error
-        ? result.error.message
-        : String(result.error)
-      : result.data
-
+/** One service's connection: its status, and Test to check it again. */
+function ConnectionRow({ name, icon, status, onTest, editLabel, onEdit }: ConnectionRowProps) {
+  const { t } = useTranslation()
+  const { state } = status
   return (
-    <li className={state === 'ok' ? 'ks-conn is-ok' : state === 'error' ? 'ks-conn is-err' : 'ks-conn is-loading'}>
+    <li className={`ks-conn ${CONNECTION_CLASS[state]}`}>
       <span className="ks-conn-ic" aria-hidden="true">
-        {state === 'loading' ? <span className="ks-spin" /> : <Icon name={state === 'ok' ? 'check-circle' : icon} />}
+        {state === 'loading' ? (
+          <span className="ks-spin" />
+        ) : (
+          <Icon name={state === 'ok' ? 'check-circle' : state === 'warn' ? 'alert' : icon} />
+        )}
       </span>
       <span className="settings-conn-text">
         <span className="settings-conn-name">{name}</span>
-        <span className={state === 'error' ? 't-cap c-err' : 't-cap c2'} role="status">
-          {message}
+        <span className={`t-cap ${MESSAGE_CLASS[state]}`} role="status">
+          {status.state === 'loading' ? t('settings.testing') : status.message}
         </span>
       </span>
       {onEdit && editLabel && <IconButton icon="key" label={editLabel} onClick={onEdit} />}
-      <Button variant="secondary" size="sm" disabled={state === 'loading'} onClick={result.retry}>
+      <Button variant="secondary" size="sm" disabled={state === 'loading'} onClick={onTest}>
         {t('settings.test')}
       </Button>
+    </li>
+  )
+}
+
+/** A row in About that shows a value; "—" while it isn't known (Connections says why). */
+function AboutValue({ label, value }: { label: string; value: string | number | undefined }) {
+  const { t } = useTranslation()
+  return (
+    <li className="settings-row-static">
+      <span className="settings-row-text">{label}</span>
+      {value === undefined ? (
+        <span className="settings-row-unknown">
+          <span aria-hidden="true">—</span>
+          <span className="sr-only">{t('settings.versionUnknown')}</span>
+        </span>
+      ) : (
+        <span className="c3 ks-num">{value}</span>
+      )}
     </li>
   )
 }
@@ -143,7 +175,7 @@ export function SettingsScreen() {
   const [editingProwlarrKey, setEditingProwlarrKey] = useState(false)
   const [prowlarrKeyVersion, setProwlarrKeyVersion] = useState(0)
   const toast = useToast()
-  // Asked after each passing qBittorrent check (on opening, on Test, in a new language) while
+  // Asked after each passing qBittorrent check (on opening, on Test) while
   // they're missing, so a check that finds it back loads them, and loaded selects don't empty on Test.
   const [categoriesLoad, setCategoriesLoad] = useState(0)
   const categories = useRequest(categoriesLoad === 0 ? null : `qbt|categories|${categoriesLoad}`, (signal) => getCategories(signal))
@@ -153,33 +185,16 @@ export function SettingsScreen() {
   const server = serverChanged ?? serverLoad.data
   const names = (categories.data ?? []).map((category) => category.name).sort((a, b) => a.localeCompare(b))
 
-  const checkQbittorrent = async (signal: AbortSignal) => {
-    try {
-      const [app, api] = await Promise.all([getAppVersion(signal), getApiVersion(signal)])
-      if (categories.data === undefined) setCategoriesLoad((n) => n + 1)
-      return t('settings.qbtOk', { version: app, api })
-    } catch {
-      throw new Error(t('settings.qbtError'))
-    }
-  }
-
-  const checkProwlarr = async (signal: AbortSignal) => {
-    try {
-      const status = await getProwlarrStatus(signal)
-      return t('settings.prowlarrOk', { count: status.indexers, version: status.version })
-    } catch (error) {
-      throw new Error(error instanceof ProwlarrSetupError ? t('settings.prowlarrSetup') : t('settings.prowlarrError'))
-    }
-  }
-
-  const checkTmdbKey = async (signal: AbortSignal) => {
-    try {
-      await checkTmdb(signal)
-      return t('settings.tmdbOk')
-    } catch (error) {
-      throw new Error(error instanceof TmdbKeyError ? t('settings.tmdbKey') : t('settings.tmdbError'))
-    }
-  }
+  // The checks behind Connections, run here so About shows the versions they answer with and
+  // starts none of its own; a check running again or failing has no data, so About shows "—".
+  // A new key changes its check's key, so it runs again.
+  const qbittorrent = useRequest('check|qbittorrent', async (signal) => {
+    const version = await getAppVersion(signal)
+    if (categories.data === undefined) setCategoriesLoad((n) => n + 1)
+    return version
+  })
+  const prowlarr = useRequest(`check|prowlarr|${prowlarrKeyVersion}`, (signal) => getProwlarrStatus(signal))
+  const tmdb = useRequest(`check|tmdb|${tmdbKeyVersion}`, (signal) => checkTmdb(signal))
 
   const categoryField = (type: 'movie' | 'tv') => {
     const key: keyof Settings = type === 'movie' ? 'movieCategory' : 'tvCategory'
@@ -235,21 +250,35 @@ export function SettingsScreen() {
 
       <Section id="settings-connections" title={t('settings.connections')}>
         <ul className="settings-conns">
-          <ConnectionRow name="qBittorrent" icon="server" check={checkQbittorrent} />
-          {/* A new key remounts the row, so it checks again. */}
           <ConnectionRow
-            key={`prowlarr-${prowlarrKeyVersion}`}
+            name="qBittorrent"
+            icon="server"
+            status={connectionStatus(qbittorrent, () => ({ message: t('settings.connected') }), () => t('settings.qbtError'))}
+            onTest={qbittorrent.retry}
+          />
+          <ConnectionRow
             name="Prowlarr"
             icon="search"
-            check={checkProwlarr}
+            status={connectionStatus(
+              prowlarr,
+              // Search finds nothing without indexers, so the card warns rather than only connects.
+              ({ indexers }) =>
+                indexers === 0 ? { message: t('settings.connectedNoIndexers'), warn: true } : { message: t('settings.connected') },
+              (error) => (error instanceof ProwlarrSetupError ? t('settings.prowlarrSetup') : t('settings.prowlarrError')),
+            )}
+            onTest={prowlarr.retry}
             editLabel={t('prowlarrKey.change')}
             onEdit={() => setEditingProwlarrKey(true)}
           />
           <ConnectionRow
-            key={tmdbKeyVersion}
             name="TMDB"
             icon="film"
-            check={checkTmdbKey}
+            status={connectionStatus(
+              tmdb,
+              () => ({ message: t('settings.connected') }),
+              (error) => (error instanceof TmdbKeyError ? t('settings.tmdbKey') : t('settings.tmdbError')),
+            )}
+            onTest={tmdb.retry}
             editLabel={t('tmdbKey.change')}
             onEdit={() => setEditingKey(true)}
           />
@@ -300,10 +329,10 @@ export function SettingsScreen() {
 
       <Section id="settings-about" title={t('settings.about')}>
         <ul className="ks-card settings-rows">
-          <li className="settings-row-static">
-            <span className="settings-row-text">{t('settings.version')}</span>
-            <span className="c3 ks-num">{__APP_VERSION__}</span>
-          </li>
+          <AboutValue label={t('settings.version')} value={__APP_VERSION__} />
+          <AboutValue label={t('settings.qbtVersion')} value={qbittorrent.data} />
+          <AboutValue label={t('settings.prowlarrVersion')} value={prowlarr.data?.version} />
+          <AboutValue label={t('settings.indexers')} value={prowlarr.data?.indexers} />
           {installMethod && (
             <AboutRow
               icon="download"

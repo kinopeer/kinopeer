@@ -18,7 +18,7 @@ afterEach(stopKinoseed)
 describe('qBittorrent client through /qbt', () => {
   it('reads the version with the session the server holds, which never reaches the browser', async () => {
     const { qbittorrent, cookies } = await startKinoseed()
-    await expect(getAppVersion()).resolves.toBe('v5.2.4')
+    await expect(getAppVersion()).resolves.toBe('5.2.4')
     expect(qbittorrent.seen).toEqual([expect.objectContaining({ method: 'GET', url: '/api/v2/app/version', cookie: 'SID=sid1' })])
     expect(cookies.all()).toEqual({})
   })

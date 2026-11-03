@@ -77,6 +77,15 @@
   color: var(--error);
 }
 
+.ks-conn.is-warn {
+  border-color: color-mix(in srgb, var(--warning) 45%, transparent);
+}
+
+.ks-conn.is-warn .ks-conn-ic {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
 .ks-conn.is-loading .ks-conn-ic {
   color: var(--accent-text);
 }
@@ -181,6 +190,11 @@
   padding: 0 var(--space-4);
 }
 
+/* A value About doesn't know yet: the service is being checked or doesn't answer. */
+.settings-row-unknown {
+  color: var(--disabled);
+}
+
 /* TMDB's attribution: their logo, unchanged, and the notice their terms ask for. */
 .settings-tmdb {
   display: flex;
@@ -197,8 +211,9 @@
 }
 
 /*
- * Desktop: connections across the top, then two columns. Download defaults and About sit on the
- * left and Appearance on the right, so the visual order follows the DOM order the phone keeps.
+ * Desktop: connections across the top, then two columns, download defaults on the left and
+ * Appearance on the right, then About across both, its two cards side by side and TMDB's notice
+ * under them. The visual order follows the DOM order the phone keeps.
  */
 @media (min-width: 1024px) {
   .settings {
@@ -210,7 +225,7 @@
       'title title'
       'connections connections'
       'defaults appearance'
-      'about appearance';
+      'about about';
     align-items: start;
     gap: var(--space-6);
     padding: var(--space-8) var(--space-8) var(--space-16);
@@ -236,10 +251,20 @@
 
   .settings-about {
     grid-area: about;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    /* The page's gap, so the cards line up with the columns above. */
+    column-gap: var(--space-6);
   }
 
+  .settings-about > :not(.settings-rows) {
+    grid-column: 1 / -1;
+  }
+
+  /* row-gap, not gap, so About keeps its column-gap. */
   .settings-section {
-    gap: var(--space-3);
+    row-gap: var(--space-3);
   }
 
   .settings-conns {
