@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router'
-import type { SearchPage } from '../api/tmdb'
+import type { MediaType, SearchPage } from '../api/tmdb'
 import { appendPage, firstResults, hasMorePages, keepResults, keptResults, type SearchResults } from '../search/searchResults'
 
 export interface SearchResultsState {
@@ -18,6 +18,9 @@ export interface SearchResultsState {
   showMore: () => void
 }
 
+/** The type tab a search is for. */
+export type SearchTab = 'all' | MediaType
+
 /** A search's pages, or why its first one failed. */
 interface Loaded {
   results?: SearchResults
@@ -27,7 +30,7 @@ interface Loaded {
 /** What this screen loaded for a query, per type tab. */
 interface Tabs {
   query: string
-  types: Partial<Record<string, Loaded>>
+  types: Partial<Record<SearchTab, Loaded>>
 }
 
 /** A next page on its way, or failed, for one search: it doesn't outlive the search. */
@@ -45,7 +48,7 @@ interface More {
  */
 export function useSearchResults(
   query: string | null,
-  type: string,
+  type: SearchTab,
   load: (page: number, signal: AbortSignal) => Promise<SearchPage>,
 ): SearchResultsState {
   // Nothing is kept for no query: a query has its language and is never "null".
@@ -61,6 +64,9 @@ export function useSearchResults(
     loadRef.current = load
   })
 
+  // A cleared query starts over: typed again, it asks again.
+  if (query === null && tabs !== null) setTabs(null)
+
   const kept = keptResults(entry, search)
   const current = (tabs?.query === query ? tabs.types[type] : undefined) ?? (kept && { results: kept })
   const results = current?.results
@@ -68,7 +74,7 @@ export function useSearchResults(
 
   // A tab's pages go with the query's other tabs; another query starts them over.
   const setTab = useCallback(
-    (query: string, type: string, tab: Loaded | undefined) =>
+    (query: string, type: SearchTab, tab: Loaded | undefined) =>
       setTabs((tabs) => ({ query, types: { ...(tabs?.query === query ? tabs.types : {}), [type]: tab } })),
     [],
   )

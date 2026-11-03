@@ -1,11 +1,11 @@
 import { act, renderHook } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { MemoryRouter, useNavigate } from 'react-router'
+import { MemoryRouter, useLocation, useNavigate } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SearchPage } from '../api/tmdb'
 import { KEPT_SEARCHES, forgetKeptResults, keepResults, keptResults } from '../search/searchResults'
 import { searchPage, title } from '../test/fixtures'
-import { useSearchResults } from './useSearchResults'
+import { useSearchResults, type SearchTab } from './useSearchResults'
 
 const DUNE = title('movie', 1, 'Dune')
 const ALIEN = title('movie', 2, 'Alien')
@@ -34,7 +34,7 @@ async function queryChanged() {
   const pending = pendingLoad()
   const hook = renderHook(({ query, type }) => useSearchResults(query, type, pending.load), {
     wrapper,
-    initialProps: { query: 'dune', type: 'all' },
+    initialProps: { query: 'dune', type: 'all' as SearchTab },
   })
   hook.rerender({ query: 'alien', type: 'all' })
   await act(async () => pending.answers[1](searchPage([ALIEN])))
@@ -94,10 +94,10 @@ describe('useSearchResults', () => {
     const { load, answers } = pendingLoad()
     const { result, rerender } = renderHook(
       ({ type }) => ({ results: useSearchResults('star', type, load), navigate: useNavigate() }),
-      { wrapper, initialProps: { type: 'all' } },
+      { wrapper, initialProps: { type: 'all' as SearchTab } },
     )
     // A tab picked replaces the history entry, as the screen does.
-    const pick = async (type: string) => {
+    const pick = async (type: SearchTab) => {
       await act(async () => result.current.navigate(`/?type=${type}`, { replace: true }))
       rerender({ type })
     }
@@ -114,6 +114,22 @@ describe('useSearchResults', () => {
     act(() => result.current.results.showMore())
     // The page left behind was dropped, so it's asked for again.
     expect(load.mock.calls.map(([page]) => page)).toEqual([1, 1, 2, 2])
+  })
+
+  it('asks TMDB again for a search typed again after the query was cleared', async () => {
+    const load = vi.fn().mockResolvedValue(searchPage([DUNE]))
+    const { result, rerender } = renderHook(
+      ({ query }: { query: string | null }) => ({ results: useSearchResults(query, 'all', load), navigate: useNavigate() }),
+      { wrapper, initialProps: { query: 'dune' as string | null } },
+    )
+    await act(async () => {})
+    // Clearing and typing replace the history entry each time.
+    for (const query of [null, 'dune']) {
+      await act(async () => result.current.navigate(`/?q=${query ?? ''}`, { replace: true }))
+      rerender({ query })
+      await act(async () => {})
+    }
+    expect(load).toHaveBeenCalledTimes(2)
   })
 
   it('asks TMDB again for a search typed again', async () => {
@@ -136,9 +152,10 @@ describe('useSearchResults', () => {
     const kept = { titles: [DUNE], page: 1, totalPages: 1, totalResults: 1 }
     for (let n = 0; n < KEPT_SEARCHES - 1; n++) keepResults(`entry-${n}`, `search-${n}`, kept)
     const load = vi.fn().mockResolvedValue(searchPage([DUNE]))
-    const { result } = renderHook(() => ({ results: useSearchResults('dune', 'all', load), navigate: useNavigate() }), {
-      wrapper,
-    })
+    const { result } = renderHook(
+      () => ({ results: useSearchResults('dune', 'all', load), navigate: useNavigate(), entry: useLocation().key }),
+      { wrapper },
+    )
     await act(async () => {})
 
     // Keystrokes the search hasn't caught up with yet.
@@ -147,6 +164,8 @@ describe('useSearchResults', () => {
     }
 
     expect(keptResults('entry-0', 'search-0')).toBeDefined()
+    // Under the entry that replaced the others, so Back to it finds it.
+    expect(keptResults(result.current.entry, 'dune|all')).toBeDefined()
   })
 
   it('keeps nothing for a search still loading, so it pushes no kept search out', () => {
