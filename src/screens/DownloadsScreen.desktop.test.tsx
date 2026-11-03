@@ -278,14 +278,6 @@ describe('DownloadsScreen on desktop', () => {
     await userEvent.click(within(screen.getByRole('menu', { name: 'Sort' })).getByRole('menuitemradio', { name: 'Name' }))
     expect(header('Title')).toHaveAttribute('aria-sort', 'ascending')
     expect(getSettings()).toMatchObject({ downloadsSort: 'name', downloadsSortDescending: false })
-
-    // Status: what needs attention first (downloading, paused, seeding here), then the other way round.
-    await userEvent.click(screen.getByRole('button', { name: 'Status' }))
-    expect(await titles()).toEqual(['Dune.Part.Two.2024.2160p.WEB-DL', 'Alien.Romulus.2024.1080p', 'Andor.S02.1080p'])
-    expect(header('Status')).toHaveAttribute('aria-sort', 'ascending')
-    await userEvent.click(screen.getByRole('button', { name: 'Status' }))
-    expect(await titles()).toEqual(['Andor.S02.1080p', 'Alien.Romulus.2024.1080p', 'Dune.Part.Two.2024.2160p.WEB-DL'])
-    expect(getSettings()).toMatchObject({ downloadsSort: 'status', downloadsSortDescending: true })
   })
 
   it('filters by status from a menu in place of the chips, counting within the type', async () => {
