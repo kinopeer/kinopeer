@@ -18,92 +18,121 @@ export interface SearchResultsState {
   showMore: () => void
 }
 
-interface State {
-  search: string
+/** A search's pages, or why its first one failed. */
+interface Loaded {
   results?: SearchResults
   error?: unknown
-  loadingMore?: boolean
-  moreError?: unknown
 }
 
-function kept(entry: string, search: string | null): State | null {
-  const results = keptResults(entry, search)
-  return results ? { search: search!, results } : null
+/** What this screen loaded for a query, per type tab. */
+interface Tabs {
+  query: string
+  types: Partial<Record<string, Loaded>>
+}
+
+/** A next page on its way, or failed, for one search: it doesn't outlive the search. */
+interface More {
+  search: string
+  failed: boolean
+  error?: unknown
 }
 
 /**
- * A search's results, a page at a time. `search` names the search (null runs none) and `load` asks for one of
- * its pages. The results are kept for the history entry, so Back to it shows the pages loaded before at once,
- * without asking again, and the scroll can be brought back over them; a search made again (a type tab picked
- * again) starts from the pages kept for it too.
+ * A search's results, a page at a time. `query` names the search without its type tab (null runs none), and
+ * `load` asks for one of its pages. A tab picked again shows what it loaded while the query stays; a query
+ * typed again asks again. The results are also kept for the history entry, so Back to it shows the pages
+ * loaded before at once, without asking again, and the scroll can be brought back over them.
  */
 export function useSearchResults(
-  search: string | null,
+  query: string | null,
+  type: string,
   load: (page: number, signal: AbortSignal) => Promise<SearchPage>,
 ): SearchResultsState {
+  const search = query === null ? null : `${query}|${type}`
   const { key: entry } = useLocation()
   const loadRef = useRef(load)
-  // Kept results show without being in it (Back, a tab picked again): it holds what this screen loaded.
-  const [state, setState] = useState<State | null>(null)
+  const [tabs, setTabs] = useState<Tabs | null>(null)
+  const [more, setMore] = useState<More | null>(null)
   const [attempt, setAttempt] = useState(0)
-  const more = useRef<AbortController | null>(null)
+  const moreRequest = useRef<AbortController | null>(null)
 
   useEffect(() => {
     loadRef.current = load
   })
 
-  const current = state?.search === search ? state : kept(entry, search)
-  const loaded = current?.results !== undefined
+  const kept = keptResults(entry, search)
+  const current = (tabs?.query === query ? tabs.types[type] : undefined) ?? (kept && { results: kept })
+  const results = current?.results
+  const loaded = results !== undefined
+
+  // A tab's pages go with the query's other tabs; another query starts them over.
+  const setTab = useCallback(
+    (query: string, type: string, tab: Loaded | undefined) =>
+      setTabs((tabs) => ({ query, types: { ...(tabs?.query === query ? tabs.types : {}), [type]: tab } })),
+    [],
+  )
 
   useEffect(() => {
-    if (search === null || loaded) return
+    if (query === null || loaded) return
     const controller = new AbortController()
     loadRef.current(1, controller.signal).then(
       (page) => {
-        if (!controller.signal.aborted) setState({ search, results: firstResults(page) })
+        if (!controller.signal.aborted) setTab(query, type, { results: firstResults(page) })
       },
       (error: unknown) => {
-        if (!controller.signal.aborted) setState({ search, error })
+        if (!controller.signal.aborted) setTab(query, type, { error })
       },
     )
     return () => controller.abort()
-  }, [search, attempt, loaded])
+  }, [query, type, attempt, loaded, setTab])
 
-  // A page on its way belongs to this search: another one, or leaving the screen, drops it.
-  useEffect(() => () => more.current?.abort(), [search])
+  // A next page belongs to its search: another one, or leaving the screen, drops it.
+  useEffect(
+    () => () => {
+      moreRequest.current?.abort()
+      setMore(null)
+    },
+    [search],
+  )
 
-  const results = current?.results
   useEffect(() => {
     if (results) keepResults(entry, search!, results)
   }, [entry, search, results])
 
   const retry = useCallback(() => {
-    setState(null)
+    if (query !== null) setTab(query, type, undefined)
     setAttempt((n) => n + 1)
-  }, [])
+  }, [query, type, setTab])
+
+  // Until the effect drops it, a next page of the search before is still here for a render.
+  const thisMore = more?.search === search ? more : null
+  const loadingMore = thisMore !== null && !thisMore.failed
 
   const showMore = () => {
-    if (!results || current?.loadingMore) return
+    if (!results || loadingMore) return
     const controller = new AbortController()
-    more.current = controller
-    // Aborted when the search changes, so the state it changes is still this search's.
-    const update = (change: (state: State) => State) =>
-      setState((state) => (controller.signal.aborted ? state : change(state!)))
-    setState({ search: search!, results, loadingMore: true })
+    moreRequest.current = controller
+    setMore({ search: search!, failed: false })
     loadRef.current(results.page + 1, controller.signal).then(
-      (page) => update((state) => ({ search: state.search, results: appendPage(state.results!, page) })),
-      (error: unknown) => update((state) => ({ ...state, loadingMore: false, moreError: error })),
+      (page) => {
+        if (controller.signal.aborted) return
+        setTab(query!, type, { results: appendPage(results, page) })
+        setMore(null)
+      },
+      (error: unknown) => {
+        if (!controller.signal.aborted) setMore({ search: search!, failed: true, error })
+      },
     )
   }
 
   return {
     results,
     error: current?.error,
-    loading: search !== null && current === null,
+    loading: query !== null && current === undefined,
     retry,
     hasMore: results !== undefined && hasMorePages(results),
-    loadingMore: current?.loadingMore ?? false,
-    moreError: current?.moreError,
+    loadingMore,
+    moreError: thisMore?.error,
     showMore,
   }
 }

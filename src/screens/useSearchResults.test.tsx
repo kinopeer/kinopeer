@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { MemoryRouter } from 'react-router'
+import { MemoryRouter, useNavigate } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SearchPage } from '../api/tmdb'
 import { KEPT_SEARCHES, forgetKeptResults, keepResults, keptResults } from '../search/searchResults'
@@ -26,17 +26,21 @@ function pendingLoad() {
   return { load, answers, failures }
 }
 
-/** Dune's search changed to Alien's before its first page came; Alien's came, and its next page is on its way. */
-async function searchChanged() {
+/**
+ * Dune's query changed to Alien's before its first page came. Alien's All and Series tabs came, and Series is
+ * picked: All is held only by what this screen loaded, since its history entry now keeps Series.
+ */
+async function queryChanged() {
   const pending = pendingLoad()
-  const hook = renderHook(({ search }) => useSearchResults(search, pending.load), {
+  const hook = renderHook(({ query, type }) => useSearchResults(query, type, pending.load), {
     wrapper,
-    initialProps: { search: 'dune' },
+    initialProps: { query: 'dune', type: 'all' },
   })
-  hook.rerender({ search: 'alien' })
-  await act(async () => pending.answers[1](searchPage([ALIEN], { totalPages: 2 })))
-  act(() => hook.result.current.showMore())
-  return { ...pending, result: hook.result }
+  hook.rerender({ query: 'alien', type: 'all' })
+  await act(async () => pending.answers[1](searchPage([ALIEN])))
+  hook.rerender({ query: 'alien', type: 'tv' })
+  await act(async () => pending.answers[2](searchPage([])))
+  return { ...pending, ...hook }
 }
 
 beforeEach(() => forgetKeptResults())
@@ -44,27 +48,28 @@ beforeEach(() => forgetKeptResults())
 describe('useSearchResults', () => {
   it('asks for nothing without a search', () => {
     const load = vi.fn()
-    const { result } = renderHook(() => useSearchResults(null, load), { wrapper })
+    const { result } = renderHook(() => useSearchResults(null, 'all', load), { wrapper })
     expect(result.current).toMatchObject({ loading: false, results: undefined })
     expect(load).not.toHaveBeenCalled()
   })
 
-  // Alien's results would come back from what's kept for Back, so the next page on its way is what shows it.
-  it('drops a first page that answers after the search changed', async () => {
-    const { answers, result } = await searchChanged()
-    await act(async () => answers[0](searchPage([DUNE])))
-    expect(result.current).toMatchObject({ results: { titles: [ALIEN] }, loadingMore: true })
-  })
+  it.each([
+    ['answers', (pending: Awaited<ReturnType<typeof queryChanged>>) => pending.answers[0](searchPage([DUNE]))],
+    // As an aborted request does.
+    ['fails', (pending: Awaited<ReturnType<typeof queryChanged>>) => pending.failures[0](new DOMException('Aborted', 'AbortError'))],
+  ])('keeps a query’s tabs when the first page of the query before %s late', async (_case, settle) => {
+    const pending = await queryChanged()
+    await act(async () => settle(pending))
 
-  it('drops the failure of a search that changed, as an aborted request fails', async () => {
-    const { failures, result } = await searchChanged()
-    await act(async () => failures[0](new DOMException('Aborted', 'AbortError')))
-    expect(result.current).toMatchObject({ error: undefined, results: { titles: [ALIEN] }, loadingMore: true })
+    pending.rerender({ query: 'alien', type: 'all' })
+
+    expect(pending.result.current).toMatchObject({ error: undefined, results: { titles: [ALIEN] } })
+    expect(pending.load).toHaveBeenCalledTimes(3)
   })
 
   it('asks again on every retry', async () => {
     const load = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'))
-    const { result } = renderHook(() => useSearchResults('dune', load), { wrapper })
+    const { result } = renderHook(() => useSearchResults('dune', 'all', load), { wrapper })
     await act(async () => {})
 
     await act(async () => result.current.retry())
@@ -75,7 +80,7 @@ describe('useSearchResults', () => {
 
   it('asks for the next page once while it’s on its way', async () => {
     const { load, answers } = pendingLoad()
-    const { result } = renderHook(() => useSearchResults('dune', load), { wrapper })
+    const { result } = renderHook(() => useSearchResults('dune', 'all', load), { wrapper })
     await act(async () => answers[0](searchPage([DUNE], { totalPages: 3 })))
 
     act(() => result.current.showMore())
@@ -85,12 +90,71 @@ describe('useSearchResults', () => {
     expect(load.mock.calls.map(([page]) => page)).toEqual([1, 2])
   })
 
+  it('starts a search left with its next page on its way afresh when it’s picked again', async () => {
+    const { load, answers } = pendingLoad()
+    const { result, rerender } = renderHook(
+      ({ type }) => ({ results: useSearchResults('star', type, load), navigate: useNavigate() }),
+      { wrapper, initialProps: { type: 'all' } },
+    )
+    // A tab picked replaces the history entry, as the screen does.
+    const pick = async (type: string) => {
+      await act(async () => result.current.navigate(`/?type=${type}`, { replace: true }))
+      rerender({ type })
+    }
+    await act(async () => answers[0](searchPage([DUNE], { totalPages: 3 })))
+    await pick('tv')
+    await act(async () => answers[1](searchPage([ALIEN])))
+    await pick('all')
+    act(() => result.current.results.showMore())
+
+    await pick('tv')
+    await pick('all')
+
+    expect(result.current.results.loadingMore).toBe(false)
+    act(() => result.current.results.showMore())
+    // The page left behind was dropped, so it's asked for again.
+    expect(load.mock.calls.map(([page]) => page)).toEqual([1, 1, 2, 2])
+  })
+
+  it('asks TMDB again for a search typed again', async () => {
+    const load = vi.fn().mockResolvedValue(searchPage([DUNE]))
+    const { result, rerender } = renderHook(
+      ({ query }) => ({ results: useSearchResults(query, 'all', load), navigate: useNavigate() }),
+      { wrapper, initialProps: { query: 'dune' } },
+    )
+    await act(async () => {})
+    // Typing replaces the history entry each time.
+    for (const query of ['alien', 'dune']) {
+      await act(async () => result.current.navigate(`/?q=${query}`, { replace: true }))
+      rerender({ query })
+      await act(async () => {})
+    }
+    expect(load).toHaveBeenCalledTimes(3)
+  })
+
+  it('keeps a search once while typing replaces its history entry', async () => {
+    const kept = { titles: [DUNE], page: 1, totalPages: 1, totalResults: 1 }
+    for (let n = 0; n < KEPT_SEARCHES - 1; n++) keepResults(`entry-${n}`, `search-${n}`, kept)
+    const load = vi.fn().mockResolvedValue(searchPage([DUNE]))
+    const { result } = renderHook(() => ({ results: useSearchResults('dune', 'all', load), navigate: useNavigate() }), {
+      wrapper,
+    })
+    await act(async () => {})
+
+    // Keystrokes the search hasn't caught up with yet.
+    for (const query of ['dune ', 'dune p', 'dune pa']) {
+      await act(async () => result.current.navigate(`/?q=${query}`, { replace: true }))
+    }
+
+    expect(keptResults('entry-0', 'search-0')).toBeDefined()
+  })
+
   it('keeps nothing for a search still loading, so it pushes no kept search out', () => {
     const kept = { titles: [DUNE], page: 1, totalPages: 1, totalResults: 1 }
     for (let n = 0; n < KEPT_SEARCHES; n++) keepResults(`entry-${n}`, `search-${n}`, kept)
     const { load } = pendingLoad()
 
-    renderHook(() => useSearchResults('alien', load), { wrapper })
+    renderHook(() => useSearchResults('alien', 'all', load), { wrapper })
 
     expect(keptResults('entry-0', 'search-0')).toBeDefined()
   })

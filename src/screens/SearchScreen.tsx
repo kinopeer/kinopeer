@@ -85,9 +85,8 @@ export function SearchScreen() {
   const searching = query.trim().length > 0
   // A type searches TMDB for that type alone, so its count and its pages are of that type.
   const searchType = type === 'all' ? undefined : type
-  const search = useSearchResults(
-    searching && term ? `${language}|${term}|${year}|${type}` : null,
-    (page, signal) => searchTitles(term, { language, signal, year, page, type: searchType }),
+  const search = useSearchResults(searching && term ? `${language}|${term}|${year}` : null, type, (page, signal) =>
+    searchTitles(term, { language, signal, year, page, type: searchType }),
   )
   const browse = useRequest(searching ? null : `browse|${language}`, (signal) => loadBrowseRows(language, signal))
 
@@ -107,7 +106,12 @@ export function SearchScreen() {
   const rows = typeRows.filter((row) => row.error === undefined)
   const request = searching ? search : browse
   // Nothing left because the type's rows failed, not because TMDB had nothing: their error, not "nothing to suggest".
-  const error = request.error ?? (rows.length === 0 ? typeRows.find((row) => row.error !== undefined)?.error : undefined)
+  // A wrong key found by a next page shows the key screen too: Try again under the results would only fail again.
+  const moreKeyError = search.moreError instanceof TmdbKeyError ? search.moreError : undefined
+  const error =
+    request.error ??
+    moreKeyError ??
+    (rows.length === 0 ? typeRows.find((row) => row.error !== undefined)?.error : undefined)
   // Between a keystroke and the debounced request there's nothing to show for the new query yet.
   const loading = request.loading || (searching && (term !== query.trim() || year !== parseYear(yearText)))
   // Back from a title: the browse rows load again (so do search results that weren't kept), so the browser

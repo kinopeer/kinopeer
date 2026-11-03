@@ -39,21 +39,22 @@ export const KEPT_SEARCHES = 10
 
 const kept = new Map<string, { search: string; results: SearchResults }>()
 
-/** Keeps a search's results for the history entry that shows them, replacing what that entry had. */
+/**
+ * Keeps a search's results for the history entry that shows them, replacing what that entry had. A search
+ * takes one place: kept under a new entry (typing replaces the entry before the search changes), it leaves the
+ * old one.
+ */
 export function keepResults(entry: string, search: string, results: SearchResults): void {
+  for (const [other, found] of kept) if (found.search === search) kept.delete(other)
   kept.delete(entry)
   kept.set(entry, { search, results })
   if (kept.size > KEPT_SEARCHES) kept.delete(kept.keys().next().value!)
 }
 
-/**
- * The results kept for this search: the entry's own, else the latest kept for the same search under another
- * entry (a type tab picked again), none for no search.
- */
+/** The results kept for the entry, if they are of this search (none for no search). */
 export function keptResults(entry: string, search: string | null): SearchResults | undefined {
-  const own = kept.get(entry)
-  if (own?.search === search) return own.results
-  return [...kept.values()].findLast((found) => found.search === search)?.results
+  const found = kept.get(entry)
+  return found?.search === search ? found.results : undefined
 }
 
 /** Forgets every kept search (tests start from none). */

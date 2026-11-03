@@ -56,18 +56,15 @@ describe('kept results', () => {
     expect(keptResults('entry-1', null)).toBeUndefined()
   })
 
-  it('gives the entry’s own results first, else the latest kept for the same search', () => {
-    const own = results()
-    const older = results({ page: 2 })
-    const latest = results({ page: 3 })
-    keepResults('entry-1', 'dune', own)
-    keepResults('entry-2', 'dune', older)
-    keepResults('entry-3', 'dune', latest)
-    keepResults('entry-4', 'alien', results())
+  it('keeps a search in one place, the entry it was kept for last', () => {
+    keepResults('entry-1', 'dune', results())
+    const latest = results({ page: 2 })
+    keepResults('entry-2', 'dune', latest)
+    keepResults('entry-3', 'alien', results())
 
-    expect(keptResults('entry-1', 'dune')).toBe(own)
-    // A tab picked again: the search was made under an earlier entry.
-    expect(keptResults('entry-5', 'dune')).toBe(latest)
+    expect(keptResults('entry-1', 'dune')).toBeUndefined()
+    expect(keptResults('entry-2', 'dune')).toBe(latest)
+    expect(keptResults('entry-3', 'alien')).toBeDefined()
   })
 
   it('keeps the latest searches only, forgetting the one kept longest ago', () => {

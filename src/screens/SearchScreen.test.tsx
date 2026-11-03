@@ -1,7 +1,7 @@
 import { act, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes, useNavigate } from 'react-router'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import * as tmdb from '../api/tmdb'
 import i18n from '../i18n'
 import { forgetKeptResults } from '../search/searchResults'
@@ -34,11 +34,6 @@ beforeEach(() => {
     page(type === 'tv' ? [ANDOR, SHOGUN] : params.sort_by === 'popularity.desc' ? [DUNE] : [ALIEN]),
   )
   searchTitles.mockResolvedValue(page([DUNE, ANDOR]))
-})
-
-afterEach(() => {
-  // The scroll spy, so the setup's no-op scrollTo is back for the other files' screens.
-  vi.restoreAllMocks()
 })
 
 function row(name: string) {
@@ -177,10 +172,10 @@ describe('SearchScreen', () => {
     expect(searchTitles).toHaveBeenCalledTimes(2)
   })
 
-  it('adds the next page under the results, without the titles already shown, until the last one', async () => {
+  it('adds the next page under the results, until the last one', async () => {
     searchTitles.mockImplementation(async (_query, options) =>
       options?.page === 2
-        ? page([ANDOR, ALIEN], { page: 2, totalPages: 2, totalResults: 3 })
+        ? page([ALIEN], { page: 2, totalPages: 2, totalResults: 3 })
         : page([DUNE, ANDOR], { totalPages: 2, totalResults: 4 }),
     )
     renderScreen('/search?q=star&year=2024')
@@ -189,7 +184,6 @@ describe('SearchScreen', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Show more' }))
 
     expect(await screen.findByRole('heading', { name: 'Alien: Romulus' })).toBeInTheDocument()
-    // Results shift between pages: Andor came again on the second and is shown once.
     expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual([
       'Dune: Part Two',
       'Andor',
@@ -224,6 +218,14 @@ describe('SearchScreen', () => {
     expect(screen.getByRole('button', { name: 'Show more' })).toBeEnabled()
   })
 
+  it('explains a missing TMDB key when the next page finds it', async () => {
+    searchTitles.mockResolvedValueOnce(page([DUNE], { totalPages: 2 }))
+    searchTitles.mockRejectedValueOnce(new tmdb.TmdbKeyError(401))
+    renderScreen('/search?q=dune')
+    await userEvent.click(await screen.findByRole('button', { name: 'Show more' }))
+    expect(await screen.findByRole('heading', { name: 'TMDB isn’t set up' })).toBeInTheDocument()
+  })
+
   it('says when a search fails, and tries again', async () => {
     let answer = () => {}
     searchTitles.mockRejectedValueOnce(new TypeError('Failed to fetch'))
@@ -236,21 +238,29 @@ describe('SearchScreen', () => {
     expect(screen.getByText('About 2 results')).toBeInTheDocument()
   })
 
-  it('drops a next page that answers after the search changed', async () => {
-    let answer = () => {}
+  it.each([
+    ['answers', (settle: { resolve: (page: tmdb.SearchPage) => void }) => settle.resolve(page([ALIEN], { page: 2, totalPages: 2 }))],
+    // As an aborted request does.
+    ['fails', (settle: { reject: (error: unknown) => void }) => settle.reject(new DOMException('Aborted', 'AbortError'))],
+  ] as const)('drops a next page that %s after the tab changed and changed back', async (_case, finish) => {
+    const settle = { resolve: (_page: tmdb.SearchPage) => {}, reject: (_error: unknown) => {} }
     searchTitles.mockResolvedValueOnce(page([DUNE], { totalPages: 2 }))
     searchTitles.mockImplementationOnce(
-      () => new Promise((resolve) => (answer = () => resolve(page([ALIEN], { page: 2, totalPages: 2 })))),
+      () => new Promise((resolve, reject) => Object.assign(settle, { resolve, reject })),
     )
     searchTitles.mockResolvedValueOnce(page([SHOGUN]))
     renderScreen('/search?q=dune')
     await userEvent.click(await screen.findByRole('button', { name: 'Show more' }))
-
-    await userEvent.click(within(screen.getByRole('group', { name: 'Type' })).getByRole('button', { name: 'Series' }))
+    const types = within(screen.getByRole('group', { name: 'Type' }))
+    await userEvent.click(types.getByRole('button', { name: 'Series' }))
     await screen.findByRole('heading', { name: 'Shōgun' })
-    await act(async () => answer())
 
-    expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Shōgun'])
+    await userEvent.click(types.getByRole('button', { name: 'All' }))
+    await act(async () => finish(settle))
+
+    expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Dune: Part Two'])
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Show more' })).toBeEnabled()
   })
 
   it('offers to clear a search without results', async () => {
@@ -396,11 +406,20 @@ describe('SearchScreen', () => {
       )
     }
 
-    beforeEach(() => sessionStorage.clear())
-    afterEach(() => scrolledTo(0))
+    let scrollTo: MockInstance<typeof window.scrollTo>
+
+    beforeEach(() => {
+      sessionStorage.clear()
+      scrollTo = vi.spyOn(window, 'scrollTo')
+    })
+
+    afterEach(() => {
+      scrolledTo(0)
+      // The setup's no-op scrollTo is back for the other tests and files.
+      scrollTo.mockRestore()
+    })
 
     it('shows the pages loaded before at once, at the same scroll position', async () => {
-      const scrollTo = vi.spyOn(window, 'scrollTo')
       searchTitles.mockImplementation(async (_query, options) =>
         options?.page === 2 ? page([ALIEN], { page: 2, totalPages: 3 }) : page([DUNE, ANDOR], { totalPages: 3 }),
       )
@@ -425,7 +444,6 @@ describe('SearchScreen', () => {
     })
 
     it('searches again when the results weren’t kept, and scrolls back once they’re in', async () => {
-      const scrollTo = vi.spyOn(window, 'scrollTo')
       // The second search, on the way back, answers only when told to.
       let answer = () => {}
       searchTitles.mockImplementationOnce(async () => page([DUNE, ANDOR]))
