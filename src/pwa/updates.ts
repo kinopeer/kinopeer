@@ -19,11 +19,11 @@ const RELOADED_FOR_KEY = 'kinoseed.reloadedFor'
 async function serverVersion(): Promise<string | null> {
   try {
     const response = await fetch(VERSION_URL, { cache: 'no-store', credentials: 'same-origin' })
-    if (!response.ok) return null
+    // An error page or index.html in its place isn't JSON with a version either.
     const { version } = (await response.json()) as { version?: unknown }
     return typeof version === 'string' ? version : null
   } catch {
-    // Offline, or not JSON: a server without the file answers with index.html.
+    // Offline, or not JSON: a server without the file answers with index.html or a 404 page.
     return null
   }
 }
@@ -36,13 +36,13 @@ async function serverVersion(): Promise<string | null> {
 async function newWorkerInControl(): Promise<boolean> {
   // Plain HTTP has no service workers at all.
   if (!navigator.serviceWorker) return true
-  let timer: ReturnType<typeof setTimeout> | undefined
   try {
     const registration = await navigator.serviceWorker.getRegistration()
     if (!registration) return true
     const takeover = new Promise<boolean>((resolve) => {
       navigator.serviceWorker.addEventListener('controllerchange', () => resolve(true), { once: true })
-      timer = setTimeout(() => resolve(false), TAKEOVER_TIMEOUT_MS)
+      // Resolving after the takeover changes nothing, so the timer isn't cleared.
+      setTimeout(() => resolve(false), TAKEOVER_TIMEOUT_MS)
     })
     await registration.update()
     // Nothing new installing: the worker in control already has the new version.
@@ -50,8 +50,6 @@ async function newWorkerInControl(): Promise<boolean> {
     return await takeover
   } catch {
     return false
-  } finally {
-    clearTimeout(timer)
   }
 }
 

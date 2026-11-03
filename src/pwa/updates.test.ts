@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { TAKEOVER_TIMEOUT_MS, VERSION_URL, startUpdateChecks } from './updates'
+import { TAKEOVER_TIMEOUT_MS, VERSION_URL, markReloadedFor, startUpdateChecks, takeJustUpdated } from './updates'
 
 const NEW = `${__APP_VERSION__}+new`
 
@@ -25,7 +25,7 @@ function setHidden(hidden: boolean) {
 }
 
 /** A service worker registration whose update() finds `next` (a new worker installing) or nothing new. */
-function serviceWorker({ next = true, fails = false } = {}) {
+function serviceWorker({ next = true, fails = false, registered = true } = {}) {
   const container = new EventTarget()
   const registration = {
     installing: null as object | null,
@@ -36,7 +36,7 @@ function serviceWorker({ next = true, fails = false } = {}) {
       return Promise.resolve()
     }),
   }
-  Object.assign(container, { getRegistration: () => Promise.resolve(registration) })
+  Object.assign(container, { getRegistration: () => Promise.resolve(registered ? registration : undefined) })
   Object.defineProperty(navigator, 'serviceWorker', { value: container, configurable: true })
   return { registration, takeOver: () => container.dispatchEvent(new Event('controllerchange')) }
 }
@@ -50,6 +50,7 @@ afterEach(() => {
   stop()
   vi.useRealTimers()
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
   sessionStorage.clear()
   document.body.replaceChildren()
   Reflect.deleteProperty(document, 'hidden')
@@ -95,10 +96,10 @@ describe('startUpdateChecks', () => {
     stop = startUpdateChecks(reload)
     await settle()
 
-    serverHas(NEW)
+    const fetchMock = serverHas(NEW)
     setHidden(true)
     await settle()
-    expect(reload).not.toHaveBeenCalled()
+    expect(fetchMock).not.toHaveBeenCalled()
     setHidden(false)
     await settle()
     expect(reload).toHaveBeenCalledOnce()
@@ -144,6 +145,39 @@ describe('startUpdateChecks', () => {
     expect(reload).toHaveBeenCalledOnce()
   })
 
+  it('reloads right away when no service worker is registered yet', async () => {
+    serviceWorker({ registered: false })
+    serverHas(NEW)
+    stop = startUpdateChecks(reload)
+    await settle()
+    expect(reload).toHaveBeenCalledOnce()
+  })
+
+  it('checks once at a time, so returns while it waits for the service worker don\'t ask it again', async () => {
+    const { registration, takeOver } = serviceWorker()
+    serverHas(NEW)
+    stop = startUpdateChecks(reload)
+    await settle()
+    setHidden(true)
+    setHidden(false)
+    await settle()
+    expect(registration.update).toHaveBeenCalledOnce()
+
+    takeOver()
+    await settle()
+    expect(reload).toHaveBeenCalledOnce()
+  })
+
+  it('still reloads when the session can\'t be written', async () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Quota exceeded', 'QuotaExceededError')
+    })
+    serverHas(NEW)
+    stop = startUpdateChecks(reload)
+    await settle()
+    expect(reload).toHaveBeenCalledOnce()
+  })
+
   it('reloads right away when the service worker has nothing newer to install', async () => {
     serviceWorker({ next: false })
     serverHas(NEW)
@@ -175,5 +209,17 @@ describe('startUpdateChecks', () => {
     setHidden(false)
     await settle()
     expect(reload).toHaveBeenCalledOnce()
+  })
+})
+
+describe('takeJustUpdated', () => {
+  it('is true once, on the version the session reloaded for', () => {
+    expect(takeJustUpdated()).toBe(false)
+    markReloadedFor(NEW)
+    // The reload got the old bundle: not updated.
+    expect(takeJustUpdated()).toBe(false)
+    markReloadedFor(__APP_VERSION__)
+    expect(takeJustUpdated()).toBe(true)
+    expect(takeJustUpdated()).toBe(false)
   })
 })

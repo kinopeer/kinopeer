@@ -99,14 +99,17 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Downloads' })).toBeInTheDocument()
   })
 
-  it('says the app was updated after reloading for a new version, once', async () => {
+  it('says the app was updated after reloading for a new version', async () => {
     markReloadedFor(__APP_VERSION__)
-    const { unmount } = renderApp()
-    expect(await findToastOnPage(`Kinoseed updated to ${__APP_VERSION__}`)).toBeInTheDocument()
-    unmount()
-
     renderApp()
-    await screen.findByRole('heading', { name: 'Downloads' })
+    expect(await findToastOnPage(`Kinoseed updated to ${__APP_VERSION__}`)).toBeInTheDocument()
+  })
+
+  it('says nothing of an update on an ordinary start', async () => {
+    renderApp()
+    await userEvent.click(await screen.findByRole('link', { name: 'Settings' }))
+    // Settings' answer arrived, well after the start, while a toast from it would still show.
+    await screen.findByText('Connected · qBittorrent v5.2.4 · API 2.11.4')
     expect(screen.queryByRole('status', { name: saying(/Kinoseed updated/) })).not.toBeInTheDocument()
   })
 
