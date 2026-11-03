@@ -15,5 +15,5 @@ fi
 export TMDB_API_KEY
 exec docker run --rm --init --ipc=host \
   -v "$PWD":/work -v "$NODE_MODULES_VOLUME":/work/node_modules -w /work \
-  -e TMDB_API_KEY \
-  "$PLAYWRIGHT_IMAGE" sh -c "$INSTALL_NODE_MODULES"' && npx playwright test -c playwright.readme.config.ts "$@"' playwright "$@"
+  -e TMDB_API_KEY -e PLAYWRIGHT_IMAGE \
+  "$PLAYWRIGHT_IMAGE" sh -c 'scripts/install-node-modules.sh && npx playwright test -c playwright.readme.config.ts "$@"' playwright "$@"

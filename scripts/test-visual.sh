@@ -6,5 +6,5 @@ cd "$(dirname "$0")/.."
 . scripts/playwright-docker.sh
 exec docker run --rm --init --ipc=host \
   -v "$PWD":/work -v "$NODE_MODULES_VOLUME":/work/node_modules -w /work \
-  -e CI="${CI:-}" \
-  "$PLAYWRIGHT_IMAGE" sh -c "$INSTALL_NODE_MODULES"' && npx playwright test "$@"' playwright "$@"
+  -e CI="${CI:-}" -e PLAYWRIGHT_IMAGE \
+  "$PLAYWRIGHT_IMAGE" sh -c 'scripts/install-node-modules.sh && npx playwright test "$@"' playwright "$@"
