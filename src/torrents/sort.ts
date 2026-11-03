@@ -1,8 +1,8 @@
 import type { Torrent } from '../api/qbittorrent'
-import { compareByQueue, downloadStatus, showsSpeed } from './status'
+import { compareByQueue, downloadStatus, showsSpeed, type DownloadStatus } from './status'
 
 /** Orders for the downloads list; `priority` is qBittorrent's queue order. */
-export const DOWNLOAD_SORTS = ['priority', 'added', 'name', 'progress', 'size', 'speed', 'eta'] as const
+export const DOWNLOAD_SORTS = ['priority', 'added', 'name', 'progress', 'status', 'size', 'speed', 'eta'] as const
 export type DownloadSort = (typeof DOWNLOAD_SORTS)[number]
 
 /** A sort and its direction. */
@@ -13,19 +13,35 @@ export interface DownloadOrder {
 
 /**
  * Each sort's usual direction, the one a menu pick or a column's first click gives: the queue from
- * its first position, newest, A to Z, most progress, largest, fastest, soonest done.
+ * its first position, newest, A to Z, most progress, what needs attention first, largest, fastest, soonest done.
  */
 const USUALLY_DESCENDING: Record<DownloadSort, boolean> = {
   priority: false,
   added: true,
   name: false,
   progress: true,
+  status: false,
   size: true,
   speed: true,
   eta: false,
 }
 
 type Compare = (a: Torrent, b: Torrent) => number
+
+/**
+ * The status sort's usual order, what needs attention first: a failed torrent, then what's still to
+ * come in (downloading, being checked, waiting in the queue), what's stopped half-way, and last what's
+ * done (seeding, then finished and stopped).
+ */
+const STATUS_RANK: Record<DownloadStatus, number> = {
+  error: 0,
+  downloading: 1,
+  checking: 2,
+  queued: 3,
+  paused: 4,
+  seeding: 5,
+  completed: 6,
+}
 
 /** Seconds left, or null where the row shows none (only a downloading torrent with speed has one). */
 function timeLeft(torrent: Torrent): number | null {
@@ -53,6 +69,8 @@ function sortKey(sort: DownloadSort, titleOf: (torrent: Torrent) => string): Sor
       }
     case 'progress':
       return { compare: (a, b) => a.progress - b.progress }
+    case 'status':
+      return { compare: (a, b) => STATUS_RANK[downloadStatus(a)] - STATUS_RANK[downloadStatus(b)] }
     case 'size':
       return { compare: (a, b) => a.size - b.size }
     case 'speed':
@@ -64,7 +82,7 @@ function sortKey(sort: DownloadSort, titleOf: (torrent: Torrent) => string): Sor
 
 /**
  * Compares torrents for `order`, with ties in queue order: by queue position, date added, the title
- * the row shows (`titleOf`, numbers by value), progress, size, speed (download, then upload) or time
+ * the row shows (`titleOf`, numbers by value), progress, status (STATUS_RANK), size, speed (download, then upload) or time
  * left. Torrents without a queue position, a speed shown or a time left go last in either direction.
  */
 export function compareTorrents(order: DownloadOrder, titleOf: (torrent: Torrent) => string): Compare {

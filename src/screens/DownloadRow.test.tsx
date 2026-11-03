@@ -38,7 +38,7 @@ describe('DownloadRowHeader', () => {
     expect(within(screen.getAllByRole('columnheader')[0]).queryByRole('button')).not.toBeInTheDocument()
   })
 
-  it('makes every column but the status and the unnamed ones a sort button, and says which one sorts the list', async () => {
+  it('makes every named column a sort button, and says which one sorts the list', async () => {
     const onSort = vi.fn()
     const { rerender } = renderWithRouter(
       <DownloadRowHeader selecting={false} queue order={{ sort: 'size', descending: true }} onSort={onSort} />,
@@ -46,7 +46,7 @@ describe('DownloadRowHeader', () => {
     const buttons = screen.getAllByRole('columnheader').map((header) => within(header).queryByRole('button')?.textContent ?? null)
     // The queue column's "#" is followed by the sort's name, hidden, so the name still starts with what shows.
     expect(screen.getByRole('button', { name: '# Priority' })).toBeInTheDocument()
-    expect(buttons).toEqual(['# Priority', null, 'Title', 'Progress', null, 'Speed', 'ETA', 'Size', null])
+    expect(buttons).toEqual(['# Priority', null, 'Title', 'Progress', 'Status', 'Speed', 'ETA', 'Size', null])
     const sorted = () =>
       screen
         .getAllByRole('columnheader')
@@ -61,6 +61,10 @@ describe('DownloadRowHeader', () => {
     expect(sorted()).toEqual([['# Priority', 'descending']])
     rerender(<DownloadRowHeader selecting={false} queue order={{ sort: 'eta', descending: false }} onSort={onSort} />)
     expect(sorted()).toEqual([['ETA', 'ascending']])
+    await userEvent.click(screen.getByRole('button', { name: 'Status' }))
+    expect(onSort).toHaveBeenLastCalledWith('status')
+    rerender(<DownloadRowHeader selecting={false} queue order={{ sort: 'status', descending: true }} onSort={onSort} />)
+    expect(sorted()).toEqual([['Status', 'descending']])
     // Date added has no column.
     rerender(<DownloadRowHeader selecting={false} queue order={{ sort: 'added', descending: true }} onSort={onSort} />)
     expect(sorted()).toEqual([])

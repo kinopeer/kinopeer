@@ -54,7 +54,7 @@ function SortHeader({
 /**
  * The desktop list's column headers, in the order of DownloadRow's cells. The first column, the
  * checkboxes or the queue positions, is there only while selecting or with a position to show. A
- * click on a column's name sorts by it (`onSort`); the status has no sort.
+ * click on a column's name sorts by it (`onSort`).
  */
 export function DownloadRowHeader({ selecting, queue, ...sorting }: { selecting: boolean; queue: boolean } & SortProps) {
   const { t } = useTranslation()
@@ -80,7 +80,9 @@ export function DownloadRowHeader({ selecting, queue, ...sorting }: { selecting:
       <SortHeader sort="progress" {...sorting}>
         {t('downloads.columns.progress')}
       </SortHeader>
-      <span role="columnheader">{t('downloads.columns.status')}</span>
+      <SortHeader sort="status" {...sorting}>
+        {t('downloads.columns.status')}
+      </SortHeader>
       <SortHeader sort="speed" {...sorting}>
         {t('downloads.columns.speed')}
       </SortHeader>

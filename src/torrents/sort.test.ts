@@ -68,9 +68,24 @@ describe('compareTorrents', () => {
     expect(order('eta', torrents)).toEqual(['fast', 'slow', 'stalled', 'paused'])
   })
 
+  it('puts what needs attention first for status: errors, then what is still to come in, then what is done', () => {
+    const torrents = [
+      make('completed', { state: 'stoppedUP', progress: 1 }),
+      make('seeding', { state: 'stalledUP', progress: 1 }),
+      make('paused', { state: 'stoppedDL' }),
+      make('queued', { state: 'queuedDL' }),
+      make('checking', { state: 'checkingDL' }),
+      make('downloading', { state: 'stalledDL' }),
+      make('error', { state: 'missingFiles' }),
+    ]
+    expect(order('status', torrents)).toEqual(['error', 'downloading', 'checking', 'queued', 'paused', 'seeding', 'completed'])
+  })
+
   it('breaks ties in queue order', () => {
     const torrents = [make('new', { added_on: 2 }), make('q1', { priority: 1 }), make('old', { added_on: 1 })]
     expect(order('size', torrents)).toEqual(['q1', 'new', 'old'])
+    // Statuses tie more often than anything: one per torrent, seven in all.
+    expect(order('status', torrents)).toEqual(['q1', 'new', 'old'])
   })
 })
 
@@ -86,6 +101,17 @@ describe('compareTorrents reversed', () => {
     expect(order('progress', torrents, { descending: false })).toEqual(['a', 'c', 'b'])
     expect(order('size', torrents, { descending: false })).toEqual(['b', 'c', 'a'])
     expect(order('speed', torrents, { descending: false })).toEqual(['c', 'b', 'a'])
+  })
+
+  it('puts what is done first for status, with ties still in queue order', () => {
+    const torrents = [
+      make('error', { state: 'error' }),
+      make('new', { state: 'uploading', progress: 1, added_on: 2 }),
+      make('downloading', {}),
+      make('q1', { state: 'uploading', progress: 1, priority: 1 }),
+      make('completed', { state: 'pausedUP', progress: 1 }),
+    ]
+    expect(order('status', torrents, { descending: true })).toEqual(['completed', 'q1', 'new', 'downloading', 'error'])
   })
 
   it('puts the queue from its last position, then the torrents outside it, newest first', () => {
@@ -129,6 +155,7 @@ describe('usualOrder', () => {
       added: 'descending',
       name: 'ascending',
       progress: 'descending',
+      status: 'ascending',
       size: 'descending',
       speed: 'descending',
       eta: 'ascending',
