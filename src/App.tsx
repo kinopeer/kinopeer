@@ -11,6 +11,7 @@ import { ConnectScreen } from './screens/ConnectScreen'
 import { DownloadsScreen } from './screens/DownloadsScreen'
 import { DownloadsWithDrawer } from './screens/DownloadsWithDrawer'
 import { ErrorBoundary } from './screens/ErrorBoundary'
+import { PollRing } from './screens/PollRing'
 import { SearchScreen } from './screens/SearchScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
 import { RELEASES_PATH, TITLE_PATH, TitleRoute } from './screens/TitleScreen'
@@ -173,6 +174,7 @@ function AppSidebar({ items, version, pathname }: { items: TabBarItem[]; version
           altSpeedLimits={altSpeed.on}
           altSpeedDisabled={altSpeed.disabled}
           onToggleAltSpeed={altSpeed.toggle}
+          indicator={(status) => <PollRing poll={main.poll} context={status} />}
         />
       }
     />

@@ -423,6 +423,13 @@
     "unreachableBody": "Check that qBittorrent is running and the Kinoseed server can reach it. Retrying automatically.",
     "reconnected": "Reconnected to qBittorrent"
   },
+  "poll": {
+    "updated": "Updated at {{time}}",
+    "waiting": "Waiting for qBittorrent",
+    "offline": "qBittorrent isn’t answering",
+    "offlineSince": "qBittorrent isn’t answering · updated at {{time}}",
+    "withContext": "{{prefix}} · {{label}}"
+  },
   "crash": {
     "title": "Something went wrong",
     "body": "Kinoseed hit an unexpected error. Reload the page to continue.",

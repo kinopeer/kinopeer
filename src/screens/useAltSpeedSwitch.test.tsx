@@ -2,7 +2,7 @@ import { act, renderHook, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
 import { ToastProvider } from '../components/Toast'
-import { saying } from '../test/render'
+import { fakePoll, saying } from '../test/render'
 import { EMPTY_SYNC_STATE } from '../torrents/sync'
 import type { MainDataState } from '../torrents/useMainData'
 import { useAltSpeedSwitch } from './useAltSpeedSwitch'
@@ -19,6 +19,7 @@ const MAIN: MainDataState = {
   updatedAt: 0,
   requestedAt: 0,
   refresh: vi.fn(),
+  poll: fakePoll().poll,
 }
 
 const FAILED = 'Couldn’t switch the speed limits. Try again.'

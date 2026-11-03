@@ -79,8 +79,8 @@ export async function getTorrents(query: TorrentsQuery = {}): Promise<Torrent[]>
 }
 
 /** Incremental sync: pass the `rid` from the previous response (0 for a full snapshot). */
-export async function getMainData(rid = 0): Promise<MainData> {
-  const response = await request('/sync/maindata', { params: { rid } })
+export async function getMainData(rid = 0, signal?: AbortSignal): Promise<MainData> {
+  const response = await request('/sync/maindata', { params: { rid }, signal })
   return (await response.json()) as MainData
 }
 

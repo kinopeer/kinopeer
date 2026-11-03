@@ -79,6 +79,15 @@ describe('age', () => {
   })
 })
 
+describe('time', () => {
+  it('gives the time of day to the second in the language’s style', () => {
+    const date = new Date(2026, 10, 3, 21, 5, 7).getTime()
+    // The space before PM differs between ICU versions.
+    expect(en().time(date)).toMatch(/^9:05:07\sPM$/)
+    expect(ru().time(date)).toBe('21:05:07')
+  })
+})
+
 describe('since', () => {
   it('says how long ago something updated', () => {
     const now = 1_760_000_000_000

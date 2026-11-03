@@ -100,6 +100,11 @@ describe('DownloadsScreen', () => {
     expect(await screen.findByRole('status', { name: saying('Couldn’t switch the speed limits. Try again.') })).toBeInTheDocument()
   })
 
+  it('shows the poll’s ring in the title row', async () => {
+    renderScreen()
+    expect(await screen.findByRole('img', { name: /^Updated at / })).toBeInTheDocument()
+  })
+
   it('has no speed limits switch until qBittorrent says which limits apply', async () => {
     const { use_alt_speed_limits: _, ...serverState } = SNAPSHOT.server_state!
     getMainData.mockResolvedValue({ ...SNAPSHOT, server_state: serverState })
