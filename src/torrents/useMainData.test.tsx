@@ -1,4 +1,4 @@
-import { act, render, renderHook } from '@testing-library/react'
+import { act, cleanup, render, renderHook } from '@testing-library/react'
 import { useEffect, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
@@ -30,6 +30,10 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  // Unmount while the clock is still fake and let the stores' idle stop run, so no store from this
+  // test still listens to `online` or `visibilitychange` in the next one.
+  cleanup()
+  vi.advanceTimersByTime(0)
   vi.useRealTimers()
   // The page's visibility (`setHidden`).
   vi.restoreAllMocks()
@@ -150,6 +154,19 @@ describe('useMainData', () => {
     expect(result.current.data?.torrents.a.name).toBe('B')
     // Given up, not failed: the screens never said qBittorrent stopped answering.
     expect(shown).not.toContain(true)
+  })
+
+  it('doesn’t poll while the page is hidden, and polls as soon as it’s back', async () => {
+    getMainData.mockResolvedValue({ rid: 1 })
+    renderHook(() => useMainData(vi.fn()))
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    act(() => setHidden(true))
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS * 3))
+    expect(getMainData).toHaveBeenCalledTimes(1)
+
+    act(() => setHidden(false))
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    expect(getMainData).toHaveBeenCalledTimes(2)
   })
 
   it('gives up a poll in flight when the page is hidden, without going offline, and polls when it’s back', async () => {
