@@ -87,11 +87,12 @@ describe('useSearchResults', () => {
   })
 
   it('keeps nothing for a search still loading, so it pushes no kept search out', () => {
-    for (let n = 0; n < KEPT_SEARCHES; n++) keepResults(`entry-${n}`, 'dune', { titles: [DUNE], page: 1, totalPages: 1, totalResults: 1 })
+    const kept = { titles: [DUNE], page: 1, totalPages: 1, totalResults: 1 }
+    for (let n = 0; n < KEPT_SEARCHES; n++) keepResults(`entry-${n}`, `search-${n}`, kept)
     const { load } = pendingLoad()
 
     renderHook(() => useSearchResults('alien', load), { wrapper })
 
-    expect(keptResults('entry-0', 'dune')).toBeDefined()
+    expect(keptResults('entry-0', 'search-0')).toBeDefined()
   })
 })

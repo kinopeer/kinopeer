@@ -46,10 +46,14 @@ export function keepResults(entry: string, search: string, results: SearchResult
   if (kept.size > KEPT_SEARCHES) kept.delete(kept.keys().next().value!)
 }
 
-/** The results kept for the entry, if they are of this search (none for no search). */
+/**
+ * The results kept for this search: the entry's own, else the latest kept for the same search under another
+ * entry (a type tab picked again), none for no search.
+ */
 export function keptResults(entry: string, search: string | null): SearchResults | undefined {
-  const found = kept.get(entry)
-  return found?.search === search ? found.results : undefined
+  const own = kept.get(entry)
+  if (own?.search === search) return own.results
+  return [...kept.values()].findLast((found) => found.search === search)?.results
 }
 
 /** Forgets every kept search (tests start from none). */

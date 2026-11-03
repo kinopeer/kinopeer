@@ -34,7 +34,8 @@ function kept(entry: string, search: string | null): State | null {
 /**
  * A search's results, a page at a time. `search` names the search (null runs none) and `load` asks for one of
  * its pages. The results are kept for the history entry, so Back to it shows the pages loaded before at once,
- * without asking again, and the scroll can be brought back over them.
+ * without asking again, and the scroll can be brought back over them; a search made again (a type tab picked
+ * again) starts from the pages kept for it too.
  */
 export function useSearchResults(
   search: string | null,
@@ -50,7 +51,7 @@ export function useSearchResults(
     loadRef.current = load
   })
 
-  const current = state?.search === search ? state : null
+  const current = state?.search === search ? state : kept(entry, search)
   const loaded = current?.results !== undefined
 
   useEffect(() => {

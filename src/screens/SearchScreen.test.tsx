@@ -160,6 +160,23 @@ describe('SearchScreen', () => {
     expect(searchTitles.mock.calls.map(([, options]) => options?.type)).toEqual([undefined, 'tv'])
   })
 
+  it('shows a tab picked again from what it loaded, without searching again', async () => {
+    searchTitles.mockImplementation(async (_query, options) =>
+      options?.type === 'tv' ? page([ANDOR], { totalResults: 7 }) : page([DUNE, ANDOR], { totalResults: 40 }),
+    )
+    renderScreen('/search?q=star')
+    await screen.findByText('About 40 results')
+    const types = within(screen.getByRole('group', { name: 'Type' }))
+    await userEvent.click(types.getByRole('button', { name: 'Series' }))
+    await screen.findByText('About 7 results')
+
+    await userEvent.click(types.getByRole('button', { name: 'All' }))
+
+    expect(screen.getByText('About 40 results')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Dune: Part Two' })).toBeInTheDocument()
+    expect(searchTitles).toHaveBeenCalledTimes(2)
+  })
+
   it('adds the next page under the results, without the titles already shown, until the last one', async () => {
     searchTitles.mockImplementation(async (_query, options) =>
       options?.page === 2

@@ -51,21 +51,35 @@ describe('kept results', () => {
     const dune = results()
     keepResults('entry-1', 'dune', dune)
     expect(keptResults('entry-1', 'dune')).toBe(dune)
-    expect(keptResults('entry-2', 'dune')).toBeUndefined()
-    // The entry now shows another search.
+    // The entry now shows another search, which nothing was kept for.
     expect(keptResults('entry-1', 'alien')).toBeUndefined()
+    expect(keptResults('entry-1', null)).toBeUndefined()
+  })
+
+  it('gives the entry’s own results first, else the latest kept for the same search', () => {
+    const own = results()
+    const older = results({ page: 2 })
+    const latest = results({ page: 3 })
+    keepResults('entry-1', 'dune', own)
+    keepResults('entry-2', 'dune', older)
+    keepResults('entry-3', 'dune', latest)
+    keepResults('entry-4', 'alien', results())
+
+    expect(keptResults('entry-1', 'dune')).toBe(own)
+    // A tab picked again: the search was made under an earlier entry.
+    expect(keptResults('entry-5', 'dune')).toBe(latest)
   })
 
   it('keeps the latest searches only, forgetting the one kept longest ago', () => {
-    for (let n = 0; n < KEPT_SEARCHES; n++) keepResults(`entry-${n}`, 'dune', results())
+    for (let n = 0; n < KEPT_SEARCHES; n++) keepResults(`entry-${n}`, `search-${n}`, results())
     // Kept again, so it's one of the latest.
-    keepResults('entry-0', 'dune', results({ page: 2 }))
+    keepResults('entry-0', 'search-0', results({ page: 2 }))
 
-    keepResults('entry-new', 'dune', results())
+    keepResults('entry-new', 'search-new', results())
 
-    expect(keptResults('entry-1', 'dune')).toBeUndefined()
-    expect(keptResults('entry-0', 'dune')).toMatchObject({ page: 2 })
-    expect(keptResults('entry-2', 'dune')).toBeDefined()
-    expect(keptResults('entry-new', 'dune')).toBeDefined()
+    expect(keptResults('entry-1', 'search-1')).toBeUndefined()
+    expect(keptResults('entry-0', 'search-0')).toMatchObject({ page: 2 })
+    expect(keptResults('entry-2', 'search-2')).toBeDefined()
+    expect(keptResults('entry-new', 'search-new')).toBeDefined()
   })
 })
