@@ -44,7 +44,7 @@ jobs:
   visual:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Baselines in e2e/__screenshots__ are rendered in this image (scripts/test-visual.sh); keep its
+    # Baselines in e2e/__screenshots__ are rendered in this image (scripts/playwright-docker.sh); keep its
     # tag on the @playwright/test version from package.json.
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
