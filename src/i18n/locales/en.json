@@ -81,6 +81,7 @@
       "added": "Date added",
       "name": "Name",
       "progress": "Progress",
+      "status": "Status",
       "size": "Size",
       "speed": "Speed",
       "eta": "ETA"

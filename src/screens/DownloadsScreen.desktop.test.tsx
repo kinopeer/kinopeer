@@ -234,6 +234,16 @@ describe('DownloadsScreen on desktop', () => {
     expect(sort).toHaveAttribute('aria-expanded', 'true')
     const menu = screen.getByRole('menu', { name: 'Sort' })
     expect(within(menu).getByRole('menuitemradio', { name: 'Priority' })).toHaveAttribute('aria-checked', 'true')
+    expect(within(menu).getAllByRole('menuitemradio').map((item) => item.textContent)).toEqual([
+      'PriorityQueue order',
+      'Date added',
+      'Name',
+      'Progress',
+      'Status',
+      'Size',
+      'Speed',
+      'ETA',
+    ])
     await userEvent.click(within(menu).getByRole('menuitemradio', { name: 'Name' }))
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
     expect(getSettings().downloadsSort).toBe('name')

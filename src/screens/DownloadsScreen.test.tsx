@@ -234,6 +234,17 @@ describe('DownloadsScreen', () => {
     const sheet = within(screen.getByRole('dialog', { name: 'Sort & filter' }))
     expect(sheet.getByRole('radio', { name: 'Priority', checked: true })).toBeInTheDocument()
     expect(sheet.getByRole('radio', { name: 'Priority' })).toHaveAccessibleDescription('Queue order')
+    const sorts = within(sheet.getByRole('group', { name: 'Sort' })).getAllByRole('radio')
+    expect(sorts.map((radio) => radio.getAttribute('value'))).toEqual([
+      'priority',
+      'added',
+      'name',
+      'progress',
+      'status',
+      'size',
+      'speed',
+      'eta',
+    ])
 
     await userEvent.click(sheet.getByRole('radio', { name: 'Name' }))
     expect(sheet.getByRole('radio', { name: 'Name', checked: true })).toBeInTheDocument()
