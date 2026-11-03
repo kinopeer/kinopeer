@@ -214,8 +214,6 @@ export async function fakeQbittorrent({
     switch (pathname) {
       case '/api/v2/app/version':
         return text(response, 'v5.2.4')
-      case '/api/v2/app/webapiVersion':
-        return text(response, '2.11.4')
       case '/api/v2/app/defaultSavePath':
         return text(response, '/downloads')
       case '/api/v2/torrents/categories':

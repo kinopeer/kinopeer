@@ -17,7 +17,6 @@ vi.mock('./api/qbittorrent', async (importOriginal) => {
   return {
     ...actual,
     getAppVersion: vi.fn(),
-    getApiVersion: vi.fn(),
     getCategories: vi.fn(),
     getMainData: vi.fn(),
     getTorrentFiles: vi.fn(),
@@ -65,8 +64,7 @@ const getMainData = vi.mocked(api.getMainData)
 
 beforeEach(() => {
   vi.resetAllMocks()
-  getAppVersion.mockResolvedValue('v5.2.4')
-  vi.mocked(api.getApiVersion).mockResolvedValue('2.11.4')
+  getAppVersion.mockResolvedValue('5.2.4')
   vi.mocked(api.getCategories).mockResolvedValue([])
   getMainData.mockResolvedValue({ rid: 1, full_update: true, torrents: {}, server_state: {} })
   const empty = { titles: [], page: 1, totalPages: 1 }
@@ -108,8 +106,8 @@ describe('App', () => {
   it('says nothing of an update on an ordinary start', async () => {
     renderApp()
     await userEvent.click(await screen.findByRole('link', { name: 'Settings' }))
-    // Settings' answer arrived, well after the start, while a toast from it would still show.
-    await screen.findByText('Connected · qBittorrent v5.2.4 · API 2.11.4')
+    // qBittorrent's version, from Settings' check: an answer well after the start, while a toast from it would still show.
+    await screen.findByText('5.2.4')
     expect(screen.queryByRole('status', { name: saying(/Kinoseed updated/) })).not.toBeInTheDocument()
   })
 
@@ -123,7 +121,7 @@ describe('App', () => {
     expect(within(nav).getByRole('link', { name: 'Search' })).toHaveAttribute('aria-current', 'page')
 
     await userEvent.click(within(nav).getByRole('link', { name: 'Settings' }))
-    expect(await screen.findByText('Connected · qBittorrent v5.2.4 · API 2.11.4')).toBeInTheDocument()
+    expect(await screen.findByText('5.2.4')).toBeInTheDocument()
   })
 
   it('puts the selection’s actions in place of the tab bar while selecting downloads', async () => {
@@ -187,7 +185,7 @@ describe('App', () => {
       await screen.findByRole('dialog', { name: 'Dune.2021.1080p' })
       const nav = screen.getByRole('navigation', { name: 'Main' })
       expect(within(nav).getByRole('link', { name: /^Downloads.*1 downloading$/ })).toBeInTheDocument()
-      expect(screen.getByRole('region', { name: 'qBittorrent' })).toHaveTextContent('qBittorrent v5.2.4')
+      expect(screen.getByRole('region', { name: 'qBittorrent' })).toHaveTextContent('qBittorrent 5.2.4')
     })
 
     // A trailing slash is the same route to React Router, so it has to be the same screen too.
@@ -489,7 +487,7 @@ describe('App', () => {
   })
 
   it('returns to sign-in when the session expires while polling', async () => {
-    getAppVersion.mockReset().mockResolvedValueOnce('v5.2.4').mockRejectedValue(new api.UnauthorizedError())
+    getAppVersion.mockReset().mockResolvedValueOnce('5.2.4').mockRejectedValue(new api.UnauthorizedError())
     getMainData.mockRejectedValue(new api.UnauthorizedError())
     renderApp()
     expect(await screen.findByRole('heading', { name: 'Connect qBittorrent' })).toBeInTheDocument()

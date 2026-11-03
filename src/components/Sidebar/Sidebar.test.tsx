@@ -59,25 +59,25 @@ describe('Sidebar', () => {
 
 describe('SidebarStatus', () => {
   it('shows qBittorrent’s version, total speeds and free space', () => {
-    render(<SidebarStatus version="v5.0.1" offline={false} downloadSpeed={4_300_000} uploadSpeed={120_000} freeSpace={1_210_000_000_000} />)
+    render(<SidebarStatus version="5.0.1" offline={false} downloadSpeed={4_300_000} uploadSpeed={120_000} freeSpace={1_210_000_000_000} />)
     const card = screen.getByRole('region', { name: 'qBittorrent' })
-    expect(within(card).getAllByText('qBittorrent v5.0.1')).toHaveLength(2)
+    expect(within(card).getAllByText('qBittorrent 5.0.1')).toHaveLength(2)
     expect(card).toHaveTextContent('↓Download speed 4.3 MB/s')
     expect(card).toHaveTextContent('↑Upload speed 120 KB/s')
     expect(within(card).getByText('1.21 TB free')).toBeInTheDocument()
   })
 
   it('stacks each number over its unit for the rail', () => {
-    render(<SidebarStatus version="v5.0.1" offline={false} downloadSpeed={4_300_000} uploadSpeed={120_000} freeSpace={1_210_000_000_000} />)
+    render(<SidebarStatus version="5.0.1" offline={false} downloadSpeed={4_300_000} uploadSpeed={120_000} freeSpace={1_210_000_000_000} />)
     const download = screen.getByText('MB/s').closest('p')
     expect(download).toHaveTextContent(/^↓Download speed 4\.3MB\/s$/)
     expect(screen.getByText('KB/s').closest('p')).toHaveTextContent(/^↑Upload speed 120KB\/s$/)
     expect(screen.getByText('TB').closest('p')).toHaveTextContent(/^Free space 1\.21TB$/)
-    expect(screen.getByTitle('qBittorrent v5.0.1')).toBeInTheDocument()
+    expect(screen.getByTitle('qBittorrent 5.0.1')).toBeInTheDocument()
   })
 
   it('says when qBittorrent doesn’t answer', () => {
-    render(<SidebarStatus version="v5.0.1" offline downloadSpeed={4_300_000} />)
+    render(<SidebarStatus version="5.0.1" offline downloadSpeed={4_300_000} />)
     // In the card and in the rail's column.
     expect(screen.getAllByText('No connection to qBittorrent')).toHaveLength(2)
     expect(screen.getByRole('region', { name: 'qBittorrent' })).toHaveTextContent('↓Download speed —')
@@ -87,7 +87,7 @@ describe('SidebarStatus', () => {
   it('switches the alternative speed limits from the card and from the rail', async () => {
     const onToggle = vi.fn()
     const { rerender } = render(
-      <SidebarStatus version="v5.0.1" offline={false} altSpeedLimits={false} onToggleAltSpeed={onToggle} />,
+      <SidebarStatus version="5.0.1" offline={false} altSpeedLimits={false} onToggleAltSpeed={onToggle} />,
     )
     // The card's labelled button (a short label) and the rail's icon button.
     const buttons = screen.getAllByRole('button', { name: /^Alt(ernative|\.) speed limits$/ })
@@ -98,7 +98,7 @@ describe('SidebarStatus', () => {
     }
     expect(onToggle).toHaveBeenCalledTimes(buttons.length)
 
-    rerender(<SidebarStatus version="v5.0.1" offline={false} altSpeedLimits altSpeedDisabled onToggleAltSpeed={onToggle} />)
+    rerender(<SidebarStatus version="5.0.1" offline={false} altSpeedLimits altSpeedDisabled onToggleAltSpeed={onToggle} />)
     for (const button of screen.getAllByRole('button', { name: /^Alt(ernative|\.) speed limits$/ })) {
       expect(button).toHaveAttribute('aria-pressed', 'true')
       expect(button).toBeDisabled()
@@ -106,7 +106,7 @@ describe('SidebarStatus', () => {
   })
 
   it('has no switch until qBittorrent says which limits apply', () => {
-    render(<SidebarStatus version="v5.0.1" offline={false} onToggleAltSpeed={() => {}} />)
+    render(<SidebarStatus version="5.0.1" offline={false} onToggleAltSpeed={() => {}} />)
     expect(screen.queryByRole('button', { name: /speed limits/ })).not.toBeInTheDocument()
   })
 })
