@@ -18,6 +18,16 @@ test.describe('search, phone', () => {
     await expect(page).toHaveScreenshot('results-dark-ru.png')
   })
 
+  test('results, the next page failed, dark, Russian', async ({ page }) => {
+    await openSearch(page, '/search?q=%D0%B0', 'Дюна', { searchMoreFails: true })
+    await page.getByRole('button', { name: 'Показать ещё' }).click()
+    await expect(page.getByRole('alert')).toBeVisible()
+    // To the end of the list, where the note stands clear of the tab bar.
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+    await settle(page)
+    await expect(page).toHaveScreenshot('results-more-failed-dark-ru.png')
+  })
+
   test.describe('a narrow phone', () => {
     // A common Android width, where the year field has to give way beside the tabs.
     test.use({ viewport: { width: 360, height: 800 } })

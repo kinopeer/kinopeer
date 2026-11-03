@@ -66,7 +66,7 @@ describe('searchTitles', () => {
 
     expect(lastUrl()).toBe('/tmdb/search/multi?query=dune+%26+co&include_adult=false&language=ru-RU')
     expect(fetchMock.mock.calls[0][1]).toMatchObject({ credentials: 'same-origin' })
-    expect(page).toMatchObject({ page: 1, totalPages: 3 })
+    expect(page).toMatchObject({ page: 1, totalPages: 3, totalResults: 41 })
     expect(page.titles.map((t) => [t.type, t.title, t.year])).toEqual([
       ['movie', 'Dune: Part Two', 2024],
       ['tv', 'Andor', undefined],
@@ -80,9 +80,32 @@ describe('searchTitles', () => {
     expect(fetchMock.mock.calls[0][1]?.signal).toBe(controller.signal)
   })
 
-  it('with a year, searches movies and series by their own year', async () => {
-    respond({ page: 1, total_pages: 2, total_results: 21, results: [] })
+  it('asks for a page', async () => {
+    respond({ page: 3, total_pages: 3, total_results: 41, results: [] })
+    const page = await searchTitles('dune', { page: 3 })
+    expect(lastUrl()).toBe('/tmdb/search/multi?query=dune&page=3&include_adult=false')
+    expect(page).toMatchObject({ page: 3, totalPages: 3 })
+  })
+
+  it('searches only the type asked for, by its year, and tags its results with it', async () => {
+    const { media_type: _, ...tv } = andor
+    respond({ page: 2, total_pages: 4, total_results: 70, results: [tv] })
+
+    const page = await searchTitles('andor', { type: 'tv', year: 2022, page: 2 })
+
+    expect(lastUrl()).toBe('/tmdb/search/tv?query=andor&page=2&include_adult=false&first_air_date_year=2022')
+    expect(page).toMatchObject({ page: 2, totalPages: 4, totalResults: 70, titles: [{ type: 'tv', title: 'Andor' }] })
+  })
+
+  it('searches a type without a year', async () => {
     respond({ page: 1, total_pages: 1, total_results: 0, results: [] })
+    await searchTitles('dune', { type: 'movie' })
+    expect(lastUrl()).toBe('/tmdb/search/movie?query=dune&include_adult=false')
+  })
+
+  it('with a year, searches movies and series by their own year and adds up their counts', async () => {
+    respond({ page: 1, total_pages: 2, total_results: 21, results: [] })
+    respond({ page: 1, total_pages: 1, total_results: 3, results: [] })
 
     const page = await searchTitles('star', { year: 2022, language: 'en-US' })
 
@@ -90,7 +113,22 @@ describe('searchTitles', () => {
       '/tmdb/search/movie?query=star&include_adult=false&primary_release_year=2022&language=en-US',
       '/tmdb/search/tv?query=star&include_adult=false&first_air_date_year=2022&language=en-US',
     ])
-    expect(page).toMatchObject({ page: 1, totalPages: 2 })
+    expect(page).toMatchObject({ page: 1, totalPages: 2, totalResults: 24 })
+  })
+
+  it('with a year, asks both for the same page and goes on with the longer list past the shorter one’s end', async () => {
+    const { media_type: _, ...movie } = dune
+    respond({ page: 3, total_pages: 4, total_results: 70, results: [{ ...movie, popularity: 5 }] })
+    // TMDB answers a page past the end with no results.
+    respond({ page: 3, total_pages: 1, total_results: 3, results: [] })
+
+    const page = await searchTitles('star', { year: 2022, page: 3 })
+
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+      '/tmdb/search/movie?query=star&page=3&include_adult=false&primary_release_year=2022',
+      '/tmdb/search/tv?query=star&page=3&include_adult=false&first_air_date_year=2022',
+    ])
+    expect(page).toMatchObject({ page: 3, totalPages: 4, totalResults: 73, titles: [{ type: 'movie', title: 'Dune: Part Two' }] })
   })
 
   it('with a year, interleaves movies and series by popularity, each keeping TMDB\'s order', async () => {

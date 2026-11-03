@@ -8,6 +8,8 @@ import {
   type MediaType,
   type Title,
 } from '../api/tmdb'
+import { Banner } from '../components/Banner'
+import { Button } from '../components/Button'
 import { EmptyState } from '../components/EmptyState'
 import { IconButton } from '../components/IconButton'
 import { Input } from '../components/Input'
@@ -23,6 +25,7 @@ import { PosterRow } from './PosterRow'
 import type { SettingsLocationState } from './SettingsScreen'
 import './SearchScreen.css'
 import { titleSubtitle } from './titleSubtitle'
+import { useSearchResults } from './useSearchResults'
 
 type TypeFilter = 'all' | MediaType
 
@@ -80,8 +83,10 @@ export function SearchScreen() {
   const term = useDebouncedValue(query.trim(), SEARCH_DEBOUNCE_MS)
   const year = parseYear(useDebouncedValue(yearText, SEARCH_DEBOUNCE_MS))
   const searching = query.trim().length > 0
-  const search = useRequest(searching && term ? `search|${language}|${term}|${year ?? ''}` : null, (signal) =>
-    searchTitles(term, { language, signal, year }),
+  // A type searches TMDB for that type alone, so its count and its pages are of that type.
+  const searchType = type === 'all' ? undefined : type
+  const search = useSearchResults(searching && term ? `${language}|${term}|${year}` : null, type, (page, signal) =>
+    searchTitles(term, { language, signal, year, page, type: searchType }),
   )
   const browse = useRequest(searching ? null : `browse|${language}`, (signal) => loadBrowseRows(language, signal))
 
@@ -95,17 +100,22 @@ export function SearchScreen() {
     setParams(next, { replace: true })
   }
 
-  const matchesType = (title: Title) => type === 'all' || title.type === type
-  const results = search.data?.titles.filter(matchesType) ?? []
+  const results = search.results?.titles ?? []
   const typeRows = (browse.data ?? []).filter((row) => type === 'all' || row.type === type)
   // A failed row has nothing to show, not even its heading.
   const rows = typeRows.filter((row) => row.error === undefined)
   const request = searching ? search : browse
   // Nothing left because the type's rows failed, not because TMDB had nothing: their error, not "nothing to suggest".
-  const error = request.error ?? (rows.length === 0 ? typeRows.find((row) => row.error !== undefined)?.error : undefined)
+  // A wrong key found by a next page shows the key screen too: Try again under the results would only fail again.
+  const moreKeyError = search.moreError instanceof TmdbKeyError ? search.moreError : undefined
+  const error =
+    request.error ??
+    moreKeyError ??
+    (rows.length === 0 ? typeRows.find((row) => row.error !== undefined)?.error : undefined)
   // Between a keystroke and the debounced request there's nothing to show for the new query yet.
   const loading = request.loading || (searching && (term !== query.trim() || year !== parseYear(yearText)))
-  // Back from a title: the results load again, so the browser can't bring the scroll back itself.
+  // Back from a title: the browse rows load again (so do search results that weren't kept), so the browser
+  // can't bring the scroll back itself.
   useScrollRestoration(!loading)
 
   return (
@@ -200,7 +210,9 @@ export function SearchScreen() {
         ) : searching ? (
           results.length > 0 ? (
             <>
-              <p className="t-cap c3 ks-num search-count">{t('search.results', { count: results.length })}</p>
+              <p className="t-cap c3 ks-num search-count">
+                {t('search.results', { count: search.results!.totalResults })}
+              </p>
               <ul className="ks-poster-grid">
                 {results.map((title) => (
                   <li key={`${title.type}-${title.id}`}>
@@ -213,6 +225,27 @@ export function SearchScreen() {
                   </li>
                 ))}
               </ul>
+              {search.hasMore &&
+                (search.moreError !== undefined ? (
+                  <Banner
+                    tone="error"
+                    title={t('search.moreErrorTitle')}
+                    actionLabel={t('common.retry')}
+                    onAction={search.showMore}
+                  >
+                    {t('search.errorBody')}
+                  </Banner>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    className="search-more"
+                    loading={search.loadingMore}
+                    disabled={search.loadingMore}
+                    onClick={search.showMore}
+                  >
+                    {t('search.showMore')}
+                  </Button>
+                ))}
             </>
           ) : (
             <EmptyState

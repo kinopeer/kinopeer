@@ -7,7 +7,7 @@ import * as api from '../api/qbittorrent'
 import type { MainData, Torrent } from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
 import { getSettings, resetSettings, updateSettings } from '../settings/settings'
-import { mainData, title, torrent as fixtureTorrent } from '../test/fixtures'
+import { mainData, searchPage, title, torrent as fixtureTorrent } from '../test/fixtures'
 import { findToastOnPage, renderWithRouter, saying } from '../test/render'
 import { resetServerMatches } from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
@@ -85,7 +85,7 @@ beforeEach(() => {
   vi.mocked(matchesApi.saveMatches).mockImplementation(async (changes) => changes as matchesApi.Matches)
   resetSettings()
   getMainData.mockResolvedValue(SNAPSHOT)
-  searchTitles.mockResolvedValue({ titles: [], page: 1, totalPages: 1 })
+  searchTitles.mockResolvedValue(searchPage([]))
 })
 
 describe('DownloadsScreen', () => {
@@ -124,14 +124,13 @@ describe('DownloadsScreen', () => {
   })
 
   it('shows the TMDB title and poster once matched, with the release name below', async () => {
-    searchTitles.mockImplementation(async (query) => ({
-      titles:
+    searchTitles.mockImplementation(async (query) =>
+      searchPage(
         query === 'Dune Part Two'
           ? [{ type: 'movie', id: 693134, title: 'Dune: Part Two', originalTitle: 'Dune: Part Two', year: 2024, overview: '', posterPath: '/dune.jpg', backdropPath: null, rating: 8 }]
           : [],
-      page: 1,
-      totalPages: 1,
-    }))
+      ),
+    )
     const { container } = renderScreen()
     expect(await screen.findByText('Dune: Part Two')).toBeInTheDocument()
     const [dune] = screen.getAllByRole('listitem')
@@ -142,14 +141,13 @@ describe('DownloadsScreen', () => {
   })
 
   it('switches to a poster grid and remembers it', async () => {
-    searchTitles.mockImplementation(async (query) => ({
-      titles:
+    searchTitles.mockImplementation(async (query) =>
+      searchPage(
         query === 'Dune Part Two'
           ? [{ type: 'movie', id: 693134, title: 'Dune: Part Two', originalTitle: 'Dune: Part Two', year: 2024, overview: '', posterPath: '/dune.jpg', backdropPath: null, rating: 8 }]
           : [],
-      page: 1,
-      totalPages: 1,
-    }))
+      ),
+    )
     const { container, unmount } = renderScreen()
     await screen.findByText('Dune: Part Two')
     const view = within(screen.getByRole('radiogroup', { name: 'View' }))
@@ -249,11 +247,7 @@ describe('DownloadsScreen', () => {
   })
 
   it('filters by type, counting within it, and resets it with the other filters', async () => {
-    searchTitles.mockImplementation(async (query) => ({
-      titles: query === 'Dune Part Two' ? [DUNE_TITLE] : [],
-      page: 1,
-      totalPages: 1,
-    }))
+    searchTitles.mockImplementation(async (query) => searchPage(query === 'Dune Part Two' ? [DUNE_TITLE] : []))
     renderScreen()
     await screen.findByText('Dune: Part Two')
     expect(screen.getByRole('button', { name: 'Sort: Priority' })).not.toHaveTextContent('Series')
@@ -284,11 +278,7 @@ describe('DownloadsScreen', () => {
 
   it('sorts by the TMDB title once matched', async () => {
     updateSettings({ downloadsSort: 'name' })
-    searchTitles.mockImplementation(async (query) => ({
-      titles: query === 'Andor' ? [{ ...ANDOR_TITLE, title: 'Zorro' }] : [],
-      page: 1,
-      totalPages: 1,
-    }))
+    searchTitles.mockImplementation(async (query) => searchPage(query === 'Andor' ? [{ ...ANDOR_TITLE, title: 'Zorro' }] : []))
     renderScreen()
     await screen.findByText('Zorro')
     expect(screen.getAllByRole('listitem').map((item) => within(item).getByRole('heading').textContent)).toEqual([
@@ -518,11 +508,7 @@ describe('DownloadsScreen', () => {
   })
 
   it('keeps the speed limits open when the title confirmation sent before them comes back', async () => {
-    searchTitles.mockImplementation(async (query) => ({
-      titles: query === 'Dune Part Two' ? [DUNE_TITLE] : [],
-      page: 1,
-      totalPages: 1,
-    }))
+    searchTitles.mockImplementation(async (query) => searchPage(query === 'Dune Part Two' ? [DUNE_TITLE] : []))
     renderScreen()
     await userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' }))
     let saved = () => {}
@@ -538,11 +524,7 @@ describe('DownloadsScreen', () => {
   })
 
   it('asks in the row menu whether a guessed title is right, and saves the confirmation', async () => {
-    searchTitles.mockImplementation(async (query) => ({
-      titles: query === 'Dune Part Two' ? [DUNE_TITLE] : [],
-      page: 1,
-      totalPages: 1,
-    }))
+    searchTitles.mockImplementation(async (query) => searchPage(query === 'Dune Part Two' ? [DUNE_TITLE] : []))
     renderScreen()
     await userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' }))
     const sheet = screen.getByRole('dialog', { name: 'Dune: Part Two' })
@@ -557,7 +539,7 @@ describe('DownloadsScreen', () => {
   it('picks a title from the row menu for a torrent with none', async () => {
     renderScreen()
     await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' }))
-    searchTitles.mockResolvedValue({ titles: [ANDOR_TITLE], page: 1, totalPages: 1 })
+    searchTitles.mockResolvedValue(searchPage([ANDOR_TITLE]))
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Pick title' }))
     const sheet = screen.getByRole('dialog', { name: 'Pick title' })
     await userEvent.click(await within(sheet).findByRole('button', { name: /^Andor/ }))

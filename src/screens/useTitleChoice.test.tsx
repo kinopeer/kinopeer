@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Torrent } from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
 import { ToastProvider } from '../components/Toast'
-import { title, torrent } from '../test/fixtures'
+import { searchPage, title, torrent } from '../test/fixtures'
 import { findToastOnPage, saying } from '../test/render'
 import * as titleMatches from '../torrents/titleMatches'
 import type { TitleMatch } from '../torrents/titleMatches'
@@ -89,7 +89,7 @@ const movieIn = (sheet: HTMLElement) => within(sheet).getByRole('button', { name
 
 beforeEach(() => {
   vi.resetAllMocks()
-  vi.mocked(tmdb.searchTitles).mockResolvedValue({ titles: [MOVIE, SERIES], page: 1, totalPages: 1 })
+  vi.mocked(tmdb.searchTitles).mockResolvedValue(searchPage([MOVIE, SERIES]))
   chooseTitle.mockResolvedValue()
 })
 

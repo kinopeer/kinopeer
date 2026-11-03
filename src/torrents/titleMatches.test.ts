@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as matchesApi from '../api/matches'
 import type { Matches } from '../api/matches'
 import * as tmdb from '../api/tmdb'
-import { title } from '../test/fixtures'
+import { searchPage, title } from '../test/fixtures'
 import { SAVE_DELAY_MS, resetServerMatches } from './serverMatches'
 import {
   GUESS_VERSION,
@@ -206,11 +206,7 @@ describe('useTitleMatches', () => {
   ]
 
   it('looks each title up once and caches it', async () => {
-    searchTitles.mockImplementation(async (query) => ({
-      titles: query === 'Dune' ? [DUNE_1984, DUNE_2021] : [],
-      page: 1,
-      totalPages: 1,
-    }))
+    searchTitles.mockImplementation(async (query) => searchPage(query === 'Dune' ? [DUNE_1984, DUNE_2021] : []))
     getMovie.mockResolvedValue({ ...DUNE_1984, title: 'Dune', original_title: 'Dune', release_date: '1984-12-14', poster_path: '/841.jpg' } as never)
 
     const { result, unmount } = renderHook(() => useTitleMatches(torrents))
@@ -243,7 +239,7 @@ describe('useTitleMatches', () => {
 
   it('saves new guesses on the server, and then shows them without asking TMDB again', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
-    searchTitles.mockResolvedValue({ titles: [DUNE_2021], page: 1, totalPages: 1 })
+    searchTitles.mockResolvedValue(searchPage([DUNE_2021]))
     const { result } = renderHook(() => useTitleMatches(torrents.slice(0, 2)))
     await waitFor(() => expect(result.current.a).toMatchObject({ id: 438631 }))
     await flushSave()
@@ -259,7 +255,7 @@ describe('useTitleMatches', () => {
 
   it('saves guesses this browser made before, and none for tagged torrents', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
-    searchTitles.mockResolvedValue({ titles: [DUNE_2021], page: 1, totalPages: 1 })
+    searchTitles.mockResolvedValue(searchPage([DUNE_2021]))
     getMovie.mockResolvedValue({ ...DUNE_1984, title: 'Dune', original_title: 'Dune', release_date: '1984-12-14', poster_path: '/841.jpg' } as never)
     getMatches.mockRejectedValueOnce(new matchesApi.MatchesError(502))
     saveMatches.mockRejectedValueOnce(new matchesApi.MatchesError(502))
@@ -289,7 +285,7 @@ describe('useTitleMatches', () => {
 
 describe('chooseTitle', () => {
   it('saves the user’s choice and shows its title everywhere without asking TMDB', async () => {
-    searchTitles.mockResolvedValue({ titles: [DUNE_2021], page: 1, totalPages: 1 })
+    searchTitles.mockResolvedValue(searchPage([DUNE_2021]))
     const torrent = { hash: 'a', name: 'Dune.2021.2160p.WEB-DL', tags: '' }
     const { result } = renderHook(() => useTitleMatches([torrent]))
     await waitFor(() => expect(result.current.a).toMatchObject({ id: 438631 }))
@@ -326,7 +322,7 @@ describe('useTitleTorrents', () => {
       chosen: { type: 'movie', id: 438631, source: 'user' },
       moved: { type: 'movie', id: 841, source: 'user' },
     }
-    searchTitles.mockResolvedValue({ titles: [DUNE_2021], page: 1, totalPages: 1 })
+    searchTitles.mockResolvedValue(searchPage([DUNE_2021]))
     getMovie.mockResolvedValue({ id: 438631, title: 'Dune', release_date: '2021-09-15', poster_path: null } as Awaited<
       ReturnType<typeof tmdb.getMovie>
     >)
