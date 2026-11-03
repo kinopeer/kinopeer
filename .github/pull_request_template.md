@@ -14,13 +14,27 @@
 | --- | --- | --- | --- |
 |  |  |  |  |
 
-Not covered: <!-- each part of the diff without a test, the neighbours of the change included
-     (docs/TESTING.md → Choosing a layer): the part — an accepted reason
+Not covered: <!-- each part of the diff without a test: the part — an accepted reason
      (docs/TESTING.md → Saying why something is uncovered) — the specifics: what was looked at on
-     the stand, the blind spot, the `it` that covers it. Or "nothing". -->
+     the stand or measured, the blind spot and every environment it runs in, the `it` that covers
+     it. Or "nothing". -->
+
+Neighbours: <!-- docs/TESTING.md → Choosing a layer. Answer each with the `it` that covers it, a
+     reason from Not covered, or "doesn't apply" and why. -->
+
+- Another place:
+- Later:
+- Meanwhile:
+- The next poll:
+- The edges:
 
 Mutants: <!-- npm run test:mutants at the commit you mark ready: the count, then each survivor —
      test added | an accepted reason | equivalent, and why. Or "nothing to mutate". -->
+
+Broken by hand: <!-- what Stryker leaves alone in the changed lines (docs/TESTING.md → A test that
+     can fail): each dependency dropped from an effect or memo, each operand of a condition, each
+     alternative in a selector, which value a guard reads, a prop passed down — and the `it` that
+     failed. Or "none in the diff". -->
 
 Baselines: <!-- each changed or new PNG — what changed and why — diff looked at | re-rendered with
      --update-snapshots=all | new, opened. Or "none". -->
@@ -28,7 +42,10 @@ Baselines: <!-- each changed or new PNG — what changed and why — diff looked
 ## Docs
 
 <!-- What changed in docs/, CLAUDE.md, README.md or CHANGELOG.md, or "none". Search them for what
-     the diff moved or renamed: which test owns a statement, what a sheet or a toast does. -->
+     the diff moved or renamed: which test owns a statement, what a sheet or a toast does. Grep them
+     for each number or name the diff changes (`git grep -n '380px' docs CLAUDE.md README.md`). A list
+     the change adds to gains the new item: the screens in TESTING.md → Screenshot tests, SPEC's
+     decision log (newest first), the blind spots. -->
 
 ## Why tests missed it
 

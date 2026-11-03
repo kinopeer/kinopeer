@@ -72,6 +72,25 @@ describe('settings', () => {
     expect(JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY)!)).toMatchObject({ downloadsSort: 'added' })
   })
 
+  it('remembers the sort with its direction, and reads a sort stored without one in its usual direction', () => {
+    const reread = (stored: string) => {
+      resetSettings()
+      localStorage.setItem(SETTINGS_STORAGE_KEY, stored)
+      return getSettings()
+    }
+    const { result } = renderHook(() => useSettings())
+    act(() => result.current[1]({ downloadsSort: 'size', downloadsSortDescending: false }))
+    expect(reread(localStorage.getItem(SETTINGS_STORAGE_KEY)!)).toMatchObject({
+      downloadsSort: 'size',
+      downloadsSortDescending: false,
+    })
+    // Saved before the sort had a direction; knownOrder's tests own the rest of what's checked.
+    expect(reread(JSON.stringify({ downloadsSort: 'size' }))).toMatchObject({
+      downloadsSort: 'size',
+      downloadsSortDescending: true,
+    })
+  })
+
   it('ignores unreadable storage', () => {
     localStorage.setItem(SETTINGS_STORAGE_KEY, '{not json')
     expect(getSettings()).toEqual(DEFAULT_SETTINGS)

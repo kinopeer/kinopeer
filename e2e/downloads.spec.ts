@@ -361,6 +361,21 @@ test.describe('downloads, full HD', () => {
     await expect(page.getByRole('columnheader', { name: 'Размер' })).toBeVisible()
     await expect(page).toHaveScreenshot('full-hd-list-dark-ru.png')
   })
+
+  // Every other shot is in the queue order, ascending: this one shows a column's sort descending, in
+  // the header and on the sort button's icon, with another column's name hovered and a third one's
+  // focus ring.
+  test('sorted by a column’s header', async ({ page }) => {
+    await openDownloads(page, { downloadsView: 'list' })
+    await page.getByRole('button', { name: 'Размер' }).click()
+    await expect(page.getByRole('columnheader', { name: 'Размер' })).toHaveAttribute('aria-sort', 'descending')
+    // A key press brings focus rings back after the click; Shift+Tab moves to the previous column.
+    await page.keyboard.press('Shift+Tab')
+    await expect(page.getByRole('button', { name: 'Осталось' })).toBeFocused()
+    await page.getByRole('button', { name: 'Название' }).hover()
+    await settle(page)
+    await expect(page).toHaveScreenshot('full-hd-sorted-dark-ru.png')
+  })
 })
 
 test.describe('downloads, labelled sidebar at its narrowest', () => {

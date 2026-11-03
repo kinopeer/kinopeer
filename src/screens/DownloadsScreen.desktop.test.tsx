@@ -90,7 +90,7 @@ describe('DownloadsScreen on desktop', () => {
     expect(getSettings()).toMatchObject({ downloadsDesktopView: 'list', downloadsView: 'list' })
     const headers = within(screen.getByRole('table', { name: 'Downloads' })).getAllByRole('columnheader')
     expect(headers.map((header) => header.textContent)).toEqual([
-      '#',
+      '# Priority',
       'Poster',
       'Title',
       'Progress',
@@ -121,20 +121,35 @@ describe('DownloadsScreen on desktop', () => {
     expect(within(rows[0]).getByRole('link')).toHaveAttribute('href', '/torrent/dune')
   })
 
+  it('keeps the "#" column for the queue order reversed with nothing queued, so a click turns it back', async () => {
+    updateSettings({ downloadsDesktopView: 'list', downloadsSort: 'priority', downloadsSortDescending: true })
+    getMainData.mockResolvedValue({
+      ...SNAPSHOT,
+      torrents: { andor: SNAPSHOT.torrents!.andor, alien: SNAPSHOT.torrents!.alien },
+    })
+    renderScreen()
+    const [row] = await tableRows()
+    expect(screen.getByRole('columnheader', { name: '# Priority' })).toHaveAttribute('aria-sort', 'descending')
+    expect(within(row).getAllByRole('cell')).toHaveLength(9)
+    await userEvent.click(screen.getByRole('button', { name: '# Priority' }))
+    expect(getSettings()).toMatchObject({ downloadsSort: 'priority', downloadsSortDescending: false })
+    expect(screen.queryByRole('columnheader', { name: '# Priority' })).not.toBeInTheDocument()
+  })
+
   it('drops the "#" column when no torrent shown has a queue position', async () => {
     updateSettings({ downloadsDesktopView: 'list', downloadsSort: 'name' })
     const { unmount } = renderScreen()
     let [row] = await tableRows()
     let headers = within(screen.getByRole('table', { name: 'Downloads' })).getAllByRole('columnheader')
-    expect(headers.map((header) => header.textContent)).not.toContain('#')
+    expect(headers.map((header) => header.textContent)).not.toContain('# Priority')
     expect(within(row).getAllByRole('cell')).toHaveLength(headers.length)
     unmount()
 
-    // The queue order, but nothing is queued.
+    // The queue order, but nothing is queued: qBittorrent reports 0 or -1 outside the queue.
     updateSettings({ downloadsSort: 'priority' })
     getMainData.mockResolvedValue({
       ...SNAPSHOT,
-      torrents: { andor: SNAPSHOT.torrents!.andor, alien: SNAPSHOT.torrents!.alien },
+      torrents: { andor: { ...SNAPSHOT.torrents!.andor, priority: 0 }, alien: SNAPSHOT.torrents!.alien },
     })
     renderScreen()
     ;[row] = await tableRows()
@@ -213,7 +228,7 @@ describe('DownloadsScreen on desktop', () => {
     updateSettings({ downloadsDesktopView: 'list' })
     renderScreen()
     await tableRows()
-    const sort = screen.getByRole('button', { name: 'Sort: Priority' })
+    const sort = screen.getByRole('button', { name: 'Sort: Priority, ascending' })
     expect(sort).toHaveAttribute('aria-haspopup', 'menu')
     await userEvent.click(sort)
     expect(sort).toHaveAttribute('aria-expanded', 'true')
@@ -230,6 +245,30 @@ describe('DownloadsScreen on desktop', () => {
 
     await userEvent.click(screen.getByRole('radio', { name: 'Series' }))
     expect((await tableRows()).map((row) => within(row).getByRole('link').textContent)).toEqual(['Andor.S02.1080p'])
+  })
+
+  it('sorts by a column’s header, reverses on the next click, and shows the direction on the sort button', async () => {
+    updateSettings({ downloadsDesktopView: 'list' })
+    renderScreen()
+    await tableRows()
+    const titles = async () => (await tableRows()).map((row) => within(row).getByRole('link').textContent)
+    const header = (name: string) => screen.getByRole('columnheader', { name })
+
+    await userEvent.click(screen.getByRole('button', { name: 'Title' }))
+    expect(await titles()).toEqual(['Alien.Romulus.2024.1080p', 'Andor.S02.1080p', 'Dune.Part.Two.2024.2160p.WEB-DL'])
+    expect(header('Title')).toHaveAttribute('aria-sort', 'ascending')
+    expect(screen.getByRole('button', { name: 'Sort: Name, ascending' })).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Title' }))
+    expect(await titles()).toEqual(['Dune.Part.Two.2024.2160p.WEB-DL', 'Andor.S02.1080p', 'Alien.Romulus.2024.1080p'])
+    expect(header('Title')).toHaveAttribute('aria-sort', 'descending')
+    expect(getSettings()).toMatchObject({ downloadsSort: 'name', downloadsSortDescending: true })
+
+    // The menu picks a sort in its usual direction, the one it's in included.
+    await userEvent.click(screen.getByRole('button', { name: 'Sort: Name, descending' }))
+    await userEvent.click(within(screen.getByRole('menu', { name: 'Sort' })).getByRole('menuitemradio', { name: 'Name' }))
+    expect(header('Title')).toHaveAttribute('aria-sort', 'ascending')
+    expect(getSettings()).toMatchObject({ downloadsSort: 'name', downloadsSortDescending: false })
   })
 
   it('filters by status from a menu in place of the chips, counting within the type', async () => {

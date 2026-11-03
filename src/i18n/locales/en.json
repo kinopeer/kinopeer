@@ -71,6 +71,9 @@
     "sortFilter": "Sort & filter",
     "sortButton": "Sort: {{sort}}",
     "sortTypeButton": "Sort: {{sort}}, {{type}}",
+    "sortOrderButton": "Sort: {{sort}}, {{direction}}",
+    "ascending": "ascending",
+    "descending": "descending",
     "sortDone": "Done",
     "sortPriorityHint": "Queue order",
     "sorts": {

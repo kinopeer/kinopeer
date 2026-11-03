@@ -3,8 +3,8 @@ import { defineConfig, devices } from '@playwright/test'
 /**
  * Screenshot tests (e2e/): the built app in Chromium with every server route mocked. Baselines are
  * rendered on Linux in the Playwright Docker image only (`npm run test:visual`), because fonts render
- * differently on other systems. Keep @playwright/test and the image tag in scripts/test-visual.sh,
- * scripts/readme-screenshots.sh and .github/workflows/ci.yml on the same version.
+ * differently on other systems. Keep @playwright/test and the image tag in
+ * scripts/playwright-docker.sh and .github/workflows/ci.yml on the same version.
  */
 export default defineConfig({
   testDir: 'e2e',

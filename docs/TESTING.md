@@ -57,8 +57,13 @@ neighbours of a change, and answer each that applies with a test or a reason:
 - **Later:** what if the sheet was closed, the screen left, or the torrent went away or was replaced
   before the answer came (#172, #174, #184)?
 - **Meanwhile:** what if the user presses it again, reopens the sheet or types while the request is
-  in flight (#171, #186)?
+  in flight (#171, #186)? Typing changes more than the text: a field kept in the URL with
+  `setParams(…, { replace: true })` gives the history entry a new `location.key` on every keystroke,
+  so whatever is kept per entry is kept again under each (#228).
 - **The next poll:** does a poll sent before the change undo it (#192)?
+- **The edges:** zero, a negative value, a fraction, the end of the page or the list. A rubber-band
+  `scrollY` below 0, a window pinned 1 px from the page's end that a removed row clamps to 0, a
+  viewport height that isn't a whole number (#200, #204).
 
 One behavior, one layer: every statement about what Kinoseed does lives in exactly one test, on the
 lowest layer that can see it. Higher layers meet that behavior only as a step towards the state they
@@ -127,14 +132,19 @@ milliseconds, fails with a precise message, and it's the one the layer above lea
   inside the modal is detached by the next assertion, and the test fails only now and then (#190).
   An element with a name of its own is found by it, not by its index in a list
   (`getAllByRole('button')[1]`); an index is for a position the test is about, as the first row
-  after a sort or the current title first.
+  after a sort or the current title first. Its absence is asserted by name too
+  (`queryByRole('option', { name: 'Mixed', hidden: true })` is null, with `hidden` because the
+  option carries the `hidden` attribute, so without it the query is null even while the option is
+  there), not by counting the others (#229).
 - **Helpers and fixtures.** Data every layer shares is in `src/test/fixtures.ts`, the rendering
   helpers in `src/test/render.tsx`, the fake services in `server/test/fakes.ts`
   ([Shared test data](#shared-test-data)). The second copy of a literal or a helper moves it one
   level up: two tests in a file share a `const` or a wrapper at the top of that file, and a second
   file moves it to the shared place, as `DUNE_TORRENT` did. A service's new behavior is an addition
   to its fake, with a comment on what the real service does and in which version; an inline server
-  is only for a test that needs the service to misbehave in one specific way. `vi.mock` stays in each test file on purpose, so a reader sees what the test replaces without
+  is only for a test that needs the service to misbehave in one specific way. Test data carries no
+  behavior the test isn't about: a store test of pruning gives the held request a neutral kind
+  (`held`), not `recheck`, which never holds in the app (#224). `vi.mock` stays in each test file on purpose, so a reader sees what the test replaces without
   opening another module.
 - **An overlay for one torrent** (a menu, a sheet, a confirmation) is open through
   `useTorrentOverlay`, whose tests own when it's open (closed, its torrent gone, or replaced by
@@ -181,10 +191,23 @@ Before marking a PR ready, the author does both of these and says so in the PR:
    and runs the tests that reach each one. A break no test notices survives, and the report lists it
    by file and line. The PR's `Mutants` line gives the count and says what each survivor is: a test
    was added, an accepted reason ([below](#saying-why-something-is-uncovered)), or equivalent (no
-   test could tell it from the original, and why). Stryker leaves plain values alone (a
-   `disabled={disabled}`, a provider around a screen, a number, a text) and can't see code that isn't
-   there, so a prop passed down still needs breaking by hand and a missing branch is a question for
-   the [neighbours](#choosing-a-layer).
+   test could tell it from the original, and why). A survivor that only a test's own reset hides
+   isn't equivalent: before #224's fix, a module-level `let reading = false` flipped to `true`
+   survived because every test called `resetStateLag()` first, and a test on a fresh module (`vi.resetModules()`, then
+   `await import(…)`) tells them apart (#224). Stryker can't see code that isn't there, so a missing
+   branch is a question for the [neighbours](#choosing-a-layer), and it leaves these alone (the
+   mutators `stryker.config.mjs` turns off included), so the author breaks them by hand and says so
+   in the PR's `Broken by hand` line:
+   - a plain value passed on: a prop passed down (`disabled={disabled}`), a provider around a
+     screen, a number, a text;
+   - an effect's or a memo's dependency array: drop one dependency (no test noticed `entry` gone from
+     #228's keep effect);
+   - one operand of a longer condition: Stryker flips the whole `a || b`, so drop each operand on its
+     own (`document.hidden || somethingOpen()` in #225);
+   - each alternative in a selector or other string: `'input:focus, textarea:focus'` with one
+     alternative removed (#225);
+   - which value a guard reads: the store at the moment of sending, not the value the last render
+     saw, pinned by two calls before a re-render (#229).
 2. **Each new or changed test seen red.** Break the code it covers (remove the guard, flip the
    condition, return early), watch the test fail, put the code back, and say so in the Tests table.
 
@@ -209,7 +232,9 @@ Three shapes cause most of them:
   CI; a test that reads the time pins it with `vi.setSystemTime`, and one about another time zone
   sets it with `vi.stubEnv('TZ', …)` and puts it back with `vi.unstubAllEnvs()` in its `afterEach`
   or `afterAll`, as `browseRows.test.ts` does. A `process.env.TZ` assigned by hand stays for the
-  rest of the file.
+  rest of the file. A real timer is a sleep even at no delay: a flush through `setTimeout(resolve)`
+  waits on the event loop, not on the answer. Await the promise the code returns, or use fake timers
+  and `await vi.runAllTimersAsync()` (#224).
 
 The Seen red column is the author's word, and the review can only read the tests for these shapes;
 the survivors in CI's comment are not.
@@ -220,17 +245,24 @@ A change without a test says so in the PR's Tests section, with the reason, and 
 of these:
 
 - **Looks and layout:** CSS, spacing, a token in a screen that already exists; checked on the test
-  stand or by a screenshot baseline, and the PR says which and what was looked at. A new screen,
+  stand, by a screenshot baseline, or measured in Playwright in the CI image, and the PR says which
+  and what was looked at (for a measurement, the numbers: #227 gave the card's widths against the
+  chip's). A new screen,
   sheet or dialog gets a baseline instead, and so does a new state whose layout differs from the
   ones covered (an empty or error state with its own arrangement, not only other text).
 - **A blind spot:** only a real phone, Umbrel's proxy, a real service version or real time shows
-  it ([Known blind spots](#known-blind-spots)); the PR names the spot and, when the checklist has a
-  manual check for it, that it was done.
+  it ([Known blind spots](#known-blind-spots)); the PR names the spot and every environment the code
+  runs in that no layer sees (a rule under `pointer: coarse` runs on Chrome on Android and on tablets
+  too, not only in Safari: #200), and, when the checklist has a manual check for it, that it was
+  done.
 - **Covered already:** a refactor or a move that an existing test still asserts; the PR names that
   test by its `it` title, and the reviewer opens it. It holds only when that test executes this
   very path. Each place that wires a shared component (a second screen that opens the same sheet,
   the phone and the desktop variant of one action) gets a step of its own that proves the wiring:
   the control is there and does the thing. "Same code as in X" isn't a reason.
+- **The platform's own behavior:** what the browser or Node does with what our code hands it, as a
+  real `fetch` cancelled by its `AbortSignal` (#206). The PR names the test of the hand-off (that
+  the signal reaches `fetch`).
 - **No behavior:** docs, comments, CI and config, types, generated files, a re-export.
 
 "Trivial", "later", "tested manually" without saying what and where, or a reason that doesn't fit
@@ -268,7 +300,7 @@ action besides the test itself:
 | `wrong-layer` | A jsdom test asserted that the filter bar "stays at the top", which jsdom can't see | Move the statement to the layer that sees it (a screenshot after a scroll) and delete the old test |
 | `implementation` | A screen test's mock answered what the server never sends, so the screen passed against a fiction | Rewrite the test to the behavior the user sees; the contract between client and server goes to layer 5 |
 | `fake-drift` | qBittorrent 5.3 answers 401 to a wrong password; the fake still answered `200 "Fails."` | Fix the fake, with a comment on the real behavior and the version it was seen in, and run everything on the fixed fake |
-| `environment` | No `crypto.subtle` over plain HTTP; Umbrel's app_proxy wants a cookie on every fetch; the service worker served the old shell | Add the environment to layer 5 or 6 when it's cheap (the smoke stand's proxy is one); otherwise a line in [Known blind spots](#known-blind-spots) and a manual check in `RELEASE_CHECKLIST.md` |
+| `environment` | No `crypto.subtle` over plain HTTP; Umbrel's app_proxy wants a cookie on every fetch; the service worker served the old shell | Add the environment to layer 5 or 6 when a browser in CI can run it (the smoke stand's proxy is one); otherwise a line in [Known blind spots](#known-blind-spots) and a manual check in `RELEASE_CHECKLIST.md` |
 | `silent-test` | A test that passes with the behavior it names removed: no `expect`, a `.skip`, an absence checked before the answer arrived | Fix or delete the test; where oxlint can catch the shape, a rule in `.oxlintrc.json` |
 | `flaky` | Not a bug that reached anyone, but a test that fails now and then: a toast found inside a modal that was closing (#190), a screenshot off by a few pixels on one run in CI (#145) | Fix or delete the test; where a helper can take the shape away, add it, as `findToastOnPage` did. The retro counts these apart from escaped bugs |
 
@@ -276,15 +308,20 @@ The record: a **Why tests missed it** section in the PR (the template has it) wi
 what changes so the class is caught, and the `test-gap:<class>` label on the issue. A PR that fixes
 a flaky test carries the same record, whatever its branch prefix; one flake can't be shown red on
 demand, so it says how often the test failed and how many runs it now passes. A systemic
-finding (a blind spot, a fake that had drifted) also becomes a line in this file, in the same PR.
+finding (a blind spot, a fake that had drifted) also becomes a line in this file, in the same PR. A
+manual check the fix adds says what has to be in place for it to pass: the reload on resume (#210)
+can pass only on a page that already has the update check, so not on the first update after the fix
+(#225).
 There is no separate log: the closed issues with these labels are the history.
 
 Once per release, look at the pile ([RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) → Before every
 release): three bugs of one class since the last release are a problem of the system, not three
 accidents. Three `fake-drift` → compare the fakes with the live services on Umbrel by hand; three
 `wrong-layer` → the layer rule above reads badly, rewrite it; three `uncovered` in one area → that
-area gets a pass over its states, not three more tests; three `environment` → that environment goes
-into layer 6; three `implementation` → review the mocks in that area; three `silent-test` → a lint
+area gets a pass over its states, not three more tests; three `environment` from one environment →
+it goes into layer 5 or 6 when a browser in CI can run it, and when none can (the app added to the
+Home Screen on iOS) its manual check moves from the release into every PR that touches it, as the
+phone check on `preview-lan` did; three `implementation` → review the mocks in that area; three `silent-test` → a lint
 rule. The same count also runs over review findings, more often:
 [Improving the system](#improving-the-system).
 
@@ -430,7 +467,12 @@ Three steps, each by whoever can do it best:
 1. **The author checks what doesn't need judgment** before marking the PR ready: `npm run
    test:mutants` with every survivor accounted for and every new or changed test seen red ([A test
    that can fail](#a-test-that-can-fail)), and the Tests section filled in by the template, one row
-   per test with its layer, and every uncovered part with its reason. Rereading one's own tests for judgment finds little: the author sees what they meant to
+   per test with its layer, every uncovered part with its reason, each
+   [neighbour](#choosing-a-layer) answered, and what Stryker leaves alone broken by hand. The docs
+   too: `docs/`, `CLAUDE.md` and `README.md` grepped for each number or name the diff changes (a
+   width, a version, a count: #227 left SPEC at 380px), and each list the change adds to given the
+   new item (the screens under [Screenshot tests](#screenshot-tests), SPEC's decision log, newest
+   first, the blind spots). Rereading one's own tests for judgment finds little: the author sees what they meant to
    write.
 2. **A separate session reviews**, one that didn't write the PR and sees only its diff and
    description: `/test-review <PR number>` with the `test-review` skill
@@ -439,7 +481,7 @@ Three steps, each by whoever can do it best:
    changed baselines, a fix's "Why tests missed it"), then checks the diff: every change covered or
    explained with an accepted reason, nothing lost when a test is deleted, each assertion on its
    layer, behavior rather than implementation, each test able to fail, fakes true to the services,
-   no sleeps or forced clicks, baselines listed, docs matching the code, the threshold not lowered.
+   no sleeps or forced clicks, baselines listed, docs matching the code.
    It doesn't run the suite (CI does), and it compares CI's survivors with the PR's `Mutants`
    line, running the mutants itself only when [A test that can fail](#a-test-that-can-fail) says
    so. A reviewer without the skill goes through the same list by
@@ -470,7 +512,7 @@ reads those findings in batches and changes the system where a finding repeats, 
 changes nothing.
 
 **What each finding carries.** Besides the file, the defect and the fix, the review tags it
-`[<check> · <rule>]`: the check is the skill's letter (A–K, the same in every round), the rule is
+`[<check> · <rule>]`: the check is the skill's letter (A–K without J, which was retired on 2026-11-03; the same in every round), the rule is
 one of:
 
 - `clear`: the rule says it plainly and the PR didn't follow it.
@@ -508,7 +550,10 @@ batch) and the `test-gap:*` issues closed since the last retro, and count the fi
 The changes go into one docs PR, reviewed like any other, which adds a row to the table below and
 says which counts each change answers, so the next retro sees whether that count fell. The row and
 the PR name the set behind each count (which PRs, which issues, closed since when), and `flaky`
-issues are counted apart from escaped bugs.
+issues are counted apart from escaped bugs. The table's columns: "Ready on the first round" gives
+the merged PRs and those with changes in `src/` or `server/`; "Blocking findings per PR" divides
+the blocking findings by the PRs with those changes, the same basis in every row, so the column
+compares with the rows below it and with the Done rule (#222).
 
 **Done.** The system is stable when two retros in a row change no rules and the last batch averages
 under one blocking finding per PR. From then on the retro runs once per release only, and any new
@@ -516,6 +561,7 @@ under one blocking finding per PR. From then on the retro runs once per release 
 
 | Retro | PRs | Ready on the first round | Blocking findings per PR | Escaped bugs | What changed |
 | --- | --- | --- | --- | --- | --- |
+| 2026-11-03 | #207–#229, 10 merged (#207, #208, #222–#229; #209–#221 are issues), 6 with changes in `src/` or `server/` (#224–#229). 30 findings: 11 `clear`, 19 `gap`, 0 `conflict` | 5 of 10 reviewed (#207, #208, #223, #226, #229), 2 of 6 with code (#226, #229); a posted "ready to merge" at the head of all 10 | 1.33 (8 in the 6 with code: #224 3, #228 3, #225 2) | 2 closed since 2026-11-02 (1 `fake-drift`: #209; 1 `environment`: #210), no `flaky` | This PR also carries the 2026-11-02 row's follow-up, which never landed. The neighbours gain the edges and typing that replaces the history entry; three accepted reasons (a layout measured in the CI image, every environment a blind spot runs in, the platform's own behavior); what Stryker leaves alone is listed and broken by hand, and a survivor that only a test's reset hides isn't equivalent (A·gap 4 here and 7 in the last batch, K·gap 2 and 3). The template asks for each neighbour and a `Broken by hand` line (A·clear 5 here and 10 in the last batch); if A·clear doesn't fall by the next retro, a CI check that those lines are filled is the next step. The template's docs prompt greps for the numbers and names the diff changes (H·clear 3 and 5). Lists in the docs follow the change, a fix's manual check says what it needs to pass, and the columns here say what they divide by (H·gap 7). A flush at no delay is a real timer, an absence is asserted by name, test data carries no behavior the test isn't about (F·gap 3). One wording for three `environment`, in the class table and the pile (the conflict #222's code review named). Check J leaves the skill, with no finding in four batches (#136–#229); its rule stays in [Coverage](#coverage) |
 | 2026-11-02 | #196–#206, 9 merged, 7 with changes in `src/` or `server/`. 38 findings: 25 `clear`, 12 `gap`, 1 `conflict` | 2 of 9 reviewed, 2 of 7 with code (#198, #206); a posted "ready to merge" at the head of all 9 | 1.71 (12 in the 7 with code: #204 6, #199 2, #200 2, #201 1, #202 1) | 5 closed since the last retro (2 `uncovered`: #194, #147; 3 `environment`: #175, #197, #203), plus 1 `flaky` (#145) | The phone check runs on a production build, `preview-lan` for a PR and Kinoseed Edge before a release, since `dev-lan` has no manifest (#197 and #203 of the 3 `environment` showed in the installed app; #175 shows in a Safari tab too). iOS stays a blind spot: layer 6 took what it could (#197 in #199), and neither WebKit in Playwright nor a simulator in CI would see the Home Screen app. The rest follows in a docs PR of its own after 0.6.1 (A·gap 7, A·clear 10, H·clear 5, and the two wordings of what three `environment` call for). Not changed: F·clear 3 (three different rules) |
 | 2026-10-30 | #163–#193, 14 with code | 4 of 16 reviewed, 3 of 14 with code; #179 merged without a round, the one breach of the gate | 1.36 (19 in the 14 with code) | 12 closed since the last retro (10 `uncovered`, 2 `environment`), plus 1 `flaky` (#190) | `npm run test:mutants` and one CI run per PR head, survivors accounted for in the PR (A·clear 12, K·clear 4, B·clear 2). The neighbours of a change (10 `uncovered`). A second copy inside a file, fake timers, comments on assertions (F·gap 4). Who owns a test, and the set behind a retro's counts (H·gap 3). A docs prompt in the template, and wrapping is no finding (H·clear 8). The `flaky` class (I·gap 1). A `/code-review` bug is recorded under check A, which the skill now says, so A will rise next retro. Checks D and K in the skill point here. The gate stays as it is, docs-only PRs included |
 | 2026-10-29 | #136–#162, 10 with code | 2 of 11 reviewed (10 with code and #136) | 0.9 (9 in the 10 with code), plus 3 in #136 | 10 closed since the last retro (8 `uncovered`, 2 `environment`) | Every round is posted with the commit both reviews saw, and a PR merges only on a posted "ready to merge" at its head. Nothing else: most of the batch and every escaped bug were written before #136, so the next batch judges the new rules |
@@ -533,9 +579,10 @@ Unit tests run in jsdom, which has no layout, so they can't catch a button in th
   - A behavioral `expect` in a spec only gets a screen to its state, or checks what jsdom can't see (where a click lands, sticky positioning, a container query, a real `<dialog>`); behavior itself is layers 1–4.
 - **No live services:** `e2e/app.ts` answers `/qbt`, `/tmdb`, `/tmdb-img`, `/prowlarr`, `/api/settings` and `/api/matches` from the shared fixtures (`src/test/fixtures.ts` through `e2e/fixtures.ts`), matched by URL pathname (a glob like `**/tmdb/**` would also catch Vite's `/src/api/tmdb/` modules). Posters are generated gradients and the release's `.torrent` is built from the fixtures too. The app version in Settings is masked, so a version bump doesn't change the screenshots. The clock is frozen, animations are off and the service worker is blocked. Text is always grayscale (`--disable-lcd-text` in `playwright.config.ts`): left to itself, Chromium now and then draws part of a page's text in grayscale instead of LCD, as it did in two screenshots in CI (#145). What triggers it wasn't found, and a page can't see it, so a test can't wait it out.
 - **Docker only:** fonts render differently on macOS and on other Linux setups (about 1% of pixels, enough to fail), so baselines are rendered only in the Playwright image. `npm run test:visual` runs the tests in it with Docker; `node_modules` for the container is kept in a Docker volume, not the host's. Arguments go to `playwright test`, e.g. `npm run test:visual -- e2e/search.spec.ts`.
+- **Parallel worktrees:** each checkout, every git worktree included, gets its own `node_modules` volume, `kinoseed-visual-nm-<folder>-<checksum of its physical path>` (`scripts/playwright-docker.sh`, shared with the README screenshots), so runs in several worktrees at once don't reinstall it under each other. A run installs only when the volume wasn't installed from this `package-lock.json`, in this image, for this architecture (`scripts/install-node-modules.sh`, a stamp in the volume says which), so the first run in a worktree takes a minute longer and later ones skip `npm ci`. Since `npm ci` no longer runs every time, a run that fails inside `node_modules` (a missing module, a binary for another platform) is fixed by removing that checkout's volume and running again. Two runs in the same checkout still share `test-results/` and the baselines, so run one at a time there. Each volume takes about 250 MB, so it's labelled with its checkout's path (`kinoseed.checkout`), and every run removes the labelled volumes whose folder no longer exists, as a worktree's once its session is cleaned up; Docker refuses one a running container uses, and the next run tries again. Volumes without the label are never removed automatically: those made by hand or before the label (`kinoseed-visual-node-modules*`, hand-named `kinoseed-visual-nm-*`) go once by hand, `docker volume ls --filter name=kinoseed-visual` lists them and `docker volume rm <name>` removes one.
 - **Changing the UI:** a PR that changes how a covered screen looks updates its baselines. First run `npm run test:visual` as is: every failed screenshot leaves an expected, an actual and a diff image in `test-results/`, where the diff highlights only the changed pixels. Make sure nothing but the intended change is highlighted, then re-render with `npm run test:visual:update` and commit the PNGs (GitHub shows image diffs in the PR too). A change too small to fail its screenshot (a hover shade, a pixel of padding) is under the threshold, and the plain update keeps the old PNG: re-render that spec with `npm run test:visual -- --update-snapshots=all e2e/<spec>.spec.ts` and commit only the PNGs of the screens you meant to change. Open every new baseline and check that it shows what its test's name says. The PR lists each PNG with what changed and how it was checked: the diff looked at, re-rendered with `=all`, or new and opened. Add a spec when a new screen, sheet, dialog or state needs one ([Saying why something is uncovered](#saying-why-something-is-uncovered)).
 - **In CI:** the `visual` job runs in the same image, on two workers (`playwright.config.ts`; locally Playwright picks). When it fails, its `playwright-report` artifact has the expected, actual and diff images.
-- **Upgrading Playwright:** `@playwright/test` in `package.json`, the image tag in `scripts/test-visual.sh`, `scripts/readme-screenshots.sh` and `.github/workflows/ci.yml` must name the same version; re-render the baselines after an upgrade.
+- **Upgrading Playwright:** `@playwright/test` in `package.json`, the image tag in `scripts/playwright-docker.sh` and `.github/workflows/ci.yml` must name the same version; re-render the baselines after an upgrade.
 
 ### README screenshots
 

@@ -95,13 +95,17 @@ export function compareByQueue(a: Torrent, b: Torrent): number {
   return b.added_on - a.added_on
 }
 
-/** "↓ 4.3 MB/s" while downloading, "↑ …" while seeding, otherwise null. */
+/** Whether a torrent in `status` has a speed to show: while downloading or seeding, 0 B/s included. */
+export function showsSpeed(status: DownloadStatus): boolean {
+  return status === 'downloading' || status === 'seeding'
+}
+
+/** "↓ 4.3 MB/s" while downloading, "↑ …" while seeding, otherwise null (see showsSpeed). */
 export function transferSpeed(
   torrent: Pick<Torrent, 'dlspeed' | 'upspeed'>,
   status: DownloadStatus,
   format: Formatters,
 ): string | null {
-  if (status === 'downloading') return `↓ ${format.speed(torrent.dlspeed)}`
-  if (status === 'seeding') return `↑ ${format.speed(torrent.upspeed)}`
-  return null
+  if (!showsSpeed(status)) return null
+  return status === 'downloading' ? `↓ ${format.speed(torrent.dlspeed)}` : `↑ ${format.speed(torrent.upspeed)}`
 }
