@@ -24,21 +24,34 @@ function setHidden(hidden: boolean) {
   document.dispatchEvent(new Event('visibilitychange'))
 }
 
-/** A service worker registration whose update() finds `next` (a new worker installing) or nothing new. */
-function serviceWorker({ next = true, fails = false, registered = true } = {}) {
+/**
+ * A service worker registration whose update() leaves a new worker `next` (installing or, installed,
+ * waiting) or finds nothing new (null).
+ */
+function serviceWorker({
+  next = 'installing',
+  fails = false,
+  registered = true,
+}: { next?: 'installing' | 'waiting' | null; fails?: boolean; registered?: boolean } = {}) {
   const container = new EventTarget()
   const registration = {
     installing: null as object | null,
-    waiting: null,
+    waiting: null as object | null,
     update: vi.fn(() => {
       if (fails) return Promise.reject(new TypeError('offline'))
-      if (next) registration.installing = {}
+      if (next) registration[next] = {}
       return Promise.resolve()
     }),
   }
   Object.assign(container, { getRegistration: () => Promise.resolve(registered ? registration : undefined) })
   Object.defineProperty(navigator, 'serviceWorker', { value: container, configurable: true })
-  return { registration, takeOver: () => container.dispatchEvent(new Event('controllerchange')) }
+  /** The new worker takes the page: it's the active one now, so update() finds nothing newer. */
+  const takeOver = () => {
+    registration.installing = registration.waiting = null
+    next = null
+    container.dispatchEvent(new Event('controllerchange'))
+  }
+  return { registration, takeOver }
 }
 
 beforeEach(() => {
@@ -145,6 +158,51 @@ describe('startUpdateChecks', () => {
     expect(reload).toHaveBeenCalledOnce()
   })
 
+  it('waits for a new service worker left waiting, too', async () => {
+    const { takeOver } = serviceWorker({ next: 'waiting' })
+    serverHas(NEW)
+    stop = startUpdateChecks(reload)
+    await settle()
+    expect(reload).not.toHaveBeenCalled()
+
+    takeOver()
+    await settle()
+    expect(reload).toHaveBeenCalledOnce()
+  })
+
+  it('doesn\'t reload when a sheet opened while it waited for the service worker', async () => {
+    const { takeOver } = serviceWorker()
+    serverHas(NEW)
+    stop = startUpdateChecks(reload)
+    await settle()
+    const dialog = document.body.appendChild(document.createElement('dialog'))
+    dialog.setAttribute('open', '')
+    takeOver()
+    await settle()
+    expect(reload).not.toHaveBeenCalled()
+
+    dialog.remove()
+    setHidden(true)
+    setHidden(false)
+    await settle()
+    expect(reload).toHaveBeenCalledOnce()
+  })
+
+  it('doesn\'t reload when the app went to the background while it waited for the service worker', async () => {
+    const { takeOver } = serviceWorker()
+    serverHas(NEW)
+    stop = startUpdateChecks(reload)
+    await settle()
+    setHidden(true)
+    takeOver()
+    await settle()
+    expect(reload).not.toHaveBeenCalled()
+
+    setHidden(false)
+    await settle()
+    expect(reload).toHaveBeenCalledOnce()
+  })
+
   it('reloads right away when no service worker is registered yet', async () => {
     serviceWorker({ registered: false })
     serverHas(NEW)
@@ -181,7 +239,7 @@ describe('startUpdateChecks', () => {
   })
 
   it('reloads right away when the service worker has nothing newer to install', async () => {
-    serviceWorker({ next: false })
+    serviceWorker({ next: null })
     serverHas(NEW)
     stop = startUpdateChecks(reload)
     await settle()
