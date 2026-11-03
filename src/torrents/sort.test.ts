@@ -26,8 +26,14 @@ const order = (
 
 describe('compareTorrents', () => {
   it('keeps the queue order for priority', () => {
-    const torrents = [make('old', { added_on: 1 }), make('q2', { priority: 2 }), make('q1', { priority: 1 })]
-    expect(order('priority', torrents)).toEqual(['q1', 'q2', 'old'])
+    // Outside the queue qBittorrent reports 0 or -1, so neither is a position.
+    const torrents = [
+      make('old', { added_on: 1 }),
+      make('q2', { priority: 2 }),
+      make('q1', { priority: 1 }),
+      make('new', { priority: 0, added_on: 2 }),
+    ]
+    expect(order('priority', torrents)).toEqual(['q1', 'q2', 'new', 'old'])
   })
 
   it('puts the newest first for date added', () => {
