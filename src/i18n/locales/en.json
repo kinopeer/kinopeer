@@ -392,6 +392,8 @@
     "prioritySkip": "Skip",
     "priorityNormal": "Normal",
     "priorityHigh": "High",
+    "priorityMixed": "Mixed",
+    "priorityOfFolder": "Priority of every file in {{name}}",
     "priorityFailed": "Couldn’t change the priority. Try again.",
     "filesFailed": "Couldn’t load the file list.",
     "filesLoading": "Loading files",

@@ -32,14 +32,17 @@ function List({ name, list, target = DUNE }: { name: string; list: TorrentFilesS
       <output aria-label="Priorities">{priorities.files?.map((file) => file.priority).join()}</output>
       <output aria-label="Busy">{FILES.filter((file) => priorities.busy(file.index)).map((file) => file.index).join()}</output>
       {priorities.failed && <p role="alert">Failed</p>}
-      <button type="button" onClick={() => priorities.set(1, 6)}>
+      <button type="button" onClick={() => priorities.set([1], 6)}>
         Extras high
       </button>
-      <button type="button" onClick={() => priorities.set(1, 0)}>
+      <button type="button" onClick={() => priorities.set([1], 0)}>
         Extras skip
       </button>
-      <button type="button" onClick={() => priorities.set(0, 0)}>
+      <button type="button" onClick={() => priorities.set([0], 0)}>
         Main skip
+      </button>
+      <button type="button" onClick={() => priorities.set([0, 1], 6)}>
+        Folder high
       </button>
     </section>
   )
@@ -121,6 +124,40 @@ describe('useFilePriorities', () => {
     expect(lists.in('Page').busy()).toBe('0,1')
   })
 
+  it('sends a folder’s change as one request for its files, busy on each of them everywhere', async () => {
+    const change = pendingChange()
+    const lists = renderLists()
+    await lists.in('Page').press('Folder high')
+    expect(setFilePriority).toHaveBeenCalledExactlyOnceWith('dune', [0, 1], 6)
+    expect(lists.in('Again').priorities()).toBe('6,6')
+    expect(lists.in('Again').busy()).toBe('0,1')
+
+    vi.setSystemTime(2_000)
+    await change.answer()
+    expect(lists.in('Page').busy()).toBe('')
+    lists.update(['Page'], { ...POLLED, requestedAt: 1_999 })
+    expect(lists.in('Page').priorities()).toBe('6,6')
+    lists.update(['Page'], { ...POLLED, requestedAt: 2_000 })
+    expect(lists.in('Page').priorities()).toBe('1,0')
+  })
+
+  it('sends nothing for a folder while one of its files has a change on its way, nor for a file while its folder has', async () => {
+    const file = pendingChange()
+    const lists = renderLists()
+    await lists.in('Page').press('Extras high')
+    await lists.in('Again').press('Folder high')
+    expect(setFilePriority).toHaveBeenCalledOnce()
+    expect(lists.in('Page').priorities()).toBe('1,6')
+
+    await file.answer()
+    pendingChange()
+    await lists.in('Again').press('Folder high')
+    await lists.in('Page').press('Main skip')
+    expect(setFilePriority).toHaveBeenCalledTimes(2)
+    expect(setFilePriority).toHaveBeenLastCalledWith('dune', [0, 1], 6)
+    expect(lists.in('Page').priorities()).toBe('6,6')
+  })
+
   it('keeps a priority qBittorrent took until a poll sent after the answer has the final word', async () => {
     const change = pendingChange()
     const lists = renderLists()
@@ -176,7 +213,7 @@ describe('useFilePriorities', () => {
     expect(result.current.files).toBe(first)
 
     pendingChange()
-    act(() => result.current.set(1, 6))
+    act(() => result.current.set([1], 6))
     expect(result.current.files).not.toBe(first)
     expect(result.current.files?.map((file) => file.priority)).toEqual([1, 6])
   })
