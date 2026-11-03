@@ -48,7 +48,8 @@ export function useSearchResults(
   type: string,
   load: (page: number, signal: AbortSignal) => Promise<SearchPage>,
 ): SearchResultsState {
-  const search = query === null ? null : `${query}|${type}`
+  // Nothing is kept for no query: a query has its language and is never "null".
+  const search = `${query}|${type}`
   const { key: entry } = useLocation()
   const loadRef = useRef(load)
   const [tabs, setTabs] = useState<Tabs | null>(null)
@@ -86,33 +87,28 @@ export function useSearchResults(
     return () => controller.abort()
   }, [query, type, attempt, loaded, setTab])
 
-  // A next page belongs to its search: another one, or leaving the screen, drops it.
-  useEffect(
-    () => () => {
-      moreRequest.current?.abort()
-      setMore(null)
-    },
-    [search],
-  )
+  // A next page belongs to its search: another one, or leaving the screen, cancels it.
+  useEffect(() => () => moreRequest.current?.abort(), [search])
+  // And it's forgotten as soon as another search shows, so coming back to this one starts it afresh.
+  if (more !== null && more.search !== search) setMore(null)
 
   useEffect(() => {
-    if (results) keepResults(entry, search!, results)
+    if (results) keepResults(entry, search, results)
   }, [entry, search, results])
 
+  // Only a query's failure offers it.
   const retry = useCallback(() => {
-    if (query !== null) setTab(query, type, undefined)
+    setTab(query!, type, undefined)
     setAttempt((n) => n + 1)
   }, [query, type, setTab])
 
-  // Until the effect drops it, a next page of the search before is still here for a render.
-  const thisMore = more?.search === search ? more : null
-  const loadingMore = thisMore !== null && !thisMore.failed
+  const loadingMore = more !== null && !more.failed
 
   const showMore = () => {
     if (!results || loadingMore) return
     const controller = new AbortController()
     moreRequest.current = controller
-    setMore({ search: search!, failed: false })
+    setMore({ search, failed: false })
     loadRef.current(results.page + 1, controller.signal).then(
       (page) => {
         if (controller.signal.aborted) return
@@ -120,7 +116,7 @@ export function useSearchResults(
         setMore(null)
       },
       (error: unknown) => {
-        if (!controller.signal.aborted) setMore({ search: search!, failed: true, error })
+        if (!controller.signal.aborted) setMore({ search, failed: true, error })
       },
     )
   }
@@ -132,7 +128,7 @@ export function useSearchResults(
     retry,
     hasMore: results !== undefined && hasMorePages(results),
     loadingMore,
-    moreError: thisMore?.error,
+    moreError: more?.error,
     showMore,
   }
 }

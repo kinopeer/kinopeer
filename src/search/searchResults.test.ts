@@ -53,7 +53,6 @@ describe('kept results', () => {
     expect(keptResults('entry-1', 'dune')).toBe(dune)
     // The entry now shows another search, which nothing was kept for.
     expect(keptResults('entry-1', 'alien')).toBeUndefined()
-    expect(keptResults('entry-1', null)).toBeUndefined()
   })
 
   it('keeps a search in one place, the entry it was kept for last', () => {
@@ -69,13 +68,13 @@ describe('kept results', () => {
 
   it('keeps the latest searches only, forgetting the one kept longest ago', () => {
     for (let n = 0; n < KEPT_SEARCHES; n++) keepResults(`entry-${n}`, `search-${n}`, results())
-    // Kept again, so it's one of the latest.
-    keepResults('entry-0', 'search-0', results({ page: 2 }))
+    // Kept again, for the search the entry shows now, so it's one of the latest.
+    keepResults('entry-0', 'search-0b', results({ page: 2 }))
 
     keepResults('entry-new', 'search-new', results())
 
     expect(keptResults('entry-1', 'search-1')).toBeUndefined()
-    expect(keptResults('entry-0', 'search-0')).toMatchObject({ page: 2 })
+    expect(keptResults('entry-0', 'search-0b')).toMatchObject({ page: 2 })
     expect(keptResults('entry-2', 'search-2')).toBeDefined()
     expect(keptResults('entry-new', 'search-new')).toBeDefined()
   })
