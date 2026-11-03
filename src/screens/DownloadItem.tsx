@@ -9,8 +9,10 @@ import { ProgressBar } from '../components/ProgressBar'
 import { StatusChip } from '../components/StatusChip'
 import { cx } from '../lib/cx'
 import { useFormatters } from '../lib/format'
+import { ownLimits } from '../torrents/speedLimits'
 import { downloadStatus, transferSpeed } from '../torrents/status'
 import type { TitleMatch } from '../torrents/titleMatches'
+import { SpeedLimitMark } from './SpeedLimitMark'
 
 export interface DownloadItemProps {
   torrent: Torrent
@@ -41,6 +43,10 @@ export function DownloadItem({ torrent, match, showQueue = true, onMore, selecte
   const speed = transferSpeed(torrent, status, format)
   const downloading = status === 'downloading'
   const eta = downloading && torrent.dlspeed > 0 ? format.eta(torrent.eta) : null
+  // A download's speed and time left get their own row, and so do the mark of the torrent's own
+  // limits and a seed's speed beside it: with the chip and a "done / total" size they don't fit a
+  // phone's width, and wrapping left the size alone on a second line.
+  const transferRow = downloading || ownLimits(torrent) !== null
   const selecting = selected !== undefined
 
   const content = (
@@ -77,18 +83,17 @@ export function DownloadItem({ torrent, match, showQueue = true, onMore, selecte
         </div>
         <div className="t-cap dl-meta ks-num">
           <StatusChip status={status}>{t(`status.${status}`)}</StatusChip>
-          {!downloading && speed && <span className="c2">{speed}</span>}
+          {!transferRow && speed && <span className="c2">{speed}</span>}
           <span className="dl-size c3">
             {partial
               ? `${format.size(torrent.size * torrent.progress)} / ${format.size(torrent.size)}`
               : format.size(torrent.size)}
           </span>
         </div>
-        {/* A download's speed and time left get their own row: with the chip and a "done / total"
-            size they don't fit a phone's width, and wrapping left the size alone on a second line. */}
-        {downloading && speed && (
+        {transferRow && (
           <div className="t-cap dl-transfer ks-num">
-            <span className="c2">{speed}</span>
+            {speed && <span className="c2">{speed}</span>}
+            <SpeedLimitMark torrent={torrent} className="c2" />
             {eta && <span className="dl-eta c3">{eta}</span>}
           </div>
         )}

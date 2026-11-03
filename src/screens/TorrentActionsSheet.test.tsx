@@ -108,6 +108,15 @@ describe('TorrentActionsSheet on desktop', () => {
     expect(screen.getByRole('menuitem', { name: 'Speed limits' })).toBeDisabled()
   })
 
+  it('says the torrent’s own limits under Speed limits, and nothing without them', () => {
+    const { unmount } = renderActions({ torrent: { ...TORRENT, dl_limit: 5_000_000, up_limit: -1 } })
+    expect(screen.getByRole('menuitem', { name: 'Speed limits' })).toHaveAccessibleDescription('Download up to 5.0\u00a0MB/s')
+    unmount()
+
+    renderActions({ torrent: { ...TORRENT, dl_limit: 0, up_limit: -1 } })
+    expect(screen.getByRole('menuitem', { name: 'Speed limits' })).not.toHaveAccessibleDescription()
+  })
+
   it('is a menu: resume, reannounce, recheck, speed limits, details, the title page, change title, move, delete', async () => {
     vi.mocked(api.startTorrents).mockResolvedValue()
     const handlers = renderActions()
@@ -339,6 +348,15 @@ describe('TorrentActionsSheet on a phone', () => {
 
     renderActions({ offline: true })
     expect(screen.getByRole('button', { name: 'Speed limits' })).toBeDisabled()
+  })
+
+  it('says the torrent’s own limits under Speed limits on a phone too, and nothing without them', () => {
+    const { unmount } = renderActions({ torrent: { ...TORRENT, dl_limit: 0, up_limit: 500_000 } })
+    expect(screen.getByRole('button', { name: 'Speed limits' })).toHaveAccessibleDescription('Upload up to 500\u00a0KB/s')
+    unmount()
+
+    renderActions({ torrent: { ...TORRENT, dl_limit: -1, up_limit: 0 } })
+    expect(screen.getByRole('button', { name: 'Speed limits' })).not.toHaveAccessibleDescription()
   })
 
   it('says under a sheet row why it’s off', () => {

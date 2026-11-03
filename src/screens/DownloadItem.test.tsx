@@ -59,6 +59,28 @@ describe('DownloadItem', () => {
     expect(paused.item.getByText('2.00 GB / 20.0 GB')).toBeInTheDocument()
   })
 
+  it('marks the torrent’s own speed limits on the speed’s row, next to the speed when there is one', () => {
+    const downloading = renderItem({}, { ...DUNE_TORRENT, dl_limit: 5_000_000 })
+    const mark = downloading.item.getByRole('img', { name: 'Speed limit: download up to 5.0\u00a0MB/s' })
+    // On the download's own row for its speed and time left.
+    expect(downloading.item.getByText('↓ 4.3 MB/s').parentElement).toContainElement(mark)
+
+    // A seed's speed moves to a row of its own with the mark, which the status's row has no room
+    // for on a phone; without limits it stays next to the status.
+    const seeding = renderItem({}, { ...DUNE_TORRENT, hash: 'andor', state: 'uploading', progress: 1, up_limit: 500_000 })
+    const seedSpeed = seeding.item.getByText('↑ 120 KB/s').parentElement
+    expect(seedSpeed).toContainElement(seeding.item.getByRole('img', { name: 'Speed limit: upload up to 500\u00a0KB/s' }))
+    expect(seedSpeed).not.toContainElement(seeding.item.getByText('Seeding'))
+    const unlimited = renderItem({}, { ...DUNE_TORRENT, hash: 'rogue', state: 'uploading', progress: 1 })
+    expect(unlimited.item.getByText('↑ 120 KB/s').parentElement).toContainElement(unlimited.item.getByText('Seeding'))
+
+    // A limit isn't about what the torrent is doing: a paused one with only an upload limit shows it
+    // too, on that row as well, without a speed.
+    const paused = renderItem({}, { ...DUNE_TORRENT, hash: 'alien', state: 'stoppedDL', up_limit: 500_000 })
+    const pausedMark = paused.item.getByRole('img', { name: 'Speed limit: upload up to 500\u00a0KB/s' })
+    expect(pausedMark.parentElement).toHaveTextContent(/^↑$/)
+  })
+
   it('shows the queue position only in the queue order, and only for queued torrents', () => {
     expect(renderItem().item.getByLabelText('Queue position 1')).toHaveTextContent('#1')
     expect(renderItem({ showQueue: false }).item.queryByLabelText(/Queue position/)).not.toBeInTheDocument()

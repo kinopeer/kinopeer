@@ -9,8 +9,12 @@ import { cx } from '../lib/cx'
 import { useFormatters } from '../lib/format'
 import { downloadStatus, isRunning, transferSpeed } from '../torrents/status'
 import type { DownloadItemProps } from './DownloadItem'
+import { SpeedLimitMark } from './SpeedLimitMark'
 
-/** A download in the poster grid: status and progress over the poster, title and a short line under it. */
+/**
+ * A download in the poster grid: status, the torrent's own speed limits and progress over the poster,
+ * title and a short line under it.
+ */
 export function DownloadCard({
   torrent,
   match,
@@ -46,7 +50,11 @@ export function DownloadCard({
             <div className="ks-poster-fade" />
             {/* Over the poster: dark tokens in both themes, like the poster's own overlays. */}
             <div className="dl-card-over" data-theme="dark">
-              <StatusChip status={status}>{t(`status.${status}`)}</StatusChip>
+              <span className="dl-card-status">
+                <StatusChip status={status}>{t(`status.${status}`)}</StatusChip>
+                {/* Here rather than next to the speed: the line under the poster has no room for it. */}
+                <SpeedLimitMark torrent={torrent} className="c2" />
+              </span>
               <ProgressBar value={torrent.progress} status={status} label={t('downloads.progress', { name: title })} />
             </div>
           </>

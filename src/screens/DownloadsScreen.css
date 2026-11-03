@@ -165,6 +165,14 @@
   align-self: stretch;
 }
 
+/* The status and the limits' mark, which goes under it on a card too narrow for both. */
+.dl-card-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+
 .dl-card-more {
   color: var(--text3);
 }
@@ -352,6 +360,15 @@
   margin-left: auto;
 }
 
+/* A torrent's own speed limits: a gauge and an arrow for each direction. Top-aligned, it takes one
+   line's height in running text (the card's line under the poster); elsewhere it's a flex item. */
+.dl-limit {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
 /* Loading skeleton */
 .dl-skeleton {
   padding: var(--space-3);
@@ -438,7 +455,7 @@
 /* --dl-cols leaves out the first column (the checkboxes or the queue positions); a table with it
    has .has-lead. */
 .dl-row {
-  --dl-cols: 40px minmax(0, 1fr) 160px 124px 100px 76px 136px 76px;
+  --dl-cols: 40px minmax(0, 1fr) 160px 124px 124px 76px 136px 76px;
   position: relative;
   display: grid;
   grid-template-columns: var(--dl-cols);
@@ -456,18 +473,26 @@
   grid-template-columns: 28px var(--dl-cols);
 }
 
-/* The title takes what the fixed columns leave, so it grows with the window: about 380px or more
+/* The title takes what the fixed columns leave, so it grows with the window: about 355px or more
    with every column, so the size shows only from a 1240px table (a 1552px window); below that the
-   title keeps 260-430px. Below a 920px table the time left moves under the speed, keeping it at
-   200px or more. Without the first column the title gets 40px more. */
+   title keeps 235-405px. Below a 920px table the time left moves under the speed and the progress
+   narrows, keeping it at 200px or more. Without the first column the title gets 40px more. The speed
+   column has room for the speed and the mark of the torrent's own limits on one line. */
 @container (max-width: 1239px) {
   .dl-row {
-    --dl-cols: 40px minmax(0, 1fr) 140px 124px 100px 76px 76px;
+    --dl-cols: 40px minmax(0, 1fr) 140px 124px 124px 76px 76px;
   }
 
   .dl-row-size {
     display: none;
   }
+}
+
+.dl-row-rate {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  white-space: nowrap;
 }
 
 .dl-row-eta-inline {
@@ -476,7 +501,7 @@
 
 @container (max-width: 919px) {
   .dl-row {
-    --dl-cols: 40px minmax(0, 1fr) 120px 120px 96px 76px;
+    --dl-cols: 40px minmax(0, 1fr) 96px 120px 120px 76px;
   }
 
   .dl-row-eta {
