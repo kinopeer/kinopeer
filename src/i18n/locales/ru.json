@@ -424,6 +424,8 @@
     "prioritySkip": "Не качать",
     "priorityNormal": "Обычный",
     "priorityHigh": "Высокий",
+    "priorityMixed": "Разный",
+    "priorityOfFolder": "Приоритет всех файлов в {{name}}",
     "priorityFailed": "Не удалось изменить приоритет. Попробуйте ещё раз.",
     "filesFailed": "Не удалось загрузить список файлов.",
     "filesLoading": "Загружаем файлы",

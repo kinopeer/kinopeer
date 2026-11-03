@@ -7,6 +7,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 ### Added
 
 - Downloads: a torrent with a speed limit of its own shows a small gauge, with an arrow for the download limit, the upload limit or both: next to its speed in the list and the table, and next to its status in the poster grid. The More menu shows the limits under Speed limits. ([#216](https://github.com/MrShakhov/kinoseed/issues/216))
+- Torrent details: a folder in the file list has a priority too, which sets Skip, Normal or High for every file under it at once and shows Mixed while they differ. ([#215](https://github.com/MrShakhov/kinoseed/issues/215))
 - Search: Show more under the results loads the next page of them, and Back from a title brings back every page loaded, at the same scroll position. The count above the results is now TMDB's estimate for the whole search, not the number on the first page. The Movies and Series tabs search for their type instead of filtering what's loaded. ([#219](https://github.com/MrShakhov/kinoseed/issues/219))
 
 ### Changed

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { torrent } from '../test/fixtures'
 import { mainData } from '../test/fixtures'
 import { applyMainData, EMPTY_SYNC_STATE } from './sync'
-import { createTorrentRequests, requestKey, withExpected, type Expectation, type RequestWatcher } from './torrentRequests'
+import { createTorrentRequests, inFlightParts, requestKey, withExpected, type Expectation, type RequestWatcher } from './torrentRequests'
 
 const DUNE = torrent('dune')
 const ALIEN = torrent('alien')
@@ -230,5 +230,18 @@ describe('withExpected', () => {
   it('leaves out a torrent that went away, and has nothing to show before the first poll', () => {
     expect(withExpected(data, 900, new Map([pausedAt(1_000, 'gone')]))).toBe(data)
     expect(withExpected(null, null, new Map([pausedAt(1_000)]))).toBeNull()
+  })
+})
+
+describe('inFlightParts', () => {
+  it('gives what’s being sent for each part of a torrent in a kind, not for the torrent itself, another torrent or kind', () => {
+    const inFlight = new Map<string, unknown>([
+      [requestKey('priority', 'dune', '1'), 'one'],
+      [requestKey('priority', 'dune', '2,3'), 'folder'],
+      [requestKey('priority', 'dune'), 'whole'],
+      [requestKey('priority', 'dune2', '1'), 'other torrent'],
+      [requestKey('move', 'dune', '1'), 'other kind'],
+    ])
+    expect(inFlightParts(inFlight, 'priority', 'dune')).toEqual(['one', 'folder'])
   })
 })
