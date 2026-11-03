@@ -360,12 +360,11 @@
   margin-left: auto;
 }
 
-/* A torrent's own speed limits: a gauge and an arrow for each direction. Top-aligned, it takes one
-   line's height in running text (the card's line under the poster); elsewhere it's a flex item. */
+/* A torrent's own speed limits: a gauge and an arrow for each direction, a flex item of the row,
+   the table's speed cell or the card's status. */
 .dl-limit {
   display: inline-flex;
   align-items: center;
-  vertical-align: top;
   white-space: nowrap;
 }
 

@@ -44,19 +44,16 @@ export function changedLimit(initial: string, text: string, resend = false): num
   return !resend && text.trim() === initial ? undefined : fieldToLimit(text)
 }
 
-/** A torrent's own speed limits in bytes/s, each only when it's set. */
-export interface OwnLimits {
-  download?: number
-  upload?: number
-}
+/** A torrent's own speed limits in bytes/s, each only when it's set, and at least one of them. */
+export type OwnLimits = { download: number; upload?: number } | { download?: undefined; upload: number }
 
 /** The limits set on the torrent itself, null when neither is: qBittorrent reports no limit as 0 or
  *  -1. The alternative and global limits aren't the torrent's and aren't here. */
 export function ownLimits(torrent: { dl_limit: number; up_limit: number }): OwnLimits | null {
   // Also when qBittorrent doesn't report one, as for limitToField.
-  const download = torrent.dl_limit > 0 ? torrent.dl_limit : undefined
   const upload = torrent.up_limit > 0 ? torrent.up_limit : undefined
-  return download === undefined && upload === undefined ? null : { download, upload }
+  if (torrent.dl_limit > 0) return { download: torrent.dl_limit, upload }
+  return upload === undefined ? null : { upload }
 }
 
 /**
@@ -64,15 +61,14 @@ export function ownLimits(torrent: { dl_limit: number; up_limit: number }): OwnL
  * hint), or the same named as speed limits (`mark`, the mark's accessible name).
  */
 export function describeLimits(limits: OwnLimits, kind: 'mark' | 'value', t: TFunction, format: Formatters): string {
-  const { download, upload } = limits
-  if (download !== undefined && upload !== undefined) {
-    const values = { download: format.speed(download), upload: format.speed(upload) }
-    return kind === 'mark' ? t('limits.markBoth', values) : t('limits.valueBoth', values)
+  if (limits.download === undefined) {
+    const speed = format.speed(limits.upload)
+    return kind === 'mark' ? t('limits.markUpload', { speed }) : t('limits.valueUpload', { speed })
   }
-  if (download !== undefined) {
-    const speed = format.speed(download)
+  if (limits.upload === undefined) {
+    const speed = format.speed(limits.download)
     return kind === 'mark' ? t('limits.markDownload', { speed }) : t('limits.valueDownload', { speed })
   }
-  const speed = format.speed(upload ?? 0)
-  return kind === 'mark' ? t('limits.markUpload', { speed }) : t('limits.valueUpload', { speed })
+  const values = { download: format.speed(limits.download), upload: format.speed(limits.upload) }
+  return kind === 'mark' ? t('limits.markBoth', values) : t('limits.valueBoth', values)
 }

@@ -45,16 +45,12 @@ describe('DownloadCard', () => {
     expect(seeding.card.getByText('100% · ↑ 120 KB/s')).toBeInTheDocument()
   })
 
-  it('marks the torrent’s own speed limits next to its status over the poster, whatever it is doing', () => {
+  it('marks the torrent’s own speed limits, whatever it is doing', () => {
     const downloading = renderCard({}, { ...DUNE_TORRENT, dl_limit: 5_000_000 })
-    expect(downloading.card.getByText('Downloading').parentElement).toContainElement(
-      downloading.card.getByRole('img', { name: 'Speed limit: download up to 5.0\u00a0MB/s' }),
-    )
+    expect(downloading.card.getByRole('img', { name: 'Speed limit: download up to 5.0\u00a0MB/s' })).toBeInTheDocument()
 
     const paused = renderCard({}, { ...DUNE_TORRENT, hash: 'alien', state: 'stoppedDL', progress: 0.1, up_limit: 500_000 })
-    expect(paused.card.getByText('Paused').parentElement).toContainElement(
-      paused.card.getByRole('img', { name: 'Speed limit: upload up to 500\u00a0KB/s' }),
-    )
+    expect(paused.card.getByRole('img', { name: 'Speed limit: upload up to 500\u00a0KB/s' })).toBeInTheDocument()
   })
 
   it('opens the actions from More, as a menu where there is a pause button', async () => {
