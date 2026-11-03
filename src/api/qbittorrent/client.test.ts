@@ -8,6 +8,7 @@ import {
   getAppVersion,
   getCategories,
   getDefaultSavePath,
+  getRefreshInterval,
   getSaveLocations,
   getTorrentFiles,
   getTorrentTrackers,
@@ -271,6 +272,19 @@ describe('setTorrentLocation', () => {
     respond('', 403)
     respond('', 403)
     await expect(setTorrentLocation(['a'], '/root')).rejects.toBeInstanceOf(UnauthorizedError)
+  })
+})
+
+describe('getRefreshInterval', () => {
+  it('reads how often qBittorrent updates the torrents’ states from its preferences', async () => {
+    respond('{"refresh_interval":5000,"save_path":"/downloads"}')
+    expect(await getRefreshInterval()).toBe(5000)
+    expect(fetchMock).toHaveBeenCalledWith('/qbt/api/v2/app/preferences', expect.anything())
+  })
+
+  it.each(['{}', '{"refresh_interval":0}', '{"refresh_interval":"1500"}'])('says nothing for %s', async (preferences) => {
+    respond(preferences)
+    expect(await getRefreshInterval()).toBeUndefined()
   })
 })
 

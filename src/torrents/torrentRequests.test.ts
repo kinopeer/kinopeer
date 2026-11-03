@@ -146,9 +146,23 @@ describe('createTorrentRequests linked to a poll', () => {
     vi.setSystemTime(7_000)
     stop.resolve()
     await sent
-    expect(requests.getExpected().get(requestKey('pause', 'dune'))).toEqual({ hash: 'dune', expect: paused, after: 7_000 })
-    expect(requests.getExpected().get(requestKey('pause', 'alien'))).toMatchObject({ hash: 'alien', after: 7_000 })
+    expect(requests.getExpected().get(requestKey('pause', 'dune'))).toEqual({ hash: 'dune', expect: paused, until: 7_000 })
+    expect(requests.getExpected().get(requestKey('pause', 'alien'))).toMatchObject({ hash: 'alien', until: 7_000 })
     expect(linked.refresh).toHaveBeenCalledOnce()
+  })
+
+  it('keeps the state for a hold after qBittorrent answered, asked how long when it answers', async () => {
+    vi.useFakeTimers({ now: 5_000 })
+    const requests = createTorrentRequests(poll())
+    let lag = 2_000
+    const stop = request()
+    const sent = requests.send('pause', DUNE, false, () => stop.promise, { expect: paused, hold: () => lag })
+    vi.setSystemTime(7_000)
+    // Learnt while the request was on its way.
+    lag = 5_500
+    stop.resolve()
+    await sent
+    expect(requests.getExpected().get(requestKey('pause', 'dune'))).toMatchObject({ until: 12_500 })
   })
 
   it('expects nothing when the request failed, and polls again to show what qBittorrent has', async () => {
@@ -170,10 +184,12 @@ describe('createTorrentRequests linked to a poll', () => {
     let requestedAt: number | null = null
     const requests = createTorrentRequests({ refresh: vi.fn(), getSnapshot: () => ({ requestedAt }) })
     await requests.send('pause', DUNE, false, () => Promise.resolve(), { expect: paused })
+    await requests.send('recheck', DUNE, true, () => Promise.resolve(), { expect: paused, hold: () => 1_000 })
     requestedAt = 1_000
     vi.setSystemTime(2_000)
     await requests.send('pause', ALIEN, false, () => Promise.resolve(), { expect: paused })
-    expect([...requests.getExpected().keys()]).toEqual([requestKey('pause', 'alien')])
+    // The recheck's hold isn't over for the poll sent at 1 000.
+    expect([...requests.getExpected().keys()]).toEqual([requestKey('recheck', 'dune'), requestKey('pause', 'alien')])
   })
 
   it('applies the states in the order qBittorrent took their requests, one sent again last', async () => {
@@ -189,24 +205,24 @@ describe('createTorrentRequests linked to a poll', () => {
 
 describe('withExpected', () => {
   const data = applyMainData(EMPTY_SYNC_STATE, mainData([DUNE, ALIEN]))
-  const pausedAt = (after: number, hash = 'dune'): [string, Expectation] => [
+  const pausedAt = (until: number, hash = 'dune'): [string, Expectation] => [
     requestKey('pause', hash),
-    { hash, after, expect: (item) => ({ ...item, state: 'stoppedDL' }) },
+    { hash, until, expect: (item) => ({ ...item, state: 'stoppedDL' }) },
   ]
 
-  it('shows the expected state while the poll’s state is from a request sent before qBittorrent took it', () => {
+  it('shows the expected state while the poll’s state is from a request sent before its time', () => {
     const shown = withExpected(data, 900, new Map([pausedAt(1_000)]))
     expect(shown?.torrents.dune.state).toBe('stoppedDL')
     expect(shown?.torrents.alien).toBe(data.torrents.alien)
   })
 
-  it('leaves the word to a poll sent when qBittorrent took it or later', () => {
+  it('leaves the word to a poll sent at its time or later', () => {
     expect(withExpected(data, 1_000, new Map([pausedAt(1_000)]))).toBe(data)
     expect(withExpected(data, 1_500, new Map([pausedAt(1_000)]))).toBe(data)
   })
 
   it('takes away a torrent a request expects gone', () => {
-    const shown = withExpected(data, 900, new Map([[requestKey('delete', 'dune'), { hash: 'dune', after: 1_000, expect: () => undefined }]]))
+    const shown = withExpected(data, 900, new Map([[requestKey('delete', 'dune'), { hash: 'dune', until: 1_000, expect: () => undefined }]]))
     expect(Object.keys(shown?.torrents ?? {})).toEqual(['alien'])
     expect(data.torrents.dune).toBeDefined()
   })

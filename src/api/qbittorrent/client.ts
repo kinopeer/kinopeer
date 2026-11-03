@@ -160,6 +160,16 @@ export async function getSaveLocations(signal?: AbortSignal): Promise<SaveLocati
   }
 }
 
+/**
+ * How often qBittorrent updates the torrents' states it reports (ms): its "Refresh interval", or
+ * undefined when it doesn't say.
+ */
+export async function getRefreshInterval(): Promise<number | undefined> {
+  const preferences = (await (await request('/app/preferences')).json()) as { refresh_interval?: unknown }
+  const interval = preferences.refresh_interval
+  return typeof interval === 'number' && interval > 0 ? interval : undefined
+}
+
 /** Files of a torrent, in index order. Empty until a magnet link's metadata has arrived. */
 export async function getTorrentFiles(hash: string): Promise<TorrentFile[]> {
   const response = await request('/torrents/files', { params: { hash } })

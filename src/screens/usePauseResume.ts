@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { startTorrents, stopTorrents, type Torrent } from '../api/qbittorrent'
 import { useToast } from '../components/Toast'
 import { REQUEST_KINDS } from '../torrents/requestKinds'
+import { readRefreshInterval, stateLag } from '../torrents/stateLag'
 import { downloadStatus, isRunning, withRunning } from '../torrents/status'
 import type { Settled } from '../torrents/torrentRequests'
 import { TOAST_KEYS } from './toastKeys'
@@ -13,7 +14,8 @@ export interface PauseResume {
   busy: (hash: string) => boolean
   /**
    * Pauses the torrents, or resumes them, in one request, without those with one in flight. Once
-   * qBittorrent took it they show their new state; a failure nothing showing them took is a toast.
+   * qBittorrent took it they show their new state until it reports theirs (`stateLag`); a failure
+   * nothing showing them took is a toast.
    */
   set: (targets: readonly Torrent[], running: boolean) => Promise<Settled | undefined>
   /** Pauses a running torrent, resumes the others. */
@@ -34,11 +36,15 @@ export function usePauseResume(watcher?: ActionWatcher): PauseResume {
   const set = useCallback(
     async (targets: readonly Torrent[], running: boolean) => {
       toast.dismiss(TOAST_KEYS.pauseResume)
+      // Alongside the request, so qBittorrent's interval is known by the time it answers.
+      readRefreshInterval()
       const settled = await send(
         targets,
         running,
         (hashes) => (running ? startTorrents(hashes) : stopTorrents(hashes)),
-        { expect: (torrent) => withRunning(torrent, running) },
+        // qBittorrent reports the new state only once it updates the states, so the polls until
+        // then don't undo it.
+        { expect: (torrent) => withRunning(torrent, running), hold: stateLag },
       )
       if (settled && !settled.ok && !settled.showing) {
         toast.show(t('torrent.actionFailed'), { icon: 'alert', key: TOAST_KEYS.pauseResume })

@@ -21,12 +21,12 @@ export type InFlight = ReadonlyMap<string, unknown>
 /** The state a request gives a torrent, or none when it takes the torrent away (a delete). */
 export type Expect = (torrent: Torrent) => Torrent | undefined
 
-/** A state qBittorrent took for a torrent, shown until a poll sent at `after` or later says. */
+/** A state qBittorrent took for a torrent, shown until a poll sent at `until` or later says. */
 export interface Expectation {
   hash: string
   expect: Expect
-  /** When qBittorrent answered the request (ms since epoch). */
-  after: number
+  /** When qBittorrent answered the request, plus its `hold` (ms since epoch). */
+  until: number
 }
 
 /** The states requests set, by `requestKey`. Replaced, never changed, so it can be a snapshot. */
@@ -41,10 +41,15 @@ export interface RequestsPoll {
 export interface SendOptions {
   /**
    * The state the request gives a torrent: once qBittorrent took it, the torrent shows that state
-   * (`withExpected`) until a poll sent after the answer has the final word, even if it disagrees.
-   * The poll is asked again when the request settles, either way.
+   * (`withExpected`) until a poll sent after the answer, or `hold` after it, has the final word, even
+   * if it disagrees. The poll is asked again when the request settles, either way.
    */
   expect?: Expect
+  /**
+   * How long qBittorrent may still report a torrent's old state after taking the request (ms), read
+   * when it answers: polls sent meanwhile don't have the final word.
+   */
+  hold?: () => number
   /** A part of each torrent the request is about (a file), so one per part is in flight, not per torrent. */
   part?: string
 }
@@ -102,7 +107,7 @@ export function createTorrentRequests(poll?: RequestsPoll): TorrentRequests {
     getSnapshot: () => inFlight,
     getExpected: () => expected,
     async send(kind, target, payload, request, options) {
-      const { expect, part } = options ?? {}
+      const { expect, hold, part } = options ?? {}
       const targets = (Array.isArray(target) ? target : [target]).filter(
         (item: Torrent) => !inFlight.has(requestKey(kind, item.hash, part)),
       )
@@ -124,14 +129,14 @@ export function createTorrentRequests(poll?: RequestsPoll): TorrentRequests {
       keys.forEach((key) => settled.delete(key))
       inFlight = settled
       if (outcome.ok && expect) {
-        const after = Date.now()
+        const until = Date.now() + (hold?.() ?? 0)
         // Without the ones a poll has had its word on since, so they don't pile up.
         const polled = poll?.getSnapshot().requestedAt ?? null
-        const next = new Map([...expected].filter(([, item]) => polled === null || polled < item.after))
+        const next = new Map([...expected].filter(([, item]) => polled === null || polled < item.until))
         // Taken out first, so the order they're applied in is the order qBittorrent took them.
         targets.forEach((item, index) => {
           next.delete(keys[index])
-          next.set(keys[index], { hash: item.hash, expect, after })
+          next.set(keys[index], { hash: item.hash, expect, until })
         })
         expected = next
       }
@@ -158,17 +163,17 @@ export function createTorrentRequests(poll?: RequestsPoll): TorrentRequests {
 }
 
 /**
- * The poll's state with the states requests expect, for the torrents a poll sent before qBittorrent
- * answered them still has old, without those a request takes away. A poll sent at the same
- * millisecond as the answer or later went out after qBittorrent took the request, so it has the
+ * The poll's state with the states requests expect, for the torrents a poll sent before their
+ * `until` may still have old, without those a request takes away. A poll sent at `until` or later
+ * went out after qBittorrent took the request and, with a hold, had time to report it, so it has the
  * final word.
  */
 export function withExpected(data: SyncState | null, requestedAt: number | null, expected: Expected): SyncState | null {
   if (!data || expected.size === 0) return data
   let torrents: Record<string, Torrent> | undefined
-  for (const { hash, expect, after } of expected.values()) {
+  for (const { hash, expect, until } of expected.values()) {
     const torrent = (torrents ?? data.torrents)[hash]
-    if (!torrent || (requestedAt !== null && requestedAt >= after)) continue
+    if (!torrent || (requestedAt !== null && requestedAt >= until)) continue
     torrents ??= { ...data.torrents }
     const shown = expect(torrent)
     if (shown) torrents[hash] = shown
