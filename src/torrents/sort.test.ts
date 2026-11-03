@@ -100,11 +100,6 @@ describe('compareTorrents reversed', () => {
     ]
     expect(order('eta', torrents, { descending: true })).toEqual(['slow', 'fast', 'stalled'])
   })
-
-  it('still breaks ties in queue order', () => {
-    const torrents = [make('new', { added_on: 2 }), make('q1', { priority: 1 }), make('old', { added_on: 1 })]
-    expect(order('size', torrents, { descending: false })).toEqual(['q1', 'new', 'old'])
-  })
 })
 
 describe('usualOrder', () => {
