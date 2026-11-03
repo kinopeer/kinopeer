@@ -43,6 +43,37 @@ describe('useSearchResults', () => {
     expect(result.current.results?.titles).toEqual([ALIEN])
   })
 
+  it('drops the failure of a search that changed, as an aborted request fails', async () => {
+    const load = vi.fn((_page: number, signal: AbortSignal) =>
+      signal.aborted ? Promise.reject(new DOMException('Aborted', 'AbortError')) : Promise.resolve(searchPage([ALIEN])),
+    )
+    let fail = (_error: unknown) => {}
+    load.mockImplementationOnce(() => new Promise((_resolve, reject) => (fail = reject)))
+    const { result, rerender } = renderHook(({ search }) => useSearchResults(search, load), {
+      wrapper,
+      initialProps: { search: 'dune' },
+    })
+    rerender({ search: 'alien' })
+    await act(async () => {})
+
+    await act(async () => fail(new DOMException('Aborted', 'AbortError')))
+
+    expect(result.current).toMatchObject({ error: undefined, results: { titles: [ALIEN] } })
+    // Taken for the new search's state, the failure would drop its results and have them asked for again.
+    expect(load).toHaveBeenCalledTimes(2)
+  })
+
+  it('asks again on every retry', async () => {
+    const load = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'))
+    const { result } = renderHook(() => useSearchResults('dune', load), { wrapper })
+    await act(async () => {})
+
+    await act(async () => result.current.retry())
+    await act(async () => result.current.retry())
+
+    expect(load).toHaveBeenCalledTimes(3)
+  })
+
   it('asks for the next page once while it’s on its way', async () => {
     const { load, answers } = pendingLoad()
     const { result } = renderHook(() => useSearchResults('dune', load), { wrapper })
