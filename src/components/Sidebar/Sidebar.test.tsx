@@ -73,7 +73,6 @@ describe('SidebarStatus', () => {
     expect(download).toHaveTextContent(/^↓Download speed 4\.3MB\/s$/)
     expect(screen.getByText('KB/s').closest('p')).toHaveTextContent(/^↑Upload speed 120KB\/s$/)
     expect(screen.getByText('TB').closest('p')).toHaveTextContent(/^Free space 1\.21TB$/)
-    expect(screen.getByTitle('qBittorrent 5.0.1')).toBeInTheDocument()
   })
 
   it('says when qBittorrent doesn’t answer', () => {
@@ -84,15 +83,11 @@ describe('SidebarStatus', () => {
     expect(screen.queryByText('TB')).not.toBeInTheDocument()
   })
 
-  it('shows an indicator in place of the connection dot, in the card and in the rail', () => {
-    const { container } = render(
-      <SidebarStatus version="5.0.1" offline={false} indicator={<span role="img" aria-label="Poll" />} />,
-    )
-    expect(screen.getAllByRole('img', { name: 'Poll' })).toHaveLength(2)
-    // The dot is decorative, found by its class: the indicator replaces both.
-    expect(container.querySelector('.ks-side-dot')).toBeNull()
-    // The rail still names the connection beside it.
-    expect(screen.getAllByText('qBittorrent 5.0.1')).toHaveLength(2)
+  it('shows the indicator in the card and in the rail, each beside the connection', () => {
+    render(<SidebarStatus version="5.0.1" offline={false} indicator={<span role="img" aria-label="Poll" />} />)
+    const indicators = screen.getAllByRole('img', { name: 'Poll' })
+    expect(indicators).toHaveLength(2)
+    for (const indicator of indicators) expect(indicator.parentElement).toHaveTextContent('qBittorrent 5.0.1')
   })
 
   it('switches the alternative speed limits from the card and from the rail', async () => {

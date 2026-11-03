@@ -122,15 +122,16 @@ describe('useMainData', () => {
   })
 
   it('doesn’t time out a poll answered in time', async () => {
-    let signal: AbortSignal | undefined
-    getMainData.mockImplementation(async (_rid, given) => {
-      signal = given
+    const signals: (AbortSignal | undefined)[] = []
+    getMainData.mockImplementation(async (_rid, signal) => {
+      signals.push(signal)
       return { rid: 1 }
     })
     const { result } = renderHook(() => useMainData(vi.fn()))
     await act(() => vi.advanceTimersByTimeAsync(0))
+    // Past the first poll's timeout, which its answer cancelled.
     await act(() => vi.advanceTimersByTimeAsync(POLL_TIMEOUT_MS))
-    expect(signal?.aborted).toBe(false)
+    expect(signals[0]?.aborted).toBe(false)
     expect(result.current.offline).toBe(false)
   })
 

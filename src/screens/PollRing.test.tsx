@@ -26,10 +26,13 @@ afterEach(() => {
 })
 
 describe('PollRing', () => {
-  it('waits for the first answer', () => {
-    const { poll } = fakePoll({ inFlight: true, offline: false, updatedAt: null })
+  it('waits for the first answer, from before the first request', () => {
+    const { poll, set } = fakePoll()
     render(<PollRing poll={poll} />)
-    expect(ringState(screen.getByRole('img', { name: 'Waiting for qBittorrent' }))).toBe('waiting')
+    const ring = screen.getByRole('img', { name: 'Waiting for qBittorrent' })
+    expect(ringState(ring)).toBe('waiting')
+    set({ inFlight: true })
+    expect(ringState(ring)).toBe('waiting')
   })
 
   it('fills over the poll’s interval after an answer and says when the data was updated', () => {

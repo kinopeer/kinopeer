@@ -79,13 +79,11 @@ export function createMainDataStore(): MainDataStore {
   let unauthorized = false
 
   // The data's snapshot and the poll's state are separate objects, so a request going out renders
-  // only what shows the poll, not every screen that reads the data.
+  // only what shows the poll, not every screen that reads the data. Called only when a request goes
+  // out or settles, so the poll's state is new every time.
   const update = (changes: Partial<MainDataSnapshot>) => {
     if (Object.keys(changes).length > 0) snapshot = { ...snapshot, ...changes }
-    const { offline, updatedAt } = snapshot
-    if (pollState.inFlight !== inFlight || pollState.offline !== offline || pollState.updatedAt !== updatedAt) {
-      pollState = { inFlight, offline, updatedAt }
-    }
+    pollState = { inFlight, offline: snapshot.offline, updatedAt: snapshot.updatedAt }
     listeners.forEach((listener) => listener())
   }
 

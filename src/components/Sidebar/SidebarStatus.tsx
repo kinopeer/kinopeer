@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { cx } from '../../lib/cx'
 import { Button } from '../Button'
 import { useFormatters } from '../../lib/format'
 import { Icon } from '../Icon'
@@ -19,7 +18,7 @@ export interface SidebarStatusProps {
   altSpeedLimits?: boolean
   altSpeedDisabled?: boolean
   onToggleAltSpeed?: () => void
-  /** Shown in place of the connection dot, in the card and in the rail: the poll's ring. */
+  /** Before the connection in the card and at the top of the rail: the poll's ring, which shows whether qBittorrent answers. */
   indicator?: ReactNode
 }
 
@@ -66,7 +65,7 @@ export function SidebarStatus({
     <section className="ks-side-status" aria-label="qBittorrent">
       <div className="ks-side-card">
         <p className="ks-side-status-head t-cap">
-          {indicator ?? <span className={cx('ks-side-dot', offline && 'is-off')} aria-hidden="true" />}
+          {indicator}
           <span className="ks-trunc">{status}</span>
         </p>
         <p className="ks-side-status-speeds t-cap ks-num c2">
@@ -96,16 +95,10 @@ export function SidebarStatus({
         )}
       </div>
       <div className="ks-side-mini ks-num">
-        {indicator ? (
-          <span className="ks-side-mini-indicator">
-            {indicator}
-            <span className="sr-only">{status}</span>
-          </span>
-        ) : (
-          <span className={cx('ks-side-dot', offline && 'is-off')} title={status}>
-            <span className="sr-only">{status}</span>
-          </span>
-        )}
+        <span className="ks-side-mini-indicator">
+          {indicator}
+          <span className="sr-only">{status}</span>
+        </span>
         {stacked(t('downloads.downloadSpeed'), speed(downloadSpeed), <span aria-hidden="true">↓</span>)}
         {stacked(t('downloads.uploadSpeed'), speed(uploadSpeed), <span aria-hidden="true">↑</span>)}
         {freeSpace !== undefined &&

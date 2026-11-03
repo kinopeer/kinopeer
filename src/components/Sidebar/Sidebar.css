@@ -155,19 +155,7 @@
   font-weight: 600;
 }
 
-.ks-side-dot {
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--success);
-}
-
-.ks-side-dot.is-off {
-  background: var(--error);
-}
-
-/* An indicator in the dot's place (the poll's ring) is about the size of the text beside it. */
+/* The indicator (the poll's ring) is about the size of the text beside it. */
 .ks-side-status {
   --poll-ring-size: 14px;
 }
