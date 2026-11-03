@@ -3,23 +3,29 @@ import { useTranslation } from 'react-i18next'
 import { setFilePriority, type FilePriority, type Torrent, type TorrentFile } from '../api/qbittorrent'
 import { useToast } from '../components/Toast'
 import { REQUEST_KINDS } from '../torrents/requestKinds'
-import { requestKey, type InFlight } from '../torrents/torrentRequests'
+import { inFlightParts, type InFlight } from '../torrents/torrentRequests'
 import type { TorrentFilesState } from '../torrents/useTorrentFiles'
 import { useTorrentRequests } from '../torrents/useTorrentRequests'
 import { TOAST_KEYS } from './toastKeys'
 
-/** What a priority change sends. */
+/** What a priority change sends: one file's, or every file's in a folder. */
 interface PriorityChange {
-  index: number
+  indexes: readonly number[]
   priority: FilePriority
 }
 
-/** What's being sent for a torrent's file, while it is. */
-const pendingIn = (inFlight: InFlight, hash: string, index: number) =>
-  inFlight.get(requestKey(REQUEST_KINDS.filePriority, hash, String(index))) as PriorityChange | undefined
+/** The priority being sent for each of a torrent's files that has one on its way, from any change. */
+function sendingIn(inFlight: InFlight, hash: string): ReadonlyMap<number, FilePriority> {
+  const sending = new Map<number, FilePriority>()
+  for (const change of inFlightParts(inFlight, REQUEST_KINDS.filePriority, hash) as PriorityChange[]) {
+    change.indexes.forEach((index) => sending.set(index, change.priority))
+  }
+  return sending
+}
 
 /** A priority qBittorrent took for a file, shown until a poll sent at `after` or later says. */
-interface Taken extends PriorityChange {
+interface Taken {
+  priority: FilePriority
   after: number
 }
 
@@ -33,13 +39,16 @@ export interface FilePriorities {
   busy: (index: number) => boolean
   /** The last change failed while this list showed the torrent. */
   failed: boolean
-  /** Changes a file's priority, unless a change for it is in flight already. */
-  set: (index: number, priority: FilePriority) => void
+  /**
+   * Changes the priority of files (one, or a folder's) in one request, unless one of them has a
+   * change in flight already: then nothing is sent, so two changes never race for a file.
+   */
+  set: (indexes: readonly number[], priority: FilePriority) => void
 }
 
 /**
  * A torrent's file priorities through the app's torrent requests, one change per file at a time
- * (`SendOptions.part`), so a list opened again while one is on its way shows it busy, with what's
+ * (`SendOptions.part`, the files' indexes; a folder's change is one request for its files), so a list opened again while one is on its way shows it busy, with what's
  * being sent, and it never goes out twice. Once qBittorrent took it, the file keeps it until a poll
  * of `list` sent after the answer has the final word. A failure stays in the list that shows the
  * torrent, else it's a toast, which the next try takes back.
@@ -63,8 +72,13 @@ export function useFilePriorities(torrent: Torrent, list: TorrentFilesState): Fi
         shows: (target) => target.hash === shown.current.hash && target.added_on === shown.current.added_on,
         settled: (outcome, sent) => {
           if (!outcome.ok) return setFailed(true)
-          const change = sent as PriorityChange
-          setTaken((current) => new Map(current).set(change.index, { ...change, after: Date.now() }))
+          const { indexes, priority } = sent as PriorityChange
+          const after = Date.now()
+          setTaken((current) => {
+            const next = new Map(current)
+            indexes.forEach((index) => next.set(index, { priority, after }))
+            return next
+          })
         },
       }),
     [requests],
@@ -74,11 +88,12 @@ export function useFilePriorities(torrent: Torrent, list: TorrentFilesState): Fi
   // Built again only when the poll, what's in flight or what qBittorrent took changes, so the list's
   // tree is too.
   const { files: polled, requestedAt } = list
+  const sending = useMemo(() => sendingIn(inFlight, hash), [inFlight, hash])
   const files = useMemo(() => {
     if (polled === undefined) return undefined
     const priorityOf = (file: TorrentFile) => {
-      const sending = pendingIn(inFlight, hash, file.index)
-      if (sending) return sending.priority
+      const priority = sending.get(file.index)
+      if (priority !== undefined) return priority
       const kept = taken.get(file.index)
       // A poll sent at the same millisecond as the answer or later went out after qBittorrent took it.
       if (kept && requestedAt < kept.after) return kept.priority
@@ -88,17 +103,20 @@ export function useFilePriorities(torrent: Torrent, list: TorrentFilesState): Fi
       const priority = priorityOf(file)
       return priority === file.priority ? file : { ...file, priority }
     })
-  }, [polled, requestedAt, inFlight, taken, hash])
+  }, [polled, requestedAt, sending, taken])
 
-  const set = async (index: number, priority: FilePriority) => {
+  const set = async (indexes: readonly number[], priority: FilePriority) => {
+    // Read from the store, not this render: another list may have sent one a moment ago.
+    const busy = sendingIn(requests.getSnapshot(), hash)
+    if (indexes.some((index) => busy.has(index))) return
     toast.dismiss(TOAST_KEYS.filePriority)
     setFailed(false)
     const settled = await requests.send(
       REQUEST_KINDS.filePriority,
       torrent,
-      { index, priority } satisfies PriorityChange,
-      () => setFilePriority(torrent.hash, [index], priority),
-      { part: String(index) },
+      { indexes, priority } satisfies PriorityChange,
+      () => setFilePriority(torrent.hash, indexes, priority),
+      { part: indexes.join() },
     )
     if (settled && !settled.ok && !settled.showing) {
       toast.show(t('torrent.priorityFailed'), { icon: 'alert', key: TOAST_KEYS.filePriority })
@@ -107,8 +125,8 @@ export function useFilePriorities(torrent: Torrent, list: TorrentFilesState): Fi
 
   return {
     files,
-    busy: (index) => pendingIn(inFlight, hash, index) !== undefined,
+    busy: (index) => sending.has(index),
     failed,
-    set: (index, priority) => void set(index, priority),
+    set: (indexes, priority) => void set(indexes, priority),
   }
 }

@@ -173,7 +173,7 @@ export async function getTorrentFiles(hash: string): Promise<TorrentFile[]> {
   return (await response.json()) as TorrentFile[]
 }
 
-export async function setFilePriority(hash: string, ids: number[], priority: FilePriority): Promise<void> {
+export async function setFilePriority(hash: string, ids: readonly number[], priority: FilePriority): Promise<void> {
   if (!ids.length) return
   await request('/torrents/filePrio', { method: 'POST', params: { hash, id: ids.join('|'), priority } })
 }

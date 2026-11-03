@@ -79,7 +79,7 @@ describe('TorrentFiles', () => {
 
   it('shows the folders as a tree, inside the torrent’s own folder, with each folder’s progress', async () => {
     getTorrentFiles.mockResolvedValue([
-      { index: 0, name: 'Show/Season 1/Show.S01E01.mkv', size: 1e9, progress: 1, priority: 1 },
+      { index: 0, name: 'Show/Season 1/Show.S01E01.mkv', size: 1e9, progress: 0.5, priority: 1 },
       { index: 1, name: 'Show/Season 2/Show.S02E01.mkv', size: 1e9, progress: 0, priority: 1 },
       { index: 2, name: 'Show/Sample.mkv', size: 1e6, progress: 0, priority: 0 },
     ])
@@ -90,11 +90,71 @@ describe('TorrentFiles', () => {
     const season2 = within(files).getByRole('button', { name: /Season 2/ })
     expect(season2).toHaveAttribute('aria-expanded', 'false')
     expect(season2).toHaveTextContent('1 file · 1.00 GB · 0%')
-    expect(within(files).getByRole('button', { name: /Season 1/ })).toHaveTextContent('1 file · 1.00 GB · 100%')
+    expect(within(files).getByRole('button', { name: /Season 1/ })).toHaveTextContent('1 file · 1.00 GB · 50%')
     await userEvent.click(season2)
     expect(within(files).getByRole('combobox', { name: 'Priority: Show.S02E01.mkv' })).toBeInTheDocument()
     await userEvent.click(season2)
     expect(within(files).queryByRole('combobox', { name: 'Priority: Show.S02E01.mkv' })).not.toBeInTheDocument()
+  })
+
+  it('gives each folder a priority for every file under it, Mixed while they differ, but not the torrent’s own folder', async () => {
+    // qBittorrent's indexes, which the requests take, aren't the files' places in the tree.
+    getTorrentFiles.mockResolvedValue([
+      { index: 7, name: 'Show/Season 1/Show.S01E02.mkv', size: 1e9, progress: 0, priority: 0 },
+      { index: 3, name: 'Show/Season 1/Show.S01E01.mkv', size: 1e9, progress: 0, priority: 1 },
+      { index: 5, name: 'Show/Season 2/Show.S02E01.mkv', size: 1e9, progress: 0, priority: 7 },
+    ])
+    const files = renderFiles()
+    const season1 = await within(files).findByRole('combobox', { name: 'Priority of every file in Season 1' })
+    expect(season1).toHaveDisplayValue('Mixed')
+    const season2 = within(files).getByRole('combobox', { name: 'Priority of every file in Season 2' })
+    expect(season2).toHaveValue('high')
+    // Mixed is a value to show, not one to pick, so a folder whose files agree doesn't have it.
+    expect(within(season2).getAllByRole('option', { hidden: true })).toHaveLength(3)
+    expect(within(files).queryByRole('combobox', { name: /every file in Show/ })).not.toBeInTheDocument()
+
+    await userEvent.selectOptions(season1, 'high')
+    expect(setFilePriority).toHaveBeenCalledExactlyOnceWith('dune', [7, 3], 6)
+    expect(season1).toHaveValue('high')
+    await userEvent.click(within(files).getByRole('button', { name: /Season 1/ }))
+    expect(within(files).getByRole('combobox', { name: 'Priority: Show.S01E02.mkv' })).toHaveValue('high')
+  })
+
+  it('turns a folder’s priority and its files’ off while the folder’s change is on its way, and a folder’s while one of its files’ is', async () => {
+    setFilePriority.mockReturnValue(new Promise(() => {}))
+    getTorrentFiles.mockResolvedValue([
+      { index: 0, name: 'Show/Season 1/Show.S01E01.mkv', size: 1e9, progress: 0, priority: 1 },
+      { index: 1, name: 'Show/Season 1/Show.S01E02.mkv', size: 1e9, progress: 0, priority: 1 },
+      { index: 2, name: 'Show/Season 2/Show.S02E01.mkv', size: 1e9, progress: 0, priority: 1 },
+      { index: 3, name: 'Show/Season 2/Show.S02E02.mkv', size: 1e9, progress: 0, priority: 1 },
+    ])
+    const files = renderFiles()
+    const season1 = await within(files).findByRole('combobox', { name: 'Priority of every file in Season 1' })
+    const season2 = within(files).getByRole('combobox', { name: 'Priority of every file in Season 2' })
+    await userEvent.click(within(files).getByRole('button', { name: /Season 1/ }))
+    await userEvent.click(within(files).getByRole('button', { name: /Season 2/ }))
+
+    await userEvent.selectOptions(season2, 'skip')
+    expect(season2).toBeDisabled()
+    expect(season2).toHaveAttribute('aria-busy', 'true')
+    const episode = within(files).getByRole('combobox', { name: 'Priority: Show.S02E02.mkv' })
+    expect(episode).toBeDisabled()
+    expect(episode).toHaveValue('skip')
+    expect(season1).toBeEnabled()
+    expect(season1).not.toHaveAttribute('aria-busy')
+
+    // One of its two files is enough.
+    await userEvent.selectOptions(within(files).getByRole('combobox', { name: 'Priority: Show.S01E01.mkv' }), 'high')
+    expect(season1).toBeDisabled()
+  })
+
+  it('can’t change a folder’s priority while qBittorrent is unreachable', async () => {
+    getTorrentFiles.mockResolvedValue([
+      { index: 0, name: 'Show/Season 1/Show.S01E01.mkv', size: 1e9, progress: 0, priority: 1 },
+      { index: 1, name: 'Show/Show.S02E01.mkv', size: 1e9, progress: 0, priority: 1 },
+    ])
+    const files = renderFiles(true)
+    expect(await within(files).findByRole('combobox', { name: 'Priority of every file in Season 1' })).toBeDisabled()
   })
 
   it('explains an empty list, as a magnet link has before its metadata arrives', async () => {
