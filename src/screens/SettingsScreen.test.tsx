@@ -137,6 +137,15 @@ describe('SettingsScreen', () => {
     for (const fn of checks) expect(fn).toHaveBeenCalledTimes(called.some((c) => c === fn) ? 1 : 0)
   })
 
+  it("can't Test a service while it is being checked", async () => {
+    vi.mocked(prowlarr.getProwlarrStatus).mockReturnValue(new Promise(() => {}))
+    renderScreen()
+    expect(await within(connection('qBittorrent')).findByRole('status', { name: saying('Connected') })).toBeInTheDocument()
+    expect(within(connection('Prowlarr')).getByRole('status', { name: saying('Checking…') })).toBeInTheDocument()
+    expect(within(connection('Prowlarr')).getByRole('button', { name: 'Test' })).toBeDisabled()
+    expect(within(connection('qBittorrent')).getByRole('button', { name: 'Test' })).toBeEnabled()
+  })
+
   it('cancels the checks still running when the screen closes', async () => {
     const running = new Promise<never>(() => {})
     vi.mocked(qbt.getAppVersion).mockReturnValue(running)
