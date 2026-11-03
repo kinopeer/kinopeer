@@ -66,13 +66,13 @@ export interface MainDataStore extends PollSource {
 export function createMainDataStore(): MainDataStore {
   let onUnauthorized = () => {}
   let snapshot: MainDataSnapshot = { data: null, offline: false, updatedAt: null, requestedAt: null }
-  let pollState: PollState = { inFlight: false, offline: false, updatedAt: null }
   let state = EMPTY_SYNC_STATE
   const listeners = new Set<() => void>()
   let timer: ReturnType<typeof setTimeout> | undefined
   let idleTimer: ReturnType<typeof setTimeout> | undefined
   let running = false
   let inFlight = false
+  let pollState: PollState = { inFlight, offline: snapshot.offline, updatedAt: snapshot.updatedAt }
   // Refreshed while a poll was in flight: that request went out before what the caller changed, so
   // poll again as soon as it's answered.
   let refreshed = false
