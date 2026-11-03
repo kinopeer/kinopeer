@@ -90,7 +90,7 @@ describe('DownloadsScreen on desktop', () => {
     expect(getSettings()).toMatchObject({ downloadsDesktopView: 'list', downloadsView: 'list' })
     const headers = within(screen.getByRole('table', { name: 'Downloads' })).getAllByRole('columnheader')
     expect(headers.map((header) => header.textContent)).toEqual([
-      '#',
+      '# Priority',
       'Poster',
       'Title',
       'Progress',
@@ -120,12 +120,27 @@ describe('DownloadsScreen on desktop', () => {
     expect(within(rows[0]).getByRole('link')).toHaveAttribute('href', '/torrent/dune')
   })
 
+  it('keeps the "#" column for the queue order reversed with nothing queued, so a click turns it back', async () => {
+    updateSettings({ downloadsDesktopView: 'list', downloadsSort: 'priority', downloadsSortDescending: true })
+    getMainData.mockResolvedValue({
+      ...SNAPSHOT,
+      torrents: { andor: SNAPSHOT.torrents!.andor, alien: SNAPSHOT.torrents!.alien },
+    })
+    renderScreen()
+    const [row] = await tableRows()
+    expect(screen.getByRole('columnheader', { name: '# Priority' })).toHaveAttribute('aria-sort', 'descending')
+    expect(within(row).getAllByRole('cell')).toHaveLength(9)
+    await userEvent.click(screen.getByRole('button', { name: '# Priority' }))
+    expect(getSettings()).toMatchObject({ downloadsSort: 'priority', downloadsSortDescending: false })
+    expect(screen.queryByRole('columnheader', { name: '# Priority' })).not.toBeInTheDocument()
+  })
+
   it('drops the "#" column when no torrent shown has a queue position', async () => {
     updateSettings({ downloadsDesktopView: 'list', downloadsSort: 'name' })
     const { unmount } = renderScreen()
     let [row] = await tableRows()
     let headers = within(screen.getByRole('table', { name: 'Downloads' })).getAllByRole('columnheader')
-    expect(headers.map((header) => header.textContent)).not.toContain('#')
+    expect(headers.map((header) => header.textContent)).not.toContain('# Priority')
     expect(within(row).getAllByRole('cell')).toHaveLength(headers.length)
     unmount()
 

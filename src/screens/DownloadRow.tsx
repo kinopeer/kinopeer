@@ -34,8 +34,17 @@ function SortHeader({
   const direction = order.descending ? 'descending' : 'ascending'
   return (
     <span role="columnheader" className={className} aria-sort={sorted ? direction : undefined}>
-      <button type="button" className={cx('dl-sort', sorted && 'is-on')} aria-label={label} onClick={() => onSort(sort)}>
+      <button type="button" className={cx('dl-sort', sorted && 'is-on')} onClick={() => onSort(sort)}>
         {children}
+        {/* After the visible text rather than in place of it, so voice control finds the button by what it shows. */}
+        {/* The space outside the span: whitespace inside it is trimmed from the name. A whitespace-only
+            flex item isn't rendered, so the gap stays as it is. */}
+        {label && (
+          <>
+            {' '}
+            <span className="sr-only">{label}</span>
+          </>
+        )}
         {sorted && <Icon name={order.descending ? 'arrow-down' : 'arrow-up'} size={14} strokeWidth={2.4} />}
       </button>
     </span>
@@ -57,7 +66,7 @@ export function DownloadRowHeader({ selecting, queue, ...sorting }: { selecting:
             <span className="sr-only">{t('downloads.columns.select')}</span>
           </span>
         ) : (
-          // "#" says little to a screen reader: the button reads as the menu's name for this sort.
+          // "#" says little to a screen reader: the menu's name for this sort follows it, hidden.
           <SortHeader sort="priority" label={t('downloads.sorts.priority')} {...sorting}>
             #
           </SortHeader>

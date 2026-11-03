@@ -98,6 +98,18 @@ describe('compareTorrents reversed', () => {
     expect(order('priority', torrents, { descending: true })).toEqual(['q2', 'q1', 'new', 'old'])
   })
 
+  it('puts the slowest first and still the torrents without a speed shown last, in queue order', () => {
+    const torrents = [
+      make('paused', { state: 'stoppedDL', priority: 2 }),
+      make('fast', { dlspeed: 1_000 }),
+      make('done', { state: 'stoppedUP', progress: 1, priority: 1 }),
+      make('stalled', { dlspeed: 0 }),
+      make('seeding', { state: 'uploading', progress: 1, upspeed: 50 }),
+    ]
+    // A downloading torrent at 0 B/s shows "↓ 0 B/s", a value; a paused or finished one shows "—".
+    expect(order('speed', torrents, { descending: false })).toEqual(['stalled', 'seeding', 'fast', 'done', 'paused'])
+  })
+
   it('puts the latest done first and still the torrents without a time left last', () => {
     const torrents = [
       make('stalled', { eta: 8_640_000 }),

@@ -155,8 +155,9 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
       )
       .sort(compareTorrents(order, (torrent) => matches[torrent.hash]?.title ?? torrent.name))
   }, [typed, filter, query, matches, order])
-  // The table's "#" column only when the queue order puts a position on some torrent shown.
-  const queueColumn = sort === 'priority' && visible.some((torrent) => torrent.priority > 0)
+  // The table's "#" column only when the queue order puts a position on some torrent shown, or while
+  // that order is reversed, so its header is there to turn it back once the queue has emptied.
+  const queueColumn = sort === 'priority' && (descending || visible.some((torrent) => torrent.priority > 0))
 
   // Only what's on screen counts, so a filter never leaves hidden torrents selected.
   const selectedVisible = selected ? visible.filter((torrent) => selected.has(torrent.hash)) : []

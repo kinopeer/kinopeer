@@ -31,7 +31,7 @@ describe('DownloadRowHeader', () => {
     const names = () => screen.getAllByRole('columnheader').map((header) => header.textContent)
     expect(names()).toEqual(['Poster', 'Title', 'Progress', 'Status', 'Speed', 'ETA', 'Size', 'Actions'])
     rerender(<DownloadRowHeader selecting={false} queue {...BY_QUEUE} />)
-    expect(names()[0]).toBe('#')
+    expect(names()[0]).toBe('# Priority')
     rerender(<DownloadRowHeader selecting queue={false} {...BY_QUEUE} />)
     expect(names()[0]).toBe('Select')
     // The checkboxes' column sorts nothing.
@@ -44,9 +44,9 @@ describe('DownloadRowHeader', () => {
       <DownloadRowHeader selecting={false} queue order={{ sort: 'size', descending: true }} onSort={onSort} />,
     )
     const buttons = screen.getAllByRole('columnheader').map((header) => within(header).queryByRole('button')?.textContent ?? null)
-    // The queue column's "#" reads as the sort's name.
-    expect(screen.getByRole('button', { name: 'Priority' })).toHaveTextContent('#')
-    expect(buttons).toEqual(['#', null, 'Title', 'Progress', null, 'Speed', 'ETA', 'Size', null])
+    // The queue column's "#" is followed by the sort's name, hidden, so the name still starts with what shows.
+    expect(screen.getByRole('button', { name: '# Priority' })).toBeInTheDocument()
+    expect(buttons).toEqual(['# Priority', null, 'Title', 'Progress', null, 'Speed', 'ETA', 'Size', null])
     const sorted = () =>
       screen
         .getAllByRole('columnheader')
@@ -58,7 +58,7 @@ describe('DownloadRowHeader', () => {
     expect(onSort).toHaveBeenCalledWith('name')
 
     rerender(<DownloadRowHeader selecting={false} queue order={{ sort: 'priority', descending: true }} onSort={onSort} />)
-    expect(sorted()).toEqual([['#', 'descending']])
+    expect(sorted()).toEqual([['# Priority', 'descending']])
     rerender(<DownloadRowHeader selecting={false} queue order={{ sort: 'eta', descending: false }} onSort={onSort} />)
     expect(sorted()).toEqual([['ETA', 'ascending']])
     // Date added has no column.
