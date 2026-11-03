@@ -450,14 +450,14 @@ export const SHOGUN_FILES = [
   { path: 'Shogun.S01.nfo', size: 6 * 1024 },
 ]
 
-/** qBittorrent's file list for the downloading Shōgun torrent: some files done, one skipped. */
+/** qBittorrent's file list for the downloading Shōgun torrent: some files done, one skipped, the subtitles first. */
 export function torrentFiles(): TorrentFile[] {
   return SHOGUN_FILES.map((file, index) => ({
     index,
     name: `Shogun.S01.2160p/${file.path}`,
     size: file.size,
     progress: index < 2 ? 1 : index === 2 ? 0.37 : 0,
-    priority: index === 9 ? 0 : 1,
+    priority: index === 9 ? 0 : file.path.startsWith('Subs/') ? 6 : 1,
   }))
 }
 

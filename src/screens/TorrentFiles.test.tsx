@@ -79,7 +79,7 @@ describe('TorrentFiles', () => {
 
   it('shows the folders as a tree, inside the torrent’s own folder, with each folder’s progress', async () => {
     getTorrentFiles.mockResolvedValue([
-      { index: 0, name: 'Show/Season 1/Show.S01E01.mkv', size: 1e9, progress: 1, priority: 1 },
+      { index: 0, name: 'Show/Season 1/Show.S01E01.mkv', size: 1e9, progress: 0.5, priority: 1 },
       { index: 1, name: 'Show/Season 2/Show.S02E01.mkv', size: 1e9, progress: 0, priority: 1 },
       { index: 2, name: 'Show/Sample.mkv', size: 1e6, progress: 0, priority: 0 },
     ])
@@ -90,7 +90,7 @@ describe('TorrentFiles', () => {
     const season2 = within(files).getByRole('button', { name: /Season 2/ })
     expect(season2).toHaveAttribute('aria-expanded', 'false')
     expect(season2).toHaveTextContent('1 file · 1.00 GB · 0%')
-    expect(within(files).getByRole('button', { name: /Season 1/ })).toHaveTextContent('1 file · 1.00 GB · 100%')
+    expect(within(files).getByRole('button', { name: /Season 1/ })).toHaveTextContent('1 file · 1.00 GB · 50%')
     await userEvent.click(season2)
     expect(within(files).getByRole('combobox', { name: 'Priority: Show.S02E01.mkv' })).toBeInTheDocument()
     await userEvent.click(season2)
@@ -107,7 +107,10 @@ describe('TorrentFiles', () => {
     const files = renderFiles()
     const season1 = await within(files).findByRole('combobox', { name: 'Priority of every file in Season 1' })
     expect(season1).toHaveDisplayValue('Mixed')
-    expect(within(files).getByRole('combobox', { name: 'Priority of every file in Season 2' })).toHaveValue('high')
+    const season2 = within(files).getByRole('combobox', { name: 'Priority of every file in Season 2' })
+    expect(season2).toHaveValue('high')
+    // Mixed is a value to show, not one to pick, so a folder whose files agree doesn't have it.
+    expect(within(season2).getAllByRole('option', { hidden: true })).toHaveLength(3)
     expect(within(files).queryByRole('combobox', { name: /every file in Show/ })).not.toBeInTheDocument()
 
     await userEvent.selectOptions(season1, 'high')
@@ -121,8 +124,9 @@ describe('TorrentFiles', () => {
     setFilePriority.mockReturnValue(new Promise(() => {}))
     getTorrentFiles.mockResolvedValue([
       { index: 0, name: 'Show/Season 1/Show.S01E01.mkv', size: 1e9, progress: 0, priority: 1 },
-      { index: 1, name: 'Show/Season 2/Show.S02E01.mkv', size: 1e9, progress: 0, priority: 1 },
-      { index: 2, name: 'Show/Season 2/Show.S02E02.mkv', size: 1e9, progress: 0, priority: 1 },
+      { index: 1, name: 'Show/Season 1/Show.S01E02.mkv', size: 1e9, progress: 0, priority: 1 },
+      { index: 2, name: 'Show/Season 2/Show.S02E01.mkv', size: 1e9, progress: 0, priority: 1 },
+      { index: 3, name: 'Show/Season 2/Show.S02E02.mkv', size: 1e9, progress: 0, priority: 1 },
     ])
     const files = renderFiles()
     const season1 = await within(files).findByRole('combobox', { name: 'Priority of every file in Season 1' })
@@ -133,10 +137,13 @@ describe('TorrentFiles', () => {
     await userEvent.selectOptions(season2, 'skip')
     expect(season2).toBeDisabled()
     expect(season2).toHaveAttribute('aria-busy', 'true')
-    expect(within(files).getByRole('combobox', { name: 'Priority: Show.S02E02.mkv' })).toBeDisabled()
-    expect(within(files).getByRole('combobox', { name: 'Priority: Show.S02E02.mkv' })).toHaveValue('skip')
+    const episode = within(files).getByRole('combobox', { name: 'Priority: Show.S02E02.mkv' })
+    expect(episode).toBeDisabled()
+    expect(episode).toHaveValue('skip')
     expect(season1).toBeEnabled()
+    expect(season1).not.toHaveAttribute('aria-busy')
 
+    // One of its two files is enough.
     await userEvent.selectOptions(within(files).getByRole('combobox', { name: 'Priority: Show.S01E01.mkv' }), 'high')
     expect(season1).toBeDisabled()
   })
