@@ -43,7 +43,8 @@ export function useSearchResults(
 ): SearchResultsState {
   const { key: entry } = useLocation()
   const loadRef = useRef(load)
-  const [state, setState] = useState(() => kept(entry, search))
+  // Kept results show without being in it (Back, a tab picked again): it holds what this screen loaded.
+  const [state, setState] = useState<State | null>(null)
   const [attempt, setAttempt] = useState(0)
   const more = useRef<AbortController | null>(null)
 

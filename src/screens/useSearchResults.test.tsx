@@ -12,11 +12,31 @@ const ALIEN = title('movie', 2, 'Alien')
 
 const wrapper = ({ children }: { children: ReactNode }) => <MemoryRouter>{children}</MemoryRouter>
 
-/** A load whose pages answer only when told to, in any order. */
+/** A load whose pages answer or fail only when told to, in any order. */
 function pendingLoad() {
   const answers: ((page: SearchPage) => void)[] = []
-  const load = vi.fn((_page: number, _signal: AbortSignal) => new Promise<SearchPage>((resolve) => answers.push(resolve)))
-  return { load, answers }
+  const failures: ((error: unknown) => void)[] = []
+  const load = vi.fn(
+    (_page: number, _signal: AbortSignal) =>
+      new Promise<SearchPage>((resolve, reject) => {
+        answers.push(resolve)
+        failures.push(reject)
+      }),
+  )
+  return { load, answers, failures }
+}
+
+/** Dune's search changed to Alien's before its first page came; Alien's came, and its next page is on its way. */
+async function searchChanged() {
+  const pending = pendingLoad()
+  const hook = renderHook(({ search }) => useSearchResults(search, pending.load), {
+    wrapper,
+    initialProps: { search: 'dune' },
+  })
+  hook.rerender({ search: 'alien' })
+  await act(async () => pending.answers[1](searchPage([ALIEN], { totalPages: 2 })))
+  act(() => hook.result.current.showMore())
+  return { ...pending, result: hook.result }
 }
 
 beforeEach(() => forgetKeptResults())
@@ -29,38 +49,17 @@ describe('useSearchResults', () => {
     expect(load).not.toHaveBeenCalled()
   })
 
+  // Alien's results would come back from what's kept for Back, so the next page on its way is what shows it.
   it('drops a first page that answers after the search changed', async () => {
-    const { load, answers } = pendingLoad()
-    const { result, rerender } = renderHook(({ search }) => useSearchResults(search, load), {
-      wrapper,
-      initialProps: { search: 'dune' },
-    })
-    rerender({ search: 'alien' })
-
-    await act(async () => answers[1](searchPage([ALIEN])))
+    const { answers, result } = await searchChanged()
     await act(async () => answers[0](searchPage([DUNE])))
-
-    expect(result.current.results?.titles).toEqual([ALIEN])
+    expect(result.current).toMatchObject({ results: { titles: [ALIEN] }, loadingMore: true })
   })
 
   it('drops the failure of a search that changed, as an aborted request fails', async () => {
-    const load = vi.fn((_page: number, signal: AbortSignal) =>
-      signal.aborted ? Promise.reject(new DOMException('Aborted', 'AbortError')) : Promise.resolve(searchPage([ALIEN])),
-    )
-    let fail = (_error: unknown) => {}
-    load.mockImplementationOnce(() => new Promise((_resolve, reject) => (fail = reject)))
-    const { result, rerender } = renderHook(({ search }) => useSearchResults(search, load), {
-      wrapper,
-      initialProps: { search: 'dune' },
-    })
-    rerender({ search: 'alien' })
-    await act(async () => {})
-
-    await act(async () => fail(new DOMException('Aborted', 'AbortError')))
-
-    expect(result.current).toMatchObject({ error: undefined, results: { titles: [ALIEN] } })
-    // Taken for the new search's state, the failure would drop its results and have them asked for again.
-    expect(load).toHaveBeenCalledTimes(2)
+    const { failures, result } = await searchChanged()
+    await act(async () => failures[0](new DOMException('Aborted', 'AbortError')))
+    expect(result.current).toMatchObject({ error: undefined, results: { titles: [ALIEN] }, loadingMore: true })
   })
 
   it('asks again on every retry', async () => {
