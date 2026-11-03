@@ -168,10 +168,12 @@ describe('startUpdateChecks', () => {
     expect(reload).toHaveBeenCalledOnce()
   })
 
-  it('still reloads when the session can\'t be written', async () => {
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new DOMException('Quota exceeded', 'QuotaExceededError')
-    })
+  it('still reloads when the session\'s storage is blocked', async () => {
+    for (const method of ['getItem', 'setItem'] as const) {
+      vi.spyOn(Storage.prototype, method).mockImplementation(() => {
+        throw new DOMException('The operation is insecure.', 'SecurityError')
+      })
+    }
     serverHas(NEW)
     stop = startUpdateChecks(reload)
     await settle()

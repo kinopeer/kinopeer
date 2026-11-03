@@ -76,11 +76,8 @@ export function markReloadedFor(version: string): void {
 /** Whether this page is the version the session reloaded for, once: the app says it was updated. */
 export function takeJustUpdated(): boolean {
   if (reloadedFor() !== __APP_VERSION__) return false
-  try {
-    sessionStorage.removeItem(RELOADED_FOR_KEY)
-  } catch {
-    // Can't happen once getItem worked; the toast may then show again on a reload.
-  }
+  // The storage answered just now, so this doesn't throw.
+  sessionStorage.removeItem(RELOADED_FOR_KEY)
   return true
 }
 
