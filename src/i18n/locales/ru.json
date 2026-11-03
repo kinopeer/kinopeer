@@ -1,6 +1,7 @@
 {
   "app": {
-    "connecting": "Подключаемся к qBittorrent…"
+    "connecting": "Подключаемся к qBittorrent…",
+    "updated": "Kinoseed обновлён до {{version}}"
   },
   "theme": {
     "label": "Тема",

@@ -9,6 +9,7 @@ import * as serverSettings from './api/settings'
 import * as tmdb from './api/tmdb'
 import App from './App'
 import { stubDesktop } from './lib/stubDesktop'
+import { markReloadedFor } from './pwa/updates'
 import { findToastOnPage, renderWithRouter, saying, Where, where } from './test/render'
 
 vi.mock('./api/qbittorrent', async (importOriginal) => {
@@ -96,6 +97,20 @@ describe('App', () => {
   it('goes straight in when qBittorrent needs no login', async () => {
     renderApp()
     expect(await screen.findByRole('heading', { name: 'Downloads' })).toBeInTheDocument()
+  })
+
+  it('says the app was updated after reloading for a new version', async () => {
+    markReloadedFor(__APP_VERSION__)
+    renderApp()
+    expect(await findToastOnPage(`Kinoseed updated to ${__APP_VERSION__}`)).toBeInTheDocument()
+  })
+
+  it('says nothing of an update on an ordinary start', async () => {
+    renderApp()
+    await userEvent.click(await screen.findByRole('link', { name: 'Settings' }))
+    // Settings' answer arrived, well after the start, while a toast from it would still show.
+    await screen.findByText('Connected · qBittorrent v5.2.4 · API 2.11.4')
+    expect(screen.queryByRole('status', { name: saying(/Kinoseed updated/) })).not.toBeInTheDocument()
   })
 
   it('navigates between tabs', async () => {

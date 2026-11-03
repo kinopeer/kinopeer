@@ -7,6 +7,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 ### Fixed
 
 - Pause and resume: the torrent's new status shows as soon as qBittorrent takes it and stays, instead of showing only after the next update, up to a few seconds later. ([#209](https://github.com/MrShakhov/kinoseed/issues/209))
+- The app on the Home Screen or a tab left open moves to a new version after an update when it comes back to the foreground, with a toast that says so, instead of staying on the old one until it's closed completely. ([#210](https://github.com/MrShakhov/kinoseed/issues/210))
 
 ## 0.6.1 - 2026-11-02
 

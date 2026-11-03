@@ -54,19 +54,36 @@ function serverRoutesPlugin(kinoseed: KinoseedServer): Plugin {
 
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }
 
+/**
+ * Writes version.json next to index.html with the version the bundle has, which an open app compares
+ * with its own to reload into a new one (src/pwa/updates.ts). A static file, so it needs no server;
+ * the service worker doesn't precache it (no .json in globPatterns) and server/static.ts revalidates it.
+ */
+function versionFilePlugin(appVersion: string): Plugin {
+  return {
+    name: 'kinoseed-version-file',
+    apply: 'build',
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ version: appVersion }) })
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const stores = dataStores(resolve(env.KINOSEED_DATA_DIR || 'data'))
+  const appVersion = env.KINOSEED_COMMIT ? `${version}+${env.KINOSEED_COMMIT}` : version
   void stores.settings.load()
 
   return {
     // Shown in Settings → About (src/version.d.ts). Edge builds of main (.github/workflows/edge.yml)
     // pass the commit, so the version says which one is running: 0.6.0+abc1234.
-    define: { __APP_VERSION__: JSON.stringify(env.KINOSEED_COMMIT ? `${version}+${env.KINOSEED_COMMIT}` : version) },
+    define: { __APP_VERSION__: JSON.stringify(appVersion) },
     plugins: [
       react(),
       pwa,
+      versionFilePlugin(appVersion),
       serverRoutesPlugin(kinoseedServer(env, stores)),
     ],
     test: {
