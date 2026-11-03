@@ -21,6 +21,8 @@ npm start          # production server over dist/
 npm run test:visual  # screenshot tests in Docker (docs/TESTING.md)
 ```
 
+The screenshot tests keep the container's `node_modules` in a Docker volume per checkout, so worktrees can run them at once; a volume goes away by itself once its checkout's folder does ([TESTING.md](TESTING.md) → Screenshot tests).
+
 The dev server has the same routes as production: `/qbt`, `/prowlarr`, `/tmdb`, `/tmdb-img`, `/api/settings`. Run lint, typecheck, test and build before pushing; CI runs the same on every PR (the tests with coverage, whose totals land in the job summary), runs the screenshot tests and builds and smoke-tests the Docker image. `npm run test:mutants` runs locally before a PR is marked ready, and in CI once per PR head ([TESTING.md](TESTING.md) → A test that can fail). The service worker is off in `npm run dev`: try it with `npm run build && npm run preview`.
 
 ## Tests
