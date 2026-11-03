@@ -459,7 +459,8 @@
     "updated": "Обновлено в {{time}}",
     "waiting": "Ждём ответа qBittorrent",
     "offline": "qBittorrent не отвечает",
-    "offlineSince": "qBittorrent не отвечает · обновлено в {{time}}"
+    "offlineSince": "qBittorrent не отвечает · обновлено в {{time}}",
+    "withContext": "{{prefix}} · {{label}}"
   },
   "crash": {
     "title": "Что-то пошло не так",

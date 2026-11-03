@@ -18,8 +18,12 @@ export interface SidebarStatusProps {
   altSpeedLimits?: boolean
   altSpeedDisabled?: boolean
   onToggleAltSpeed?: () => void
-  /** Before the connection in the card and at the top of the rail: the poll's ring, which shows whether qBittorrent answers. */
-  indicator?: ReactNode
+  /**
+   * Before the connection in the card and at the top of the rail: the poll's ring, which shows
+   * whether qBittorrent answers. The rail's gets the connection's status, which nothing beside it
+   * shows, for its tooltip.
+   */
+  indicator?: (status?: string) => ReactNode
 }
 
 /** Splits a formatted size or speed into its number and unit, which the rail stacks. */
@@ -65,7 +69,7 @@ export function SidebarStatus({
     <section className="ks-side-status" aria-label="qBittorrent">
       <div className="ks-side-card">
         <p className="ks-side-status-head t-cap">
-          {indicator}
+          {indicator?.()}
           <span className="ks-trunc">{status}</span>
         </p>
         <p className="ks-side-status-speeds t-cap ks-num c2">
@@ -96,7 +100,7 @@ export function SidebarStatus({
       </div>
       <div className="ks-side-mini ks-num">
         <span className="ks-side-mini-indicator">
-          {indicator}
+          {indicator?.(status)}
           <span className="sr-only">{status}</span>
         </span>
         {stacked(t('downloads.downloadSpeed'), speed(downloadSpeed), <span aria-hidden="true">↓</span>)}

@@ -16,13 +16,13 @@ const refresh = vi.fn()
 const onFailed = vi.fn()
 
 /** The poll's state: `requestedAt` is when the request behind it was sent, `updatedAt` when it answered. */
-interface PollState {
+interface SnapshotOptions {
   offline?: boolean
   requestedAt?: number
   updatedAt?: number
 }
 
-function main(alt: boolean | undefined, { offline = false, requestedAt = 0, updatedAt = requestedAt }: PollState = {}): MainDataState {
+function main(alt: boolean | undefined, { offline = false, requestedAt = 0, updatedAt = requestedAt }: SnapshotOptions = {}): MainDataState {
   const server = alt === undefined ? {} : { use_alt_speed_limits: alt }
   return { data: { ...EMPTY_SYNC_STATE, server }, offline, updatedAt, requestedAt, refresh, poll: fakePoll().poll }
 }

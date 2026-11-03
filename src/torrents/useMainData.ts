@@ -77,6 +77,8 @@ export function createMainDataStore(): MainDataStore {
   // poll again as soon as it's answered.
   let refreshed = false
   let unauthorized = false
+  // Gives up the poll in flight without counting it as a failure.
+  let dropInFlight = () => {}
 
   // The data's snapshot and the poll's state are separate objects, so a request going out renders
   // only what shows the poll, not every screen that reads the data. Called only when a request goes
@@ -100,6 +102,11 @@ export function createMainDataStore(): MainDataStore {
     update({})
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), POLL_TIMEOUT_MS)
+    let dropped = false
+    dropInFlight = () => {
+      dropped = true
+      controller.abort()
+    }
     let delay = POLL_INTERVAL_MS
     let changes: Partial<MainDataSnapshot>
     try {
@@ -113,10 +120,12 @@ export function createMainDataStore(): MainDataStore {
         onUnauthorized()
         return
       }
-      changes = { offline: true }
+      // Dropped: not qBittorrent's failure, so the screens keep what they showed.
+      changes = dropped ? {} : { offline: true }
       delay = OFFLINE_POLL_INTERVAL_MS
     } finally {
       clearTimeout(timeout)
+      dropInFlight = () => {}
       inFlight = false
     }
     // Stopped meanwhile: the answer is dropped, and only the poll's state says nothing is in flight.
@@ -124,11 +133,24 @@ export function createMainDataStore(): MainDataStore {
     schedule(refreshed ? 0 : delay)
   }
 
-  const onVisibilityChange = () => {
-    if (document.hidden) clearTimeout(timer)
-    else void poll()
+  // A poll in flight may hang until its timeout, so it's given up and sent again, at once, rather
+  // than waited for (10 s, then the offline interval).
+  const pollNow = () => {
+    if (!inFlight) return void poll()
+    refreshed = true
+    dropInFlight()
   }
-  const onOnline = () => void poll()
+  // A hidden page drops its poll too: the timeout would mark it offline while nobody looks, and the
+  // banner and the reconnected toast would flash on return. It polls again when it's back.
+  const onVisibilityChange = () => {
+    if (document.hidden) {
+      clearTimeout(timer)
+      dropInFlight()
+    } else pollNow()
+  }
+  const onOnline = () => {
+    if (!document.hidden) pollNow()
+  }
 
   const start = () => {
     if (running || unauthorized) return

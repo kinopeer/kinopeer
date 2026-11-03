@@ -83,11 +83,18 @@ describe('SidebarStatus', () => {
     expect(screen.queryByText('TB')).not.toBeInTheDocument()
   })
 
-  it('shows the indicator in the card and in the rail, each beside the connection', () => {
-    render(<SidebarStatus version="5.0.1" offline={false} indicator={<span role="img" aria-label="Poll" />} />)
-    const indicators = screen.getAllByRole('img', { name: 'Poll' })
-    expect(indicators).toHaveLength(2)
-    for (const indicator of indicators) expect(indicator.parentElement).toHaveTextContent('qBittorrent 5.0.1')
+  it('shows the indicator in the card and in the rail, the rail’s with the connection for its tooltip', () => {
+    render(
+      <SidebarStatus
+        version="5.0.1"
+        offline={false}
+        indicator={(status) => <span role="img" aria-label="Poll" title={status ?? 'none'} />}
+      />,
+    )
+    expect(screen.getAllByRole('img', { name: 'Poll' })).toHaveLength(2)
+    // The card writes the connection beside it; nothing in the rail does.
+    expect(screen.getByTitle('none')).toBeInTheDocument()
+    expect(screen.getByTitle('qBittorrent 5.0.1')).toBeInTheDocument()
   })
 
   it('switches the alternative speed limits from the card and from the rail', async () => {

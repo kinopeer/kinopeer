@@ -174,7 +174,7 @@ function AppSidebar({ items, version, pathname }: { items: TabBarItem[]; version
           altSpeedLimits={altSpeed.on}
           altSpeedDisabled={altSpeed.disabled}
           onToggleAltSpeed={altSpeed.toggle}
-          indicator={<PollRing poll={main.poll} />}
+          indicator={(status) => <PollRing poll={main.poll} context={status} />}
         />
       }
     />

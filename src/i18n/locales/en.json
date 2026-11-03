@@ -424,7 +424,8 @@
     "updated": "Updated at {{time}}",
     "waiting": "Waiting for qBittorrent",
     "offline": "qBittorrent isn’t answering",
-    "offlineSince": "qBittorrent isn’t answering · updated at {{time}}"
+    "offlineSince": "qBittorrent isn’t answering · updated at {{time}}",
+    "withContext": "{{prefix}} · {{label}}"
   },
   "crash": {
     "title": "Something went wrong",

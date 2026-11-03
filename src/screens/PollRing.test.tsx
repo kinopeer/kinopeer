@@ -41,6 +41,7 @@ describe('PollRing', () => {
     const ring = screen.getByRole('img', { name: UPDATED })
     expect(ringState(ring)).toBe('filling')
     expect(ring).toHaveStyle({ '--poll-interval': `${POLL_INTERVAL_MS}ms` })
+    expect(ring).toHaveAttribute('title', ring.getAttribute('aria-label'))
   })
 
   it('waits while the next poll is in flight, still saying when the data was updated', () => {
@@ -51,6 +52,13 @@ describe('PollRing', () => {
     expect(ringState(screen.getByRole('img', { name: UPDATED }))).toBe('waiting')
     // The same arc: only an answer starts the filling over.
     expect(fill(container)).toBe(arc)
+  })
+
+  it('says what it’s given before the update time in its tooltip, not in its name', () => {
+    const { poll } = fakePoll(answered)
+    render(<PollRing poll={poll} context="qBittorrent 5.0.1" />)
+    const ring = screen.getByRole('img', { name: UPDATED })
+    expect(ring).toHaveAttribute('title', expect.stringMatching(/^qBittorrent 5\.0\.1 · Updated at 9:05:07\sPM$/))
   })
 
   it('starts over with each answer', () => {

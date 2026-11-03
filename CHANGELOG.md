@@ -17,7 +17,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ### Fixed
 
-- An update of qBittorrent's state that gets no answer gives up after 10 seconds and shows the "No connection to qBittorrent" banner, instead of leaving older and older data on screen without a word and stopping the updates. ([#218](https://github.com/MrShakhov/kinoseed/issues/218))
+- An update of qBittorrent's state that gets no answer gives up after 10 seconds and shows the "No connection to qBittorrent" banner, instead of leaving older and older data on screen without a word and stopping the updates. One still waiting when the device comes back online or the app comes back to the foreground is sent again at once. ([#218](https://github.com/MrShakhov/kinoseed/issues/218))
 - Pause and resume: the torrent's new status shows as soon as qBittorrent takes it and stays, instead of showing only after the next update, up to a few seconds later. ([#209](https://github.com/MrShakhov/kinoseed/issues/209))
 - The app on the Home Screen or a tab left open moves to a new version after an update when it comes back to the foreground, with a toast that says so, instead of staying on the old one until it's closed completely. ([#210](https://github.com/MrShakhov/kinoseed/issues/210))
 

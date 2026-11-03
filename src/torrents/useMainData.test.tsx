@@ -14,6 +14,16 @@ vi.mock('../api/qbittorrent', async (importOriginal) => {
 
 const getMainData = vi.mocked(api.getMainData)
 
+/** A request that hangs, as fetch does, failing only when its signal aborts. */
+const hang = (_rid?: number, signal?: AbortSignal) =>
+  new Promise<api.MainData>((_resolve, reject) => signal?.addEventListener('abort', () => reject(signal.reason)))
+
+/** Hides or shows the page, as switching tabs does. */
+function setHidden(hidden: boolean) {
+  vi.spyOn(document, 'hidden', 'get').mockReturnValue(hidden)
+  document.dispatchEvent(new Event('visibilitychange'))
+}
+
 beforeEach(() => {
   vi.useFakeTimers()
   vi.resetAllMocks()
@@ -21,6 +31,8 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers()
+  // The page's visibility (`setHidden`).
+  vi.restoreAllMocks()
 })
 
 describe('useMainData', () => {
@@ -97,12 +109,9 @@ describe('useMainData', () => {
   })
 
   it('gives up a poll that hangs, shows offline and polls again', async () => {
-    // Like fetch: the request fails only when its signal aborts.
     getMainData
       .mockResolvedValueOnce({ rid: 1, full_update: true, torrents: { a: { name: 'A' } } })
-      .mockImplementationOnce(
-        (_rid, signal) => new Promise((_resolve, reject) => signal?.addEventListener('abort', () => reject(signal.reason))),
-      )
+      .mockImplementationOnce(hang)
       .mockResolvedValue({ rid: 2 })
     const { result } = renderHook(() => useMainData(vi.fn()))
     await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS))
@@ -119,6 +128,50 @@ describe('useMainData', () => {
     await act(() => vi.advanceTimersByTimeAsync(OFFLINE_POLL_INTERVAL_MS))
     expect(getMainData).toHaveBeenCalledTimes(3)
     expect(result.current.offline).toBe(false)
+  })
+
+  it('gives up a poll that hangs when the device comes back online and polls again at once', async () => {
+    getMainData
+      .mockResolvedValueOnce({ rid: 1, full_update: true, torrents: { a: { name: 'A' } } })
+      .mockImplementationOnce(hang)
+      .mockResolvedValue({ rid: 2, torrents: { a: { name: 'B' } } })
+    const shown: boolean[] = []
+    const { result } = renderHook(() => {
+      const main = useMainData(vi.fn())
+      shown.push(main.offline)
+      return main
+    })
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS))
+    expect(getMainData).toHaveBeenCalledTimes(2)
+
+    window.dispatchEvent(new Event('online'))
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    expect(getMainData).toHaveBeenCalledTimes(3)
+    expect(result.current.data?.torrents.a.name).toBe('B')
+    // Given up, not failed: the screens never said qBittorrent stopped answering.
+    expect(shown).not.toContain(true)
+  })
+
+  it('gives up a poll in flight when the page is hidden, without going offline, and polls when it’s back', async () => {
+    getMainData.mockImplementationOnce(hang).mockResolvedValue({ rid: 1 })
+    const { result } = renderHook(() => useMainData(vi.fn()))
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    const [[, signal]] = getMainData.mock.calls
+
+    act(() => setHidden(true))
+    expect(signal?.aborted).toBe(true)
+    await act(() => vi.advanceTimersByTimeAsync(POLL_TIMEOUT_MS))
+    expect(result.current.offline).toBe(false)
+    expect(result.current.poll.getPollState().inFlight).toBe(false)
+    // Nothing polls while hidden, the device coming back online included.
+    window.dispatchEvent(new Event('online'))
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS))
+    expect(getMainData).toHaveBeenCalledTimes(1)
+
+    act(() => setHidden(false))
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    expect(getMainData).toHaveBeenCalledTimes(2)
+    expect(result.current.data).not.toBeNull()
   })
 
   it('doesn’t time out a poll answered in time', async () => {

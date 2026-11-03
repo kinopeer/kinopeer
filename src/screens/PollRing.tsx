@@ -5,16 +5,23 @@ import { useFormatters } from '../lib/format'
 import { POLL_INTERVAL_MS, type PollSource } from '../torrents/useMainData'
 import './PollRing.css'
 
-export type PollRingState = 'filling' | 'waiting' | 'offline'
+type PollRingState = 'filling' | 'waiting' | 'offline'
+
+export interface PollRingProps {
+  poll: PollSource
+  /** Said before the update time in the tooltip, where nothing beside the ring says it (the rail's qBittorrent version). */
+  context?: string
+  className?: string
+}
 
 /**
  * The qBittorrent poll at a glance: a ring that fills until the next poll, stays full and pulses while
  * the answer is awaited, and turns to the error color while qBittorrent doesn't answer. It reads the
  * poll on its own, so it renders when a request goes out or an answer arrives and the screen it's on
- * doesn't; the filling is a CSS animation that starts over with each answer. Its name says when the
- * data was last updated.
+ * doesn't; the filling is a CSS animation that starts over with each answer. Its name and tooltip
+ * say when the data was last updated.
  */
-export function PollRing({ poll, className }: { poll: PollSource; className?: string }) {
+export function PollRing({ poll, context, className }: PollRingProps) {
   const { t } = useTranslation()
   const format = useFormatters()
   const { inFlight, offline, updatedAt } = useSyncExternalStore(poll.subscribe, poll.getPollState)
@@ -34,7 +41,7 @@ export function PollRing({ poll, className }: { poll: PollSource; className?: st
       className={cx('poll-ring', `is-${state}`, className)}
       role="img"
       aria-label={label}
-      title={label}
+      title={context === undefined ? label : t('poll.withContext', { prefix: context, label })}
       style={style}
     >
       <svg viewBox="0 0 16 16" aria-hidden="true">
