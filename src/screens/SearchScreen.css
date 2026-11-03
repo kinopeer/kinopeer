@@ -90,6 +90,10 @@
   margin-bottom: -16px;
 }
 
+.search-more {
+  align-self: center;
+}
+
 /* Underlined tabs (design system "Tabs"). */
 .ks-tabs {
   display: flex;

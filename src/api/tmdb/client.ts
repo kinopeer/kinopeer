@@ -117,10 +117,29 @@ function toTypedPage(data: Paged<MovieResult | TvResult>, type: MediaType): Titl
   return { titles: data.results.map((item) => toTitle(item, type)), page: data.page, totalPages: data.total_pages }
 }
 
+/** TMDB answers a page past 500 with an error, whatever `total_pages` says. */
+export const TMDB_MAX_PAGE = 500
+
+/** A page of search results. */
+export interface SearchPage extends TitlePage {
+  /** TMDB's count for the whole search, which also counts the people `/search/multi` finds. */
+  totalResults: number
+}
+
 export interface SearchOptions extends RequestOptions {
   page?: number
   /** Only titles released (movies) or first aired (series) that year. */
   year?: number
+  /** Only movies or only series; both when left out. */
+  type?: MediaType
+}
+
+/** Each type's own year parameter: a movie's year is its first release, a series' its first air date. */
+const YEAR_PARAM = { movie: 'primary_release_year', tv: 'first_air_date_year' } as const
+
+function searchType(type: MediaType, query: string, options: SearchOptions): Promise<Paged<MovieResult | TvResult>> {
+  const { page, year } = options
+  return request(`/search/${type}`, { query, page, include_adult: false, [YEAR_PARAM[type]]: year }, options)
 }
 
 /**
@@ -137,23 +156,26 @@ function interleaveByPopularity<T extends { popularity: number }>(a: T[], b: T[]
 }
 
 /**
- * Movies and series matching the query; people are left out. `/search/multi` has no year filter, so with a year
- * it searches movies and series apart, each with its own year parameter, and interleaves the two lists.
+ * Movies and series matching the query; people are left out. A type searches only its own endpoint.
+ * `/search/multi` has no year filter, so with a year and no type it searches movies and series apart and
+ * interleaves the two lists. Both are asked for the same page: TMDB answers a page past one's end with no
+ * results, so the other goes on alone.
  */
-export async function searchTitles(query: string, options: SearchOptions = {}): Promise<TitlePage> {
-  const { year, page } = options
+export async function searchTitles(query: string, options: SearchOptions = {}): Promise<SearchPage> {
+  const { year, page, type } = options
+  if (type !== undefined) {
+    const data = await searchType(type, query, options)
+    return { ...toTypedPage(data, type), totalResults: data.total_results }
+  }
   if (year === undefined) {
     const data = await request<Paged<MovieResult | TvResult | PersonResult>>(
       '/search/multi',
       { query, page, include_adult: false },
       options,
     )
-    return toTitlePage(data)
+    return { ...toTitlePage(data), totalResults: data.total_results }
   }
-  const [movies, series] = await Promise.all([
-    request<Paged<MovieResult>>('/search/movie', { query, page, include_adult: false, primary_release_year: year }, options),
-    request<Paged<TvResult>>('/search/tv', { query, page, include_adult: false, first_air_date_year: year }, options),
-  ])
+  const [movies, series] = await Promise.all([searchType('movie', query, options), searchType('tv', query, options)])
   // These endpoints omit media_type.
   const titles = interleaveByPopularity(
     movies.results.map((item) => ({ popularity: item.popularity, title: toTitle(item, 'movie') })),
@@ -163,6 +185,7 @@ export async function searchTitles(query: string, options: SearchOptions = {}): 
     titles: titles.map(({ title }) => title),
     page: page ?? 1,
     totalPages: Math.max(movies.total_pages, series.total_pages),
+    totalResults: movies.total_results + series.total_results,
   }
 }
 

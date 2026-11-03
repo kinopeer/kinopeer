@@ -325,6 +325,19 @@ export function title(type: Title['type'], id: number, name: string, year?: numb
   }
 }
 
+// The client's SearchPage spelled out: the server's tests compile this file too, and can't follow the client's
+// imports, which have no extensions.
+interface SearchPageFields {
+  page: number
+  totalPages: number
+  totalResults: number
+}
+
+/** One page of search results, the only one unless `fields` says there are more. */
+export function searchPage(titles: Title[], fields: Partial<SearchPageFields> = {}): SearchPageFields & { titles: Title[] } {
+  return { titles, page: 1, totalPages: 1, totalResults: titles.length, ...fields }
+}
+
 // Prowlarr
 
 /** A release as Kinoseed's server hands it to the browser. */

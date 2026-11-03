@@ -4,6 +4,10 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ## Unreleased
 
+### Added
+
+- Search: Show more under the results loads the next page of them, and Back from a title brings back every page loaded, at the same scroll position. The count above the results is now TMDB's estimate for the whole search, not the number on the first page. The Movies and Series tabs search for their type instead of filtering what's loaded. ([#219](https://github.com/MrShakhov/kinoseed/issues/219))
+
 ### Fixed
 
 - Pause and resume: the torrent's new status shows as soon as qBittorrent takes it and stays, instead of showing only after the next update, up to a few seconds later. ([#209](https://github.com/MrShakhov/kinoseed/issues/209))

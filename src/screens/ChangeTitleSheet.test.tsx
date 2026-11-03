@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as tmdb from '../api/tmdb'
-import { title } from '../test/fixtures'
+import { searchPage, title } from '../test/fixtures'
 import { ChangeTitleSheet, type ChangeTitleSheetProps } from './ChangeTitleSheet'
 import { saying } from '../test/render'
 
@@ -27,7 +27,7 @@ function renderSheet(current: ChangeTitleSheetProps['current'] = null, props: Pa
 
 beforeEach(() => {
   vi.resetAllMocks()
-  searchTitles.mockResolvedValue({ titles: [MASTER_MOVIE, MASTER_SERIES], page: 1, totalPages: 1 })
+  searchTitles.mockResolvedValue(searchPage([MASTER_MOVIE, MASTER_SERIES]))
 })
 
 describe('ChangeTitleSheet', () => {
@@ -82,7 +82,7 @@ describe('ChangeTitleSheet', () => {
   })
 
   it('searches again as the user types, and says when nothing is found', async () => {
-    searchTitles.mockResolvedValue({ titles: [], page: 1, totalPages: 1 })
+    searchTitles.mockResolvedValue(searchPage([]))
     renderSheet()
     const field = screen.getByRole('searchbox', { name: 'Search TMDB' })
     await userEvent.click(screen.getByRole('button', { name: 'Clear' }))

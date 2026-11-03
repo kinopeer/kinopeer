@@ -7,7 +7,7 @@ import type { MainData, Torrent } from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
 import { stubDesktop } from '../lib/stubDesktop'
 import { getSettings, resetSettings, updateSettings } from '../settings/settings'
-import { mainData, torrent as fixtureTorrent } from '../test/fixtures'
+import { mainData, searchPage, torrent as fixtureTorrent } from '../test/fixtures'
 import { renderWithRouter, saying } from '../test/render'
 import { resetServerMatches } from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
@@ -64,7 +64,7 @@ beforeEach(() => {
   vi.mocked(matchesApi.saveMatches).mockImplementation(async (changes) => changes as matchesApi.Matches)
   resetSettings()
   getMainData.mockResolvedValue(SNAPSHOT)
-  searchTitles.mockResolvedValue({ titles: [], page: 1, totalPages: 1 })
+  searchTitles.mockResolvedValue(searchPage([]))
   stubDesktop()
 })
 

@@ -38,6 +38,8 @@ export interface AppOptions {
   releaseFilters?: unknown
   /** Leaves /tmdb and /tmdb-img to the server, for real titles and posters (the README screenshots). */
   realTmdb?: boolean
+  /** TMDB fails the search's second page, which it otherwise answers with nothing new. */
+  searchMoreFails?: boolean
 }
 
 /** The desktop layout at the canvas's width: `test.use(DESKTOP)` in a describe block. */
@@ -91,7 +93,7 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
     },
   )
 
-  if (!options.realTmdb) await mockTmdb(page)
+  if (!options.realTmdb) await mockTmdb(page, options)
 
   await page.route(
     (url) => url.pathname === '/api/settings',
@@ -141,7 +143,7 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
 }
 
 /** Answers /tmdb and /tmdb-img from the fixtures, with generated posters. */
-async function mockTmdb(page: Page): Promise<void> {
+async function mockTmdb(page: Page, options: AppOptions): Promise<void> {
   await page.route(
     (url) => url.pathname.startsWith('/tmdb/'),
     (route) => {
@@ -152,16 +154,21 @@ async function mockTmdb(page: Page): Promise<void> {
       if (path === '/configuration') return json(route, {})
       if (path === '/search/multi') {
         const found = TITLES.filter((title) => [title.en, title.ru].some((name) => name.toLocaleLowerCase().includes(query ?? '')))
-        return json(route, titlePage(found, language))
+        if (found.length === 0) return json(route, titlePage(found, language))
+        // Two pages, with people counted as TMDB does, so the results show an estimate and Show more.
+        const pages = { total_pages: 2, total_results: 1296 }
+        if (url.searchParams.get('page') !== '2') return json(route, { ...titlePage(found, language), ...pages })
+        if (options.searchMoreFails) return json(route, { status_message: 'Internal error' }, 500)
+        return json(route, { ...titlePage([], language), page: 2, ...pages })
       }
-      // A search by year: one type, released (or first aired) that year.
+      // A search for one type, by year if one is given.
       if (path === '/search/movie' || path === '/search/tv') {
         const type = path === '/search/movie' ? 'movie' : 'tv'
         const year = url.searchParams.get(type === 'movie' ? 'primary_release_year' : 'first_air_date_year')
         const found = TITLES.filter(
           (title) =>
             title.type === type &&
-            title.date.startsWith(`${year}-`) &&
+            (year === null || title.date.startsWith(`${year}-`)) &&
             [title.en, title.ru].some((name) => name.toLocaleLowerCase().includes(query ?? '')),
         )
         return json(route, titlePage(found, language))

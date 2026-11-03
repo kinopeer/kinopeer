@@ -6,7 +6,7 @@ import * as matchesApi from '../api/matches'
 import * as api from '../api/qbittorrent'
 import type { Torrent } from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
-import { DUNE_TORRENT, mainData } from '../test/fixtures'
+import { DUNE_TORRENT, mainData, searchPage } from '../test/fixtures'
 import { findToastOnPage, renderWithRouter, saying } from '../test/render'
 import * as serverMatches from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
@@ -113,7 +113,7 @@ describe('TorrentScreen', () => {
 
   it('falls back to the release name before a TMDB match', async () => {
     getMainData.mockResolvedValue(snapshot({ tags: '', name: 'Some.Home.Video' }))
-    vi.mocked(tmdb.searchTitles).mockResolvedValue({ titles: [], page: 1, totalPages: 1 })
+    vi.mocked(tmdb.searchTitles).mockResolvedValue(searchPage([]))
     renderScreen()
     expect(await screen.findByRole('heading', { level: 1, name: 'Some.Home.Video' })).toBeInTheDocument()
   })
@@ -362,7 +362,7 @@ describe('TorrentScreen', () => {
     [
       'the title sheet',
       async () => {
-        vi.mocked(tmdb.searchTitles).mockResolvedValue({ titles: [], page: 1, totalPages: 1 })
+        vi.mocked(tmdb.searchTitles).mockResolvedValue(searchPage([]))
         await userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' }))
         await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Change title' }))
       },
@@ -402,7 +402,7 @@ describe('TorrentScreen title matching', () => {
 
   it('asks whether a guessed title is right and saves the confirmation', async () => {
     getMainData.mockResolvedValue(snapshot({ tags: '' }))
-    vi.mocked(tmdb.searchTitles).mockResolvedValue({ titles: [GUESSED_DUNE], page: 1, totalPages: 1 })
+    vi.mocked(tmdb.searchTitles).mockResolvedValue(searchPage([GUESSED_DUNE]))
     renderScreen()
     expect(await screen.findByRole('heading', { level: 1, name: 'Dune: Part Two' })).toBeInTheDocument()
     expect(await screen.findByText('Matched by the release name. Is it right?')).toBeInTheDocument()
@@ -414,11 +414,7 @@ describe('TorrentScreen title matching', () => {
 
   it('changes a guessed title through the TMDB search', async () => {
     getMainData.mockResolvedValue(snapshot({ tags: '' }))
-    vi.mocked(tmdb.searchTitles).mockImplementation(async (query) => ({
-      titles: query === 'Dune Part Two' ? [GUESSED_DUNE, DUNE_1984] : [],
-      page: 1,
-      totalPages: 1,
-    }))
+    vi.mocked(tmdb.searchTitles).mockImplementation(async (query) => searchPage(query === 'Dune Part Two' ? [GUESSED_DUNE, DUNE_1984] : []))
     renderScreen()
     await userEvent.click(await screen.findByRole('button', { name: 'Change' }))
     const sheet = screen.getByRole('dialog', { name: 'Change title' })
@@ -429,7 +425,7 @@ describe('TorrentScreen title matching', () => {
   })
 
   it('doesn’t ask about a title Kinoseed tagged, and changes it from the More menu', async () => {
-    vi.mocked(tmdb.searchTitles).mockResolvedValue({ titles: [GUESSED_DUNE, DUNE_1984], page: 1, totalPages: 1 })
+    vi.mocked(tmdb.searchTitles).mockResolvedValue(searchPage([GUESSED_DUNE, DUNE_1984]))
     renderScreen()
     expect(await screen.findByRole('heading', { level: 1, name: 'Dune: Part Two' })).toBeInTheDocument()
     expect(screen.queryByText('Matched by the release name. Is it right?')).not.toBeInTheDocument()
@@ -445,7 +441,7 @@ describe('TorrentScreen title matching', () => {
 
   it('offers to pick a title when none was found', async () => {
     getMainData.mockResolvedValue(snapshot({ tags: '', name: 'Some.Home.Video' }))
-    vi.mocked(tmdb.searchTitles).mockResolvedValue({ titles: [], page: 1, totalPages: 1 })
+    vi.mocked(tmdb.searchTitles).mockResolvedValue(searchPage([]))
     renderScreen()
     expect(await screen.findByText('No title found for this release.')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Pick title' }))

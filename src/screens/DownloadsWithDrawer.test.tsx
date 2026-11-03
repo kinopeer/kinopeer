@@ -8,7 +8,7 @@ import type { Torrent } from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
 import { stubDesktop } from '../lib/stubDesktop'
 import { resetSettings, updateSettings } from '../settings/settings'
-import { DUNE_TORRENT, mainData, title } from '../test/fixtures'
+import { DUNE_TORRENT, mainData, searchPage, title } from '../test/fixtures'
 import { findToastOnPage, renderWithRouter, saying, Where, where } from '../test/render'
 import { MainDataProvider } from '../torrents/MainDataProvider'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
@@ -288,7 +288,7 @@ describe('the details drawer on desktop', () => {
     ['no title', { name: 'Some.Home.Video' }, [], 'Some.Home.Video', ['Pick title']],
   ])('turns off the title prompt (%s) and the files of a torrent being deleted, so nothing is kept for it once it’s gone', async (_case, fields, titles, name, buttons) => {
     getMainData.mockResolvedValue(snapshot({ tags: '', ...fields }))
-    vi.mocked(tmdb.searchTitles).mockResolvedValue({ titles, page: 1, totalPages: 1 })
+    vi.mocked(tmdb.searchTitles).mockResolvedValue(searchPage(titles))
     getTorrentFiles.mockResolvedValue([
       { index: 0, name: 'Dune.Part.Two/Dune.Part.Two.mkv', size: 19_900_000_000, progress: 0.4, priority: 1 },
       { index: 1, name: 'Dune.Part.Two/Extras.mkv', size: 1_500_000_000, progress: 0, priority: 0 },
@@ -375,7 +375,7 @@ describe('the details drawer on desktop', () => {
     })
 
     it('opens the title search from Change title, which Escape closes alone', async () => {
-      vi.mocked(tmdb.searchTitles).mockResolvedValue({ titles: [title('movie', 693134, 'Dune: Part Two', 2024)], page: 1, totalPages: 1 })
+      vi.mocked(tmdb.searchTitles).mockResolvedValue(searchPage([title('movie', 693134, 'Dune: Part Two', 2024)]))
       renderApp(['/torrent/dune'])
       const menu = await openMenu()
       await userEvent.click(within(menu).getByRole('menuitem', { name: 'Change title' }))
@@ -391,7 +391,7 @@ describe('the details drawer on desktop', () => {
 
     it('confirms a guessed title with a toast', async () => {
       getMainData.mockResolvedValue(snapshot({ tags: '' }))
-      vi.mocked(tmdb.searchTitles).mockResolvedValue({ titles: [title('movie', 693134, 'Dune: Part Two', 2024)], page: 1, totalPages: 1 })
+      vi.mocked(tmdb.searchTitles).mockResolvedValue(searchPage([title('movie', 693134, 'Dune: Part Two', 2024)]))
       renderApp(['/torrent/dune'])
       const menu = await openMenu()
       const guess = within(menu).getByRole('group', { name: 'Matched by the release name. Is it right?' })
@@ -403,7 +403,7 @@ describe('the details drawer on desktop', () => {
 
   it('shows "Yes, right" sent from a row’s menu busy in the drawer, then says it once', async () => {
     getMainData.mockResolvedValue(snapshot({ tags: '' }))
-    vi.mocked(tmdb.searchTitles).mockResolvedValue({ titles: [title('movie', 693134, 'Dune: Part Two', 2024)], page: 1, totalPages: 1 })
+    vi.mocked(tmdb.searchTitles).mockResolvedValue(searchPage([title('movie', 693134, 'Dune: Part Two', 2024)]))
     let saved = () => {}
     vi.mocked(matchesApi.saveMatches).mockImplementation(
       (changes) => new Promise((resolve) => (saved = () => resolve(changes as matchesApi.Matches))),
