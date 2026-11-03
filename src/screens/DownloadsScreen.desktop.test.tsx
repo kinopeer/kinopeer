@@ -144,11 +144,11 @@ describe('DownloadsScreen on desktop', () => {
     expect(within(row).getAllByRole('cell')).toHaveLength(headers.length)
     unmount()
 
-    // The queue order, but nothing is queued.
+    // The queue order, but nothing is queued: qBittorrent reports 0 or -1 outside the queue.
     updateSettings({ downloadsSort: 'priority' })
     getMainData.mockResolvedValue({
       ...SNAPSHOT,
-      torrents: { andor: SNAPSHOT.torrents!.andor, alien: SNAPSHOT.torrents!.alien },
+      torrents: { andor: { ...SNAPSHOT.torrents!.andor, priority: 0 }, alien: SNAPSHOT.torrents!.alien },
     })
     renderScreen()
     ;[row] = await tableRows()
