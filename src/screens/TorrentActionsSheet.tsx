@@ -9,8 +9,10 @@ import { Menu, MenuDivider, MenuGroup, MenuItem, MenuLink } from '../components/
 import { Poster } from '../components/Poster'
 import { Sheet } from '../components/Sheet'
 import { StatusChip } from '../components/StatusChip'
+import { useFormatters } from '../lib/format'
 import { useIsDesktop } from '../lib/useIsDesktop'
 import { REQUEST_KINDS } from '../torrents/requestKinds'
+import { describeLimits, ownLimits } from '../torrents/speedLimits'
 import { downloadStatus, hasMetadata, isRunning } from '../torrents/status'
 import type { TitleMatch } from '../torrents/titleMatches'
 import { MatchPrompt } from './MatchPrompt'
@@ -104,6 +106,10 @@ export function TorrentActionsSheet({
     : noMetadata
       ? t('torrent.recheckNoMetadata')
       : t('torrent.recheckChecking')
+  // The torrent's own limits under their item's label.
+  const format = useFormatters()
+  const limits = ownLimits(torrent)
+  const limitsHint = limits ? describeLimits(limits, 'value', t, format) : undefined
   const hintId = useId()
 
   const toggle = () => {
@@ -153,7 +159,7 @@ export function TorrentActionsSheet({
         <MenuItem icon="check-circle" disabled={offline || busy || !canRecheck} hint={recheckHint} onClick={onRecheck}>
           {t('torrent.recheck')}
         </MenuItem>
-        <MenuItem icon="gauge" disabled={offline || deleting} onClick={onSpeedLimits}>
+        <MenuItem icon="gauge" disabled={offline || deleting} hint={limitsHint} onClick={onSpeedLimits}>
           {t('limits.title')}
         </MenuItem>
         {showDetails && (
@@ -250,9 +256,17 @@ export function TorrentActionsSheet({
           </button>
         </li>
         <li>
-          <button type="button" className="ks-row-btn" disabled={offline || deleting} onClick={onSpeedLimits}>
+          <button
+            type="button"
+            className="ks-row-btn"
+            disabled={offline || deleting}
+            aria-describedby={limitsHint ? `${hintId}-limits` : undefined}
+            onClick={onSpeedLimits}
+          >
             <Icon name="gauge" />
-            {t('limits.title')}
+            <RowText id={`${hintId}-limits`} hint={limitsHint}>
+              {t('limits.title')}
+            </RowText>
           </button>
         </li>
         {showDetails && (

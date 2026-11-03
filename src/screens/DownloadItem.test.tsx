@@ -59,6 +59,18 @@ describe('DownloadItem', () => {
     expect(paused.item.getByText('2.00 GB / 20.0 GB')).toBeInTheDocument()
   })
 
+  it('marks the torrent’s own speed limits, whatever it is doing', () => {
+    const downloading = renderItem({}, { ...DUNE_TORRENT, dl_limit: 5_000_000 })
+    expect(downloading.item.getByRole('img', { name: 'Speed limit: download up to 5.0\u00a0MB/s' })).toBeInTheDocument()
+
+    const seeding = renderItem({}, { ...DUNE_TORRENT, hash: 'andor', state: 'uploading', progress: 1, up_limit: 500_000 })
+    expect(seeding.item.getByRole('img', { name: 'Speed limit: upload up to 500\u00a0KB/s' })).toBeInTheDocument()
+
+    // A limit isn't about what the torrent is doing: a paused one with only an upload limit shows it too.
+    const paused = renderItem({}, { ...DUNE_TORRENT, hash: 'alien', state: 'stoppedDL', up_limit: 500_000 })
+    expect(paused.item.getByRole('img', { name: 'Speed limit: upload up to 500\u00a0KB/s' })).toBeInTheDocument()
+  })
+
   it('shows the queue position only in the queue order, and only for queued torrents', () => {
     expect(renderItem().item.getByLabelText('Queue position 1')).toHaveTextContent('#1')
     expect(renderItem({ showQueue: false }).item.queryByLabelText(/Queue position/)).not.toBeInTheDocument()
