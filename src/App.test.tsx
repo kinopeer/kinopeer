@@ -186,6 +186,8 @@ describe('App', () => {
       const nav = screen.getByRole('navigation', { name: 'Main' })
       expect(within(nav).getByRole('link', { name: /^Downloads.*1 downloading$/ })).toBeInTheDocument()
       expect(screen.getByRole('region', { name: 'qBittorrent' })).toHaveTextContent('qBittorrent 5.2.4')
+      // The poll's ring, in the card and in the rail.
+      expect(within(screen.getByRole('region', { name: 'qBittorrent' })).getAllByRole('img', { name: /^Updated at / })).toHaveLength(2)
     })
 
     // A trailing slash is the same route to React Router, so it has to be the same screen too.

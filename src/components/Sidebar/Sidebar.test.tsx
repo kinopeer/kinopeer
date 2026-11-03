@@ -84,6 +84,17 @@ describe('SidebarStatus', () => {
     expect(screen.queryByText('TB')).not.toBeInTheDocument()
   })
 
+  it('shows an indicator in place of the connection dot, in the card and in the rail', () => {
+    const { container } = render(
+      <SidebarStatus version="5.0.1" offline={false} indicator={<span role="img" aria-label="Poll" />} />,
+    )
+    expect(screen.getAllByRole('img', { name: 'Poll' })).toHaveLength(2)
+    // The dot is decorative, found by its class: the indicator replaces both.
+    expect(container.querySelector('.ks-side-dot')).toBeNull()
+    // The rail still names the connection beside it.
+    expect(screen.getAllByText('qBittorrent 5.0.1')).toHaveLength(2)
+  })
+
   it('switches the alternative speed limits from the card and from the rail', async () => {
     const onToggle = vi.fn()
     const { rerender } = render(

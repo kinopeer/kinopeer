@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { UnauthorizedError, toggleSpeedLimitsMode } from '../api/qbittorrent'
+import { fakePoll } from '../test/render'
 import { EMPTY_SYNC_STATE } from './sync'
 import { useAltSpeedLimits } from './useAltSpeedLimits'
 import type { MainDataState } from './useMainData'
@@ -23,7 +24,7 @@ interface PollState {
 
 function main(alt: boolean | undefined, { offline = false, requestedAt = 0, updatedAt = requestedAt }: PollState = {}): MainDataState {
   const server = alt === undefined ? {} : { use_alt_speed_limits: alt }
-  return { data: { ...EMPTY_SYNC_STATE, server }, offline, updatedAt, requestedAt, refresh }
+  return { data: { ...EMPTY_SYNC_STATE, server }, offline, updatedAt, requestedAt, refresh, poll: fakePoll().poll }
 }
 
 function renderAlt(initial: MainDataState) {

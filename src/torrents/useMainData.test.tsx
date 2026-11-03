@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
 import { MainDataProvider } from './MainDataProvider'
 import { TorrentRequestsProvider } from './TorrentRequestsProvider'
-import { OFFLINE_POLL_INTERVAL_MS, POLL_INTERVAL_MS, useFreeSpace, useMainData } from './useMainData'
+import { OFFLINE_POLL_INTERVAL_MS, POLL_INTERVAL_MS, POLL_TIMEOUT_MS, useFreeSpace, useMainData } from './useMainData'
 import { useTorrentRequests } from './useTorrentRequests'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => {
@@ -36,7 +36,7 @@ describe('useMainData', () => {
     expect(result.current.data?.torrents.a.progress).toBe(0)
 
     await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS))
-    expect(getMainData).toHaveBeenLastCalledWith(1)
+    expect(getMainData).toHaveBeenLastCalledWith(1, expect.any(AbortSignal))
     expect(result.current.data?.torrents.a).toEqual({ hash: 'a', name: 'A', progress: 0.5 })
   })
 
@@ -94,6 +94,67 @@ describe('useMainData', () => {
     await act(async () => answer({ rid: 1, full_update: true }))
     expect(result.current.requestedAt).toBe(sentAt)
     expect(result.current.updatedAt).toBe(sentAt + 500)
+  })
+
+  it('gives up a poll that hangs, shows offline and polls again', async () => {
+    // Like fetch: the request fails only when its signal aborts.
+    getMainData
+      .mockResolvedValueOnce({ rid: 1, full_update: true, torrents: { a: { name: 'A' } } })
+      .mockImplementationOnce(
+        (_rid, signal) => new Promise((_resolve, reject) => signal?.addEventListener('abort', () => reject(signal.reason))),
+      )
+      .mockResolvedValue({ rid: 2 })
+    const { result } = renderHook(() => useMainData(vi.fn()))
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS))
+    expect(getMainData).toHaveBeenCalledTimes(2)
+
+    await act(() => vi.advanceTimersByTimeAsync(POLL_TIMEOUT_MS - 1))
+    expect(result.current.offline).toBe(false)
+    expect(result.current.poll.getPollState().inFlight).toBe(true)
+    await act(() => vi.advanceTimersByTimeAsync(1))
+    expect(result.current.offline).toBe(true)
+    expect(result.current.data?.torrents.a.name).toBe('A')
+    expect(result.current.poll.getPollState().inFlight).toBe(false)
+
+    await act(() => vi.advanceTimersByTimeAsync(OFFLINE_POLL_INTERVAL_MS))
+    expect(getMainData).toHaveBeenCalledTimes(3)
+    expect(result.current.offline).toBe(false)
+  })
+
+  it('doesn’t time out a poll answered in time', async () => {
+    let signal: AbortSignal | undefined
+    getMainData.mockImplementation(async (_rid, given) => {
+      signal = given
+      return { rid: 1 }
+    })
+    const { result } = renderHook(() => useMainData(vi.fn()))
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    await act(() => vi.advanceTimersByTimeAsync(POLL_TIMEOUT_MS))
+    expect(signal?.aborted).toBe(false)
+    expect(result.current.offline).toBe(false)
+  })
+
+  it('says whether a poll is in flight, apart from the data, so a request going out renders no screen', async () => {
+    let answer: (data: api.MainData) => void = () => {}
+    getMainData.mockImplementation(() => new Promise((resolve) => (answer = resolve)))
+    let renders = 0
+    const { result } = renderHook(() => {
+      renders += 1
+      return useMainData(vi.fn())
+    })
+    const { poll } = result.current
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    expect(poll.getPollState()).toEqual({ inFlight: true, offline: false, updatedAt: null })
+
+    await act(async () => answer({ rid: 1, full_update: true }))
+    const answeredAt = Date.now()
+    expect(poll.getPollState()).toEqual({ inFlight: false, offline: false, updatedAt: answeredAt })
+    const settled = renders
+
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS))
+    expect(poll.getPollState()).toEqual({ inFlight: true, offline: false, updatedAt: answeredAt })
+    expect(renders).toBe(settled)
+    expect(result.current.poll).toBe(poll)
   })
 
   it('reports an expired session once and stops', async () => {
@@ -187,7 +248,7 @@ describe('MainDataProvider', () => {
     expect(seen).toBe('A')
     await act(() => vi.advanceTimersByTimeAsync(0))
     expect(getMainData).toHaveBeenCalledTimes(2)
-    expect(getMainData).toHaveBeenLastCalledWith(1)
+    expect(getMainData).toHaveBeenLastCalledWith(1, expect.any(AbortSignal))
   })
 
   it('reports an expired session to the provider’s handler', async () => {

@@ -453,6 +453,12 @@
     "unreachableBody": "Проверьте, что qBittorrent запущен и сервер Kinoseed может до него достучаться. Переподключаемся автоматически.",
     "reconnected": "Снова на связи с qBittorrent"
   },
+  "poll": {
+    "updated": "Обновлено в {{time}}",
+    "waiting": "Ждём ответа qBittorrent",
+    "offline": "qBittorrent не отвечает",
+    "offlineSince": "qBittorrent не отвечает · обновлено в {{time}}"
+  },
   "crash": {
     "title": "Что-то пошло не так",
     "body": "В Kinoseed произошла непредвиденная ошибка. Перезагрузите страницу, чтобы продолжить.",

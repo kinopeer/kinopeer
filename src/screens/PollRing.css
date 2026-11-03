@@ -1,0 +1,65 @@
+/* The ring is the size of an icon beside it; a place sets --poll-ring-size for another one. */
+.poll-ring {
+  display: inline-flex;
+  flex: none;
+  width: var(--poll-ring-size, 16px);
+  height: var(--poll-ring-size, 16px);
+  color: var(--success);
+}
+
+.poll-ring svg {
+  width: 100%;
+  height: 100%;
+  /* The fill starts at the top. */
+  transform: rotate(-90deg);
+}
+
+.poll-ring circle {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.5;
+}
+
+.poll-ring-track {
+  opacity: 0.25;
+}
+
+/* Full by default: what a waiting or offline ring shows, and where a filling one ends. */
+.poll-ring-fill {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 0;
+}
+
+.poll-ring.is-filling .poll-ring-fill {
+  animation: poll-ring-fill var(--poll-interval) linear both;
+}
+
+/* Starts at full opacity, so a screenshot with animations stopped sees it as a filled ring. */
+.poll-ring.is-waiting svg {
+  animation: poll-ring-wait 0.8s ease-in-out infinite alternate;
+}
+
+.poll-ring.is-offline {
+  color: var(--error);
+}
+
+@keyframes poll-ring-fill {
+  from {
+    stroke-dashoffset: 100;
+  }
+}
+
+@keyframes poll-ring-wait {
+  to {
+    opacity: 0.4;
+  }
+}
+
+/* No filling or pulsing: a full ring, in the error color while offline. base.css also cuts every
+   animation short under reduced motion; this keeps the ring still even where that changes. */
+@media (prefers-reduced-motion: reduce) {
+  .poll-ring.is-filling .poll-ring-fill,
+  .poll-ring.is-waiting svg {
+    animation: none;
+  }
+}

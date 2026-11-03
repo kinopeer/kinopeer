@@ -8,6 +8,13 @@ import { TorrentRequestsContext } from './useTorrentRequests'
 export const POLL_INTERVAL_MS = 2_000
 /** Slower retries while qBittorrent doesn't answer. */
 export const OFFLINE_POLL_INTERVAL_MS = 5_000
+/**
+ * A poll that hasn't been answered in this long is given up and counts as a failure, so the screens
+ * say qBittorrent isn't answering instead of showing ever older data while the request hangs. Five
+ * intervals: a full answer for thousands of torrents from a small home server over Wi-Fi takes a
+ * second or two, and by 10 s the data shown is already 12 s old, which is worth saying.
+ */
+export const POLL_TIMEOUT_MS = 10_000
 
 export interface MainDataSnapshot {
   /** Null until the first response arrives. */
@@ -20,14 +27,31 @@ export interface MainDataSnapshot {
   requestedAt: number | null
 }
 
+/** What the poll is doing, apart from the data, so what shows it renders without the screens. */
+export interface PollState {
+  /** A request is waiting for qBittorrent's answer. */
+  inFlight: boolean
+  /** The last request failed. */
+  offline: boolean
+  /** When the last answer arrived (ms since epoch), or null before the first one. */
+  updatedAt: number | null
+}
+
+/** The poll's state, for a component that subscribes to it on its own. */
+export interface PollSource {
+  subscribe: (listener: () => void) => () => void
+  getPollState: () => PollState
+}
+
 export interface MainDataState extends MainDataSnapshot {
   /** Polls right away instead of waiting for the next tick. */
   refresh: () => void
+  /** The poll's own state (`PollState`), which changes more often than the data. */
+  poll: PollSource
 }
 
 /** One poll of /sync/maindata for everyone subscribed to it. */
-export interface MainDataStore {
-  subscribe: (listener: () => void) => () => void
+export interface MainDataStore extends PollSource {
   getSnapshot: () => MainDataSnapshot
   refresh: () => void
   /** Called once if the session expires. */
@@ -42,6 +66,7 @@ export interface MainDataStore {
 export function createMainDataStore(): MainDataStore {
   let onUnauthorized = () => {}
   let snapshot: MainDataSnapshot = { data: null, offline: false, updatedAt: null, requestedAt: null }
+  let pollState: PollState = { inFlight: false, offline: false, updatedAt: null }
   let state = EMPTY_SYNC_STATE
   const listeners = new Set<() => void>()
   let timer: ReturnType<typeof setTimeout> | undefined
@@ -53,8 +78,14 @@ export function createMainDataStore(): MainDataStore {
   let refreshed = false
   let unauthorized = false
 
+  // The data's snapshot and the poll's state are separate objects, so a request going out renders
+  // only what shows the poll, not every screen that reads the data.
   const update = (changes: Partial<MainDataSnapshot>) => {
-    snapshot = { ...snapshot, ...changes }
+    if (Object.keys(changes).length > 0) snapshot = { ...snapshot, ...changes }
+    const { offline, updatedAt } = snapshot
+    if (pollState.inFlight !== inFlight || pollState.offline !== offline || pollState.updatedAt !== updatedAt) {
+      pollState = { inFlight, offline, updatedAt }
+    }
     listeners.forEach((listener) => listener())
   }
 
@@ -68,25 +99,30 @@ export function createMainDataStore(): MainDataStore {
     inFlight = true
     refreshed = false
     clearTimeout(timer)
+    update({})
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), POLL_TIMEOUT_MS)
     let delay = POLL_INTERVAL_MS
+    let changes: Partial<MainDataSnapshot>
     try {
       const requestedAt = Date.now()
-      state = applyMainData(state, await getMainData(state.rid))
-      if (!running) return
-      update({ data: state, updatedAt: Date.now(), requestedAt, offline: false })
+      state = applyMainData(state, await getMainData(state.rid, controller.signal))
+      changes = { data: state, updatedAt: Date.now(), requestedAt, offline: false }
     } catch (error) {
-      if (!running) return
-      if (error instanceof UnauthorizedError) {
+      if (running && error instanceof UnauthorizedError) {
         unauthorized = true
         stop()
         onUnauthorized()
         return
       }
-      update({ offline: true })
+      changes = { offline: true }
       delay = OFFLINE_POLL_INTERVAL_MS
     } finally {
+      clearTimeout(timeout)
       inFlight = false
     }
+    // Stopped meanwhile: the answer is dropped, and only the poll's state says nothing is in flight.
+    update(running ? changes : {})
     schedule(refreshed ? 0 : delay)
   }
 
@@ -123,6 +159,7 @@ export function createMainDataStore(): MainDataStore {
       }
     },
     getSnapshot: () => snapshot,
+    getPollState: () => pollState,
     refresh: () => {
       if (inFlight) refreshed = true
       else void poll()
@@ -162,7 +199,12 @@ export function useMainData(onUnauthorized?: () => void): MainDataState {
   const store = useStore(onUnauthorized)
   const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot)
   return useMemo(
-    () => ({ ...snapshot, data: withExpected(snapshot.data, snapshot.requestedAt, expected), refresh: store.refresh }),
+    () => ({
+      ...snapshot,
+      data: withExpected(snapshot.data, snapshot.requestedAt, expected),
+      refresh: store.refresh,
+      poll: store,
+    }),
     [snapshot, expected, store],
   )
 }

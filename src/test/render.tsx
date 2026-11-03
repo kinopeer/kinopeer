@@ -1,9 +1,10 @@
 /* oxlint-disable react/only-export-components -- test helpers, never hot-reloaded */
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { MemoryRouter, useLocation, type InitialEntry } from 'react-router'
 import { expect } from 'vitest'
 import { ToastProvider } from '../components/Toast'
+import type { PollSource, PollState } from '../torrents/useMainData'
 
 /**
  * Renders `ui` under a MemoryRouter at the last of `entries` (strings, or locations with state) and
@@ -51,4 +52,23 @@ export function saying(text: string | RegExp) {
 export async function findToastOnPage(text: string | RegExp) {
   await waitFor(() => expect(document.querySelector('dialog[open]')).toBeNull())
   return screen.findByRole('status', { name: saying(text) })
+}
+
+/** The poll's state (`PollSource`) as the test sets it, for what shows it or needs one to pass on. */
+export function fakePoll(initial: PollState = { inFlight: false, offline: false, updatedAt: null }) {
+  let state = initial
+  const listeners = new Set<() => void>()
+  const poll: PollSource = {
+    subscribe: (listener) => {
+      listeners.add(listener)
+      return () => listeners.delete(listener)
+    },
+    getPollState: () => state,
+  }
+  const set = (changes: Partial<PollState>) =>
+    act(() => {
+      state = { ...state, ...changes }
+      listeners.forEach((listener) => listener())
+    })
+  return { poll, set }
 }

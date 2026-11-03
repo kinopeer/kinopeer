@@ -19,6 +19,8 @@ export interface SidebarStatusProps {
   altSpeedLimits?: boolean
   altSpeedDisabled?: boolean
   onToggleAltSpeed?: () => void
+  /** Shown in place of the connection dot, in the card and in the rail: the poll's ring. */
+  indicator?: ReactNode
 }
 
 /** Splits a formatted size or speed into its number and unit, which the rail stacks. */
@@ -41,6 +43,7 @@ export function SidebarStatus({
   altSpeedLimits,
   altSpeedDisabled,
   onToggleAltSpeed,
+  indicator,
 }: SidebarStatusProps) {
   const { t } = useTranslation()
   const format = useFormatters()
@@ -63,7 +66,7 @@ export function SidebarStatus({
     <section className="ks-side-status" aria-label="qBittorrent">
       <div className="ks-side-card">
         <p className="ks-side-status-head t-cap">
-          <span className={cx('ks-side-dot', offline && 'is-off')} aria-hidden="true" />
+          {indicator ?? <span className={cx('ks-side-dot', offline && 'is-off')} aria-hidden="true" />}
           <span className="ks-trunc">{status}</span>
         </p>
         <p className="ks-side-status-speeds t-cap ks-num c2">
@@ -93,9 +96,16 @@ export function SidebarStatus({
         )}
       </div>
       <div className="ks-side-mini ks-num">
-        <span className={cx('ks-side-dot', offline && 'is-off')} title={status}>
-          <span className="sr-only">{status}</span>
-        </span>
+        {indicator ? (
+          <span className="ks-side-mini-indicator">
+            {indicator}
+            <span className="sr-only">{status}</span>
+          </span>
+        ) : (
+          <span className={cx('ks-side-dot', offline && 'is-off')} title={status}>
+            <span className="sr-only">{status}</span>
+          </span>
+        )}
         {stacked(t('downloads.downloadSpeed'), speed(downloadSpeed), <span aria-hidden="true">↓</span>)}
         {stacked(t('downloads.uploadSpeed'), speed(uploadSpeed), <span aria-hidden="true">↑</span>)}
         {freeSpace !== undefined &&

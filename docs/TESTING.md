@@ -340,7 +340,8 @@ it uses next to itself.
 - **`src/test/render.tsx`:** `renderWithRouter(ui, entries)` renders under a `MemoryRouter` at the
   last of `entries`, for screens that read the URL or navigate; `<Where />` rendered next to them
   shows the current path, which `where()` reads back. `saying(text)` matches a live region by its
-  text, as the `name` for `findByRole('status')` or `'alert'`. API mocks stay in each test file
+  text, as the `name` for `findByRole('status')` or `'alert'`. `fakePoll()` is a `PollSource` whose
+  state the test sets (`set`), for what shows the poll or needs one to pass on. API mocks stay in each test file
   (`vi.mock`, hoisted), so a reader sees what the test replaces without opening another module.
 - **`server/test/fakes.ts`:** `listen(handler)` starts a handler on a free port and returns its
   origin, `serve(middleware)` does the same for the middleware under test with Vite's 404 fallback,
