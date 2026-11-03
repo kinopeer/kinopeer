@@ -2,40 +2,85 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { posterUrl } from '../api/tmdb'
 import { Checkbox } from '../components/Checkbox'
+import { Icon } from '../components/Icon'
 import { IconButton } from '../components/IconButton'
 import { Poster } from '../components/Poster'
 import { ProgressBar } from '../components/ProgressBar'
 import { StatusChip } from '../components/StatusChip'
 import { cx } from '../lib/cx'
 import { useFormatters } from '../lib/format'
+import type { DownloadOrder, DownloadSort } from '../torrents/sort'
 import { downloadStatus, isRunning, transferSpeed } from '../torrents/status'
 import type { DownloadItemProps } from './DownloadItem'
 import { SpeedLimitMark } from './SpeedLimitMark'
 
+interface SortProps {
+  /** The list's order, which the header of its column shows. */
+  order: DownloadOrder
+  /** A sortable column's header was clicked. */
+  onSort: (sort: DownloadSort) => void
+}
+
+/** A sortable column's header: a button, with an arrow and `aria-sort` while the list is in its order. */
+function SortHeader({
+  sort,
+  order,
+  onSort,
+  label,
+  className,
+  children,
+}: SortProps & { sort: DownloadSort; label?: string; className?: string; children: string }) {
+  const sorted = order.sort === sort
+  const direction = order.descending ? 'descending' : 'ascending'
+  return (
+    <span role="columnheader" className={className} aria-sort={sorted ? direction : undefined}>
+      <button type="button" className={cx('dl-sort', sorted && 'is-on')} aria-label={label} onClick={() => onSort(sort)}>
+        {children}
+        {sorted && <Icon name={order.descending ? 'arrow-down' : 'arrow-up'} size={14} strokeWidth={2.4} />}
+      </button>
+    </span>
+  )
+}
+
 /**
  * The desktop list's column headers, in the order of DownloadRow's cells. The first column, the
- * checkboxes or the queue positions, is there only while selecting or with a position to show.
+ * checkboxes or the queue positions, is there only while selecting or with a position to show. A
+ * click on a column's name sorts by it (`onSort`); the status has no sort.
  */
-export function DownloadRowHeader({ selecting, queue }: { selecting: boolean; queue: boolean }) {
+export function DownloadRowHeader({ selecting, queue, ...sorting }: { selecting: boolean; queue: boolean } & SortProps) {
   const { t } = useTranslation()
   return (
     <div className="t-cap dl-row dl-row-head" role="row">
-      {(selecting || queue) && (
-        <span role="columnheader">{selecting ? <span className="sr-only">{t('downloads.columns.select')}</span> : '#'}</span>
-      )}
+      {(selecting || queue) &&
+        (selecting ? (
+          <span role="columnheader">
+            <span className="sr-only">{t('downloads.columns.select')}</span>
+          </span>
+        ) : (
+          // "#" says little to a screen reader: the button reads as the menu's name for this sort.
+          <SortHeader sort="priority" label={t('downloads.sorts.priority')} {...sorting}>
+            #
+          </SortHeader>
+        ))}
       <span role="columnheader">
         <span className="sr-only">{t('downloads.columns.poster')}</span>
       </span>
-      <span role="columnheader">{t('downloads.columns.title')}</span>
-      <span role="columnheader">{t('downloads.columns.progress')}</span>
+      <SortHeader sort="name" {...sorting}>
+        {t('downloads.columns.title')}
+      </SortHeader>
+      <SortHeader sort="progress" {...sorting}>
+        {t('downloads.columns.progress')}
+      </SortHeader>
       <span role="columnheader">{t('downloads.columns.status')}</span>
-      <span role="columnheader">{t('downloads.columns.speed')}</span>
-      <span role="columnheader" className="dl-row-eta">
+      <SortHeader sort="speed" {...sorting}>
+        {t('downloads.columns.speed')}
+      </SortHeader>
+      <SortHeader sort="eta" className="dl-row-eta" {...sorting}>
         {t('downloads.columns.eta')}
-      </span>
-      <span role="columnheader" className="dl-row-size">
+      </SortHeader>
+      <SortHeader sort="size" className="dl-row-size" {...sorting}>
         {t('downloads.columns.size')}
-      </span>
+      </SortHeader>
       <span role="columnheader">
         <span className="sr-only">{t('downloads.columns.actions')}</span>
       </span>

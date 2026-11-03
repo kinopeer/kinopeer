@@ -276,6 +276,17 @@ describe('DownloadsScreen', () => {
     expect(screen.getByRole('button', { name: 'Sort: Priority' })).toBeInTheDocument()
   })
 
+  it('sorts in the usual direction, whichever one desktop reversed it to', async () => {
+    updateSettings({ downloadsSort: 'name', downloadsSortDescending: true })
+    renderScreen()
+    await screen.findAllByRole('listitem')
+    expect(screen.getAllByRole('listitem').map((item) => within(item).getByRole('heading').textContent)).toEqual([
+      'Alien.Romulus.2024.1080p',
+      'Andor.S02.1080p',
+      'Dune.Part.Two.2024.2160p.WEB-DL',
+    ])
+  })
+
   it('sorts by the TMDB title once matched', async () => {
     updateSettings({ downloadsSort: 'name' })
     searchTitles.mockImplementation(async (query) => searchPage(query === 'Andor' ? [{ ...ANDOR_TITLE, title: 'Zorro' }] : []))
