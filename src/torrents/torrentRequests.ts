@@ -84,6 +84,12 @@ export interface TorrentRequests {
 export const requestKey = (kind: string, hash: string, part?: string) =>
   part === undefined ? `${kind}|${hash}` : `${kind}|${hash}|${part}`
 
+/** What's being sent for the parts of a torrent (`SendOptions.part`) in requests of a kind, whatever the parts. */
+export const inFlightParts = (inFlight: InFlight, kind: string, hash: string): unknown[] => {
+  const prefix = requestKey(kind, hash, '')
+  return [...inFlight].filter(([key]) => key.startsWith(prefix)).map(([, payload]) => payload)
+}
+
 /**
  * Requests in flight, shared by every screen under one store, so a sheet for a torrent shows a
  * request sent from another screen (Downloads under the drawer) and gets its outcome. The outcome

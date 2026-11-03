@@ -26,9 +26,46 @@ function priorityChoice(priority: FilePriority): PriorityChoice {
   return priority === 0 ? 'skip' : priority === 1 ? 'normal' : 'high'
 }
 
+interface PrioritySelectProps {
+  label: string
+  /** `mixed` for a folder whose files differ. */
+  value: PriorityChoice | 'mixed'
+  busy: boolean
+  disabled?: boolean
+  onChange: (priority: FilePriority) => void
+}
+
+/** The priority picker of a file or a folder, as a chip. */
+function PrioritySelect({ label, value, busy, disabled, onChange }: PrioritySelectProps) {
+  const { t } = useTranslation()
+  return (
+    <span className={value === 'high' ? 'ks-chip is-on tf-priority' : 'ks-chip tf-priority'}>
+      <select
+        aria-label={label}
+        value={value}
+        aria-busy={busy || undefined}
+        disabled={disabled || busy}
+        onChange={(event) => onChange(PRIORITY_VALUE[event.target.value as PriorityChoice])}
+      >
+        {value === 'mixed' && (
+          <option value="mixed" disabled hidden>
+            {t('torrent.priorityMixed')}
+          </option>
+        )}
+        <option value="skip">{t('torrent.prioritySkip')}</option>
+        <option value="normal">{t('torrent.priorityNormal')}</option>
+        <option value="high">{t('torrent.priorityHigh')}</option>
+      </select>
+      <Icon name="chevron-down" size={14} />
+    </span>
+  )
+}
+
 /**
  * A torrent's files with their progress and download priority, as the torrent's folder tree. A
- * file's priority change is on its way while its picker is off (`useFilePriorities`).
+ * folder's priority sets every file under it, and shows Mixed while they differ. A change is on its
+ * way while the pickers of its files are off, and of the folders above them (`useFilePriorities`),
+ * so a folder can't change while one of its files does, nor a file while its folder does.
  */
 export function TorrentFiles({ torrent, status, disabled }: TorrentFilesProps) {
   const { t } = useTranslation()
@@ -75,40 +112,45 @@ export function TorrentFiles({ torrent, status, disabled }: TorrentFilesProps) {
             </span>
           </div>
         </div>
-        <span className={choice === 'high' ? 'ks-chip is-on tf-priority' : 'ks-chip tf-priority'}>
-          <select
-            aria-label={t('torrent.priorityOf', { name: label })}
-            value={choice}
-            aria-busy={busy || undefined}
-            disabled={disabled || busy}
-            onChange={(event) => priorities.set(file.index, PRIORITY_VALUE[event.target.value as PriorityChoice])}
-          >
-            <option value="skip">{t('torrent.prioritySkip')}</option>
-            <option value="normal">{t('torrent.priorityNormal')}</option>
-            <option value="high">{t('torrent.priorityHigh')}</option>
-          </select>
-          <Icon name="chevron-down" size={14} />
-        </span>
+        <PrioritySelect
+          label={t('torrent.priorityOf', { name: label })}
+          value={choice}
+          busy={busy}
+          disabled={disabled}
+          onChange={(priority) => priorities.set([file.index], priority)}
+        />
       </li>
     )
   }
 
   const folderRow = (folder: FileFolder) => {
     const expanded = isOpen(folder.path)
-    const done = folder.all.reduce((sum, position) => sum + files![position].size * files![position].progress, 0)
+    // Positions in the list, which the tree is built from; the requests take qBittorrent's indexes.
+    const inside = folder.all.map((position) => files![position])
+    const done = inside.reduce((sum, file) => sum + file.size * file.progress, 0)
+    const choices = new Set(inside.map((file) => priorityChoice(file.priority)))
     return (
       <li key={folder.path} className="tf-folder">
-        <button type="button" className="tf-folder-toggle" aria-expanded={expanded} onClick={() => toggle(folder.path)}>
-          <Icon name="folder" className="c2" />
-          <span className="tf-folder-text">
-            <span className="t-body tf-folder-name ks-trunc">{folder.name}</span>
-            <span className="t-cap c3 ks-num">
-              {t('add.files', { count: folder.all.length })} · {format.size(folder.size)} ·{' '}
-              {format.percent(folder.size ? done / folder.size : 0)}
+        <div className="tf-folder-head">
+          <button type="button" className="tf-folder-toggle" aria-expanded={expanded} onClick={() => toggle(folder.path)}>
+            <Icon name="folder" className="c2" />
+            <span className="tf-folder-text">
+              <span className="t-body tf-folder-name ks-trunc">{folder.name}</span>
+              <span className="t-cap c3 ks-num">
+                {t('add.files', { count: folder.all.length })} · {format.size(folder.size)} ·{' '}
+                {format.percent(folder.size ? done / folder.size : 0)}
+              </span>
             </span>
-          </span>
-          <Icon name="chevron-down" size={18} className="c3 tf-chevron" />
-        </button>
+            <Icon name="chevron-down" size={18} className="c3 tf-chevron" />
+          </button>
+          <PrioritySelect
+            label={t('torrent.priorityOfFolder', { name: folder.name })}
+            value={choices.size === 1 ? [...choices][0] : 'mixed'}
+            busy={inside.some((file) => priorities.busy(file.index))}
+            disabled={disabled}
+            onChange={(priority) => priorities.set(inside.map((file) => file.index), priority)}
+          />
+        </div>
         {expanded && <ul className="tf-list tf-sub">{contents(folder)}</ul>}
       </li>
     )
