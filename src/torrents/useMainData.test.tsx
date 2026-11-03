@@ -1,10 +1,10 @@
-import { act, render, renderHook } from '@testing-library/react'
+import { act, cleanup, render, renderHook } from '@testing-library/react'
 import { useEffect, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
 import { MainDataProvider } from './MainDataProvider'
 import { TorrentRequestsProvider } from './TorrentRequestsProvider'
-import { OFFLINE_POLL_INTERVAL_MS, POLL_INTERVAL_MS, useFreeSpace, useMainData } from './useMainData'
+import { OFFLINE_POLL_INTERVAL_MS, POLL_INTERVAL_MS, POLL_TIMEOUT_MS, useFreeSpace, useMainData } from './useMainData'
 import { useTorrentRequests } from './useTorrentRequests'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => {
@@ -14,13 +14,29 @@ vi.mock('../api/qbittorrent', async (importOriginal) => {
 
 const getMainData = vi.mocked(api.getMainData)
 
+/** A request that hangs, as fetch does, failing only when its signal aborts. */
+const hang = (_rid?: number, signal?: AbortSignal) =>
+  new Promise<api.MainData>((_resolve, reject) => signal?.addEventListener('abort', () => reject(signal.reason)))
+
+/** Hides or shows the page, as switching tabs does. */
+function setHidden(hidden: boolean) {
+  vi.spyOn(document, 'hidden', 'get').mockReturnValue(hidden)
+  document.dispatchEvent(new Event('visibilitychange'))
+}
+
 beforeEach(() => {
   vi.useFakeTimers()
   vi.resetAllMocks()
 })
 
 afterEach(() => {
+  // Unmount while the clock is still fake and let the stores' idle stop run, so no store from this
+  // test still listens to `online` or `visibilitychange` in the next one.
+  cleanup()
+  vi.advanceTimersByTime(0)
   vi.useRealTimers()
+  // The page's visibility (`setHidden`).
+  vi.restoreAllMocks()
 })
 
 describe('useMainData', () => {
@@ -36,7 +52,7 @@ describe('useMainData', () => {
     expect(result.current.data?.torrents.a.progress).toBe(0)
 
     await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS))
-    expect(getMainData).toHaveBeenLastCalledWith(1)
+    expect(getMainData).toHaveBeenLastCalledWith(1, expect.any(AbortSignal))
     expect(result.current.data?.torrents.a).toEqual({ hash: 'a', name: 'A', progress: 0.5 })
   })
 
@@ -96,6 +112,122 @@ describe('useMainData', () => {
     expect(result.current.updatedAt).toBe(sentAt + 500)
   })
 
+  it('gives up a poll that hangs, shows offline and polls again', async () => {
+    getMainData
+      .mockResolvedValueOnce({ rid: 1, full_update: true, torrents: { a: { name: 'A' } } })
+      .mockImplementationOnce(hang)
+      .mockResolvedValue({ rid: 2 })
+    const { result } = renderHook(() => useMainData(vi.fn()))
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS))
+    expect(getMainData).toHaveBeenCalledTimes(2)
+
+    await act(() => vi.advanceTimersByTimeAsync(POLL_TIMEOUT_MS - 1))
+    expect(result.current.offline).toBe(false)
+    expect(result.current.poll.getPollState().inFlight).toBe(true)
+    await act(() => vi.advanceTimersByTimeAsync(1))
+    expect(result.current.offline).toBe(true)
+    expect(result.current.data?.torrents.a.name).toBe('A')
+    expect(result.current.poll.getPollState().inFlight).toBe(false)
+
+    await act(() => vi.advanceTimersByTimeAsync(OFFLINE_POLL_INTERVAL_MS))
+    expect(getMainData).toHaveBeenCalledTimes(3)
+    expect(result.current.offline).toBe(false)
+  })
+
+  it('gives up a poll that hangs when the device comes back online and polls again at once', async () => {
+    getMainData
+      .mockResolvedValueOnce({ rid: 1, full_update: true, torrents: { a: { name: 'A' } } })
+      .mockImplementationOnce(hang)
+      .mockResolvedValue({ rid: 2, torrents: { a: { name: 'B' } } })
+    const shown: boolean[] = []
+    const { result } = renderHook(() => {
+      const main = useMainData(vi.fn())
+      shown.push(main.offline)
+      return main
+    })
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS))
+    expect(getMainData).toHaveBeenCalledTimes(2)
+
+    window.dispatchEvent(new Event('online'))
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    expect(getMainData).toHaveBeenCalledTimes(3)
+    expect(result.current.data?.torrents.a.name).toBe('B')
+    // Given up, not failed: the screens never said qBittorrent stopped answering.
+    expect(shown).not.toContain(true)
+  })
+
+  it('doesn’t poll while the page is hidden, and polls as soon as it’s back', async () => {
+    getMainData.mockResolvedValue({ rid: 1 })
+    renderHook(() => useMainData(vi.fn()))
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    act(() => setHidden(true))
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS * 3))
+    expect(getMainData).toHaveBeenCalledTimes(1)
+
+    act(() => setHidden(false))
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    expect(getMainData).toHaveBeenCalledTimes(2)
+  })
+
+  it('gives up a poll in flight when the page is hidden, without going offline, and polls when it’s back', async () => {
+    getMainData.mockImplementationOnce(hang).mockResolvedValue({ rid: 1 })
+    const { result } = renderHook(() => useMainData(vi.fn()))
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    const [[, signal]] = getMainData.mock.calls
+
+    act(() => setHidden(true))
+    expect(signal?.aborted).toBe(true)
+    await act(() => vi.advanceTimersByTimeAsync(POLL_TIMEOUT_MS))
+    expect(result.current.offline).toBe(false)
+    expect(result.current.poll.getPollState().inFlight).toBe(false)
+    // Nothing polls while hidden, the device coming back online included.
+    window.dispatchEvent(new Event('online'))
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS))
+    expect(getMainData).toHaveBeenCalledTimes(1)
+
+    act(() => setHidden(false))
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    expect(getMainData).toHaveBeenCalledTimes(2)
+    expect(result.current.data).not.toBeNull()
+  })
+
+  it('doesn’t time out a poll answered in time', async () => {
+    const signals: (AbortSignal | undefined)[] = []
+    getMainData.mockImplementation(async (_rid, signal) => {
+      signals.push(signal)
+      return { rid: 1 }
+    })
+    const { result } = renderHook(() => useMainData(vi.fn()))
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    // Past the first poll's timeout, which its answer cancelled.
+    await act(() => vi.advanceTimersByTimeAsync(POLL_TIMEOUT_MS))
+    expect(signals[0]?.aborted).toBe(false)
+    expect(result.current.offline).toBe(false)
+  })
+
+  it('says whether a poll is in flight, apart from the data, so a request going out renders no screen', async () => {
+    let answer: (data: api.MainData) => void = () => {}
+    getMainData.mockImplementation(() => new Promise((resolve) => (answer = resolve)))
+    let renders = 0
+    const { result } = renderHook(() => {
+      renders += 1
+      return useMainData(vi.fn())
+    })
+    const { poll } = result.current
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    expect(poll.getPollState()).toEqual({ inFlight: true, offline: false, updatedAt: null })
+
+    await act(async () => answer({ rid: 1, full_update: true }))
+    const answeredAt = Date.now()
+    expect(poll.getPollState()).toEqual({ inFlight: false, offline: false, updatedAt: answeredAt })
+    const settled = renders
+
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS))
+    expect(poll.getPollState()).toEqual({ inFlight: true, offline: false, updatedAt: answeredAt })
+    expect(renders).toBe(settled)
+    expect(result.current.poll).toBe(poll)
+  })
+
   it('reports an expired session once and stops', async () => {
     getMainData.mockRejectedValue(new api.UnauthorizedError())
     const onUnauthorized = vi.fn()
@@ -104,6 +236,22 @@ describe('useMainData', () => {
     await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS * 3))
     expect(onUnauthorized).toHaveBeenCalledTimes(1)
     expect(getMainData).toHaveBeenCalledTimes(1)
+  })
+
+  it('doesn’t report an expired session that answers a poll after everyone left', async () => {
+    let reject: (error: Error) => void = () => {}
+    getMainData.mockReturnValueOnce(new Promise((_resolve, fail) => (reject = fail)))
+    const onUnauthorized = vi.fn()
+    const { unmount } = renderHook(() => useMainData(onUnauthorized))
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    unmount()
+    // The store stops a moment after its last subscriber leaves.
+    await vi.advanceTimersByTimeAsync(0)
+
+    reject(new api.UnauthorizedError())
+    await vi.advanceTimersByTimeAsync(0)
+    expect(getMainData).toHaveBeenCalledTimes(1)
+    expect(onUnauthorized).not.toHaveBeenCalled()
   })
 
   it('stops polling on unmount', async () => {
@@ -187,7 +335,7 @@ describe('MainDataProvider', () => {
     expect(seen).toBe('A')
     await act(() => vi.advanceTimersByTimeAsync(0))
     expect(getMainData).toHaveBeenCalledTimes(2)
-    expect(getMainData).toHaveBeenLastCalledWith(1)
+    expect(getMainData).toHaveBeenLastCalledWith(1, expect.any(AbortSignal))
   })
 
   it('reports an expired session to the provider’s handler', async () => {

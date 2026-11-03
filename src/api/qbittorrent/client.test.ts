@@ -7,6 +7,7 @@ import {
   getAppVersion,
   getCategories,
   getDefaultSavePath,
+  getMainData,
   getRefreshInterval,
   getSaveLocations,
   getTorrentFiles,
@@ -110,6 +111,7 @@ describe('what a screen can cancel', () => {
     { name: 'getAppVersion', read: () => getAppVersion(signal), requests: 1 },
     { name: 'getCategories', read: () => getCategories(signal), requests: 1 },
     { name: 'getDefaultSavePath', read: () => getDefaultSavePath(signal), requests: 1 },
+    { name: 'getMainData', read: () => getMainData(0, signal), requests: 1 },
     { name: 'getSaveLocations', read: () => getSaveLocations(signal), requests: 3 },
     { name: 'getTorrentTrackers', read: () => getTorrentTrackers('abc', signal), requests: 1 },
   ])('$name hands the signal to every request', async ({ read, requests }) => {

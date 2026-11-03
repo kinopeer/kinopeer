@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { UnauthorizedError, toggleSpeedLimitsMode } from '../api/qbittorrent'
+import { fakePoll } from '../test/render'
 import { EMPTY_SYNC_STATE } from './sync'
 import { useAltSpeedLimits } from './useAltSpeedLimits'
 import type { MainDataState } from './useMainData'
@@ -15,15 +16,15 @@ const refresh = vi.fn()
 const onFailed = vi.fn()
 
 /** The poll's state: `requestedAt` is when the request behind it was sent, `updatedAt` when it answered. */
-interface PollState {
+interface SnapshotOptions {
   offline?: boolean
   requestedAt?: number
   updatedAt?: number
 }
 
-function main(alt: boolean | undefined, { offline = false, requestedAt = 0, updatedAt = requestedAt }: PollState = {}): MainDataState {
+function main(alt: boolean | undefined, { offline = false, requestedAt = 0, updatedAt = requestedAt }: SnapshotOptions = {}): MainDataState {
   const server = alt === undefined ? {} : { use_alt_speed_limits: alt }
-  return { data: { ...EMPTY_SYNC_STATE, server }, offline, updatedAt, requestedAt, refresh }
+  return { data: { ...EMPTY_SYNC_STATE, server }, offline, updatedAt, requestedAt, refresh, poll: fakePoll().poll }
 }
 
 function renderAlt(initial: MainDataState) {

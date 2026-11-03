@@ -29,6 +29,7 @@ import { DownloadItem } from './DownloadItem'
 import { DownloadRow, DownloadRowHeader } from './DownloadRow'
 import { InstallCard } from './InstallCard'
 import { OfflineBanner } from './OfflineBanner'
+import { PollRing } from './PollRing'
 import { SortMenu, SortSheet } from './SortSheet'
 import { StatusMenu } from './StatusMenu'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
@@ -345,6 +346,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
         {!selecting && (
           <div className="downloads-title-row">
             <h1 className="t-h1">{t('downloads.title')}</h1>
+            <PollRing poll={main.poll} className="downloads-poll" />
             <AltSpeedButton main={main} />
             <IconButton
               icon="search"

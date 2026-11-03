@@ -53,6 +53,11 @@
   min-width: 0;
 }
 
+/* The poll's ring beside the title row's icons, a little smaller than their 22px. */
+.downloads-poll {
+  --poll-ring-size: 18px;
+}
+
 .downloads-totals {
   display: flex;
   align-items: center;

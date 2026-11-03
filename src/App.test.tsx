@@ -186,6 +186,10 @@ describe('App', () => {
       const nav = screen.getByRole('navigation', { name: 'Main' })
       expect(within(nav).getByRole('link', { name: /^Downloads.*1 downloading$/ })).toBeInTheDocument()
       expect(screen.getByRole('region', { name: 'qBittorrent' })).toHaveTextContent('qBittorrent 5.2.4')
+      // The poll's ring, in the card and in the rail, which names the connection in its tooltip.
+      const sidebarStatus = screen.getByRole('region', { name: 'qBittorrent' })
+      expect(within(sidebarStatus).getAllByRole('img', { name: /^Updated at / })).toHaveLength(2)
+      expect(within(sidebarStatus).getByTitle(/^qBittorrent 5\.2\.4 · Updated at /)).toBeInTheDocument()
     })
 
     // A trailing slash is the same route to React Router, so it has to be the same screen too.

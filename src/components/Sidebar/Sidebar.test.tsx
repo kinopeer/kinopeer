@@ -73,7 +73,6 @@ describe('SidebarStatus', () => {
     expect(download).toHaveTextContent(/^↓Download speed 4\.3MB\/s$/)
     expect(screen.getByText('KB/s').closest('p')).toHaveTextContent(/^↑Upload speed 120KB\/s$/)
     expect(screen.getByText('TB').closest('p')).toHaveTextContent(/^Free space 1\.21TB$/)
-    expect(screen.getByTitle('qBittorrent 5.0.1')).toBeInTheDocument()
   })
 
   it('says when qBittorrent doesn’t answer', () => {
@@ -82,6 +81,20 @@ describe('SidebarStatus', () => {
     expect(screen.getAllByText('No connection to qBittorrent')).toHaveLength(2)
     expect(screen.getByRole('region', { name: 'qBittorrent' })).toHaveTextContent('↓Download speed —')
     expect(screen.queryByText('TB')).not.toBeInTheDocument()
+  })
+
+  it('shows the indicator in the card and in the rail, the rail’s with the connection for its tooltip', () => {
+    render(
+      <SidebarStatus
+        version="5.0.1"
+        offline={false}
+        indicator={(status) => <span role="img" aria-label="Poll" title={status ?? 'none'} />}
+      />,
+    )
+    expect(screen.getAllByRole('img', { name: 'Poll' })).toHaveLength(2)
+    // The card writes the connection beside it; nothing in the rail does.
+    expect(screen.getByTitle('none')).toBeInTheDocument()
+    expect(screen.getByTitle('qBittorrent 5.0.1')).toBeInTheDocument()
   })
 
   it('switches the alternative speed limits from the card and from the rail', async () => {

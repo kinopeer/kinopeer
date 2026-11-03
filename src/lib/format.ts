@@ -21,6 +21,8 @@ export interface Formatters {
   percent: (fraction: number) => string
   /** How long ago something updated: just now, 5 min ago, 2 h ago. */
   since: (date: number, now?: number) => string
+  /** The time of day to the second, in the language's style: 9:05:07 AM. */
+  time: (date: number) => string
   /** How long ago, compactly: 3 d, 5 mo, 2 y. */
   age: (date: Date | string, now?: number) => string
 }
@@ -62,6 +64,7 @@ export function createFormatters(t: TFunction, language: string): Formatters {
       if (minutes < 60) return t('format.minutesAgo', { count: minutes })
       return t('format.hoursAgo', { count: Math.floor(minutes / 60) })
     },
+    time: (date) => new Date(date).toLocaleTimeString(language, { hour: 'numeric', minute: '2-digit', second: '2-digit' }),
     age: (date, now = Date.now()) => {
       const days = Math.max(0, Math.floor((now - new Date(date).getTime()) / 86_400_000))
       if (days < 30) return t('format.ageDays', { count: days })
