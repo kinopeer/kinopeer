@@ -4,7 +4,7 @@ import { resolve } from 'node:path'
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
-import { dataStores, kinoseedServer, type KinoseedServer } from './server/main.ts'
+import { TMDB_PROXY_EDGE, dataStores, kinoseedServer, type KinoseedServer } from './server/main.ts'
 
 /**
  * The PWA: web app manifest and a service worker (src/sw.ts) that precaches the app shell. Icons
@@ -84,7 +84,9 @@ export default defineConfig(({ mode }) => {
       react(),
       pwa,
       versionFilePlugin(appVersion),
-      serverRoutesPlugin(kinoseedServer(env, stores)),
+      // A checkout runs main's code, which only the edge worker of the TMDB proxy keeps up with: the
+      // release worker gets a new path at the release (docs/DEVELOPMENT.md → The TMDB proxy).
+      serverRoutesPlugin(kinoseedServer({ KINOSEED_TMDB_PROXY: TMDB_PROXY_EDGE, ...env }, stores)),
     ],
     test: {
       // One time zone everywhere, so a test that reads local time passes in any machine's local

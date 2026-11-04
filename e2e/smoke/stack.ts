@@ -87,6 +87,8 @@ async function start(options: ResetOptions): Promise<Stand> {
       PROWLARR_URL: prowlarr.base,
       PROWLARR_API_KEY: PROWLARR_KEY,
       TMDB_API_URL: tmdb.apiBase,
+      // Off, so the journeys never reach the real proxy; the onboarding asks for a key as before.
+      TMDB_PROXY_URL: '',
       TMDB_IMAGE_URL: `${tmdb.base}/t/p`,
     },
   })

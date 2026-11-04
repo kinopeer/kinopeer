@@ -10,12 +10,18 @@ import type { Middleware } from './prowlarr.ts'
  * /tmdb-img/w342/abc.jpg → https://image.tmdb.org/t/p/w342/abc.jpg
  *
  * Accepts either a v3 API key or a v4 read access token (a JWT, sent as a bearer token). The key
- * is the one saved from the app (server/settings.ts) or TMDB_API_KEY. Browser cookies are never
- * passed on. Runs as Vite middleware in dev and in the production server.
+ * is the one saved from the app (server/settings.ts) or TMDB_API_KEY. Without one, API calls go to
+ * Kinoseed's TMDB proxy (`proxyBase`, tmdb-proxy/), which adds Kinoseed's key. Browser cookies are
+ * never passed on. Runs as Vite middleware in dev and in the production server.
  */
 export interface TmdbConfig {
   /** A function when the key can change while the server runs (saved from the app). */
   apiKey?: string | (() => string | undefined)
+  /**
+   * Kinoseed's TMDB proxy, `https://<worker>/3`, for calls without a key; none answers 401, so the
+   * app asks for a key.
+   */
+  proxyBase?: string
   /** Overridable for tests. */
   apiBase?: string
   imageBase?: string
@@ -75,9 +81,13 @@ export function tmdbMiddleware(config: TmdbConfig): Middleware {
     let target = { url: `${imageBase}/${path.slice(IMAGE_PREFIX.length)}`, headers: {} as Record<string, string> }
     if (isApi) {
       const key = getKey()?.trim()
+      const apiPath = path.slice(API_PREFIX.length)
+      if (key) target = authorize(key, `${apiBase}/${apiPath}`)
+      // No Authorization or key of any kind: the proxy adds its own, and Workers Cache in front of
+      // it bypasses a request that carries Authorization.
+      else if (config.proxyBase) target = { url: `${config.proxyBase}/${apiPath}`, headers: {} }
       // The app treats 401 as a missing or invalid key and asks for one.
-      if (!key) return fail(401, 'The TMDB API key is not set')
-      target = authorize(key, `${apiBase}/${path.slice(API_PREFIX.length)}`)
+      else return fail(401, 'The TMDB API key is not set')
     }
 
     // Errors never echo the upstream URL: it may contain the key.

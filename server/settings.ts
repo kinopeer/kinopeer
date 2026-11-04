@@ -4,6 +4,7 @@ import type {
   DownloadDefaultsBody,
   ProwlarrKeyBody,
   QbittorrentLoginBody,
+  SecretStatus,
   ServerSettings,
   SettingsErrorBody,
   TmdbKeyBody,
@@ -57,6 +58,8 @@ export interface SettingsConfig {
   store: SettingsStore
   /** TMDB_API_KEY from the environment, the fallback. */
   envTmdbApiKey?: string
+  /** Kinoseed's TMDB proxy, which serves calls without a key (server/tmdb.ts); none to turn it off. */
+  tmdbProxy?: string
   /** PROWLARR_URL, to check a key before saving it. */
   prowlarrUrl?: string
   /** PROWLARR_API_KEY, the fallback. */
@@ -113,9 +116,15 @@ function fail(response: ServerResponse, status: number, error: SettingsErrorBody
   sendJson(response, status, { error } satisfies SettingsErrorBody)
 }
 
-function status(saved: string | undefined, env: string | undefined): ServerSettings['tmdb'] {
+function status(saved: string | undefined, env: string | undefined): SecretStatus {
   const source = saved?.trim() ? 'saved' : env?.trim() ? 'env' : null
   return { configured: source !== null, source }
+}
+
+/** Kinoseed's key counts as a key, so onboarding doesn't ask for one; the user's own still wins. */
+function tmdbStatus(saved: string | undefined, config: SettingsConfig): ServerSettings['tmdb'] {
+  const own = status(saved, config.envTmdbApiKey)
+  return own.configured || !config.tmdbProxy ? own : { configured: true, source: 'shared' }
 }
 
 /** The server's own Prowlarr key: a key in config.xml counts as its configuration, like the variable. */
@@ -132,7 +141,7 @@ async function snapshot(stored: StoredSettings, config: SettingsConfig): Promise
   // key of its own, which decides whether a saved key can be forgotten.
   const envProwlarr = await serverProwlarrKey(config)
   return {
-    tmdb: status(stored.tmdbApiKey, config.envTmdbApiKey),
+    tmdb: tmdbStatus(stored.tmdbApiKey, config),
     prowlarr: { ...status(stored.prowlarrApiKey, envProwlarr), serverKey: Boolean(envProwlarr) },
     qbittorrent: status(stored.qbittorrentUsername, config.envQbittorrent?.username),
     downloads: stored.downloads ?? null,

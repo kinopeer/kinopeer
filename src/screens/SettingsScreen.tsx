@@ -187,6 +187,7 @@ export function SettingsScreen() {
   const [serverChanged, setServerChanged] = useState<ServerSettings | null>(null)
   const server = serverChanged ?? serverLoad.data
   const names = (categories.data ?? []).map((category) => category.name).sort((a, b) => a.localeCompare(b))
+  const sharedTmdbKey = server?.tmdb.source === 'shared'
 
   // The checks behind Connections, run here so About shows the versions they answer with and
   // starts none of its own; a check running again or failing has no data, so About shows "—".
@@ -278,11 +279,12 @@ export function SettingsScreen() {
             icon="film"
             status={connectionStatus(
               tmdb,
-              () => ({ message: t('settings.connected') }),
+              // Kinoseed's own key, behind its proxy: said, so the user knows a key of their own is optional.
+              () => ({ message: sharedTmdbKey ? t('settings.connectedSharedKey') : t('settings.connected') }),
               (error) => (error instanceof TmdbKeyError ? t('settings.tmdbKey') : t('settings.tmdbError')),
             )}
             onTest={tmdb.retry}
-            editLabel={t('tmdbKey.change')}
+            editLabel={sharedTmdbKey ? t('tmdbKey.useOwn') : t('tmdbKey.change')}
             onEdit={() => setEditingKey(true)}
           />
         </ul>
@@ -371,7 +373,8 @@ export function SettingsScreen() {
       <InstallSheet platform={installSteps} onClose={() => setInstallSteps(null)} />
       <Sheet open={editingKey} onClose={() => setEditingKey(false)} title={t('tmdbKey.sheetTitle')}>
         <TmdbKeyForm
-          onSaved={() => {
+          onSaved={(changed) => {
+            setServerChanged(changed)
             setEditingKey(false)
             toast.show(t('tmdbKey.saved'))
             setTmdbKeyVersion((n) => n + 1)

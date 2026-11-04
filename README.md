@@ -36,7 +36,7 @@ Kinoseed currently supports umbrelOS only. It needs the **qBittorrent** and **Pr
 On first launch:
 
 - **qBittorrent** connects on its own with Umbrel's default login. If you changed it, Kinoseed asks for the login once and keeps it on your Umbrel.
-- **TMDB**: Kinoseed asks for a free [TMDB API key](https://www.themoviedb.org/settings/api). It is kept on your Umbrel too; change it in Settings.
+- **TMDB** needs no setup: Kinoseed uses its own key. You can enter your own free [TMDB API key](https://www.themoviedb.org/settings/api) in Settings; it's kept on your Umbrel, and TMDB calls then go to TMDB directly.
 - **Prowlarr** needs no setup: Kinoseed reads its API key itself. Trackers are added as indexers in Prowlarr.
 
 Umbrel offers updates when a new version is out. What changed is in [CHANGELOG.md](CHANGELOG.md).
@@ -48,7 +48,7 @@ Kinoseed is a web app (PWA). Over plain HTTP on your home network it works in th
 ## Privacy and security
 
 - The TMDB and Prowlarr keys and the qBittorrent login stay on the Kinoseed server and never reach the browser.
-- Besides your qBittorrent and Prowlarr, Kinoseed only talks to TMDB, and only through its own server. No analytics, no telemetry.
+- Besides your qBittorrent and Prowlarr, Kinoseed only talks to TMDB, and only through its own server. Without a TMDB key of your own, those calls go through Kinoseed's TMDB proxy on Cloudflare, which adds Kinoseed's key and sees your Umbrel's IP address and what you search for; it keeps no logs. With your own key in Settings, they go to TMDB directly. No analytics, no telemetry.
 - Kinoseed never stores tracker logins: that's Prowlarr's job.
 - Kinoseed has no login of its own; on Umbrel, Umbrel's login protects it.
 
