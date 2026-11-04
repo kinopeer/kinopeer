@@ -1,5 +1,8 @@
-/* The ring is the size of an icon beside it; a place sets --poll-ring-size for another one. */
+/* The ring is the size of an icon beside it; a place sets --poll-ring-size for another one.
+   Its filling and pulsing animate only transform and opacity, which the compositor runs: an arc's
+   stroke-dashoffset animates on the main thread and repaints the page every frame (#220). */
 .poll-ring {
+  position: relative;
   display: inline-flex;
   flex: none;
   width: var(--poll-ring-size, 16px);
@@ -8,13 +11,13 @@
 }
 
 .poll-ring svg {
+  display: block;
   width: 100%;
   height: 100%;
-  /* The fill starts at the top. */
-  transform: rotate(-90deg);
 }
 
-.poll-ring circle {
+.poll-ring circle,
+.poll-ring path {
   fill: none;
   stroke: currentColor;
   stroke-width: 2.5;
@@ -24,28 +27,69 @@
   opacity: 0.25;
 }
 
-/* Full by default: what a waiting or offline ring shows, and where a filling one ends. */
 .poll-ring-fill {
-  stroke-dasharray: 100;
-  stroke-dashoffset: 0;
+  position: absolute;
+  inset: 0;
 }
 
-.poll-ring.is-filling .poll-ring-fill {
-  animation: poll-ring-fill var(--poll-interval) linear both;
+/* The arc is two half rings, each behind a window on one half of the ring: the first turns into the
+   right half over the first half of the interval, the second into the left half over the second.
+   Each window clips its half ring to the part that has turned in, which is the arc from the top. */
+.poll-ring-half {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  overflow: hidden;
 }
 
-/* Starts at full opacity, so a screenshot with animations stopped sees it as a filled ring. */
-.poll-ring.is-waiting svg {
-  animation: poll-ring-wait 0.8s ease-in-out infinite alternate;
+.poll-ring-half svg {
+  position: absolute;
+  top: 0;
+  /* The ring's full width, so it turns about the ring's center. */
+  width: 200%;
+  /* Turned in by default: a full ring, what a waiting or offline ring shows and where a filling one ends. */
+  transform: rotate(180deg);
+}
+
+.poll-ring-half.is-first {
+  left: 50%;
+}
+
+.poll-ring-half.is-first svg {
+  /* The window is the right half, so the ring's center is a window's width to its left. */
+  left: -100%;
+}
+
+.poll-ring-half.is-second {
+  left: 0;
+}
+
+.poll-ring-half.is-second svg {
+  left: 0;
 }
 
 .poll-ring.is-offline {
   color: var(--error);
 }
 
-@keyframes poll-ring-fill {
+@keyframes poll-ring-first {
   from {
-    stroke-dashoffset: 100;
+    transform: rotate(0deg);
+  }
+  50%,
+  to {
+    transform: rotate(180deg);
+  }
+}
+
+@keyframes poll-ring-second {
+  from,
+  50% {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(180deg);
   }
 }
 
@@ -55,11 +99,20 @@
   }
 }
 
-/* No filling or pulsing: a full ring, in the error color while offline. base.css also cuts every
-   animation short under reduced motion; this keeps the ring still even where that changes. */
-@media (prefers-reduced-motion: reduce) {
-  .poll-ring.is-filling .poll-ring-fill,
-  .poll-ring.is-waiting svg {
-    animation: none;
+/* Only without reduced motion: otherwise no filling or pulsing, a full ring, in the error color while
+   offline. base.css also cuts every animation short under reduced motion; this keeps the ring still
+   even where that changes. */
+@media (prefers-reduced-motion: no-preference) {
+  .poll-ring.is-filling .poll-ring-half.is-first svg {
+    animation: poll-ring-first var(--poll-interval) linear both;
+  }
+
+  .poll-ring.is-filling .poll-ring-half.is-second svg {
+    animation: poll-ring-second var(--poll-interval) linear both;
+  }
+
+  /* Starts at full opacity, so a screenshot with animations stopped sees it as a filled ring. */
+  .poll-ring.is-waiting {
+    animation: poll-ring-wait 0.8s ease-in-out infinite alternate;
   }
 }
