@@ -75,6 +75,14 @@ describe('applyMainData and the fields the app reads', () => {
     expect(next.torrents.b).toBe(full.torrents.b)
   })
 
+  it('takes the download settings another client changed, which the torrent page shows', () => {
+    const next = applyMainData(full, {
+      rid: 2,
+      torrents: { a: { seq_dl: true, f_l_piece_prio: true, auto_tmm: false } },
+    })
+    expect(next.torrents.a).toMatchObject({ seq_dl: true, f_l_piece_prio: true, auto_tmm: false })
+  })
+
   it('adds a torrent that comes only with fields the app doesn’t read, by its hash', () => {
     const next = applyMainData(full, { rid: 2, torrents: { c: { time_active: 1 } } as MainData['torrents'] })
     expect(next.torrents.c).toEqual({ hash: 'c' })
