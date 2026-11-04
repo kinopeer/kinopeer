@@ -263,11 +263,16 @@ Four shapes cause most of them:
 
 **What a test puts in place outside its own tree.** Vitest puts back every `vi.spyOn` spy,
 `vi.stubGlobal` and `vi.stubEnv` before each test (`restoreMocks`, `unstubGlobals` and `unstubEnvs`
-in `vite.config.ts`), so a spy is made in the test or its `beforeEach`, never at the top of the
-file or in `beforeAll`, where it would be gone by the first test. A listener on `document` or
-`window` and fake timers are the test's to remove: in `afterEach` or through `onTestFinished`, not
-at the end of the `it`, where an assertion that fails first leaves them to every later test in the
-file (#243).
+in `vite.config.ts`), so each is made in the test or its `beforeEach`, never in `beforeAll` or at
+the top of the file: there it's gone by the first test, which then runs without it and stays green
+(`browseRows.test.ts` stubbed its time zone in `beforeAll`, and its date tests ran in UTC until
+#253 moved the stub). The one exception is a stub only the file's load needs: `sw.test.ts` stubs
+`self` before it imports the worker, and its tests read what that load captured. A listener on
+`document` or `window` and fake timers are the test's to remove: in `afterEach` or through
+`onTestFinished`, not at the end of the `it`, where an assertion that fails first leaves them to
+every later test in the file (#243). A new test doesn't write `vi.restoreAllMocks()`,
+`vi.unstubAllGlobals()`, `vi.unstubAllEnvs()` or a spy's `mockRestore()` to clean up; the ones
+already in the tree do nothing now and go when their file is next changed.
 
 The Seen red column is the author's word, and the review can only read the tests for these shapes;
 the survivors in CI's comment are not.
@@ -569,9 +574,13 @@ or changes. A merge of `main` after it needs a round only when it reaches the PR
 Otherwise the author posts one comment headed `Merged main at <short sha>`: the PR's diff
 unchanged, the conflicts and how they were resolved (`git show --remerge-diff`), the files both
 sides change (none outside those three), and CI green at that commit. The verdict carries over to
-it, and whoever merges reads both comments. `CHANGELOG.md` merges without a conflict
-(`merge=union` in `.gitattributes`, which keeps both sides' lines, this branch's first), so the
-comment says where the PR's entry ended up.
+it, and whoever merges reads both comments. `CHANGELOG.md` merges with `merge=union`
+(`.gitattributes`), which keeps both sides' lines, this branch's first, without a conflict once
+the branch has `.gitattributes` (a branch cut before it conflicts there on its first merge of
+`main`). A line both sides rewrote then stays twice, also without a conflict (#241 rewrote a
+bullet #231 had added), so the comment checks `git diff main...HEAD -- CHANGELOG.md` for a line
+the PR adds beside `main`'s version of the same entry, keeps one, and says where the PR's entry
+ended up.
 
 A real bug that `/code-review` finds in an open PR's own change is fixed in that PR, red test
 first, without an issue: it never reached `main`. The round that reports the bug records the

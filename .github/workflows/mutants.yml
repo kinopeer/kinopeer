@@ -14,9 +14,10 @@ on:
       - 'tmdb-proxy/**'
   workflow_dispatch:
 
-# A push while a run is going cancels it, so only the latest head is mutated and commented on.
+# A push while a run is going cancels it, so only the latest head is mutated and commented on. Keyed
+# by the branch, so a run started by hand and a push's run for the same PR share the group.
 concurrency:
-  group: mutants-${{ github.event.pull_request.number || github.ref }}
+  group: mutants-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
