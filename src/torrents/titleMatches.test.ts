@@ -311,6 +311,7 @@ describe('useTitleMatches', () => {
     afterEach(() => {
       localStorage.removeItem(SETTINGS_STORAGE_KEY)
       resetSettings()
+      vi.restoreAllMocks()
     })
 
     interface Held {
@@ -557,13 +558,17 @@ describe('useTitleMatches', () => {
       expect(renders - rendered).toBe(1)
       // One write for the show and one for the guesses' titles by id, not a show per title.
       expect(setItem.mock.calls.filter(([key]) => key === CACHE_KEY)).toHaveLength(2)
-      setItem.mockRestore()
 
       // One that arrives as the list goes away is still kept for the next visit.
       await act(async () => held[3].answer(found(3)))
       expect(storedGuesses()).toEqual(guessKeys(3))
       unmount()
       expect(storedGuesses()).toEqual(guessKeys(4))
+
+      // Delta's show was still to come: it doesn't outlive the list, nor write the cache again.
+      setItem.mockClear()
+      await pass(SHOW_EVERY_MS)
+      expect(setItem.mock.calls.filter(([key]) => key === CACHE_KEY)).toHaveLength(0)
     })
   })
 })
