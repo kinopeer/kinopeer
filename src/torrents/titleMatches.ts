@@ -274,13 +274,12 @@ function startLookups(language: string, onShow: () => void): LookupRun {
   // Keys taken by a worker: in flight, found, or waiting to be asked again.
   const started = new Set<string>()
   const failures = new Map<string, number>()
-  const retries = new Set<ReturnType<typeof setTimeout>>()
   let wanted: Lookup[] = []
   let queue: Lookup[] = []
   let workers = 0
   let resumeAt = 0
   let resumeTimer: ReturnType<typeof setTimeout> | undefined
-  let shownAt = -Infinity
+  let shownAt = 0
   let showTimer: ReturnType<typeof setTimeout> | undefined
 
   const show = () => {
@@ -310,12 +309,10 @@ function startLookups(language: string, onShow: () => void): LookupRun {
   const retryLater = (key: string) => {
     const count = (failures.get(key) ?? 0) + 1
     failures.set(key, count)
-    const timer = setTimeout(() => {
-      retries.delete(timer)
+    setTimeout(() => {
       started.delete(key)
       fill()
     }, RETRY_DELAYS_MS[Math.min(count, RETRY_DELAYS_MS.length) - 1])
-    retries.add(timer)
   }
 
   const work = async () => {
@@ -328,7 +325,6 @@ function startLookups(language: string, onShow: () => void): LookupRun {
         cacheTitles({ [`${language}|${lookup.key}`]: match })
         arrived()
       } catch (error) {
-        if (signal.aborted) break
         if (error instanceof TmdbError && error.status === 429) {
           // Not this title's failure: it goes back in line once TMDB takes requests again.
           started.delete(lookup.key)
@@ -348,9 +344,8 @@ function startLookups(language: string, onShow: () => void): LookupRun {
       fill()
     },
     stop() {
+      // A retry or a resume that falls due later finds the run stopped and sends nothing.
       controller.abort()
-      clearTimeout(resumeTimer)
-      for (const timer of retries) clearTimeout(timer)
       if (showTimer === undefined) return
       // What arrived since the last show is kept for the next visit.
       clearTimeout(showTimer)

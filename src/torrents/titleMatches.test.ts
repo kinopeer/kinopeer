@@ -452,6 +452,37 @@ describe('useTitleMatches', () => {
       expect(queries(held)).toEqual(['Alpha', 'Bravo', 'Charlie', 'Alpha', 'Delta'])
     })
 
+    it('waits for the longest a 429 asks: a later, longer one extends the wait, a shorter one doesn’t cut it', async () => {
+      vi.useFakeTimers()
+      const held = holdSearches()
+      renderHook(() => useTitleMatches(many))
+      await pass(0)
+      await act(async () => held[0].fail(new tmdb.TmdbError('TMDB responded 429', 429, 5_000)))
+      await pass(1_000)
+      await act(async () => held[1].fail(new tmdb.TmdbError('TMDB responded 429', 429, 10_000)))
+      await pass(1_000)
+      await act(async () => held[2].fail(new tmdb.TmdbError('TMDB responded 429', 429, 2_000)))
+
+      // Paused until 11 s, what the second asked for.
+      await pass(8_999)
+      expect(queries(held)).toEqual(['Alpha', 'Bravo', 'Charlie'])
+      await pass(1)
+      expect(queries(held)).toEqual(['Alpha', 'Bravo', 'Charlie', 'Alpha', 'Bravo', 'Charlie'])
+    })
+
+    it('sends nothing more once the list goes away, even when a retry falls due', async () => {
+      vi.useFakeTimers()
+      const held = holdSearches()
+      const { unmount } = renderHook(() => useTitleMatches(many))
+      await pass(0)
+      await act(async () => held[0].fail(new tmdb.TmdbError('TMDB responded 500', 500)))
+      await act(async () => held[1].fail(new tmdb.TmdbError('TMDB responded 429', 429, 5_000)))
+      unmount()
+
+      await pass(RETRY_DELAYS_MS[0])
+      expect(queries(held)).toEqual(['Alpha', 'Bravo', 'Charlie', 'Delta'])
+    })
+
     it('waits RATE_LIMIT_WAIT_MS after a 429 that doesn’t say how long', async () => {
       vi.useFakeTimers()
       const held = holdSearches()
