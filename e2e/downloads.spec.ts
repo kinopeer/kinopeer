@@ -190,29 +190,34 @@ test.describe('downloads, phone', () => {
 
   // Off screen a card is skipped (content-visibility) and keeps the height it had when last laid out,
   // so the cards are laid out again when the list's width changes (#220). What jsdom can't see: the
-  // cards' real heights. A short window, so some cards are off screen and skipped at both widths, and
-  // widths under the column's, where the cards' size follows the window's.
+  // cards' real heights. A short window, so some cards are off screen and skipped, and widths under
+  // the column's, where the cards' size follows the window's.
   test('the cards are laid out again when the list’s width changes', async ({ page }) => {
+    const gridHeight = (on: Page) => on.evaluate(() => document.querySelector('.ks-poster-grid')!.getBoundingClientRect().height)
     const lastCardSkipped = () =>
       page.evaluate(() => {
         const last = [...document.querySelectorAll('.ks-poster-grid > li')].at(-1)
         return last !== undefined && !last.firstElementChild!.checkVisibility({ contentVisibilityAuto: true })
       })
-    const pageHeight = () => page.evaluate(() => document.documentElement.scrollHeight)
+    // The grid's real height at 340px: in a window taller than it, every card is on screen and none
+    // is skipped. A page load's own heights won't do, since a card laid out before its title came
+    // keeps that height while skipped.
+    const tall = await page.context().newPage()
+    await tall.setViewportSize({ width: 340, height: 3000 })
+    await openDownloads(tall, { downloadsView: 'grid' })
+    const real = await gridHeight(tall)
+    await tall.close()
+
     await page.setViewportSize({ width: 390, height: 400 })
     await openDownloads(page, { downloadsView: 'grid' })
     await expect.poll(lastCardSkipped).toBe(true)
-    const before = await pageHeight()
+    expect(await gridHeight(page)).not.toBe(real)
 
+    // Narrowed, the cards are laid out at 340px, then skipped again after the fade's delay.
     await page.setViewportSize({ width: 340, height: 400 })
-    // Skipped again once laid out at the new width, after the fade's delay.
+    await expect.poll(() => gridHeight(page)).toBe(real)
     await expect.poll(lastCardSkipped).toBe(true)
-    const narrowed = await pageHeight()
-    expect(narrowed).not.toBe(before)
-
-    await page.reload()
-    await expect.poll(lastCardSkipped).toBe(true)
-    expect(narrowed).toBe(await pageHeight())
+    expect(await gridHeight(page)).toBe(real)
   })
 
   test('the list stays out of the status bar above the pinned filters', async ({ page }) => {
