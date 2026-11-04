@@ -59,7 +59,7 @@ First go through [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) → Before every r
 1. In a PR, set `version` in `package.json` and `package-lock.json` (`npm version 0.2.0 --no-git-tag-version`) and add a `## 0.2.0 - YYYY-MM-DD` section to `CHANGELOG.md`. Update the "as of version" line at the top of `docs/SPEC.md` too.
 2. After it merges, tag `main` and push the tag: `git tag v0.2.0 && git push origin v0.2.0`.
 3. The `Release` workflow builds `ghcr.io/mrshakhov/kinoseed` for `linux/amd64` and `linux/arm64` (tags `0.2.0`, `0.2` and `latest`) and creates a GitHub Release with that version's changelog section and the image digest. Then it deploys the `kinoseed-tmdb` worker from the tag (The TMDB proxy, below). It fails if the tag doesn't match `package.json` or the changelog has no section for the version.
-4. Update the Umbrel package (below).
+4. Wait for the `Release` workflow's `proxy` job to pass and for `https://kinoseed-tmdb.kinoseed.workers.dev/3/configuration` to answer 200 (the release image calls that worker, and nothing before the tag tries it: Kinoseed Edge calls the edge worker). Then update the Umbrel package (below).
 
 The image is public, so Umbrel can pull it without a login; the code repository is private for now.
 

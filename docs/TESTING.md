@@ -506,8 +506,8 @@ tests themselves, `src/test/`, `server/test/`, type-only modules and the `index.
 report as the `coverage` artifact.
 
 The run fails under a threshold (`coverage.thresholds` in `vite.config.ts`): 96% of lines, 94% of
-statements, 95% of functions and 92% of branches, each two points under the totals of 2026-11-02
-(98.01, 96.5, 97.09 and 94.16), rounded down. The threshold is a ratchet: when the totals have grown and
+statements and 95% of functions, two points under the totals of 2026-11-02 (98.01, 96.5 and 97.09),
+and 93% of branches, two points under 95.04 on 2026-11-05, each rounded down. The threshold is a ratchet: when the totals have grown and
 stayed there, raise it to two points under them, in the PR that got them there or in one of its own;
 never lower it to get a PR through. A PR that lowers the totals says why in its Tests section (a
 module left uncovered on purpose, with the reason). The numbers are there to show what a PR leaves
