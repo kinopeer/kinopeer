@@ -254,6 +254,7 @@ describe('DownloadsScreen on desktop', () => {
       'Dune.Part.Two.2024.2160p.WEB-DL',
     ])
 
+    expect(screen.getByRole('radio', { name: 'All' })).toBeChecked()
     await userEvent.click(screen.getByRole('radio', { name: 'Series' }))
     expect((await tableRows()).map((row) => within(row).getByRole('link').textContent)).toEqual(['Andor.S02.1080p'])
   })
