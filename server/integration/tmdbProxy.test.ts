@@ -36,9 +36,12 @@ describe('TMDB through Kinoseed’s proxy', () => {
 
   it('goes back from a saved key to Kinoseed’s once it’s forgotten', async () => {
     const { tmdb, proxy, stores } = await startKinoseed({ env: { TMDB_API_KEY: undefined }, tmdbProxy: true })
-    await expect(saveTmdbKey('good-key')).resolves.toMatchObject({ tmdb: { source: 'saved', fallback: 'shared' } })
+    // The user's own key differs from Kinoseed's (good-key), so each call shows whose key it took.
+    await expect(saveTmdbKey('eyJgood')).resolves.toMatchObject({ tmdb: { source: 'saved', fallback: 'shared' } })
+    tmdb.seen.length = 0
     await expect(checkTmdb()).resolves.toBeUndefined()
     expect(proxy?.seen).toEqual([])
+    expect(tmdb.seen).toEqual([{ url: '/3/configuration', authorization: 'Bearer eyJgood', cookie: undefined }])
 
     await expect(forgetTmdbKey()).resolves.toMatchObject({ tmdb: { configured: true, source: 'shared', fallback: 'shared' } })
     expect(stores.settings.current.tmdbApiKey).toBeUndefined()
