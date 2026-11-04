@@ -55,6 +55,15 @@ export interface Torrent {
   num_complete: number
   num_incomplete: number
   category: string
+  /**
+   * Automatic management: the category decides the folder, so changing the category moves the files
+   * (or turns this off, as qBittorrent's preferences say: `SaveLocations.relocateOnCategoryChange`).
+   */
+  auto_tmm: boolean
+  /** Sequential download: pieces in order rather than rarest first. */
+  seq_dl: boolean
+  /** The first and last pieces of each file before the others. */
+  f_l_piece_prio: boolean
   /** Comma-separated. */
   tags: string
   save_path: string
@@ -136,6 +145,12 @@ export interface AddTorrentOptions {
 export interface Category {
   name: string
   savePath: string
+  /**
+   * Where its incomplete torrents are kept under automatic management (qBittorrent 4.4+): a folder
+   * (empty for qBittorrent's default one), `false` for none, or null (or missing) for qBittorrent's
+   * own setting (`SaveLocations.downloadPath`).
+   */
+  download_path?: string | false | null
 }
 
 /** Where qBittorrent saves torrents, as `getSaveLocations` reads it. */
@@ -146,6 +161,16 @@ export interface SaveLocations {
   categoryPaths: boolean
   /** A subcategory without a path of its own goes under its parent's folder. */
   subcategories: boolean
+  /**
+   * Changing the category of a torrent under automatic management moves its files to the new
+   * category's folder; otherwise qBittorrent turns automatic management off and the files stay.
+   */
+  relocateOnCategoryChange: boolean
+  /**
+   * qBittorrent keeps incomplete torrents in a folder of their own ("Keep incomplete torrents in"),
+   * so under automatic management a category change moves an incomplete torrent's files there.
+   */
+  downloadPath: boolean
 }
 
 /** 0: skip, 1: normal, 6: high, 7: maximum. */

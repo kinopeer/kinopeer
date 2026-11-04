@@ -392,6 +392,8 @@
     "pause": "Пауза",
     "resume": "Продолжить",
     "delete": "Удалить",
+    "download": "Загрузка",
+    "categoryValue": "Категория: {{category}}",
     "recheck": "Перепроверить",
     "recheckChecking": "Проверка уже идёт",
     "recheckNoMetadata": "Когда magnet-ссылка получит метаданные",
@@ -505,13 +507,19 @@
     "skip": "Пропустить",
     "invalid": "TMDB не принял этот ключ",
     "unreachable": "TMDB не отвечает. Попробуйте чуть позже.",
-    "storage": "Сервер Kinoseed не смог сохранить ключ. Проверьте, что папка данных доступна для записи.",
+    "storage": "Сервер Kinoseed не смог сохранить изменение. Проверьте, что папка данных доступна для записи.",
     "failed": "Не удалось сохранить ключ. Попробуйте ещё раз.",
     "saved": "Ключ TMDB сохранён",
     "change": "Сменить ключ TMDB",
     "sheetTitle": "Ключ TMDB",
     "enter": "Ввести ключ",
-    "useOwn": "Ввести свой ключ TMDB"
+    "useOwn": "Ввести свой ключ TMDB",
+    "forgetToShared": "Использовать ключ Kinoseed",
+    "forgetToServer": "Использовать ключ сервера",
+    "forgottenToShared": "Используется ключ TMDB от Kinoseed",
+    "forgottenToServer": "Используется ключ TMDB с сервера",
+    "noFallback": "У Kinoseed нет другого ключа TMDB, поэтому сохранённый остаётся.",
+    "forgetFailed": "Не удалось забыть ключ. Попробуйте ещё раз."
   },
   "move": {
     "title": "Перенести файлы",
@@ -523,6 +531,17 @@
     "moved": "Файлы переносятся в {{location}}",
     "noAccess": "У qBittorrent нет доступа к этой папке.",
     "cantCreate": "qBittorrent не смог создать эту папку."
+  },
+  "category": {
+    "title": "Категория",
+    "none": "Без категории",
+    "save": "Сохранить",
+    "moves": "qBittorrent перенесёт файлы в {{folder}}.",
+    "movesToCategory": "qBittorrent перенесёт файлы в папку категории.",
+    "stays": "Файлы уже в папке этой категории: {{folder}}.",
+    "toManual": "qBittorrent переведёт торрент в ручной режим, как сказано в его настройках, и файлы останутся в {{folder}}.",
+    "manual": "Торрент в ручном режиме, поэтому файлы останутся в {{folder}}.",
+    "changed": "Категория изменена"
   },
   "prowlarrKey": {
     "help": "Ключ есть в Prowlarr: Settings → General → Security → API Key.",

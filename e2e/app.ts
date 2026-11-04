@@ -100,7 +100,7 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
     (url) => url.pathname === '/api/settings',
     (route) =>
       json(route, {
-        tmdb: { configured: true, source: 'saved' },
+        tmdb: { configured: true, source: 'saved', fallback: null },
         prowlarr: { configured: true, source: 'env', serverKey: true },
         qbittorrent: { configured: true, source: 'saved' },
         downloads: null,

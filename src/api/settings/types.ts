@@ -28,6 +28,9 @@ export interface DownloadDefaults {
   firstLastPieces: boolean
 }
 
+/** A TMDB key that serves calls without a saved one: TMDB_API_KEY, else Kinoseed's own. */
+export type TmdbFallback = 'env' | 'shared'
+
 /**
  * The TMDB key: 'shared' is Kinoseed's own, behind its proxy (tmdb-proxy/), used while the server
  * has no key of its own.
@@ -35,6 +38,8 @@ export interface DownloadDefaults {
 export interface TmdbKeyStatus {
   configured: boolean
   source: KeySource | 'shared' | null
+  /** What applies once a saved key is forgotten; null when nothing would, so it can't be. */
+  fallback: TmdbFallback | null
 }
 
 /** Answer of GET /api/settings. Secrets never leave the server, only whether they are set. */

@@ -14,6 +14,23 @@ async function openDownloads(page: Page, options: AppOptions = {}) {
 }
 
 /**
+ * Picks the longest status and sort labels, then checks the desktop bar is still one row: its last
+ * control, the select button, level with the name filter.
+ */
+async function expectBarInOneRowWithLongestLabels(page: Page) {
+  await page.getByRole('button', { name: /^Статус: / }).click()
+  await page.getByRole('menuitemradio', { name: /^Загружается/ }).click()
+  await page.getByRole('button', { name: /^Сортировка: / }).click()
+  await page.getByRole('menuitemradio', { name: 'Дата добавления' }).click()
+  await expect(page.getByRole('button', { name: /^Сортировка: Дата добавления/ })).toBeVisible()
+  const middle = async (name: 'searchbox' | 'button', label: string) => {
+    const box = (await page.getByRole(name, { name: label, exact: true }).boundingBox())!
+    return box.y + box.height / 2
+  }
+  expect(await middle('button', 'Выбрать')).toBe(await middle('searchbox', 'Фильтр по названию'))
+}
+
+/**
  * Sets what trackKeyboardInset sets while the on-screen keyboard is open (Chromium has none to open),
  * by its own rule: the page visible above it, `top` pixels down the layout viewport when the
  * browser scrolled to show the field.
@@ -260,20 +277,27 @@ test.describe('downloads, desktop', () => {
     await expect(card).toHaveScreenshot('desktop-alt-speed-on-dark-ru.png')
   })
 
-  test('the header takes the safe area once, with no strip above it', async ({ page }) => {
-    await emulateNotch(page)
-    await openDownloads(page, { downloadsView: 'grid' })
-    await expect(page).toHaveScreenshot('desktop-grid-safe-area-dark-ru.png')
-  })
-
-  test('the header and the column names stay at the top while the table scrolls', async ({ page }) => {
+  test('the filters and the column names stay at the top while the table scrolls', async ({ page }) => {
     await openDownloads(page, { downloadsView: 'list' })
-    // As far as the page goes: the first rows pass under the header and the column names.
+    // As far as the page goes: the first rows pass under the bar and the column names.
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
-    await expect(page.getByRole('heading', { level: 1, name: 'Загрузки' })).toBeInViewport()
+    // The title and the totals scroll away, as on a phone; the bar with the filters is pinned.
+    await expect(page.getByRole('heading', { level: 1, name: 'Загрузки' })).not.toBeInViewport()
+    await expect(page.getByRole('searchbox', { name: 'Фильтр по названию' })).toBeInViewport()
     await expect(page.getByRole('columnheader', { name: 'Название' })).toBeInViewport()
     await expect(page).toHaveScreenshot('desktop-list-scrolled-dark-ru.png')
+  })
+
+  // An iPad's status bar: the strip above the pinned bar takes it, so the rows pass under the strip.
+  test('the table stays out of the status bar above the pinned filters', async ({ page }) => {
+    // A short window, so rows scroll into the strip's place.
+    await page.setViewportSize({ width: 1440, height: 600 })
+    await emulateNotch(page)
+    await openDownloads(page, { downloadsView: 'list' })
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
+    await expect(page).toHaveScreenshot('desktop-list-scrolled-safe-area-dark-ru.png')
   })
 
   test('a row’s actions as a menu', async ({ page }) => {
@@ -367,6 +391,19 @@ test.describe('downloads, narrow desktop', () => {
     await settle(page)
     await expect(page).toHaveScreenshot('rail-status-dark-ru.png')
   })
+
+  test('the filters stay at the top beside the rail while the table scrolls', async ({ page }) => {
+    await openDownloads(page, { downloadsView: 'list' })
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
+    await expect(page.getByRole('heading', { level: 1, name: 'Загрузки' })).not.toBeInViewport()
+    await expect(page).toHaveScreenshot('rail-list-scrolled-dark-ru.png')
+  })
+
+  test('the bar stays one row beside the rail with the longest labels', async ({ page }) => {
+    await openDownloads(page, { downloadsView: 'list' })
+    await expectBarInOneRowWithLongestLabels(page)
+  })
 })
 
 test.describe('downloads, full HD', () => {
@@ -401,6 +438,12 @@ test.describe('downloads, labelled sidebar at its narrowest', () => {
     await openDownloads(page, { downloadsView: 'list' })
     await expect(page.getByRole('columnheader', { name: 'Осталось' })).toBeHidden()
     await expect(page).toHaveScreenshot('labelled-list-dark-ru.png')
+  })
+
+  // The narrowest bar on desktop: the sort shows only its icon here.
+  test('the bar stays one row with the longest labels', async ({ page }) => {
+    await openDownloads(page, { downloadsView: 'list' })
+    await expectBarInOneRowWithLongestLabels(page)
   })
 })
 

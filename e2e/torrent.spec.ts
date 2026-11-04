@@ -29,6 +29,18 @@ test('changing the title, dark, Russian', async ({ page }) => {
   await expect(page).toHaveScreenshot('change-title-dark-ru.png')
 })
 
+test('changing the category, which moves the files, dark, Russian', async ({ page }) => {
+  // Under automatic management, so the sheet shows where each category would move the files.
+  const torrents = TORRENTS.map((item) => (item.hash === 'a2' ? { ...item, auto_tmm: true } : item))
+  await openApp(page, '/torrent/a2', { torrents })
+  await page.getByRole('button', { name: 'Категория: TV Shows' }).click()
+  const sheet = page.getByRole('dialog', { name: 'Категория' })
+  await sheet.getByText('Movies', { exact: true }).click()
+  await expect(sheet.getByText('qBittorrent перенесёт файлы в /downloads/movies.')).toBeVisible()
+  await settle(page)
+  await expect(page).toHaveScreenshot('category-dark-ru.png')
+})
+
 test('missing files, dark, Russian', async ({ page }) => {
   await openApp(page, '/torrent/a8')
   await expect(page.getByRole('heading', { level: 1, name: 'Во все тяжкие' })).toBeVisible()

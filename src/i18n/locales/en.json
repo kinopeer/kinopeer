@@ -359,6 +359,8 @@
     "pause": "Pause",
     "resume": "Resume",
     "delete": "Delete",
+    "download": "Download",
+    "categoryValue": "Category: {{category}}",
     "recheck": "Force recheck",
     "recheckChecking": "Already being checked",
     "recheckNoMetadata": "Once the magnet link has its metadata",
@@ -470,13 +472,19 @@
     "skip": "Skip for now",
     "invalid": "TMDB didn’t accept this key",
     "unreachable": "TMDB isn’t answering. Try again in a moment.",
-    "storage": "The Kinoseed server couldn’t save the key. Check that its data folder is writable.",
+    "storage": "The Kinoseed server couldn’t save the change. Check that its data folder is writable.",
     "failed": "Couldn’t save the key. Try again.",
     "saved": "TMDB key saved",
     "change": "Change TMDB key",
     "sheetTitle": "TMDB key",
     "enter": "Enter key",
-    "useOwn": "Use your own TMDB key"
+    "useOwn": "Use your own TMDB key",
+    "forgetToShared": "Use Kinoseed’s key",
+    "forgetToServer": "Use the server’s key",
+    "forgottenToShared": "Using Kinoseed’s TMDB key",
+    "forgottenToServer": "Using the server’s TMDB key",
+    "noFallback": "Kinoseed has no other TMDB key to use, so the saved one stays.",
+    "forgetFailed": "Couldn’t forget the key. Try again."
   },
   "move": {
     "title": "Move files",
@@ -488,6 +496,17 @@
     "moved": "Moving files to {{location}}",
     "noAccess": "qBittorrent has no access to that folder.",
     "cantCreate": "qBittorrent couldn’t create that folder."
+  },
+  "category": {
+    "title": "Category",
+    "none": "No category",
+    "save": "Save",
+    "moves": "qBittorrent will move the files to {{folder}}.",
+    "movesToCategory": "qBittorrent will move the files to the category’s folder.",
+    "stays": "The files are in this category’s folder already: {{folder}}.",
+    "toManual": "qBittorrent will switch the torrent to manual mode, as its settings say, and the files stay in {{folder}}.",
+    "manual": "The torrent is in manual mode, so the files stay in {{folder}}.",
+    "changed": "Category changed"
   },
   "prowlarrKey": {
     "help": "Find the key in Prowlarr: Settings → General → Security → API Key.",

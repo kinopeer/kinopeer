@@ -679,16 +679,15 @@ a.dl-row-main:focus-visible::after {
     padding: 0;
   }
 
-  /* The whole header stays at the top while the list scrolls: there's room for it, and its menus
-     follow their buttons. */
+  .downloads::before {
+    margin: 0;
+  }
+
+  /* The title and the totals scroll away, as on a phone: a pinned title would cost room for nothing
+     that's acted on. */
   .downloads-head {
-    position: sticky;
-    top: 0;
-    z-index: 10;
     gap: var(--space-4);
-    padding: calc(var(--space-8) + var(--safe-top)) var(--space-8) var(--space-4);
-    background: var(--bg);
-    border-bottom: 1px solid var(--border);
+    padding: var(--space-8) var(--space-8) 0;
   }
 
   .downloads-title-row {
@@ -710,19 +709,41 @@ a.dl-row-main:focus-visible::after {
     margin-left: 0;
   }
 
-  /* Takes what's left of the row, so the name filter narrows rather than wrapping under the title. */
-  .downloads-head-tools {
-    flex: 1 1 240px;
-    min-width: 0;
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    gap: var(--space-2);
+  /* What's acted on stays at the top in one row, its menus following their buttons. */
+  .downloads-bar {
+    container: downloads-bar / inline-size;
+    gap: var(--space-4);
+    margin: 0;
+    padding: var(--space-4) var(--space-8);
   }
 
+  /* Grows up to its width when there's room and gives way first, so the row doesn't wrap. Narrow, its
+     placeholder ends in an ellipsis, and below 160px only the search icon stays: a word or two cut
+     short reads as broken. Its name still says what it filters by. */
   .downloads-filter {
-    flex: 0 1 280px;
+    container: downloads-filter / inline-size;
+    flex: 1 1 96px;
+    max-width: 280px;
     min-width: 0;
+  }
+
+  @container downloads-filter (width < 160px) {
+    .ks-input::placeholder {
+      color: transparent;
+    }
+  }
+
+  /* With the longest labels (the "Downloading" status, the "Date added" sort) the other controls take
+     802px, more than the labelled sidebar leaves at 1100px: below a 962px row, where the name filter
+     would get under 160px, the sort shows only its icon, its name still telling the sort. */
+  @container downloads-bar (width < 962px) {
+    .downloads-sort-label {
+      display: none;
+    }
+  }
+
+  .downloads-filter .ks-input {
+    text-overflow: ellipsis;
   }
 
   .downloads-toolbar {
@@ -771,16 +792,16 @@ a.dl-row-main:focus-visible::after {
     padding: var(--space-5) var(--space-8) var(--space-12);
   }
 
-  /* The table's column names stick under the header (its height from useHeightVar): their row
-     group, since a sticky element stays within its parent. They take over the body's top padding,
-     so no row shows between the header and them while scrolling. */
+  /* The table's column names stick under the bar (its height from useHeightVar), below the status
+     bar's strip: their row group, since a sticky element stays within its parent. They take over the
+     body's top padding, so no row shows between the bar and them while scrolling. */
   .downloads-body:has(> .dl-table:first-child) {
     padding-top: 0;
   }
 
   .dl-table-head {
     position: sticky;
-    top: var(--downloads-head, 0px);
+    top: calc(var(--safe-top) + var(--downloads-head, 0px));
     z-index: 3;
     padding-top: var(--space-5);
     background: var(--bg);
