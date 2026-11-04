@@ -274,6 +274,8 @@ test.describe('downloads, desktop', () => {
 
   // An iPad's status bar: the strip above the pinned bar takes it, so the rows pass under the strip.
   test('the table stays out of the status bar above the pinned filters', async ({ page }) => {
+    // A short window, so rows scroll into the strip's place.
+    await page.setViewportSize({ width: 1440, height: 600 })
     await emulateNotch(page)
     await openDownloads(page, { downloadsView: 'list' })
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
