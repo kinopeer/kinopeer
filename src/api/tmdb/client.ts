@@ -19,11 +19,14 @@ export type BackdropSize = 'w300' | 'w780' | 'w1280' | 'original'
 
 export class TmdbError extends Error {
   readonly status: number
+  /** How long a 429 asks to wait before the next call, from its Retry-After in seconds. */
+  readonly retryAfterMs?: number
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, retryAfterMs?: number) {
     super(message)
     this.name = 'TmdbError'
     this.status = status
+    this.retryAfterMs = retryAfterMs
   }
 }
 
@@ -64,8 +67,14 @@ async function request<T>(path: string, params: QueryParams, { language, signal 
   if (response.status === 401 || (response.status === 404 && !isJson(response))) {
     throw new TmdbKeyError(response.status)
   }
-  if (!response.ok) throw new TmdbError(`TMDB responded ${response.status}`, response.status)
+  if (!response.ok) throw new TmdbError(`TMDB responded ${response.status}`, response.status, retryAfter(response))
   return (await response.json()) as T
+}
+
+/** Retry-After in seconds (TMDB's and Kinoseed's proxy's form), in milliseconds. */
+function retryAfter(response: Response): number | undefined {
+  const seconds = Number(response.headers.get('retry-after') ?? Number.NaN)
+  return seconds > 0 ? seconds * 1000 : undefined
 }
 
 function isJson(response: Response): boolean {

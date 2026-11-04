@@ -380,6 +380,11 @@ it uses next to itself.
   text, as the `name` for `findByRole('status')` or `'alert'`. `fakePoll()` is a `PollSource` whose
   state the test sets (`set`), for what shows the poll or needs one to pass on. API mocks stay in each test file
   (`vi.mock`, hoisted), so a reader sees what the test replaces without opening another module.
+  A mock of calls that run several at a time with an `AbortSignal` (the title lookups) holds its
+  answers until the test lets each one through and rejects once its signal aborts, as `fetch` does,
+  and the test sends more of them than run at once: a mock that answers at once never has a call in
+  flight when another one lands, so it can't show one call stopping or repeating the others (#239,
+  `holdSearches` in `titleMatches.test.ts`).
 - **`server/test/fakes.ts`:** `listen(handler)` starts a handler on a free port and returns its
   origin, `serve(middleware)` does the same for the middleware under test with Vite's 404 fallback,
   `closeServers()` closes everything in `afterEach`, `bodyOf(request)` reads a body.
@@ -411,8 +416,9 @@ qBittorrent as admin), chained the way `server/main.ts` chains the routes; `stop
 change the environment (a variable set to `undefined` is unset: no login, no Prowlarr, a dead
 port), `writableData: false` to make every write fail, `tmdbProxy` to put the real TMDB proxy
 worker (`tmdb-proxy/worker.ts`, `serveTmdbProxy` in `server/test/fakes.ts`) in front of the fake
-TMDB at `TMDB_PROXY_URL`, which is empty otherwise, so no test reaches the deployed one, and the
-fakes' options.
+TMDB at `TMDB_PROXY_URL`, which is empty otherwise, so no test reaches the deployed one (with
+`overLimit` its rate limiter refuses every call, as for an IP over its limit), and the fakes'
+options.
 
 The clients call `fetch('/qbt/api/…')` with a path, as in the browser, which Node's `fetch` can't
 resolve, so the stand stubs `globalThis.fetch` with an adapter: a request for a path goes to the

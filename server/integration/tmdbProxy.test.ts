@@ -53,6 +53,14 @@ describe('TMDB through Kinoseed’s proxy', () => {
     expect(tmdb.seen.map((request) => request.url)).toEqual(['/3/configuration?api_key=good-key'])
   })
 
+  it('says how long the proxy asks to wait once over its limit', async () => {
+    const { tmdb } = await startKinoseed({ env: { TMDB_API_KEY: undefined }, tmdbProxy: { overLimit: true } })
+
+    // The worker's Retry-After reaches the client, which waits that long before asking TMDB again.
+    await expect(getTv(126308)).rejects.toMatchObject({ status: 429, retryAfterMs: 10_000 })
+    expect(tmdb.seen).toEqual([])
+  })
+
   it('reports the proxy refusing a call as TMDB failing, not as a missing key', async () => {
     const { tmdb } = await startKinoseed({ env: { TMDB_API_KEY: undefined }, tmdbProxy: { key: '' } })
 
