@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
@@ -91,6 +91,16 @@ describe('TorrentFiles', () => {
     await userEvent.selectOptions(main, 'skip')
     expect(await within(files).findByRole('alert', { name: saying('Couldn’t change the priority. Try again.') })).toBeInTheDocument()
     expect(main).toHaveValue('normal')
+  })
+
+  it('says a priority change that failed after Files was closed in a toast', async () => {
+    let refuse = () => {}
+    setFilePriority.mockReturnValue(new Promise((_resolve, reject) => (refuse = () => reject(new Error('500')))))
+    const files = renderFiles()
+    await userEvent.selectOptions(await within(files).findByRole('combobox', { name: 'Priority: Extras.mkv' }), 'high')
+    await userEvent.click(within(files).getByRole('button', { name: /^Files/ }))
+    await act(async () => refuse())
+    expect(screen.getByRole('status', { name: saying('Couldn’t change the priority. Try again.') })).toBeInTheDocument()
   })
 
   it('can’t change priorities while qBittorrent is unreachable', async () => {

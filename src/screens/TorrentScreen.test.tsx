@@ -170,7 +170,7 @@ describe('TorrentScreen', () => {
       { url: 'udp://opentor.net:6969', status: 4, msg: '' },
     ])
     renderScreen()
-    const toggle = await screen.findByRole('button', { name: 'Details' })
+    const toggle = within(await screen.findByRole('region', { name: 'Details' })).getByRole('button', { name: 'Details' })
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
     await userEvent.click(toggle)
     expect(toggle).toHaveAttribute('aria-expanded', 'true')

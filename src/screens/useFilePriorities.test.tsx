@@ -25,8 +25,8 @@ const FILES: TorrentFile[] = [
 const FAILED = 'Couldn’t change the priority. Try again.'
 
 /** A file list for Dune, as the torrent's page has: `list` is what its poll says. */
-function List({ name, list, target = DUNE }: { name: string; list: TorrentFilesState; target?: Torrent }) {
-  const priorities = useFilePriorities(target, list)
+function List({ name, list, target = DUNE, open }: { name: string; list: TorrentFilesState; target?: Torrent; open?: boolean }) {
+  const priorities = useFilePriorities(target, list, open)
   return (
     <section aria-label={name}>
       <output aria-label="Priorities">{priorities.files?.map((file) => file.priority).join()}</output>
@@ -223,6 +223,16 @@ describe('useFilePriorities', () => {
     const view = render(<List name="Page" list={POLLED} />, { wrapper: Providers })
     await userEvent.click(screen.getByRole('button', { name: 'Extras high' }))
     view.rerender(<List name="Page" list={POLLED} target={{ ...DUNE, added_on: 2 }} />)
+    await change.fail()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('status', { name: saying(FAILED) })).toBeInTheDocument()
+  })
+
+  it('leaves a failure to a toast when the list that shows the torrent was closed meanwhile', async () => {
+    const change = pendingChange()
+    const view = render(<List name="Page" list={POLLED} />, { wrapper: Providers })
+    await userEvent.click(screen.getByRole('button', { name: 'Extras high' }))
+    view.rerender(<List name="Page" list={POLLED} open={false} />)
     await change.fail()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(screen.getByRole('status', { name: saying(FAILED) })).toBeInTheDocument()

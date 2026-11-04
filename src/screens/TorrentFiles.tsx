@@ -77,7 +77,8 @@ export function TorrentFiles({ torrent, status, disabled }: TorrentFilesProps) {
   // Closed, the list isn't polled; the last one stays for the count and for opening it again.
   const list = useTorrentFiles(torrent.hash, open)
   const { failed } = list
-  const priorities = useFilePriorities(torrent, list)
+  // A failure while closed goes to a toast, since the list that would say it isn't there.
+  const priorities = useFilePriorities(torrent, list, open)
   const { files } = priorities
   const saveFailed = priorities.failed
 
