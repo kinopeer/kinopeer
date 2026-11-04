@@ -122,7 +122,7 @@ export function SearchScreen() {
     <main className="search status-strip">
       <header className="search-head">
         <h1 className="t-h1 search-title">{t('search.title')}</h1>
-        {/* Pinned on a phone, under the status bar's strip, while the title scrolls away. */}
+        {/* Pinned under the status bar's strip, while the title scrolls away. */}
         <div className="search-bar">
           <div className="search-field">
             <Input
