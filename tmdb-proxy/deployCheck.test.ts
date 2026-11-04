@@ -166,13 +166,16 @@ describe('shouldDeploy', () => {
   })
 
   it('prints its answer for the workflow’s output, and why on stderr', () => {
-    const { cwd, at, first } = repo()
-    at(first)
+    const { cwd, commit, at, first } = repo()
+    const newer = commit({ 'tmdb-proxy/worker.ts': 'v2' })
     const script = join(import.meta.dirname, 'deployCheck.ts')
-    const run = spawnSync(process.execPath, [script, 'edge'], { cwd, encoding: 'utf8' })
+    const run = () => spawnSync(process.execPath, [script, 'edge'], { cwd, encoding: 'utf8' })
 
-    expect(run.stdout).toBe('deploy=true\n')
-    expect(run.stderr).toContain('the same as at origin/main')
+    at(newer)
+    expect(run().stdout).toBe('deploy=true\n')
+    expect(run().stderr).toContain('the same as at origin/main')
+    at(first, newer)
+    expect(run().stdout).toBe('deploy=false\n')
     expect(spawnSync(process.execPath, [script], { cwd, encoding: 'utf8' }).stderr).toContain('Unknown environment')
   })
 })
@@ -198,5 +201,9 @@ describe('compareVersionTags', () => {
     expect(compareVersionTags('v0.7.0-rc.1', 'v0.7.0-rc.1')).toBe(0)
     expect(compareVersionTags('v0.7.0', 'v0.7.0-rc.1')).toBeGreaterThan(0)
     expect(compareVersionTags('v0.7.0-rc.1', 'v0.7.0')).toBeLessThan(0)
+    // A prerelease name that sorts after "undefined" as text, so a missing check can't pass by luck.
+    expect(compareVersionTags('v0.7.0-zeta', 'v0.7.0')).toBeLessThan(0)
+    expect(compareVersionTags('v0.7.0-rc.10', 'v0.7.0-rc.2')).toBeGreaterThan(0)
+    expect(compareVersionTags('v0.7.0-rc.2', 'v0.7.0-rc.10')).toBeLessThan(0)
   })
 })
