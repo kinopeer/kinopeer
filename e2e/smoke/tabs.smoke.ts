@@ -52,6 +52,8 @@ test('each tab comes back where it was left, and the active tab goes to the top'
     .evaluateAll((links) => links.findIndex((link) => link.getBoundingClientRect().top > 200))
   await list.getByRole('link').nth(onScreen).click()
   await expect(page).toHaveURL(/\/torrent\//)
+  // The URL changes before the screen renders (React Router renders in a transition).
+  await expect(list).toBeHidden()
   expect(await scrollY(page)).toBe(0)
   await tabs.getByRole('link', { name: 'Загрузки' }).click()
   await expect.poll(() => scrollY(page)).toBe(downloadsY)
