@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import type { Torrent } from '../api/qbittorrent'
@@ -14,6 +15,11 @@ import { downloadStatus, transferSpeed } from '../torrents/status'
 import type { TitleMatch } from '../torrents/titleMatches'
 import { SpeedLimitMark } from './SpeedLimitMark'
 
+/**
+ * The props of a download in each layout (`DownloadItem`, `DownloadRow`, `DownloadCard`). The three are
+ * memoized, since a poll changes a few of hundreds of torrents: pass callbacks that keep their
+ * identity, or every row renders on every poll.
+ */
 export interface DownloadItemProps {
   torrent: Torrent
   /** The TMDB title, once known; the row falls back to the release name. */
@@ -33,7 +39,8 @@ export interface DownloadItemProps {
   onToggle?: (torrent: Torrent) => void
 }
 
-export function DownloadItem({ torrent, match, showQueue = true, onMore, selected, onToggle }: DownloadItemProps) {
+/** A download in the phone's list: poster, title and release, progress, status, speed and size. */
+export const DownloadItem = memo(function DownloadItem({ torrent, match, showQueue = true, onMore, selected, onToggle }: DownloadItemProps) {
   const { t } = useTranslation()
   const format = useFormatters()
   const status = downloadStatus(torrent)
@@ -123,4 +130,4 @@ export function DownloadItem({ torrent, match, showQueue = true, onMore, selecte
       )}
     </li>
   )
-}
+})

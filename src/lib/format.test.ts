@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import i18n from '../i18n'
 import { ETA_INFINITY, createFormatters } from './format'
 
@@ -18,6 +18,24 @@ describe('size', () => {
 
   it('localizes the decimal separator and units', () => {
     expect(ru().size(1_210_000_000_000)).toBe('1,21\u00a0ТБ')
+  })
+
+  it('builds a number format once per language and digits, not on every call', () => {
+    const built = vi.spyOn(Intl, 'NumberFormat')
+    // A language no other test uses, so nothing is cached yet.
+    const { size, percent } = createFormatters(i18n.t, 'de')
+    expect([size(1_500), size(2_500), size(4_380_000_000), size(845_000_000), percent(0.5)]).toEqual([
+      '1,5\u00a0KB',
+      '2,5\u00a0KB',
+      '4,38\u00a0GB',
+      '845\u00a0MB',
+      '50%',
+    ])
+    // One, two and no digits after the point.
+    expect(built).toHaveBeenCalledTimes(3)
+    expect(createFormatters(i18n.t, 'de').size(3_500)).toBe('3,5\u00a0KB')
+    expect(built).toHaveBeenCalledTimes(3)
+    built.mockRestore()
   })
 })
 

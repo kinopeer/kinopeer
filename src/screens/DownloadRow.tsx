@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { posterUrl } from '../api/tmdb'
@@ -105,7 +106,7 @@ export function DownloadRowHeader({ selecting, queue, ...sorting }: { selecting:
  * left, size, then pause or resume and More. The title opens the details drawer. Narrower tables drop the size, then put the
  * time left under the speed.
  */
-export function DownloadRow({
+export const DownloadRow = memo(function DownloadRow({
   torrent,
   match,
   showQueue = true,
@@ -210,4 +211,4 @@ export function DownloadRow({
       </span>
     </div>
   )
-}
+})

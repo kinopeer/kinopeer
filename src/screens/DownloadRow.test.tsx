@@ -1,7 +1,8 @@
-import { screen, within } from '@testing-library/react'
+import { act, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { Torrent } from '../api/qbittorrent'
+import i18n from '../i18n'
 import { DUNE_TORRENT } from '../test/fixtures'
 import { renderWithRouter } from '../test/render'
 import type { TitleMatch } from '../torrents/titleMatches'
@@ -72,6 +73,12 @@ describe('DownloadRowHeader', () => {
 })
 
 describe('DownloadRow', () => {
+  it('follows the language, though it renders again only when its props change', async () => {
+    const { row } = renderRow()
+    await act(() => i18n.changeLanguage('ru'))
+    expect(within(row).getByText('Загружается')).toBeInTheDocument()
+  })
+
   it('puts the queue position, poster, title with the release, progress, status, speed, time left and size in cells', () => {
     const { row, cells, container } = renderRow({ match: DUNE_MATCH })
     expect(cells).toHaveLength(9)
