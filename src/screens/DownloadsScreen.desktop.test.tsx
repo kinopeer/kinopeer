@@ -230,6 +230,7 @@ describe('DownloadsScreen on desktop', () => {
     await tableRows()
     const sort = screen.getByRole('button', { name: 'Sort: Priority, ascending' })
     expect(sort).toHaveAttribute('aria-haspopup', 'menu')
+    expect(sort).toHaveAttribute('aria-expanded', 'false')
     await userEvent.click(sort)
     expect(sort).toHaveAttribute('aria-expanded', 'true')
     const menu = screen.getByRole('menu', { name: 'Sort' })
