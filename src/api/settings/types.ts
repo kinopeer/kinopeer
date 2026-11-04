@@ -28,9 +28,18 @@ export interface DownloadDefaults {
   firstLastPieces: boolean
 }
 
+/**
+ * The TMDB key: 'shared' is Kinoseed's own, behind its proxy (tmdb-proxy/), used while the server
+ * has no key of its own.
+ */
+export interface TmdbKeyStatus {
+  configured: boolean
+  source: KeySource | 'shared' | null
+}
+
 /** Answer of GET /api/settings. Secrets never leave the server, only whether they are set. */
 export interface ServerSettings {
-  tmdb: SecretStatus
+  tmdb: TmdbKeyStatus
   /** The Prowlarr API key: 'env' covers PROWLARR_API_KEY and the key in Prowlarr's config.xml. */
   prowlarr: ProwlarrKeyStatus
   /** The login the server uses for qBittorrent. */

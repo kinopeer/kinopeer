@@ -20,13 +20,14 @@ afterEach(async () => {
 /** Kinoseed's side: the middleware under test, with the environment a test wants. */
 function kinoseed(
   store: SettingsStore,
-  options: { envKey?: string; apiBase?: string; qbittorrentUrl?: string; envUser?: string } = {},
+  options: { envKey?: string; apiBase?: string; proxy?: string; qbittorrentUrl?: string; envUser?: string } = {},
 ) {
   return serve(
     settingsMiddleware({
       store,
       envTmdbApiKey: options.envKey,
       tmdbApiBase: options.apiBase,
+      tmdbProxy: options.proxy,
       qbittorrentUrl: options.qbittorrentUrl,
       envQbittorrent: { username: options.envUser, password: 'adminadmin' },
     }),
@@ -165,6 +166,20 @@ describe('settingsMiddleware', () => {
       downloads: null,
     })
     expect(text).not.toContain('env-key')
+  })
+
+  it('reports Kinoseed’s key while the server has none of its own and a proxy to use', async () => {
+    const store = new SettingsStore(dir)
+    const app = await kinoseed(store, { proxy: 'https://proxy.test/3' })
+    const tmdbStatus = async (url: string) => ((await (await fetch(`${url}/api/settings`)).json()) as { tmdb: unknown }).tmdb
+
+    expect(await tmdbStatus(app)).toEqual({ configured: true, source: 'shared' })
+    expect(await tmdbStatus(await kinoseed(store, { proxy: 'https://proxy.test/3', envKey: 'env-key' }))).toEqual({
+      configured: true,
+      source: 'env',
+    })
+    await store.update({ tmdbApiKey: 'saved-key' })
+    expect(await tmdbStatus(app)).toEqual({ configured: true, source: 'saved' })
   })
 
   it('checks a new key with TMDB before saving it', async () => {

@@ -218,6 +218,7 @@
     "prowlarrError": "No answer from Prowlarr",
     "connected": "Connected",
     "connectedNoIndexers": "Connected · no indexers",
+    "connectedSharedKey": "Connected · Kinoseed’s key",
     "tmdbKey": "The API key is missing or invalid",
     "tmdbError": "No answer from TMDB",
     "connectionsHint": "Service addresses are set in the Kinoseed server configuration.",
@@ -474,7 +475,8 @@
     "saved": "TMDB key saved",
     "change": "Change TMDB key",
     "sheetTitle": "TMDB key",
-    "enter": "Enter key"
+    "enter": "Enter key",
+    "useOwn": "Use your own TMDB key"
   },
   "move": {
     "title": "Move files",

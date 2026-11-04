@@ -119,7 +119,10 @@ jobs:
           # The home server is a Raspberry Pi; release images are built for amd64 too.
           platforms: linux/arm64
           push: true
-          build-args: KINOSEED_COMMIT=${{ env.COMMIT }}
+          # The edge worker the proxy job above deployed: Kinoseed Edge calls it, not the release one.
+          build-args: |
+            KINOSEED_COMMIT=${{ env.COMMIT }}
+            KINOSEED_TMDB_PROXY=https://kinoseed-tmdb-edge.kinoseed.workers.dev/3
           tags: |
             ${{ env.IMAGE }}:edge
             ${{ env.IMAGE }}:sha-${{ env.COMMIT }}

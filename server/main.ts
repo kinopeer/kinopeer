@@ -41,16 +41,31 @@ export interface KinoseedServer {
   startJobs: () => () => void
 }
 
+/** Kinoseed's TMDB proxy for released versions (tmdb-proxy/, docs/DEVELOPMENT.md → The TMDB proxy). */
+export const TMDB_PROXY = 'https://kinoseed-tmdb.kinoseed.workers.dev/3'
+
+/**
+ * Where TMDB calls without a key go: TMDB_PROXY_URL, which an empty value turns off, else the
+ * proxy the image was built for (KINOSEED_TMDB_PROXY, the edge worker in edge builds), else the
+ * released versions'.
+ */
+export function tmdbProxy(env: Record<string, string | undefined>): string | undefined {
+  const url = env.TMDB_PROXY_URL ?? (env.KINOSEED_TMDB_PROXY?.trim() || TMDB_PROXY)
+  return url.trim().replace(/\/+$/, '') || undefined
+}
+
 /**
  * The server's routes and jobs. Besides the variables in .env.example, PROWLARR_CONFIG_XML points
  * at Prowlarr's config.xml to read its API key from (the Umbrel package mounts it), used when
- * neither a key saved from the app nor PROWLARR_API_KEY is set, and TMDB_API_URL and TMDB_IMAGE_URL replace TMDB's API and image
- * addresses (the integration and smoke tests point them at a fake).
+ * neither a key saved from the app nor PROWLARR_API_KEY is set, TMDB_API_URL and TMDB_IMAGE_URL replace TMDB's API and image
+ * addresses (the integration and smoke tests point them at a fake), and TMDB_PROXY_URL replaces
+ * Kinoseed's TMDB proxy (`tmdbProxy`).
  */
 export function kinoseedServer(env: Record<string, string | undefined>, stores: DataStores): KinoseedServer {
   const store = stores.settings
   const envQbittorrent = { username: env.QBITTORRENT_USERNAME, password: env.QBITTORRENT_PASSWORD }
   const prowlarrConfig = env.PROWLARR_CONFIG_XML
+  const proxy = tmdbProxy(env)
   const qbittorrent = qbittorrentBridge({
     url: env.QBITTORRENT_URL,
     credentials: () => qbittorrentCredentials(store, envQbittorrent),
@@ -61,6 +76,7 @@ export function kinoseedServer(env: Record<string, string | undefined>, stores: 
       settingsMiddleware({
         store,
         envTmdbApiKey: env.TMDB_API_KEY,
+        tmdbProxy: proxy,
         tmdbApiBase: env.TMDB_API_URL,
         qbittorrentUrl: env.QBITTORRENT_URL,
         envQbittorrent,
@@ -76,6 +92,7 @@ export function kinoseedServer(env: Record<string, string | undefined>, stores: 
       }),
       tmdbMiddleware({
         apiKey: () => tmdbKey(store, env.TMDB_API_KEY),
+        proxyBase: proxy,
         apiBase: env.TMDB_API_URL,
         imageBase: env.TMDB_IMAGE_URL,
       }),
@@ -137,7 +154,7 @@ async function main() {
     console.log(`[kinoseed] ${version} listening on http://${host}:${port}`)
     const missing = ['QBITTORRENT_URL', 'PROWLARR_URL'].filter((name) => !env[name])
     if (!env.PROWLARR_API_KEY && !env.PROWLARR_CONFIG_XML) missing.push('PROWLARR_API_KEY')
-    if (!tmdbKey(stores.settings, env.TMDB_API_KEY)) missing.push('TMDB key (enter it in the app)')
+    if (!tmdbKey(stores.settings, env.TMDB_API_KEY) && !tmdbProxy(env)) missing.push('TMDB key (enter it in the app)')
     if (missing.length) console.warn(`[kinoseed] not set: ${missing.join(', ')}`)
   })
 

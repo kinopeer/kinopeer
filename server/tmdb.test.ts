@@ -49,6 +49,39 @@ describe('tmdbMiddleware', () => {
     expect(await response.json()).toEqual({ status_message: 'The TMDB API key is not set' })
   })
 
+  it('sends calls without a key to Kinoseed’s proxy, which adds its own', async () => {
+    const tmdb = await fakeTmdb()
+    const proxy = await fakeTmdb()
+    const app = await kinoseed({ apiBase: tmdb.apiBase, proxyBase: proxy.apiBase })
+
+    const response = await fetch(`${app}/tmdb/search/multi?query=alien&language=ru-RU`, { headers: { Cookie: 'SID=secret' } })
+
+    expect(response.status).toBe(200)
+    // No Authorization header: Workers Cache bypasses a request that carries one.
+    expect(proxy.seen).toEqual([{ url: '/3/search/multi?query=alien&language=ru-RU', authorization: undefined, cookie: undefined }])
+    expect(tmdb.seen).toEqual([])
+  })
+
+  it('sends calls to TMDB once a key is set, not to the proxy', async () => {
+    const tmdb = await fakeTmdb()
+    const proxy = await fakeTmdb()
+    let key: string | undefined
+    const app = await kinoseed({ apiKey: () => key, apiBase: tmdb.apiBase, proxyBase: proxy.apiBase })
+
+    await fetch(`${app}/tmdb/movie/771`)
+    key = 'saved'
+    await fetch(`${app}/tmdb/movie/771`)
+
+    expect(proxy.seen.map((request) => request.url)).toEqual(['/3/movie/771'])
+    expect(tmdb.seen.map((request) => request.url)).toEqual(['/3/movie/771?api_key=saved'])
+  })
+
+  it('reports an unreachable proxy as TMDB being unreachable, not as a missing key', async () => {
+    const app = await kinoseed({ proxyBase: 'http://127.0.0.1:1/3' })
+
+    expect((await fetch(`${app}/tmdb/movie/771`)).status).toBe(502)
+  })
+
   it('serves images without a key, with their cache headers', async () => {
     const tmdb = await fakeTmdb()
     const app = await kinoseed({ imageBase: `${tmdb.base}/t/p` })

@@ -9,6 +9,7 @@ import type { AddressInfo } from 'node:net'
 import type { Release } from '../../src/api/prowlarr/types.ts'
 import type { MainData, Torrent, TorrentFile, TorrentTracker } from '../../src/api/qbittorrent/types.ts'
 import { RELEASES, TITLES, TORRENTS, details, mainData, page, shogunTorrent } from '../../src/test/fixtures.ts'
+import { handle as handleTmdbProxy } from '../../tmdb-proxy/worker.ts'
 
 type Middleware = (request: IncomingMessage, response: ServerResponse, next: () => void) => unknown
 
@@ -20,6 +21,28 @@ export async function listen(handler: RequestListener): Promise<string> {
   servers.push(server)
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
   return `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+}
+
+/**
+ * Kinoseed's TMDB proxy (tmdb-proxy/worker.ts), the real worker served over HTTP in front of
+ * `tmdbApiBase` with `key` as its secret and a rate limiter that lets everything through: what the
+ * Workers runtime does, without its cache. `seen` lists the paths it got.
+ */
+export async function serveTmdbProxy(tmdbApiBase: string, key: string) {
+  const seen: { url: string; authorization: string | undefined }[] = []
+  const env = { TMDB_API_KEY: key, LIMITER: { limit: async () => ({ success: true }) } }
+  const base = await listen(async (request, response) => {
+    seen.push({ url: request.url ?? '', authorization: request.headers.authorization })
+    const headers = new Headers({ 'cf-connecting-ip': request.socket.remoteAddress ?? '' })
+    for (const [name, value] of Object.entries(request.headers)) if (typeof value === 'string') headers.set(name, value)
+    const answer = await handleTmdbProxy(new Request(`http://worker${request.url}`, { method: request.method, headers }), env, {
+      apiBase: tmdbApiBase,
+    })
+    response.statusCode = answer.status
+    answer.headers.forEach((value, name) => response.setHeader(name, value))
+    response.end(Buffer.from(await answer.arrayBuffer()))
+  })
+  return { base, apiBase: `${base}/3`, seen }
 }
 
 /** Closes every server `listen` started; for afterEach. */
