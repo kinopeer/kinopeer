@@ -554,7 +554,10 @@ Three steps, each by whoever can do it best:
    broken to see each red, each survivor in CI's mutants comment at that commit that the `Mutants`
    line doesn't account for, a merge of `main` and its conflicts, and the docs grepped again for what
    the fixes changed (#230's fix left two sentences stale). The reviewer starts the next round from
-   that comment; a message that points to it is the whole hand-over.
+   that comment; a message that points to it is the whole hand-over. A reviewer who sees the PR grow
+   past what it set out to do (each round finds bugs in the same new mechanism, workarounds pile up)
+   says so in the round, as a finding for the owner to weigh the cost against the gain, not as one
+   more fix to ask for (#252).
 
 Each round is one comment on the PR headed `Test review, round <n>`, findings first, each tagged
 with its check and whether the rule behind it was clear ([below](#improving-the-system)), then the
