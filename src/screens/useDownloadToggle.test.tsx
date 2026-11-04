@@ -162,6 +162,27 @@ describe('useDownloadToggle', () => {
     expect(result.current.rendered).toBe(false)
   })
 
+  it('ends each of two holds on time, the sooner first', async () => {
+    vi.useFakeTimers({ now: 10_000, toFake: ['Date', 'setTimeout', 'clearTimeout'] })
+    const ALIEN = torrent('alien', { added_on: 2 })
+    getTorrents.mockImplementation(async ({ hashes } = {}) => [hashes?.[0] === 'alien' ? ALIEN : DUNE])
+    const lag = DEFAULT_REFRESH_INTERVAL_MS + STATE_LAG_MARGIN_MS
+    const { result } = renderHook(
+      () => {
+        const toggle = useDownloadToggle('seq_dl')
+        return { toggle, dune: toggle.busy('dune'), alien: toggle.busy('alien') }
+      },
+      { wrapper: Providers },
+    )
+    await act(() => result.current.toggle.set(DUNE, true))
+    await act(async () => vi.advanceTimersByTime(1_000))
+    await act(() => result.current.toggle.set(ALIEN, true))
+    await act(async () => vi.advanceTimersByTime(lag - 1_000))
+    expect(result.current).toMatchObject({ dune: false, alien: true })
+    await act(async () => vi.advanceTimersByTime(1_000))
+    expect(result.current).toMatchObject({ dune: false, alien: false })
+  })
+
   it('says a failure in a toast, which the next try takes back', async () => {
     toggleSequentialDownload.mockRejectedValueOnce(new TypeError('Failed to fetch')).mockReturnValueOnce(new Promise(() => {}))
     const { result } = renderHook(() => useDownloadToggle('seq_dl'), { wrapper: Providers })
