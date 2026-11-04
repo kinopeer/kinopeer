@@ -72,6 +72,16 @@ test.describe('search, desktop', () => {
     await expect(page).toHaveScreenshot('desktop-results-dark-ru.png')
   })
 
+  test('the whole header stays at the top while the results scroll', async ({ page }) => {
+    // A short window, so the results scroll.
+    await page.setViewportSize({ width: 1440, height: 500 })
+    await openSearch(page, '/search?q=%D0%B0', 'Дюна')
+    await page.evaluate(() => window.scrollTo(0, 100))
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(100)
+    await expect(page.getByRole('heading', { level: 1, name: 'Поиск' })).toBeInViewport()
+    await expect(page.getByRole('searchbox', { name: 'Поиск' })).toBeInViewport()
+  })
+
   test('no results, dark, Russian', async ({ page }) => {
     await openApp(page, '/search?q=zzz')
     await expect(page.getByRole('heading', { name: /zzz/ })).toBeVisible()
