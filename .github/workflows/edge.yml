@@ -18,7 +18,10 @@ on:
       - 'src/**'
       - 'server/**'
       - 'public/**'
+      # The TMDB proxy Kinoseed Edge calls goes out with it (docs/DEVELOPMENT.md → The TMDB proxy).
+      - 'tmdb-proxy/**'
       - .github/workflows/edge.yml
+      - .github/workflows/tmdb-proxy.yml
       - '!**/*.test.ts'
       - '!**/*.test.tsx'
       - '!src/test/**'
@@ -36,7 +39,16 @@ env:
   APP: homelab-edge-kinoseed
 
 jobs:
+  # kinoseed-tmdb-edge, before the image, so a path the new build calls is there when it starts.
+  proxy:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/tmdb-proxy.yml
+    with:
+      environment: edge
+    secrets: inherit
+
   edge:
+    needs: proxy
     # A dispatch can pick any branch; only main goes to the edge store.
     if: github.ref == 'refs/heads/main'
     # Squash merges often land in a row: only the newest one is built. On the job, not the
