@@ -204,6 +204,16 @@ describe('useFilePriorities', () => {
     expect(screen.queryByRole('status', { name: saying(FAILED) })).not.toBeInTheDocument()
   })
 
+  it('says nothing when a change goes through after no list shows the torrent', async () => {
+    const change = pendingChange()
+    const lists = renderLists()
+    await lists.in('Page').press('Extras high')
+    lists.update([])
+    await change.answer()
+    expect(setFilePriority).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
   it('gives the same files back while nothing it shows changed, so the list doesn’t build its tree again', async () => {
     const { result, rerender } = renderHook(({ list }) => useFilePriorities(DUNE, list), {
       wrapper: Providers,
