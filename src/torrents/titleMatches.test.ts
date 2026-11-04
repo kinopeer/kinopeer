@@ -289,6 +289,13 @@ describe('useTitleMatches', () => {
     const many = NAMES.map((name, i) => ({ hash: name, name: `${name}.${2000 + i}.1080p.WEB-DL`, tags: '' }))
     const found = (i: number) => [title('movie', i + 1, NAMES[i], 2000 + i)]
 
+    /** The guesses by name in localStorage, which the next page load starts from. */
+    const storedGuesses = () =>
+      Object.keys(JSON.parse(localStorage.getItem(`kinoseed.titleMatches.v${GUESS_VERSION}`) ?? '{}') as object)
+        .filter((key) => key.startsWith('en-US|q:'))
+        .sort()
+    const guessKeys = (count: number) => NAMES.slice(0, count).map((name, i) => `en-US|q::${2000 + i}:${name.toLowerCase()}`)
+
     afterEach(() => {
       localStorage.removeItem(SETTINGS_STORAGE_KEY)
       resetSettings()
@@ -399,13 +406,13 @@ describe('useTitleMatches', () => {
       await act(() => vi.advanceTimersByTimeAsync(1))
       expect(result.current.Bravo).toMatchObject({ id: 2 })
       expect(result.current.Charlie).toMatchObject({ id: 3 })
+      expect(storedGuesses()).toEqual(guessKeys(3))
 
       // One that arrives as the list goes away is still kept for the next visit.
       await act(async () => held[3].answer(found(3)))
+      expect(storedGuesses()).toEqual(guessKeys(3))
       unmount()
-      const stored = JSON.parse(localStorage.getItem(`kinoseed.titleMatches.v${GUESS_VERSION}`) ?? '{}') as Record<string, unknown>
-      const guesses = Object.keys(stored).filter((key) => key.startsWith('en-US|q:'))
-      expect(guesses.sort()).toEqual(['Alpha', 'Bravo', 'Charlie', 'Delta'].map((name, i) => `en-US|q::${2000 + i}:${name.toLowerCase()}`))
+      expect(storedGuesses()).toEqual(guessKeys(4))
     })
   })
 })
