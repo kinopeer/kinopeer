@@ -64,6 +64,7 @@ describe('tmdbProxy', () => {
     )
     // A release build passes the build argument empty.
     expect(tmdbProxy({ KINOSEED_TMDB_PROXY: '' })).toBe(TMDB_PROXY)
+    expect(tmdbProxy({ KINOSEED_TMDB_PROXY: ' ' })).toBe(TMDB_PROXY)
   })
 
   it('takes TMDB_PROXY_URL over both, and none when it’s empty', () => {
