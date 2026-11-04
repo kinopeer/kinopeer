@@ -79,9 +79,9 @@ Nothing in the edge store is edited by hand. Its package is the released one's w
 
 ## The TMDB proxy
 
-Kinoseed's own TMDB key sits behind a Cloudflare Worker, `tmdb-proxy/worker.ts`, for installs that have no key of their own; SPEC's decision log (2026-11-04) says why a key can't ship in the image. The worker takes TMDB's paths under `/3/`, answers only GET and HEAD for the ones `src/api/tmdb/client.ts` calls (404 for the rest), adds the key, keeps TMDB's answers at the edge for an hour (searches) to a day (a title's page), and limits the calls that reach TMDB to 100 per IP in 10 seconds. It keeps no request logs. Its tests run in the `server` Vitest project.
+Kinoseed's own TMDB key sits behind a Cloudflare Worker, `tmdb-proxy/worker.ts`, for installs that have no key of their own; SPEC's decision log (2026-11-04) says why a key can't ship in the image. The worker takes TMDB's paths under `/3/`, answers only GET and HEAD for the ones `src/api/tmdb/client.ts` calls (404 for the rest), adds the key, and limits the calls that reach TMDB to 100 per IP in 10 seconds. Workers Cache, in front of the worker, keeps TMDB's answers for an hour (searches) to a day (a title's page) by the `s-maxage` the worker sets, and runs the worker only on a miss; the older Cache API (`caches.default`) does nothing on `workers.dev`. A deploy starts a new cache, since its key includes the worker's version. Errors, the worker's own refusals (a 429 included) and HEAD answers are `no-store`. It keeps no request logs. Its tests run in the `server` Vitest project.
 
-It runs as two workers on `workers.dev`, the environments in `tmdb-proxy/wrangler.toml`, each going out with the builds that call it:
+It runs as two workers on `workers.dev`, the environments in `tmdb-proxy/wrangler.jsonc`, each going out with the builds that call it:
 
 | Worker | Called by | Deployed by |
 | --- | --- | --- |
@@ -94,7 +94,7 @@ The workers' paths are a contract with every released version: a path is only ad
 
 Deploying needs three repository secrets, set in the GitHub web UI: `CLOUDFLARE_API_TOKEN` (a token from the "Edit Cloudflare Workers" template), `CLOUDFLARE_ACCOUNT_ID` and `TMDB_API_KEY` (Kinoseed's key, a v3 key or a v4 read access token). Without them the proxy job fails, and the edge image waits for it. The key reaches each worker as its secret, never the code or a log. To replace a leaked or revoked key, change `TMDB_API_KEY` in the repository's secrets and run the `TMDB proxy key` workflow from the Actions tab (`.github/workflows/tmdb-proxy-key.yml`), which puts it into both workers without a deploy: installs keep working without a release.
 
-To try the worker locally, run `npm ci` and then `npx wrangler dev` in `tmdb-proxy/`, with the key in `tmdb-proxy/.dev.vars` (`TMDB_API_KEY=…`, git-ignored), and call `http://localhost:8787/3/configuration`. The top level of `wrangler.toml` is `kinoseed-tmdb-local`, so a deploy without `--env` makes a worker nobody calls instead of replacing the release one.
+To try the worker locally, run `npm ci` and then `npx wrangler dev` in `tmdb-proxy/`, with the key in `tmdb-proxy/.dev.vars` (`TMDB_API_KEY=…`, git-ignored), and call `http://localhost:8787/3/configuration`. The top level of `wrangler.jsonc` is `kinoseed-tmdb-local`, so a deploy without `--env` makes a worker nobody calls instead of replacing the release one.
 
 ## Design
 

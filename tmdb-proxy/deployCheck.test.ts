@@ -75,7 +75,7 @@ describe('shouldDeploy', () => {
 
     it('leaves the worker when main has a newer Wrangler config', () => {
       const { cwd, commit, at, first } = repo()
-      const newer = commit({ 'tmdb-proxy/wrangler.toml': 'limit = 50' })
+      const newer = commit({ 'tmdb-proxy/wrangler.jsonc': '{ "limit": 50 }' })
       at(first, newer)
 
       expect(shouldDeploy('edge', cwd)).toMatchObject({ deploy: false })
