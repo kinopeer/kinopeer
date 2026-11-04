@@ -4,7 +4,7 @@ How to run Kinoseed locally, how the server is configured and how a release goes
 
 ## Requirements
 
-Node.js 22.18+ and qBittorrent with the Web UI on. Release search needs Prowlarr; metadata needs a TMDB key (it can be entered in the app).
+Node.js 22.18+ and qBittorrent with the Web UI on. Release search needs Prowlarr. Metadata comes from TMDB through Kinoseed's TMDB proxy without a key of your own; the dev server uses its edge worker (The TMDB proxy, below), and a key in `.env.local` or entered in the app goes to TMDB directly.
 
 ## Running
 
@@ -41,7 +41,7 @@ The server reads environment variables (from `.env.local` in development). Whate
 | `PROWLARR_API_KEY` | none | Prowlarr API key; a key entered in the app wins |
 | `PROWLARR_CONFIG_XML` | none | Path to Prowlarr's `config.xml` to read the key from when neither a key entered in the app nor `PROWLARR_API_KEY` is set (the Umbrel package does this) |
 | `TMDB_API_KEY` | none | Fallback TMDB key; a key entered in the app wins |
-| `TMDB_PROXY_URL` | the release worker, `https://kinoseed-tmdb.kinoseed.workers.dev/3` (edge images: the edge worker, from `KINOSEED_TMDB_PROXY`) | Kinoseed's TMDB proxy for calls without a key (The TMDB proxy, below); empty turns it off, and the app asks for a key. The integration and smoke tests set it empty or to the worker in front of their fake |
+| `TMDB_PROXY_URL` | the release worker, `https://kinoseed-tmdb.kinoseed.workers.dev/3` (edge images and the dev server: the edge worker, from `KINOSEED_TMDB_PROXY`) | Kinoseed's TMDB proxy for calls without a key (The TMDB proxy, below); empty turns it off, and the app asks for a key. The integration and smoke tests set it empty or to the worker in front of their fake |
 | `TMDB_API_URL` | `https://api.themoviedb.org/3` | TMDB's API address; the integration and smoke tests point it at a fake |
 | `TMDB_IMAGE_URL` | `https://image.tmdb.org/t/p` | TMDB's image address, the same way |
 | `KINOSEED_DATA_DIR` | `./data` (`/data` in the image) | Where `settings.json` and `matches.json` are kept |

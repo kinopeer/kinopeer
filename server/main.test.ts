@@ -1,10 +1,11 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { TMDB_PROXY, createApp, dataStores, kinoseedServer, tmdbProxy } from './main.ts'
+import { TMDB_PROXY, TMDB_PROXY_EDGE, createApp, dataStores, kinoseedServer, missingSettings, tmdbProxy } from './main.ts'
+import { SettingsStore } from './settings.ts'
 import { closeServers, fakeTmdb } from './test/fakes.ts'
 
 let root: string
@@ -52,10 +53,48 @@ describe('createApp', () => {
   })
 })
 
+describe('missingSettings', () => {
+  const services = { QBITTORRENT_URL: 'http://qbt', PROWLARR_URL: 'http://prowlarr', PROWLARR_API_KEY: 'p' }
+
+  it('names no TMDB key while the proxy serves the calls without one', async () => {
+    const settings = new SettingsStore(join(root, 'missing-proxy'))
+
+    expect(missingSettings(services, settings)).toEqual([])
+  })
+
+  it('names the TMDB key with the proxy off and no key', async () => {
+    const settings = new SettingsStore(join(root, 'missing-off'))
+
+    expect(missingSettings({ ...services, TMDB_PROXY_URL: '' }, settings)).toEqual(['TMDB key (enter it in the app)'])
+    expect(missingSettings({ ...services, TMDB_PROXY_URL: '', TMDB_API_KEY: 'env-key' }, settings)).toEqual([])
+    await settings.update({ tmdbApiKey: 'saved-key' })
+    expect(missingSettings({ ...services, TMDB_PROXY_URL: '' }, settings)).toEqual([])
+  })
+
+  it('names the services and the Prowlarr key that aren’t set', () => {
+    const settings = new SettingsStore(join(root, 'missing-services'))
+
+    expect(missingSettings({ TMDB_PROXY_URL: '' }, settings)).toEqual([
+      'QBITTORRENT_URL',
+      'PROWLARR_URL',
+      'PROWLARR_API_KEY',
+      'TMDB key (enter it in the app)',
+    ])
+    expect(missingSettings({ ...services, PROWLARR_API_KEY: undefined, PROWLARR_CONFIG_XML: '/config.xml' }, settings)).toEqual([])
+  })
+})
+
 describe('tmdbProxy', () => {
   it('is the released versions’ worker by default', () => {
     expect(TMDB_PROXY).toBe('https://kinoseed-tmdb.kinoseed.workers.dev/3')
     expect(tmdbProxy({})).toBe(TMDB_PROXY)
+  })
+
+  it('is the edge worker the Edge workflow bakes into edge images', async () => {
+    const workflow = await readFile(new URL('../.github/workflows/edge.yml', import.meta.url), 'utf8')
+
+    expect(TMDB_PROXY_EDGE).toBe('https://kinoseed-tmdb-edge.kinoseed.workers.dev/3')
+    expect(workflow).toContain(`KINOSEED_TMDB_PROXY=${TMDB_PROXY_EDGE}\n`)
   })
 
   it('is the one an edge build bakes in, KINOSEED_TMDB_PROXY', () => {

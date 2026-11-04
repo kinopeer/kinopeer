@@ -44,6 +44,9 @@ export interface KinoseedServer {
 /** Kinoseed's TMDB proxy for released versions (tmdb-proxy/, docs/DEVELOPMENT.md → The TMDB proxy). */
 export const TMDB_PROXY = 'https://kinoseed-tmdb.kinoseed.workers.dev/3'
 
+/** Its edge worker, which follows main: edge images bake it in (edge.yml), and the dev server defaults to it. */
+export const TMDB_PROXY_EDGE = 'https://kinoseed-tmdb-edge.kinoseed.workers.dev/3'
+
 /**
  * Where TMDB calls without a key go: TMDB_PROXY_URL, which an empty value turns off, else the
  * proxy the image was built for (KINOSEED_TMDB_PROXY, the edge worker in edge builds), else the
@@ -52,6 +55,15 @@ export const TMDB_PROXY = 'https://kinoseed-tmdb.kinoseed.workers.dev/3'
 export function tmdbProxy(env: Record<string, string | undefined>): string | undefined {
   const url = env.TMDB_PROXY_URL ?? (env.KINOSEED_TMDB_PROXY?.trim() || TMDB_PROXY)
   return url.trim().replace(/\/+$/, '') || undefined
+}
+
+/** What the server warns about at startup: the services it has no address for, and the keys it lacks. */
+export function missingSettings(env: Record<string, string | undefined>, settings: SettingsStore): string[] {
+  const missing = ['QBITTORRENT_URL', 'PROWLARR_URL'].filter((name) => !env[name])
+  if (!env.PROWLARR_API_KEY && !env.PROWLARR_CONFIG_XML) missing.push('PROWLARR_API_KEY')
+  // Without a key, Kinoseed's proxy serves TMDB; only with it off is a key missing.
+  if (!tmdbKey(settings, env.TMDB_API_KEY) && !tmdbProxy(env)) missing.push('TMDB key (enter it in the app)')
+  return missing
 }
 
 /**
@@ -152,9 +164,7 @@ async function main() {
 
   server.listen(port, host, () => {
     console.log(`[kinoseed] ${version} listening on http://${host}:${port}`)
-    const missing = ['QBITTORRENT_URL', 'PROWLARR_URL'].filter((name) => !env[name])
-    if (!env.PROWLARR_API_KEY && !env.PROWLARR_CONFIG_XML) missing.push('PROWLARR_API_KEY')
-    if (!tmdbKey(stores.settings, env.TMDB_API_KEY) && !tmdbProxy(env)) missing.push('TMDB key (enter it in the app)')
+    const missing = missingSettings(env, stores.settings)
     if (missing.length) console.warn(`[kinoseed] not set: ${missing.join(', ')}`)
   })
 
