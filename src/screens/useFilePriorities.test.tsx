@@ -228,6 +228,17 @@ describe('useFilePriorities', () => {
     expect(screen.getByRole('status', { name: saying(FAILED) })).toBeInTheDocument()
   })
 
+  it('leaves a failure to a toast when the list shows another torrent by then', async () => {
+    const change = pendingChange()
+    const view = render(<List name="Page" list={POLLED} />, { wrapper: Providers })
+    await userEvent.click(screen.getByRole('button', { name: 'Extras high' }))
+    // Added at the same moment, so only the hash tells them apart.
+    view.rerender(<List name="Page" list={POLLED} target={torrent('alien', { added_on: DUNE.added_on })} />)
+    await change.fail()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('status', { name: saying(FAILED) })).toBeInTheDocument()
+  })
+
   it('leaves a failure to a toast when the list that shows the torrent was closed meanwhile', async () => {
     const change = pendingChange()
     const view = render(<List name="Page" list={POLLED} />, { wrapper: Providers })
