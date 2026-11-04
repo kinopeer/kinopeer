@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
@@ -16,8 +16,10 @@ vi.mock('../api/qbittorrent', async (importOriginal) => ({
 const getTorrentFiles = vi.mocked(api.getTorrentFiles)
 const setFilePriority = vi.mocked(api.setFilePriority)
 
+/** Renders the section and opens it, in the same tick, so the first request is still on its way. */
 function renderFiles(disabled = false) {
   render(<TorrentFiles torrent={DUNE_TORRENT} status="downloading" disabled={disabled} />, { wrapper: ToastProvider })
+  fireEvent.click(screen.getByRole('button', { name: 'Files' }))
   return screen.getByRole('region', { name: /Files/ })
 }
 
@@ -31,6 +33,25 @@ beforeEach(() => {
 })
 
 describe('TorrentFiles', () => {
+  it('is closed at first and asks for nothing until opened, then keeps the count once closed again', async () => {
+    render(<TorrentFiles torrent={DUNE_TORRENT} status="downloading" />, { wrapper: ToastProvider })
+    const files = screen.getByRole('region', { name: 'Files' })
+    const toggle = within(files).getByRole('button', { name: 'Files' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(files).toHaveAttribute('aria-busy', 'false')
+    expect(within(files).queryByRole('status')).not.toBeInTheDocument()
+    expect(getTorrentFiles).not.toHaveBeenCalled()
+
+    await userEvent.click(toggle)
+    expect(await within(files).findByText('Dune.Part.Two.mkv')).toBeInTheDocument()
+    expect(getTorrentFiles).toHaveBeenCalledOnce()
+
+    await userEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(within(files).queryByText('Dune.Part.Two.mkv')).not.toBeInTheDocument()
+    expect(toggle).toHaveTextContent('Files 2')
+  })
+
   it('shows a loading state, then the files with their progress and count', async () => {
     const files = renderFiles()
     expect(within(files).getByRole('status', { name: saying('Loading files') })).toBeInTheDocument()

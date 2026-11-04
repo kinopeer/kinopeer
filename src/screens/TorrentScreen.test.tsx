@@ -381,7 +381,8 @@ describe('TorrentScreen', () => {
 
   it('shows the torrent’s files', async () => {
     renderScreen()
-    const files = await screen.findByRole('region', { name: /Files/ })
+    await userEvent.click(await screen.findByRole('button', { name: 'Files' }))
+    const files = screen.getByRole('region', { name: /Files/ })
     expect(await within(files).findByRole('combobox', { name: 'Priority: Extras.mkv' })).toHaveValue('skip')
   })
 })
