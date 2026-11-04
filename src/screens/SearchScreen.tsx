@@ -119,61 +119,64 @@ export function SearchScreen() {
   useScrollRestoration(!loading)
 
   return (
-    <main className="search">
+    <main className="search status-strip">
       <header className="search-head">
         <h1 className="t-h1 search-title">{t('search.title')}</h1>
-        <div className="search-field">
-          <Input
-            icon="search"
-            type="search"
-            aria-label={t('search.title')}
-            placeholder={t('search.placeholder')}
-            value={query}
-            // An emptied query starts over, as the clear button does.
-            onChange={(event) => update({ q: event.target.value, ...(event.target.value.trim() ? {} : { year: '' }) })}
-            enterKeyHint="search"
-            autoComplete="off"
-          />
-          {query && (
-            <IconButton
-              icon="close"
-              label={t('search.clear')}
-              iconSize={18}
-              className="search-clear"
-              onClick={() => update({ q: '', year: '' })}
+        {/* Pinned on a phone, under the status bar's strip, while the title scrolls away. */}
+        <div className="search-bar">
+          <div className="search-field">
+            <Input
+              icon="search"
+              type="search"
+              aria-label={t('search.title')}
+              placeholder={t('search.placeholder')}
+              value={query}
+              // An emptied query starts over, as the clear button does.
+              onChange={(event) => update({ q: event.target.value, ...(event.target.value.trim() ? {} : { year: '' }) })}
+              enterKeyHint="search"
+              autoComplete="off"
             />
-          )}
-        </div>
-        <div className="search-filters">
-          <div className="ks-tabs search-types" role="group" aria-label={t('search.typeLabel')}>
-            {TYPE_FILTERS.map((filter) => (
-              <button
-                key={filter.value}
-                type="button"
-                className={cx(type === filter.value && 'is-on')}
-                aria-pressed={type === filter.value}
-                onClick={() => update({ type: filter.value })}
-              >
-                {t(filter.label)}
-              </button>
-            ))}
-          </div>
-          {/* The browse rows are what's popular now, so the year only filters a search. */}
-          {searching && (
-            // A label around the field makes the whole height of the tabs' row its touch target.
-            <label className="search-year">
-              <Input
-                aria-label={t('search.yearLabel')}
-                placeholder={t('search.year')}
-                value={yearText}
-                error={isYearOutOfRange(yearText)}
-                onChange={(event) => update({ year: event.target.value.replace(/\D/g, '').slice(0, 4) })}
-                inputMode="numeric"
-                enterKeyHint="search"
-                autoComplete="off"
+            {query && (
+              <IconButton
+                icon="close"
+                label={t('search.clear')}
+                iconSize={18}
+                className="search-clear"
+                onClick={() => update({ q: '', year: '' })}
               />
-            </label>
-          )}
+            )}
+          </div>
+          <div className="search-filters">
+            <div className="ks-tabs search-types" role="group" aria-label={t('search.typeLabel')}>
+              {TYPE_FILTERS.map((filter) => (
+                <button
+                  key={filter.value}
+                  type="button"
+                  className={cx(type === filter.value && 'is-on')}
+                  aria-pressed={type === filter.value}
+                  onClick={() => update({ type: filter.value })}
+                >
+                  {t(filter.label)}
+                </button>
+              ))}
+            </div>
+            {/* The browse rows are what's popular now, so the year only filters a search. */}
+            {searching && (
+              // A label around the field makes the whole height of the tabs' row its touch target.
+              <label className="search-year">
+                <Input
+                  aria-label={t('search.yearLabel')}
+                  placeholder={t('search.year')}
+                  value={yearText}
+                  error={isYearOutOfRange(yearText)}
+                  onChange={(event) => update({ year: event.target.value.replace(/\D/g, '').slice(0, 4) })}
+                  inputMode="numeric"
+                  enterKeyHint="search"
+                  autoComplete="off"
+                />
+              </label>
+            )}
+          </div>
         </div>
       </header>
 

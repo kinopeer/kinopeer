@@ -7,15 +7,9 @@
   padding: 0 var(--space-4) var(--space-6);
 }
 
-/* The status bar's strip: what scrolls off the top goes under it, not behind the clock. */
+/* The status bar's strip (.status-strip in base.css). */
 .downloads::before {
-  content: '';
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  height: var(--safe-top);
   margin: 0 calc(-1 * var(--space-4)); /* across the screen's side padding, as the bar below it */
-  background: var(--bg);
 }
 
 .downloads-head {
@@ -676,11 +670,6 @@ a.dl-row-main:focus-visible::after {
     max-width: none;
     margin: 0;
     padding: 0;
-  }
-
-  /* The header is pinned here, and takes the safe area in its own padding. */
-  .downloads::before {
-    content: none;
   }
 
   /* The whole header stays at the top while the list scrolls: there's room for it, and its menus

@@ -405,7 +405,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   )
 
   return (
-    <main className="downloads">
+    <main className="downloads status-strip">
       {header}
 
       <section className="downloads-body" aria-label={t('downloads.title')} aria-busy={loading}>
