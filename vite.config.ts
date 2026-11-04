@@ -123,7 +123,7 @@ export default defineConfig(({ mode }) => {
           'src/components/*/index.ts',
         ],
         reporter: ['text', 'html'],
-        thresholds: { lines: 96, statements: 94, functions: 95, branches: 92 },
+        thresholds: { lines: 96, statements: 94, functions: 95, branches: 93 },
       },
     },
   }

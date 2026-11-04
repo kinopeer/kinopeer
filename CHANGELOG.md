@@ -2,7 +2,9 @@
 
 Kinoseed follows [semantic versioning](https://semver.org). While the version is 0.x, minor versions may change behavior and settings.
 
-## Unreleased
+## 0.7.0 - 2026-11-05
+
+TMDB works without a key of your own, through Kinoseed's. Downloads sort by status and, on a computer, by a click on a column's name; a torrent's own speed limits show in the list; the torrent page changes the category and the download order and sets a folder's priority at once. Search loads more results page by page, each tab comes back where it was left, and the titles scroll away to leave more room for the list. A long list of torrents stays responsive on a phone.
 
 ### Added
 
@@ -13,7 +15,6 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 - Torrent details: a folder in the file list has a priority too, which sets Skip, Normal or High for every file under it at once and shows Mixed while they differ. ([#215](https://github.com/MrShakhov/kinoseed/issues/215))
 - Torrent details: a Download section, always open under Pause and Delete, changes the category and, until the torrent is complete, switches sequential download and first and last pieces first. The Category sheet shows the folder each category would move the files to and says what changing it does: qBittorrent moves the files of a torrent under automatic management, or switches it to manual mode if its settings say so. The category moved there from Details. ([#213](https://github.com/MrShakhov/kinoseed/issues/213))
 - Search: Show more under the results loads the next page of them, and Back from a title brings back every page loaded, at the same scroll position. The count above the results is now TMDB's estimate for the whole search, not the number on the first page. The Movies and Series tabs search for their type instead of filtering what's loaded. ([#219](https://github.com/MrShakhov/kinoseed/issues/219))
-
 - Downloads, Search and Settings each come back where they were left when you switch tabs, and Search with its last query and the results it had loaded. Pressing the tab you're on scrolls to the top; on a torrent's page on a phone, the Downloads tab goes back to the list where it was first. Any other screen opens at the top, rather than wherever the last one was scrolled to. ([#211](https://github.com/MrShakhov/kinoseed/issues/211))
 
 ### Changed
