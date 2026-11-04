@@ -83,7 +83,7 @@ async function tableRows() {
 describe('DownloadsScreen on desktop', () => {
   // The class lets the browser skip rows off screen (`content-visibility`), once they've been laid
   // out in full; no role shows it (DownloadsScreen.test.tsx has the rest of the rule, #220).
-  it('waits for the table’s rows to show for a frame before they’re skipped, when the window widens from a phone’s list', async () => {
+  it('waits for each layout’s rows to show for a frame before they’re skipped: the phone’s list, the table, the grid', async () => {
     const frames: FrameRequestCallback[] = []
     vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => frames.push(callback))
     vi.stubGlobal('cancelAnimationFrame', () => {})
@@ -99,6 +99,14 @@ describe('DownloadsScreen on desktop', () => {
 
     act(() => widen(true))
     expect(await tableRows()).toHaveLength(3)
+    expect(body).not.toHaveClass('skips-offscreen')
+    nextFrame()
+    nextFrame()
+    expect(body).toHaveClass('skips-offscreen')
+
+    // The desktop grid's cards replace the table's rows.
+    await userEvent.click(screen.getByRole('radio', { name: 'Grid' }))
+    expect(await screen.findAllByRole('listitem')).toHaveLength(3)
     expect(body).not.toHaveClass('skips-offscreen')
     nextFrame()
     nextFrame()
