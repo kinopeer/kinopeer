@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { FilePriority, Torrent } from '../api/qbittorrent'
+import { Accordion } from '../components/Accordion'
 import { Banner } from '../components/Banner'
 import { Icon } from '../components/Icon'
 import { ProgressBar } from '../components/ProgressBar'
@@ -17,6 +18,8 @@ export interface TorrentFilesProps {
   /** qBittorrent is unreachable, or the torrent is being deleted: priorities can't be changed. */
   disabled?: boolean
 }
+
+const NONE: ReadonlySet<string> = new Set()
 
 type PriorityChoice = 'skip' | 'normal' | 'high'
 
@@ -62,7 +65,9 @@ function PrioritySelect({ label, value, busy, disabled, onChange }: PrioritySele
 }
 
 /**
- * A torrent's files with their progress and download priority, as the torrent's folder tree. A
+ * A torrent's files with their progress and download priority, as the torrent's folder tree, in a
+ * section that's closed at first and polls the files only while open; their count shows once the
+ * list has loaded. A
  * folder's priority sets every file under it, and shows Mixed while they differ. A change is on its
  * way while the pickers of its files are off, and of the folders above them (`useFilePriorities`),
  * so a folder can't change while one of its files does, nor a file while its folder does.
@@ -70,16 +75,23 @@ function PrioritySelect({ label, value, busy, disabled, onChange }: PrioritySele
 export function TorrentFiles({ torrent, status, disabled }: TorrentFilesProps) {
   const { t } = useTranslation()
   const format = useFormatters()
-  const list = useTorrentFiles(torrent.hash)
+  const [open, setOpen] = useState(false)
+  // Closed, the list isn't polled; the last one stays for the count and for opening it again.
+  const list = useTorrentFiles(torrent.hash, open)
   const { failed } = list
-  const priorities = useFilePriorities(torrent, list)
+  // A failure while closed goes to a toast, since the list that would say it isn't there.
+  const priorities = useFilePriorities(torrent, list, open)
   const { files } = priorities
   const saveFailed = priorities.failed
 
-  const tree = useMemo(() => buildFileTree((files ?? []).map((file) => ({ path: file.name, size: file.size }))), [files])
+  // Built only while open, since nothing shows it while closed.
+  const tree = useMemo(
+    () => (open && files ? buildFileTree(files.map((file) => ({ path: file.name, size: file.size }))) : undefined),
+    [open, files],
+  )
   // Folders the user opened or closed; the rest follow initiallyOpen, which needs the file list first.
   const [toggled, setToggled] = useState<ReadonlySet<string>>(new Set())
-  const opened = initiallyOpen(tree)
+  const opened = tree ? initiallyOpen(tree) : NONE
   const isOpen = (path: string) => opened.has(path) !== toggled.has(path)
   const toggle = (path: string) =>
     setToggled((current) => {
@@ -159,10 +171,18 @@ export function TorrentFiles({ torrent, status, disabled }: TorrentFilesProps) {
   const contents = (folder: FileFolder) => [...folder.folders.map(folderRow), ...folder.files.map(fileRow)]
 
   return (
-    <section className="tf" aria-labelledby="torrent-files-title" aria-busy={files === undefined}>
-      <h2 id="torrent-files-title" className="t-h3 tf-title">
-        {t('torrent.files')} {files && <span className="c3 ks-num tf-count">{files.length}</span>}
-      </h2>
+    <Accordion
+      heading
+      bodyClassName="tf-body"
+      title={
+        <>
+          {t('torrent.files')} {files && <span className="c3 ks-num tf-count">{files.length}</span>}
+        </>
+      }
+      open={open}
+      onOpenChange={setOpen}
+      aria-busy={open && files === undefined}
+    >
       {(saveFailed || (failed && files === undefined)) && (
         <Banner tone="error">{saveFailed ? t('torrent.priorityFailed') : t('torrent.filesFailed')}</Banner>
       )}
@@ -178,8 +198,9 @@ export function TorrentFiles({ torrent, status, disabled }: TorrentFilesProps) {
       ) : files.length === 0 ? (
         <p className="t-body c2">{t('torrent.filesMetadata')}</p>
       ) : (
-        <ul className="tf-list">{contents(tree)}</ul>
+        // The children are built here even while closed, so the rows only when there's a tree.
+        tree && <ul className="tf-list">{contents(tree)}</ul>
       )}
-    </section>
+    </Accordion>
   )
 }

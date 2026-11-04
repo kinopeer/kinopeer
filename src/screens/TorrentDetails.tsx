@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { matchPath, useLocation, useNavigate } from 'react-router'
 import { getTorrentTrackers, type Torrent } from '../api/qbittorrent'
 import { posterUrl } from '../api/tmdb'
+import { Accordion } from '../components/Accordion'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { EmptyState } from '../components/EmptyState'
@@ -340,21 +341,9 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
           </Button>
         </div>
 
-        <section className="torrent-details">
-          <h2 className="torrent-details-head">
-            <button
-              type="button"
-              className="ks-acc-head"
-              aria-expanded={detailsOpen}
-              aria-controls="torrent-details-list"
-              onClick={() => setDetailsOpen((open) => !open)}
-            >
-              {t('torrent.details')}
-              <Icon name="chevron-down" size={20} />
-            </button>
-          </h2>
-          {detailsOpen && (
-            <dl id="torrent-details-list" className="torrent-kv">
+        <div className="torrent-sections">
+          <Accordion heading title={t('torrent.details')} open={detailsOpen} onOpenChange={setDetailsOpen}>
+            <dl className="torrent-kv">
               {details.map((row) => (
                 <div key={row.key} className="ks-kv">
                   <dt>{row.label}</dt>
@@ -362,10 +351,10 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
                 </div>
               ))}
             </dl>
-          )}
-        </section>
+          </Accordion>
 
-        <TorrentFiles torrent={torrent} status={status} disabled={offline || deleting} />
+          <TorrentFiles torrent={torrent} status={status} disabled={offline || deleting} />
+        </div>
       </div>
 
       {remove.element}

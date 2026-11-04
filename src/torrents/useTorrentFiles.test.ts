@@ -88,6 +88,27 @@ describe('useTorrentFiles', () => {
     expect(result.current.requestedAt).toBe(1_000 + FILES_POLL_INTERVAL_MS)
   })
 
+  it('asks nothing while disabled, right away once enabled, and keeps the last list when disabled again', async () => {
+    const { result, rerender } = renderHook(({ enabled }) => useTorrentFiles('dune', enabled), {
+      initialProps: { enabled: false },
+    })
+    await nextPoll()
+    expect(getTorrentFiles).not.toHaveBeenCalled()
+    expect(result.current.files).toBeUndefined()
+
+    rerender({ enabled: true })
+    await settle()
+    expect(result.current.files).toEqual(FILES)
+    await nextPoll()
+    expect(getTorrentFiles).toHaveBeenCalledTimes(2)
+
+    rerender({ enabled: false })
+    await nextPoll()
+    await nextPoll()
+    expect(getTorrentFiles).toHaveBeenCalledTimes(2)
+    expect(result.current.files).toEqual(FILES)
+  })
+
   it('shows nothing of the previous torrent while another one loads', async () => {
     const { result, rerender } = renderHook(({ hash }) => useTorrentFiles(hash), { initialProps: { hash: 'dune' } })
     await settle()

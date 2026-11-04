@@ -138,13 +138,15 @@
   flex: 1;
 }
 
-.torrent-details {
+/* Details and Files: one list of sections, with a line above, between and below them. */
+.torrent-sections {
+  display: flex;
+  flex-direction: column;
   border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
 }
 
-.torrent-details-head {
-  font: inherit;
+.torrent-sections > * {
+  border-bottom: 1px solid var(--border);
 }
 
 .torrent-kv {
@@ -182,14 +184,10 @@
 }
 
 /* Files */
-.tf {
+.tf-body {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-}
-
-.tf-title {
-  margin-bottom: var(--space-1);
 }
 
 .tf-count {
@@ -214,6 +212,11 @@
 
 .tf-folder {
   border-bottom: 1px solid var(--border);
+}
+
+/* The section's own line closes the list. */
+.tf-body > .tf-list > :last-child {
+  border-bottom: none;
 }
 
 .tf-sub .tf-folder,
