@@ -8,6 +8,7 @@ import {
   hasMorePages,
   keepResults,
   keptResults,
+  keptSearch,
   type SearchResults,
 } from './searchResults'
 
@@ -64,6 +65,14 @@ describe('kept results', () => {
     expect(keptResults('entry-1', 'dune')).toBeUndefined()
     expect(keptResults('entry-2', 'dune')).toBe(latest)
     expect(keptResults('entry-3', 'alien')).toBeDefined()
+  })
+
+  it('finds a search’s results under whichever entry holds them', () => {
+    const dune = results({ page: 2 })
+    keepResults('entry-1', 'dune', dune)
+    keepResults('entry-2', 'alien', results())
+    expect(keptSearch('dune')).toBe(dune)
+    expect(keptSearch('andor')).toBeUndefined()
   })
 
   it('keeps the latest searches only, forgetting the one kept longest ago', () => {

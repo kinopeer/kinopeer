@@ -6,6 +6,7 @@ import { TabBar, type TabBarItem } from './components/TabBar'
 import { ToastProvider, useToast } from './components/Toast'
 import { backgroundOf } from './lib/background'
 import { useIsDesktop } from './lib/useIsDesktop'
+import { useNewScreenAtTop } from './lib/useScrollRestoration'
 import { takeJustUpdated } from './pwa/updates'
 import { ConnectScreen } from './screens/ConnectScreen'
 import { DownloadsScreen } from './screens/DownloadsScreen'
@@ -36,6 +37,12 @@ function App() {
   const isDesktop = useIsDesktop()
   // Selecting downloads puts the selection's actions in place of the tab bar. The sidebar stays.
   const [selecting, setSelecting] = useState(false)
+  // On desktop a torrent opened from a page (a link's background state) opens in a drawer over
+  // that page, which the routes keep rendering. Without one, it opens over Downloads.
+  const background = isDesktop && isTorrentPath(location.pathname) ? backgroundOf(location) : undefined
+  const page = background ?? location
+  const screenKey = screenKeyOf(page.pathname, isDesktop)
+  useNewScreenAtTop(screenKey)
 
   const connecting = (
     <main className="screen home" aria-busy="true">
@@ -56,12 +63,6 @@ function App() {
         { to: '/settings', icon: 'settings', label: t('nav.settings') },
       ]
       const onSessionLost = () => void recheck()
-      // On desktop a torrent opened from a page (a link's background state) opens in a drawer over
-      // that page, which the routes keep rendering. Without one, it opens over Downloads.
-      const background =
-        isDesktop && isTorrentPath(location.pathname) ? backgroundOf(location) : undefined
-      const page = background ?? location
-      const screenKey = screenKeyOf(page.pathname, isDesktop)
       return (
         <MainDataProvider onUnauthorized={onSessionLost}>
           <ToastProvider>
@@ -134,9 +135,10 @@ const TORRENT_PATH = '/torrent/:hash'
 const isTorrentPath = (pathname: string) => matchPath(TORRENT_PATH, pathname) !== null
 
 /**
- * What the error boundary is keyed by, so a crash on one screen goes away on the next. A torrent's
- * drawer over Downloads is part of that screen, and on desktop a title's releases are part of its
- * page (a phone shows them on a screen of their own).
+ * The screen shown: what the error boundary is keyed by, so a crash on one screen goes away on the
+ * next, and what opens at the top when a forward navigation changes it. A torrent's drawer over
+ * Downloads is part of that screen, and on desktop a title's releases are part of its page (a phone
+ * shows them on a screen of their own).
  */
 function screenKeyOf(pathname: string, isDesktop: boolean): string {
   if (!isDesktop) return pathname
