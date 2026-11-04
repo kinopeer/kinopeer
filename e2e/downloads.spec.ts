@@ -260,20 +260,25 @@ test.describe('downloads, desktop', () => {
     await expect(card).toHaveScreenshot('desktop-alt-speed-on-dark-ru.png')
   })
 
-  test('the header takes the safe area once, with no strip above it', async ({ page }) => {
-    await emulateNotch(page)
-    await openDownloads(page, { downloadsView: 'grid' })
-    await expect(page).toHaveScreenshot('desktop-grid-safe-area-dark-ru.png')
-  })
-
-  test('the header and the column names stay at the top while the table scrolls', async ({ page }) => {
+  test('the filters and the column names stay at the top while the table scrolls', async ({ page }) => {
     await openDownloads(page, { downloadsView: 'list' })
-    // As far as the page goes: the first rows pass under the header and the column names.
+    // As far as the page goes: the first rows pass under the bar and the column names.
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
-    await expect(page.getByRole('heading', { level: 1, name: 'Загрузки' })).toBeInViewport()
+    // The title and the totals scroll away, as on a phone; the bar with the filters is pinned.
+    await expect(page.getByRole('heading', { level: 1, name: 'Загрузки' })).not.toBeInViewport()
+    await expect(page.getByRole('searchbox', { name: 'Фильтр по названию' })).toBeInViewport()
     await expect(page.getByRole('columnheader', { name: 'Название' })).toBeInViewport()
     await expect(page).toHaveScreenshot('desktop-list-scrolled-dark-ru.png')
+  })
+
+  // An iPad's status bar: the strip above the pinned bar takes it, so the rows pass under the strip.
+  test('the table stays out of the status bar above the pinned filters', async ({ page }) => {
+    await emulateNotch(page)
+    await openDownloads(page, { downloadsView: 'list' })
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
+    await expect(page).toHaveScreenshot('desktop-list-scrolled-safe-area-dark-ru.png')
   })
 
   test('a row’s actions as a menu', async ({ page }) => {
@@ -366,6 +371,14 @@ test.describe('downloads, narrow desktop', () => {
     await expect(page.getByRole('menu')).toBeVisible()
     await settle(page)
     await expect(page).toHaveScreenshot('rail-status-dark-ru.png')
+  })
+
+  test('the filters stay at the top beside the rail while the table scrolls', async ({ page }) => {
+    await openDownloads(page, { downloadsView: 'list' })
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
+    await expect(page.getByRole('heading', { level: 1, name: 'Загрузки' })).not.toBeInViewport()
+    await expect(page).toHaveScreenshot('rail-list-scrolled-dark-ru.png')
   })
 })
 

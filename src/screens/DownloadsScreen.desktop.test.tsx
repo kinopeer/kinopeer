@@ -298,12 +298,21 @@ describe('DownloadsScreen on desktop', () => {
     expect(screen.getByRole('button', { name: 'Status: All, 3' })).toBeInTheDocument()
   })
 
-  it('keeps the name filter in the header', async () => {
+  it('keeps the name filter in the bar, not behind a button', async () => {
     renderScreen()
     await screen.findAllByRole('listitem')
     expect(screen.queryByRole('button', { name: 'Filter by name' })).not.toBeInTheDocument()
     await userEvent.type(screen.getByRole('searchbox', { name: 'Filter by name' }), 'andor')
     expect(screen.getAllByRole('listitem')).toHaveLength(1)
+  })
+
+  it('keeps the name filter while selecting, so Select all takes only what it shows', async () => {
+    renderScreen()
+    await screen.findAllByRole('listitem')
+    await userEvent.click(screen.getByRole('button', { name: 'Select' }))
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Filter by name' }), 'andor')
+    await userEvent.click(screen.getByRole('button', { name: 'Select all' }))
+    expect(screen.getByRole('toolbar', { name: '1 selected' })).toBeInTheDocument()
   })
 
   it('selects rows of the table with checkboxes', async () => {

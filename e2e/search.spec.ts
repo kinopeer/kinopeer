@@ -72,14 +72,17 @@ test.describe('search, desktop', () => {
     await expect(page).toHaveScreenshot('desktop-results-dark-ru.png')
   })
 
-  test('the whole header stays at the top while the results scroll', async ({ page }) => {
+  test('the field and the filters stay at the top while the results scroll', async ({ page }) => {
     // A short window, so the results scroll.
     await page.setViewportSize({ width: 1440, height: 500 })
     await openSearch(page, '/search?q=%D0%B0', 'Дюна')
-    await page.evaluate(() => window.scrollTo(0, 100))
-    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(100)
-    await expect(page.getByRole('heading', { level: 1, name: 'Поиск' })).toBeInViewport()
+    await page.evaluate(() => window.scrollTo(0, 120))
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(120)
+    // The title scrolls away, as on a phone; the field, the type tabs and the year are pinned.
+    await expect(page.getByRole('heading', { level: 1, name: 'Поиск' })).not.toBeInViewport()
     await expect(page.getByRole('searchbox', { name: 'Поиск' })).toBeInViewport()
+    await expect(page.getByRole('textbox', { name: 'Год выхода' })).toBeInViewport()
+    await expect(page).toHaveScreenshot('desktop-results-scrolled-dark-ru.png')
   })
 
   test('no results, dark, Russian', async ({ page }) => {
