@@ -1,0 +1,212 @@
+import { execFileSync, spawnSync } from 'node:child_process'
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
+import { afterEach, describe, expect, it } from 'vitest'
+import { compareVersionTags, shouldDeploy } from './deployCheck.ts'
+
+const repos: string[] = []
+
+/** Git without the developer's own config, whose hooks or templates would run in the test's commits. */
+const GIT_ENV = { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' }
+
+/** A git repository with one commit of the proxy, as the workflow's checkout has it. */
+function repo() {
+  const cwd = mkdtempSync(join(tmpdir(), 'kinoseed-proxy-'))
+  repos.push(cwd)
+  const git = (...args: string[]) => execFileSync('git', args, { cwd, encoding: 'utf8', env: GIT_ENV }).trim()
+  git('init', '-q', '-b', 'main')
+  git('config', 'user.email', 'test@example.com')
+  git('config', 'user.name', 'Test')
+  git('config', 'commit.gpgsign', 'false')
+  git('config', 'tag.gpgsign', 'false')
+  const commit = (files: Record<string, string>) => {
+    for (const [path, content] of Object.entries(files)) {
+      mkdirSync(dirname(join(cwd, path)), { recursive: true })
+      writeFileSync(join(cwd, path), content)
+    }
+    git('add', '-A')
+    git('commit', '-q', '-m', Object.keys(files).join(' '))
+    return git('rev-parse', 'HEAD')
+  }
+  /** Where the workflow's checkout stands, and what it fetched of main. */
+  const at = (sha: string, main = sha) => {
+    git('checkout', '-q', '--detach', sha)
+    git('update-ref', 'refs/remotes/origin/main', main)
+  }
+  const tag = (name: string, sha: string) => git('tag', name, sha)
+  const first = commit({ 'tmdb-proxy/worker.ts': 'v1', 'README.md': 'readme' })
+  return { cwd, commit, at, tag, first }
+}
+
+afterEach(() => {
+  for (const cwd of repos.splice(0)) rmSync(cwd, { recursive: true, force: true })
+})
+
+describe('shouldDeploy', () => {
+  describe('edge', () => {
+    it('deploys main’s head', () => {
+      const { cwd, at, first } = repo()
+      at(first)
+
+      expect(shouldDeploy('edge', cwd)).toMatchObject({ deploy: true })
+    })
+
+    it('deploys an older commit when main moved on without touching the proxy', () => {
+      const { cwd, commit, at, first } = repo()
+      const docs = commit({ 'README.md': 'more' })
+      at(first, docs)
+
+      expect(shouldDeploy('edge', cwd)).toMatchObject({ deploy: true })
+    })
+
+    it('deploys an older commit when main changed only the proxy’s tests', () => {
+      const { cwd, commit, at, first } = repo()
+      const tests = commit({ 'tmdb-proxy/worker.test.ts': 'test' })
+      at(first, tests)
+
+      expect(shouldDeploy('edge', cwd)).toMatchObject({ deploy: true })
+    })
+
+    it('leaves the worker when main has newer proxy code', () => {
+      const { cwd, commit, at, first } = repo()
+      const newer = commit({ 'tmdb-proxy/worker.ts': 'v2' })
+      at(first, newer)
+
+      expect(shouldDeploy('edge', cwd)).toMatchObject({ deploy: false })
+    })
+
+    it('leaves the worker when main has a newer Wrangler config', () => {
+      const { cwd, commit, at, first } = repo()
+      const newer = commit({ 'tmdb-proxy/wrangler.jsonc': '{ "limit": 50 }' })
+      at(first, newer)
+
+      expect(shouldDeploy('edge', cwd)).toMatchObject({ deploy: false })
+    })
+  })
+
+  describe('release', () => {
+    it('deploys the highest tag', () => {
+      const { cwd, commit, at, tag, first } = repo()
+      tag('v0.6.1', first)
+      const next = commit({ 'tmdb-proxy/worker.ts': 'v2' })
+      tag('v0.7.0', next)
+      at(next)
+
+      expect(shouldDeploy('release', cwd)).toMatchObject({ deploy: true })
+    })
+
+    it('leaves the worker for an older tag when the proxy changed since', () => {
+      const { cwd, commit, at, tag, first } = repo()
+      tag('v0.6.1', first)
+      tag('v0.7.0', commit({ 'tmdb-proxy/worker.ts': 'v2' }))
+      at(first)
+
+      expect(shouldDeploy('release', cwd)).toMatchObject({ deploy: false })
+    })
+
+    it('deploys an older tag when the proxy is the same as the highest one’s', () => {
+      const { cwd, commit, at, tag, first } = repo()
+      tag('v0.6.1', first)
+      tag('v0.6.2', commit({ 'README.md': 'more' }))
+      at(first)
+
+      expect(shouldDeploy('release', cwd)).toMatchObject({ deploy: true })
+    })
+
+    it('ranks a release above its prerelease', () => {
+      const { cwd, commit, at, tag, first } = repo()
+      tag('v0.7.0-rc.1', first)
+      const release = commit({ 'tmdb-proxy/worker.ts': 'v2' })
+      tag('v0.7.0', release)
+      at(release)
+
+      expect(shouldDeploy('release', cwd)).toMatchObject({ deploy: true })
+      at(first)
+      expect(shouldDeploy('release', cwd)).toMatchObject({ deploy: false })
+    })
+
+    it('compares versions by number, not as text', () => {
+      const { cwd, commit, at, tag, first } = repo()
+      tag('v0.9.0', first)
+      const tenth = commit({ 'tmdb-proxy/worker.ts': 'v2' })
+      tag('v0.10.0', tenth)
+      at(tenth)
+
+      expect(shouldDeploy('release', cwd)).toMatchObject({ deploy: true })
+    })
+
+    it('ignores tags that aren’t versions', () => {
+      const { cwd, commit, at, tag, first } = repo()
+      tag('v0.6.1', first)
+      const other = commit({ 'tmdb-proxy/worker.ts': 'v2' })
+      for (const name of ['vacation', 'vendor-v9.0.0', 'v9.0.0.1', 'v9.0', 'v9.0.0-']) tag(name, other)
+      at(first)
+
+      expect(shouldDeploy('release', cwd)).toMatchObject({ deploy: true })
+    })
+  })
+
+  it('deploys nothing to the release worker before the first version tag', () => {
+    const { cwd, at, first } = repo()
+    at(first)
+
+    expect(shouldDeploy('release', cwd)).toMatchObject({ deploy: false })
+  })
+
+  it('fails rather than skipping when git can’t compare', () => {
+    const { cwd, first } = repo()
+    execFileSync('git', ['checkout', '-q', '--detach', first], { cwd, env: GIT_ENV })
+
+    expect(() => shouldDeploy('edge', cwd)).toThrow('git diff failed')
+  })
+
+  it('refuses an environment it doesn’t know', () => {
+    const { cwd, at, first } = repo()
+    at(first)
+
+    expect(() => shouldDeploy('staging', cwd)).toThrow('Unknown environment staging')
+  })
+
+  it('prints its answer for the workflow’s output, and why on stderr', () => {
+    const { cwd, commit, at, first } = repo()
+    const newer = commit({ 'tmdb-proxy/worker.ts': 'v2' })
+    const script = join(import.meta.dirname, 'deployCheck.ts')
+    const run = () => spawnSync(process.execPath, [script, 'edge'], { cwd, encoding: 'utf8', env: GIT_ENV })
+
+    at(newer)
+    expect(run().stdout).toBe('deploy=true\n')
+    expect(run().stderr).toContain('the same as at origin/main')
+    at(first, newer)
+    expect(run().stdout).toBe('deploy=false\n')
+    expect(spawnSync(process.execPath, [script], { cwd, encoding: 'utf8', env: GIT_ENV }).stderr).toContain('Unknown environment')
+  })
+})
+
+describe('compareVersionTags', () => {
+  it('orders versions by number, a release above its prereleases', () => {
+    const tags = ['v1.0.0', 'v0.10.0', 'v0.7.0', 'v0.7.0-rc.10', 'v0.6.12', 'v0.7.0-rc.2', 'v10.0.0', 'v0.6.2']
+
+    expect(tags.sort(compareVersionTags)).toEqual([
+      'v0.6.2',
+      'v0.6.12',
+      'v0.7.0-rc.2',
+      'v0.7.0-rc.10',
+      'v0.7.0',
+      'v0.10.0',
+      'v1.0.0',
+      'v10.0.0',
+    ])
+  })
+
+  it('compares a release with its prereleases, prereleases by name, and a tag with itself', () => {
+    expect(compareVersionTags('v0.7.0', 'v0.7.0')).toBe(0)
+    expect(compareVersionTags('v0.7.0-rc.1', 'v0.7.0-rc.1')).toBe(0)
+    expect(compareVersionTags('v0.7.0', 'v0.7.0-rc.1')).toBeGreaterThan(0)
+    expect(compareVersionTags('v0.7.0-rc.1', 'v0.7.0')).toBeLessThan(0)
+    // A prerelease name that sorts after "undefined" as text, so a missing check can't pass by luck.
+    expect(compareVersionTags('v0.7.0-zeta', 'v0.7.0')).toBeLessThan(0)
+    expect(compareVersionTags('v0.7.0-rc.10', 'v0.7.0-rc.2')).toBeGreaterThan(0)
+    expect(compareVersionTags('v0.7.0-rc.2', 'v0.7.0-rc.10')).toBeLessThan(0)
+  })
+})
