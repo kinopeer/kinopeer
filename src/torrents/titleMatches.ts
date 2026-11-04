@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Matches, StoredMatch } from '../api/matches'
 import type { Torrent } from '../api/qbittorrent'
-import { getMovie, getTv, searchTitles, toTitle, type MediaType, type Title } from '../api/tmdb'
+import { TmdbError, getMovie, getTv, searchTitles, toTitle, type MediaType, type Title } from '../api/tmdb'
 import { useTmdbLanguage } from '../settings/settings'
 import { parseName, tmdbTag, type ParsedName } from './parseName'
 import { chooseMatch, forgetServerGuesses, rememberMatches, useServerMatches } from './serverMatches'
@@ -172,10 +172,15 @@ function readCache(key: string, now = Date.now()): TitleMatch | null | undefined
   return now - entry.at < (entry.match ? HIT_TTL_MS : MISS_TTL_MS) ? entry.match : undefined
 }
 
-function writeCache(changes: Record<string, TitleMatch | null>): void {
+/** Caches titles in memory; `storeCache` writes them to localStorage. */
+function cacheTitles(changes: Record<string, TitleMatch | null>): void {
   const entries = loadCache()
   const at = Date.now()
   for (const [key, match] of Object.entries(changes)) entries[key] = { match, at }
+}
+
+function storeCache(): void {
+  const entries = loadCache()
   const keys = Object.keys(entries)
   if (keys.length > MAX_ENTRIES) {
     keys.sort((a, b) => entries[a].at - entries[b].at)
@@ -186,6 +191,11 @@ function writeCache(changes: Record<string, TitleMatch | null>): void {
   } catch {
     // Storage full or blocked: the in-memory copy still saves requests for this session.
   }
+}
+
+function writeCache(changes: Record<string, TitleMatch | null>): void {
+  cacheTitles(changes)
+  storeCache()
 }
 
 /**
@@ -214,6 +224,143 @@ export function clearTitleMatchCache(): void {
 }
 
 const CONCURRENCY = 3
+/**
+ * While titles keep coming, they show at most this often: each time the whole list renders again
+ * and the cache is written to localStorage, which for a library of hundreds costs more than the
+ * answer itself (#239).
+ */
+export const SHOW_EVERY_MS = 250
+/** A request TMDB hasn't answered in this long is given up, and counts as failed. */
+export const LOOKUP_TIMEOUT_MS = 15_000
+/**
+ * How long a failed lookup waits before it's asked again, longer after each failure, then every
+ * last one: not with every change to the list, which would keep asking a TMDB that's down, or the
+ * shared proxy over its limit per IP.
+ */
+export const RETRY_DELAYS_MS = [30_000, 120_000, 600_000]
+/** How long a 429 without Retry-After stops the lookups; Kinoseed's proxy asks for 10 s. */
+export const RATE_LIMIT_WAIT_MS = 10_000
+
+/** Runs `request` with a signal that aborts with `signal` or after `ms`. */
+async function withTimeout<T>(ms: number, signal: AbortSignal, request: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const attempt = new AbortController()
+  const abort = () => attempt.abort()
+  signal.addEventListener('abort', abort)
+  const timer = setTimeout(abort, ms)
+  try {
+    return await request(attempt.signal)
+  } finally {
+    clearTimeout(timer)
+    signal.removeEventListener('abort', abort)
+  }
+}
+
+interface LookupRun {
+  /** The lookups still wanted: new ones join the queue, those gone from it are dropped. */
+  want(lookups: Lookup[]): void
+  stop(): void
+}
+
+/**
+ * Looks titles up in one language, CONCURRENCY at a time, each key once: a title that arrives or a
+ * torrent that comes doesn't stop or repeat the others. A lookup that fails or times out is asked
+ * again after RETRY_DELAYS_MS; a 429 stops them all for its Retry-After, then puts its lookup back
+ * in line. `onShow` is called as titles arrive, at most every SHOW_EVERY_MS, once they're cached.
+ * Stopped, it sends nothing more and leaves no timer behind.
+ */
+function startLookups(language: string, onShow: () => void): LookupRun {
+  const controller = new AbortController()
+  const { signal } = controller
+  // Keys taken by a worker: in flight, found, or waiting to be asked again.
+  const started = new Set<string>()
+  const failures = new Map<string, number>()
+  const retries = new Map<string, ReturnType<typeof setTimeout>>()
+  let wanted: Lookup[] = []
+  let queue: Lookup[] = []
+  let workers = 0
+  let resumeAt = 0
+  let resumeTimer: ReturnType<typeof setTimeout> | undefined
+  let shownAt = 0
+  let showTimer: ReturnType<typeof setTimeout> | undefined
+
+  const show = () => {
+    showTimer = undefined
+    shownAt = Date.now()
+    storeCache()
+    onShow()
+  }
+  // One show for what arrives meanwhile, SHOW_EVERY_MS after the last one at the earliest.
+  const arrived = () => {
+    showTimer ??= setTimeout(show, Math.max(0, shownAt + SHOW_EVERY_MS - Date.now()))
+  }
+
+  const fill = () => {
+    queue = wanted.filter((lookup) => !started.has(lookup.key))
+    while (!signal.aborted && resumeTimer === undefined && workers < CONCURRENCY && queue.length > 0) void work()
+  }
+  const pause = (ms: number) => {
+    if (Date.now() + ms <= resumeAt) return
+    resumeAt = Date.now() + ms
+    clearTimeout(resumeTimer)
+    resumeTimer = setTimeout(() => {
+      resumeTimer = undefined
+      fill()
+    }, ms)
+  }
+  const retryLater = (key: string) => {
+    const count = (failures.get(key) ?? 0) + 1
+    failures.set(key, count)
+    const delay = RETRY_DELAYS_MS[Math.min(count, RETRY_DELAYS_MS.length) - 1]
+    retries.set(
+      key,
+      setTimeout(() => {
+        started.delete(key)
+        fill()
+      }, delay),
+    )
+  }
+
+  const work = async () => {
+    workers++
+    while (!signal.aborted && resumeTimer === undefined && queue.length > 0) {
+      const lookup = queue.shift()!
+      started.add(lookup.key)
+      try {
+        const match = await withTimeout(LOOKUP_TIMEOUT_MS, signal, (attempt) => resolve(lookup, language, attempt))
+        cacheTitles({ [`${language}|${lookup.key}`]: match })
+        arrived()
+      } catch (error) {
+        // Stopped: not a failure, and nothing to ask again.
+        if (signal.aborted) break
+        if (error instanceof TmdbError && error.status === 429) {
+          // Not this title's failure: it goes back in line once TMDB takes requests again.
+          started.delete(lookup.key)
+          pause(error.retryAfterMs ?? RATE_LIMIT_WAIT_MS)
+        } else {
+          // Offline, no key, a timeout: asked again later, and until then left unknown.
+          retryLater(lookup.key)
+        }
+      }
+    }
+    workers--
+  }
+
+  return {
+    want(lookups) {
+      wanted = lookups
+      fill()
+    },
+    stop() {
+      controller.abort()
+      clearTimeout(resumeTimer)
+      for (const timer of retries.values()) clearTimeout(timer)
+      if (showTimer === undefined) return
+      // What arrived since the last show is kept for the next visit.
+      clearTimeout(showTimer)
+      storeCache()
+    },
+  }
+}
 
 /**
  * TMDB title for each torrent, by hash: the match, null when there is none, or undefined while
@@ -245,26 +392,18 @@ export function useTitleMatches(
     .sort()
     .join('\n')
 
+  // One run per language, for as long as the list is shown, so lookups in flight carry on as the
+  // pending keys change with every title that arrives.
+  const run = useRef<LookupRun | null>(null)
   useEffect(() => {
-    if (!pendingKey) return
-    const controller = new AbortController()
-    const all = Object.values(lookupsRef.current)
-    const queue = pendingKey.split('\n').map((key) => all.find((lookup) => lookup.key === key)!)
+    const current = startLookups(language, () => setVersion((n) => n + 1))
+    run.current = current
+    return () => current.stop()
+  }, [language])
 
-    const worker = async () => {
-      for (let lookup = queue.shift(); lookup && !controller.signal.aborted; lookup = queue.shift()) {
-        try {
-          const match = await resolve(lookup, language, controller.signal)
-          writeCache({ [`${language}|${lookup.key}`]: match })
-          setVersion((n) => n + 1)
-        } catch {
-          // Offline, no key or rate-limited: leave it unknown; the next visit tries again.
-          if (controller.signal.aborted) return
-        }
-      }
-    }
-    void Promise.all(Array.from({ length: CONCURRENCY }, worker))
-    return () => controller.abort()
+  useEffect(() => {
+    const byKey = new Map(Object.values(lookupsRef.current).map((lookup) => [lookup.key, lookup]))
+    run.current?.want(pendingKey ? pendingKey.split('\n').map((key) => byKey.get(key)!) : [])
   }, [pendingKey, language])
 
   // Guesses go to the server, so other devices show the same title without guessing. The title is

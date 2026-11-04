@@ -31,7 +31,8 @@ const API_BASE = 'https://api.themoviedb.org/3'
 const API_PREFIX = '/tmdb/'
 const IMAGE_PREFIX = '/tmdb-img/'
 /** Upstream response headers passed on to the browser. */
-const RESPONSE_HEADERS = ['content-type', 'cache-control', 'last-modified', 'etag', 'expires']
+// retry-after: how long a 429 (TMDB's, or the proxy's over its limit per IP) asks the client to wait.
+const RESPONSE_HEADERS = ['content-type', 'cache-control', 'last-modified', 'etag', 'expires', 'retry-after']
 
 /** The URL and headers for a TMDB API call with `key`, which is a v3 key or a v4 token. */
 function authorize(key: string, url: string): { url: string; headers: Record<string, string> } {
