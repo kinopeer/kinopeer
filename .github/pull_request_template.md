@@ -6,9 +6,12 @@
 
 ## Tests
 
-<!-- One row per new or changed test. Layer: its number and name from docs/TESTING.md → Layers
-     ("3, screens, stores and clients"). Seen red: you broke the code it covers and watched it fail
-     (docs/TESTING.md → A test that can fail). The review (/test-review) reads this first. -->
+<!-- One row per new or changed test. Layer: its number and name from docs/TESTING.md → Layers,
+     the lowest that sees it: 1 Pure logic, 2 Components and generic hooks, 3 Screens, stores and
+     clients, 4 Server, 5 Integration, 6 Browser ("3, screens, stores and clients"). A screen test
+     that re-checks a sort's order or a component's own behavior is a duplicate. Seen red: what you
+     broke and watched it fail, one break per claim of its title and of each comment on its
+     assertions (docs/TESTING.md → A test that can fail). The review (/test-review) reads this first. -->
 
 | Test (file › it) | Layer | What it says | Seen red |
 | --- | --- | --- | --- |
@@ -19,8 +22,9 @@ Not covered: <!-- each part of the diff without a test: the part — an accepted
      the stand or measured, the blind spot and every environment it runs in, the `it` that covers
      it. Or "nothing". -->
 
-Neighbours: <!-- docs/TESTING.md → Choosing a layer. Answer each with the `it` that covers it, a
-     reason from Not covered, or "doesn't apply" and why. -->
+Neighbours: <!-- docs/TESTING.md → Choosing a layer. Answer each with the `it` that covers it and
+     what you broke for exactly that case to see it red, a reason from Not covered, or "doesn't
+     apply" and why. A test that stays green with that case broken doesn't answer it. -->
 
 - Another place:
 - Later:

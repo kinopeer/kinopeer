@@ -34,14 +34,20 @@ follows the conversation's language. Code, file paths and quotes stay as they ar
 - A PR whose description has no Tests section at all gets that as its first finding; keep
   reviewing the diff anyway.
 - Look for earlier rounds among the PR's comments (fetched above): those headed
-  `Test review, round <n>`. If there are any, this is round n+1 (section 4).
+  `Test review, round <n>`. If there are any, this is round n+1 (section 4), and it starts from the
+  author's `Fixes for round <n>` comment after it (each finding fixed or declined, the tests for the
+  fixes, a merge of `main`). A `Merged main at <sha>` comment after a **ready to merge** is read as
+  section 4 says.
 
 ## 2. Sort the diff
 
-Group the changed files: production code (`src/` outside tests, `server/*.ts`), tests
+Group the changed files: production code (`src/` outside tests, `server/*.ts`, `tmdb-proxy/`
+outside tests: the folders `scripts/mutants.mjs` mutates), tests
 (`*.test.ts(x)`, `e2e/`), shared test data (`src/test/`, `server/test/`), baselines, config
 (`vite.config.ts`, `playwright*.config.ts`, `.oxlintrc.json`, `tsconfig*.json`, CI) and docs. Each
-group has its own checks below; a PR without production changes skips A.
+group has its own checks below; a PR without production changes skips A, except for a branch in a
+script or a workflow (whether to install, whether to deploy), which is behavior (`docs/TESTING.md`
+→ Saying why something is uncovered → No behavior).
 
 ## 3. Checks
 
@@ -59,11 +65,15 @@ trusted.
   fake the new request, in the same PR; a route no client calls needs its layer-4 test. Ask the
   neighbours of the change too (`docs/TESTING.md` → Choosing a layer: another place, later,
   meanwhile, the next poll, the edges), and check the PR's `Neighbours` lines against them: one left
-  blank, or answered with a test that doesn't run that case, is a finding. Missing → check the Tests
-  section's reasons (step 1) → otherwise a finding. A bug `/code-review` found in the PR's own change
-  since the last round is a finding here too: the test that should have caught it was missing.
+  blank, or answered with a test that doesn't run that case, is a finding. Where you can, break the
+  code for exactly that case and see whether the named test fails: a green one doesn't answer it
+  (#237, #244, #248, #250). Missing → check the Tests
+  section's reasons (step 1) → otherwise a finding. A bug `/code-review` finds in the PR's own change
+  is a finding here too, in the same round, as one finding with the bug: the test that should have
+  caught it was missing. Don't leave it to the next round.
 - **B. Nothing is lost.** For every deleted `it(...)` or deleted assertion, name the test on the
-  same or a lower layer that still asserts it, and open it to see that it does. None → finding. In
+  same or a lower layer that still asserts it, and open it to see that it does. None → finding,
+  unless the behavior was removed on purpose and the PR's What and SPEC's decision log name it. In
   Playwright, an assertion that also waited for a state the screenshot needs (a text that appears
   after its own request, such as the sidebar's qBittorrent card) is a step, not a duplicate:
   removing it makes the screenshot flaky → finding.
@@ -73,17 +83,21 @@ trusted.
   finding: keep one step, drop the assertions. A jsdom assertion about layout (`parentElement`,
   the order of sections, "stays at the top") → wrong layer, it belongs to a screenshot. A layer
   named in the PR that isn't the table's number and name (a sheet in `src/screens/` called layer
-  2, "unit", "integration" for a jsdom test) → finding.
+  2, "unit", "integration" for a jsdom test, "5, screenshot") → finding. A check that reads a
+  source file as text (a stylesheet's tokens, an animation's keyframes) is layer 1 wherever it sits.
 - **D. Behavior, not implementation.** A test that breaks `docs/TESTING.md` → Choosing a layer →
-  What a mock may be asked, or Roles and names, not classes → finding.
+  What a mock may be asked, What a test may count, besides mocks (pending timers, `parentElement`
+  for an attribute), or Roles and names, not classes → finding.
 - **E. Fakes and fixtures stay true.** A new or changed answer in `server/test/fakes.ts` is
   compared with the middleware it imitates (`server/*.ts`: status codes, `error` codes, body
   shapes) and with what the real service does; a mismatch is `fake-drift` in the making. Shared
   fakes change by addition unless the PR says why; a fake that gains behavior names the service
   version in its comment. A literal that copies a fixture instead of importing it, and a fixture
   the baselines render from changed without re-rendering them → findings.
-- **F. Hygiene.** Real timers or sleeps, `waitFor` with a `timeout` above the default, a spy or
-  fake timers restored inside `it` instead of `afterEach`, a stubbed global left in place, a second
+- **F. Hygiene.** Real timers or sleeps, `waitFor` with a `timeout` above the default, a listener
+  on `document` or `window` or fake timers removed at the end of `it` instead of in `afterEach` or
+  `onTestFinished`, a spy made at the top of a file or in `beforeAll` (Vitest puts spies, globals
+  and env back before each test: `docs/TESTING.md` → What a test puts in place), a second
   copy of a literal or a wrapper in one file, an index-based query
   for an element that has a name of its own (`getAllByRole('button')[1]`; an index is fine when the
   position is what the test says, as the first row after a sort or the current title first),
@@ -105,14 +119,16 @@ trusted.
   the diff makes stale, a sentence saying which test owns a statement above all: grep `docs/`,
   `CLAUDE.md` and `README.md` for each number or name the diff changes (a width, a version, a count).
   A list in the docs that the change adds to gains the new item (the screens in `docs/TESTING.md` →
-  Screenshot tests, SPEC's decision log, newest first, the blind spots), and a manual check the PR
-  adds says what has to be in place for it to pass. How a paragraph wraps is not a finding.
+  Screenshot tests, SPEC's decision log, newest first, the blind spots: any PR that meets a blind
+  spot the table doesn't name adds its row), and a manual check the PR adds says what has to be in
+  place for it to pass. How a paragraph wraps is not a finding.
 - **I. A `fix/` PR carries its record.** So does the fix of a flaky test. The issue is linked and
   labelled `test-gap:<class>`; a bug's fix says the new test was red before the fix, and a flaky
   test's fix says how often the test failed and how many runs it now passes; the class fits the
   story in the PR; "what changes so this class is caught" names a concrete change, not a wish.
   Missing or vague → finding.
-- **K. Each test can fail.** The Tests table says each new or changed test was seen red, and the
+- **K. Each test can fail.** The Tests table says what was broken to see each new or changed test
+  red, once per claim of its title and of each comment on its assertions, and the
   `Mutants` line accounts for each survivor in CI's comment on the PR (the latest one, at its
   commit), an `equivalent` with a reason you agree with; missing either, or a test you can see would
   stay green with its behavior removed, → finding. When production lines changed after CI's run,
@@ -120,8 +136,8 @@ trusted.
   run test:mutants` locally at the head and says in the round what it saw; the reviewer doesn't
   dispatch the workflow. An `equivalent` that only a test's own reset keeps alive isn't one. The
   `Broken by hand` line covers what the changed lines hold of the list in `docs/TESTING.md` → A test
-  that can fail (a dependency array, one operand of a condition, a selector's alternatives, which
-  value a guard reads, a prop passed down); one of them left out, where you can see a test would
+  that can fail (a dependency array, one operand of a condition, `&&` chains included, a selector's
+  alternatives, which value a guard reads, a prop passed down); one of them left out, where you can see a test would
   stay green with it broken, → finding. Read each new test for the shapes in `docs/TESTING.md` → A
   test that can fail.
 
@@ -142,8 +158,10 @@ Then one line with the `/code-review` run on the same commit: `Code review at <s
 findings`, or `no findings`; its findings themselves stay in its own inline comments. Then one
 verdict line: **ready to merge** or **needs changes**, with the count per severity and the commit
 both reviews saw, `**Verdict: ready to merge** at <short sha>`: the PR merges only on a posted
-"ready to merge" at its current head, and any commit after it, a merge of `main` included, needs
-another round (`docs/TESTING.md` → Reviewing a PR's tests). Add
+"ready to merge" at its current head. A commit of the PR's own after it needs another round; a
+merge of `main` needs one only when it reaches the PR's own lines, and otherwise the author's
+`Merged main at <sha>` comment carries the verdict over (`docs/TESTING.md` → Reviewing a PR's
+tests). Add
 "retro due" to it when ten or more merged PRs are missing from the retro table in
 `docs/TESTING.md` → Improving the system (list the merged PRs since that table's last date and
 take out the ones its rows name).
@@ -153,12 +171,15 @@ On a PR, post the report as one comment headed `Test review, round <n>`:
 Post every round, also when the review runs in a side session: a report left in a chat is invisible
 to whoever merges and to the retro. If posting is refused, say so in the chat, so the merge waits
 for it. Hand the blocking and
-should-fix findings to the PR's author (a session or a person).
+should-fix findings to the PR's author (a session or a person): point them to the posted round.
 
-**Round 2 and later**, once the author says the findings are fixed, or a commit lands after a
-**ready to merge**: check every line flagged in the previous round, and run all the checks on every
+**Round 2 and later**, once the author posts `Fixes for round <n>`, or a commit of the PR's own
+lands after a **ready to merge**: start from that comment, check every line flagged in the previous round, and run all the checks on every
 test the PR's own diff (`origin/main...HEAD`) adds or changes since then, since a test written to
-answer a finding is a new test. Tests a merge of `main` brought were reviewed in their own PRs. New
+answer a finding is a new test. Tests a merge of `main` brought were reviewed in their own PRs. A
+merge that reaches the PR's own lines (`docs/TESTING.md` → Reviewing a PR's tests) gets a round
+over what it changed of them; one that doesn't, with the author's `Merged main at <sha>` comment
+saying so, gets no round. New
 findings are tagged like the first round's; one
 still open from an earlier round is listed as `still open (round <n>)` with no tag, so the retro
 counts it once. Repeat until the verdict is **ready to merge**.

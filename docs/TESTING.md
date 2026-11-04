@@ -32,10 +32,13 @@ Layers 1–5 run on every `npm test` in two Vitest projects (`vite.config.ts`): 
 `src/test-setup.ts` (jest-dom matchers, the interface language reset to English, Testing Library's
 cleanup, a no-op `window.scrollTo` since jsdom only logs "not implemented" for it); `server` is
 plain Node for `server/**/*.test.ts`, the integration tests included. Tests sit next to the code as
-`*.test.ts(x)` and query by role and accessible name. The service worker is the one exception to
-the layers: its routing rules are plain logic in `src/pwa/swRoutes.ts` (layer 1), and
-`src/sw.test.ts` is a smoke test of `src/sw.ts` with workbox mocked, compiled with the worker's
-`tsconfig.sw.json` rather than the app's.
+`*.test.ts(x)` and query by role and accessible name. Two kinds of test don't follow the table's
+"Where" column. The service worker: its routing rules are plain logic in `src/pwa/swRoutes.ts`
+(layer 1), and `src/sw.test.ts` is a smoke test of `src/sw.ts` with workbox mocked, compiled with
+the worker's `tsconfig.sw.json` rather than the app's. And a check that reads a source file as
+text (the tokens and raw px values in the stylesheets, `src/styles/tokens.test.ts`; the poll ring's
+keyframes, in `PollRing.test.tsx`) is layer 1 wherever it sits, although it reads the file through
+`node:fs`: it asserts what the file says, and how that looks is layer 6's (#241).
 
 A test in `src/screens/` is layer 3, a sheet or a dialog included: layer 2 is only what knows
 nothing of the app's data. A PR names a test's layer by its number and its name in this table
@@ -55,7 +58,8 @@ neighbours of a change, and answer each that applies with a test or a reason:
 - **Another place:** what else shows or sends the same thing, on the phone and on desktop, in the
   drawer and on the page (#180, #182)? Does it see this state, or does it send the request again?
 - **Later:** what if the sheet was closed, the screen left, or the torrent went away or was replaced
-  before the answer came (#172, #174, #184)?
+  before the answer came (#172, #174, #184)? Or the page was reloaded: a reload keeps the history
+  entry's `key` and `state` (a `TAB_RETURN` included) but nothing the page held in memory (#243).
 - **Meanwhile:** what if the user presses it again, reopens the sheet or types while the request is
   in flight (#171, #186)? Typing changes more than the text: a field kept in the URL with
   `setParams(…, { replace: true })` gives the history entry a new `location.key` on every keystroke,
@@ -63,7 +67,10 @@ neighbours of a change, and answer each that applies with a test or a reason:
 - **The next poll:** does a poll sent before the change undo it (#192)?
 - **The edges:** zero, a negative value, a fraction, the end of the page or the list. A rubber-band
   `scrollY` below 0, a window pinned 1 px from the page's end that a removed row clamps to 0, a
-  viewport height that isn't a whole number (#200, #204).
+  viewport height that isn't a whole number (#200, #204). The other side of a breakpoint or a
+  container query: the narrowest width where a label still shows, not only the widths the baselines
+  use (#249). A parameter or a header that widens what an allowlist lets through
+  (`append_to_response` on an allowed path, #238).
 
 One behavior, one layer: every statement about what Kinoseed does lives in exactly one test, on the
 lowest layer that can see it. Higher layers meet that behavior only as a step towards the state they
@@ -109,6 +116,12 @@ milliseconds, fails with a precise message, and it's the one the layer above lea
   `AddReleaseSheet.test.tsx`'s magnet test), or the test of the shared hook that makes the call (a
   releases search's options are `useReleases.test.ts`'s); standing in for the argument the test's
   name is about, it hides the check.
+- **What a test may count, besides mocks.** A count of how often something happens counts what the
+  user or the next layer would see: renders, where "renders only what changed" is the behavior (a
+  probe on a child component or `renderHook`'s callback, #244), or writes to storage (#250). It
+  never counts what only the implementation has, such as the timers pending (`vi.getTimerCount()`,
+  #250). An attribute is read through what it names, not through the DOM's shape: `aria-controls`
+  through `document.getElementById`, not `parentElement` (#237).
 - **Roles and names, not classes.** Tests find elements by role and accessible name
   (`getByRole('button', { name: 'Удалить' })`), so a test fails when the behavior changes, not when
   a stylesheet does. A class is the point in a layer-2 test of a design-system component (`Button`,
@@ -202,14 +215,20 @@ Before marking a PR ready, the author does both of these and says so in the PR:
      screen, a number, a text;
    - an effect's or a memo's dependency array: drop one dependency (no test noticed `entry` gone from
      #228's keep effect);
-   - one operand of a longer condition: Stryker flips the whole `a || b`, so drop each operand on its
-     own (`document.hidden || somethingOpen()` in #225);
+   - one operand of a longer condition: Stryker flips the whole condition and not always each of its
+     parts, so drop each operand on its own, in an `&&` chain as in an `||`
+     (`document.hidden || somethingOpen()` in #225, `change && !unchanged && …` in #247);
    - each alternative in a selector or other string: `'input:focus, textarea:focus'` with one
      alternative removed (#225);
    - which value a guard reads: the store at the moment of sending, not the value the last render
      saw, pinned by two calls before a re-render (#229).
-2. **Each new or changed test seen red.** Break the code it covers (remove the guard, flip the
-   condition, return early), watch the test fail, put the code back, and say so in the Tests table.
+2. **Each new or changed test seen red, once per claim.** Break the code behind each thing its title
+   and each comment on its assertions say (remove the guard, flip the condition, return early),
+   watch the test fail, put the code back, and say in the Tests table what was broken. A test named
+   as a [neighbour](#choosing-a-layer)'s answer claims that case too: break the code for exactly that
+   case (a failed lookup asked again after its torrent went away, #250) and see the named test fail.
+   One that stays green doesn't answer the neighbour (#237, #244, #248, #250). A claim nothing can
+   break leaves the title (#244's "renders again only when its props change").
 
 CI runs the same (`.github/workflows/mutants.yml`) once per PR head, not on every push: when a PR is
 opened ready or marked ready, or when started by hand (`gh workflow run mutants.yml --ref
@@ -220,7 +239,7 @@ When production lines changed after CI's run, or a PR with production lines has 
 the round what it saw; the reviewer doesn't dispatch the workflow.
 
 A test that stays green with the behavior it names removed is a `silent-test` miss in the making.
-Three shapes cause most of them:
+Four shapes cause most of them:
 
 - **An absence asserted too early.** `queryBy…` is null, `not.toHaveBeenCalled()`,
   `toBeEmptyDOMElement()` prove something only after the same test has seen that the answer it waits
@@ -228,13 +247,25 @@ Three shapes cause most of them:
   screen that hasn't loaded.
 - **Two causes, one test.** A test about one cause keeps the others out: a swipe test about the
   distance uses a slow swipe, so the flick rule can't pass it for the wrong reason.
+- **Outcomes that look alike.** Each candidate gets a value of its own, so the test tells which one
+  it got: with the user's key and Kinoseed's both `good-key`, the call that reached TMDB couldn't
+  say whose it was (#248). A count of renders can't see two updates that `act` batches into one;
+  count what each would do, a write to storage (#250).
 - **The clock.** Vitest runs in UTC (`env` in `vite.config.ts`), the same on any machine and in
   CI; a test that reads the time pins it with `vi.setSystemTime`, and one about another time zone
-  sets it with `vi.stubEnv('TZ', …)` and puts it back with `vi.unstubAllEnvs()` in its `afterEach`
-  or `afterAll`, as `browseRows.test.ts` does. A `process.env.TZ` assigned by hand stays for the
-  rest of the file. A real timer is a sleep even at no delay: a flush through `setTimeout(resolve)`
-  waits on the event loop, not on the answer. Await the promise the code returns, or use fake timers
-  and `await vi.runAllTimersAsync()` (#224).
+  sets it with `vi.stubEnv('TZ', …)`, which Vitest puts back before the next test (`unstubEnvs` in
+  `vite.config.ts`). A `process.env.TZ` assigned by hand stays for the rest of the file. A real
+  timer is a sleep even at no delay: a flush through `setTimeout(resolve)` waits on the event loop,
+  not on the answer. Await the promise the code returns, or use fake timers and `await
+  vi.runAllTimersAsync()` (#224).
+
+**What a test puts in place outside its own tree.** Vitest puts back every `vi.spyOn` spy,
+`vi.stubGlobal` and `vi.stubEnv` before each test (`restoreMocks`, `unstubGlobals` and `unstubEnvs`
+in `vite.config.ts`), so a spy is made in the test or its `beforeEach`, never at the top of the
+file or in `beforeAll`, where it would be gone by the first test. A listener on `document` or
+`window` and fake timers are the test's to remove: in `afterEach` or through `onTestFinished`, not
+at the end of the `it`, where an assertion that fails first leaves them to every later test in the
+file (#243).
 
 The Seen red column is the author's word, and the review can only read the tests for these shapes;
 the survivors in CI's comment are not.
@@ -263,7 +294,17 @@ of these:
 - **The platform's own behavior:** what the browser or Node does with what our code hands it, as a
   real `fetch` cancelled by its `AbortSignal` (#206). The PR names the test of the hand-off (that
   the signal reaches `fetch`).
-- **No behavior:** docs, comments, CI and config, types, generated files, a re-export.
+- **A known limitation the owner chose to keep:** a case the PR leaves as it is by the owner's
+  decision. The PR links the decision (the row in `docs/SPEC.md`'s decision log, or the comment with
+  the owner's words) and says what happens in that case: a forget that fails after its sheet closed
+  goes unsaid, as saving a key does (#248).
+- **No behavior:** docs, comments, CI and config, types, generated files, a re-export. A branch in a
+  script or a workflow (whether to install, whether to deploy) is behavior: it moves into a module
+  with a test, as the proxy's deploy check did (`tmdb-proxy/deployCheck.ts`, #238), or the PR says
+  what was run by hand and with which inputs (#232). "CI and config" is what decides nothing.
+
+A behavior removed on purpose isn't uncovered: the PR's What and SPEC's decision log name it, and
+the review finds it there rather than in a test that still asserts it (#231's rail tooltip).
 
 "Trivial", "later", "tested manually" without saying what and where, or a reason that doesn't fit
 the diff are not reasons: the change gets its test or the PR explains itself better. The review
@@ -343,11 +384,14 @@ journey now presses the real Escape it had skipped.
 
 What no layer sees. Each is either checked by hand before a release ([RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)
 → Before every release) or knowingly not checked; a bug from one of them is an `environment` miss,
-and its fix either adds the environment to a layer or adds a line here.
+and its fix either adds the environment to a layer or adds a line here. Any PR that meets a blind
+spot this table doesn't name adds its row, a feature as much as a fix (#240's desktop Safari,
+#247's flip of sequential download).
 
 | Blind spot | What the tests run instead | How it's covered |
 | --- | --- | --- |
 | A real phone: Safari on iOS, installing the PWA from Share → Add to Home Screen, the standalone window, the on-screen keyboard over a sheet | Chromium at 390×844 in Docker, where a mouse drag and a wheel over the backdrop stand in for a finger (with touch emulation on, so `pointer: coarse` matches) (a sheet dragged closed, the page behind it staying put), and the keyboard's variables set by hand (Chromium opens no keyboard), with `trackKeyboardInset` on layer 2 against a stubbed `visualViewport`, and `holdPage` on layer 2 (a swipe's `touchmove` prevented or not, the field's transform for the frame it gets focus in, or `NAVIGATION_HOLD_MS` after the keyboard's arrows, the body's negative margin from the start of a hold on a modal with a text field), since no layer sees Safari scroll the page to a field (#168) or the layout viewport part from the visual one (#175), or what reaches the screen when the page is pinned (#203, which showed in the installed app and never in the iOS Simulator) | By hand on the owner's phone against `preview-lan`, a production build, for a PR that changes a phone screen (`dev-lan` has no manifest, so what it adds to the Home Screen isn't the installed app, where #197 and #203 showed), or in the iOS Simulator's Safari (Xcode), which opens the on-screen keyboard and scrolls the page as a phone does, and the checklist's phone pass before a release. A Safari tab has no top safe area (`env(safe-area-inset-top)` is 0 there), so what sits under the status bar shows only in the app added to the Home Screen. Chrome on Android, which also opens the keyboard over the page, isn't checked |
+| Desktop Safari (WebKit): its own properties (`-webkit-backdrop-filter`, #240) and where its rendering parts from Chromium's | The screenshot tests in Chromium only. The Playwright image has WebKit too, which a review can use for a one-off measurement (#249 measured where the status menu's popover lands) | By hand by the owner on the test stand in Safari on the Mac, for a PR that uses a WebKit-specific property; otherwise not checked |
 | Umbrel's real app_proxy and HTTPS with Umbrel's certificate: the login redirect, the cookie's lifetime, the service worker under a certificate the phone had to trust | The smoke stand's proxy, which only refuses a fetch without the cookie, over plain HTTP | The checklist: after the Umbrel package updates, onboarding, a search and an add on the owner's Umbrel |
 | qBittorrent's refresh: after a pause or resume, `sync/maindata` reports the old state until qBittorrent next updates the torrents' states, once per refresh interval (1.5 s by default; `TorrentImpl::stop` and `start` in 5.1), while a recheck shows at once (#209). Flipping sequential download off showed the same lag on 5.3.0 (1.15 s, checked live in #213), off but not on, so both switches hold for it | No clock in the fake, which leaves the state as it is after `/torrents/start` and `/stop` and flips `seq_dl` and `f_l_piece_prio` at once. A test that mocks the polls after an action answers them the way qBittorrent does: what an action changes in a poll is read in qBittorrent's source first, not assumed | `useMainData.test.tsx` and `torrentRequests.test.ts` on the hold a request keeps over those polls, `useDownloadToggle.test.tsx` on the switches holding and staying off for it; the real lag only on the test stand against the owner's qBittorrent |
 | The real qBittorrent and Prowlarr: a version that changes an answer | The fakes in `server/test/fakes.ts`, written from qBittorrent 5.3 (401 on a wrong password; `legacy` for the older `200 "Fails."`) and Prowlarr 1.24, with the version in a comment where it matters | Not until someone hits it: then it's a `fake-drift` miss and the fake moves with the service. Three in a release → compare every fake with the live services by hand |
@@ -497,20 +541,40 @@ Three steps, each by whoever can do it best:
    hand; the skill is the list.
 3. **A second round after the fixes**, by the same reviewer: every flagged line again, and every
    test added or changed to fix a finding gets all the checks, since a test written to answer a
-   review is a new test. More rounds until the verdict is "ready to merge".
+   review is a new test. More rounds until the verdict is "ready to merge". The author answers each
+   round with one comment headed `Fixes for round <n>`, at the commit the next round should see:
+   each finding fixed (its commit) or declined (why), the tests written for the fixes and what was
+   broken to see each red, a merge of `main` and its conflicts, and the docs grepped again for what
+   the fixes changed (#230's fix left two sentences stale). The reviewer starts the next round from
+   that comment; a message that points to it is the whole hand-over.
 
 Each round is one comment on the PR headed `Test review, round <n>`, findings first, each tagged
 with its check and whether the rule behind it was clear ([below](#improving-the-system)), then the
 `/code-review` result on the same commit (its count of findings, or "no findings"), then the
 verdict with the commit both reviews saw (`**Verdict: ready to merge** at <short sha>`). Every round
 is posted, whichever session runs it: a review that stays in a chat is invisible to whoever merges
-and to the retro. A PR merges only on a posted "ready to merge" at its current head; any commit
-after that verdict, a merge of `main` included, needs another round, which checks only what the PR's
-own diff adds or changes. A real bug that
-`/code-review` finds in an open PR's own change is fixed in that PR, red test first, without an
-issue: it never reached `main`. The next test-review round records the missed test as a finding
-under check A. A bug that reached `main` follows
-[When we find a bug](#when-we-find-a-bug).
+and to the retro. A PR merges only on a posted "ready to merge" at its current head. A commit of
+the PR's own after that verdict needs another round, which checks only what the PR's own diff adds
+or changes. A merge of `main` after it needs a round only when it reaches the PR's own lines:
+
+- the lines `git diff main...HEAD` adds and removes aren't those of the diff the verdict saw, apart
+  from conflicts in `CHANGELOG.md`, SPEC's decision log and `CLAUDE.md` resolved by keeping both
+  sides (a re-rendered baseline or a field added to a type is a change: #247 after #244);
+- or the commits it brings change a file the PR changes, other than those three (#243 and #244 in
+  `DownloadsScreen.tsx`).
+
+Otherwise the author posts one comment headed `Merged main at <short sha>`: the PR's diff
+unchanged, the conflicts and how they were resolved (`git show --remerge-diff`), the files both
+sides change (none outside those three), and CI green at that commit. The verdict carries over to
+it, and whoever merges reads both comments. `CHANGELOG.md` merges without a conflict
+(`merge=union` in `.gitattributes`, which keeps both sides' lines, this branch's first), so the
+comment says where the PR's entry ended up.
+
+A real bug that `/code-review` finds in an open PR's own change is fixed in that PR, red test
+first, without an issue: it never reached `main`. The round that reports the bug records the
+missing test under check A as well, as one finding with the bug, since the test that should have
+caught it wasn't there (left to the next round, four such bugs in #230, #231 and #247 were never
+counted). A bug that reached `main` follows [When we find a bug](#when-we-find-a-bug).
 
 ## Improving the system
 
@@ -560,9 +624,11 @@ The changes go into one docs PR, reviewed like any other, which adds a row to th
 says which counts each change answers, so the next retro sees whether that count fell. The row and
 the PR name the set behind each count (which PRs, which issues, closed since when), and `flaky`
 issues are counted apart from escaped bugs. The table's columns: "Ready on the first round" gives
-the merged PRs and those with changes in `src/` or `server/`; "Blocking findings per PR" divides
-the blocking findings by the PRs with those changes, the same basis in every row, so the column
-compares with the rows below it and with the Done rule (#222).
+the merged PRs and those with production code, the folders `scripts/mutants.mjs` mutates (`src/`,
+`server/`, `tmdb-proxy/`; before #238 the first two were all there was); "Blocking findings per PR"
+divides the blocking findings (the test review's blocking ones, and the `/code-review` bugs a
+verdict says to fix in the PR, each counted once) by the PRs with production code, the same basis
+in every row, so the column compares with the rows below it and with the Done rule (#222).
 
 **Done.** The system is stable when two retros in a row change no rules and the last batch averages
 under one blocking finding per PR. From then on the retro runs once per release only, and any new
@@ -570,6 +636,7 @@ under one blocking finding per PR. From then on the retro runs once per release 
 
 | Retro | PRs | Ready on the first round | Blocking findings per PR | Escaped bugs | What changed |
 | --- | --- | --- | --- | --- | --- |
+| 2026-11-04 | #230–#250, 17 merged (#230–#233, #235–#238, #240, #241, #243, #244, #246–#250; #234, #239, #242, #245 are issues), 15 with production code (all but #232 and #233; #238's is in `tmdb-proxy/`). 71 findings: 40 `clear`, 31 `gap`, 0 `conflict` | 2 of 17 (#240, #241), 2 of 15 with code; a posted "ready to merge" at the head of all 17 | 1.33 (20 in the 15 with code: #250 5, #231 3, #237, #238, #243, #246 and #247 2 each, #230 1, #248 1) | 1 closed since 2026-11-03 (`uncovered`: #239), plus 1 `flaky` (#245) | A test is seen red once per claim, a neighbour's answer included, in the rule and the template (A·clear 12, 5 of them a neighbour answered by a test that doesn't run its case; F·clear 9, 5 of them a title or a comment that says more than the body). Every Neighbours line was filled, so the CI check the last row named wouldn't have caught one. The neighbours gain a reload and the other side of a breakpoint or an allowlist; two accepted reasons (a branch in a script or a workflow, a limitation the owner kept), a behavior removed on purpose, and any PR adds the blind spot it meets, with a row for desktop Safari (A·gap 12, B·gap 1, G·gap 1, H·gap 1). Vitest puts back spies, globals and env before each test, and a test removes its own listeners and fake timers (F: 1 `clear` and 2 `gap`). What a test may count besides mocks (D·gap 3). Each operand of an `&&` chain, and outcomes that look alike (K·gap 3 of 4). A check that reads a file as text is layer 1 (C·gap 1). The template's Layer hint names the six layers and the duplicates (C·clear 4). A `/code-review` bug is recorded under A in the round that reports it (4 were left out). A merge of `main` that doesn't reach the PR's own lines takes a `Merged main` comment instead of a round (4 rounds after a merge alone found nothing: #237, #240, #243, #244), `CHANGELOG.md` merges with `merge=union`, and the author answers each round with `Fixes for round <n>`, which also asks for the docs grepped again after the fixes (H·clear 10, 3 of them in #233 itself, otherwise claims by meaning no grep finds). The basis is production code, `tmdb-proxy/` included. Not changed: K·clear 3 (three different slips), F·clear's `saying()` 2 |
 | 2026-11-03 | #207–#229, 10 merged (#207, #208, #222–#229; #209–#221 are issues), 6 with changes in `src/` or `server/` (#224–#229). 30 findings: 11 `clear`, 19 `gap`, 0 `conflict` | 5 of 10 reviewed (#207, #208, #223, #226, #229), 2 of 6 with code (#226, #229); a posted "ready to merge" at the head of all 10 | 1.33 (8 in the 6 with code: #224 3, #228 3, #225 2) | 2 closed since 2026-11-02 (1 `fake-drift`: #209; 1 `environment`: #210), no `flaky` | This PR also carries the 2026-11-02 row's follow-up, which never landed. The neighbours gain the edges and typing that replaces the history entry; three accepted reasons (a layout measured in the CI image, every environment a blind spot runs in, the platform's own behavior); what Stryker leaves alone is listed and broken by hand, and a survivor that only a test's reset hides isn't equivalent (A·gap 4 here and 7 in the last batch, K·gap 2 and 3). The template asks for each neighbour and a `Broken by hand` line (A·clear 5 here and 10 in the last batch); if A·clear doesn't fall by the next retro, a CI check that those lines are filled is the next step. The template's docs prompt greps for the numbers and names the diff changes (H·clear 3 and 5). Lists in the docs follow the change, a fix's manual check says what it needs to pass, and the columns here say what they divide by (H·gap 7). A flush at no delay is a real timer, an absence is asserted by name, test data carries no behavior the test isn't about (F·gap 3). One wording for three `environment`, in the class table and the pile (the conflict #222's code review named). Check J leaves the skill, with no finding in four batches (#136–#229); its rule stays in [Coverage](#coverage) |
 | 2026-11-02 | #196–#206, 9 merged, 7 with changes in `src/` or `server/`. 38 findings: 25 `clear`, 12 `gap`, 1 `conflict` | 2 of 9 reviewed, 2 of 7 with code (#198, #206); a posted "ready to merge" at the head of all 9 | 1.71 (12 in the 7 with code: #204 6, #199 2, #200 2, #201 1, #202 1) | 5 closed since the last retro (2 `uncovered`: #194, #147; 3 `environment`: #175, #197, #203), plus 1 `flaky` (#145) | The phone check runs on a production build, `preview-lan` for a PR and Kinoseed Edge before a release, since `dev-lan` has no manifest (#197 and #203 of the 3 `environment` showed in the installed app; #175 shows in a Safari tab too). iOS stays a blind spot: layer 6 took what it could (#197 in #199), and neither WebKit in Playwright nor a simulator in CI would see the Home Screen app. The rest follows in a docs PR of its own after 0.6.1 (A·gap 7, A·clear 10, H·clear 5, and the two wordings of what three `environment` call for). Not changed: F·clear 3 (three different rules) |
 | 2026-10-30 | #163–#193, 14 with code | 4 of 16 reviewed, 3 of 14 with code; #179 merged without a round, the one breach of the gate | 1.36 (19 in the 14 with code) | 12 closed since the last retro (10 `uncovered`, 2 `environment`), plus 1 `flaky` (#190) | `npm run test:mutants` and one CI run per PR head, survivors accounted for in the PR (A·clear 12, K·clear 4, B·clear 2). The neighbours of a change (10 `uncovered`). A second copy inside a file, fake timers, comments on assertions (F·gap 4). Who owns a test, and the set behind a retro's counts (H·gap 3). A docs prompt in the template, and wrapping is no finding (H·clear 8). The `flaky` class (I·gap 1). A `/code-review` bug is recorded under check A, which the skill now says, so A will rise next retro. Checks D and K in the skill point here. The gate stays as it is, docs-only PRs included |
