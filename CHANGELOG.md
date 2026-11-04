@@ -14,6 +14,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ### Changed
 
+- Torrent details: Files is a section that opens and closes like Details, closed at first, with the number of files next to its title once it has been opened. The file list isn't updated while it's closed. ([#214](https://github.com/MrShakhov/kinoseed/issues/214))
 - Search on a phone: the title scrolls away with the page, as in Downloads, and only the search field and the filters stay at the top, so more results fit on the screen. ([#212](https://github.com/MrShakhov/kinoseed/issues/212))
 - Downloads on a phone and the desktop sidebar: a small ring fills until the next update of qBittorrent's state and pulses while waiting for its answer, so it's clear the app is up to date; it's red while qBittorrent doesn't answer, and says when the data was last updated on hover and to screen readers. In the sidebar it takes the place of the connection dot. ([#218](https://github.com/MrShakhov/kinoseed/issues/218))
 - Settings: the Connections cards say only whether each service is connected, and Prowlarr's warns when it has no indexers, since search finds nothing then. The qBittorrent and Prowlarr versions and the number of indexers are in About now, next to Kinoseed's version, for a bug report; qBittorrent's API version is gone, and its version is written without a "v" (5.3.0), like the others, in About and in the desktop sidebar. On desktop About spans the width, its two cards side by side. ([#221](https://github.com/MrShakhov/kinoseed/issues/221))

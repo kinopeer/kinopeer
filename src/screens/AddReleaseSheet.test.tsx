@@ -148,6 +148,8 @@ describe('AddReleaseSheet', () => {
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
     await userEvent.click(within(sheet).getByRole('button', { name: 'Options' }))
     await userEvent.click(await within(sheet).findByRole('button', { name: 'No category' }))
+    // A path isn't a word, so the browser doesn't underline it.
+    expect(within(sheet).getByLabelText('Save path')).toHaveAttribute('spellcheck', 'false')
     await userEvent.type(within(sheet).getByLabelText('Save path'), '/mnt/tv')
     await userEvent.click(within(sheet).getByRole('switch', { name: 'Start paused' }))
     await userEvent.click(within(sheet).getByRole('switch', { name: 'First and last pieces first' }))
@@ -168,6 +170,21 @@ describe('AddReleaseSheet', () => {
       },
       { meta: META, skip: [] },
     )
+  })
+
+  it('marks the category the torrent goes to', async () => {
+    renderSheet()
+    const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Options' }))
+    // A series goes to the category named like its type.
+    const tv = await within(sheet).findByRole('button', { name: 'TV' })
+    const none = within(sheet).getByRole('button', { name: 'No category' })
+    expect(tv).toHaveAttribute('aria-pressed', 'true')
+    expect(none).toHaveAttribute('aria-pressed', 'false')
+
+    await userEvent.click(none)
+    expect(none).toHaveAttribute('aria-pressed', 'true')
+    expect(tv).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('starts from the defaults in Settings', async () => {

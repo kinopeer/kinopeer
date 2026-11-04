@@ -5,6 +5,7 @@ import { GUESSED, TORRENTS } from './fixtures.ts'
 test('downloading series with its files, dark, Russian', async ({ page }) => {
   await openApp(page, '/torrent/a2')
   await expect(page.getByRole('heading', { level: 1, name: 'Сёгун' })).toBeVisible()
+  await page.getByRole('button', { name: 'Файлы' }).click()
   await page.getByRole('button', { name: /^Episodes/ }).click()
   await expect(page.getByText(/Shogun\.S01E01/)).toBeVisible()
   await showWholePage(page)
@@ -42,6 +43,7 @@ test.describe('desktop drawer', () => {
     await openApp(page, '/torrent/a2')
     const drawer = page.getByRole('dialog', { name: 'Сёгун' })
     await expect(drawer.getByRole('heading', { level: 2, name: 'Сёгун' })).toBeVisible()
+    await drawer.getByRole('button', { name: 'Файлы' }).click()
     await drawer.getByRole('button', { name: /^Episodes/ }).click()
     await expect(drawer.getByText(/Shogun\.S01E01/)).toBeVisible()
     await settle(page)
