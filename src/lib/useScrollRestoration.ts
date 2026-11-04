@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import { useLocation, useNavigationType } from 'react-router'
 import { isTabReturn, saveTabPlace, tabPlace } from './tabPlaces'
 
@@ -22,14 +22,42 @@ function savePosition(key: string, y: number): void {
   }
 }
 
+/** React Router's key for a document's first history entry, which has no history state yet. */
+const FIRST_ENTRY = 'default'
+
+let firstLoadChecked = false
+
+/**
+ * Every document's first entry has the same key, so a document opened afresh in the tab (a typed
+ * address, a link from elsewhere) would find the position an earlier one saved for its own first
+ * entry, likely another screen's. Such a load forgets it, once per document; a reload and Back into
+ * the document keep it, since it's theirs.
+ */
+function forgetEarlierFirstEntry(): void {
+  if (firstLoadChecked) return
+  firstLoadChecked = true
+  const [load] = performance.getEntriesByType?.('navigation') ?? []
+  if ((load as PerformanceNavigationTiming | undefined)?.type !== 'navigate') return
+  try {
+    sessionStorage.removeItem(STORAGE_PREFIX + FIRST_ENTRY)
+  } catch {
+    // Storage is blocked: nothing was saved under it either.
+  }
+}
+
+/** Checks the document's load again (tests start a new "document" each). */
+export function forgetFirstLoadCheck(): void {
+  firstLoadChecked = false
+}
+
 /**
  * Brings a tab's screen (`tab`, the tab's path) back to where it was scrolled when the user returns
  * to it through history (Back or Forward), and to where the tab was left when the tab's link opens
  * it (the link sends `TAB_RETURN`). The browser tries the first itself, but the screen's content
  * loads after it renders, so the page is still short when the browser scrolls and the position gets
  * lost. `ready` says the content is on the page: the position is restored once it turns true, then
- * left alone. The position is saved when the screen goes away or its entry changes, and the tab's
- * place with it. Another navigation is `useNewScreenAtTop`'s.
+ * left alone. The position is saved when the screen goes away, its entry changes or the page is
+ * hidden, and the tab's place when the screen goes away. Another navigation is `useNewScreenAtTop`'s.
  */
 export function useScrollRestoration(ready: boolean, tab: string): void {
   const { key, search, state } = useLocation()
@@ -39,10 +67,14 @@ export function useScrollRestoration(ready: boolean, tab: string): void {
   // A tab's link brings the screen back only when it opens it: on a screen already shown (Downloads
   // under the desktop drawer) it stays where it is.
   const mountedKey = useRef(key)
+  // The entry and query shown last, for the tab's place when the screen goes away.
+  const shown = useRef({ key, search })
 
   useLayoutEffect(() => {
+    forgetEarlierFirstEntry()
+    shown.current = { key, search }
     if (settledKey.current === key) return
-    // Only an entry shown before has a position saved, so this is Back or Forward. Not
+    // Only an entry shown before has a position saved, so this is Back, Forward or a reload. Not
     // `useNavigationType()`: under App's `<Routes location>` every navigation reads as POP.
     const tabReturn = key === mountedKey.current && isTabReturn(state)
     const saved = savedPosition(key) ?? (tabReturn ? (tabPlace(tab)?.y ?? 0) : undefined)
@@ -53,17 +85,40 @@ export function useScrollRestoration(ready: boolean, tab: string): void {
     if (!ready && saved > 0) return
     window.scrollTo(0, saved)
     settledKey.current = key
-  }, [key, ready, state, tab])
+  }, [key, search, ready, state, tab])
 
   useLayoutEffect(
     () => () => {
       // Runs before the next screen's content replaces this one, so the position is still intact.
-      if (settledKey.current !== key) return
-      savePosition(key, window.scrollY)
-      saveTabPlace(tab, { search, y: window.scrollY })
+      if (settledKey.current === key) savePosition(key, window.scrollY)
     },
-    [key, search, tab],
+    [key],
   )
+
+  // The tab's place only when the screen goes away: Search replaces its entry on every keystroke,
+  // and only the last one matters.
+  useLayoutEffect(
+    () => () => {
+      if (settledKey.current === shown.current.key) saveTabPlace(tab, { search: shown.current.search, y: window.scrollY })
+    },
+    [tab],
+  )
+
+  // A reload or the page closing runs no cleanup, so the entry's position is saved as the page is
+  // hidden or goes away. Otherwise a reload of an entry the tab's link opened would go back to where
+  // the tab was left before it, rather than where the user was.
+  useEffect(() => {
+    // Shown again, the page is where it was, so saving then changes nothing.
+    const save = () => {
+      if (settledKey.current === key) savePosition(key, window.scrollY)
+    }
+    window.addEventListener('pagehide', save)
+    document.addEventListener('visibilitychange', save)
+    return () => {
+      window.removeEventListener('pagehide', save)
+      document.removeEventListener('visibilitychange', save)
+    }
+  }, [key])
 }
 
 /**
@@ -83,3 +138,4 @@ export function useNewScreenAtTop(screen: string): void {
     if (navigationType !== 'POP' && !isTabReturn(state)) window.scrollTo(0, 0)
   }, [screen, navigationType, state])
 }
+

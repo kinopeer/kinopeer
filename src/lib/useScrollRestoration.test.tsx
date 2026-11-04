@@ -4,7 +4,7 @@ import { StrictMode } from 'react'
 import { Link, MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TAB_RETURN, forgetTabPlaces, saveTabPlace, tabPlace } from './tabPlaces'
-import { useNewScreenAtTop, useScrollRestoration } from './useScrollRestoration'
+import { forgetFirstLoadCheck, useNewScreenAtTop, useScrollRestoration } from './useScrollRestoration'
 
 function Screen({ ready }: { ready: boolean }) {
   useScrollRestoration(ready, '/')
@@ -50,6 +50,7 @@ function scrolledTo(y: number) {
 beforeEach(() => {
   sessionStorage.clear()
   forgetTabPlaces()
+  forgetFirstLoadCheck()
   scrollTo.mockReset()
   window.scrollTo = scrollTo as unknown as typeof window.scrollTo
   scrolledTo(0)
@@ -131,6 +132,9 @@ function TabScreen({ ready }: { ready: boolean }) {
       </button>
       <Link to="/other">Open</Link>
       <Link to="/drawer">Drawer</Link>
+      <Link to="/?q=andor" replace>
+        Type
+      </Link>
       <Link to="/" state={TAB_RETURN}>
         Its tab
       </Link>
@@ -189,6 +193,17 @@ describe('useScrollRestoration on a tab’s screen', () => {
     expect(scrollTo).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps the query the screen showed last, once, as it goes away', async () => {
+    const user = userEvent.setup()
+    render(tabApp(true, '/?q=dune'))
+    // As a query typed into Search replaces the entry.
+    await user.click(screen.getByRole('link', { name: 'Type' }))
+    expect(tabPlace('/')).toBeUndefined()
+    scrolledTo(300)
+    await user.click(screen.getByRole('link', { name: 'Open' }))
+    expect(tabPlace('/')).toEqual({ search: '?q=andor', y: 300 })
+  })
+
   it('opens a tab never left at the top at once, without waiting for its content', async () => {
     const user = userEvent.setup()
     const view = render(tabApp(true, '/other'))
@@ -244,6 +259,81 @@ describe('useScrollRestoration on a tab’s screen', () => {
     scrolledTo(80)
     await user.click(screen.getByRole('link', { name: 'Open' }))
     expect(tabPlace('/')).toEqual({ search: '?q=dune', y: 640 })
+  })
+})
+
+describe('useScrollRestoration across a reload', () => {
+  /** The tab's screen on an entry its link opened, as a reload finds it again: the same key and state. */
+  const tabEntry = (ready = true) => (
+    <MemoryRouter initialEntries={[{ pathname: '/', state: TAB_RETURN, key: 'tab-entry' }]}>
+      <Routes>
+        <Route path="/" element={<TabScreen ready={ready} />} />
+      </Routes>
+    </MemoryRouter>
+  )
+
+  it.each([
+    ['the page is hidden', () => {
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+      document.dispatchEvent(new Event('visibilitychange'))
+      Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+    }],
+    ['the page goes away', () => window.dispatchEvent(new Event('pagehide'))],
+  ])('brings an entry the tab’s link opened back to where it was when %s, not to where the tab was left', (_, leave) => {
+    saveTabPlace('/', { search: '', y: 1200 })
+    render(tabEntry())
+    expect(scrollTo).toHaveBeenLastCalledWith(0, 1200)
+    scrolledTo(2500)
+    leave()
+    // A reload runs no cleanup: the old page stays as it was, and a new one starts.
+    render(tabEntry())
+    expect(scrollTo).toHaveBeenLastCalledWith(0, 2500)
+  })
+
+  it('doesn’t save a position over the one it hasn’t brought back yet', () => {
+    sessionStorage.setItem('kinoseed.scroll:tab-entry', '2500')
+    render(tabEntry(false))
+    scrolledTo(80)
+    window.dispatchEvent(new Event('pagehide'))
+    render(tabEntry())
+    expect(scrollTo).toHaveBeenLastCalledWith(0, 2500)
+  })
+})
+
+describe('useScrollRestoration on a document’s first entry', () => {
+  /** How the browser says the document was loaded: typed or followed, reloaded, or Back into it. */
+  function loadedBy(type: NavigationTimingType) {
+    vi.spyOn(performance, 'getEntriesByType').mockImplementation((entryType) =>
+      entryType === 'navigation' ? [{ type } as PerformanceNavigationTiming] : [],
+    )
+  }
+
+  afterEach(() => vi.restoreAllMocks())
+
+  // React Router names every document's first entry "default", so an earlier document's position is kept under
+  // the same name in the session's storage.
+  beforeEach(() => sessionStorage.setItem('kinoseed.scroll:default', '900'))
+
+  it('opens a document loaded afresh at the top, whatever an earlier one left under its first entry', () => {
+    loadedBy('navigate')
+    render(app(true))
+    expect(scrollTo).not.toHaveBeenCalled()
+  })
+
+  it.each(['reload', 'back_forward'] as const)('brings the first entry back on a %s', (type) => {
+    loadedBy(type)
+    render(app(true))
+    expect(scrollTo).toHaveBeenCalledWith(0, 900)
+  })
+
+  it('still brings the first entry back on Back within the document', async () => {
+    const user = userEvent.setup()
+    loadedBy('navigate')
+    render(app(true))
+    scrolledTo(300)
+    await user.click(screen.getByRole('link', { name: 'Open' }))
+    await user.click(screen.getByRole('button', { name: 'Back' }))
+    expect(scrollTo).toHaveBeenCalledWith(0, 300)
   })
 })
 

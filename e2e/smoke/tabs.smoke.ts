@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { TORRENTS, torrent } from '../../src/test/fixtures.ts'
-import { resetStand } from './control.ts'
+import { PROXY_DENIED_HEADER, resetStand } from './control.ts'
 
 /** Enough rows for the phone's Downloads to scroll well past a screen. */
 const MANY = Array.from({ length: 40 }, (_, index) => {
@@ -25,6 +25,10 @@ async function scrollTo(page: Page, y: number) {
  */
 test('each tab comes back where it was left, and the active tab goes to the top', async ({ page }) => {
   await resetStand({ torrents: MANY })
+  const refused: string[] = []
+  page.on('response', (response) => {
+    if (response.headers()[PROXY_DENIED_HEADER]) refused.push(response.url())
+  })
   const tabs = page.getByRole('navigation', { name: 'Основное' })
   const list = page.getByRole('region', { name: 'Загрузки' })
 
@@ -44,6 +48,12 @@ test('each tab comes back where it was left, and the active tab goes to the top'
 
   await tabs.getByRole('link', { name: 'Загрузки' }).click()
   await expect.poll(() => scrollY(page)).toBe(downloadsY)
+  // A reload keeps the entry the tab's link opened, its state too, and comes back to where the user was
+  // on it, not to where the tab was left before.
+  const reloadedY = await scrollTo(page, 2000)
+  await page.reload()
+  await expect(list.getByRole('listitem')).toHaveCount(MANY.length)
+  await expect.poll(() => scrollY(page)).toBe(reloadedY)
 
   // A forward navigation from the scrolled list (a row on the screen, so the click doesn't scroll)
   // opens the torrent at the top; the Downloads tab, on there, goes back to the list where it was.
@@ -56,8 +66,8 @@ test('each tab comes back where it was left, and the active tab goes to the top'
   await expect(list).toBeHidden()
   expect(await scrollY(page)).toBe(0)
   await tabs.getByRole('link', { name: 'Загрузки' }).click()
-  await expect.poll(() => scrollY(page)).toBe(downloadsY)
-  // Pressed again on its own screen: to the top, smoothly.
+  await expect.poll(() => scrollY(page)).toBe(reloadedY)
+  // Pressed again on its own screen: to the top.
   await tabs.getByRole('link', { name: 'Загрузки' }).click()
   await expect.poll(() => scrollY(page)).toBe(0)
 
@@ -68,4 +78,5 @@ test('each tab comes back where it was left, and the active tab goes to the top'
   await tabs.getByRole('link', { name: 'Поиск' }).click()
   await expect(page).toHaveURL(/\/search\?q=/)
   await expect(page.getByRole('searchbox', { name: 'Поиск' })).toHaveValue('Сёгун')
+  expect(refused).toEqual([])
 })

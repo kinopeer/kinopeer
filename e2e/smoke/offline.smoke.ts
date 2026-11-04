@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { resetStand } from './control.ts'
+import { PROXY_DENIED_HEADER, resetStand } from './control.ts'
 
 /**
  * The built service worker on a phone: it precaches the shell behind the proxy, serves it offline
@@ -8,6 +8,10 @@ import { resetStand } from './control.ts'
  */
 test('the service worker keeps the shell offline and never the live data', async ({ page, context }) => {
   await resetStand()
+  const refused: string[] = []
+  page.on('response', (response) => {
+    if (response.headers()[PROXY_DENIED_HEADER]) refused.push(response.url())
+  })
   await page.goto('/')
   await expect(page.getByRole('heading', { level: 1, name: 'Загрузки' })).toBeVisible()
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined))
@@ -39,4 +43,5 @@ test('the service worker keeps the shell offline and never the live data', async
   await context.setOffline(false)
   await page.getByRole('button', { name: 'Повторить' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Загрузки' })).toBeVisible()
+  expect(refused).toEqual([])
 })

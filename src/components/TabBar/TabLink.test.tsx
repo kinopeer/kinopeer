@@ -1,7 +1,7 @@
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes, useLocation } from 'react-router'
-import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi, type MockInstance } from 'vitest'
 import { forgetTabPlaces, saveTabPlace } from '../../lib/tabPlaces'
 import { renderWithRouter } from '../../test/render'
 import { TabBar, type TabBarItem } from './TabBar'
@@ -55,6 +55,12 @@ describe('TabLink', () => {
     expect(screen.getByRole('link', { name: 'Search' })).toHaveAttribute('href', '/search?q=dune&type=tv')
   })
 
+  it('links to the query shown on its own screen, not the one it was left with before', () => {
+    saveTabPlace('/search', { search: '?q=dune', y: 640 })
+    renderTabs('/search?q=andor')
+    expect(screen.getByRole('link', { name: 'Search' })).toHaveAttribute('href', '/search?q=andor')
+  })
+
   it('opens its tab saying it’s the tab’s link, so the screen comes back where the tab was left', async () => {
     saveTabPlace('/search', { search: '?q=dune', y: 640 })
     renderTabs('/')
@@ -91,6 +97,7 @@ describe('TabLink', () => {
     // After the link's own handler: jsdom can't open the link in a new tab or window.
     const stay = (event: Event) => event.preventDefault()
     document.addEventListener('click', stay)
+    onTestFinished(() => document.removeEventListener('click', stay))
     renderTabs('/search')
     const link = screen.getByRole('link', { name: 'Search' })
     for (const key of ['Control', 'Meta', 'Shift', 'Alt']) {
@@ -99,6 +106,5 @@ describe('TabLink', () => {
       await user.keyboard(`{/${key}}`)
       expect(scrollTo, key).not.toHaveBeenCalled()
     }
-    document.removeEventListener('click', stay)
   })
 })

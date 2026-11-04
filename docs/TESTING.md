@@ -614,8 +614,9 @@ need no Docker: Chromium on the host will do (`npx playwright install chromium`,
   cookie) and served offline, where the app shows its own "unreachable" screen and comes back on
   Retry; the caches hold posters and never `/qbt/`, `/prowlarr/`, `/tmdb/` or `/api/`. The tabs
   on a phone: each comes back to where it was left once its content is in, the position read as a
-  screen goes away being the one the user left rather than the next screen's, clamped, and the
-  active tab scrolls to the top, which only a real browser's scrolling shows. Every
+  screen goes away being the one the user left rather than the next screen's, clamped; a reload of
+  an entry a tab's link opened (the browser keeps its history state) comes back to where the user
+  was on it; and the active tab scrolls to the top, which only a real browser's scrolling shows. Every
   journey also asserts the proxy refused nothing, so every fetch carried its cookie.
 - **What they don't.** Looks (the screenshot tests), and the branches of a flow (an error, an
   empty state, a second qBittorrent version): a journey goes through once; its variations belong

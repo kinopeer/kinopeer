@@ -30,8 +30,10 @@ function scrollToTop() {
  * aria-current="page".
  */
 export function TabLink({ item, className, page, children }: TabLinkProps) {
-  const { pathname } = useLocation()
-  const search = useTabSearch(item.to)
+  const { pathname, search: shown } = useLocation()
+  const saved = useTabSearch(item.to)
+  // On its own screen, the query shown: the place is saved only when the screen is left.
+  const search = pathname === item.to ? shown : saved
   const onClick = (event: MouseEvent) => {
     if (pathname !== item.to || !plainClick(event)) return
     event.preventDefault()
