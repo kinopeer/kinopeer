@@ -103,6 +103,8 @@ beforeEach(() => {
     defaultPath: '/data',
     categoryPaths: true,
     subcategories: false,
+    relocateOnCategoryChange: true,
+    downloadPath: false,
   })
   getMainData.mockResolvedValue({ rid: 1, server_state: { free_space_on_disk: 40e9 } })
   addRelease.mockResolvedValue()
@@ -250,6 +252,8 @@ describe('AddReleaseSheet', () => {
       defaultPath: '/data',
       categoryPaths: false,
       subcategories: false,
+      relocateOnCategoryChange: true,
+      downloadPath: false,
     })
     renderSheet()
     expect(await screen.findByText('TV → /data')).toBeInTheDocument()
@@ -257,7 +261,7 @@ describe('AddReleaseSheet', () => {
 
   it('works without categories, a default path or the free space from qBittorrent', async () => {
     // getSaveLocations turns qBittorrent's refusals into empty answers.
-    vi.mocked(qbt.getSaveLocations).mockResolvedValue({ categories: [], defaultPath: '', categoryPaths: false, subcategories: false })
+    vi.mocked(qbt.getSaveLocations).mockResolvedValue({ categories: [], defaultPath: '', categoryPaths: false, subcategories: false, relocateOnCategoryChange: true, downloadPath: false })
     getMainData.mockRejectedValue(new TypeError('Failed to fetch'))
     renderSheet()
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
