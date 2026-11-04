@@ -149,7 +149,7 @@ describe('settingsMiddleware', () => {
   it('reports where the TMDB key comes from, never the key', async () => {
     const store = new SettingsStore(dir)
     expect(await (await fetch(`${await kinoseed(store)}/api/settings`)).json()).toEqual({
-      tmdb: { configured: false, source: null },
+      tmdb: { configured: false, source: null, fallback: null },
       prowlarr: { configured: false, source: null, serverKey: false },
       qbittorrent: { configured: false, source: null },
       downloads: null,
@@ -160,7 +160,7 @@ describe('settingsMiddleware', () => {
     expect(response.headers.get('cache-control')).toBe('no-store')
     const text = await response.text()
     expect(JSON.parse(text)).toEqual({
-      tmdb: { configured: true, source: 'env' },
+      tmdb: { configured: true, source: 'env', fallback: 'env' },
       prowlarr: { configured: false, source: null, serverKey: false },
       qbittorrent: { configured: false, source: null },
       downloads: null,
@@ -173,13 +173,65 @@ describe('settingsMiddleware', () => {
     const app = await kinoseed(store, { proxy: 'https://proxy.test/3' })
     const tmdbStatus = async (url: string) => ((await (await fetch(`${url}/api/settings`)).json()) as { tmdb: unknown }).tmdb
 
-    expect(await tmdbStatus(app)).toEqual({ configured: true, source: 'shared' })
+    expect(await tmdbStatus(app)).toEqual({ configured: true, source: 'shared', fallback: 'shared' })
+    // A blank key in a hand-edited settings.json isn't used (tmdbKey), so it isn't reported either.
+    await store.update({ tmdbApiKey: '  ' })
+    expect(await tmdbStatus(app)).toEqual({ configured: true, source: 'shared', fallback: 'shared' })
     expect(await tmdbStatus(await kinoseed(store, { proxy: 'https://proxy.test/3', envKey: 'env-key' }))).toEqual({
       configured: true,
       source: 'env',
+      fallback: 'env',
     })
     await store.update({ tmdbApiKey: 'saved-key' })
-    expect(await tmdbStatus(app)).toEqual({ configured: true, source: 'saved' })
+    expect(await tmdbStatus(app)).toEqual({ configured: true, source: 'saved', fallback: 'shared' })
+  })
+
+  describe('forgetting the saved TMDB key', () => {
+    const forget = (app: string) =>
+      fetch(`${app}/api/settings/tmdb`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } })
+
+    it.each([
+      ['Kinoseed’s key', { proxy: 'https://proxy.test/3' }, { configured: true, source: 'shared', fallback: 'shared' }],
+      ['TMDB_API_KEY, even with the proxy on', { proxy: 'https://proxy.test/3', envKey: 'env-key' }, { configured: true, source: 'env', fallback: 'env' }],
+    ] as const)('goes back to %s', async (_name, options, expected) => {
+      const store = new SettingsStore(dir)
+      await store.update({ tmdbApiKey: 'saved-key', prowlarrApiKey: 'prowlarr-key' })
+      const app = await kinoseed(store, options)
+
+      const response = await forget(app)
+
+      expect(response.status).toBe(200)
+      expect(((await response.json()) as ServerSettings).tmdb).toEqual(expected)
+      expect(store.current).toEqual({ prowlarrApiKey: 'prowlarr-key' })
+      expect(JSON.parse(await readFile(join(dir, 'settings.json'), 'utf8'))).toEqual({ prowlarrApiKey: 'prowlarr-key' })
+    })
+
+    it('keeps the saved key when nothing else would serve TMDB', async () => {
+      const store = new SettingsStore(dir)
+      await store.update({ tmdbApiKey: 'saved-key' })
+      // A blank TMDB_API_KEY and the proxy turned off (TMDB_PROXY_URL set empty) are no fallback.
+      const app = await kinoseed(store, { envKey: '  ', proxy: '' })
+      expect((((await (await fetch(`${app}/api/settings`)).json()) as ServerSettings).tmdb)).toEqual({
+        configured: true,
+        source: 'saved',
+        fallback: null,
+      })
+
+      const response = await forget(app)
+
+      expect(response.status).toBe(409)
+      expect(await response.json()).toEqual({ error: 'no-server-key' })
+      expect(tmdbKey(store, undefined)).toBe('saved-key')
+    })
+
+    it('forgets the key only on a request marked as JSON', async () => {
+      const store = new SettingsStore(dir)
+      await store.update({ tmdbApiKey: 'saved-key' })
+      const app = await kinoseed(store, { envKey: 'env-key' })
+
+      expect((await fetch(`${app}/api/settings/tmdb`, { method: 'DELETE' })).status).toBe(415)
+      expect(tmdbKey(store, 'env-key')).toBe('saved-key')
+    })
   })
 
   it('checks a new key with TMDB before saving it', async () => {
@@ -190,7 +242,7 @@ describe('settingsMiddleware', () => {
     const response = await putKey(app, ' good-key ')
 
     expect(response.status).toBe(200)
-    expect(((await response.json()) as ServerSettings).tmdb).toEqual({ configured: true, source: 'saved' })
+    expect(((await response.json()) as ServerSettings).tmdb).toEqual({ configured: true, source: 'saved', fallback: 'env' })
     expect(tmdb.seen.map((request) => request.url)).toEqual(['/3/authentication?api_key=good-key'])
     expect(tmdbKey(store, 'env-key')).toBe('good-key')
   })

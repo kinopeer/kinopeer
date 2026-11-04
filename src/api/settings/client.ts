@@ -60,19 +60,31 @@ export function saveProwlarrKey(apiKey: string): Promise<ServerSettings> {
   return send<ProwlarrKeyBody>('PUT', 'prowlarr', { apiKey })
 }
 
-/**
- * Forgets the saved Prowlarr key, so the server's own (environment or Prowlarr's config.xml)
- * applies. Rejects with code 'no-server-key' when the server has none to fall back on.
- */
-export async function forgetProwlarrKey(): Promise<ServerSettings> {
+async function forget(path: string): Promise<ServerSettings> {
   // The JSON content type, as on every request that changes something (server/json.ts).
-  const response = await fetch(`${SETTINGS_BASE}/prowlarr`, {
+  const response = await fetch(`${SETTINGS_BASE}/${path}`, {
     method: 'DELETE',
     credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
   })
   if (!response.ok || !isJson(response)) throw await errorFor(response)
   return (await response.json()) as ServerSettings
+}
+
+/**
+ * Forgets the saved TMDB key, so TMDB_API_KEY or Kinoseed's key applies (`tmdb.fallback`). Rejects
+ * with code 'no-server-key' when neither would.
+ */
+export function forgetTmdbKey(): Promise<ServerSettings> {
+  return forget('tmdb')
+}
+
+/**
+ * Forgets the saved Prowlarr key, so the server's own (environment or Prowlarr's config.xml)
+ * applies. Rejects with code 'no-server-key' when the server has none to fall back on.
+ */
+export function forgetProwlarrKey(): Promise<ServerSettings> {
+  return forget('prowlarr')
 }
 
 /**

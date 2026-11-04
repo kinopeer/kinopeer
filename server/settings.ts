@@ -7,6 +7,7 @@ import type {
   SecretStatus,
   ServerSettings,
   SettingsErrorBody,
+  TmdbFallback,
   TmdbKeyBody,
 } from '../src/api/settings/types.ts'
 import { isJsonRequest, readJson, sendJson } from './json.ts'
@@ -25,6 +26,8 @@ import { checkTmdbKey } from './tmdb.ts'
  * GET /api/settings → ServerSettings (only whether each secret is set, never its value)
  * PUT /api/settings/tmdb { apiKey } → checks the key with TMDB, saves it, answers ServerSettings
  * PUT /api/settings/prowlarr { apiKey } → checks the key with Prowlarr, saves it, answers ServerSettings
+ * DELETE /api/settings/tmdb → forgets the saved key, so TMDB_API_KEY or Kinoseed's key applies again;
+ *   refused (409) when neither would
  * DELETE /api/settings/prowlarr → forgets the saved key, so the environment's or config.xml's applies
  *   again; refused (409) when the server has no key of its own
  * PUT /api/settings/qbittorrent { username, password } → logs in to qBittorrent, saves the login
@@ -121,10 +124,16 @@ function status(saved: string | undefined, env: string | undefined): SecretStatu
   return { configured: source !== null, source }
 }
 
+/** What serves TMDB without a saved key: TMDB_API_KEY, else Kinoseed's key behind its proxy. */
+function tmdbFallback(config: SettingsConfig): TmdbFallback | null {
+  return config.envTmdbApiKey?.trim() ? 'env' : config.tmdbProxy ? 'shared' : null
+}
+
 /** Kinoseed's key counts as a key, so onboarding doesn't ask for one; the user's own still wins. */
 function tmdbStatus(saved: string | undefined, config: SettingsConfig): ServerSettings['tmdb'] {
-  const own = status(saved, config.envTmdbApiKey)
-  return own.configured || !config.tmdbProxy ? own : { configured: true, source: 'shared' }
+  const fallback = tmdbFallback(config)
+  const source = saved?.trim() ? 'saved' : fallback
+  return { configured: source !== null, source, fallback }
 }
 
 /** The server's own Prowlarr key: a key in config.xml counts as its configuration, like the variable. */
@@ -176,6 +185,12 @@ async function saveTmdbKey(config: SettingsConfig, request: IncomingMessage, res
   }
   if (!valid) return fail(response, 422, 'invalid-key')
   await save(config, response, config.store.update({ tmdbApiKey: apiKey.trim() }))
+}
+
+/** Forgets the saved key, only when something else would serve TMDB, so Kinoseed is never left without it. */
+async function forgetTmdbKey(config: SettingsConfig, _request: IncomingMessage, response: ServerResponse) {
+  if (!tmdbFallback(config)) return fail(response, 409, 'no-server-key')
+  await save(config, response, config.store.update({ tmdbApiKey: undefined }))
 }
 
 async function saveProwlarrKey(config: SettingsConfig, request: IncomingMessage, response: ServerResponse) {
@@ -288,6 +303,8 @@ export function settingsMiddleware(config: SettingsConfig): Middleware {
     const handler =
       path === `${PREFIX}/tmdb` && request.method === 'PUT'
         ? saveTmdbKey
+        : path === `${PREFIX}/tmdb` && request.method === 'DELETE'
+          ? forgetTmdbKey
         : path === `${PREFIX}/prowlarr` && request.method === 'PUT'
           ? saveProwlarrKey
           : path === `${PREFIX}/prowlarr` && request.method === 'DELETE'

@@ -21,7 +21,7 @@ vi.mock('../api/settings', async (importOriginal) => ({
 }))
 
 function server(downloads: Partial<DownloadDefaults> | null): ServerSettings {
-  return { tmdb: { configured: true, source: 'saved' }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads }
+  return { tmdb: { configured: true, source: 'saved', fallback: null }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads }
 }
 
 beforeEach(() => {

@@ -1,4 +1,4 @@
-import { act, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as matches from '../api/matches'
@@ -32,6 +32,7 @@ vi.mock('../api/settings', async (importOriginal) => ({
   saveTmdbKey: vi.fn(),
   saveProwlarrKey: vi.fn(),
   forgetProwlarrKey: vi.fn(),
+  forgetTmdbKey: vi.fn(),
   saveDownloadDefaults: vi.fn(),
 }))
 vi.mock('../api/tmdb', async (importOriginal) => ({
@@ -67,13 +68,13 @@ beforeEach(() => {
   vi.mocked(prowlarr.getProwlarrStatus).mockResolvedValue({ version: '1.24.3', indexers: 2 })
   vi.mocked(tmdb.checkTmdb).mockResolvedValue()
   vi.mocked(serverSettings.getServerSettings).mockResolvedValue({
-    tmdb: { configured: true, source: 'saved' },
+    tmdb: { configured: true, source: 'saved', fallback: null },
     prowlarr: { configured: true, source: 'env', serverKey: true },
     qbittorrent: { configured: true, source: 'env' },
     downloads: null,
   })
   vi.mocked(serverSettings.saveDownloadDefaults).mockResolvedValue({
-    tmdb: { configured: true, source: 'saved' },
+    tmdb: { configured: true, source: 'saved', fallback: null },
     prowlarr: { configured: true, source: 'env', serverKey: true },
     qbittorrent: { configured: true, source: 'env' },
     downloads: {},
@@ -183,9 +184,9 @@ describe('SettingsScreen', () => {
   })
 
   it('says Kinoseed’s key is used, offers the user’s own, and drops the mention once it’s saved', async () => {
-    const shared = { tmdb: { configured: true, source: 'shared' }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null } as const
+    const shared = { tmdb: { configured: true, source: 'shared', fallback: 'shared' }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null } as const
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue(shared)
-    vi.mocked(serverSettings.saveTmdbKey).mockResolvedValue({ ...shared, tmdb: { configured: true, source: 'saved' } })
+    vi.mocked(serverSettings.saveTmdbKey).mockResolvedValue({ ...shared, tmdb: { configured: true, source: 'saved', fallback: null } })
     renderScreen()
 
     expect(await within(connection('TMDB')).findByRole('status', { name: saying('Connected · Kinoseed’s key') })).toBeInTheDocument()
@@ -198,9 +199,80 @@ describe('SettingsScreen', () => {
     expect(within(connection('TMDB')).getByRole('button', { name: 'Change TMDB key' })).toBeInTheDocument()
   })
 
+  it('goes back from a saved TMDB key to Kinoseed’s and checks the connection again', async () => {
+    const saved = { tmdb: { configured: true, source: 'saved', fallback: 'shared' }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null } as const
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(saved)
+    vi.mocked(serverSettings.forgetTmdbKey).mockResolvedValue({ ...saved, tmdb: { configured: true, source: 'shared', fallback: 'shared' } })
+    renderScreen()
+    expect(await within(connection('TMDB')).findByRole('status', { name: saying('Connected') })).toBeInTheDocument()
+    vi.mocked(tmdb.checkTmdb).mockClear()
+
+    await userEvent.click(within(connection('TMDB')).getByRole('button', { name: 'Change TMDB key' }))
+    const sheet = screen.getByRole('dialog', { name: 'TMDB key' })
+    await userEvent.click(await within(sheet).findByRole('button', { name: 'Use Kinoseed’s key' }))
+
+    expect(await findToastOnPage('Using Kinoseed’s TMDB key')).toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: saying('TMDB key saved') })).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'TMDB key' })).not.toBeInTheDocument()
+    expect(await within(connection('TMDB')).findByRole('status', { name: saying('Connected · Kinoseed’s key') })).toBeInTheDocument()
+    expect(within(connection('TMDB')).getByRole('button', { name: 'Use your own TMDB key' })).toBeInTheDocument()
+    expect(tmdb.checkTmdb).toHaveBeenCalledTimes(1)
+  })
+
+  it('goes back to Kinoseed’s TMDB key when the sheet was closed before the answer', async () => {
+    const saved = { tmdb: { configured: true, source: 'saved', fallback: 'shared' }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null } as const
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(saved)
+    let finish = (_settings: serverSettings.ServerSettings) => {}
+    vi.mocked(serverSettings.forgetTmdbKey).mockReturnValue(new Promise((resolve) => (finish = resolve)))
+    renderScreen()
+    expect(await within(connection('TMDB')).findByRole('status', { name: saying('Connected') })).toBeInTheDocument()
+
+    await userEvent.click(within(connection('TMDB')).getByRole('button', { name: 'Change TMDB key' }))
+    const sheet = screen.getByRole('dialog', { name: 'TMDB key' })
+    await userEvent.click(await within(sheet).findByRole('button', { name: 'Use Kinoseed’s key' }))
+    // Escape: the browser cancels the modal <dialog>, which jsdom doesn't do on a key press.
+    fireEvent(sheet, new Event('cancel', { cancelable: true }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'TMDB key' })).not.toBeInTheDocument())
+
+    act(() => finish({ ...saved, tmdb: { configured: true, source: 'shared', fallback: 'shared' } }))
+
+    expect(await findToastOnPage('Using Kinoseed’s TMDB key')).toBeInTheDocument()
+    expect(await within(connection('TMDB')).findByRole('status', { name: saying('Connected · Kinoseed’s key') })).toBeInTheDocument()
+  })
+
+  it('goes back to the server’s TMDB key when it has TMDB_API_KEY', async () => {
+    const saved = { tmdb: { configured: true, source: 'saved', fallback: 'env' }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null } as const
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(saved)
+    vi.mocked(serverSettings.forgetTmdbKey).mockResolvedValue({ ...saved, tmdb: { configured: true, source: 'env', fallback: 'env' } })
+    renderScreen()
+    expect(await within(connection('TMDB')).findByRole('status', { name: saying('Connected') })).toBeInTheDocument()
+
+    await userEvent.click(within(connection('TMDB')).getByRole('button', { name: 'Change TMDB key' }))
+    await userEvent.click(await within(screen.getByRole('dialog', { name: 'TMDB key' })).findByRole('button', { name: 'Use the server’s key' }))
+
+    expect(await findToastOnPage('Using the server’s TMDB key')).toBeInTheDocument()
+    expect(within(connection('TMDB')).getByRole('button', { name: 'Change TMDB key' })).toBeInTheDocument()
+  })
+
+  it.each([
+    ['nothing to fall back on', { configured: true, source: 'saved', fallback: null }],
+    ['the key in use is the server’s', { configured: true, source: 'env', fallback: 'env' }],
+  ] as const)('doesn’t offer to forget the TMDB key with %s', async (_name, status) => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ tmdb: status, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
+    renderScreen()
+    // Let the settings load, so the button's absence isn't only the moment before they arrive.
+    await waitFor(() => expect(serverSettings.getServerSettings).toHaveBeenCalled())
+    await act(() => Promise.all(vi.mocked(serverSettings.getServerSettings).mock.results.map((result) => result.value)))
+
+    await userEvent.click(within(connection('TMDB')).getByRole('button', { name: 'Change TMDB key' }))
+    const sheet = screen.getByRole('dialog', { name: 'TMDB key' })
+    expect(within(sheet).getByLabelText('API key or read access token')).toBeInTheDocument()
+    expect(within(sheet).queryByRole('button', { name: /^Use .* key$/ })).not.toBeInTheDocument()
+  })
+
   it('changes the TMDB key and checks the connection again', async () => {
     vi.mocked(tmdb.checkTmdb).mockRejectedValue(new tmdb.TmdbKeyError(401))
-    vi.mocked(serverSettings.saveTmdbKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved' }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
+    vi.mocked(serverSettings.saveTmdbKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved', fallback: null }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
     renderScreen()
     expect(await within(connection('TMDB')).findByRole('status', { name: saying('The API key is missing or invalid') })).toBeInTheDocument()
     expect(await within(connection('Prowlarr')).findByRole('status', { name: saying(/^Connected/) })).toBeInTheDocument()
@@ -223,7 +295,7 @@ describe('SettingsScreen', () => {
 
   it('changes the Prowlarr key and checks the connection again', async () => {
     vi.mocked(prowlarr.getProwlarrStatus).mockRejectedValue(new prowlarr.ProwlarrSetupError(503, 'not-configured'))
-    vi.mocked(serverSettings.saveProwlarrKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved' }, prowlarr: { configured: true, source: 'saved', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
+    vi.mocked(serverSettings.saveProwlarrKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved', fallback: null }, prowlarr: { configured: true, source: 'saved', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
     renderScreen()
     expect(await within(connection('Prowlarr')).findByRole('status', { name: saying('Not set up, or the API key was rejected') })).toBeInTheDocument()
 
@@ -243,13 +315,13 @@ describe('SettingsScreen', () => {
 
   it("goes back from a saved Prowlarr key to the server's and checks the connection again", async () => {
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue({
-      tmdb: { configured: true, source: 'saved' },
+      tmdb: { configured: true, source: 'saved', fallback: null },
       prowlarr: { configured: true, source: 'saved', serverKey: true },
       qbittorrent: { configured: true, source: 'env' },
       downloads: null,
     })
     vi.mocked(serverSettings.forgetProwlarrKey).mockResolvedValue({
-      tmdb: { configured: true, source: 'saved' },
+      tmdb: { configured: true, source: 'saved', fallback: null },
       prowlarr: { configured: true, source: 'env', serverKey: true },
       qbittorrent: { configured: true, source: 'env' },
       downloads: null,
@@ -272,7 +344,7 @@ describe('SettingsScreen', () => {
 
   it("doesn't offer the server's Prowlarr key when the server has none", async () => {
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue({
-      tmdb: { configured: true, source: 'saved' },
+      tmdb: { configured: true, source: 'saved', fallback: null },
       prowlarr: { configured: true, source: 'saved', serverKey: false },
       qbittorrent: { configured: true, source: 'env' },
       downloads: null,
@@ -383,7 +455,7 @@ describe('SettingsScreen', () => {
 
   it("shows the download defaults the server keeps, set on another device", async () => {
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue({
-      tmdb: { configured: true, source: 'saved' },
+      tmdb: { configured: true, source: 'saved', fallback: null },
       prowlarr: { configured: true, source: 'env', serverKey: true },
       qbittorrent: { configured: true, source: 'env' },
       downloads: { tvCategory: 'Anime', sequential: true, firstLastPieces: true },
