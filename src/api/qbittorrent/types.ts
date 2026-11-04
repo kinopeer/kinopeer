@@ -23,7 +23,11 @@ export type TorrentState =
   | 'moving'
   | 'unknown'
 
-/** The subset of /torrents/info fields Kinoseed uses. Sizes in bytes, speeds in bytes/s, times in Unix seconds. */
+/**
+ * The subset of /torrents/info fields Kinoseed uses. Sizes in bytes, speeds in bytes/s, times in Unix
+ * seconds. The poll keeps only these, listed again in `TORRENT_FIELDS` (`src/torrents/sync.ts`): a
+ * field added here and not there fails to compile.
+ */
 export interface Torrent {
   hash: string
   name: string

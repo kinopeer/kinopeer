@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router'
 import type { Torrent } from '../api/qbittorrent'
@@ -164,12 +164,17 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   // Only what's on screen counts, so a filter never leaves hidden torrents selected.
   const selectedVisible = selected ? visible.filter((torrent) => selected.has(torrent.hash)) : []
   const allSelected = visible.length > 0 && selectedVisible.length === visible.length
-  const toggleSelected = (torrent: Torrent) =>
-    setSelected((current) => {
-      const next = new Set(current)
-      if (!next.delete(torrent.hash)) next.add(torrent.hash)
-      return next
-    })
+  // The rows are memoized, so what they're handed stays the same from poll to poll (`toggleSelected`,
+  // `openActions`, `toggleRunning`) and only a row whose torrent, title or flags changed renders.
+  const toggleSelected = useCallback(
+    (torrent: Torrent) =>
+      setSelected((current) => {
+        const next = new Set(current)
+        if (!next.delete(torrent.hash)) next.add(torrent.hash)
+        return next
+      }),
+    [],
+  )
 
   const loading = data === null
   // The list comes back where it was left on Back and through the Downloads tab, once it's loaded.
@@ -184,8 +189,9 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
     setQuery('')
   }
 
-  // On desktop the actions are a menu, and its More button toggles it.
-  const openActions = (torrent: Torrent, anchor: HTMLElement) => {
+  // On desktop the actions are a menu, and its More button toggles it. Read when clicked, so the
+  // function the rows get never changes.
+  const showActions = (torrent: Torrent, anchor: HTMLElement) => {
     if (actionsTorrent?.hash === torrent.hash && actionsAnchor === anchor) {
       actions.close()
       return
@@ -193,9 +199,17 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
     actions.open(torrent.hash)
     setActionsAnchor(anchor)
   }
+  const showActionsRef = useRef(showActions)
+  useLayoutEffect(() => {
+    showActionsRef.current = showActions
+  })
+  const openActions = useCallback(
+    (torrent: Torrent, anchor: HTMLElement) => showActionsRef.current(torrent, anchor),
+    [],
+  )
 
-  const toggleRunning = (torrent: Torrent) => void pauseResume.toggle(torrent)
-
+  const { toggle: toggleTorrent } = pauseResume
+  const toggleRunning = useCallback((torrent: Torrent) => void toggleTorrent(torrent), [toggleTorrent])
 
   const resetFilters = () => {
     setFilter('all')

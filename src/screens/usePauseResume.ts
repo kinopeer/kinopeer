@@ -55,5 +55,10 @@ export function usePauseResume(watcher?: ActionWatcher): PauseResume {
     [send, toast, t],
   )
 
-  return { busy, set, toggle: (torrent) => set([torrent], !isRunning(downloadStatus(torrent))) }
+  // The same function from render to render, so Downloads' memoized rows can take it.
+  const toggle = useCallback(
+    (torrent: Torrent) => set([torrent], !isRunning(downloadStatus(torrent))),
+    [set],
+  )
+  return { busy, set, toggle }
 }

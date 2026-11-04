@@ -27,9 +27,23 @@ export interface Formatters {
   age: (date: Date | string, now?: number) => string
 }
 
+// Building an `Intl.NumberFormat` costs far more than formatting with one, and `toLocaleString` with a
+// language builds one on every call: Downloads formats a few sizes per torrent on every poll.
+const numberFormats = new Map<string, Intl.NumberFormat>()
+
+/** The number with that many digits after the point, in the language's style; its formatter is kept. */
+function formatNumber(value: number, language: string, digits: number): string {
+  const key = `${language}|${digits}`
+  let format = numberFormats.get(key)
+  if (!format) {
+    format = new Intl.NumberFormat(language, { minimumFractionDigits: digits, maximumFractionDigits: digits })
+    numberFormats.set(key, format)
+  }
+  return format.format(value)
+}
+
 export function createFormatters(t: TFunction, language: string): Formatters {
-  const number = (value: number, digits: number) =>
-    value.toLocaleString(language, { minimumFractionDigits: digits, maximumFractionDigits: digits })
+  const number = (value: number, digits: number) => formatNumber(value, language, digits)
 
   const size = (bytes: number) => {
     let value = Math.max(0, bytes || 0)
@@ -57,7 +71,7 @@ export function createFormatters(t: TFunction, language: string): Formatters {
       !Number.isFinite(seconds) || seconds <= 0 || seconds >= ETA_INFINITY ? t('format.etaUnknown') : duration(seconds),
     duration,
     percent: (fraction) =>
-      `${Math.floor(Math.min(1, Math.max(0, fraction)) * 100).toLocaleString(language)}%`,
+      `${number(Math.floor(Math.min(1, Math.max(0, fraction)) * 100), 0)}%`,
     since: (date, now = Date.now()) => {
       const minutes = Math.floor(Math.max(0, now - date) / 60_000)
       if (minutes < 1) return t('format.justNow')
