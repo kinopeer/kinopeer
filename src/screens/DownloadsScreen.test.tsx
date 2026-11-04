@@ -200,6 +200,13 @@ describe('DownloadsScreen', () => {
     nextFrame()
     nextFrame()
     expect(body).toHaveClass('skips-offscreen')
+    // Another card in its place, as many as before.
+    await userEvent.click(statuses.getByRole('button', { name: 'Downloading 1' }))
+    expect(screen.getByRole('heading', { name: 'Dune.Part.Two.2024.2160p.WEB-DL' })).toBeInTheDocument()
+    expect(body).not.toHaveClass('skips-offscreen')
+    nextFrame()
+    nextFrame()
+    expect(body).toHaveClass('skips-offscreen')
     await userEvent.click(statuses.getByRole('button', { name: 'All 3' }))
     expect(screen.getAllByRole('listitem')).toHaveLength(3)
     expect(body).not.toHaveClass('skips-offscreen')
