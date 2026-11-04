@@ -409,7 +409,10 @@ environment pointing at them (`QBITTORRENT_URL`, `PROWLARR_URL`, `TMDB_API_URL`,
 qBittorrent as admin), chained the way `server/main.ts` chains the routes; `stopKinoseed()` in
 `afterEach` closes everything, restores `fetch` and removes the directory. A test passes `env` to
 change the environment (a variable set to `undefined` is unset: no login, no Prowlarr, a dead
-port), `writableData: false` to make every write fail, and the fakes' options.
+port), `writableData: false` to make every write fail, `tmdbProxy` to put the real TMDB proxy
+worker (`tmdb-proxy/worker.ts`, `serveTmdbProxy` in `server/test/fakes.ts`) in front of the fake
+TMDB at `TMDB_PROXY_URL`, which is empty otherwise, so no test reaches the deployed one, and the
+fakes' options.
 
 The clients call `fetch('/qbt/api/…')` with a path, as in the browser, which Node's `fetch` can't
 resolve, so the stand stubs `globalThis.fetch` with an adapter: a request for a path goes to the
