@@ -156,13 +156,13 @@
 
 /* Rows and cards off screen are skipped: the browser doesn't lay out or paint them, while they stay
    in the DOM, so find on page, selection and the screen reader still see every torrent. With
-   hundreds of torrents the whole list was painted again on every frame of a scroll (#220). Only
-   once the rows have been laid out in full (.skips-offscreen, a frame after they first show): a
-   skipped row keeps the height it had then (`auto`), so the page keeps its real length and a
-   position restored on Back lands where it was. The lengths are for a row added later, which is
-   skipped before it's laid out: the content's height in a row of the phone's list (a download's
-   transfer row adds 26px), of the table, and of a card on a phone. Safari before 18 ignores all
-   this and paints every row, as before. */
+   hundreds of torrents the whole list was painted again on every frame of a scroll (#220). A skipped
+   row keeps the height it had when last laid out (`auto`), so the screen lifts .skips-offscreen for
+   a frame whenever that height may be wrong (useSkipOffscreen: another layout, another width, other
+   rows shown), and the page keeps its real length and the position restored on Back lands where it
+   was. The lengths are only a fallback for a row skipped before it was ever laid out: the content's
+   height in a row of the phone's list (a download's transfer row adds 26px), of the table, and of a
+   card on a phone. Safari before 18 ignores all this and paints every row, as before. */
 .skips-offscreen :is(.downloads-list > .ks-dl, .dl-table-body > .dl-row, .ks-poster-grid > .dl-card) {
   content-visibility: auto;
 }

@@ -14,10 +14,10 @@ import { Segmented } from '../components/Segmented'
 import { useToast } from '../components/Toast'
 import { cx } from '../lib/cx'
 import { useFormatters } from '../lib/format'
-import { useAfterFirstFrame } from '../lib/useAfterFirstFrame'
 import { useHeightVar } from '../lib/useHeightVar'
 import { useIsDesktop } from '../lib/useIsDesktop'
 import { useScrollRestoration } from '../lib/useScrollRestoration'
+import { useSkipOffscreen } from '../lib/useSkipOffscreen'
 import { useSettings } from '../settings/settings'
 import { freeSpace } from '../torrents/freeSpace'
 import { clickedOrder, compareTorrents, usualOrder, type DownloadOrder, type DownloadSort } from '../torrents/sort'
@@ -180,11 +180,11 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   const loading = data === null
   // The list comes back where it was left on Back and through the Downloads tab, once it's loaded.
   useScrollRestoration(!loading, '/')
-  // Rows off screen are skipped (`content-visibility` in the stylesheet, #220) only once each layout's
-  // rows have been laid out in full: a skipped row keeps the height it had then, so the list keeps
-  // its real length and the position restored on Back lands where it was, whatever the width.
-  const rowsLayout = visible.length === 0 ? undefined : isDesktop && !grid ? 'table' : view
-  const skipOffscreen = useAfterFirstFrame(rowsLayout)
+  // Rows off screen are skipped (`content-visibility` in the stylesheet, #220) only once they've been
+  // laid out in full in this layout, at this width: a skipped row keeps the height it had then, so the
+  // list keeps its real length and the position restored on Back lands where it was.
+  const rowIds = useMemo(() => visible.map((torrent) => torrent.hash), [visible])
+  const offscreen = useSkipOffscreen(visible.length === 0 ? undefined : isDesktop && !grid ? 'table' : view, rowIds)
   // Looked up on every render, so the sheet follows live status changes and closes if the torrent goes away.
   const actionsTorrent = actions.torrent
   const server = data?.server
@@ -440,7 +440,8 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
       {header}
 
       <section
-        className={cx('downloads-body', skipOffscreen && 'skips-offscreen')}
+        ref={offscreen.ref}
+        className={cx('downloads-body', offscreen.skip && 'skips-offscreen')}
         aria-label={t('downloads.title')}
         aria-busy={loading}
       >

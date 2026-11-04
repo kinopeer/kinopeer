@@ -9,6 +9,7 @@ import * as tmdb from '../api/tmdb'
 import { TAB_RETURN, forgetTabPlaces, saveTabPlace } from '../lib/tabPlaces'
 import { getSettings, resetSettings, updateSettings } from '../settings/settings'
 import { mainData, searchPage, title, torrent as fixtureTorrent } from '../test/fixtures'
+import { stubFrames } from '../test/frames'
 import { findToastOnPage, renderWithRouter, saying } from '../test/render'
 import { resetServerMatches } from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
@@ -151,13 +152,10 @@ describe('DownloadsScreen', () => {
   // stylesheet); no role or attribute shows it. Skipped before they were laid out once, rows would
   // take an estimated height, and a position restored on Back would land elsewhere (#220).
   it('lets the browser skip the rows off screen only once each layout’s rows have shown for a frame', async () => {
-    const frames: FrameRequestCallback[] = []
-    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => frames.push(callback))
-    vi.stubGlobal('cancelAnimationFrame', () => {})
+    const { nextFrame } = stubFrames()
     onTestFinished(() => {
       vi.unstubAllGlobals()
     })
-    const nextFrame = () => act(() => frames.splice(0).forEach((callback) => callback(performance.now())))
     let answer = () => {}
     getMainData.mockReturnValueOnce(new Promise((resolve) => (answer = () => resolve(SNAPSHOT))))
     renderScreen()
@@ -186,10 +184,58 @@ describe('DownloadsScreen', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Filter by name', pressed: false }))
     const filter = screen.getByRole('searchbox', { name: 'Filter by name' })
     await userEvent.type(filter, 'nothing like it')
-    expect(screen.getByText('Nothing matches')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Nothing matches' })).toBeInTheDocument()
     expect(body).not.toHaveClass('skips-offscreen')
     await userEvent.clear(filter)
     expect(screen.getAllByRole('listitem')).toHaveLength(3)
+    expect(body).not.toHaveClass('skips-offscreen')
+    nextFrame()
+    nextFrame()
+    expect(body).toHaveClass('skips-offscreen')
+
+    // So are the cards a status filter brings back, with some still shown.
+    const statuses = within(screen.getByRole('group', { name: 'Filter by status' }))
+    await userEvent.click(statuses.getByRole('button', { name: 'Seeding 1' }))
+    expect(screen.getAllByRole('listitem')).toHaveLength(1)
+    nextFrame()
+    nextFrame()
+    expect(body).toHaveClass('skips-offscreen')
+    await userEvent.click(statuses.getByRole('button', { name: 'All 3' }))
+    expect(screen.getAllByRole('listitem')).toHaveLength(3)
+    expect(body).not.toHaveClass('skips-offscreen')
+    nextFrame()
+    nextFrame()
+    expect(body).toHaveClass('skips-offscreen')
+  })
+
+  // A skipped row keeps its height from the old width, so a turned phone lays the rows out again.
+  it('lays the rows out in full again when the list’s width changes', async () => {
+    const { nextFrame } = stubFrames()
+    let onResize = () => {}
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(callback: () => void) {
+          onResize = callback
+        }
+        observe() {}
+        disconnect() {}
+      },
+    )
+    const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ width: 390, height: 0 } as DOMRect)
+    onTestFinished(() => {
+      rect.mockRestore()
+      vi.unstubAllGlobals()
+    })
+    renderScreen()
+    expect(await screen.findAllByRole('listitem')).toHaveLength(3)
+    const body = screen.getByRole('region', { name: 'Downloads' })
+    nextFrame()
+    nextFrame()
+    expect(body).toHaveClass('skips-offscreen')
+
+    rect.mockReturnValue({ width: 844, height: 0 } as DOMRect)
+    act(() => onResize())
     expect(body).not.toHaveClass('skips-offscreen')
     nextFrame()
     nextFrame()

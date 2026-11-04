@@ -8,6 +8,7 @@ import * as tmdb from '../api/tmdb'
 import { stubDesktop } from '../lib/stubDesktop'
 import { getSettings, resetSettings, updateSettings } from '../settings/settings'
 import { mainData, searchPage, torrent as fixtureTorrent } from '../test/fixtures'
+import { stubFrames } from '../test/frames'
 import { renderWithRouter, saying } from '../test/render'
 import { resetServerMatches } from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
@@ -84,10 +85,7 @@ describe('DownloadsScreen on desktop', () => {
   // The class lets the browser skip rows off screen (`content-visibility`), once they've been laid
   // out in full; no role shows it (DownloadsScreen.test.tsx has the rest of the rule, #220).
   it('waits for each layout’s rows to show for a frame before they’re skipped: the phone’s list, the table, the grid', async () => {
-    const frames: FrameRequestCallback[] = []
-    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => frames.push(callback))
-    vi.stubGlobal('cancelAnimationFrame', () => {})
-    const nextFrame = () => act(() => frames.splice(0).forEach((callback) => callback(performance.now())))
+    const { nextFrame } = stubFrames()
     const widen = stubDesktop(false)
     updateSettings({ downloadsView: 'list', downloadsDesktopView: 'list' })
     renderScreen()

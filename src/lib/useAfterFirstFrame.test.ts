@@ -1,26 +1,13 @@
-import { act, renderHook } from '@testing-library/react'
+import { renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { stubFrames } from '../test/frames'
 import { useAfterFirstFrame } from './useAfterFirstFrame'
 
-let frames: Map<number, FrameRequestCallback>
-let lastId: number
-
-/** Frames that start only when a test says: each runs the callbacks requested before it started. */
-const nextFrame = () =>
-  act(() => {
-    const due = [...frames.values()]
-    frames.clear()
-    for (const callback of due) callback(performance.now())
-  })
+let nextFrame: () => void
+let pending: () => number
 
 beforeEach(() => {
-  frames = new Map()
-  lastId = 0
-  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
-    frames.set(++lastId, callback)
-    return lastId
-  })
-  vi.stubGlobal('cancelAnimationFrame', (id: number) => frames.delete(id))
+  ;({ nextFrame, pending } = stubFrames())
 })
 
 afterEach(() => {
@@ -42,7 +29,7 @@ describe('useAfterFirstFrame', () => {
 
   it('stays false without a key, and asks for no frame', () => {
     const { result } = renderHook(() => useAfterFirstFrame(undefined))
-    expect(frames.size).toBe(0)
+    expect(pending()).toBe(0)
     expect(result.current).toBe(false)
   })
 
@@ -82,6 +69,6 @@ describe('useAfterFirstFrame', () => {
   it('asks for no frame once it’s gone', () => {
     const { unmount } = renderHook(() => useAfterFirstFrame('list'))
     unmount()
-    expect(frames.size).toBe(0)
+    expect(pending()).toBe(0)
   })
 })
