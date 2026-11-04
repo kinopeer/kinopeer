@@ -38,7 +38,7 @@ describe('createApp', () => {
     expect(await (await fetch(`${app}/prowlarr/status`)).json()).toEqual({ error: 'not-configured' })
     expect((await fetch(`${app}/tmdb/movie/771`)).status).toBe(401)
     expect(await (await fetch(`${app}/api/settings`)).json()).toEqual({
-      tmdb: { configured: false, source: null },
+      tmdb: { configured: false, source: null, fallback: null },
       prowlarr: { configured: false, source: null, serverKey: false },
       qbittorrent: { configured: false, source: null },
       downloads: null,
@@ -123,7 +123,7 @@ describe('kinoseedServer', () => {
     try {
       expect((await fetch(`${base}/tmdb/configuration`)).status).toBe(200)
       expect(proxy.seen.map((request) => request.url)).toEqual(['/3/configuration'])
-      expect(await (await fetch(`${base}/api/settings`)).json()).toMatchObject({ tmdb: { configured: true, source: 'shared' } })
+      expect(await (await fetch(`${base}/api/settings`)).json()).toMatchObject({ tmdb: { configured: true, source: 'shared', fallback: 'shared' } })
     } finally {
       await new Promise((resolve) => server.close(resolve))
       await closeServers()

@@ -373,6 +373,19 @@ export function SettingsScreen() {
       <InstallSheet platform={installSteps} onClose={() => setInstallSteps(null)} />
       <Sheet open={editingKey} onClose={() => setEditingKey(false)} title={t('tmdbKey.sheetTitle')}>
         <TmdbKeyForm
+          forget={
+            server?.tmdb.source === 'saved' && server.tmdb.fallback
+              ? {
+                  to: server.tmdb.fallback,
+                  onForgotten: (changed) => {
+                    setServerChanged(changed)
+                    setEditingKey(false)
+                    toast.show(t(changed.tmdb.source === 'shared' ? 'tmdbKey.forgottenToShared' : 'tmdbKey.forgottenToServer'))
+                    setTmdbKeyVersion((n) => n + 1)
+                  },
+                }
+              : undefined
+          }
           onSaved={(changed) => {
             setServerChanged(changed)
             setEditingKey(false)
