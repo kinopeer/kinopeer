@@ -6,6 +6,7 @@ Kinoseed follows [semantic versioning](https://semver.org). While the version is
 
 ### Added
 
+- TMDB works without a key of your own: search, posters and title pages use Kinoseed's key, so the first launch no longer asks for one. Settings → Connections says when Kinoseed's key is used and lets you enter your own, which then goes to TMDB directly.
 - Downloads: a torrent with a speed limit of its own shows a small gauge, with an arrow for the download limit, the upload limit or both: next to its speed in the list and the table, and next to its status in the poster grid. The More menu shows the limits under Speed limits. ([#216](https://github.com/MrShakhov/kinoseed/issues/216))
 - Desktop Downloads: a click on a column's name in the table sorts by it, and a second click reverses the order. The sort button shows which way the list is sorted, and the direction is remembered with the sort. ([#217](https://github.com/MrShakhov/kinoseed/issues/217))
 - Downloads: sort by status, with what needs attention first: errors, then downloading, checking, queued, paused, seeding and completed torrents. On a computer a click on the Status column's name sorts by it, and a second click reverses the order. ([#234](https://github.com/MrShakhov/kinoseed/issues/234))

@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vi } from 'vitest'
 import { dataStores, kinoseedServer, type DataStores } from '../main.ts'
-import { closeServers, fakeProwlarr, fakeQbittorrent, fakeTmdb, listen } from './fakes.ts'
+import { closeServers, fakeProwlarr, fakeQbittorrent, fakeTmdb, listen, serveTmdbProxy } from './fakes.ts'
 
 /** What the Kinoseed server saw of a request from the browser. */
 export interface ReceivedRequest {
@@ -58,6 +58,11 @@ export interface StandOptions {
   prowlarr?: Parameters<typeof fakeProwlarr>[0]
   /** false puts the data directory where it can't be created, so every write fails. */
   writableData?: boolean
+  /**
+   * Kinoseed's TMDB proxy, the real worker in front of the fake TMDB with `good-key` (or the key
+   * given), at TMDB_PROXY_URL; without it the proxy is off, so no test reaches the real one.
+   */
+  tmdbProxy?: true | { key: string }
 }
 
 export interface Stand {
@@ -66,6 +71,8 @@ export interface Stand {
   qbittorrent: Awaited<ReturnType<typeof fakeQbittorrent>>
   tmdb: Awaited<ReturnType<typeof fakeTmdb>>
   prowlarr: Awaited<ReturnType<typeof fakeProwlarr>>
+  /** With `tmdbProxy`. */
+  proxy?: Awaited<ReturnType<typeof serveTmdbProxy>>
   stores: DataStores
   dataDir: string
   cookies: CookieJar
@@ -109,6 +116,8 @@ export async function startKinoseed(options: StandOptions = {}): Promise<Stand> 
     fakeTmdb(),
     fakeProwlarr(options.prowlarr),
   ])
+  const proxyKey = options.tmdbProxy === true ? 'good-key' : options.tmdbProxy?.key
+  const proxy = proxyKey === undefined ? undefined : await serveTmdbProxy(tmdb.apiBase, proxyKey)
   let dataDir = await mkdtemp(join(tmpdir(), 'kinoseed-integration-'))
   dirs.push(dataDir)
   if (options.writableData === false) {
@@ -123,6 +132,7 @@ export async function startKinoseed(options: StandOptions = {}): Promise<Stand> 
     PROWLARR_API_KEY: prowlarr.apiKey,
     TMDB_API_KEY: 'good-key',
     TMDB_API_URL: tmdb.apiBase,
+    TMDB_PROXY_URL: proxy?.apiBase ?? '',
     KINOSEED_DATA_DIR: dataDir,
     ...options.env,
   }
@@ -145,7 +155,7 @@ export async function startKinoseed(options: StandOptions = {}): Promise<Stand> 
     }
     run(0)
   })
-  current = { origin, qbittorrent, tmdb, prowlarr, stores, dataDir, cookies: new CookieJar(), received, responses: [] }
+  current = { origin, qbittorrent, tmdb, prowlarr, proxy, stores, dataDir, cookies: new CookieJar(), received, responses: [] }
   vi.stubGlobal('fetch', browserFetch)
   return current
 }

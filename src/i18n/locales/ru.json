@@ -239,6 +239,7 @@
     "prowlarrError": "Prowlarr не отвечает",
     "connected": "Подключено",
     "connectedNoIndexers": "Подключено · нет индексаторов",
+    "connectedSharedKey": "Подключено · ключ Kinoseed",
     "tmdbKey": "API-ключ не задан или неверен",
     "tmdbError": "TMDB не отвечает",
     "connectionsHint": "Адреса сервисов задаются в конфигурации сервера Kinoseed.",
@@ -511,7 +512,8 @@
     "saved": "Ключ TMDB сохранён",
     "change": "Сменить ключ TMDB",
     "sheetTitle": "Ключ TMDB",
-    "enter": "Ввести ключ"
+    "enter": "Ввести ключ",
+    "useOwn": "Ввести свой ключ TMDB"
   },
   "move": {
     "title": "Перенести файлы",
