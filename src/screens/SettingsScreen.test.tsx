@@ -8,6 +8,7 @@ import * as serverSettings from '../api/settings'
 import * as tmdb from '../api/tmdb'
 import i18n from '../i18n'
 import { BUG_REPORT_URL, IDEAS_URL, REPO_URL } from '../lib/links'
+import { TAB_RETURN, forgetTabPlaces, saveTabPlace } from '../lib/tabPlaces'
 import { getSettings, resetSettings } from '../settings/settings'
 import { findToastOnPage, renderWithRouter, saying } from '../test/render'
 import { SettingsScreen } from './SettingsScreen'
@@ -90,6 +91,17 @@ describe('SettingsScreen', () => {
     for (const name of ['qBittorrent', 'Prowlarr', 'TMDB']) {
       expect(await within(connection(name)).findByRole('status', { name: saying('Connected') })).toBeInTheDocument()
     }
+  })
+
+  it('comes back through the Settings tab to where the tab was left, without waiting for its checks', async () => {
+    // Nothing kept for the entry itself, which every test's router calls "default".
+    sessionStorage.clear()
+    forgetTabPlaces()
+    saveTabPlace('/settings', { search: '', y: 500 })
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    vi.mocked(qbt.getAppVersion).mockReturnValue(new Promise(() => {}))
+    renderScreen(TAB_RETURN)
+    expect(scrollTo).toHaveBeenCalledWith(0, 500)
   })
 
   it('warns that Prowlarr has no indexers, since search finds nothing then', async () => {

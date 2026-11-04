@@ -16,6 +16,7 @@ import { cx } from '../lib/cx'
 import { useFormatters } from '../lib/format'
 import { useHeightVar } from '../lib/useHeightVar'
 import { useIsDesktop } from '../lib/useIsDesktop'
+import { useScrollRestoration } from '../lib/useScrollRestoration'
 import { useSettings } from '../settings/settings'
 import { freeSpace } from '../torrents/freeSpace'
 import { clickedOrder, compareTorrents, usualOrder, type DownloadOrder, type DownloadSort } from '../torrents/sort'
@@ -171,6 +172,8 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
     })
 
   const loading = data === null
+  // The list comes back where it was left on Back and through the Downloads tab, once it's loaded.
+  useScrollRestoration(!loading, '/')
   // Looked up on every render, so the sheet follows live status changes and closes if the torrent goes away.
   const actionsTorrent = actions.torrent
   const server = data?.server

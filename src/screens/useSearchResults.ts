@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router'
 import type { MediaType, SearchPage } from '../api/tmdb'
-import { appendPage, firstResults, hasMorePages, keepResults, keptResults, type SearchResults } from '../search/searchResults'
+import { isTabReturn } from '../lib/tabPlaces'
+import { appendPage, firstResults, hasMorePages, keepResults, keptResults, keptSearch, type SearchResults } from '../search/searchResults'
 
 export interface SearchResultsState {
   results?: SearchResults
@@ -44,7 +45,8 @@ interface More {
  * A search's results, a page at a time. `query` names the search without its type tab (null runs none), and
  * `load` asks for one of its pages. A tab picked again shows what it loaded while the query stays; a query
  * typed again asks again. The results are also kept for the history entry, so Back to it shows the pages
- * loaded before at once, without asking again, and the scroll can be brought back over them.
+ * loaded before at once, without asking again, and the scroll can be brought back over them. So does the Search
+ * tab's link (`TAB_RETURN`), which comes back to the search with a new entry.
  */
 export function useSearchResults(
   query: string | null,
@@ -53,7 +55,7 @@ export function useSearchResults(
 ): SearchResultsState {
   // Nothing is kept for no query: a query has its language and is never "null".
   const search = `${query}|${type}`
-  const { key: entry } = useLocation()
+  const { key: entry, state } = useLocation()
   const loadRef = useRef(load)
   const [tabs, setTabs] = useState<Tabs | null>(null)
   const [more, setMore] = useState<More | null>(null)
@@ -67,7 +69,9 @@ export function useSearchResults(
   // A cleared query starts over: typed again, it asks again.
   if (query === null && tabs !== null) setTabs(null)
 
-  const kept = keptResults(entry, search)
+  // The Search tab opens a new entry with the search it was left on: its pages come along, so the scroll
+  // can be brought back over them too.
+  const kept = keptResults(entry, search) ?? (isTabReturn(state) ? keptSearch(search) : undefined)
   const current = (tabs?.query === query ? tabs.types[type] : undefined) ?? (kept && { results: kept })
   const results = current?.results
   const loaded = results !== undefined

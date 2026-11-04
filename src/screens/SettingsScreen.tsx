@@ -17,6 +17,7 @@ import { useLanguage } from '../i18n/useLanguage'
 import { BUG_REPORT_URL, IDEAS_URL, REPO_URL } from '../lib/links'
 import { promptInstall, useInstallMethod, type ManualInstall } from '../pwa/install'
 import { useRequest, type RequestState } from '../lib/useRequest'
+import { useScrollRestoration } from '../lib/useScrollRestoration'
 import { useSettings, type Settings } from '../settings/settings'
 import type { ThemePreference } from '../theme/theme'
 import { useTheme } from '../theme/useTheme'
@@ -175,6 +176,8 @@ export function SettingsScreen() {
   const [editingProwlarrKey, setEditingProwlarrKey] = useState(false)
   const [prowlarrKeyVersion, setProwlarrKeyVersion] = useState(0)
   const toast = useToast()
+  // Its checks and loads change no heights, so the page is ready to scroll back at once.
+  useScrollRestoration(true, '/settings')
   // Asked after each passing qBittorrent check (on opening, on Test) while
   // they're missing, so a check that finds it back loads them, and loaded selects don't empty on Test.
   const [categoriesLoad, setCategoriesLoad] = useState(0)

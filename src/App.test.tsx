@@ -9,6 +9,7 @@ import * as serverSettings from './api/settings'
 import * as tmdb from './api/tmdb'
 import App from './App'
 import { stubDesktop } from './lib/stubDesktop'
+import { forgetTabPlaces } from './lib/tabPlaces'
 import { markReloadedFor } from './pwa/updates'
 import { findToastOnPage, renderWithRouter, saying, Where, where } from './test/render'
 
@@ -64,6 +65,9 @@ const getMainData = vi.mocked(api.getMainData)
 
 beforeEach(() => {
   vi.resetAllMocks()
+  // Scroll positions kept by history entry, which every test's router calls "default".
+  sessionStorage.clear()
+  forgetTabPlaces()
   getAppVersion.mockResolvedValue('5.2.4')
   vi.mocked(api.getCategories).mockResolvedValue([])
   getMainData.mockResolvedValue({ rid: 1, full_update: true, torrents: {}, server_state: {} })
@@ -208,9 +212,10 @@ describe('App', () => {
       },
     )
 
-    it('keeps Downloads mounted when a torrent opens in the drawer over it', async () => {
+    it('keeps Downloads mounted, and where it was scrolled, when a torrent opens in the drawer over it', async () => {
       const torrent = { name: 'Dune.Part.Two.2024.2160p.WEB-DL', state: 'downloading', progress: 0.5, size: 1e9, priority: 1, ratio: 0 } as const
       getMainData.mockResolvedValue({ rid: 1, full_update: true, torrents: { dune: torrent }, server_state: {} })
+      const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
       renderApp('/')
       const heading = await screen.findByRole('heading', { name: 'Downloads', level: 1 })
       await userEvent.click(await screen.findByRole('link', { name: /Dune\.Part\.Two/ }))
@@ -218,6 +223,7 @@ describe('App', () => {
       expect(where()).toBe('/torrent/dune')
       // The same heading element: a remounted screen would have put a new one in its place.
       expect(heading).toBeInTheDocument()
+      expect(scrollTo).not.toHaveBeenCalled()
     })
 
     it('clears a crashed screen when the sidebar opens another', async () => {
@@ -374,6 +380,20 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Dune.2021.1080p', level: 1 })).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Downloads' })).not.toBeInTheDocument()
+  })
+
+  it('opens a torrent’s screen from Downloads at the top on a phone', async () => {
+    getMainData.mockResolvedValue({
+      rid: 1,
+      full_update: true,
+      torrents: { dune: { name: 'Dune.2021.1080p', state: 'downloading', progress: 0.5, size: 1e9, priority: 1, ratio: 0 } },
+      server_state: {},
+    })
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    renderApp('/')
+    await userEvent.click(await screen.findByRole('link', { name: /Dune\.2021/ }))
+    expect(await screen.findByRole('heading', { name: 'Dune.2021.1080p', level: 1 })).toBeInTheDocument()
+    expect(scrollTo).toHaveBeenCalledWith(0, 0)
   })
 
   /** One torrent in qBittorrent, and its folders, for the move steps below. */
