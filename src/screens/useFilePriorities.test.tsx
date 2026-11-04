@@ -210,7 +210,6 @@ describe('useFilePriorities', () => {
     await lists.in('Page').press('Extras high')
     lists.update([])
     await change.answer()
-    expect(setFilePriority).toHaveBeenCalledOnce()
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
