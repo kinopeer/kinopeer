@@ -26,7 +26,7 @@ npm run test:smoke          # layer 6: smoke journeys through the production ser
 | 3 | Screens, stores and clients | A screen or a user flow with the API clients mocked (`vi.mock('../api/…')`): what it shows for a state, what it sends, where it navigates. A hook or a store that holds the app's data, with the clients mocked. An API client with `fetch` stubbed: the request it builds and how it reads each answer, errors included | Real HTTP, the server, layout | Vitest + Testing Library + user-event, jsdom | `src/screens/*.test.tsx` (sheets and dialogs included), `src/App.test.tsx`, the hooks and stores in `src/session/`, `src/torrents/`, `src/settings/`, the clients in `src/api/*/` | `npm test` |
 | 4 | Server | Each middleware under `server/` against fake qBittorrent, TMDB and Prowlarr servers started in the test: routing, headers, what reaches the service and what comes back | Browser code | Vitest, Node (`server` project) | `server/*.test.ts`, fakes in `server/test/fakes.ts`; the TMDB proxy worker in `tmdb-proxy/worker.test.ts`, with TMDB and the rate limiter faked in the test, and its deploy check in `tmdb-proxy/deployCheck.test.ts` over a git repository made in the test | `npm test -- --project server` |
 | 5 | Integration | The real clients in `src/api/*` calling the real `kinoseedServer()` in front of the fakes: both ends of each route agree on paths, bodies, cookies and errors, and the flows that cross several routes (login, adding a release, matches) | Rendering; a server without a route (the SPA fallback), which stays in the client tests | Vitest, Node | `server/integration/*.test.ts`, the stand in `server/test/integration.ts` | `npm test -- --project server` |
-| 6 | Browser | How the screens look: the built app in Chromium against baseline PNGs, with every server route mocked (screenshot tests). And four smoke journeys through the real production server behind a proxy that wants a cookie, with the services faked: the browser and the server together (smoke journeys) | Behavior, which the layers above cover faster | Playwright in Docker; Playwright on the host | `e2e/*.spec.ts`, baselines in `e2e/__screenshots__/`; `e2e/smoke/*.smoke.ts`, the stand in `e2e/smoke/stack.ts` | `npm run test:visual`; `npm run test:smoke` |
+| 6 | Browser | How the screens look: the built app in Chromium against baseline PNGs, with every server route mocked (screenshot tests). And five smoke journeys through the real production server behind a proxy that wants a cookie, with the services faked: the browser and the server together (smoke journeys) | Behavior, which the layers above cover faster | Playwright in Docker; Playwright on the host | `e2e/*.spec.ts`, baselines in `e2e/__screenshots__/`; `e2e/smoke/*.smoke.ts`, the stand in `e2e/smoke/stack.ts` | `npm run test:visual`; `npm run test:smoke` |
 
 Layers 1–5 run on every `npm test` in two Vitest projects (`vite.config.ts`): `app` is jsdom with
 `src/test-setup.ts` (jest-dom matchers, the interface language reset to English, Testing Library's
@@ -593,7 +593,7 @@ Unit tests run in jsdom, which has no layout, so they can't catch a button in th
 
 ## Smoke journeys
 
-The other half of layer 6: four journeys (`e2e/smoke/*.smoke.ts`, `npm run test:smoke`) drive the
+The other half of layer 6: five journeys (`e2e/smoke/*.smoke.ts`, `npm run test:smoke`) drive the
 built app in Chromium against the real production server (`server/main.ts` serving `dist/`), with
 qBittorrent, Prowlarr and TMDB faked. They cover what no other layer can see: the screenshot tests
 mock every server route in the browser and the integration tests run the clients in Node, so
@@ -615,7 +615,11 @@ need no Docker: Chromium on the host will do (`npx playwright install chromium`,
   without a reload, `matches.json` forgets the hashes, and Escape in the native confirmation
   deletes nothing. The service worker: the shell is precached (behind the proxy, so with the
   cookie) and served offline, where the app shows its own "unreachable" screen and comes back on
-  Retry; the caches hold posters and never `/qbt/`, `/prowlarr/`, `/tmdb/` or `/api/`. Every
+  Retry; the caches hold posters and never `/qbt/`, `/prowlarr/`, `/tmdb/` or `/api/`. The tabs
+  on a phone: each comes back to where it was left once its content is in, the position read as a
+  screen goes away being the one the user left rather than the next screen's, clamped; a reload of
+  an entry a tab's link opened (the browser keeps its history state) comes back to where the user
+  was on it; and the active tab scrolls to the top, which only a real browser's scrolling shows. Every
   journey also asserts the proxy refused nothing, so every fetch carried its cookie.
 - **What they don't.** Looks (the screenshot tests), and the branches of a flow (an error, an
   empty state, a second qBittorrent version): a journey goes through once; its variations belong

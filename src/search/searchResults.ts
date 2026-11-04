@@ -57,6 +57,12 @@ export function keptResults(entry: string, search: string): SearchResults | unde
   return found?.search === search ? found.results : undefined
 }
 
+/** The results kept for this search under whichever entry holds them (a search takes one place). */
+export function keptSearch(search: string): SearchResults | undefined {
+  for (const found of kept.values()) if (found.search === search) return found.results
+  return undefined
+}
+
 /** Forgets every kept search (tests start from none). */
 export function forgetKeptResults(): void {
   kept.clear()

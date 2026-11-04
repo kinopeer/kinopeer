@@ -1,9 +1,10 @@
 import { act, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { Route, Routes, useNavigate } from 'react-router'
+import { Link, Route, Routes, useNavigate } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import * as tmdb from '../api/tmdb'
 import i18n from '../i18n'
+import { TAB_RETURN, forgetTabPlaces, tabPlace } from '../lib/tabPlaces'
 import { forgetKeptResults } from '../search/searchResults'
 import { searchPage as page, title } from '../test/fixtures'
 import { renderWithRouter, saying } from '../test/render'
@@ -404,9 +405,16 @@ describe('SearchScreen', () => {
     function TitlePage() {
       const navigate = useNavigate()
       return (
-        <button type="button" onClick={() => void navigate(-1)}>
-          Back
-        </button>
+        <>
+          <button type="button" onClick={() => void navigate(-1)}>
+            Back
+          </button>
+          {/* As the tab bar's Search tab links to the search it was left on. */}
+          <Link to="/search?q=dune" state={TAB_RETURN}>
+            Search tab
+          </Link>
+          <Link to="/search?q=dune">Same search</Link>
+        </>
       )
     }
 
@@ -424,6 +432,7 @@ describe('SearchScreen', () => {
 
     beforeEach(() => {
       sessionStorage.clear()
+      forgetTabPlaces()
       scrollTo = vi.spyOn(window, 'scrollTo')
     })
 
@@ -455,6 +464,40 @@ describe('SearchScreen', () => {
       expect(searchTitles).toHaveBeenCalledTimes(2)
       await userEvent.click(screen.getByRole('button', { name: 'Show more' }))
       expect(searchTitles).toHaveBeenLastCalledWith('dune', expect.objectContaining({ page: 3 }))
+    })
+
+    it('comes back through the Search tab with the pages loaded before, where the tab was left', async () => {
+      searchTitles.mockImplementation(async (_query, options) =>
+        options?.page === 2 ? page([ALIEN], { page: 2, totalPages: 3 }) : page([DUNE, ANDOR], { totalPages: 3 }),
+      )
+      renderWithTitle()
+      await userEvent.click(await screen.findByRole('button', { name: 'Show more' }))
+      await screen.findByRole('heading', { name: 'Alien: Romulus' })
+      scrolledTo(1400)
+      await userEvent.click(screen.getByRole('link', { name: /Alien: Romulus/ }))
+      // Kept as the Search tab's place, which its link goes to.
+      expect(tabPlace('/search')).toEqual({ search: '?q=dune', y: 1400 })
+      scrolledTo(80)
+      await userEvent.click(screen.getByRole('link', { name: 'Search tab' }))
+
+      expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual([
+        'Dune: Part Two',
+        'Andor',
+        'Alien: Romulus',
+      ])
+      expect(scrollTo).toHaveBeenCalledWith(0, 1400)
+      // Nothing is asked again: a new history entry, but the search the tab was left on.
+      expect(searchTitles).toHaveBeenCalledTimes(2)
+    })
+
+    it('asks again for a search opened afresh, rather than showing the pages kept for another entry', async () => {
+      searchTitles.mockResolvedValue(page([DUNE, ANDOR]))
+      renderWithTitle()
+      await screen.findByText('About 2 results')
+      await userEvent.click(screen.getByRole('link', { name: /Andor/ }))
+      await userEvent.click(screen.getByRole('link', { name: 'Same search' }))
+      expect(await screen.findByText('About 2 results')).toBeInTheDocument()
+      expect(searchTitles).toHaveBeenCalledTimes(2)
     })
 
     it('searches again when the results weren’t kept, and scrolls back once they’re in', async () => {
