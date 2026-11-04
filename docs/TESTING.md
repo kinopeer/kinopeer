@@ -160,9 +160,9 @@ milliseconds, fails with a precise message, and it's the one the layer above lea
   it, one opened again for the same torrent, or a toast), that it isn't sent twice while in flight
   (pressed again, from the sheet opened again, and after another torrent's request started), that a
   sheet opened again starts from what's in flight, and that its fields can't be changed meanwhile.
-  `useMoveTorrent.test.tsx`, `useSpeedLimits.test.tsx` and `useTitleChoice.test.tsx` do, with what a
-  sheet does with what's in flight alone in its own tests (`SpeedLimitsSheet.test.tsx`,
-  `ChangeTitleSheet.test.tsx`).
+  `useMoveTorrent.test.tsx`, `useSpeedLimits.test.tsx`, `useTitleChoice.test.tsx` and
+  `useChangeCategory.test.tsx` do, with what a sheet does with what's in flight alone in its own
+  tests (`SpeedLimitsSheet.test.tsx`, `ChangeTitleSheet.test.tsx`, `CategorySheet.test.tsx`).
 - **A request that expects a state** (pause and resume, recheck, delete). The store's tests own
   which torrents a request sends, when the state is kept and the poll asked again, the order the
   states apply in, and `withExpected` when the poll has the final word (a torrent taken away
@@ -170,9 +170,9 @@ milliseconds, fails with a precise message, and it's the one the layer above lea
   `usePauseResume.test.tsx` owns busy across places, the toast and its key, and a watcher taking the
   outcome. Each place that pauses or resumes gets one test that it goes through the shared requests
   (busy from a request sent elsewhere, or left out of a bulk one), and `App.test.tsx` one step that
-  `App` links the requests to its poll. A kind of its own (reannounce, recheck, delete) has its
-  hook's test for the same (`useReannounce.test.tsx`, `useRecheck.test.tsx`,
-  `useDeleteTorrents.test.tsx`, the state it expects included) and a wiring test per place, as
+  `App` links the requests to its poll. A kind of its own (reannounce, recheck, delete, the download
+  order's switches) has its hook's test for the same (`useReannounce.test.tsx`, `useRecheck.test.tsx`,
+  `useDeleteTorrents.test.tsx`, `useDownloadToggle.test.tsx`, the state it expects included) and a wiring test per place, as
   above. File priorities keep their state against the files poll instead, so
   `useFilePriorities.test.tsx` owns when it gives way to that poll, besides busy per file and where
   a failure goes.
@@ -572,7 +572,7 @@ under one blocking finding per PR. From then on the retro runs once per release 
 Unit tests run in jsdom, which has no layout, so they can't catch a button in the wrong place or a title that doesn't clamp. Screenshot tests do: Playwright opens the built app (`vite preview`) in Chromium and compares each screen with a baseline PNG.
 
 - **What's covered:** what only the browser sees, one baseline per layout or state, in the dark theme and Russian unless said otherwise. Specs are in `e2e/*.spec.ts`, baselines in `e2e/__screenshots__/`.
-  - A phone (390×844): Downloads (list and poster grid, the sort and filter sheet, the actions sheet, selection, empty, offline, the sticky filter bar after a scroll, also with a notched iPhone's safe area, which a DevTools override gives Chromium), Search (browse rows, results, a next page that failed, the pinned field after a scroll, also with a notched safe area), the title page (movie and series, and the page scrolled under the pinned Find releases bar), Releases (results, the filters sheet, the add sheet, also with too little free space, and its file picker), torrent details (with files, a guessed title, changing the title, an error), Settings (and a connection with an error, and Prowlarr without indexers) and the connect screen with a wrong password.
+  - A phone (390×844): Downloads (list and poster grid, the sort and filter sheet, the actions sheet, selection, empty, offline, the sticky filter bar after a scroll, also with a notched iPhone's safe area, which a DevTools override gives Chromium), Search (browse rows, results, a next page that failed, the pinned field after a scroll, also with a notched safe area), the title page (movie and series, and the page scrolled under the pinned Find releases bar), Releases (results, the filters sheet, the add sheet, also with too little free space, and its file picker), torrent details (with files, a guessed title, changing the title, changing the category, an error), Settings (and a connection with an error, and Prowlarr without indexers) and the connect screen with a wrong password.
   - A tablet (768×1024): Downloads in the centered column, with the tab bar over it.
   - Desktop (1440×900): the sidebar with labels, Downloads as a grid and as a table (the row and sort menus, selection, offline, the sticky header and column names after a scroll, the header with a notched safe area), Search (incl. no results), the title page (incl. the long overview with Show more), releases under the hero with a filter popover, the torrent drawer over Downloads and over the title page, the add and delete modals, Settings and onboarding. The icon rail (1024×768) in the status menu, releases and Settings; the labelled sidebar at its narrowest (1100×800) and full HD (1920×1080) for the table's columns.
   - The light theme in English twice, where its colors show on every status and on the sidebar: the Downloads list on the phone and the grid on desktop.

@@ -36,7 +36,8 @@ export function categoryChange(
  */
 export function withCategory(torrent: Torrent, category: string, change: CategoryChange): Torrent {
   const next = { ...torrent, category }
-  if (change.kind === 'move' && change.folder) next.save_path = change.folder
+  // Where the files are afterwards: the new folder of a move, else the one they're in.
+  if (change.folder) next.save_path = change.folder
   if (change.kind === 'toManual') next.auto_tmm = false
   return next
 }

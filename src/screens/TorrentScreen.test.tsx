@@ -10,6 +10,7 @@ import { DUNE_TORRENT, mainData, searchPage } from '../test/fixtures'
 import { findToastOnPage, renderWithRouter, saying } from '../test/render'
 import * as serverMatches from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
+import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
 import { TorrentScreen } from './TorrentScreen'
 
 /** Hides the page, which stops the poll until the test ends. */
@@ -284,6 +285,27 @@ describe('TorrentScreen', () => {
     expect(within(download).getByRole('switch', { name: 'First and last pieces first' })).toBeDisabled()
   })
 
+  it('turns the download settings off while the torrent is being deleted', async () => {
+    deleteTorrents.mockReturnValue(new Promise(() => {}))
+    // One store for the delete and the page that shows it busy, as in the app.
+    renderWithRouter(
+      <TorrentRequestsProvider>
+        <Routes>
+          <Route path="/torrent/:hash" element={<TorrentScreen onSessionLost={vi.fn()} />} />
+        </Routes>
+      </TorrentRequestsProvider>,
+      ['/torrent/dune'],
+    )
+    const download = await screen.findByRole('region', { name: 'Download' })
+    expect(within(download).getByRole('button', { name: 'Category: Movies' })).toBeEnabled()
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    const dialog = screen.getByRole('alertdialog', { name: 'Delete torrent?' })
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+    const hidden = { hidden: true }
+    expect(within(download).getByRole('button', { name: 'Category: Movies', ...hidden })).toBeDisabled()
+    expect(within(download).getByRole('switch', { name: 'Sequential download', ...hidden })).toBeDisabled()
+  })
+
   it('changes the category from its sheet, which says where the files move', async () => {
     vi.mocked(api.getSaveLocations).mockResolvedValue({
       defaultPath: '/data',
@@ -295,15 +317,20 @@ describe('TorrentScreen', () => {
       subcategories: false,
       relocateOnCategoryChange: true,
     })
-    vi.mocked(api.setCategory).mockResolvedValue()
+    let answer = () => {}
+    vi.mocked(api.setCategory).mockReturnValue(new Promise((resolve) => (answer = resolve)))
     getMainData.mockResolvedValue(snapshot({ auto_tmm: true }))
     renderScreen()
-    await userEvent.click(await screen.findByRole('button', { name: 'Category: Movies' }))
+    const row = await screen.findByRole('button', { name: 'Category: Movies' })
+    await userEvent.click(row)
     const sheet = screen.getByRole('dialog', { name: 'Category' })
     await userEvent.click(await within(sheet).findByRole('radio', { name: 'TV Shows' }))
     expect(within(sheet).getByText('qBittorrent will move the files to /data/tv.')).toBeInTheDocument()
     await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
     expect(api.setCategory).toHaveBeenCalledWith(['dune'], 'TV Shows')
+    // Busy on the page too while it's sent, so it can't be opened and sent again.
+    expect(row).toBeDisabled()
+    await act(async () => answer())
     expect(await findToastOnPage('Moving files to /data/tv')).toBeInTheDocument()
   })
 

@@ -73,7 +73,8 @@ describe('useDownloadToggle', () => {
   it('flips nothing for a torrent qBittorrent no longer has', async () => {
     getTorrents.mockResolvedValue([])
     const { result } = renderHook(() => useDownloadToggle('f_l_piece_prio'), { wrapper: Providers })
-    await act(() => result.current.set(DUNE, true))
+    // Not a failure: there's nothing to flip, and the page says the torrent is gone.
+    expect(await act(() => result.current.set(DUNE, true))).toMatchObject({ ok: true })
     expect(getTorrents).toHaveBeenCalledOnce()
     expect(toggleFirstLastPiecePrio).not.toHaveBeenCalled()
   })
@@ -101,6 +102,8 @@ describe('useDownloadToggle', () => {
     expect(toggleSequentialDownload).toHaveBeenCalledOnce()
     expect(result.current.drawer.busy('dune')).toBe(false)
     expect(result.current.drawer.value(DUNE)).toBe(false)
+    // Neither the flip qBittorrent took nor the one left out is a failure.
+    expect(screen.queryByRole('status', { name: saying(FAILED) })).not.toBeInTheDocument()
   })
 
   it('keeps the new value for qBittorrent’s refresh interval, which may still report the old one', async () => {

@@ -69,7 +69,7 @@ export function CategorySheet({ torrent, offline, pending, failed, onSave, onClo
       }
     >
       <div className="category-body">
-        <fieldset className="category-options" aria-busy={!locations}>
+        <fieldset className="category-options">
           <legend className="sr-only">{t('category.title')}</legend>
           {options(torrent, locations).map((option, index) => {
             const folder = moves && locations ? categoryChange(torrent, option, locations).folder : ''
