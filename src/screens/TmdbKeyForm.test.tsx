@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as serverSettings from '../api/settings'
@@ -54,9 +54,19 @@ describe('TmdbKeyForm', () => {
     await userEvent.click(save)
     expect(saveTmdbKey).toHaveBeenCalledWith('abc123')
     expect(save).toHaveAttribute('aria-busy', 'true')
+    // One request at a time: Enter again while it's saving sends nothing more.
+    await userEvent.type(field, '{Enter}')
+    expect(saveTmdbKey).toHaveBeenCalledTimes(1)
 
     finish(SAVED)
     await vi.waitFor(() => expect(onSaved).toHaveBeenCalledWith(SAVED))
+  })
+
+  it('submits through the server, not as the browser would', async () => {
+    const { field } = renderForm()
+    await userEvent.type(field, 'abc123')
+    // The browser's own submission would reload the page; fireEvent says whether it was prevented.
+    expect(fireEvent.submit(field.closest('form')!)).toBe(false)
   })
 
   it('needs a key', async () => {
@@ -107,6 +117,7 @@ describe('TmdbKeyForm', () => {
     await userEvent.click(screen.getByRole('button', { name: label }))
     await vi.waitFor(() => expect(onForgotten).toHaveBeenCalledWith(SHARED))
     expect(onSaved).not.toHaveBeenCalled()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('has no forget button unless there is a key to go back to', () => {
@@ -118,6 +129,8 @@ describe('TmdbKeyForm', () => {
     ['storage', 'The Kinoseed server couldn’t save the change. Check that its data folder is writable.'],
     ['no-server-key', 'Kinoseed has no other TMDB key to use, so the saved one stays.'],
     [undefined, 'Couldn’t forget the key. Try again.'],
+    // Not the field's "invalid key": forgetting sends no key.
+    ['bad-request', 'Couldn’t forget the key. Try again.'],
   ] as const)('says why the key could not be forgotten (%s), and can try again', async (code, message) => {
     forgetTmdbKey.mockRejectedValueOnce(code ? new serverSettings.SettingsError(500, code) : new Error('network'))
     forgetTmdbKey.mockResolvedValueOnce(SHARED)
@@ -125,6 +138,7 @@ describe('TmdbKeyForm', () => {
     const forget = screen.getByRole('button', { name: 'Use Kinoseed’s key' })
     await userEvent.click(forget)
     expect(await screen.findByRole('alert', { name: saying(message) })).toBeInTheDocument()
+    expect(screen.getByLabelText('API key or read access token')).not.toHaveAttribute('aria-invalid')
     expect(forget).not.toHaveAttribute('aria-busy')
     expect(onForgotten).not.toHaveBeenCalled()
 

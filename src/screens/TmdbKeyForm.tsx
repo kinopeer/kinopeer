@@ -26,9 +26,7 @@ type FormError = 'invalid' | 'unreachable' | 'storage' | 'no-server-key' | 'fail
 function formError(e: unknown, kind: 'save' | 'forget'): FormError {
   const code = e instanceof SettingsError ? e.code : undefined
   if (kind === 'save' && (code === 'invalid-key' || code === 'bad-request')) return 'invalid'
-  if (code === 'storage') return 'storage'
-  if (kind === 'save' && code === 'unreachable') return 'unreachable'
-  if (kind === 'forget' && code === 'no-server-key') return 'no-server-key'
+  if (code === 'storage' || code === 'unreachable' || code === 'no-server-key') return code
   return kind === 'save' ? 'failed' : 'forget-failed'
 }
 

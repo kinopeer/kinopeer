@@ -174,6 +174,9 @@ describe('settingsMiddleware', () => {
     const tmdbStatus = async (url: string) => ((await (await fetch(`${url}/api/settings`)).json()) as { tmdb: unknown }).tmdb
 
     expect(await tmdbStatus(app)).toEqual({ configured: true, source: 'shared', fallback: 'shared' })
+    // A blank key in a hand-edited settings.json isn't used (tmdbKey), so it isn't reported either.
+    await store.update({ tmdbApiKey: '  ' })
+    expect(await tmdbStatus(app)).toEqual({ configured: true, source: 'shared', fallback: 'shared' })
     expect(await tmdbStatus(await kinoseed(store, { proxy: 'https://proxy.test/3', envKey: 'env-key' }))).toEqual({
       configured: true,
       source: 'env',
