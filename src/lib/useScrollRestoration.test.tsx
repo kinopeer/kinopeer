@@ -4,7 +4,7 @@ import { StrictMode } from 'react'
 import { Link, MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TAB_RETURN, forgetTabPlaces, saveTabPlace, tabPlace } from './tabPlaces'
-import { forgetFirstLoadCheck, useNewScreenAtTop, useScrollRestoration } from './useScrollRestoration'
+import { useNewScreenAtTop, useScrollRestoration } from './useScrollRestoration'
 
 function Screen({ ready }: { ready: boolean }) {
   useScrollRestoration(ready, '/')
@@ -50,7 +50,6 @@ function scrolledTo(y: number) {
 beforeEach(() => {
   sessionStorage.clear()
   forgetTabPlaces()
-  forgetFirstLoadCheck()
   scrollTo.mockReset()
   window.scrollTo = scrollTo as unknown as typeof window.scrollTo
   scrolledTo(0)
@@ -262,6 +261,21 @@ describe('useScrollRestoration on a tab’s screen', () => {
   })
 })
 
+describe('useScrollRestoration when the page is hidden', () => {
+  it('saves nothing for a screen that’s gone', async () => {
+    const user = userEvent.setup()
+    render(app(true))
+    scrolledTo(640)
+    await user.click(screen.getByRole('link', { name: 'Open' }))
+    // Another screen, scrolled elsewhere, when the page is hidden or goes away.
+    scrolledTo(50)
+    document.dispatchEvent(new Event('visibilitychange'))
+    window.dispatchEvent(new Event('pagehide'))
+    await user.click(screen.getByRole('button', { name: 'Back' }))
+    expect(scrollTo).toHaveBeenCalledWith(0, 640)
+  })
+})
+
 describe('useScrollRestoration across a reload', () => {
   /** The tab's screen on an entry its link opened, as a reload finds it again: the same key and state. */
   const tabEntry = (ready = true) => (
@@ -308,28 +322,46 @@ describe('useScrollRestoration on a document’s first entry', () => {
     )
   }
 
+  /** The screen in a new document: the hook's module loaded again, as a page load does. */
+  async function renderInNewDocument() {
+    vi.resetModules()
+    const { useScrollRestoration: restore } = await import('./useScrollRestoration')
+    function FirstScreen() {
+      restore(true, '/')
+      return <Link to="/other">Open</Link>
+    }
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route path="/" element={<FirstScreen />} />
+          <Route path="/other" element={<Other />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+  }
+
   afterEach(() => vi.restoreAllMocks())
 
   // React Router names every document's first entry "default", so an earlier document's position is kept under
   // the same name in the session's storage.
   beforeEach(() => sessionStorage.setItem('kinoseed.scroll:default', '900'))
 
-  it('opens a document loaded afresh at the top, whatever an earlier one left under its first entry', () => {
+  it('opens a document loaded afresh at the top, whatever an earlier one left under its first entry', async () => {
     loadedBy('navigate')
-    render(app(true))
+    await renderInNewDocument()
     expect(scrollTo).not.toHaveBeenCalled()
   })
 
-  it.each(['reload', 'back_forward'] as const)('brings the first entry back on a %s', (type) => {
+  it.each(['reload', 'back_forward'] as const)('brings the first entry back on a %s', async (type) => {
     loadedBy(type)
-    render(app(true))
+    await renderInNewDocument()
     expect(scrollTo).toHaveBeenCalledWith(0, 900)
   })
 
   it('still brings the first entry back on Back within the document', async () => {
     const user = userEvent.setup()
     loadedBy('navigate')
-    render(app(true))
+    await renderInNewDocument()
     scrolledTo(300)
     await user.click(screen.getByRole('link', { name: 'Open' }))
     await user.click(screen.getByRole('button', { name: 'Back' }))

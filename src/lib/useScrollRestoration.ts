@@ -45,11 +45,6 @@ function forgetEarlierFirstEntry(): void {
   }
 }
 
-/** Checks the document's load again (tests start a new "document" each). */
-export function forgetFirstLoadCheck(): void {
-  firstLoadChecked = false
-}
-
 /**
  * Brings a tab's screen (`tab`, the tab's path) back to where it was scrolled when the user returns
  * to it through history (Back or Forward), and to where the tab was left when the tab's link opens
