@@ -1,0 +1,87 @@
+name: TMDB proxy
+
+# Deploys Kinoseed's TMDB proxy (tmdb-proxy/) to Cloudflare Workers and gives it the key, which lives
+# in this repository's secrets and the worker's, never in the code or the image. It has no trigger of
+# its own: Edge runs it for kinoseed-tmdb-edge with every edge build, and Release for kinoseed-tmdb
+# with every release, so each worker goes out with the builds that call it, whatever starts them
+# (docs/DEVELOPMENT.md → The TMDB proxy).
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: '`edge` (main, called by Kinoseed Edge) or `release` (the newest tag, called by released versions)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  WRANGLER_SEND_METRICS: 'false'
+
+jobs:
+  deploy:
+    concurrency:
+      group: tmdb-proxy-${{ inputs.environment }}
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # The Cloudflare token only in the steps that call Cloudflare, not while npm installs Wrangler.
+    env:
+      ENVIRONMENT: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # main's head and the tags, to tell whether this is the newest code for the worker.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Check the secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+        run: |
+          missing=()
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || missing+=(CLOUDFLARE_API_TOKEN)
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || missing+=(CLOUDFLARE_ACCOUNT_ID)
+          [ -n "$TMDB_API_KEY" ] || missing+=(TMDB_API_KEY)
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Repository secrets not set: ${missing[*]}"
+            exit 1
+          fi
+
+      # Only the newest proxy code for this worker (tmdb-proxy/deployCheck.ts says why and how).
+      - id: newest
+        name: Check this is the newest code for the worker
+        run: |
+          result="$(node tmdb-proxy/deployCheck.ts "$ENVIRONMENT")"
+          echo "$result" >> "$GITHUB_OUTPUT"
+          [ "$result" = deploy=true ] || echo "::notice::The $ENVIRONMENT worker stays as it is (the reason is in this step's log)."
+
+      # Wrangler and its dependencies exactly as tmdb-proxy/package-lock.json names them.
+      - name: Install Wrangler
+        if: steps.newest.outputs.deploy == 'true'
+        working-directory: tmdb-proxy
+        run: npm ci --no-audit --no-fund
+
+      - name: Deploy
+        if: steps.newest.outputs.deploy == 'true'
+        working-directory: tmdb-proxy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy --env "$ENVIRONMENT"
+
+      # From stdin, so the key shows in no command line or log.
+      - name: Set the key
+        if: steps.newest.outputs.deploy == 'true'
+        working-directory: tmdb-proxy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+        run: printf '%s' "$TMDB_API_KEY" | npx wrangler secret put TMDB_API_KEY --env "$ENVIRONMENT"

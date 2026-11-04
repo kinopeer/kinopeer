@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fakePoll } from '../test/render'
@@ -85,5 +87,52 @@ describe('PollRing', () => {
     const { poll } = fakePoll({ inFlight: false, offline: true, updatedAt: null })
     render(<PollRing poll={poll} />)
     expect(ringState(screen.getByRole('img', { name: 'qBittorrent isn’t answering' }))).toBe('offline')
+  })
+})
+
+describe('PollRing.css', () => {
+  // Vitest runs from the project root (import.meta.url isn't a file URL under jsdom).
+  const css = readFileSync(join(process.cwd(), 'src/screens/PollRing.css'), 'utf8')
+
+  /** The properties each @keyframes rule animates, by the rule's name. */
+  const animated = () =>
+    Object.fromEntries(
+      [...css.matchAll(/@keyframes\s+([\w-]+)\s*\{((?:[^{}]*\{[^{}]*\})*)[^{}]*\}/g)].map(([, name, body]) => [
+        name,
+        [...new Set([...body.matchAll(/([a-z-]+)\s*:/g)].map(([, property]) => property))],
+      ]),
+    )
+
+  /** The stylesheet without its `@media (prefers-reduced-motion: no-preference)` blocks, and those blocks. */
+  const byMotion = () => {
+    const opening = /@media\s*\(prefers-reduced-motion:\s*no-preference\)\s*\{/g
+    let rest = css
+    const moving: string[] = []
+    for (let match = opening.exec(rest); match !== null; match = opening.exec(rest)) {
+      let depth = 1
+      let end = match.index + match[0].length
+      for (; depth > 0 && end < rest.length; end++) depth += rest[end] === '{' ? 1 : rest[end] === '}' ? -1 : 0
+      moving.push(rest.slice(match.index, end))
+      rest = rest.slice(0, match.index) + rest.slice(end)
+      opening.lastIndex = match.index
+    }
+    return { rest, moving: moving.join('\n') }
+  }
+
+  it('fills and pulses only without reduced motion, a full ring otherwise', () => {
+    const { rest, moving } = byMotion()
+    expect(rest).not.toMatch(/(?:^|[;{\s])animation(?:-name)?\s*:/)
+    expect(moving).toMatch(/animation\s*:\s*poll-ring-first\b/)
+    expect(moving).toMatch(/animation\s*:\s*poll-ring-second\b/)
+    expect(moving).toMatch(/animation\s*:\s*poll-ring-wait\b/)
+  })
+
+  it('animates only what the compositor runs, so the ring repaints nothing while it fills or pulses', () => {
+    // stroke-dashoffset ran on the main thread every frame: 220 ms/s of an idle phone list at 4× CPU (#220).
+    expect(animated()).toEqual({
+      'poll-ring-first': ['transform'],
+      'poll-ring-second': ['transform'],
+      'poll-ring-wait': ['opacity'],
+    })
   })
 })

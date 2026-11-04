@@ -21,7 +21,7 @@ function git(...args) {
 function changedRanges() {
   const ranges = []
   let file
-  for (const line of git('diff', '-U0', `${BASE}...HEAD`, '--', 'src', 'server').split('\n')) {
+  for (const line of git('diff', '-U0', `${BASE}...HEAD`, '--', 'src', 'server', 'tmdb-proxy').split('\n')) {
     if (line.startsWith('+++ ')) {
       const path = line.slice('+++ b/'.length)
       file = SOURCE.test(path) && !NOT_PRODUCTION.test(path) ? path : undefined
