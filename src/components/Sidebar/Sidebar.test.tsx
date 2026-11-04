@@ -1,6 +1,7 @@
 import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
+import { forgetTabPlaces, saveTabPlace } from '../../lib/tabPlaces'
 import { renderWithRouter } from '../../test/render'
 import type { TabBarItem } from '../TabBar'
 import { Sidebar } from './Sidebar'
@@ -25,6 +26,18 @@ describe('Sidebar', () => {
     expect(within(nav).getByRole('link', { name: 'Search' })).toHaveClass('is-on')
     expect(within(nav).getByRole('link', { name: 'Downloads' })).not.toHaveAttribute('aria-current')
     expect(within(nav).getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/settings')
+  })
+
+  it('takes its items back to where their tabs were left, and its current one to the top', async () => {
+    forgetTabPlaces()
+    saveTabPlace('/search', { search: '?q=dune', y: 640 })
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    onTestFinished(() => scrollTo.mockRestore())
+    const nav = renderSidebar('/')
+    // The tab's link, with what it does, is TabLink's (TabLink.test.tsx); the sidebar's items are such links.
+    expect(within(nav).getByRole('link', { name: 'Search' })).toHaveAttribute('href', '/search?q=dune')
+    await userEvent.click(within(nav).getByRole('link', { name: 'Downloads' }))
+    expect(scrollTo).toHaveBeenCalledWith(expect.objectContaining({ top: 0 }))
   })
 
   it('highlights an item for the screens inside it', () => {

@@ -6,6 +6,7 @@ import * as matchesApi from '../api/matches'
 import * as api from '../api/qbittorrent'
 import type { MainData, Torrent } from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
+import { TAB_RETURN, forgetTabPlaces, saveTabPlace } from '../lib/tabPlaces'
 import { getSettings, resetSettings, updateSettings } from '../settings/settings'
 import { mainData, searchPage, title, torrent as fixtureTorrent } from '../test/fixtures'
 import { findToastOnPage, renderWithRouter, saying } from '../test/render'
@@ -126,6 +127,24 @@ describe('DownloadsScreen', () => {
       'Andor.S02.1080p',
       'Alien.Romulus.2024.1080p',
     ])
+  })
+
+  it('comes back through the Downloads tab to where the tab was left, once the list is in', async () => {
+    // Nothing kept for the entry itself, which every test's router calls "default".
+    sessionStorage.clear()
+    forgetTabPlaces()
+    saveTabPlace('/', { search: '', y: 900 })
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    onTestFinished(() => scrollTo.mockRestore())
+    let answer = () => {}
+    getMainData.mockReturnValueOnce(new Promise((resolve) => (answer = () => resolve(SNAPSHOT))))
+    renderScreen(TAB_RETURN)
+    expect(screen.getByRole('status', { name: saying('Loading downloads') })).toBeInTheDocument()
+    expect(scrollTo).not.toHaveBeenCalled()
+
+    answer()
+    expect(await screen.findAllByRole('listitem')).toHaveLength(3)
+    expect(scrollTo).toHaveBeenCalledWith(0, 900)
   })
 
   it('shows the TMDB title and poster once matched, with the release name below', async () => {

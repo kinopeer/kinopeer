@@ -1,8 +1,7 @@
 import type { ReactNode } from 'react'
-import { NavLink, useLocation } from 'react-router'
 import { cx } from '../../lib/cx'
 import { Icon } from '../Icon'
-import { isTabOn, type TabBarItem } from '../TabBar'
+import { TabLink, type TabBarItem } from '../TabBar'
 import './Sidebar.css'
 
 export interface SidebarItem extends TabBarItem {
@@ -23,11 +22,9 @@ export interface SidebarProps {
 
 /**
  * Desktop navigation in place of the tab bar, fixed along the left edge: an icon rail up to 1100px,
- * then with labels. The current item gets aria-current="page".
+ * then with labels. Its items are the tab bar's tabs (`TabLink`).
  */
 export function Sidebar({ items, label, footer, pathname: page }: SidebarProps) {
-  const location = useLocation()
-  const pathname = page ?? location.pathname
   return (
     <div className="ks-side">
       <div className="ks-side-brand">
@@ -38,9 +35,7 @@ export function Sidebar({ items, label, footer, pathname: page }: SidebarProps) 
       </div>
       <nav className="ks-side-nav" aria-label={label}>
         {items.map((item) => (
-          <NavLink key={item.to} to={item.to} end className={({ isActive }) =>
-              cx('ks-nav', isTabOn(item, page === undefined ? isActive : page === item.to, pathname) && 'is-on')
-            }>
+          <TabLink key={item.to} item={item} page={page} className={(on) => cx('ks-nav', on && 'is-on')}>
             <Icon name={item.icon} size={22} />
             <span className="ks-nav-label">{item.label}</span>
             {item.count && (
@@ -49,7 +44,7 @@ export function Sidebar({ items, label, footer, pathname: page }: SidebarProps) 
                 <span className="sr-only">, {item.count.label}</span>
               </span>
             )}
-          </NavLink>
+          </TabLink>
         ))}
       </nav>
       {footer && <div className="ks-side-foot">{footer}</div>}

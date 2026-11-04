@@ -114,9 +114,9 @@ export function SearchScreen() {
     (rows.length === 0 ? typeRows.find((row) => row.error !== undefined)?.error : undefined)
   // Between a keystroke and the debounced request there's nothing to show for the new query yet.
   const loading = request.loading || (searching && (term !== query.trim() || year !== parseYear(yearText)))
-  // Back from a title: the browse rows load again (so do search results that weren't kept), so the browser
-  // can't bring the scroll back itself.
-  useScrollRestoration(!loading)
+  // Back from a title or the Search tab: the browse rows load again (so do search results that weren't kept),
+  // so the browser can't bring the scroll back itself.
+  useScrollRestoration(!loading, '/search')
 
   return (
     <main className="search status-strip">
