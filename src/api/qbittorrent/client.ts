@@ -137,6 +137,8 @@ interface FolderPreferences {
   /** qBittorrent 4.4+. */
   use_category_paths_in_manual_mode?: boolean
   use_subcategories?: boolean
+  /** "When Torrent Category changed": relocate the torrent (true) or switch it to manual mode. */
+  torrent_changed_tmm_enabled?: boolean
 }
 
 /** Categories by name, the default save path and how qBittorrent uses category folders. */
@@ -154,6 +156,8 @@ export async function getSaveLocations(signal?: AbortSignal): Promise<SaveLocati
     defaultPath,
     categoryPaths: !!(preferences.auto_tmm_enabled || preferences.use_category_paths_in_manual_mode),
     subcategories: !!preferences.use_subcategories,
+    // qBittorrent relocates by default.
+    relocateOnCategoryChange: preferences.torrent_changed_tmm_enabled !== false,
   }
 }
 
@@ -210,6 +214,28 @@ export async function setSpeedLimits(hashes: string[], limits: { download?: numb
   ])
   const failed = results.find((result): result is PromiseRejectedResult => result.status === 'rejected')
   if (failed) throw failed.reason
+}
+
+/**
+ * Flips sequential download: qBittorrent has no call that sets it, so a request sent twice undoes
+ * itself, and the caller checks the torrent's value first.
+ */
+export async function toggleSequentialDownload(hashes: string[]): Promise<void> {
+  await request('/torrents/toggleSequentialDownload', { method: 'POST', params: { hashes: hashes.join('|') } })
+}
+
+/** Flips "first and last pieces first", which, like sequential download, can only be flipped. */
+export async function toggleFirstLastPiecePrio(hashes: string[]): Promise<void> {
+  await request('/torrents/toggleFirstLastPiecePrio', { method: 'POST', params: { hashes: hashes.join('|') } })
+}
+
+/**
+ * Sets torrents' category, an empty one for none. Under automatic management qBittorrent then moves
+ * their files to the category's folder, or turns automatic management off
+ * (`SaveLocations.relocateOnCategoryChange`). It answers 409 for a category it doesn't have.
+ */
+export async function setCategory(hashes: string[], category: string): Promise<void> {
+  await request('/torrents/setCategory', { method: 'POST', params: { hashes: hashes.join('|'), category } })
 }
 
 /** Rechecks torrents' downloaded data against their hashes; qBittorrent shows them as checking meanwhile. */

@@ -7,6 +7,8 @@ import { useTorrentRequests } from '../torrents/useTorrentRequests'
 export interface TorrentAction {
   /** Whether one of the kind is in flight for the torrent, sent from anywhere. */
   busy: (hash: string) => boolean
+  /** What's being sent for the torrent while it is, from anywhere. */
+  pending: (hash: string) => unknown
   /** Sends one of the kind for the torrents without one in flight (`TorrentRequests.send`). */
   send: (
     target: Torrent | readonly Torrent[],
@@ -54,5 +56,9 @@ export function useTorrentAction(kind: RequestKind, watcher?: ActionWatcher): To
     (target, payload, request, options) => requests.send(kind, target, payload, request, options),
     [requests, kind],
   )
-  return { busy: (hash) => inFlight.has(requestKey(kind, hash)), send }
+  return {
+    busy: (hash) => inFlight.has(requestKey(kind, hash)),
+    pending: (hash) => inFlight.get(requestKey(kind, hash)),
+    send,
+  }
 }

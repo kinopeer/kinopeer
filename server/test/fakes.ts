@@ -103,7 +103,19 @@ export const PREFERENCES = {
   auto_tmm_enabled: false,
   use_category_paths_in_manual_mode: false,
   use_subcategories: false,
+  /** "When Torrent Category changed: Relocate torrent", qBittorrent's default. */
+  torrent_changed_tmm_enabled: true,
   refresh_interval: 1500,
+}
+
+/**
+ * Where qBittorrent 5.3 moves a torrent under automatic management when its category changes: the
+ * category's path, else the default save path and the category's name; the default save path
+ * without a category.
+ */
+function categoryPath(category: string): string {
+  if (!category) return '/downloads'
+  return CATEGORIES[category as keyof typeof CATEGORIES]?.savePath || `/downloads/${category}`
 }
 
 /** What the fake qBittorrent answers on /torrents/trackers. */
@@ -152,7 +164,12 @@ async function parseAdd(body: Buffer, contentType: string | undefined): Promise<
  * by default, so polls sent before then still have the old one),
  * /torrents/delete takes the torrents off the list and records the call in `deleted`,
  * /torrents/setLocation moves torrents to `location` (403 for a folder under /readonly, which
- * qBittorrent can't write to, and 409 under /unmakeable, a folder it can't create), and
+ * qBittorrent can't write to, and 409 under /unmakeable, a folder it can't create),
+ * /torrents/setCategory sets the category (409 for one not in CATEGORIES) and, for a torrent under
+ * automatic management, its save path to the category's folder (qBittorrent 5.3 reports the new
+ * category and folder in the next poll, with the state `moving` until the files are there, which
+ * the fake skips), /torrents/toggleSequentialDownload and /toggleFirstLastPiecePrio flip `seq_dl`
+ * and `f_l_piece_prio` (qBittorrent 5.3 may report the new value a second later), and
  * /app/preferences answers PREFERENCES.
  * Written from qBittorrent 5.3.x; when a newer version answers differently, change the fake here
  * and say the version.
@@ -269,6 +286,23 @@ export async function fakeQbittorrent({
       case '/api/v2/torrents/start':
       case '/api/v2/torrents/stop':
         return text(response, '')
+      case '/api/v2/torrents/setCategory': {
+        const category = params.get('category') ?? ''
+        if (category && !(category in CATEGORIES)) return text(response, 'Incorrect category name', 409)
+        const hashes = new Set((params.get('hashes') ?? '').split('|'))
+        for (const [index, torrent] of listing.entries())
+          if (hashes.has(torrent.hash))
+            listing[index] = { ...torrent, category, ...(torrent.auto_tmm && { save_path: categoryPath(category) }) }
+        return text(response, '')
+      }
+      case '/api/v2/torrents/toggleSequentialDownload':
+      case '/api/v2/torrents/toggleFirstLastPiecePrio': {
+        const field = pathname.endsWith('SequentialDownload') ? 'seq_dl' : 'f_l_piece_prio'
+        const hashes = new Set((params.get('hashes') ?? '').split('|'))
+        for (const [index, torrent] of listing.entries())
+          if (hashes.has(torrent.hash)) listing[index] = { ...torrent, [field]: !torrent[field] }
+        return text(response, '')
+      }
       case '/api/v2/torrents/setLocation': {
         // qBittorrent 5.x: "Cannot write to directory" and "Cannot make save path" in the body.
         const location = params.get('location') ?? ''

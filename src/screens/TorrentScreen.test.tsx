@@ -35,6 +35,9 @@ vi.mock('../api/qbittorrent', async (importOriginal) => {
     recheckTorrents: vi.fn(),
     setSpeedLimits: vi.fn(),
     reannounceTorrents: vi.fn(),
+    getTorrents: vi.fn(),
+    toggleSequentialDownload: vi.fn(),
+    setCategory: vi.fn(),
   }
 })
 
@@ -178,7 +181,6 @@ describe('TorrentScreen', () => {
     const value = (label: string) => screen.getByText(label, { selector: 'dt' }).nextElementSibling
     expect(value('Seeds / peers')).toHaveTextContent('12 (340) · 3 (41)')
     expect(value('Save path')).toHaveTextContent('/data/movies')
-    expect(value('Category')).toHaveTextContent('Movies')
     expect(value('Info hash')).toHaveTextContent('dune')
     expect(await screen.findByText('bt.rutor.info, opentor.net')).toBeInTheDocument()
     expect(getTorrentTrackers).toHaveBeenCalledWith('dune', expect.any(AbortSignal))
@@ -239,8 +241,74 @@ describe('TorrentScreen', () => {
     expect(screen.getByText('Search page')).toBeInTheDocument()
   })
 
+  it('shows the category and the download order in the Download section, which is always open', async () => {
+    getMainData.mockResolvedValue(snapshot({ seq_dl: true }))
+    renderScreen()
+    const download = await screen.findByRole('region', { name: 'Download' })
+    expect(within(download).getByRole('button', { name: 'Category: Movies' })).toBeInTheDocument()
+    expect(within(download).getByRole('switch', { name: 'Sequential download' })).toBeChecked()
+    expect(within(download).getByRole('switch', { name: 'First and last pieces first' })).not.toBeChecked()
+  })
+
+  it('keeps only the category of a complete torrent, whose download order no longer matters', async () => {
+    getMainData.mockResolvedValue(snapshot({ progress: 1, category: '' }))
+    renderScreen()
+    const download = await screen.findByRole('region', { name: 'Download' })
+    expect(within(download).getByRole('button', { name: 'Category: No category' })).toBeInTheDocument()
+    expect(within(download).queryByRole('switch', { name: 'Sequential download' })).not.toBeInTheDocument()
+    expect(within(download).queryByRole('switch', { name: 'First and last pieces first' })).not.toBeInTheDocument()
+  })
+
+  it('switches sequential download, showing the new value while it’s sent', async () => {
+    vi.mocked(api.getTorrents).mockResolvedValue([DUNE_TORRENT])
+    let answer = () => {}
+    vi.mocked(api.toggleSequentialDownload).mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    renderScreen()
+    const toggle = await screen.findByRole('switch', { name: 'Sequential download' })
+    await userEvent.click(toggle)
+    expect(toggle).toBeChecked()
+    // A second flip would undo the first.
+    expect(toggle).toBeDisabled()
+    await act(async () => answer())
+    expect(api.toggleSequentialDownload).toHaveBeenCalledWith(['dune'])
+    await waitFor(() => expect(toggle).toBeEnabled())
+  })
+
+  it('turns the download settings off while qBittorrent is unreachable', async () => {
+    renderScreen()
+    const download = await screen.findByRole('region', { name: 'Download' })
+    getMainData.mockRejectedValue(new TypeError('Failed to fetch'))
+    window.dispatchEvent(new Event('online'))
+    await waitFor(() => expect(within(download).getByRole('button', { name: 'Category: Movies' })).toBeDisabled())
+    expect(within(download).getByRole('switch', { name: 'Sequential download' })).toBeDisabled()
+    expect(within(download).getByRole('switch', { name: 'First and last pieces first' })).toBeDisabled()
+  })
+
+  it('changes the category from its sheet, which says where the files move', async () => {
+    vi.mocked(api.getSaveLocations).mockResolvedValue({
+      defaultPath: '/data',
+      categories: [
+        { name: 'Movies', savePath: '/data/movies' },
+        { name: 'TV Shows', savePath: '/data/tv' },
+      ],
+      categoryPaths: true,
+      subcategories: false,
+      relocateOnCategoryChange: true,
+    })
+    vi.mocked(api.setCategory).mockResolvedValue()
+    getMainData.mockResolvedValue(snapshot({ auto_tmm: true }))
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'Category: Movies' }))
+    const sheet = screen.getByRole('dialog', { name: 'Category' })
+    await userEvent.click(await within(sheet).findByRole('radio', { name: 'TV Shows' }))
+    expect(within(sheet).getByText('qBittorrent will move the files to /data/tv.')).toBeInTheDocument()
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
+    expect(api.setCategory).toHaveBeenCalledWith(['dune'], 'TV Shows')
+    expect(await findToastOnPage('Moving files to /data/tv')).toBeInTheDocument()
+  })
+
   it('moves the files from the More menu', async () => {
-    vi.mocked(api.getSaveLocations).mockResolvedValue({ defaultPath: '/downloads', categories: [], categoryPaths: false, subcategories: false })
+    vi.mocked(api.getSaveLocations).mockResolvedValue({ defaultPath: '/downloads', categories: [], categoryPaths: false, subcategories: false, relocateOnCategoryChange: true })
     vi.mocked(api.setTorrentLocation).mockResolvedValue()
     getTorrentTrackers.mockResolvedValue([])
     renderScreen()
@@ -263,7 +331,7 @@ describe('TorrentScreen', () => {
   })
 
   it('says how a move went when the torrent is gone by the time qBittorrent answers', async () => {
-    vi.mocked(api.getSaveLocations).mockResolvedValue({ defaultPath: '/downloads', categories: [], categoryPaths: false, subcategories: false })
+    vi.mocked(api.getSaveLocations).mockResolvedValue({ defaultPath: '/downloads', categories: [], categoryPaths: false, subcategories: false, relocateOnCategoryChange: true })
     let fail = (_error: unknown) => {}
     vi.mocked(api.setTorrentLocation).mockReturnValue(new Promise<void>((_resolve, reject) => (fail = reject)))
     renderScreen()
@@ -367,6 +435,14 @@ describe('TorrentScreen', () => {
         await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Change title' }))
       },
       () => screen.queryByRole('dialog', { name: 'Change title' }),
+    ],
+    [
+      'the category sheet',
+      async () => {
+        vi.mocked(api.getSaveLocations).mockReturnValue(new Promise(() => {}))
+        await userEvent.click(await screen.findByRole('button', { name: 'Category: Movies' }))
+      },
+      () => screen.queryByRole('dialog', { name: 'Category' }),
     ],
   ])('closes %s when another torrent with the same hash replaces its torrent between two polls', async (_overlay, open, overlay) => {
     renderScreen()

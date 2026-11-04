@@ -386,7 +386,7 @@ describe('App', () => {
       },
       server_state: {},
     })
-    vi.mocked(api.getSaveLocations).mockResolvedValue({ defaultPath: '/downloads', categories: [], categoryPaths: false, subcategories: false })
+    vi.mocked(api.getSaveLocations).mockResolvedValue({ defaultPath: '/downloads', categories: [], categoryPaths: false, subcategories: false, relocateOnCategoryChange: true })
   }
 
   it('says how a move went after the torrent’s screen was left while it was being sent', async () => {

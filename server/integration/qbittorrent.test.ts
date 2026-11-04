@@ -7,9 +7,12 @@ import {
   getTorrentTrackers,
   getSaveLocations,
   getTorrents,
+  setCategory,
   setTorrentLocation,
+  toggleFirstLastPiecePrio,
+  toggleSequentialDownload,
 } from '../../src/api/qbittorrent/client.ts'
-import { TORRENTS, mainData } from '../../src/test/fixtures.ts'
+import { TORRENTS, mainData, torrent } from '../../src/test/fixtures.ts'
 import { TRACKERS, mainDataDelta } from '../test/fakes.ts'
 import { startKinoseed, stopKinoseed } from '../test/integration.ts'
 
@@ -70,7 +73,25 @@ describe('qBittorrent client through /qbt', () => {
       defaultPath: '/downloads',
       categoryPaths: false,
       subcategories: false,
+      relocateOnCategoryChange: true,
     })
+  })
+
+  it('changes a torrent’s category, which moves the files of one under automatic management', async () => {
+    const { qbittorrent } = await startKinoseed({ qbittorrent: { torrents: [torrent('auto', { auto_tmm: true }), torrent('manual')] } })
+    await setCategory(['auto', 'manual'], 'TV Shows')
+    expect(qbittorrent.torrents).toMatchObject([
+      { hash: 'auto', category: 'TV Shows', save_path: '/downloads/tv' },
+      { hash: 'manual', category: 'TV Shows', save_path: '/downloads' },
+    ])
+    await expect(setCategory(['auto'], 'Gone')).rejects.toMatchObject({ status: 409 })
+  })
+
+  it('flips sequential download and first and last pieces first', async () => {
+    const { qbittorrent } = await startKinoseed({ qbittorrent: { torrents: [torrent('a', { seq_dl: true })] } })
+    await toggleSequentialDownload(['a'])
+    await toggleFirstLastPiecePrio(['a'])
+    expect(qbittorrent.torrents[0]).toMatchObject({ seq_dl: false, f_l_piece_prio: true })
   })
 
   it('moves a torrent’s files', async () => {

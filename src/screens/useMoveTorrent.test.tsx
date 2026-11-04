@@ -63,7 +63,7 @@ beforeEach(() => {
     defaultPath: '/downloads/',
     categories: [{ name: 'Movies', savePath: '/media/movies' }],
     categoryPaths: false,
-    subcategories: false,
+    subcategories: false, relocateOnCategoryChange: true,
   })
   setTorrentLocation.mockResolvedValue()
 })
@@ -103,7 +103,7 @@ describe('useMoveTorrent', () => {
   })
 
   it('takes a typed folder when qBittorrent knows none', async () => {
-    getSaveLocations.mockResolvedValue({ defaultPath: '', categories: [], categoryPaths: false, subcategories: false })
+    getSaveLocations.mockResolvedValue({ defaultPath: '', categories: [], categoryPaths: false, subcategories: false, relocateOnCategoryChange: true })
     const { open, moveTo } = renderMove()
     // Still being sent, so the sheet stays open, with qBittorrent's answer about its folders in.
     setTorrentLocation.mockReturnValue(new Promise(() => {}))

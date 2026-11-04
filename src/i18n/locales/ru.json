@@ -391,6 +391,8 @@
     "pause": "Пауза",
     "resume": "Продолжить",
     "delete": "Удалить",
+    "download": "Загрузка",
+    "categoryValue": "Категория: {{category}}",
     "recheck": "Перепроверить",
     "recheckChecking": "Проверка уже идёт",
     "recheckNoMetadata": "Когда magnet-ссылка получит метаданные",
@@ -521,6 +523,17 @@
     "moved": "Файлы переносятся в {{location}}",
     "noAccess": "У qBittorrent нет доступа к этой папке.",
     "cantCreate": "qBittorrent не смог создать эту папку."
+  },
+  "category": {
+    "title": "Категория",
+    "none": "Без категории",
+    "save": "Сохранить",
+    "moves": "qBittorrent перенесёт файлы в {{folder}}.",
+    "movesToCategory": "qBittorrent перенесёт файлы в папку категории.",
+    "stays": "Файлы уже в папке этой категории: {{folder}}.",
+    "toManual": "qBittorrent переведёт торрент в ручной режим, как сказано в его настройках, и файлы останутся в {{folder}}.",
+    "manual": "Торрент в ручном режиме, поэтому файлы останутся в {{folder}}.",
+    "changed": "Категория изменена"
   },
   "prowlarrKey": {
     "help": "Ключ есть в Prowlarr: Settings → General → Security → API Key.",

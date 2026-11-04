@@ -25,6 +25,8 @@ import { useMainData } from '../torrents/useMainData'
 import { MatchPrompt } from './MatchPrompt'
 import { OfflineBanner } from './OfflineBanner'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
+import { DownloadSettings } from './DownloadSettings'
+import { useChangeCategory } from './useChangeCategory'
 import { useDeleteTorrents } from './useDeleteTorrents'
 import { useMoveTorrent } from './useMoveTorrent'
 import { usePauseResume } from './usePauseResume'
@@ -60,7 +62,8 @@ function peerCount(connected: number, total: number | undefined): string {
 
 /**
  * What Kinoseed shows about a torrent: status and progress, pause, resume and delete (recheck and
- * reannounce in its More menu), the title (with "Is it right?" for a guess), details and files. A
+ * reannounce in its More menu), the title (with "Is it right?" for a guess), its download settings
+ * (the category, sequential download, first and last pieces first), details and files. A
  * screen of its own on a phone, the content of the details drawer on desktop.
  */
 export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDeleted, behind }: TorrentDetailsProps) {
@@ -80,6 +83,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
   const titleOf = (item: Torrent) => match?.title ?? item.name
   const limits = useSpeedLimits({ torrents: own, offline, refresh, titleOf })
   const recheck = useRecheck({ torrents: own, titleOf })
+  const category = useChangeCategory({ torrents: own, offline })
   // Once it's deleted there's nothing to show here: on to Downloads, or what the drawer says.
   const remove = useDeleteTorrents({
     torrents: own,
@@ -177,6 +181,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
         {/* A move or limits sent before the torrent went away still say how they went. */}
         {move.element}
         {limits.element}
+        {category.element}
       </Root>
     )
   }
@@ -217,7 +222,6 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
     },
     { key: 'ratio', label: t('torrent.ratio'), value: ratio },
     { key: 'path', label: t('torrent.savePath'), value: torrent.save_path, mono: true },
-    { key: 'category', label: t('torrent.category'), value: torrent.category || '—' },
     {
       key: 'added',
       label: t('torrent.added'),
@@ -342,6 +346,13 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
         </div>
 
         <div className="torrent-sections">
+          <DownloadSettings
+            torrent={torrent}
+            disabled={offline || deleting}
+            categoryBusy={category.busy(hash)}
+            onCategory={() => category.open(hash)}
+          />
+
           <Accordion heading title={t('torrent.details')} open={detailsOpen} onOpenChange={setDetailsOpen}>
             <dl className="torrent-kv">
               {details.map((row) => (
@@ -394,6 +405,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
 
       {move.element}
       {recheck.element}
+      {category.element}
 
       {limits.element}
 

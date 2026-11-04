@@ -16,6 +16,8 @@ export const TOAST_KEYS = {
   title: 'title-failed',
   /** A file's priority: the file list in the torrent's details. */
   filePriority: 'file-priority-failed',
+  /** Sequential download or first and last pieces first: the switches on the torrent's page and drawer. */
+  downloadToggle: 'download-toggle-failed',
   /** Switching the alternative speed limits. */
   altSpeed: 'alt-speed-failed',
 } as const

@@ -15,11 +15,14 @@ import {
   getTorrents,
   reannounceTorrents,
   recheckTorrents,
+  setCategory,
   setFilePriority,
   setSpeedLimits,
   setTorrentLocation,
   startTorrents,
   stopTorrents,
+  toggleFirstLastPiecePrio,
+  toggleSequentialDownload,
   toggleSpeedLimitsMode,
 } from './client'
 
@@ -239,6 +242,41 @@ describe('recheckTorrents and reannounceTorrents', () => {
   })
 })
 
+describe('toggleSequentialDownload and toggleFirstLastPiecePrio', () => {
+  it('post the hashes joined with a pipe', async () => {
+    respond('')
+    await toggleSequentialDownload(['a', 'b'])
+    expect(lastCall().url).toBe('/qbt/api/v2/torrents/toggleSequentialDownload')
+    expect(lastCall().init.method).toBe('POST')
+    expect(String(lastCall().init.body)).toBe('hashes=a%7Cb')
+
+    respond('')
+    await toggleFirstLastPiecePrio(['a'])
+    expect(lastCall().url).toBe('/qbt/api/v2/torrents/toggleFirstLastPiecePrio')
+    expect(lastCall().init.method).toBe('POST')
+    expect(String(lastCall().init.body)).toBe('hashes=a')
+  })
+})
+
+describe('setCategory', () => {
+  it('posts the hashes and the category, empty for none', async () => {
+    respond('')
+    await setCategory(['a', 'b'], 'TV Shows')
+    expect(lastCall().url).toBe('/qbt/api/v2/torrents/setCategory')
+    expect(lastCall().init.method).toBe('POST')
+    expect(String(lastCall().init.body)).toBe('hashes=a%7Cb&category=TV+Shows')
+
+    respond('')
+    await setCategory(['a'], '')
+    expect(String(lastCall().init.body)).toBe('hashes=a&category=')
+  })
+
+  it('reports a category qBittorrent doesn’t have', async () => {
+    respond('Incorrect category name', 409)
+    await expect(setCategory(['a'], 'Gone')).rejects.toMatchObject({ status: 409 })
+  })
+})
+
 describe('deleteTorrents', () => {
   it('posts the hashes and whether to delete files', async () => {
     respond('')
@@ -315,7 +353,15 @@ describe('getSaveLocations', () => {
       defaultPath: '/downloads',
       categoryPaths: true,
       subcategories: true,
+      relocateOnCategoryChange: true,
     })
+  })
+
+  it('reads whether changing the category moves the files or switches the torrent to manual mode', async () => {
+    fetchMock.mockImplementation(answer('{"torrent_changed_tmm_enabled":false}'))
+    expect(await getSaveLocations()).toMatchObject({ relocateOnCategoryChange: false })
+    fetchMock.mockImplementation(answer('{"torrent_changed_tmm_enabled":true}'))
+    expect(await getSaveLocations()).toMatchObject({ relocateOnCategoryChange: true })
   })
 
   it('uses category folders for new torrents only with automatic management or category paths in manual mode', async () => {
@@ -328,12 +374,24 @@ describe('getSaveLocations', () => {
 
   it('takes qBittorrent’s defaults when its preferences can’t be read', async () => {
     fetchMock.mockImplementation(answer('<!doctype html>'))
-    expect(await getSaveLocations()).toMatchObject({ defaultPath: '/downloads', categoryPaths: false, subcategories: false })
+    // qBittorrent relocates a torrent whose category changed unless told otherwise.
+    expect(await getSaveLocations()).toMatchObject({
+      defaultPath: '/downloads',
+      categoryPaths: false,
+      subcategories: false,
+      relocateOnCategoryChange: true,
+    })
   })
 
   it('does without what qBittorrent doesn’t answer, with its defaults', async () => {
     fetchMock.mockResolvedValue(new Response('', { status: 500 }))
-    expect(await getSaveLocations()).toEqual({ categories: [], defaultPath: '', categoryPaths: false, subcategories: false })
+    expect(await getSaveLocations()).toEqual({
+      categories: [],
+      defaultPath: '',
+      categoryPaths: false,
+      subcategories: false,
+      relocateOnCategoryChange: true,
+    })
   })
 })
 
