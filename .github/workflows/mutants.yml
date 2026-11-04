@@ -9,6 +9,8 @@ on:
     paths:
       - 'src/**'
       - 'server/**'
+      # scripts/mutants.mjs mutates these too.
+      - 'tmdb-proxy/**'
   workflow_dispatch:
 
 jobs:

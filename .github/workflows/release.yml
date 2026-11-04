@@ -79,3 +79,13 @@ jobs:
             echo "**Digest:** \`$IMAGE@$DIGEST\`"
           } >> release-notes.md
           gh release create "$GITHUB_REF_NAME" --title "Kinoseed $VERSION" --notes-file release-notes.md --verify-tag
+
+  # kinoseed-tmdb, which released versions call. After the image and the GitHub Release, which come
+  # out only for a tag that matches package.json and the changelog; installs get the version only
+  # with the store's update, later still.
+  proxy:
+    needs: release
+    uses: ./.github/workflows/tmdb-proxy.yml
+    with:
+      environment: release
+    secrets: inherit

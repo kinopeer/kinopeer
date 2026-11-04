@@ -1,0 +1,9 @@
+{
+  "name": "kinoseed-tmdb-proxy",
+  "private": true,
+  "description": "Kinoseed's TMDB proxy on Cloudflare Workers. Only Wrangler, locked, so CI installs exactly what this lockfile names (docs/DEVELOPMENT.md \u2192 The TMDB proxy).",
+  "type": "module",
+  "devDependencies": {
+    "wrangler": "4.151.2"
+  }
+}
