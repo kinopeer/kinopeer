@@ -95,7 +95,7 @@ export default defineConfig(({ mode }) => {
           extends: true,
           test: { name: 'app', include: ['src/**/*.test.{ts,tsx}'], environment: 'jsdom', setupFiles: ['./src/test-setup.ts'] },
         },
-        { extends: true, test: { name: 'server', include: ['server/**/*.test.ts'], environment: 'node' } },
+        { extends: true, test: { name: 'server', include: ['server/**/*.test.ts', 'tmdb-proxy/**/*.test.ts'], environment: 'node' } },
       ],
       // `npm run test:coverage`: a table in the terminal and coverage/index.html; CI runs the same.
       // Test helpers, type-only modules and the barrels that only re-export (src/i18n/index.ts sets
@@ -104,7 +104,7 @@ export default defineConfig(({ mode }) => {
       // raised when the totals grow and stay there, never lowered to get a PR through.
       coverage: {
         provider: 'v8',
-        include: ['src/**', 'server/**'],
+        include: ['src/**', 'server/**', 'tmdb-proxy/**'],
         exclude: [
           '**/*.test.{ts,tsx}',
           'src/test/**',

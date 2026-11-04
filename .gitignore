@@ -37,3 +37,7 @@ CLAUDE.local.md
 # npm run test:mutants
 /reports
 /.stryker-tmp
+
+# Wrangler (tmdb-proxy/): local secrets and its working folder
+.dev.vars
+.wrangler

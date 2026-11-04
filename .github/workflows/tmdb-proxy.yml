@@ -1,0 +1,62 @@
+name: TMDB proxy
+
+# Deploys Kinoseed's TMDB proxy (tmdb-proxy/) to Cloudflare Workers and gives it the key, which
+# lives in this repository's secrets and the worker's, never in the code or the image
+# (docs/DEVELOPMENT.md → The TMDB proxy).
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tmdb-proxy/**'
+      - '!tmdb-proxy/**/*.test.ts'
+      - .github/workflows/tmdb-proxy.yml
+  # Deploys main's head again, and puts a replaced key into the worker.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  WRANGLER: wrangler@4.151.2
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    concurrency:
+      group: tmdb-proxy
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Check the secrets
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+        run: |
+          missing=()
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || missing+=(CLOUDFLARE_API_TOKEN)
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || missing+=(CLOUDFLARE_ACCOUNT_ID)
+          [ -n "$TMDB_API_KEY" ] || missing+=(TMDB_API_KEY)
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Repository secrets not set: ${missing[*]}"
+            exit 1
+          fi
+
+      - name: Deploy
+        working-directory: tmdb-proxy
+        run: npx --yes "$WRANGLER" deploy
+
+      # From stdin, so the key shows in no command line or log.
+      - name: Set the key
+        working-directory: tmdb-proxy
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+        run: printf '%s' "$TMDB_API_KEY" | npx --yes "$WRANGLER" secret put TMDB_API_KEY

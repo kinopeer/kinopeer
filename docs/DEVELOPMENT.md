@@ -76,6 +76,14 @@ Kinoseed Edge is `main` running on the owner's Umbrel next to the released app, 
 
 Nothing in the edge store is edited by hand. Its package is the released one's with another id, name and port: it keeps its own settings and torrent-to-title matches, and works with the same qBittorrent and Prowlarr, so what it does to torrents is real. The store only moves forward: a run for a commit the store already has (a re-run of an older push) builds nothing and leaves it as it is. When a run's store step failed, re-run it, or run the workflow from the Actions tab (`workflow_dispatch`), which builds main's head and ignores other branches.
 
+## The TMDB proxy
+
+Kinoseed's own TMDB key sits behind a Cloudflare Worker, `tmdb-proxy/worker.ts` (worker `kinoseed-tmdb` on `workers.dev`), for installs that have no key of their own; SPEC's decision log (2026-11-04) says why a key can't ship in the image. The worker takes TMDB's paths under `/3/`, answers only GET and HEAD for the ones `src/api/tmdb/client.ts` calls (404 for the rest), adds the key, keeps TMDB's answers at the edge for an hour (searches) to a day (a title's page), and limits the calls that reach TMDB to 100 per IP in 10 seconds. It keeps no request logs. Its tests run in the `server` Vitest project.
+
+The `TMDB proxy` workflow (`.github/workflows/tmdb-proxy.yml`) deploys it with Wrangler on every push to `main` that changes `tmdb-proxy/`, and when run from the Actions tab. It needs three repository secrets, set in the GitHub web UI: `CLOUDFLARE_API_TOKEN` (a token from the "Edit Cloudflare Workers" template), `CLOUDFLARE_ACCOUNT_ID` and `TMDB_API_KEY` (Kinoseed's key, a v3 key or a v4 read access token). The key reaches the worker as its secret, never the code or a log. To replace a leaked or revoked key, change `TMDB_API_KEY` in the repository's secrets and run the workflow: installs keep working without a release.
+
+To try the worker locally, run `npx wrangler@4.151.2 dev` in `tmdb-proxy/` with the key in `tmdb-proxy/.dev.vars` (`TMDB_API_KEY=…`, git-ignored) and call `http://localhost:8787/3/configuration`.
+
 ## Design
 
 The canvas with every screen and the design system live in Claude Design (links in CLAUDE.md). Colors, type and spacing come from the design system's tokens. The canvas is a reference as of 0.4.0 and is no longer kept in sync; the app is the reference for screens.
