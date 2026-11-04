@@ -478,9 +478,25 @@ describe('useTitleMatches', () => {
       await act(async () => held[0].fail(new tmdb.TmdbError('TMDB responded 500', 500)))
       await act(async () => held[1].fail(new tmdb.TmdbError('TMDB responded 429', 429, 5_000)))
       unmount()
+      // Nor does it keep the list's lookups alive on timers of its own.
+      await pass(0)
+      expect(vi.getTimerCount()).toBe(0)
 
       await pass(RETRY_DELAYS_MS[0])
       expect(queries(held)).toEqual(['Alpha', 'Bravo', 'Charlie', 'Delta'])
+    })
+
+    it('doesn’t ask a failed lookup again once its torrent has gone', async () => {
+      vi.useFakeTimers()
+      const held = holdSearches()
+      const { rerender } = renderHook(({ list }) => useTitleMatches(list), { initialProps: { list: many } })
+      await pass(0)
+      await act(async () => held[0].fail(new tmdb.TmdbError('TMDB responded 500', 500)))
+      for (const i of [1, 2, 3, 4]) await act(async () => latest(held, i).answer(found(i)))
+
+      rerender({ list: many.slice(1) })
+      await pass(RETRY_DELAYS_MS[0])
+      expect(searchesFor(held, 0)).toBe(1)
     })
 
     it('waits RATE_LIMIT_WAIT_MS after a 429 that doesn’t say how long', async () => {
@@ -529,6 +545,7 @@ describe('useTitleMatches', () => {
       await pass(0)
       expect(result.current.Alpha).toMatchObject({ id: 1 })
       const rendered = renders
+      const setItem = vi.spyOn(Storage.prototype, 'setItem')
       await act(async () => held[1].answer(found(1)))
       await act(async () => held[2].answer(found(2)))
       await pass(SHOW_EVERY_MS - 1)
@@ -538,6 +555,9 @@ describe('useTitleMatches', () => {
       expect(result.current.Bravo).toMatchObject({ id: 2 })
       expect(result.current.Charlie).toMatchObject({ id: 3 })
       expect(renders - rendered).toBe(1)
+      // One write for the show and one for the guesses' titles by id, not a show per title.
+      expect(setItem.mock.calls.filter(([key]) => key === CACHE_KEY)).toHaveLength(2)
+      setItem.mockRestore()
 
       // One that arrives as the list goes away is still kept for the next visit.
       await act(async () => held[3].answer(found(3)))

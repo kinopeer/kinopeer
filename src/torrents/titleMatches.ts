@@ -266,7 +266,7 @@ interface LookupRun {
  * torrent that comes doesn't stop or repeat the others. A lookup that fails or times out is asked
  * again after RETRY_DELAYS_MS; a 429 stops them all for its Retry-After, then puts its lookup back
  * in line. `onShow` is called as titles arrive, at most every SHOW_EVERY_MS, once they're cached.
- * Stopped, it sends nothing more.
+ * Stopped, it sends nothing more and leaves no timer behind.
  */
 function startLookups(language: string, onShow: () => void): LookupRun {
   const controller = new AbortController()
@@ -274,6 +274,7 @@ function startLookups(language: string, onShow: () => void): LookupRun {
   // Keys taken by a worker: in flight, found, or waiting to be asked again.
   const started = new Set<string>()
   const failures = new Map<string, number>()
+  const retries = new Map<string, ReturnType<typeof setTimeout>>()
   let wanted: Lookup[] = []
   let queue: Lookup[] = []
   let workers = 0
@@ -309,10 +310,14 @@ function startLookups(language: string, onShow: () => void): LookupRun {
   const retryLater = (key: string) => {
     const count = (failures.get(key) ?? 0) + 1
     failures.set(key, count)
-    setTimeout(() => {
-      started.delete(key)
-      fill()
-    }, RETRY_DELAYS_MS[Math.min(count, RETRY_DELAYS_MS.length) - 1])
+    const delay = RETRY_DELAYS_MS[Math.min(count, RETRY_DELAYS_MS.length) - 1]
+    retries.set(
+      key,
+      setTimeout(() => {
+        started.delete(key)
+        fill()
+      }, delay),
+    )
   }
 
   const work = async () => {
@@ -325,6 +330,8 @@ function startLookups(language: string, onShow: () => void): LookupRun {
         cacheTitles({ [`${language}|${lookup.key}`]: match })
         arrived()
       } catch (error) {
+        // Stopped: not a failure, and nothing to ask again.
+        if (signal.aborted) break
         if (error instanceof TmdbError && error.status === 429) {
           // Not this title's failure: it goes back in line once TMDB takes requests again.
           started.delete(lookup.key)
@@ -344,8 +351,9 @@ function startLookups(language: string, onShow: () => void): LookupRun {
       fill()
     },
     stop() {
-      // A retry or a resume that falls due later finds the run stopped and sends nothing.
       controller.abort()
+      clearTimeout(resumeTimer)
+      for (const timer of retries.values()) clearTimeout(timer)
       if (showTimer === undefined) return
       // What arrived since the last show is kept for the next visit.
       clearTimeout(showTimer)

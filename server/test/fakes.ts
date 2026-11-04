@@ -25,12 +25,13 @@ export async function listen(handler: RequestListener): Promise<string> {
 
 /**
  * Kinoseed's TMDB proxy (tmdb-proxy/worker.ts), the real worker served over HTTP in front of
- * `tmdbApiBase` with `key` as its secret and a rate limiter that lets everything through: what the
- * Workers runtime does, without its cache. `seen` lists the paths it got.
+ * `tmdbApiBase` with `key` as its secret and a rate limiter that lets everything through, or with
+ * `overLimit` refuses everything, as for an IP over its limit: what the Workers runtime does, without
+ * its cache. `seen` lists the paths it got.
  */
-export async function serveTmdbProxy(tmdbApiBase: string, key: string) {
+export async function serveTmdbProxy(tmdbApiBase: string, key: string, { overLimit = false } = {}) {
   const seen: { url: string; authorization: string | undefined }[] = []
-  const env = { TMDB_API_KEY: key, LIMITER: { limit: async () => ({ success: true }) } }
+  const env = { TMDB_API_KEY: key, LIMITER: { limit: async () => ({ success: !overLimit }) } }
   const base = await listen(async (request, response) => {
     seen.push({ url: request.url ?? '', authorization: request.headers.authorization })
     const headers = new Headers({ 'cf-connecting-ip': request.socket.remoteAddress ?? '' })

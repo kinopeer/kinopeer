@@ -61,8 +61,9 @@ export interface StandOptions {
   /**
    * Kinoseed's TMDB proxy, the real worker in front of the fake TMDB with `good-key` (or the key
    * given), at TMDB_PROXY_URL; without it the proxy is off, so no test reaches the real one.
+   * `overLimit` has its rate limiter refuse every call.
    */
-  tmdbProxy?: true | { key: string }
+  tmdbProxy?: true | { key?: string; overLimit?: boolean }
 }
 
 export interface Stand {
@@ -116,8 +117,8 @@ export async function startKinoseed(options: StandOptions = {}): Promise<Stand> 
     fakeTmdb(),
     fakeProwlarr(options.prowlarr),
   ])
-  const proxyKey = options.tmdbProxy === true ? 'good-key' : options.tmdbProxy?.key
-  const proxy = proxyKey === undefined ? undefined : await serveTmdbProxy(tmdb.apiBase, proxyKey)
+  const proxyOptions = options.tmdbProxy === true ? {} : options.tmdbProxy
+  const proxy = proxyOptions && (await serveTmdbProxy(tmdb.apiBase, proxyOptions.key ?? 'good-key', proxyOptions))
   let dataDir = await mkdtemp(join(tmpdir(), 'kinoseed-integration-'))
   dirs.push(dataDir)
   if (options.writableData === false) {

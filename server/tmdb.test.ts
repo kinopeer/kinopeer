@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { tmdbMiddleware, type TmdbConfig } from './tmdb.ts'
-import { closeServers, fakeTmdb, listen, serve } from './test/fakes.ts'
+import { closeServers, fakeTmdb, serve } from './test/fakes.ts'
 
 /** Kinoseed's side: the middleware under test. */
 const kinoseed = (config: TmdbConfig) => serve(tmdbMiddleware(config))
@@ -74,20 +74,6 @@ describe('tmdbMiddleware', () => {
 
     expect(proxy.seen.map((request) => request.url)).toEqual(['/3/movie/771'])
     expect(tmdb.seen.map((request) => request.url)).toEqual(['/3/movie/771?api_key=saved'])
-  })
-
-  it('passes on how long the proxy asks to wait once over its limit', async () => {
-    // As tmdb-proxy/worker.ts answers an IP over its limit.
-    const proxy = await listen((_request, response) => {
-      response.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': '10' })
-      response.end(JSON.stringify({ status_message: 'Too many requests' }))
-    })
-    const app = await kinoseed({ proxyBase: `${proxy}/3` })
-
-    const response = await fetch(`${app}/tmdb/movie/771`)
-
-    expect(response.status).toBe(429)
-    expect(response.headers.get('retry-after')).toBe('10')
   })
 
   it('reports an unreachable proxy as TMDB being unreachable, not as a missing key', async () => {
