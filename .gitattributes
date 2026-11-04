@@ -1,0 +1,5 @@
+# Every PR adds its line under the next version's headings, so each merge of main into an open PR
+# would conflict here. The union driver keeps the lines of both sides, this branch's first, and a
+# line both sides rewrote stays twice: the author's `Merged main` comment checks for that and keeps
+# one (docs/TESTING.md → Reviewing a PR's tests).
+CHANGELOG.md merge=union

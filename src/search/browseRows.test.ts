@@ -1,15 +1,13 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { browseRowQueries } from './browseRows'
 
 // 20:30 on the 27th in New York, already the 28th in UTC: the dates are UTC days, not local ones.
 const TODAY = new Date('2026-10-28T00:30:00Z')
 
-beforeAll(() => {
+// Before each test, since Vitest puts the time zone back before each one (unstubEnvs in
+// vite.config.ts): stubbed in beforeAll, the tests would run in UTC and miss local days.
+beforeEach(() => {
   vi.stubEnv('TZ', 'America/New_York')
-})
-
-afterAll(() => {
-  vi.unstubAllEnvs()
 })
 
 function query(key: string) {

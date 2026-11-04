@@ -92,6 +92,11 @@ export default defineConfig(({ mode }) => {
       // One time zone everywhere, so a test that reads local time passes in any machine's local
       // zone and in CI alike; a test about another zone stubs it (docs/TESTING.md → A test that can fail).
       env: { TZ: 'UTC' },
+      // Before each test, put back every vi.spyOn spy, vi.stubGlobal and vi.stubEnv, so a test that
+      // fails halfway leaves none of them to the tests after it (docs/TESTING.md → A test that can fail).
+      restoreMocks: true,
+      unstubGlobals: true,
+      unstubEnvs: true,
       projects: [
         {
           extends: true,
