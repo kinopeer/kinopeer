@@ -36,6 +36,7 @@ test.describe('search, phone', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Поиск' })).not.toBeInViewport()
     await expect(page.getByRole('searchbox', { name: 'Поиск' })).toBeInViewport()
     await expect(page.getByRole('group', { name: 'Тип' })).toBeInViewport()
+    await expect(page.getByRole('textbox', { name: 'Год выхода' })).toBeInViewport()
     // How it looks scrolled is the next page's failure above and the notched phone's screenshot.
   })
 
@@ -44,7 +45,6 @@ test.describe('search, phone', () => {
     await openSearch(page, '/search?q=%D0%B0', 'Дюна')
     await page.evaluate(() => window.scrollTo(0, 300))
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(300)
-    await expect(page.getByRole('heading', { level: 1, name: 'Поиск' })).not.toBeInViewport()
     await expect(page).toHaveScreenshot('results-scrolled-safe-area-dark-ru.png')
   })
 

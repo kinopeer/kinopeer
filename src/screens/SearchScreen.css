@@ -54,7 +54,8 @@
   right: 2px;
 }
 
-/* The tabs sit on the head's bottom border; the year field stands right after them. */
+/* The tabs sit on the pinned part's bottom border (the bar's on a phone, the header's on desktop); the
+   year field stands right after them. */
 .search-filters {
   display: flex;
   align-items: center;
