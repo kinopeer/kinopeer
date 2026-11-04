@@ -275,6 +275,13 @@ describe('useTitleMatches', () => {
     expect(searchTitles).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps a title for the next visit as it shows', async () => {
+    getMovie.mockResolvedValue({ ...DUNE_1984, title: 'Dune', original_title: 'Dune', release_date: '1984-12-14', poster_path: '/841.jpg' } as never)
+    const { result } = renderHook(() => useTitleMatches([torrents[3]]))
+    await waitFor(() => expect(result.current.d).toMatchObject({ id: 841 }))
+    expect(localStorage.getItem(`kinoseed.titleMatches.v${GUESS_VERSION}`)).toContain('"en-US|id:movie:841"')
+  })
+
   it('waits for the server’s matches before guessing', async () => {
     getMatches.mockReturnValue(new Promise(() => {}))
     getMovie.mockResolvedValue({ ...DUNE_1984, title: 'Dune', original_title: 'Dune', release_date: '1984-12-14', poster_path: '/841.jpg' } as never)
@@ -389,7 +396,7 @@ describe('useTitleMatches', () => {
       ])
     })
 
-    it('shows the titles that keep coming at most every SHOW_EVERY_MS, and keeps them for the next visit', async () => {
+    it('shows the titles that keep coming together, at most every SHOW_EVERY_MS', async () => {
       vi.useFakeTimers()
       const held = holdSearches()
       const { result, unmount } = renderHook(() => useTitleMatches(many))
@@ -400,19 +407,26 @@ describe('useTitleMatches', () => {
       await act(async () => held[0].answer(found(0)))
       expect(result.current.Alpha).toMatchObject({ id: 1 })
       await act(async () => held[1].answer(found(1)))
+      const timers = vi.getTimerCount()
+      // Each show renders the whole list: one that arrives meanwhile waits for the same show.
       await act(async () => held[2].answer(found(2)))
+      expect(vi.getTimerCount()).toBe(timers)
       await act(() => vi.advanceTimersByTimeAsync(SHOW_EVERY_MS - 1))
       expect(result.current.Bravo).toBeUndefined()
       await act(() => vi.advanceTimersByTimeAsync(1))
       expect(result.current.Bravo).toMatchObject({ id: 2 })
       expect(result.current.Charlie).toMatchObject({ id: 3 })
-      expect(storedGuesses()).toEqual(guessKeys(3))
+
+      // One that comes SHOW_EVERY_MS after the last show shows at once.
+      await act(() => vi.advanceTimersByTimeAsync(SHOW_EVERY_MS))
+      await act(async () => held[3].answer(found(3)))
+      expect(result.current.Delta).toMatchObject({ id: 4 })
 
       // One that arrives as the list goes away is still kept for the next visit.
-      await act(async () => held[3].answer(found(3)))
-      expect(storedGuesses()).toEqual(guessKeys(3))
-      unmount()
+      await act(async () => held[4].answer(found(4)))
       expect(storedGuesses()).toEqual(guessKeys(4))
+      unmount()
+      expect(storedGuesses()).toEqual(guessKeys(5))
     })
   })
 })
@@ -426,6 +440,7 @@ describe('chooseTitle', () => {
 
     await chooseTitle('a', DUNE_1984, 'en-US')
     expect(server.a).toEqual({ type: 'movie', id: 841, source: 'user' })
+    expect(localStorage.getItem(`kinoseed.titleMatches.v${GUESS_VERSION}`)).toContain('"en-US|id:movie:841"')
     await waitFor(() =>
       expect(result.current.a).toEqual({ type: 'movie', id: 841, title: 'Dune', year: 1984, posterPath: '/841.jpg' }),
     )
