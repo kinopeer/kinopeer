@@ -170,6 +170,22 @@ describe('SettingsScreen', () => {
     expect(vi.mocked(qbt.getCategories).mock.lastCall?.[0]?.aborted).toBe(true)
   })
 
+  it('says Kinoseed’s key is used, offers the user’s own, and drops the mention once it’s saved', async () => {
+    const shared = { tmdb: { configured: true, source: 'shared' }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null } as const
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(shared)
+    vi.mocked(serverSettings.saveTmdbKey).mockResolvedValue({ ...shared, tmdb: { configured: true, source: 'saved' } })
+    renderScreen()
+
+    expect(await within(connection('TMDB')).findByRole('status', { name: saying('Connected · Kinoseed’s key') })).toBeInTheDocument()
+    await userEvent.click(within(connection('TMDB')).getByRole('button', { name: 'Use your own TMDB key' }))
+    const sheet = screen.getByRole('dialog', { name: 'TMDB key' })
+    await userEvent.type(within(sheet).getByLabelText('API key or read access token'), 'abc123')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
+
+    expect(await within(connection('TMDB')).findByRole('status', { name: saying('Connected') })).toBeInTheDocument()
+    expect(within(connection('TMDB')).getByRole('button', { name: 'Change TMDB key' })).toBeInTheDocument()
+  })
+
   it('changes the TMDB key and checks the connection again', async () => {
     vi.mocked(tmdb.checkTmdb).mockRejectedValue(new tmdb.TmdbKeyError(401))
     vi.mocked(serverSettings.saveTmdbKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved' }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
