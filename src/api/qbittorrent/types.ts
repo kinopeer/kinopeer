@@ -23,7 +23,11 @@ export type TorrentState =
   | 'moving'
   | 'unknown'
 
-/** The subset of /torrents/info fields Kinoseed uses. Sizes in bytes, speeds in bytes/s, times in Unix seconds. */
+/**
+ * The subset of /torrents/info fields Kinoseed uses. Sizes in bytes, speeds in bytes/s, times in Unix
+ * seconds. The poll keeps only these, listed again in `TORRENT_FIELDS` (`src/torrents/sync.ts`): a
+ * field added here and not there fails to compile.
+ */
 export interface Torrent {
   hash: string
   name: string
@@ -60,46 +64,6 @@ export interface Torrent {
   /** Queue position; -1 when queueing is off or the torrent is seeding. */
   priority: number
 }
-
-/**
- * `Torrent`'s fields, which are all the app reads of a torrent: the poll keeps only these
- * (`applyMainData`), so a torrent whose other fields changed (qBittorrent reports `time_active`,
- * `seeding_time`, `reannounce` and `popularity` for every running torrent on every poll) keeps its
- * object and its rows don't render again. A field added to `Torrent` has to be added here, or the
- * check below fails to compile.
- */
-export const TORRENT_FIELDS = [
-  'hash',
-  'name',
-  'state',
-  'progress',
-  'size',
-  'total_size',
-  'downloaded',
-  'uploaded',
-  'amount_left',
-  'dlspeed',
-  'upspeed',
-  'dl_limit',
-  'up_limit',
-  'eta',
-  'ratio',
-  'num_seeds',
-  'num_leechs',
-  'num_complete',
-  'num_incomplete',
-  'category',
-  'tags',
-  'save_path',
-  'content_path',
-  'added_on',
-  'completion_on',
-  'priority',
-] as const satisfies readonly (keyof Torrent)[]
-
-// Every field of `Torrent` is in the list: an unlisted one would never reach the app from the poll.
-const everyFieldListed: [Exclude<keyof Torrent, (typeof TORRENT_FIELDS)[number]>] extends [never] ? true : never = true
-void everyFieldListed
 
 export type TorrentFilter =
   | 'all'

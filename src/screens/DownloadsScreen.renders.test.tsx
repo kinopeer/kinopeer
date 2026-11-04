@@ -56,7 +56,7 @@ const SNAPSHOT: MainData = mainData([
 
 /**
  * The next poll as qBittorrent answers it: a download's speed and time left changed, and a seed got
- * only the fields it reports for every running torrent, none of which the app reads.
+ * only the fields it reports for most running torrents on each poll, none of which the app reads.
  */
 const DELTA = {
   rid: 2,

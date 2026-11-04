@@ -73,7 +73,7 @@ describe('DownloadRowHeader', () => {
 })
 
 describe('DownloadRow', () => {
-  it('follows the language, though it renders again only when its props change', async () => {
+  it('follows the language while memoized', async () => {
     const { row } = renderRow()
     await act(() => i18n.changeLanguage('ru'))
     expect(within(row).getByText('Загружается')).toBeInTheDocument()

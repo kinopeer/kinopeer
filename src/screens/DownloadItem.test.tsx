@@ -22,7 +22,7 @@ function renderItem(props: Partial<DownloadItemProps> = {}, torrent: Torrent = D
 }
 
 describe('DownloadItem', () => {
-  it('follows the language, though it renders again only when its props change', async () => {
+  it('follows the language while memoized', async () => {
     const { item } = renderItem()
     await act(() => i18n.changeLanguage('ru'))
     expect(item.getByText('Загружается')).toBeInTheDocument()

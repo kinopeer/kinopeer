@@ -1,4 +1,4 @@
-import { TORRENT_FIELDS, type MainData, type ServerState, type Torrent } from '../api/qbittorrent'
+import type { MainData, ServerState, Torrent } from '../api/qbittorrent'
 
 /** Client-side copy of qBittorrent's state, kept current by applying /sync/maindata deltas. */
 export interface SyncState {
@@ -8,6 +8,46 @@ export interface SyncState {
 }
 
 export const EMPTY_SYNC_STATE: SyncState = { rid: 0, torrents: {}, server: {} }
+
+/**
+ * `Torrent`'s fields, which are all the app reads of a torrent: the poll keeps only these
+ * (`applyMainData`), so a torrent whose other fields changed (qBittorrent reports `time_active`,
+ * `seeding_time`, `reannounce` and `popularity` for most running torrents on each poll) keeps its
+ * object and its rows don't render again. A field added to `Torrent` has to be added here, or the
+ * check below fails to compile.
+ */
+const TORRENT_FIELDS = [
+  'hash',
+  'name',
+  'state',
+  'progress',
+  'size',
+  'total_size',
+  'downloaded',
+  'uploaded',
+  'amount_left',
+  'dlspeed',
+  'upspeed',
+  'dl_limit',
+  'up_limit',
+  'eta',
+  'ratio',
+  'num_seeds',
+  'num_leechs',
+  'num_complete',
+  'num_incomplete',
+  'category',
+  'tags',
+  'save_path',
+  'content_path',
+  'added_on',
+  'completion_on',
+  'priority',
+] as const satisfies readonly (keyof Torrent)[]
+
+// Every field of `Torrent` is in the list: an unlisted one would never reach the app from the poll.
+const everyFieldListed: [Exclude<keyof Torrent, (typeof TORRENT_FIELDS)[number]>] extends [never] ? true : never = true
+void everyFieldListed
 
 const READ_FIELDS: ReadonlySet<string> = new Set(TORRENT_FIELDS)
 

@@ -23,7 +23,7 @@ function renderCard(props: Partial<DownloadItemProps> = {}, torrent: Torrent = D
 }
 
 describe('DownloadCard', () => {
-  it('follows the language, though it renders again only when its props change', async () => {
+  it('follows the language while memoized', async () => {
     const { card } = renderCard()
     await act(() => i18n.changeLanguage('ru'))
     expect(card.getByText('Загружается')).toBeInTheDocument()
