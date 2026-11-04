@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Matches, StoredMatch } from '../api/matches'
 import type { Torrent } from '../api/qbittorrent'
-import { getMovie, getTv, searchTitles, toTitle, type MediaType, type Title } from '../api/tmdb'
+import { TmdbError, getMovie, getTv, searchTitles, toTitle, type MediaType, type Title } from '../api/tmdb'
 import { useTmdbLanguage } from '../settings/settings'
 import { parseName, tmdbTag, type ParsedName } from './parseName'
 import { chooseMatch, forgetServerGuesses, rememberMatches, useServerMatches } from './serverMatches'
@@ -230,6 +230,30 @@ const CONCURRENCY = 3
  * answer itself (#239).
  */
 export const SHOW_EVERY_MS = 250
+/** A request TMDB hasn't answered in this long is given up, and counts as failed. */
+export const LOOKUP_TIMEOUT_MS = 15_000
+/**
+ * How long a failed lookup waits before it's asked again, longer after each failure, then every
+ * last one: not with every change to the list, which would keep asking a TMDB that's down, or the
+ * shared proxy over its limit per IP.
+ */
+export const RETRY_DELAYS_MS = [30_000, 120_000, 600_000]
+/** How long a 429 without Retry-After stops the lookups; Kinoseed's proxy asks for 10 s. */
+export const RATE_LIMIT_WAIT_MS = 10_000
+
+/** Runs `request` with a signal that aborts with `signal` or after `ms`. */
+async function withTimeout<T>(ms: number, signal: AbortSignal, request: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const attempt = new AbortController()
+  const abort = () => attempt.abort()
+  signal.addEventListener('abort', abort)
+  const timer = setTimeout(abort, ms)
+  try {
+    return await request(attempt.signal)
+  } finally {
+    clearTimeout(timer)
+    signal.removeEventListener('abort', abort)
+  }
+}
 
 interface LookupRun {
   /** The lookups still wanted: new ones join the queue, those gone from it are dropped. */
@@ -238,17 +262,24 @@ interface LookupRun {
 }
 
 /**
- * Looks titles up in one language, CONCURRENCY at a time, each key at most once: a title that
- * arrives or a torrent that comes doesn't stop or repeat the others. A lookup that fails stays
- * unknown until the next run (the next visit). `onShow` is called as titles arrive, at most every
- * SHOW_EVERY_MS, once they're in the cache.
+ * Looks titles up in one language, CONCURRENCY at a time, each key once: a title that arrives or a
+ * torrent that comes doesn't stop or repeat the others. A lookup that fails or times out is asked
+ * again after RETRY_DELAYS_MS; a 429 stops them all for its Retry-After, then puts its lookup back
+ * in line. `onShow` is called as titles arrive, at most every SHOW_EVERY_MS, once they're cached.
+ * Stopped, it sends nothing more.
  */
 function startLookups(language: string, onShow: () => void): LookupRun {
   const controller = new AbortController()
   const { signal } = controller
+  // Keys taken by a worker: in flight, found, or waiting to be asked again.
   const started = new Set<string>()
+  const failures = new Map<string, number>()
+  const retries = new Set<ReturnType<typeof setTimeout>>()
+  let wanted: Lookup[] = []
   let queue: Lookup[] = []
   let workers = 0
+  let resumeAt = 0
+  let resumeTimer: ReturnType<typeof setTimeout> | undefined
   let shownAt = -Infinity
   let showTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -258,23 +289,54 @@ function startLookups(language: string, onShow: () => void): LookupRun {
     storeCache()
     onShow()
   }
+  // One show for what arrives meanwhile, SHOW_EVERY_MS after the last one at the earliest.
   const arrived = () => {
-    if (showTimer !== undefined) return
-    const wait = shownAt + SHOW_EVERY_MS - Date.now()
-    if (wait > 0) showTimer = setTimeout(show, wait)
-    else show()
+    showTimer ??= setTimeout(show, Math.max(0, shownAt + SHOW_EVERY_MS - Date.now()))
+  }
+
+  const fill = () => {
+    queue = wanted.filter((lookup) => !started.has(lookup.key))
+    while (!signal.aborted && resumeTimer === undefined && workers < CONCURRENCY && queue.length > 0) void work()
+  }
+  const pause = (ms: number) => {
+    if (Date.now() + ms <= resumeAt) return
+    resumeAt = Date.now() + ms
+    clearTimeout(resumeTimer)
+    resumeTimer = setTimeout(() => {
+      resumeTimer = undefined
+      fill()
+    }, ms)
+  }
+  const retryLater = (key: string) => {
+    const count = (failures.get(key) ?? 0) + 1
+    failures.set(key, count)
+    const timer = setTimeout(() => {
+      retries.delete(timer)
+      started.delete(key)
+      fill()
+    }, RETRY_DELAYS_MS[Math.min(count, RETRY_DELAYS_MS.length) - 1])
+    retries.add(timer)
   }
 
   const work = async () => {
     workers++
-    for (let lookup = queue.shift(); lookup && !signal.aborted; lookup = queue.shift()) {
+    while (!signal.aborted && resumeTimer === undefined && queue.length > 0) {
+      const lookup = queue.shift()!
       started.add(lookup.key)
       try {
-        const match = await resolve(lookup, language, signal)
+        const match = await withTimeout(LOOKUP_TIMEOUT_MS, signal, (attempt) => resolve(lookup, language, attempt))
         cacheTitles({ [`${language}|${lookup.key}`]: match })
         arrived()
-      } catch {
-        // Offline, no key or rate-limited: leave it unknown; the next visit tries again.
+      } catch (error) {
+        if (signal.aborted) break
+        if (error instanceof TmdbError && error.status === 429) {
+          // Not this title's failure: it goes back in line once TMDB takes requests again.
+          started.delete(lookup.key)
+          pause(error.retryAfterMs ?? RATE_LIMIT_WAIT_MS)
+        } else {
+          // Offline, no key, a timeout: asked again later, and until then left unknown.
+          retryLater(lookup.key)
+        }
       }
     }
     workers--
@@ -282,11 +344,13 @@ function startLookups(language: string, onShow: () => void): LookupRun {
 
   return {
     want(lookups) {
-      queue = lookups.filter((lookup) => !started.has(lookup.key))
-      while (workers < CONCURRENCY && queue.length > 0) void work()
+      wanted = lookups
+      fill()
     },
     stop() {
       controller.abort()
+      clearTimeout(resumeTimer)
+      for (const timer of retries) clearTimeout(timer)
       if (showTimer === undefined) return
       // What arrived since the last show is kept for the next visit.
       clearTimeout(showTimer)

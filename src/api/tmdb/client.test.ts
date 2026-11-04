@@ -162,6 +162,13 @@ describe('errors', () => {
     await expect(getMovie(1)).rejects.toBeInstanceOf(TmdbKeyError)
   })
 
+  it('says how long a 429 asks to wait', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json({ status_message: 'Too many requests' }, { status: 429, headers: { 'Retry-After': '10' } }))
+    await expect(getMovie(1)).rejects.toMatchObject({ status: 429, retryAfterMs: 10_000 })
+    respond({ status_message: 'Too many requests' }, 429)
+    await expect(getMovie(1)).rejects.toMatchObject({ status: 429, retryAfterMs: undefined })
+  })
+
 })
 
 describe('discoverTitles', () => {
