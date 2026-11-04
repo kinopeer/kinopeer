@@ -1,0 +1,30 @@
+.ks-acc-heading {
+  font: inherit;
+}
+
+.ks-acc-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 52px;
+  padding: 0 var(--space-1);
+  border: none;
+  background: transparent;
+  font: var(--t-body);
+  font-weight: 600;
+  color: var(--text);
+  text-align: left;
+  border-radius: var(--r-sm);
+}
+
+.ks-acc-head > .ks-ic {
+  flex-shrink: 0;
+  transition: transform var(--d-base) var(--ease);
+  color: var(--text3);
+}
+
+.ks-acc-head[aria-expanded='true'] > .ks-ic {
+  transform: rotate(180deg);
+}

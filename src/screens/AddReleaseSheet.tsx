@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { fetchRelease, type Release, type ReleaseSource } from '../api/prowlarr'
 import { QbittorrentError, getSaveLocations } from '../api/qbittorrent'
 import { posterUrl, type MediaType } from '../api/tmdb'
+import { Accordion } from '../components/Accordion'
 import { Badge } from '../components/Badge'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
@@ -242,48 +243,46 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
           </div>
         )}
 
-        <div className="add-options">
-          <button type="button" className="ks-acc-head" aria-expanded={optionsOpen} onClick={() => setOptionsOpen(!optionsOpen)}>
-            {t('add.options')}
-            <Icon name="chevron-down" />
-          </button>
-          {optionsOpen && (
-            <div className="add-options-body">
-              {categories.length > 0 && (
-                <div role="group" aria-label={t('add.category')} className="add-field">
-                  <span className="ks-label">{t('add.category')}</span>
-                  <div className="add-categories">
-                    {[{ name: '' }, ...categories].map((option) => (
-                      <FilterChip
-                        key={option.name}
-                        selected={option.name === category}
-                        onClick={() => setChosenCategory(option.name)}
-                      >
-                        {option.name || t('add.noCategory')}
-                      </FilterChip>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <Input
-                label={t('add.savePath')}
-                value={savePath}
-                placeholder={defaultPath}
-                mono
-                autoCapitalize="off"
-                autoCorrect="off"
-                spellCheck={false}
-                onChange={(event) => setSavePath(event.target.value)}
-              />
-              {toggles.map((toggle) => (
-                <div key={toggle.label} className="add-toggle">
-                  <span className="t-body">{toggle.label}</span>
-                  <Toggle label={toggle.label} checked={toggle.checked} onChange={toggle.set} />
-                </div>
-              ))}
+        <Accordion
+          className="add-options"
+          bodyClassName="add-options-body"
+          title={t('add.options')}
+          open={optionsOpen}
+          onOpenChange={setOptionsOpen}
+        >
+          {categories.length > 0 && (
+            <div role="group" aria-label={t('add.category')} className="add-field">
+              <span className="ks-label">{t('add.category')}</span>
+              <div className="add-categories">
+                {[{ name: '' }, ...categories].map((option) => (
+                  <FilterChip
+                    key={option.name}
+                    selected={option.name === category}
+                    onClick={() => setChosenCategory(option.name)}
+                  >
+                    {option.name || t('add.noCategory')}
+                  </FilterChip>
+                ))}
+              </div>
             </div>
           )}
-        </div>
+          <Input
+            label={t('add.savePath')}
+            value={savePath}
+            placeholder={defaultPath}
+            mono
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+            onChange={(event) => setSavePath(event.target.value)}
+          />
+          {toggles.map((toggle) => (
+            <div key={toggle.label} className="add-toggle">
+              <span className="t-body">{toggle.label}</span>
+              <Toggle label={toggle.label} checked={toggle.checked} onChange={toggle.set} />
+            </div>
+          ))}
+        </Accordion>
 
         {addError && (
           <Banner tone="error">{addError}</Banner>
