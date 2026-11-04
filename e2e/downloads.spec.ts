@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { DESKTOP, DESKTOP_RAIL, openApp, settle, showWholePage, type AppOptions } from './app.ts'
+import { DESKTOP, DESKTOP_RAIL, emulateNotch, openApp, settle, showWholePage, type AppOptions } from './app.ts'
 import { keyboardArea } from '../src/lib/keyboardInset.ts'
 import { TITLES } from './fixtures.ts'
 
@@ -11,12 +11,6 @@ async function openDownloads(page: Page, options: AppOptions = {}) {
   const lang = options.lang ?? 'ru'
   for (const title of titles(lang)) await expect(page.getByText(title, { exact: true }).first()).toBeVisible()
   await settle(page)
-}
-
-/** Chromium's own safe area is empty: this gives env(safe-area-inset-top) a notched iPhone's. */
-async function emulateNotch(page: Page) {
-  const devTools = await page.context().newCDPSession(page)
-  await devTools.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 59 } })
 }
 
 /**

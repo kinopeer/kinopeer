@@ -64,6 +64,8 @@ describe('SearchScreen', () => {
     expect(types.getByRole('button', { name: 'All', pressed: true })).toBeInTheDocument()
 
     await userEvent.click(types.getByRole('button', { name: 'Series' }))
+    expect(types.getByRole('button', { name: 'Series', pressed: true })).toBeInTheDocument()
+    expect(types.getByRole('button', { name: 'All', pressed: false })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'New episodes' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'New on digital' })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Best of the year' })).not.toBeInTheDocument()
@@ -278,7 +280,8 @@ describe('SearchScreen', () => {
     renderScreen('/search?q=star')
     await screen.findByText('About 2 results')
 
-    await userEvent.type(screen.getByRole('textbox', { name: 'Release year' }), '20x22')
+    // A fifth digit isn't taken.
+    await userEvent.type(screen.getByRole('textbox', { name: 'Release year' }), '20x225')
     // The old results go while the year waits for the debounce.
     expect(screen.getByRole('status', { name: saying('Loading') })).toBeInTheDocument()
 
@@ -319,6 +322,17 @@ describe('SearchScreen', () => {
     await screen.findByText('About 2 results')
 
     await userEvent.clear(screen.getByRole('searchbox'))
+    await userEvent.type(screen.getByRole('searchbox'), 'alien')
+
+    expect(screen.getByRole('textbox', { name: 'Release year' })).toHaveValue('')
+  })
+
+  it('drops the year when the query is left blank', async () => {
+    renderScreen('/search?q=it&year=2024')
+    await screen.findByText('About 2 results')
+
+    // Spaces in place of the query count as no query.
+    await userEvent.type(screen.getByRole('searchbox'), ' ', { initialSelectionStart: 0, initialSelectionEnd: 2 })
     await userEvent.type(screen.getByRole('searchbox'), 'alien')
 
     expect(screen.getByRole('textbox', { name: 'Release year' })).toHaveValue('')
