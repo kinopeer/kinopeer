@@ -225,6 +225,28 @@ test.describe('downloads, desktop', () => {
     await expect(page).toHaveScreenshot('desktop-grid-dark-ru.png')
   })
 
+  // The button over a card's poster shows only on hover or focus, so no other screenshot has it.
+  // Hidden, it has no blur either: a backdrop filter is a compositor layer of its own, one per card,
+  // which a screenshot can't see but scrolling a long grid pays for (#220).
+  test('a card’s Pause button on hover, the only one with a blur', async ({ page }) => {
+    await openDownloads(page)
+    const button = page.getByRole('button', { name: 'Пауза: Дюна: Часть вторая' })
+    const card = page.getByRole('listitem').filter({ has: button })
+    await card.hover()
+    await expect(button).toHaveCSS('opacity', '1')
+    const blurs = await page
+      .getByRole('button', { name: /^(Пауза|Продолжить): / })
+      .evaluateAll((buttons) => buttons.map((b) => getComputedStyle(b).backdropFilter).filter((f) => f !== 'none'))
+    expect(blurs).toEqual(['blur(14px)'])
+    await expect(card).toHaveScreenshot('desktop-card-hover-dark-ru.png')
+
+    // Focus anywhere in the card shows it too, glass and all.
+    await page.mouse.move(0, 0)
+    await card.getByRole('link').focus()
+    await expect(button).toHaveCSS('opacity', '1')
+    await expect(button).toHaveCSS('backdrop-filter', 'blur(14px)')
+  })
+
   test('list as a table, dark, Russian', async ({ page }) => {
     await openDownloads(page, { downloadsView: 'list' })
     await expect(page.getByRole('table', { name: 'Загрузки' })).toBeVisible()
