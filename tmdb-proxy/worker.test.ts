@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest'
-import { handle, type EdgeCache, type Env } from './worker.ts'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import worker, { handle, type EdgeCache, type Env } from './worker.ts'
 
 const ORIGIN = 'https://kinoseed-tmdb.example.workers.dev'
 const TMDB = 'https://tmdb.test/3'
@@ -94,6 +94,11 @@ describe('TMDB proxy worker', () => {
     ['an id that isn’t a number', '/3/movie/abc'],
     ['a path without the version', '/search/movie'],
     ['the root', '/'],
+    // Each route's pattern holds the whole path, not a part of it.
+    ...['/configuration', '/search/movie', '/discover/tv', '/movie/550', '/tv/1399/similar'].flatMap((path) => [
+      [`${path} under another path`, `/3/account${path}`],
+      [`${path} with more after it`, `/3${path}/videos`],
+    ]),
   ])('answers 404 for %s without calling TMDB', async (_, path) => {
     const { call, tmdb } = setup()
     const response = await call(path)
@@ -143,6 +148,8 @@ describe('TMDB proxy worker', () => {
     expect((await call('/3/search/movie?query=Dune')).headers.get('cache-control')).toBe('public, s-maxage=3600')
     expect((await call('/3/discover/tv')).headers.get('cache-control')).toBe('public, s-maxage=21600')
     expect((await call('/3/tv/1399')).headers.get('cache-control')).toBe('public, s-maxage=86400')
+    expect((await call('/3/configuration')).headers.get('cache-control')).toBe('public, s-maxage=86400')
+    expect((await call('/3/movie/550/recommendations')).headers.get('cache-control')).toBe('public, s-maxage=86400')
   })
 
   it('passes TMDB’s content type and validators on', async () => {
@@ -151,6 +158,15 @@ describe('TMDB proxy worker', () => {
 
     expect(response.headers.get('content-type')).toBe('application/json;charset=utf-8')
     expect(response.headers.get('etag')).toBe('W/"1"')
+  })
+
+  it('leaves out a header TMDB didn’t send', async () => {
+    const { call, tmdb } = setup()
+    tmdb.mockResolvedValueOnce(new Response('{}', { headers: { 'Content-Type': 'application/json' } }))
+    const response = await call('/3/movie/550')
+
+    expect(response.headers.has('etag')).toBe(false)
+    expect(response.headers.has('last-modified')).toBe(false)
   })
 
   it('passes TMDB’s error on and doesn’t cache it', async () => {
@@ -200,5 +216,25 @@ describe('TMDB proxy worker', () => {
     await call('/3/movie/550', { ip: '203.0.113.7' })
 
     expect(limit).toHaveBeenCalledOnce()
+  })
+
+  describe('as deployed', () => {
+    afterEach(() => vi.unstubAllGlobals())
+
+    it('calls TMDB and caches in the Workers runtime’s own cache', async () => {
+      const tmdb = fakeTmdb()
+      const cache = fakeCache()
+      vi.stubGlobal('fetch', tmdb)
+      vi.stubGlobal('caches', { default: cache })
+      const pending: Promise<unknown>[] = []
+      const response = await worker.fetch(new Request(`${ORIGIN}/3/configuration`), { TMDB_API_KEY: 'v3key' }, {
+        waitUntil: (promise) => void pending.push(promise),
+      })
+      await Promise.all(pending)
+
+      expect(response.status).toBe(200)
+      expect(String(tmdb.mock.calls[0]?.[0])).toBe('https://api.themoviedb.org/3/configuration?api_key=v3key')
+      expect([...cache.entries.keys()]).toEqual([`${ORIGIN}/3/configuration`])
+    })
   })
 })
