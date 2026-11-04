@@ -31,6 +31,7 @@ const LOCATIONS: SaveLocations = {
   categoryPaths: true,
   subcategories: false,
   relocateOnCategoryChange: true,
+  downloadPath: false,
 }
 const DUNE = torrent('dune', { name: 'Dune.Part.Two', category: 'Movies', save_path: '/downloads/movies', auto_tmm: true, added_on: 1 })
 const ANDOR = torrent('andor', { name: 'Andor.S02', category: 'TV Shows', save_path: '/downloads/tv', auto_tmm: true, added_on: 1 })
@@ -47,9 +48,16 @@ function Harness({ torrents = { dune: DUNE }, offline = false }: { torrents?: Re
   return (
     <section aria-label="Screen">
       {Object.keys(torrents).map((hash) => (
-        <button key={hash} type="button" disabled={category.busy(hash)} onClick={() => category.open(hash)}>
-          Open {hash}
-        </button>
+        <div key={hash}>
+          {/* Opens the sheet whatever is in flight, as another screen's would. */}
+          <button type="button" onClick={() => category.open(hash)}>
+            Open {hash}
+          </button>
+          {/* The page's Category row, off while a change is in flight. */}
+          <button type="button" disabled={category.busy(hash)}>
+            Row {hash}
+          </button>
+        </div>
       ))}
       {category.element}
     </section>
@@ -164,11 +172,72 @@ describe('useChangeCategory', () => {
     const sheet = await open()
     await pick(sheet, 'TV Shows')
     await userEvent.click(within(sheet).getByRole('button', { name: 'Cancel' }))
-    expect(screen.getByRole('button', { name: 'Open dune' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Row dune' })).toBeDisabled()
 
     answers[0].resolve()
     expect(await findToastOnPage('Moving files to /downloads/tv')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Open dune' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Row dune' })).toBeEnabled()
+  })
+
+  it('keeps a torrent’s change busy when another torrent’s earlier change settles', async () => {
+    const answers = held()
+    const { open, pick } = renderCategory({ torrents: { dune: DUNE, andor: ANDOR } })
+    const dune = await open('dune')
+    await pick(dune, 'TV Shows')
+    await userEvent.click(within(dune).getByRole('button', { name: 'Cancel' }))
+    const andor = await open('andor')
+    await pick(andor, 'Movies')
+    answers[0].resolve()
+    expect(await screen.findByRole('status', { name: saying('Moving files to /downloads/tv') })).toBeInTheDocument()
+    // A second tap would send andor's change again.
+    expect(within(andor).getByRole('button', { name: 'Save' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Row andor', hidden: true })).toBeDisabled()
+  })
+
+  it('keeps a torrent’s change busy after another torrent’s change started, so it isn’t sent twice', async () => {
+    held()
+    const { open, pick } = renderCategory({ torrents: { dune: DUNE, andor: ANDOR } })
+    const dune = await open('dune')
+    await pick(dune, 'TV Shows')
+    await userEvent.click(within(dune).getByRole('button', { name: 'Cancel' }))
+    const andor = await open('andor')
+    await pick(andor, 'Movies')
+    await userEvent.click(within(andor).getByRole('button', { name: 'Cancel' }))
+    const again = await open('dune')
+    // At the category being sent, not the torrent's: Save is off only because dune's change is in flight.
+    expect(await within(again).findByRole('radio', { name: 'TV Shows' })).toBeChecked()
+    expect(within(again).getByRole('button', { name: 'Save' })).toBeDisabled()
+    expect(setCategory).toHaveBeenCalledTimes(2)
+  })
+
+  it('shows a change from a closed sheet in the one opened again for the same torrent, and closes that once sent', async () => {
+    const answers = held()
+    const { open, pick } = renderCategory()
+    const first = await open()
+    await pick(first, 'TV Shows')
+    await userEvent.click(within(first).getByRole('button', { name: 'Cancel' }))
+    const again = await open()
+    expect(await within(again).findByRole('radio', { name: 'TV Shows' })).toBeChecked()
+    expect(within(again).getByRole('button', { name: 'Save' })).toBeDisabled()
+    answers[0].resolve()
+    expect(await findToastOnPage('Moving files to /downloads/tv')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Category' })).not.toBeInTheDocument()
+  })
+
+  it('says in the sheet opened again for the same torrent that the change from the closed one failed', async () => {
+    const answers = held()
+    const { open, pick } = renderCategory()
+    const first = await open()
+    await pick(first, 'TV Shows')
+    await userEvent.click(within(first).getByRole('button', { name: 'Cancel' }))
+    const again = await open()
+    answers[0].reject(new TypeError('Failed to fetch'))
+    expect(await within(again).findByRole('alert', { name: saying(FAILED) })).toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: saying(FAILED) })).not.toBeInTheDocument()
+    // A retry sends the category that failed, which the sheet opened again started from.
+    await userEvent.click(within(again).getByRole('button', { name: 'Save' }))
+    expect(setCategory).toHaveBeenLastCalledWith(['dune'], 'TV Shows')
+    expect(setCategory).toHaveBeenCalledTimes(2)
   })
 
   it('starts a sheet opened on another screen mid-change from the category being sent, which can’t be changed meanwhile', async () => {

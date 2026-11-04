@@ -74,6 +74,7 @@ describe('qBittorrent client through /qbt', () => {
       categoryPaths: false,
       subcategories: false,
       relocateOnCategoryChange: true,
+      downloadPath: false,
     })
   })
 

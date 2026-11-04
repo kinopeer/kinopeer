@@ -5,6 +5,7 @@ import * as api from '../api/qbittorrent'
 import type { SaveLocations, Torrent } from '../api/qbittorrent'
 import { ToastProvider } from '../components/Toast'
 import { torrent } from '../test/fixtures'
+import { saying } from '../test/render'
 import { CategorySheet } from './CategorySheet'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
@@ -23,6 +24,7 @@ const LOCATIONS: SaveLocations = {
   categoryPaths: true,
   subcategories: false,
   relocateOnCategoryChange: true,
+  downloadPath: false,
 }
 const AUTO = torrent('dune', { name: 'Dune.Part.Two', category: 'Movies', save_path: '/downloads/movies', auto_tmm: true })
 
@@ -103,7 +105,10 @@ describe('CategorySheet', () => {
   it('says nothing about the files until another category is picked', async () => {
     const { sheet } = renderSheet()
     await within(sheet).findByRole('radio', { name: 'TV Shows' })
-    expect(within(sheet).queryByText(/qBittorrent will move/)).not.toBeInTheDocument()
+    // No note of any kind: for its own category the files would "stay", which isn't news.
+    expect(within(sheet).queryByText(/files/)).not.toBeInTheDocument()
+    await userEvent.click(within(sheet).getByRole('radio', { name: 'TV Shows' }))
+    expect(within(sheet).getByText(/files/)).toBeInTheDocument()
   })
 
   it('hands Save what the change does, for the state the torrent shows meanwhile', async () => {
@@ -130,6 +135,6 @@ describe('CategorySheet', () => {
 
   it('says the last change failed', async () => {
     const { sheet } = renderSheet({}, { failed: true })
-    expect(within(sheet).getByRole('alert')).toHaveTextContent('Couldn’t reach qBittorrent. Try again.')
+    expect(within(sheet).getByRole('alert', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
   })
 })

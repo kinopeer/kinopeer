@@ -354,6 +354,7 @@ describe('getSaveLocations', () => {
       categoryPaths: true,
       subcategories: true,
       relocateOnCategoryChange: true,
+      downloadPath: false,
     })
   })
 
@@ -372,6 +373,13 @@ describe('getSaveLocations', () => {
     expect(await getSaveLocations()).toMatchObject({ categoryPaths: false })
   })
 
+  it('reads whether qBittorrent keeps incomplete torrents in a folder of their own', async () => {
+    fetchMock.mockImplementation(answer('{"temp_path_enabled":true}'))
+    expect(await getSaveLocations()).toMatchObject({ downloadPath: true })
+    fetchMock.mockImplementation(answer('{}'))
+    expect(await getSaveLocations()).toMatchObject({ downloadPath: false })
+  })
+
   it('takes qBittorrent’s defaults when its preferences can’t be read', async () => {
     fetchMock.mockImplementation(answer('<!doctype html>'))
     // qBittorrent relocates a torrent whose category changed unless told otherwise.
@@ -380,6 +388,7 @@ describe('getSaveLocations', () => {
       categoryPaths: false,
       subcategories: false,
       relocateOnCategoryChange: true,
+      downloadPath: false,
     })
   })
 
@@ -391,6 +400,7 @@ describe('getSaveLocations', () => {
       categoryPaths: false,
       subcategories: false,
       relocateOnCategoryChange: true,
+      downloadPath: false,
     })
   })
 })

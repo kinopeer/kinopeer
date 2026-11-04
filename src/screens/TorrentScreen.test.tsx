@@ -272,7 +272,8 @@ describe('TorrentScreen', () => {
     expect(toggle).toBeDisabled()
     await act(async () => answer())
     expect(api.toggleSequentialDownload).toHaveBeenCalledWith(['dune'])
-    await waitFor(() => expect(toggle).toBeEnabled())
+    // Still off while qBittorrent may report the old value (useDownloadToggle.test.tsx owns how long).
+    expect(toggle).toBeDisabled()
   })
 
   it('turns the download settings off while qBittorrent is unreachable', async () => {
@@ -316,6 +317,7 @@ describe('TorrentScreen', () => {
       categoryPaths: true,
       subcategories: false,
       relocateOnCategoryChange: true,
+      downloadPath: false,
     })
     let answer = () => {}
     vi.mocked(api.setCategory).mockReturnValue(new Promise((resolve) => (answer = resolve)))
@@ -335,7 +337,7 @@ describe('TorrentScreen', () => {
   })
 
   it('moves the files from the More menu', async () => {
-    vi.mocked(api.getSaveLocations).mockResolvedValue({ defaultPath: '/downloads', categories: [], categoryPaths: false, subcategories: false, relocateOnCategoryChange: true })
+    vi.mocked(api.getSaveLocations).mockResolvedValue({ defaultPath: '/downloads', categories: [], categoryPaths: false, subcategories: false, relocateOnCategoryChange: true, downloadPath: false })
     vi.mocked(api.setTorrentLocation).mockResolvedValue()
     getTorrentTrackers.mockResolvedValue([])
     renderScreen()
@@ -358,7 +360,7 @@ describe('TorrentScreen', () => {
   })
 
   it('says how a move went when the torrent is gone by the time qBittorrent answers', async () => {
-    vi.mocked(api.getSaveLocations).mockResolvedValue({ defaultPath: '/downloads', categories: [], categoryPaths: false, subcategories: false, relocateOnCategoryChange: true })
+    vi.mocked(api.getSaveLocations).mockResolvedValue({ defaultPath: '/downloads', categories: [], categoryPaths: false, subcategories: false, relocateOnCategoryChange: true, downloadPath: false })
     let fail = (_error: unknown) => {}
     vi.mocked(api.setTorrentLocation).mockReturnValue(new Promise<void>((_resolve, reject) => (fail = reject)))
     renderScreen()

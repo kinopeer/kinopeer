@@ -12,6 +12,7 @@ const LOCATIONS: SaveLocations = {
   categoryPaths: true,
   subcategories: false,
   relocateOnCategoryChange: true,
+  downloadPath: false,
 }
 
 const AUTO = torrent('auto', { auto_tmm: true, category: 'Movies', save_path: '/downloads/movies' })
@@ -43,6 +44,35 @@ describe('categoryChange', () => {
     expect(categoryChange(manual, 'TV Shows', { ...LOCATIONS, relocateOnCategoryChange: false })).toEqual({
       kind: 'manual',
       folder: '/media',
+    })
+  })
+
+  describe('with a download path for incomplete torrents', () => {
+    const INCOMPLETE = { ...AUTO, progress: 0.4 }
+
+    it('says a move without naming the folder, which is the category’s download path', () => {
+      expect(categoryChange(INCOMPLETE, 'TV Shows', { ...LOCATIONS, downloadPath: true })).toEqual({ kind: 'move', folder: '' })
+    })
+
+    it('names the save folder of a complete torrent, which isn’t kept there', () => {
+      expect(categoryChange({ ...AUTO, progress: 1 }, 'TV Shows', { ...LOCATIONS, downloadPath: true })).toEqual({
+        kind: 'move',
+        folder: '/downloads/TV Shows',
+      })
+    })
+
+    it('follows the new category’s own download path over qBittorrent’s setting', () => {
+      const categories = [
+        { name: 'Movies', savePath: '/downloads/movies' },
+        { name: 'Own', savePath: '/media/own', download_path: '/incomplete/own' },
+        { name: 'None', savePath: '/media/none', download_path: false as const },
+        { name: 'Empty', savePath: '/media/empty', download_path: '' },
+      ]
+      const locations = { ...LOCATIONS, categories }
+      expect(categoryChange(INCOMPLETE, 'Own', locations)).toEqual({ kind: 'move', folder: '' })
+      expect(categoryChange(INCOMPLETE, 'None', { ...locations, downloadPath: true })).toEqual({ kind: 'move', folder: '/media/none' })
+      // An empty path is qBittorrent's default download path, not none.
+      expect(categoryChange(INCOMPLETE, 'Empty', locations)).toEqual({ kind: 'move', folder: '' })
     })
   })
 

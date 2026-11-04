@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useSyncExternalStore } from 'react'
 import type { Torrent } from '../api/qbittorrent'
 import type { RequestKind } from '../torrents/requestKinds'
 import { requestKey, type Outcome, type SendOptions, type Settled } from '../torrents/torrentRequests'
@@ -9,6 +9,11 @@ export interface TorrentAction {
   busy: (hash: string) => boolean
   /** What's being sent for the torrent while it is, from anywhere. */
   pending: (hash: string) => unknown
+  /**
+   * Whether the state one of the kind gave the torrent is still held past qBittorrent's answer
+   * (`SendOptions.hold`), while qBittorrent may still report the old one.
+   */
+  holding: (hash: string) => boolean
   /** Sends one of the kind for the torrents without one in flight (`TorrentRequests.send`). */
   send: (
     target: Torrent | readonly Torrent[],
@@ -52,6 +57,19 @@ export function useTorrentAction(kind: RequestKind, watcher?: ActionWatcher): To
     })
   }, [requests, kind, watching])
 
+  // Rendered again when the soonest hold of the kind ends, so `holding` turns false on time.
+  const expected = useSyncExternalStore(requests.subscribe, requests.getExpected)
+  const [, holdEnded] = useReducer((count: number) => count + 1, 0)
+  useEffect(() => {
+    const now = Date.now()
+    const ends = [...expected]
+      .filter(([key, item]) => key === requestKey(kind, item.hash) && item.until > now)
+      .map(([, item]) => item.until)
+    if (ends.length === 0) return
+    const timer = setTimeout(holdEnded, Math.min(...ends) - now)
+    return () => clearTimeout(timer)
+  }, [expected, kind])
+
   const send = useCallback<TorrentAction['send']>(
     (target, payload, request, options) => requests.send(kind, target, payload, request, options),
     [requests, kind],
@@ -59,6 +77,7 @@ export function useTorrentAction(kind: RequestKind, watcher?: ActionWatcher): To
   return {
     busy: (hash) => inFlight.has(requestKey(kind, hash)),
     pending: (hash) => inFlight.get(requestKey(kind, hash)),
+    holding: (hash) => (expected.get(requestKey(kind, hash))?.until ?? 0) > Date.now(),
     send,
   }
 }

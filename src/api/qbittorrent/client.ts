@@ -139,6 +139,8 @@ interface FolderPreferences {
   use_subcategories?: boolean
   /** "When Torrent Category changed": relocate the torrent (true) or switch it to manual mode. */
   torrent_changed_tmm_enabled?: boolean
+  /** "Keep incomplete torrents in". */
+  temp_path_enabled?: boolean
 }
 
 /** Categories by name, the default save path and how qBittorrent uses category folders. */
@@ -158,6 +160,7 @@ export async function getSaveLocations(signal?: AbortSignal): Promise<SaveLocati
     subcategories: !!preferences.use_subcategories,
     // qBittorrent relocates by default.
     relocateOnCategoryChange: preferences.torrent_changed_tmm_enabled !== false,
+    downloadPath: !!preferences.temp_path_enabled,
   }
 }
 

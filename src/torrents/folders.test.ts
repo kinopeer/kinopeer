@@ -6,7 +6,9 @@ const locations = (fields: Partial<SaveLocations> = {}): SaveLocations => ({
   categories: [],
   defaultPath: '/downloads',
   categoryPaths: true,
-  subcategories: false, relocateOnCategoryChange: true,
+  subcategories: false,
+  relocateOnCategoryChange: true,
+  downloadPath: false,
   ...fields,
 })
 
@@ -66,7 +68,7 @@ describe('categoryFolder', () => {
       { name: 'Movies', savePath: '/media/movies' },
       { name: 'Movies/HD', savePath: '' },
     ]
-    expect(categoryFolder('Movies/HD', locations({ categories, subcategories: true, relocateOnCategoryChange: true }))).toBe('/media/movies/HD')
+    expect(categoryFolder('Movies/HD', locations({ categories, subcategories: true }))).toBe('/media/movies/HD')
     expect(categoryFolder('Movies/HD', locations({ categories }))).toBe('/downloads/Movies/HD')
     const windows = locations({ defaultPath: 'C:\\Downloads', categories })
     expect(categoryFolder('Movies/HD', windows)).toBe('C:\\Downloads\\Movies\\HD')

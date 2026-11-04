@@ -6,7 +6,7 @@ import { ToastProvider } from '../components/Toast'
 import { torrent } from '../test/fixtures'
 import { saying } from '../test/render'
 import { REQUEST_KINDS } from '../torrents/requestKinds'
-import { STATE_LAG_MARGIN_MS, resetStateLag } from '../torrents/stateLag'
+import { DEFAULT_REFRESH_INTERVAL_MS, STATE_LAG_MARGIN_MS, resetStateLag } from '../torrents/stateLag'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
 import { requestKey } from '../torrents/torrentRequests'
 import { useTorrentRequests } from '../torrents/useTorrentRequests'
@@ -100,7 +100,6 @@ describe('useDownloadToggle', () => {
       await sent
     })
     expect(toggleSequentialDownload).toHaveBeenCalledOnce()
-    expect(result.current.drawer.busy('dune')).toBe(false)
     expect(result.current.drawer.value(DUNE)).toBe(false)
     // Neither the flip qBittorrent took nor the one left out is a failure.
     expect(screen.queryByRole('status', { name: saying(FAILED) })).not.toBeInTheDocument()
@@ -118,6 +117,22 @@ describe('useDownloadToggle', () => {
     expect(expected?.expect(DUNE)).toEqual({ ...DUNE, f_l_piece_prio: true })
   })
 
+  it('stays busy while qBittorrent may still report the old value, so a tap back reads the new one', async () => {
+    vi.useFakeTimers({ now: 10_000, toFake: ['Date', 'setTimeout', 'clearTimeout'] })
+    const { result } = renderHook(() => ({ page: useDownloadToggle('seq_dl'), other: useDownloadToggle('f_l_piece_prio') }), {
+      wrapper: Providers,
+    })
+    await act(() => result.current.page.set(DUNE, true))
+    expect(result.current.page.busy('dune')).toBe(true)
+    // Only the kind that was flipped, and only for its torrent.
+    expect(result.current.other.busy('dune')).toBe(false)
+    expect(result.current.page.busy('alien')).toBe(false)
+    await act(async () => vi.advanceTimersByTime(DEFAULT_REFRESH_INTERVAL_MS + STATE_LAG_MARGIN_MS - 1))
+    expect(result.current.page.busy('dune')).toBe(true)
+    await act(async () => vi.advanceTimersByTime(1))
+    expect(result.current.page.busy('dune')).toBe(false)
+  })
+
   it('says a failure in a toast, which the next try takes back', async () => {
     toggleSequentialDownload.mockRejectedValueOnce(new TypeError('Failed to fetch')).mockReturnValueOnce(new Promise(() => {}))
     const { result } = renderHook(() => useDownloadToggle('seq_dl'), { wrapper: Providers })
@@ -126,6 +141,19 @@ describe('useDownloadToggle', () => {
 
     act(() => void result.current.set(DUNE, true))
     expect(screen.queryByRole('status', { name: saying(FAILED) })).not.toBeInTheDocument()
+  })
+
+  it('keeps one switch’s failure when the other is tried', async () => {
+    toggleSequentialDownload.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    toggleFirstLastPiecePrio.mockReturnValueOnce(new Promise(() => {}))
+    const { result } = renderHook(() => ({ seq: useDownloadToggle('seq_dl'), pieces: useDownloadToggle('f_l_piece_prio') }), {
+      wrapper: Providers,
+    })
+    await act(() => result.current.seq.set(DUNE, true))
+    expect(await screen.findByRole('status', { name: saying(FAILED) })).toBeInTheDocument()
+    act(() => void result.current.pieces.set(DUNE, true))
+    // Sequential download wasn't tried again, so its failure stands.
+    expect(screen.getByRole('status', { name: saying(FAILED) })).toBeInTheDocument()
   })
 
   it('says a failed read of the torrent as a failure too', async () => {

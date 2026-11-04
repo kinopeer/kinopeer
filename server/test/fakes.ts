@@ -105,6 +105,8 @@ export const PREFERENCES = {
   use_subcategories: false,
   /** "When Torrent Category changed: Relocate torrent", qBittorrent's default. */
   torrent_changed_tmm_enabled: true,
+  /** "Keep incomplete torrents in", off by default. */
+  temp_path_enabled: false,
   refresh_interval: 1500,
 }
 

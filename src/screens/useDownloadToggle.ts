@@ -12,13 +12,21 @@ import { useTorrentAction } from './useTorrentAction'
 export type DownloadToggleField = 'seq_dl' | 'f_l_piece_prio'
 
 const TOGGLES = {
-  seq_dl: { kind: REQUEST_KINDS.sequential, request: toggleSequentialDownload },
-  f_l_piece_prio: { kind: REQUEST_KINDS.firstLastPieces, request: toggleFirstLastPiecePrio },
+  seq_dl: { kind: REQUEST_KINDS.sequential, request: toggleSequentialDownload, toastKey: TOAST_KEYS.sequential },
+  f_l_piece_prio: {
+    kind: REQUEST_KINDS.firstLastPieces,
+    request: toggleFirstLastPiecePrio,
+    toastKey: TOAST_KEYS.firstLastPieces,
+  },
 } as const
 
 export interface DownloadToggle {
   /** What the switch shows: the value being sent while it is, from anywhere, else the torrent's. */
   value: (torrent: Torrent) => boolean
+  /**
+   * While one is in flight, from anywhere, and while its new value is held (`stateLag`): qBittorrent
+   * may still report the old one then, so a tap back would read it and flip nothing.
+   */
   busy: (hash: string) => boolean
   /**
    * Turns the setting on or off. qBittorrent can only flip it, so the torrent is read just before,
@@ -37,12 +45,12 @@ export interface DownloadToggle {
 export function useDownloadToggle(field: DownloadToggleField): DownloadToggle {
   const { t } = useTranslation()
   const toast = useToast()
-  const { kind, request } = TOGGLES[field]
-  const { busy, pending, send } = useTorrentAction(kind)
+  const { kind, request, toastKey } = TOGGLES[field]
+  const { busy, holding, pending, send } = useTorrentAction(kind)
 
   const set = useCallback(
     async (torrent: Torrent, on: boolean) => {
-      toast.dismiss(TOAST_KEYS.downloadToggle)
+      toast.dismiss(toastKey)
       void readRefreshInterval()
       const settled = await send(
         torrent,
@@ -55,15 +63,15 @@ export function useDownloadToggle(field: DownloadToggleField): DownloadToggle {
         },
         { expect: (item) => ({ ...item, [field]: on }), hold: stateLag },
       )
-      if (settled && !settled.ok) toast.show(t('torrent.actionFailed'), { icon: 'alert', key: TOAST_KEYS.downloadToggle })
+      if (settled && !settled.ok) toast.show(t('torrent.actionFailed'), { icon: 'alert', key: toastKey })
       return settled
     },
-    [send, toast, t, field, request],
+    [send, toast, t, field, request, toastKey],
   )
 
   const value = (torrent: Torrent) => {
     const sending = pending(torrent.hash)
     return typeof sending === 'boolean' ? sending : torrent[field]
   }
-  return { value, busy, set }
+  return { value, busy: (hash) => busy(hash) || holding(hash), set }
 }
