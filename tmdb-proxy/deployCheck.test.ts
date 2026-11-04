@@ -7,11 +7,14 @@ import { compareVersionTags, shouldDeploy } from './deployCheck.ts'
 
 const repos: string[] = []
 
+/** Git without the developer's own config, whose hooks or templates would run in the test's commits. */
+const GIT_ENV = { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' }
+
 /** A git repository with one commit of the proxy, as the workflow's checkout has it. */
 function repo() {
   const cwd = mkdtempSync(join(tmpdir(), 'kinoseed-proxy-'))
   repos.push(cwd)
-  const git = (...args: string[]) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim()
+  const git = (...args: string[]) => execFileSync('git', args, { cwd, encoding: 'utf8', env: GIT_ENV }).trim()
   git('init', '-q', '-b', 'main')
   git('config', 'user.email', 'test@example.com')
   git('config', 'user.name', 'Test')
@@ -153,7 +156,7 @@ describe('shouldDeploy', () => {
 
   it('fails rather than skipping when git can’t compare', () => {
     const { cwd, first } = repo()
-    execFileSync('git', ['checkout', '-q', '--detach', first], { cwd })
+    execFileSync('git', ['checkout', '-q', '--detach', first], { cwd, env: GIT_ENV })
 
     expect(() => shouldDeploy('edge', cwd)).toThrow('git diff failed')
   })
@@ -169,14 +172,14 @@ describe('shouldDeploy', () => {
     const { cwd, commit, at, first } = repo()
     const newer = commit({ 'tmdb-proxy/worker.ts': 'v2' })
     const script = join(import.meta.dirname, 'deployCheck.ts')
-    const run = () => spawnSync(process.execPath, [script, 'edge'], { cwd, encoding: 'utf8' })
+    const run = () => spawnSync(process.execPath, [script, 'edge'], { cwd, encoding: 'utf8', env: GIT_ENV })
 
     at(newer)
     expect(run().stdout).toBe('deploy=true\n')
     expect(run().stderr).toContain('the same as at origin/main')
     at(first, newer)
     expect(run().stdout).toBe('deploy=false\n')
-    expect(spawnSync(process.execPath, [script], { cwd, encoding: 'utf8' }).stderr).toContain('Unknown environment')
+    expect(spawnSync(process.execPath, [script], { cwd, encoding: 'utf8', env: GIT_ENV }).stderr).toContain('Unknown environment')
   })
 })
 
@@ -196,7 +199,7 @@ describe('compareVersionTags', () => {
     ])
   })
 
-  it('ranks a tag equal to itself', () => {
+  it('compares a release with its prereleases, prereleases by name, and a tag with itself', () => {
     expect(compareVersionTags('v0.7.0', 'v0.7.0')).toBe(0)
     expect(compareVersionTags('v0.7.0-rc.1', 'v0.7.0-rc.1')).toBe(0)
     expect(compareVersionTags('v0.7.0', 'v0.7.0-rc.1')).toBeGreaterThan(0)

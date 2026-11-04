@@ -116,7 +116,12 @@ export async function handle(request: Request, env: Env, deps: Deps = {}): Promi
   // entry, so a HEAD's empty answer isn't kept, and neither is an error.
   const cacheable = upstream.ok && request.method === 'GET'
   headers.set('Cache-Control', cacheable ? `public, s-maxage=${ttl}` : NO_STORE)
-  return new Response(request.method === 'HEAD' ? null : upstream.body, { status: upstream.status, headers })
+  if (request.method === 'HEAD') {
+    // Released rather than left unread, which holds the connection to TMDB until it's collected.
+    await upstream.body?.cancel()
+    return new Response(null, { status: upstream.status, headers })
+  }
+  return new Response(upstream.body, { status: upstream.status, headers })
 }
 
 export default {

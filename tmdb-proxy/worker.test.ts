@@ -198,6 +198,16 @@ describe('TMDB proxy worker', () => {
     expect(tmdb.mock.calls[0]?.[1]?.method).toBeUndefined()
   })
 
+  it('releases TMDB’s answer to a HEAD rather than leave it unread', async () => {
+    const { call, tmdb } = setup()
+    const answer = new Response('{"ok":true}', { headers: { 'Content-Type': 'application/json' } })
+    tmdb.mockResolvedValueOnce(answer)
+    await call('/3/configuration', { method: 'HEAD' })
+
+    // Cancelling marks the body as used; one left alone could still be read.
+    expect(answer.bodyUsed).toBe(true)
+  })
+
   it('answers 429 once an IP is over its limit, without calling TMDB', async () => {
     const limit = vi.fn(async () => ({ success: false }))
     const { call, tmdb } = setup({ env: { TMDB_API_KEY: 'v3key', LIMITER: { limit } } })
