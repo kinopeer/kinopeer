@@ -213,6 +213,12 @@ export async function openApp(page: Page, path: string, options: AppOptions = {}
   await page.goto(path)
 }
 
+/** Chromium's own safe area is empty: this gives env(safe-area-inset-top) a notched iPhone's. */
+export async function emulateNotch(page: Page): Promise<void> {
+  const devTools = await page.context().newCDPSession(page)
+  await devTools.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 59 } })
+}
+
 /**
  * Waits until the fonts and every image have loaded, so the screenshot doesn't catch them midway.
  * Lazy posters below the fold are loaded too, for full-page screenshots.
