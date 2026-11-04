@@ -172,10 +172,15 @@ function readCache(key: string, now = Date.now()): TitleMatch | null | undefined
   return now - entry.at < (entry.match ? HIT_TTL_MS : MISS_TTL_MS) ? entry.match : undefined
 }
 
-function writeCache(changes: Record<string, TitleMatch | null>): void {
+/** Caches titles in memory; `storeCache` writes them to localStorage. */
+function cacheTitles(changes: Record<string, TitleMatch | null>): void {
   const entries = loadCache()
   const at = Date.now()
   for (const [key, match] of Object.entries(changes)) entries[key] = { match, at }
+}
+
+function storeCache(): void {
+  const entries = loadCache()
   const keys = Object.keys(entries)
   if (keys.length > MAX_ENTRIES) {
     keys.sort((a, b) => entries[a].at - entries[b].at)
@@ -186,6 +191,11 @@ function writeCache(changes: Record<string, TitleMatch | null>): void {
   } catch {
     // Storage full or blocked: the in-memory copy still saves requests for this session.
   }
+}
+
+function writeCache(changes: Record<string, TitleMatch | null>): void {
+  cacheTitles(changes)
+  storeCache()
 }
 
 /**
@@ -214,6 +224,76 @@ export function clearTitleMatchCache(): void {
 }
 
 const CONCURRENCY = 3
+/**
+ * While titles keep coming, they show at most this often: each time the whole list renders again
+ * and the cache is written to localStorage, which for a library of hundreds costs more than the
+ * answer itself (#239).
+ */
+export const SHOW_EVERY_MS = 250
+
+interface LookupRun {
+  /** The lookups still wanted: new ones join the queue, those gone from it are dropped. */
+  want(lookups: Lookup[]): void
+  stop(): void
+}
+
+/**
+ * Looks titles up in one language, CONCURRENCY at a time, each key at most once: a title that
+ * arrives or a torrent that comes doesn't stop or repeat the others. A lookup that fails stays
+ * unknown until the next run (the next visit). `onShow` is called as titles arrive, at most every
+ * SHOW_EVERY_MS, once they're in the cache.
+ */
+function startLookups(language: string, onShow: () => void): LookupRun {
+  const controller = new AbortController()
+  const { signal } = controller
+  const started = new Set<string>()
+  let queue: Lookup[] = []
+  let workers = 0
+  let shownAt = -Infinity
+  let showTimer: ReturnType<typeof setTimeout> | undefined
+
+  const show = () => {
+    showTimer = undefined
+    shownAt = Date.now()
+    storeCache()
+    onShow()
+  }
+  const arrived = () => {
+    if (showTimer !== undefined) return
+    const wait = shownAt + SHOW_EVERY_MS - Date.now()
+    if (wait > 0) showTimer = setTimeout(show, wait)
+    else show()
+  }
+
+  const work = async () => {
+    workers++
+    for (let lookup = queue.shift(); lookup && !signal.aborted; lookup = queue.shift()) {
+      started.add(lookup.key)
+      try {
+        const match = await resolve(lookup, language, signal)
+        cacheTitles({ [`${language}|${lookup.key}`]: match })
+        arrived()
+      } catch {
+        // Offline, no key or rate-limited: leave it unknown; the next visit tries again.
+      }
+    }
+    workers--
+  }
+
+  return {
+    want(lookups) {
+      queue = lookups.filter((lookup) => !started.has(lookup.key))
+      while (workers < CONCURRENCY && queue.length > 0) void work()
+    },
+    stop() {
+      controller.abort()
+      if (showTimer === undefined) return
+      // What arrived since the last show is kept for the next visit.
+      clearTimeout(showTimer)
+      storeCache()
+    },
+  }
+}
 
 /**
  * TMDB title for each torrent, by hash: the match, null when there is none, or undefined while
@@ -245,26 +325,18 @@ export function useTitleMatches(
     .sort()
     .join('\n')
 
+  // One run per language, for as long as the list is shown, so lookups in flight carry on as the
+  // pending keys change with every title that arrives.
+  const run = useRef<LookupRun | null>(null)
   useEffect(() => {
-    if (!pendingKey) return
-    const controller = new AbortController()
-    const all = Object.values(lookupsRef.current)
-    const queue = pendingKey.split('\n').map((key) => all.find((lookup) => lookup.key === key)!)
+    const current = startLookups(language, () => setVersion((n) => n + 1))
+    run.current = current
+    return () => current.stop()
+  }, [language])
 
-    const worker = async () => {
-      for (let lookup = queue.shift(); lookup && !controller.signal.aborted; lookup = queue.shift()) {
-        try {
-          const match = await resolve(lookup, language, controller.signal)
-          writeCache({ [`${language}|${lookup.key}`]: match })
-          setVersion((n) => n + 1)
-        } catch {
-          // Offline, no key or rate-limited: leave it unknown; the next visit tries again.
-          if (controller.signal.aborted) return
-        }
-      }
-    }
-    void Promise.all(Array.from({ length: CONCURRENCY }, worker))
-    return () => controller.abort()
+  useEffect(() => {
+    const byKey = new Map(Object.values(lookupsRef.current).map((lookup) => [lookup.key, lookup]))
+    run.current?.want(pendingKey ? pendingKey.split('\n').map((key) => byKey.get(key)!) : [])
   }, [pendingKey, language])
 
   // Guesses go to the server, so other devices show the same title without guessing. The title is

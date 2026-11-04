@@ -3,10 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as matchesApi from '../api/matches'
 import type { Matches } from '../api/matches'
 import * as tmdb from '../api/tmdb'
+import { SETTINGS_STORAGE_KEY, resetSettings, updateSettings } from '../settings/settings'
 import { searchPage, title } from '../test/fixtures'
 import { SAVE_DELAY_MS, resetServerMatches } from './serverMatches'
 import {
   GUESS_VERSION,
+  SHOW_EVERY_MS,
   categoryType,
   chooseTitle,
   clearTitleMatchCache,
@@ -280,6 +282,131 @@ describe('useTitleMatches', () => {
     await waitFor(() => expect(result.current.d).toMatchObject({ id: 841 }))
     expect(result.current.a).toBeUndefined()
     expect(searchTitles).not.toHaveBeenCalled()
+  })
+
+  describe('with more torrents to guess than lookups at a time', () => {
+    const NAMES = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo']
+    const many = NAMES.map((name, i) => ({ hash: name, name: `${name}.${2000 + i}.1080p.WEB-DL`, tags: '' }))
+    const found = (i: number) => [title('movie', i + 1, NAMES[i], 2000 + i)]
+
+    afterEach(() => {
+      localStorage.removeItem(SETTINGS_STORAGE_KEY)
+      resetSettings()
+    })
+
+    interface Held {
+      query: string
+      language?: string
+      signal: AbortSignal
+      answer: (titles: ReturnType<typeof title>[]) => void
+    }
+
+    /** TMDB searches that wait for the test to answer; like `fetch`, an aborted one rejects. */
+    function holdSearches(): Held[] {
+      const held: Held[] = []
+      searchTitles.mockImplementation(
+        (query, options) =>
+          new Promise((resolve, reject) => {
+            const signal = options!.signal!
+            signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
+            held.push({ query, language: options!.language, signal, answer: (titles) => resolve(searchPage(titles)) })
+          }),
+      )
+      return held
+    }
+
+    /** Answers the search for `NAMES[i]` once it's sent. */
+    async function answer(held: Held[], i: number) {
+      await waitFor(() => expect(held.some((search) => search.query === NAMES[i] && !search.signal.aborted)).toBe(true))
+      await act(async () => held.findLast((search) => search.query === NAMES[i])!.answer(found(i)))
+    }
+
+    it('looks each one up once, and a title that arrives doesn’t stop the others', async () => {
+      const held = holdSearches()
+      const { result } = renderHook(() => useTitleMatches(many))
+      await waitFor(() => expect(held).toHaveLength(3))
+
+      await answer(held, 0)
+      await waitFor(() => expect(result.current.Alpha).toMatchObject({ id: 1 }))
+      expect(held.map((search) => search.signal.aborted)).toEqual([false, false, false, false])
+
+      for (let i = 1; i < NAMES.length; i++) await answer(held, i)
+      await waitFor(() => expect(result.current.Echo).toMatchObject({ id: 5 }))
+      expect(held.map((search) => search.query)).toEqual(NAMES)
+      expect(held.some((search) => search.signal.aborted)).toBe(false)
+    })
+
+    it('looks up torrents that come while others are in flight, once each', async () => {
+      const held = holdSearches()
+      const { result, rerender } = renderHook(({ list }) => useTitleMatches(list), { initialProps: { list: many.slice(0, 3) } })
+      await waitFor(() => expect(held).toHaveLength(3))
+
+      rerender({ list: many })
+      for (let i = 0; i < NAMES.length; i++) await answer(held, i)
+      await waitFor(() => expect(result.current.Echo).toMatchObject({ id: 5 }))
+      expect(held.map((search) => search.query)).toEqual(NAMES)
+      expect(held.some((search) => search.signal.aborted)).toBe(false)
+    })
+
+    it('skips a torrent that went away before its turn', async () => {
+      const held = holdSearches()
+      const { result, rerender } = renderHook(({ list }) => useTitleMatches(list), { initialProps: { list: many } })
+      await waitFor(() => expect(held).toHaveLength(3))
+
+      rerender({ list: many.filter((torrent) => torrent.hash !== 'Delta') })
+      for (const i of [0, 1, 2, 4]) await answer(held, i)
+      await waitFor(() => expect(result.current.Echo).toMatchObject({ id: 5 }))
+      expect(held.map((search) => search.query)).toEqual(['Alpha', 'Bravo', 'Charlie', 'Echo'])
+    })
+
+    it('stops the lookups in flight when the list goes away', async () => {
+      const held = holdSearches()
+      const { unmount } = renderHook(() => useTitleMatches(many))
+      await waitFor(() => expect(held).toHaveLength(3))
+      unmount()
+      expect(held.map((search) => search.signal.aborted)).toEqual([true, true, true])
+    })
+
+    it('starts over in another language, stopping the lookups in flight', async () => {
+      const held = holdSearches()
+      renderHook(() => useTitleMatches(many))
+      await waitFor(() => expect(held).toHaveLength(3))
+
+      act(() => updateSettings({ tmdbLanguage: 'ru-RU' }))
+      expect(held.slice(0, 3).map((search) => search.signal.aborted)).toEqual([true, true, true])
+      expect(held).toHaveLength(6)
+      expect(held.slice(3).map((search) => [search.query, search.language])).toEqual([
+        ['Alpha', 'ru-RU'],
+        ['Bravo', 'ru-RU'],
+        ['Charlie', 'ru-RU'],
+      ])
+    })
+
+    it('shows the titles that keep coming at most every SHOW_EVERY_MS, and keeps them for the next visit', async () => {
+      vi.useFakeTimers()
+      const held = holdSearches()
+      const { result, unmount } = renderHook(() => useTitleMatches(many))
+      await act(() => vi.advanceTimersByTimeAsync(0))
+      expect(held).toHaveLength(3)
+
+      // The first title shows right away, the next ones together once SHOW_EVERY_MS has passed.
+      await act(async () => held[0].answer(found(0)))
+      expect(result.current.Alpha).toMatchObject({ id: 1 })
+      await act(async () => held[1].answer(found(1)))
+      await act(async () => held[2].answer(found(2)))
+      await act(() => vi.advanceTimersByTimeAsync(SHOW_EVERY_MS - 1))
+      expect(result.current.Bravo).toBeUndefined()
+      await act(() => vi.advanceTimersByTimeAsync(1))
+      expect(result.current.Bravo).toMatchObject({ id: 2 })
+      expect(result.current.Charlie).toMatchObject({ id: 3 })
+
+      // One that arrives as the list goes away is still kept for the next visit.
+      await act(async () => held[3].answer(found(3)))
+      unmount()
+      const stored = JSON.parse(localStorage.getItem(`kinoseed.titleMatches.v${GUESS_VERSION}`) ?? '{}') as Record<string, unknown>
+      const guesses = Object.keys(stored).filter((key) => key.startsWith('en-US|q:'))
+      expect(guesses.sort()).toEqual(['Alpha', 'Bravo', 'Charlie', 'Delta'].map((name, i) => `en-US|q::${2000 + i}:${name.toLowerCase()}`))
+    })
   })
 })
 
