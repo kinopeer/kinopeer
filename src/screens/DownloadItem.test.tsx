@@ -1,7 +1,8 @@
-import { screen, within } from '@testing-library/react'
+import { act, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { Torrent } from '../api/qbittorrent'
+import i18n from '../i18n'
 import { DUNE_TORRENT } from '../test/fixtures'
 import { renderWithRouter } from '../test/render'
 import type { TitleMatch } from '../torrents/titleMatches'
@@ -21,6 +22,12 @@ function renderItem(props: Partial<DownloadItemProps> = {}, torrent: Torrent = D
 }
 
 describe('DownloadItem', () => {
+  it('follows the language while memoized', async () => {
+    const { item } = renderItem()
+    await act(() => i18n.changeLanguage('ru'))
+    expect(item.getByText('Загружается')).toBeInTheDocument()
+  })
+
   it('shows the title with its year and the release name under it, and the poster', () => {
     const { item, container } = renderItem({ match: DUNE_MATCH })
     expect(item.getByRole('heading')).toHaveTextContent('Dune: Part Two2024')

@@ -190,6 +190,9 @@ describe('ReleasesScreen', () => {
     vi.mocked(prowlarr.getFailingIndexers).mockReturnValue(new Promise((_, reject) => (fail = reject)))
     renderAt('/title/movie/693134/releases')
     expect(await screen.findAllByRole('article')).toHaveLength(DUNE_RELEASES.length)
+    // Failed only once it's asked: the request starts in an effect, which can run after the list
+    // shows, and a promise rejected before anything handles it is an unhandled rejection.
+    await waitFor(() => expect(prowlarr.getFailingIndexers).toHaveBeenCalled())
 
     await act(async () => fail(new prowlarr.ProwlarrError('down', 502, 'upstream')))
     expect(screen.getAllByRole('article')).toHaveLength(DUNE_RELEASES.length)
