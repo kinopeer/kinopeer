@@ -11,12 +11,10 @@ export const TMDB_API_SETTINGS_URL = 'https://www.themoviedb.org/settings/api'
 export interface TmdbKeyFormProps {
   onSaved: (settings: ServerSettings) => void
   /**
-   * A key saved from the app is in use and this would serve TMDB without it: offer to go back to
-   * it. Needs `onForgotten`.
+   * A key saved from the app is in use and `to` would serve TMDB without it: offer to go back to
+   * it, then `onForgotten`.
    */
-  forgetTo?: TmdbFallback
-  /** The saved key was forgotten: `forgetTo`'s key applies again. */
-  onForgotten?: (settings: ServerSettings) => void
+  forget?: { to: TmdbFallback; onForgotten: (settings: ServerSettings) => void }
   /** Under the Save button, e.g. Skip. */
   secondary?: ReactNode
 }
@@ -31,7 +29,7 @@ function formError(e: unknown, kind: 'save' | 'forget'): FormError {
 }
 
 /** The TMDB key field: the server checks the key with TMDB, then keeps it. */
-export function TmdbKeyForm({ onSaved, forgetTo, onForgotten, secondary }: TmdbKeyFormProps) {
+export function TmdbKeyForm({ onSaved, forget, secondary }: TmdbKeyFormProps) {
   const { t } = useTranslation()
   const [apiKey, setApiKey] = useState('')
   // One request at a time: saving and forgetting at once would race for what the server keeps.
@@ -92,7 +90,7 @@ export function TmdbKeyForm({ onSaved, forgetTo, onForgotten, secondary }: TmdbK
         <Button type="submit" size="lg" block loading={busy === 'save'} disabled={busy === 'forget'}>
           {t('tmdbKey.save')}
         </Button>
-        {forgetTo && onForgotten && (
+        {forget && (
           <Button
             type="button"
             variant="secondary"
@@ -100,9 +98,9 @@ export function TmdbKeyForm({ onSaved, forgetTo, onForgotten, secondary }: TmdbK
             block
             loading={busy === 'forget'}
             disabled={busy === 'save'}
-            onClick={() => void run('forget', forgetTmdbKey, onForgotten)}
+            onClick={() => void run('forget', forgetTmdbKey, forget.onForgotten)}
           >
-            {t(forgetTo === 'shared' ? 'tmdbKey.forgetToShared' : 'tmdbKey.forgetToServer')}
+            {t(forget.to === 'shared' ? 'tmdbKey.forgetToShared' : 'tmdbKey.forgetToServer')}
           </Button>
         )}
         {secondary}

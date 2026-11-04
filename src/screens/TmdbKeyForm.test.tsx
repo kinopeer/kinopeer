@@ -30,10 +30,10 @@ function renderForm() {
   return { onSaved, field: screen.getByLabelText('API key or read access token'), save: screen.getByRole('button', { name: 'Save' }) }
 }
 
-function renderForgetting(forgetTo: 'shared' | 'env' = 'shared') {
+function renderForgetting(to: 'shared' | 'env' = 'shared') {
   const onSaved = vi.fn()
   const onForgotten = vi.fn()
-  render(<TmdbKeyForm onSaved={onSaved} forgetTo={forgetTo} onForgotten={onForgotten} />)
+  render(<TmdbKeyForm onSaved={onSaved} forget={{ to, onForgotten }} />)
   return { onSaved, onForgotten, field: screen.getByLabelText('API key or read access token'), save: screen.getByRole('button', { name: 'Save' }) }
 }
 
@@ -111,9 +111,9 @@ describe('TmdbKeyForm', () => {
   it.each([
     ['shared', 'Use Kinoseed’s key'],
     ['env', 'Use the server’s key'],
-  ] as const)('goes back to the key the server falls back on (%s) and hands the settings on', async (forgetTo, label) => {
+  ] as const)('goes back to the key the server falls back on (%s) and hands the settings on', async (to, label) => {
     forgetTmdbKey.mockResolvedValue(SHARED)
-    const { onForgotten, onSaved } = renderForgetting(forgetTo)
+    const { onForgotten, onSaved } = renderForgetting(to)
     await userEvent.click(screen.getByRole('button', { name: label }))
     await vi.waitFor(() => expect(onForgotten).toHaveBeenCalledWith(SHARED))
     expect(onSaved).not.toHaveBeenCalled()
