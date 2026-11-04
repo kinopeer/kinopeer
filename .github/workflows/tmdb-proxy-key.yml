@@ -1,0 +1,47 @@
+name: TMDB proxy key
+
+# Puts the TMDB_API_KEY repository secret into both TMDB proxy workers without deploying their code:
+# run it from the Actions tab after replacing a leaked or revoked key, and installs keep working
+# without a release (docs/DEVELOPMENT.md → The TMDB proxy).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  WRANGLER: wrangler@4.151.2
+  WRANGLER_SEND_METRICS: 'false'
+
+jobs:
+  key:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      # A worker that doesn't take the key doesn't stop the other one from taking it.
+      fail-fast: false
+      matrix:
+        environment: [edge, release]
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      # For wrangler.toml, which names each environment's worker.
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # From stdin, so the key shows in no command line or log.
+      - name: Set the key
+        working-directory: tmdb-proxy
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+        run: |
+          if [ -z "$TMDB_API_KEY" ]; then
+            echo "::error::The TMDB_API_KEY repository secret isn't set"
+            exit 1
+          fi
+          printf '%s' "$TMDB_API_KEY" | npx --yes "$WRANGLER" secret put TMDB_API_KEY --env "${{ matrix.environment }}"

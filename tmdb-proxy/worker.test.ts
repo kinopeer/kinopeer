@@ -69,7 +69,9 @@ describe('TMDB proxy worker', () => {
     expect(calledUrl()).toBe(`${TMDB}/search/tv?query=Dark&api_key=v3key`)
   })
 
-  // The paths src/api/tmdb/client.ts calls: each of its functions' requests, with a real id.
+  // The paths src/api/tmdb/client.ts calls: each of its functions' requests, with a real id. A
+  // contract with every released version: a path is added here, never removed while a supported
+  // version calls it; a breaking change goes into a new worker (docs/DEVELOPMENT.md → The TMDB proxy).
   it.each([
     '/configuration',
     '/search/multi',

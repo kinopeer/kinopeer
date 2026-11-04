@@ -1,37 +1,41 @@
 name: TMDB proxy
 
-# Deploys Kinoseed's TMDB proxy (tmdb-proxy/) to Cloudflare Workers and gives it the key, which
-# lives in this repository's secrets and the worker's, never in the code or the image
+# Deploys Kinoseed's TMDB proxy (tmdb-proxy/) to Cloudflare Workers and gives it the key, which lives
+# in this repository's secrets and the worker's, never in the code or the image. It has no trigger of
+# its own: Edge runs it for kinoseed-tmdb-edge with every edge build, and Release for kinoseed-tmdb
+# with every release, so each worker goes out with the builds that call it, whatever starts them
 # (docs/DEVELOPMENT.md → The TMDB proxy).
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'tmdb-proxy/**'
-      - '!tmdb-proxy/**/*.test.ts'
-      - .github/workflows/tmdb-proxy.yml
-  # Deploys main's head again, and puts a replaced key into the worker.
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      environment:
+        description: '`edge` (main, called by Kinoseed Edge) or `release` (the newest tag, called by released versions)'
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 env:
   WRANGLER: wrangler@4.151.2
+  WRANGLER_SEND_METRICS: 'false'
 
 jobs:
   deploy:
-    if: github.ref == 'refs/heads/main'
     concurrency:
-      group: tmdb-proxy
+      group: tmdb-proxy-${{ inputs.environment }}
       cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      ENVIRONMENT: ${{ inputs.environment }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # main's head and the tags, to tell whether this is the newest code for the worker.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -50,13 +54,32 @@ jobs:
             exit 1
           fi
 
+      # A re-run of an older push or tag would put older code back, and the worker could then lack a
+      # path that newer builds call.
+      - id: newest
+        name: Check this is the newest code for the worker
+        run: |
+          case "$ENVIRONMENT" in
+            edge) newest="$(git rev-parse origin/main)" ;;
+            release) newest="$(git rev-parse "$(git tag --list 'v*' --sort=-v:refname | head -n 1)^{commit}")" ;;
+            *) echo "::error::Unknown environment $ENVIRONMENT"; exit 1 ;;
+          esac
+          if [ "$(git rev-parse HEAD)" = "$newest" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::$(git rev-parse --short HEAD) isn't the newest $ENVIRONMENT code; the worker stays as it is."
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Deploy
+        if: steps.newest.outputs.deploy == 'true'
         working-directory: tmdb-proxy
-        run: npx --yes "$WRANGLER" deploy
+        run: npx --yes "$WRANGLER" deploy --env "$ENVIRONMENT"
 
       # From stdin, so the key shows in no command line or log.
       - name: Set the key
+        if: steps.newest.outputs.deploy == 'true'
         working-directory: tmdb-proxy
         env:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
-        run: printf '%s' "$TMDB_API_KEY" | npx --yes "$WRANGLER" secret put TMDB_API_KEY
+        run: printf '%s' "$TMDB_API_KEY" | npx --yes "$WRANGLER" secret put TMDB_API_KEY --env "$ENVIRONMENT"
