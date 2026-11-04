@@ -14,6 +14,12 @@ export const REQUEST_KINDS = {
   recheck: 'recheck',
   /** Deleting torrents, with their files or without: its confirmation. */
   delete: 'delete',
+  /** Sequential download, on or off: the switch on the torrent's page. */
+  sequential: 'sequential',
+  /** First and last pieces first, on or off: the switch on the torrent's page. */
+  firstLastPieces: 'first-last-pieces',
+  /** A torrent's category: the Category sheet. */
+  category: 'category',
   /** Saving the torrent's title: Change title, or "Yes, right" for a guessed one. */
   title: 'title',
   /**

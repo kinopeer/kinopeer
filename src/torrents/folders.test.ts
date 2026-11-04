@@ -7,6 +7,8 @@ const locations = (fields: Partial<SaveLocations> = {}): SaveLocations => ({
   defaultPath: '/downloads',
   categoryPaths: true,
   subcategories: false,
+  relocateOnCategoryChange: true,
+  downloadPath: false,
   ...fields,
 })
 

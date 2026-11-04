@@ -376,7 +376,7 @@ describe('DownloadsScreen', () => {
   })
 
   it('moves a torrent’s files from the row menu and says where', async () => {
-    vi.mocked(api.getSaveLocations).mockResolvedValue({ defaultPath: '/downloads', categories: [], categoryPaths: false, subcategories: false })
+    vi.mocked(api.getSaveLocations).mockResolvedValue({ defaultPath: '/downloads', categories: [], categoryPaths: false, subcategories: false, relocateOnCategoryChange: true, downloadPath: false })
     vi.mocked(api.setTorrentLocation).mockResolvedValue()
     renderScreen()
     await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' }))
