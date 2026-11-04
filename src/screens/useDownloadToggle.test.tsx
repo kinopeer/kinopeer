@@ -177,10 +177,15 @@ describe('useDownloadToggle', () => {
     await act(() => result.current.toggle.set(DUNE, true))
     await act(async () => vi.advanceTimersByTime(1_000))
     await act(() => result.current.toggle.set(ALIEN, true))
+    // One timer, for the sooner end: the one set before alien's hold was replaced, not added to.
+    expect(vi.getTimerCount()).toBe(1)
     await act(async () => vi.advanceTimersByTime(lag - 1_000))
     expect(result.current).toMatchObject({ dune: false, alien: true })
+    expect(vi.getTimerCount()).toBe(1)
     await act(async () => vi.advanceTimersByTime(1_000))
     expect(result.current).toMatchObject({ dune: false, alien: false })
+    // None left once both ended, though both are still kept until a poll: no timer for a hold that's over.
+    expect(vi.getTimerCount()).toBe(0)
   })
 
   it('says a failure in a toast, which the next try takes back', async () => {
