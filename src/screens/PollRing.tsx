@@ -18,8 +18,8 @@ export interface PollRingProps {
  * The qBittorrent poll at a glance: a ring that fills until the next poll, stays full and pulses while
  * the answer is awaited, and turns to the error color while qBittorrent doesn't answer. It reads the
  * poll on its own, so it renders when a request goes out or an answer arrives and the screen it's on
- * doesn't; the filling is a CSS animation that starts over with each answer. Its name and tooltip
- * say when the data was last updated.
+ * doesn't; the filling is a CSS animation of two half rings turning, which starts over with each
+ * answer. Its name and tooltip say when the data was last updated.
  */
 export function PollRing({ poll, context, className }: PollRingProps) {
   const { t } = useTranslation()
@@ -44,11 +44,24 @@ export function PollRing({ poll, context, className }: PollRingProps) {
       title={context === undefined ? label : t('poll.withContext', { prefix: context, label })}
       style={style}
     >
-      <svg viewBox="0 0 16 16" aria-hidden="true">
-        <circle className="poll-ring-track" cx="8" cy="8" r="6" pathLength={100} />
-        {/* A new element per answer, so its animation starts over. */}
-        <circle key={updatedAt ?? 0} className="poll-ring-fill" cx="8" cy="8" r="6" pathLength={100} />
+      <svg className="poll-ring-track" viewBox="0 0 16 16" aria-hidden="true">
+        <circle cx="8" cy="8" r="6" />
       </svg>
+      {/* A new element per answer, so its animation starts over. */}
+      <span key={updatedAt ?? 0} className="poll-ring-fill" aria-hidden="true">
+        <span className="poll-ring-half is-first">
+          {/* The left half ring, which turns into the right half. */}
+          <svg viewBox="0 0 16 16">
+            <path d="M8 14A6 6 0 0 1 8 2" />
+          </svg>
+        </span>
+        <span className="poll-ring-half is-second">
+          {/* The right half ring, which turns into the left half. */}
+          <svg viewBox="0 0 16 16">
+            <path d="M8 2A6 6 0 0 1 8 14" />
+          </svg>
+        </span>
+      </span>
     </span>
   )
 }
