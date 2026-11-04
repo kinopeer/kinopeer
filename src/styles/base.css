@@ -173,6 +173,24 @@ h4 {
   border: 0;
 }
 
+/* The status bar's strip on a phone screen whose title scrolls away (Downloads, Search): what scrolls
+   off the top goes under it, not behind the clock. The screen's first child; its pinned bar sticks
+   below it, at `top: var(--safe-top)`. Desktop headers take the safe area themselves. */
+.status-strip::before {
+  content: '';
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  height: var(--safe-top);
+  background: var(--bg);
+}
+
+@media (min-width: 1024px) {
+  .status-strip::before {
+    content: none;
+  }
+}
+
 /* Loading placeholder */
 .ks-skel {
   background: linear-gradient(90deg, var(--raised) 0%, var(--border) 50%, var(--raised) 100%);

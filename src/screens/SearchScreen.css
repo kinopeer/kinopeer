@@ -6,23 +6,32 @@
   flex-direction: column;
 }
 
+/* On a phone the title scrolls away and only the bar with the field and the filters stays at the
+   top, under the status bar's strip (.status-strip in base.css), as in Downloads: a pinned title would
+   cost screen space for nothing that's acted on. The header makes no box of its own here, so the bar
+   sticks for the whole screen rather than only within the header. */
 .search-head {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--safe-top) var(--space-4) 0;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
+  display: contents;
 }
 
 .search-title {
   display: flex;
   align-items: center;
   min-height: 52px;
-  margin-top: var(--space-2);
+  margin-top: var(--space-2); /* below the status bar's strip, as Downloads' title row */
+  padding: 0 var(--space-4);
+}
+
+.search-bar {
+  position: sticky;
+  top: var(--safe-top);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4) 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
 }
 
 .search-field {
@@ -142,14 +151,30 @@
     margin: 0;
   }
 
+  /* The whole header stays at the top: there's room for the title here. */
   .search-head {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
     gap: var(--space-4);
     padding: var(--space-8) var(--space-8) 0;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
   }
 
   .search-title {
     min-height: 0;
     margin-top: 0;
+    padding: 0;
+  }
+
+  .search-bar {
+    position: static;
+    gap: var(--space-4);
+    padding: 0;
+    border-bottom: none;
   }
 
   .search-field {

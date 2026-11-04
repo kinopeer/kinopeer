@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { DESKTOP, openApp, settle, type AppOptions } from './app.ts'
+import { DESKTOP, emulateNotch, openApp, settle, type AppOptions } from './app.ts'
 
 async function openSearch(page: Page, path: string, firstTitle: string, options: AppOptions = {}) {
   await openApp(page, path, options)
@@ -26,6 +26,26 @@ test.describe('search, phone', () => {
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
     await settle(page)
     await expect(page).toHaveScreenshot('results-more-failed-dark-ru.png')
+  })
+
+  test('the field and the filters stay at the top while the results scroll', async ({ page }) => {
+    await openSearch(page, '/search?q=%D0%B0', 'Дюна')
+    await page.evaluate(() => window.scrollTo(0, 300))
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(300)
+    // The title scrolls away; the field, the type tabs and the year are pinned.
+    await expect(page.getByRole('heading', { level: 1, name: 'Поиск' })).not.toBeInViewport()
+    await expect(page.getByRole('searchbox', { name: 'Поиск' })).toBeInViewport()
+    await expect(page.getByRole('group', { name: 'Тип' })).toBeInViewport()
+    // How it looks scrolled is the next page's failure above and the notched phone's screenshot.
+  })
+
+  test('the results stay out of the status bar above the pinned field', async ({ page }) => {
+    await emulateNotch(page)
+    await openSearch(page, '/search?q=%D0%B0', 'Дюна')
+    await page.evaluate(() => window.scrollTo(0, 300))
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(300)
+    await expect(page.getByRole('heading', { level: 1, name: 'Поиск' })).not.toBeInViewport()
+    await expect(page).toHaveScreenshot('results-scrolled-safe-area-dark-ru.png')
   })
 
   test.describe('a narrow phone', () => {
