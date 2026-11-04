@@ -1,9 +1,9 @@
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { shouldDeploy } from './deployCheck.ts'
+import { compareVersionTags, shouldDeploy } from './deployCheck.ts'
 
 const repos: string[] = []
 
@@ -136,7 +136,8 @@ describe('shouldDeploy', () => {
     it('ignores tags that aren’t versions', () => {
       const { cwd, commit, at, tag, first } = repo()
       tag('v0.6.1', first)
-      tag('vacation', commit({ 'tmdb-proxy/worker.ts': 'v2' }))
+      const other = commit({ 'tmdb-proxy/worker.ts': 'v2' })
+      for (const name of ['vacation', 'vendor-v9.0.0', 'v9.0.0.1', 'v9.0', 'v9.0.0-']) tag(name, other)
       at(first)
 
       expect(shouldDeploy('release', cwd)).toMatchObject({ deploy: true })
@@ -162,5 +163,40 @@ describe('shouldDeploy', () => {
     at(first)
 
     expect(() => shouldDeploy('staging', cwd)).toThrow('Unknown environment staging')
+  })
+
+  it('prints its answer for the workflow’s output, and why on stderr', () => {
+    const { cwd, at, first } = repo()
+    at(first)
+    const script = join(import.meta.dirname, 'deployCheck.ts')
+    const run = spawnSync(process.execPath, [script, 'edge'], { cwd, encoding: 'utf8' })
+
+    expect(run.stdout).toBe('deploy=true\n')
+    expect(run.stderr).toContain('the same as at origin/main')
+    expect(spawnSync(process.execPath, [script], { cwd, encoding: 'utf8' }).stderr).toContain('Unknown environment')
+  })
+})
+
+describe('compareVersionTags', () => {
+  it('orders versions by number, a release above its prereleases', () => {
+    const tags = ['v1.0.0', 'v0.10.0', 'v0.7.0', 'v0.7.0-rc.10', 'v0.6.12', 'v0.7.0-rc.2', 'v10.0.0', 'v0.6.2']
+
+    expect(tags.sort(compareVersionTags)).toEqual([
+      'v0.6.2',
+      'v0.6.12',
+      'v0.7.0-rc.2',
+      'v0.7.0-rc.10',
+      'v0.7.0',
+      'v0.10.0',
+      'v1.0.0',
+      'v10.0.0',
+    ])
+  })
+
+  it('ranks a tag equal to itself', () => {
+    expect(compareVersionTags('v0.7.0', 'v0.7.0')).toBe(0)
+    expect(compareVersionTags('v0.7.0-rc.1', 'v0.7.0-rc.1')).toBe(0)
+    expect(compareVersionTags('v0.7.0', 'v0.7.0-rc.1')).toBeGreaterThan(0)
+    expect(compareVersionTags('v0.7.0-rc.1', 'v0.7.0')).toBeLessThan(0)
   })
 })
