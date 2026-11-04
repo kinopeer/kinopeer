@@ -109,4 +109,4 @@ Run lint, typecheck, test and build before pushing, and the screenshot tests whe
 
 ## Roadmap
 
-Steps 1–8 (skeleton through production) shipped as 0.1.0; 0.2.0 (the title as the center) shipped on 2026-10-24; 0.3.0 (managing downloads) and 0.4.0 (desktop) on 2026-10-25. 0.5 (HTTPS and notifications) was dropped on 2026-10-25. 0.6.0 (small features, torrent control, discovery) shipped on 2026-10-29. Next: 0.7 (search and discovery), 0.8 (beyond Umbrel), then 1.0 (public release, `docs/RELEASE_CHECKLIST.md`). The details are in `docs/ROADMAP.md`.
+Steps 1–8 (skeleton through production) shipped as 0.1.0; 0.2.0 (the title as the center) shipped on 2026-10-24; 0.3.0 (managing downloads) and 0.4.0 (desktop) on 2026-10-25. 0.5 (HTTPS and notifications) was dropped on 2026-10-25. 0.6.0 (small features, torrent control, discovery) shipped on 2026-10-29, 0.7.0 (search and discovery: Kinoseed's TMDB key) on 2026-11-05. Next: 0.8 (beyond Umbrel), then 1.0 (public release, `docs/RELEASE_CHECKLIST.md`). The details are in `docs/ROADMAP.md`.

@@ -52,11 +52,10 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 - [x] Releases: which indexers failed when a search comes back partly empty. Not why: Prowlarr's API keeps only when an indexer failed, and the reason stays in its logs.
 - [x] A Prowlarr API key field in Settings, kept on the server like the TMDB key, for installs that can't read Prowlarr's `config.xml`.
 
-## 0.7: Search and discovery
+## Done: 0.7.0 (2026-11-05): Search and discovery
 
 - [x] TMDB works without a key of the user's own: Kinoseed's key behind a proxy on Cloudflare Workers, deployed from GitHub Actions (see the decision log in SPEC.md).
 - [x] The server sends TMDB calls through that proxy when no key is saved or set, the onboarding drops the TMDB key step, and Settings → Connections says whether Kinoseed's key or the user's own is used.
-- [ ] Search: a "Popular on your trackers" row, built by the server from what Prowlarr's indexers list without a query (or their RSS), kept to 2160p releases, matched with TMDB and ranked by seeders. Check first what the indexers actually return without a query.
 
 ## 0.8: Beyond Umbrel
 
