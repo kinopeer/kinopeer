@@ -22,8 +22,7 @@ describe('Accordion', () => {
 
     await userEvent.click(toggle)
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
-    const body = screen.getByText('Save path').parentElement!
-    expect(toggle).toHaveAttribute('aria-controls', body.id)
+    expect(document.getElementById(toggle.getAttribute('aria-controls')!)).toHaveTextContent('Save path')
 
     await userEvent.click(toggle)
     expect(toggle).toHaveAttribute('aria-expanded', 'false')

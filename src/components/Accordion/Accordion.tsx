@@ -29,7 +29,8 @@ export function Accordion({ title, open, onOpenChange, heading, className, bodyC
       aria-controls={bodyId}
       onClick={() => onOpenChange(!open)}
     >
-      <span className="ks-acc-title">{title}</span>
+      {/* One flex item, so a title of several parts (Files and its count) stays together. */}
+      <span>{title}</span>
       <Icon name="chevron-down" />
     </button>
   )

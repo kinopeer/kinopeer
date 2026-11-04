@@ -19,6 +19,8 @@ export interface TorrentFilesProps {
   disabled?: boolean
 }
 
+const NONE: ReadonlySet<string> = new Set()
+
 type PriorityChoice = 'skip' | 'normal' | 'high'
 
 const PRIORITY_VALUE: Record<PriorityChoice, FilePriority> = { skip: 0, normal: 1, high: 6 }
@@ -82,10 +84,14 @@ export function TorrentFiles({ torrent, status, disabled }: TorrentFilesProps) {
   const { files } = priorities
   const saveFailed = priorities.failed
 
-  const tree = useMemo(() => buildFileTree((files ?? []).map((file) => ({ path: file.name, size: file.size }))), [files])
+  // Built only while open, since nothing shows it while closed.
+  const tree = useMemo(
+    () => (open && files ? buildFileTree(files.map((file) => ({ path: file.name, size: file.size }))) : undefined),
+    [open, files],
+  )
   // Folders the user opened or closed; the rest follow initiallyOpen, which needs the file list first.
   const [toggled, setToggled] = useState<ReadonlySet<string>>(new Set())
-  const opened = initiallyOpen(tree)
+  const opened = tree ? initiallyOpen(tree) : NONE
   const isOpen = (path: string) => opened.has(path) !== toggled.has(path)
   const toggle = (path: string) =>
     setToggled((current) => {
@@ -192,7 +198,8 @@ export function TorrentFiles({ torrent, status, disabled }: TorrentFilesProps) {
       ) : files.length === 0 ? (
         <p className="t-body c2">{t('torrent.filesMetadata')}</p>
       ) : (
-        <ul className="tf-list">{contents(tree)}</ul>
+        // The children are built here even while closed, so the rows only when there's a tree.
+        tree && <ul className="tf-list">{contents(tree)}</ul>
       )}
     </Accordion>
   )

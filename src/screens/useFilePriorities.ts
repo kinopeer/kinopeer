@@ -52,7 +52,7 @@ export interface FilePriorities {
  * being sent, and it never goes out twice. Once qBittorrent took it, the file keeps it until a poll
  * of `list` sent after the answer has the final word. A failure stays in the list that shows the
  * torrent, else it's a toast, which the next try takes back. A list that isn't `open` (its section
- * closed) doesn't show it.
+ * closed) keeps what qBittorrent took but leaves a failure to a toast.
  */
 export function useFilePriorities(torrent: Torrent, list: TorrentFilesState, open = true): FilePriorities {
   const { t } = useTranslation()
@@ -62,20 +62,29 @@ export function useFilePriorities(torrent: Torrent, list: TorrentFilesState, ope
   const [taken, setTaken] = useState<ReadonlyMap<number, Taken>>(new Map())
   const [failed, setFailed] = useState(false)
 
+  const sayFailed = () => toast.show(t('torrent.priorityFailed'), { icon: 'alert', key: TOAST_KEYS.filePriority })
+
   // Read when a change settles, so it's the torrent shown then, and whether the list is open then.
   const shown = useRef(torrent)
   const isOpen = useRef(open)
+  const sayFailedRef = useRef(sayFailed)
   useLayoutEffect(() => {
     shown.current = torrent
     isOpen.current = open
+    sayFailedRef.current = sayFailed
   })
   useEffect(
     () =>
       requests.watch(REQUEST_KINDS.filePriority, {
-        shows: (target) =>
-          isOpen.current && target.hash === shown.current.hash && target.added_on === shown.current.added_on,
+        // A closed list still shows the torrent, so it keeps what qBittorrent took for opening again.
+        shows: (target) => target.hash === shown.current.hash && target.added_on === shown.current.added_on,
         settled: (outcome, sent) => {
-          if (!outcome.ok) return setFailed(true)
+          if (!outcome.ok) {
+            // Closed, the list can't say it.
+            if (isOpen.current) setFailed(true)
+            else sayFailedRef.current()
+            return
+          }
           const { indexes, priority } = sent as PriorityChange
           const after = Date.now()
           setTaken((current) => {
@@ -122,9 +131,7 @@ export function useFilePriorities(torrent: Torrent, list: TorrentFilesState, ope
       () => setFilePriority(torrent.hash, indexes, priority),
       { part: indexes.join() },
     )
-    if (settled && !settled.ok && !settled.showing) {
-      toast.show(t('torrent.priorityFailed'), { icon: 'alert', key: TOAST_KEYS.filePriority })
-    }
+    if (settled && !settled.ok && !settled.showing) sayFailed()
   }
 
   return {

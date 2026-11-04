@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
 import type { Torrent, TorrentFile } from '../api/qbittorrent'
 import { ToastProvider } from '../components/Toast'
+import i18n from '../i18n'
 import { torrent } from '../test/fixtures'
 import { saying } from '../test/render'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
@@ -228,6 +229,16 @@ describe('useFilePriorities', () => {
     expect(screen.getByRole('status', { name: saying(FAILED) })).toBeInTheDocument()
   })
 
+  it('says a failure while closed in the language the app is in by then', async () => {
+    const change = pendingChange()
+    const view = render(<List name="Page" list={POLLED} />, { wrapper: Providers })
+    await userEvent.click(screen.getByRole('button', { name: 'Extras high' }))
+    view.rerender(<List name="Page" list={POLLED} open={false} />)
+    await act(() => i18n.changeLanguage('ru'))
+    await change.fail()
+    expect(screen.getByRole('status', { name: saying('Не удалось изменить приоритет. Попробуйте ещё раз.') })).toBeInTheDocument()
+  })
+
   it('leaves a failure to a toast when the list shows another torrent by then', async () => {
     const change = pendingChange()
     const view = render(<List name="Page" list={POLLED} />, { wrapper: Providers })
@@ -237,6 +248,17 @@ describe('useFilePriorities', () => {
     await change.fail()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(screen.getByRole('status', { name: saying(FAILED) })).toBeInTheDocument()
+  })
+
+  it('keeps a priority qBittorrent took while the list was closed, over the poll from before it', async () => {
+    const change = pendingChange()
+    const view = render(<List name="Page" list={POLLED} />, { wrapper: Providers })
+    await userEvent.click(screen.getByRole('button', { name: 'Extras high' }))
+    view.rerender(<List name="Page" list={POLLED} open={false} />)
+    await change.answer()
+    // Opened again with the list kept from before the change, as a closed list isn't polled.
+    view.rerender(<List name="Page" list={POLLED} open />)
+    expect(screen.getByRole('status', { name: 'Priorities' })).toHaveTextContent('1,6')
   })
 
   it('leaves a failure to a toast when the list that shows the torrent was closed meanwhile', async () => {
