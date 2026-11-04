@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { posterUrl } from '../api/tmdb'
 import { Checkbox } from '../components/Checkbox'
@@ -15,7 +16,7 @@ import { SpeedLimitMark } from './SpeedLimitMark'
  * A download in the poster grid: status, the torrent's own speed limits and progress over the poster,
  * title and a short line under it.
  */
-export function DownloadCard({
+export const DownloadCard = memo(function DownloadCard({
   torrent,
   match,
   showQueue = true,
@@ -95,4 +96,4 @@ export function DownloadCard({
       )}
     </li>
   )
-}
+})

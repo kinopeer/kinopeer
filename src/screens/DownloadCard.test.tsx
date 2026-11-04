@@ -1,7 +1,8 @@
-import { screen, within } from '@testing-library/react'
+import { act, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { Torrent } from '../api/qbittorrent'
+import i18n from '../i18n'
 import { DUNE_TORRENT } from '../test/fixtures'
 import { renderWithRouter } from '../test/render'
 import type { TitleMatch } from '../torrents/titleMatches'
@@ -22,6 +23,12 @@ function renderCard(props: Partial<DownloadItemProps> = {}, torrent: Torrent = D
 }
 
 describe('DownloadCard', () => {
+  it('follows the language while memoized', async () => {
+    const { card } = renderCard()
+    await act(() => i18n.changeLanguage('ru'))
+    expect(card.getByText('Загружается')).toBeInTheDocument()
+  })
+
   it('shows the title over the poster with the status, progress and speed, linking to the torrent', () => {
     const { card, container } = renderCard({ match: DUNE_MATCH })
     expect(card.getByRole('heading')).toHaveTextContent('Dune: Part Two')

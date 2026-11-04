@@ -566,13 +566,20 @@
   }
 
   .dl-card-toggle {
-    opacity: 0;
     transition: opacity var(--d-fast) var(--ease);
   }
 
-  .dl-card:hover .dl-card-toggle,
-  .dl-card:focus-within .dl-card-toggle {
-    opacity: 1;
+  /* Hidden, the button has no blur: a backdrop filter is a compositor layer of its own, and a grid
+     of 500 cards with one each spends most of a scroll building layers (#220). The blur goes only
+     once the button has faded out, and comes back at once with the glass's own value. */
+  .dl-card:not(:hover, :focus-within) .dl-card-toggle {
+    opacity: 0;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    transition:
+      opacity var(--d-fast) var(--ease),
+      -webkit-backdrop-filter 0s linear var(--d-fast),
+      backdrop-filter 0s linear var(--d-fast);
   }
 }
 
