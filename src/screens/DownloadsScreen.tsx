@@ -14,6 +14,7 @@ import { Segmented } from '../components/Segmented'
 import { useToast } from '../components/Toast'
 import { cx } from '../lib/cx'
 import { useFormatters } from '../lib/format'
+import { useAfterFirstFrame } from '../lib/useAfterFirstFrame'
 import { useHeightVar } from '../lib/useHeightVar'
 import { useIsDesktop } from '../lib/useIsDesktop'
 import { useScrollRestoration } from '../lib/useScrollRestoration'
@@ -179,6 +180,11 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   const loading = data === null
   // The list comes back where it was left on Back and through the Downloads tab, once it's loaded.
   useScrollRestoration(!loading, '/')
+  // Rows off screen are skipped (`content-visibility` in the stylesheet, #220) only once each layout's
+  // rows have been laid out in full: a skipped row keeps the height it had then, so the list keeps
+  // its real length and the position restored on Back lands where it was, whatever the width.
+  const rowsLayout = visible.length === 0 ? undefined : isDesktop && !grid ? 'table' : view
+  const skipOffscreen = useAfterFirstFrame(rowsLayout)
   // Looked up on every render, so the sheet follows live status changes and closes if the torrent goes away.
   const actionsTorrent = actions.torrent
   const server = data?.server
@@ -433,7 +439,11 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
     <main className="downloads status-strip">
       {header}
 
-      <section className="downloads-body" aria-label={t('downloads.title')} aria-busy={loading}>
+      <section
+        className={cx('downloads-body', skipOffscreen && 'skips-offscreen')}
+        aria-label={t('downloads.title')}
+        aria-busy={loading}
+      >
         {!loading && <InstallCard />}
         {loading && offline ? (
           <EmptyState

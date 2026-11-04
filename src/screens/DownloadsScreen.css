@@ -154,6 +154,55 @@
   gap: var(--space-3);
 }
 
+/* Rows and cards off screen are skipped: the browser doesn't lay out or paint them, while they stay
+   in the DOM, so find on page, selection and the screen reader still see every torrent. With
+   hundreds of torrents the whole list was painted again on every frame of a scroll (#220). Only
+   once the rows have been laid out in full (.skips-offscreen, a frame after they first show): a
+   skipped row keeps the height it had then (`auto`), so the page keeps its real length and a
+   position restored on Back lands where it was. The lengths are for a row added later, which is
+   skipped before it's laid out: the content's height in a row of the phone's list (a download's
+   transfer row adds 26px), of the table, and of a card on a phone. Safari before 18 ignores all
+   this and paints every row, as before. */
+.skips-offscreen :is(.downloads-list > .ks-dl, .dl-table-body > .dl-row, .ks-poster-grid > .dl-card) {
+  content-visibility: auto;
+}
+
+.downloads-list > .ks-dl {
+  contain-intrinsic-block-size: auto 102px; /* inside the padding and border, measured */
+}
+
+.dl-table-body > .dl-row {
+  contain-intrinsic-block-size: auto 60px; /* the poster's height, inside the padding and border */
+}
+
+/* A card's height follows its width; one on a 390px phone with a one-line title. */
+.ks-poster-grid > .dl-card {
+  contain-intrinsic-block-size: auto 310px;
+}
+
+/* A skipped row also clips what its content draws past its padding box: a focus ring around a
+   button in its corner, and on a card the selection ring and the hover's lift and shadow too. One
+   that shows any of them isn't skipped, since it's on screen then; a card stays so while its hover
+   shadow fades out. */
+.skips-offscreen :is(.downloads-list > .ks-dl, .dl-table-body > .dl-row, .ks-poster-grid > .dl-card):focus-within,
+.skips-offscreen .ks-poster-grid > .dl-card:is(:hover, .is-sel) {
+  content-visibility: visible;
+  transition-delay: 0s;
+}
+
+/* The More button always reaches past a card's right edge (.ks-pcard-action), so the card's box
+   takes in that much more on the right, where its containment doesn't clip. */
+.dl-card {
+  padding-right: 10px; /* the More button's overhang, right: -10px in PosterCard.css */
+  margin-right: -10px; /* takes the padding back, so the card's column and content stay as they were */
+  transition: content-visibility 0s var(--d-base) allow-discrete;
+}
+
+/* In selection mode the card's checkbox covers the card, not the More button's room beside it. */
+.dl-card > .dl-card-check::after {
+  right: 10px; /* the padding above */
+}
+
 .dl-card-over {
   position: absolute;
   left: 10px;

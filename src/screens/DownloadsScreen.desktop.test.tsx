@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { act, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as matchesApi from '../api/matches'
@@ -81,6 +81,30 @@ async function tableRows() {
 }
 
 describe('DownloadsScreen on desktop', () => {
+  // The class lets the browser skip rows off screen (`content-visibility`), once they've been laid
+  // out in full; no role shows it (DownloadsScreen.test.tsx has the rest of the rule, #220).
+  it('waits for the table’s rows to show for a frame before they’re skipped, when the window widens from a phone’s list', async () => {
+    const frames: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => frames.push(callback))
+    vi.stubGlobal('cancelAnimationFrame', () => {})
+    const nextFrame = () => act(() => frames.splice(0).forEach((callback) => callback(performance.now())))
+    const widen = stubDesktop(false)
+    updateSettings({ downloadsView: 'list', downloadsDesktopView: 'list' })
+    renderScreen()
+    expect(await screen.findAllByRole('listitem')).toHaveLength(3)
+    const body = screen.getByRole('region', { name: 'Downloads' })
+    nextFrame()
+    nextFrame()
+    expect(body).toHaveClass('skips-offscreen')
+
+    act(() => widen(true))
+    expect(await tableRows()).toHaveLength(3)
+    expect(body).not.toHaveClass('skips-offscreen')
+    nextFrame()
+    nextFrame()
+    expect(body).toHaveClass('skips-offscreen')
+  })
+
   it('shows a poster grid by default, and a table when the list is picked, remembered apart from the phone', async () => {
     renderScreen()
     expect(await screen.findAllByRole('listitem')).toHaveLength(3)

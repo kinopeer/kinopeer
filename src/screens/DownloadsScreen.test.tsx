@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { useLocation } from 'react-router'
@@ -145,6 +145,55 @@ describe('DownloadsScreen', () => {
     answer()
     expect(await screen.findAllByRole('listitem')).toHaveLength(3)
     expect(scrollTo).toHaveBeenCalledWith(0, 900)
+  })
+
+  // The class is what lets the browser skip the rows off screen (`content-visibility` in the
+  // stylesheet); no role or attribute shows it. Skipped before they were laid out once, rows would
+  // take an estimated height, and a position restored on Back would land elsewhere (#220).
+  it('lets the browser skip the rows off screen only once each layout’s rows have shown for a frame', async () => {
+    const frames: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => frames.push(callback))
+    vi.stubGlobal('cancelAnimationFrame', () => {})
+    onTestFinished(() => {
+      vi.unstubAllGlobals()
+    })
+    const nextFrame = () => act(() => frames.splice(0).forEach((callback) => callback(performance.now())))
+    let answer = () => {}
+    getMainData.mockReturnValueOnce(new Promise((resolve) => (answer = () => resolve(SNAPSHOT))))
+    renderScreen()
+    const body = screen.getByRole('region', { name: 'Downloads' })
+    expect(screen.getByRole('status', { name: saying('Loading downloads') })).toBeInTheDocument()
+    nextFrame()
+    nextFrame()
+    expect(body).not.toHaveClass('skips-offscreen')
+
+    answer()
+    expect(await screen.findAllByRole('listitem')).toHaveLength(3)
+    nextFrame()
+    expect(body).not.toHaveClass('skips-offscreen')
+    nextFrame()
+    expect(body).toHaveClass('skips-offscreen')
+
+    // The grid's cards are new elements, laid out in full first too.
+    await userEvent.click(screen.getByRole('radio', { name: 'Grid' }))
+    expect(screen.getByRole('radio', { name: 'Grid', checked: true })).toBeInTheDocument()
+    expect(body).not.toHaveClass('skips-offscreen')
+    nextFrame()
+    nextFrame()
+    expect(body).toHaveClass('skips-offscreen')
+
+    // A filter that matches nothing takes the cards away, and those it brings back are new elements.
+    await userEvent.click(screen.getByRole('button', { name: 'Filter by name', pressed: false }))
+    const filter = screen.getByRole('searchbox', { name: 'Filter by name' })
+    await userEvent.type(filter, 'nothing like it')
+    expect(screen.getByText('Nothing matches')).toBeInTheDocument()
+    expect(body).not.toHaveClass('skips-offscreen')
+    await userEvent.clear(filter)
+    expect(screen.getAllByRole('listitem')).toHaveLength(3)
+    expect(body).not.toHaveClass('skips-offscreen')
+    nextFrame()
+    nextFrame()
+    expect(body).toHaveClass('skips-offscreen')
   })
 
   it('shows the TMDB title and poster once matched, with the release name below', async () => {
