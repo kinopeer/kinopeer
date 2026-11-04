@@ -188,6 +188,33 @@ test.describe('downloads, phone', () => {
     await expect(page).toHaveScreenshot('list-scrolled-dark-ru.png')
   })
 
+  // Off screen a card is skipped (content-visibility) and keeps the height it had when last laid out,
+  // so the cards are laid out again when the list's width changes (#220). What jsdom can't see: the
+  // cards' real heights. A short window, so some cards are off screen and skipped at both widths, and
+  // widths under the column's, where the cards' size follows the window's.
+  test('the cards are laid out again when the list’s width changes', async ({ page }) => {
+    const lastCardSkipped = () =>
+      page.evaluate(() => {
+        const last = [...document.querySelectorAll('.ks-poster-grid > li')].at(-1)
+        return last !== undefined && !last.firstElementChild!.checkVisibility({ contentVisibilityAuto: true })
+      })
+    const pageHeight = () => page.evaluate(() => document.documentElement.scrollHeight)
+    await page.setViewportSize({ width: 390, height: 400 })
+    await openDownloads(page, { downloadsView: 'grid' })
+    await expect.poll(lastCardSkipped).toBe(true)
+    const before = await pageHeight()
+
+    await page.setViewportSize({ width: 340, height: 400 })
+    // Skipped again once laid out at the new width, after the fade's delay.
+    await expect.poll(lastCardSkipped).toBe(true)
+    const narrowed = await pageHeight()
+    expect(narrowed).not.toBe(before)
+
+    await page.reload()
+    await expect.poll(lastCardSkipped).toBe(true)
+    expect(narrowed).toBe(await pageHeight())
+  })
+
   test('the list stays out of the status bar above the pinned filters', async ({ page }) => {
     await emulateNotch(page)
     await openDownloads(page, { downloadsView: 'grid' })

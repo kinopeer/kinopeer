@@ -218,14 +218,17 @@ describe('DownloadsScreen', () => {
   // A skipped row keeps its height from the old width, so a turned phone lays the rows out again.
   it('lays the rows out in full again when the list’s width changes', async () => {
     const { nextFrame } = stubFrames()
-    let onResize = () => {}
+    const watching = new Map<Element, () => void>()
     vi.stubGlobal(
       'ResizeObserver',
       class {
+        callback: () => void
         constructor(callback: () => void) {
-          onResize = callback
+          this.callback = callback
         }
-        observe() {}
+        observe(element: Element) {
+          watching.set(element, this.callback)
+        }
         disconnect() {}
       },
     )
@@ -242,7 +245,8 @@ describe('DownloadsScreen', () => {
     expect(body).toHaveClass('skips-offscreen')
 
     rect.mockReturnValue({ width: 844, height: 0 } as DOMRect)
-    act(() => onResize())
+    // Heard only by an observer that watches the list's container.
+    act(() => watching.get(body)?.())
     expect(body).not.toHaveClass('skips-offscreen')
     nextFrame()
     nextFrame()

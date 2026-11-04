@@ -5,7 +5,15 @@ import { useSkipOffscreen } from './useSkipOffscreen'
 
 let nextFrame: () => void
 let onResize: () => void
+let observed: Set<Element>
+let list: HTMLElement
 const disconnect = vi.fn()
+
+/** The list's size changed: the observer hears of it only if it watches the list. */
+const resize = () =>
+  act(() => {
+    if (observed.has(list)) onResize()
+  })
 
 /** jsdom lays nothing out, so the list's width is whatever the test says. */
 function listWidth(width: number) {
@@ -15,13 +23,14 @@ function listWidth(width: number) {
 beforeEach(() => {
   ;({ nextFrame } = stubFrames())
   onResize = () => {}
+  observed = new Set()
   vi.stubGlobal(
     'ResizeObserver',
     class {
       constructor(callback: () => void) {
         onResize = callback
       }
-      observe = vi.fn()
+      observe = (element: Element) => observed.add(element)
       disconnect = disconnect
     },
   )
@@ -38,7 +47,8 @@ type Props = { layout?: string; ids: string[] }
 /** The hook on a list element, with rows `a` and `b` in the list's layout by default. */
 function renderList(props: Props = { layout: 'list', ids: ['a', 'b'] }) {
   const hook = renderHook(({ layout, ids }: Props) => useSkipOffscreen(layout, ids), { initialProps: props })
-  act(() => hook.result.current.ref(document.createElement('ul')))
+  list = document.createElement('ul')
+  act(() => hook.result.current.ref(list))
   return hook
 }
 
@@ -75,11 +85,11 @@ describe('useSkipOffscreen', () => {
     const { result } = renderList()
     laidOut()
 
-    act(() => onResize())
+    resize()
     expect(result.current.skip).toBe(true)
 
     listWidth(844)
-    act(() => onResize())
+    resize()
     expect(result.current.skip).toBe(false)
     laidOut()
     expect(result.current.skip).toBe(true)

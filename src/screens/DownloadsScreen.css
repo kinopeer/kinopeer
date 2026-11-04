@@ -183,7 +183,12 @@
 /* A skipped row also clips what its content draws past its padding box: a focus ring around a
    button in its corner, and on a card the selection ring and the hover's lift and shadow too. One
    that shows any of them isn't skipped, since it's on screen then; a card stays so while its hover
-   shadow fades out. */
+   shadow fades out. The fade's delay is only under .skips-offscreen: when the class is lifted for a
+   frame, the cards must be laid out at once, or they'd stay skipped through it with their old height. */
+.skips-offscreen .ks-poster-grid > .dl-card {
+  transition: content-visibility 0s var(--d-base) allow-discrete;
+}
+
 .skips-offscreen :is(.downloads-list > .ks-dl, .dl-table-body > .dl-row, .ks-poster-grid > .dl-card):focus-within,
 .skips-offscreen .ks-poster-grid > .dl-card:is(:hover, .is-sel) {
   content-visibility: visible;
@@ -195,7 +200,6 @@
 .dl-card {
   padding-right: 10px; /* the More button's overhang, right: -10px in PosterCard.css */
   margin-right: -10px; /* takes the padding back, so the card's column and content stay as they were */
-  transition: content-visibility 0s var(--d-base) allow-discrete;
 }
 
 /* In selection mode the card's checkbox covers the card, not the More button's room beside it. */
