@@ -119,18 +119,47 @@ describe('useDownloadToggle', () => {
 
   it('stays busy while qBittorrent may still report the old value, so a tap back reads the new one', async () => {
     vi.useFakeTimers({ now: 10_000, toFake: ['Date', 'setTimeout', 'clearTimeout'] })
-    const { result } = renderHook(() => ({ page: useDownloadToggle('seq_dl'), other: useDownloadToggle('f_l_piece_prio') }), {
-      wrapper: Providers,
-    })
+    const { result } = renderHook(
+      () => {
+        const page = useDownloadToggle('seq_dl')
+        const other = useDownloadToggle('f_l_piece_prio')
+        // As a switch reads it, when it renders: the hold's end has to render it again.
+        return { page, other, rendered: page.busy('dune') }
+      },
+      { wrapper: Providers },
+    )
     await act(() => result.current.page.set(DUNE, true))
-    expect(result.current.page.busy('dune')).toBe(true)
+    expect(result.current.rendered).toBe(true)
     // Only the kind that was flipped, and only for its torrent.
     expect(result.current.other.busy('dune')).toBe(false)
     expect(result.current.page.busy('alien')).toBe(false)
     await act(async () => vi.advanceTimersByTime(DEFAULT_REFRESH_INTERVAL_MS + STATE_LAG_MARGIN_MS - 1))
-    expect(result.current.page.busy('dune')).toBe(true)
+    expect(result.current.rendered).toBe(true)
     await act(async () => vi.advanceTimersByTime(1))
-    expect(result.current.page.busy('dune')).toBe(false)
+    expect(result.current.rendered).toBe(false)
+  })
+
+  it('ends the hold of a later flip on time, past an earlier one that ended', async () => {
+    vi.useFakeTimers({ now: 10_000, toFake: ['Date', 'setTimeout', 'clearTimeout'] })
+    const ALIEN = torrent('alien', { added_on: 2 })
+    getTorrents.mockImplementation(async ({ hashes } = {}) => [hashes?.[0] === 'alien' ? ALIEN : DUNE])
+    const lag = DEFAULT_REFRESH_INTERVAL_MS + STATE_LAG_MARGIN_MS
+    const { result } = renderHook(
+      () => {
+        const toggle = useDownloadToggle('seq_dl')
+        return { toggle, rendered: toggle.busy('alien') }
+      },
+      { wrapper: Providers },
+    )
+    await act(() => result.current.toggle.set(DUNE, true))
+    await act(async () => vi.advanceTimersByTime(lag))
+    // Dune's hold is over but still kept, as no poll has had its word yet.
+    await act(() => result.current.toggle.set(ALIEN, true))
+    // A render for the hold that ended doesn't stand in for the one alien's end needs.
+    await act(async () => vi.advanceTimersByTime(1))
+    expect(result.current.rendered).toBe(true)
+    await act(async () => vi.advanceTimersByTime(lag))
+    expect(result.current.rendered).toBe(false)
   })
 
   it('says a failure in a toast, which the next try takes back', async () => {

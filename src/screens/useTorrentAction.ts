@@ -57,18 +57,17 @@ export function useTorrentAction(kind: RequestKind, watcher?: ActionWatcher): To
     })
   }, [requests, kind, watching])
 
-  // Rendered again when the soonest hold of the kind ends, so `holding` turns false on time.
+  // Rendered again when the soonest hold ends, so `holding` turns false on time.
   const expected = useSyncExternalStore(requests.subscribe, requests.getExpected)
   const [, holdEnded] = useReducer((count: number) => count + 1, 0)
   useEffect(() => {
     const now = Date.now()
-    const ends = [...expected]
-      .filter(([key, item]) => key === requestKey(kind, item.hash) && item.until > now)
-      .map(([, item]) => item.until)
+    // Every kind's, which at worst renders this again for another kind's hold.
+    const ends = [...expected.values()].map((item) => item.until).filter((until) => until > now)
     if (ends.length === 0) return
     const timer = setTimeout(holdEnded, Math.min(...ends) - now)
     return () => clearTimeout(timer)
-  }, [expected, kind])
+  }, [expected])
 
   const send = useCallback<TorrentAction['send']>(
     (target, payload, request, options) => requests.send(kind, target, payload, request, options),
