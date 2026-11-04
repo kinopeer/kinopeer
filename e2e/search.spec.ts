@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { DESKTOP, emulateNotch, openApp, settle, type AppOptions } from './app.ts'
+import { DESKTOP, DESKTOP_RAIL, emulateNotch, openApp, settle, type AppOptions } from './app.ts'
 
 async function openSearch(page: Page, path: string, firstTitle: string, options: AppOptions = {}) {
   await openApp(page, path, options)
@@ -90,5 +90,17 @@ test.describe('search, desktop', () => {
     await expect(page.getByRole('heading', { name: /zzz/ })).toBeVisible()
     await settle(page)
     await expect(page).toHaveScreenshot('desktop-no-results-dark-ru.png')
+  })
+})
+
+test.describe('search, icon rail', () => {
+  test.use(DESKTOP_RAIL)
+
+  test('the field and the filters stay at the top beside the rail while the results scroll', async ({ page }) => {
+    await openSearch(page, '/search?q=%D0%B0', 'Дюна')
+    await page.evaluate(() => window.scrollTo(0, 150))
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(150)
+    await expect(page.getByRole('heading', { level: 1, name: 'Поиск' })).not.toBeInViewport()
+    await expect(page).toHaveScreenshot('rail-results-scrolled-dark-ru.png')
   })
 })

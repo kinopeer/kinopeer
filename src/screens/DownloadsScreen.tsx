@@ -217,8 +217,9 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
     setQuery('')
   }
 
-  // The count takes the title's place; both buttons sit together on the right, where the select
-  // button was, so the pointer is already there.
+  // The count takes the title's place, at the top of the pinned bar; both buttons sit together on
+  // the right, where the select button was (on a phone in the title row, on desktop at the bar's end),
+  // so the pointer is already there.
   const selectionRow = (
     <div className="downloads-title-row">
       <h1 className="t-h3 ks-num" aria-live="polite">
@@ -353,7 +354,8 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
             })}
             onClick={(event) => setSortAnchor(sortAnchor ? null : event.currentTarget)}
           >
-            {t(`downloads.sorts.${sort}`)}
+            {/* Hidden in a narrow bar, where the button's name still says the sort. */}
+            <span className="downloads-sort-label">{t(`downloads.sorts.${sort}`)}</span>
             <Icon name="chevron-down" size={14} />
           </Button>
           {viewSwitch}

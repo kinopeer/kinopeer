@@ -14,6 +14,23 @@ async function openDownloads(page: Page, options: AppOptions = {}) {
 }
 
 /**
+ * Picks the longest status and sort labels, then checks the desktop bar is still one row: its last
+ * control, the select button, level with the name filter.
+ */
+async function expectBarInOneRowWithLongestLabels(page: Page) {
+  await page.getByRole('button', { name: /^Статус: / }).click()
+  await page.getByRole('menuitemradio', { name: /^Загружается/ }).click()
+  await page.getByRole('button', { name: /^Сортировка: / }).click()
+  await page.getByRole('menuitemradio', { name: 'Дата добавления' }).click()
+  await expect(page.getByRole('button', { name: /^Сортировка: Дата добавления/ })).toBeVisible()
+  const middle = async (name: 'searchbox' | 'button', label: string) => {
+    const box = (await page.getByRole(name, { name: label, exact: true }).boundingBox())!
+    return box.y + box.height / 2
+  }
+  expect(await middle('button', 'Выбрать')).toBe(await middle('searchbox', 'Фильтр по названию'))
+}
+
+/**
  * Sets what trackKeyboardInset sets while the on-screen keyboard is open (Chromium has none to open),
  * by its own rule: the page visible above it, `top` pixels down the layout viewport when the
  * browser scrolled to show the field.
@@ -382,6 +399,11 @@ test.describe('downloads, narrow desktop', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Загрузки' })).not.toBeInViewport()
     await expect(page).toHaveScreenshot('rail-list-scrolled-dark-ru.png')
   })
+
+  test('the bar stays one row beside the rail with the longest labels', async ({ page }) => {
+    await openDownloads(page, { downloadsView: 'list' })
+    await expectBarInOneRowWithLongestLabels(page)
+  })
 })
 
 test.describe('downloads, full HD', () => {
@@ -416,6 +438,12 @@ test.describe('downloads, labelled sidebar at its narrowest', () => {
     await openDownloads(page, { downloadsView: 'list' })
     await expect(page.getByRole('columnheader', { name: 'Осталось' })).toBeHidden()
     await expect(page).toHaveScreenshot('labelled-list-dark-ru.png')
+  })
+
+  // The narrowest bar on desktop: the sort shows only its icon here.
+  test('the bar stays one row with the longest labels', async ({ page }) => {
+    await openDownloads(page, { downloadsView: 'list' })
+    await expectBarInOneRowWithLongestLabels(page)
   })
 })
 

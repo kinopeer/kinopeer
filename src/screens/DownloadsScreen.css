@@ -709,19 +709,37 @@ a.dl-row-main:focus-visible::after {
     margin-left: 0;
   }
 
-  /* What's acted on stays at the top, its menus following their buttons. */
+  /* What's acted on stays at the top in one row, its menus following their buttons. */
   .downloads-bar {
+    container: downloads-bar / inline-size;
     gap: var(--space-4);
     margin: 0;
     padding: var(--space-4) var(--space-8);
   }
 
-  /* Grows up to its width when there's room, and narrows before the bar wraps: beside the icon rail
-     the bar's other controls leave it about 130px, where its placeholder ends in an ellipsis. */
+  /* Grows up to its width when there's room and gives way first, so the row doesn't wrap. Narrow, its
+     placeholder ends in an ellipsis, and below 160px only the search icon stays: a word or two cut
+     short reads as broken. Its name still says what it filters by. */
   .downloads-filter {
-    flex: 1 1 120px;
+    container: downloads-filter / inline-size;
+    flex: 1 1 96px;
     max-width: 280px;
     min-width: 0;
+  }
+
+  @container downloads-filter (width < 160px) {
+    .ks-input::placeholder {
+      color: transparent;
+    }
+  }
+
+  /* With the longest labels (the "Downloading" status, the "Date added" sort) the other controls take
+     802px, more than the labelled sidebar leaves at 1100px: below a 962px row, where the name filter
+     would get under 160px, the sort shows only its icon, its name still telling the sort. */
+  @container downloads-bar (width < 962px) {
+    .downloads-sort-label {
+      display: none;
+    }
   }
 
   .downloads-filter .ks-input {
