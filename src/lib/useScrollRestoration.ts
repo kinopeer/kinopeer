@@ -23,15 +23,15 @@ function savePosition(key: string, y: number): void {
 }
 
 /**
- * Brings a screen back to where it was scrolled when the user returns to it through history (Back
- * or Forward), and a tab's screen to where its tab was left when its tab's link opens it (`tab`, the
- * tab's path; the link sends `TAB_RETURN`). The browser tries the first itself, but the screen's
- * content loads after it renders, so the page is still short when the browser scrolls and the
- * position gets lost. `ready` says the content is on the page: the position is restored once it
- * turns true, then left alone. The position is saved when the screen goes away or its entry
- * changes, and the tab's place with it. Another navigation is `useNewScreenAtTop`'s.
+ * Brings a tab's screen (`tab`, the tab's path) back to where it was scrolled when the user returns
+ * to it through history (Back or Forward), and to where the tab was left when the tab's link opens
+ * it (the link sends `TAB_RETURN`). The browser tries the first itself, but the screen's content
+ * loads after it renders, so the page is still short when the browser scrolls and the position gets
+ * lost. `ready` says the content is on the page: the position is restored once it turns true, then
+ * left alone. The position is saved when the screen goes away or its entry changes, and the tab's
+ * place with it. Another navigation is `useNewScreenAtTop`'s.
  */
-export function useScrollRestoration(ready: boolean, tab?: string): void {
+export function useScrollRestoration(ready: boolean, tab: string): void {
   const { key, search, state } = useLocation()
   // The entry whose restore is done (or wasn't needed). Until then its position is left as saved,
   // so the browser's own, clamped attempt doesn't overwrite it.
@@ -44,7 +44,7 @@ export function useScrollRestoration(ready: boolean, tab?: string): void {
     if (settledKey.current === key) return
     // Only an entry shown before has a position saved, so this is Back or Forward. Not
     // `useNavigationType()`: under App's `<Routes location>` every navigation reads as POP.
-    const tabReturn = tab !== undefined && key === mountedKey.current && isTabReturn(state)
+    const tabReturn = key === mountedKey.current && isTabReturn(state)
     const saved = savedPosition(key) ?? (tabReturn ? (tabPlace(tab)?.y ?? 0) : undefined)
     if (saved === undefined) {
       settledKey.current = key
@@ -60,7 +60,7 @@ export function useScrollRestoration(ready: boolean, tab?: string): void {
       // Runs before the next screen's content replaces this one, so the position is still intact.
       if (settledKey.current !== key) return
       savePosition(key, window.scrollY)
-      if (tab !== undefined) saveTabPlace(tab, { search, y: window.scrollY })
+      saveTabPlace(tab, { search, y: window.scrollY })
     },
     [key, search, tab],
   )

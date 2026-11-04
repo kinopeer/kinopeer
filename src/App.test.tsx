@@ -382,6 +382,21 @@ describe('App', () => {
     expect(screen.queryByRole('heading', { name: 'Downloads' })).not.toBeInTheDocument()
   })
 
+  it('opens a torrent from a title page as a screen of its own on a phone, not over the page', async () => {
+    getMainData.mockResolvedValue({
+      rid: 1,
+      full_update: true,
+      torrents: { dune: { name: 'Dune.2021.1080p', state: 'downloading', progress: 0.5, size: 1e9, priority: 1, ratio: 0 } },
+      server_state: {},
+    })
+    vi.mocked(tmdb.getMovie).mockResolvedValue(duneDetails)
+    // As the title page's "In downloads" card links to it, on a phone too.
+    renderApp({ pathname: '/torrent/dune', state: { background: { pathname: '/title/movie/693134', search: '', hash: '', state: null, key: 'title' } } })
+    expect(await screen.findByRole('heading', { name: 'Dune.2021.1080p', level: 1 })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Dune: Part Two' })).not.toBeInTheDocument()
+  })
+
   it('opens a torrent’s screen from Downloads at the top on a phone', async () => {
     getMainData.mockResolvedValue({
       rid: 1,

@@ -7,7 +7,7 @@ import { TAB_RETURN, forgetTabPlaces, saveTabPlace, tabPlace } from './tabPlaces
 import { useNewScreenAtTop, useScrollRestoration } from './useScrollRestoration'
 
 function Screen({ ready }: { ready: boolean }) {
-  useScrollRestoration(ready)
+  useScrollRestoration(ready, '/')
   return (
     <main>
       <h1>{ready ? 'Loaded' : 'Loading'}</h1>

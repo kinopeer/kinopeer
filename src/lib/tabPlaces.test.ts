@@ -29,12 +29,16 @@ describe('tab places', () => {
   })
 
   it('leaves out what it stored in another shape, and storage it can’t read', async () => {
-    sessionStorage.setItem('kinoseed.tabs', JSON.stringify({ '/': { search: '', y: 120 }, '/search': { y: '640' }, '/settings': null }))
+    sessionStorage.setItem(
+      'kinoseed.tabs',
+      JSON.stringify({ '/': { search: '', y: 120 }, '/search': { search: '?q=dune', y: '640' }, '/settings': { y: 80 }, '/x': null }),
+    )
     expect(tabPlace('/')).toEqual({ search: '', y: 120 })
     expect(tabPlace('/search')).toBeUndefined()
     expect(tabPlace('/settings')).toBeUndefined()
+    expect(tabPlace('/x')).toBeUndefined()
 
-    for (const stored of ['{not json', '42', 'null']) {
+    for (const stored of ['{not json', '42', 'null', '"/search"']) {
       sessionStorage.setItem('kinoseed.tabs', stored)
       vi.resetModules()
       const reloaded = await import('./tabPlaces')
@@ -43,6 +47,15 @@ describe('tab places', () => {
       reloaded.saveTabPlace('/', { search: '', y: 80 })
       expect(reloaded.tabPlace('/')).toEqual({ search: '', y: 80 })
     }
+  })
+
+  it('forgets them all, in storage too', async () => {
+    saveTabPlace('/search', { search: '?q=dune', y: 640 })
+    forgetTabPlaces()
+    expect(tabPlace('/search')).toBeUndefined()
+    vi.resetModules()
+    const reloaded = await import('./tabPlaces')
+    expect(reloaded.tabPlace('/search')).toBeUndefined()
   })
 
   it('keeps them for the page when the storage is full', () => {

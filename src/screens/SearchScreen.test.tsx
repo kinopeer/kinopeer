@@ -4,7 +4,7 @@ import { Link, Route, Routes, useNavigate } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import * as tmdb from '../api/tmdb'
 import i18n from '../i18n'
-import { TAB_RETURN, forgetTabPlaces } from '../lib/tabPlaces'
+import { TAB_RETURN, forgetTabPlaces, tabPlace } from '../lib/tabPlaces'
 import { forgetKeptResults } from '../search/searchResults'
 import { searchPage as page, title } from '../test/fixtures'
 import { renderWithRouter, saying } from '../test/render'
@@ -413,6 +413,7 @@ describe('SearchScreen', () => {
           <Link to="/search?q=dune" state={TAB_RETURN}>
             Search tab
           </Link>
+          <Link to="/search?q=dune">Same search</Link>
         </>
       )
     }
@@ -474,6 +475,8 @@ describe('SearchScreen', () => {
       await screen.findByRole('heading', { name: 'Alien: Romulus' })
       scrolledTo(1400)
       await userEvent.click(screen.getByRole('link', { name: /Alien: Romulus/ }))
+      // Kept as the Search tab's place, which its link goes to.
+      expect(tabPlace('/search')).toEqual({ search: '?q=dune', y: 1400 })
       scrolledTo(80)
       await userEvent.click(screen.getByRole('link', { name: 'Search tab' }))
 
@@ -484,6 +487,16 @@ describe('SearchScreen', () => {
       ])
       expect(scrollTo).toHaveBeenCalledWith(0, 1400)
       // Nothing is asked again: a new history entry, but the search the tab was left on.
+      expect(searchTitles).toHaveBeenCalledTimes(2)
+    })
+
+    it('asks again for a search opened afresh, rather than showing the pages kept for another entry', async () => {
+      searchTitles.mockResolvedValue(page([DUNE, ANDOR]))
+      renderWithTitle()
+      await screen.findByText('About 2 results')
+      await userEvent.click(screen.getByRole('link', { name: /Andor/ }))
+      await userEvent.click(screen.getByRole('link', { name: 'Same search' }))
+      expect(await screen.findByText('About 2 results')).toBeInTheDocument()
       expect(searchTitles).toHaveBeenCalledTimes(2)
     })
 

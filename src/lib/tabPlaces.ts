@@ -27,10 +27,9 @@ function isPlace(value: unknown): value is TabPlace {
 function read(): Places {
   if (places) return places
   try {
-    const stored: unknown = JSON.parse(sessionStorage.getItem(STORAGE_KEY) ?? '{}')
-    places = Object.fromEntries(
-      Object.entries(stored && typeof stored === 'object' ? stored : {}).filter(([, place]) => isPlace(place)),
-    )
+    // Anything stored in another shape gives no places: null throws here, a number or a string has no place among its entries.
+    const stored = JSON.parse(sessionStorage.getItem(STORAGE_KEY) ?? '{}') as object
+    places = Object.fromEntries(Object.entries(stored).filter(([, place]) => isPlace(place)))
   } catch {
     places = EMPTY
   }
@@ -74,12 +73,8 @@ export function isTabReturn(state: unknown): boolean {
   return (state as Partial<TabReturnState> | null)?.tabReturn === true
 }
 
-/** Forgets every place (tests start from none). */
+/** Forgets every place, in the page and in storage (tests start from none). */
 export function forgetTabPlaces(): void {
   places = null
-  try {
-    sessionStorage.removeItem(STORAGE_KEY)
-  } catch {
-    // Nothing kept to forget.
-  }
+  sessionStorage.removeItem(STORAGE_KEY)
 }
