@@ -129,12 +129,13 @@ trusted.
   Missing or vague → finding.
 - **K. Each test can fail.** The Tests table says what was broken to see each new or changed test
   red, once per claim of its title and of each comment on its assertions, and the
-  `Mutants` line accounts for each survivor in CI's comment on the PR (the latest one, at its
-  commit), an `equivalent` with a reason you agree with; missing either, or a test you can see would
-  stay green with its behavior removed, → finding. When production lines changed after CI's run,
-  or a PR with production lines has no CI comment (Actions out of minutes), the reviewer runs `npm
-  run test:mutants` locally at the head and says in the round what it saw; the reviewer doesn't
-  dispatch the workflow. An `equivalent` that only a test's own reset keeps alive isn't one. The
+  `Mutants` line accounts for each survivor in CI's comment on the PR (the one at the commit the
+  round reviews), an `equivalent` with a reason you agree with; missing either, or a test you can see would
+  stay green with its behavior removed, → finding. CI mutates every push to a ready PR's head, so
+  its comment is at the commit the round reviews (a survivor new since the `Mutants` line is
+  accounted for in the author's `Fixes for round <n>`): while the run is going, wait for it. Run `npm
+  run test:mutants` locally only when no comment can come for that commit (Actions out of minutes,
+  the job failed), and say so in the round. An `equivalent` that only a test's own reset keeps alive isn't one. The
   `Broken by hand` line covers what the changed lines hold of the list in `docs/TESTING.md` → A test
   that can fail (a dependency array, one operand of a condition, `&&` chains included, a selector's
   alternatives, which value a guard reads, a prop passed down); one of them left out, where you can see a test would

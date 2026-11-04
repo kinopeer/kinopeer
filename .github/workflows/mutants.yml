@@ -1,17 +1,23 @@
 name: Mutants
 
-# One run per PR head, not one per push: when a PR is opened ready or marked ready, or when started by
-# hand (docs/TESTING.md → A test that can fail). Survivors don't fail the job; its comment
-# is the count the review compares with the PR's Mutants line.
+# A run for the latest head of a ready PR: when it's opened ready, marked ready or pushed to (a fix, a
+# merge of main), or when started by hand (docs/TESTING.md → A test that can fail). Survivors don't
+# fail the job; its comment, at the head a review round sees, is the count the round compares with
+# the PR's Mutants line and the author's answer.
 on:
   pull_request:
-    types: [opened, ready_for_review]
+    types: [opened, ready_for_review, synchronize]
     paths:
       - 'src/**'
       - 'server/**'
       # scripts/mutants.mjs mutates these too.
       - 'tmdb-proxy/**'
   workflow_dispatch:
+
+# A push while a run is going cancels it, so only the latest head is mutated and commented on.
+concurrency:
+  group: mutants-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   mutants:
