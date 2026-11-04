@@ -470,13 +470,19 @@
     "skip": "Skip for now",
     "invalid": "TMDB didn’t accept this key",
     "unreachable": "TMDB isn’t answering. Try again in a moment.",
-    "storage": "The Kinoseed server couldn’t save the key. Check that its data folder is writable.",
+    "storage": "The Kinoseed server couldn’t save the change. Check that its data folder is writable.",
     "failed": "Couldn’t save the key. Try again.",
     "saved": "TMDB key saved",
     "change": "Change TMDB key",
     "sheetTitle": "TMDB key",
     "enter": "Enter key",
-    "useOwn": "Use your own TMDB key"
+    "useOwn": "Use your own TMDB key",
+    "forgetToShared": "Use Kinoseed’s key",
+    "forgetToServer": "Use the server’s key",
+    "forgottenToShared": "Using Kinoseed’s TMDB key",
+    "forgottenToServer": "Using the server’s TMDB key",
+    "noFallback": "Kinoseed has no other TMDB key to use, so the saved one stays.",
+    "forgetFailed": "Couldn’t forget the key. Try again."
   },
   "move": {
     "title": "Move files",

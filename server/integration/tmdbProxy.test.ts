@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { getServerSettings } from '../../src/api/settings/client.ts'
+import { forgetTmdbKey, getServerSettings, saveTmdbKey } from '../../src/api/settings/client.ts'
 import { TmdbError, TmdbKeyError, checkTmdb, getTv, searchTitles } from '../../src/api/tmdb/client.ts'
 import { details } from '../../src/test/fixtures.ts'
 import { startKinoseed, stopKinoseed } from '../test/integration.ts'
@@ -31,7 +31,23 @@ describe('TMDB through Kinoseed’s proxy', () => {
   it('says Kinoseed’s key is used, so onboarding doesn’t ask for one', async () => {
     await startKinoseed({ env: { TMDB_API_KEY: undefined }, tmdbProxy: true })
 
-    await expect(getServerSettings()).resolves.toMatchObject({ tmdb: { configured: true, source: 'shared' } })
+    await expect(getServerSettings()).resolves.toMatchObject({ tmdb: { configured: true, source: 'shared', fallback: 'shared' } })
+  })
+
+  it('goes back from a saved key to Kinoseed’s once it’s forgotten', async () => {
+    const { tmdb, proxy, stores } = await startKinoseed({ env: { TMDB_API_KEY: undefined }, tmdbProxy: true })
+    await expect(saveTmdbKey('good-key')).resolves.toMatchObject({ tmdb: { source: 'saved', fallback: 'shared' } })
+    await expect(checkTmdb()).resolves.toBeUndefined()
+    expect(proxy?.seen).toEqual([])
+
+    await expect(forgetTmdbKey()).resolves.toMatchObject({ tmdb: { configured: true, source: 'shared', fallback: 'shared' } })
+    expect(stores.settings.current.tmdbApiKey).toBeUndefined()
+    tmdb.seen.length = 0
+    await expect(checkTmdb()).resolves.toBeUndefined()
+
+    // The check goes without a key of the server's own, through the proxy, which adds Kinoseed's.
+    expect(proxy?.seen).toEqual([{ url: '/3/configuration', authorization: undefined }])
+    expect(tmdb.seen.map((request) => request.url)).toEqual(['/3/configuration?api_key=good-key'])
   })
 
   it('reports the proxy refusing a call as TMDB failing, not as a missing key', async () => {

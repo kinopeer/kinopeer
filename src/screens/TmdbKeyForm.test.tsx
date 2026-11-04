@@ -9,21 +9,32 @@ import { saying } from '../test/render'
 vi.mock('../api/settings', async (importOriginal) => ({
   ...(await importOriginal<typeof serverSettings>()),
   saveTmdbKey: vi.fn(),
+  forgetTmdbKey: vi.fn(),
 }))
 
 const saveTmdbKey = vi.mocked(serverSettings.saveTmdbKey)
+const forgetTmdbKey = vi.mocked(serverSettings.forgetTmdbKey)
 
 const SAVED: ServerSettings = {
-  tmdb: { configured: true, source: 'saved' },
+  tmdb: { configured: true, source: 'saved', fallback: 'shared' },
   prowlarr: { configured: true, source: 'env', serverKey: true },
   qbittorrent: { configured: true, source: 'env' },
   downloads: null,
 }
 
+const SHARED: ServerSettings = { ...SAVED, tmdb: { configured: true, source: 'shared', fallback: 'shared' } }
+
 function renderForm() {
   const onSaved = vi.fn()
   render(<TmdbKeyForm onSaved={onSaved} secondary={<button type="button">Skip for now</button>} />)
   return { onSaved, field: screen.getByLabelText('API key or read access token'), save: screen.getByRole('button', { name: 'Save' }) }
+}
+
+function renderForgetting(forgetTo: 'shared' | 'env' = 'shared') {
+  const onSaved = vi.fn()
+  const onForgotten = vi.fn()
+  render(<TmdbKeyForm onSaved={onSaved} forgetTo={forgetTo} onForgotten={onForgotten} />)
+  return { onSaved, onForgotten, field: screen.getByLabelText('API key or read access token'), save: screen.getByRole('button', { name: 'Save' }) }
 }
 
 beforeEach(() => {
@@ -70,7 +81,7 @@ describe('TmdbKeyForm', () => {
 
   it.each([
     ['unreachable', 'TMDB isn’t answering. Try again in a moment.'],
-    ['storage', 'The Kinoseed server couldn’t save the key. Check that its data folder is writable.'],
+    ['storage', 'The Kinoseed server couldn’t save the change. Check that its data folder is writable.'],
     ['not-configured', 'Couldn’t save the key. Try again.'],
   ] as const)('explains a failure to save (%s) in a banner, leaving the key as it is', async (code, message) => {
     saveTmdbKey.mockRejectedValue(new serverSettings.SettingsError(502, code))
@@ -85,5 +96,61 @@ describe('TmdbKeyForm', () => {
     saveTmdbKey.mockRejectedValue(new TypeError('Failed to fetch'))
     await userEvent.click(save)
     expect(screen.getByRole('alert', { name: saying('Couldn’t save the key. Try again.') })).toBeInTheDocument()
+  })
+
+  it.each([
+    ['shared', 'Use Kinoseed’s key'],
+    ['env', 'Use the server’s key'],
+  ] as const)('goes back to the key the server falls back on (%s) and hands the settings on', async (forgetTo, label) => {
+    forgetTmdbKey.mockResolvedValue(SHARED)
+    const { onForgotten, onSaved } = renderForgetting(forgetTo)
+    await userEvent.click(screen.getByRole('button', { name: label }))
+    await vi.waitFor(() => expect(onForgotten).toHaveBeenCalledWith(SHARED))
+    expect(onSaved).not.toHaveBeenCalled()
+  })
+
+  it('has no forget button unless there is a key to go back to', () => {
+    renderForm()
+    expect(screen.queryByRole('button', { name: /^Use .* key$/ })).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['storage', 'The Kinoseed server couldn’t save the change. Check that its data folder is writable.'],
+    ['no-server-key', 'Kinoseed has no other TMDB key to use, so the saved one stays.'],
+    [undefined, 'Couldn’t forget the key. Try again.'],
+  ] as const)('says why the key could not be forgotten (%s), and can try again', async (code, message) => {
+    forgetTmdbKey.mockRejectedValueOnce(code ? new serverSettings.SettingsError(500, code) : new Error('network'))
+    forgetTmdbKey.mockResolvedValueOnce(SHARED)
+    const { onForgotten } = renderForgetting()
+    const forget = screen.getByRole('button', { name: 'Use Kinoseed’s key' })
+    await userEvent.click(forget)
+    expect(await screen.findByRole('alert', { name: saying(message) })).toBeInTheDocument()
+    expect(forget).not.toHaveAttribute('aria-busy')
+    expect(onForgotten).not.toHaveBeenCalled()
+
+    await userEvent.click(forget)
+    await vi.waitFor(() => expect(onForgotten).toHaveBeenCalledWith(SHARED))
+  })
+
+  it('disables forgetting while saving', async () => {
+    let finishSave = (_settings: ServerSettings) => {}
+    saveTmdbKey.mockReturnValue(new Promise((resolve) => (finishSave = resolve)))
+    const { field, save, onSaved } = renderForgetting()
+    const forget = screen.getByRole('button', { name: 'Use Kinoseed’s key' })
+    await userEvent.type(field, 'abc123')
+    await userEvent.click(save)
+    expect(forget).toBeDisabled()
+
+    finishSave(SAVED)
+    await vi.waitFor(() => expect(onSaved).toHaveBeenCalledWith(SAVED))
+  })
+
+  it('disables Save while forgetting, busy meanwhile', async () => {
+    forgetTmdbKey.mockReturnValue(new Promise(() => {}))
+    const { save } = renderForgetting()
+    const forget = screen.getByRole('button', { name: 'Use Kinoseed’s key' })
+    await userEvent.click(forget)
+    expect(forget).toHaveAttribute('aria-busy', 'true')
+    expect(save).toBeDisabled()
   })
 })

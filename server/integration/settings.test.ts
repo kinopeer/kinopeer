@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { SettingsError, getServerSettings, saveDownloadDefaults, forgetProwlarrKey, saveProwlarrKey, saveQbittorrentLogin, saveTmdbKey } from '../../src/api/settings/client.ts'
+import { SettingsError, getServerSettings, saveDownloadDefaults, forgetProwlarrKey, forgetTmdbKey, saveProwlarrKey, saveQbittorrentLogin, saveTmdbKey } from '../../src/api/settings/client.ts'
 import { getProwlarrStatus } from '../../src/api/prowlarr/client.ts'
 import { startKinoseed, stopKinoseed } from '../test/integration.ts'
 
@@ -12,7 +12,7 @@ describe('settings client through /api/settings', () => {
   it('reads where each secret comes from, never the secret', async () => {
     const { responses } = await startKinoseed()
     await expect(getServerSettings()).resolves.toEqual({
-      tmdb: { configured: true, source: 'env' },
+      tmdb: { configured: true, source: 'env', fallback: 'env' },
       prowlarr: { configured: true, source: 'env', serverKey: true },
       qbittorrent: { configured: true, source: 'env' },
       downloads: null,
@@ -22,10 +22,18 @@ describe('settings client through /api/settings', () => {
 
   it('saves a TMDB key the server has checked with TMDB', async () => {
     const { tmdb, stores } = await startKinoseed({ env: { TMDB_API_KEY: undefined } })
-    await expect(saveTmdbKey('good-key')).resolves.toMatchObject({ tmdb: { configured: true, source: 'saved' } })
+    await expect(saveTmdbKey('good-key')).resolves.toMatchObject({ tmdb: { configured: true, source: 'saved', fallback: null } })
     expect(tmdb.seen).toEqual([{ url: '/3/authentication?api_key=good-key', authorization: undefined, cookie: undefined }])
     expect(stores.settings.current.tmdbApiKey).toBe('good-key')
-    await expect(getServerSettings()).resolves.toMatchObject({ tmdb: { configured: true, source: 'saved' } })
+    await expect(getServerSettings()).resolves.toMatchObject({ tmdb: { configured: true, source: 'saved', fallback: null } })
+  })
+
+  it('keeps a saved TMDB key when nothing else would serve TMDB', async () => {
+    const { stores } = await startKinoseed({ env: { TMDB_API_KEY: undefined } })
+    await saveTmdbKey('good-key')
+
+    await expect(forgetTmdbKey()).rejects.toMatchObject({ status: 409, code: 'no-server-key' })
+    expect(stores.settings.current.tmdbApiKey).toBe('good-key')
   })
 
   it('saves a Prowlarr key that then wins over a stale PROWLARR_API_KEY', async () => {
