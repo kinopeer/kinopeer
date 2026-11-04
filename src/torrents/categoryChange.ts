@@ -15,7 +15,6 @@ import { categoryFolder, sameFolder } from './folders'
  */
 export type CategoryChange = { kind: 'move' | 'stay' | 'toManual' | 'manual'; folder: string }
 
-/** What changing `torrent`'s category to `category` (empty for none) does with its files. */
 /** Whether qBittorrent keeps a category's incomplete torrents in a download path of their own. */
 function keepsIncomplete(category: string, locations: SaveLocations): boolean {
   const own = locations.categories.find((item) => item.name === category)?.download_path
@@ -25,6 +24,7 @@ function keepsIncomplete(category: string, locations: SaveLocations): boolean {
   return own === false ? false : locations.downloadPath
 }
 
+/** What changing `torrent`'s category to `category` (empty for none) does with its files. */
 export function categoryChange(
   torrent: Pick<Torrent, 'auto_tmm' | 'save_path' | 'progress'>,
   category: string,
