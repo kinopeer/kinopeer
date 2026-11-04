@@ -24,7 +24,10 @@ function fakeCache(): EdgeCache & { entries: Map<string, Response> } {
   }
 }
 
-function setup({ env = { TMDB_API_KEY: 'v3key' } as Env, status = 200 } = {}) {
+/** A rate limiter that lets every call through. */
+const allow = { limit: async () => ({ success: true }) }
+
+function setup({ env = { TMDB_API_KEY: 'v3key', LIMITER: allow } as Env, status = 200 } = {}) {
   const tmdb = fakeTmdb(status)
   const cache = fakeCache()
   const pending: Promise<unknown>[] = []
@@ -55,7 +58,7 @@ describe('TMDB proxy worker', () => {
   })
 
   it('sends a v4 read access token as a bearer token, not in the URL', async () => {
-    const { call, calledUrl, calledHeaders } = setup({ env: { TMDB_API_KEY: 'eyJtoken' } })
+    const { call, calledUrl, calledHeaders } = setup({ env: { TMDB_API_KEY: 'eyJtoken', LIMITER: allow } })
     await call('/3/movie/550')
 
     expect(calledUrl()).toBe(`${TMDB}/movie/550`)
@@ -63,11 +66,25 @@ describe('TMDB proxy worker', () => {
   })
 
   it('drops a key the caller sends, so the call goes with Kinoseed’s key alone', async () => {
-    const { call, calledUrl } = setup()
+    const { call, calledUrl, cache } = setup()
     await call('/3/search/tv?query=Dark&api_key=theirs')
 
     expect(calledUrl()).toBe(`${TMDB}/search/tv?query=Dark&api_key=v3key`)
+    expect([...cache.entries.keys()]).toEqual([`${ORIGIN}/3/search/tv?query=Dark`])
   })
+
+  // append_to_response would add a title's credits, videos or images to an allowed path, which the
+  // 404s below refuse on their own paths; the session ids are for TMDB's account calls.
+  it.each(['append_to_response=credits,videos', 'session_id=abc', 'guest_session_id=abc'])(
+    'drops %s, which would widen what an allowed path answers',
+    async (parameter) => {
+      const { call, calledUrl, cache } = setup()
+      await call(`/3/movie/550?language=ru-RU&${parameter}`)
+
+      expect(calledUrl()).toBe(`${TMDB}/movie/550?language=ru-RU&api_key=v3key`)
+      expect([...cache.entries.keys()]).toEqual([`${ORIGIN}/3/movie/550?language=ru-RU`])
+    },
+  )
 
   // The paths src/api/tmdb/client.ts calls: each of its functions' requests, with a real id. A
   // contract with every released version: a path is added here, never removed while a supported
@@ -118,8 +135,16 @@ describe('TMDB proxy worker', () => {
     expect(tmdb).not.toHaveBeenCalled()
   })
 
+  it('answers 500 without its rate limiter rather than call TMDB with no limit', async () => {
+    const { call, tmdb } = setup({ env: { TMDB_API_KEY: 'v3key' } })
+    const response = await call('/3/configuration')
+
+    expect(response.status).toBe(500)
+    expect(tmdb).not.toHaveBeenCalled()
+  })
+
   it('answers 503 while the worker has no key, so it isn’t read as a wrong key', async () => {
-    const { call, tmdb } = setup({ env: { TMDB_API_KEY: ' ' } })
+    const { call, tmdb } = setup({ env: { TMDB_API_KEY: ' ', LIMITER: allow } })
     const response = await call('/3/configuration')
 
     expect(response.status).toBe(503)
@@ -229,7 +254,7 @@ describe('TMDB proxy worker', () => {
       vi.stubGlobal('fetch', tmdb)
       vi.stubGlobal('caches', { default: cache })
       const pending: Promise<unknown>[] = []
-      const response = await worker.fetch(new Request(`${ORIGIN}/3/configuration`), { TMDB_API_KEY: 'v3key' }, {
+      const response = await worker.fetch(new Request(`${ORIGIN}/3/configuration`), { TMDB_API_KEY: 'v3key', LIMITER: allow }, {
         waitUntil: (promise) => void pending.push(promise),
       })
       await Promise.all(pending)

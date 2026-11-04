@@ -225,7 +225,7 @@ Manifest and icons; the service worker keeps the app shell available offline and
 | 2026-10-23 | No Sonarr/Radarr-style automation and no season picker on the series page. |
 | 2026-10-23 | Prowlarr only; no Jackett. |
 | 2026-10-23 | Interface languages: Russian and English. |
-| 2026-10-23 | Everyone brings their own TMDB key; a built-in key is decided before the public release. |
+| 2026-10-23 | Everyone brings their own TMDB key; a built-in key is decided before the public release. (Replaced on 2026-11-04.) |
 | 2026-10-23 | The Umbrel package tries the `admin`/`adminadmin` qBittorrent login once. |
 | 2026-10-23 | Version 1.0 is the public release. |
 | 2026-10-23 | HTTPS is deferred; the app runs over HTTP on the home network. |

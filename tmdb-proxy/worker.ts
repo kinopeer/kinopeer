@@ -15,7 +15,7 @@
 export interface Env {
   /** Kinoseed's TMDB key: a v3 API key or a v4 read access token (a JWT). */
   TMDB_API_KEY?: string
-  /** Workers' rate limiting, keyed by the caller's IP. */
+  /** Workers' rate limiting, keyed by the caller's IP; every environment in wrangler.toml has one. */
   LIMITER?: RateLimiter
 }
 
@@ -56,6 +56,13 @@ const ROUTES: readonly (readonly [RegExp, number])[] = [
   [/^\/(movie|tv)\/\d+\/(recommendations|similar)$/, 24 * HOUR],
 ]
 
+/**
+ * Parameters dropped from every call: a key the caller sends, so the cache never holds a call made
+ * with someone else's key; append_to_response, which would add a title's credits, videos or images to
+ * an allowed path; and the session ids of TMDB's account calls. client.ts sends none of them.
+ */
+const DROPPED_PARAMETERS = ['api_key', 'append_to_response', 'session_id', 'guest_session_id']
+
 /** TMDB's response headers passed on; its own Cache-Control is replaced by the edge's. */
 const RESPONSE_HEADERS = ['content-type', 'etag', 'last-modified']
 
@@ -89,20 +96,21 @@ export async function handle(request: Request, env: Env, context: Context, deps:
   if (ttl === undefined) return fail(404, 'Not a path Kinoseed calls')
   const key = env.TMDB_API_KEY?.trim()
   if (!key) return fail(503, 'The proxy has no TMDB key')
+  // A worker deployed without its environment has no limiter; it mustn't read as "no limit".
+  if (!env.LIMITER) return fail(500, 'The proxy has no rate limiter')
 
-  // Sorted, so the same call with its parameters in another order is the same cache entry; a key
-  // the caller sent is dropped, so the cache never holds a call made with someone else's key.
+  // Sorted, so the same call with its parameters in another order is the same cache entry.
   const query = new URLSearchParams(url.search)
-  query.delete('api_key')
+  for (const name of DROPPED_PARAMETERS) query.delete(name)
   query.sort()
-  const search = query.size ? `?${query}` : ''
+  const search = String(query) ? `?${query}` : ''
   const cacheKey = new Request(`${url.origin}${PREFIX}${path}${search}`)
   const cached = await deps.cache?.match(cacheKey)
   if (cached) return withoutBody(cached, request.method)
 
   // Only calls that reach TMDB count: a cached answer costs TMDB nothing.
   const ip = request.headers.get('cf-connecting-ip') ?? 'unknown'
-  if (env.LIMITER && !(await env.LIMITER.limit({ key: ip })).success) {
+  if (!(await env.LIMITER.limit({ key: ip })).success) {
     return fail(429, 'Too many requests', { 'Retry-After': '10' })
   }
 

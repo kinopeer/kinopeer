@@ -20,5 +20,5 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["vite.config.ts", "server", "tmdb-proxy"],
-  "exclude": ["server/integration"]
+  "exclude": ["server/integration", "tmdb-proxy/node_modules"]
 }
