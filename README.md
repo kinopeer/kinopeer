@@ -32,7 +32,7 @@ Kinopeer currently supports umbrelOS only. It needs the **qBittorrent** and **Pr
 
 1. Open **App Store** → the **⋯** menu at the top right → **Community App Stores**.
 2. Paste `https://github.com/MrShakhov/umbrel-homelab-store` → **Add**.
-3. Open **Homelab App Store** → **Kinopeer** → **Install**.
+3. Open **Homelab App Store** → **Kinopeer** → **Install**. Until the first release after the rename it's still listed as **Kinoseed**, at port 8795.
 4. Kinopeer opens at `http://umbrel.local:8797`.
 
 On first launch:
