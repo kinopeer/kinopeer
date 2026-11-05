@@ -300,7 +300,7 @@ describe('DownloadsScreen on desktop', () => {
     expect(screen.getByRole('button', { name: 'Status: All, 3' })).toBeInTheDocument()
   })
 
-  it('keeps the name filter in the bar, not behind a button', async () => {
+  it('keeps the name filter in the header, not behind a button', async () => {
     renderScreen()
     await screen.findAllByRole('listitem')
     expect(screen.queryByRole('button', { name: 'Filter by name' })).not.toBeInTheDocument()
