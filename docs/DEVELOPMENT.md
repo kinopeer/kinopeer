@@ -50,7 +50,7 @@ The server reads environment variables (from `.env.local` in development). Whate
 
 ## Docker
 
-The image is built from `Dockerfile` (`node:24-alpine`, no `node_modules`). `docker compose up --build` runs it locally at `http://localhost:8080` with settings from `.env.local`. Since the rename to Kinopeer its data volume is `kinopeer-data` and its port variable `KINOPEER_PORT`; a compose setup from before keeps its saved settings and matches in `kinoseed-data`, which one run copies over: `docker run --rm -v kinoseed-data:/from -v kinopeer-data:/to alpine cp -a /from/. /to/`. That's for checking the image, not a supported way to install. `/healthz` answers `ok` while the server runs.
+The image is built from `Dockerfile` (`node:24-alpine`, no `node_modules`). `docker compose up --build` runs it locally at `http://localhost:8080` with settings from `.env.local`. Since the rename to Kinopeer its data volume is `kinopeer-data` and its port variable `KINOPEER_PORT`; a compose setup from before keeps its saved settings and matches in the old volume. Compose prefixes a volume with the project, the checkout's folder name by default: after one `docker compose up`, `docker volume ls --filter name=-data` shows both, `<project>_kinoseed-data` and `<project>_kinopeer-data`, and one run copies the old into the new: `docker run --rm -v <project>_kinoseed-data:/from -v <project>_kinopeer-data:/to alpine cp -a /from/. /to/`. That's for checking the image, not a supported way to install. `/healthz` answers `ok` while the server runs.
 
 ## Releasing
 

@@ -81,7 +81,7 @@ Ideas are collected in [GitHub Discussions → Ideas](https://github.com/kinopee
 - Picking a season on the series page.
 - Series stacks in Downloads (several torrents of one series in one card); the title page lists a title's torrents instead. Revisit only if that turns out not to be enough.
 - Jackett.
-- HTTPS set up by Kinopeer, and push notifications. umbrelOS 2.0 serves every app over HTTPS with its own local certificate (`https://umbrel.local:8795`), so there is nothing for Kinopeer to set up, and it works over plain HTTP. What HTTPS adds (offline shell, installing as an app on Android and desktop, Web Push) needs the Umbrel certificate trusted on each device and, for push on iPhone, the app on the Home Screen: too much setup for one "download finished" notification. Decided 2026-10-25.
+- HTTPS set up by Kinopeer, and push notifications. umbrelOS 2.0 serves every app over HTTPS with its own local certificate (`https://umbrel.local:8797`), so there is nothing for Kinopeer to set up, and it works over plain HTTP. What HTTPS adds (offline shell, installing as an app on Android and desktop, Web Push) needs the Umbrel certificate trusted on each device and, for push on iPhone, the app on the Home Screen: too much setup for one "download finished" notification. Decided 2026-10-25.
 - A hosted Kinopeer on our own domain for other people's qBittorrent. Browsers keep a public HTTPS page away from a home-network qBittorrent unless it is set up by hand for CORS and HTTPS, and a server in the middle would hold other people's logins and keys.
 - A "Popular on your trackers" row in Search, built from what the indexers list. Without a query they list only the last day's releases; dropped on 2026-11-05, SPEC's decision log says why.
 - Playing video.
