@@ -175,7 +175,8 @@ h4 {
 
 /* The status bar's strip on a screen whose title scrolls away (Downloads, Search): what scrolls off
    the top goes under it, not behind the clock (or an iPad's status bar on desktop). The screen's first
-   child; its pinned bar sticks below it, at `top: var(--safe-top)`. */
+   child; its pinned bar sticks below it, at `top: var(--safe-top)`. Desktop Downloads turns it off,
+   since it pins its whole header. */
 .status-strip::before {
   content: '';
   position: sticky;

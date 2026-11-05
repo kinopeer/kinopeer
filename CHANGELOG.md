@@ -2,6 +2,12 @@
 
 Kinoseed follows [semantic versioning](https://semver.org). While the version is 0.x, minor versions may change behavior and settings.
 
+## Unreleased
+
+### Changed
+
+- Desktop Downloads: the whole header stays at the top again, as before 0.7.0, with the name filter and the select button beside the title. The name filter still stays while selecting. Search keeps its title scrolling away.
+
 ## 0.7.0 - 2026-11-05
 
 TMDB works without a key of your own, through Kinoseed's. Downloads sort by status and, on a computer, by a click on a column's name; a torrent's own speed limits show in the list; the torrent page changes the category and the download order and sets a folder's priority at once. Search loads more results page by page, each tab comes back where it was left, and the titles scroll away to leave more room for the list. A long list of torrents stays responsive on a phone.

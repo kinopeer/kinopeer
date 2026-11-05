@@ -7,7 +7,7 @@
 }
 
 /* The title scrolls away and only the bar with the field and the filters stays at the top, under
-   the status bar's strip (.status-strip in base.css), as in Downloads, on both layouts: a pinned title
+   the status bar's strip (.status-strip in base.css), on both layouts, as in Downloads on a phone: a pinned title
    would cost screen space for nothing that's acted on. The header makes no box of its own, so the bar
    sticks for the whole screen rather than only within the header. */
 .search-head {

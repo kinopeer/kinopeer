@@ -71,9 +71,9 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
     void navigate(location.pathname, { replace: true, state: null })
   }, [added, toast, t, navigate, location.pathname])
   const isDesktop = useIsDesktop()
-  // The desktop bar stays at the top while the list scrolls, and the table's column names stick
-  // right under it: its height (the filters wrap, the selection's row comes and goes) is theirs in CSS.
-  const barRef = useHeightVar('--downloads-head')
+  // The desktop header stays at the top while the list scrolls, and the table's column names stick
+  // right under it: its height (the filters wrap, the offline banner comes and goes) is theirs in CSS.
+  const headRef = useHeightVar('--downloads-head')
   const [{ downloadsView, downloadsDesktopView, downloadsSort: sort, downloadsSortDescending }, updateSettings] = useSettings()
   // Each layout remembers its own view: the desktop's list is a table, and its grid is the default.
   const view = isDesktop ? downloadsDesktopView : downloadsView
@@ -217,14 +217,15 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
     setQuery('')
   }
 
-  // The count takes the title's place, at the top of the pinned bar; both buttons sit together on
-  // the right, where the select button was (on a phone in the title row, on desktop at the bar's end),
-  // so the pointer is already there.
-  const selectionRow = (
-    <div className="downloads-title-row">
-      <h1 className="t-h3 ks-num" aria-live="polite">
-        {t('downloads.selected', { count: selectedVisible.length })}
-      </h1>
+  // The count takes the title's place; both buttons sit together on the right, where the select
+  // button was, so the pointer is already there.
+  const selectionCount = (
+    <h1 className="t-h3 ks-num" aria-live="polite">
+      {t('downloads.selected', { count: selectedVisible.length })}
+    </h1>
+  )
+  const selectionButtons = (
+    <>
       <Button
         variant="ghost"
         size="sm"
@@ -236,7 +237,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
       <Button variant="ghost" size="sm" onClick={() => setSelected(null)}>
         {t('downloads.selectCancel')}
       </Button>
-    </div>
+    </>
   )
 
   const selectButton = (
@@ -301,25 +302,20 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   )
 
   const header = isDesktop ? (
-    // Desktop: the title and the totals scroll away, as on a phone, while one bar with the name filter,
-    // the status and the sort as menus, the type, the view and the select button (and the selection's
-    // count and buttons while selecting) stays at the top. The table's column names stick under it.
-    <>
-      <header className="downloads-head">
+    // Desktop: the whole header stays at the top. The name filter always shows, while selecting too,
+    // so Select all takes only what it shows; the status and the sort are menus, so the controls fit
+    // one row.
+    <header ref={headRef} className="downloads-head">
+      <div className="downloads-title-row">
         {selecting ? (
-          totals
+          selectionCount
         ) : (
-          <div className="downloads-title-row">
+          <>
             <h1 className="t-h1">{t('downloads.title')}</h1>
             {totals}
-          </div>
+          </>
         )}
-        {offlineBanner}
-      </header>
-
-      <div ref={barRef} className="downloads-bar">
-        {selecting && selectionRow}
-        <div className="downloads-toolbar">
+        <div className="downloads-head-tools">
           <div className="downloads-filter">
             <Input
               icon="search"
@@ -330,39 +326,41 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
               onChange={(event) => setQuery(event.target.value)}
             />
           </div>
-          <StatusMenu value={filter} onChange={setFilter} counts={loading ? undefined : counts} />
-          <Segmented
-            label={t('downloads.type')}
-            options={TYPE_FILTERS.map((key) => ({
-              value: key,
-              label: key === 'all' ? t('downloads.all') : t(`downloads.types.${key}`),
-            }))}
-            value={type}
-            onChange={setType}
-          />
-          <Button
-            variant="secondary"
-            size="sm"
-            // Its icon shows the direction, upside down for ascending, as the releases' direction button does.
-            icon="sort-desc"
-            className={cx('downloads-sort', !descending && 'is-ascending')}
-            aria-haspopup="menu"
-            aria-expanded={sortAnchor !== null}
-            aria-label={t('downloads.sortOrderButton', {
-              sort: t(`downloads.sorts.${sort}`),
-              direction: t(descending ? 'downloads.descending' : 'downloads.ascending'),
-            })}
-            onClick={(event) => setSortAnchor(sortAnchor ? null : event.currentTarget)}
-          >
-            {/* Hidden in a narrow bar, where the button's name still says the sort. */}
-            <span className="downloads-sort-label">{t(`downloads.sorts.${sort}`)}</span>
-            <Icon name="chevron-down" size={14} />
-          </Button>
-          {viewSwitch}
-          {!selecting && selectButton}
+          {selecting ? selectionButtons : selectButton}
         </div>
       </div>
-    </>
+      {offlineBanner}
+      <div className="downloads-toolbar">
+        <StatusMenu value={filter} onChange={setFilter} counts={loading ? undefined : counts} />
+        <Segmented
+          label={t('downloads.type')}
+          options={TYPE_FILTERS.map((key) => ({
+            value: key,
+            label: key === 'all' ? t('downloads.all') : t(`downloads.types.${key}`),
+          }))}
+          value={type}
+          onChange={setType}
+        />
+        <Button
+          variant="secondary"
+          size="sm"
+          // Its icon shows the direction, upside down for ascending, as the releases' direction button does.
+          icon="sort-desc"
+          className={cx('downloads-sort', !descending && 'is-ascending')}
+          aria-haspopup="menu"
+          aria-expanded={sortAnchor !== null}
+          aria-label={t('downloads.sortOrderButton', {
+            sort: t(`downloads.sorts.${sort}`),
+            direction: t(descending ? 'downloads.descending' : 'downloads.ascending'),
+          })}
+          onClick={(event) => setSortAnchor(sortAnchor ? null : event.currentTarget)}
+        >
+          {t(`downloads.sorts.${sort}`)}
+          <Icon name="chevron-down" size={14} />
+        </Button>
+        {viewSwitch}
+      </div>
+    </header>
   ) : (
     // Phone: the title and the totals scroll away, while the bar with the filters, the sort and the
     // view (and the selection's count and buttons, in place of the title) stays at the top.
@@ -390,7 +388,12 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
       </header>
 
       <div className="downloads-bar">
-        {selecting && selectionRow}
+        {selecting && (
+          <div className="downloads-title-row">
+            {selectionCount}
+            {selectionButtons}
+          </div>
+        )}
 
         {searchOpen && (
           <Input
