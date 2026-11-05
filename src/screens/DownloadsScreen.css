@@ -679,8 +679,9 @@ a.dl-row-main:focus-visible::after {
     padding: 0;
   }
 
-  /* The status bar's strip: the whole header below takes the safe area itself. */
-  .downloads::before {
+  /* The status bar's strip: the whole header below takes the safe area itself. Both classes, so it
+     wins over base.css's `.status-strip::before` whatever order the stylesheets load in. */
+  .downloads.status-strip::before {
     content: none;
   }
 
