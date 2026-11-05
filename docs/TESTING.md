@@ -40,6 +40,17 @@ text (the tokens and raw px values in the stylesheets, `src/styles/tokens.test.t
 keyframes, in `PollRing.test.tsx`) is layer 1 wherever it sits, although it reads the file through
 `node:fs`: it asserts what the file says, and how that looks is layer 6's (#241).
 
+`npm test` is to stay under 20 seconds on the owner's Mac (10 cores), checked before every release
+([RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)). Most of that time isn't the tests: Vitest starts
+every file in a fresh worker, and each `app` file imports jsdom, React, Testing Library and i18n
+again, about half of the run at 0.7.0 (17.8 s for 147 files, the test bodies about 50 s of worker
+time over the ten cores). So the time grows with the number of files more than with slow tests. The
+limit was 15 seconds until 0.7.0, when it was raised rather than the run made faster (2026-11-05):
+the `vmThreads` pool reuses each worker's imports and ran the suite in 7.7 s, but held 3.2 GB at its
+peak instead of 0.4 GB, and gives each file jsdom's window as its global, so an object from a Node
+module (`node:crypto`, `Buffer`) comes from another realm and fails an `instanceof` the browser
+would pass; `isolate: false` failed 113 tests that rely on modules loaded afresh per file.
+
 A test in `src/screens/` is layer 3, a sheet or a dialog included: layer 2 is only what knows
 nothing of the app's data. A PR names a test's layer by its number and its name in this table
 ("layer 3, screens, stores and clients"); *unit*, *component* and *integration* aren't layer names
