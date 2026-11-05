@@ -50,7 +50,7 @@ The server reads environment variables (from `.env.local` in development). Whate
 
 ## Docker
 
-The image is built from `Dockerfile` (`node:24-alpine`, no `node_modules`). `docker compose up --build` runs it locally at `http://localhost:8080` with settings from `.env.local`. That's for checking the image, not a supported way to install. `/healthz` answers `ok` while the server runs.
+The image is built from `Dockerfile` (`node:24-alpine`, no `node_modules`). `docker compose up --build` runs it locally at `http://localhost:8080` with settings from `.env.local`. Since the rename to Kinopeer its data volume is `kinopeer-data` and its port variable `KINOPEER_PORT`; a compose setup from before keeps its saved settings and matches in `kinoseed-data`, which one run copies over: `docker run --rm -v kinoseed-data:/from -v kinopeer-data:/to alpine cp -a /from/. /to/`. That's for checking the image, not a supported way to install. `/healthz` answers `ok` while the server runs.
 
 ## Releasing
 
@@ -93,7 +93,7 @@ It runs as two workers, the environments in `tmdb-proxy/wrangler.jsonc`, each on
 
 The addresses are Workers Custom Domains: the first deploy creates their DNS records and certificates, which needs `kinopeer.com` in the same Cloudflare account as the workers and a token that can edit Workers routes on that zone. They're not on `workers.dev`, so an address a released version calls doesn't change with the Cloudflare account's name.
 
-Kinoseed's workers, from before the rename, are no longer in `wrangler.jsonc`: `kinoseed-tmdb` (`https://kinoseed-tmdb.kinoseed.workers.dev`), which Kinoseed up to 0.7 calls, and `kinoseed-tmdb-edge`, which the old Kinoseed Edge calls. They stay deployed as they are, so those installs keep TMDB, and are deleted in Cloudflare's dashboard by the rule below, once no one calls them for a month. Nothing deploys them any more; only the key workflow (below) still reaches them.
+Kinoseed's workers, from before the rename, are no longer in `wrangler.jsonc`: `kinoseed-tmdb` (`https://kinoseed-tmdb.kinoseed.workers.dev`), which Kinoseed up to 0.7 calls, and `kinoseed-tmdb-edge`, which the old Kinoseed Edge calls. They stay deployed as they are, so those installs keep TMDB, and are deleted in Cloudflare's dashboard by the rule below, once no one calls them for a month. Nothing deploys them any more; only the key workflow (below) still reaches them, so a worker leaves its list before it's deleted: `wrangler secret put` on a worker that doesn't exist creates an empty one of that name.
 
 Both call `.github/workflows/tmdb-proxy.yml`, which has no trigger of its own, so a change to when Edge or Release runs changes when its worker goes out too. It deploys only when the proxy's code (`tmdb-proxy/` without its tests) is the same as at main's head or the highest version tag, a release above its prereleases, so a re-run of an older push or tag leaves the worker as it is, while a run isn't skipped because main moved on with a change Edge doesn't build; `tmdb-proxy/deployCheck.ts` decides, with its tests. Wrangler comes from `tmdb-proxy/package-lock.json` (`npm ci` in that folder), and the Cloudflare token is only in the steps that call Cloudflare, not while npm installs it. A change to `tmdb-proxy/` alone also builds an edge image, since Kinopeer Edge is a commit of `main` with its worker.
 
