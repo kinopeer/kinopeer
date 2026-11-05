@@ -42,8 +42,8 @@ describe('parseName', () => {
 })
 
 describe('tmdbTag', () => {
-  it('finds the TMDB tag Kinoseed adds', () => {
-    expect(tmdbTag('kinoseed, tmdb:movie:693134')).toEqual({ type: 'movie', id: 693134 })
+  it('finds the TMDB tag Kinopeer adds', () => {
+    expect(tmdbTag('kinopeer, tmdb:movie:693134')).toEqual({ type: 'movie', id: 693134 })
     expect(tmdbTag('tmdb:tv:126308')).toEqual({ type: 'tv', id: 126308 })
     expect(tmdbTag('')).toBeUndefined()
     expect(tmdbTag('tmdb:person:1')).toBeUndefined()

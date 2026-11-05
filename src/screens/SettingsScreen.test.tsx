@@ -183,13 +183,13 @@ describe('SettingsScreen', () => {
     expect(vi.mocked(qbt.getCategories).mock.lastCall?.[0]?.aborted).toBe(true)
   })
 
-  it('says Kinoseed’s key is used, offers the user’s own, and drops the mention once it’s saved', async () => {
+  it('says Kinopeer’s key is used, offers the user’s own, and drops the mention once it’s saved', async () => {
     const shared = { tmdb: { configured: true, source: 'shared', fallback: 'shared' }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null } as const
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue(shared)
     vi.mocked(serverSettings.saveTmdbKey).mockResolvedValue({ ...shared, tmdb: { configured: true, source: 'saved', fallback: null } })
     renderScreen()
 
-    expect(await within(connection('TMDB')).findByRole('status', { name: saying('Connected · Kinoseed’s key') })).toBeInTheDocument()
+    expect(await within(connection('TMDB')).findByRole('status', { name: saying('Connected · Kinopeer’s key') })).toBeInTheDocument()
     await userEvent.click(within(connection('TMDB')).getByRole('button', { name: 'Use your own TMDB key' }))
     const sheet = screen.getByRole('dialog', { name: 'TMDB key' })
     await userEvent.type(within(sheet).getByLabelText('API key or read access token'), 'abc123')
@@ -199,7 +199,7 @@ describe('SettingsScreen', () => {
     expect(within(connection('TMDB')).getByRole('button', { name: 'Change TMDB key' })).toBeInTheDocument()
   })
 
-  it('goes back from a saved TMDB key to Kinoseed’s and checks the connection again', async () => {
+  it('goes back from a saved TMDB key to Kinopeer’s and checks the connection again', async () => {
     const saved = { tmdb: { configured: true, source: 'saved', fallback: 'shared' }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null } as const
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue(saved)
     vi.mocked(serverSettings.forgetTmdbKey).mockResolvedValue({ ...saved, tmdb: { configured: true, source: 'shared', fallback: 'shared' } })
@@ -209,17 +209,17 @@ describe('SettingsScreen', () => {
 
     await userEvent.click(within(connection('TMDB')).getByRole('button', { name: 'Change TMDB key' }))
     const sheet = screen.getByRole('dialog', { name: 'TMDB key' })
-    await userEvent.click(await within(sheet).findByRole('button', { name: 'Use Kinoseed’s key' }))
+    await userEvent.click(await within(sheet).findByRole('button', { name: 'Use Kinopeer’s key' }))
 
-    expect(await findToastOnPage('Using Kinoseed’s TMDB key')).toBeInTheDocument()
+    expect(await findToastOnPage('Using Kinopeer’s TMDB key')).toBeInTheDocument()
     expect(screen.queryByRole('status', { name: saying('TMDB key saved') })).not.toBeInTheDocument()
     expect(screen.queryByRole('dialog', { name: 'TMDB key' })).not.toBeInTheDocument()
-    expect(await within(connection('TMDB')).findByRole('status', { name: saying('Connected · Kinoseed’s key') })).toBeInTheDocument()
+    expect(await within(connection('TMDB')).findByRole('status', { name: saying('Connected · Kinopeer’s key') })).toBeInTheDocument()
     expect(within(connection('TMDB')).getByRole('button', { name: 'Use your own TMDB key' })).toBeInTheDocument()
     expect(tmdb.checkTmdb).toHaveBeenCalledTimes(1)
   })
 
-  it('goes back to Kinoseed’s TMDB key when the sheet was closed before the answer', async () => {
+  it('goes back to Kinopeer’s TMDB key when the sheet was closed before the answer', async () => {
     const saved = { tmdb: { configured: true, source: 'saved', fallback: 'shared' }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null } as const
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue(saved)
     let finish = (_settings: serverSettings.ServerSettings) => {}
@@ -229,15 +229,15 @@ describe('SettingsScreen', () => {
 
     await userEvent.click(within(connection('TMDB')).getByRole('button', { name: 'Change TMDB key' }))
     const sheet = screen.getByRole('dialog', { name: 'TMDB key' })
-    await userEvent.click(await within(sheet).findByRole('button', { name: 'Use Kinoseed’s key' }))
+    await userEvent.click(await within(sheet).findByRole('button', { name: 'Use Kinopeer’s key' }))
     // Escape: the browser cancels the modal <dialog>, which jsdom doesn't do on a key press.
     fireEvent(sheet, new Event('cancel', { cancelable: true }))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'TMDB key' })).not.toBeInTheDocument())
 
     act(() => finish({ ...saved, tmdb: { configured: true, source: 'shared', fallback: 'shared' } }))
 
-    expect(await findToastOnPage('Using Kinoseed’s TMDB key')).toBeInTheDocument()
-    expect(await within(connection('TMDB')).findByRole('status', { name: saying('Connected · Kinoseed’s key') })).toBeInTheDocument()
+    expect(await findToastOnPage('Using Kinopeer’s TMDB key')).toBeInTheDocument()
+    expect(await within(connection('TMDB')).findByRole('status', { name: saying('Connected · Kinopeer’s key') })).toBeInTheDocument()
   })
 
   it('goes back to the server’s TMDB key when it has TMDB_API_KEY', async () => {
@@ -360,9 +360,9 @@ describe('SettingsScreen', () => {
     expect(within(sheet).queryByRole('button', { name: 'Use the server’s key' })).not.toBeInTheDocument()
   })
 
-  it("shows the versions of Kinoseed, qBittorrent and Prowlarr and Prowlarr's indexers from the connection checks", async () => {
+  it("shows the versions of Kinopeer, qBittorrent and Prowlarr and Prowlarr's indexers from the connection checks", async () => {
     renderScreen()
-    expect(aboutRow('Kinoseed version')).toHaveTextContent(__APP_VERSION__)
+    expect(aboutRow('Kinopeer version')).toHaveTextContent(__APP_VERSION__)
     await waitFor(() => expect(aboutRow('qBittorrent version')).toHaveTextContent(/^qBittorrent version5\.3\.0$/))
     await waitFor(() => expect(aboutRow('Prowlarr version')).toHaveTextContent(/^Prowlarr version1\.24\.3$/))
     expect(aboutRow('Prowlarr indexers')).toHaveTextContent(/^Prowlarr indexers2$/)
@@ -505,7 +505,7 @@ describe('SettingsScreen', () => {
     const links: [RegExp, string][] = [
       [/Suggest an idea.*\(opens in a new tab\)/, IDEAS_URL],
       [/Report a bug.*\(opens in a new tab\)/, BUG_REPORT_URL],
-      [/Kinoseed on GitHub.*\(opens in a new tab\)/, REPO_URL],
+      [/Kinopeer on GitHub.*\(opens in a new tab\)/, REPO_URL],
     ]
     for (const [name, href] of links) {
       const link = within(about).getByRole('link', { name })

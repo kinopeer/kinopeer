@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import worker, { handle, type Env } from './worker.ts'
 
-const ORIGIN = 'https://kinoseed-tmdb.example.workers.dev'
+const ORIGIN = 'https://kinopeer-tmdb.example.workers.dev'
 const TMDB = 'https://tmdb.test/3'
 
 /** TMDB answering every call with `status` and a small JSON body. */
@@ -30,14 +30,14 @@ function setup({ env = { TMDB_API_KEY: 'v3key', LIMITER: allow } as Env, status 
 }
 
 describe('TMDB proxy worker', () => {
-  it('sends an allowed call to TMDB with Kinoseed’s key and the caller’s parameters', async () => {
+  it('sends an allowed call to TMDB with Kinopeer’s key and the caller’s parameters', async () => {
     const { call, calledUrl, calledHeaders } = setup()
     const response = await call('/3/search/movie?query=Dune&page=2&language=ru-RU')
 
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ ok: true })
     expect(calledUrl()).toBe(`${TMDB}/search/movie?query=Dune&page=2&language=ru-RU&api_key=v3key`)
-    expect(calledHeaders().get('user-agent')).toBe('Kinoseed-TMDB-proxy')
+    expect(calledHeaders().get('user-agent')).toBe('Kinopeer-TMDB-proxy')
     expect(calledHeaders().get('authorization')).toBeNull()
   })
 
@@ -49,7 +49,7 @@ describe('TMDB proxy worker', () => {
     expect(calledHeaders().get('authorization')).toBe('Bearer eyJtoken')
   })
 
-  it('drops a key the caller sends, so the call goes with Kinoseed’s key alone', async () => {
+  it('drops a key the caller sends, so the call goes with Kinopeer’s key alone', async () => {
     const { call, calledUrl } = setup()
     await call('/3/search/tv?query=Dark&api_key=theirs')
 
@@ -90,7 +90,7 @@ describe('TMDB proxy worker', () => {
   })
 
   it.each([
-    ['a path Kinoseed doesn’t call', '/3/movie/550/credits'],
+    ['a path Kinopeer doesn’t call', '/3/movie/550/credits'],
     ['an account path', '/3/account'],
     ['an id that isn’t a number', '/3/movie/abc'],
     ['a path without the version', '/search/movie'],

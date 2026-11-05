@@ -14,7 +14,7 @@ declare const self: ServiceWorkerGlobalScope
 void self.skipWaiting()
 clientsClaim()
 
-// The app shell: built scripts, styles, fonts and icons, so Kinoseed opens without the network.
+// The app shell: built scripts, styles, fonts and icons, so Kinopeer opens without the network.
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
 

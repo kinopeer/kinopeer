@@ -80,8 +80,8 @@ describe('the service worker', () => {
 
   it('caches posters first, for a month, successful answers only', () => {
     const [matcher, strategy] = ran.routes[1] as [(request: { url: URL; sameOrigin: boolean }) => boolean, CacheFirst]
-    expect(matcher({ url: new URL('https://kinoseed.local/tmdb-img/w342/dune.jpg'), sameOrigin: true })).toBe(true)
-    expect(matcher({ url: new URL('https://kinoseed.local/tmdb/movie/1'), sameOrigin: true })).toBe(false)
+    expect(matcher({ url: new URL('https://kinopeer.local/tmdb-img/w342/dune.jpg'), sameOrigin: true })).toBe(true)
+    expect(matcher({ url: new URL('https://kinopeer.local/tmdb/movie/1'), sameOrigin: true })).toBe(false)
     expect(strategy).toBeInstanceOf(CacheFirst)
     expect(strategy.options).toEqual({
       cacheName: POSTER_CACHE.cacheName,

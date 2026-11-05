@@ -62,7 +62,7 @@ export function torrent(hash: string, fields: Partial<Torrent> = {}): Torrent {
   }
 }
 
-/** The tag Kinoseed puts on a torrent it adds, so its title is known without guessing. */
+/** The tag Kinopeer puts on a torrent it adds, so its title is known without guessing. */
 export const tmdbTag = (type: 'movie' | 'tv', id: number) => `tmdb:${type}:${id}`
 
 /** Every status the design has, a queue position, speed limits, and a release TMDB doesn't know. */
@@ -167,7 +167,7 @@ export const TORRENTS: Torrent[] = [
   }),
 ]
 
-/** A Dune download in progress, tagged by Kinoseed: the torrent the details tests open. */
+/** A Dune download in progress, tagged by Kinopeer: the torrent the details tests open. */
 export const DUNE_TORRENT = torrent('dune', {
   name: 'Dune.Part.Two.2024.2160p.WEB-DL',
   tags: tmdbTag('movie', 693134),
@@ -187,7 +187,7 @@ export const DUNE_TORRENT = torrent('dune', {
   priority: 1,
 })
 
-/** Not tagged by Kinoseed: its title is guessed from the release name, so the app asks whether it's right. */
+/** Not tagged by Kinopeer: its title is guessed from the release name, so the app asks whether it's right. */
 export const GUESSED = torrent('b1', {
   name: 'Inception.2010.1080p.BluRay.x264-SPARKS',
   state: 'uploading',
@@ -349,7 +349,7 @@ export function searchPage(titles: Title[], fields: Partial<SearchPageFields> = 
 
 // Prowlarr
 
-/** A release as Kinoseed's server hands it to the browser. */
+/** A release as Kinopeer's server hands it to the browser. */
 export function release(id: string, title: string, size: number, seeders: number, indexer = 'Kinozal'): Release {
   return { id, title, indexer, size, seeders, leechers: 3, categories: [2000], download: `1/download?link=${id}`, infoUrl: `https://tracker.test/${id}` }
 }

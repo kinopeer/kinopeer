@@ -7,7 +7,7 @@ import { JsonFile } from './jsonFile.ts'
 let dir: string
 
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), 'kinoseed-json-'))
+  dir = await mkdtemp(join(tmpdir(), 'kinopeer-json-'))
 })
 
 afterEach(async () => {

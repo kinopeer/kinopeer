@@ -40,7 +40,7 @@ function known(type: MediaType, id: number): Lookup {
 }
 
 /**
- * How to find a torrent's title: the user's choice first, then the `tmdb:` tag Kinoseed adds with a
+ * How to find a torrent's title: the user's choice first, then the `tmdb:` tag Kinopeer adds with a
  * release, then a guess the server keeps, and only then a new guess from the release name.
  */
 export function lookupFor(
@@ -142,7 +142,7 @@ async function resolve(lookup: Lookup, language: string, signal: AbortSignal): P
 
 // Titles and guesses are cached per browser so the list doesn't hit TMDB for every torrent on every
 // visit; guesses are also saved on the server, so other devices don't have to make them again.
-const CACHE_KEY = `kinoseed.titleMatches.v${GUESS_VERSION}`
+const CACHE_KEY = `kinopeer.titleMatches.v${GUESS_VERSION}`
 const HIT_TTL_MS = 30 * 24 * 3600 * 1000
 const MISS_TTL_MS = 24 * 3600 * 1000
 // A guessed torrent takes two: its guess by name and its title by id.
@@ -238,7 +238,7 @@ export const LOOKUP_TIMEOUT_MS = 15_000
  * shared proxy over its limit per IP.
  */
 export const RETRY_DELAYS_MS = [30_000, 120_000, 600_000]
-/** How long a 429 without Retry-After stops the lookups; Kinoseed's proxy asks for 10 s. */
+/** How long a 429 without Retry-After stops the lookups; Kinopeer's proxy asks for 10 s. */
 export const RATE_LIMIT_WAIT_MS = 10_000
 
 /** Runs `request` with a signal that aborts with `signal` or after `ms`. */

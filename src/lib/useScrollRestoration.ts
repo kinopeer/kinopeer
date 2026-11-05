@@ -3,7 +3,7 @@ import { useLocation, useNavigationType } from 'react-router'
 import { isTabReturn, saveTabPlace, tabPlace } from './tabPlaces'
 
 /** The window's scroll position per history entry (`location.key`), in sessionStorage so it outlives a reload. */
-const STORAGE_PREFIX = 'kinoseed.scroll:'
+const STORAGE_PREFIX = 'kinopeer.scroll:'
 
 function savedPosition(key: string): number | undefined {
   try {

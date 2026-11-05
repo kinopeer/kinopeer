@@ -63,7 +63,7 @@ async function request(
 
 /**
  * qBittorrent version, e.g. "5.0.4": qBittorrent answers "v5.0.4", and the "v" goes so it's written
- * like Kinoseed's and Prowlarr's. Also a cheap way to check the session is valid.
+ * like Kinopeer's and Prowlarr's. Also a cheap way to check the session is valid.
  */
 export async function getAppVersion(signal?: AbortSignal): Promise<string> {
   const response = await request('/app/version', { signal })

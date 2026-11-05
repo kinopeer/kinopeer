@@ -9,7 +9,7 @@ export interface ParsedName {
   season?: number
 }
 
-/** Kinoseed tags torrents it adds as `tmdb:movie:693134`; that beats any guess from the name. */
+/** Kinopeer tags torrents it adds as `tmdb:movie:693134`; that beats any guess from the name. */
 const TAG = /^tmdb:(movie|tv):(\d+)$/
 
 export function tmdbTagFor(type: MediaType, id: number): string {

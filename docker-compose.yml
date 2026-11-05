@@ -2,16 +2,16 @@
 # Reads QBITTORRENT_URL, PROWLARR_URL, PROWLARR_API_KEY and the optional
 # QBITTORRENT_USERNAME/QBITTORRENT_PASSWORD and TMDB_API_KEY from .env.local (see .env.example).
 services:
-  kinoseed:
+  kinopeer:
     build: .
-    image: kinoseed:local
+    image: kinopeer:local
     env_file: .env.local
     ports:
-      - "${KINOSEED_PORT:-8080}:8080"
+      - "${KINOPEER_PORT:-8080}:8080"
     volumes:
       # Settings saved from the app, such as the TMDB key.
-      - kinoseed-data:/data
+      - kinopeer-data:/data
     restart: unless-stopped
 
 volumes:
-  kinoseed-data:
+  kinopeer-data:

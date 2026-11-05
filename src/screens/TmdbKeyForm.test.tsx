@@ -91,7 +91,7 @@ describe('TmdbKeyForm', () => {
 
   it.each([
     ['unreachable', 'TMDB isn’t answering. Try again in a moment.'],
-    ['storage', 'The Kinoseed server couldn’t save the change. Check that its data folder is writable.'],
+    ['storage', 'The Kinopeer server couldn’t save the change. Check that its data folder is writable.'],
     ['not-configured', 'Couldn’t save the key. Try again.'],
   ] as const)('explains a failure to save (%s) in a banner, leaving the key as it is', async (code, message) => {
     saveTmdbKey.mockRejectedValue(new serverSettings.SettingsError(502, code))
@@ -109,7 +109,7 @@ describe('TmdbKeyForm', () => {
   })
 
   it.each([
-    ['shared', 'Use Kinoseed’s key'],
+    ['shared', 'Use Kinopeer’s key'],
     ['env', 'Use the server’s key'],
   ] as const)('goes back to the key the server falls back on (%s) and hands the settings on', async (to, label) => {
     forgetTmdbKey.mockResolvedValue(SHARED)
@@ -126,8 +126,8 @@ describe('TmdbKeyForm', () => {
   })
 
   it.each([
-    ['storage', 'The Kinoseed server couldn’t save the change. Check that its data folder is writable.'],
-    ['no-server-key', 'Kinoseed has no other TMDB key to use, so the saved one stays.'],
+    ['storage', 'The Kinopeer server couldn’t save the change. Check that its data folder is writable.'],
+    ['no-server-key', 'Kinopeer has no other TMDB key to use, so the saved one stays.'],
     [undefined, 'Couldn’t forget the key. Try again.'],
     // Not the field's "invalid key": forgetting sends no key.
     ['bad-request', 'Couldn’t forget the key. Try again.'],
@@ -135,7 +135,7 @@ describe('TmdbKeyForm', () => {
     forgetTmdbKey.mockRejectedValueOnce(code ? new serverSettings.SettingsError(500, code) : new Error('network'))
     forgetTmdbKey.mockResolvedValueOnce(SHARED)
     const { onForgotten } = renderForgetting()
-    const forget = screen.getByRole('button', { name: 'Use Kinoseed’s key' })
+    const forget = screen.getByRole('button', { name: 'Use Kinopeer’s key' })
     await userEvent.click(forget)
     expect(await screen.findByRole('alert', { name: saying(message) })).toBeInTheDocument()
     expect(screen.getByLabelText('API key or read access token')).not.toHaveAttribute('aria-invalid')
@@ -150,7 +150,7 @@ describe('TmdbKeyForm', () => {
     let finishSave = (_settings: ServerSettings) => {}
     saveTmdbKey.mockReturnValue(new Promise((resolve) => (finishSave = resolve)))
     const { field, save, onSaved } = renderForgetting()
-    const forget = screen.getByRole('button', { name: 'Use Kinoseed’s key' })
+    const forget = screen.getByRole('button', { name: 'Use Kinopeer’s key' })
     await userEvent.type(field, 'abc123')
     await userEvent.click(save)
     expect(forget).toBeDisabled()
@@ -162,7 +162,7 @@ describe('TmdbKeyForm', () => {
   it('disables Save while forgetting, busy meanwhile', async () => {
     forgetTmdbKey.mockReturnValue(new Promise(() => {}))
     const { save } = renderForgetting()
-    const forget = screen.getByRole('button', { name: 'Use Kinoseed’s key' })
+    const forget = screen.getByRole('button', { name: 'Use Kinopeer’s key' })
     await userEvent.click(forget)
     expect(forget).toHaveAttribute('aria-busy', 'true')
     expect(save).toBeDisabled()

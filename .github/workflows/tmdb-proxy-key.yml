@@ -1,8 +1,9 @@
 name: TMDB proxy key
 
-# Puts the TMDB_API_KEY repository secret into both TMDB proxy workers without deploying their code:
+# Puts the TMDB_API_KEY repository secret into the TMDB proxy workers without deploying their code:
 # run it from the Actions tab after replacing a leaked or revoked key, and installs keep working
-# without a release (docs/DEVELOPMENT.md → The TMDB proxy).
+# without a release (docs/DEVELOPMENT.md → The TMDB proxy). That includes the workers from before the
+# rename to Kinopeer, which versions up to 0.7 still call.
 on:
   workflow_dispatch:
 
@@ -18,10 +19,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
-      # A worker that doesn't take the key doesn't stop the other one from taking it.
+      # A worker that doesn't take the key doesn't stop the others from taking it.
       fail-fast: false
       matrix:
-        environment: [edge, release]
+        # wrangler.jsonc's environments, then by name the workers Kinoseed (up to 0.7) calls, which
+        # are no longer deployed from here: drop them once they're deleted.
+        worker: ['--env edge', '--env release', '--name kinoseed-tmdb-edge', '--name kinoseed-tmdb']
     # The Cloudflare token only in the steps that call Cloudflare, not while npm installs Wrangler.
     steps:
       # For wrangler.jsonc, which names each environment's worker.
@@ -48,4 +51,4 @@ jobs:
             echo "::error::The TMDB_API_KEY repository secret isn't set"
             exit 1
           fi
-          printf '%s' "$TMDB_API_KEY" | npx wrangler secret put TMDB_API_KEY --env "${{ matrix.environment }}"
+          printf '%s' "$TMDB_API_KEY" | npx wrangler secret put TMDB_API_KEY ${{ matrix.worker }}

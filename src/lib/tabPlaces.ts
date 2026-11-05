@@ -11,7 +11,7 @@ export interface TabPlace {
 }
 
 /** In sessionStorage, so a reload keeps them, as it keeps the positions by history entry. */
-const STORAGE_KEY = 'kinoseed.tabs'
+const STORAGE_KEY = 'kinopeer.tabs'
 
 type Places = Readonly<Record<string, TabPlace>>
 

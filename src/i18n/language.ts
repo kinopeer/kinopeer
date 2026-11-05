@@ -8,14 +8,14 @@ export const LANGUAGES = [
 export type Language = (typeof LANGUAGES)[number]['code']
 export type LanguagePreference = 'system' | Language
 
-export const LANGUAGE_STORAGE_KEY = 'kinoseed.language'
+export const LANGUAGE_STORAGE_KEY = 'kinopeer.language'
 
 /**
  * Where the language detector before the System option saved the language: the one it detected on
  * the first start, or one the user picked later. It never detected again once something was saved,
  * so a value there may be a pick or the browser's language of back then.
  */
-export const LEGACY_LANGUAGE_STORAGE_KEY = 'kinoseed.lang'
+export const LEGACY_LANGUAGE_STORAGE_KEY = 'kinopeer.lang'
 
 /** The app's language for a tag by its base language ('ru-RU' → 'ru'), or null if the app doesn't have it. */
 export function toLanguage(tag: string): Language | null {

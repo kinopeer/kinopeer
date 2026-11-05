@@ -28,11 +28,11 @@ export interface DownloadDefaults {
   firstLastPieces: boolean
 }
 
-/** A TMDB key that serves calls without a saved one: TMDB_API_KEY, else Kinoseed's own. */
+/** A TMDB key that serves calls without a saved one: TMDB_API_KEY, else Kinopeer's own. */
 export type TmdbFallback = 'env' | 'shared'
 
 /**
- * The TMDB key: 'shared' is Kinoseed's own, behind its proxy (tmdb-proxy/), used while the server
+ * The TMDB key: 'shared' is Kinopeer's own, behind its proxy (tmdb-proxy/), used while the server
  * has no key of its own.
  */
 export interface TmdbKeyStatus {

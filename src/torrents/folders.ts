@@ -48,7 +48,7 @@ export function categoryFolder(name: string, locations: SaveLocations): string {
   return base ? join(base, relative) : ''
 }
 
-/** Where a torrent added with `category` (or none) goes when Kinoseed sends no save path. */
+/** Where a torrent added with `category` (or none) goes when Kinopeer sends no save path. */
 export function addFolder(category: string, locations: SaveLocations): string {
   if (!category || !locations.categoryPaths) return locations.defaultPath
   return categoryFolder(category, locations) || locations.defaultPath

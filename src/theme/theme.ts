@@ -1,7 +1,7 @@
 export type ThemePreference = 'system' | 'dark' | 'light'
 export type ResolvedTheme = 'dark' | 'light'
 
-export const THEME_STORAGE_KEY = 'kinoseed.theme'
+export const THEME_STORAGE_KEY = 'kinopeer.theme'
 
 const LIGHT_QUERY = '(prefers-color-scheme: light)'
 

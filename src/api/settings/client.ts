@@ -1,6 +1,6 @@
 import type { DownloadDefaultsBody, ProwlarrKeyBody, QbittorrentLoginBody, ServerSettings, SettingsErrorBody, TmdbKeyBody } from './types'
 
-/** Settings the Kinoseed server keeps (server/settings.ts). */
+/** Settings the Kinopeer server keeps (server/settings.ts). */
 export const SETTINGS_BASE = '/api/settings'
 
 export class SettingsError extends Error {
@@ -72,7 +72,7 @@ async function forget(path: string): Promise<ServerSettings> {
 }
 
 /**
- * Forgets the saved TMDB key, so TMDB_API_KEY or Kinoseed's key applies (`tmdb.fallback`). Rejects
+ * Forgets the saved TMDB key, so TMDB_API_KEY or Kinopeer's key applies (`tmdb.fallback`). Rejects
  * with code 'no-server-key' when neither would.
  */
 export function forgetTmdbKey(): Promise<ServerSettings> {

@@ -1,11 +1,11 @@
 /**
- * Kinoseed's TMDB proxy, a Cloudflare Worker: an install with no TMDB key of its own sends its TMDB
- * API calls here, and the proxy adds Kinoseed's key, which lives only in the worker's secret
+ * Kinopeer's TMDB proxy, a Cloudflare Worker: an install with no TMDB key of its own sends its TMDB
+ * API calls here, and the proxy adds Kinopeer's key, which lives only in the worker's secret
  * (docs/DEVELOPMENT.md → The TMDB proxy):
  *
  * https://<worker>/3/search/movie?query=… → https://api.themoviedb.org/3/search/movie?query=…&api_key=…
  *
- * It answers GET and HEAD for the paths Kinoseed calls (src/api/tmdb/client.ts) and nothing else, so
+ * It answers GET and HEAD for the paths Kinopeer calls (src/api/tmdb/client.ts) and nothing else, so
  * it isn't a key to the whole API. Installs don't authenticate: any secret in the image would be as
  * public as the key. Workers Cache, in front of the worker (`cache` in wrangler.jsonc), keeps TMDB's
  * answers by their Cache-Control and runs the worker only on a miss, so only the calls that reach
@@ -14,7 +14,7 @@
 
 /** The worker's bindings (wrangler.jsonc) and secrets. */
 export interface Env {
-  /** Kinoseed's TMDB key: a v3 API key or a v4 read access token (a JWT). */
+  /** Kinopeer's TMDB key: a v3 API key or a v4 read access token (a JWT). */
   TMDB_API_KEY?: string
   /** Workers' rate limiting, keyed by the caller's IP; every environment in wrangler.jsonc has one. */
   LIMITER?: RateLimiter
@@ -35,7 +35,7 @@ const PREFIX = '/3'
 const HOUR = 3600
 
 /**
- * The paths Kinoseed calls, and how long Workers Cache keeps their answers, in seconds. TMDB's terms allow
+ * The paths Kinopeer calls, and how long Workers Cache keeps their answers, in seconds. TMDB's terms allow
  * up to six months; searches change the most, a title's page the least.
  */
 const ROUTES: readonly (readonly [RegExp, number])[] = [
@@ -47,7 +47,7 @@ const ROUTES: readonly (readonly [RegExp, number])[] = [
 ]
 
 /**
- * Parameters dropped from every call: a key the caller sends, so the call goes with Kinoseed's alone;
+ * Parameters dropped from every call: a key the caller sends, so the call goes with Kinopeer's alone;
  * append_to_response, which would add a title's credits, videos or images to an allowed path; and the
  * session ids of TMDB's account calls. client.ts sends none of them.
  */
@@ -57,7 +57,7 @@ const DROPPED_PARAMETERS = ['api_key', 'append_to_response', 'session_id', 'gues
 const RESPONSE_HEADERS = ['content-type', 'etag', 'last-modified']
 
 /** TMDB's terms ask that an application doesn't hide who it is. */
-const USER_AGENT = 'Kinoseed-TMDB-proxy'
+const USER_AGENT = 'Kinopeer-TMDB-proxy'
 
 /** Never cached: a 429 kept by Workers Cache would answer every install, not the IP over its limit. */
 const NO_STORE = 'no-store'
@@ -82,7 +82,7 @@ export async function handle(request: Request, env: Env, deps: Deps = {}): Promi
   const url = new URL(request.url)
   const path = url.pathname.startsWith(`${PREFIX}/`) ? url.pathname.slice(PREFIX.length) : ''
   const ttl = ROUTES.find(([pattern]) => pattern.test(path))?.[1]
-  if (ttl === undefined) return fail(404, 'Not a path Kinoseed calls')
+  if (ttl === undefined) return fail(404, 'Not a path Kinopeer calls')
   const key = env.TMDB_API_KEY?.trim()
   if (!key) return fail(503, 'The proxy has no TMDB key')
   // A worker deployed without its environment has no limiter; it mustn't read as "no limit".
@@ -112,7 +112,7 @@ export async function handle(request: Request, env: Env, deps: Deps = {}): Promi
     if (value) headers.set(name, value)
   }
   // s-maxage, not max-age: Workers Cache is a shared cache and keeps the answer, a browser behind
-  // Kinoseed's server doesn't, so the Settings check still asks the proxy. GET and HEAD share a cache
+  // Kinopeer's server doesn't, so the Settings check still asks the proxy. GET and HEAD share a cache
   // entry, so a HEAD's empty answer isn't kept, and neither is an error.
   const cacheable = upstream.ok && request.method === 'GET'
   headers.set('Cache-Control', cacheable ? `public, s-maxage=${ttl}` : NO_STORE)

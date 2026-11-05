@@ -18,7 +18,7 @@ export interface InstallSheetProps {
 }
 
 /**
- * How to install Kinoseed from Safari's Share menu: to the Home Screen on iPhone and iPad, to the
+ * How to install Kinopeer from Safari's Share menu: to the Home Screen on iPhone and iPad, to the
  * Dock on a Mac. Safari has no install prompt.
  */
 export function InstallSheet({ platform, onClose }: InstallSheetProps) {

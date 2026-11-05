@@ -11,7 +11,7 @@ permissions:
   packages: write
 
 env:
-  IMAGE: ghcr.io/mrshakhov/kinoseed
+  IMAGE: ghcr.io/kinopeer/kinopeer
 
 jobs:
   release:
@@ -78,9 +78,9 @@ jobs:
             echo
             echo "**Digest:** \`$IMAGE@$DIGEST\`"
           } >> release-notes.md
-          gh release create "$GITHUB_REF_NAME" --title "Kinoseed $VERSION" --notes-file release-notes.md --verify-tag
+          gh release create "$GITHUB_REF_NAME" --title "Kinopeer $VERSION" --notes-file release-notes.md --verify-tag
 
-  # kinoseed-tmdb, which released versions call. After the image and the GitHub Release, which come
+  # kinopeer-tmdb, which released versions call. After the image and the GitHub Release, which come
   # out only for a tag that matches package.json and the changelog; installs get the version only
   # with the store's update, later still.
   proxy:

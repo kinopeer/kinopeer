@@ -199,13 +199,13 @@ export async function openApp(page: Page, path: string, options: AppOptions = {}
   await page.clock.setFixedTime(NOW)
   await page.addInitScript(
     ({ theme, lang, downloadsView, releaseFilters }) => {
-      localStorage.setItem('kinoseed.theme', theme)
-      localStorage.setItem('kinoseed.language', lang)
+      localStorage.setItem('kinopeer.theme', theme)
+      localStorage.setItem('kinopeer.language', lang)
       localStorage.setItem(
-        'kinoseed.settings',
+        'kinopeer.settings',
         JSON.stringify({ downloadsView: downloadsView ?? 'list', downloadsDesktopView: downloadsView, releaseFilters }),
       )
-      localStorage.setItem('kinoseed.installDismissed', '1')
+      localStorage.setItem('kinopeer.installDismissed', '1')
     },
     { theme: options.theme ?? 'dark', lang: options.lang ?? 'ru', downloadsView: options.downloadsView, releaseFilters: options.releaseFilters },
   )

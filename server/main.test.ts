@@ -4,7 +4,7 @@ import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { TMDB_PROXY, TMDB_PROXY_EDGE, createApp, dataStores, kinoseedServer, missingSettings, tmdbProxy } from './main.ts'
+import { TMDB_PROXY, TMDB_PROXY_EDGE, createApp, dataStores, kinopeerServer, missingSettings, tmdbProxy } from './main.ts'
 import { SettingsStore } from './settings.ts'
 import { closeServers, fakeTmdb } from './test/fakes.ts'
 
@@ -13,10 +13,10 @@ let server: Server
 let app: string
 
 beforeAll(async () => {
-  root = await mkdtemp(join(tmpdir(), 'kinoseed-main-'))
-  await writeFile(join(root, 'index.html'), '<!doctype html><title>Kinoseed</title>')
+  root = await mkdtemp(join(tmpdir(), 'kinopeer-main-'))
+  await writeFile(join(root, 'index.html'), '<!doctype html><title>Kinopeer</title>')
   // The proxy off, so nothing here calls the real one.
-  server = createApp(root, kinoseedServer({ TMDB_PROXY_URL: '' }, dataStores(join(root, 'data'))))
+  server = createApp(root, kinopeerServer({ TMDB_PROXY_URL: '' }, dataStores(join(root, 'data'))))
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
   app = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
 })
@@ -47,7 +47,7 @@ describe('createApp', () => {
   })
 
   it('serves the app for its routes and 404 for missing files', async () => {
-    expect(await (await fetch(`${app}/settings`)).text()).toContain('Kinoseed')
+    expect(await (await fetch(`${app}/settings`)).text()).toContain('Kinopeer')
     expect((await fetch(`${app}/assets/missing.js`)).status).toBe(404)
     expect((await fetch(`${app}/settings`, { method: 'POST' })).status).toBe(404)
   })
@@ -86,38 +86,38 @@ describe('missingSettings', () => {
 
 describe('tmdbProxy', () => {
   it('is the released versions’ worker by default', () => {
-    expect(TMDB_PROXY).toBe('https://kinoseed-tmdb.kinoseed.workers.dev/3')
+    expect(TMDB_PROXY).toBe('https://tmdb.kinopeer.com/3')
     expect(tmdbProxy({})).toBe(TMDB_PROXY)
   })
 
   it('is the edge worker the Edge workflow bakes into edge images', async () => {
     const workflow = await readFile(new URL('../.github/workflows/edge.yml', import.meta.url), 'utf8')
 
-    expect(TMDB_PROXY_EDGE).toBe('https://kinoseed-tmdb-edge.kinoseed.workers.dev/3')
-    expect(workflow).toContain(`KINOSEED_TMDB_PROXY=${TMDB_PROXY_EDGE}\n`)
+    expect(TMDB_PROXY_EDGE).toBe('https://tmdb-edge.kinopeer.com/3')
+    expect(workflow).toContain(`KINOPEER_TMDB_PROXY=${TMDB_PROXY_EDGE}\n`)
   })
 
-  it('is the one an edge build bakes in, KINOSEED_TMDB_PROXY', () => {
-    expect(tmdbProxy({ KINOSEED_TMDB_PROXY: 'https://kinoseed-tmdb-edge.kinoseed.workers.dev/3' })).toBe(
-      'https://kinoseed-tmdb-edge.kinoseed.workers.dev/3',
+  it('is the one an edge build bakes in, KINOPEER_TMDB_PROXY', () => {
+    expect(tmdbProxy({ KINOPEER_TMDB_PROXY: 'https://tmdb-edge.kinopeer.com/3' })).toBe(
+      'https://tmdb-edge.kinopeer.com/3',
     )
     // A release build passes the build argument empty.
-    expect(tmdbProxy({ KINOSEED_TMDB_PROXY: '' })).toBe(TMDB_PROXY)
-    expect(tmdbProxy({ KINOSEED_TMDB_PROXY: ' ' })).toBe(TMDB_PROXY)
+    expect(tmdbProxy({ KINOPEER_TMDB_PROXY: '' })).toBe(TMDB_PROXY)
+    expect(tmdbProxy({ KINOPEER_TMDB_PROXY: ' ' })).toBe(TMDB_PROXY)
   })
 
   it('takes TMDB_PROXY_URL over both, and none when it’s empty', () => {
-    const env = { KINOSEED_TMDB_PROXY: 'https://edge.test/3' }
+    const env = { KINOPEER_TMDB_PROXY: 'https://edge.test/3' }
     expect(tmdbProxy({ ...env, TMDB_PROXY_URL: 'https://own.test/3/' })).toBe('https://own.test/3')
     expect(tmdbProxy({ ...env, TMDB_PROXY_URL: '' })).toBeUndefined()
     expect(tmdbProxy({ ...env, TMDB_PROXY_URL: ' ' })).toBeUndefined()
   })
 })
 
-describe('kinoseedServer', () => {
-  it('sends TMDB calls without a key to the proxy, and says Kinoseed’s key is used', async () => {
+describe('kinopeerServer', () => {
+  it('sends TMDB calls without a key to the proxy, and says Kinopeer’s key is used', async () => {
     const proxy = await fakeTmdb()
-    const server = createApp(root, kinoseedServer({ TMDB_PROXY_URL: proxy.apiBase }, dataStores(join(root, 'proxy'))))
+    const server = createApp(root, kinopeerServer({ TMDB_PROXY_URL: proxy.apiBase }, dataStores(join(root, 'proxy'))))
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
     const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
     try {
@@ -133,7 +133,7 @@ describe('kinoseedServer', () => {
   it('points the TMDB bridge at TMDB_API_URL and TMDB_IMAGE_URL', async () => {
     const tmdb = await fakeTmdb()
     const env = { TMDB_API_KEY: 'good-key', TMDB_API_URL: tmdb.apiBase, TMDB_IMAGE_URL: `${tmdb.base}/t/p` }
-    const server = createApp(root, kinoseedServer(env, dataStores(join(root, 'tmdb'))))
+    const server = createApp(root, kinopeerServer(env, dataStores(join(root, 'tmdb'))))
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
     const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
     try {
@@ -151,7 +151,7 @@ describe('kinoseedServer', () => {
     const prune = vi.spyOn(stores.matches, 'prune')
     vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval', 'clearTimeout', 'clearInterval'] })
     try {
-      kinoseedServer({}, stores).startJobs()()
+      kinopeerServer({}, stores).startJobs()()
       vi.advanceTimersByTime(2 * 60 * 60_000)
       expect(prune).not.toHaveBeenCalled()
     } finally {
@@ -175,7 +175,7 @@ describe('kinoseedServer', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval', 'clearTimeout', 'clearInterval'] })
     try {
       const url = `http://127.0.0.1:${(qbittorrent.address() as AddressInfo).port}`
-      const stop = kinoseedServer({ QBITTORRENT_URL: url }, stores).startJobs()
+      const stop = kinopeerServer({ QBITTORRENT_URL: url }, stores).startJobs()
       await vi.advanceTimersByTimeAsync(60_000)
       await vi.waitFor(() => expect(stores.matches.current[deleted]?.missingSince).toBeTypeOf('number'))
       expect(stores.matches.current[present]?.missingSince).toBeUndefined()

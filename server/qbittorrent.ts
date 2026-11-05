@@ -62,7 +62,7 @@ const RESPONSE_HEADERS = ['content-type', 'cache-control', 'last-modified', 'eta
 
 class BodyTooLargeError extends Error {}
 
-/** A qBittorrent session the server holds itself, shared by every browser that uses Kinoseed. */
+/** A qBittorrent session the server holds itself, shared by every browser that uses Kinopeer. */
 class ServerSession {
   /** "SID=…" for the Cookie header, '' when qBittorrent needs none (auth bypass), undefined when logged out. */
   private cookie: string | undefined
@@ -105,7 +105,7 @@ class ServerSession {
     if (result.status === 'invalid') {
       this.rejected = true
       // Never log the credentials themselves.
-      console.warn('[kinoseed] qBittorrent rejected the saved login; the app will ask for a new one')
+      console.warn('[kinopeer] qBittorrent rejected the saved login; the app will ask for a new one')
       return undefined
     }
     if (result.status === 'banned') {

@@ -30,7 +30,7 @@ describe('tab places', () => {
 
   it('leaves out what it stored in another shape, and storage it can’t read', async () => {
     sessionStorage.setItem(
-      'kinoseed.tabs',
+      'kinopeer.tabs',
       JSON.stringify({ '/': { search: '', y: 120 }, '/search': { search: '?q=dune', y: '640' }, '/settings': { y: 80 }, '/x': null }),
     )
     expect(tabPlace('/')).toEqual({ search: '', y: 120 })
@@ -39,7 +39,7 @@ describe('tab places', () => {
     expect(tabPlace('/x')).toBeUndefined()
 
     for (const stored of ['{not json', '42', 'null', '"/search"']) {
-      sessionStorage.setItem('kinoseed.tabs', stored)
+      sessionStorage.setItem('kinopeer.tabs', stored)
       vi.resetModules()
       const reloaded = await import('./tabPlaces')
       expect(reloaded.tabPlace('/')).toBeUndefined()

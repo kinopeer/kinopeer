@@ -1,6 +1,6 @@
 import { MAX_FAILING_WITHIN_MS, type FailingIndexers, type MagnetResponse, type ProwlarrErrorBody, type ProwlarrStatus, type Release, type SearchType } from './types'
 
-/** Same-origin prefix served by Kinoseed's Prowlarr bridge (server/prowlarr.ts). */
+/** Same-origin prefix served by Kinopeer's Prowlarr bridge (server/prowlarr.ts). */
 export const PROWLARR_BASE = '/prowlarr'
 
 export class ProwlarrError extends Error {

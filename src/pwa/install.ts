@@ -7,7 +7,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 /**
- * How Kinoseed can be installed in this browser: through the browser's own prompt (Chromium on
+ * How Kinopeer can be installed in this browser: through the browser's own prompt (Chromium on
  * Android and desktop), by hand from the Share menu (Safari on iPhone and iPad, Safari 17+ on a
  * Mac), or not at all (already installed or running as the app, or a browser that can't).
  */
@@ -16,7 +16,7 @@ export type InstallMethod = 'prompt' | 'ios' | 'mac' | null
 /** Platforms that install by hand, with steps in InstallSheet. */
 export type ManualInstall = Exclude<InstallMethod, 'prompt' | null>
 
-const DISMISSED_STORAGE_KEY = 'kinoseed.installDismissed'
+const DISMISSED_STORAGE_KEY = 'kinopeer.installDismissed'
 
 let deferred: BeforeInstallPromptEvent | null = null
 let installed = false
@@ -75,7 +75,7 @@ export function useInstallMethod(): InstallMethod {
   return useSyncExternalStore(subscribe, getInstallMethod)
 }
 
-/** Shows the browser's install prompt. Resolves to whether the user installed Kinoseed. */
+/** Shows the browser's install prompt. Resolves to whether the user installed Kinopeer. */
 export async function promptInstall(): Promise<boolean> {
   const event = deferred
   if (!event) return false

@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { qbittorrentBridge, qbittorrentMiddleware, type QbittorrentConfig } from './qbittorrent.ts'
 import { closeServers, fakeQbittorrent, serve } from './test/fakes.ts'
 
-/** Kinoseed's side: the middleware under test. */
-const kinoseed = (config: QbittorrentConfig) => serve(qbittorrentMiddleware(config))
+/** Kinopeer's side: the middleware under test. */
+const kinopeer = (config: QbittorrentConfig) => serve(qbittorrentMiddleware(config))
 
 afterEach(async () => {
   vi.restoreAllMocks()
@@ -13,14 +13,14 @@ afterEach(async () => {
 
 describe('qbittorrentMiddleware', () => {
   it('passes other paths on and reports a missing address', async () => {
-    const base = await kinoseed({})
+    const base = await kinopeer({})
     expect((await fetch(`${base}/prowlarr/search`)).status).toBe(404)
     expect((await fetch(`${base}/qbt/api/v2/app/version`)).status).toBe(503)
   })
 
   it('never passes browser cookies on and keeps the browser away from /auth', async () => {
     const qbt = await fakeQbittorrent()
-    const base = await kinoseed({ url: `${qbt.base}/` })
+    const base = await kinopeer({ url: `${qbt.base}/` })
 
     const response = await fetch(`${base}/qbt/api/v2/app/version`, { headers: { Cookie: 'SID=sid1' } })
     expect(response.status).toBe(403)
@@ -38,7 +38,7 @@ describe('qbittorrentMiddleware', () => {
     const qbt = await fakeQbittorrent()
     let credentials = { username: 'admin', password: 'wrong' }
     vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const base = await kinoseed({ url: qbt.base, credentials: () => credentials })
+    const base = await kinopeer({ url: qbt.base, credentials: () => credentials })
 
     expect((await fetch(`${base}/qbt/api/v2/app/version`)).status).toBe(403)
     credentials = { username: 'admin', password: 'pass word' }
@@ -48,7 +48,7 @@ describe('qbittorrentMiddleware', () => {
 
   it('logs in once with configured credentials and keeps the session to itself', async () => {
     const qbt = await fakeQbittorrent()
-    const base = await kinoseed({ url: qbt.base, credentials: () => ({ username: 'admin', password: 'pass word' }) })
+    const base = await kinopeer({ url: qbt.base, credentials: () => ({ username: 'admin', password: 'pass word' }) })
 
     const responses = await Promise.all(
       [1, 2, 3].map(() => fetch(`${base}/qbt/api/v2/app/version`, { headers: { Cookie: 'SID=browser' } })),
@@ -61,7 +61,7 @@ describe('qbittorrentMiddleware', () => {
 
   it('logs in again when the session expires and retries the request with its body', async () => {
     const qbt = await fakeQbittorrent()
-    const base = await kinoseed({ url: qbt.base, credentials: () => ({ username: 'admin', password: 'pass word' }) })
+    const base = await kinopeer({ url: qbt.base, credentials: () => ({ username: 'admin', password: 'pass word' }) })
     await fetch(`${base}/qbt/api/v2/app/version`)
     qbt.sessions.clear()
 
@@ -80,7 +80,7 @@ describe('qbittorrentMiddleware', () => {
   it.each([false, true])('stops using wrong credentials after one try, so the app asks for a login (legacy: %s)', async (legacy) => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const qbt = await fakeQbittorrent({ legacy })
-    const base = await kinoseed({ url: qbt.base, credentials: () => ({ username: 'admin', password: 'wrong' }) })
+    const base = await kinopeer({ url: qbt.base, credentials: () => ({ username: 'admin', password: 'wrong' }) })
 
     expect((await fetch(`${base}/qbt/api/v2/app/version`)).status).toBe(403)
     expect((await fetch(`${base}/qbt/api/v2/app/version`)).status).toBe(403)
@@ -92,7 +92,7 @@ describe('qbittorrentMiddleware', () => {
   it('waits half a minute before logging in again after qBittorrent banned the address', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     const qbt = await fakeQbittorrent()
-    const base = await kinoseed({ url: qbt.base, credentials: () => ({ username: 'banned', password: 'pass word' }) })
+    const base = await kinopeer({ url: qbt.base, credentials: () => ({ username: 'banned', password: 'pass word' }) })
 
     // Meanwhile requests go without a session, so auth bypass would still work; here it doesn't.
     expect((await fetch(`${base}/qbt/api/v2/app/version`)).status).toBe(403)
@@ -106,11 +106,11 @@ describe('qbittorrentMiddleware', () => {
   })
 
   it('reports an unreachable qBittorrent and only proxies the API', async () => {
-    const down = await kinoseed({ url: 'http://127.0.0.1:9', credentials: () => ({ username: 'admin', password: 'x' }) })
+    const down = await kinopeer({ url: 'http://127.0.0.1:9', credentials: () => ({ username: 'admin', password: 'x' }) })
     expect((await fetch(`${down}/qbt/api/v2/app/version`)).status).toBe(502)
 
     const qbt = await fakeQbittorrent()
-    const base = await kinoseed({ url: qbt.base })
+    const base = await kinopeer({ url: qbt.base })
     expect((await fetch(`${base}/qbt/index.html`)).status).toBe(404)
     expect(qbt.seen).toEqual([])
   })

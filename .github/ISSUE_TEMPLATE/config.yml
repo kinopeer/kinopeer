@@ -1,8 +1,8 @@
 blank_issues_enabled: true
 contact_links:
   - name: Suggest a feature
-    url: https://github.com/MrShakhov/kinoseed/discussions/categories/ideas
+    url: https://github.com/kinopeer/kinopeer/discussions/categories/ideas
     about: Ideas go to Discussions, where people upvote them. Issues are for bugs and planned work.
   - name: Ask a question
-    url: https://github.com/MrShakhov/kinoseed/discussions/categories/q-a
-    about: Questions about installing or using Kinoseed.
+    url: https://github.com/kinopeer/kinopeer/discussions/categories/q-a
+    about: Questions about installing or using Kinopeer.

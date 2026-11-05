@@ -10,13 +10,13 @@ import { saveQbittorrentLogin } from '../../src/api/settings/client.ts'
 import { addRelease } from '../../src/releases/addRelease.ts'
 import { SHOGUN_FILES, shogunTorrent, tmdbTag, torrentFiles } from '../../src/test/fixtures.ts'
 import { readTorrentFile } from '../../src/torrents/torrentFile.ts'
-import { startKinoseed, stopKinoseed } from '../test/integration.ts'
+import { startKinopeer, stopKinopeer } from '../test/integration.ts'
 
-afterEach(stopKinoseed)
+afterEach(stopKinopeer)
 
 describe('logging in to qBittorrent', () => {
   it('goes through the server, which keeps the session and the password to itself', async () => {
-    const { qbittorrent, cookies, responses } = await startKinoseed({
+    const { qbittorrent, cookies, responses } = await startKinopeer({
       env: { QBITTORRENT_USERNAME: undefined, QBITTORRENT_PASSWORD: undefined },
     })
 
@@ -49,7 +49,7 @@ describe('logging in to qBittorrent', () => {
 
 describe('adding a release', () => {
   it('gets the .torrent through the server, then adds it to qBittorrent with the files chosen', async () => {
-    const { qbittorrent, prowlarr, responses } = await startKinoseed()
+    const { qbittorrent, prowlarr, responses } = await startKinopeer()
 
     const [release] = await searchReleases('Shogun', { type: 'tvsearch' })
     expect(release.download).toBe('1/download?link=shogun')
@@ -105,7 +105,7 @@ describe('matching torrents to titles', () => {
     const B = 'b'.repeat(40)
     const guess = { type: 'movie', id: 27205, source: 'guess', version: 2 } as const
     const choice = { type: 'movie', id: 693134, source: 'user' } as const
-    const { stores } = await startKinoseed()
+    const { stores } = await startKinopeer()
 
     await expect(saveMatches({ [A]: guess })).resolves.toEqual({ [A]: guess })
     await expect(saveMatches({ [A]: choice })).resolves.toEqual({ [A]: choice })

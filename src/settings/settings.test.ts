@@ -27,7 +27,7 @@ function server(downloads: Partial<DownloadDefaults> | null): ServerSettings {
 beforeEach(() => {
   // The previous test's hooks may have read the settings again while unmounting.
   resetSettings()
-  // No Kinoseed server unless a test sets one up.
+  // No Kinopeer server unless a test sets one up.
   vi.mocked(api.getServerSettings).mockRejectedValue(new api.SettingsError(404))
   vi.mocked(api.saveDownloadDefaults).mockRejectedValue(new api.SettingsError(404))
 })
@@ -148,7 +148,7 @@ describe('settings saved in another tab', () => {
 
   it('ignores a change to another key or to session storage', () => {
     const { result } = renderHook(() => useSettings())
-    act(() => saveElsewhere(SIZE_SORT, 'kinoseed.theme'))
+    act(() => saveElsewhere(SIZE_SORT, 'kinopeer.theme'))
     act(() => saveElsewhere(SIZE_SORT, null, sessionStorage))
     expect(result.current[0].releaseSort).toEqual(DEFAULT_SETTINGS.releaseSort)
   })

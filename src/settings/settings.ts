@@ -14,7 +14,7 @@ import { knownOrder, type DownloadSort } from '../torrents/sort'
 
 /**
  * Preferences from the Settings screen, kept in this browser. The download defaults (categories,
- * start paused, sequential, first and last pieces first) are also kept on the Kinoseed server, so
+ * start paused, sequential, first and last pieces first) are also kept on the Kinopeer server, so
  * every device has the same: the server's win when they load, and changes go to both. Without the
  * server they stay in this browser only. Connection settings live on the server alone.
  */
@@ -45,7 +45,7 @@ export interface Settings {
   releaseSort: Sort
 }
 
-export const SETTINGS_STORAGE_KEY = 'kinoseed.settings'
+export const SETTINGS_STORAGE_KEY = 'kinopeer.settings'
 
 export const DEFAULT_SETTINGS: Settings = {
   startPaused: false,

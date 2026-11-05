@@ -1,16 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SettingsError, getServerSettings, saveDownloadDefaults, forgetProwlarrKey, forgetTmdbKey, saveProwlarrKey, saveQbittorrentLogin, saveTmdbKey } from '../../src/api/settings/client.ts'
 import { getProwlarrStatus } from '../../src/api/prowlarr/client.ts'
-import { startKinoseed, stopKinoseed } from '../test/integration.ts'
+import { startKinopeer, stopKinopeer } from '../test/integration.ts'
 
 afterEach(async () => {
   vi.restoreAllMocks()
-  await stopKinoseed()
+  await stopKinopeer()
 })
 
 describe('settings client through /api/settings', () => {
   it('reads where each secret comes from, never the secret', async () => {
-    const { responses } = await startKinoseed()
+    const { responses } = await startKinopeer()
     await expect(getServerSettings()).resolves.toEqual({
       tmdb: { configured: true, source: 'env', fallback: 'env' },
       prowlarr: { configured: true, source: 'env', serverKey: true },
@@ -21,7 +21,7 @@ describe('settings client through /api/settings', () => {
   })
 
   it('saves a TMDB key the server has checked with TMDB', async () => {
-    const { tmdb, stores } = await startKinoseed({ env: { TMDB_API_KEY: undefined } })
+    const { tmdb, stores } = await startKinopeer({ env: { TMDB_API_KEY: undefined } })
     await expect(saveTmdbKey('good-key')).resolves.toMatchObject({ tmdb: { configured: true, source: 'saved', fallback: null } })
     expect(tmdb.seen).toEqual([{ url: '/3/authentication?api_key=good-key', authorization: undefined, cookie: undefined }])
     expect(stores.settings.current.tmdbApiKey).toBe('good-key')
@@ -29,7 +29,7 @@ describe('settings client through /api/settings', () => {
   })
 
   it('keeps a saved TMDB key when nothing else would serve TMDB', async () => {
-    const { stores } = await startKinoseed({ env: { TMDB_API_KEY: undefined } })
+    const { stores } = await startKinopeer({ env: { TMDB_API_KEY: undefined } })
     await saveTmdbKey('good-key')
 
     await expect(forgetTmdbKey()).rejects.toMatchObject({ status: 409, code: 'no-server-key' })
@@ -37,7 +37,7 @@ describe('settings client through /api/settings', () => {
   })
 
   it('saves a Prowlarr key that then wins over a stale PROWLARR_API_KEY', async () => {
-    const { prowlarr, stores } = await startKinoseed({ env: { PROWLARR_API_KEY: 'stale-key' } })
+    const { prowlarr, stores } = await startKinopeer({ env: { PROWLARR_API_KEY: 'stale-key' } })
     await expect(getProwlarrStatus()).rejects.toThrow()
     await expect(saveProwlarrKey('wrong-key')).rejects.toMatchObject({ status: 422, code: 'invalid-key' })
 
@@ -51,16 +51,16 @@ describe('settings client through /api/settings', () => {
   })
 
   it('passes on why the server refused a key', async () => {
-    const { stores } = await startKinoseed()
+    const { stores } = await startKinopeer()
     await expect(saveTmdbKey('bad-key')).rejects.toMatchObject({ status: 422, code: 'invalid-key' })
     expect(stores.settings.current.tmdbApiKey).toBeUndefined()
 
-    await startKinoseed({ env: { TMDB_API_URL: 'http://127.0.0.1:9/3' } })
+    await startKinopeer({ env: { TMDB_API_URL: 'http://127.0.0.1:9/3' } })
     await expect(saveTmdbKey('good-key')).rejects.toMatchObject({ status: 502, code: 'unreachable' })
   })
 
   it('saves a qBittorrent login the server has tried, and passes refusals on', async () => {
-    const { qbittorrent, stores, responses } = await startKinoseed({ env: { QBITTORRENT_USERNAME: undefined, QBITTORRENT_PASSWORD: undefined } })
+    const { qbittorrent, stores, responses } = await startKinopeer({ env: { QBITTORRENT_USERNAME: undefined, QBITTORRENT_PASSWORD: undefined } })
     await expect(saveQbittorrentLogin('admin', 'pass word')).resolves.toMatchObject({ qbittorrent: { configured: true, source: 'saved' } })
     expect(qbittorrent.logins()).toBe(1)
     expect(stores.settings.current).toMatchObject({ qbittorrentUsername: 'admin', qbittorrentPassword: 'pass word' })
@@ -70,12 +70,12 @@ describe('settings client through /api/settings', () => {
     await expect(saveQbittorrentLogin('admin', 'wrong')).rejects.toMatchObject({ status: 422, code: 'invalid-credentials' })
     expect(stores.settings.current.qbittorrentPassword).toBe('pass word')
 
-    await startKinoseed({ env: { QBITTORRENT_URL: undefined } })
+    await startKinopeer({ env: { QBITTORRENT_URL: undefined } })
     await expect(saveQbittorrentLogin('admin', 'x')).rejects.toMatchObject({ status: 503, code: 'not-configured' })
   })
 
   it('patches only the download defaults given, so two devices’ changes both stay', async () => {
-    const { stores } = await startKinoseed()
+    const { stores } = await startKinopeer()
     await expect(saveDownloadDefaults({ startPaused: true, movieCategory: null })).resolves.toMatchObject({
       downloads: { startPaused: true, movieCategory: null },
     })
@@ -87,7 +87,7 @@ describe('settings client through /api/settings', () => {
 
   it('says when the data directory is not writable', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {})
-    await startKinoseed({ writableData: false })
+    await startKinopeer({ writableData: false })
     const error = await saveDownloadDefaults({ sequential: true }).catch((caught: unknown) => caught)
     expect(error).toBeInstanceOf(SettingsError)
     expect(error).toMatchObject({ status: 500, code: 'storage' })

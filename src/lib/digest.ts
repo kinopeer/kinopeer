@@ -1,7 +1,7 @@
 /**
  * SHA-1 and SHA-256 for the browser, with Web Crypto when the page has it and a plain
  * implementation otherwise. `crypto.subtle` exists only in secure contexts (HTTPS, localhost), and
- * Kinoseed on a home network usually runs over plain HTTP, where reading a .torrent must still work.
+ * Kinopeer on a home network usually runs over plain HTTP, where reading a .torrent must still work.
  * Pure code: no DOM or Node APIs.
  */
 

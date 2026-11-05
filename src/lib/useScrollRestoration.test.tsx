@@ -305,7 +305,7 @@ describe('useScrollRestoration across a reload', () => {
   })
 
   it('doesn’t save a position over the one it hasn’t brought back yet', () => {
-    sessionStorage.setItem('kinoseed.scroll:tab-entry', '2500')
+    sessionStorage.setItem('kinopeer.scroll:tab-entry', '2500')
     render(tabEntry(false))
     scrolledTo(80)
     window.dispatchEvent(new Event('pagehide'))
@@ -344,7 +344,7 @@ describe('useScrollRestoration on a document’s first entry', () => {
 
   // React Router names every document's first entry "default", so an earlier document's position is kept under
   // the same name in the session's storage.
-  beforeEach(() => sessionStorage.setItem('kinoseed.scroll:default', '900'))
+  beforeEach(() => sessionStorage.setItem('kinopeer.scroll:default', '900'))
 
   it('opens a document loaded afresh at the top, whatever an earlier one left under its first entry', async () => {
     loadedBy('navigate')

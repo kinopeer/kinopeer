@@ -2,15 +2,15 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { tmdbMiddleware, type TmdbConfig } from './tmdb.ts'
 import { closeServers, fakeTmdb, serve } from './test/fakes.ts'
 
-/** Kinoseed's side: the middleware under test. */
-const kinoseed = (config: TmdbConfig) => serve(tmdbMiddleware(config))
+/** Kinopeer's side: the middleware under test. */
+const kinopeer = (config: TmdbConfig) => serve(tmdbMiddleware(config))
 
 afterEach(closeServers)
 
 describe('tmdbMiddleware', () => {
   it('adds a v3 key as a query parameter and drops browser cookies', async () => {
     const tmdb = await fakeTmdb()
-    const app = await kinoseed({ apiKey: ' abc123 ', apiBase: `${tmdb.base}/3` })
+    const app = await kinopeer({ apiKey: ' abc123 ', apiBase: `${tmdb.base}/3` })
 
     const response = await fetch(`${app}/tmdb/search/multi?query=alien&language=ru-RU`, { headers: { Cookie: 'SID=secret' } })
 
@@ -22,7 +22,7 @@ describe('tmdbMiddleware', () => {
 
   it('sends a v4 read access token as a bearer token', async () => {
     const tmdb = await fakeTmdb()
-    const app = await kinoseed({ apiKey: 'eyJhbGciOi.token', apiBase: `${tmdb.base}/3` })
+    const app = await kinopeer({ apiKey: 'eyJhbGciOi.token', apiBase: `${tmdb.base}/3` })
 
     await fetch(`${app}/tmdb/movie/771`)
 
@@ -32,7 +32,7 @@ describe('tmdbMiddleware', () => {
   it('reads the key on every request, so a key saved from the app applies at once', async () => {
     const tmdb = await fakeTmdb()
     let key: string | undefined
-    const app = await kinoseed({ apiKey: () => key, apiBase: `${tmdb.base}/3` })
+    const app = await kinopeer({ apiKey: () => key, apiBase: `${tmdb.base}/3` })
 
     expect((await fetch(`${app}/tmdb/movie/693134`)).status).toBe(401)
     key = 'saved'
@@ -41,7 +41,7 @@ describe('tmdbMiddleware', () => {
   })
 
   it('answers 401 without a key, so the app reports a missing key', async () => {
-    const app = await kinoseed({})
+    const app = await kinopeer({})
 
     const response = await fetch(`${app}/tmdb/movie/771`)
 
@@ -49,10 +49,10 @@ describe('tmdbMiddleware', () => {
     expect(await response.json()).toEqual({ status_message: 'The TMDB API key is not set' })
   })
 
-  it('sends calls without a key to Kinoseed’s proxy, which adds its own', async () => {
+  it('sends calls without a key to Kinopeer’s proxy, which adds its own', async () => {
     const tmdb = await fakeTmdb()
     const proxy = await fakeTmdb()
-    const app = await kinoseed({ apiBase: tmdb.apiBase, proxyBase: proxy.apiBase })
+    const app = await kinopeer({ apiBase: tmdb.apiBase, proxyBase: proxy.apiBase })
 
     const response = await fetch(`${app}/tmdb/search/multi?query=alien&language=ru-RU`, { headers: { Cookie: 'SID=secret' } })
 
@@ -66,7 +66,7 @@ describe('tmdbMiddleware', () => {
     const tmdb = await fakeTmdb()
     const proxy = await fakeTmdb()
     let key: string | undefined
-    const app = await kinoseed({ apiKey: () => key, apiBase: tmdb.apiBase, proxyBase: proxy.apiBase })
+    const app = await kinopeer({ apiKey: () => key, apiBase: tmdb.apiBase, proxyBase: proxy.apiBase })
 
     await fetch(`${app}/tmdb/movie/771`)
     key = 'saved'
@@ -77,14 +77,14 @@ describe('tmdbMiddleware', () => {
   })
 
   it('reports an unreachable proxy as TMDB being unreachable, not as a missing key', async () => {
-    const app = await kinoseed({ proxyBase: 'http://127.0.0.1:1/3' })
+    const app = await kinopeer({ proxyBase: 'http://127.0.0.1:1/3' })
 
     expect((await fetch(`${app}/tmdb/movie/771`)).status).toBe(502)
   })
 
   it('serves images without a key, with their cache headers', async () => {
     const tmdb = await fakeTmdb()
-    const app = await kinoseed({ imageBase: `${tmdb.base}/t/p` })
+    const app = await kinopeer({ imageBase: `${tmdb.base}/t/p` })
 
     const response = await fetch(`${app}/tmdb-img/w342/poster.jpg`)
 
@@ -96,7 +96,7 @@ describe('tmdbMiddleware', () => {
   })
 
   it('reports an unreachable TMDB without the key', async () => {
-    const app = await kinoseed({ apiKey: 'abc123', apiBase: 'http://127.0.0.1:1/3' })
+    const app = await kinopeer({ apiKey: 'abc123', apiBase: 'http://127.0.0.1:1/3' })
 
     const response = await fetch(`${app}/tmdb/movie/771`)
 
@@ -105,7 +105,7 @@ describe('tmdbMiddleware', () => {
   })
 
   it('leaves other paths and methods alone', async () => {
-    const app = await kinoseed({ apiKey: 'abc123' })
+    const app = await kinopeer({ apiKey: 'abc123' })
 
     expect(await (await fetch(`${app}/tmdbx/movie`)).text()).toBe('fallback')
     expect((await fetch(`${app}/tmdb/movie/771`, { method: 'POST' })).status).toBe(405)

@@ -189,7 +189,7 @@ describe('following the browser', () => {
 
     // Written straight to storage, as another tab would, without this tab's store knowing.
     localStorage.setItem(LANGUAGE_STORAGE_KEY, 'en')
-    await act(async () => window.dispatchEvent(new StorageEvent('storage', { key: 'kinoseed.theme' })))
+    await act(async () => window.dispatchEvent(new StorageEvent('storage', { key: 'kinopeer.theme' })))
     expect(result.current.preference).toBe('ru')
 
     localStorage.clear()

@@ -68,9 +68,9 @@ describe('ProwlarrKeyForm', () => {
 
   it.each([
     ['unreachable', 'Prowlarr isn’t answering. Check that it’s running and try again.'],
-    ['not-configured', 'The Kinoseed server doesn’t know Prowlarr’s address (PROWLARR_URL).'],
-    ['not-prowlarr', 'The Prowlarr address on the Kinoseed server answers, but not like Prowlarr. Check PROWLARR_URL.'],
-    ['storage', 'The Kinoseed server couldn’t save the change. Check that its data folder is writable.'],
+    ['not-configured', 'The Kinopeer server doesn’t know Prowlarr’s address (PROWLARR_URL).'],
+    ['not-prowlarr', 'The Prowlarr address on the Kinopeer server answers, but not like Prowlarr. Check PROWLARR_URL.'],
+    ['storage', 'The Kinopeer server couldn’t save the change. Check that its data folder is writable.'],
     [undefined, 'Couldn’t save the key. Try again.'],
   ] as const)('says why the key could not be saved (%s)', async (code, message) => {
     saveProwlarrKey.mockRejectedValue(new serverSettings.SettingsError(502, code))
@@ -94,8 +94,8 @@ describe('ProwlarrKeyForm', () => {
   })
 
   it.each([
-    ['storage', 'The Kinoseed server couldn’t save the change. Check that its data folder is writable.'],
-    ['no-server-key', 'The Kinoseed server has no Prowlarr key of its own, so the saved one stays.'],
+    ['storage', 'The Kinopeer server couldn’t save the change. Check that its data folder is writable.'],
+    ['no-server-key', 'The Kinopeer server has no Prowlarr key of its own, so the saved one stays.'],
     [undefined, 'Couldn’t switch to the server’s key. Try again.'],
   ] as const)('says why the key could not be forgotten (%s), and can try again', async (code, message) => {
     forgetProwlarrKey.mockRejectedValueOnce(code ? new serverSettings.SettingsError(500, code) : new Error('network'))

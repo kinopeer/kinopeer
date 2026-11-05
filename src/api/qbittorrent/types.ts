@@ -24,7 +24,7 @@ export type TorrentState =
   | 'unknown'
 
 /**
- * The subset of /torrents/info fields Kinoseed uses. Sizes in bytes, speeds in bytes/s, times in Unix
+ * The subset of /torrents/info fields Kinopeer uses. Sizes in bytes, speeds in bytes/s, times in Unix
  * seconds. The poll keeps only these, listed again in `TORRENT_FIELDS` (`src/torrents/sync.ts`): a
  * field added here and not there fails to compile.
  */
@@ -97,7 +97,7 @@ export interface TorrentsQuery {
   hashes?: string[]
 }
 
-/** The subset of server_state fields Kinoseed uses. Speeds in bytes/s, sizes in bytes. */
+/** The subset of server_state fields Kinopeer uses. Speeds in bytes/s, sizes in bytes. */
 export interface ServerState {
   dl_info_speed: number
   up_info_speed: number
@@ -176,7 +176,7 @@ export interface SaveLocations {
 /** 0: skip, 1: normal, 6: high, 7: maximum. */
 export type FilePriority = 0 | 1 | 6 | 7
 
-/** The subset of /torrents/files fields Kinoseed uses. */
+/** The subset of /torrents/files fields Kinopeer uses. */
 export interface TorrentFile {
   index: number
   /** Path inside the torrent, with "/" separators. */
@@ -190,7 +190,7 @@ export interface TorrentFile {
 /** 0: disabled, 1: not contacted yet, 2: working, 3: updating, 4: not working. */
 export type TrackerStatus = 0 | 1 | 2 | 3 | 4
 
-/** The subset of /torrents/trackers fields Kinoseed uses. */
+/** The subset of /torrents/trackers fields Kinopeer uses. */
 export interface TorrentTracker {
   /** Tracker URL, or "** [DHT] **", "** [PeX] **", "** [LSD] **" for the pseudo-trackers. */
   url: string

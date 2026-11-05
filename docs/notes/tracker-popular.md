@@ -2,7 +2,7 @@
 
 A row on the Search screen with titles that are popular **and already out in 4K** on the user's own
 trackers, in place of (or above) TMDB's trending rows, which are mostly titles not on trackers yet.
-It is built only from the user's Prowlarr. Kinoseed never bypasses Cloudflare or site protection:
+It is built only from the user's Prowlarr. Kinopeer never bypasses Cloudflare or site protection:
 if Kinozal is reachable, it is because the user's Prowlarr (with FlareSolverr) reaches it.
 
 Status: research, no code. Findings come from Prowlarr's source (`develop`) and the Prowlarr/Indexers
@@ -57,7 +57,7 @@ per query, ranked by seeders, plus Rutor's real 24-hour top.
 6. **Rank** in a rolling window: keep releases seen in the last 14 days by guid, with their latest
    seeders. A title's score is the sum of its releases' seeders, each halved per 7 days of age
    (`publishDate`); a title on several trackers adds up. Top 20 movies and top 20 series (decision 1).
-7. **Store** `{ updatedAt, releases, titles }` in `$KINOSEED_DATA_DIR/popular.json` through
+7. **Store** `{ updatedAt, releases, titles }` in `$KINOPEER_DATA_DIR/popular.json` through
    `server/jsonFile.ts`. `GET /api/popular` returns `{ updatedAt, movies: [{ id, score, trackers }],
    tv: [...] }`, ids only; the browser fetches names and posters through `/tmdb` in its own
    language, as the other rows do. A card opens the title page; "Find releases" works as today.
@@ -68,7 +68,7 @@ import `.ts` paths without DOM or React. `parseRelease.ts` and `parseName.ts` ar
 ## Without the server
 
 The row is an extra the app works without (CLAUDE.md, "runnable without its server"). Without
-Kinoseed's server there is no Prowlarr access at all, so there is nothing to fall back to: when
+Kinopeer's server there is no Prowlarr access at all, so there is nothing to fall back to: when
 `/api/popular` is missing, returns nothing yet or Prowlarr isn't set up, Search shows the TMDB rows
 as today. Building the row in the browser on every Search visit was rejected: it would hit every
 indexer per visit instead of a few times a day.
