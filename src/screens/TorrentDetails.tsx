@@ -61,7 +61,7 @@ function peerCount(connected: number, total: number | undefined): string {
 }
 
 /**
- * What Kinoseed shows about a torrent: status and progress, pause, resume and delete (recheck and
+ * What Kinopeer shows about a torrent: status and progress, pause, resume and delete (recheck and
  * reannounce in its More menu), the title (with "Is it right?" for a guess), its download settings
  * (the category, sequential download, first and last pieces first), details and files. A
  * screen of its own on a phone, the content of the details drawer on desktop.

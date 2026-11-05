@@ -1,5 +1,5 @@
 /**
- * Which TMDB title a torrent is, as the Kinoseed server keeps it: chosen by the user, or guessed
+ * Which TMDB title a torrent is, as the Kinopeer server keeps it: chosen by the user, or guessed
  * from the release name by a browser.
  */
 export interface StoredMatch {

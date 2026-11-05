@@ -30,7 +30,7 @@ export function Sidebar({ items, label, footer, pathname: page }: SidebarProps) 
       <div className="ks-side-brand">
         <img src="/icons/icon-192.png" alt="" width={34} height={34} />
         <span className="ks-side-wordmark">
-          kino<span>seed</span>
+          kino<span>peer</span>
         </span>
       </div>
       <nav className="ks-side-nav" aria-label={label}>

@@ -1,15 +1,15 @@
 name: TMDB proxy
 
-# Deploys Kinoseed's TMDB proxy (tmdb-proxy/) to Cloudflare Workers and gives it the key, which lives
+# Deploys Kinopeer's TMDB proxy (tmdb-proxy/) to Cloudflare Workers and gives it the key, which lives
 # in this repository's secrets and the worker's, never in the code or the image. It has no trigger of
-# its own: Edge runs it for kinoseed-tmdb-edge with every edge build, and Release for kinoseed-tmdb
+# its own: Edge runs it for kinopeer-tmdb-edge with every edge build, and Release for kinopeer-tmdb
 # with every release, so each worker goes out with the builds that call it, whatever starts them
 # (docs/DEVELOPMENT.md → The TMDB proxy).
 on:
   workflow_call:
     inputs:
       environment:
-        description: '`edge` (main, called by Kinoseed Edge) or `release` (the newest tag, called by released versions)'
+        description: '`edge` (main, called by Kinopeer Edge) or `release` (the newest tag, called by released versions)'
         required: true
         type: string
 

@@ -1,5 +1,5 @@
 // Renders the app icons in public/icons/ from the SVG sources in scripts/icons/ (drawn after the
-// Kinoseed design canvas, "Brand, icons & PWA"). Run it after changing a source:
+// Kinopeer design canvas, "Brand, icons & PWA"). Run it after changing a source:
 //
 //   npm install --no-save playwright-core && node scripts/render-icons.mjs
 //

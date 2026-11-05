@@ -39,7 +39,7 @@ function details(t: TFunction, title: Title): string {
 
 /**
  * Finds the torrent's title in TMDB, starting from the name guessed from the release, for the user
- * to pick. `useChangeTitle` renders it and saves the pick on the Kinoseed server as their choice.
+ * to pick. `useChangeTitle` renders it and saves the pick on the Kinopeer server as their choice.
  */
 export function ChangeTitleSheet({ torrent, current, saving, failed, onPick, onClose }: ChangeTitleSheetProps) {
   const { t } = useTranslation()

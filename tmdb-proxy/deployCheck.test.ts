@@ -12,7 +12,7 @@ const GIT_ENV = { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOS
 
 /** A git repository with one commit of the proxy, as the workflow's checkout has it. */
 function repo() {
-  const cwd = mkdtempSync(join(tmpdir(), 'kinoseed-proxy-'))
+  const cwd = mkdtempSync(join(tmpdir(), 'kinopeer-proxy-'))
   repos.push(cwd)
   const git = (...args: string[]) => execFileSync('git', args, { cwd, encoding: 'utf8', env: GIT_ENV }).trim()
   git('init', '-q', '-b', 'main')

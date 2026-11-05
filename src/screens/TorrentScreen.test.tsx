@@ -530,7 +530,7 @@ describe('TorrentScreen title matching', () => {
     expect(screen.queryByText('Matched by the release name. Is it right?')).not.toBeInTheDocument()
   })
 
-  it('doesn’t ask about a title Kinoseed tagged, and changes it from the More menu', async () => {
+  it('doesn’t ask about a title Kinopeer tagged, and changes it from the More menu', async () => {
     vi.mocked(tmdb.searchTitles).mockResolvedValue(searchPage([GUESSED_DUNE, DUNE_1984]))
     renderScreen()
     expect(await screen.findByRole('heading', { level: 1, name: 'Dune: Part Two' })).toBeInTheDocument()

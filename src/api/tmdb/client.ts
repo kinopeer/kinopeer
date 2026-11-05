@@ -71,7 +71,7 @@ async function request<T>(path: string, params: QueryParams, { language, signal 
   return (await response.json()) as T
 }
 
-/** Retry-After in seconds (TMDB's and Kinoseed's proxy's form), in milliseconds. */
+/** Retry-After in seconds (TMDB's and Kinopeer's proxy's form), in milliseconds. */
 function retryAfter(response: Response): number | undefined {
   const seconds = Number(response.headers.get('retry-after') ?? Number.NaN)
   return seconds > 0 ? seconds * 1000 : undefined

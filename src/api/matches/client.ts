@@ -1,6 +1,6 @@
 import type { Matches, MatchesPatch } from './types'
 
-/** Torrent-to-title matches the Kinoseed server keeps (server/matches.ts). */
+/** Torrent-to-title matches the Kinopeer server keeps (server/matches.ts). */
 export const MATCHES_BASE = '/api/matches'
 
 export class MatchesError extends Error {

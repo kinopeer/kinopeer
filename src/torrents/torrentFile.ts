@@ -89,7 +89,7 @@ function text(value: BValue | undefined): string | undefined {
   return isBytes(value) ? new TextDecoder().decode(value) : undefined
 }
 
-// Not crypto.subtle directly: over plain HTTP, Kinoseed's usual address on a home network, there is none.
+// Not crypto.subtle directly: over plain HTTP, Kinopeer's usual address on a home network, there is none.
 async function hex(algorithm: DigestAlgorithm, data: Uint8Array): Promise<string> {
   return toHex(await digest(algorithm, data))
 }

@@ -1,18 +1,18 @@
 name: Report a bug
-description: Something in Kinoseed doesn't work as it should.
+description: Something in Kinopeer doesn't work as it should.
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        Search the [open issues](https://github.com/MrShakhov/kinoseed/issues) first and add what's new to an existing one instead of opening a duplicate. Ideas and missing features go to [Discussions → Ideas](https://github.com/MrShakhov/kinoseed/discussions/categories/ideas).
+        Search the [open issues](https://github.com/kinopeer/kinopeer/issues) first and add what's new to an existing one instead of opening a duplicate. Ideas and missing features go to [Discussions → Ideas](https://github.com/kinopeer/kinopeer/discussions/categories/ideas).
 
-        Leave out passwords, API keys and your own addresses: Kinoseed never shows its keys, but a screenshot of another app or a log might.
+        Leave out passwords, API keys and your own addresses: Kinopeer never shows its keys, but a screenshot of another app or a log might.
   - type: textarea
     id: steps
     attributes:
       label: Steps to reproduce
-      description: From opening Kinoseed to the problem, one step per line. Name the screen, the button and the title or release, so someone else can follow them.
+      description: From opening Kinopeer to the problem, one step per line. Name the screen, the button and the title or release, so someone else can follow them.
       placeholder: |
         1. Open Search and find "Dune: Part Two".
         2. Press Find releases, then Add on the first release.
@@ -35,8 +35,8 @@ body:
   - type: input
     id: version
     attributes:
-      label: Kinoseed version
-      description: Settings → About → Kinoseed version.
+      label: Kinopeer version
+      description: Settings → About → Kinopeer version.
       placeholder: "0.4.0"
     validations:
       required: true
@@ -53,7 +53,7 @@ body:
   - type: dropdown
     id: opened
     attributes:
-      label: How you open Kinoseed
+      label: How you open Kinopeer
       options:
         - In a browser over HTTP (http://…)
         - In a browser over HTTPS (https://…)
@@ -101,5 +101,5 @@ body:
     id: logs
     attributes:
       label: Logs
-      description: Kinoseed's logs around the time it happened, if you have them (on umbrelOS, right-click Kinoseed's icon → Troubleshoot, or Settings → Troubleshoot → App).
+      description: Kinopeer's logs around the time it happened, if you have them (on umbrelOS, right-click Kinopeer's icon → Troubleshoot, or Settings → Troubleshoot → App).
       render: text

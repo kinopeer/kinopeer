@@ -8,14 +8,7 @@ export const LANGUAGES = [
 export type Language = (typeof LANGUAGES)[number]['code']
 export type LanguagePreference = 'system' | Language
 
-export const LANGUAGE_STORAGE_KEY = 'kinoseed.language'
-
-/**
- * Where the language detector before the System option saved the language: the one it detected on
- * the first start, or one the user picked later. It never detected again once something was saved,
- * so a value there may be a pick or the browser's language of back then.
- */
-export const LEGACY_LANGUAGE_STORAGE_KEY = 'kinoseed.lang'
+export const LANGUAGE_STORAGE_KEY = 'kinopeer.language'
 
 /** The app's language for a tag by its base language ('ru-RU' → 'ru'), or null if the app doesn't have it. */
 export function toLanguage(tag: string): Language | null {
@@ -23,27 +16,11 @@ export function toLanguage(tag: string): Language | null {
   return LANGUAGES.find((language) => language.code === base)?.code ?? null
 }
 
-/**
- * Moves a language saved before the System option to the preference, once: the browser's own
- * language becomes system and another one stays as a choice, so either way the user sees the
- * language they saw before. Null when there's nothing to move.
- */
-function migrateLegacyPreference(): LanguagePreference | null {
-  const legacy = localStorage.getItem(LEGACY_LANGUAGE_STORAGE_KEY)
-  if (legacy === null) return null
-  const language = toLanguage(legacy)
-  const preference = language && language !== systemLanguage() ? language : 'system'
-  localStorage.setItem(LANGUAGE_STORAGE_KEY, preference)
-  localStorage.removeItem(LEGACY_LANGUAGE_STORAGE_KEY)
-  return preference
-}
-
-/** The saved preference, else one moved from before the System option, else system. */
+/** The saved preference, else system. */
 export function readLanguagePreference(): LanguagePreference {
   try {
     const value = localStorage.getItem(LANGUAGE_STORAGE_KEY)
     if (value === 'system' || LANGUAGES.some((language) => language.code === value)) return value as LanguagePreference
-    return migrateLegacyPreference() ?? 'system'
   } catch {
     // Storage can be unavailable (private mode, blocked site data).
   }

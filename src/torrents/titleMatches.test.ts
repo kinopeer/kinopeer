@@ -42,7 +42,7 @@ const getMovie = vi.mocked(tmdb.getMovie)
 const getMatches = vi.mocked(matchesApi.getMatches)
 const saveMatches = vi.mocked(matchesApi.saveMatches)
 
-/** What the fake Kinoseed server keeps. */
+/** What the fake Kinopeer server keeps. */
 let server: Matches
 
 const DUNE_1984 = title('movie', 841, 'Dune', 1984)
@@ -66,7 +66,7 @@ afterEach(() => {
 })
 
 /** Where this browser keeps titles and guesses for the next page load. */
-const CACHE_KEY = `kinoseed.titleMatches.v${GUESS_VERSION}`
+const CACHE_KEY = `kinopeer.titleMatches.v${GUESS_VERSION}`
 /** The keys in that cache, sorted. */
 const storedKeys = () => Object.keys(JSON.parse(localStorage.getItem(CACHE_KEY) ?? '{}') as object).sort()
 
@@ -199,7 +199,7 @@ describe('titleType', () => {
 })
 
 describe('isGuessed', () => {
-  it('is a guess unless the user chose the title or Kinoseed tagged the torrent', () => {
+  it('is a guess unless the user chose the title or Kinopeer tagged the torrent', () => {
     expect(isGuessed({ tags: '' })).toBe(true)
     expect(isGuessed({ tags: '' }, { type: 'movie', id: 1, source: 'guess', version: GUESS_VERSION })).toBe(true)
     expect(isGuessed({ tags: '' }, { type: 'movie', id: 1, source: 'user' })).toBe(false)

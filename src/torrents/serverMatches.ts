@@ -2,7 +2,7 @@ import { useEffect, useSyncExternalStore } from 'react'
 import { clearGuesses, getMatches, saveMatches, type Matches, type StoredMatch } from '../api/matches'
 
 /**
- * The torrent-to-title matches the Kinoseed server keeps (server/matches.ts), shared by every
+ * The torrent-to-title matches the Kinopeer server keeps (server/matches.ts), shared by every
  * screen: loaded once, then kept current with what this browser saves. Another device's changes
  * show after a reload.
  */

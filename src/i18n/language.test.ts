@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import i18n from '.'
 import {
   LANGUAGE_STORAGE_KEY,
-  LEGACY_LANGUAGE_STORAGE_KEY,
   initLanguage,
   readLanguagePreference,
   resolveLanguage,
@@ -74,30 +73,6 @@ describe('language preference storage', () => {
 
   it('ignores a value it does not know', () => {
     localStorage.setItem(LANGUAGE_STORAGE_KEY, 'de')
-    expect(readLanguagePreference()).toBe('system')
-  })
-
-  it("turns a language saved before the System option into system when it's the browser's, once", () => {
-    const changeBrowserLanguages = stubBrowserLanguages(['ru-RU'])
-    localStorage.setItem(LEGACY_LANGUAGE_STORAGE_KEY, 'ru-RU')
-    expect(readLanguagePreference()).toBe('system')
-    expect(localStorage.getItem(LEGACY_LANGUAGE_STORAGE_KEY)).toBeNull()
-
-    // Moved for good: a later browser language doesn't make the old value a choice.
-    changeBrowserLanguages(['en-US'])
-    expect(readLanguagePreference()).toBe('system')
-  })
-
-  it("keeps a language saved before the System option that isn't the browser's, as a choice", () => {
-    stubBrowserLanguages(['en-US'])
-    localStorage.setItem(LEGACY_LANGUAGE_STORAGE_KEY, 'ru')
-    expect(readLanguagePreference()).toBe('ru')
-    expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('ru')
-  })
-
-  it("turns a language saved before the System option that the app doesn't have into system", () => {
-    stubBrowserLanguages(['en-US'])
-    localStorage.setItem(LEGACY_LANGUAGE_STORAGE_KEY, 'de')
     expect(readLanguagePreference()).toBe('system')
   })
 
@@ -189,7 +164,7 @@ describe('following the browser', () => {
 
     // Written straight to storage, as another tab would, without this tab's store knowing.
     localStorage.setItem(LANGUAGE_STORAGE_KEY, 'en')
-    await act(async () => window.dispatchEvent(new StorageEvent('storage', { key: 'kinoseed.theme' })))
+    await act(async () => window.dispatchEvent(new StorageEvent('storage', { key: 'kinopeer.theme' })))
     expect(result.current.preference).toBe('ru')
 
     localStorage.clear()

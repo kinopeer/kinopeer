@@ -2,13 +2,13 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { forgetTmdbKey, getServerSettings, saveTmdbKey } from '../../src/api/settings/client.ts'
 import { TmdbError, TmdbKeyError, checkTmdb, getTv, searchTitles } from '../../src/api/tmdb/client.ts'
 import { details } from '../../src/test/fixtures.ts'
-import { startKinoseed, stopKinoseed } from '../test/integration.ts'
+import { startKinopeer, stopKinopeer } from '../test/integration.ts'
 
-afterEach(stopKinoseed)
+afterEach(stopKinopeer)
 
-describe('TMDB through Kinoseed’s proxy', () => {
-  it('reads a title and searches without a key of the server’s own, Kinoseed’s key added by the proxy', async () => {
-    const { tmdb, proxy, responses } = await startKinoseed({ env: { TMDB_API_KEY: undefined }, tmdbProxy: true })
+describe('TMDB through Kinopeer’s proxy', () => {
+  it('reads a title and searches without a key of the server’s own, Kinopeer’s key added by the proxy', async () => {
+    const { tmdb, proxy, responses } = await startKinopeer({ env: { TMDB_API_KEY: undefined }, tmdbProxy: true })
 
     await expect(getTv(126308, { language: 'ru-RU' })).resolves.toEqual(details('tv', 126308, 'ru-RU'))
     await expect(searchTitles('Dune')).resolves.toMatchObject({ page: 1 })
@@ -28,15 +28,15 @@ describe('TMDB through Kinoseed’s proxy', () => {
     for (const response of responses) expect(await response.text()).not.toContain('good-key')
   })
 
-  it('says Kinoseed’s key is used, so onboarding doesn’t ask for one', async () => {
-    await startKinoseed({ env: { TMDB_API_KEY: undefined }, tmdbProxy: true })
+  it('says Kinopeer’s key is used, so onboarding doesn’t ask for one', async () => {
+    await startKinopeer({ env: { TMDB_API_KEY: undefined }, tmdbProxy: true })
 
     await expect(getServerSettings()).resolves.toMatchObject({ tmdb: { configured: true, source: 'shared', fallback: 'shared' } })
   })
 
-  it('goes back from a saved key to Kinoseed’s once it’s forgotten', async () => {
-    const { tmdb, proxy, stores } = await startKinoseed({ env: { TMDB_API_KEY: undefined }, tmdbProxy: true })
-    // The user's own key differs from Kinoseed's (good-key), so each call shows whose key it took.
+  it('goes back from a saved key to Kinopeer’s once it’s forgotten', async () => {
+    const { tmdb, proxy, stores } = await startKinopeer({ env: { TMDB_API_KEY: undefined }, tmdbProxy: true })
+    // The user's own key differs from Kinopeer's (good-key), so each call shows whose key it took.
     await expect(saveTmdbKey('eyJgood')).resolves.toMatchObject({ tmdb: { source: 'saved', fallback: 'shared' } })
     tmdb.seen.length = 0
     await expect(checkTmdb()).resolves.toBeUndefined()
@@ -48,13 +48,13 @@ describe('TMDB through Kinoseed’s proxy', () => {
     tmdb.seen.length = 0
     await expect(checkTmdb()).resolves.toBeUndefined()
 
-    // The check goes without a key of the server's own, through the proxy, which adds Kinoseed's.
+    // The check goes without a key of the server's own, through the proxy, which adds Kinopeer's.
     expect(proxy?.seen).toEqual([{ url: '/3/configuration', authorization: undefined }])
     expect(tmdb.seen.map((request) => request.url)).toEqual(['/3/configuration?api_key=good-key'])
   })
 
   it('says how long the proxy asks to wait once over its limit', async () => {
-    const { tmdb } = await startKinoseed({ env: { TMDB_API_KEY: undefined }, tmdbProxy: { overLimit: true } })
+    const { tmdb } = await startKinopeer({ env: { TMDB_API_KEY: undefined }, tmdbProxy: { overLimit: true } })
 
     // The worker's Retry-After reaches the client, which waits that long before asking TMDB again.
     await expect(getTv(126308)).rejects.toMatchObject({ status: 429, retryAfterMs: 10_000 })
@@ -62,7 +62,7 @@ describe('TMDB through Kinoseed’s proxy', () => {
   })
 
   it('reports the proxy refusing a call as TMDB failing, not as a missing key', async () => {
-    const { tmdb } = await startKinoseed({ env: { TMDB_API_KEY: undefined }, tmdbProxy: { key: '' } })
+    const { tmdb } = await startKinopeer({ env: { TMDB_API_KEY: undefined }, tmdbProxy: { key: '' } })
 
     // The worker answers 503 without its secret; a wrong-key screen would send users to a key they don't need.
     const failed = await checkTmdb().catch((error: unknown) => error)

@@ -11,7 +11,7 @@ interface IndexerLinkProps {
 
 /**
  * The indexer's name as a link to the release's page on the tracker, in a new tab, for what
- * Kinoseed doesn't show (the description, screenshots, comments). Plain text when Prowlarr gave no page.
+ * Kinopeer doesn't show (the description, screenshots, comments). Plain text when Prowlarr gave no page.
  */
 export function IndexerLink({ release, className }: IndexerLinkProps) {
   const { t } = useTranslation()

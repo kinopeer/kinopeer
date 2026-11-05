@@ -33,7 +33,7 @@ const MAX_TORRENT_BYTES = 20 * 1024 * 1024
 const MAX_REDIRECTS = 3
 const BENCODE_DICT = 0x64 // "d"
 
-/** What Kinoseed reads from Prowlarr's /api/v1/search results. */
+/** What Kinopeer reads from Prowlarr's /api/v1/search results. */
 interface ProwlarrRelease {
   guid?: string
   title?: string
@@ -189,14 +189,14 @@ async function status(base: string, apiKey: string, _query: URLSearchParams, res
   } satisfies ProwlarrStatus)
 }
 
-/** What Kinoseed reads from Prowlarr's /api/v1/indexer. */
+/** What Kinopeer reads from Prowlarr's /api/v1/indexer. */
 interface ProwlarrIndexer {
   id?: number
   name?: string
   enable?: boolean
 }
 
-/** What Kinoseed reads from Prowlarr's /api/v1/indexerstatus: indexers that have failed lately. */
+/** What Kinopeer reads from Prowlarr's /api/v1/indexerstatus: indexers that have failed lately. */
 interface ProwlarrIndexerStatus {
   indexerId?: number
   /** ISO date until which Prowlarr skips the indexer. */
@@ -311,7 +311,7 @@ export function prowlarrMiddleware(config: ProwlarrConfig): Middleware {
   const handlers: Record<string, Handler> = { search, download, status, failing: failing(config.failingTimeoutMs ?? 5000) }
 
   return (request, response, next) => {
-    const url = new URL(request.url ?? '/', 'http://kinoseed.local')
+    const url = new URL(request.url ?? '/', 'http://kinopeer.local')
     if (!url.pathname.startsWith(PREFIX)) return next()
     void (async () => {
       const apiKey = (await getKey())?.trim()

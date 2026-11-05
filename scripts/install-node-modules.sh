@@ -6,8 +6,8 @@
 # other. The architecture matters because esbuild and rollup install binaries for one platform.
 set -eu
 stamp="$PLAYWRIGHT_IMAGE $(uname -m) $(sha1sum package-lock.json)"
-if [ "$(cat node_modules/.kinoseed-installed 2>/dev/null)" != "$stamp" ]; then
-  rm -f node_modules/.kinoseed-installed
+if [ "$(cat node_modules/.kinopeer-installed 2>/dev/null)" != "$stamp" ]; then
+  rm -f node_modules/.kinopeer-installed
   npm ci --no-audit --no-fund --loglevel=error
-  printf '%s\n' "$stamp" > node_modules/.kinoseed-installed
+  printf '%s\n' "$stamp" > node_modules/.kinopeer-installed
 fi

@@ -1,6 +1,6 @@
 /**
  * The stand for the integration tests (server/integration/, docs/TESTING.md → Integration tests):
- * the real `kinoseedServer()` in front of the fake qBittorrent, TMDB and Prowlarr from ./fakes.ts,
+ * the real `kinopeerServer()` in front of the fake qBittorrent, TMDB and Prowlarr from ./fakes.ts,
  * with a data directory of its own, and the browser's `fetch` stood in for, so the real clients in
  * src/api reach it the way they reach the dev server.
  */
@@ -8,10 +8,10 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vi } from 'vitest'
-import { dataStores, kinoseedServer, type DataStores } from '../main.ts'
+import { dataStores, kinopeerServer, type DataStores } from '../main.ts'
 import { closeServers, fakeProwlarr, fakeQbittorrent, fakeTmdb, listen, serveTmdbProxy } from './fakes.ts'
 
-/** What the Kinoseed server saw of a request from the browser. */
+/** What the Kinopeer server saw of a request from the browser. */
 export interface ReceivedRequest {
   method?: string
   url?: string
@@ -19,7 +19,7 @@ export interface ReceivedRequest {
 }
 
 /**
- * The browser's cookies for Kinoseed's origin: what the server (or a proxy in front of it, like
+ * The browser's cookies for Kinopeer's origin: what the server (or a proxy in front of it, like
  * Umbrel's) set, sent back with every request, the way `credentials: 'same-origin'` does.
  */
 export class CookieJar {
@@ -59,7 +59,7 @@ export interface StandOptions {
   /** false puts the data directory where it can't be created, so every write fails. */
   writableData?: boolean
   /**
-   * Kinoseed's TMDB proxy, the real worker in front of the fake TMDB with `good-key` (or the key
+   * Kinopeer's TMDB proxy, the real worker in front of the fake TMDB with `good-key` (or the key
    * given), at TMDB_PROXY_URL; without it the proxy is off, so no test reaches the real one.
    * `overLimit` has its rate limiter refuse every call.
    */
@@ -67,7 +67,7 @@ export interface StandOptions {
 }
 
 export interface Stand {
-  /** The Kinoseed server's origin; the clients reach it through the stubbed `fetch`. */
+  /** The Kinopeer server's origin; the clients reach it through the stubbed `fetch`. */
   origin: string
   qbittorrent: Awaited<ReturnType<typeof fakeQbittorrent>>
   tmdb: Awaited<ReturnType<typeof fakeTmdb>>
@@ -96,7 +96,7 @@ let current: Stand | undefined
 const browserFetch: typeof fetch = async (input, init) => {
   if (typeof input !== 'string' || !input.startsWith('/')) return realFetch(input, init)
   const stand = current
-  if (!stand) throw new Error('No Kinoseed stand is running')
+  if (!stand) throw new Error('No Kinopeer stand is running')
   const headers = new Headers(init?.headers)
   const cookie = stand.cookies.header()
   if (cookie) headers.set('Cookie', cookie)
@@ -109,9 +109,9 @@ const browserFetch: typeof fetch = async (input, init) => {
 /**
  * Starts the fakes and the real server in front of them, and points the clients at it. A test may
  * start several stands (with different environments); the clients reach the last one. Every
- * stand is torn down by `stopKinoseed()`, which the tests call in afterEach.
+ * stand is torn down by `stopKinopeer()`, which the tests call in afterEach.
  */
-export async function startKinoseed(options: StandOptions = {}): Promise<Stand> {
+export async function startKinopeer(options: StandOptions = {}): Promise<Stand> {
   const [qbittorrent, tmdb, prowlarr] = await Promise.all([
     fakeQbittorrent(options.qbittorrent),
     fakeTmdb(),
@@ -119,7 +119,7 @@ export async function startKinoseed(options: StandOptions = {}): Promise<Stand> 
   ])
   const proxyOptions = options.tmdbProxy === true ? {} : options.tmdbProxy
   const proxy = proxyOptions && (await serveTmdbProxy(tmdb.apiBase, proxyOptions.key ?? 'good-key', proxyOptions))
-  let dataDir = await mkdtemp(join(tmpdir(), 'kinoseed-integration-'))
+  let dataDir = await mkdtemp(join(tmpdir(), 'kinopeer-integration-'))
   dirs.push(dataDir)
   if (options.writableData === false) {
     await writeFile(join(dataDir, 'file'), '')
@@ -134,12 +134,12 @@ export async function startKinoseed(options: StandOptions = {}): Promise<Stand> 
     TMDB_API_KEY: 'good-key',
     TMDB_API_URL: tmdb.apiBase,
     TMDB_PROXY_URL: proxy?.apiBase ?? '',
-    KINOSEED_DATA_DIR: dataDir,
+    KINOPEER_DATA_DIR: dataDir,
     ...options.env,
   }
-  const stores = dataStores(env.KINOSEED_DATA_DIR!)
+  const stores = dataStores(env.KINOPEER_DATA_DIR!)
   await Promise.all([stores.settings.load(), stores.matches.load()])
-  const { routes } = kinoseedServer(env, stores)
+  const { routes } = kinopeerServer(env, stores)
   const received: ReceivedRequest[] = []
   // The production server's chain (server/main.ts) without the static files: the routes in order,
   // then 404, as the dev server's own fallback would answer an unknown API path.
@@ -162,7 +162,7 @@ export async function startKinoseed(options: StandOptions = {}): Promise<Stand> 
 }
 
 /** Closes every stand's servers, restores `fetch` and removes the data directories; for afterEach. */
-export async function stopKinoseed(): Promise<void> {
+export async function stopKinopeer(): Promise<void> {
   current = undefined
   vi.unstubAllGlobals()
   await closeServers()

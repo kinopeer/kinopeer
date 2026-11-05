@@ -21,10 +21,10 @@ describe('API_DENYLIST', () => {
 
 describe('isPosterRequest', () => {
   it('matches posters from the same-origin image proxy only', () => {
-    expect(isPosterRequest({ url: new URL('https://kinoseed.local/tmdb-img/w342/dune.jpg'), sameOrigin: true })).toBe(true)
+    expect(isPosterRequest({ url: new URL('https://kinopeer.local/tmdb-img/w342/dune.jpg'), sameOrigin: true })).toBe(true)
     expect(isPosterRequest({ url: new URL('https://image.tmdb.org/tmdb-img/w342/dune.jpg'), sameOrigin: false })).toBe(false)
-    expect(isPosterRequest({ url: new URL('https://kinoseed.local/tmdb/movie/1'), sameOrigin: true })).toBe(false)
-    expect(isPosterRequest({ url: new URL('https://kinoseed.local/assets/tmdb-img.svg'), sameOrigin: true })).toBe(false)
+    expect(isPosterRequest({ url: new URL('https://kinopeer.local/tmdb/movie/1'), sameOrigin: true })).toBe(false)
+    expect(isPosterRequest({ url: new URL('https://kinopeer.local/assets/tmdb-img.svg'), sameOrigin: true })).toBe(false)
   })
 })
 

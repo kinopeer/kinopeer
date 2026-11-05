@@ -16,7 +16,7 @@ const GUESS = { type: 'tv', id: 2, source: 'guess', version: 2 } as const
 let dir: string
 
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), 'kinoseed-matches-'))
+  dir = await mkdtemp(join(tmpdir(), 'kinopeer-matches-'))
 })
 
 afterEach(async () => {
@@ -24,8 +24,8 @@ afterEach(async () => {
   await rm(dir, { recursive: true, force: true })
 })
 
-/** Kinoseed's side: the middleware under test over `store`. */
-const kinoseed = (store = new MatchesStore(dir)) => serve(matchesMiddleware(store))
+/** Kinopeer's side: the middleware under test over `store`. */
+const kinopeer = (store = new MatchesStore(dir)) => serve(matchesMiddleware(store))
 
 function patch(app: string, body: unknown, contentType = 'application/json') {
   return fetch(`${app}/api/matches`, {
@@ -166,7 +166,7 @@ describe('startMatchesCleanup', () => {
 
 describe('matchesMiddleware', () => {
   it('answers no matches at first, saves new ones to matches.json and answers them all', async () => {
-    const app = await kinoseed()
+    const app = await kinopeer()
     const first = await fetch(`${app}/api/matches`)
     expect(first.headers.get('cache-control')).toBe('no-store')
     expect(await first.json()).toEqual({})
@@ -185,14 +185,14 @@ describe('matchesMiddleware', () => {
   })
 
   it('answers the user’s choice when a guess comes for the same torrent', async () => {
-    const app = await kinoseed()
+    const app = await kinopeer()
     await patch(app, { [A]: { type: 'movie', id: 1, source: 'user' } })
     const response = await patch(app, { [A]: { type: 'movie', id: 2, source: 'guess', version: 2 } })
     expect(await response.json()).toEqual({ [A]: { type: 'movie', id: 1, source: 'user' } })
   })
 
   it('forgets matches set to null', async () => {
-    const app = await kinoseed()
+    const app = await kinopeer()
     await patch(app, { [A]: USER, [B]: GUESS })
     const response = await patch(app, { [A]: null })
     expect(response.status).toBe(200)
@@ -200,7 +200,7 @@ describe('matchesMiddleware', () => {
   })
 
   it('forgets guesses on DELETE', async () => {
-    const app = await kinoseed()
+    const app = await kinopeer()
     await patch(app, {
       [A]: { type: 'movie', id: 1, source: 'user' },
       [B]: { type: 'movie', id: 2, source: 'guess', version: 2 },
@@ -210,7 +210,7 @@ describe('matchesMiddleware', () => {
   })
 
   it('rejects malformed matches and saves none of them', async () => {
-    const app = await kinoseed()
+    const app = await kinopeer()
     const good = { type: 'movie', id: 1, source: 'guess', version: 2 }
     for (const body of [
       [good],
@@ -238,14 +238,14 @@ describe('matchesMiddleware', () => {
   it('says when matches.json can’t be written', async () => {
     // A file where the data directory should be.
     await writeFile(join(dir, 'file'), '')
-    const app = await kinoseed(new MatchesStore(join(dir, 'file', 'data')))
+    const app = await kinopeer(new MatchesStore(join(dir, 'file', 'data')))
     const response = await patch(app, { [A]: { type: 'movie', id: 1, source: 'user' } })
     expect(response.status).toBe(500)
     expect(await response.json()).toEqual({ error: 'storage' })
   })
 
   it('leaves other paths alone', async () => {
-    const app = await kinoseed()
+    const app = await kinopeer()
     expect(await (await fetch(`${app}/api/matches/x`)).text()).toBe('fallback')
     expect(await (await fetch(`${app}/api/settings`)).text()).toBe('fallback')
   })

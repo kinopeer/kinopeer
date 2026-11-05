@@ -9,7 +9,7 @@ import { closeServers, fakeProwlarr, fakeQbittorrent, fakeTmdb, serve } from './
 let dir: string
 
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), 'kinoseed-settings-'))
+  dir = await mkdtemp(join(tmpdir(), 'kinopeer-settings-'))
 })
 
 afterEach(async () => {
@@ -17,8 +17,8 @@ afterEach(async () => {
   await rm(dir, { recursive: true, force: true })
 })
 
-/** Kinoseed's side: the middleware under test, with the environment a test wants. */
-function kinoseed(
+/** Kinopeer's side: the middleware under test, with the environment a test wants. */
+function kinopeer(
   store: SettingsStore,
   options: { envKey?: string; apiBase?: string; proxy?: string; qbittorrentUrl?: string; envUser?: string } = {},
 ) {
@@ -101,7 +101,7 @@ describe('settingsMiddleware: qBittorrent login', () => {
   it('logs in before saving the login, and never echoes it', async () => {
     const qbt = await fakeQbittorrent()
     const store = new SettingsStore(dir)
-    const app = await kinoseed(store, { qbittorrentUrl: `${qbt.base}/`, envUser: 'admin' })
+    const app = await kinopeer(store, { qbittorrentUrl: `${qbt.base}/`, envUser: 'admin' })
     expect(((await (await fetch(`${app}/api/settings`)).json()) as ServerSettings).qbittorrent).toEqual({ configured: true, source: 'env' })
 
     const response = await putLogin(app, { username: ' admin ', password: 'pass word' })
@@ -116,7 +116,7 @@ describe('settingsMiddleware: qBittorrent login', () => {
   it('says why qBittorrent refused, and saves nothing', async () => {
     const qbt = await fakeQbittorrent()
     const store = new SettingsStore(dir)
-    const app = await kinoseed(store, { qbittorrentUrl: qbt.base })
+    const app = await kinopeer(store, { qbittorrentUrl: qbt.base })
 
     const wrong = await putLogin(app, { username: 'admin', password: 'nope' })
     expect(wrong.status).toBe(422)
@@ -129,16 +129,16 @@ describe('settingsMiddleware: qBittorrent login', () => {
 
   it('needs a qBittorrent address and a username', async () => {
     const store = new SettingsStore(dir)
-    expect((await putLogin(await kinoseed(store), { username: 'admin', password: '' })).status).toBe(503)
+    expect((await putLogin(await kinopeer(store), { username: 'admin', password: '' })).status).toBe(503)
     const qbt = await fakeQbittorrent()
-    const app = await kinoseed(store, { qbittorrentUrl: qbt.base })
+    const app = await kinopeer(store, { qbittorrentUrl: qbt.base })
     expect((await putLogin(app, { username: ' ', password: 'x' })).status).toBe(400)
     expect((await putLogin(app, { username: 'admin' })).status).toBe(400)
     expect(qbt.logins()).toBe(0)
   })
 
   it('says when qBittorrent is unreachable', async () => {
-    const app = await kinoseed(new SettingsStore(dir), { qbittorrentUrl: 'http://127.0.0.1:1' })
+    const app = await kinopeer(new SettingsStore(dir), { qbittorrentUrl: 'http://127.0.0.1:1' })
     const response = await putLogin(app, { username: 'admin', password: 'x' })
     expect(response.status).toBe(502)
     expect(await response.json()).toEqual({ error: 'unreachable' })
@@ -148,14 +148,14 @@ describe('settingsMiddleware: qBittorrent login', () => {
 describe('settingsMiddleware', () => {
   it('reports where the TMDB key comes from, never the key', async () => {
     const store = new SettingsStore(dir)
-    expect(await (await fetch(`${await kinoseed(store)}/api/settings`)).json()).toEqual({
+    expect(await (await fetch(`${await kinopeer(store)}/api/settings`)).json()).toEqual({
       tmdb: { configured: false, source: null, fallback: null },
       prowlarr: { configured: false, source: null, serverKey: false },
       qbittorrent: { configured: false, source: null },
       downloads: null,
     })
 
-    const withEnv = await kinoseed(store, { envKey: 'env-key' })
+    const withEnv = await kinopeer(store, { envKey: 'env-key' })
     const response = await fetch(`${withEnv}/api/settings`)
     expect(response.headers.get('cache-control')).toBe('no-store')
     const text = await response.text()
@@ -168,16 +168,16 @@ describe('settingsMiddleware', () => {
     expect(text).not.toContain('env-key')
   })
 
-  it('reports Kinoseed’s key while the server has none of its own and a proxy to use', async () => {
+  it('reports Kinopeer’s key while the server has none of its own and a proxy to use', async () => {
     const store = new SettingsStore(dir)
-    const app = await kinoseed(store, { proxy: 'https://proxy.test/3' })
+    const app = await kinopeer(store, { proxy: 'https://proxy.test/3' })
     const tmdbStatus = async (url: string) => ((await (await fetch(`${url}/api/settings`)).json()) as { tmdb: unknown }).tmdb
 
     expect(await tmdbStatus(app)).toEqual({ configured: true, source: 'shared', fallback: 'shared' })
     // A blank key in a hand-edited settings.json isn't used (tmdbKey), so it isn't reported either.
     await store.update({ tmdbApiKey: '  ' })
     expect(await tmdbStatus(app)).toEqual({ configured: true, source: 'shared', fallback: 'shared' })
-    expect(await tmdbStatus(await kinoseed(store, { proxy: 'https://proxy.test/3', envKey: 'env-key' }))).toEqual({
+    expect(await tmdbStatus(await kinopeer(store, { proxy: 'https://proxy.test/3', envKey: 'env-key' }))).toEqual({
       configured: true,
       source: 'env',
       fallback: 'env',
@@ -191,12 +191,12 @@ describe('settingsMiddleware', () => {
       fetch(`${app}/api/settings/tmdb`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } })
 
     it.each([
-      ['Kinoseed’s key', { proxy: 'https://proxy.test/3' }, { configured: true, source: 'shared', fallback: 'shared' }],
+      ['Kinopeer’s key', { proxy: 'https://proxy.test/3' }, { configured: true, source: 'shared', fallback: 'shared' }],
       ['TMDB_API_KEY, even with the proxy on', { proxy: 'https://proxy.test/3', envKey: 'env-key' }, { configured: true, source: 'env', fallback: 'env' }],
     ] as const)('goes back to %s', async (_name, options, expected) => {
       const store = new SettingsStore(dir)
       await store.update({ tmdbApiKey: 'saved-key', prowlarrApiKey: 'prowlarr-key' })
-      const app = await kinoseed(store, options)
+      const app = await kinopeer(store, options)
 
       const response = await forget(app)
 
@@ -210,7 +210,7 @@ describe('settingsMiddleware', () => {
       const store = new SettingsStore(dir)
       await store.update({ tmdbApiKey: 'saved-key' })
       // A blank TMDB_API_KEY and the proxy turned off (TMDB_PROXY_URL set empty) are no fallback.
-      const app = await kinoseed(store, { envKey: '  ', proxy: '' })
+      const app = await kinopeer(store, { envKey: '  ', proxy: '' })
       expect((((await (await fetch(`${app}/api/settings`)).json()) as ServerSettings).tmdb)).toEqual({
         configured: true,
         source: 'saved',
@@ -227,7 +227,7 @@ describe('settingsMiddleware', () => {
     it('forgets the key only on a request marked as JSON', async () => {
       const store = new SettingsStore(dir)
       await store.update({ tmdbApiKey: 'saved-key' })
-      const app = await kinoseed(store, { envKey: 'env-key' })
+      const app = await kinopeer(store, { envKey: 'env-key' })
 
       expect((await fetch(`${app}/api/settings/tmdb`, { method: 'DELETE' })).status).toBe(415)
       expect(tmdbKey(store, 'env-key')).toBe('saved-key')
@@ -237,7 +237,7 @@ describe('settingsMiddleware', () => {
   it('checks a new key with TMDB before saving it', async () => {
     const tmdb = await fakeTmdb()
     const store = new SettingsStore(dir)
-    const app = await kinoseed(store, { envKey: 'env-key', apiBase: tmdb.apiBase })
+    const app = await kinopeer(store, { envKey: 'env-key', apiBase: tmdb.apiBase })
 
     const response = await putKey(app, ' good-key ')
 
@@ -250,7 +250,7 @@ describe('settingsMiddleware', () => {
   it('accepts a v4 read access token', async () => {
     const tmdb = await fakeTmdb()
     const store = new SettingsStore(dir)
-    const app = await kinoseed(store, { apiBase: tmdb.apiBase })
+    const app = await kinopeer(store, { apiBase: tmdb.apiBase })
 
     expect((await putKey(app, 'eyJgood')).status).toBe(200)
     expect(tmdbKey(store, undefined)).toBe('eyJgood')
@@ -260,7 +260,7 @@ describe('settingsMiddleware', () => {
     const tmdb = await fakeTmdb()
     const store = new SettingsStore(dir)
     await store.update({ tmdbApiKey: 'old-key' })
-    const app = await kinoseed(store, { apiBase: tmdb.apiBase })
+    const app = await kinopeer(store, { apiBase: tmdb.apiBase })
 
     const response = await putKey(app, 'wrong-key')
 
@@ -270,7 +270,7 @@ describe('settingsMiddleware', () => {
   })
 
   it('says when TMDB is unreachable', async () => {
-    const app = await kinoseed(new SettingsStore(dir), { apiBase: 'http://127.0.0.1:1/3' })
+    const app = await kinopeer(new SettingsStore(dir), { apiBase: 'http://127.0.0.1:1/3' })
     const response = await putKey(app, 'good-key')
     expect(response.status).toBe(502)
     expect(await response.json()).toEqual({ error: 'unreachable' })
@@ -278,7 +278,7 @@ describe('settingsMiddleware', () => {
 
   it('rejects malformed requests', async () => {
     const tmdb = await fakeTmdb()
-    const app = await kinoseed(new SettingsStore(dir), { apiBase: tmdb.apiBase })
+    const app = await kinopeer(new SettingsStore(dir), { apiBase: tmdb.apiBase })
 
     expect((await putKey(app, '')).status).toBe(400)
     expect((await putKey(app, 42)).status).toBe(400)
@@ -290,7 +290,7 @@ describe('settingsMiddleware', () => {
   })
 
   it('leaves other paths alone', async () => {
-    const app = await kinoseed(new SettingsStore(dir))
+    const app = await kinopeer(new SettingsStore(dir))
     expect(await (await fetch(`${app}/api/settingsx`)).text()).toBe('fallback')
     expect(await (await fetch(`${app}/settings`)).text()).toBe('fallback')
   })
@@ -307,7 +307,7 @@ function patchDownloads(app: string, body: unknown, contentType = 'application/j
 describe('settingsMiddleware: download defaults', () => {
   it('saves only the defaults sent, so changes from two devices both stay', async () => {
     const store = new SettingsStore(dir)
-    const app = await kinoseed(store)
+    const app = await kinopeer(store)
 
     const first = await patchDownloads(app, { movieCategory: 'Movies', startPaused: true })
     expect(first.status).toBe(200)
@@ -325,7 +325,7 @@ describe('settingsMiddleware: download defaults', () => {
   it('keeps the secrets next to them', async () => {
     const store = new SettingsStore(dir)
     await store.update({ tmdbApiKey: 'abc' })
-    const app = await kinoseed(store)
+    const app = await kinopeer(store)
 
     await patchDownloads(app, { tvCategory: 'TV Shows' })
 
@@ -335,7 +335,7 @@ describe('settingsMiddleware: download defaults', () => {
 
   it('rejects unknown fields, wrong types and other methods, and saves nothing', async () => {
     const store = new SettingsStore(dir)
-    const app = await kinoseed(store)
+    const app = await kinopeer(store)
 
     for (const body of [
       { theme: 'dark' },
@@ -359,7 +359,7 @@ describe('settingsMiddleware: download defaults', () => {
 
   it('says when the data directory is not writable', async () => {
     await writeFile(join(dir, 'file'), '')
-    const app = await kinoseed(new SettingsStore(join(dir, 'file', 'nested')))
+    const app = await kinopeer(new SettingsStore(join(dir, 'file', 'nested')))
     const response = await patchDownloads(app, { startPaused: true })
     expect(response.status).toBe(500)
     expect(await response.json()).toEqual({ error: 'storage' })

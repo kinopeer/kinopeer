@@ -8,18 +8,18 @@ COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
 # Edge builds pass the short commit, which Settings → About shows after the version (vite.config.ts).
-ARG KINOSEED_COMMIT=""
+ARG KINOPEER_COMMIT=""
 RUN npm run build && rm server/*.test.ts
 
 # Runtime: Node runs server/*.ts directly (type stripping), so no node_modules are needed.
 FROM node:24-alpine
-# Edge builds pass the edge worker of Kinoseed's TMDB proxy; empty, the server uses the released
+# Edge builds pass the edge worker of Kinopeer's TMDB proxy; empty, the server uses the released
 # versions' (server/main.ts → tmdbProxy). TMDB_PROXY_URL at run time replaces either.
-ARG KINOSEED_TMDB_PROXY=""
-ENV KINOSEED_TMDB_PROXY=$KINOSEED_TMDB_PROXY
+ARG KINOPEER_TMDB_PROXY=""
+ENV KINOPEER_TMDB_PROXY=$KINOPEER_TMDB_PROXY
 ENV NODE_ENV=production \
     PORT=8080 \
-    KINOSEED_DATA_DIR=/data
+    KINOPEER_DATA_DIR=/data
 WORKDIR /app
 COPY --from=build /app/package.json ./
 COPY --from=build /app/server ./server

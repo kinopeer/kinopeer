@@ -1,4 +1,4 @@
-// Outline icon paths from the Kinoseed design system: 24px grid, drawn for a 1.8px stroke.
+// Outline icon paths from the Kinopeer design system: 24px grid, drawn for a 1.8px stroke.
 export const ICONS = {
   download: 'M12 4v11M7 10l5 5 5-5M5 20h14',
   upload: 'M12 20V9M7 14l5-5 5 5M5 4h14',

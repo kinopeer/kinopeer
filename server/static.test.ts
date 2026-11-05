@@ -12,14 +12,14 @@ let app: string
 const script = `console.log(${JSON.stringify('x'.repeat(4000))})`
 
 beforeAll(async () => {
-  root = await mkdtemp(join(tmpdir(), 'kinoseed-static-'))
+  root = await mkdtemp(join(tmpdir(), 'kinopeer-static-'))
   await mkdir(join(root, 'assets'))
   await mkdir(join(root, 'icons'))
-  await writeFile(join(root, 'index.html'), '<!doctype html><title>Kinoseed</title>')
+  await writeFile(join(root, 'index.html'), '<!doctype html><title>Kinopeer</title>')
   await writeFile(join(root, 'sw.js'), 'self.skipWaiting()')
   await writeFile(join(root, 'assets', 'index-abc123.js'), script)
   await writeFile(join(root, 'icons', 'icon-192.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47]))
-  await writeFile(join(tmpdir(), 'kinoseed-secret.txt'), 'secret')
+  await writeFile(join(tmpdir(), 'kinopeer-secret.txt'), 'secret')
 
   app = await serve(staticMiddleware({ root }))
 })
@@ -47,7 +47,7 @@ describe('staticMiddleware', () => {
       expect(response.status, path).toBe(200)
       expect(response.headers['content-type']).toBe('text/html; charset=utf-8')
       expect(response.headers['cache-control']).toBe('no-cache')
-      expect(response.body.toString()).toContain('<title>Kinoseed</title>')
+      expect(response.body.toString()).toContain('<title>Kinopeer</title>')
     }
   })
 
@@ -82,7 +82,7 @@ describe('staticMiddleware', () => {
   it('passes on missing files and paths outside the build', async () => {
     expect((await get('/assets/index-gone.js')).body.toString()).toBe('fallback')
     expect((await get('/favicon.ico')).body.toString()).toBe('fallback')
-    expect((await get('/..%2fkinoseed-secret.txt')).body.toString()).toBe('fallback')
+    expect((await get('/..%2fkinopeer-secret.txt')).body.toString()).toBe('fallback')
     expect((await get('/%E0%A4%A')).body.toString()).toBe('fallback')
   })
 })

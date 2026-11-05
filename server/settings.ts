@@ -18,7 +18,7 @@ import { checkTmdbKey } from './tmdb.ts'
 
 /**
  * Settings the user enters in the app and the server keeps: the TMDB key, the Prowlarr key, the
- * qBittorrent login and the download defaults. They live in settings.json in the data directory ($KINOSEED_DATA_DIR,
+ * qBittorrent login and the download defaults. They live in settings.json in the data directory ($KINOPEER_DATA_DIR,
  * /data in the Docker image), readable only by the server. A saved secret wins over the matching
  * environment variables, which stay as the defaults (the Umbrel package sets qBittorrent's) and for
  * development.
@@ -26,7 +26,7 @@ import { checkTmdbKey } from './tmdb.ts'
  * GET /api/settings → ServerSettings (only whether each secret is set, never its value)
  * PUT /api/settings/tmdb { apiKey } → checks the key with TMDB, saves it, answers ServerSettings
  * PUT /api/settings/prowlarr { apiKey } → checks the key with Prowlarr, saves it, answers ServerSettings
- * DELETE /api/settings/tmdb → forgets the saved key, so TMDB_API_KEY or Kinoseed's key applies again;
+ * DELETE /api/settings/tmdb → forgets the saved key, so TMDB_API_KEY or Kinopeer's key applies again;
  *   refused (409) when neither would
  * DELETE /api/settings/prowlarr → forgets the saved key, so the environment's or config.xml's applies
  *   again; refused (409) when the server has no key of its own
@@ -61,7 +61,7 @@ export interface SettingsConfig {
   store: SettingsStore
   /** TMDB_API_KEY from the environment, the fallback. */
   envTmdbApiKey?: string
-  /** Kinoseed's TMDB proxy, which serves calls without a key (server/tmdb.ts); none to turn it off. */
+  /** Kinopeer's TMDB proxy, which serves calls without a key (server/tmdb.ts); none to turn it off. */
   tmdbProxy?: string
   /** PROWLARR_URL, to check a key before saving it. */
   prowlarrUrl?: string
@@ -124,12 +124,12 @@ function status(saved: string | undefined, env: string | undefined): SecretStatu
   return { configured: source !== null, source }
 }
 
-/** What serves TMDB without a saved key: TMDB_API_KEY, else Kinoseed's key behind its proxy. */
+/** What serves TMDB without a saved key: TMDB_API_KEY, else Kinopeer's key behind its proxy. */
 function tmdbFallback(config: SettingsConfig): TmdbFallback | null {
   return config.envTmdbApiKey?.trim() ? 'env' : config.tmdbProxy ? 'shared' : null
 }
 
-/** Kinoseed's key counts as a key, so onboarding doesn't ask for one; the user's own still wins. */
+/** Kinopeer's key counts as a key, so onboarding doesn't ask for one; the user's own still wins. */
 function tmdbStatus(saved: string | undefined, config: SettingsConfig): ServerSettings['tmdb'] {
   const fallback = tmdbFallback(config)
   const source = saved?.trim() ? 'saved' : fallback
@@ -162,7 +162,7 @@ async function save(config: SettingsConfig, response: ServerResponse, saving: Pr
     const stored = await saving
     sendJson(response, 200, await snapshot(stored, config))
   } catch {
-    console.warn('[kinoseed] could not write settings.json; is the data directory writable?')
+    console.warn('[kinopeer] could not write settings.json; is the data directory writable?')
     fail(response, 500, 'storage')
   }
 }
@@ -187,7 +187,7 @@ async function saveTmdbKey(config: SettingsConfig, request: IncomingMessage, res
   await save(config, response, config.store.update({ tmdbApiKey: apiKey.trim() }))
 }
 
-/** Forgets the saved key, only when something else would serve TMDB, so Kinoseed is never left without it. */
+/** Forgets the saved key, only when something else would serve TMDB, so Kinopeer is never left without it. */
 async function forgetTmdbKey(config: SettingsConfig, _request: IncomingMessage, response: ServerResponse) {
   if (!tmdbFallback(config)) return fail(response, 409, 'no-server-key')
   await save(config, response, config.store.update({ tmdbApiKey: undefined }))
@@ -290,7 +290,7 @@ async function saveDownloadDefaults(config: SettingsConfig, request: IncomingMes
 
 export function settingsMiddleware(config: SettingsConfig): Middleware {
   return (request, response, next) => {
-    const path = new URL(request.url ?? '/', 'http://kinoseed.local').pathname
+    const path = new URL(request.url ?? '/', 'http://kinopeer.local').pathname
     if (path !== PREFIX && !path.startsWith(`${PREFIX}/`)) return next()
 
     if (path === PREFIX && request.method === 'GET') {

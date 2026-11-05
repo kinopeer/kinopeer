@@ -7,14 +7,14 @@
  * reloads when it differs and nothing is open.
  */
 
-/** The built app's version, a static file, so it works without Kinoseed's server. */
+/** The built app's version, a static file, so it works without Kinopeer's server. */
 export const VERSION_URL = '/version.json'
 
 /** How long to wait for a new service worker to take over before trying on the next return. */
 export const TAKEOVER_TIMEOUT_MS = 10_000
 
 /** The version this session last reloaded for: once per version, so a page that stays old doesn't reload in a loop. */
-const RELOADED_FOR_KEY = 'kinoseed.reloadedFor'
+const RELOADED_FOR_KEY = 'kinopeer.reloadedFor'
 
 async function serverVersion(): Promise<string | null> {
   try {

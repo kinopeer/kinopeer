@@ -1,4 +1,4 @@
-/** The subset of TMDB API v3 fields Kinoseed uses. */
+/** The subset of TMDB API v3 fields Kinopeer uses. */
 
 export type MediaType = 'movie' | 'tv'
 

@@ -73,7 +73,7 @@ describe('ConnectScreen', () => {
     await userEvent.click(within(screen.getByRole('group', { name: 'Language' })).getByRole('button', { name: 'Русский' }))
     expect(screen.getByRole('heading', { name: 'Подключите qBittorrent', level: 1 })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Русский' })).toHaveAttribute('aria-pressed', 'true')
-    expect(localStorage.getItem('kinoseed.language')).toBe('ru')
+    expect(localStorage.getItem('kinopeer.language')).toBe('ru')
     expect(screen.getByRole('button', { name: 'Светлая' })).toHaveAttribute('aria-pressed', 'true')
   })
 
@@ -83,6 +83,6 @@ describe('ConnectScreen', () => {
     expect(language.getByRole('button', { name: 'English' })).toHaveAttribute('aria-pressed', 'true')
 
     await userEvent.click(language.getByRole('button', { name: 'English' }))
-    expect(localStorage.getItem('kinoseed.language')).toBeNull()
+    expect(localStorage.getItem('kinopeer.language')).toBeNull()
   })
 })

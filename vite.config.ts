@@ -4,7 +4,7 @@ import { resolve } from 'node:path'
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
-import { TMDB_PROXY_EDGE, dataStores, kinoseedServer, type KinoseedServer } from './server/main.ts'
+import { TMDB_PROXY_EDGE, dataStores, kinopeerServer, type KinopeerServer } from './server/main.ts'
 
 /**
  * The PWA: web app manifest and a service worker (src/sw.ts) that precaches the app shell. Icons
@@ -18,8 +18,8 @@ const pwa = VitePWA({
   injectRegister: 'script-defer',
   manifest: {
     id: '/',
-    name: 'Kinoseed',
-    short_name: 'Kinoseed',
+    name: 'Kinopeer',
+    short_name: 'Kinopeer',
     description: 'Find movies and series, pick a release and download it with qBittorrent.',
     start_url: '/',
     scope: '/',
@@ -43,13 +43,13 @@ const pwa = VitePWA({
  * /tmdb-img/*) and runs its jobs in `vite` and `vite preview`, as the production server
  * (server/main.ts) does. Nothing runs in `vite build`.
  */
-function serverRoutesPlugin(kinoseed: KinoseedServer): Plugin {
-  const serve = (server: { middlewares: { use: (middleware: KinoseedServer['routes'][number]) => unknown }; httpServer: { once: (event: 'close', listener: () => void) => unknown } | null }) => {
-    kinoseed.routes.forEach((middleware) => server.middlewares.use(middleware))
-    const stopJobs = kinoseed.startJobs()
+function serverRoutesPlugin(kinopeer: KinopeerServer): Plugin {
+  const serve = (server: { middlewares: { use: (middleware: KinopeerServer['routes'][number]) => unknown }; httpServer: { once: (event: 'close', listener: () => void) => unknown } | null }) => {
+    kinopeer.routes.forEach((middleware) => server.middlewares.use(middleware))
+    const stopJobs = kinopeer.startJobs()
     server.httpServer?.once('close', stopJobs)
   }
-  return { name: 'kinoseed-server', configureServer: serve, configurePreviewServer: serve }
+  return { name: 'kinopeer-server', configureServer: serve, configurePreviewServer: serve }
 }
 
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }
@@ -61,7 +61,7 @@ const { version } = JSON.parse(readFileSync(new URL('./package.json', import.met
  */
 function versionFilePlugin(appVersion: string): Plugin {
   return {
-    name: 'kinoseed-version-file',
+    name: 'kinopeer-version-file',
     apply: 'build',
     generateBundle() {
       this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ version: appVersion }) })
@@ -72,8 +72,8 @@ function versionFilePlugin(appVersion: string): Plugin {
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const stores = dataStores(resolve(env.KINOSEED_DATA_DIR || 'data'))
-  const appVersion = env.KINOSEED_COMMIT ? `${version}+${env.KINOSEED_COMMIT}` : version
+  const stores = dataStores(resolve(env.KINOPEER_DATA_DIR || 'data'))
+  const appVersion = env.KINOPEER_COMMIT ? `${version}+${env.KINOPEER_COMMIT}` : version
   void stores.settings.load()
 
   return {
@@ -86,7 +86,7 @@ export default defineConfig(({ mode }) => {
       versionFilePlugin(appVersion),
       // A checkout runs main's code, which only the edge worker of the TMDB proxy keeps up with: the
       // release worker gets a new path at the release (docs/DEVELOPMENT.md → The TMDB proxy).
-      serverRoutesPlugin(kinoseedServer({ KINOSEED_TMDB_PROXY: TMDB_PROXY_EDGE, ...env }, stores)),
+      serverRoutesPlugin(kinopeerServer({ KINOPEER_TMDB_PROXY: TMDB_PROXY_EDGE, ...env }, stores)),
     ],
     test: {
       // One time zone everywhere, so a test that reads local time passes in any machine's local

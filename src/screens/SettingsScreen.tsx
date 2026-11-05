@@ -279,7 +279,7 @@ export function SettingsScreen() {
             icon="film"
             status={connectionStatus(
               tmdb,
-              // Kinoseed's own key, behind its proxy: said, so the user knows a key of their own is optional.
+              // Kinopeer's own key, behind its proxy: said, so the user knows a key of their own is optional.
               () => ({ message: sharedTmdbKey ? t('settings.connectedSharedKey') : t('settings.connected') }),
               (error) => (error instanceof TmdbKeyError ? t('settings.tmdbKey') : t('settings.tmdbError')),
             )}

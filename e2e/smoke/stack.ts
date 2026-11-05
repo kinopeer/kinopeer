@@ -66,7 +66,7 @@ async function start(options: ResetOptions): Promise<Stand> {
   ])
   qbittorrent.files.set(SHOGUN_HASH, torrentFiles())
 
-  const dataDir = await mkdtemp(join(tmpdir(), 'kinoseed-smoke-'))
+  const dataDir = await mkdtemp(join(tmpdir(), 'kinopeer-smoke-'))
   if (options.configured !== false) {
     const settings = { tmdbApiKey: TMDB_KEY, qbittorrentUsername: LOGIN.username, qbittorrentPassword: LOGIN.password }
     await writeFile(join(dataDir, 'settings.json'), JSON.stringify(settings))
@@ -81,8 +81,8 @@ async function start(options: ResetOptions): Promise<Stand> {
       PATH: process.env.PATH,
       PORT: String(APP_PORT),
       HOST: '127.0.0.1',
-      KINOSEED_DIST: 'dist',
-      KINOSEED_DATA_DIR: dataDir,
+      KINOPEER_DIST: 'dist',
+      KINOPEER_DATA_DIR: dataDir,
       QBITTORRENT_URL: qbittorrent.base,
       PROWLARR_URL: prowlarr.base,
       PROWLARR_API_KEY: PROWLARR_KEY,

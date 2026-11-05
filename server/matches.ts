@@ -8,7 +8,7 @@ import type { Middleware } from './prowlarr.ts'
  * qBittorrent's tag list stays clean: the user's choice, or a guess a browser made from the release
  * name. They live in matches.json in the data directory, by info hash.
  *
- * A torrent deleted from Kinoseed has its match forgotten right away (PATCH with null). For torrents
+ * A torrent deleted from Kinopeer has its match forgotten right away (PATCH with null). For torrents
  * deleted elsewhere, the server checks qBittorrent's list every hour and forgets a match once its
  * torrent has been gone for a week: qBittorrent may answer with an empty or partial list right
  * after a restart, and a torrent added back within the week keeps its match.
@@ -108,7 +108,7 @@ function validPatch(value: unknown): value is MatchesPatch {
 
 export function matchesMiddleware(store: MatchesStore): Middleware {
   return (request, response, next) => {
-    const path = new URL(request.url ?? '/', 'http://kinoseed.local').pathname
+    const path = new URL(request.url ?? '/', 'http://kinopeer.local').pathname
     if (path !== PATH) return next()
 
     if (request.method === 'GET') {
@@ -130,7 +130,7 @@ async function write(response: Parameters<Middleware>[1], change: () => Promise<
   try {
     sendJson(response, 200, await change())
   } catch {
-    console.warn('[kinoseed] could not write matches.json; is the data directory writable?')
+    console.warn('[kinopeer] could not write matches.json; is the data directory writable?')
     fail(response, 500, 'storage')
   }
 }

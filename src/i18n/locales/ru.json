@@ -1,7 +1,7 @@
 {
   "app": {
     "connecting": "Подключаемся к qBittorrent…",
-    "updated": "Kinoseed обновлён до {{version}}"
+    "updated": "Kinopeer обновлён до {{version}}"
   },
   "theme": {
     "label": "Тема",
@@ -19,7 +19,7 @@
   },
   "connect": {
     "title": "Подключите qBittorrent",
-    "body": "Войдите с логином и паролем от веб-интерфейса qBittorrent. Сервер Kinoseed их запомнит, вводить нужно один раз.",
+    "body": "Войдите с логином и паролем от веб-интерфейса qBittorrent. Сервер Kinopeer их запомнит, вводить нужно один раз.",
     "username": "Логин",
     "password": "Пароль",
     "submit": "Подключить",
@@ -195,7 +195,7 @@
     "errorTitle": "Не удалось загрузить данные TMDB",
     "errorBody": "Проверьте соединение и попробуйте ещё раз.",
     "keyTitle": "TMDB не настроен",
-    "keyBody": "Для поиска нужен ключ TMDB. Введите его один раз, сервер Kinoseed его сохранит.",
+    "keyBody": "Для поиска нужен ключ TMDB. Введите его один раз, сервер Kinopeer его сохранит.",
     "browseEmptyTitle": "Сейчас нечего предложить",
     "browseEmptyBody": "В TMDB сейчас нет подборок. Попробуйте позже или найдите по названию."
   },
@@ -239,10 +239,10 @@
     "prowlarrError": "Prowlarr не отвечает",
     "connected": "Подключено",
     "connectedNoIndexers": "Подключено · нет индексаторов",
-    "connectedSharedKey": "Подключено · ключ Kinoseed",
+    "connectedSharedKey": "Подключено · ключ Kinopeer",
     "tmdbKey": "API-ключ не задан или неверен",
     "tmdbError": "TMDB не отвечает",
-    "connectionsHint": "Адреса сервисов задаются в конфигурации сервера Kinoseed.",
+    "connectionsHint": "Адреса сервисов задаются в конфигурации сервера Kinopeer.",
     "downloadDefaults": "Загрузка по умолчанию",
     "moviesCategory": "Категория фильмов",
     "seriesCategory": "Категория сериалов",
@@ -252,7 +252,7 @@
     "tmdbLanguage": "Названия и описания",
     "tmdbAsApp": "Авто",
     "about": "О приложении",
-    "version": "Версия Kinoseed",
+    "version": "Версия Kinopeer",
     "qbtVersion": "Версия qBittorrent",
     "prowlarrVersion": "Версия Prowlarr",
     "indexers": "Индексаторы Prowlarr",
@@ -261,12 +261,12 @@
     "clearCacheHint": "Заново сопоставит торренты с фильмами в TMDB",
     "cacheCleared": "Кэш очищен",
     "installApp": "Установить приложение",
-    "installAppHint": "Добавить Kinoseed на экран «Домой» или в Dock",
+    "installAppHint": "Добавить Kinopeer на экран «Домой» или в Dock",
     "ideas": "Предложить идею",
     "ideasHint": "В Discussions на GitHub, где за идеи голосуют",
     "reportBug": "Сообщить об ошибке",
     "reportBugHint": "Issue на GitHub с шагами и версиями",
-    "sourceCode": "Kinoseed на GitHub",
+    "sourceCode": "Kinopeer на GitHub",
     "sourceCodeHint": "Исходный код, релизы и список изменений",
     "opensInNewTab": "(откроется в новой вкладке)",
     "tmdbSource": "Данные о фильмах и сериалах и постеры берутся из TMDB.",
@@ -325,9 +325,9 @@
     "noMatchBody": "Под эти фильтры не подходит ни одна раздача.",
     "resetFilters": "Сбросить фильтры",
     "setupTitle": "Prowlarr не подключён",
-    "setupBody": "Задайте PROWLARR_URL и PROWLARR_API_KEY на сервере Kinoseed и проверьте ключ в Prowlarr → Settings → General.",
+    "setupBody": "Задайте PROWLARR_URL и PROWLARR_API_KEY на сервере Kinopeer и проверьте ключ в Prowlarr → Settings → General.",
     "errorTitle": "Prowlarr не отвечает",
-    "errorBody": "Проверьте, что Prowlarr запущен и доступен с сервера Kinoseed.",
+    "errorBody": "Проверьте, что Prowlarr запущен и доступен с сервера Kinopeer.",
     "colRelease": "Раздача",
     "colSize": "Размер",
     "colSeeds": "Сиды",
@@ -449,7 +449,7 @@
     "searchLabel": "Поиск в TMDB",
     "current": "Сейчас",
     "nothingFound": "Ничего не найдено",
-    "hint": "Выбор сохранится на сервере Kinoseed и будет виден на всех устройствах.",
+    "hint": "Выбор сохранится на сервере Kinopeer и будет виден на всех устройствах.",
     "saveFailed": "Не удалось сохранить выбор. Попробуйте ещё раз.",
     "changed": "Выбор сохранён",
     "confirmed": "Совпадение подтверждено"
@@ -459,7 +459,7 @@
     "updated": "Обновлено {{ago}} · действия недоступны",
     "retrying": "Переподключаемся автоматически",
     "unreachableTitle": "qBittorrent недоступен",
-    "unreachableBody": "Проверьте, что qBittorrent запущен и сервер Kinoseed может до него достучаться. Переподключаемся автоматически.",
+    "unreachableBody": "Проверьте, что qBittorrent запущен и сервер Kinopeer может до него достучаться. Переподключаемся автоматически.",
     "reconnected": "Снова на связи с qBittorrent"
   },
   "poll": {
@@ -471,11 +471,11 @@
   },
   "crash": {
     "title": "Что-то пошло не так",
-    "body": "В Kinoseed произошла непредвиденная ошибка. Перезагрузите страницу, чтобы продолжить.",
+    "body": "В Kinopeer произошла непредвиденная ошибка. Перезагрузите страницу, чтобы продолжить.",
     "reload": "Перезагрузить"
   },
   "install": {
-    "title": "Установите Kinoseed",
+    "title": "Установите Kinopeer",
     "body": "Полный экран и быстрый запуск, как у обычного приложения.",
     "action": "Установить",
     "iosHow": "У вас iPhone?",
@@ -485,40 +485,40 @@
       "subtitle": "iPhone и iPad",
       "share": "Нажмите «Поделиться» в панели Safari",
       "add": "Выберите «На экран „Домой“»",
-      "confirm": "Нажмите «Добавить», и Kinoseed откроется на весь экран"
+      "confirm": "Нажмите «Добавить», и Kinopeer откроется на весь экран"
     },
     "mac": {
       "title": "Добавить в Dock",
       "subtitle": "Safari на Mac",
       "share": "Нажмите «Поделиться» в панели Safari",
       "add": "Выберите «Добавить в Dock»",
-      "confirm": "Нажмите «Добавить», и Kinoseed откроется в отдельном окне"
+      "confirm": "Нажмите «Добавить», и Kinopeer откроется в отдельном окне"
     },
     "gotIt": "Понятно"
   },
   "tmdbKey": {
     "title": "Подключите TMDB",
-    "body": "Постеры, поиск и описания берутся из The Movie Database. Нужен бесплатный API-ключ (v3) или токен доступа. Ключ хранится на сервере Kinoseed.",
+    "body": "Постеры, поиск и описания берутся из The Movie Database. Нужен бесплатный API-ключ (v3) или токен доступа. Ключ хранится на сервере Kinopeer.",
     "help": "Ключ бесплатный: войдите на themoviedb.org и скопируйте «Ключ API» или «Токен доступа к API».",
     "helpLink": "Открыть настройки API TMDB",
     "label": "Ключ API или токен доступа",
-    "fieldHelp": "Kinoseed проверит его в TMDB перед сохранением.",
+    "fieldHelp": "Kinopeer проверит его в TMDB перед сохранением.",
     "save": "Сохранить",
     "skip": "Пропустить",
     "invalid": "TMDB не принял этот ключ",
     "unreachable": "TMDB не отвечает. Попробуйте чуть позже.",
-    "storage": "Сервер Kinoseed не смог сохранить изменение. Проверьте, что папка данных доступна для записи.",
+    "storage": "Сервер Kinopeer не смог сохранить изменение. Проверьте, что папка данных доступна для записи.",
     "failed": "Не удалось сохранить ключ. Попробуйте ещё раз.",
     "saved": "Ключ TMDB сохранён",
     "change": "Сменить ключ TMDB",
     "sheetTitle": "Ключ TMDB",
     "enter": "Ввести ключ",
     "useOwn": "Ввести свой ключ TMDB",
-    "forgetToShared": "Использовать ключ Kinoseed",
+    "forgetToShared": "Использовать ключ Kinopeer",
     "forgetToServer": "Использовать ключ сервера",
-    "forgottenToShared": "Используется ключ TMDB от Kinoseed",
+    "forgottenToShared": "Используется ключ TMDB от Kinopeer",
     "forgottenToServer": "Используется ключ TMDB с сервера",
-    "noFallback": "У Kinoseed нет другого ключа TMDB, поэтому сохранённый остаётся.",
+    "noFallback": "У Kinopeer нет другого ключа TMDB, поэтому сохранённый остаётся.",
     "forgetFailed": "Не удалось забыть ключ. Попробуйте ещё раз."
   },
   "move": {
@@ -546,19 +546,19 @@
   "prowlarrKey": {
     "help": "Ключ есть в Prowlarr: Settings → General → Security → API Key.",
     "label": "API-ключ Prowlarr",
-    "fieldHelp": "Kinoseed проверит его в Prowlarr перед сохранением. Ключ хранится на сервере Kinoseed.",
+    "fieldHelp": "Kinopeer проверит его в Prowlarr перед сохранением. Ключ хранится на сервере Kinopeer.",
     "invalid": "Prowlarr не принял этот ключ",
     "unreachable": "Prowlarr не отвечает. Проверьте, что он запущен, и попробуйте ещё раз.",
-    "notConfigured": "Сервер Kinoseed не знает адрес Prowlarr (PROWLARR_URL).",
+    "notConfigured": "Сервер Kinopeer не знает адрес Prowlarr (PROWLARR_URL).",
     "saved": "Ключ Prowlarr сохранён",
     "change": "Сменить ключ Prowlarr",
     "sheetTitle": "Ключ Prowlarr",
     "forget": "Использовать ключ сервера",
-    "notProwlarr": "Адрес Prowlarr на сервере Kinoseed отвечает, но не как Prowlarr. Проверьте PROWLARR_URL.",
-    "noServerKey": "У сервера Kinoseed нет своего ключа Prowlarr, поэтому сохранённый остаётся.",
+    "notProwlarr": "Адрес Prowlarr на сервере Kinopeer отвечает, но не как Prowlarr. Проверьте PROWLARR_URL.",
+    "noServerKey": "У сервера Kinopeer нет своего ключа Prowlarr, поэтому сохранённый остаётся.",
     "forgotten": "Используется ключ Prowlarr с сервера",
     "save": "Сохранить",
-    "storage": "Сервер Kinoseed не смог сохранить изменение. Проверьте, что папка данных доступна для записи.",
+    "storage": "Сервер Kinopeer не смог сохранить изменение. Проверьте, что папка данных доступна для записи.",
     "failed": "Не удалось сохранить ключ. Попробуйте ещё раз.",
     "forgetFailed": "Не удалось перейти на ключ сервера. Попробуйте ещё раз."
   },

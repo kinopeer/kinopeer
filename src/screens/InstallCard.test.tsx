@@ -28,13 +28,13 @@ afterEach(() => {
 describe('InstallCard', () => {
   it('shows nothing where the app can\'t be installed', () => {
     render(<InstallCard />)
-    expect(screen.queryByRole('heading', { name: 'Install Kinoseed' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Install Kinopeer' })).not.toBeInTheDocument()
   })
 
   it('opens the browser prompt', async () => {
     render(<InstallCard />)
     const event = installPrompt()
-    expect(screen.getByRole('heading', { name: 'Install Kinoseed' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Install Kinopeer' })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Install' }))
     expect(event.prompt).toHaveBeenCalledOnce()
   })
@@ -54,10 +54,10 @@ describe('InstallCard', () => {
     const { unmount } = render(<InstallCard />)
     installPrompt()
     await userEvent.click(screen.getByRole('button', { name: 'Close' }))
-    expect(screen.queryByRole('heading', { name: 'Install Kinoseed' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Install Kinopeer' })).not.toBeInTheDocument()
 
     unmount()
     render(<InstallCard />)
-    expect(screen.queryByRole('heading', { name: 'Install Kinoseed' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Install Kinopeer' })).not.toBeInTheDocument()
   })
 })

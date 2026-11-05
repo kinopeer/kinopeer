@@ -24,7 +24,7 @@ export async function listen(handler: RequestListener): Promise<string> {
 }
 
 /**
- * Kinoseed's TMDB proxy (tmdb-proxy/worker.ts), the real worker served over HTTP in front of
+ * Kinopeer's TMDB proxy (tmdb-proxy/worker.ts), the real worker served over HTTP in front of
  * `tmdbApiBase` with `key` as its secret and a rate limiter that lets everything through, or with
  * `overLimit` refuses everything, as for an IP over its limit: what the Workers runtime does, without
  * its cache. `seen` lists the paths it got.
@@ -51,7 +51,7 @@ export async function closeServers(): Promise<void> {
   await Promise.all(servers.splice(0).map((server) => new Promise((resolve) => server.close(resolve))))
 }
 
-/** Kinoseed's side: a middleware with a 404 fallback like Vite's, so a path it passes on is told apart. */
+/** Kinopeer's side: a middleware with a 404 fallback like Vite's, so a path it passes on is told apart. */
 export function serve(middleware: Middleware): Promise<string> {
   return listen((request, response) =>
     middleware(request, response, () => {
@@ -122,7 +122,7 @@ export const CATEGORIES = {
   'TV Shows': { name: 'TV Shows', savePath: '/downloads/tv' },
 }
 
-/** What the fake qBittorrent answers on /app/preferences: the few fields Kinoseed reads, as qBittorrent's defaults. */
+/** What the fake qBittorrent answers on /app/preferences: the few fields Kinopeer reads, as qBittorrent's defaults. */
 export const PREFERENCES = {
   auto_tmm_enabled: false,
   use_category_paths_in_manual_mode: false,
@@ -364,7 +364,7 @@ const TMDB_BAD_KEYS = new Set(['bad-key', 'Bearer eyJbad'])
  * "bad-key" or the token "eyJbad" is 401; `/3/movie/:id` and `/3/tv/:id` answer the fixtures'
  * details, or TMDB's 404 for a title they don't have; `/3/configuration` is an empty one; `/t/p/*`
  * is a JPEG; `/3/search/multi` answers the fixtures' titles whose name contains the query, when any
- * does; anything else is an empty result list with a tracking cookie, which Kinoseed must not
+ * does; anything else is an empty result list with a tracking cookie, which Kinopeer must not
  * pass on.
  */
 export async function fakeTmdb() {
@@ -442,7 +442,7 @@ function toProwlarr(release: Release, base: string, apiKey: string) {
  * A Prowlarr that needs `apiKey` in X-Api-Key on every API call (401 otherwise) and records what
  * reached it. /api/v1/system/status and /api/v1/indexer (two enabled, one not) serve the status
  * check; /api/v1/indexerstatus answers `indexerStatus`, the indexers that failed lately (none by
- * default), with the fields of Prowlarr's IndexerStatusResource that Kinoseed reads;
+ * default), with the fields of Prowlarr's IndexerStatusResource that Kinopeer reads;
  * /api/v1/search answers `releases`, each with a download link that carries the key, as Prowlarr's
  * do; /api/v1/indexer/1/download serves by its `link`: "shogun" is the Shōgun .torrent
  * from the fixtures, "magnet" redirects to PROWLARR_MAGNET, anything else is 404.

@@ -1,4 +1,6 @@
-# Kinoseed
+# Kinopeer
+
+Kinopeer was called Kinoseed up to version 0.7.
 
 A qBittorrent web UI for movies and TV series. Find a movie or a series, pick a release found by Prowlarr and follow the download, all in one app on your phone or computer.
 
@@ -22,41 +24,41 @@ A qBittorrent web UI for movies and TV series. Find a movie or a series, pick a 
 - **Torrent details.** A file tree with priorities, seeds and peers, ratio, trackers.
 - **Phone and computer.** On a computer: a sidebar, Downloads as a table or a poster grid, torrent details in a side drawer and a title's releases on its page. Russian and English, dark and light themes; when qBittorrent stops answering, you still see the last known state.
 
-Kinoseed doesn't play video and never downloads anything on its own: you pick every release.
+Kinopeer doesn't play video and never downloads anything on its own: you pick every release.
 
 ## Install on Umbrel
 
-Kinoseed currently supports umbrelOS only. It needs the **qBittorrent** and **Prowlarr** apps from the Umbrel App Store.
+Kinopeer currently supports umbrelOS only. It needs the **qBittorrent** and **Prowlarr** apps from the Umbrel App Store.
 
 1. Open **App Store** → the **⋯** menu at the top right → **Community App Stores**.
 2. Paste `https://github.com/MrShakhov/umbrel-homelab-store` → **Add**.
-3. Open **Homelab App Store** → **Kinoseed** → **Install**.
-4. Kinoseed opens at `http://umbrel.local:8795`.
+3. Open **Homelab App Store** → **Kinopeer** → **Install**. Until the first release after the rename it's still listed as **Kinoseed**, at port 8795.
+4. Kinopeer opens at `http://umbrel.local:8797`.
 
 On first launch:
 
-- **qBittorrent** connects on its own with Umbrel's default login. If you changed it, Kinoseed asks for the login once and keeps it on your Umbrel.
-- **TMDB** needs no setup: Kinoseed uses its own key. You can enter your own free [TMDB API key](https://www.themoviedb.org/settings/api) in Settings; it's kept on your Umbrel, and TMDB calls then go to TMDB directly.
-- **Prowlarr** needs no setup: Kinoseed reads its API key itself. Trackers are added as indexers in Prowlarr.
+- **qBittorrent** connects on its own with Umbrel's default login. If you changed it, Kinopeer asks for the login once and keeps it on your Umbrel.
+- **TMDB** needs no setup: Kinopeer uses its own key. You can enter your own free [TMDB API key](https://www.themoviedb.org/settings/api) in Settings; it's kept on your Umbrel, and TMDB calls then go to TMDB directly.
+- **Prowlarr** needs no setup: Kinopeer reads its API key itself. Trackers are added as indexers in Prowlarr.
 
 Umbrel offers updates when a new version is out. What changed is in [CHANGELOG.md](CHANGELOG.md).
 
 ## On your phone
 
-Kinoseed is a web app (PWA). Over plain HTTP on your home network it works in the browser, and on an iPhone or iPad you can add it to the Home Screen from Safari's Share menu to open it full screen. umbrelOS 2.0 also serves it over HTTPS (`https://umbrel.local:8795`): with the Umbrel certificate trusted on your device ([Umbrel's guide](https://umbrel.com/support/basics/accessing-your-umbrel-over-https)), Kinoseed installs as an app on Android and computers too and keeps its shell available offline.
+Kinopeer is a web app (PWA). Over plain HTTP on your home network it works in the browser, and on an iPhone or iPad you can add it to the Home Screen from Safari's Share menu to open it full screen. umbrelOS 2.0 also serves it over HTTPS (`https://umbrel.local:8797`): with the Umbrel certificate trusted on your device ([Umbrel's guide](https://umbrel.com/support/basics/accessing-your-umbrel-over-https)), Kinopeer installs as an app on Android and computers too and keeps its shell available offline.
 
 ## Privacy and security
 
-- The TMDB and Prowlarr keys and the qBittorrent login stay on the Kinoseed server and never reach the browser.
-- Besides your qBittorrent and Prowlarr, Kinoseed only talks to TMDB, and only through its own server. Without a TMDB key of your own, those calls go through Kinoseed's TMDB proxy on Cloudflare, which adds Kinoseed's key and sees your Umbrel's IP address and what you search for; it keeps no logs. With your own key in Settings, they go to TMDB directly. No analytics, no telemetry.
-- Kinoseed never stores tracker logins: that's Prowlarr's job.
-- Kinoseed has no login of its own; on Umbrel, Umbrel's login protects it.
+- The TMDB and Prowlarr keys and the qBittorrent login stay on the Kinopeer server and never reach the browser.
+- Besides your qBittorrent and Prowlarr, Kinopeer only talks to TMDB, and only through its own server. Without a TMDB key of your own, those calls go through Kinopeer's TMDB proxy on Cloudflare, which adds Kinopeer's key and sees your Umbrel's IP address and what you search for; it keeps no logs. With your own key in Settings, they go to TMDB directly. No analytics, no telemetry.
+- Kinopeer never stores tracker logins: that's Prowlarr's job.
+- Kinopeer has no login of its own; on Umbrel, Umbrel's login protects it.
 
 ## Ideas and bugs
 
-- **An idea or a missing feature:** post it in [Discussions → Ideas](https://github.com/MrShakhov/kinoseed/discussions/categories/ideas), or upvote one that's already there.
-- **A bug:** [report it](https://github.com/MrShakhov/kinoseed/issues/new?template=bug_report.yml) with the steps and your versions; Settings → About shows them.
-- **A question about installing or using Kinoseed:** ask in [Discussions → Q&A](https://github.com/MrShakhov/kinoseed/discussions/categories/q-a).
+- **An idea or a missing feature:** post it in [Discussions → Ideas](https://github.com/kinopeer/kinopeer/discussions/categories/ideas), or upvote one that's already there.
+- **A bug:** [report it](https://github.com/kinopeer/kinopeer/issues/new?template=bug_report.yml) with the steps and your versions; Settings → About shows them.
+- **A question about installing or using Kinopeer:** ask in [Discussions → Q&A](https://github.com/kinopeer/kinopeer/discussions/categories/q-a).
 
 ## For developers
 

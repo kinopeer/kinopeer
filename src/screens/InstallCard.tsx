@@ -13,7 +13,7 @@ import { InstallSheet } from './InstallSheet'
 import './Install.css'
 
 /**
- * Offers to install Kinoseed at the top of Downloads until the user installs it or closes the card.
+ * Offers to install Kinopeer at the top of Downloads until the user installs it or closes the card.
  * Chromium shows its own prompt; in Safari the card explains the Share menu steps.
  */
 export function InstallCard() {

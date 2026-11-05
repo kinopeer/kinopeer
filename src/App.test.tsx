@@ -104,7 +104,7 @@ describe('App', () => {
   it('says the app was updated after reloading for a new version', async () => {
     markReloadedFor(__APP_VERSION__)
     renderApp()
-    expect(await findToastOnPage(`Kinoseed updated to ${__APP_VERSION__}`)).toBeInTheDocument()
+    expect(await findToastOnPage(`Kinopeer updated to ${__APP_VERSION__}`)).toBeInTheDocument()
   })
 
   it('says nothing of an update on an ordinary start', async () => {
@@ -112,7 +112,7 @@ describe('App', () => {
     await userEvent.click(await screen.findByRole('link', { name: 'Settings' }))
     // qBittorrent's version, from Settings' check: an answer well after the start, while a toast from it would still show.
     await screen.findByText('5.2.4')
-    expect(screen.queryByRole('status', { name: saying(/Kinoseed updated/) })).not.toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: saying(/Kinopeer updated/) })).not.toBeInTheDocument()
   })
 
   it('navigates between tabs', async () => {
@@ -556,6 +556,6 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Настройки', level: 1 })).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: 'Светлая' })).toBeInTheDocument()
     expect(document.documentElement.lang).toBe('ru')
-    expect(localStorage.getItem('kinoseed.language')).toBe('ru')
+    expect(localStorage.getItem('kinopeer.language')).toBe('ru')
   })
 })

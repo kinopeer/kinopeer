@@ -33,7 +33,7 @@ export function categoryChange(
   if (!torrent.auto_tmm) return { kind: 'manual', folder: torrent.save_path }
   if (!locations.relocateOnCategoryChange) return { kind: 'toManual', folder: torrent.save_path }
   // An incomplete torrent goes to the category's download path instead (`categoryDownloadPath`),
-  // which Kinoseed doesn't place: the files move, to a folder it doesn't name.
+  // which Kinopeer doesn't place: the files move, to a folder it doesn't name.
   if (torrent.progress < 1 && keepsIncomplete(category, locations)) return { kind: 'move', folder: '' }
   // Without a category, qBittorrent's categorySavePath is the default save path itself.
   const folder = category ? categoryFolder(category, locations) : locations.defaultPath

@@ -97,7 +97,7 @@ export function staticMiddleware(config: StaticConfig): Middleware {
     if (request.method !== 'GET' && request.method !== 'HEAD') return next()
     let urlPath: string
     try {
-      urlPath = decodeURIComponent(new URL(request.url ?? '/', 'http://kinoseed.local').pathname)
+      urlPath = decodeURIComponent(new URL(request.url ?? '/', 'http://kinopeer.local').pathname)
     } catch {
       return next()
     }

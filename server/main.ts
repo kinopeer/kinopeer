@@ -16,12 +16,12 @@ import { tmdbMiddleware } from './tmdb.ts'
  *
  *   node server/main.ts
  *
- * PORT (default 8080), HOST (default 0.0.0.0) and KINOSEED_DIST (default ../dist) set where it
- * listens and what it serves; KINOSEED_DATA_DIR (default ./data) is where settings saved from the
+ * PORT (default 8080), HOST (default 0.0.0.0) and KINOPEER_DIST (default ../dist) set where it
+ * listens and what it serves; KINOPEER_DATA_DIR (default ./data) is where settings saved from the
  * app and torrent-to-title matches are kept.
  */
-export function createApp(root: string, kinoseed: KinoseedServer) {
-  return createServer(chain([...kinoseed.routes, staticMiddleware({ root })]))
+export function createApp(root: string, kinopeer: KinopeerServer) {
+  return createServer(chain([...kinopeer.routes, staticMiddleware({ root })]))
 }
 
 /** What the server keeps in its data directory. */
@@ -34,26 +34,26 @@ export function dataStores(dir: string): DataStores {
   return { settings: new SettingsStore(dir), matches: new MatchesStore(dir) }
 }
 
-export interface KinoseedServer {
+export interface KinopeerServer {
   /** The server's own routes, shared with the Vite dev server. */
   routes: Middleware[]
   /** Starts the background jobs (the hourly matches cleanup); returns a function that stops them. */
   startJobs: () => () => void
 }
 
-/** Kinoseed's TMDB proxy for released versions (tmdb-proxy/, docs/DEVELOPMENT.md → The TMDB proxy). */
-export const TMDB_PROXY = 'https://kinoseed-tmdb.kinoseed.workers.dev/3'
+/** Kinopeer's TMDB proxy for released versions (tmdb-proxy/, docs/DEVELOPMENT.md → The TMDB proxy). */
+export const TMDB_PROXY = 'https://tmdb.kinopeer.com/3'
 
 /** Its edge worker, which follows main: edge images bake it in (edge.yml), and the dev server defaults to it. */
-export const TMDB_PROXY_EDGE = 'https://kinoseed-tmdb-edge.kinoseed.workers.dev/3'
+export const TMDB_PROXY_EDGE = 'https://kinopeer-tmdb-edge.kinoseed.workers.dev/3'
 
 /**
  * Where TMDB calls without a key go: TMDB_PROXY_URL, which an empty value turns off, else the
- * proxy the image was built for (KINOSEED_TMDB_PROXY, the edge worker in edge builds), else the
+ * proxy the image was built for (KINOPEER_TMDB_PROXY, the edge worker in edge builds), else the
  * released versions'.
  */
 export function tmdbProxy(env: Record<string, string | undefined>): string | undefined {
-  const url = env.TMDB_PROXY_URL ?? (env.KINOSEED_TMDB_PROXY?.trim() || TMDB_PROXY)
+  const url = env.TMDB_PROXY_URL ?? (env.KINOPEER_TMDB_PROXY?.trim() || TMDB_PROXY)
   return url.trim().replace(/\/+$/, '') || undefined
 }
 
@@ -61,7 +61,7 @@ export function tmdbProxy(env: Record<string, string | undefined>): string | und
 export function missingSettings(env: Record<string, string | undefined>, settings: SettingsStore): string[] {
   const missing = ['QBITTORRENT_URL', 'PROWLARR_URL'].filter((name) => !env[name])
   if (!env.PROWLARR_API_KEY && !env.PROWLARR_CONFIG_XML) missing.push('PROWLARR_API_KEY')
-  // Without a key, Kinoseed's proxy serves TMDB; only with it off is a key missing.
+  // Without a key, Kinopeer's proxy serves TMDB; only with it off is a key missing.
   if (!tmdbKey(settings, env.TMDB_API_KEY) && !tmdbProxy(env)) missing.push('TMDB key (enter it in the app)')
   return missing
 }
@@ -71,9 +71,9 @@ export function missingSettings(env: Record<string, string | undefined>, setting
  * at Prowlarr's config.xml to read its API key from (the Umbrel package mounts it), used when
  * neither a key saved from the app nor PROWLARR_API_KEY is set, TMDB_API_URL and TMDB_IMAGE_URL replace TMDB's API and image
  * addresses (the integration and smoke tests point them at a fake), and TMDB_PROXY_URL replaces
- * Kinoseed's TMDB proxy (`tmdbProxy`).
+ * Kinopeer's TMDB proxy (`tmdbProxy`).
  */
-export function kinoseedServer(env: Record<string, string | undefined>, stores: DataStores): KinoseedServer {
+export function kinopeerServer(env: Record<string, string | undefined>, stores: DataStores): KinopeerServer {
   const store = stores.settings
   const envQbittorrent = { username: env.QBITTORRENT_USERNAME, password: env.QBITTORRENT_PASSWORD }
   const prowlarrConfig = env.PROWLARR_CONFIG_XML
@@ -154,18 +154,18 @@ async function main() {
   const env = process.env
   const port = Number(env.PORT || 8080)
   const host = env.HOST || '0.0.0.0'
-  const root = resolve(env.KINOSEED_DIST || resolve(dirname(fileURLToPath(import.meta.url)), '../dist'))
-  const stores = dataStores(resolve(env.KINOSEED_DATA_DIR || 'data'))
+  const root = resolve(env.KINOPEER_DIST || resolve(dirname(fileURLToPath(import.meta.url)), '../dist'))
+  const stores = dataStores(resolve(env.KINOPEER_DATA_DIR || 'data'))
   await Promise.all([stores.settings.load(), stores.matches.load()])
-  const kinoseed = kinoseedServer(env, stores)
-  const server = createApp(root, kinoseed)
-  const stopJobs = kinoseed.startJobs()
+  const kinopeer = kinopeerServer(env, stores)
+  const server = createApp(root, kinopeer)
+  const stopJobs = kinopeer.startJobs()
   const { version } = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }
 
   server.listen(port, host, () => {
-    console.log(`[kinoseed] ${version} listening on http://${host}:${port}`)
+    console.log(`[kinopeer] ${version} listening on http://${host}:${port}`)
     const missing = missingSettings(env, stores.settings)
-    if (missing.length) console.warn(`[kinoseed] not set: ${missing.join(', ')}`)
+    if (missing.length) console.warn(`[kinopeer] not set: ${missing.join(', ')}`)
   })
 
   // Docker sends SIGTERM on stop: finish open requests instead of waiting to be killed.

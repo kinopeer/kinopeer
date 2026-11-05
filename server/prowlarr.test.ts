@@ -8,8 +8,8 @@ import { closeServers, listen, serve } from './test/fakes.ts'
 
 const KEY = 'secret-key-123'
 
-/** Kinoseed's side: the middleware under test. */
-const kinoseed = (config: ProwlarrConfig) => serve(prowlarrMiddleware(config))
+/** Kinopeer's side: the middleware under test. */
+const kinopeer = (config: ProwlarrConfig) => serve(prowlarrMiddleware(config))
 
 afterEach(closeServers)
 
@@ -62,7 +62,7 @@ describe('failedIds and indexerNames', () => {
 
 describe('prowlarrMiddleware', () => {
   it('passes other paths on and reports a missing configuration', async () => {
-    const base = await kinoseed({})
+    const base = await kinopeer({})
     expect((await fetch(`${base}/qbt/api/v2/app/version`)).status).toBe(404)
     const response = await fetch(`${base}/prowlarr/search?query=dune`)
     expect(response.status).toBe(503)
@@ -70,7 +70,7 @@ describe('prowlarrMiddleware', () => {
   })
 
   it('answers unknown routes, an inherited name included, with 404', async () => {
-    const base = await kinoseed({ url: 'http://127.0.0.1:9', apiKey: KEY })
+    const base = await kinopeer({ url: 'http://127.0.0.1:9', apiKey: KEY })
     for (const route of ['nope', 'constructor', 'toString']) {
       const response = await fetch(`${base}/prowlarr/${route}`)
       expect(response.status, route).toBe(404)
@@ -104,7 +104,7 @@ describe('prowlarrMiddleware', () => {
         ]),
       )
     })
-    const base = await kinoseed({ url: `${prowlarr}/`, apiKey: KEY })
+    const base = await kinopeer({ url: `${prowlarr}/`, apiKey: KEY })
 
     const response = await fetch(`${base}/prowlarr/search?query=Dune&type=movie&categories=2000`)
     const text = await response.text()
@@ -135,7 +135,7 @@ describe('prowlarrMiddleware', () => {
       response.statusCode = 404
       response.end()
     })
-    const response = await fetch(`${await kinoseed({ url: prowlarr, apiKey: KEY })}/prowlarr/status`)
+    const response = await fetch(`${await kinopeer({ url: prowlarr, apiKey: KEY })}/prowlarr/status`)
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ version: '1.24.3', indexers: 2 })
     expect(seen).toEqual([KEY, KEY])
@@ -149,7 +149,7 @@ describe('prowlarrMiddleware', () => {
       response.end(request.url === '/api/v1/indexer' ? '[]' : '{"version":"2.6.5"}')
     })
     let key: string | undefined
-    const base = await kinoseed({ url: prowlarr, apiKey: async () => key })
+    const base = await kinopeer({ url: prowlarr, apiKey: async () => key })
     expect((await fetch(`${base}/prowlarr/status`)).status).toBe(503)
     key = KEY
     expect((await fetch(`${base}/prowlarr/status`)).status).toBe(200)
@@ -161,13 +161,13 @@ describe('prowlarrMiddleware', () => {
       response.statusCode = 401
       response.end()
     })
-    const response = await fetch(`${await kinoseed({ url: prowlarr, apiKey: KEY })}/prowlarr/status`)
+    const response = await fetch(`${await kinopeer({ url: prowlarr, apiKey: KEY })}/prowlarr/status`)
     expect(response.status).toBe(502)
     expect(await response.json()).toEqual({ error: 'unauthorized' })
   })
 
   it('rejects bad search parameters', async () => {
-    const base = await kinoseed({ url: 'http://127.0.0.1:9', apiKey: KEY })
+    const base = await kinopeer({ url: 'http://127.0.0.1:9', apiKey: KEY })
     expect((await fetch(`${base}/prowlarr/search?query=%20`)).status).toBe(400)
     expect((await fetch(`${base}/prowlarr/search?query=a&type=music`)).status).toBe(400)
     expect((await fetch(`${base}/prowlarr/search?query=a&categories=x`)).status).toBe(400)
@@ -178,11 +178,11 @@ describe('prowlarrMiddleware', () => {
       response.statusCode = 401
       response.end()
     })
-    const rejected = await fetch(`${(await kinoseed({ url: prowlarr, apiKey: KEY }))}/prowlarr/search?query=a`)
+    const rejected = await fetch(`${(await kinopeer({ url: prowlarr, apiKey: KEY }))}/prowlarr/search?query=a`)
     expect(rejected.status).toBe(502)
     expect(await rejected.json()).toEqual({ error: 'unauthorized' })
 
-    const down = await fetch(`${(await kinoseed({ url: 'http://127.0.0.1:9', apiKey: KEY }))}/prowlarr/search?query=a`)
+    const down = await fetch(`${(await kinopeer({ url: 'http://127.0.0.1:9', apiKey: KEY }))}/prowlarr/search?query=a`)
     expect(down.status).toBe(502)
     expect(await down.text()).toBe('{"error":"unreachable"}')
   })
@@ -204,7 +204,7 @@ describe('prowlarrMiddleware', () => {
         ),
       )
     })
-    const base = await kinoseed({ url: prowlarr, apiKey: KEY })
+    const base = await kinopeer({ url: prowlarr, apiKey: KEY })
     // The search started 60 s ago: Kinozal failed during it, RuTracker before it.
     const response = await fetch(`${base}/prowlarr/failing?within=60000`)
     expect(response.status).toBe(200)
@@ -225,7 +225,7 @@ describe('prowlarrMiddleware', () => {
       response.setHeader('Content-Type', 'application/json')
       response.end('[]')
     })
-    const response = await fetch(`${await kinoseed({ url: prowlarr, apiKey: KEY })}/prowlarr/failing?within=60000`)
+    const response = await fetch(`${await kinopeer({ url: prowlarr, apiKey: KEY })}/prowlarr/failing?within=60000`)
     expect(await response.json()).toEqual({ indexers: [] })
     expect(seen).toEqual(['/api/v1/indexerstatus'])
   })
@@ -237,11 +237,11 @@ describe('prowlarrMiddleware', () => {
         response.setHeader('Content-Type', 'application/json')
         response.end('[]')
       })
-    const rejected = await fetch(`${await kinoseed({ url: await answering(401), apiKey: KEY })}/prowlarr/failing?within=0`)
+    const rejected = await fetch(`${await kinopeer({ url: await answering(401), apiKey: KEY })}/prowlarr/failing?within=0`)
     expect(rejected.status).toBe(502)
     expect(await rejected.json()).toEqual({ error: 'unauthorized' })
 
-    const broken = await fetch(`${await kinoseed({ url: await answering(500), apiKey: KEY })}/prowlarr/failing?within=0`)
+    const broken = await fetch(`${await kinopeer({ url: await answering(500), apiKey: KEY })}/prowlarr/failing?within=0`)
     expect(broken.status).toBe(502)
     expect(await broken.json()).toEqual({ error: 'upstream' })
 
@@ -249,7 +249,7 @@ describe('prowlarrMiddleware', () => {
     const hanging = await listen((request, response) => {
       if (request.url !== '/api/v1/indexerstatus') response.end('[]')
     })
-    const slow = await fetch(`${await kinoseed({ url: hanging, apiKey: KEY, failingTimeoutMs: 50 })}/prowlarr/failing?within=0`)
+    const slow = await fetch(`${await kinopeer({ url: hanging, apiKey: KEY, failingTimeoutMs: 50 })}/prowlarr/failing?within=0`)
     expect(slow.status).toBe(502)
     expect(await slow.json()).toEqual({ error: 'unreachable' })
   })
@@ -264,11 +264,11 @@ describe('prowlarrMiddleware', () => {
         }
         response.end(JSON.stringify([{ indexerId: 1, mostRecentFailure: new Date().toISOString() }]))
       })
-    const rejected = await fetch(`${await kinoseed({ url: await listFailing(401), apiKey: KEY })}/prowlarr/failing?within=60000`)
+    const rejected = await fetch(`${await kinopeer({ url: await listFailing(401), apiKey: KEY })}/prowlarr/failing?within=60000`)
     expect(rejected.status).toBe(502)
     expect(await rejected.json()).toEqual({ error: 'unauthorized' })
 
-    const broken = await fetch(`${await kinoseed({ url: await listFailing(500), apiKey: KEY })}/prowlarr/failing?within=60000`)
+    const broken = await fetch(`${await kinopeer({ url: await listFailing(500), apiKey: KEY })}/prowlarr/failing?within=60000`)
     expect(broken.status).toBe(502)
     expect(await broken.json()).toEqual({ error: 'upstream' })
   })
@@ -286,7 +286,7 @@ describe('prowlarrMiddleware', () => {
       ['/api/v1/indexer', '<!doctype html><title>Login</title>'],
       ['/api/v1/indexer', '{"records":[]}'],
     ]) {
-      const response = await fetch(`${await kinoseed({ url: await answering(path, body), apiKey: KEY })}/prowlarr/failing?within=60000`)
+      const response = await fetch(`${await kinopeer({ url: await answering(path, body), apiKey: KEY })}/prowlarr/failing?within=60000`)
       expect(response.status, `${path} ${body}`).toBe(502)
       expect(await response.json()).toEqual({ error: 'upstream' })
     }
@@ -299,7 +299,7 @@ describe('prowlarrMiddleware', () => {
       response.setHeader('Content-Type', 'application/x-bittorrent')
       response.end(Buffer.from('d4:infod4:name4:Duneee'))
     })
-    const base = await kinoseed({ url: prowlarr, apiKey: KEY })
+    const base = await kinopeer({ url: prowlarr, apiKey: KEY })
 
     const token = encodeURIComponent('1/download?link=AAA&file=Dune')
     const response = await fetch(`${base}/prowlarr/download?token=${token}`)
@@ -316,7 +316,7 @@ describe('prowlarrMiddleware', () => {
       response.setHeader('Content-Type', 'text/html')
       response.end('<!doctype html><title>Login</title>')
     })
-    const base = await kinoseed({ url: prowlarr, apiKey: KEY })
+    const base = await kinopeer({ url: prowlarr, apiKey: KEY })
     const response = await fetch(`${base}/prowlarr/download?token=${encodeURIComponent('1/download?link=A')}`)
     expect(response.status).toBe(502)
     expect(await response.json()).toEqual({ error: 'upstream' })
@@ -328,7 +328,7 @@ describe('prowlarrMiddleware', () => {
       response.setHeader('Location', 'magnet:?xt=urn:btih:abc&dn=Dune')
       response.end()
     })
-    const base = await kinoseed({ url: prowlarr, apiKey: KEY })
+    const base = await kinopeer({ url: prowlarr, apiKey: KEY })
     const response = await fetch(`${base}/prowlarr/download?token=${encodeURIComponent('1/download?link=A')}`)
     expect(await response.json()).toEqual({ magnet: 'magnet:?xt=urn:btih:abc&dn=Dune' })
   })
@@ -345,7 +345,7 @@ describe('prowlarrMiddleware', () => {
       response.setHeader('Content-Type', 'application/x-bittorrent')
       response.end(Buffer.from('d4:infod4:name4:Duneee'))
     })
-    const base = await kinoseed({ url: prowlarr, apiKey: KEY })
+    const base = await kinopeer({ url: prowlarr, apiKey: KEY })
     const response = await fetch(`${base}/prowlarr/download?token=${encodeURIComponent('1/download?link=A')}`)
     expect(response.status).toBe(200)
     expect(await response.text()).toBe('d4:infod4:name4:Duneee')
@@ -361,14 +361,14 @@ describe('prowlarrMiddleware', () => {
       response.setHeader('Location', 'ftp://tracker.test/dune.torrent')
       response.end()
     })
-    const base = await kinoseed({ url: prowlarr, apiKey: KEY })
+    const base = await kinopeer({ url: prowlarr, apiKey: KEY })
     const response = await fetch(`${base}/prowlarr/download?token=${encodeURIComponent('1/download?link=A')}`)
     expect(response.status).toBe(502)
     expect(await response.json()).toEqual({ error: 'upstream' })
   })
 
   it('only downloads Prowlarr download links', async () => {
-    const base = await kinoseed({ url: 'http://127.0.0.1:9', apiKey: KEY })
+    const base = await kinopeer({ url: 'http://127.0.0.1:9', apiKey: KEY })
     for (const token of ['api/v1/indexer', '../1/download?link=a', '1/download']) {
       expect((await fetch(`${base}/prowlarr/download?token=${encodeURIComponent(token)}`)).status).toBe(400)
     }
@@ -377,7 +377,7 @@ describe('prowlarrMiddleware', () => {
 
 describe('readProwlarrApiKey', () => {
   it('reads <ApiKey> from Prowlarr’s config.xml', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'kinoseed-prowlarr-'))
+    const dir = await mkdtemp(join(tmpdir(), 'kinopeer-prowlarr-'))
     try {
       const path = join(dir, 'config.xml')
       await writeFile(path, '<Config>\n  <Port>9696</Port>\n  <ApiKey>0123abcd</ApiKey>\n</Config>\n')

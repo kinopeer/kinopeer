@@ -1,7 +1,7 @@
 name: Edge
 
-# Every push to main builds ghcr.io/mrshakhov/kinoseed:edge for the Raspberry Pi and points the
-# Kinoseed Edge app in the edge store at it, so umbrelOS offers it as an update within minutes
+# Every push to main builds ghcr.io/kinopeer/kinopeer:edge for the Raspberry Pi and points the
+# Kinopeer Edge app in the edge store at it, so umbrelOS offers it as an update within minutes
 # (docs/DEVELOPMENT.md → Edge builds).
 on:
   push:
@@ -18,7 +18,7 @@ on:
       - 'src/**'
       - 'server/**'
       - 'public/**'
-      # The TMDB proxy Kinoseed Edge calls goes out with it (docs/DEVELOPMENT.md → The TMDB proxy).
+      # The TMDB proxy Kinopeer Edge calls goes out with it (docs/DEVELOPMENT.md → The TMDB proxy).
       - 'tmdb-proxy/**'
       - .github/workflows/edge.yml
       - .github/workflows/tmdb-proxy.yml
@@ -34,12 +34,12 @@ permissions:
   packages: write
 
 env:
-  IMAGE: ghcr.io/mrshakhov/kinoseed
+  IMAGE: ghcr.io/kinopeer/kinopeer
   STORE: MrShakhov/umbrel-homelab-edge
-  APP: homelab-edge-kinoseed
+  APP: homelab-edge-kinopeer
 
 jobs:
-  # kinoseed-tmdb-edge, before the image, so a path the new build calls is there when it starts.
+  # kinopeer-tmdb-edge, before the image, so a path the new build calls is there when it starts.
   proxy:
     if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/tmdb-proxy.yml
@@ -119,10 +119,10 @@ jobs:
           # The home server is a Raspberry Pi; release images are built for amd64 too.
           platforms: linux/arm64
           push: true
-          # The edge worker the proxy job above deployed: Kinoseed Edge calls it, not the release one.
+          # The edge worker the proxy job above deployed: Kinopeer Edge calls it, not the release one.
           build-args: |
-            KINOSEED_COMMIT=${{ env.COMMIT }}
-            KINOSEED_TMDB_PROXY=https://kinoseed-tmdb-edge.kinoseed.workers.dev/3
+            KINOPEER_COMMIT=${{ env.COMMIT }}
+            KINOPEER_TMDB_PROXY=https://kinopeer-tmdb-edge.kinoseed.workers.dev/3
           tags: |
             ${{ env.IMAGE }}:edge
             ${{ env.IMAGE }}:sha-${{ env.COMMIT }}
@@ -138,7 +138,7 @@ jobs:
           path: store
 
       - if: steps.check.outputs.build == 'true'
-        name: Point Kinoseed Edge at the new image
+        name: Point Kinopeer Edge at the new image
         working-directory: store/${{ env.APP }}
         env:
           IMAGE_REF: ${{ env.IMAGE }}:sha-${{ env.COMMIT }}@${{ steps.build.outputs.digest }}
@@ -147,5 +147,5 @@ jobs:
           yq -i '.services.web.image = strenv(IMAGE_REF)' docker-compose.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -am "Kinoseed Edge $VERSION"
+          git commit -am "Kinopeer Edge $VERSION"
           git push

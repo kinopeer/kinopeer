@@ -44,7 +44,7 @@ describe('ChangeTitleSheet', () => {
     expect(rows[0]).toHaveTextContent('Current')
     expect(rows[1]).not.toHaveAttribute('aria-current')
     expect(rows[1]).toHaveTextContent('Movie · 2024 · The Master and Margarita')
-    expect(screen.getByText('Your choice is saved on the Kinoseed server and shows on every device.')).toBeInTheDocument()
+    expect(screen.getByText('Your choice is saved on the Kinopeer server and shows on every device.')).toBeInTheDocument()
   })
 
   it('narrows the results to movies or series', async () => {

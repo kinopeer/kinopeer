@@ -1,6 +1,6 @@
 # Testing
 
-How Kinoseed's tests are organized: six layers, each with one job, and how to choose one; what to
+How Kinopeer's tests are organized: six layers, each with one job, and how to choose one; what to
 do with a bug; what no layer sees; the shared test data and the fake services; coverage and its
 threshold; how a PR's tests are reviewed and how review findings change these rules; the
 screenshot tests and the smoke journeys. Running and releasing are in
@@ -25,7 +25,7 @@ npm run test:smoke          # layer 6: smoke journeys through the production ser
 | 2 | Components and generic hooks | A shared component renders its props with the right roles and names and reacts to input; a hook that knows nothing of the app's data does its job in a DOM (`useIsDesktop`, `useHeightVar`, `useScrollRestoration`, the theme) | Layout and looks, which jsdom has none of; the app's data | Vitest + Testing Library, jsdom | `src/components/*/*.test.tsx`, the hooks in `src/lib/`, `src/theme/` | `npm test` |
 | 3 | Screens, stores and clients | A screen or a user flow with the API clients mocked (`vi.mock('../api/…')`): what it shows for a state, what it sends, where it navigates. A hook or a store that holds the app's data, with the clients mocked. An API client with `fetch` stubbed: the request it builds and how it reads each answer, errors included | Real HTTP, the server, layout | Vitest + Testing Library + user-event, jsdom | `src/screens/*.test.tsx` (sheets and dialogs included), `src/App.test.tsx`, the hooks and stores in `src/session/`, `src/torrents/`, `src/settings/`, the clients in `src/api/*/` | `npm test` |
 | 4 | Server | Each middleware under `server/` against fake qBittorrent, TMDB and Prowlarr servers started in the test: routing, headers, what reaches the service and what comes back | Browser code | Vitest, Node (`server` project) | `server/*.test.ts`, fakes in `server/test/fakes.ts`; the TMDB proxy worker in `tmdb-proxy/worker.test.ts`, with TMDB and the rate limiter faked in the test, and its deploy check in `tmdb-proxy/deployCheck.test.ts` over a git repository made in the test | `npm test -- --project server` |
-| 5 | Integration | The real clients in `src/api/*` calling the real `kinoseedServer()` in front of the fakes: both ends of each route agree on paths, bodies, cookies and errors, and the flows that cross several routes (login, adding a release, matches) | Rendering; a server without a route (the SPA fallback), which stays in the client tests | Vitest, Node | `server/integration/*.test.ts`, the stand in `server/test/integration.ts` | `npm test -- --project server` |
+| 5 | Integration | The real clients in `src/api/*` calling the real `kinopeerServer()` in front of the fakes: both ends of each route agree on paths, bodies, cookies and errors, and the flows that cross several routes (login, adding a release, matches) | Rendering; a server without a route (the SPA fallback), which stays in the client tests | Vitest, Node | `server/integration/*.test.ts`, the stand in `server/test/integration.ts` | `npm test -- --project server` |
 | 6 | Browser | How the screens look: the built app in Chromium against baseline PNGs, with every server route mocked (screenshot tests). And five smoke journeys through the real production server behind a proxy that wants a cookie, with the services faked: the browser and the server together (smoke journeys) | Behavior, which the layers above cover faster | Playwright in Docker; Playwright on the host | `e2e/*.spec.ts`, baselines in `e2e/__screenshots__/`; `e2e/smoke/*.smoke.ts`, the stand in `e2e/smoke/stack.ts` | `npm run test:visual`; `npm run test:smoke` |
 
 Layers 1–5 run on every `npm test` in two Vitest projects (`vite.config.ts`): `app` is jsdom with
@@ -83,7 +83,7 @@ neighbours of a change, and answer each that applies with a test or a reason:
   use (#249). A parameter or a header that widens what an allowlist lets through
   (`append_to_response` on an allowed path, #238).
 
-One behavior, one layer: every statement about what Kinoseed does lives in exactly one test, on the
+One behavior, one layer: every statement about what Kinopeer does lives in exactly one test, on the
 lowest layer that can see it. Higher layers meet that behavior only as a step towards the state they
 check: a screen test opens the sort sheet to reach a sorted list and doesn't re-check the order's
 rules, which `sort.test.ts` owns. A sentence in this file that says which test owns a statement is
@@ -261,7 +261,7 @@ Four shapes cause most of them:
 - **Two causes, one test.** A test about one cause keeps the others out: a swipe test about the
   distance uses a slow swipe, so the flick rule can't pass it for the wrong reason.
 - **Outcomes that look alike.** Each candidate gets a value of its own, so the test tells which one
-  it got: with the user's key and Kinoseed's both `good-key`, the call that reached TMDB couldn't
+  it got: with the user's key and Kinopeer's both `good-key`, the call that reached TMDB couldn't
   say whose it was (#248). A count of renders can't see two updates that `act` batches into one;
   count what each would do, a write to storage (#250).
 - **The clock.** Vitest runs in UTC (`env` in `vite.config.ts`), the same on any machine and in
@@ -353,7 +353,7 @@ isn't obvious from the name and the code.
 **Why the tests missed it** is one of seven classes. Each has a label (`test-gap:<class>`) and an
 action besides the test itself:
 
-| Class | What it looks like in Kinoseed | What we do besides the test |
+| Class | What it looks like in Kinopeer | What we do besides the test |
 | --- | --- | --- |
 | `uncovered` | Nobody sent `cancel` to a confirmation nested in the drawer (#107) | Add the test. A whole module or family of states without tests gets covered, not just the one case |
 | `wrong-layer` | A jsdom test asserted that the filter bar "stays at the top", which jsdom can't see | Move the statement to the layer that sees it (a screenshot after a scroll) and delete the old test |
@@ -415,7 +415,7 @@ spot this table doesn't name adds its row, a feature as much as a fix (#240's de
 | The real qBittorrent and Prowlarr: a version that changes an answer | The fakes in `server/test/fakes.ts`, written from qBittorrent 5.3 (401 on a wrong password; `legacy` for the older `200 "Fails."`) and Prowlarr 1.24, with the version in a comment where it matters | Not until someone hits it: then it's a `fake-drift` miss and the fake moves with the service. Three in a release → compare every fake with the live services by hand |
 | Plain HTTP without `crypto.subtle`: reading a `.torrent` with the SHA-1 fallback in a real browser | `src/lib/digest.ts` on layer 1 against known digests; every browser test runs on localhost, a secure context, where Web Crypto exists | The checklist: add a release over `http://` on the LAN, where the info hash must still match qBittorrent's |
 | TMDB for real: field shapes, missing posters, the language fallback, rate limits | The fake and the fixtures' titles | Only the README screenshots (`npm run screenshots:readme`, with a real key) and the test stand see the real API; nothing compares them, so a change in TMDB's answers arrives as a bug report |
-| An app resumed from memory after an update: Safari on iOS keeping the Home Screen app's page, the new service worker taking it over, Umbrel's proxy in front of `version.json` | `src/pwa/updates.test.ts` on layer 2 with `fetch`, `visibilitychange` and the service worker's registration stubbed (#210); every browser test loads a fresh page, which already has the new version | The checklist: after Umbrel updates Kinoseed Edge, resume the app on the owner's phone from the background and see it reload with the "updated" toast. Only a page that already has the update check can pass: the first update from a build before it can't |
+| An app resumed from memory after an update: Safari on iOS keeping the Home Screen app's page, the new service worker taking it over, Umbrel's proxy in front of `version.json` | `src/pwa/updates.test.ts` on layer 2 with `fetch`, `visibilitychange` and the service worker's registration stubbed (#210); every browser test loads a fresh page, which already has the new version | The checklist: after Umbrel updates Kinopeer Edge, resume the app on the owner's phone from the background and see it reload with the "updated" toast. Only a page that already has the update check can pass: the first update from a build before it can't |
 | Real time: the hour before a refused login is retried, the week before a missing torrent's match is forgotten, the hourly cleanup | Fake timers on layer 4 | Not checked for real; the logic is small and the timers are the only difference |
 
 ## Shared test data
@@ -470,10 +470,10 @@ it uses next to itself.
 
 Layer 5 checks the contract between a client in `src/api/*` and the route in `server/` that serves
 it, which no other layer sees whole: the screens mock the clients, the client tests mock `fetch`,
-the server tests send requests by hand. `startKinoseed()` (`server/test/integration.ts`) starts the
-three fakes, a data directory of its own (`mkdtemp`) and the real `kinoseedServer()` with an
+the server tests send requests by hand. `startKinopeer()` (`server/test/integration.ts`) starts the
+three fakes, a data directory of its own (`mkdtemp`) and the real `kinopeerServer()` with an
 environment pointing at them (`QBITTORRENT_URL`, `PROWLARR_URL`, `TMDB_API_URL`, …, logged in to
-qBittorrent as admin), chained the way `server/main.ts` chains the routes; `stopKinoseed()` in
+qBittorrent as admin), chained the way `server/main.ts` chains the routes; `stopKinopeer()` in
 `afterEach` closes everything, restores `fetch` and removes the directory. A test passes `env` to
 change the environment (a variable set to `undefined` is unset: no login, no Prowlarr, a dead
 port), `writableData: false` to make every write fail, `tmdbProxy` to put the real TMDB proxy
@@ -681,7 +681,7 @@ Unit tests run in jsdom, which has no layout, so they can't catch a button in th
   - A behavioral `expect` in a spec only gets a screen to its state, or checks what jsdom can't see (where a click lands, sticky positioning, a container query, a real `<dialog>`); behavior itself is layers 1–4.
 - **No live services:** `e2e/app.ts` answers `/qbt`, `/tmdb`, `/tmdb-img`, `/prowlarr`, `/api/settings` and `/api/matches` from the shared fixtures (`src/test/fixtures.ts` through `e2e/fixtures.ts`), matched by URL pathname (a glob like `**/tmdb/**` would also catch Vite's `/src/api/tmdb/` modules). Posters are generated gradients and the release's `.torrent` is built from the fixtures too. The app version in Settings is masked, so a version bump doesn't change the screenshots. The clock is frozen, animations are off and the service worker is blocked. Text is always grayscale (`--disable-lcd-text` in `playwright.config.ts`): left to itself, Chromium now and then draws part of a page's text in grayscale instead of LCD, as it did in two screenshots in CI (#145). What triggers it wasn't found, and a page can't see it, so a test can't wait it out.
 - **Docker only:** fonts render differently on macOS and on other Linux setups (about 1% of pixels, enough to fail), so baselines are rendered only in the Playwright image. `npm run test:visual` runs the tests in it with Docker; `node_modules` for the container is kept in a Docker volume, not the host's. Arguments go to `playwright test`, e.g. `npm run test:visual -- e2e/search.spec.ts`.
-- **Parallel worktrees:** each checkout, every git worktree included, gets its own `node_modules` volume, `kinoseed-visual-nm-<folder>-<checksum of its physical path>` (`scripts/playwright-docker.sh`, shared with the README screenshots), so runs in several worktrees at once don't reinstall it under each other. A run installs only when the volume wasn't installed from this `package-lock.json`, in this image, for this architecture (`scripts/install-node-modules.sh`, a stamp in the volume says which), so the first run in a worktree takes a minute longer and later ones skip `npm ci`. Since `npm ci` no longer runs every time, a run that fails inside `node_modules` (a missing module, a binary for another platform) is fixed by removing that checkout's volume and running again. Two runs in the same checkout still share `test-results/` and the baselines, so run one at a time there. Each volume takes about 250 MB, so it's labelled with its checkout's path (`kinoseed.checkout`), and every run removes the labelled volumes whose folder no longer exists, as a worktree's once its session is cleaned up; Docker refuses one a running container uses, and the next run tries again. Volumes without the label are never removed automatically: those made by hand or before the label (`kinoseed-visual-node-modules*`, hand-named `kinoseed-visual-nm-*`) go once by hand, `docker volume ls --filter name=kinoseed-visual` lists them and `docker volume rm <name>` removes one.
+- **Parallel worktrees:** each checkout, every git worktree included, gets its own `node_modules` volume, `kinopeer-visual-nm-<folder>-<checksum of its physical path>` (`scripts/playwright-docker.sh`, shared with the README screenshots), so runs in several worktrees at once don't reinstall it under each other. A run installs only when the volume wasn't installed from this `package-lock.json`, in this image, for this architecture (`scripts/install-node-modules.sh`, a stamp in the volume says which), so the first run in a worktree takes a minute longer and later ones skip `npm ci`. Since `npm ci` no longer runs every time, a run that fails inside `node_modules` (a missing module, a binary for another platform) is fixed by removing that checkout's volume and running again. Two runs in the same checkout still share `test-results/` and the baselines, so run one at a time there. Each volume takes about 250 MB, so it's labelled with its checkout's path (`kinopeer.checkout`), and every run removes the labelled volumes whose folder no longer exists, as a worktree's once its session is cleaned up; Docker refuses one a running container uses, and the next run tries again. Volumes without the label are never removed automatically: those made by hand, before the label or before the rename to Kinopeer (`kinoseed-visual-node-modules*`, every `kinoseed-visual-nm-*`, whose `kinoseed.checkout` label the cleanup no longer reads) go once by hand: `docker volume ls -q --filter name=kinoseed-visual | xargs docker volume rm`, and `docker volume rm <name>` for a hand-named one.
 - **Changing the UI:** a PR that changes how a covered screen looks updates its baselines. First run `npm run test:visual` as is: every failed screenshot leaves an expected, an actual and a diff image in `test-results/`, where the diff highlights only the changed pixels. Make sure nothing but the intended change is highlighted, then re-render with `npm run test:visual:update` and commit the PNGs (GitHub shows image diffs in the PR too). A change too small to fail its screenshot (a hover shade, a pixel of padding) is under the threshold, and the plain update keeps the old PNG: re-render that spec with `npm run test:visual -- --update-snapshots=all e2e/<spec>.spec.ts` and commit only the PNGs of the screens you meant to change. Open every new baseline and check that it shows what its test's name says. The PR lists each PNG with what changed and how it was checked: the diff looked at, re-rendered with `=all`, or new and opened. Add a spec when a new screen, sheet, dialog or state needs one ([Saying why something is uncovered](#saying-why-something-is-uncovered)).
 - **In CI:** the `visual` job runs in the same image, on two workers (`playwright.config.ts`; locally Playwright picks). When it fails, its `playwright-report` artifact has the expected, actual and diff images.
 - **Upgrading Playwright:** `@playwright/test` in `package.json`, the image tag in `scripts/playwright-docker.sh` and `.github/workflows/ci.yml` must name the same version; re-render the baselines after an upgrade.
@@ -725,7 +725,7 @@ need no Docker: Chromium on the host will do (`npx playwright install chromium`,
   to the layers above, which run in milliseconds.
 - **The stand** (`e2e/smoke/stack.ts`) starts the fakes from `server/test/fakes.ts`, a data
   directory of its own (`mkdtemp`) and the server (`node server/main.ts` with `PORT`,
-  `KINOSEED_DIST=dist`, `KINOSEED_DATA_DIR`, the fakes' addresses in `QBITTORRENT_URL`,
+  `KINOPEER_DIST=dist`, `KINOPEER_DATA_DIR`, the fakes' addresses in `QBITTORRENT_URL`,
   `PROWLARR_URL`, `TMDB_API_URL` and `TMDB_IMAGE_URL`, and no login or key unless asked), and in
   front of it a reverse proxy on the tests' `baseURL` that stands in for Umbrel's app_proxy: a
   page load gets a session cookie, and every other request without it is refused with 401 (marked

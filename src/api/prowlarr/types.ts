@@ -5,7 +5,7 @@ export const TV_CATEGORY = 5000
 export type SearchType = 'search' | 'movie' | 'tvsearch'
 
 /**
- * A release as Kinoseed's server hands it to the browser: Prowlarr's search result with only the
+ * A release as Kinopeer's server hands it to the browser: Prowlarr's search result with only the
  * fields the UI needs, and without the links that carry Prowlarr's API key.
  */
 export interface Release {
