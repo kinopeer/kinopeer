@@ -41,7 +41,7 @@ The server reads environment variables (from `.env.local` in development). Whate
 | `PROWLARR_API_KEY` | none | Prowlarr API key; a key entered in the app wins |
 | `PROWLARR_CONFIG_XML` | none | Path to Prowlarr's `config.xml` to read the key from when neither a key entered in the app nor `PROWLARR_API_KEY` is set (the Umbrel package does this) |
 | `TMDB_API_KEY` | none | Fallback TMDB key; a key entered in the app wins |
-| `TMDB_PROXY_URL` | the release worker, `https://tmdb.kinopeer.com/3` (edge images and the dev server: the edge worker, from `KINOPEER_TMDB_PROXY`) | Kinopeer's TMDB proxy for calls without a key (The TMDB proxy, below); empty turns it off, and the app asks for a key. The integration and smoke tests set it empty or to the worker in front of their fake. `tmdb.kinopeer.com` exists only once the first release after the rename has deployed it, so until then a build from `main` run outside Edge (`docker compose`, `npm start`) needs `TMDB_PROXY_URL=https://tmdb-edge.kinopeer.com/3` or a key of its own |
+| `TMDB_PROXY_URL` | the release worker, `https://tmdb.kinopeer.com/3` (edge images and the dev server: the edge worker, from `KINOPEER_TMDB_PROXY`) | Kinopeer's TMDB proxy for calls without a key (The TMDB proxy, below); empty turns it off, and the app asks for a key. The integration and smoke tests set it empty or to the worker in front of their fake. `tmdb.kinopeer.com` exists only once the first release after the rename has deployed it, so until then a build from `main` run outside Edge (`docker compose`, `npm start`) needs `TMDB_PROXY_URL=https://kinopeer-tmdb-edge.kinoseed.workers.dev/3` or a key of its own |
 | `TMDB_API_URL` | `https://api.themoviedb.org/3` | TMDB's API address; the integration and smoke tests point it at a fake |
 | `TMDB_IMAGE_URL` | `https://image.tmdb.org/t/p` | TMDB's image address, the same way |
 | `KINOPEER_DATA_DIR` | `./data` (`/data` in the image) | Where `settings.json` and `matches.json` are kept |
@@ -84,14 +84,14 @@ Kinopeer's own TMDB key sits behind a Cloudflare Worker, `tmdb-proxy/worker.ts`,
 
 Both workers run on Cloudflare's Free plan, which allows 100,000 requests a day for the whole account, cache hits included (a hit doesn't run the worker or meet its limit, but it counts). Over that, the workers answer with an error until midnight UTC, so every install without a key of its own loses TMDB for the rest of the day; installs with their own key don't notice. Cloudflare's dashboard shows the daily count per worker. What to do before the public release is in `RELEASE_CHECKLIST.md`.
 
-It runs as two workers, the environments in `tmdb-proxy/wrangler.jsonc`, each on its own name under `kinopeer.com` and going out with the builds that call it:
+It runs as two workers, the environments in `tmdb-proxy/wrangler.jsonc`, each going out with the builds that call it:
 
 | Worker | Address | Called by | Deployed by |
 | --- | --- | --- | --- |
-| `kinopeer-tmdb-edge` | `https://tmdb-edge.kinopeer.com` | Kinopeer Edge | the `Edge` workflow, before the edge image, on every run that builds one (its `paths` include `tmdb-proxy/`) |
+| `kinopeer-tmdb-edge` | `https://kinopeer-tmdb-edge.kinoseed.workers.dev` | Kinopeer Edge | the `Edge` workflow, before the edge image, on every run that builds one (its `paths` include `tmdb-proxy/`) |
 | `kinopeer-tmdb` | `https://tmdb.kinopeer.com` | released versions | the `Release` workflow, after the image and the GitHub Release |
 
-The addresses are Workers Custom Domains: the first deploy creates their DNS records and certificates, which needs `kinopeer.com` in the same Cloudflare account as the workers and a token that can edit Workers routes on that zone. They're not on `workers.dev`, so an address a released version calls doesn't change with the Cloudflare account's name.
+The release worker's address is a Workers Custom Domain: its first deploy creates the DNS record and certificate, which needs `kinopeer.com` in the same Cloudflare account as the workers and a token that can edit Workers routes on that zone, so the domain has to be there before the first release after the rename. It's not on `workers.dev`, so the address released versions call doesn't change with the Cloudflare account's name. The edge worker stays on `workers.dev` until the domain is bought, then moves to `tmdb-edge.kinopeer.com` (#259): only Kinopeer Edge and the dev server call it, both from `main`.
 
 Kinoseed's workers, from before the rename, are no longer in `wrangler.jsonc`: `kinoseed-tmdb` (`https://kinoseed-tmdb.kinoseed.workers.dev`), which Kinoseed up to 0.7 calls, and `kinoseed-tmdb-edge`, which the old Kinoseed Edge calls. They stay deployed as they are, so those installs keep TMDB, and are deleted in Cloudflare's dashboard by the rule below, once no one calls them for a month. Nothing deploys them any more; only the key workflow (below) still reaches them, so a worker leaves its list before it's deleted: `wrangler secret put` on a worker that doesn't exist creates an empty one of that name.
 

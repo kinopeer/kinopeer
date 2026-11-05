@@ -45,7 +45,7 @@ export interface KinopeerServer {
 export const TMDB_PROXY = 'https://tmdb.kinopeer.com/3'
 
 /** Its edge worker, which follows main: edge images bake it in (edge.yml), and the dev server defaults to it. */
-export const TMDB_PROXY_EDGE = 'https://tmdb-edge.kinopeer.com/3'
+export const TMDB_PROXY_EDGE = 'https://kinopeer-tmdb-edge.kinoseed.workers.dev/3'
 
 /**
  * Where TMDB calls without a key go: TMDB_PROXY_URL, which an empty value turns off, else the

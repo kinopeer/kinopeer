@@ -122,7 +122,7 @@ jobs:
           # The edge worker the proxy job above deployed: Kinopeer Edge calls it, not the release one.
           build-args: |
             KINOPEER_COMMIT=${{ env.COMMIT }}
-            KINOPEER_TMDB_PROXY=https://tmdb-edge.kinopeer.com/3
+            KINOPEER_TMDB_PROXY=https://kinopeer-tmdb-edge.kinoseed.workers.dev/3
           tags: |
             ${{ env.IMAGE }}:edge
             ${{ env.IMAGE }}:sha-${{ env.COMMIT }}
