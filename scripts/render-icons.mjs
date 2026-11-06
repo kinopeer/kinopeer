@@ -1,5 +1,6 @@
-// Renders the app icons in public/icons/ from the SVG sources in scripts/icons/ (drawn after the
-// Kinopeer design canvas, "Brand, icons & PWA"). Run it after changing a source:
+// Renders the app icons in public/icons/ from the SVG sources in scripts/icons/ (a film frame with a
+// download arrow, SPEC's decision log, 2026-11-06; public/favicon.svg draws it larger for 16 px). Run
+// it after changing a source:
 //
 //   npm install --no-save playwright-core && node scripts/render-icons.mjs
 //
