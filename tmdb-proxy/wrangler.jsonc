@@ -8,6 +8,8 @@
 //   versions, since every edge build deploys one and a cold cache each time would send every call
 //   to TMDB; a change to what an answer looks like reaches cached ones within their time, a day.
 // - observability off: no request logs, since the proxy sees each install's IP and its searches.
+// - secrets: a deploy fails unless the worker has TMDB_API_KEY, there already or in the deploy's
+//   --secrets-file (.github/workflows/tmdb-proxy.yml), so a worker never goes out without the key.
 // - ratelimits: the calls that reach TMDB, per IP and Cloudflare location. 100 in 10 seconds covers
 //   Downloads guessing the titles of a long list (three searches at a time) and stops a script from
 //   pulling TMDB through Kinopeer's key. Each worker has its own namespace, so they count apart.
@@ -33,6 +35,7 @@
       "routes": [{ "pattern": "tmdb-edge.kinopeer.com", "custom_domain": true }],
       "cache": { "enabled": true, "cross_version_cache": true },
       "observability": { "enabled": false },
+      "secrets": { "required": ["TMDB_API_KEY"] },
       "ratelimits": [{ "name": "LIMITER", "namespace_id": "1005", "simple": { "limit": 100, "period": 10 } }]
     },
     "release": {
@@ -41,6 +44,7 @@
       "routes": [{ "pattern": "tmdb.kinopeer.com", "custom_domain": true }],
       "cache": { "enabled": true, "cross_version_cache": true },
       "observability": { "enabled": false },
+      "secrets": { "required": ["TMDB_API_KEY"] },
       "ratelimits": [{ "name": "LIMITER", "namespace_id": "1004", "simple": { "limit": 100, "period": 10 } }]
     }
   }

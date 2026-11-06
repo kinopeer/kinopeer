@@ -68,20 +68,20 @@ jobs:
         working-directory: tmdb-proxy
         run: npm ci --no-audit --no-fund
 
-      - name: Deploy
-        if: steps.newest.outputs.deploy == 'true'
-        working-directory: tmdb-proxy
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: npx wrangler deploy --env "$ENVIRONMENT"
-
-      # From stdin, so the key shows in no command line or log.
-      - name: Set the key
+      # The code and the key as one version, so the worker never runs without the key, even right
+      # after its first deploy, and Cloudflare lists one deployment per run. The key goes through a
+      # file only this user can read, written from the environment (so it shows in no command line or
+      # log) in the runner's temp folder and deleted when the step ends.
+      - name: Deploy with the key
         if: steps.newest.outputs.deploy == 'true'
         working-directory: tmdb-proxy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
-        run: printf '%s' "$TMDB_API_KEY" | npx wrangler secret put TMDB_API_KEY --env "$ENVIRONMENT"
+        run: |
+          umask 077
+          secrets="$RUNNER_TEMP/tmdb-proxy-secrets.json"
+          trap 'rm -f "$secrets"' EXIT
+          node -e 'process.stdout.write(JSON.stringify({ TMDB_API_KEY: process.env.TMDB_API_KEY }))' > "$secrets"
+          npx wrangler deploy --env "$ENVIRONMENT" --secrets-file "$secrets"
