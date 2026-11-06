@@ -624,9 +624,10 @@ open lists it as `still open (round <n>)` with no tag, and the retro counts each
 The review comments are the log: no other file to keep in sync. Escaped bugs keep their own
 record, the `test-gap:*` labels ([When we find a bug](#when-we-find-a-bug)).
 
-**When.** Once ten PRs have merged that no row of the table below lists, and at every release
-([RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) → Before every release), whichever comes first. The
-review counts them: when it finds ten or more, its verdict line says "retro due", and the
+**When.** Once twenty PRs have merged that no row of the table below lists; a release doesn't call
+for one (decided on 2026-11-06: at ten PRs or each release a retro came almost daily, on batches too
+small for a finding to repeat three times). The review counts them: when it finds twenty or more,
+its verdict line says "retro due", and the
 coordinator of the work (the owner, or the session that hands out PRs) starts it. A
 fresh session runs the retro, not one that wrote or reviewed the PRs in the batch. A `conflict`
 doesn't wait for it: the reviewer says in the report what disagrees with what, and the next docs PR
@@ -657,8 +658,8 @@ verdict says to fix in the PR, each counted once) by the PRs with production cod
 in every row, so the column compares with the rows below it and with the Done rule (#222).
 
 **Done.** The system is stable when two retros in a row change no rules and the last batch averages
-under one blocking finding per PR. From then on the retro runs once per release only, and any new
-`gap` or `conflict` starts the ten-PR cadence again.
+under one blocking finding per PR. From then on the retro runs every forty merged PRs, and any new
+`gap` or `conflict` starts the twenty-PR cadence again.
 
 | Retro | PRs | Ready on the first round | Blocking findings per PR | Escaped bugs | What changed |
 | --- | --- | --- | --- | --- | --- |
