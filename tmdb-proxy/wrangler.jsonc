@@ -11,9 +11,9 @@
 // - ratelimits: the calls that reach TMDB, per IP and Cloudflare location. 100 in 10 seconds covers
 //   Downloads guessing the titles of a long list (three searches at a time) and stops a script from
 //   pulling TMDB through Kinopeer's key. Each worker has its own namespace, so they count apart.
-// - routes: the release worker answers on its own name under kinopeer.com (a Custom Domain, which
-//   Cloudflare gives a DNS record and a certificate) and not on workers.dev, so the address released
-//   versions call doesn't depend on the Cloudflare account's name; the edge worker follows (#259). Kinoseed's workers (kinoseed-tmdb and
+// - routes: each worker answers on its own name under kinopeer.com (a Custom Domain, which Cloudflare
+//   gives a DNS record and a certificate) and not on workers.dev, so the address released versions
+//   call doesn't depend on the Cloudflare account's name. Kinoseed's workers (kinoseed-tmdb and
 //   kinoseed-tmdb-edge, namespaces 1001 and 1002) are no longer in this file: versions up to 0.7
 //   call them on workers.dev, and they stay deployed as they are until no one does.
 {
@@ -31,9 +31,8 @@
   "env": {
     "edge": {
       "name": "kinopeer-tmdb-edge",
-      // On workers.dev until kinopeer.com is in the account (#259), then on tmdb-edge.kinopeer.com
-      // like `release`: only Edge builds and the dev server call it, so its address can move.
-      "workers_dev": true,
+      "workers_dev": false,
+      "routes": [{ "pattern": "tmdb-edge.kinopeer.com", "custom_domain": true }],
       "cache": { "enabled": true, "cross_version_cache": true },
       "observability": { "enabled": false },
       "ratelimits": [{ "name": "LIMITER", "namespace_id": "1005", "simple": { "limit": 100, "period": 10 } }]
