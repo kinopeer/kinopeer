@@ -5,7 +5,8 @@ import type { Torrent } from '../src/api/qbittorrent/types.ts'
 
 /**
  * Renders the README screenshots into docs/screenshots/ (not a test: nothing is compared). Run with
- * `npm run screenshots:readme`, which needs TMDB_API_KEY (or a saved key) for real titles and posters.
+ * `npm run screenshots:readme`. Titles and posters come from TMDB for real, through Kinopeer's edge
+ * TMDB proxy without a key of your own (the dev server's default).
  */
 
 // Every status a healthy list has; the error and the unknown release are left out, and Shōgun
