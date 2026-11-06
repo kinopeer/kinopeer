@@ -4,7 +4,7 @@ How to run Kinopeer locally, how the server is configured and how a release goes
 
 ## Requirements
 
-Node.js 22.18+ and qBittorrent with the Web UI on. Release search needs Prowlarr. Development needs no TMDB key: metadata comes from TMDB through Kinopeer's TMDB proxy, and the dev server and the README screenshots use its edge worker (The TMDB proxy, below); a key in `.env.local` or entered in the app goes to TMDB directly instead. A qBittorrent login is needed only when qBittorrent's auth bypass is off.
+Node.js 22.18+ and qBittorrent with the Web UI on. Release search needs Prowlarr. Development needs no TMDB key: metadata comes from TMDB through Kinopeer's TMDB proxy, and the dev server and the README screenshots use its edge worker (The TMDB proxy, below); a key in `.env.local` or entered in the app goes to TMDB directly instead. A branch that adds a TMDB path is the exception: the edge worker answers 404 for a path it hasn't deployed, so until the branch merges it needs a key of your own, or `TMDB_PROXY_URL` at a local `wrangler dev` (The TMDB proxy, below). A qBittorrent login is needed only when qBittorrent's auth bypass is off, and the app's connect screen asks for it.
 
 ## Running
 
@@ -36,7 +36,7 @@ The server reads environment variables (from `.env.local` in development). Whate
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `QBITTORRENT_URL` | none | qBittorrent Web UI address |
-| `QBITTORRENT_USERNAME`, `QBITTORRENT_PASSWORD` | none | Default login, needed only when qBittorrent's auth bypass is off; a login entered in the app wins |
+| `QBITTORRENT_USERNAME`, `QBITTORRENT_PASSWORD` | none | Optional default login; qBittorrent's auth bypass needs none, and without these the app asks for one. A login entered in the app wins |
 | `PROWLARR_URL` | none | Prowlarr address |
 | `PROWLARR_API_KEY` | none | Prowlarr API key; a key entered in the app wins |
 | `PROWLARR_CONFIG_XML` | none | Path to Prowlarr's `config.xml` to read the key from when neither a key entered in the app nor `PROWLARR_API_KEY` is set (the Umbrel package does this) |
