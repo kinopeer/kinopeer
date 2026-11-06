@@ -13,9 +13,7 @@
 //   pulling TMDB through Kinopeer's key. Each worker has its own namespace, so they count apart.
 // - routes: each worker answers on its own name under kinopeer.com (a Custom Domain, which Cloudflare
 //   gives a DNS record and a certificate) and not on workers.dev, so the address released versions
-//   call doesn't depend on the Cloudflare account's name. Kinoseed's workers (kinoseed-tmdb and
-//   kinoseed-tmdb-edge, namespaces 1001 and 1002) are no longer in this file: versions up to 0.7
-//   call them on workers.dev, and they stay deployed as they are until no one does.
+//   call doesn't depend on the Cloudflare account's name.
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   // The top level is for `wrangler dev` alone: a deploy without `--env` makes a worker of this name,
