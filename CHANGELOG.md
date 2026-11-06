@@ -2,6 +2,12 @@
 
 Kinopeer follows [semantic versioning](https://semver.org). While the version is 0.x, minor versions may change behavior and settings.
 
+## Unreleased
+
+### Fixed
+
+- Kinopeer's server passes requests on to qBittorrent only from Kinopeer itself and only for what Kinopeer does with torrents, so a page on another site can no longer make your browser change your torrents or qBittorrent's settings through Kinopeer. ([#270](https://github.com/kinopeer/kinopeer/issues/270))
+
 ## 0.7.1 - 2026-11-06
 
 Kinoseed is now Kinopeer, with a new icon. On Umbrel it's a new app in the Homelab store, beside Kinoseed until you move over. On a computer, Downloads keeps its whole header at the top again.
