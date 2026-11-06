@@ -4,7 +4,7 @@ How to run Kinopeer locally, how the server is configured and how a release goes
 
 ## Requirements
 
-Node.js 22.18+ and qBittorrent with the Web UI on. Release search needs Prowlarr. Metadata comes from TMDB through Kinopeer's TMDB proxy without a key of your own; the dev server uses its edge worker (The TMDB proxy, below), and a key in `.env.local` or entered in the app goes to TMDB directly.
+Node.js 22.18+ and qBittorrent with the Web UI on. Release search needs Prowlarr. Development needs no TMDB key: metadata comes from TMDB through Kinopeer's TMDB proxy, and the dev server and the README screenshots use its edge worker (The TMDB proxy, below); a key in `.env.local` or entered in the app goes to TMDB directly instead. A qBittorrent login is needed only when qBittorrent's auth bypass is off.
 
 ## Running
 
@@ -36,11 +36,11 @@ The server reads environment variables (from `.env.local` in development). Whate
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `QBITTORRENT_URL` | none | qBittorrent Web UI address |
-| `QBITTORRENT_USERNAME`, `QBITTORRENT_PASSWORD` | none | Default login; a login entered in the app wins |
+| `QBITTORRENT_USERNAME`, `QBITTORRENT_PASSWORD` | none | Default login, needed only when qBittorrent's auth bypass is off; a login entered in the app wins |
 | `PROWLARR_URL` | none | Prowlarr address |
 | `PROWLARR_API_KEY` | none | Prowlarr API key; a key entered in the app wins |
 | `PROWLARR_CONFIG_XML` | none | Path to Prowlarr's `config.xml` to read the key from when neither a key entered in the app nor `PROWLARR_API_KEY` is set (the Umbrel package does this) |
-| `TMDB_API_KEY` | none | Fallback TMDB key; a key entered in the app wins |
+| `TMDB_API_KEY` | none | Fallback TMDB key, not needed with the proxy (development included); a key entered in the app wins |
 | `TMDB_PROXY_URL` | the release worker, `https://tmdb.kinopeer.com/3` (edge images and the dev server: the edge worker, from `KINOPEER_TMDB_PROXY`) | Kinopeer's TMDB proxy for calls without a key (The TMDB proxy, below); empty turns it off, and the app asks for a key. The integration and smoke tests set it empty or to the worker in front of their fake. `tmdb.kinopeer.com` exists only once the first release after the rename has deployed it, so until then a build from `main` run outside Edge (`docker compose`, `npm start`) needs `TMDB_PROXY_URL=https://tmdb-edge.kinopeer.com/3` or a key of its own |
 | `TMDB_API_URL` | `https://api.themoviedb.org/3` | TMDB's API address; the integration and smoke tests point it at a fake |
 | `TMDB_IMAGE_URL` | `https://image.tmdb.org/t/p` | TMDB's image address, the same way |
