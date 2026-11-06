@@ -23,7 +23,6 @@ jobs:
       matrix:
         # wrangler.jsonc's environments. Take a worker out of this list before deleting it in
         # Cloudflare: `secret put` on a worker that doesn't exist creates an empty one of that name.
-        # (Harmless for kinopeer-tmdb before the first release after the rename: its deploy fills it.)
         # Unquoted in the command below, so each entry splits into the flag and its value.
         worker: ['--env edge', '--env release']
     # The Cloudflare token only in the steps that call Cloudflare, not while npm installs Wrangler.

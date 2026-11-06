@@ -41,7 +41,7 @@ The server reads environment variables (from `.env.local` in development). Whate
 | `PROWLARR_API_KEY` | none | Prowlarr API key; a key entered in the app wins |
 | `PROWLARR_CONFIG_XML` | none | Path to Prowlarr's `config.xml` to read the key from when neither a key entered in the app nor `PROWLARR_API_KEY` is set (the Umbrel package does this) |
 | `TMDB_API_KEY` | none | Fallback TMDB key; a key entered in the app wins |
-| `TMDB_PROXY_URL` | the release worker, `https://tmdb.kinopeer.com/3` (edge images and the dev server: the edge worker, from `KINOPEER_TMDB_PROXY`) | Kinopeer's TMDB proxy for calls without a key (The TMDB proxy, below); empty turns it off, and the app asks for a key. The integration and smoke tests set it empty or to the worker in front of their fake. `tmdb.kinopeer.com` exists only once the first release after the rename has deployed it, so until then a build from `main` run outside Edge (`docker compose`, `npm start`) needs `TMDB_PROXY_URL=https://tmdb-edge.kinopeer.com/3` or a key of its own |
+| `TMDB_PROXY_URL` | the release worker, `https://tmdb.kinopeer.com/3` (edge images and the dev server: the edge worker, from `KINOPEER_TMDB_PROXY`) | Kinopeer's TMDB proxy for calls without a key (The TMDB proxy, below); empty turns it off, and the app asks for a key. The integration and smoke tests set it empty or to the worker in front of their fake. |
 | `TMDB_API_URL` | `https://api.themoviedb.org/3` | TMDB's API address; the integration and smoke tests point it at a fake |
 | `TMDB_IMAGE_URL` | `https://image.tmdb.org/t/p` | TMDB's image address, the same way |
 | `KINOPEER_DATA_DIR` | `./data` (`/data` in the image) | Where `settings.json` and `matches.json` are kept |
@@ -59,7 +59,7 @@ First go through [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) → Before every r
 1. In a PR, set `version` in `package.json` and `package-lock.json` (`npm version 0.2.0 --no-git-tag-version`) and add a `## 0.2.0 - YYYY-MM-DD` section to `CHANGELOG.md`. Update the "as of version" line at the top of `docs/SPEC.md` too.
 2. After it merges, tag `main` and push the tag: `git tag v0.2.0 && git push origin v0.2.0`.
 3. The `Release` workflow builds `ghcr.io/kinopeer/kinopeer` for `linux/amd64` and `linux/arm64` (tags `0.2.0`, `0.2` and `latest`) and creates a GitHub Release with that version's changelog section and the image digest. Then it deploys the `kinopeer-tmdb` worker from the tag (The TMDB proxy, below). It fails if the tag doesn't match `package.json` or the changelog has no section for the version.
-4. Wait for the `Release` workflow's `proxy` job to pass and for `https://tmdb.kinopeer.com/3/configuration` to answer 200 (the release image calls that worker, and nothing before the tag tries it but a build from `main` run outside Edge, as `TMDB_PROXY_URL` above says: Kinopeer Edge calls the edge worker). Then update the Umbrel package (below).
+4. Wait for the `Release` workflow's `proxy` job to pass and for `https://tmdb.kinopeer.com/3/configuration` to answer 200 (the release image calls that worker, and nothing before the tag tries it: Kinopeer Edge calls the edge worker). Then update the Umbrel package (below).
 
 The image is public, so Umbrel can pull it without a login; the code repository is private for now.
 
