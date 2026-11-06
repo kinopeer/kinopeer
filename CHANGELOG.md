@@ -7,6 +7,7 @@ Kinopeer follows [semantic versioning](https://semver.org). While the version is
 ### Changed
 
 - Kinoseed is now Kinopeer: another app called Kinoseed appeared in 2026. On Umbrel, Kinopeer is a new app in the Homelab store: install it, and Kinoseed's settings and title matches can be moved over (`settings.json` and `matches.json` in the app's data folder). Theme, language, sort and filters are chosen again, once per browser. Kinoseed keeps working until it's removed, with TMDB only through a key of your own (Settings → Connections → Use your own TMDB key).
+- A new icon: a film frame with a download arrow, in place of the seed with a sprout and a Play button, since Kinopeer finds and downloads films and doesn't play them.
 - Desktop Downloads: the whole header stays at the top again, as before 0.7.0, with the name filter and the select button beside the title. The name filter still stays while selecting. Search keeps its title scrolling away.
 
 ## 0.7.0 - 2026-11-05

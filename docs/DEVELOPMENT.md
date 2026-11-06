@@ -65,7 +65,7 @@ The image is public, so Umbrel can pull it without a login; the code repository 
 
 ## Umbrel package
 
-The package lives in [umbrel-homelab-store](https://github.com/MrShakhov/umbrel-homelab-store), in `homelab-kinopeer/`. It sets the qBittorrent and Prowlarr addresses and the default qBittorrent login, and mounts Prowlarr's config folder read-only. After a release, bump `version` and `releaseNotes` in `umbrel-app.yml` and the image tag and digest (from the GitHub Release) in `docker-compose.yml`. Umbrel then offers the update.
+The package lives in [umbrel-homelab-store](https://github.com/MrShakhov/umbrel-homelab-store), in `homelab-kinopeer/`. It sets the qBittorrent and Prowlarr addresses and the default qBittorrent login, and mounts Prowlarr's config folder read-only. After a release, bump `version` and `releaseNotes` in `umbrel-app.yml` and the image tag and digest (from the GitHub Release) in `docker-compose.yml`. Umbrel then offers the update. The package's `icon.svg`, and the edge store's `homelab-edge-kinopeer/icon.svg`, are copies of `scripts/icons/icon.svg`: when the icon changes, both stores get the new copy.
 
 ## Edge builds
 
