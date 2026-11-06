@@ -95,6 +95,14 @@ Both addresses are Workers Custom Domains: a worker's first deploy with one crea
 
 Kinoseed's workers from before the rename, `kinoseed-tmdb` and `kinoseed-tmdb-edge` on `kinoseed.workers.dev`, were deleted on 2026-11-06 (SPEC's decision log), so Kinoseed up to 0.7 has TMDB only with a key of its user's own.
 
+In front of both workers, a WAF custom rule on the `kinopeer.com` zone, "Only the TMDB proxy's paths" (Security → Security rules in Cloudflare's dashboard, added by hand on 2026-11-06, not deployed from here), blocks every request to their hosts whose path doesn't start with `/3/`, except `/robots.txt`. Scanners found `tmdb-edge.kinopeer.com` in the certificate logs within hours of its first deploy (450 of its first 479 calls were 404s), and with the rule they get a 403 from Cloudflare without running a worker or counting against the Free plan's requests. Its expression, `starts_with` because scanners send the host with a port:
+
+```
+(starts_with(http.host, "tmdb.kinopeer.com") or starts_with(http.host, "tmdb-edge.kinopeer.com")) and not starts_with(http.request.uri.path, "/3/") and http.request.uri.path ne "/robots.txt"
+```
+
+A path the client calls outside `/3/` (TMDB's v4 API, say) needs the rule widened before a build that calls it goes out.
+
 Both call `.github/workflows/tmdb-proxy.yml`, which has no trigger of its own, so a change to when Edge or Release runs changes when its worker goes out too. It deploys only when the proxy's code (`tmdb-proxy/` without its tests) is the same as at main's head or the highest version tag, a release above its prereleases, so a re-run of an older push or tag leaves the worker as it is, while a run isn't skipped because main moved on with a change Edge doesn't build; `tmdb-proxy/deployCheck.ts` decides, with its tests. Wrangler comes from `tmdb-proxy/package-lock.json` (`npm ci` in that folder), and the Cloudflare token is only in the steps that call Cloudflare, not while npm installs it. A change to `tmdb-proxy/` alone also builds an edge image, since Kinopeer Edge is a commit of `main` with its worker.
 
 The workers' paths are a contract with every released version: a path is only added, never removed or changed in what it answers, while a supported version calls it. Changing the cache times, the limit or the key is fine. A change that breaks it (a path dropped, another answer, a check old versions don't pass) goes into a new worker, `kinopeer-tmdb-v2`, that the release with the change calls, while the old one keeps serving the versions before it; it's removed once Cloudflare's request counts show no calls for a month (Umbrel doesn't update apps by itself, so old versions stay). The `lets %s through` test in `tmdb-proxy/worker.test.ts` lists the paths and fails when one goes.
