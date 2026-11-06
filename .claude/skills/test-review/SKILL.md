@@ -46,8 +46,10 @@ outside tests: the folders `scripts/mutants.mjs` mutates), tests
 (`*.test.ts(x)`, `e2e/`), shared test data (`src/test/`, `server/test/`), baselines, config
 (`vite.config.ts`, `playwright*.config.ts`, `.oxlintrc.json`, `tsconfig*.json`, CI) and docs. Each
 group has its own checks below; a PR without production changes skips A, except for a branch in a
-script or a workflow (whether to install, whether to deploy), which is behavior (`docs/TESTING.md`
-→ Saying why something is uncovered → No behavior).
+script or a workflow (whether to install, whether to deploy, which targets a matrix reaches), which
+is behavior (`docs/TESTING.md` → Saying why something is uncovered → No behavior): a run that stops
+before it changes anything (a dry run, a read-only command, a bogus credential refused after the
+target is resolved) answers it, and a missing credential alone doesn't (#258).
 
 ## 3. Checks
 
@@ -119,7 +121,9 @@ trusted.
 - **H. Docs match the code.** A claim the PR adds to `docs/TESTING.md` or `CLAUDE.md` (a comment
   that exists, a command, a number, a file) is checked against the diff and the tree, and so is one
   the diff makes stale, a sentence saying which test owns a statement above all: grep `docs/`,
-  `CLAUDE.md` and `README.md` for each number or name the diff changes (a width, a version, a count).
+  `CLAUDE.md` and `README.md` for each number or name the diff changes (a width, a version, a count),
+  by its old value and each word of an old name on its own, and read SPEC's and `CLAUDE.md`'s
+  paragraphs about what the diff changes for claims by meaning no grep finds.
   A list in the docs that the change adds to gains the new item (the screens in `docs/TESTING.md` →
   Screenshot tests, SPEC's decision log, newest first, the blind spots: any PR that meets a blind
   spot the table doesn't name adds its row), and a manual check the PR adds says what has to be in
