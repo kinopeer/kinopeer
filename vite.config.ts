@@ -80,6 +80,11 @@ export default defineConfig(({ mode }) => {
     // Shown in Settings → About (src/version.d.ts). Edge builds of main (.github/workflows/edge.yml)
     // pass the commit, so the version says which one is running: 0.6.0+abc1234.
     define: { __APP_VERSION__: JSON.stringify(appVersion) },
+    // Vite answers CORS preflights from any localhost origin before server/ middleware runs, which
+    // would let a page on another local port send /qbt the X-Kinopeer header (server/qbittorrent.ts).
+    // The app calls only its own origin.
+    server: { cors: false },
+    preview: { cors: false },
     plugins: [
       react(),
       pwa,
