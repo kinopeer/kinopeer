@@ -181,7 +181,8 @@ for it. Hand the blocking and
 should-fix findings to the PR's author (a session or a person): point them to the posted round.
 A PR that grows past what it set out to do (each round finds bugs in the same new mechanism,
 workarounds pile up) gets that said in the round, as a finding for the owner to weigh, not as one
-more fix to ask for (`docs/TESTING.md` → Reviewing a PR's tests).
+more fix to ask for (`docs/TESTING.md` → Reviewing a PR's tests). It has no tag and no severity and
+doesn't hold the verdict: put it after the findings under its own heading, **For the owner**.
 
 **Round 2 and later**, once the author posts `Fixes for round <n>`, or a commit of the PR's own
 lands after a **ready to merge**: start from that comment, check every line flagged in the previous round, and run all the checks on every
