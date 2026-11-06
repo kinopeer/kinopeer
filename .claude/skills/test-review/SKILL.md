@@ -169,7 +169,7 @@ both reviews saw, `**Verdict: ready to merge** at <short sha>`: the PR merges on
 merge of `main` needs one only when it reaches the PR's own lines, and otherwise the author's
 `Merged main at <sha>` comment carries the verdict over (`docs/TESTING.md` → Reviewing a PR's
 tests). Add
-"retro due" to it when ten or more merged PRs are missing from the retro table in
+"retro due" to it when twenty or more merged PRs are missing from the retro table in
 `docs/TESTING.md` → Improving the system (list the merged PRs since that table's last date and
 take out the ones its rows name).
 Nothing else: no summary of the PR, no praise, no repeat of what the PR description already says.
