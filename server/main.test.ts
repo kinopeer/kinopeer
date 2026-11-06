@@ -93,13 +93,13 @@ describe('tmdbProxy', () => {
   it('is the edge worker the Edge workflow bakes into edge images', async () => {
     const workflow = await readFile(new URL('../.github/workflows/edge.yml', import.meta.url), 'utf8')
 
-    expect(TMDB_PROXY_EDGE).toBe('https://kinopeer-tmdb-edge.kinoseed.workers.dev/3')
+    expect(TMDB_PROXY_EDGE).toBe('https://tmdb-edge.kinopeer.com/3')
     expect(workflow).toContain(`KINOPEER_TMDB_PROXY=${TMDB_PROXY_EDGE}\n`)
   })
 
   it('is the one an edge build bakes in, KINOPEER_TMDB_PROXY', () => {
-    expect(tmdbProxy({ KINOPEER_TMDB_PROXY: 'https://kinopeer-tmdb-edge.kinoseed.workers.dev/3' })).toBe(
-      'https://kinopeer-tmdb-edge.kinoseed.workers.dev/3',
+    expect(tmdbProxy({ KINOPEER_TMDB_PROXY: 'https://tmdb-edge.kinopeer.com/3' })).toBe(
+      'https://tmdb-edge.kinopeer.com/3',
     )
     // A release build passes the build argument empty.
     expect(tmdbProxy({ KINOPEER_TMDB_PROXY: '' })).toBe(TMDB_PROXY)
