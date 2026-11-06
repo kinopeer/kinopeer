@@ -19,6 +19,6 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vite.config.ts", "server", "tmdb-proxy"],
+  "include": ["vite.config.ts", "vite.config.test.ts", "server", "tmdb-proxy"],
   "exclude": ["server/integration", "tmdb-proxy/node_modules"]
 }

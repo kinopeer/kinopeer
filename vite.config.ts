@@ -82,9 +82,8 @@ export default defineConfig(({ mode }) => {
     define: { __APP_VERSION__: JSON.stringify(appVersion) },
     // Vite answers CORS preflights from any localhost origin before server/ middleware runs, which
     // would let a page on another local port send /qbt the X-Kinopeer header (server/qbittorrent.ts).
-    // The app calls only its own origin.
+    // The app calls only its own origin. `vite preview` takes this too (vite.config.test.ts).
     server: { cors: false },
-    preview: { cors: false },
     plugins: [
       react(),
       pwa,
@@ -107,7 +106,7 @@ export default defineConfig(({ mode }) => {
           extends: true,
           test: { name: 'app', include: ['src/**/*.test.{ts,tsx}'], environment: 'jsdom', setupFiles: ['./src/test-setup.ts'] },
         },
-        { extends: true, test: { name: 'server', include: ['server/**/*.test.ts', 'tmdb-proxy/**/*.test.ts'], environment: 'node' } },
+        { extends: true, test: { name: 'server', include: ['server/**/*.test.ts', 'tmdb-proxy/**/*.test.ts', 'vite.config.test.ts'], environment: 'node' } },
       ],
       // `npm run test:coverage`: a table in the terminal and coverage/index.html; CI runs the same.
       // Test helpers, type-only modules and the barrels that only re-export (src/i18n/index.ts sets

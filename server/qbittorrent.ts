@@ -260,7 +260,10 @@ export function qbittorrentBridge(config: QbittorrentConfig): QbittorrentBridge 
     // to another one, matches none.
     const method = ENDPOINTS.get(target.split('?', 1)[0])
     if (!method) return fail(404, 'Not found')
-    if (request.method !== method) return fail(405, 'Method not allowed')
+    if (request.method !== method) {
+      response.setHeader('Allow', method)
+      return fail(405, 'Method not allowed')
+    }
     if (!request.headers[CLIENT_HEADER]) return fail(400, 'Not a request from Kinopeer')
 
     forward(base, currentSession(), request, response, target).catch((error: unknown) => {

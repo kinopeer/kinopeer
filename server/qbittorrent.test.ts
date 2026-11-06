@@ -155,8 +155,12 @@ describe('qbittorrentMiddleware', () => {
       body: new URLSearchParams({ json: '{"save_path":"/elsewhere"}' }),
     })
     expect(preferences.status).toBe(404)
-    expect((await call(`${base}/qbt/api/v2/torrents/delete`)).status).toBe(405)
-    expect((await call(`${base}/qbt/api/v2/torrents/info`, { method: 'POST' })).status).toBe(405)
+    const get = await call(`${base}/qbt/api/v2/torrents/delete`)
+    expect(get.status).toBe(405)
+    expect(get.headers.get('allow')).toBe('POST')
+    const post = await call(`${base}/qbt/api/v2/torrents/info`, { method: 'POST' })
+    expect(post.status).toBe(405)
+    expect(post.headers.get('allow')).toBe('GET')
     expect(qbt.seen).toEqual([])
 
     expect((await call(`${base}/qbt/api/v2/torrents/files?hash=a1`)).status).toBe(403)
