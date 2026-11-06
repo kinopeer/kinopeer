@@ -2,7 +2,9 @@
 
 Kinopeer follows [semantic versioning](https://semver.org). While the version is 0.x, minor versions may change behavior and settings.
 
-## Unreleased
+## 0.7.1 - 2026-11-06
+
+Kinoseed is now Kinopeer, with a new icon. On Umbrel it's a new app in the Homelab store, beside Kinoseed until you move over. On a computer, Downloads keeps its whole header at the top again.
 
 ### Changed
 
