@@ -12,13 +12,55 @@ import {
   toggleFirstLastPiecePrio,
   toggleSequentialDownload,
 } from '../../src/api/qbittorrent/client.ts'
+import * as client from '../../src/api/qbittorrent/client.ts'
 import { TORRENTS, mainData, torrent } from '../../src/test/fixtures.ts'
 import { TRACKERS, mainDataDelta } from '../test/fakes.ts'
 import { startKinopeer, stopKinopeer } from '../test/integration.ts'
 
 afterEach(stopKinopeer)
 
+type Client = typeof client
+/** The client's functions that call qBittorrent: every export that returns a promise. */
+type ClientCall = { [K in keyof Client]: Client[K] extends (...args: never[]) => Promise<unknown> ? K : never }[keyof Client]
+
+/** One call of each, so a function added to the client fails to compile until it's here. */
+const EVERY_CALL: Record<ClientCall, () => Promise<unknown>> = {
+  getAppVersion: () => client.getAppVersion(),
+  getTorrents: () => client.getTorrents({ hashes: ['a1'] }),
+  getMainData: () => client.getMainData(),
+  addTorrents: () => client.addTorrents({ urls: ['magnet:?xt=urn:btih:abc'] }),
+  getCategories: () => client.getCategories(),
+  getDefaultSavePath: () => client.getDefaultSavePath(),
+  getSaveLocations: () => client.getSaveLocations(),
+  getRefreshInterval: () => client.getRefreshInterval(),
+  getTorrentFiles: () => client.getTorrentFiles('a1'),
+  setFilePriority: () => client.setFilePriority('a1', [0], 0),
+  startTorrents: () => client.startTorrents(['a1']),
+  stopTorrents: () => client.stopTorrents(['a1']),
+  setSpeedLimits: () => client.setSpeedLimits(['a1'], { download: 1024, upload: 1024 }),
+  toggleSequentialDownload: () => client.toggleSequentialDownload(['a1']),
+  toggleFirstLastPiecePrio: () => client.toggleFirstLastPiecePrio(['a1']),
+  setCategory: () => client.setCategory(['a1'], ''),
+  recheckTorrents: () => client.recheckTorrents(['a1']),
+  reannounceTorrents: () => client.reannounceTorrents(['a1']),
+  deleteTorrents: () => client.deleteTorrents(['a1'], false),
+  setTorrentLocation: () => client.setTorrentLocation(['a1'], '/downloads/other'),
+  getTorrentTrackers: () => client.getTorrentTrackers('a1'),
+  toggleSpeedLimitsMode: () => client.toggleSpeedLimitsMode(),
+}
+
 describe('qBittorrent client through /qbt', () => {
+  it.each([false, true])('gets every call the client makes past the bridge to qBittorrent (4.x: %s)', async (legacy) => {
+    const { qbittorrent, received } = await startKinopeer({ qbittorrent: { legacy } })
+    // Some answer an error from the fake (a hash it has no files for, an endpoint it doesn't
+    // model): what counts here is that the bridge sent each one on.
+    for (const call of Object.values(EVERY_CALL)) await call().catch(() => {})
+
+    const sent = received.filter(({ url }) => url?.startsWith('/qbt/')).map(({ method, url }) => `${method} ${url!.slice('/qbt'.length)}`)
+    expect(sent).toContain(legacy ? 'POST /api/v2/torrents/pause' : 'POST /api/v2/torrents/stop')
+    expect(qbittorrent.seen.map(({ method, url }) => `${method} ${url}`).sort()).toEqual(sent.sort())
+  })
+
   it('reads the version with the session the server holds, which never reaches the browser', async () => {
     const { qbittorrent, cookies } = await startKinopeer()
     await expect(getAppVersion()).resolves.toBe('5.2.4')

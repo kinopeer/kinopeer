@@ -4,7 +4,10 @@ import type { Middleware } from './prowlarr.ts'
 /**
  * Same-origin bridge to qBittorrent's Web API: /qbt/api/v2/… → $QBITTORRENT_URL/api/v2/…
  *
- * Origin and Referer are rewritten to the target so qBittorrent's CSRF check passes. The server
+ * It forwards only the calls Kinopeer's client makes (ENDPOINTS), and only from the client: every
+ * request carries the X-Kinopeer header, which a page on another site can't add without a CORS
+ * preflight, and the bridge allows none. That stands in for qBittorrent's own CSRF check, which
+ * can't see the browser: Origin and Referer are rewritten to the target so it passes. The server
  * logs in itself with the credentials it has (saved from the app, else QBITTORRENT_USERNAME and
  * QBITTORRENT_PASSWORD), keeps the session and logs in again when it expires, so the browser never
  * sees the password or a qBittorrent cookie. Without credentials, or after qBittorrent rejects
@@ -52,8 +55,40 @@ export async function qbittorrentLogin(base: string, username: string, password:
 }
 
 const PREFIX = '/qbt/'
-const API_PREFIX = '/qbt/api/'
-const AUTH_PREFIX = '/qbt/api/v2/auth/'
+/** Sent by src/api/qbittorrent/client.ts on every request. */
+const CLIENT_HEADER = 'x-kinopeer'
+/**
+ * What src/api/qbittorrent/client.ts calls, with its method: the only requests the bridge sends on,
+ * so nothing reaches qBittorrent's preferences, its logins or anything else Kinopeer doesn't use.
+ * server/integration/qbittorrent.test.ts checks that every call of the client gets through.
+ */
+const ENDPOINTS = new Map<string, 'GET' | 'POST'>([
+  ['/api/v2/app/version', 'GET'],
+  ['/api/v2/app/defaultSavePath', 'GET'],
+  ['/api/v2/app/preferences', 'GET'],
+  ['/api/v2/sync/maindata', 'GET'],
+  ['/api/v2/torrents/info', 'GET'],
+  ['/api/v2/torrents/categories', 'GET'],
+  ['/api/v2/torrents/files', 'GET'],
+  ['/api/v2/torrents/trackers', 'GET'],
+  ['/api/v2/torrents/add', 'POST'],
+  ['/api/v2/torrents/delete', 'POST'],
+  ['/api/v2/torrents/filePrio', 'POST'],
+  // qBittorrent 5's names, then 4.x's.
+  ['/api/v2/torrents/start', 'POST'],
+  ['/api/v2/torrents/stop', 'POST'],
+  ['/api/v2/torrents/resume', 'POST'],
+  ['/api/v2/torrents/pause', 'POST'],
+  ['/api/v2/torrents/setDownloadLimit', 'POST'],
+  ['/api/v2/torrents/setUploadLimit', 'POST'],
+  ['/api/v2/torrents/toggleSequentialDownload', 'POST'],
+  ['/api/v2/torrents/toggleFirstLastPiecePrio', 'POST'],
+  ['/api/v2/torrents/setCategory', 'POST'],
+  ['/api/v2/torrents/recheck', 'POST'],
+  ['/api/v2/torrents/reannounce', 'POST'],
+  ['/api/v2/torrents/setLocation', 'POST'],
+  ['/api/v2/transfer/toggleSpeedLimitsMode', 'POST'],
+])
 const MAX_BODY_BYTES = 50 * 1024 * 1024
 /** After qBittorrent refuses a login (e.g. the IP is banned), wait before trying again. */
 const LOGIN_RETRY_MS = 30_000
@@ -160,6 +195,7 @@ async function forward(
   session: ServerSession | undefined,
   request: IncomingMessage,
   response: ServerResponse,
+  path: string,
 ): Promise<void> {
   const method = request.method ?? 'GET'
   const headers: Record<string, string> = {}
@@ -167,7 +203,7 @@ async function forward(
   if (request.headers.accept) headers.Accept = request.headers.accept
   const upstream = await send(base, session, {
     method,
-    path: request.url!.slice(PREFIX.length - 1),
+    path,
     headers,
     body: method === 'GET' || method === 'HEAD' ? undefined : await readBody(request),
   })
@@ -219,9 +255,18 @@ export function qbittorrentBridge(config: QbittorrentConfig): QbittorrentBridge 
       response.end(message)
     }
     if (!base) return fail(503, 'QBITTORRENT_URL is not set')
-    if (!path.startsWith(API_PREFIX) || path.startsWith(AUTH_PREFIX)) return fail(404, 'Not found')
+    const target = path.slice(PREFIX.length - 1)
+    // Matched as written: a path with dots, encoded dots or a backslash, which fetch would resolve
+    // to another one, matches none.
+    const method = ENDPOINTS.get(target.split('?', 1)[0])
+    if (!method) return fail(404, 'Not found')
+    if (request.method !== method) {
+      response.setHeader('Allow', method)
+      return fail(405, 'Method not allowed')
+    }
+    if (!request.headers[CLIENT_HEADER]) return fail(400, 'Not a request from Kinopeer')
 
-    forward(base, currentSession(), request, response).catch((error: unknown) => {
+    forward(base, currentSession(), request, response, target).catch((error: unknown) => {
       if (response.headersSent) return void response.end()
       if (error instanceof BodyTooLargeError) fail(413, 'Request body too large')
       else fail(502, 'qBittorrent is unreachable')

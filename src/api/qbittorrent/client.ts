@@ -52,6 +52,9 @@ async function request(
   const response = await fetch(url, {
     method,
     credentials: 'same-origin',
+    // The server forwards only requests that carry it (server/qbittorrent.ts): another site can't
+    // add a header to a request without asking first, so it can't act through Kinopeer.
+    headers: { 'X-Kinopeer': '1' },
     body: method === 'POST' ? (init.form ?? search) : undefined,
     signal: init.signal,
   })

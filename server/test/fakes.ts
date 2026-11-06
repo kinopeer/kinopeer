@@ -179,7 +179,8 @@ async function parseAdd(body: Buffer, contentType: string | undefined): Promise<
 /**
  * A qBittorrent with one user, admin / "pass word", that hands out SID cookies and can expire them
  * (`sessions.clear()`). A wrong password gets 401 (qBittorrent 5.3+), or 200 "Fails." with
- * `legacy`; the user "banned" gets 403, as from an IP qBittorrent has banned. Every other path
+ * `legacy`, which also stands for qBittorrent 4.x's /torrents/pause and /resume in place of 5.0's
+ * /stop and /start (404 there); the user "banned" gets 403, as from an IP qBittorrent has banned. Every other path
  * needs a live session: the versions, the default save path and CATEGORIES, `torrents` (a copy,
  * returned as `torrents`) as /torrents/info and /sync/maindata (a full update for rid 0,
  * `mainDataDelta` after, plus what was added or deleted since the last poll), TRACKERS, and
@@ -311,7 +312,10 @@ export async function fakeQbittorrent({
       }
       case '/api/v2/torrents/start':
       case '/api/v2/torrents/stop':
-        return text(response, '')
+        return legacy ? text(response, 'Not Found', 404) : text(response, '')
+      case '/api/v2/torrents/resume':
+      case '/api/v2/torrents/pause':
+        return legacy ? text(response, '') : text(response, 'Not Found', 404)
       case '/api/v2/torrents/setCategory': {
         const category = params.get('category') ?? ''
         if (category && !(category in CATEGORIES)) return text(response, 'Incorrect category name', 409)
