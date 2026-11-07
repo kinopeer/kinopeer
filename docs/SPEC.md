@@ -1,6 +1,6 @@
 # Product spec
 
-What Kinopeer does and why, as of version 0.7.1. Update it in the same PR that changes the behavior; add new decisions to the log at the end.
+What Kinopeer does and why, as of version 0.7.2. Update it in the same PR that changes the behavior; add new decisions to the log at the end.
 
 ## Goal
 
