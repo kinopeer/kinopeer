@@ -52,14 +52,16 @@ jobs:
           # lines the branch changed.
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
-          # The token can write to PRs, and `npm ci` and the branch's own code run after this.
+          # The token can add checks to commits, and `npm ci` and the branch's own code run after
+          # this.
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run --silent test:mutants > mutants.md
+      - id: mutants
+        run: npm run --silent test:mutants > mutants.md
       - run: cat mutants.md >> "$GITHUB_STEP_SUMMARY"
       - name: Report the survivors as a check on the commit
         # A fork's PR gets a read-only token, and the job summary above still has them.
@@ -69,13 +71,12 @@ jobs:
           # The commit mutated, which a run started by hand has as its own.
           SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           REPO: ${{ github.repository }}
-        # Neutral while something survived, so the PR's checks show it without failing; the first
-        # line, without its bold, is the check's title, the whole report its summary.
+          # Neutral while something survived, so the PR's checks show it without failing, and when
+          # the script gave no count.
+          CONCLUSION: ${{ steps.mutants.outputs.survived == '0' && 'success' || 'neutral' }}
+        # The report's first line, without its bold, is the check's title, the whole report its
+        # summary.
         run: |
-          conclusion=success
-          if grep -q '^\*\*Mutants at [^*]*:\*\* [1-9]' mutants.md; then conclusion=neutral; fi
-          jq -n --arg sha "$SHA" --arg conclusion "$conclusion" \
-            --arg title "$(head -n 1 mutants.md | tr -d '*')" --rawfile summary mutants.md \
-            '{name: "Mutants report", head_sha: $sha, status: "completed", conclusion: $conclusion,
-              output: {title: $title, summary: $summary}}' |
-            gh api "repos/$REPO/check-runs" --input - --silent
+          gh api "repos/$REPO/check-runs" --silent -f name='Mutants report' -f head_sha="$SHA" \
+            -f status=completed -f conclusion="$CONCLUSION" \
+            -f "output[title]=$(head -n 1 mutants.md | tr -d '*')" -F 'output[summary]=@mutants.md'

@@ -4,7 +4,7 @@
 // no test can tell from the original; the PR says what each one is (docs/TESTING.md → A test that
 // can fail).
 import { spawnSync } from 'node:child_process'
-import { existsSync, readFileSync, rmSync } from 'node:fs'
+import { appendFileSync, existsSync, readFileSync, rmSync } from 'node:fs'
 
 const BASE = process.env.MUTANTS_BASE || 'origin/main'
 const REPORT = 'reports/mutants.json'
@@ -54,6 +54,12 @@ function stryker(...args) {
   if (status !== 0) process.exit(status ?? 1)
 }
 
+// In CI, the count for the workflow, which picks the check's conclusion by it rather than by
+// reading the report's wording.
+function survived(count) {
+  if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `survived=${count}\n`)
+}
+
 const commit = git('rev-parse', '--short', 'HEAD').trim()
 const ranges = changedRanges()
 if (ranges.length === 0) {
@@ -61,6 +67,7 @@ if (ranges.length === 0) {
   // Dependabot bump, finds out whether Stryker still runs (#285).
   stryker('--dryRunOnly')
   console.log(`**Mutants at ${commit}:** nothing to mutate, no production lines changed since ${BASE}; Stryker's dry run passed.`)
+  survived(0)
   process.exit(0)
 }
 
@@ -72,3 +79,4 @@ const left = survivors(report)
 const total = Object.values(report.files).reduce((sum, { mutants }) => sum + mutants.length, 0)
 console.log(`**Mutants at ${commit}:** ${left.length} survived of ${total}, over ${ranges.length} changed ranges.`)
 if (left.length > 0) console.log(`\n${left.join('\n')}`)
+survived(left.length)

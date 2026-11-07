@@ -250,8 +250,9 @@ author on every push. They don't fail the job, since an equivalent mutant would 
 survivor the PR doesn't account for, in the `Mutants` line or in the author's `Fixes for round <n>`
 comment for a later head, is a review finding. A round reads CI's report at the commit it reviews
 (`gh api 'repos/{owner}/{repo}/commits/<sha>/check-runs?check_name=Mutants%20report' --jq
-'.check_runs[0].output.summary'`), and waits for it while the run is going. The reviewer runs `npm
-run test:mutants` locally only when no report can come for that commit (Actions out of minutes, the job failed), and says so in the round. A branch
+'.check_runs | max_by(.completed_at) | .output.summary // "no report yet"'`), and waits for it
+while the run is going. The reviewer runs `npm run test:mutants` locally only when no report can
+come for that commit (Actions out of minutes, the job failed), and says so in the round. A branch
 with no production line changed gets Stryker's dry run instead (`--dryRunOnly`: the tests once,
 through Stryker's sandbox and instrumenter, nothing mutated), and the workflow also starts on what
 Stryker runs with (`package.json`, the lockfile, `stryker.config.mjs`, `vite.config.ts`, the script and
