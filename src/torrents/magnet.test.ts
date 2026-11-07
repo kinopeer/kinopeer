@@ -20,7 +20,7 @@ describe('parseMagnet', () => {
   })
 
   it('rejects anything else', () => {
-    expect(parseMagnet('https://kinozal.me/details.php?id=1')).toBeUndefined()
+    expect(parseMagnet('https://indexer-c.example.org/release/1')).toBeUndefined()
     expect(parseMagnet('magnet:?dn=no-hash')).toBeUndefined()
     expect(parseMagnet('magnet:?xt=urn:btih:nothex')).toBeUndefined()
   })

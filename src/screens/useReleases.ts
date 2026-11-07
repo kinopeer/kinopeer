@@ -77,7 +77,7 @@ interface Found {
 
 async function find(query: string, signal: AbortSignal): Promise<Found> {
   const started = performance.now()
-  // No category filter: some indexers (RuTor) file every release under "Other".
+  // No category filter: some indexers file every release under "Other".
   return { releases: await searchReleases(query, { signal }), started }
 }
 

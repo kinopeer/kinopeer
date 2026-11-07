@@ -99,11 +99,11 @@ describe('ReleasesScreen', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Filters' }))
     const sheet = within(screen.getByRole('dialog', { name: 'Filters' }))
     const indexers = within(sheet.getByRole('group', { name: 'Indexer' }))
-    expect(indexers.getAllByRole('button').map((chip) => chip.textContent)).toEqual(['Kinozal', 'RuTracker'])
-    await userEvent.click(indexers.getByRole('button', { name: 'RuTracker' }))
+    expect(indexers.getAllByRole('button').map((chip) => chip.textContent)).toEqual(['Indexer C', 'Indexer D'])
+    await userEvent.click(indexers.getByRole('button', { name: 'Indexer D' }))
     await userEvent.click(sheet.getByRole('button', { name: 'Show 1' }))
     expect(names()).toEqual([DUNE_RELEASES[0].title])
-    expect(screen.getByRole('button', { name: 'Remove filter RuTracker' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Remove filter Indexer D' })).toBeInTheDocument()
   })
 
   it('filters in the sheet and removes filters from the list', async () => {
@@ -138,7 +138,7 @@ describe('ReleasesScreen', () => {
   })
 
   it('lists every release found, whatever its category', async () => {
-    const other = (id: string, title: string) => ({ ...release(id, title, 1e9, 50, 'RuTor'), categories: [8000] })
+    const other = (id: string, title: string) => ({ ...release(id, title, 1e9, 50, 'Indexer A'), categories: [8000] })
     searchReleases.mockResolvedValue([
       other('r', 'Дюна: Часть вторая / Dune: Part Two (2024) BDRemux 1080p'),
       other('o', 'Hans Zimmer - Dune: Part Two (Original Motion Picture Soundtrack) (2024) MP3'),
@@ -148,7 +148,7 @@ describe('ReleasesScreen', () => {
   })
 
   it('searches a series by name alone, without a category, and shows its seasons', async () => {
-    searchReleases.mockResolvedValue([release('s', 'Breaking.Bad.S01-S05.COMPLETE.1080p.BluRay.x264-ROVERS', 212e9, 486)])
+    searchReleases.mockResolvedValue([release('s', 'Breaking.Bad.S01-S05.COMPLETE.1080p.BluRay.x264-GRPC', 212e9, 486)])
     renderAt('/title/tv/1396/releases')
     expect(await screen.findByText('S01–S05')).toBeInTheDocument()
     expect(searchReleases).toHaveBeenCalledWith('Breaking Bad', expect.not.objectContaining({ categories: expect.anything() }))
@@ -179,10 +179,10 @@ describe('ReleasesScreen', () => {
     // which can run after the list shows, so wait for it.
     await waitFor(() => expect(prowlarr.getFailingIndexers).toHaveBeenCalledWith(3000, expect.any(AbortSignal)))
 
-    // RuTracker's releases are in this search's results: its failure was another client's query.
-    answer(['NNM-Club', 'RuTracker'])
-    await waitFor(() => expect(note).toHaveTextContent('NNM-Club'))
-    expect(note).not.toHaveTextContent('RuTracker')
+    // Indexer D's releases are in this search's results: its failure was another client's query.
+    answer(['Indexer B', 'Indexer D'])
+    await waitFor(() => expect(note).toHaveTextContent('Indexer B'))
+    expect(note).not.toHaveTextContent('Indexer D')
   })
 
   it('still lists releases when it can’t tell which indexers failed', async () => {
@@ -237,7 +237,7 @@ describe('ReleasesScreen', () => {
       await userEvent.click(sheet.getByRole('button', { name: '2160p' }))
       await userEvent.click(sheet.getByRole('button', { name: '1080p' }))
       await userEvent.click(sheet.getByRole('button', { name: '100+' }))
-      await userEvent.click(within(sheet.getByRole('group', { name: 'Indexer' })).getByRole('button', { name: 'RuTracker' }))
+      await userEvent.click(within(sheet.getByRole('group', { name: 'Indexer' })).getByRole('button', { name: 'Indexer D' }))
       await userEvent.click(sheet.getByRole('radio', { name: 'Size' }))
       first.unmount()
 
@@ -246,7 +246,7 @@ describe('ReleasesScreen', () => {
       for (const label of ['2160p', '1080p', '100+ seeds']) {
         expect(screen.getByRole('button', { name: `Remove filter ${label}` })).toBeInTheDocument()
       }
-      expect(screen.queryByRole('button', { name: 'Remove filter RuTracker' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Remove filter Indexer D' })).not.toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Sort: Size, Descending' })).toBeInTheDocument()
       expect(names()).toEqual([DUNE_RELEASES[0].title, DUNE_RELEASES[1].title])
     })

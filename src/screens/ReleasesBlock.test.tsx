@@ -118,16 +118,16 @@ describe('ReleasesBody', () => {
     const { rerender, unmount } = renderBody(releases())
     expect(screen.getByRole('status')).toBeEmptyDOMElement()
     rerender(
-      <ReleasesBody releases={releases({ failing: ['Kinozal'] })} skeleton={<p>Skeleton</p>}>
+      <ReleasesBody releases={releases({ failing: ['Indexer C'] })} skeleton={<p>Skeleton</p>}>
         <p>The list</p>
       </ReleasesBody>,
     )
-    expect(screen.getByRole('status', { name: saying('1 indexer didn’t answer: Kinozal') })).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: saying('1 indexer didn’t answer: Indexer C') })).toBeInTheDocument()
     expect(screen.getByText('The list')).toBeInTheDocument()
     unmount()
 
-    renderBody(releases({ status: 'none', rows: [], visible: [], failing: ['Kinozal', 'RuTracker'] }))
-    expect(screen.getByRole('status', { name: saying('2 indexers didn’t answer: Kinozal, RuTracker') })).toBeInTheDocument()
+    renderBody(releases({ status: 'none', rows: [], visible: [], failing: ['Indexer C', 'Indexer D'] }))
+    expect(screen.getByRole('status', { name: saying('2 indexers didn’t answer: Indexer C, Indexer D') })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'No releases found' })).toBeInTheDocument()
   })
 })

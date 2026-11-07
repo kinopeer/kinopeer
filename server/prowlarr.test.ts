@@ -31,8 +31,8 @@ describe('failedIds and indexerNames', () => {
   const now = Date.parse('2026-10-28T01:00:00Z')
   const since = Date.parse('2026-10-28T00:59:00Z')
   const indexers = [
-    { id: 1, name: 'RuTracker', enable: true },
-    { id: 2, name: 'Kinozal', enable: true },
+    { id: 1, name: 'Indexer D', enable: true },
+    { id: 2, name: 'Indexer C', enable: true },
     { id: 3, name: 'Old', enable: false },
     { id: 4, name: 'Fine', enable: true },
     { id: 5, name: 'Earlier', enable: true },
@@ -47,7 +47,7 @@ describe('failedIds and indexerNames', () => {
       // Failed before this search and isn't on hold: an older failure, not this search's.
       { indexerId: 5, mostRecentFailure: '2026-10-28T00:58:59Z' },
     ]
-    expect(indexerNames(indexers, failedIds(statuses, since, now))).toEqual(['Kinozal', 'RuTracker'])
+    expect(indexerNames(indexers, failedIds(statuses, since, now))).toEqual(['Indexer C', 'Indexer D'])
   })
 
   it('names none when nothing failed', () => {
@@ -86,16 +86,16 @@ describe('prowlarrMiddleware', () => {
       response.end(
         JSON.stringify([
           {
-            guid: 'kinozal-1',
+            guid: 'indexer-c-1',
             title: 'Дюна / Dune (2021) BDRip 1080p',
-            indexer: 'Kinozal',
+            indexer: 'Indexer C',
             size: 12_000_000_000,
             seeders: 42,
             leechers: 3,
             categories: [{ id: 2000 }, { id: 100_001 }],
             protocol: 'torrent',
             downloadUrl: `http://somewhere:9696/1/download?apikey=${KEY}&link=AAA&file=Dune`,
-            infoUrl: 'https://kinozal.me/details.php?id=1',
+            infoUrl: 'https://indexer-c.example.org/release/1',
             tmdbId: 438631,
           },
           { guid: 'magnet-1', title: 'Dune 2021', protocol: 'torrent', magnetUrl: 'magnet:?xt=urn:btih:abc' },
@@ -113,7 +113,7 @@ describe('prowlarrMiddleware', () => {
     expect(seen).toEqual({ url: '/api/v1/search?query=Dune&type=movie&limit=100&categories=2000', key: KEY })
     expect(JSON.parse(text)).toEqual([
       expect.objectContaining({
-        id: 'kinozal-1',
+        id: 'indexer-c-1',
         seeders: 42,
         categories: [2000, 100_001],
         download: '1/download?link=AAA&file=Dune',
@@ -196,7 +196,7 @@ describe('prowlarrMiddleware', () => {
       response.end(
         JSON.stringify(
           request.url === '/api/v1/indexer'
-            ? [{ id: 1, name: 'RuTracker', enable: true }, { id: 2, name: 'Kinozal', enable: true }]
+            ? [{ id: 1, name: 'Indexer D', enable: true }, { id: 2, name: 'Indexer C', enable: true }]
             : [
                 { indexerId: 1, mostRecentFailure: ago(120_000) },
                 { indexerId: 2, mostRecentFailure: ago(5_000) },
@@ -205,10 +205,10 @@ describe('prowlarrMiddleware', () => {
       )
     })
     const base = await kinopeer({ url: prowlarr, apiKey: KEY })
-    // The search started 60 s ago: Kinozal failed during it, RuTracker before it.
+    // The search started 60 s ago: Indexer C failed during it, Indexer D before it.
     const response = await fetch(`${base}/prowlarr/failing?within=60000`)
     expect(response.status).toBe(200)
-    expect(await response.json()).toEqual({ indexers: ['Kinozal'] })
+    expect(await response.json()).toEqual({ indexers: ['Indexer C'] })
     expect(seen.map(({ path }) => path).sort()).toEqual(['/api/v1/indexer', '/api/v1/indexerstatus'])
     expect(seen.every(({ key }) => key === KEY)).toBe(true)
 

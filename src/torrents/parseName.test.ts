@@ -3,7 +3,7 @@ import { parseName, tmdbTag, tmdbTagFor } from './parseName'
 
 describe('parseName', () => {
   it.each([
-    ['Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX.HDR.DV.TrueHD.Atmos-FGT', { title: 'Dune Part Two', year: 2024 }],
+    ['Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX.HDR.DV.TrueHD.Atmos-GRPA', { title: 'Dune Part Two', year: 2024 }],
     ['Alien.Romulus.2024.1080p.WEB-DL', { title: 'Alien Romulus', year: 2024 }],
     ['Oppenheimer (2023) [1080p] [YTS.MX]', { title: 'Oppenheimer', year: 2023 }],
     ['1917.2019.1080p.BluRay.x264', { title: '1917', year: 2019 }],

@@ -80,7 +80,7 @@ describe('Prowlarr client through /prowlarr', () => {
         ],
       },
     })
-    await expect(getFailingIndexers(60_000)).resolves.toEqual(['NNM-Club'])
+    await expect(getFailingIndexers(60_000)).resolves.toEqual(['Indexer B'])
     expect(prowlarr.seen.map((request) => request.url).sort()).toEqual(['/api/v1/indexer', '/api/v1/indexerstatus'])
   })
 

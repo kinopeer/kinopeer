@@ -60,7 +60,7 @@ const HDRS: [Hdr, RegExp][] = [
 
 /**
  * Voice-over kinds as Russian trackers write them: words ("Дубляж", "Многоголосый"), English
- * shorthand ("Dub", "MVO", "DVO", "AVO") and Kinozal codes ("ДБ ПМ АП СТ").
+ * shorthand ("Dub", "MVO", "DVO", "AVO") and the short codes some trackers use ("ДБ ПМ АП СТ").
  */
 const AUDIO: [Audio, RegExp][] = [
   ['dub', word('дубляж|дублированный|dub|dubbed|дб')],
@@ -70,7 +70,7 @@ const AUDIO: [Audio, RegExp][] = [
   ['orig', word('original|оригинал|eng')],
 ]
 
-/** RuTracker credit letters, only trusted inside a "| D, P, A |" block: D dub, P/L multi, P2/L2 two, A/L1 one. */
+/** Credit letters some trackers use, only trusted inside a "| D, P, A |" block: D dub, P/L multi, P2/L2 two, A/L1 one. */
 const AUDIO_LETTERS: [Audio, RegExp][] = [
   ['dub', word('d')],
   ['mvo', word('p|l')],

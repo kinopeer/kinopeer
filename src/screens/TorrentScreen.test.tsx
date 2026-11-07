@@ -170,8 +170,8 @@ describe('TorrentScreen', () => {
   it('shows details and trackers when expanded', async () => {
     getTorrentTrackers.mockResolvedValue([
       { url: '** [DHT] **', status: 2, msg: '' },
-      { url: 'http://bt.rutor.info:2710/announce', status: 2, msg: '' },
-      { url: 'udp://opentor.net:6969', status: 4, msg: '' },
+      { url: 'http://bt.example.org:2710/announce', status: 2, msg: '' },
+      { url: 'udp://tracker.example.com:6969', status: 4, msg: '' },
     ])
     renderScreen()
     const toggle = within(await screen.findByRole('region', { name: 'Details' })).getByRole('button', { name: 'Details' })
@@ -183,7 +183,7 @@ describe('TorrentScreen', () => {
     expect(value('Seeds / peers')).toHaveTextContent('12 (340) · 3 (41)')
     expect(value('Save path')).toHaveTextContent('/data/movies')
     expect(value('Info hash')).toHaveTextContent('dune')
-    expect(await screen.findByText('bt.rutor.info, opentor.net')).toBeInTheDocument()
+    expect(await screen.findByText('bt.example.org, tracker.example.com')).toBeInTheDocument()
     expect(getTorrentTrackers).toHaveBeenCalledWith('dune', expect.any(AbortSignal))
   })
 
