@@ -29,7 +29,7 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # The branch itself rather than its merge with main, whole, so the script can find the
           # lines the branch changed.
@@ -37,7 +37,7 @@ jobs:
           fetch-depth: 0
           # The token can write to PRs, and `npm ci` and the branch's own code run after this.
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
