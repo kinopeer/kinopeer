@@ -48,6 +48,7 @@ describe('theme.js', () => {
 
     expect(runScript).not.toThrow()
     expect(document.documentElement.dataset.theme).toBeUndefined()
+    expect(themeColor()).toBe('#000000')
   })
 })
 

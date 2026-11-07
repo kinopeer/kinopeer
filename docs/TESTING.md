@@ -425,6 +425,7 @@ spot this table doesn't name adds its row, a feature as much as a fix (#240's de
 | Plain HTTP without `crypto.subtle`: reading a `.torrent` with the SHA-1 fallback in a real browser | `src/lib/digest.ts` on layer 1 against known digests; every browser test runs on localhost, a secure context, where Web Crypto exists | The checklist: add a release over `http://` on the LAN, where the info hash must still match qBittorrent's |
 | TMDB for real: field shapes, missing posters, the language fallback, rate limits | The fake and the fixtures' titles | Only the README screenshots (`npm run screenshots:readme`, through the edge worker's cache unless a key is set) and the test stand see the real API; nothing compares them, so a change in TMDB's answers arrives as a bug report |
 | An app resumed from memory after an update: Safari on iOS keeping the Home Screen app's page, the new service worker taking it over, Umbrel's proxy in front of `version.json` | `src/pwa/updates.test.ts` on layer 2 with `fetch`, `visibilitychange` and the service worker's registration stubbed (#210); every browser test loads a fresh page, which already has the new version | The checklist: after Umbrel updates Kinopeer Edge, resume the app on the owner's phone from the background and see it reload with the "updated" toast. Only a page that already has the update check can pass: the first update from a build before it can't |
+| The Content-Security-Policy outside Chromium and behind Umbrel's app_proxy: WebKit's enforcement (Safari on iOS and the Mac), and whatever the proxy adds to or changes in the pages | The smoke journeys, which fail on anything the policy blocks in Chromium on the production server (`e2e/smoke/test.ts`), and the screenshot tests, which run under it on `vite preview` | The checklist: no "Content Security Policy" error in Safari's console on Kinopeer Edge while going through the phone's and the desktop's checks, and the app still opening from Umbrel (`frame-ancestors 'none'` would stop it in a frame); for a PR that changes the policy, the same on the `preview-lan` stand |
 | Real time: the hour before a refused login is retried, the week before a missing torrent's match is forgotten, the hourly cleanup | Fake timers on layer 4 | Not checked for real; the logic is small and the timers are the only difference |
 
 ## Shared test data
@@ -786,7 +787,7 @@ need no Docker: Chromium on the host will do (`npx playwright install chromium`,
   the server on 4310 and the control server on 4320, one worker, service workers allowed). Locally
   it reuses a stand already running: for a quick loop, build once, start
   `node e2e/smoke/stack.ts` yourself and run `npx playwright test --config playwright.smoke.config.ts`.
-- **Adding a journey:** a `*.smoke.ts` in `e2e/smoke/` that imports `test` and `expect` from `./test.ts`, starts with `resetStand(…)`, drives
+- **Adding a journey:** a `*.smoke.ts` in `e2e/smoke/` that imports `test` and `expect` from `./test.ts` (oxlint refuses them from `@playwright/test` there), starts with `resetStand(…)`, drives
   the UI by role and name in Russian (the context's locale) and ends on `standState()` and on what
   the page sent. Keep it to what a lower layer can't assert. A fake's new behavior goes into
   `server/test/fakes.ts` as an addition, since the server and integration tests run on it; a

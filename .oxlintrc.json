@@ -1,16 +1,55 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc", "vitest"],
+  "plugins": [
+    "react",
+    "typescript",
+    "oxc",
+    "vitest"
+  ],
   "rules": {
     "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }],
+    "react/only-export-components": [
+      "warn",
+      {
+        "allowConstantExport": true
+      }
+    ],
     "vitest/no-identical-title": "error",
     "vitest/no-disabled-tests": "error",
     "vitest/no-focused-tests": "error",
     "vitest/expect-expect": "error",
     "vitest/no-conditional-tests": "error",
-    "vitest/valid-expect": ["error", { "maxArgs": 2 }],
+    "vitest/valid-expect": [
+      "error",
+      {
+        "maxArgs": 2
+      }
+    ],
     "vitest/require-mock-type-parameters": "off",
     "vitest/require-to-throw-message": "off"
-  }
+  },
+  "overrides": [
+    {
+      "files": [
+        "e2e/smoke/*.smoke.ts"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@playwright/test",
+                "importNames": [
+                  "test",
+                  "expect"
+                ],
+                "message": "Import test and expect from ./test.ts, which fails a journey on anything the Content-Security-Policy blocks."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
 }
