@@ -764,7 +764,9 @@ need no Docker: Chromium on the host will do (`npx playwright install chromium`,
   screen goes away being the one the user left rather than the next screen's, clamped; a reload of
   an entry a tab's link opened (the browser keeps its history state) comes back to where the user
   was on it; and the active tab scrolls to the top, which only a real browser's scrolling shows. Every
-  journey also asserts the proxy refused nothing, so every fetch carried its cookie.
+  journey also asserts the proxy refused nothing, so every fetch carried its cookie, and, through
+  the `test` they import from `e2e/smoke/test.ts`, that the Content-Security-Policy blocked nothing
+  the built app loads or runs.
 - **What they don't.** Looks (the screenshot tests), and the branches of a flow (an error, an
   empty state, a second qBittorrent version): a journey goes through once; its variations belong
   to the layers above, which run in milliseconds.
@@ -784,7 +786,7 @@ need no Docker: Chromium on the host will do (`npx playwright install chromium`,
   the server on 4310 and the control server on 4320, one worker, service workers allowed). Locally
   it reuses a stand already running: for a quick loop, build once, start
   `node e2e/smoke/stack.ts` yourself and run `npx playwright test --config playwright.smoke.config.ts`.
-- **Adding a journey:** a `*.smoke.ts` in `e2e/smoke/` that starts with `resetStand(…)`, drives
+- **Adding a journey:** a `*.smoke.ts` in `e2e/smoke/` that imports `test` and `expect` from `./test.ts`, starts with `resetStand(…)`, drives
   the UI by role and name in Russian (the context's locale) and ends on `standState()` and on what
   the page sent. Keep it to what a lower layer can't assert. A fake's new behavior goes into
   `server/test/fakes.ts` as an addition, since the server and integration tests run on it; a

@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { TMDB_PROXY_EDGE, dataStores, kinopeerServer, type KinopeerServer } from './server/main.ts'
+import { contentSecurityPolicy } from './server/securityHeaders.ts'
 
 /**
  * The PWA: web app manifest and a service worker (src/sw.ts) that precaches the app shell. Icons
@@ -41,15 +42,20 @@ const pwa = VitePWA({
 /**
  * Serves server/ middleware (/api/settings, /api/matches, /qbt/*, /prowlarr/*, /tmdb/* and
  * /tmdb-img/*) and runs its jobs in `vite` and `vite preview`, as the production server
- * (server/main.ts) does. Nothing runs in `vite build`.
+ * (server/main.ts) does. `vite preview` also sends the Content-Security-Policy, so the test stand
+ * runs under it; the dev server doesn't, since its pages run Vite's inline scripts. Nothing runs
+ * in `vite build`.
  */
 function serverRoutesPlugin(kinopeer: KinopeerServer): Plugin {
-  const serve = (server: { middlewares: { use: (middleware: KinopeerServer['routes'][number]) => unknown }; httpServer: { once: (event: 'close', listener: () => void) => unknown } | null }) => {
-    kinopeer.routes.forEach((middleware) => server.middlewares.use(middleware))
-    const stopJobs = kinopeer.startJobs()
-    server.httpServer?.once('close', stopJobs)
-  }
-  return { name: 'kinopeer-server', configureServer: serve, configurePreviewServer: serve }
+  type Middleware = KinopeerServer['routes'][number]
+  const serve =
+    (first: Middleware[]) =>
+    (server: { middlewares: { use: (middleware: Middleware) => unknown }; httpServer: { once: (event: 'close', listener: () => void) => unknown } | null }) => {
+      ;[...first, ...kinopeer.routes].forEach((middleware) => server.middlewares.use(middleware))
+      const stopJobs = kinopeer.startJobs()
+      server.httpServer?.once('close', stopJobs)
+    }
+  return { name: 'kinopeer-server', configureServer: serve([]), configurePreviewServer: serve([contentSecurityPolicy]) }
 }
 
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }

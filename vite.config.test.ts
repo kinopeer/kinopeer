@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createServer, preview } from 'vite'
-import { SECURITY_HEADERS } from './server/securityHeaders.ts'
+import { CONTENT_SECURITY_POLICY, SECURITY_HEADERS } from './server/securityHeaders.ts'
 
 /**
  * `npm run dev` and `npm run preview` from this config. loadEnv lets process.env win over
@@ -69,6 +69,14 @@ describe('vite.config.ts', () => {
       const { headers } = await fetch(`http://127.0.0.1:${port}/`)
       for (const [name, value] of Object.entries(SECURITY_HEADERS)) expect(headers.get(name), `${server} ${name}`).toBe(value)
     }
+  })
+
+  // The test stand runs under the Content-Security-Policy; the dev server's pages run Vite's
+  // inline scripts, which it would block.
+  it('sends the Content-Security-Policy from the preview server and not the dev server', async () => {
+    const [fromDev, fromPreview] = await Promise.all([startDev(), startPreview()].map(async (port) => fetch(`http://127.0.0.1:${await port}/`)))
+    expect(fromPreview.headers.get('content-security-policy')).toBe(CONTENT_SECURITY_POLICY)
+    expect(fromDev.headers.has('content-security-policy')).toBe(false)
   })
 
   it('answers no cross-origin preflight on the preview server either', async () => {

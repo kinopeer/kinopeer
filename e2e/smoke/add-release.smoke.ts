@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './test.ts'
 import { DESKTOP } from '../app.ts'
 import { RELEASES, TORRENTS, shogunTorrent } from '../../src/test/fixtures.ts'
 import { PROWLARR_KEY, PROXY_DENIED_HEADER, SHOGUN_HASH, TMDB_KEY, resetStand, standState } from './control.ts'
