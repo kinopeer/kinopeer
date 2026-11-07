@@ -264,12 +264,13 @@ describe('limitKey', () => {
     ['zeros elided inside the first half', '2001:db8::1', '2001:db8:0:0::/64'],
     ['zeros elided at the start', '::1', '0:0:0:0::/64'],
     ['zeros elided at the end', '2001:db8:1:2:3::', '2001:db8:1:2::/64'],
+    ['a single group elided, the rest after it', '2001::1:2:3:4:5:6', '2001:0:1:2::/64'],
   ])('reads %s', (_, ip, key) => {
     expect(limitKey(ip)).toBe(key)
   })
 
   // Not an address Cloudflare sends; kept whole rather than guessed at, so it still has a limit.
-  it.each(['2001:db8::1::2', '2001:db8:1:2:3:4:5', '1:2:3:4:5:6:7:8:9::', 'unknown'])('keeps %s as it is', (ip) => {
+  it.each(['2001:db8::1::2', '1:2:3:4:5:6:7:8::9::1', '2001:db8:1:2:3:4:5', '1:2:3:4:5:6:7:8:9::', 'unknown'])('keeps %s as it is', (ip) => {
     expect(limitKey(ip)).toBe(ip)
   })
 })

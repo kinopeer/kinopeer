@@ -76,7 +76,7 @@ function authorize(key: string, url: string): { url: string; headers: Record<str
 }
 
 /** The groups of one side of an IPv6 address's `::`, an IPv4 tail counted as the two it takes. */
-function groups(part: string): string[] {
+function groups(part: string | undefined): string[] {
   return part ? part.split(':').flatMap((group) => (group.includes('.') ? ['0', '0'] : [group])) : []
 }
 
@@ -90,7 +90,7 @@ export function limitKey(ip: string): string {
   const halves = ip.toLowerCase().split('::')
   if (halves.length > 2) return ip
   const head = groups(halves[0])
-  const tail = halves.length === 2 ? groups(halves[1]) : []
+  const tail = groups(halves[1])
   // None elided, rather than a negative count, when the sides already have more than eight groups.
   const elided = halves.length === 2 ? Math.max(0, 8 - head.length - tail.length) : 0
   const all = [...head, ...Array<string>(elided).fill('0'), ...tail]
