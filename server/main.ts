@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { MatchesStore, matchesMiddleware, qbittorrentHashes, startMatchesCleanup } from './matches.ts'
 import { prowlarrMiddleware, type Middleware } from './prowlarr.ts'
 import { qbittorrentBridge } from './qbittorrent.ts'
-import { securityHeaders } from './securityHeaders.ts'
+import { contentSecurityPolicy, securityHeaders } from './securityHeaders.ts'
 import { SettingsStore, prowlarrKey, qbittorrentCredentials, settingsMiddleware, tmdbKey } from './settings.ts'
 import { staticMiddleware } from './static.ts'
 import { tmdbMiddleware } from './tmdb.ts'
@@ -22,7 +22,7 @@ import { tmdbMiddleware } from './tmdb.ts'
  * app and torrent-to-title matches are kept.
  */
 export function createApp(root: string, kinopeer: KinopeerServer) {
-  return createServer(chain([...kinopeer.routes, staticMiddleware({ root })]))
+  return createServer(chain([contentSecurityPolicy, ...kinopeer.routes, staticMiddleware({ root })]))
 }
 
 /** What the server keeps in its data directory. */

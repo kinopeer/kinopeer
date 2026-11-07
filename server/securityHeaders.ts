@@ -22,6 +22,32 @@ export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
   'Cross-Origin-Opener-Policy': 'same-origin',
 }
 
+/**
+ * What a page of Kinopeer may load and run: only its own files. No inline script (index.html's
+ * theme script is /theme.js for this), so neither a script injected into a page nor a
+ * `javascript:` link runs; images also as `data:` URLs, which Vite inlines small ones as (TMDB's
+ * logo in Settings). The API calls, the service worker and the manifest are all same-origin.
+ * `base-uri` and `form-action` keep an injected tag from sending the app's links or forms
+ * elsewhere, and `frame-ancestors` is `X-Frame-Options` for browsers that read only this.
+ *
+ * Not from the dev server, whose pages run Vite's inline scripts: production and `vite preview`
+ * send it (`contentSecurityPolicy`), so the test stand runs under it.
+ */
+export const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "img-src 'self' data:",
+  "object-src 'none'",
+  "base-uri 'none'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join('; ')
+
+/** Sets CONTENT_SECURITY_POLICY on the answer, then hands the request on. */
+export const contentSecurityPolicy: Middleware = (_request, response, next) => {
+  response.setHeader('Content-Security-Policy', CONTENT_SECURITY_POLICY)
+  next()
+}
+
 /** Sets SECURITY_HEADERS on the answer, then hands the request on: the first of the server's routes. */
 export const securityHeaders: Middleware = (_request, response, next) => {
   for (const [name, value] of Object.entries(SECURITY_HEADERS)) response.setHeader(name, value)
