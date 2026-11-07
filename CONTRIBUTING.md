@@ -11,11 +11,11 @@ Read first [what Kinopeer doesn't do](docs/SPEC.md#what-kinopeer-doesnt-do): pla
 
 Pull requests are welcome. A small fix can come straight away; for anything bigger, open an issue or an idea first, so we agree on the approach before you spend the time. Target `main`, one change per PR.
 
-The pull request template is long: a table of tests, mutants and more. Fill in what you can. The maintainer completes the rest before merging (tests in the project's system, mutants, review rounds), possibly with commits to your branch.
+The pull request template is long: a table of tests, mutants and more. Fill in what you can. The maintainer completes the rest before merging (tests in the project's system, mutants, review rounds), possibly with commits to your branch, so leave "Allow edits by maintainers" on when you open the PR.
 
 ## Running and checking
 
-Setup is in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). Before pushing, run `npm run lint`, `npm run typecheck`, `npm test` and `npm run build`, and `npm run test:visual` (in Docker) when the UI changes. CI runs the same on every PR.
+Setup is in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). Before pushing, run `npm run lint`, `npm run typecheck`, `npm run test:coverage` (the tests with the coverage threshold) and `npm run build`, `npm run test:smoke` (the smoke journeys in Chromium) when a flow changes, and `npm run test:visual` (in Docker) when the UI changes. CI runs all of them on every PR and also builds the Docker image and starts it.
 
 - UI text is never hardcoded: add keys to both `src/i18n/locales/en.json` and `ru.json`. If you don't know Russian, put the English text in both, and the maintainer will translate it.
 - Everything in the repository is in English: code, comments, docs, commit messages.
@@ -23,12 +23,12 @@ Setup is in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). Before pushing, run `npm
 
 ## How Kinopeer is developed
 
-Kinopeer is written with [Claude Code](https://claude.com/claude-code). The maintainer sets the tasks, reads the changes and decides what merges. Every PR is reviewed by a separate Claude session by the rules in `docs/TESTING.md`, hence the review rounds in the PRs' comments, and `CLAUDE.md` describes the project for those sessions. If you work with Claude Code yourself, it gives your session the same context. Whether you write code with AI is up to you; the bar is the same either way: the tests and the review.
+Kinopeer is written with [Claude Code](https://claude.com/claude-code). The maintainer sets the tasks, reads the changes and decides what merges. Every PR but Dependabot's is reviewed by a separate Claude session by the rules in `docs/TESTING.md`, hence the review rounds in the PRs' comments, and `CLAUDE.md` describes the project for those sessions. If you work with Claude Code yourself, it gives your session the same context. Whether you write code with AI is up to you; the bar is the same either way: the tests and the review.
 
 ## Licensing of contributions
 
 Kinopeer is licensed under the [GNU GPL, version 3 or later](LICENSE). By submitting a contribution, you:
 
-- license it under the same terms;
-- grant Alfred Shakhov a perpetual, worldwide, non-exclusive, royalty-free, irrevocable license to use, modify and distribute it under other licenses as well, commercial ones included;
+- license it under the GNU GPL, version 3 or later;
+- grant Alfred Shakhov, and whoever the project passes to, a perpetual, worldwide, non-exclusive, royalty-free, irrevocable license to use, modify, distribute and sublicense it under other licenses as well, commercial ones included;
 - confirm that you have the right to do so.

@@ -1,6 +1,8 @@
 <!-- Everything here is in English. Delete the sections and hints that don't apply.
      Contributing from outside? Fill in what you can; the maintainer completes the rest (CONTRIBUTING.md). -->
 
+By opening this pull request, I agree to CONTRIBUTING.md → Licensing of contributions.
+
 ## What
 
 <!-- What changes for the user or in the code, and why. Link the issue (Closes #…) when there is one. -->
