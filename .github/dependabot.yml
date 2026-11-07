@@ -1,0 +1,56 @@
+# Version updates once a month, grouped, so a month brings a few PRs rather than one per package:
+# they merge on green CI and the owner's OK, without review rounds (docs/TESTING.md → Reviewing a
+# PR's tests). Security updates, once turned on in the repository's settings, come as soon as an
+# alert does, whatever the schedule.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    # A version gets a week before it's offered, so a release pulled or found compromised in its
+    # first days never reaches a PR.
+    cooldown:
+      default-days: 7
+    # An update goes into the first group it matches.
+    groups:
+      # TypeScript apart: it's pinned to a minor (~), since its minors often break tsc, and a red one
+      # shouldn't hold back the rest.
+      typescript:
+        patterns: ['typescript']
+      # Majors apart: they're the ones that may need code changes, and they shouldn't hold back the rest.
+      npm-minor-and-patch:
+        patterns: ['*']
+        update-types: [minor, patch]
+      npm-major:
+        patterns: ['*']
+        update-types: [major]
+    ignore:
+      # Pinned to the Playwright image the screenshot baselines are rendered in (ci.yml's visual job
+      # and scripts/playwright-docker.sh), which Dependabot doesn't update: the three move together,
+      # by hand, with the baselines re-rendered.
+      - dependency-name: '@playwright/test'
+      # Its major is the Node the image runs (the Dockerfile's node:24-alpine): a later one would let tsc
+      # pass Node APIs the image doesn't have. It moves with the Dockerfile, by hand.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
+
+  - package-ecosystem: npm
+    directory: /tmdb-proxy
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    groups:
+      tmdb-proxy:
+        patterns: ['*']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    groups:
+      github-actions:
+        patterns: ['*']

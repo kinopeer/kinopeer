@@ -607,6 +607,21 @@ bullet #231 had added), so the comment checks `git diff main...HEAD -- CHANGELOG
 the PR adds beside `main`'s version of the same entry, keeps one, and says where the PR's entry
 ended up.
 
+Dependabot's PRs (`.github/dependabot.yml`: once a month, grouped) skip the rounds and the
+template. They change only versions, in `package.json`, the lockfiles and the workflows' `uses:`,
+and a round would have nothing of ours to read. One merges on green CI and the owner's OK. One
+that fails, or a major that needs our code changed, is closed, and the update goes into a PR of our
+own with the fixes, which gets its rounds. The retro leaves them out of its batch and its count
+([Improving the system](#improving-the-system)). A PR's CI doesn't run everything they move:
+Wrangler (`tmdb-proxy/`) runs only in `tmdb-proxy.yml`, the `docker/*` actions other than
+`setup-buildx-action` and `build-push-action` only in `edge.yml` and `release.yml`, and Stryker
+only in `mutants.yml`, which a root npm PR doesn't start and which stops at "nothing to mutate"
+before Stryker starts when no production line changed. So after the `tmdb-proxy` PR, or a
+`github-actions` PR that changes `edge.yml` or `tmdb-proxy.yml`, merges, the owner watches the Edge
+run it starts on `main`; `release.yml`'s actions first run at the next tag (`RELEASE_CHECKLIST.md`
+→ Before every release), and a broken Stryker shows on the next PR of ours with code, or in its
+author's `npm run test:mutants`.
+
 A real bug that `/code-review` finds in an open PR's own change is fixed in that PR, red test
 first, without an issue: it never reached `main`. The round that reports the bug records the
 missing test under check A as well, as one finding with the bug, since the test that should have
@@ -635,7 +650,7 @@ open lists it as `still open (round <n>)` with no tag, and the retro counts each
 The review comments are the log: no other file to keep in sync. Escaped bugs keep their own
 record, the `test-gap:*` labels ([When we find a bug](#when-we-find-a-bug)).
 
-**When.** Once twenty PRs have merged that no row of the table below lists; a release doesn't call
+**When.** Once twenty PRs have merged that no row of the table below lists, Dependabot's left out; a release doesn't call
 for one (decided on 2026-11-06: at ten PRs or each release a retro came almost daily, on batches too
 small for a finding to repeat three times). The review counts them: when it finds twenty or more,
 its verdict line says "retro due", and the
