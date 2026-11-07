@@ -66,4 +66,8 @@ Kinopeer is a web app (PWA). Over plain HTTP on your home network it works in th
 - [docs/SPEC.md](docs/SPEC.md): what the product does and why.
 - [docs/ROADMAP.md](docs/ROADMAP.md): what's next.
 
-Movie and series data and posters come from [TMDB](https://www.themoviedb.org). This product uses the TMDB API but is not endorsed or certified by TMDB. The license will be chosen before the public release.
+## License
+
+Kinopeer is free software: you can redistribute it and modify it under the terms of the [GNU General Public License](LICENSE), version 3 or any later version. Copyright © 2026 Alfred Shakhov.
+
+The Onest font is under the [SIL Open Font License 1.1](https://openfontlicense.org). Movie and series data and posters come from [TMDB](https://www.themoviedb.org). This product uses the TMDB API but is not endorsed or certified by TMDB. TMDB's logo, and the posters and descriptions in the screenshots, belong to their owners and aren't covered by Kinopeer's license.
