@@ -244,11 +244,14 @@ Before marking a PR ready, the author does both of these and says so in the PR:
 CI runs the same (`.github/workflows/mutants.yml`) for the latest head of a ready PR: when it's
 opened ready or marked ready, on every push to it (a fix, a merge of `main`), or when started by
 hand (`gh workflow run mutants.yml --ref <branch>`). A push while a run is going cancels it, so
-only the latest head is mutated, and the run posts the survivors on the PR at that commit. They
-don't fail the job, since an equivalent mutant would fail it for good; a survivor the PR doesn't
-account for, in the `Mutants` line or in the author's `Fixes for round <n>` comment for a later
-head, is a review finding. A round reads CI's comment at the commit it reviews, and waits for it
-while the run is going. The reviewer runs `npm run test:mutants` locally only when no comment can
+only the latest head is mutated, and the run adds the survivors to that commit as its `Mutants
+report` check (neutral while something survived), not as a comment on the PR, which emailed its
+author on every push. They don't fail the job, since an equivalent mutant would fail it for good; a
+survivor the PR doesn't account for, in the `Mutants` line or in the author's `Fixes for round <n>`
+comment for a later head, is a review finding. A round reads CI's report at the commit it reviews
+(`gh api 'repos/{owner}/{repo}/commits/<sha>/check-runs?check_name=Mutants%20report' --jq
+'.check_runs | max_by(.completed_at) | .output.summary // "no report yet"'`), and waits for it
+while the run is going. The reviewer runs `npm run test:mutants` locally only when no report can
 come for that commit (Actions out of minutes, the job failed), and says so in the round. A branch
 with no production line changed gets Stryker's dry run instead (`--dryRunOnly`: the tests once,
 through Stryker's sandbox and instrumenter, nothing mutated), and the workflow also starts on what
@@ -291,7 +294,7 @@ every later test in the file (#243). A new test doesn't write `vi.restoreAllMock
 already in the tree do nothing now and go when their file is next changed.
 
 The Seen red column is the author's word, and the review can only read the tests for these shapes;
-the survivors in CI's comment are not.
+the survivors in CI's report are not.
 
 ### Saying why something is uncovered
 
@@ -581,7 +584,7 @@ Three steps, each by whoever can do it best:
    review is a new test. More rounds until the verdict is "ready to merge". The author answers each
    round with one comment headed `Fixes for round <n>`, at the commit the next round should see:
    each finding fixed (its commit) or declined (why), the tests written for the fixes and what was
-   broken to see each red, each survivor in CI's mutants comment at that commit that the `Mutants`
+   broken to see each red, each survivor in CI's mutants report at that commit that the `Mutants`
    line doesn't account for, a merge of `main` and its conflicts, and the docs grepped again for what
    the fixes changed (#230's fix left two sentences stale). The reviewer starts the next round from
    that comment; a message that points to it is the whole hand-over. A reviewer who sees the PR grow
