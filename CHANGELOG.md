@@ -4,6 +4,10 @@ Kinopeer follows [semantic versioning](https://semver.org). While the version is
 
 ## Unreleased
 
+### Changed
+
+- Kinopeer is free software under the GNU General Public License, version 3 or later.
+
 ### Fixed
 
 - Kinopeer's server passes requests on to qBittorrent only from Kinopeer itself and only for what Kinopeer does with torrents, so a page on another site can no longer make your browser change your torrents or qBittorrent's settings through Kinopeer. ([#270](https://github.com/kinopeer/kinopeer/issues/270))
