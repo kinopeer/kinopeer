@@ -111,7 +111,7 @@ describe('tmdbMiddleware', () => {
       expect(await typeOf(`${await answering(type)}/tmdb/movie/771`)).toBe(type)
     })
 
-    it.each(['image/jpeg', 'image/png', 'image/webp'])('keeps %s from the images', async (type) => {
+    it.each(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'])('keeps %s from the images', async (type) => {
       expect(await typeOf(`${await answering(type)}/tmdb-img/w342/poster.jpg`)).toBe(type)
     })
 
@@ -125,6 +125,9 @@ describe('tmdbMiddleware', () => {
       // The type is what comes first, not a word anywhere in the header.
       ['HTML that names JSON after it', 'text/html; profile=application/json', '/tmdb/movie/771'],
       ['HTML that names an image after it', 'text/html; profile=image/jpeg', '/tmdb-img/w342/poster.jpg'],
+      // A type is the whole word: JSONP is a script, and a made-up image type is none of the app's.
+      ['JSONP from the API', 'application/jsonp', '/tmdb/movie/771'],
+      ['a type that only starts like an image one', 'image/pngx', '/tmdb-img/w342/poster.jpg'],
     ])('sends %s as bytes to download', async (_, type, path) => {
       expect(await typeOf(`${await answering(type)}${path}`)).toBe('application/octet-stream')
     })
