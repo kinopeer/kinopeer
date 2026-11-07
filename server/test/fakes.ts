@@ -472,9 +472,9 @@ export async function fakeProwlarr({
     if (pathname === '/api/v1/system/status') return json(response, { version: '1.24.3.4754' })
     if (pathname === '/api/v1/indexer') {
       return json(response, [
-        { id: 1, name: 'RuTor', enable: true },
-        { id: 2, name: 'NNM-Club', enable: true },
-        { id: 3, name: 'Kinozal', enable: false },
+        { id: 1, name: 'Indexer A', enable: true },
+        { id: 2, name: 'Indexer B', enable: true },
+        { id: 3, name: 'Indexer C', enable: false },
       ])
     }
     if (pathname === '/api/v1/indexerstatus') return json(response, indexerStatus)

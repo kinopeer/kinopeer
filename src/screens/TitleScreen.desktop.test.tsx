@@ -135,10 +135,10 @@ describe('TitleScreen on desktop', () => {
   })
 
   it('names the indexers that didn’t answer in the releases section', async () => {
-    vi.mocked(prowlarr.getFailingIndexers).mockResolvedValue(['NNM-Club'])
+    vi.mocked(prowlarr.getFailingIndexers).mockResolvedValue(['Indexer B'])
     renderAt('/title/movie/693134/releases')
     const section = await screen.findByRole('region', { name: 'Releases' })
-    expect(await within(section).findByRole('status', { name: saying(/NNM-Club/) })).toBeInTheDocument()
+    expect(await within(section).findByRole('status', { name: saying(/Indexer B/) })).toBeInTheDocument()
   })
 
   it('keeps the recommendations on the page with the releases searched', async () => {

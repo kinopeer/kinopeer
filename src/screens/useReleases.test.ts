@@ -25,8 +25,8 @@ describe('useReleases', () => {
   it("starts another title's search without the last one's picks", async () => {
     const { result, rerender } = renderHook(({ details }) => useReleases(details), { initialProps: { details: movie(1, 'Dune') } })
     await waitFor(() => expect(result.current.status).toBe('ready'))
-    act(() => result.current.updateFilters({ indexer: ['RuTracker'] }))
-    expect(result.current.filters.indexer).toEqual(['RuTracker'])
+    act(() => result.current.updateFilters({ indexer: ['Indexer D'] }))
+    expect(result.current.filters.indexer).toEqual(['Indexer D'])
 
     rerender({ details: movie(2, 'Arrival') })
     await waitFor(() => expect(prowlarr.searchReleases).toHaveBeenCalledWith('Arrival 2024', { signal: expect.any(AbortSignal) }))
@@ -36,8 +36,8 @@ describe('useReleases', () => {
   it('leaves the stored settings alone on an indexer pick, which isn\'t remembered', async () => {
     const { result } = renderHook(() => useReleases(movie(1, 'Dune')))
     await waitFor(() => expect(result.current.status).toBe('ready'))
-    act(() => result.current.updateFilters({ indexer: ['RuTracker'] }))
-    expect(result.current.filters.indexer).toEqual(['RuTracker'])
+    act(() => result.current.updateFilters({ indexer: ['Indexer D'] }))
+    expect(result.current.filters.indexer).toEqual(['Indexer D'])
     expect(localStorage.getItem(SETTINGS_STORAGE_KEY)).toBeNull()
   })
 })

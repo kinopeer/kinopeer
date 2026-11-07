@@ -4,7 +4,7 @@ import { qualityBadges } from './qualityBadges'
 
 describe('qualityBadges', () => {
   it('lists the resolution, source, codec and HDR formats in that order', () => {
-    expect(qualityBadges(parseRelease('Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX.HDR10.HEVC-FGT'))).toEqual([
+    expect(qualityBadges(parseRelease('Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX.HDR10.HEVC-GRPA'))).toEqual([
       { kind: 'res', label: '2160p' },
       { kind: 'default', label: 'REMUX' },
       { kind: 'default', label: 'HEVC' },

@@ -439,7 +439,11 @@ it uses next to itself.
   SVGs, the `.torrent` as a `Buffer`). Every helper takes overrides: when a test needs other
   defaults, it passes them (or wraps the helper, as the Downloads tests do for their 1 GB rows)
   rather than copying the function. The screenshot baselines are rendered from this module, so a
-  change to a name, size, date, order or `NOW` re-renders them.
+  change to a name, size, date, order or `NOW` re-renders them. Its data names no real tracker,
+  release page or release group (`CLAUDE.md` → Conventions): indexers are `Indexer A` to `Indexer D`,
+  pages and announce URLs are on `example.org`, `example.com` or `.test`, and release names keep
+  a real naming style with made-up groups (`-GRPA`) and no voice-over studios. The studios
+  `parseRelease` recognizes are product logic, so they stay in it and in its own test.
 - **`src/test/render.tsx`:** `renderWithRouter(ui, entries)` renders under a `MemoryRouter` at the
   last of `entries`, for screens that read the URL or navigate; `<Where />` rendered next to them
   shows the current path, which `where()` reads back. `saying(text)` matches a live region by its

@@ -37,7 +37,7 @@ const readTorrentFile = vi.mocked(torrentFile.readTorrentFile)
 const RELEASE: Release = {
   id: 'bb',
   title: 'Breaking.Bad.S01-S02.1080p.BluRay.x264',
-  indexer: 'Kinozal',
+  indexer: 'Indexer C',
   size: 50e9,
   seeders: 486,
   categories: [5000],
@@ -115,7 +115,7 @@ describe('AddReleaseSheet', () => {
     const { onAdded } = renderSheet()
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
     expect(within(sheet).getByText('Breaking Bad')).toBeInTheDocument()
-    expect(within(sheet).getByRole('link', { name: 'Open on Kinozal' })).toHaveAttribute('href', 'https://tracker.test/bb')
+    expect(within(sheet).getByRole('link', { name: 'Open on Indexer C' })).toHaveAttribute('href', 'https://tracker.test/bb')
     expect(await within(sheet).findByText('TV → /data/tv')).toBeInTheDocument()
 
     await userEvent.click(await within(sheet).findByRole('button', { name: /Files: all \(3\)/ }))

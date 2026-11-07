@@ -25,15 +25,15 @@ test.describe('releases, phone', () => {
   })
 
   test('some indexers didn’t answer', async ({ page }) => {
-    await openReleases(page, { failingIndexers: ['Kinozal', 'RuTracker'] })
-    await expect(page.getByRole('status')).toHaveText('2 индексатора не ответили: Kinozal, RuTracker')
+    await openReleases(page, { failingIndexers: ['Indexer C', 'Indexer D'] })
+    await expect(page.getByRole('status')).toHaveText('2 индексатора не ответили: Indexer C, Indexer D')
     await expect(page).toHaveScreenshot('failing-indexers-dark-ru.png')
   })
 
   test('some indexers didn’t answer and nothing was found', async ({ page }) => {
-    await openApp(page, '/title/tv/126308/releases', { failingIndexers: ['Kinozal', 'RuTracker'], noReleases: true })
+    await openApp(page, '/title/tv/126308/releases', { failingIndexers: ['Indexer C', 'Indexer D'], noReleases: true })
     await expect(page.getByRole('heading', { name: 'Раздачи не найдены' })).toBeVisible()
-    await expect(page.getByRole('status')).toHaveText('2 индексатора не ответили: Kinozal, RuTracker')
+    await expect(page.getByRole('status')).toHaveText('2 индексатора не ответили: Indexer C, Indexer D')
     await settle(page)
     await expect(page).toHaveScreenshot('failing-indexers-none-dark-ru.png')
   })
@@ -94,8 +94,8 @@ test.describe('releases, desktop', () => {
   })
 
   test('some indexers didn’t answer', async ({ page }) => {
-    await findReleases(page, { failingIndexers: ['Kinozal', 'RuTracker'] })
-    await expect(page.getByRole('status')).toHaveText('2 индексатора не ответили: Kinozal, RuTracker')
+    await findReleases(page, { failingIndexers: ['Indexer C', 'Indexer D'] })
+    await expect(page.getByRole('status')).toHaveText('2 индексатора не ответили: Indexer C, Indexer D')
     await expect(page).toHaveScreenshot('desktop-failing-indexers-dark-ru.png')
   })
 

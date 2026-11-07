@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { stubDesktop } from '../lib/stubDesktop'
 import { ReleaseName } from './ReleaseName'
 
-const NAME = 'Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX.DV.HDR10.HEVC-FGT'
+const NAME = 'Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX.DV.HDR10.HEVC-GRPA'
 
 afterEach(() => vi.unstubAllGlobals())
 

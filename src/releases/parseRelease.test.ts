@@ -4,7 +4,7 @@ import { episodeCoverage, parseRelease, releaseCoverage, seasonCoverage } from '
 describe('parseRelease', () => {
   it.each([
     [
-      'Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX.DV.HDR10.HEVC.TrueHD.Atmos.7.1-FGT',
+      'Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX.DV.HDR10.HEVC.TrueHD.Atmos.7.1-GRPA',
       { resolution: '2160p', source: 'REMUX', codec: 'HEVC', hdr: ['DV', 'HDR'], audio: [], subs: false },
     ],
     [
@@ -12,7 +12,7 @@ describe('parseRelease', () => {
       { resolution: '2160p', source: 'REMUX', hdr: ['DV', 'HDR'], audio: ['dub', 'mvo', 'avo1', 'orig'] },
     ],
     [
-      'Dune.Part.Two.2024.2160p.WEB-DL.DDP5.1.Atmos.DV.HDR10+.H.265-FLUX',
+      'Dune.Part.Two.2024.2160p.WEB-DL.DDP5.1.Atmos.DV.HDR10+.H.265-GRPB',
       { resolution: '2160p', source: 'WEB-DL', codec: 'HEVC', hdr: ['DV', 'HDR10+'] },
     ],
     ['Дюна 2 / Dune: Part Two (2024) WEB-DL 1080p | Дубляж', { resolution: '1080p', source: 'WEB-DL', audio: ['dub'] }],
@@ -20,7 +20,7 @@ describe('parseRelease', () => {
       'Дюна: Часть вторая (2024) BDRip 1080p | Дубляж, Многоголосый | AVC',
       { resolution: '1080p', source: 'BDRip', codec: 'AVC', audio: ['dub', 'mvo'] },
     ],
-    ['Dune.Part.Two.2024.1080p.BluRay.x264.DTS-HD.MA.7.1-SWTYBLZ', { resolution: '1080p', source: 'BluRay', codec: 'AVC' }],
+    ['Dune.Part.Two.2024.1080p.BluRay.x264.DTS-HD.MA.7.1-GRPF', { resolution: '1080p', source: 'BluRay', codec: 'AVC' }],
     ['Дюна: Часть вторая (2024) WEB-DLRip 720p | Двухголосый', { resolution: '720p', source: 'WEBRip', audio: ['avo2'] }],
     [
       'Флорист / The Florist / 2026 / ДБ, ПМ, АП, СТ / Blu-Ray Remux (1080p)',
@@ -39,6 +39,11 @@ describe('parseRelease', () => {
     expect(parseRelease(title)).toMatchObject(expected)
   })
 
+  // Each studio parseRelease knows records multi-voice voice-overs, so its name alone stands for that kind.
+  it.each(['LostFilm', 'NewStudio', 'Кубик в Кубе', 'HDRezka Studio', 'Jaskier', 'Amedia'])('reads %s as a multi-voice voice-over', (studio) => {
+    expect(parseRelease(`Сёгун / Shōgun [S01] (2024) WEB-DL 1080p | ${studio}, Original`).audio).toEqual(['mvo', 'orig'])
+  })
+
   it("doesn't take stray capital letters for voice-over credits", () => {
     expect(parseRelease('Dune A Part D 2021 1080p').audio).toEqual([])
     expect(parseRelease('Movie (2020) 1080p | HDR | Rus').audio).toEqual([])
@@ -46,9 +51,9 @@ describe('parseRelease', () => {
 
   it.each([
     ['Во все тяжкие / Breaking Bad / Сезон: 1-5 / Серии: 1-62 из 62 (2008-2013) BDRip 1080p | LostFilm', [1, 2, 3, 4, 5], 'S01–S05'],
-    ['Breaking.Bad.S01-S05.COMPLETE.1080p.BluRay.x264-ROVERS', [1, 2, 3, 4, 5], 'S01–S05'],
+    ['Breaking.Bad.S01-S05.COMPLETE.1080p.BluRay.x264-GRPC', [1, 2, 3, 4, 5], 'S01–S05'],
     ['Во все тяжкие (2008-2013) WEB-DLRip 720p | Сезоны 1-5 | Двухголосый', [1, 2, 3, 4, 5], 'S01–S05'],
-    ['Breaking.Bad.S03.1080p.BluRay.x265.10bit.AAC.5.1-Vyndros', [3], 'S03'],
+    ['Breaking.Bad.S03.1080p.BluRay.x265.10bit.AAC.5.1-GRPG', [3], 'S03'],
     ['Во все тяжкие / Сезон 5 / Серии 1-16 (2012-2013) BDRip 1080p | Многоголосый', [5], 'S05'],
     ['Andor.S02E04.1080p.DSNP.WEB-DL', [2], 'S02'],
     ['Дюна (2021) BDRip 1080p', [], undefined],

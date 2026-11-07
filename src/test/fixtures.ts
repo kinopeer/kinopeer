@@ -68,7 +68,7 @@ export const tmdbTag = (type: 'movie' | 'tv', id: number) => `tmdb:${type}:${id}
 /** Every status the design has, a queue position, speed limits, and a release TMDB doesn't know. */
 export const TORRENTS: Torrent[] = [
   torrent('a1', {
-    name: 'Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX.HDR.DV.TrueHD.Atmos-FGT',
+    name: 'Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX.HDR.DV.TrueHD.Atmos-GRPA',
     tags: tmdbTag('movie', 693134),
     category: 'Movies',
     state: 'downloading',
@@ -189,7 +189,7 @@ export const DUNE_TORRENT = torrent('dune', {
 
 /** Not tagged by Kinopeer: its title is guessed from the release name, so the app asks whether it's right. */
 export const GUESSED = torrent('b1', {
-  name: 'Inception.2010.1080p.BluRay.x264-SPARKS',
+  name: 'Inception.2010.1080p.BluRay.x264-GRPD',
   state: 'uploading',
   progress: 1,
   size: 12.4 * GB,
@@ -350,24 +350,24 @@ export function searchPage(titles: Title[], fields: Partial<SearchPageFields> = 
 // Prowlarr
 
 /** A release as Kinopeer's server hands it to the browser. */
-export function release(id: string, title: string, size: number, seeders: number, indexer = 'Kinozal'): Release {
+export function release(id: string, title: string, size: number, seeders: number, indexer = 'Indexer C'): Release {
   return { id, title, indexer, size, seeders, leechers: 3, categories: [2000], download: `1/download?link=${id}`, infoUrl: `https://tracker.test/${id}` }
 }
 
 /** Three Dune releases: a remux, a Russian dub and a small one, two indexers. */
 export const DUNE_RELEASES: Release[] = [
-  release('a', 'Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX.DV.HDR10.HEVC-FGT', 78e9, 214, 'RuTracker'),
+  release('a', 'Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX.DV.HDR10.HEVC-GRPA', 78e9, 214, 'Indexer D'),
   release('b', 'Дюна 2 / Dune: Part Two (2024) WEB-DL 1080p | Дубляж', 9.4e9, 2451),
-  release('c', 'Dune.Part.Two.2024.720p.BluRay.x264-VARYG', 4.7e9, 12),
+  release('c', 'Dune.Part.Two.2024.720p.BluRay.x264-GRPE', 4.7e9, 12),
 ]
 
 /** Releases for any search: the usual mix of trackers, qualities, voice-overs and very long names. */
 export const RELEASES: Release[] = [
   {
     id: 'r1',
-    title: 'Сёгун / Shōgun [S01] (2024) WEB-DL 2160p | HDR10, Dolby Vision | LostFilm, HDRezka Studio, Original',
-    indexer: 'RuTor',
-    infoUrl: 'https://rutor.info/torrent/1098971',
+    title: 'Сёгун / Shōgun [S01] (2024) WEB-DL 2160p | HDR10, Dolby Vision | MVO, Original',
+    indexer: 'Indexer A',
+    infoUrl: 'https://indexer-a.example.org/release/1098971',
     size: 61.4 * GB,
     seeders: 212,
     leechers: 31,
@@ -377,9 +377,9 @@ export const RELEASES: Release[] = [
   },
   {
     id: 'r2',
-    title: 'Shogun.2024.S01.2160p.DSNP.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-FLUX',
-    indexer: 'NNM-Club',
-    infoUrl: 'https://nnmclub.to/forum/viewtopic.php?t=1891242',
+    title: 'Shogun.2024.S01.2160p.DSNP.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-GRPB',
+    indexer: 'Indexer B',
+    infoUrl: 'https://indexer-b.example.org/release/1891242',
     size: 72.9 * GB,
     seeders: 148,
     leechers: 12,
@@ -389,9 +389,9 @@ export const RELEASES: Release[] = [
   },
   {
     id: 'r3',
-    title: 'Сёгун / Shogun [01x01-10 из 10] (2024) WEB-DL 1080p | NewStudio',
-    indexer: 'RuTor',
-    infoUrl: 'https://rutor.info/torrent/1098973',
+    title: 'Сёгун / Shogun [01x01-10 из 10] (2024) WEB-DL 1080p | Многоголосый',
+    indexer: 'Indexer A',
+    infoUrl: 'https://indexer-a.example.org/release/1098973',
     size: 21.7 * GB,
     seeders: 96,
     leechers: 8,
@@ -401,9 +401,9 @@ export const RELEASES: Release[] = [
   },
   {
     id: 'r4',
-    title: 'Shogun.S01.1080p.BluRay.x264-ROVERS',
-    indexer: 'NNM-Club',
-    infoUrl: 'https://nnmclub.to/forum/viewtopic.php?t=1891244',
+    title: 'Shogun.S01.1080p.BluRay.x264-GRPC',
+    indexer: 'Indexer B',
+    infoUrl: 'https://indexer-b.example.org/release/1891244',
     size: 38.2 * GB,
     seeders: 41,
     leechers: 3,
@@ -413,9 +413,9 @@ export const RELEASES: Release[] = [
   },
   {
     id: 'r5',
-    title: 'Сёгун (1 сезон: 1-10 серии из 10) / Shōgun / 2024 / ПМ (HDrezka Studio) / WEB-DLRip 720p',
-    indexer: 'RuTor',
-    infoUrl: 'https://rutor.info/torrent/1098975',
+    title: 'Сёгун (1 сезон: 1-10 серии из 10) / Shōgun / 2024 / ПМ / WEB-DLRip 720p',
+    indexer: 'Indexer A',
+    infoUrl: 'https://indexer-a.example.org/release/1098975',
     size: 9.6 * GB,
     seeders: 12,
     leechers: 1,
@@ -426,8 +426,8 @@ export const RELEASES: Release[] = [
   {
     id: 'r6',
     title: 'Shogun S01E01 Anjin 720p HEVC x265',
-    indexer: 'RuTor',
-    infoUrl: 'https://rutor.info/torrent/1098976',
+    indexer: 'Indexer A',
+    infoUrl: 'https://indexer-a.example.org/release/1098976',
     size: 640 * MB,
     seeders: 0,
     leechers: 0,

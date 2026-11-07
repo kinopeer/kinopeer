@@ -4,7 +4,7 @@ import type { Release } from './types'
 
 let fetchMock: Mock<typeof fetch>
 
-const RELEASE: Release = { id: 'g1', title: 'Dune / Дюна (2021)', indexer: 'Kinozal', size: 1, categories: [2000], download: '1/download?link=A' }
+const RELEASE: Release = { id: 'g1', title: 'Dune / Дюна (2021)', indexer: 'Indexer C', size: 1, categories: [2000], download: '1/download?link=A' }
 
 beforeEach(() => {
   fetchMock = vi.fn<typeof fetch>()
@@ -25,8 +25,8 @@ describe('searchReleases', () => {
 
 describe('getFailingIndexers', () => {
   it('says how long ago the search started, in whole milliseconds, and answers with the names', async () => {
-    fetchMock.mockResolvedValueOnce(Response.json({ indexers: ['Kinozal'] }))
-    await expect(getFailingIndexers(1234.6)).resolves.toEqual(['Kinozal'])
+    fetchMock.mockResolvedValueOnce(Response.json({ indexers: ['Indexer C'] }))
+    await expect(getFailingIndexers(1234.6)).resolves.toEqual(['Indexer C'])
     expect(fetchMock.mock.calls[0][0]).toBe('/prowlarr/failing?within=1235')
   })
 

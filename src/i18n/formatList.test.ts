@@ -8,6 +8,6 @@ describe('formatList', () => {
   })
 
   it('leaves out the conjunction in the narrow style', () => {
-    expect(formatList(['Kinozal', 'RuTracker'], { language: 'ru' }, 'narrow')).toBe('Kinozal, RuTracker')
+    expect(formatList(['Indexer C', 'Indexer D'], { language: 'ru' }, 'narrow')).toBe('Indexer C, Indexer D')
   })
 })

@@ -13,6 +13,8 @@ Pull requests are welcome. A small fix can come straight away; for anything bigg
 
 The pull request template is long: a table of tests, mutants and more. Fill in what you can. The maintainer completes the rest before merging (tests in the project's system, mutants, review rounds), possibly with commits to your branch, so leave "Allow edits by maintainers" on when you open the PR.
 
+Don't name real trackers, link real releases or use real release groups, in code, tests, screenshots, PRs or issues: write `Indexer A`, a URL on `example.org` and a made-up group instead. When a bug depends on a release's name, give its naming style with the tracker and group taken out.
+
 ## Running and checking
 
 Setup is in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). Before pushing, run `npm run lint`, `npm run typecheck`, `npm run test:coverage` (the tests with the coverage threshold) and `npm run build`, `npm run test:smoke` (the smoke journeys in Chromium) when a flow changes, and `npm run test:visual` (in Docker) when the UI changes. CI runs all of them on every PR and also builds the Docker image and starts it.

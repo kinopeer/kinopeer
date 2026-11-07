@@ -23,9 +23,9 @@ function row(id: string, title: string, size: number, seeders: number, indexer: 
 }
 
 const ROWS = [
-  row('remux', 'Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX.HEVC-FGT', 78e9, 214, 'RuTracker', '2024-05-01T00:00:00Z'),
-  row('web', 'Дюна 2 / Dune: Part Two (2024) WEB-DL 1080p | Дубляж', 9.4e9, 2451, 'Kinozal', '2024-04-01T00:00:00Z'),
-  row('small', 'Dune.Part.Two.2024.720p.BluRay.x264.Sub-VARYG', 4.7e9, 12, 'Kinozal'),
+  row('remux', 'Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX.HEVC-GRPA', 78e9, 214, 'Indexer D', '2024-05-01T00:00:00Z'),
+  row('web', 'Дюна 2 / Dune: Part Two (2024) WEB-DL 1080p | Дубляж', 9.4e9, 2451, 'Indexer C', '2024-04-01T00:00:00Z'),
+  row('small', 'Dune.Part.Two.2024.720p.BluRay.x264.Sub-GRPE', 4.7e9, 12, 'Indexer C'),
 ]
 const ids = (rows: ReleaseRow[]) => rows.map((r) => r.release.id)
 
@@ -42,7 +42,7 @@ describe('filterReleases', () => {
   it('keeps rows matching any value of a filter and every filter', () => {
     const sort = DEFAULT_SORT
     expect(ids(filterReleases(ROWS, { ...NO_FILTERS, resolution: ['2160p', '720p'] }, sort))).toEqual(['remux', 'small'])
-    expect(ids(filterReleases(ROWS, { ...NO_FILTERS, resolution: ['2160p', '720p'], indexer: ['Kinozal'] }, sort))).toEqual(['small'])
+    expect(ids(filterReleases(ROWS, { ...NO_FILTERS, resolution: ['2160p', '720p'], indexer: ['Indexer C'] }, sort))).toEqual(['small'])
     expect(ids(filterReleases(ROWS, { ...NO_FILTERS, audio: ['dub'] }, sort))).toEqual(['web'])
     expect(ids(filterReleases(ROWS, { ...NO_FILTERS, source: ['BluRay', 'REMUX'] }, sort))).toEqual(['remux', 'small'])
     expect(ids(filterReleases(ROWS, { ...NO_FILTERS, minSeeds: 100 }, sort))).toEqual(['web', 'remux'])
@@ -54,11 +54,11 @@ describe('presentValues', () => {
     const present = presentValues(ROWS)
     expect(present.resolution).toEqual(['2160p', '1080p', '720p'])
     expect(present.audio).toEqual(['dub', 'subs'])
-    expect(present.indexer).toEqual(['Kinozal', 'RuTracker'])
+    expect(present.indexer).toEqual(['Indexer C', 'Indexer D'])
   })
 
   it('offers HDRip as a source of its own, after the WEB ones', () => {
-    const rows = [...ROWS, row('hdrip', 'Дюна: Часть вторая (2024) HDRip | Многоголосый', 1.5e9, 40, 'RuTor')]
+    const rows = [...ROWS, row('hdrip', 'Дюна: Часть вторая (2024) HDRip | Многоголосый', 1.5e9, 40, 'Indexer A')]
     expect(presentValues(rows).source).toEqual(['REMUX', 'BluRay', 'WEB-DL', 'HDRip'])
   })
 })
@@ -114,7 +114,7 @@ describe('remember', () => {
   })
 
   it('leaves the remembered filters as they were on an indexer change', () => {
-    expect(remember(remembered, { indexer: ['Kinozal'] }, shown)).toEqual(remembered)
+    expect(remember(remembered, { indexer: ['Indexer C'] }, shown)).toEqual(remembered)
   })
 
   it('keeps the values set aside in a changed filter, and forgets the ones taken off', () => {
