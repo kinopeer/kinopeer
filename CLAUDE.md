@@ -24,7 +24,7 @@ A qBittorrent web UI built around movies and TV series. Find a title in TMDB, pi
 
 ## Stack
 
-- Vite + React 19 + TypeScript (strict), Node.js 22.18+
+- Vite + React 19 + TypeScript (strict), Node.js 22.18+ (the tests: 22.22.2+, 24.15+ or 26+, jsdom's range)
 - oxlint for linting
 - Vitest + Testing Library (jsdom) for tests
 - Playwright screenshot tests (`e2e/`), run in the Playwright Docker image, and smoke journeys through the production server (`e2e/smoke/`), run on the host

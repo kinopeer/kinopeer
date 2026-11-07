@@ -22,6 +22,9 @@ const hold = (modal?: Element) => {
 /** A modal with a text field in it, as `Sheet` and `Dialog` hand it over once it's committed. */
 function modalWithField() {
   const modal = document.createElement('dialog')
+  // Open, as Sheet's and Dialog's are by the time a field in them gets focus: nothing in a closed
+  // dialog can take focus (jsdom 30 does as browsers do), so a focus() there would do nothing.
+  modal.setAttribute('open', '')
   const field = document.createElement('input')
   modal.append(field)
   document.body.append(modal)
