@@ -22,6 +22,10 @@ on:
       - '.github/workflows/mutants.yml'
   workflow_dispatch:
 
+# Read-only by default; the job below may comment on the PR.
+permissions:
+  contents: read
+
 # A push while a run is going cancels it, so only the latest head is mutated and commented on. Keyed
 # by the branch, so a run started by hand and a push's run for the same PR share the group.
 concurrency:
@@ -37,7 +41,7 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # The branch itself rather than its merge with main, whole, so the script can find the
           # lines the branch changed.
@@ -45,7 +49,7 @@ jobs:
           fetch-depth: 0
           # The token can write to PRs, and `npm ci` and the branch's own code run after this.
           persist-credentials: false
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm

@@ -6,21 +6,26 @@ on:
   push:
     tags: ['v*']
 
+# Read-only by default; the release job below pushes the image and creates the GitHub Release.
 permissions:
-  contents: write
-  packages: write
+  contents: read
 
 env:
   IMAGE: ghcr.io/kinopeer/kinopeer
 
 jobs:
   release:
+    permissions:
+      contents: write
+      packages: write
     runs-on: ubuntu-latest
     # For a hang: a healthy run takes about 2 minutes. More room than Edge, since releases are rare
     # and one that times out has to be re-run by hand.
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Check the tag and the changelog
         run: |
@@ -39,16 +44,23 @@ jobs:
           fi
           echo "VERSION=$version" >> "$GITHUB_ENV"
 
-      - uses: docker/setup-qemu-action@v4
-      - uses: docker/setup-buildx-action@v4
-      - uses: docker/login-action@v3
+      # QEMU's binfmt image (run privileged) doesn't come from the GitHub Actions cache, which any job on
+      # main can write to, nor would buildx if the action ever downloaded it (on ubuntu-latest it uses
+      # the runner's own); the image's build below skips the cache for the same reason.
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+        with:
+          cache-image: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          cache-binary: false
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ${{ env.IMAGE }}
           tags: |
@@ -60,15 +72,16 @@ jobs:
 
       - id: build
         name: Build and push the image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # No GitHub Actions cache: any job on main can write to it (CI runs npm ci with every dev
+          # dependency there), so a layer planted in it would ship to every install. The image is
+          # built only from the Dockerfile and the tag's code.
 
       - name: Create the GitHub Release
         env:

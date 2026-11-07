@@ -2,9 +2,10 @@
 # run Playwright in its Docker image, where the screenshots are rendered. In the container they run
 # scripts/install-node-modules.sh first, which needs PLAYWRIGHT_IMAGE passed in.
 
-# The image tag must match @playwright/test in package.json and the visual job in ci.yml. Dependabot
+# The image tag must match @playwright/test in package.json and the visual job in ci.yml, and its digest
+# is the one that tag named when it was set (docs/TESTING.md → Screenshot tests). Dependabot
 # leaves all three alone (.github/dependabot.yml): they move together, by hand.
-PLAYWRIGHT_IMAGE=mcr.microsoft.com/playwright:v1.63.0-noble
+PLAYWRIGHT_IMAGE=mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
 export PLAYWRIGHT_IMAGE
 
 # node_modules for the container lives in a Docker volume, since the host's may be built for another

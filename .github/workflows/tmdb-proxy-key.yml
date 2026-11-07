@@ -23,14 +23,15 @@ jobs:
       matrix:
         # wrangler.jsonc's environments. Take a worker out of this list before deleting it in
         # Cloudflare: `secret put` on a worker that doesn't exist creates an empty one of that name.
-        # Unquoted in the command below, so each entry splits into the flag and its value.
-        worker: ['--env edge', '--env release']
+        environment: [edge, release]
     # The Cloudflare token only in the steps that call Cloudflare, not while npm installs Wrangler.
     steps:
       # For wrangler.jsonc, which names each environment's worker.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
 
@@ -46,9 +47,10 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          ENVIRONMENT: ${{ matrix.environment }}
         run: |
           if [ -z "$TMDB_API_KEY" ]; then
             echo "::error::The TMDB_API_KEY repository secret isn't set"
             exit 1
           fi
-          printf '%s' "$TMDB_API_KEY" | npx wrangler secret put TMDB_API_KEY ${{ matrix.worker }}
+          printf '%s' "$TMDB_API_KEY" | npx wrangler secret put TMDB_API_KEY --env "$ENVIRONMENT"

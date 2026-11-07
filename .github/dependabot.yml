@@ -45,6 +45,7 @@ updates:
       tmdb-proxy:
         patterns: ['*']
 
+  # The workflows pin each action by commit SHA with its version in a comment; Dependabot moves both.
   - package-ecosystem: github-actions
     directory: /
     schedule:
