@@ -1,7 +1,7 @@
 import { request as httpRequest } from 'node:http'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { qbittorrentBridge, qbittorrentMiddleware, type QbittorrentConfig } from './qbittorrent.ts'
-import { closeServers, fakeQbittorrent, serve } from './test/fakes.ts'
+import { closeServers, fakeQbittorrent, listen, serve } from './test/fakes.ts'
 
 /** Kinopeer's side: the middleware under test. */
 const kinopeer = (config: QbittorrentConfig) => serve(qbittorrentMiddleware(config))
@@ -184,6 +184,21 @@ describe('qbittorrentMiddleware', () => {
       expect(qbt.seen).toEqual([])
     },
   )
+
+  // Its answers are the torrents and qBittorrent's settings: no cache on the way keeps them.
+  it('answers with no-store, whatever qBittorrent says about caching', async () => {
+    const qbittorrent = await listen((_request, response) => {
+      response.setHeader('Cache-Control', 'public, max-age=600')
+      response.end('v5.1.0')
+    })
+    const app = await kinopeer({ url: qbittorrent })
+
+    const answer = await call(`${app}/qbt/api/v2/app/version`)
+    expect(await answer.text()).toBe('v5.1.0')
+    expect(answer.headers.get('cache-control')).toBe('no-store')
+    // The bridge's own refusals too.
+    expect((await call(`${app}/qbt/api/v2/auth/login`)).headers.get('cache-control')).toBe('no-store')
+  })
 
   it('reports an unreachable qBittorrent and only proxies the API', async () => {
     const down = await kinopeer({ url: 'http://127.0.0.1:9', credentials: () => ({ username: 'admin', password: 'x' }) })

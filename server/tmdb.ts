@@ -30,9 +30,21 @@ export interface TmdbConfig {
 const API_BASE = 'https://api.themoviedb.org/3'
 const API_PREFIX = '/tmdb/'
 const IMAGE_PREFIX = '/tmdb-img/'
-/** Upstream response headers passed on to the browser. */
+/** Upstream response headers passed on to the browser; the content type goes through `contentType`. */
 // retry-after: how long a 429 (TMDB's, or the proxy's over its limit per IP) asks the client to wait.
-const RESPONSE_HEADERS = ['content-type', 'cache-control', 'last-modified', 'etag', 'expires', 'retry-after']
+const RESPONSE_HEADERS = ['cache-control', 'last-modified', 'etag', 'expires', 'retry-after']
+
+/**
+ * The content types passed on: JSON from the API, raster images from the images. Anything else is
+ * sent as bytes to download, since a page in another type opened at its address would be Kinopeer's
+ * own: HTML, or an SVG (TMDB's logos, which its users upload), which can carry a script.
+ */
+const API_TYPE = /^application\/json\b/i
+const IMAGE_TYPE = /^image\/(jpeg|png|webp|gif|avif)\b/i
+
+function contentType(sent: string | null, isApi: boolean): string {
+  return sent && (isApi ? API_TYPE : IMAGE_TYPE).test(sent) ? sent : 'application/octet-stream'
+}
 
 /** The URL and headers for a TMDB API call with `key`, which is a v3 key or a v4 token. */
 function authorize(key: string, url: string): { url: string; headers: Record<string, string> } {
@@ -49,10 +61,11 @@ export async function checkTmdbKey(key: string, apiBase = API_BASE): Promise<boo
   return true
 }
 
-async function forward(url: string, headers: Record<string, string>, request: IncomingMessage, response: ServerResponse) {
+async function forward(url: string, headers: Record<string, string>, isApi: boolean, request: IncomingMessage, response: ServerResponse) {
   if (request.headers.accept) headers.Accept = request.headers.accept
   const upstream = await fetch(url, { method: request.method === 'HEAD' ? 'HEAD' : 'GET', headers })
   response.statusCode = upstream.status
+  response.setHeader('Content-Type', contentType(upstream.headers.get('content-type'), isApi))
   for (const name of RESPONSE_HEADERS) {
     const value = upstream.headers.get(name)
     if (value) response.setHeader(name, value)
@@ -92,7 +105,7 @@ export function tmdbMiddleware(config: TmdbConfig): Middleware {
     }
 
     // Errors never echo the upstream URL: it may contain the key.
-    forward(target.url, target.headers, request, response).catch(() => {
+    forward(target.url, target.headers, isApi, request, response).catch(() => {
       if (response.headersSent) response.destroy()
       else fail(502, 'TMDB is unreachable')
     })
