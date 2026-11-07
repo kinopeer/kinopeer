@@ -44,8 +44,9 @@ jobs:
           fi
           echo "VERSION=$version" >> "$GITHUB_ENV"
 
-      # Neither QEMU's binfmt image (run privileged) nor buildx comes from the GitHub Actions cache,
-      # which any job on main can write to; the image's build below skips it for the same reason.
+      # QEMU's binfmt image (run privileged) doesn't come from the GitHub Actions cache, which any job on
+      # main can write to, nor would buildx if the action ever downloaded it (on ubuntu-latest it uses
+      # the runner's own); the image's build below skips the cache for the same reason.
       - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
         with:
           cache-image: false
