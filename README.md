@@ -70,4 +70,4 @@ Kinopeer is a web app (PWA). Over plain HTTP on your home network it works in th
 
 Kinopeer is free software: you can redistribute it and modify it under the terms of the [GNU General Public License](LICENSE), version 3 or any later version. Copyright © 2026 Alfred Shakhov.
 
-The Onest font is under the [SIL Open Font License 1.1](https://openfontlicense.org). Movie and series data and posters come from [TMDB](https://www.themoviedb.org). This product uses the TMDB API but is not endorsed or certified by TMDB. TMDB's logo belongs to TMDB and isn't covered by Kinopeer's license.
+The Onest font is under the [SIL Open Font License 1.1](https://openfontlicense.org). Movie and series data and posters come from [TMDB](https://www.themoviedb.org). This product uses the TMDB API but is not endorsed or certified by TMDB. TMDB's logo, and the posters and descriptions in the screenshots, belong to their owners and aren't covered by Kinopeer's license.

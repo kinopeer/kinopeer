@@ -54,6 +54,9 @@ jobs:
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+          # GitHub detects the license from the text alone and reports GPL-3.0, which can't say "or later".
+          labels: |
+            org.opencontainers.image.licenses=GPL-3.0-or-later
 
       - id: build
         name: Build and push the image
