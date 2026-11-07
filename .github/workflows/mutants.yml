@@ -3,7 +3,8 @@ name: Mutants
 # A run for the latest head of a ready PR: when it's opened ready, marked ready or pushed to (a fix, a
 # merge of main), or when started by hand (docs/TESTING.md → A test that can fail). Survivors don't
 # fail the job; its comment, at the head a review round sees, is the count the round compares with
-# the PR's Mutants line and the author's answer.
+# the PR's Mutants line and the author's answer. A PR that changes only Stryker's setup or the
+# dependencies gets Stryker's dry run (scripts/mutants.mjs), so a bump that breaks it fails here (#285).
 on:
   pull_request:
     types: [opened, ready_for_review, synchronize]
@@ -12,6 +13,13 @@ on:
       - 'server/**'
       # scripts/mutants.mjs mutates these too.
       - 'tmdb-proxy/**'
+      # What Stryker runs with, each of which can break it without a line to mutate.
+      - 'package.json'
+      - 'package-lock.json'
+      - 'stryker.config.mjs'
+      - 'vite.config.ts'
+      - 'scripts/mutants.mjs'
+      - '.github/workflows/mutants.yml'
   workflow_dispatch:
 
 # A push while a run is going cancels it, so only the latest head is mutated and commented on. Keyed
