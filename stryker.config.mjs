@@ -12,4 +12,9 @@ export default {
   timeoutMS: 15000,
   ignorePatterns: ['e2e', 'docs', 'dist', 'coverage', 'data'],
   tempDirName: '.stryker-tmp',
+  // A file that doesn't exist, so Stryker skips rewriting tsconfig paths for its sandbox: that rewrite
+  // calls TypeScript's JS API, which TypeScript 7 doesn't have (#285, stryker-mutator/stryker-js#6111).
+  // Ours don't need it, since every tsconfig sits in the root and points only inside the repo. Drop
+  // this line once a Stryker release reads tsconfig files without TypeScript.
+  tsconfigFile: 'no-tsconfig-rewrite.json',
 }

@@ -249,7 +249,12 @@ don't fail the job, since an equivalent mutant would fail it for good; a survivo
 account for, in the `Mutants` line or in the author's `Fixes for round <n>` comment for a later
 head, is a review finding. A round reads CI's comment at the commit it reviews, and waits for it
 while the run is going. The reviewer runs `npm run test:mutants` locally only when no comment can
-come for that commit (Actions out of minutes, the job failed), and says so in the round.
+come for that commit (Actions out of minutes, the job failed), and says so in the round. A branch
+with no production line changed gets Stryker's dry run instead (`--dryRunOnly`: the tests once,
+through Stryker's sandbox and instrumenter, nothing mutated), and the workflow also starts on what
+Stryker runs with (`package.json`, the lockfile, `stryker.config.mjs`, `vite.config.ts`, the script and
+the workflow), so a dependency bump that breaks Stryker fails there rather than on the next PR with
+code (#285, TypeScript 7).
 
 A test that stays green with the behavior it names removed is a `silent-test` miss in the making.
 Four shapes cause most of them:
@@ -626,14 +631,13 @@ nothing does, since a changed default or a deprecation can pass CI unnoticed. On
 that fails, or a major that needs our code changed, is closed, and the update goes into a PR of our
 own with the fixes, which gets its rounds. The retro leaves them out of its batch and its count
 ([Improving the system](#improving-the-system)). A PR's CI doesn't run everything they move:
-Wrangler (`tmdb-proxy/`) runs only in `tmdb-proxy.yml`, the `docker/*` actions other than
-`setup-buildx-action` and `build-push-action` only in `edge.yml` and `release.yml`, and Stryker
-only in `mutants.yml`, which a root npm PR doesn't start and which stops at "nothing to mutate"
-before Stryker starts when no production line changed. So after the `tmdb-proxy` PR, or a
-`github-actions` PR that changes `edge.yml` or `tmdb-proxy.yml`, merges, the owner watches the Edge
-run it starts on `main`; `release.yml`'s actions first run at the next tag (`RELEASE_CHECKLIST.md`
-→ Before every release), and a broken Stryker shows on the next PR of ours with code, or in its
-author's `npm run test:mutants`.
+Wrangler (`tmdb-proxy/`) runs only in `tmdb-proxy.yml`, and the `docker/*` actions other than
+`setup-buildx-action` and `build-push-action` only in `edge.yml` and `release.yml`. So after the
+`tmdb-proxy` PR, or a `github-actions` PR that changes `edge.yml` or `tmdb-proxy.yml`, merges, the
+owner watches the Edge run it starts on `main`; `release.yml`'s actions first run at the next tag
+(`RELEASE_CHECKLIST.md` → Before every release). Stryker runs on an npm PR in `mutants.yml`, as a
+dry run, since #285: before it a root npm PR didn't start that workflow, and TypeScript 7 (#275)
+broke Stryker unseen until the next PR with code.
 
 A real bug that `/code-review` finds in an open PR's own change is fixed in that PR, red test
 first, without an issue: it never reached `main`. The round that reports the bug records the
