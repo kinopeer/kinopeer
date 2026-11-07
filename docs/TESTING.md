@@ -613,10 +613,14 @@ and a round would have nothing of ours to read. One merges on green CI and the o
 that fails, or a major that needs our code changed, is closed, and the update goes into a PR of our
 own with the fixes, which gets its rounds. The retro leaves them out of its batch and its count
 ([Improving the system](#improving-the-system)). A PR's CI doesn't run everything they move:
-Wrangler (`tmdb-proxy/`) runs only in `tmdb-proxy.yml`, and the `docker/*` actions other than
-`setup-buildx-action` and `build-push-action` only in `edge.yml` and `release.yml`. So after the
-`tmdb-proxy` or `github-actions` PR merges, the owner watches the Edge run it starts on `main`, and
-`release.yml`'s actions first run at the next tag (`RELEASE_CHECKLIST.md` → Before every release).
+Wrangler (`tmdb-proxy/`) runs only in `tmdb-proxy.yml`, the `docker/*` actions other than
+`setup-buildx-action` and `build-push-action` only in `edge.yml` and `release.yml`, and Stryker
+only in `mutants.yml`, which a root npm PR doesn't start and which stops at "nothing to mutate"
+before Stryker starts when no production line changed. So after the `tmdb-proxy` PR, or a
+`github-actions` PR that changes `edge.yml` or `tmdb-proxy.yml`, merges, the owner watches the Edge
+run it starts on `main`; `release.yml`'s actions first run at the next tag (`RELEASE_CHECKLIST.md`
+→ Before every release), and a broken Stryker shows on the next PR of ours with code, or in its
+author's `npm run test:mutants`.
 
 A real bug that `/code-review` finds in an open PR's own change is fixed in that PR, red test
 first, without an issue: it never reached `main`. The round that reports the bug records the
