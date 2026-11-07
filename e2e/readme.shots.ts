@@ -85,11 +85,10 @@ test.describe('desktop', () => {
   })
 
   test('title with releases', async ({ page }) => {
-    // Taller than the screenshot tests' desktop, so the hero shows a few releases under the title.
-    await page.setViewportSize({ width: DESKTOP.viewport.width, height: 1240 })
+    // Taller than the screenshot tests' desktop, so the hero shows four releases under the title, the last one whole.
+    await page.setViewportSize({ width: DESKTOP.viewport.width, height: 1200 })
     await openApp(page, '/title/tv/126308/releases', options)
     await expect(page.getByText(RELEASES[0].title)).toBeVisible()
-    await page.mouse.move(0, 0)
     await shoot(page, 'desktop-title')
   })
 })

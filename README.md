@@ -9,7 +9,7 @@ A qBittorrent web UI for movies and TV series. Find a movie or a series, pick a 
 > [!NOTE]
 > Kinopeer is in early development (version 0.x): for now it installs on umbrelOS only, and its settings and behavior may change between versions. What's planned before 1.0 is in the [roadmap](docs/ROADMAP.md).
 
-<img src="docs/screenshots/desktop-title.png" alt="A series page on a computer, with its releases under the overview: filters for resolution, voice-over, source, seeds and indexer over a table of releases">
+<img src="docs/screenshots/desktop-title.png" alt="A series page on a computer, with its releases under the overview: filters for resolution, audio, source, minimum seeds and indexer over a table of releases">
 
 <p>
   <img src="docs/screenshots/releases.png" width="266" alt="Releases on a phone with season, resolution, source, HDR and voice-over badges">
@@ -28,7 +28,7 @@ A qBittorrent web UI for movies and TV series. Find a movie or a series, pick a 
 
 - **From a title to a release.** Find a movie or a series in TMDB, and Kinopeer searches every indexer in your Prowlarr. It reads each release's name for its resolution, source, HDR, voice-over and seasons, so the filters narrow the list down to the one you want.
 - **Download only what you need.** The release goes to qBittorrent with your category and folder. Pick single files or seasons, and Kinopeer tells you beforehand whether they fit in the free space.
-- **Downloads as a film collection.** Every torrent shows as its movie or series, with a poster and a title instead of a release name, and a title's page shows what of it is downloading.
+- **Downloads as a film collection.** Kinopeer recognizes each torrent's movie or series from its release name and shows it with a poster and a title instead of the release name; a wrong guess takes a moment to correct. A title's page shows what of it is downloading.
 - **Managing torrents.** What you actually need when downloading movies and series, without opening qBittorrent's web UI: pause and delete, several torrents at once too, file priorities, speed limits, moving files, categories.
 - **Phone and computer.** A comfortable interface that fits both a phone and a computer. Multilingual, with dark and light themes.
 
