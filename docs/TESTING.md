@@ -607,6 +607,12 @@ bullet #231 had added), so the comment checks `git diff main...HEAD -- CHANGELOG
 the PR adds beside `main`'s version of the same entry, keeps one, and says where the PR's entry
 ended up.
 
+Dependabot's PRs (`.github/dependabot.yml`: once a month, grouped) skip the rounds and the
+template. They change only versions, in `package.json`, the lockfiles and the workflows' `uses:`,
+and CI runs every layer over them, so a round would have nothing of ours to read. One merges on
+green CI and the owner's OK. One that fails, or a major that needs our code changed, is closed, and
+the update goes into a PR of our own with the fixes, which gets its rounds.
+
 A real bug that `/code-review` finds in an open PR's own change is fixed in that PR, red test
 first, without an issue: it never reached `main`. The round that reports the bug records the
 missing test under check A as well, as one finding with the bug, since the test that should have
