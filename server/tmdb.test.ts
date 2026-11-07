@@ -122,6 +122,9 @@ describe('tmdbMiddleware', () => {
       ['an HTML page from the images', 'text/html', '/tmdb-img/w342/poster.jpg'],
       ['an SVG from the images', 'image/svg+xml', '/tmdb-img/original/logo.svg'],
       ['no type at all', undefined, '/tmdb/movie/771'],
+      // The type is what comes first, not a word anywhere in the header.
+      ['HTML that names JSON after it', 'text/html; profile=application/json', '/tmdb/movie/771'],
+      ['HTML that names an image after it', 'text/html; profile=image/jpeg', '/tmdb-img/w342/poster.jpg'],
     ])('sends %s as bytes to download', async (_, type, path) => {
       expect(await typeOf(`${await answering(type)}${path}`)).toBe('application/octet-stream')
     })
