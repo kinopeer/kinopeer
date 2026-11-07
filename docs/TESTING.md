@@ -607,9 +607,18 @@ bullet #231 had added), so the comment checks `git diff main...HEAD -- CHANGELOG
 the PR adds beside `main`'s version of the same entry, keeps one, and says where the PR's entry
 ended up.
 
+An outside contributor's PR ([CONTRIBUTING.md](../CONTRIBUTING.md)) gets the same rounds, but the
+maintainer's session takes the author's part: it fills in the Tests section, runs the mutants, sees
+the tests red and answers each round, with commits to the contributor's branch (they leave "Allow
+edits by maintainers" on) or in a PR of our own that takes their commits. The reviewer asks the
+contributor for nothing the template's own line leaves to the maintainer.
+
 Dependabot's PRs (`.github/dependabot.yml`: once a month, grouped) skip the rounds and the
 template. They change only versions, in `package.json`, the lockfiles and the workflows' `uses:`,
-and a round would have nothing of ours to read. One merges on green CI and the owner's OK. One
+and a round would have nothing of ours to read. One merges on green CI and the owner's OK. Before
+asking for it on a major, the session that brings the PR to the owner reads the release notes of
+each package it moves a major and says in a PR comment what of them touches Kinopeer, or that
+nothing does, since a changed default or a deprecation can pass CI unnoticed. One
 that fails, or a major that needs our code changed, is closed, and the update goes into a PR of our
 own with the fixes, which gets its rounds. The retro leaves them out of its batch and its count
 ([Improving the system](#improving-the-system)). A PR's CI doesn't run everything they move:

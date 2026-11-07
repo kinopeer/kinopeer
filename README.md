@@ -53,6 +53,7 @@ Kinopeer is a web app (PWA). Over plain HTTP on your home network it works in th
 - Besides your qBittorrent and Prowlarr, Kinopeer only talks to TMDB, and only through its own server. Without a TMDB key of your own, those calls go through Kinopeer's TMDB proxy on Cloudflare, which adds Kinopeer's key and sees your Umbrel's IP address and what you search for; it keeps no logs. With your own key in Settings, they go to TMDB directly. No analytics, no telemetry.
 - Kinopeer never stores tracker logins: that's Prowlarr's job.
 - Kinopeer has no login of its own; on Umbrel, Umbrel's login protects it.
+- Found a vulnerability? Report it privately, as [SECURITY.md](SECURITY.md) says.
 
 ## Ideas and bugs
 
@@ -62,6 +63,7 @@ Kinopeer is a web app (PWA). Over plain HTTP on your home network it works in th
 
 ## For developers
 
+- [CONTRIBUTING.md](CONTRIBUTING.md): ideas, bugs and pull requests.
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): running locally, server configuration, releases.
 - [docs/SPEC.md](docs/SPEC.md): what the product does and why.
 - [docs/ROADMAP.md](docs/ROADMAP.md): what's next.

@@ -178,7 +178,8 @@ On a PR, post the report as one comment headed `Test review, round <n>`:
 Post every round, also when the review runs in a side session: a report left in a chat is invisible
 to whoever merges and to the retro. If posting is refused, say so in the chat, so the merge waits
 for it. Hand the blocking and
-should-fix findings to the PR's author (a session or a person): point them to the posted round.
+should-fix findings to the PR's author (a session or a person; for an outside contributor's PR, the
+maintainer's session: `docs/TESTING.md` → Reviewing a PR's tests): point them to the posted round.
 A PR that grows past what it set out to do (each round finds bugs in the same new mechanism,
 workarounds pile up) gets that said in the round, as a finding for the owner to weigh, not as one
 more fix to ask for (`docs/TESTING.md` → Reviewing a PR's tests). It has no tag and no severity and
