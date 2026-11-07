@@ -49,6 +49,21 @@ describe('vite.config.ts', () => {
     expect(answer.ok).toBe(false)
   })
 
+  it('sends the server’s security headers from the dev and preview servers too', async () => {
+    const dev = await createServer({ ...options, server: { ...listening, watch: null }, optimizeDeps: { noDiscovery: true } })
+    closers.push(() => dev.close())
+    await dev.listen()
+    const outDir = join(dir, 'dist')
+    await mkdir(outDir)
+    await writeFile(join(outDir, 'index.html'), '<!doctype html>')
+    const built = await preview({ ...options, build: { outDir }, preview: listening })
+    closers.push(() => built.close())
+
+    for (const port of [(dev.httpServer!.address() as AddressInfo).port, (built.httpServer.address() as AddressInfo).port]) {
+      expect((await fetch(`http://127.0.0.1:${port}/`)).headers.get('x-frame-options')).toBe('DENY')
+    }
+  })
+
   it('answers no cross-origin preflight on the preview server either', async () => {
     const outDir = join(dir, 'dist')
     await mkdir(outDir)

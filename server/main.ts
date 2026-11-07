@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { MatchesStore, matchesMiddleware, qbittorrentHashes, startMatchesCleanup } from './matches.ts'
 import { prowlarrMiddleware, type Middleware } from './prowlarr.ts'
 import { qbittorrentBridge } from './qbittorrent.ts'
+import { securityHeaders } from './securityHeaders.ts'
 import { SettingsStore, prowlarrKey, qbittorrentCredentials, settingsMiddleware, tmdbKey } from './settings.ts'
 import { staticMiddleware } from './static.ts'
 import { tmdbMiddleware } from './tmdb.ts'
@@ -35,7 +36,7 @@ export function dataStores(dir: string): DataStores {
 }
 
 export interface KinopeerServer {
-  /** The server's own routes, shared with the Vite dev server. */
+  /** The server's own routes, shared with the Vite dev and preview servers; the security headers first. */
   routes: Middleware[]
   /** Starts the background jobs (the hourly matches cleanup); returns a function that stops them. */
   startJobs: () => () => void
@@ -84,6 +85,8 @@ export function kinopeerServer(env: Record<string, string | undefined>, stores: 
   })
   return {
     routes: [
+      // First, so every answer has them, a 404 included.
+      securityHeaders,
       health,
       settingsMiddleware({
         store,

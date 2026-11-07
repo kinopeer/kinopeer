@@ -46,6 +46,12 @@ describe('createApp', () => {
     expect(await (await fetch(`${app}/api/matches`)).json()).toEqual({})
   })
 
+  it('sends the security headers with every answer, the app’s, the bridges’ and a 404', async () => {
+    for (const path of ['/healthz', '/qbt/api/v2/app/version', '/api/settings', '/settings', '/assets/missing.js']) {
+      expect((await fetch(`${app}${path}`)).headers.get('x-frame-options'), path).toBe('DENY')
+    }
+  })
+
   it('serves the app for its routes and 404 for missing files', async () => {
     expect(await (await fetch(`${app}/settings`)).text()).toContain('Kinopeer')
     expect((await fetch(`${app}/assets/missing.js`)).status).toBe(404)
