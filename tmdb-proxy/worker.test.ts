@@ -270,7 +270,7 @@ describe('limitKey', () => {
   })
 
   // Not an address Cloudflare sends; kept whole rather than guessed at, so it still has a limit.
-  it.each(['2001:db8::1::2', '1:2:3:4:5:6:7:8::9::1', '2001:db8:1:2:3:4:5', '1:2:3:4:5:6:7:8:9::', 'unknown'])('keeps %s as it is', (ip) => {
+  it.each(['2001:db8::1::2', '1:2:3:4:5:6:7::8::9', '2001:db8:1:2:3:4:5', '1:2:3:4:5:6:7:8:9::', 'unknown'])('keeps %s as it is', (ip) => {
     expect(limitKey(ip)).toBe(ip)
   })
 })
