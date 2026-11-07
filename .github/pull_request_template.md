@@ -1,4 +1,5 @@
-<!-- Everything here is in English. Delete the sections and hints that don't apply. -->
+<!-- Everything here is in English. Delete the sections and hints that don't apply.
+     Contributing from outside? Fill in what you can; the maintainer completes the rest (CONTRIBUTING.md). -->
 
 ## What
 

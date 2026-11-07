@@ -13,6 +13,8 @@ A qBittorrent web UI built around movies and TV series. Find a title in TMDB, pi
 | File | What's in it |
 | --- | --- |
 | `README.md` | For users: features and installing on Umbrel |
+| `CONTRIBUTING.md` | For outside contributors: where ideas, bugs and PRs go, the checks, how the project is developed, the licensing of contributions |
+| `SECURITY.md` | Supported versions and reporting a vulnerability privately |
 | `docs/SPEC.md` | What the product does and doesn't, decision log |
 | `docs/ROADMAP.md` | Version plan |
 | `docs/DEVELOPMENT.md` | Running locally, environment variables, releases, the Umbrel package |
