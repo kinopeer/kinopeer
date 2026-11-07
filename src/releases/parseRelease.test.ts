@@ -33,12 +33,15 @@ describe('parseRelease', () => {
     ],
     ['Dune.Part.Two.2024.UHD.BluRay.HEVC-GROUP', { resolution: '2160p', source: 'BluRay', codec: 'HEVC' }],
     ['Дюна: Часть вторая (2024) HDRip | Многоголосый', { source: 'HDRip', audio: ['mvo'] }],
-    // A voice-over studio's name stands for its kind: these studios record multi-voice ones.
-    ['Сёгун / Shōgun [S01] (2024) WEB-DL 1080p | NewStudio, Original', { audio: ['mvo', 'orig'] }],
     ['Dune.Part.Two.2024.720p.HDRip.x264', { resolution: '720p', source: 'HDRip', codec: 'AVC' }],
     ['Dune.Part.Two.2024.HDTVRip.XviD', { source: 'HDTV' }],
   ])('reads %s', (title, expected) => {
     expect(parseRelease(title)).toMatchObject(expected)
+  })
+
+  // Each studio parseRelease knows records multi-voice voice-overs, so its name alone stands for that kind.
+  it.each(['LostFilm', 'NewStudio', 'Кубик в Кубе', 'HDRezka Studio', 'Jaskier', 'Amedia'])('reads %s as a multi-voice voice-over', (studio) => {
+    expect(parseRelease(`Сёгун / Shōgun [S01] (2024) WEB-DL 1080p | ${studio}, Original`).audio).toEqual(['mvo', 'orig'])
   })
 
   it("doesn't take stray capital letters for voice-over credits", () => {
