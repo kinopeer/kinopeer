@@ -1,30 +1,40 @@
 # Kinopeer
 
-Kinopeer was called Kinoseed up to version 0.7.
+[![CI](https://github.com/kinopeer/kinopeer/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/kinopeer/kinopeer/actions/workflows/ci.yml)
+[![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/kinopeer/kinopeer)](https://github.com/kinopeer/kinopeer/releases/latest)
 
 A qBittorrent web UI for movies and TV series. Find a movie or a series, pick a release found by Prowlarr and follow the download, all in one app on your phone or computer.
 
+> [!NOTE]
+> Kinopeer is in early development (version 0.x): for now it installs on umbrelOS only, and its settings and behavior may change between versions. What's planned before 1.0 is in the [roadmap](docs/ROADMAP.md).
+
+<img src="docs/screenshots/desktop-title.png" alt="A series page on a computer, with its releases under the overview: filters for resolution, audio, source, minimum seeds and indexer over a table of releases">
+
 <p>
-  <img src="docs/screenshots/downloads.png" width="200" alt="Downloads with posters, progress and speeds">
-  <img src="docs/screenshots/search.png" width="200" alt="Search with new digital releases and new episodes">
-  <img src="docs/screenshots/title.png" width="200" alt="A series page with its overview, rating and its download in progress">
-  <img src="docs/screenshots/releases.png" width="200" alt="Releases found by Prowlarr with season, quality and voice-over badges">
+  <img src="docs/screenshots/releases.png" width="266" alt="Releases on a phone with season, resolution, source, HDR and voice-over badges">
+  <img src="docs/screenshots/add-files.png" width="266" alt="Adding a release on a phone: its files, grouped in folders, each with a checkbox">
+  <img src="docs/screenshots/downloads.png" width="266" alt="Downloads on a phone with posters, progress and speeds">
 </p>
 <p>
-  <img src="docs/screenshots/desktop-downloads.png" width="410" alt="Downloads on a computer: a table with posters, statuses and speeds, and the sidebar">
-  <img src="docs/screenshots/desktop-title.png" width="410" alt="A series page on a computer with its releases under the overview">
+  <img src="docs/screenshots/title.png" width="266" alt="A series page on a phone with its overview, rating and its download in progress">
+  <img src="docs/screenshots/torrent.png" width="266" alt="A torrent's page on a phone with its progress, speeds and download settings">
+  <img src="docs/screenshots/search.png" width="266" alt="Search with new digital releases and new episodes">
 </p>
 
-## Features
+<img src="docs/screenshots/desktop-downloads.png" alt="Downloads on a computer: a table with posters, statuses and speeds, and the sidebar">
 
-- **Search.** Movies and series from TMDB, picks of what's out on digital and new episodes, a title page with the overview and rating.
-- **Releases.** Search across all your Prowlarr indexers. Filter by resolution, source, HDR, audio, seeds and indexer; sort by seeds, size or date.
-- **Adding.** Category, save path, file selection (for example, only the seasons you want) and a free space check before the download starts.
-- **Downloads.** A live list or poster grid with TMDB posters and titles, statuses, speeds and time left. Pause, resume, delete.
-- **Torrent details.** A file tree with priorities, seeds and peers, ratio, trackers.
-- **Phone and computer.** On a computer: a sidebar, Downloads as a table or a poster grid, torrent details in a side drawer and a title's releases on its page. Russian and English, dark and light themes; when qBittorrent stops answering, you still see the last known state.
+## What it does
+
+- **From a title to a release.** Find a movie or a series in TMDB, and Kinopeer searches every indexer in your Prowlarr. It reads each release's name for its resolution, source, HDR, voice-over and seasons, so the filters narrow the list down to the one you want.
+- **Download only what you need.** The release goes to qBittorrent with your category and folder. Pick single files or seasons, and Kinopeer tells you beforehand whether they fit in the free space.
+- **Downloads as a film collection.** Kinopeer recognizes each torrent's movie or series from its release name and shows it with a poster and a title instead of the release name; a wrong guess takes a moment to correct. A title's page shows what of it is downloading.
+- **Managing torrents.** What you actually need when downloading movies and series, without opening qBittorrent's web UI: pause and delete, several torrents at once too, file priorities, speed limits, moving files, categories.
+- **Phone and computer.** A comfortable interface that fits both a phone and a computer. Multilingual, with dark and light themes.
 
 Kinopeer doesn't play video and never downloads anything on its own: you pick every release.
+
+Kinopeer comes with no content and no indexers: it searches only the indexers you add to Prowlarr yourself. Use it only for what you have the right to download.
 
 ## Install on Umbrel
 
@@ -72,4 +82,8 @@ Kinopeer is a web app (PWA). Over plain HTTP on your home network it works in th
 
 Kinopeer is free software: you can redistribute it and modify it under the terms of the [GNU General Public License](LICENSE), version 3 or any later version. Copyright © 2026 Alfred Shakhov.
 
-The Onest font is under the [SIL Open Font License 1.1](https://openfontlicense.org). Movie and series data and posters come from [TMDB](https://www.themoviedb.org). This product uses the TMDB API but is not endorsed or certified by TMDB. TMDB's logo, and the posters and descriptions in the screenshots, belong to their owners and aren't covered by Kinopeer's license.
+<a href="https://www.themoviedb.org"><img src="src/assets/tmdb-logo.svg" height="40" alt="TMDB"></a>
+
+Movie and series data and posters come from [TMDB](https://www.themoviedb.org). This product uses the TMDB API but is not endorsed or certified by TMDB.
+
+The Onest font is under the [SIL Open Font License 1.1](https://openfontlicense.org). TMDB's logo, and the posters and descriptions in the screenshots, belong to their owners and aren't covered by Kinopeer's license.

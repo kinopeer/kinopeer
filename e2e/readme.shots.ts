@@ -6,7 +6,8 @@ import type { Torrent } from '../src/api/qbittorrent/types.ts'
 /**
  * Renders the README screenshots into docs/screenshots/ (not a test: nothing is compared). Run with
  * `npm run screenshots:readme`. Titles and posters come from TMDB for real, through Kinopeer's edge
- * TMDB proxy without a key of your own (the dev server's default).
+ * TMDB proxy without a key of your own (the dev server's default). The interface is in English,
+ * like the README.
  */
 
 // Every status a healthy list has; the error and the unknown release are left out, and Shōgun
@@ -14,18 +15,26 @@ import type { Torrent } from '../src/api/qbittorrent/types.ts'
 const torrents = TORRENTS.slice(0, 7).map(
   (torrent): Torrent => (torrent.hash === 'a2' ? { ...torrent, state: 'downloading', dlspeed: 6.4 * 1024 ** 2, eta: 5400 } : torrent),
 )
-const options: AppOptions = { realTmdb: true, torrents }
+const options: AppOptions = { realTmdb: true, torrents, lang: 'en' }
 
-async function shoot(page: Page, name: string) {
+async function shoot(page: Page, name: string, { top = true } = {}) {
   await settle(page)
   // Opening the releases scrolls them into view; the screenshot starts at the top.
-  await page.evaluate(() => window.scrollTo(0, 0))
+  if (top) await page.evaluate(() => window.scrollTo(0, 0))
   await page.screenshot({ path: `docs/screenshots/${name}.png` })
+}
+
+/**
+ * Titles are guessed from the release names a few at a time, so the first rows get their posters
+ * before the last: waits until every torrent shows one.
+ */
+async function everyPoster(page: Page, poster: string) {
+  await expect(page.locator(`${poster} img`)).toHaveCount(torrents.length, { timeout: 30_000 })
 }
 
 test('downloads', async ({ page }) => {
   await openApp(page, '/', options)
-  await expect(page.getByText('Дюна: Часть вторая', { exact: true }).first()).toBeVisible()
+  await everyPoster(page, '.dl-poster')
   await shoot(page, 'downloads')
 })
 
@@ -37,7 +46,7 @@ test('search', async ({ page }) => {
 
 test('title', async ({ page }) => {
   await openApp(page, '/title/tv/126308', options)
-  await expect(page.getByRole('region', { name: /^В загрузках/ })).toBeVisible()
+  await expect(page.getByRole('region', { name: /^In downloads/ })).toBeVisible()
   await shoot(page, 'title')
 })
 
@@ -47,16 +56,37 @@ test('releases', async ({ page }) => {
   await shoot(page, 'releases')
 })
 
+test('adding a release, picking its files', async ({ page }) => {
+  await openApp(page, '/title/tv/126308/releases', options)
+  await page.getByRole('button', { name: 'Add to downloads' }).first().click()
+  await page.getByRole('button', { name: /^Files: all/ }).click()
+  await page.getByRole('button', { name: /^Episodes/ }).click()
+  await expect(page.getByText(/Shogun\.S01E10/)).toBeVisible()
+  // Episodes already watched are left out, so the folder and the total show a part picked.
+  for (const episode of ['01', '02', '03']) {
+    await page.getByRole('checkbox', { name: new RegExp(`^Shogun\\.S01E${episode}`) }).click()
+  }
+  await shoot(page, 'add-files', { top: false })
+})
+
+test('torrent details', async ({ page }) => {
+  await openApp(page, '/torrent/a2', options)
+  await expect(page.getByRole('heading', { level: 1, name: 'Shōgun' })).toBeVisible()
+  await shoot(page, 'torrent')
+})
+
 test.describe('desktop', () => {
   test.use(DESKTOP)
 
   test('downloads', async ({ page }) => {
     await openApp(page, '/', { ...options, downloadsView: 'list' })
-    await expect(page.getByText('Дюна: Часть вторая', { exact: true }).first()).toBeVisible()
+    await everyPoster(page, '.dl-row-poster')
     await shoot(page, 'desktop-downloads')
   })
 
   test('title with releases', async ({ page }) => {
+    // Taller than the screenshot tests' desktop, so the hero shows four releases under the title, the last one whole.
+    await page.setViewportSize({ width: DESKTOP.viewport.width, height: 1200 })
     await openApp(page, '/title/tv/126308/releases', options)
     await expect(page.getByText(RELEASES[0].title)).toBeVisible()
     await shoot(page, 'desktop-title')
