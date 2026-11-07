@@ -34,7 +34,7 @@ export function resolveTheme(preference: ThemePreference, prefersLight: boolean)
 
 /**
  * Browser and status bar color per theme: --bg from src/styles/tokens.css. A meta tag can't read
- * CSS custom properties, and index.html sets it before the styles load.
+ * CSS custom properties, and public/theme.js sets it before the styles load.
  */
 export const THEME_COLORS: Record<ResolvedTheme, string> = { dark: '#0e1113', light: '#f3f5f5' }
 

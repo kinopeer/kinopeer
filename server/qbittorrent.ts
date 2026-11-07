@@ -93,7 +93,7 @@ const MAX_BODY_BYTES = 50 * 1024 * 1024
 /** After qBittorrent refuses a login (e.g. the IP is banned), wait before trying again. */
 const LOGIN_RETRY_MS = 30_000
 /** Upstream response headers passed on to the browser. */
-const RESPONSE_HEADERS = ['content-type', 'cache-control', 'last-modified', 'etag']
+const RESPONSE_HEADERS = ['content-type', 'last-modified', 'etag']
 
 class BodyTooLargeError extends Error {}
 
@@ -249,6 +249,8 @@ export function qbittorrentBridge(config: QbittorrentConfig): QbittorrentBridge 
   const middleware: Middleware = (request, response, next) => {
     const path = request.url ?? '/'
     if (!path.startsWith(PREFIX)) return next()
+    // The torrents and qBittorrent's settings: no cache on the way keeps them, whatever qBittorrent says.
+    response.setHeader('Cache-Control', 'no-store')
     const fail = (status: number, message: string) => {
       response.statusCode = status
       response.setHeader('Content-Type', 'text/plain; charset=utf-8')

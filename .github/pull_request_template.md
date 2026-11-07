@@ -52,7 +52,7 @@ Baselines: <!-- each changed or new PNG — what changed and why — diff looked
      the diff moved or renamed: which test owns a statement, what a sheet or a toast does. Grep them
      for each number or name the diff changes, by its old value and each word of an old name on its
      own (`git grep -n '380px' docs CLAUDE.md README.md`, `git grep -ni kinoseed`, not only
-     `kinoseed-tmdb`). Read SPEC's and CLAUDE.md's paragraphs about what the diff changes: a claim
+     `kinoseed-tmdb`). Read SPEC's, ARCHITECTURE.md's and CLAUDE.md's paragraphs about what the diff changes: a claim
      by meaning ("as in Downloads, on both layouts") has no name to grep. A list
      the change adds to gains the new item: the screens in TESTING.md → Screenshot tests, SPEC's
      decision log (newest first), the blind spots. -->

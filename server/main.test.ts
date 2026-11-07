@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { TMDB_PROXY, TMDB_PROXY_EDGE, createApp, dataStores, kinopeerServer, missingSettings, tmdbProxy } from './main.ts'
+import { CONTENT_SECURITY_POLICY, SECURITY_HEADERS } from './securityHeaders.ts'
 import { SettingsStore } from './settings.ts'
 import { closeServers, fakeTmdb } from './test/fakes.ts'
 
@@ -44,6 +45,14 @@ describe('createApp', () => {
       downloads: null,
     })
     expect(await (await fetch(`${app}/api/matches`)).json()).toEqual({})
+  })
+
+  it('sends the security headers with every answer, the app’s, the bridges’ and a 404', async () => {
+    for (const path of ['/healthz', '/qbt/api/v2/app/version', '/api/settings', '/settings', '/assets/missing.js']) {
+      const { headers } = await fetch(`${app}${path}`)
+      for (const [name, value] of Object.entries(SECURITY_HEADERS)) expect(headers.get(name), `${path} ${name}`).toBe(value)
+      expect(headers.get('content-security-policy'), path).toBe(CONTENT_SECURITY_POLICY)
+    }
   })
 
   it('serves the app for its routes and 404 for missing files', async () => {

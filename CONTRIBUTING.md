@@ -21,7 +21,7 @@ Setup is in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). Before pushing, run `npm
 
 - UI text is never hardcoded: add keys to both `src/i18n/locales/en.json` and `ru.json`. If you don't know Russian, put the English text in both, and the maintainer will translate it.
 - Everything in the repository is in English: code, comments, docs, commit messages.
-- The architecture and conventions are in [CLAUDE.md](CLAUDE.md), the tests in [docs/TESTING.md](docs/TESTING.md).
+- The architecture is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), the conventions in [CLAUDE.md](CLAUDE.md), the tests in [docs/TESTING.md](docs/TESTING.md).
 
 ## How Kinopeer is developed
 

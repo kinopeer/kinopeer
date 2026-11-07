@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './test.ts'
 import { DESKTOP } from '../app.ts'
 import type { Matches } from '../../src/api/matches/types.ts'
 import { TORRENTS } from '../../src/test/fixtures.ts'

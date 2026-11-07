@@ -118,12 +118,13 @@ trusted.
   (a change under the threshold), or new and opened. The listed reason matches the screen. Open
   each new baseline yourself: it shows the state its test name promises. A new screen, sheet,
   dialog or a state with its own layout that has no baseline, only "checked on the stand" → finding.
-- **H. Docs match the code.** A claim the PR adds to `docs/TESTING.md` or `CLAUDE.md` (a comment
-  that exists, a command, a number, a file) is checked against the diff and the tree, and so is one
-  the diff makes stale, a sentence saying which test owns a statement above all: grep `docs/`,
-  `CLAUDE.md` and `README.md` for each number or name the diff changes (a width, a version, a count),
-  by its old value and each word of an old name on its own, and read SPEC's and `CLAUDE.md`'s
-  paragraphs about what the diff changes for claims by meaning no grep finds.
+- **H. Docs match the code.** A claim the PR adds to `docs/TESTING.md`, `docs/ARCHITECTURE.md` or
+  `CLAUDE.md` (a comment that exists, a command, a number, a file) is checked against the diff and
+  the tree, and so is one the diff makes stale, a sentence saying which test owns a statement above
+  all: grep `docs/`, `CLAUDE.md` and `README.md` for each number or name the diff changes (a width,
+  a version, a count), by its old value and each word of an old name on its own, and read SPEC's,
+  `docs/ARCHITECTURE.md`'s and `CLAUDE.md`'s paragraphs about what the diff changes for claims by
+  meaning no grep finds.
   A list in the docs that the change adds to gains the new item (the screens in `docs/TESTING.md` →
   Screenshot tests, SPEC's decision log, newest first, the blind spots: any PR that meets a blind
   spot the table doesn't name adds its row), and a manual check the PR adds says what has to be in
@@ -135,13 +136,15 @@ trusted.
   Missing or vague → finding.
 - **K. Each test can fail.** The Tests table says what was broken to see each new or changed test
   red, once per claim of its title and of each comment on its assertions, and the
-  `Mutants` line accounts for each survivor in CI's comment on the PR (the one at the commit the
-  round reviews), an `equivalent` with a reason you agree with; missing either, or a test you can see would
-  stay green with its behavior removed, → finding. CI mutates every push to a ready PR's head, so
-  its comment is at the commit the round reviews (a survivor new since the `Mutants` line is
-  accounted for in the author's `Fixes for round <n>`): while the run is going, wait for it. Run `npm
-  run test:mutants` locally only when no comment can come for that commit (Actions out of minutes,
-  the job failed), and say so in the round. An `equivalent` that only a test's own reset keeps alive isn't one. The
+  `Mutants` line accounts for each survivor in CI's `Mutants report` check on the commit the round
+  reviews (`gh api 'repos/{owner}/{repo}/commits/<sha>/check-runs?check_name=Mutants%20report'
+  --jq '.check_runs | max_by(.completed_at) | .output.summary // "no report yet"'`), an
+  `equivalent` with a reason you agree with; missing either, or a test you can see would stay green
+  with its behavior removed, → finding. CI mutates every push to a ready PR's head, so its report is
+  at the commit the round reviews (a survivor new since the `Mutants` line is accounted for in the
+  author's `Fixes for round <n>`): while the run is going, wait for it. Run `npm run test:mutants`
+  locally only when no report can come for that commit (Actions out of minutes, the job failed), and
+  say so in the round. An `equivalent` that only a test's own reset keeps alive isn't one. The
   `Broken by hand` line covers what the changed lines hold of the list in `docs/TESTING.md` → A test
   that can fail (a dependency array, one operand of a condition, `&&` chains included, a selector's
   alternatives, which value a guard reads, a prop passed down); one of them left out, where you can see a test would

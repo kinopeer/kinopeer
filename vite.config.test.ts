@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createServer, preview } from 'vite'
+import { CONTENT_SECURITY_POLICY, SECURITY_HEADERS } from './server/securityHeaders.ts'
 
 /**
  * `npm run dev` and `npm run preview` from this config. loadEnv lets process.env win over
@@ -27,6 +28,24 @@ afterEach(async () => {
 const options = { configFile: 'vite.config.ts', logLevel: 'silent' } as const
 const listening = { port: 0, host: '127.0.0.1', strictPort: true } as const
 
+/** `npm run dev` from this config; resolves to its port. */
+async function startDev(): Promise<number> {
+  const server = await createServer({ ...options, server: { ...listening, watch: null }, optimizeDeps: { noDiscovery: true } })
+  closers.push(() => server.close())
+  await server.listen()
+  return (server.httpServer!.address() as AddressInfo).port
+}
+
+/** `npm run preview` from this config, over a build that is only an index.html; resolves to its port. */
+async function startPreview(): Promise<number> {
+  const outDir = join(dir, 'dist')
+  await mkdir(outDir)
+  await writeFile(join(outDir, 'index.html'), '<!doctype html>')
+  const server = await preview({ ...options, build: { outDir }, preview: listening })
+  closers.push(() => server.close())
+  return (server.httpServer.address() as AddressInfo).port
+}
+
 /** A preflight from a page on another localhost port that wants to send /qbt the client's header. */
 const preflight = (port: number) =>
   fetch(`http://127.0.0.1:${port}/qbt/api/v2/torrents/delete`, {
@@ -40,23 +59,28 @@ const preflight = (port: number) =>
 
 describe('vite.config.ts', () => {
   it('answers no cross-origin preflight on the dev server, so another local page can’t send /qbt the header', async () => {
-    const server = await createServer({ ...options, server: { ...listening, watch: null }, optimizeDeps: { noDiscovery: true } })
-    closers.push(() => server.close())
-    await server.listen()
-
-    const answer = await preflight((server.httpServer!.address() as AddressInfo).port)
+    const answer = await preflight(await startDev())
     expect(answer.headers.has('access-control-allow-origin')).toBe(false)
     expect(answer.ok).toBe(false)
   })
 
-  it('answers no cross-origin preflight on the preview server either', async () => {
-    const outDir = join(dir, 'dist')
-    await mkdir(outDir)
-    await writeFile(join(outDir, 'index.html'), '<!doctype html>')
-    const server = await preview({ ...options, build: { outDir }, preview: listening })
-    closers.push(() => server.close())
+  it('sends the server’s security headers from the dev and preview servers too', async () => {
+    for (const [server, port] of [['dev', await startDev()], ['preview', await startPreview()]]) {
+      const { headers } = await fetch(`http://127.0.0.1:${port}/`)
+      for (const [name, value] of Object.entries(SECURITY_HEADERS)) expect(headers.get(name), `${server} ${name}`).toBe(value)
+    }
+  })
 
-    const answer = await preflight((server.httpServer.address() as AddressInfo).port)
+  // The test stand runs under the Content-Security-Policy; the dev server's pages run Vite's
+  // inline scripts, which it would block.
+  it('sends the Content-Security-Policy from the preview server and not the dev server', async () => {
+    const [fromDev, fromPreview] = await Promise.all([startDev(), startPreview()].map(async (port) => fetch(`http://127.0.0.1:${await port}/`)))
+    expect(fromPreview.headers.get('content-security-policy')).toBe(CONTENT_SECURITY_POLICY)
+    expect(fromDev.headers.has('content-security-policy')).toBe(false)
+  })
+
+  it('answers no cross-origin preflight on the preview server either', async () => {
+    const answer = await preflight(await startPreview())
     expect(answer.headers.has('access-control-allow-origin')).toBe(false)
     expect(answer.ok).toBe(false)
   })

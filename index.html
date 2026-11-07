@@ -9,15 +9,8 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Kinopeer" />
     <title>Kinopeer</title>
-    <script>
-      // Apply the saved theme before first paint to avoid a flash. Mirrors src/theme/theme.ts.
-      try {
-        var p = localStorage.getItem('kinopeer.theme')
-        var light = p === 'light' || (p !== 'dark' && matchMedia('(prefers-color-scheme: light)').matches)
-        document.documentElement.dataset.theme = light ? 'light' : 'dark'
-        document.querySelector('meta[name="theme-color"]').content = light ? '#f3f5f5' : '#0e1113'
-      } catch (e) {}
-    </script>
+    <!-- Blocking, before the styles: the saved theme applies before first paint. -->
+    <script src="/theme.js"></script>
   </head>
   <body>
     <div id="root"></div>

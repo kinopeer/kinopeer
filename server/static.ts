@@ -69,7 +69,6 @@ async function send(request: IncomingMessage, response: ServerResponse, path: st
   response.setHeader('Cache-Control', cacheControl(urlPath))
   response.setHeader('ETag', etag)
   response.setHeader('Last-Modified', mtime.toUTCString())
-  response.setHeader('X-Content-Type-Options', 'nosniff')
   if (request.headers['if-none-match'] === etag) {
     response.statusCode = 304
     return void response.end()

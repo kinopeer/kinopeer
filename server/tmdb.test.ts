@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { tmdbMiddleware, type TmdbConfig } from './tmdb.ts'
-import { closeServers, fakeTmdb, serve } from './test/fakes.ts'
+import { closeServers, fakeTmdb, listen, serve } from './test/fakes.ts'
 
 /** Kinopeer's side: the middleware under test. */
 const kinopeer = (config: TmdbConfig) => serve(tmdbMiddleware(config))
@@ -93,6 +93,44 @@ describe('tmdbMiddleware', () => {
     expect(response.headers.get('cache-control')).toBe('max-age=31536000')
     expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([0xff, 0xd8, 0xff]))
     expect(tmdb.seen[0].url).toBe('/t/p/w342/poster.jpg')
+  })
+
+  // Passed on as sent, a page in another type would open as Kinopeer's own: HTML, or an SVG (TMDB's
+  // logos, uploaded by its users), which can carry a script.
+  describe('passes on only the content types the app reads', () => {
+    async function answering(contentType: string | undefined) {
+      const tmdb = await listen((_request, response) => {
+        if (contentType) response.setHeader('Content-Type', contentType)
+        response.end('<html><script>alert(1)</script></html>')
+      })
+      return kinopeer({ apiKey: 'abc123', apiBase: `${tmdb}/3`, imageBase: `${tmdb}/t/p` })
+    }
+    const typeOf = async (url: string) => (await fetch(url)).headers.get('content-type')
+
+    it.each(['application/json;charset=utf-8', 'APPLICATION/JSON'])('keeps %s from the API', async (type) => {
+      expect(await typeOf(`${await answering(type)}/tmdb/movie/771`)).toBe(type)
+    })
+
+    it.each(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'])('keeps %s from the images', async (type) => {
+      expect(await typeOf(`${await answering(type)}/tmdb-img/w342/poster.jpg`)).toBe(type)
+    })
+
+    it.each([
+      ['an HTML page from the API', 'text/html; charset=utf-8', '/tmdb/movie/771'],
+      ['an image type from the API', 'image/jpeg', '/tmdb/movie/771'],
+      ['JSON from the images', 'application/json', '/tmdb-img/w342/poster.jpg'],
+      ['an HTML page from the images', 'text/html', '/tmdb-img/w342/poster.jpg'],
+      ['an SVG from the images', 'image/svg+xml', '/tmdb-img/original/logo.svg'],
+      ['no type at all', undefined, '/tmdb/movie/771'],
+      // The type is what comes first, not a word anywhere in the header.
+      ['HTML that names JSON after it', 'text/html; profile=application/json', '/tmdb/movie/771'],
+      ['HTML that names an image after it', 'text/html; profile=image/jpeg', '/tmdb-img/w342/poster.jpg'],
+      // A type is the whole word: JSONP is a script, and a made-up image type is none of the app's.
+      ['JSONP from the API', 'application/jsonp', '/tmdb/movie/771'],
+      ['a type that only starts like an image one', 'image/pngx', '/tmdb-img/w342/poster.jpg'],
+    ])('sends %s as bytes to download', async (_, type, path) => {
+      expect(await typeOf(`${await answering(type)}${path}`)).toBe('application/octet-stream')
+    })
   })
 
   it('reports an unreachable TMDB without the key', async () => {

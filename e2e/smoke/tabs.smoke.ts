@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
+import { expect, test } from './test.ts'
 import { TORRENTS, torrent } from '../../src/test/fixtures.ts'
 import { PROXY_DENIED_HEADER, resetStand } from './control.ts'
 

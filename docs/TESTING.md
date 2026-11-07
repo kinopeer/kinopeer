@@ -244,11 +244,14 @@ Before marking a PR ready, the author does both of these and says so in the PR:
 CI runs the same (`.github/workflows/mutants.yml`) for the latest head of a ready PR: when it's
 opened ready or marked ready, on every push to it (a fix, a merge of `main`), or when started by
 hand (`gh workflow run mutants.yml --ref <branch>`). A push while a run is going cancels it, so
-only the latest head is mutated, and the run posts the survivors on the PR at that commit. They
-don't fail the job, since an equivalent mutant would fail it for good; a survivor the PR doesn't
-account for, in the `Mutants` line or in the author's `Fixes for round <n>` comment for a later
-head, is a review finding. A round reads CI's comment at the commit it reviews, and waits for it
-while the run is going. The reviewer runs `npm run test:mutants` locally only when no comment can
+only the latest head is mutated, and the run adds the survivors to that commit as its `Mutants
+report` check (neutral while something survived), not as a comment on the PR, which emailed its
+author on every push. They don't fail the job, since an equivalent mutant would fail it for good; a
+survivor the PR doesn't account for, in the `Mutants` line or in the author's `Fixes for round <n>`
+comment for a later head, is a review finding. A round reads CI's report at the commit it reviews
+(`gh api 'repos/{owner}/{repo}/commits/<sha>/check-runs?check_name=Mutants%20report' --jq
+'.check_runs | max_by(.completed_at) | .output.summary // "no report yet"'`), and waits for it
+while the run is going. The reviewer runs `npm run test:mutants` locally only when no report can
 come for that commit (Actions out of minutes, the job failed), and says so in the round. A branch
 with no production line changed gets Stryker's dry run instead (`--dryRunOnly`: the tests once,
 through Stryker's sandbox and instrumenter, nothing mutated), and the workflow also starts on what
@@ -291,7 +294,7 @@ every later test in the file (#243). A new test doesn't write `vi.restoreAllMock
 already in the tree do nothing now and go when their file is next changed.
 
 The Seen red column is the author's word, and the review can only read the tests for these shapes;
-the survivors in CI's comment are not.
+the survivors in CI's report are not.
 
 ### Saying why something is uncovered
 
@@ -425,6 +428,7 @@ spot this table doesn't name adds its row, a feature as much as a fix (#240's de
 | Plain HTTP without `crypto.subtle`: reading a `.torrent` with the SHA-1 fallback in a real browser | `src/lib/digest.ts` on layer 1 against known digests; every browser test runs on localhost, a secure context, where Web Crypto exists | The checklist: add a release over `http://` on the LAN, where the info hash must still match qBittorrent's |
 | TMDB for real: field shapes, missing posters, the language fallback, rate limits | The fake and the fixtures' titles | Only the README screenshots (`npm run screenshots:readme`, through the edge worker's cache unless a key is set) and the test stand see the real API; nothing compares them, so a change in TMDB's answers arrives as a bug report |
 | An app resumed from memory after an update: Safari on iOS keeping the Home Screen app's page, the new service worker taking it over, Umbrel's proxy in front of `version.json` | `src/pwa/updates.test.ts` on layer 2 with `fetch`, `visibilitychange` and the service worker's registration stubbed (#210); every browser test loads a fresh page, which already has the new version | The checklist: after Umbrel updates Kinopeer Edge, resume the app on the owner's phone from the background and see it reload with the "updated" toast. Only a page that already has the update check can pass: the first update from a build before it can't |
+| The Content-Security-Policy outside Chromium and behind Umbrel's app_proxy: WebKit's enforcement (Safari on iOS and the Mac), and whatever the proxy adds to or changes in the pages | The smoke journeys, which fail on anything the policy blocks in Chromium on the production server (`e2e/smoke/test.ts`), and the screenshot tests, which run under it on `vite preview` | The checklist: no "Content Security Policy" error in Safari's console on Kinopeer Edge while going through the phone's and the desktop's checks (but for Safari's own "Refused to apply a stylesheet", one per `<select>` on the page, SPEC's decision log), and the app still opening from Umbrel (`frame-ancestors 'none'` would stop it in a frame); for a PR that changes the policy, the same on the `preview-lan` stand |
 | Real time: the hour before a refused login is retried, the week before a missing torrent's match is forgotten, the hourly cleanup | Fake timers on layer 4 | Not checked for real; the logic is small and the timers are the only difference |
 
 ## Shared test data
@@ -557,11 +561,11 @@ Three steps, each by whoever can do it best:
    too: `docs/`, `CLAUDE.md` and `README.md` grepped for each number or name the diff changes (a
    width, a version, a count: #227 left SPEC at 380px), by its old value and each word of an old
    name on its own (#261 grepped `kinoseed-tmdb` and left "Kinoseed's included"; #258 changed
-   README's port 8795 and left ROADMAP's), then the paragraphs of `docs/SPEC.md` and `CLAUDE.md`
-   about what the diff changes read through, since a claim by meaning has no name to grep (#257's
-   Search paragraph still said "as in Downloads, on both layouts"), and each list the change adds
-   to given the new item (the screens under [Screenshot tests](#screenshot-tests), SPEC's decision
-   log, newest first, the blind spots). Rereading one's own tests for judgment finds little: the author sees what they meant to
+   README's port 8795 and left ROADMAP's), then the paragraphs of `docs/SPEC.md`,
+   `docs/ARCHITECTURE.md` and `CLAUDE.md` about what the diff changes read through, since a claim
+   by meaning has no name to grep (#257's Search paragraph still said "as in Downloads, on both
+   layouts"), and each list the change adds to given the new item (the screens under
+   [Screenshot tests](#screenshot-tests), SPEC's decision log, newest first, the blind spots). Rereading one's own tests for judgment finds little: the author sees what they meant to
    write.
 2. **A separate session reviews**, one that didn't write the PR and sees only its diff and
    description: `/test-review <PR number>` with the `test-review` skill
@@ -580,7 +584,7 @@ Three steps, each by whoever can do it best:
    review is a new test. More rounds until the verdict is "ready to merge". The author answers each
    round with one comment headed `Fixes for round <n>`, at the commit the next round should see:
    each finding fixed (its commit) or declined (why), the tests written for the fixes and what was
-   broken to see each red, each survivor in CI's mutants comment at that commit that the `Mutants`
+   broken to see each red, each survivor in CI's mutants report at that commit that the `Mutants`
    line doesn't account for, a merge of `main` and its conflicts, and the docs grepped again for what
    the fixes changed (#230's fix left two sentences stale). The reviewer starts the next round from
    that comment; a message that points to it is the whole hand-over. A reviewer who sees the PR grow
@@ -764,7 +768,9 @@ need no Docker: Chromium on the host will do (`npx playwright install chromium`,
   screen goes away being the one the user left rather than the next screen's, clamped; a reload of
   an entry a tab's link opened (the browser keeps its history state) comes back to where the user
   was on it; and the active tab scrolls to the top, which only a real browser's scrolling shows. Every
-  journey also asserts the proxy refused nothing, so every fetch carried its cookie.
+  journey also asserts the proxy refused nothing, so every fetch carried its cookie, and, through
+  the `test` they import from `e2e/smoke/test.ts`, that the Content-Security-Policy blocked nothing
+  the built app loads or runs.
 - **What they don't.** Looks (the screenshot tests), and the branches of a flow (an error, an
   empty state, a second qBittorrent version): a journey goes through once; its variations belong
   to the layers above, which run in milliseconds.
@@ -784,7 +790,7 @@ need no Docker: Chromium on the host will do (`npx playwright install chromium`,
   the server on 4310 and the control server on 4320, one worker, service workers allowed). Locally
   it reuses a stand already running: for a quick loop, build once, start
   `node e2e/smoke/stack.ts` yourself and run `npx playwright test --config playwright.smoke.config.ts`.
-- **Adding a journey:** a `*.smoke.ts` in `e2e/smoke/` that starts with `resetStand(…)`, drives
+- **Adding a journey:** a `*.smoke.ts` in `e2e/smoke/` that imports `test` and `expect` from `./test.ts` (oxlint refuses them from `@playwright/test` there), starts with `resetStand(…)`, drives
   the UI by role and name in Russian (the context's locale) and ends on `standState()` and on what
   the page sent. Keep it to what a lower layer can't assert. A fake's new behavior goes into
   `server/test/fakes.ts` as an addition, since the server and integration tests run on it; a
