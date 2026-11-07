@@ -1,7 +1,8 @@
 // Runs Stryker over the lines this branch changes and prints what survived, as Markdown:
-// `npm run test:mutants`. Stryker's progress goes to stderr, the report to stdout, which CI posts on
-// the PR. Survivors don't fail the run, because some are mutants no test can tell from the original;
-// the PR says what each one is (docs/TESTING.md → A test that can fail).
+// `npm run test:mutants`. Stryker's progress goes to stderr, the report to stdout, which CI adds to
+// the commit as its "Mutants report" check. Survivors don't fail the run, because some are mutants
+// no test can tell from the original; the PR says what each one is (docs/TESTING.md → A test that
+// can fail).
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, rmSync } from 'node:fs'
 
