@@ -11,6 +11,7 @@ Kinopeer follows [semantic versioning](https://semver.org). While the version is
 ### Fixed
 
 - Kinopeer's server passes requests on to qBittorrent only from Kinopeer itself and only for what Kinopeer does with torrents, so a page on another site can no longer make your browser change your torrents or qBittorrent's settings through Kinopeer. ([#270](https://github.com/kinopeer/kinopeer/issues/270))
+- The indexer's name on a release links to the release's page only when the indexer gives a web address (http or https), so a crafted address from an indexer can't run code in Kinopeer when clicked. ([#292](https://github.com/kinopeer/kinopeer/issues/292))
 
 ## 0.7.1 - 2026-11-06
 
