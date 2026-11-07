@@ -135,3 +135,30 @@ jobs:
           for i in $(seq 1 20); do curl -fs http://localhost:8080/healthz && break; sleep 1; done
           curl -fs http://localhost:8080/title/movie/771 | grep -q '<div id="root">'
           docker stop kinopeer
+
+  # TEMPORARY, reverted before merge: release.yml's build steps without the cache and without
+  # pushing, to time them and run the pinned actions only a tag runs.
+  release-build-timing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ghcr.io/kinopeer/kinopeer
+          tags: |
+            type=semver,pattern={{version}},value=v0.0.0-timing
+          labels: |
+            org.opencontainers.image.licenses=GPL-3.0-or-later
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
