@@ -27,9 +27,11 @@ permissions:
   contents: read
 
 # A push while a run is going cancels it, so only the latest head is mutated and commented on. Keyed
-# by the branch, so a run started by hand and a push's run for the same PR share the group.
+# by the head repository and the branch, so a run started by hand and a push's run for the same PR
+# share the group (a dispatch has no PR: this repository and its branch), while PRs from forks whose
+# branches share a name (patch-1, main) don't cancel each other.
 concurrency:
-  group: mutants-${{ github.head_ref || github.ref_name }}
+  group: mutants-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -61,7 +63,13 @@ jobs:
         if: ${{ !github.event.pull_request.head.repo.fork }}
         env:
           GH_TOKEN: ${{ github.token }}
-          BRANCH: ${{ github.head_ref || github.ref_name }}
+          # The PR that started the run; a run started by hand looks up the open PR of its branch,
+          # this repository's only, since a fork's PR may have a branch of the same name.
+          PR: ${{ github.event.pull_request.number }}
+          BRANCH: ${{ github.ref_name }}
         run: |
-          pr=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number')
+          pr="$PR"
+          if [ -z "$pr" ]; then
+            pr=$(gh pr list --head "$BRANCH" --json number,isCrossRepository --jq 'map(select(.isCrossRepository | not)) | .[0].number // empty')
+          fi
           if [ -n "$pr" ]; then gh pr comment "$pr" --body-file mutants.md; fi

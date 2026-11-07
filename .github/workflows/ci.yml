@@ -10,6 +10,13 @@ on:
 permissions:
   contents: read
 
+# A push to a PR cancels the PR's run in progress, whoever's fork it comes from, since only its head
+# matters. Each push to main gets a group of its own (its commit) and is never cancelled: every commit
+# of main is checked.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 # Each job's timeout-minutes is there for a hang, which would otherwise run to GitHub's six hours and
 # spend the account's minutes: well over the slowest healthy run, so raise it if a job's normal time
 # gets near it rather than retrying.
