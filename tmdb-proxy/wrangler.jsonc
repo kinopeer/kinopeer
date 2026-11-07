@@ -10,7 +10,7 @@
 // - observability off: no request logs, since the proxy sees each install's IP and its searches.
 // - secrets: a deploy fails unless the worker has TMDB_API_KEY, there already or in the deploy's
 //   --secrets-file (.github/workflows/tmdb-proxy.yml), so a worker never goes out without the key.
-// - ratelimits: the calls that reach TMDB, per IP and Cloudflare location. 100 in 10 seconds covers
+// - ratelimits: the calls that reach TMDB, per IP (an IPv6 caller's /64, worker.ts's `limitKey`) and Cloudflare location. 100 in 10 seconds covers
 //   Downloads guessing the titles of a long list (three searches at a time) and stops a script from
 //   pulling TMDB through Kinopeer's key. Each worker has its own namespace, so they count apart.
 // - routes: each worker answers on its own name under kinopeer.com (a Custom Domain, which Cloudflare
