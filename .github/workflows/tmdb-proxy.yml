@@ -1,7 +1,7 @@
 name: TMDB proxy
 
 # Deploys Kinopeer's TMDB proxy (tmdb-proxy/) to Cloudflare Workers and gives it the key, which lives
-# in this repository's secrets and the worker's, never in the code or the image. It has no trigger of
+# in the deploy environment's secrets and the worker's, never in the code or the image. It has no trigger of
 # its own: Edge runs it for kinopeer-tmdb-edge with every edge build, and Release for kinopeer-tmdb
 # with every release, so each worker goes out with the builds that call it, whatever starts them
 # (docs/DEVELOPMENT.md → The TMDB proxy).
