@@ -171,7 +171,7 @@ merge of `main` needs one only when it reaches the PR's own lines, and otherwise
 tests). Add
 "retro due" to it when twenty or more merged PRs are missing from the retro table in
 `docs/TESTING.md` → Improving the system (list the merged PRs since that table's last date and
-take out the ones its rows name).
+take out the ones its rows name and Dependabot's).
 Nothing else: no summary of the PR, no praise, no repeat of what the PR description already says.
 On a PR, post the report as one comment headed `Test review, round <n>`:
 `gh api repos/{owner}/{repo}/issues/<n>/comments -F body=@report.md`, or the GitHub MCP tools.

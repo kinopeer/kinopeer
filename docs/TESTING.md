@@ -609,9 +609,14 @@ ended up.
 
 Dependabot's PRs (`.github/dependabot.yml`: once a month, grouped) skip the rounds and the
 template. They change only versions, in `package.json`, the lockfiles and the workflows' `uses:`,
-and CI runs every layer over them, so a round would have nothing of ours to read. One merges on
-green CI and the owner's OK. One that fails, or a major that needs our code changed, is closed, and
-the update goes into a PR of our own with the fixes, which gets its rounds.
+and a round would have nothing of ours to read. One merges on green CI and the owner's OK. One
+that fails, or a major that needs our code changed, is closed, and the update goes into a PR of our
+own with the fixes, which gets its rounds. The retro leaves them out of its batch and its count
+([Improving the system](#improving-the-system)). A PR's CI doesn't run everything they move:
+Wrangler (`tmdb-proxy/`) runs only in `tmdb-proxy.yml`, and the `docker/*` actions other than
+`setup-buildx-action` and `build-push-action` only in `edge.yml` and `release.yml`. So after the
+`tmdb-proxy` or `github-actions` PR merges, the owner watches the Edge run it starts on `main`, and
+`release.yml`'s actions first run at the next tag (`RELEASE_CHECKLIST.md` → Before every release).
 
 A real bug that `/code-review` finds in an open PR's own change is fixed in that PR, red test
 first, without an issue: it never reached `main`. The round that reports the bug records the
@@ -641,7 +646,7 @@ open lists it as `still open (round <n>)` with no tag, and the retro counts each
 The review comments are the log: no other file to keep in sync. Escaped bugs keep their own
 record, the `test-gap:*` labels ([When we find a bug](#when-we-find-a-bug)).
 
-**When.** Once twenty PRs have merged that no row of the table below lists; a release doesn't call
+**When.** Once twenty PRs have merged that no row of the table below lists, Dependabot's left out; a release doesn't call
 for one (decided on 2026-11-06: at ten PRs or each release a retro came almost daily, on batches too
 small for a finding to repeat three times). The review counts them: when it finds twenty or more,
 its verdict line says "retro due", and the

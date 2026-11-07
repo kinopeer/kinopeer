@@ -27,7 +27,7 @@ A qBittorrent web UI built around movies and TV series. Find a title in TMDB, pi
 - Vitest + Testing Library (jsdom) for tests
 - Playwright screenshot tests (`e2e/`), run in the Playwright Docker image, and smoke journeys through the production server (`e2e/smoke/`), run on the host
 - GitHub Actions CI: lint, typecheck, test, build, the screenshot tests and the smoke journeys on every PR and on push to `main`
-- Dependabot (`.github/dependabot.yml`): monthly grouped updates for npm in the root and in `tmdb-proxy/` and for the workflows' actions, each version a week old at least; `@playwright/test` is left to us, since it moves with the Playwright image the screenshot baselines are rendered in
+- Dependabot (`.github/dependabot.yml`): monthly grouped updates for npm in the root and in `tmdb-proxy/` and for the workflows' actions, each version a week old at least; `@playwright/test` is left to us, since it moves with the Playwright image the screenshot baselines are rendered in, and so are `@types/node`'s majors, which follow the Dockerfile's Node
 - Stryker mutants over a branch's changed lines (`scripts/mutants.mjs`, `stryker.config.mjs`): run by the author before marking a PR ready, and in CI on every push to a ready PR's head, the latest one only (`.github/workflows/mutants.yml`), whose comment the review reads
 
 ## Commands

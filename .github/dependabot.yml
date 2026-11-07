@@ -12,7 +12,12 @@ updates:
     # first days never reaches a PR.
     cooldown:
       default-days: 7
+    # An update goes into the first group it matches.
     groups:
+      # TypeScript apart: it's pinned to a minor (~), since its minors often break tsc, and a red one
+      # shouldn't hold back the rest.
+      typescript:
+        patterns: ['typescript']
       # Majors apart: they're the ones that may need code changes, and they shouldn't hold back the rest.
       npm-minor-and-patch:
         patterns: ['*']
@@ -25,6 +30,10 @@ updates:
       # and scripts/playwright-docker.sh), which Dependabot doesn't update: the three move together,
       # by hand, with the baselines re-rendered.
       - dependency-name: '@playwright/test'
+      # Its major is the Node the image runs (the Dockerfile's node:24-alpine): a later one would let tsc
+      # pass Node APIs the image doesn't have. It moves with the Dockerfile, by hand.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: npm
     directory: /tmdb-proxy
