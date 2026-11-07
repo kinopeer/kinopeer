@@ -30,5 +30,5 @@ Kinopeer is written with [Claude Code](https://claude.com/claude-code). The main
 Kinopeer is licensed under the [GNU GPL, version 3 or later](LICENSE). By submitting a contribution, you:
 
 - license it under the GNU GPL, version 3 or later;
-- grant Alfred Shakhov, and whoever the project passes to, a perpetual, worldwide, non-exclusive, royalty-free, irrevocable license to use, modify, distribute and sublicense it under other licenses as well, commercial ones included;
+- grant Alfred Shakhov and Alfred Shakhov's successors and assigns a perpetual, worldwide, non-exclusive, royalty-free, irrevocable license to use, modify, distribute and sublicense it under other licenses as well, commercial ones included;
 - confirm that you have the right to do so.

@@ -1,7 +1,7 @@
 <!-- Everything here is in English. Delete the sections and hints that don't apply.
      Contributing from outside? Fill in what you can; the maintainer completes the rest (CONTRIBUTING.md). -->
 
-By opening this pull request, I agree to CONTRIBUTING.md → Licensing of contributions.
+By opening this pull request, I agree to [CONTRIBUTING.md → Licensing of contributions](https://github.com/kinopeer/kinopeer/blob/main/CONTRIBUTING.md#licensing-of-contributions).
 
 ## What
 
