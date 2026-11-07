@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import worker, { handle, type Env } from './worker.ts'
+import worker, { handle, limitKey, type Env } from './worker.ts'
 
 const ORIGIN = 'https://kinopeer-tmdb.example.workers.dev'
 const TMDB = 'https://tmdb.test/3'
@@ -219,6 +219,14 @@ describe('TMDB proxy worker', () => {
     expect(tmdb).not.toHaveBeenCalled()
   })
 
+  it('counts an IPv6 caller by its /64, the block a single client gets', async () => {
+    const limit = vi.fn(async () => ({ success: true }))
+    const { call } = setup({ env: { TMDB_API_KEY: 'v3key', LIMITER: { limit } } })
+    await call('/3/search/movie?query=Dune', { ip: '2001:db8:1:2:aaaa:bbbb:cccc:dddd' })
+
+    expect(limit).toHaveBeenCalledWith({ key: '2001:db8:1:2::/64' })
+  })
+
   describe('as deployed', () => {
     afterEach(() => vi.unstubAllGlobals())
 
@@ -230,5 +238,38 @@ describe('TMDB proxy worker', () => {
       expect(response.status).toBe(200)
       expect(String(tmdb.mock.calls[0]?.[0])).toBe('https://api.themoviedb.org/3/configuration?api_key=v3key')
     })
+  })
+})
+
+describe('limitKey', () => {
+  it('keeps an IPv4 address as it is', () => {
+    expect(limitKey('203.0.113.7')).toBe('203.0.113.7')
+  })
+
+  // Any address in one /64 is one client's: privacy extensions alone hand out new ones all the time.
+  it.each([
+    ['another address in the block', '2001:db8:1:2::1'],
+    ['the block written in full, with leading zeros', '2001:0db8:0001:0002:0000:0000:0000:0001'],
+    ['upper case', '2001:DB8:1:2:AAAA:BBBB:CCCC:DDDD'],
+    ['an IPv4 address in its last 32 bits', '2001:db8:1:2:0:0:198.51.100.1'],
+  ])('gives the same key for %s', (_, ip) => {
+    expect(limitKey(ip)).toBe(limitKey('2001:db8:1:2:aaaa:bbbb:cccc:dddd'))
+  })
+
+  it('gives another /64 its own key', () => {
+    expect(limitKey('2001:db8:1:3::1')).not.toBe(limitKey('2001:db8:1:2::1'))
+  })
+
+  it.each([
+    ['zeros elided inside the first half', '2001:db8::1', '2001:db8:0:0::/64'],
+    ['zeros elided at the start', '::1', '0:0:0:0::/64'],
+    ['zeros elided at the end', '2001:db8:1:2:3::', '2001:db8:1:2::/64'],
+  ])('reads %s', (_, ip, key) => {
+    expect(limitKey(ip)).toBe(key)
+  })
+
+  // Not an address Cloudflare sends; kept whole rather than guessed at, so it still has a limit.
+  it.each(['2001:db8::1::2', '2001:db8:1:2:3:4:5', '1:2:3:4:5:6:7:8:9::', 'unknown'])('keeps %s as it is', (ip) => {
+    expect(limitKey(ip)).toBe(ip)
   })
 })

@@ -9,7 +9,7 @@
  * it isn't a key to the whole API. Installs don't authenticate: any secret in the image would be as
  * public as the key. Workers Cache, in front of the worker (`cache` in wrangler.jsonc), keeps TMDB's
  * answers by their Cache-Control and runs the worker only on a miss, so only the calls that reach
- * TMDB meet the per-IP limit. Nothing is logged (wrangler.jsonc).
+ * TMDB meet the limit per IP (an IPv6 caller's /64, `limitKey`). Nothing is logged (wrangler.jsonc).
  */
 
 /** The worker's bindings (wrangler.jsonc) and secrets. */
@@ -75,6 +75,29 @@ function authorize(key: string, url: string): { url: string; headers: Record<str
   return { url: `${url}${url.includes('?') ? '&' : '?'}api_key=${encodeURIComponent(key)}`, headers: {} }
 }
 
+/** The groups of one side of an IPv6 address's `::`, an IPv4 tail counted as the two it takes. */
+function groups(part: string): string[] {
+  return part ? part.split(':').flatMap((group) => (group.includes('.') ? ['0', '0'] : [group])) : []
+}
+
+/**
+ * What the rate limit counts a caller by: an IPv4 address as it is, an IPv6 one by its /64, since a
+ * single client gets a whole /64 and can take a new address in it for every call. Anything that
+ * doesn't read as an address is kept whole.
+ */
+export function limitKey(ip: string): string {
+  if (!ip.includes(':')) return ip
+  const halves = ip.toLowerCase().split('::')
+  if (halves.length > 2) return ip
+  const head = groups(halves[0])
+  const tail = halves.length === 2 ? groups(halves[1]) : []
+  // None elided, rather than a negative count, when the sides already have more than eight groups.
+  const elided = halves.length === 2 ? Math.max(0, 8 - head.length - tail.length) : 0
+  const all = [...head, ...Array<string>(elided).fill('0'), ...tail]
+  if (all.length !== 8) return ip
+  return `${all.slice(0, 4).map((group) => group.replace(/^0+(?=.)/, '')).join(':')}::/64`
+}
+
 export async function handle(request: Request, env: Env, deps: Deps = {}): Promise<Response> {
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     return fail(405, 'Method not allowed', { Allow: 'GET, HEAD' })
@@ -93,7 +116,7 @@ export async function handle(request: Request, env: Env, deps: Deps = {}): Promi
   const search = String(query) ? `?${query}` : ''
 
   const ip = request.headers.get('cf-connecting-ip') ?? 'unknown'
-  if (!(await env.LIMITER.limit({ key: ip })).success) {
+  if (!(await env.LIMITER.limit({ key: limitKey(ip) })).success) {
     return fail(429, 'Too many requests', { 'Retry-After': '10' })
   }
 
