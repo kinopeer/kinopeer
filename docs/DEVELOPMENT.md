@@ -4,7 +4,7 @@ How to run Kinopeer locally, how the server is configured and how a release goes
 
 ## Requirements
 
-Node.js 22.18+ (the tests need 22.22.2+ or 24.15+, jsdom's minimum) and qBittorrent with the Web UI on. Release search needs Prowlarr. Development needs no TMDB key: metadata comes from TMDB through Kinopeer's TMDB proxy, and the dev server and the README screenshots use its edge worker (The TMDB proxy, below); a key in `.env.local` or entered in the app goes to TMDB directly instead. A branch that adds a TMDB path is the exception: the edge worker answers 404 for a path it hasn't deployed, so until the branch merges it needs a key of your own, or `TMDB_PROXY_URL` at a local `wrangler dev` (The TMDB proxy, below). A qBittorrent login is needed only when qBittorrent's auth bypass is off, and the app's connect screen asks for it.
+Node.js 22.18+ (the tests need 22.22.2+, 24.15+ or 26+, jsdom's range) and qBittorrent with the Web UI on. Release search needs Prowlarr. Development needs no TMDB key: metadata comes from TMDB through Kinopeer's TMDB proxy, and the dev server and the README screenshots use its edge worker (The TMDB proxy, below); a key in `.env.local` or entered in the app goes to TMDB directly instead. A branch that adds a TMDB path is the exception: the edge worker answers 404 for a path it hasn't deployed, so until the branch merges it needs a key of your own, or `TMDB_PROXY_URL` at a local `wrangler dev` (The TMDB proxy, below). A qBittorrent login is needed only when qBittorrent's auth bypass is off, and the app's connect screen asks for it.
 
 ## Running
 
