@@ -1,7 +1,7 @@
 name: TMDB proxy key
 
-# Puts the TMDB_API_KEY repository secret into the TMDB proxy workers without deploying their code:
-# run it from the Actions tab after replacing a leaked or revoked key, and installs keep working
+# Puts the deploy environment's TMDB_API_KEY secret into the TMDB proxy workers without deploying
+# their code: run it from the Actions tab after replacing a leaked or revoked key, and installs keep working
 # without a release (docs/DEVELOPMENT.md → The TMDB proxy).
 on:
   workflow_dispatch:
@@ -15,6 +15,8 @@ env:
 jobs:
   key:
     if: github.ref == 'refs/heads/main'
+    # The secrets live in the deploy environment, which only main and v* tags can read.
+    environment: deploy
     runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
@@ -50,7 +52,7 @@ jobs:
           ENVIRONMENT: ${{ matrix.environment }}
         run: |
           if [ -z "$TMDB_API_KEY" ]; then
-            echo "::error::The TMDB_API_KEY repository secret isn't set"
+            echo "::error::The deploy environment's TMDB_API_KEY secret isn't set"
             exit 1
           fi
           printf '%s' "$TMDB_API_KEY" | npx wrangler secret put TMDB_API_KEY --env "$ENVIRONMENT"

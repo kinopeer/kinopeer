@@ -104,4 +104,9 @@ jobs:
     uses: ./.github/workflows/tmdb-proxy.yml
     with:
       environment: release
-    secrets: inherit
+    # By name, since they live in the deploy environment (docs/DEVELOPMENT.md → The TMDB proxy), which
+    # only the called job can name; nothing else this workflow can read goes along.
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
