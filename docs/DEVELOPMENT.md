@@ -1,6 +1,6 @@
 # Development
 
-How to run Kinopeer locally, how the server is configured and how a release goes out. The detailed architecture and conventions are in [CLAUDE.md](../CLAUDE.md).
+How to run Kinopeer locally, how the server is configured and how a release goes out. The detailed architecture is in [ARCHITECTURE.md](ARCHITECTURE.md), the conventions in [CLAUDE.md](../CLAUDE.md).
 
 ## Requirements
 
