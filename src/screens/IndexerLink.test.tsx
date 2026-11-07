@@ -16,6 +16,8 @@ describe('IndexerLink', () => {
     render(<IndexerLink release={{ indexer: 'Indexer A' }} />)
     expect(screen.getByText('Indexer A')).toBeInTheDocument()
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    // An <a> without href isn't a link, but it would still say it opens the tracker.
+    expect(screen.queryByLabelText('Open on Indexer A')).not.toBeInTheDocument()
   })
 
   it('links a plain http page too', () => {
@@ -35,5 +37,7 @@ describe('IndexerLink', () => {
     render(<IndexerLink release={{ indexer: 'Indexer A', infoUrl }} />)
     expect(screen.getByText('Indexer A')).toBeInTheDocument()
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    // An <a> without href isn't a link, but it would still say it opens the tracker.
+    expect(screen.queryByLabelText('Open on Indexer A')).not.toBeInTheDocument()
   })
 })
