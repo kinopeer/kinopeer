@@ -59,12 +59,13 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 
 ## 0.8: Beyond Umbrel
 
-- [ ] Installing with plain Docker, outside Umbrel, together with Kinopeer's own login.
+- [ ] Installing with plain Docker, outside Umbrel, together with Kinopeer's own login (for example `KINOPEER_PASSWORD`), because without Umbrel's login anyone on the network can control qBittorrent and delete files.
+- [ ] The server answers only for the hosts it's meant to be reached at (a `Host` check), against DNS rebinding: the `X-Kinopeer` header stops a page on another site from acting through `/qbt`, but a page whose hostname is rebound to Kinopeer's address is same-origin and can send it. On Umbrel, app_proxy's login stops that (its cookie isn't sent to the rebound host), and in development Vite's `allowedHosts` does; with plain Docker nothing sits in front.
 - [ ] Onboarding works on a clean install with qBittorrent and Prowlarr set only through the environment.
 
 ## 1.0: Public release
 
-- [ ] [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) is done: license, TMDB key and attribution, a history scan for secrets, a bug report template and links to Ideas, required checks on `main`, screenshots, the official Umbrel App Store.
+- [ ] [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) → Before 1.0 is done: the repository public, TMDB's terms and the proxy's limits, the official Umbrel App Store, images pinned by digest, a site on `kinopeer.com` or not.
 
 ## Later, no version yet
 
