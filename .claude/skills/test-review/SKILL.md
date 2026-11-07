@@ -118,12 +118,13 @@ trusted.
   (a change under the threshold), or new and opened. The listed reason matches the screen. Open
   each new baseline yourself: it shows the state its test name promises. A new screen, sheet,
   dialog or a state with its own layout that has no baseline, only "checked on the stand" → finding.
-- **H. Docs match the code.** A claim the PR adds to `docs/TESTING.md` or `CLAUDE.md` (a comment
-  that exists, a command, a number, a file) is checked against the diff and the tree, and so is one
-  the diff makes stale, a sentence saying which test owns a statement above all: grep `docs/`,
-  `CLAUDE.md` and `README.md` for each number or name the diff changes (a width, a version, a count),
-  by its old value and each word of an old name on its own, and read SPEC's and `CLAUDE.md`'s
-  paragraphs about what the diff changes for claims by meaning no grep finds.
+- **H. Docs match the code.** A claim the PR adds to `docs/TESTING.md`, `docs/ARCHITECTURE.md` or
+  `CLAUDE.md` (a comment that exists, a command, a number, a file) is checked against the diff and
+  the tree, and so is one the diff makes stale, a sentence saying which test owns a statement above
+  all: grep `docs/`, `CLAUDE.md` and `README.md` for each number or name the diff changes (a width,
+  a version, a count), by its old value and each word of an old name on its own, and read SPEC's,
+  `docs/ARCHITECTURE.md`'s and `CLAUDE.md`'s paragraphs about what the diff changes for claims by
+  meaning no grep finds.
   A list in the docs that the change adds to gains the new item (the screens in `docs/TESTING.md` →
   Screenshot tests, SPEC's decision log, newest first, the blind spots: any PR that meets a blind
   spot the table doesn't name adds its row), and a manual check the PR adds says what has to be in

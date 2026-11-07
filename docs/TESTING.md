@@ -561,11 +561,11 @@ Three steps, each by whoever can do it best:
    too: `docs/`, `CLAUDE.md` and `README.md` grepped for each number or name the diff changes (a
    width, a version, a count: #227 left SPEC at 380px), by its old value and each word of an old
    name on its own (#261 grepped `kinoseed-tmdb` and left "Kinoseed's included"; #258 changed
-   README's port 8795 and left ROADMAP's), then the paragraphs of `docs/SPEC.md` and `CLAUDE.md`
-   about what the diff changes read through, since a claim by meaning has no name to grep (#257's
-   Search paragraph still said "as in Downloads, on both layouts"), and each list the change adds
-   to given the new item (the screens under [Screenshot tests](#screenshot-tests), SPEC's decision
-   log, newest first, the blind spots). Rereading one's own tests for judgment finds little: the author sees what they meant to
+   README's port 8795 and left ROADMAP's), then the paragraphs of `docs/SPEC.md`,
+   `docs/ARCHITECTURE.md` and `CLAUDE.md` about what the diff changes read through, since a claim
+   by meaning has no name to grep (#257's Search paragraph still said "as in Downloads, on both
+   layouts"), and each list the change adds to given the new item (the screens under
+   [Screenshot tests](#screenshot-tests), SPEC's decision log, newest first, the blind spots). Rereading one's own tests for judgment finds little: the author sees what they meant to
    write.
 2. **A separate session reviews**, one that didn't write the PR and sees only its diff and
    description: `/test-review <PR number>` with the `test-review` skill
