@@ -337,6 +337,7 @@
     "magnetFiles": "Magnet link: all files are downloaded. You can skip files later in qBittorrent.",
     "addFailed": "qBittorrent didn’t add the torrent. It may already be in your downloads.",
     "addError": "Couldn’t reach qBittorrent. Try again.",
+    "addError_kinopeer": "Couldn’t reach Kinopeer. Try again.",
     "added": "“{{title}}” added to downloads",
     "selectFiles": "Select files",
     "back": "Back",

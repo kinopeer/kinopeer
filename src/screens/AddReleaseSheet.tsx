@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { fetchRelease, type Release, type ReleaseSource } from '../api/prowlarr'
-import { QbittorrentError, getSaveLocations } from '../api/qbittorrent'
+import { QbittorrentError, getSaveLocations, unreachable } from '../api/qbittorrent'
 import { posterUrl, type MediaType } from '../api/tmdb'
 import { Accordion } from '../components/Accordion'
 import { Badge } from '../components/Badge'
@@ -127,7 +127,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
       onAdded()
     } catch (error) {
       setAdding(false)
-      setAddError(error instanceof QbittorrentError && error.status === 200 ? t('add.addFailed') : t('add.addError'))
+      setAddError(error instanceof QbittorrentError && error.status === 200 ? t('add.addFailed') : t('add.addError', { context: unreachable(error) }))
     }
   }
 
