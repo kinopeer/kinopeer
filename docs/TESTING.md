@@ -732,6 +732,11 @@ batch) and the `test-gap:*` issues closed since the last retro, and count the fi
 - A rule that no finding touched in three retros and that nobody can name a case for → consider
   deleting it. The system should get shorter as often as longer.
 
+Tags come in two spellings, `[H · gap]` and `[H · gap: <reason>]`, so a search that expects `]`
+right after the rule misses the second (#299, #302); one that catches both is
+`\[[A-K] ?· ?(clear|gap|conflict)[]:]`. The search doesn't replace reading: every reviewer round
+is read whole, for the `/code-review` findings that carry no tag and the **For the owner** items.
+
 The changes go into one docs PR, reviewed like any other, which adds a row to the table below and
 says which counts each change answers, so the next retro sees whether that count fell. The row and
 the PR name the set behind each count (which PRs, which issues, closed since when), and `flaky`
@@ -741,6 +746,15 @@ the merged PRs and those with production code, the folders `scripts/mutants.mjs`
 divides the blocking findings (the test review's blocking ones, and the `/code-review` bugs a
 verdict says to fix in the PR, each counted once) by the PRs with production code, the same basis
 in every row, so the column compares with the rows below it and with the Done rule (#222).
+
+The owner gets the retro's results as a short summary in the chat, not a document: 3–6 problems,
+each with its cause explained so that it's clear without knowing the system's rules (which rule,
+where it lives: this file, the `test-review` skill, the PR template, and why it didn't work) and
+the fix proposed for it. Then how the batch compares with the last retro: the table's columns
+(ready on the first round, blocking findings per PR, escaped bugs) and the counts the last retro's
+changes answered, so the owner sees whether the system got better or worse. Numbers go in only
+where they change a decision or show that trend; the full counts go into the table's row in the
+PR. Questions, if any, come with answers to pick from.
 
 **Done.** The system is stable when two retros in a row change no rules and the last batch averages
 under one blocking finding per PR. From then on the retro runs every forty merged PRs, and any new
