@@ -8,7 +8,7 @@ import type { Torrent } from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
 import * as proxySignIn from '../pwa/proxySignIn'
 import { DUNE_TORRENT, mainData, searchPage } from '../test/fixtures'
-import { findToastOnPage, qbittorrentDown, renderWithRouter, saying } from '../test/render'
+import { controlledByServiceWorker, findToastOnPage, qbittorrentDown, renderWithRouter, saying } from '../test/render'
 import * as serverMatches from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
@@ -136,6 +136,7 @@ describe('TorrentScreen', () => {
   })
 
   it('says when Kinopeer itself can’t be reached and opens the page again past the shell, before any answer and after one', async () => {
+    controlledByServiceWorker()
     const loadPastTheShell = vi.mocked(proxySignIn.loadPastTheShell)
     getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     renderScreen()

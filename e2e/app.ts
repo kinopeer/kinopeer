@@ -27,6 +27,11 @@ export interface AppOptions {
    * down: from the first poll, or after it.
    */
   unreached?: 'from-start' | 'after-first-poll'
+  /**
+   * A service worker answers the page, as over HTTPS, where Open again shows (#311). The tests
+   * block service workers, so this only says one does.
+   */
+  serviceWorkerAnswers?: boolean
   /** qBittorrent's alternative speed limits apply. */
   altSpeedLimits?: boolean
   /** The server rejects the login sent from the connect screen as a wrong login or password. */
@@ -225,6 +230,9 @@ export async function openApp(page: Page, path: string, options: AppOptions = {}
     },
     { theme: options.theme ?? 'dark', lang: options.lang ?? 'ru', downloadsView: options.downloadsView, releaseFilters: options.releaseFilters },
   )
+  if (options.serviceWorkerAnswers) {
+    await page.addInitScript(() => Object.defineProperty(navigator.serviceWorker, 'controller', { get: () => ({}) }))
+  }
   await mockServer(page, options)
   await page.goto(path)
 }

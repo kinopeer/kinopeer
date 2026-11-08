@@ -49,7 +49,7 @@ test.describe('onboarding, desktop', () => {
 test.describe('onboarding, phone', () => {
   // #311: the connect screen's banner with Retry and Open again, and the hint.
   test('Kinopeer doesn’t answer the session check, dark, Russian', async ({ page }) => {
-    await openApp(page, '/')
+    await openApp(page, '/', { serviceWorkerAnswers: true })
     await page.route(
       (url) => url.pathname === '/qbt/api/v2/app/version',
       (route) => route.abort('connectionrefused'),

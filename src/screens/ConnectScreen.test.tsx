@@ -5,7 +5,7 @@ import type { Unreachable } from '../api/qbittorrent'
 import { SettingsError } from '../api/settings'
 import * as proxySignIn from '../pwa/proxySignIn'
 import { ConnectScreen } from './ConnectScreen'
-import { saying } from '../test/render'
+import { controlledByServiceWorker, saying } from '../test/render'
 
 vi.mock('../pwa/proxySignIn', async (importOriginal) => ({
   ...(await importOriginal<typeof proxySignIn>()),
@@ -67,10 +67,11 @@ describe('ConnectScreen', () => {
   })
 
   it('says Kinopeer, not qBittorrent, did not answer the session check, and offers Open again past the shell beside Retry', async () => {
+    controlledByServiceWorker()
     const { onRetry } = setup(undefined, { unreachable: 'unreached' })
     const alert = screen.getByRole('alert', { name: saying('Kinopeer isn’t answering') })
     expect(alert).toHaveTextContent(
-      'Check that this device is online and Kinopeer is running on your server. If your browser has to confirm Umbrel’s certificate or sign-in, open Kinopeer again.',
+      'Check that this device is online and Kinopeer is running on your server. If you’re sure the server running Kinopeer is on and reachable on your network, your browser may need to confirm its certificate again: open Kinopeer again.',
     )
     await userEvent.click(within(alert).getByRole('button', { name: 'Open again' }))
     expect(proxySignIn.loadPastTheShell).toHaveBeenCalledOnce()
@@ -80,14 +81,16 @@ describe('ConnectScreen', () => {
   })
 
   it('offers only Retry when something answered for Kinopeer’s server, as Umbrel does for a stopped app', () => {
+    controlledByServiceWorker()
     setup(undefined, { unreachable: 'kinopeer' })
     const alert = screen.getByRole('alert', { name: saying('Kinopeer isn’t answering') })
     // Its certificate and sign-in are fine, so nothing says to open it again.
-    expect(alert).not.toHaveTextContent('open Kinopeer again')
+    expect(alert).not.toHaveTextContent('Open again')
     expect(within(alert).queryByRole('button', { name: 'Open again' })).not.toBeInTheDocument()
   })
 
   it('takes a network error during sign-in for Kinopeer unreached, with Open again', async () => {
+    controlledByServiceWorker()
     setup(vi.fn().mockRejectedValue(new TypeError('Failed to fetch')), { unreachable: 'qbittorrent' })
     await fillAndSubmit()
     const alert = screen.getByRole('alert', { name: saying('Kinopeer isn’t answering') })
@@ -95,6 +98,7 @@ describe('ConnectScreen', () => {
   })
 
   it('takes a sign-in failure without the server’s word for something answering for Kinopeer, without Open again', async () => {
+    controlledByServiceWorker()
     setup(vi.fn().mockRejectedValue(new SettingsError(502)), { unreachable: 'qbittorrent' })
     await fillAndSubmit()
     const alert = screen.getByRole('alert', { name: saying('Kinopeer isn’t answering') })

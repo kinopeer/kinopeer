@@ -17,13 +17,14 @@ function subscribeToOnline(onChange: () => void): () => void {
 
 /**
  * Whether to offer Open again (`loadPastTheShell`): nothing answered for Kinopeer's server while
- * the device is online, where a page load past the service worker shows what the browser waits on,
- * a certificate it no longer trusts or a sign-in. Not offline, where it would only swap the app's
- * offline screen for the browser's error page, nor when something answered for the server (Umbrel
- * restarting the app), whose certificate and sign-in are fine (#311). Follows the device going
- * online and offline.
+ * the device is online and a service worker answers this page, where a page load past it shows
+ * what the browser waits on, a certificate it no longer trusts or a sign-in (#311). Without a
+ * service worker (plain HTTP) every page load goes to the network already and there's no
+ * certificate. Not offline, where it would only swap the app's offline screen for the browser's
+ * error page, nor when something answered for the server (Umbrel restarting the app), whose
+ * certificate and sign-in are fine. Follows the device going online and offline.
  */
 export function useMayOpenAgain(who: Unreachable | undefined): boolean {
   const online = useSyncExternalStore(subscribeToOnline, () => navigator.onLine)
-  return who === 'unreached' && online
+  return who === 'unreached' && online && Boolean(navigator.serviceWorker?.controller)
 }

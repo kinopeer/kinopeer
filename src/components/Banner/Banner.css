@@ -40,11 +40,16 @@
   gap: var(--space-1);
 }
 
-/* Two buttons beside the text would leave it a narrow column on a phone: they go under it. */
+/* Two buttons stay beside the text while it has room to read (a desktop's width), and go under it
+   on a phone, where they'd leave it a narrow column. */
 .ks-banner.has-two-actions {
   flex-wrap: wrap;
 }
 
+.ks-banner.has-two-actions .ks-banner-body {
+  flex-basis: 240px; /* the narrowest the text reads well at; narrower, the buttons wrap */
+}
+
 .ks-banner.has-two-actions .ks-banner-actions {
-  flex-basis: 100%;
+  margin-inline-start: auto; /* to the right on the line they wrap to, as beside the text */
 }

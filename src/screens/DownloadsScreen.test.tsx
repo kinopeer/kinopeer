@@ -10,7 +10,7 @@ import * as proxySignIn from '../pwa/proxySignIn'
 import { TAB_RETURN, forgetTabPlaces, saveTabPlace } from '../lib/tabPlaces'
 import { getSettings, resetSettings, updateSettings } from '../settings/settings'
 import { mainData, searchPage, title, torrent as fixtureTorrent } from '../test/fixtures'
-import { findToastOnPage, qbittorrentDown, renderWithRouter, saying } from '../test/render'
+import { controlledByServiceWorker, findToastOnPage, qbittorrentDown, renderWithRouter, saying } from '../test/render'
 import { resetServerMatches } from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
 import { DownloadsScreen } from './DownloadsScreen'
@@ -638,13 +638,14 @@ describe('DownloadsScreen', () => {
   })
 
   it('says when Kinopeer itself can’t be reached and opens the page again past the shell, before any answer and after one', async () => {
+    controlledByServiceWorker()
     const loadPastTheShell = vi.mocked(proxySignIn.loadPastTheShell)
     getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     renderScreen()
     expect(await screen.findByRole('heading', { name: 'Can’t reach Kinopeer' })).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Check that this device is online and Kinopeer is running on your server. Retrying automatically. If your browser has to confirm Umbrel’s certificate or sign-in, open Kinopeer again.',
+        'Check that this device is online and Kinopeer is running on your server. Retrying automatically. If you’re sure the server running Kinopeer is on and reachable on your network, your browser may need to confirm its certificate again: open Kinopeer again.',
       ),
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()

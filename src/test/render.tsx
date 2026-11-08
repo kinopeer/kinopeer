@@ -2,7 +2,7 @@
 import { act, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { MemoryRouter, useLocation, type InitialEntry } from 'react-router'
-import { expect } from 'vitest'
+import { expect, onTestFinished } from 'vitest'
 import { QbittorrentError } from '../api/qbittorrent'
 import { ToastProvider } from '../components/Toast'
 import type { PollSource, PollState } from '../torrents/useMainData'
@@ -76,3 +76,9 @@ export function fakePoll(initial: PollState = { inFlight: false, offline: false,
 
 /** The bridge's own failure when qBittorrent doesn't answer (server/qbittorrent.ts), as the client throws it. */
 export const qbittorrentDown = () => new QbittorrentError('qBittorrent responded 502', 502)
+
+/** A service worker answers the page, as over HTTPS (jsdom has none): Open again shows only then. */
+export function controlledByServiceWorker() {
+  Object.defineProperty(navigator, 'serviceWorker', { value: { controller: {} }, configurable: true })
+  onTestFinished(() => void Reflect.deleteProperty(navigator, 'serviceWorker'))
+}

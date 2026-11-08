@@ -16,7 +16,7 @@
   "common": {
     "retry": "Try again",
     "openAgain": "Open again",
-    "openAgainHint": "If your browser has to confirm Umbrel’s certificate or sign-in, open Kinopeer again.",
+    "openAgainHint": "If you’re sure the server running Kinopeer is on and reachable on your network, your browser may need to confirm its certificate again: open Kinopeer again.",
     "close": "Close"
   },
   "connect": {
