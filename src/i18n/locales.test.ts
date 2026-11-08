@@ -29,6 +29,16 @@ describe('locales', () => {
     }
   })
 
+  it('nest only keys that exist, so a renamed key never shows as its own name', () => {
+    for (const locale of [en, ru]) {
+      const all = new Set(keys(locale))
+      for (const key of keys(locale)) {
+        const value = key.split('.').reduce<unknown>((node, part) => (node as Record<string, unknown>)[part], locale)
+        for (const [, nested] of String(value).matchAll(/\$t\(([^),]+)/g)) expect(all.has(nested), `${key} nests ${nested}`).toBe(true)
+      }
+    }
+  })
+
   it("keep TMDB's required notice in its English wording", () => {
     // TMDB's API terms ask for this exact text, so no language translates it (Settings → About).
     for (const locale of [en, ru]) {
