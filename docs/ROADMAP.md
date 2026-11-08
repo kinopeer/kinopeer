@@ -65,7 +65,7 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 
 ## 1.0: Public release
 
-- [ ] [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) → Before 1.0 is done: the repository public, TMDB's terms and the proxy's limits, the official Umbrel App Store, images pinned by digest, a site on `kinopeer.com` or not.
+- [ ] [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) → Before 1.0 is done: TMDB's terms and the proxy's limits, the official Umbrel App Store, images pinned by digest, a site on `kinopeer.com` or not.
 
 ## Later, no version yet
 
