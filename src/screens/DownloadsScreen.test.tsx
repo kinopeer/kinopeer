@@ -664,8 +664,10 @@ describe('DownloadsScreen', () => {
 
     getMainData.mockRejectedValueOnce(qbittorrentDown())
     window.dispatchEvent(new Event('online'))
-    expect(await screen.findByRole('status', { name: saying('No connection to qBittorrent') })).toBeInTheDocument()
+    const banner = await screen.findByRole('status', { name: saying('No connection to qBittorrent') })
     expect(screen.getByRole('status', { name: saying('Updated just now · actions paused') })).toBeInTheDocument()
+    // qBittorrent's own outage: Retry polls, nothing loads the page past the shell.
+    expect(within(banner).getByRole('button', { name: 'Try again' })).toBeInTheDocument()
     expect(screen.getAllByRole('listitem')).toHaveLength(3)
   })
 })
