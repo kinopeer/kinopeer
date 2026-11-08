@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { Readable } from 'node:stream'
 import type { ReadableStream } from 'node:stream/web'
+import { abandoned } from './abandoned.ts'
 import type { Middleware } from './prowlarr.ts'
 
 /**
@@ -25,9 +26,16 @@ export interface TmdbConfig {
   /** Overridable for tests. */
   apiBase?: string
   imageBase?: string
+  /** How long a call or an image may take; TMDB_TIMEOUT_MS by default. */
+  timeoutMs?: number
 }
 
 const API_BASE = 'https://api.themoviedb.org/3'
+/**
+ * How long a call or an image may take before it's given up with a 504: as long as the client's
+ * title lookups wait (LOOKUP_TIMEOUT_MS), so a hung TMDB or proxy holds no connection for longer.
+ */
+export const TMDB_TIMEOUT_MS = 15_000
 const API_PREFIX = '/tmdb/'
 const IMAGE_PREFIX = '/tmdb-img/'
 /** Upstream response headers passed on to the browser; the content type goes through `contentType`. */
@@ -61,9 +69,16 @@ export async function checkTmdbKey(key: string, apiBase = API_BASE): Promise<boo
   return true
 }
 
-async function forward(url: string, headers: Record<string, string>, isApi: boolean, request: IncomingMessage, response: ServerResponse) {
+async function forward(
+  url: string,
+  headers: Record<string, string>,
+  isApi: boolean,
+  request: IncomingMessage,
+  response: ServerResponse,
+  signal: AbortSignal,
+) {
   if (request.headers.accept) headers.Accept = request.headers.accept
-  const upstream = await fetch(url, { method: request.method === 'HEAD' ? 'HEAD' : 'GET', headers })
+  const upstream = await fetch(url, { method: request.method === 'HEAD' ? 'HEAD' : 'GET', headers, signal })
   response.statusCode = upstream.status
   response.setHeader('Content-Type', contentType(upstream.headers.get('content-type'), isApi))
   for (const name of RESPONSE_HEADERS) {
@@ -80,6 +95,7 @@ export function tmdbMiddleware(config: TmdbConfig): Middleware {
   const getKey = typeof config.apiKey === 'function' ? config.apiKey : () => config.apiKey as string | undefined
   const apiBase = config.apiBase ?? API_BASE
   const imageBase = config.imageBase ?? 'https://image.tmdb.org/t/p'
+  const timeoutMs = config.timeoutMs ?? TMDB_TIMEOUT_MS
 
   return (request, response, next) => {
     const path = request.url ?? '/'
@@ -104,9 +120,12 @@ export function tmdbMiddleware(config: TmdbConfig): Middleware {
       else return fail(401, 'The TMDB API key is not set')
     }
 
+    const timeout = AbortSignal.timeout(timeoutMs)
+    const signal = AbortSignal.any([abandoned(response), timeout])
     // Errors never echo the upstream URL: it may contain the key.
-    forward(target.url, target.headers, isApi, request, response).catch(() => {
+    forward(target.url, target.headers, isApi, request, response, signal).catch(() => {
       if (response.headersSent) response.destroy()
+      else if (timeout.aborted) fail(504, 'TMDB didn’t answer in time')
       else fail(502, 'TMDB is unreachable')
     })
   }

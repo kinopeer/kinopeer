@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import { abandoned } from './abandoned.ts'
 import type { Middleware } from './prowlarr.ts'
 
 /**
@@ -176,6 +177,8 @@ interface UpstreamRequest {
   path: string
   headers?: Record<string, string>
   body?: Buffer
+  /** Gives the request up, as when the browser it's made for has gone. */
+  signal?: AbortSignal
 }
 
 /** Sends a request to qBittorrent with the server's session, logging in again once if it expired. */
@@ -183,7 +186,13 @@ async function send(base: string, session: ServerSession | undefined, upstream: 
   const attempt = (cookie: string | undefined) => {
     const headers: Record<string, string> = { ...upstream.headers, Origin: base, Referer: `${base}/` }
     if (cookie) headers.Cookie = cookie
-    return fetch(`${base}${upstream.path}`, { method: upstream.method, headers, body: upstream.body, redirect: 'manual' })
+    return fetch(`${base}${upstream.path}`, {
+      method: upstream.method,
+      headers,
+      body: upstream.body,
+      redirect: 'manual',
+      signal: upstream.signal,
+    })
   }
 
   let cookie = session?.usable ? await session.current() : undefined
@@ -204,6 +213,8 @@ async function forward(
   path: string,
 ): Promise<void> {
   const method = request.method ?? 'GET'
+  // Only the call itself: a login it waits for is the session's, shared with other requests.
+  const signal = abandoned(response)
   const headers: Record<string, string> = {}
   if (request.headers['content-type']) headers['Content-Type'] = request.headers['content-type']
   if (request.headers.accept) headers.Accept = request.headers.accept
@@ -212,6 +223,7 @@ async function forward(
     path,
     headers,
     body: method === 'GET' || method === 'HEAD' ? undefined : await readBody(request),
+    signal,
   })
 
   response.statusCode = upstream.status

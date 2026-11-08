@@ -1,7 +1,7 @@
 import { request as httpRequest } from 'node:http'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { qbittorrentBridge, qbittorrentMiddleware, type QbittorrentConfig } from './qbittorrent.ts'
-import { closeServers, fakeQbittorrent, listen, serve } from './test/fakes.ts'
+import { abandon, closeServers, fakeQbittorrent, listen, serve, settlesWithin, silentService } from './test/fakes.ts'
 
 /** Kinopeer's side: the middleware under test. */
 const kinopeer = (config: QbittorrentConfig) => serve(qbittorrentMiddleware(config))
@@ -35,6 +35,15 @@ describe('qbittorrentMiddleware', () => {
     const base = await kinopeer({})
     expect((await fetch(`${base}/prowlarr/search`)).status).toBe(404)
     expect((await call(`${base}/qbt/api/v2/app/version`)).status).toBe(503)
+  })
+
+  it('gives up its request to qBittorrent when the browser gives up on it', async () => {
+    const qbittorrent = await silentService()
+    const base = await kinopeer({ url: qbittorrent.base })
+
+    await abandon(`${base}/qbt/api/v2/sync/maindata?rid=0`, qbittorrent.received, { headers: { 'X-Kinopeer': '1' } })
+
+    expect(await settlesWithin(qbittorrent.closed, 1000)).toBe(true)
   })
 
   it('never passes browser cookies on and keeps the browser away from /auth', async () => {

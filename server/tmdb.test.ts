@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { tmdbMiddleware, type TmdbConfig } from './tmdb.ts'
-import { closeServers, fakeTmdb, listen, serve } from './test/fakes.ts'
+import { abandon, closeServers, fakeTmdb, listen, serve, settlesWithin, silentService } from './test/fakes.ts'
 
 /** Kinopeer's side: the middleware under test. */
 const kinopeer = (config: TmdbConfig) => serve(tmdbMiddleware(config))
@@ -140,6 +140,26 @@ describe('tmdbMiddleware', () => {
 
     expect(response.status).toBe(502)
     expect(await response.text()).not.toContain('abc123')
+  })
+
+  it('gives up its request to TMDB when the browser gives up on it', async () => {
+    const tmdb = await silentService()
+    const app = await kinopeer({ apiKey: 'abc123', apiBase: `${tmdb.base}/3` })
+
+    await abandon(`${app}/tmdb/search/multi?query=alien`, tmdb.received)
+
+    expect(await settlesWithin(tmdb.closed, 1000)).toBe(true)
+  })
+
+  it('answers 504 when TMDB doesn’t answer in time, and gives its request up', async () => {
+    const tmdb = await silentService()
+    const app = await kinopeer({ apiKey: 'abc123', apiBase: `${tmdb.base}/3`, timeoutMs: 50 })
+
+    const response = await fetch(`${app}/tmdb/movie/771`)
+
+    expect(response.status).toBe(504)
+    expect(await response.json()).toEqual({ status_message: 'TMDB didn’t answer in time' })
+    expect(await settlesWithin(tmdb.closed, 1000)).toBe(true)
   })
 
   it('leaves other paths and methods alone', async () => {
