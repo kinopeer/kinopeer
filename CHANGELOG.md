@@ -6,7 +6,7 @@ Kinopeer follows [semantic versioning](https://semver.org). While the version is
 
 ### Changed
 
-- The same thing is worded the same way everywhere: when qBittorrent or Kinopeer doesn't answer, every screen says it "isn't answering", the folder a torrent's files go to is called Folder, the free space reads "40 GB free", and the file picker's button that clears the choice says Deselect all.
+- The same thing is worded the same way everywhere: when qBittorrent, Kinopeer, Prowlarr or TMDB doesn't answer, every screen says it "isn't answering"; the folder a torrent's files go to is called Folder; the free space reads "40 GB free"; the file picker's button that clears the choice says Deselect all; the speed limits sheet saves with Save, as the other sheets do; and the Downloads table's title column is called Name, as its sort is.
 
 ### Fixed
 

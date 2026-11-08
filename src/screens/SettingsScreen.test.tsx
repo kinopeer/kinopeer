@@ -112,6 +112,14 @@ describe('SettingsScreen', () => {
     expect(aboutRow('Prowlarr indexers')).toHaveTextContent(/0$/)
   })
 
+  it('says when Prowlarr or TMDB doesn’t answer its check', async () => {
+    vi.mocked(prowlarr.getProwlarrStatus).mockRejectedValue(new TypeError('Failed to fetch'))
+    vi.mocked(tmdb.checkTmdb).mockRejectedValue(new TypeError('Failed to fetch'))
+    renderScreen()
+    expect(await within(connection('Prowlarr')).findByRole('status', { name: saying('Prowlarr isn’t answering') })).toBeInTheDocument()
+    expect(await within(connection('TMDB')).findByRole('status', { name: saying('TMDB isn’t answering') })).toBeInTheDocument()
+  })
+
   it('explains failures and shows the service connected after Test', async () => {
     vi.mocked(prowlarr.getProwlarrStatus).mockRejectedValue(new prowlarr.ProwlarrSetupError(502, 'unauthorized'))
     vi.mocked(tmdb.checkTmdb).mockRejectedValue(new tmdb.TmdbKeyError(401))
