@@ -627,9 +627,12 @@ describe('DownloadsScreen', () => {
   })
 
   it('says when qBittorrent can’t be reached at all, and when it answers again', async () => {
+    // Under a service worker, as over HTTPS, so only the cause keeps Open again away.
+    controlledByServiceWorker()
     getMainData.mockRejectedValueOnce(qbittorrentDown())
     renderScreen()
     expect(await screen.findByRole('heading', { name: 'Can’t reach qBittorrent' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Open again' })).not.toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
     expect(await screen.findAllByRole('listitem')).toHaveLength(3)
@@ -665,6 +668,8 @@ describe('DownloadsScreen', () => {
   })
 
   it('keeps the last state with its age when qBittorrent stops answering', async () => {
+    // Under a service worker, as over HTTPS, so only the cause keeps Open again away.
+    controlledByServiceWorker()
     renderScreen()
     expect(await screen.findAllByRole('listitem')).toHaveLength(3)
 
@@ -674,6 +679,7 @@ describe('DownloadsScreen', () => {
     expect(screen.getByRole('status', { name: saying('Updated just now · actions paused') })).toBeInTheDocument()
     // qBittorrent's own outage: Retry polls, nothing loads the page past the shell or says to.
     expect(within(banner).getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+    expect(within(banner).queryByRole('button', { name: 'Open again' })).not.toBeInTheDocument()
     expect(banner).not.toHaveTextContent('open Kinopeer again')
     expect(screen.getAllByRole('listitem')).toHaveLength(3)
   })

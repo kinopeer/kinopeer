@@ -47,12 +47,7 @@ test.describe('onboarding, desktop', () => {
 
   // #311: the session check got no answer: the state in the form's card, in place of the form.
   test('Kinopeer doesn’t answer the session check, dark, Russian', async ({ page }) => {
-    await openApp(page, '/', { serviceWorkerAnswers: true })
-    await page.route(
-      (url) => url.pathname === '/qbt/api/v2/app/version',
-      (route) => route.abort('connectionrefused'),
-    )
-    await page.reload()
+    await openApp(page, '/', { serviceWorkerAnswers: true, sessionUnreached: true })
     await expect(page.getByRole('heading', { name: 'Kinopeer не отвечает' })).toBeVisible()
     await settle(page)
     await expect(page).toHaveScreenshot('desktop-connect-unreached-dark-ru.png')
@@ -62,12 +57,7 @@ test.describe('onboarding, desktop', () => {
 test.describe('onboarding, phone', () => {
   // #311: the session check got no answer: the state in place of the form, with Retry and Open again.
   test('Kinopeer doesn’t answer the session check, dark, Russian', async ({ page }) => {
-    await openApp(page, '/', { serviceWorkerAnswers: true })
-    await page.route(
-      (url) => url.pathname === '/qbt/api/v2/app/version',
-      (route) => route.abort('connectionrefused'),
-    )
-    await page.reload()
+    await openApp(page, '/', { serviceWorkerAnswers: true, sessionUnreached: true })
     await expect(page.getByRole('heading', { name: 'Kinopeer не отвечает' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Открыть заново' })).toBeVisible()
     await settle(page)

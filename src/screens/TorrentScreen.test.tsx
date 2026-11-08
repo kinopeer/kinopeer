@@ -128,9 +128,11 @@ describe('TorrentScreen', () => {
   })
 
   it('says when qBittorrent can’t be reached', async () => {
+    controlledByServiceWorker()
     getMainData.mockRejectedValueOnce(qbittorrentDown())
     renderScreen()
     expect(await screen.findByRole('heading', { name: 'Can’t reach qBittorrent' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Open again' })).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
     expect(await screen.findByRole('heading', { level: 1, name: 'Dune: Part Two' })).toBeInTheDocument()
   })

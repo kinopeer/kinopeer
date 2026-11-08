@@ -13,7 +13,7 @@ describe('unreachableText', () => {
 })
 
 describe('useMayOpenAgain', () => {
-  it('offers Open again only when nothing answered for Kinopeer’s server and the device is online', () => {
+  it('offers Open again only when nothing answered for Kinopeer’s server', () => {
     controlledByServiceWorker()
     expect(renderHook(() => useMayOpenAgain('unreached')).result.current).toBe(true)
     expect(renderHook(() => useMayOpenAgain('kinopeer')).result.current).toBe(false)
@@ -37,11 +37,26 @@ describe('useMayOpenAgain', () => {
     expect(renderHook(() => useMayOpenAgain('unreached')).result.current).toBe(false)
   })
 
-  it('stops following the device once nothing uses it', () => {
-    controlledByServiceWorker()
-    const removeEventListener = vi.spyOn(window, 'removeEventListener')
+  it('offers it once a service worker takes the page, as after the first install', () => {
+    const container = controlledByServiceWorker(null)
+    const { result } = renderHook(() => useMayOpenAgain('unreached'))
+    expect(result.current).toBe(false)
+    container.controller = {}
+    act(() => void container.dispatchEvent(new Event('controllerchange')))
+    expect(result.current).toBe(true)
+  })
+
+  it('stops following the device and the worker once nothing uses it, removing the very listeners it added', () => {
+    const container = controlledByServiceWorker()
+    const added = vi.spyOn(window, 'addEventListener')
+    const removed = vi.spyOn(window, 'removeEventListener')
+    const addedToWorker = vi.spyOn(container, 'addEventListener')
+    const removedFromWorker = vi.spyOn(container, 'removeEventListener')
     renderHook(() => useMayOpenAgain('unreached')).unmount()
-    expect(removeEventListener).toHaveBeenCalledWith('online', expect.any(Function))
-    expect(removeEventListener).toHaveBeenCalledWith('offline', expect.any(Function))
+    const listener = (spy: typeof added, type: string) => spy.mock.calls.find(([name]) => name === type)?.[1]
+    expect(listener(added, 'online')).toBeDefined()
+    expect(removed).toHaveBeenCalledWith('online', listener(added, 'online'))
+    expect(removed).toHaveBeenCalledWith('offline', listener(added, 'offline'))
+    expect(removedFromWorker).toHaveBeenCalledWith('controllerchange', addedToWorker.mock.calls[0][1])
   })
 })
