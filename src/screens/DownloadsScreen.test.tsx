@@ -9,7 +9,7 @@ import * as tmdb from '../api/tmdb'
 import { TAB_RETURN, forgetTabPlaces, saveTabPlace } from '../lib/tabPlaces'
 import { getSettings, resetSettings, updateSettings } from '../settings/settings'
 import { mainData, searchPage, title, torrent as fixtureTorrent } from '../test/fixtures'
-import { findToastOnPage, renderWithRouter, saying } from '../test/render'
+import { findToastOnPage, qbittorrentDown, renderWithRouter, saying } from '../test/render'
 import { resetServerMatches } from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
 import { DownloadsScreen } from './DownloadsScreen'
@@ -622,7 +622,7 @@ describe('DownloadsScreen', () => {
   })
 
   it('says when qBittorrent can’t be reached at all, and when it answers again', async () => {
-    getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    getMainData.mockRejectedValueOnce(qbittorrentDown())
     renderScreen()
     expect(await screen.findByRole('heading', { name: 'Can’t reach qBittorrent' })).toBeInTheDocument()
 
@@ -632,11 +632,23 @@ describe('DownloadsScreen', () => {
     expect(screen.getByRole('status', { name: saying('Reconnected to qBittorrent') })).toBeInTheDocument()
   })
 
+  it('says when Kinopeer itself can’t be reached, before any answer and after one', async () => {
+    getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    renderScreen()
+    expect(await screen.findByRole('heading', { name: 'Can’t reach Kinopeer' })).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(await screen.findAllByRole('listitem')).toHaveLength(3)
+    getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    window.dispatchEvent(new Event('online'))
+    expect(await screen.findByRole('status', { name: saying('No connection to Kinopeer') })).toBeInTheDocument()
+  })
+
   it('keeps the last state with its age when qBittorrent stops answering', async () => {
     renderScreen()
     expect(await screen.findAllByRole('listitem')).toHaveLength(3)
 
-    getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    getMainData.mockRejectedValueOnce(qbittorrentDown())
     window.dispatchEvent(new Event('online'))
     expect(await screen.findByRole('status', { name: saying('No connection to qBittorrent') })).toBeInTheDocument()
     expect(screen.getByRole('status', { name: saying('Updated just now · actions paused') })).toBeInTheDocument()
@@ -760,7 +772,7 @@ describe('DownloadsScreen selection', () => {
     renderScreen()
     await userEvent.click(await screen.findByRole('button', { name: 'Select' }))
     await userEvent.click(screen.getByRole('checkbox', { name: 'Andor.S02.1080p' }))
-    getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    getMainData.mockRejectedValueOnce(qbittorrentDown())
     window.dispatchEvent(new Event('online'))
     expect(await screen.findByRole('status', { name: saying('No connection to qBittorrent') })).toBeInTheDocument()
     for (const name of ['Pause', 'Resume', 'Delete']) {

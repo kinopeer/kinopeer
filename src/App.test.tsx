@@ -162,6 +162,13 @@ describe('App', () => {
       expect(within(nav).getByRole('link', { name: 'Search' })).toHaveAttribute('aria-current', 'page')
     })
 
+    it('says in the sidebar when Kinopeer itself stops answering the poll', async () => {
+      getMainData.mockRejectedValue(new TypeError('Failed to fetch'))
+      renderApp()
+      const sidebarStatus = await screen.findByRole('region', { name: 'qBittorrent' })
+      expect(await within(sidebarStatus).findAllByText('No connection to Kinopeer')).toHaveLength(2)
+    })
+
     it('keeps the sidebar while selecting downloads', async () => {
       getMainData.mockResolvedValue({
         rid: 1,
@@ -530,6 +537,12 @@ describe('App', () => {
     getMainData.mockRejectedValue(new api.UnauthorizedError())
     renderApp()
     expect(await screen.findByRole('heading', { name: 'Connect qBittorrent' })).toBeInTheDocument()
+  })
+
+  it('says Kinopeer isn’t answering when the session check gets no answer from it', async () => {
+    getAppVersion.mockRejectedValue(new TypeError('Failed to fetch'))
+    renderApp()
+    expect(await screen.findByRole('alert', { name: saying('Kinopeer isn’t answering') })).toBeInTheDocument()
   })
 
   it('shows the sign-in form without a session', async () => {

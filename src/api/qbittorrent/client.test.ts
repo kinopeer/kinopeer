@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
+import { ProxySignInError } from '../fetchKinopeer'
 import {
+  BRIDGE_HEADER,
+  KinopeerUnreachableError,
   QbittorrentError,
   UnauthorizedError,
   addTorrents,
@@ -24,12 +27,14 @@ import {
   toggleFirstLastPiecePrio,
   toggleSequentialDownload,
   toggleSpeedLimitsMode,
+  unreachable,
 } from './client'
 
 let fetchMock: Mock<typeof fetch>
 
+/** An answer of the bridge, with its mark. */
 function respond(body: string, status = 200) {
-  fetchMock.mockResolvedValueOnce(new Response(status === 204 ? null : body, { status }))
+  fetchMock.mockResolvedValueOnce(new Response(status === 204 ? null : body, { status, headers: { [BRIDGE_HEADER]: '1' } }))
 }
 
 function lastCall() {
@@ -412,5 +417,28 @@ describe('toggleSpeedLimitsMode', () => {
     await toggleSpeedLimitsMode()
     expect(lastCall().url).toBe('/qbt/api/v2/transfer/toggleSpeedLimitsMode')
     expect(lastCall().init.method).toBe('POST')
+  })
+})
+
+describe('who did not answer', () => {
+  it('takes a failure without the bridge’s mark for Kinopeer’s: a proxy in front answered for the server', async () => {
+    fetchMock.mockResolvedValueOnce(new Response('Bad Gateway', { status: 502 }))
+    const error = await getAppVersion().catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(KinopeerUnreachableError)
+    expect(error).toMatchObject({ status: 502 })
+    expect(unreachable(error)).toBe('kinopeer')
+  })
+
+  it('takes the bridge’s own failure for qBittorrent’s', async () => {
+    respond('qBittorrent is unreachable', 502)
+    const error = await getAppVersion().catch((caught: unknown) => caught)
+    expect(error).not.toBeInstanceOf(KinopeerUnreachableError)
+    expect(unreachable(error)).toBe('qbittorrent')
+  })
+
+  it('takes a failed network and a sign-in proxy for Kinopeer, a request that took too long for qBittorrent', () => {
+    expect(unreachable(new TypeError('Failed to fetch'))).toBe('kinopeer')
+    expect(unreachable(new ProxySignInError())).toBe('kinopeer')
+    expect(unreachable(new DOMException('The operation was aborted.', 'AbortError'))).toBe('qbittorrent')
   })
 })

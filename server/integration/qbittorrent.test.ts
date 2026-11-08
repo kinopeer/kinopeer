@@ -5,6 +5,7 @@ import {
   getAppVersion,
   getMainData,
   getTorrentTrackers,
+  unreachable as whoIsUnreachable,
   getSaveLocations,
   getTorrents,
   setCategory,
@@ -81,9 +82,13 @@ describe('qBittorrent client through /qbt', () => {
     expect(unreachable).toBeInstanceOf(QbittorrentError)
     expect(unreachable).not.toBeInstanceOf(UnauthorizedError)
     expect((unreachable as QbittorrentError).status).toBe(502)
+    // The bridge marks its failure, so the client blames qBittorrent, not Kinopeer's server.
+    expect(whoIsUnreachable(unreachable)).toBe('qbittorrent')
 
     await startKinopeer({ env: { QBITTORRENT_URL: undefined } })
-    await expect(getAppVersion()).rejects.toMatchObject({ status: 503 })
+    const notSetUp = await getAppVersion().catch((error: unknown) => error)
+    expect(notSetUp).toMatchObject({ status: 503 })
+    expect(whoIsUnreachable(notSetUp)).toBe('qbittorrent')
   })
 
   it('lists every torrent with no query string', async () => {

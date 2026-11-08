@@ -26,7 +26,9 @@
     "invalidCredentials": "Wrong username or password",
     "banned": "Too many failed attempts. qBittorrent has blocked this address for a while.",
     "unreachableTitle": "qBittorrent is unreachable",
-    "unreachableBody": "Check that qBittorrent is running and its Web UI is on."
+    "unreachableBody": "Check that qBittorrent is running and its Web UI is on.",
+    "unreachableTitle_kinopeer": "Kinopeer isn’t answering",
+    "unreachableBody_kinopeer": "Check that this device is online and Kinopeer is running on your server."
   },
   "status": {
     "downloading": "Downloading",
@@ -146,6 +148,7 @@
   "sidebar": {
     "connected": "qBittorrent {{version}}",
     "offline": "No connection to qBittorrent",
+    "offline_kinopeer": "No connection to Kinopeer",
     "freeSpace": "Free space"
   },
   "speedLimits": {
@@ -421,10 +424,13 @@
   },
   "offline": {
     "title": "No connection to qBittorrent",
+    "title_kinopeer": "No connection to Kinopeer",
     "updated": "Updated {{ago}} · actions paused",
     "retrying": "Retrying automatically",
     "unreachableTitle": "Can’t reach qBittorrent",
     "unreachableBody": "Check that qBittorrent is running and the Kinopeer server can reach it. Retrying automatically.",
+    "unreachableTitle_kinopeer": "Can’t reach Kinopeer",
+    "unreachableBody_kinopeer": "Check that this device is online and Kinopeer is running on your server. Retrying automatically.",
     "reconnected": "Reconnected to qBittorrent"
   },
   "poll": {
@@ -432,6 +438,8 @@
     "waiting": "Waiting for qBittorrent",
     "offline": "qBittorrent isn’t answering",
     "offlineSince": "qBittorrent isn’t answering · updated at {{time}}",
+    "offline_kinopeer": "Kinopeer isn’t answering",
+    "offlineSince_kinopeer": "Kinopeer isn’t answering · updated at {{time}}",
     "withContext": "{{prefix}} · {{label}}"
   },
   "crash": {

@@ -113,7 +113,7 @@ function App() {
     default:
       return (
         <ConnectScreen
-          unreachable={session.status === 'unreachable'}
+          unreachable={session.status === 'unreachable' ? session.who : undefined}
           onRetry={() => void recheck()}
           onSignIn={signIn}
         />
@@ -151,7 +151,7 @@ function screenKeyOf(pathname: string, isDesktop: boolean): string {
 function AppSidebar({ items, version, pathname }: { items: TabBarItem[]; version: string; pathname?: string }) {
   const { t } = useTranslation()
   const main = useMainData()
-  const { data, offline } = main
+  const { data, offline, unreachable } = main
   const altSpeed = useAltSpeedSwitch(main)
   const downloading = data
     ? Object.values(data.torrents).filter((torrent) => downloadStatus(torrent) === 'downloading').length
@@ -170,6 +170,7 @@ function AppSidebar({ items, version, pathname }: { items: TabBarItem[]; version
         <SidebarStatus
           version={version}
           offline={offline}
+          unreachable={unreachable}
           downloadSpeed={data?.server.dl_info_speed}
           uploadSpeed={data?.server.up_info_speed}
           freeSpace={freeSpace(data?.server.free_space_on_disk)}

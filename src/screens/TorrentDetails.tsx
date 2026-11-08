@@ -36,6 +36,7 @@ import { useChangeTitle, useConfirmTitle } from './useTitleChoice'
 import { useTorrentAction } from './useTorrentAction'
 import { useTorrentOverlay } from './useTorrentOverlay'
 import { TorrentFiles } from './TorrentFiles'
+import { UnreachableState } from './UnreachableState'
 import './TorrentScreen.css'
 
 export interface TorrentDetailsProps {
@@ -71,7 +72,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
   const format = useFormatters()
   const navigate = useNavigate()
   const location = useLocation()
-  const { data, offline, updatedAt, refresh } = useMainData(onSessionLost)
+  const { data, offline, unreachable, updatedAt, refresh } = useMainData(onSessionLost)
   const move = useMoveTorrent({ torrents: data?.torrents, offline, refresh })
   const torrent: Torrent | undefined = data?.torrents[hash]
 
@@ -132,15 +133,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
     return (
       <Root className={cx('torrent torrent-message', drawer && 'is-drawer')}>
         {backButton}
-        <EmptyState
-          icon="wifi-off"
-          tone="error"
-          title={t('offline.unreachableTitle')}
-          actionLabel={t('common.retry')}
-          onAction={refresh}
-        >
-          {t('offline.unreachableBody')}
-        </EmptyState>
+        <UnreachableState unreachable={unreachable} onRetry={refresh} />
       </Root>
     )
   }
@@ -280,7 +273,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
         )}
         {match === null && <MatchPrompt kind="none" disabled={deleting} onChange={() => retitle.open(hash)} />}
 
-        {offline && <OfflineBanner updatedAt={updatedAt} onRetry={refresh} />}
+        {offline && <OfflineBanner unreachable={unreachable} updatedAt={updatedAt} onRetry={refresh} />}
 
         <section className="ks-card torrent-card" aria-label={t('torrent.progressLabel')}>
           <div className="torrent-card-row">

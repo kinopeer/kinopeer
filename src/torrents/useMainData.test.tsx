@@ -71,6 +71,26 @@ describe('useMainData', () => {
     expect(result.current.offline).toBe(false)
   })
 
+  it('says who did not answer: Kinopeer on a network failure, qBittorrent on the bridge’s, and forgets it on an answer', async () => {
+    getMainData
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockRejectedValueOnce(new api.QbittorrentError('qBittorrent responded 502', 502))
+      .mockResolvedValueOnce({ rid: 1 })
+    const { result } = renderHook(() => useMainData(vi.fn()))
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    expect(result.current).toMatchObject({ offline: true, unreachable: 'kinopeer' })
+    expect(result.current.poll.getPollState()).toMatchObject({ offline: true, unreachable: 'kinopeer' })
+
+    await act(() => vi.advanceTimersByTimeAsync(OFFLINE_POLL_INTERVAL_MS))
+    expect(result.current).toMatchObject({ offline: true, unreachable: 'qbittorrent' })
+    expect(result.current.poll.getPollState()).toMatchObject({ unreachable: 'qbittorrent' })
+
+    await act(() => vi.advanceTimersByTimeAsync(OFFLINE_POLL_INTERVAL_MS))
+    expect(result.current.offline).toBe(false)
+    expect(result.current.unreachable).toBeUndefined()
+    expect(result.current.poll.getPollState().unreachable).toBeUndefined()
+  })
+
   it('polls right away on refresh', async () => {
     getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch')).mockResolvedValue({ rid: 1 })
     const { result } = renderHook(() => useMainData(vi.fn()))

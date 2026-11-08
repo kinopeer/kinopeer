@@ -34,6 +34,7 @@ import { PollRing } from './PollRing'
 import { SortMenu, SortSheet } from './SortSheet'
 import { StatusMenu } from './StatusMenu'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
+import { UnreachableState } from './UnreachableState'
 import { useAltSpeedSwitch } from './useAltSpeedSwitch'
 import { useDeleteTorrents } from './useDeleteTorrents'
 import { useMoveTorrent } from './useMoveTorrent'
@@ -58,7 +59,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   const { t } = useTranslation()
   const format = useFormatters()
   const main = useMainData(onSessionLost)
-  const { data, offline, updatedAt, refresh } = main
+  const { data, offline, unreachable, updatedAt, refresh } = main
   const location = useLocation()
   const navigate = useNavigate()
   // Set by the releases screen after adding a release.
@@ -271,7 +272,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
     </p>
   )
 
-  const offlineBanner = offline && data !== null && <OfflineBanner updatedAt={updatedAt} onRetry={refresh} />
+  const offlineBanner = offline && data !== null && <OfflineBanner unreachable={unreachable} updatedAt={updatedAt} onRetry={refresh} />
 
   const chips = (
     <div className="downloads-chips ks-hscroll" role="group" aria-label={t('downloads.filtersLabel')}>
@@ -439,15 +440,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
       <section className="downloads-body" aria-label={t('downloads.title')} aria-busy={loading}>
         {!loading && <InstallCard />}
         {loading && offline ? (
-          <EmptyState
-            icon="wifi-off"
-            tone="error"
-            title={t('offline.unreachableTitle')}
-            actionLabel={t('common.retry')}
-            onAction={refresh}
-          >
-            {t('offline.unreachableBody')}
-          </EmptyState>
+          <UnreachableState unreachable={unreachable} onRetry={refresh} />
         ) : loading && grid ? (
           <div className="ks-poster-grid" role="status">
             <span className="sr-only">{t('downloads.loading')}</span>

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import type { Unreachable } from '../api/qbittorrent'
 import { SettingsError } from '../api/settings'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
@@ -8,14 +9,15 @@ import { Preferences } from './Preferences'
 import './ConnectScreen.css'
 
 export interface ConnectScreenProps {
-  /** qBittorrent did not answer the session check. */
-  unreachable?: boolean
+  /** Who didn't answer the session check: Kinopeer's server or qBittorrent. */
+  unreachable?: Unreachable
   onRetry: () => void
   /** Rejects with a SettingsError saying why the server couldn't log in. */
   onSignIn: (username: string, password: string) => Promise<void>
 }
 
-type FormError = 'invalid' | 'banned' | 'unreachable' | null
+/** A login refused, or who didn't answer it. */
+type FormError = 'invalid' | 'banned' | Unreachable | null
 
 export function ConnectScreen({ unreachable, onRetry, onSignIn }: ConnectScreenProps) {
   const { t } = useTranslation()
@@ -34,12 +36,13 @@ export function ConnectScreen({ unreachable, onRetry, onSignIn }: ConnectScreenP
       const code = e instanceof SettingsError ? e.code : undefined
       if (code === 'invalid-credentials') setError('invalid')
       else if (code === 'banned') setError('banned')
-      else setError('unreachable')
+      // The server says qBittorrent didn't answer; anything else (no answer, or not the server's) is Kinopeer's.
+      else setError(code === 'unreachable' ? 'qbittorrent' : 'kinopeer')
       setSubmitting(false)
     }
   }
 
-  const showUnreachable = unreachable || error === 'unreachable'
+  const showUnreachable = error === 'kinopeer' || error === 'qbittorrent' ? error : unreachable
 
   return (
     <main className="screen connect">
@@ -50,8 +53,8 @@ export function ConnectScreen({ unreachable, onRetry, onSignIn }: ConnectScreenP
         </div>
 
         {showUnreachable && (
-          <Banner tone="error" title={t('connect.unreachableTitle')} actionLabel={t('common.retry')} onAction={onRetry}>
-            {t('connect.unreachableBody')}
+          <Banner tone="error" title={t('connect.unreachableTitle', { context: showUnreachable })} actionLabel={t('common.retry')} onAction={onRetry}>
+            {t('connect.unreachableBody', { context: showUnreachable })}
           </Banner>
         )}
         {error === 'banned' && <Banner tone="error">{t('connect.banned')}</Banner>}

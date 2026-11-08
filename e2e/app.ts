@@ -68,7 +68,8 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
       if (pathname === '/qbt/api/v2/app/version') return route.fulfill({ body: 'v5.3.0' })
       if (pathname === '/qbt/api/v2/sync/maindata') {
         polls += 1
-        if (options.goesOffline && polls > 1) return route.abort('connectionrefused')
+        // The bridge's own failure, with its mark: qBittorrent stopped answering, not Kinopeer's server.
+        if (options.goesOffline && polls > 1) return route.fulfill({ status: 502, headers: { 'x-kinopeer-bridge': '1' }, body: 'qBittorrent is unreachable' })
         return json(
           route,
           mainData(torrents, {
