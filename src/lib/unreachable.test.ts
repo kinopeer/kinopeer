@@ -36,4 +36,12 @@ describe('useMayOpenAgain', () => {
   it('doesn’t offer it without a service worker (plain HTTP), where every page load goes to the network already', () => {
     expect(renderHook(() => useMayOpenAgain('unreached')).result.current).toBe(false)
   })
+
+  it('stops following the device once nothing uses it', () => {
+    controlledByServiceWorker()
+    const removeEventListener = vi.spyOn(window, 'removeEventListener')
+    renderHook(() => useMayOpenAgain('unreached')).unmount()
+    expect(removeEventListener).toHaveBeenCalledWith('online', expect.any(Function))
+    expect(removeEventListener).toHaveBeenCalledWith('offline', expect.any(Function))
+  })
 })

@@ -45,11 +45,11 @@ describe('ConnectScreen', () => {
     expect(password).toHaveAttribute('aria-invalid', 'true')
     expect(password).toHaveAccessibleDescription('Wrong username or password')
     expect(screen.getByRole('button', { name: 'Connect' })).not.toHaveAttribute('aria-busy')
+    // A refused login is the server answering: nothing says it's unreachable.
+    expect(screen.queryByRole('alert', { name: saying(/unreachable|answering/) })).not.toBeInTheDocument()
 
     await userEvent.type(password, 'x')
     expect(password).not.toHaveAttribute('aria-invalid')
-    // A refused login is the server answering: nothing says it's unreachable.
-    expect(screen.queryByRole('alert', { name: saying(/unreachable|answering/) })).not.toBeInTheDocument()
   })
 
   it('explains an IP ban', async () => {
@@ -101,9 +101,10 @@ describe('ConnectScreen', () => {
     await fillAndSubmit()
     const alert = screen.getByRole('alert', { name: saying('Kinopeer isn’t answering') })
     expect(alert).toHaveTextContent('If you’re sure the server running Kinopeer is on and reachable on your network')
-    expect(within(alert).getByRole('button', { name: 'Open again' })).toBeInTheDocument()
     // What was typed stays.
     expect(screen.getByLabelText('Username')).toHaveValue('admin')
+    await userEvent.click(within(alert).getByRole('button', { name: 'Open again' }))
+    expect(proxySignIn.loadPastTheShell).toHaveBeenCalledOnce()
   })
 
   it('takes a sign-in failure without the server’s word for something answering for Kinopeer, without Open again', async () => {
