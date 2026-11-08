@@ -16,6 +16,6 @@ describe('getMatches', () => {
   it('fails when the server has no matches route', async () => {
     fetchMock.mockResolvedValueOnce(new Response('<!doctype html>', { headers: { 'Content-Type': 'text/html' } }))
     await expect(getMatches()).rejects.toBeInstanceOf(MatchesError)
-    expect(fetchMock.mock.calls[0][1]?.credentials).toBe('same-origin')
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ credentials: 'same-origin', redirect: 'manual' })
   })
 })

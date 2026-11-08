@@ -4,7 +4,7 @@
  * tsconfig.sw.json, like sw.ts, since the worker's types are not the page's.
  */
 import { describe, expect, it, vi } from 'vitest'
-import { API_DENYLIST, POSTER_CACHE } from './pwa/swRoutes'
+import { POSTER_CACHE, SHELL_DENYLIST } from './pwa/swRoutes'
 
 class NavigationRoute {
   handler: unknown
@@ -75,7 +75,7 @@ describe('the service worker', () => {
     expect(navigation).toBeInstanceOf(NavigationRoute)
     expect(ran.shellBoundTo).toEqual(['/index.html'])
     expect(navigation.handler).toBe('the app shell')
-    expect(navigation.options).toEqual({ denylist: API_DENYLIST })
+    expect(navigation.options).toEqual({ denylist: SHELL_DENYLIST })
   })
 
   it('caches posters first, for a month, successful answers only', () => {

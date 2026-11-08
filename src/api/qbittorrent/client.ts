@@ -9,6 +9,7 @@ import type {
   TorrentTracker,
   TorrentsQuery,
 } from './types'
+import { fetchKinopeer } from '../fetchKinopeer'
 
 /** Same-origin prefix bridged to qBittorrent's Web API by server/qbittorrent.ts. */
 export const QBITTORRENT_BASE = '/qbt/api/v2'
@@ -49,9 +50,8 @@ async function request(
   const search = toSearchParams(params)
   const url = method === 'GET' && [...search].length ? `${QBITTORRENT_BASE}${path}?${search}` : `${QBITTORRENT_BASE}${path}`
 
-  const response = await fetch(url, {
+  const response = await fetchKinopeer(url, {
     method,
-    credentials: 'same-origin',
     // The server forwards only requests that carry it (server/qbittorrent.ts): another site can't
     // add a header to a request without asking first, so it can't act through Kinopeer.
     headers: { 'X-Kinopeer': '1' },

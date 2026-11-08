@@ -486,3 +486,6 @@ export function shogunTorrent(): Uint8Array {
     }),
   )
 }
+
+/** What fetch answers with `redirect: 'manual'` for a redirect (src/api/fetchKinopeer.ts); jsdom can't build one. */
+export const opaqueRedirect = () => ({ type: 'opaqueredirect', status: 0, ok: false }) as Response

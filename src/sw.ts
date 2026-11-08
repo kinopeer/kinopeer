@@ -5,7 +5,7 @@ import { ExpirationPlugin } from 'workbox-expiration'
 import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching'
 import { NavigationRoute, registerRoute } from 'workbox-routing'
 import { CacheFirst } from 'workbox-strategies'
-import { API_DENYLIST, POSTER_CACHE, isPosterRequest } from './pwa/swRoutes'
+import { POSTER_CACHE, SHELL_DENYLIST, isPosterRequest } from './pwa/swRoutes'
 
 declare const self: ServiceWorkerGlobalScope
 
@@ -20,7 +20,7 @@ cleanupOutdatedCaches()
 
 // Every app route (/, /search, /title/…) opens the cached index.html. The server's own routes are
 // left alone, and qBittorrent, Prowlarr and TMDB API answers are never cached: they must be live.
-registerRoute(new NavigationRoute(createHandlerBoundToURL('/index.html'), { denylist: API_DENYLIST }))
+registerRoute(new NavigationRoute(createHandlerBoundToURL('/index.html'), { denylist: SHELL_DENYLIST }))
 
 // Posters and backdrops never change for a given URL, so keep them for a month.
 registerRoute(

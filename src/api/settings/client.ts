@@ -1,4 +1,5 @@
 import type { DownloadDefaultsBody, ProwlarrKeyBody, QbittorrentLoginBody, ServerSettings, SettingsErrorBody, TmdbKeyBody } from './types'
+import { fetchKinopeer } from '../fetchKinopeer'
 
 /** Settings the Kinopeer server keeps (server/settings.ts). */
 export const SETTINGS_BASE = '/api/settings'
@@ -25,16 +26,15 @@ async function errorFor(response: Response): Promise<SettingsError> {
 }
 
 export async function getServerSettings(signal?: AbortSignal): Promise<ServerSettings> {
-  const response = await fetch(SETTINGS_BASE, { credentials: 'same-origin', signal })
+  const response = await fetchKinopeer(SETTINGS_BASE, { signal })
   // No JSON: a server without /api/settings (the SPA fallback answered).
   if (!response.ok || !isJson(response)) throw await errorFor(response)
   return (await response.json()) as ServerSettings
 }
 
 async function send<T>(method: 'PUT' | 'PATCH', path: string, body: T): Promise<ServerSettings> {
-  const response = await fetch(`${SETTINGS_BASE}/${path}`, {
+  const response = await fetchKinopeer(`${SETTINGS_BASE}/${path}`, {
     method,
-    credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
@@ -62,9 +62,8 @@ export function saveProwlarrKey(apiKey: string): Promise<ServerSettings> {
 
 async function forget(path: string): Promise<ServerSettings> {
   // The JSON content type, as on every request that changes something (server/json.ts).
-  const response = await fetch(`${SETTINGS_BASE}/${path}`, {
+  const response = await fetchKinopeer(`${SETTINGS_BASE}/${path}`, {
     method: 'DELETE',
-    credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
   })
   if (!response.ok || !isJson(response)) throw await errorFor(response)

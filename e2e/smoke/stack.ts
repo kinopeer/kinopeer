@@ -2,8 +2,9 @@
  * The smoke stand (docs/TESTING.md → Smoke journeys): the fake qBittorrent, TMDB and Prowlarr from
  * server/test/fakes.ts, the real production server (`node server/main.ts`, serving dist/) in
  * front of them, and in front of the server a reverse proxy that behaves like Umbrel's app_proxy:
- * a page load gets a session cookie, and every other request without it is 401, so a fetch that
- * forgets `credentials: 'same-origin'` fails its journey.
+ * a page load gets a session cookie, and every other request without it is redirected to a sign-in
+ * on another origin, so a fetch that forgets the cookie fails its journey, and one whose cookie
+ * lapsed shows how the app signs in again.
  *
  * Playwright starts it as the smoke config's webServer. The journeys run in another process, so
  * they reach the stand through its control server (control.ts): GET /__state answers what the
@@ -22,6 +23,7 @@ import { TORRENTS, torrent, torrentFiles } from '../../src/test/fixtures.ts'
 import {
   APP_PORT,
   CONTROL_PORT,
+  CONTROL_URL,
   LOGIN,
   PROWLARR_KEY,
   PROXY_COOKIE,
@@ -178,18 +180,18 @@ function control(request: IncomingMessage, response: ServerResponse): void {
 
 /**
  * The proxy: a page load (GET /, or any document request) without the cookie gets it and goes
- * through; every other request without it is refused with 401, as Umbrel's app_proxy refuses
- * calls from outside a session.
+ * through, which stands for Umbrel's sign-in handing it out; every other request without it is
+ * redirected to that sign-in on another origin, as Umbrel's app_proxy does (#303).
  */
 function proxy(request: IncomingMessage, response: ServerResponse): void {
   const cookies = request.headers.cookie ?? ''
   const hasCookie = new RegExp(`(?:^|;\\s*)${PROXY_COOKIE}=1(?:;|$)`).test(cookies)
   const pageLoad = request.method === 'GET' && (request.url === '/' || request.headers['sec-fetch-dest'] === 'document')
   if (!hasCookie && !pageLoad) {
-    response.statusCode = 401
+    response.statusCode = 302
     response.setHeader(PROXY_DENIED_HEADER, 'denied')
-    response.setHeader('Content-Type', 'text/plain; charset=utf-8')
-    return void response.end('The session cookie is missing')
+    response.setHeader('Location', `${CONTROL_URL}/sign-in?path=${encodeURIComponent(request.url ?? '/')}`)
+    return void response.end()
   }
   const upstream = httpRequest(
     {

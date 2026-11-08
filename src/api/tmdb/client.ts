@@ -8,6 +8,7 @@ import type {
   TvDetails,
   TvResult,
 } from './types'
+import { fetchKinopeer } from '../fetchKinopeer'
 
 /** Same-origin prefix proxied to the TMDB API; the proxy adds the API key. */
 export const TMDB_BASE = '/tmdb'
@@ -58,8 +59,7 @@ async function request<T>(path: string, params: QueryParams, { language, signal 
     if (value !== undefined) search.set(key, String(value))
   }
   const query = search.toString()
-  const response = await fetch(`${TMDB_BASE}${path}${query ? `?${query}` : ''}`, {
-    credentials: 'same-origin',
+  const response = await fetchKinopeer(`${TMDB_BASE}${path}${query ? `?${query}` : ''}`, {
     headers: { Accept: 'application/json' },
     signal,
   })

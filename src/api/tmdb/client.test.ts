@@ -65,7 +65,7 @@ describe('searchTitles', () => {
     const page = await searchTitles('dune & co', { language: 'ru-RU' })
 
     expect(lastUrl()).toBe('/tmdb/search/multi?query=dune+%26+co&include_adult=false&language=ru-RU')
-    expect(fetchMock.mock.calls[0][1]).toMatchObject({ credentials: 'same-origin' })
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ credentials: 'same-origin', redirect: 'manual' })
     expect(page).toMatchObject({ page: 1, totalPages: 3, totalResults: 41 })
     expect(page.titles.map((t) => [t.type, t.title, t.year])).toEqual([
       ['movie', 'Dune: Part Two', 2024],
