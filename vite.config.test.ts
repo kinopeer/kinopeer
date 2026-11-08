@@ -30,8 +30,8 @@ const options = { configFile: 'vite.config.ts', logLevel: 'silent' } as const
 const listening = { port: 0, host: '127.0.0.1', strictPort: true } as const
 
 /** `npm run dev` from this config; resolves to its port. */
-async function startDev(): Promise<number> {
-  const server = await createServer({ ...options, server: { ...listening, watch: null }, optimizeDeps: { noDiscovery: true } })
+async function startDev(base?: string): Promise<number> {
+  const server = await createServer({ ...options, base, server: { ...listening, watch: null }, optimizeDeps: { noDiscovery: true } })
   closers.push(() => server.close())
   await server.listen()
   return (server.httpServer!.address() as AddressInfo).port
@@ -94,10 +94,19 @@ describe('vite.config.ts', () => {
     expect(href).toBe(`data:image/png;base64,${png.toString('base64')}`)
   })
 
+  // Vite prefixes public paths with the base when it processes the HTML; the icon is read before that.
+  it('inlines the touch icon under a base too', async () => {
+    const page = await (await fetch(`http://127.0.0.1:${await startDev('/sub/')}/sub/`)).text()
+    expect(/<link rel="apple-touch-icon" href="([^"]+)"/.exec(page)?.[1]).toMatch(/^data:image\/png;base64,/)
+  })
+
+  const transform = (html: string) => (inlineTouchIconPlugin().transformIndexHtml as { handler: (html: string) => string }).handler(html)
+
   it('fails the build when index.html has no touch icon link to inline, rather than leaving the tile generic', () => {
-    const plugin = inlineTouchIconPlugin()
-    const transform = plugin.transformIndexHtml as (html: string) => string
-    ;(plugin.configResolved as (config: { publicDir: string }) => void)({ publicDir: 'public' })
     expect(() => transform('<link rel="icon" href="/favicon.svg" />')).toThrow('no <link rel="apple-touch-icon"')
+  })
+
+  it('fails the build on a touch icon other than a PNG, which the data: URL would name wrong', () => {
+    expect(() => transform('<link rel="apple-touch-icon" href="/icons/apple-touch-icon.webp" />')).toThrow('inlined as a PNG, not /icons/apple-touch-icon.webp')
   })
 })

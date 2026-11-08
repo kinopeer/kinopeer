@@ -80,8 +80,10 @@ function versionFilePlugin(appVersion: string): Plugin {
  * Screen and fetches nothing. iOS fetches that icon in a process of its own, which got nothing over
  * Umbrel's HTTPS (its certificate trusted in Safari only through a per-site exception), so the Home
  * Screen showed a generic tile (#304). index.html's `<link>` stays the source: the file it names in
- * public/ (rendered by scripts/render-icons.mjs) is read and inlined, in dev and in the build. The
- * Content-Security-Policy allows `data:` images (server/securityHeaders.ts).
+ * public/ (rendered by scripts/render-icons.mjs) is read and inlined, in dev and in the build, before
+ * Vite's own HTML processing (`order: 'pre'`), which would prefix the path with a `base`. A PNG
+ * only, since that's the type the `data:` URL names. The Content-Security-Policy allows `data:`
+ * images (server/securityHeaders.ts).
  */
 export function inlineTouchIconPlugin(): Plugin {
   let publicDir = ''
@@ -90,11 +92,15 @@ export function inlineTouchIconPlugin(): Plugin {
     configResolved(config) {
       publicDir = config.publicDir
     },
-    transformIndexHtml(html) {
-      const link = /(<link rel="apple-touch-icon" href=")([^"]+)"/.exec(html)
-      if (!link) throw new Error('index.html has no <link rel="apple-touch-icon" href="…"> to inline')
-      const icon = readFileSync(join(publicDir, link[2])).toString('base64')
-      return html.replace(link[0], `${link[1]}data:image/png;base64,${icon}"`)
+    transformIndexHtml: {
+      order: 'pre',
+      handler(html) {
+        const link = /(<link rel="apple-touch-icon" href=")([^"]+)"/.exec(html)
+        if (!link) throw new Error('index.html has no <link rel="apple-touch-icon" href="…"> to inline')
+        if (!link[2].endsWith('.png')) throw new Error(`The touch icon is inlined as a PNG, not ${link[2]}`)
+        const icon = readFileSync(join(publicDir, link[2])).toString('base64')
+        return html.replace(link[0], `${link[1]}data:image/png;base64,${icon}"`)
+      },
     },
   }
 }
