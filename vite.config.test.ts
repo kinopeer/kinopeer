@@ -1,10 +1,11 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createServer, preview } from 'vite'
 import { CONTENT_SECURITY_POLICY, SECURITY_HEADERS } from './server/securityHeaders.ts'
+import { inlineTouchIconPlugin } from './vite.config.ts'
 
 /**
  * `npm run dev` and `npm run preview` from this config. loadEnv lets process.env win over
@@ -29,8 +30,8 @@ const options = { configFile: 'vite.config.ts', logLevel: 'silent' } as const
 const listening = { port: 0, host: '127.0.0.1', strictPort: true } as const
 
 /** `npm run dev` from this config; resolves to its port. */
-async function startDev(): Promise<number> {
-  const server = await createServer({ ...options, server: { ...listening, watch: null }, optimizeDeps: { noDiscovery: true } })
+async function startDev(base?: string): Promise<number> {
+  const server = await createServer({ ...options, base, server: { ...listening, watch: null }, optimizeDeps: { noDiscovery: true } })
   closers.push(() => server.close())
   await server.listen()
   return (server.httpServer!.address() as AddressInfo).port
@@ -83,5 +84,29 @@ describe('vite.config.ts', () => {
     const answer = await preflight(await startPreview())
     expect(answer.headers.has('access-control-allow-origin')).toBe(false)
     expect(answer.ok).toBe(false)
+  })
+
+  // iOS fetches a linked touch icon in a process of its own, which got nothing behind Umbrel's HTTPS (#304).
+  it('puts the touch icon into index.html as a data: URL of the PNG in public/', async () => {
+    const page = await (await fetch(`http://127.0.0.1:${await startDev()}/`)).text()
+    const href = /<link rel="apple-touch-icon" href="([^"]+)"/.exec(page)?.[1]
+    const png = await readFile('public/icons/apple-touch-icon.png')
+    expect(href).toBe(`data:image/png;base64,${png.toString('base64')}`)
+  })
+
+  // Vite prefixes public paths with the base when it processes the HTML; the icon is read before that.
+  it('inlines the touch icon under a base too', async () => {
+    const page = await (await fetch(`http://127.0.0.1:${await startDev('/sub/')}/sub/`)).text()
+    expect(/<link rel="apple-touch-icon" href="([^"]+)"/.exec(page)?.[1]).toMatch(/^data:image\/png;base64,/)
+  })
+
+  const transform = (html: string) => (inlineTouchIconPlugin().transformIndexHtml as { handler: (html: string) => string }).handler(html)
+
+  it('fails the build when index.html has no touch icon link to inline, rather than leaving the tile generic', () => {
+    expect(() => transform('<link rel="icon" href="/favicon.svg" />')).toThrow('no <link rel="apple-touch-icon"')
+  })
+
+  it('fails the build on a touch icon other than a PNG, which the data: URL would name wrong', () => {
+    expect(() => transform('<link rel="apple-touch-icon" href="/icons/apple-touch-icon.webp" />')).toThrow('inlined as a PNG, not /icons/apple-touch-icon.webp')
   })
 })
