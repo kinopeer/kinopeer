@@ -1,6 +1,6 @@
 /// <reference types="vitest/config" />
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -75,6 +75,30 @@ function versionFilePlugin(appVersion: string): Plugin {
   }
 }
 
+/**
+ * Puts the touch icon into index.html as a `data:` URL, so iOS takes it from the page for Add to Home
+ * Screen and fetches nothing. iOS fetches that icon in a process of its own, which got nothing over
+ * Umbrel's HTTPS (its certificate trusted in Safari only through a per-site exception), so the Home
+ * Screen showed a generic tile (#304). index.html's `<link>` stays the source: the file it names in
+ * public/ (rendered by scripts/render-icons.mjs) is read and inlined, in dev and in the build. The
+ * Content-Security-Policy allows `data:` images (server/securityHeaders.ts).
+ */
+export function inlineTouchIconPlugin(): Plugin {
+  let publicDir = ''
+  return {
+    name: 'kinopeer-inline-touch-icon',
+    configResolved(config) {
+      publicDir = config.publicDir
+    },
+    transformIndexHtml(html) {
+      const link = /(<link rel="apple-touch-icon" href=")([^"]+)"/.exec(html)
+      if (!link) throw new Error('index.html has no <link rel="apple-touch-icon" href="…"> to inline')
+      const icon = readFileSync(join(publicDir, link[2])).toString('base64')
+      return html.replace(link[0], `${link[1]}data:image/png;base64,${icon}"`)
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
@@ -94,6 +118,7 @@ export default defineConfig(({ mode }) => {
       react(),
       pwa,
       versionFilePlugin(appVersion),
+      inlineTouchIconPlugin(),
       // A checkout runs main's code, which only the edge worker of the TMDB proxy keeps up with: the
       // release worker gets a new path at the release (docs/DEVELOPMENT.md → The TMDB proxy).
       serverRoutesPlugin(kinopeerServer({ KINOPEER_TMDB_PROXY: TMDB_PROXY_EDGE, ...env }, stores)),

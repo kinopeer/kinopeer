@@ -2,6 +2,12 @@
 
 Kinopeer follows [semantic versioning](https://semver.org). While the version is 0.x, minor versions may change behavior and settings.
 
+## Unreleased
+
+### Fixed
+
+- On an iPhone or iPad, Add to Home Screen over Umbrel's HTTPS shows Kinopeer's icon rather than a generic tile. ([#304](https://github.com/kinopeer/kinopeer/issues/304))
+
 ## 0.7.2 - 2026-11-07
 
 A security release before Kinopeer's code goes public: its server passes on to qBittorrent only Kinopeer's own requests, and the browser runs only Kinopeer's own code.
