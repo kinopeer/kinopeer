@@ -42,6 +42,21 @@ const RESPONSE_HEADERS = ['cache-control', 'last-modified', 'etag', 'expires', '
 const API_TYPE = /^application\/json\b/i
 const IMAGE_TYPE = /^image\/(jpeg|png|webp|gif|avif)\b/i
 
+/** An encoded slash or backslash: fetch keeps it, but a server on the way that decodes it first would resolve the dots around it. */
+const ENCODED_SEPARATOR = /%2f|%5c/i
+
+/**
+ * Whether fetch keeps `path` (what follows the bridge's prefix) as written, so the call stays under
+ * /3/ or /t/p/: it resolves dot segments, encoded ones too, reads a backslash as a slash and drops
+ * tabs and newlines, which would reach other paths with the user's key or on the proxy's host (#305).
+ * The client sends no encoded separator in a path either. The query keeps its dots, which fetch
+ * leaves alone.
+ */
+function keptAsWritten(path: string): boolean {
+  const written = `/prefix/${path.split('?', 1)[0]}`
+  return !ENCODED_SEPARATOR.test(written) && new URL(written, 'http://bridge.test').pathname === written
+}
+
 function contentType(sent: string | null, isApi: boolean): string {
   return sent && (isApi ? API_TYPE : IMAGE_TYPE).test(sent) ? sent : 'application/octet-stream'
 }
@@ -91,15 +106,16 @@ export function tmdbMiddleware(config: TmdbConfig): Middleware {
       response.end(JSON.stringify({ status_message: message }))
     }
     if (request.method !== 'GET' && request.method !== 'HEAD') return fail(405, 'Method not allowed')
+    const rest = path.slice(isApi ? API_PREFIX.length : IMAGE_PREFIX.length)
+    if (!keptAsWritten(rest)) return fail(404, 'Not found')
 
-    let target = { url: `${imageBase}/${path.slice(IMAGE_PREFIX.length)}`, headers: {} as Record<string, string> }
+    let target = { url: `${imageBase}/${rest}`, headers: {} as Record<string, string> }
     if (isApi) {
       const key = getKey()?.trim()
-      const apiPath = path.slice(API_PREFIX.length)
-      if (key) target = authorize(key, `${apiBase}/${apiPath}`)
+      if (key) target = authorize(key, `${apiBase}/${rest}`)
       // No Authorization or key of any kind: the proxy adds its own, and Workers Cache in front of
       // it bypasses a request that carries Authorization.
-      else if (config.proxyBase) target = { url: `${config.proxyBase}/${apiPath}`, headers: {} }
+      else if (config.proxyBase) target = { url: `${config.proxyBase}/${rest}`, headers: {} }
       // The app treats 401 as a missing or invalid key and asks for one.
       else return fail(401, 'The TMDB API key is not set')
     }
