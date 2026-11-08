@@ -6,6 +6,7 @@ import * as matchesApi from '../api/matches'
 import * as api from '../api/qbittorrent'
 import type { Torrent } from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
+import * as proxySignIn from '../pwa/proxySignIn'
 import { DUNE_TORRENT, mainData, searchPage } from '../test/fixtures'
 import { findToastOnPage, qbittorrentDown, renderWithRouter, saying } from '../test/render'
 import * as serverMatches from '../torrents/serverMatches'
@@ -20,6 +21,10 @@ function stopPolling() {
   onTestFinished(() => hidden.mockRestore())
 }
 
+vi.mock('../pwa/proxySignIn', async (importOriginal) => ({
+  ...(await importOriginal<typeof proxySignIn>()),
+  loadPastTheShell: vi.fn(),
+}))
 vi.mock('../api/qbittorrent', async (importOriginal) => {
   const actual = await importOriginal<typeof api>()
   return {
@@ -130,16 +135,21 @@ describe('TorrentScreen', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Dune: Part Two' })).toBeInTheDocument()
   })
 
-  it('says when Kinopeer itself can’t be reached, before any answer and after one', async () => {
+  it('says when Kinopeer itself can’t be reached and opens the page again past the shell, before any answer and after one', async () => {
+    const loadPastTheShell = vi.mocked(proxySignIn.loadPastTheShell)
     getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     renderScreen()
     expect(await screen.findByRole('heading', { name: 'Can’t reach Kinopeer' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Open again' }))
+    expect(loadPastTheShell).toHaveBeenCalledOnce()
 
-    await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    window.dispatchEvent(new Event('online'))
     await screen.findByRole('heading', { level: 1, name: 'Dune: Part Two' })
     getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     window.dispatchEvent(new Event('online'))
-    expect(await screen.findByRole('status', { name: saying('No connection to Kinopeer') })).toBeInTheDocument()
+    const banner = await screen.findByRole('status', { name: saying('No connection to Kinopeer') })
+    await userEvent.click(within(banner).getByRole('button', { name: 'Open again' }))
+    expect(loadPastTheShell).toHaveBeenCalledTimes(2)
   })
 
   it('says when the torrent is gone', async () => {

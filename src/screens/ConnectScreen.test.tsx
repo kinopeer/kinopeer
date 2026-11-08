@@ -3,8 +3,14 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { Unreachable } from '../api/qbittorrent'
 import { SettingsError } from '../api/settings'
+import * as proxySignIn from '../pwa/proxySignIn'
 import { ConnectScreen } from './ConnectScreen'
 import { saying } from '../test/render'
+
+vi.mock('../pwa/proxySignIn', async (importOriginal) => ({
+  ...(await importOriginal<typeof proxySignIn>()),
+  loadPastTheShell: vi.fn(),
+}))
 
 function setup(onSignIn = vi.fn().mockResolvedValue(undefined), props: { unreachable?: Unreachable } = {}) {
   const onRetry = vi.fn()
@@ -57,9 +63,13 @@ describe('ConnectScreen', () => {
     expect(onRetry).toHaveBeenCalled()
   })
 
-  it('says Kinopeer, not qBittorrent, did not answer the session check when so', () => {
-    setup(undefined, { unreachable: 'kinopeer' })
-    expect(screen.getByRole('alert', { name: saying('Kinopeer isn’t answering') })).toHaveTextContent('Check that this device is online and Kinopeer is running on your server.')
+  it('says Kinopeer, not qBittorrent, did not answer the session check when so, and opens the page again past the shell', async () => {
+    const { onRetry } = setup(undefined, { unreachable: 'kinopeer' })
+    const alert = screen.getByRole('alert', { name: saying('Kinopeer isn’t answering') })
+    expect(alert).toHaveTextContent('Check that this device is online and Kinopeer is running on your server. Open it again if your browser has to confirm Umbrel’s certificate or sign-in.')
+    await userEvent.click(within(alert).getByRole('button', { name: 'Open again' }))
+    expect(proxySignIn.loadPastTheShell).toHaveBeenCalledOnce()
+    expect(onRetry).not.toHaveBeenCalled()
   })
 
   it('takes a network error during sign-in for Kinopeer not answering', async () => {

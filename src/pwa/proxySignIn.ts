@@ -33,6 +33,18 @@ export function signInThroughProxy(location: Navigation, now = Date.now()): void
     // Without the storage nothing would stop a loop: the requests fail as before.
     return
   }
+  loadPastTheShell(location)
+}
+
+/**
+ * Loads the current screen again from the network, past the service worker, which answers the
+ * app's own page loads from its cache: so a proxy in front can sign the browser in, and the browser
+ * can ask about a certificate it no longer trusts (Umbrel renews its own every month, and a
+ * per-site exception covers the old one only, #311). The user's "Open again" where Kinopeer's
+ * server doesn't answer, which nothing else gets past; without the network it ends on the
+ * browser's own error page, which the user asked for.
+ */
+export function loadPastTheShell(location: Navigation = window.location): void {
   const url = new URL(location.href)
   url.searchParams.set(PROXY_SIGN_IN_PARAM, '1')
   // Replaced, not added: Back doesn't come to the address with the parameter.

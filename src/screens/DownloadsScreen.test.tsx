@@ -6,6 +6,7 @@ import * as matchesApi from '../api/matches'
 import * as api from '../api/qbittorrent'
 import type { MainData, Torrent } from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
+import * as proxySignIn from '../pwa/proxySignIn'
 import { TAB_RETURN, forgetTabPlaces, saveTabPlace } from '../lib/tabPlaces'
 import { getSettings, resetSettings, updateSettings } from '../settings/settings'
 import { mainData, searchPage, title, torrent as fixtureTorrent } from '../test/fixtures'
@@ -21,6 +22,10 @@ function stopPolling() {
   onTestFinished(() => hidden.mockRestore())
 }
 
+vi.mock('../pwa/proxySignIn', async (importOriginal) => ({
+  ...(await importOriginal<typeof proxySignIn>()),
+  loadPastTheShell: vi.fn(),
+}))
 vi.mock('../api/qbittorrent', async (importOriginal) => {
   const actual = await importOriginal<typeof api>()
   return {
@@ -632,17 +637,25 @@ describe('DownloadsScreen', () => {
     expect(screen.getByRole('status', { name: saying('Reconnected to qBittorrent') })).toBeInTheDocument()
   })
 
-  it('says when Kinopeer itself can’t be reached, before any answer and after one', async () => {
+  it('says when Kinopeer itself can’t be reached and opens the page again past the shell, before any answer and after one', async () => {
+    const loadPastTheShell = vi.mocked(proxySignIn.loadPastTheShell)
     getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     renderScreen()
     expect(await screen.findByRole('heading', { name: 'Can’t reach Kinopeer' })).toBeInTheDocument()
-    expect(screen.getByText('Check that this device is online and Kinopeer is running on your server. Retrying automatically.')).toBeInTheDocument()
+    expect(
+      screen.getByText('Check that this device is online and Kinopeer is running on your server. Retrying automatically; open it again if your browser has to confirm Umbrel’s certificate or sign-in.'),
+    ).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Open again' }))
+    expect(loadPastTheShell).toHaveBeenCalledOnce()
 
-    await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    // The poll retries by itself, here at once as the device comes back online.
+    window.dispatchEvent(new Event('online'))
     expect(await screen.findAllByRole('listitem')).toHaveLength(3)
     getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     window.dispatchEvent(new Event('online'))
-    expect(await screen.findByRole('status', { name: saying('No connection to Kinopeer') })).toBeInTheDocument()
+    const banner = await screen.findByRole('status', { name: saying('No connection to Kinopeer') })
+    await userEvent.click(within(banner).getByRole('button', { name: 'Open again' }))
+    expect(loadPastTheShell).toHaveBeenCalledTimes(2)
   })
 
   it('keeps the last state with its age when qBittorrent stops answering', async () => {

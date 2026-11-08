@@ -5,6 +5,7 @@ import { SettingsError } from '../api/settings'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { Input } from '../components/Input'
+import { loadPastTheShell } from '../pwa/proxySignIn'
 import { Preferences } from './Preferences'
 import './ConnectScreen.css'
 
@@ -54,7 +55,12 @@ export function ConnectScreen({ unreachable, onRetry, onSignIn }: ConnectScreenP
         </div>
 
         {showUnreachable && (
-          <Banner tone="error" title={t('connect.unreachableTitle', { context: showUnreachable })} actionLabel={t('common.retry')} onAction={onRetry}>
+          <Banner
+            tone="error"
+            title={t('connect.unreachableTitle', { context: showUnreachable })}
+            actionLabel={showUnreachable === 'kinopeer' ? t('common.openAgain') : t('common.retry')}
+            onAction={showUnreachable === 'kinopeer' ? () => loadPastTheShell() : onRetry}
+          >
             {t('connect.unreachableBody', { context: showUnreachable })}
           </Banner>
         )}
