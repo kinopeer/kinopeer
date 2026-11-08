@@ -10,6 +10,7 @@ Kinopeer follows [semantic versioning](https://semver.org). While the version is
 
 ### Fixed
 
+- Kinopeer's server passes on to TMDB only the calls under TMDB's API and image paths: a request whose path leads out of them, with dots or a backslash, is refused rather than sent with the TMDB key. ([#305](https://github.com/kinopeer/kinopeer/issues/305))
 - Over Umbrel's HTTPS, where the browser accepted Umbrel's certificate through its warning, Kinopeer installed as an app no longer gets stuck when Umbrel renews the certificate each month: where nothing answers for Kinopeer while the device is online, **Open again** beside Retry loads it from the network, so the browser can ask to accept the new certificate. When Kinopeer or qBittorrent doesn't answer at all, the connect screen says so in place of the login form. ([#311](https://github.com/kinopeer/kinopeer/issues/311))
 - On Umbrel over HTTPS, Kinopeer installed as an app no longer says qBittorrent is unreachable once Umbrel's sign-in for it lapses, which it does a week after the app last loaded through it: Kinopeer loads the screen it's on through Umbrel's sign-in, which asks for the Umbrel password if Umbrel's own session is gone too, and comes back to it. The same happens over plain HTTP when the app is resumed from the background. ([#303](https://github.com/kinopeer/kinopeer/issues/303))
 - On an iPhone or iPad, Add to Home Screen over Umbrel's HTTPS shows Kinopeer's icon rather than a generic tile. ([#304](https://github.com/kinopeer/kinopeer/issues/304))
