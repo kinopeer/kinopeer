@@ -29,8 +29,9 @@ follows the conversation's language. Code, file paths and quotes stay as they ar
 - A declared-uncovered part is reviewed for its reason, not asked for a test. The accepted
   reasons are listed in `docs/TESTING.md` → Choosing a layer → Saying why something is uncovered.
   A reason holds when it names the accepted case and matches the diff: "layout, checked on the
-  stand" is fine for a CSS-only change and not for a new branch in a hook. A part of the diff with
-  no test and no reason, or with a reason that doesn't hold, is a finding.
+  stand" is fine for a CSS-only change and not for a new branch in a hook; a blind spot is an
+  environment no layer can start, not a server a Node test can (Vite's dev server, #271). A part
+  of the diff with no test and no reason, or with a reason that doesn't hold, is a finding.
 - A PR whose description has no Tests section at all gets that as its first finding; keep
   reviewing the diff anyway.
 - Look for earlier rounds among the PR's comments (fetched above): those headed
@@ -49,7 +50,12 @@ group has its own checks below; a PR without production changes skips A, except 
 script or a workflow (whether to install, whether to deploy, which targets a matrix reaches), which
 is behavior (`docs/TESTING.md` → Saying why something is uncovered → No behavior): a run that stops
 before it changes anything (a dry run, a read-only command, a bogus credential refused after the
-target is resolved) answers it, and a missing credential alone doesn't (#258).
+target is resolved) answers it, and a missing credential alone doesn't (#258). A run that can only
+come later (the next tag, a day with steps of its own) is named as the check of the change, with
+what stays in place until it's green (#291). What GitHub Actions does with what a workflow hands it
+is the platform's own behavior: the group two runs compute (#289), how an `&&`/`||` expression picks
+a side once each input that chooses one was run (#298), a secret passed by name (#291); the PR names
+the hand-off it checked and the documentation page.
 
 ## 3. Checks
 
@@ -106,7 +112,9 @@ trusted.
   for an element that has a name of its own (`getAllByRole('button')[1]`; an index is fine when the
   position is what the test says, as the first row after a sort or the current title first),
   an absence asserted by counting the others instead of by name, test data with a behavior the test
-  isn't about (a `recheck` given a hold it never has in the app), a flush through
+  isn't about (a `recheck` given a hold it never has in the app), a step with no effect on the test
+  (a pointer move, a wait nothing needs) without a comment saying why it's there (#287), a block
+  of assertions repeated for another case instead of a row in its `it.each` (#293), a flush through
   `setTimeout(resolve)` (a real timer, even at no delay),
   `getByText` where a role and name exist, and an error or confirmation found by text or by a bare
   `findByRole('alert'|'status')` with `toHaveTextContent` instead of `{ name: saying(text) }` from
@@ -118,13 +126,20 @@ trusted.
   (a change under the threshold), or new and opened. The listed reason matches the screen. Open
   each new baseline yourself: it shows the state its test name promises. A new screen, sheet,
   dialog or a state with its own layout that has no baseline, only "checked on the stand" → finding.
-- **H. Docs match the code.** A claim the PR adds to `docs/TESTING.md`, `docs/ARCHITECTURE.md` or
-  `CLAUDE.md` (a comment that exists, a command, a number, a file) is checked against the diff and
-  the tree, and so is one the diff makes stale, a sentence saying which test owns a statement above
-  all: grep `docs/`, `CLAUDE.md` and `README.md` for each number or name the diff changes (a width,
-  a version, a count), by its old value and each word of an old name on its own, and read SPEC's,
-  `docs/ARCHITECTURE.md`'s and `CLAUDE.md`'s paragraphs about what the diff changes for claims by
-  meaning no grep finds.
+- **H. Docs match what they describe.** A claim the PR adds to any doc (a comment that exists, a
+  command, a number, a file, a product claim, a step) is checked against what it describes, and so
+  is one the diff makes stale, a sentence saying which test owns a statement above all. The docs
+  are every file that describes what the diff changes: `CLAUDE.md` and the files in its docs table
+  (`README.md`, `CONTRIBUTING.md`, `SECURITY.md`, SPEC, ARCHITECTURE, ROADMAP, DEVELOPMENT,
+  TESTING, the release checklist, the changelog), this skill, and the PR template, the workflows
+  and the config, whose comments are docs too, with `.env.example`, not only the three or four a
+  rule names (#287's README, #296's changelog, #300's runbook). Grep the whole tree for each number
+  or name the diff changes (a width, a version, a count), by its old value and each word of an old
+  name on its own (`git grep -n -I '380px' -- ':!package-lock.json'`), and read those files'
+  paragraphs about what the diff changes for claims by meaning no grep finds. What a claim is checked against: the code and
+  the tree; the service's own documentation page, opened rather than remembered (#299, #300); the
+  words the UI shows (#287's alt text); the doc it points at (README against SPEC); for a step in a
+  checklist, that its pointer resolves and its check can pass as written (#300).
   A list in the docs that the change adds to gains the new item (the screens in `docs/TESTING.md` →
   Screenshot tests, SPEC's decision log, newest first, the blind spots: any PR that meets a blind
   spot the table doesn't name adds its row), and a manual check the PR adds says what has to be in
@@ -189,7 +204,7 @@ more fix to ask for (`docs/TESTING.md` → Reviewing a PR's tests). It has no ta
 doesn't hold the verdict: put it after the findings under its own heading, **For the owner**.
 
 **Round 2 and later**, once the author posts `Fixes for round <n>`, or a commit of the PR's own
-lands after a **ready to merge**: start from that comment, check every line flagged in the previous round, and run all the checks on every
+lands after a **ready to merge**: start from that comment, check every line flagged in the previous round, check the description's What, Tests and Docs against the head as you check the docs (a `Fixes for round <n>` brings them to it: #273, #298, #291), and run all the checks on every
 test the PR's own diff (`origin/main...HEAD`) adds or changes since then, since a test written to
 answer a finding is a new test. Tests a merge of `main` brought were reviewed in their own PRs. A
 merge that reaches the PR's own lines (`docs/TESTING.md` → Reviewing a PR's tests) gets a round
