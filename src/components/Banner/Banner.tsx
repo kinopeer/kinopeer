@@ -13,6 +13,9 @@ export interface BannerProps {
   actionLabel?: string
   onAction?: () => void
   actionDisabled?: boolean
+  /** A second ghost sm Button after the action. */
+  secondaryActionLabel?: string
+  onSecondaryAction?: () => void
   /** False when a live region around the banner announces it instead. */
   live?: boolean
   className?: string
@@ -32,13 +35,15 @@ export function Banner({
   actionLabel,
   onAction,
   actionDisabled,
+  secondaryActionLabel,
+  onSecondaryAction,
   live = true,
   className,
   children,
 }: BannerProps) {
   return (
     <div
-      className={cx('ks-banner', tone !== 'warning' && `ks-banner-${tone}`, className)}
+      className={cx('ks-banner', tone !== 'warning' && `ks-banner-${tone}`, secondaryActionLabel && 'has-two-actions', className)}
       role={live ? (tone === 'error' ? 'alert' : 'status') : undefined}
     >
       <Icon name={icon ?? DEFAULT_ICON[tone]} size={20} />
@@ -46,10 +51,19 @@ export function Banner({
         {title && <div className="t-label ks-banner-title">{title}</div>}
         {children && <div className={cx('t-cap', title && 'c2')}>{children}</div>}
       </div>
-      {actionLabel && (
-        <Button variant="ghost" size="sm" onClick={onAction} disabled={actionDisabled}>
-          {actionLabel}
-        </Button>
+      {(actionLabel || secondaryActionLabel) && (
+        <div className="ks-banner-actions">
+          {actionLabel && (
+            <Button variant="ghost" size="sm" onClick={onAction} disabled={actionDisabled}>
+              {actionLabel}
+            </Button>
+          )}
+          {secondaryActionLabel && (
+            <Button variant="ghost" size="sm" onClick={onSecondaryAction}>
+              {secondaryActionLabel}
+            </Button>
+          )}
+        </div>
       )}
     </div>
   )

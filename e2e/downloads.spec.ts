@@ -192,6 +192,21 @@ test.describe('downloads, phone', () => {
     await expect(page).toHaveScreenshot('offline-dark-ru.png')
   })
 
+  // #311: the banner with Retry and Open again side by side.
+  test('Kinopeer stops answering at all', async ({ page }) => {
+    await openDownloads(page, { unreached: 'after-first-poll' })
+    await expect(page.getByText('Нет связи с Kinopeer')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Открыть заново' })).toBeVisible()
+    await expect(page).toHaveScreenshot('offline-unreached-dark-ru.png')
+  })
+
+  // #311: the state before the first answer, with both buttons and the hint.
+  test('Kinopeer doesn’t answer the first poll', async ({ page }) => {
+    await openApp(page, '/', { unreached: 'from-start' })
+    await expect(page.getByRole('heading', { name: 'Kinopeer недоступен' })).toBeVisible()
+    await expect(page).toHaveScreenshot('unreachable-unreached-dark-ru.png')
+  })
+
   test.describe('light, English', () => {
     test.use({ locale: 'en-US' })
 

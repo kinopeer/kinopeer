@@ -16,6 +16,7 @@
   "common": {
     "retry": "Повторить",
     "openAgain": "Открыть заново",
+    "openAgainHint": "Если браузеру нужно подтвердить сертификат или вход Umbrel, откройте Kinopeer заново.",
     "close": "Закрыть"
   },
   "connect": {
@@ -29,7 +30,7 @@
     "unreachableTitle": "qBittorrent недоступен",
     "unreachableBody": "Проверьте, что qBittorrent запущен и веб-интерфейс включён.",
     "unreachableTitle_kinopeer": "Kinopeer не отвечает",
-    "unreachableBody_kinopeer": "Проверьте, что устройство в сети и Kinopeer запущен на сервере. Откройте заново, если браузеру нужно подтвердить сертификат или вход Umbrel."
+    "unreachableBody_kinopeer": "Проверьте, что устройство в сети и Kinopeer запущен на сервере."
   },
   "status": {
     "downloading": "Загружается",
@@ -468,7 +469,7 @@
     "unreachableTitle": "qBittorrent недоступен",
     "unreachableBody": "Проверьте, что qBittorrent запущен и сервер Kinopeer может до него достучаться. Переподключаемся автоматически.",
     "unreachableTitle_kinopeer": "Kinopeer недоступен",
-    "unreachableBody_kinopeer": "Проверьте, что устройство в сети и Kinopeer запущен на сервере. Переподключаемся автоматически; откройте заново, если браузеру нужно подтвердить сертификат или вход Umbrel.",
+    "unreachableBody_kinopeer": "Проверьте, что устройство в сети и Kinopeer запущен на сервере. Переподключаемся автоматически.",
     "reconnected": "Снова на связи с qBittorrent"
   },
   "poll": {

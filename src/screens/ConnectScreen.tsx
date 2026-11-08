@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { Unreachable } from '../api/qbittorrent'
+import { unreachable, type Unreachable } from '../api/qbittorrent'
 import { SettingsError } from '../api/settings'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { Input } from '../components/Input'
+import { unreachableText, useMayOpenAgain } from '../lib/unreachable'
 import { loadPastTheShell } from '../pwa/proxySignIn'
 import { Preferences } from './Preferences'
 import './ConnectScreen.css'
@@ -20,7 +21,7 @@ export interface ConnectScreenProps {
 /** A login refused, or who didn't answer it. */
 type FormError = 'invalid' | 'banned' | Unreachable | null
 
-export function ConnectScreen({ unreachable, onRetry, onSignIn }: ConnectScreenProps) {
+export function ConnectScreen({ unreachable: unreachableProp, onRetry, onSignIn }: ConnectScreenProps) {
   const { t } = useTranslation()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -37,14 +38,16 @@ export function ConnectScreen({ unreachable, onRetry, onSignIn }: ConnectScreenP
       const code = e instanceof SettingsError ? e.code : undefined
       if (code === 'invalid-credentials') setError('invalid')
       else if (code === 'banned') setError('banned')
-      // An error the server named is its answer, so the server is there; without one there was no
-      // answer, or not the server's (a sign-in proxy, Umbrel answering for a stopped app).
-      else setError(code === undefined ? 'kinopeer' : 'qbittorrent')
+      // An error the server named is its answer, so the server is there; one without a name came
+      // from something in front of it (Umbrel answering for a stopped app); no answer is unreached.
+      else if (e instanceof SettingsError) setError(code === undefined ? 'kinopeer' : 'qbittorrent')
+      else setError(unreachable(e))
       setSubmitting(false)
     }
   }
 
-  const showUnreachable = error === 'kinopeer' || error === 'qbittorrent' ? error : unreachable
+  const showUnreachable = error === null || error === 'invalid' || error === 'banned' ? unreachableProp : error
+  const openAgain = useMayOpenAgain(showUnreachable)
 
   return (
     <main className="screen connect">
@@ -57,11 +60,14 @@ export function ConnectScreen({ unreachable, onRetry, onSignIn }: ConnectScreenP
         {showUnreachable && (
           <Banner
             tone="error"
-            title={t('connect.unreachableTitle', { context: showUnreachable })}
-            actionLabel={showUnreachable === 'kinopeer' ? t('common.openAgain') : t('common.retry')}
-            onAction={showUnreachable === 'kinopeer' ? () => loadPastTheShell() : onRetry}
+            title={t('connect.unreachableTitle', { context: unreachableText(showUnreachable) })}
+            actionLabel={t('common.retry')}
+            onAction={onRetry}
+            secondaryActionLabel={openAgain ? t('common.openAgain') : undefined}
+            onSecondaryAction={() => loadPastTheShell()}
           >
-            {t('connect.unreachableBody', { context: showUnreachable })}
+            {t('connect.unreachableBody', { context: unreachableText(showUnreachable) })}
+            {openAgain && ` ${t('common.openAgainHint')}`}
           </Banner>
         )}
         {error === 'banned' && <Banner tone="error">{t('connect.banned')}</Banner>}

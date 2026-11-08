@@ -33,3 +33,18 @@
 .ks-banner-title {
   font-weight: 600;
 }
+
+.ks-banner-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-1);
+}
+
+/* Two buttons beside the text would leave it a narrow column on a phone: they go under it. */
+.ks-banner.has-two-actions {
+  flex-wrap: wrap;
+}
+
+.ks-banner.has-two-actions .ks-banner-actions {
+  flex-basis: 100%;
+}

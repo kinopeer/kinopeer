@@ -38,17 +38,23 @@ export class KinopeerUnreachableError extends QbittorrentError {
   }
 }
 
-/** Who didn't answer: Kinopeer's own server (or the way to it), or qBittorrent behind it. */
-export type Unreachable = 'kinopeer' | 'qbittorrent'
+/**
+ * Who didn't answer. Kinopeer's server, two ways: `unreached`, nothing answered at all (the network,
+ * a certificate the browser no longer trusts, both a TypeError with no detail) or a sign-in proxy
+ * redirected the request; `kinopeer`, something in front answered for the server (Umbrel's 502 for
+ * a stopped app), so the way to it works. Or `qbittorrent`, behind the server.
+ */
+export type Unreachable = 'unreached' | 'kinopeer' | 'qbittorrent'
 
 /**
- * Who a failed request didn't get an answer from. Kinopeer's: the network failed (fetch's
- * TypeError), a proxy in front asked to sign in, or answered for the server. Otherwise
- * qBittorrent's, a request that took too long included: the bridge waits for qBittorrent, so a
- * request that hangs is most likely waiting on it.
+ * Who a failed request didn't get an answer from: Kinopeer's server when the network failed
+ * (fetch's TypeError) or a proxy in front asked to sign in (`unreached`), or answered for it
+ * (`kinopeer`). Otherwise qBittorrent, a request that took too long included: the bridge waits for
+ * qBittorrent, so a request that hangs is most likely waiting on it.
  */
 export function unreachable(error: unknown): Unreachable {
-  return error instanceof TypeError || error instanceof ProxySignInError || error instanceof KinopeerUnreachableError ? 'kinopeer' : 'qbittorrent'
+  if (error instanceof TypeError || error instanceof ProxySignInError) return 'unreached'
+  return error instanceof KinopeerUnreachableError ? 'kinopeer' : 'qbittorrent'
 }
 
 /** The server has no working qBittorrent login (the app asks for one, see src/api/settings). */

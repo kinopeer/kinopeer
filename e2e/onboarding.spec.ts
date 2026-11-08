@@ -47,6 +47,20 @@ test.describe('onboarding, desktop', () => {
 })
 
 test.describe('onboarding, phone', () => {
+  // #311: the connect screen's banner with Retry and Open again, and the hint.
+  test('Kinopeer doesn’t answer the session check, dark, Russian', async ({ page }) => {
+    await openApp(page, '/')
+    await page.route(
+      (url) => url.pathname === '/qbt/api/v2/app/version',
+      (route) => route.abort('connectionrefused'),
+    )
+    await page.reload()
+    await expect(page.getByRole('heading', { level: 1, name: 'Подключите qBittorrent' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Открыть заново' })).toBeVisible()
+    await settle(page)
+    await expect(page).toHaveScreenshot('connect-unreached-dark-ru.png')
+  })
+
   test('a wrong password, dark, Russian', async ({ page }) => {
     await openOnboarding(page, 'connect', { wrongLogin: true })
     await page.getByRole('textbox', { name: 'Логин' }).fill('admin')

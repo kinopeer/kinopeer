@@ -22,6 +22,11 @@ export interface AppOptions {
   torrents?: Torrent[]
   /** qBittorrent answers the first poll, then stops answering. */
   goesOffline?: boolean
+  /**
+   * Nothing answers the poll at all, as with a certificate the browser no longer trusts or Umbrel
+   * down: from the first poll, or after it.
+   */
+  unreached?: 'from-start' | 'after-first-poll'
   /** qBittorrent's alternative speed limits apply. */
   altSpeedLimits?: boolean
   /** The server rejects the login sent from the connect screen as a wrong login or password. */
@@ -79,6 +84,7 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
         polls += 1
         // The bridge's own failure: qBittorrent stopped answering, not Kinopeer's server.
         if (options.goesOffline && polls > 1) return route.fulfill({ status: 502, headers: BRIDGE_HEADERS, body: 'qBittorrent is unreachable' })
+        if (options.unreached === 'from-start' || (options.unreached === 'after-first-poll' && polls > 1)) return route.abort('connectionrefused')
         return json(
           route,
           mainData(torrents, {

@@ -25,6 +25,7 @@ import { tmdbTagFor } from '../torrents/parseName'
 import { categoryType } from '../torrents/titleMatches'
 import { readTorrentFile, type TorrentMeta } from '../torrents/torrentFile'
 import { useFreeSpace } from '../torrents/useMainData'
+import { unreachableText } from '../lib/unreachable'
 import { FilePicker } from './FilePicker'
 import { IndexerLink } from './IndexerLink'
 import './AddReleaseSheet.css'
@@ -127,7 +128,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
       onAdded()
     } catch (error) {
       setAdding(false)
-      setAddError(error instanceof QbittorrentError && error.status === 200 ? t('add.addFailed') : t('add.addError', { context: unreachable(error) }))
+      setAddError(error instanceof QbittorrentError && error.status === 200 ? t('add.addFailed') : t('add.addError', { context: unreachableText(unreachable(error)) }))
     }
   }
 

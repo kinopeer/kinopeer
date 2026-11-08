@@ -63,13 +63,25 @@ describe('ConnectScreen', () => {
     expect(onRetry).toHaveBeenCalled()
   })
 
-  it('says Kinopeer, not qBittorrent, did not answer the session check when so, and opens the page again past the shell', async () => {
-    const { onRetry } = setup(undefined, { unreachable: 'kinopeer' })
+  it('says Kinopeer, not qBittorrent, did not answer the session check, and offers Open again past the shell beside Retry', async () => {
+    const { onRetry } = setup(undefined, { unreachable: 'unreached' })
     const alert = screen.getByRole('alert', { name: saying('Kinopeer isn’t answering') })
-    expect(alert).toHaveTextContent('Check that this device is online and Kinopeer is running on your server. Open it again if your browser has to confirm Umbrel’s certificate or sign-in.')
+    expect(alert).toHaveTextContent(
+      'Check that this device is online and Kinopeer is running on your server. If your browser has to confirm Umbrel’s certificate or sign-in, open Kinopeer again.',
+    )
     await userEvent.click(within(alert).getByRole('button', { name: 'Open again' }))
     expect(proxySignIn.loadPastTheShell).toHaveBeenCalledOnce()
     expect(onRetry).not.toHaveBeenCalled()
+    await userEvent.click(within(alert).getByRole('button', { name: 'Try again' }))
+    expect(onRetry).toHaveBeenCalledOnce()
+  })
+
+  it('offers only Retry when something answered for Kinopeer’s server, as Umbrel does for a stopped app', () => {
+    setup(undefined, { unreachable: 'kinopeer' })
+    const alert = screen.getByRole('alert', { name: saying('Kinopeer isn’t answering') })
+    // Its certificate and sign-in are fine, so nothing says to open it again.
+    expect(alert).not.toHaveTextContent('open Kinopeer again')
+    expect(within(alert).queryByRole('button', { name: 'Open again' })).not.toBeInTheDocument()
   })
 
   it('takes a network error during sign-in for Kinopeer not answering', async () => {

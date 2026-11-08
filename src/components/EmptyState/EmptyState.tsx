@@ -11,6 +11,9 @@ export interface EmptyStateProps {
   actionLabel?: string
   actionIcon?: IconName
   onAction?: () => void
+  /** A second, ghost Button beside the action. */
+  secondaryActionLabel?: string
+  onSecondaryAction?: () => void
   className?: string
   children?: ReactNode
 }
@@ -22,6 +25,8 @@ export function EmptyState({
   actionLabel,
   actionIcon,
   onAction,
+  secondaryActionLabel,
+  onSecondaryAction,
   className,
   children,
 }: EmptyStateProps) {
@@ -32,10 +37,19 @@ export function EmptyState({
       </div>
       <h2 className="t-h3">{title}</h2>
       {children && <p className="t-body c2 ks-empty-body">{children}</p>}
-      {actionLabel && (
-        <Button variant="tonal" icon={actionIcon} onClick={onAction} className="ks-empty-action">
-          {actionLabel}
-        </Button>
+      {(actionLabel || secondaryActionLabel) && (
+        <div className="ks-empty-actions">
+          {actionLabel && (
+            <Button variant="tonal" icon={actionIcon} onClick={onAction}>
+              {actionLabel}
+            </Button>
+          )}
+          {secondaryActionLabel && (
+            <Button variant="ghost" onClick={onSecondaryAction}>
+              {secondaryActionLabel}
+            </Button>
+          )}
+        </div>
       )}
     </div>
   )

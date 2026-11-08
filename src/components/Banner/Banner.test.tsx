@@ -26,4 +26,16 @@ describe('Banner', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
     expect(onAction).toHaveBeenCalled()
   })
+
+  it('renders a second action after the first, each with its own handler', async () => {
+    const onAction = vi.fn()
+    const onSecondaryAction = vi.fn()
+    render(<Banner actionLabel="Retry" onAction={onAction} secondaryActionLabel="Open again" onSecondaryAction={onSecondaryAction} />)
+    const [first, second] = screen.getAllByRole('button')
+    expect(first).toHaveAccessibleName('Retry')
+    expect(second).toHaveAccessibleName('Open again')
+    await userEvent.click(second)
+    expect(onSecondaryAction).toHaveBeenCalledOnce()
+    expect(onAction).not.toHaveBeenCalled()
+  })
 })

@@ -643,8 +643,11 @@ describe('DownloadsScreen', () => {
     renderScreen()
     expect(await screen.findByRole('heading', { name: 'Can’t reach Kinopeer' })).toBeInTheDocument()
     expect(
-      screen.getByText('Check that this device is online and Kinopeer is running on your server. Retrying automatically; open it again if your browser has to confirm Umbrel’s certificate or sign-in.'),
+      screen.getByText(
+        'Check that this device is online and Kinopeer is running on your server. Retrying automatically. If your browser has to confirm Umbrel’s certificate or sign-in, open Kinopeer again.',
+      ),
     ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Open again' }))
     expect(loadPastTheShell).toHaveBeenCalledOnce()
 

@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import type { Unreachable } from '../api/qbittorrent'
 import { EmptyState } from '../components/EmptyState'
+import { unreachableText, useMayOpenAgain } from '../lib/unreachable'
 import { loadPastTheShell } from '../pwa/proxySignIn'
 
 export interface UnreachableStateProps {
@@ -10,21 +11,25 @@ export interface UnreachableStateProps {
 }
 
 /**
- * Nothing came from qBittorrent yet and the poll failed: who didn't answer, with Retry, or with Open
- * again when it's Kinopeer's server, past whatever the browser needs to confirm. Downloads and the
+ * Nothing came from qBittorrent yet and the poll failed: who didn't answer, with Retry, and Open
+ * again beside it when nothing answered for Kinopeer's server (`useMayOpenAgain`). Downloads and the
  * torrent details show it.
  */
 export function UnreachableState({ unreachable, onRetry }: UnreachableStateProps) {
   const { t } = useTranslation()
+  const openAgain = useMayOpenAgain(unreachable)
   return (
     <EmptyState
       icon="wifi-off"
       tone="error"
-      title={t('offline.unreachableTitle', { context: unreachable })}
-      actionLabel={unreachable === 'kinopeer' ? t('common.openAgain') : t('common.retry')}
-      onAction={unreachable === 'kinopeer' ? () => loadPastTheShell() : onRetry}
+      title={t('offline.unreachableTitle', { context: unreachableText(unreachable) })}
+      actionLabel={t('common.retry')}
+      onAction={onRetry}
+      secondaryActionLabel={openAgain ? t('common.openAgain') : undefined}
+      onSecondaryAction={() => loadPastTheShell()}
     >
-      {t('offline.unreachableBody', { context: unreachable })}
+      {t('offline.unreachableBody', { context: unreachableText(unreachable) })}
+      {openAgain && ` ${t('common.openAgainHint')}`}
     </EmptyState>
   )
 }

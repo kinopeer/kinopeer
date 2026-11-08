@@ -16,6 +16,7 @@
   "common": {
     "retry": "Try again",
     "openAgain": "Open again",
+    "openAgainHint": "If your browser has to confirm Umbrel’s certificate or sign-in, open Kinopeer again.",
     "close": "Close"
   },
   "connect": {
@@ -29,7 +30,7 @@
     "unreachableTitle": "qBittorrent is unreachable",
     "unreachableBody": "Check that qBittorrent is running and its Web UI is on.",
     "unreachableTitle_kinopeer": "Kinopeer isn’t answering",
-    "unreachableBody_kinopeer": "Check that this device is online and Kinopeer is running on your server. Open it again if your browser has to confirm Umbrel’s certificate or sign-in."
+    "unreachableBody_kinopeer": "Check that this device is online and Kinopeer is running on your server."
   },
   "status": {
     "downloading": "Downloading",
@@ -433,7 +434,7 @@
     "unreachableTitle": "Can’t reach qBittorrent",
     "unreachableBody": "Check that qBittorrent is running and the Kinopeer server can reach it. Retrying automatically.",
     "unreachableTitle_kinopeer": "Can’t reach Kinopeer",
-    "unreachableBody_kinopeer": "Check that this device is online and Kinopeer is running on your server. Retrying automatically; open it again if your browser has to confirm Umbrel’s certificate or sign-in.",
+    "unreachableBody_kinopeer": "Check that this device is online and Kinopeer is running on your server. Retrying automatically.",
     "reconnected": "Reconnected to qBittorrent"
   },
   "poll": {
