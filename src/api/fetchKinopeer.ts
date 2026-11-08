@@ -6,15 +6,23 @@ export class ProxySignInError extends Error {
   }
 }
 
-let signIn: () => void = () => {}
+/** What fetchKinopeer tells the page about a proxy in front of Kinopeer. */
+export interface ProxySignInHandlers {
+  /** A request was redirected to the proxy's sign-in. */
+  signIn: () => void
+  /** A request was answered without a redirect: whatever sign-in there was worked. */
+  answered: () => void
+}
+
+let handlers: ProxySignInHandlers = { signIn: () => {}, answered: () => {} }
 
 /**
  * What to do when a proxy in front of Kinopeer asks to sign in: the app loads the page through it
  * (startProxySignIn in src/pwa/proxySignIn.ts). Kept apart from the page, so these clients run
  * without a DOM too (the server's integration tests). Without it the request only fails.
  */
-export function onProxySignIn(handler: () => void): void {
-  signIn = handler
+export function onProxySignIn(next: ProxySignInHandlers): void {
+  handlers = next
 }
 
 /**
@@ -24,13 +32,14 @@ export function onProxySignIn(handler: () => void): void {
  * another origin, which a fetch can't follow (the CSP blocks it, and the sign-in is a page). That
  * holds while the only proxy in front is Umbrel's: one that redirects for anything else (a trailing
  * slash, a rewritten path, as a reverse proxy in front of plain Docker might) would fail every call
- * and load the screen again once a minute, and then a redirect to the same origin needs following.
+ * after loading the screen once through it, and then a redirect to the same origin needs following.
  */
 export async function fetchKinopeer(url: string, init: RequestInit = {}): Promise<Response> {
   const response = await fetch(url, { ...init, credentials: 'same-origin', redirect: 'manual' })
   if (response.type === 'opaqueredirect') {
-    signIn()
+    handlers.signIn()
     throw new ProxySignInError()
   }
+  handlers.answered()
   return response
 }

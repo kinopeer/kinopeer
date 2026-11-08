@@ -1,5 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ProxySignInError, fetchKinopeer, onProxySignIn } from '../api/fetchKinopeer'
+import { opaqueRedirect } from '../test/fixtures'
 import { SIGN_IN_RETRY_MS, signInThroughProxy, startProxySignIn } from './proxySignIn'
 
 const navigation = (href: string) => ({ href, replace: vi.fn<(url: string) => void>() })
@@ -9,9 +10,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  vi.restoreAllMocks()
-  vi.unstubAllGlobals()
-  onProxySignIn(() => {})
+  onProxySignIn({ signIn: () => {}, answered: () => {} })
   window.history.replaceState(null, '', '/')
 })
 
@@ -22,7 +21,7 @@ describe('signInThroughProxy', () => {
     expect(location.replace).toHaveBeenCalledExactlyOnceWith('https://umbrel.local:8798/search?q=dune&type=movie&proxy-sign-in=1#top')
   })
 
-  it('tries again only once SIGN_IN_RETRY_MS has passed, so a proxy whose cookie does not stick does not loop', () => {
+  it('tries again only once SIGN_IN_RETRY_MS has passed, so a sign-in closed without signing in does not reopen with every poll', () => {
     const first = navigation('https://umbrel.local:8798/')
     signInThroughProxy(first, 1_000_000)
     const soon = navigation('https://umbrel.local:8798/')
@@ -68,13 +67,28 @@ describe('startProxySignIn', () => {
   })
 
   it('loads the page through the proxy when a request comes back redirected', async () => {
-    const fetchMock: Mock<typeof fetch> = vi.fn<typeof fetch>()
-    // What fetch answers for a redirect with redirect: 'manual'; jsdom can't build one.
-    fetchMock.mockResolvedValue({ type: 'opaqueredirect', status: 0, ok: false } as Response)
-    vi.stubGlobal('fetch', fetchMock)
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockResolvedValue(opaqueRedirect()))
     const location = navigation('https://umbrel.local:8798/torrent/abc')
     startProxySignIn(location)
     await expect(fetchKinopeer('/qbt/api/v2/app/version')).rejects.toBeInstanceOf(ProxySignInError)
+    expect(location.replace).toHaveBeenCalledExactlyOnceWith('https://umbrel.local:8798/torrent/abc?proxy-sign-in=1')
+  })
+
+  it('does not sign in again on the way back from a sign-in while every request is still redirected: the cookie did not stick', async () => {
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockResolvedValue(opaqueRedirect()))
+    const location = navigation('https://umbrel.local:8798/torrent/abc?proxy-sign-in=1')
+    startProxySignIn(location)
+    await expect(fetchKinopeer('/qbt/api/v2/app/version')).rejects.toBeInstanceOf(ProxySignInError)
+    expect(location.replace).not.toHaveBeenCalled()
+  })
+
+  it('signs in again once a request on the way back was answered, when a later one is redirected', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(new Response('v5.1.0')).mockResolvedValue(opaqueRedirect())
+    vi.stubGlobal('fetch', fetchMock)
+    const location = navigation('https://umbrel.local:8798/torrent/abc?proxy-sign-in=1')
+    startProxySignIn(location)
+    await fetchKinopeer('/qbt/api/v2/app/version')
+    await expect(fetchKinopeer('/qbt/api/v2/sync/maindata')).rejects.toBeInstanceOf(ProxySignInError)
     expect(location.replace).toHaveBeenCalledExactlyOnceWith('https://umbrel.local:8798/torrent/abc?proxy-sign-in=1')
   })
 })

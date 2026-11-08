@@ -1,23 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
+import { opaqueRedirect } from '../test/fixtures'
 import { ProxySignInError, fetchKinopeer, onProxySignIn } from './fetchKinopeer'
 
 let fetchMock: Mock<typeof fetch>
-let signIn: Mock<() => void>
+const proxy = { signIn: vi.fn<() => void>(), answered: vi.fn<() => void>() }
 
 beforeEach(() => {
   fetchMock = vi.fn<typeof fetch>()
   vi.stubGlobal('fetch', fetchMock)
-  signIn = vi.fn()
-  onProxySignIn(signIn)
+  onProxySignIn(proxy)
 })
 
 afterEach(() => {
-  vi.unstubAllGlobals()
-  onProxySignIn(() => {})
+  onProxySignIn({ signIn: () => {}, answered: () => {} })
 })
-
-/** What fetch answers for a redirect with redirect: 'manual'; jsdom can't build one. */
-const opaqueRedirect = () => ({ type: 'opaqueredirect', status: 0, ok: false }) as Response
 
 describe('fetchKinopeer', () => {
   it('sends the cookies, does not follow redirects and keeps the rest of the request', async () => {
@@ -32,19 +28,20 @@ describe('fetchKinopeer', () => {
       credentials: 'same-origin',
       redirect: 'manual',
     })
-    expect(signIn).not.toHaveBeenCalled()
   })
 
   it('takes a redirect for a sign-in proxy: signs in through it and fails the request', async () => {
     fetchMock.mockResolvedValueOnce(opaqueRedirect())
     await expect(fetchKinopeer('/qbt/api/v2/app/version')).rejects.toBeInstanceOf(ProxySignInError)
-    expect(signIn).toHaveBeenCalledOnce()
+    expect(proxy.signIn).toHaveBeenCalledOnce()
+    expect(proxy.answered).not.toHaveBeenCalled()
   })
 
-  it('passes an error answer on, which the clients read themselves', async () => {
+  it('passes any other answer on, an error included, and says one came', async () => {
     fetchMock.mockResolvedValueOnce(new Response('qBittorrent is unreachable', { status: 502 }))
     const response = await fetchKinopeer('/qbt/api/v2/app/version')
     expect(response.status).toBe(502)
-    expect(signIn).not.toHaveBeenCalled()
+    expect(proxy.answered).toHaveBeenCalledOnce()
+    expect(proxy.signIn).not.toHaveBeenCalled()
   })
 })

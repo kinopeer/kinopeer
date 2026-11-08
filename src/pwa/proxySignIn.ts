@@ -12,7 +12,10 @@ import { PROXY_SIGN_IN_PARAM } from './swRoutes'
  * address, where the app takes the parameter away.
  */
 
-/** How long after one sign-in another isn't tried: a proxy whose cookie doesn't stick would loop. */
+/**
+ * How long after one sign-in another isn't tried: a sign-in closed without signing in leaves the
+ * page where it was, whose next poll would open it again at once.
+ */
 export const SIGN_IN_RETRY_MS = 60_000
 
 const SIGNED_IN_AT_KEY = 'kinopeer.proxySignInAt'
@@ -38,13 +41,23 @@ export function signInThroughProxy(location: Navigation, now = Date.now()): void
 
 /**
  * Takes the parameter out of the address the proxy sent the app back to, before the app routes
- * it, and signs in through the proxy whenever a request is redirected from now on.
+ * it, and signs in through the proxy whenever a request is redirected from now on. Except on the
+ * way back from a sign-in, until a request is answered without a redirect: a redirect then means
+ * the proxy's cookie didn't stick, and signing in again would only load the page over and over.
  */
 export function startProxySignIn(location: Navigation = window.location): void {
   const url = new URL(location.href)
-  if (url.searchParams.has(PROXY_SIGN_IN_PARAM)) {
+  let backFromSignIn = url.searchParams.has(PROXY_SIGN_IN_PARAM)
+  if (backFromSignIn) {
     url.searchParams.delete(PROXY_SIGN_IN_PARAM)
     window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
   }
-  onProxySignIn(() => signInThroughProxy(location))
+  onProxySignIn({
+    signIn: () => {
+      if (!backFromSignIn) signInThroughProxy(location)
+    },
+    answered: () => {
+      backFromSignIn = false
+    },
+  })
 }
