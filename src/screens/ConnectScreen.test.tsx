@@ -48,12 +48,15 @@ describe('ConnectScreen', () => {
 
     await userEvent.type(password, 'x')
     expect(password).not.toHaveAttribute('aria-invalid')
+    // A refused login is the server answering: nothing says it's unreachable.
+    expect(screen.queryByRole('alert', { name: saying(/unreachable|answering/) })).not.toBeInTheDocument()
   })
 
   it('explains an IP ban', async () => {
     setup(vi.fn().mockRejectedValue(new SettingsError(429, 'banned')))
     await fillAndSubmit()
     expect(screen.getByRole('alert', { name: saying(/qBittorrent has blocked this address/) })).toBeInTheDocument()
+    expect(screen.queryByRole('alert', { name: saying(/unreachable|answering/) })).not.toBeInTheDocument()
   })
 
   it('reports an unreachable qBittorrent and offers a retry', async () => {
@@ -84,10 +87,18 @@ describe('ConnectScreen', () => {
     expect(within(alert).queryByRole('button', { name: 'Open again' })).not.toBeInTheDocument()
   })
 
-  it('takes a network error during sign-in for Kinopeer not answering', async () => {
+  it('takes a network error during sign-in for Kinopeer unreached, with Open again', async () => {
     setup(vi.fn().mockRejectedValue(new TypeError('Failed to fetch')), { unreachable: 'qbittorrent' })
     await fillAndSubmit()
-    expect(screen.getByRole('alert', { name: saying('Kinopeer isn’t answering') })).toBeInTheDocument()
+    const alert = screen.getByRole('alert', { name: saying('Kinopeer isn’t answering') })
+    expect(within(alert).getByRole('button', { name: 'Open again' })).toBeInTheDocument()
+  })
+
+  it('takes a sign-in failure without the server’s word for something answering for Kinopeer, without Open again', async () => {
+    setup(vi.fn().mockRejectedValue(new SettingsError(502)), { unreachable: 'qbittorrent' })
+    await fillAndSubmit()
+    const alert = screen.getByRole('alert', { name: saying('Kinopeer isn’t answering') })
+    expect(within(alert).queryByRole('button', { name: 'Open again' })).not.toBeInTheDocument()
   })
 
   it('takes any answer of the server’s own, qBittorrent not set up included, for the server answering', async () => {
