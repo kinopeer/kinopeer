@@ -30,7 +30,8 @@
     "unreachableTitle": "qBittorrent недоступен",
     "unreachableBody": "Проверьте, что qBittorrent запущен и веб-интерфейс включён.",
     "unreachableTitle_kinopeer": "Kinopeer не отвечает",
-    "unreachableBody_kinopeer": "Проверьте, что устройство в сети и Kinopeer запущен на сервере."
+    "unreachableBody_kinopeer": "Проверьте, что устройство в сети и Kinopeer запущен на сервере.",
+    "unreachableBody_openAgain": "$t(common.openAgainHint)"
   },
   "status": {
     "downloading": "Загружается",
@@ -470,6 +471,7 @@
     "unreachableBody": "Проверьте, что qBittorrent запущен и сервер Kinopeer может до него достучаться. Переподключаемся автоматически.",
     "unreachableTitle_kinopeer": "Kinopeer недоступен",
     "unreachableBody_kinopeer": "Проверьте, что устройство в сети и Kinopeer запущен на сервере. Переподключаемся автоматически.",
+    "unreachableBody_openAgain": "Переподключаемся автоматически. $t(common.openAgainHint)",
     "reconnected": "Снова на связи с qBittorrent"
   },
   "poll": {

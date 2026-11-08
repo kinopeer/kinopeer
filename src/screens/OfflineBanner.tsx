@@ -35,6 +35,12 @@ export function OfflineBanner({ unreachable, updatedAt, onRetry }: OfflineBanner
       onSecondaryAction={() => loadPastTheShell()}
     >
       {updatedAt === null ? t('offline.retrying') : t('offline.updated', { ago: format.since(updatedAt, now) })}
+      {openAgain && (
+        <>
+          <br />
+          {t('common.openAgainHint')}
+        </>
+      )}
     </Banner>
   )
 }

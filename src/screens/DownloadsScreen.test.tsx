@@ -645,7 +645,7 @@ describe('DownloadsScreen', () => {
     expect(await screen.findByRole('heading', { name: 'Can’t reach Kinopeer' })).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Check that this device is online and Kinopeer is running on your server. Retrying automatically. If you’re sure the server running Kinopeer is on and reachable on your network, your browser may need to confirm its certificate again: open Kinopeer again.',
+        'Retrying automatically. If you’re sure the server running Kinopeer is on and reachable on your network, your browser may need to confirm its certificate again: open Kinopeer again.',
       ),
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
@@ -658,6 +658,8 @@ describe('DownloadsScreen', () => {
     getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     window.dispatchEvent(new Event('online'))
     const banner = await screen.findByRole('status', { name: saying('No connection to Kinopeer') })
+    // The banner says when to use it, with the same words as everywhere.
+    expect(banner).toHaveTextContent('If you’re sure the server running Kinopeer is on and reachable on your network')
     await userEvent.click(within(banner).getByRole('button', { name: 'Open again' }))
     expect(loadPastTheShell).toHaveBeenCalledTimes(2)
   })
@@ -670,8 +672,9 @@ describe('DownloadsScreen', () => {
     window.dispatchEvent(new Event('online'))
     const banner = await screen.findByRole('status', { name: saying('No connection to qBittorrent') })
     expect(screen.getByRole('status', { name: saying('Updated just now · actions paused') })).toBeInTheDocument()
-    // qBittorrent's own outage: Retry polls, nothing loads the page past the shell.
+    // qBittorrent's own outage: Retry polls, nothing loads the page past the shell or says to.
     expect(within(banner).getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+    expect(banner).not.toHaveTextContent('open Kinopeer again')
     expect(screen.getAllByRole('listitem')).toHaveLength(3)
   })
 })

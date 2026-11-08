@@ -8,10 +8,11 @@ import { Input } from '../components/Input'
 import { unreachableText, useMayOpenAgain } from '../lib/unreachable'
 import { loadPastTheShell } from '../pwa/proxySignIn'
 import { Preferences } from './Preferences'
+import { UnreachableState } from './UnreachableState'
 import './ConnectScreen.css'
 
 export interface ConnectScreenProps {
-  /** Who didn't answer the session check: Kinopeer's server or qBittorrent. */
+  /** Who didn't answer the session check: shown in place of the form, with Retry. */
   unreachable?: Unreachable
   onRetry: () => void
   /** Rejects with a SettingsError saying why the server couldn't log in. */
@@ -46,8 +47,21 @@ export function ConnectScreen({ unreachable: unreachableProp, onRetry, onSignIn 
     }
   }
 
-  const showUnreachable = error === null || error === 'invalid' || error === 'banned' ? unreachableProp : error
-  const openAgain = useMayOpenAgain(showUnreachable)
+  // Who didn't answer the sign-in, shown over the form, so what was typed stays.
+  const signInUnreachable = error === null || error === 'invalid' || error === 'banned' ? undefined : error
+  const openAgain = useMayOpenAgain(signInUnreachable)
+
+  // The session check got no answer: no login form until there's someone to sign in to.
+  if (unreachableProp) {
+    return (
+      <main className="screen connect">
+        <section className="connect-form connect-unreachable">
+          <UnreachableState unreachable={unreachableProp} onRetry={onRetry} texts="connect" />
+        </section>
+        <Preferences />
+      </main>
+    )
+  }
 
   return (
     <main className="screen connect">
@@ -57,17 +71,16 @@ export function ConnectScreen({ unreachable: unreachableProp, onRetry, onSignIn 
           <p className="t-body c2">{t('connect.body')}</p>
         </div>
 
-        {showUnreachable && (
+        {signInUnreachable && (
           <Banner
             tone="error"
-            title={t('connect.unreachableTitle', { context: unreachableText(showUnreachable) })}
+            title={t('connect.unreachableTitle', { context: unreachableText(signInUnreachable) })}
             actionLabel={t('common.retry')}
             onAction={onRetry}
             secondaryActionLabel={openAgain ? t('common.openAgain') : undefined}
             onSecondaryAction={() => loadPastTheShell()}
           >
-            {t('connect.unreachableBody', { context: unreachableText(showUnreachable) })}
-            {openAgain && ` ${t('common.openAgainHint')}`}
+            {t('connect.unreachableBody', { context: openAgain ? 'openAgain' : unreachableText(signInUnreachable) })}
           </Banner>
         )}
         {error === 'banned' && <Banner tone="error">{t('connect.banned')}</Banner>}

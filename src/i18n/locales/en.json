@@ -30,7 +30,8 @@
     "unreachableTitle": "qBittorrent is unreachable",
     "unreachableBody": "Check that qBittorrent is running and its Web UI is on.",
     "unreachableTitle_kinopeer": "Kinopeer isn’t answering",
-    "unreachableBody_kinopeer": "Check that this device is online and Kinopeer is running on your server."
+    "unreachableBody_kinopeer": "Check that this device is online and Kinopeer is running on your server.",
+    "unreachableBody_openAgain": "$t(common.openAgainHint)"
   },
   "status": {
     "downloading": "Downloading",
@@ -435,6 +436,7 @@
     "unreachableBody": "Check that qBittorrent is running and the Kinopeer server can reach it. Retrying automatically.",
     "unreachableTitle_kinopeer": "Can’t reach Kinopeer",
     "unreachableBody_kinopeer": "Check that this device is online and Kinopeer is running on your server. Retrying automatically.",
+    "unreachableBody_openAgain": "Retrying automatically. $t(common.openAgainHint)",
     "reconnected": "Reconnected to qBittorrent"
   },
   "poll": {
