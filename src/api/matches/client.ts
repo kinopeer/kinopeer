@@ -1,4 +1,5 @@
 import type { Matches, MatchesPatch } from './types'
+import { fetchKinopeer } from '../fetchKinopeer'
 
 /** Torrent-to-title matches the Kinopeer server keeps (server/matches.ts). */
 export const MATCHES_BASE = '/api/matches'
@@ -22,7 +23,7 @@ async function read(response: Response): Promise<Matches> {
 }
 
 export async function getMatches(signal?: AbortSignal): Promise<Matches> {
-  return read(await fetch(MATCHES_BASE, { credentials: 'same-origin', signal }))
+  return read(await fetchKinopeer(MATCHES_BASE, { signal }))
 }
 
 /**
@@ -31,9 +32,8 @@ export async function getMatches(signal?: AbortSignal): Promise<Matches> {
  */
 export async function saveMatches(matches: MatchesPatch): Promise<Matches> {
   return read(
-    await fetch(MATCHES_BASE, {
+    await fetchKinopeer(MATCHES_BASE, {
       method: 'PATCH',
-      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(matches),
     }),
@@ -42,5 +42,5 @@ export async function saveMatches(matches: MatchesPatch): Promise<Matches> {
 
 /** Forgets every guess, so browsers guess again; the user's choices stay. Answers what is left. */
 export async function clearGuesses(): Promise<Matches> {
-  return read(await fetch(MATCHES_BASE, { method: 'DELETE', credentials: 'same-origin' }))
+  return read(await fetchKinopeer(MATCHES_BASE, { method: 'DELETE' }))
 }

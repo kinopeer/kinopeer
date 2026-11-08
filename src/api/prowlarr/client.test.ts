@@ -20,6 +20,7 @@ describe('searchReleases', () => {
     // The SPA fallback answering instead of the bridge.
     fetchMock.mockResolvedValueOnce(new Response('<!doctype html>', { headers: { 'Content-Type': 'text/html' } }))
     await expect(searchReleases('a')).rejects.toBeInstanceOf(ProwlarrSetupError)
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ credentials: 'same-origin', redirect: 'manual' })
   })
 })
 

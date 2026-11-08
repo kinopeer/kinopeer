@@ -75,7 +75,7 @@ describe('startUpdateChecks', () => {
     const fetchMock = serverHas(NEW)
     stop = startUpdateChecks(reload)
     await settle()
-    expect(fetchMock).toHaveBeenCalledWith(VERSION_URL, expect.objectContaining({ cache: 'no-store' }))
+    expect(fetchMock).toHaveBeenCalledWith(VERSION_URL, expect.objectContaining({ cache: 'no-store', redirect: 'manual' }))
     expect(reload).toHaveBeenCalledOnce()
   })
 

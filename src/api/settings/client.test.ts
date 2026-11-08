@@ -16,7 +16,7 @@ describe('getServerSettings', () => {
   it('fails when the server has no settings route', async () => {
     fetchMock.mockResolvedValueOnce(new Response('<!doctype html>', { headers: { 'Content-Type': 'text/html' } }))
     await expect(getServerSettings()).rejects.toBeInstanceOf(SettingsError)
-    expect(fetchMock.mock.calls[0][1]?.credentials).toBe('same-origin')
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ credentials: 'same-origin', redirect: 'manual' })
   })
 })
 

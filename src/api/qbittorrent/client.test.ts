@@ -54,6 +54,7 @@ describe('getTorrents', () => {
     expect(torrents).toEqual([{ hash: 'abc', name: 'Dune' }])
     const url = new URL(lastCall().url, 'http://localhost')
     expect(url.pathname).toBe('/qbt/api/v2/torrents/info')
+    expect(lastCall().init).toMatchObject({ credentials: 'same-origin', redirect: 'manual' })
     expect(Object.fromEntries(url.searchParams)).toEqual({
       filter: 'downloading',
       sort: 'added_on',

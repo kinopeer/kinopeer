@@ -1,4 +1,5 @@
 import { MAX_FAILING_WITHIN_MS, type FailingIndexers, type MagnetResponse, type ProwlarrErrorBody, type ProwlarrStatus, type Release, type SearchType } from './types'
+import { fetchKinopeer } from '../fetchKinopeer'
 
 /** Same-origin prefix served by Kinopeer's Prowlarr bridge (server/prowlarr.ts). */
 export const PROWLARR_BASE = '/prowlarr'
@@ -44,7 +45,7 @@ export async function searchReleases(query: string, options: SearchOptions = {})
   const { type = 'search', categories = [], signal } = options
   const params = new URLSearchParams({ query, type })
   for (const category of categories) params.append('categories', String(category))
-  const response = await fetch(`${PROWLARR_BASE}/search?${params}`, { credentials: 'same-origin', signal })
+  const response = await fetchKinopeer(`${PROWLARR_BASE}/search?${params}`, { signal })
   if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) throw await errorFor(response)
   return (await response.json()) as Release[]
 }
@@ -58,14 +59,14 @@ export async function getFailingIndexers(elapsedMs: number, signal?: AbortSignal
   // The server takes ten minutes at most. A page left open longer (or a clock that kept counting
   // through sleep) still gets a note about the last ten minutes.
   const params = new URLSearchParams({ within: String(Math.min(MAX_FAILING_WITHIN_MS, Math.max(0, Math.round(elapsedMs)))) })
-  const response = await fetch(`${PROWLARR_BASE}/failing?${params}`, { credentials: 'same-origin', signal })
+  const response = await fetchKinopeer(`${PROWLARR_BASE}/failing?${params}`, { signal })
   if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) throw await errorFor(response)
   return ((await response.json()) as FailingIndexers).indexers
 }
 
 /** Checks the connection: Prowlarr's version and how many indexers are enabled. */
 export async function getProwlarrStatus(signal?: AbortSignal): Promise<ProwlarrStatus> {
-  const response = await fetch(`${PROWLARR_BASE}/status`, { credentials: 'same-origin', signal })
+  const response = await fetchKinopeer(`${PROWLARR_BASE}/status`, { signal })
   if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) throw await errorFor(response)
   return (await response.json()) as ProwlarrStatus
 }
@@ -92,7 +93,7 @@ export async function fetchRelease(release: Release, signal?: AbortSignal): Prom
 
 async function download(release: Release, token: string, signal?: AbortSignal): Promise<ReleaseSource> {
   const params = new URLSearchParams({ token })
-  const response = await fetch(`${PROWLARR_BASE}/download?${params}`, { credentials: 'same-origin', signal })
+  const response = await fetchKinopeer(`${PROWLARR_BASE}/download?${params}`, { signal })
   if (!response.ok) throw await errorFor(response)
   if (response.headers.get('content-type')?.includes('application/json')) {
     return { kind: 'magnet', uri: ((await response.json()) as MagnetResponse).magnet }

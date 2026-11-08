@@ -2,6 +2,12 @@
 
 Kinopeer follows [semantic versioning](https://semver.org). While the version is 0.x, minor versions may change behavior and settings.
 
+## Unreleased
+
+### Fixed
+
+- On Umbrel over HTTPS, Kinopeer installed as an app no longer says qBittorrent is unreachable once Umbrel's sign-in for it lapses, which it does a week after the app last loaded through it: Kinopeer loads the screen it's on through Umbrel's sign-in, which asks for the Umbrel password if Umbrel's own session is gone too, and comes back to it. The same happens over plain HTTP when the app is resumed from the background. ([#303](https://github.com/kinopeer/kinopeer/issues/303))
+
 ## 0.7.2 - 2026-11-07
 
 A security release before Kinopeer's code goes public: its server passes on to qBittorrent only Kinopeer's own requests, and the browser runs only Kinopeer's own code.

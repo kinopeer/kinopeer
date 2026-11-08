@@ -1,3 +1,5 @@
+import { fetchKinopeer } from '../api/fetchKinopeer'
+
 /**
  * Brings an open app to a new version. A page kept in memory (the app on the Home Screen resumed
  * from the background, a tab left open) never navigates, so nothing loads the new bundle: over
@@ -18,7 +20,7 @@ const RELOADED_FOR_KEY = 'kinopeer.reloadedFor'
 
 async function serverVersion(): Promise<string | null> {
   try {
-    const response = await fetch(VERSION_URL, { cache: 'no-store', credentials: 'same-origin' })
+    const response = await fetchKinopeer(VERSION_URL, { cache: 'no-store' })
     // An error page or index.html in its place isn't JSON with a version either.
     const { version } = (await response.json()) as { version?: unknown }
     return typeof version === 'string' ? version : null
