@@ -146,13 +146,16 @@ export default defineConfig(({ mode }) => {
         { extends: true, test: { name: 'server', include: ['server/**/*.test.ts', 'tmdb-proxy/**/*.test.ts', 'vite.config.test.ts'], environment: 'node' } },
       ],
       // `npm run test:coverage`: a table in the terminal and coverage/index.html; CI runs the same.
-      // Test helpers, type-only modules and the barrels that only re-export (src/i18n/index.ts sets
-      // i18next up, so it counts) are left out, since they have no behavior to cover. The thresholds
-      // are a ratchet (docs/TESTING.md → Coverage): two points under the totals when they were set,
-      // raised when the totals grow and stay there, never lowered to get a PR through.
+      // Only the code is measured: a pattern without an extension also takes in config and data
+      // files, which v8 can't parse as JavaScript (tmdb-proxy/wrangler.jsonc, #283) or counts as
+      // uncovered lines (tmdb-proxy/package.json). Test helpers, type-only modules and the barrels
+      // that only re-export (src/i18n/index.ts sets i18next up, so it counts) are left out, since
+      // they have no behavior to cover. The thresholds are a ratchet (docs/TESTING.md → Coverage):
+      // two points under the totals when they were set, raised when the totals grow and stay there,
+      // never lowered to get a PR through.
       coverage: {
         provider: 'v8',
-        include: ['src/**', 'server/**', 'tmdb-proxy/**'],
+        include: ['src/**/*.{ts,tsx}', 'server/**/*.ts', 'tmdb-proxy/**/*.ts'],
         exclude: [
           '**/*.test.{ts,tsx}',
           'src/test/**',

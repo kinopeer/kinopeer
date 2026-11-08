@@ -549,8 +549,8 @@ imports Node needs.
 ## Coverage
 
 `npm run test:coverage` runs the Vitest layers with `@vitest/coverage-v8` and prints a table per
-file, plus an HTML report in `coverage/` (git-ignored). It measures `src/`, `server/` and
-`tmdb-proxy/` without the tests themselves, `src/test/`, `server/test/`, type-only modules and the `index.ts` barrels of
+file, plus an HTML report in `coverage/` (git-ignored). It measures the TypeScript in `src/`, `server/` and
+`tmdb-proxy/`, not the config and data files beside it (#283), without the tests themselves, `src/test/`, `server/test/`, type-only modules and the `index.ts` barrels of
 `src/api/*` and `src/components/*`, which only re-export (`vite.config.ts`). CI runs the same in the
 `check` job, adds the totals to the job summary (`scripts/coverage-summary.mjs`) and uploads the HTML
 report as the `coverage` artifact.
