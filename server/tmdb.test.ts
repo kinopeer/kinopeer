@@ -1,9 +1,23 @@
+import { request as httpRequest } from 'node:http'
 import { afterEach, describe, expect, it } from 'vitest'
 import { tmdbMiddleware, type TmdbConfig } from './tmdb.ts'
 import { abandon, closeServers, fakeTmdb, listen, serve, settlesWithin, silentService } from './test/fakes.ts'
 
 /** Kinopeer's side: the middleware under test. */
 const kinopeer = (config: TmdbConfig) => serve(tmdbMiddleware(config))
+
+/** GETs `path` as written: `fetch` would resolve its dots and backslashes first, as browsers do. */
+function getRaw(base: string, path: string): Promise<number> {
+  const { hostname, port } = new URL(base)
+  return new Promise((resolve, reject) => {
+    httpRequest({ hostname, port, path }, (response) => {
+      response.resume()
+      resolve(response.statusCode!)
+    })
+      .on('error', reject)
+      .end()
+  })
+}
 
 afterEach(closeServers)
 
@@ -173,6 +187,57 @@ describe('tmdbMiddleware', () => {
     expect(response.status).toBe(504)
     expect(await response.json()).toEqual({ status_message: 'TMDB didn’t answer in time' })
     expect(await settlesWithin(tmdb.closed, 1000)).toBe(true)
+  })
+
+  // fetch resolves dot segments, encoded ones too, and reads a backslash as a slash, so these would
+  // reach paths outside /3/ (with the user's key, or on the proxy's host) or /t/p/ (#305). An encoded
+  // slash or backslash would too, through a server on the way that decodes it first.
+  describe.each([
+    ['with a key', { apiKey: 'abc123' }],
+    ['through the proxy', {}],
+  ])('refuses a path that leads out of its prefix %s', (_, config) => {
+    async function bridge() {
+      const tmdb = await fakeTmdb()
+      const proxy = await fakeTmdb()
+      const app = await kinopeer({ ...config, apiBase: tmdb.apiBase, proxyBase: proxy.apiBase, imageBase: `${tmdb.base}/t/p` })
+      return { app, seen: () => [...tmdb.seen, ...proxy.seen] }
+    }
+
+    it.each([
+      '/tmdb/../4/account',
+      '/tmdb/%2e%2e/4/account',
+      '/tmdb/%2E%2E/4/account',
+      '/tmdb/.%2e/4/account',
+      '/tmdb/..\\4/account',
+      '/tmdb/movie\\..\\..\\4/account',
+      // Even where it would stay under /3/.
+      '/tmdb/movie/../tv/1399',
+      '/tmdb/movie/./771',
+      '/tmdb-img/../../4/account',
+      '/tmdb-img/w342/%2e%2e/%2e%2e/x.jpg',
+      '/tmdb/..%2f4/account',
+      '/tmdb/..%2F4/account',
+      '/tmdb/%2e%2e%2f4/account',
+      '/tmdb/..%5c4/account',
+      '/tmdb/..%5C4/account',
+    ])('%s', async (path) => {
+      const { app, seen } = await bridge()
+      expect(await getRaw(app, path)).toBe(404)
+      expect(seen()).toEqual([])
+    })
+  })
+
+  it('passes on dots that fetch keeps: in a name and in the query, an encoded slash there too', async () => {
+    const tmdb = await fakeTmdb()
+    const app = await kinopeer({ apiKey: 'abc123', apiBase: tmdb.apiBase, imageBase: `${tmdb.base}/t/p` })
+
+    await getRaw(app, '/tmdb/search/multi?query=..%2f4/account')
+    await getRaw(app, '/tmdb-img/w342/poster.v2.jpg')
+
+    expect(tmdb.seen.map((request) => request.url)).toEqual([
+      '/3/search/multi?query=..%2f4/account&api_key=abc123',
+      '/t/p/w342/poster.v2.jpg',
+    ])
   })
 
   it('leaves other paths and methods alone', async () => {
