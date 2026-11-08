@@ -290,7 +290,7 @@ describe('DownloadsScreen', () => {
     searchTitles.mockImplementation(async (query) => searchPage(query === 'Dune Part Two' ? [DUNE_TITLE] : []))
     renderScreen()
     await screen.findByText('Dune: Part Two')
-    expect(screen.getByRole('button', { name: 'Sort: Priority' })).not.toHaveTextContent('Series')
+    expect(screen.getByRole('button', { name: 'Sort: Priority' })).toHaveTextContent(/^Priority$/)
     await userEvent.click(screen.getByRole('button', { name: 'Sort: Priority' }))
     const sheet = within(screen.getByRole('dialog', { name: 'Sort & filter' }))
     const types = within(sheet.getByRole('radiogroup', { name: 'Type' }))
@@ -313,7 +313,7 @@ describe('DownloadsScreen', () => {
     await userEvent.click(filters.getByRole('button', { name: 'Seeding 0' }))
     await userEvent.click(screen.getByRole('button', { name: 'Reset filters' }))
     expect(screen.getAllByRole('listitem')).toHaveLength(3)
-    expect(screen.getByRole('button', { name: 'Sort: Priority' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sort: Priority' })).toHaveTextContent(/^Priority$/)
   })
 
   it('sorts in the usual direction, whichever one desktop reversed it to', async () => {

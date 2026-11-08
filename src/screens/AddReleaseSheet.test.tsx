@@ -266,7 +266,7 @@ describe('AddReleaseSheet', () => {
     renderSheet()
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
     const files = await within(sheet).findByRole('button', { name: /Files: all \(3\)/ })
-    expect(files).not.toHaveTextContent('Free:')
+    expect(files).not.toHaveTextContent(/free/)
     expect(within(sheet).queryByText('Not enough free space')).not.toBeInTheDocument()
     expect(within(sheet).queryByText(/→/)).not.toBeInTheDocument()
 
@@ -276,7 +276,7 @@ describe('AddReleaseSheet', () => {
 
     await userEvent.click(files)
     const picker = screen.getByRole('dialog', { name: 'Select files' })
-    expect(within(picker).queryByText(/free space|Free:/)).not.toBeInTheDocument()
+    expect(within(picker).queryByText(/free/)).not.toBeInTheDocument()
     await userEvent.click(within(picker).getByRole('button', { name: 'Done' }))
 
     await userEvent.click(within(screen.getByRole('dialog', { name: 'Add to downloads' })).getByRole('button', { name: /^Download/ }))
@@ -322,7 +322,7 @@ describe('AddReleaseSheet', () => {
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
     expect(await within(sheet).findByText('TV → /data/tv')).toBeInTheDocument()
     const files = await within(sheet).findByRole('button', { name: /Files: all \(3\)/ })
-    expect(files).not.toHaveTextContent('Free:')
+    expect(files).not.toHaveTextContent(/free/)
     expect(within(sheet).queryByRole('status', { name: saying('Not enough free space') })).not.toBeInTheDocument()
 
     answer({ rid: 1, server_state: { free_space_on_disk: 40e9 } })
@@ -397,13 +397,13 @@ describe('AddReleaseSheet', () => {
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
     expect(await within(sheet).findByText('TV → /data/tv')).toBeInTheDocument()
     const files = await within(sheet).findByRole('button', { name: /Files: all \(3\)/ })
-    expect(files).not.toHaveTextContent('Free:')
+    expect(files).not.toHaveTextContent(/free/)
     expect(within(sheet).queryByText('Not enough free space')).not.toBeInTheDocument()
 
     await userEvent.click(files)
     const picker = screen.getByRole('dialog', { name: 'Select files' })
     expect(within(picker).queryByText('Not enough free space')).not.toBeInTheDocument()
-    expect(within(picker).queryByText(/Free:/)).not.toBeInTheDocument()
+    expect(within(picker).queryByText(/free/)).not.toBeInTheDocument()
   })
 
   it('warns about a magnet link by the release size', async () => {

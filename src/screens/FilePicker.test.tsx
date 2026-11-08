@@ -79,7 +79,7 @@ describe('FilePicker', () => {
 
   it.each([undefined, 0, -1])('says nothing about free space when qBittorrent reports %s', (free) => {
     const picker = renderPicker({ free })
-    expect(picker.queryByText(/free space|Free:/)).not.toBeInTheDocument()
+    expect(picker.queryByText(/free/)).not.toBeInTheDocument()
     expect(picker.queryByRole('progressbar')).not.toBeInTheDocument()
   })
 
