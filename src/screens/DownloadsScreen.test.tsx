@@ -636,6 +636,7 @@ describe('DownloadsScreen', () => {
     getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     renderScreen()
     expect(await screen.findByRole('heading', { name: 'Can’t reach Kinopeer' })).toBeInTheDocument()
+    expect(screen.getByText('Check that this device is online and Kinopeer is running on your server. Retrying automatically.')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
     expect(await screen.findAllByRole('listitem')).toHaveLength(3)
