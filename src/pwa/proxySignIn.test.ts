@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ProxySignInError, fetchKinopeer, onProxySignIn } from '../api/fetchKinopeer'
 import { opaqueRedirect } from '../test/fixtures'
-import { SIGN_IN_RETRY_MS, signInThroughProxy, startProxySignIn } from './proxySignIn'
+import { SIGN_IN_RETRY_MS, loadPastTheShell, signInThroughProxy, startProxySignIn } from './proxySignIn'
 
 const navigation = (href: string) => ({ href, replace: vi.fn<(url: string) => void>() })
 
@@ -50,6 +50,15 @@ describe('signInThroughProxy', () => {
     const location = navigation('https://umbrel.local:8798/')
     signInThroughProxy(location, 1_000_000)
     expect(location.replace).not.toHaveBeenCalled()
+  })
+})
+
+describe('loadPastTheShell', () => {
+  it('loads the screen again with the parameter the service worker leaves to the network, at once after a sign-in too: the user asked', () => {
+    signInThroughProxy(navigation('https://umbrel.local:8798/'), Date.now())
+    const location = navigation('https://umbrel.local:8798/title/movie/1?tab=cast')
+    loadPastTheShell(location)
+    expect(location.replace).toHaveBeenCalledExactlyOnceWith('https://umbrel.local:8798/title/movie/1?tab=cast&proxy-sign-in=1')
   })
 })
 

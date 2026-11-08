@@ -39,7 +39,7 @@ describe('useQbitSession', () => {
   it('says who did not answer the check: Kinopeer on a network error, qBittorrent on the bridge’s failure', async () => {
     getAppVersion.mockRejectedValue(new TypeError('Failed to fetch'))
     const { result } = renderHook(() => useQbitSession())
-    await waitFor(() => expect(result.current.session).toEqual({ status: 'unreachable', who: 'kinopeer' }))
+    await waitFor(() => expect(result.current.session).toEqual({ status: 'unreachable', who: 'unreached' }))
 
     getAppVersion.mockRejectedValue(qbittorrentDown())
     await act(() => result.current.recheck())

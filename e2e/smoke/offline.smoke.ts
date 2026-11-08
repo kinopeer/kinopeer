@@ -4,7 +4,8 @@ import { PROXY_DENIED_HEADER, resetStand } from './control.ts'
 /**
  * The built service worker on a phone: it precaches the shell behind the proxy, serves it offline
  * (so the app shows its own "unreachable" screen, not the browser's error page), comes back on
- * Retry, and keeps posters but never the live answers of qBittorrent, Prowlarr or TMDB.
+ * Open again, past the worker, and keeps posters but never the live answers of qBittorrent,
+ * Prowlarr or TMDB.
  */
 test('the service worker keeps the shell offline and never the live data', async ({ page, context }) => {
   await resetStand()
@@ -40,9 +41,20 @@ test('the service worker keeps the shell offline and never the live data', async
   await page.reload()
   // The whole network is down, so it's Kinopeer's server that doesn't answer, not qBittorrent.
   await expect(page.getByText('Kinopeer не отвечает')).toBeVisible()
+  // Offline, Open again would only swap this screen for the browser's error page: Retry alone.
+  await expect(page.getByRole('button', { name: 'Повторить' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Открыть заново' })).toHaveCount(0)
 
+  // Back online it offers Open again too, which loads the page past the worker (#311), so it comes
+  // from the network, and the app takes the parameter back out of the address.
   await context.setOffline(false)
-  await page.getByRole('button', { name: 'Повторить' }).click()
+  const loads: string[] = []
+  page.on('request', (request) => {
+    if (request.isNavigationRequest()) loads.push(new URL(request.url()).pathname + new URL(request.url()).search)
+  })
+  await page.getByRole('button', { name: 'Открыть заново' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Загрузки' })).toBeVisible()
+  expect(loads).toEqual(['/?proxy-sign-in=1'])
+  expect(new URL(page.url()).search).toBe('')
   expect(refused).toEqual([])
 })

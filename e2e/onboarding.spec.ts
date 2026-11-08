@@ -44,9 +44,26 @@ test.describe('onboarding, desktop', () => {
     await expect(page.getByRole('textbox', { name: 'Ключ API или токен доступа' })).toBeVisible()
     await expect(page).toHaveScreenshot('desktop-tmdb-key-dark-ru.png')
   })
+
+  // #311: the session check got no answer: the state in the form's card, in place of the form.
+  test('Kinopeer doesn’t answer the session check, dark, Russian', async ({ page }) => {
+    await openApp(page, '/', { serviceWorkerAnswers: true, sessionUnreached: true })
+    await expect(page.getByRole('heading', { name: 'Kinopeer не отвечает' })).toBeVisible()
+    await settle(page)
+    await expect(page).toHaveScreenshot('desktop-connect-unreached-dark-ru.png')
+  })
 })
 
 test.describe('onboarding, phone', () => {
+  // #311: the session check got no answer: the state in place of the form, with Retry and Open again.
+  test('Kinopeer doesn’t answer the session check, dark, Russian', async ({ page }) => {
+    await openApp(page, '/', { serviceWorkerAnswers: true, sessionUnreached: true })
+    await expect(page.getByRole('heading', { name: 'Kinopeer не отвечает' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Открыть заново' })).toBeVisible()
+    await settle(page)
+    await expect(page).toHaveScreenshot('connect-unreached-dark-ru.png')
+  })
+
   test('a wrong password, dark, Russian', async ({ page }) => {
     await openOnboarding(page, 'connect', { wrongLogin: true })
     await page.getByRole('textbox', { name: 'Логин' }).fill('admin')

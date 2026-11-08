@@ -2,6 +2,7 @@ import { useSyncExternalStore, type CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cx } from '../lib/cx'
 import { useFormatters } from '../lib/format'
+import { unreachableText } from '../lib/unreachable'
 import { POLL_INTERVAL_MS, type PollSource } from '../torrents/useMainData'
 import './PollRing.css'
 
@@ -29,8 +30,8 @@ export function PollRing({ poll, context, className }: PollRingProps) {
   const time = updatedAt === null ? null : format.time(updatedAt)
   const label = offline
     ? time === null
-      ? t('poll.offline', { context: unreachable })
-      : t('poll.offlineSince', { time, context: unreachable })
+      ? t('poll.offline', { context: unreachableText(unreachable) })
+      : t('poll.offlineSince', { time, context: unreachableText(unreachable) })
     : time === null
       ? t('poll.waiting')
       : t('poll.updated', { time })

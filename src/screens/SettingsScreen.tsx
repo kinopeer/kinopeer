@@ -23,6 +23,7 @@ import type { ThemePreference } from '../theme/theme'
 import { useTheme } from '../theme/useTheme'
 import { categoryType, clearTitleMatches } from '../torrents/titleMatches'
 import tmdbLogo from '../assets/tmdb-logo.svg'
+import { unreachableText } from '../lib/unreachable'
 import { InstallSheet } from './InstallSheet'
 import { ProwlarrKeyForm } from './ProwlarrKeyForm'
 import { TmdbKeyForm } from './TmdbKeyForm'
@@ -257,7 +258,7 @@ export function SettingsScreen() {
           <ConnectionRow
             name="qBittorrent"
             icon="server"
-            status={connectionStatus(qbittorrent, () => ({ message: t('settings.connected') }), (error) => t('settings.qbtError', { context: unreachable(error) }))}
+            status={connectionStatus(qbittorrent, () => ({ message: t('settings.connected') }), (error) => t('settings.qbtError', { context: unreachableText(unreachable(error)) }))}
             onTest={qbittorrent.retry}
           />
           <ConnectionRow

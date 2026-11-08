@@ -542,7 +542,7 @@ describe('App', () => {
   it('says Kinopeer isn’t answering when the session check gets no answer from it', async () => {
     getAppVersion.mockRejectedValue(new TypeError('Failed to fetch'))
     renderApp()
-    expect(await screen.findByRole('alert', { name: saying('Kinopeer isn’t answering') })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Kinopeer isn’t answering' })).toBeInTheDocument()
   })
 
   it('shows the sign-in form without a session', async () => {

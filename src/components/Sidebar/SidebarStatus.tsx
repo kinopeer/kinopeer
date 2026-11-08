@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import type { Unreachable } from '../../api/qbittorrent'
 import { Button } from '../Button'
 import { useFormatters } from '../../lib/format'
+import { unreachableText } from '../../lib/unreachable'
 import { Icon } from '../Icon'
 import { IconButton } from '../IconButton'
 
@@ -55,7 +56,7 @@ export function SidebarStatus({
   const { t } = useTranslation()
   const format = useFormatters()
   const speed = (value: number | undefined) => (value === undefined || offline ? '—' : format.speed(value))
-  const status = offline ? t('sidebar.offline', { context: unreachable }) : t('sidebar.connected', { version })
+  const status = offline ? t('sidebar.offline', { context: unreachableText(unreachable) }) : t('sidebar.connected', { version })
   const stacked = (label: string, text: string, icon: ReactNode) => {
     const [value, unit] = splitUnit(text)
     return (

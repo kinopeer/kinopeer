@@ -22,6 +22,18 @@ export interface AppOptions {
   torrents?: Torrent[]
   /** qBittorrent answers the first poll, then stops answering. */
   goesOffline?: boolean
+  /**
+   * Nothing answers the poll at all, as with a certificate the browser no longer trusts or Umbrel
+   * down: from the first poll, or after it.
+   */
+  unreached?: 'from-start' | 'after-first-poll'
+  /** Nothing answers the session check either, so the connect screen says so in place of its form. */
+  sessionUnreached?: boolean
+  /**
+   * A service worker answers the page, as over HTTPS, where Open again shows (#311). The tests
+   * block service workers, so this only says one does.
+   */
+  serviceWorkerAnswers?: boolean
   /** qBittorrent's alternative speed limits apply. */
   altSpeedLimits?: boolean
   /** The server rejects the login sent from the connect screen as a wrong login or password. */
@@ -74,11 +86,12 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
     (url) => url.pathname.startsWith('/qbt/'),
     (route) => {
       const { pathname } = new URL(route.request().url())
-      if (pathname === '/qbt/api/v2/app/version') return route.fulfill({ body: 'v5.3.0' })
+      if (pathname === '/qbt/api/v2/app/version') return options.sessionUnreached ? route.abort('connectionrefused') : route.fulfill({ body: 'v5.3.0' })
       if (pathname === '/qbt/api/v2/sync/maindata') {
         polls += 1
         // The bridge's own failure: qBittorrent stopped answering, not Kinopeer's server.
         if (options.goesOffline && polls > 1) return route.fulfill({ status: 502, headers: BRIDGE_HEADERS, body: 'qBittorrent is unreachable' })
+        if (options.unreached === 'from-start' || (options.unreached === 'after-first-poll' && polls > 1)) return route.abort('connectionrefused')
         return json(
           route,
           mainData(torrents, {
@@ -219,6 +232,9 @@ export async function openApp(page: Page, path: string, options: AppOptions = {}
     },
     { theme: options.theme ?? 'dark', lang: options.lang ?? 'ru', downloadsView: options.downloadsView, releaseFilters: options.releaseFilters },
   )
+  if (options.serviceWorkerAnswers) {
+    await page.addInitScript(() => Object.defineProperty(navigator.serviceWorker, 'controller', { get: () => ({}) }))
+  }
   await mockServer(page, options)
   await page.goto(path)
 }

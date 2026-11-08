@@ -33,3 +33,32 @@
 .ks-banner-title {
   font-weight: 600;
 }
+
+.ks-banner-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-1);
+}
+
+/* Two buttons stay beside the text while the banner is wide enough for both (a desktop's
+   width), and go under it on a narrower one, a phone's, where they'd leave the text a narrow
+   column; the icon then stays at the title rather than in the middle of the wrapped text. */
+.ks-banner.has-two-actions {
+  container: ks-banner / inline-size;
+  flex-wrap: wrap;
+}
+
+.ks-banner.has-two-actions .ks-banner-actions {
+  margin-inline-start: auto; /* to the right on the line they wrap to, as beside the text */
+}
+
+@container ks-banner (max-width: 559px) { /* the icon, ~240px of text and both buttons no longer fit */
+  .ks-banner-actions {
+    flex-basis: 100%;
+    justify-content: flex-end;
+  }
+
+  .ks-banner > .ks-ic {
+    align-self: flex-start;
+  }
+}

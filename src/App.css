@@ -49,6 +49,11 @@
   gap: var(--space-5);
 }
 
+/* The state in the form's card: the card has the padding. */
+.connect-unreachable .ks-empty {
+  padding: 0;
+}
+
 .connect-intro {
   display: flex;
   flex-direction: column;

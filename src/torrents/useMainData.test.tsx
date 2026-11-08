@@ -79,8 +79,8 @@ describe('useMainData', () => {
       .mockResolvedValueOnce({ rid: 1 })
     const { result } = renderHook(() => useMainData(vi.fn()))
     await act(() => vi.advanceTimersByTimeAsync(0))
-    expect(result.current).toMatchObject({ offline: true, unreachable: 'kinopeer' })
-    expect(result.current.poll.getPollState()).toMatchObject({ offline: true, unreachable: 'kinopeer' })
+    expect(result.current).toMatchObject({ offline: true, unreachable: 'unreached' })
+    expect(result.current.poll.getPollState()).toMatchObject({ offline: true, unreachable: 'unreached' })
 
     await act(() => vi.advanceTimersByTimeAsync(OFFLINE_POLL_INTERVAL_MS))
     expect(result.current).toMatchObject({ offline: true, unreachable: 'qbittorrent' })

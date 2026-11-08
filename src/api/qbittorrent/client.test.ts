@@ -436,9 +436,9 @@ describe('who did not answer', () => {
     expect(unreachable(error)).toBe('qbittorrent')
   })
 
-  it('takes a failed network and a sign-in proxy for Kinopeer, a request that took too long for qBittorrent', () => {
-    expect(unreachable(new TypeError('Failed to fetch'))).toBe('kinopeer')
-    expect(unreachable(new ProxySignInError())).toBe('kinopeer')
+  it('takes a failed network and a sign-in proxy for Kinopeer unreached, a request that took too long for qBittorrent', () => {
+    expect(unreachable(new TypeError('Failed to fetch'))).toBe('unreached')
+    expect(unreachable(new ProxySignInError())).toBe('unreached')
     expect(unreachable(new DOMException('The operation was aborted.', 'AbortError'))).toBe('qbittorrent')
   })
 })
