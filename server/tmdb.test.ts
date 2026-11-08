@@ -157,7 +157,8 @@ describe('tmdbMiddleware', () => {
   })
 
   // fetch resolves dot segments, encoded ones too, and reads a backslash as a slash, so these would
-  // reach paths outside /3/ (with the user's key, or on the proxy's host) or /t/p/ (#305).
+  // reach paths outside /3/ (with the user's key, or on the proxy's host) or /t/p/ (#305). An encoded
+  // slash or backslash would too, through a server on the way that decodes it first.
   describe.each([
     ['with a key', { apiKey: 'abc123' }],
     ['through the proxy', {}],
@@ -181,25 +182,27 @@ describe('tmdbMiddleware', () => {
       '/tmdb/movie/./771',
       '/tmdb-img/../../4/account',
       '/tmdb-img/w342/%2e%2e/%2e%2e/x.jpg',
+      '/tmdb/..%2f4/account',
+      '/tmdb/..%2F4/account',
+      '/tmdb/%2e%2e%2f4/account',
+      '/tmdb/..%5c4/account',
+      '/tmdb/..%5C4/account',
     ])('%s', async (path) => {
       const { app, seen } = await bridge()
       expect(await getRaw(app, path)).toBe(404)
       expect(seen()).toEqual([])
     })
-
   })
 
-  it('passes on dots that fetch keeps: in a name, after an encoded slash and in the query', async () => {
+  it('passes on dots that fetch keeps: in a name and in the query, an encoded slash there too', async () => {
     const tmdb = await fakeTmdb()
     const app = await kinopeer({ apiKey: 'abc123', apiBase: tmdb.apiBase, imageBase: `${tmdb.base}/t/p` })
 
-    await getRaw(app, '/tmdb/search/multi?query=../4/account')
-    await getRaw(app, '/tmdb/..%2f4/account')
+    await getRaw(app, '/tmdb/search/multi?query=..%2f4/account')
     await getRaw(app, '/tmdb-img/w342/poster.v2.jpg')
 
     expect(tmdb.seen.map((request) => request.url)).toEqual([
-      '/3/search/multi?query=../4/account&api_key=abc123',
-      '/3/..%2f4/account?api_key=abc123',
+      '/3/search/multi?query=..%2f4/account&api_key=abc123',
       '/t/p/w342/poster.v2.jpg',
     ])
   })

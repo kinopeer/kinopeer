@@ -42,15 +42,19 @@ const RESPONSE_HEADERS = ['cache-control', 'last-modified', 'etag', 'expires', '
 const API_TYPE = /^application\/json\b/i
 const IMAGE_TYPE = /^image\/(jpeg|png|webp|gif|avif)\b/i
 
+/** An encoded slash or backslash: fetch keeps it, but a server on the way that decodes it first would resolve the dots around it. */
+const ENCODED_SEPARATOR = /%2f|%5c/i
+
 /**
  * Whether fetch keeps `path` (what follows the bridge's prefix) as written, so the call stays under
  * /3/ or /t/p/: it resolves dot segments, encoded ones too, reads a backslash as a slash and drops
  * tabs and newlines, which would reach other paths with the user's key or on the proxy's host (#305).
- * The query keeps its dots, which fetch leaves alone.
+ * The client sends no encoded separator in a path either. The query keeps its dots, which fetch
+ * leaves alone.
  */
 function keptAsWritten(path: string): boolean {
   const written = `/prefix/${path.split('?', 1)[0]}`
-  return URL.canParse(written, 'http://bridge.test') && new URL(written, 'http://bridge.test').pathname === written
+  return !ENCODED_SEPARATOR.test(written) && new URL(written, 'http://bridge.test').pathname === written
 }
 
 function contentType(sent: string | null, isApi: boolean): string {
