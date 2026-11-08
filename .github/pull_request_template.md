@@ -49,12 +49,13 @@ Baselines: <!-- each changed or new PNG — what changed and why — diff looked
 ## Docs
 
 <!-- What changed in the docs, or "none". The docs are every file that describes what the diff
-     changes: those in CLAUDE.md's docs table (README, CONTRIBUTING, SECURITY, SPEC, ARCHITECTURE,
-     ROADMAP, DEVELOPMENT, TESTING, RELEASE_CHECKLIST, CHANGELOG), the comments in workflows and
-     config, and .env.example. Search them for what the diff moved or renamed: which test owns a
-     statement, what a sheet or a toast does. Grep them for each number or name the diff changes,
-     by its old value and each word of an old name on its own (`git grep -n '380px' docs CLAUDE.md
-     README.md .github`, `git grep -ni kinoseed`, not only `kinoseed-tmdb`). Read their paragraphs
+     changes: CLAUDE.md and the files in its docs table (README, CONTRIBUTING, SECURITY, SPEC,
+     ARCHITECTURE, ROADMAP, DEVELOPMENT, TESTING, RELEASE_CHECKLIST, CHANGELOG), the review skill
+     in .claude/skills/, and this template, the workflows and the config, whose comments are docs
+     too, with .env.example. Search them for what the diff moved or renamed: which test owns a
+     statement, what a sheet or a toast does. Grep the whole tree for each number or name the diff
+     changes, by its old value and each word of an old name on its own (`git grep -n -I '380px'
+     -- ':!package-lock.json'`, `git grep -ni kinoseed`, not only `kinoseed-tmdb`). Read their paragraphs
      about what the diff changes: a claim by meaning ("as in Downloads, on both layouts") has no
      name to grep. Check each claim against what it describes: the code, the service's own docs
      (opened, not remembered), the UI's words, the doc it points at; a checklist step's pointer

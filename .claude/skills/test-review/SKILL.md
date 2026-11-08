@@ -52,9 +52,10 @@ is behavior (`docs/TESTING.md` → Saying why something is uncovered → No beha
 before it changes anything (a dry run, a read-only command, a bogus credential refused after the
 target is resolved) answers it, and a missing credential alone doesn't (#258). A run that can only
 come later (the next tag, a day with steps of its own) is named as the check of the change, with
-what stays in place until it's green (#291). What GitHub Actions does with a concurrency group, an
-expression or a secret a workflow hands it is the platform's own behavior, with its documentation
-page named (#289, #298).
+what stays in place until it's green (#291). What GitHub Actions does with what a workflow hands it
+is the platform's own behavior: the group two runs compute (#289), how an `&&`/`||` expression picks
+a side once each input that chooses one was run (#298), a secret passed by name (#291); the PR names
+the hand-off it checked and the documentation page.
 
 ## 3. Checks
 
@@ -128,13 +129,14 @@ trusted.
 - **H. Docs match what they describe.** A claim the PR adds to any doc (a comment that exists, a
   command, a number, a file, a product claim, a step) is checked against what it describes, and so
   is one the diff makes stale, a sentence saying which test owns a statement above all. The docs
-  are every file that describes what the diff changes: the ones in `CLAUDE.md`'s docs table
+  are every file that describes what the diff changes: `CLAUDE.md` and the files in its docs table
   (`README.md`, `CONTRIBUTING.md`, `SECURITY.md`, SPEC, ARCHITECTURE, ROADMAP, DEVELOPMENT,
-  TESTING, the release checklist, the changelog), the comments in workflows and config, and
-  `.env.example`, not only the three or four a rule names (#287's README, #296's changelog, #300's
-  runbook). Grep them for each number or name the diff changes (a width, a version, a count), by
-  its old value and each word of an old name on its own, and read their paragraphs about what the
-  diff changes for claims by meaning no grep finds. What a claim is checked against: the code and
+  TESTING, the release checklist, the changelog), this skill, and the PR template, the workflows
+  and the config, whose comments are docs too, with `.env.example`, not only the three or four a
+  rule names (#287's README, #296's changelog, #300's runbook). Grep the whole tree for each number
+  or name the diff changes (a width, a version, a count), by its old value and each word of an old
+  name on its own (`git grep -n -I '380px' -- ':!package-lock.json'`), and read those files'
+  paragraphs about what the diff changes for claims by meaning no grep finds. What a claim is checked against: the code and
   the tree; the service's own documentation page, opened rather than remembered (#299, #300); the
   words the UI shows (#287's alt text); the doc it points at (README against SPEC); for a step in a
   checklist, that its pointer resolves and its check can pass as written (#300).
