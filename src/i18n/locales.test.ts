@@ -15,6 +15,10 @@ function baseKeys(obj: object): string[] {
   return [...new Set(keys(obj).map((k) => k.replace(PLURAL_SUFFIX, '')))].sort()
 }
 
+function valueOf(locale: object, key: string): unknown {
+  return key.split('.').reduce<unknown>((node, part) => (node as Record<string, unknown>)[part], locale)
+}
+
 describe('locales', () => {
   it('have the same keys in every language', () => {
     expect(baseKeys(ru)).toEqual(baseKeys(en))
@@ -23,8 +27,17 @@ describe('locales', () => {
   it('have no empty strings', () => {
     for (const locale of [en, ru]) {
       for (const key of keys(locale)) {
-        const value = key.split('.').reduce<unknown>((node, part) => (node as Record<string, unknown>)[part], locale)
-        expect(value, key).not.toBe('')
+        expect(valueOf(locale, key), key).not.toBe('')
+      }
+    }
+  })
+
+  it('nest only keys that exist, so a renamed key never shows as its own name', () => {
+    for (const locale of [en, ru]) {
+      // A plural is nested by its base key, `$t(key, {"count": n})`, which picks the form.
+      const nestable = new Set([...keys(locale), ...baseKeys(locale)])
+      for (const key of keys(locale)) {
+        for (const [, nested] of String(valueOf(locale, key)).matchAll(/\$t\(([^),]+)/g)) expect(nestable.has(nested), `${key} nests ${nested}`).toBe(true)
       }
     }
   })
