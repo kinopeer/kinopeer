@@ -56,7 +56,7 @@ export function SidebarStatus({
   const { t } = useTranslation()
   const format = useFormatters()
   const speed = (value: number | undefined) => (value === undefined || offline ? '—' : format.speed(value))
-  const status = offline ? t('sidebar.offline', { context: unreachableText(unreachable) }) : t('sidebar.connected', { version })
+  const status = offline ? t('noAnswer.qbittorrent', { context: unreachableText(unreachable) }) : t('sidebar.connected', { version })
   const stacked = (label: string, text: string, icon: ReactNode) => {
     const [value, unit] = splitUnit(text)
     return (
@@ -79,14 +79,14 @@ export function SidebarStatus({
         </p>
         <p className="ks-side-status-speeds t-cap ks-num c2">
           <span>
-            ↓<span className="sr-only">{t('downloads.downloadSpeed')}</span> {speed(downloadSpeed)}
+            ↓<span className="sr-only">{t('common.downloadSpeed')}</span> {speed(downloadSpeed)}
           </span>
           <span>
-            ↑<span className="sr-only">{t('downloads.uploadSpeed')}</span> {speed(uploadSpeed)}
+            ↑<span className="sr-only">{t('common.uploadSpeed')}</span> {speed(uploadSpeed)}
           </span>
         </p>
         {freeSpace !== undefined && (
-          <p className="t-cap ks-num c3">{t('downloads.freeSpace', { size: format.size(freeSpace) })}</p>
+          <p className="t-cap ks-num c3">{t('common.freeSpace', { size: format.size(freeSpace) })}</p>
         )}
         {showAltSpeed && (
           <Button
@@ -108,8 +108,8 @@ export function SidebarStatus({
           {indicator?.(status)}
           <span className="sr-only">{status}</span>
         </span>
-        {stacked(t('downloads.downloadSpeed'), speed(downloadSpeed), <span aria-hidden="true">↓</span>)}
-        {stacked(t('downloads.uploadSpeed'), speed(uploadSpeed), <span aria-hidden="true">↑</span>)}
+        {stacked(t('common.downloadSpeed'), speed(downloadSpeed), <span aria-hidden="true">↓</span>)}
+        {stacked(t('common.uploadSpeed'), speed(uploadSpeed), <span aria-hidden="true">↑</span>)}
         {freeSpace !== undefined &&
           stacked(t('sidebar.freeSpace'), format.size(freeSpace), <Icon name="disk" size={13} />)}
         {showAltSpeed && (

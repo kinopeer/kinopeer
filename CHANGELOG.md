@@ -4,6 +4,10 @@ Kinopeer follows [semantic versioning](https://semver.org). While the version is
 
 ## Unreleased
 
+### Changed
+
+- The same thing is worded the same way everywhere: when qBittorrent, Kinopeer, Prowlarr or TMDB doesn't answer, every screen says it "isn't answering"; the folder a torrent's files go to is called Folder; the free space reads "40 GB free"; the file picker's button that clears the choice says Deselect all; the speed limits sheet saves with Save, as the other sheets do; and the Downloads table's title column is called Name, as its sort is.
+
 ### Fixed
 
 - Over Umbrel's HTTPS, where the browser accepted Umbrel's certificate through its warning, Kinopeer installed as an app no longer gets stuck when Umbrel renews the certificate each month: where nothing answers for Kinopeer while the device is online, **Open again** beside Retry loads it from the network, so the browser can ask to accept the new certificate. When Kinopeer or qBittorrent doesn't answer at all, the connect screen says so in place of the login form. ([#311](https://github.com/kinopeer/kinopeer/issues/311))

@@ -144,13 +144,13 @@ export function TitleScreen({ onSessionLost }: TitleScreenProps) {
 
   const backButton = desktop ? (
     <Button variant="ghost" size="sm" icon="chevron-left" className="title-dback" onClick={goBack}>
-      {t('title.back')}
+      {t('common.back')}
     </Button>
   ) : (
     <IconButton
       icon="chevron-left"
       variant="glass"
-      label={t('title.back')}
+      label={t('common.back')}
       iconSize={24}
       className="title-back"
       onClick={goBack}

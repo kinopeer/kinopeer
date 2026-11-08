@@ -12,7 +12,7 @@ import { isAbsolute, knownFolders, sameFolder } from '../torrents/folders'
 import './MoveTorrentSheet.css'
 
 /** Why qBittorrent didn't take a folder, as a translation key. */
-export type MoveFailure = 'move.noAccess' | 'move.cantCreate' | 'torrent.actionFailed'
+export type MoveFailure = 'move.noAccess' | 'move.cantCreate' | 'common.qbtFailed'
 
 export interface MoveTorrentSheetProps {
   torrent: Torrent
@@ -47,7 +47,7 @@ export function MoveTorrentSheet({ torrent, offline, pending, failure, onMove, o
       onClose={onClose}
       title={t('move.title')}
       subtitle={torrent.name}
-      action={<IconButton icon="close" label={t('torrent.cancel')} onClick={onClose} />}
+      action={<IconButton icon="close" label={t('common.cancel')} onClick={onClose} />}
       footer={
         <Button
           variant="primary"
@@ -64,7 +64,7 @@ export function MoveTorrentSheet({ torrent, offline, pending, failure, onMove, o
     >
       <div className="move-body">
         <Input
-          label={t('move.location')}
+          label={t('common.folder')}
           value={location}
           mono
           error={relative ? t('move.absolute') : undefined}

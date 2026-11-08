@@ -30,7 +30,7 @@ describe('DownloadRowHeader', () => {
   it('names the columns, with the first one only while selecting or with queue positions', () => {
     const { rerender } = renderWithRouter(<DownloadRowHeader selecting={false} queue={false} {...BY_QUEUE} />)
     const names = () => screen.getAllByRole('columnheader').map((header) => header.textContent)
-    expect(names()).toEqual(['Poster', 'Title', 'Progress', 'Status', 'Speed', 'ETA', 'Size', 'Actions'])
+    expect(names()).toEqual(['Poster', 'Name', 'Progress', 'Status', 'Speed', 'ETA', 'Size', 'Actions'])
     rerender(<DownloadRowHeader selecting={false} queue {...BY_QUEUE} />)
     expect(names()[0]).toBe('# Priority')
     rerender(<DownloadRowHeader selecting queue={false} {...BY_QUEUE} />)
@@ -47,7 +47,7 @@ describe('DownloadRowHeader', () => {
     const buttons = screen.getAllByRole('columnheader').map((header) => within(header).queryByRole('button')?.textContent ?? null)
     // The queue column's "#" is followed by the sort's name, hidden, so the name still starts with what shows.
     expect(screen.getByRole('button', { name: '# Priority' })).toBeInTheDocument()
-    expect(buttons).toEqual(['# Priority', null, 'Title', 'Progress', 'Status', 'Speed', 'ETA', 'Size', null])
+    expect(buttons).toEqual(['# Priority', null, 'Name', 'Progress', 'Status', 'Speed', 'ETA', 'Size', null])
     const sorted = () =>
       screen
         .getAllByRole('columnheader')
@@ -55,7 +55,7 @@ describe('DownloadRowHeader', () => {
         .map((header) => [header.textContent, header.getAttribute('aria-sort')])
     expect(sorted()).toEqual([['Size', 'descending']])
 
-    await userEvent.click(screen.getByRole('button', { name: 'Title' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Name' }))
     expect(onSort).toHaveBeenCalledWith('name')
 
     rerender(<DownloadRowHeader selecting={false} queue order={{ sort: 'priority', descending: true }} onSort={onSort} />)

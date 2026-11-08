@@ -233,10 +233,10 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
         disabled={visible.length === 0}
         onClick={() => setSelected(new Set(allSelected ? [] : visible.map((torrent) => torrent.hash)))}
       >
-        {allSelected ? t('downloads.selectNone') : t('downloads.selectAll')}
+        {allSelected ? t('common.selectNone') : t('common.selectAll')}
       </Button>
       <Button variant="ghost" size="sm" onClick={() => setSelected(null)}>
-        {t('downloads.selectCancel')}
+        {t('common.cancel')}
       </Button>
     </>
   )
@@ -255,18 +255,18 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
     <p className="downloads-totals t-cap ks-num c2">
       <span className="downloads-total">
         <Icon name="arrow-down" size={15} className="ca" />
-        <span className="sr-only">{t('downloads.downloadSpeed')}</span>
+        <span className="sr-only">{t('common.downloadSpeed')}</span>
         {server?.dl_info_speed === undefined ? '—' : format.speed(server.dl_info_speed)}
       </span>
       <span className="downloads-total">
         <Icon name="arrow-up" size={15} className="downloads-up" />
-        <span className="sr-only">{t('downloads.uploadSpeed')}</span>
+        <span className="sr-only">{t('common.uploadSpeed')}</span>
         {server?.up_info_speed === undefined ? '—' : format.speed(server.up_info_speed)}
       </span>
       {free !== undefined && (
         <span className="downloads-total downloads-free">
           <Icon name="disk" size={15} />
-          {t('downloads.freeSpace', { size: format.size(free) })}
+          {t('common.freeSpace', { size: format.size(free) })}
         </span>
       )}
     </p>
@@ -283,7 +283,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           count={loading ? undefined : counts[key]}
           onClick={() => setFilter(key)}
         >
-          {key === 'all' ? t('downloads.all') : t(`status.${key}`)}
+          {key === 'all' ? t('common.all') : t(`status.${key}`)}
         </FilterChip>
       ))}
     </div>
@@ -312,7 +312,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           selectionCount
         ) : (
           <>
-            <h1 className="t-h1">{t('downloads.title')}</h1>
+            <h1 className="t-h1">{t('nav.downloads')}</h1>
             {totals}
           </>
         )}
@@ -334,10 +334,10 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
       <div className="downloads-toolbar">
         <StatusMenu value={filter} onChange={setFilter} counts={loading ? undefined : counts} />
         <Segmented
-          label={t('downloads.type')}
+          label={t('common.type')}
           options={TYPE_FILTERS.map((key) => ({
             value: key,
-            label: key === 'all' ? t('downloads.all') : t(`downloads.types.${key}`),
+            label: key === 'all' ? t('common.all') : t(`types.${key}`),
           }))}
           value={type}
           onChange={setType}
@@ -351,12 +351,12 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           aria-haspopup="menu"
           aria-expanded={sortAnchor !== null}
           aria-label={t('downloads.sortOrderButton', {
-            sort: t(`downloads.sorts.${sort}`),
-            direction: t(descending ? 'downloads.descending' : 'downloads.ascending'),
+            sort: t(`fields.${sort}`),
+            direction: t(descending ? 'common.descending' : 'common.ascending'),
           })}
           onClick={(event) => setSortAnchor(sortAnchor ? null : event.currentTarget)}
         >
-          {t(`downloads.sorts.${sort}`)}
+          {t(`fields.${sort}`)}
           <Icon name="chevron-down" size={14} />
         </Button>
         {viewSwitch}
@@ -369,7 +369,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
       <header className="downloads-head">
         {!selecting && (
           <div className="downloads-title-row">
-            <h1 className="t-h1">{t('downloads.title')}</h1>
+            <h1 className="t-h1">{t('nav.downloads')}</h1>
             <PollRing poll={main.poll} className="downloads-poll" />
             <AltSpeedButton main={main} />
             <IconButton
@@ -419,13 +419,13 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
             aria-haspopup="dialog"
             aria-label={
               type === 'all'
-                ? t('downloads.sortButton', { sort: t(`downloads.sorts.${sort}`) })
-                : t('downloads.sortTypeButton', { sort: t(`downloads.sorts.${sort}`), type: t(`downloads.types.${type}`) })
+                ? t('downloads.sortButton', { sort: t(`fields.${sort}`) })
+                : t('downloads.sortTypeButton', { sort: t(`fields.${sort}`), type: t(`types.${type}`) })
             }
             onClick={() => setSortOpen(true)}
           >
-            {t(`downloads.sorts.${sort}`)}
-            {type !== 'all' && <Badge className="downloads-type">{t(`downloads.types.${type}`)}</Badge>}
+            {t(`fields.${sort}`)}
+            {type !== 'all' && <Badge className="downloads-type">{t(`types.${type}`)}</Badge>}
           </Button>
           {viewSwitch}
         </div>
@@ -437,7 +437,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
     <main className="downloads status-strip">
       {header}
 
-      <section className="downloads-body" aria-label={t('downloads.title')} aria-busy={loading}>
+      <section className="downloads-body" aria-label={t('nav.downloads')} aria-busy={loading}>
         {!loading && <InstallCard />}
         {loading && offline ? (
           <UnreachableState unreachable={unreachable} onRetry={refresh} />
@@ -474,14 +474,14 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           <EmptyState
             icon="filter"
             tone="muted"
-            title={t('downloads.noMatchTitle')}
-            actionLabel={t('downloads.resetFilters')}
+            title={t('common.noMatchTitle')}
+            actionLabel={t('common.resetFilters')}
             onAction={resetFilters}
           >
             {t('downloads.noMatchBody')}
           </EmptyState>
         ) : isDesktop && !grid ? (
-          <div className={cx('dl-table', (selecting || queueColumn) && 'has-lead')} role="table" aria-label={t('downloads.title')}>
+          <div className={cx('dl-table', (selecting || queueColumn) && 'has-lead')} role="table" aria-label={t('nav.downloads')}>
             <div role="rowgroup" className="dl-table-head">
               <DownloadRowHeader
                 selecting={selecting}

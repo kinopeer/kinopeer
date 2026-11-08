@@ -92,7 +92,7 @@ describe('DownloadsScreen on desktop', () => {
     expect(headers.map((header) => header.textContent)).toEqual([
       '# Priority',
       'Poster',
-      'Title',
+      'Name',
       'Progress',
       'Status',
       'Speed',
@@ -228,7 +228,7 @@ describe('DownloadsScreen on desktop', () => {
     updateSettings({ downloadsDesktopView: 'list' })
     renderScreen()
     await tableRows()
-    const sort = screen.getByRole('button', { name: 'Sort: Priority, ascending' })
+    const sort = screen.getByRole('button', { name: 'Sort: Priority, Ascending' })
     expect(sort).toHaveAttribute('aria-haspopup', 'menu')
     expect(sort).toHaveAttribute('aria-expanded', 'false')
     await userEvent.click(sort)
@@ -266,20 +266,20 @@ describe('DownloadsScreen on desktop', () => {
     const titles = async () => (await tableRows()).map((row) => within(row).getByRole('link').textContent)
     const header = (name: string) => screen.getByRole('columnheader', { name })
 
-    await userEvent.click(screen.getByRole('button', { name: 'Title' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Name' }))
     expect(await titles()).toEqual(['Alien.Romulus.2024.1080p', 'Andor.S02.1080p', 'Dune.Part.Two.2024.2160p.WEB-DL'])
-    expect(header('Title')).toHaveAttribute('aria-sort', 'ascending')
-    expect(screen.getByRole('button', { name: 'Sort: Name, ascending' })).toBeInTheDocument()
+    expect(header('Name')).toHaveAttribute('aria-sort', 'ascending')
+    expect(screen.getByRole('button', { name: 'Sort: Name, Ascending' })).toBeInTheDocument()
 
-    await userEvent.click(screen.getByRole('button', { name: 'Title' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Name' }))
     expect(await titles()).toEqual(['Dune.Part.Two.2024.2160p.WEB-DL', 'Andor.S02.1080p', 'Alien.Romulus.2024.1080p'])
-    expect(header('Title')).toHaveAttribute('aria-sort', 'descending')
+    expect(header('Name')).toHaveAttribute('aria-sort', 'descending')
     expect(getSettings()).toMatchObject({ downloadsSort: 'name', downloadsSortDescending: true })
 
     // The menu picks a sort in its usual direction, the one it's in included.
-    await userEvent.click(screen.getByRole('button', { name: 'Sort: Name, descending' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Sort: Name, Descending' }))
     await userEvent.click(within(screen.getByRole('menu', { name: 'Sort' })).getByRole('menuitemradio', { name: 'Name' }))
-    expect(header('Title')).toHaveAttribute('aria-sort', 'ascending')
+    expect(header('Name')).toHaveAttribute('aria-sort', 'ascending')
     expect(getSettings()).toMatchObject({ downloadsSort: 'name', downloadsSortDescending: false })
   })
 

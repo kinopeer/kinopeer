@@ -116,7 +116,7 @@ export function TorrentFiles({ torrent, status, disabled }: TorrentFilesProps) {
             <ProgressBar
               value={file.progress}
               status={choice === 'skip' ? 'paused' : file.progress >= 1 ? 'completed' : status}
-              label={t('torrent.fileProgress', { name: label })}
+              label={t('common.progressOf', { name: label })}
               className="tf-bar"
             />
             <span className="t-cap ks-num c3 tf-meta">

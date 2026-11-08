@@ -87,7 +87,7 @@ export function useDeleteTorrents({ torrents, titleOf, onDeleted }: {
     )
     if (!settled) return
     if (!settled.ok) {
-      if (!settled.showing) toast.show(t('torrent.actionFailed'), { icon: 'alert', key: TOAST_KEYS.delete })
+      if (!settled.showing) toast.show(t('common.qbtFailed'), { icon: 'alert', key: TOAST_KEYS.delete })
       return
     }
     void forgetMatches(sent)

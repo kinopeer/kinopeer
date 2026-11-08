@@ -63,7 +63,7 @@ export function useDownloadToggle(field: DownloadToggleField): DownloadToggle {
         },
         { expect: (item) => ({ ...item, [field]: on }), hold: stateLag },
       )
-      if (settled && !settled.ok) toast.show(t('torrent.actionFailed'), { icon: 'alert', key: toastKey })
+      if (settled && !settled.ok) toast.show(t('common.qbtFailed'), { icon: 'alert', key: toastKey })
       return settled
     },
     [send, toast, t, field, request, toastKey],

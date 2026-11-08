@@ -220,7 +220,7 @@ export function SettingsScreen() {
             onChange={(event) => update({ [key]: event.target.value || undefined })}
           >
             <option value="">
-              {automatic ? t('settings.categoryAuto', { name: automatic }) : t('settings.categoryNone')}
+              {automatic ? t('settings.categoryAuto', { name: automatic }) : t('category.none')}
             </option>
             {names.map((name) => (
               <option key={name} value={name}>
@@ -251,14 +251,14 @@ export function SettingsScreen() {
 
   return (
     <main className="settings">
-      <h1 className="t-h1 settings-title">{t('settings.title')}</h1>
+      <h1 className="t-h1 settings-title">{t('nav.settings')}</h1>
 
       <Section id="settings-connections" title={t('settings.connections')}>
         <ul className="settings-conns">
           <ConnectionRow
             name="qBittorrent"
             icon="server"
-            status={connectionStatus(qbittorrent, () => ({ message: t('settings.connected') }), (error) => t('settings.qbtError', { context: unreachableText(unreachable(error)) }))}
+            status={connectionStatus(qbittorrent, () => ({ message: t('settings.connected') }), (error) => t('noAnswer.qbittorrent', { context: unreachableText(unreachable(error)) }))}
             onTest={qbittorrent.retry}
           />
           <ConnectionRow
@@ -269,7 +269,7 @@ export function SettingsScreen() {
               // Search finds nothing without indexers, so the card warns rather than only connects.
               ({ indexers }) =>
                 indexers === 0 ? { message: t('settings.connectedNoIndexers'), warn: true } : { message: t('settings.connected') },
-              (error) => (error instanceof ProwlarrSetupError ? t('settings.prowlarrSetup') : t('settings.prowlarrError')),
+              (error) => (error instanceof ProwlarrSetupError ? t('settings.prowlarrSetup') : t('noAnswer.prowlarr')),
             )}
             onTest={prowlarr.retry}
             editLabel={t('prowlarrKey.change')}
@@ -282,7 +282,7 @@ export function SettingsScreen() {
               tmdb,
               // Kinopeer's own key, behind its proxy: said, so the user knows a key of their own is optional.
               () => ({ message: sharedTmdbKey ? t('settings.connectedSharedKey') : t('settings.connected') }),
-              (error) => (error instanceof TmdbKeyError ? t('settings.tmdbKey') : t('settings.tmdbError')),
+              (error) => (error instanceof TmdbKeyError ? t('settings.tmdbKey') : t('noAnswer.tmdb')),
             )}
             onTest={tmdb.retry}
             editLabel={sharedTmdbKey ? t('tmdbKey.useOwn') : t('tmdbKey.change')}

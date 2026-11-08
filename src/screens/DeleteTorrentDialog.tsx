@@ -45,7 +45,7 @@ export function DeleteTorrentDialog({ torrents, title, busy, failed, onConfirm, 
       actions={
         <>
           <Button variant="secondary" block onClick={onClose}>
-            {t('torrent.cancel')}
+            {t('common.cancel')}
           </Button>
           <Button variant="danger" block loading={busy} disabled={busy} onClick={() => onConfirm(withFiles)}>
             {t('torrent.delete')}
@@ -75,7 +75,7 @@ export function DeleteTorrentDialog({ torrents, title, busy, failed, onConfirm, 
           )}
         </div>
       </div>
-      {failed && <Banner tone="error">{t('torrent.actionFailed')}</Banner>}
+      {failed && <Banner tone="error">{t('common.qbtFailed')}</Banner>}
     </Dialog>
   )
 }

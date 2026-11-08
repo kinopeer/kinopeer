@@ -61,7 +61,7 @@ describe('ReleasesBody', () => {
   it('says when Prowlarr can’t be reached and searches again on Try again', async () => {
     const search = releases({ status: 'error', rows: [], visible: [] })
     renderBody(search)
-    expect(screen.getByRole('heading', { name: 'Couldn’t reach Prowlarr' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Prowlarr isn’t answering' })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
     expect(search.retry).toHaveBeenCalledOnce()
   })

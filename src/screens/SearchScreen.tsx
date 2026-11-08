@@ -30,9 +30,9 @@ import { useSearchResults } from './useSearchResults'
 type TypeFilter = 'all' | MediaType
 
 const TYPE_FILTERS = [
-  { value: 'all', label: 'search.all' },
-  { value: 'movie', label: 'search.movies' },
-  { value: 'tv', label: 'search.series' },
+  { value: 'all', label: 'common.all' },
+  { value: 'movie', label: 'types.movie' },
+  { value: 'tv', label: 'types.tv' },
 ] as const
 
 /** Wait this long after the last keystroke before searching. */
@@ -121,14 +121,14 @@ export function SearchScreen() {
   return (
     <main className="search status-strip">
       <header className="search-head">
-        <h1 className="t-h1 search-title">{t('search.title')}</h1>
+        <h1 className="t-h1 search-title">{t('nav.search')}</h1>
         {/* Pinned under the status bar's strip, while the title scrolls away. */}
         <div className="search-bar">
           <div className="search-field">
             <Input
               icon="search"
               type="search"
-              aria-label={t('search.title')}
+              aria-label={t('nav.search')}
               placeholder={t('search.placeholder')}
               value={query}
               // An emptied query starts over, as the clear button does.
@@ -147,7 +147,7 @@ export function SearchScreen() {
             )}
           </div>
           <div className="search-filters">
-            <div className="ks-tabs search-types" role="group" aria-label={t('search.typeLabel')}>
+            <div className="ks-tabs search-types" role="group" aria-label={t('common.type')}>
               {TYPE_FILTERS.map((filter) => (
                 <button
                   key={filter.value}

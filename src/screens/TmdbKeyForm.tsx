@@ -63,9 +63,9 @@ export function TmdbKeyForm({ onSaved, forget, secondary }: TmdbKeyFormProps) {
       </p>
 
       {error === 'unreachable' && <Banner tone="error">{t('tmdbKey.unreachable')}</Banner>}
-      {error === 'storage' && <Banner tone="error">{t('tmdbKey.storage')}</Banner>}
+      {error === 'storage' && <Banner tone="error">{t('keyForm.storage')}</Banner>}
       {error === 'no-server-key' && <Banner tone="error">{t('tmdbKey.noFallback')}</Banner>}
-      {error === 'failed' && <Banner tone="error">{t('tmdbKey.failed')}</Banner>}
+      {error === 'failed' && <Banner tone="error">{t('keyForm.failed')}</Banner>}
       {error === 'forget-failed' && <Banner tone="error">{t('tmdbKey.forgetFailed')}</Banner>}
 
       <Input
@@ -88,7 +88,7 @@ export function TmdbKeyForm({ onSaved, forget, secondary }: TmdbKeyFormProps) {
 
       <div className="key-form-actions">
         <Button type="submit" size="lg" block loading={busy === 'save'} disabled={busy === 'forget'}>
-          {t('tmdbKey.save')}
+          {t('common.save')}
         </Button>
         {forget && (
           <Button
@@ -100,7 +100,7 @@ export function TmdbKeyForm({ onSaved, forget, secondary }: TmdbKeyFormProps) {
             disabled={busy === 'save'}
             onClick={() => void run('forget', forgetTmdbKey, forget.onForgotten)}
           >
-            {t(forget.to === 'shared' ? 'tmdbKey.forgetToShared' : 'tmdbKey.forgetToServer')}
+            {t(forget.to === 'shared' ? 'tmdbKey.forgetToShared' : 'keyForm.useServerKey')}
           </Button>
         )}
         {secondary}

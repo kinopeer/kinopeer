@@ -20,7 +20,7 @@ export interface StatusMenuProps {
 export function StatusMenu({ value, onChange, counts }: StatusMenuProps) {
   const { t } = useTranslation()
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
-  const name = (filter: StatusFilter) => (filter === 'all' ? t('downloads.all') : t(`status.${filter}`))
+  const name = (filter: StatusFilter) => (filter === 'all' ? t('common.all') : t(`status.${filter}`))
   const count = counts?.[value]
   const errors = value === 'all' || value === 'error' ? 0 : (counts?.error ?? 0)
 

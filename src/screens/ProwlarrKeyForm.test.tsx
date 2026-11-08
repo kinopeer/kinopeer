@@ -72,12 +72,13 @@ describe('ProwlarrKeyForm', () => {
     ['not-prowlarr', 'The Prowlarr address on the Kinopeer server answers, but not like Prowlarr. Check PROWLARR_URL.'],
     ['storage', 'The Kinopeer server couldn’t save the change. Check that its data folder is writable.'],
     [undefined, 'Couldn’t save the key. Try again.'],
-  ] as const)('says why the key could not be saved (%s)', async (code, message) => {
+  ] as const)('says why the key could not be saved (%s), and only that', async (code, message) => {
     saveProwlarrKey.mockRejectedValue(new serverSettings.SettingsError(502, code))
     const { field, save } = renderForm()
     await userEvent.type(field, 'abc123')
     await userEvent.click(save)
     expect(await screen.findByRole('alert', { name: saying(message) })).toBeInTheDocument()
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
   })
 
   it("goes back to the server's key and hands the settings on", async () => {

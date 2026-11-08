@@ -166,7 +166,7 @@ describe('App', () => {
       getMainData.mockRejectedValue(new TypeError('Failed to fetch'))
       renderApp()
       const sidebarStatus = await screen.findByRole('region', { name: 'qBittorrent' })
-      expect(await within(sidebarStatus).findAllByText('No connection to Kinopeer')).toHaveLength(2)
+      expect(await within(sidebarStatus).findAllByText('Kinopeer isn’t answering')).toHaveLength(2)
     })
 
     it('keeps the sidebar while selecting downloads', async () => {

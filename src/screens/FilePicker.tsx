@@ -112,7 +112,7 @@ export function FilePicker({ meta, skipped, onChange, free: reported, subtitle, 
       title={t('add.selectFiles')}
       subtitle={subtitle}
       size="lg"
-      leading={<IconButton icon="chevron-left" label={t('add.back')} iconSize={24} onClick={onDone} />}
+      leading={<IconButton icon="chevron-left" label={t('common.back')} iconSize={24} onClick={onDone} />}
       footer={
         <div className="fp-foot">
           <div className="fp-summary">
@@ -125,7 +125,7 @@ export function FilePicker({ meta, skipped, onChange, free: reported, subtitle, 
             </span>
             {free !== undefined && (
               <span className={tooBig ? 't-cap ks-num c-err' : 't-cap ks-num c3'}>
-                {tooBig ? t('add.notEnough') : t('add.freeSpace', { size: format.size(free) })}
+                {tooBig ? t('add.notEnough') : t('common.freeSpace', { size: format.size(free) })}
               </span>
             )}
           </div>
@@ -137,17 +137,17 @@ export function FilePicker({ meta, skipped, onChange, free: reported, subtitle, 
             />
           )}
           <Button variant="primary" block disabled={selectedCount === 0} onClick={onDone}>
-            {t('add.done')}
+            {t('common.done')}
           </Button>
         </div>
       }
     >
       <div className="fp-actions">
         <Button variant="secondary" size="sm" onClick={() => onChange(new Set())}>
-          {t('add.selectAll')}
+          {t('common.selectAll')}
         </Button>
         <Button variant="secondary" size="sm" onClick={() => onChange(new Set(tree.all))}>
-          {t('add.selectNone')}
+          {t('common.selectNone')}
         </Button>
       </div>
       <ul className="fp-list">{contents(tree)}</ul>

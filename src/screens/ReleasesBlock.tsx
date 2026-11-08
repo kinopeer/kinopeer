@@ -33,7 +33,7 @@ export function ReleasesBody({ releases, skeleton, children }: ReleasesBodyProps
       )
     case 'error':
       return (
-        <EmptyState icon="wifi-off" tone="error" title={t('releases.errorTitle')} actionLabel={t('common.retry')} actionIcon="refresh" onAction={releases.retry}>
+        <EmptyState icon="wifi-off" tone="error" title={t('noAnswer.prowlarr')} actionLabel={t('common.retry')} actionIcon="refresh" onAction={releases.retry}>
           {t('releases.errorBody')}
         </EmptyState>
       )
@@ -62,7 +62,7 @@ export function ReleasesBody({ releases, skeleton, children }: ReleasesBodyProps
       {releases.visible.length > 0 ? (
         children
       ) : (
-        <EmptyState icon="filter" tone="muted" title={t('releases.noMatchTitle')} actionLabel={t('releases.resetFilters')} onAction={releases.clearFilters}>
+        <EmptyState icon="filter" tone="muted" title={t('common.noMatchTitle')} actionLabel={t('common.resetFilters')} onAction={releases.clearFilters}>
           {t('releases.noMatchBody')}
         </EmptyState>
       )}

@@ -39,7 +39,7 @@ export function DownloadSettings({ torrent, disabled, categoryBusy, onCategory }
         disabled={disabled || categoryBusy}
         onClick={onCategory}
       >
-        <span className="torrent-download-label">{t('torrent.category')}</span>
+        <span className="torrent-download-label">{t('category.title')}</span>
         <span className="t-label ks-trunc">{category}</span>
         <Icon name="chevron-right" size={18} className="c3" />
       </button>

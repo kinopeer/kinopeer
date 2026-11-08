@@ -57,7 +57,7 @@ describe('FilePicker', () => {
 
   it('selects everything or nothing with one button, and needs at least one file', async () => {
     const picker = renderPicker()
-    await userEvent.click(picker.getByRole('button', { name: 'None' }))
+    await userEvent.click(picker.getByRole('button', { name: 'Deselect all' }))
     expect(picker.getByText('0 of 3 · 0 B')).toBeInTheDocument()
     expect(picker.getByRole('button', { name: 'Done' })).toBeDisabled()
     expect(picker.getAllByRole('checkbox').map((box) => box.getAttribute('aria-checked'))).toEqual(['false', 'false'])
@@ -74,12 +74,12 @@ describe('FilePicker', () => {
 
     await userEvent.click(picker.getByRole('checkbox', { name: 'Season 1' }))
     expect(picker.queryByText('Not enough free space')).not.toBeInTheDocument()
-    expect(picker.getByText('Free: 40.0 GB')).toBeInTheDocument()
+    expect(picker.getByText('40.0 GB free')).toBeInTheDocument()
   })
 
   it.each([undefined, 0, -1])('says nothing about free space when qBittorrent reports %s', (free) => {
     const picker = renderPicker({ free })
-    expect(picker.queryByText(/free space|Free:/)).not.toBeInTheDocument()
+    expect(picker.queryByText(/free/)).not.toBeInTheDocument()
     expect(picker.queryByRole('progressbar')).not.toBeInTheDocument()
   })
 

@@ -19,13 +19,13 @@ describe('SpeedLimitsSheet', () => {
     renderSheet({}, { offline: true })
     await userEvent.type(screen.getByRole('textbox', { name: 'Download limit, MB/s' }), '3')
     expect(screen.getByRole('textbox', { name: 'Download limit, MB/s' })).toHaveValue('3')
-    expect(screen.getByRole('button', { name: 'Save limits' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
   })
 
   it('sends only the changed limit', async () => {
     const handlers = renderSheet()
     await userEvent.type(screen.getByRole('textbox', { name: 'Upload limit, MB/s' }), '0,5')
-    await userEvent.click(screen.getByRole('button', { name: 'Save limits' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(handlers.onSave).toHaveBeenCalledWith({ download: undefined, upload: 500_000 })
     expect(handlers.onClose).not.toHaveBeenCalled()
   })
@@ -43,9 +43,9 @@ describe('SpeedLimitsSheet', () => {
 
   it("disables Save while the limits are being saved, so they aren't sent twice", async () => {
     const handlers = renderSheet({}, { pending: { download: 3_000_000 } })
-    expect(screen.getByRole('button', { name: /Save limits/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
     // Neither a click nor Enter in a field sends them while a save is in flight.
-    await userEvent.click(screen.getByRole('button', { name: /Save limits/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     await userEvent.type(screen.getByRole('textbox', { name: 'Download limit, MB/s' }), '{Enter}')
     expect(handlers.onSave).not.toHaveBeenCalled()
   })
@@ -63,7 +63,7 @@ describe('SpeedLimitsSheet', () => {
     // The download limit was 1 MB/s; a save sent 2 and 3 MB/s and failed, maybe after taking one.
     const handlers = renderSheet({ dl_limit: 1_000_000 }, { failure: { download: 2_000_000, upload: 3_000_000 } })
     expect(screen.getByRole('textbox', { name: 'Download limit, MB/s' })).toHaveValue('1')
-    await userEvent.click(screen.getByRole('button', { name: 'Save limits' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(handlers.onSave).toHaveBeenCalledWith({ download: 1_000_000, upload: 0 })
   })
 
@@ -71,20 +71,20 @@ describe('SpeedLimitsSheet', () => {
     renderSheet({ dl_limit: 1_000_000, up_limit: 300_000 }, { pending: { download: 5_000_000, upload: 0 } })
     expect(screen.getByRole('textbox', { name: 'Download limit, MB/s' })).toHaveValue('5')
     expect(screen.getByRole('textbox', { name: 'Upload limit, MB/s' })).toHaveValue('')
-    expect(screen.getByRole('button', { name: /Save limits/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
   })
 
   it('removes a limit when its field is cleared', async () => {
     const handlers = renderSheet({ dl_limit: 1_000_000, up_limit: 300_000 })
     await userEvent.clear(screen.getByRole('textbox', { name: 'Download limit, MB/s' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Save limits' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(handlers.onSave).toHaveBeenCalledWith({ download: 0, upload: undefined })
   })
 
   it('closes without saving when nothing changed', async () => {
     const handlers = renderSheet({ dl_limit: 4096 })
     expect(screen.getByRole('textbox', { name: 'Download limit, MB/s' })).toHaveValue('0.004')
-    await userEvent.click(screen.getByRole('button', { name: 'Save limits' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     // An unchanged field is never sent, not even as is.
     expect(handlers.onClose).toHaveBeenCalled()
     expect(handlers.onSave).not.toHaveBeenCalled()
@@ -95,7 +95,7 @@ describe('SpeedLimitsSheet', () => {
     const upload = screen.getByRole('textbox', { name: 'Upload limit, MB/s' })
     await userEvent.type(upload, 'abc')
     expect(upload).toHaveAccessibleDescription('Enter a number from 0.001 to 2147, or leave it empty for no limit')
-    expect(screen.getByRole('button', { name: 'Save limits' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
   })
 
   it("writes the bounds in that message with the interface language's decimal separator", async () => {
@@ -114,14 +114,14 @@ describe('SpeedLimitsSheet', () => {
     await userEvent.type(download, ',')
     expect(download).toHaveAccessibleDescription('Empty: no limit')
     expect(download).not.toHaveAttribute('aria-invalid', 'true')
-    expect(screen.getByRole('button', { name: 'Save limits' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
     await userEvent.type(download, '5')
-    expect(screen.getByRole('button', { name: 'Save limits' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
   })
 
   it('says a failed save failed, and lets it be tried again', () => {
     renderSheet({}, { failure: { download: 2_000_000 } })
     expect(screen.getByRole('alert', { name: saying(/Couldn’t save the limits, or saved only some/) })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Save limits' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
   })
 })

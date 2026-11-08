@@ -128,7 +128,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
       onAdded()
     } catch (error) {
       setAdding(false)
-      setAddError(error instanceof QbittorrentError && error.status === 200 ? t('add.addFailed') : t('add.addError', { context: unreachableText(unreachable(error)) }))
+      setAddError(error instanceof QbittorrentError && error.status === 200 ? t('add.addFailed') : t('common.qbtFailed', { context: unreachableText(unreachable(error)) }))
     }
   }
 
@@ -157,7 +157,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
       open
       onClose={onClose}
       title={t('add.title')}
-      action={<IconButton icon="close" label={t('add.cancel')} onClick={onClose} />}
+      action={<IconButton icon="close" label={t('common.cancel')} onClick={onClose} />}
       footer={
         <div className="add-foot">
           <Button
@@ -220,10 +220,10 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
               </span>
               <span className="t-cap c3 ks-num">
                 {format.size(selectedSize)}
-                {free !== undefined && ` · ${t('add.freeSpace', { size: format.size(free) })}`}
+                {free !== undefined && ` · ${t('common.freeSpace', { size: format.size(free) })}`}
               </span>
             </span>
-            <span className="t-label ca add-change">{t('add.change')}</span>
+            <span className="t-label ca add-change">{t('common.change')}</span>
             <Icon name="chevron-right" size={18} className="c3" />
           </button>
         )}
@@ -252,8 +252,8 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
           onOpenChange={setOptionsOpen}
         >
           {categories.length > 0 && (
-            <div role="group" aria-label={t('add.category')} className="add-field">
-              <span className="ks-label">{t('add.category')}</span>
+            <div role="group" aria-label={t('category.title')} className="add-field">
+              <span className="ks-label">{t('category.title')}</span>
               <div className="add-categories">
                 {[{ name: '' }, ...categories].map((option) => (
                   <FilterChip
@@ -261,14 +261,14 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
                     selected={option.name === category}
                     onClick={() => setChosenCategory(option.name)}
                   >
-                    {option.name || t('add.noCategory')}
+                    {option.name || t('category.none')}
                   </FilterChip>
                 ))}
               </div>
             </div>
           )}
           <Input
-            label={t('add.savePath')}
+            label={t('common.folder')}
             value={savePath}
             placeholder={defaultPath}
             mono

@@ -66,8 +66,8 @@ export function ProwlarrKeyForm({ onSaved, onForgotten, canForget = false }: Pro
       {error === 'not-prowlarr' && <Banner tone="error">{t('prowlarrKey.notProwlarr')}</Banner>}
       {error === 'not-configured' && <Banner tone="error">{t('prowlarrKey.notConfigured')}</Banner>}
       {error === 'no-server-key' && <Banner tone="error">{t('prowlarrKey.noServerKey')}</Banner>}
-      {error === 'storage' && <Banner tone="error">{t('prowlarrKey.storage')}</Banner>}
-      {error === 'failed' && <Banner tone="error">{t('prowlarrKey.failed')}</Banner>}
+      {error === 'storage' && <Banner tone="error">{t('keyForm.storage')}</Banner>}
+      {error === 'failed' && <Banner tone="error">{t('keyForm.failed')}</Banner>}
       {error === 'forget-failed' && <Banner tone="error">{t('prowlarrKey.forgetFailed')}</Banner>}
 
       <Input
@@ -90,7 +90,7 @@ export function ProwlarrKeyForm({ onSaved, onForgotten, canForget = false }: Pro
 
       <div className="key-form-actions">
         <Button type="submit" size="lg" block loading={busy === 'save'} disabled={busy === 'forget'}>
-          {t('prowlarrKey.save')}
+          {t('common.save')}
         </Button>
         {canForget && (
           <Button
@@ -102,7 +102,7 @@ export function ProwlarrKeyForm({ onSaved, onForgotten, canForget = false }: Pro
             disabled={busy === 'save'}
             onClick={() => void run('forget', forgetProwlarrKey, onForgotten)}
           >
-            {t('prowlarrKey.forget')}
+            {t('keyForm.useServerKey')}
           </Button>
         )}
       </div>

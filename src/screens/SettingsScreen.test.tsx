@@ -112,6 +112,14 @@ describe('SettingsScreen', () => {
     expect(aboutRow('Prowlarr indexers')).toHaveTextContent(/0$/)
   })
 
+  it('says when Prowlarr or TMDB doesn’t answer its check', async () => {
+    vi.mocked(prowlarr.getProwlarrStatus).mockRejectedValue(new TypeError('Failed to fetch'))
+    vi.mocked(tmdb.checkTmdb).mockRejectedValue(new TypeError('Failed to fetch'))
+    renderScreen()
+    expect(await within(connection('Prowlarr')).findByRole('status', { name: saying('Prowlarr isn’t answering') })).toBeInTheDocument()
+    expect(await within(connection('TMDB')).findByRole('status', { name: saying('TMDB isn’t answering') })).toBeInTheDocument()
+  })
+
   it('explains failures and shows the service connected after Test', async () => {
     vi.mocked(prowlarr.getProwlarrStatus).mockRejectedValue(new prowlarr.ProwlarrSetupError(502, 'unauthorized'))
     vi.mocked(tmdb.checkTmdb).mockRejectedValue(new tmdb.TmdbKeyError(401))
@@ -410,14 +418,14 @@ describe('SettingsScreen', () => {
   it('says it’s Kinopeer that doesn’t answer the qBittorrent check when so', async () => {
     vi.mocked(qbt.getAppVersion).mockRejectedValue(new TypeError('Failed to fetch'))
     renderScreen()
-    expect(await within(connection('qBittorrent')).findByRole('status', { name: saying('No answer from Kinopeer') })).toBeInTheDocument()
+    expect(await within(connection('qBittorrent')).findByRole('status', { name: saying('Kinopeer isn’t answering') })).toBeInTheDocument()
   })
 
   it('loads the categories when Test finds qBittorrent back', async () => {
     vi.mocked(qbt.getAppVersion).mockRejectedValue(new Error('offline'))
     vi.mocked(qbt.getCategories).mockRejectedValue(new Error('offline'))
     renderScreen()
-    expect(await within(connection('qBittorrent')).findByRole('status', { name: saying('No answer from qBittorrent') })).toBeInTheDocument()
+    expect(await within(connection('qBittorrent')).findByRole('status', { name: saying('qBittorrent isn’t answering') })).toBeInTheDocument()
     const movies = screen.getByRole('combobox', { name: 'Movies category' })
     expect(movies).toBeDisabled()
 

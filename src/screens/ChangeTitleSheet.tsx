@@ -63,7 +63,7 @@ export function ChangeTitleSheet({ torrent, current, saving, failed, onPick, onC
       onClose={onClose}
       title={current ? t('match.changeTitle') : t('match.pickTitle')}
       subtitle={torrent.name}
-      action={<IconButton icon="close" label={t('torrent.cancel')} onClick={onClose} />}
+      action={<IconButton icon="close" label={t('common.cancel')} onClick={onClose} />}
       footer={<p className="t-cap c3 retitle-hint">{t('match.hint')}</p>}
       size="lg"
       className="retitle-sheet"
@@ -91,13 +91,13 @@ export function ChangeTitleSheet({ torrent, current, saving, failed, onPick, onC
           )}
         </div>
         <Segmented
-          label={t('search.typeLabel')}
+          label={t('common.type')}
           value={type}
           onChange={setType}
           options={[
-            { value: 'all', label: t('search.all') },
-            { value: 'movie', label: t('search.movies') },
-            { value: 'tv', label: t('search.series') },
+            { value: 'all', label: t('common.all') },
+            { value: 'movie', label: t('types.movie') },
+            { value: 'tv', label: t('types.tv') },
           ]}
         />
         {failed && <Banner tone="error">{t('match.saveFailed')}</Banner>}

@@ -278,7 +278,7 @@ describe('TitleScreen on desktop', () => {
   it('shows Prowlarr errors in the releases section, under the hero', async () => {
     searchReleases.mockRejectedValue(new prowlarr.ProwlarrError('down', 502, 'unreachable'))
     renderAt('/title/movie/693134/releases')
-    expect(await screen.findByRole('heading', { name: 'Couldn’t reach Prowlarr' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Prowlarr isn’t answering' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 1, name: 'Dune: Part Two' })).toBeInTheDocument()
   })
 })

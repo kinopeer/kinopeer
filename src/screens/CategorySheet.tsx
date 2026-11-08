@@ -54,7 +54,7 @@ export function CategorySheet({ torrent, offline, pending, failed, onSave, onClo
       onClose={onClose}
       title={t('category.title')}
       subtitle={torrent.name}
-      action={<IconButton icon="close" label={t('torrent.cancel')} onClick={onClose} />}
+      action={<IconButton icon="close" label={t('common.cancel')} onClick={onClose} />}
       footer={
         <Button
           variant="primary"
@@ -64,7 +64,7 @@ export function CategorySheet({ torrent, offline, pending, failed, onSave, onClo
           disabled={!change || unchanged || sending || offline}
           onClick={() => change && onSave(category, change)}
         >
-          {t('category.save')}
+          {t('common.save')}
         </Button>
       }
     >
@@ -101,7 +101,7 @@ export function CategorySheet({ torrent, offline, pending, failed, onSave, onClo
           })}
         </fieldset>
         {change && !unchanged && <p className="t-cap c2">{noteOf(change, t)}</p>}
-        {failed && <Banner tone="error">{t('torrent.actionFailed')}</Banner>}
+        {failed && <Banner tone="error">{t('common.qbtFailed')}</Banner>}
       </div>
     </Sheet>
   )

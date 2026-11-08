@@ -13,7 +13,7 @@ function failureKey(error: unknown): MoveFailure {
     if (error.status === 409) return 'move.cantCreate'
   }
   // A lost session included: the screen's poll notices it and asks for the login.
-  return 'torrent.actionFailed'
+  return 'common.qbtFailed'
 }
 
 export interface MoveTorrent {

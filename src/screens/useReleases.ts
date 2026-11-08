@@ -31,7 +31,7 @@ export const AUDIO_LABEL = {
   subs: 'releases.audioSubs',
 } as const
 
-export const SORT_LABEL = { seeds: 'releases.sortSeeds', size: 'releases.sortSize', date: 'releases.sortDate' } as const
+export const SORT_LABEL = { seeds: 'fields.seeds', size: 'fields.size', date: 'fields.date' } as const
 
 /** A picked filter value, shown as a removable chip. */
 export interface ActiveFilter {

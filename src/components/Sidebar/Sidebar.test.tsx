@@ -91,14 +91,14 @@ describe('SidebarStatus', () => {
   it('says when qBittorrent doesn’t answer', () => {
     render(<SidebarStatus version="5.0.1" offline downloadSpeed={4_300_000} />)
     // In the card and in the rail's column.
-    expect(screen.getAllByText('No connection to qBittorrent')).toHaveLength(2)
+    expect(screen.getAllByText('qBittorrent isn’t answering')).toHaveLength(2)
     expect(screen.getByRole('region', { name: 'qBittorrent' })).toHaveTextContent('↓Download speed —')
     expect(screen.queryByText('TB')).not.toBeInTheDocument()
   })
 
   it('says when Kinopeer itself doesn’t answer', () => {
     render(<SidebarStatus version="5.0.1" offline unreachable="kinopeer" />)
-    expect(screen.getAllByText('No connection to Kinopeer')).toHaveLength(2)
+    expect(screen.getAllByText('Kinopeer isn’t answering')).toHaveLength(2)
   })
 
   it('shows the indicator in the card and in the rail, the rail’s with the connection for its tooltip', () => {

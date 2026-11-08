@@ -136,7 +136,7 @@ export function TorrentActionsSheet({
   const isDesktop = useIsDesktop()
   const errors = (
     <>
-      {failed && <Banner tone="error">{t('torrent.actionFailed')}</Banner>}
+      {failed && <Banner tone="error">{t('common.qbtFailed')}</Banner>}
       {saveFailed && <Banner tone="error">{t('match.saveFailed')}</Banner>}
     </>
   )
@@ -177,7 +177,7 @@ export function TorrentActionsSheet({
             <MenuDivider />
             <MenuGroup label={t('match.guessNote')}>
               <MenuItem icon="search" disabled={confirming || deleting} onClick={onChangeTitle}>
-                {t('match.change')}
+                {t('common.change')}
               </MenuItem>
               <MenuItem icon="check" disabled={confirming || deleting} onClick={confirm}>
                 {t('match.confirm')}
