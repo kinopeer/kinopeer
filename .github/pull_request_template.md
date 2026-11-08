@@ -16,7 +16,7 @@ By opening this pull request, I agree to [CONTRIBUTING.md → Licensing of contr
      broke and watched it fail, one break per claim of its title and of each comment on its
      assertions (docs/TESTING.md → A test that can fail). The review (/test-review) reads this first. -->
 
-| Test (file › it) | Layer | What it says | Seen red |
+| Test (file › it) | Layer | What it says | Seen red (one break per claim) |
 | --- | --- | --- | --- |
 |  |  |  |  |
 
@@ -48,14 +48,19 @@ Baselines: <!-- each changed or new PNG — what changed and why — diff looked
 
 ## Docs
 
-<!-- What changed in docs/, CLAUDE.md, README.md or CHANGELOG.md, or "none". Search them for what
-     the diff moved or renamed: which test owns a statement, what a sheet or a toast does. Grep them
-     for each number or name the diff changes, by its old value and each word of an old name on its
-     own (`git grep -n '380px' docs CLAUDE.md README.md`, `git grep -ni kinoseed`, not only
-     `kinoseed-tmdb`). Read SPEC's, ARCHITECTURE.md's and CLAUDE.md's paragraphs about what the diff changes: a claim
-     by meaning ("as in Downloads, on both layouts") has no name to grep. A list
-     the change adds to gains the new item: the screens in TESTING.md → Screenshot tests, SPEC's
-     decision log (newest first), the blind spots. -->
+<!-- What changed in the docs, or "none". The docs are every file that describes what the diff
+     changes: those in CLAUDE.md's docs table (README, CONTRIBUTING, SECURITY, SPEC, ARCHITECTURE,
+     ROADMAP, DEVELOPMENT, TESTING, RELEASE_CHECKLIST, CHANGELOG), the comments in workflows and
+     config, and .env.example. Search them for what the diff moved or renamed: which test owns a
+     statement, what a sheet or a toast does. Grep them for each number or name the diff changes,
+     by its old value and each word of an old name on its own (`git grep -n '380px' docs CLAUDE.md
+     README.md .github`, `git grep -ni kinoseed`, not only `kinoseed-tmdb`). Read their paragraphs
+     about what the diff changes: a claim by meaning ("as in Downloads, on both layouts") has no
+     name to grep. Check each claim against what it describes: the code, the service's own docs
+     (opened, not remembered), the UI's words, the doc it points at; a checklist step's pointer
+     resolves and its check can pass as written. A list the change adds to gains the new item:
+     the screens in TESTING.md → Screenshot tests, SPEC's decision log (newest first), the blind
+     spots. Bring this section, What and Tests to the head after each round's fixes. -->
 
 ## Why tests missed it
 
