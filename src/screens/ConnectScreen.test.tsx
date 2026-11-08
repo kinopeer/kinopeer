@@ -1,11 +1,12 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import type { Unreachable } from '../api/qbittorrent'
 import { SettingsError } from '../api/settings'
 import { ConnectScreen } from './ConnectScreen'
 import { saying } from '../test/render'
 
-function setup(onSignIn = vi.fn().mockResolvedValue(undefined), props: { unreachable?: boolean } = {}) {
+function setup(onSignIn = vi.fn().mockResolvedValue(undefined), props: { unreachable?: Unreachable } = {}) {
   const onRetry = vi.fn()
   render(<ConnectScreen onSignIn={onSignIn} onRetry={onRetry} {...props} />)
   return { onSignIn, onRetry }
@@ -49,15 +50,32 @@ describe('ConnectScreen', () => {
     expect(screen.getByRole('alert', { name: saying(/qBittorrent has blocked this address/) })).toBeInTheDocument()
   })
 
-  it('reports an unreachable server and offers a retry', async () => {
-    const { onRetry } = setup(undefined, { unreachable: true })
+  it('reports an unreachable qBittorrent and offers a retry', async () => {
+    const { onRetry } = setup(undefined, { unreachable: 'qbittorrent' })
     expect(screen.getByRole('alert', { name: saying('qBittorrent is unreachable') })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
     expect(onRetry).toHaveBeenCalled()
   })
 
-  it('treats network errors during sign-in as unreachable', async () => {
-    setup(vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
+  it('says Kinopeer, not qBittorrent, did not answer the session check when so', () => {
+    setup(undefined, { unreachable: 'kinopeer' })
+    expect(screen.getByRole('alert', { name: saying('Kinopeer isn’t answering') })).toHaveTextContent('Check that this device is online and Kinopeer is running on your server.')
+  })
+
+  it('takes a network error during sign-in for Kinopeer not answering', async () => {
+    setup(vi.fn().mockRejectedValue(new TypeError('Failed to fetch')), { unreachable: 'qbittorrent' })
+    await fillAndSubmit()
+    expect(screen.getByRole('alert', { name: saying('Kinopeer isn’t answering') })).toBeInTheDocument()
+  })
+
+  it('takes any answer of the server’s own, qBittorrent not set up included, for the server answering', async () => {
+    setup(vi.fn().mockRejectedValue(new SettingsError(503, 'not-configured')), { unreachable: 'kinopeer' })
+    await fillAndSubmit()
+    expect(screen.getByRole('alert', { name: saying('qBittorrent is unreachable') })).toBeInTheDocument()
+  })
+
+  it('takes the server’s word that qBittorrent did not answer the sign-in', async () => {
+    setup(vi.fn().mockRejectedValue(new SettingsError(502, 'unreachable')), { unreachable: 'kinopeer' })
     await fillAndSubmit()
     expect(screen.getByRole('alert', { name: saying('qBittorrent is unreachable') })).toBeInTheDocument()
   })

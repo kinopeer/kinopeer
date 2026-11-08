@@ -3,6 +3,7 @@ import { act, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { MemoryRouter, useLocation, type InitialEntry } from 'react-router'
 import { expect } from 'vitest'
+import { QbittorrentError } from '../api/qbittorrent'
 import { ToastProvider } from '../components/Toast'
 import type { PollSource, PollState } from '../torrents/useMainData'
 
@@ -72,3 +73,6 @@ export function fakePoll(initial: PollState = { inFlight: false, offline: false,
     })
   return { poll, set }
 }
+
+/** The bridge's own failure when qBittorrent doesn't answer (server/qbittorrent.ts), as the client throws it. */
+export const qbittorrentDown = () => new QbittorrentError('qBittorrent responded 502', 502)

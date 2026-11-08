@@ -58,6 +58,12 @@ const PREFIX = '/qbt/'
 /** Sent by src/api/qbittorrent/client.ts on every request. */
 const CLIENT_HEADER = 'x-kinopeer'
 /**
+ * On every answer of the bridge, so the client tells a failure of qBittorrent's from one that never
+ * reached Kinopeer's server (a proxy in front answering for it): `BRIDGE_HEADER` in
+ * src/api/qbittorrent/client.ts, which server code can't import (the image has no src/).
+ */
+export const BRIDGE_HEADER = 'x-kinopeer-bridge'
+/**
  * What src/api/qbittorrent/client.ts calls, with its method: the only requests the bridge sends on,
  * so nothing reaches qBittorrent's preferences, its logins or anything else Kinopeer doesn't use.
  * server/integration/qbittorrent.test.ts checks that every call of the client gets through.
@@ -251,6 +257,7 @@ export function qbittorrentBridge(config: QbittorrentConfig): QbittorrentBridge 
     if (!path.startsWith(PREFIX)) return next()
     // The torrents and qBittorrent's settings: no cache on the way keeps them, whatever qBittorrent says.
     response.setHeader('Cache-Control', 'no-store')
+    response.setHeader(BRIDGE_HEADER, '1')
     const fail = (status: number, message: string) => {
       response.statusCode = status
       response.setHeader('Content-Type', 'text/plain; charset=utf-8')

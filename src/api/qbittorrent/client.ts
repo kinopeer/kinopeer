@@ -9,7 +9,7 @@ import type {
   TorrentTracker,
   TorrentsQuery,
 } from './types'
-import { fetchKinopeer } from '../fetchKinopeer'
+import { ProxySignInError, fetchKinopeer } from '../fetchKinopeer'
 
 /** Same-origin prefix bridged to qBittorrent's Web API by server/qbittorrent.ts. */
 export const QBITTORRENT_BASE = '/qbt/api/v2'
@@ -22,6 +22,33 @@ export class QbittorrentError extends Error {
     this.name = 'QbittorrentError'
     this.status = status
   }
+}
+
+/**
+ * The bridge's mark on each of its answers (`BRIDGE_HEADER` in server/qbittorrent.ts): a failure
+ * without it never reached Kinopeer's server, a proxy in front answered for it.
+ */
+export const BRIDGE_HEADER = 'x-kinopeer-bridge'
+
+/** A request failed without reaching Kinopeer's server: something in front of it answered. */
+export class KinopeerUnreachableError extends QbittorrentError {
+  constructor(status: number) {
+    super(`Kinopeer's server did not answer (${status})`, status)
+    this.name = 'KinopeerUnreachableError'
+  }
+}
+
+/** Who didn't answer: Kinopeer's own server (or the way to it), or qBittorrent behind it. */
+export type Unreachable = 'kinopeer' | 'qbittorrent'
+
+/**
+ * Who a failed request didn't get an answer from. Kinopeer's: the network failed (fetch's
+ * TypeError), a proxy in front asked to sign in, or answered for the server. Otherwise
+ * qBittorrent's, a request that took too long included: the bridge waits for qBittorrent, so a
+ * request that hangs is most likely waiting on it.
+ */
+export function unreachable(error: unknown): Unreachable {
+  return error instanceof TypeError || error instanceof ProxySignInError || error instanceof KinopeerUnreachableError ? 'kinopeer' : 'qbittorrent'
 }
 
 /** The server has no working qBittorrent login (the app asks for one, see src/api/settings). */
@@ -59,6 +86,7 @@ async function request(
     signal: init.signal,
   })
 
+  if (!response.ok && !response.headers.has(BRIDGE_HEADER)) throw new KinopeerUnreachableError(response.status)
   if (response.status === 401 || response.status === 403) throw new UnauthorizedError()
   if (!response.ok) throw new QbittorrentError(`qBittorrent responded ${response.status}`, response.status)
   return response

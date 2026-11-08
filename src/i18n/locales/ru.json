@@ -26,7 +26,9 @@
     "invalidCredentials": "Неверный логин или пароль",
     "banned": "Слишком много неудачных попыток. qBittorrent временно заблокировал этот адрес.",
     "unreachableTitle": "qBittorrent недоступен",
-    "unreachableBody": "Проверьте, что qBittorrent запущен и веб-интерфейс включён."
+    "unreachableBody": "Проверьте, что qBittorrent запущен и веб-интерфейс включён.",
+    "unreachableTitle_kinopeer": "Kinopeer не отвечает",
+    "unreachableBody_kinopeer": "Проверьте, что устройство в сети и Kinopeer запущен на сервере."
   },
   "status": {
     "downloading": "Загружается",
@@ -161,6 +163,7 @@
   "sidebar": {
     "connected": "qBittorrent {{version}}",
     "offline": "Нет связи с qBittorrent",
+    "offline_kinopeer": "Нет связи с Kinopeer",
     "freeSpace": "Свободно"
   },
   "speedLimits": {
@@ -235,6 +238,7 @@
     "test": "Проверить",
     "testing": "Проверяем…",
     "qbtError": "qBittorrent не отвечает",
+    "qbtError_kinopeer": "Kinopeer не отвечает",
     "prowlarrSetup": "Не настроен, или API-ключ не подошёл",
     "prowlarrError": "Prowlarr не отвечает",
     "connected": "Подключено",
@@ -364,6 +368,7 @@
     "magnetFiles": "Magnet-ссылка: скачаются все файлы. Лишние можно отключить позже в qBittorrent.",
     "addFailed": "qBittorrent не добавил торрент. Возможно, он уже есть в загрузках.",
     "addError": "Не удалось связаться с qBittorrent. Попробуйте ещё раз.",
+    "addError_kinopeer": "Не удалось связаться с Kinopeer. Попробуйте ещё раз.",
     "added": "«{{title}}» — добавлено в загрузки",
     "selectFiles": "Выбор файлов",
     "back": "Назад",
@@ -456,10 +461,13 @@
   },
   "offline": {
     "title": "Нет связи с qBittorrent",
+    "title_kinopeer": "Нет связи с Kinopeer",
     "updated": "Обновлено {{ago}} · действия недоступны",
     "retrying": "Переподключаемся автоматически",
     "unreachableTitle": "qBittorrent недоступен",
     "unreachableBody": "Проверьте, что qBittorrent запущен и сервер Kinopeer может до него достучаться. Переподключаемся автоматически.",
+    "unreachableTitle_kinopeer": "Kinopeer недоступен",
+    "unreachableBody_kinopeer": "Проверьте, что устройство в сети и Kinopeer запущен на сервере. Переподключаемся автоматически.",
     "reconnected": "Снова на связи с qBittorrent"
   },
   "poll": {
@@ -467,6 +475,8 @@
     "waiting": "Ждём ответа qBittorrent",
     "offline": "qBittorrent не отвечает",
     "offlineSince": "qBittorrent не отвечает · обновлено в {{time}}",
+    "offline_kinopeer": "Kinopeer не отвечает",
+    "offlineSince_kinopeer": "Kinopeer не отвечает · обновлено в {{time}}",
     "withContext": "{{prefix}} · {{label}}"
   },
   "crash": {

@@ -7,7 +7,7 @@ import * as api from '../api/qbittorrent'
 import type { Torrent } from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
 import { DUNE_TORRENT, mainData, searchPage } from '../test/fixtures'
-import { findToastOnPage, renderWithRouter, saying } from '../test/render'
+import { findToastOnPage, qbittorrentDown, renderWithRouter, saying } from '../test/render'
 import * as serverMatches from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
@@ -123,11 +123,23 @@ describe('TorrentScreen', () => {
   })
 
   it('says when qBittorrent can’t be reached', async () => {
-    getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    getMainData.mockRejectedValueOnce(qbittorrentDown())
     renderScreen()
     expect(await screen.findByRole('heading', { name: 'Can’t reach qBittorrent' })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
     expect(await screen.findByRole('heading', { level: 1, name: 'Dune: Part Two' })).toBeInTheDocument()
+  })
+
+  it('says when Kinopeer itself can’t be reached, before any answer and after one', async () => {
+    getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    renderScreen()
+    expect(await screen.findByRole('heading', { name: 'Can’t reach Kinopeer' })).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    await screen.findByRole('heading', { level: 1, name: 'Dune: Part Two' })
+    getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    window.dispatchEvent(new Event('online'))
+    expect(await screen.findByRole('status', { name: saying('No connection to Kinopeer') })).toBeInTheDocument()
   })
 
   it('says when the torrent is gone', async () => {
@@ -279,7 +291,7 @@ describe('TorrentScreen', () => {
   it('turns the download settings off while qBittorrent is unreachable', async () => {
     renderScreen()
     const download = await screen.findByRole('region', { name: 'Download' })
-    getMainData.mockRejectedValue(new TypeError('Failed to fetch'))
+    getMainData.mockRejectedValue(qbittorrentDown())
     window.dispatchEvent(new Event('online'))
     await waitFor(() => expect(within(download).getByRole('button', { name: 'Category: Movies' })).toBeDisabled())
     expect(within(download).getByRole('switch', { name: 'Sequential download' })).toBeDisabled()

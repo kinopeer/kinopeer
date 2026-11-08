@@ -2,6 +2,7 @@ import { act, cleanup, render, renderHook } from '@testing-library/react'
 import { useEffect, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
+import { qbittorrentDown } from '../test/render'
 import { MainDataProvider } from './MainDataProvider'
 import { TorrentRequestsProvider } from './TorrentRequestsProvider'
 import { OFFLINE_POLL_INTERVAL_MS, POLL_INTERVAL_MS, POLL_TIMEOUT_MS, useFreeSpace, useMainData } from './useMainData'
@@ -69,6 +70,26 @@ describe('useMainData', () => {
 
     await act(() => vi.advanceTimersByTimeAsync(OFFLINE_POLL_INTERVAL_MS))
     expect(result.current.offline).toBe(false)
+  })
+
+  it('says who did not answer: Kinopeer on a network failure, qBittorrent on the bridge’s, and forgets it on an answer', async () => {
+    getMainData
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockRejectedValueOnce(qbittorrentDown())
+      .mockResolvedValueOnce({ rid: 1 })
+    const { result } = renderHook(() => useMainData(vi.fn()))
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    expect(result.current).toMatchObject({ offline: true, unreachable: 'kinopeer' })
+    expect(result.current.poll.getPollState()).toMatchObject({ offline: true, unreachable: 'kinopeer' })
+
+    await act(() => vi.advanceTimersByTimeAsync(OFFLINE_POLL_INTERVAL_MS))
+    expect(result.current).toMatchObject({ offline: true, unreachable: 'qbittorrent' })
+    expect(result.current.poll.getPollState()).toMatchObject({ unreachable: 'qbittorrent' })
+
+    await act(() => vi.advanceTimersByTimeAsync(OFFLINE_POLL_INTERVAL_MS))
+    expect(result.current.offline).toBe(false)
+    expect(result.current.unreachable).toBeUndefined()
+    expect(result.current.poll.getPollState().unreachable).toBeUndefined()
   })
 
   it('polls right away on refresh', async () => {

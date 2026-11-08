@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { DESKTOP, openApp, settle, type AppOptions } from './app.ts'
+import { BRIDGE_HEADERS, DESKTOP, openApp, settle, type AppOptions } from './app.ts'
 
 /** Opens the app, then answers as a fresh install would and reloads, so the given setup step shows. */
 async function openOnboarding(page: Page, step: 'connect' | 'tmdb', options: AppOptions = {}) {
@@ -8,7 +8,7 @@ async function openOnboarding(page: Page, step: 'connect' | 'tmdb', options: App
   if (step === 'connect') {
     await page.route(
       (url) => url.pathname === '/qbt/api/v2/app/version',
-      (route) => route.fulfill({ status: 403, body: 'Forbidden' }),
+      (route) => route.fulfill({ status: 403, headers: BRIDGE_HEADERS, body: 'Forbidden' }),
     )
   } else {
     await page.route(

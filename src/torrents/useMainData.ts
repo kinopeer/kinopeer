@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import { UnauthorizedError, getMainData } from '../api/qbittorrent'
+import { UnauthorizedError, getMainData, unreachable, type Unreachable } from '../api/qbittorrent'
 import { freeSpace } from './freeSpace'
 import { EMPTY_SYNC_STATE, applyMainData, type SyncState } from './sync'
 import { withExpected, type Expected } from './torrentRequests'
@@ -21,6 +21,8 @@ export interface MainDataSnapshot {
   data: SyncState | null
   /** The last request failed; `data` holds the last known state. */
   offline: boolean
+  /** Who didn't answer it while `offline`: Kinopeer's server or qBittorrent (`unreachable`). Unset: qBittorrent. */
+  unreachable?: Unreachable
   /** When `data` last arrived (ms since epoch), or null before the first response. */
   updatedAt: number | null
   /** When the request that brought `data` was sent: what happened before that is in `data`. */
@@ -33,6 +35,8 @@ export interface PollState {
   inFlight: boolean
   /** The last request failed. */
   offline: boolean
+  /** Who didn't answer it, as in MainDataSnapshot. */
+  unreachable?: Unreachable
   /** When the last answer arrived (ms since epoch), or null before the first one. */
   updatedAt: number | null
 }
@@ -72,7 +76,7 @@ export function createMainDataStore(): MainDataStore {
   let idleTimer: ReturnType<typeof setTimeout> | undefined
   let running = false
   let inFlight = false
-  let pollState: PollState = { inFlight, offline: snapshot.offline, updatedAt: snapshot.updatedAt }
+  let pollState: PollState = { inFlight, offline: snapshot.offline, unreachable: snapshot.unreachable, updatedAt: snapshot.updatedAt }
   // Refreshed while a poll was in flight: that request went out before what the caller changed, so
   // poll again as soon as it's answered.
   let refreshed = false
@@ -85,7 +89,7 @@ export function createMainDataStore(): MainDataStore {
   // out or settles, so the poll's state is new every time.
   const update = (changes: Partial<MainDataSnapshot>) => {
     if (Object.keys(changes).length > 0) snapshot = { ...snapshot, ...changes }
-    pollState = { inFlight, offline: snapshot.offline, updatedAt: snapshot.updatedAt }
+    pollState = { inFlight, offline: snapshot.offline, unreachable: snapshot.unreachable, updatedAt: snapshot.updatedAt }
     listeners.forEach((listener) => listener())
   }
 
@@ -112,7 +116,7 @@ export function createMainDataStore(): MainDataStore {
     try {
       const requestedAt = Date.now()
       state = applyMainData(state, await getMainData(state.rid, controller.signal))
-      changes = { data: state, updatedAt: Date.now(), requestedAt, offline: false }
+      changes = { data: state, updatedAt: Date.now(), requestedAt, offline: false, unreachable: undefined }
     } catch (error) {
       if (running && error instanceof UnauthorizedError) {
         unauthorized = true
@@ -121,7 +125,7 @@ export function createMainDataStore(): MainDataStore {
         return
       }
       // Dropped: not qBittorrent's failure, so the screens keep what they showed.
-      changes = dropped ? {} : { offline: true }
+      changes = dropped ? {} : { offline: true, unreachable: unreachable(error) }
       delay = OFFLINE_POLL_INTERVAL_MS
     } finally {
       clearTimeout(timeout)

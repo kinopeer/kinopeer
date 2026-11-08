@@ -9,7 +9,7 @@ import * as tmdb from '../api/tmdb'
 import { stubDesktop } from '../lib/stubDesktop'
 import { resetSettings, updateSettings } from '../settings/settings'
 import { DUNE_TORRENT, mainData, searchPage, title } from '../test/fixtures'
-import { findToastOnPage, renderWithRouter, saying, Where, where } from '../test/render'
+import { findToastOnPage, qbittorrentDown, renderWithRouter, saying, Where, where } from '../test/render'
 import { MainDataProvider } from '../torrents/MainDataProvider'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
 import * as serverMatches from '../torrents/serverMatches'
@@ -164,7 +164,7 @@ describe('the details drawer on desktop', () => {
   it('shows a toast from Downloads inside the drawer, since the page behind it is inert', async () => {
     renderApp(['/', '/torrent/dune'])
     const drawer = await screen.findByRole('dialog', { name: 'Dune: Part Two' })
-    getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    getMainData.mockRejectedValueOnce(qbittorrentDown())
     window.dispatchEvent(new Event('online'))
     expect(await within(drawer).findByRole('status', { name: saying('No connection to qBittorrent') })).toBeInTheDocument()
 

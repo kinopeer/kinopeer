@@ -83,6 +83,14 @@ describe('PollRing', () => {
     expect(ringState(ring)).toBe('offline')
   })
 
+  it('says Kinopeer isn’t answering when Kinopeer’s server is who didn’t, with or without an answer before', () => {
+    const { poll, set } = fakePoll({ inFlight: false, offline: true, unreachable: 'kinopeer', updatedAt: null })
+    render(<PollRing poll={poll} />)
+    expect(screen.getByRole('img', { name: 'Kinopeer isn’t answering' })).toBeInTheDocument()
+    set({ ...answered, offline: true, unreachable: 'kinopeer' })
+    expect(screen.getByRole('img', { name: /^Kinopeer isn’t answering · updated at / })).toBeInTheDocument()
+  })
+
   it('says qBittorrent isn’t answering before any answer', () => {
     const { poll } = fakePoll({ inFlight: false, offline: true, updatedAt: null })
     render(<PollRing poll={poll} />)

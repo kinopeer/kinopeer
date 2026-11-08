@@ -11,7 +11,7 @@ import { resetSettings, updateSettings } from '../settings/settings'
 import * as torrentFile from '../torrents/torrentFile'
 import { MainDataContext, createMainDataStore, type MainDataStore } from '../torrents/useMainData'
 import { AddReleaseSheet } from './AddReleaseSheet'
-import { saying } from '../test/render'
+import { qbittorrentDown, saying } from '../test/render'
 
 vi.mock('../api/prowlarr', async (importOriginal) => ({
   ...(await importOriginal<typeof prowlarr>()),
@@ -424,5 +424,14 @@ describe('AddReleaseSheet', () => {
     await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
     expect(await screen.findByRole('alert', { name: saying(/may already be in your downloads/) })).toBeInTheDocument()
     expect(onAdded).not.toHaveBeenCalled()
+  })
+
+  it('says whether qBittorrent or Kinopeer itself didn’t answer the add', async () => {
+    addRelease.mockRejectedValueOnce(qbittorrentDown()).mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    renderSheet()
+    await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
+    expect(await screen.findByRole('alert', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /^Download/ }))
+    expect(await screen.findByRole('alert', { name: saying('Couldn’t reach Kinopeer. Try again.') })).toBeInTheDocument()
   })
 })

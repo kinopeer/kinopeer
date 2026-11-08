@@ -49,6 +49,15 @@ export const DESKTOP = { viewport: { width: 1440, height: 900 } }
 /** The narrowest desktop width, where the sidebar is an icon rail without labels. */
 export const DESKTOP_RAIL = { viewport: { width: 1024, height: 768 } }
 
+/**
+ * The qBittorrent bridge's mark on its answers (server/qbittorrent.ts): a failure of /qbt without it
+ * reads as Kinopeer's server not answering, so a mocked failure of qBittorrent carries it. Written
+ * out rather than imported from src/api/qbittorrent/client.ts, whose extensionless imports this
+ * tsconfig's Node resolution doesn't take; the screenshots of a failing qBittorrent go wrong if
+ * the two drift.
+ */
+export const BRIDGE_HEADERS = { 'x-kinopeer-bridge': '1' }
+
 const json = (route: Route, body: unknown, status = 200) =>
   route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
 
@@ -68,7 +77,8 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
       if (pathname === '/qbt/api/v2/app/version') return route.fulfill({ body: 'v5.3.0' })
       if (pathname === '/qbt/api/v2/sync/maindata') {
         polls += 1
-        if (options.goesOffline && polls > 1) return route.abort('connectionrefused')
+        // The bridge's own failure: qBittorrent stopped answering, not Kinopeer's server.
+        if (options.goesOffline && polls > 1) return route.fulfill({ status: 502, headers: BRIDGE_HEADERS, body: 'qBittorrent is unreachable' })
         return json(
           route,
           mainData(torrents, {

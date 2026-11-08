@@ -407,6 +407,12 @@ describe('SettingsScreen', () => {
     expect(screen.getByText(/the same on every device/)).toBeInTheDocument()
   })
 
+  it('says it’s Kinopeer that doesn’t answer the qBittorrent check when so', async () => {
+    vi.mocked(qbt.getAppVersion).mockRejectedValue(new TypeError('Failed to fetch'))
+    renderScreen()
+    expect(await within(connection('qBittorrent')).findByRole('status', { name: saying('No answer from Kinopeer') })).toBeInTheDocument()
+  })
+
   it('loads the categories when Test finds qBittorrent back', async () => {
     vi.mocked(qbt.getAppVersion).mockRejectedValue(new Error('offline'))
     vi.mocked(qbt.getCategories).mockRejectedValue(new Error('offline'))

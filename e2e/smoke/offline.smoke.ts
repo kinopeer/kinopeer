@@ -38,7 +38,8 @@ test('the service worker keeps the shell offline and never the live data', async
 
   await context.setOffline(true)
   await page.reload()
-  await expect(page.getByText('qBittorrent недоступен')).toBeVisible()
+  // The whole network is down, so it's Kinopeer's server that doesn't answer, not qBittorrent.
+  await expect(page.getByText('Kinopeer не отвечает')).toBeVisible()
 
   await context.setOffline(false)
   await page.getByRole('button', { name: 'Повторить' }).click()

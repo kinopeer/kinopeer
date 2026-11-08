@@ -96,6 +96,11 @@ describe('SidebarStatus', () => {
     expect(screen.queryByText('TB')).not.toBeInTheDocument()
   })
 
+  it('says when Kinopeer itself doesn’t answer', () => {
+    render(<SidebarStatus version="5.0.1" offline unreachable="kinopeer" />)
+    expect(screen.getAllByText('No connection to Kinopeer')).toHaveLength(2)
+  })
+
   it('shows the indicator in the card and in the rail, the rail’s with the connection for its tooltip', () => {
     render(
       <SidebarStatus

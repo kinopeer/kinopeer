@@ -24,13 +24,13 @@ export interface PollRingProps {
 export function PollRing({ poll, context, className }: PollRingProps) {
   const { t } = useTranslation()
   const format = useFormatters()
-  const { inFlight, offline, updatedAt } = useSyncExternalStore(poll.subscribe, poll.getPollState)
+  const { inFlight, offline, unreachable, updatedAt } = useSyncExternalStore(poll.subscribe, poll.getPollState)
   const state: PollRingState = offline ? 'offline' : inFlight || updatedAt === null ? 'waiting' : 'filling'
   const time = updatedAt === null ? null : format.time(updatedAt)
   const label = offline
     ? time === null
-      ? t('poll.offline')
-      : t('poll.offlineSince', { time })
+      ? t('poll.offline', { context: unreachable })
+      : t('poll.offlineSince', { time, context: unreachable })
     : time === null
       ? t('poll.waiting')
       : t('poll.updated', { time })

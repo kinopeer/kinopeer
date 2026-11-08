@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router'
 import { ProwlarrSetupError, getProwlarrStatus } from '../api/prowlarr'
-import { getAppVersion, getCategories } from '../api/qbittorrent'
+import { getAppVersion, getCategories, unreachable } from '../api/qbittorrent'
 import { TmdbKeyError, checkTmdb } from '../api/tmdb'
 import { getServerSettings, type ServerSettings } from '../api/settings'
 import { Button } from '../components/Button'
@@ -257,7 +257,7 @@ export function SettingsScreen() {
           <ConnectionRow
             name="qBittorrent"
             icon="server"
-            status={connectionStatus(qbittorrent, () => ({ message: t('settings.connected') }), () => t('settings.qbtError'))}
+            status={connectionStatus(qbittorrent, () => ({ message: t('settings.connected') }), (error) => t('settings.qbtError', { context: unreachable(error) }))}
             onTest={qbittorrent.retry}
           />
           <ConnectionRow
