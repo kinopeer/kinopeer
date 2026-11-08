@@ -45,7 +45,12 @@ jobs:
     uses: ./.github/workflows/tmdb-proxy.yml
     with:
       environment: edge
-    secrets: inherit
+    # By name, since they live in the deploy environment (docs/DEVELOPMENT.md → The TMDB proxy), which
+    # only the called job can name; nothing else this workflow can read goes along.
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
 
   edge:
     needs: proxy
@@ -56,6 +61,8 @@ jobs:
     concurrency:
       group: edge
       cancel-in-progress: true
+    # The edge store's deploy key lives in the deploy environment, which only main and v* tags can read.
+    environment: deploy
     permissions:
       contents: read
       packages: write

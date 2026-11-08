@@ -1,7 +1,7 @@
 name: TMDB proxy
 
 # Deploys Kinopeer's TMDB proxy (tmdb-proxy/) to Cloudflare Workers and gives it the key, which lives
-# in this repository's secrets and the worker's, never in the code or the image. It has no trigger of
+# in the deploy environment's secrets and the worker's, never in the code or the image. It has no trigger of
 # its own: Edge runs it for kinopeer-tmdb-edge with every edge build, and Release for kinopeer-tmdb
 # with every release, so each worker goes out with the builds that call it, whatever starts them
 # (docs/DEVELOPMENT.md → The TMDB proxy).
@@ -12,6 +12,13 @@ on:
         description: '`edge` (main, called by Kinopeer Edge) or `release` (the newest tag, called by released versions)'
         required: true
         type: string
+    secrets:
+      CLOUDFLARE_API_TOKEN:
+        required: true
+      CLOUDFLARE_ACCOUNT_ID:
+        required: true
+      TMDB_API_KEY:
+        required: true
 
 permissions:
   contents: read
@@ -24,6 +31,9 @@ jobs:
     concurrency:
       group: tmdb-proxy-${{ inputs.environment }}
       cancel-in-progress: false
+    # GitHub's environment that holds the secrets and lets only main and v* tags read them, not
+    # inputs.environment, which is the worker's in wrangler.jsonc.
+    environment: deploy
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # The Cloudflare token only in the steps that call Cloudflare, not while npm installs Wrangler.
@@ -51,7 +61,7 @@ jobs:
           [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || missing+=(CLOUDFLARE_ACCOUNT_ID)
           [ -n "$TMDB_API_KEY" ] || missing+=(TMDB_API_KEY)
           if [ ${#missing[@]} -gt 0 ]; then
-            echo "::error::Repository secrets not set: ${missing[*]}"
+            echo "::error::Secrets not set in the deploy environment: ${missing[*]}"
             exit 1
           fi
 
