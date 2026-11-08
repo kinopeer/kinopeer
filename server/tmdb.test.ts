@@ -142,6 +142,19 @@ describe('tmdbMiddleware', () => {
     expect(await response.text()).not.toContain('abc123')
   })
 
+  it('passes a HEAD on as a HEAD', async () => {
+    const methods: (string | undefined)[] = []
+    const images = await listen((request, response) => {
+      methods.push(request.method)
+      response.setHeader('Content-Type', 'image/jpeg')
+      response.end()
+    })
+    const app = await kinopeer({ imageBase: images })
+
+    expect((await fetch(`${app}/tmdb-img/w342/poster.jpg`, { method: 'HEAD' })).status).toBe(200)
+    expect(methods).toEqual(['HEAD'])
+  })
+
   it('gives up its request to TMDB when the browser gives up on it', async () => {
     const tmdb = await silentService()
     const app = await kinopeer({ apiKey: 'abc123', apiBase: `${tmdb.base}/3` })
