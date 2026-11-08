@@ -91,6 +91,15 @@ async function forward(
     .pipe(response)
 }
 
+/**
+ * Whether `url`, resolved as fetch resolves it, is still under `base`: a `..` in the path, as written
+ * or encoded (`%2e%2e`), would take it out to the rest of the service, with the key added. The host
+ * can't change, since the browser's path always follows the base and a `/`.
+ */
+function under(base: string, url: string): boolean {
+  return new URL(url).pathname.startsWith(new URL(`${base}/`).pathname)
+}
+
 export function tmdbMiddleware(config: TmdbConfig): Middleware {
   const getKey = typeof config.apiKey === 'function' ? config.apiKey : () => config.apiKey as string | undefined
   const apiBase = config.apiBase ?? API_BASE
@@ -108,17 +117,25 @@ export function tmdbMiddleware(config: TmdbConfig): Middleware {
     }
     if (request.method !== 'GET' && request.method !== 'HEAD') return fail(405, 'Method not allowed')
 
+    let base = imageBase
     let target = { url: `${imageBase}/${path.slice(IMAGE_PREFIX.length)}`, headers: {} as Record<string, string> }
     if (isApi) {
       const key = getKey()?.trim()
       const apiPath = path.slice(API_PREFIX.length)
-      if (key) target = authorize(key, `${apiBase}/${apiPath}`)
+      if (key) {
+        base = apiBase
+        target = authorize(key, `${apiBase}/${apiPath}`)
+      }
       // No Authorization or key of any kind: the proxy adds its own, and Workers Cache in front of
       // it bypasses a request that carries Authorization.
-      else if (config.proxyBase) target = { url: `${config.proxyBase}/${apiPath}`, headers: {} }
+      else if (config.proxyBase) {
+        base = config.proxyBase
+        target = { url: `${config.proxyBase}/${apiPath}`, headers: {} }
+      }
       // The app treats 401 as a missing or invalid key and asks for one.
       else return fail(401, 'The TMDB API key is not set')
     }
+    if (!under(base, target.url)) return fail(400, 'Bad path')
 
     const timeout = AbortSignal.timeout(timeoutMs)
     const signal = AbortSignal.any([abandoned(response), timeout])

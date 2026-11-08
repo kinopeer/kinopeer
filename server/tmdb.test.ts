@@ -1,3 +1,4 @@
+import { get as httpGet } from 'node:http'
 import { afterEach, describe, expect, it } from 'vitest'
 import { tmdbMiddleware, type TmdbConfig } from './tmdb.ts'
 import { abandon, closeServers, fakeTmdb, listen, serve, settlesWithin, silentService } from './test/fakes.ts'
@@ -6,6 +7,20 @@ import { abandon, closeServers, fakeTmdb, listen, serve, settlesWithin, silentSe
 const kinopeer = (config: TmdbConfig) => serve(tmdbMiddleware(config))
 
 afterEach(closeServers)
+
+/** A GET of `url` with its path as written: `fetch` would resolve its dots first, as browsers do. */
+function rawGet(url: string): Promise<{ status: number; body: string }> {
+  const { hostname, port, origin } = new URL(url)
+  return new Promise((resolve, reject) => {
+    const sent = httpGet({ hostname, port, path: url.slice(origin.length) }, (response) => {
+      let body = ''
+      response.setEncoding('utf8')
+      response.on('data', (chunk: string) => (body += chunk))
+      response.on('end', () => resolve({ status: response.statusCode!, body }))
+    })
+    sent.on('error', reject)
+  })
+}
 
 describe('tmdbMiddleware', () => {
   it('adds a v3 key as a query parameter and drops browser cookies', async () => {
@@ -140,6 +155,36 @@ describe('tmdbMiddleware', () => {
 
     expect(response.status).toBe(502)
     expect(await response.text()).not.toContain('abc123')
+  })
+
+  it.each(['/tmdb/../x', '/tmdb/%2e%2e/x', '/tmdb/movie/%2E%2E/%2e%2e/x', '/tmdb-img/../../x'])(
+    'refuses %s, which would leave the base path, and sends nothing',
+    async (path) => {
+      const tmdb = await fakeTmdb()
+      const proxy = await fakeTmdb()
+      const app = await kinopeer({ apiKey: 'abc123', apiBase: tmdb.apiBase, imageBase: `${tmdb.base}/t/p` })
+      const viaProxy = await kinopeer({ apiBase: tmdb.apiBase, proxyBase: proxy.apiBase })
+
+      for (const base of [app, viaProxy]) {
+        const response = await rawGet(`${base}${path}`)
+        expect(response.status).toBe(400)
+        expect(response.body).toBe('{"status_message":"Bad path"}')
+      }
+      expect(tmdb.seen).toEqual([])
+      expect(proxy.seen).toEqual([])
+    },
+  )
+
+  it('passes on a path that stays under the base, dots in a name included', async () => {
+    const tmdb = await fakeTmdb()
+    const app = await kinopeer({ apiKey: 'abc123', apiBase: tmdb.apiBase })
+
+    expect((await rawGet(`${app}/tmdb/search/movie?query=..`)).status).toBe(200)
+    expect((await rawGet(`${app}/tmdb/search/multi?query=a..b`)).status).toBe(200)
+    expect(tmdb.seen.map((request) => request.url)).toEqual([
+      '/3/search/movie?query=..&api_key=abc123',
+      '/3/search/multi?query=a..b&api_key=abc123',
+    ])
   })
 
   it('passes a HEAD on as a HEAD', async () => {
