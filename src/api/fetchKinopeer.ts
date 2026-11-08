@@ -21,7 +21,10 @@ export function onProxySignIn(handler: () => void): void {
  * fetch for Kinopeer's own routes. They send the cookies, because a proxy in front of Kinopeer
  * (Umbrel's app_proxy) signs the browser in with one, and they don't follow redirects: Kinopeer's
  * routes never answer with one, so a redirect is that proxy sending the request to its sign-in on
- * another origin, which a fetch can't follow (the CSP blocks it, and the sign-in is a page).
+ * another origin, which a fetch can't follow (the CSP blocks it, and the sign-in is a page). That
+ * holds while the only proxy in front is Umbrel's: one that redirects for anything else (a trailing
+ * slash, a rewritten path, as a reverse proxy in front of plain Docker might) would fail every call
+ * and load the screen again once a minute, and then a redirect to the same origin needs following.
  */
 export async function fetchKinopeer(url: string, init: RequestInit = {}): Promise<Response> {
   const response = await fetch(url, { ...init, credentials: 'same-origin', redirect: 'manual' })

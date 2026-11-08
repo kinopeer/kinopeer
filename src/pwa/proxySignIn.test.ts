@@ -34,6 +34,13 @@ describe('signInThroughProxy', () => {
     expect(later.replace).toHaveBeenCalledOnce()
   })
 
+  it('takes a sign-in stamped later than now as stale, so a clock set back does not stop it', () => {
+    signInThroughProxy(navigation('https://umbrel.local:8798/'), 1_000_000)
+    const location = navigation('https://umbrel.local:8798/')
+    signInThroughProxy(location, 1_000_000 - 1)
+    expect(location.replace).toHaveBeenCalledOnce()
+  })
+
   it('stays put without session storage, which is what stops a loop', () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new DOMException('denied', 'SecurityError')
@@ -47,7 +54,7 @@ describe('signInThroughProxy', () => {
 describe('startProxySignIn', () => {
   it('takes the parameter out of the address the proxy sent the app back to, keeping the rest and the history state', () => {
     window.history.replaceState({ key: 'abc' }, '', '/title/movie/1?tab=cast&proxy-sign-in=1#crew')
-    startProxySignIn(navigation('https://umbrel.local:8798/'))
+    startProxySignIn(navigation(window.location.href))
     expect(`${window.location.pathname}${window.location.search}${window.location.hash}`).toBe('/title/movie/1?tab=cast#crew')
     expect(window.history.state).toEqual({ key: 'abc' })
   })
@@ -55,7 +62,7 @@ describe('startProxySignIn', () => {
   it('leaves an address without the parameter alone', () => {
     window.history.replaceState(null, '', '/search?q=dune')
     const replaceState = vi.spyOn(window.history, 'replaceState')
-    startProxySignIn(navigation('https://umbrel.local:8798/'))
+    startProxySignIn(navigation(window.location.href))
     expect(replaceState).not.toHaveBeenCalled()
     expect(`${window.location.pathname}${window.location.search}`).toBe('/search?q=dune')
   })

@@ -22,7 +22,9 @@ type Navigation = Pick<Location, 'href' | 'replace'>
 /** Loads the current screen through the proxy, at most once per SIGN_IN_RETRY_MS. */
 export function signInThroughProxy(location: Navigation, now = Date.now()): void {
   try {
-    if (now - Number(sessionStorage.getItem(SIGNED_IN_AT_KEY)) < SIGN_IN_RETRY_MS) return
+    const since = now - Number(sessionStorage.getItem(SIGNED_IN_AT_KEY))
+    // A stamp later than now is stale: the clock was set back since, and would hold it off till then.
+    if (since >= 0 && since < SIGN_IN_RETRY_MS) return
     sessionStorage.setItem(SIGNED_IN_AT_KEY, String(now))
   } catch {
     // Without the storage nothing would stop a loop: the requests fail as before.
@@ -39,7 +41,7 @@ export function signInThroughProxy(location: Navigation, now = Date.now()): void
  * it, and signs in through the proxy whenever a request is redirected from now on.
  */
 export function startProxySignIn(location: Navigation = window.location): void {
-  const url = new URL(window.location.href)
+  const url = new URL(location.href)
   if (url.searchParams.has(PROXY_SIGN_IN_PARAM)) {
     url.searchParams.delete(PROXY_SIGN_IN_PARAM)
     window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
