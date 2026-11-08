@@ -238,6 +238,7 @@
     "test": "Проверить",
     "testing": "Проверяем…",
     "qbtError": "qBittorrent не отвечает",
+    "qbtError_kinopeer": "Kinopeer не отвечает",
     "prowlarrSetup": "Не настроен, или API-ключ не подошёл",
     "prowlarrError": "Prowlarr не отвечает",
     "connected": "Подключено",

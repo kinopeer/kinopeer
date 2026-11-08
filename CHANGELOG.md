@@ -8,7 +8,7 @@ Kinopeer follows [semantic versioning](https://semver.org). While the version is
 
 - On Umbrel over HTTPS, Kinopeer installed as an app no longer says qBittorrent is unreachable once Umbrel's sign-in for it lapses, which it does a week after the app last loaded through it: Kinopeer loads the screen it's on through Umbrel's sign-in, which asks for the Umbrel password if Umbrel's own session is gone too, and comes back to it. The same happens over plain HTTP when the app is resumed from the background. ([#303](https://github.com/kinopeer/kinopeer/issues/303))
 - On an iPhone or iPad, Add to Home Screen over Umbrel's HTTPS shows Kinopeer's icon rather than a generic tile. ([#304](https://github.com/kinopeer/kinopeer/issues/304))
-- When it's Kinopeer itself that doesn't answer (the network, Umbrel's sign-in, or the app stopped on Umbrel), Kinopeer says so instead of calling qBittorrent unreachable, on the connect screen, in Downloads, on a torrent's page and in the sidebar. ([#303](https://github.com/kinopeer/kinopeer/issues/303))
+- When it's Kinopeer itself that doesn't answer (the network, Umbrel's sign-in, or the app stopped on Umbrel), Kinopeer says so instead of calling qBittorrent unreachable, on the connect screen, in Downloads, on a torrent's page, in the sidebar and in Settings. ([#303](https://github.com/kinopeer/kinopeer/issues/303))
 
 ## 0.7.2 - 2026-11-07
 

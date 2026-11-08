@@ -217,6 +217,7 @@
     "test": "Test",
     "testing": "Checking…",
     "qbtError": "No answer from qBittorrent",
+    "qbtError_kinopeer": "No answer from Kinopeer",
     "prowlarrSetup": "Not set up, or the API key was rejected",
     "prowlarrError": "No answer from Prowlarr",
     "connected": "Connected",

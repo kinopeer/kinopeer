@@ -36,8 +36,9 @@ export function ConnectScreen({ unreachable, onRetry, onSignIn }: ConnectScreenP
       const code = e instanceof SettingsError ? e.code : undefined
       if (code === 'invalid-credentials') setError('invalid')
       else if (code === 'banned') setError('banned')
-      // The server says qBittorrent didn't answer; anything else (no answer, or not the server's) is Kinopeer's.
-      else setError(code === 'unreachable' ? 'qbittorrent' : 'kinopeer')
+      // An error the server named is its answer, so the server is there; without one there was no
+      // answer, or not the server's (a sign-in proxy, Umbrel answering for a stopped app).
+      else setError(code === undefined ? 'kinopeer' : 'qbittorrent')
       setSubmitting(false)
     }
   }

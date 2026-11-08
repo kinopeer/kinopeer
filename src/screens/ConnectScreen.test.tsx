@@ -68,6 +68,12 @@ describe('ConnectScreen', () => {
     expect(screen.getByRole('alert', { name: saying('Kinopeer isn’t answering') })).toBeInTheDocument()
   })
 
+  it('takes any answer of the server’s own, qBittorrent not set up included, for the server answering', async () => {
+    setup(vi.fn().mockRejectedValue(new SettingsError(503, 'not-configured')), { unreachable: 'kinopeer' })
+    await fillAndSubmit()
+    expect(screen.getByRole('alert', { name: saying('qBittorrent is unreachable') })).toBeInTheDocument()
+  })
+
   it('takes the server’s word that qBittorrent did not answer the sign-in', async () => {
     setup(vi.fn().mockRejectedValue(new SettingsError(502, 'unreachable')), { unreachable: 'kinopeer' })
     await fillAndSubmit()

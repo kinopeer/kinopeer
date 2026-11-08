@@ -51,7 +51,10 @@ export const DESKTOP_RAIL = { viewport: { width: 1024, height: 768 } }
 
 /**
  * The qBittorrent bridge's mark on its answers (server/qbittorrent.ts): a failure of /qbt without it
- * reads as Kinopeer's server not answering, so a mocked failure of qBittorrent carries it.
+ * reads as Kinopeer's server not answering, so a mocked failure of qBittorrent carries it. Written
+ * out rather than imported from src/api/qbittorrent/client.ts, whose extensionless imports this
+ * tsconfig's Node resolution doesn't take; the screenshots of a failing qBittorrent go wrong if
+ * the two drift.
  */
 export const BRIDGE_HEADERS = { 'x-kinopeer-bridge': '1' }
 

@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
 import * as settings from '../api/settings'
+import { qbittorrentDown } from '../test/render'
 import { useQbitSession } from './useQbitSession'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => {
@@ -40,7 +41,7 @@ describe('useQbitSession', () => {
     const { result } = renderHook(() => useQbitSession())
     await waitFor(() => expect(result.current.session).toEqual({ status: 'unreachable', who: 'kinopeer' }))
 
-    getAppVersion.mockRejectedValue(new api.QbittorrentError('qBittorrent responded 502', 502))
+    getAppVersion.mockRejectedValue(qbittorrentDown())
     await act(() => result.current.recheck())
     expect(result.current.session).toEqual({ status: 'unreachable', who: 'qbittorrent' })
 

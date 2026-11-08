@@ -2,6 +2,7 @@ import { act, cleanup, render, renderHook } from '@testing-library/react'
 import { useEffect, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
+import { qbittorrentDown } from '../test/render'
 import { MainDataProvider } from './MainDataProvider'
 import { TorrentRequestsProvider } from './TorrentRequestsProvider'
 import { OFFLINE_POLL_INTERVAL_MS, POLL_INTERVAL_MS, POLL_TIMEOUT_MS, useFreeSpace, useMainData } from './useMainData'
@@ -74,7 +75,7 @@ describe('useMainData', () => {
   it('says who did not answer: Kinopeer on a network failure, qBittorrent on the bridge’s, and forgets it on an answer', async () => {
     getMainData
       .mockRejectedValueOnce(new TypeError('Failed to fetch'))
-      .mockRejectedValueOnce(new api.QbittorrentError('qBittorrent responded 502', 502))
+      .mockRejectedValueOnce(qbittorrentDown())
       .mockResolvedValueOnce({ rid: 1 })
     const { result } = renderHook(() => useMainData(vi.fn()))
     await act(() => vi.advanceTimersByTimeAsync(0))
