@@ -60,7 +60,7 @@ export function ReleasesScreen() {
     )
   } else if (details.error) {
     body = (
-      <EmptyState icon="wifi-off" tone="error" title={t('releases.errorTitle')} actionLabel={t('common.retry')} actionIcon="refresh" onAction={details.retry}>
+      <EmptyState icon="wifi-off" tone="error" title={t('noAnswer.prowlarr')} actionLabel={t('common.retry')} actionIcon="refresh" onAction={details.retry}>
         {t('releases.errorBody')}
       </EmptyState>
     )
@@ -101,7 +101,7 @@ export function ReleasesScreen() {
     <main className="rel">
       <header className="rel-head">
         <div className="rel-bar">
-          <IconButton icon="chevron-left" label={t('title.back')} iconSize={24} onClick={goBack} />
+          <IconButton icon="chevron-left" label={t('common.back')} iconSize={24} onClick={goBack} />
           <div className="rel-heading">
             <h1 className="t-h3">{t('releases.title')}</h1>
             {name && <p className="t-cap c3 ks-trunc">{[name, year].filter(Boolean).join(' · ')}</p>}
@@ -123,7 +123,7 @@ export function ReleasesScreen() {
             </FilterChip>
             <FilterChip
               icon="sort"
-              aria-label={`${t('releases.sort')}: ${t(SORT_LABEL[sort.key])}, ${t(sort.descending ? 'releases.descending' : 'releases.ascending')}`}
+              aria-label={`${t('common.sort')}: ${t(SORT_LABEL[sort.key])}, ${t(sort.descending ? 'common.descending' : 'common.ascending')}`}
               onClick={() => releases.setSort({ ...sort, key: SORT_KEYS[(SORT_KEYS.indexOf(sort.key) + 1) % SORT_KEYS.length] })}
             >
               {t(SORT_LABEL[sort.key])} {sort.descending ? '↓' : '↑'}
@@ -190,10 +190,10 @@ export function ReleasesScreen() {
             />
           )}
           <div className="rel-group">
-            <span className="ks-label">{t('releases.sort')}</span>
+            <span className="ks-label">{t('common.sort')}</span>
             <div className="rel-sort">
               <Segmented
-                label={t('releases.sort')}
+                label={t('common.sort')}
                 options={SORT_KEYS.map((key) => ({ value: key, label: t(SORT_LABEL[key]) }))}
                 value={sort.key}
                 onChange={(key) => releases.setSort({ ...sort, key })}
@@ -201,7 +201,7 @@ export function ReleasesScreen() {
               <IconButton
                 icon="sort-desc"
                 variant="filled"
-                label={t(sort.descending ? 'releases.descending' : 'releases.ascending')}
+                label={t(sort.descending ? 'common.descending' : 'common.ascending')}
                 className={sort.descending ? undefined : 'rel-flip'}
                 onClick={() => releases.setSort({ ...sort, descending: !sort.descending })}
               />

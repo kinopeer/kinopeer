@@ -547,7 +547,7 @@ describe('DownloadsScreen', () => {
       ...SNAPSHOT,
       torrents: { ...SNAPSHOT.torrents, andor: { ...SNAPSHOT.torrents!.andor, dl_limit: 2_000_000 } },
     })
-    await userEvent.click(within(sheet).getByRole('button', { name: 'Save limits' }))
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
     // What the sheet sends is its own tests' business; here, that it's for this torrent.
     expect(vi.mocked(api.setSpeedLimits).mock.calls[0][0]).toEqual(['andor'])
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -631,12 +631,12 @@ describe('DownloadsScreen', () => {
     controlledByServiceWorker()
     getMainData.mockRejectedValueOnce(qbittorrentDown())
     renderScreen()
-    expect(await screen.findByRole('heading', { name: 'Can’t reach qBittorrent' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'qBittorrent isn’t answering' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Open again' })).not.toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
     expect(await screen.findAllByRole('listitem')).toHaveLength(3)
-    expect(screen.queryByRole('heading', { name: 'Can’t reach qBittorrent' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'qBittorrent isn’t answering' })).not.toBeInTheDocument()
     expect(screen.getByRole('status', { name: saying('Reconnected to qBittorrent') })).toBeInTheDocument()
   })
 
@@ -645,7 +645,7 @@ describe('DownloadsScreen', () => {
     const loadPastTheShell = vi.mocked(proxySignIn.loadPastTheShell)
     getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     renderScreen()
-    expect(await screen.findByRole('heading', { name: 'Can’t reach Kinopeer' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Kinopeer isn’t answering' })).toBeInTheDocument()
     expect(
       screen.getByText(
         'Retrying automatically. If you’re sure the server running Kinopeer is on and reachable on your network, your browser may need to confirm its certificate again: open Kinopeer again.',
@@ -660,7 +660,7 @@ describe('DownloadsScreen', () => {
     expect(await screen.findAllByRole('listitem')).toHaveLength(3)
     getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     window.dispatchEvent(new Event('online'))
-    const banner = await screen.findByRole('status', { name: saying('No connection to Kinopeer') })
+    const banner = await screen.findByRole('status', { name: saying('Kinopeer isn’t answering') })
     // The banner says when to use it, with the same words as everywhere.
     expect(banner).toHaveTextContent('If you’re sure the server running Kinopeer is on and reachable on your network')
     await userEvent.click(within(banner).getByRole('button', { name: 'Open again' }))
@@ -675,7 +675,7 @@ describe('DownloadsScreen', () => {
 
     getMainData.mockRejectedValueOnce(qbittorrentDown())
     window.dispatchEvent(new Event('online'))
-    const banner = await screen.findByRole('status', { name: saying('No connection to qBittorrent') })
+    const banner = await screen.findByRole('status', { name: saying('qBittorrent isn’t answering') })
     expect(screen.getByRole('status', { name: saying('Updated just now · actions paused') })).toBeInTheDocument()
     // qBittorrent's own outage: Retry polls, nothing loads the page past the shell or says to.
     expect(within(banner).getByRole('button', { name: 'Try again' })).toBeInTheDocument()
@@ -803,7 +803,7 @@ describe('DownloadsScreen selection', () => {
     await userEvent.click(screen.getByRole('checkbox', { name: 'Andor.S02.1080p' }))
     getMainData.mockRejectedValueOnce(qbittorrentDown())
     window.dispatchEvent(new Event('online'))
-    expect(await screen.findByRole('status', { name: saying('No connection to qBittorrent') })).toBeInTheDocument()
+    expect(await screen.findByRole('status', { name: saying('qBittorrent isn’t answering') })).toBeInTheDocument()
     for (const name of ['Pause', 'Resume', 'Delete']) {
       expect(within(bulkBar()).getByRole('button', { name })).toBeDisabled()
     }

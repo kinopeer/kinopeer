@@ -41,7 +41,7 @@ function renderLimits(torrents: Record<string, Torrent> = { andor: ANDOR, alien:
   }
   const save = async (sheet: HTMLElement, download: string) => {
     await userEvent.type(within(sheet).getByRole('textbox', { name: 'Download limit, MB/s' }), download)
-    await userEvent.click(within(sheet).getByRole('button', { name: 'Save limits' }))
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
   }
   // Escape, which jsdom doesn't turn into the dialog's cancel event.
   const dismiss = (sheet: HTMLElement) => fireEvent(sheet, new Event('cancel', { cancelable: true }))
@@ -86,7 +86,7 @@ describe('useSpeedLimits', () => {
     await save(sheet, '2')
     expect(await within(sheet).findByRole('alert', { name: saying(/Couldn’t save the limits, or saved only some/) })).toBeInTheDocument()
     expect(refresh).toHaveBeenCalled()
-    expect(within(sheet).getByRole('button', { name: 'Save limits' })).toBeEnabled()
+    expect(within(sheet).getByRole('button', { name: 'Save' })).toBeEnabled()
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
@@ -134,7 +134,7 @@ describe('useSpeedLimits', () => {
     dismiss(first)
     const again = await open()
     // Still being saved, so it can't be sent a second time.
-    expect(within(again).getByRole('button', { name: /Save limits/ })).toBeDisabled()
+    expect(within(again).getByRole('button', { name: 'Save' })).toBeDisabled()
     settle.saved()
     await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
@@ -159,11 +159,11 @@ describe('useSpeedLimits', () => {
     dismiss(andor)
     const alien = await open('alien')
     expect(within(alien).getByText('Title of Alien.Romulus.2024.1080p')).toBeInTheDocument()
-    expect(within(alien).getByRole('button', { name: 'Save limits' })).toBeEnabled()
+    expect(within(alien).getByRole('button', { name: 'Save' })).toBeEnabled()
     settle.saved()
     await vi.waitFor(() => expect(refresh).toHaveBeenCalled())
     expect(screen.getByRole('dialog', { name: 'Speed limits' })).toBe(alien)
-    expect(within(alien).getByRole('button', { name: 'Save limits' })).toBeEnabled()
+    expect(within(alien).getByRole('button', { name: 'Save' })).toBeEnabled()
   })
 
   it('says in a toast, not in a sheet opened for another torrent since, that a save from a closed sheet failed', async () => {
@@ -190,7 +190,7 @@ describe('useSpeedLimits', () => {
     andorSave.saved()
     await vi.waitFor(() => expect(refresh).toHaveBeenCalled())
     // A second tap would send alien's limits again.
-    expect(within(alien).getByRole('button', { name: /Save limits/ })).toBeDisabled()
+    expect(within(alien).getByRole('button', { name: 'Save' })).toBeDisabled()
   })
 
   it('sends again the limits a failed save sent, though they were put back, since qBittorrent may have taken them', async () => {
@@ -203,13 +203,13 @@ describe('useSpeedLimits', () => {
     await userEvent.clear(download)
     await userEvent.type(download, '2')
     await userEvent.type(upload, '3')
-    await userEvent.click(within(sheet).getByRole('button', { name: 'Save limits' }))
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
     expect(await within(sheet).findByRole('alert', { name: saying(/Couldn’t save the limits/) })).toBeInTheDocument()
 
     await userEvent.clear(download)
     await userEvent.type(download, '1')
     await userEvent.clear(upload)
-    await userEvent.click(within(sheet).getByRole('button', { name: 'Save limits' }))
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
     expect(setSpeedLimits).toHaveBeenLastCalledWith(['andor'], { download: 1_000_000, upload: 0 })
   })
 
@@ -220,14 +220,14 @@ describe('useSpeedLimits', () => {
     const field = within(first).getByRole('textbox', { name: 'Download limit, MB/s' })
     await userEvent.clear(field)
     await userEvent.type(field, '5')
-    await userEvent.click(within(first).getByRole('button', { name: 'Save limits' }))
+    await userEvent.click(within(first).getByRole('button', { name: 'Save' }))
     dismiss(first)
     const again = await open()
 
     setSpeedLimits.mockResolvedValueOnce()
     settle.refused()
     expect(await within(again).findByRole('alert', { name: saying(/Couldn’t save the limits/) })).toBeInTheDocument()
-    await userEvent.click(within(again).getByRole('button', { name: 'Save limits' }))
+    await userEvent.click(within(again).getByRole('button', { name: 'Save' }))
     // Not the 1 MB/s the torrent had when it was opened again, which would undo a part that went through.
     expect(setSpeedLimits).toHaveBeenLastCalledWith(['andor'], { download: 5_000_000, upload: undefined })
   })
@@ -243,7 +243,7 @@ describe('useSpeedLimits', () => {
     await save(alien, '3')
     dismiss(alien)
     const again = await open('andor')
-    expect(within(again).getByRole('button', { name: /Save limits/ })).toBeDisabled()
+    expect(within(again).getByRole('button', { name: 'Save' })).toBeDisabled()
     andorSave.saved()
     await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
@@ -265,7 +265,7 @@ describe('useSpeedLimits toasts', () => {
       const settle = pendingSave()
       const sheet = await open()
       await user.type(within(sheet).getByRole('textbox', { name: 'Download limit, MB/s' }), '2')
-      await user.click(within(sheet).getByRole('button', { name: 'Save limits' }))
+      await user.click(within(sheet).getByRole('button', { name: 'Save' }))
       dismiss(sheet)
       settle.refused()
       expect(await screen.findByRole('status')).toHaveTextContent(FAILED_CLOSED)

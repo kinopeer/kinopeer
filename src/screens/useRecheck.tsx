@@ -37,7 +37,7 @@ export function useRecheck({ torrents, titleOf }: {
     if (!settled) return
     // A confirmation that shows the torrent closed on its own, or kept the failure to say it.
     if (settled.ok) toast.show(t('torrent.rechecking'))
-    else if (!settled.showing) toast.show(t('torrent.actionFailed'), { icon: 'alert', key: TOAST_KEYS.recheck })
+    else if (!settled.showing) toast.show(t('common.qbtFailed'), { icon: 'alert', key: TOAST_KEYS.recheck })
   }
 
   const element = torrent && (

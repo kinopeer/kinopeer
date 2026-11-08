@@ -131,7 +131,7 @@ describe('TorrentScreen', () => {
     controlledByServiceWorker()
     getMainData.mockRejectedValueOnce(qbittorrentDown())
     renderScreen()
-    expect(await screen.findByRole('heading', { name: 'Can’t reach qBittorrent' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'qBittorrent isn’t answering' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Open again' })).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
     expect(await screen.findByRole('heading', { level: 1, name: 'Dune: Part Two' })).toBeInTheDocument()
@@ -142,7 +142,7 @@ describe('TorrentScreen', () => {
     const loadPastTheShell = vi.mocked(proxySignIn.loadPastTheShell)
     getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     renderScreen()
-    expect(await screen.findByRole('heading', { name: 'Can’t reach Kinopeer' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Kinopeer isn’t answering' })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Open again' }))
     expect(loadPastTheShell).toHaveBeenCalledOnce()
 
@@ -150,7 +150,7 @@ describe('TorrentScreen', () => {
     await screen.findByRole('heading', { level: 1, name: 'Dune: Part Two' })
     getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     window.dispatchEvent(new Event('online'))
-    const banner = await screen.findByRole('status', { name: saying('No connection to Kinopeer') })
+    const banner = await screen.findByRole('status', { name: saying('Kinopeer isn’t answering') })
     await userEvent.click(within(banner).getByRole('button', { name: 'Open again' }))
     expect(loadPastTheShell).toHaveBeenCalledTimes(2)
   })
@@ -206,7 +206,7 @@ describe('TorrentScreen', () => {
 
     const value = (label: string) => screen.getByText(label, { selector: 'dt' }).nextElementSibling
     expect(value('Seeds / peers')).toHaveTextContent('12 (340) · 3 (41)')
-    expect(value('Save path')).toHaveTextContent('/data/movies')
+    expect(value('Folder')).toHaveTextContent('/data/movies')
     expect(value('Info hash')).toHaveTextContent('dune')
     expect(await screen.findByText('bt.example.org, tracker.example.com')).toBeInTheDocument()
     expect(getTorrentTrackers).toHaveBeenCalledWith('dune', expect.any(AbortSignal))
@@ -235,7 +235,7 @@ describe('TorrentScreen', () => {
     expect(within(sheet).getByText('Dune: Part Two')).toBeInTheDocument()
     await userEvent.type(within(sheet).getByRole('textbox', { name: 'Upload limit, MB/s' }), '0.5')
     getMainData.mockResolvedValue(snapshot({ up_limit: 500_000 }))
-    await userEvent.click(within(sheet).getByRole('button', { name: 'Save limits' }))
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
     // What the sheet sends is its own tests' business; here, that it's for this torrent.
     expect(vi.mocked(api.setSpeedLimits).mock.calls[0][0]).toEqual(['dune'])
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -367,7 +367,7 @@ describe('TorrentScreen', () => {
     getTorrentTrackers.mockResolvedValue([])
     renderScreen()
     await userEvent.click(await screen.findByRole('button', { name: 'Details' }))
-    const savePath = screen.getByText('Save path', { selector: 'dt' }).nextElementSibling
+    const savePath = screen.getByText('Folder', { selector: 'dt' }).nextElementSibling
     await userEvent.click(screen.getByRole('button', { name: 'More actions: Dune: Part Two' }))
     // A hidden page doesn't poll, so only the screen's own refresh can bring qBittorrent's next answer.
     stopPolling()
@@ -412,7 +412,7 @@ describe('TorrentScreen', () => {
     await userEvent.click(within(screen.getByRole('dialog', { name: 'Dune: Part Two' })).getByRole('button', { name: 'Speed limits' }))
     const sheet = screen.getByRole('dialog', { name: 'Speed limits' })
     await userEvent.type(within(sheet).getByRole('textbox', { name: 'Download limit, MB/s' }), '2')
-    await userEvent.click(within(sheet).getByRole('button', { name: 'Save limits' }))
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
 
     getMainData.mockResolvedValue(mainData([]))
     window.dispatchEvent(new Event('online'))

@@ -30,7 +30,7 @@ export function MatchPrompt({ kind, busy, disabled, onChange, onConfirm, classNa
       {kind === 'guess' ? (
         <div className="match-prompt-actions">
           <Button variant="secondary" icon="search" block disabled={busy || disabled} onClick={onChange}>
-            {t('match.change')}
+            {t('common.change')}
           </Button>
           <Button variant="primary" icon="check" block loading={busy} disabled={busy || disabled} onClick={onConfirm}>
             {t('match.confirm')}

@@ -122,7 +122,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
     <IconButton
       icon="chevron-left"
       variant="glass"
-      label={t('torrent.back')}
+      label={t('common.back')}
       iconSize={24}
       className="torrent-back"
       onClick={goBack}
@@ -200,8 +200,8 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
 
   const torrentLimits = ownLimits(torrent)
   const details: { key: string; label: string; value: string; mono?: boolean }[] = [
-    { key: 'down', label: t('torrent.downloadSpeed'), value: downloading ? format.speed(torrent.dlspeed) : '—' },
-    { key: 'up', label: t('torrent.uploadSpeed'), value: format.speed(torrent.upspeed) },
+    { key: 'down', label: t('common.downloadSpeed'), value: downloading ? format.speed(torrent.dlspeed) : '—' },
+    { key: 'up', label: t('common.uploadSpeed'), value: format.speed(torrent.upspeed) },
     ...(torrentLimits?.download !== undefined
       ? [{ key: 'dl-limit', label: t('limits.downloadRow'), value: format.speed(torrentLimits.download) }]
       : []),
@@ -214,7 +214,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
       value: `${peerCount(torrent.num_seeds, torrent.num_complete)} · ${peerCount(torrent.num_leechs, torrent.num_incomplete)}`,
     },
     { key: 'ratio', label: t('torrent.ratio'), value: ratio },
-    { key: 'path', label: t('torrent.savePath'), value: torrent.save_path, mono: true },
+    { key: 'path', label: t('common.folder'), value: torrent.save_path, mono: true },
     {
       key: 'added',
       label: t('torrent.added'),
@@ -275,7 +275,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
 
         {offline && <OfflineBanner unreachable={unreachable} updatedAt={updatedAt} onRetry={refresh} />}
 
-        <section className="ks-card torrent-card" aria-label={t('torrent.progressLabel')}>
+        <section className="ks-card torrent-card" aria-label={t('fields.progress')}>
           <div className="torrent-card-row">
             <StatusChip status={status}>{t(`status.${status}`)}</StatusChip>
             <span className="t-cap ks-num c2 torrent-size">
@@ -294,17 +294,17 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
             value={torrent.progress}
             status={status}
             size="lg"
-            label={t('downloads.progress', { name: title })}
+            label={t('common.progressOf', { name: title })}
           />
           <p className="t-cap ks-num c2 torrent-speeds">
             <span>
               <Icon name="arrow-down" size={14} />
-              <span className="sr-only">{t('torrent.downloadSpeed')}</span>
+              <span className="sr-only">{t('common.downloadSpeed')}</span>
               {downloading ? format.speed(torrent.dlspeed) : '—'}
             </span>
             <span>
               <Icon name="arrow-up" size={14} />
-              <span className="sr-only">{t('torrent.uploadSpeed')}</span>
+              <span className="sr-only">{t('common.uploadSpeed')}</span>
               {format.speed(torrent.upspeed)}
             </span>
             <span>{t('torrent.ratioValue', { ratio })}</span>

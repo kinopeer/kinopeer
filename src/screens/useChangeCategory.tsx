@@ -41,7 +41,7 @@ export function useChangeCategory({ torrents, offline }: {
       if (change.kind === 'move' && change.folder) toast.show(t('move.moved', { location: change.folder }), { icon: 'folder' })
       else toast.show(t('category.changed'))
     } else if (!settled.showing) {
-      toast.show(t('torrent.actionFailed'), { icon: 'alert' })
+      toast.show(t('common.qbtFailed'), { icon: 'alert' })
     }
   }
 

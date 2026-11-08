@@ -83,7 +83,7 @@ export const DownloadItem = memo(function DownloadItem({ torrent, match, showQue
           <ProgressBar
             value={torrent.progress}
             status={status}
-            label={t('downloads.progress', { name: title })}
+            label={t('common.progressOf', { name: title })}
             className="dl-bar"
           />
           <span className="t-cap dl-pct ks-num c2">{format.percent(torrent.progress)}</span>

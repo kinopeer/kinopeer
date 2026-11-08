@@ -47,7 +47,7 @@ export function InstallCard() {
           </div>
           <IconButton
             icon="close"
-            label={t('install.dismiss')}
+            label={t('common.close')}
             iconSize={18}
             className="install-card-close"
             onClick={() => {

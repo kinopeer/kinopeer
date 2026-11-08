@@ -166,7 +166,7 @@ describe('the details drawer on desktop', () => {
     const drawer = await screen.findByRole('dialog', { name: 'Dune: Part Two' })
     getMainData.mockRejectedValueOnce(qbittorrentDown())
     window.dispatchEvent(new Event('online'))
-    expect(await within(drawer).findByRole('status', { name: saying('No connection to qBittorrent') })).toBeInTheDocument()
+    expect(await within(drawer).findByRole('status', { name: saying('qBittorrent isn’t answering') })).toBeInTheDocument()
 
     window.dispatchEvent(new Event('online'))
     // Downloads says it, under the drawer.
@@ -181,7 +181,7 @@ describe('the details drawer on desktop', () => {
     await userEvent.click(screen.getByRole('menuitem', { name: 'Speed limits' }))
     const first = screen.getByRole('dialog', { name: 'Speed limits' })
     await userEvent.type(within(first).getByRole('textbox', { name: 'Download limit, MB/s' }), '2')
-    await userEvent.click(within(first).getByRole('button', { name: 'Save limits' }))
+    await userEvent.click(within(first).getByRole('button', { name: 'Save' }))
     // Closed while it's sent, as Escape does.
     fireEvent(first, new Event('cancel', { cancelable: true }))
 
@@ -192,7 +192,7 @@ describe('the details drawer on desktop', () => {
     const again = screen.getByRole('dialog', { name: 'Speed limits' })
     // Busy with what Downloads sends, so it can't go out a second time.
     expect(within(again).getByRole('textbox', { name: 'Download limit, MB/s' })).toHaveValue('2')
-    expect(within(again).getByRole('button', { name: /Save limits/ })).toBeDisabled()
+    expect(within(again).getByRole('button', { name: 'Save' })).toBeDisabled()
 
     refuse()
     expect(await within(again).findByRole('alert', { name: saying(/Couldn’t save the limits/) })).toBeInTheDocument()

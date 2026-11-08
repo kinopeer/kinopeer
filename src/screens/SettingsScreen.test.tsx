@@ -410,14 +410,14 @@ describe('SettingsScreen', () => {
   it('says it’s Kinopeer that doesn’t answer the qBittorrent check when so', async () => {
     vi.mocked(qbt.getAppVersion).mockRejectedValue(new TypeError('Failed to fetch'))
     renderScreen()
-    expect(await within(connection('qBittorrent')).findByRole('status', { name: saying('No answer from Kinopeer') })).toBeInTheDocument()
+    expect(await within(connection('qBittorrent')).findByRole('status', { name: saying('Kinopeer isn’t answering') })).toBeInTheDocument()
   })
 
   it('loads the categories when Test finds qBittorrent back', async () => {
     vi.mocked(qbt.getAppVersion).mockRejectedValue(new Error('offline'))
     vi.mocked(qbt.getCategories).mockRejectedValue(new Error('offline'))
     renderScreen()
-    expect(await within(connection('qBittorrent')).findByRole('status', { name: saying('No answer from qBittorrent') })).toBeInTheDocument()
+    expect(await within(connection('qBittorrent')).findByRole('status', { name: saying('qBittorrent isn’t answering') })).toBeInTheDocument()
     const movies = screen.getByRole('combobox', { name: 'Movies category' })
     expect(movies).toBeDisabled()
 

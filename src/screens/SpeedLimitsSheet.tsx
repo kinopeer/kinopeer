@@ -81,7 +81,7 @@ export function SpeedLimitsSheet({ torrent, title, offline, pending, failure, on
           loading={saving}
           disabled={!valid || saving || offline}
         >
-          {t('limits.save')}
+          {t('common.save')}
         </Button>
       }
     >

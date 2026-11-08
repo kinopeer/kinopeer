@@ -31,7 +31,7 @@ export function useReannounce(watcher?: ActionWatcher): Reannounce {
       const settled = await send(torrent, true, (hashes) => reannounceTorrents(hashes))
       if (settled?.ok) toast.show(t('torrent.reannounced'))
       else if (settled && !settled.showing) {
-        toast.show(t('torrent.actionFailed'), { icon: 'alert', key: TOAST_KEYS.reannounce })
+        toast.show(t('common.qbtFailed'), { icon: 'alert', key: TOAST_KEYS.reannounce })
       }
       return settled
     },

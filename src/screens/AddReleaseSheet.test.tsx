@@ -151,8 +151,8 @@ describe('AddReleaseSheet', () => {
     await userEvent.click(within(sheet).getByRole('button', { name: 'Options' }))
     await userEvent.click(await within(sheet).findByRole('button', { name: 'No category' }))
     // A path isn't a word, so the browser doesn't underline it.
-    expect(within(sheet).getByLabelText('Save path')).toHaveAttribute('spellcheck', 'false')
-    await userEvent.type(within(sheet).getByLabelText('Save path'), '/mnt/tv')
+    expect(within(sheet).getByLabelText('Folder')).toHaveAttribute('spellcheck', 'false')
+    await userEvent.type(within(sheet).getByLabelText('Folder'), '/mnt/tv')
     await userEvent.click(within(sheet).getByRole('switch', { name: 'Start paused' }))
     await userEvent.click(within(sheet).getByRole('switch', { name: 'First and last pieces first' }))
     await userEvent.click(within(sheet).getByRole('switch', { name: 'Add to top of queue' }))
@@ -272,7 +272,7 @@ describe('AddReleaseSheet', () => {
 
     await userEvent.click(within(sheet).getByRole('button', { name: 'Options' }))
     expect(within(sheet).queryByRole('group', { name: 'Category' })).not.toBeInTheDocument()
-    expect(within(sheet).getByLabelText('Save path')).toHaveAttribute('placeholder', '')
+    expect(within(sheet).getByLabelText('Folder')).toHaveAttribute('placeholder', '')
 
     await userEvent.click(files)
     const picker = screen.getByRole('dialog', { name: 'Select files' })
@@ -327,7 +327,7 @@ describe('AddReleaseSheet', () => {
 
     answer({ rid: 1, server_state: { free_space_on_disk: 40e9 } })
     expect(await within(sheet).findByRole('status', { name: saying('Not enough free space') })).toBeInTheDocument()
-    expect(files).toHaveTextContent(/Free: 40\.0\sGB/)
+    expect(files).toHaveTextContent(/40\.0\sGB free/)
   })
 
   it('keeps the warning and the file picker current with the poll while it’s open', async () => {
@@ -341,12 +341,12 @@ describe('AddReleaseSheet', () => {
 
     getMainData.mockResolvedValue({ rid: 2, server_state: { free_space_on_disk: 80e9 } })
     act(() => store.refresh())
-    expect(await within(picker).findByText(/Free: 80\.0\sGB/)).toBeInTheDocument()
+    expect(await within(picker).findByText(/80\.0\sGB free/)).toBeInTheDocument()
     expect(within(picker).queryByText('Not enough free space')).not.toBeInTheDocument()
 
     await userEvent.click(within(picker).getByRole('button', { name: 'Done' }))
     const back = screen.getByRole('dialog', { name: 'Add to downloads' })
-    expect(within(back).getByRole('button', { name: /Files: all \(3\)/ })).toHaveTextContent(/Free: 80\.0\sGB/)
+    expect(within(back).getByRole('button', { name: /Files: all \(3\)/ })).toHaveTextContent(/80\.0\sGB free/)
     expect(within(back).queryByRole('status', { name: saying('Not enough free space') })).not.toBeInTheDocument()
   })
 

@@ -188,14 +188,14 @@ test.describe('downloads, phone', () => {
 
   test('qBittorrent stops answering', async ({ page }) => {
     await openDownloads(page, { goesOffline: true })
-    await expect(page.getByText('Нет связи с qBittorrent')).toBeVisible()
+    await expect(page.getByText('qBittorrent не отвечает')).toBeVisible()
     await expect(page).toHaveScreenshot('offline-dark-ru.png')
   })
 
   // #311: the banner with Retry and Open again side by side.
   test('Kinopeer stops answering at all', async ({ page }) => {
     await openDownloads(page, { unreached: 'after-first-poll', serviceWorkerAnswers: true })
-    await expect(page.getByText('Нет связи с Kinopeer')).toBeVisible()
+    await expect(page.getByText('Kinopeer не отвечает')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Открыть заново' })).toBeVisible()
     await expect(page).toHaveScreenshot('offline-unreached-dark-ru.png')
   })
@@ -203,7 +203,7 @@ test.describe('downloads, phone', () => {
   // #311: the state before the first answer, with both buttons and the hint.
   test('Kinopeer doesn’t answer the first poll', async ({ page }) => {
     await openApp(page, '/', { unreached: 'from-start', serviceWorkerAnswers: true })
-    await expect(page.getByRole('heading', { name: 'Kinopeer недоступен' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Kinopeer не отвечает' })).toBeVisible()
     await expect(page).toHaveScreenshot('unreachable-unreached-dark-ru.png')
   })
 
@@ -339,7 +339,7 @@ test.describe('downloads, desktop', () => {
 
   test('qBittorrent stops answering', async ({ page }) => {
     await openDownloads(page, { goesOffline: true })
-    await expect(page.getByText('Нет связи с qBittorrent').first()).toBeVisible()
+    await expect(page.getByText('qBittorrent не отвечает').first()).toBeVisible()
     await expect(page).toHaveScreenshot('desktop-offline-dark-ru.png')
   })
 

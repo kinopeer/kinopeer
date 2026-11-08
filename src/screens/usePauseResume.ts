@@ -48,7 +48,7 @@ export function usePauseResume(watcher?: ActionWatcher): PauseResume {
         { expect: (torrent) => withRunning(torrent, running), hold: stateLag },
       )
       if (settled && !settled.ok && !settled.showing) {
-        toast.show(t('torrent.actionFailed'), { icon: 'alert', key: TOAST_KEYS.pauseResume })
+        toast.show(t('common.qbtFailed'), { icon: 'alert', key: TOAST_KEYS.pauseResume })
       }
       return settled
     },

@@ -74,7 +74,7 @@ export function ConnectScreen({ unreachable: unreachableProp, onRetry, onSignIn 
         {signInUnreachable && (
           <Banner
             tone="error"
-            title={t('connect.unreachableTitle', { context: unreachableText(signInUnreachable) })}
+            title={t('noAnswer.qbittorrent', { context: unreachableText(signInUnreachable) })}
             actionLabel={t('common.retry')}
             onAction={onRetry}
             secondaryActionLabel={openAgain ? t('common.openAgain') : undefined}

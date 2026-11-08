@@ -30,25 +30,25 @@ export function SortSheet({ open, value, onChange, type, onTypeChange, onClose }
       title={t('downloads.sortFilter')}
       action={
         <Button variant="ghost" size="sm" onClick={onClose}>
-          {t('downloads.sortDone')}
+          {t('common.done')}
         </Button>
       }
     >
       <div className="sort-sheet">
         <div className="ks-field">
-          <span className="ks-label">{t('downloads.type')}</span>
+          <span className="ks-label">{t('common.type')}</span>
           <Segmented
-            label={t('downloads.type')}
+            label={t('common.type')}
             options={TYPE_FILTERS.map((key) => ({
               value: key,
-              label: key === 'all' ? t('downloads.all') : t(`downloads.types.${key}`),
+              label: key === 'all' ? t('common.all') : t(`types.${key}`),
             }))}
             value={type}
             onChange={onTypeChange}
           />
         </div>
         <fieldset className="sort-options">
-          <legend className="ks-label">{t('downloads.sort')}</legend>
+          <legend className="ks-label">{t('common.sort')}</legend>
           {DOWNLOAD_SORTS.map((sort) => (
             <label key={sort} className="ks-row-btn sort-option">
               <input
@@ -60,7 +60,7 @@ export function SortSheet({ open, value, onChange, type, onTypeChange, onClose }
                 onChange={() => onChange(sort)}
                 aria-describedby={sort === 'priority' ? hintId : undefined}
               />
-              <span className="sort-option-label">{t(`downloads.sorts.${sort}`)}</span>
+              <span className="sort-option-label">{t(`fields.${sort}`)}</span>
               {sort === 'priority' && (
                 // A description rather than part of the name, so the option reads as "Priority".
                 <span id={hintId} className="t-cap c3" aria-hidden="true">
@@ -91,12 +91,12 @@ export interface SortMenuProps {
 export function SortMenu({ anchor, value, onChange, onClose }: SortMenuProps) {
   const { t } = useTranslation()
   return (
-    <Menu anchor={anchor} label={t('downloads.sort')} follow onClose={onClose}>
+    <Menu anchor={anchor} label={t('common.sort')} follow onClose={onClose}>
       {DOWNLOAD_SORTS.map((sort) => (
         <MenuItemRadio
           key={sort}
           checked={value === sort}
-          label={t(`downloads.sorts.${sort}`)}
+          label={t(`fields.${sort}`)}
           hint={sort === 'priority' ? t('downloads.sortPriorityHint') : undefined}
           onClick={() => {
             onChange(sort)

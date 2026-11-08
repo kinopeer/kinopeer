@@ -101,10 +101,10 @@ export function TitleReleases({ details, sectionRef }: TitleReleasesProps) {
           )}
           <div className="title-rel-sort">
             <span className="t-cap c3" aria-hidden="true">
-              {t('releases.sort')}
+              {t('common.sort')}
             </span>
             <Segmented
-              label={t('releases.sort')}
+              label={t('common.sort')}
               options={SORT_KEYS.map((key) => ({ value: key, label: t(SORT_LABEL[key]) }))}
               value={sort.key}
               onChange={(key) => releases.setSort({ ...sort, key })}
@@ -112,7 +112,7 @@ export function TitleReleases({ details, sectionRef }: TitleReleasesProps) {
             <IconButton
               icon="sort-desc"
               variant="filled"
-              label={t(sort.descending ? 'releases.descending' : 'releases.ascending')}
+              label={t(sort.descending ? 'common.descending' : 'common.ascending')}
               className={sort.descending ? undefined : 'rel-flip'}
               onClick={() => releases.setSort({ ...sort, descending: !sort.descending })}
             />
@@ -193,8 +193,8 @@ function ReleasesTable({ releases }: { releases: Releases }) {
         <span role="columnheader" className="title-rel-audio">
           {t('releases.audio')}
         </span>
-        <span role="columnheader">{t('releases.colSize')}</span>
-        <span role="columnheader">{t('releases.colSeeds')}</span>
+        <span role="columnheader">{t('fields.size')}</span>
+        <span role="columnheader">{t('fields.seeds')}</span>
         <span role="columnheader">{t('releases.colPeers')}</span>
         <span role="columnheader">{t('releases.indexer')}</span>
         <span role="columnheader">{t('releases.colAge')}</span>

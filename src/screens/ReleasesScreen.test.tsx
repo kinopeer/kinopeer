@@ -202,7 +202,7 @@ describe('ReleasesScreen', () => {
   it('says when Prowlarr fails', async () => {
     searchReleases.mockRejectedValue(new prowlarr.ProwlarrError('down', 502, 'unreachable'))
     renderAt('/title/movie/693134/releases')
-    expect(await screen.findByRole('heading', { name: 'Couldn’t reach Prowlarr' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Prowlarr isn’t answering' })).toBeInTheDocument()
   })
 
   it('adds a release to qBittorrent tagged with the title and goes to downloads', async () => {

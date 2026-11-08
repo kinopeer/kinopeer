@@ -8,7 +8,7 @@ export interface UnreachableStateProps {
   /** Who didn't answer the poll: Kinopeer's server or qBittorrent (the default). */
   unreachable?: Unreachable
   onRetry: () => void
-  /** Whose texts: the poll's (`offline.*`, the default) or the session check's on the connect screen (`connect.*`). */
+  /** Whose body text: the poll's (`offline.unreachableBody`, the default) or the session check's on the connect screen (`connect.unreachableBody`). */
   texts?: 'offline' | 'connect'
 }
 
@@ -24,7 +24,7 @@ export function UnreachableState({ unreachable, onRetry, texts = 'offline' }: Un
     <EmptyState
       icon="wifi-off"
       tone="error"
-      title={t(`${texts}.unreachableTitle`, { context: unreachableText(unreachable) })}
+      title={t('noAnswer.qbittorrent', { context: unreachableText(unreachable) })}
       actionLabel={t('common.retry')}
       onAction={onRetry}
       secondaryActionLabel={openAgain ? t('common.openAgain') : undefined}

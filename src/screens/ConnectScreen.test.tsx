@@ -61,7 +61,7 @@ describe('ConnectScreen', () => {
 
   it('shows who didn’t answer the session check in place of the form, with Retry', async () => {
     const { onRetry } = setup(undefined, { unreachable: 'qbittorrent' })
-    expect(screen.getByRole('heading', { name: 'qBittorrent is unreachable' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'qBittorrent isn’t answering' })).toBeInTheDocument()
     expect(screen.getByText('Check that qBittorrent is running and its Web UI is on.')).toBeInTheDocument()
     // No login form until there's someone to sign in to; the theme and language stay.
     expect(screen.queryByLabelText('Username')).not.toBeInTheDocument()
@@ -118,13 +118,13 @@ describe('ConnectScreen', () => {
   it('takes any answer of the server’s own, qBittorrent not set up included, for the server answering', async () => {
     setup(vi.fn().mockRejectedValue(new SettingsError(503, 'not-configured')))
     await fillAndSubmit()
-    expect(screen.getByRole('alert', { name: saying('qBittorrent is unreachable') })).toBeInTheDocument()
+    expect(screen.getByRole('alert', { name: saying('qBittorrent isn’t answering') })).toBeInTheDocument()
   })
 
   it('takes the server’s word that qBittorrent did not answer the sign-in', async () => {
     setup(vi.fn().mockRejectedValue(new SettingsError(502, 'unreachable')))
     await fillAndSubmit()
-    expect(screen.getByRole('alert', { name: saying('qBittorrent is unreachable') })).toBeInTheDocument()
+    expect(screen.getByRole('alert', { name: saying('qBittorrent isn’t answering') })).toBeInTheDocument()
   })
 
   it('switches the theme and the language before signing in', async () => {

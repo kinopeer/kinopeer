@@ -56,7 +56,7 @@ export const DownloadCard = memo(function DownloadCard({
                 {/* Here rather than next to the speed: the line under the poster has no room for it. */}
                 <SpeedLimitMark torrent={torrent} className="c2" />
               </span>
-              <ProgressBar value={torrent.progress} status={status} label={t('downloads.progress', { name: title })} />
+              <ProgressBar value={torrent.progress} status={status} label={t('common.progressOf', { name: title })} />
             </div>
           </>
         }

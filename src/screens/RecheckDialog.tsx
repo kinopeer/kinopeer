@@ -30,7 +30,7 @@ export function RecheckDialog({ title, busy, failed, onConfirm, onClose }: Reche
       actions={
         <>
           <Button variant="secondary" block onClick={onClose}>
-            {t('torrent.cancel')}
+            {t('common.cancel')}
           </Button>
           <Button variant="primary" block loading={busy} disabled={busy} onClick={onConfirm}>
             {t('torrent.recheck')}
@@ -39,7 +39,7 @@ export function RecheckDialog({ title, busy, failed, onConfirm, onClose }: Reche
       }
     >
       <p className="t-body c2">{t('torrent.recheckBody', { title })}</p>
-      {failed && <Banner tone="error">{t('torrent.actionFailed')}</Banner>}
+      {failed && <Banner tone="error">{t('common.qbtFailed')}</Banner>}
     </Dialog>
   )
 }

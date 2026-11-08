@@ -69,7 +69,7 @@ function TitleDownload({ torrent }: { torrent: Torrent }) {
             <ProgressBar
               value={torrent.progress}
               status={status}
-              label={t('downloads.progress', { name: torrent.name })}
+              label={t('common.progressOf', { name: torrent.name })}
               className="title-dl-bar"
             />
             <span className="t-cap title-dl-pct ks-num c2">{percent}</span>

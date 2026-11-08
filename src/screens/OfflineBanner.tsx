@@ -28,7 +28,7 @@ export function OfflineBanner({ unreachable, updatedAt, onRetry }: OfflineBanner
     <Banner
       tone="warning"
       icon="wifi-off"
-      title={t('offline.title', { context: unreachableText(unreachable) })}
+      title={t('noAnswer.qbittorrent', { context: unreachableText(unreachable) })}
       actionLabel={t('common.retry')}
       onAction={onRetry}
       secondaryActionLabel={openAgain ? t('common.openAgain') : undefined}

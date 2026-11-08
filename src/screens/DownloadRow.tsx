@@ -68,7 +68,7 @@ export function DownloadRowHeader({ selecting, queue, ...sorting }: { selecting:
           </span>
         ) : (
           // "#" says little to a screen reader: the menu's name for this sort follows it, hidden.
-          <SortHeader sort="priority" label={t('downloads.sorts.priority')} {...sorting}>
+          <SortHeader sort="priority" label={t('fields.priority')} {...sorting}>
             #
           </SortHeader>
         ))}
@@ -76,22 +76,22 @@ export function DownloadRowHeader({ selecting, queue, ...sorting }: { selecting:
         <span className="sr-only">{t('downloads.columns.poster')}</span>
       </span>
       <SortHeader sort="name" {...sorting}>
-        {t('downloads.columns.title')}
+        {t('fields.name')}
       </SortHeader>
       <SortHeader sort="progress" {...sorting}>
-        {t('downloads.columns.progress')}
+        {t('fields.progress')}
       </SortHeader>
       <SortHeader sort="status" {...sorting}>
-        {t('downloads.columns.status')}
+        {t('fields.status')}
       </SortHeader>
       <SortHeader sort="speed" {...sorting}>
-        {t('downloads.columns.speed')}
+        {t('fields.speed')}
       </SortHeader>
       <SortHeader sort="eta" className="dl-row-eta" {...sorting}>
-        {t('downloads.columns.eta')}
+        {t('fields.eta')}
       </SortHeader>
       <SortHeader sort="size" className="dl-row-size" {...sorting}>
-        {t('downloads.columns.size')}
+        {t('fields.size')}
       </SortHeader>
       <span role="columnheader">
         <span className="sr-only">{t('downloads.columns.actions')}</span>
@@ -166,7 +166,7 @@ export const DownloadRow = memo(function DownloadRow({
         <ProgressBar
           value={torrent.progress}
           status={status}
-          label={t('downloads.progress', { name: title })}
+          label={t('common.progressOf', { name: title })}
           className="dl-bar"
         />
         <span className="t-cap dl-pct ks-num c2">{format.percent(torrent.progress)}</span>

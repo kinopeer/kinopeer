@@ -30,7 +30,7 @@ export function PollRing({ poll, context, className }: PollRingProps) {
   const time = updatedAt === null ? null : format.time(updatedAt)
   const label = offline
     ? time === null
-      ? t('poll.offline', { context: unreachableText(unreachable) })
+      ? t('noAnswer.qbittorrent', { context: unreachableText(unreachable) })
       : t('poll.offlineSince', { time, context: unreachableText(unreachable) })
     : time === null
       ? t('poll.waiting')
