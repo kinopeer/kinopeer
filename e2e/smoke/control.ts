@@ -20,7 +20,7 @@ export const CONTROL_URL = `http://127.0.0.1:${CONTROL_PORT}`
 
 /** The cookie the proxy sets on a page load, as Umbrel's app_proxy does at login. */
 export const PROXY_COOKIE = 'proxy_session'
-/** On the proxy's own 401, to tell it from one the server could send. */
+/** On the proxy's own redirect to its sign-in, to tell it from an answer of the server's. */
 export const PROXY_DENIED_HEADER = 'x-smoke-proxy'
 
 /** The only login the fake qBittorrent takes (server/test/fakes.ts). */

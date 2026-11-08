@@ -18,7 +18,7 @@ describe('SHELL_DENYLIST', () => {
     },
   )
 
-  it.each(['/', '/search', '/search?q=dune', '/search?q=proxy-sign-in', '/title/movie/1', '/title/tv/1/releases', '/torrent/abc', '/settings', '/api', '/qbtx/'])(
+  it.each(['/', '/search', '/search?q=dune', '/search?q=proxy-sign-in', '/search?q=/qbt/x', '/title/movie/1', '/title/tv/1/releases', '/torrent/abc', '/settings', '/api', '/qbtx/'])(
     'lets the app shell answer %s',
     (path) => {
       expect(denied(path)).toBe(false)
