@@ -1,11 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { stubDesktop } from './stubDesktop'
 import { useIsDesktop } from './useIsDesktop'
-
-afterEach(() => {
-  vi.unstubAllGlobals()
-})
 
 describe('useIsDesktop', () => {
   it('is false without matchMedia', () => {

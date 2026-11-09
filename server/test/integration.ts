@@ -161,10 +161,9 @@ export async function startKinopeer(options: StandOptions = {}): Promise<Stand> 
   return current
 }
 
-/** Closes every stand's servers, restores `fetch` and removes the data directories; for afterEach. */
+/** Closes every stand's servers and removes the data directories; for afterEach. Vitest puts `fetch` back before the next test. */
 export async function stopKinopeer(): Promise<void> {
   current = undefined
-  vi.unstubAllGlobals()
   await closeServers()
   await Promise.all(dirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })))
 }

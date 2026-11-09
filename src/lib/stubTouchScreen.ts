@@ -2,7 +2,7 @@ import { vi } from 'vitest'
 
 /**
  * For tests: stubs matchMedia so that `(pointer: coarse)` matches, a phone's touch screen, and
- * nothing else does (the phone layout). Undo with vi.unstubAllGlobals().
+ * nothing else does (the phone layout). Vitest puts it back before each test.
  */
 export function stubTouchScreen() {
   vi.stubGlobal('matchMedia', (query: string) => ({

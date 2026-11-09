@@ -62,8 +62,6 @@ beforeEach(() => {
 afterEach(() => {
   stop()
   vi.useRealTimers()
-  vi.unstubAllGlobals()
-  vi.restoreAllMocks()
   sessionStorage.clear()
   document.body.replaceChildren()
   Reflect.deleteProperty(document, 'hidden')

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { ProwlarrSetupError, fetchRelease, getFailingIndexers, searchReleases } from './client'
 import type { Release } from './types'
 
@@ -9,10 +9,6 @@ const RELEASE: Release = { id: 'g1', title: 'Dune / Дюна (2021)', indexer: '
 beforeEach(() => {
   fetchMock = vi.fn<typeof fetch>()
   vi.stubGlobal('fetch', fetchMock)
-})
-
-afterEach(() => {
-  vi.unstubAllGlobals()
 })
 
 describe('searchReleases', () => {

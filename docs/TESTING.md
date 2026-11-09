@@ -309,9 +309,12 @@ the top of the file: there it's gone by the first test, which then runs without 
 `self` before it imports the worker, and its tests read what that load captured. A listener on
 `document` or `window` and fake timers are the test's to remove: in `afterEach` or through
 `onTestFinished`, not at the end of the `it`, where an assertion that fails first leaves them to
-every later test in the file (#243). A new test doesn't write `vi.restoreAllMocks()`,
-`vi.unstubAllGlobals()`, `vi.unstubAllEnvs()` or a spy's `mockRestore()` to clean up; the ones
-already in the tree do nothing now and go when their file is next changed.
+every later test in the file (#243). A test doesn't clean up what Vitest puts back: oxlint stops
+`vi.restoreAllMocks()`, `vi.unstubAllGlobals()` and `vi.unstubAllEnvs()` ([Lint rules for
+tests](#lint-rules-for-tests)), and a new test doesn't write a spy's `mockRestore()` for it either,
+while the ones already in the tree do nothing now and go when their file is next changed. A call
+that is a step rather than cleanup, taking back a stub the file's `beforeEach` made so the phone
+layout renders, keeps an `oxlint-disable-next-line` under a comment that says so.
 
 The Seen red column is the author's word, and the review can only read the tests for these shapes;
 the survivors in CI's report are not.
@@ -594,7 +597,10 @@ uncovered; the threshold only keeps that from slipping by unnoticed. It applies 
 
 oxlint runs its `vitest` plugin on the test files (`.oxlintrc.json`): no two tests with the same
 title, no `.skip` or `.only` left behind, every test has an `expect`, no test defined inside a
-condition.
+condition. Its `no-restricted-properties` stops `vi.restoreAllMocks()`, `vi.unstubAllGlobals()`
+and `vi.unstubAllEnvs()`, since Vitest's config does what they do before each test ([What a test
+puts in place outside its own tree](#a-test-that-can-fail)); the 2026-11-10 retro moved that rule
+here after three new calls in one batch (#309, #323, #334).
 
 ## Reviewing a PR's tests
 

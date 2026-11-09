@@ -25,7 +25,6 @@ function sendRaw(base: string, path: string): Promise<number> {
 }
 
 afterEach(async () => {
-  vi.restoreAllMocks()
   vi.useRealTimers()
   await closeServers()
 })

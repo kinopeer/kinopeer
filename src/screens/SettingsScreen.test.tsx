@@ -1,6 +1,6 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as matches from '../api/matches'
 import * as prowlarr from '../api/prowlarr'
 import * as qbt from '../api/qbittorrent'
@@ -79,11 +79,6 @@ beforeEach(() => {
     qbittorrent: { configured: true, source: 'env' },
     downloads: {},
   })
-})
-
-afterEach(() => {
-  // The user agent spy, even when its test fails.
-  vi.restoreAllMocks()
 })
 
 describe('SettingsScreen', () => {

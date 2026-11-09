@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { digest, sha1, sha256, toHex } from './digest'
 
 const utf8 = (text: string) => new TextEncoder().encode(text)
@@ -27,8 +27,6 @@ describe('sha1 and sha256', () => {
 })
 
 describe('digest', () => {
-  afterEach(() => vi.unstubAllGlobals())
-
   it('uses Web Crypto when the page has it', async () => {
     const spy = vi.spyOn(crypto.subtle, 'digest')
     expect(toHex(await digest('SHA-256', utf8('abc')))).toBe(

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { InvalidTorrentError, readTorrentFile } from './torrentFile'
 
 type Value = number | string | Uint8Array | Value[] | { [key: string]: Value }
@@ -42,8 +42,6 @@ async function digest(algorithm: 'SHA-1' | 'SHA-256', value: Value): Promise<str
 }
 
 describe('readTorrentFile', () => {
-  afterEach(() => vi.unstubAllGlobals())
-
   it('reads a multi-file torrent and hashes its info dictionary', async () => {
     const info: Value = {
       name: 'Дюна (2021) BDRip',

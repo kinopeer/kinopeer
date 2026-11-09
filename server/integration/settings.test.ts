@@ -4,7 +4,6 @@ import { getProwlarrStatus } from '../../src/api/prowlarr/client.ts'
 import { startKinopeer, stopKinopeer } from '../test/integration.ts'
 
 afterEach(async () => {
-  vi.restoreAllMocks()
   await stopKinopeer()
 })
 

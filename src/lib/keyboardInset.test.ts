@@ -6,7 +6,6 @@ let stop: (() => void) | undefined
 
 afterEach(() => {
   stop?.()
-  vi.unstubAllGlobals()
   document.body.replaceChildren()
 })
 

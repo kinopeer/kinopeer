@@ -1,6 +1,6 @@
 import { act, screen, waitFor } from '@testing-library/react'
 import type { ReactElement } from 'react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as matchesApi from '../api/matches'
 import * as api from '../api/qbittorrent'
 import type { MainData, Torrent } from '../api/qbittorrent'
@@ -84,10 +84,6 @@ beforeEach(() => {
   vi.mocked(matchesApi.getMatches).mockResolvedValue({})
   vi.mocked(matchesApi.saveMatches).mockImplementation(async (changes) => changes as matchesApi.Matches)
   vi.mocked(tmdb.searchTitles).mockResolvedValue(searchPage([]))
-})
-
-afterEach(() => {
-  vi.unstubAllGlobals()
 })
 
 describe('DownloadsScreen on a poll', () => {

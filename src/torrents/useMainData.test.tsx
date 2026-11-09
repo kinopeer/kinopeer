@@ -36,8 +36,6 @@ afterEach(() => {
   cleanup()
   vi.advanceTimersByTime(0)
   vi.useRealTimers()
-  // The page's visibility (`setHidden`).
-  vi.restoreAllMocks()
 })
 
 describe('useMainData', () => {

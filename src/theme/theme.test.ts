@@ -17,7 +17,6 @@ import { useTheme } from './useTheme'
 afterEach(() => {
   localStorage.clear()
   delete document.documentElement.dataset.theme
-  vi.unstubAllGlobals()
 })
 
 /** Stubs matchMedia with a system that prefers light or dark; returns a function that switches it. */

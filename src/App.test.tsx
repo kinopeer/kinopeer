@@ -82,8 +82,6 @@ beforeEach(() => {
 
 afterEach(() => {
   localStorage.clear()
-  vi.unstubAllGlobals()
-  vi.restoreAllMocks()
 })
 
 const duneDetails = {

@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { Popover, type PopoverProps } from './Popover'
 
 type Options = Partial<Pick<PopoverProps, 'align' | 'offset' | 'follow'>>
@@ -42,10 +42,6 @@ async function open(options: Options = {}) {
   await userEvent.click(anchor)
   return { anchor, popover: screen.getByRole('group', { name: 'Filters' }) }
 }
-
-afterEach(() => {
-  vi.restoreAllMocks()
-})
 
 describe('Popover', () => {
   it('sits under its anchor, lined up with its right edge', async () => {
