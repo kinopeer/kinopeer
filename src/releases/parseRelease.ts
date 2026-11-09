@@ -41,7 +41,7 @@ const RESOLUTIONS: [Resolution, RegExp][] = [
  * not an MPEG transport stream, the container broadcasts come in.
  */
 function theaterRip(): RegExp {
-  const spellings = 'hd-?cam(?:-?rip)?|cam-?rip|(?:hd)?ts(?:rip)?|telesynch?|(?:hd)?tc(?:-?rip)?|telecine'
+  const spellings = 'hd-?cam(?:rip)?|cam-?rip|(?:hd)?ts(?:rip)?|telesynch?|(?:hd)?tc(?:rip)?|telecine'
   const audioBefore = 'звук(?:\\s*:)?\\s+(?:(?:[сc]|из)\\s+)?' // с in Cyrillic or, as typed by mistake, Latin
   const mpeg = 'mpeg-?2?[\\s-]?'
   const audioAfter = '\\s+(?:audio|звук)'
