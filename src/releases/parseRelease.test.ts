@@ -65,10 +65,10 @@ describe('parseRelease', () => {
     ['Во все тяжкие / Breaking Bad / S1-5E1-62 of 62 (2008-2013) BDRip 1080p', [1, 2, 3, 4, 5], 'S01–S05'],
     // The worded forms, in English and Russian, with and without spaces around the range's dash.
     ['Grey’s Anatomy Season 12 1080p WEB-DL', [12], 'S12'],
-    ['The Bear Seasons 1-3 1080p WEBRip', [1, 2, 3], 'S01–S03'],
+    ['Grey’s Anatomy Seasons 1-10 1080p WEBRip', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 'S01–S10'],
     ['Медведь / The Bear (Сезоны 1 – 3) WEB-DL 1080p', [1, 2, 3], 'S01–S03'],
     ['Анатомия страсти (12 сезон) WEB-DL 1080p', [12], 'S12'],
-    ['Медведь (1-3 сезоны) WEB-DL 1080p', [1, 2, 3], 'S01–S03'],
+    ['Анатомия страсти (1-10 сезоны) WEB-DL 1080p', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 'S01–S10'],
     ['Медведь (1 – 3 сезоны) WEB-DL 1080p', [1, 2, 3], 'S01–S03'],
     ['Дюна (2021) BDRip 1080p', [], undefined],
   ])('reads the seasons of %s', (title, seasons, coverage) => {
