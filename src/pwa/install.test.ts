@@ -30,8 +30,6 @@ function userAgent(agent: string, maxTouchPoints = 0) {
 }
 
 afterEach(() => {
-  vi.restoreAllMocks()
-  vi.unstubAllGlobals()
   resetInstallState()
 })
 

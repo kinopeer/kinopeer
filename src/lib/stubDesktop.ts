@@ -4,7 +4,7 @@ import { DESKTOP_QUERY } from './breakpoints'
 /**
  * For tests: stubs matchMedia so that `DESKTOP_QUERY` matches while `desktop` is true. jsdom has no
  * matchMedia, so useIsDesktop is false (the phone layout) unless a test calls this. Returns a
- * function that changes the answer later and tells the listeners. Undo with vi.unstubAllGlobals().
+ * function that changes the answer later and tells the listeners. Vitest puts it back before each test.
  */
 export function stubDesktop(desktop = true): (desktop: boolean) => void {
   let matches = desktop

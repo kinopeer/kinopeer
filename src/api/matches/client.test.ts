@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { MatchesError, getMatches } from './client'
 
 let fetchMock: Mock<typeof fetch>
@@ -6,10 +6,6 @@ let fetchMock: Mock<typeof fetch>
 beforeEach(() => {
   fetchMock = vi.fn<typeof fetch>()
   vi.stubGlobal('fetch', fetchMock)
-})
-
-afterEach(() => {
-  vi.unstubAllGlobals()
 })
 
 describe('getMatches', () => {

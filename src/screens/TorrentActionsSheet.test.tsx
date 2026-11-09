@@ -90,7 +90,6 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  vi.unstubAllGlobals()
   document.body.innerHTML = ''
 })
 
@@ -307,7 +306,7 @@ describe('TorrentActionsSheet on desktop', () => {
 
 describe('TorrentActionsSheet on a phone', () => {
   beforeEach(() => {
-    vi.unstubAllGlobals()
+    stubDesktop(false)
   })
 
   it('is a sheet without an anchor or on a phone', async () => {
@@ -335,7 +334,6 @@ describe('TorrentActionsSheet on a phone', () => {
   })
 
   it('needs qBittorrent to move files on a phone too', () => {
-    vi.unstubAllGlobals()
     renderActions({ offline: true })
     expect(screen.getByRole('button', { name: 'Move files…' })).toBeDisabled()
   })
@@ -360,7 +358,6 @@ describe('TorrentActionsSheet on a phone', () => {
   })
 
   it('says under a sheet row why it’s off', () => {
-    vi.unstubAllGlobals()
     renderActions({ torrent: { ...TORRENT, state: 'queuedDL', total_size: -1 } })
     const sheet = screen.getByRole('dialog', { name: 'Inception' })
     const recheck = within(sheet).getByRole('button', { name: 'Force recheck' })
@@ -370,7 +367,6 @@ describe('TorrentActionsSheet on a phone', () => {
   })
 
   it('a failed reannounce shows the error in the sheet and doesn’t report success', async () => {
-    vi.unstubAllGlobals()
     vi.mocked(api.reannounceTorrents).mockRejectedValue(new Error('500'))
     const handlers = renderActions({ torrent: { ...TORRENT, state: 'uploading' } })
     const sheet = screen.getByRole('dialog', { name: 'Inception' })

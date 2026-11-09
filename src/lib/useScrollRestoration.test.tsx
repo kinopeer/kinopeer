@@ -340,8 +340,6 @@ describe('useScrollRestoration on a document’s first entry', () => {
     )
   }
 
-  afterEach(() => vi.restoreAllMocks())
-
   // React Router names every document's first entry "default", so an earlier document's position is kept under
   // the same name in the session's storage.
   beforeEach(() => sessionStorage.setItem('kinopeer.scroll:default', '900'))

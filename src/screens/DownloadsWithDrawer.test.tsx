@@ -1,7 +1,7 @@
 import { act, fireEvent, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as matchesApi from '../api/matches'
 import * as api from '../api/qbittorrent'
 import type { Torrent } from '../api/qbittorrent'
@@ -100,10 +100,6 @@ beforeEach(() => {
   stopTorrents.mockResolvedValue()
   deleteTorrents.mockResolvedValue()
   stubDesktop()
-})
-
-afterEach(() => {
-  vi.unstubAllGlobals()
 })
 
 describe('the details drawer on desktop', () => {

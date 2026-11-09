@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import worker, { handle, limitKey, type Env } from './worker.ts'
 
 const ORIGIN = 'https://kinopeer-tmdb.example.workers.dev'
@@ -228,8 +228,6 @@ describe('TMDB proxy worker', () => {
   })
 
   describe('as deployed', () => {
-    afterEach(() => vi.unstubAllGlobals())
-
     it('calls TMDB itself', async () => {
       const tmdb = fakeTmdb()
       vi.stubGlobal('fetch', tmdb)

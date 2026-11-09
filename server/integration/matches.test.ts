@@ -10,7 +10,6 @@ const USER = { type: 'movie', id: 693134, source: 'user' } as const
 const GUESS = { type: 'tv', id: 126308, source: 'guess', version: 2 } as const
 
 afterEach(async () => {
-  vi.restoreAllMocks()
   await stopKinopeer()
 })
 

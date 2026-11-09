@@ -85,8 +85,6 @@ afterEach(() => {
   releases.forEach((release) => release())
   releases = []
   frames = []
-  vi.unstubAllGlobals()
-  vi.restoreAllMocks()
   document.body.replaceChildren()
   document.body.removeAttribute('style')
 })

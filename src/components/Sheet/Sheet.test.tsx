@@ -7,11 +7,6 @@ import { stubTouchScreen, swipeMovesPage } from '../../lib/stubTouchScreen'
 import { ToastProvider, useToast } from '../Toast'
 import { Sheet } from './Sheet'
 
-afterEach(() => {
-  vi.unstubAllGlobals()
-  vi.restoreAllMocks()
-})
-
 const renderSheet = (props: Partial<Parameters<typeof Sheet>[0]> = {}) => {
   const onClose = vi.fn()
   render(

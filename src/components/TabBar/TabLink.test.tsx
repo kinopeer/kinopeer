@@ -1,7 +1,7 @@
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes, useLocation } from 'react-router'
-import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi, type MockInstance } from 'vitest'
+import { beforeEach, describe, expect, it, onTestFinished, vi, type MockInstance } from 'vitest'
 import { forgetTabPlaces, saveTabPlace } from '../../lib/tabPlaces'
 import { renderWithRouter } from '../../test/render'
 import { TabBar, type TabBarItem } from './TabBar'
@@ -41,11 +41,6 @@ let scrollTo: MockInstance<typeof window.scrollTo>
 beforeEach(() => {
   forgetTabPlaces()
   scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
-})
-
-afterEach(() => {
-  vi.restoreAllMocks()
-  vi.unstubAllGlobals()
 })
 
 describe('TabLink', () => {

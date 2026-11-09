@@ -112,7 +112,8 @@ trusted.
   `onTestFinished`, a spy, a global or an env stub made at the top of a file or in `beforeAll`
   (Vitest puts them back before each test, so the tests run without it: `docs/TESTING.md` → What a
   test puts in place; a stub only the file's load needs, as `sw.test.ts`'s `self`, is the
-  exception), a new `vi.restoreAllMocks()`, `unstubAll…()` or cleanup `mockRestore()`, a second
+  exception), a new cleanup `mockRestore()` (oxlint stops `vi.restoreAllMocks()` and `unstubAll…()`),
+  a second
   copy of a literal or a wrapper in one file, an index-based query
   for an element that has a name of its own (`getAllByRole('button')[1]`; an index is fine when the
   position is what the test says, as the first row after a sort or the current title first),

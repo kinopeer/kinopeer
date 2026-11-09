@@ -311,7 +311,6 @@ describe('useTitleMatches', () => {
     afterEach(() => {
       localStorage.removeItem(SETTINGS_STORAGE_KEY)
       resetSettings()
-      vi.restoreAllMocks()
     })
 
     interface Held {

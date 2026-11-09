@@ -1,13 +1,9 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import i18n from '../i18n'
 import { ETA_INFINITY, createFormatters } from './format'
 
 const en = () => createFormatters(i18n.t, 'en')
 const ru = () => createFormatters(i18n.getFixedT('ru'), 'ru')
-
-afterEach(() => {
-  vi.restoreAllMocks()
-})
 
 describe('size', () => {
   it('uses decimal units with sensible precision', () => {

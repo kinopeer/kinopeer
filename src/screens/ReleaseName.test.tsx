@@ -1,12 +1,10 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { stubDesktop } from '../lib/stubDesktop'
 import { ReleaseName } from './ReleaseName'
 
 const NAME = 'Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX.DV.HDR10.HEVC-GRPA'
-
-afterEach(() => vi.unstubAllGlobals())
 
 describe('ReleaseName', () => {
   it('is a button that shows the whole name on a phone', async () => {

@@ -380,8 +380,7 @@ describe('TitleScreen on desktop', () => {
 
 describe('TitleRoute on a phone', () => {
   it('opens the releases screen at the releases link', async () => {
-    // Not cleanup: it takes back the desktop matchMedia beforeEach stubs, so the phone layout renders.
-    vi.unstubAllGlobals()
+    stubDesktop(false)
     renderAt('/title/movie/693134/releases')
     expect(screen.getByRole('heading', { level: 1, name: 'Releases' })).toBeInTheDocument()
     expect(await screen.findAllByRole('article')).toHaveLength(3)

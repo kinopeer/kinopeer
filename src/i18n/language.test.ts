@@ -22,10 +22,6 @@ function stubBrowserLanguages(languages: string[]): (next: string[]) => void {
   }
 }
 
-afterEach(() => {
-  vi.restoreAllMocks()
-})
-
 describe('systemLanguage', () => {
   it('takes the first of the browser languages the app has, by base language', () => {
     expect(systemLanguage(['de-DE', 'RU-ru', 'en-US'])).toBe('ru')

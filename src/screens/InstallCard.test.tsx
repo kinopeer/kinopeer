@@ -21,7 +21,6 @@ function installPrompt() {
 beforeEach(() => localStorage.clear())
 
 afterEach(() => {
-  vi.restoreAllMocks()
   resetInstallState()
 })
 

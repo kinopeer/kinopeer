@@ -1,6 +1,6 @@
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as matchesApi from '../api/matches'
 import * as api from '../api/qbittorrent'
 import type { MainData, Torrent } from '../api/qbittorrent'
@@ -67,11 +67,6 @@ beforeEach(() => {
   searchTitles.mockResolvedValue(searchPage([]))
   stubDesktop()
 })
-
-afterEach(() => {
-  vi.unstubAllGlobals()
-})
-
 
 /** The desktop list's body rows (the first row is the column headers). */
 async function tableRows() {

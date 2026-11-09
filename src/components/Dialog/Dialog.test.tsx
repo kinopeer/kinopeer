@@ -1,16 +1,11 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useLayoutEffect } from 'react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { stubDesktop } from '../../lib/stubDesktop'
 import { stubTouchScreen, swipeMovesPage } from '../../lib/stubTouchScreen'
 import { ToastProvider, useToast } from '../Toast'
 import { Dialog } from './Dialog'
-
-afterEach(() => {
-  vi.unstubAllGlobals()
-  vi.restoreAllMocks()
-})
 
 const renderDialog = (open = true) => {
   const onClose = vi.fn()

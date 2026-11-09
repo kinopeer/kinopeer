@@ -1,5 +1,5 @@
 import { act, render } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { useHeightVar } from './useHeightVar'
 
 function Page({ withHeader = true }: { withHeader?: boolean }) {
@@ -16,11 +16,6 @@ function Page({ withHeader = true }: { withHeader?: boolean }) {
 function headerHeight(height: number) {
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ height } as DOMRect)
 }
-
-afterEach(() => {
-  vi.restoreAllMocks()
-  vi.unstubAllGlobals()
-})
 
 describe('useHeightVar', () => {
   it('writes the height on the parent and follows it as it changes', () => {

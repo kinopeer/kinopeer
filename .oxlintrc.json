@@ -26,7 +26,25 @@
       }
     ],
     "vitest/require-mock-type-parameters": "off",
-    "vitest/require-to-throw-message": "off"
+    "vitest/require-to-throw-message": "off",
+    "no-restricted-properties": [
+      "error",
+      {
+        "object": "vi",
+        "property": "restoreAllMocks",
+        "message": "Vitest already puts it back before each test (vite.config.ts): docs/TESTING.md → What a test puts in place outside its own tree."
+      },
+      {
+        "object": "vi",
+        "property": "unstubAllGlobals",
+        "message": "Vitest already puts it back before each test (vite.config.ts): docs/TESTING.md → What a test puts in place outside its own tree."
+      },
+      {
+        "object": "vi",
+        "property": "unstubAllEnvs",
+        "message": "Vitest already puts it back before each test (vite.config.ts): docs/TESTING.md → What a test puts in place outside its own tree."
+      }
+    ]
   },
   "overrides": [
     {
