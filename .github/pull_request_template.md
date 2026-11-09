@@ -27,7 +27,11 @@ Not covered: <!-- each part of the diff without a test: the part — an accepted
 
 Neighbours: <!-- docs/TESTING.md → Choosing a layer. Answer each with the `it` that covers it and
      what you broke for exactly that case to see it red, a reason from Not covered, or "doesn't
-     apply" and why. A test that stays green with that case broken doesn't answer it. -->
+     apply" and why. A test that stays green with that case broken doesn't answer it. Another
+     place: what a grep for the changed function, text key, component or route finds, not for its
+     words; a place left as it is, with a reason that holds against the code. The edges of a
+     pattern that reads outside text: what else it catches (a title's word, the same letters
+     meaning something else, another way of writing it). -->
 
 - Another place:
 - Later:
@@ -40,8 +44,9 @@ Mutants: <!-- npm run test:mutants at the commit you mark ready: the count, then
 
 Broken by hand: <!-- what Stryker leaves alone in the changed lines (docs/TESTING.md → A test that
      can fail): each dependency dropped from an effect or memo, each operand of a condition, each
-     alternative in a selector, which value a guard reads, a prop passed down — and the `it` that
-     failed. Or "none in the diff". -->
+     alternative in a selector, which value a guard reads, a prop passed down, each text key the
+     diff adds or moves (Stryker leaves strings alone) — and the `it` that failed. Or "none in the
+     diff". -->
 
 Baselines: <!-- each changed or new PNG — what changed and why, intended or a side effect — diff
      looked at | re-rendered with --update-snapshots=all | new, opened. Or "none". A side effect
@@ -62,7 +67,9 @@ Baselines: <!-- each changed or new PNG — what changed and why, intended or a 
      (opened, not remembered), the UI's words, the doc it points at; a checklist step's pointer
      resolves and its check can pass as written. A list the change adds to gains the new item:
      the screens in TESTING.md → Screenshot tests, SPEC's decision log (newest first), the blind
-     spots. Bring this section, What and Tests to the head after each round's fixes. -->
+     spots. The changelog's entry names every change a user sees (each text, label and screen the
+     diff changes) and claims no more than the code does. Bring this section, What and Tests to
+     the head after each round's fixes. -->
 
 ## For the owner
 
@@ -72,7 +79,7 @@ Baselines: <!-- each changed or new PNG — what changed and why, intended or a 
 
 ## Why tests missed it
 
-<!-- fix/ PRs and fixes of a flaky test; delete the section otherwise. docs/TESTING.md → When we find a bug. -->
+<!-- fix: PRs and fixes of a flaky test; delete the section otherwise. docs/TESTING.md → When we find a bug. -->
 
 Class: `test-gap:<uncovered | wrong-layer | implementation | fake-drift | environment | silent-test | flaky>`, also the label on the issue.
 

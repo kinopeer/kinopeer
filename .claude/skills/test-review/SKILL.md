@@ -1,6 +1,6 @@
 ---
 name: test-review
-description: Review a pull request's tests against docs/TESTING.md before it merges — the PR's own account of what is covered and why something isn't, the layer of every new or changed test, removed assertions, fakes against the real services, the record a fix/ PR must carry. Use as `/test-review <PR number>` or `/test-review` for the current branch; also when asked whether a PR's tests are "in order", "по системе" or "по правилам".
+description: Review a pull request's tests against docs/TESTING.md before it merges — the PR's own account of what is covered and why something isn't, the layer of every new or changed test, removed assertions, fakes against the real services, the record a bug fix must carry. Use as `/test-review <PR number>` or `/test-review` for the current branch; also when asked whether a PR's tests are "in order", "по системе" or "по правилам".
 ---
 
 # Test review
@@ -23,7 +23,7 @@ follows the conversation's language. Code, file paths and quotes stay as they ar
   layer named for each and whether it was seen red; **what is declared uncovered and the reason
   given**; the answer to each neighbour (`Neighbours`); the `Mutants` line and what it says of each
   survivor; what was broken by hand (`Broken by hand`); which screenshot baselines changed, why, and
-  how each was checked. From a `fix/` PR or the fix of a flaky test
+  how each was checked. From a `fix:` PR or the fix of a flaky test
   also take the **Why tests missed it** section (class and action), the linked issue
   (`Closes #n`) and that issue's `test-gap:*` label.
 - A declared-uncovered part is reviewed for its reason, not asked for a test. The accepted
@@ -73,7 +73,12 @@ trusted.
   fake the new request, in the same PR; a route no client calls needs its layer-4 test. Ask the
   neighbours of the change too (`docs/TESTING.md` → Choosing a layer: another place, later,
   meanwhile, the next poll, the edges), and check the PR's `Neighbours` lines against them: one left
-  blank, or answered with a test that doesn't run that case, is a finding. Where you can, break the
+  blank, or answered with a test that doesn't run that case, is a finding. Another place is checked
+  by a grep for what the diff changes (the function, the text's key, the component, the route), not
+  for its words (#310), and a place the PR leaves as it is needs a reason that holds against the
+  code (#323). A pattern that reads text from outside is tried on what it shouldn't catch: the token
+  as a title's word, the same letters meaning something else, another way of writing the same thing
+  (#332, #333, #334), each with a row in the token's table of names it doesn't read. Where you can, break the
   code for exactly that case and see whether the named test fails: a green one doesn't answer it
   (#237, #244, #248, #250). Missing → check the Tests
   section's reasons (step 1) → otherwise a finding. A bug `/code-review` finds in the PR's own change
@@ -148,7 +153,7 @@ trusted.
   Screenshot tests, SPEC's decision log, newest first, the blind spots: any PR that meets a blind
   spot the table doesn't name adds its row), and a manual check the PR adds says what has to be in
   place for it to pass. How a paragraph wraps is not a finding.
-- **I. A `fix/` PR carries its record.** So does the fix of a flaky test. The issue is linked and
+- **I. A `fix:` PR carries its record.** So does the fix of a flaky test. The issue is linked and
   labelled `test-gap:<class>`; a bug's fix says the new test was red before the fix, and a flaky
   test's fix says how often the test failed and how many runs it now passes; the class fits the
   story in the PR; "what changes so this class is caught" names a concrete change, not a wish.
@@ -166,16 +171,19 @@ trusted.
   say so in the round. An `equivalent` that only a test's own reset keeps alive isn't one. The
   `Broken by hand` line covers what the changed lines hold of the list in `docs/TESTING.md` → A test
   that can fail (a dependency array, one operand of a condition, `&&` chains included, a selector's
-  alternatives, which value a guard reads, a prop passed down); one of them left out, where you can see a test would
-  stay green with it broken, → finding. Read each new test for the shapes in `docs/TESTING.md` → A
-  test that can fail.
+  alternatives, which value a guard reads, a prop passed down, a text's key, which Stryker never
+  swaps: #314, #327); one of them left out, where you can see a test would
+  stay green with it broken, → finding. A wiring step that a sibling handler would pass too (one
+  press that `cycleSort` and `reverseSort` both answer, #336) doesn't prove the wiring → finding.
+  Read each new test for the shapes in `docs/TESTING.md` → A test that can fail.
 
 ## 4. Report
 
 Findings first, most severe first: blocking (B, D, E with a drift, I missing, K, A without a
 reason), then should-fix (C, F, G, H), then nits. Each defect is one finding under one check:
 a new sheet or state without a baseline is G, not also A. One line per finding: `file:line`, the defect,
-the rule (a few words from `docs/TESTING.md`), the fix, and the tag `[<check> · <rule>]`: the
+the rule (a few words from `docs/TESTING.md`), the fix, and the tag `[<check> · <rule>]`, or
+`[<check> · gap: <reason>]` with what the missing rule would say: the
 check's letter (there is no J: coverage left the checks on 2026-11-03, and its rule stays in
 `docs/TESTING.md` → Coverage), and `clear` when the rule says it plainly, `gap` when no rule covers it or the rule
 reads both ways, `conflict` when `docs/TESTING.md` and this skill (or the PR template, or
@@ -185,11 +193,13 @@ not the author's fault.
 
 Then one line with the `/code-review` run on the same commit: `Code review at <short sha>: <n>
 findings`, or `no findings`; its findings themselves stay in its own inline comments. Then one
-verdict line: **ready to merge** or **needs changes**, with the count per severity and the commit
+verdict line: **ready to merge**, only with no blocking or should-fix finding open (nits may stay,
+#325), or **needs changes**, with the count per severity and the commit
 both reviews saw, `**Verdict: ready to merge** at <short sha>`: the PR merges only on a posted
 "ready to merge" at its current head. A commit of the PR's own after it needs another round; a
-merge of `main` needs one only when it reaches the PR's own lines, and otherwise the author's
-`Merged main at <sha>` comment carries the verdict over (`docs/TESTING.md` → Reviewing a PR's
+merge of `main` needs one when it changes the PR's own lines or brings commits that change a file
+the PR changes (other than `CHANGELOG.md`, SPEC's decision log and `CLAUDE.md`, #334), and otherwise
+the author's `Merged main at <sha>` comment carries the verdict over (`docs/TESTING.md` → Reviewing a PR's
 tests). Add
 "retro due" to it when twenty or more merged PRs are missing from the retro table in
 `docs/TESTING.md` → Improving the system (list the merged PRs since that table's last date and
@@ -211,9 +221,9 @@ doesn't hold the verdict: put it after the findings under its own heading, **For
 lands after a **ready to merge**: start from that comment, check every line flagged in the previous round, check the description's What, Tests and Docs against the head as you check the docs (a `Fixes for round <n>` brings them to it: #273, #298, #291), and run all the checks on every
 test the PR's own diff (`origin/main...HEAD`) adds or changes since then, since a test written to
 answer a finding is a new test. Tests a merge of `main` brought were reviewed in their own PRs. A
-merge that reaches the PR's own lines (`docs/TESTING.md` → Reviewing a PR's tests) gets a round
-over what it changed of them; one that doesn't, with the author's `Merged main at <sha>` comment
-saying so, gets no round. New
+merge that changes the PR's own lines or a file the PR changes other than `CHANGELOG.md`, SPEC's
+decision log and `CLAUDE.md` (`docs/TESTING.md` → Reviewing a PR's tests) gets a round over what it changed of them; one that doesn't, with the author's `Merged
+main at <sha>` comment saying so, gets no round. New
 findings are tagged like the first round's; one
 still open from an earlier round is listed as `still open (round <n>)` with no tag, so the retro
 counts it once. Repeat until the verdict is **ready to merge**.
