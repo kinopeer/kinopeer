@@ -211,6 +211,7 @@ describe('parseRelease', () => {
     ['Concert 2024 1080i MPEG-TS', undefined],
     ['Concert 2024 1080i MPEG2 TS', undefined],
     ['Concert 2024 1080i MPEG-2 TS', undefined],
+    ['Concert 2024 1080i MPEG-2-TS', undefined],
     ['Dune.Part.Two.2024.1080p.ts', undefined],
     // A theater rip named for another reason: the real source beside it wins.
     ['Дюна: Часть вторая (2024) WEB-DL 1080p | Обновлено: TS заменён на WEB-DL', 'WEB-DL'],
