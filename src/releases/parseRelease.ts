@@ -86,8 +86,9 @@ function credits(title: string): string {
   return bar < 0 ? '' : title.slice(bar + 1)
 }
 
+// After "S01E01" a range is of episodes ("S01E01-10"), so a season range ("S1-5") only follows a bare season.
 const SEASON_RANGE =
-  /(?<![\p{L}\p{N}])(?:s(\d{1,2})(?:e\d{1,3})?(?:\s*[-–]\s*s?(\d{1,2}))?|(?:сезоны?|seasons?)[:\s]*(\d{1,2})(?:\s*[-–]\s*(\d{1,2}))?|(\d{1,2})(?:\s*[-–]\s*(\d{1,2}))?\s*сезон)/giu
+  /(?<![\p{L}\p{N}])(?:s(\d{1,2})(?:e\d{1,3}(?:\s*[-–]\s*e?\d{1,3})?|\s*[-–]\s*s?(\d{1,2}))?|(?:сезоны?|seasons?)[:\s]*(\d{1,2})(?:\s*[-–]\s*(\d{1,2}))?|(\d{1,2})(?:\s*[-–]\s*(\d{1,2}))?\s*сезон)/giu
 const COMPLETE = word('complete|все сезоны|полный сериал|полностью')
 
 function seasonsOf(title: string): number[] {

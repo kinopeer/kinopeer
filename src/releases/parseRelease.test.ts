@@ -56,6 +56,13 @@ describe('parseRelease', () => {
     ['Breaking.Bad.S03.1080p.BluRay.x265.10bit.AAC.5.1-GRPG', [3], 'S03'],
     ['Во все тяжкие / Сезон 5 / Серии 1-16 (2012-2013) BDRip 1080p | Многоголосый', [5], 'S05'],
     ['Andor.S02E04.1080p.DSNP.WEB-DL', [2], 'S02'],
+    // An episode range within one season isn't a range of seasons (#330).
+    ['Severance.S02E01-05.1080p.ATVP.WEB-DL', [2], 'S02'],
+    ['Severance.S02E01-E05.1080p.ATVP.WEB-DL', [2], 'S02'],
+    // Prowlarr rewrites Russian seasons and episodes into these shapes before Kinopeer sees them.
+    ['Сёгун / Shōgun [S01E01-10 of 10] (2024) WEB-DL 1080p-LostFilm', [1], 'S01'],
+    ['Сёгун / Shōgun / S1E1-10 of 10 [2024, WEB-DL 1080p] Original', [1], 'S01'],
+    ['Во все тяжкие / Breaking Bad / S1-5E1-62 of 62 (2008-2013) BDRip 1080p', [1, 2, 3, 4, 5], 'S01–S05'],
     ['Дюна (2021) BDRip 1080p', [], undefined],
   ])('reads the seasons of %s', (title, seasons, coverage) => {
     const info = parseRelease(title)
@@ -87,6 +94,8 @@ describe('releaseCoverage', () => {
   it.each([
     ['Severance.S02E01-E05.1080p.ATVP.WEB-DL', 'S02 E01–05'],
     ['Severance.S01.1080p.ATVP.WEB-DL', 'S01'],
+    ['Severance.S02E01-05.1080p.ATVP.WEB-DL', 'S02 E01–05'],
+    ['Сёгун / Shōgun [S01E01-10 of 10] (2024) WEB-DL 1080p', 'S01 E01–10'],
     ['Во все тяжкие / Breaking Bad / Сезон: 1-5 / Серии: 1-62 из 62 (2008-2013) BDRip 1080p', 'S01–S05'],
     ['Dune.Part.Two.2024.2160p.WEB-DL', undefined],
   ])('describes %s', (title, coverage) => {
