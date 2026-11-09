@@ -59,8 +59,10 @@ describe('parseRelease', () => {
     'Dune.Part.Two.2024.HDCAMRip.x264',
     'Dune Part Two 2024 HD-CAM 720p',
     'Дюна: Часть вторая (2024) TCRip',
-    // A capital .TS at the end is a source; a file's extension is written in lowercase.
+    // A capital .TS at the end is a source; a file's extension is written in lowercase, and only
+    // at the end: some scene names are all lowercase.
     'Dune.Part.Two.2024.TS',
+    'dune.part.two.2024.ts.x264-grpa',
   ])('reads %s as a theater rip', (title) => {
     expect(parseRelease(title).source).toBe('CAM')
   })
