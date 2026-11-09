@@ -117,11 +117,11 @@ function ActiveFilters({ releases }: { releases: Releases }) {
 /** The remembered filters this search doesn't apply, and Forget. */
 function SetAsideFilters({ releases }: { releases: Releases }) {
   const { t, i18n } = useTranslation()
-  const { aside, audioLabel } = releases
+  const { aside, resolutionLabel, audioLabel, sourceLabel } = releases
   const labels = [
-    ...aside.resolution,
+    ...aside.resolution.map(resolutionLabel),
     ...aside.audio.map(audioLabel),
-    ...aside.source,
+    ...aside.source.map(sourceLabel),
     ...(aside.minSeeds ? [t('releases.seedsPlus', { count: aside.minSeeds })] : []),
   ]
   if (!labels.length) return null

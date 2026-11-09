@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { ProwlarrSetupError, getFailingIndexers, searchReleases, type Release } from '../api/prowlarr'
 import { useRequest } from '../lib/useRequest'
 import {
+  NOT_STATED,
   NO_FILTERS,
   NO_REMEMBERED_FILTERS,
   filterReleases,
@@ -16,7 +17,9 @@ import {
   type PresentValues,
   type ReleaseRow,
   type RememberedFilters,
+  type ResolutionFilter,
   type Sort,
+  type SourceFilter,
 } from '../releases/filterReleases'
 import { parseRelease } from '../releases/parseRelease'
 import { releaseQuery, type TitleDetails } from '../releases/releaseQuery'
@@ -28,6 +31,7 @@ export const AUDIO_LABEL = {
   avo2: 'releases.audioAvo2',
   avo1: 'releases.audioAvo1',
   orig: 'releases.audioOrig',
+  none: 'releases.audioNotStated',
   subs: 'releases.audioSubs',
 } as const
 
@@ -63,7 +67,15 @@ export interface Releases {
   forgetAside: () => void
   sort: Sort
   setSort: (sort: Sort) => void
+  /** Filter values as the screens show them: resolutions and sources as named, but Not stated. */
+  resolutionLabel: (value: ResolutionFilter) => string
   audioLabel: (value: AudioFilter) => string
+  sourceLabel: (value: SourceFilter) => string
+  /**
+   * A filter's label as an option in its own group, under the filter's name: Not stated says just
+   * that there, while chips and notes outside the group need the filter's name in it.
+   */
+  optionLabel: <T extends string>(label: (value: T) => string) => (value: T) => string
   /** The release whose add sheet is open. */
   adding?: ReleaseRow
   setAdding: (row: ReleaseRow | undefined) => void
@@ -124,11 +136,22 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
   const visible = useMemo(() => filterReleases(rows, filters, sort), [rows, filters, sort])
   const { applied, aside } = useMemo(() => split(remembered, filters), [remembered, filters])
 
+  // Resolutions and sources show as named; Not stated says which filter, as AUDIO_LABEL.none does.
+  const named =
+    <T extends string>(notStated: 'releases.resolutionNotStated' | 'releases.sourceNotStated') =>
+    (value: T) =>
+      value === NOT_STATED ? t(notStated) : value
+  const resolutionLabel = named<ResolutionFilter>('releases.resolutionNotStated')
   const audioLabel = (value: AudioFilter) => t(AUDIO_LABEL[value])
+  const sourceLabel = named<SourceFilter>('releases.sourceNotStated')
+  const optionLabel =
+    <T extends string>(label: (value: T) => string) =>
+    (value: T) =>
+      value === NOT_STATED ? t('releases.notStated') : label(value)
   const active: ActiveFilter[] = [
-    ...filters.resolution.map((value) => ({ key: `r-${value}`, label: value, remove: { resolution: toggle(filters.resolution, value) } })),
+    ...filters.resolution.map((value) => ({ key: `r-${value}`, label: resolutionLabel(value), remove: { resolution: toggle(filters.resolution, value) } })),
     ...filters.audio.map((value) => ({ key: `a-${value}`, label: audioLabel(value), remove: { audio: toggle(filters.audio, value) } })),
-    ...filters.source.map((value) => ({ key: `s-${value}`, label: value, remove: { source: toggle(filters.source, value) } })),
+    ...filters.source.map((value) => ({ key: `s-${value}`, label: sourceLabel(value), remove: { source: toggle(filters.source, value) } })),
     ...filters.indexer.map((value) => ({ key: `i-${value}`, label: value, remove: { indexer: toggle(filters.indexer, value) } })),
     ...(filters.minSeeds
       ? [{ key: 'seeds', label: t('releases.seedsPlus', { count: filters.minSeeds }), remove: { minSeeds: 0 } }]
@@ -170,7 +193,10 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
     forgetAside: () => updateSettings({ releaseFilters: applied }),
     sort,
     setSort: (releaseSort) => updateSettings({ releaseSort }),
+    resolutionLabel,
     audioLabel,
+    sourceLabel,
+    optionLabel,
     adding,
     setAdding,
   }

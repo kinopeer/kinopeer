@@ -10,7 +10,7 @@ import type { MovieDetails, TvDetails } from '../api/tmdb'
 import { stubDesktop } from '../lib/stubDesktop'
 import { restoreLayout, stubLayout } from '../lib/stubLayout'
 import { resetSettings, updateSettings } from '../settings/settings'
-import { DUNE_RELEASES } from '../test/fixtures'
+import { DUNE_RELEASES, release } from '../test/fixtures'
 import { Where, renderWithRouter, saying, where } from '../test/render'
 import { resetServerMatches } from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
@@ -212,6 +212,37 @@ describe('TitleScreen on desktop', () => {
     expect(names()).toEqual([DUNE_RELEASES[0].title, DUNE_RELEASES[1].title, DUNE_RELEASES[2].title])
     await userEvent.click(screen.getByRole('button', { name: 'Descending' }))
     expect(names()).toEqual([DUNE_RELEASES[2].title, DUNE_RELEASES[1].title, DUNE_RELEASES[0].title])
+  })
+
+  it('offers Not stated in the popovers for releases whose name states no resolution, source or audio', async () => {
+    const bare = release('d', 'Дюна 2 / Dune: Part Two (2024)', 3e9, 50)
+    searchReleases.mockResolvedValue([...DUNE_RELEASES, bare])
+    renderAt('/title/movie/693134/releases')
+    await screen.findByText('4 of 4 releases')
+    expect(screen.getByRole('button', { name: 'Resolution' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Source' })).toHaveAttribute('aria-pressed', 'false')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Resolution' }))
+    const resolution = screen.getByRole('group', { name: 'Resolution' })
+    // The option says just Not stated under the filter's name; the filter's button names the filter.
+    expect(within(resolution).getAllByRole('button').map((option) => option.textContent)).toEqual(['2160p', '1080p', '720p', 'Not stated'])
+    await userEvent.click(within(resolution).getByRole('button', { name: 'Not stated' }))
+    expect(screen.getByRole('button', { name: 'Resolution not stated', expanded: true })).toHaveAttribute('aria-pressed', 'true')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Source' }))
+    const source = screen.getByRole('group', { name: 'Source' })
+    expect(within(source).getAllByRole('button').map((option) => option.textContent)).toEqual(['REMUX', 'BluRay', 'WEB-DL', 'Not stated'])
+    await userEvent.click(within(source).getByRole('button', { name: 'Not stated' }))
+    expect(screen.getByRole('button', { name: 'Source not stated', expanded: true })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByText('1 of 4 releases')).toBeInTheDocument()
+    expect(names()).toEqual([bare.title])
+
+    await userEvent.click(screen.getByRole('button', { name: 'Audio' }))
+    const audio = screen.getByRole('group', { name: 'Audio' })
+    expect(within(audio).getAllByRole('button').map((option) => option.textContent)).toEqual(['Dubbed', 'Not stated'])
+    await userEvent.click(within(audio).getByRole('button', { name: 'Not stated' }))
+    expect(screen.getByRole('button', { name: 'Audio not stated', expanded: true })).toHaveAttribute('aria-pressed', 'true')
+    expect(names()).toEqual([bare.title])
   })
 
   it('opens one popover at a time', async () => {

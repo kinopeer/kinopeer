@@ -27,7 +27,10 @@ function releases(fields: Partial<Releases> = {}): Releases {
     forgetAside: vi.fn(),
     sort: DEFAULT_SORT,
     setSort: vi.fn(),
+    resolutionLabel: (value) => value,
     audioLabel: (value) => value,
+    sourceLabel: (value) => value,
+    optionLabel: (label) => label,
     adding: undefined,
     setAdding: vi.fn(),
     ...fields,
@@ -100,9 +103,16 @@ describe('ReleasesBody', () => {
   })
 
   it('names the remembered filters the search sets aside, and forgets them on Forget', async () => {
-    const search = releases({ aside: { resolution: ['2160p'], audio: ['dub'], source: [], minSeeds: 100 }, audioLabel: () => 'Dubbed' })
+    const search = releases({
+      aside: { resolution: ['2160p', 'none'], audio: ['dub'], source: ['none'], minSeeds: 100 },
+      resolutionLabel: (value) => (value === 'none' ? 'Resolution not stated' : value),
+      audioLabel: () => 'Dubbed',
+      sourceLabel: () => 'Source not stated',
+    })
     renderBody(search)
-    expect(screen.getByText('Remembered filters not applied: 2160p, Dubbed, and 100+ seeds')).toBeInTheDocument()
+    expect(
+      screen.getByText('Remembered filters not applied: 2160p, Resolution not stated, Dubbed, Source not stated, and 100+ seeds'),
+    ).toBeInTheDocument()
     expect(screen.getByText('The list')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Forget' }))
     expect(search.forgetAside).toHaveBeenCalled()

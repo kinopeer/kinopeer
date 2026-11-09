@@ -4,6 +4,10 @@ Kinopeer follows [semantic versioning](https://semver.org). While the version is
 
 ## Unreleased
 
+### Added
+
+- The release filters for resolution, source and audio offer Not stated when some release's name doesn't say, so releases the other values hide can be shown beside them. ([#316](https://github.com/kinopeer/kinopeer/issues/316))
+
 ### Changed
 
 - The same thing is worded the same way everywhere: when qBittorrent, Kinopeer, Prowlarr or TMDB doesn't answer, every screen says it "isn't answering"; the folder a torrent's files go to is called Folder; the free space reads "40 GB free"; the file picker's button that clears the choice says Deselect all; the speed limits sheet saves with Save, as the other sheets do; and the Downloads table's title column is called Name, as its sort is.
