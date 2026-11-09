@@ -120,6 +120,8 @@ describe('parseRelease', () => {
       ],
       ['Дюна: Часть вторая Dune: Part Two 2024 DVO BDRip 1080p', { ...none, resolution: '1080p', source: 'BDRip', audio: ['avo2'] }],
       ['Дюна: Часть вторая Dune: Part Two 2024 VO WEBDL 720p', { ...none, resolution: '720p', source: 'WEB-DL', audio: ['avo1'] }],
+      // "VO" is read only in capitals, as Prowlarr writes it: "Vo" in a title is a name.
+      ['Vo.Nguyen.Giap.2019.1080p.WEB-DL', { ...none, resolution: '1080p', source: 'WEB-DL' }],
       [
         'Дюна: Часть вторая Dune: Part Two 2024 MVO (Kubik) BR-DISK 1080p',
         { ...none, resolution: '1080p', source: 'BluRay', audio: ['mvo'] },
@@ -214,6 +216,8 @@ describe('episodeCoverage', () => {
     ['Severance.S02E01-S02E05.1080p.ATVP.WEB-DL', 'E01–05'],
     ['Severance.S02.E01-05.1080p.ATVP.WEB-DL', 'E01–05'],
     ['Severance S02 E04 1080p WEB-DL', 'E04'],
+    // A season at the range's end needs its episode: "S01E01-S03" names no last episode.
+    ['Severance.S01E01-S03.1080p', 'E01'],
     ['Andor.S02E04.1080p.DSNP.WEB-DL', 'E04'],
     ['Во все тяжкие / Сезон 5 / Серии 1-16 (2012-2013) BDRip 1080p', 'E01–16'],
     ['Разделение / Сезон: 2 / Серии: 1-5 из 10 (2025) WEB-DL 1080p', 'E01–05'],
