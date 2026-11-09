@@ -1,6 +1,6 @@
 name: Report a bug
 description: Something in Kinopeer doesn't work as it should.
-labels: ["bug"]
+type: Bug
 body:
   - type: markdown
     attributes:
