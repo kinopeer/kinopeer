@@ -56,6 +56,11 @@ describe('parseRelease', () => {
     'Dune.Part.Two.2024.TC.XviD',
     'Dune Part Two 2024 HDTC 720p',
     'Dune Part Two 2024 TeleCine 720p',
+    'Dune.Part.Two.2024.HDCAMRip.x264',
+    'Dune Part Two 2024 HD-CAM 720p',
+    'Дюна: Часть вторая (2024) TCRip',
+    // A capital .TS at the end is a source; a file's extension is written in lowercase.
+    'Dune.Part.Two.2024.TS',
   ])('reads %s as a theater rip', (title) => {
     expect(parseRelease(title).source).toBe('CAM')
   })
@@ -68,9 +73,18 @@ describe('parseRelease', () => {
     ['Дюна: Часть вторая (2024) WEB-DL 1080p | Звук с TS', 'WEB-DL'],
     ['Дюна: Часть вторая (2024) 1080p | Звук с TS', undefined],
     ['Дюна: Часть вторая (2024) 1080p | Дубляж, звук из TS', undefined],
-    // Said another way, the audio note still reads as TS, but the real source named beside it wins.
-    ['Dune.Part.Two.2024.720p.HDRip.x264.TS.Audio', 'HDRip'],
-    ['Дюна: Часть вторая (2024) WEB-DLRip 720p | Звук: TS', 'WEBRip'],
+    ['Дюна: Часть вторая (2024) 1080p | Звук c TS', undefined], // a Latin c
+    ['Дюна: Часть вторая (2024) 1080p | Звук: TS', undefined],
+    ['Дюна: Часть вторая (2024) 1080p | Звук TS', undefined],
+    ['Dune.Part.Two.2024.1080p.TS.Audio', undefined],
+    ['Дюна: Часть вторая (2024) 1080p | TS звук', undefined],
+    // A transport stream, the container broadcasts come in, and a file's .ts extension.
+    ['Concert 2024 1080i MPEG-TS', undefined],
+    ['Concert 2024 1080i MPEG2 TS', undefined],
+    ['Concert 2024 1080i MPEG-2 TS', undefined],
+    ['Dune.Part.Two.2024.1080p.ts', undefined],
+    // A theater rip named for another reason: the real source beside it wins.
+    ['Дюна: Часть вторая (2024) WEB-DL 1080p | Обновлено: TS заменён на WEB-DL', 'WEB-DL'],
   ])("doesn't take %s for a theater rip", (title, source) => {
     expect(parseRelease(title).source).toBe(source)
   })
