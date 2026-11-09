@@ -69,6 +69,11 @@ neighbours of a change, and answer each that applies with a test or a reason:
 
 - **Another place:** what else shows or sends the same thing, on the phone and on desktop, in the
   drawer and on the page (#180, #182)? Does it see this state, or does it send the request again?
+  The places come from a grep for what the diff changes (the function, the text's key, the
+  component, the route), not for its words: #310 grepped the offline texts and missed the failed
+  actions' texts that show for the same outage. A place the PR leaves as it is gets a reason checked
+  against the code (#323 left out the key checks as having no browser request behind them, while
+  `PUT /api/settings` waits for them).
 - **Later:** what if the sheet was closed, the screen left, or the torrent went away or was replaced
   before the answer came (#172, #174, #184)? Or the page was reloaded: a reload keeps the history
   entry's `key` and `state` (a `TAB_RETURN` included) but nothing the page held in memory (#243).
@@ -85,7 +90,13 @@ neighbours of a change, and answer each that applies with a test or a reason:
   (`append_to_response` on an allowed path, #238). What arrives from outside in a shape the code
   didn't expect: a request from another site without Kinopeer's header (#270), an indexer's URL
   with a scheme other than http(s) (#292), an IPv6 caller where the limiter keyed IPv4 addresses
-  (#294).
+  (#294). A pattern that reads text from outside (a release's name) is checked for what else it
+  catches: the token as an ordinary word of a title (`Vo.Nguyen.Giap` read as a single voice,
+  #332), the same letters meaning something else (`MPEG-TS`, a container, and «Звук: TS», only the
+  audio, read as a theater rip, #334), another way of writing the same thing (`S01E01-S03E05` lost
+  its second season, #333), and every spelling SPEC promises. The names a token must not read go
+  in a table of their own in `parseRelease.test.ts`, as "doesn't take %s for a theater rip" does,
+  and a new token or spelling adds its rows there.
 
 One behavior, one layer: every statement about what Kinopeer does lives in exactly one test, on the
 lowest layer that can see it. Higher layers meet that behavior only as a step towards the state they
@@ -231,7 +242,8 @@ Before marking a PR ready, the author does both of these and says so in the PR:
    mutators `stryker.config.mjs` turns off included), so the author breaks them by hand and says so
    in the PR's `Broken by hand` line:
    - a plain value passed on: a prop passed down (`disabled={disabled}`), a provider around a
-     screen, a number, a text;
+     screen, a number, a text or its key (Stryker leaves strings alone, so a key swapped for
+     another stayed green in #314 and #327);
    - an effect's or a memo's dependency array: drop one dependency (no test noticed `entry` gone from
      #228's keep effect);
    - one operand of a longer condition: Stryker flips the whole condition and not always each of its
@@ -326,7 +338,10 @@ of these:
   test by its `it` title, and the reviewer opens it. It holds only when that test executes this
   very path. Each place that wires a shared component (a second screen that opens the same sheet,
   the phone and the desktop variant of one action) gets a step of its own that proves the wiring:
-  the control is there and does the thing. "Same code as in X" isn't a reason.
+  the control is there and does the thing, its own and not a sibling's: the step tells its
+  handler from one that would do the same at that step (one press on the releases' sort chip
+  turns the order whether it calls `cycleSort` or `reverseSort`, so #336's test presses twice).
+  "Same code as in X" isn't a reason.
 - **The platform's own behavior:** what the browser or Node does with what our code hands it, as a
   real `fetch` cancelled by its `AbortSignal` (#206). The PR names the test of the hand-off (that
   the signal reaches `fetch`). GitHub Actions counts too, for what it does with what a workflow
@@ -362,7 +377,7 @@ checks the reasons before it looks for missing tests.
 
 ## When we find a bug
 
-A bug is two defects: one in the code and one in the tests that let it through. A `fix/` PR answers
+A bug is two defects: one in the code and one in the tests that let it through. A `fix:` PR answers
 three questions: why it broke, why the tests didn't catch it, and what changes so this class of miss
 is caught from now on. The order of work:
 
@@ -396,7 +411,7 @@ action besides the test itself:
 
 The record: a **Why tests missed it** section in the PR (the template has it) with the class and
 what changes so the class is caught, and the `test-gap:<class>` label on the issue. A PR that fixes
-a flaky test carries the same record, whatever its branch prefix; one flake can't be shown red on
+a flaky test carries the same record, whatever its title's prefix; one flake can't be shown red on
 demand, so it says how often the test failed and how many runs it now passes. A systemic
 finding (a blind spot, a fake that had drifted) also becomes a line in this file, in the same PR. A
 manual check the fix adds says what has to be in place for it to pass: the reload on resume (#210)
@@ -418,12 +433,12 @@ rule. The same count also runs over review findings, more often:
 Rules next to this one:
 
 - A bug seen on the test stand or on Umbrel is an issue with the steps and the environment first,
-  then a `fix/` branch; not a fix from memory.
+  then a `fix:` PR; not a fix from memory.
 - A test that fails during a planned change is not a bug. The test changes only when the new
   behavior is written down in `SPEC.md` or `CHANGELOG.md`; an assertion is never loosened to make it
   pass.
 - Behavior that works as intended (as `SPEC.md` describes it) but turned out a poor choice is not a
-  bug either: it's an issue of the Feature type, worked on in a `feat/` branch, with no `test-gap`
+  bug either: it's an issue of the Feature type, worked on in a `feat:` PR, with no `test-gap`
   label and no "Why tests missed it" section in the PR. The issue's Type field says which case it
   is, not the wording of its text. The bug form gives every report the Bug type, so whether it is
   one is the call of whoever files the issue, and whoever works on it may still change the type
@@ -625,7 +640,8 @@ Three steps, each by whoever can do it best:
    hand; the skill is the list.
 3. **A second round after the fixes**, by the same reviewer: every flagged line again, and every
    test added or changed to fix a finding gets all the checks, since a test written to answer a
-   review is a new test. More rounds until the verdict is "ready to merge". The author answers each
+   review is a new test. More rounds until the verdict is "ready to merge", which leaves no blocking
+   or should-fix finding open, only nits (#325's round 1 said it with a should-fix open). The author answers each
    round with one comment headed `Fixes for round <n>`, at the commit the next round should see:
    each finding fixed (its commit) or declined (why), the tests written for the fixes and what was
    broken to see each red, each survivor in CI's mutants report at that commit that the `Mutants`
@@ -651,7 +667,8 @@ verdict with the commit both reviews saw (`**Verdict: ready to merge** at <short
 is posted, whichever session runs it: a review that stays in a chat is invisible to whoever merges
 and to the retro. A PR merges only on a posted "ready to merge" at its current head. A commit of
 the PR's own after that verdict needs another round, which checks only what the PR's own diff adds
-or changes. A merge of `main` after it needs a round only when it reaches the PR's own lines:
+or changes; such a commit fixes what the PR already does, and a new request goes into a PR of its
+own (`CLAUDE.md` → Conventions). A merge of `main` after it needs a round when either holds:
 
 - the lines `git diff main...HEAD` adds and removes aren't those of the diff the verdict saw, apart
   from conflicts in `CHANGELOG.md`, SPEC's decision log and `CLAUDE.md` resolved by keeping both
@@ -661,7 +678,9 @@ or changes. A merge of `main` after it needs a round only when it reaches the PR
 
 Otherwise the author posts one comment headed `Merged main at <short sha>`: the PR's diff
 unchanged, the conflicts and how they were resolved (`git show --remerge-diff`), the files both
-sides change (none outside those three), and CI green at that commit. The verdict carries over to
+sides change (none outside those three), and CI green at that commit. A file outside those three
+that both sides change calls for a round even when their lines are apart: #334's comment named
+`parseRelease.ts`, which #332 and #333 had changed, and #334 merged without the round. The verdict carries over to
 it, and whoever merges reads both comments. `CHANGELOG.md` merges with `merge=union`
 (`.gitattributes`), which keeps both sides' lines, this branch's first, without a conflict once
 the branch has `.gitattributes` (a branch cut before it conflicts there on its first merge of
@@ -708,7 +727,7 @@ reads those findings in batches and changes the system where a finding repeats, 
 changes nothing.
 
 **What each finding carries.** Besides the file, the defect and the fix, the review tags it
-`[<check> · <rule>]`: the check is the skill's letter (A–K without J, which was retired on 2026-11-03; the same in every round), the rule is
+`[<check> · <rule>]`, or `[<check> · gap: <reason>]` with what the missing rule would say: the check is the skill's letter (A–K without J, which was retired on 2026-11-03; the same in every round), the rule is
 one of:
 
 - `clear`: the rule says it plainly and the PR didn't follow it.
@@ -745,7 +764,7 @@ batch) and the `test-gap:*` issues closed since the last retro, and count the fi
 - A rule that no finding touched in three retros and that nobody can name a case for → consider
   deleting it. The system should get shorter as often as longer.
 
-Tags come in two spellings, `[H · gap]` and `[H · gap: <reason>]`, so a search that expects `]`
+Since tags come in both spellings, `[H · gap]` and `[H · gap: <reason>]`, a search that expects `]`
 right after the rule misses the second (#299, #302); one that catches both is
 `\[[A-K] ?· ?(clear|gap|conflict)(\]|:)`. The search doesn't replace reading: every reviewer round
 is read whole, for the `/code-review` findings that carry no tag and the **For the owner** items.
@@ -777,6 +796,7 @@ under one blocking finding per PR. From then on the retro runs every forty merge
 
 | Retro | PRs | Ready on the first round | Blocking findings per PR | Escaped bugs | What changed |
 | --- | --- | --- | --- | --- | --- |
+| 2026-11-10 | #307–#339, 21 merged (#307–#310, #312–#315, #319, #320, #322, #323, #325–#328, #332–#334, #336, #339; #307, the last retro's PR, merged after its row; no Dependabot PR merged in the window; #311, #316–#318, #321, #324, #329–#331, #337 and #338 are issues, #335 answers 404), 12 with production code (#309, #310, #312, #314, #320, #323, #325, #327, #332, #333, #334, #336; #308 and #319 change `vite.config.ts` and `index.html`, which `scripts/mutants.mjs` doesn't mutate). 100 findings in the posted rounds: 65 `clear`, 33 `gap`, 2 `conflict` (both in #307, settled there; #323's round 3 withdrew one of round 2's, left out) | 2 of 21 (#322, and #325, whose round 1 said "ready to merge" with a should-fix open), 1 of 12 with code (#325); a posted "ready to merge" at the head of 20 of 21: #334 merged at a merge of `main` that brought #332 and #333, which change its `parseRelease.ts`, on a `Merged main` comment instead of a round, the batch's one breach of the gate | 2.0 (24 in the 12 with code: #312 5, #334 4 with the spellings `/code-review` raised, #336 4, #310 3, #333 2, #309, #314, #320, #323, #327 and #332 1 each; 1.8 without #336), none outside them. 10 of the 24 are `/code-review` bugs in the PR's own change (#309, #310, #312, #323, #332, #333, #334 4), 6 of them in the release-name parser | 8 closed since 2026-11-08: 5 `uncovered` in four areas (coverage's config, #283; the server's bridges, #305 and #321; Downloads on a phone, #324; the release-name parser, #330) and 3 `environment` from one environment, the app on an iPhone's Home Screen behind Umbrel's app_proxy over HTTPS (#303, #304, #311); `flaky` #337 still open | Another place is found by a grep for what the diff changes (the function, the text's key, the component, the route), not for its words, and a place left as it is gets a reason checked against the code, in Choosing a layer, the template's Neighbours and the skill's A (7 findings, 4 blocking: #310, #312 2, #314, and #323's three A·gap, the key checks, the writes and the connect screen's login). A pattern that reads outside text is checked for what else it catches, with a table of the names a token must not read, in the edges, the template and A (7 A findings in the parser PRs, 5 blocking: #332's three A·gap, `Vo` read as a voice and two title words or spans; #333's A·gap, `S01E01-S03E05`; #334's three A·clear, `MPEG-TS` and «Звук: TS»; plus #334's spellings and #330, `uncovered`, in the same parser). A text's key is among what's broken by hand, since Stryker leaves strings alone (#314's A·clear and #327's K·clear, both blocking; turning `StringLiteral` back on was weighed and declined, since it would bring back the noise the 2026-10-30 retro removed), and a wiring step tells its handler from a sibling's (#336's K·gap), in A test that can fail, the template's Broken by hand and the skill's K (K·clear 7: #312 2, #336 2, #320, #327, #333). A merge of `main` needs a round when either of the two holds, a file both sides change counting even with their lines apart (#334, above), here, in the skill and in `CLAUDE.md`. Once a PR has its "ready to merge" it takes only fixes of what it does, and a new request is a PR of its own, in `CLAUDE.md` and here (#336: 19 findings in 7 rounds, 10 of them, 2 blocking, from two commits after round 3's verdict). A PR's kind is its title's prefix, not its branch's, in `CLAUDE.md`, here, the skill's I and the template (#319, #320, #323 and #325 merged from `claude/…` branches, which Claude Code names; #323's For the owner). "Ready to merge" leaves no blocking or should-fix finding open (#325's round 1). The tag's `gap: <reason>` form is part of the format, here and in the skill (#315 left it to this retro). The template's Docs prompt has the changelog's entry name every change a user sees and claim no more than the code does (H·clear 4 on `CHANGELOG.md`: #314 and #332 left a change out, #323 and #339 claimed more). Not in this PR: an oxlint `no-restricted-properties` rule against new `vi.restoreAllMocks()` and `unstubAll…()` calls (F·clear 3: #309, #323, #334), with the 91 already in the tree removed, goes into a `chore:` PR of its own; the round #334 skipped, over `parseRelease.ts` on `main`, runs in a session of its own. Not moved into every PR, decided by the owner: the check of the installed app behind Umbrel's proxy, though its 3 `environment` meet the pile's rule, since they came from the first pass aimed at that environment, a backlog rather than a trend; the release checklist keeps its whole pass, and one more `environment` from that environment after 0.8.0 brings the rule back. Not changed: H·clear's other 22 (TESTING 7, #307's 4 among them; SPEC 5; the PR's description 5, #336 4 and #339; a checklist, the template, `CLAUDE.md`, an issue and a code comment one each; H·clear rose from 0.89 to 1.24 per PR), H·gap 14 (10 in docs PRs about the rules, #307, #313, #315 and #326, settled in each; #319 and #339's three), F·clear's titles that say more than the body 3 (#312, #325, #336's comment, the fourth batch in a row) and second copies 4 (#312, #313, #323, #327), F·gap 5 (two copies across files, #309 and #320), C·clear 4, D 3, E 2 (#310's Playwright route mock, E·gap, the rule naming `server/test/fakes.ts` alone), G 4 (#336 3; #326's, settled). Checks B and I had no finding; I has had none in six retros and stays, since the record it checks is what the pile counts. For the owner in #312, #320, #323, #328 and #336. The retro was due at #339 (20 before it) and ran after it. Worse on every column, in a batch with twice the PRs with code; this retro changes rules, so Done waits |
 | 2026-11-08 | #264–#306, 27 merged (#264–#269, #271–#273, #280, #282, #284, #286–#289, #291, #293, #295–#302, #306; #265, the last retro's PR, merged after its row; Dependabot's #274, #275, #277, #278, #281 and #290 left out; the other numbers are issues), 6 with production code (#271, #293, #295, #296, #297, and #284, whose production lines are comments in two files, 0 mutants). 78 findings in the posted rounds: 33 `clear`, 45 `gap`, 0 `conflict` (#284's round 1 named one untagged, the skill's "ten or more" against this file's twenty, which #266 had settled on `main` the day before; its branch was older) | 9 of 27 (#264, #266, #267, #268, #286, #293, #295, #301, #302), 2 of 6 with code (#293, #295); a posted "ready to merge" at the head of all 27 | 0.67 (4 in the 6 with code: #284 2, #271 1, #296 1; 0.4 without #284), plus 2 in #291 (both A·gap), 1 in #269 (A·clear), 1 in #273 (a `/code-review` bug, `@types/node`'s majors) and 2 in #272 (`/code-review` alone, headed `Review round`, untagged, its reviewer writing that `/test-review` wasn't needed on a docs PR: the one breach of the rounds in the batch, as #179 was of the gate) | 4 closed since 2026-11-06, all `uncovered` (#270, #285, #292, #294), no `flaky` | Check H and the author's docs check cover every doc that describes what the diff changes, `CLAUDE.md` and the files in its docs table, the review skill, the PR template, the comments in workflows and config and `.env.example`, grepped over the whole tree, each claim checked against what it describes (the code, the service's own documentation opened, the UI's words, the doc it points at, a checklist step's pointer and check), in the author's checks, the template's Docs prompt and the skill (H·gap 32 and H·clear 24, 56 of the 78, by where each sat, a finding that cites a named doc among its places counted with the named ones: 30 in files the rule didn't name, README in #287, CONTRIBUTING, SECURITY, the skill and the template in #280, RELEASE_CHECKLIST in #288, #289, #298, #299 and 10 in #300's opening-day runbook, DEVELOPMENT and `.env.example` in #269, CHANGELOG in #296, ROADMAP in #306, workflow comments in #291 and #298; 17 in the named ones, TESTING, ARCHITECTURE, `CLAUDE.md` and SPEC, claims by meaning unread: #273 3, #269 2, #271 2, #297 2, #301 2, #265, #280, #282, #288, #289, #300, four of them citing both kinds, #269, #280, #282 and #288; 9 on the PR's description, next). The `Fixes for round <n>` comment brings the description's What, Tests and Docs to the head, and round 2 and later check it as the docs (9 H findings on the description, #273, #282, #286, #288, #291's banner and its Docs list after a merge of `main` dropped its hunk, #302 2, #306, plus #298's A·gap on its Not covered and #284's untagged test count). The No behavior reason names a run that can only come later, with what stays in place until it's green (#291's two blocking A·gap: the old token and deploy key revoked before the first run through `deploy`); a blind spot is an environment no layer can start, not Vite's dev server a Node test starts in 50 ms (#271, A·gap, here and in the blind spots' heading); the platform's own behavior includes GitHub Actions with what a workflow hands it, the hand-off checked and its documentation page named (#289 2, #298, each accepted that way by its round; #291's secret passed by name). The template's Seen red column says "one break per claim" (F·clear 3 of 4, a title or a comment that says more than the body, #284, #296, #297, the third batch in a row with it; a per-claim break would have left each green). Check F, here under Helpers and fixtures and in the skill, names a step with no effect without a comment (#287) and an assertion block repeated instead of an `it.each` row (#293) (F·gap 3; the third, #297's smoke import, got its oxlint rule there). Layer 4's Where names `vite.config.test.ts` (#271's round 2 left it to this PR). The edges gain what arrives from outside in an unexpected shape (3 `uncovered` in one area, the public-release audit's: a cross-site request, #270; an indexer's URL scheme, #292; an IPv6 caller, #294; the pass over the area was the audit itself, #296, #297 and #305, open; #285 is Stryker on a dependency bump, answered by #286's dry run). The retro counts tags in the reviewer's rounds only, since the author's `Fixes` comments repeat them. Not built: the CI check with an allowlist of records the last row named, since none of the 24 H·clear is a retired name a denylist would catch; H·clear fell from 1.11 to 0.89 per PR. Not changed: B·gap 1 (#284), C·clear 1, E·clear 1, G·gap 1 (#287's README screenshot, not a baseline), K·clear 1, K·gap 2, A·clear 2, the editorial H·gap in #301 (2), #289 and #280, and #273's Dependabot count, settled there. Checks D and I had no finding; I held in the batch's four `fix/` PRs (#271, #286, #293, #295) and stays. For the owner in six PRs (#271, #280, #287, #300, #302, #306), each settled by the owner before the merge. #282's round 2 ran at the merge commit a minute after `Fixes for round 1` at the next one; the retro was due at #299 (21) and ran after #306 (27). The second batch under one blocking finding per PR with code, but this retro changes rules, so Done waits |
 | 2026-11-06 | #253 and #255–#263, 9 merged (#253, the last retro's PR, merged after its own row; #254 and #259 aren't PRs), 3 with production code (#257, #258, #260; #261 changes only a comment in `tmdb-proxy/wrangler.jsonc`, which `scripts/mutants.mjs` doesn't mutate). 22 findings: 11 `clear`, 11 `gap`, 0 `conflict` | 3 of 9 (#256, #260, #263), 1 of 3 with code (#260); a posted "ready to merge" at the head of all 9 | 0.67 (2 in the 3 with code: #257 1, #258 1), plus 1 in #253 (K·gap, a `TZ` stub in `beforeAll` that `unstubEnvs` put back) and 2 in #255 (`/code-review`, untagged: the release worker unchecked before the store PR, a dropped roadmap item without a decision record) | 0 closed since 2026-11-04, no `flaky` | A branch in a workflow includes which targets a matrix reaches, and a run that stops before it changes anything (a dry run, a read-only command, a bogus credential refused after the target is resolved) counts as run by hand, so a missing credential isn't a reason on its own, here and in the skill (A·gap 4: 3 in #258, two of them on `tmdb-proxy-key.yml`'s matrix, where round 2 accepted "the token lives only in the secrets" and round 4, an independent review after "ready to merge", resolved all four targets with a bogus token; #253's, `mutants.yml`'s concurrency group shared by forks' branches of one name, goes to [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) → Before the public release, since no fork can open a PR while the repository is private). The docs grep takes the old value and each word of an old name on its own, and the author reads SPEC's and `CLAUDE.md`'s paragraphs about what the diff changes, in the author's checks, the template's Docs prompt and the skill's H (H·clear 10: 4 greps narrower than the old value, #258's `workers.dev` and port 8795, #261's two "Kinoseed" sentences; 2 claims by meaning, #257's Search paragraph and #258's TMDB proxy paragraph in `CLAUDE.md`; 1 a claim about another repository, #262; 1 a fix's own pointer, #258; 2 in #253, a claim true only for a branch that has `.gitattributes` and an aside in `CLAUDE.md` hard to read). Not a CI check yet: one couldn't tell a stale name from a record of the past, which keeps the old one (#258's H·gap); if H·clear doesn't fall by the next retro, a check with an allowlist of those records is the next step. A finding for the owner has no tag and no severity, doesn't hold the verdict and goes under **For the owner**, and the retro names it rather than counting it, here and in the skill (H·gap 5: this one from #253's round 3; #253's other two, `merge=union` keeping a line both sides rewrote and a stub only the file's load needs, were settled in #253; #257's decision restored after a revision and #258's records of the past keeping their names, now in SPEC's 2026-11-05 row, one case each). Coverage measures `tmdb-proxy/` too, which [Coverage](#coverage) didn't say (#264's review). Not changed: #258's third A·gap (literals that must match across files no test reads together, declined there with the reviewer's agreement), B·gap 1, K·clear 1, K·gap 1 (#253's, whose rule, Vitest putting stubs back before each test, that PR added). No finding for the owner in this batch. #258's `Fixes for round 1` came only after round 2 asked for it. Checks E and I had no finding in three retros and stay: E has #209's `fake-drift`, I applies to every `fix/` PR and this batch had none. The first batch under one blocking finding per PR, but this retro changes rules, so Done waits |
 | 2026-11-04 | #230–#250, 17 merged (#230–#233, #235–#238, #240, #241, #243, #244, #246–#250; #234, #239, #242, #245 are issues), 15 with production code (all but #232 and #233; #238's is in `tmdb-proxy/`). 71 findings: 40 `clear`, 31 `gap`, 0 `conflict` | 2 of 17 (#240, #241), 2 of 15 with code; a posted "ready to merge" at the head of all 17 | 1.33 (20 in the 15 with code: #250 5, #231 3, #237, #238, #243, #246 and #247 2 each, #230 1, #248 1) | 1 closed since 2026-11-03 (`uncovered`: #239), plus 1 `flaky` (#245) | A test is seen red once per claim, a neighbour's answer included, in the rule and the template (A·clear 12, 5 of them a neighbour answered by a test that doesn't run its case; F·clear 9, 5 of them a title or a comment that says more than the body). Every Neighbours line was filled, so the CI check the last row named wouldn't have caught one. The neighbours gain a reload and the other side of a breakpoint or an allowlist; two accepted reasons (a branch in a script or a workflow, a limitation the owner kept), a behavior removed on purpose, and any PR adds the blind spot it meets, with a row for desktop Safari (A·gap 12, B·gap 1, G·gap 1, H·gap 1). Vitest puts back spies, globals and env before each test, and a test removes its own listeners and fake timers (F: 1 `clear` and 2 `gap`). What a test may count besides mocks (D·gap 3). Each operand of an `&&` chain, and outcomes that look alike (K·gap 3 of 4). A check that reads a file as text is layer 1 (C·gap 1). The template's Layer hint names the six layers and the duplicates (C·clear 4). A `/code-review` bug is recorded under A in the round that reports it (4 were left out). A merge of `main` that doesn't reach the PR's own lines takes a `Merged main` comment instead of a round (4 rounds after a merge alone found nothing: #237, #240, #243, #244), `CHANGELOG.md` merges with `merge=union`, and the author answers each round with `Fixes for round <n>`, which also asks for the docs grepped again after the fixes (H·clear 10, 3 of them in #233 itself, otherwise claims by meaning no grep finds). CI mutates every push to a ready PR's head, the latest one only, so a round reads CI's comment at the commit it reviews rather than running the mutants itself (about 11 local runs in this batch, one of which couldn't run: #246). The basis is production code, `tmdb-proxy/` included. Not changed: K·clear 3 (three different slips), F·clear's `saying()` 2 |
