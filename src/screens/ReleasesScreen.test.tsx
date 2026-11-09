@@ -6,6 +6,7 @@ import * as prowlarr from '../api/prowlarr'
 import * as qbt from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
 import type { MovieDetails, TvDetails } from '../api/tmdb'
+import i18n from '../i18n'
 import { resetSettings, updateSettings } from '../settings/settings'
 import { DUNE_RELEASES, release } from '../test/fixtures'
 import { renderWithRouter, saying } from '../test/render'
@@ -123,6 +124,24 @@ describe('ReleasesScreen', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Remove filter 2160p' }))
     expect(screen.getByText('3 of 3 releases')).toBeInTheDocument()
+  })
+
+  it('names a theater rip in the interface language, on its card and in the source filter', async () => {
+    await i18n.changeLanguage('ru')
+    const cam = release('d', 'Dune.Part.Two.2024.HDTS.x264-GRPA', 1.5e9, 5)
+    searchReleases.mockResolvedValue([...DUNE_RELEASES, cam])
+    renderAt('/title/movie/693134/releases')
+    const card = (await screen.findAllByRole('article')).find((article) => article.textContent?.includes(cam.title))!
+    expect(within(card).getByText('Экранка')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Фильтры' }))
+    const sheet = screen.getByRole('dialog', { name: 'Фильтры' })
+    const source = within(within(sheet).getByRole('group', { name: 'Источник' }))
+    expect(source.getAllByRole('button').map((chip) => chip.textContent)).toEqual(['REMUX', 'BluRay', 'WEB-DL', 'Экранка'])
+    await userEvent.click(source.getByRole('button', { name: 'Экранка' }))
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Показать 1' }))
+    expect(names()).toEqual([cam.title])
+    expect(screen.getByRole('button', { name: 'Убрать фильтр Экранка' })).toBeInTheDocument()
   })
 
   it('offers Not stated for releases whose name states no resolution, source or audio', async () => {

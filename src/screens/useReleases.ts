@@ -22,6 +22,7 @@ import {
   type SourceFilter,
 } from '../releases/filterReleases'
 import { parseRelease } from '../releases/parseRelease'
+import { sourceName } from '../releases/qualityBadges'
 import { releaseQuery, type TitleDetails } from '../releases/releaseQuery'
 import { useSettings } from '../settings/settings'
 
@@ -137,13 +138,9 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
   const { applied, aside } = useMemo(() => split(remembered, filters), [remembered, filters])
 
   // Resolutions and sources show as named; Not stated says which filter, as AUDIO_LABEL.none does.
-  const named =
-    <T extends string>(notStated: 'releases.resolutionNotStated' | 'releases.sourceNotStated') =>
-    (value: T) =>
-      value === NOT_STATED ? t(notStated) : value
-  const resolutionLabel = named<ResolutionFilter>('releases.resolutionNotStated')
+  const resolutionLabel = (value: ResolutionFilter) => (value === NOT_STATED ? t('releases.resolutionNotStated') : value)
   const audioLabel = (value: AudioFilter) => t(AUDIO_LABEL[value])
-  const sourceLabel = named<SourceFilter>('releases.sourceNotStated')
+  const sourceLabel = (value: SourceFilter) => (value === NOT_STATED ? t('releases.sourceNotStated') : sourceName(t)(value))
   const optionLabel =
     <T extends string>(label: (value: T) => string) =>
     (value: T) =>

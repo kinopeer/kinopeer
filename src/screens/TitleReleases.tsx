@@ -9,7 +9,7 @@ import { Segmented } from '../components/Segmented'
 import { useFormatters } from '../lib/format'
 import { MIN_SEEDS, SORT_KEYS, summary, toggle, type ReleaseRow } from '../releases/filterReleases'
 import { seasonCoverage } from '../releases/parseRelease'
-import { qualityBadges } from '../releases/qualityBadges'
+import { qualityBadges, sourceName } from '../releases/qualityBadges'
 import type { TitleDetails } from '../releases/releaseQuery'
 import { IndexerLink } from './IndexerLink'
 import { ReleaseName } from './ReleaseName'
@@ -215,7 +215,7 @@ function ReleaseTableRow({ row, onAdd }: { row: ReleaseRow; onAdd: () => void })
   const { release, info } = row
   const coverage = seasonCoverage(info) ?? (info.complete ? t('releases.complete') : undefined)
   const seeders = release.seeders ?? 0
-  const badges = qualityBadges(info)
+  const badges = qualityBadges(info, sourceName(t))
   const audio = (info.audio.length > 0 || info.subs) && (
     <>
       {info.audio.map((value) => (

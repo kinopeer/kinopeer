@@ -50,7 +50,7 @@ export const NO_REMEMBERED_FILTERS: RememberedFilters = noRemembered
 export const DEFAULT_SORT: Sort = { key: 'seeds', descending: true }
 export const RESOLUTIONS: ResolutionFilter[] = ['2160p', '1080p', '720p', 'SD', NOT_STATED]
 export const AUDIO: AudioFilter[] = ['dub', 'mvo', 'avo2', 'avo1', 'orig', NOT_STATED, 'subs']
-export const SOURCES: SourceFilter[] = ['REMUX', 'BluRay', 'BDRip', 'WEB-DL', 'WEBRip', 'HDRip', 'HDTV', 'DVD', NOT_STATED]
+export const SOURCES: SourceFilter[] = ['REMUX', 'BluRay', 'BDRip', 'WEB-DL', 'WEBRip', 'HDRip', 'HDTV', 'DVD', 'CAM', NOT_STATED]
 export const MIN_SEEDS = [0, 10, 50, 100]
 export const SORT_KEYS: SortKey[] = ['seeds', 'size', 'date']
 

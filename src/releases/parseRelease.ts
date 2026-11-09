@@ -1,6 +1,7 @@
 /** What a release title says about its quality, for badges and filters. */
 export type Resolution = '2160p' | '1080p' | '720p' | 'SD'
-export type Source = 'REMUX' | 'BluRay' | 'BDRip' | 'WEB-DL' | 'WEBRip' | 'HDRip' | 'HDTV' | 'DVD'
+/** CAM is any theater rip: a camera in the cinema, a telesync or a telecine. */
+export type Source = 'REMUX' | 'BluRay' | 'BDRip' | 'WEB-DL' | 'WEBRip' | 'HDRip' | 'HDTV' | 'DVD' | 'CAM'
 export type Hdr = 'DV' | 'HDR10+' | 'HDR'
 export type Codec = 'HEVC' | 'AVC' | 'AV1'
 /** Dubbed, multi-voice, two-voice, single-voice voice-over, original track. */
@@ -44,6 +45,9 @@ const SOURCES: [Source, RegExp][] = [
   ['BluRay', word('blu-?ray|bluray|bd(?:25|50|66|100)|uhd[\\s.-]?bd|bd')],
   ['HDTV', word('hdtv(?:rip)?|hdtvrip|tvrip|satrip')],
   ['DVD', word('dvd(?:rip|5|9)?')],
+  // Last, so a name with a real source keeps it. Not a bare CAM, which is also a film's name, and
+  // not TS where the name says only the audio comes from one ("Звук с TS").
+  ['CAM', new RegExp(`(?<!звук\\s+(?:с|из)\\s+)${EDGE_START}(?:cam-?rip|hdcam|(?:hd-?)?ts(?:rip)?|telesynch?|(?:hd-?)?tc|telecine)${EDGE_END}`, 'iu')],
 ]
 
 const CODECS: [Codec, RegExp][] = [

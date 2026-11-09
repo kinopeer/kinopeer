@@ -18,7 +18,7 @@ import { useFormatters } from '../lib/format'
 import { useRequest } from '../lib/useRequest'
 import { addRelease } from '../releases/addRelease'
 import type { ReleaseInfo } from '../releases/parseRelease'
-import { qualityBadges } from '../releases/qualityBadges'
+import { qualityBadges, sourceName } from '../releases/qualityBadges'
 import { useSettings } from '../settings/settings'
 import { addFolder } from '../torrents/folders'
 import { tmdbTagFor } from '../torrents/parseName'
@@ -181,7 +181,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
             <div className="t-label add-title">{title.name}</div>
             <div className="t-cap ks-clamp2 c2 add-name">{release.title}</div>
             <div className="add-badges">
-              {qualityBadges(info).map((badge) => (
+              {qualityBadges(info, sourceName(t)).map((badge) => (
                 <Badge key={badge.label} kind={badge.kind}>
                   {badge.label}
                 </Badge>

@@ -44,6 +44,33 @@ describe('parseRelease', () => {
     expect(parseRelease(`Сёгун / Shōgun [S01] (2024) WEB-DL 1080p | ${studio}, Original`).audio).toEqual(['mvo', 'orig'])
   })
 
+  it.each([
+    'Dune.Part.Two.2024.CAMRip.x264-GRPA',
+    'Дюна: Часть вторая (2024) CAM-Rip | Звук с CAMRip',
+    'Dune Part Two 2024 HDCAM 720p',
+    'Dune.Part.Two.2024.TS.x264-GRPA',
+    'Дюна: Часть вторая (2024) TSRip 720p | Многоголосый',
+    'Dune.Part.Two.2024.HDTS.1080p',
+    'Dune Part Two 2024 TeleSync',
+    'Дюна: Часть вторая (2024) TeleSynch',
+    'Dune.Part.Two.2024.TC.XviD',
+    'Dune Part Two 2024 TeleCine 720p',
+  ])('reads %s as a theater rip', (title) => {
+    expect(parseRelease(title).source).toBe('CAM')
+  })
+
+  it.each([
+    // A film's own name, not a camera in the cinema.
+    ['Cam (2018) 1080p', undefined],
+    ['Cam.2018.1080p.WEB-DL.x264-GRPA', 'WEB-DL'],
+    // Only the audio was recorded in the cinema; the picture is what the name says.
+    ['Дюна: Часть вторая (2024) WEB-DL 1080p | Звук с TS', 'WEB-DL'],
+    ['Дюна: Часть вторая (2024) 1080p | Звук с TS', undefined],
+    ['Дюна: Часть вторая (2024) BDRip 1080p | Дубляж, звук из TS', 'BDRip'],
+  ])("doesn't take %s for a theater rip", (title, source) => {
+    expect(parseRelease(title).source).toBe(source)
+  })
+
   it("doesn't take stray capital letters for voice-over credits", () => {
     expect(parseRelease('Dune A Part D 2021 1080p').audio).toEqual([])
     expect(parseRelease('Movie (2020) 1080p | HDR | Rus').audio).toEqual([])
