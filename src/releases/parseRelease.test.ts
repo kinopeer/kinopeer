@@ -159,6 +159,10 @@ describe('parseRelease', () => {
     })
   })
 
+  // Some definitions rebuild a name from a page address with every hyphen turned into a space (the spaced
+  // names above), so each spelling reads the same that way too: «HD CAM», «CAM Rip», «MPEG 2 TS».
+  const spaced = (title: string) => title.replaceAll('-', ' ')
+
   it.each([
     'Dune.Part.Two.2024.CAMRip.x264-GRPA',
     'Дюна: Часть вторая (2024) CAM-Rip | Звук с CAMRip',
@@ -184,8 +188,9 @@ describe('parseRelease', () => {
     'Дюна (2024) TS звук с TS',
     'Дюна (2024) TS звук из TS',
     'Дюна (2024) CAMRip Звук CAMRip',
-  ])('reads %s as a theater rip', (title) => {
+  ])('reads %s as a theater rip, also with spaces for its hyphens', (title) => {
     expect(parseRelease(title).source).toBe('CAM')
+    expect(parseRelease(spaced(title)).source).toBe('CAM')
   })
 
   it.each([
@@ -209,8 +214,9 @@ describe('parseRelease', () => {
     ['Dune.Part.Two.2024.1080p.ts', undefined],
     // A theater rip named for another reason: the real source beside it wins.
     ['Дюна: Часть вторая (2024) WEB-DL 1080p | Обновлено: TS заменён на WEB-DL', 'WEB-DL'],
-  ])("doesn't take %s for a theater rip", (title, source) => {
+  ])("doesn't take %s for a theater rip, also with spaces for its hyphens", (title, source) => {
     expect(parseRelease(title).source).toBe(source)
+    expect(parseRelease(spaced(title)).source).toBe(source)
   })
 
   it("doesn't take stray capital letters for voice-over credits", () => {

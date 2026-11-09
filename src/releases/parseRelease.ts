@@ -41,9 +41,10 @@ const RESOLUTIONS: [Resolution, RegExp][] = [
  * not an MPEG transport stream, the container broadcasts come in.
  */
 function theaterRip(): RegExp {
-  const spellings = 'hd-?cam(?:rip)?|cam-?rip|telesynch?|(?:hd)?tc(?:rip)?|telecine'
+  // A space where a hyphen may be: some definitions turn every hyphen into one ("HD CAM", "MPEG 2 TS").
+  const spellings = 'hd[\\s-]?cam(?:rip)?|cam[\\s-]?rip|telesynch?|(?:hd)?tc(?:rip)?|telecine'
   const audioBefore = 'звук(?:\\s*:)?\\s+(?:(?:[сc]|из)\\s+)?' // с in Cyrillic or, as typed by mistake, Latin
-  const mpeg = 'mpeg-?2?[\\s-]?'
+  const mpeg = 'mpeg[\\s-]?2?[\\s-]?'
   // Only TS is said of the audio afterwards ("TS Audio", "TS звук"); «Звук:» or «звук с…» after it
   // starts what the audio is, so it says nothing about the TS before it.
   const audioAfter = '\\s+(?:audio|звук(?!\\s*:|\\s+(?:[сc]|из)\\s))'

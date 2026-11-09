@@ -2,6 +2,12 @@
 
 Kinopeer follows [semantic versioning](https://semver.org). While the version is 0.x, minor versions may change behavior and settings.
 
+## Unreleased
+
+### Fixed
+
+- A theater rip named with a space where a hyphen usually goes, as some indexers' names reach Kinopeer (`HD CAM`, `CAM Rip`), shows as CAM rather than "Source not stated", and a broadcast capture named `MPEG 2 TS` no longer shows as one. ([#341](https://github.com/kinopeer/kinopeer/issues/341))
+
 ## 0.8.0 - 2026-11-09
 
 Releases read better: more of the ways indexers name them are understood, theater rips show as their own source, and the filters can show releases whose name doesn't say. On a computer the releases table sorts by a click on a column's name, and Downloads can be reversed anywhere. Behind Umbrel's HTTPS, the installed app goes through Umbrel's sign-in again when it lapses, offers to open again when Umbrel renews its certificate, and says when it's Kinopeer itself that doesn't answer.
