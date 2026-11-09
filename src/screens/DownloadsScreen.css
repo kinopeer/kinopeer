@@ -19,9 +19,9 @@
   padding-top: var(--space-2);
 }
 
-/* The filters, the sort and the view (the selection's count and buttons while selecting) stay at the
-   top while the list scrolls; the title and the totals above scroll away, so what's pinned stays
-   short. Below the status bar's strip. */
+/* The filters, the sort and the view (the selection's count and buttons while selecting, on top in
+   place of the title and the totals) stay at the top while the list scrolls; the title and the totals
+   above scroll away, so what's pinned stays short. Below the status bar's strip. */
 .downloads-bar {
   position: sticky;
   top: var(--safe-top);
@@ -57,11 +57,6 @@
   align-items: center;
   gap: var(--space-4);
   margin-top: -6px; /* tucked under the title row, whose height is its buttons' */
-}
-
-/* First in the header while selecting, when the title row is gone: nothing to tuck under. */
-.downloads-totals:first-child {
-  margin-top: 0;
 }
 
 .downloads-total {

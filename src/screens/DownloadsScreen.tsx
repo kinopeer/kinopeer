@@ -364,29 +364,33 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
     </header>
   ) : (
     // Phone: the title and the totals scroll away, while the bar with the filters, the sort and the
-    // view (and the selection's count and buttons, in place of the title) stays at the top.
+    // view (and the selection's count and buttons, in place of the title) stays at the top. While
+    // selecting the totals go with the title, as on desktop, so the selection's row is on top (#324).
     <>
-      <header className="downloads-head">
-        {!selecting && (
-          <div className="downloads-title-row">
-            <h1 className="t-h1">{t('nav.downloads')}</h1>
-            <PollRing poll={main.poll} className="downloads-poll" />
-            <AltSpeedButton main={main} />
-            <IconButton
-              icon="search"
-              label={t('downloads.search')}
-              active={searchOpen}
-              iconSize={22}
-              onClick={toggleSearch}
-            />
-            {selectButton}
-          </div>
-        )}
+      {(!selecting || offlineBanner) && (
+        <header className="downloads-head">
+          {!selecting && (
+            <>
+              <div className="downloads-title-row">
+                <h1 className="t-h1">{t('nav.downloads')}</h1>
+                <PollRing poll={main.poll} className="downloads-poll" />
+                <AltSpeedButton main={main} />
+                <IconButton
+                  icon="search"
+                  label={t('downloads.search')}
+                  active={searchOpen}
+                  iconSize={22}
+                  onClick={toggleSearch}
+                />
+                {selectButton}
+              </div>
+              {totals}
+            </>
+          )}
 
-        {totals}
-
-        {offlineBanner}
-      </header>
+          {offlineBanner}
+        </header>
+      )}
 
       <div className="downloads-bar">
         {selecting && (

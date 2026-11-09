@@ -714,6 +714,28 @@ describe('DownloadsScreen selection', () => {
     expect(onSelectingChange).toHaveBeenLastCalledWith(false)
   })
 
+  // #324: on a phone the totals stayed in the header above the pinned bar, so the selection's row
+  // moved under them; the totals now give way to it, as they do on desktop.
+  it('hides the totals while selecting, so the selection’s row takes the title’s place on top', async () => {
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'Select' }))
+    expect(screen.getByRole('heading', { name: '0 selected' })).toBeInTheDocument()
+    expect(screen.queryByText('Download speed')).not.toBeInTheDocument()
+    expect(screen.queryByText('1.21 TB free')).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByText('Download speed').parentElement).toHaveTextContent('4.3 MB/s')
+  })
+
+  it('still shows the offline banner while selecting', async () => {
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'Select' }))
+    getMainData.mockRejectedValueOnce(qbittorrentDown())
+    window.dispatchEvent(new Event('online'))
+    expect(await screen.findByRole('status', { name: saying('qBittorrent isn’t answering') })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '0 selected' })).toBeInTheDocument()
+  })
+
   it('resumes the selected downloads', async () => {
     vi.mocked(api.startTorrents).mockResolvedValue()
     renderScreen()
