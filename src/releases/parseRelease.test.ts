@@ -176,6 +176,12 @@ describe('parseRelease', () => {
     ['Сёгун / Shōgun [S01E01-10 of 10] (2024) WEB-DL 1080p', [1], 'S01'],
     ['Сёгун / Shōgun / S1E1-10 of 10 [2024, WEB-DL 1080p] Original', [1], 'S01'],
     ['Во все тяжкие / Breaking Bad / S1-5E1-62 of 62 (2008-2013) BDRip 1080p', [1, 2, 3, 4, 5], 'S01–S05'],
+    // Some definitions move "(1 сезон: 1-10 серии)" between the titles as " - S1E1-10 - ".
+    ['Сёгун - S1E1-10 - Shōgun 2024 MVO (kurazh) WEBDL 1080p', [1], 'S01'],
+    ['Медведь - S1-3E1-28 - The Bear 2022-2024 MVO WEBDL 1080p', [1, 2, 3], 'S01–S03'],
+    // A pack's range that repeats the season at its end, and a season and episode apart.
+    ['Severance.S02E01-S02E05.1080p.ATVP.WEB-DL', [2], 'S02'],
+    ['Severance.S02.E01-05.1080p.ATVP.WEB-DL', [2], 'S02'],
     // A range from one season's episode to another's spans the seasons between.
     ['The.Bear.S01E01-S03E05.1080p.WEB-DL', [1, 2, 3], 'S01–S03'],
     ['The Bear S01E01 - S03E10 1080p WEB-DL', [1, 2, 3], 'S01–S03'],
@@ -224,6 +230,9 @@ describe('releaseCoverage', () => {
     ['Severance.S01.1080p.ATVP.WEB-DL', 'S01'],
     ['Severance.S02E01-05.1080p.ATVP.WEB-DL', 'S02 E01–05'],
     ['Сёгун / Shōgun [S01E01-10 of 10] (2024) WEB-DL 1080p', 'S01 E01–10'],
+    ['Сёгун - S1E1-10 - Shōgun 2024 MVO (kurazh) WEBDL 1080p', 'S01 E01–10'],
+    ['Severance.S02E01-S02E05.1080p.ATVP.WEB-DL', 'S02 E01–05'],
+    ['Severance.S02.E01-05.1080p.ATVP.WEB-DL', 'S02 E01–05'],
     ['Во все тяжкие / Breaking Bad / Сезон: 1-5 / Серии: 1-62 из 62 (2008-2013) BDRip 1080p', 'S01–S05'],
     ['Dune.Part.Two.2024.2160p.WEB-DL', undefined],
   ])('describes %s', (title, coverage) => {
