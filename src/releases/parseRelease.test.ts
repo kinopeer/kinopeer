@@ -204,6 +204,10 @@ describe('episodeCoverage', () => {
   it.each([
     ['Severance.S02E01-E05.1080p.ATVP.WEB-DL', 'E01–05'],
     ['Severance.S02E01-05.1080p', 'E01–05'],
+    // A pack's range that repeats the season at its end, and a season and episode apart.
+    ['Severance.S02E01-S02E05.1080p.ATVP.WEB-DL', 'E01–05'],
+    ['Severance.S02.E01-05.1080p.ATVP.WEB-DL', 'E01–05'],
+    ['Severance S02 E04 1080p WEB-DL', 'E04'],
     ['Andor.S02E04.1080p.DSNP.WEB-DL', 'E04'],
     ['Во все тяжкие / Сезон 5 / Серии 1-16 (2012-2013) BDRip 1080p', 'E01–16'],
     ['Разделение / Сезон: 2 / Серии: 1-5 из 10 (2025) WEB-DL 1080p', 'E01–05'],

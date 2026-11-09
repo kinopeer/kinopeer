@@ -155,9 +155,9 @@ export function seasonCoverage(info: Pick<ReleaseInfo, 'seasons'>): string | und
   return contiguous ? `${pad(seasons[0])}–${pad(seasons.at(-1)!)}` : seasons.map(pad).join(', ')
 }
 
-// "S02E01-E05", "S02E03", "Серии 1-5": the episodes a release covers within its season.
+// "S02E01-E05", "S02E01-S02E05", "S02 E03", "Серии 1-5": the episodes a release covers within its season.
 const EPISODES = new RegExp(
-  `${EDGE_START}(?:s\\d{1,2}e(\\d{1,3})(?:\\s*[-–]\\s*e?(\\d{1,3}))?|(?:серии|серия|episodes?)[:\\s]*(\\d{1,3})(?:\\s*[-–]\\s*(\\d{1,3}))?)${EDGE_END}`,
+  `${EDGE_START}(?:s\\d{1,2}\\s?e(\\d{1,3})(?:\\s*[-–]\\s*(?:s\\d{1,2})?e?(\\d{1,3}))?|(?:серии|серия|episodes?)[:\\s]*(\\d{1,3})(?:\\s*[-–]\\s*(\\d{1,3}))?)${EDGE_END}`,
   'iu',
 )
 
