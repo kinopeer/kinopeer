@@ -100,9 +100,14 @@
   min-width: 0;
 }
 
-/* On a phone the sort button is as tall as the direction button beside it, a touch target's height. */
+/* Both are the small buttons desktop's toolbar has; on a phone they grow to a touch target. */
 @media not all and (min-width: 1024px) {
   .downloads-sort > .ks-btn {
+    height: var(--touch-min);
+  }
+
+  .downloads-sort > .ks-icon-btn {
+    width: var(--touch-min);
     height: var(--touch-min);
   }
 }
