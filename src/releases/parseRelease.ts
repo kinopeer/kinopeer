@@ -41,7 +41,8 @@ const SOURCES: [Source, RegExp][] = [
   // An HD rip, usually of a WEB or HDTV source: not a Blu-ray one.
   ['HDRip', word('hdrip')],
   ['WEB-DL', word('web-?dl|webdl|web')],
-  ['BluRay', word('blu-?ray|bluray|bd(?:25|50|66|100)|uhd[\\s.-]?bd|bd')],
+  // A full disc: "BR-DISK" is how Prowlarr's definitions for some indexers write "Blu-Ray Disc".
+  ['BluRay', word('blu-?ray|bluray|bd(?:25|50|66|100)|uhd[\\s.-]?bd|bd|br-?disk')],
   ['HDTV', word('hdtv(?:rip)?|hdtvrip|tvrip|satrip')],
   ['DVD', word('dvd(?:rip|5|9)?')],
 ]
@@ -64,11 +65,14 @@ const HDRS: [Hdr, RegExp][] = [
  */
 const AUDIO: [Audio, RegExp][] = [
   ['dub', word('дубляж|дублированный|dub|dubbed|дб')],
-  ['mvo', word('многоголосый|многоголосая|mvo|пм|лм|lostfilm|newstudio|кубик в кубе|hdrezka|jaskier|amedia')],
+  ['mvo', word('многоголосый|многоголосая|mvo|пм|лм|lostfilm|newstudio|кубик в кубе|kubik|kurazh|hdrezka|jaskier|amedia')],
   ['avo2', word('двухголосый|двухголосая|dvo|пд|лд')],
   ['avo1', word('одноголосый|одноголосая|авторский|avo|ап|ло')],
   ['orig', word('original|оригинал|eng')],
 ]
+
+/** "VO", how Prowlarr's definitions for some indexers write ЛО and ПО: a single voice. Capitals only, since "Vo" in a title is a name. */
+const SINGLE_VOICE_CODE = new RegExp(`${EDGE_START}VO${EDGE_END}`, 'u')
 
 /** Credit letters some trackers use, only trusted inside a "| D, P, A |" block: D dub, P/L multi, P2/L2 two, A/L1 one. */
 const AUDIO_LETTERS: [Audio, RegExp][] = [
@@ -78,7 +82,8 @@ const AUDIO_LETTERS: [Audio, RegExp][] = [
   ['avo1', word('a|l1')],
 ]
 
-const SUBS = word('subs?|субтитры|сабы|ст')
+// "ESub": English subtitles, as some indexers name them.
+const SUBS = word('e?subs?|subtitles?|субтитры|сабы|ст')
 
 /** Everything after the first "|": where trackers list voice-overs and extras. */
 function credits(title: string): string {
@@ -126,6 +131,7 @@ export function parseRelease(title: string): ReleaseInfo {
   const audio = [...new Set([
     ...AUDIO.filter(([, pattern]) => pattern.test(text)).map(([kind]) => kind),
     ...AUDIO_LETTERS.filter(([, pattern]) => pattern.test(block)).map(([kind]) => kind),
+    ...(SINGLE_VOICE_CODE.test(text) ? (['avo1'] as const) : []),
   ])].sort((a, b) => AUDIO_ORDER.indexOf(a) - AUDIO_ORDER.indexOf(b))
 
   return {
@@ -153,9 +159,9 @@ export function seasonCoverage(info: Pick<ReleaseInfo, 'seasons'>): string | und
   return contiguous ? `${pad(seasons[0])}–${pad(seasons.at(-1)!)}` : seasons.map(pad).join(', ')
 }
 
-// "S02E01-E05", "S02E03", "Серии 1-5": the episodes a release covers within its season.
+// "S02E01-E05", "S02E01-S02E05", "S02 E03", "Серии 1-5": the episodes a release covers within its season.
 const EPISODES = new RegExp(
-  `${EDGE_START}(?:s\\d{1,2}e(\\d{1,3})(?:\\s*[-–]\\s*e?(\\d{1,3}))?|(?:серии|серия|episodes?)[:\\s]*(\\d{1,3})(?:\\s*[-–]\\s*(\\d{1,3}))?)${EDGE_END}`,
+  `${EDGE_START}(?:s\\d{1,2}\\s?e(\\d{1,3})(?:\\s*[-–]\\s*(?:s\\d{1,2}e|e)?(\\d{1,3}))?|(?:серии|серия|episodes?)[:\\s]*(\\d{1,3})(?:\\s*[-–]\\s*(\\d{1,3}))?)${EDGE_END}`,
   'iu',
 )
 
