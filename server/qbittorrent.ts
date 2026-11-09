@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import { abandoned } from './abandoned.ts'
 import type { Middleware } from './prowlarr.ts'
 
 /**
@@ -34,13 +35,19 @@ export type LoginResult = { status: 'ok'; cookie: string } | { status: 'invalid'
 
 /**
  * Logs in to qBittorrent at `base`. 'banned' covers a 403 (the IP is banned after failed logins)
- * and other refusals; rejects when qBittorrent can't be reached.
+ * and other refusals; rejects when qBittorrent can't be reached, or `signal` aborts first.
  */
-export async function qbittorrentLogin(base: string, username: string, password: string): Promise<LoginResult> {
+export async function qbittorrentLogin(
+  base: string,
+  username: string,
+  password: string,
+  signal?: AbortSignal,
+): Promise<LoginResult> {
   const response = await fetch(`${base}/api/v2/auth/login`, {
     method: 'POST',
     headers: { Origin: base, Referer: `${base}/` },
     body: new URLSearchParams({ username, password }),
+    signal,
   })
   const text = (await response.text()).trim()
   // Wrong credentials: 401 since qBittorrent 5.3, 200 "Fails." before.
@@ -176,6 +183,8 @@ interface UpstreamRequest {
   path: string
   headers?: Record<string, string>
   body?: Buffer
+  /** Gives the request up, as when the browser it's made for has gone. */
+  signal?: AbortSignal
 }
 
 /** Sends a request to qBittorrent with the server's session, logging in again once if it expired. */
@@ -183,7 +192,13 @@ async function send(base: string, session: ServerSession | undefined, upstream: 
   const attempt = (cookie: string | undefined) => {
     const headers: Record<string, string> = { ...upstream.headers, Origin: base, Referer: `${base}/` }
     if (cookie) headers.Cookie = cookie
-    return fetch(`${base}${upstream.path}`, { method: upstream.method, headers, body: upstream.body, redirect: 'manual' })
+    return fetch(`${base}${upstream.path}`, {
+      method: upstream.method,
+      headers,
+      body: upstream.body,
+      redirect: 'manual',
+      signal: upstream.signal,
+    })
   }
 
   let cookie = session?.usable ? await session.current() : undefined
@@ -204,6 +219,8 @@ async function forward(
   path: string,
 ): Promise<void> {
   const method = request.method ?? 'GET'
+  // Only the call itself: a login it waits for is the session's, shared with other requests.
+  const signal = abandoned(response)
   const headers: Record<string, string> = {}
   if (request.headers['content-type']) headers['Content-Type'] = request.headers['content-type']
   if (request.headers.accept) headers.Accept = request.headers.accept
@@ -212,6 +229,7 @@ async function forward(
     path,
     headers,
     body: method === 'GET' || method === 'HEAD' ? undefined : await readBody(request),
+    signal,
   })
 
   response.statusCode = upstream.status

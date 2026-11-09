@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { FailingIndexers, MagnetResponse, ProwlarrErrorBody, ProwlarrStatus, Release } from '../src/api/prowlarr/types.ts'
+import { abandoned } from './abandoned.ts'
 
 /**
  * Same-origin bridge to Prowlarr. Unlike a plain proxy it reshapes responses, because Prowlarr's
@@ -115,9 +116,10 @@ export function toRelease(item: ProwlarrRelease): Release | undefined {
   }
 }
 
-type Handler = (base: string, apiKey: string, query: URLSearchParams, response: ServerResponse) => Promise<void>
+/** `signal` gives Prowlarr's requests up once the browser's request is gone. */
+type Handler = (base: string, apiKey: string, query: URLSearchParams, response: ServerResponse, signal: AbortSignal) => Promise<void>
 
-async function search(base: string, apiKey: string, query: URLSearchParams, response: ServerResponse): Promise<void> {
+async function search(base: string, apiKey: string, query: URLSearchParams, response: ServerResponse, signal: AbortSignal): Promise<void> {
   const term = query.get('query')?.trim()
   const type = query.get('type') ?? 'search'
   const categories = query.getAll('categories')
@@ -129,6 +131,7 @@ async function search(base: string, apiKey: string, query: URLSearchParams, resp
   for (const category of categories) params.append('categories', category)
   const upstream = await fetch(`${base}/api/v1/search?${params}`, {
     headers: { 'X-Api-Key': apiKey, Accept: 'application/json' },
+    signal,
   })
   if (upstream.status === 401) return fail(response, 502, 'unauthorized')
   if (!upstream.ok) return fail(response, 502, 'upstream')
@@ -138,7 +141,7 @@ async function search(base: string, apiKey: string, query: URLSearchParams, resp
   send(response, 200, releases)
 }
 
-async function download(base: string, apiKey: string, query: URLSearchParams, response: ServerResponse): Promise<void> {
+async function download(base: string, apiKey: string, query: URLSearchParams, response: ServerResponse, signal: AbortSignal): Promise<void> {
   let url: URL | undefined = downloadUrl(base, query.get('token') ?? '', apiKey)
   if (!url) return fail(response, 400, 'bad-request')
 
@@ -147,6 +150,7 @@ async function download(base: string, apiKey: string, query: URLSearchParams, re
     const upstream: Response = await fetch(url, {
       redirect: 'manual',
       headers: hop === 0 ? { 'X-Api-Key': apiKey } : undefined,
+      signal,
     })
     const location = upstream.headers.get('location')
     if (upstream.status >= 300 && upstream.status < 400 && location) {
@@ -172,11 +176,11 @@ async function download(base: string, apiKey: string, query: URLSearchParams, re
   fail(response, 502, 'upstream')
 }
 
-async function status(base: string, apiKey: string, _query: URLSearchParams, response: ServerResponse): Promise<void> {
+async function status(base: string, apiKey: string, _query: URLSearchParams, response: ServerResponse, signal: AbortSignal): Promise<void> {
   const headers = { 'X-Api-Key': apiKey, Accept: 'application/json' }
   const [system, indexers] = await Promise.all([
-    fetch(`${base}/api/v1/system/status`, { headers }),
-    fetch(`${base}/api/v1/indexer`, { headers }),
+    fetch(`${base}/api/v1/system/status`, { headers, signal }),
+    fetch(`${base}/api/v1/indexer`, { headers, signal }),
   ])
   if (system.status === 401 || indexers.status === 401) return fail(response, 502, 'unauthorized')
   if (!system.ok || !indexers.ok) return fail(response, 502, 'upstream')
@@ -241,12 +245,12 @@ export const MAX_WITHIN_MS = 10 * 60 * 1000
  * dates by its own clock (on the same machine as Prowlarr's, on Umbrel).
  */
 function failing(timeoutMs: number): Handler {
-  return async (base, apiKey, query, response) => {
+  return async (base, apiKey, query, response, signal) => {
     const within = query.get('within') ?? ''
     if (!/^\d+$/.test(within) || Number(within) > MAX_WITHIN_MS) return fail(response, 400, 'bad-request')
     const since = Date.now() - Number(within)
     // A note beside the results isn't worth a request that hangs: give up and say unreachable.
-    const init = { headers: { 'X-Api-Key': apiKey, Accept: 'application/json' }, signal: AbortSignal.timeout(timeoutMs) }
+    const init = { headers: { 'X-Api-Key': apiKey, Accept: 'application/json' }, signal: AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) }
     /** A list from Prowlarr; anything else (an error, a proxy's login page) is an UpstreamError. */
     const list = async (path: string): Promise<unknown[]> => {
       const upstream = await fetch(`${base}${path}`, init)
@@ -283,11 +287,16 @@ class UpstreamError extends Error {
 /**
  * Whether Prowlarr at `base` takes `apiKey`: 'invalid' when it answers 401, 'not-prowlarr' when
  * the answer isn't Prowlarr's status (a proxy's login page, an app's index.html). Throws when it
- * doesn't answer or answers with another error.
+ * doesn't answer, answers with another error, or `signal` aborts first.
  */
-export async function checkProwlarrKey(base: string, apiKey: string): Promise<'valid' | 'invalid' | 'not-prowlarr'> {
+export async function checkProwlarrKey(
+  base: string,
+  apiKey: string,
+  signal?: AbortSignal,
+): Promise<'valid' | 'invalid' | 'not-prowlarr'> {
   const response = await fetch(`${base}/api/v1/system/status`, {
     headers: { 'X-Api-Key': apiKey, Accept: 'application/json' },
+    signal,
   })
   if (response.status === 401) return 'invalid'
   if (!response.ok) throw new Error(`Prowlarr answered ${response.status}`)
@@ -313,6 +322,8 @@ export function prowlarrMiddleware(config: ProwlarrConfig): Middleware {
   return (request, response, next) => {
     const url = new URL(request.url ?? '/', 'http://kinopeer.local')
     if (!url.pathname.startsWith(PREFIX)) return next()
+    // Before the key is read, so a browser gone meanwhile is noticed.
+    const signal = abandoned(response)
     void (async () => {
       const apiKey = (await getKey())?.trim()
       if (!base || !apiKey) return fail(response, 503, 'not-configured')
@@ -323,7 +334,7 @@ export function prowlarrMiddleware(config: ProwlarrConfig): Middleware {
       const handler = Object.hasOwn(handlers, route) ? handlers[route] : undefined
       if (!handler) return fail(response, 404, 'not-found')
       // Errors never echo upstream URLs: they would contain the API key.
-      await handler(base, apiKey, url.searchParams, response)
+      await handler(base, apiKey, url.searchParams, response, signal)
     })().catch(() => {
       if (!response.headersSent) fail(response, 502, 'unreachable')
       else response.end()

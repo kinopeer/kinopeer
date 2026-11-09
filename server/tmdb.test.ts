@@ -1,7 +1,7 @@
 import { request as httpRequest } from 'node:http'
 import { afterEach, describe, expect, it } from 'vitest'
 import { tmdbMiddleware, type TmdbConfig } from './tmdb.ts'
-import { closeServers, fakeTmdb, listen, serve } from './test/fakes.ts'
+import { abandon, closeServers, fakeTmdb, listen, serve, settlesWithin, silentService } from './test/fakes.ts'
 
 /** Kinopeer's side: the middleware under test. */
 const kinopeer = (config: TmdbConfig) => serve(tmdbMiddleware(config))
@@ -154,6 +154,53 @@ describe('tmdbMiddleware', () => {
 
     expect(response.status).toBe(502)
     expect(await response.text()).not.toContain('abc123')
+  })
+
+  it('lets an answer that started in time finish, however long its body takes', async () => {
+    const images = await listen((_request, response) => {
+      response.setHeader('Content-Type', 'image/jpeg')
+      response.write(Buffer.alloc(1000, 1))
+      setTimeout(() => response.end(Buffer.alloc(1000, 2)), 150)
+    })
+    const app = await kinopeer({ imageBase: images, timeoutMs: 50 })
+
+    const response = await fetch(`${app}/tmdb-img/w342/poster.jpg`)
+
+    expect(response.status).toBe(200)
+    expect((await response.arrayBuffer()).byteLength).toBe(2000)
+  })
+
+  it('passes a HEAD on as a HEAD', async () => {
+    const methods: (string | undefined)[] = []
+    const images = await listen((request, response) => {
+      methods.push(request.method)
+      response.setHeader('Content-Type', 'image/jpeg')
+      response.end()
+    })
+    const app = await kinopeer({ imageBase: images })
+
+    expect((await fetch(`${app}/tmdb-img/w342/poster.jpg`, { method: 'HEAD' })).status).toBe(200)
+    expect(methods).toEqual(['HEAD'])
+  })
+
+  it('gives up its request to TMDB when the browser gives up on it', async () => {
+    const tmdb = await silentService()
+    const app = await kinopeer({ apiKey: 'abc123', apiBase: `${tmdb.base}/3` })
+
+    await abandon(`${app}/tmdb/search/multi?query=alien`, tmdb.received)
+
+    expect(await settlesWithin(tmdb.closed, 1000)).toBe(true)
+  })
+
+  it('answers 504 when TMDB doesn’t answer in time, and gives its request up', async () => {
+    const tmdb = await silentService()
+    const app = await kinopeer({ apiKey: 'abc123', apiBase: `${tmdb.base}/3`, timeoutMs: 50 })
+
+    const response = await fetch(`${app}/tmdb/movie/771`)
+
+    expect(response.status).toBe(504)
+    expect(await response.json()).toEqual({ status_message: 'TMDB didn’t answer in time' })
+    expect(await settlesWithin(tmdb.closed, 1000)).toBe(true)
   })
 
   // fetch resolves dot segments, encoded ones too, and reads a backslash as a slash, so these would

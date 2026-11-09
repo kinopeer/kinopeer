@@ -46,9 +46,49 @@ export async function serveTmdbProxy(tmdbApiBase: string, key: string, { overLim
   return { base, apiBase: `${base}/3`, seen }
 }
 
-/** Closes every server `listen` started; for afterEach. */
+/** Closes every server `listen` started, with the requests they hold open; for afterEach. */
 export async function closeServers(): Promise<void> {
-  await Promise.all(servers.splice(0).map((server) => new Promise((resolve) => server.close(resolve))))
+  await Promise.all(
+    servers.splice(0).map((server) => {
+      const closed = new Promise((resolve) => server.close(resolve))
+      server.closeAllConnections()
+      return closed
+    }),
+  )
+}
+
+/**
+ * A service that takes requests and never answers, as a hung TMDB, qBittorrent or Prowlarr does.
+ * `received` resolves once a request has reached it, `closed` once Kinopeer has given that request
+ * up and closed its connection.
+ */
+export async function silentService() {
+  let receive!: () => void
+  let close!: () => void
+  const received = new Promise<void>((resolve) => (receive = resolve))
+  const closed = new Promise<void>((resolve) => (close = resolve))
+  const base = await listen((_request, response) => {
+    response.on('close', close)
+    receive()
+  })
+  return { base, received, closed }
+}
+
+/** Whether `promise` settles within `ms`. */
+export function settlesWithin(promise: Promise<unknown>, ms: number): Promise<boolean> {
+  return Promise.race([promise.then(() => true), new Promise<boolean>((resolve) => setTimeout(resolve, ms, false))])
+}
+
+/**
+ * Sends a request to `url` the way a browser that gives up does: once `received` resolves (the
+ * service behind Kinopeer has it), the request is aborted.
+ */
+export async function abandon(url: string, received: Promise<void>, init: RequestInit = {}): Promise<void> {
+  const controller = new AbortController()
+  const sent = fetch(url, { ...init, signal: controller.signal }).catch(() => undefined)
+  await received
+  controller.abort()
+  await sent
 }
 
 /** Kinopeer's side: a middleware with a 404 fallback like Vite's, so a path it passes on is told apart. */

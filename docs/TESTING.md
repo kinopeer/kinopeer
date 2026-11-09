@@ -487,7 +487,11 @@ it uses next to itself.
   `holdSearches` in `titleMatches.test.ts`).
 - **`server/test/fakes.ts`:** `listen(handler)` starts a handler on a free port and returns its
   origin, `serve(middleware)` does the same for the middleware under test with Vite's 404 fallback,
-  `closeServers()` closes everything in `afterEach`, `bodyOf(request)` reads a body.
+  `closeServers()` closes everything in `afterEach`, the connections a test left open included,
+  `bodyOf(request)` reads a body. `silentService()` is a service that never answers, with
+  `received` (a request reached it) and `closed` (Kinopeer gave that request up);
+  `abandon(url, received, init)` sends a request and aborts it once `received` resolves, as a
+  browser that leaves does; `settlesWithin(promise, ms)` says whether a promise settled in time.
   `fakeQbittorrent()` is a qBittorrent with one user that hands out SID cookies, can expire them
   and records the requests past the login; behind the login it serves the fixtures' torrents
   (`/torrents/info`, `/sync/maindata` with a delta after the first `rid`), the trackers, and adding
@@ -500,9 +504,9 @@ it uses next to itself.
   what reached it. `fakeProwlarr()` wants its key in `X-Api-Key` (401 otherwise) and answers the
   status check, the indexers' status (`indexerStatus`, none failed by default), a search with the fixtures' releases (their download links carry the key, as
   Prowlarr's do) and a download: the Shōgun `.torrent` for the link `shogun`, a redirect to a magnet
-  link for `magnet`, 404 for anything else. A test that needs a service to misbehave in one specific
-  way (a hanging download, an answer that isn't a `.torrent`) writes that handler inline with
-  `listen`.
+  link for `magnet`, 404 for anything else. A service that never answers is `silentService()`; a test that needs
+  one to misbehave in another specific way (an answer that isn't a `.torrent`, a body that comes
+  in parts) writes that handler inline with `listen`.
 - **`server/test/integration.ts`:** the stand for layer 5, below.
 
 ## Integration tests

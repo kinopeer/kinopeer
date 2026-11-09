@@ -10,11 +10,12 @@ import type {
   TmdbFallback,
   TmdbKeyBody,
 } from '../src/api/settings/types.ts'
+import { abandoned } from './abandoned.ts'
 import { isJsonRequest, readJson, sendJson } from './json.ts'
 import { JsonFile } from './jsonFile.ts'
 import { checkProwlarrKey, readProwlarrApiKey, type Middleware } from './prowlarr.ts'
 import { qbittorrentLogin, type QbittorrentCredentials } from './qbittorrent.ts'
-import { checkTmdbKey } from './tmdb.ts'
+import { TMDB_TIMEOUT_MS, checkTmdbKey } from './tmdb.ts'
 
 /**
  * Settings the user enters in the app and the server keeps: the TMDB key, the Prowlarr key, the
@@ -75,6 +76,8 @@ export interface SettingsConfig {
   envQbittorrent?: Partial<QbittorrentCredentials>
   /** Overridable for tests. */
   tmdbApiBase?: string
+  /** How long TMDB may take to answer a key check; TMDB_TIMEOUT_MS by default. */
+  tmdbTimeoutMs?: number
 }
 
 /** The TMDB key the bridge uses: the saved one, else the environment's. */
@@ -168,6 +171,7 @@ async function save(config: SettingsConfig, response: ServerResponse, saving: Pr
 }
 
 async function saveTmdbKey(config: SettingsConfig, request: IncomingMessage, response: ServerResponse) {
+  const signal = AbortSignal.any([abandoned(response), AbortSignal.timeout(config.tmdbTimeoutMs ?? TMDB_TIMEOUT_MS)])
   let body: unknown
   try {
     body = await readJson(request, MAX_BODY_BYTES)
@@ -179,7 +183,7 @@ async function saveTmdbKey(config: SettingsConfig, request: IncomingMessage, res
 
   let valid: boolean
   try {
-    valid = await checkTmdbKey(apiKey.trim(), config.tmdbApiBase)
+    valid = await checkTmdbKey(apiKey.trim(), config.tmdbApiBase, signal)
   } catch {
     return fail(response, 502, 'unreachable')
   }
@@ -194,6 +198,7 @@ async function forgetTmdbKey(config: SettingsConfig, _request: IncomingMessage, 
 }
 
 async function saveProwlarrKey(config: SettingsConfig, request: IncomingMessage, response: ServerResponse) {
+  const signal = abandoned(response)
   const base = config.prowlarrUrl?.trim().replace(/\/+$/, '')
   if (!base) return fail(response, 503, 'not-configured')
   let body: unknown
@@ -207,7 +212,7 @@ async function saveProwlarrKey(config: SettingsConfig, request: IncomingMessage,
 
   let result: Awaited<ReturnType<typeof checkProwlarrKey>>
   try {
-    result = await checkProwlarrKey(base, apiKey.trim())
+    result = await checkProwlarrKey(base, apiKey.trim(), signal)
   } catch {
     return fail(response, 502, 'unreachable')
   }
@@ -223,6 +228,8 @@ async function forgetProwlarrKey(config: SettingsConfig, _request: IncomingMessa
 }
 
 async function saveQbittorrentLogin(config: SettingsConfig, request: IncomingMessage, response: ServerResponse) {
+  // The browser's own attempt, not the shared session's login, so it's given up with the browser.
+  const signal = abandoned(response)
   const base = config.qbittorrentUrl?.trim().replace(/\/+$/, '')
   if (!base) return fail(response, 503, 'not-configured')
   let body: Partial<QbittorrentLoginBody> | null
@@ -238,7 +245,7 @@ async function saveQbittorrentLogin(config: SettingsConfig, request: IncomingMes
 
   let result: Awaited<ReturnType<typeof qbittorrentLogin>>
   try {
-    result = await qbittorrentLogin(base, username.trim(), password)
+    result = await qbittorrentLogin(base, username.trim(), password, signal)
   } catch {
     return fail(response, 502, 'unreachable')
   }

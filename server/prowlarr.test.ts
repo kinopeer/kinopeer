@@ -1,10 +1,10 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MAX_FAILING_WITHIN_MS } from '../src/api/prowlarr/types.ts'
 import { MAX_WITHIN_MS, downloadToken, failedIds, indexerNames, prowlarrMiddleware, readProwlarrApiKey, type ProwlarrConfig } from './prowlarr.ts'
-import { closeServers, listen, serve } from './test/fakes.ts'
+import { abandon, closeServers, listen, serve, settlesWithin, silentService } from './test/fakes.ts'
 
 const KEY = 'secret-key-123'
 
@@ -185,6 +185,57 @@ describe('prowlarrMiddleware', () => {
     const down = await fetch(`${(await kinopeer({ url: 'http://127.0.0.1:9', apiKey: KEY }))}/prowlarr/search?query=a`)
     expect(down.status).toBe(502)
     expect(await down.text()).toBe('{"error":"unreachable"}')
+  })
+
+  it.each([
+    ['a search', 'search?query=dune'],
+    ['a download', `download?token=${encodeURIComponent('1/download?link=A')}`],
+    ['the status check', 'status'],
+    ['the failing indexers', 'failing?within=1000'],
+  ])('gives up %s when the browser gives up on it', async (_name, route) => {
+    const prowlarr = await silentService()
+    const base = await kinopeer({ url: prowlarr.base, apiKey: KEY })
+
+    await abandon(`${base}/prowlarr/${route}`, prowlarr.received)
+
+    expect(await settlesWithin(prowlarr.closed, 1000)).toBe(true)
+  })
+
+  it('asks Prowlarr nothing once the browser has gone while the key was read', async () => {
+    const seen: string[] = []
+    const prowlarr = await listen((request, response) => {
+      seen.push(request.url!)
+      response.end('[]')
+    })
+    let reading!: () => void
+    const read = new Promise<void>((resolve) => (reading = resolve))
+    let leave!: () => void
+    const left = new Promise<void>((resolve) => (leave = resolve))
+    const middleware = prowlarrMiddleware({
+      url: prowlarr,
+      apiKey: async () => {
+        reading()
+        await left
+        return KEY
+      },
+    })
+    const base = await listen((request, response) => {
+      // The key comes only once Kinopeer has seen the browser go.
+      response.on('close', leave)
+      middleware(request, response, () => response.end())
+    })
+    // What the test waits on is the request to Prowlarr Kinopeer makes once the key is read: the
+    // middleware sends no answer the browser could still see, and the handler always calls fetch,
+    // with an aborted signal it rejects before anything goes out. A change that sent nothing at all
+    // would need another thing to wait on.
+    const calls = vi.spyOn(globalThis, 'fetch')
+    const toProwlarr = () => calls.mock.results.filter((_result, i) => String(calls.mock.calls[i][0]).startsWith(prowlarr))
+
+    await abandon(`${base}/prowlarr/search?query=dune`, read)
+    await vi.waitFor(() => expect(toProwlarr()).toHaveLength(1))
+    await Promise.allSettled(toProwlarr().map((result) => result.value as Promise<Response>))
+
+    expect(seen).toEqual([])
   })
 
   it('asks Prowlarr which indexers failed since the search started, by its own clock', async () => {
