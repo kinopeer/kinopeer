@@ -40,8 +40,121 @@ describe('parseRelease', () => {
   })
 
   // Each studio parseRelease knows records multi-voice voice-overs, so its name alone stands for that kind.
-  it.each(['LostFilm', 'NewStudio', 'Кубик в Кубе', 'HDRezka Studio', 'Jaskier', 'Amedia'])('reads %s as a multi-voice voice-over', (studio) => {
-    expect(parseRelease(`Сёгун / Shōgun [S01] (2024) WEB-DL 1080p | ${studio}, Original`).audio).toEqual(['mvo', 'orig'])
+  // Prowlarr's definitions for some indexers spell two of them in Latin letters: "Kubik", "kurazh".
+  it.each(['LostFilm', 'NewStudio', 'Кубик в Кубе', 'Kubik', 'kurazh', 'HDRezka Studio', 'Jaskier', 'Amedia'])(
+    'reads %s as a multi-voice voice-over',
+    (studio) => {
+      expect(parseRelease(`Сёгун / Shōgun [S01] (2024) WEB-DL 1080p | ${studio}, Original`).audio).toEqual(['mvo', 'orig'])
+    },
+  )
+
+  // Release names as Prowlarr hands them over, one group per naming style. Prowlarr's definitions rewrite
+  // what some indexers show (the notes on each group), so these are the shapes Kinopeer gets, not the sites'.
+  describe('reads the naming styles of indexers', () => {
+    const none = { hdr: [], audio: [], subs: false }
+
+    // Scene names: dots between words, the group after the last hyphen.
+    it.each([
+      ['Dune.Part.Two.2024.1080p.WEBRip.x264.AAC5.1-GRPA', { ...none, resolution: '1080p', source: 'WEBRip', codec: 'AVC' }],
+      ['Dune.Part.Two.2024.1080p.AMZN.WEB-DL.DDP5.1.H.264-GRPA', { ...none, resolution: '1080p', source: 'WEB-DL', codec: 'AVC' }],
+      ['Dune.Part.Two.2024.1080p.BluRay.REMUX.AVC.DTS-HD.MA.7.1-GRPA', { ...none, resolution: '1080p', source: 'REMUX', codec: 'AVC' }],
+      [
+        'Dune.Part.Two.2024.HYBRID.2160p.UHD.BluRay.DV.HDR10Plus.TrueHD.7.1.Atmos.x265-GRPA',
+        { ...none, resolution: '2160p', source: 'BluRay', codec: 'HEVC', hdr: ['DV', 'HDR10+'] },
+      ],
+      ['The Bear S03E01 1080p WEB h264-GRPB', { ...none, resolution: '1080p', source: 'WEB-DL', codec: 'AVC' }],
+    ])('scene name %s', (title, expected) => {
+      expect(parseRelease(title)).toEqual(expect.objectContaining(expected))
+    })
+
+    // Names some definitions rebuild from a page address, every hyphen turned into a space, or all but the last.
+    it.each([
+      ['Dune Part Two 2024 1080p WEB-DL DDP5 1 Atmos H 264-GRPA', { ...none, resolution: '1080p', source: 'WEB-DL', codec: 'AVC' }],
+      ['Dune Part Two 2024 1080p WEB DL DDP5 1 Atmos H 264 GRPA', { ...none, resolution: '1080p', source: 'WEB-DL', codec: 'AVC' }],
+      [
+        'Dune Part Two 2024 2160p UHD BluRay REMUX DV HDR10 HEVC TrueHD Atmos 7 1-GRPA',
+        { ...none, resolution: '2160p', source: 'REMUX', codec: 'HEVC', hdr: ['DV', 'HDR'] },
+      ],
+    ])('spaced name %s', (title, expected) => {
+      expect(parseRelease(title)).toEqual(expect.objectContaining(expected))
+    })
+
+    // Names a definition builds from an indexer's API fields: title (year), quality, WEBRip or BRRip, extras, codec, group.
+    it.each([
+      ['Dune Part Two (2024) 2160p WEBRip 5.1 10Bit x265 -GRPY', { ...none, resolution: '2160p', source: 'WEBRip', codec: 'HEVC' }],
+      ['Dune Part Two (2024) 1080p BRRip x264 -GRPY', { ...none, resolution: '1080p', source: 'BDRip', codec: 'AVC' }],
+    ])('built name %s', (title, expected) => {
+      expect(parseRelease(title)).toEqual(expect.objectContaining(expected))
+    })
+
+    it.each([
+      'Dune Part Two 2024 1080p WEBRip x264 AAC ESub',
+      'Dune Part Two 2024 1080p WEBRip x264 AAC ESubs',
+      'Dune Part Two 2024 1080p BluRay x265 10bit Multiple Subtitle',
+      'Dune Part Two 2024 1080p BluRay x265 Subtitles',
+    ])('reads the subtitles of %s', (title) => {
+      expect(parseRelease(title).subs).toBe(true)
+    })
+
+    // Russian names after Prowlarr's rewrites: "| от GRPA" and "| Studio" at the end become "-GRPA" and "-Studio",
+    // a WEB-DLRip or an HDTVRip becomes WEB-DL or HDTV.
+    it.each([
+      [
+        'Дюна: Часть вторая / Dune: Part Two (2024) WEB-DL 1080p | D, P, A-Лицензия',
+        { ...none, resolution: '1080p', source: 'WEB-DL', audio: ['dub', 'mvo', 'avo1'] },
+      ],
+      ['Дюна: Часть вторая / Dune: Part Two (2024) WEB-DL 1080p-GRPA', { ...none, resolution: '1080p', source: 'WEB-DL' }],
+      ['Сёгун / Shōgun (2024) WEB-DL 1080p-LostFilm', { ...none, resolution: '1080p', source: 'WEB-DL', audio: ['mvo'] }],
+      ['Сёгун / Shōgun S1 (2024) WEB-DL 1080p-NewStudio', { ...none, resolution: '1080p', source: 'WEB-DL', audio: ['mvo'] }],
+      ['Дюна / Dune (2021) HDTV 720p', { ...none, resolution: '720p', source: 'HDTV' }],
+    ])('rewritten name with a credits block %s', (title, expected) => {
+      expect(parseRelease(title)).toEqual(expect.objectContaining(expected))
+    })
+
+    // Russian names after Prowlarr's other rewrites: " / " dropped, the short voice-over codes in English
+    // (ДБ DUB, ПМ MVO, ПД DVO, АП AVO, ЛО VO, СТ Sub), WEB-DL as WEBDL, "Blu-Ray Disc" as BR-DISK.
+    it.each([
+      [
+        'Дюна: Часть вторая Dune: Part Two 2024 DUB, MVO, AVO, Sub WEBDL 1080p',
+        { ...none, resolution: '1080p', source: 'WEB-DL', audio: ['dub', 'mvo', 'avo1'], subs: true },
+      ],
+      ['Дюна: Часть вторая Dune: Part Two 2024 DVO BDRip 1080p', { ...none, resolution: '1080p', source: 'BDRip', audio: ['avo2'] }],
+      ['Дюна: Часть вторая Dune: Part Two 2024 VO WEBDL 720p', { ...none, resolution: '720p', source: 'WEB-DL', audio: ['avo1'] }],
+      [
+        'Дюна: Часть вторая Dune: Part Two 2024 MVO (Kubik) BR-DISK 1080p',
+        { ...none, resolution: '1080p', source: 'BluRay', audio: ['mvo'] },
+      ],
+    ])('rewritten name with voice-over codes %s', (title, expected) => {
+      expect(parseRelease(title)).toEqual(expect.objectContaining(expected))
+    })
+
+    // Russian names with the details in brackets and the voice-overs after them, joined by "+". Prowlarr cuts
+    // the director in parentheses, and for some indexers also "MVO (Studio)", "VO (Name)" and "Sub …", so those
+    // voice-overs and subtitles can't be read.
+    it.each([
+      [
+        'Дюна: Часть вторая / Dune: Part Two [2024, США, Канада, фантастика, WEB-DL 1080p] Dub + AVO + Original Eng',
+        { ...none, resolution: '1080p', source: 'WEB-DL', audio: ['dub', 'avo1', 'orig'] },
+      ],
+      [
+        'Дюна: Часть вторая / Dune: Part Two [2024, США, фантастика, BDRemux 1080p] Dub + Original Eng',
+        { ...none, resolution: '1080p', source: 'REMUX', audio: ['dub', 'orig'] },
+      ],
+    ])('bracketed name %s', (title, expected) => {
+      expect(parseRelease(title)).toEqual(expect.objectContaining(expected))
+    })
+
+    // The same names with the options some definitions offer: Cyrillic stripped, " RUS" or " - RUSSIAN" appended.
+    it.each([
+      [
+        'Dune: Part Two [2024, WEB-DL 2160p, HDR10, Dolby Vision] Dub + Original Eng',
+        { ...none, resolution: '2160p', source: 'WEB-DL', hdr: ['DV', 'HDR'], audio: ['dub', 'orig'] },
+      ],
+      ['Dune: Part Two 2024 DUB, MVO WEBDL 1080p - RUSSIAN', { ...none, resolution: '1080p', source: 'WEB-DL', audio: ['dub', 'mvo'] }],
+      ['Dune: Part Two (2024) WEB-DL 1080p | D, P-Лицензия RUS', { ...none, resolution: '1080p', source: 'WEB-DL', audio: ['dub', 'mvo'] }],
+    ])('name with options %s', (title, expected) => {
+      expect(parseRelease(title)).toEqual(expect.objectContaining(expected))
+    })
   })
 
   it("doesn't take stray capital letters for voice-over credits", () => {

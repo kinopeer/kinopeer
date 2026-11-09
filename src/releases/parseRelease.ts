@@ -41,7 +41,8 @@ const SOURCES: [Source, RegExp][] = [
   // An HD rip, usually of a WEB or HDTV source: not a Blu-ray one.
   ['HDRip', word('hdrip')],
   ['WEB-DL', word('web-?dl|webdl|web')],
-  ['BluRay', word('blu-?ray|bluray|bd(?:25|50|66|100)|uhd[\\s.-]?bd|bd')],
+  // A full disc: "BR-DISK" is how Prowlarr's definitions for some indexers write "Blu-Ray Disc".
+  ['BluRay', word('blu-?ray|bluray|bd(?:25|50|66|100)|uhd[\\s.-]?bd|bd|br-?disk')],
   ['HDTV', word('hdtv(?:rip)?|hdtvrip|tvrip|satrip')],
   ['DVD', word('dvd(?:rip|5|9)?')],
 ]
@@ -60,13 +61,13 @@ const HDRS: [Hdr, RegExp][] = [
 
 /**
  * Voice-over kinds as Russian trackers write them: words ("Дубляж", "Многоголосый"), English
- * shorthand ("Dub", "MVO", "DVO", "AVO") and the short codes some trackers use ("ДБ ПМ АП СТ").
+ * shorthand ("Dub", "MVO", "DVO", "AVO", "VO") and the short codes some trackers use ("ДБ ПМ АП СТ").
  */
 const AUDIO: [Audio, RegExp][] = [
   ['dub', word('дубляж|дублированный|dub|dubbed|дб')],
-  ['mvo', word('многоголосый|многоголосая|mvo|пм|лм|lostfilm|newstudio|кубик в кубе|hdrezka|jaskier|amedia')],
+  ['mvo', word('многоголосый|многоголосая|mvo|пм|лм|lostfilm|newstudio|кубик в кубе|kubik|kurazh|hdrezka|jaskier|amedia')],
   ['avo2', word('двухголосый|двухголосая|dvo|пд|лд')],
-  ['avo1', word('одноголосый|одноголосая|авторский|avo|ап|ло')],
+  ['avo1', word('одноголосый|одноголосая|авторский|avo|vo|ап|ло')],
   ['orig', word('original|оригинал|eng')],
 ]
 
@@ -78,7 +79,8 @@ const AUDIO_LETTERS: [Audio, RegExp][] = [
   ['avo1', word('a|l1')],
 ]
 
-const SUBS = word('subs?|субтитры|сабы|ст')
+// "ESub": English subtitles, as some indexers name them.
+const SUBS = word('e?subs?|subtitles?|субтитры|сабы|ст')
 
 /** Everything after the first "|": where trackers list voice-overs and extras. */
 function credits(title: string): string {
