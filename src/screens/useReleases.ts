@@ -71,6 +71,11 @@ export interface Releases {
   resolutionLabel: (value: ResolutionFilter) => string
   audioLabel: (value: AudioFilter) => string
   sourceLabel: (value: SourceFilter) => string
+  /**
+   * A filter's label as an option in its own group, under the filter's name: Not stated says just
+   * that there, while chips and notes outside the group need the filter's name in it.
+   */
+  optionLabel: <T extends string>(label: (value: T) => string) => (value: T) => string
   /** The release whose add sheet is open. */
   adding?: ReleaseRow
   setAdding: (row: ReleaseRow | undefined) => void
@@ -134,6 +139,10 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
   const resolutionLabel = (value: ResolutionFilter) => (value === NOT_STATED ? t('releases.resolutionNotStated') : value)
   const audioLabel = (value: AudioFilter) => t(AUDIO_LABEL[value])
   const sourceLabel = (value: SourceFilter) => (value === NOT_STATED ? t('releases.sourceNotStated') : value)
+  const optionLabel =
+    <T extends string>(label: (value: T) => string) =>
+    (value: T) =>
+      value === NOT_STATED ? t('releases.notStated') : label(value)
   const active: ActiveFilter[] = [
     ...filters.resolution.map((value) => ({ key: `r-${value}`, label: resolutionLabel(value), remove: { resolution: toggle(filters.resolution, value) } })),
     ...filters.audio.map((value) => ({ key: `a-${value}`, label: audioLabel(value), remove: { audio: toggle(filters.audio, value) } })),
@@ -182,6 +191,7 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
     resolutionLabel,
     audioLabel,
     sourceLabel,
+    optionLabel,
     adding,
     setAdding,
   }

@@ -40,7 +40,7 @@ export function ReleasesScreen() {
       : { ...(await getTv(id, { language, signal })), type: 'tv' },
   )
   const releases = useReleases(details.data)
-  const { filters, sort, active, visible, present, resolutionLabel, audioLabel, sourceLabel, updateFilters } = releases
+  const { filters, sort, active, visible, present, resolutionLabel, audioLabel, sourceLabel, optionLabel, updateFilters } = releases
   const [sheetOpen, setSheetOpen] = useState(false)
 
   const goBack = () => (location.key !== 'default' ? navigate(-1) : navigate(`/title/${type}/${id}`))
@@ -156,21 +156,21 @@ export function ReleasesScreen() {
             label={t('releases.resolution')}
             options={[...new Set([...present.resolution, ...filters.resolution])]}
             selected={filters.resolution}
-            show={resolutionLabel}
+            show={optionLabel(resolutionLabel)}
             onToggle={(value) => updateFilters({ resolution: toggle(filters.resolution, value) })}
           />
           <OptionGroup
             label={t('releases.audio')}
             options={[...new Set([...present.audio, ...filters.audio])]}
             selected={filters.audio}
-            show={audioLabel}
+            show={optionLabel(audioLabel)}
             onToggle={(value) => updateFilters({ audio: toggle(filters.audio, value) })}
           />
           <OptionGroup
             label={t('releases.source')}
             options={[...new Set([...present.source, ...filters.source])]}
             selected={filters.source}
-            show={sourceLabel}
+            show={optionLabel(sourceLabel)}
             onToggle={(value) => updateFilters({ source: toggle(filters.source, value) })}
           />
           <div className="rel-group" role="group" aria-label={t('releases.minSeeds')}>

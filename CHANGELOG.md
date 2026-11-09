@@ -6,7 +6,7 @@ Kinopeer follows [semantic versioning](https://semver.org). While the version is
 
 ### Added
 
-- The release filters for resolution, source and audio offer "Resolution not stated", "Source not stated" and "Audio not stated" when some release's name doesn't say, so releases the other values hide can be shown beside them. ([#316](https://github.com/kinopeer/kinopeer/issues/316))
+- The release filters for resolution, source and audio offer Not stated when some release's name doesn't say, so releases the other values hide can be shown beside them. ([#316](https://github.com/kinopeer/kinopeer/issues/316))
 
 ### Changed
 

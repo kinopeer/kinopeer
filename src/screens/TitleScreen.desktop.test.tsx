@@ -214,7 +214,7 @@ describe('TitleScreen on desktop', () => {
     expect(names()).toEqual([DUNE_RELEASES[2].title, DUNE_RELEASES[1].title, DUNE_RELEASES[0].title])
   })
 
-  it('offers Not stated in the popovers for releases whose name states no resolution or source', async () => {
+  it('offers Not stated in the popovers for releases whose name states no resolution, source or audio', async () => {
     const bare = release('d', 'Дюна 2 / Dune: Part Two (2024)', 3e9, 50)
     searchReleases.mockResolvedValue([...DUNE_RELEASES, bare])
     renderAt('/title/movie/693134/releases')
@@ -224,17 +224,22 @@ describe('TitleScreen on desktop', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Resolution' }))
     const resolution = screen.getByRole('group', { name: 'Resolution' })
-    expect(within(resolution).getAllByRole('button').map((option) => option.textContent)).toEqual(['2160p', '1080p', '720p', 'Resolution not stated'])
-    await userEvent.click(within(resolution).getByRole('button', { name: 'Resolution not stated' }))
+    // The option says just Not stated under the filter's name; the filter's button names the filter.
+    expect(within(resolution).getAllByRole('button').map((option) => option.textContent)).toEqual(['2160p', '1080p', '720p', 'Not stated'])
+    await userEvent.click(within(resolution).getByRole('button', { name: 'Not stated' }))
     expect(screen.getByRole('button', { name: 'Resolution not stated', expanded: true })).toHaveAttribute('aria-pressed', 'true')
 
     await userEvent.click(screen.getByRole('button', { name: 'Source' }))
     const source = screen.getByRole('group', { name: 'Source' })
-    expect(within(source).getAllByRole('button').map((option) => option.textContent)).toEqual(['REMUX', 'BluRay', 'WEB-DL', 'Source not stated'])
-    await userEvent.click(within(source).getByRole('button', { name: 'Source not stated' }))
+    expect(within(source).getAllByRole('button').map((option) => option.textContent)).toEqual(['REMUX', 'BluRay', 'WEB-DL', 'Not stated'])
+    await userEvent.click(within(source).getByRole('button', { name: 'Not stated' }))
     expect(screen.getByRole('button', { name: 'Source not stated', expanded: true })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByText('1 of 4 releases')).toBeInTheDocument()
     expect(names()).toEqual([bare.title])
+
+    await userEvent.click(screen.getByRole('button', { name: 'Audio' }))
+    const audio = screen.getByRole('group', { name: 'Audio' })
+    expect(within(audio).getAllByRole('button').map((option) => option.textContent)).toEqual(['Dubbed', 'Not stated'])
   })
 
   it('opens one popover at a time', async () => {

@@ -280,6 +280,7 @@
     "filters": "Фильтры",
     "resolution": "Разрешение",
     "resolutionNotStated": "Разрешение не указано",
+    "notStated": "Не указано",
     "audio": "Озвучка",
     "source": "Источник",
     "sourceNotStated": "Источник не указан",
