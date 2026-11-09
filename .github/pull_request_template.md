@@ -43,8 +43,9 @@ Broken by hand: <!-- what Stryker leaves alone in the changed lines (docs/TESTIN
      alternative in a selector, which value a guard reads, a prop passed down — and the `it` that
      failed. Or "none in the diff". -->
 
-Baselines: <!-- each changed or new PNG — what changed and why — diff looked at | re-rendered with
-     --update-snapshots=all | new, opened. Or "none". -->
+Baselines: <!-- each changed or new PNG — what changed and why, intended or a side effect — diff
+     looked at | re-rendered with --update-snapshots=all | new, opened. Or "none". A side effect
+     visible to the eye goes to the owner as a question under For the owner, before and after. -->
 
 ## Docs
 

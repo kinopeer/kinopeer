@@ -126,6 +126,9 @@ trusted.
   (a change under the threshold), or new and opened. The listed reason matches the screen. Open
   each new baseline yourself: it shows the state its test name promises. A new screen, sheet,
   dialog or a state with its own layout that has no baseline, only "checked on the stand" → finding.
+  A change in a PNG the PR calls a consequence or a side effect rather than its goal is looked at
+  in the image: one visible to the eye with no question to the owner in the PR → a finding for the
+  owner (**For the owner**), naming the screen.
 - **H. Docs match what they describe.** A claim the PR adds to any doc (a comment that exists, a
   command, a number, a file, a product claim, a step) is checked against what it describes, and so
   is one the diff makes stale, a sentence saying which test owns a statement above all. The docs
