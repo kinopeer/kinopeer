@@ -66,4 +66,16 @@ describe('useReleases', () => {
     act(() => result.current.pickSort('date'))
     expect(result.current.sort).toEqual({ key: 'date', descending: true })
   })
+
+  it('walks the sorts from the chip: each one the other way, then the next in its usual direction', async () => {
+    const { result } = renderHook(() => useReleases(movie(1, 'Dune')))
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    const walked = []
+    for (let press = 0; press < 6; press++) {
+      act(() => result.current.cycleSort())
+      walked.push(`${result.current.sort.key} ${result.current.sort.descending ? 'down' : 'up'}`)
+    }
+    expect(walked).toEqual(['seeds up', 'size down', 'size up', 'date down', 'date up', 'seeds down'])
+    expect(JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY)!).releaseSort).toEqual({ key: 'seeds', descending: true })
+  })
 })

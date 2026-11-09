@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ProwlarrSetupError, getFailingIndexers, searchReleases, type Release } from '../api/prowlarr'
-import { clickedOrder, reversedOrder, usualOrder } from '../lib/sortOrder'
+import { clickedOrder, cycledOrder, reversedOrder, usualOrder } from '../lib/sortOrder'
 import { useRequest } from '../lib/useRequest'
 import {
   NOT_STATED,
   NO_FILTERS,
   NO_REMEMBERED_FILTERS,
   RELEASES_USUALLY_DESCENDING,
+  SORT_KEYS,
   filterReleases,
   presentValues,
   remember,
@@ -76,6 +77,8 @@ export interface Releases {
   clickSort: (key: SortKey) => void
   /** The direction button: the same sort the other way. */
   reverseSort: () => void
+  /** The phone's sort chip: the current sort the other way, then the next sort in its usual direction. */
+  cycleSort: () => void
   /** Filter values as the screens show them: resolutions and sources as named, but Not stated. */
   resolutionLabel: (value: ResolutionFilter) => string
   audioLabel: (value: AudioFilter) => string
@@ -200,6 +203,7 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
     pickSort: (sortKey) => updateSettings({ releaseSort: usualOrder(sortKey, RELEASES_USUALLY_DESCENDING) }),
     clickSort: (sortKey) => updateSettings({ releaseSort: clickedOrder(sort, sortKey, RELEASES_USUALLY_DESCENDING) }),
     reverseSort: () => updateSettings({ releaseSort: reversedOrder(sort) }),
+    cycleSort: () => updateSettings({ releaseSort: cycledOrder(sort, SORT_KEYS, RELEASES_USUALLY_DESCENDING) }),
     resolutionLabel,
     audioLabel,
     sourceLabel,

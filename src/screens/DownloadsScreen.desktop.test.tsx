@@ -257,6 +257,8 @@ describe('DownloadsScreen on desktop', () => {
     expect(screen.getByRole('radio', { name: 'All' })).toBeChecked()
     await userEvent.click(screen.getByRole('radio', { name: 'Series' }))
     expect((await tableRows()).map((row) => within(row).getByRole('link').textContent)).toEqual(['Andor.S02.1080p'])
+    // The type has its own control here, so the sort button doesn't repeat it, as the phone's does.
+    expect(screen.getByRole('button', { name: 'Sort: Name' })).toHaveTextContent(/^Name$/)
   })
 
   it('sorts by a column’s header, reverses on the next click, and shows the direction on the direction button', async () => {

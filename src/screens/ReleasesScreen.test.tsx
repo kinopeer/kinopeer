@@ -75,20 +75,31 @@ describe('ReleasesScreen', () => {
     expect(within(top).getByLabelText('2451 seeders')).toBeInTheDocument()
   })
 
-  it('cycles the sort from its chip, and picks the sort and direction in the sheet', async () => {
+  it('turns the sort from its chip, first of the chips after Filters, then goes on to the next sort', async () => {
     renderAt('/title/movie/693134/releases')
-    await userEvent.click(await screen.findByRole('button', { name: 'Sort: Seeds, Descending' }))
-    expect(names()).toEqual([DUNE_RELEASES[0].title, DUNE_RELEASES[1].title, DUNE_RELEASES[2].title])
+    const chip = await screen.findByRole('button', { name: 'Sort: Seeds, Descending' })
+    const chips = within(chip.parentElement!).getAllByRole('button').map((button) => button.textContent)
+    expect(chips.slice(0, 2)).toEqual(['Filters', 'Seeds ↓'])
 
-    await userEvent.click(screen.getByRole('button', { name: 'Filters' }))
+    await userEvent.click(chip)
+    expect(screen.getByRole('button', { name: 'Sort: Seeds, Ascending' })).toHaveTextContent('Seeds ↑')
+    expect(names()).toEqual([DUNE_RELEASES[2].title, DUNE_RELEASES[0].title, DUNE_RELEASES[1].title])
+    await userEvent.click(screen.getByRole('button', { name: 'Sort: Seeds, Ascending' }))
+    expect(screen.getByRole('button', { name: 'Sort: Size, Descending' })).toBeInTheDocument()
+    expect(names()).toEqual([DUNE_RELEASES[0].title, DUNE_RELEASES[1].title, DUNE_RELEASES[2].title])
+  })
+
+  it('picks the sort and its direction in the sheet', async () => {
+    renderAt('/title/movie/693134/releases')
+    await userEvent.click(await screen.findByRole('button', { name: 'Filters' }))
     const sheet = within(screen.getByRole('dialog', { name: 'Filters' }))
-    expect(sheet.getByRole('radio', { name: 'Size', checked: true })).toBeInTheDocument()
-    await userEvent.click(sheet.getByRole('radio', { name: 'Seeds' }))
+    expect(sheet.getByRole('radio', { name: 'Seeds', checked: true })).toBeInTheDocument()
+    await userEvent.click(sheet.getByRole('radio', { name: 'Size' }))
     await userEvent.click(sheet.getByRole('button', { name: 'Descending' }))
     expect(sheet.getByRole('button', { name: 'Ascending' })).toBeInTheDocument()
     await userEvent.click(sheet.getByRole('button', { name: 'Show 3' }))
-    expect(screen.getByRole('button', { name: 'Sort: Seeds, Ascending' })).toBeInTheDocument()
-    expect(names()).toEqual([DUNE_RELEASES[2].title, DUNE_RELEASES[0].title, DUNE_RELEASES[1].title])
+    expect(screen.getByRole('button', { name: 'Sort: Size, Ascending' })).toBeInTheDocument()
+    expect(names()).toEqual([DUNE_RELEASES[2].title, DUNE_RELEASES[1].title, DUNE_RELEASES[0].title])
   })
 
   it('filters by indexer when the results come from more than one', async () => {

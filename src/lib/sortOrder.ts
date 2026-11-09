@@ -25,3 +25,16 @@ export function clickedOrder<Key extends string>(
 export function reversedOrder<Key extends string>(current: SortOrder<Key>): SortOrder<Key> {
   return { key: current.key, descending: !current.descending }
 }
+
+/**
+ * The order after a press on a control that walks through `keys`: the current sort the other way
+ * while it's in its usual direction, then the next sort in its usual direction.
+ */
+export function cycledOrder<Key extends string>(
+  current: SortOrder<Key>,
+  keys: readonly Key[],
+  usuallyDescending: UsualDirections<Key>,
+): SortOrder<Key> {
+  if (current.descending === usuallyDescending[current.key]) return reversedOrder(current)
+  return usualOrder(keys[(keys.indexOf(current.key) + 1) % keys.length], usuallyDescending)
+}

@@ -37,7 +37,7 @@ export interface Settings {
   downloadsDesktopView: 'list' | 'grid'
   /** How the downloads list is ordered. */
   downloadsSort: DownloadSort
-  /** Its direction, which only desktop shows and changes; set together with the sort. */
+  /** Its direction; set together with the sort. */
   downloadsSortDescending: boolean
   /** The release filters picked last, which the next title's search starts from. */
   releaseFilters: RememberedFilters

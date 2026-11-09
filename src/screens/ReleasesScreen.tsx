@@ -113,6 +113,14 @@ export function ReleasesScreen() {
             <FilterChip solid icon="filter" selected={active.length > 0} count={active.length || undefined} onClick={() => setSheetOpen(true)}>
               {t('releases.filters')}
             </FilterChip>
+            {/* A press turns the sort the other way, the next one goes on to the next sort. */}
+            <FilterChip
+              icon="sort"
+              aria-label={`${t('common.sort')}: ${t(SORT_LABEL[sort.key])}, ${t(sort.descending ? 'common.descending' : 'common.ascending')}`}
+              onClick={releases.cycleSort}
+            >
+              {t(SORT_LABEL[sort.key])} {sort.descending ? '↓' : '↑'}
+            </FilterChip>
             <FilterChip selected={filters.resolution.length > 0} trailingIcon="chevron-down" onClick={() => setSheetOpen(true)}>
               {summary(filters.resolution, t('releases.resolution'), resolutionLabel)}
             </FilterChip>
@@ -121,13 +129,6 @@ export function ReleasesScreen() {
             </FilterChip>
             <FilterChip selected={filters.source.length > 0} trailingIcon="chevron-down" onClick={() => setSheetOpen(true)}>
               {summary(filters.source, t('releases.source'), sourceLabel)}
-            </FilterChip>
-            <FilterChip
-              icon="sort"
-              aria-label={`${t('common.sort')}: ${t(SORT_LABEL[sort.key])}, ${t(sort.descending ? 'common.descending' : 'common.ascending')}`}
-              onClick={() => releases.pickSort(SORT_KEYS[(SORT_KEYS.indexOf(sort.key) + 1) % SORT_KEYS.length])}
-            >
-              {t(SORT_LABEL[sort.key])} {sort.descending ? '↓' : '↑'}
             </FilterChip>
           </div>
         )}

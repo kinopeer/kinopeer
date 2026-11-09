@@ -316,15 +316,22 @@ describe('DownloadsScreen', () => {
     expect(screen.getByRole('button', { name: 'Sort: Priority' })).toHaveTextContent(/^Priority$/)
   })
 
-  it('sorts in the usual direction, whichever one desktop reversed it to', async () => {
+  it('shows the list in the remembered direction, reverses it from the direction button, and takes a pick in the sheet in its usual direction', async () => {
     updateSettings({ downloadsSort: 'name', downloadsSortDescending: true })
     renderScreen()
     await screen.findAllByRole('listitem')
-    expect(screen.getAllByRole('listitem').map((item) => within(item).getByRole('heading').textContent)).toEqual([
-      'Alien.Romulus.2024.1080p',
-      'Andor.S02.1080p',
-      'Dune.Part.Two.2024.2160p.WEB-DL',
-    ])
+    const titles = () => screen.getAllByRole('listitem').map((item) => within(item).getByRole('heading').textContent)
+    const A_TO_Z = ['Alien.Romulus.2024.1080p', 'Andor.S02.1080p', 'Dune.Part.Two.2024.2160p.WEB-DL']
+    expect(titles()).toEqual([...A_TO_Z].reverse())
+
+    await userEvent.click(screen.getByRole('button', { name: 'Descending' }))
+    expect(titles()).toEqual(A_TO_Z)
+    expect(getSettings()).toMatchObject({ downloadsSort: 'name', downloadsSortDescending: false })
+
+    // The sheet has no direction: a pick there is the sort's usual one, not the one the list was in.
+    await userEvent.click(screen.getByRole('button', { name: 'Sort: Name' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Sort & filter' })).getByRole('radio', { name: 'Size' }))
+    expect(getSettings()).toMatchObject({ downloadsSort: 'size', downloadsSortDescending: true })
   })
 
   it('sorts by the TMDB title once matched', async () => {

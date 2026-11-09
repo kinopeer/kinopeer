@@ -91,7 +91,27 @@
 
 .downloads-sort {
   min-width: 0;
-  margin-left: -8px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.downloads-sort > .ks-btn {
+  min-width: 0;
+}
+
+/* Only the sort's name narrows. */
+.downloads-sort > .ks-btn > :not(.ks-trunc) {
+  flex: none;
+}
+
+/* With the type's badge on it (a phone), the button gives up its icon and some padding, so the sort's name fits a 390px screen. */
+.downloads-sort > .ks-btn:has(.downloads-type) {
+  padding: 0 var(--space-3);
+}
+
+.downloads-sort > .ks-btn:has(.downloads-type) > .ks-ic:first-child {
+  display: none;
 }
 
 .sort-sheet {

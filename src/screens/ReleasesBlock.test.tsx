@@ -29,6 +29,7 @@ function releases(fields: Partial<Releases> = {}): Releases {
     pickSort: vi.fn(),
     clickSort: vi.fn(),
     reverseSort: vi.fn(),
+    cycleSort: vi.fn(),
     resolutionLabel: (value) => value,
     audioLabel: (value) => value,
     sourceLabel: (value) => value,

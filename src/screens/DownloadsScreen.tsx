@@ -83,9 +83,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   const setView = (next: 'list' | 'grid') =>
     updateSettings(isDesktop ? { downloadsDesktopView: next } : { downloadsView: next })
   const grid = view === 'grid'
-  // The direction is desktop's alone, where the column headers and the direction button show it; the
-  // phone's sort sheet has none, so the list there is in the sort's usual direction.
-  const descending = isDesktop ? downloadsSortDescending : DOWNLOADS_USUALLY_DESCENDING[sort]
+  const descending = downloadsSortDescending
   const order = useMemo<DownloadOrder>(() => ({ key: sort, descending }), [sort, descending])
   const setOrder = (next: DownloadOrder) =>
     updateSettings({ downloadsSort: next.key, downloadsSortDescending: next.descending })
@@ -304,6 +302,37 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
     />
   )
 
+  // The sort and its direction, the same on both layouts: the sort opens as a menu on desktop and as
+  // the sheet on a phone, which also has the type, so its pick shows on the button there.
+  const sortControls = (
+    <div className="downloads-sort">
+      <Button
+        variant="secondary"
+        size="sm"
+        icon="sort"
+        aria-haspopup={isDesktop ? 'menu' : 'dialog'}
+        aria-expanded={isDesktop ? sortAnchor !== null : undefined}
+        aria-label={
+          isDesktop || type === 'all'
+            ? t('downloads.sortButton', { sort: t(`fields.${sort}`) })
+            : t('downloads.sortTypeButton', { sort: t(`fields.${sort}`), type: t(`types.${type}`) })
+        }
+        onClick={(event) => (isDesktop ? setSortAnchor(sortAnchor ? null : event.currentTarget) : setSortOpen(true))}
+      >
+        {/* The name gives way on a narrow phone, where the type's badge sits beside it. */}
+        <span className="ks-trunc">{t(`fields.${sort}`)}</span>
+        {!isDesktop && type !== 'all' && <Badge className="downloads-type">{t(`types.${type}`)}</Badge>}
+        <Icon name="chevron-down" size={14} />
+      </Button>
+      {/* Beside the sort rather than in its menu or sheet, as in the releases' sort bar: the grid has no column names to reverse by. */}
+      <SortDirectionButton
+        size={isDesktop ? 'sm' : undefined}
+        descending={descending}
+        onReverse={() => setOrder(reversedOrder(order))}
+      />
+    </div>
+  )
+
   const header = isDesktop ? (
     // Desktop: the whole header stays at the top. The name filter always shows, while selecting too,
     // so Select all takes only what it shows; the status and the sort are menus, so the controls fit
@@ -344,21 +373,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           value={type}
           onChange={setType}
         />
-        <Button
-          variant="secondary"
-          size="sm"
-          icon="sort"
-          className="downloads-sort"
-          aria-haspopup="menu"
-          aria-expanded={sortAnchor !== null}
-          aria-label={t('downloads.sortButton', { sort: t(`fields.${sort}`) })}
-          onClick={(event) => setSortAnchor(sortAnchor ? null : event.currentTarget)}
-        >
-          {t(`fields.${sort}`)}
-          <Icon name="chevron-down" size={14} />
-        </Button>
-        {/* Beside the menu rather than in it, as in the releases' sort bar: the grid has no column names to reverse by. */}
-        <SortDirectionButton size="sm" descending={descending} onReverse={() => setOrder(reversedOrder(order))} />
+        {sortControls}
         {viewSwitch}
       </div>
     </header>
@@ -415,22 +430,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
         {chips}
 
         <div className="downloads-toolbar">
-          <Button
-            variant="ghost"
-            size="sm"
-            icon="sort"
-            className="downloads-sort"
-            aria-haspopup="dialog"
-            aria-label={
-              type === 'all'
-                ? t('downloads.sortButton', { sort: t(`fields.${sort}`) })
-                : t('downloads.sortTypeButton', { sort: t(`fields.${sort}`), type: t(`types.${type}`) })
-            }
-            onClick={() => setSortOpen(true)}
-          >
-            {t(`fields.${sort}`)}
-            {type !== 'all' && <Badge className="downloads-type">{t(`types.${type}`)}</Badge>}
-          </Button>
+          {sortControls}
           {viewSwitch}
         </div>
       </div>
