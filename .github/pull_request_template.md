@@ -45,7 +45,7 @@ Broken by hand: <!-- what Stryker leaves alone in the changed lines (docs/TESTIN
 
 Baselines: <!-- each changed or new PNG — what changed and why, intended or a side effect — diff
      looked at | re-rendered with --update-snapshots=all | new, opened. Or "none". A side effect
-     visible to the eye goes to the owner as a question under For the owner, before and after. -->
+     visible to the eye goes to the owner as a question in For the owner below. -->
 
 ## Docs
 
@@ -63,6 +63,12 @@ Baselines: <!-- each changed or new PNG — what changed and why, intended or a 
      resolves and its check can pass as written. A list the change adds to gains the new item:
      the screens in TESTING.md → Screenshot tests, SPEC's decision log (newest first), the blind
      spots. Bring this section, What and Tests to the head after each round's fixes. -->
+
+## For the owner
+
+<!-- Questions the owner answers before the merge, such as a side effect visible in a screenshot,
+     with the screen and its before and after images (docs/TESTING.md → Screenshot tests).
+     Delete the section when there are none. -->
 
 ## Why tests missed it
 
