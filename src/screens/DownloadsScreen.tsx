@@ -77,13 +77,12 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   // The desktop header stays at the top while the list scrolls, and the table's column names stick
   // right under it: its height (the filters wrap, the offline banner comes and goes) is theirs in CSS.
   const headRef = useHeightVar('--downloads-head')
-  const [{ downloadsView, downloadsDesktopView, downloadsSort: sort, downloadsSortDescending }, updateSettings] = useSettings()
+  const [{ downloadsView, downloadsDesktopView, downloadsSort: sort, downloadsSortDescending: descending }, updateSettings] = useSettings()
   // Each layout remembers its own view: the desktop's list is a table, and its grid is the default.
   const view = isDesktop ? downloadsDesktopView : downloadsView
   const setView = (next: 'list' | 'grid') =>
     updateSettings(isDesktop ? { downloadsDesktopView: next } : { downloadsView: next })
   const grid = view === 'grid'
-  const descending = downloadsSortDescending
   const order = useMemo<DownloadOrder>(() => ({ key: sort, descending }), [sort, descending])
   const setOrder = (next: DownloadOrder) =>
     updateSettings({ downloadsSort: next.key, downloadsSortDescending: next.descending })

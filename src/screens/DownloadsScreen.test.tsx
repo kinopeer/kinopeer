@@ -254,6 +254,9 @@ describe('DownloadsScreen', () => {
     const headings = () => screen.getAllByRole('listitem').map((item) => within(item).getByRole('heading').textContent)
     const { unmount } = renderScreen()
     await screen.findAllByRole('listitem')
+    // On a phone the sort opens as a sheet, a dialog, which is modal, so the button has no expanded state.
+    expect(screen.getByRole('button', { name: 'Sort: Priority' })).toHaveAttribute('aria-haspopup', 'dialog')
+    expect(screen.getByRole('button', { name: 'Sort: Priority' })).not.toHaveAttribute('aria-expanded')
     await userEvent.click(screen.getByRole('button', { name: 'Sort: Priority' }))
     const sheet = within(screen.getByRole('dialog', { name: 'Sort & filter' }))
     expect(sheet.getByRole('radio', { name: 'Priority', checked: true })).toBeInTheDocument()
