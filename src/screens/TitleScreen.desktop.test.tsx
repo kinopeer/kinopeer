@@ -9,6 +9,7 @@ import * as tmdb from '../api/tmdb'
 import type { MovieDetails, TvDetails } from '../api/tmdb'
 import { stubDesktop } from '../lib/stubDesktop'
 import { restoreLayout, stubLayout } from '../lib/stubLayout'
+import i18n from '../i18n'
 import { resetSettings, updateSettings } from '../settings/settings'
 import { DUNE_RELEASES, release } from '../test/fixtures'
 import { Where, renderWithRouter, saying, where } from '../test/render'
@@ -274,6 +275,28 @@ describe('TitleScreen on desktop', () => {
     expect(screen.getByText('Remembered filters not applied: SD')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Forget' }))
     expect(screen.queryByText(/^Remembered filters not applied/)).not.toBeInTheDocument()
+  })
+
+  it('names a theater rip in the interface language, in the table, the source filter and the add sheet', async () => {
+    await i18n.changeLanguage('ru')
+    vi.mocked(prowlarr.fetchRelease).mockReturnValue(new Promise(() => {}))
+    vi.mocked(qbt.getCategories).mockResolvedValue([])
+    vi.mocked(qbt.getDefaultSavePath).mockResolvedValue('/data')
+    const cam = release('d', 'Dune.Part.Two.2024.HDTS.x264-GRPA', 1.5e9, 5)
+    searchReleases.mockResolvedValue([...DUNE_RELEASES, cam])
+    renderAt('/title/movie/693134/releases')
+    await screen.findByText('4 из 4 раздач')
+    const row = within(screen.getByRole('table', { name: 'Раздачи' }))
+      .getAllByRole('row')
+      .find((tr) => tr.textContent?.includes(cam.title))!
+    expect(within(row).getByText('Экранка')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Источник' }))
+    const source = screen.getByRole('group', { name: 'Источник' })
+    expect(within(source).getAllByRole('button').map((option) => option.textContent)).toEqual(['REMUX', 'BluRay', 'WEB-DL', 'Экранка'])
+
+    await userEvent.click(within(row).getByRole('button', { name: 'Добавить в загрузки' }))
+    expect(within(screen.getByRole('dialog', { name: 'Добавить в загрузки' })).getByText('Экранка')).toBeInTheDocument()
   })
 
   it('opens the add sheet for a release', async () => {
