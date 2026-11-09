@@ -100,6 +100,13 @@
   min-width: 0;
 }
 
+/* On a phone the sort button is as tall as the direction button beside it, a touch target's height. */
+@media (max-width: 1023px) {
+  .downloads-sort > .ks-btn {
+    height: var(--touch-min);
+  }
+}
+
 /* Only the sort's name narrows. */
 .downloads-sort > .ks-btn > :not(.ks-trunc) {
   flex: none;
