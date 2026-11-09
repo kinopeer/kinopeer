@@ -176,7 +176,3 @@
   flex: 1;
   min-width: 0;
 }
-
-.rel-flip .ks-ic {
-  transform: scaleY(-1);
-}

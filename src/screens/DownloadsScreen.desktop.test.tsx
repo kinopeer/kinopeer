@@ -228,7 +228,7 @@ describe('DownloadsScreen on desktop', () => {
     updateSettings({ downloadsDesktopView: 'list' })
     renderScreen()
     await tableRows()
-    const sort = screen.getByRole('button', { name: 'Sort: Priority, Ascending' })
+    const sort = screen.getByRole('button', { name: 'Sort: Priority' })
     expect(sort).toHaveAttribute('aria-haspopup', 'menu')
     expect(sort).toHaveAttribute('aria-expanded', 'false')
     await userEvent.click(sort)
@@ -259,7 +259,7 @@ describe('DownloadsScreen on desktop', () => {
     expect((await tableRows()).map((row) => within(row).getByRole('link').textContent)).toEqual(['Andor.S02.1080p'])
   })
 
-  it('sorts by a column’s header, reverses on the next click, and shows the direction on the sort button', async () => {
+  it('sorts by a column’s header, reverses on the next click, and shows the direction on the direction button', async () => {
     updateSettings({ downloadsDesktopView: 'list' })
     renderScreen()
     await tableRows()
@@ -269,7 +269,8 @@ describe('DownloadsScreen on desktop', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Name' }))
     expect(await titles()).toEqual(['Alien.Romulus.2024.1080p', 'Andor.S02.1080p', 'Dune.Part.Two.2024.2160p.WEB-DL'])
     expect(header('Name')).toHaveAttribute('aria-sort', 'ascending')
-    expect(screen.getByRole('button', { name: 'Sort: Name, Ascending' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sort: Name' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ascending' })).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Name' }))
     expect(await titles()).toEqual(['Dune.Part.Two.2024.2160p.WEB-DL', 'Andor.S02.1080p', 'Alien.Romulus.2024.1080p'])
@@ -277,10 +278,31 @@ describe('DownloadsScreen on desktop', () => {
     expect(getSettings()).toMatchObject({ downloadsSort: 'name', downloadsSortDescending: true })
 
     // The menu picks a sort in its usual direction, the one it's in included.
-    await userEvent.click(screen.getByRole('button', { name: 'Sort: Name, Descending' }))
+    expect(screen.getByRole('button', { name: 'Descending' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Sort: Name' }))
     await userEvent.click(within(screen.getByRole('menu', { name: 'Sort' })).getByRole('menuitemradio', { name: 'Name' }))
     expect(header('Name')).toHaveAttribute('aria-sort', 'ascending')
     expect(getSettings()).toMatchObject({ downloadsSort: 'name', downloadsSortDescending: false })
+  })
+
+  it('reverses the order from the direction button, in the grid too, which has no column names', async () => {
+    updateSettings({ downloadsDesktopView: 'grid', downloadsSort: 'name', downloadsSortDescending: false })
+    renderScreen()
+    const titles = async () => (await screen.findAllByRole('listitem')).map((item) => within(item).getByRole('link').textContent)
+    const usual = await titles()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Ascending' }))
+    expect(getSettings()).toMatchObject({ downloadsSort: 'name', downloadsSortDescending: true })
+    expect(await titles()).toEqual([...usual].reverse())
+
+    await userEvent.click(screen.getByRole('button', { name: 'Descending' }))
+    expect(getSettings()).toMatchObject({ downloadsSort: 'name', downloadsSortDescending: false })
+    expect(await titles()).toEqual(usual)
+
+    // The table's headers show what the button did.
+    await userEvent.click(screen.getByRole('button', { name: 'Ascending' }))
+    await userEvent.click(screen.getByRole('radio', { name: 'List' }))
+    expect(screen.getByRole('columnheader', { name: 'Name' })).toHaveAttribute('aria-sort', 'descending')
   })
 
   it('filters by status from a menu in place of the chips, counting within the type', async () => {

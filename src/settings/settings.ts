@@ -87,7 +87,7 @@ function read(): Settings {
       ...DEFAULT_SETTINGS,
       ...stored,
       // Checked here, so a value from another version or a hand edit can't break a screen that reads them.
-      downloadsSort: order.sort,
+      downloadsSort: order.key,
       downloadsSortDescending: order.descending,
       releaseFilters: knownReleaseFilters(stored.releaseFilters),
       releaseSort: knownReleaseSort(stored.releaseSort),

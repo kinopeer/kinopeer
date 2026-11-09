@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Torrent } from '../api/qbittorrent'
-import { DOWNLOAD_SORTS, clickedOrder, compareTorrents, knownOrder, usualOrder, type DownloadSort } from './sort'
+import { DOWNLOADS_USUALLY_DESCENDING, compareTorrents, knownOrder, type DownloadSort } from './sort'
 
 const make = (hash: string, fields: Partial<Torrent>) =>
   ({
@@ -21,8 +21,8 @@ const make = (hash: string, fields: Partial<Torrent>) =>
 const order = (
   sort: DownloadSort,
   torrents: Torrent[],
-  { titleOf = (torrent: Torrent) => torrent.name, descending = usualOrder(sort).descending } = {},
-) => [...torrents].sort(compareTorrents({ sort, descending }, titleOf)).map((torrent) => torrent.hash)
+  { titleOf = (torrent: Torrent) => torrent.name, descending = DOWNLOADS_USUALLY_DESCENDING[sort] } = {},
+) => [...torrents].sort(compareTorrents({ key: sort, descending }, titleOf)).map((torrent) => torrent.hash)
 
 describe('compareTorrents', () => {
   it('keeps the queue order for priority', () => {
@@ -146,47 +146,33 @@ describe('compareTorrents reversed', () => {
   })
 })
 
-describe('usualOrder', () => {
+describe('DOWNLOADS_USUALLY_DESCENDING', () => {
   it('gives each sort its usual direction', () => {
-    expect(
-      Object.fromEntries(DOWNLOAD_SORTS.map((sort) => [sort, usualOrder(sort).descending ? 'descending' : 'ascending'])),
-    ).toEqual({
-      priority: 'ascending',
-      added: 'descending',
-      name: 'ascending',
-      progress: 'descending',
-      status: 'ascending',
-      size: 'descending',
-      speed: 'descending',
-      eta: 'ascending',
+    expect(DOWNLOADS_USUALLY_DESCENDING).toEqual({
+      priority: false,
+      added: true,
+      name: false,
+      progress: true,
+      status: false,
+      size: true,
+      speed: true,
+      eta: false,
     })
   })
 })
 
 describe('knownOrder', () => {
   it('keeps a stored sort and direction', () => {
-    expect(knownOrder('size', false)).toEqual({ sort: 'size', descending: false })
+    expect(knownOrder('size', false)).toEqual({ key: 'size', descending: false })
   })
 
   it('gives a sort stored without a direction its usual one', () => {
-    expect(knownOrder('size', undefined)).toEqual({ sort: 'size', descending: true })
-    expect(knownOrder('name', 'up')).toEqual({ sort: 'name', descending: false })
+    expect(knownOrder('size', undefined)).toEqual({ key: 'size', descending: true })
+    expect(knownOrder('name', 'up')).toEqual({ key: 'name', descending: false })
   })
 
   it('falls back to the queue order, from its first position, for a sort that is not offered', () => {
-    expect(knownOrder('seeds', true)).toEqual({ sort: 'priority', descending: false })
-    expect(knownOrder(undefined, undefined)).toEqual({ sort: 'priority', descending: false })
-  })
-})
-
-describe('clickedOrder', () => {
-  it('reverses the current sort', () => {
-    expect(clickedOrder({ sort: 'size', descending: true }, 'size')).toEqual({ sort: 'size', descending: false })
-    expect(clickedOrder({ sort: 'size', descending: false }, 'size')).toEqual({ sort: 'size', descending: true })
-  })
-
-  it('takes another sort in its usual direction, whatever the current one is in', () => {
-    expect(clickedOrder({ sort: 'name', descending: true }, 'eta')).toEqual({ sort: 'eta', descending: false })
-    expect(clickedOrder({ sort: 'name', descending: false }, 'size')).toEqual({ sort: 'size', descending: true })
+    expect(knownOrder('seeds', true)).toEqual({ key: 'priority', descending: false })
+    expect(knownOrder(undefined, undefined)).toEqual({ key: 'priority', descending: false })
   })
 })

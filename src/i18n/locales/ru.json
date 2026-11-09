@@ -108,7 +108,6 @@
     "sortFilter": "Сортировка и фильтр",
     "sortButton": "Сортировка: {{sort}}",
     "sortTypeButton": "Сортировка: {{sort}}, {{type}}",
-    "sortOrderButton": "Сортировка: {{sort}}, {{direction}}",
     "sortPriorityHint": "Порядок очереди",
     "select": "Выбрать",
     "selected_one": "Выбрано: {{count}}",

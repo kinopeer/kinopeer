@@ -1,4 +1,5 @@
 import type { Release } from '../api/prowlarr'
+import { usualOrder, type SortOrder, type UsualDirections } from '../lib/sortOrder'
 import type { Audio, ReleaseInfo, Resolution, Source } from './parseRelease'
 
 /**
@@ -25,10 +26,7 @@ export interface Filters {
 /** The filters a search starts from, remembered from the last one: all but the indexer. */
 export type RememberedFilters = Omit<Filters, 'indexer'>
 
-export interface Sort {
-  key: SortKey
-  descending: boolean
-}
+export type Sort = SortOrder<SortKey>
 
 /** A release with what its name says about it. */
 export interface ReleaseRow {
@@ -47,7 +45,9 @@ export interface PresentValues {
 export const NO_FILTERS: Filters = { resolution: [], audio: [], source: [], indexer: [], minSeeds: 0 }
 const { indexer: _indexer, ...noRemembered } = NO_FILTERS
 export const NO_REMEMBERED_FILTERS: RememberedFilters = noRemembered
-export const DEFAULT_SORT: Sort = { key: 'seeds', descending: true }
+/** Each sort's usual direction, the one a pick or a column's first click gives: most seeds, largest, newest. */
+export const RELEASES_USUALLY_DESCENDING: UsualDirections<SortKey> = { seeds: true, size: true, date: true }
+export const DEFAULT_SORT: Sort = usualOrder('seeds', RELEASES_USUALLY_DESCENDING)
 export const RESOLUTIONS: ResolutionFilter[] = ['2160p', '1080p', '720p', 'SD', NOT_STATED]
 export const AUDIO: AudioFilter[] = ['dub', 'mvo', 'avo2', 'avo1', 'orig', NOT_STATED, 'subs']
 export const SOURCES: SourceFilter[] = ['REMUX', 'BluRay', 'BDRip', 'WEB-DL', 'WEBRip', 'HDRip', 'HDTV', 'DVD', 'CAM', NOT_STATED]
@@ -180,12 +180,13 @@ export function knownReleaseFilters(stored: unknown): RememberedFilters {
   }
 }
 
-/** A stored sort if it's one the releases have, else the default. */
+/** A stored sort if it's one the releases have, in its usual direction if stored without one, else the default. */
 export function knownReleaseSort(stored: unknown): Sort {
   const sort = stored as Partial<Sort> | null | undefined
-  return sort?.key && SORT_KEYS.includes(sort.key)
-    ? { key: sort.key, descending: typeof sort.descending === 'boolean' ? sort.descending : true }
-    : DEFAULT_SORT
+  if (!sort?.key || !SORT_KEYS.includes(sort.key)) return DEFAULT_SORT
+  return typeof sort.descending === 'boolean'
+    ? { key: sort.key, descending: sort.descending }
+    : usualOrder(sort.key, RELEASES_USUALLY_DESCENDING)
 }
 
 export function toggle<T>(list: T[], value: T): T[] {

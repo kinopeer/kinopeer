@@ -6,11 +6,13 @@ Kinopeer follows [semantic versioning](https://semver.org). While the version is
 
 ### Added
 
+- On desktop, the releases table sorts by a click on the Size, Seeds or Age column's name, and the next click reverses the order, as the Downloads table does. Downloads gets a direction button beside its sort menu, so the poster grid can be reversed too. ([#329](https://github.com/kinopeer/kinopeer/issues/329))
 - Theater rips (CAMRip, HDCAM, TS, TC) show as their own source, CAM («Экранка» in Russian), on the release and in the source filter, instead of "Source not stated". ([#331](https://github.com/kinopeer/kinopeer/issues/331))
 - The release filters for resolution, source and audio offer Not stated when some release's name doesn't say, so releases the other values hide can be shown beside them. ([#316](https://github.com/kinopeer/kinopeer/issues/316))
 
 ### Changed
 
+- Picking another sort for the releases shows it in its usual direction (most seeds, largest, newest) instead of keeping a reversed one, as in Downloads; the direction button reverses it. In desktop Downloads the sort button no longer shows the direction, which its new direction button does. ([#329](https://github.com/kinopeer/kinopeer/issues/329))
 - Releases show their quality and voice-over badges, and match the release filters, for more of the ways indexers name them as Prowlarr passes them on: a single-voice voice-over written as VO, a full Blu-ray disc written as BR-DISK, two voice-over studios written in Latin letters, and English subtitles written as ESub or Subtitles. A torrent in a title's In downloads shows the episodes of a name like `S02E01-S02E05` (S02 E01–05, not S02 E01) or with the season and episode apart, `S02.E01-05` or `S02 E04` (not just S02). ([#317](https://github.com/kinopeer/kinopeer/issues/317))
 - The same thing is worded the same way everywhere: when qBittorrent, Kinopeer, Prowlarr or TMDB doesn't answer, every screen says it "isn't answering"; the folder a torrent's files go to is called Folder; the free space reads "40 GB free"; the file picker's button that clears the choice says Deselect all; the speed limits sheet saves with Save, as the other sheets do; and the Downloads table's title column is called Name, as its sort is.
 

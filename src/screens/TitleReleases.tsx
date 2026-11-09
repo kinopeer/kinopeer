@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next'
 import { Badge } from '../components/Badge'
 import { Button } from '../components/Button'
 import { FilterChip } from '../components/FilterChip'
-import { IconButton } from '../components/IconButton'
 import { Popover } from '../components/Popover'
 import { Segmented } from '../components/Segmented'
+import { SortHeader } from '../components/SortHeader'
 import { useFormatters } from '../lib/format'
 import { MIN_SEEDS, SORT_KEYS, summary, toggle, type ReleaseRow } from '../releases/filterReleases'
 import { seasonCoverage } from '../releases/parseRelease'
@@ -14,6 +14,7 @@ import type { TitleDetails } from '../releases/releaseQuery'
 import { IndexerLink } from './IndexerLink'
 import { ReleaseName } from './ReleaseName'
 import { AddingRelease, ReleasesBody } from './ReleasesBlock'
+import { SortDirectionButton } from './SortDirectionButton'
 import { AUDIO_LABEL, SORT_LABEL, useReleases, type Releases } from './useReleases'
 import './ReleasesScreen.css'
 import './TitleReleases.css'
@@ -107,15 +108,9 @@ export function TitleReleases({ details, sectionRef }: TitleReleasesProps) {
               label={t('common.sort')}
               options={SORT_KEYS.map((key) => ({ value: key, label: t(SORT_LABEL[key]) }))}
               value={sort.key}
-              onChange={(key) => releases.setSort({ ...sort, key })}
+              onChange={releases.pickSort}
             />
-            <IconButton
-              icon="sort-desc"
-              variant="filled"
-              label={t(sort.descending ? 'common.descending' : 'common.ascending')}
-              className={sort.descending ? undefined : 'rel-flip'}
-              onClick={() => releases.setSort({ ...sort, descending: !sort.descending })}
-            />
+            <SortDirectionButton descending={sort.descending} onReverse={releases.reverseSort} />
           </div>
         </div>
       )}
@@ -186,6 +181,7 @@ function FilterPopover({ name, label, selected, open, onOpenChange, children }: 
 
 function ReleasesTable({ releases }: { releases: Releases }) {
   const { t } = useTranslation()
+  const sorting = { order: releases.sort, onSort: releases.clickSort }
   return (
     <div role="table" aria-label={t('releases.title')} className="title-rel-table">
       <div role="row" className="t-cap title-rel-row title-rel-th">
@@ -193,11 +189,17 @@ function ReleasesTable({ releases }: { releases: Releases }) {
         <span role="columnheader" className="title-rel-audio">
           {t('releases.audio')}
         </span>
-        <span role="columnheader">{t('fields.size')}</span>
-        <span role="columnheader">{t('fields.seeds')}</span>
+        <SortHeader sort="size" {...sorting}>
+          {t('fields.size')}
+        </SortHeader>
+        <SortHeader sort="seeds" {...sorting}>
+          {t('fields.seeds')}
+        </SortHeader>
         <span role="columnheader">{t('releases.colPeers')}</span>
         <span role="columnheader">{t('releases.indexer')}</span>
-        <span role="columnheader">{t('releases.colAge')}</span>
+        <SortHeader sort="date" {...sorting}>
+          {t('releases.colAge')}
+        </SortHeader>
         <span role="columnheader">
           <span className="sr-only">{t('add.title')}</span>
         </span>

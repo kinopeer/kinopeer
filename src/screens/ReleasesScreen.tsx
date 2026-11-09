@@ -20,6 +20,7 @@ import { useTmdbLanguage } from '../settings/settings'
 import { IndexerLink } from './IndexerLink'
 import { ReleaseName } from './ReleaseName'
 import { AddingRelease, ReleasesBody } from './ReleasesBlock'
+import { SortDirectionButton } from './SortDirectionButton'
 import { AUDIO_LABEL, SORT_LABEL, useReleases } from './useReleases'
 import './ReleasesScreen.css'
 
@@ -124,7 +125,7 @@ export function ReleasesScreen() {
             <FilterChip
               icon="sort"
               aria-label={`${t('common.sort')}: ${t(SORT_LABEL[sort.key])}, ${t(sort.descending ? 'common.descending' : 'common.ascending')}`}
-              onClick={() => releases.setSort({ ...sort, key: SORT_KEYS[(SORT_KEYS.indexOf(sort.key) + 1) % SORT_KEYS.length] })}
+              onClick={() => releases.pickSort(SORT_KEYS[(SORT_KEYS.indexOf(sort.key) + 1) % SORT_KEYS.length])}
             >
               {t(SORT_LABEL[sort.key])} {sort.descending ? '↓' : '↑'}
             </FilterChip>
@@ -198,15 +199,9 @@ export function ReleasesScreen() {
                 label={t('common.sort')}
                 options={SORT_KEYS.map((key) => ({ value: key, label: t(SORT_LABEL[key]) }))}
                 value={sort.key}
-                onChange={(key) => releases.setSort({ ...sort, key })}
+                onChange={releases.pickSort}
               />
-              <IconButton
-                icon="sort-desc"
-                variant="filled"
-                label={t(sort.descending ? 'common.descending' : 'common.ascending')}
-                className={sort.descending ? undefined : 'rel-flip'}
-                onClick={() => releases.setSort({ ...sort, descending: !sort.descending })}
-              />
+              <SortDirectionButton descending={sort.descending} onReverse={releases.reverseSort} />
             </div>
           </div>
         </div>

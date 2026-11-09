@@ -3,10 +3,10 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { posterUrl } from '../api/tmdb'
 import { Checkbox } from '../components/Checkbox'
-import { Icon } from '../components/Icon'
 import { IconButton } from '../components/IconButton'
 import { Poster } from '../components/Poster'
 import { ProgressBar } from '../components/ProgressBar'
+import { SortHeader } from '../components/SortHeader'
 import { StatusChip } from '../components/StatusChip'
 import { cx } from '../lib/cx'
 import { useFormatters } from '../lib/format'
@@ -20,36 +20,6 @@ interface SortProps {
   order: DownloadOrder
   /** A sortable column's header was clicked. */
   onSort: (sort: DownloadSort) => void
-}
-
-/** A sortable column's header: a button, with an arrow and `aria-sort` while the list is in its order. */
-function SortHeader({
-  sort,
-  order,
-  onSort,
-  label,
-  className,
-  children,
-}: SortProps & { sort: DownloadSort; label?: string; className?: string; children: string }) {
-  const sorted = order.sort === sort
-  const direction = order.descending ? 'descending' : 'ascending'
-  return (
-    <span role="columnheader" className={className} aria-sort={sorted ? direction : undefined}>
-      <button type="button" className={cx('dl-sort', sorted && 'is-on')} onClick={() => onSort(sort)}>
-        {children}
-        {/* After the visible text rather than in place of it, so voice control finds the button by what it shows. */}
-        {/* The space outside the span: whitespace inside it is trimmed from the name. A whitespace-only
-            flex item isn't rendered, so the gap stays as it is. */}
-        {label && (
-          <>
-            {' '}
-            <span className="sr-only">{label}</span>
-          </>
-        )}
-        {sorted && <Icon name={order.descending ? 'arrow-down' : 'arrow-up'} size={14} strokeWidth={2.4} />}
-      </button>
-    </span>
-  )
 }
 
 /**

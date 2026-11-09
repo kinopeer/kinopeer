@@ -14,12 +14,13 @@ import { Segmented } from '../components/Segmented'
 import { useToast } from '../components/Toast'
 import { cx } from '../lib/cx'
 import { useFormatters } from '../lib/format'
+import { clickedOrder, reversedOrder, usualOrder } from '../lib/sortOrder'
 import { useHeightVar } from '../lib/useHeightVar'
 import { useIsDesktop } from '../lib/useIsDesktop'
 import { useScrollRestoration } from '../lib/useScrollRestoration'
 import { useSettings } from '../settings/settings'
 import { freeSpace } from '../torrents/freeSpace'
-import { clickedOrder, compareTorrents, usualOrder, type DownloadOrder, type DownloadSort } from '../torrents/sort'
+import { DOWNLOADS_USUALLY_DESCENDING, compareTorrents, type DownloadOrder, type DownloadSort } from '../torrents/sort'
 import { STATUS_FILTERS, matchesFilter, type StatusFilter } from '../torrents/status'
 import { useServerMatches } from '../torrents/serverMatches'
 import { TYPE_FILTERS, isGuessed, titleType, useTitleMatches, type TypeFilter } from '../torrents/titleMatches'
@@ -31,6 +32,7 @@ import { DownloadRow, DownloadRowHeader } from './DownloadRow'
 import { InstallCard } from './InstallCard'
 import { OfflineBanner } from './OfflineBanner'
 import { PollRing } from './PollRing'
+import { SortDirectionButton } from './SortDirectionButton'
 import { SortMenu, SortSheet } from './SortSheet'
 import { StatusMenu } from './StatusMenu'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
@@ -81,14 +83,14 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   const setView = (next: 'list' | 'grid') =>
     updateSettings(isDesktop ? { downloadsDesktopView: next } : { downloadsView: next })
   const grid = view === 'grid'
-  // The direction is desktop's alone, where the column headers and the sort button show it; the
+  // The direction is desktop's alone, where the column headers and the direction button show it; the
   // phone's sort sheet has none, so the list there is in the sort's usual direction.
-  const descending = isDesktop ? downloadsSortDescending : usualOrder(sort).descending
-  const order = useMemo(() => ({ sort, descending }), [sort, descending])
+  const descending = isDesktop ? downloadsSortDescending : DOWNLOADS_USUALLY_DESCENDING[sort]
+  const order = useMemo<DownloadOrder>(() => ({ key: sort, descending }), [sort, descending])
   const setOrder = (next: DownloadOrder) =>
-    updateSettings({ downloadsSort: next.sort, downloadsSortDescending: next.descending })
+    updateSettings({ downloadsSort: next.key, downloadsSortDescending: next.descending })
   // A pick from the menu or the sheet is that sort in its usual direction.
-  const pickSort = (next: DownloadSort) => setOrder(usualOrder(next))
+  const pickSort = (next: DownloadSort) => setOrder(usualOrder(next, DOWNLOADS_USUALLY_DESCENDING))
   const [sortOpen, setSortOpen] = useState(false)
   const [sortAnchor, setSortAnchor] = useState<HTMLElement | null>(null)
   const [filter, setFilter] = useState<StatusFilter>('all')
@@ -345,20 +347,18 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
         <Button
           variant="secondary"
           size="sm"
-          // Its icon shows the direction, upside down for ascending, as the releases' direction button does.
-          icon="sort-desc"
-          className={cx('downloads-sort', !descending && 'is-ascending')}
+          icon="sort"
+          className="downloads-sort"
           aria-haspopup="menu"
           aria-expanded={sortAnchor !== null}
-          aria-label={t('downloads.sortOrderButton', {
-            sort: t(`fields.${sort}`),
-            direction: t(descending ? 'common.descending' : 'common.ascending'),
-          })}
+          aria-label={t('downloads.sortButton', { sort: t(`fields.${sort}`) })}
           onClick={(event) => setSortAnchor(sortAnchor ? null : event.currentTarget)}
         >
           {t(`fields.${sort}`)}
           <Icon name="chevron-down" size={14} />
         </Button>
+        {/* Beside the menu rather than in it, as in the releases' sort bar: the grid has no column names to reverse by. */}
+        <SortDirectionButton size="sm" descending={descending} onReverse={() => setOrder(reversedOrder(order))} />
         {viewSwitch}
       </div>
     </header>
@@ -491,7 +491,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
                 selecting={selecting}
                 queue={queueColumn}
                 order={order}
-                onSort={(next) => setOrder(clickedOrder(order, next))}
+                onSort={(next) => setOrder(clickedOrder(order, next, DOWNLOADS_USUALLY_DESCENDING))}
               />
             </div>
             <div role="rowgroup" className="dl-table-body">

@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ProwlarrSetupError, getFailingIndexers, searchReleases, type Release } from '../api/prowlarr'
+import { clickedOrder, reversedOrder, usualOrder } from '../lib/sortOrder'
 import { useRequest } from '../lib/useRequest'
 import {
   NOT_STATED,
   NO_FILTERS,
   NO_REMEMBERED_FILTERS,
+  RELEASES_USUALLY_DESCENDING,
   filterReleases,
   presentValues,
   remember,
@@ -19,6 +21,7 @@ import {
   type RememberedFilters,
   type ResolutionFilter,
   type Sort,
+  type SortKey,
   type SourceFilter,
 } from '../releases/filterReleases'
 import { parseRelease } from '../releases/parseRelease'
@@ -67,7 +70,12 @@ export interface Releases {
   /** Forgets the remembered filters this search doesn't apply. */
   forgetAside: () => void
   sort: Sort
-  setSort: (sort: Sort) => void
+  /** A pick of a sort beside the list: that sort in its usual direction, the current one included. */
+  pickSort: (key: SortKey) => void
+  /** A click on a sort's column: the current sort reversed, another in its usual direction. */
+  clickSort: (key: SortKey) => void
+  /** The direction button: the same sort the other way. */
+  reverseSort: () => void
   /** Filter values as the screens show them: resolutions and sources as named, but Not stated. */
   resolutionLabel: (value: ResolutionFilter) => string
   audioLabel: (value: AudioFilter) => string
@@ -189,7 +197,9 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
     aside,
     forgetAside: () => updateSettings({ releaseFilters: applied }),
     sort,
-    setSort: (releaseSort) => updateSettings({ releaseSort }),
+    pickSort: (sortKey) => updateSettings({ releaseSort: usualOrder(sortKey, RELEASES_USUALLY_DESCENDING) }),
+    clickSort: (sortKey) => updateSettings({ releaseSort: clickedOrder(sort, sortKey, RELEASES_USUALLY_DESCENDING) }),
+    reverseSort: () => updateSettings({ releaseSort: reversedOrder(sort) }),
     resolutionLabel,
     audioLabel,
     sourceLabel,
