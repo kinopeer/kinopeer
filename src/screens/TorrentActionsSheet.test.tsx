@@ -306,9 +306,7 @@ describe('TorrentActionsSheet on desktop', () => {
 
 describe('TorrentActionsSheet on a phone', () => {
   beforeEach(() => {
-    // Not cleanup: it takes back the desktop matchMedia the file's beforeEach stubs, so the phone layout renders.
-    // oxlint-disable-next-line no-restricted-properties
-    vi.unstubAllGlobals()
+    stubDesktop(false)
   })
 
   it('is a sheet without an anchor or on a phone', async () => {

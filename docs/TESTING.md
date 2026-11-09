@@ -312,9 +312,9 @@ the top of the file: there it's gone by the first test, which then runs without 
 every later test in the file (#243). A test doesn't clean up what Vitest puts back: oxlint stops
 `vi.restoreAllMocks()`, `vi.unstubAllGlobals()` and `vi.unstubAllEnvs()` ([Lint rules for
 tests](#lint-rules-for-tests)), and a new test doesn't write a spy's `mockRestore()` for it either,
-while the ones already in the tree do nothing now and go when their file is next changed. A call
-that is a step rather than cleanup, taking back a stub the file's `beforeEach` made so the phone
-layout renders, keeps an `oxlint-disable-next-line` under a comment that says so.
+while the ones already in the tree do nothing now and go when their file is next changed. A test
+that needs another answer than the stub its file's `beforeEach` made stubs it again, through the
+helper's other answer (`stubDesktop(false)` for the phone layout), rather than undoing it.
 
 The Seen red column is the author's word, and the review can only read the tests for these shapes;
 the survivors in CI's report are not.
