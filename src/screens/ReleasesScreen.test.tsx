@@ -75,12 +75,15 @@ describe('ReleasesScreen', () => {
     expect(within(top).getByLabelText('2451 seeders')).toBeInTheDocument()
   })
 
-  // The walk through the sorts is useReleases' test's; this is the chip's wiring.
-  it('turns the sort the other way from its chip', async () => {
+  // The walk through the sorts is useReleases' test's; this is the chip's wiring to it.
+  it('turns the sort the other way from its chip, then goes on to the next sort', async () => {
     renderAt('/title/movie/693134/releases')
     await userEvent.click(await screen.findByRole('button', { name: 'Sort: Seeds, Descending' }))
     expect(screen.getByRole('button', { name: 'Sort: Seeds, Ascending' })).toHaveTextContent('Seeds ↑')
     expect(names()).toEqual([DUNE_RELEASES[2].title, DUNE_RELEASES[0].title, DUNE_RELEASES[1].title])
+    // The second press tells the walk from the direction button's plain reverse.
+    await userEvent.click(screen.getByRole('button', { name: 'Sort: Seeds, Ascending' }))
+    expect(screen.getByRole('button', { name: 'Sort: Size, Descending' })).toBeInTheDocument()
   })
 
   it('picks the sort and its direction in the sheet', async () => {
