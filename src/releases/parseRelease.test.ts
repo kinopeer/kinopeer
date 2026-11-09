@@ -67,7 +67,7 @@ describe('parseRelease', () => {
     // Only the audio was recorded in the cinema; the picture is what the name says.
     ['Дюна: Часть вторая (2024) WEB-DL 1080p | Звук с TS', 'WEB-DL'],
     ['Дюна: Часть вторая (2024) 1080p | Звук с TS', undefined],
-    ['Дюна: Часть вторая (2024) BDRip 1080p | Дубляж, звук из TS', 'BDRip'],
+    ['Дюна: Часть вторая (2024) 1080p | Дубляж, звук из TS', undefined],
     // Said another way, the audio note still reads as TS, but the real source named beside it wins.
     ['Dune.Part.Two.2024.720p.HDRip.x264.TS.Audio', 'HDRip'],
     ['Дюна: Часть вторая (2024) WEB-DLRip 720p | Звук: TS', 'WEBRip'],
