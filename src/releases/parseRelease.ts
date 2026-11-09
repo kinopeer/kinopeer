@@ -47,7 +47,7 @@ const SOURCES: [Source, RegExp][] = [
   ['DVD', word('dvd(?:rip|5|9)?')],
   // Last, so a name with a real source keeps it. Not a bare CAM, which is also a film's name, and
   // not TS where the name says only the audio comes from one ("Звук с TS").
-  ['CAM', new RegExp(`(?<!звук\\s+(?:с|из)\\s+)${EDGE_START}(?:cam-?rip|hdcam|(?:hd-?)?ts(?:rip)?|telesynch?|(?:hd-?)?tc|telecine)${EDGE_END}`, 'iu')],
+  ['CAM', new RegExp(`(?<!звук\\s+(?:с|из)\\s+)${EDGE_START}(?:cam-?rip|hdcam|(?:hd)?ts(?:rip)?|telesynch?|(?:hd)?tc|telecine)${EDGE_END}`, 'iu')],
 ]
 
 const CODECS: [Codec, RegExp][] = [

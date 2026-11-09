@@ -54,7 +54,7 @@ describe('parseRelease', () => {
     'Dune Part Two 2024 TeleSync',
     'Дюна: Часть вторая (2024) TeleSynch',
     'Dune.Part.Two.2024.TC.XviD',
-    'Dune Part Two 2024 HD-TC 720p',
+    'Dune Part Two 2024 HDTC 720p',
     'Dune Part Two 2024 TeleCine 720p',
   ])('reads %s as a theater rip', (title) => {
     expect(parseRelease(title).source).toBe('CAM')
