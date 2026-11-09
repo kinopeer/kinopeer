@@ -716,7 +716,7 @@ describe('DownloadsScreen selection', () => {
 
   // #324: on a phone the totals stayed in the header above the pinned bar, so the selection's row
   // moved under them; the totals now give way to it, as they do on desktop.
-  it('hides the totals while selecting, so the selection’s row takes the title’s place on top', async () => {
+  it('hides the totals while selecting and brings them back on Cancel', async () => {
     renderScreen()
     await userEvent.click(await screen.findByRole('button', { name: 'Select' }))
     expect(screen.getByRole('heading', { name: '0 selected' })).toBeInTheDocument()
