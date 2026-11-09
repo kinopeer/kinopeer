@@ -287,11 +287,16 @@ class UpstreamError extends Error {
 /**
  * Whether Prowlarr at `base` takes `apiKey`: 'invalid' when it answers 401, 'not-prowlarr' when
  * the answer isn't Prowlarr's status (a proxy's login page, an app's index.html). Throws when it
- * doesn't answer or answers with another error.
+ * doesn't answer, answers with another error, or `signal` aborts first.
  */
-export async function checkProwlarrKey(base: string, apiKey: string): Promise<'valid' | 'invalid' | 'not-prowlarr'> {
+export async function checkProwlarrKey(
+  base: string,
+  apiKey: string,
+  signal?: AbortSignal,
+): Promise<'valid' | 'invalid' | 'not-prowlarr'> {
   const response = await fetch(`${base}/api/v1/system/status`, {
     headers: { 'X-Api-Key': apiKey, Accept: 'application/json' },
+    signal,
   })
   if (response.status === 401) return 'invalid'
   if (!response.ok) throw new Error(`Prowlarr answered ${response.status}`)

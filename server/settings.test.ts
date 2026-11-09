@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { ServerSettings } from '../src/api/settings/types.ts'
 import { SettingsStore, prowlarrKey, qbittorrentCredentials, settingsMiddleware, tmdbKey } from './settings.ts'
-import { closeServers, fakeProwlarr, fakeQbittorrent, fakeTmdb, serve } from './test/fakes.ts'
+import { abandon, closeServers, fakeProwlarr, fakeQbittorrent, fakeTmdb, serve, settlesWithin, silentService } from './test/fakes.ts'
 
 let dir: string
 
@@ -20,13 +20,14 @@ afterEach(async () => {
 /** Kinopeer's side: the middleware under test, with the environment a test wants. */
 function kinopeer(
   store: SettingsStore,
-  options: { envKey?: string; apiBase?: string; proxy?: string; qbittorrentUrl?: string; envUser?: string } = {},
+  options: { envKey?: string; apiBase?: string; timeoutMs?: number; proxy?: string; qbittorrentUrl?: string; envUser?: string } = {},
 ) {
   return serve(
     settingsMiddleware({
       store,
       envTmdbApiKey: options.envKey,
       tmdbApiBase: options.apiBase,
+      tmdbTimeoutMs: options.timeoutMs,
       tmdbProxy: options.proxy,
       qbittorrentUrl: options.qbittorrentUrl,
       envQbittorrent: { username: options.envUser, password: 'adminadmin' },
@@ -276,6 +277,33 @@ describe('settingsMiddleware', () => {
     expect(await response.json()).toEqual({ error: 'unreachable' })
   })
 
+  /** The PUT a browser sends to save `apiKey`. */
+  const saving = (apiKey: string): RequestInit => ({
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ apiKey }),
+  })
+
+  it('gives up checking the key with TMDB when the browser gives up on saving it', async () => {
+    const tmdb = await silentService()
+    const app = await kinopeer(new SettingsStore(dir), { apiBase: `${tmdb.base}/3` })
+
+    await abandon(`${app}/api/settings/tmdb`, tmdb.received, saving('good-key'))
+
+    expect(await settlesWithin(tmdb.closed, 1000)).toBe(true)
+  })
+
+  it('says TMDB is unreachable when it doesn’t answer the key check in time, and gives the check up', async () => {
+    const tmdb = await silentService()
+    const app = await kinopeer(new SettingsStore(dir), { apiBase: `${tmdb.base}/3`, timeoutMs: 50 })
+
+    const response = await putKey(app, 'good-key')
+
+    expect(response.status).toBe(502)
+    expect(await response.json()).toEqual({ error: 'unreachable' })
+    expect(await settlesWithin(tmdb.closed, 1000)).toBe(true)
+  })
+
   it('rejects malformed requests', async () => {
     const tmdb = await fakeTmdb()
     const app = await kinopeer(new SettingsStore(dir), { apiBase: tmdb.apiBase })
@@ -405,6 +433,19 @@ describe('settingsMiddleware: Prowlarr key', () => {
   function forget(base: string) {
     return fetch(`${base}/api/settings/prowlarr`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } })
   }
+
+  it('gives up checking the key with Prowlarr when the browser gives up on saving it', async () => {
+    const prowlarr = await silentService()
+    const base = await app(new SettingsStore(dir), { url: prowlarr.base })
+
+    await abandon(`${base}/api/settings/prowlarr`, prowlarr.received, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey: 'key' }),
+    })
+
+    expect(await settlesWithin(prowlarr.closed, 1000)).toBe(true)
+  })
 
   async function prowlarrStatus(base: string) {
     return ((await (await fetch(`${base}/api/settings`)).json()) as ServerSettings).prowlarr

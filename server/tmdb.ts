@@ -26,13 +26,14 @@ export interface TmdbConfig {
   /** Overridable for tests. */
   apiBase?: string
   imageBase?: string
-  /** How long a call or an image may take; TMDB_TIMEOUT_MS by default. */
+  /** How long a call or an image may take to start answering; TMDB_TIMEOUT_MS by default. */
   timeoutMs?: number
 }
 
 const API_BASE = 'https://api.themoviedb.org/3'
 /**
- * How long a call or an image may take before it's given up with a 504: as long as the client's
+ * How long a call or an image may take to start answering before it's given up with a 504 (its
+ * body may then take longer): as long as the client's
  * title lookups wait (LOOKUP_TIMEOUT_MS), so a hung TMDB or proxy holds no connection for longer.
  */
 export const TMDB_TIMEOUT_MS = 15_000
@@ -75,10 +76,10 @@ function authorize(key: string, url: string): { url: string; headers: Record<str
   return { url: `${url}${url.includes('?') ? '&' : '?'}api_key=${encodeURIComponent(key)}`, headers: {} }
 }
 
-/** Whether TMDB accepts `key`. Rejects when TMDB can't be reached. */
-export async function checkTmdbKey(key: string, apiBase = API_BASE): Promise<boolean> {
+/** Whether TMDB accepts `key`. Rejects when TMDB can't be reached, or `signal` aborts first. */
+export async function checkTmdbKey(key: string, apiBase = API_BASE, signal?: AbortSignal): Promise<boolean> {
   const { url, headers } = authorize(key, `${apiBase}/authentication`)
-  const response = await fetch(url, { headers: { ...headers, Accept: 'application/json' } })
+  const response = await fetch(url, { headers: { ...headers, Accept: 'application/json' }, signal })
   if (response.status === 401) return false
   if (!response.ok) throw new Error(`TMDB responded ${response.status}`)
   return true
@@ -91,9 +92,11 @@ async function forward(
   request: IncomingMessage,
   response: ServerResponse,
   signal: AbortSignal,
+  answered: () => void,
 ) {
   if (request.headers.accept) headers.Accept = request.headers.accept
   const upstream = await fetch(url, { method: request.method === 'HEAD' ? 'HEAD' : 'GET', headers, signal })
+  answered()
   response.statusCode = upstream.status
   response.setHeader('Content-Type', contentType(upstream.headers.get('content-type'), isApi))
   for (const name of RESPONSE_HEADERS) {
@@ -136,12 +139,15 @@ export function tmdbMiddleware(config: TmdbConfig): Middleware {
       else return fail(401, 'The TMDB API key is not set')
     }
 
-    const timeout = AbortSignal.timeout(timeoutMs)
-    const signal = AbortSignal.any([abandoned(response), timeout])
+    // The time limit is for the answer to start: a body that streams longer, such as an image to a
+    // slow phone, isn't cut off.
+    const timeout = new AbortController()
+    const timer = setTimeout(() => timeout.abort(), timeoutMs)
+    const signal = AbortSignal.any([abandoned(response), timeout.signal])
     // Errors never echo the upstream URL: it may contain the key.
-    forward(target.url, target.headers, isApi, request, response, signal).catch(() => {
+    forward(target.url, target.headers, isApi, request, response, signal, () => clearTimeout(timer)).catch(() => {
       if (response.headersSent) response.destroy()
-      else if (timeout.aborted) fail(504, 'TMDB didn’t answer in time')
+      else if (timeout.signal.aborted) fail(504, 'TMDB didn’t answer in time')
       else fail(502, 'TMDB is unreachable')
     })
   }

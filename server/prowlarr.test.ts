@@ -11,10 +11,7 @@ const KEY = 'secret-key-123'
 /** Kinopeer's side: the middleware under test. */
 const kinopeer = (config: ProwlarrConfig) => serve(prowlarrMiddleware(config))
 
-afterEach(async () => {
-  vi.restoreAllMocks()
-  await closeServers()
-})
+afterEach(closeServers)
 
 describe('downloadToken', () => {
   it('keeps the indexer and link but drops the API key', () => {

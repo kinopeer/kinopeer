@@ -156,6 +156,20 @@ describe('tmdbMiddleware', () => {
     expect(await response.text()).not.toContain('abc123')
   })
 
+  it('lets an answer that started in time finish, however long its body takes', async () => {
+    const images = await listen((_request, response) => {
+      response.setHeader('Content-Type', 'image/jpeg')
+      response.write(Buffer.alloc(1000, 1))
+      setTimeout(() => response.end(Buffer.alloc(1000, 2)), 150)
+    })
+    const app = await kinopeer({ imageBase: images, timeoutMs: 50 })
+
+    const response = await fetch(`${app}/tmdb-img/w342/poster.jpg`)
+
+    expect(response.status).toBe(200)
+    expect((await response.arrayBuffer()).byteLength).toBe(2000)
+  })
+
   it('passes a HEAD on as a HEAD', async () => {
     const methods: (string | undefined)[] = []
     const images = await listen((request, response) => {
