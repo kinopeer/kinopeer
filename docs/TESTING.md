@@ -415,7 +415,7 @@ phone check on `preview-lan` did; three `implementation` → review the mocks in
 rule. The same count also runs over review findings, more often:
 [Improving the system](#improving-the-system).
 
-Two rules next to this one:
+Rules next to this one:
 
 - A bug seen on the test stand or on Umbrel is an issue with the steps and the environment first,
   then a `fix/` branch; not a fix from memory.
@@ -425,7 +425,9 @@ Two rules next to this one:
 - Behavior that works as intended (as `SPEC.md` describes it) but turned out a poor choice is not a
   bug either: it's an issue of the Feature type, worked on in a `feat/` branch, with no `test-gap`
   label and no "Why tests missed it" section in the PR. The issue's Type field says which case it
-  is, not the wording of its text; without a type, comparing the behavior with `SPEC.md` decides.
+  is, not the wording of its text. The bug form gives every report the Bug type, so whether it is
+  one is the call of whoever files the issue, and whoever works on it may still change the type
+  after comparing the behavior with `SPEC.md`; without a type, that comparison decides.
   #316 (the release filters hid releases whose name the parser couldn't read) was a Feature.
 
 In practice: #107 (Escape in the delete confirmation closed the drawer too) was found by the delete
