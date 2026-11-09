@@ -108,7 +108,6 @@
     "sortFilter": "Sort & filter",
     "sortButton": "Sort: {{sort}}",
     "sortTypeButton": "Sort: {{sort}}, {{type}}",
-    "sortOrderButton": "Sort: {{sort}}, {{direction}}",
     "sortPriorityHint": "Queue order",
     "select": "Select",
     "selected_one": "{{count}} selected",

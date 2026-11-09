@@ -11,15 +11,17 @@ import { IconButton } from '../components/IconButton'
 import { Input } from '../components/Input'
 import { PosterCardSkeleton } from '../components/PosterCard'
 import { Segmented } from '../components/Segmented'
+import { SortDirectionButton } from '../components/SortDirectionButton'
 import { useToast } from '../components/Toast'
 import { cx } from '../lib/cx'
 import { useFormatters } from '../lib/format'
+import { clickedOrder, reversedOrder, usualOrder } from '../lib/sortOrder'
 import { useHeightVar } from '../lib/useHeightVar'
 import { useIsDesktop } from '../lib/useIsDesktop'
 import { useScrollRestoration } from '../lib/useScrollRestoration'
 import { useSettings } from '../settings/settings'
 import { freeSpace } from '../torrents/freeSpace'
-import { clickedOrder, compareTorrents, usualOrder, type DownloadOrder, type DownloadSort } from '../torrents/sort'
+import { DOWNLOADS_USUALLY_DESCENDING, compareTorrents, type DownloadOrder, type DownloadSort } from '../torrents/sort'
 import { STATUS_FILTERS, matchesFilter, type StatusFilter } from '../torrents/status'
 import { useServerMatches } from '../torrents/serverMatches'
 import { TYPE_FILTERS, isGuessed, titleType, useTitleMatches, type TypeFilter } from '../torrents/titleMatches'
@@ -75,20 +77,17 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
   // The desktop header stays at the top while the list scrolls, and the table's column names stick
   // right under it: its height (the filters wrap, the offline banner comes and goes) is theirs in CSS.
   const headRef = useHeightVar('--downloads-head')
-  const [{ downloadsView, downloadsDesktopView, downloadsSort: sort, downloadsSortDescending }, updateSettings] = useSettings()
+  const [{ downloadsView, downloadsDesktopView, downloadsSort: sort, downloadsSortDescending: descending }, updateSettings] = useSettings()
   // Each layout remembers its own view: the desktop's list is a table, and its grid is the default.
   const view = isDesktop ? downloadsDesktopView : downloadsView
   const setView = (next: 'list' | 'grid') =>
     updateSettings(isDesktop ? { downloadsDesktopView: next } : { downloadsView: next })
   const grid = view === 'grid'
-  // The direction is desktop's alone, where the column headers and the sort button show it; the
-  // phone's sort sheet has none, so the list there is in the sort's usual direction.
-  const descending = isDesktop ? downloadsSortDescending : usualOrder(sort).descending
-  const order = useMemo(() => ({ sort, descending }), [sort, descending])
+  const order = useMemo<DownloadOrder>(() => ({ key: sort, descending }), [sort, descending])
   const setOrder = (next: DownloadOrder) =>
-    updateSettings({ downloadsSort: next.sort, downloadsSortDescending: next.descending })
+    updateSettings({ downloadsSort: next.key, downloadsSortDescending: next.descending })
   // A pick from the menu or the sheet is that sort in its usual direction.
-  const pickSort = (next: DownloadSort) => setOrder(usualOrder(next))
+  const pickSort = (next: DownloadSort) => setOrder(usualOrder(next, DOWNLOADS_USUALLY_DESCENDING))
   const [sortOpen, setSortOpen] = useState(false)
   const [sortAnchor, setSortAnchor] = useState<HTMLElement | null>(null)
   const [filter, setFilter] = useState<StatusFilter>('all')
@@ -302,6 +301,33 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
     />
   )
 
+  // The sort and its direction, the same on both layouts: the sort opens as a menu on desktop and as
+  // the sheet on a phone, which also has the type, so its pick shows on the button there.
+  const sortControls = (
+    <div className="downloads-sort">
+      <Button
+        variant="secondary"
+        size="sm"
+        icon="sort"
+        aria-haspopup={isDesktop ? 'menu' : 'dialog'}
+        aria-expanded={isDesktop ? sortAnchor !== null : undefined}
+        aria-label={
+          isDesktop || type === 'all'
+            ? t('downloads.sortButton', { sort: t(`fields.${sort}`) })
+            : t('downloads.sortTypeButton', { sort: t(`fields.${sort}`), type: t(`types.${type}`) })
+        }
+        onClick={(event) => (isDesktop ? setSortAnchor(sortAnchor ? null : event.currentTarget) : setSortOpen(true))}
+      >
+        {/* The name gives way on a narrow phone, where the type's badge sits beside it. */}
+        <span className="ks-trunc">{t(`fields.${sort}`)}</span>
+        {!isDesktop && type !== 'all' && <Badge className="downloads-type">{t(`types.${type}`)}</Badge>}
+        <Icon name="chevron-down" size={14} />
+      </Button>
+      {/* Beside the sort rather than in its menu or sheet, as in the releases' sort bar: the grid has no column names to reverse by. */}
+      <SortDirectionButton size="sm" descending={descending} onReverse={() => setOrder(reversedOrder(order))} />
+    </div>
+  )
+
   const header = isDesktop ? (
     // Desktop: the whole header stays at the top. The name filter always shows, while selecting too,
     // so Select all takes only what it shows; the status and the sort are menus, so the controls fit
@@ -342,23 +368,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           value={type}
           onChange={setType}
         />
-        <Button
-          variant="secondary"
-          size="sm"
-          // Its icon shows the direction, upside down for ascending, as the releases' direction button does.
-          icon="sort-desc"
-          className={cx('downloads-sort', !descending && 'is-ascending')}
-          aria-haspopup="menu"
-          aria-expanded={sortAnchor !== null}
-          aria-label={t('downloads.sortOrderButton', {
-            sort: t(`fields.${sort}`),
-            direction: t(descending ? 'common.descending' : 'common.ascending'),
-          })}
-          onClick={(event) => setSortAnchor(sortAnchor ? null : event.currentTarget)}
-        >
-          {t(`fields.${sort}`)}
-          <Icon name="chevron-down" size={14} />
-        </Button>
+        {sortControls}
         {viewSwitch}
       </div>
     </header>
@@ -415,22 +425,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
         {chips}
 
         <div className="downloads-toolbar">
-          <Button
-            variant="ghost"
-            size="sm"
-            icon="sort"
-            className="downloads-sort"
-            aria-haspopup="dialog"
-            aria-label={
-              type === 'all'
-                ? t('downloads.sortButton', { sort: t(`fields.${sort}`) })
-                : t('downloads.sortTypeButton', { sort: t(`fields.${sort}`), type: t(`types.${type}`) })
-            }
-            onClick={() => setSortOpen(true)}
-          >
-            {t(`fields.${sort}`)}
-            {type !== 'all' && <Badge className="downloads-type">{t(`types.${type}`)}</Badge>}
-          </Button>
+          {sortControls}
           {viewSwitch}
         </div>
       </div>
@@ -491,7 +486,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
                 selecting={selecting}
                 queue={queueColumn}
                 order={order}
-                onSort={(next) => setOrder(clickedOrder(order, next))}
+                onSort={(next) => setOrder(clickedOrder(order, next, DOWNLOADS_USUALLY_DESCENDING))}
               />
             </div>
             <div role="rowgroup" className="dl-table-body">

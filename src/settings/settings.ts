@@ -37,7 +37,7 @@ export interface Settings {
   downloadsDesktopView: 'list' | 'grid'
   /** How the downloads list is ordered. */
   downloadsSort: DownloadSort
-  /** Its direction, which only desktop shows and changes; set together with the sort. */
+  /** Its direction; set together with the sort. */
   downloadsSortDescending: boolean
   /** The release filters picked last, which the next title's search starts from. */
   releaseFilters: RememberedFilters
@@ -87,7 +87,7 @@ function read(): Settings {
       ...DEFAULT_SETTINGS,
       ...stored,
       // Checked here, so a value from another version or a hand edit can't break a screen that reads them.
-      downloadsSort: order.sort,
+      downloadsSort: order.key,
       downloadsSortDescending: order.descending,
       releaseFilters: knownReleaseFilters(stored.releaseFilters),
       releaseSort: knownReleaseSort(stored.releaseSort),

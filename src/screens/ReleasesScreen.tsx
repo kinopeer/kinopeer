@@ -10,6 +10,7 @@ import { Icon } from '../components/Icon'
 import { IconButton } from '../components/IconButton'
 import { Segmented } from '../components/Segmented'
 import { Sheet } from '../components/Sheet'
+import { SortDirectionButton } from '../components/SortDirectionButton'
 import { useFormatters } from '../lib/format'
 import { useRequest } from '../lib/useRequest'
 import { MIN_SEEDS, SORT_KEYS, summary, toggle, type ReleaseRow } from '../releases/filterReleases'
@@ -112,6 +113,14 @@ export function ReleasesScreen() {
             <FilterChip solid icon="filter" selected={active.length > 0} count={active.length || undefined} onClick={() => setSheetOpen(true)}>
               {t('releases.filters')}
             </FilterChip>
+            {/* A press turns the sort the other way, the next one goes on to the next sort. */}
+            <FilterChip
+              icon="sort"
+              aria-label={`${t('common.sort')}: ${t(SORT_LABEL[sort.key])}, ${t(sort.descending ? 'common.descending' : 'common.ascending')}`}
+              onClick={releases.cycleSort}
+            >
+              {t(SORT_LABEL[sort.key])} {sort.descending ? '↓' : '↑'}
+            </FilterChip>
             <FilterChip selected={filters.resolution.length > 0} trailingIcon="chevron-down" onClick={() => setSheetOpen(true)}>
               {summary(filters.resolution, t('releases.resolution'), resolutionLabel)}
             </FilterChip>
@@ -120,13 +129,6 @@ export function ReleasesScreen() {
             </FilterChip>
             <FilterChip selected={filters.source.length > 0} trailingIcon="chevron-down" onClick={() => setSheetOpen(true)}>
               {summary(filters.source, t('releases.source'), sourceLabel)}
-            </FilterChip>
-            <FilterChip
-              icon="sort"
-              aria-label={`${t('common.sort')}: ${t(SORT_LABEL[sort.key])}, ${t(sort.descending ? 'common.descending' : 'common.ascending')}`}
-              onClick={() => releases.setSort({ ...sort, key: SORT_KEYS[(SORT_KEYS.indexOf(sort.key) + 1) % SORT_KEYS.length] })}
-            >
-              {t(SORT_LABEL[sort.key])} {sort.descending ? '↓' : '↑'}
             </FilterChip>
           </div>
         )}
@@ -198,15 +200,9 @@ export function ReleasesScreen() {
                 label={t('common.sort')}
                 options={SORT_KEYS.map((key) => ({ value: key, label: t(SORT_LABEL[key]) }))}
                 value={sort.key}
-                onChange={(key) => releases.setSort({ ...sort, key })}
+                onChange={releases.pickSort}
               />
-              <IconButton
-                icon="sort-desc"
-                variant="filled"
-                label={t(sort.descending ? 'common.descending' : 'common.ascending')}
-                className={sort.descending ? undefined : 'rel-flip'}
-                onClick={() => releases.setSort({ ...sort, descending: !sort.descending })}
-              />
+              <SortDirectionButton descending={sort.descending} onReverse={releases.reverseSort} />
             </div>
           </div>
         </div>

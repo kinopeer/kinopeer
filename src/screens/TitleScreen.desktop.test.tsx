@@ -214,6 +214,48 @@ describe('TitleScreen on desktop', () => {
     expect(names()).toEqual([DUNE_RELEASES[2].title, DUNE_RELEASES[1].title, DUNE_RELEASES[0].title])
   })
 
+  it('sorts by the Size, Seeds and Age columns’ names, showing the same order in the sort bar', async () => {
+    renderAt('/title/movie/693134/releases')
+    await screen.findByText('3 of 3 releases')
+    const table = within(screen.getByRole('table', { name: 'Releases' }))
+    const sorted = () =>
+      table
+        .getAllByRole('columnheader')
+        .filter((header) => header.hasAttribute('aria-sort'))
+        .map((header) => [header.textContent, header.getAttribute('aria-sort')])
+    // Only those three sort: the releases have no other sort keys.
+    expect(table.getAllByRole('columnheader').map((header) => within(header).queryByRole('button')?.textContent ?? null)).toEqual([
+      null,
+      null,
+      'Size',
+      'Seeds',
+      null,
+      null,
+      'Age',
+      null,
+    ])
+    expect(sorted()).toEqual([['Seeds', 'descending']])
+
+    await userEvent.click(table.getByRole('button', { name: 'Size' }))
+    expect(sorted()).toEqual([['Size', 'descending']])
+    expect(names()).toEqual([DUNE_RELEASES[0].title, DUNE_RELEASES[1].title, DUNE_RELEASES[2].title])
+    expect(screen.getByRole('radio', { name: 'Size' })).toBeChecked()
+    expect(screen.getByRole('button', { name: 'Descending' })).toBeInTheDocument()
+
+    await userEvent.click(table.getByRole('button', { name: 'Size' }))
+    expect(sorted()).toEqual([['Size', 'ascending']])
+    expect(names()).toEqual([DUNE_RELEASES[2].title, DUNE_RELEASES[1].title, DUNE_RELEASES[0].title])
+    expect(screen.getByRole('button', { name: 'Ascending' })).toBeInTheDocument()
+
+    // The bar's controls show in the headers too.
+    await userEvent.click(screen.getByRole('radio', { name: 'Date' }))
+    expect(sorted()).toEqual([['Age', 'descending']])
+    await userEvent.click(screen.getByRole('button', { name: 'Descending' }))
+    expect(sorted()).toEqual([['Age', 'ascending']])
+    await userEvent.click(table.getByRole('button', { name: 'Seeds' }))
+    expect(sorted()).toEqual([['Seeds', 'descending']])
+  })
+
   it('offers Not stated in the popovers for releases whose name states no resolution, source or audio', async () => {
     const bare = release('d', 'Дюна 2 / Dune: Part Two (2024)', 3e9, 50)
     searchReleases.mockResolvedValue([...DUNE_RELEASES, bare])

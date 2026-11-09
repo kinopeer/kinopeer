@@ -401,8 +401,8 @@ test.describe('downloads, full HD', () => {
   })
 
   // Every other shot is in the queue order, ascending: this one shows a column's sort descending, in
-  // the header and on the sort button's icon, with another column's name hovered and a third one's
-  // focus ring.
+  // the header and on the direction button's icon, with another column's name hovered and a third
+  // one's focus ring.
   test('sorted by a column’s header', async ({ page }) => {
     await openDownloads(page, { downloadsView: 'list' })
     await page.getByRole('button', { name: 'Размер' }).click()

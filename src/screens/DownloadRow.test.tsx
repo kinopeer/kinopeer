@@ -25,7 +25,7 @@ function renderRow(props: Partial<DownloadItemProps> = {}, torrent: Torrent = DU
 }
 
 describe('DownloadRowHeader', () => {
-  const BY_QUEUE = { order: { sort: 'priority', descending: false }, onSort: () => {} } as const
+  const BY_QUEUE = { order: { key: 'priority', descending: false }, onSort: () => {} } as const
 
   it('names the columns, with the first one only while selecting or with queue positions', () => {
     const { rerender } = renderWithRouter(<DownloadRowHeader selecting={false} queue={false} {...BY_QUEUE} />)
@@ -42,7 +42,7 @@ describe('DownloadRowHeader', () => {
   it('makes every named column a sort button, and says which one sorts the list', async () => {
     const onSort = vi.fn()
     const { rerender } = renderWithRouter(
-      <DownloadRowHeader selecting={false} queue order={{ sort: 'size', descending: true }} onSort={onSort} />,
+      <DownloadRowHeader selecting={false} queue order={{ key: 'size', descending: true }} onSort={onSort} />,
     )
     const buttons = screen.getAllByRole('columnheader').map((header) => within(header).queryByRole('button')?.textContent ?? null)
     // The queue column's "#" is followed by the sort's name, hidden, so the name still starts with what shows.
@@ -58,16 +58,16 @@ describe('DownloadRowHeader', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Name' }))
     expect(onSort).toHaveBeenCalledWith('name')
 
-    rerender(<DownloadRowHeader selecting={false} queue order={{ sort: 'priority', descending: true }} onSort={onSort} />)
+    rerender(<DownloadRowHeader selecting={false} queue order={{ key: 'priority', descending: true }} onSort={onSort} />)
     expect(sorted()).toEqual([['# Priority', 'descending']])
-    rerender(<DownloadRowHeader selecting={false} queue order={{ sort: 'eta', descending: false }} onSort={onSort} />)
+    rerender(<DownloadRowHeader selecting={false} queue order={{ key: 'eta', descending: false }} onSort={onSort} />)
     expect(sorted()).toEqual([['ETA', 'ascending']])
     await userEvent.click(screen.getByRole('button', { name: 'Status' }))
     expect(onSort).toHaveBeenLastCalledWith('status')
-    rerender(<DownloadRowHeader selecting={false} queue order={{ sort: 'status', descending: true }} onSort={onSort} />)
+    rerender(<DownloadRowHeader selecting={false} queue order={{ key: 'status', descending: true }} onSort={onSort} />)
     expect(sorted()).toEqual([['Status', 'descending']])
     // Date added has no column.
-    rerender(<DownloadRowHeader selecting={false} queue order={{ sort: 'added', descending: true }} onSort={onSort} />)
+    rerender(<DownloadRowHeader selecting={false} queue order={{ key: 'added', descending: true }} onSort={onSort} />)
     expect(sorted()).toEqual([])
   })
 })

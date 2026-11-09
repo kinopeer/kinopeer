@@ -1,0 +1,25 @@
+/* A sortable column's name: plain text until hovered, brighter with an arrow while the table is in its order. */
+.ks-sort-header {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: color var(--d-fast) var(--ease);
+}
+
+.ks-sort-header.is-on,
+.ks-sort-header:hover {
+  color: var(--text);
+}
+
+.ks-sort-header:focus-visible {
+  outline: var(--focus-ring);
+  border-radius: var(--r-xs);
+}
