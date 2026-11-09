@@ -7,7 +7,7 @@ type Key = 'name' | 'size'
 
 function renderHeader(order: { key: Key; descending: boolean }, label?: string) {
   const onSort = vi.fn<(sort: Key) => void>()
-  render(
+  const { unmount } = render(
     <div role="table">
       <div role="row">
         <SortHeader sort="size" order={order} onSort={onSort} label={label} className="wide">
@@ -17,7 +17,7 @@ function renderHeader(order: { key: Key; descending: boolean }, label?: string) 
     </div>,
   )
   const header = screen.getByRole('columnheader')
-  return { onSort, header, arrow: () => header.querySelector('svg') }
+  return { onSort, header, unmount, arrow: () => header.querySelector('svg') }
 }
 
 describe('SortHeader', () => {
@@ -37,7 +37,7 @@ describe('SortHeader', () => {
     expect(descending.header).toHaveAttribute('aria-sort', 'descending')
     expect(screen.getByRole('button', { name: 'Size' })).toHaveClass('is-on')
     const down = descending.arrow()!.innerHTML
-    document.body.innerHTML = ''
+    descending.unmount()
 
     const ascending = renderHeader({ key: 'size', descending: false })
     expect(ascending.header).toHaveAttribute('aria-sort', 'ascending')

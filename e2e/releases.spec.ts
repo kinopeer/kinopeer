@@ -105,6 +105,19 @@ test.describe('releases, desktop', () => {
     await expect(page.getByRole('group', { name: 'Озвучка' })).toBeVisible()
     await expect(page).toHaveScreenshot('desktop-popover-dark-ru.png')
   })
+
+  // The narrowest sortable column with the longest name, sorted, so its arrow has to fit; ascending,
+  // which no other shot of this table shows, with another column's name hovered.
+  test('sorted by a column’s header, oldest first', async ({ page }) => {
+    await findReleases(page)
+    const age = page.getByRole('table').getByRole('button', { name: 'Возраст' })
+    await age.click()
+    await age.click()
+    await expect(page.getByRole('columnheader', { name: 'Возраст' })).toHaveAttribute('aria-sort', 'ascending')
+    await page.getByRole('table').getByRole('button', { name: 'Размер' }).hover()
+    await settle(page)
+    await expect(page).toHaveScreenshot('desktop-sorted-dark-ru.png')
+  })
 })
 
 test.describe('releases, desktop icon rail', () => {

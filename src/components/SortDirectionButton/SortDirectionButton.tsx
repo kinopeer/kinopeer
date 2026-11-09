@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
-import { IconButton, type IconButtonProps } from '../components/IconButton'
-import { cx } from '../lib/cx'
+import { cx } from '../../lib/cx'
+import { IconButton, type IconButtonProps } from '../IconButton'
 import './SortDirectionButton.css'
 
 export interface SortDirectionButtonProps {

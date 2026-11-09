@@ -63,7 +63,7 @@
 
 /* The table: the audio column shows from 1400px; narrower, audio sits under the name. */
 .title-rel-table {
-  --rel-cols: minmax(0, 1fr) 84px 64px 56px 104px 72px 112px;
+  --rel-cols: minmax(0, 1fr) 84px 64px 56px 104px 80px 112px;
   display: flex;
   flex-direction: column;
 }
@@ -132,7 +132,7 @@
 
 @media (min-width: 1400px) {
   .title-rel-table {
-    --rel-cols: minmax(0, 1fr) 210px 84px 64px 56px 116px 64px 112px;
+    --rel-cols: minmax(0, 1fr) 210px 84px 64px 56px 116px 80px 112px;
   }
 
   .title-rel .title-rel-audio {
