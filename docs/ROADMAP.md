@@ -32,7 +32,7 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 
 - [x] A wide-screen layout with a details side panel, as on the canvas (1440).
 
-0.5 (HTTPS and notifications) was dropped on 2026-10-25; see Not planned. Versions 0.6 to 0.9 were planned on 2026-10-28; 0.6.0 shipped what was ready of them, and on 2026-10-29 the rest was renumbered: 0.8 (torrent control) shipped in full, so 0.9 (beyond Umbrel) became 0.8.
+0.5 (HTTPS and notifications) was dropped on 2026-10-25; see Not planned. Versions 0.6 to 0.9 were planned on 2026-10-28; 0.6.0 shipped what was ready of them, and on 2026-10-29 the rest was renumbered: 0.8 (torrent control) shipped in full, so 0.9 (beyond Umbrel) became 0.8. On 2026-11-09 it became 0.9 again, after 0.8.0 shipped the releases' improvements as a minor version (SPEC's decision log).
 
 ## Done: 0.6.0 (2026-10-29): Small features, torrent control, discovery
 
@@ -57,7 +57,14 @@ Each version is a few small PRs, a `CHANGELOG.md` entry and an update of the Umb
 - [x] TMDB works without a key of the user's own: Kinopeer's key behind a proxy on Cloudflare Workers, deployed from GitHub Actions (see the decision log in SPEC.md).
 - [x] The server sends TMDB calls through that proxy when no key is saved or set, the onboarding drops the TMDB key step, and Settings → Connections says whether Kinopeer's key or the user's own is used.
 
-## 0.8: Beyond Umbrel
+## Done: 0.8.0 (2026-11-09): Releases
+
+- [x] More indexers' release-name styles are read for quality, voice-over and episodes, and an episode range within one season reads as that season.
+- [x] Theater rips (CAM, TS, TC) as a release source of their own.
+- [x] The release filters offer Not stated for releases whose name doesn't say.
+- [x] Desktop releases sort by a click on a column's name; Downloads gets a direction button on both layouts.
+
+## 0.9: Beyond Umbrel
 
 - [ ] Installing with plain Docker, outside Umbrel, together with Kinopeer's own login (for example `KINOPEER_PASSWORD`), because without Umbrel's login anyone on the network can control qBittorrent and delete files.
 - [ ] The server answers only for the hosts it's meant to be reached at (a `Host` check), against DNS rebinding: the `X-Kinopeer` header stops a page on another site from acting through `/qbt`, but a page whose hostname is rebound to Kinopeer's address is same-origin and can send it. On Umbrel, app_proxy's login stops that (its cookie isn't sent to the rebound host), and in development Vite's `allowedHosts` does; with plain Docker nothing sits in front.

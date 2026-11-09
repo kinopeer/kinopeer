@@ -2,7 +2,9 @@
 
 Kinopeer follows [semantic versioning](https://semver.org). While the version is 0.x, minor versions may change behavior and settings.
 
-## Unreleased
+## 0.8.0 - 2026-11-09
+
+Releases read better: more of the ways indexers name them are understood, theater rips show as their own source, and the filters can show releases whose name doesn't say. On a computer the releases table sorts by a click on a column's name, and Downloads can be reversed anywhere. Behind Umbrel's HTTPS, the installed app keeps working when Umbrel's sign-in lapses or its certificate is renewed, and says when it's Kinopeer itself that doesn't answer.
 
 ### Added
 
