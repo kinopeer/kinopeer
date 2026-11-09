@@ -41,11 +41,14 @@ const RESOLUTIONS: [Resolution, RegExp][] = [
  * not an MPEG transport stream, the container broadcasts come in.
  */
 function theaterRip(): RegExp {
-  const spellings = 'hd-?cam(?:rip)?|cam-?rip|(?:hd)?ts(?:rip)?|telesynch?|(?:hd)?tc(?:rip)?|telecine'
+  const spellings = 'hd-?cam(?:rip)?|cam-?rip|telesynch?|(?:hd)?tc(?:rip)?|telecine'
   const audioBefore = 'звук(?:\\s*:)?\\s+(?:(?:[сc]|из)\\s+)?' // с in Cyrillic or, as typed by mistake, Latin
   const mpeg = 'mpeg-?2?[\\s-]?'
-  const audioAfter = '\\s+(?:audio|звук)'
-  return new RegExp(`(?<!${audioBefore}|${mpeg})${EDGE_START}(?:${spellings})${EDGE_END}(?!${audioAfter})`, 'iu')
+  // Only TS is said of the audio afterwards ("TS Audio", "TS звук"); «Звук:» or «звук с…» after it
+  // starts what the audio is, so it says nothing about the TS before it.
+  const audioAfter = '\\s+(?:audio|звук(?!\\s*:|\\s+(?:[сc]|из)\\s))'
+  const ts = `(?:hd)?ts(?:rip)?${EDGE_END}(?!${audioAfter})`
+  return new RegExp(`(?<!${audioBefore}|${mpeg})${EDGE_START}(?:(?:${spellings})${EDGE_END}|${ts})`, 'iu')
 }
 
 const SOURCES: [Source, RegExp][] = [

@@ -63,6 +63,10 @@ describe('parseRelease', () => {
     // at the end: some scene names are all lowercase.
     'Dune.Part.Two.2024.TS',
     'dune.part.two.2024.ts.x264-grpa',
+    // «Звук:» here starts the voice-over list, and only TS can be an audio note.
+    'Дюна (2024) CAMRip Звук: CAMRip',
+    'Дюна (2024) TS Звук: Дубляж',
+    'Дюна (2024) TS звук с TS',
   ])('reads %s as a theater rip', (title) => {
     expect(parseRelease(title).source).toBe('CAM')
   })
@@ -80,6 +84,7 @@ describe('parseRelease', () => {
     ['Дюна: Часть вторая (2024) 1080p | Звук TS', undefined],
     ['Dune.Part.Two.2024.1080p.TS.Audio', undefined],
     ['Дюна: Часть вторая (2024) 1080p | TS звук', undefined],
+    ['Дюна: Часть вторая (2024) 1080p | TS звук стерео', undefined],
     // A transport stream, the container broadcasts come in, and a file's .ts extension.
     ['Concert 2024 1080i MPEG-TS', undefined],
     ['Concert 2024 1080i MPEG2 TS', undefined],
