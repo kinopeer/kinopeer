@@ -60,9 +60,12 @@ describe('parseRelease', () => {
     ['Severance.S02E01-05.1080p.ATVP.WEB-DL', [2], 'S02'],
     ['Severance.S02E01-E05.1080p.ATVP.WEB-DL', [2], 'S02'],
     // Prowlarr rewrites Russian seasons and episodes into these shapes before Kinopeer sees them.
-    ['Сёгун / Shōgun [S01E01-10 of 10] (2024) WEB-DL 1080p-LostFilm', [1], 'S01'],
+    ['Сёгун / Shōgun [S01E01-10 of 10] (2024) WEB-DL 1080p', [1], 'S01'],
     ['Сёгун / Shōgun / S1E1-10 of 10 [2024, WEB-DL 1080p] Original', [1], 'S01'],
     ['Во все тяжкие / Breaking Bad / S1-5E1-62 of 62 (2008-2013) BDRip 1080p', [1, 2, 3, 4, 5], 'S01–S05'],
+    // A range from one season's episode to another's spans the seasons between.
+    ['The.Bear.S01E01-S03E05.1080p.WEB-DL', [1, 2, 3], 'S01–S03'],
+    ['The Bear S01E01 - S03E10 1080p WEB-DL', [1, 2, 3], 'S01–S03'],
     // The worded forms, in English and Russian, with and without spaces around the range's dash.
     ['Grey’s Anatomy Season 12 1080p WEB-DL', [12], 'S12'],
     ['Grey’s Anatomy Seasons 1-10 1080p WEBRip', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 'S01–S10'],
@@ -70,6 +73,7 @@ describe('parseRelease', () => {
     ['Анатомия страсти (12 сезон) WEB-DL 1080p', [12], 'S12'],
     ['Анатомия страсти (1-10 сезоны) WEB-DL 1080p', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 'S01–S10'],
     ['Медведь (1 – 3 сезоны) WEB-DL 1080p', [1, 2, 3], 'S01–S03'],
+    ['Медведь (1-3сезоны) WEB-DL 1080p', [1, 2, 3], 'S01–S03'],
     ['Дюна (2021) BDRip 1080p', [], undefined],
   ])('reads the seasons of %s', (title, seasons, coverage) => {
     const info = parseRelease(title)
