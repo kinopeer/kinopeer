@@ -221,8 +221,8 @@ doesn't hold the verdict: put it after the findings under its own heading, **For
 lands after a **ready to merge**: start from that comment, check every line flagged in the previous round, check the description's What, Tests and Docs against the head as you check the docs (a `Fixes for round <n>` brings them to it: #273, #298, #291), and run all the checks on every
 test the PR's own diff (`origin/main...HEAD`) adds or changes since then, since a test written to
 answer a finding is a new test. Tests a merge of `main` brought were reviewed in their own PRs. A
-merge that changes the PR's own lines or a file the PR changes (`docs/TESTING.md` → Reviewing a
-PR's tests) gets a round over what it changed of them; one that doesn't, with the author's `Merged
+merge that changes the PR's own lines or a file the PR changes other than `CHANGELOG.md`, SPEC's
+decision log and `CLAUDE.md` (`docs/TESTING.md` → Reviewing a PR's tests) gets a round over what it changed of them; one that doesn't, with the author's `Merged
 main at <sha>` comment saying so, gets no round. New
 findings are tagged like the first round's; one
 still open from an earlier round is listed as `still open (round <n>)` with no tag, so the retro
