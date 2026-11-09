@@ -366,7 +366,7 @@ A bug is two defects: one in the code and one in the tests that let it through. 
 three questions: why it broke, why the tests didn't catch it, and what changes so this class of miss
 is caught from now on. The order of work:
 
-1. **An issue first.** A bug that reached `main`, from the test stand, from Umbrel or from a test under construction
+1. **An issue of the Bug type first.** A bug that reached `main`, from the test stand, from Umbrel or from a test under construction
    becomes an issue with the steps and the environment (phone or desktop, HTTP or HTTPS, the
    qBittorrent version, where it was found) before anyone fixes it, so the fix can be checked against
    what was seen and the label below has a place to live. The bug report form
@@ -415,13 +415,20 @@ phone check on `preview-lan` did; three `implementation` → review the mocks in
 rule. The same count also runs over review findings, more often:
 [Improving the system](#improving-the-system).
 
-Two rules next to this one:
+Rules next to this one:
 
 - A bug seen on the test stand or on Umbrel is an issue with the steps and the environment first,
   then a `fix/` branch; not a fix from memory.
 - A test that fails during a planned change is not a bug. The test changes only when the new
   behavior is written down in `SPEC.md` or `CHANGELOG.md`; an assertion is never loosened to make it
   pass.
+- Behavior that works as intended (as `SPEC.md` describes it) but turned out a poor choice is not a
+  bug either: it's an issue of the Feature type, worked on in a `feat/` branch, with no `test-gap`
+  label and no "Why tests missed it" section in the PR. The issue's Type field says which case it
+  is, not the wording of its text. The bug form gives every report the Bug type, so whether it is
+  one is the call of whoever files the issue, and whoever works on it may still change the type
+  after comparing the behavior with `SPEC.md`; without a type, that comparison decides.
+  #316 (the release filters hid releases whose name the parser couldn't read) was a Feature.
 
 In practice: #107 (Escape in the delete confirmation closed the drawer too) was found by the delete
 smoke journey while it was written, filed with the desktop layout and Chromium as its environment
