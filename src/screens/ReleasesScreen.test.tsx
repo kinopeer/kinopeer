@@ -137,13 +137,13 @@ describe('ReleasesScreen', () => {
     // The remux and the 720p rip name no voice-over either.
     expect(options('Audio')).toEqual(['Dubbed', 'Audio not stated'])
 
-    await userEvent.click(within(sheet).getByRole('button', { name: '1080p' }))
     await userEvent.click(within(sheet).getByRole('button', { name: 'Resolution not stated' }))
+    await userEvent.click(within(sheet).getByRole('button', { name: '1080p' }))
     await userEvent.click(within(sheet).getByRole('button', { name: 'Source not stated' }))
     await userEvent.click(within(sheet).getByRole('button', { name: 'Show 1' }))
     expect(names()).toEqual([bare.title])
     expect(screen.getByRole('button', { name: 'Source not stated' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: '1080p +1' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Resolution not stated +1' })).toHaveAttribute('aria-pressed', 'true')
 
     await userEvent.click(screen.getByRole('button', { name: 'Remove filter Source not stated' }))
     expect(screen.getByText('2 of 4 releases')).toBeInTheDocument()

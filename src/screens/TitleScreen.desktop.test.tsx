@@ -219,6 +219,8 @@ describe('TitleScreen on desktop', () => {
     searchReleases.mockResolvedValue([...DUNE_RELEASES, bare])
     renderAt('/title/movie/693134/releases')
     await screen.findByText('4 of 4 releases')
+    expect(screen.getByRole('button', { name: 'Resolution' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Source' })).toHaveAttribute('aria-pressed', 'false')
 
     await userEvent.click(screen.getByRole('button', { name: 'Resolution' }))
     const resolution = screen.getByRole('group', { name: 'Resolution' })
