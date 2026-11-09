@@ -240,6 +240,9 @@ describe('TitleScreen on desktop', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Audio' }))
     const audio = screen.getByRole('group', { name: 'Audio' })
     expect(within(audio).getAllByRole('button').map((option) => option.textContent)).toEqual(['Dubbed', 'Not stated'])
+    await userEvent.click(within(audio).getByRole('button', { name: 'Not stated' }))
+    expect(screen.getByRole('button', { name: 'Audio not stated', expanded: true })).toHaveAttribute('aria-pressed', 'true')
+    expect(names()).toEqual([bare.title])
   })
 
   it('opens one popover at a time', async () => {

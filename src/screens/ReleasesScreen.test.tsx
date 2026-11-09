@@ -131,21 +131,26 @@ describe('ReleasesScreen', () => {
     renderAt('/title/movie/693134/releases')
     await userEvent.click(await screen.findByRole('button', { name: 'Filters' }))
     const sheet = screen.getByRole('dialog', { name: 'Filters' })
-    const options = (group: string) => within(within(sheet).getByRole('group', { name: group })).getAllByRole('button').map((chip) => chip.textContent)
+    const group = (name: string) => within(within(sheet).getByRole('group', { name }))
+    const options = (name: string) => group(name).getAllByRole('button').map((chip) => chip.textContent)
     // Under the filter's name the option says just Not stated; chips outside the group name the filter.
     expect(options('Resolution')).toEqual(['2160p', '1080p', '720p', 'Not stated'])
     expect(options('Source')).toEqual(['REMUX', 'BluRay', 'WEB-DL', 'Not stated'])
     // The remux and the 720p rip name no voice-over either.
     expect(options('Audio')).toEqual(['Dubbed', 'Not stated'])
 
-    const group = (name: string) => within(within(sheet).getByRole('group', { name }))
     await userEvent.click(group('Resolution').getByRole('button', { name: 'Not stated' }))
     await userEvent.click(within(sheet).getByRole('button', { name: '1080p' }))
     await userEvent.click(group('Source').getByRole('button', { name: 'Not stated' }))
+    await userEvent.click(group('Audio').getByRole('button', { name: 'Not stated' }))
     await userEvent.click(within(sheet).getByRole('button', { name: 'Show 1' }))
     expect(names()).toEqual([bare.title])
     expect(screen.getByRole('button', { name: 'Source not stated' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Audio not stated' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Resolution not stated +1' })).toHaveAttribute('aria-pressed', 'true')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Remove filter Audio not stated' }))
+    expect(names()).toEqual([bare.title])
 
     await userEvent.click(screen.getByRole('button', { name: 'Remove filter Source not stated' }))
     expect(screen.getByText('2 of 4 releases')).toBeInTheDocument()

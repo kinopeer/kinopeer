@@ -136,9 +136,14 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
   const visible = useMemo(() => filterReleases(rows, filters, sort), [rows, filters, sort])
   const { applied, aside } = useMemo(() => split(remembered, filters), [remembered, filters])
 
-  const resolutionLabel = (value: ResolutionFilter) => (value === NOT_STATED ? t('releases.resolutionNotStated') : value)
+  // Resolutions and sources show as named; Not stated says which filter, as AUDIO_LABEL.none does.
+  const named =
+    <T extends string>(notStated: 'releases.resolutionNotStated' | 'releases.sourceNotStated') =>
+    (value: T) =>
+      value === NOT_STATED ? t(notStated) : value
+  const resolutionLabel = named<ResolutionFilter>('releases.resolutionNotStated')
   const audioLabel = (value: AudioFilter) => t(AUDIO_LABEL[value])
-  const sourceLabel = (value: SourceFilter) => (value === NOT_STATED ? t('releases.sourceNotStated') : value)
+  const sourceLabel = named<SourceFilter>('releases.sourceNotStated')
   const optionLabel =
     <T extends string>(label: (value: T) => string) =>
     (value: T) =>
