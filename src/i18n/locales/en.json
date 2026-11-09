@@ -261,6 +261,7 @@
     "audio": "Audio",
     "source": "Source",
     "sourceNotStated": "Source not stated",
+    "theaterRip": "CAM",
     "minSeeds": "Min seeds",
     "indexer": "Indexer",
     "openOnTracker": "Open on {{indexer}}",

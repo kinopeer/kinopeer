@@ -1,6 +1,7 @@
 /** What a release title says about its quality, for badges and filters. */
 export type Resolution = '2160p' | '1080p' | '720p' | 'SD'
-export type Source = 'REMUX' | 'BluRay' | 'BDRip' | 'WEB-DL' | 'WEBRip' | 'HDRip' | 'HDTV' | 'DVD'
+/** CAM is any theater rip: a camera in the cinema, a telesync or a telecine. */
+export type Source = 'REMUX' | 'BluRay' | 'BDRip' | 'WEB-DL' | 'WEBRip' | 'HDRip' | 'HDTV' | 'DVD' | 'CAM'
 export type Hdr = 'DV' | 'HDR10+' | 'HDR'
 export type Codec = 'HEVC' | 'AVC' | 'AV1'
 /** Dubbed, multi-voice, two-voice, single-voice voice-over, original track. */
@@ -34,6 +35,22 @@ const RESOLUTIONS: [Resolution, RegExp][] = [
   ['SD', word('sd|dvdrip|dvd5|dvd9|satrip|tvrip|vhsrip')],
 ]
 
+/**
+ * A theater rip: a camera in the cinema, a telesync or a telecine. Not a bare CAM, which is also a
+ * film's name; not a note that only the audio comes from one ("Звук с TS", "Звук: TS", "TS Audio");
+ * not an MPEG transport stream, the container broadcasts come in.
+ */
+function theaterRip(): RegExp {
+  const spellings = 'hd-?cam(?:rip)?|cam-?rip|telesynch?|(?:hd)?tc(?:rip)?|telecine'
+  const audioBefore = 'звук(?:\\s*:)?\\s+(?:(?:[сc]|из)\\s+)?' // с in Cyrillic or, as typed by mistake, Latin
+  const mpeg = 'mpeg-?2?[\\s-]?'
+  // Only TS is said of the audio afterwards ("TS Audio", "TS звук"); «Звук:» or «звук с…» after it
+  // starts what the audio is, so it says nothing about the TS before it.
+  const audioAfter = '\\s+(?:audio|звук(?!\\s*:|\\s+(?:[сc]|из)\\s))'
+  const ts = `(?:hd)?ts(?:rip)?${EDGE_END}(?!${audioAfter})`
+  return new RegExp(`(?<!${audioBefore}|${mpeg})${EDGE_START}(?:(?:${spellings})${EDGE_END}|${ts})`, 'iu')
+}
+
 const SOURCES: [Source, RegExp][] = [
   ['REMUX', word('(?:bd|uhd|blu-?ray)?[\\s.-]?remux|bdremux|uhdremux')],
   ['BDRip', word('bdrip|brrip|bd-rip|uhdrip|bdrip-avc|bdrip-hevc')],
@@ -45,6 +62,8 @@ const SOURCES: [Source, RegExp][] = [
   ['BluRay', word('blu-?ray|bluray|bd(?:25|50|66|100)|uhd[\\s.-]?bd|bd|br-?disk')],
   ['HDTV', word('hdtv(?:rip)?|hdtvrip|tvrip|satrip')],
   ['DVD', word('dvd(?:rip|5|9)?')],
+  // Last, so a name with a real source keeps it.
+  ['CAM', theaterRip()],
 ]
 
 const CODECS: [Codec, RegExp][] = [
@@ -124,8 +143,9 @@ function first<T>(table: [T, RegExp][], text: string): T | undefined {
 const AUDIO_ORDER: Audio[] = ['dub', 'mvo', 'avo2', 'avo1', 'orig']
 
 export function parseRelease(title: string): ReleaseInfo {
-  // Dots and underscores separate words in scene names: "Dune.Part.Two.2024.2160p.WEB-DL".
-  const text = title.replace(/[._]+/g, ' ')
+  // Dots and underscores separate words in scene names: "Dune.Part.Two.2024.2160p.WEB-DL". A file's
+  // lowercase .ts extension goes first, so it isn't read as TS, a theater rip.
+  const text = title.replace(/\.ts$/, '').replace(/[._]+/g, ' ')
   const block = credits(text)
 
   const audio = [...new Set([

@@ -84,6 +84,16 @@ describe('presentValues', () => {
     const rows = [...ROWS, row('hdrip', 'Дюна: Часть вторая (2024) HDRip | Многоголосый', 1.5e9, 40, 'Indexer A')]
     expect(presentValues(rows).source).toEqual(['REMUX', 'BluRay', 'WEB-DL', 'HDRip'])
   })
+
+  it('offers theater rips after every other source, before Not stated', () => {
+    const rows = [
+      ...ROWS,
+      row('cam', 'Dune.Part.Two.2024.HDTS.x264-GRPA', 1.5e9, 40, 'Indexer A'),
+      row('dvd', 'Dune.Part.Two.2024.DVDRip.XviD-GRPB', 1e9, 30, 'Indexer A'),
+      row('bare', 'Дюна 2 / Dune: Part Two (2024)', 3e9, 50, 'Indexer A'),
+    ]
+    expect(presentValues(rows).source).toEqual(['REMUX', 'BluRay', 'WEB-DL', 'DVD', 'CAM', 'none'])
+  })
 })
 
 describe('startingFilters', () => {

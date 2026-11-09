@@ -284,6 +284,7 @@
     "audio": "Озвучка",
     "source": "Источник",
     "sourceNotStated": "Источник не указан",
+    "theaterRip": "Экранка",
     "minSeeds": "Мин. сидов",
     "indexer": "Индексатор",
     "openOnTracker": "Открыть на {{indexer}}",

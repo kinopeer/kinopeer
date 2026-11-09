@@ -14,7 +14,7 @@ import { useFormatters } from '../lib/format'
 import { useRequest } from '../lib/useRequest'
 import { MIN_SEEDS, SORT_KEYS, summary, toggle, type ReleaseRow } from '../releases/filterReleases'
 import { seasonCoverage } from '../releases/parseRelease'
-import { qualityBadges } from '../releases/qualityBadges'
+import { qualityBadges, sourceName } from '../releases/qualityBadges'
 import type { TitleDetails as Details } from '../releases/releaseQuery'
 import { useTmdbLanguage } from '../settings/settings'
 import { IndexerLink } from './IndexerLink'
@@ -251,7 +251,7 @@ function ReleaseCard({ row, onAdd }: { row: ReleaseRow; onAdd: () => void }) {
   const { release, info } = row
   const coverage = seasonCoverage(info) ?? (info.complete ? t('releases.complete') : undefined)
   const seeders = release.seeders ?? 0
-  const badges = qualityBadges(info)
+  const badges = qualityBadges(info, sourceName(t))
 
   return (
     <article className="ks-rel">
