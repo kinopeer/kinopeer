@@ -67,6 +67,8 @@ describe('parseRelease', () => {
     'Дюна (2024) CAMRip Звук: CAMRip',
     'Дюна (2024) TS Звук: Дубляж',
     'Дюна (2024) TS звук с TS',
+    'Дюна (2024) TS звук из TS',
+    'Дюна (2024) CAMRip Звук CAMRip',
   ])('reads %s as a theater rip', (title) => {
     expect(parseRelease(title).source).toBe('CAM')
   })
