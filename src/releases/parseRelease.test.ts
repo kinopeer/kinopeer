@@ -63,6 +63,13 @@ describe('parseRelease', () => {
     ['Сёгун / Shōgun [S01E01-10 of 10] (2024) WEB-DL 1080p-LostFilm', [1], 'S01'],
     ['Сёгун / Shōgun / S1E1-10 of 10 [2024, WEB-DL 1080p] Original', [1], 'S01'],
     ['Во все тяжкие / Breaking Bad / S1-5E1-62 of 62 (2008-2013) BDRip 1080p', [1, 2, 3, 4, 5], 'S01–S05'],
+    // The worded forms, in English and Russian, with and without spaces around the range's dash.
+    ['Grey’s Anatomy Season 12 1080p WEB-DL', [12], 'S12'],
+    ['The Bear Seasons 1-3 1080p WEBRip', [1, 2, 3], 'S01–S03'],
+    ['Медведь / The Bear (Сезоны 1 – 3) WEB-DL 1080p', [1, 2, 3], 'S01–S03'],
+    ['Анатомия страсти (12 сезон) WEB-DL 1080p', [12], 'S12'],
+    ['Медведь (1-3 сезоны) WEB-DL 1080p', [1, 2, 3], 'S01–S03'],
+    ['Медведь (1 – 3 сезоны) WEB-DL 1080p', [1, 2, 3], 'S01–S03'],
     ['Дюна (2021) BDRip 1080p', [], undefined],
   ])('reads the seasons of %s', (title, seasons, coverage) => {
     const info = parseRelease(title)
