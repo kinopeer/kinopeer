@@ -106,8 +106,8 @@ test.describe('releases, desktop', () => {
     await expect(page).toHaveScreenshot('desktop-popover-dark-ru.png')
   })
 
-  // The narrowest sortable column with the longest name, sorted, so its arrow has to fit; ascending,
-  // which no other shot of this table shows, with another column's name hovered.
+  // The sortable column whose name with the arrow fits most tightly, sorted; ascending, which no
+  // other shot of this table shows, with another column's name hovered.
   test('sorted by a column’s header, oldest first', async ({ page }) => {
     await findReleases(page)
     const age = page.getByRole('table').getByRole('button', { name: 'Возраст' })

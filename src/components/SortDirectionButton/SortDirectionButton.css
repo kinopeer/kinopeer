@@ -1,4 +1,4 @@
 /* The icon points down for a descending sort and up for an ascending one. */
-.sort-direction.is-ascending .ks-ic {
+.ks-sort-direction.is-ascending .ks-ic {
   transform: scaleY(-1);
 }

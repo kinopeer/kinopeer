@@ -20,7 +20,7 @@ export function SortDirectionButton({ descending, onReverse, size }: SortDirecti
       variant="filled"
       size={size}
       label={t(descending ? 'common.descending' : 'common.ascending')}
-      className={cx('sort-direction', !descending && 'is-ascending')}
+      className={cx('ks-sort-direction', !descending && 'is-ascending')}
       onClick={onReverse}
     />
   )
