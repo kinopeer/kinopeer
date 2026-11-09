@@ -11,10 +11,12 @@ Kinopeer follows [semantic versioning](https://semver.org). While the version is
 
 ### Changed
 
+- Releases show their quality and voice-over badges, and match the release filters, for more of the ways indexers name them as Prowlarr passes them on: a single-voice voice-over written as VO, a full Blu-ray disc written as BR-DISK, two voice-over studios written in Latin letters, and English subtitles written as ESub or Subtitles. A torrent in a title's In downloads shows the episodes of a name like `S02E01-S02E05` (S02 E01–05, not S02 E01) or with the season and episode apart, `S02.E01-05` or `S02 E04` (not just S02). ([#317](https://github.com/kinopeer/kinopeer/issues/317))
 - The same thing is worded the same way everywhere: when qBittorrent, Kinopeer, Prowlarr or TMDB doesn't answer, every screen says it "isn't answering"; the folder a torrent's files go to is called Folder; the free space reads "40 GB free"; the file picker's button that clears the choice says Deselect all; the speed limits sheet saves with Save, as the other sheets do; and the Downloads table's title column is called Name, as its sort is.
 
 ### Fixed
 
+- A series release whose name gives an episode range within one season, such as `S01E01-10`, shows that season (S01) rather than a range of seasons (S01–S10). Prowlarr writes the episodes of many Russian indexers' series releases this way. ([#330](https://github.com/kinopeer/kinopeer/issues/330))
 - On a phone, pressing Select in Downloads no longer swaps the header's rows: the selection's count, Select all and Cancel take the title's place on top, and the speeds and free space hide until the selection ends, as on desktop. ([#324](https://github.com/kinopeer/kinopeer/issues/324))
 - Kinopeer's server stops waiting for qBittorrent, Prowlarr or TMDB as soon as the app has stopped waiting for its answer (a screen left, a search replaced by the next one, the app closed while a key or a login was being checked), and gives TMDB 15 seconds to start answering, so a service that hangs no longer holds the server's connections for minutes. ([#321](https://github.com/kinopeer/kinopeer/issues/321))
 - Kinopeer's server passes on to TMDB only the calls under TMDB's API and image paths: a request whose path could lead out of them, with dots, a backslash or an encoded slash, is refused rather than sent with the TMDB key. ([#305](https://github.com/kinopeer/kinopeer/issues/305))
