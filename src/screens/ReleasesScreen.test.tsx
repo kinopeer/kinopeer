@@ -125,6 +125,32 @@ describe('ReleasesScreen', () => {
     expect(screen.getByText('3 of 3 releases')).toBeInTheDocument()
   })
 
+  it('offers Not stated for releases whose name states no resolution, source or audio', async () => {
+    const bare = release('d', 'Дюна 2 / Dune: Part Two (2024)', 3e9, 50)
+    searchReleases.mockResolvedValue([...DUNE_RELEASES, bare])
+    renderAt('/title/movie/693134/releases')
+    await userEvent.click(await screen.findByRole('button', { name: 'Filters' }))
+    const sheet = screen.getByRole('dialog', { name: 'Filters' })
+    const options = (group: string) => within(within(sheet).getByRole('group', { name: group })).getAllByRole('button').map((chip) => chip.textContent)
+    expect(options('Resolution')).toEqual(['2160p', '1080p', '720p', 'Resolution not stated'])
+    expect(options('Source')).toEqual(['REMUX', 'BluRay', 'WEB-DL', 'Source not stated'])
+    // The remux and the 720p rip name no voice-over either.
+    expect(options('Audio')).toEqual(['Dubbed', 'Audio not stated'])
+
+    await userEvent.click(within(sheet).getByRole('button', { name: '1080p' }))
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Resolution not stated' }))
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Source not stated' }))
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Show 1' }))
+    expect(names()).toEqual([bare.title])
+    expect(screen.getByRole('button', { name: 'Source not stated' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: '1080p +1' })).toHaveAttribute('aria-pressed', 'true')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Remove filter Source not stated' }))
+    expect(screen.getByText('2 of 4 releases')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Remove filter Resolution not stated' }))
+    expect(names()).toEqual([DUNE_RELEASES[1].title])
+  })
+
   it('says when filters hide everything', async () => {
     renderAt('/title/movie/693134/releases')
     await userEvent.click(await screen.findByRole('button', { name: 'Filters' }))

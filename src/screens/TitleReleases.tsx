@@ -33,7 +33,7 @@ export interface TitleReleasesProps {
 export function TitleReleases({ details, sectionRef }: TitleReleasesProps) {
   const { t } = useTranslation()
   const releases = useReleases(details)
-  const { filters, sort, present, audioLabel, updateFilters, status, visible, rows } = releases
+  const { filters, sort, present, resolutionLabel, audioLabel, sourceLabel, updateFilters, status, visible, rows } = releases
   const [open, setOpen] = useState<PopoverKey | null>(null)
 
   const popover = (key: PopoverKey) => ({
@@ -68,8 +68,8 @@ export function TitleReleases({ details, sectionRef }: TitleReleasesProps) {
       {status === 'ready' && (
         <div className={open ? 'title-rel-bar is-open' : 'title-rel-bar'}>
           {resolutions.length > 0 && (
-            <FilterPopover name={t('releases.resolution')} label={summary(filters.resolution, t('releases.resolution'))} selected={filters.resolution.length > 0} {...popover('resolution')}>
-              {choices(resolutions, filters.resolution, (value) => updateFilters({ resolution: toggle(filters.resolution, value) }))}
+            <FilterPopover name={t('releases.resolution')} label={summary(filters.resolution, t('releases.resolution'), resolutionLabel)} selected={filters.resolution.length > 0} {...popover('resolution')}>
+              {choices(resolutions, filters.resolution, (value) => updateFilters({ resolution: toggle(filters.resolution, value) }), resolutionLabel)}
             </FilterPopover>
           )}
           {audio.length > 0 && (
@@ -78,8 +78,8 @@ export function TitleReleases({ details, sectionRef }: TitleReleasesProps) {
             </FilterPopover>
           )}
           {sources.length > 0 && (
-            <FilterPopover name={t('releases.source')} label={summary(filters.source, t('releases.source'))} selected={filters.source.length > 0} {...popover('source')}>
-              {choices(sources, filters.source, (value) => updateFilters({ source: toggle(filters.source, value) }))}
+            <FilterPopover name={t('releases.source')} label={summary(filters.source, t('releases.source'), sourceLabel)} selected={filters.source.length > 0} {...popover('source')}>
+              {choices(sources, filters.source, (value) => updateFilters({ source: toggle(filters.source, value) }), sourceLabel)}
             </FilterPopover>
           )}
           <FilterPopover

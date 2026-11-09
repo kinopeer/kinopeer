@@ -40,7 +40,7 @@ export function ReleasesScreen() {
       : { ...(await getTv(id, { language, signal })), type: 'tv' },
   )
   const releases = useReleases(details.data)
-  const { filters, sort, active, visible, present, audioLabel, updateFilters } = releases
+  const { filters, sort, active, visible, present, resolutionLabel, audioLabel, sourceLabel, updateFilters } = releases
   const [sheetOpen, setSheetOpen] = useState(false)
 
   const goBack = () => (location.key !== 'default' ? navigate(-1) : navigate(`/title/${type}/${id}`))
@@ -113,13 +113,13 @@ export function ReleasesScreen() {
               {t('releases.filters')}
             </FilterChip>
             <FilterChip selected={filters.resolution.length > 0} trailingIcon="chevron-down" onClick={() => setSheetOpen(true)}>
-              {summary(filters.resolution, t('releases.resolution'))}
+              {summary(filters.resolution, t('releases.resolution'), resolutionLabel)}
             </FilterChip>
             <FilterChip selected={filters.audio.length > 0} trailingIcon="chevron-down" onClick={() => setSheetOpen(true)}>
               {summary(filters.audio, t('releases.audio'), audioLabel)}
             </FilterChip>
             <FilterChip selected={filters.source.length > 0} trailingIcon="chevron-down" onClick={() => setSheetOpen(true)}>
-              {summary(filters.source, t('releases.source'))}
+              {summary(filters.source, t('releases.source'), sourceLabel)}
             </FilterChip>
             <FilterChip
               icon="sort"
@@ -156,6 +156,7 @@ export function ReleasesScreen() {
             label={t('releases.resolution')}
             options={[...new Set([...present.resolution, ...filters.resolution])]}
             selected={filters.resolution}
+            show={resolutionLabel}
             onToggle={(value) => updateFilters({ resolution: toggle(filters.resolution, value) })}
           />
           <OptionGroup
@@ -169,6 +170,7 @@ export function ReleasesScreen() {
             label={t('releases.source')}
             options={[...new Set([...present.source, ...filters.source])]}
             selected={filters.source}
+            show={sourceLabel}
             onToggle={(value) => updateFilters({ source: toggle(filters.source, value) })}
           />
           <div className="rel-group" role="group" aria-label={t('releases.minSeeds')}>

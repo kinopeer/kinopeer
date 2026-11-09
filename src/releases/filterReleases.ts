@@ -1,13 +1,23 @@
 import type { Release } from '../api/prowlarr'
 import type { Audio, ReleaseInfo, Resolution, Source } from './parseRelease'
 
-export type AudioFilter = Audio | 'subs'
+/**
+ * The value of a filter for a release whose name doesn't state it: the parser reads every quality and
+ * voice-over from the name, and much of what indexers name says neither. A value of its own rather
+ * than one that passes every filter, so picking 1080p still means 1080p.
+ */
+export const NOT_STATED = 'none'
+export type NotStated = typeof NOT_STATED
+export type ResolutionFilter = Resolution | NotStated
+export type SourceFilter = Source | NotStated
+/** A voice-over, not stated (no voice-over in the name, subtitles or not), or subtitles. */
+export type AudioFilter = Audio | NotStated | 'subs'
 export type SortKey = 'seeds' | 'size' | 'date'
 
 export interface Filters {
-  resolution: Resolution[]
+  resolution: ResolutionFilter[]
   audio: AudioFilter[]
-  source: Source[]
+  source: SourceFilter[]
   indexer: string[]
   minSeeds: number
 }
@@ -28,9 +38,9 @@ export interface ReleaseRow {
 
 /** The filter values the results have, in display order. */
 export interface PresentValues {
-  resolution: Resolution[]
+  resolution: ResolutionFilter[]
   audio: AudioFilter[]
-  source: Source[]
+  source: SourceFilter[]
   indexer: string[]
 }
 
@@ -38,22 +48,27 @@ export const NO_FILTERS: Filters = { resolution: [], audio: [], source: [], inde
 const { indexer: _indexer, ...noRemembered } = NO_FILTERS
 export const NO_REMEMBERED_FILTERS: RememberedFilters = noRemembered
 export const DEFAULT_SORT: Sort = { key: 'seeds', descending: true }
-export const RESOLUTIONS: Resolution[] = ['2160p', '1080p', '720p', 'SD']
-export const AUDIO: AudioFilter[] = ['dub', 'mvo', 'avo2', 'avo1', 'orig', 'subs']
-export const SOURCES: Source[] = ['REMUX', 'BluRay', 'BDRip', 'WEB-DL', 'WEBRip', 'HDRip', 'HDTV', 'DVD']
+export const RESOLUTIONS: ResolutionFilter[] = ['2160p', '1080p', '720p', 'SD', NOT_STATED]
+export const AUDIO: AudioFilter[] = ['dub', 'mvo', 'avo2', 'avo1', 'orig', NOT_STATED, 'subs']
+export const SOURCES: SourceFilter[] = ['REMUX', 'BluRay', 'BDRip', 'WEB-DL', 'WEBRip', 'HDRip', 'HDTV', 'DVD', NOT_STATED]
 export const MIN_SEEDS = [0, 10, 50, 100]
 export const SORT_KEYS: SortKey[] = ['seeds', 'size', 'date']
 
 function hasAudio(info: ReleaseInfo, audio: AudioFilter): boolean {
-  return audio === 'subs' ? info.subs : info.audio.includes(audio)
+  if (audio === 'subs') return info.subs
+  if (audio === NOT_STATED) return info.audio.length === 0
+  return info.audio.includes(audio)
 }
+
+const resolutionOf = (info: ReleaseInfo): ResolutionFilter => info.resolution ?? NOT_STATED
+const sourceOf = (info: ReleaseInfo): SourceFilter => info.source ?? NOT_STATED
 
 export function matchesFilters(row: ReleaseRow, filters: Filters): boolean {
   const { info, release } = row
   const has = <T>(list: T[], value: T | undefined) => value !== undefined && list.includes(value)
   return (
-    (!filters.resolution.length || has(filters.resolution, info.resolution)) &&
-    (!filters.source.length || has(filters.source, info.source)) &&
+    (!filters.resolution.length || filters.resolution.includes(resolutionOf(info))) &&
+    (!filters.source.length || filters.source.includes(sourceOf(info))) &&
     (!filters.indexer.length || has(filters.indexer, release.indexer)) &&
     (!filters.audio.length || filters.audio.some((audio) => hasAudio(info, audio))) &&
     (release.seeders ?? 0) >= filters.minSeeds
@@ -77,8 +92,8 @@ export function filterReleases(rows: ReleaseRow[], filters: Filters, sort: Sort)
 /** Which filter values to offer: only those the results have. */
 export function presentValues(rows: ReleaseRow[]): PresentValues {
   return {
-    resolution: RESOLUTIONS.filter((value) => rows.some((row) => row.info.resolution === value)),
-    source: SOURCES.filter((value) => rows.some((row) => row.info.source === value)),
+    resolution: RESOLUTIONS.filter((value) => rows.some((row) => resolutionOf(row.info) === value)),
+    source: SOURCES.filter((value) => rows.some((row) => sourceOf(row.info) === value)),
     audio: AUDIO.filter((value) => rows.some((row) => hasAudio(row.info, value))),
     indexer: [...new Set(rows.map((row) => row.release.indexer).filter(Boolean))].sort(),
   }

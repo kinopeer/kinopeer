@@ -47,14 +47,37 @@ describe('filterReleases', () => {
     expect(ids(filterReleases(ROWS, { ...NO_FILTERS, source: ['BluRay', 'REMUX'] }, sort))).toEqual(['remux', 'small'])
     expect(ids(filterReleases(ROWS, { ...NO_FILTERS, minSeeds: 100 }, sort))).toEqual(['web', 'remux'])
   })
+
+  it('keeps a release whose name states no resolution, source or audio only under Not stated', () => {
+    const sort = DEFAULT_SORT
+    // Nothing in the name but the title and the year: the parser reads no quality and no voice-over.
+    const rows = [...ROWS, row('bare', 'Дюна 2 / Dune: Part Two (2024)', 3e9, 50, 'Indexer A')]
+    expect(ids(filterReleases(rows, { ...NO_FILTERS, resolution: ['1080p'] }, sort))).toEqual(['web'])
+    expect(ids(filterReleases(rows, { ...NO_FILTERS, resolution: ['1080p', 'none'] }, sort))).toEqual(['web', 'bare'])
+    expect(ids(filterReleases(rows, { ...NO_FILTERS, resolution: ['none'] }, sort))).toEqual(['bare'])
+    expect(ids(filterReleases(rows, { ...NO_FILTERS, source: ['WEB-DL', 'none'] }, sort))).toEqual(['web', 'bare'])
+    expect(ids(filterReleases(rows, { ...NO_FILTERS, source: ['none'] }, sort))).toEqual(['bare'])
+    // Subtitles are a voice-over of no kind: a release with only them states no audio either.
+    expect(ids(filterReleases(rows, { ...NO_FILTERS, audio: ['dub', 'none'] }, sort))).toEqual(['web', 'remux', 'bare', 'small'])
+    expect(ids(filterReleases(rows, { ...NO_FILTERS, audio: ['none'] }, sort))).toEqual(['remux', 'bare', 'small'])
+    expect(ids(filterReleases(rows, { ...NO_FILTERS, audio: ['subs'] }, sort))).toEqual(['small'])
+  })
 })
 
 describe('presentValues', () => {
   it('offers only the values the results have, in display order', () => {
     const present = presentValues(ROWS)
     expect(present.resolution).toEqual(['2160p', '1080p', '720p'])
-    expect(present.audio).toEqual(['dub', 'subs'])
+    expect(present.source).toEqual(['REMUX', 'BluRay', 'WEB-DL'])
+    // The remux and the 720p rip name no voice-over.
+    expect(present.audio).toEqual(['dub', 'none', 'subs'])
     expect(present.indexer).toEqual(['Indexer C', 'Indexer D'])
+  })
+
+  it('offers Not stated last when some release names no resolution or source', () => {
+    const rows = [...ROWS, row('bare', 'Дюна 2 / Dune: Part Two (2024)', 3e9, 50, 'Indexer A')]
+    expect(presentValues(rows).resolution).toEqual(['2160p', '1080p', '720p', 'none'])
+    expect(presentValues(rows).source).toEqual(['REMUX', 'BluRay', 'WEB-DL', 'none'])
   })
 
   it('offers HDRip as a source of its own, after the WEB ones', () => {
@@ -75,6 +98,13 @@ describe('startingFilters', () => {
       indexer: [],
       minSeeds: 50,
     })
+  })
+
+  it('keeps a remembered Not stated while some release names no value, and sets it aside otherwise', () => {
+    const rows = [...ROWS, row('bare', 'Дюна 2 / Dune: Part Two (2024)', 3e9, 50, 'Indexer A')]
+    const remembered: RememberedFilters = { resolution: ['1080p', 'none'], audio: [], source: ['none'], minSeeds: 0 }
+    expect(startingFilters(remembered, rows, presentValues(rows))).toMatchObject({ resolution: ['1080p', 'none'], source: ['none'] })
+    expect(start(remembered)).toMatchObject({ resolution: ['1080p'], source: [] })
   })
 
   it('sets aside a minimum of seeds none of the releases reaches', () => {
@@ -153,6 +183,12 @@ describe('split', () => {
 describe('knownReleaseFilters', () => {
   it('keeps only the values the filters offer, a missing or malformed filter empty', () => {
     expect(knownReleaseFilters({ resolution: ['2160p'], minSeeds: 50 })).toEqual({ resolution: ['2160p'], audio: [], source: [], minSeeds: 50 })
+    expect(knownReleaseFilters({ resolution: ['none'], audio: ['none'], source: ['none'] })).toEqual({
+      resolution: ['none'],
+      audio: ['none'],
+      source: ['none'],
+      minSeeds: 0,
+    })
     // Not one of the seeds options (Any, 10+, 50+, 100+), so no option could show it as picked.
     expect(knownReleaseFilters({ minSeeds: 37 }).minSeeds).toBe(0)
     expect(knownReleaseFilters({ resolution: null, audio: 'dub', source: ['WEB-DL', 'VHS', 3], minSeeds: '10' })).toEqual({
