@@ -228,6 +228,8 @@ async function forgetProwlarrKey(config: SettingsConfig, _request: IncomingMessa
 }
 
 async function saveQbittorrentLogin(config: SettingsConfig, request: IncomingMessage, response: ServerResponse) {
+  // The browser's own attempt, not the shared session's login, so it's given up with the browser.
+  const signal = abandoned(response)
   const base = config.qbittorrentUrl?.trim().replace(/\/+$/, '')
   if (!base) return fail(response, 503, 'not-configured')
   let body: Partial<QbittorrentLoginBody> | null
@@ -243,7 +245,7 @@ async function saveQbittorrentLogin(config: SettingsConfig, request: IncomingMes
 
   let result: Awaited<ReturnType<typeof qbittorrentLogin>>
   try {
-    result = await qbittorrentLogin(base, username.trim(), password)
+    result = await qbittorrentLogin(base, username.trim(), password, signal)
   } catch {
     return fail(response, 502, 'unreachable')
   }

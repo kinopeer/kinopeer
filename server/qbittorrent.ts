@@ -35,13 +35,19 @@ export type LoginResult = { status: 'ok'; cookie: string } | { status: 'invalid'
 
 /**
  * Logs in to qBittorrent at `base`. 'banned' covers a 403 (the IP is banned after failed logins)
- * and other refusals; rejects when qBittorrent can't be reached.
+ * and other refusals; rejects when qBittorrent can't be reached, or `signal` aborts first.
  */
-export async function qbittorrentLogin(base: string, username: string, password: string): Promise<LoginResult> {
+export async function qbittorrentLogin(
+  base: string,
+  username: string,
+  password: string,
+  signal?: AbortSignal,
+): Promise<LoginResult> {
   const response = await fetch(`${base}/api/v2/auth/login`, {
     method: 'POST',
     headers: { Origin: base, Referer: `${base}/` },
     body: new URLSearchParams({ username, password }),
+    signal,
   })
   const text = (await response.text()).trim()
   // Wrong credentials: 401 since qBittorrent 5.3, 200 "Fails." before.

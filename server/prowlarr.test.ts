@@ -224,6 +224,10 @@ describe('prowlarrMiddleware', () => {
       response.on('close', leave)
       middleware(request, response, () => response.end())
     })
+    // What the test waits on is the request to Prowlarr Kinopeer makes once the key is read: the
+    // middleware sends no answer the browser could still see, and the handler always calls fetch,
+    // with an aborted signal it rejects before anything goes out. A change that sent nothing at all
+    // would need another thing to wait on.
     const calls = vi.spyOn(globalThis, 'fetch')
     const toProwlarr = () => calls.mock.results.filter((_result, i) => String(calls.mock.calls[i][0]).startsWith(prowlarr))
 

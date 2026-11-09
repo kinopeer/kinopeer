@@ -146,6 +146,8 @@ export function tmdbMiddleware(config: TmdbConfig): Middleware {
     const signal = AbortSignal.any([abandoned(response), timeout.signal])
     // Errors never echo the upstream URL: it may contain the key.
     forward(target.url, target.headers, isApi, request, response, signal, () => clearTimeout(timer)).catch(() => {
+      // A request that failed before its headers leaves no timer behind.
+      clearTimeout(timer)
       if (response.headersSent) response.destroy()
       else if (timeout.signal.aborted) fail(504, 'TMDB didn’t answer in time')
       else fail(502, 'TMDB is unreachable')

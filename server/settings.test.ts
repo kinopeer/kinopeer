@@ -35,12 +35,13 @@ function kinopeer(
   )
 }
 
+/** The PUT a browser sends to save `body` in Settings. */
+function saving(body: unknown, contentType = 'application/json'): RequestInit {
+  return { method: 'PUT', headers: { 'Content-Type': contentType }, body: JSON.stringify(body) }
+}
+
 function putKey(app: string, apiKey: unknown, contentType = 'application/json') {
-  return fetch(`${app}/api/settings/tmdb`, {
-    method: 'PUT',
-    headers: { 'Content-Type': contentType },
-    body: JSON.stringify({ apiKey }),
-  })
+  return fetch(`${app}/api/settings/tmdb`, saving({ apiKey }, contentType))
 }
 
 describe('SettingsStore', () => {
@@ -91,11 +92,7 @@ describe('qbittorrentCredentials', () => {
 })
 
 function putLogin(app: string, body: unknown) {
-  return fetch(`${app}/api/settings/qbittorrent`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
+  return fetch(`${app}/api/settings/qbittorrent`, saving(body))
 }
 
 describe('settingsMiddleware: qBittorrent login', () => {
@@ -126,6 +123,15 @@ describe('settingsMiddleware: qBittorrent login', () => {
     expect(banned.status).toBe(429)
     expect(await banned.json()).toEqual({ error: 'banned' })
     expect(qbittorrentCredentials(store, undefined)).toBeUndefined()
+  })
+
+  it('gives up the login with qBittorrent when the browser gives up on saving it', async () => {
+    const qbittorrent = await silentService()
+    const app = await kinopeer(new SettingsStore(dir), { qbittorrentUrl: qbittorrent.base })
+
+    await abandon(`${app}/api/settings/qbittorrent`, qbittorrent.received, saving({ username: 'admin', password: 'x' }))
+
+    expect(await settlesWithin(qbittorrent.closed, 1000)).toBe(true)
   })
 
   it('needs a qBittorrent address and a username', async () => {
@@ -277,18 +283,11 @@ describe('settingsMiddleware', () => {
     expect(await response.json()).toEqual({ error: 'unreachable' })
   })
 
-  /** The PUT a browser sends to save `apiKey`. */
-  const saving = (apiKey: string): RequestInit => ({
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ apiKey }),
-  })
-
   it('gives up checking the key with TMDB when the browser gives up on saving it', async () => {
     const tmdb = await silentService()
     const app = await kinopeer(new SettingsStore(dir), { apiBase: `${tmdb.base}/3` })
 
-    await abandon(`${app}/api/settings/tmdb`, tmdb.received, saving('good-key'))
+    await abandon(`${app}/api/settings/tmdb`, tmdb.received, saving({ apiKey: 'good-key' }))
 
     expect(await settlesWithin(tmdb.closed, 1000)).toBe(true)
   })
@@ -423,11 +422,7 @@ describe('settingsMiddleware: Prowlarr key', () => {
   }
 
   function put(base: string, apiKey: unknown) {
-    return fetch(`${base}/api/settings/prowlarr`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ apiKey }),
-    })
+    return fetch(`${base}/api/settings/prowlarr`, saving({ apiKey }))
   }
 
   function forget(base: string) {
@@ -438,11 +433,7 @@ describe('settingsMiddleware: Prowlarr key', () => {
     const prowlarr = await silentService()
     const base = await app(new SettingsStore(dir), { url: prowlarr.base })
 
-    await abandon(`${base}/api/settings/prowlarr`, prowlarr.received, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ apiKey: 'key' }),
-    })
+    await abandon(`${base}/api/settings/prowlarr`, prowlarr.received, saving({ apiKey: 'key' }))
 
     expect(await settlesWithin(prowlarr.closed, 1000)).toBe(true)
   })
