@@ -54,7 +54,7 @@ The image is built from `Dockerfile` (`node:24-alpine`, no `node_modules`). `doc
 
 ## Releasing
 
-First go through [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) → Before every release (the test-gap pile, the suite's health, the checks by hand); the release PR notes what it found.
+First go through [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) → Before every release (the suite's health, the checks by hand); the release PR notes what it found.
 
 1. In a PR, set `version` in `package.json` and `package-lock.json` (`npm version 0.2.0 --no-git-tag-version`) and add a `## 0.2.0 - YYYY-MM-DD` section to `CHANGELOG.md`. Update the "as of version" line at the top of `docs/SPEC.md` too.
 2. After it merges, tag `main` and push the tag: `git tag v0.2.0 && git push origin v0.2.0`.

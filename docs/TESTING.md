@@ -422,16 +422,18 @@ can pass only on a page that already has the update check, so not on the first u
 (#225).
 There is no separate log: the closed issues with these labels are the history.
 
-Once per release, look at the pile ([RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) → Before every
-release): three bugs of one class since the last release are a problem of the system, not three
-accidents. Three `fake-drift` → compare the fakes with the live services on Umbrel by hand; three
+Each retro looks at the pile ([Improving the system](#improving-the-system); before 2026-11-10 each
+release did, and a retro counting the same issues made that a second count, #346): three issues of
+the Bug type with one class since the last retro are a problem of the system, not three accidents,
+and so are three of the Task type with one class.
+Three `fake-drift` → compare the fakes with the live services on Umbrel by hand; three
 `wrong-layer` → the layer rule above reads badly, rewrite it; three `uncovered` in one area → that
 area gets a pass over its states, not three more tests; three `environment` from one environment →
 it goes into layer 5 or 6 when a browser in CI can run it, and when none can (the app added to the
 Home Screen on iOS) its manual check moves from the release into every PR that touches it, as the
 phone check on `preview-lan` did; three `implementation` → review the mocks in that area; three `silent-test` → a lint
-rule. The same count also runs over review findings, more often:
-[Improving the system](#improving-the-system).
+rule; three `flaky` → a helper or a lint rule that takes their shape away, as `findToastOnPage`
+did. The retro runs the same count over review findings.
 
 Rules next to this one:
 
@@ -440,12 +442,19 @@ Rules next to this one:
 - A test that fails during a planned change is not a bug. The test changes only when the new
   behavior is written down in `SPEC.md` or `CHANGELOG.md`; an assertion is never loosened to make it
   pass.
+- A bug is Kinopeer (the app, the server, the image, the TMDB proxy) behaving otherwise than
+  `SPEC.md` describes or, where `SPEC.md` says nothing, than expected, where someone using it can
+  meet it. A problem of the
+  tests, CI or the development tools that no user meets (a flaky test, a stack trace in CI's
+  output, a broken `test:mutants`) is an issue of the Task type; it gets a `test-gap:*` label all
+  the same when the tests missed it.
 - Behavior that works as intended (as `SPEC.md` describes it) but turned out a poor choice is not a
   bug either: it's an issue of the Feature type, worked on in a `feat:` PR, with no `test-gap`
   label and no "Why tests missed it" section in the PR. The issue's Type field says which case it
   is, not the wording of its text. The bug form gives every report the Bug type, so whether it is
-  one is the call of whoever files the issue, and whoever works on it may still change the type
-  after comparing the behavior with `SPEC.md`; without a type, that comparison decides.
+  one is the call of whoever files the issue, and whoever works on it may still change the type by
+  the item above (whether a user can meet it, then what `SPEC.md` says); without a type, it
+  decides.
   #316 (the release filters hid releases whose name the parser couldn't read) was a Feature.
 
 In practice: #107 (Escape in the delete confirmation closed the drawer too) was found by the delete
@@ -746,7 +755,8 @@ open lists it as `still open (round <n>)` with no tag, and the retro counts each
 from the reviewer's rounds only: the author's `Fixes for round <n>` comments repeat the tags.
 
 The review comments are the log: no other file to keep in sync. Escaped bugs keep their own
-record, the `test-gap:*` labels ([When we find a bug](#when-we-find-a-bug)).
+record, the issues of the Bug type with their `test-gap:*` labels
+([When we find a bug](#when-we-find-a-bug)).
 
 **When.** Once twenty PRs have merged that no row of the table below lists, Dependabot's left out; a release doesn't call
 for one (decided on 2026-11-06: at ten PRs or each release a retro came almost daily, on batches too
@@ -758,7 +768,13 @@ doesn't wait for it: the reviewer says in the report what disagrees with what, a
 settles it.
 
 **How.** Collect the `Test review, round <n>` comments of the merged PRs no row lists yet (the
-batch) and the `test-gap:*` issues closed since the last retro, and count the findings by check and by rule:
+batch) and the issues closed since the last retro, and count the findings by check and by rule.
+The issues are split by type: those of the Bug type are escaped bugs, counted by their `test-gap:*`
+class against the pile's rule ([When we find a bug](#when-we-find-a-bug)); those of the Task type
+with a `test-gap:*` label are problems of the tests and tooling, counted apart against the same
+rule. For example,
+`gh issue list --state closed --search "type:Bug label:test-gap:uncovered closed:>YYYY-MM-DD"`.
+The findings:
 
 - Three or more of one check tagged `gap` → rewrite or add the rule, with an example from the
   findings.
@@ -789,13 +805,15 @@ table's row.
 
 The changes go into one docs PR, reviewed like any other, which adds a row to the table below and
 says which counts each change answers, so the next retro sees whether that count fell. The row and
-the PR name the set behind each count (which PRs, which issues, closed since when), and `flaky`
-issues are counted apart from escaped bugs. The table's columns: "Ready on the first round" gives
-the merged PRs and those with production code, the folders `scripts/mutants.mjs` mutates (`src/`,
+the PR name the set behind each count (which PRs, which issues, closed since when). The table's
+columns: "Ready on the first round" gives the merged PRs and those with production code, the folders `scripts/mutants.mjs` mutates (`src/`,
 `server/`, `tmdb-proxy/`; before #238 the first two were all there was); "Blocking findings per PR"
 divides the blocking findings (the test review's blocking ones, and the `/code-review` bugs a
 verdict says to fix in the PR, each counted once) by the PRs with production code, the same basis
-in every row, so the column compares with the rows below it and with the Done rule (#222).
+in every row, so the column compares with the rows below it and with the Done rule (#222);
+"Escaped bugs" counts the closed issues of the Bug type from the row after 2026-11-10's on (#346),
+where it counted every `test-gap:*` issue but `flaky` before, so #283, now a Task, is among that
+row's 5 `uncovered`.
 
 **Done.** The system is stable when two retros in a row change no rules and the last batch averages
 under one blocking finding per PR. From then on the retro runs every forty merged PRs, and any new
