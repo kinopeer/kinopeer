@@ -1,4 +1,5 @@
-# syntax=docker/dockerfile:1
+# No `# syntax=` line: the build uses BuildKit's built-in Dockerfile frontend, pinned with BuildKit's
+# image by digest in the workflows, rather than pulling a frontend image by a moving tag.
 
 # Both stages pin Node's image by the digest of its multi-platform index, which Dependabot moves
 # (.github/dependabot.yml); a new major moves by hand, with @types/node.
@@ -13,8 +14,9 @@ COPY . .
 # Edge builds pass the short commit, which Settings → About shows after the version (vite.config.ts).
 ARG KINOPEER_COMMIT=""
 RUN npm run build && rm server/*.test.ts
-# The data folder is made here and copied below, so the runtime stage runs nothing: a RUN there would
-# run on the target platform, emulated when arm64 is built on amd64, and the workflows set up no QEMU.
+# The data folder is made here and copied below, so the runtime stage runs nothing on the target
+# platform: a RUN there building arm64 on an amd64 runner, where the workflows set up no QEMU, would
+# run slowly under the emulators BuildKit's image bundles. ci.yml's smoke test checks it's writable.
 RUN mkdir /data
 
 # Runtime: Node runs server/*.ts directly (type stripping), so no node_modules are needed.

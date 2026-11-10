@@ -46,7 +46,8 @@ updates:
         patterns: ['*']
 
   # The Dockerfile pins Node's image by digest; Dependabot moves the digest, and the tag within the
-  # major. BuildKit's image in the workflows' setup-buildx-action is out of its reach and moves by hand
+  # major. A digest isn't offered while the tag was pushed within the cooldown, so a month may bring
+  # no PR. BuildKit's image in the workflows' setup-buildx-action is out of its reach and moves by hand
   # (docs/RELEASE_CHECKLIST.md → Before every release).
   - package-ecosystem: docker
     directory: /
