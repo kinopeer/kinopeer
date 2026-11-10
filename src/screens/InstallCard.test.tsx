@@ -25,9 +25,10 @@ afterEach(() => {
 })
 
 describe('InstallCard', () => {
-  it('shows nothing where the app can\'t be installed', () => {
-    render(<InstallCard />)
-    expect(screen.queryByRole('heading', { name: 'Install Kinopeer' })).not.toBeInTheDocument()
+  // Not even the closed sheet, which would come before Downloads' desktop table (#349).
+  it('renders nothing where the app can\'t be installed', () => {
+    const { container } = render(<InstallCard />)
+    expect(container).toBeEmptyDOMElement()
   })
 
   it('opens the browser prompt', async () => {
@@ -36,6 +37,16 @@ describe('InstallCard', () => {
     expect(screen.getByRole('heading', { name: 'Install Kinopeer' })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Install' }))
     expect(event.prompt).toHaveBeenCalledOnce()
+  })
+
+  it('closes the Home Screen steps it opened along with the card once the app is installed', async () => {
+    render(<InstallCard />)
+    installPrompt()
+    await userEvent.click(screen.getByRole('button', { name: 'On iPhone?' }))
+    expect(screen.getByRole('dialog', { name: 'Add to Home Screen' })).toBeInTheDocument()
+    act(() => void window.dispatchEvent(new Event('appinstalled')))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Install Kinopeer' })).not.toBeInTheDocument()
   })
 
   it('shows the Home Screen steps on iPhone', async () => {

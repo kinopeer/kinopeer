@@ -268,6 +268,22 @@ test.describe('downloads, desktop', () => {
     await expect(page).toHaveScreenshot('desktop-list-dark-ru.png')
   })
 
+  // The install card left open where it doesn't show (an installed app, Firefox) takes no room: the
+  // column names sit as close under the header as with the card closed, the same screenshot.
+  test('a table under an install card that doesn’t show, as with the card closed', async ({ page }) => {
+    await openDownloads(page, { downloadsView: 'list', installCard: 'unavailable' })
+    await expect(page.getByRole('table', { name: 'Загрузки' })).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Установите Kinopeer' })).toBeHidden()
+    await expect(page).toHaveScreenshot('desktop-list-dark-ru.png')
+  })
+
+  test('the install card above the table, as far from the header as from the column names', async ({ page }) => {
+    await openDownloads(page, { downloadsView: 'list', installCard: 'prompt' })
+    await expect(page.getByRole('region', { name: 'Установите Kinopeer' })).toBeVisible()
+    await settle(page)
+    await expect(page).toHaveScreenshot('desktop-list-install-card-dark-ru.png')
+  })
+
   test('alternative speed limits on, in the sidebar’s card', async ({ page }) => {
     await openDownloads(page, { altSpeedLimits: true })
     const card = page.getByRole('region', { name: 'qBittorrent' })
