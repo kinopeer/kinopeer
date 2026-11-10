@@ -8,7 +8,8 @@ export interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement>
   /** Required accessible name: icon-only buttons have no visible text. */
   label: string
   variant?: 'plain' | 'filled' | 'glass'
-  /** `sm` (36px) is for desktop only. */
+  /** `sm` (36px) is desktop's size, under the 44px touch target. A phone that uses it grows it to
+   *  `--touch-min` in its own stylesheet, as Downloads' sort does (`.downloads-sort > .ks-icon-btn`). */
   size?: 'sm' | 'md'
   /** Icon size in px; 20 by default, 18 at `sm`. */
   iconSize?: number

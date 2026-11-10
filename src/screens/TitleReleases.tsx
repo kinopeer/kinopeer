@@ -243,7 +243,7 @@ function ReleaseTableRow({ row, onAdd }: { row: ReleaseRow; onAdd: () => void })
             ))}
           </div>
         )}
-        {/* Below 1280px the audio column folds in here. */}
+        {/* Below 1400px the audio column folds in here. */}
         {audio && <div className="rel-badges title-rel-audio-inline">{audio}</div>}
       </div>
       <div role="cell" className="rel-badges title-rel-audio">
