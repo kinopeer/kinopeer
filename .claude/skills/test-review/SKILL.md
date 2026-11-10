@@ -140,7 +140,7 @@ trusted.
   command, a number, a file, a product claim, a step) is checked against what it describes, and so
   is one the diff makes stale, a sentence saying which test owns a statement above all. The docs
   are every file that describes what the diff changes: `CLAUDE.md` and the files in its docs table
-  (`README.md`, `CONTRIBUTING.md`, `SECURITY.md`, SPEC, ARCHITECTURE, ROADMAP, DEVELOPMENT,
+  (`README.md`, `CONTRIBUTING.md`, `SECURITY.md`, SPEC, ARCHITECTURE, DEVELOPMENT,
   TESTING, the release checklist, the changelog), this skill, and the PR template, the workflows
   and the config, whose comments are docs too, with `.env.example`, not only the three or four a
   rule names (#287's README, #296's changelog, #300's runbook). Grep the whole tree for each number

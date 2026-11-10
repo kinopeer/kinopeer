@@ -7,7 +7,7 @@
 A qBittorrent web UI for movies and TV series. Find a movie or a series, pick a release found by Prowlarr and follow the download, all in one app on your phone or computer.
 
 > [!NOTE]
-> Kinopeer is in early development (version 0.x): for now it installs on umbrelOS only, and its settings and behavior may change between versions. What's planned before 1.0 is in the [roadmap](docs/ROADMAP.md).
+> Kinopeer is in early development (version 0.x): for now it installs on umbrelOS only, and its settings and behavior may change between versions. What's planned is in the [milestones](https://github.com/kinopeer/kinopeer/milestones).
 
 <img src="docs/screenshots/desktop-title.png" alt="A series page on a computer, with its releases under the overview: filters for resolution, audio, source, minimum seeds and indexer over a table of releases">
 
@@ -76,7 +76,7 @@ Kinopeer is a web app (PWA). Over plain HTTP on your home network it works in th
 - [CONTRIBUTING.md](CONTRIBUTING.md): ideas, bugs and pull requests.
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): running locally, server configuration, releases.
 - [docs/SPEC.md](docs/SPEC.md): what the product does and why.
-- [docs/ROADMAP.md](docs/ROADMAP.md): what's next.
+- [Milestones](https://github.com/kinopeer/kinopeer/milestones): what's next.
 
 ## License
 
