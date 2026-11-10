@@ -5,8 +5,8 @@
 // can fail).
 import { spawnSync } from 'node:child_process'
 import { appendFileSync, existsSync, readFileSync, rmSync } from 'node:fs'
-import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const BASE = process.env.MUTANTS_BASE || 'origin/main'
 const REPORT = 'reports/mutants.json'
@@ -51,17 +51,18 @@ function survivors({ files }) {
   )
 }
 
-// Stryker's own binary, from the dev dependencies. Not through npx: without them it fetches the npm
-// package named `stryker`, an old one that isn't Stryker, and runs it, and with `--no` it still
-// runs one it fetched before (#351).
+// Stryker's own binary, from this checkout's dev dependencies. Not through npx: without them it
+// fetches the npm package named `stryker`, an old one that isn't Stryker, and runs it, and with
+// `--no` it still runs one it fetched before (#351). Not through Node's lookup either, which walks up
+// past the checkout: a Claude Code worktree sits inside the main clone and would take its Stryker,
+// and with it the main clone's Vitest and dependencies.
 function strykerBin() {
-  try {
-    const manifest = createRequire(import.meta.url).resolve('@stryker-mutator/core/package.json')
-    return join(dirname(manifest), JSON.parse(readFileSync(manifest, 'utf8')).bin.stryker)
-  } catch {
+  const manifest = fileURLToPath(new URL('../node_modules/@stryker-mutator/core/package.json', import.meta.url))
+  if (!existsSync(manifest)) {
     console.error("Stryker isn't installed in this checkout: run npm ci first.")
     process.exit(1)
   }
+  return join(dirname(manifest), JSON.parse(readFileSync(manifest, 'utf8')).bin.stryker)
 }
 
 function stryker(...args) {
