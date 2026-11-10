@@ -422,8 +422,10 @@ can pass only on a page that already has the update check, so not on the first u
 (#225).
 There is no separate log: the closed issues with these labels are the history.
 
-Each retro looks at the pile ([Improving the system](#improving-the-system)): three issues of the
-Bug type with one class since the last retro are a problem of the system, not three accidents.
+Each retro looks at the pile ([Improving the system](#improving-the-system); before 2026-11-10 each
+release did, and a retro counting the same issues made that a second count, #346): three issues of
+the Bug type with one class since the last retro are a problem of the system, not three accidents,
+and so are three of the Task type with one class.
 Three `fake-drift` → compare the fakes with the live services on Umbrel by hand; three
 `wrong-layer` → the layer rule above reads badly, rewrite it; three `uncovered` in one area → that
 area gets a pass over its states, not three more tests; three `environment` from one environment →
@@ -440,7 +442,8 @@ Rules next to this one:
   behavior is written down in `SPEC.md` or `CHANGELOG.md`; an assertion is never loosened to make it
   pass.
 - A bug is Kinopeer (the app, the server, the image, the TMDB proxy) behaving otherwise than
-  `SPEC.md` describes or than expected, where someone using it can meet it. A problem of the
+  `SPEC.md` describes or, where `SPEC.md` says nothing, than expected, where someone using it can
+  meet it. A problem of the
   tests, CI or the development tools that no user meets (a flaky test, a stack trace in CI's
   output, a broken `test:mutants`) is an issue of the Task type; it gets a `test-gap:*` label all
   the same when the tests missed it.
@@ -448,8 +451,9 @@ Rules next to this one:
   bug either: it's an issue of the Feature type, worked on in a `feat:` PR, with no `test-gap`
   label and no "Why tests missed it" section in the PR. The issue's Type field says which case it
   is, not the wording of its text. The bug form gives every report the Bug type, so whether it is
-  one is the call of whoever files the issue, and whoever works on it may still change the type
-  after comparing the behavior with `SPEC.md`; without a type, that comparison decides.
+  one is the call of whoever files the issue, and whoever works on it may still change the type by
+  the two items above (whether a user can meet it, then what `SPEC.md` says); without a type, they
+  decide.
   #316 (the release filters hid releases whose name the parser couldn't read) was a Feature.
 
 In practice: #107 (Escape in the delete confirmation closed the drawer too) was found by the delete
@@ -766,7 +770,8 @@ settles it.
 batch) and the issues closed since the last retro, and count the findings by check and by rule.
 The issues are split by type: those of the Bug type are escaped bugs, counted by their `test-gap:*`
 class against the pile's rule ([When we find a bug](#when-we-find-a-bug)); those of the Task type
-with a `test-gap:*` label are problems of the tests and tooling, counted apart. For example,
+with a `test-gap:*` label are problems of the tests and tooling, counted apart against the same
+rule. For example,
 `gh issue list --state closed --search "type:Bug label:test-gap:uncovered closed:>YYYY-MM-DD"`.
 The findings:
 
@@ -804,7 +809,10 @@ columns: "Ready on the first round" gives the merged PRs and those with producti
 `server/`, `tmdb-proxy/`; before #238 the first two were all there was); "Blocking findings per PR"
 divides the blocking findings (the test review's blocking ones, and the `/code-review` bugs a
 verdict says to fix in the PR, each counted once) by the PRs with production code, the same basis
-in every row, so the column compares with the rows below it and with the Done rule (#222).
+in every row, so the column compares with the rows below it and with the Done rule (#222);
+"Escaped bugs" counts the closed issues of the Bug type from the row after 2026-11-10's on (#346),
+where it counted every `test-gap:*` issue but `flaky` before, so #283, now a Task, is among that
+row's 5 `uncovered`.
 
 **Done.** The system is stable when two retros in a row change no rules and the last batch averages
 under one blocking finding per PR. From then on the retro runs every forty merged PRs, and any new
