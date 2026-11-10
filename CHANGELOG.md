@@ -4,6 +4,10 @@ Kinopeer follows [semantic versioning](https://semver.org). While the version is
 
 ## Unreleased
 
+### Changed
+
+- On a phone or a tablet, Downloads' torrents sit as far from each other as the first one sits from the header above it, in the list and in the poster grid alike.
+
 ### Fixed
 
 - A theater rip named with a space where a hyphen usually goes, as some indexers' names reach Kinopeer (`HD CAM`, `CAM Rip`), shows as CAM rather than "Source not stated", and a broadcast capture named `MPEG 2 TS` no longer shows as one. ([#341](https://github.com/kinopeer/kinopeer/issues/341))
