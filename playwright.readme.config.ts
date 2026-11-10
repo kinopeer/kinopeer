@@ -2,9 +2,9 @@ import { defineConfig } from '@playwright/test'
 import base from './playwright.config.ts'
 
 /**
- * The README screenshots (`npm run screenshots:readme`): e2e/readme.shots.ts on the dev server, so
- * TMDB answers for real through Kinopeer's edge TMDB proxy (or a key of your own, when one is set),
- * while qBittorrent and Prowlarr stay mocked.
+ * The README screenshots and the Umbrel App Store's (`npm run screenshots:readme`):
+ * e2e/readme.shots.ts on the dev server, so TMDB answers for real through Kinopeer's edge TMDB proxy
+ * (or a key of your own, when one is set), while qBittorrent and Prowlarr stay mocked.
  */
 export default defineConfig({
   ...base,

@@ -4,7 +4,8 @@ import { RELEASES, TORRENTS } from './fixtures.ts'
 import type { Torrent } from '../src/api/qbittorrent/types.ts'
 
 /**
- * Renders the README screenshots into docs/screenshots/ (not a test: nothing is compared). Run with
+ * Renders the README screenshots, and three desktop ones only for the Umbrel App Store, into
+ * docs/screenshots/ (not a test: nothing is compared). Run with
  * `npm run screenshots:readme`. Titles and posters come from TMDB for real, through Kinopeer's edge
  * TMDB proxy without a key of your own (the dev server's default). The interface is in English,
  * like the README.
@@ -90,5 +91,37 @@ test.describe('desktop', () => {
     await openApp(page, '/title/tv/126308/releases', options)
     await expect(page.getByText(RELEASES[0].title)).toBeVisible()
     await shoot(page, 'desktop-title')
+  })
+
+  // The rest are 16:10 at the desktop size, for the Umbrel App Store's gallery, which Umbrel makes
+  // from screenshots like these.
+
+  test('search', async ({ page }) => {
+    await openApp(page, '/search', options)
+    await expect(page.getByRole('link').nth(12)).toBeVisible()
+    await shoot(page, 'desktop-search')
+  })
+
+  test('releases', async ({ page }) => {
+    await openApp(page, '/title/tv/126308/releases', options)
+    await expect(page.getByText(RELEASES[0].title)).toBeVisible()
+    // The table is what this one shows, under the title's In downloads card: the page ends too soon
+    // below the table to scroll the card out of view whole.
+    await page
+      .getByRole('heading', { level: 2, name: 'In downloads' })
+      .evaluate((heading) => window.scrollBy(0, heading.getBoundingClientRect().top - 24))
+    await shoot(page, 'desktop-releases', { top: false })
+  })
+
+  test('torrent details', async ({ page }) => {
+    // Severance, whose release name fits on one line in the drawer: the drawer breaks a longer one
+    // anywhere, leaving Shōgun's last digit on a line of its own.
+    await openApp(page, '/torrent/a4', { ...options, downloadsView: 'list' })
+    // On desktop the torrent opens in a drawer over Downloads.
+    await expect(page.getByRole('dialog', { name: 'Severance' })).toBeVisible()
+    await everyPoster(page, '.dl-row-poster')
+    // The drawer puts focus on its close button, whose ring would show without a click first.
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+    await shoot(page, 'desktop-torrent')
   })
 })

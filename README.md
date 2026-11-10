@@ -11,6 +11,9 @@ A qBittorrent web UI for movies and TV series. Find a movie or a series, pick a 
 
 <img src="docs/screenshots/desktop-title.png" alt="A series page on a computer, with its releases under the overview: filters for resolution, audio, source, minimum seeds and indexer over a table of releases">
 
+<details>
+<summary>More screenshots</summary>
+
 <p>
   <img src="docs/screenshots/releases.png" width="266" alt="Releases on a phone with season, resolution, source, HDR and voice-over badges">
   <img src="docs/screenshots/add-files.png" width="266" alt="Adding a release on a phone: its files, grouped in folders, each with a checkbox">
@@ -23,6 +26,8 @@ A qBittorrent web UI for movies and TV series. Find a movie or a series, pick a 
 </p>
 
 <img src="docs/screenshots/desktop-downloads.png" alt="Downloads on a computer: a table with posters, statuses and speeds, and the sidebar">
+
+</details>
 
 ## What it does
 
