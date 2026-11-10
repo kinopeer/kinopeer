@@ -114,9 +114,11 @@ test.describe('desktop', () => {
   })
 
   test('torrent details', async ({ page }) => {
-    await openApp(page, '/torrent/a2', { ...options, downloadsView: 'list' })
+    // Severance, whose release name fits on one line in the drawer: the drawer breaks a longer one
+    // anywhere, leaving Shōgun's last digit on a line of its own.
+    await openApp(page, '/torrent/a4', { ...options, downloadsView: 'list' })
     // On desktop the torrent opens in a drawer over Downloads.
-    await expect(page.getByRole('dialog', { name: 'Shōgun' })).toBeVisible()
+    await expect(page.getByRole('dialog', { name: 'Severance' })).toBeVisible()
     await everyPoster(page, '.dl-row-poster')
     // The drawer puts focus on its close button, whose ring would show without a click first.
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
