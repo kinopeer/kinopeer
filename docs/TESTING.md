@@ -621,7 +621,7 @@ Three steps, each by whoever can do it best:
    per test with its layer, every uncovered part with its reason, each
    [neighbour](#choosing-a-layer) answered, and what Stryker leaves alone broken by hand. The docs
    too, every file that describes what the diff changes: `CLAUDE.md` and the files in its docs
-   table (`README.md`, `CONTRIBUTING.md`, `SECURITY.md`, SPEC, ARCHITECTURE, ROADMAP, DEVELOPMENT,
+   table (`README.md`, `CONTRIBUTING.md`, `SECURITY.md`, SPEC, ARCHITECTURE, DEVELOPMENT,
    this file, the release checklist, the changelog), the review skill in `.claude/skills/`, and the
    PR template, the workflows and the config, whose comments are docs too, with `.env.example`; 30
    of the 2026-11-08 batch's findings sat in files the old rule didn't name (#287's README
