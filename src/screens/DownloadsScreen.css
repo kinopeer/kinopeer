@@ -164,9 +164,15 @@
   min-width: 0;
 }
 
+/* One space above what the screen shows and between its parts (the install card and the list), so
+   the two stay equal. */
 .downloads-body {
+  --downloads-body-space: var(--space-2);
   flex: 1;
-  padding-top: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--downloads-body-space);
+  padding-top: var(--downloads-body-space);
 }
 
 .downloads-list {
@@ -772,12 +778,18 @@ a.dl-row-main:focus-visible::after {
   }
 
   .downloads-body {
-    padding: var(--space-5) var(--space-8) var(--space-12);
+    --downloads-body-space: var(--space-5);
+    padding: var(--downloads-body-space) var(--space-8) var(--space-12);
   }
 
   /* The table's column names stick under the header (its height from useHeightVar): their row
      group, since a sticky element stays within its parent. They take over the body's top padding,
-     so no row shows between the header and them while scrolling. */
+     so no row shows between the header and them while scrolling, and the gap under the install
+     card. */
+  .downloads-body:has(> .dl-table) {
+    gap: 0;
+  }
+
   .downloads-body:has(> .dl-table:first-child) {
     padding-top: 0;
   }
@@ -786,7 +798,7 @@ a.dl-row-main:focus-visible::after {
     position: sticky;
     top: var(--downloads-head, 0px);
     z-index: 3;
-    padding-top: var(--space-5);
+    padding-top: var(--downloads-body-space);
     background: var(--bg);
   }
 

@@ -18,7 +18,6 @@
   align-items: flex-start;
   gap: var(--space-4);
   padding: var(--space-4);
-  margin-bottom: var(--space-2);
 }
 
 .install-card-text {
