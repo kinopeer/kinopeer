@@ -6,7 +6,7 @@ Kinopeer follows [semantic versioning](https://semver.org). While the version is
 
 ### Changed
 
-- On a phone or a tablet, Downloads' torrents sit as far from each other as the first one sits from the header above it, in the list and in the poster grid alike.
+- On a phone or a tablet, the torrents in Downloads' list sit as far from each other as the first one sits from the header, or from the install card when it shows, and the poster grid starts as close under the header.
 
 ### Fixed
 
