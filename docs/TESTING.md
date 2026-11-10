@@ -432,7 +432,8 @@ area gets a pass over its states, not three more tests; three `environment` from
 it goes into layer 5 or 6 when a browser in CI can run it, and when none can (the app added to the
 Home Screen on iOS) its manual check moves from the release into every PR that touches it, as the
 phone check on `preview-lan` did; three `implementation` → review the mocks in that area; three `silent-test` → a lint
-rule. The retro runs the same count over review findings.
+rule; three `flaky` → a helper or a lint rule that takes their shape away, as `findToastOnPage`
+did. The retro runs the same count over review findings.
 
 Rules next to this one:
 
@@ -452,8 +453,8 @@ Rules next to this one:
   label and no "Why tests missed it" section in the PR. The issue's Type field says which case it
   is, not the wording of its text. The bug form gives every report the Bug type, so whether it is
   one is the call of whoever files the issue, and whoever works on it may still change the type by
-  the two items above (whether a user can meet it, then what `SPEC.md` says); without a type, they
-  decide.
+  the item above (whether a user can meet it, then what `SPEC.md` says); without a type, it
+  decides.
   #316 (the release filters hid releases whose name the parser couldn't read) was a Feature.
 
 In practice: #107 (Escape in the delete confirmation closed the drawer too) was found by the delete
