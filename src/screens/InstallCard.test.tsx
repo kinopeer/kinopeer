@@ -39,6 +39,13 @@ describe('InstallCard', () => {
     expect(event.prompt).toHaveBeenCalledOnce()
   })
 
+  it('shows the Home Screen steps from a browser with its own prompt', async () => {
+    render(<InstallCard />)
+    installPrompt()
+    await userEvent.click(screen.getByRole('button', { name: 'On iPhone?' }))
+    expect(screen.getByRole('dialog', { name: 'Add to Home Screen' })).toBeInTheDocument()
+  })
+
   it('shows the Home Screen steps on iPhone', async () => {
     vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(IPHONE)
     render(<InstallCard />)
