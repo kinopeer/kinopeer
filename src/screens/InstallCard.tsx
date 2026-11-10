@@ -22,41 +22,41 @@ export function InstallCard() {
   const [dismissed, setDismissed] = useState(isInstallCardDismissed)
   const [steps, setSteps] = useState<ManualInstall | null>(null)
 
-  if (dismissed) return null
+  // Nothing at all where the card doesn't show, not even the closed sheet: Downloads' desktop table
+  // takes the body's top space itself only while it comes first (DownloadsScreen.css, #349).
+  if (dismissed || !method) return null
 
   return (
     <>
-      {method && (
-        <section className="ks-card install-card" aria-labelledby="install-card-title">
-          <img className="install-icon" src="/icons/icon-192.png" alt="" width={48} height={48} />
-          <div className="install-card-text">
-            <h2 id="install-card-title" className="t-label install-card-title">
-              {t('install.title')}
-            </h2>
-            <p className="t-cap c2">{t('install.body')}</p>
-            <div className="install-card-actions">
-              <Button size="sm" onClick={() => (method === 'prompt' ? void promptInstall() : setSteps(method))}>
-                {t('install.action')}
+      <section className="ks-card install-card" aria-labelledby="install-card-title">
+        <img className="install-icon" src="/icons/icon-192.png" alt="" width={48} height={48} />
+        <div className="install-card-text">
+          <h2 id="install-card-title" className="t-label install-card-title">
+            {t('install.title')}
+          </h2>
+          <p className="t-cap c2">{t('install.body')}</p>
+          <div className="install-card-actions">
+            <Button size="sm" onClick={() => (method === 'prompt' ? void promptInstall() : setSteps(method))}>
+              {t('install.action')}
+            </Button>
+            {method !== 'ios' && (
+              <Button variant="ghost" size="sm" onClick={() => setSteps('ios')}>
+                {t('install.iosHow')}
               </Button>
-              {method !== 'ios' && (
-                <Button variant="ghost" size="sm" onClick={() => setSteps('ios')}>
-                  {t('install.iosHow')}
-                </Button>
-              )}
-            </div>
+            )}
           </div>
-          <IconButton
-            icon="close"
-            label={t('common.close')}
-            iconSize={18}
-            className="install-card-close"
-            onClick={() => {
-              dismissInstallCard()
-              setDismissed(true)
-            }}
-          />
-        </section>
-      )}
+        </div>
+        <IconButton
+          icon="close"
+          label={t('common.close')}
+          iconSize={18}
+          className="install-card-close"
+          onClick={() => {
+            dismissInstallCard()
+            setDismissed(true)
+          }}
+        />
+      </section>
       <InstallSheet platform={steps} onClose={() => setSteps(null)} />
     </>
   )

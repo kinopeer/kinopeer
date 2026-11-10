@@ -25,9 +25,10 @@ afterEach(() => {
 })
 
 describe('InstallCard', () => {
-  it('shows nothing where the app can\'t be installed', () => {
-    render(<InstallCard />)
-    expect(screen.queryByRole('heading', { name: 'Install Kinopeer' })).not.toBeInTheDocument()
+  // Not even the closed sheet, which would come before Downloads' desktop table (#349).
+  it('renders nothing where the app can\'t be installed', () => {
+    const { container } = render(<InstallCard />)
+    expect(container).toBeEmptyDOMElement()
   })
 
   it('opens the browser prompt', async () => {

@@ -10,6 +10,7 @@ Kinopeer follows [semantic versioning](https://semver.org). While the version is
 
 ### Fixed
 
+- On a computer, the Downloads table's column names sit as close under the header in the installed app and in browsers that can't install Kinopeer as anywhere else, rather than twice as far. ([#349](https://github.com/kinopeer/kinopeer/issues/349))
 - A theater rip named with a space where a hyphen usually goes, as some indexers' names reach Kinopeer (`HD CAM`, `CAM Rip`), shows as CAM rather than "Source not stated", and a broadcast capture named `MPEG 2 TS` no longer shows as one. ([#341](https://github.com/kinopeer/kinopeer/issues/341))
 
 ## 0.8.0 - 2026-11-09

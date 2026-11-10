@@ -54,6 +54,11 @@ export interface AppOptions {
   realTmdb?: boolean
   /** TMDB fails the search's second page, which it otherwise answers with nothing new. */
   searchMoreFails?: boolean
+  /**
+   * The install card isn't closed, as it is otherwise: the browser offers no way to install, so it
+   * doesn't show (an installed app, Firefox), or Chromium's own prompt, so it does.
+   */
+  installCard?: 'unavailable' | 'prompt'
 }
 
 /** The desktop layout at the canvas's width: `test.use(DESKTOP)` in a describe block. */
@@ -221,16 +226,29 @@ async function mockTmdb(page: Page, options: AppOptions): Promise<void> {
 export async function openApp(page: Page, path: string, options: AppOptions = {}): Promise<void> {
   await page.clock.setFixedTime(NOW)
   await page.addInitScript(
-    ({ theme, lang, downloadsView, releaseFilters }) => {
+    ({ theme, lang, downloadsView, releaseFilters, installCard }) => {
       localStorage.setItem('kinopeer.theme', theme)
       localStorage.setItem('kinopeer.language', lang)
       localStorage.setItem(
         'kinopeer.settings',
         JSON.stringify({ downloadsView: downloadsView ?? 'list', downloadsDesktopView: downloadsView, releaseFilters }),
       )
-      localStorage.setItem('kinopeer.installDismissed', '1')
+      if (!installCard) {
+        localStorage.setItem('kinopeer.installDismissed', '1')
+        return
+      }
+      // Whether Chromium sends its own prompt to the built app isn't up to the test: a listener on
+      // the capture phase stops any before the app's, and the prompt case sends one of its own.
+      window.addEventListener('beforeinstallprompt', (event) => event.isTrusted && event.stopImmediatePropagation(), true)
+      if (installCard === 'prompt') window.addEventListener('load', () => window.dispatchEvent(new Event('beforeinstallprompt')))
     },
-    { theme: options.theme ?? 'dark', lang: options.lang ?? 'ru', downloadsView: options.downloadsView, releaseFilters: options.releaseFilters },
+    {
+      theme: options.theme ?? 'dark',
+      lang: options.lang ?? 'ru',
+      downloadsView: options.downloadsView,
+      releaseFilters: options.releaseFilters,
+      installCard: options.installCard,
+    },
   )
   if (options.serviceWorkerAnswers) {
     await page.addInitScript(() => Object.defineProperty(navigator.serviceWorker, 'controller', { get: () => ({}) }))
