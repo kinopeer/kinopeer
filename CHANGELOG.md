@@ -4,7 +4,7 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 
 ## 1.0.0 - 2026-11-10
 
-The first stable version, the one submitted to the official Umbrel App Store. On a phone, Downloads' torrents and the install card are spaced evenly under the header, and a theater rip named with a space where its hyphen goes shows as CAM.
+The first stable version, the one for the official Umbrel App Store. Downloads' torrents on a phone and the install card are spaced evenly under the header, the Downloads table's column names on a computer sit close under it in the installed app too, and a theater rip named with a space where its hyphen goes shows as CAM.
 
 ### Changed
 
