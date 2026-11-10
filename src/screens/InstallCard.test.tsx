@@ -46,6 +46,15 @@ describe('InstallCard', () => {
     expect(screen.getByRole('dialog', { name: 'Add to Home Screen' })).toBeInTheDocument()
   })
 
+  it('closes the steps along with the card once the app is installed', async () => {
+    render(<InstallCard />)
+    installPrompt()
+    await userEvent.click(screen.getByRole('button', { name: 'On iPhone?' }))
+    act(() => void window.dispatchEvent(new Event('appinstalled')))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Install Kinopeer' })).not.toBeInTheDocument()
+  })
+
   it('shows the Home Screen steps on iPhone', async () => {
     vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(IPHONE)
     render(<InstallCard />)
