@@ -91,4 +91,34 @@ test.describe('desktop', () => {
     await expect(page.getByText(RELEASES[0].title)).toBeVisible()
     await shoot(page, 'desktop-title')
   })
+
+  // The rest are 16:10 at the desktop size, for the Umbrel App Store's gallery, which Umbrel makes
+  // from screenshots like these.
+
+  test('search', async ({ page }) => {
+    await openApp(page, '/search', options)
+    await expect(page.getByRole('link').nth(12)).toBeVisible()
+    await shoot(page, 'desktop-search')
+  })
+
+  test('releases', async ({ page }) => {
+    await openApp(page, '/title/tv/126308/releases', options)
+    await expect(page.getByText(RELEASES[0].title)).toBeVisible()
+    // The table is what this one shows, under the title's In downloads card: the page ends too soon
+    // below the table to scroll the card out of view whole.
+    await page
+      .getByRole('heading', { level: 2, name: 'In downloads' })
+      .evaluate((heading) => window.scrollBy(0, heading.getBoundingClientRect().top - 24))
+    await shoot(page, 'desktop-releases', { top: false })
+  })
+
+  test('torrent details', async ({ page }) => {
+    await openApp(page, '/torrent/a2', { ...options, downloadsView: 'list' })
+    // On desktop the torrent opens in a drawer over Downloads.
+    await expect(page.getByRole('dialog', { name: 'Shōgun' })).toBeVisible()
+    await everyPoster(page, '.dl-row-poster')
+    // The drawer puts focus on its close button, whose ring would show without a click first.
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+    await shoot(page, 'desktop-torrent')
+  })
 })
