@@ -45,6 +45,20 @@ updates:
       tmdb-proxy:
         patterns: ['*']
 
+  # The Dockerfile pins Node's image by digest; Dependabot moves the digest, and the tag within the
+  # major. BuildKit's image in the workflows' setup-buildx-action is out of its reach and moves by hand
+  # (docs/RELEASE_CHECKLIST.md → Before every release).
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    ignore:
+      # A major is the Node the server runs on: it moves by hand, with @types/node's major.
+      - dependency-name: node
+        update-types: ['version-update:semver-major']
+
   # The workflows pin each action by commit SHA with its version in a comment; Dependabot moves both.
   - package-ecosystem: github-actions
     directory: /

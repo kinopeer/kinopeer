@@ -712,7 +712,7 @@ edits by maintainers" on) or in a PR of our own that takes their commits. The re
 contributor for nothing the template's own line leaves to the maintainer.
 
 Dependabot's PRs (`.github/dependabot.yml`: once a month, grouped) skip the rounds and the
-template. They change only versions, in `package.json`, the lockfiles and the workflows' `uses:`,
+template. They change only versions, in `package.json`, the lockfiles, the workflows' `uses:` and the `Dockerfile`'s image digest,
 and a round would have nothing of ours to read. One merges on green CI and the owner's OK. Before
 asking for it on a major, the session that brings the PR to the owner reads the release notes of
 each package it moves a major and says in a PR comment what of them touches Kinopeer, or that
