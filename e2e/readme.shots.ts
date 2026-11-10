@@ -4,7 +4,8 @@ import { RELEASES, TORRENTS } from './fixtures.ts'
 import type { Torrent } from '../src/api/qbittorrent/types.ts'
 
 /**
- * Renders the README screenshots into docs/screenshots/ (not a test: nothing is compared). Run with
+ * Renders the README screenshots, and three desktop ones only for the Umbrel App Store, into
+ * docs/screenshots/ (not a test: nothing is compared). Run with
  * `npm run screenshots:readme`. Titles and posters come from TMDB for real, through Kinopeer's edge
  * TMDB proxy without a key of your own (the dev server's default). The interface is in English,
  * like the README.
