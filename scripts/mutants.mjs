@@ -5,6 +5,8 @@
 // can fail).
 import { spawnSync } from 'node:child_process'
 import { appendFileSync, existsSync, readFileSync, rmSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { dirname, join } from 'node:path'
 
 const BASE = process.env.MUTANTS_BASE || 'origin/main'
 const REPORT = 'reports/mutants.json'
@@ -49,8 +51,21 @@ function survivors({ files }) {
   )
 }
 
+// Stryker's own binary, from the dev dependencies. Not through npx: without them it fetches the npm
+// package named `stryker`, an old one that isn't Stryker, and runs it, and with `--no` it still
+// runs one it fetched before (#351).
+function strykerBin() {
+  try {
+    const manifest = createRequire(import.meta.url).resolve('@stryker-mutator/core/package.json')
+    return join(dirname(manifest), JSON.parse(readFileSync(manifest, 'utf8')).bin.stryker)
+  } catch {
+    console.error("Stryker isn't installed in this checkout: run npm ci first.")
+    process.exit(1)
+  }
+}
+
 function stryker(...args) {
-  const { status } = spawnSync('npx', ['stryker', 'run', ...args], { stdio: ['ignore', 2, 2] })
+  const { status } = spawnSync(process.execPath, [strykerBin(), 'run', ...args], { stdio: ['ignore', 2, 2] })
   if (status !== 0) process.exit(status ?? 1)
 }
 
