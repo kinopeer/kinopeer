@@ -44,9 +44,9 @@ or its rules.
   `--disable-nested-config`, so a nested config does nothing even unmarked.
 - A command CI ran that is no longer run: an npm script (`npm run lint`, `npm ci`), a tool through
   npx with its subcommand (`npx playwright test`), a script through `node`, `docker` with its
-  subcommand (`docker run`, `docker exec`) or an action (`uses:`, by its name without the
-  version), which a workflow's step called on `main` and no step calls on the branch, wherever the
-  step went; and a workflow removed (`.github/workflows/`). The guard reads the workflows the
+  subcommand (`docker run`, `docker exec`), or an action or a reusable workflow (`uses:`, by its
+  name without the version), which a workflow's step called on `main` and no step calls on the
+  branch, wherever the step went; and a workflow removed (`.github/workflows/`). The guard reads the workflows the
   branch changes, so a command that an unchanged workflow still runs is marked all the same, and
   so is an action that only prepares a job (`actions/cache`), dropped from the workflows changed.
 - An npm script removed (`scripts` in the root `package.json`): the step that called it checks
@@ -192,11 +192,18 @@ compare the tests that ran, and says so: that takes a run of each side, which CI
 - A removed step of plain shell, with no npm script, npx tool, node script, docker command or
   action in it (`curl` against a server, a shell test): it goes to a second review, not to the
   owner. So does a check dropped from a step whose commands all stay.
+- An action's inputs (`with:`) and a step's other keys (`env:`, `working-directory:`): a change to
+  them isn't read, so a check an input turns off (`fail-on-error: false`) is marked nowhere.
 - In reading a workflow's commands: a comment after a block's start (`run: | # the tests`) keeps
   the block's lines from being read; a flag with a value before an npm script (`npm --prefix
   tmdb-proxy run test`) is read as the script, and one before docker's subcommand (`docker
   --context ci run`) as the subcommand; `node` with a flag first (`node --test server`) isn't
-  read as a command.
+  read as a command; a command that goes on on the next line (`docker \` and then `run`, the
+  same for npm and npx) is read as two lines, so as no command; an image used as an action
+  (`uses: docker://alpine:3.20`) is another action after its tag moves.
+- A command's word in a step's message is marked, though it runs nothing: `echo "the docker image
+  is ready"` reads as `docker image`, and removing that step goes to the owner. The guard reads
+  the words wherever they stand rather than work out where a command starts.
 - Whatever reading YAML line by line gets wrong: it finds `run:` and `uses:` keys and the lines
   indented under a block, and knows nothing of anchors or of a command built by an expression.
 - A change to `guard.yml` that stops the script from running or from being `main`'s copy: the

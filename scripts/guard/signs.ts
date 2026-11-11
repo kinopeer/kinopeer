@@ -265,7 +265,8 @@ export function workflowSteps(text: string): string[] {
     const key = /^(\s*(?:-\s+)?)(uses|run):(.*)/.exec(line)
     if (!key) continue
     const value = key[3].trim()
-    if (key[2] === 'uses') steps.push(`uses: ${value.split('@')[0]}`)
+    // Without its version, and without the quotes it may be written in: the same action either way.
+    if (key[2] === 'uses') steps.push(`uses: ${value.split('@')[0].replace(/^["']/, '')}`)
     else if (BLOCK.test(value)) block = { indent: key[1].length, lines: [] }
     // A `run:` with nothing after it is a mapping (`defaults: run: shell: bash`), not a step.
     else if (value !== '') steps.push(`run: ${value}`)
@@ -279,8 +280,10 @@ const brief = (step: string): string => (step.length > 120 ? `${step.slice(0, 11
 /**
  * The commands a step calls that can be a check: an npm script, a tool through npx with its
  * subcommand, a script through node, docker with its subcommand. Without their arguments, so a flag
- * added isn't another command. A step that calls an action is that one command: the action, whose
- * version and inputs aren't part of the step.
+ * added isn't another command. A step that calls an action, or a job that calls a reusable
+ * workflow, is that one command: what it `uses`, whose version and inputs aren't part of the step.
+ * The words are read wherever they stand, in a message too (`echo "the docker image"`): the guard
+ * marks too much rather than too little.
  */
 export function commands(step: string): string[] {
   if (step.startsWith('uses: ')) return [step]
@@ -292,7 +295,7 @@ export function commands(step: string): string[] {
 }
 
 /**
- * The CI workflows a branch changes, together: a command or an action that main's copies called
+ * The CI workflows a branch changes, together: a command, an action or a reusable workflow that main's copies called
  * and none of the branch's calls is a weakening, wherever its step went; a workflow removed is one
  * too. Any other step that is gone (a command with other arguments, one of two steps alike, a step
  * of plain shell) is a change to an existing check. A command that an unchanged workflow still calls is

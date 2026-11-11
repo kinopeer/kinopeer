@@ -264,6 +264,10 @@ describe('workflowSteps', () => {
     expect(workflowSteps('      -   run: npm ci\n      -\tuses: actions/checkout@v7\n')).toEqual(['run: npm ci', 'uses: actions/checkout'])
   })
 
+  it('reads an action written in quotes as the action', () => {
+    expect(workflowSteps(`      - uses: "actions/checkout@abc"\n      - uses: 'actions/setup-node@def' # v7\n`)).toEqual(['uses: actions/checkout', 'uses: actions/setup-node'])
+  })
+
   it("doesn't take the shell a workflow sets for its commands for a step", () => {
     expect(workflowSteps('defaults:\n  run:\n    shell: bash\njobs:\n  check:\n    steps:\n      - run: npm ci\n')).toEqual(['run: npm ci'])
   })
@@ -289,8 +293,11 @@ describe('commands', () => {
     ['run: docker buildx build --load .', ['docker buildx']],
     ['run: docker --debug build .', ['docker build']],
     ['uses: actions/setup-node', ['uses: actions/setup-node']],
-    // An action, not the docker command, whatever its name starts with.
-    ['uses: docker/build-push-action', ['uses: docker/build-push-action']],
+    // A job's call of a reusable workflow is a `uses:` too.
+    ['uses: ./.github/workflows/tmdb-proxy.yml', ['uses: ./.github/workflows/tmdb-proxy.yml']],
+    // On purpose: the word before any other is read as the command, in a message too, since the guard marks too much rather than too little.
+    ['run: echo "the docker image is ready"', ['docker image']],
+    ['run: git commit -m "build the docker image in CI"', ['docker image']],
   ])('reads %s as %j', (step, expected) => {
     expect(commands(step)).toEqual(expected)
   })
