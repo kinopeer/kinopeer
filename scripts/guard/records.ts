@@ -78,7 +78,7 @@ export const closed = (state: State): boolean => state === 'sound' || state === 
  * composed, and where the list stands. `state` is missing when the PR's records weren't read.
  */
 export function says(needs: Needs, code: string, state: State | undefined): string {
-  const reason = `\`${approval(code)} …\`, the reason in the owner's words`
+  const reason = `\`${approval(code)} …\`, the owner's reason, in English`
   const posted = state === 'none' ? ' Not posted yet.' : ''
   if (state === 'approved') return needs === 'owner' ? `The PR holds the owner's approval of \`${code}\`.` : `The second review of \`${code}\` found a weakening, and the PR holds the owner's approval of it.`
   if (needs === 'owner') return `Record to post once the owner approves: ${reason}.${posted}`

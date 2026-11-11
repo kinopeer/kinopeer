@@ -166,13 +166,13 @@ describe('closed', () => {
 
 describe('says', () => {
   it.each([
-    ['owner', undefined, "Record to post once the owner approves: `**Owner's approval 1a2b3c4d:** …`, the reason in the owner's words."],
-    ['owner', 'none', "Record to post once the owner approves: `**Owner's approval 1a2b3c4d:** …`, the reason in the owner's words. Not posted yet."],
+    ['owner', undefined, "Record to post once the owner approves: `**Owner's approval 1a2b3c4d:** …`, the owner's reason, in English."],
+    ['owner', 'none', "Record to post once the owner approves: `**Owner's approval 1a2b3c4d:** …`, the owner's reason, in English. Not posted yet."],
     ['owner', 'approved', "The PR holds the owner's approval of `1a2b3c4d`."],
     ['review', undefined, 'Record to post after the second review (`/second-review`): `**Second review 1a2b3c4d: sound**` or `**Second review 1a2b3c4d: weakening**`.'],
     ['review', 'none', 'Record to post after the second review (`/second-review`): `**Second review 1a2b3c4d: sound**` or `**Second review 1a2b3c4d: weakening**`. Not posted yet.'],
     ['review', 'sound', 'The PR holds a second review of `1a2b3c4d`: sound.'],
-    ['review', 'weakening', "The second review of `1a2b3c4d` found a weakening. It needs a fix, and a second review of what the fix makes of it, or `**Owner's approval 1a2b3c4d:** …`, the reason in the owner's words."],
+    ['review', 'weakening', "The second review of `1a2b3c4d` found a weakening. It needs a fix, and a second review of what the fix makes of it, or `**Owner's approval 1a2b3c4d:** …`, the owner's reason, in English."],
     ['review', 'approved', "The second review of `1a2b3c4d` found a weakening, and the PR holds the owner's approval of it."],
   ] as const)('says of the list for the %s that stands %s: %s', (needs, state, text) => {
     expect(says(needs, CODE, state)).toBe(text)

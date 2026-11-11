@@ -1,6 +1,6 @@
 ---
 name: second-review
-description: The second, independent review of the changes to existing checks that the checks guard marked in a pull request — rewritten or removed assertions, tests gone or renamed, a changed threshold, lint rule, CI step or type-check config. Use as `/second-review <PR number>` in a fresh session, after the first review's "ready to merge" and before the owner is asked to approve the merge; also when asked for "the second review" or "второе ревью" of a PR.
+description: The second, independent review of the changes to existing checks that the checks guard marked in a pull request — rewritten or removed assertions, tests gone or renamed, a changed threshold, lint rule, CI step or type-check config. Use as `/second-review <PR number>` in a fresh session, after the first review's "ready to merge" and before the owner is asked to approve the merge; also when asked for "the second review" of a PR.
 ---
 
 # Second review
