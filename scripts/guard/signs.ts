@@ -30,8 +30,9 @@ export const PACKAGE_FILE = 'package.json'
 const WORKFLOWS = '.github/workflows/'
 const inRoot = (path: string): boolean => !path.includes('/')
 const isWorkflow = (path: string): boolean => path.startsWith(WORKFLOWS) && inRoot(path.slice(WORKFLOWS.length)) && (path.endsWith('.yml') || path.endsWith('.yaml'))
-/** The guard itself and its rules: a change to them goes to the owner, whatever it is. */
-const isGuard = (path: string): boolean => path.startsWith('scripts/guard/') || path === `${WORKFLOWS}guard.yml` || path === 'docs/QUALITY.md'
+/** The guard itself and its rules, the second review's procedure among them: a change to them goes to the owner, whatever it is. */
+const isGuard = (path: string): boolean =>
+  path.startsWith('scripts/guard/') || path === `${WORKFLOWS}guard.yml` || path === 'docs/QUALITY.md' || path.startsWith('.claude/skills/second-review/')
 const isDoc = (path: string): boolean => path.endsWith('.md')
 const nameOf = (path: string): string => path.slice(path.lastIndexOf('/') + 1)
 /** A lint config outside the root, which oxlint obeys for its folder: the root's rules turned off without touching the root's config. */

@@ -86,7 +86,8 @@ or its rules.
 - `checks.json`, `.oxlintrc.json` or `package.json` that is no longer a JSON object the guard can
   read, a list in `checks.json` that is no longer a list, and `checks.json` or `.oxlintrc.json`
   removed.
-- Any change to `scripts/guard/`, `.github/workflows/guard.yml` or this file.
+- Any change to `scripts/guard/`, `.github/workflows/guard.yml`, this file or the second review's
+  procedure (`.claude/skills/second-review/`).
 
 **For a second review**: a change to an existing check that a script can't judge.
 

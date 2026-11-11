@@ -608,12 +608,12 @@ describe('scanAdded', () => {
 })
 
 describe('findings', () => {
-  it.each(['scripts/guard/signs.ts', 'scripts/guard/guard.test.ts', '.github/workflows/guard.yml', 'docs/QUALITY.md'])('sends a change to the guard or its rules to the owner: %s', (path) => {
+  it.each(['scripts/guard/signs.ts', 'scripts/guard/guard.test.ts', '.github/workflows/guard.yml', 'docs/QUALITY.md', '.claude/skills/second-review/SKILL.md'])('sends a change to the guard or its rules to the owner: %s', (path) => {
     // With a line that would be a finding of its own anywhere else: the guard's files hold the patterns as text.
     expect(findings([{ path, base: 'jobs: {}', head: 'jobs: {}', added: [{ line: 1, text: '  retries: 2,' }] }])).toEqual([{ needs: 'owner', file: path, what: 'the checks guard or its rules changed' }])
   })
 
-  it.each(['tmdb-proxy/scripts/guard/signs.ts', 'scripts/guardian.ts', 'docs/.github/workflows/guard.yml', '.github/workflows/guard.yml.md', 'QUALITY.md', 'docs/QUALITY.md.bak'])("doesn't take %s for the guard", (path) => {
+  it.each(['tmdb-proxy/scripts/guard/signs.ts', 'scripts/guardian.ts', 'docs/.github/workflows/guard.yml', '.github/workflows/guard.yml.md', 'QUALITY.md', 'docs/QUALITY.md.bak', '.claude/skills/test-review/SKILL.md', '.claude/skills/second-reviews/SKILL.md', 'docs/.claude/skills/second-review/SKILL.md'])("doesn't take %s for the guard", (path) => {
     expect(findings([{ path, added: [] }])).toEqual([])
   })
 
