@@ -133,10 +133,12 @@ describe('guard', () => {
     it.each([
       ['there is no such folder', 'missing'],
       ['the folder is empty', 'empty'],
+      ['a file sits in place of the folder', 'file'],
     ])("says it can't see for a side where %s", async (_name, folder) => {
       await commit(APP)
       const tests = await reports({ 'vitest.json': ran('adds') }, {})
       await mkdir(`${repo}-tests/empty`)
+      await writeFile(`${repo}-tests/file`, ran('adds'))
       expect(guard({ repo, base: 'main', head: 'branch', tests: { ...tests, head: `${repo}-tests/${folder}` } }).found).toEqual([
         { needs: 'owner', what: "the branch's run gave no tests in `vitest.json`, so the guard can't see a test of it that is gone" },
       ])

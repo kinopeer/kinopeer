@@ -3,7 +3,7 @@
 // commit it left main at and prints, as Markdown, what in its changes weakens the checks or changes
 // existing ones. It reads the branch through git and runs none of its code.
 import { spawnSync } from 'node:child_process'
-import { appendFileSync, existsSync, readdirSync, readFileSync } from 'node:fs'
+import { appendFileSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { findings, readsWhole, report, type AddedLine, type Change, type Finding } from './signs.ts'
 import { compareTests, testsIn, type Reports, type Test } from './tests.ts'
@@ -59,9 +59,10 @@ export function changes(git: Git, base: string, head: string): Change[] {
 }
 
 /**
- * The tests in a folder of reports (Vitest's JSON, Playwright's lists), report by report; no
- * reports when there is no such folder. The folder is filled by the branch's code, so a report the
- * guard can't read (a folder of that name, say) is one that gave no tests, not a crash.
+ * The tests in a folder of reports (Vitest's JSON, Playwright's lists), report by report. The
+ * folder is filled by the branch's code, so what the guard can't read there is not a crash: a
+ * folder that isn't there or isn't one has no reports, and a report that can't be read (a folder
+ * of that name, say) gave no tests.
  */
 function testsOf(folder: string): Reports {
   const read = (name: string) => {
@@ -73,7 +74,12 @@ function testsOf(folder: string): Reports {
     }
     return tests
   }
-  const names = existsSync(folder) ? readdirSync(folder).filter((name) => name.endsWith('.json')) : []
+  let names: string[] = []
+  try {
+    names = readdirSync(folder).filter((name) => name.endsWith('.json'))
+  } catch {
+    // No such folder, or a file in its place: no reports.
+  }
   return new Map(names.map((name) => [name, read(name)]))
 }
 
