@@ -107,9 +107,9 @@ describe('guard', () => {
     expect(said()).toEqual(['owner playwright.config.ts:14: test retries appeared: `use: { retries: 1 },`'])
   })
 
-  it("reads an added line that looks like a diff's file header as a line of the file", async () => {
-    await commit({ 'e2e/notes.ts': '++ b/e2e/other.ts\nconst config = { retries: 2 }\n' })
-    expect(said()).toEqual(['owner e2e/notes.ts:2: test retries appeared: `const config = { retries: 2 }`'])
+  it("reads added lines that look like a diff's own headers as lines of the file", async () => {
+    await commit({ 'e2e/notes.ts': '++ b/e2e/other.ts\n@@ -1 +90 @@\nconst config = { retries: 2 }\n' })
+    expect(said()).toEqual(['owner e2e/notes.ts:3: test retries appeared: `const config = { retries: 2 }`'])
   })
 
   it("says so when HEAD is what it reads and the checkout has changes that aren't committed", async () => {
