@@ -71,6 +71,14 @@ or its rules.
   - a CI step that can fail without failing the run: `continue-on-error`, or `|| true`, `|| :`,
     `|| exit 0` or `set +e` in a workflow's command;
   - a path filter on a workflow's trigger (`paths`, `paths-ignore`), so it runs for fewer changes.
+- Fewer tests run: a test that `main`'s run has and the branch's doesn't (removed, skipped, its
+  row gone from a table), in a file where the branch runs fewer tests than `main` does, when it
+  also runs fewer in all. A test is its file and its name with its groups'. The lists come from the
+  runs themselves ([How it runs](#how-it-runs)): the Vitest tests that passed or failed, so not a
+  skipped one, and the browser tests Playwright lists, once per project, without those it skips.
+- A report of the branch's run that is missing or gave no tests (`vitest.json`, one of
+  Playwright's lists): the guard can't see a test of it that is gone. Only the reports that gave
+  tests on both sides are compared and counted.
 - `checks.json`, `.oxlintrc.json` or `package.json` that is no longer a JSON object the guard can
   read, a list in `checks.json` that is no longer a list, and `checks.json` or `.oxlintrc.json`
   removed.
@@ -90,10 +98,25 @@ or its rules.
 - Any change to a `tsconfig*.json`, by its path: the type check has too many settings for a list
   of them, and these files change in about two PRs of a hundred.
 - A condition added to a CI step or job (`if:`): most are fair, as `if: always()` on a summary is.
+- A test `main`'s run has and the branch's doesn't, where the branch runs no fewer tests in that
+  file or in all: renamed, moved to another file, or replaced by another, which a script can't
+  tell apart.
+- An assertion rewritten or removed inside a test that both sides have by its name, in a test
+  file the branch changes (`*.test.ts(x)` and the code in `e2e/`). The guard parses both copies
+  and takes, test by test, every call that starts from `expect` or `assert` (a helper named
+  `expectRow` too), as written, and every row of the table an `each` runs the test over, since a
+  row holds what is expected (a table given by a name the file declares more than once, as two
+  groups' `rows`, is every such list): one that `main`'s copy has and the branch's doesn't is marked at the
+  test's line, with how many of the test's and the first of them. So is one asserted outside the
+  tests, in a hook or a helper of the file. An assertion added, moved within its test or indented
+  otherwise isn't marked; one moved to another test marks the test it left.
+- A test file the guard can't parse, on either side, and a report of `main`'s run that is missing
+  or gave no tests.
 - `checks.json`, `.oxlintrc.json` or `package.json` whose copy on `main` the guard can't read, so
   that it has nothing to compare the branch's with.
 
-A new sign goes into `scripts/guard/signs.ts` with its tests and into this list, in one PR, which
+A new sign goes into `scripts/guard/` (`signs.ts`, or `assertions.ts` and `tests.ts` for what the
+tests assert and which of them ran) with its tests and into this list, in one PR, which
 goes to the owner as any change to the guard does. The list is never whole, and isn't meant to be:
 the guard is a tripwire for the cheap, known ways around a check, and the reviews catch the rest.
 A way around that a review finds goes into [What it doesn't see](#what-it-doesnt-see); it joins
@@ -112,22 +135,47 @@ guard wouldn't see it move.
 
 **In CI** the `guard` job runs on every PR (`.github/workflows/guard.yml`). It runs `main`'s copy of
 the script, not the branch's, so a PR that changes `scripts/guard/` is still read by the guard it
-found; only the PR that added the guard ran its own. The script reads the branch through git and
-runs none of its code. The workflow file is another matter: on `pull_request` GitHub runs it as
-the PR has it, so a PR that changes `guard.yml` runs its changed steps, and what `main`'s script
-does about it is mark the change for the owner. What the guard finds goes into the job's summary
-and into one comment on the PR, which the job edits in place on every push; a fork's PR gets the
-summary alone, since its token can't comment. For now it only marks: the job passes whatever it
-finds.
+found. The script reads the branch through git and runs none of its code; the one package it
+needs, the parser that comes with Vite, is installed from `main`'s lockfile. The workflow file is
+another matter: on `pull_request` GitHub runs it as the PR has it, so a PR that changes `guard.yml`
+runs its changed steps, and what `main`'s script does about it is mark the change for the owner.
+What the guard finds goes into the job's summary and into one comment on the PR, which the job
+edits in place on every push; a fork's PR gets the summary alone, since its token can't comment.
+For now it only marks: the job passes whatever it finds.
+
+The lists of the tests that ran come from a job of their own, `tests`, which the `guard` job waits
+for. It installs and runs both sides, the commit the branch left `main` at and the branch's head:
+the Vitest tests with the JSON reporter, since only a run has a table's every row as a test and
+knows a skipped one, and Playwright's `--list` for the screenshot tests and the smoke journeys,
+which needs no browser. A failing test is still a test that ran; CI's own jobs fail for it. The
+branch's code runs in that job, so its token can only read. What that code can still write is the
+job's artifact and the Actions cache in the PR's scope: the `guard` job takes the artifact, the
+reports with their paths cut to start at the repository's root, as data to `main`'s script (one it
+can't read is one that gave no tests), and takes nothing from the cache, since a cache saved there
+could overwrite `main`'s script where the token can write. When the job fails or a report is
+missing, the guard still runs and says which report of which side it lacks.
 
 **Locally** `npm run guard` prints the same report for this checkout's commits against
 `origin/main` (`--base` and `--head` name others), so the author sees the marks before pushing. It
-reads commits, not the working tree, and says so when there are uncommitted changes.
+reads commits, not the working tree, and says so when there are uncommitted changes. It doesn't
+compare the tests that ran, and says so: that takes a run of each side, which CI makes
+(`--tests-base` and `--tests-head` name two folders of such reports, for one made by hand).
 
 ### What it doesn't see
 
-- A check weakened from inside: a config that stops reading `checks.json`, an assertion rewritten
-  to check less, a test that lost its rows.
+- A check weakened from inside: a config that stops reading `checks.json`.
+- A test that checks less with its assertions left as they were written: what it sets up before
+  them changed (a fixture, a mock, the input), a helper or a matcher made looser where it is
+  defined, in another file; a table the guard can't open, imported or computed, whose rows
+  changed; a query that throws when nothing matches, used as a check without `expect`
+  (`screen.getByRole('button')` on a line of its own), rewritten or removed.
+- What a test asserts when the same change renames it: the test goes to a second review as gone
+  or renamed, and its assertions aren't compared.
+- An assertion that only moved to another line of its chain (`expect(a)` and `.toBe(1)` on two
+  lines) is marked, though nothing changed: the guard compares the text with its spaces
+  collapsed, not the meaning.
+- The tests that ran, when the branch changes what a run reports: the lists come from a run of
+  the branch's own code under its own config.
 - A trigger narrowed in a workflow other than by a new path filter (a branch or an event removed,
   a path taken out of an existing filter).
 - Other spellings of what it marks, known and left out: Vitest's `it.fails`, and a modifier
@@ -157,6 +205,8 @@ Those are the reviews' to catch (`TESTING.md` → Reviewing a PR's tests).
 
 ### Its own tests
 
-They sit next to it: the signs as pure functions in `scripts/guard/signs.test.ts` (layer 1), the
-reading of a branch in `scripts/guard/guard.test.ts`, over a git repository made in the test
-(layer 4). Stryker mutates the guard as it does the app's code.
+They sit next to it: the signs as pure functions in `scripts/guard/signs.test.ts`, the reading of
+a test file in `assertions.test.ts` and the comparison of the tests that ran in `tests.test.ts`
+(layer 1), the reading of a branch and of the reports' folders in `scripts/guard/guard.test.ts`,
+over a git repository made in the test (layer 4). Stryker mutates the guard as it does the app's
+code.

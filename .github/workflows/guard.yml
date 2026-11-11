@@ -5,6 +5,12 @@ name: Guard
 # existing ones. It only marks for now: the job passes whatever it finds. The script is main's; this
 # file isn't: on pull_request GitHub runs the workflow as the PR has it, so a PR that changes these
 # steps runs them changed, and main's script marks the change for the owner.
+#
+# Two jobs, so the PR's code never runs where the token can write: `tests` runs the tests of both
+# sides for the lists of what ran, with a token that can only read; `guard` runs only main's script,
+# over the branch as git has it and over those lists, which to it are data. What the PR's code can
+# still write from `tests` is its artifact and the Actions cache in the PR's scope, so `guard` takes
+# the first as data and nothing from the second.
 on:
   pull_request:
 
@@ -18,7 +24,61 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  tests:
+    runs-on: ubuntu-latest
+    # Two installs and two runs of the unit tests, a few minutes in all.
+    timeout-minutes: 15
+    steps:
+      - name: Check out the PR's branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Whole, to find the commit where it left main.
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          path: pr
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: pr/package-lock.json
+      - name: Run each side's tests for the list of what ran
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        # main's side is the commit the branch left main at, as in the guard, so a test main gained
+        # since isn't one the branch lost. The unit tests are run, since only a run has a table's
+        # every row and knows a skipped test; the browser tests are listed, which Playwright does
+        # the same way without a browser. A failing test is still a test that ran, and CI's own
+        # jobs are the ones that fail for it. The paths are cut to start at the repository's root,
+        # so the two sides name a file alike.
+        run: |
+          git -C pr worktree add --detach ../base "$(git -C pr merge-base "$BASE" "$HEAD")"
+          for side in base pr; do
+            mkdir -p "lists/$side"
+            (
+              cd "$side"
+              npm ci
+              npx vitest run --reporter=json --outputFile="../lists/$side/vitest.json" || echo "::notice::$side: not every unit test passed"
+              npx playwright test --list --reporter=json > "../lists/$side/playwright.json"
+              npx playwright test --config playwright.smoke.config.ts --list --reporter=json > "../lists/$side/playwright.smoke.json"
+              sed -i "s|$PWD/||g" "../lists/$side"/*.json
+            )
+          done
+      - name: Hand the lists to the guard
+        # Whatever there is, also after a step above failed: the guard says which side has no list.
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: tests
+          path: lists
+          retention-days: 14
+
   guard:
+    needs: tests
+    # Also after the tests' job failed: the guard then says it has no lists, where a job that is
+    # skipped would say nothing and pass.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -29,7 +89,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # The branch itself rather than its merge with main, whole, so the guard can find where it
-          # left main. Nothing in it is run: no npm ci, none of its scripts.
+          # left main. Nothing in it is run in this job: no npm ci, none of its scripts.
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
           path: pr
@@ -41,21 +101,32 @@ jobs:
           ref: ${{ github.event.pull_request.base.sha }}
           path: main
           persist-credentials: false
-      # Node runs the guard's TypeScript as it is, and the guard imports nothing to install.
+      # Node runs the guard's TypeScript as it is. No `cache:` here: the `tests` job, where the PR's
+      # code runs, can save a cache in this PR's scope under any key, a restore looks there before
+      # main's, and what it unpacks could overwrite main's script or this job's actions.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
+      - name: Install what main's guard imports
+        # The parser it reads test files with comes with Vite: main's lockfile, none of the
+        # packages' install scripts, nothing from the cache.
+        working-directory: main
+        run: npm ci --ignore-scripts
+      - name: Get the lists of the tests that ran
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        # With no lists to get, the guard still runs and says it can't see which tests are gone.
+        continue-on-error: true
+        with:
+          name: tests
+          path: lists
       - name: Run the guard
         id: guard
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
-        # main's copy, so a PR that changes the guard is still read by the guard it found. Only the
-        # PR that adds the guard finds none on main and runs its own.
+        # main's copy, so a PR that changes the guard is still read by the guard it found.
         run: |
-          guard=main/scripts/guard/guard.ts
-          [ -f "$guard" ] || guard=pr/scripts/guard/guard.ts
-          node "$guard" --repo pr --base "$BASE" --head "$HEAD" > guard.md
+          node main/scripts/guard/guard.ts --repo pr --base "$BASE" --head "$HEAD" --tests-base lists/base --tests-head lists/pr > guard.md
           cat guard.md >> "$GITHUB_STEP_SUMMARY"
       - name: Write the findings into the PR
         # One comment, edited in place on every push, so a PR gets one email rather than one per

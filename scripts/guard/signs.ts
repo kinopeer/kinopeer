@@ -1,7 +1,9 @@
 // The checks guard's signs: what in a branch's changes weakens the checks or changes existing ones.
 // Pure rules over the text of the changed files, read by guard.ts, which CI runs from main's copy
 // (docs/QUALITY.md → The checks guard, which lists the signs: a new one goes there too). The guard marks too much rather than too little: what it
-// can't read or can't judge is marked, not passed.
+// can't read or can't judge is marked, not passed. What a test file asserts is read in assertions.ts,
+// and the tests that ran are compared in tests.ts.
+import { compareAssertions } from './assertions.ts'
 
 /**
  * What a finding calls for before the PR merges: the owner's approval with a reason (a weakening, or
@@ -10,14 +12,15 @@
  */
 export type Needs = 'owner' | 'review'
 
-export type Finding = { needs: Needs; file: string; line?: number; what: string }
+/** `file` is missing where a finding is about the branch as a whole, such as a run that gave no list of its tests. */
+export type Finding = { needs: Needs; file?: string; line?: number; what: string }
 
 /** A line the branch adds, with its number in the branch's version of the file. */
 export type AddedLine = { line: number; text: string }
 
 /**
  * A file the branch changes. `base` and `head` are its text on main's side and on the branch's,
- * undefined where it doesn't exist; guard.ts loads them only for the files `readsWhole` names.
+ * undefined where it doesn't exist or isn't loaded: guard.ts loads them only for the files `readsWhole` names.
  */
 export type Change = { path: string; base?: string; head?: string; added: AddedLine[] }
 
@@ -39,6 +42,8 @@ const isLintIgnore = (path: string): boolean => ['.eslintignore', '.oxlintignore
 const isTypeCheckConfig = (path: string): boolean => nameOf(path).startsWith('tsconfig.') && path.endsWith('.json')
 const isUnitTest = (path: string): boolean => path.endsWith('.test.ts') || path.endsWith('.test.tsx')
 const isTest = (path: string): boolean => isUnitTest(path) || path.startsWith('e2e/')
+/** A test file or one of the browser tests' own modules, as against a screenshot beside them: code whose assertions the guard compares. */
+const isTestCode = (path: string): boolean => isTest(path) && (path.endsWith('.ts') || path.endsWith('.tsx'))
 /** A lockfile names packages, one of which may be called `retry`. */
 const isLockfile = (path: string): boolean => path === 'package-lock.json'
 /**
@@ -51,7 +56,7 @@ const runsTests = (path: string): boolean =>
 const takesScreenshots = (path: string): boolean => path.startsWith('e2e/') || (inRoot(path) && path.startsWith('playwright'))
 
 /** Whether the guard compares the file's two versions whole, rather than only the lines added. */
-export const readsWhole = (path: string): boolean => path === CHECKS_FILE || path === LINT_FILE || path === PACKAGE_FILE || isWorkflow(path)
+export const readsWhole = (path: string): boolean => path === CHECKS_FILE || path === LINT_FILE || path === PACKAGE_FILE || isWorkflow(path) || isTestCode(path)
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json }
 type JsonObject = { [key: string]: Json }
@@ -364,7 +369,7 @@ export function findings(changes: Change[]): Finding[] {
       ...(isLintIgnore(path) && lines ? [{ needs: 'owner' as const, file: path, what: 'a file of paths the linter skips is added or changed' }] : []),
       ...(isTypeCheckConfig(path) ? [{ needs: 'review' as const, file: path, what: "the type check's config changed" }] : []),
     ]
-    return [...byPath, ...(path === PACKAGE_FILE ? compareScripts(base, head) : []), ...scanAdded(path, added)]
+    return [...byPath, ...(path === PACKAGE_FILE ? compareScripts(base, head) : []), ...scanAdded(path, added), ...(isTestCode(path) ? compareAssertions(path, base, head) : [])]
   })
   return [...files, ...compareWorkflows(changes.filter(({ path }) => isWorkflow(path) && !isGuard(path)))]
 }
@@ -372,7 +377,7 @@ export function findings(changes: Change[]): Finding[] {
 /** The marker the workflow finds the guard's comment on a PR by. */
 export const MARKER = '<!-- checks-guard -->'
 
-const list = (found: Finding[]): string[] => found.map(({ file, line, what }) => `- \`${file}${line ? `:${line}` : ''}\`: ${what}`)
+const list = (found: Finding[]): string[] => found.map(({ file, line, what }) => (file ? `- \`${file}${line ? `:${line}` : ''}\`: ${what}` : `- ${what}`))
 
 /** The guard's report, as Markdown: the comment on the PR, the job's summary and what `npm run guard` prints. */
 export function report(found: Finding[], { head, base }: { head: string; base: string }): string {
