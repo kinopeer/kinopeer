@@ -141,7 +141,7 @@ trusted.
   is one the diff makes stale, a sentence saying which test owns a statement above all. The docs
   are every file that describes what the diff changes: `CLAUDE.md` and the files in its docs table
   (`README.md`, `CONTRIBUTING.md`, `SECURITY.md`, SPEC, ARCHITECTURE, DEVELOPMENT,
-  TESTING, the release checklist, the changelog), this skill, and the PR template, the workflows
+  TESTING, QUALITY, the release checklist, the changelog), this skill, and the PR template, the workflows
   and the config, whose comments are docs too, with `.env.example`, not only the three or four a
   rule names (#287's README, #296's changelog, #300's runbook). Grep the whole tree for each number
   or name the diff changes (a width, a version, a count), by its old value and each word of an old

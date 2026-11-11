@@ -1,6 +1,6 @@
 // The checks guard's signs: what in a branch's changes weakens the checks or changes existing ones.
 // Pure rules over the text of the changed files, read by guard.ts, which CI runs from main's copy
-// (docs/TESTING.md → The checks guard). The guard marks too much rather than too little: what it
+// (docs/QUALITY.md → The checks guard, which lists the signs: a new one goes there too). The guard marks too much rather than too little: what it
 // can't read or can't judge is marked, not passed.
 
 /**
@@ -23,21 +23,23 @@ export type Change = { path: string; base?: string; head?: string; added: AddedL
 
 export const CHECKS_FILE = 'checks.json'
 export const LINT_FILE = '.oxlintrc.json'
+export const PACKAGE_FILE = 'package.json'
 const WORKFLOWS = '.github/workflows/'
 const inRoot = (path: string): boolean => !path.includes('/')
 const isWorkflow = (path: string): boolean => path.startsWith(WORKFLOWS) && inRoot(path.slice(WORKFLOWS.length)) && (path.endsWith('.yml') || path.endsWith('.yaml'))
-/** The guard itself: a change to it goes to the owner, whatever it is. */
-const isGuard = (path: string): boolean => path.startsWith('scripts/guard/') || path === `${WORKFLOWS}guard.yml`
+/** The guard itself and its rules: a change to them goes to the owner, whatever it is. */
+const isGuard = (path: string): boolean => path.startsWith('scripts/guard/') || path === `${WORKFLOWS}guard.yml` || path === 'docs/QUALITY.md'
+const isDoc = (path: string): boolean => path.endsWith('.md')
 const isTest = (path: string): boolean => path.endsWith('.test.ts') || path.endsWith('.test.tsx') || path.startsWith('e2e/')
 /**
  * The tests and what runs them (the configs in the root, the workflows, the scripts), where a retry
  * is a test's retry: the app has retries of its own, and a doc may talk about either.
  */
-const runsTests = (path: string): boolean => !path.endsWith('.md') && (isTest(path) || inRoot(path) || path.startsWith(WORKFLOWS) || path.startsWith('scripts/'))
+const runsTests = (path: string): boolean => !isDoc(path) && (isTest(path) || inRoot(path) || path.startsWith(WORKFLOWS) || path.startsWith('scripts/'))
 const takesScreenshots = (path: string): boolean => path.startsWith('e2e/') || (inRoot(path) && path.startsWith('playwright'))
 
 /** Whether the guard compares the file's two versions whole, rather than only the lines added. */
-export const readsWhole = (path: string): boolean => path === CHECKS_FILE || path === LINT_FILE || isWorkflow(path)
+export const readsWhole = (path: string): boolean => path === CHECKS_FILE || path === LINT_FILE || path === PACKAGE_FILE || isWorkflow(path)
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json }
 type JsonObject = { [key: string]: Json }
@@ -192,6 +194,24 @@ export function compareLint(base: string | undefined, head: string | undefined, 
   return found
 }
 
+/**
+ * package.json's scripts, which CI's steps and the author's own checks call: one removed is a
+ * weakening, since the step that called it checks nothing; one changed is a change to an existing
+ * check, since a script can't tell whether it does less.
+ */
+export function compareScripts(base: string | undefined, head: string | undefined, file = PACKAGE_FILE): Finding[] {
+  if (base === undefined || head === undefined) return []
+  const parsed = parseBoth(file, base, head)
+  if ('needs' in parsed) return [parsed]
+  const scripts = (json: JsonObject): JsonObject => (isObject(json.scripts) ? json.scripts : {})
+  const [was, now] = [scripts(parsed.base), scripts(parsed.head)]
+  return Object.keys(was).flatMap((name): Finding[] => {
+    if (now[name] === undefined) return [{ needs: 'owner', file, what: `the npm script \`${name}\` is removed: ${show(was[name])}` }]
+    if (same(was[name], now[name])) return []
+    return [{ needs: 'review', file, what: `the npm script \`${name}\` changed: ${show(was[name])} → ${show(now[name])}` }]
+  })
+}
+
 /** How YAML starts a block of lines under a key. */
 const BLOCK = ['|', '|-', '|+', '>', '>-', '>+']
 
@@ -251,20 +271,31 @@ export function compareWorkflow(file: string, base: string | undefined, head: st
 }
 
 /**
- * What a line the branch adds can bring in, in which files it counts, and what the finding says.
- * Retries: Playwright's `retries` with anything but 0, Vitest's `retry` with a number, an object or
- * the environment (`retry: process.env.CI ? 2 : 0`), and either as a command's flag; not the app's
- * own `retry: () => void`.
+ * What a line the branch adds can bring in, in which files it counts, what it calls for and what
+ * the finding says. Retries: Playwright's `retries` with anything but 0, Vitest's `retry` with a
+ * number, an object or the environment (`retry: process.env.CI ? 2 : 0`), and either as a command's
+ * flag; not the app's own `retry: () => void`. A condition on a step goes to a second review, not to
+ * the owner: most are fair (`if: always()` on a summary), and a script can't tell.
  */
-const ADDED: { pattern: RegExp; counts: (path: string) => boolean; what: string }[] = [
-  { pattern: /\bretries["']?:(?! ?0\b)|\bretry["']?: ?(?:[1-9]|\{|process\b)|--retr(?:y|ies)\b/, counts: runsTests, what: 'test retries appeared' },
-  { pattern: /maxDiffPixel|\bthreshold["']?:/, counts: takesScreenshots, what: 'a screenshot tolerance appeared' },
+const ADDED: { pattern: RegExp; counts: (path: string) => boolean; needs: Needs; what: string }[] = [
+  { pattern: /\bretries["']?:(?! ?0\b)|\bretry["']?: ?(?:[1-9]|\{|process\b)|--retr(?:y|ies)\b/, counts: runsTests, needs: 'owner', what: 'test retries appeared' },
+  { pattern: /maxDiffPixel|\bthreshold["']?:/, counts: takesScreenshots, needs: 'owner', what: 'a screenshot tolerance appeared' },
+  {
+    pattern: /(?:oxlint|eslint)-disable|(?:v8|c8|istanbul) ignore|Stryker disable|@ts-(?:ignore|expect-error|nocheck)/,
+    counts: (path) => !isDoc(path),
+    needs: 'owner',
+    what: 'a check is turned off in the code',
+  },
+  { pattern: /\btest(?:\.describe)?\.(?:skip|fixme)\b/, counts: (path) => path.startsWith('e2e/'), needs: 'owner', what: 'a test is skipped' },
+  { pattern: /continue-on-error:(?! ?false\b)|\|\| ?true\b/, counts: isWorkflow, needs: 'owner', what: 'a CI step can fail without failing the run' },
+  { pattern: /^\s*paths(?:-ignore)?:/, counts: isWorkflow, needs: 'owner', what: 'a workflow got a path filter, so it runs for fewer changes' },
+  { pattern: /^\s*(?:- )?if:/, counts: isWorkflow, needs: 'review', what: 'a CI step or job got a condition' },
 ]
 
 /** The lines a branch adds to one file, against the patterns above. */
 export function scanAdded(file: string, added: AddedLine[]): Finding[] {
-  return ADDED.filter(({ counts }) => counts(file)).flatMap(({ pattern, what }) =>
-    added.filter(({ text }) => pattern.test(text)).map(({ line, text }) => ({ needs: 'owner' as const, file, line, what: `${what}: \`${brief(text.trim())}\`` })),
+  return ADDED.filter(({ counts }) => counts(file)).flatMap(({ pattern, needs, what }) =>
+    added.filter(({ text }) => pattern.test(text)).map(({ line, text }) => ({ needs, file, line, what: `${what}: \`${brief(text.trim())}\`` })),
   )
 }
 
@@ -272,10 +303,11 @@ export function scanAdded(file: string, added: AddedLine[]): Finding[] {
 export function findings(changes: Change[]): Finding[] {
   return changes.flatMap(({ path, base, head, added }) => {
     // The guard's own files hold these patterns as text, and each change to them goes to the owner anyway.
-    if (isGuard(path)) return [{ needs: 'owner' as const, file: path, what: 'the checks guard itself changed' }]
+    if (isGuard(path)) return [{ needs: 'owner' as const, file: path, what: 'the checks guard or its rules changed' }]
     if (path === CHECKS_FILE) return compareChecks(base, head)
     if (path === LINT_FILE) return compareLint(base, head)
-    return [...(isWorkflow(path) ? compareWorkflow(path, base, head) : []), ...scanAdded(path, added)]
+    const whole = path === PACKAGE_FILE ? compareScripts(base, head) : isWorkflow(path) ? compareWorkflow(path, base, head) : []
+    return [...whole, ...scanAdded(path, added)]
   })
 }
 
@@ -290,7 +322,7 @@ export function report(found: Finding[], { head, base }: { head: string; base: s
   const review = found.filter(({ needs }) => needs === 'review')
   const lines = [MARKER, `**Checks guard at ${head}**, against \`main\` at ${base}.`]
   if (found.length === 0) lines.push('', 'No weakening of the checks and no change to existing ones.')
-  if (owner.length > 0) lines.push('', `**For the owner: ${owner.length} to approve, each with a reason.** A weakening of the checks, or a change to the guard itself.`, '', ...list(owner))
+  if (owner.length > 0) lines.push('', `**For the owner: ${owner.length} to approve, each with a reason.** A weakening of the checks, or a change to the guard or its rules.`, '', ...list(owner))
   if (review.length > 0) lines.push('', `**For a second review: ${review.length}.** Changes to existing checks, which a script can't judge.`, '', ...list(review))
   return lines.join('\n')
 }

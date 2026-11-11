@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compareChecks, compareLint, compareWorkflow, findings, readsWhole, report, scanAdded, workflowSteps, type Finding } from './signs.ts'
+import { compareChecks, compareLint, compareScripts, compareWorkflow, findings, readsWhole, report, scanAdded, workflowSteps, type Finding } from './signs.ts'
 
 const json = (value: unknown) => JSON.stringify(value)
 /** What each finding calls for and says, without its file. */
@@ -142,6 +142,40 @@ describe('compareLint', () => {
 
   it('finds nothing in a config main does not have yet', () => {
     expect(compareLint(undefined, json(config))).toEqual([])
+  })
+})
+
+describe('compareScripts', () => {
+  const manifest = { name: 'kinopeer', scripts: { lint: 'oxlint', test: 'vitest run' }, dependencies: { react: '^19.3.1' } }
+  const withScripts = (scripts: object) => json({ ...manifest, scripts })
+
+  it('sends a removed script to the owner', () => {
+    expect(said(compareScripts(json(manifest), withScripts({ test: 'vitest run' })))).toEqual(['owner: the npm script `lint` is removed: `"oxlint"`'])
+  })
+
+  it('sends a changed script to a second review', () => {
+    expect(said(compareScripts(json(manifest), withScripts({ lint: 'oxlint --quiet', test: 'vitest run' })))).toEqual(['review: the npm script `lint` changed: `"oxlint"` → `"oxlint --quiet"`'])
+  })
+
+  it('sends every script to the owner when the scripts are gone', () => {
+    expect(said(compareScripts(json(manifest), json({ name: 'kinopeer' })))).toEqual(['owner: the npm script `lint` is removed: `"oxlint"`', 'owner: the npm script `test` is removed: `"vitest run"`'])
+  })
+
+  it.each([
+    ['a script added', withScripts({ ...manifest.scripts, guard: 'node scripts/guard/guard.ts' })],
+    ['a dependency bumped', json({ ...manifest, dependencies: { react: '^20.0.0' } })],
+    ['the same in another layout', JSON.stringify(manifest, null, 2)],
+  ])('finds nothing in %s', (_name, head) => {
+    expect(compareScripts(json(manifest), head)).toEqual([])
+  })
+
+  it("sends a package.json it can't read to the owner", () => {
+    expect(said(compareScripts(json(manifest), '{'))).toEqual(["owner: the guard can't read the file as a JSON object, so it can't compare it"])
+  })
+
+  it('finds nothing in a package.json only one side has', () => {
+    expect(compareScripts(undefined, json(manifest))).toEqual([])
+    expect(compareScripts(json(manifest), undefined)).toEqual([])
   })
 })
 
@@ -290,18 +324,66 @@ describe('scanAdded', () => {
     expect(scanAdded(file, lines(text))).toEqual([])
   })
 
+  it.each([
+    ['a lint rule turned off for a file', 'src/App.tsx', '/* oxlint-disable react/rules-of-hooks */', 'a check is turned off in the code'],
+    ['a lint rule turned off for a line, the way ESLint writes it', 'server/main.ts', '  // eslint-disable-next-line no-console', 'a check is turned off in the code'],
+    ['lines left out of coverage', 'src/lib/format.ts', '  /* v8 ignore next 3 */', 'a check is turned off in the code'],
+    ['lines left out of coverage, by an older name', 'src/lib/format.ts', '  /* c8 ignore start */', 'a check is turned off in the code'],
+    ['lines left out of coverage, by the oldest name', 'src/lib/format.ts', '  /* istanbul ignore next */', 'a check is turned off in the code'],
+    ['lines left out of the mutants', 'server/tmdb.ts', '  // Stryker disable next-line all', 'a check is turned off in the code'],
+    ['a type error ignored', 'src/App.test.tsx', '    // @ts-ignore', 'a check is turned off in the code'],
+    ['a type error expected', 'e2e/app.ts', '  // @ts-expect-error the fake has no such field', 'a check is turned off in the code'],
+    ['a file left out of the type check', 'scripts/mutants.mjs', '// @ts-nocheck', 'a check is turned off in the code'],
+    ['a screenshot test skipped', 'e2e/search.spec.ts', "  test.skip('shows the results', async ({ page }) => {", 'a test is skipped'],
+    ['a journey marked to fix later', 'e2e/smoke/tabs.smoke.ts', "test.fixme('keeps the place', async ({ page }) => {", 'a test is skipped'],
+    ['a group of screenshot tests skipped', 'e2e/search.spec.ts', "test.describe.skip('results', () => {", 'a test is skipped'],
+    ['a step allowed to fail', '.github/workflows/ci.yml', '        continue-on-error: true', 'a CI step can fail without failing the run'],
+    ['a step allowed to fail by an expression', '.github/workflows/ci.yml', "        continue-on-error: ${{ github.event_name == 'pull_request' }}", 'a CI step can fail without failing the run'],
+    ['a command that swallows its failure', '.github/workflows/ci.yml', '      - run: npm run lint || true', 'a CI step can fail without failing the run'],
+    ['a command that swallows its failure, written tight', '.github/workflows/ci.yml', '      - run: npm run lint ||true', 'a CI step can fail without failing the run'],
+    ['a path filter on a trigger', '.github/workflows/ci.yml', '    paths:', 'a workflow got a path filter, so it runs for fewer changes'],
+    ['paths a trigger ignores', '.github/workflows/ci.yml', "    paths-ignore: ['docs/**']", 'a workflow got a path filter, so it runs for fewer changes'],
+  ])('sends %s to the owner', (_name, file, text, what) => {
+    expect(scanAdded(file, lines(text))).toEqual([{ needs: 'owner', file, line: 10, what: `${what}: \`${text.trim()}\`` }])
+  })
+
+  it.each([
+    ['a condition on a step', '        if: always()'],
+    ['a condition that starts a step', "      - if: steps.chromium.outputs.cache-hit != 'true'"],
+    ['a condition on a job', '    if: ${{ !github.event.pull_request.draft }}'],
+  ])('sends %s to a second review', (_name, text) => {
+    const file = '.github/workflows/ci.yml'
+    expect(scanAdded(file, lines(text))).toEqual([{ needs: 'review', file, line: 10, what: `a CI step or job got a condition: \`${text.trim()}\`` }])
+  })
+
+  it.each([
+    ['a doc that names a way to turn a check off', 'docs/TESTING.md', 'no `oxlint-disable` without a reason, no `test.skip`'],
+    ['a skipped test outside e2e, which the linter stops', 'src/App.test.tsx', "  it.skip('goes straight in', () => {"],
+    ['a call that only starts like a skip', 'e2e/app.ts', '  test.skipper(page)'],
+    ['a step that may not fail', '.github/workflows/ci.yml', '        continue-on-error: false'],
+    ['a command that swallows its failure in a script', 'scripts/test-visual.sh', 'docker rm kinopeer || true'],
+    ['a command that falls back to another', '.github/workflows/ci.yml', '      - run: npm ci || truecolor'],
+    ['an artifact path', '.github/workflows/ci.yml', '          path: coverage'],
+    ['a list of paths under a key of an action', '.github/workflows/ci.yml', '          key: paths: none'],
+    ['a condition in a shell command', '.github/workflows/ci.yml', '          elif: [ -f coverage.json ]'],
+    ['a condition written in a config, not a workflow', 'vite.config.ts', '  if: true,'],
+    ['a path filter written in a config, not a workflow', 'vite.config.ts', '  paths: [],'],
+  ])('finds nothing in %s', (_name, file, text) => {
+    expect(scanAdded(file, lines(text))).toEqual([])
+  })
+
   it('names the line of each match', () => {
     expect(scanAdded('playwright.config.ts', lines('  use: {},', '  retries: 2,')).map(({ line }) => line)).toEqual([11])
   })
 })
 
 describe('findings', () => {
-  it.each(['scripts/guard/signs.ts', 'scripts/guard/guard.test.ts', '.github/workflows/guard.yml'])('sends a change to the guard itself to the owner: %s', (path) => {
+  it.each(['scripts/guard/signs.ts', 'scripts/guard/guard.test.ts', '.github/workflows/guard.yml', 'docs/QUALITY.md'])('sends a change to the guard or its rules to the owner: %s', (path) => {
     // With a line that would be a finding of its own anywhere else: the guard's files hold the patterns as text.
-    expect(findings([{ path, base: 'jobs: {}', head: 'jobs: {}', added: [{ line: 1, text: '  retries: 2,' }] }])).toEqual([{ needs: 'owner', file: path, what: 'the checks guard itself changed' }])
+    expect(findings([{ path, base: 'jobs: {}', head: 'jobs: {}', added: [{ line: 1, text: '  retries: 2,' }] }])).toEqual([{ needs: 'owner', file: path, what: 'the checks guard or its rules changed' }])
   })
 
-  it.each(['tmdb-proxy/scripts/guard/signs.ts', 'scripts/guardian.ts', 'docs/.github/workflows/guard.yml', '.github/workflows/guard.yml.md'])("doesn't take %s for the guard", (path) => {
+  it.each(['tmdb-proxy/scripts/guard/signs.ts', 'scripts/guardian.ts', 'docs/.github/workflows/guard.yml', '.github/workflows/guard.yml.md', 'QUALITY.md', 'docs/QUALITY.md.bak'])("doesn't take %s for the guard", (path) => {
     expect(findings([{ path, added: [] }])).toEqual([])
   })
 
@@ -310,18 +392,27 @@ describe('findings', () => {
       { path: 'checks.json', base: '{"coverage":{"thresholds":{"lines":96}}}', head: '{"coverage":{"thresholds":{"lines":90}}}', added: [] },
       { path: '.oxlintrc.json', base: '{"rules":{"no-console":"error"}}', head: '{"rules":{}}', added: [] },
       { path: '.github/workflows/ci.yml', base: '      - run: npm test\n', head: '      - run: npm test -- --retry=2\n', added: [{ line: 1, text: '      - run: npm test -- --retry=2' }] },
+      { path: 'package.json', base: '{"scripts":{"lint":"oxlint"}}', head: '{"scripts":{"test":"vitest run --retry=2"}}', added: [{ line: 1, text: '{"scripts":{"test":"vitest run --retry=2"}}' }] },
+      { path: 'tmdb-proxy/package.json', base: '{"scripts":{"lint":"oxlint"}}', head: '{}', added: [] },
       { path: 'src/App.tsx', added: [{ line: 1, text: 'export const retries = 2' }] },
     ])
-    expect(found.map(({ needs, file }) => `${needs} ${file}`)).toEqual(['owner checks.json', 'owner .oxlintrc.json', 'review .github/workflows/ci.yml', 'owner .github/workflows/ci.yml'])
+    expect(found.map(({ needs, file }) => `${needs} ${file}`)).toEqual([
+      'owner checks.json',
+      'owner .oxlintrc.json',
+      'review .github/workflows/ci.yml',
+      'owner .github/workflows/ci.yml',
+      'owner package.json',
+      'owner package.json',
+    ])
   })
 })
 
 describe('readsWhole', () => {
-  it.each(['checks.json', '.oxlintrc.json', '.github/workflows/ci.yml', '.github/workflows/build.yaml'])('reads %s whole', (path) => {
+  it.each(['checks.json', '.oxlintrc.json', 'package.json', '.github/workflows/ci.yml', '.github/workflows/build.yaml'])('reads %s whole', (path) => {
     expect(readsWhole(path)).toBe(true)
   })
 
-  it.each(['src/App.tsx', 'tmdb-proxy/checks.json', '.github/dependabot.yml', '.github/workflows/README.md', 'tmdb-proxy/.github/workflows/ci.yml', '.github/workflows/drafts/ci.yml', '.github/workflows/yml'])('reads only the added lines of %s', (path) => {
+  it.each(['src/App.tsx', 'tmdb-proxy/checks.json', 'tmdb-proxy/package.json', '.github/dependabot.yml', '.github/workflows/README.md', 'tmdb-proxy/.github/workflows/ci.yml', '.github/workflows/drafts/ci.yml', '.github/workflows/yml'])('reads only the added lines of %s', (path) => {
     expect(readsWhole(path)).toBe(false)
   })
 })
@@ -345,7 +436,7 @@ describe('report', () => {
       '<!-- checks-guard -->',
       '**Checks guard at abc1234**, against `main` at def5678.',
       '',
-      '**For the owner: 1 to approve, each with a reason.** A weakening of the checks, or a change to the guard itself.',
+      '**For the owner: 1 to approve, each with a reason.** A weakening of the checks, or a change to the guard or its rules.',
       '',
       '- `playwright.config.ts:16`: test retries appeared: `retries: 2,`',
       '',

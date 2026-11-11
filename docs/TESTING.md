@@ -4,7 +4,8 @@ How Kinopeer's tests are organized: six layers, each with one job, and how to ch
 do with a bug; what no layer sees; the shared test data and the fake services; coverage and its
 threshold; how a PR's tests are reviewed and how review findings change these rules; the
 screenshot tests and the smoke journeys. Running and releasing are in
-[DEVELOPMENT.md](DEVELOPMENT.md); the conventions every PR follows are in [CLAUDE.md](../CLAUDE.md).
+[DEVELOPMENT.md](DEVELOPMENT.md); the checks guard, which marks a PR that weakens the checks, in
+[QUALITY.md](QUALITY.md); the conventions every PR follows are in [CLAUDE.md](../CLAUDE.md).
 
 ```sh
 npm test                    # layers 1–5 (Vitest), single run
@@ -593,11 +594,12 @@ file, plus an HTML report in `coverage/` (git-ignored). It measures the TypeScri
 `check` job, adds the totals to the job summary (`scripts/coverage-summary.mjs`) and uploads the HTML
 report as the `coverage` artifact.
 
-The run fails under a threshold (`coverage.thresholds` in `checks.json`): 96% of lines and 95% of
+What it measures and its thresholds sit in `checks.json`, as data, where the checks guard compares
+them with `main`'s ([QUALITY.md](QUALITY.md) → The checks guard). The run fails under a threshold (`coverage.thresholds` in `checks.json`): 96% of lines and 95% of
 functions, two points under the totals of 2026-11-02 (98.01 and 97.09), 93% of branches, two points
 under 95.04 on 2026-11-05, and 95% of statements, two points under 97.14 on 2026-11-09, each rounded down. The threshold is a ratchet: when the totals have grown and
 stayed there, raise it to two points under them, in the PR that got them there or in one of its own;
-never lower it to get a PR through. A PR that lowers the totals says why in its Tests section (a
+never lower it to get a PR through (the guard marks a PR that does, for the owner). A PR that lowers the totals says why in its Tests section (a
 module left uncovered on purpose, with the reason). The numbers are there to show what a PR leaves
 uncovered; the threshold only keeps that from slipping by unnoticed. It applies to the whole run, so
 `npm run test:coverage -- --project server` alone fails it: coverage is measured over both projects.
@@ -622,7 +624,7 @@ Three steps, each by whoever can do it best:
    [neighbour](#choosing-a-layer) answered, and what Stryker leaves alone broken by hand. The docs
    too, every file that describes what the diff changes: `CLAUDE.md` and the files in its docs
    table (`README.md`, `CONTRIBUTING.md`, `SECURITY.md`, SPEC, ARCHITECTURE, DEVELOPMENT,
-   this file, the release checklist, the changelog), the review skill in `.claude/skills/`, and the
+   this file, QUALITY, the release checklist, the changelog), the review skill in `.claude/skills/`, and the
    PR template, the workflows and the config, whose comments are docs too, with `.env.example`; 30
    of the 2026-11-08 batch's findings sat in files the old rule didn't name (#287's README
    promising "multilingual" for two languages, #296's changelog entry describing no change, #300's

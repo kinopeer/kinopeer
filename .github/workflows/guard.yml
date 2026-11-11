@@ -1,6 +1,6 @@
 name: Guard
 
-# The checks guard on every PR (docs/TESTING.md → The checks guard): main's copy of scripts/guard/
+# The checks guard on every PR (docs/QUALITY.md → The checks guard): main's copy of scripts/guard/
 # reads the PR's branch through git and writes into the PR what in it weakens the checks or changes
 # existing ones. It only marks for now: the job passes whatever it finds.
 on:

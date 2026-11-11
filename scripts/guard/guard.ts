@@ -1,5 +1,5 @@
 // The checks guard: `npm run guard`, and CI's `guard` job on every PR, which runs main's copy of this
-// script over the PR's branch (docs/TESTING.md → The checks guard). It compares a branch with the
+// script over the PR's branch (docs/QUALITY.md → The checks guard). It compares a branch with the
 // commit it left main at and prints, as Markdown, what in its changes weakens the checks or changes
 // existing ones. It reads the branch through git and runs none of its code.
 import { spawnSync } from 'node:child_process'
@@ -81,4 +81,4 @@ export function main(args: string[], output = process.env.GITHUB_OUTPUT): string
   return text
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) console.log(main(process.argv.slice(2)))
+if (process.argv[1] === fileURLToPath(import.meta.url)) console.log(main(process.argv))
