@@ -61,6 +61,15 @@ function serverRoutesPlugin(kinopeer: KinopeerServer): Plugin {
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }
 
 /**
+ * What the coverage run measures and the thresholds it fails under. They sit in checks.json, as
+ * data, so the checks guard (scripts/guard/) can compare them with main's exactly and mark a PR that
+ * lowers a threshold or leaves more out.
+ */
+const checks = JSON.parse(readFileSync(new URL('./checks.json', import.meta.url), 'utf8')) as {
+  coverage: { include: string[]; exclude: string[]; thresholds: Record<'lines' | 'statements' | 'functions' | 'branches', number> }
+}
+
+/**
  * Writes version.json next to index.html with the version the bundle has, which an open app compares
  * with its own to reload into a new one (src/pwa/updates.ts). A static file, so it needs no server;
  * the service worker doesn't precache it (no .json in globPatterns) and server/static.ts revalidates it.
@@ -143,32 +152,21 @@ export default defineConfig(({ mode }) => {
           extends: true,
           test: { name: 'app', include: ['src/**/*.test.{ts,tsx}'], environment: 'jsdom', setupFiles: ['./src/test-setup.ts'] },
         },
-        { extends: true, test: { name: 'server', include: ['server/**/*.test.ts', 'tmdb-proxy/**/*.test.ts', 'vite.config.test.ts'], environment: 'node' } },
+        {
+          extends: true,
+          test: { name: 'server', include: ['server/**/*.test.ts', 'tmdb-proxy/**/*.test.ts', 'scripts/guard/**/*.test.ts', 'vite.config.test.ts'], environment: 'node' },
+        },
       ],
       // `npm run test:coverage`: a table in the terminal and coverage/index.html; CI runs the same.
-      // Only the code is measured: a pattern without an extension also takes in config and data
-      // files, which v8 can't parse as JavaScript (tmdb-proxy/wrangler.jsonc, #283) or counts as
-      // uncovered lines (tmdb-proxy/package.json). Test helpers, type-only modules and the barrels
-      // that only re-export (src/i18n/index.ts sets i18next up, so it counts) are left out, since
-      // they have no behavior to cover. The thresholds are a ratchet (docs/TESTING.md → Coverage):
-      // two points under the totals when they were set, raised when the totals grow and stay there,
-      // never lowered to get a PR through.
-      coverage: {
-        provider: 'v8',
-        include: ['src/**/*.{ts,tsx}', 'server/**/*.ts', 'tmdb-proxy/**/*.ts'],
-        exclude: [
-          '**/*.test.{ts,tsx}',
-          'src/test/**',
-          'src/test-setup.ts',
-          'server/test/**',
-          '**/*.d.ts',
-          '**/types.ts',
-          'src/api/*/index.ts',
-          'src/components/*/index.ts',
-        ],
-        reporter: ['text', 'html'],
-        thresholds: { lines: 96, statements: 95, functions: 95, branches: 93 },
-      },
+      // What is measured and the thresholds come from checks.json (above). Only the code is
+      // measured: a pattern without an extension also takes in config and data files, which v8
+      // can't parse as JavaScript (tmdb-proxy/wrangler.jsonc, #283) or counts as uncovered lines
+      // (tmdb-proxy/package.json). Test helpers, type-only modules and the barrels that only
+      // re-export (src/i18n/index.ts sets i18next up, so it counts) are left out, since they have
+      // no behavior to cover. The thresholds are a ratchet (docs/TESTING.md → Coverage): two points
+      // under the totals when they were set, raised when the totals grow and stay there, never
+      // lowered to get a PR through.
+      coverage: { provider: 'v8', ...checks.coverage, reporter: ['text', 'html'] },
     },
   }
 })

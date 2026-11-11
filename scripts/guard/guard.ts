@@ -1,0 +1,92 @@
+// The checks guard: `npm run guard`, and CI's `guard` job on every PR, which runs main's copy of this
+// script over the PR's branch (docs/TESTING.md → The checks guard). It compares a branch with the
+// commit it left main at and prints, as Markdown, what in its changes weakens the checks or changes
+// existing ones. It reads the branch through git and runs none of its code.
+import { spawnSync } from 'node:child_process'
+import { appendFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { findings, readsWhole, report, type AddedLine, type Change, type Finding } from './signs.ts'
+
+type Git = (...args: string[]) => string
+
+/** git in `repo`; throws on a failure, with what git said. */
+function gitIn(repo: string): Git {
+  return (...args) => {
+    const { status, stdout, stderr } = spawnSync('git', ['-C', repo, ...args], { encoding: 'utf8', maxBuffer: 1 << 28 })
+    if (status !== 0) throw new Error(`git ${args.join(' ')}: ${stderr.trim()}`)
+    return stdout
+  }
+}
+
+/** The lines `base..head` adds, by file, each with its number on the head's side. */
+function addedLines(git: Git, base: string, head: string): Map<string, AddedLine[]> {
+  const added = new Map<string, AddedLine[]>()
+  let lines: AddedLine[] = []
+  let next = 0
+  for (const text of git('diff', '--no-renames', '--unified=0', base, head).split('\n')) {
+    const hunk = /^@@ -\S+ \+(\d+)/.exec(text)
+    if (text.startsWith('+++ ')) {
+      lines = []
+      // `+++ /dev/null` for a deleted file, which adds nothing.
+      if (text.startsWith('+++ b/')) added.set(text.slice('+++ b/'.length), lines)
+    } else if (hunk) {
+      next = Number(hunk[1])
+    } else if (text.startsWith('+')) {
+      lines.push({ line: next++, text: text.slice(1) })
+    }
+  }
+  return added
+}
+
+/** What the branch at `head` changes since it left `base`, with the text the signs read. */
+export function changes(git: Git, base: string, head: string): Change[] {
+  const added = addedLines(git, base, head)
+  // A file's text on one side, or undefined where that side doesn't have it.
+  const read = (rev: string, path: string, exists: boolean) => (exists ? git('show', `${rev}:${path}`) : undefined)
+  return git('diff', '--no-renames', '--name-status', '-z', base, head)
+    .split('\0')
+    .reduce<Change[]>((all, path, index, fields) => {
+      // The fields come in pairs: a status letter, then its path.
+      if (index % 2 === 0 || !path) return all
+      const status = fields[index - 1]
+      const whole = readsWhole(path)
+      return [...all, { path, base: whole ? read(base, path, status !== 'A') : undefined, head: whole ? read(head, path, status !== 'D') : undefined, added: added.get(path) ?? [] }]
+    }, [])
+}
+
+export type Options = { repo: string; base: string; head: string }
+
+/** The guard over one branch: its findings and the report. */
+export function guard({ repo, base, head }: Options): { found: Finding[]; report: string } {
+  const git = gitIn(repo)
+  const short = (rev: string) => git('rev-parse', '--short', rev).trim()
+  // Where the branch left main, so what main gained since isn't read as the branch's loss.
+  const from = git('merge-base', base, head).trim()
+  const found = findings(changes(git, from, head))
+  // The guard reads commits, so an author who runs it before committing would see "nothing" for the wrong reason.
+  const dirty = head === 'HEAD' && git('status', '--porcelain').trim() !== ''
+  const text = report(found, { head: short(head), base: short(from) })
+  return { found, report: dirty ? `${text}\n\nUncommitted changes aren't read: commit them and run it again.` : text }
+}
+
+/** `--repo`, `--base` and `--head` from the command line; main's remote branch and this checkout's HEAD by default. */
+export function options(args: string[]): Options {
+  const value = (name: string, fallback: string) => {
+    const index = args.indexOf(`--${name}`)
+    return index !== -1 && args[index + 1] ? args[index + 1] : fallback
+  }
+  return { repo: value('repo', '.'), base: value('base', 'origin/main'), head: value('head', 'HEAD') }
+}
+
+/**
+ * The command: the report for the branch the arguments name. In CI it also hands the workflow the
+ * counts, which decides by them rather than by the report's wording.
+ */
+export function main(args: string[], output = process.env.GITHUB_OUTPUT): string {
+  const { found, report: text } = guard(options(args))
+  const count = (needs: Finding['needs']) => found.filter((finding) => finding.needs === needs).length
+  if (output) appendFileSync(output, `owner=${count('owner')}\nreview=${count('review')}\n`)
+  return text
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) console.log(main(process.argv.slice(2)))

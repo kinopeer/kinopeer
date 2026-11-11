@@ -11,7 +11,10 @@ import { fileURLToPath } from 'node:url'
 const BASE = process.env.MUTANTS_BASE || 'origin/main'
 const REPORT = 'reports/mutants.json'
 const SOURCE = /\.tsx?$/
-const NOT_PRODUCTION = /\.test\.tsx?$|\/test\/|\.d\.ts$|^src\/test-setup\.ts$/
+// Which folders are mutated and which of their files aren't production code sit in checks.json, as
+// data, so the checks guard (scripts/guard/) marks a PR that mutates less.
+const { mutants } = JSON.parse(readFileSync(new URL('../checks.json', import.meta.url), 'utf8'))
+const NOT_PRODUCTION = new RegExp(mutants.notProduction.join('|'))
 
 function git(...args) {
   const { status, stdout, stderr } = spawnSync('git', args, { encoding: 'utf8', maxBuffer: 1 << 28 })
@@ -24,7 +27,7 @@ function git(...args) {
 function changedRanges() {
   const ranges = []
   let file
-  for (const line of git('diff', '-U0', `${BASE}...HEAD`, '--', 'src', 'server', 'tmdb-proxy').split('\n')) {
+  for (const line of git('diff', '-U0', `${BASE}...HEAD`, '--', ...mutants.folders).split('\n')) {
     if (line.startsWith('+++ ')) {
       const path = line.slice('+++ b/'.length)
       file = SOURCE.test(path) && !NOT_PRODUCTION.test(path) ? path : undefined
