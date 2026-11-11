@@ -527,6 +527,14 @@ describe('scanAdded', () => {
     expect(scanAdded(file, lines(text))).toEqual([])
   })
 
+  it.each([
+    ['a dependency named for it in a manifest', 'package.json', '    "p-retry": "^6.0.0",'],
+    ['a title with the word before a colon', 'src/screens/ReleasesBlock.test.tsx', "  it('shows retry: the button', () => {"],
+    ['another tool told to retry in a workflow', '.github/workflows/ci.yml', '          curl --retry 5 http://localhost:8080/healthz'],
+  ])('marks %s too, as the price of reading names: too much rather than too little', (_name, file, text) => {
+    expect(scanAdded(file, lines(text))).toEqual([{ needs: 'owner', file, line: 10, what: `test retries appeared: \`${text.trim()}\`` }])
+  })
+
   it('names the line of each match', () => {
     expect(scanAdded('playwright.config.ts', lines('  use: {},', '  retries: 2,')).map(({ line }) => line)).toEqual([11])
   })

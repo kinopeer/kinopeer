@@ -19,9 +19,10 @@ export function gitIn(repo: string): Git {
 }
 
 /**
- * A diff as git itself makes it, whatever the caller's config and the branch's .gitattributes say:
- * no colors, no external diff tool or text converter, and every file as text, so a file marked
- * `-diff` still shows its lines. Renames off, so a renamed file is one removed and one added.
+ * A diff the guard can read under the caller's config and the branch's .gitattributes: no colors,
+ * no external diff tool or text converter, and every file as text, so a file marked `-diff` still
+ * shows its lines. Renames off, so a renamed file is one removed and one added. Lines of context
+ * may still come (`diff.interHunkContext`, GIT_DIFF_OPTS), and `addedLines` counts them.
  */
 const PLAIN = ['--no-renames', '--no-color', '--no-ext-diff', '--no-textconv', '--text']
 
@@ -34,6 +35,8 @@ function addedLines(git: Git, base: string, head: string, path: string): AddedLi
     if (hunk) next = Number(hunk[1])
     // Before the first hunk come the file's header lines, `+++ b/path` among them.
     else if (next > 0 && text.startsWith('+')) added.push({ line: next++, text: text.slice(1) })
+    // A line of context, which git's config or GIT_DIFF_OPTS can ask for whatever --unified says, is a line of the file too.
+    else if (text.startsWith(' ')) next++
   }
   return added
 }

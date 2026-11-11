@@ -54,7 +54,9 @@ or its rules.
     or passed on), `retry` as a key with any value but 0, a mock or a function, `--retry` and
     `--retries`. Looked for in the tests, the configs in the root, every `package.json`, the
     workflows and the scripts; not in the app's code, which has retries of its own, nor in a
-    lockfile, which may name a package so;
+    lockfile, which may name a package so. Reading names marks more than tests' retries, on
+    purpose: a dependency called `p-retry` in `package.json`, a test's title with `retry:` in it,
+    `curl --retry` in a workflow;
   - a screenshot tolerance: `maxDiffPixels`, `maxDiffPixelRatio` or `threshold`, in `e2e/` and the
     Playwright configs;
   - a check turned off in the code: `oxlint-disable` and `eslint-disable` (oxlint obeys both),
@@ -80,9 +82,10 @@ or its rules.
   key the guard has no rule for.
 - Any other change to `.oxlintrc.json`: a rule's options, also when its severity went up with
   them; a new rule that only warns; a key the guard has no rule for.
-- A CI step that changed or is gone while every command it called still runs somewhere: other
-  arguments, an action dropped, one of two steps alike removed. An action's version isn't part
-  of the step, so a bump isn't a change.
+- A CI step that changed or is gone, when every command it called still runs somewhere or it
+  called none of the three kinds (an action, `docker`, a shell script): other arguments, an
+  action dropped, one of two steps alike removed, a job that only builds an image removed. An
+  action's version isn't part of the step, so a bump isn't a change.
 - An npm script changed: a script can't tell whether it does less.
 - Any change to a `tsconfig*.json`, by its path: the type check has too many settings for a list
   of them, and these files change in about two PRs of a hundred.
@@ -127,11 +130,21 @@ reads commits, not the working tree, and says so when there are uncommitted chan
   to check less, a test that lost its rows.
 - A trigger narrowed in a workflow other than by a new path filter (a branch or an event removed,
   a path taken out of an existing filter).
-- Other spellings of what it marks, known and left out: Vitest's `it.fails`; Playwright's
-  `--update-snapshots` in a command CI runs; a retry behind a name the patterns don't read
-  (`repeats`, a helper that retries); `|| echo` and other commands that end well after a failure;
-  `--no-verify`-like flags of the tools; a check dropped from an npm script that still exists
-  (the script changed, which goes to a second review).
+- Other spellings of what it marks, known and left out: Vitest's `it.fails`, and a modifier
+  before the condition (`it.concurrent.skipIf`); Playwright's `--update-snapshots` in a command
+  CI runs; `retries` as the last word of its line (a last property without a comma), `retry`
+  passed on by its name (`{ retry }`, `const retry = 3`), and a retry behind a name the patterns
+  don't read (`repeats`, a helper that retries); `set +o errexit`, `set +eu`, `|| echo` and other
+  commands that end well after a failure; `--no-verify`-like flags of the tools; a check dropped
+  from an npm script that still exists (the script changed, which goes to a second review).
+- A tracked file named in `.gitignore`: oxlint skips what git ignores, so the path is taken out
+  of the lint from a third file, beside `ignorePatterns` and the lint ignore files.
+- A removed job or step that runs no npm script, npx tool or node script (an image build, an
+  action): it goes to a second review, not to the owner.
+- In reading a workflow's commands: a comment after a block's start (`run: | # the tests`) keeps
+  the block's lines from being read; a flag with a value before an npm script (`npm --prefix
+  tmdb-proxy run test`) is read as the script; `node` with a flag first (`node --test server`)
+  isn't read as a command.
 - Whatever reading YAML line by line gets wrong: it finds `run:` and `uses:` keys and the lines
   indented under a block, and knows nothing of anchors or of a command built by an expression.
 - A change to `guard.yml` that stops the script from running or from being `main`'s copy: the

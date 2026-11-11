@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterEach, beforeEach, describe, expect, it, onTestFinished } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { changes, gitIn, guard, main, options } from './guard.ts'
 
 /**
@@ -41,6 +41,9 @@ const PLAYWRIGHT = 'export default {\n  retries: 0,\n}\n'
 /** The same config with retries, which the guard marks at its line 2. */
 const RETRIES = 'export default {\n  retries: 2,\n}\n'
 const RETRIES_FOUND = 'owner playwright.config.ts:2: test retries appeared: `retries: 2,`'
+/** A spec of one line with retries, and what the guard says of it under a path. */
+const SPEC = 'test.describe.configure({ retries: 2 })\n'
+const specFound = (path: string) => `owner ${path}:1: test retries appeared: \`test.describe.configure({ retries: 2 })\``
 /** A change the guard has nothing to say about. */
 const APP = { 'src/app.ts': 'export const app = 2\n' }
 
@@ -108,7 +111,11 @@ describe('guard', () => {
     expect(run().report).not.toContain(raised)
   })
 
-  it('names the line of an added line by its place in the file, across hunks', async () => {
+  it.each<[string, () => void]>([
+    ['as git is by default', () => {}],
+    ['with the lines between hunks shown, by its config', () => git('config', 'diff.interHunkContext', '20')],
+    ['with lines around each hunk shown, by its environment', () => vi.stubEnv('GIT_DIFF_OPTS', '--unified=3')],
+  ])('names the line of an added line by its place in the file, across hunks, %s', async (_name, configure) => {
     // Eleven lines before the one the second hunk changes, and a line that reads like a hunk's header.
     const config = ['export default {', '  workers: 2,', '  retries: 0,', ...Array.from({ length: 9 }, (_, index) => `  // ${index}`), '  use: {},', '}', ''].join('\n')
     git('checkout', '--quiet', 'main')
@@ -116,6 +123,7 @@ describe('guard', () => {
     git('checkout', '--quiet', 'branch')
     git('merge', '--quiet', 'main')
     await commit({ 'playwright.config.ts': config.replace('  workers: 2,', '  workers: 4,\n@@ -1 +90 @@').replace('  use: {},', '  use: { retries: 1 },') })
+    configure()
     expect(said()).toEqual(['owner playwright.config.ts:14: test retries appeared: `use: { retries: 1 },`'])
   })
 
@@ -140,8 +148,8 @@ describe('guard', () => {
   })
 
   it('reads a file whose name has a space or a letter outside ASCII', async () => {
-    await commit({ 'e2e/поиск по имени.spec.ts': 'test.describe.configure({ retries: 2 })\n' })
-    expect(said()).toEqual(['owner e2e/поиск по имени.spec.ts:1: test retries appeared: `test.describe.configure({ retries: 2 })`'])
+    await commit({ 'e2e/поиск по имени.spec.ts': SPEC })
+    expect(said()).toEqual([specFound('e2e/поиск по имени.spec.ts')])
   })
 
   it.each([
@@ -168,11 +176,9 @@ describe('guard', () => {
   })
 
   it('reads a path with the characters of a pattern as that one file', async () => {
-    await commit({ 'e2e/[id].spec.ts': 'test.describe.configure({ retries: 2 })\n', 'e2e/i.spec.ts': 'test.describe.configure({ retries: 3 })\n' })
-    expect(said()).toEqual([
-      'owner e2e/[id].spec.ts:1: test retries appeared: `test.describe.configure({ retries: 2 })`',
-      'owner e2e/i.spec.ts:1: test retries appeared: `test.describe.configure({ retries: 3 })`',
-    ])
+    // The other file's line differs, so a line read from it under the first one's name would show.
+    await commit({ 'e2e/[id].spec.ts': SPEC, 'e2e/i.spec.ts': 'export const retries = 3\n' })
+    expect(said()).toEqual([specFound('e2e/[id].spec.ts'), 'owner e2e/i.spec.ts:1: test retries appeared: `export const retries = 3`'])
   })
 
   it('fails on a base that is not in the repository', () => {
