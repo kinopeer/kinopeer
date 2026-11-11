@@ -147,8 +147,8 @@ another code.
 
 - `**Second review <code>: sound**`: the second review found no weakening among the list's marks;
 - `**Second review <code>: weakening**`: it found one, or couldn't decide;
-- `**Owner's approval <code>:** <reason>`: the owner approves, with the reason in the owner's
-  words on that line.
+- `**Owner's approval <code>:** <reason>`: the owner approves, with the owner's reason on that
+  line, in English.
 
 The guard prints these lines with the codes in its comment, to be copied rather than composed from
 memory. A record counts only from someone the owner let into the repository: a member of the
@@ -179,8 +179,10 @@ posted by the maintainer's sessions, as the reviews of such PRs are.
 card of its own before the merge's, what is to be approved, a line each: for a weakening from the
 owner's list, what stops being caught, with the before and the after; for a change to the guard
 or its rules, what changes in the guard and why; for what the second review called a weakening,
-its line on the mark. The reason in the record is the owner's own words: the session offers no
-ready-made reason, and doesn't record an approval without one, but asks for it.
+its line on the mark. The reason in the record is the owner's own: the session offers no
+ready-made reason, and doesn't record an approval without one, but asks for it. It writes the
+reason in English, as everything on GitHub is, whatever language the owner gave it in, and
+doesn't quote the original.
 
 **After a record** the session that posted it re-runs the guard's job
 (`gh run rerun <run> --failed`): the check doesn't react to a new comment by itself. A record

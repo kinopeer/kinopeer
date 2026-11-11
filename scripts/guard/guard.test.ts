@@ -115,7 +115,7 @@ describe('guard', () => {
       expect(none.unmet).toBe(true)
       expect(none.report).toContain('\n\nComments read for the records: 0, of them from those the owner let into the repository, whose records count: 0.')
       expect(none.report).not.toContain("records aren't read")
-      expect(none.report).toContain(`Record to post once the owner approves: \`**Owner's approval ${owner}:** …\`, the reason in the owner's words. Not posted yet.`)
+      expect(none.report).toContain(`Record to post once the owner approves: \`**Owner's approval ${owner}:** …\`, the owner's reason, in English. Not posted yet.`)
       expect(none.report).toContain(`\`**Second review ${review}: sound**\` or \`**Second review ${review}: weakening**\`. Not posted yet.`)
 
       expect((await judged(`${approval(owner)} the files it measured are gone`)).unmet).toBe(true)
@@ -176,7 +176,7 @@ describe('guard', () => {
     await commit({ 'checks.json': JSON.stringify({ coverage: { thresholds: { lines: 90 } } }) })
     const { unmet, report } = run()
     expect(unmet).toBe(false)
-    expect(report).toMatch(/Record to post once the owner approves: `\*\*Owner's approval [0-9a-f]{8}:\*\* …`, the reason in the owner's words\.\n/)
+    expect(report).toMatch(/Record to post once the owner approves: `\*\*Owner's approval [0-9a-f]{8}:\*\* …`, the owner's reason, in English\.\n/)
     expect(report).toContain("\n\nThe PR's records aren't read: CI's `guard` workflow reads them, and says there where each list stands.")
   })
 
