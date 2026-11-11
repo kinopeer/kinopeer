@@ -264,6 +264,18 @@ describe('workflowSteps', () => {
     expect(workflowSteps('      -   run: npm ci\n      -\tuses: actions/checkout@v7\n')).toEqual(['run: npm ci', 'uses: actions/checkout'])
   })
 
+  it('reads an action written in quotes as the action', () => {
+    expect(workflowSteps(`      - uses: "actions/checkout@abc"\n      - uses: 'actions/setup-node@def' # v7\n`)).toEqual(['uses: actions/checkout', 'uses: actions/setup-node'])
+  })
+
+  it('reads an action without a version as the action, without the comment after it', () => {
+    expect(workflowSteps('      - uses: ./.github/actions/setup # the setup\n  deploy:\n    uses: "./.github/workflows/deploy.yml"   # no version\n')).toEqual(['uses: ./.github/actions/setup', 'uses: ./.github/workflows/deploy.yml'])
+  })
+
+  it("keeps a # that is part of an action's name", () => {
+    expect(workflowSteps('      - uses: ./.github/actions/c#\n')).toEqual(['uses: ./.github/actions/c#'])
+  })
+
   it("doesn't take the shell a workflow sets for its commands for a step", () => {
     expect(workflowSteps('defaults:\n  run:\n    shell: bash\njobs:\n  check:\n    steps:\n      - run: npm ci\n')).toEqual(['run: npm ci'])
   })
@@ -284,15 +296,27 @@ describe('commands', () => {
     ['run: node scripts/coverage-summary.mjs coverage/coverage-summary.json >> "$GITHUB_STEP_SUMMARY"', ['node scripts/coverage-summary.mjs']],
     ['run: if [ -f coverage.json ]; then ; node summary.mjs ; fi', ['node summary.mjs']],
     ['run: npm ci ; npm run build ; node server/main.ts', ['npm ci', 'npm run build', 'node server/main.ts']],
+    ['run: docker run -d --name kinopeer -p 8080:8080 kinopeer:ci', ['docker run']],
+    ['run: docker run -d kinopeer:ci ; curl -fsS http://localhost:8080/healthz ; docker exec kinopeer touch /data/.probe ; docker stop kinopeer', ['docker run', 'docker exec', 'docker stop']],
+    ['run: docker buildx build --load .', ['docker buildx']],
+    ['run: docker --debug build .', ['docker build']],
+    ['uses: actions/setup-node', ['uses: actions/setup-node']],
+    // A job's call of a reusable workflow is a `uses:` too.
+    ['uses: ./.github/workflows/tmdb-proxy.yml', ['uses: ./.github/workflows/tmdb-proxy.yml']],
+    // On purpose: the word before any other is read as the command, in a message too, since the guard marks too much rather than too little.
+    ['run: echo "the docker image is ready"', ['docker image']],
+    ['run: git commit -m "build the docker image in CI"', ['docker image']],
   ])('reads %s as %j', (step, expected) => {
     expect(commands(step)).toEqual(expected)
   })
 
   it.each([
-    ['an action', 'uses: actions/setup-node'],
-    ['a command that is none of the three', 'run: docker run -d --name kinopeer kinopeer:ci'],
+    ['a command that is none of the four', 'run: curl -fsS http://localhost:8080/healthz ; echo ok'],
     ['Node asked for a value rather than given a script', 'run: echo "version=$(node -p "1")"'],
-    ['a word that only ends like one', 'run: pnpm install ; xnode build.js ; gnpx tool'],
+    ['a word that only ends like one', 'run: pnpm install ; xnode build.js ; gnpx tool ; xdocker run'],
+    ['a word that only starts like one', 'run: docker-compose up ; dockerd'],
+    ['docker with nothing to do', 'run: docker'],
+    ['a command that only names an action', 'run: echo uses: actions/checkout'],
   ])('finds no command in %s', (_name, step) => {
     expect(commands(step)).toEqual([])
   })
@@ -325,10 +349,37 @@ describe('compareWorkflows', () => {
 
   it.each([
     ['a command with other arguments', WORKFLOW.replace('npm run lint', 'npm run lint -- --quiet'), 'run: npm run lint'],
-    ['an action dropped', WORKFLOW.replace('        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2\n', ''), 'uses: actions/upload-artifact'],
     ['a command that is not a check changed', WORKFLOW.replace('echo\n          dry', 'echo\n          wet'), 'run: echo ; dry'],
   ])('sends %s to a second review', (_name, head, step) => {
     expect(said(compare(head))).toEqual([`review: a CI step changed or is gone, it was: \`${step}\``])
+  })
+
+  it('sends an action that no step calls any more to the owner', () => {
+    const head = WORKFLOW.replace('        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2\n', '')
+    expect(said(compare(head))).toEqual(['owner: a command CI ran is no longer run: `uses: actions/upload-artifact`'])
+  })
+
+  it('sends one of two steps of one action removed to a second review, since the action still runs', () => {
+    const checkout = '      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1\n'
+    expect(said(compare(WORKFLOW, `${WORKFLOW}${checkout}`))).toEqual(['review: a CI step changed or is gone, it was: `uses: actions/checkout`'])
+  })
+
+  describe('a step of docker commands', () => {
+    const smoke = (lines: string) => `jobs:\n  docker:\n    steps:\n      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0\n${lines}`
+    const STEP = '      - name: Smoke test\n        run: |\n          docker run -d kinopeer:ci\n          curl -fsS localhost:8080/healthz\n          docker exec kinopeer true\n'
+
+    it('goes to the owner when it is removed, each of its commands named', () => {
+      expect(said(compare(smoke(''), smoke(STEP)))).toEqual(['owner: a command CI ran is no longer run: `docker run`', 'owner: a command CI ran is no longer run: `docker exec`'])
+    })
+
+    it('goes to the owner for the one command taken out of it', () => {
+      expect(said(compare(smoke(STEP.replace('          docker exec kinopeer true\n', '')), smoke(STEP)))).toEqual(['owner: a command CI ran is no longer run: `docker exec`'])
+    })
+
+    it('goes to a second review when it is rewritten with its docker commands kept', () => {
+      const head = smoke(STEP.replace('          curl -fsS localhost:8080/healthz\n', ''))
+      expect(said(compare(head, smoke(STEP)))).toEqual(['review: a CI step changed or is gone, it was: `run: docker run -d kinopeer:ci ; curl -fsS localhost:8080/healthz ; docker exec kinopeer true`'])
+    })
   })
 
   it.each([
@@ -350,9 +401,11 @@ describe('compareWorkflows', () => {
   it('sends a removed workflow and each command only it ran to the owner', () => {
     expect(said(compare(undefined))).toEqual([
       'owner: the workflow is removed, and its steps with it',
+      'owner: a command CI ran is no longer run: `uses: actions/checkout`',
       'owner: a command CI ran is no longer run: `npm ci`',
       'owner: a command CI ran is no longer run: `npm run lint`',
       'owner: a command CI ran is no longer run: `node summary.mjs`',
+      'owner: a command CI ran is no longer run: `uses: actions/upload-artifact`',
     ])
   })
 
