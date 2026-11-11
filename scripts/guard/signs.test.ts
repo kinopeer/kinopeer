@@ -539,6 +539,7 @@ describe('scanAdded', () => {
     ['a path filter on a trigger', '.github/workflows/ci.yml', '    paths:', 'a workflow got a path filter, so it runs for fewer changes'],
     ['paths a trigger ignores', '.github/workflows/ci.yml', "    paths-ignore: ['docs/**']", 'a workflow got a path filter, so it runs for fewer changes'],
     ["a job under the guard's name", '.github/workflows/ci.yml', '  guard:', "a job or a status with the guard's name, which can report in its place"],
+    ["a job under the guard's name in quotes", '.github/workflows/ci.yml', '  "guard":', "a job or a status with the guard's name, which can report in its place"],
     ['a job named for the guard', '.github/workflows/ci.yml', '    name: guard', "a job or a status with the guard's name, which can report in its place"],
     ['a job named for the guard, in quotes', '.github/workflows/lint.yml', "    name: 'guard'", "a job or a status with the guard's name, which can report in its place"],
     ['a step named for the guard', '.github/workflows/ci.yml', '      - name: guard', "a job or a status with the guard's name, which can report in its place"],
