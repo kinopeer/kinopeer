@@ -68,7 +68,7 @@ describe('testsIn', () => {
     ['is not an object', '[]'],
     ['is null', 'null'],
     ['is neither a run nor a list', '{"version":1}'],
-    ['holds something else where the tests are', json({ testResults: [null, { name: 'src/sum.test.ts', assertionResults: 'none' }, { name: 'src/sum.test.ts' }] })],
+    ['holds something else where the tests are', json({ testResults: [null, { name: 'src/sum.test.ts', assertionResults: 'none' }, { name: 'src/sum.test.ts' }, { name: 'src/sum.test.ts', assertionResults: [null, 'adds'] }] })],
     ["holds something else where Playwright's tests are", json({ config: null, suites: [null, { specs: [null, { title: 'one', tests: 'none' }], suites: 'none' }] })],
   ])('gives no tests for a report that %s', (_name, report) => {
     expect(testsIn(report)).toEqual([])

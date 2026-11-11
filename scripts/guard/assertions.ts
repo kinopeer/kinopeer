@@ -7,7 +7,7 @@ import type { Finding } from './signs.ts'
 
 type Node = { type: string; start: number; end: number; [key: string]: unknown }
 
-const isNode = (value: unknown): value is Node => typeof value === 'object' && value !== null && typeof (value as Node).type === 'string'
+const isNode = (value: unknown): value is Node => typeof (value as Node | null)?.type === 'string'
 const childrenOf = (node: Node): Node[] => Object.values(node).flatMap((value) => (Array.isArray(value) ? value.filter(isNode) : isNode(value) ? [value] : []))
 const isFunction = (node: Node | undefined): boolean => node?.type === 'ArrowFunctionExpression' || node?.type === 'FunctionExpression'
 
@@ -48,18 +48,21 @@ export function asserted(path: string, text: string): Asserted | undefined {
     const test = found.get(name) ?? { line: lineOf(node), items: [] }
     found.set(name, { line: test.line, items: [...test.items, ...items] })
   }
-  // `[…] as const`, `[…] satisfies Row[]`.
-  const bare = (node: Node): Node => ((node.type === 'TSAsExpression' || node.type === 'TSSatisfiesExpression') && isNode(node.expression) ? bare(node.expression) : node)
+  // What a type's wrapper holds: the list in `[…] as const`, `[…] satisfies Row[]`, `ROWS!`.
+  const bare = (node: Node): Node => (isNode(node.expression) ? bare(node.expression) : node)
   /** The lists the file declares by a name, for a table that is given by one. */
   const lists = new Map<string, Node>()
   const declare = (node: Node) => {
-    if (node.type === 'VariableDeclarator' && isNode(node.id) && node.id.type === 'Identifier' && isNode(node.init)) lists.set(node.id.name as string, bare(node.init))
+    // A declaration is the one node with both; a pattern in place of the name has no name to be found by.
+    const { id, init } = node
+    if (isNode(id) && isNode(init)) lists.set(id.name as string, bare(init))
     childrenOf(node).forEach(declare)
   }
   declare(file)
-  /** The rows of a table given in place or by the name of a list; a table the guard can't open (imported, computed) is one item, as written. */
+  /** The rows of a table given in place or by the name of a list; a table the guard can't open (imported, computed, a template) is one item, as written. */
   const rows = (table: Node): string[] => {
-    const list = table.type === 'Identifier' ? (lists.get(table.name as string) ?? table) : bare(table)
+    const given = bare(table)
+    const list = given.type === 'Identifier' ? (lists.get(given.name as string) ?? given) : given
     return list.type === 'ArrayExpression' ? (list.elements as unknown[]).filter(isNode).map((row) => `row ${source(row)}`) : [`table ${source(table)}`]
   }
 
@@ -72,13 +75,15 @@ export function asserted(path: string, text: string): Asserted | undefined {
         into(test, node, [source(node)])
         return
       }
-      const titled = first && !isFunction(first) && isFunction(last)
+      // With a function after its first argument, which is its title.
+      const titled = isFunction(last)
       const group = GROUPS.includes(names[0]) || (TESTS.includes(names[0]) && names.includes('describe'))
       if (titled && (group || (TESTS.includes(names[0]) && !names.some((name) => NOT_A_TEST.includes(name))))) {
-        const title = first.type === 'Literal' && typeof first.value === 'string' ? first.value : source(first)
+        const title = typeof first.value === 'string' ? first.value : source(first)
         const name = [...groups, title].join(' › ')
         const callee = node.callee as Node
-        const given = callee.type === 'CallExpression' && TABLES.includes(names.at(-1) ?? '') ? (callee.arguments as Node[])[0] : undefined
+        // `it.each(ROWS)('…', …)`, or the table as a template: it.each`…`('…', …).
+        const given = TABLES.includes(names.at(-1) ?? '') ? ((callee.arguments as Node[] | undefined)?.[0] ?? (callee.quasi as Node | undefined)) : undefined
         const table = given ? rows(given) : []
         if (group) {
           if (table.length > 0) into(name, node, table)

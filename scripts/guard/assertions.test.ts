@@ -31,6 +31,9 @@ describe('asserted', () => {
     ['assert called itself', 'assert(a)', ['assert(a)']],
     ['what is built on expect by its name', 'expectTypeOf(a).toBeString()\nexpectRow(1)', ['expectTypeOf(a).toBeString()', 'expectRow(1)']],
     ['an assertion inside a callback', 'await waitFor(() => {\n  expect(a).toBe(1)\n})', ['expect(a).toBe(1)']],
+    ['an assertion inside a call on something that is not a name', '[1, 2].forEach((a) => {\n  expect(sum(a)).toBe(a)\n})\nthis.check()', ['expect(sum(a)).toBe(a)']],
+    ['an assertion after a list taken apart with a gap', 'const [, b] = pair\nexpect(b).toBe(1)', ['expect(b).toBe(1)']],
+    ['an assertion in a loop that counts', 'for (let i = 0; i < 2; i++) expect(sum(i)).toBe(i)', ['expect(sum(i)).toBe(i)']],
     ['an assertion handed to another call', 'run(expect(a))', ['expect(a)']],
     ['an assertion over several lines as one line', 'expect(a).toEqual({\n    b: 1,\n  })', ['expect(a).toEqual({ b: 1, })']],
     ['an assertion with a matcher of expect’s inside it, as one', 'expect(a).toEqual(expect.any(String))', ['expect(a).toEqual(expect.any(String))']],
@@ -101,7 +104,12 @@ describe('asserted', () => {
       ['given in place', `it.each([[1, 2], ['two', 4]])${body}`],
       ['given in place over several lines, as a constant', `it.each([\n  [1, 2],\n  ['two', 4],\n] as const)${body}`],
       ['of it.for', `it.for([[1, 2], ['two', 4]])${body}`],
+      ['after a modifier', `it.concurrent.each([[1, 2], ['two', 4]])${body}`],
+      ['given in place with a gap', `it.each([[1, 2], , ['two', 4]])${body}`],
+      ['given by a name that is declared without a value first', `let rows: Row[]\nconst ROWS = [[1, 2], ['two', 4]]\nit.each(ROWS)${body}`],
+      ['given in place behind a type', `it.each(<Row[]>[[1, 2], ['two', 4]])${body}`],
       ['given by the name of a list', `const ROWS = [[1, 2], ['two', 4]]\nit.each(ROWS)${body}`],
+      ['given by the name of a list behind a type', `const ROWS = [[1, 2], ['two', 4]]\nit.each(ROWS as Row[])${body}`],
       ['given by the name of a list declared as a constant of a type', `const ROWS = [[1, 2], ['two', 4]] as const satisfies Row[]\nit.each(ROWS)${body}`],
       ['given by the name of a list declared after the test, inside a group', `describe('sum', () => {\n  it.each(ROWS)${body}  const ROWS: Row[] = [[1, 2], ['two', 4]]\n})\n`],
     ])('gives the rows of one %s among what the test asserts', (_name, text) => {
@@ -112,6 +120,7 @@ describe('asserted', () => {
       ['an imported one', 'it.each(ROWS)', 'table ROWS'],
       ['a computed one', 'it.each(Object.keys(ROWS))', 'table Object.keys(ROWS)'],
       ['one whose name holds something else', 'const ROWS = rows()\nit.each(ROWS)', 'table ROWS'],
+      ['one written as a template', 'it.each`\n  a | b\n  ${1} | ${2}\n`', 'table ` a | b ${1} | ${2} `'],
     ])("gives a table it can't open, %s, as written", (_name, table, item) => {
       expect(items(`${table}${body}`)).toEqual([['adds %s', [item, 'expect(sum(a)).toBe(b)']]])
     })
@@ -197,6 +206,9 @@ describe('compareAssertions', () => {
     const long = 'a'.repeat(120)
     const [found] = said(`it('${long}', () => {\n  expect(${long}).toBe(1)\n})\n`, `it('${long}', () => {})\n`)
     expect(found).toBe(`review src/a.test.ts:1: 1 of 1 assertions in \`${'a'.repeat(97)}…\` rewritten or removed, the first: \`expect(${'a'.repeat(90)}…\``)
+    // One of a hundred characters is given whole.
+    const name = 'b'.repeat(100)
+    expect(said(`it('${name}', () => {\n  expect(a).toBe(1)\n})\n`, `it('${name}', () => {})\n`)[0]).toContain(`in \`${name}\` rewritten`)
   })
 
   it.each([

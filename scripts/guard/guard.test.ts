@@ -97,7 +97,9 @@ describe('guard', () => {
       await commit(APP)
       const list = JSON.stringify({ config: { rootDir: 'e2e' }, suites: [{ title: 'list.spec.ts', specs: [{ title: 'list', file: 'list.spec.ts', tests: [{ expectedStatus: 'passed' }] }] }] })
       const tests = await reports({ 'vitest.json': ran('adds', 'subtracts'), 'playwright.json': list, 'notes.txt': ran('more') }, { 'vitest.json': ran('adds'), 'notes.txt': list })
-      expect(guard({ repo, base: 'main', head: 'branch', tests }).found).toEqual([
+      // In the order the file system gives the reports in.
+      const found = guard({ repo, base: 'main', head: 'branch', tests }).found.toSorted((a, b) => `${a.file}`.localeCompare(`${b.file}`))
+      expect(found).toEqual([
         { needs: 'owner', file: 'e2e/list.spec.ts', what: 'fewer tests run: 1 → 0 here, 3 → 1 in all. Gone or no longer run: `list`' },
         { needs: 'owner', file: 'src/sum.test.ts', what: 'fewer tests run: 2 → 1 here, 3 → 1 in all. Gone or no longer run: `subtracts`' },
       ])

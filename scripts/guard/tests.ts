@@ -7,7 +7,6 @@ import type { Finding } from './signs.ts'
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json }
 const isObject = (value: Json | undefined): value is { [key: string]: Json } => typeof value === 'object' && value !== null && !Array.isArray(value)
 const listOf = (value: Json | undefined): Json[] => (Array.isArray(value) ? value : [])
-const textOf = (value: Json | undefined): string => (typeof value === 'string' ? value : '')
 
 /** A test that ran, or would in Playwright's list: the file it is in and its name with its groups'. */
 export type Test = { file: string; name: string }
@@ -21,24 +20,24 @@ function vitestTests(report: { [key: string]: Json }): Test[] {
       ? listOf(file.assertionResults)
           .filter(isObject)
           .filter(({ status }) => status === 'passed' || status === 'failed')
-          .map(({ ancestorTitles, title }) => ({ file: textOf(file.name), name: [...listOf(ancestorTitles), title].map(textOf).join(NAME) }))
+          .map(({ ancestorTitles, title }) => ({ file: `${file.name}`, name: [...listOf(ancestorTitles), title].join(NAME) }))
       : [],
   )
 }
 
 /** Playwright's list: a test counts once per project it would run in, and not when it is skipped. */
 function playwrightTests(report: { [key: string]: Json }): Test[] {
-  const folder = isObject(report.config) ? textOf(report.config.rootDir) : ''
-  const within = (suite: Json, groups: string[]): Test[] => {
+  const folder = isObject(report.config) ? report.config.rootDir : ''
+  const within = (suite: Json, groups: Json[]): Test[] => {
     if (!isObject(suite)) return []
     const specs = listOf(suite.specs)
       .filter(isObject)
       .flatMap((spec) =>
         listOf(spec.tests)
           .filter((test) => isObject(test) && test.expectedStatus !== 'skipped')
-          .map(() => ({ file: [folder, textOf(spec.file)].filter(Boolean).join('/'), name: [...groups, textOf(spec.title)].join(NAME) })),
+          .map(() => ({ file: [folder, spec.file].filter(Boolean).join('/'), name: [...groups, spec.title].join(NAME) })),
       )
-    return [...specs, ...listOf(suite.suites).flatMap((inner) => within(inner, isObject(inner) ? [...groups, textOf(inner.title)] : groups))]
+    return [...specs, ...listOf(suite.suites).flatMap((inner) => within(inner, isObject(inner) ? [...groups, inner.title] : groups))]
   }
   // The outermost suites are the files, whose titles are their paths.
   return listOf(report.suites).flatMap((file) => within(file, []))
@@ -46,11 +45,11 @@ function playwrightTests(report: { [key: string]: Json }): Test[] {
 
 /** The tests in one report, Vitest's or Playwright's; none when it is neither or can't be read. */
 export function testsIn(report: string): Test[] {
-  let json: Json
+  let json: Json | undefined
   try {
     json = JSON.parse(report)
   } catch {
-    return []
+    // Not JSON: no tests, as for any report that isn't one.
   }
   if (!isObject(json)) return []
   return 'testResults' in json ? vitestTests(json) : playwrightTests(json)

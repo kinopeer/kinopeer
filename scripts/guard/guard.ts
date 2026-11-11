@@ -63,8 +63,6 @@ function testsOf(folder: string): Test[] {
   if (!existsSync(folder)) return []
   return readdirSync(folder)
     .filter((name) => name.endsWith('.json'))
-    // By name, so the findings come in one order on every file system.
-    .sort()
     .flatMap((name) => testsIn(readFileSync(join(folder, name), 'utf8')))
 }
 
