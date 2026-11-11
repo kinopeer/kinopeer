@@ -41,6 +41,7 @@ describe('compareChecks', () => {
     ['a path coverage no longer leaves out', withCoverage({ exclude: [] }), ['review: `coverage.exclude` changed: `"**/*.test.ts"` is removed']],
     ['a folder added to those mutated', withMutants({ folders: ['src', 'server', 'scripts'] }), ['review: `mutants.folders` changed: `"scripts"` is added']],
     ['a key the guard has no rule for', json({ ...checks, budgets: { bundle: 300 } }), ['review: `budgets.bundle` changed: nothing → `300`']],
+    ['a key set to null', json({ ...checks, budgets: null }), ['review: `budgets` changed: nothing → `null`']],
   ])('sends %s to a second review', (_name, head, expected) => {
     expect(said(compareChecks(json(checks), head))).toEqual(expected)
   })
@@ -83,6 +84,11 @@ describe('compareLint', () => {
     ['a rule downgraded', withRules({ 'react/rules-of-hooks': 'warn' }), ['owner: the lint rule `react/rules-of-hooks` is downgraded: `"error"` → `"warn"`']],
     ['a rule with options downgraded', withRules({ 'vitest/valid-expect': ['warn', { maxArgs: 2 }] }), ['owner: the lint rule `vitest/valid-expect` is downgraded: `["error",{"maxArgs":2}]` → `["warn",{"maxArgs":2}]`']],
     ['a rule turned off by its number', withRules({ 'react/rules-of-hooks': 0 }), ['owner: the lint rule `react/rules-of-hooks` is turned off: `"error"` → `0`']],
+    ["a rule turned off by oxlint's own word", withRules({ 'react/rules-of-hooks': 'allow' }), ['owner: the lint rule `react/rules-of-hooks` is turned off: `"error"` → `"allow"`']],
+    ['a rule downgraded by its number', withRules({ 'react/rules-of-hooks': 1 }), ['owner: the lint rule `react/rules-of-hooks` is downgraded: `"error"` → `1`']],
+    ["a rule written with oxlint's own word downgraded", [withRules({ 'no-console': 'deny' }), withRules({ 'no-console': 'warn' })], ['owner: the lint rule `no-console` is downgraded: `"deny"` → `"warn"`']],
+    ['a rule written with its number downgraded', [withRules({ 'no-console': 2 }), withRules({ 'no-console': 'warn' })], ['owner: the lint rule `no-console` is downgraded: `2` → `"warn"`']],
+    ["a rule whose severity on main it can't read, now a warning", [withRules({ 'no-console': 'maybe' }), withRules({ 'no-console': 'warn' })], ['owner: the lint rule `no-console` is downgraded: `"maybe"` → `"warn"`']],
     ['a rule removed', without('react/rules-of-hooks'), ['owner: the lint rule `react/rules-of-hooks` is removed']],
     ['a rule on by default turned off', withRules({ 'no-debugger': 'off' }), ['owner: the lint rule `no-debugger` is turned off']],
     ['a severity it does not know', withRules({ 'react/rules-of-hooks': 'maybe' }), ['owner: the lint rule `react/rules-of-hooks` has a severity the guard can\'t read: `"maybe"`']],
@@ -109,12 +115,17 @@ describe('compareLint', () => {
     ['a rule with other options', withRules({ 'vitest/valid-expect': ['error', { maxArgs: 3 }] }), ['review: the lint rule `vitest/valid-expect` has other options: `["error",{"maxArgs":2}]` → `["error",{"maxArgs":3}]`']],
     ['a new rule that only warns', withRules({ 'no-console': 'warn' }), ["review: the lint rule `no-console` is added as `warn`, which doesn't fail the run"]],
     ['a key it has no rule for', json({ ...config, categories: { correctness: 'off' } }), ['review: `categories` changed: nothing → `{"correctness":"off"}`']],
-  ])('sends %s to a second review', (_name, head, expected) => {
-    expect(said(compareLint(json(config), head))).toEqual(expected)
+    ["a rule whose severity on main it can't read, now failing the run", [withRules({ 'no-console': 'maybe' }), withRules({ 'no-console': 'error' })], ['review: the lint rule `no-console` has other options: `"maybe"` → `"error"`']],
+  ])('sends %s to a second review', (_name, change, expected) => {
+    const [base, head] = Array.isArray(change) ? change : [json(config), change]
+    expect(said(compareLint(base, head))).toEqual(expected)
   })
 
   it.each([
     ['a rule made stricter', withRules({ 'react/only-export-components': ['error', { allowConstantExport: true }] })],
+    ['a rule that only warned made to fail the run by its number', withRules({ 'react/only-export-components': [2, { allowConstantExport: true }] })],
+    ['a rule written the other way at the same severity and options', withRules({ 'vitest/require-to-throw-message': 'off' })],
+    ['an override that is not an object', json({ ...config, overrides: [...config.overrides, 'e2e'] })],
     ['a new rule that fails the run', withRules({ 'no-console': 'error' })],
     ['a rule that was off removed', without('vitest/require-to-throw-message')],
     ['a plugin added', json({ ...config, plugins: [...config.plugins, 'import'] })],
@@ -140,8 +151,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - run: npm ci
+      - run:   npm ci  
       - run: npm run lint
+      - name: Dry run: nothing is uploaded
+        run: >-
+          echo
+          dry
       - name: Add the totals
         if: always()
         run: |
@@ -159,11 +174,12 @@ jobs:
 `
 
 describe('workflowSteps', () => {
-  it('reads each step as the action or the command it runs, a block scalar whole', () => {
+  it('reads each step as the action or the command it runs, a block whole and without its comments', () => {
     expect(workflowSteps(WORKFLOW)).toEqual([
       'uses: actions/checkout',
       'run: npm ci',
       'run: npm run lint',
+      'run: echo ; dry',
       'run: if [ -f coverage.json ]; then ; node summary.mjs ; fi',
       'uses: actions/upload-artifact',
       'run: npm ci',
@@ -176,6 +192,10 @@ describe('compareWorkflow', () => {
 
   it('sends a removed step to the owner', () => {
     expect(said(compareWorkflow(file, WORKFLOW, WORKFLOW.replace('      - run: npm run lint\n', '')))).toEqual(['owner: a CI step is removed: `run: npm run lint`'])
+  })
+
+  it('reads a block that ends the file', () => {
+    expect(workflowSteps('      - run: |\n          npm ci\n          npm test')).toEqual(['run: npm ci ; npm test'])
   })
 
   it('sends one of two steps alike removed to the owner', () => {
@@ -200,10 +220,11 @@ describe('compareWorkflow', () => {
     expect(compareWorkflow(file, WORKFLOW, head)).toEqual([])
   })
 
-  it('cuts a long command short in what it says', () => {
-    const long = `      - run: echo ${'x'.repeat(200)}\n`
-    const [{ what }] = compareWorkflow(file, WORKFLOW + long, WORKFLOW)
-    expect(what).toBe(`a CI step is removed: \`run: echo ${'x'.repeat(107)}…\``)
+  it('cuts a command of more than 120 characters short in what it says', () => {
+    const step = (length: number) => `      - run: ${'x'.repeat(length - 'run: '.length)}\n`
+    const what = (length: number) => compareWorkflow(file, WORKFLOW + step(length), WORKFLOW)[0].what
+    expect(what(120)).toBe(`a CI step is removed: \`run: ${'x'.repeat(115)}\``)
+    expect(what(121)).toBe(`a CI step is removed: \`run: ${'x'.repeat(112)}…\``)
   })
 
   it('sends a removed workflow to the owner and finds nothing in a new one', () => {
@@ -216,27 +237,52 @@ describe('scanAdded', () => {
   const lines = (...texts: string[]) => texts.map((text, index) => ({ line: index + 10, text }))
 
   it.each([
-    ['playwright.config.ts', '  retries: process.env.CI ? 2 : 0,', 'test retries appeared'],
-    ['vite.config.ts', '      retry: 3,', 'test retries appeared'],
-    ['src/screens/SearchScreen.test.tsx', "  it('finds a title', { retry: 2 }, async () => {", 'test retries appeared'],
-    ['e2e/search.spec.ts', '  test.describe.configure({ retries: 1 })', 'test retries appeared'],
-    ['package.json', '    "test:smoke": "playwright test --retries=2",', 'test retries appeared'],
-    ['.github/workflows/ci.yml', '      - run: npx playwright test --retries 2', 'test retries appeared'],
-    ['e2e/search.spec.ts', "  await expect(page).toHaveScreenshot('search.png', { maxDiffPixels: 100 })", 'a screenshot tolerance appeared'],
-    ['playwright.config.ts', '    toHaveScreenshot: { maxDiffPixelRatio: 0.01 },', 'a screenshot tolerance appeared'],
-    ['playwright.config.ts', '    toHaveScreenshot: { threshold: 0.3 },', 'a screenshot tolerance appeared'],
-  ])('sends a line added to %s to the owner: %s', (file, text, what) => {
-    expect(scanAdded(file, lines(text))).toEqual([{ needs: 'owner', file, line: 10, what: `${what}: \`${text.trim()}\`` }])
+    ['playwright.config.ts', '  retries: process.env.CI ? 2 : 0,'],
+    ['playwright.smoke.config.ts', '  retries: 1,'],
+    ['e2e/search.spec.ts', '  test.describe.configure({ retries: 1 })'],
+    ['e2e/smoke/tabs.smoke.ts', '  test.describe.configure({ retries: 10 })'],
+    ['package.json', '    "retries": 2,'],
+    ['vite.config.ts', '      retry: 3,'],
+    ['vite.config.ts', '      retry: process.env.CI ? 2 : 0,'],
+    ['vite.config.ts', '      retry: { count: 2 },'],
+    ['src/screens/SearchScreen.test.tsx', "  it('finds a title', { retry: 2 }, async () => {"],
+    ['server/tmdb.test.ts', "  it('passes the answer on', { 'retry': 2 }, async () => {"],
+    ['package.json', '    "test:smoke": "playwright test --retries=2",'],
+    ['.github/workflows/ci.yml', '      - run: npx vitest run --retry 2'],
+    ['scripts/test-visual.sh', 'npx playwright test --retries 2'],
+    ['stryker.config.mjs', '  vitest: { retries: 2 },'],
+  ])('sends test retries added to %s to the owner: %s', (file, text) => {
+    expect(scanAdded(file, lines(text))).toEqual([{ needs: 'owner', file, line: 10, what: `test retries appeared: \`${text.trim()}\`` }])
   })
 
   it.each([
-    ['playwright.config.ts', '  retries: 0,', 'no retries'],
-    ['src/api/tmdb/client.ts', '  const retry = { retries: 3 }', "the app's own retries"],
-    ['src/api/tmdb/client.test.ts', "  it('retries after the time TMDB names', async () => {", 'a test about retrying'],
-    ['vite.config.ts', '        thresholds: { lines: 96 },', 'the coverage thresholds'],
-    ['src/components/Sheet/sheetDrag.test.ts', '  expect(shouldClose({ threshold: 120 })).toBe(true)', 'a threshold of the app'],
-    ['docs/TESTING.md', 'retries: 2 would hide a race', 'a doc'],
-  ])('finds nothing in a line added to %s: %s', (file, text) => {
+    ['e2e/search.spec.ts', "  await expect(page).toHaveScreenshot('search.png', { maxDiffPixels: 100 })"],
+    ['playwright.config.ts', '    toHaveScreenshot: { maxDiffPixelRatio: 0.01 },'],
+    ['playwright.config.ts', '    toHaveScreenshot: { threshold: 0.3 },'],
+    ['playwright.readme.config.ts', "    toHaveScreenshot: { 'threshold': 0.3 },"],
+  ])('sends a screenshot tolerance added to %s to the owner: %s', (file, text) => {
+    expect(scanAdded(file, lines(text))).toEqual([{ needs: 'owner', file, line: 10, what: `a screenshot tolerance appeared: \`${text.trim()}\`` }])
+  })
+
+  it.each([
+    ['no retries', 'playwright.config.ts', '  retries: 0,'],
+    ['no retries, written tight', 'playwright.config.ts', '  retries:0,'],
+    ["the app's own retries", 'src/api/tmdb/client.ts', '  const options = { retries: 3 }'],
+    ["the app's own retries in a file named like a test", 'src/api/tmdb/client.test.tsx.ts', '  const options = { retries: 3 }'],
+    ["the app's own retries in a folder named like the tests'", 'src/e2e/client.ts', '  const options = { retries: 3 }'],
+    ['a retry the app offers, in a test', 'src/screens/ReleasesBlock.test.tsx', '    retry: vi.fn(),'],
+    ['a retry the app offers, in a type', 'e2e/app.ts', '  retry: () => void'],
+    ['a test about retrying', 'src/api/tmdb/client.test.ts', "  it('retries after the time TMDB names', async () => {"],
+    ['a word that only starts like one', 'vite.config.ts', '  retriesLeft: 2, retryAfter: 3,'],
+    ['a flag that only starts like one', 'package.json', '    "start": "node server/main.ts --retrying",'],
+    ['a doc in the root', 'CLAUDE.md', '`retries: 2` would hide a race'],
+    ['a doc in a folder', 'docs/TESTING.md', 'retries: 2 would hide a race'],
+    ['the coverage thresholds', 'vite.config.ts', '        thresholds: { lines: 96 },'],
+    ['a threshold of the app', 'src/components/Sheet/sheetDrag.test.ts', '  expect(shouldClose({ threshold: 120 })).toBe(true)'],
+    ['a threshold in a config that takes no screenshots', 'vite.config.ts', '        threshold: 0.3,'],
+    ['a tolerance in a folder named like a Playwright config', 'playwright/notes.ts', '  maxDiffPixels: 100,'],
+    ['a word that only ends like a threshold', 'e2e/app.ts', '  dragthreshold: 0.3,'],
+  ])('finds nothing in %s', (_name, file, text) => {
     expect(scanAdded(file, lines(text))).toEqual([])
   })
 
@@ -249,6 +295,10 @@ describe('findings', () => {
   it.each(['scripts/guard/signs.ts', 'scripts/guard/guard.test.ts', '.github/workflows/guard.yml'])('sends a change to the guard itself to the owner: %s', (path) => {
     // With a line that would be a finding of its own anywhere else: the guard's files hold the patterns as text.
     expect(findings([{ path, base: 'jobs: {}', head: 'jobs: {}', added: [{ line: 1, text: '  retries: 2,' }] }])).toEqual([{ needs: 'owner', file: path, what: 'the checks guard itself changed' }])
+  })
+
+  it.each(['tmdb-proxy/scripts/guard/signs.ts', 'scripts/guardian.ts', 'docs/.github/workflows/guard.yml', '.github/workflows/guard.yml.md'])("doesn't take %s for the guard", (path) => {
+    expect(findings([{ path, added: [] }])).toEqual([])
   })
 
   it('reads each file by its own rules and a workflow by both the steps and the lines', () => {
@@ -267,7 +317,7 @@ describe('readsWhole', () => {
     expect(readsWhole(path)).toBe(true)
   })
 
-  it.each(['src/App.tsx', 'tmdb-proxy/checks.json', '.github/dependabot.yml', '.github/workflows/README.md'])('reads only the added lines of %s', (path) => {
+  it.each(['src/App.tsx', 'tmdb-proxy/checks.json', '.github/dependabot.yml', '.github/workflows/README.md', 'tmdb-proxy/.github/workflows/ci.yml', '.github/workflows/drafts/ci.yml', '.github/workflows/yml'])('reads only the added lines of %s', (path) => {
     expect(readsWhole(path)).toBe(false)
   })
 })

@@ -42,10 +42,10 @@ follows the conversation's language. Code, file paths and quotes stay as they ar
 
 ## 2. Sort the diff
 
-Group the changed files: production code (`src/` outside tests, `server/*.ts`, `tmdb-proxy/`
-outside tests: the folders `scripts/mutants.mjs` mutates), tests
+Group the changed files: production code (`src/` outside tests, `server/*.ts`, `tmdb-proxy/` and
+`scripts/guard/` outside tests: the folders `scripts/mutants.mjs` mutates), tests
 (`*.test.ts(x)`, `e2e/`), shared test data (`src/test/`, `server/test/`), baselines, config
-(`vite.config.ts`, `playwright*.config.ts`, `.oxlintrc.json`, `tsconfig*.json`, CI) and docs. Each
+(`vite.config.ts`, `checks.json`, `playwright*.config.ts`, `.oxlintrc.json`, `tsconfig*.json`, CI) and docs. Each
 group has its own checks below; a PR without production changes skips A, except for a branch in a
 script or a workflow (whether to install, whether to deploy, which targets a matrix reaches), which
 is behavior (`docs/TESTING.md` → Saying why something is uncovered → No behavior): a run that stops

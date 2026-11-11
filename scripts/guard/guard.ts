@@ -10,10 +10,10 @@ import { findings, readsWhole, report, type AddedLine, type Change, type Finding
 type Git = (...args: string[]) => string
 
 /** git in `repo`; throws on a failure, with what git said. */
-function gitIn(repo: string): Git {
+export function gitIn(repo: string): Git {
   return (...args) => {
     const { status, stdout, stderr } = spawnSync('git', ['-C', repo, ...args], { encoding: 'utf8', maxBuffer: 1 << 28 })
-    if (status !== 0) throw new Error(`git ${args.join(' ')}: ${stderr.trim()}`)
+    if (status !== 0) throw new Error(`git ${args.join(' ')}: ${stderr}`)
     return stdout
   }
 }
@@ -26,9 +26,9 @@ function addedLines(git: Git, base: string, head: string): Map<string, AddedLine
   for (const text of git('diff', '--no-renames', '--unified=0', base, head).split('\n')) {
     const hunk = /^@@ -\S+ \+(\d+)/.exec(text)
     if (text.startsWith('+++ ')) {
+      // `+++ b/path`; a deleted file's `+++ /dev/null` leaves a name no file has, with no lines.
       lines = []
-      // `+++ /dev/null` for a deleted file, which adds nothing.
-      if (text.startsWith('+++ b/')) added.set(text.slice('+++ b/'.length), lines)
+      added.set(text.slice('+++ b/'.length), lines)
     } else if (hunk) {
       next = Number(hunk[1])
     } else if (text.startsWith('+')) {
@@ -46,8 +46,8 @@ export function changes(git: Git, base: string, head: string): Change[] {
   return git('diff', '--no-renames', '--name-status', '-z', base, head)
     .split('\0')
     .reduce<Change[]>((all, path, index, fields) => {
-      // The fields come in pairs: a status letter, then its path.
-      if (index % 2 === 0 || !path) return all
+      // The fields come in pairs, a status letter and then its path, with an empty one after the last.
+      if (index % 2 === 0) return all
       const status = fields[index - 1]
       const whole = readsWhole(path)
       return [...all, { path, base: whole ? read(base, path, status !== 'A') : undefined, head: whole ? read(head, path, status !== 'D') : undefined, added: added.get(path) ?? [] }]
@@ -64,7 +64,7 @@ export function guard({ repo, base, head }: Options): { found: Finding[]; report
   const from = git('merge-base', base, head).trim()
   const found = findings(changes(git, from, head))
   // The guard reads commits, so an author who runs it before committing would see "nothing" for the wrong reason.
-  const dirty = head === 'HEAD' && git('status', '--porcelain').trim() !== ''
+  const dirty = head === 'HEAD' && git('status', '--porcelain') !== ''
   const text = report(found, { head: short(head), base: short(from) })
   return { found, report: dirty ? `${text}\n\nUncommitted changes aren't read: commit them and run it again.` : text }
 }

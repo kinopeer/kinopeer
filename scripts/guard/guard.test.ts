@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { guard, main, options } from './guard.ts'
+import { changes, gitIn, guard, main, options } from './guard.ts'
 
 /**
  * A repository of its own per test: `main` with the files given, then a branch that the test
@@ -97,13 +97,14 @@ describe('guard', () => {
   })
 
   it('names the line of an added line by its place in the file, across hunks', async () => {
-    const config = ['export default {', '  workers: 2,', '  retries: 0,', '  use: {},', '}', ''].join('\n')
+    // Eleven lines before the one the second hunk changes, and a line that reads like a hunk's header.
+    const config = ['export default {', '  workers: 2,', '  retries: 0,', ...Array.from({ length: 9 }, (_, index) => `  // ${index}`), '  use: {},', '}', ''].join('\n')
     git('checkout', '--quiet', 'main')
     await commit({ 'playwright.config.ts': config })
     git('checkout', '--quiet', 'branch')
     git('merge', '--quiet', 'main')
-    await commit({ 'playwright.config.ts': config.replace('  workers: 2,', '  workers: 4,\n  timeout: 1000,').replace('  use: {},', '  use: { retries: 1 },') })
-    expect(said()).toEqual(['owner playwright.config.ts:5: test retries appeared: `use: { retries: 1 },`'])
+    await commit({ 'playwright.config.ts': config.replace('  workers: 2,', '  workers: 4,\n  // @@ -1 +90 @@').replace('  use: {},', '  use: { retries: 1 },') })
+    expect(said()).toEqual(['owner playwright.config.ts:14: test retries appeared: `use: { retries: 1 },`'])
   })
 
   it("says so when HEAD is what it reads and the checkout has changes that aren't committed", async () => {
@@ -123,6 +124,19 @@ describe('guard', () => {
 
   it('fails on a base that is not in the repository', () => {
     expect(() => guard({ repo, base: 'origin/main', head: 'branch' })).toThrow(/git merge-base origin\/main branch/)
+  })
+})
+
+describe('changes', () => {
+  it('gives each changed file once, whole on both sides only where the guard compares it whole', async () => {
+    await commit({ 'checks.json': '{}', '.github/workflows/ci.yml': null, '.github/workflows/guard.yml': 'jobs: {}\n', 'src/app.ts': 'export const app = 2\n', 'src/new.ts': 'one\ntwo\n' })
+    expect(changes(gitIn(repo), 'main', 'branch')).toEqual([
+      { path: '.github/workflows/ci.yml', base: CI, head: undefined, added: [] },
+      { path: '.github/workflows/guard.yml', base: undefined, head: 'jobs: {}\n', added: [{ line: 1, text: 'jobs: {}' }] },
+      { path: 'checks.json', base: CHECKS, head: '{}', added: [{ line: 1, text: '{}' }] },
+      { path: 'src/app.ts', base: undefined, head: undefined, added: [{ line: 1, text: 'export const app = 2' }] },
+      { path: 'src/new.ts', base: undefined, head: undefined, added: [{ line: 1, text: 'one' }, { line: 2, text: 'two' }] },
+    ])
   })
 })
 

@@ -23,15 +23,21 @@ export type Change = { path: string; base?: string; head?: string; added: AddedL
 
 export const CHECKS_FILE = 'checks.json'
 export const LINT_FILE = '.oxlintrc.json'
-const WORKFLOW = /^\.github\/workflows\/[^/]+\.ya?ml$/
+const WORKFLOWS = '.github/workflows/'
+const inRoot = (path: string): boolean => !path.includes('/')
+const isWorkflow = (path: string): boolean => path.startsWith(WORKFLOWS) && inRoot(path.slice(WORKFLOWS.length)) && (path.endsWith('.yml') || path.endsWith('.yaml'))
 /** The guard itself: a change to it goes to the owner, whatever it is. */
-const GUARD = /^scripts\/guard\/|^\.github\/workflows\/guard\.yml$/
-/** The tests and what runs them, where a retry is a test's retry rather than the app's own. */
-const RUNS_TESTS = /\.test\.tsx?$|^e2e\/|^(?:vite|playwright[^/]*)\.config\.ts$|^stryker\.config\.mjs$|^package\.json$|^\.github\/workflows\/|^scripts\//
-const SCREENSHOTS = /^e2e\/|^playwright[^/]*\.config\.ts$/
+const isGuard = (path: string): boolean => path.startsWith('scripts/guard/') || path === `${WORKFLOWS}guard.yml`
+const isTest = (path: string): boolean => path.endsWith('.test.ts') || path.endsWith('.test.tsx') || path.startsWith('e2e/')
+/**
+ * The tests and what runs them (the configs in the root, the workflows, the scripts), where a retry
+ * is a test's retry: the app has retries of its own, and a doc may talk about either.
+ */
+const runsTests = (path: string): boolean => !path.endsWith('.md') && (isTest(path) || inRoot(path) || path.startsWith(WORKFLOWS) || path.startsWith('scripts/'))
+const takesScreenshots = (path: string): boolean => path.startsWith('e2e/') || (inRoot(path) && path.startsWith('playwright'))
 
 /** Whether the guard compares the file's two versions whole, rather than only the lines added. */
-export const readsWhole = (path: string): boolean => path === CHECKS_FILE || path === LINT_FILE || WORKFLOW.test(path)
+export const readsWhole = (path: string): boolean => path === CHECKS_FILE || path === LINT_FILE || isWorkflow(path)
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json }
 type JsonObject = { [key: string]: Json }
@@ -47,12 +53,13 @@ const show = (value: Json | undefined): string => (value === undefined ? 'nothin
  */
 function parseBoth(file: string, base: string, head: string): { base: JsonObject; head: JsonObject } | Finding {
   const parse = (text: string): JsonObject | undefined => {
+    let value: Json | undefined
     try {
-      const value = JSON.parse(text) as Json
-      return isObject(value) ? value : undefined
+      value = JSON.parse(text) as Json
     } catch {
-      return undefined
+      // Not JSON: left undefined, which is not an object either.
     }
+    return isObject(value) ? value : undefined
   }
   const [was, now] = [parse(base), parse(head)]
   if (!now) return { needs: 'owner', file, what: "the guard can't read the file as a JSON object, so it can't compare it" }
@@ -92,7 +99,8 @@ export function compareChecks(base: string | undefined, head: string | undefined
     const [before, after] = [was.get(key), now.get(key)]
     if (same(before, after)) continue
     if (key.startsWith(THRESHOLD)) {
-      const lowered = typeof before === 'number' && !(typeof after === 'number' && after >= before)
+      // Not higher is lower here: one that stayed as it was never gets this far.
+      const lowered = typeof before === 'number' && !(typeof after === 'number' && after > before)
       if (lowered) owner(`the threshold \`${key}\` is lowered: ${show(before)} → ${show(after)}`)
       else review(`the threshold \`${key}\` changed: ${show(before)} → ${show(after)}`)
     } else if (EXCLUDES.includes(key) || INCLUDES.includes(key)) {
@@ -109,12 +117,15 @@ export function compareChecks(base: string | undefined, head: string | undefined
   return found
 }
 
+/** The rank of a rule that fails the run; main's rule with a severity the guard can't read counts as one. */
+const ERROR = 2
+
 /** A lint rule's severity as a rank, 0 for off; undefined for a value the guard doesn't know. */
 function rank(rule: Json | undefined): number | undefined {
   const severity = Array.isArray(rule) ? rule[0] : rule
   if (severity === 'off' || severity === 'allow' || severity === 0) return 0
   if (severity === 'warn' || severity === 1) return 1
-  if (severity === 'error' || severity === 'deny' || severity === 2) return 2
+  if (severity === 'error' || severity === 'deny' || severity === ERROR) return ERROR
   return undefined
 }
 
@@ -137,9 +148,9 @@ function compareRules(file: string, where: string, base: JsonObject, head: JsonO
     } else if (before === undefined) {
       if (now === 0) found.push({ needs: 'owner', file, what: `${rule} is turned off` })
       else if (now === 1) found.push({ needs: 'review', file, what: `${rule} is added as \`warn\`, which doesn't fail the run` })
-    } else if (was === undefined || now < was) {
+    } else if (now < (was ?? ERROR)) {
       found.push({ needs: 'owner', file, what: `${rule} is ${now === 0 ? 'turned off' : 'downgraded'}: ${show(before)} → ${show(after)}` })
-    } else if (now === was) {
+    } else if (now === (was ?? ERROR)) {
       found.push({ needs: 'review', file, what: `${rule} has other options: ${show(before)} → ${show(after)}` })
     }
     // What is left is a rule made stricter: nothing to mark.
@@ -147,9 +158,9 @@ function compareRules(file: string, where: string, base: JsonObject, head: JsonO
   return found
 }
 
-const rulesOf = (config: JsonObject): JsonObject => (isObject(config.rules) ? config.rules : {})
-const overridesOf = (config: JsonObject): JsonObject[] => (Array.isArray(config.overrides) ? config.overrides.filter(isObject) : [])
-const filesOf = (override: JsonObject): string => JSON.stringify(override.files)
+const rulesOf = (config: Json | undefined): JsonObject => (isObject(config) && isObject(config.rules) ? config.rules : {})
+const overridesOf = (config: JsonObject): Json[] => (Array.isArray(config.overrides) ? config.overrides : [])
+const filesOf = (override: Json): string => JSON.stringify(isObject(override) ? override.files : override)
 
 /**
  * The linter's config: a rule removed, turned off or downgraded, a plugin removed or a path added to
@@ -172,7 +183,7 @@ export function compareLint(base: string | undefined, head: string | undefined, 
   const after = new Map(overridesOf(now).map((override) => [filesOf(override), override]))
   for (const files of new Set([...before.keys(), ...after.keys()])) {
     const where = ` for ${files}`
-    found.push(...compareRules(file, where, rulesOf(before.get(files) ?? {}), rulesOf(after.get(files) ?? {}), after.has(files) ? rulesOf(was) : {}))
+    found.push(...compareRules(file, where, rulesOf(before.get(files)), rulesOf(after.get(files)), after.has(files) ? rulesOf(was) : {}))
   }
   for (const key of new Set([...Object.keys(was), ...Object.keys(now)])) {
     if (['rules', 'plugins', 'ignorePatterns', 'overrides', '$schema'].includes(key) || same(was[key], now[key])) continue
@@ -181,31 +192,36 @@ export function compareLint(base: string | undefined, head: string | undefined, 
   return found
 }
 
+/** How YAML starts a block of lines under a key. */
+const BLOCK = ['|', '|-', '|+', '>', '>-', '>+']
+
 /**
  * A workflow's steps, each as what it runs: an action without its version (so a bump isn't a change)
  * or a command. Read line by line rather than as YAML, which Node can't parse without a dependency:
- * a `run:` or `uses:` key and, for a block scalar, the lines indented under it.
+ * a `run:` or `uses:` key and, for a block, the lines indented under it, without its comments.
  */
 export function workflowSteps(text: string): string[] {
-  const lines = text.split('\n')
   const steps: string[] = []
-  for (let index = 0; index < lines.length; index++) {
-    const key = /^(\s*(?:- )?)(uses|run):\s*(.*)$/.exec(lines[index])
-    if (!key) continue
-    const [, lead, name, value] = key
-    if (name === 'uses') {
-      steps.push(`uses: ${value.replace(/\s+#.*$/, '').replace(/@[^@]*$/, '')}`)
-    } else if (/^[|>][+-]?\s*$/.test(value)) {
-      const block: string[] = []
-      while (index + 1 < lines.length && (lines[index + 1].trim() === '' || lines[index + 1].search(/\S/) > lead.length)) {
-        const line = lines[++index].trim()
-        if (line && !line.startsWith('#')) block.push(line)
-      }
-      steps.push(`run: ${block.join(' ; ')}`)
-    } else {
-      steps.push(`run: ${value}`)
-    }
+  let block: { indent: number; lines: string[] } | undefined
+  const close = () => {
+    if (block) steps.push(`run: ${block.lines.join(' ; ')}`)
+    block = undefined
   }
+  for (const line of text.split('\n')) {
+    const command = line.trim()
+    if (block && (command === '' || line.indexOf(command) > block.indent)) {
+      if (command !== '' && !command.startsWith('#')) block.lines.push(command)
+      continue
+    }
+    close()
+    const key = /^(\s*(?:- )?)(uses|run):(.*)/.exec(line)
+    if (!key) continue
+    const value = key[3].trim()
+    if (key[2] === 'uses') steps.push(`uses: ${value.split('@')[0]}`)
+    else if (BLOCK.includes(value)) block = { indent: key[1].length, lines: [] }
+    else steps.push(`run: ${value}`)
+  }
+  close()
   return steps
 }
 
@@ -234,16 +250,20 @@ export function compareWorkflow(file: string, base: string | undefined, head: st
   }))
 }
 
-/** What a line the branch adds can bring in, where it counts, and what the finding says. */
-const ADDED: { pattern: RegExp; files: RegExp; what: string }[] = [
-  // `retry: 2`, `retries: process.env.CI ? 2 : 0`, `--retries=2`; not `retries: 0`.
-  { pattern: /\bretr(?:y|ies)\b["']?\s*[:=](?!\s*0\b)|--retr(?:y|ies)\b/, files: RUNS_TESTS, what: 'test retries appeared' },
-  { pattern: /\bmaxDiffPixels\b|\bmaxDiffPixelRatio\b|\bthreshold\b["']?\s*:/, files: SCREENSHOTS, what: 'a screenshot tolerance appeared' },
+/**
+ * What a line the branch adds can bring in, in which files it counts, and what the finding says.
+ * Retries: Playwright's `retries` with anything but 0, Vitest's `retry` with a number, an object or
+ * the environment (`retry: process.env.CI ? 2 : 0`), and either as a command's flag; not the app's
+ * own `retry: () => void`.
+ */
+const ADDED: { pattern: RegExp; counts: (path: string) => boolean; what: string }[] = [
+  { pattern: /\bretries["']?:(?! ?0\b)|\bretry["']?: ?(?:[1-9]|\{|process\b)|--retr(?:y|ies)\b/, counts: runsTests, what: 'test retries appeared' },
+  { pattern: /maxDiffPixel|\bthreshold["']?:/, counts: takesScreenshots, what: 'a screenshot tolerance appeared' },
 ]
 
 /** The lines a branch adds to one file, against the patterns above. */
 export function scanAdded(file: string, added: AddedLine[]): Finding[] {
-  return ADDED.filter(({ files }) => files.test(file)).flatMap(({ pattern, what }) =>
+  return ADDED.filter(({ counts }) => counts(file)).flatMap(({ pattern, what }) =>
     added.filter(({ text }) => pattern.test(text)).map(({ line, text }) => ({ needs: 'owner' as const, file, line, what: `${what}: \`${brief(text.trim())}\`` })),
   )
 }
@@ -252,10 +272,10 @@ export function scanAdded(file: string, added: AddedLine[]): Finding[] {
 export function findings(changes: Change[]): Finding[] {
   return changes.flatMap(({ path, base, head, added }) => {
     // The guard's own files hold these patterns as text, and each change to them goes to the owner anyway.
-    if (GUARD.test(path)) return [{ needs: 'owner' as const, file: path, what: 'the checks guard itself changed' }]
+    if (isGuard(path)) return [{ needs: 'owner' as const, file: path, what: 'the checks guard itself changed' }]
     if (path === CHECKS_FILE) return compareChecks(base, head)
     if (path === LINT_FILE) return compareLint(base, head)
-    return [...(WORKFLOW.test(path) ? compareWorkflow(path, base, head) : []), ...scanAdded(path, added)]
+    return [...(isWorkflow(path) ? compareWorkflow(path, base, head) : []), ...scanAdded(path, added)]
   })
 }
 
