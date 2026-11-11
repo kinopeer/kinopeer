@@ -46,6 +46,21 @@ const SPEC = 'test.describe.configure({ retries: 2 })\n'
 const specFound = (path: string) => `owner ${path}:1: test retries appeared: \`test.describe.configure({ retries: 2 })\``
 /** A change the guard has nothing to say about. */
 const APP = { 'src/app.ts': 'export const app = 2\n' }
+/** What the report ends with when the caller gave no runs of the tests. */
+const NO_RUNS = "\n\nThe tests that ran aren't compared: that takes a run of the tests on each side, which CI's `guard` workflow makes."
+/** Vitest's report of a run in which these tests of src/sum.test.ts passed. */
+const ran = (...titles: string[]) => JSON.stringify({ testResults: [{ name: 'src/sum.test.ts', assertionResults: titles.map((title) => ({ ancestorTitles: [], title, status: 'passed' })) }] })
+
+/** Folders next to the test's repository with the reports of main's run and of the branch's, removed with the test. */
+async function reports(base: Record<string, string>, head: Record<string, string>): Promise<{ base: string; head: string }> {
+  const folders = { base: `${repo}-tests/base`, head: `${repo}-tests/head` }
+  onTestFinished(() => rm(`${repo}-tests`, { recursive: true, force: true }))
+  for (const [folder, files] of [[folders.base, base], [folders.head, head]] as const) {
+    await mkdir(folder, { recursive: true })
+    for (const [name, text] of Object.entries(files)) await writeFile(join(folder, name), text)
+  }
+  return folders
+}
 
 beforeEach(async () => {
   repo = await mkdtemp(join(tmpdir(), 'kinopeer-guard-'))
@@ -65,7 +80,48 @@ describe('guard', () => {
   it('finds nothing in a branch that changes no check', async () => {
     const base = git('rev-parse', '--short', 'main')
     const head = await commit(APP)
-    expect(run()).toEqual({ found: [], report: `<!-- checks-guard -->\n**Checks guard at ${head}**, against \`main\` at ${base}.\n\nNo weakening of the checks and no change to existing ones.` })
+    expect(run()).toEqual({ found: [], report: `<!-- checks-guard -->\n**Checks guard at ${head}**, against \`main\` at ${base}.\n\nNo weakening of the checks and no change to existing ones.${NO_RUNS}` })
+  })
+
+  it('compares what a test file the branch changes asserts, read from both sides', async () => {
+    const spec = (assertion: string) => `test('list', async ({ page }) => {\n${assertion}})\n`
+    git('checkout', '--quiet', 'main')
+    await commit({ 'e2e/list.spec.ts': spec('  await expect(page).toHaveScreenshot()\n'), 'e2e/__screenshots__/list.png': 'expect(page).toBe(1)\n' })
+    git('checkout', '--quiet', '-B', 'branch')
+    await commit({ 'e2e/list.spec.ts': `// Nothing to see.\n${spec('')}`, 'e2e/__screenshots__/list.png': 'expect(page).toBe(2)\n' })
+    expect(said()).toEqual(['review e2e/list.spec.ts:2: 1 of 1 assertions in `list` rewritten or removed, the first: `expect(page).toHaveScreenshot()`'])
+  })
+
+  describe('with the reports of the two runs of the tests', () => {
+    it('compares the tests that ran, from every report in the two folders', async () => {
+      await commit(APP)
+      const list = JSON.stringify({ config: { rootDir: 'e2e' }, suites: [{ title: 'list.spec.ts', specs: [{ title: 'list', file: 'list.spec.ts', tests: [{ expectedStatus: 'passed' }] }] }] })
+      const tests = await reports({ 'vitest.json': ran('adds', 'subtracts'), 'playwright.json': list, 'notes.txt': ran('more') }, { 'vitest.json': ran('adds'), 'notes.txt': list })
+      expect(guard({ repo, base: 'main', head: 'branch', tests }).found).toEqual([
+        { needs: 'owner', file: 'e2e/list.spec.ts', what: 'fewer tests run: 1 → 0 here, 3 → 1 in all. Gone or no longer run: `list`' },
+        { needs: 'owner', file: 'src/sum.test.ts', what: 'fewer tests run: 2 → 1 here, 3 → 1 in all. Gone or no longer run: `subtracts`' },
+      ])
+    })
+
+    it('says nothing about the runs in its report when the tests are the same', async () => {
+      await commit(APP)
+      const tests = await reports({ 'vitest.json': ran('adds') }, { 'vitest.json': ran('adds') })
+      const { found, report } = guard({ repo, base: 'main', head: 'branch', tests })
+      expect(found).toEqual([])
+      expect(report).toBe(run().report.replace(NO_RUNS, ''))
+    })
+
+    it.each([
+      ['there is no such folder', 'missing'],
+      ['the folder is empty', 'empty'],
+    ])("says it can't see for a side where %s", async (_name, folder) => {
+      await commit(APP)
+      const tests = await reports({ 'vitest.json': ran('adds') }, {})
+      await mkdir(`${repo}-tests/empty`)
+      expect(guard({ repo, base: 'main', head: 'branch', tests: { ...tests, head: `${repo}-tests/${folder}` } }).found).toEqual([
+        { needs: 'owner', what: "the branch's run gave no list of its tests, so the guard can't see a test that is gone" },
+      ])
+    })
   })
 
   it("reads the thresholds, a workflow and an added line from the branch's commits", async () => {
@@ -188,12 +244,13 @@ describe('guard', () => {
 
 describe('changes', () => {
   it('gives each changed file once, whole on both sides only where the guard compares it whole', async () => {
-    await commit({ 'checks.json': '{}', '.github/workflows/ci.yml': null, '.github/workflows/guard.yml': 'jobs: {}\n', 'src/app.ts': 'export const app = 2\n', 'src/new.ts': 'one\ntwo\n' })
+    await commit({ 'checks.json': '{}', '.github/workflows/ci.yml': null, '.github/workflows/guard.yml': 'jobs: {}\n', 'src/app.ts': 'export const app = 2\n', 'src/new.ts': 'one\ntwo\n', 'src/new.test.ts': 'three\n' })
     expect(changes(gitIn(repo), 'main', 'branch')).toEqual([
       { path: '.github/workflows/ci.yml', base: CI, head: undefined, added: [] },
       { path: '.github/workflows/guard.yml', base: undefined, head: 'jobs: {}\n', added: [{ line: 1, text: 'jobs: {}' }] },
       { path: 'checks.json', base: CHECKS, head: '{}', added: [{ line: 1, text: '{}' }] },
       { path: 'src/app.ts', base: undefined, head: undefined, added: [{ line: 1, text: 'export const app = 2' }] },
+      { path: 'src/new.test.ts', base: undefined, head: 'three\n', added: [{ line: 1, text: 'three' }] },
       { path: 'src/new.ts', base: undefined, head: undefined, added: [{ line: 1, text: 'one' }, { line: 2, text: 'two' }] },
     ])
   })
@@ -224,6 +281,14 @@ describe('main', () => {
     await commit(APP)
     // With nothing named to write to, writing at all would throw.
     expect(main(args(), {})).toBe(run().report)
+  })
+
+  it('compares the tests that ran when the command line names the folders of the two runs', async () => {
+    await commit(APP)
+    const tests = await reports({ 'vitest.json': ran('adds', 'subtracts') }, { 'vitest.json': ran('adds') })
+    const output = await outputFile()
+    expect(main([...args(), '--tests-base', tests.base, '--tests-head', tests.head], { GITHUB_OUTPUT: output })).toContain('- `src/sum.test.ts`: fewer tests run: 2 → 1 here, 2 → 1 in all.')
+    expect(await readFile(output, 'utf8')).toBe('owner=1\nreview=0\n')
   })
 })
 
@@ -261,5 +326,16 @@ describe('options', () => {
 
   it('keeps the default for a name without a value', () => {
     expect(options(['--base'])).toEqual({ repo: '.', base: 'origin/main', head: 'HEAD' })
+  })
+
+  it('takes the folders of the two runs of the tests from the command line', () => {
+    expect(options(['--tests-head', 'lists/pr', '--tests-base', 'lists/base']).tests).toEqual({ base: 'lists/base', head: 'lists/pr' })
+  })
+
+  it.each([
+    ["main's", ['--tests-base', 'lists/base'], { base: 'lists/base', head: '' }],
+    ["the branch's", ['--tests-head', 'lists/pr'], { base: '', head: 'lists/pr' }],
+  ])('compares the tests with only %s folder named, the other side having no list', (_name, args, tests) => {
+    expect(options(args).tests).toEqual(tests)
   })
 })

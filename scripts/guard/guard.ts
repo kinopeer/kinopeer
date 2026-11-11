@@ -3,8 +3,10 @@
 // commit it left main at and prints, as Markdown, what in its changes weakens the checks or changes
 // existing ones. It reads the branch through git and runs none of its code.
 import { spawnSync } from 'node:child_process'
-import { appendFileSync } from 'node:fs'
+import { appendFileSync, existsSync, readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { findings, readsWhole, report, type AddedLine, type Change, type Finding } from './signs.ts'
+import { compareTests, testsIn, type Test } from './tests.ts'
 
 type Git = (...args: string[]) => string
 
@@ -56,28 +58,47 @@ export function changes(git: Git, base: string, head: string): Change[] {
     }, [])
 }
 
-export type Options = { repo: string; base: string; head: string }
+/** The tests in a folder of reports (Vitest's JSON, Playwright's lists); none when there is no such folder. */
+function testsOf(folder: string): Test[] {
+  if (!existsSync(folder)) return []
+  return readdirSync(folder)
+    .filter((name) => name.endsWith('.json'))
+    // By name, so the findings come in one order on every file system.
+    .sort()
+    .flatMap((name) => testsIn(readFileSync(join(folder, name), 'utf8')))
+}
+
+/** `tests`: the folders with the reports of main's run of the tests and of the branch's, when the caller has them. */
+export type Options = { repo: string; base: string; head: string; tests?: { base: string; head: string } }
 
 /** The guard over one branch: its findings and the report. */
-export function guard({ repo, base, head }: Options): { found: Finding[]; report: string } {
+export function guard({ repo, base, head, tests }: Options): { found: Finding[]; report: string } {
   const git = gitIn(repo)
   const short = (rev: string) => git('rev-parse', '--short', rev).trim()
   // Where the branch left main, so what main gained since isn't read as the branch's loss.
   const from = git('merge-base', base, head).trim()
-  const found = findings(changes(git, from, head))
+  const found = [...findings(changes(git, from, head)), ...(tests ? compareTests(testsOf(tests.base), testsOf(tests.head)) : [])]
   // The guard reads commits, so an author who runs it before committing would see "nothing" for the wrong reason.
   const dirty = head === 'HEAD' && git('status', '--porcelain') !== ''
-  const text = report(found, { head: short(head), base: short(from) })
-  return { found, report: dirty ? `${text}\n\nUncommitted changes aren't read: commit them and run it again.` : text }
+  const notes = [
+    ...(tests ? [] : ["The tests that ran aren't compared: that takes a run of the tests on each side, which CI's `guard` workflow makes."]),
+    ...(dirty ? ["Uncommitted changes aren't read: commit them and run it again."] : []),
+  ]
+  return { found, report: [report(found, { head: short(head), base: short(from) }), ...notes].join('\n\n') }
 }
 
-/** `--repo`, `--base` and `--head` from the command line; main's remote branch and this checkout's HEAD by default. */
+/**
+ * `--repo`, `--base` and `--head` from the command line; main's remote branch and this checkout's
+ * HEAD by default. `--tests-base` and `--tests-head` name the folders with the two runs' reports:
+ * with either given the tests are compared, and a side without a folder is a run that gave no list.
+ */
 export function options(args: string[]): Options {
   const value = (name: string, fallback: string) => {
     const index = args.indexOf(`--${name}`)
     return index !== -1 && args[index + 1] ? args[index + 1] : fallback
   }
-  return { repo: value('repo', '.'), base: value('base', 'origin/main'), head: value('head', 'HEAD') }
+  const tests = { base: value('tests-base', ''), head: value('tests-head', '') }
+  return { repo: value('repo', '.'), base: value('base', 'origin/main'), head: value('head', 'HEAD'), ...(tests.base || tests.head ? { tests } : {}) }
 }
 
 /**

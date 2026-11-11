@@ -590,6 +590,18 @@ describe('findings', () => {
     ])
   })
 
+  it.each(['src/sum.test.ts', 'src/App.test.tsx', 'e2e/list.spec.ts', 'e2e/smoke/test.ts'])('compares what the tests of %s assert', (path) => {
+    const file = (body: string) => `it('adds', () => {\n${body}})\n`
+    expect(findings([{ path, base: file('  expect(a).toBe(1)\n'), head: file(''), added: [] }])).toEqual([
+      { needs: 'review', file: path, line: 1, what: '1 of 1 assertions in `adds` rewritten or removed, the first: `expect(a).toBe(1)`' },
+    ])
+  })
+
+  it.each(['src/sum.ts', 'src/test/render.tsx', 'e2e/__screenshots__/list.png', 'e2e/README.md', 'docs/sum.test.ts.md', 'scripts/guard/signs.test.ts'])("doesn't read %s as tests", (path) => {
+    const file = (body: string) => `it('adds', () => {\n${body}})\n`
+    expect(findings([{ path, base: file('  expect(a).toBe(1)\n'), head: file(''), added: [] }]).filter(({ needs }) => needs === 'review')).toEqual([])
+  })
+
   it("leaves the guard's own workflow to the mark on the guard", () => {
     const found = findings([{ path: '.github/workflows/guard.yml', base: '      - run: npm run guard\n', head: '', added: [] }])
     expect(found).toEqual([{ needs: 'owner', file: '.github/workflows/guard.yml', what: 'the checks guard or its rules changed' }])
@@ -597,11 +609,11 @@ describe('findings', () => {
 })
 
 describe('readsWhole', () => {
-  it.each(['checks.json', '.oxlintrc.json', 'package.json', '.github/workflows/ci.yml', '.github/workflows/build.yaml'])('reads %s whole', (path) => {
+  it.each(['checks.json', '.oxlintrc.json', 'package.json', '.github/workflows/ci.yml', '.github/workflows/build.yaml', 'src/sum.test.ts', 'src/App.test.tsx', 'e2e/list.spec.ts', 'e2e/app.tsx'])('reads %s whole', (path) => {
     expect(readsWhole(path)).toBe(true)
   })
 
-  it.each(['src/App.tsx', 'tmdb-proxy/checks.json', 'tmdb-proxy/package.json', '.github/dependabot.yml', '.github/workflows/README.md', 'tmdb-proxy/.github/workflows/ci.yml', '.github/workflows/drafts/ci.yml', '.github/workflows/yml'])('reads only the added lines of %s', (path) => {
+  it.each(['src/App.tsx', 'e2e/__screenshots__/list.png', 'e2e/list.spec.ts.md', 'docs/e2e/list.spec.ts', 'src/sum.test.tsx.snap', 'tmdb-proxy/checks.json', 'tmdb-proxy/package.json', '.github/dependabot.yml', '.github/workflows/README.md', 'tmdb-proxy/.github/workflows/ci.yml', '.github/workflows/drafts/ci.yml', '.github/workflows/yml'])('reads only the added lines of %s', (path) => {
     expect(readsWhole(path)).toBe(false)
   })
 })
@@ -633,5 +645,9 @@ describe('report', () => {
       '',
       '- `checks.json`: the threshold `coverage.thresholds.lines` changed: `96` → `97`',
     ])
+  })
+
+  it('lists a finding about the branch as a whole without a file', () => {
+    expect(report([{ needs: 'owner', what: "the branch's run gave no list of its tests" }], at).split('\n').at(-1)).toBe("- the branch's run gave no list of its tests")
   })
 })
