@@ -142,12 +142,12 @@ describe('standing', () => {
     expect(standing('review', CODE, [member(`\n\n${secondReview(CODE, 'sound')}`)])).toBe('sound')
   })
 
-  it.each(['MEMBER', 'OWNER'])('counts a record from one who is %s to the repository', (association) => {
+  it.each(['MEMBER', 'OWNER', 'COLLABORATOR'])('counts a record from one who is %s to the repository, whom the owner let into it', (association) => {
     expect(standing('owner', CODE, [{ ...APPROVED, association }])).toBe('approved')
     expect(standing('review', CODE, [{ ...SOUND, association }])).toBe('sound')
   })
 
-  it.each(['COLLABORATOR', 'CONTRIBUTOR', 'FIRST_TIME_CONTRIBUTOR', 'NONE', 'member', ''])("doesn't count one from %j: an outside contributor, a collaborator or a bot", (association) => {
+  it.each(['CONTRIBUTOR', 'FIRST_TIME_CONTRIBUTOR', 'FIRST_TIMER', 'MANNEQUIN', 'NONE', 'member', ''])("doesn't count one from %j: an outside contributor or a bot", (association) => {
     expect(standing('owner', CODE, [{ ...APPROVED, association }])).toBe('none')
     expect(standing('review', CODE, [{ ...SOUND, association }])).toBe('none')
   })

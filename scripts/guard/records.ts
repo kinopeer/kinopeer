@@ -44,9 +44,14 @@ const SECOND_REVIEW = /^\*\*Second review ([0-9a-f]{8}): (sound|weakening)\*\*/
 /** With a reason after it: an approval without one isn't a record, nor is the line as the guard prints it, with `…` where the reason goes. */
 const APPROVAL = /^\*\*Owner's approval ([0-9a-f]{8}):\*\*\s*(?!…\s*$)\S/
 
-/** Whose comments can be records: the organization's members. Not an outside contributor's, a collaborator's or a bot's. */
-const MEMBERS = ['OWNER', 'MEMBER']
-export const fromMember = ({ association }: Comment): boolean => MEMBERS.includes(association)
+/**
+ * Whose comments can be records: those the owner let into the repository, the organization's
+ * members and the collaborators invited to it. Not an outside contributor's or a bot's: the
+ * repository is public, and anyone can comment. A collaborator counts because GitHub answers by
+ * who asks: a member whose membership is private is a collaborator to the workflow's token.
+ */
+const LET_IN = ['OWNER', 'MEMBER', 'COLLABORATOR']
+export const counts = ({ association }: Comment): boolean => LET_IN.includes(association)
 
 /**
  * Where the list with this code stands. The owner's list is closed by the owner's approval. The
@@ -57,7 +62,7 @@ export const fromMember = ({ association }: Comment): boolean => MEMBERS.include
  * the same files again isn't a way past the first verdict.
  */
 export function standing(needs: Needs, code: string, comments: Comment[]): State {
-  const lines = comments.filter(fromMember).map(({ body }) => body.trimStart().split('\n')[0])
+  const lines = comments.filter(counts).map(({ body }) => body.trimStart().split('\n')[0])
   const approved = lines.some((line) => APPROVAL.exec(line)?.[1] === code)
   if (needs === 'owner') return approved ? 'approved' : 'none'
   const verdicts = lines.map((line) => SECOND_REVIEW.exec(line)).flatMap((record) => (record?.[1] === code ? [record[2]] : []))

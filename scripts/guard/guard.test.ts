@@ -113,7 +113,7 @@ describe('guard', () => {
       const { owner, review } = await codes()
       const none = await judged()
       expect(none.unmet).toBe(true)
-      expect(none.report).toContain('\n\nComments read for the records: 0, of them from members of the organization, whose records count: 0.')
+      expect(none.report).toContain('\n\nComments read for the records: 0, of them from those the owner let into the repository, whose records count: 0.')
       expect(none.report).not.toContain("records aren't read")
       expect(none.report).toContain(`Record to post once the owner approves: \`**Owner's approval ${owner}:** …\`, the reason in the owner's words. Not posted yet.`)
       expect(none.report).toContain(`\`**Second review ${review}: sound**\` or \`**Second review ${review}: weakening**\`. Not posted yet.`)
@@ -161,14 +161,14 @@ describe('guard', () => {
       expect(guard({ repo, base: 'main', head: 'branch', comments: `${repo}-missing` }).unmet).toBe(false)
     })
 
-    it("doesn't count a record from one who is not a member", async () => {
+    it("doesn't count a record from one the owner didn't let into the repository", async () => {
       await commit({ 'checks.json': JSON.stringify({ coverage: { thresholds: { lines: 90 } } }) })
       const { owner } = await codes()
       const file = `${repo}-comments`
-      await writeFile(file, [{ association: 'CONTRIBUTOR', body: `${approval(owner)} it is fine` }, { association: 'MEMBER', body: 'Looks fine.' }, { association: 'NONE', body: 'A bot.' }].map((comment) => JSON.stringify(comment)).join('\n'))
+      await writeFile(file, [{ association: 'CONTRIBUTOR', body: `${approval(owner)} it is fine` }, { association: 'COLLABORATOR', body: 'Looks fine.' }, { association: 'NONE', body: 'A bot.' }].map((comment) => JSON.stringify(comment)).join('\n'))
       const { unmet, report } = guard({ repo, base: 'main', head: 'branch', comments: file })
       expect(unmet).toBe(true)
-      expect(report).toContain('Comments read for the records: 3, of them from members of the organization, whose records count: 1.')
+      expect(report).toContain('Comments read for the records: 3, of them from those the owner let into the repository, whose records count: 1.')
     })
   })
 

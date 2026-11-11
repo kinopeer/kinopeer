@@ -151,10 +151,16 @@ another code.
   words on that line.
 
 The guard prints these lines with the codes in its comment, to be copied rather than composed from
-memory. A record counts only from a member of the organization (`author_association` `OWNER` or
-`MEMBER`), not from an outside contributor, a collaborator or a bot. So on an outside
-contributor's PR or Dependabot's the records are posted by the maintainer's sessions, as the
-reviews of such PRs are.
+memory. A record counts only from someone the owner let into the repository: a member of the
+organization or a collaborator invited to it (`author_association` `OWNER`, `MEMBER` or
+`COLLABORATOR`), not an outside contributor or a bot, since the repository is public and anyone
+can comment. GitHub answers that field by who asks: a member whose membership is private is a
+collaborator to the workflow's token, which is why a collaborator counts. The cost is that a
+collaborator invited with any role could post a record; when one is invited who must not, the
+rule becomes a list of logins in `checks.json`. So that a comment read otherwise than expected
+shows, the report says how many comments it read and how many of them count, and the job's log
+how its token sees their authors. On an outside contributor's PR or Dependabot's the records are
+posted by the maintainer's sessions, as the reviews of such PRs are.
 
 **What closes what.**
 
