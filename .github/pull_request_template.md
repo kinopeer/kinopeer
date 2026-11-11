@@ -56,7 +56,7 @@ Baselines: <!-- each changed or new PNG — what changed and why, intended or a 
 
 <!-- What changed in the docs, or "none". The docs are every file that describes what the diff
      changes: CLAUDE.md and the files in its docs table (README, CONTRIBUTING, SECURITY, SPEC,
-     ARCHITECTURE, DEVELOPMENT, TESTING, QUALITY, RELEASE_CHECKLIST, CHANGELOG), the review skill
+     ARCHITECTURE, DEVELOPMENT, TESTING, QUALITY, RELEASE_CHECKLIST, CHANGELOG), the review skills
      in .claude/skills/, and this template, the workflows and the config, whose comments are docs
      too, with .env.example. Search them for what the diff moved or renamed: which test owns a
      statement, what a sheet or a toast does. Grep the whole tree for each number or name the diff
