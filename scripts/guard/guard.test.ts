@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { changes, gitIn, guard, main, options } from './guard.ts'
+import { approval, secondReview } from './records.ts'
 
 /**
  * A repository of its own per test: `main` with the files given, then a branch that the test
@@ -80,7 +81,108 @@ describe('guard', () => {
   it('finds nothing in a branch that changes no check', async () => {
     const base = git('rev-parse', '--short', 'main')
     const head = await commit(APP)
-    expect(run()).toEqual({ found: [], report: `<!-- checks-guard -->\n**Checks guard at ${head}**, against \`main\` at ${base}.\n\nNo weakening of the checks and no change to existing ones.${NO_RUNS}` })
+    expect(run()).toEqual({ found: [], report: `<!-- checks-guard -->\n**Checks guard at ${head}**, against \`main\` at ${base}.\n\nNo weakening of the checks and no change to existing ones.${NO_RUNS}`, unmet: false })
+  })
+
+  describe("with the PR's comments", () => {
+    /** The file the workflow writes the PR's comments to, one a line, here with these members' comments; removed with the test. */
+    async function comments(...bodies: string[]): Promise<string> {
+      const file = `${repo}-comments`
+      onTestFinished(() => rm(file, { force: true }))
+      await writeFile(file, bodies.map((body) => JSON.stringify({ association: 'MEMBER', body })).join('\n'))
+      return file
+    }
+    const judged = async (...bodies: string[]) => guard({ repo, base: 'main', head: 'branch', comments: await comments(...bodies) })
+    /** The codes the report prints for the two lists. */
+    const codes = async () => {
+      const { report } = await judged()
+      return { owner: /Owner's approval ([0-9a-f]{8})/.exec(report)?.[1] ?? '', review: /Second review ([0-9a-f]{8})/.exec(report)?.[1] ?? '' }
+    }
+    /** A weakening for the owner (the threshold) and a change for a second review (the type check's config). */
+    const BOTH = { 'checks.json': JSON.stringify({ coverage: { thresholds: { lines: 90 } } }), 'tsconfig.json': '{}' }
+
+    it('lets a branch without marks through, with nothing to say of the comments', async () => {
+      await commit(APP)
+      const { unmet, report } = await judged('Looks fine.')
+      expect(unmet).toBe(false)
+      expect(report).not.toContain('Comments read')
+    })
+
+    it('holds a branch with marks until each list has its record, and says where each stands', async () => {
+      await commit(BOTH)
+      const { owner, review } = await codes()
+      const none = await judged()
+      expect(none.unmet).toBe(true)
+      expect(none.report).toContain('\n\nComments read for the records: 0, of them from those the owner let into the repository, whose records count: 0.')
+      expect(none.report).not.toContain("records aren't read")
+      expect(none.report).toContain(`Record to post once the owner approves: \`**Owner's approval ${owner}:** …\`, the reason in the owner's words. Not posted yet.`)
+      expect(none.report).toContain(`\`**Second review ${review}: sound**\` or \`**Second review ${review}: weakening**\`. Not posted yet.`)
+
+      expect((await judged(`${approval(owner)} the files it measured are gone`)).unmet).toBe(true)
+      expect((await judged(secondReview(review, 'sound'))).unmet).toBe(true)
+      const both = await judged(`${approval(owner)} the files it measured are gone`, secondReview(review, 'sound'))
+      expect(both.unmet).toBe(false)
+      expect(both.report).toContain(`The PR holds the owner's approval of \`${owner}\`.`)
+      expect(both.report).toContain(`The PR holds a second review of \`${review}\`: sound.`)
+    })
+
+    it('holds it after a second review that found a weakening, until the owner approves that list', async () => {
+      await commit({ 'tsconfig.json': '{}' })
+      const { review } = await codes()
+      expect((await judged(secondReview(review, 'weakening'))).unmet).toBe(true)
+      expect((await judged(secondReview(review, 'weakening'), `${approval(review)} strict mode goes with the old compiler`)).unmet).toBe(false)
+    })
+
+    it('keeps a record through a commit that touches neither the marks nor the marked files, and not through one that changes a marked file', async () => {
+      await commit(BOTH)
+      const { owner, review } = await codes()
+      const records = [`${approval(owner)} the files it measured are gone`, secondReview(review, 'sound')]
+      await commit(APP)
+      expect((await judged(...records)).unmet).toBe(false)
+      // The same mark, the file marked is another: the second review looked at the one before.
+      await commit({ 'tsconfig.json': '{ "strict": false }' })
+      const after = await judged(...records)
+      expect(after.unmet).toBe(true)
+      expect(after.report).toContain(`The PR holds the owner's approval of \`${owner}\`.`)
+      expect(after.report).not.toContain(review)
+    })
+
+    it('gives a list that marks a removed file its code too', async () => {
+      await commit({ 'checks.json': null })
+      const { owner } = await codes()
+      expect(owner).toMatch(/^[0-9a-f]{8}$/)
+      expect((await judged(`${approval(owner)} the thresholds move into the config`)).unmet).toBe(false)
+    })
+
+    it("holds a branch with marks when the comments' file isn't there, and not one without marks", async () => {
+      await commit(BOTH)
+      expect(guard({ repo, base: 'main', head: 'branch', comments: `${repo}-missing` }).unmet).toBe(true)
+      await commit({ 'checks.json': CHECKS, 'tsconfig.json': null })
+      expect(guard({ repo, base: 'main', head: 'branch', comments: `${repo}-missing` }).unmet).toBe(false)
+    })
+
+    it("doesn't count a record from one the owner didn't let into the repository", async () => {
+      await commit({ 'checks.json': JSON.stringify({ coverage: { thresholds: { lines: 90 } } }) })
+      const { owner } = await codes()
+      const file = `${repo}-comments`
+      await writeFile(file, [{ association: 'CONTRIBUTOR', body: `${approval(owner)} it is fine` }, { association: 'COLLABORATOR', body: 'Looks fine.' }, { association: 'NONE', body: 'A bot.' }].map((comment) => JSON.stringify(comment)).join('\n'))
+      const { unmet, report } = guard({ repo, base: 'main', head: 'branch', comments: file })
+      expect(unmet).toBe(true)
+      expect(report).toContain('Comments read for the records: 3, of them from those the owner let into the repository, whose records count: 1.')
+    })
+  })
+
+  it("holds nothing without the PR's comments, prints the records to post and says they weren't read", async () => {
+    await commit({ 'checks.json': JSON.stringify({ coverage: { thresholds: { lines: 90 } } }) })
+    const { unmet, report } = run()
+    expect(unmet).toBe(false)
+    expect(report).toMatch(/Record to post once the owner approves: `\*\*Owner's approval [0-9a-f]{8}:\*\* …`, the reason in the owner's words\.\n/)
+    expect(report).toContain("\n\nThe PR's records aren't read: CI's `guard` workflow reads them, and says there where each list stands.")
+  })
+
+  it('says nothing of the records of a branch without marks', async () => {
+    await commit(APP)
+    expect(run().report).not.toContain('records')
   })
 
   it('compares what a test file the branch changes asserts, read from both sides', async () => {
@@ -295,7 +397,17 @@ describe('main', () => {
     })
     const output = await outputFile()
     expect(main(args(), { GITHUB_OUTPUT: output })).toBe(run().report)
-    expect(await readFile(output, 'utf8')).toBe('owner=2\nreview=1\n')
+    expect(await readFile(output, 'utf8')).toBe('owner=2\nreview=1\nunmet=false\n')
+  })
+
+  it("tells the workflow that a record is missing when the command line names the PR's comments", async () => {
+    await commit({ 'playwright.config.ts': RETRIES })
+    const output = await outputFile()
+    const comments = `${repo}-comments`
+    onTestFinished(() => rm(comments, { force: true }))
+    await writeFile(comments, '')
+    expect(main([...args(), '--comments', comments], { GITHUB_OUTPUT: output })).toContain('Not posted yet.')
+    expect(await readFile(output, 'utf8')).toBe('owner=1\nreview=0\nunmet=true\n')
   })
 
   it('returns the report outside CI, where there is no file for the counts', async () => {
@@ -309,7 +421,7 @@ describe('main', () => {
     const tests = await reports({ 'vitest.json': ran('adds', 'subtracts') }, { 'vitest.json': ran('adds') })
     const output = await outputFile()
     expect(main([...args(), '--tests-base', tests.base, '--tests-head', tests.head], { GITHUB_OUTPUT: output })).toContain('- `src/sum.test.ts`: fewer tests run: 2 → 1 here, 2 → 1 in all.')
-    expect(await readFile(output, 'utf8')).toBe('owner=1\nreview=0\n')
+    expect(await readFile(output, 'utf8')).toBe('owner=1\nreview=0\nunmet=false\n')
   })
 })
 
@@ -324,7 +436,7 @@ describe('npm run guard', () => {
     const output = await outputFile()
     const { status, stdout, stderr } = start(script, output)
     expect({ status, stdout, stderr }).toEqual({ status: 0, stdout: `${run().report}\n`, stderr: '' })
-    expect(await readFile(output, 'utf8')).toBe('owner=1\nreview=0\n')
+    expect(await readFile(output, 'utf8')).toBe('owner=1\nreview=0\nunmet=false\n')
   })
 
   it('runs through a folder that is a link to its own', async () => {
@@ -347,6 +459,11 @@ describe('options', () => {
 
   it('keeps the default for a name without a value', () => {
     expect(options(['--base'])).toEqual({ repo: '.', base: 'origin/main', head: 'HEAD' })
+  })
+
+  it("takes the file of the PR's comments from the command line, and none by default", () => {
+    expect(options(['--comments', 'comments.jsonl']).comments).toBe('comments.jsonl')
+    expect(options([])).not.toHaveProperty('comments')
   })
 
   it('takes the folders of the two runs of the tests from the command line', () => {

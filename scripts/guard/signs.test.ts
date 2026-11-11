@@ -538,6 +538,23 @@ describe('scanAdded', () => {
     ['a command that swallows its failure, written tight', '.github/workflows/ci.yml', '      - run: npm run lint ||true', 'a CI step can fail without failing the run'],
     ['a path filter on a trigger', '.github/workflows/ci.yml', '    paths:', 'a workflow got a path filter, so it runs for fewer changes'],
     ['paths a trigger ignores', '.github/workflows/ci.yml', "    paths-ignore: ['docs/**']", 'a workflow got a path filter, so it runs for fewer changes'],
+    ["a job under the guard's name", '.github/workflows/ci.yml', '  guard:', "a job or a status with the guard's name, which can report in its place"],
+    ["a job under the guard's name in quotes", '.github/workflows/ci.yml', '  "guard":', "a job or a status with the guard's name, which can report in its place"],
+    ['a job named for the guard', '.github/workflows/ci.yml', '    name: guard', "a job or a status with the guard's name, which can report in its place"],
+    ['a job named for the guard, in quotes', '.github/workflows/lint.yml', "    name: 'guard'", "a job or a status with the guard's name, which can report in its place"],
+    ['a step named for the guard', '.github/workflows/ci.yml', '      - name: guard', "a job or a status with the guard's name, which can report in its place"],
+    ['a job named for the guard after more than one space', '.github/workflows/ci.yml', '    name:   guard', "a job or a status with the guard's name, which can report in its place"],
+    ["a status set under the guard's name", '.github/workflows/ci.yml', '          gh api "repos/$REPO/statuses/$SHA" -f state=success -f context=guard', "a job or a status with the guard's name, which can report in its place"],
+    ["a status set under the guard's name by a script", '.github/workflows/ci.yml', "              context: 'guard',", "a job or a status with the guard's name, which can report in its place"],
+    ["a status set under the guard's name as JSON", '.github/workflows/ci.yml', `          -d '{"state":"success","context":"guard"}'`, "a job or a status with the guard's name, which can report in its place"],
+    ["a job under the guard's name with a comment after it", '.github/workflows/ci.yml', '  guard:  # runs the guard', "a job or a status with the guard's name, which can report in its place"],
+    ['a job named for the guard with a comment after it', '.github/workflows/ci.yml', '    name: guard # the check', "a job or a status with the guard's name, which can report in its place"],
+    ["a check run made under the guard's name", '.github/workflows/ci.yml', '          gh api "repos/$REPO/check-runs" -f name=guard -f head_sha="$SHA" -f conclusion=success', "a job or a status with the guard's name, which can report in its place"],
+    ["a check run made under the guard's name as JSON", '.github/workflows/ci.yml', `          -d '{"name": "guard", "head_sha": "abc", "conclusion": "success"}'`, "a job or a status with the guard's name, which can report in its place"],
+    ["a check run made under the guard's name as JSON written tight", '.github/workflows/ci.yml', `          -d '{"name":"guard","head_sha":"abc"}'`, "a job or a status with the guard's name, which can report in its place"],
+    ["a check run made under the guard's name in quotes", '.github/workflows/ci.yml', '          gh api "repos/$REPO/check-runs" -f name="guard" -f head_sha="$SHA"', "a job or a status with the guard's name, which can report in its place"],
+    ["a check run made under the guard's name by a script", '.github/workflows/ci.yml', "              name: 'guard',", "a job or a status with the guard's name, which can report in its place"],
+    ["a check run made under the guard's name by a script, the key in quotes", '.github/workflows/ci.yml', `              'name': "guard",`, "a job or a status with the guard's name, which can report in its place"],
   ])('sends %s to the owner', (_name, file, text, what) => {
     expect(scanAdded(file, lines(text))).toEqual([{ needs: 'owner', file, line: 10, what: `${what}: \`${text.trim()}\`` }])
   })
@@ -576,6 +593,18 @@ describe('scanAdded', () => {
     ['a condition in a shell command', '.github/workflows/ci.yml', '          elif: [ -f coverage.json ]'],
     ['a condition written in a config, not a workflow', 'vite.config.ts', '  if: true,'],
     ['a path filter written in a config, not a workflow', 'vite.config.ts', '  paths: [],'],
+    ["a job whose name only starts like the guard's", '.github/workflows/ci.yml', '  guard-tests:'],
+    ["a job whose name only ends like the guard's", '.github/workflows/ci.yml', '  safeguard:'],
+    ["a name that goes on after the guard's", '.github/workflows/ci.yml', '    name: guard the gate'],
+    ["a status whose name only starts like the guard's", '.github/workflows/ci.yml', '          gh api "$URL" -f context=guardian'],
+    ["a status of another name that mentions the guard", '.github/workflows/ci.yml', '          gh api "$URL" -f context=lint -f description=guard'],
+    ["a check run whose name only starts like the guard's", '.github/workflows/ci.yml', '          gh api "$URL" -f name=guardian'],
+    ["a check run whose name only ends like the guard's", '.github/workflows/ci.yml', '          gh api "$URL" -f rename=guard -f nickname=guard'],
+    ["a name that goes on after the guard's, with a comment", '.github/workflows/ci.yml', '    name: guard the gate # guard'],
+    ["a comment that names the guard", '.github/workflows/ci.yml', '      # guard'],
+    ["a name in quotes that goes on after the guard's", '.github/workflows/ci.yml', '              name: "guard the gate",'],
+    ["a name in a script that isn't in quotes", '.github/workflows/ci.yml', '              name: guard,'],
+    ["the guard's name as a key in a config, not a workflow", 'vite.config.ts', '  guard:'],
   ])('finds nothing in %s', (_name, file, text) => {
     expect(scanAdded(file, lines(text))).toEqual([])
   })
@@ -594,12 +623,12 @@ describe('scanAdded', () => {
 })
 
 describe('findings', () => {
-  it.each(['scripts/guard/signs.ts', 'scripts/guard/guard.test.ts', '.github/workflows/guard.yml', 'docs/QUALITY.md'])('sends a change to the guard or its rules to the owner: %s', (path) => {
+  it.each(['scripts/guard/signs.ts', 'scripts/guard/guard.test.ts', '.github/workflows/guard.yml', 'docs/QUALITY.md', '.claude/skills/second-review/SKILL.md'])('sends a change to the guard or its rules to the owner: %s', (path) => {
     // With a line that would be a finding of its own anywhere else: the guard's files hold the patterns as text.
     expect(findings([{ path, base: 'jobs: {}', head: 'jobs: {}', added: [{ line: 1, text: '  retries: 2,' }] }])).toEqual([{ needs: 'owner', file: path, what: 'the checks guard or its rules changed' }])
   })
 
-  it.each(['tmdb-proxy/scripts/guard/signs.ts', 'scripts/guardian.ts', 'docs/.github/workflows/guard.yml', '.github/workflows/guard.yml.md', 'QUALITY.md', 'docs/QUALITY.md.bak'])("doesn't take %s for the guard", (path) => {
+  it.each(['tmdb-proxy/scripts/guard/signs.ts', 'scripts/guardian.ts', 'docs/.github/workflows/guard.yml', '.github/workflows/guard.yml.md', 'QUALITY.md', 'docs/QUALITY.md.bak', '.claude/skills/test-review/SKILL.md', '.claude/skills/second-reviews/SKILL.md', 'docs/.claude/skills/second-review/SKILL.md'])("doesn't take %s for the guard", (path) => {
     expect(findings([{ path, added: [] }])).toEqual([])
   })
 
@@ -698,6 +727,29 @@ describe('report', () => {
       '',
       '- `checks.json`: the threshold `coverage.thresholds.lines` changed: `96` → `97`',
     ])
+  })
+
+  it('says under each list what record it needs, when told', () => {
+    const found: Finding[] = [
+      { needs: 'review', file: 'tsconfig.json', what: "the type check's config changed" },
+      { needs: 'owner', file: 'checks.json', what: 'the file is removed' },
+    ]
+    expect(report(found, at, { owner: 'The owner’s record.', review: 'The second review’s record.' }).split('\n').slice(2)).toEqual([
+      '',
+      '**For the owner: 1 to approve, each with a reason.** A weakening of the checks, or a change to the guard or its rules.',
+      '',
+      '- `checks.json`: the file is removed',
+      '',
+      'The owner’s record.',
+      '',
+      "**For a second review: 1.** Changes to existing checks, which a script can't judge.",
+      '',
+      '- `tsconfig.json`: the type check\'s config changed',
+      '',
+      'The second review’s record.',
+    ])
+    // Only under a list that is there.
+    expect(report([found[0]], at, { owner: 'The owner’s record.' })).not.toContain('record')
   })
 
   it('lists a finding about the branch as a whole without a file', () => {

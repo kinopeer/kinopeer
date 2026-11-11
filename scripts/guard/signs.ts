@@ -30,8 +30,9 @@ export const PACKAGE_FILE = 'package.json'
 const WORKFLOWS = '.github/workflows/'
 const inRoot = (path: string): boolean => !path.includes('/')
 const isWorkflow = (path: string): boolean => path.startsWith(WORKFLOWS) && inRoot(path.slice(WORKFLOWS.length)) && (path.endsWith('.yml') || path.endsWith('.yaml'))
-/** The guard itself and its rules: a change to them goes to the owner, whatever it is. */
-const isGuard = (path: string): boolean => path.startsWith('scripts/guard/') || path === `${WORKFLOWS}guard.yml` || path === 'docs/QUALITY.md'
+/** The guard itself and its rules, the second review's procedure among them: a change to them goes to the owner, whatever it is. */
+const isGuard = (path: string): boolean =>
+  path.startsWith('scripts/guard/') || path === `${WORKFLOWS}guard.yml` || path === 'docs/QUALITY.md' || path.startsWith('.claude/skills/second-review/')
 const isDoc = (path: string): boolean => path.endsWith('.md')
 const nameOf = (path: string): string => path.slice(path.lastIndexOf('/') + 1)
 /** A lint config outside the root, which oxlint obeys for its folder: the root's rules turned off without touching the root's config. */
@@ -353,6 +354,9 @@ const ADDED: { pattern: RegExp; counts: (path: string) => boolean; needs: Needs;
   { pattern: /continue-on-error:(?! ?false\b)|\|\| ?(?:true\b|:(?!\S)|exit 0\b)|\bset \+e\b/, counts: isWorkflow, needs: 'owner', what: 'a CI step can fail without failing the run' },
   { pattern: /^\s*paths(?:-ignore)?:/, counts: isWorkflow, needs: 'owner', what: 'a workflow got a path filter, so it runs for fewer changes' },
   { pattern: /^\s*(?:- )?if:/, counts: isWorkflow, needs: 'review', what: 'a CI step or job got a condition' },
+  // In a workflow other than the guard's own, whose every change is marked: what can report under the guard's name. A job by its key
+  // or its name, a commit status by its context, a check run by its name as a field of an API call, in its JSON or in a script's call.
+  { pattern: /^\s*(?:(?:- )?name: +)?["']?guard["']?:?\s*(?:#.*)?$|\bcontext["']?[=:] *["']?guard\b|\bname(?:=["']?guard\b|["']?: *["']guard["'])/, counts: isWorkflow, needs: 'owner', what: "a job or a status with the guard's name, which can report in its place" },
 ]
 
 /** The lines a branch adds to one file, against the patterns above. */
@@ -386,13 +390,17 @@ export const MARKER = '<!-- checks-guard -->'
 
 const list = (found: Finding[]): string[] => found.map(({ file, line, what }) => (file ? `- \`${file}${line ? `:${line}` : ''}\`: ${what}` : `- ${what}`))
 
-/** The guard's report, as Markdown: the comment on the PR, the job's summary and what `npm run guard` prints. */
-export function report(found: Finding[], { head, base }: { head: string; base: string }): string {
+/**
+ * The guard's report, as Markdown: the comment on the PR, the job's summary and what `npm run guard`
+ * prints. `records` is what to say under each list of the record it needs (records.ts).
+ */
+export function report(found: Finding[], { head, base }: { head: string; base: string }, records: { [needs in Needs]?: string } = {}): string {
   const owner = found.filter(({ needs }) => needs === 'owner')
   const review = found.filter(({ needs }) => needs === 'review')
+  const record = (needs: Needs): string[] => (records[needs] ? ['', records[needs]] : [])
   const lines = [MARKER, `**Checks guard at ${head}**, against \`main\` at ${base}.`]
   if (found.length === 0) lines.push('', 'No weakening of the checks and no change to existing ones.')
-  if (owner.length > 0) lines.push('', `**For the owner: ${owner.length} to approve, each with a reason.** A weakening of the checks, or a change to the guard or its rules.`, '', ...list(owner))
-  if (review.length > 0) lines.push('', `**For a second review: ${review.length}.** Changes to existing checks, which a script can't judge.`, '', ...list(review))
+  if (owner.length > 0) lines.push('', `**For the owner: ${owner.length} to approve, each with a reason.** A weakening of the checks, or a change to the guard or its rules.`, '', ...list(owner), ...record('owner'))
+  if (review.length > 0) lines.push('', `**For a second review: ${review.length}.** Changes to existing checks, which a script can't judge.`, '', ...list(review), ...record('review'))
   return lines.join('\n')
 }

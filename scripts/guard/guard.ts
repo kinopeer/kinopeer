@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process'
 import { appendFileSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { findings, readsWhole, report, type AddedLine, type Change, type Finding } from './signs.ts'
+import { closed, codeOf, commentsIn, counts, says, standing, type Comment } from './records.ts'
 import { compareTests, testsIn, type Reports, type Test } from './tests.ts'
 
 type Git = (...args: string[]) => string
@@ -83,11 +84,29 @@ function testsOf(folder: string): Reports {
   return new Map(names.map((name) => [name, read(name)]))
 }
 
-/** `tests`: the folders with the reports of main's run of the tests and of the branch's, when the caller has them. */
-export type Options = { repo: string; base: string; head: string; tests?: { base: string; head: string } }
+/** The PR's comments in the file the workflow wrote them to; none when the file can't be read, so every list still lacks its record. */
+function commentsOf(file: string): Comment[] {
+  let text = ''
+  try {
+    text = readFileSync(file, 'utf8')
+  } catch {
+    // No such file: no comments.
+  }
+  return commentsIn(text)
+}
 
-/** The guard over one branch: its findings and the report. */
-export function guard({ repo, base, head, tests }: Options): { found: Finding[]; report: string } {
+/**
+ * `tests`: the folders with the reports of main's run of the tests and of the branch's, when the
+ * caller has them. `comments`: the file with the PR's comments, when the caller has a PR.
+ */
+export type Options = { repo: string; base: string; head: string; tests?: { base: string; head: string }; comments?: string }
+
+/**
+ * The guard over one branch: its findings, the report, and whether a list of marks lacks its
+ * record (docs/QUALITY.md → What a marked PR needs), which only a caller that gave the PR's
+ * comments can be told.
+ */
+export function guard({ repo, base, head, tests, comments }: Options): { found: Finding[]; report: string; unmet: boolean } {
   const git = gitIn(repo)
   const short = (rev: string) => git('rev-parse', '--short', rev).trim()
   // Where the branch left main, so what main gained since isn't read as the branch's loss.
@@ -95,17 +114,39 @@ export function guard({ repo, base, head, tests }: Options): { found: Finding[];
   const found = [...findings(changes(git, from, head)), ...(tests ? compareTests(testsOf(tests.base), testsOf(tests.head)) : [])]
   // The guard reads commits, so an author who runs it before committing would see "nothing" for the wrong reason.
   const dirty = head === 'HEAD' && git('status', '--porcelain') !== ''
+  // git's id of a marked file's content at the head; none for a file the branch removed.
+  const blob = (file: string) => {
+    let id = ''
+    try {
+      id = git('rev-parse', '--verify', '--quiet', `${head}:${file}`).trim()
+    } catch {
+      // Not in the head's tree.
+    }
+    return id
+  }
+  const posted = comments === undefined ? undefined : commentsOf(comments)
+  const lists = (['owner', 'review'] as const).flatMap((needs) => {
+    const code = codeOf(needs, found, blob)
+    return code ? [{ needs, code, state: posted && standing(needs, code, posted) }] : []
+  })
   const notes = [
     ...(tests ? [] : ["The tests that ran aren't compared: that takes a run of the tests on each side, which CI's `guard` workflow makes."]),
+    ...(posted || lists.length === 0 ? [] : ["The PR's records aren't read: CI's `guard` workflow reads them, and says there where each list stands."]),
+    // What the reader's token is shown of a comment's author isn't the same for every reader, so a record that doesn't count shows here.
+    ...(posted && lists.length > 0 ? [`Comments read for the records: ${posted.length}, of them from those the owner let into the repository, whose records count: ${posted.filter(counts).length}.`] : []),
     ...(dirty ? ["Uncommitted changes aren't read: commit them and run it again."] : []),
   ]
-  return { found, report: [report(found, { head: short(head), base: short(from) }), ...notes].join('\n\n') }
+  const records = Object.fromEntries(lists.map(({ needs, code, state }) => [needs, says(needs, code, state)]))
+  const unmet = lists.some(({ state }) => state !== undefined && !closed(state))
+  return { found, report: [report(found, { head: short(head), base: short(from) }, records), ...notes].join('\n\n'), unmet }
 }
 
 /**
  * `--repo`, `--base` and `--head` from the command line; main's remote branch and this checkout's
  * HEAD by default. `--tests-base` and `--tests-head` name the folders with the two runs' reports:
  * with either given the tests are compared, and a side without a folder is a run that gave no list.
+ * `--comments` names the file with the PR's comments, one JSON object a line (`association`, `body`):
+ * with it the guard says where each list of marks stands by the PR's records.
  */
 export function options(args: string[]): Options {
   const value = (name: string, fallback: string) => {
@@ -113,17 +154,19 @@ export function options(args: string[]): Options {
     return index !== -1 && args[index + 1] ? args[index + 1] : fallback
   }
   const tests = { base: value('tests-base', ''), head: value('tests-head', '') }
-  return { repo: value('repo', '.'), base: value('base', 'origin/main'), head: value('head', 'HEAD'), ...(tests.base || tests.head ? { tests } : {}) }
+  const comments = value('comments', '')
+  return { repo: value('repo', '.'), base: value('base', 'origin/main'), head: value('head', 'HEAD'), ...(tests.base || tests.head ? { tests } : {}), ...(comments ? { comments } : {}) }
 }
 
 /**
  * The command: the report for the branch the arguments name. In CI it also hands the workflow the
- * counts, which decides by them rather than by the report's wording.
+ * counts and whether a list lacks its record, and the workflow decides by them rather than by the
+ * report's wording: it writes the comment, then fails the job for a record that is missing.
  */
 export function main(args: string[], env: { GITHUB_OUTPUT?: string }): string {
-  const { found, report: text } = guard(options(args))
+  const { found, report: text, unmet } = guard(options(args))
   const count = (needs: Finding['needs']) => found.filter((finding) => finding.needs === needs).length
-  if (env.GITHUB_OUTPUT) appendFileSync(env.GITHUB_OUTPUT, `owner=${count('owner')}\nreview=${count('review')}\n`)
+  if (env.GITHUB_OUTPUT) appendFileSync(env.GITHUB_OUTPUT, `owner=${count('owner')}\nreview=${count('review')}\nunmet=${unmet}\n`)
   return text
 }
 

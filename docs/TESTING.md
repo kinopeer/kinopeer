@@ -625,7 +625,7 @@ Three steps, each by whoever can do it best:
    [neighbour](#choosing-a-layer) answered, and what Stryker leaves alone broken by hand. The docs
    too, every file that describes what the diff changes: `CLAUDE.md` and the files in its docs
    table (`README.md`, `CONTRIBUTING.md`, `SECURITY.md`, SPEC, ARCHITECTURE, DEVELOPMENT,
-   this file, QUALITY, the release checklist, the changelog), the review skill in `.claude/skills/`, and the
+   this file, QUALITY, the release checklist, the changelog), the review skills in `.claude/skills/`, and the
    PR template, the workflows and the config, whose comments are docs too, with `.env.example`; 30
    of the 2026-11-08 batch's findings sat in files the old rule didn't name (#287's README
    promising "multilingual" for two languages, #296's changelog entry describing no change, #300's
@@ -737,6 +737,11 @@ missing test under check A as well, as one finding with the bug, since the test 
 caught it wasn't there (left to the next round, four such bugs in #230, #231 and #247 were never
 counted). A bug that reached `main` follows [When we find a bug](#when-we-find-a-bug).
 
+A PR in which the checks guard marked changes to existing checks gets a second review as well
+before it merges, by a fresh session and after the "ready to merge" above: what its record closes
+is in [QUALITY.md](QUALITY.md) → What a marked PR needs, and how it is done in the `second-review`
+skill.
+
 ## Improving the system
 
 The rules in this file, the skill and the PR template are a system that should need less and less
@@ -789,6 +794,12 @@ The findings:
 - Every `conflict` → one wording, the same in each place.
 - A rule that no finding touched in three retros and that nobody can name a case for → consider
   deleting it. The system should get shorter as often as longer.
+
+The second reviews are counted too, from the `**Second review <code>: …**` comments of the batch's
+PRs ([QUALITY.md](QUALITY.md) → What a marked PR needs): how many were done, and how many said
+`weakening`. When twenty PRs in a row with a second review have no `weakening` verdict, the retro
+proposes to the owner to narrow the second review to weakenings. Narrowing softens the system, so
+it is the owner's to decide.
 
 Since tags come in both spellings, `[H · gap]` and `[H · gap: <reason>]`, a search that expects `]`
 right after the rule misses the second (#299, #302); one that catches both is
