@@ -26,6 +26,11 @@ describe('codeOf', () => {
     expect(code('owner')).not.toBe(code('review'))
   })
 
+  it('gives a code of eight digits also where the hash is a shorter number', () => {
+    // The hash of this mark starts with a zero. The value is held here too: a record names a code, so another hash would drop every record in an open PR.
+    expect(codeOf('owner', [{ needs: 'owner', what: 'mark 518' }], () => '')).toBe('0afd51e6')
+  })
+
   it('gives an empty list none', () => {
     expect(code('review', marks.filter(({ needs }) => needs === 'owner'))).toBeUndefined()
     expect(code('owner', [])).toBeUndefined()
