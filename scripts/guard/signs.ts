@@ -355,8 +355,8 @@ const ADDED: { pattern: RegExp; counts: (path: string) => boolean; needs: Needs;
   { pattern: /^\s*paths(?:-ignore)?:/, counts: isWorkflow, needs: 'owner', what: 'a workflow got a path filter, so it runs for fewer changes' },
   { pattern: /^\s*(?:- )?if:/, counts: isWorkflow, needs: 'review', what: 'a CI step or job got a condition' },
   // In a workflow other than the guard's own, whose every change is marked: what can report under the guard's name. A job by its key
-  // or its name, a commit status by its context, a check run by its name as a field of an API call or in its JSON.
-  { pattern: /^\s*(?:(?:- )?name: +)?["']?guard["']?:?\s*(?:#.*)?$|\bcontext["']?[=:] *["']?guard\b|\bname(?:=["']?guard\b|": *"guard")/, counts: isWorkflow, needs: 'owner', what: "a job or a status with the guard's name, which can report in its place" },
+  // or its name, a commit status by its context, a check run by its name as a field of an API call, in its JSON or in a script's call.
+  { pattern: /^\s*(?:(?:- )?name: +)?["']?guard["']?:?\s*(?:#.*)?$|\bcontext["']?[=:] *["']?guard\b|\bname(?:=["']?guard\b|["']?: *["']guard["'])/, counts: isWorkflow, needs: 'owner', what: "a job or a status with the guard's name, which can report in its place" },
 ]
 
 /** The lines a branch adds to one file, against the patterns above. */

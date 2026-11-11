@@ -75,7 +75,7 @@ or its rules.
   - a path filter on a workflow's trigger (`paths`, `paths-ignore`), so it runs for fewer changes;
   - a job, a commit status or a check run under the guard's name in a workflow other than
     `guard.yml` (`guard:` as a job's key, `name: guard`, `context=guard` for the statuses API,
-    `name=guard` for the checks API), which could report in the guard's place.
+    `name=guard` or `name: 'guard'` for the checks API), which could report in the guard's place.
 - Fewer tests run: a test that `main`'s run has and the branch's doesn't (removed, skipped, its
   row gone from a table), in a file where the branch runs fewer tests than `main` does, when it
   also runs fewer in all. A test is its file and its name with its groups'. The lists come from the

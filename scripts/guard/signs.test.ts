@@ -552,6 +552,8 @@ describe('scanAdded', () => {
     ["a check run made under the guard's name as JSON", '.github/workflows/ci.yml', `          -d '{"name": "guard", "head_sha": "abc", "conclusion": "success"}'`, "a job or a status with the guard's name, which can report in its place"],
     ["a check run made under the guard's name as JSON written tight", '.github/workflows/ci.yml', `          -d '{"name":"guard","head_sha":"abc"}'`, "a job or a status with the guard's name, which can report in its place"],
     ["a check run made under the guard's name in quotes", '.github/workflows/ci.yml', '          gh api "repos/$REPO/check-runs" -f name="guard" -f head_sha="$SHA"', "a job or a status with the guard's name, which can report in its place"],
+    ["a check run made under the guard's name by a script", '.github/workflows/ci.yml', "              name: 'guard',", "a job or a status with the guard's name, which can report in its place"],
+    ["a check run made under the guard's name by a script, the key in quotes", '.github/workflows/ci.yml', `              'name': "guard",`, "a job or a status with the guard's name, which can report in its place"],
   ])('sends %s to the owner', (_name, file, text, what) => {
     expect(scanAdded(file, lines(text))).toEqual([{ needs: 'owner', file, line: 10, what: `${what}: \`${text.trim()}\`` }])
   })
@@ -599,6 +601,8 @@ describe('scanAdded', () => {
     ["a check run whose name only ends like the guard's", '.github/workflows/ci.yml', '          gh api "$URL" -f rename=guard -f nickname=guard'],
     ["a name that goes on after the guard's, with a comment", '.github/workflows/ci.yml', '    name: guard the gate # guard'],
     ["a comment that names the guard", '.github/workflows/ci.yml', '      # guard'],
+    ["a name in quotes that goes on after the guard's", '.github/workflows/ci.yml', '              name: "guard the gate",'],
+    ["a name in a script that isn't in quotes", '.github/workflows/ci.yml', '              name: guard,'],
     ["the guard's name as a key in a config, not a workflow", 'vite.config.ts', '  guard:'],
   ])('finds nothing in %s', (_name, file, text) => {
     expect(scanAdded(file, lines(text))).toEqual([])
