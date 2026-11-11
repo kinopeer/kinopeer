@@ -63,6 +63,7 @@ describe('asserted', () => {
     ['test.concurrent', "test.concurrent('adds', async () => {\n  expect(a).toBe(1)\n})\n"],
     ['a function written out', "it('adds', function () {\n  expect(a).toBe(1)\n})\n"],
     ['options between the title and the function', "it('adds', { timeout: 100 }, () => {\n  expect(a).toBe(1)\n})\n"],
+    ['a time limit after the function', "it('adds', () => {\n  expect(a).toBe(1)\n}, 10_000)\n"],
   ])('takes %s for a test', (_name, text) => {
     expect(items(text)).toEqual([['adds', ['expect(a).toBe(1)']]])
   })
@@ -124,6 +125,18 @@ describe('asserted', () => {
       ['one written as a template', 'it.each`\n  a | b\n  ${1} | ${2}\n`', 'table ` a | b ${1} | ${2} `'],
     ])("gives a table it can't open, %s, as written", (_name, table, item) => {
       expect(items(`${table}${body}`)).toEqual([['adds %s', [item, 'expect(sum(a)).toBe(b)']]])
+    })
+
+    it('gives the rows of a table to a test that has a time limit after its function', () => {
+      expect(items(`it.each([[1, 2], ['two', 4]])${body.replace('})\n', '}, 5000)\n')}`)).toEqual([['adds %s', found]])
+    })
+
+    it('gives a table whose name the file declares more than once the rows of every such list', () => {
+      const group = (name: string, rows: string) => `describe('${name}', () => {\n  const rows = ${rows}\n  it.each(rows)${body}})\n`
+      expect(items(`${group('one', '[[1, 2], [3, 4]]')}${group('two', '[[5, 6]]')}`)).toEqual([
+        ['one › adds %s', ['row [1, 2]', 'row [3, 4]', 'row [5, 6]', 'expect(sum(a)).toBe(b)']],
+        ['two › adds %s', ['row [1, 2]', 'row [3, 4]', 'row [5, 6]', 'expect(sum(a)).toBe(b)']],
+      ])
     })
 
     it('gives the rows of a group’s table under the group’s name', () => {
@@ -193,6 +206,14 @@ describe('compareAssertions', () => {
   ])('sends a row of a test’s table %s to a second review', (_name, rows) => {
     const table = (list: string) => `${list}it.each(ROWS)('adds %s', (a, b) => {\n  expect(sum(a)).toBe(b)\n})\n`
     expect(said(table("const ROWS = [[1, 2], ['two', 4]]\n"), table(rows))).toEqual(["review src/a.test.ts:2: 1 of 3 assertions in `adds %s` rewritten or removed, the first: `row ['two', 4]`"])
+  })
+
+  it('sees a row rewritten in a table whose name another group declares too', () => {
+    const file = (rows: string) => `describe('one', () => {\n  const rows = ${rows}\n  it.each(rows)('adds %s', () => {})\n})\ndescribe('two', () => {\n  const rows = [[5, 6]]\n  it.each(rows)('adds %s', () => {})\n})\n`
+    expect(said(file('[[1, 2], [3, 4]]'), file('[[1, 1]]'))).toEqual([
+      'review src/a.test.ts:3: 2 of 3 assertions in `one › adds %s` rewritten or removed, the first: `row [1, 2]`',
+      'review src/a.test.ts:7: 2 of 3 assertions in `two › adds %s` rewritten or removed, the first: `row [1, 2]`',
+    ])
   })
 
   it.each([

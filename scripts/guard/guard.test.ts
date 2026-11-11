@@ -96,13 +96,30 @@ describe('guard', () => {
     it('compares the tests that ran, from every report in the two folders', async () => {
       await commit(APP)
       const list = JSON.stringify({ config: { rootDir: 'e2e' }, suites: [{ title: 'list.spec.ts', specs: [{ title: 'list', file: 'list.spec.ts', tests: [{ expectedStatus: 'passed' }] }] }] })
-      const tests = await reports({ 'vitest.json': ran('adds', 'subtracts'), 'playwright.json': list, 'notes.txt': ran('more') }, { 'vitest.json': ran('adds'), 'notes.txt': list })
+      const tests = await reports({ 'vitest.json': ran('adds', 'subtracts'), 'playwright.json': list, 'notes.txt': ran('more') }, { 'vitest.json': ran('adds'), 'playwright.json': list.replace('"title":"list"', '"title":"grid"'), 'notes.txt': list })
       // In the order the file system gives the reports in.
       const found = guard({ repo, base: 'main', head: 'branch', tests }).found.toSorted((a, b) => `${a.file}`.localeCompare(`${b.file}`))
       expect(found).toEqual([
-        { needs: 'owner', file: 'e2e/list.spec.ts', what: 'fewer tests run: 1 → 0 here, 3 → 1 in all. Gone or no longer run: `list`' },
-        { needs: 'owner', file: 'src/sum.test.ts', what: 'fewer tests run: 2 → 1 here, 3 → 1 in all. Gone or no longer run: `subtracts`' },
+        { needs: 'review', file: 'e2e/list.spec.ts', what: '1 of 1 tests main runs here are gone, renamed or no longer run: `list`' },
+        { needs: 'owner', file: 'src/sum.test.ts', what: 'fewer tests run: 2 → 1 here, 3 → 2 in all. Gone or no longer run: `subtracts`' },
       ])
+    })
+
+    it.each([
+      ["the branch's side, for the owner", 'head', 'owner', "the branch's run gave no tests in `vitest.json`, so the guard can't see a test of it that is gone"],
+      ["main's side, for a second review", 'base', 'review', "main's run gave no tests in `vitest.json`, so the guard can't see a test of it that is gone"],
+    ] as const)('says which report is missing on %s', async (_name, side, needs, what) => {
+      await commit(APP)
+      const both = { 'vitest.json': ran('adds'), 'playwright.json': ran('list') }
+      const tests = await reports(side === 'base' ? { 'playwright.json': ran('list') } : both, side === 'head' ? { 'playwright.json': ran('list') } : both)
+      expect(guard({ repo, base: 'main', head: 'branch', tests }).found).toEqual([{ needs, what }])
+    })
+
+    it("takes a report it can't read, a folder of that name, for one that gave no tests", async () => {
+      await commit(APP)
+      const tests = await reports({ 'vitest.json': ran('adds') }, {})
+      await mkdir(join(tests.head, 'vitest.json'))
+      expect(guard({ repo, base: 'main', head: 'branch', tests }).found).toEqual([{ needs: 'owner', what: "the branch's run gave no tests in `vitest.json`, so the guard can't see a test of it that is gone" }])
     })
 
     it('says nothing about the runs in its report when the tests are the same', async () => {
@@ -121,7 +138,7 @@ describe('guard', () => {
       const tests = await reports({ 'vitest.json': ran('adds') }, {})
       await mkdir(`${repo}-tests/empty`)
       expect(guard({ repo, base: 'main', head: 'branch', tests: { ...tests, head: `${repo}-tests/${folder}` } }).found).toEqual([
-        { needs: 'owner', what: "the branch's run gave no list of its tests, so the guard can't see a test that is gone" },
+        { needs: 'owner', what: "the branch's run gave no tests in `vitest.json`, so the guard can't see a test of it that is gone" },
       ])
     })
   })

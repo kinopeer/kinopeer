@@ -50,33 +50,38 @@ export function asserted(path: string, text: string): Asserted | undefined {
   }
   // What a type's wrapper holds: the list in `[…] as const`, `[…] satisfies Row[]`, `ROWS!`.
   const bare = (node: Node): Node => (isNode(node.expression) ? bare(node.expression) : node)
-  /** The lists the file declares by a name, for a table that is given by one. */
-  const lists = new Map<string, Node>()
+  /**
+   * What the file declares by each name, for a table that is given by one. Every declaration of a
+   * name, wherever it is: the guard doesn't work out which of two `rows` in two groups a test
+   * means, so each test gets the rows of both, and a row gone from either is seen.
+   */
+  const lists = new Map<string, Node[]>()
   const declare = (node: Node) => {
     // A declaration is the one node with both; a pattern in place of the name has no name to be found by.
     const { id, init } = node
-    if (isNode(id) && isNode(init)) lists.set(id.name as string, bare(init))
+    if (isNode(id) && isNode(init)) lists.set(id.name as string, [...(lists.get(id.name as string) ?? []), bare(init)])
     childrenOf(node).forEach(declare)
   }
   declare(file)
   /** The rows of a table given in place or by the name of a list; a table the guard can't open (imported, computed, a template) is one item, as written. */
   const rows = (table: Node): string[] => {
     const given = bare(table)
-    const list = given.type === 'Identifier' ? (lists.get(given.name as string) ?? given) : given
-    return list.type === 'ArrayExpression' ? (list.elements as unknown[]).filter(isNode).map((row) => `row ${source(row)}`) : [`table ${source(table)}`]
+    const declared = given.type === 'Identifier' ? (lists.get(given.name as string) ?? [given]) : [given]
+    return declared.flatMap((list) => (list.type === 'ArrayExpression' ? (list.elements as unknown[]).filter(isNode).map((row) => `row ${source(row)}`) : [`table ${source(table)}`]))
   }
 
   const walk = (node: Node, groups: string[], test: string) => {
     if (node.type === 'CallExpression') {
       const names = chain(node)
       const [first, ...args] = node.arguments as Node[]
-      const last = args.at(-1)
+      // The function a test or a group runs: after its title and any options, and before a time limit.
+      const body = args.find(isFunction)
       if (ASSERTS.test(names[0] ?? '')) {
         into(test, node, [source(node)])
         return
       }
       // With a function after its first argument, which is its title.
-      const titled = isFunction(last)
+      const titled = body !== undefined
       const group = GROUPS.includes(names[0]) || (TESTS.includes(names[0]) && names.includes('describe'))
       if (titled && (group || (TESTS.includes(names[0]) && !names.some((name) => NOT_A_TEST.includes(name))))) {
         const title = typeof first.value === 'string' ? first.value : source(first)
@@ -87,10 +92,10 @@ export function asserted(path: string, text: string): Asserted | undefined {
         const table = given ? rows(given) : []
         if (group) {
           if (table.length > 0) into(name, node, table)
-          walk(last as Node, [...groups, title], test)
+          walk(body, [...groups, title], test)
         } else {
           into(name, node, table)
-          walk(last as Node, groups, name)
+          walk(body, groups, name)
         }
         return
       }

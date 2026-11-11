@@ -55,25 +55,40 @@ export function testsIn(report: string): Test[] {
   return 'testResults' in json ? vitestTests(json) : playwrightTests(json)
 }
 
+/** The tests of one side's run, report by report: the report's name (`vitest.json`) and the tests in it, none when it couldn't be read. */
+export type Reports = Map<string, Test[]>
+
 /** At most this many names of a file's tests in one finding, so a file removed doesn't fill the PR's comment. */
 const NAMED = 10
 
 /**
  * The tests main's run has and the branch's doesn't, file by file. They go to the owner where the
  * branch runs fewer tests, in that file and in all: a test removed with nothing in its place. Else
- * to a second review, which tells a test renamed or moved from one replaced by a weaker one. A side
- * with no tests at all is a run that gave no list, and the guard says it can't see.
+ * to a second review, which tells a test renamed or moved from one replaced by a weaker one.
+ *
+ * Only the reports that gave tests on both sides are compared. One that a side lacks, or that gave
+ * no tests there, is a part of the run the guard can't see, said once: the branch's for the owner,
+ * main's for a second review. Otherwise main's missing unit tests would let every test the branch
+ * removed pass unseen behind the browser tests both sides list.
  */
-export function compareTests(base: Test[], head: Test[]): Finding[] {
-  if (head.length === 0) return [{ needs: 'owner', what: "the branch's run gave no list of its tests, so the guard can't see a test that is gone" }]
-  if (base.length === 0) return [{ needs: 'review', what: "main's run gave no list of its tests, so the guard can't see a test that is gone" }]
+export function compareTests(reported: Reports, ran: Reports): Finding[] {
+  const names = [...new Set([...reported.keys(), ...ran.keys()])]
+  if (names.length === 0) return [{ needs: 'owner', what: "the runs gave no lists of their tests, so the guard can't see a test that is gone" }]
+  const both = names.filter((name) => reported.get(name)?.length && ran.get(name)?.length)
+  const unseen = names
+    .filter((name) => !both.includes(name))
+    .map((name): Finding => {
+      const side = ran.get(name)?.length ? { needs: 'review' as const, whose: "main's" } : { needs: 'owner' as const, whose: "the branch's" }
+      return { needs: side.needs, what: `${side.whose} run gave no tests in \`${name}\`, so the guard can't see a test of it that is gone` }
+    })
+  const [base, head] = [reported, ran].map((side) => both.flatMap((name) => side.get(name) ?? []))
   const byFile = (tests: Test[]): Map<string, string[]> => {
     const files = new Map<string, string[]>()
     for (const { file, name } of tests) files.set(file, [...(files.get(file) ?? []), name])
     return files
   }
   const now = byFile(head)
-  return [...byFile(base)].flatMap(([file, names]): Finding[] => {
+  const gone = [...byFile(base)].flatMap(([file, names]): Finding[] => {
     const left = [...(now.get(file) ?? [])]
     const kept = left.length
     const gone = names.filter((name) => {
@@ -89,4 +104,5 @@ export function compareTests(base: Test[], head: Test[]): Finding[] {
       ? [{ needs: 'owner', file, what: `fewer tests run: ${names.length} → ${kept} here, ${base.length} → ${head.length} in all. Gone or no longer run: ${which}` }]
       : [{ needs: 'review', file, what: `${gone.length} of ${names.length} tests main runs here are gone, renamed or no longer run: ${which}` }]
   })
+  return [...unseen, ...gone]
 }

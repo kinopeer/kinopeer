@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { compareTests, testsIn, type Test } from './tests.ts'
+import { compareTests, testsIn, type Reports, type Test } from './tests.ts'
 
 const json = (value: unknown) => JSON.stringify(value)
-const said = (base: Test[], head: Test[]) => compareTests(base, head).map(({ needs, file, what }) => `${needs} ${file ?? ''}: ${what}`)
+const told = (base: Reports, head: Reports) => compareTests(base, head).map(({ needs, file, what }) => `${needs} ${file ?? ''}: ${what}`)
+/** One report of the unit tests on each side. */
+const said = (base: Test[], head: Test[]) => told(new Map([['vitest.json', base]]), new Map([['vitest.json', head]]))
 /** Tests of one file by their names. */
 const tests = (file: string, ...names: string[]): Test[] => names.map((name) => ({ file, name }))
 
@@ -125,11 +127,36 @@ describe('compareTests', () => {
     expect(said([...tests('src/sum.test.ts', ...names.slice(0, 10)), ...other], other)[0]).not.toContain('more')
   })
 
-  it.each([
-    ["the branch's run gave no tests", sum, [], ["owner : the branch's run gave no list of its tests, so the guard can't see a test that is gone"]],
-    ["main's run gave no tests", [], sum, ["review : main's run gave no list of its tests, so the guard can't see a test that is gone"]],
-    ['neither run gave any', [], [], ["owner : the branch's run gave no list of its tests, so the guard can't see a test that is gone"]],
-  ])("says it can't see when %s", (_name, base, head, found) => {
-    expect(said(base, head)).toEqual(found)
+  describe('a report that one side lacks', () => {
+    const list = tests('e2e/list.spec.ts', 'list')
+    const NO_BRANCH = "owner : the branch's run gave no tests in `vitest.json`, so the guard can't see a test of it that is gone"
+    const NO_MAIN = "review : main's run gave no tests in `vitest.json`, so the guard can't see a test of it that is gone"
+
+    it.each<[string, [string, Test[]][], [string, Test[]][], string[]]>([
+      ["goes to the owner when it is the branch's that is missing", [['vitest.json', sum]], [], [NO_BRANCH]],
+      ["goes to the owner when it is the branch's that gave no tests", [['vitest.json', sum]], [['vitest.json', []]], [NO_BRANCH]],
+      ["goes to a second review when it is main's that is missing", [], [['vitest.json', sum]], [NO_MAIN]],
+      ["goes to a second review when it is main's that gave no tests", [['vitest.json', []]], [['vitest.json', sum]], [NO_MAIN]],
+      ['goes to the owner when it gave no tests on either side', [['vitest.json', []]], [['vitest.json', []]], [NO_BRANCH]],
+      // The unit tests the branch removed would otherwise pass unseen behind the browser tests both sides list.
+      ["is said beside the reports both sides have, when it is main's", [['playwright.json', list]], [['playwright.json', list], ['vitest.json', tests('src/sum.test.ts', 'adds')]], [NO_MAIN]],
+      // And not as every file of it gone.
+      ["is said once, when it is the branch's", [['playwright.json', list], ['vitest.json', [...sum, ...other]]], [['playwright.json', list]], [NO_BRANCH]],
+    ])('%s', (_name, base, head, found) => {
+      expect(told(new Map(base), new Map(head))).toEqual(found)
+    })
+
+    it('leaves the reports both sides have compared, counting only their tests', () => {
+      const base = new Map([['playwright.json', list], ['vitest.json', sum]])
+      const head = new Map([['vitest.json', tests('src/sum.test.ts', 'adds')]])
+      expect(told(base, head)).toEqual([
+        "owner : the branch's run gave no tests in `playwright.json`, so the guard can't see a test of it that is gone",
+        'owner src/sum.test.ts: fewer tests run: 2 → 1 here, 2 → 1 in all. Gone or no longer run: `subtracts`',
+      ])
+    })
+
+    it('says so when neither side has a report at all', () => {
+      expect(told(new Map(), new Map())).toEqual(["owner : the runs gave no lists of their tests, so the guard can't see a test that is gone"])
+    })
   })
 })

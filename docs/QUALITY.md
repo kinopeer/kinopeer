@@ -76,7 +76,9 @@ or its rules.
   also runs fewer in all. A test is its file and its name with its groups'. The lists come from the
   runs themselves ([How it runs](#how-it-runs)): the Vitest tests that passed or failed, so not a
   skipped one, and the browser tests Playwright lists, once per project, without those it skips.
-- A run that gave no list of the branch's tests: the guard can't see a test that is gone.
+- A report of the branch's run that is missing or gave no tests (`vitest.json`, one of
+  Playwright's lists): the guard can't see a test of it that is gone. Only the reports that gave
+  tests on both sides are compared and counted.
 - `checks.json`, `.oxlintrc.json` or `package.json` that is no longer a JSON object the guard can
   read, a list in `checks.json` that is no longer a list, and `checks.json` or `.oxlintrc.json`
   removed.
@@ -103,12 +105,13 @@ or its rules.
   file the branch changes (`*.test.ts(x)` and the code in `e2e/`). The guard parses both copies
   and takes, test by test, every call that starts from `expect` or `assert` (a helper named
   `expectRow` too), as written, and every row of the table an `each` runs the test over, since a
-  row holds what is expected: one that `main`'s copy has and the branch's doesn't is marked at the
+  row holds what is expected (a table given by a name the file declares more than once, as two
+  groups' `rows`, is every such list): one that `main`'s copy has and the branch's doesn't is marked at the
   test's line, with how many of the test's and the first of them. So is one asserted outside the
   tests, in a hook or a helper of the file. An assertion added, moved within its test or indented
   otherwise isn't marked; one moved to another test marks the test it left.
-- A test file the guard can't parse, on either side, and a run that gave no list of `main`'s
-  tests.
+- A test file the guard can't parse, on either side, and a report of `main`'s run that is missing
+  or gave no tests.
 - `checks.json`, `.oxlintrc.json` or `package.json` whose copy on `main` the guard can't read, so
   that it has nothing to compare the branch's with.
 
@@ -145,9 +148,12 @@ for. It installs and runs both sides, the commit the branch left `main` at and t
 the Vitest tests with the JSON reporter, since only a run has a table's every row as a test and
 knows a skipped one, and Playwright's `--list` for the screenshot tests and the smoke journeys,
 which needs no browser. A failing test is still a test that ran; CI's own jobs fail for it. The
-branch's code runs in that job, so it can write nothing, and what it hands over, the reports
-with their paths cut to start at the repository's root, is data to `main`'s script. When the job
-fails, the guard still runs and says which side gave no list.
+branch's code runs in that job, so its token can only read. What that code can still write is the
+job's artifact and the Actions cache in the PR's scope: the `guard` job takes the artifact, the
+reports with their paths cut to start at the repository's root, as data to `main`'s script (one it
+can't read is one that gave no tests), and takes nothing from the cache, since a cache saved there
+could overwrite `main`'s script where the token can write. When the job fails or a report is
+missing, the guard still runs and says which report of which side it lacks.
 
 **Locally** `npm run guard` prints the same report for this checkout's commits against
 `origin/main` (`--base` and `--head` name others), so the author sees the marks before pushing. It

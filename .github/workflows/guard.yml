@@ -7,8 +7,10 @@ name: Guard
 # steps runs them changed, and main's script marks the change for the owner.
 #
 # Two jobs, so the PR's code never runs where the token can write: `tests` runs the tests of both
-# sides for the lists of what ran and can write nothing; `guard` runs only main's script, over the
-# branch as git has it and over those lists, which to it are data.
+# sides for the lists of what ran, with a token that can only read; `guard` runs only main's script,
+# over the branch as git has it and over those lists, which to it are data. What the PR's code can
+# still write from `tests` is its artifact and the Actions cache in the PR's scope, so `guard` takes
+# the first as data and nothing from the second.
 on:
   pull_request:
 
@@ -99,15 +101,15 @@ jobs:
           ref: ${{ github.event.pull_request.base.sha }}
           path: main
           persist-credentials: false
-      # Node runs the guard's TypeScript as it is.
+      # Node runs the guard's TypeScript as it is. No `cache:` here: the `tests` job, where the PR's
+      # code runs, can save a cache in this PR's scope under any key, a restore looks there before
+      # main's, and what it unpacks could overwrite main's script or this job's actions.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: main/package-lock.json
       - name: Install what main's guard imports
         # The parser it reads test files with comes with Vite: main's lockfile, none of the
-        # packages' install scripts.
+        # packages' install scripts, nothing from the cache.
         working-directory: main
         run: npm ci --ignore-scripts
       - name: Get the lists of the tests that ran

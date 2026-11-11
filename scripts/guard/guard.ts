@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process'
 import { appendFileSync, existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { findings, readsWhole, report, type AddedLine, type Change, type Finding } from './signs.ts'
-import { compareTests, testsIn, type Test } from './tests.ts'
+import { compareTests, testsIn, type Reports, type Test } from './tests.ts'
 
 type Git = (...args: string[]) => string
 
@@ -58,12 +58,23 @@ export function changes(git: Git, base: string, head: string): Change[] {
     }, [])
 }
 
-/** The tests in a folder of reports (Vitest's JSON, Playwright's lists); none when there is no such folder. */
-function testsOf(folder: string): Test[] {
-  if (!existsSync(folder)) return []
-  return readdirSync(folder)
-    .filter((name) => name.endsWith('.json'))
-    .flatMap((name) => testsIn(readFileSync(join(folder, name), 'utf8')))
+/**
+ * The tests in a folder of reports (Vitest's JSON, Playwright's lists), report by report; no
+ * reports when there is no such folder. The folder is filled by the branch's code, so a report the
+ * guard can't read (a folder of that name, say) is one that gave no tests, not a crash.
+ */
+function testsOf(folder: string): Reports {
+  const read = (name: string) => {
+    let tests: Test[] = []
+    try {
+      tests = testsIn(readFileSync(join(folder, name), 'utf8'))
+    } catch {
+      // Not a file the guard can read: no tests.
+    }
+    return tests
+  }
+  const names = existsSync(folder) ? readdirSync(folder).filter((name) => name.endsWith('.json')) : []
+  return new Map(names.map((name) => [name, read(name)]))
 }
 
 /** `tests`: the folders with the reports of main's run of the tests and of the branch's, when the caller has them. */
