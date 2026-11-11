@@ -361,6 +361,7 @@ describe('scanAdded', () => {
     ['a skipped test outside e2e, which the linter stops', 'src/App.test.tsx', "  it.skip('goes straight in', () => {"],
     ['a call that only starts like a skip', 'e2e/app.ts', '  test.skipper(page)'],
     ['a step that may not fail', '.github/workflows/ci.yml', '        continue-on-error: false'],
+    ['a step that may not fail, written tight', '.github/workflows/ci.yml', '        continue-on-error:false'],
     ['a command that swallows its failure in a script', 'scripts/test-visual.sh', 'docker rm kinopeer || true'],
     ['a command that falls back to another', '.github/workflows/ci.yml', '      - run: npm ci || truecolor'],
     ['an artifact path', '.github/workflows/ci.yml', '          path: coverage'],

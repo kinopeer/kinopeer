@@ -12,8 +12,7 @@ type Git = (...args: string[]) => string
 /** git in `repo`; throws on a failure, with what git said. */
 export function gitIn(repo: string): Git {
   return (...args) => {
-    // Paths as they are: git quotes and escapes one with a space or a non-ASCII letter otherwise.
-    const { status, stdout, stderr } = spawnSync('git', ['-C', repo, '-c', 'core.quotepath=off', ...args], { encoding: 'utf8', maxBuffer: 1 << 28 })
+    const { status, stdout, stderr } = spawnSync('git', ['-C', repo, ...args], { encoding: 'utf8', maxBuffer: 1 << 28 })
     if (status !== 0) throw new Error(`git ${args.join(' ')}: ${stderr}`)
     return stdout
   }
@@ -36,6 +35,7 @@ function addedLines(git: Git, base: string, head: string, path: string): AddedLi
 export function changes(git: Git, base: string, head: string): Change[] {
   // A file's text on one side, or undefined where that side doesn't have it or the guard doesn't read it whole.
   const read = (rev: string, path: string, exists: boolean) => (exists && readsWhole(path) ? git('show', `${rev}:${path}`) : undefined)
+  // With -z git gives each path as it is, where it would otherwise quote one with a space or a non-ASCII letter.
   return git('diff', '--no-renames', '--name-status', '-z', base, head)
     .split('\0')
     .reduce<Change[]>((all, path, index, fields) => {
