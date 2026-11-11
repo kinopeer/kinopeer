@@ -278,20 +278,24 @@ const brief = (step: string): string => (step.length > 120 ? `${step.slice(0, 11
 
 /**
  * The commands a step calls that can be a check: an npm script, a tool through npx with its
- * subcommand, a script through node. Without their arguments, so a flag added isn't another command.
+ * subcommand, a script through node, docker with its subcommand. Without their arguments, so a flag
+ * added isn't another command. A step that calls an action is that one command: the action, whose
+ * version and inputs aren't part of the step.
  */
 export function commands(step: string): string[] {
+  if (step.startsWith('uses: ')) return [step]
   const npm = [...step.matchAll(/\bnpm (run )?(?:-\S+ )*([\w:.-]+)/g)].map(([, run, name]) => `npm ${run ?? ''}${name}`)
   const npx = [...step.matchAll(/\bnpx (?:-\S+ )*(\S+)(?: ([a-z][\w-]*))?/g)].map(([, tool, subcommand]) => `npx ${tool}${subcommand ? ` ${subcommand}` : ''}`)
   const node = [...step.matchAll(/\bnode (?!-)(\S+)/g)].map(([, script]) => `node ${script}`)
-  return [...npm, ...npx, ...node]
+  const docker = [...step.matchAll(/\bdocker (?:-\S+ )*([a-z][\w-]*)/g)].map(([, subcommand]) => `docker ${subcommand}`)
+  return [...npm, ...npx, ...node, ...docker]
 }
 
 /**
- * The CI workflows a branch changes, together: a command that main's copies called and none of the
- * branch's calls is a weakening, wherever its step went; a workflow removed is one too. Any other
- * step that is gone (a command with other arguments, an action dropped, a step renamed into
- * another) is a change to an existing check. A command that an unchanged workflow still calls is
+ * The CI workflows a branch changes, together: a command or an action that main's copies called
+ * and none of the branch's calls is a weakening, wherever its step went; a workflow removed is one
+ * too. Any other step that is gone (a command with other arguments, one of two steps alike, a step
+ * of plain shell) is a change to an existing check. A command that an unchanged workflow still calls is
  * marked all the same: the guard reads only what the branch changes.
  */
 export function compareWorkflows(workflows: Change[]): Finding[] {

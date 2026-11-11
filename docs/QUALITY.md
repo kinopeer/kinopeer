@@ -43,10 +43,12 @@ or its rules.
   `.oxlintignore`, added or with lines added. `npm run lint` also runs oxlint with
   `--disable-nested-config`, so a nested config does nothing even unmarked.
 - A command CI ran that is no longer run: an npm script (`npm run lint`, `npm ci`), a tool through
-  npx with its subcommand (`npx playwright test`) or a script through `node`, which a workflow's
-  step called on `main` and no step calls on the branch, wherever the step went; and a workflow
-  removed (`.github/workflows/`). The guard reads the workflows the branch changes, so a command
-  that an unchanged workflow still runs is marked all the same.
+  npx with its subcommand (`npx playwright test`), a script through `node`, `docker` with its
+  subcommand (`docker run`, `docker exec`) or an action (`uses:`, by its name without the
+  version), which a workflow's step called on `main` and no step calls on the branch, wherever the
+  step went; and a workflow removed (`.github/workflows/`). The guard reads the workflows the
+  branch changes, so a command that an unchanged workflow still runs is marked all the same, and
+  so is an action that only prepares a job (`actions/cache`), dropped from the workflows changed.
 - An npm script removed (`scripts` in the root `package.json`): the step that called it checks
   nothing.
 - In a line the branch adds:
@@ -91,9 +93,9 @@ or its rules.
 - Any other change to `.oxlintrc.json`: a rule's options, also when its severity went up with
   them; a new rule that only warns; a key the guard has no rule for.
 - A CI step that changed or is gone, when every command it called still runs somewhere or it
-  called none of the three kinds (an action, `docker`, a shell script): other arguments, an
-  action dropped, one of two steps alike removed, a job that only builds an image removed. An
-  action's version isn't part of the step, so a bump isn't a change.
+  called none of the kinds above (plain shell, `curl`): other arguments, a line taken out of a
+  step whose commands stay, one of two steps alike removed. An action's version and inputs
+  aren't part of the step, so a bump isn't a change.
 - An npm script changed: a script can't tell whether it does less.
 - Any change to a `tsconfig*.json`, by its path: the type check has too many settings for a list
   of them, and these files change in about two PRs of a hundred.
@@ -187,12 +189,14 @@ compare the tests that ran, and says so: that takes a run of each side, which CI
   from an npm script that still exists (the script changed, which goes to a second review).
 - A tracked file named in `.gitignore`: oxlint skips what git ignores, so the path is taken out
   of the lint from a third file, beside `ignorePatterns` and the lint ignore files.
-- A removed job or step that runs no npm script, npx tool or node script (an image build, an
-  action): it goes to a second review, not to the owner.
+- A removed step of plain shell, with no npm script, npx tool, node script, docker command or
+  action in it (`curl` against a server, a shell test): it goes to a second review, not to the
+  owner. So does a check dropped from a step whose commands all stay.
 - In reading a workflow's commands: a comment after a block's start (`run: | # the tests`) keeps
   the block's lines from being read; a flag with a value before an npm script (`npm --prefix
-  tmdb-proxy run test`) is read as the script; `node` with a flag first (`node --test server`)
-  isn't read as a command.
+  tmdb-proxy run test`) is read as the script, and one before docker's subcommand (`docker
+  --context ci run`) as the subcommand; `node` with a flag first (`node --test server`) isn't
+  read as a command.
 - Whatever reading YAML line by line gets wrong: it finds `run:` and `uses:` keys and the lines
   indented under a block, and knows nothing of anchors or of a command built by an expression.
 - A change to `guard.yml` that stops the script from running or from being `main`'s copy: the
