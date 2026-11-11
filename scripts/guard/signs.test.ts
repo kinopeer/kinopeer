@@ -550,6 +550,8 @@ describe('scanAdded', () => {
     ['a job named for the guard with a comment after it', '.github/workflows/ci.yml', '    name: guard # the check', "a job or a status with the guard's name, which can report in its place"],
     ["a check run made under the guard's name", '.github/workflows/ci.yml', '          gh api "repos/$REPO/check-runs" -f name=guard -f head_sha="$SHA" -f conclusion=success', "a job or a status with the guard's name, which can report in its place"],
     ["a check run made under the guard's name as JSON", '.github/workflows/ci.yml', `          -d '{"name": "guard", "head_sha": "abc", "conclusion": "success"}'`, "a job or a status with the guard's name, which can report in its place"],
+    ["a check run made under the guard's name as JSON written tight", '.github/workflows/ci.yml', `          -d '{"name":"guard","head_sha":"abc"}'`, "a job or a status with the guard's name, which can report in its place"],
+    ["a check run made under the guard's name in quotes", '.github/workflows/ci.yml', '          gh api "repos/$REPO/check-runs" -f name="guard" -f head_sha="$SHA"', "a job or a status with the guard's name, which can report in its place"],
   ])('sends %s to the owner', (_name, file, text, what) => {
     expect(scanAdded(file, lines(text))).toEqual([{ needs: 'owner', file, line: 10, what: `${what}: \`${text.trim()}\`` }])
   })
