@@ -40,7 +40,7 @@ const isTypeCheckConfig = (path: string): boolean => nameOf(path).startsWith('ts
 const isUnitTest = (path: string): boolean => path.endsWith('.test.ts') || path.endsWith('.test.tsx')
 const isTest = (path: string): boolean => isUnitTest(path) || path.startsWith('e2e/')
 /** A lockfile names packages, one of which may be called `retry`. */
-const isLockfile = (path: string): boolean => path.endsWith('package-lock.json')
+const isLockfile = (path: string): boolean => path === 'package-lock.json'
 /**
  * The tests and what runs them (the configs in the root, every package.json, the workflows, the
  * scripts), where a retry is a test's retry: the app has retries of its own, and a doc may talk
@@ -294,7 +294,6 @@ export function compareWorkflows(workflows: Change[]): Finding[] {
   const called = new Set(workflows.flatMap(({ head }) => stepsOf(head).flatMap(commands)))
   const dropped = new Set<string>()
   return workflows.flatMap(({ path: file, base, head }): Finding[] => {
-    if (base === undefined) return []
     const [was, left] = [stepsOf(base), stepsOf(head)]
     const gone = was.filter((step) => {
       const index = left.indexOf(step)

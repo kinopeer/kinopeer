@@ -154,8 +154,10 @@ describe('compareLint', () => {
     ['a rule that was off removed', without('vitest/require-to-throw-message')],
     ['a plugin added', json({ ...config, plugins: [...config.plugins, 'import'] })],
     ['an override that repeats the top-level rule', json({ ...config, overrides: [...config.overrides, { files: ['src/**'], rules: { 'react/rules-of-hooks': 'error' } }] })],
-  ])('finds nothing in %s', (_name, head) => {
-    expect(compareLint(json(config), head)).toEqual([])
+    ["a rule left as it was, with a severity it can't read", [withRules({ 'no-console': 'maybe' }), withRules({ 'no-console': 'maybe' })]],
+  ])('finds nothing in %s', (_name, change) => {
+    const [base, head] = pair(change)
+    expect(compareLint(base, head)).toEqual([])
   })
 
   it('sends the config removed and a config it cannot read to the owner', () => {
@@ -431,10 +433,11 @@ describe('scanAdded', () => {
     ['a retry the app offers, as a function by its keyword', 'e2e/app.ts', '  retry: function () {},'],
     ['a retry key with its value on the next line', 'e2e/app.ts', '  retry:'],
     ['no retries, by the other name', 'vite.config.ts', '      retry: 0,'],
+    ['no retries, as JSON writes it', 'package.json', '    "retries": 0,'],
+    ['a retry the app offers, as a function that waits, written tight', 'e2e/app.ts', '  retry: async() => {},'],
     ['a test whose title ends with the word', 'src/api/tmdb/client.test.ts', "  it('waits and retries', async () => {"],
     ['a comment that ends with the word', 'e2e/smoke/onboarding.smoke.ts', '  // The server never retries'],
     ['a package named for it in the lockfile', 'package-lock.json', '    "node_modules/retry": {'],
-    ['a package named for it in another lockfile', 'tmdb-proxy/package-lock.json', '    "node_modules/promise-retry": {'],
     ["the app's own retries in a folder's manifest-like file", 'src/package.json.ts', '  const options = { retries: 3 }'],
     ['a test about retrying', 'src/api/tmdb/client.test.ts', "  it('retries after the time TMDB names', async () => {"],
     ['a word that only starts like one', 'vite.config.ts', '  retriesLeft: 2, retryAfter: 3,'],
