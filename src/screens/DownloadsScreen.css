@@ -57,10 +57,6 @@
   gap: var(--space-2);
 }
 
-.downloads-title > h1 {
-  min-width: 0;
-}
-
 /* The poll's ring after the title, a little smaller than the title row's 22px icons. */
 .downloads-poll {
   --poll-ring-size: 18px;
