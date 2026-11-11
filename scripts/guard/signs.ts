@@ -265,8 +265,8 @@ export function workflowSteps(text: string): string[] {
     const key = /^(\s*(?:-\s+)?)(uses|run):(.*)/.exec(line)
     if (!key) continue
     const value = key[3].trim()
-    // Without its version, and without the quotes it may be written in: the same action either way.
-    if (key[2] === 'uses') steps.push(`uses: ${value.split('@')[0].replace(/["']/g, '')}`)
+    // Without its version, the quotes it may be written in and a comment after it: the same action either way.
+    if (key[2] === 'uses') steps.push(`uses: ${value.split('@')[0].replace(/["']/g, '').replace(/\s+#.*/, '')}`)
     else if (BLOCK.test(value)) block = { indent: key[1].length, lines: [] }
     // A `run:` with nothing after it is a mapping (`defaults: run: shell: bash`), not a step.
     else if (value !== '') steps.push(`run: ${value}`)

@@ -268,6 +268,14 @@ describe('workflowSteps', () => {
     expect(workflowSteps(`      - uses: "actions/checkout@abc"\n      - uses: 'actions/setup-node@def' # v7\n`)).toEqual(['uses: actions/checkout', 'uses: actions/setup-node'])
   })
 
+  it('reads an action without a version as the action, without the comment after it', () => {
+    expect(workflowSteps('      - uses: ./.github/actions/setup # the setup\n  deploy:\n    uses: "./.github/workflows/deploy.yml"   # no version\n')).toEqual(['uses: ./.github/actions/setup', 'uses: ./.github/workflows/deploy.yml'])
+  })
+
+  it("keeps a # that is part of an action's name", () => {
+    expect(workflowSteps('      - uses: ./.github/actions/c#\n')).toEqual(['uses: ./.github/actions/c#'])
+  })
+
   it("doesn't take the shell a workflow sets for its commands for a step", () => {
     expect(workflowSteps('defaults:\n  run:\n    shell: bash\njobs:\n  check:\n    steps:\n      - run: npm ci\n')).toEqual(['run: npm ci'])
   })

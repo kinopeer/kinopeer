@@ -192,15 +192,18 @@ compare the tests that ran, and says so: that takes a run of each side, which CI
 - A removed step of plain shell, with no npm script, npx tool, node script, docker command or
   action in it (`curl` against a server, a shell test): it goes to a second review, not to the
   owner. So does a check dropped from a step whose commands all stay.
-- An action's inputs (`with:`) and a step's other keys (`env:`, `working-directory:`): a change to
-  them isn't read, so a check an input turns off (`fail-on-error: false`) is marked nowhere.
+- An action's inputs (`with:`) and a step's other keys but `if:` and `continue-on-error:` (`env:`,
+  `working-directory:`): a change to them isn't read, so a check an input turns off
+  (`fail-on-error: false`) is marked nowhere.
 - In reading a workflow's commands: a comment after a block's start (`run: | # the tests`) keeps
   the block's lines from being read; a flag with a value before an npm script (`npm --prefix
   tmdb-proxy run test`) is read as the script, and one before docker's subcommand (`docker
   --context ci run`) as the subcommand; `node` with a flag first (`node --test server`) isn't
-  read as a command; a command that goes on on the next line (`docker \` and then `run`, the
-  same for npm and npx) is read as two lines, so as no command; an image used as an action
-  (`uses: docker://alpine:3.20`) is another action after its tag moves.
+  read as a command; a command that goes on on the next line (`docker \` and then `run`) is
+  read as two lines: docker and npm read no command there, so the step, removed, goes to a second
+  review, while npx and node read `npx \` and `node \`, which go to the owner under that name;
+  an image used as an action (`uses: docker://alpine:3.20`) is another action after its tag
+  moves.
 - A command's word in a step's message is marked, though it runs nothing: `echo "the docker image
   is ready"` reads as `docker image`, and removing that step goes to the owner. The guard reads
   the words wherever they stand rather than work out where a command starts.
