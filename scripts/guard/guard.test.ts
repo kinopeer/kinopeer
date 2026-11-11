@@ -306,6 +306,23 @@ describe('guard', () => {
     expect(said()).toEqual(['owner playwright.config.ts:14: test retries appeared: `use: { retries: 1 },`'])
   })
 
+  it.each<[string, () => void]>([
+    ['between hunks, by its config', () => git('config', 'diff.interHunkContext', '20')],
+    ['around each hunk, by its environment', () => vi.stubEnv('GIT_DIFF_OPTS', '--unified=3')],
+  ])('counts a blank line of context that git shows as an empty line, %s', async (_name, configure) => {
+    // A blank line between the two changes, and one right after the second.
+    const config = ['export default {', '  workers: 2,', '', '  // one', '  retries: 0,', '', '}', ''].join('\n')
+    git('checkout', '--quiet', 'main')
+    await commit({ 'playwright.config.ts': config })
+    git('checkout', '--quiet', 'branch')
+    git('merge', '--quiet', 'main')
+    await commit({ 'playwright.config.ts': config.replace('  workers: 2,', '  workers: 4,').replace('  retries: 0,', '  retries: 1,') })
+    // A blank line of context without the space that otherwise starts a line of context.
+    git('config', 'diff.suppressBlankEmpty', 'true')
+    configure()
+    expect(said()).toEqual(['owner playwright.config.ts:5: test retries appeared: `retries: 1,`'])
+  })
+
   it("reads added lines that look like a diff's own headers as lines of the file", async () => {
     await commit({ 'e2e/notes.ts': '++ b/e2e/other.ts\n@@ -1 +90 @@\nconst config = { retries: 2 }\n' })
     expect(said()).toEqual(['owner e2e/notes.ts:3: test retries appeared: `const config = { retries: 2 }`'])
