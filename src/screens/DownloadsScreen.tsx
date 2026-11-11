@@ -382,8 +382,10 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
           {!selecting && (
             <>
               <div className="downloads-title-row">
-                <h1 className="t-h1">{t('nav.downloads')}</h1>
-                <PollRing poll={main.poll} className="downloads-poll" />
+                <div className="downloads-title">
+                  <h1 className="t-h1">{t('nav.downloads')}</h1>
+                  <PollRing poll={main.poll} className="downloads-poll" />
+                </div>
                 <AltSpeedButton main={main} />
                 <IconButton
                   icon="search"
