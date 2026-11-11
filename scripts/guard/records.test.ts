@@ -126,12 +126,16 @@ describe('standing', () => {
     expect(standing('review', CODE, [member(`**Second review ${CODE}: ${verdict}**`)])).toBe('none')
   })
 
-  it.each([approval(CODE), `${approval(CODE)}   `, `${approval(CODE)}\nthe reason is below`])("doesn't count an owner's approval without a reason on its line: %j", (body) => {
+  it.each([approval(CODE), `${approval(CODE)}   `, `${approval(CODE)}\nthe reason is below`, `${approval(CODE)} …`, `${approval(CODE)}… `])("doesn't count an owner's approval without a reason on its line, or with the placeholder it is printed with: %j", (body) => {
     expect(standing('owner', CODE, [member(body)])).toBe('none')
   })
 
   it.each([`${approval(CODE)}the tests are gone`, `${approval(CODE)}   the tests are gone`])('counts an owner’s approval whose reason comes after no space or several: %j', (body) => {
     expect(standing('owner', CODE, [member(body)])).toBe('approved')
+  })
+
+  it('counts an owner’s approval whose reason starts with the placeholder’s character and goes on', () => {
+    expect(standing('owner', CODE, [member(`${approval(CODE)} … and so the threshold moves`)])).toBe('approved')
   })
 
   it('reads a record after blank lines at the top of a comment', () => {

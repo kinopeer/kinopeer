@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process'
 import { appendFileSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { findings, readsWhole, report, type AddedLine, type Change, type Finding } from './signs.ts'
-import { closed, codeOf, commentsIn, says, standing, type Comment } from './records.ts'
+import { closed, codeOf, commentsIn, fromMember, says, standing, type Comment } from './records.ts'
 import { compareTests, testsIn, type Reports, type Test } from './tests.ts'
 
 type Git = (...args: string[]) => string
@@ -132,6 +132,8 @@ export function guard({ repo, base, head, tests, comments }: Options): { found: 
   const notes = [
     ...(tests ? [] : ["The tests that ran aren't compared: that takes a run of the tests on each side, which CI's `guard` workflow makes."]),
     ...(posted || lists.length === 0 ? [] : ["The PR's records aren't read: CI's `guard` workflow reads them, and says there where each list stands."]),
+    // What the reader's token is shown of a comment's author isn't the same for every reader, so a record that doesn't count shows here.
+    ...(posted && lists.length > 0 ? [`Comments read for the records: ${posted.length}, of them from members of the organization, whose records count: ${posted.filter(fromMember).length}.`] : []),
     ...(dirty ? ["Uncommitted changes aren't read: commit them and run it again."] : []),
   ]
   const records = Object.fromEntries(lists.map(({ needs, code, state }) => [needs, says(needs, code, state)]))

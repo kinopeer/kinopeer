@@ -25,7 +25,9 @@ language.
   gives `head.sha`; the comment's first line names the commit it was written at.
 - Read the guard's comment: `gh api repos/{owner}/{repo}/issues/<n>/comments`, the one by
   `github-actions[bot]` that starts with `<!-- checks-guard -->`. Take the marks under "For a
-  second review" and the two record lines printed under them, with the list's code.
+  second review" and the two record lines printed under them, with the list's code. A fork's PR
+  gets no such comment, since the job's token can't write there: take the same report from the
+  summary of the `Guard` run's `guard` job (`gh run view <run id>`).
 
 ## 2. Read each mark's two sides, and nothing of the author's account
 

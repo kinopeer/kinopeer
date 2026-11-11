@@ -101,9 +101,11 @@ describe('guard', () => {
     /** A weakening for the owner (the threshold) and a change for a second review (the type check's config). */
     const BOTH = { 'checks.json': JSON.stringify({ coverage: { thresholds: { lines: 90 } } }), 'tsconfig.json': '{}' }
 
-    it('lets a branch without marks through', async () => {
+    it('lets a branch without marks through, with nothing to say of the comments', async () => {
       await commit(APP)
-      expect((await judged()).unmet).toBe(false)
+      const { unmet, report } = await judged('Looks fine.')
+      expect(unmet).toBe(false)
+      expect(report).not.toContain('Comments read')
     })
 
     it('holds a branch with marks until each list has its record, and says where each stands', async () => {
@@ -111,6 +113,7 @@ describe('guard', () => {
       const { owner, review } = await codes()
       const none = await judged()
       expect(none.unmet).toBe(true)
+      expect(none.report).toContain('\n\nComments read for the records: 0, of them from members of the organization, whose records count: 0.')
       expect(none.report).not.toContain("records aren't read")
       expect(none.report).toContain(`Record to post once the owner approves: \`**Owner's approval ${owner}:** …\`, the reason in the owner's words. Not posted yet.`)
       expect(none.report).toContain(`\`**Second review ${review}: sound**\` or \`**Second review ${review}: weakening**\`. Not posted yet.`)
@@ -162,8 +165,10 @@ describe('guard', () => {
       await commit({ 'checks.json': JSON.stringify({ coverage: { thresholds: { lines: 90 } } }) })
       const { owner } = await codes()
       const file = `${repo}-comments`
-      await writeFile(file, JSON.stringify({ association: 'CONTRIBUTOR', body: `${approval(owner)} it is fine` }))
-      expect(guard({ repo, base: 'main', head: 'branch', comments: file }).unmet).toBe(true)
+      await writeFile(file, [{ association: 'CONTRIBUTOR', body: `${approval(owner)} it is fine` }, { association: 'MEMBER', body: 'Looks fine.' }, { association: 'NONE', body: 'A bot.' }].map((comment) => JSON.stringify(comment)).join('\n'))
+      const { unmet, report } = guard({ repo, base: 'main', head: 'branch', comments: file })
+      expect(unmet).toBe(true)
+      expect(report).toContain('Comments read for the records: 3, of them from members of the organization, whose records count: 1.')
     })
   })
 

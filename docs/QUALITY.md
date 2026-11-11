@@ -73,8 +73,9 @@ or its rules.
   - a CI step that can fail without failing the run: `continue-on-error`, or `|| true`, `|| :`,
     `|| exit 0` or `set +e` in a workflow's command;
   - a path filter on a workflow's trigger (`paths`, `paths-ignore`), so it runs for fewer changes;
-  - a job or a commit status under the guard's name in a workflow other than `guard.yml` (`guard:`
-    as a job's key, `name: guard`, `context=guard`), which could report in the guard's place.
+  - a job, a commit status or a check run under the guard's name in a workflow other than
+    `guard.yml` (`guard:` as a job's key, `name: guard`, `context=guard` for the statuses API,
+    `name=guard` for the checks API), which could report in the guard's place.
 - Fewer tests run: a test that `main`'s run has and the branch's doesn't (removed, skipped, its
   row gone from a table), in a file where the branch runs fewer tests than `main` does, when it
   also runs fewer in all. A test is its file and its name with its groups'. The lists come from the
@@ -138,7 +139,9 @@ file and what it says, without line numbers) and of the marked files as they are
 head. A record names the code, so it holds while the marks and the marked files are the same:
 once a marked file or the list itself changes, the code is another and the list needs a new
 record. A push that touches neither (a doc, `CHANGELOG.md`, a merge of `main` in other files)
-leaves the record in force.
+leaves the record in force, unless a mark's own text carries a count the push changes: "fewer
+tests run" names both sides' totals, so a merge of `main` that brings a test gives that list
+another code.
 
 **A record** is a comment on the PR whose first line is one of three; the rest is free text:
 

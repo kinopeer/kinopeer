@@ -126,8 +126,12 @@ jobs:
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
         # One a line, as data for main's script: what its author is to the repository, and its text.
+        # GitHub answers the first by who asks (a member whose membership is private is a
+        # collaborator to a reader outside the organization), so the log says how this job's token
+        # sees the authors: a record counts only from a member.
         run: |
           gh api "repos/$REPO/issues/$PR/comments" --paginate --jq '.[] | {association: .author_association, body}' > comments.jsonl
+          jq -r .association comments.jsonl | sort | uniq -c
       - name: Run the guard
         id: guard
         env:
