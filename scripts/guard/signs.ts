@@ -354,7 +354,7 @@ const ADDED: { pattern: RegExp; counts: (path: string) => boolean; needs: Needs;
   { pattern: /^\s*paths(?:-ignore)?:/, counts: isWorkflow, needs: 'owner', what: 'a workflow got a path filter, so it runs for fewer changes' },
   { pattern: /^\s*(?:- )?if:/, counts: isWorkflow, needs: 'review', what: 'a CI step or job got a condition' },
   // In a workflow other than the guard's own, whose every change is marked: a job or a commit status that reports under the guard's name.
-  { pattern: /^\s*(?:(?:- )?name: *)?["']?guard["']?:?\s*$|\bcontext["']?[=:] *["']?guard\b/, counts: isWorkflow, needs: 'owner', what: "a job or a status with the guard's name, which can report in its place" },
+  { pattern: /^\s*(?:(?:- )?name: +)?["']?guard["']?:?\s*$|\bcontext["']?[=:] *["']?guard\b/, counts: isWorkflow, needs: 'owner', what: "a job or a status with the guard's name, which can report in its place" },
 ]
 
 /** The lines a branch adds to one file, against the patterns above. */

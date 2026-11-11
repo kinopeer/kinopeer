@@ -542,6 +542,7 @@ describe('scanAdded', () => {
     ['a job named for the guard', '.github/workflows/ci.yml', '    name: guard', "a job or a status with the guard's name, which can report in its place"],
     ['a job named for the guard, in quotes', '.github/workflows/lint.yml', "    name: 'guard'", "a job or a status with the guard's name, which can report in its place"],
     ['a step named for the guard', '.github/workflows/ci.yml', '      - name: guard', "a job or a status with the guard's name, which can report in its place"],
+    ['a job named for the guard after more than one space', '.github/workflows/ci.yml', '    name:   guard', "a job or a status with the guard's name, which can report in its place"],
     ["a status set under the guard's name", '.github/workflows/ci.yml', '          gh api "repos/$REPO/statuses/$SHA" -f state=success -f context=guard', "a job or a status with the guard's name, which can report in its place"],
     ["a status set under the guard's name by a script", '.github/workflows/ci.yml', "              context: 'guard',", "a job or a status with the guard's name, which can report in its place"],
     ["a status set under the guard's name as JSON", '.github/workflows/ci.yml', `          -d '{"state":"success","context":"guard"}'`, "a job or a status with the guard's name, which can report in its place"],

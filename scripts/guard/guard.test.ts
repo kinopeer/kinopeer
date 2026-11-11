@@ -111,6 +111,7 @@ describe('guard', () => {
       const { owner, review } = await codes()
       const none = await judged()
       expect(none.unmet).toBe(true)
+      expect(none.report).not.toContain("records aren't read")
       expect(none.report).toContain(`Record to post once the owner approves: \`**Owner's approval ${owner}:** …\`, the reason in the owner's words. Not posted yet.`)
       expect(none.report).toContain(`\`**Second review ${review}: sound**\` or \`**Second review ${review}: weakening**\`. Not posted yet.`)
 

@@ -43,10 +43,15 @@ describe('codeOf', () => {
     ['a mark is added', [...marks, { needs: 'review', file: 'package.json', what: 'the npm script `lint` changed' }], blob],
     ['a mark is gone', marks.slice(1), blob],
     ['a mark says something else', marks.map((mark) => (mark.line ? { ...mark, what: '2 of 2 assertions in `adds` rewritten or removed' } : mark)), blob],
-    ['a mark is in another file', marks.map((mark) => (mark.line ? { ...mark, file: 'src/other.test.ts' } : mark)), blob],
     ['a marked file changed', marks, (file) => (file === 'tsconfig.json' ? 'another id' : blob(file))],
   ])('gives another code when %s', (_name, found, ids) => {
     expect(code('review', found, ids)).not.toBe(code('review'))
+  })
+
+  it('gives another code when a mark is in another file, be its content the same', () => {
+    const same = () => 'one id'
+    const moved = marks.map((mark) => (mark.line ? { ...mark, file: 'src/other.test.ts' } : mark))
+    expect(code('review', moved, same)).not.toBe(code('review', marks, same))
   })
 
   it("keeps the code when a file changed that the list doesn't mark", () => {
@@ -112,12 +117,16 @@ describe('standing', () => {
     expect(standing('owner', CODE, [approved])).toBe('none')
   })
 
-  it.each(['passed', 'Sound', ''])("doesn't count a second review whose verdict is %j", (verdict) => {
+  it.each(['passed', 'Sound', '', 'soundly', 'sound, mostly', 'weakening?'])("doesn't count a second review whose verdict is %j", (verdict) => {
     expect(standing('review', CODE, [member(`**Second review ${CODE}: ${verdict}**`)])).toBe('none')
   })
 
   it.each([approval(CODE), `${approval(CODE)}   `, `${approval(CODE)}\nthe reason is below`])("doesn't count an owner's approval without a reason on its line: %j", (body) => {
     expect(standing('owner', CODE, [member(body)])).toBe('none')
+  })
+
+  it.each([`${approval(CODE)}the tests are gone`, `${approval(CODE)}   the tests are gone`])('counts an owner’s approval whose reason comes after no space or several: %j', (body) => {
+    expect(standing('owner', CODE, [member(body)])).toBe('approved')
   })
 
   it('reads a record after blank lines at the top of a comment', () => {

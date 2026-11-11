@@ -25,8 +25,8 @@ function hash(text: string): string {
 }
 
 /**
- * The code of one of the two lists, or nothing for an empty one: its marks (the file and what each
- * says, not the line, which moves with an edit elsewhere in the file) and the marked files as they
+ * The code of one of the two lists, or nothing for an empty one: what each of its marks says (not
+ * its line, which moves with an edit elsewhere in the file) and the marked files, by path, as they
  * are at the head (`blob` gives git's id of a file's content). A record names the code, so it
  * holds while the marks and the marked files are the same, and no longer once either changes.
  */
@@ -34,7 +34,7 @@ export function codeOf(needs: Needs, found: Finding[], blob: (file: string) => s
   const marks = found.filter((finding) => finding.needs === needs)
   if (marks.length === 0) return undefined
   const files = [...new Set(marks.flatMap(({ file }) => (file ? [file] : [])))].sort()
-  return hash([needs, ...marks.map(({ file, what }) => `${file}\t${what}`).sort(), ...files.map((file) => `${file}\t${blob(file)}`)].join('\n'))
+  return hash([...marks.map(({ what }) => what).sort(), ...files.map((file) => `${file}\t${blob(file)}`)].join('\n'))
 }
 
 /** The records' first lines, as the guard prints them to be copied and as it reads them back. */
