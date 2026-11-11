@@ -356,7 +356,7 @@ of these:
   read the rest from.
 - **A known limitation the owner chose to keep:** a case the PR leaves as it is by the owner's
   decision. The PR links the decision (the row in `docs/SPEC.md`'s decision log, or the comment with
-  the owner's words) and says what happens in that case: a forget that fails after its sheet closed
+  the owner's decision) and says what happens in that case: a forget that fails after its sheet closed
   goes unsaid, as saving a key does (#248).
 - **No behavior:** docs, comments, CI and config, types, generated files, a re-export. A branch in a
   script or a workflow (whether to install, whether to deploy, which targets a matrix reaches) is
