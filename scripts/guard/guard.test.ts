@@ -72,15 +72,20 @@ describe('guard', () => {
       'playwright.config.ts': 'export default {\n  workers: 2,\n  retries: 2,\n}\n',
     })
     expect(said()).toEqual([
-      'owner .github/workflows/ci.yml: a CI step is removed: `run: npm run lint`',
       'owner checks.json: the threshold `coverage.thresholds.lines` is lowered: `96` → `90`',
       'owner playwright.config.ts:3: test retries appeared: `retries: 2,`',
+      'owner .github/workflows/ci.yml: a command CI ran is no longer run: `npm run lint`',
     ])
   })
 
   it('sends a removed workflow and a removed thresholds file to the owner', async () => {
     await commit({ 'checks.json': null, '.github/workflows/ci.yml': null })
-    expect(said()).toEqual(['owner .github/workflows/ci.yml: the workflow is removed, and its steps with it', 'owner checks.json: the file with the thresholds and the exclusion lists is removed'])
+    expect(said()).toEqual([
+      'owner checks.json: the file with the thresholds and the exclusion lists is removed',
+      'owner .github/workflows/ci.yml: the workflow is removed, and its steps with it',
+      'owner .github/workflows/ci.yml: a command CI ran is no longer run: `npm ci`',
+      'owner .github/workflows/ci.yml: a command CI ran is no longer run: `npm run lint`',
+    ])
   })
 
   it('finds nothing in a workflow and a thresholds file the branch adds', async () => {
@@ -92,6 +97,7 @@ describe('guard', () => {
     git('mv', '.github/workflows/ci.yml', '.github/workflows/checks.yml')
     await commit({})
     expect(said()).toEqual(['owner .github/workflows/ci.yml: the workflow is removed, and its steps with it'])
+    // Its commands still run, in the workflow under the new name, which the branch changes too.
   })
 
   it("compares the branch with the commit it left main at, not with what main gained since", async () => {

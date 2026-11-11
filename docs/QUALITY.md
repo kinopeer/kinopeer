@@ -37,9 +37,16 @@ or its rules.
   folder removed from those it does (`mutants` in `checks.json`).
 - A lint rule removed, turned off or downgraded, at the top level or in an override; a rule turned
   off that the config didn't name before, since it may have been on by default; a plugin removed; a
-  path added to `ignorePatterns` (`.oxlintrc.json`).
-- A CI step removed, so that its workflow has fewer steps than before, or a workflow removed
-  (`.github/workflows/`). An action's version isn't part of the step, so a bump isn't a change.
+  path added to `ignorePatterns` (the root `.oxlintrc.json`).
+- The linter turned off from another file, marked by the file's path whatever it says: an
+  `.oxlintrc.json` outside the root, which oxlint obeys for its folder, or an `.eslintignore` or
+  `.oxlintignore`, added or with lines added. `npm run lint` also runs oxlint with
+  `--disable-nested-config`, so a nested config does nothing even unmarked.
+- A command CI ran that is no longer run: an npm script (`npm run lint`, `npm ci`), a tool through
+  npx with its subcommand (`npx playwright test`) or a script through `node`, which a workflow's
+  step called on `main` and no step calls on the branch, wherever the step went; and a workflow
+  removed (`.github/workflows/`). The guard reads the workflows the branch changes, so a command
+  that an unchanged workflow still runs is marked all the same.
 - An npm script removed (`scripts` in the root `package.json`): the step that called it checks
   nothing.
 - In a line the branch adds:
@@ -53,10 +60,14 @@ or its rules.
   - a check turned off in the code: `oxlint-disable` and `eslint-disable` (oxlint obeys both),
     `v8 ignore`, `c8 ignore` and `istanbul ignore`, `Stryker disable`, `@ts-ignore`,
     `@ts-expect-error` and `@ts-nocheck`, in any file but a doc;
-  - a test skipped in `e2e/`: `test.skip`, `test.fixme` and the same on `test.describe`. In the
-    Vitest tests oxlint stops them, and `test.only` fails CI by Playwright's `forbidOnly`;
-  - a CI step that can fail without failing the run: `continue-on-error`, or `|| true` in a
-    workflow's command;
+  - a test skipped or expected to fail in `e2e/`: `test.skip`, `test.fixme`, `test.fail` and the
+    same on `test.describe`; `test.only` fails CI by Playwright's `forbidOnly`;
+  - a test skipped in the Vitest tests in a way oxlint lets through: `.todo`, `.skipIf` and
+    `.runIf` on `it`, `test` and `describe` (oxlint stops `.skip` and `.only`);
+  - screenshots no longer compared: `ignoreSnapshots`, `updateSnapshots` or `--ignore-snapshots`,
+    in the same files as the retries;
+  - a CI step that can fail without failing the run: `continue-on-error`, or `|| true`, `|| :`,
+    `|| exit 0` or `set +e` in a workflow's command;
   - a path filter on a workflow's trigger (`paths`, `paths-ignore`), so it runs for fewer changes.
 - `checks.json`, `.oxlintrc.json` or `package.json` that is no longer a JSON object the guard can
   read, a list in `checks.json` that is no longer a list, and `checks.json` or `.oxlintrc.json`
@@ -69,14 +80,22 @@ or its rules.
   key the guard has no rule for.
 - Any other change to `.oxlintrc.json`: a rule's options, also when its severity went up with
   them; a new rule that only warns; a key the guard has no rule for.
-- A CI step whose command changed while its workflow kept as many steps, and an npm script
-  changed: a script can't tell whether either does less.
+- A CI step that changed or is gone while every command it called still runs somewhere: other
+  arguments, an action dropped, one of two steps alike removed. An action's version isn't part
+  of the step, so a bump isn't a change.
+- An npm script changed: a script can't tell whether it does less.
+- Any change to a `tsconfig*.json`, by its path: the type check has too many settings for a list
+  of them, and these files change in about two PRs of a hundred.
 - A condition added to a CI step or job (`if:`): most are fair, as `if: always()` on a summary is.
 - `checks.json`, `.oxlintrc.json` or `package.json` whose copy on `main` the guard can't read, so
   that it has nothing to compare the branch's with.
 
 A new sign goes into `scripts/guard/signs.ts` with its tests and into this list, in one PR, which
-goes to the owner as any change to the guard does.
+goes to the owner as any change to the guard does. The list is never whole, and isn't meant to be:
+the guard is a tripwire for the cheap, known ways around a check, and the reviews catch the rest.
+A way around that a review finds goes into [What it doesn't see](#what-it-doesnt-see); it joins
+the list through the retro (`TESTING.md` → Improving the system), once it has been met in a PR or
+costs one line.
 
 ### The thresholds and the exclusion lists
 
@@ -108,6 +127,11 @@ reads commits, not the working tree, and says so when there are uncommitted chan
   to check less, a test that lost its rows.
 - A trigger narrowed in a workflow other than by a new path filter (a branch or an event removed,
   a path taken out of an existing filter).
+- Other spellings of what it marks, known and left out: Vitest's `it.fails`; Playwright's
+  `--update-snapshots` in a command CI runs; a retry behind a name the patterns don't read
+  (`repeats`, a helper that retries); `|| echo` and other commands that end well after a failure;
+  `--no-verify`-like flags of the tools; a check dropped from an npm script that still exists
+  (the script changed, which goes to a second review).
 - Whatever reading YAML line by line gets wrong: it finds `run:` and `uses:` keys and the lines
   indented under a block, and knows nothing of anchors or of a command built by an expression.
 - A change to `guard.yml` that stops the script from running or from being `main`'s copy: the

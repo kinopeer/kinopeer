@@ -30,7 +30,15 @@ const isWorkflow = (path: string): boolean => path.startsWith(WORKFLOWS) && inRo
 /** The guard itself and its rules: a change to them goes to the owner, whatever it is. */
 const isGuard = (path: string): boolean => path.startsWith('scripts/guard/') || path === `${WORKFLOWS}guard.yml` || path === 'docs/QUALITY.md'
 const isDoc = (path: string): boolean => path.endsWith('.md')
-const isTest = (path: string): boolean => path.endsWith('.test.ts') || path.endsWith('.test.tsx') || path.startsWith('e2e/')
+const nameOf = (path: string): string => path.slice(path.lastIndexOf('/') + 1)
+/** A lint config outside the root, which oxlint obeys for its folder: the root's rules turned off without touching the root's config. */
+const isNestedLintConfig = (path: string): boolean => nameOf(path) === LINT_FILE && !inRoot(path)
+/** A file of paths the linter skips. */
+const isLintIgnore = (path: string): boolean => ['.eslintignore', '.oxlintignore'].includes(nameOf(path))
+/** The type check's settings, in the root or in a folder with a project of its own. */
+const isTypeCheckConfig = (path: string): boolean => nameOf(path).startsWith('tsconfig.') && path.endsWith('.json')
+const isUnitTest = (path: string): boolean => path.endsWith('.test.ts') || path.endsWith('.test.tsx')
+const isTest = (path: string): boolean => isUnitTest(path) || path.startsWith('e2e/')
 /** A lockfile names packages, one of which may be called `retry`. */
 const isLockfile = (path: string): boolean => path.endsWith('package-lock.json')
 /**
@@ -264,26 +272,47 @@ export function workflowSteps(text: string): string[] {
 const brief = (step: string): string => (step.length > 120 ? `${step.slice(0, 117)}…` : step)
 
 /**
- * A CI workflow: a step that is gone is a weakening when the workflow has fewer steps than before,
- * and a change to an existing check when another took its place (a command edited).
+ * The commands a step calls that can be a check: an npm script, a tool through npx with its
+ * subcommand, a script through node. Without their arguments, so a flag added isn't another command.
  */
-export function compareWorkflow(file: string, base: string | undefined, head: string | undefined): Finding[] {
-  if (base === undefined) return []
-  if (head === undefined) return [{ needs: 'owner', file, what: 'the workflow is removed, and its steps with it' }]
-  const [was, now] = [workflowSteps(base), workflowSteps(head)]
-  const left = [...now]
-  const gone = was.filter((step) => {
-    const index = left.indexOf(step)
-    if (index === -1) return true
-    left.splice(index, 1)
-    return false
+export function commands(step: string): string[] {
+  const npm = [...step.matchAll(/\bnpm (run )?(?:-\S+ )*([\w:.-]+)/g)].map(([, run, name]) => `npm ${run ?? ''}${name}`)
+  const npx = [...step.matchAll(/\bnpx (?:-\S+ )*(\S+)(?: ([a-z][\w-]*))?/g)].map(([, tool, subcommand]) => `npx ${tool}${subcommand ? ` ${subcommand}` : ''}`)
+  const node = [...step.matchAll(/\bnode (?!-)(\S+)/g)].map(([, script]) => `node ${script}`)
+  return [...npm, ...npx, ...node]
+}
+
+/**
+ * The CI workflows a branch changes, together: a command that main's copies called and none of the
+ * branch's calls is a weakening, wherever its step went; a workflow removed is one too. Any other
+ * step that is gone (a command with other arguments, an action dropped, a step renamed into
+ * another) is a change to an existing check. A command that an unchanged workflow still calls is
+ * marked all the same: the guard reads only what the branch changes.
+ */
+export function compareWorkflows(workflows: Change[]): Finding[] {
+  const stepsOf = (text: string | undefined): string[] => (text === undefined ? [] : workflowSteps(text))
+  const called = new Set(workflows.flatMap(({ head }) => stepsOf(head).flatMap(commands)))
+  const dropped = new Set<string>()
+  return workflows.flatMap(({ path: file, base, head }): Finding[] => {
+    if (base === undefined) return []
+    const [was, left] = [stepsOf(base), stepsOf(head)]
+    const gone = was.filter((step) => {
+      const index = left.indexOf(step)
+      if (index === -1) return true
+      left.splice(index, 1)
+      return false
+    })
+    const found: Finding[] = head === undefined ? [{ needs: 'owner', file, what: 'the workflow is removed, and its steps with it' }] : []
+    for (const step of gone) {
+      const lost = commands(step).filter((command) => !called.has(command))
+      for (const command of lost.filter((command) => !dropped.has(command))) {
+        dropped.add(command)
+        found.push({ needs: 'owner', file, what: `a command CI ran is no longer run: \`${command}\`` })
+      }
+      if (lost.length === 0 && head !== undefined) found.push({ needs: 'review', file, what: `a CI step changed or is gone, it was: \`${brief(step)}\`` })
+    }
+    return found
   })
-  const fewer = now.length < was.length
-  return gone.map((step) => ({
-    needs: fewer ? ('owner' as const) : ('review' as const),
-    file,
-    what: `${fewer ? 'a CI step is removed' : 'a CI step changed, it was'}: \`${brief(step)}\``,
-  }))
 }
 
 /**
@@ -307,8 +336,10 @@ const ADDED: { pattern: RegExp; counts: (path: string) => boolean; needs: Needs;
     needs: 'owner',
     what: 'a check is turned off in the code',
   },
-  { pattern: /\btest(?:\.describe)?\.(?:skip|fixme)\b/, counts: (path) => path.startsWith('e2e/'), needs: 'owner', what: 'a test is skipped' },
-  { pattern: /continue-on-error:(?! ?false\b)|\|\| ?true\b/, counts: isWorkflow, needs: 'owner', what: 'a CI step can fail without failing the run' },
+  { pattern: /\btest(?:\.describe)?\.(?:skip|fixme|fail)\b/, counts: (path) => path.startsWith('e2e/'), needs: 'owner', what: 'a test is skipped or expected to fail' },
+  { pattern: /\b(?:it|test|describe)\.(?:todo|skipIf|runIf)\b/, counts: isUnitTest, needs: 'owner', what: 'a test is skipped' },
+  { pattern: /\bignoreSnapshots\b|\bupdateSnapshots\b|--ignore-snapshots(?![\w-])/, counts: runsTests, needs: 'owner', what: 'screenshots are no longer compared' },
+  { pattern: /continue-on-error:(?! ?false\b)|\|\| ?(?:true\b|:(?!\S)|exit 0\b)|\bset \+e\b/, counts: isWorkflow, needs: 'owner', what: 'a CI step can fail without failing the run' },
   { pattern: /^\s*paths(?:-ignore)?:/, counts: isWorkflow, needs: 'owner', what: 'a workflow got a path filter, so it runs for fewer changes' },
   { pattern: /^\s*(?:- )?if:/, counts: isWorkflow, needs: 'review', what: 'a CI step or job got a condition' },
 ]
@@ -322,14 +353,21 @@ export function scanAdded(file: string, added: AddedLine[]): Finding[] {
 
 /** Every finding in a branch's changes. */
 export function findings(changes: Change[]): Finding[] {
-  return changes.flatMap(({ path, base, head, added }) => {
+  const files = changes.flatMap(({ path, base, head, added }): Finding[] => {
     // The guard's own files hold these patterns as text, and each change to them goes to the owner anyway.
-    if (isGuard(path)) return [{ needs: 'owner' as const, file: path, what: 'the checks guard or its rules changed' }]
+    if (isGuard(path)) return [{ needs: 'owner', file: path, what: 'the checks guard or its rules changed' }]
     if (path === CHECKS_FILE) return compareChecks(base, head)
     if (path === LINT_FILE) return compareLint(base, head)
-    const whole = path === PACKAGE_FILE ? compareScripts(base, head) : isWorkflow(path) ? compareWorkflow(path, base, head) : []
-    return [...whole, ...scanAdded(path, added)]
+    // By its path alone, whatever it says: these files are rare, and what they say is the reviews' to read.
+    const lines = added.length > 0
+    const byPath: Finding[] = [
+      ...(isNestedLintConfig(path) && lines ? [{ needs: 'owner' as const, file: path, what: 'a lint config outside the root, which the linter obeys for its folder, is added or changed' }] : []),
+      ...(isLintIgnore(path) && lines ? [{ needs: 'owner' as const, file: path, what: 'a file of paths the linter skips is added or changed' }] : []),
+      ...(isTypeCheckConfig(path) ? [{ needs: 'review' as const, file: path, what: "the type check's config changed" }] : []),
+    ]
+    return [...byPath, ...(path === PACKAGE_FILE ? compareScripts(base, head) : []), ...scanAdded(path, added)]
   })
+  return [...files, ...compareWorkflows(changes.filter(({ path }) => isWorkflow(path) && !isGuard(path)))]
 }
 
 /** The marker the workflow finds the guard's comment on a PR by. */

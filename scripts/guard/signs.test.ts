@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compareChecks, compareLint, compareScripts, compareWorkflow, findings, readsWhole, report, scanAdded, workflowSteps, type Finding } from './signs.ts'
+import { commands, compareChecks, compareLint, compareScripts, compareWorkflows, findings, readsWhole, report, scanAdded, workflowSteps, type Finding } from './signs.ts'
 
 const json = (value: unknown) => JSON.stringify(value)
 /** What each finding calls for and says, without its file. */
@@ -267,45 +267,111 @@ describe('workflowSteps', () => {
   })
 })
 
-describe('compareWorkflow', () => {
+describe('commands', () => {
+  it.each([
+    ['run: npm ci', ['npm ci']],
+    ['run: npm run lint', ['npm run lint']],
+    ['run: npm run test:coverage -- --coverage.reporter=text', ['npm run test:coverage']],
+    ['run: npm run --silent test:mutants > mutants.md', ['npm run test:mutants']],
+    ['run: npm test', ['npm test']],
+    ['run: npx playwright test', ['npx playwright test']],
+    ['run: npx playwright install --with-deps chromium', ['npx playwright install']],
+    ['run: npx playwright install-deps chromium', ['npx playwright install-deps']],
+    ['run: npx --yes wrangler@4 deploy', ['npx wrangler@4 deploy']],
+    ['run: npx oxlint', ['npx oxlint']],
+    ['run: node scripts/coverage-summary.mjs coverage/coverage-summary.json >> "$GITHUB_STEP_SUMMARY"', ['node scripts/coverage-summary.mjs']],
+    ['run: if [ -f coverage.json ]; then ; node summary.mjs ; fi', ['node summary.mjs']],
+    ['run: npm ci ; npm run build ; node server/main.ts', ['npm ci', 'npm run build', 'node server/main.ts']],
+  ])('reads %s as %j', (step, expected) => {
+    expect(commands(step)).toEqual(expected)
+  })
+
+  it.each([
+    ['an action', 'uses: actions/setup-node'],
+    ['a command that is none of the three', 'run: docker run -d --name kinopeer kinopeer:ci'],
+    ['Node asked for a value rather than given a script', 'run: echo "version=$(node -p "1")"'],
+    ['a word that only ends like one', 'run: pnpm install ; xnode build.js ; gnpx tool'],
+  ])('finds no command in %s', (_name, step) => {
+    expect(commands(step)).toEqual([])
+  })
+})
+
+describe('compareWorkflows', () => {
   const file = '.github/workflows/ci.yml'
+  const compare = (head: string | undefined, base: string | undefined = WORKFLOW) => compareWorkflows([{ path: file, base, head, added: [] }])
 
-  it('sends a removed step to the owner', () => {
-    expect(said(compareWorkflow(file, WORKFLOW, WORKFLOW.replace('      - run: npm run lint\n', '')))).toEqual(['owner: a CI step is removed: `run: npm run lint`'])
+  it('sends a command that is no longer run to the owner', () => {
+    expect(said(compare(WORKFLOW.replace('      - run: npm run lint\n', '')))).toEqual(['owner: a command CI ran is no longer run: `npm run lint`'])
   })
 
-  it('sends one of two steps alike removed to the owner', () => {
+  it('sends it to the owner also when another step takes its place', () => {
+    expect(said(compare(WORKFLOW.replace('npm run lint', 'npm run format')))).toEqual(['owner: a command CI ran is no longer run: `npm run lint`'])
+  })
+
+  it('sends a command taken out of a block to the owner', () => {
+    expect(said(compare(WORKFLOW.replace('node summary.mjs', 'true')))).toEqual(['owner: a command CI ran is no longer run: `node summary.mjs`'])
+  })
+
+  it('names a command once, however many steps ran it', () => {
+    expect(said(compare(WORKFLOW.replaceAll('npm ci', 'npm install')))).toEqual(['owner: a command CI ran is no longer run: `npm ci`'])
+  })
+
+  it('sends one of two steps alike removed to a second review, since the command still runs', () => {
     const head = WORKFLOW.replace('  docker:\n    steps:\n      - run: npm ci\n', '  docker:\n    steps: []\n')
-    expect(said(compareWorkflow(file, WORKFLOW, head))).toEqual(['owner: a CI step is removed: `run: npm ci`'])
+    expect(said(compare(head))).toEqual(['review: a CI step changed or is gone, it was: `run: npm ci`'])
   })
 
-  it('sends an edited command to a second review', () => {
-    expect(said(compareWorkflow(file, WORKFLOW, WORKFLOW.replace('npm run lint', 'npm run lint -- --quiet')))).toEqual(['review: a CI step changed, it was: `run: npm run lint`'])
-  })
-
-  it('sends a line changed inside a block to a second review', () => {
-    expect(said(compareWorkflow(file, WORKFLOW, WORKFLOW.replace('node summary.mjs', 'true')))).toEqual(['review: a CI step changed, it was: `run: if [ -f coverage.json ]; then ; node summary.mjs ; fi`'])
+  it.each([
+    ['a command with other arguments', WORKFLOW.replace('npm run lint', 'npm run lint -- --quiet'), 'run: npm run lint'],
+    ['an action dropped', WORKFLOW.replace('        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2\n', ''), 'uses: actions/upload-artifact'],
+    ['a command that is not a check changed', WORKFLOW.replace('echo\n          dry', 'echo\n          wet'), 'run: echo ; dry'],
+  ])('sends %s to a second review', (_name, head, step) => {
+    expect(said(compare(head))).toEqual([`review: a CI step changed or is gone, it was: \`${step}\``])
   })
 
   it.each([
     ['an action bumped', WORKFLOW.replace('3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1', '0000000000000000000000000000000000000000 # v8.0.0')],
     ['a step added', WORKFLOW.replace('      - run: npm run lint\n', '      - run: npm run lint\n      - run: npm run typecheck\n')],
-    ['steps in another order', WORKFLOW.replace('      - run: npm ci\n      - run: npm run lint\n', '      - run: npm run lint\n      - run: npm ci\n')],
+    ['steps in another order', WORKFLOW.replace('      - run:   npm ci  \n      - run: npm run lint\n', '      - run: npm run lint\n      - run: npm ci\n')],
     ['a comment changed', WORKFLOW.replace('# A comment, which is not a command.', '# Another comment.')],
   ])('finds nothing in %s', (_name, head) => {
-    expect(compareWorkflow(file, WORKFLOW, head)).toEqual([])
+    expect(compare(head)).toEqual([])
   })
 
-  it('cuts a command of more than 120 characters short in what it says', () => {
+  it('cuts a step of more than 120 characters short in what it says', () => {
     const step = (length: number) => `      - run: ${'x'.repeat(length - 'run: '.length)}\n`
-    const what = (length: number) => compareWorkflow(file, WORKFLOW + step(length), WORKFLOW)[0].what
-    expect(what(120)).toBe(`a CI step is removed: \`run: ${'x'.repeat(115)}\``)
-    expect(what(121)).toBe(`a CI step is removed: \`run: ${'x'.repeat(112)}…\``)
+    const what = (length: number) => compare(WORKFLOW, WORKFLOW + step(length))[0].what
+    expect(what(120)).toBe(`a CI step changed or is gone, it was: \`run: ${'x'.repeat(115)}\``)
+    expect(what(121)).toBe(`a CI step changed or is gone, it was: \`run: ${'x'.repeat(112)}…\``)
   })
 
-  it('sends a removed workflow to the owner and finds nothing in a new one', () => {
-    expect(said(compareWorkflow(file, WORKFLOW, undefined))).toEqual(['owner: the workflow is removed, and its steps with it'])
-    expect(compareWorkflow(file, undefined, WORKFLOW)).toEqual([])
+  it('sends a removed workflow and each command only it ran to the owner', () => {
+    expect(said(compare(undefined))).toEqual([
+      'owner: the workflow is removed, and its steps with it',
+      'owner: a command CI ran is no longer run: `npm ci`',
+      'owner: a command CI ran is no longer run: `npm run lint`',
+      'owner: a command CI ran is no longer run: `node summary.mjs`',
+    ])
+  })
+
+  it('finds nothing in a new workflow', () => {
+    expect(compare(WORKFLOW, undefined)).toEqual([])
+  })
+
+  it('reads the workflows a branch changes together: a command moved to another one still runs', () => {
+    const moved = compareWorkflows([
+      { path: file, base: WORKFLOW, head: WORKFLOW.replace('      - run: npm run lint\n', ''), added: [] },
+      { path: '.github/workflows/lint.yml', base: undefined, head: 'jobs:\n  lint:\n    steps:\n      - run: npm run lint -- --quiet\n', added: [] },
+    ])
+    expect(said(moved)).toEqual(['review: a CI step changed or is gone, it was: `run: npm run lint`'])
+  })
+
+  it('names a command two workflows lose once, at the first', () => {
+    const lost = compareWorkflows([
+      { path: file, base: WORKFLOW, head: WORKFLOW.replace('      - run: npm run lint\n', ''), added: [] },
+      { path: '.github/workflows/lint.yml', base: '      - run: npm run lint\n', head: '      - run: npm run format\n', added: [] },
+    ])
+    expect(lost.map(({ needs, file: path, what }) => `${needs} ${path}: ${what}`)).toEqual(['owner .github/workflows/ci.yml: a command CI ran is no longer run: `npm run lint`'])
   })
 })
 
@@ -394,9 +460,22 @@ describe('scanAdded', () => {
     ['a type error ignored', 'src/App.test.tsx', '    // @ts-ignore', 'a check is turned off in the code'],
     ['a type error expected', 'e2e/app.ts', '  // @ts-expect-error the fake has no such field', 'a check is turned off in the code'],
     ['a file left out of the type check', 'scripts/mutants.mjs', '// @ts-nocheck', 'a check is turned off in the code'],
-    ['a screenshot test skipped', 'e2e/search.spec.ts', "  test.skip('shows the results', async ({ page }) => {", 'a test is skipped'],
-    ['a journey marked to fix later', 'e2e/smoke/tabs.smoke.ts', "test.fixme('keeps the place', async ({ page }) => {", 'a test is skipped'],
-    ['a group of screenshot tests skipped', 'e2e/search.spec.ts', "test.describe.skip('results', () => {", 'a test is skipped'],
+    ['a screenshot test skipped', 'e2e/search.spec.ts', "  test.skip('shows the results', async ({ page }) => {", 'a test is skipped or expected to fail'],
+    ['a journey marked to fix later', 'e2e/smoke/tabs.smoke.ts', "test.fixme('keeps the place', async ({ page }) => {", 'a test is skipped or expected to fail'],
+    ['a group of screenshot tests skipped', 'e2e/search.spec.ts', "test.describe.skip('results', () => {", 'a test is skipped or expected to fail'],
+    ['a journey expected to fail', 'e2e/smoke/tabs.smoke.ts', "test.fail('keeps the place', async ({ page }) => {", 'a test is skipped or expected to fail'],
+    ['a test left to write', 'src/App.test.tsx', "  it.todo('goes straight in')", 'a test is skipped'],
+    ['a test skipped on a condition', 'server/tmdb.test.ts', "  it.skipIf(process.env.CI)('answers', async () => {", 'a test is skipped'],
+    ['a test run on a condition', 'src/lib/format.test.ts', "  test.runIf(!process.env.CI)('formats', () => {", 'a test is skipped'],
+    ['a group of tests skipped on a condition', 'src/lib/format.test.ts', "describe.skipIf(isCI)('sizes', () => {", 'a test is skipped'],
+    ['screenshots not compared, in a config', 'playwright.config.ts', '  ignoreSnapshots: true,', 'screenshots are no longer compared'],
+    ['screenshots rewritten on every run', 'playwright.config.ts', "  updateSnapshots: 'all',", 'screenshots are no longer compared'],
+    ['screenshots not compared, in a script CI calls', 'package.json', '    "test:visual": "playwright test --ignore-snapshots",', 'screenshots are no longer compared'],
+    ['screenshots not compared, in a workflow', '.github/workflows/ci.yml', '      - run: npx playwright test --ignore-snapshots', 'screenshots are no longer compared'],
+    ['a command that swallows its failure with a colon', '.github/workflows/ci.yml', '      - run: npm run lint || :', 'a CI step can fail without failing the run'],
+    ['a command that swallows its failure with a colon, more after it', '.github/workflows/ci.yml', '          npm run lint ||: ; npm test', 'a CI step can fail without failing the run'],
+    ['a command that leaves with success on a failure', '.github/workflows/ci.yml', '      - run: npm run lint || exit 0', 'a CI step can fail without failing the run'],
+    ['a block that goes on after a failure', '.github/workflows/ci.yml', '          set +e', 'a CI step can fail without failing the run'],
     ['a step allowed to fail', '.github/workflows/ci.yml', '        continue-on-error: true', 'a CI step can fail without failing the run'],
     ['a step allowed to fail by an expression', '.github/workflows/ci.yml', "        continue-on-error: ${{ github.event_name == 'pull_request' }}", 'a CI step can fail without failing the run'],
     ['a command that swallows its failure', '.github/workflows/ci.yml', '      - run: npm run lint || true', 'a CI step can fail without failing the run'],
@@ -420,6 +499,18 @@ describe('scanAdded', () => {
     ['a doc that names a way to turn a check off', 'docs/TESTING.md', 'no `oxlint-disable` without a reason, no `test.skip`'],
     ['a skipped test outside e2e, which the linter stops', 'src/App.test.tsx', "  it.skip('goes straight in', () => {"],
     ['a call that only starts like a skip', 'e2e/app.ts', '  test.skipper(page)'],
+    ['a call that only starts like an expected failure', 'e2e/app.ts', '  test.failure(page)'],
+    ['a test left to write in e2e, where Playwright has no such call', 'e2e/search.spec.ts', "  test.todo('shows the results')"],
+    ['a condition of the same name on something that is not a test', 'src/lib/format.test.ts', '  flags.skipIf(true)'],
+    ['a call that only starts like a condition on a test', 'src/lib/format.test.ts', "  it.runIfNeeded('formats')"],
+    ['a skip on a condition outside the tests', 'src/lib/format.ts', '  it.skipIf(true)'],
+    ['a word that only starts like the setting', 'playwright.config.ts', '  ignoreSnapshotsDir: true, updateSnapshotsOf: 1,'],
+    ['a flag that only starts like the one', 'package.json', '    "test:visual": "playwright test --ignore-snapshots-dir=x",'],
+    ['the setting named in the app', 'src/screens/Settings.tsx', '  const ignoreSnapshots = true'],
+    ['a command that leaves with a failure', '.github/workflows/ci.yml', '      - run: npm run lint || exit 1'],
+    ['a command that falls back to a colon-started word', '.github/workflows/ci.yml', '      - run: npm run lint || :lint'],
+    ['a block that stops at a failure', '.github/workflows/ci.yml', '          set -e'],
+    ['a block that goes on after a failure, in a script', 'scripts/test-visual.sh', 'set +e'],
     ['a step that may not fail', '.github/workflows/ci.yml', '        continue-on-error: false'],
     ['a step that may not fail, written tight', '.github/workflows/ci.yml', '        continue-on-error:false'],
     ['a command that swallows its failure in a script', 'scripts/test-visual.sh', 'docker rm kinopeer || true'],
@@ -448,6 +539,27 @@ describe('findings', () => {
     expect(findings([{ path, added: [] }])).toEqual([])
   })
 
+  it.each([
+    ['src/lib/.oxlintrc.json', 'owner', 'a lint config outside the root, which the linter obeys for its folder, is added or changed'],
+    ['.eslintignore', 'owner', 'a file of paths the linter skips is added or changed'],
+    ['e2e/.oxlintignore', 'owner', 'a file of paths the linter skips is added or changed'],
+    ['tsconfig.json', 'review', "the type check's config changed"],
+    ['tmdb-proxy/tsconfig.worker.json', 'review', "the type check's config changed"],
+  ])('marks %s by its path, whatever it says', (path, needs, what) => {
+    expect(findings([{ path, added: [{ line: 1, text: '{}' }] }])).toEqual([{ needs, file: path, what }])
+  })
+
+  it("marks the type check's config removed, and not a lint file that only lost lines", () => {
+    const removed = (path: string) => findings([{ path, added: [] }]).map(({ needs }) => needs)
+    expect(removed('tsconfig.app.json')).toEqual(['review'])
+    expect(removed('src/lib/.oxlintrc.json')).toEqual([])
+    expect(removed('.eslintignore')).toEqual([])
+  })
+
+  it.each(['src/lib/oxlintrc.json', 'src/.eslintignore.md', 'src/tsconfig.ts', 'docs/tsconfig.md', 'src/mytsconfig.json', 'tsconfigs.json'])("doesn't take %s for one of them", (path) => {
+    expect(findings([{ path, added: [{ line: 1, text: '{}' }] }])).toEqual([])
+  })
+
   it('reads each file by its own rules and a workflow by both the steps and the lines', () => {
     const found = findings([
       { path: 'checks.json', base: '{"coverage":{"thresholds":{"lines":96}}}', head: '{"coverage":{"thresholds":{"lines":90}}}', added: [] },
@@ -460,11 +572,16 @@ describe('findings', () => {
     expect(found.map(({ needs, file }) => `${needs} ${file}`)).toEqual([
       'owner checks.json',
       'owner .oxlintrc.json',
-      'review .github/workflows/ci.yml',
       'owner .github/workflows/ci.yml',
       'owner package.json',
       'owner package.json',
+      'review .github/workflows/ci.yml',
     ])
+  })
+
+  it("leaves the guard's own workflow to the mark on the guard", () => {
+    const found = findings([{ path: '.github/workflows/guard.yml', base: '      - run: npm run guard\n', head: '', added: [] }])
+    expect(found).toEqual([{ needs: 'owner', file: '.github/workflows/guard.yml', what: 'the checks guard or its rules changed' }])
   })
 })
 

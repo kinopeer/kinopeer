@@ -606,7 +606,8 @@ uncovered; the threshold only keeps that from slipping by unnoticed. It applies 
 
 ## Lint rules for tests
 
-oxlint runs its `vitest` plugin on the test files (`.oxlintrc.json`): no two tests with the same
+oxlint runs its `vitest` plugin on the test files (`.oxlintrc.json`, the one in the root: `npm run lint`
+turns nested configs off, [QUALITY.md](QUALITY.md) → What it marks): no two tests with the same
 title, no `.skip` or `.only` left behind, every test has an `expect`, no test defined inside a
 condition. Its `no-restricted-properties` stops `vi.restoreAllMocks()`, `vi.unstubAllGlobals()`
 and `vi.unstubAllEnvs()`, since Vitest's config does what they do before each test ([What a test
