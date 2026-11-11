@@ -119,6 +119,14 @@ jobs:
         with:
           name: tests
           path: lists
+      - name: Read the PR's comments, for its records
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        # One a line, as data for main's script: what its author is to the repository, and its text.
+        run: |
+          gh api "repos/$REPO/issues/$PR/comments" --paginate --jq '.[] | {association: .author_association, body}' > comments.jsonl
       - name: Run the guard
         id: guard
         env:
@@ -126,7 +134,7 @@ jobs:
           HEAD: ${{ github.event.pull_request.head.sha }}
         # main's copy, so a PR that changes the guard is still read by the guard it found.
         run: |
-          node main/scripts/guard/guard.ts --repo pr --base "$BASE" --head "$HEAD" --tests-base lists/base --tests-head lists/pr > guard.md
+          node main/scripts/guard/guard.ts --repo pr --base "$BASE" --head "$HEAD" --tests-base lists/base --tests-head lists/pr --comments comments.jsonl > guard.md
           cat guard.md >> "$GITHUB_STEP_SUMMARY"
       - name: Write the findings into the PR
         # One comment, edited in place on every push, so a PR gets one email rather than one per
@@ -149,3 +157,10 @@ jobs:
           elif [ "$FOUND" = true ]; then
             gh api "repos/$REPO/issues/$PR/comments" -F body=@guard.md --silent
           fi
+      - name: Hold the PR while a list of marks lacks its record
+        # After the comment, which says what record each list needs and where it stands. Whoever
+        # posts a record re-runs this job: nothing here reacts to a new comment.
+        if: steps.guard.outputs.unmet == 'true'
+        run: |
+          echo "::error::The guard's marks call for records this PR doesn't hold yet: see the guard's comment, and docs/QUALITY.md → What a marked PR needs."
+          exit 1
