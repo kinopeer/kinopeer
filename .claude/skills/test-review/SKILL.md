@@ -42,10 +42,10 @@ follows the conversation's language. Code, file paths and quotes stay as they ar
 
 ## 2. Sort the diff
 
-Group the changed files: production code (`src/` outside tests, `server/*.ts`, `tmdb-proxy/`
-outside tests: the folders `scripts/mutants.mjs` mutates), tests
+Group the changed files: production code (`src/` outside tests, `server/*.ts`, `tmdb-proxy/` and
+`scripts/guard/` outside tests: the folders `scripts/mutants.mjs` mutates), tests
 (`*.test.ts(x)`, `e2e/`), shared test data (`src/test/`, `server/test/`), baselines, config
-(`vite.config.ts`, `playwright*.config.ts`, `.oxlintrc.json`, `tsconfig*.json`, CI) and docs. Each
+(`vite.config.ts`, `checks.json`, `playwright*.config.ts`, `.oxlintrc.json`, `tsconfig*.json`, CI) and docs. Each
 group has its own checks below; a PR without production changes skips A, except for a branch in a
 script or a workflow (whether to install, whether to deploy, which targets a matrix reaches), which
 is behavior (`docs/TESTING.md` → Saying why something is uncovered → No behavior): a run that stops
@@ -141,7 +141,7 @@ trusted.
   is one the diff makes stale, a sentence saying which test owns a statement above all. The docs
   are every file that describes what the diff changes: `CLAUDE.md` and the files in its docs table
   (`README.md`, `CONTRIBUTING.md`, `SECURITY.md`, SPEC, ARCHITECTURE, DEVELOPMENT,
-  TESTING, the release checklist, the changelog), this skill, and the PR template, the workflows
+  TESTING, QUALITY, the release checklist, the changelog), this skill, and the PR template, the workflows
   and the config, whose comments are docs too, with `.env.example`, not only the three or four a
   rule names (#287's README, #296's changelog, #300's runbook). Grep the whole tree for each number
   or name the diff changes (a width, a version, a count), by its old value and each word of an old

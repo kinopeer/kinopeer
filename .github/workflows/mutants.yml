@@ -15,10 +15,13 @@ on:
       - 'server/**'
       # scripts/mutants.mjs mutates these too.
       - 'tmdb-proxy/**'
+      - 'scripts/guard/**'
       # What Stryker runs with, each of which can break it without a line to mutate.
       - 'package.json'
       - 'package-lock.json'
       - 'stryker.config.mjs'
+      # The mutators left out and the folders mutated, which stryker.config.mjs and the script read.
+      - 'checks.json'
       - 'vite.config.ts'
       - 'scripts/mutants.mjs'
       - '.github/workflows/mutants.yml'

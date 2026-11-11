@@ -1,0 +1,80 @@
+name: Guard
+
+# The checks guard on every PR (docs/QUALITY.md → The checks guard): main's copy of scripts/guard/
+# reads the PR's branch through git and writes into the PR what in it weakens the checks or changes
+# existing ones. It only marks for now: the job passes whatever it finds. The script is main's; this
+# file isn't: on pull_request GitHub runs the workflow as the PR has it, so a PR that changes these
+# steps runs them changed, and main's script marks the change for the owner.
+on:
+  pull_request:
+
+# Read-only by default; the job below may write its comment on the PR.
+permissions:
+  contents: read
+
+# A push to a PR cancels the PR's run in progress, since only its head matters.
+concurrency:
+  group: guard-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Check out the PR's branch, to read
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The branch itself rather than its merge with main, whole, so the guard can find where it
+          # left main. Nothing in it is run: no npm ci, none of its scripts.
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          path: pr
+          # The token can write comments on the PR.
+          persist-credentials: false
+      - name: Check out main, to run its guard
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: main
+          persist-credentials: false
+      # Node runs the guard's TypeScript as it is, and the guard imports nothing to install.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: Run the guard
+        id: guard
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        # main's copy, so a PR that changes the guard is still read by the guard it found. Only the
+        # PR that adds the guard finds none on main and runs its own.
+        run: |
+          guard=main/scripts/guard/guard.ts
+          [ -f "$guard" ] || guard=pr/scripts/guard/guard.ts
+          node "$guard" --repo pr --base "$BASE" --head "$HEAD" > guard.md
+          cat guard.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Write the findings into the PR
+        # One comment, edited in place on every push, so a PR gets one email rather than one per
+        # push, and none while there has been nothing to say. A fork's PR gets a read-only token
+        # whatever the permissions above say, and the job summary still has the findings.
+        # Dependabot's token is read-only by default too, but the job's permissions raise it.
+        if: ${{ !github.event.pull_request.head.repo.fork }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          FOUND: ${{ steps.guard.outputs.owner != '0' || steps.guard.outputs.review != '0' }}
+        # The comment is the one the workflow's own token wrote that starts with the guard's marker
+        # (MARKER in scripts/guard/signs.ts).
+        run: |
+          comment=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- checks-guard -->"))) | .id' | head -n 1)
+          if [ -n "$comment" ]; then
+            gh api --method PATCH "repos/$REPO/issues/comments/$comment" -F body=@guard.md --silent
+          elif [ "$FOUND" = true ]; then
+            gh api "repos/$REPO/issues/$PR/comments" -F body=@guard.md --silent
+          fi
