@@ -1,6 +1,6 @@
 ---
 name: test-review
-description: Review a pull request's tests against docs/TESTING.md before it merges — the PR's own account of what is covered and why something isn't, the layer of every new or changed test, removed assertions, fakes against the real services, the record a bug fix must carry. Use as `/test-review <PR number>` or `/test-review` for the current branch; also when asked whether a PR's tests are "in order", "по системе" or "по правилам".
+description: Review a pull request's tests against docs/TESTING.md before it merges — the PR's own account of what is covered and why something isn't, the layer of every new or changed test, removed assertions, fakes against the real services, the record a bug fix must carry. Use as `/test-review <PR number>` or `/test-review` for the current branch; also when asked whether a PR's tests are "in order" or follow the rules.
 ---
 
 # Test review
