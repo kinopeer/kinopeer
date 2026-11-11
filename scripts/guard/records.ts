@@ -51,15 +51,17 @@ const MEMBERS = ['OWNER', 'MEMBER']
  * Where the list with this code stands. The owner's list is closed by the owner's approval. The
  * second review's is closed by its `sound`; after its `weakening`, by the owner's approval of the
  * same code, which doesn't count without that verdict: the owner isn't asked to judge rewritten
- * assertions in the second review's place. Of several second reviews of a code the last one holds.
+ * assertions in the second review's place. A weakening found isn't cleared by another second
+ * review of the same code that finds it sound, only by a fix, which changes the code: reviewing
+ * the same files again isn't a way past the first verdict.
  */
 export function standing(needs: Needs, code: string, comments: Comment[]): State {
   const lines = comments.filter(({ association }) => MEMBERS.includes(association)).map(({ body }) => body.trimStart().split('\n')[0])
   const approved = lines.some((line) => APPROVAL.exec(line)?.[1] === code)
   if (needs === 'owner') return approved ? 'approved' : 'none'
-  const verdict = lines.map((line) => SECOND_REVIEW.exec(line)).findLast((record) => record?.[1] === code)?.[2]
-  if (verdict === 'weakening') return approved ? 'approved' : 'weakening'
-  return verdict === 'sound' ? 'sound' : 'none'
+  const verdicts = lines.map((line) => SECOND_REVIEW.exec(line)).flatMap((record) => (record?.[1] === code ? [record[2]] : []))
+  if (verdicts.includes('weakening')) return approved ? 'approved' : 'weakening'
+  return verdicts.includes('sound') ? 'sound' : 'none'
 }
 
 /** Whether a list that stands so lets the PR through. */

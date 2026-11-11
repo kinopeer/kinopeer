@@ -91,9 +91,13 @@ describe('standing', () => {
     expect(standing('owner', CODE, [SOUND, WEAKENING])).toBe('none')
   })
 
-  it('takes the last of several second reviews of a code', () => {
-    expect(standing('review', CODE, [WEAKENING, SOUND])).toBe('sound')
+  it("doesn't clear a weakening found with another second review of the same code that finds it sound, before it or after", () => {
+    expect(standing('review', CODE, [WEAKENING, SOUND])).toBe('weakening')
     expect(standing('review', CODE, [SOUND, WEAKENING])).toBe('weakening')
+    expect(standing('review', CODE, [WEAKENING, SOUND, APPROVED])).toBe('approved')
+  })
+
+  it('leaves a sound second review standing beside a weakening found in a list of another code', () => {
     expect(standing('review', CODE, [SOUND, member(secondReview(OTHER, 'weakening'))])).toBe('sound')
   })
 

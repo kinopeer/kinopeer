@@ -14,7 +14,7 @@ Only what is on, being adopted, or declined with its reason; plans aren't listed
 
 | Component | State | What it does |
 | --- | --- | --- |
-| [The checks guard](#the-checks-guard) | Being adopted: it marks and doesn't block yet (#366) | A script CI runs on every PR, which writes into the PR what in it weakens the checks or changes existing ones |
+| [The checks guard](#the-checks-guard) | Being adopted (#366): its check is red while a PR lacks the records its marks call for. Whether that check is among `main`'s required ones is in the branch's ruleset, where the owner adds it after a trial on real PRs | A script CI runs on every PR, which writes into the PR what in it weakens the checks or changes existing ones, and what record each of the two calls for |
 
 ## The checks guard
 
@@ -72,7 +72,9 @@ or its rules.
     in the same files as the retries;
   - a CI step that can fail without failing the run: `continue-on-error`, or `|| true`, `|| :`,
     `|| exit 0` or `set +e` in a workflow's command;
-  - a path filter on a workflow's trigger (`paths`, `paths-ignore`), so it runs for fewer changes.
+  - a path filter on a workflow's trigger (`paths`, `paths-ignore`), so it runs for fewer changes;
+  - a job or a commit status under the guard's name in a workflow other than `guard.yml` (`guard:`
+    as a job's key, `name: guard`, `context=guard`), which could report in the guard's place.
 - Fewer tests run: a test that `main`'s run has and the branch's doesn't (removed, skipped, its
   row gone from a table), in a file where the branch runs fewer tests than `main` does, when it
   also runs fewer in all. A test is its file and its name with its groups'. The lists come from the
@@ -125,6 +127,63 @@ A way around that a review finds goes into [What it doesn't see](#what-it-doesnt
 the list through the retro (`TESTING.md` → Improving the system), once it has been met in a PR or
 costs one line.
 
+### What a marked PR needs
+
+The guard's marks are two lists, for the owner and for a second review. While a list isn't closed
+by a record, the `guard` check is red; a PR without marks has it green.
+
+**The code of a list.** Each list has a code: a short hash of its marks (what each calls for, its
+file and what it says, without line numbers) and of the marked files as they are at the branch's
+head. A record names the code, so it holds while the marks and the marked files are the same:
+once a marked file or the list itself changes, the code is another and the list needs a new
+record. A push that touches neither (a doc, `CHANGELOG.md`, a merge of `main` in other files)
+leaves the record in force.
+
+**A record** is a comment on the PR whose first line is one of three; the rest is free text:
+
+- `**Second review <code>: sound**`: the second review found no weakening among the list's marks;
+- `**Second review <code>: weakening**`: it found one, or couldn't decide;
+- `**Owner's approval <code>:** <reason>`: the owner approves, with the reason in the owner's
+  words on that line.
+
+The guard prints these lines with the codes in its comment, to be copied rather than composed from
+memory. A record counts only from a member of the organization (`author_association` `OWNER` or
+`MEMBER`), not from an outside contributor, a collaborator or a bot. So on an outside
+contributor's PR or Dependabot's the records are posted by the maintainer's sessions, as the
+reviews of such PRs are.
+
+**What closes what.**
+
+- The list for the owner: the owner's approval of its code.
+- The list for a second review: a second review of its code that found it `sound`. After a
+  `weakening`, either a fix (the marked file changes, so does the code, and the second review is
+  done again) or the owner's approval of the same code. Without a `weakening` record the owner's
+  approval doesn't close this list: the shortest way past a second review would otherwise be to
+  ask the owner to wave the list through, and judging rewritten assertions is reading code. A
+  `weakening` isn't cleared by another second review of the same code that says `sound`:
+  reviewing the same files again isn't a way past the first verdict.
+- A wrong mark for a second review is closed by the second review's `sound`; a wrong mark for
+  the owner by the owner's approval.
+
+**The owner's approval.** The session that asks the owner to approve the merge first shows, in a
+card of its own before the merge's, what is to be approved, a line each: for a weakening from the
+owner's list, what stops being caught, with the before and the after; for a change to the guard
+or its rules, what changes in the guard and why; for what the second review called a weakening,
+its line on the mark. The reason in the record is the owner's own words: the session offers no
+ready-made reason, and doesn't record an approval without one, but asks for it.
+
+**After a record** the session that posted it re-runs the guard's job
+(`gh run rerun <run> --failed`): the check doesn't react to a new comment by itself. A record
+without a re-run leaves the check red, which is visible and harms nothing.
+
+**The second review** is done by a fresh session with `/second-review <PR#>`
+(`.claude/skills/second-review/`), which owns its procedure.
+
+**When the guard itself is broken.** The `main` ruleset has no bypass for anyone. With `guard`
+among its required checks, a guard's job that fails by itself (an error in the script, not a
+mark) stops every PR, and the one way out is the owner's: taking `guard` out of the required
+checks in the repository's settings until the fix is merged.
+
 ### The thresholds and the exclusion lists
 
 They sit in `checks.json`, as data, so that the guard compares them exactly: `vite.config.ts` reads
@@ -143,7 +202,9 @@ another matter: on `pull_request` GitHub runs it as the PR has it, so a PR that 
 runs its changed steps, and what `main`'s script does about it is mark the change for the owner.
 What the guard finds goes into the job's summary and into one comment on the PR, which the job
 edits in place on every push; a fork's PR gets the summary alone, since its token can't comment.
-For now it only marks: the job passes whatever it finds.
+The job also reads the PR's comments and hands them to the script as data, for the records in
+them; after writing its comment it fails while a list of marks lacks its record
+([What a marked PR needs](#what-a-marked-pr-needs)).
 
 The lists of the tests that ran come from a job of their own, `tests`, which the `guard` job waits
 for. It installs and runs both sides, the commit the branch left `main` at and the branch's head:
@@ -161,7 +222,9 @@ missing, the guard still runs and says which report of which side it lacks.
 `origin/main` (`--base` and `--head` name others), so the author sees the marks before pushing. It
 reads commits, not the working tree, and says so when there are uncommitted changes. It doesn't
 compare the tests that ran, and says so: that takes a run of each side, which CI makes
-(`--tests-base` and `--tests-head` name two folders of such reports, for one made by hand).
+(`--tests-base` and `--tests-head` name two folders of such reports, for one made by hand). Nor
+does it read a PR's records: it prints the record each list needs, with its code, and says they
+weren't read (`--comments` names a file of the PR's comments, one JSON object a line).
 
 ### What it doesn't see
 
@@ -212,6 +275,9 @@ compare the tests that ran, and says so: that takes a run of each side, which CI
 - A change to `guard.yml` that stops the script from running or from being `main`'s copy: the
   workflow runs as the PR has it, so the mark for the owner comes from the changed steps, if they
   still make it.
+- A green `guard` reported by another workflow of the PR. GitHub's Free plan has no way to
+  require that a check come from `main`'s copy of a workflow, and the guard marks a job or a
+  status of its name for the owner by one pattern, no more.
 - Anything written on purpose to get past it. Every session works under the owner's GitHub account,
   so the guard protects against forgetting, not against forging.
 
@@ -220,7 +286,7 @@ Those are the reviews' to catch (`TESTING.md` → Reviewing a PR's tests).
 ### Its own tests
 
 They sit next to it: the signs as pure functions in `scripts/guard/signs.test.ts`, the reading of
-a test file in `assertions.test.ts` and the comparison of the tests that ran in `tests.test.ts`
-(layer 1), the reading of a branch and of the reports' folders in `scripts/guard/guard.test.ts`,
+a test file in `assertions.test.ts`, the comparison of the tests that ran in `tests.test.ts` and
+the records in `records.test.ts` (layer 1), the reading of a branch and of the reports' folders in `scripts/guard/guard.test.ts`,
 over a git repository made in the test (layer 4). Stryker mutates the guard as it does the app's
 code.

@@ -2,9 +2,10 @@ name: Guard
 
 # The checks guard on every PR (docs/QUALITY.md → The checks guard): main's copy of scripts/guard/
 # reads the PR's branch through git and writes into the PR what in it weakens the checks or changes
-# existing ones. It only marks for now: the job passes whatever it finds. The script is main's; this
-# file isn't: on pull_request GitHub runs the workflow as the PR has it, so a PR that changes these
-# steps runs them changed, and main's script marks the change for the owner.
+# existing ones, and fails while a list of its marks lacks the record it calls for (docs/QUALITY.md →
+# What a marked PR needs). The script is main's; this file isn't: on pull_request GitHub runs the
+# workflow as the PR has it, so a PR that changes these steps runs them changed, and main's script
+# marks the change for the owner.
 #
 # Two jobs, so the PR's code never runs where the token can write: `tests` runs the tests of both
 # sides for the lists of what ran, with a token that can only read; `guard` runs only main's script,
