@@ -31,6 +31,17 @@ describe('compareChecks', () => {
       withCoverage({ exclude: ['**/*.spec.ts'] }),
       ['owner: `coverage.exclude` leaves out more: `"**/*.spec.ts"` is added', 'review: `coverage.exclude` changed: `"**/*.test.ts"` is removed'],
     ],
+    [
+      'an exclusion list that is no longer a list',
+      withCoverage({ exclude: 'src/**' }),
+      ['owner: `coverage.exclude` is no longer a list the guard can read: `["**/*.test.ts"]` → `"src/**"`'],
+    ],
+    ['a list of what is checked that is gone', withMutants({ folders: undefined }), ['owner: `mutants.folders` is no longer a list the guard can read: `["src","server"]` → nothing']],
+    [
+      'a list replaced by an object',
+      withCoverage({ include: { app: ['src/**'] } }),
+      ['owner: `coverage.include` is no longer a list the guard can read: `["src/**"]` → nothing', 'review: `coverage.include.app` changed: nothing → `["src/**"]`'],
+    ],
   ])('sends %s to the owner', (_name, head, expected) => {
     expect(said(compareChecks(json(checks), head))).toEqual(expected)
   })
@@ -73,6 +84,8 @@ describe('compareLint', () => {
     overrides: [{ files: ['e2e/smoke/*.smoke.ts'], rules: { 'no-restricted-imports': ['error', { paths: ['@playwright/test'] }] } }],
   }
   const withRules = (rules: object) => json({ ...config, rules: { ...config.rules, ...rules } })
+  /** main's config and the branch's: a pair as it is, a single one as the branch's against `config`. */
+  const pair = (change: string | string[]): string[] => (Array.isArray(change) ? change : [json(config), change])
   const without = (name: string) => json({ ...config, rules: Object.fromEntries(Object.entries(config.rules).filter(([rule]) => rule !== name)) })
 
   it('finds nothing in a config that says the same in another layout', () => {
@@ -106,8 +119,7 @@ describe('compareLint', () => {
     ],
     ['an override removed', json({ ...config, overrides: [] }), ['owner: the lint rule `no-restricted-imports` for ["e2e/smoke/*.smoke.ts"] is removed']],
   ])('sends %s to the owner', (_name, change, expected) => {
-    // A pair is main's config and the branch's; a single one is the branch's against `config`.
-    const [base, head] = Array.isArray(change) ? change : [json(config), change]
+    const [base, head] = pair(change)
     expect(said(compareLint(base, head))).toEqual(expected)
   })
 
@@ -115,17 +127,28 @@ describe('compareLint', () => {
     ['a rule with other options', withRules({ 'vitest/valid-expect': ['error', { maxArgs: 3 }] }), ['review: the lint rule `vitest/valid-expect` has other options: `["error",{"maxArgs":2}]` → `["error",{"maxArgs":3}]`']],
     ['a new rule that only warns', withRules({ 'no-console': 'warn' }), ["review: the lint rule `no-console` is added as `warn`, which doesn't fail the run"]],
     ['a key it has no rule for', json({ ...config, categories: { correctness: 'off' } }), ['review: `categories` changed: nothing → `{"correctness":"off"}`']],
-    ["a rule whose severity on main it can't read, now failing the run", [withRules({ 'no-console': 'maybe' }), withRules({ 'no-console': 'error' })], ['review: the lint rule `no-console` has other options: `"maybe"` → `"error"`']],
+    [
+      "a rule whose severity on main it can't read, now failing the run",
+      [withRules({ 'no-console': 'maybe' }), withRules({ 'no-console': 'error' })],
+      ['review: the lint rule `no-console` had a severity on main the guard can\'t read: `"maybe"` → `"error"`'],
+    ],
+    [
+      'a rule made stricter with other options',
+      withRules({ 'react/only-export-components': ['error', { allowConstantExport: false }] }),
+      ['review: the lint rule `react/only-export-components` has other options: `["warn",{"allowConstantExport":true}]` → `["error",{"allowConstantExport":false}]`'],
+    ],
+    ['a rule that gained options at its severity', withRules({ 'react/rules-of-hooks': ['error', { additionalHooks: 'useX' }] }), ['review: the lint rule `react/rules-of-hooks` has other options: `"error"` → `["error",{"additionalHooks":"useX"}]`']],
   ])('sends %s to a second review', (_name, change, expected) => {
-    const [base, head] = Array.isArray(change) ? change : [json(config), change]
+    const [base, head] = pair(change)
     expect(said(compareLint(base, head))).toEqual(expected)
   })
 
   it.each([
     ['a rule made stricter', withRules({ 'react/only-export-components': ['error', { allowConstantExport: true }] })],
     ['a rule that only warned made to fail the run by its number', withRules({ 'react/only-export-components': [2, { allowConstantExport: true }] })],
-    ["a rule that only warned made to fail the run by oxlint's own word", withRules({ 'react/only-export-components': 'deny' })],
-    ['a rule written the other way at the same severity and options', withRules({ 'vitest/require-to-throw-message': 'off' })],
+    ["a rule that only warned made to fail the run by oxlint's own word", withRules({ 'react/only-export-components': ['deny', { allowConstantExport: true }] })],
+    ['a rule written the other way at the same severity', withRules({ 'react/rules-of-hooks': 2 })],
+    ['a rule written the other way at the same severity and options', withRules({ 'vitest/valid-expect': ['deny', { maxArgs: 2 }] })],
     ['an override that is not an object', json({ ...config, overrides: [...config.overrides, 'e2e'] })],
     ['a new rule that fails the run', withRules({ 'no-console': 'error' })],
     ['a rule that was off removed', without('vitest/require-to-throw-message')],
@@ -222,6 +245,26 @@ describe('workflowSteps', () => {
       'run: npm ci',
     ])
   })
+
+  it('reads a block that ends the file', () => {
+    expect(workflowSteps('      - run: |\n          npm ci\n          npm test')).toEqual(['run: npm ci ; npm test'])
+  })
+
+  it('reads a block that says how it is indented or how it ends', () => {
+    expect(workflowSteps('      - run: |2-\n          npm ci\n      - run: >+\n          npm test\n')).toEqual(['run: npm ci', 'run: npm test'])
+  })
+
+  it('reads a command that only starts or ends like the start of a block as a command', () => {
+    expect(workflowSteps('      - run: |x\n      - run: ls |\n')).toEqual(['run: |x', 'run: ls |'])
+  })
+
+  it('reads a step with more than one space after its dash', () => {
+    expect(workflowSteps('      -   run: npm ci\n      -\tuses: actions/checkout@v7\n')).toEqual(['run: npm ci', 'uses: actions/checkout'])
+  })
+
+  it("doesn't take the shell a workflow sets for its commands for a step", () => {
+    expect(workflowSteps('defaults:\n  run:\n    shell: bash\njobs:\n  check:\n    steps:\n      - run: npm ci\n')).toEqual(['run: npm ci'])
+  })
 })
 
 describe('compareWorkflow', () => {
@@ -229,10 +272,6 @@ describe('compareWorkflow', () => {
 
   it('sends a removed step to the owner', () => {
     expect(said(compareWorkflow(file, WORKFLOW, WORKFLOW.replace('      - run: npm run lint\n', '')))).toEqual(['owner: a CI step is removed: `run: npm run lint`'])
-  })
-
-  it('reads a block that ends the file', () => {
-    expect(workflowSteps('      - run: |\n          npm ci\n          npm test')).toEqual(['run: npm ci ; npm test'])
   })
 
   it('sends one of two steps alike removed to the owner', () => {
@@ -289,6 +328,18 @@ describe('scanAdded', () => {
     ['.github/workflows/ci.yml', '      - run: npx vitest run --retry 2'],
     ['scripts/test-visual.sh', 'npx playwright test --retries 2'],
     ['stryker.config.mjs', '  vitest: { retries: 2 },'],
+    ['playwright.config.ts', 'const retries = process.env.CI ? 2 : 0'],
+    ['playwright.config.ts', '  retries,'],
+    ['playwright.config.ts', '  use: { retries },'],
+    ['playwright.config.ts', 'config.retries = 2'],
+    ['playwright.config.ts', '  retries : 2,'],
+    ['playwright.config.ts', "  ['retries']: 2,"],
+    ['vite.config.ts', '      retry: isCI ? 2 : 0,'],
+    ['vite.config.ts', '      retry: RETRIES,'],
+    ['vite.config.ts', '      retry: Number(process.env.RETRY),'],
+    ['vite.config.ts', '      retry:  3,'],
+    ['src/App.test.tsx', "  it('goes straight in', { retry: flaky ? 3 : 0 }, () => {"],
+    ['tmdb-proxy/package.json', '    "test": "vitest run --retry=2"'],
   ])('sends test retries added to %s to the owner: %s', (file, text) => {
     expect(scanAdded(file, lines(text))).toEqual([{ needs: 'owner', file, line: 10, what: `test retries appeared: \`${text.trim()}\`` }])
   })
@@ -310,6 +361,15 @@ describe('scanAdded', () => {
     ["the app's own retries in a folder named like the tests'", 'src/e2e/client.ts', '  const options = { retries: 3 }'],
     ['a retry the app offers, in a test', 'src/screens/ReleasesBlock.test.tsx', '    retry: vi.fn(),'],
     ['a retry the app offers, in a type', 'e2e/app.ts', '  retry: () => void'],
+    ['a retry the app offers, as a function that waits', 'e2e/app.ts', '  retry: async () => {},'],
+    ['a retry the app offers, as a function by its keyword', 'e2e/app.ts', '  retry: function () {},'],
+    ['a retry key with its value on the next line', 'e2e/app.ts', '  retry:'],
+    ['no retries, by the other name', 'vite.config.ts', '      retry: 0,'],
+    ['a test whose title ends with the word', 'src/api/tmdb/client.test.ts', "  it('waits and retries', async () => {"],
+    ['a comment that ends with the word', 'e2e/smoke/onboarding.smoke.ts', '  // The server never retries'],
+    ['a package named for it in the lockfile', 'package-lock.json', '    "node_modules/retry": {'],
+    ['a package named for it in another lockfile', 'tmdb-proxy/package-lock.json', '    "node_modules/promise-retry": {'],
+    ["the app's own retries in a folder's manifest-like file", 'src/package.json.ts', '  const options = { retries: 3 }'],
     ['a test about retrying', 'src/api/tmdb/client.test.ts', "  it('retries after the time TMDB names', async () => {"],
     ['a word that only starts like one', 'vite.config.ts', '  retriesLeft: 2, retryAfter: 3,'],
     ['a flag that only starts like one', 'package.json', '    "start": "node server/main.ts --retrying",'],

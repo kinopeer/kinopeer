@@ -1,14 +1,15 @@
 import { spawnSync } from 'node:child_process'
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished } from 'vitest'
 import { changes, gitIn, guard, main, options } from './guard.ts'
 
 /**
  * A repository of its own per test: `main` with the files given, then a branch that the test
- * changes. Nothing of this checkout's git config reaches it.
+ * changes. The commits are made without this machine's git config; the guard itself reads the
+ * repository as it would on that machine, config and all.
  */
 let repo: string
 
@@ -37,6 +38,11 @@ async function commit(files: Record<string, string | null>): Promise<string> {
 const CHECKS = JSON.stringify({ coverage: { thresholds: { lines: 96 } } })
 const CI = 'jobs:\n  check:\n    steps:\n      - run: npm ci\n      - run: npm run lint\n'
 const PLAYWRIGHT = 'export default {\n  retries: 0,\n}\n'
+/** The same config with retries, which the guard marks at its line 2. */
+const RETRIES = 'export default {\n  retries: 2,\n}\n'
+const RETRIES_FOUND = 'owner playwright.config.ts:2: test retries appeared: `retries: 2,`'
+/** A change the guard has nothing to say about. */
+const APP = { 'src/app.ts': 'export const app = 2\n' }
 
 beforeEach(async () => {
   repo = await mkdtemp(join(tmpdir(), 'kinopeer-guard-'))
@@ -55,7 +61,7 @@ const said = () => run().found.map(({ needs, file, line, what }) => `${needs} ${
 describe('guard', () => {
   it('finds nothing in a branch that changes no check', async () => {
     const base = git('rev-parse', '--short', 'main')
-    const head = await commit({ 'src/app.ts': 'export const app = 2\n' })
+    const head = await commit(APP)
     expect(run()).toEqual({ found: [], report: `<!-- checks-guard -->\n**Checks guard at ${head}**, against \`main\` at ${base}.\n\nNo weakening of the checks and no change to existing ones.` })
   })
 
@@ -89,7 +95,7 @@ describe('guard', () => {
   })
 
   it("compares the branch with the commit it left main at, not with what main gained since", async () => {
-    await commit({ 'src/app.ts': 'export const app = 2\n' })
+    await commit(APP)
     git('checkout', '--quiet', 'main')
     const raised = await commit({ 'checks.json': JSON.stringify({ coverage: { thresholds: { lines: 98 } } }) })
     expect(said()).toEqual([])
@@ -113,8 +119,8 @@ describe('guard', () => {
   })
 
   it("says so when HEAD is what it reads and the checkout has changes that aren't committed", async () => {
-    await commit({ 'src/app.ts': 'export const app = 2\n' })
-    await writeFile(join(repo, 'playwright.config.ts'), 'export default {\n  retries: 2,\n}\n')
+    await commit(APP)
+    await writeFile(join(repo, 'playwright.config.ts'), RETRIES)
     const { found, report } = guard({ repo, base: 'main', head: 'HEAD' })
     expect(found).toEqual([])
     expect(report.split('\n').at(-1)).toBe("Uncommitted changes aren't read: commit them and run it again.")
@@ -123,13 +129,44 @@ describe('guard', () => {
   })
 
   it('says nothing of the kind over a clean checkout', async () => {
-    await commit({ 'src/app.ts': 'export const app = 2\n' })
+    await commit(APP)
     expect(guard({ repo, base: 'main', head: 'HEAD' }).report).not.toContain('Uncommitted')
   })
 
   it('reads a file whose name has a space or a letter outside ASCII', async () => {
     await commit({ 'e2e/поиск по имени.spec.ts': 'test.describe.configure({ retries: 2 })\n' })
     expect(said()).toEqual(['owner e2e/поиск по имени.spec.ts:1: test retries appeared: `test.describe.configure({ retries: 2 })`'])
+  })
+
+  it.each([
+    ['colors its diffs', ['color.ui', 'always']],
+    ['hands its diffs to another program', ['diff.external', 'true']],
+  ])('reads the added lines in a repository whose git config %s', async (_name, config) => {
+    git('config', ...config)
+    await commit({ 'playwright.config.ts': RETRIES })
+    expect(said()).toEqual([RETRIES_FOUND])
+  })
+
+  it.each([
+    ['not to be shown in diffs', 'playwright.config.ts -diff\n'],
+    ['binary', 'playwright.config.ts binary\n'],
+  ])("reads the added lines of a file the branch's .gitattributes marks as %s", async (_name, attributes) => {
+    await commit({ 'playwright.config.ts': RETRIES, '.gitattributes': attributes })
+    expect(said()).toEqual([RETRIES_FOUND])
+  })
+
+  it('reads the added lines of a file that git is told to convert before it diffs it', async () => {
+    git('config', 'diff.hidden.textconv', 'true')
+    await commit({ 'playwright.config.ts': RETRIES, '.gitattributes': 'playwright.config.ts diff=hidden\n' })
+    expect(said()).toEqual([RETRIES_FOUND])
+  })
+
+  it('reads a path with the characters of a pattern as that one file', async () => {
+    await commit({ 'e2e/[id].spec.ts': 'test.describe.configure({ retries: 2 })\n', 'e2e/i.spec.ts': 'test.describe.configure({ retries: 3 })\n' })
+    expect(said()).toEqual([
+      'owner e2e/[id].spec.ts:1: test retries appeared: `test.describe.configure({ retries: 2 })`',
+      'owner e2e/i.spec.ts:1: test retries appeared: `test.describe.configure({ retries: 3 })`',
+    ])
   })
 
   it('fails on a base that is not in the repository', () => {
@@ -150,36 +187,54 @@ describe('changes', () => {
   })
 })
 
+/** A file next to the test's repository for the counts CI's workflow reads, removed with the test. */
+async function outputFile(): Promise<string> {
+  const output = `${repo}-output`
+  onTestFinished(() => rm(output, { force: true }))
+  return output
+}
+
 describe('main', () => {
   const args = () => ['--repo', repo, '--base', 'main', '--head', 'branch']
 
   it('returns the report and, in CI, hands the workflow the counts of each kind', async () => {
     await commit({
       'checks.json': JSON.stringify({ coverage: { thresholds: { lines: 97 } } }),
-      'playwright.config.ts': 'export default {\n  retries: 2,\n}\n',
+      'playwright.config.ts': RETRIES,
       '.github/workflows/ci.yml': CI.replace('      - run: npm run lint\n', ''),
     })
-    const output = join(repo, '..', `${repo.split('/').at(-1)}-output`)
-    try {
-      expect(main(args(), output)).toBe(run().report)
-      expect(await readFile(output, 'utf8')).toBe('owner=2\nreview=1\n')
-    } finally {
-      await rm(output, { force: true })
-    }
+    const output = await outputFile()
+    expect(main(args(), { GITHUB_OUTPUT: output })).toBe(run().report)
+    expect(await readFile(output, 'utf8')).toBe('owner=2\nreview=1\n')
   })
 
-  it('writes no counts outside CI', async () => {
-    await commit({ 'src/app.ts': 'export const app = 2\n' })
-    expect(main(args(), undefined)).toBe(run().report)
+  it('returns the report outside CI, where there is no file for the counts', async () => {
+    await commit(APP)
+    // With nothing named to write to, writing at all would throw.
+    expect(main(args(), {})).toBe(run().report)
   })
 })
 
 describe('npm run guard', () => {
-  it('prints the report, Node running the TypeScript as it is', async () => {
-    await commit({ 'playwright.config.ts': 'export default {\n  retries: 2,\n}\n' })
-    const script = fileURLToPath(new URL('./guard.ts', import.meta.url))
-    const { status, stdout, stderr } = spawnSync(process.execPath, [script, '--repo', repo, '--base', 'main', '--head', 'branch'], { encoding: 'utf8' })
+  const script = fileURLToPath(new URL('./guard.ts', import.meta.url))
+  /** The script as a process, with a file of the test's own for the counts, whatever this run's environment names. */
+  const start = (path: string, output: string) =>
+    spawnSync(process.execPath, [path, '--repo', repo, '--base', 'main', '--head', 'branch'], { encoding: 'utf8', env: { ...process.env, GITHUB_OUTPUT: output } })
+
+  it('prints the report and writes the counts, Node running the TypeScript as it is', async () => {
+    await commit({ 'playwright.config.ts': RETRIES })
+    const output = await outputFile()
+    const { status, stdout, stderr } = start(script, output)
     expect({ status, stdout, stderr }).toEqual({ status: 0, stdout: `${run().report}\n`, stderr: '' })
+    expect(await readFile(output, 'utf8')).toBe('owner=1\nreview=0\n')
+  })
+
+  it('runs through a folder that is a link to its own', async () => {
+    await commit({ 'playwright.config.ts': RETRIES })
+    const link = `${repo}-link`
+    onTestFinished(() => rm(link, { force: true }))
+    await symlink(dirname(script), link)
+    expect(start(join(link, 'guard.ts'), await outputFile()).stdout).toBe(`${run().report}\n`)
   })
 })
 

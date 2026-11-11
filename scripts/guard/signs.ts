@@ -31,11 +31,15 @@ const isWorkflow = (path: string): boolean => path.startsWith(WORKFLOWS) && inRo
 const isGuard = (path: string): boolean => path.startsWith('scripts/guard/') || path === `${WORKFLOWS}guard.yml` || path === 'docs/QUALITY.md'
 const isDoc = (path: string): boolean => path.endsWith('.md')
 const isTest = (path: string): boolean => path.endsWith('.test.ts') || path.endsWith('.test.tsx') || path.startsWith('e2e/')
+/** A lockfile names packages, one of which may be called `retry`. */
+const isLockfile = (path: string): boolean => path.endsWith('package-lock.json')
 /**
- * The tests and what runs them (the configs in the root, the workflows, the scripts), where a retry
- * is a test's retry: the app has retries of its own, and a doc may talk about either.
+ * The tests and what runs them (the configs in the root, every package.json, the workflows, the
+ * scripts), where a retry is a test's retry: the app has retries of its own, and a doc may talk
+ * about either.
  */
-const runsTests = (path: string): boolean => !isDoc(path) && (isTest(path) || inRoot(path) || path.startsWith(WORKFLOWS) || path.startsWith('scripts/'))
+const runsTests = (path: string): boolean =>
+  !isDoc(path) && !isLockfile(path) && (isTest(path) || inRoot(path) || path.endsWith('/package.json') || path.startsWith(WORKFLOWS) || path.startsWith('scripts/'))
 const takesScreenshots = (path: string): boolean => path.startsWith('e2e/') || (inRoot(path) && path.startsWith('playwright'))
 
 /** Whether the guard compares the file's two versions whole, rather than only the lines added. */
@@ -106,6 +110,11 @@ export function compareChecks(base: string | undefined, head: string | undefined
       if (lowered) owner(`the threshold \`${key}\` is lowered: ${show(before)} → ${show(after)}`)
       else review(`the threshold \`${key}\` changed: ${show(before)} → ${show(after)}`)
     } else if (EXCLUDES.includes(key) || INCLUDES.includes(key)) {
+      // Anything but a list there, and whatever reads it leaves out or takes in something else.
+      if (!Array.isArray(after)) {
+        owner(`\`${key}\` is no longer a list the guard can read: ${show(before)} → ${show(after)}`)
+        continue
+      }
       const [had, has] = [entries(before), entries(after)]
       const added = has.filter((entry) => !had.includes(entry))
       const removed = had.filter((entry) => !has.includes(entry))
@@ -131,6 +140,9 @@ function rank(rule: Json | undefined): number | undefined {
   return undefined
 }
 
+/** A rule's options: what follows its severity. */
+const options = (rule: Json | undefined): Json[] => (Array.isArray(rule) ? rule.slice(1) : [])
+
 /**
  * One block of lint rules against main's: a rule removed, turned off or downgraded is a weakening. A
  * rule the block didn't name before is compared with `fallback`, the top-level rules for an override;
@@ -152,10 +164,13 @@ function compareRules(file: string, where: string, base: JsonObject, head: JsonO
       else if (now === 1) found.push({ needs: 'review', file, what: `${rule} is added as \`warn\`, which doesn't fail the run` })
     } else if (now < (was ?? ERROR)) {
       found.push({ needs: 'owner', file, what: `${rule} is ${now === 0 ? 'turned off' : 'downgraded'}: ${show(before)} → ${show(after)}` })
-    } else if (now === (was ?? ERROR)) {
+    } else if (was === undefined) {
+      found.push({ needs: 'review', file, what: `${rule} had a severity on main the guard can't read: ${show(before)} → ${show(after)}` })
+    } else if (!same(options(before), options(after))) {
+      // Also with a higher severity: ["warn", { max: 2 }] → ["error", { max: 200 }] may check less.
       found.push({ needs: 'review', file, what: `${rule} has other options: ${show(before)} → ${show(after)}` })
     }
-    // What is left is a rule made stricter: nothing to mark.
+    // What is left is a rule as strict or stricter with the options it had: nothing to mark.
   }
   return found
 }
@@ -212,8 +227,8 @@ export function compareScripts(base: string | undefined, head: string | undefine
   })
 }
 
-/** How YAML starts a block of lines under a key. */
-const BLOCK = ['|', '|-', '|+', '>', '>-', '>+']
+/** How YAML starts a block of lines under a key: `|` or `>`, with how it ends (`-`, `+`) and its indentation (`2`) if given. */
+const BLOCK = /^[|>][-+\d]*$/
 
 /**
  * A workflow's steps, each as what it runs: an action without its version (so a bump isn't a change)
@@ -234,12 +249,13 @@ export function workflowSteps(text: string): string[] {
       continue
     }
     close()
-    const key = /^(\s*(?:- )?)(uses|run):(.*)/.exec(line)
+    const key = /^(\s*(?:-\s+)?)(uses|run):(.*)/.exec(line)
     if (!key) continue
     const value = key[3].trim()
     if (key[2] === 'uses') steps.push(`uses: ${value.split('@')[0]}`)
-    else if (BLOCK.includes(value)) block = { indent: key[1].length, lines: [] }
-    else steps.push(`run: ${value}`)
+    else if (BLOCK.test(value)) block = { indent: key[1].length, lines: [] }
+    // A `run:` with nothing after it is a mapping (`defaults: run: shell: bash`), not a step.
+    else if (value !== '') steps.push(`run: ${value}`)
   }
   close()
   return steps
@@ -272,13 +288,18 @@ export function compareWorkflow(file: string, base: string | undefined, head: st
 
 /**
  * What a line the branch adds can bring in, in which files it counts, what it calls for and what
- * the finding says. Retries: Playwright's `retries` with anything but 0, Vitest's `retry` with a
- * number, an object or the environment (`retry: process.env.CI ? 2 : 0`), and either as a command's
- * flag; not the app's own `retry: () => void`. A condition on a step goes to a second review, not to
+ * the finding says. Retries: `retries` as a name in the code (a key with anything but 0, a variable
+ * assigned or passed on), `retry` as a key with any value but 0, a mock or a function (the app's own
+ * `retry: vi.fn()` and `retry: () => void`), and either as a command's flag. A condition on a step goes to a second review, not to
  * the owner: most are fair (`if: always()` on a summary), and a script can't tell.
  */
 const ADDED: { pattern: RegExp; counts: (path: string) => boolean; needs: Needs; what: string }[] = [
-  { pattern: /\bretries["']?:(?! ?0\b)|\bretry["']?: ?(?:[1-9]|\{|process\b)|--retr(?:y|ies)\b/, counts: runsTests, needs: 'owner', what: 'test retries appeared' },
+  {
+    pattern: /\bretries\b(?!["']?: ?0\b)(?=["']?\]?\s*[:=]|\s*[,})\]])|\bretry["']?\s*:\s*(?!0\b|vi\.fn\b|(?:async\s*)?\(|function\b)\S|--retr(?:y|ies)\b/,
+    counts: runsTests,
+    needs: 'owner',
+    what: 'test retries appeared',
+  },
   { pattern: /maxDiffPixel|\bthreshold["']?:/, counts: takesScreenshots, needs: 'owner', what: 'a screenshot tolerance appeared' },
   {
     pattern: /(?:oxlint|eslint)-disable|(?:v8|c8|istanbul) ignore|Stryker disable|@ts-(?:ignore|expect-error|nocheck)/,

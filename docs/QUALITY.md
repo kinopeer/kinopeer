@@ -43,9 +43,11 @@ or its rules.
 - An npm script removed (`scripts` in the root `package.json`): the step that called it checks
   nothing.
 - In a line the branch adds:
-  - test retries: Playwright's `retries` with anything but 0, Vitest's `retry` with a number, an
-    object or the environment, `--retry` and `--retries`. Looked for in the tests, the configs in
-    the root, the workflows and the scripts, not in the app's code, which has retries of its own;
+  - test retries: `retries` as a name in the code (a key with anything but 0, a variable assigned
+    or passed on), `retry` as a key with any value but 0, a mock or a function, `--retry` and
+    `--retries`. Looked for in the tests, the configs in the root, every `package.json`, the
+    workflows and the scripts; not in the app's code, which has retries of its own, nor in a
+    lockfile, which may name a package so;
   - a screenshot tolerance: `maxDiffPixels`, `maxDiffPixelRatio` or `threshold`, in `e2e/` and the
     Playwright configs;
   - a check turned off in the code: `oxlint-disable` and `eslint-disable` (oxlint obeys both),
@@ -57,15 +59,16 @@ or its rules.
     workflow's command;
   - a path filter on a workflow's trigger (`paths`, `paths-ignore`), so it runs for fewer changes.
 - `checks.json`, `.oxlintrc.json` or `package.json` that is no longer a JSON object the guard can
-  read, and `checks.json` or `.oxlintrc.json` removed.
+  read, a list in `checks.json` that is no longer a list, and `checks.json` or `.oxlintrc.json`
+  removed.
 - Any change to `scripts/guard/`, `.github/workflows/guard.yml` or this file.
 
 **For a second review**: a change to an existing check that a script can't judge.
 
 - Any other change to `checks.json`: a threshold raised, an entry removed from an exclusion list, a
   key the guard has no rule for.
-- Any other change to `.oxlintrc.json`: a rule's options, a new rule that only warns, a key the
-  guard has no rule for.
+- Any other change to `.oxlintrc.json`: a rule's options, also when its severity went up with
+  them; a new rule that only warns; a key the guard has no rule for.
 - A CI step whose command changed while its workflow kept as many steps, and an npm script
   changed: a script can't tell whether either does less.
 - A condition added to a CI step or job (`if:`): most are fair, as `if: always()` on a summary is.
@@ -86,11 +89,14 @@ guard wouldn't see it move.
 ### How it runs
 
 **In CI** the `guard` job runs on every PR (`.github/workflows/guard.yml`). It runs `main`'s copy of
-the script, not the branch's, so a PR that changes the guard is still read by the guard it found;
-only the PR that added the guard ran its own. It reads the branch through git and runs none of its
-code. What it finds goes into the job's summary and into one comment on the PR, which the job
-edits in place on every push; a fork's PR and Dependabot's get the summary alone, since their token
-can't comment. For now it only marks: the job passes whatever it finds.
+the script, not the branch's, so a PR that changes `scripts/guard/` is still read by the guard it
+found; only the PR that added the guard ran its own. The script reads the branch through git and
+runs none of its code. The workflow file is another matter: on `pull_request` GitHub runs it as
+the PR has it, so a PR that changes `guard.yml` runs its changed steps, and what `main`'s script
+does about it is mark the change for the owner. What the guard finds goes into the job's summary
+and into one comment on the PR, which the job edits in place on every push; a fork's PR gets the
+summary alone, since its token can't comment. For now it only marks: the job passes whatever it
+finds.
 
 **Locally** `npm run guard` prints the same report for this checkout's commits against
 `origin/main` (`--base` and `--head` name others), so the author sees the marks before pushing. It
@@ -104,6 +110,9 @@ reads commits, not the working tree, and says so when there are uncommitted chan
   a path taken out of an existing filter).
 - Whatever reading YAML line by line gets wrong: it finds `run:` and `uses:` keys and the lines
   indented under a block, and knows nothing of anchors or of a command built by an expression.
+- A change to `guard.yml` that stops the script from running or from being `main`'s copy: the
+  workflow runs as the PR has it, so the mark for the owner comes from the changed steps, if they
+  still make it.
 - Anything written on purpose to get past it. Every session works under the owner's GitHub account,
   so the guard protects against forgetting, not against forging.
 

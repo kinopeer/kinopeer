@@ -2,7 +2,9 @@ name: Guard
 
 # The checks guard on every PR (docs/QUALITY.md → The checks guard): main's copy of scripts/guard/
 # reads the PR's branch through git and writes into the PR what in it weakens the checks or changes
-# existing ones. It only marks for now: the job passes whatever it finds.
+# existing ones. It only marks for now: the job passes whatever it finds. The script is main's; this
+# file isn't: on pull_request GitHub runs the workflow as the PR has it, so a PR that changes these
+# steps runs them changed, and main's script marks the change for the owner.
 on:
   pull_request:
 
@@ -57,9 +59,10 @@ jobs:
           cat guard.md >> "$GITHUB_STEP_SUMMARY"
       - name: Write the findings into the PR
         # One comment, edited in place on every push, so a PR gets one email rather than one per
-        # push, and none while there has been nothing to say. A fork's PR and Dependabot's get a
-        # read-only token, and the job summary above still has the findings.
-        if: ${{ !github.event.pull_request.head.repo.fork && github.actor != 'dependabot[bot]' }}
+        # push, and none while there has been nothing to say. A fork's PR gets a read-only token
+        # whatever the permissions above say, and the job summary still has the findings.
+        # Dependabot's token is read-only by default too, but the job's permissions raise it.
+        if: ${{ !github.event.pull_request.head.repo.fork }}
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
