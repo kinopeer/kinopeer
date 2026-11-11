@@ -103,8 +103,13 @@ describe('guard', () => {
     await commit({ 'playwright.config.ts': config })
     git('checkout', '--quiet', 'branch')
     git('merge', '--quiet', 'main')
-    await commit({ 'playwright.config.ts': config.replace('  workers: 2,', '  workers: 4,\n  // @@ -1 +90 @@').replace('  use: {},', '  use: { retries: 1 },') })
+    await commit({ 'playwright.config.ts': config.replace('  workers: 2,', '  workers: 4,\n@@ -1 +90 @@').replace('  use: {},', '  use: { retries: 1 },') })
     expect(said()).toEqual(['owner playwright.config.ts:14: test retries appeared: `use: { retries: 1 },`'])
+  })
+
+  it("reads an added line that looks like a diff's file header as a line of the file", async () => {
+    await commit({ 'e2e/notes.ts': '++ b/e2e/other.ts\nconst config = { retries: 2 }\n' })
+    expect(said()).toEqual(['owner e2e/notes.ts:2: test retries appeared: `const config = { retries: 2 }`'])
   })
 
   it("says so when HEAD is what it reads and the checkout has changes that aren't committed", async () => {
@@ -120,6 +125,11 @@ describe('guard', () => {
   it('says nothing of the kind over a clean checkout', async () => {
     await commit({ 'src/app.ts': 'export const app = 2\n' })
     expect(guard({ repo, base: 'main', head: 'HEAD' }).report).not.toContain('Uncommitted')
+  })
+
+  it('reads a file whose name has a space or a letter outside ASCII', async () => {
+    await commit({ 'e2e/поиск по имени.spec.ts': 'test.describe.configure({ retries: 2 })\n' })
+    expect(said()).toEqual(['owner e2e/поиск по имени.spec.ts:1: test retries appeared: `test.describe.configure({ retries: 2 })`'])
   })
 
   it('fails on a base that is not in the repository', () => {

@@ -12,45 +12,37 @@ type Git = (...args: string[]) => string
 /** git in `repo`; throws on a failure, with what git said. */
 export function gitIn(repo: string): Git {
   return (...args) => {
-    const { status, stdout, stderr } = spawnSync('git', ['-C', repo, ...args], { encoding: 'utf8', maxBuffer: 1 << 28 })
+    // Paths as they are: git quotes and escapes one with a space or a non-ASCII letter otherwise.
+    const { status, stdout, stderr } = spawnSync('git', ['-C', repo, '-c', 'core.quotepath=off', ...args], { encoding: 'utf8', maxBuffer: 1 << 28 })
     if (status !== 0) throw new Error(`git ${args.join(' ')}: ${stderr}`)
     return stdout
   }
 }
 
-/** The lines `base..head` adds, by file, each with its number on the head's side. */
-function addedLines(git: Git, base: string, head: string): Map<string, AddedLine[]> {
-  const added = new Map<string, AddedLine[]>()
-  let lines: AddedLine[] = []
+/** The lines `base..head` adds to one file, each with its number on the head's side. */
+function addedLines(git: Git, base: string, head: string, path: string): AddedLine[] {
+  const added: AddedLine[] = []
   let next = 0
-  for (const text of git('diff', '--no-renames', '--unified=0', base, head).split('\n')) {
+  for (const text of git('diff', '--no-renames', '--unified=0', base, head, '--', path).split('\n')) {
     const hunk = /^@@ -\S+ \+(\d+)/.exec(text)
-    if (text.startsWith('+++ ')) {
-      // `+++ b/path`; a deleted file's `+++ /dev/null` leaves a name no file has, with no lines.
-      lines = []
-      added.set(text.slice('+++ b/'.length), lines)
-    } else if (hunk) {
-      next = Number(hunk[1])
-    } else if (text.startsWith('+')) {
-      lines.push({ line: next++, text: text.slice(1) })
-    }
+    if (hunk) next = Number(hunk[1])
+    // Before the first hunk come the file's header lines, `+++ b/path` among them.
+    else if (next > 0 && text.startsWith('+')) added.push({ line: next++, text: text.slice(1) })
   }
   return added
 }
 
 /** What the branch at `head` changes since it left `base`, with the text the signs read. */
 export function changes(git: Git, base: string, head: string): Change[] {
-  const added = addedLines(git, base, head)
-  // A file's text on one side, or undefined where that side doesn't have it.
-  const read = (rev: string, path: string, exists: boolean) => (exists ? git('show', `${rev}:${path}`) : undefined)
+  // A file's text on one side, or undefined where that side doesn't have it or the guard doesn't read it whole.
+  const read = (rev: string, path: string, exists: boolean) => (exists && readsWhole(path) ? git('show', `${rev}:${path}`) : undefined)
   return git('diff', '--no-renames', '--name-status', '-z', base, head)
     .split('\0')
     .reduce<Change[]>((all, path, index, fields) => {
       // The fields come in pairs, a status letter and then its path, with an empty one after the last.
       if (index % 2 === 0) return all
-      const status = fields[index - 1]
-      const whole = readsWhole(path)
-      return [...all, { path, base: whole ? read(base, path, status !== 'A') : undefined, head: whole ? read(head, path, status !== 'D') : undefined, added: added.get(path) ?? [] }]
+      const [added, deleted] = [fields[index - 1] === 'A', fields[index - 1] === 'D']
+      return [...all, { path, base: read(base, path, !added), head: read(head, path, !deleted), added: deleted ? [] : addedLines(git, base, head, path) }]
     }, [])
 }
 

@@ -20,7 +20,7 @@ describe('compareChecks', () => {
   it.each([
     ['a threshold lowered', withCoverage({ thresholds: { lines: 95, branches: 93 } }), ['owner: the threshold `coverage.thresholds.lines` is lowered: `96` → `95`']],
     ['a threshold removed', withCoverage({ thresholds: { lines: 96 } }), ['owner: the threshold `coverage.thresholds.branches` is lowered: `93` → nothing']],
-    ['a threshold that is no longer a number', withCoverage({ thresholds: { lines: '96', branches: 93 } }), ['owner: the threshold `coverage.thresholds.lines` is lowered: `96` → `"96"`']],
+    ['a threshold that is no longer a number', withCoverage({ thresholds: { lines: '97', branches: 93 } }), ['owner: the threshold `coverage.thresholds.lines` is lowered: `96` → `"97"`']],
     ['a path added to what coverage leaves out', withCoverage({ exclude: ['**/*.test.ts', 'src/api/**'] }), ['owner: `coverage.exclude` leaves out more: `"src/api/**"` is added']],
     ['a path removed from what coverage measures', withCoverage({ include: [] }), ['owner: `coverage.include` takes in less: `"src/**"` is removed']],
     ['a mutator added to those left out', withMutants({ excludedMutations: ['StringLiteral', 'BooleanLiteral'] }), ['owner: `mutants.excludedMutations` leaves out more: `"BooleanLiteral"` is added']],
@@ -124,6 +124,7 @@ describe('compareLint', () => {
   it.each([
     ['a rule made stricter', withRules({ 'react/only-export-components': ['error', { allowConstantExport: true }] })],
     ['a rule that only warned made to fail the run by its number', withRules({ 'react/only-export-components': [2, { allowConstantExport: true }] })],
+    ["a rule that only warned made to fail the run by oxlint's own word", withRules({ 'react/only-export-components': 'deny' })],
     ['a rule written the other way at the same severity and options', withRules({ 'vitest/require-to-throw-message': 'off' })],
     ['an override that is not an object', json({ ...config, overrides: [...config.overrides, 'e2e'] })],
     ['a new rule that fails the run', withRules({ 'no-console': 'error' })],
@@ -162,8 +163,10 @@ jobs:
         run: |
           # A comment, which is not a command.
           if [ -f coverage.json ]; then
+
             node summary.mjs
           fi
+        shell: bash
       - name: Upload
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -243,6 +246,7 @@ describe('scanAdded', () => {
     ['e2e/smoke/tabs.smoke.ts', '  test.describe.configure({ retries: 10 })'],
     ['package.json', '    "retries": 2,'],
     ['vite.config.ts', '      retry: 3,'],
+    ['vite.config.ts', '      test: {retry:3},'],
     ['vite.config.ts', '      retry: process.env.CI ? 2 : 0,'],
     ['vite.config.ts', '      retry: { count: 2 },'],
     ['src/screens/SearchScreen.test.tsx', "  it('finds a title', { retry: 2 }, async () => {"],
