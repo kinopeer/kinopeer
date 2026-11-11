@@ -105,6 +105,7 @@ describe('asserted', () => {
       ['given in place over several lines, as a constant', `it.each([\n  [1, 2],\n  ['two', 4],\n] as const)${body}`],
       ['of it.for', `it.for([[1, 2], ['two', 4]])${body}`],
       ['after a modifier', `it.concurrent.each([[1, 2], ['two', 4]])${body}`],
+      ['given in place, in a file that takes another list apart', `const [one, two] = [1, 2]\nit.each([[1, 2], ['two', 4]])${body}`],
       ['given in place with a gap', `it.each([[1, 2], , ['two', 4]])${body}`],
       ['given by a name that is declared without a value first', `let rows: Row[]\nconst ROWS = [[1, 2], ['two', 4]]\nit.each(ROWS)${body}`],
       ['given in place behind a type', `it.each(<Row[]>[[1, 2], ['two', 4]])${body}`],
