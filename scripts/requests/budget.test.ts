@@ -208,7 +208,7 @@ describe('clockRun', () => {
   it.each([
     ['a function', { POLL_INTERVAL_MS: 2_000, DESCRIBE_INTERVAL_MS: (ms: number) => `${ms} ms` }, [wrong('DESCRIBE_INTERVAL_MS', 'a function')]],
     ['a number that is no interval', { POLL_INTERVAL_MS: 2_000, POLL_FAILURES_SHOWN: 3 }, [misnamed('POLL_FAILURES_SHOWN')]],
-    ['a name that only ends like one', { POLL_INTERVAL_MS: 2_000, pollInterval_INTERVAL_MS: 3_000, X_INTERVAL_MS_OLD: 4_000 }, [misnamed('pollInterval_INTERVAL_MS'), misnamed('X_INTERVAL_MS_OLD')]],
+    ['a name that only ends like one', { POLL_INTERVAL_MS: 2_000, old_POLL_INTERVAL_MS: 3_000, X_INTERVAL_MS_OLD: 4_000 }, [misnamed('old_POLL_INTERVAL_MS'), misnamed('X_INTERVAL_MS_OLD')]],
     ['a BigInt', { POLL_INTERVAL_MS: 10n }, [wrong('POLL_INTERVAL_MS', '`10n`')]],
     ['null', { POLL_INTERVAL_MS: null }, [wrong('POLL_INTERVAL_MS', '`null`')]],
     ['a negative number', { POLL_INTERVAL_MS: -2_000 }, [wrong('POLL_INTERVAL_MS', '`-2000`')]],
