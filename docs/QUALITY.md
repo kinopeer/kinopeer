@@ -480,8 +480,8 @@ requests are in flight, and after every step of the clock, so a count never rest
 not having happened. It's the same for the openings and the moves. Every TMDB image the app shows
 is an `<img>`: an image put in another way (a CSS background, a preload) wouldn't be kept, and a
 new one is checked here first. Without the kept images and with the collections, six of the eight
-journeys fail on a poster asked for again; the collections add about 2% to the run. Should a
-Chromium update stop the kept images from keeping a poster in its memory, the fallback is a rule in
+journeys fail on a poster asked for again. The collections add under a twentieth to the run
+(twenty runs in CI took 27.4 min with them, 26.2 min before). Should a Chromium update stop the kept images from keeping a poster in its memory, the fallback is a rule in
 the counting: a poster's address counts once per journey, whatever the page asks.
 
 **What it doesn't count.** Moves that change something and the sheets and menus a screen opens are
