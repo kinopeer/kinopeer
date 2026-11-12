@@ -323,8 +323,9 @@ each sum with its budget in `checks.json`:
 The sums are per kind rather than per file, since the files' names carry hashes that change with
 their content. Each budget is a whole number of bytes, about 5% above what the build measured when
 it was set: on 2026-11-12, 185,085 bytes of JS, 15,392 of CSS and 184,330 of the rest, against
-budgets of 194,400, 16,200 and 193,600. Two clean builds in a row gave the same numbers, and so did
-CI's: the size is exact, so the margin is room for ordinary changes, not for noise.
+budgets of 194,400, 16,200 and 193,600. Three clean builds in a row gave the same numbers to the
+byte: the size is exact, so the margin is room for ordinary changes, not for noise. The `check`
+job's summary shows CI's numbers, to compare with a local build's.
 
 **In CI** it is the step after `npm run build` in the `check` job, which adds a table of the kinds,
 their sizes, budgets and what is left to the job's summary. It fails over a budget, and also when
