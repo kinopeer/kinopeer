@@ -4,7 +4,7 @@
 // Markdown, also into the job's summary in CI. It fails over a budget, and also when it can't read
 // the build or a budget. The rules are in budget.ts; this file only reads.
 import { appendFileSync, readdirSync, readFileSync } from 'node:fs'
-import { join, relative, sep } from 'node:path'
+import { join, relative } from 'node:path'
 import { gzipSync } from 'node:zlib'
 import { counted, judge, kindOf, readBudgets, unchecked, type Budgets, type File, type Verdict } from './budget.ts'
 
@@ -14,7 +14,7 @@ export function builtFiles(dir: string): File[] {
     .filter((entry) => entry.isFile())
     .map((entry) => {
       const full = join(entry.parentPath, entry.name)
-      const path = relative(dir, full).split(sep).join('/')
+      const path = relative(dir, full)
       const content = readFileSync(full)
       // gzip's default level, the one server/static.ts sends JS and CSS with.
       return { path, size: counted(kindOf(path)) === 'gzipped' ? gzipSync(content).length : content.length }

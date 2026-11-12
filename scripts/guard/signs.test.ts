@@ -115,6 +115,10 @@ describe('compareChecks', () => {
       expect(said(compareChecks(json(checks), json(budgeted)))).toEqual(['review: the budget `budgets.size.js` is new: nothing → `1000`', 'review: the budget `budgets.size.css` is new: nothing → `100`'])
     })
 
+    it('reads a key that only starts with the word as a key it has no rule for', () => {
+      expect(said(compareChecks(json(budgeted), json({ ...budgeted, budgetsNote: 'set on 2026-11-12' })))).toEqual(['review: `budgetsNote` changed: nothing → `"set on 2026-11-12"`'])
+    })
+
     it('finds nothing in a budget lowered, a stricter check', () => {
       expect(compareChecks(json(budgeted), withSize({ js: 999, css: 1 }))).toEqual([])
     })

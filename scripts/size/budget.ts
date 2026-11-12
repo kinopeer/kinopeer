@@ -8,7 +8,7 @@ export type Kind = (typeof KINDS)[number]
 /** The most bytes each kind may take in all, from `budgets.size` in checks.json. */
 export type Budgets = Record<Kind, number>
 
-/** A built file: its path in dist/, with `/` between folders, and the bytes it counts for, gzipped or as is (`counted`). */
+/** A built file: its path in dist/ and the bytes it counts for, gzipped or as is (`counted`). */
 export type File = { path: string; size: number }
 
 /** What the check found: whether it passes, and its report as Markdown. */
