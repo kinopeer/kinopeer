@@ -57,7 +57,8 @@ jobs:
 
   performance:
     # The speed budgets in checks.json (docs/QUALITY.md): the build's size, then what each screen asks
-    # the servers for when it opens, each with a table in the job's summary. No screenshots, so a
+    # the servers for when it opens and each move between screens asks for, each with a table in the
+    # job's summary. No screenshots, so a
     # plain runner with Chromium, as the smoke journeys have.
     runs-on: ubuntu-latest
     # Usually a few minutes, but apt alone has taken 550 s on a runner like this one.

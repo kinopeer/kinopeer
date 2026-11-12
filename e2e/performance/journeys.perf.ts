@@ -71,7 +71,9 @@ const JOURNEYS_MADE: Journey[] = [
     path: '/search',
     opens: BROWSE,
     moves: () => [
-      { move: '1-query', make: (page) => page.getByRole('searchbox').pressSequentially('дюна'), to: FOUND },
+      // The query as one input, as a paste or a keyboard's suggestion gives it: typed key by key with
+      // no pause between, a key now and then went missing (`дна`), and the search found nothing.
+      { move: '1-query', make: (page) => page.getByRole('searchbox').fill('дюна'), to: FOUND },
       { move: '2-title', make: (page) => page.getByRole('main').getByRole('link', { name: 'Дюна: Часть вторая' }).first().click(), to: DUNE },
       { move: '3-back', make: (page) => page.goBack(), to: FOUND },
     ],
