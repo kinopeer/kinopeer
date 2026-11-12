@@ -8,6 +8,10 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 
 - On a phone, the ring that shows Downloads' refresh sits right after the title rather than among the buttons on the right. ([#374](https://github.com/kinopeer/kinopeer/issues/374))
 
+### Fixed
+
+- With reduced motion turned on, a torrent's page on a phone, and its panel on a computer, no longer jump up and back down for a moment as the torrent's details arrive. ([#387](https://github.com/kinopeer/kinopeer/issues/387))
+
 ## 1.0.0 - 2026-11-10
 
 The first stable version, the one for the official Umbrel App Store. Downloads' torrents on a phone and the install card are spaced evenly under the header, the Downloads table's column names on a computer sit close under it in the installed app too, and a theater rip named with a space where its hyphen goes shows as CAM.

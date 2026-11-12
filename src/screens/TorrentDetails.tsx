@@ -142,8 +142,10 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
     return (
       <Root className={cx('torrent', drawer && 'is-drawer')} aria-busy="true">
         {backButton}
-        <div className="torrent-hero" />
-        <div className="torrent-body" role="status">
+        {/* Keyed as the loaded page's are, so they stay in place when it comes: matched by position,
+            the loaded page's More button, which this hasn't, would turn this body into its hero. */}
+        <div key="hero" className="torrent-hero" />
+        <div key="body" className="torrent-body" role="status">
           <span className="sr-only">{t('torrent.loading')}</span>
           <div className="torrent-head" aria-hidden="true">
             <div className="ks-skel torrent-poster torrent-skel-poster" />
@@ -247,11 +249,11 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
           menu.open(hash)
         }}
       />
-      <div className="torrent-hero" aria-hidden="true">
+      <div key="hero" className="torrent-hero" aria-hidden="true">
         {poster && <img src={poster} alt="" className="torrent-hero-art" />}
         <div className="torrent-hero-fade" />
       </div>
-      <div className="torrent-body">
+      <div key="body" className="torrent-body">
         <div className="torrent-head">
           <Poster src={poster} className="torrent-poster" />
           <div className="torrent-head-text">

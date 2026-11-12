@@ -2,8 +2,8 @@ import { defineConfig } from '@playwright/test'
 import base from './playwright.config.ts'
 
 /**
- * The requests budget (`npm run test:requests`, after `npm run build`): e2e/performance/*.perf.ts
- * in Chromium against the built app, with every server route mocked as in the screenshot tests. No
+ * The requests budget and the layout shift test (`npm run test:requests`, after `npm run build`):
+ * e2e/performance/*.perf.ts in Chromium against the built app, with every server route mocked as in the screenshot tests. No
  * screenshots, so no Docker: Chromium on the host will do. It serves the build that is in dist/
  * rather than building, as `npm run size` reads it: CI's `performance` job builds once for both.
  */

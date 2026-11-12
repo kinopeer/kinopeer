@@ -17,6 +17,7 @@ Only what is on, being adopted, or declined with its reason; plans aren't listed
 | [The checks guard](#the-checks-guard) | On since 2026-11-12 (#366): its check is red while a PR lacks the records its marks call for, and is among `main`'s required checks | A script CI runs on every PR, which writes into the PR what in it weakens the checks or changes existing ones, and what record each of the two calls for |
 | [The size budget](#the-size-budget) | On since 2026-11-12 (#378): a step of CI's `performance` job, which is among `main`'s required checks | Sums the build's JS and CSS gzipped and everything else as it is, and fails over the budgets in `checks.json` |
 | [The requests budget](#the-requests-budget) | Being adopted (#378): a step of CI's `performance` job, which is among `main`'s required checks | Opens each screen afresh in a browser and moves between screens in short journeys, counts what each opening and each move asks each server route for, and fails on any count that isn't its budget in `checks.json` |
+| [The layout shift budget](TESTING.md#the-layout-shift-test) | Being adopted (#378, #387): a test in CI's `performance` job, beside the requests budget's, which is among `main`'s required checks | Opens a torrent's page on a phone in a browser, lets the answers it loads from land one at a time, sums how far its content moves, and fails over its budget in `checks.json`; one screen in one window size so far |
 
 ## The checks guard
 
@@ -207,7 +208,9 @@ from it what coverage measures and its thresholds, `stryker.config.mjs` the muta
 `scripts/mutants.mjs` the folders mutated and the files in them that aren't production code,
 `scripts/size/size.ts` the size budgets (`budgets.size`, [The size budget](#the-size-budget)), the
 requests tests the requests budgets (`budgets.requests` for the screens' openings and
-`budgets.journeys` for the moves between them, [The requests budget](#the-requests-budget)). A new
+`budgets.journeys` for the moves between them, [The requests budget](#the-requests-budget)), the
+layout shift test the layout shift budgets (`budgets.layoutShift`, a score per window size and
+screen, `docs/TESTING.md` → The layout shift test). A new
 threshold, budget or exclusion list goes there too, not into the config that uses it, where the
 guard wouldn't see it move.
 

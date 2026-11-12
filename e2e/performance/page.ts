@@ -2,20 +2,32 @@
 // sends, hold its clock and run it in steps, keep the images it loaded and collect its garbage, and
 // wait for it to settle. The opening test
 // (requests.perf.ts) and the journeys test (journeys.perf.ts) import it; the rules the numbers are
-// judged by are in scripts/requests/budget.ts.
+// judged by are in scripts/requests/budget.ts. The layout shift test (layoutShift.perf.ts) takes
+// its torrents from here too.
 import { readdirSync } from 'node:fs'
 import { relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { CDPSession, Page, Request } from '@playwright/test'
 import { clockRun, type Sent } from '../../scripts/requests/budget.ts'
 import * as intervals from '../../src/torrents/pollIntervals.ts'
-import { NOW } from '../../src/test/fixtures.ts'
+import { NOW, tmdbTag, torrent } from '../../src/test/fixtures.ts'
 import { DESKTOP } from '../app.ts'
 
 /** The phone is the config's viewport; the desktop the screenshot tests' `DESKTOP`. */
 export const SIZES = [
   { size: 'phone', use: {} },
   { size: 'desktop', use: DESKTOP },
+]
+
+/**
+ * The performance tests' own torrents (the requests test's and the layout shift test's), so a change
+ * to the shared fixtures for a screenshot doesn't move a budget: two whose titles their tags name and
+ * one whose title the app guesses from its name, which asks TMDB and saves the guess on the server.
+ */
+export const TORRENTS = [
+  torrent('p1', { name: 'Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX-GRPA', tags: tmdbTag('movie', 693134), category: 'Movies', progress: 0.5 }),
+  torrent('p2', { name: 'Shogun.S01.2160p.WEB-DL.DDP5.1.H.265-GRPB', tags: tmdbTag('tv', 126308), category: 'TV Shows', state: 'uploading', progress: 1 }),
+  torrent('p3', { name: 'Interstellar.2014.1080p.BluRay.x264-GRPC', state: 'pausedDL', progress: 0.1 }),
 ]
 
 /** A screen's heading, by its level and name. */

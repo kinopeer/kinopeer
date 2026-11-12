@@ -16,25 +16,25 @@ npm run test:mutants        # breaks the lines this branch changes, lists the br
 npm run test:visual         # layer 6: screenshot tests in Docker
 npm run test:visual:update  # re-render their baselines
 npm run test:smoke          # layer 6: smoke journeys through the production server, no Docker
-npm run test:requests       # layer 6: each screen's requests on opening and each move's between screens against their budgets, after npm run build
+npm run test:requests       # layer 6: each screen's requests on opening and each move's between screens against their budgets, and a torrent page's layout shift, after npm run build
 ```
 
 ## Layers
 
 | # | Layer | What it checks | What it doesn't | Tool | Where | Run |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Pure logic | Parsing release and torrent names, picking a title, filtering and sorting, formatting, the SHA-1 fallback, the checks guard's signs, its reading of a test file and its comparison of the tests that ran, the size budget's rules, the requests budget's rules: functions that import no React, DOM or Node APIs | Rendering, the network | Vitest | `*.test.ts` next to the module (`src/releases/`, `src/torrents/`, `src/lib/`, `server/json.ts`, `scripts/guard/` but for `guard.ts`, `scripts/size/budget.ts`, `scripts/requests/budget.ts`) | `npm test` |
+| 1 | Pure logic | Parsing release and torrent names, picking a title, filtering and sorting, formatting, the SHA-1 fallback, the checks guard's signs, its reading of a test file and its comparison of the tests that ran, the size budget's rules, the requests budget's rules, the layout shift budget's rules: functions that import no React, DOM or Node APIs | Rendering, the network | Vitest | `*.test.ts` next to the module (`src/releases/`, `src/torrents/`, `src/lib/`, `server/json.ts`, `scripts/guard/` but for `guard.ts`, `scripts/size/budget.ts`, `scripts/requests/budget.ts`, `scripts/layout-shift/budget.ts`) | `npm test` |
 | 2 | Components and generic hooks | A shared component renders its props with the right roles and names and reacts to input; a hook that knows nothing of the app's data does its job in a DOM (`useIsDesktop`, `useHeightVar`, `useScrollRestoration`, the theme) | Layout and looks, which jsdom has none of; the app's data | Vitest + Testing Library, jsdom | `src/components/*/*.test.tsx`, the hooks in `src/lib/`, `src/theme/` | `npm test` |
 | 3 | Screens, stores and clients | A screen or a user flow with the API clients mocked (`vi.mock('../api/…')`): what it shows for a state, what it sends, where it navigates. A hook or a store that holds the app's data, with the clients mocked. An API client with `fetch` stubbed: the request it builds and how it reads each answer, errors included | Real HTTP, the server, layout | Vitest + Testing Library + user-event, jsdom | `src/screens/*.test.tsx` (sheets and dialogs included), `src/App.test.tsx`, the hooks and stores in `src/session/`, `src/torrents/`, `src/settings/`, the clients in `src/api/*/` | `npm test` |
 | 4 | Server | Each middleware under `server/` against fake qBittorrent, TMDB and Prowlarr servers started in the test: routing, headers, what reaches the service and what comes back | Browser code | Vitest, Node (`server` project) | `server/*.test.ts`, fakes in `server/test/fakes.ts`; the TMDB proxy worker in `tmdb-proxy/worker.test.ts`, with TMDB and the rate limiter faked in the test, and its deploy check in `tmdb-proxy/deployCheck.test.ts` over a git repository made in the test; the dev and preview servers started from the config in `vite.config.test.ts`; the checks guard in `scripts/guard/guard.test.ts`, over a git repository made in the test; the size check in `scripts/size/size.test.ts`, over a build folder made in the test | `npm test -- --project server` |
 | 5 | Integration | The real clients in `src/api/*` calling the real `kinopeerServer()` in front of the fakes: both ends of each route agree on paths, bodies, cookies and errors, and the flows that cross several routes (login, adding a release, matches) | Rendering; a server without a route (the SPA fallback), which stays in the client tests | Vitest, Node | `server/integration/*.test.ts`, the stand in `server/test/integration.ts` | `npm test -- --project server` |
-| 6 | Browser | How the screens look: the built app in Chromium against baseline PNGs, with every server route mocked (screenshot tests). And six smoke journeys through the real production server behind a proxy that wants a cookie, with the services faked: the browser and the server together (smoke journeys). And what each screen asks the servers for when it opens, and each move between screens in short journeys, counted against its budget, with the routes mocked as for the screenshots (the requests tests) | Behavior, which the layers above cover faster | Playwright in Docker; Playwright on the host | `e2e/*.spec.ts`, baselines in `e2e/__screenshots__/`; `e2e/smoke/*.smoke.ts`, the stand in `e2e/smoke/stack.ts`; `e2e/performance/requests.perf.ts`, `e2e/performance/journeys.perf.ts` | `npm run test:visual`; `npm run test:smoke`; `npm run test:requests` |
+| 6 | Browser | How the screens look: the built app in Chromium against baseline PNGs, with every server route mocked (screenshot tests). And six smoke journeys through the real production server behind a proxy that wants a cookie, with the services faked: the browser and the server together (smoke journeys). And what each screen asks the servers for when it opens, and each move between screens in short journeys, counted against its budget, with the routes mocked as for the screenshots (the requests tests). And how far a torrent's page moves as it loads, its answers let land one at a time, against its budget (the layout shift test) | Behavior, which the layers above cover faster | Playwright in Docker; Playwright on the host | `e2e/*.spec.ts`, baselines in `e2e/__screenshots__/`; `e2e/smoke/*.smoke.ts`, the stand in `e2e/smoke/stack.ts`; `e2e/performance/requests.perf.ts`, `e2e/performance/journeys.perf.ts`, `e2e/performance/layoutShift.perf.ts` | `npm run test:visual`; `npm run test:smoke`; `npm run test:requests` |
 
 Layers 1–5 run on every `npm test` in two Vitest projects (`vite.config.ts`): `app` is jsdom with
 `src/test-setup.ts` (jest-dom matchers, the interface language reset to English, Testing Library's
 cleanup, a no-op `window.scrollTo` since jsdom only logs "not implemented" for it); `server` is
 plain Node for `server/**/*.test.ts`, the integration tests included, `tmdb-proxy/**/*.test.ts`,
-`scripts/guard/**/*.test.ts`, `scripts/size/**/*.test.ts`, `scripts/requests/**/*.test.ts` and `vite.config.test.ts`. Tests sit next to the code as
+`scripts/guard/**/*.test.ts`, `scripts/size/**/*.test.ts`, `scripts/requests/**/*.test.ts`, `scripts/layout-shift/**/*.test.ts` and `vite.config.test.ts`. Tests sit next to the code as
 `*.test.ts(x)` and query by role and accessible name. Two kinds of test don't follow the table's
 "Where" column. The service worker: its routing rules are plain logic in `src/pwa/swRoutes.ts`
 (layer 1), and `src/sw.test.ts` is a smoke test of `src/sw.ts` with workbox mocked, compiled with
@@ -591,7 +591,7 @@ imports Node needs.
 
 `npm run test:coverage` runs the Vitest layers with `@vitest/coverage-v8` and prints a table per
 file, plus an HTML report in `coverage/` (git-ignored). It measures the TypeScript in `src/`, `server/`,
-`tmdb-proxy/`, `scripts/guard/`, `scripts/size/` and `scripts/requests/`, not the config and data files beside it (#283), without the tests themselves, `src/test/`, `server/test/`, type-only modules and the `index.ts` barrels of
+`tmdb-proxy/`, `scripts/guard/`, `scripts/size/`, `scripts/requests/` and `scripts/layout-shift/`, not the config and data files beside it (#283), without the tests themselves, `src/test/`, `server/test/`, type-only modules and the `index.ts` barrels of
 `src/api/*` and `src/components/*`, which only re-export (`coverage` in `checks.json`, which `vite.config.ts` reads). CI runs the same in the
 `check` job, adds the totals to the job summary (`scripts/coverage-summary.mjs`) and uploads the HTML
 report as the `coverage` artifact.
@@ -823,7 +823,7 @@ The changes go into one docs PR, reviewed like any other, which adds a row to th
 says which counts each change answers, so the next retro sees whether that count fell. The row and
 the PR name the set behind each count (which PRs, which issues, closed since when). The table's
 columns: "Ready on the first round" gives the merged PRs and those with production code, the folders `scripts/mutants.mjs` mutates (`src/`,
-`server/`, `tmdb-proxy/` and, since #366, `scripts/guard/` and, since #378, `scripts/size/` and `scripts/requests/`; before #238 the first two were all there was); "Blocking findings per PR"
+`server/`, `tmdb-proxy/` and, since #366, `scripts/guard/` and, since #378, `scripts/size/` and `scripts/requests/` and, since #387, `scripts/layout-shift/`; before #238 the first two were all there was); "Blocking findings per PR"
 divides the blocking findings (the test review's blocking ones, and the `/code-review` bugs a
 verdict says to fix in the PR, each counted once) by the PRs with production code, the same basis
 in every row, so the column compares with the rows below it and with the Done rule (#222);
@@ -971,3 +971,42 @@ it are in [QUALITY.md](QUALITY.md) → The requests budget.
   cached by the Playwright version; it adds the tables of the counts to the job's summary, and when
   it fails, its `playwright-report-performance` artifact has the report and the traces.
 
+## The layout shift test
+
+`e2e/performance/layoutShift.perf.ts` (the same config, command and CI job as the requests test)
+opens a torrent's page by its address on a phone (390×844, named in the file) and sums its layout
+shifts as it loads against `budgets.layoutShift` in `checks.json` (`phone.torrent`: 0.1, the bound
+Web Vitals call good). It was #387's red test: on a phone the page moved by 0.26.
+
+- **Not by chance.** Which states of a page paint, and so what can move, depends on the order its
+  answers land in, which a run left to the network doesn't choose. `holdAnswers`
+  (`e2e/performance/layoutShift.ts`) holds each route's answers and lets them land in the order the
+  test names, each after the page painted what the one before showed: every state in between is on
+  the screen for a frame at least, the worst case.
+- **Which page, in which order.** `p2` of the performance tests' torrents (`TORRENTS` in
+  `e2e/performance/page.ts`): tagged with its title and finished. A tagged torrent's page asks for
+  the torrents once the session is checked, for the title once the torrent shows and for the
+  poster once the title does, so those land in that order whatever the network does. The server's
+  matches go out beside the first poll; it has none for `p2`, so where they land changes nothing
+  on the page, and the test lands them before the torrents.
+- **What the reading counts.** Every `layout-shift` entry, with the elements that moved and their
+  boxes in the viewport before and after (`y/height`), those within 500 ms of a click or a key
+  press too, which web-vitals leaves out: the failure marks them "after input", and a screen
+  reached by a click is still read. A browser without the entry type fails the reading rather than
+  record nothing. A shift comes from an element that was on the screen before and is somewhere
+  else after; one that appears doesn't count, so the fix is room kept for what loads later, or the
+  same element kept where it was (#387: the loading state's body became the loaded page's header).
+- **Reduced motion and the size are the file's own.** It runs under reduced motion, where #387's
+  jump showed: the reduced-motion rule in `src/styles/base.css` gives every element a 1 ms
+  transition, so an element whose styles change is drawn once more as it was (without it `main`'s
+  page read 0.0656 and passed). Both are set in the test, not taken from the configs it builds on.
+- **The rules** (the budgets read, the sum, the verdict and its report) are pure functions in
+  `scripts/layout-shift/budget.ts`, tested in `budget.test.ts` (layer 1); coverage measures the
+  folder and Stryker mutates it. A budget raised or removed is the owner's decision, which the
+  checks guard marks; a new one goes to a second review.
+- **What it leaves out.** Other screens; a check of every screen's layout shift is to come with
+  #378, extending this reading. The page's other loaded states: a guessed title, whose title waits
+  for the server's matches and whose "Is it right?" comes in above the progress card, and a
+  torrent with no title found. The torrent's drawer on desktop: a third of the window's width at
+  1440×900 and nearly half at 1024×768, so even all its content moving down by its header's
+  height scores 0.027 and 0.062, which a bound of 0.1 can't catch.

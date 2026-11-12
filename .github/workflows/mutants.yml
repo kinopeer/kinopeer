@@ -18,6 +18,7 @@ on:
       - 'scripts/guard/**'
       - 'scripts/size/**'
       - 'scripts/requests/**'
+      - 'scripts/layout-shift/**'
       # What Stryker runs with, each of which can break it without a line to mutate.
       - 'package.json'
       - 'package-lock.json'
