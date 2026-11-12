@@ -19,7 +19,9 @@ export default defineConfig({
     // Another port than the screenshot tests', so neither reuses the other's server and its build.
     command: 'npx vite preview --port 4174 --strictPort',
     url: 'http://localhost:4174',
-    reuseExistingServer: !process.env.CI,
+    // Its own server every run, never one already on the port: that may serve another worktree's build
+    // or the dev server, and its counts would be another app's. A busy port fails the run instead.
+    reuseExistingServer: false,
     timeout: 60_000,
   },
 })

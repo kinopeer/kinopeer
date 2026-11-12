@@ -5,39 +5,48 @@
 
 /** Kinopeer's server routes the app calls, each counted on its own. */
 export const ROUTES = ['/qbt', '/tmdb', '/tmdb-img', '/prowlarr', '/api'] as const
+/**
+ * The app's own origin outside those routes and the app's files: a server route `ROUTES` doesn't
+ * name (`/healthz` today, or a new one), or a file the build doesn't have.
+ */
+export const OTHER_PATHS = 'other paths'
 /** Any origin but the app's own: the app calls none, so its budget is 0 on every screen. */
 export const ELSEWHERE = 'other origins'
-export const KEYS = [...ROUTES, ELSEWHERE] as const
+export const KEYS = [...ROUTES, OTHER_PATHS, ELSEWHERE] as const
 export type Key = (typeof KEYS)[number]
 
 /** How many requests each key may take on a screen's open: exactly that many, not fewer. */
 export type Counts = Record<Key, number>
 /** `budgets.requests` in checks.json: by window size, then by screen. */
 export type Budgets = Record<string, Record<string, Counts>>
-/** A request the page sent. */
-export type Sent = { method: string; url: string }
+/** A request the page sent; `document` when it loads the page itself (the app's address, which the server answers with `index.html`). */
+export type Sent = { method: string; url: string; document?: boolean }
+/** The app under test: its origin, and the paths of the files its build has (`/theme.js`, `/assets/…`), which aren't counted. */
+export type App = { origin: string; files: ReadonlySet<string> }
 /** A screen the test opens, in one window size. */
 export type Opened = { size: string; screen: string }
 /** What the check found: whether it passes, and its report as Markdown. */
 export type Verdict = { passed: boolean; report: string }
 
 /**
- * The key a request counts against, or null for what isn't a server's answer: the app's own files
- * (the page, its scripts and styles, the fonts, the icons, the manifest, `version.json`) and a URL
- * that isn't fetched over the network (`data:`, `blob:`).
+ * The key a request counts against, or null for what isn't a server's answer: the page itself, the
+ * app's own files (its scripts and styles, the fonts, the icons, the manifest, `version.json`: what
+ * the build has) and a URL that isn't fetched over the network (`data:`, `blob:`).
  */
-export function keyOf(url: string, appOrigin: string): Key | null {
+export function keyOf({ url, document }: Sent, app: App): Key | null {
   const { protocol, origin, pathname } = new URL(url)
   if (protocol !== 'http:' && protocol !== 'https:') return null
-  if (origin !== appOrigin) return ELSEWHERE
-  return ROUTES.find((route) => pathname === route || pathname.startsWith(`${route}/`)) ?? null
+  if (origin !== app.origin) return ELSEWHERE
+  const route = ROUTES.find((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+  if (route) return route
+  return document || app.files.has(pathname) ? null : OTHER_PATHS
 }
 
 /** The requests each key counts, in the order they were sent. */
-export function grouped(sent: Sent[], appOrigin: string): Record<Key, Sent[]> {
+export function grouped(sent: Sent[], app: App): Record<Key, Sent[]> {
   const byKey = Object.fromEntries(KEYS.map((key) => [key, [] as Sent[]])) as Record<Key, Sent[]>
   for (const request of sent) {
-    const key = keyOf(request.url, appOrigin)
+    const key = keyOf(request, app)
     if (key !== null) byKey[key].push(request)
   }
   return byKey
@@ -107,14 +116,14 @@ const shown = ({ method, url }: Sent, appOrigin: string): string => {
  * the screen didn't send before; fewer is a budget left higher than the screen needs, which would let
  * a request come back unnoticed.
  */
-export function judge({ size, screen, path }: Opened & { path: string }, sent: Sent[], appOrigin: string, budgets: Budgets): Verdict {
+export function judge({ size, screen, path }: Opened & { path: string }, sent: Sent[], app: App, budgets: Budgets): Verdict {
   const title = `## Requests on opening ${screen} (${size}, \`${path}\`)`
   const budget = budgets[size]?.[screen]
   if (budget === undefined) return { passed: false, report: [title, noBudget(size, screen)].join('\n\n') }
-  const byKey = grouped(sent, appOrigin)
+  const byKey = grouped(sent, app)
   const failures = KEYS.filter((key) => byKey[key].length !== budget[key]).map((key) => {
     const count = byKey[key].length
-    const listed = count === 0 ? '  - none' : byKey[key].map((request) => `  - \`${shown(request, appOrigin)}\``).join('\n')
+    const listed = count === 0 ? '  - none' : byKey[key].map((request) => `  - \`${shown(request, app.origin)}\``).join('\n')
     const advice =
       count > budget[key]
         ? 'More than the budget: find what sends the new ones (a request sent twice, one for what the screen doesn\'t show) and take them out. ' +
@@ -135,3 +144,19 @@ export function table(measured: (Opened & { counts: Counts })[]): string {
     [`| Window | Screen | ${KEYS.map((key) => `\`${key}\``).join(' | ')} |`, `| --- | --- | ${KEYS.map(() => '---:').join(' | ')} |`, ...rows].join('\n'),
   ].join('\n\n')
 }
+
+/**
+ * How long the test runs the page's clock after the page loads: 1 ms less than the shortest of the
+ * app's poll intervals (`src/torrents/pollIntervals.ts`), so the timers a screen's open sets off fire
+ * and no poll repeats. Or what is wrong with the intervals: the module exports only poll intervals,
+ * each a whole number of milliseconds above 1, and at least one.
+ */
+export function clockRun(intervals: Record<string, unknown>): number | string[] {
+  const entries = Object.entries(intervals)
+  if (entries.length === 0) return ['`src/torrents/pollIntervals.ts` exports no poll interval, so the test has no time to run the clock for']
+  const problems = entries
+    .filter(([, ms]) => !(typeof ms === 'number' && Number.isSafeInteger(ms) && ms > 1))
+    .map(([name, ms]) => `\`${name}\` in \`src/torrents/pollIntervals.ts\` is not a whole number of milliseconds above 1: ${typeof ms === 'function' ? 'a function' : `\`${typeof ms === 'number' ? ms : JSON.stringify(ms)}\``}; the module exports only poll intervals, which the test runs the clock by`)
+  return problems.length > 0 ? problems : Math.min(...entries.map(([, ms]) => ms as number)) - 1
+}
+

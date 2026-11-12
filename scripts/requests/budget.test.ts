@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { countsOf, grouped, judge, keyOf, readBudgets, table, unmatched, type Budgets, type Counts, type Sent } from './budget.ts'
+import { clockRun, countsOf, grouped, judge, keyOf, readBudgets, table, unmatched, type App, type Budgets, type Counts, type Sent } from './budget.ts'
 
-const APP = 'http://localhost:4174'
-const NONE: Counts = { '/qbt': 0, '/tmdb': 0, '/tmdb-img': 0, '/prowlarr': 0, '/api': 0, 'other origins': 0 }
+const ORIGIN = 'http://localhost:4174'
+/** The app as the test sees it: its origin and what its build has. */
+const APP: App = { origin: ORIGIN, files: new Set(['/index.html', '/theme.js', '/version.json', '/assets/index-Ab12.js']) }
+const NONE: Counts = { '/qbt': 0, '/tmdb': 0, '/tmdb-img': 0, '/prowlarr': 0, '/api': 0, 'other paths': 0, 'other origins': 0 }
 const DOWNLOADS: Counts = { ...NONE, '/qbt': 2, '/api': 1 }
 const BUDGETS: Budgets = { phone: { downloads: DOWNLOADS, settings: NONE }, desktop: { downloads: DOWNLOADS } }
-const get = (path: string, method = 'GET'): Sent => ({ method, url: `${APP}${path}` })
-/** What the downloads screen sends within its budget: the session check, the poll, the settings, and the app's own files. */
-const WITHIN = [get('/'), get('/assets/index-Ab12.js'), get('/qbt/api/v2/app/version'), get('/qbt/api/v2/sync/maindata?rid=0'), get('/api/settings')]
+const get = (path: string, method = 'GET'): Sent => ({ method, url: `${ORIGIN}${path}` })
+/** What the downloads screen sends within its budget: the page, a script, the session check, the poll and the settings. */
+const WITHIN = [{ ...get('/'), document: true }, get('/assets/index-Ab12.js'), get('/qbt/api/v2/app/version'), get('/qbt/api/v2/sync/maindata?rid=0'), get('/api/settings')]
 const DOWNLOADS_SCREEN = { size: 'phone', screen: 'downloads', path: '/' }
 
 describe('keyOf', () => {
@@ -19,37 +21,47 @@ describe('keyOf', () => {
     ['/api/settings', '/api'],
     ['/api', '/api'],
   ])('counts %s against %s', (path, key) => {
-    expect(keyOf(`${APP}${path}`, APP)).toBe(key)
+    expect(keyOf(get(path), APP)).toBe(key)
   })
 
   it.each([
-    ['the page', '/title/movie/693134'],
-    ['a script', '/assets/index-Ab12.js'],
+    ['the page, at its address', { ...get('/title/movie/693134'), document: true }],
+    ['a script the build has', get('/assets/index-Ab12.js')],
+    ['a file the build has in its root', get('/version.json')],
+    ['a file the build has, asked with a query', get('/theme.js?v=2')],
+  ])("doesn't count %s", (_what, request) => {
+    expect(keyOf(request, APP)).toBeNull()
+  })
+
+  it.each([
+    ['a server route the routes leave out', '/healthz'],
     ['a path that only starts with a route', '/apiary.png'],
     ['a path that only starts with a route, followed by a dash', '/tmdb-other/x'],
-    ['the version file', '/version.json'],
-  ])("doesn't count %s, the app's own file", (_what, path) => {
-    expect(keyOf(`${APP}${path}`, APP)).toBeNull()
+    ['a file the build lacks', '/assets/index-Zz99.js'],
+    ["the app's address fetched rather than loaded as the page", '/title/movie/693134'],
+  ])('counts %s against other paths', (_what, path) => {
+    expect(keyOf(get(path), APP)).toBe('other paths')
   })
 
   it.each([
     ['another host', 'https://fonts.example.com/onest.woff2'],
     ["another port of the app's host", 'http://localhost:4173/qbt/api/v2/app/version'],
     ['another scheme of the same host', 'https://localhost:4174/api/settings'],
+    ['another host, with a path the build has', 'https://example.org/theme.js'],
   ])('counts a request to %s against other origins', (_what, url) => {
-    expect(keyOf(url, APP)).toBe('other origins')
+    expect(keyOf({ method: 'GET', url }, APP)).toBe('other origins')
   })
 
   it.each(['data:image/png;base64,AAAA', 'blob:http://localhost:4174/1b2c'])("doesn't count %s, which isn't fetched", (url) => {
-    expect(keyOf(url, APP)).toBeNull()
+    expect(keyOf({ method: 'GET', url }, APP)).toBeNull()
   })
 })
 
 describe('grouped and countsOf', () => {
   it('keeps each key its requests in the order sent, and counts them', () => {
-    const byKey = grouped([...WITHIN, get('/qbt/api/v2/torrents/categories'), { method: 'GET', url: 'https://example.org/x' }], APP)
+    const byKey = grouped([...WITHIN, get('/qbt/api/v2/torrents/categories'), get('/healthz'), { method: 'GET', url: 'https://example.org/x' }], APP)
     expect(byKey['/qbt']).toEqual([get('/qbt/api/v2/app/version'), get('/qbt/api/v2/sync/maindata?rid=0'), get('/qbt/api/v2/torrents/categories')])
-    expect(countsOf(byKey)).toEqual({ ...NONE, '/qbt': 3, '/api': 1, 'other origins': 1 })
+    expect(countsOf(byKey)).toEqual({ ...NONE, '/qbt': 3, '/api': 1, 'other paths': 1, 'other origins': 1 })
   })
 })
 
@@ -85,7 +97,7 @@ describe('readBudgets', () => {
     [
       'a route the check does not count',
       { budgets: { requests: { phone: { downloads: { ...NONE, '/healthz': 0 } } } } },
-      ['`budgets.requests["phone"]["downloads"]["/healthz"]` is no route the check counts (`/qbt`, `/tmdb`, `/tmdb-img`, `/prowlarr`, `/api`, `other origins`)'],
+      ['`budgets.requests["phone"]["downloads"]["/healthz"]` is no route the check counts (`/qbt`, `/tmdb`, `/tmdb-img`, `/prowlarr`, `/api`, `other paths`, `other origins`)'],
     ],
   ])('says what is wrong with %s rather than passing it', (_what, checks, problems) => {
     expect(readBudgets(checks)).toEqual(problems)
@@ -167,13 +179,41 @@ describe('judge', () => {
     ])
   })
 
-  it('fails a screen with no budget, saying where to add it', () => {
-    expect(judge({ size: 'desktop', screen: 'settings', path: '/settings' }, WITHIN, APP, BUDGETS)).toEqual({
+  it.each([
+    ['a window size that has budgets for other screens', 'desktop'],
+    ['a window size with no budgets at all', 'tablet'],
+  ])('fails a screen with no budget in %s, saying where to add it', (_what, size) => {
+    expect(judge({ size, screen: 'settings', path: '/settings' }, WITHIN, APP, BUDGETS)).toEqual({
       passed: false,
       report:
-        '## Requests on opening settings (desktop, `/settings`)\n\n' +
-        '`budgets.requests["desktop"]["settings"]` is missing for a screen the test opens: add it to checks.json with the counts the test measures',
+        `## Requests on opening settings (${size}, \`/settings\`)\n\n` +
+        `\`budgets.requests["${size}"]["settings"]\` is missing for a screen the test opens: add it to checks.json with the counts the test measures`,
     })
+  })
+})
+
+describe('clockRun', () => {
+  it('runs the clock 1 ms less than the shortest poll interval', () => {
+    expect(clockRun({ POLL_INTERVAL_MS: 2_000, OFFLINE_POLL_INTERVAL_MS: 5_000, FILES_POLL_INTERVAL_MS: 3_000 })).toBe(1_999)
+  })
+
+  it('takes an interval of 2 ms, which leaves the clock 1 ms to run', () => {
+    expect(clockRun({ FAST_MS: 2 })).toBe(1)
+  })
+
+  const wrong = (name: string, what: string) =>
+    `\`${name}\` in \`src/torrents/pollIntervals.ts\` is not a whole number of milliseconds above 1: ${what}; the module exports only poll intervals, which the test runs the clock by`
+
+  it.each([
+    ['a function', { POLL_INTERVAL_MS: 2_000, describeInterval: (ms: number) => `${ms} ms` }, [wrong('describeInterval', 'a function')]],
+    ['a string', { POLL_INTERVAL_MS: '2000' }, [wrong('POLL_INTERVAL_MS', '`"2000"`')]],
+    ['not a number', { POLL_INTERVAL_MS: Number.NaN }, [wrong('POLL_INTERVAL_MS', '`NaN`')]],
+    ['a fraction', { POLL_INTERVAL_MS: 1_999.5 }, [wrong('POLL_INTERVAL_MS', '`1999.5`')]],
+    ['1 ms, which leaves the clock no time', { POLL_INTERVAL_MS: 1 }, [wrong('POLL_INTERVAL_MS', '`1`')]],
+    ['two wrong at once', { A: 0, B: null }, [wrong('A', '`0`'), wrong('B', '`null`')]],
+    ['nothing exported', {}, ['`src/torrents/pollIntervals.ts` exports no poll interval, so the test has no time to run the clock for']],
+  ])('says what is wrong with %s rather than running the clock by it', (_what, intervals, problems) => {
+    expect(clockRun(intervals)).toEqual(problems)
   })
 })
 
@@ -189,11 +229,11 @@ describe('table', () => {
       [
         '## Requests on opening a screen',
         [
-          '| Window | Screen | `/qbt` | `/tmdb` | `/tmdb-img` | `/prowlarr` | `/api` | `other origins` |',
-          '| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |',
-          '| desktop | downloads | 2 | 0 | 3 | 0 | 1 | 0 |',
-          '| phone | downloads | 2 | 0 | 0 | 0 | 1 | 0 |',
-          '| phone | settings | 0 | 0 | 0 | 0 | 0 | 0 |',
+          '| Window | Screen | `/qbt` | `/tmdb` | `/tmdb-img` | `/prowlarr` | `/api` | `other paths` | `other origins` |',
+          '| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+          '| desktop | downloads | 2 | 0 | 3 | 0 | 1 | 0 | 0 |',
+          '| phone | downloads | 2 | 0 | 0 | 0 | 1 | 0 | 0 |',
+          '| phone | settings | 0 | 0 | 0 | 0 | 0 | 0 | 0 |',
         ].join('\n'),
       ].join('\n\n'),
     )

@@ -1,5 +1,5 @@
-// The size budget: `npm run size` after `npm run build`, and a step of CI's `check` job right after
-// the build (docs/QUALITY.md → The size budget). It sums dist/'s files by kind (JS and CSS gzipped,
+// The size budget: `npm run size` after `npm run build`, and a step of CI's `performance` job right
+// after the build (docs/QUALITY.md → The size budget). It sums dist/'s files by kind (JS and CSS gzipped,
 // the rest as they are), compares the sums with the budgets in checks.json and prints a table as
 // Markdown, also into the job's summary in CI. It fails over a budget, and also when it can't read
 // the build or a budget. The rules are in budget.ts; this file only reads. It takes no arguments:

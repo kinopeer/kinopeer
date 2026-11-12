@@ -939,7 +939,7 @@ need no Docker: Chromium on the host will do (`npx playwright install chromium`,
 The third kind of layer-6 test: `e2e/performance/requests.perf.ts` (`npm run test:requests`, after
 `npm run build`; config `playwright.performance.config.ts`) opens each screen afresh by its
 address in Chromium, on a phone and on desktop, with the server routes mocked by `e2e/app.ts` as for
-the screenshots, and counts the requests it sends to each route against `budgets.requests` in
+the screenshots, and counts the requests it sends by route against `budgets.requests` in
 `checks.json`. What it counts, why the counts are exact, what a failure says and what to do about
 it are in [QUALITY.md](QUALITY.md) → The requests budget.
 
@@ -956,6 +956,11 @@ it are in [QUALITY.md](QUALITY.md) → The requests budget.
 - **A new screen** opened by its address in the screenshot tests gets a row in its `SCREENS` and a
   budget for each window size, which goes to a second review. A screen taken out of `SCREENS` takes
   its budgets with it, which goes to the owner.
+- **What it leaves out.** The other states of its screens that the screenshot tests open (other
+  torrents' pages, a search that finds nothing, onboarding), whose counts would follow the shared
+  fixtures' options more than the app: QUALITY → The requests budget lists them.
+- **Locally** it starts its own `vite preview` on port 4174 and fails when the port is taken,
+  rather than count another build's requests; it serves what `dist/` has, so build first.
 - **In CI:** the `performance` job runs it on a plain runner after the size budget, with Chromium
   cached by the Playwright version; it adds the table of the counts to the job's summary, and when
   it fails, its `playwright-report-performance` artifact has the report and the traces.

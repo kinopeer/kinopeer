@@ -367,15 +367,28 @@ a request. The requests budget makes that a failing check. `npm run test:request
 `npm run build` (`playwright.performance.config.ts`, `e2e/performance/requests.perf.ts`), opens
 each screen afresh by its address in Chromium, with every server route mocked as in the screenshot
 tests (`e2e/app.ts`), and counts the requests it sends to each of Kinopeer's routes (`/qbt`,
-`/tmdb`, `/tmdb-img`, `/prowlarr`, `/api`) and to any other origin. The app's own files (the page,
-its scripts and styles, the fonts, the icons, the manifest, `version.json`) aren't counted.
+`/tmdb`, `/tmdb-img`, `/prowlarr`, `/api`), to the app's own origin outside them (`other paths`)
+and to any other origin (`other origins`). The app's own files aren't counted: the page itself (a
+request the browser makes as a document, which the server answers with `index.html`) and every
+file of the build, which the test lists from `dist/` (its scripts and styles, the fonts, the icons,
+the manifest, `version.json`). Anything else on the app's origin is `other paths`, whose budget is
+0 on every screen: a server route the list above doesn't name (`/healthz`, or a new one, which then
+gets a key of its own) or a file the build doesn't have. `other origins` is 0 on every screen too,
+and it sees only what leaves the page: the Content-Security-Policy `vite preview` sends blocks a
+request to another origin before it goes out (the smoke journeys fail on that, `e2e/smoke/test.ts`),
+so its 0 catches such a call only with the policy loosened for it, and WebSockets, which the app
+opens none of, aren't requests and aren't counted.
 
-The screens are those the screenshot tests open by their address: Downloads, a torrent, Search with
-a query, a title, its releases and Settings, each on a phone (the config's 390×844) and on desktop
-(`DESKTOP`, 1440×900). Their budgets sit in `checks.json` under `budgets.requests`, by window size,
-screen and route, every route of every screen, 0 included; another origin's budget is 0 on every
-screen. The test sets its own three torrents, so a change to the shared fixtures for a screenshot
-doesn't move a budget; the titles, releases and posters come from the shared fixtures.
+The screens are those the screenshot tests open by their address: Downloads, a torrent, Search
+without a query (its rows of titles) and with one, a movie's page, a series' page, its releases and
+Settings, each on a phone (the config's 390×844) and on desktop (`DESKTOP`, 1440×900). The
+screenshot tests also open other states of these: other torrents' pages (`/torrent/a2`, `a4`, `a8`,
+`b1`), a search that finds nothing (`/search?q=zzz`) and onboarding (`/` with qBittorrent or TMDB
+not set up). They're left out: each is a screen counted here in a state the shared fixtures' options
+set up, whose count would follow those options more than the app. Their budgets sit in
+`checks.json` under `budgets.requests`, by window size, screen and key, every key of every screen,
+0 included. The test sets its own three torrents, so a change to the shared fixtures for a
+screenshot doesn't move a budget; the titles, releases and posters come from the shared fixtures.
 
 **Exact, not within a margin.** The app polls qBittorrent every 2 s and a torrent's files every
 3 s, so a count over real time grows with how long the run takes. The test pauses the page's clock
@@ -384,13 +397,20 @@ intervals, which it reads from `src/torrents/pollIntervals.ts` (a module that im
 the test imports it by its path): the timers a screen's open sets off fire (the save of a guessed
 title a second later), and no poll repeats. The clock runs in steps of 100 ms, with the page left
 to settle after each (no request in flight for 250 ms of real time), so a timer set after an answer
-fires in order. Twenty runs in a row gave the same counts, locally and in CI, so the budget is each
+fires in order; a page that hasn't settled in 10 s fails the test, naming the requests still in
+flight. The page then has to show the screen's heading (by its role, level and name), so a crash or
+a "not answering" screen isn't counted as the screen. The test starts its own server on port 4174
+every run and fails when the port is taken, since a server already there may serve another build.
+Twenty runs in a row gave the same counts, locally and in CI, so the budget is each
 count itself: a count above its budget fails, and so does one below it, since a budget left higher
 than the screen needs would let a request come back unnoticed.
 
 **What fails**: a count that isn't its budget; a screen the test opens without a budget, or a
 budget for a screen it doesn't open; `budgets.requests` that can't be read (not an object, a count
-that isn't a whole number of 0 or more, a route missing or one the check doesn't count). A failure
+that isn't a whole number of 0 or more, a key missing or one the check doesn't count);
+`src/torrents/pollIntervals.ts` exporting no interval or something that isn't a whole number of
+milliseconds above 1 (the clock's run would be wrong); a page that doesn't settle; a screen whose
+heading doesn't show. A failure
 names the screen, the window size and the route, the budget and the count, lists that route's
 requests and says what to do.
 
@@ -405,8 +425,8 @@ Chromium from the cache as in the `smoke` job; the reporter `e2e/performance/sum
 table of the counts to the job's summary, and a failure uploads the Playwright report with its
 traces.
 
-**Its tests**: the rules (which route a request counts against, the budgets read, the screens
-without a budget, the verdict and its report, the table) are pure functions in
+**Its tests**: the rules (which key a request counts against, the budgets read, the screens
+without a budget, the verdict and its report, the table, the clock's run from the intervals) are pure functions in
 `scripts/requests/budget.ts`, tested in `budget.test.ts` (layer 1); coverage measures the folder and
 Stryker mutates it. The browser test only collects the numbers; it is layer 6, a test of its own
 beside the screenshot tests and the smoke journeys (`docs/TESTING.md` → Layers).
