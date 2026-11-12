@@ -399,9 +399,12 @@ title a second later), and no poll repeats. The clock runs in steps of 100 ms, w
 to settle after each (no request in flight for 250 ms of real time), so a timer set after an answer
 fires in order; a page that hasn't settled in 10 s fails the test, naming the requests still in
 flight. The page then has to show the screen's own heading (by its role, level and name), so a
-crash or another screen isn't counted as the screen; where that heading stays above a "not
-answering" or empty state (Downloads, Search), it also has to show a link only the loaded content
-has (a torrent's row, a found title). The test starts its own server on port 4174
+crash or another screen isn't counted as the screen. Where that heading stays above a "not
+answering" or empty state (Downloads, Search, the releases), it also has to show a control only the
+loaded content has (a torrent's row, a found title, a release's Add button). The other screens'
+headings come with what they load (a title's or a torrent's name from TMDB), or the screen shows
+what each service answered (Settings), and there it is the counts that notice a service that didn't
+answer. The test starts its own server on port 4174
 every run and fails when the port is taken, since a server already there may serve another build.
 Twenty runs in a row gave the same counts, locally and in CI, so the budget is each
 count itself: a count above its budget fails, and so does one below it, since a budget left higher

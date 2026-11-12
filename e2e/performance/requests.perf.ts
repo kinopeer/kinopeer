@@ -23,25 +23,27 @@ const TORRENTS = [
 ]
 
 type Heading = { level: number; name: string }
+/** A control only the screen's loaded content has. */
+type Loaded = { role: 'link' | 'button'; name: string }
 /**
  * Each screen the test opens by its address, with its own heading (`desktop` where the desktop's
- * differs) and, where that heading stays above a "not answering" or empty state, a link only the
- * loaded content has: every screen the screenshot tests open by an address. What they open besides
+ * differs) and, where that heading stays above a "not answering" or empty state, a control only
+ * the loaded content has: every screen the screenshot tests open by an address. What they open besides
  * is another state of one of these (another torrent's page, a search that finds nothing,
  * onboarding), left out as docs/QUALITY.md says.
  */
-const SCREENS: { screen: string; path: string; heading: Heading; desktop?: Heading; link?: string }[] = [
-  { screen: 'downloads', path: '/', heading: { level: 1, name: 'Загрузки' }, link: 'Дюна: Часть вторая' },
+const SCREENS: { screen: string; path: string; heading: Heading; desktop?: Heading; loaded?: Loaded }[] = [
+  { screen: 'downloads', path: '/', heading: { level: 1, name: 'Загрузки' }, loaded: { role: 'link', name: 'Дюна: Часть вторая' } },
   // On desktop the torrent's drawer over Downloads.
   { screen: 'torrent', path: '/torrent/p2', heading: { level: 1, name: 'Сёгун' }, desktop: { level: 2, name: 'Сёгун' } },
-  { screen: 'browse', path: '/search', heading: { level: 1, name: 'Поиск' }, link: 'Оппенгеймер' },
-  { screen: 'search', path: '/search?q=%D0%B4%D1%8E%D0%BD%D0%B0', heading: { level: 1, name: 'Поиск' }, link: 'Дюна: Часть вторая' },
+  { screen: 'browse', path: '/search', heading: { level: 1, name: 'Поиск' }, loaded: { role: 'link', name: 'Оппенгеймер' } },
+  { screen: 'search', path: '/search?q=%D0%B4%D1%8E%D0%BD%D0%B0', heading: { level: 1, name: 'Поиск' }, loaded: { role: 'link', name: 'Дюна: Часть вторая' } },
   // With a year, movies and series are searched apart.
-  { screen: 'search-year', path: '/search?q=%D0%B0&year=2022', heading: { level: 1, name: 'Поиск' }, link: 'Разделение' },
+  { screen: 'search-year', path: '/search?q=%D0%B0&year=2022', heading: { level: 1, name: 'Поиск' }, loaded: { role: 'link', name: 'Разделение' } },
   { screen: 'title', path: '/title/movie/693134', heading: { level: 1, name: 'Дюна: Часть вторая' } },
   { screen: 'series', path: '/title/tv/126308', heading: { level: 1, name: 'Сёгун' } },
   // On desktop the title page with its releases under the hero.
-  { screen: 'releases', path: '/title/tv/126308/releases', heading: { level: 1, name: 'Раздачи' }, desktop: { level: 1, name: 'Сёгун' } },
+  { screen: 'releases', path: '/title/tv/126308/releases', heading: { level: 1, name: 'Раздачи' }, desktop: { level: 1, name: 'Сёгун' }, loaded: { role: 'button', name: 'Добавить в загрузки' } },
   { screen: 'settings', path: '/settings', heading: { level: 1, name: 'Настройки' } },
 ]
 /** The phone is the config's viewport; the desktop the screenshot tests' `DESKTOP`. */
@@ -135,15 +137,16 @@ test('every budget is for a screen the test opens, and every screen it opens has
 for (const { size, use } of SIZES) {
   test.describe(size, () => {
     test.use(use)
-    for (const { screen, path, heading, desktop, link } of SCREENS) {
+    for (const { screen, path, heading, desktop, loaded } of SCREENS) {
       test(screen, async ({ page, baseURL }, testInfo) => {
         expect(RUN_MS, `src/torrents/pollIntervals.ts can't be read:\n${[RUN_MS].flat().join('\n')}`).not.toBeInstanceOf(Array)
         const sent = await open(page, path, RUN_MS as number)
-        // The screen itself opened, with what it loads: not a crash, another screen or its "not
-        // answering" state, whose requests would be counted as its.
+        // The screen itself opened: its own heading, not a crash or another screen; and where that
+        // heading stays above a "not answering" or empty state, what only its loaded content has.
+        // Elsewhere a service that didn't answer shows in the counts (docs/QUALITY.md).
         const { level, name } = size === 'desktop' && desktop ? desktop : heading
         await expect(page.getByRole('heading', { level, name, exact: true })).toBeVisible()
-        if (link) await expect(page.getByRole('link', { name: link }).first()).toBeVisible()
+        if (loaded) await expect(page.getByRole(loaded.role, { name: loaded.name }).first()).toBeVisible()
         const app: App = { origin: new URL(baseURL!).origin, files: builtPaths() }
         await testInfo.attach('requests', {
           contentType: 'application/json',
