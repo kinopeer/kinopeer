@@ -97,13 +97,30 @@ function leaves(value: Json, path = ''): Map<string, Json> {
 const EXCLUDES = ['coverage.exclude', 'mutants.excludedMutations', 'mutants.notProduction']
 const INCLUDES = ['coverage.include', 'mutants.folders']
 const THRESHOLD = 'coverage.thresholds.'
+/** A budget, where more is weaker: the size check (scripts/size/) fails over it. */
+const BUDGETS = 'budgets'
+const isBudget = (key: string): boolean => key === BUDGETS || key.startsWith(`${BUDGETS}.`)
+
+/**
+ * A budget against main's: raised, removed or no longer a number is a weakening; a new one is a change
+ * to existing checks, since a script can't tell whether it is tight; a lowered one is a stricter check.
+ */
+function compareBudget(key: string, before: Json | undefined, after: Json | undefined): Pick<Finding, 'needs' | 'what'> | undefined {
+  const change = `${show(before)} → ${show(after)}`
+  if (before === undefined) return { needs: 'review', what: `the budget \`${key}\` is new: ${change}` }
+  if (after === undefined) return { needs: 'owner', what: `the budget \`${key}\` is removed: ${change}` }
+  if (typeof after !== 'number') return { needs: 'owner', what: `the budget \`${key}\` is no longer a number: ${change}` }
+  if (typeof before !== 'number') return { needs: 'review', what: `the budget \`${key}\` wasn't a number on main: ${change}` }
+  return after > before ? { needs: 'owner', what: `the budget \`${key}\` is raised: ${change}` } : undefined
+}
 
 const entries = (value: Json | undefined): string[] => (Array.isArray(value) ? value.map((entry) => JSON.stringify(entry)) : [])
 
 /**
- * checks.json, the thresholds and the exclusion lists: a threshold that went down, an exclusion list
- * that grew or a list of what is checked that shrank is a weakening; any other change to the file is a
- * change to existing checks.
+ * checks.json, the thresholds, the exclusion lists and the budgets: a threshold that went down, an
+ * exclusion list that grew, a list of what is checked that shrank or a budget that went up is a
+ * weakening; a budget that went down is a stricter check; any other change to the file is a change to
+ * existing checks.
  */
 export function compareChecks(base: string | undefined, head: string | undefined, file = CHECKS_FILE): Finding[] {
   if (head === undefined) return [{ needs: 'owner', file, what: 'the file with the thresholds and the exclusion lists is removed' }]
@@ -123,6 +140,9 @@ export function compareChecks(base: string | undefined, head: string | undefined
       const lowered = typeof before === 'number' && !(typeof after === 'number' && after > before)
       if (lowered) owner(`the threshold \`${key}\` is lowered: ${show(before)} → ${show(after)}`)
       else review(`the threshold \`${key}\` changed: ${show(before)} → ${show(after)}`)
+    } else if (isBudget(key)) {
+      const finding = compareBudget(key, before, after)
+      if (finding) found.push({ ...finding, file })
     } else if (EXCLUDES.includes(key) || INCLUDES.includes(key)) {
       // Anything but a list there, and whatever reads it leaves out or takes in something else.
       if (!Array.isArray(after)) {

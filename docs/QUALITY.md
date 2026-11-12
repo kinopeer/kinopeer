@@ -15,6 +15,7 @@ Only what is on, being adopted, or declined with its reason; plans aren't listed
 | Component | State | What it does |
 | --- | --- | --- |
 | [The checks guard](#the-checks-guard) | On since 2026-11-12 (#366): its check is red while a PR lacks the records its marks call for, and is among `main`'s required checks | A script CI runs on every PR, which writes into the PR what in it weakens the checks or changes existing ones, and what record each of the two calls for |
+| [The size budget](#the-size-budget) | On since 2026-11-12 (#378): a step of CI's `check` job, so a build over a budget fails a required check | Sums the build's JS and CSS gzipped and everything else as it is, and fails over the budgets in `checks.json` |
 
 ## The checks guard
 
@@ -35,6 +36,8 @@ or its rules.
   from what it measures (`coverage` in `checks.json`).
 - A mutator added to those Stryker leaves out, a pattern added to the files it doesn't mutate, or a
   folder removed from those it does (`mutants` in `checks.json`).
+- A budget raised, removed or no longer a number (`budgets` in `checks.json`, where more is
+  weaker). A budget lowered isn't marked: it checks more.
 - A lint rule removed, turned off or downgraded, at the top level or in an override; a rule turned
   off that the config didn't name before, since it may have been on by default; a plugin removed; a
   path added to `ignorePatterns` (the root `.oxlintrc.json`).
@@ -92,8 +95,8 @@ or its rules.
 
 **For a second review**: a change to an existing check that a script can't judge.
 
-- Any other change to `checks.json`: a threshold raised, an entry removed from an exclusion list, a
-  key the guard has no rule for.
+- Any other change to `checks.json`: a threshold raised, a new budget, an entry removed from an
+  exclusion list, a key the guard has no rule for.
 - Any other change to `.oxlintrc.json`: a rule's options, also when its severity went up with
   them; a new rule that only warns; a key the guard has no rule for.
 - A CI step that changed or is gone, when every command it called still runs somewhere or it
@@ -200,7 +203,8 @@ checks in the repository's settings until the fix is merged.
 
 They sit in `checks.json`, as data, so that the guard compares them exactly: `vite.config.ts` reads
 from it what coverage measures and its thresholds, `stryker.config.mjs` the mutators left out,
-`scripts/mutants.mjs` the folders mutated and the files in them that aren't production code. A new
+`scripts/mutants.mjs` the folders mutated and the files in them that aren't production code,
+`scripts/size/size.ts` the size budgets (`budgets.size`, [The size budget](#the-size-budget)). A new
 threshold, budget or exclusion list goes there too, not into the config that uses it, where the
 guard wouldn't see it move.
 
@@ -302,3 +306,39 @@ a test file in `assertions.test.ts`, the comparison of the tests that ran in `te
 the records in `records.test.ts` (layer 1), the reading of a branch and of the reports' folders in `scripts/guard/guard.test.ts`,
 over a git repository made in the test (layer 4). Stryker mutates the guard as it does the app's
 code.
+
+## The size budget
+
+A change can make the app heavier without a line that says so: a new dependency, an import that
+pulls in a whole library, an asset. The size budget makes that a failing check. After
+`npm run build`, `npm run size` (`scripts/size/`) sums the files in `dist/` by kind and compares
+each sum with its budget in `checks.json`:
+
+| Kind | Counted | Budget |
+| --- | --- | --- |
+| JS (`.js`, `.mjs`) | gzipped, at gzip's default level, which `server/static.ts` sends it with | `budgets.size.js` |
+| CSS | gzipped, the same way | `budgets.size.css` |
+| Everything else | as it is: the fonts and icons are compressed already | `budgets.size.rest` |
+
+The sums are per kind rather than per file, since the files' names carry hashes that change with
+their content. Each budget is a whole number of bytes, about 5% above what the build measured when
+it was set: on 2026-11-12, 185,085 bytes of JS, 15,392 of CSS and 184,330 of the rest, against
+budgets of 194,400, 16,200 and 193,600. Two clean builds in a row gave the same numbers, and so did
+CI's: the size is exact, so the margin is room for ordinary changes, not for noise.
+
+**In CI** it is the step after `npm run build` in the `check` job, which adds a table of the kinds,
+their sizes, budgets and what is left to the job's summary. It fails over a budget, and also when
+it can't check: a `dist/` that is missing or empty, a `checks.json` it can't read, a budget that is
+missing or not a whole number of bytes above 0. A failure names the kind that grew, by how much
+it is over, and its three heaviest files.
+
+**Over a budget**, find what grew: build `main` and the branch, run `npm run size` on each and
+compare the files of that kind; then make it smaller or leave it out. Raising a budget to get a PR
+through is a weakening: it is the owner's decision, and the checks guard marks a budget raised,
+removed or no longer a number for the owner. A new budget goes to a second review. A budget
+lowered, after the app got lighter, needs no record.
+
+**Its tests**: the rules (the kind of a file, the budgets read, the verdict and its report) are
+pure functions in `scripts/size/budget.ts`, tested in `budget.test.ts` (layer 1); reading a build
+folder and `checks.json` in `size.ts`, tested in `size.test.ts` over a folder made in the test
+(layer 4). Coverage measures the folder and Stryker mutates it, as it does the guard.

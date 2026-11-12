@@ -14,6 +14,7 @@
     "test:coverage": "vitest run --coverage",
     "test:mutants": "node scripts/mutants.mjs",
     "guard": "node scripts/guard/guard.ts",
+    "size": "node scripts/size/size.ts",
     "typecheck": "tsc -b",
     "test:visual": "scripts/test-visual.sh",
     "test:visual:update": "scripts/test-visual.sh --update-snapshots",

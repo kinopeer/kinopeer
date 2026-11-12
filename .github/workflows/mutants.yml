@@ -16,6 +16,7 @@ on:
       # scripts/mutants.mjs mutates these too.
       - 'tmdb-proxy/**'
       - 'scripts/guard/**'
+      - 'scripts/size/**'
       # What Stryker runs with, each of which can break it without a line to mutate.
       - 'package.json'
       - 'package-lock.json'
