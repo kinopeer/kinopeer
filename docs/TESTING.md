@@ -16,7 +16,7 @@ npm run test:mutants        # breaks the lines this branch changes, lists the br
 npm run test:visual         # layer 6: screenshot tests in Docker
 npm run test:visual:update  # re-render their baselines
 npm run test:smoke          # layer 6: smoke journeys through the production server, no Docker
-npm run test:requests       # layer 6: each screen's requests on opening and each move's between screens against their budgets, after npm run build
+npm run test:requests       # layer 6: each screen's requests on opening and each move's between screens against their budgets, and a torrent page's layout shift, after npm run build
 ```
 
 ## Layers
@@ -28,7 +28,7 @@ npm run test:requests       # layer 6: each screen's requests on opening and eac
 | 3 | Screens, stores and clients | A screen or a user flow with the API clients mocked (`vi.mock('../api/…')`): what it shows for a state, what it sends, where it navigates. A hook or a store that holds the app's data, with the clients mocked. An API client with `fetch` stubbed: the request it builds and how it reads each answer, errors included | Real HTTP, the server, layout | Vitest + Testing Library + user-event, jsdom | `src/screens/*.test.tsx` (sheets and dialogs included), `src/App.test.tsx`, the hooks and stores in `src/session/`, `src/torrents/`, `src/settings/`, the clients in `src/api/*/` | `npm test` |
 | 4 | Server | Each middleware under `server/` against fake qBittorrent, TMDB and Prowlarr servers started in the test: routing, headers, what reaches the service and what comes back | Browser code | Vitest, Node (`server` project) | `server/*.test.ts`, fakes in `server/test/fakes.ts`; the TMDB proxy worker in `tmdb-proxy/worker.test.ts`, with TMDB and the rate limiter faked in the test, and its deploy check in `tmdb-proxy/deployCheck.test.ts` over a git repository made in the test; the dev and preview servers started from the config in `vite.config.test.ts`; the checks guard in `scripts/guard/guard.test.ts`, over a git repository made in the test; the size check in `scripts/size/size.test.ts`, over a build folder made in the test | `npm test -- --project server` |
 | 5 | Integration | The real clients in `src/api/*` calling the real `kinopeerServer()` in front of the fakes: both ends of each route agree on paths, bodies, cookies and errors, and the flows that cross several routes (login, adding a release, matches) | Rendering; a server without a route (the SPA fallback), which stays in the client tests | Vitest, Node | `server/integration/*.test.ts`, the stand in `server/test/integration.ts` | `npm test -- --project server` |
-| 6 | Browser | How the screens look: the built app in Chromium against baseline PNGs, with every server route mocked (screenshot tests). And six smoke journeys through the real production server behind a proxy that wants a cookie, with the services faked: the browser and the server together (smoke journeys). And what each screen asks the servers for when it opens, and each move between screens in short journeys, counted against its budget, with the routes mocked as for the screenshots (the requests tests) | Behavior, which the layers above cover faster | Playwright in Docker; Playwright on the host | `e2e/*.spec.ts`, baselines in `e2e/__screenshots__/`; `e2e/smoke/*.smoke.ts`, the stand in `e2e/smoke/stack.ts`; `e2e/performance/requests.perf.ts`, `e2e/performance/journeys.perf.ts` | `npm run test:visual`; `npm run test:smoke`; `npm run test:requests` |
+| 6 | Browser | How the screens look: the built app in Chromium against baseline PNGs, with every server route mocked (screenshot tests). And six smoke journeys through the real production server behind a proxy that wants a cookie, with the services faked: the browser and the server together (smoke journeys). And what each screen asks the servers for when it opens, and each move between screens in short journeys, counted against its budget, with the routes mocked as for the screenshots (the requests tests). And how far a torrent's page moves as it loads, its answers let land in each order (the layout shift test) | Behavior, which the layers above cover faster | Playwright in Docker; Playwright on the host | `e2e/*.spec.ts`, baselines in `e2e/__screenshots__/`; `e2e/smoke/*.smoke.ts`, the stand in `e2e/smoke/stack.ts`; `e2e/performance/requests.perf.ts`, `e2e/performance/journeys.perf.ts`, `e2e/performance/layoutShift.perf.ts` | `npm run test:visual`; `npm run test:smoke`; `npm run test:requests` |
 
 Layers 1–5 run on every `npm test` in two Vitest projects (`vite.config.ts`): `app` is jsdom with
 `src/test-setup.ts` (jest-dom matchers, the interface language reset to English, Testing Library's
@@ -970,4 +970,29 @@ it are in [QUALITY.md](QUALITY.md) → The requests budget.
 - **In CI:** the `performance` job runs them on a plain runner after the size budget, with Chromium
   cached by the Playwright version; it adds the tables of the counts to the job's summary, and when
   it fails, its `playwright-report-performance` artifact has the report and the traces.
+
+## The layout shift test
+
+`e2e/performance/layoutShift.perf.ts` (the same config, command and CI job as the requests test)
+opens a torrent's page by its address, on a phone and on desktop (its drawer over Downloads), and
+sums its layout shifts as it loads, the `layout-shift` entries without recent input, against
+`GOOD_LAYOUT_SHIFT` (0.1, the bound Web Vitals call good). It was #387's red test: on a phone the
+page moved by 0.26.
+
+- **Not by chance.** Which states of a page paint, and so what can move, depends on the order its
+  answers land in, which a run left to the network doesn't choose. `holdAnswers`
+  (`e2e/performance/layoutShift.ts`) holds each route's answers and lets them land in an order the
+  test names, each after the page painted what the one before showed: every state in between is on
+  the screen for a frame at least, the worst case. The page asks for the session, the torrents, the
+  title and the poster in that order whatever the network does; the server's matches are asked for
+  beside them, so the test lands them at each place in that chain.
+- **What a failure says.** Each shift with the elements that moved, their boxes in the viewport
+  before and after (`y/height`). A shift comes from an element that was on the screen before and
+  is somewhere else after; one that appears doesn't count, so the fix is room kept for what loads
+  later, or the same element kept where it was (#387: the loading state's body became the loaded
+  page's header).
+- **What it leaves out.** Other screens; a check of every screen's layout shift is to come with
+  #378, extending this reading. It runs with reduced motion, as every Playwright test here does,
+  where #387's jump showed: the reduced-motion rule in `src/styles/base.css` gives every element a
+  1 ms transition, so an element whose styles change is drawn once more as it was.
 
