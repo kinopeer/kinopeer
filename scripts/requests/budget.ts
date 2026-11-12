@@ -145,18 +145,28 @@ export function table(measured: (Opened & { counts: Counts })[]): string {
   ].join('\n\n')
 }
 
+/** How a poll interval's export is named in `src/torrents/pollIntervals.ts`. */
+const INTERVAL_NAME = /^[A-Z][A-Z0-9_]*_INTERVAL_MS$/
+
 /**
  * How long the test runs the page's clock after the page loads: 1 ms less than the shortest of the
  * app's poll intervals (`src/torrents/pollIntervals.ts`), so the timers a screen's open sets off fire
  * and no poll repeats. Or what is wrong with the intervals: the module exports only poll intervals,
- * each a whole number of milliseconds above 1, and at least one.
+ * each named `…_INTERVAL_MS` and a whole number of milliseconds above 1, and at least one.
  */
 export function clockRun(intervals: Record<string, unknown>): number | string[] {
   const entries = Object.entries(intervals)
   if (entries.length === 0) return ['`src/torrents/pollIntervals.ts` exports no poll interval, so the test has no time to run the clock for']
-  const problems = entries
-    .filter(([, ms]) => !(typeof ms === 'number' && Number.isSafeInteger(ms) && ms > 1))
-    .map(([name, ms]) => `\`${name}\` in \`src/torrents/pollIntervals.ts\` is not a whole number of milliseconds above 1: ${typeof ms === 'function' ? 'a function' : `\`${typeof ms === 'number' ? ms : JSON.stringify(ms)}\``}; the module exports only poll intervals, which the test runs the clock by`)
+  const problems = entries.flatMap(([name, ms]) => {
+    const where = `\`${name}\` in \`src/torrents/pollIntervals.ts\``
+    const only = 'the module exports only poll intervals, which the test runs the clock by'
+    if (!INTERVAL_NAME.test(name)) return [`${where} isn't named as a poll interval (\`…_INTERVAL_MS\`); ${only}`]
+    if (typeof ms === 'number' && Number.isSafeInteger(ms) && ms > 1) return []
+    return [`${where} is not a whole number of milliseconds above 1: ${shownValue(ms)}; ${only}`]
+  })
   return problems.length > 0 ? problems : Math.min(...entries.map(([, ms]) => ms as number)) - 1
 }
 
+/** An exported value as a problem names it. */
+const shownValue = (value: unknown): string =>
+  typeof value === 'function' ? 'a function' : `\`${typeof value === 'string' ? JSON.stringify(value) : typeof value === 'bigint' ? `${value}n` : String(value)}\``

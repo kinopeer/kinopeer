@@ -198,19 +198,25 @@ describe('clockRun', () => {
   })
 
   it('takes an interval of 2 ms, which leaves the clock 1 ms to run', () => {
-    expect(clockRun({ FAST_MS: 2 })).toBe(1)
+    expect(clockRun({ FAST_POLL_INTERVAL_MS: 2 })).toBe(1)
   })
 
-  const wrong = (name: string, what: string) =>
-    `\`${name}\` in \`src/torrents/pollIntervals.ts\` is not a whole number of milliseconds above 1: ${what}; the module exports only poll intervals, which the test runs the clock by`
+  const ONLY = 'the module exports only poll intervals, which the test runs the clock by'
+  const wrong = (name: string, what: string) => `\`${name}\` in \`src/torrents/pollIntervals.ts\` is not a whole number of milliseconds above 1: ${what}; ${ONLY}`
+  const misnamed = (name: string) => `\`${name}\` in \`src/torrents/pollIntervals.ts\` isn't named as a poll interval (\`…_INTERVAL_MS\`); ${ONLY}`
 
   it.each([
-    ['a function', { POLL_INTERVAL_MS: 2_000, describeInterval: (ms: number) => `${ms} ms` }, [wrong('describeInterval', 'a function')]],
+    ['a function', { POLL_INTERVAL_MS: 2_000, DESCRIBE_INTERVAL_MS: (ms: number) => `${ms} ms` }, [wrong('DESCRIBE_INTERVAL_MS', 'a function')]],
+    ['a number that is no interval', { POLL_INTERVAL_MS: 2_000, POLL_FAILURES_SHOWN: 3 }, [misnamed('POLL_FAILURES_SHOWN')]],
+    ['a name that only ends like one', { POLL_INTERVAL_MS: 2_000, pollInterval_INTERVAL_MS: 3_000, X_INTERVAL_MS_OLD: 4_000 }, [misnamed('pollInterval_INTERVAL_MS'), misnamed('X_INTERVAL_MS_OLD')]],
+    ['a BigInt', { POLL_INTERVAL_MS: 10n }, [wrong('POLL_INTERVAL_MS', '`10n`')]],
+    ['null', { POLL_INTERVAL_MS: null }, [wrong('POLL_INTERVAL_MS', '`null`')]],
+    ['a negative number', { POLL_INTERVAL_MS: -2_000 }, [wrong('POLL_INTERVAL_MS', '`-2000`')]],
     ['a string', { POLL_INTERVAL_MS: '2000' }, [wrong('POLL_INTERVAL_MS', '`"2000"`')]],
     ['not a number', { POLL_INTERVAL_MS: Number.NaN }, [wrong('POLL_INTERVAL_MS', '`NaN`')]],
     ['a fraction', { POLL_INTERVAL_MS: 1_999.5 }, [wrong('POLL_INTERVAL_MS', '`1999.5`')]],
     ['1 ms, which leaves the clock no time', { POLL_INTERVAL_MS: 1 }, [wrong('POLL_INTERVAL_MS', '`1`')]],
-    ['two wrong at once', { A: 0, B: null }, [wrong('A', '`0`'), wrong('B', '`null`')]],
+    ['two wrong at once', { A_INTERVAL_MS: 0, b: 2_000 }, [wrong('A_INTERVAL_MS', '`0`'), misnamed('b')]],
     ['nothing exported', {}, ['`src/torrents/pollIntervals.ts` exports no poll interval, so the test has no time to run the clock for']],
   ])('says what is wrong with %s rather than running the clock by it', (_what, intervals, problems) => {
     expect(clockRun(intervals)).toEqual(problems)

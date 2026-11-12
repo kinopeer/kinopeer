@@ -380,8 +380,8 @@ so its 0 catches such a call only with the policy loosened for it, and WebSocket
 opens none of, aren't requests and aren't counted.
 
 The screens are those the screenshot tests open by their address: Downloads, a torrent, Search
-without a query (its rows of titles) and with one, a movie's page, a series' page, its releases and
-Settings, each on a phone (the config's 390×844) and on desktop (`DESKTOP`, 1440×900). The
+without a query (its rows of titles), with one and with one and a year (which searches movies and
+series apart), a movie's page, a series' page, its releases and Settings, each on a phone (the config's 390×844) and on desktop (`DESKTOP`, 1440×900). The
 screenshot tests also open other states of these: other torrents' pages (`/torrent/a2`, `a4`, `a8`,
 `b1`), a search that finds nothing (`/search?q=zzz`) and onboarding (`/` with qBittorrent or TMDB
 not set up). They're left out: each is a screen counted here in a state the shared fixtures' options
@@ -398,8 +398,10 @@ the test imports it by its path): the timers a screen's open sets off fire (the 
 title a second later), and no poll repeats. The clock runs in steps of 100 ms, with the page left
 to settle after each (no request in flight for 250 ms of real time), so a timer set after an answer
 fires in order; a page that hasn't settled in 10 s fails the test, naming the requests still in
-flight. The page then has to show the screen's heading (by its role, level and name), so a crash or
-a "not answering" screen isn't counted as the screen. The test starts its own server on port 4174
+flight. The page then has to show the screen's own heading (by its role, level and name), so a
+crash or another screen isn't counted as the screen; where that heading stays above a "not
+answering" or empty state (Downloads, Search), it also has to show a link only the loaded content
+has (a torrent's row, a found title). The test starts its own server on port 4174
 every run and fails when the port is taken, since a server already there may serve another build.
 Twenty runs in a row gave the same counts, locally and in CI, so the budget is each
 count itself: a count above its budget fails, and so does one below it, since a budget left higher
@@ -408,10 +410,9 @@ than the screen needs would let a request come back unnoticed.
 **What fails**: a count that isn't its budget; a screen the test opens without a budget, or a
 budget for a screen it doesn't open; `budgets.requests` that can't be read (not an object, a count
 that isn't a whole number of 0 or more, a key missing or one the check doesn't count);
-`src/torrents/pollIntervals.ts` exporting no interval or something that isn't a whole number of
-milliseconds above 1 (the clock's run would be wrong); a page that doesn't settle; a screen whose
-heading doesn't show. A failure
-names the screen, the window size and the route, the budget and the count, lists that route's
+`src/torrents/pollIntervals.ts` exporting no interval, one not named `…_INTERVAL_MS` or one that
+isn't a whole number of milliseconds above 1 (the clock's run would be wrong); a page that doesn't
+settle; a screen whose heading or loaded content doesn't show. A failure names the screen, the window size and the route, the budget and the count, lists that route's
 requests and says what to do.
 
 **Over a budget**, find what sends the new request (the failure lists them; the trace in the
