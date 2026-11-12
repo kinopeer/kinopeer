@@ -5,20 +5,9 @@
 import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 import { judge, countsOf, grouped, readBudgets, unmatched, type App, type Budgets, type Opened, type Sent } from '../../scripts/requests/budget.ts'
-import { tmdbTag, torrent } from '../../src/test/fixtures.ts'
 import { prepareApp } from '../app.ts'
-import { builtPaths, holdForCounting, record, runClock, RUN_MS, SIZES, type Heading, type Loaded } from './page.ts'
+import { builtPaths, holdForCounting, record, runClock, RUN_MS, SIZES, TORRENTS, type Heading, type Loaded } from './page.ts'
 
-/**
- * The test's own torrents, so a change to the shared fixtures for a screenshot doesn't move a
- * budget: two whose titles their tags name and one whose title the app guesses from its name, which
- * asks TMDB and saves the guess on the server.
- */
-const TORRENTS = [
-  torrent('p1', { name: 'Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX-GRPA', tags: tmdbTag('movie', 693134), category: 'Movies', progress: 0.5 }),
-  torrent('p2', { name: 'Shogun.S01.2160p.WEB-DL.DDP5.1.H.265-GRPB', tags: tmdbTag('tv', 126308), category: 'TV Shows', state: 'uploading', progress: 1 }),
-  torrent('p3', { name: 'Interstellar.2014.1080p.BluRay.x264-GRPC', state: 'pausedDL', progress: 0.1 }),
-]
 
 /**
  * Each screen the test opens by its address, with its own heading (`desktop` where the desktop's

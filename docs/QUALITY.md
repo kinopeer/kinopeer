@@ -207,7 +207,9 @@ from it what coverage measures and its thresholds, `stryker.config.mjs` the muta
 `scripts/mutants.mjs` the folders mutated and the files in them that aren't production code,
 `scripts/size/size.ts` the size budgets (`budgets.size`, [The size budget](#the-size-budget)), the
 requests tests the requests budgets (`budgets.requests` for the screens' openings and
-`budgets.journeys` for the moves between them, [The requests budget](#the-requests-budget)). A new
+`budgets.journeys` for the moves between them, [The requests budget](#the-requests-budget)), the
+layout shift test the layout shift budgets (`budgets.layoutShift`, a score per window size and
+screen, `docs/TESTING.md` → The layout shift test). A new
 threshold, budget or exclusion list goes there too, not into the config that uses it, where the
 guard wouldn't see it move.
 

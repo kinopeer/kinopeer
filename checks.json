@@ -1,6 +1,6 @@
 {
   "coverage": {
-    "include": ["src/**/*.{ts,tsx}", "server/**/*.ts", "tmdb-proxy/**/*.ts", "scripts/guard/**/*.ts", "scripts/size/**/*.ts", "scripts/requests/**/*.ts"],
+    "include": ["src/**/*.{ts,tsx}", "server/**/*.ts", "tmdb-proxy/**/*.ts", "scripts/guard/**/*.ts", "scripts/size/**/*.ts", "scripts/requests/**/*.ts", "scripts/layout-shift/**/*.ts"],
     "exclude": [
       "**/*.test.{ts,tsx}",
       "src/test/**",
@@ -14,12 +14,15 @@
     "thresholds": { "lines": 96, "statements": 95, "functions": 95, "branches": 93 }
   },
   "mutants": {
-    "folders": ["src", "server", "tmdb-proxy", "scripts/guard", "scripts/size", "scripts/requests"],
+    "folders": ["src", "server", "tmdb-proxy", "scripts/guard", "scripts/size", "scripts/requests", "scripts/layout-shift"],
     "notProduction": ["\\.test\\.tsx?$", "/test/", "\\.d\\.ts$", "^src/test-setup\\.ts$"],
     "excludedMutations": ["StringLiteral", "ArrayDeclaration", "ObjectLiteral", "OptionalChaining"]
   },
   "budgets": {
     "size": { "js": 196300, "css": 16200, "rest": 193600 },
+    "layoutShift": {
+      "phone": { "torrent": 0.1 }
+    },
     "requests": {
       "phone": {
         "downloads": { "/qbt": 2, "/tmdb": 3, "/tmdb-img": 3, "/prowlarr": 0, "/api": 4, "other paths": 0, "other origins": 0 },
