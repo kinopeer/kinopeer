@@ -14,7 +14,7 @@ Only what is on, being adopted, or declined with its reason; plans aren't listed
 
 | Component | State | What it does |
 | --- | --- | --- |
-| [The checks guard](#the-checks-guard) | Being adopted (#366): its check is red while a PR lacks the records its marks call for. Whether that check is among `main`'s required ones is in the branch's ruleset, where the owner adds it after a trial on real PRs | A script CI runs on every PR, which writes into the PR what in it weakens the checks or changes existing ones, and what record each of the two calls for |
+| [The checks guard](#the-checks-guard) | On since 2026-11-12 (#366): its check is red while a PR lacks the records its marks call for, and is among `main`'s required checks | A script CI runs on every PR, which writes into the PR what in it weakens the checks or changes existing ones, and what record each of the two calls for |
 
 ## The checks guard
 
