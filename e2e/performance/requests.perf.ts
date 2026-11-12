@@ -143,7 +143,8 @@ for (const { size, use } of SIZES) {
         const sent = await open(page, path, RUN_MS as number)
         // The screen itself opened: its own heading, not a crash or another screen; and where that
         // heading stays above a "not answering" or empty state, what only its loaded content has.
-        // Elsewhere a service that didn't answer shows in the counts (docs/QUALITY.md).
+        // Elsewhere the heading comes with what the screen loads, or the screen asks the same
+        // whatever the services answer (Settings), as docs/QUALITY.md says.
         const { level, name } = size === 'desktop' && desktop ? desktop : heading
         await expect(page.getByRole('heading', { level, name, exact: true })).toBeVisible()
         if (loaded) await expect(page.getByRole(loaded.role, { name: loaded.name }).first()).toBeVisible()
