@@ -3,7 +3,8 @@ import { join } from 'node:path'
 import { render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fakePoll } from '../test/render'
-import { POLL_INTERVAL_MS, type PollState } from '../torrents/useMainData'
+import { POLL_INTERVAL_MS } from '../torrents/pollIntervals'
+import type { PollState } from '../torrents/useMainData'
 import { PollRing } from './PollRing'
 
 const ANSWERED_AT = new Date(2026, 10, 3, 21, 5, 7).getTime()

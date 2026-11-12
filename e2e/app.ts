@@ -225,6 +225,15 @@ async function mockTmdb(page: Page, options: AppOptions): Promise<void> {
 /** Opens the app at `path` with mocked servers, a frozen clock and the given preferences. */
 export async function openApp(page: Page, path: string, options: AppOptions = {}): Promise<void> {
   await page.clock.setFixedTime(NOW)
+  await prepareApp(page, options)
+  await page.goto(path)
+}
+
+/**
+ * What `openApp` does before it loads the page, without the clock: the preferences and the mocked
+ * servers. For a test that runs the clock itself (e2e/performance/).
+ */
+export async function prepareApp(page: Page, options: AppOptions = {}): Promise<void> {
   await page.addInitScript(
     ({ theme, lang, downloadsView, releaseFilters, installCard }) => {
       localStorage.setItem('kinopeer.theme', theme)
@@ -254,7 +263,6 @@ export async function openApp(page: Page, path: string, options: AppOptions = {}
     await page.addInitScript(() => Object.defineProperty(navigator.serviceWorker, 'controller', { get: () => ({}) }))
   }
   await mockServer(page, options)
-  await page.goto(path)
 }
 
 /** Chromium's own safe area is empty: this gives env(safe-area-inset-top) a notched iPhone's. */

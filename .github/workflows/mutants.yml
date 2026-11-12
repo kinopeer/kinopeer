@@ -17,6 +17,7 @@ on:
       - 'tmdb-proxy/**'
       - 'scripts/guard/**'
       - 'scripts/size/**'
+      - 'scripts/requests/**'
       # What Stryker runs with, each of which can break it without a line to mutate.
       - 'package.json'
       - 'package-lock.json'

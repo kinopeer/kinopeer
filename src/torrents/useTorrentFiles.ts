@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getTorrentFiles, type TorrentFile } from '../api/qbittorrent'
-
-export const FILES_POLL_INTERVAL_MS = 3_000
+import { FILES_POLL_INTERVAL_MS } from './pollIntervals'
 
 export type TorrentFilesState = {
   /** The last request failed; `files` holds the last known list. */

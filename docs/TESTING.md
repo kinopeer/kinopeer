@@ -16,24 +16,25 @@ npm run test:mutants        # breaks the lines this branch changes, lists the br
 npm run test:visual         # layer 6: screenshot tests in Docker
 npm run test:visual:update  # re-render their baselines
 npm run test:smoke          # layer 6: smoke journeys through the production server, no Docker
+npm run test:requests       # layer 6: each screen's requests on opening against their budgets, after npm run build
 ```
 
 ## Layers
 
 | # | Layer | What it checks | What it doesn't | Tool | Where | Run |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Pure logic | Parsing release and torrent names, picking a title, filtering and sorting, formatting, the SHA-1 fallback, the checks guard's signs, its reading of a test file and its comparison of the tests that ran, the size budget's rules: functions that import no React, DOM or Node APIs | Rendering, the network | Vitest | `*.test.ts` next to the module (`src/releases/`, `src/torrents/`, `src/lib/`, `server/json.ts`, `scripts/guard/` but for `guard.ts`, `scripts/size/budget.ts`) | `npm test` |
+| 1 | Pure logic | Parsing release and torrent names, picking a title, filtering and sorting, formatting, the SHA-1 fallback, the checks guard's signs, its reading of a test file and its comparison of the tests that ran, the size budget's rules, the requests budget's rules: functions that import no React, DOM or Node APIs | Rendering, the network | Vitest | `*.test.ts` next to the module (`src/releases/`, `src/torrents/`, `src/lib/`, `server/json.ts`, `scripts/guard/` but for `guard.ts`, `scripts/size/budget.ts`, `scripts/requests/budget.ts`) | `npm test` |
 | 2 | Components and generic hooks | A shared component renders its props with the right roles and names and reacts to input; a hook that knows nothing of the app's data does its job in a DOM (`useIsDesktop`, `useHeightVar`, `useScrollRestoration`, the theme) | Layout and looks, which jsdom has none of; the app's data | Vitest + Testing Library, jsdom | `src/components/*/*.test.tsx`, the hooks in `src/lib/`, `src/theme/` | `npm test` |
 | 3 | Screens, stores and clients | A screen or a user flow with the API clients mocked (`vi.mock('../api/…')`): what it shows for a state, what it sends, where it navigates. A hook or a store that holds the app's data, with the clients mocked. An API client with `fetch` stubbed: the request it builds and how it reads each answer, errors included | Real HTTP, the server, layout | Vitest + Testing Library + user-event, jsdom | `src/screens/*.test.tsx` (sheets and dialogs included), `src/App.test.tsx`, the hooks and stores in `src/session/`, `src/torrents/`, `src/settings/`, the clients in `src/api/*/` | `npm test` |
 | 4 | Server | Each middleware under `server/` against fake qBittorrent, TMDB and Prowlarr servers started in the test: routing, headers, what reaches the service and what comes back | Browser code | Vitest, Node (`server` project) | `server/*.test.ts`, fakes in `server/test/fakes.ts`; the TMDB proxy worker in `tmdb-proxy/worker.test.ts`, with TMDB and the rate limiter faked in the test, and its deploy check in `tmdb-proxy/deployCheck.test.ts` over a git repository made in the test; the dev and preview servers started from the config in `vite.config.test.ts`; the checks guard in `scripts/guard/guard.test.ts`, over a git repository made in the test; the size check in `scripts/size/size.test.ts`, over a build folder made in the test | `npm test -- --project server` |
 | 5 | Integration | The real clients in `src/api/*` calling the real `kinopeerServer()` in front of the fakes: both ends of each route agree on paths, bodies, cookies and errors, and the flows that cross several routes (login, adding a release, matches) | Rendering; a server without a route (the SPA fallback), which stays in the client tests | Vitest, Node | `server/integration/*.test.ts`, the stand in `server/test/integration.ts` | `npm test -- --project server` |
-| 6 | Browser | How the screens look: the built app in Chromium against baseline PNGs, with every server route mocked (screenshot tests). And six smoke journeys through the real production server behind a proxy that wants a cookie, with the services faked: the browser and the server together (smoke journeys) | Behavior, which the layers above cover faster | Playwright in Docker; Playwright on the host | `e2e/*.spec.ts`, baselines in `e2e/__screenshots__/`; `e2e/smoke/*.smoke.ts`, the stand in `e2e/smoke/stack.ts` | `npm run test:visual`; `npm run test:smoke` |
+| 6 | Browser | How the screens look: the built app in Chromium against baseline PNGs, with every server route mocked (screenshot tests). And six smoke journeys through the real production server behind a proxy that wants a cookie, with the services faked: the browser and the server together (smoke journeys). And what each screen asks the servers for when it opens, counted against its budget, with the routes mocked as for the screenshots (the requests test) | Behavior, which the layers above cover faster | Playwright in Docker; Playwright on the host | `e2e/*.spec.ts`, baselines in `e2e/__screenshots__/`; `e2e/smoke/*.smoke.ts`, the stand in `e2e/smoke/stack.ts`; `e2e/performance/requests.perf.ts` | `npm run test:visual`; `npm run test:smoke`; `npm run test:requests` |
 
 Layers 1–5 run on every `npm test` in two Vitest projects (`vite.config.ts`): `app` is jsdom with
 `src/test-setup.ts` (jest-dom matchers, the interface language reset to English, Testing Library's
 cleanup, a no-op `window.scrollTo` since jsdom only logs "not implemented" for it); `server` is
 plain Node for `server/**/*.test.ts`, the integration tests included, `tmdb-proxy/**/*.test.ts`,
-`scripts/guard/**/*.test.ts`, `scripts/size/**/*.test.ts` and `vite.config.test.ts`. Tests sit next to the code as
+`scripts/guard/**/*.test.ts`, `scripts/size/**/*.test.ts`, `scripts/requests/**/*.test.ts` and `vite.config.test.ts`. Tests sit next to the code as
 `*.test.ts(x)` and query by role and accessible name. Two kinds of test don't follow the table's
 "Where" column. The service worker: its routing rules are plain logic in `src/pwa/swRoutes.ts`
 (layer 1), and `src/sw.test.ts` is a smoke test of `src/sw.ts` with workbox mocked, compiled with
@@ -221,8 +222,9 @@ milliseconds, fails with a precise message, and it's the one the layer above lea
   `useFilePriorities.test.tsx` owns when it gives way to that poll, besides busy per file and where
   a failure goes.
 - **A flaky test is fixed or deleted.** Not retried, not skipped, not marked `fixme`: a retry hides
-  the instability and a skip hides the behavior (oxlint refuses `.skip` and `.only`). Both Playwright
-  configs run with `retries: 0`, so a screenshot or a journey that fails once fails the job.
+  the instability and a skip hides the behavior (oxlint refuses `.skip` and `.only`). Every Playwright
+  config runs with `retries: 0` (the others take it from `playwright.config.ts`), so a screenshot, a
+  journey or a count of requests that fails once fails the job.
 
 ### A test that can fail
 
@@ -589,7 +591,7 @@ imports Node needs.
 
 `npm run test:coverage` runs the Vitest layers with `@vitest/coverage-v8` and prints a table per
 file, plus an HTML report in `coverage/` (git-ignored). It measures the TypeScript in `src/`, `server/`,
-`tmdb-proxy/`, `scripts/guard/` and `scripts/size/`, not the config and data files beside it (#283), without the tests themselves, `src/test/`, `server/test/`, type-only modules and the `index.ts` barrels of
+`tmdb-proxy/`, `scripts/guard/`, `scripts/size/` and `scripts/requests/`, not the config and data files beside it (#283), without the tests themselves, `src/test/`, `server/test/`, type-only modules and the `index.ts` barrels of
 `src/api/*` and `src/components/*`, which only re-export (`coverage` in `checks.json`, which `vite.config.ts` reads). CI runs the same in the
 `check` job, adds the totals to the job summary (`scripts/coverage-summary.mjs`) and uploads the HTML
 report as the `coverage` artifact.
@@ -821,7 +823,7 @@ The changes go into one docs PR, reviewed like any other, which adds a row to th
 says which counts each change answers, so the next retro sees whether that count fell. The row and
 the PR name the set behind each count (which PRs, which issues, closed since when). The table's
 columns: "Ready on the first round" gives the merged PRs and those with production code, the folders `scripts/mutants.mjs` mutates (`src/`,
-`server/`, `tmdb-proxy/` and, since #366, `scripts/guard/` and, since #378, `scripts/size/`; before #238 the first two were all there was); "Blocking findings per PR"
+`server/`, `tmdb-proxy/` and, since #366, `scripts/guard/` and, since #378, `scripts/size/` and `scripts/requests/`; before #238 the first two were all there was); "Blocking findings per PR"
 divides the blocking findings (the test review's blocking ones, and the `/code-review` bugs a
 verdict says to fix in the PR, each counted once) by the PRs with production code, the same basis
 in every row, so the column compares with the rows below it and with the Done rule (#222);
@@ -931,3 +933,35 @@ need no Docker: Chromium on the host will do (`npx playwright install chromium`,
 - **In CI:** the `smoke` job runs on a plain runner, with Chromium cached by the Playwright
   version, in about two minutes; when it fails, its `playwright-report-smoke` artifact has the
   report and the traces (`trace: 'retain-on-failure'`).
+
+## The requests test
+
+The third kind of layer-6 test: `e2e/performance/requests.perf.ts` (`npm run test:requests`, after
+`npm run build`; config `playwright.performance.config.ts`) opens each screen afresh by its
+address in Chromium, on a phone and on desktop, with the server routes mocked by `e2e/app.ts` as for
+the screenshots, and counts the requests it sends by route against `budgets.requests` in
+`checks.json`. What it counts, why the counts are exact, what a failure says and what to do about
+it are in [QUALITY.md](QUALITY.md) → The requests budget.
+
+- **What it checks, that nothing else does.** How many requests a screen's open costs, which only a
+  real browser shows: the screens' own requests and their hooks', the lazy images it loads, the
+  timers it sets off. A layer-3 test asserts a count only where the count is the behavior of one
+  screen or hook; this test counts them all, per route, for every screen.
+- **What it doesn't.** What happens after the open (the next poll, a click, a move to another
+  screen), the looks and the flows. A count it shows to be too high is fixed in the app, with a test
+  on the lowest layer that sees the duplicate, and the budget lowered in the same PR.
+- **Its pure rules** (`scripts/requests/budget.ts`) are layer 1; the browser test only collects the
+  numbers and hands them there. It sets its own torrents and runs the clock itself through
+  `prepareApp` (`e2e/app.ts`), which `openApp` uses too, with the clock frozen instead.
+- **A new screen** opened by its address in the screenshot tests gets a row in its `SCREENS` and a
+  budget for each window size, which goes to a second review. A screen taken out of `SCREENS` takes
+  its budgets with it, which goes to the owner.
+- **What it leaves out.** The other states of its screens that the screenshot tests open (other
+  torrents' pages, a search that finds nothing, onboarding), whose counts would follow the shared
+  fixtures' options more than the app: QUALITY → The requests budget lists them.
+- **Locally** it starts its own `vite preview` on port 4174 and fails when the port is taken,
+  rather than count another build's requests; it serves what `dist/` has, so build first.
+- **In CI:** the `performance` job runs it on a plain runner after the size budget, with Chromium
+  cached by the Playwright version; it adds the table of the counts to the job's summary, and when
+  it fails, its `playwright-report-performance` artifact has the report and the traces.
+

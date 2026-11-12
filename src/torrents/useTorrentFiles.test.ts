@@ -2,7 +2,8 @@ import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
 import type { TorrentFile } from '../api/qbittorrent'
-import { FILES_POLL_INTERVAL_MS, useTorrentFiles } from './useTorrentFiles'
+import { FILES_POLL_INTERVAL_MS } from './pollIntervals'
+import { useTorrentFiles } from './useTorrentFiles'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
   ...(await importOriginal<typeof api>()),
