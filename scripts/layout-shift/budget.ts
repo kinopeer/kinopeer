@@ -16,6 +16,8 @@ export type Shift = { value: number; sources: string[]; afterInput: boolean }
 export type Verdict = { passed: boolean; total: number; report: string }
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
+/** A budget as it was read: a number too large for JSON reads as Infinity, which `JSON.stringify` would show as `null`. */
+const shown = (budget: unknown) => (typeof budget === 'number' ? String(budget) : JSON.stringify(budget))
 const where = (...path: string[]) => `\`budgets.layoutShift${path.map((key) => `[${JSON.stringify(key)}]`).join('')}\``
 
 /**
@@ -32,8 +34,8 @@ export function readBudgets(checks: unknown): Budgets | string[] {
       continue
     }
     for (const [screen, budget] of Object.entries(screens)) {
-      if (!(typeof budget === 'number' && budget >= 0)) {
-        problems.push(`${where(size, screen)} is not a layout shift of 0 or more: \`${JSON.stringify(budget)}\``)
+      if (!(typeof budget === 'number' && Number.isFinite(budget) && budget >= 0)) {
+        problems.push(`${where(size, screen)} is not a layout shift of 0 or more: \`${shown(budget)}\``)
       }
     }
   }

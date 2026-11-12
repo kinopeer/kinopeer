@@ -14,8 +14,10 @@ describe('readBudgets', () => {
     ['a checks file that is not an object', null, ['`budgets.layoutShift` in checks.json is missing']],
     ['window sizes that are not an object', { budgets: { layoutShift: [0.1] } }, ['`budgets.layoutShift` in checks.json is not an object of window sizes']],
     ['a size that is not an object of screens', { budgets: { layoutShift: { phone: 0.1 } } }, ['`budgets.layoutShift["phone"]` is not an object of screens']],
+    ['a size given as null', { budgets: { layoutShift: { phone: null } } }, ['`budgets.layoutShift["phone"]` is not an object of screens']],
     ['a budget given as a string', { budgets: { layoutShift: { phone: { torrent: '0.1' } } } }, ['`budgets.layoutShift["phone"]["torrent"]` is not a layout shift of 0 or more: `"0.1"`']],
     ['a budget below 0', { budgets: { layoutShift: { phone: { torrent: -0.1 } } } }, ['`budgets.layoutShift["phone"]["torrent"]` is not a layout shift of 0 or more: `-0.1`']],
+    ['a budget JSON reads as Infinity', JSON.parse('{ "budgets": { "layoutShift": { "phone": { "torrent": 1e999 } } } }'), ['`budgets.layoutShift["phone"]["torrent"]` is not a layout shift of 0 or more: `Infinity`']],
   ])('names what is wrong: %s', (_, checks, problems) => {
     expect(readBudgets(checks)).toEqual(problems)
   })

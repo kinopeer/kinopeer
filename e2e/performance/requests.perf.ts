@@ -8,7 +8,6 @@ import { judge, countsOf, grouped, readBudgets, unmatched, type App, type Budget
 import { prepareApp } from '../app.ts'
 import { builtPaths, holdForCounting, record, runClock, RUN_MS, SIZES, TORRENTS, type Heading, type Loaded } from './page.ts'
 
-
 /**
  * Each screen the test opens by its address, with its own heading (`desktop` where the desktop's
  * differs) and, where that heading stays above a "not answering" or empty state, a control only
