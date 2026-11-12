@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { gzipSync } from 'node:zlib'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { builtFiles, main } from './size.ts'
+import { builtFiles, main, options } from './size.ts'
 
 /** A folder of its own per test, with a build in `dist` and the budgets in `checks.json`. */
 let root: string
@@ -47,6 +47,20 @@ describe('builtFiles', () => {
 
   it('throws for a folder that is not there', () => {
     expect(() => builtFiles(at('nothing'))).toThrow(/ENOENT/)
+  })
+})
+
+describe('options', () => {
+  it('reads the build folder and the budgets file from the command line', () => {
+    expect(options(['node', 'size.ts', '--checks', 'c.json', '--dist', 'build'])).toEqual({ dist: 'build', checks: 'c.json' })
+  })
+
+  it('takes dist/ and checks.json when neither is given', () => {
+    expect(options(['node', 'size.ts'])).toEqual({ dist: 'dist', checks: 'checks.json' })
+  })
+
+  it('takes the default for an option given without its value', () => {
+    expect(options(['node', 'size.ts', '--dist'])).toEqual({ dist: 'dist', checks: 'checks.json' })
   })
 })
 

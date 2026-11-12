@@ -23,16 +23,18 @@ export function builtFiles(dir: string): File[] {
 
 const why = (error: unknown): string => (error instanceof Error ? error.message : String(error))
 
-/**
- * The verdict for the build in `--dist` (dist/ by default) against the budgets in `--checks`
- * (checks.json). In CI it also appends the report to the job's summary.
- */
-export function main(args: string[], env: { GITHUB_STEP_SUMMARY?: string }): Verdict {
+/** `--dist` and `--checks` from the command line: the build's folder and the budgets' file, dist/ and checks.json by default. */
+export function options(args: string[]): { dist: string; checks: string } {
   const value = (name: string, fallback: string) => {
     const index = args.indexOf(`--${name}`)
     return index !== -1 && args[index + 1] ? args[index + 1] : fallback
   }
-  const [dist, checks] = [value('dist', 'dist'), value('checks', 'checks.json')]
+  return { dist: value('dist', 'dist'), checks: value('checks', 'checks.json') }
+}
+
+/** The verdict for the build against the budgets the arguments name. In CI it also appends the report to the job's summary. */
+export function main(args: string[], env: { GITHUB_STEP_SUMMARY?: string }): Verdict {
+  const { dist, checks } = options(args)
   const problems: string[] = []
   let files: File[] | undefined
   let budgets: Budgets | undefined
