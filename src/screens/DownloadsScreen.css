@@ -42,12 +42,29 @@
   min-height: 52px;
 }
 
-.downloads-title-row h1 {
+/* The title (the selection's count while selecting) takes the room the buttons on the right leave. */
+.downloads-title-row > h1,
+.downloads-title {
   flex: 1;
   min-width: 0;
 }
 
-/* The poll's ring beside the title row's icons, a little smaller than their 22px. */
+/* The phone's title with the poll's ring right after it, so the ring reads as the data's state
+   rather than one more of the buttons (#374). */
+.downloads-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Where the row is too narrow for the whole title (English on a 320px phone), the title gives way
+   rather than the ring, which would otherwise overflow onto the buttons. */
+.downloads-title > h1 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The poll's ring after the title, a little smaller than the title row's 22px icons. */
 .downloads-poll {
   --poll-ring-size: 18px;
 }

@@ -215,6 +215,14 @@ test.describe('downloads, phone', () => {
       await showWholePage(page)
       await expect(page).toHaveScreenshot('list-light-en.png')
     })
+
+    // The narrowest phone, in the language with the longer title: the title gives way with an
+    // ellipsis, so the poll's ring right after it stays clear of the buttons (#374).
+    test('the title row on a 320px phone', async ({ page }) => {
+      await page.setViewportSize({ width: 320, height: 700 })
+      await openDownloads(page, { theme: 'light', lang: 'en' })
+      await expect(page).toHaveScreenshot('narrow-light-en.png')
+    })
   })
 })
 
