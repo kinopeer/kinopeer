@@ -1,11 +1,12 @@
 // What both requests tests do with the page (docs/QUALITY.md → The requests budget): record what it
-// sends, hold its clock and run it in steps, and wait for it to settle. The opening test
+// sends, hold its clock and run it in steps, keep the images it loaded and collect its garbage, and
+// wait for it to settle. The opening test
 // (requests.perf.ts) and the journeys test (journeys.perf.ts) import it; the rules the numbers are
 // judged by are in scripts/requests/budget.ts.
 import { readdirSync } from 'node:fs'
 import { relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { Page, Request } from '@playwright/test'
+import type { CDPSession, Page, Request } from '@playwright/test'
 import { clockRun, type Sent } from '../../scripts/requests/budget.ts'
 import * as intervals from '../../src/torrents/pollIntervals.ts'
 import { NOW } from '../../src/test/fixtures.ts'
@@ -50,8 +51,11 @@ export function builtPaths(): Set<string> {
   )
 }
 
-/** What the page sends, from the moment it's recorded: `take` hands over what was sent since the last `take`. */
-export type Recording = { inFlight: Set<Request>; take: () => Sent[] }
+/**
+ * What the page sends, from the moment it's recorded: `take` hands over what was sent since the last
+ * `take`; `sending` gives the list it's adding to now, which keeps growing until the next `take`.
+ */
+export type Recording = { inFlight: Set<Request>; take: () => Sent[]; sending: () => Sent[] }
 
 /** Records every request the page sends and keeps those still in flight, for `settled`. */
 export function record(page: Page): Recording {
@@ -66,6 +70,7 @@ export function record(page: Page): Recording {
   page.on('requestfailed', (request) => inFlight.delete(request))
   return {
     inFlight,
+    sending: () => sent,
     take: () => {
       const taken = sent
       sent = []
@@ -93,17 +98,53 @@ export async function settled(inFlight: Set<Request>): Promise<void> {
   }
 }
 
-/** Installs the page's clock, paused at the fixtures' `NOW`, before anything loads. */
-export async function holdClock(page: Page): Promise<void> {
+/**
+ * Holds the page for counting, before anything loads: its clock installed and paused at the fixtures'
+ * `NOW`, and every image it loads kept in memory for as long as the page lives.
+ *
+ * Kept, because whether a poster shown again is asked for again otherwise depends on the browser's
+ * garbage collection: an image no element shows any more stays in Chromium's memory of the document's
+ * images only until the next collection, and the tests block the service worker, while Playwright's
+ * routes turn the HTTP cache off. Kept, a poster the page loaded once isn't asked for again, as the
+ * HTTP cache and the service worker give in production. Every TMDB image the app shows is an `<img>`.
+ */
+export async function holdForCounting(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const kept = new Set<HTMLImageElement>()
+    // On the capture phase, since `load` doesn't bubble: every image of the document, whoever adds it.
+    document.addEventListener('load', (event) => event.target instanceof HTMLImageElement && kept.add(event.target), true)
+  })
   await page.clock.install({ time: NOW - 1_000 })
   await page.clock.pauseAt(NOW)
 }
 
-/** Lets the page settle, then runs its clock for `run` ms in steps of `STEP_MS`, letting it settle after each. */
+const sessions = new WeakMap<Page, CDPSession>()
+
+/**
+ * Has Chromium collect the page's garbage now, so a count never rests on a collection not having
+ * happened: a part's requests are counted as they are after one, every run, and the images
+ * `holdForCounting` keeps are what stops a collection from adding a request.
+ */
+async function collectGarbage(page: Page): Promise<void> {
+  let session = sessions.get(page)
+  if (!session) {
+    session = await page.context().newCDPSession(page)
+    sessions.set(page, session)
+  }
+  await session.send('HeapProfiler.collectGarbage')
+}
+
+/**
+ * Collects the page's garbage, then lets it settle and runs its clock for `run` ms in steps of
+ * `STEP_MS`, collecting again and letting it settle after each. The first collection lands while the
+ * requests a move set off are still in flight, the later ones between steps and after the part.
+ */
 export async function runClock(page: Page, inFlight: Set<Request>, run: number): Promise<void> {
+  await collectGarbage(page)
   await settled(inFlight)
   for (let ran = 0; ran < run; ran += STEP_MS) {
     await page.clock.runFor(Math.min(STEP_MS, run - ran))
     await settled(inFlight)
+    await collectGarbage(page)
   }
 }

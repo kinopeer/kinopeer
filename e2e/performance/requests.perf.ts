@@ -7,7 +7,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { judge, countsOf, grouped, readBudgets, unmatched, type App, type Budgets, type Opened, type Sent } from '../../scripts/requests/budget.ts'
 import { tmdbTag, torrent } from '../../src/test/fixtures.ts'
 import { prepareApp } from '../app.ts'
-import { builtPaths, holdClock, record, runClock, RUN_MS, SIZES, type Heading, type Loaded } from './page.ts'
+import { builtPaths, holdForCounting, record, runClock, RUN_MS, SIZES, type Heading, type Loaded } from './page.ts'
 
 /**
  * The test's own torrents, so a change to the shared fixtures for a screenshot doesn't move a
@@ -43,14 +43,17 @@ const SCREENS: { screen: string; path: string; heading: Heading; desktop?: Headi
 ]
 const BUDGETS = readBudgets(JSON.parse(readFileSync(new URL('../../checks.json', import.meta.url), 'utf8')))
 
-/** Opens `path` afresh with the clock paused and returns every request the page sent until the clock ran `run` ms. */
+/**
+ * Opens `path` afresh with the clock paused, runs it `run` ms and returns the list of every request the
+ * page sends, which keeps growing while the test checks the screen, so the counts are read after it.
+ */
 async function open(page: Page, path: string, run: number): Promise<Sent[]> {
-  const { inFlight, take } = record(page)
-  await holdClock(page)
+  const { inFlight, sending } = record(page)
+  await holdForCounting(page)
   await prepareApp(page, { torrents: TORRENTS })
   await page.goto(path)
   await runClock(page, inFlight, run)
-  return take()
+  return sending()
 }
 
 test('the poll intervals give the clock a time to run for', () => {
