@@ -1,8 +1,10 @@
 name: Timing trial
 
-# A one-off trial for #378 on its own branch, never merged: how far time-based speed metrics move
-# between runs of the same commit. Ten jobs, each on a fresh runner, each loading every screen
-# TRIAL_REPEATS times in three regimes (e2e/timing-trial/timings.trial.ts).
+# One-off trials for #378 on their own branch, never merged. The first (e2e/timing-trial/
+# timings.trial.ts, at commit cdbeed6 of this branch) measured how far time-based speed metrics move
+# between runs of the same commit; this second one (paired.trial.ts) measures a base and a head as a
+# pair in the same job: ten jobs, each on a fresh runner, each loading every screen and move
+# TRIAL_ROUNDS times in four interleaved arms.
 on:
   push:
     branches: [trial/timing-noise]
@@ -43,21 +45,30 @@ jobs:
       - name: Install Chromium's system libraries
         if: steps.chromium.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
+      - name: Time a second build, as a base of another commit would need
+        # Not used by the measuring: the same commit checked out beside this one, installed and built,
+        # to time what a check that builds its base too would add to a job.
+        run: |
+          started=$(date +%s)
+          git worktree add --detach ../base HEAD
+          (cd ../base && npm ci && npm run build)
+          echo "A second checkout, npm ci and build took $(( $(date +%s) - started )) s" >> "$GITHUB_STEP_SUMMARY"
       - name: Measure
         env:
+          TRIAL_FILE: paired.trial.ts
           TRIAL_JOB: ${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.job }}
-          TRIAL_OUT: trial-out/timings.jsonl
-          TRIAL_REPEATS: 5
+          TRIAL_OUT: trial-out/paired.jsonl
+          TRIAL_ROUNDS: 5
         run: |
           started=$(date +%s)
           npx playwright test --config playwright.timing-trial.config.ts
           echo "Measuring took $(( $(date +%s) - started )) s" >> "$GITHUB_STEP_SUMMARY"
-      - name: Add the job's medians to the summary
+      - name: Add the job's ratios to the summary
         if: always()
-        run: node scripts/timing-trial/aggregate.mjs --job-summary trial-out/timings.jsonl >> "$GITHUB_STEP_SUMMARY"
+        run: node scripts/timing-trial/paired.mjs --job-summary trial-out/paired.jsonl >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
-          name: timings-${{ github.run_attempt }}-${{ matrix.job }}
+          name: paired-${{ github.run_attempt }}-${{ matrix.job }}
           path: trial-out
           retention-days: 30

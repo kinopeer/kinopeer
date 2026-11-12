@@ -9,7 +9,8 @@ import base from './playwright.config.ts'
 export default defineConfig({
   ...base,
   testDir: 'e2e/timing-trial',
-  testMatch: '*.trial.ts',
+  // timings.trial.ts (the noise between runs) unless TRIAL_FILE names paired.trial.ts.
+  testMatch: process.env.TRIAL_FILE ?? 'timings.trial.ts',
   testIgnore: [],
   fullyParallel: false,
   workers: 1,
