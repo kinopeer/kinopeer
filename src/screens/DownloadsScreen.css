@@ -57,6 +57,13 @@
   gap: var(--space-2);
 }
 
+/* Where the row is too narrow for the whole title (English on a 320px phone), the title gives way
+   rather than the ring, which would otherwise overflow onto the buttons. */
+.downloads-title > h1 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* The poll's ring after the title, a little smaller than the title row's 22px icons. */
 .downloads-poll {
   --poll-ring-size: 18px;
