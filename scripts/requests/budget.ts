@@ -1,6 +1,7 @@
 // The requests budget's rules: which budget a request the page sent counts against, the budgets read
-// from checks.json, and the verdict on a screen's counts. Pure, with no Node or browser APIs: the
-// browser test (e2e/performance/requests.perf.ts) collects the requests and hands them here
+// from checks.json, and the verdict on a screen's counts or a move's. Pure, with no Node or browser
+// APIs: the browser tests (e2e/performance/requests.perf.ts, the screens' openings, and
+// journeys.perf.ts, the moves between them) collect the requests and hand them here
 // (docs/QUALITY.md → The requests budget).
 
 /** Kinopeer's server routes the app calls, each counted on its own. */
@@ -15,16 +16,64 @@ export const ELSEWHERE = 'other origins'
 export const KEYS = [...ROUTES, OTHER_PATHS, ELSEWHERE] as const
 export type Key = (typeof KEYS)[number]
 
-/** How many requests each key may take on a screen's open: exactly that many, not fewer. */
+/** How many requests each key may take on a screen's open or a move: exactly that many, not fewer. */
 export type Counts = Record<Key, number>
-/** `budgets.requests` in checks.json: by window size, then by screen. */
+/** `budgets.requests` (or `budgets.journeys`) in checks.json: by window size, then by screen (or move). */
 export type Budgets = Record<string, Record<string, Counts>>
 /** A request the page sent; `document` when it loads the page itself (the app's address, which the server answers with `index.html`). */
 export type Sent = { method: string; url: string; document?: boolean }
 /** The app under test: its origin, and the paths of the files its build has (`/theme.js`, `/assets/…`), which aren't counted. */
 export type App = { origin: string; files: ReadonlySet<string> }
-/** A screen the test opens, in one window size. */
+/** A screen the test opens, in one window size; for a journey's budget, `screen` is the move's name. */
 export type Opened = { size: string; screen: string }
+
+/**
+ * What the budgets are for: the screens the opening test opens, or the moves the journeys test makes.
+ * The rules are the same; what changes is where their budgets sit and how the messages name them.
+ */
+export type Measure = {
+  /** The budgets' key under `budgets` in checks.json. */
+  section: string
+  /** What one budget is for, and its plural. */
+  thing: string
+  things: string
+  /** What the test does with one: `open`, `opens`. */
+  verb: string
+  verbs: string
+  /** The test that measures them. */
+  file: string
+  /** What a verdict's heading names: the screen opened or the move made, the window size and the address. */
+  title: (measured: Opened & { path: string }) => string
+  /** The summary table's heading and its column for what is measured. */
+  heading: string
+  column: string
+}
+
+/** Opening each screen by its address: `budgets.requests`. */
+export const OPENINGS: Measure = {
+  section: 'requests',
+  thing: 'screen',
+  things: 'screens',
+  verb: 'open',
+  verbs: 'opens',
+  file: 'e2e/performance/requests.perf.ts',
+  title: ({ size, screen, path }) => `opening ${screen} (${size}, \`${path}\`)`,
+  heading: 'Requests on opening a screen',
+  column: 'Screen',
+}
+
+/** Moving between screens in a journey: `budgets.journeys`. */
+export const JOURNEYS: Measure = {
+  section: 'journeys',
+  thing: 'move',
+  things: 'moves',
+  verb: 'make',
+  verbs: 'makes',
+  file: 'e2e/performance/journeys.perf.ts',
+  title: ({ size, screen, path }) => `the move ${screen} (${size}, to \`${path}\`)`,
+  heading: 'Requests on a move between screens',
+  column: 'Move',
+}
 /** What the check found: whether it passes, and its report as Markdown. */
 export type Verdict = { passed: boolean; report: string }
 
@@ -56,19 +105,23 @@ export function grouped(sent: Sent[], app: App): Record<Key, Sent[]> {
 export const countsOf = (byKey: Record<Key, Sent[]>): Counts => Object.fromEntries(KEYS.map((key) => [key, byKey[key].length])) as Counts
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
-const where = (...path: string[]) => `\`budgets.requests${path.map((key) => `[${JSON.stringify(key)}]`).join('')}\``
+const whereIn =
+  ({ section }: Measure) =>
+  (...path: string[]) =>
+    `\`budgets.${section}${path.map((key) => `[${JSON.stringify(key)}]`).join('')}\``
 
 /**
  * The budgets in checks.json's object, or what is wrong with them: an object of window sizes, each an
- * object of screens, each with a whole number of requests, 0 or more, for every key and no other.
+ * object of screens (or moves), each with a whole number of requests, 0 or more, for every key and no other.
  */
-export function readBudgets(checks: unknown): Budgets | string[] {
-  const requests = isObject(checks) && isObject(checks.budgets) ? checks.budgets.requests : undefined
+export function readBudgets(checks: unknown, measure: Measure = OPENINGS): Budgets | string[] {
+  const where = whereIn(measure)
+  const requests = isObject(checks) && isObject(checks.budgets) ? checks.budgets[measure.section] : undefined
   if (!isObject(requests)) return [`${where()} in checks.json is ${requests === undefined ? 'missing' : 'not an object of window sizes'}`]
   const problems: string[] = []
   for (const [size, screens] of Object.entries(requests)) {
     if (!isObject(screens)) {
-      problems.push(`${where(size)} is not an object of screens`)
+      problems.push(`${where(size)} is not an object of ${measure.things}`)
       continue
     }
     for (const [screen, counts] of Object.entries(screens)) {
@@ -90,19 +143,22 @@ export function readBudgets(checks: unknown): Budgets | string[] {
   return problems.length > 0 ? problems : (requests as Budgets)
 }
 
-/** The budgets with no screen the test opens, and the screens it opens with no budget. */
-export function unmatched(budgets: Budgets, opened: Opened[]): string[] {
+/** The budgets with no screen the test opens (or move it makes), and the screens it opens (or moves it makes) with no budget. */
+export function unmatched(budgets: Budgets, opened: Opened[], measure: Measure = OPENINGS): string[] {
+  const { thing, verb, file } = measure
+  const where = whereIn(measure)
   const isOpened = (size: string, screen: string) => opened.some((one) => one.size === size && one.screen === screen)
   const stale = Object.entries(budgets).flatMap(([size, screens]) =>
     Object.keys(screens)
       .filter((screen) => !isOpened(size, screen))
-      .map((screen) => `${where(size, screen)} is a budget for a screen the test doesn't open: take it out of checks.json, or open the screen in e2e/performance/requests.perf.ts`),
+      .map((screen) => `${where(size, screen)} is a budget for a ${thing} the test doesn't ${verb}: take it out of checks.json, or ${verb} the ${thing} in ${file}`),
   )
-  const missing = opened.filter(({ size, screen }) => budgets[size]?.[screen] === undefined).map(({ size, screen }) => noBudget(size, screen))
+  const missing = opened.filter(({ size, screen }) => budgets[size]?.[screen] === undefined).map(({ size, screen }) => noBudget(size, screen, measure))
   return [...stale, ...missing]
 }
 
-const noBudget = (size: string, screen: string) => `${where(size, screen)} is missing for a screen the test opens: add it to checks.json with the counts the test measures`
+const noBudget = (size: string, screen: string, measure: Measure) =>
+  `${whereIn(measure)(size, screen)} is missing for a ${measure.thing} the test ${measure.verbs}: add it to checks.json with the counts the test measures`
 
 const plural = (count: number) => `${count} request${count === 1 ? '' : 's'}`
 /** A request as the report lists it: the path for the app's origin, the whole URL for another. */
@@ -112,14 +168,16 @@ const shown = ({ method, url }: Sent, appOrigin: string): string => {
 }
 
 /**
- * A screen's requests against its budget: each key's count must equal its budget. More is a request
- * the screen didn't send before; fewer is a budget left higher than the screen needs, which would let
- * a request come back unnoticed.
+ * A screen's requests (or a move's) against its budget: each key's count must equal its budget. More
+ * is a request the screen didn't send before; fewer is a budget left higher than the screen needs,
+ * which would let a request come back unnoticed.
  */
-export function judge({ size, screen, path }: Opened & { path: string }, sent: Sent[], app: App, budgets: Budgets): Verdict {
-  const title = `## Requests on opening ${screen} (${size}, \`${path}\`)`
+export function judge(measured: Opened & { path: string }, sent: Sent[], app: App, budgets: Budgets, measure: Measure = OPENINGS): Verdict {
+  const { size, screen } = measured
+  const where = whereIn(measure)
+  const title = `## Requests on ${measure.title(measured)}`
   const budget = budgets[size]?.[screen]
-  if (budget === undefined) return { passed: false, report: [title, noBudget(size, screen)].join('\n\n') }
+  if (budget === undefined) return { passed: false, report: [title, noBudget(size, screen, measure)].join('\n\n') }
   const byKey = grouped(sent, app)
   const failures = KEYS.filter((key) => byKey[key].length !== budget[key]).map((key) => {
     const count = byKey[key].length
@@ -134,14 +192,14 @@ export function judge({ size, screen, path }: Opened & { path: string }, sent: S
   return { passed: failures.length === 0, report: [title, ...(failures.length === 0 ? ['Every count is its budget.'] : failures)].join('\n\n') }
 }
 
-/** The counts of every screen opened, as a Markdown table for the job's summary. */
-export function table(measured: (Opened & { counts: Counts })[]): string {
+/** The counts of every screen opened (or move made), as a Markdown table for the job's summary. */
+export function table(measured: (Opened & { counts: Counts })[], measure: Measure = OPENINGS): string {
   const rows = [...measured]
     .sort((a, b) => a.size.localeCompare(b.size) || a.screen.localeCompare(b.screen))
     .map(({ size, screen, counts }) => `| ${size} | ${screen} | ${KEYS.map((key) => counts[key]).join(' | ')} |`)
   return [
-    '## Requests on opening a screen',
-    [`| Window | Screen | ${KEYS.map((key) => `\`${key}\``).join(' | ')} |`, `| --- | --- | ${KEYS.map(() => '---:').join(' | ')} |`, ...rows].join('\n'),
+    `## ${measure.heading}`,
+    [`| Window | ${measure.column} | ${KEYS.map((key) => `\`${key}\``).join(' | ')} |`, `| --- | --- | ${KEYS.map(() => '---:').join(' | ')} |`, ...rows].join('\n'),
   ].join('\n\n')
 }
 
@@ -165,6 +223,25 @@ export function clockRun(intervals: Record<string, unknown>): number | string[] 
     return [`${where} is not a whole number of milliseconds above 1: ${shownValue(ms)}; ${only}`]
   })
   return problems.length > 0 ? problems : Math.min(...entries.map(([, ms]) => ms as number)) - 1
+}
+
+/**
+ * Each part's share of the clock's run in a journey, where the opening and each move are a part: the
+ * same for each, rounded down, so the whole journey runs the clock for no longer than `run` and no
+ * poll repeats in it. Or what is wrong: a number of parts that isn't a whole number of 1 or more, or a
+ * share shorter than `least` ms, too short for a move's timers to mean anything, which fails the
+ * journey rather than running it.
+ */
+export function clockShare(run: number, parts: number, least: number): number | string[] {
+  if (!(Number.isSafeInteger(parts) && parts >= 1)) return [`A journey has ${shownValue(parts)} parts; it has its opening and each move, 1 or more`]
+  const share = Math.floor(run / parts)
+  if (share < least) {
+    return [
+      `A journey of ${parts} parts gives each ${share} ms of the clock's ${run} ms, less than the ${least} ms a part needs: ` +
+        'make the journey shorter, so a move still has time for its timers and no poll repeats',
+    ]
+  }
+  return share
 }
 
 /** An exported value as a problem names it. */

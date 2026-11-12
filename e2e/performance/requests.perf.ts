@@ -2,14 +2,12 @@
 // built app, every server route mocked as in the screenshot tests, each screen loaded afresh by its
 // address in both window sizes, its requests counted by route and compared with `budgets.requests`
 // in checks.json. The rules are in scripts/requests/budget.ts; this file only collects the numbers.
-import { readdirSync, readFileSync } from 'node:fs'
-import { relative, sep } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { expect, test, type Page, type Request } from '@playwright/test'
-import { clockRun, judge, countsOf, grouped, readBudgets, unmatched, type App, type Budgets, type Opened, type Sent } from '../../scripts/requests/budget.ts'
-import * as intervals from '../../src/torrents/pollIntervals.ts'
-import { NOW, tmdbTag, torrent } from '../../src/test/fixtures.ts'
-import { DESKTOP, prepareApp } from '../app.ts'
+import { readFileSync } from 'node:fs'
+import { expect, test, type Page } from '@playwright/test'
+import { judge, countsOf, grouped, readBudgets, unmatched, type App, type Budgets, type Opened, type Sent } from '../../scripts/requests/budget.ts'
+import { tmdbTag, torrent } from '../../src/test/fixtures.ts'
+import { prepareApp } from '../app.ts'
+import { builtPaths, holdForCounting, record, runClock, RUN_MS, SIZES, type Heading, type Loaded } from './page.ts'
 
 /**
  * The test's own torrents, so a change to the shared fixtures for a screenshot doesn't move a
@@ -22,9 +20,6 @@ const TORRENTS = [
   torrent('p3', { name: 'Interstellar.2014.1080p.BluRay.x264-GRPC', state: 'pausedDL', progress: 0.1 }),
 ]
 
-type Heading = { level: number; name: string }
-/** A control only the screen's loaded content has. */
-type Loaded = { role: 'link' | 'button'; name: string }
 /**
  * Each screen the test opens by its address, with its own heading (`desktop` where the desktop's
  * differs) and, where that heading stays above a "not answering" or empty state, a control only
@@ -46,81 +41,19 @@ const SCREENS: { screen: string; path: string; heading: Heading; desktop?: Headi
   { screen: 'releases', path: '/title/tv/126308/releases', heading: { level: 1, name: 'Раздачи' }, desktop: { level: 1, name: 'Сёгун' }, loaded: { role: 'button', name: 'Добавить в загрузки' } },
   { screen: 'settings', path: '/settings', heading: { level: 1, name: 'Настройки' } },
 ]
-/** The phone is the config's viewport; the desktop the screenshot tests' `DESKTOP`. */
-const SIZES = [
-  { size: 'phone', use: {} },
-  { size: 'desktop', use: DESKTOP },
-]
-
-/**
- * How far the clock runs after the page loads: less than the shortest interval the app polls at, so
- * the timers a screen's open sets off fire (the save of a guessed title a second later) and no poll
- * repeats. The clock is paused otherwise, so the count doesn't grow with the time a run takes.
- */
-const RUN_MS = clockRun(intervals)
-/** The clock runs in steps, with the page left to settle after each, so a timer set after an answer fires in order. */
-const STEP_MS = 100
-/** The page has settled when no request has been in flight for this long, in real time. */
-const QUIET_MS = 250
-/** How long the page may take to settle before the test gives up and names what is still in flight. */
-const SETTLE_LIMIT_MS = 10_000
-
 const BUDGETS = readBudgets(JSON.parse(readFileSync(new URL('../../checks.json', import.meta.url), 'utf8')))
 
 /**
- * The paths of the build's files as the server serves them (`/theme.js`, `/assets/…`): what the page
- * loads of them isn't counted. Read when a test runs, after the config's server has built nothing:
- * `npm run build` comes first, as in CI.
+ * Opens `path` afresh with the clock paused, runs it `run` ms and returns the list of every request the
+ * page sends, which keeps growing while the test checks the screen, so the counts are read after it.
  */
-function builtPaths(): Set<string> {
-  const dist = fileURLToPath(new URL('../../dist/', import.meta.url))
-  return new Set(
-    readdirSync(dist, { recursive: true, withFileTypes: true })
-      .filter((entry) => !entry.isDirectory())
-      .map((entry) => `/${relative(dist, `${entry.parentPath}${sep}${entry.name}`).split(sep).join('/')}`),
-  )
-}
-
-/**
- * Waits until no request has been in flight for `QUIET_MS` of real time: the page's clock is paused,
- * but its requests are answered on the test's side, which the page's clock doesn't run (a wait on
- * the page's timers would never end). After `SETTLE_LIMIT_MS` it throws, naming what is still in
- * flight, rather than hang until the test's timeout with nothing said.
- */
-async function settled(inFlight: Set<Request>): Promise<void> {
-  const started = Date.now()
-  let quietSince = started
-  while (Date.now() - quietSince < QUIET_MS) {
-    if (Date.now() - started > SETTLE_LIMIT_MS) {
-      const named = [...inFlight].map((request) => `  - ${request.method()} ${request.url()}`).join('\n')
-      throw new Error(`The page didn't settle in ${SETTLE_LIMIT_MS} ms; still in flight:\n${named}`)
-    }
-    await new Promise((resolve) => setTimeout(resolve, 10))
-    if (inFlight.size > 0) quietSince = Date.now()
-  }
-}
-
-/** Opens `path` afresh with the clock paused and returns every request the page sent until the clock ran `run` ms. */
 async function open(page: Page, path: string, run: number): Promise<Sent[]> {
-  const sent: Sent[] = []
-  const inFlight = new Set<Request>()
-  page.on('request', (request) => {
-    // The page itself: the main frame's navigation, not a frame's or a fetch of the same address.
-    sent.push({ method: request.method(), url: request.url(), document: request.isNavigationRequest() && request.frame() === page.mainFrame() })
-    inFlight.add(request)
-  })
-  page.on('requestfinished', (request) => inFlight.delete(request))
-  page.on('requestfailed', (request) => inFlight.delete(request))
-  await page.clock.install({ time: NOW - 1_000 })
-  await page.clock.pauseAt(NOW)
+  const { inFlight, sending } = record(page)
+  await holdForCounting(page)
   await prepareApp(page, { torrents: TORRENTS })
   await page.goto(path)
-  await settled(inFlight)
-  for (let ran = 0; ran < run; ran += STEP_MS) {
-    await page.clock.runFor(Math.min(STEP_MS, run - ran))
-    await settled(inFlight)
-  }
-  return sent
+  await runClock(page, inFlight, run)
+  return sending()
 }
 
 test('the poll intervals give the clock a time to run for', () => {
