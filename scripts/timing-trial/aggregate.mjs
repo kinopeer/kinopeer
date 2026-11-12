@@ -222,7 +222,8 @@ function report(ciDir, localDir, mediansOut) {
 
   // Layout shift: whether every run of each screen, size and regime gave the same number.
   out.push('### Layout shift', '')
-  out.push('| Screen | Size | Regime | CI: distinct values (runs) | Local: distinct values (runs) | Exact |', '|---|---|---|---|---|---|')
+  out.push('Exact is judged on CI and locally apart: the two platforms render fonts differently, so their numbers aren\'t expected to match each other.', '')
+  out.push('| Screen | Size | Regime | CI: distinct values (runs) | Exact on CI | Local: distinct values (runs) | Exact locally |', '|---|---|---|---|---|---|---|')
   const shiftValues = (records, size, regime, screen) => {
     const counts = new Map()
     for (const record of records) {
@@ -239,13 +240,13 @@ function report(ciDir, localDir, mediansOut) {
       for (const regime of REGIMES) {
         const c = shiftValues(ciRecords, size, regime, screen)
         const l = shiftValues(localRecords, size, regime, screen)
-        const exact = c.size <= 1 && l.size <= 1 && (c.size === 0 || l.size === 0 || [...c.keys()][0] === [...l.keys()][0])
-        exactness.push({ screen, size, regime, exact, ci: c.size })
-        out.push(`| ${screen} | ${size} | ${regime} | ${shown(c)} | ${shown(l) || '–'} | ${exact ? 'yes' : '**no**'} |`)
+        exactness.push({ screen, size, regime, ci: c.size === 1, local: l.size === 1 })
+        const yes = (counts) => (counts.size === 0 ? '–' : counts.size === 1 ? 'yes' : '**no**')
+        out.push(`| ${screen} | ${size} | ${regime} | ${shown(c)} | ${yes(c)} | ${shown(l) || '–'} | ${yes(l)} |`)
       }
     }
   }
-  out.push('')
+  out.push('', `Exact on CI: ${exactness.filter((entry) => entry.ci).length} of ${exactness.length} screen, size and regime combinations; locally: ${exactness.filter((entry) => entry.local).length} of ${exactness.length}.`, '')
 
   // The jobs side by side: each one's clean loaded time relative to the median job, per screen.
   out.push('### The jobs', '')
@@ -261,6 +262,36 @@ function report(ciDir, localDir, mediansOut) {
     return ratios.length ? median(ratios).toFixed(3) : '–'
   }
   for (const meta of ciMeta) out.push(`| ${meta.job} | ${meta.cpu} (${meta.cores}) | ${meta.imageVersion ?? '?'} | ${relative(meta.job, 'loaded')} | ${relative(meta.job, 'task')} |`)
+  out.push('')
+
+  // The same spread between jobs, but only among jobs whose runner had the same CPU model: how much
+  // of the spread is the mix of runner hardware behind ubuntu-latest.
+  const models = new Map()
+  for (const meta of ciMeta) {
+    if (!models.has(meta.cpu)) models.set(meta.cpu, [])
+    models.get(meta.cpu).push(meta.job)
+  }
+  const grouped = [...models].filter(([, jobs]) => jobs.length >= 3).sort((a, b) => a[0].localeCompare(b[0]))
+  out.push('### Between jobs on the same CPU model', '')
+  out.push(`Clean regime (moves: clean too), the worst screen's spread between the job medians of jobs on one CPU model; models with three jobs or more. All jobs, for comparison, in the first column.`, '')
+  out.push(`| Metric | Size | All ${ciMeta.length} jobs | ${grouped.map(([model, jobs]) => `${model.replace(/ Processor| \d+-Core/g, '')} (${jobs.length})`).join(' | ')} |`, `|---|---|---:|${grouped.map(() => '---:').join('|')}|`)
+  const restricted = (jobs) => {
+    const keep = new Set(jobs)
+    const filter = (map) => new Map([...map].map(([key, byJob]) => [key, new Map([...byJob].filter(([job]) => keep.has(job)))]))
+    return { medians: filter(ci.medians), within: filter(ci.within) }
+  }
+  for (const [kind, metrics, names] of [['screen', SCREEN_METRICS, screens], ['move', MOVE_METRICS, moves]]) {
+    for (const [metric] of metrics) {
+      for (const size of SIZES) {
+        const all = pooled(ci, kind, size, 'clean', names, metric)
+        const cells = grouped.map(([, jobs]) => {
+          const p = pooled(restricted(jobs), kind, size, 'clean', names, metric)
+          return p ? `${pct(p.betweenWorst.between)} (${p.betweenWorst.name})` : '–'
+        })
+        out.push(`| ${metric} | ${size} | ${all ? `${pct(all.betweenWorst.between)} (${all.betweenWorst.name})` : '–'} | ${cells.join(' | ')} |`)
+      }
+    }
+  }
   out.push('')
 
   if (mediansOut) {
