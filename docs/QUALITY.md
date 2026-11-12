@@ -15,7 +15,8 @@ Only what is on, being adopted, or declined with its reason; plans aren't listed
 | Component | State | What it does |
 | --- | --- | --- |
 | [The checks guard](#the-checks-guard) | On since 2026-11-12 (#366): its check is red while a PR lacks the records its marks call for, and is among `main`'s required checks | A script CI runs on every PR, which writes into the PR what in it weakens the checks or changes existing ones, and what record each of the two calls for |
-| [The size budget](#the-size-budget) | On since 2026-11-12 (#378): a step of CI's `check` job, so a build over a budget fails a required check | Sums the build's JS and CSS gzipped and everything else as it is, and fails over the budgets in `checks.json` |
+| [The size budget](#the-size-budget) | On since 2026-11-12 (#378): a step of CI's `performance` job, which isn't among `main`'s required checks yet | Sums the build's JS and CSS gzipped and everything else as it is, and fails over the budgets in `checks.json` |
+| [The requests budget](#the-requests-budget) | Being adopted (#378): a step of CI's `performance` job, which isn't among `main`'s required checks yet | Opens each screen afresh in a browser, counts what it asks each server route for, and fails on any count that isn't its budget in `checks.json` |
 
 ## The checks guard
 
@@ -204,7 +205,8 @@ checks in the repository's settings until the fix is merged.
 They sit in `checks.json`, as data, so that the guard compares them exactly: `vite.config.ts` reads
 from it what coverage measures and its thresholds, `stryker.config.mjs` the mutators left out,
 `scripts/mutants.mjs` the folders mutated and the files in them that aren't production code,
-`scripts/size/size.ts` the size budgets (`budgets.size`, [The size budget](#the-size-budget)). A new
+`scripts/size/size.ts` the size budgets (`budgets.size`, [The size budget](#the-size-budget)), the
+requests test the requests budgets (`budgets.requests`, [The requests budget](#the-requests-budget)). A new
 threshold, budget or exclusion list goes there too, not into the config that uses it, where the
 guard wouldn't see it move.
 
@@ -225,8 +227,8 @@ them; after writing its comment it fails while a list of marks lacks its record
 The lists of the tests that ran come from a job of their own, `tests`, which the `guard` job waits
 for. It installs and runs both sides, the commit the branch left `main` at and the branch's head:
 the Vitest tests with the JSON reporter, since only a run has a table's every row as a test and
-knows a skipped one, and Playwright's `--list` for the screenshot tests and the smoke journeys,
-which needs no browser. A failing test is still a test that ran; CI's own jobs fail for it. The
+knows a skipped one, and Playwright's `--list` for the screenshot tests, the smoke journeys and
+the requests test (on a side that has its config), which needs no browser. A failing test is still a test that ran; CI's own jobs fail for it. The
 branch's code runs in that job, so its token can only read. What that code can still write is the
 job's artifact and the Actions cache in the PR's scope: the `guard` job takes the artifact, the
 reports with their paths cut to start at the repository's root, as data to `main`'s script (one it
@@ -337,7 +339,7 @@ and CI's build on Node 22 the same as a local one on Node 24: the size is exact,
 room for ordinary changes, not for noise. It is exact for the dependencies `package-lock.json`
 names: a local `node_modules` that drifted from it builds another size, so measure after `npm ci`.
 
-**In CI** it is the step after `npm run build` in the `check` job, which adds a table of the kinds,
+**In CI** it is the step after `npm run build` in the `performance` job, which adds a table of the kinds,
 their sizes, budgets and what is left to the job's summary. It fails over a budget, and also when
 it can't check: a `dist/` that is missing, a build without a file of each kind (cut short, or
 with files named in a way it doesn't read, such as `.cjs`), an entry in `dist/` that is neither a
@@ -356,3 +358,56 @@ lowered, after the app got lighter, needs no record.
 pure functions in `scripts/size/budget.ts`, tested in `budget.test.ts` (layer 1); reading a build
 folder and `checks.json` in `size.ts`, tested in `size.test.ts` over a folder made in the test
 (layer 4). Coverage measures the folder and Stryker mutates it, as it does the guard.
+
+## The requests budget
+
+A change can make a screen ask the servers for more without a line that says so: a hook that
+fetches what another already has, a lookup for something the screen doesn't show, a second copy of
+a request. The requests budget makes that a failing check. `npm run test:requests`, after
+`npm run build` (`playwright.performance.config.ts`, `e2e/performance/requests.perf.ts`), opens
+each screen afresh by its address in Chromium, with every server route mocked as in the screenshot
+tests (`e2e/app.ts`), and counts the requests it sends to each of Kinopeer's routes (`/qbt`,
+`/tmdb`, `/tmdb-img`, `/prowlarr`, `/api`) and to any other origin. The app's own files (the page,
+its scripts and styles, the fonts, the icons, the manifest, `version.json`) aren't counted.
+
+The screens are those the screenshot tests open by their address: Downloads, a torrent, Search with
+a query, a title, its releases and Settings, each on a phone (the config's 390×844) and on desktop
+(`DESKTOP`, 1440×900). Their budgets sit in `checks.json` under `budgets.requests`, by window size,
+screen and route, every route of every screen, 0 included; another origin's budget is 0 on every
+screen. The test sets its own three torrents, so a change to the shared fixtures for a screenshot
+doesn't move a budget; the titles, releases and posters come from the shared fixtures.
+
+**Exact, not within a margin.** The app polls qBittorrent every 2 s and a torrent's files every
+3 s, so a count over real time grows with how long the run takes. The test pauses the page's clock
+(`page.clock`) before the page loads and runs it for 1 ms less than the shortest of the app's poll
+intervals, which it reads from `src/torrents/pollIntervals.ts` (a module that imports nothing, so
+the test imports it by its path): the timers a screen's open sets off fire (the save of a guessed
+title a second later), and no poll repeats. The clock runs in steps of 100 ms, with the page left
+to settle after each (no request in flight for 250 ms of real time), so a timer set after an answer
+fires in order. Twenty runs in a row gave the same counts, locally and in CI, so the budget is each
+count itself: a count above its budget fails, and so does one below it, since a budget left higher
+than the screen needs would let a request come back unnoticed.
+
+**What fails**: a count that isn't its budget; a screen the test opens without a budget, or a
+budget for a screen it doesn't open; `budgets.requests` that can't be read (not an object, a count
+that isn't a whole number of 0 or more, a route missing or one the check doesn't count). A failure
+names the screen, the window size and the route, the budget and the count, lists that route's
+requests and says what to do.
+
+**Over a budget**, find what sends the new request (the failure lists them; the trace in the
+report shows when each went out) and take it out. Raising a budget to get a PR through is a
+weakening: it is the owner's decision, and the checks guard marks a budget raised, removed or no
+longer a number for the owner. **Under a budget**, lower it in `checks.json` to the new count: a
+budget lowered needs no record. A new budget, for a new screen, goes to a second review.
+
+**In CI** it is the step after the size budget's in the `performance` job, on the same build,
+Chromium from the cache as in the `smoke` job; the reporter `e2e/performance/summary.ts` adds a
+table of the counts to the job's summary, and a failure uploads the Playwright report with its
+traces.
+
+**Its tests**: the rules (which route a request counts against, the budgets read, the screens
+without a budget, the verdict and its report, the table) are pure functions in
+`scripts/requests/budget.ts`, tested in `budget.test.ts` (layer 1); coverage measures the folder and
+Stryker mutates it. The browser test only collects the numbers; it is layer 6, a test of its own
+beside the screenshot tests and the smoke journeys (`docs/TESTING.md` → Layers).
+

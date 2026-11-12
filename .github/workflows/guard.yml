@@ -63,6 +63,10 @@ jobs:
               npx vitest run --reporter=json --outputFile="../lists/$side/vitest.json" || echo "::notice::$side: not every unit test passed"
               npx playwright test --list --reporter=json > "../lists/$side/playwright.json"
               npx playwright test --config playwright.smoke.config.ts --list --reporter=json > "../lists/$side/playwright.smoke.json"
+              # The requests budget's config, on the sides that have it (#378 added it).
+              if [ -f playwright.performance.config.ts ]; then
+                npx playwright test --config playwright.performance.config.ts --list --reporter=json > "../lists/$side/playwright.performance.json"
+              fi
               sed -i "s|$PWD/||g" "../lists/$side"/*.json
             )
           done

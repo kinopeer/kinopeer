@@ -1,13 +1,11 @@
 import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { UnauthorizedError, getMainData, unreachable, type Unreachable } from '../api/qbittorrent'
 import { freeSpace } from './freeSpace'
+import { OFFLINE_POLL_INTERVAL_MS, POLL_INTERVAL_MS } from './pollIntervals'
 import { EMPTY_SYNC_STATE, applyMainData, type SyncState } from './sync'
 import { withExpected, type Expected } from './torrentRequests'
 import { TorrentRequestsContext } from './useTorrentRequests'
 
-export const POLL_INTERVAL_MS = 2_000
-/** Slower retries while qBittorrent doesn't answer. */
-export const OFFLINE_POLL_INTERVAL_MS = 5_000
 /**
  * A poll that hasn't been answered in this long is given up and counts as a failure, so the screens
  * say qBittorrent isn't answering instead of showing ever older data while the request hangs. Five

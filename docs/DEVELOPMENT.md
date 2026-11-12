@@ -18,13 +18,14 @@ npm run lint       # linter (oxlint)
 npm run typecheck  # type check
 npm run build      # production build into dist/
 npm run size       # the build's size against its budgets (docs/QUALITY.md)
+npm run test:requests  # each screen's requests on opening against their budgets, after a build (docs/QUALITY.md)
 npm start          # production server over dist/
 npm run test:visual  # screenshot tests in Docker (docs/TESTING.md)
 ```
 
 The screenshot tests keep the container's `node_modules` in a Docker volume per checkout, so worktrees can run them at once; a volume goes away by itself once its checkout's folder does ([TESTING.md](TESTING.md) → Screenshot tests).
 
-The dev server has the same routes as production: `/qbt`, `/prowlarr`, `/tmdb`, `/tmdb-img`, `/api/settings`. Run lint, typecheck, test, build and size before pushing; CI runs the same on every PR (the tests with coverage, whose totals land in the job summary), checks the build's size against its budgets (`npm run size`, [QUALITY.md](QUALITY.md) → The size budget), runs the screenshot tests and builds and smoke-tests the Docker image. `npm run test:mutants` runs locally before a PR is marked ready, and in CI on every push to a ready PR's head, cancelling a run for an older one ([TESTING.md](TESTING.md) → A test that can fail). The service worker is off in `npm run dev`: try it with `npm run build && npm run preview`.
+The dev server has the same routes as production: `/qbt`, `/prowlarr`, `/tmdb`, `/tmdb-img`, `/api/settings`. Run lint, typecheck, test, build and size before pushing, and `npm run test:requests` when a screen's data or what it loads changes; CI runs the same on every PR (the tests with coverage, whose totals land in the job summary), checks the build's size and each screen's requests on opening against their budgets in its `performance` job (`npm run size` and `npm run test:requests`, [QUALITY.md](QUALITY.md) → The size budget and The requests budget), runs the screenshot tests and builds and smoke-tests the Docker image. `npm run test:mutants` runs locally before a PR is marked ready, and in CI on every push to a ready PR's head, cancelling a run for an older one ([TESTING.md](TESTING.md) → A test that can fail). The service worker is off in `npm run dev`: try it with `npm run build && npm run preview`.
 
 ## Tests
 
