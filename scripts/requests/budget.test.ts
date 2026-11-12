@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clockRun, countsOf, grouped, judge, keyOf, readBudgets, table, unmatched, type App, type Budgets, type Counts, type Sent } from './budget.ts'
+import { clockRun, clockShare, countsOf, grouped, JOURNEYS, judge, keyOf, readBudgets, table, unmatched, type App, type Budgets, type Counts, type Sent } from './budget.ts'
 
 const ORIGIN = 'http://localhost:4174'
 /** The app as the test sees it: its origin and what its build has. */
@@ -103,6 +103,23 @@ describe('readBudgets', () => {
     expect(readBudgets(checks)).toEqual(problems)
   })
 
+  it("reads a journey's moves from budgets.journeys, not the screens' budgets", () => {
+    const moves: Budgets = { phone: { 'download.2-back': NONE } }
+    expect(readBudgets({ budgets: { requests: BUDGETS, journeys: moves } }, JOURNEYS)).toEqual(moves)
+  })
+
+  it.each([
+    ['no budgets for the moves, with budgets for the screens', { budgets: { requests: BUDGETS } }, ['`budgets.journeys` in checks.json is missing']],
+    ['a window size that is not an object of moves', { budgets: { journeys: { phone: [] } } }, ['`budgets.journeys["phone"]` is not an object of moves']],
+    [
+      'a route missing from a move',
+      { budgets: { journeys: { phone: { 'download.2-back': { ...NONE, '/qbt': undefined } } } } },
+      ['`budgets.journeys["phone"]["download.2-back"]["/qbt"]` is missing'],
+    ],
+  ])("names the moves' budgets when it says what is wrong with %s", (_what, checks, problems) => {
+    expect(readBudgets(checks, JOURNEYS)).toEqual(problems)
+  })
+
   it('lists every problem, in every window size', () => {
     expect(readBudgets({ budgets: { requests: { phone: { downloads: { ...NONE, '/qbt': null } }, desktop: { settings: 0 } } } })).toEqual([
       '`budgets.requests["phone"]["downloads"]["/qbt"]` is not a whole number of requests, 0 or more: `null`',
@@ -132,6 +149,21 @@ describe('unmatched', () => {
     expect(unmatched(BUDGETS, [...opened, { size: 'desktop', screen: 'settings' }, { size: 'tablet', screen: 'downloads' }])).toEqual([
       '`budgets.requests["desktop"]["settings"]` is missing for a screen the test opens: add it to checks.json with the counts the test measures',
       '`budgets.requests["tablet"]["downloads"]` is missing for a screen the test opens: add it to checks.json with the counts the test measures',
+    ])
+  })
+})
+
+describe('unmatched, for the moves of journeys', () => {
+  const MOVES: Budgets = { phone: { 'download.1-row': NONE, 'download.2-back': NONE } }
+
+  it('passes when every move made has a budget and every budget a move', () => {
+    expect(unmatched(MOVES, [{ size: 'phone', screen: 'download.1-row' }, { size: 'phone', screen: 'download.2-back' }], JOURNEYS)).toEqual([])
+  })
+
+  it('names a budget for a move the test does not make, and a move it makes with no budget, in the journeys test', () => {
+    expect(unmatched(MOVES, [{ size: 'phone', screen: 'download.1-row' }, { size: 'desktop', screen: 'download.1-row' }], JOURNEYS)).toEqual([
+      '`budgets.journeys["phone"]["download.2-back"]` is a budget for a move the test doesn\'t make: take it out of checks.json, or make the move in e2e/performance/journeys.perf.ts',
+      '`budgets.journeys["desktop"]["download.1-row"]` is missing for a move the test makes: add it to checks.json with the counts the test measures',
     ])
   })
 })
@@ -192,6 +224,33 @@ describe('judge', () => {
   })
 })
 
+describe('judge, for a move', () => {
+  const BACK = { size: 'phone', screen: 'download.2-back', path: '/' }
+  const MOVES: Budgets = { phone: { 'download.2-back': { ...NONE, '/qbt': 1 } } }
+
+  it('names the move, its window size and where it led', () => {
+    expect(judge(BACK, [get('/qbt/api/v2/sync/maindata?rid=1')], APP, MOVES, JOURNEYS)).toEqual({
+      passed: true,
+      report: '## Requests on the move download.2-back (phone, to `/`)\n\nEvery count is its budget.',
+    })
+  })
+
+  it("says to lower the move's budget in budgets.journeys", () => {
+    const { passed, report } = judge(BACK, [], APP, MOVES, JOURNEYS)
+    expect(passed).toBe(false)
+    expect(report).toContain('Fewer than the budget: lower `budgets.journeys["phone"]["download.2-back"]["/qbt"]` in checks.json to 0.')
+  })
+
+  it('fails a move with no budget, saying where to add it', () => {
+    expect(judge({ ...BACK, size: 'desktop' }, [], APP, MOVES, JOURNEYS)).toEqual({
+      passed: false,
+      report:
+        '## Requests on the move download.2-back (desktop, to `/`)\n\n' +
+        '`budgets.journeys["desktop"]["download.2-back"]` is missing for a move the test makes: add it to checks.json with the counts the test measures',
+    })
+  })
+})
+
 describe('clockRun', () => {
   it('runs the clock 1 ms less than the shortest poll interval', () => {
     expect(clockRun({ POLL_INTERVAL_MS: 2_000, OFFLINE_POLL_INTERVAL_MS: 5_000, FILES_POLL_INTERVAL_MS: 3_000 })).toBe(1_999)
@@ -223,6 +282,35 @@ describe('clockRun', () => {
   })
 })
 
+describe('clockShare', () => {
+  it("gives the opening and each move the same share of the clock's run, rounded down", () => {
+    expect(clockShare(1_999, 4, 100)).toBe(499)
+  })
+
+  it('gives a journey of the opening alone the whole run', () => {
+    expect(clockShare(1_999, 1, 100)).toBe(1_999)
+  })
+
+  it('takes a share of exactly the least a part needs', () => {
+    expect(clockShare(400, 4, 100)).toBe(100)
+  })
+
+  it('fails a journey whose share would be shorter than the least a part needs, rather than running it', () => {
+    expect(clockShare(399, 4, 100)).toEqual([
+      "A journey of 4 parts gives each 99 ms of the clock's 399 ms, less than the 100 ms a part needs: " +
+        'make the journey shorter, so a move still has time for its timers and no poll repeats',
+    ])
+  })
+
+  it.each([
+    ['no parts', 0, '`0`'],
+    ['a fraction of a part', 1.5, '`1.5`'],
+    ['a number of parts that is not a number', Number.NaN, '`NaN`'],
+  ])('says what is wrong with %s', (_what, parts, shown) => {
+    expect(clockShare(1_999, parts, 100)).toEqual([`A journey has ${shown} parts; it has its opening and each move, 1 or more`])
+  })
+})
+
 describe('table', () => {
   it('lists the counts by window size and screen, in a steady order', () => {
     expect(
@@ -240,6 +328,30 @@ describe('table', () => {
           '| desktop | downloads | 2 | 0 | 3 | 0 | 1 | 0 | 0 |',
           '| phone | downloads | 2 | 0 | 0 | 0 | 1 | 0 | 0 |',
           '| phone | settings | 0 | 0 | 0 | 0 | 0 | 0 | 0 |',
+        ].join('\n'),
+      ].join('\n\n'),
+    )
+  })
+})
+
+describe('table, for the moves of journeys', () => {
+  it('heads the table with the moves, in their order in each journey', () => {
+    expect(
+      table(
+        [
+          { size: 'phone', screen: 'download.2-back', counts: NONE },
+          { size: 'phone', screen: 'download.1-row', counts: DOWNLOADS },
+        ],
+        JOURNEYS,
+      ),
+    ).toBe(
+      [
+        '## Requests on a move between screens',
+        [
+          '| Window | Move | `/qbt` | `/tmdb` | `/tmdb-img` | `/prowlarr` | `/api` | `other paths` | `other origins` |',
+          '| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+          '| phone | download.1-row | 2 | 0 | 0 | 0 | 1 | 0 | 0 |',
+          '| phone | download.2-back | 0 | 0 | 0 | 0 | 0 | 0 | 0 |',
         ].join('\n'),
       ].join('\n\n'),
     )

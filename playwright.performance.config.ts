@@ -12,7 +12,7 @@ export default defineConfig({
   testDir: 'e2e/performance',
   testMatch: '*.perf.ts',
   testIgnore: [],
-  // The screenshot tests' reporters, and the table of the counts (e2e/performance/summary.ts).
+  // The screenshot tests' reporters, and the tables of the counts (e2e/performance/summary.ts).
   reporter: [['list'], ...(process.env.CI ? [['html', { open: 'never' }] as const] : []), ['./e2e/performance/summary.ts']],
   use: { ...base.use, baseURL: 'http://localhost:4174' },
   webServer: {

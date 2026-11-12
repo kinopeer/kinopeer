@@ -43,6 +43,34 @@
         "releases": { "/qbt": 2, "/tmdb": 6, "/tmdb-img": 4, "/prowlarr": 2, "/api": 4, "other paths": 0, "other origins": 0 },
         "settings": { "/qbt": 4, "/tmdb": 1, "/tmdb-img": 0, "/prowlarr": 1, "/api": 3, "other paths": 0, "other origins": 0 }
       }
+    },
+    "journeys": {
+      "phone": {
+        "download.1-row": { "/qbt": 0, "/tmdb": 0, "/tmdb-img": 1, "/prowlarr": 0, "/api": 0, "other paths": 0, "other origins": 0 },
+        "download.2-back": { "/qbt": 0, "/tmdb": 0, "/tmdb-img": 0, "/prowlarr": 0, "/api": 0, "other paths": 0, "other origins": 0 },
+        "download.3-row-again": { "/qbt": 0, "/tmdb": 0, "/tmdb-img": 0, "/prowlarr": 0, "/api": 0, "other paths": 0, "other origins": 0 },
+        "find.1-query": { "/qbt": 0, "/tmdb": 1, "/tmdb-img": 0, "/prowlarr": 0, "/api": 0, "other paths": 0, "other origins": 0 },
+        "find.2-title": { "/qbt": 1, "/tmdb": 5, "/tmdb-img": 0, "/prowlarr": 0, "/api": 1, "other paths": 0, "other origins": 0 },
+        "find.3-back": { "/qbt": 0, "/tmdb": 0, "/tmdb-img": 0, "/prowlarr": 0, "/api": 0, "other paths": 0, "other origins": 0 },
+        "releases.1-releases": { "/qbt": 0, "/tmdb": 1, "/tmdb-img": 0, "/prowlarr": 2, "/api": 0, "other paths": 0, "other origins": 0 },
+        "releases.2-back": { "/qbt": 1, "/tmdb": 3, "/tmdb-img": 0, "/prowlarr": 0, "/api": 0, "other paths": 0, "other origins": 0 },
+        "tabs.1-search": { "/qbt": 0, "/tmdb": 3, "/tmdb-img": 10, "/prowlarr": 0, "/api": 0, "other paths": 0, "other origins": 0 },
+        "tabs.2-settings": { "/qbt": 2, "/tmdb": 1, "/tmdb-img": 0, "/prowlarr": 1, "/api": 1, "other paths": 0, "other origins": 0 },
+        "tabs.3-downloads": { "/qbt": 1, "/tmdb": 0, "/tmdb-img": 0, "/prowlarr": 0, "/api": 0, "other paths": 0, "other origins": 0 }
+      },
+      "desktop": {
+        "download.1-row": { "/qbt": 0, "/tmdb": 0, "/tmdb-img": 0, "/prowlarr": 0, "/api": 0, "other paths": 0, "other origins": 0 },
+        "download.2-back": { "/qbt": 0, "/tmdb": 0, "/tmdb-img": 0, "/prowlarr": 0, "/api": 0, "other paths": 0, "other origins": 0 },
+        "download.3-row-again": { "/qbt": 0, "/tmdb": 0, "/tmdb-img": 0, "/prowlarr": 0, "/api": 0, "other paths": 0, "other origins": 0 },
+        "find.1-query": { "/qbt": 0, "/tmdb": 1, "/tmdb-img": 0, "/prowlarr": 0, "/api": 0, "other paths": 0, "other origins": 0 },
+        "find.2-title": { "/qbt": 0, "/tmdb": 5, "/tmdb-img": 1, "/prowlarr": 0, "/api": 1, "other paths": 0, "other origins": 0 },
+        "find.3-back": { "/qbt": 0, "/tmdb": 0, "/tmdb-img": 0, "/prowlarr": 0, "/api": 0, "other paths": 0, "other origins": 0 },
+        "releases.1-releases": { "/qbt": 0, "/tmdb": 0, "/tmdb-img": 0, "/prowlarr": 2, "/api": 0, "other paths": 0, "other origins": 0 },
+        "releases.2-back": { "/qbt": 0, "/tmdb": 3, "/tmdb-img": 7, "/prowlarr": 0, "/api": 0, "other paths": 0, "other origins": 0 },
+        "tabs.1-search": { "/qbt": 0, "/tmdb": 3, "/tmdb-img": 7, "/prowlarr": 0, "/api": 0, "other paths": 0, "other origins": 0 },
+        "tabs.2-settings": { "/qbt": 2, "/tmdb": 1, "/tmdb-img": 0, "/prowlarr": 1, "/api": 1, "other paths": 0, "other origins": 0 },
+        "tabs.3-downloads": { "/qbt": 0, "/tmdb": 0, "/tmdb-img": 0, "/prowlarr": 0, "/api": 0, "other paths": 0, "other origins": 0 }
+      }
     }
   }
 }

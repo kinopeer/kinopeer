@@ -89,8 +89,8 @@ jobs:
       - name: Install Chromium's system libraries
         if: steps.chromium.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
-      # Each screen's requests on opening against budgets.requests, on the build above
-      # (docs/QUALITY.md → The requests budget).
+      # Each screen's requests on opening and each move's between screens, against budgets.requests
+      # and budgets.journeys, on the build above (docs/QUALITY.md → The requests budget).
       - run: npm run test:requests
       - name: Upload the report with the traces
         if: failure()
