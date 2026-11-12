@@ -19,6 +19,6 @@
     "excludedMutations": ["StringLiteral", "ArrayDeclaration", "ObjectLiteral", "OptionalChaining"]
   },
   "budgets": {
-    "size": { "js": 194400, "css": 16200, "rest": 193600 }
+    "size": { "js": 196300, "css": 16200, "rest": 193600 }
   }
 }

@@ -66,7 +66,7 @@ export function judge(files: File[], budgets: Budgets): Verdict {
     over.length === 0
       ? []
       : [
-          'Find what grew: build `main` and this branch, run `npm run size` on each and compare the files of that kind (a new dependency, an import that pulls in a whole library, an asset). ' +
+          'Find what grew: build `main` and this branch, each after `npm ci`, run `npm run size` on each and compare the files of that kind (a new dependency, an import that pulls in a whole library, an asset). ' +
             'Make it smaller or leave it out. Raising a budget is the owner\'s decision, not a way to get a PR through (docs/QUALITY.md → The size budget).',
         ]
   return { passed: over.length === 0, report: [TITLE, table.join('\n'), ...failures, ...advice].join('\n\n') }

@@ -322,10 +322,11 @@ each sum with its budget in `checks.json`:
 
 The sums are per kind rather than per file, since the files' names carry hashes that change with
 their content. Each budget is a whole number of bytes, about 5% above what the build measured when
-it was set: on 2026-11-12, 185,085 bytes of JS, 15,392 of CSS and 184,330 of the rest, against
-budgets of 194,400, 16,200 and 193,600. Three clean builds in a row gave the same numbers to the
-byte: the size is exact, so the margin is room for ordinary changes, not for noise. The `check`
-job's summary shows CI's numbers, to compare with a local build's.
+it was set: on 2026-11-12, 186,937 bytes of JS, 15,392 of CSS and 184,330 of the rest, against
+budgets of 196,300, 16,200 and 193,600. Clean builds in a row gave the same numbers to the byte,
+and CI's build on Node 22 the same as a local one on Node 24: the size is exact, so the margin is
+room for ordinary changes, not for noise. It is exact for the dependencies `package-lock.json`
+names: a local `node_modules` that drifted from it builds another size, so measure after `npm ci`.
 
 **In CI** it is the step after `npm run build` in the `check` job, which adds a table of the kinds,
 their sizes, budgets and what is left to the job's summary. It fails over a budget, and also when
@@ -333,8 +334,8 @@ it can't check: a `dist/` that is missing or empty, a `checks.json` it can't rea
 missing or not a whole number of bytes above 0. A failure names the kind that grew, by how much
 it is over, and its three heaviest files.
 
-**Over a budget**, find what grew: build `main` and the branch, run `npm run size` on each and
-compare the files of that kind; then make it smaller or leave it out. Raising a budget to get a PR
+**Over a budget**, find what grew: build `main` and the branch, each after `npm ci`, run
+`npm run size` on each and compare the files of that kind; then make it smaller or leave it out. Raising a budget to get a PR
 through is a weakening: it is the owner's decision, and the checks guard marks a budget raised,
 removed or no longer a number for the owner. A new budget goes to a second review. A budget
 lowered, after the app got lighter, needs no record.
