@@ -286,6 +286,10 @@ weren't read (`--comments` names a file of the PR's comments, one JSON object a 
 - A command's word in a step's message is marked, though it runs nothing: `echo "the docker image
   is ready"` reads as `docker image`, and removing that step goes to the owner. The guard reads
   the words wherever they stand rather than work out where a command starts.
+- A key in `checks.json` with a dot in its name (`"size.js"` under `budgets`, `"thresholds.lines"`
+  under `coverage`, or a key that is empty): the guard joins the keys of a path with dots, so such a
+  key lands on the same path as the real one and hides what the real one did, a budget raised or a
+  threshold lowered.
 - Whatever reading YAML line by line gets wrong: it finds `run:` and `uses:` keys and the lines
   indented under a block, and knows nothing of anchors or of a command built by an expression.
 - A change to `guard.yml` that stops the script from running or from being `main`'s copy: the
@@ -316,9 +320,14 @@ each sum with its budget in `checks.json`:
 
 | Kind | Counted | Budget |
 | --- | --- | --- |
-| JS (`.js`, `.mjs`) | gzipped, at gzip's default level, which `server/static.ts` sends it with | `budgets.size.js` |
+| JS (`.js`, `.mjs`) | gzipped, at gzip's default level | `budgets.size.js` |
 | CSS | gzipped, the same way | `budgets.size.css` |
-| Everything else | as it is: the fonts and icons are compressed already | `budgets.size.rest` |
+| Everything else | as it is | `budgets.size.rest` |
+
+gzip is a steady measure of the text rather than the bytes a browser gets: `server/static.ts` sends
+Brotli to a browser that takes it and gzip only to one that doesn't. The rest is mostly fonts and
+icons, compressed already; its few text files (`index.html`, the manifest, `favicon.svg`,
+`version.json`, about 6 kB) count as they are, though the server compresses those over 1 kB.
 
 The sums are per kind rather than per file, since the files' names carry hashes that change with
 their content. Each budget is a whole number of bytes, about 5% above what the build measured when
@@ -330,9 +339,12 @@ names: a local `node_modules` that drifted from it builds another size, so measu
 
 **In CI** it is the step after `npm run build` in the `check` job, which adds a table of the kinds,
 their sizes, budgets and what is left to the job's summary. It fails over a budget, and also when
-it can't check: a `dist/` that is missing or empty, a `checks.json` it can't read, a budget that is
-missing or not a whole number of bytes above 0. A failure names the kind that grew, by how much
-it is over, and its three heaviest files.
+it can't check: a `dist/` that is missing, a build without a file of each kind (cut short, or
+with files named in a way it doesn't read, such as `.cjs`), an entry in `dist/` that is neither a
+file nor a folder (a symlink, which the server would still serve), a `checks.json` it can't read, a
+budget that is missing or not a whole number of bytes above 0. It takes no arguments, so the
+budgets come from `checks.json` alone, where the guard compares them. A failure names the kind that
+grew, by how much it is over, and its three heaviest files.
 
 **Over a budget**, find what grew: build `main` and the branch, each after `npm ci`, run
 `npm run size` on each and compare the files of that kind; then make it smaller or leave it out. Raising a budget to get a PR

@@ -29,10 +29,12 @@ describe('readBudgets', () => {
     expect(readBudgets({ coverage: {}, budgets: { size: { js: 1000, css: 100, rest: 500 } } })).toEqual(BUDGETS)
   })
 
+  const allMissing = ['js', 'css', 'rest'].map((kind) => `\`budgets.size.${kind}\` in checks.json is missing`)
+
   it.each([
-    ['no budgets at all', {}, ['js', 'css', 'rest'].map((kind) => `\`budgets.size.${kind}\` in checks.json is missing`)],
-    ['budgets that are not an object', { budgets: [1, 2, 3] }, ['js', 'css', 'rest'].map((kind) => `\`budgets.size.${kind}\` in checks.json is missing`)],
-    ['a checks file that is not an object', null, ['js', 'css', 'rest'].map((kind) => `\`budgets.size.${kind}\` in checks.json is missing`)],
+    ['no budgets at all', {}, allMissing],
+    ['budgets that are not an object', { budgets: [1, 2, 3] }, allMissing],
+    ['a checks file that is not an object', null, allMissing],
     ['one kind missing', { budgets: { size: { js: 1000, css: 100 } } }, ['`budgets.size.rest` in checks.json is missing']],
     ['a budget given as a string', { budgets: { size: { ...BUDGETS, js: '1000' } } }, ['`budgets.size.js` in checks.json is not a whole number of bytes above 0: `"1000"`']],
     ['a fraction', { budgets: { size: { ...BUDGETS, css: 100.5 } } }, ['`budgets.size.css` in checks.json is not a whole number of bytes above 0: `100.5`']],
@@ -96,12 +98,25 @@ describe('judge', () => {
     expect(report).toContain('**Everything else is over its budget by 1 B**: 501 B as is against 500 B. Its heaviest files: `assets/font-Ab12.woff2` 300 B, `icons/icon-512.png` 151 B, `index.html` 50 B.')
   })
 
-  it('fails a build with no files rather than passing it', () => {
-    expect(judge([], BUDGETS)).toEqual({ passed: false, report: "## Build size\n\nThe size couldn't be checked:\n\n- the build has no files: run `npm run build` first" })
+  const none = {
+    js: '- the build has no JS file (`.js`, `.mjs`), which every build of the app has: run `npm run build` again',
+    css: '- the build has no CSS file, which every build of the app has: run `npm run build` again',
+    rest: '- the build has no other file (`index.html`, the fonts, the icons), which every build of the app has: run `npm run build` again',
+  }
+
+  it('fails a build with no files rather than passing it, naming each kind it lacks', () => {
+    expect(judge([], BUDGETS)).toEqual({ passed: false, report: ["## Build size\n\nThe size couldn't be checked:\n", none.js, none.css, none.rest].join('\n') })
   })
 
-  it('fails a build that has none of a kind only if another kind is over', () => {
-    expect(judge([{ path: 'index.html', size: 50 }], BUDGETS).passed).toBe(true)
+  it.each([
+    ['no CSS', files.filter(({ path }) => !path.endsWith('.css')), [none.css]],
+    ['no JS', files.filter(({ path }) => !path.endsWith('.js')), [none.js]],
+    ['nothing but JS and CSS', files.filter(({ path }) => /\.(js|css)$/.test(path)), [none.rest]],
+    ['JS that kindOf reads as the rest', [...files.filter(({ path }) => !path.endsWith('.js')), { path: 'assets/index-Ab12.cjs', size: 700 }], [none.js]],
+  ])('fails a build with %s as one it could not check, rather than a light one', (_name, built, lines) => {
+    const { passed, report } = judge(built, { js: 1, css: 1, rest: 1 })
+    expect(passed).toBe(false)
+    expect(report.split('\n').filter((line) => line.startsWith('- '))).toEqual(lines)
   })
 })
 

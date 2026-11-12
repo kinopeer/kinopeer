@@ -16,6 +16,8 @@ export type Verdict = { passed: boolean; report: string }
 
 const LABELS: Record<Kind, string> = { js: 'JS, gzipped', css: 'CSS, gzipped', rest: 'Everything else, as is' }
 const NAMES: Record<Kind, string> = { js: 'JS', css: 'CSS', rest: 'Everything else' }
+/** What a build lacks when it has no file of a kind, which every build of the app has. */
+const NONE: Record<Kind, string> = { js: 'no JS file (`.js`, `.mjs`)', css: 'no CSS file', rest: 'no other file (`index.html`, the fonts, the icons)' }
 /** How many of a kind's heaviest files a failure names. */
 const HEAVIEST = 3
 const TITLE = '## Build size'
@@ -28,14 +30,18 @@ export function kindOf(path: string): Kind {
 }
 
 /**
- * Whether a file counts gzipped: JS and CSS are text the server compresses, and their gzipped size is
- * what a phone downloads; fonts and icons are compressed already, so they count as they are.
+ * Whether a file counts gzipped. JS and CSS are most of the text the server compresses: gzip at its
+ * default level is a steady measure of them, though server/static.ts sends Brotli to a browser that
+ * takes it and gzip only to one that doesn't. The rest counts as it is: the fonts and icons are
+ * compressed already, and its few text files (index.html, the manifest, favicon.svg, version.json)
+ * are small.
  */
 export const counted = (kind: Kind): 'gzipped' | 'as is' => (kind === 'rest' ? 'as is' : 'gzipped')
 
 /** The budgets in checks.json's object, or what is wrong with them: each kind needs a whole number of bytes above 0. */
 export function readBudgets(checks: unknown): Budgets | string[] {
-  const at = (value: unknown, key: string): unknown => (typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>)[key] : undefined)
+  // A list has no such keys, so it reads as missing too.
+  const at = (value: unknown, key: string): unknown => (typeof value === 'object' && value !== null ? (value as Record<string, unknown>)[key] : undefined)
   const size = at(at(checks, 'budgets'), 'size')
   const problems: string[] = []
   const budgets = {} as Budgets
@@ -49,13 +55,18 @@ export function readBudgets(checks: unknown): Budgets | string[] {
 
 const bytes = (count: number): string => `${count.toLocaleString('en-US')} B`
 
-/** The built files against the budgets: each kind's total within its budget passes, and a build with no files fails. */
+/**
+ * The built files against the budgets: each kind's total within its budget passes. A build without a
+ * file of some kind fails as one that couldn't be checked: it was cut short, or names its files in a
+ * way `kindOf` doesn't read, rather than got light.
+ */
 export function judge(files: File[], budgets: Budgets): Verdict {
-  if (files.length === 0) return unchecked(['the build has no files: run `npm run build` first'])
   const rows = KINDS.map((kind) => {
     const own = files.filter((file) => kindOf(file.path) === kind).sort((a, b) => b.size - a.size || a.path.localeCompare(b.path))
     return { kind, size: own.reduce((total, file) => total + file.size, 0), budget: budgets[kind], own }
   })
+  const missing = rows.filter(({ own }) => own.length === 0)
+  if (missing.length > 0) return unchecked(missing.map(({ kind }) => `the build has ${NONE[kind]}, which every build of the app has: run \`npm run build\` again`))
   const table = ['| Kind | Size | Budget | Left |', '| --- | ---: | ---: | ---: |', ...rows.map(({ kind, size, budget }) => `| ${LABELS[kind]} | ${bytes(size)} | ${bytes(budget)} | ${bytes(budget - size)} |`)]
   const over = rows.filter(({ size, budget }) => size > budget)
   const failures = over.map(({ kind, size, budget, own }) => {

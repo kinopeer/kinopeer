@@ -103,20 +103,23 @@ describe('compareChecks', () => {
       expect(said(compareChecks(json(budgeted), head))).toEqual(expected)
     })
 
-    it('sends a new budget to a second review', () => {
-      expect(said(compareChecks(json(budgeted), withSize({ js: 1000, css: 100, rest: 500 })))).toEqual(['review: the budget `budgets.size.rest` is new: nothing → `500`'])
-    })
-
-    it("sends a budget that wasn't a number on main to a second review", () => {
-      expect(said(compareChecks(withSize({ js: 1000, css: '100' }), json(budgeted)))).toEqual(["review: the budget `budgets.size.css` wasn't a number on main: `\"100\"` → `100`"])
-    })
-
-    it('sends the first budgets to a second review, as main has none', () => {
-      expect(said(compareChecks(json(checks), json(budgeted)))).toEqual(['review: the budget `budgets.size.js` is new: nothing → `1000`', 'review: the budget `budgets.size.css` is new: nothing → `100`'])
-    })
-
-    it('reads a key that only starts with the word as a key it has no rule for', () => {
-      expect(said(compareChecks(json(budgeted), json({ ...budgeted, budgetsNote: 'set on 2026-11-12' })))).toEqual(['review: `budgetsNote` changed: nothing → `"set on 2026-11-12"`'])
+    it.each([
+      ['a new budget', json(budgeted), withSize({ js: 1000, css: 100, rest: 500 }), ['review: the budget `budgets.size.rest` is new: nothing → `500`']],
+      ["a budget that wasn't a number on main", withSize({ js: 1000, css: '100' }), json(budgeted), ["review: the budget `budgets.size.css` wasn't a number on main: `\"100\"` → `100`"]],
+      [
+        'the first budgets, as main has none',
+        json(checks),
+        json(budgeted),
+        ['review: the budget `budgets.size.js` is new: nothing → `1000`', 'review: the budget `budgets.size.css` is new: nothing → `100`'],
+      ],
+      [
+        'a key that only starts with the word, as a key it has no rule for',
+        json(budgeted),
+        json({ ...budgeted, budgetsNote: 'set on 2026-11-12' }),
+        ['review: `budgetsNote` changed: nothing → `"set on 2026-11-12"`'],
+      ],
+    ])('sends %s to a second review', (_name, base, head, expected) => {
+      expect(said(compareChecks(base, head))).toEqual(expected)
     })
 
     it('finds nothing in a budget lowered, a stricter check', () => {

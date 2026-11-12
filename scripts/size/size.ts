@@ -2,39 +2,35 @@
 // the build (docs/QUALITY.md → The size budget). It sums dist/'s files by kind (JS and CSS gzipped,
 // the rest as they are), compares the sums with the budgets in checks.json and prints a table as
 // Markdown, also into the job's summary in CI. It fails over a budget, and also when it can't read
-// the build or a budget. The rules are in budget.ts; this file only reads.
+// the build or a budget. The rules are in budget.ts; this file only reads. It takes no arguments:
+// the budgets come from checks.json alone, where the checks guard compares them with main's.
 import { appendFileSync, readdirSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { gzipSync } from 'node:zlib'
 import { counted, judge, kindOf, readBudgets, unchecked, type Budgets, type File, type Verdict } from './budget.ts'
 
-/** Every file under `dir`, with the bytes it counts for. Throws when `dir` can't be read. */
+/**
+ * Every file under `dir`, with the bytes it counts for. Throws when `dir` can't be read, and on an
+ * entry that is neither a file nor a folder (a symlink), which the server would still serve: what the
+ * check can't count fails it rather than counting as nothing.
+ */
 export function builtFiles(dir: string): File[] {
   return readdirSync(dir, { recursive: true, withFileTypes: true })
-    .filter((entry) => entry.isFile())
+    .filter((entry) => !entry.isDirectory())
     .map((entry) => {
       const full = join(entry.parentPath, entry.name)
       const path = relative(dir, full)
+      if (!entry.isFile()) throw new Error(`\`${path}\` is neither a file nor a folder, which the check can't count`)
       const content = readFileSync(full)
-      // gzip's default level, the one server/static.ts sends JS and CSS with.
       return { path, size: counted(kindOf(path)) === 'gzipped' ? gzipSync(content).length : content.length }
     })
 }
 
-const why = (error: unknown): string => (error instanceof Error ? error.message : String(error))
+// What reading a file throws: Node's file system and JSON.parse throw Errors.
+const why = (error: unknown): string => (error as Error).message
 
-/** `--dist` and `--checks` from the command line: the build's folder and the budgets' file, dist/ and checks.json by default. */
-export function options(args: string[]): { dist: string; checks: string } {
-  const value = (name: string, fallback: string) => {
-    const index = args.indexOf(`--${name}`)
-    return index !== -1 && args[index + 1] ? args[index + 1] : fallback
-  }
-  return { dist: value('dist', 'dist'), checks: value('checks', 'checks.json') }
-}
-
-/** The verdict for the build against the budgets the arguments name. In CI it also appends the report to the job's summary. */
-export function main(args: string[], env: { GITHUB_STEP_SUMMARY?: string }): Verdict {
-  const { dist, checks } = options(args)
+/** The verdict for the build in `dist` against the budgets in `checks`. In CI it also appends the report to the job's summary. */
+export function main({ dist, checks }: { dist: string; checks: string }, env: { GITHUB_STEP_SUMMARY?: string }): Verdict {
   const problems: string[] = []
   let files: File[] | undefined
   let budgets: Budgets | undefined
@@ -57,7 +53,7 @@ export function main(args: string[], env: { GITHUB_STEP_SUMMARY?: string }): Ver
 
 // Run as a script rather than imported.
 if (import.meta.main) {
-  const { passed, report } = main(process.argv, process.env)
+  const { passed, report } = main({ dist: 'dist', checks: 'checks.json' }, process.env)
   console.log(report)
   process.exitCode = passed ? 0 : 1
 }
