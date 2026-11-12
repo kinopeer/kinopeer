@@ -1,13 +1,12 @@
 // How much a screen's content moves as it loads (#387): the built app, every server route mocked as
-// in the screenshot tests, a screen opened afresh by its address in both window sizes, with the
-// answers it loads from held and let land one at a time, in each order that gives the page a
-// different series of states, every state painted before the next answer. The page's layout
+// in the screenshot tests, a screen opened afresh by its address on a phone, with the
+// answers it loads from held and let land one at a time, in each order the page can get them in,
+// every state painted before the next answer. The page's layout
 // shifts are summed and held to `GOOD_LAYOUT_SHIFT`. The reading is in layoutShift.ts.
 import { expect, test, type Page } from '@playwright/test'
 import { tmdbTag, torrent } from '../../src/test/fixtures.ts'
 import { prepareApp } from '../app.ts'
 import { holdAnswers, layoutShifts, painted, recordLayoutShifts, total } from './layoutShift.ts'
-import { SIZES } from './page.ts'
 
 /** The bound Web Vitals call good for layout shift. */
 const GOOD_LAYOUT_SHIFT = 0.1
@@ -50,36 +49,34 @@ const CHAIN: Answer[] = ['session', 'torrents', 'title', 'poster']
 const ORDERS: Answer[][] = CHAIN.map((_, at) => [...CHAIN.slice(0, at + 1), 'matches', ...CHAIN.slice(at + 1)])
 
 /** What shows once an answer has landed, before the next is let through: its own content, so it painted. */
-async function shown(page: Page, answer: Answer, level: number): Promise<void> {
+async function shown(page: Page, answer: Answer): Promise<void> {
   if (answer === 'session') await expect(page.getByText('Загружаем торрент')).toBeAttached()
-  if (answer === 'torrents') await expect(page.getByRole('heading', { level, name: TORRENTS[1].name })).toBeVisible()
-  if (answer === 'title') await expect(page.getByRole('heading', { level, name: 'Сёгун' })).toBeVisible()
+  if (answer === 'torrents') await expect(page.getByRole('heading', { level: 1, name: TORRENTS[1].name })).toBeVisible()
+  if (answer === 'title') await expect(page.getByRole('heading', { level: 1, name: 'Сёгун' })).toBeVisible()
   if (answer === 'poster') {
     await expect.poll(() => page.evaluate(() => [...document.images].every((image) => image.complete && image.naturalWidth > 0))).toBe(true)
   }
   await painted(page)
 }
 
-for (const { size, use } of SIZES) {
-  test.describe(size, () => {
-    test.use(use)
-    // A torrent's page on a phone; on desktop its drawer over Downloads, the same details.
-    const level = size === 'desktop' ? 2 : 1
-    for (const order of ORDERS) {
-      test(`torrent: ${order.join(' → ')}`, async ({ page }, testInfo) => {
-        await recordLayoutShifts(page)
-        await prepareApp(page, { torrents: TORRENTS })
-        const { release } = await holdAnswers(page, ANSWERS)
-        await page.goto('/torrent/p2')
-        for (const answer of order) {
-          await release(answer)
-          await shown(page, answer, level)
-        }
-        const shifts = await layoutShifts(page)
-        await testInfo.attach('layout shift', { contentType: 'application/json', body: JSON.stringify({ size, screen: 'torrent', order, value: total(shifts), shifts }) })
-        const report = shifts.map((shift) => `  ${shift.value.toFixed(4)}: ${shift.sources.join(', ')}`).join('\n')
-        expect(total(shifts), `The page's content moved as it loaded:\n${report}`).toBeLessThanOrEqual(GOOD_LAYOUT_SHIFT)
-      })
+/**
+ * A torrent's page on a phone, where #387 moved by 0.26. Not the desktop drawer: it's a third of the
+ * window's width, so even all its content moving by its header's height scores under 0.03, and the
+ * bound couldn't catch it there.
+ */
+for (const order of ORDERS) {
+  test(`torrent: ${order.join(' → ')}`, async ({ page }, testInfo) => {
+    await recordLayoutShifts(page)
+    await prepareApp(page, { torrents: TORRENTS })
+    const { release } = await holdAnswers(page, ANSWERS)
+    await page.goto('/torrent/p2')
+    for (const answer of order) {
+      await release(answer)
+      await shown(page, answer)
     }
+    const shifts = await layoutShifts(page)
+    await testInfo.attach('layout shift', { contentType: 'application/json', body: JSON.stringify({ screen: 'torrent', order, value: total(shifts), shifts }) })
+    const report = shifts.map((shift) => `  ${shift.value.toFixed(4)}: ${shift.sources.join(', ')}`).join('\n')
+    expect(total(shifts), `The page's content moved as it loaded:\n${report}`).toBeLessThanOrEqual(GOOD_LAYOUT_SHIFT)
   })
 }

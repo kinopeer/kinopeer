@@ -974,8 +974,7 @@ it are in [QUALITY.md](QUALITY.md) → The requests budget.
 ## The layout shift test
 
 `e2e/performance/layoutShift.perf.ts` (the same config, command and CI job as the requests test)
-opens a torrent's page by its address, on a phone and on desktop (its drawer over Downloads), and
-sums its layout shifts as it loads, the `layout-shift` entries without recent input, against
+opens a torrent's page by its address on a phone and sums its layout shifts as it loads, the `layout-shift` entries without recent input, against
 `GOOD_LAYOUT_SHIFT` (0.1, the bound Web Vitals call good). It was #387's red test: on a phone the
 page moved by 0.26.
 
@@ -992,7 +991,9 @@ page moved by 0.26.
   later, or the same element kept where it was (#387: the loading state's body became the loaded
   page's header).
 - **What it leaves out.** Other screens; a check of every screen's layout shift is to come with
-  #378, extending this reading. It runs with reduced motion, as every Playwright test here does,
+  #378, extending this reading. The torrent's drawer on desktop: a third of the window's width, so
+  even all its content moving by its header's height scores under 0.03, which the bound can't
+  catch. It runs with reduced motion, as every Playwright test here does,
   where #387's jump showed: the reduced-motion rule in `src/styles/base.css` gives every element a
   1 ms transition, so an element whose styles change is drawn once more as it was.
 
