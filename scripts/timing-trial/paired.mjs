@@ -107,6 +107,9 @@ function readingOf(compared, kind, size, names, metric, field) {
       if (per.length === 0) return null
       const head = per.map((entry) => entry.head[field])
       if (head.some(Number.isNaN)) return { name, undefined: true, jobs: per.length }
+      const bases = per.map((entry) => entry.base)
+      const baseMedian = median(bases)
+      const baseSpread = Math.max(...bases) === Math.min(...bases) ? 0 : (Math.max(...bases) - Math.min(...bases)) / baseMedian
       const plus30 = per.map((entry) => entry['head+30'][field])
       const plus100 = per.map((entry) => entry['head+100'][field])
       const high = Math.max(...head)
@@ -120,6 +123,8 @@ function readingOf(compared, kind, size, names, metric, field) {
         spread: high - low,
         gap30: Math.min(...plus30) - high,
         gap100: Math.min(...plus100) - high,
+        baseMedian,
+        baseSpread,
         plus30Median: median(plus30),
         plus100Median: median(plus100),
       }
@@ -138,6 +143,7 @@ function readingOf(compared, kind, size, names, metric, field) {
     clear100: defined.every((row) => row.gap100 > 0),
     gap30: smallest('gap30'),
     gap100: smallest('gap100'),
+    baseWorst: defined.reduce((top, row) => (row.baseSpread > top.baseSpread ? row : top)),
     jobs: Math.min(...defined.map((row) => row.jobs)),
   }
 }
@@ -158,8 +164,8 @@ function report(dir, rounds, ratiosOut) {
     for (const [metric, title] of metrics) {
       out.push(`#### ${title}`, '')
       out.push(
-        '| Size | `head`/`base` over the jobs, typical screen: median [range] | Worst screen: median [range] | Spread on the worst screen | `head+100` clear (smallest gap) | `head+30` clear (smallest gap) | `head`−`base`, ms, worst screen: median [range], spread | `head+100` clear in ms (gap) | `head+30` clear in ms (gap) | Class |',
-        '|---|---|---|---:|---|---|---|---|---|---|',
+        '| Size | `base` alone: spread between jobs, (high − low) / median, worst screen | `head`/`base` over the jobs, typical screen: median [range] | Worst screen: median [range] | Spread on the worst screen | `head+100` clear (smallest gap) | `head+30` clear (smallest gap) | `head`−`base`, ms, worst screen: median [range], spread (÷ its base median) | `head+100` clear in ms (gap) | `head+30` clear in ms (gap) | Class |',
+        '|---|---|---|---|---:|---|---|---|---|---|---|',
       )
       for (const size of SIZES) {
         const r = readingOf(compared, kind, size, list, metric, 'ratio')
@@ -181,7 +187,7 @@ function report(dir, rounds, ratiosOut) {
         }
         classes.push({ metric, size, klass, spread: r.rows ? r.worst.spread : null, worst: r.rows ? r.worst.name : null, clear30: r.rows ? r.clear30 : null, clear100: r.rows ? r.clear100 : null, d })
         out.push(
-          `| ${size} | ${ratioCells.join(' | ')} | ${ms(d.worst.median)} [${ms(d.worst.low)}–${ms(d.worst.high)}] (${d.worst.name}), ${ms(d.worst.spread)} | ${d.clear100 ? 'yes' : '**no**'}, ${ms(d.gap100.gap100)} (${d.gap100.name}) | ${d.clear30 ? 'yes' : '**no**'}, ${ms(d.gap30.gap30)} (${d.gap30.name}) | ${klass === null ? 'n/a' : CLASSES[klass]} |`,
+          `| ${size} | ${(d.baseWorst.baseSpread * 100).toFixed(1)}% (${d.baseWorst.name}) | ${ratioCells.join(' | ')} | ${ms(d.worst.median)} [${ms(d.worst.low)}–${ms(d.worst.high)}] (${d.worst.name}), ${ms(d.worst.spread)}${d.worst.baseMedian ? ` (${(d.worst.spread / d.worst.baseMedian).toFixed(3)})` : ''} | ${d.clear100 ? 'yes' : '**no**'}, ${ms(d.gap100.gap100)} (${d.gap100.name}) | ${d.clear30 ? 'yes' : '**no**'}, ${ms(d.gap30.gap30)} (${d.gap30.name}) | ${klass === null ? 'n/a' : CLASSES[klass]} |`,
         )
       }
       out.push('')
