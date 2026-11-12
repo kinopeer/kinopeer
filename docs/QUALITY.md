@@ -15,6 +15,7 @@ Only what is on, being adopted, or declined with its reason; plans aren't listed
 | Component | State | What it does |
 | --- | --- | --- |
 | [The checks guard](#the-checks-guard) | On since 2026-11-12 (#366): its check is red while a PR lacks the records its marks call for, and is among `main`'s required checks | A script CI runs on every PR, which writes into the PR what in it weakens the checks or changes existing ones, and what record each of the two calls for |
+| [The size budget](#the-size-budget) | On since 2026-11-12 (#378): a step of CI's `check` job, so a build over a budget fails a required check | Sums the build's JS and CSS gzipped and everything else as it is, and fails over the budgets in `checks.json` |
 
 ## The checks guard
 
@@ -35,6 +36,8 @@ or its rules.
   from what it measures (`coverage` in `checks.json`).
 - A mutator added to those Stryker leaves out, a pattern added to the files it doesn't mutate, or a
   folder removed from those it does (`mutants` in `checks.json`).
+- A budget raised, removed or no longer a number (`budgets` in `checks.json`, where more is
+  weaker). A budget lowered isn't marked: it checks more.
 - A lint rule removed, turned off or downgraded, at the top level or in an override; a rule turned
   off that the config didn't name before, since it may have been on by default; a plugin removed; a
   path added to `ignorePatterns` (the root `.oxlintrc.json`).
@@ -92,8 +95,8 @@ or its rules.
 
 **For a second review**: a change to an existing check that a script can't judge.
 
-- Any other change to `checks.json`: a threshold raised, an entry removed from an exclusion list, a
-  key the guard has no rule for.
+- Any other change to `checks.json`: a threshold raised, a new budget, an entry removed from an
+  exclusion list, a key the guard has no rule for.
 - Any other change to `.oxlintrc.json`: a rule's options, also when its severity went up with
   them; a new rule that only warns; a key the guard has no rule for.
 - A CI step that changed or is gone, when every command it called still runs somewhere or it
@@ -200,7 +203,8 @@ checks in the repository's settings until the fix is merged.
 
 They sit in `checks.json`, as data, so that the guard compares them exactly: `vite.config.ts` reads
 from it what coverage measures and its thresholds, `stryker.config.mjs` the mutators left out,
-`scripts/mutants.mjs` the folders mutated and the files in them that aren't production code. A new
+`scripts/mutants.mjs` the folders mutated and the files in them that aren't production code,
+`scripts/size/size.ts` the size budgets (`budgets.size`, [The size budget](#the-size-budget)). A new
 threshold, budget or exclusion list goes there too, not into the config that uses it, where the
 guard wouldn't see it move.
 
@@ -282,6 +286,10 @@ weren't read (`--comments` names a file of the PR's comments, one JSON object a 
 - A command's word in a step's message is marked, though it runs nothing: `echo "the docker image
   is ready"` reads as `docker image`, and removing that step goes to the owner. The guard reads
   the words wherever they stand rather than work out where a command starts.
+- A key in `checks.json` with a dot in its name (`"size.js"` under `budgets`, `"thresholds.lines"`
+  under `coverage`, or a key that is empty): the guard joins the keys of a path with dots, so such a
+  key lands on the same path as the real one and hides what the real one did, a budget raised or a
+  threshold lowered.
 - Whatever reading YAML line by line gets wrong: it finds `run:` and `uses:` keys and the lines
   indented under a block, and knows nothing of anchors or of a command built by an expression.
 - A change to `guard.yml` that stops the script from running or from being `main`'s copy: the
@@ -302,3 +310,49 @@ a test file in `assertions.test.ts`, the comparison of the tests that ran in `te
 the records in `records.test.ts` (layer 1), the reading of a branch and of the reports' folders in `scripts/guard/guard.test.ts`,
 over a git repository made in the test (layer 4). Stryker mutates the guard as it does the app's
 code.
+
+## The size budget
+
+A change can make the app heavier without a line that says so: a new dependency, an import that
+pulls in a whole library, an asset. The size budget makes that a failing check. After
+`npm run build`, `npm run size` (`scripts/size/`) sums the files in `dist/` by kind and compares
+each sum with its budget in `checks.json`:
+
+| Kind | Counted | Budget |
+| --- | --- | --- |
+| JS (`.js`, `.mjs`) | gzipped, at gzip's default level | `budgets.size.js` |
+| CSS | gzipped, the same way | `budgets.size.css` |
+| Everything else | as it is | `budgets.size.rest` |
+
+gzip is a steady measure of the text rather than the bytes a browser gets: `server/static.ts` sends
+Brotli to a browser that takes it and gzip only to one that doesn't. The rest is mostly fonts and
+icons, compressed already; its few text files (`index.html`, the manifest, `favicon.svg`,
+`version.json`, about 6 kB) count as they are, though the server compresses those over 1 kB.
+
+The sums are per kind rather than per file, since the files' names carry hashes that change with
+their content. Each budget is a whole number of bytes, about 5% above what the build measured when
+it was set: on 2026-11-12, 186,937 bytes of JS, 15,392 of CSS and 184,330 of the rest, against
+budgets of 196,300, 16,200 and 193,600. Clean builds in a row gave the same numbers to the byte,
+and CI's build on Node 22 the same as a local one on Node 24: the size is exact, so the margin is
+room for ordinary changes, not for noise. It is exact for the dependencies `package-lock.json`
+names: a local `node_modules` that drifted from it builds another size, so measure after `npm ci`.
+
+**In CI** it is the step after `npm run build` in the `check` job, which adds a table of the kinds,
+their sizes, budgets and what is left to the job's summary. It fails over a budget, and also when
+it can't check: a `dist/` that is missing, a build without a file of each kind (cut short, or
+with files named in a way it doesn't read, such as `.cjs`), an entry in `dist/` that is neither a
+file nor a folder (a symlink, which the server would still serve), a `checks.json` it can't read, a
+budget that is missing or not a whole number of bytes above 0. It takes no arguments, so the
+budgets come from `checks.json` alone, where the guard compares them. A failure names the kind that
+grew, by how much it is over, and its three heaviest files.
+
+**Over a budget**, find what grew: build `main` and the branch, each after `npm ci`, run
+`npm run size` on each and compare the files of that kind; then make it smaller or leave it out. Raising a budget to get a PR
+through is a weakening: it is the owner's decision, and the checks guard marks a budget raised,
+removed or no longer a number for the owner. A new budget goes to a second review. A budget
+lowered, after the app got lighter, needs no record.
+
+**Its tests**: the rules (the kind of a file, the budgets read, the verdict and its report) are
+pure functions in `scripts/size/budget.ts`, tested in `budget.test.ts` (layer 1); reading a build
+folder and `checks.json` in `size.ts`, tested in `size.test.ts` over a folder made in the test
+(layer 4). Coverage measures the folder and Stryker mutates it, as it does the guard.

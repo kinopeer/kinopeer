@@ -1,6 +1,6 @@
 {
   "coverage": {
-    "include": ["src/**/*.{ts,tsx}", "server/**/*.ts", "tmdb-proxy/**/*.ts", "scripts/guard/**/*.ts"],
+    "include": ["src/**/*.{ts,tsx}", "server/**/*.ts", "tmdb-proxy/**/*.ts", "scripts/guard/**/*.ts", "scripts/size/**/*.ts"],
     "exclude": [
       "**/*.test.{ts,tsx}",
       "src/test/**",
@@ -14,8 +14,11 @@
     "thresholds": { "lines": 96, "statements": 95, "functions": 95, "branches": 93 }
   },
   "mutants": {
-    "folders": ["src", "server", "tmdb-proxy", "scripts/guard"],
+    "folders": ["src", "server", "tmdb-proxy", "scripts/guard", "scripts/size"],
     "notProduction": ["\\.test\\.tsx?$", "/test/", "\\.d\\.ts$", "^src/test-setup\\.ts$"],
     "excludedMutations": ["StringLiteral", "ArrayDeclaration", "ObjectLiteral", "OptionalChaining"]
+  },
+  "budgets": {
+    "size": { "js": 196300, "css": 16200, "rest": 193600 }
   }
 }

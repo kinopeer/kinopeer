@@ -54,6 +54,9 @@ jobs:
           path: coverage
           retention-days: 14
       - run: npm run build
+      # The build's size against the budgets in checks.json, with a table in the job's summary
+      # (docs/QUALITY.md → The size budget).
+      - run: npm run size
 
   visual:
     runs-on: ubuntu-latest

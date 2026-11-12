@@ -51,8 +51,8 @@ describe('compareChecks', () => {
     ['a new threshold', withCoverage({ thresholds: { lines: 96, branches: 93, functions: 95 } }), ['review: the threshold `coverage.thresholds.functions` changed: nothing → `95`']],
     ['a path coverage no longer leaves out', withCoverage({ exclude: [] }), ['review: `coverage.exclude` changed: `"**/*.test.ts"` is removed']],
     ['a folder added to those mutated', withMutants({ folders: ['src', 'server', 'scripts'] }), ['review: `mutants.folders` changed: `"scripts"` is added']],
-    ['a key the guard has no rule for', json({ ...checks, budgets: { bundle: 300 } }), ['review: `budgets.bundle` changed: nothing → `300`']],
-    ['a key set to null', json({ ...checks, budgets: null }), ['review: `budgets` changed: nothing → `null`']],
+    ['a key the guard has no rule for', json({ ...checks, timings: { load: 300 } }), ['review: `timings.load` changed: nothing → `300`']],
+    ['a key set to null', json({ ...checks, timings: null }), ['review: `timings` changed: nothing → `null`']],
   ])('sends %s to a second review', (_name, head, expected) => {
     expect(said(compareChecks(json(checks), head))).toEqual(expected)
   })
@@ -74,6 +74,57 @@ describe('compareChecks', () => {
 
   it("sends a file that replaces one it can't read on main to a second review", () => {
     expect(said(compareChecks('{', json(checks)))).toEqual(["review: the guard can't read main's copy as a JSON object, so it has nothing to compare this one with"])
+  })
+
+  describe('the budgets, where more is weaker', () => {
+    const budgeted = { ...checks, budgets: { size: { js: 1000, css: 100 } } }
+    const withSize = (size: object) => json({ ...checks, budgets: { size } })
+
+    it.each([
+      ['a budget raised', withSize({ js: 1001, css: 100 }), ['owner: the budget `budgets.size.js` is raised: `1000` → `1001`']],
+      ['a budget removed', withSize({ js: 1000 }), ['owner: the budget `budgets.size.css` is removed: `100` → nothing']],
+      [
+        'every budget removed',
+        json(checks),
+        ['owner: the budget `budgets.size.js` is removed: `1000` → nothing', 'owner: the budget `budgets.size.css` is removed: `100` → nothing'],
+      ],
+      ['a budget that is no longer a number', withSize({ js: '1000', css: 100 }), ['owner: the budget `budgets.size.js` is no longer a number: `1000` → `"1000"`']],
+      ['a budget set to null', withSize({ js: null, css: 100 }), ['owner: the budget `budgets.size.js` is no longer a number: `1000` → `null`']],
+      [
+        'the budgets replaced by something else',
+        json({ ...checks, budgets: 1000 }),
+        [
+          'owner: the budget `budgets.size.js` is removed: `1000` → nothing',
+          'owner: the budget `budgets.size.css` is removed: `100` → nothing',
+          'review: the budget `budgets` is new: nothing → `1000`',
+        ],
+      ],
+    ])('sends %s to the owner', (_name, head, expected) => {
+      expect(said(compareChecks(json(budgeted), head))).toEqual(expected)
+    })
+
+    it.each([
+      ['a new budget', json(budgeted), withSize({ js: 1000, css: 100, rest: 500 }), ['review: the budget `budgets.size.rest` is new: nothing → `500`']],
+      ["a budget that wasn't a number on main", withSize({ js: 1000, css: '100' }), json(budgeted), ["review: the budget `budgets.size.css` wasn't a number on main: `\"100\"` → `100`"]],
+      [
+        'the first budgets, as main has none',
+        json(checks),
+        json(budgeted),
+        ['review: the budget `budgets.size.js` is new: nothing → `1000`', 'review: the budget `budgets.size.css` is new: nothing → `100`'],
+      ],
+      [
+        'a key that only starts with the word, as a key it has no rule for',
+        json(budgeted),
+        json({ ...budgeted, budgetsNote: 'set on 2026-11-12' }),
+        ['review: `budgetsNote` changed: nothing → `"set on 2026-11-12"`'],
+      ],
+    ])('sends %s to a second review', (_name, base, head, expected) => {
+      expect(said(compareChecks(base, head))).toEqual(expected)
+    })
+
+    it('finds nothing in a budget lowered, a stricter check', () => {
+      expect(compareChecks(json(budgeted), withSize({ js: 999, css: 1 }))).toEqual([])
+    })
   })
 })
 
