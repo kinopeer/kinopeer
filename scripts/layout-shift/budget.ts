@@ -34,7 +34,8 @@ export function readBudgets(checks: unknown): Budgets | string[] {
       continue
     }
     for (const [screen, budget] of Object.entries(screens)) {
-      if (!(typeof budget === 'number' && Number.isFinite(budget) && budget >= 0)) {
+      // Number.isFinite takes no string or null, and no number JSON reads as Infinity.
+      if (!(Number.isFinite(budget) && (budget as number) >= 0)) {
         problems.push(`${where(size, screen)} is not a layout shift of 0 or more: \`${shown(budget)}\``)
       }
     }
