@@ -15,8 +15,8 @@ Only what is on, being adopted, or declined with its reason; plans aren't listed
 | Component | State | What it does |
 | --- | --- | --- |
 | [The checks guard](#the-checks-guard) | On since 2026-11-12 (#366): its check is red while a PR lacks the records its marks call for, and is among `main`'s required checks | A script CI runs on every PR, which writes into the PR what in it weakens the checks or changes existing ones, and what record each of the two calls for |
-| [The size budget](#the-size-budget) | On since 2026-11-12 (#378): a step of CI's `performance` job, which isn't among `main`'s required checks yet | Sums the build's JS and CSS gzipped and everything else as it is, and fails over the budgets in `checks.json` |
-| [The requests budget](#the-requests-budget) | Being adopted (#378): a step of CI's `performance` job, which isn't among `main`'s required checks yet | Opens each screen afresh in a browser and moves between screens in short journeys, counts what each opening and each move asks each server route for, and fails on any count that isn't its budget in `checks.json` |
+| [The size budget](#the-size-budget) | On since 2026-11-12 (#378): a step of CI's `performance` job, which is among `main`'s required checks | Sums the build's JS and CSS gzipped and everything else as it is, and fails over the budgets in `checks.json` |
+| [The requests budget](#the-requests-budget) | Being adopted (#378): a step of CI's `performance` job, which is among `main`'s required checks | Opens each screen afresh in a browser and moves between screens in short journeys, counts what each opening and each move asks each server route for, and fails on any count that isn't its budget in `checks.json` |
 
 ## The checks guard
 
@@ -396,13 +396,15 @@ it's opened by its address: a request for what the screen before it already had,
 again. `e2e/performance/journeys.perf.ts`, in the same config and the same `npm run test:requests`,
 makes short journeys, each a test, in both window sizes: one screen opened afresh by its address,
 then up to three moves made the way a person makes them (a click on a row, a link, a button or a
-tab found by its role and name, typing into the search box, the browser's Back; never loading an
-address after the first screen), and counts each move's requests by the same keys. The journeys:
+tab found by its role and name, a query put into the search box as one input, the browser's Back;
+never loading an address after the first screen), and counts each move's requests by the same keys. The journeys:
 
 - **A download**: Downloads, a torrent's row (its page on a phone, its drawer on desktop), Back,
   the same row again.
-- **Finding a title**: Search without a query, a query typed, a title found, Back to the results
-  kept.
+- **Finding a title**: Search without a query, a query put in (one input, as a paste or a
+  keyboard's suggestion gives it: typed key by key with no pause between, the field loses a key
+  now and then, the app's own bug, and the search finds something else), a title found, Back to the
+  results kept.
 - **A title's releases**: a series' page, Find releases (a screen of their own on a phone, the
   title page with them under the hero on desktop), then back: the browser's Back on a phone; on
   desktop the page's own Back, since the releases replace the title's history entry there and the
@@ -415,9 +417,11 @@ then by the move's name, its journey and its place in it (`download.2-back`), si
 costs differently after another path, then by key, every key, 0 included. The opening at a
 journey's start isn't counted here: `requests.perf.ts` counts it. After each move, as after an
 opening, the page has to show the screen meant (its heading by role, level and name, a control only
-its loaded content has where that heading stays above an empty or "not answering" state, and no
-dialog left open unless the screen is the torrent's drawer). The journeys' torrents are all tagged
-with their title, so no title is guessed and saved a second later in the middle of some other move.
+its loaded content has where that heading stays above an empty or "not answering" state, no dialog
+left open unless the screen is the torrent's drawer, and the address the move ends at, which tells
+apart a torrent's page and its title's on a phone, both headed by the title). The journeys'
+torrents are all tagged with their title, so no title is guessed and saved a second later: that
+save would be counted in some later move, or in none after the last.
 Nothing that changes something (adding a release, pausing, deleting) and no sheet or menu left open
 is a move here.
 
@@ -430,11 +434,15 @@ title a second later), and no poll repeats. The clock runs in steps of 100 ms, w
 to settle after each (no request in flight for 250 ms of real time), so a timer set after an answer
 fires in order; a page that hasn't settled in 10 s fails the test, naming the requests still in
 flight. A journey shares that run equally between its opening and its moves (`clockShare`: four
-parts of 1,999 ms are 499 ms each, which covers the search's 350 ms wait after typing), so no poll
+parts of 1,999 ms are 499 ms each, which covers the search's 350 ms wait after a query), so no poll
 repeats anywhere in it and a move's count is what the move asks; a move's requests are counted only
 once the page has settled from the part before it. A journey whose share would be shorter than one
-step of the clock fails rather than runs, and a timer the app sets for longer than a share leaves
-the screen without its loaded content, which fails the move rather than leaving its count short.
+step of the clock fails rather than runs. A timer the app sets for longer than a share fires in a
+later part: one the screen's loaded content waits for (the search's wait) fails the move, which
+then lacks that content; any other (a save a second later) has its request counted in a later move,
+with every check passing, or in none after the last move. So a new journey or move looks for such
+timers first: what it sets off after a share is either taken out of the journey (as the guessed
+title is, by tagging every torrent) or left to the openings' test, which runs the whole 1,999 ms.
 The page then has to show the screen's own heading (by its role, level and name), so a
 crash or another screen isn't counted as the screen. Where that heading stays above a "not
 answering" or empty state (Downloads, Search, the releases), it also has to show a control only the
@@ -460,12 +468,24 @@ failure names the screen or the move (and where it led), the window size and the
 and the count, lists that route's requests and says what to do; a journey judges every move before
 it fails, so one failure names each move off its budget.
 
-**What it doesn't count.** A poster's count is what the page asks for, not what reaches TMDB in
-production: the tests block service workers, which in the installed app answer posters from their
-cache, so a poster the page shows again on a move comes from the browser's own memory of the page's
-images (the same address, already loaded in this document) or is asked for again, and that's what
-the count says. Moves that change something and the sheets and menus a screen opens are left out of
-this budget for now.
+**Posters.** A poster's count is the posters the page hasn't loaded before: one it loaded once
+isn't asked for again, as the HTTP cache and the service worker give in production. The tests block
+the service worker, and Playwright's routes turn the HTTP cache off, so a poster shown again would
+otherwise come from Chromium's memory of the document's images only while no garbage collection had
+dropped it, and whether one had would move the count from run to run. So `holdForCounting`
+(`e2e/performance/page.ts`) keeps every image the page loads in memory for as long as the page lives
+(a script added before the page's own, holding each `<img>` once it loads), and `runClock` has
+Chromium collect the page's garbage (through the DevTools protocol) as each part starts, while its
+requests are in flight, and after every step of the clock, so a count never rests on a collection
+not having happened. It's the same for the openings and the moves. Every TMDB image the app shows
+is an `<img>`: an image put in another way (a CSS background, a preload) wouldn't be kept, and a
+new one is checked here first. Without the kept images and with the collections, six of the eight
+journeys fail on a poster asked for again; the collections add about 2% to the run. Should a
+Chromium update stop the kept images from keeping a poster in its memory, the fallback is a rule in
+the counting: a poster's address counts once per journey, whatever the page asks.
+
+**What it doesn't count.** Moves that change something and the sheets and menus a screen opens are
+left out of this budget for now.
 
 **Over a budget**, find what sends the new request (the failure lists them; the trace in the
 report shows when each went out) and take it out. Raising a budget to get a PR through is a
@@ -484,6 +504,6 @@ and a journey's share of it) are pure functions in `scripts/requests/budget.ts`,
 openings and the moves (`OPENINGS` and `JOURNEYS` say where each one's budgets sit and how its
 messages name them), tested in `budget.test.ts` (layer 1); coverage measures the folder and Stryker
 mutates it. What both browser tests do with the page (record its requests, hold and run its clock,
-wait for it to settle) is in `e2e/performance/page.ts`. The browser tests only collect the numbers; they are layer 6, tests of their own
+keep its images and collect its garbage, wait for it to settle) is in `e2e/performance/page.ts`. The browser tests only collect the numbers; they are layer 6, tests of their own
 beside the screenshot tests and the smoke journeys (`docs/TESTING.md` → Layers).
 
