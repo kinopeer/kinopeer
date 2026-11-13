@@ -15,15 +15,23 @@ test('downloading series with its files, dark, Russian', async ({ page }) => {
 test('title guessed from the release name, dark, Russian', async ({ page }) => {
   await openApp(page, '/torrent/b1', { torrents: [...TORRENTS, GUESSED] })
   await expect(page.getByRole('heading', { level: 1, name: 'Начало' })).toBeVisible()
-  await expect(page.getByText('Подобрано по имени раздачи. Всё верно?')).toBeVisible()
   await settle(page)
   await expect(page).toHaveScreenshot('guess-dark-ru.png')
 })
 
-test('changing the title, dark, Russian', async ({ page }) => {
+test('no title found, the poster a button that matches one, dark, Russian', async ({ page }) => {
+  // TMDB finds nothing for its name.
+  await openApp(page, '/torrent/a9')
+  await expect(page.getByRole('button', { name: 'Сопоставить' })).toBeVisible()
+  await settle(page)
+  await expect(page).toHaveScreenshot('no-title-dark-ru.png')
+})
+
+test('fixing the match, dark, Russian', async ({ page }) => {
   await openApp(page, '/torrent/b1', { torrents: [...TORRENTS, GUESSED] })
-  await page.getByRole('button', { name: 'Изменить' }).click()
-  const sheet = page.getByRole('dialog', { name: 'Сменить фильм или сериал' })
+  await page.getByRole('button', { name: 'Ещё действия: Начало' }).click()
+  await page.getByRole('dialog', { name: 'Начало' }).getByRole('button', { name: 'Исправить сопоставление' }).click()
+  const sheet = page.getByRole('dialog', { name: 'Исправить сопоставление' })
   await expect(sheet.getByRole('button', { name: /^Начало/ })).toBeVisible()
   await settle(page)
   await expect(page).toHaveScreenshot('change-title-dark-ru.png')
@@ -60,6 +68,17 @@ test.describe('desktop drawer', () => {
     await expect(drawer.getByText(/Shogun\.S01E01/)).toBeVisible()
     await settle(page)
     await expect(page).toHaveScreenshot('desktop-drawer-dark-ru.png')
+  })
+
+  test('no title found, the poster a button that matches one, dark, Russian', async ({ page }) => {
+    await openApp(page, '/')
+    // Every other torrent's title and poster are in, so the page behind looks the same every run.
+    await expect(page.locator('.ks-poster-none')).toHaveCount(1)
+    await page.getByRole('link', { name: /Unknown\.Nature/ }).click()
+    const drawer = page.getByRole('dialog', { name: /^Unknown\.Nature/ })
+    await expect(drawer.getByRole('button', { name: 'Сопоставить' })).toBeVisible()
+    await settle(page)
+    await expect(page).toHaveScreenshot('desktop-drawer-no-title-dark-ru.png')
   })
 
   test('over the title page it was opened from, back to it on Escape, dark, Russian', async ({ page }) => {

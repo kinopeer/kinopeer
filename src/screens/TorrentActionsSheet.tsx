@@ -5,7 +5,7 @@ import type { Torrent } from '../api/qbittorrent'
 import { posterUrl } from '../api/tmdb'
 import { Banner } from '../components/Banner'
 import { Icon } from '../components/Icon'
-import { Menu, MenuDivider, MenuGroup, MenuItem, MenuLink } from '../components/Menu'
+import { Menu, MenuDivider, MenuItem, MenuLink } from '../components/Menu'
 import { Poster } from '../components/Poster'
 import { Sheet } from '../components/Sheet'
 import { StatusChip } from '../components/StatusChip'
@@ -15,17 +15,13 @@ import { REQUEST_KINDS } from '../torrents/requestKinds'
 import { describeLimits, ownLimits } from '../torrents/speedLimits'
 import { downloadStatus, hasMetadata, isRunning } from '../torrents/status'
 import type { TitleMatch } from '../torrents/titleMatches'
-import { MatchPrompt } from './MatchPrompt'
 import { usePauseResume } from './usePauseResume'
 import { useReannounce } from './useReannounce'
-import { useConfirmTitle } from './useTitleChoice'
 import { useTorrentAction, type ActionWatcher } from './useTorrentAction'
 
 export interface TorrentActionsSheetProps {
   torrent: Torrent
   match?: TitleMatch | null
-  /** The title was guessed from the release name, so the sheet asks whether it's right. */
-  guessed?: boolean
   /** qBittorrent is unreachable: only opening the details and changing the title work. */
   offline: boolean
   /** Off on the torrent screen itself. */
@@ -34,10 +30,7 @@ export interface TorrentActionsSheetProps {
   anchor?: HTMLElement | null
   /** Set when the title's page is already open under a drawer: its item closes the drawer instead. */
   onTitlePage?: () => void
-  /**
-   * Also once qBittorrent took a pause, resume or reannounce for its torrent, or its title was
-   * confirmed, from here or elsewhere.
-   */
+  /** Also once qBittorrent took a pause, resume or reannounce for its torrent, from here or elsewhere. */
   onClose: () => void
   onDelete: () => void
   /** Opens "Move files". */
@@ -46,7 +39,7 @@ export interface TorrentActionsSheetProps {
   onRecheck: () => void
   /** Opens the speed limits sheet. */
   onSpeedLimits: () => void
-  /** Opens the title search. */
+  /** Opens the title search: Fix match, or Match title for a torrent without one. */
   onChangeTitle: () => void
 }
 
@@ -54,7 +47,6 @@ export interface TorrentActionsSheetProps {
 export function TorrentActionsSheet({
   torrent,
   match,
-  guessed,
   offline,
   showDetails = true,
   anchor,
@@ -68,7 +60,6 @@ export function TorrentActionsSheet({
 }: TorrentActionsSheetProps) {
   const { t } = useTranslation()
   const [failed, setFailed] = useState(false)
-  const [saveFailed, setSaveFailed] = useState(false)
   // The menu shows the torrent, so it says how its pause, resume or reannounce went, wherever it was
   // sent from: it closes, or shows the failure.
   const watcher: ActionWatcher = {
@@ -77,11 +68,6 @@ export function TorrentActionsSheet({
   }
   const pauseResume = usePauseResume(watcher)
   const reannounce = useReannounce(watcher)
-  // And how "Yes, right" went, the failure under its own message.
-  const title = useConfirmTitle({
-    torrents: [torrent],
-    settled: (outcome) => (outcome.ok ? onClose() : setSaveFailed(true)),
-  })
   // A recheck or a delete is sent from its confirmation, and says itself how it went.
   const recheck = useTorrentAction(REQUEST_KINDS.recheck)
   // Nothing is sent for a torrent being deleted: a title saved after it would stay for a torrent
@@ -90,7 +76,6 @@ export function TorrentActionsSheet({
   // One of its requests at a time, from here or elsewhere.
   const busy =
     pauseResume.busy(torrent.hash) || reannounce.busy(torrent.hash) || recheck.busy(torrent.hash) || deleting
-  const confirming = title.busy(torrent.hash)
   const status = downloadStatus(torrent)
   const running = isRunning(status)
   // qBittorrent ignores both where they can't run (libtorrent announces only for a started torrent,
@@ -122,27 +107,17 @@ export function TorrentActionsSheet({
     void reannounce.reannounce(torrent)
   }
 
-  const confirm = () => {
-    if (!match) return
-    setSaveFailed(false)
-    void title.confirm(torrent, match)
-  }
-  const askToConfirm = !!match && guessed
+  // One item for the match: fixing it, or matching a torrent that has no title.
+  const changeTitle = match ? t('match.changeTitle') : t('match.pickTitle')
   const openTitle = (event: MouseEvent) => {
     if (!onTitlePage) return onClose()
     event.preventDefault()
     onTitlePage()
   }
   const isDesktop = useIsDesktop()
-  const errors = (
-    <>
-      {failed && <Banner tone="error">{t('common.qbtFailed')}</Banner>}
-      {saveFailed && <Banner tone="error">{t('match.saveFailed')}</Banner>}
-    </>
-  )
+  const errors = failed && <Banner tone="error">{t('common.qbtFailed')}</Banner>
 
   if (isDesktop && anchor) {
-    const changeTitle = match ? t('match.changeTitle') : t('match.pickTitle')
     return (
       <Menu
         anchor={anchor}
@@ -172,23 +147,9 @@ export function TorrentActionsSheet({
             {match.type === 'tv' ? t('downloads.seriesPage') : t('downloads.moviePage')}
           </MenuLink>
         )}
-        {askToConfirm ? (
-          <>
-            <MenuDivider />
-            <MenuGroup label={t('match.guessNote')}>
-              <MenuItem icon="search" disabled={confirming || deleting} onClick={onChangeTitle}>
-                {t('common.change')}
-              </MenuItem>
-              <MenuItem icon="check" disabled={confirming || deleting} onClick={confirm}>
-                {t('match.confirm')}
-              </MenuItem>
-            </MenuGroup>
-          </>
-        ) : (
-          <MenuItem icon="search" disabled={deleting} onClick={onChangeTitle}>
-            {changeTitle}
-          </MenuItem>
-        )}
+        <MenuItem icon="search" disabled={deleting} onClick={onChangeTitle}>
+          {changeTitle}
+        </MenuItem>
         <MenuItem icon="folder" disabled={offline || deleting} onClick={onMove}>
           {t('torrent.move')}
         </MenuItem>
@@ -210,16 +171,6 @@ export function TorrentActionsSheet({
       action={<StatusChip status={status}>{t(`status.${status}`)}</StatusChip>}
       className="actions-sheet"
     >
-      {askToConfirm && (
-        <MatchPrompt
-          kind="guess"
-          busy={confirming}
-          disabled={deleting}
-          onChange={onChangeTitle}
-          onConfirm={confirm}
-          className="actions-prompt"
-        />
-      )}
       <ul className="actions-list">
         <li>
           <button type="button" className="ks-row-btn" disabled={offline || busy} onClick={toggle}>
@@ -285,14 +236,12 @@ export function TorrentActionsSheet({
             </Link>
           </li>
         )}
-        {!askToConfirm && (
-          <li>
-            <button type="button" className="ks-row-btn" disabled={deleting} onClick={onChangeTitle}>
-              <Icon name="search" />
-              {match ? t('match.changeTitle') : t('match.pickTitle')}
-            </button>
-          </li>
-        )}
+        <li>
+          <button type="button" className="ks-row-btn" disabled={deleting} onClick={onChangeTitle}>
+            <Icon name="search" />
+            {changeTitle}
+          </button>
+        </li>
         <li>
           <button type="button" className="ks-row-btn" disabled={offline || deleting} onClick={onMove}>
             <Icon name="folder" />

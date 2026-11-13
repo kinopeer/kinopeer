@@ -18,11 +18,9 @@ import { useRequest } from '../lib/useRequest'
 import { REQUEST_KINDS } from '../torrents/requestKinds'
 import { ownLimits } from '../torrents/speedLimits'
 import { downloadStatus, isRunning } from '../torrents/status'
-import { useServerMatches } from '../torrents/serverMatches'
-import { isGuessed, useTitleMatches } from '../torrents/titleMatches'
+import { useTitleMatches } from '../torrents/titleMatches'
 import { trackerHosts } from '../torrents/trackers'
 import { useMainData } from '../torrents/useMainData'
-import { MatchPrompt } from './MatchPrompt'
 import { OfflineBanner } from './OfflineBanner'
 import { TorrentActionsSheet } from './TorrentActionsSheet'
 import { DownloadSettings } from './DownloadSettings'
@@ -32,7 +30,7 @@ import { useMoveTorrent } from './useMoveTorrent'
 import { usePauseResume } from './usePauseResume'
 import { useRecheck } from './useRecheck'
 import { useSpeedLimits } from './useSpeedLimits'
-import { useChangeTitle, useConfirmTitle } from './useTitleChoice'
+import { useChangeTitle } from './useTitleChoice'
 import { useTorrentAction } from './useTorrentAction'
 import { useTorrentOverlay } from './useTorrentOverlay'
 import { TorrentFiles } from './TorrentFiles'
@@ -63,7 +61,8 @@ function peerCount(connected: number, total: number | undefined): string {
 
 /**
  * What Kinopeer shows about a torrent: status and progress, pause, resume and delete (recheck and
- * reannounce in its More menu), the title (with "Is it right?" for a guess), its download settings
+ * reannounce in its More menu), the title (its poster a button that matches one when none was
+ * found; fixing a match is in the More menu), its download settings
  * (the category, sequential download, first and last pieces first), details and files. A
  * screen of its own on a phone, the content of the details drawer on desktop.
  */
@@ -91,7 +90,6 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
     titleOf,
     onDeleted: () => (onDeleted ? onDeleted() : void navigate('/', { replace: true })),
   })
-  const stored = useServerMatches()?.[hash]
 
   const [detailsOpen, setDetailsOpen] = useState(false)
   const pauseResume = usePauseResume()
@@ -107,7 +105,6 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
     menu.close()
   }
   const retitle = useChangeTitle({ torrents: own, matchOf: () => match })
-  const confirmTitle = useConfirmTitle()
 
   const trackers = useRequest(detailsOpen && torrent ? `trackers|${hash}` : null, (signal) => getTorrentTrackers(hash, signal))
 
@@ -194,7 +191,6 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
   const toggling = pauseResume.busy(hash)
   const toggleRunning = () => void pauseResume.toggle(torrent)
 
-  const guessed = !!match && isGuessed(torrent, stored)
   // The drawer is over this title's own page: going to the page is just closing the drawer.
   const page = behind !== undefined ? matchPath({ path: '/title/:type/:id', end: false }, behind) : null
   const onTitlePage =
@@ -255,7 +251,15 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
       </div>
       <div key="body" className="torrent-body">
         <div className="torrent-head">
-          <Poster src={poster} className="torrent-poster" />
+          <Poster
+            src={poster}
+            className="torrent-poster"
+            action={
+              match === null
+                ? { label: t('match.pickTitle'), icon: 'search', disabled: deleting, onClick: () => retitle.open(hash) }
+                : undefined
+            }
+          />
           <div className="torrent-head-text">
             <Heading id={titleId} className="t-h2 torrent-title">
               {title}
@@ -263,17 +267,6 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
             {match && <p className="t-cap torrent-release c3">{torrent.name}</p>}
           </div>
         </div>
-
-        {guessed && (
-          <MatchPrompt
-            kind="guess"
-            busy={confirmTitle.busy(hash)}
-            disabled={deleting}
-            onChange={() => retitle.open(hash)}
-            onConfirm={() => void confirmTitle.confirm(torrent, match)}
-          />
-        )}
-        {match === null && <MatchPrompt kind="none" disabled={deleting} onChange={() => retitle.open(hash)} />}
 
         {offline && <OfflineBanner unreachable={unreachable} updatedAt={updatedAt} onRetry={refresh} />}
 
@@ -369,7 +362,6 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
         <TorrentActionsSheet
           torrent={torrent}
           match={match}
-          guessed={guessed}
           offline={offline}
           showDetails={false}
           anchor={menuOpen}

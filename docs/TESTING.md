@@ -976,19 +976,31 @@ it are in [QUALITY.md](QUALITY.md) → The requests budget.
 `e2e/performance/layoutShift.perf.ts` (the same config, command and CI job as the requests test)
 opens a torrent's page by its address on a phone (390×844, named in the file) and sums its layout
 shifts as it loads against `budgets.layoutShift` in `checks.json` (`phone.torrent`: 0.1, the bound
-Web Vitals call good). It was #387's red test: on a phone the page moved by 0.26.
+Web Vitals call good), for three torrents. It was #387's red test (on a phone the page moved by
+0.26) and #389's (a guessed title's page moved by 0.1051 as "Is it right?" came in above the
+progress card, and a page with no title found by 0.1093 with its "No title found" card).
 
 - **Not by chance.** Which states of a page paint, and so what can move, depends on the order its
   answers land in, which a run left to the network doesn't choose. `holdAnswers`
   (`e2e/performance/layoutShift.ts`) holds each route's answers and lets them land in the order the
   test names, each after the page painted what the one before showed: every state in between is on
   the screen for a frame at least, the worst case.
-- **Which page, in which order.** `p2` of the performance tests' torrents (`TORRENTS` in
-  `e2e/performance/page.ts`): tagged with its title and finished. A tagged torrent's page asks for
-  the torrents once the session is checked, for the title once the torrent shows and for the
-  poster once the title does, so those land in that order whatever the network does. The server's
-  matches go out beside the first poll; it has none for `p2`, so where they land changes nothing
-  on the page, and the test lands them before the torrents.
+- **Which pages, in which order.** Each page in the one order its answers can land in that tells
+  anything. The session is checked first on every page, since the app asks for nothing else
+  before it, and the server's matches go out beside the first poll; the server has none for these
+  torrents, and the test lands them where a server answers them, before the torrents.
+  - `p2` of the performance tests' torrents (`TORRENTS` in `e2e/performance/page.ts`), tagged with
+    its title and finished: the page asks for the title by its id once the torrent shows and for
+    the poster once the title does, so those land in that order whatever the network does, and the
+    empty matches change nothing on the page wherever they land.
+  - `p3`, untagged, its title guessed from its name with a cold cache: a guess waits for both the
+    torrents and the matches, so TMDB's search goes out after the later of the two, and with the
+    matches empty, landing them after the torrents paints the same states as before them. The
+    poster comes after the guess, and the guess saved on the server a second later is waited for
+    too.
+  - `p4`, the test's own (`UNKNOWN`), untagged and named so that TMDB finds nothing: the search
+    waits as `p3`'s does, and once it has answered the poster becomes the Match title button;
+    nothing else is asked for.
 - **What the reading counts.** Every `layout-shift` entry, with the elements that moved and their
   boxes in the viewport before and after (`y/height`), those within 500 ms of a click or a key
   press too, which web-vitals leaves out: the failure marks them "after input", and a screen
@@ -1005,8 +1017,8 @@ Web Vitals call good). It was #387's red test: on a phone the page moved by 0.26
   folder and Stryker mutates it. A budget raised or removed is the owner's decision, which the
   checks guard marks; a new one goes to a second review.
 - **What it leaves out.** Other screens; a check of every screen's layout shift is to come with
-  #378, extending this reading. The page's other loaded states: a guessed title, whose title waits
-  for the server's matches and whose "Is it right?" comes in above the progress card, and a
-  torrent with no title found. The torrent's drawer on desktop: a third of the window's width at
-  1440×900 and nearly half at 1024×768, so even all its content moving down by its header's
-  height scores 0.027 and 0.062, which a bound of 0.1 can't catch.
+  #378, extending this reading. A title the server's matches already hold (the user's choice, or
+  a guess another device saved), which is asked for by its id as `p2`'s is. The torrent's drawer
+  on desktop: a third of the window's width at 1440×900 and nearly half at 1024×768, so even all
+  its content moving down by its header's height scores 0.027 and 0.062, which a bound of 0.1
+  can't catch.

@@ -527,9 +527,9 @@ describe('DownloadsScreen', () => {
       'the title sheet',
       async () => {
         await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' }))
-        await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Pick title' }))
+        await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Match title' }))
       },
-      () => screen.queryByRole('dialog', { name: 'Pick title' }),
+      () => screen.queryByRole('dialog', { name: 'Match title' }),
     ],
   ])('closes %s when another torrent with the same hash replaces its torrent between two polls', async (_overlay, open, overlay) => {
     renderScreen()
@@ -568,43 +568,25 @@ describe('DownloadsScreen', () => {
     expect(await screen.findByRole('textbox', { name: 'Download limit, MB/s' })).toHaveValue('2')
   })
 
-  it('keeps the speed limits open when the title confirmation sent before them comes back', async () => {
-    searchTitles.mockImplementation(async (query) => searchPage(query === 'Dune Part Two' ? [DUNE_TITLE] : []))
-    renderScreen()
-    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' }))
-    let saved = () => {}
-    vi.mocked(matchesApi.saveMatches).mockImplementation(
-      (changes) => new Promise((resolve) => (saved = () => resolve(changes as matchesApi.Matches))),
-    )
-    const actions = screen.getByRole('dialog', { name: 'Dune: Part Two' })
-    await userEvent.click(within(actions).getByRole('button', { name: 'Yes, right' }))
-    await userEvent.click(within(actions).getByRole('button', { name: 'Speed limits' }))
-    saved()
-    expect(await screen.findByRole('status', { name: saying('Match confirmed') })).toBeInTheDocument()
-    expect(screen.getByRole('dialog', { name: 'Speed limits' })).toBeInTheDocument()
-  })
-
-  it('asks in the row menu whether a guessed title is right, and saves the confirmation', async () => {
+  it('offers to fix a guessed title in the row menu without asking whether it’s right', async () => {
     searchTitles.mockImplementation(async (query) => searchPage(query === 'Dune Part Two' ? [DUNE_TITLE] : []))
     renderScreen()
     await userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' }))
     const sheet = screen.getByRole('dialog', { name: 'Dune: Part Two' })
-    expect(within(sheet).getByText('Matched by the release name. Is it right?')).toBeInTheDocument()
-    expect(within(sheet).queryByRole('button', { name: 'Change title' })).not.toBeInTheDocument()
     expect(within(sheet).getByRole('link', { name: 'Movie page' })).toHaveAttribute('href', '/title/movie/693134')
-    await userEvent.click(within(sheet).getByRole('button', { name: 'Yes, right' }))
-    expect(await findToastOnPage('Match confirmed')).toBeInTheDocument()
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(within(sheet).queryByText(/Is it right/)).not.toBeInTheDocument()
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Fix match' }))
+    expect(screen.getByRole('dialog', { name: 'Fix match' })).toBeInTheDocument()
   })
 
   it('picks a title from the row menu for a torrent with none', async () => {
     renderScreen()
     await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' }))
     searchTitles.mockResolvedValue(searchPage([ANDOR_TITLE]))
-    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Pick title' }))
-    const sheet = screen.getByRole('dialog', { name: 'Pick title' })
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Match title' }))
+    const sheet = screen.getByRole('dialog', { name: 'Match title' })
     await userEvent.click(await within(sheet).findByRole('button', { name: /^Andor/ }))
-    expect(await findToastOnPage('Title changed')).toBeInTheDocument()
+    expect(await findToastOnPage('Match saved')).toBeInTheDocument()
     await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor' }))
     expect(within(screen.getByRole('dialog', { name: 'Andor' })).getByRole('link', { name: 'Series page' })).toHaveAttribute(
       'href',

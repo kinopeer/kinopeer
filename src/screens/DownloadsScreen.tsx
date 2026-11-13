@@ -24,7 +24,7 @@ import { freeSpace } from '../torrents/freeSpace'
 import { DOWNLOADS_USUALLY_DESCENDING, compareTorrents, type DownloadOrder, type DownloadSort } from '../torrents/sort'
 import { STATUS_FILTERS, matchesFilter, type StatusFilter } from '../torrents/status'
 import { useServerMatches } from '../torrents/serverMatches'
-import { TYPE_FILTERS, isGuessed, titleType, useTitleMatches, type TypeFilter } from '../torrents/titleMatches'
+import { TYPE_FILTERS, titleType, useTitleMatches, type TypeFilter } from '../torrents/titleMatches'
 import { useMainData, type MainDataState } from '../torrents/useMainData'
 import { BulkActionsBar } from './BulkActionsBar'
 import { DownloadCard } from './DownloadCard'
@@ -550,7 +550,6 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
         <TorrentActionsSheet
           torrent={actionsTorrent}
           match={matches[actionsTorrent.hash]}
-          guessed={isGuessed(actionsTorrent, serverMatches?.[actionsTorrent.hash])}
           offline={offline}
           anchor={actionsAnchor}
           onClose={() => actions.close()}

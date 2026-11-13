@@ -12,7 +12,7 @@ export const TOAST_KEYS = {
   recheck: 'recheck-failed',
   /** Deleting torrents: the confirmation for a row, the selection or the torrent's details. */
   delete: 'delete-failed',
-  /** Saving a torrent's title: Change title, or "Yes, right" in the More menu or the torrent's details. */
+  /** Saving a torrent's title: the title search, opened from any screen. */
   title: 'title-failed',
   /** A file's priority: the file list in the torrent's details. */
   filePriority: 'file-priority-failed',

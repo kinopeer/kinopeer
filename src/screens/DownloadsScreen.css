@@ -485,10 +485,6 @@
   flex: none;
 }
 
-.actions-prompt {
-  margin-bottom: var(--space-2);
-}
-
 /* Desktop: the whole width beside the sidebar, the canvas's two-row header, a table or a wider grid. */
 .dl-table {
   container-type: inline-size;

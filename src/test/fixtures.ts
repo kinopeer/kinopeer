@@ -187,7 +187,7 @@ export const DUNE_TORRENT = torrent('dune', {
   priority: 1,
 })
 
-/** Not tagged by Kinopeer: its title is guessed from the release name, so the app asks whether it's right. */
+/** Not tagged by Kinopeer: its title is guessed from the release name. */
 export const GUESSED = torrent('b1', {
   name: 'Inception.2010.1080p.BluRay.x264-GRPD',
   state: 'uploading',

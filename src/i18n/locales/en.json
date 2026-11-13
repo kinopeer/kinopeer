@@ -376,18 +376,14 @@
     "move": "Move files…"
   },
   "match": {
-    "guessNote": "Matched by the release name. Is it right?",
-    "noTitle": "No title found for this release.",
-    "confirm": "Yes, right",
-    "changeTitle": "Change title",
-    "pickTitle": "Pick title",
+    "changeTitle": "Fix match",
+    "pickTitle": "Match title",
     "searchLabel": "Search TMDB",
     "current": "Current",
     "nothingFound": "Nothing found",
     "hint": "Your choice is saved on the Kinopeer server and shows on every device.",
     "saveFailed": "Couldn’t save the choice. Try again.",
-    "changed": "Title changed",
-    "confirmed": "Match confirmed"
+    "changed": "Match saved"
   },
   "offline": {
     "updated": "Updated {{ago}} · actions paused",

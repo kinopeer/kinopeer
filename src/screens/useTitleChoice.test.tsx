@@ -1,8 +1,7 @@
-import { act, render, renderHook, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Torrent } from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
 import { ToastProvider } from '../components/Toast'
 import { searchPage, title, torrent } from '../test/fixtures'
@@ -10,8 +9,7 @@ import { findToastOnPage, saying } from '../test/render'
 import * as titleMatches from '../torrents/titleMatches'
 import type { TitleMatch } from '../torrents/titleMatches'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
-import type { ActionWatcher } from './useTorrentAction'
-import { useChangeTitle, useConfirmTitle } from './useTitleChoice'
+import { useChangeTitle } from './useTitleChoice'
 
 vi.mock('../api/tmdb', async (importOriginal) => ({
   ...(await importOriginal<typeof tmdb>()),
@@ -30,17 +28,13 @@ const MASTER = torrent('master', { name: 'Master.i.Margarita.2005.S01.1080p.WEB-
 const TORRENTS = { master: MASTER }
 const FAILED = 'Couldn’t save the choice. Try again.'
 
-/** A screen with its own Change title sheet and "Yes, right", as Downloads and the torrent's details have. */
+/** A screen with its own title search, as Downloads and the torrent's details have. */
 function Screen({ name }: { name: string }) {
   const retitle = useChangeTitle({ torrents: TORRENTS, matchOf: () => GUESS })
-  const confirm = useConfirmTitle()
   return (
     <section aria-label={name}>
       <button type="button" onClick={() => retitle.open('master')}>
-        Change title in {name}
-      </button>
-      <button type="button" disabled={confirm.busy('master')} onClick={() => void confirm.confirm(MASTER, GUESS)}>
-        Yes, right in {name}
+        Fix match in {name}
       </button>
       {retitle.element}
     </section>
@@ -64,8 +58,8 @@ function renderScreens() {
     { wrapper: Providers },
   )
   return async (name: string) => {
-    await userEvent.click(screen.getByRole('button', { name: `Change title in ${name}` }))
-    const sheet = within(screen.getByRole('region', { name })).getByRole('dialog', { name: 'Change title' })
+    await userEvent.click(screen.getByRole('button', { name: `Fix match in ${name}` }))
+    const sheet = within(screen.getByRole('region', { name })).getByRole('dialog', { name: 'Fix match' })
     await within(sheet).findAllByRole('button', { name: /Мастер и Маргарита/ })
     return sheet
   }
@@ -94,19 +88,20 @@ beforeEach(() => {
 })
 
 describe('useChangeTitle', () => {
-  it('saves the picked title as the user’s choice, closes and says it changed', async () => {
+  it('saves the picked title as the user’s choice, closes and says it’s saved', async () => {
     const open = renderScreens()
     await userEvent.click(movieIn(await open('Downloads')))
     expect(chooseTitle).toHaveBeenCalledWith('master', MOVIE, 'en-US')
-    expect(await findToastOnPage('Title changed')).toBeInTheDocument()
+    expect(await findToastOnPage('Match saved')).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
-  it('says a match is confirmed when the current title is picked', async () => {
+  it('saves the current title as the user’s choice too, which keeps a guess that was right', async () => {
     const open = renderScreens()
     const sheet = await open('Downloads')
     await userEvent.click(within(sheet).getByRole('button', { name: /Series · 2005 Current/ }))
-    expect(await findToastOnPage('Match confirmed')).toBeInTheDocument()
+    expect(chooseTitle).toHaveBeenCalledWith('master', SERIES, 'en-US')
+    expect(await findToastOnPage('Match saved')).toBeInTheDocument()
   })
 
   it('shows a pick sent from one screen busy in another’s sheet, and doesn’t send another', async () => {
@@ -119,12 +114,10 @@ describe('useChangeTitle', () => {
     const drawer = await open('Drawer')
     expect(movieIn(drawer)).toHaveAttribute('aria-busy', 'true')
     for (const row of within(drawer).getAllByRole('button', { name: /Мастер и Маргарита/ })) expect(row).toBeDisabled()
-    // "Yes, right" is the same save.
-    expect(screen.getByRole('button', { name: 'Yes, right in Downloads' })).toBeDisabled()
     expect(chooseTitle).toHaveBeenCalledOnce()
 
     await save.answer()
-    expect(screen.getByRole('status', { name: saying('Title changed') })).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: saying('Match saved') })).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
@@ -156,42 +149,5 @@ describe('useChangeTitle', () => {
     pendingSave()
     await userEvent.click(movieIn(await open('Drawer')))
     expect(screen.queryByRole('status', { name: saying(FAILED) })).not.toBeInTheDocument()
-  })
-})
-
-describe('useConfirmTitle', () => {
-  it('keeps the guessed title as the user’s choice and says so, busy everywhere until it’s saved', async () => {
-    const save = pendingSave()
-    const { result } = renderHook(() => ({ menu: useConfirmTitle(), details: useConfirmTitle() }), { wrapper: Providers })
-    let sent!: Promise<unknown>
-    act(() => {
-      sent = result.current.menu.confirm(MASTER, GUESS)
-    })
-    expect(result.current.details.busy('master')).toBe(true)
-    await expect(result.current.details.confirm(MASTER, GUESS)).resolves.toBeUndefined()
-    expect(chooseTitle).toHaveBeenCalledOnce()
-    expect(chooseTitle).toHaveBeenCalledWith('master', GUESS, 'en-US')
-
-    await save.answer()
-    await sent
-    expect(screen.getByRole('status', { name: saying('Match confirmed') })).toBeInTheDocument()
-    expect(result.current.details.busy('master')).toBe(false)
-  })
-
-  it('leaves how it went to the place that shows the torrent, else says a failure in a toast', async () => {
-    const settled = vi.fn<ActionWatcher['settled']>()
-    const watcher: ActionWatcher = { torrents: [MASTER as Torrent], settled }
-    const { result } = renderHook(() => ({ menu: useConfirmTitle(watcher), details: useConfirmTitle() }), {
-      wrapper: Providers,
-    })
-    chooseTitle.mockRejectedValueOnce(new Error('500'))
-    await act(async () => void (await result.current.details.confirm(MASTER, GUESS)))
-    expect(settled).toHaveBeenLastCalledWith({ ok: false, error: expect.any(Error) }, [MASTER])
-    expect(screen.queryByRole('status', { name: saying(FAILED) })).not.toBeInTheDocument()
-
-    const { result: alone } = renderHook(() => useConfirmTitle(), { wrapper: Providers })
-    chooseTitle.mockRejectedValueOnce(new Error('500'))
-    await act(async () => void (await alone.current.confirm(MASTER, GUESS)))
-    expect(screen.getByRole('status', { name: saying(FAILED) })).toBeInTheDocument()
   })
 })
