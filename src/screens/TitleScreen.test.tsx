@@ -258,7 +258,7 @@ describe('TitleScreen', () => {
       torrents(download('dune', 'Dune.Part.Two.2024.2160p.WEB-DL', { tags: 'tmdb:movie:693134', progress: 0.64 }))
       renderAt('/title/movie/693134')
       expect(await screen.findByText('In downloads · 64%')).toBeInTheDocument()
-      expect(screen.getByRole('region', { name: 'In downloads' })).toBeInTheDocument()
+      expect(await screen.findByRole('region', { name: 'In downloads' })).toBeInTheDocument()
     })
 
     // At the page's end, under the related titles, so neither pushes the other as they come (#394).
