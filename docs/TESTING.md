@@ -16,7 +16,7 @@ npm run test:mutants        # breaks the lines this branch changes, lists the br
 npm run test:visual         # layer 6: screenshot tests in Docker
 npm run test:visual:update  # re-render their baselines
 npm run test:smoke          # layer 6: smoke journeys through the production server, no Docker
-npm run test:requests       # layer 6: each screen's requests on opening and each move's between screens against their budgets, and a torrent page's layout shift, after npm run build
+npm run test:requests       # layer 6: each screen's requests on opening and each move's between screens against their budgets, and each screen's layout shift on a phone, after npm run build
 ```
 
 ## Layers
@@ -28,7 +28,7 @@ npm run test:requests       # layer 6: each screen's requests on opening and eac
 | 3 | Screens, stores and clients | A screen or a user flow with the API clients mocked (`vi.mock('../api/…')`): what it shows for a state, what it sends, where it navigates. A hook or a store that holds the app's data, with the clients mocked. An API client with `fetch` stubbed: the request it builds and how it reads each answer, errors included | Real HTTP, the server, layout | Vitest + Testing Library + user-event, jsdom | `src/screens/*.test.tsx` (sheets and dialogs included), `src/App.test.tsx`, the hooks and stores in `src/session/`, `src/torrents/`, `src/settings/`, the clients in `src/api/*/` | `npm test` |
 | 4 | Server | Each middleware under `server/` against fake qBittorrent, TMDB and Prowlarr servers started in the test: routing, headers, what reaches the service and what comes back | Browser code | Vitest, Node (`server` project) | `server/*.test.ts`, fakes in `server/test/fakes.ts`; the TMDB proxy worker in `tmdb-proxy/worker.test.ts`, with TMDB and the rate limiter faked in the test, and its deploy check in `tmdb-proxy/deployCheck.test.ts` over a git repository made in the test; the dev and preview servers started from the config in `vite.config.test.ts`; the checks guard in `scripts/guard/guard.test.ts`, over a git repository made in the test; the size check in `scripts/size/size.test.ts`, over a build folder made in the test | `npm test -- --project server` |
 | 5 | Integration | The real clients in `src/api/*` calling the real `kinopeerServer()` in front of the fakes: both ends of each route agree on paths, bodies, cookies and errors, and the flows that cross several routes (login, adding a release, matches) | Rendering; a server without a route (the SPA fallback), which stays in the client tests | Vitest, Node | `server/integration/*.test.ts`, the stand in `server/test/integration.ts` | `npm test -- --project server` |
-| 6 | Browser | How the screens look: the built app in Chromium against baseline PNGs, with every server route mocked (screenshot tests). And six smoke journeys through the real production server behind a proxy that wants a cookie, with the services faked: the browser and the server together (smoke journeys). And what each screen asks the servers for when it opens, and each move between screens in short journeys, counted against its budget, with the routes mocked as for the screenshots (the requests tests). And how far a torrent's page moves as it loads, its answers let land one at a time, against its budget (the layout shift test) | Behavior, which the layers above cover faster | Playwright in Docker; Playwright on the host | `e2e/*.spec.ts`, baselines in `e2e/__screenshots__/`; `e2e/smoke/*.smoke.ts`, the stand in `e2e/smoke/stack.ts`; `e2e/performance/requests.perf.ts`, `e2e/performance/journeys.perf.ts`, `e2e/performance/layoutShift.perf.ts` | `npm run test:visual`; `npm run test:smoke`; `npm run test:requests` |
+| 6 | Browser | How the screens look: the built app in Chromium against baseline PNGs, with every server route mocked (screenshot tests). And six smoke journeys through the real production server behind a proxy that wants a cookie, with the services faked: the browser and the server together (smoke journeys). And what each screen asks the servers for when it opens, and each move between screens in short journeys, counted against its budget, with the routes mocked as for the screenshots (the requests tests). And how far each screen moves as it loads on a phone, its answers let land one at a time, against its budget (the layout shift test) | Behavior, which the layers above cover faster | Playwright in Docker; Playwright on the host | `e2e/*.spec.ts`, baselines in `e2e/__screenshots__/`; `e2e/smoke/*.smoke.ts`, the stand in `e2e/smoke/stack.ts`; `e2e/performance/requests.perf.ts`, `e2e/performance/journeys.perf.ts`, `e2e/performance/layoutShift.perf.ts` | `npm run test:visual`; `npm run test:smoke`; `npm run test:requests` |
 
 Layers 1–5 run on every `npm test` in two Vitest projects (`vite.config.ts`): `app` is jsdom with
 `src/test-setup.ts` (jest-dom matchers, the interface language reset to English, Testing Library's
@@ -974,33 +974,61 @@ it are in [QUALITY.md](QUALITY.md) → The requests budget.
 ## The layout shift test
 
 `e2e/performance/layoutShift.perf.ts` (the same config, command and CI job as the requests test)
-opens a torrent's page by its address on a phone (390×844, named in the file) and sums its layout
-shifts as it loads against `budgets.layoutShift` in `checks.json` (`phone.torrent`: 0.1, the bound
-Web Vitals call good), for three torrents. It was #387's red test (on a phone the page moved by
-0.26) and #389's (a guessed title's page moved by 0.1051 as "Is it right?" came in above the
-progress card, and a page with no title found by 0.1093 with its "No title found" card).
+opens each screen of `e2e/performance/screens.ts`, the list the requests test opens, by its address
+on a phone (390×844, named in the file) and sums its layout shifts as it loads against its budget in
+`budgets.layoutShift.phone` in `checks.json`; a screen may have several cases, states of it whose
+blocks differ, and its budget covers them all. It began as #387's red test (on a phone a torrent's
+page moved by 0.26) and #389's (a guessed title's page moved by 0.1051 as "Is it right?" came in
+above the progress card); QUALITY → [The layout shift budget](QUALITY.md#the-layout-shift-budget)
+has the budgets' rule.
 
-- **Not by chance.** Which states of a page paint, and so what can move, depends on the order its
-  answers land in, which a run left to the network doesn't choose. `holdAnswers`
-  (`e2e/performance/layoutShift.ts`) holds each route's answers and lets them land in the order the
-  test names, each after the page painted what the one before showed: every state in between is on
-  the screen for a frame at least, the worst case.
-- **Which pages, in which order.** Each page in the one order its answers can land in that tells
-  anything. The session is checked first on every page, since the app asks for nothing else
-  before it, and the server's matches go out beside the first poll; the server has none for these
-  torrents, and the test lands them where a server answers them, before the torrents.
-  - `p2` of the performance tests' torrents (`TORRENTS` in `e2e/performance/page.ts`), tagged with
-    its title and finished: the page asks for the title by its id once the torrent shows and for
-    the poster once the title does, so those land in that order whatever the network does, and the
-    empty matches change nothing on the page wherever they land.
-  - `p3`, untagged, its title guessed from its name with a cold cache: a guess waits for both the
-    torrents and the matches, so TMDB's search goes out after the later of the two, and with the
-    matches empty, landing them after the torrents paints the same states as before them. The
-    poster comes after the guess, and the guess saved on the server a second later is waited for
-    too.
-  - `p4`, the test's own (`UNKNOWN`), untagged and named so that TMDB finds nothing: the search
-    waits as `p3`'s does, and once it has answered More gets its dot, out of the flow;
-    nothing else is asked for.
+- **Every answer held.** Which states of a screen paint, and so what can move, depends on the order
+  its answers land in, which a run left to the network doesn't choose. `holdAnswers`
+  (`e2e/performance/layoutShift.ts`) holds every request the page sends but the document and the
+  build's own files, and lets the case's answers land one at a time, each after the one before
+  landed whole and the page painted a frame: every state in between is on the screen for a frame
+  at least, the worst case, but for the titles in Downloads (What it leaves out). An
+  answer's later requests (another poster, the next poll) land as they come once it has. The web
+  font's files are the build's and aren't held: every painted frame the test waits for, the first
+  before any answer lands, comes after the page's fonts are ready (`document.fonts.ready`), as a
+  page the service worker serves has them, so when they arrive doesn't change a reading.
+- **The reading waits for the screen complete.** Between answers, the next one's landing holds
+  what the one before brought (but for the titles in Downloads, below); after the last, nothing
+  does. So once the last answer has landed,
+  the test waits for what the case's screen shows when it is complete (`complete` in
+  `layoutShift.perf.ts`: its headings and links, every poster loaded and shown, the description on
+  More of a torrent without a title, each service's status and the category selects in Settings),
+  then for a painted frame, and reads. A condition on the page, not a time: what an answer brings
+  can show later than it lands (a title in Downloads with the next show, `SHOW_EVERY_MS` later, a
+  poster once its image loads). Each wait was seen red with the screen's last state shown 250 ms
+  late, the page moving 130px with it: over the budget with the wait, under it without, in both
+  orders. On the title's and the series' pages, in the order where the download defaults (which
+  show nothing there) land last, five answers land after the "In downloads" block, and their
+  landing holds it: it took the block 3 s late to get past them, while at 250 ms and 1 s the
+  reading was over the budget without the wait too (#395's second review).
+- **The chain comes from the code.** Each case names its answers and, for each, the answers the
+  page waits for before it asks (`after`, all of them, or `afterAny`, one of them), read from the
+  screen's code: the table below. The test holds the chain to the page: a request asked before the
+  answers its chain waits for were let go fails the load at once, in either order, naming it. An
+  answer the chain says is due that the page doesn't ask for in 10 s fails the load too, in the
+  order where the page is still waiting for another answer, which may be only one of the two. So a
+  chain that's wrong fails rather than reads by chance. The same address asked twice is two answers, in the order
+  asked (the session's check of the server's settings, then the download defaults' load of them);
+  `claimant` in `scripts/layout-shift/answers.ts` decides which a request is.
+- **Two orders, by a rule.** Answers out at the same time land in two orders, each a test: the one
+  the page asked for first lands first, or the one it asked for last (`pick`), among those held.
+  Before each choice the test waits for every answer the chain says is due once those landed so
+  far to have been asked, so what is held when it chooses comes from the chain and the order the
+  page asks in, not from how fast it asked: the choice is the same every run. A chain whose every
+  answer waits for the one before it can't give two orders, and runs once (`orders`); every chain
+  today has a point with two answers out (the download defaults beside the screen's first), so
+  every case runs twice. The orders do differ where it matters: a movie's page reads 0.0002 in CI
+  when the torrents land before the details and 0.0878 the other way (#394).
+- **Nothing lands unheld.** A request no answer of the case is lands, and fails the test with its
+  method and address: a screen that starts asking for more brings its case along. So does a request
+  beyond the answers that claim it, the same address again or with another query, unless the last
+  of them takes later requests as its own (`later`): the torrents' poll, every 2 s, and the posters
+  after the first.
 - **What the reading counts.** Every `layout-shift` entry, with the elements that moved and their
   boxes in the viewport before and after (`y/height`), those within 500 ms of a click or a key
   press too, which web-vitals leaves out: the failure marks them "after input", and a screen
@@ -1012,13 +1040,60 @@ progress card, and a page with no title found by 0.1093 with its "No title found
   jump showed: the reduced-motion rule in `src/styles/base.css` gives every element a 1 ms
   transition, so an element whose styles change is drawn once more as it was (without it `main`'s
   page read 0.0656 and passed). Both are set in the test, not taken from the configs it builds on.
-- **The rules** (the budgets read, the sum, the verdict and its report) are pure functions in
-  `scripts/layout-shift/budget.ts`, tested in `budget.test.ts` (layer 1); coverage measures the
-  folder and Stryker mutates it. A budget raised or removed is the owner's decision, which the
-  checks guard marks; a new one goes to a second review.
-- **What it leaves out.** Other screens; a check of every screen's layout shift is to come with
-  #378, extending this reading. A title the server's matches already hold (the user's choice, or
-  a guess another device saved), which is asked for by its id as `p2`'s is. The torrent's drawer
-  on desktop: a third of the window's width at 1440×900 and nearly half at 1024×768, so even all
-  its content moving down by its header's height scores 0.027 and 0.062, which a bound of 0.1
-  can't catch.
+- **Exact.** Every case in each order read the same number in every run, to the fourth digit: ten
+  runs in a row locally (macOS) and in CI (Linux). In CI every reading has 0.0002 more than on a
+  Mac, which varies in its sixth digit (0.000179 or 0.000183): the "Connecting" text, before any
+  answer, moves sideways as the font comes in, in one shift or two. The budgets come from CI's
+  readings. A reading that varies by more is a race in the test (an answer whose content wasn't
+  waited for) to find, not noise to budget.
+- **The rules** (the budgets read with their ceiling, the sum, the verdict and its report, the
+  screens without a case or a budget, the table of readings; and which answer a request is, which
+  are due, which lands next, how many orders a chain gives, what is wrong with a chain) are pure
+  functions in `scripts/layout-shift/budget.ts` and `answers.ts`, tested beside them (layer 1);
+  coverage measures the folder and Stryker mutates it. One test checks that every screen of the
+  list has a case and a budget, and every budget a screen. The reporter
+  (`e2e/performance/summary.ts`) adds a table of every load's reading to the job's summary.
+- **A new screen** in `screens.ts` gets a case here, with its chain from its code, and a budget,
+  which goes to a second review. A new late block on a screen (one that appears after the screen's
+  first paint because an answer landed) goes into the table below and into a case that shows it.
+
+| Screen | Answers, in their chain | Late blocks | Cases |
+| --- | --- | --- | --- |
+| Every screen | qBittorrent's version; then the server's settings (whether onboarding asks for a TMDB key), after which the screen paints; then the server's settings again (the download defaults) | The screen itself, in place of "Connecting" | |
+| `downloads` | The torrents and the server's matches; `p1`'s and `p2`'s titles by their tags' ids once the torrents are in, `p3`'s guess by TMDB's search once both are; the posters once one title is; the guess saved a second after it | The rows in place of the skeleton, the totals, the chips' counts, the speed limits switch; each row's title and poster | Titles found |
+| `torrent` | The torrents and the matches; the title by its tag's id, or the search for a guess once both are in; the poster; the guess saved | The page in place of its skeleton; the title, its poster; More's dot when no title is found | Tagged and finished (`p2`); title guessed from its name (`p3`, cold cache); no title found (`p4`) |
+| `browse` | Three Discover queries at once; the posters once all three are in | The three rows, together, in place of the skeleton; their posters | Rows of titles |
+| `search` | TMDB's search; the posters | The results with their count and Show more, in place of the skeleton; their posters | Titles found |
+| `search-year` | TMDB's search for movies and for series, at once; the posters once both are in | The results, together, in place of the skeleton; their posters | Titles found |
+| `title` | The details, the torrents and the matches at once; the poster and the recommendations once the details are in, their posters after them; the three torrents' titles, as on `downloads` | The page in place of its skeleton; the poster; the "In downloads" badge and block, once the details and the torrents are both in; the recommendations row | A movie in downloads, with recommendations. Its budget, 0.09, is #394's jump (the badge and the block coming in after the details: 0.0878 in CI), which the fix lowers |
+| `series` | As `title`; similar titles once the recommendations come back empty | As `title`, with the series hint and similar titles in place of recommendations | A series in downloads, with similar titles. Its budget, 0.09, is #394's jump (0.0818 in CI) |
+| `releases` | The series' details; Prowlarr's search; which indexers failed during it | The title and year under the heading; the chips and the releases in place of the skeleton; the note naming indexers that failed | Every indexer answered. Its budget, 0.07, is #393's jump (the chips coming in above the list with it: 0.0647 in CI), which the fix lowers |
+| `settings` | Settings' own load of the server's settings, the checks of qBittorrent, Prowlarr and TMDB at once; the categories once qBittorrent's check is in | None: every row is there from the first paint, and the answers change only what the rows say and the category selects' options | Every service answers |
+
+- **What it leaves out.** A release search with an indexer that failed (#393): the note above the
+  list moves it by 0.1167 in both orders, over the ceiling, so its case comes with the fix. Moves
+  between screens by a click: the screens are opened by their address. The app with motion on.
+  Empty and "not answering" states, and the other states the screenshot tests open (other
+  torrents' pages beside these three, a search that finds nothing, onboarding). Desktop, which comes
+  in the next step of #378. A title the server's matches already hold (the user's choice, or a
+  guess another device saved), which is asked for by its id as `p2`'s is. A title's page whose
+  torrent is matched by a guess rather than a tag, where "In downloads" comes in with TMDB's search,
+  a later answer than either case lands it with. The web font landing after the content: the
+  releases then read 0.199 on a Mac and 0.066 on the Playwright Linux image, as the names wrap again
+  in the fallback font, so the test has the fonts in before the first answer: what a late font moves
+  depends on the machine's fallback font, and a budget on it would be the runner's, not the app's.
+  The jump itself is left as it is (decided on 2026-11-13, SPEC's decision log): it can show only on
+  the very first open of Kinopeer on a device, and only when that open is the releases by a direct
+  link, since Downloads is the usual first screen and after it the service worker keeps the font, so
+  a fix isn't worth its code now. It comes back if a real phone shows the jump, or first opens by a
+  link become common. The states between the titles' answers in Downloads: the app shows the
+  titles that came in a batch every `SHOW_EVERY_MS` (250 ms, `src/torrents/titleMatches.ts`), and
+  the next title's lookup is asked without waiting for it, so whether two titles show in one frame
+  or in two goes by the clock. Today's reading (0.0028 on a Mac, 0.0030 in CI) doesn't depend on
+  it; a jump planted in a row reads one of two numbers by how the batches fall (#395's review: a
+  30px block read 0.0507 or 0.0395, both over the budget), so the jump is still caught, but its
+  number may differ from run to run. Left so, since the alternative is three more waits in one
+  case, one per title, that would have to be kept in step with the app's batching.
+- **The hole under a carried jump.** One budget covers both orders of a screen. Until #394 is
+  fixed, a new shift of up to 0.09 passes on the title's and the series' page in the order that
+  reads 0 on a Mac and 0.0002 in CI today; until #393 is, one of up to 0.005 passes on the releases, in either order.

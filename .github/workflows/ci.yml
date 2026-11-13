@@ -58,7 +58,7 @@ jobs:
   performance:
     # The speed budgets in checks.json (docs/QUALITY.md): the build's size, then what each screen asks
     # the servers for when it opens and each move between screens asks for, each with a table in the
-    # job's summary, and how far a torrent's page moves as it loads. No screenshots, so a
+    # job's summary, and how far each screen moves as it loads on a phone. No screenshots, so a
     # plain runner with Chromium, as the smoke journeys have.
     runs-on: ubuntu-latest
     # Usually a few minutes, but apt alone has taken 550 s on a runner like this one.
@@ -91,8 +91,8 @@ jobs:
         if: steps.chromium.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
       # Each screen's requests on opening and each move's between screens, against budgets.requests
-      # and budgets.journeys, on the build above (docs/QUALITY.md → The requests budget), and a
-      # torrent page's layout shift (docs/TESTING.md → The layout shift test).
+      # and budgets.journeys, on the build above (docs/QUALITY.md → The requests budget), and the
+      # layout shift of each screen on a phone (docs/TESTING.md → The layout shift test).
       - run: npm run test:requests
       - name: Upload the report with the traces
         if: failure()

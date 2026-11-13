@@ -1,34 +1,14 @@
 // What each screen asks the servers for when it opens (docs/QUALITY.md → The requests budget): the
-// built app, every server route mocked as in the screenshot tests, each screen loaded afresh by its
-// address in both window sizes, its requests counted by route and compared with `budgets.requests`
-// in checks.json. The rules are in scripts/requests/budget.ts; this file only collects the numbers.
+// built app, every server route mocked as in the screenshot tests, each screen of screens.ts loaded
+// afresh by its address in both window sizes, its requests counted by route and compared with
+// `budgets.requests` in checks.json. The rules are in scripts/requests/budget.ts; this file only collects the numbers.
 import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 import { judge, countsOf, grouped, readBudgets, unmatched, type App, type Budgets, type Opened, type Sent } from '../../scripts/requests/budget.ts'
 import { prepareApp } from '../app.ts'
-import { builtPaths, holdForCounting, record, runClock, RUN_MS, SIZES, TORRENTS, type Heading, type Loaded } from './page.ts'
+import { builtPaths, holdForCounting, record, runClock, RUN_MS, SIZES, TORRENTS } from './page.ts'
+import { SCREENS } from './screens.ts'
 
-/**
- * Each screen the test opens by its address, with its own heading (`desktop` where the desktop's
- * differs) and, where that heading stays above a "not answering" or empty state, a control only
- * the loaded content has: every screen the screenshot tests open by an address. What they open besides
- * is another state of one of these (another torrent's page, a search that finds nothing,
- * onboarding), left out as docs/QUALITY.md says.
- */
-const SCREENS: { screen: string; path: string; heading: Heading; desktop?: Heading; loaded?: Loaded }[] = [
-  { screen: 'downloads', path: '/', heading: { level: 1, name: 'Загрузки' }, loaded: { role: 'link', name: 'Дюна: Часть вторая' } },
-  // On desktop the torrent's drawer over Downloads.
-  { screen: 'torrent', path: '/torrent/p2', heading: { level: 1, name: 'Сёгун' }, desktop: { level: 2, name: 'Сёгун' } },
-  { screen: 'browse', path: '/search', heading: { level: 1, name: 'Поиск' }, loaded: { role: 'link', name: 'Оппенгеймер' } },
-  { screen: 'search', path: '/search?q=%D0%B4%D1%8E%D0%BD%D0%B0', heading: { level: 1, name: 'Поиск' }, loaded: { role: 'link', name: 'Дюна: Часть вторая' } },
-  // With a year, movies and series are searched apart.
-  { screen: 'search-year', path: '/search?q=%D0%B0&year=2022', heading: { level: 1, name: 'Поиск' }, loaded: { role: 'link', name: 'Разделение' } },
-  { screen: 'title', path: '/title/movie/693134', heading: { level: 1, name: 'Дюна: Часть вторая' } },
-  { screen: 'series', path: '/title/tv/126308', heading: { level: 1, name: 'Сёгун' } },
-  // On desktop the title page with its releases under the hero.
-  { screen: 'releases', path: '/title/tv/126308/releases', heading: { level: 1, name: 'Раздачи' }, desktop: { level: 1, name: 'Сёгун' }, loaded: { role: 'button', name: 'Добавить в загрузки' } },
-  { screen: 'settings', path: '/settings', heading: { level: 1, name: 'Настройки' } },
-]
 const BUDGETS = readBudgets(JSON.parse(readFileSync(new URL('../../checks.json', import.meta.url), 'utf8')))
 
 /**
