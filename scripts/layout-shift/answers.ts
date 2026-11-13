@@ -52,11 +52,15 @@ export function due(chain: Chain, asked: ReadonlySet<string>, landed: ReadonlySe
  * next poll). The same method and address asked for again (`repeat`) beyond the answers that claim
  * it is none of them: a request the case doesn't name.
  */
-export function claimant(candidates: string[], asked: ReadonlySet<string>, again: { repeat: boolean; polls: ReadonlySet<string> }): string | undefined {
+export function claimant(
+  candidates: string[],
+  asked: ReadonlySet<string>,
+  again: { repeat: boolean; polls: ReadonlySet<string | undefined> },
+): string | undefined {
   const fresh = candidates.find((name) => !asked.has(name))
   if (fresh !== undefined) return fresh
   const last = candidates.at(-1)
-  return last !== undefined && again.repeat && !again.polls.has(last) ? undefined : last
+  return again.repeat && !again.polls.has(last) ? undefined : last
 }
 
 /** A screen's chain from its answers: where each sits, without what else the answer carries. */
