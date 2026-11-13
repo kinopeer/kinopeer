@@ -577,10 +577,10 @@ describe('TorrentScreen title matching', () => {
     vi.mocked(tmdb.searchTitles).mockResolvedValue(searchPage([]))
     renderScreen()
     await waitFor(() => expect(more()).toHaveAccessibleDescription(UNMATCHED))
-    expect(more().querySelector('.ks-icon-btn-dot')).not.toBeNull()
     expect(screen.queryByText(/No title found/)).not.toBeInTheDocument()
     await userEvent.click(more())
     const pick = within(screen.getByRole('dialog', { name: 'Some.Home.Video' })).getByRole('button', { name: 'Match title' })
+    // `is-highlight` is what puts the row in the accent; no role or attribute says it.
     expect(pick).toHaveClass('is-highlight')
     await userEvent.click(pick)
     expect(screen.getByRole('dialog', { name: 'Match title' })).toBeInTheDocument()
@@ -594,13 +594,12 @@ describe('TorrentScreen title matching', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Some.Home.Video' })).toBeInTheDocument()
     await waitFor(() => expect(tmdb.searchTitles).toHaveBeenCalled())
     expect(more()).not.toHaveAccessibleDescription()
-    expect(more().querySelector('.ks-icon-btn-dot')).toBeNull()
 
     await act(async () => answer())
     await waitFor(() => expect(more()).toHaveAccessibleDescription(UNMATCHED))
   })
 
-  it('keeps the dot when the title search closes without a choice, and drops it once a title is chosen', async () => {
+  it('drops the dot once a title is chosen from the menu', async () => {
     getMainData.mockResolvedValue(snapshot({ tags: '', name: 'Dune.Part.Two.Fan.Edit' }))
     vi.mocked(tmdb.searchTitles).mockImplementation(async (query) => searchPage(query === 'Dune' ? [DUNE_1984] : []))
     renderScreen()
@@ -624,7 +623,6 @@ describe('TorrentScreen title matching', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Dune' })).toBeInTheDocument()
     expect(screen.getByText('Dune.Part.Two.Fan.Edit')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'More actions: Dune' })).not.toHaveAccessibleDescription()
-    expect(screen.getByRole('button', { name: 'More actions: Dune' }).querySelector('.ks-icon-btn-dot')).toBeNull()
     expect(matchesApi.saveMatches).toHaveBeenLastCalledWith({ dune: { type: 'movie', id: 841, source: 'user' } })
   })
 

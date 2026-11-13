@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { MemoryRouter } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
-import { Menu, MenuDivider, MenuGroup, MenuItem, MenuItemRadio, MenuLink } from './Menu'
+import { Menu, MenuDivider, MenuItem, MenuItemRadio, MenuLink } from './Menu'
 
 // Placement, the click outside, the anchor's toggle and `follow` are Popover's, tested there.
 function Harness({ onPick = vi.fn() }: { onPick?: (item: string) => void }) {
@@ -23,9 +23,7 @@ function Harness({ onPick = vi.fn() }: { onPick?: (item: string) => void }) {
           </MenuItem>
           <MenuLink to="/title/movie/1">Movie page</MenuLink>
           <MenuDivider />
-          <MenuGroup label="Is it right?">
-            <MenuItemRadio checked={false} label="Yes" hint="The guess" />
-          </MenuGroup>
+          <MenuItemRadio checked={false} label="Yes" hint="The guess" />
           <MenuItem danger>Delete</MenuItem>
         </Menu>
       )}
@@ -50,7 +48,6 @@ describe('Menu', () => {
     expect(screen.getByRole('menuitem', { name: 'Pause' })).toHaveFocus()
     await userEvent.keyboard('{ArrowUp}')
     expect(screen.getByRole('menuitem', { name: 'Delete' })).toHaveFocus()
-    expect(screen.getByRole('group', { name: 'Is it right?' })).toBeInTheDocument()
     expect(screen.getByText('Footer')).toBeInTheDocument()
   })
 
@@ -122,7 +119,10 @@ describe('Menu', () => {
         <MenuItem>Move files</MenuItem>
       </>,
     )
-    const [highlighted, dangerous, plain] = screen.getAllByRole('menuitem')
+    const highlighted = screen.getByRole('menuitem', { name: 'Match title' })
+    const dangerous = screen.getByRole('menuitem', { name: 'Delete' })
+    const plain = screen.getByRole('menuitem', { name: 'Move files' })
+    // The classes are what put an item in the accent or in red; no role or attribute says it.
     expect(highlighted).toHaveClass('is-highlight')
     expect(highlighted).not.toHaveClass('is-danger')
     expect(dangerous).toHaveClass('is-danger')

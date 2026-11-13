@@ -48,6 +48,13 @@
   pointer-events: none;
 }
 
+/* On glass, which is dark in both themes, the dot doesn't follow the theme either, as the icon
+   doesn't: a light teal of the accent scale, and no ring, which would be the page's colour. */
+.ks-icon-btn-glass .ks-icon-btn-dot {
+  background: var(--teal-200);
+  box-shadow: none;
+}
+
 .ks-icon-btn-sm .ks-icon-btn-dot {
   top: 4px; /* the same corner of the 36px button */
   right: 4px;

@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { useLocation } from 'react-router'
@@ -543,6 +543,21 @@ describe('DownloadsScreen', () => {
     await waitFor(() => expect(overlay()).not.toBeInTheDocument())
   })
 
+  it('keeps the speed limits open when a pause sent before them comes back', async () => {
+    let paused = () => {}
+    vi.mocked(api.stopTorrents).mockReturnValue(new Promise((resolve) => (paused = () => resolve())))
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' }))
+    const actions = screen.getByRole('dialog', { name: 'Andor.S02.1080p' })
+    await userEvent.click(within(actions).getByRole('button', { name: 'Pause' }))
+    await userEvent.click(within(actions).getByRole('button', { name: 'Speed limits' }))
+    expect(screen.getByRole('dialog', { name: 'Speed limits' })).toBeInTheDocument()
+    // The pause closes the menu it was sent from, which is gone already; the sheet opened since stays.
+    await act(async () => paused())
+    expect(api.stopTorrents).toHaveBeenCalledWith(['andor'])
+    expect(screen.getByRole('dialog', { name: 'Speed limits' })).toBeInTheDocument()
+  })
+
   it('sets a torrent’s speed limits from the row menu, and asks qBittorrent again right away', async () => {
     vi.mocked(api.setSpeedLimits).mockResolvedValue()
     renderScreen()
@@ -579,11 +594,16 @@ describe('DownloadsScreen', () => {
     expect(screen.getByRole('dialog', { name: 'Fix match' })).toBeInTheDocument()
   })
 
-  it('picks a title from the row menu for a torrent with none', async () => {
+  it('picks a title from the row menu, Match title in the accent, for a torrent with none', async () => {
     renderScreen()
+    // Every torrent's lookup has answered (TMDB found nothing) before the menu opens.
+    await waitFor(() => expect(searchTitles).toHaveBeenCalledTimes(3))
     await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' }))
     searchTitles.mockResolvedValue(searchPage([ANDOR_TITLE]))
-    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Match title' }))
+    const pick = within(screen.getByRole('dialog')).getByRole('button', { name: 'Match title' })
+    // `is-highlight` is what puts the row in the accent; no role or attribute says it.
+    expect(pick).toHaveClass('is-highlight')
+    await userEvent.click(pick)
     const sheet = screen.getByRole('dialog', { name: 'Match title' })
     await userEvent.click(await within(sheet).findByRole('button', { name: /^Andor/ }))
     expect(await findToastOnPage('Match saved')).toBeInTheDocument()

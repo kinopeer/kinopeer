@@ -11,7 +11,7 @@ export interface MenuProps {
   /** Accessible name of the menu. */
   label: string
   onClose: () => void
-  /** Menu items: MenuItem, MenuItemRadio, MenuLink, MenuGroup, MenuDivider. */
+  /** Menu items: MenuItem, MenuItemRadio, MenuLink, MenuDivider. */
   children: ReactNode
   /** Under the items, outside the menu itself, e.g. an error message. */
   footer?: ReactNode
@@ -157,18 +157,6 @@ export function MenuLink({ to, icon, onClick, children }: MenuLinkProps) {
       {icon && <Icon name={icon} size={18} />}
       {children}
     </Link>
-  )
-}
-
-/** Items under a caption, e.g. a question with its answers. */
-export function MenuGroup({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div role="group" aria-label={label} className="ks-menu-group">
-      <p className="ks-menu-caption t-cap c2" aria-hidden="true">
-        {label}
-      </p>
-      {children}
-    </div>
   )
 }
 

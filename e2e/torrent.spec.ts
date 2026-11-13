@@ -30,6 +30,14 @@ test('no title found, a dot on More, dark, Russian', async ({ page }) => {
   await expect(page).toHaveScreenshot('no-title-dark-ru.png')
 })
 
+test('no title found, a dot on More, light, Russian', async ({ page }) => {
+  // More is the same dark glass in both themes, and so is its dot.
+  await openApp(page, '/torrent/a9', { theme: 'light' })
+  await expect(page.getByRole('button', { name: /^Ещё действия/ })).toHaveAccessibleDescription(UNMATCHED)
+  await settle(page)
+  await expect(page).toHaveScreenshot('no-title-light-ru.png')
+})
+
 test('no title found, its menu with Match title in the accent, dark, Russian', async ({ page }) => {
   await openApp(page, '/torrent/a9')
   await expect(page.getByRole('button', { name: /^Ещё действия/ })).toHaveAccessibleDescription(UNMATCHED)

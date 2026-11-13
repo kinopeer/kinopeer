@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as matchesApi from '../api/matches'
@@ -196,6 +196,17 @@ describe('DownloadsScreen on desktop', () => {
     await userEvent.click(more)
     expect(screen.getByRole('menu', { name: 'More actions: Alien.Romulus.2024.1080p' })).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('highlights Match title in a row’s menu for a torrent with none', async () => {
+    updateSettings({ downloadsDesktopView: 'list' })
+    renderScreen()
+    await tableRows()
+    // Every torrent's lookup has answered (TMDB found nothing) before the menu opens.
+    await waitFor(() => expect(searchTitles).toHaveBeenCalledTimes(3))
+    await userEvent.click(screen.getByRole('button', { name: 'More actions: Alien.Romulus.2024.1080p' }))
+    // `is-highlight` is what puts the item in the accent; no role or attribute says it.
+    expect(screen.getByRole('menuitem', { name: 'Match title' })).toHaveClass('is-highlight')
   })
 
   it('closes the menu from its own More button', async () => {

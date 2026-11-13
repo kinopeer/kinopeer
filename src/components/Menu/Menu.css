@@ -72,11 +72,6 @@
   margin: var(--space-1) var(--space-2);
 }
 
-.ks-menu-caption {
-  padding: var(--space-2) var(--space-3) var(--space-1);
-  white-space: normal;
-}
-
 .ks-menu-pop .ks-banner {
   margin: var(--space-2) var(--space-2) var(--space-1);
 }

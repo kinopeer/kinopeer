@@ -30,6 +30,7 @@ describe('IconButton', () => {
   it('shows a dot that says why as the button’s description, its name unchanged', () => {
     const { container, rerender } = render(<IconButton icon="more" label="More actions" />)
     expect(screen.getByRole('button', { name: 'More actions' })).not.toHaveAccessibleDescription()
+    // The dot is a span its class draws; no role or attribute says it's there.
     expect(container.querySelector('.ks-icon-btn-dot')).toBeNull()
 
     rerender(<IconButton icon="more" label="More actions" dot="Not matched to a movie" />)

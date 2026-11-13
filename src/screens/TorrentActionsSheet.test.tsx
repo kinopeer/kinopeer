@@ -236,6 +236,7 @@ describe('TorrentActionsSheet on desktop', () => {
 
   it('highlights Match title only when no title was found, not with a title or while it’s still unknown', () => {
     const titled = renderActions()
+    // `is-highlight` is what puts the item in the accent; no role or attribute says it.
     expect(screen.getByRole('menuitem', { name: 'Fix match' })).not.toHaveClass('is-highlight')
     titled.unmount()
     const unknown = renderActions({ match: undefined })
@@ -337,6 +338,7 @@ describe('TorrentActionsSheet on a phone', () => {
 
   it('highlights the Match title row only when no title was found, on a phone too', () => {
     const titled = renderActions()
+    // `is-highlight` is what puts the row in the accent; no role or attribute says it.
     expect(screen.getByRole('button', { name: 'Fix match' })).not.toHaveClass('is-highlight')
     titled.unmount()
     const unknown = renderActions({ match: undefined })

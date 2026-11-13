@@ -308,6 +308,7 @@ describe('the details drawer on desktop', () => {
 
     await userEvent.click(more())
     const pick = within(screen.getByRole('menu')).getByRole('menuitem', { name: 'Match title' })
+    // `is-highlight` is what puts the item in the accent; no role or attribute says it.
     expect(pick).toHaveClass('is-highlight')
     await userEvent.click(pick)
     const sheet = screen.getByRole('dialog', { name: 'Match title' })
@@ -316,7 +317,6 @@ describe('the details drawer on desktop', () => {
     await userEvent.type(search, 'Dune')
     await userEvent.click(await within(sheet).findByRole('button', { name: /^Dune Movie · 1984$/ }))
     await vi.waitFor(() => expect(within(drawer).getByRole('button', { name: 'More actions: Dune' })).not.toHaveAccessibleDescription())
-    expect(within(drawer).getByRole('button', { name: 'More actions: Dune' }).querySelector('.ks-icon-btn-dot')).toBeNull()
   })
 
   it('shows a priority change sent before the drawer was closed busy when it opens again, then keeps it over an older poll', async () => {

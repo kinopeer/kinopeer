@@ -17,7 +17,9 @@ export interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement>
   active?: boolean
   /**
    * A small accent dot in the corner, pointing at something worth opening the button for. The text
-   * says why, as the button's accessible description, since the dot alone is only a colour.
+   * says why, as the button's accessible description, since the dot alone is only a colour. On a
+   * `plain` or `filled` button it follows the theme (`--accent`, ringed in `--bg` to stand off the
+   * page); on `glass`, dark in both themes, it's the same light teal in both, with no ring.
    */
   dot?: string
 }
