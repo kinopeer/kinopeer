@@ -525,24 +525,26 @@ number to the fourth digit every run, locally and in CI), so the budget is the s
 shift on a screen that barely moved fails, rather than hiding under a budget set for the screen
 that moves most. Decided on 2026-11-13, in place of one bound of 0.1 for all (SPEC's decision log).
 
-**The ceiling.** No budget is over 0.1, the bound Web Vitals call good: `readBudgets`
-(`scripts/layout-shift/budget.ts`) refuses one, saying so. A screen that moves more has a bug to
+**The ceiling.** No budget is over `budgets.layoutShiftCeiling` in `checks.json`, 0.1, the bound
+Web Vitals call good: `readBudgets` (`scripts/layout-shift/budget.ts`) refuses one, saying so, and
+fails when the ceiling is missing or not a number over 0. A screen that moves more has a bug to
 fix, not a budget to raise; until it is fixed, the state that moves is left out of the test with
 its issue named (TESTING → What it leaves out). A budget under the ceiling can still carry a known
 jump, its issue named beside it in TESTING's table, and the fix lowers it. Until then the budget
 leaves room under the jump it carries: on `title` and `series` (0.09) a new jump of up to 0.09
-passes in the order that reads 0 today, and on `releases` (0.07) one of up to 0.005 in either.
+passes in the order that reads 0 today, and on `releases` (0.07) one of up to 0.005 in either
+(TESTING → The hole under a carried jump).
 
 **What fails**: a reading over its budget, which names each shift with the elements that moved and
 their boxes before and after; a screen of the list without a case or a budget, or a budget for a
 screen the test doesn't read; `budgets.layoutShift` that can't be read (not an object, a budget
-that isn't a number of 0 or more, one over the ceiling); a request the case doesn't name; a chain
+that isn't a number of 0 or more, one over the ceiling, a ceiling missing or not over 0); a request the case doesn't name; a chain
 the page doesn't follow.
 
 **Over a budget**, find what moves (the failure names the elements) and keep it in place or keep
 room for what loads later. Raising a budget is a weakening: it is the owner's decision, and the
 checks guard marks a budget raised, removed or no longer a number for the owner. A new budget, for
 a new screen, goes to a second review. **Under a budget** by a step of 0.01 or more, after a fix,
-lower it in the same PR: a budget lowered needs no record. The ceiling is a constant in
-`budget.ts`, pinned by its test, so a change to it shows as a changed check for a second review.
+lower it in the same PR: a budget lowered needs no record. The ceiling is in `checks.json` beside
+the budgets, so the checks guard marks it raised for the owner as it does a budget.
 

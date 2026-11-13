@@ -1,7 +1,7 @@
 // What the layout shift test (layoutShift.perf.ts) does with the page: records every layout shift
 // it makes and the elements that moved, holds every answer a screen loads from and lets them land
 // one at a time, each painted before the next, in an order a rule chooses. A screen gives its chain
-// of answers and what each shows. The rules the order follows are in scripts/layout-shift/answers.ts,
+// of answers. The rules the order follows are in scripts/layout-shift/answers.ts,
 // those the shifts are judged by in scripts/layout-shift/budget.ts.
 import type { Page, Request, Route } from '@playwright/test'
 import { askedEarly, chainOf, chainProblems, claimant, due, pick, type Held, type Link, type Order } from '../../scripts/layout-shift/answers.ts'
@@ -63,15 +63,10 @@ export async function layoutShifts(page: Page): Promise<Shift[]> {
 /** How long the page may take to ask for an answer its chain says is due before the test says it never asked. */
 const ASKED_LIMIT_MS = 10_000
 
-/** A screen's answer: the requests it is, where it sits in the chain, and what it shows once landed. */
+/** A screen's answer: the requests it is and where it sits in the chain. */
 export type Answer = Link & {
   /** Whether a request is this answer, by its address and method. */
   matches: (url: URL, method: string) => boolean
-  /**
-   * Waits for what the answer shows, if anything: its own content, so it painted before the next
-   * lands. Given the answers landed so far, for content that needs another answer as well.
-   */
-  shown?: (page: Page, landed: ReadonlySet<string>) => Promise<void>
   /** The answer asks the same address again on its own (the torrents' poll): a repeat is its later request, not a request the case doesn't name. */
   polls?: true
 }
@@ -86,7 +81,8 @@ export type Landing = { landed: string[]; unnamed: string[] }
  * service worker serves has them, in `order` (scripts/layout-shift/answers.ts): before each,
  * it waits for every answer the chain says is due to be asked, so what is held when it chooses
  * doesn't depend on how fast the page asked; then it lets the held answer asked first (or last) land,
- * waits for what it shows and for a painted frame. An answer's later requests (another poster, the
+ * waits until it has landed whole and for a painted frame, which holds the state it brings: the page
+ * renders an answer as it lands, so the frame after shows it (docs/TESTING.md). An answer's later requests (another poster, the
  * next poll) land as they come once it has. A request that is no answer of the chain, or the same
  * address asked again beyond the answers that claim it (`claimant`), lands too, and is named in
  * `unnamed`, which fails the test; one the page sends before its chain says it would fails the load
@@ -168,7 +164,6 @@ export async function holdAnswers(
         await Promise.all(routes.map((route) => route.fallback()))
         await Promise.all(routes.map((route) => landedOne(route.request())))
         landed.add(next)
-        await answers[next].shown?.(page, landed)
         await painted(page)
       }
       return { landed: [...landed], unnamed }

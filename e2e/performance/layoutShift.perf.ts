@@ -6,7 +6,7 @@
 // scripts/layout-shift/budget.ts; the reading and the holding are in layoutShift.ts
 // (docs/TESTING.md → The layout shift test).
 import { readFileSync } from 'node:fs'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { chainOf, ORDER_NAMES, orders } from '../../scripts/layout-shift/answers.ts'
 import { judge, readBudgets, uncased, unmatched, type Budgets } from '../../scripts/layout-shift/budget.ts'
 import { torrent } from '../../src/test/fixtures.ts'
@@ -43,57 +43,26 @@ const under =
   (url: URL, method: string): boolean =>
     method === 'GET' && url.pathname.startsWith(prefix)
 
-// What an answer shows, waited for once it lands.
-const heading = (name: string, level = 1) => async (page: Page) => expect(page.getByRole('heading', { level, name, exact: true })).toBeVisible()
-const link = (name: string | RegExp) => async (page: Page) => expect(page.getByRole('link', { name }).first()).toBeVisible()
-const text = (content: string | RegExp) => async (page: Page) => expect(page.getByText(content).first()).toBeVisible()
-/**
- * Every image on the page has loaded, or every one whose address has `only` in it, or every one
- * without `except`: the posters that came with this answer, when another's are still held.
- */
-const images =
-  ({ only, except }: { only?: string; except?: string } = {}) =>
-  async (page: Page) => {
-    const loaded = () =>
-      page.evaluate(
-        ({ only, except }) =>
-          [...document.images]
-            .filter((image) => (only === undefined || image.src.includes(only)) && (except === undefined || !image.src.includes(except)))
-            .every((image) => image.complete && image.naturalWidth > 0),
-        { only, except },
-      )
-    await expect.poll(loaded).toBe(true)
-  }
-/** The status Connections shows for a service, in its own row: other rows say "Connected" too. */
-const connection = (name: string, status: string | RegExp) => async (page: Page) =>
-  expect(page.getByRole('listitem').filter({ has: page.getByText(name, { exact: true }) }).getByRole('status')).toHaveText(status)
-/** Waits for what `wait` shows only once every one of `answers` has landed: a block that needs them all. */
-const once =
-  (answers: string[], wait: (page: Page) => Promise<void>) =>
-  async (page: Page, landed: ReadonlySet<string>) => {
-    if (answers.every((name) => landed.has(name))) await wait(page)
-  }
-
 /**
  * Every screen's first answers (src/App.tsx): qBittorrent's version, the session check, before which
  * the app shows "Connecting" and no screen; the server's settings, which say whether onboarding asks
- * for a TMDB key (`useTmdbSetup`), after which the screen paints (`firstPaint`); and the server's
- * settings again, the download defaults `useSettings` loads once per page.
+ * for a TMDB key (`useTmdbSetup`), after which the screen paints; and the server's settings again,
+ * the download defaults `useSettings` loads once per page.
  */
-const session = (firstPaint: (page: Page) => Promise<void>): Record<string, Answer> => ({
+const SESSION: Record<string, Answer> = {
   version: { matches: get('/qbt/api/v2/app/version') },
-  tmdbSetup: { matches: get('/api/settings'), after: ['version'], shown: firstPaint },
+  tmdbSetup: { matches: get('/api/settings'), after: ['version'] },
   defaults: { matches: get('/api/settings'), after: ['tmdbSetup'] },
-})
+}
 
 /**
  * The torrents (the poll) and the server's title matches, which a screen that shows torrents asks for
  * together once it paints.
  */
-const torrentsAndMatches = (shown?: Answer['shown']): Record<string, Answer> => ({
-  torrents: { matches: get('/qbt/api/v2/sync/maindata'), after: ['tmdbSetup'], shown, polls: true },
+const TORRENTS_AND_MATCHES: Record<string, Answer> = {
+  torrents: { matches: get('/qbt/api/v2/sync/maindata'), after: ['tmdbSetup'], polls: true },
   matches: { matches: get('/api/matches'), after: ['tmdbSetup'] },
-})
+}
 
 /**
  * The titles of the performance tests' torrents (`TORRENTS`), which `useTitleMatches` looks up for
@@ -102,14 +71,14 @@ const torrentsAndMatches = (shown?: Answer['shown']): Record<string, Answer> => 
  * for the server's matches too (another device may have made the guess); a second after the guess
  * it is saved on the server.
  */
-const lookups = (shown: { p1?: Answer['shown']; p2?: Answer['shown']; p3?: Answer['shown'] } = {}): Record<string, Answer> => ({
-  titleP1: { matches: get('/tmdb/movie/693134'), after: ['torrents'], shown: shown.p1 },
-  titleP2: { matches: get('/tmdb/tv/126308'), after: ['torrents'], shown: shown.p2 },
-  guessP3: { matches: under('/tmdb/search/'), after: ['torrents', 'matches'], shown: shown.p3 },
+const LOOKUPS: Record<string, Answer> = {
+  titleP1: { matches: get('/tmdb/movie/693134'), after: ['torrents'] },
+  titleP2: { matches: get('/tmdb/tv/126308'), after: ['torrents'] },
+  guessP3: { matches: under('/tmdb/search/'), after: ['torrents', 'matches'] },
   saveGuess: { matches: (url, method) => method === 'PATCH' && url.pathname === '/api/matches', after: ['guessP3'] },
-})
+}
 
-/** A state of a screen: its answers, the order they're asked for in (its chain), and what each shows. */
+/** A state of a screen: its answers and the order they're asked for in (its chain). */
 interface Case {
   screen: string
   name: string
@@ -120,14 +89,14 @@ interface Case {
   answers: Record<string, Answer>
 }
 
-const torrentPage = (name: string, hash: string, title: (page: Page) => Promise<void>, rest: Record<string, Answer>): Case => ({
+const torrentPage = (name: string, hash: string, rest: Record<string, Answer>): Case => ({
   screen: 'torrent',
   name,
   path: `/torrent/${hash}`,
   torrents: [...TORRENTS, UNKNOWN],
   answers: {
-    ...session(async (page) => expect(page.getByText('Загружаем торрент')).toBeAttached()),
-    ...torrentsAndMatches(title),
+    ...SESSION,
+    ...TORRENTS_AND_MATCHES,
     ...rest,
   },
 })
@@ -137,28 +106,20 @@ const torrentPage = (name: string, hash: string, title: (page: Page) => Promise<
  * watch next (TitleRelated, under the page's fold), and the torrents with their titles, of which the
  * title's own show in its "In downloads" badge and block once the details are in too.
  */
-const titlePage = (name: string, title: string, type: string, id: number, related: Record<string, Answer>): Case => ({
+const titlePage = (name: string, type: string, id: number, related: Record<string, Answer>): Case => ({
   screen: type === 'movie' ? 'title' : 'series',
   name,
   answers: {
-    ...session(async (page) => expect(page.getByText('Загружаем')).toBeAttached()),
-    details: {
-      matches: get(`/tmdb/${type}/${id}`),
-      after: ['tmdbSetup'],
-      shown: async (page, landed) => {
-        await heading(title)(page)
-        if (landed.has('torrents')) await heading('В загрузках', 2)(page)
-      },
-    },
-    ...torrentsAndMatches(once(['details'], heading('В загрузках', 2))),
+    ...SESSION,
+    details: { matches: get(`/tmdb/${type}/${id}`), after: ['tmdbSetup'] },
+    ...TORRENTS_AND_MATCHES,
     // The same address as the details for this title's own torrent: claimed by the details first.
-    ...lookups(),
-    poster: { matches: get(`/tmdb-img/w342/${type}-${id}.svg`), after: ['details'], shown: images({ only: `${type}-${id}.svg` }) },
+    ...LOOKUPS,
+    poster: { matches: get(`/tmdb-img/w342/${type}-${id}.svg`), after: ['details'] },
     ...related,
     relatedPosters: {
       matches: (url, method) => under('/tmdb-img/')(url, method) && url.pathname !== `/tmdb-img/w342/${type}-${id}.svg`,
       after: [Object.keys(related).at(-1)!],
-      shown: images({ except: `${type}-${id}.svg` }),
     },
   },
 })
@@ -168,15 +129,12 @@ const releasesPage = (name: string): Case => ({
   screen: 'releases',
   name,
   answers: {
-    ...session(heading('Раздачи')),
-    details: { matches: get('/tmdb/tv/126308'), after: ['tmdbSetup'], shown: text('Сёгун · 2024') },
-    search: { matches: get('/prowlarr/search'), after: ['details'], shown: async (page) => expect(page.getByRole('button', { name: 'Добавить в загрузки' }).first()).toBeVisible() },
+    ...SESSION,
+    details: { matches: get('/tmdb/tv/126308'), after: ['tmdbSetup'] },
+    search: { matches: get('/prowlarr/search'), after: ['details'] },
     failing: { matches: get('/prowlarr/failing'), after: ['search'] },
   },
 })
-
-/** Search's three rows, which show once all three of their queries have answered. */
-const rows = once(['newMovies', 'newEpisodes', 'bestOfYear'], heading('Лучшее за год', 2))
 
 /**
  * Every state of every screen the list names whose blocks differ, each with the chain of answers its
@@ -187,41 +145,36 @@ const CASES: Case[] = [
     screen: 'downloads',
     name: 'titles found',
     answers: {
-      ...session(heading('Загрузки')),
-      ...torrentsAndMatches(link(/GRPC/)),
-      ...lookups({ p1: link('Дюна: Часть вторая'), p2: link('Сёгун'), p3: link('Интерстеллар') }),
-      posters: { matches: under('/tmdb-img/'), afterAny: ['titleP1', 'titleP2', 'guessP3'], shown: images() },
+      ...SESSION,
+      ...TORRENTS_AND_MATCHES,
+      ...LOOKUPS,
+      posters: { matches: under('/tmdb-img/'), afterAny: ['titleP1', 'titleP2', 'guessP3'] },
     },
   },
   /**
    * `p2`: tagged with its title and finished. The page asks for the title by its id once the
    * torrent shows, and for the poster once the title does.
    */
-  torrentPage('tagged and finished', 'p2', heading(TORRENTS[1].name), {
-    title: { matches: get('/tmdb/tv/126308'), after: ['torrents'], shown: heading('Сёгун') },
-    poster: { matches: under('/tmdb-img/'), after: ['title'], shown: images() },
+  torrentPage('tagged and finished', 'p2', {
+    title: { matches: get('/tmdb/tv/126308'), after: ['torrents'] },
+    poster: { matches: under('/tmdb-img/'), after: ['title'] },
   }),
   /**
    * `p3`: no tag, its title guessed from its name with a cold cache (#389: "Is it right?" came in
    * above the progress card with the guess and moved it, Pause and Delete, by 0.1051). The poster
    * is asked for once the guess shows, and a second after it the guess is saved on the server.
    */
-  torrentPage('title guessed from its name', 'p3', heading(TORRENTS[2].name), {
-    search: { matches: under('/tmdb/search/'), after: ['torrents', 'matches'], shown: heading('Интерстеллар') },
-    poster: { matches: under('/tmdb-img/'), after: ['search'], shown: images() },
+  torrentPage('title guessed from its name', 'p3', {
+    search: { matches: under('/tmdb/search/'), after: ['torrents', 'matches'] },
+    poster: { matches: under('/tmdb-img/'), after: ['search'] },
     saveGuess: { matches: (url, method) => method === 'PATCH' && url.pathname === '/api/matches', after: ['search'] },
   }),
   /**
    * `p4`: no tag, and TMDB's search finds nothing for its name. Once it has answered More gets its
    * dot, out of the flow; nothing else is asked for, and nothing is saved.
    */
-  torrentPage('no title found', 'p4', heading(UNKNOWN.name), {
-    search: {
-      matches: under('/tmdb/search/'),
-      after: ['torrents', 'matches'],
-      shown: async (page) =>
-        expect(page.getByRole('button', { name: /^Ещё действия/ })).toHaveAccessibleDescription('Торрент не сопоставлен с фильмом или сериалом'),
-    },
+  torrentPage('no title found', 'p4', {
+    search: { matches: under('/tmdb/search/'), after: ['torrents', 'matches'] },
   }),
   /**
    * Search with no query: its three rows of titles, each a Discover query, show together once all
@@ -231,15 +184,11 @@ const CASES: Case[] = [
     screen: 'browse',
     name: 'rows of titles',
     answers: {
-      ...session(heading('Поиск')),
-      newMovies: {
-        matches: (url, method) => get('/tmdb/discover/movie')(url, method) && !url.searchParams.has('vote_count.gte'),
-        after: ['tmdbSetup'],
-        shown: rows,
-      },
-      newEpisodes: { matches: get('/tmdb/discover/tv'), after: ['tmdbSetup'], shown: rows },
-      bestOfYear: { matches: (url, method) => get('/tmdb/discover/movie')(url, method) && url.searchParams.has('vote_count.gte'), after: ['tmdbSetup'], shown: rows },
-      posters: { matches: under('/tmdb-img/'), after: ['newMovies', 'newEpisodes', 'bestOfYear'], shown: images() },
+      ...SESSION,
+      newMovies: { matches: (url, method) => get('/tmdb/discover/movie')(url, method) && !url.searchParams.has('vote_count.gte'), after: ['tmdbSetup'] },
+      newEpisodes: { matches: get('/tmdb/discover/tv'), after: ['tmdbSetup'] },
+      bestOfYear: { matches: (url, method) => get('/tmdb/discover/movie')(url, method) && url.searchParams.has('vote_count.gte'), after: ['tmdbSetup'] },
+      posters: { matches: under('/tmdb-img/'), after: ['newMovies', 'newEpisodes', 'bestOfYear'] },
     },
   },
   /** A search: its results in place of the skeleton, with their count and Show more, then their posters. */
@@ -247,9 +196,9 @@ const CASES: Case[] = [
     screen: 'search',
     name: 'titles found',
     answers: {
-      ...session(heading('Поиск')),
-      results: { matches: get('/tmdb/search/multi'), after: ['tmdbSetup'], shown: link('Дюна: Часть вторая') },
-      posters: { matches: under('/tmdb-img/'), after: ['results'], shown: images() },
+      ...SESSION,
+      results: { matches: get('/tmdb/search/multi'), after: ['tmdbSetup'] },
+      posters: { matches: under('/tmdb-img/'), after: ['results'] },
     },
   },
   /** A search with a year: movies and series searched apart, shown together once both have answered. */
@@ -257,20 +206,20 @@ const CASES: Case[] = [
     screen: 'search-year',
     name: 'titles found',
     answers: {
-      ...session(heading('Поиск')),
-      movies: { matches: get('/tmdb/search/movie'), after: ['tmdbSetup'], shown: once(['movies', 'series'], link('Разделение')) },
-      series: { matches: get('/tmdb/search/tv'), after: ['tmdbSetup'], shown: once(['movies', 'series'], link('Разделение')) },
-      posters: { matches: under('/tmdb-img/'), after: ['movies', 'series'], shown: images() },
+      ...SESSION,
+      movies: { matches: get('/tmdb/search/movie'), after: ['tmdbSetup'] },
+      series: { matches: get('/tmdb/search/tv'), after: ['tmdbSetup'] },
+      posters: { matches: under('/tmdb-img/'), after: ['movies', 'series'] },
     },
   },
   /** A movie in downloads, with TMDB's recommendations. */
-  titlePage('in downloads, with recommendations', 'Дюна: Часть вторая', 'movie', 693134, {
-    recommendations: { matches: get('/tmdb/movie/693134/recommendations'), after: ['details'], shown: heading('Рекомендации', 2) },
+  titlePage('in downloads, with recommendations', 'movie', 693134, {
+    recommendations: { matches: get('/tmdb/movie/693134/recommendations'), after: ['details'] },
   }),
   /** A series in downloads, which TMDB has no recommendations for: similar titles instead, asked once the recommendations come back empty. */
-  titlePage('in downloads, with similar titles', 'Сёгун', 'tv', 126308, {
+  titlePage('in downloads, with similar titles', 'tv', 126308, {
     recommendations: { matches: get('/tmdb/tv/126308/recommendations'), after: ['details'] },
-    similar: { matches: get('/tmdb/tv/126308/similar'), after: ['recommendations'], shown: heading('Похожее', 2) },
+    similar: { matches: get('/tmdb/tv/126308/similar'), after: ['recommendations'] },
   }),
   /**
    * Releases found, every indexer answered. With one that failed, the note above the list moves it
@@ -285,13 +234,13 @@ const CASES: Case[] = [
     screen: 'settings',
     name: 'every service answers',
     answers: {
-      ...session(heading('Настройки')),
+      ...SESSION,
       // The same address as the session's two: Settings' own load of the server's settings.
       serverSettings: { matches: get('/api/settings'), after: ['tmdbSetup'] },
       // The same address as the session's check: Connections' check of qBittorrent.
-      qbittorrentCheck: { matches: get('/qbt/api/v2/app/version'), after: ['tmdbSetup'], shown: connection('qBittorrent', 'Подключено') },
-      prowlarrCheck: { matches: get('/prowlarr/status'), after: ['tmdbSetup'], shown: connection('Prowlarr', 'Подключено') },
-      tmdbCheck: { matches: get('/tmdb/configuration'), after: ['tmdbSetup'], shown: connection('TMDB', /^Подключено/) },
+      qbittorrentCheck: { matches: get('/qbt/api/v2/app/version'), after: ['tmdbSetup'] },
+      prowlarrCheck: { matches: get('/prowlarr/status'), after: ['tmdbSetup'] },
+      tmdbCheck: { matches: get('/tmdb/configuration'), after: ['tmdbSetup'] },
       categories: { matches: get('/qbt/api/v2/torrents/categories'), after: ['qbittorrentCheck'] },
     },
   },

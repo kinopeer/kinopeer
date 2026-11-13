@@ -985,14 +985,20 @@ has the budgets' rule.
 - **Every answer held.** Which states of a screen paint, and so what can move, depends on the order
   its answers land in, which a run left to the network doesn't choose. `holdAnswers`
   (`e2e/performance/layoutShift.ts`) holds every request the page sends but the document and the
-  build's own files, and lets the case's answers land one at a time, each after the page showed
-  what the one before brought (a heading, a link, a poster loaded: the case's `shown`) and painted
-  a frame: every state in between is on the screen for a frame at least, the worst case. The
-  painted frame is what carries the readings today: with every `shown` skipped they stay the same
-  (tried in #395's review), and the waits are there for content that takes longer than a frame. An
+  build's own files, and lets the case's answers land one at a time, each after the one before
+  landed whole and the page painted a frame: every state in between is on the screen for a frame at least, the worst case. An
   answer's later requests (another poster, the next poll) land as they come once it has. The web
-  font's files are the build's and aren't held: the test loads them before the first answer lands,
-  as a page the service worker serves has them, so when they arrive doesn't change a reading.
+  font's files are the build's and aren't held: the test waits for the page's fonts to be ready
+  (`document.fonts.ready`) and a painted frame before the first answer lands, as a page the service
+  worker serves has them, so when they arrive doesn't change a reading.
+- **What holds each state is the frame.** The test lets an answer land whole and waits for a
+  painted frame; the page renders what the answer brings as it lands, so that frame shows it. It
+  doesn't also wait for what the answer shows (a heading, a link, a poster loaded): such waits had
+  no red of their own, as every load read the same with them skipped, also with the CPU slowed 6×
+  and 20×, while without the frame the releases read 0 or 0.0669 from run to run (#395's review).
+  That the page reached each state is shown by the chain itself: most answers are asked for only
+  once the one before is on the screen (a poster once its title shows, the guess's save once the
+  guess does), and a planted late block on each screen is read.
 - **The chain comes from the code.** Each case names its answers and, for each, the answers the
   page waits for before it asks (`after`, all of them, or `afterAny`, one of them), read from the
   screen's code: the table below. The test holds the chain to the page: a request asked before the
@@ -1065,6 +1071,9 @@ has the budgets' rule.
   guess another device saved), which is asked for by its id as `p2`'s is. A title's page whose
   torrent is matched by a guess rather than a tag, where "In downloads" comes in with TMDB's search,
   a later answer than either case lands it with. The web font landing after the content: on a Mac
-  the releases list then moves by 0.13 as its names wrap again (0.1915 in all), so the test has the
-  fonts in before the first answer. A new jump under a budget that carries a known one (#393, #394):
-  QUALITY → The ceiling says how much room that leaves.
+  the releases read 0.199 on a Mac and 0.066 on the Playwright Linux image, as the names wrap again
+  in the fallback font, so the test has the fonts in before the first answer: what a late font moves
+  depends on the machine's fallback font, and a budget on it would be the runner's, not the app's.
+- **The hole under a carried jump.** One budget covers both orders of a screen. Until #394 is
+  fixed, a new shift of up to 0.09 passes on the title's and the series' page in the order that
+  reads 0.0002 today; until #393 is, one of up to 0.005 passes on the releases, in either order.
