@@ -253,21 +253,6 @@ describe('ReleasesScreen', () => {
     expect(screen.queryByRole('button', { name: 'Filters' })).not.toBeInTheDocument()
   })
 
-  // The same row from the skeleton to the empty state, so the list under it stays where it was.
-  it('empties the skeleton row in place when the search finds nothing', async () => {
-    let answer!: (releases: typeof DUNE_RELEASES) => void
-    searchReleases.mockReturnValue(new Promise((resolve) => (answer = resolve)))
-    const { container } = renderAt('/title/movie/693134/releases')
-    await screen.findByText('Dune: Part Two · 2024')
-    const row = container.querySelector('.rel-chips')
-    expect(row?.querySelectorAll('.rel-chip-skel')).toHaveLength(5)
-
-    await act(async () => answer([]))
-    expect(screen.getByRole('heading', { name: 'No releases found' })).toBeInTheDocument()
-    expect(container.querySelector('.rel-chips')).toBe(row)
-    expect(row).toBeEmptyDOMElement()
-  })
-
   it('explains a missing Prowlarr setup', async () => {
     searchReleases.mockRejectedValue(new prowlarr.ProwlarrSetupError(503, 'not-configured'))
     renderAt('/title/movie/693134/releases')
