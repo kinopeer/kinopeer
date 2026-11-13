@@ -378,6 +378,7 @@
   "match": {
     "changeTitle": "Fix match",
     "pickTitle": "Match title",
+    "title": "Title match",
     "searchLabel": "Search TMDB",
     "current": "Current",
     "nothingFound": "Nothing found",

@@ -59,7 +59,7 @@ function renderScreens() {
   )
   return async (name: string) => {
     await userEvent.click(screen.getByRole('button', { name: `Fix match in ${name}` }))
-    const sheet = within(screen.getByRole('region', { name })).getByRole('dialog', { name: 'Fix match' })
+    const sheet = within(screen.getByRole('region', { name })).getByRole('dialog', { name: 'Title match' })
     await within(sheet).findAllByRole('button', { name: /Мастер и Маргарита/ })
     return sheet
   }

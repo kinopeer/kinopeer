@@ -51,7 +51,7 @@ test('fixing the match, dark, Russian', async ({ page }) => {
   await openApp(page, '/torrent/b1', { torrents: [...TORRENTS, GUESSED] })
   await page.getByRole('button', { name: 'Ещё действия: Начало' }).click()
   await page.getByRole('dialog', { name: 'Начало' }).getByRole('button', { name: 'Исправить сопоставление' }).click()
-  const sheet = page.getByRole('dialog', { name: 'Исправить сопоставление' })
+  const sheet = page.getByRole('dialog', { name: 'Сопоставление' })
   await expect(sheet.getByRole('button', { name: /^Начало/ })).toBeVisible()
   await settle(page)
   await expect(page).toHaveScreenshot('change-title-dark-ru.png')

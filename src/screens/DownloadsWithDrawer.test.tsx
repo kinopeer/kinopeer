@@ -311,7 +311,7 @@ describe('the details drawer on desktop', () => {
     // `is-highlight` is what puts the item in the accent; no role or attribute says it.
     expect(pick).toHaveClass('is-highlight')
     await userEvent.click(pick)
-    const sheet = screen.getByRole('dialog', { name: 'Match title' })
+    const sheet = screen.getByRole('dialog', { name: 'Title match' })
     const search = within(sheet).getByRole('searchbox', { name: 'Search TMDB' })
     await userEvent.clear(search)
     await userEvent.type(search, 'Dune')
@@ -393,12 +393,12 @@ describe('the details drawer on desktop', () => {
       renderApp(['/torrent/dune'])
       const menu = await openMenu()
       await userEvent.click(within(menu).getByRole('menuitem', { name: 'Fix match' }))
-      const sheet = screen.getByRole('dialog', { name: 'Fix match' })
+      const sheet = screen.getByRole('dialog', { name: 'Title match' })
       expect(within(sheet).getByRole('searchbox', { name: 'Search TMDB' })).toHaveValue('Dune Part Two')
       expect(await within(sheet).findByRole('button', { name: /^Dune: Part Two/ })).toHaveAttribute('aria-current', 'true')
 
       fireEvent(sheet, new Event('cancel', { cancelable: true }))
-      expect(screen.queryByRole('dialog', { name: 'Fix match' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('dialog', { name: 'Title match' })).not.toBeInTheDocument()
       expect(screen.getByRole('dialog', { name: 'Dune: Part Two' })).toBeInTheDocument()
       expect(where()).toBe('/torrent/dune')
     })

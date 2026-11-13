@@ -529,7 +529,7 @@ describe('DownloadsScreen', () => {
         await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' }))
         await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Match title' }))
       },
-      () => screen.queryByRole('dialog', { name: 'Match title' }),
+      () => screen.queryByRole('dialog', { name: 'Title match' }),
     ],
   ])('closes %s when another torrent with the same hash replaces its torrent between two polls', async (_overlay, open, overlay) => {
     renderScreen()
@@ -591,7 +591,7 @@ describe('DownloadsScreen', () => {
     expect(within(sheet).getByRole('link', { name: 'Movie page' })).toHaveAttribute('href', '/title/movie/693134')
     expect(within(sheet).queryByText(/Is it right/)).not.toBeInTheDocument()
     await userEvent.click(within(sheet).getByRole('button', { name: 'Fix match' }))
-    expect(screen.getByRole('dialog', { name: 'Fix match' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Title match' })).toBeInTheDocument()
   })
 
   it('picks a title from the row menu, Match title in the accent, for a torrent with none', async () => {
@@ -604,7 +604,7 @@ describe('DownloadsScreen', () => {
     // `is-highlight` is what puts the row in the accent; no role or attribute says it.
     expect(pick).toHaveClass('is-highlight')
     await userEvent.click(pick)
-    const sheet = screen.getByRole('dialog', { name: 'Match title' })
+    const sheet = screen.getByRole('dialog', { name: 'Title match' })
     await userEvent.click(await within(sheet).findByRole('button', { name: /^Andor/ }))
     expect(await findToastOnPage('Match saved')).toBeInTheDocument()
     await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor' }))

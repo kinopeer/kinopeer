@@ -488,7 +488,7 @@ describe('TorrentScreen', () => {
         await userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' }))
         await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Fix match' }))
       },
-      () => screen.queryByRole('dialog', { name: 'Fix match' }),
+      () => screen.queryByRole('dialog', { name: 'Title match' }),
     ],
     [
       'the category sheet',
@@ -548,7 +548,7 @@ describe('TorrentScreen title matching', () => {
     renderScreen()
     await userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' }))
     await userEvent.click(within(screen.getByRole('dialog', { name: 'Dune: Part Two' })).getByRole('button', { name: 'Fix match' }))
-    const sheet = screen.getByRole('dialog', { name: 'Fix match' })
+    const sheet = screen.getByRole('dialog', { name: 'Title match' })
     await userEvent.click(await within(sheet).findByRole('button', { name: /^Dune Movie · 1984$/ }))
     expect(await findToastOnPage('Match saved')).toBeInTheDocument()
     expect(await screen.findByRole('heading', { level: 1, name: 'Dune' })).toBeInTheDocument()
@@ -565,7 +565,7 @@ describe('TorrentScreen title matching', () => {
     expect(within(menu).queryByRole('link', { name: 'Open details' })).not.toBeInTheDocument()
     expect(within(menu).getByRole('link', { name: 'Movie page' })).toHaveAttribute('href', '/title/movie/693134')
     await userEvent.click(within(menu).getByRole('button', { name: 'Fix match' }))
-    const sheet = screen.getByRole('dialog', { name: 'Fix match' })
+    const sheet = screen.getByRole('dialog', { name: 'Title match' })
     expect(await within(sheet).findByRole('button', { name: /^Dune: Part Two/ })).toHaveAttribute('aria-current', 'true')
   })
 
@@ -583,7 +583,7 @@ describe('TorrentScreen title matching', () => {
     // `is-highlight` is what puts the row in the accent; no role or attribute says it.
     expect(pick).toHaveClass('is-highlight')
     await userEvent.click(pick)
-    expect(screen.getByRole('dialog', { name: 'Match title' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Title match' })).toBeInTheDocument()
   })
 
   it('has no dot while the title is still being looked up', async () => {
@@ -608,7 +608,7 @@ describe('TorrentScreen title matching', () => {
     const openSearch = async () => {
       await userEvent.click(dotted())
       await userEvent.click(within(screen.getByRole('dialog', { name: 'Dune.Part.Two.Fan.Edit' })).getByRole('button', { name: 'Match title' }))
-      return screen.getByRole('dialog', { name: 'Match title' })
+      return screen.getByRole('dialog', { name: 'Title match' })
     }
     await userEvent.click(within(await openSearch()).getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()

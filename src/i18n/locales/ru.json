@@ -413,6 +413,7 @@
   "match": {
     "changeTitle": "Исправить сопоставление",
     "pickTitle": "Сопоставить",
+    "title": "Сопоставление",
     "searchLabel": "Поиск в TMDB",
     "current": "Сейчас",
     "nothingFound": "Ничего не найдено",
