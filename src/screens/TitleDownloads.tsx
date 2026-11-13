@@ -27,7 +27,7 @@ export interface TitleDownloadsProps {
  * The title page's "In downloads" block: one card per torrent, each opening its torrent screen (on
  * desktop, its drawer over the title page).
  */
-export function TitleDownloads({ torrents, sectionRef, waiting = false }: TitleDownloadsProps) {
+export function TitleDownloads({ torrents, sectionRef, waiting }: TitleDownloadsProps) {
   const { t } = useTranslation()
   if (torrents.length === 0) return null
   if (waiting) return <section ref={sectionRef} className="title-dls" />
