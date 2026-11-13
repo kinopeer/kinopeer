@@ -986,13 +986,15 @@ has the budgets' rule.
   its answers land in, which a run left to the network doesn't choose. `holdAnswers`
   (`e2e/performance/layoutShift.ts`) holds every request the page sends but the document and the
   build's own files, and lets the case's answers land one at a time, each after the one before
-  landed whole and the page painted a frame: every state in between is on the screen for a frame at least, the worst case. An
+  landed whole and the page painted a frame: every state in between is on the screen for a frame
+  at least, the worst case, but for the titles in Downloads (What it leaves out). An
   answer's later requests (another poster, the next poll) land as they come once it has. The web
   font's files are the build's and aren't held: every painted frame the test waits for, the first
   before any answer lands, comes after the page's fonts are ready (`document.fonts.ready`), as a
   page the service worker serves has them, so when they arrive doesn't change a reading.
 - **The reading waits for the screen complete.** Between answers, the next one's landing holds
-  what the one before brought; after the last, nothing does. So once the last answer has landed,
+  what the one before brought (but for the titles in Downloads, below); after the last, nothing
+  does. So once the last answer has landed,
   the test waits for what the case's screen shows when it is complete (`complete` in
   `layoutShift.perf.ts`: its headings and links, every poster loaded and shown, the description on
   More of a torrent without a title, each service's status and the category selects in Settings),
@@ -1084,7 +1086,14 @@ has the budgets' rule.
   the very first open of Kinopeer on a device, and only when that open is the releases by a direct
   link, since Downloads is the usual first screen and after it the service worker keeps the font, so
   a fix isn't worth its code now. It comes back if a real phone shows the jump, or first opens by a
-  link become common.
+  link become common. The states between the titles' answers in Downloads: the app shows the
+  titles that came in a batch every `SHOW_EVERY_MS` (250 ms, `src/torrents/titleMatches.ts`), and
+  the next title's lookup is asked without waiting for it, so whether two titles show in one frame
+  or in two goes by the clock. Today's reading (0.0028 on a Mac, 0.0030 in CI) doesn't depend on
+  it; a jump planted in a row reads one of two numbers by how the batches fall (#395's review: a
+  30px block read 0.0507 or 0.0395, both over the budget), so the jump is still caught, but its
+  number may differ from run to run. Left so, since the alternative is three more waits in one
+  case, one per title, that would have to be kept in step with the app's batching.
 - **The hole under a carried jump.** One budget covers both orders of a screen. Until #394 is
   fixed, a new shift of up to 0.09 passes on the title's and the series' page in the order that
-  reads 0.0002 today; until #393 is, one of up to 0.005 passes on the releases, in either order.
+  reads 0 on a Mac and 0.0002 in CI today; until #393 is, one of up to 0.005 passes on the releases, in either order.
