@@ -248,7 +248,7 @@ describe('TitleScreen', () => {
         'aria-valuenow',
         '100',
       )
-      expect(screen.getByText('In downloads · 2')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'In downloads · 2' })).toBeInTheDocument()
 
       await userEvent.click(links[0])
       expect(screen.getByRole('heading', { name: 'Torrent page' })).toBeInTheDocument()
@@ -257,12 +257,13 @@ describe('TitleScreen', () => {
     it("shows a single torrent's progress in the header", async () => {
       torrents(download('dune', 'Dune.Part.Two.2024.2160p.WEB-DL', { tags: 'tmdb:movie:693134', progress: 0.64 }))
       renderAt('/title/movie/693134')
-      expect(await screen.findByText('In downloads · 64%')).toBeInTheDocument()
+      expect(await screen.findByRole('button', { name: 'In downloads · 64%' })).toBeInTheDocument()
       expect(await screen.findByRole('region', { name: 'In downloads' })).toBeInTheDocument()
     })
 
-    // At the page's end, under the related titles, so neither pushes the other as they come (#394).
-    it('sits at the page’s end, under the related titles, which the header’s badge takes the page down to', async () => {
+    // At the page's end, under the related titles, so neither pushes the other as they come (#394):
+    // where it sits is in the screenshots and the layout shift test.
+    it('shows with the related titles, and the header’s badge takes the page down to it', async () => {
       // jsdom has no scrollIntoView.
       const scrollIntoView = vi.fn()
       Element.prototype.scrollIntoView = scrollIntoView
@@ -273,9 +274,7 @@ describe('TitleScreen', () => {
       torrents(download('dune', 'Dune.Part.Two.2024.2160p.WEB-DL', { tags: 'tmdb:movie:693134', progress: 0.64 }))
       renderAt('/title/movie/693134')
       const block = await screen.findByRole('region', { name: 'In downloads' })
-      const row = screen.getByRole('region', { name: 'Recommendations' })
-      expect(row.compareDocumentPosition(block) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-      expect(block.nextElementSibling).toBeNull()
+      expect(screen.getByRole('region', { name: 'Recommendations' })).toBeInTheDocument()
 
       await userEvent.click(screen.getByRole('button', { name: 'In downloads · 64%' }))
       expect(scrollIntoView).toHaveBeenCalledExactlyOnceWith({ block: 'start', behavior: 'smooth' })

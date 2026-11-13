@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Matches, StoredMatch } from '../api/matches'
 import type { Torrent } from '../api/qbittorrent'
 import { TmdbError, getMovie, getTv, searchTitles, toTitle, type MediaType, type Title } from '../api/tmdb'
+import { withTimeout } from '../lib/withTimeout'
 import { useTmdbLanguage } from '../settings/settings'
 import { parseName, tmdbTag, type ParsedName } from './parseName'
 import { chooseMatch, forgetServerGuesses, rememberMatches, useServerMatches } from './serverMatches'
@@ -242,20 +243,6 @@ export const LOOKUP_TIMEOUT_MS = 15_000
 export const RETRY_DELAYS_MS = [30_000, 120_000, 600_000]
 /** How long a 429 without Retry-After stops the lookups; Kinopeer's proxy asks for 10 s. */
 export const RATE_LIMIT_WAIT_MS = 10_000
-
-/** Runs `request` with a signal that aborts with `signal` or after `ms`. */
-async function withTimeout<T>(ms: number, signal: AbortSignal, request: (signal: AbortSignal) => Promise<T>): Promise<T> {
-  const attempt = new AbortController()
-  const abort = () => attempt.abort()
-  signal.addEventListener('abort', abort)
-  const timer = setTimeout(abort, ms)
-  try {
-    return await request(attempt.signal)
-  } finally {
-    clearTimeout(timer)
-    signal.removeEventListener('abort', abort)
-  }
-}
 
 interface LookupRun {
   /** The lookups still wanted: new ones join the queue, those gone from it are dropped. */

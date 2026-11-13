@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as tmdb from '../api/tmdb'
 import type { Title } from '../api/tmdb'
 import { renderWithRouter } from '../test/render'
-import { TitleRelated } from './TitleRelated'
+import { RELATED_TIMEOUT_MS, TitleRelated } from './TitleRelated'
 
 vi.mock('../api/tmdb', async (importOriginal) => {
   const actual = await importOriginal<typeof tmdb>()
@@ -108,10 +108,8 @@ describe('TitleRelated', () => {
       expect(screen.queryByText('Under the row')).not.toBeInTheDocument()
 
       await act(async () => answer(page(title(438631, 'Dune'))))
-      const row = screen.getByRole('region', { name: 'Recommendations' })
-      const under = screen.getByText('Under the row')
-      expect(under).toBe(waiting)
-      expect(row.compareDocumentPosition(under) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(screen.getByRole('region', { name: 'Recommendations' })).toBeInTheDocument()
+      expect(screen.getByText('Under the row')).toBe(waiting)
     })
 
     it('shows alone when both lists are empty', async () => {
@@ -119,6 +117,32 @@ describe('TitleRelated', () => {
       await answered()
       expect(screen.getByText('Under the row')).toBeInTheDocument()
       expect(screen.queryByRole('region')).not.toBeInTheDocument()
+    })
+
+    it('shows alone once TMDB hasn’t answered in RELATED_TIMEOUT_MS, the request given up', async () => {
+      vi.useFakeTimers()
+      try {
+        // A request that stalls answers nothing until it's aborted, as fetch does.
+        let signal!: AbortSignal
+        getRecommendations.mockImplementation(
+          (_type, _id, options) =>
+            new Promise((_, reject) => {
+              signal = options!.signal!
+              signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
+            }),
+        )
+        renderWithAfter()
+        await act(() => vi.advanceTimersByTimeAsync(RELATED_TIMEOUT_MS - 1))
+        expect(screen.getByText('Waiting')).toBeInTheDocument()
+        expect(signal.aborted).toBe(false)
+
+        await act(() => vi.advanceTimersByTimeAsync(1))
+        expect(signal.aborted).toBe(true)
+        expect(screen.getByText('Under the row')).toBeInTheDocument()
+        expect(screen.queryByRole('region')).not.toBeInTheDocument()
+      } finally {
+        vi.useRealTimers()
+      }
     })
 
     it('shows alone when TMDB fails', async () => {
