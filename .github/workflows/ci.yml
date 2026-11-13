@@ -91,18 +91,9 @@ jobs:
         if: steps.chromium.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
       # Each screen's requests on opening and each move's between screens, against budgets.requests
-      # and budgets.journeys, on the build above (docs/QUALITY.md → The requests budget), and the
+      # and budgets.journeys, on the build above (docs/QUALITY.md → The requests budget), and a
       # layout shift of each screen on a phone (docs/TESTING.md → The layout shift test).
       - run: npm run test:requests
-      # TEMPORARY (exactness runs for #378's layout shift PR, reverted before review).
-      - run: npx playwright test --config playwright.performance.config.ts layoutShift --repeat-each 10 --reporter=json,./e2e/performance/summary.ts
-        env:
-          PLAYWRIGHT_JSON_OUTPUT_NAME: layout-shift-x10.json
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: layout-shift-x10
-          path: layout-shift-x10.json
-          retention-days: 14
       - name: Upload the report with the traces
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
