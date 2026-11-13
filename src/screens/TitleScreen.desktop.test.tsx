@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { act, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -12,7 +12,7 @@ import { restoreLayout, stubLayout } from '../lib/stubLayout'
 import i18n from '../i18n'
 import { resetSettings, updateSettings } from '../settings/settings'
 import { DUNE_RELEASES, release } from '../test/fixtures'
-import { Where, renderWithRouter, where } from '../test/render'
+import { Where, renderWithRouter, saying, where } from '../test/render'
 import { resetServerMatches } from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
 import { TitleRoute } from './TitleScreen'
@@ -132,6 +132,37 @@ describe('TitleScreen on desktop', () => {
     expect(names()).toEqual([DUNE_RELEASES[1].title, DUNE_RELEASES[0].title, DUNE_RELEASES[2].title])
     // The page stays: the title isn't loaded again.
     expect(getMovie).toHaveBeenCalledTimes(1)
+  })
+
+  // The bar's place while the search runs, so the results don't push the table down (#393): whether
+  // they do is the layout shift test's, which reads the built page.
+  it('keeps the filter bar, filters as skeletons and the sort working, while the search runs, and no count', async () => {
+    let answer!: (releases: typeof DUNE_RELEASES) => void
+    searchReleases.mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    const { container } = renderAt('/title/movie/693134/releases')
+    const section = await screen.findByRole('region', { name: 'Releases' })
+    expect(within(section).getByRole('status', { name: saying('Searching releases') })).toBeInTheDocument()
+    // Skeletons are decorative: only their class finds them.
+    expect(container.querySelectorAll('.title-rel-bar .rel-chip-skel')).toHaveLength(4)
+    expect(within(section).queryByRole('button', { name: 'Min seeds' })).not.toBeInTheDocument()
+    expect(within(section).queryByText(/ of \d+ releases?$/)).not.toBeInTheDocument()
+    await userEvent.click(within(section).getByRole('radio', { name: 'Size' }))
+    expect(within(section).getByRole('radio', { name: 'Size', checked: true })).toBeInTheDocument()
+
+    await act(async () => answer(DUNE_RELEASES))
+    expect(within(section).getByText('3 of 3 releases')).toBeInTheDocument()
+    expect(within(section).getByRole('button', { name: 'Min seeds' })).toBeInTheDocument()
+    expect(container.querySelectorAll('.rel-chip-skel')).toHaveLength(0)
+    // Sorted by the size picked while it ran, largest first.
+    expect(names()).toEqual([DUNE_RELEASES[0].title, DUNE_RELEASES[1].title, DUNE_RELEASES[2].title])
+  })
+
+  it('has no filter bar when nothing was found', async () => {
+    searchReleases.mockResolvedValue([])
+    renderAt('/title/movie/693134/releases')
+    const section = await screen.findByRole('region', { name: 'Releases' })
+    expect(await within(section).findByRole('heading', { name: 'No releases found' })).toBeInTheDocument()
+    expect(within(section).queryByRole('radiogroup', { name: 'Sort' })).not.toBeInTheDocument()
   })
 
   it('names the indexers that didn’t answer in the releases section', async () => {

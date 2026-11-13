@@ -208,6 +208,33 @@ describe('ReleasesScreen', () => {
     expect(searchReleases).toHaveBeenCalledWith('Breaking Bad', expect.not.objectContaining({ categories: expect.anything() }))
   })
 
+  // The row's place while the search runs, so the results don't push the list down (#393): whether
+  // they do is the layout shift test's, which reads the built page.
+  it('shows the filter chips’ row as skeletons while the search runs, and the chips once it answers', async () => {
+    let answer!: (releases: typeof DUNE_RELEASES) => void
+    searchReleases.mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    const { container } = renderAt('/title/movie/693134/releases')
+    await screen.findByText('Dune: Part Two · 2024')
+    // Skeletons are decorative: only their class finds them.
+    expect(container.querySelectorAll('.rel-chips .rel-chip-skel')).toHaveLength(5)
+    expect(screen.queryByRole('button', { name: 'Filters' })).not.toBeInTheDocument()
+
+    await act(async () => answer(DUNE_RELEASES))
+    expect(screen.getByRole('button', { name: 'Filters' })).toBeInTheDocument()
+    expect(container.querySelectorAll('.rel-chip-skel')).toHaveLength(0)
+  })
+
+  it.each([
+    ['Prowlarr fails', () => searchReleases.mockRejectedValue(new prowlarr.ProwlarrError('down', 502, 'unreachable')), 'Prowlarr isn’t answering'],
+    ['nothing is found', () => searchReleases.mockResolvedValue([]), 'No releases found'],
+    ['TMDB fails', () => getMovie.mockRejectedValue(new tmdb.TmdbError('down', 502)), 'Prowlarr isn’t answering'],
+  ])('has no filter chips’ row when %s', async (_, set, heading) => {
+    set()
+    const { container } = renderAt('/title/movie/693134/releases')
+    expect(await screen.findByRole('heading', { name: heading })).toBeInTheDocument()
+    expect(container.querySelector('.rel-chips')).toBeNull()
+  })
+
   it('explains a missing Prowlarr setup', async () => {
     searchReleases.mockRejectedValue(new prowlarr.ProwlarrSetupError(503, 'not-configured'))
     renderAt('/title/movie/693134/releases')

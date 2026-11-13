@@ -52,6 +52,21 @@ export function TitleReleases({ details, sectionRef }: TitleReleasesProps) {
   const resolutions = options(present.resolution, filters.resolution)
   const audio = options(present.audio, filters.audio)
   const sources = options(present.source, filters.source)
+  // The sort needs no results, so it works while the search runs too.
+  const sorting = (
+    <div className="title-rel-sort">
+      <span className="t-cap c3" aria-hidden="true">
+        {t('common.sort')}
+      </span>
+      <Segmented
+        label={t('common.sort')}
+        options={SORT_KEYS.map((key) => ({ value: key, label: t(SORT_LABEL[key]) }))}
+        value={sort.key}
+        onChange={releases.pickSort}
+      />
+      <SortDirectionButton descending={sort.descending} onReverse={releases.reverseSort} />
+    </div>
+  )
 
   return (
     <section ref={sectionRef} className="title-rel" aria-labelledby="title-rel-heading">
@@ -62,60 +77,51 @@ export function TitleReleases({ details, sectionRef }: TitleReleasesProps) {
         {status === 'ready' && <ReleasesCount releases={releases} />}
       </div>
 
-      {/* The bar is there from the start, with skeletons of the filters while the search runs, so
-          the results don't push the table down as they come (#393); the sort needs no results. */}
-      {(status === 'loading' || status === 'ready') && (
+      {/* The bar is there from the start, skeletons of the filters while the search runs, so the
+          results don't push the table down as they come (#393). */}
+      {status === 'loading' && (
+        <div className="title-rel-bar">
+          {[120, 104, 116, 132].map((width, index) => (
+            <div key={index} className="ks-skel rel-chip-skel" style={{ width }} aria-hidden="true" />
+          ))}
+          {sorting}
+        </div>
+      )}
+      {status === 'ready' && (
         <div className={open ? 'title-rel-bar is-open' : 'title-rel-bar'}>
-          {status === 'loading' ? (
-            [120, 104, 116, 132].map((width, index) => <div key={index} className="ks-skel rel-chip-skel" style={{ width }} aria-hidden="true" />)
-          ) : (
-            <>
-              {resolutions.length > 0 && (
-                <FilterPopover name={t('releases.resolution')} label={summary(filters.resolution, t('releases.resolution'), resolutionLabel)} selected={filters.resolution.length > 0} {...popover('resolution')}>
-                  {choices(resolutions, filters.resolution, (value) => updateFilters({ resolution: toggle(filters.resolution, value) }), optionLabel(resolutionLabel))}
-                </FilterPopover>
-              )}
-              {audio.length > 0 && (
-                <FilterPopover name={t('releases.audio')} label={summary(filters.audio, t('releases.audio'), audioLabel)} selected={filters.audio.length > 0} {...popover('audio')}>
-                  {choices(audio, filters.audio, (value) => updateFilters({ audio: toggle(filters.audio, value) }), optionLabel(audioLabel))}
-                </FilterPopover>
-              )}
-              {sources.length > 0 && (
-                <FilterPopover name={t('releases.source')} label={summary(filters.source, t('releases.source'), sourceLabel)} selected={filters.source.length > 0} {...popover('source')}>
-                  {choices(sources, filters.source, (value) => updateFilters({ source: toggle(filters.source, value) }), optionLabel(sourceLabel))}
-                </FilterPopover>
-              )}
-              <FilterPopover
-                name={t('releases.minSeeds')}
-                label={filters.minSeeds ? t('releases.seedsPlus', { count: filters.minSeeds }) : t('releases.minSeeds')}
-                selected={filters.minSeeds > 0}
-                {...popover('seeds')}
-              >
-                {MIN_SEEDS.map((value) => (
-                  <FilterChip key={value} selected={filters.minSeeds === value} onClick={() => updateFilters({ minSeeds: value })}>
-                    {value ? `${value}+` : t('releases.any')}
-                  </FilterChip>
-                ))}
-              </FilterPopover>
-              {present.indexer.length > 1 && (
-                <FilterPopover name={t('releases.indexer')} label={summary(filters.indexer, t('releases.indexer'))} selected={filters.indexer.length > 0} {...popover('indexer')}>
-                  {choices(present.indexer, filters.indexer, (value) => updateFilters({ indexer: toggle(filters.indexer, value) }))}
-                </FilterPopover>
-              )}
-            </>
+          {resolutions.length > 0 && (
+            <FilterPopover name={t('releases.resolution')} label={summary(filters.resolution, t('releases.resolution'), resolutionLabel)} selected={filters.resolution.length > 0} {...popover('resolution')}>
+              {choices(resolutions, filters.resolution, (value) => updateFilters({ resolution: toggle(filters.resolution, value) }), optionLabel(resolutionLabel))}
+            </FilterPopover>
           )}
-          <div className="title-rel-sort">
-            <span className="t-cap c3" aria-hidden="true">
-              {t('common.sort')}
-            </span>
-            <Segmented
-              label={t('common.sort')}
-              options={SORT_KEYS.map((key) => ({ value: key, label: t(SORT_LABEL[key]) }))}
-              value={sort.key}
-              onChange={releases.pickSort}
-            />
-            <SortDirectionButton descending={sort.descending} onReverse={releases.reverseSort} />
-          </div>
+          {audio.length > 0 && (
+            <FilterPopover name={t('releases.audio')} label={summary(filters.audio, t('releases.audio'), audioLabel)} selected={filters.audio.length > 0} {...popover('audio')}>
+              {choices(audio, filters.audio, (value) => updateFilters({ audio: toggle(filters.audio, value) }), optionLabel(audioLabel))}
+            </FilterPopover>
+          )}
+          {sources.length > 0 && (
+            <FilterPopover name={t('releases.source')} label={summary(filters.source, t('releases.source'), sourceLabel)} selected={filters.source.length > 0} {...popover('source')}>
+              {choices(sources, filters.source, (value) => updateFilters({ source: toggle(filters.source, value) }), optionLabel(sourceLabel))}
+            </FilterPopover>
+          )}
+          <FilterPopover
+            name={t('releases.minSeeds')}
+            label={filters.minSeeds ? t('releases.seedsPlus', { count: filters.minSeeds }) : t('releases.minSeeds')}
+            selected={filters.minSeeds > 0}
+            {...popover('seeds')}
+          >
+            {MIN_SEEDS.map((value) => (
+              <FilterChip key={value} selected={filters.minSeeds === value} onClick={() => updateFilters({ minSeeds: value })}>
+                {value ? `${value}+` : t('releases.any')}
+              </FilterChip>
+            ))}
+          </FilterPopover>
+          {present.indexer.length > 1 && (
+            <FilterPopover name={t('releases.indexer')} label={summary(filters.indexer, t('releases.indexer'))} selected={filters.indexer.length > 0} {...popover('indexer')}>
+              {choices(present.indexer, filters.indexer, (value) => updateFilters({ indexer: toggle(filters.indexer, value) }))}
+            </FilterPopover>
+          )}
+          {sorting}
         </div>
       )}
 

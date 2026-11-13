@@ -192,6 +192,15 @@ describe('ReleasesCount', () => {
     expect(screen.queryByText('Indexer C, Indexer D')).not.toBeInTheDocument()
   })
 
+  it('drops the names when a search again finds every indexer answering', async () => {
+    const { rerender } = render(<ReleasesCount releases={releases({ failing: ['Indexer C'] })} />)
+    await userEvent.click(screen.getByRole('button', { name: '1 indexer didn’t answer' }))
+    expect(screen.getByText('Indexer C')).toBeInTheDocument()
+    rerender(<ReleasesCount releases={releases()} />)
+    // Nothing under the count: not even an empty line.
+    expect(screen.getByText('3 of 3 releases').nextElementSibling).toBeNull()
+  })
+
   it('says one indexer in the singular', () => {
     render(<ReleasesCount releases={releases({ failing: ['Indexer C'] })} />)
     expect(screen.getByRole('button', { name: '1 indexer didn’t answer' })).toBeInTheDocument()
