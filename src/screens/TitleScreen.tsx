@@ -100,6 +100,7 @@ export function TitleScreen({ onSessionLost }: TitleScreenProps) {
   // On desktop the releases path is the title page with its releases searched.
   const searched = useMatch(RELEASES_PATH) !== null && desktop
   const releasesRef = useRef<HTMLElement>(null)
+  const downloadsRef = useRef<HTMLElement>(null)
 
   // The title's torrents. While qBittorrent doesn't answer, the last known ones stay.
   const { data } = useMainData(onSessionLost)
@@ -116,11 +117,12 @@ export function TitleScreen({ onSessionLost }: TitleScreenProps) {
   const deepLink = location.key === 'default' || (location.state as TitleLocationState | null)?.deepLink === true
   const goBack = () => (deepLink ? navigate('/search') : navigate(-1))
 
-  const scrollToReleases = (behavior: ScrollBehavior = 'smooth') =>
-    releasesRef.current?.scrollIntoView?.({
+  const scrollTo = (section: HTMLElement | null, behavior: ScrollBehavior = 'smooth') =>
+    section?.scrollIntoView?.({
       block: 'start',
       behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : behavior,
     })
+  const scrollToReleases = (behavior?: ScrollBehavior) => scrollTo(releasesRef.current, behavior)
   const hasDetails = request.data !== undefined
   // The page opened at the releases' address (a link, a reload, Back to it), so it starts at them.
   const openedAtReleases = useRef(searched)
@@ -239,13 +241,19 @@ export function TitleScreen({ onSessionLost }: TitleScreenProps) {
   const name = details.type === 'movie' ? details.title : details.name
   const originalName = details.type === 'movie' ? details.original_title : details.original_name
   const poster = posterUrl(details.poster_path, desktop ? 'w500' : 'w342')
+  // Says at the top that the title is in Downloads and takes the page down to its block, at the
+  // page's end. It sits above the name out of the flow, so it pushes nothing as the torrents come
+  // (#394).
   const inDownloads = downloads.length > 0 && (
-    <Badge kind="coverage" icon="check" className="title-in-dl">
-      {t('title.inDownloadsBadge', {
-        value: downloads.length > 1 ? downloads.length : format.percent(downloads[0].progress),
-      })}
-    </Badge>
+    <button type="button" className="title-in-dl" onClick={() => scrollTo(downloadsRef.current)}>
+      <Badge kind="coverage" icon="check">
+        {t('title.inDownloadsBadge', {
+          value: downloads.length > 1 ? downloads.length : format.percent(downloads[0].progress),
+        })}
+      </Badge>
+    </button>
   )
+  const titleDownloads = <TitleDownloads torrents={downloads} sectionRef={downloadsRef} />
   const rating = details.vote_count > 0 && (
     <p className="t-label title-rating">
       <Icon name="star" size={16} filled className="title-star" />
@@ -296,9 +304,9 @@ export function TitleScreen({ onSessionLost }: TitleScreenProps) {
             </div>
           </div>
         </div>
-        <TitleDownloads torrents={downloads} />
         {searched && <TitleReleases details={details} sectionRef={releasesRef} />}
-        <TitleRelated type={details.type} id={details.id} language={language} />
+        {/* "In downloads" last, under the row once it has settled, so neither pushes the other (#394). */}
+        <TitleRelated type={details.type} id={details.id} language={language} after={titleDownloads} />
       </main>
     )
   }
@@ -336,9 +344,9 @@ export function TitleScreen({ onSessionLost }: TitleScreenProps) {
             <p className="t-body c2">{details.overview}</p>
           </section>
         )}
-        <TitleDownloads torrents={downloads} />
         {details.type === 'tv' && <Banner tone="info">{t('title.seriesHint')}</Banner>}
-        <TitleRelated type={details.type} id={details.id} language={language} />
+        {/* "In downloads" last, under the row once it has settled, so neither pushes the other (#394). */}
+        <TitleRelated type={details.type} id={details.id} language={language} after={titleDownloads} />
       </div>
       <div className="title-actions">
         <Button size="lg" icon="search" block onClick={findReleases}>

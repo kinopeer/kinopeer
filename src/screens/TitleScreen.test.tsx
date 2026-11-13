@@ -1,7 +1,7 @@
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes, useLocation, useParams } from 'react-router'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import * as matchesApi from '../api/matches'
 import * as qbt from '../api/qbittorrent'
 import type { Torrent } from '../api/qbittorrent'
@@ -259,6 +259,27 @@ describe('TitleScreen', () => {
       renderAt('/title/movie/693134')
       expect(await screen.findByText('In downloads · 64%')).toBeInTheDocument()
       expect(screen.getByRole('region', { name: 'In downloads' })).toBeInTheDocument()
+    })
+
+    // At the page's end, under the related titles, so neither pushes the other as they come (#394).
+    it('sits at the page’s end, under the related titles, which the header’s badge takes the page down to', async () => {
+      // jsdom has no scrollIntoView.
+      const scrollIntoView = vi.fn()
+      Element.prototype.scrollIntoView = scrollIntoView
+      onTestFinished(() => {
+        delete (Element.prototype as Partial<Element>).scrollIntoView
+      })
+      vi.mocked(tmdb.getRecommendations).mockResolvedValue({ titles: [tmdb.toTitle({ ...DUNE, id: 438631, title: 'Dune' }, 'movie')], page: 1, totalPages: 1 })
+      torrents(download('dune', 'Dune.Part.Two.2024.2160p.WEB-DL', { tags: 'tmdb:movie:693134', progress: 0.64 }))
+      renderAt('/title/movie/693134')
+      const block = await screen.findByRole('region', { name: 'In downloads' })
+      const row = screen.getByRole('region', { name: 'Recommendations' })
+      expect(row.compareDocumentPosition(block) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(block.nextElementSibling).toBeNull()
+
+      await userEvent.click(screen.getByRole('button', { name: 'In downloads · 64%' }))
+      expect(scrollIntoView).toHaveBeenCalledExactlyOnceWith({ block: 'start', behavior: 'smooth' })
+      expect(scrollIntoView.mock.contexts[0]).toBe(block)
     })
 
     it('includes torrents guessed or chosen for the title, not those chosen for another', async () => {

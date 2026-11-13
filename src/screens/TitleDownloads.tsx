@@ -1,3 +1,4 @@
+import type { Ref } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useLocation } from 'react-router'
 import type { Torrent } from '../api/qbittorrent'
@@ -13,17 +14,19 @@ import { downloadStatus, transferSpeed } from '../torrents/status'
 export interface TitleDownloadsProps {
   /** The title's torrents, in the order to show them. */
   torrents: Torrent[]
+  /** The section, for scrolling to it from the badge in the page's head. */
+  sectionRef?: Ref<HTMLElement>
 }
 
 /**
  * The title page's "In downloads" block: one card per torrent, each opening its torrent screen (on
  * desktop, its drawer over the title page).
  */
-export function TitleDownloads({ torrents }: TitleDownloadsProps) {
+export function TitleDownloads({ torrents, sectionRef }: TitleDownloadsProps) {
   const { t } = useTranslation()
   if (torrents.length === 0) return null
   return (
-    <section className="title-dls" aria-labelledby="title-dls">
+    <section ref={sectionRef} className="title-dls" aria-labelledby="title-dls">
       <h2 id="title-dls" className="t-h3 title-dls-heading">
         {t('title.inDownloads')}
         {torrents.length > 1 && (

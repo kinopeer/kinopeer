@@ -11,7 +11,7 @@ import { stubDesktop } from '../lib/stubDesktop'
 import { restoreLayout, stubLayout } from '../lib/stubLayout'
 import i18n from '../i18n'
 import { resetSettings, updateSettings } from '../settings/settings'
-import { DUNE_RELEASES, release } from '../test/fixtures'
+import { DUNE_RELEASES, release, torrent } from '../test/fixtures'
 import { Where, renderWithRouter, saying, where } from '../test/render'
 import { resetServerMatches } from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
@@ -349,6 +349,28 @@ describe('TitleScreen on desktop', () => {
     const [, top] = within(table()).getAllByRole('row')
     await userEvent.click(within(top).getByRole('button', { name: 'Add to downloads' }))
     expect(within(screen.getByRole('dialog', { name: 'Add to downloads' })).getByText(DUNE_RELEASES[1].title)).toBeInTheDocument()
+  })
+
+  it('puts "In downloads" at the page’s end, under the releases and the related titles, and scrolls to it from the hero’s badge', async () => {
+    vi.mocked(tmdb.getRecommendations).mockResolvedValue({ titles: [tmdb.toTitle({ ...DUNE, id: 438631, title: 'Dune' }, 'movie')], page: 1, totalPages: 1 })
+    vi.mocked(qbt.getMainData).mockResolvedValue({
+      rid: 1,
+      full_update: true,
+      torrents: { dune: torrent('dune', { name: 'Dune.Part.Two.2024.2160p.WEB-DL', tags: 'tmdb:movie:693134', progress: 0.64 }) },
+      server_state: {},
+    })
+    renderAt('/title/movie/693134/releases')
+    const block = await screen.findByRole('region', { name: 'In downloads' })
+    const releases = screen.getByRole('region', { name: 'Releases' })
+    const row = screen.getByRole('region', { name: 'Recommendations' })
+    expect(releases.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(row.compareDocumentPosition(block) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(block.nextElementSibling).toBeNull()
+
+    scrollIntoView.mockClear()
+    await userEvent.click(screen.getByRole('button', { name: 'In downloads · 64%' }))
+    expect(scrollIntoView).toHaveBeenCalledExactlyOnceWith({ block: 'start', behavior: 'smooth' })
+    expect(scrollIntoView.mock.contexts[0]).toBe(block)
   })
 
   it('shows a long overview in the hero, with Show more', async () => {

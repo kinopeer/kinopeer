@@ -95,4 +95,35 @@ describe('TitleRelated', () => {
     // A call count is the only way to see that no fallback request goes out after a failure.
     expect(getSimilar).not.toHaveBeenCalled()
   })
+
+  describe('what goes under the row', () => {
+    const renderWithAfter = () => renderWithRouter(<TitleRelated type="movie" id={693134} language="en-US" after={<p>Under the row</p>} />)
+
+    it('waits for the row while it loads, then shows under it', async () => {
+      let answer!: (titles: tmdb.TitlePage) => void
+      getRecommendations.mockReturnValue(new Promise((resolve) => (answer = resolve)))
+      renderWithAfter()
+      expect(screen.queryByText('Under the row')).not.toBeInTheDocument()
+
+      await act(async () => answer(page(title(438631, 'Dune'))))
+      const row = screen.getByRole('region', { name: 'Recommendations' })
+      const under = screen.getByText('Under the row')
+      expect(row.compareDocumentPosition(under) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
+
+    it('shows alone when both lists are empty', async () => {
+      renderWithAfter()
+      await answered()
+      expect(screen.getByText('Under the row')).toBeInTheDocument()
+      expect(screen.queryByRole('region')).not.toBeInTheDocument()
+    })
+
+    it('shows alone when TMDB fails', async () => {
+      getRecommendations.mockRejectedValue(new TypeError('Failed to fetch'))
+      renderWithAfter()
+      await answered()
+      expect(screen.getByText('Under the row')).toBeInTheDocument()
+      expect(screen.queryByRole('region')).not.toBeInTheDocument()
+    })
+  })
 })

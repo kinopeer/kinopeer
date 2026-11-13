@@ -11,6 +11,7 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 
 ### Fixed
 
+- A title's page no longer moves down as its torrents in Downloads are found: "In downloads" is at the end of the page, under the recommendations, and the "In downloads" badge in the header, which now scrolls down to it on a tap, comes in above the title without moving it. On a computer the title sits level with the poster's top. ([#394](https://github.com/kinopeer/kinopeer/issues/394))
 - A title's page no longer asks TMDB for the titles of torrents Kinopeer already knows (tagged when sent from Kinopeer, matched by hand or matched before) to find which of them are this title's: with hundreds of torrents and an empty cache it sent hundreds of requests, which could hit the shared TMDB key's limit and hold up the titles in Downloads. ([#381](https://github.com/kinopeer/kinopeer/issues/381))
 - With reduced motion turned on, a torrent's page on a phone, and its panel on a computer, no longer jump up and back down for a moment as the torrent's details arrive. ([#387](https://github.com/kinopeer/kinopeer/issues/387))
 
