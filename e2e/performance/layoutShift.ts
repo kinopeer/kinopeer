@@ -1,9 +1,10 @@
 // What the layout shift test (layoutShift.perf.ts) does with the page: records every layout shift
-// it makes and the elements that moved, holds the answers of the routes a screen loads from and
-// lets them land one at a time, in an order the test chooses, each painted before the next. Written
-// for any screen: a screen gives the routes it holds and what each answer shows. The rules the
-// shifts are judged by are in scripts/layout-shift/budget.ts.
+// it makes and the elements that moved, holds every answer a screen loads from and lets them land
+// one at a time, each painted before the next, in an order a rule chooses. A screen gives its chain
+// of answers and what each shows. The rules the order follows are in scripts/layout-shift/answers.ts,
+// those the shifts are judged by in scripts/layout-shift/budget.ts.
 import type { Page, Request, Route } from '@playwright/test'
+import { askedEarly, chainProblems, claimant, due, pick, type Chain, type Held, type Link, type Order } from '../../scripts/layout-shift/answers.ts'
 import type { Shift } from '../../scripts/layout-shift/budget.ts'
 
 /** What the page keeps: its shifts, or null when the browser doesn't report layout shifts at all. */
@@ -59,50 +60,107 @@ export async function layoutShifts(page: Page): Promise<Shift[]> {
   return shifts
 }
 
-/** How long an answer may wait for its request before the test says the page never asked. */
+/** How long the page may take to ask for an answer its chain says is due before the test says it never asked. */
 const ASKED_LIMIT_MS = 10_000
 
+/** A screen's answer: the requests it is, where it sits in the chain, and what it shows once landed. */
+export type Answer = Link & {
+  /** Whether a request is this answer, by its address and method. */
+  matches: (url: URL, method: string) => boolean
+  /**
+   * Waits for what the answer shows, if anything: its own content, so it painted before the next
+   * lands. Given the answers landed so far, for content that needs another answer as well.
+   */
+  shown?: (page: Page, landed: ReadonlySet<string>) => Promise<void>
+}
+
+/** What a load found besides the reading: the order the answers landed in and the requests no answer is. */
+export type Landing = { landed: string[]; unnamed: string[] }
+
 /**
- * Holds every request to the named routes until `release` lets that route's answers land: the ones
- * held then, and every later one as it comes. Registered after `prepareApp`, so a released request
- * falls back to its mocked answer. `release` waits for the route to be asked first, so an answer
- * the page asks for only after another (a title after the torrents) can't be released before it,
- * and resolves once its answers have reached the page.
+ * Holds every request the page sends but the document and the build's own files (`built`), and lets
+ * the screen's answers land one at a time, in `order` (scripts/layout-shift/answers.ts): before each,
+ * it waits for every answer the chain says is due to be asked, so what is held when it chooses
+ * doesn't depend on how fast the page asked; then it lets the held answer asked first (or last) land,
+ * waits for what it shows and for a painted frame. An answer's later requests (the next poll) land
+ * as they come once it has. A request that is no answer of the chain lands too, and is named in
+ * `unnamed`, which fails the test; one the page sends before its chain says it would fails the load
+ * at once, as does an answer due but not asked in `ASKED_LIMIT_MS`.
+ *
+ * Registered after `prepareApp`, so a request let go falls back to its mocked answer. Call before
+ * the page opens; `land` opens nothing itself.
  */
-export async function holdAnswers<Name extends string>(
+export async function holdAnswers(
   page: Page,
-  routes: Record<Name, (url: URL) => boolean>,
-): Promise<{ release: (name: Name) => Promise<void> }> {
-  const held = new Map<Name, Route[]>()
-  const released = new Set<Name>()
-  const asked = new Map<Name, () => void>()
-  for (const name of Object.keys(routes) as Name[]) {
-    held.set(name, [])
-    await page.route(routes[name], (route) => {
+  answers: Record<string, Answer>,
+  order: Order,
+  built: ReadonlySet<string>,
+): Promise<{ land: () => Promise<Landing> }> {
+  const chain: Chain = Object.fromEntries(Object.entries(answers).map(([name, { after, afterAny }]) => [name, { after, afterAny }]))
+  const problems = chainProblems(chain)
+  if (problems.length > 0) throw new Error(`The screen's chain of answers is wrong:\n${problems.join('\n')}`)
+  const held = new Map<string, Route[]>()
+  const firstAsked = new Map<string, number>()
+  const released = new Set<string>()
+  const asked = new Map<string, () => void>()
+  const unnamed: string[] = []
+  let requests = 0
+  let early: string | undefined
+  await page.route(
+    (url) => !built.has(url.pathname),
+    (route) => {
+      const request = route.request()
+      if (request.isNavigationRequest()) return route.fallback()
+      const url = new URL(request.url())
+      const candidates = Object.keys(answers).filter((name) => answers[name].matches(url, request.method()))
+      const name = claimant(candidates, new Set(firstAsked.keys()))
+      if (name === undefined) {
+        unnamed.push(`${request.method()} ${url.pathname}${url.search}`)
+        return route.fallback()
+      }
       if (released.has(name)) return route.fallback()
-      held.get(name)!.push(route)
+      if (!firstAsked.has(name)) {
+        firstAsked.set(name, requests++)
+        early ??= askedEarly(chain, name, released)
+      }
+      held.set(name, [...(held.get(name) ?? []), route])
       asked.get(name)?.()
-    })
-  }
-  const landed = async (request: Request) => {
-    const response = await request.response()
-    await response?.finished()
-  }
-  return {
-    release: async (name) => {
-      if (held.get(name)!.length === 0) {
-        await new Promise<void>((resolve, reject) => {
-          const timer = setTimeout(() => reject(new Error(`The page didn't ask for "${name}" in ${ASKED_LIMIT_MS} ms`)), ASKED_LIMIT_MS)
+    },
+  )
+  const askedFor = (name: string) =>
+    firstAsked.has(name)
+      ? Promise.resolve()
+      : new Promise<void>((resolve, reject) => {
+          const timer = setTimeout(
+            () => reject(new Error(`The page didn't ask for "${name}" in ${ASKED_LIMIT_MS} ms, though its chain says it's due once ${[...released].join(', ')} landed`)),
+            ASKED_LIMIT_MS,
+          )
           asked.set(name, () => {
             clearTimeout(timer)
             resolve()
           })
         })
+  const landedOne = async (request: Request) => {
+    const response = await request.response()
+    await response?.finished()
+  }
+  return {
+    land: async () => {
+      const landed = new Set<string>()
+      while (landed.size < Object.keys(answers).length) {
+        await Promise.all(due(chain, new Set(firstAsked.keys()), landed).map(askedFor))
+        if (early) throw new Error(early)
+        const waiting: Held[] = [...held.keys()].filter((name) => !released.has(name)).map((name) => ({ name, asked: firstAsked.get(name)! }))
+        const next = pick(waiting, order)
+        released.add(next)
+        const routes = held.get(next)!.splice(0)
+        await Promise.all(routes.map((route) => route.fallback()))
+        await Promise.all(routes.map((route) => landedOne(route.request())))
+        landed.add(next)
+        await answers[next].shown?.(page, landed)
+        await painted(page)
       }
-      released.add(name)
-      const routesHeld = held.get(name)!.splice(0)
-      await Promise.all(routesHeld.map((route) => route.fallback()))
-      await Promise.all(routesHeld.map((route) => landed(route.request())))
+      return { landed: [...landed], unnamed }
     },
   }
 }

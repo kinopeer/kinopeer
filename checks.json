@@ -21,7 +21,7 @@
   "budgets": {
     "size": { "js": 196300, "css": 16200, "rest": 193600 },
     "layoutShift": {
-      "phone": { "torrent": 0.1 }
+      "phone": { "downloads": 0.01, "torrent": 0.01, "browse": 0.01, "search": 0.01, "search-year": 0.01, "title": 0.09, "series": 0.09, "releases": 0.07, "settings": 0.01 }
     },
     "requests": {
       "phone": {
