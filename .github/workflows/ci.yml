@@ -91,7 +91,7 @@ jobs:
         if: steps.chromium.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
       # Each screen's requests on opening and each move's between screens, against budgets.requests
-      # and budgets.journeys, on the build above (docs/QUALITY.md → The requests budget), and a
+      # and budgets.journeys, on the build above (docs/QUALITY.md → The requests budget), and the
       # layout shift of each screen on a phone (docs/TESTING.md → The layout shift test).
       - run: npm run test:requests
       - name: Upload the report with the traces
