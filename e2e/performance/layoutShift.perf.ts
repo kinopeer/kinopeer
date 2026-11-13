@@ -410,11 +410,21 @@ const drawerOverDownloads = (name: string, hash: string, shown: Shown, guesses: 
 
 /** A screen of the list with the sidebar's answer added, as desktop shows it: its answers, then the sidebar's. */
 const withSidebar = (one: Case): Case => ({ ...one, answers: { ...one.answers, ...SIDEBAR } })
+/**
+ * The sidebar's qBittorrent card complete, its free space shown, which it says once the torrents
+ * have landed: in the card's line on a wide window, in the rail's column (its label for screen
+ * readers only) on a narrow one.
+ */
+const sidebarCard: Shown = (page) => expect(page.getByRole('region', { name: 'qBittorrent' })).toContainText(/свободно/i)
+/** A desktop case, read once the sidebar's card is complete too: every desktop screen shows it. */
+const onDesktop = (one: Case): Case => ({ ...one, complete: all(one.complete, sidebarCard) })
 const casesOf = (screen: string) => PHONE.filter((one) => one.screen === screen)
 
 const DESKTOP_CASES: Case[] = [
-  // The list as on a phone, the sidebar reading the same poll.
+  // The list as on a phone, the sidebar reading the same poll: the grid of cards, desktop's default view.
   ...casesOf('downloads'),
+  // The other view, the table of rows (`DownloadRow`, the column header): a layout of its own.
+  ...casesOf('downloads').map((one) => ({ ...one, name: 'titles found, as a table', app: { downloadsView: 'list' as const } })),
   /**
    * `p2`'s drawer over Downloads: the list's lookups and posters, and the drawer's own load of the
    * title by its tag's id, the same address as the list's, once the torrent shows.
@@ -474,13 +484,15 @@ const DESKTOP_CASES: Case[] = [
  */
 const NARROW: Case[] = [desktopReleases('every indexer answered, on the series’ page')]
 
-const CASES: Record<Size, Case[]> = { phone: PHONE, desktop: DESKTOP_CASES, 'desktop-rail': NARROW, 'desktop-1280': NARROW }
+const CASES: Record<Size, Case[]> = { phone: PHONE, desktop: DESKTOP_CASES.map(onDesktop), 'desktop-rail': NARROW.map(onDesktop), 'desktop-1280': NARROW.map(onDesktop) }
 
-test('every screen the list names has a case and a budget at each size, and every budget a screen', () => {
+test('every screen the list names has a case on a phone and on desktop, every screen read a budget at its size, and every budget a screen read there', () => {
   expect(BUDGETS, `budgets.layoutShift in checks.json can't be read:\n${[BUDGETS].flat().join('\n')}`).not.toBeInstanceOf(Array)
   const listed = SCREENS.map(({ screen }) => screen)
   for (const size of EVERY_SCREEN) expect(uncased(listed, CASES[size].map(({ screen }) => screen)), size).toEqual([])
   const read = (Object.keys(VIEWPORTS) as Size[]).flatMap((size) => [...new Set(CASES[size].map(({ screen }) => screen))].map((screen) => ({ size, screen })))
+  // A narrower size reads only some screens, so only the other half of `uncased` applies to it: no
+  // case reads a screen the list doesn't name.
   expect(uncased(listed, read.map(({ screen }) => screen))).toEqual([])
   expect(unmatched(BUDGETS as Budgets, read)).toEqual([])
 })

@@ -1009,7 +1009,11 @@ has the budgets' rule.
   orders. On the title's and the series' pages, in the order where the download defaults (which
   show nothing there) land last, other answers land after the "In downloads" block, and their
   landing holds it: it took the block 3 s late to get past them, while at 250 ms and 1 s the
-  reading was over the budget without the wait too (#395's second review).
+  reading was over the budget without the wait too (#395's second review). On desktop every case
+  also waits for the sidebar's qBittorrent card to say its free space, which it shows once the
+  torrents land: with the card's last state shown 250 ms late and a 130px block in it, browse,
+  search, search-year and settings read 0.0071 with the wait and 0.0008 without it in six of their
+  eight loads (#402's review).
 - **The chain comes from the code.** Each case names its answers and, for each, the answers the
   page waits for before it asks (`after`, all of them, or `afterAny`, one of them), read from the
   screen's code: the table below. The test holds the chain to the page: a request asked before the
@@ -1047,9 +1051,12 @@ has the budgets' rule.
   page read 0.0656 and passed). Both are set in the test, not taken from the configs it builds on:
   the share of the window that moves is the score, so each size reads its own number.
 - **Exact.** Every case in each order read the same number in every run, to the fourth digit: ten
-  runs in a row locally (macOS) and in CI (Linux). In CI every reading has 0.0002 more than on a
-  Mac, which varies in its sixth digit (0.000179 or 0.000183): the "Connecting" text, before any
-  answer, moves sideways as the font comes in, in one shift or two. The budgets come from CI's
+  runs in a row locally (macOS) and in CI (Linux). On a phone every reading in CI has 0.0002 more
+  than on a Mac, which varies in its sixth digit (0.000179 or 0.000183): the "Connecting" text,
+  before any answer, moves sideways as the font comes in, in one shift or two. On desktop, read in
+  five runs on a Mac and in CI at #402's head, CI reads up to 0.0002 more (downloads and the
+  torrent's drawer), 0.0001 (the title's and the series' page in one order, `desktop-1280`) or the
+  same (the rest). The budgets come from CI's
   readings. A reading that varies by more is a race in the test (an answer whose content wasn't
   waited for) to find, not noise to budget, but for a jump planted among the titles in Downloads,
   which can read one of two numbers (What it leaves out).
@@ -1058,8 +1065,8 @@ has the budgets' rule.
   are due, which lands next, how many orders a chain gives, what is wrong with a chain) are pure
   functions in `scripts/layout-shift/budget.ts` and `answers.ts`, tested beside them (layer 1);
   coverage measures the folder and Stryker mutates it. One test checks that every screen of the
-  list has a case and a budget on a phone and on desktop, that each narrower size reads only screens
-  of the list with a budget there, and that every budget has a screen read at its size. The reporter
+  list has a case on a phone and on desktop, that a narrower size reads only screens of the list,
+  and that every screen read has a budget at its size and every budget a screen read there. The reporter
   (`e2e/performance/summary.ts`) adds a table of every load's reading to the job's summary.
 - **A new screen** in `screens.ts` gets a case here, with its chain from its code, and a budget,
   which goes to a second review. A new late block on a screen (one that appears after the screen's
@@ -1082,14 +1089,16 @@ On desktop each screen has the same chain, with what the desktop layout adds or 
 
 | Screen | What differs on desktop | Late blocks it adds | Cases |
 | --- | --- | --- | --- |
-| Every screen | The sidebar's torrents (its downloading count and qBittorrent card read the shared poll) once the server's settings are in; a screen that shows torrents asks for them itself | The sidebar's qBittorrent card, its speeds and free space (it grows upwards from the sidebar's foot) | |
-| `downloads` | None | The header's tools, moved sideways as the totals come in | Titles found |
+| Every screen | The sidebar's torrents (its downloading count and qBittorrent card read the shared poll) once the server's settings are in; a screen that shows torrents asks for them itself | The sidebar's qBittorrent card, its speeds and free space, growing up from the sidebar's foot (0.0016, #404) | |
+| `downloads` | None in the chain. The layout: the grid of cards by default (the list on a phone), the status as a `StatusMenu` in place of the chips, and the table of rows as the other view | The header's tools, moved sideways as the totals come in (#405); in the table, the table moving up and the rows' names wrapping as the titles come in (#405) | Titles found, in the grid; titles found, as a table |
 | `torrent` | The drawer over Downloads: the list's lookups three at a time (`p4`'s, among the torrents, once one of the first three is in) and the drawer's own lookup of its torrent, the same address as the list's; the posters and the guess saved once one title is | As `downloads`, under the drawer; in the drawer, as on a phone | Tagged and finished (`p2`); title guessed from its name (`p3`); no title found (`p4`) |
-| `title`, `series` | The hero's poster, a larger size | The hero's backdrop fade, in place of its loading state | As on a phone |
+| `title`, `series` | The hero's poster, a larger size | The hero's backdrop fade, its box changed from the loading state's (0.0093, #406) | As on a phone |
 | `releases` | The series' title page with its releases under the hero, searched as it opens at their address: the title page's answers, and Prowlarr's search and which indexers failed once the details are in | The filter bar's skeleton chips replaced by the filters; the table in place of its skeleton, or the empty state under the bar's room kept, empty | Every indexer answered; one indexer didn't answer; nothing found; and at `desktop-rail` and `desktop-1280`, every indexer answered, where the bar wraps to a second line once the filters land (#400) |
 
-The narrower sizes' budgets carry #400's jump, the table moving down by the bar's second line
-(0.0338 on a Mac at 1024px, 0.0247 at 1280px), and the fix lowers them.
+The desktop budgets carry these known jumps, each with its issue, and their fixes lower them:
+`downloads` and `torrent` (0.02) #405's, `title` and `series` (0.02) #406's, and the narrower
+sizes' `releases` #400's, the table moving down by the bar's second line (0.0338 at 1024px, 0.0248
+at 1280px, in CI). #404's card is in every desktop reading, under the 0.01 rounding.
 
 - **What it leaves out.** Moves between screens by a click: the screens are opened by their address. The app with motion on.
   Empty and "not answering" states but the releases' "nothing found", and the releases' "nothing
