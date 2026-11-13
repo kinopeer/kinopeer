@@ -100,10 +100,28 @@ test.describe('releases, desktop', () => {
     await expect(page).toHaveScreenshot('desktop-remembered-dark-ru.png')
   })
 
+  // While the search runs: the filter bar there from the start, its filters as skeletons, the sort working.
+  test('searching', async ({ page }) => {
+    await openApp(page, '/title/tv/126308')
+    // Never answered, so the search stays in flight.
+    await page.route((url) => url.pathname === '/prowlarr/search', () => {})
+    await page.getByRole('button', { name: 'Найти раздачи' }).click()
+    await expect(page.locator('.title-rel-bar .rel-chip-skel').first()).toBeVisible()
+    // Off the button just pressed, so it doesn't show its hover state.
+    await page.mouse.move(0, 0)
+    await settle(page)
+    await expect(page).toHaveScreenshot('desktop-searching-dark-ru.png')
+  })
+
+  // The count's line beside the heading, as it comes; then the names under it on a tap.
   test('some indexers didn’t answer, named', async ({ page }) => {
     await findReleases(page, { failingIndexers: ['Indexer C', 'Indexer D'] })
-    await page.getByRole('button', { name: '2 индексатора не ответили' }).click()
+    const failed = page.getByRole('button', { name: '2 индексатора не ответили' })
+    await expect(failed).toBeVisible()
+    await expect(page).toHaveScreenshot('desktop-failing-indexers-collapsed-dark-ru.png')
+    await failed.click()
     await expect(page.getByText('Indexer C, Indexer D')).toBeVisible()
+    // Off the button just pressed, so it doesn't show its hover color.
     await page.mouse.move(0, 0)
     await settle(page)
     await expect(page).toHaveScreenshot('desktop-failing-indexers-dark-ru.png')

@@ -6,7 +6,6 @@ import { Button } from '../components/Button'
 import { EmptyState } from '../components/EmptyState'
 import { FilterChip } from '../components/FilterChip'
 import { formatList } from '../i18n/formatList'
-import { cx } from '../lib/cx'
 import type { TitleDetails } from '../releases/releaseQuery'
 import { AddReleaseSheet } from './AddReleaseSheet'
 import type { Releases } from './useReleases'
@@ -84,25 +83,33 @@ export function ReleasesBody({ releases, skeleton, children, countInList = false
  * line, there with the results, rather than in a note above the list that would push it down as it
  * came (#393). The line is a live region, so a screen reader announces them as they come.
  */
-export function ReleasesCount({ releases, className }: { releases: Releases; className?: string }) {
+export function ReleasesCount({ releases }: { releases: Releases }) {
   const { t, i18n } = useTranslation()
-  const [open, setOpen] = useState(false)
+  // Which search's failed indexers the names were opened for, so a new search starts with them closed.
+  const [openFor, setOpenFor] = useState<string[] | null>(null)
   const id = useId()
   const { failing } = releases
+  const open = failing.length > 0 && openFor === failing
   return (
-    <div className={cx('rel-count', className)}>
+    <div className="rel-count">
       <p className="t-cap c3 ks-num" aria-live="polite">
         {t('releases.count', { shown: releases.visible.length, count: releases.rows.length })}
         {failing.length > 0 && (
           <>
             {' · '}
-            <button type="button" className="rel-failing" aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)}>
+            <button
+              type="button"
+              className="rel-failing touch-line"
+              aria-expanded={open}
+              aria-controls={open ? id : undefined}
+              onClick={() => setOpenFor(open ? null : failing)}
+            >
               {t('releases.failingCount', { count: failing.length })}
             </button>
           </>
         )}
       </p>
-      {open && failing.length > 0 && (
+      {open && (
         <p id={id} className="t-cap c2">
           {formatList(failing, i18n, 'narrow')}
         </p>

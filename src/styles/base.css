@@ -166,6 +166,17 @@ h4 {
   color: var(--text3);
 }
 
+/* A control one line of text high, whose hit area reaches the touch target without moving the line. */
+.touch-line {
+  position: relative;
+}
+
+.touch-line::before {
+  content: '';
+  position: absolute;
+  inset: calc((100% - var(--touch-min)) / 2) 0;
+}
+
 /* Hidden visually, still read by screen readers. */
 .sr-only {
   position: absolute;

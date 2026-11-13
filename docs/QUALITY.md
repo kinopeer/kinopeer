@@ -533,7 +533,8 @@ fix, not a budget to raise; until it is fixed, the state that moves is left out 
 its issue named (TESTING → What it leaves out). A budget under the ceiling can still carry a known
 jump, its issue named beside it in TESTING's table, and the fix lowers it. Until then the budget
 leaves room under the jump it carries: on `title` and `series` (0.09) a new jump of up to 0.09
-passes in the order that reads 0 today (TESTING → The hole under a carried jump).
+passes in the order that reads 0 today, and on `releases` (0.07) one of up to 0.005 in either
+(TESTING → The hole under a carried jump).
 
 **What fails**: a reading over its budget, which names each shift with the elements that moved and
 their boxes before and after; a screen of the list without a case or a budget, or a budget for a

@@ -181,6 +181,8 @@ describe('ReleasesCount', () => {
     expect(line).toHaveTextContent('3 of 3 releases · 2 indexers didn’t answer')
     const button = within(line).getByRole('button', { name: '2 indexers didn’t answer', expanded: false })
     expect(screen.queryByText('Indexer C, Indexer D')).not.toBeInTheDocument()
+    // Collapsed, it names no element: the names aren't in the document.
+    expect(button).not.toHaveAttribute('aria-controls')
 
     await userEvent.click(button)
     expect(button).toHaveAttribute('aria-expanded', 'true')
@@ -190,15 +192,27 @@ describe('ReleasesCount', () => {
     await userEvent.click(button)
     expect(button).toHaveAttribute('aria-expanded', 'false')
     expect(screen.queryByText('Indexer C, Indexer D')).not.toBeInTheDocument()
+    expect(button).not.toHaveAttribute('aria-controls')
   })
 
   it('drops the names when a search again finds every indexer answering', async () => {
     const { rerender } = render(<ReleasesCount releases={releases({ failing: ['Indexer C'] })} />)
-    await userEvent.click(screen.getByRole('button', { name: '1 indexer didn’t answer' }))
-    expect(screen.getByText('Indexer C')).toBeInTheDocument()
+    const button = screen.getByRole('button', { name: '1 indexer didn’t answer' })
+    await userEvent.click(button)
+    const id = button.getAttribute('aria-controls')!
+    expect(document.getElementById(id)).toHaveTextContent('Indexer C')
     rerender(<ReleasesCount releases={releases()} />)
     // Nothing under the count: not even an empty line.
-    expect(screen.getByText('3 of 3 releases').nextElementSibling).toBeNull()
+    expect(document.getElementById(id)).toBeNull()
+  })
+
+  it('starts a new search’s failed indexers closed, though the names were open for the last one', async () => {
+    const { rerender } = render(<ReleasesCount releases={releases({ failing: ['Indexer C'] })} />)
+    await userEvent.click(screen.getByRole('button', { name: '1 indexer didn’t answer' }))
+    expect(screen.getByText('Indexer C')).toBeInTheDocument()
+    rerender(<ReleasesCount releases={releases({ failing: ['Indexer C'] })} />)
+    expect(screen.getByRole('button', { name: '1 indexer didn’t answer', expanded: false })).toBeInTheDocument()
+    expect(screen.queryByText('Indexer C')).not.toBeInTheDocument()
   })
 
   it('says one indexer in the singular', () => {

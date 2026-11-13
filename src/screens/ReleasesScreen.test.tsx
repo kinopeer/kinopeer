@@ -191,6 +191,22 @@ describe('ReleasesScreen', () => {
     expect(screen.getByRole('heading', { name: 'Nothing matches' })).toBeInTheDocument()
   })
 
+  // The count's line is in the list, which isn't shown then: the banner says it instead (countInList).
+  it('names the indexers that didn’t answer above "Nothing matches"', async () => {
+    vi.mocked(prowlarr.getFailingIndexers).mockResolvedValue(['Indexer B'])
+    renderAt('/title/movie/693134/releases')
+    await screen.findByRole('button', { name: '1 indexer didn’t answer' })
+    await userEvent.click(screen.getByRole('button', { name: 'Filters' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '100+' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Show 2' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Filters 1' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Dubbed' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '720p' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Show 0' }))
+    expect(screen.getByRole('heading', { name: 'Nothing matches' })).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: saying('1 indexer didn’t answer: Indexer B') })).toBeInTheDocument()
+  })
+
   it('lists every release found, whatever its category', async () => {
     const other = (id: string, title: string) => ({ ...release(id, title, 1e9, 50, 'Indexer A'), categories: [8000] })
     searchReleases.mockResolvedValue([
