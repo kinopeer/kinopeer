@@ -94,17 +94,24 @@ const TORRENTS_AND_MATCHES: Record<string, Answer> = {
 }
 
 /**
+ * `p3`'s title, guessed from its name by TMDB's search, which waits for the server's matches too
+ * (another device may have made the guess); a second after the guess it is saved on the server.
+ * A title page picks its torrents among them with this guess alone (#381).
+ */
+const GUESS: Record<string, Answer> = {
+  guessP3: { matches: under('/tmdb/search/'), after: ['torrents', 'matches'] },
+  saveGuess: { matches: (url, method) => method === 'PATCH' && url.pathname === '/api/matches', after: ['guessP3'] },
+}
+
+/**
  * The titles of the performance tests' torrents (`TORRENTS`), which `useTitleMatches` looks up for
- * any screen that shows them or picks a title's among them: `p1`'s and `p2`'s by the ids their tags
- * name, once the torrents are known, and `p3`'s guessed from its name by TMDB's search, which waits
- * for the server's matches too (another device may have made the guess); a second after the guess
- * it is saved on the server.
+ * a screen that shows them: `p1`'s and `p2`'s by the ids their tags name, once the torrents are
+ * known, and `p3`'s guess.
  */
 const LOOKUPS: Record<string, Answer> = {
   titleP1: { matches: get('/tmdb/movie/693134'), after: ['torrents'] },
   titleP2: { matches: get('/tmdb/tv/126308'), after: ['torrents'] },
-  guessP3: { matches: under('/tmdb/search/'), after: ['torrents', 'matches'] },
-  saveGuess: { matches: (url, method) => method === 'PATCH' && url.pathname === '/api/matches', after: ['guessP3'] },
+  ...GUESS,
 }
 
 /** A state of a screen: its answers and the order they're asked for in (its chain). */
@@ -146,8 +153,7 @@ const titlePage = (name: string, type: string, id: number, complete: Shown, rela
     ...SESSION,
     details: { matches: get(`/tmdb/${type}/${id}`), after: ['tmdbSetup'] },
     ...TORRENTS_AND_MATCHES,
-    // The same address as the details for this title's own torrent: claimed by the details first.
-    ...LOOKUPS,
+    ...GUESS,
     poster: { matches: get(`/tmdb-img/w342/${type}-${id}.svg`), after: ['details'] },
     ...related,
     relatedPosters: {

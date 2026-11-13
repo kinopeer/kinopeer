@@ -425,7 +425,8 @@ export function useTitleMatches(
 
 /**
  * A title's torrents, newest first: those the user chose it for, tagged with it, or guessed to be it.
- * A tagged torrent counts right away; a guessed one once its guess is known.
+ * A torrent whose title is known (the user's choice, the tag, a saved guess) counts right away and
+ * costs no request; only the others are guessed, and count once their guess is known (#381).
  */
 export function useTitleTorrents<T extends Pick<Torrent, 'hash' | 'name' | 'tags' | 'added_on'> & { category?: string }>(
   torrents: T[],
@@ -433,10 +434,17 @@ export function useTitleTorrents<T extends Pick<Torrent, 'hash' | 'name' | 'tags
   id: number,
 ): T[] {
   const server = useServerMatches()
-  const matches = useTitleMatches(torrents)
+  const knownTitles = useMemo(() => {
+    const byHash = new Map<string, Lookup['tag']>()
+    for (const torrent of torrents) byHash.set(torrent.hash, lookupFor(torrent, server?.[torrent.hash]).tag)
+    return byHash
+  }, [torrents, server])
+  // A new array only when the torrents or what's known changes: useTitleMatches works over it.
+  const unknown = useMemo(() => torrents.filter((torrent) => !knownTitles.get(torrent.hash)), [torrents, knownTitles])
+  const matches = useTitleMatches(unknown)
   return torrents
     .filter((torrent) => {
-      const title = lookupFor(torrent, server?.[torrent.hash]).tag ?? matches[torrent.hash]
+      const title = knownTitles.get(torrent.hash) ?? matches[torrent.hash]
       return title?.type === type && title.id === id
     })
     .sort((a, b) => b.added_on - a.added_on)

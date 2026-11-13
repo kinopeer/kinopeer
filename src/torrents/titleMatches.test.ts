@@ -618,4 +618,24 @@ describe('useTitleTorrents', () => {
     expect(result.current.map((t) => t.hash)).toContain('tagged')
     await waitFor(() => expect(result.current.map((t) => t.hash)).toEqual(['chosen', 'guessed', 'tagged']))
   })
+
+  it('asks TMDB only about torrents whose title is not known yet (#381)', async () => {
+    server = {
+      chosen: { type: 'movie', id: 841, source: 'user' },
+      saved: { type: 'movie', id: 438631, source: 'guess', version: GUESS_VERSION },
+    }
+    searchTitles.mockResolvedValue(searchPage([DUNE_2021]))
+    const torrents = [
+      torrent('tagged', 'Dune.2021.2160p', 'tmdb:movie:438631', 1),
+      torrent('other', 'Dune.Prophecy.S01', 'tmdb:tv:90228', 2),
+      torrent('chosen', 'Home.Video', '', 3),
+      torrent('saved', 'Dune.2021.720p', '', 4),
+      torrent('guessed', 'Dune.2021.1080p.BluRay', '', 5),
+    ]
+    const { result } = renderHook(() => useTitleTorrents(torrents, 'movie', 438631))
+    await waitFor(() => expect(result.current.map((t) => t.hash)).toEqual(['guessed', 'saved', 'tagged']))
+    expect(searchTitles).toHaveBeenCalledTimes(1)
+    expect(getMovie).not.toHaveBeenCalled()
+    expect(tmdb.getTv).not.toHaveBeenCalled()
+  })
 })

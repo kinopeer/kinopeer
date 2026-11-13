@@ -1003,7 +1003,7 @@ has the budgets' rule.
   poster once its image loads). Each wait was seen red with the screen's last state shown 250 ms
   late, the page moving 130px with it: over the budget with the wait, under it without, in both
   orders. On the title's and the series' pages, in the order where the download defaults (which
-  show nothing there) land last, five answers land after the "In downloads" block, and their
+  show nothing there) land last, other answers land after the "In downloads" block, and their
   landing holds it: it took the block 3 s late to get past them, while at 250 ms and 1 s the
   reading was over the budget without the wait too (#395's second review).
 - **The chain comes from the code.** Each case names its answers and, for each, the answers the
@@ -1065,7 +1065,7 @@ has the budgets' rule.
 | `browse` | Three Discover queries at once; the posters once all three are in | The three rows, together, in place of the skeleton; their posters | Rows of titles |
 | `search` | TMDB's search; the posters | The results with their count and Show more, in place of the skeleton; their posters | Titles found |
 | `search-year` | TMDB's search for movies and for series, at once; the posters once both are in | The results, together, in place of the skeleton; their posters | Titles found |
-| `title` | The details, the torrents and the matches at once; the poster and the recommendations once the details are in, their posters after them; the three torrents' titles, as on `downloads` | The page in place of its skeleton; the poster; the "In downloads" badge and block, once the details and the torrents are both in; the recommendations row | A movie in downloads, with recommendations. Its budget, 0.09, is #394's jump (the badge and the block coming in after the details: 0.0878 in CI), which the fix lowers |
+| `title` | The details, the torrents and the matches at once; the poster and the recommendations once the details are in, their posters after them; the guess of the untagged torrent's title, since the tagged ones' titles are known without TMDB (#381) | The page in place of its skeleton; the poster; the "In downloads" badge and block, once the details and the torrents are both in; the recommendations row | A movie in downloads, with recommendations. Its budget, 0.09, is #394's jump (the badge and the block coming in after the details: 0.0878 in CI), which the fix lowers |
 | `series` | As `title`; similar titles once the recommendations come back empty | As `title`, with the series hint and similar titles in place of recommendations | A series in downloads, with similar titles. Its budget, 0.09, is #394's jump (0.0818 in CI) |
 | `releases` | The series' details; Prowlarr's search; which indexers failed during it | The title and year under the heading; the chips and the releases in place of the skeleton; the note naming indexers that failed | Every indexer answered. Its budget, 0.07, is #393's jump (the chips coming in above the list with it: 0.0647 in CI), which the fix lowers |
 | `settings` | Settings' own load of the server's settings, the checks of qBittorrent, Prowlarr and TMDB at once; the categories once qBittorrent's check is in | None: every row is there from the first paint, and the answers change only what the rows say and the category selects' options | Every service answers |
