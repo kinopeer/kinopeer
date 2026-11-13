@@ -47,27 +47,18 @@ export function due(chain: Chain, asked: ReadonlySet<string>, landed: ReadonlySe
 /**
  * Which answer a request is, among those whose routes it matches (`candidates`, in the chain's
  * order): the first not asked for yet, so the same address asked for twice is two answers (the
- * session's check of the server's settings, then the screen's); else the last one's later request,
- * another address (another poster) or, for an answer that `polls`, the same address again (the
- * next poll). The same method and address asked for again (`repeat`) beyond the answers that claim
- * it is none of them: a request the case doesn't name.
+ * session's check of the server's settings, then the screen's); else the last, when it takes
+ * `later` requests as its own (the next poll, the posters after the first). Any other request
+ * beyond the answers that claim it is none of them: a request the case doesn't name.
  */
-export function claimant(
-  candidates: string[],
-  asked: ReadonlySet<string>,
-  again: { repeat: boolean; polls: ReadonlySet<string | undefined> },
-): string | undefined {
-  const fresh = candidates.find((name) => !asked.has(name))
-  if (fresh !== undefined) return fresh
+export function claimant(candidates: string[], asked: ReadonlySet<string>, later: ReadonlySet<string | undefined>): string | undefined {
   const last = candidates.at(-1)
-  return again.repeat && !again.polls.has(last) ? undefined : last
+  return candidates.find((name) => !asked.has(name)) ?? (later.has(last) ? last : undefined)
 }
 
 /** A screen's chain from its answers: where each sits, without what else the answer carries. */
 export function chainOf(answers: Record<string, Link>): Chain {
-  return Object.fromEntries(
-    Object.entries(answers).map(([name, { after, afterAny }]) => [name, { ...(after && { after }), ...(afterAny && { afterAny }) }]),
-  )
+  return Object.fromEntries(Object.entries(answers).map(([name, { after, afterAny }]) => [name, { after, afterAny }]))
 }
 
 /**

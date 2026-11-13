@@ -988,9 +988,9 @@ has the budgets' rule.
   build's own files, and lets the case's answers land one at a time, each after the one before
   landed whole and the page painted a frame: every state in between is on the screen for a frame at least, the worst case. An
   answer's later requests (another poster, the next poll) land as they come once it has. The web
-  font's files are the build's and aren't held: the test waits for the page's fonts to be ready
-  (`document.fonts.ready`) and a painted frame before the first answer lands, as a page the service
-  worker serves has them, so when they arrive doesn't change a reading.
+  font's files are the build's and aren't held: every painted frame the test waits for, the first
+  before any answer lands, comes after the page's fonts are ready (`document.fonts.ready`), as a
+  page the service worker serves has them, so when they arrive doesn't change a reading.
 - **What holds each state is the frame.** The test lets an answer land whole and waits for a
   painted frame; the page renders what the answer brings as it lands, so that frame shows it. It
   doesn't also wait for what the answer shows (a heading, a link, a poster loaded): such waits had
@@ -1018,9 +1018,10 @@ has the budgets' rule.
   every case runs twice. The orders do differ where it matters: a movie's page reads 0.0002 in CI
   when the torrents land before the details and 0.0878 the other way (#394).
 - **Nothing lands unheld.** A request no answer of the case is lands, and fails the test with its
-  method and address: a screen that starts asking for more brings its case along. So does the same
-  method and address asked again beyond the answers that claim it, but for the torrents' poll
-  (`polls`), which asks the same address every 2 s.
+  method and address: a screen that starts asking for more brings its case along. So does a request
+  beyond the answers that claim it, the same address again or with another query, unless the last
+  of them takes later requests as its own (`later`): the torrents' poll, every 2 s, and the posters
+  after the first.
 - **What the reading counts.** Every `layout-shift` entry, with the elements that moved and their
   boxes in the viewport before and after (`y/height`), those within 500 ms of a click or a key
   press too, which web-vitals leaves out: the failure marks them "after input", and a screen

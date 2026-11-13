@@ -60,7 +60,7 @@ const SESSION: Record<string, Answer> = {
  * together once it paints.
  */
 const TORRENTS_AND_MATCHES: Record<string, Answer> = {
-  torrents: { matches: get('/qbt/api/v2/sync/maindata'), after: ['tmdbSetup'], polls: true },
+  torrents: { matches: get('/qbt/api/v2/sync/maindata'), after: ['tmdbSetup'], later: true },
   matches: { matches: get('/api/matches'), after: ['tmdbSetup'] },
 }
 
@@ -120,6 +120,7 @@ const titlePage = (name: string, type: string, id: number, related: Record<strin
     relatedPosters: {
       matches: (url, method) => under('/tmdb-img/')(url, method) && url.pathname !== `/tmdb-img/w342/${type}-${id}.svg`,
       after: [Object.keys(related).at(-1)!],
+      later: true,
     },
   },
 })
@@ -148,7 +149,7 @@ const CASES: Case[] = [
       ...SESSION,
       ...TORRENTS_AND_MATCHES,
       ...LOOKUPS,
-      posters: { matches: under('/tmdb-img/'), afterAny: ['titleP1', 'titleP2', 'guessP3'] },
+      posters: { matches: under('/tmdb-img/'), afterAny: ['titleP1', 'titleP2', 'guessP3'], later: true },
     },
   },
   /**
@@ -188,7 +189,7 @@ const CASES: Case[] = [
       newMovies: { matches: (url, method) => get('/tmdb/discover/movie')(url, method) && !url.searchParams.has('vote_count.gte'), after: ['tmdbSetup'] },
       newEpisodes: { matches: get('/tmdb/discover/tv'), after: ['tmdbSetup'] },
       bestOfYear: { matches: (url, method) => get('/tmdb/discover/movie')(url, method) && url.searchParams.has('vote_count.gte'), after: ['tmdbSetup'] },
-      posters: { matches: under('/tmdb-img/'), after: ['newMovies', 'newEpisodes', 'bestOfYear'] },
+      posters: { matches: under('/tmdb-img/'), after: ['newMovies', 'newEpisodes', 'bestOfYear'], later: true },
     },
   },
   /** A search: its results in place of the skeleton, with their count and Show more, then their posters. */
@@ -209,7 +210,7 @@ const CASES: Case[] = [
       ...SESSION,
       movies: { matches: get('/tmdb/search/movie'), after: ['tmdbSetup'] },
       series: { matches: get('/tmdb/search/tv'), after: ['tmdbSetup'] },
-      posters: { matches: under('/tmdb-img/'), after: ['movies', 'series'] },
+      posters: { matches: under('/tmdb-img/'), after: ['movies', 'series'], later: true },
     },
   },
   /** A movie in downloads, with TMDB's recommendations. */

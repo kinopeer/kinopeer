@@ -56,29 +56,26 @@ describe('claimant', () => {
   const none = new Set<string>()
 
   it('gives a request to the only answer it matches', () => {
-    expect(claimant(['torrents'], set(), { repeat: false, polls: none })).toBe('torrents')
+    expect(claimant(['torrents'], set(), none)).toBe('torrents')
   })
 
   it('gives the same address asked twice to each answer in turn, in the chain order', () => {
-    expect(claimant(['tmdbSetup', 'defaults'], set(), { repeat: false, polls: none })).toBe('tmdbSetup')
-    expect(claimant(['tmdbSetup', 'defaults'], set('tmdbSetup'), { repeat: true, polls: none })).toBe('defaults')
+    expect(claimant(['tmdbSetup', 'defaults'], set(), none)).toBe('tmdbSetup')
+    expect(claimant(['tmdbSetup', 'defaults'], set('tmdbSetup'), none)).toBe('defaults')
   })
 
-  it('gives a new address to the last answer once every one was asked: another poster', () => {
-    expect(claimant(['titleP1', 'posters'], set('titleP1', 'posters'), { repeat: false, polls: none })).toBe('posters')
+  it('gives a later request to the last answer once every one was asked, when that answer takes later requests: the next poll, another poster', () => {
+    expect(claimant(['torrents'], set('torrents'), set('torrents'))).toBe('torrents')
+    expect(claimant(['titleP1', 'posters'], set('titleP1', 'posters'), set('posters'))).toBe('posters')
   })
 
-  it('gives an address asked again to the last answer once every one was asked, when that answer polls', () => {
-    expect(claimant(['torrents'], set('torrents'), { repeat: true, polls: set('torrents') })).toBe('torrents')
-  })
-
-  it('gives an address asked again beyond the answers that claim it to none, when the last does not poll', () => {
-    expect(claimant(['tmdbSetup', 'defaults'], set('tmdbSetup', 'defaults'), { repeat: true, polls: none })).toBeUndefined()
-    expect(claimant(['tmdbSetup', 'defaults'], set('tmdbSetup', 'defaults'), { repeat: true, polls: set('tmdbSetup') })).toBeUndefined()
+  it('gives a request beyond the answers that claim it to none, when the last takes no later ones', () => {
+    expect(claimant(['tmdbSetup', 'defaults'], set('tmdbSetup', 'defaults'), none)).toBeUndefined()
+    expect(claimant(['tmdbSetup', 'defaults'], set('tmdbSetup', 'defaults'), set('tmdbSetup'))).toBeUndefined()
   })
 
   it('gives a request no answer matches to none', () => {
-    expect(claimant([], set('torrents'), { repeat: false, polls: none })).toBeUndefined()
+    expect(claimant([], set('torrents'), set('torrents'))).toBeUndefined()
   })
 })
 
