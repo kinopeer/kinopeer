@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
+import { expect, test } from './test.ts'
 import { DESKTOP, openApp, settle, showWholePage, type AppOptions } from './app.ts'
 import { LONG_OVERVIEW_ID } from './fixtures.ts'
 

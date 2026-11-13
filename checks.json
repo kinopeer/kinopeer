@@ -1,6 +1,6 @@
 {
   "coverage": {
-    "include": ["src/**/*.{ts,tsx}", "server/**/*.ts", "tmdb-proxy/**/*.ts", "scripts/guard/**/*.ts", "scripts/size/**/*.ts", "scripts/requests/**/*.ts", "scripts/layout-shift/**/*.ts"],
+    "include": ["src/**/*.{ts,tsx}", "server/**/*.ts", "tmdb-proxy/**/*.ts", "scripts/guard/**/*.ts", "scripts/size/**/*.ts", "scripts/requests/**/*.ts", "scripts/layout-shift/**/*.ts", "scripts/accessibility/**/*.ts"],
     "exclude": [
       "**/*.test.{ts,tsx}",
       "src/test/**",
@@ -14,7 +14,7 @@
     "thresholds": { "lines": 96, "statements": 95, "functions": 95, "branches": 93 }
   },
   "mutants": {
-    "folders": ["src", "server", "tmdb-proxy", "scripts/guard", "scripts/size", "scripts/requests", "scripts/layout-shift"],
+    "folders": ["src", "server", "tmdb-proxy", "scripts/guard", "scripts/size", "scripts/requests", "scripts/layout-shift", "scripts/accessibility"],
     "notProduction": ["\\.test\\.tsx?$", "/test/", "\\.d\\.ts$", "^src/test-setup\\.ts$"],
     "excludedMutations": ["StringLiteral", "ArrayDeclaration", "ObjectLiteral", "OptionalChaining"]
   },
@@ -26,6 +26,125 @@
       "desktop": { "downloads": 0.02, "torrent": 0.02, "browse": 0.01, "search": 0.01, "search-year": 0.01, "title": 0.02, "series": 0.02, "releases": 0.01, "settings": 0.01 },
       "desktop-rail": { "releases": 0.04 },
       "desktop-1280": { "releases": 0.03 }
+    },
+    "accessibilityTags": ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"],
+    "accessibility": {
+      "downloads": {
+        "alt-speed-on-dark-ru": {},
+        "desktop-alt-speed-on-dark-ru": { "label-content-name-mismatch": 1 },
+        "desktop-card-hover-dark-ru": { "label-content-name-mismatch": 1 },
+        "desktop-grid-dark-ru": { "label-content-name-mismatch": 1 },
+        "desktop-grid-light-en": { "label-content-name-mismatch": 1 },
+        "desktop-grid-safe-area-dark-ru": { "label-content-name-mismatch": 1 },
+        "desktop-list-dark-ru": { "label-content-name-mismatch": 1 },
+        "desktop-list-install-card-dark-ru": { "label-content-name-mismatch": 1 },
+        "desktop-list-scrolled-dark-ru": { "label-content-name-mismatch": 1 },
+        "desktop-menu-dark-ru": { "label-content-name-mismatch": 1 },
+        "desktop-offline-dark-ru": { "label-content-name-mismatch": 1 },
+        "desktop-offline-unreached-dark-ru": { "label-content-name-mismatch": 1 },
+        "desktop-select-dark-ru": { "color-contrast": 3, "label-content-name-mismatch": 1 },
+        "desktop-sort-dark-ru": { "label-content-name-mismatch": 1 },
+        "desktop-speed-limits-keyboard-dark-ru": {},
+        "empty-dark-ru": {},
+        "full-hd-list-dark-ru": { "label-content-name-mismatch": 1 },
+        "full-hd-sorted-dark-ru": { "label-content-name-mismatch": 1 },
+        "grid-actions-dark-ru": {},
+        "grid-dark-ru": {},
+        "grid-scrolled-safe-area-dark-ru": {},
+        "labelled-list-dark-ru": { "label-content-name-mismatch": 1 },
+        "list-dark-ru": {},
+        "list-light-en": {},
+        "list-scrolled-dark-ru": { "target-size": 1 },
+        "move-dark-ru": {},
+        "move-keyboard-dark-ru": {},
+        "narrow-light-en": {},
+        "offline-dark-ru": {},
+        "offline-unreached-dark-ru": {},
+        "rail-alt-speed-on-dark-ru": { "label-content-name-mismatch": 1 },
+        "rail-status-dark-ru": { "label-content-name-mismatch": 1 },
+        "select-grid-dark-ru": {},
+        "select-list-dark-ru": { "color-contrast": 7 },
+        "series-dark-ru": { "label-content-name-mismatch": 1 },
+        "sort-dark-ru": {},
+        "speed-limits-dark-ru": {},
+        "speed-limits-keyboard-dark-ru": {},
+        "tablet-list-dark-ru": {},
+        "unreachable-unreached-dark-ru": {}
+      },
+      "onboarding": {
+        "connect-invalid-dark-ru": {},
+        "connect-unreached-dark-ru": {},
+        "desktop-connect-dark-ru": {},
+        "desktop-connect-unreached-dark-ru": {},
+        "desktop-tmdb-key-dark-ru": {}
+      },
+      "overlays": {
+        "desktop-add-dark-ru": {},
+        "desktop-add-files-dark-ru": {},
+        "desktop-delete-dark-ru": {}
+      },
+      "releases": {
+        "add-dark-ru": {},
+        "add-files-dark-ru": {},
+        "add-low-space-dark-ru": {},
+        "desktop-failing-indexers-collapsed-dark-ru": { "label-content-name-mismatch": 1 },
+        "desktop-failing-indexers-dark-ru": { "label-content-name-mismatch": 1 },
+        "desktop-list-dark-ru": { "label-content-name-mismatch": 1 },
+        "desktop-none-dark-ru": { "label-content-name-mismatch": 1 },
+        "desktop-popover-dark-ru": { "label-content-name-mismatch": 1 },
+        "desktop-remembered-dark-ru": { "label-content-name-mismatch": 1 },
+        "desktop-searching-dark-ru": { "label-content-name-mismatch": 1 },
+        "desktop-sorted-dark-ru": { "label-content-name-mismatch": 1 },
+        "failing-indexers-dark-ru": {},
+        "failing-indexers-named-dark-ru": {},
+        "failing-indexers-none-dark-ru": {},
+        "filters-dark-ru": {},
+        "list-dark-ru": {},
+        "rail-list-dark-ru": { "label-content-name-mismatch": 1 },
+        "remembered-dark-ru": {}
+      },
+      "search": {
+        "browse-dark-ru": {},
+        "desktop-browse-dark-ru": {},
+        "desktop-no-results-dark-ru": {},
+        "desktop-results-dark-ru": {},
+        "desktop-results-scrolled-dark-ru": {},
+        "narrow-year-results-dark-ru": {},
+        "rail-results-scrolled-dark-ru": {},
+        "results-dark-ru": {},
+        "results-more-failed-dark-ru": {},
+        "results-scrolled-safe-area-dark-ru": {}
+      },
+      "settings": {
+        "desktop-dark-ru": {},
+        "rail-dark-ru": {},
+        "settings-dark-ru": {},
+        "settings-error-dark-ru": {},
+        "settings-no-indexers-dark-ru": {}
+      },
+      "title": {
+        "desktop-long-overview-dark-ru": { "label-content-name-mismatch": 1 },
+        "desktop-long-overview-open-dark-ru": { "label-content-name-mismatch": 1 },
+        "desktop-movie-dark-ru": { "label-content-name-mismatch": 1 },
+        "desktop-series-dark-ru": { "label-content-name-mismatch": 1 },
+        "movie-dark-ru": { "label-content-name-mismatch": 1 },
+        "series-dark-ru": { "label-content-name-mismatch": 1 },
+        "series-scrolled-dark-ru": { "label-content-name-mismatch": 1 }
+      },
+      "torrent": {
+        "category-dark-ru": {},
+        "change-title-dark-ru": {},
+        "desktop-drawer-dark-ru": { "label-content-name-mismatch": 1 },
+        "desktop-drawer-no-title-dark-ru": { "label-content-name-mismatch": 1 },
+        "desktop-drawer-no-title-menu-dark-ru": { "label-content-name-mismatch": 1 },
+        "desktop-drawer-over-title-dark-ru": { "label-content-name-mismatch": 1 },
+        "error-dark-ru": { "label-content-name-mismatch": 1 },
+        "guess-dark-ru": { "label-content-name-mismatch": 1 },
+        "no-title-dark-ru": { "label-content-name-mismatch": 1 },
+        "no-title-light-ru": { "label-content-name-mismatch": 1 },
+        "no-title-menu-dark-ru": {},
+        "series-dark-ru": { "color-contrast": 1, "label-content-name-mismatch": 1 }
+      }
     },
     "requests": {
       "phone": {

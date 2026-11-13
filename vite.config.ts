@@ -154,7 +154,7 @@ export default defineConfig(({ mode }) => {
         },
         {
           extends: true,
-          test: { name: 'server', include: ['server/**/*.test.ts', 'tmdb-proxy/**/*.test.ts', 'scripts/guard/**/*.test.ts', 'scripts/size/**/*.test.ts', 'scripts/requests/**/*.test.ts', 'scripts/layout-shift/**/*.test.ts', 'vite.config.test.ts'], environment: 'node' },
+          test: { name: 'server', include: ['server/**/*.test.ts', 'tmdb-proxy/**/*.test.ts', 'scripts/guard/**/*.test.ts', 'scripts/size/**/*.test.ts', 'scripts/requests/**/*.test.ts', 'scripts/layout-shift/**/*.test.ts', 'scripts/accessibility/**/*.test.ts', 'vite.config.test.ts'], environment: 'node' },
         },
       ],
       // `npm run test:coverage`: a table in the terminal and coverage/index.html; CI runs the same.
