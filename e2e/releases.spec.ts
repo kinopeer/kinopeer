@@ -24,10 +24,17 @@ test.describe('releases, phone', () => {
     await expect(page).toHaveScreenshot('remembered-dark-ru.png')
   })
 
+  // In the count's line, which has to stay on one line at a phone's width; the names on a tap.
   test('some indexers didn’t answer', async ({ page }) => {
     await openReleases(page, { failingIndexers: ['Indexer C', 'Indexer D'] })
-    await expect(page.getByRole('status')).toHaveText('2 индексатора не ответили: Indexer C, Indexer D')
+    const failed = page.getByRole('button', { name: '2 индексатора не ответили' })
+    await expect(failed).toBeVisible()
     await expect(page).toHaveScreenshot('failing-indexers-dark-ru.png')
+
+    await failed.click()
+    await expect(page.getByText('Indexer C, Indexer D')).toBeVisible()
+    await settle(page)
+    await expect(page).toHaveScreenshot('failing-indexers-named-dark-ru.png')
   })
 
   test('some indexers didn’t answer and nothing was found', async ({ page }) => {
@@ -93,9 +100,12 @@ test.describe('releases, desktop', () => {
     await expect(page).toHaveScreenshot('desktop-remembered-dark-ru.png')
   })
 
-  test('some indexers didn’t answer', async ({ page }) => {
+  test('some indexers didn’t answer, named', async ({ page }) => {
     await findReleases(page, { failingIndexers: ['Indexer C', 'Indexer D'] })
-    await expect(page.getByRole('status')).toHaveText('2 индексатора не ответили: Indexer C, Indexer D')
+    await page.getByRole('button', { name: '2 индексатора не ответили' }).click()
+    await expect(page.getByText('Indexer C, Indexer D')).toBeVisible()
+    await page.mouse.move(0, 0)
+    await settle(page)
     await expect(page).toHaveScreenshot('desktop-failing-indexers-dark-ru.png')
   })
 

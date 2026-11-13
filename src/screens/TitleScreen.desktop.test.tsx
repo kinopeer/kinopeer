@@ -12,7 +12,7 @@ import { restoreLayout, stubLayout } from '../lib/stubLayout'
 import i18n from '../i18n'
 import { resetSettings, updateSettings } from '../settings/settings'
 import { DUNE_RELEASES, release } from '../test/fixtures'
-import { Where, renderWithRouter, saying, where } from '../test/render'
+import { Where, renderWithRouter, where } from '../test/render'
 import { resetServerMatches } from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/titleMatches'
 import { TitleRoute } from './TitleScreen'
@@ -138,7 +138,9 @@ describe('TitleScreen on desktop', () => {
     vi.mocked(prowlarr.getFailingIndexers).mockResolvedValue(['Indexer B'])
     renderAt('/title/movie/693134/releases')
     const section = await screen.findByRole('region', { name: 'Releases' })
-    expect(await within(section).findByRole('status', { name: saying(/Indexer B/) })).toBeInTheDocument()
+    // In the count's line beside the section's heading, named on a tap.
+    await userEvent.click(await within(section).findByRole('button', { name: '1 indexer didn’t answer' }))
+    expect(within(section).getByText('Indexer B')).toBeInTheDocument()
   })
 
   it('keeps the recommendations on the page with the releases searched', async () => {

@@ -20,7 +20,7 @@ import type { TitleDetails as Details } from '../releases/releaseQuery'
 import { useTmdbLanguage } from '../settings/settings'
 import { IndexerLink } from './IndexerLink'
 import { ReleaseName } from './ReleaseName'
-import { AddingRelease, ReleasesBody } from './ReleasesBlock'
+import { AddingRelease, ReleasesBody, ReleasesCount } from './ReleasesBlock'
 import { AUDIO_LABEL, SORT_LABEL, useReleases } from './useReleases'
 import './ReleasesScreen.css'
 
@@ -69,6 +69,7 @@ export function ReleasesScreen() {
     body = (
       <ReleasesBody
         releases={releases}
+        countInList
         skeleton={
           <div className="rel-list">
             {Array.from({ length: 4 }, (_, index) => (
@@ -81,9 +82,7 @@ export function ReleasesScreen() {
           </div>
         }
       >
-        <p className="t-cap c3 ks-num rel-count" aria-live="polite">
-          {t('releases.count', { shown: visible.length, count: releases.rows.length })}
-        </p>
+        <ReleasesCount releases={releases} />
         <ul className="rel-list">
           {visible.map((row) => (
             <li key={row.release.id}>
@@ -108,6 +107,15 @@ export function ReleasesScreen() {
             {name && <p className="t-cap c3 ks-trunc">{[name, year].filter(Boolean).join(' · ')}</p>}
           </div>
         </div>
+        {/* The row is there from the start, a skeleton of it while the search runs, so the results
+            don't push the list down as they come (#393). */}
+        {loading && (
+          <div className="rel-chips rel-chips-skel" aria-hidden="true">
+            {[104, 116, 128, 104, 112].map((width, index) => (
+              <div key={index} className="ks-skel rel-chip-skel" style={{ width }} />
+            ))}
+          </div>
+        )}
         {ready && (
           <div className="rel-chips ks-hscroll">
             <FilterChip solid icon="filter" selected={active.length > 0} count={active.length || undefined} onClick={() => setSheetOpen(true)}>

@@ -226,17 +226,16 @@ describe('ReleasesScreen', () => {
     vi.mocked(prowlarr.getFailingIndexers).mockReturnValue(new Promise((resolve) => (answer = resolve)))
     renderAt('/title/movie/693134/releases')
     expect(await screen.findAllByRole('article')).toHaveLength(DUNE_RELEASES.length)
-    // The live region is there, empty, before the answer, so a screen reader announces the note.
-    const note = screen.getByRole('status')
-    expect(note).toBeEmptyDOMElement()
+    const count = screen.getByText('3 of 3 releases')
     // Asked once the search answered, with how long ago it started. The request starts in an effect,
     // which can run after the list shows, so wait for it.
     await waitFor(() => expect(prowlarr.getFailingIndexers).toHaveBeenCalledWith(3000, expect.any(AbortSignal)))
 
     // Indexer D's releases are in this search's results: its failure was another client's query.
     answer(['Indexer B', 'Indexer D'])
-    await waitFor(() => expect(note).toHaveTextContent('Indexer B'))
-    expect(note).not.toHaveTextContent('Indexer D')
+    const failed = await within(count).findByRole('button', { name: '1 indexer didn’t answer' })
+    await userEvent.click(failed)
+    expect(document.getElementById(failed.getAttribute('aria-controls')!)).toHaveTextContent(/^Indexer B$/)
   })
 
   it('still lists releases when it can’t tell which indexers failed', async () => {
@@ -250,7 +249,8 @@ describe('ReleasesScreen', () => {
 
     await act(async () => fail(new prowlarr.ProwlarrError('down', 502, 'upstream')))
     expect(screen.getAllByRole('article')).toHaveLength(DUNE_RELEASES.length)
-    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+    expect(screen.getByText('3 of 3 releases')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /didn’t answer/ })).not.toBeInTheDocument()
   })
 
   it('says when Prowlarr fails', async () => {

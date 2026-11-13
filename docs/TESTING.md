@@ -1067,12 +1067,10 @@ has the budgets' rule.
 | `search-year` | TMDB's search for movies and for series, at once; the posters once both are in | The results, together, in place of the skeleton; their posters | Titles found |
 | `title` | The details, the torrents and the matches at once; the poster and the recommendations once the details are in, their posters after them; the guess of the untagged torrent's title, since the tagged ones' titles are known without TMDB (#381) | The page in place of its skeleton; the poster; the "In downloads" badge and block, once the details and the torrents are both in; the recommendations row | A movie in downloads, with recommendations. Its budget, 0.09, is #394's jump (the badge and the block coming in after the details: 0.0878 in CI), which the fix lowers |
 | `series` | As `title`; similar titles once the recommendations come back empty | As `title`, with the series hint and similar titles in place of recommendations | A series in downloads, with similar titles. Its budget, 0.09, is #394's jump (0.0818 in CI) |
-| `releases` | The series' details; Prowlarr's search; which indexers failed during it | The title and year under the heading; the chips and the releases in place of the skeleton; the note naming indexers that failed | Every indexer answered. Its budget, 0.07, is #393's jump (the chips coming in above the list with it: 0.0647 in CI), which the fix lowers |
+| `releases` | The series' details; Prowlarr's search; which indexers failed during it | The title and year under the heading; the chips and the releases in place of their skeletons; how many indexers didn't answer, in the count's line | Every indexer answered; one indexer didn't answer |
 | `settings` | Settings' own load of the server's settings, the checks of qBittorrent, Prowlarr and TMDB at once; the categories once qBittorrent's check is in | None: every row is there from the first paint, and the answers change only what the rows say and the category selects' options | Every service answers |
 
-- **What it leaves out.** A release search with an indexer that failed (#393): the note above the
-  list moves it by 0.1167 in both orders, over the ceiling, so its case comes with the fix. Moves
-  between screens by a click: the screens are opened by their address. The app with motion on.
+- **What it leaves out.** Moves between screens by a click: the screens are opened by their address. The app with motion on.
   Empty and "not answering" states, and the other states the screenshot tests open (other
   torrents' pages beside these three, a search that finds nothing, onboarding). Desktop, which comes
   in the next step of #378. A title the server's matches already hold (the user's choice, or a
@@ -1096,4 +1094,4 @@ has the budgets' rule.
   case, one per title, that would have to be kept in step with the app's batching.
 - **The hole under a carried jump.** One budget covers both orders of a screen. Until #394 is
   fixed, a new shift of up to 0.09 passes on the title's and the series' page in the order that
-  reads 0 on a Mac and 0.0002 in CI today; until #393 is, one of up to 0.005 passes on the releases, in either order.
+  reads 0 on a Mac and 0.0002 in CI today.

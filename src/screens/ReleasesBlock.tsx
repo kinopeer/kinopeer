@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { Banner } from '../components/Banner'
@@ -6,6 +6,7 @@ import { Button } from '../components/Button'
 import { EmptyState } from '../components/EmptyState'
 import { FilterChip } from '../components/FilterChip'
 import { formatList } from '../i18n/formatList'
+import { cx } from '../lib/cx'
 import type { TitleDetails } from '../releases/releaseQuery'
 import { AddReleaseSheet } from './AddReleaseSheet'
 import type { Releases } from './useReleases'
@@ -16,13 +17,19 @@ export interface ReleasesBodyProps {
   skeleton: ReactNode
   /** The releases the filters let through, shown when there are any. */
   children: ReactNode
+  /**
+   * The count's line (`ReleasesCount`), which says which indexers didn't answer, is in `children`, so
+   * it's gone when the filters let nothing through: say it in a banner there instead.
+   */
+  countInList?: boolean
 }
 
 /**
  * The search's states (loading, Prowlarr not set up or unreachable, nothing found, nothing matches
- * the filters) around the list of releases, with the picked filters above it.
+ * the filters) around the list of releases, with the picked filters above it. With results, the
+ * count's line says which indexers didn't answer (`ReleasesCount`); with none, a banner does.
  */
-export function ReleasesBody({ releases, skeleton, children }: ReleasesBodyProps) {
+export function ReleasesBody({ releases, skeleton, children, countInList = false }: ReleasesBodyProps) {
   const { t } = useTranslation()
   switch (releases.status) {
     case 'setup':
@@ -54,12 +61,13 @@ export function ReleasesBody({ releases, skeleton, children }: ReleasesBodyProps
         </>
       )
   }
+  const shown = releases.visible.length > 0
   return (
     <>
-      <FailingIndexers releases={releases} />
+      {countInList && !shown && <FailingIndexers releases={releases} />}
       <SetAsideFilters releases={releases} />
       <ActiveFilters releases={releases} />
-      {releases.visible.length > 0 ? (
+      {shown ? (
         children
       ) : (
         <EmptyState icon="filter" tone="muted" title={t('common.noMatchTitle')} actionLabel={t('common.resetFilters')} onAction={releases.clearFilters}>
@@ -71,9 +79,43 @@ export function ReleasesBody({ releases, skeleton, children }: ReleasesBodyProps
 }
 
 /**
- * A quiet note that some indexers didn't answer, so their releases are missing. The names come after
- * the results, so the live region is there, empty, from the start: screen readers announce a change
- * inside a region, often not a region that appears with its text.
+ * How many releases the filters show of how many were found, and how many indexers didn't answer,
+ * which a tap names. The failed indexers are known only after the results, so they're said in this
+ * line, there with the results, rather than in a note above the list that would push it down as it
+ * came (#393). The line is a live region, so a screen reader announces them as they come.
+ */
+export function ReleasesCount({ releases, className }: { releases: Releases; className?: string }) {
+  const { t, i18n } = useTranslation()
+  const [open, setOpen] = useState(false)
+  const id = useId()
+  const { failing } = releases
+  return (
+    <div className={cx('rel-count', className)}>
+      <p className="t-cap c3 ks-num" aria-live="polite">
+        {t('releases.count', { shown: releases.visible.length, count: releases.rows.length })}
+        {failing.length > 0 && (
+          <>
+            {' · '}
+            <button type="button" className="rel-failing" aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)}>
+              {t('releases.failingCount', { count: failing.length })}
+            </button>
+          </>
+        )}
+      </p>
+      {open && failing.length > 0 && (
+        <p id={id} className="t-cap c2">
+          {formatList(failing, i18n, 'narrow')}
+        </p>
+      )}
+    </div>
+  )
+}
+
+/**
+ * A quiet note that some indexers didn't answer, so their releases are missing, where there's no
+ * count's line to say it. The names come after the search's answer, so the live region is there,
+ * empty, from the start: screen readers announce a change inside a region, often not a region that
+ * appears with its text.
  */
 function FailingIndexers({ releases }: { releases: Releases }) {
   const { t, i18n } = useTranslation()
