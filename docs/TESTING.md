@@ -1004,8 +1004,8 @@ has the budgets' rule.
   page asks in, not from how fast it asked: the choice is the same every run. A chain whose every
   answer waits for the one before it can't give two orders, and runs once (`orders`); every chain
   today has a point with two answers out (the download defaults beside the screen's first), so
-  every case runs twice. The orders do differ where it matters: a movie's page reads 0 when the
-  torrents land before the details and 0.0877 the other way (#394).
+  every case runs twice. The orders do differ where it matters: a movie's page reads 0.0002 in CI
+  when the torrents land before the details and 0.0878 the other way (#394).
 - **Nothing lands unheld.** A request no answer of the case is lands, and fails the test with its
   method and address: a screen that starts asking for more brings its case along.
 - **What the reading counts.** Every `layout-shift` entry, with the elements that moved and their
@@ -1044,9 +1044,9 @@ has the budgets' rule.
 | `browse` | Three Discover queries at once; the posters once all three are in | The three rows, together, in place of the skeleton; their posters | Rows of titles |
 | `search` | TMDB's search; the posters | The results with their count and Show more, in place of the skeleton; their posters | Titles found |
 | `search-year` | TMDB's search for movies and for series, at once; the posters once both are in | The results, together, in place of the skeleton; their posters | Titles found |
-| `title` | The details, the torrents and the matches at once; the poster and the recommendations once the details are in, their posters after them; the three torrents' titles, as on `downloads` | The page in place of its skeleton; the poster; the "In downloads" badge and block, once the details and the torrents are both in; the recommendations row | A movie in downloads, with recommendations. Its budget, 0.09, is #394's jump (the badge and the block coming in after the details: 0.0877), which the fix lowers |
-| `series` | As `title`; similar titles once the recommendations come back empty | As `title`, with the series hint and similar titles in place of recommendations | A series in downloads, with similar titles. Its budget, 0.09, is #394's jump (0.0817) |
-| `releases` | The series' details; Prowlarr's search; which indexers failed during it | The title and year under the heading; the chips and the releases in place of the skeleton; the note naming indexers that failed | Every indexer answered. Its budget, 0.07, is #393's jump (the chips coming in above the list with it: 0.0645), which the fix lowers |
+| `title` | The details, the torrents and the matches at once; the poster and the recommendations once the details are in, their posters after them; the three torrents' titles, as on `downloads` | The page in place of its skeleton; the poster; the "In downloads" badge and block, once the details and the torrents are both in; the recommendations row | A movie in downloads, with recommendations. Its budget, 0.09, is #394's jump (the badge and the block coming in after the details: 0.0878 in CI), which the fix lowers |
+| `series` | As `title`; similar titles once the recommendations come back empty | As `title`, with the series hint and similar titles in place of recommendations | A series in downloads, with similar titles. Its budget, 0.09, is #394's jump (0.0818 in CI) |
+| `releases` | The series' details; Prowlarr's search; which indexers failed during it | The title and year under the heading; the chips and the releases in place of the skeleton; the note naming indexers that failed | Every indexer answered. Its budget, 0.07, is #393's jump (the chips coming in above the list with it: 0.0647 in CI), which the fix lowers |
 | `settings` | Settings' own load of the server's settings, the checks of qBittorrent, Prowlarr and TMDB at once; the categories once qBittorrent's check is in | None: every row is there from the first paint, and the answers change only what the rows say and the category selects' options | Every service answers |
 
 - **What it leaves out.** A release search with an indexer that failed (#393): the note above the
