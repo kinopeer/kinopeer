@@ -89,7 +89,7 @@ export function ReleasesCount({ releases }: { releases: Releases }) {
   const [openFor, setOpenFor] = useState<string[] | null>(null)
   const id = useId()
   const { failing } = releases
-  const open = failing.length > 0 && openFor === failing
+  const open = openFor === failing
   return (
     <div className="rel-count">
       <p className="t-cap c3 ks-num" aria-live="polite">

@@ -144,6 +144,8 @@ describe('TitleScreen on desktop', () => {
     expect(within(section).getByRole('status', { name: saying('Searching releases') })).toBeInTheDocument()
     // Skeletons are decorative: only their class finds them.
     expect(container.querySelectorAll('.title-rel-bar .rel-chip-skel')).toHaveLength(4)
+    // One bar: the room kept with nothing to filter is not there too.
+    expect(container.querySelectorAll('.title-rel-bar')).toHaveLength(1)
     expect(within(section).queryByRole('button', { name: 'Min seeds' })).not.toBeInTheDocument()
     expect(within(section).queryByText(/ of \d+ releases?$/)).not.toBeInTheDocument()
     await userEvent.click(within(section).getByRole('radio', { name: 'Size' }))
@@ -153,6 +155,7 @@ describe('TitleScreen on desktop', () => {
     expect(within(section).getByText('3 of 3 releases')).toBeInTheDocument()
     expect(within(section).getByRole('button', { name: 'Min seeds' })).toBeInTheDocument()
     expect(container.querySelectorAll('.rel-chip-skel')).toHaveLength(0)
+    expect(container.querySelectorAll('.title-rel-bar')).toHaveLength(1)
     // Sorted by the size picked while it ran, largest first.
     expect(names()).toEqual([DUNE_RELEASES[0].title, DUNE_RELEASES[1].title, DUNE_RELEASES[2].title])
   })
