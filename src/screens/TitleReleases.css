@@ -30,6 +30,12 @@
   border-bottom: 1px solid var(--border);
 }
 
+/* The bar's room with nothing in it: the height of its tallest item, the sort's Segmented. */
+.title-rel-bar-room {
+  min-height: calc(38px + 2 * var(--space-1) + 2px); /* a Segmented button (Segmented.css), its padding and its 1px border */
+  box-sizing: content-box;
+}
+
 /* A filter's popover: its name over the values. */
 .title-rel-pop {
   width: 320px;

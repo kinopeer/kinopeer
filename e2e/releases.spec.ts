@@ -113,6 +113,17 @@ test.describe('releases, desktop', () => {
     await expect(page).toHaveScreenshot('desktop-searching-dark-ru.png')
   })
 
+  // Nothing found: the bar's room kept, empty, over the empty state, so it doesn't move up (#393).
+  test('nothing found', async ({ page }) => {
+    await openApp(page, '/title/tv/126308', { noReleases: true })
+    await page.getByRole('button', { name: 'Найти раздачи' }).click()
+    await expect(page.getByRole('heading', { name: 'Раздачи не найдены' })).toBeVisible()
+    // Off the button just pressed, so it doesn't show its hover state.
+    await page.mouse.move(0, 0)
+    await settle(page)
+    await expect(page).toHaveScreenshot('desktop-none-dark-ru.png')
+  })
+
   // The count's line beside the heading, as it comes; then the names under it on a tap.
   test('some indexers didn’t answer, named', async ({ page }) => {
     await findReleases(page, { failingIndexers: ['Indexer C', 'Indexer D'] })

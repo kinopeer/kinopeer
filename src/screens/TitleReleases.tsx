@@ -78,7 +78,8 @@ export function TitleReleases({ details, sectionRef }: TitleReleasesProps) {
       </div>
 
       {/* The bar is there from the start, skeletons of the filters while the search runs, so the
-          results don't push the table down as they come (#393). */}
+          results don't push the table down as they come (#393); with nothing to filter, its room
+          stays, empty, so what's said instead doesn't move up either. */}
       {status === 'loading' && (
         <div className="title-rel-bar">
           {[120, 104, 116, 132].map((width, index) => (
@@ -87,6 +88,7 @@ export function TitleReleases({ details, sectionRef }: TitleReleasesProps) {
           {sorting}
         </div>
       )}
+      {status !== 'loading' && status !== 'ready' && <div className="title-rel-bar title-rel-bar-room" aria-hidden="true" />}
       {status === 'ready' && (
         <div className={open ? 'title-rel-bar is-open' : 'title-rel-bar'}>
           {resolutions.length > 0 && (

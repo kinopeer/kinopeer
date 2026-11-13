@@ -170,16 +170,18 @@ const titlePage = (name: string, type: string, id: number, complete: Shown, rela
  * The releases screen's answers (ReleasesScreen): the series' details, then Prowlarr's search, then
  * which indexers failed during it, which the count's line says once it has answered (#393).
  */
-const releasesPage = (name: string, failingIndexers: string[] = []): Case => ({
+const releasesPage = (name: string, failingIndexers: string[] = [], noReleases = false): Case => ({
   screen: 'releases',
   name,
-  app: { failingIndexers },
-  complete: all(
-    text('Сёгун · 2024'),
-    (page) => expect(page.getByRole('button', { name: 'Добавить в загрузки' }).first()).toBeVisible(),
-    // With none failed, the last answer shows nothing: the results are the last state.
-    ...(failingIndexers.length ? [(page: Page) => expect(page.getByRole('button', { name: /не ответил/ })).toBeVisible()] : []),
-  ),
+  app: { failingIndexers, noReleases },
+  complete: noReleases
+    ? all(text('Сёгун · 2024'), text('Раздачи не найдены'))
+    : all(
+        text('Сёгун · 2024'),
+        (page) => expect(page.getByRole('button', { name: 'Добавить в загрузки' }).first()).toBeVisible(),
+        // With none failed, the last answer shows nothing: the results are the last state.
+        ...(failingIndexers.length ? [(page: Page) => expect(page.getByRole('button', { name: /не ответил/ })).toBeVisible()] : []),
+      ),
   answers: {
     ...SESSION,
     details: { matches: get('/tmdb/tv/126308'), after: ['tmdbSetup'] },
@@ -284,6 +286,8 @@ const CASES: Case[] = [
   releasesPage('every indexer answered'),
   /** Releases found, one indexer didn't answer: the count's line says so, where a note above the list moved it (#393). */
   releasesPage('an indexer didn’t answer', ['Indexer C']),
+  /** Nothing found: the filters' row keeps its room, empty, over the empty state, where it went away and moved it up (#393's review). */
+  releasesPage('nothing found', [], true),
   /**
    * Settings: every row is there from its first paint, and the checks only change what the rows say
    * (Connections, About) and fill the category selects.

@@ -1067,11 +1067,11 @@ has the budgets' rule.
 | `search-year` | TMDB's search for movies and for series, at once; the posters once both are in | The results, together, in place of the skeleton; their posters | Titles found |
 | `title` | The details, the torrents and the matches at once; the poster and the recommendations once the details are in, their posters after them; the guess of the untagged torrent's title, since the tagged ones' titles are known without TMDB (#381) | The page in place of its skeleton; the poster; the "In downloads" badge and block, once the details and the torrents are both in; the recommendations row | A movie in downloads, with recommendations. Its budget, 0.09, is #394's jump (the badge and the block coming in after the details: 0.0878 in CI), which the fix lowers |
 | `series` | As `title`; similar titles once the recommendations come back empty | As `title`, with the series hint and similar titles in place of recommendations | A series in downloads, with similar titles. Its budget, 0.09, is #394's jump (0.0818 in CI) |
-| `releases` | The series' details; Prowlarr's search; which indexers failed during it | The title and year under the heading; the chips and the releases in place of their skeletons; how many indexers didn't answer, in the count's line | Every indexer answered; one indexer didn't answer |
+| `releases` | The series' details; Prowlarr's search; which indexers failed during it | The title and year under the heading; the chips and the releases in place of their skeletons, or the empty state with the chips' row emptied in place; how many indexers didn't answer, in the count's line | Every indexer answered; one indexer didn't answer; nothing found |
 | `settings` | Settings' own load of the server's settings, the checks of qBittorrent, Prowlarr and TMDB at once; the categories once qBittorrent's check is in | None: every row is there from the first paint, and the answers change only what the rows say and the category selects' options | Every service answers |
 
 - **What it leaves out.** Moves between screens by a click: the screens are opened by their address. The app with motion on.
-  Empty and "not answering" states, and the other states the screenshot tests open (other
+  Empty and "not answering" states but the releases' "nothing found", and the other states the screenshot tests open (other
   torrents' pages beside these three, a search that finds nothing, onboarding). Desktop, which comes
   in the next step of #378. A title the server's matches already hold (the user's choice, or a
   guess another device saved), which is asked for by its id as `p2`'s is. A title's page whose

@@ -157,12 +157,14 @@ describe('TitleScreen on desktop', () => {
     expect(names()).toEqual([DUNE_RELEASES[0].title, DUNE_RELEASES[1].title, DUNE_RELEASES[2].title])
   })
 
-  it('has no filter bar when nothing was found', async () => {
+  it('keeps the filter bar’s room, empty, when nothing was found', async () => {
     searchReleases.mockResolvedValue([])
-    renderAt('/title/movie/693134/releases')
+    const { container } = renderAt('/title/movie/693134/releases')
     const section = await screen.findByRole('region', { name: 'Releases' })
     expect(await within(section).findByRole('heading', { name: 'No releases found' })).toBeInTheDocument()
     expect(within(section).queryByRole('radiogroup', { name: 'Sort' })).not.toBeInTheDocument()
+    // Decorative: only its class finds it.
+    expect(container.querySelector('.title-rel-bar')).toBeEmptyDOMElement()
   })
 
   it('names the indexers that didn’t answer in the releases section', async () => {

@@ -108,12 +108,11 @@ export function ReleasesScreen() {
           </div>
         </div>
         {/* The row is there from the start, a skeleton of it while the search runs, so the results
-            don't push the list down as they come (#393). */}
-        {loading && (
+            don't push the list down as they come, and its room stays, empty, when there's nothing
+            to filter, so the list doesn't move up either (#393). */}
+        {!ready && (
           <div className="rel-chips rel-chips-skel" aria-hidden="true">
-            {[104, 116, 128, 104, 112].map((width, index) => (
-              <div key={index} className="ks-skel rel-chip-skel" style={{ width }} />
-            ))}
+            {loading && [104, 116, 128, 104, 112].map((width, index) => <div key={index} className="ks-skel rel-chip-skel" style={{ width }} />)}
           </div>
         )}
         {ready && (
