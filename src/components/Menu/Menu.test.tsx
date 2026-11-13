@@ -114,14 +114,20 @@ describe('Menu', () => {
     expect(screen.getByRole('menuitem', { name: 'Disabled' })).toHaveAccessibleDescription('Not now')
   })
 
-  it('marks a highlighted item for the accent, and no other', () => {
+  it('marks a highlighted item for the accent and a dangerous one for red, each alone', () => {
     render(
       <>
         <MenuItem highlight>Match title</MenuItem>
+        <MenuItem danger>Delete</MenuItem>
         <MenuItem>Move files</MenuItem>
       </>,
     )
-    expect(screen.getByRole('menuitem', { name: 'Match title' })).toHaveClass('is-highlight')
-    expect(screen.getByRole('menuitem', { name: 'Move files' })).not.toHaveClass('is-highlight')
+    const [highlighted, dangerous, plain] = screen.getAllByRole('menuitem')
+    expect(highlighted).toHaveClass('is-highlight')
+    expect(highlighted).not.toHaveClass('is-danger')
+    expect(dangerous).toHaveClass('is-danger')
+    expect(dangerous).not.toHaveClass('is-highlight')
+    expect(plain).not.toHaveClass('is-highlight')
+    expect(plain).not.toHaveClass('is-danger')
   })
 })
