@@ -1,4 +1,4 @@
-/* Change title sheet: the search stays put while the results scroll. */
+/* The title search (Fix match, Match title): the search stays put while the results scroll. */
 .retitle-sheet .ks-sheet-body {
   display: flex;
   flex-direction: column;

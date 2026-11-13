@@ -15,7 +15,7 @@ interface TitleChoice {
 }
 
 export interface ChangeTitle {
-  /** Opens Change title for a torrent in `torrents`. */
+  /** Opens the title search for a torrent in `torrents`. */
   open: (hash: string) => void
   /** The sheet, for the screen to render. */
   element: ReactNode
