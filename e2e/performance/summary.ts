@@ -20,9 +20,9 @@ export default class RequestsSummary implements Reporter {
   onTestEnd(_test: TestCase, result: TestResult): void {
     for (const attachment of result.attachments) {
       if (!attachment.body) continue
-      const body = JSON.parse(attachment.body.toString('utf8'))
-      if (attachment.name === 'layout shift') this.readings.push(body)
-      else this.measured.get(attachment.name)?.push(body)
+      const parsed = () => JSON.parse(attachment.body!.toString('utf8'))
+      if (attachment.name === 'layout shift') this.readings.push(parsed())
+      else this.measured.get(attachment.name)?.push(parsed())
     }
   }
 

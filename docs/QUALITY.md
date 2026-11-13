@@ -529,7 +529,9 @@ that moves most. Decided on 2026-11-13, in place of one bound of 0.1 for all (SP
 (`scripts/layout-shift/budget.ts`) refuses one, saying so. A screen that moves more has a bug to
 fix, not a budget to raise; until it is fixed, the state that moves is left out of the test with
 its issue named (TESTING → What it leaves out). A budget under the ceiling can still carry a known
-jump, its issue named beside it in TESTING's table, and the fix lowers it.
+jump, its issue named beside it in TESTING's table, and the fix lowers it. Until then the budget
+leaves room under the jump it carries: on `title` and `series` (0.09) a new jump of up to 0.09
+passes in the order that reads 0 today, and on `releases` (0.07) one of up to 0.005 in either.
 
 **What fails**: a reading over its budget, which names each shift with the elements that moved and
 their boxes before and after; a screen of the list without a case or a budget, or a budget for a

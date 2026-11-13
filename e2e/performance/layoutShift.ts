@@ -4,7 +4,7 @@
 // of answers and what each shows. The rules the order follows are in scripts/layout-shift/answers.ts,
 // those the shifts are judged by in scripts/layout-shift/budget.ts.
 import type { Page, Request, Route } from '@playwright/test'
-import { askedEarly, chainProblems, claimant, due, pick, type Chain, type Held, type Link, type Order } from '../../scripts/layout-shift/answers.ts'
+import { askedEarly, chainOf, chainProblems, claimant, due, pick, type Held, type Link, type Order } from '../../scripts/layout-shift/answers.ts'
 import type { Shift } from '../../scripts/layout-shift/budget.ts'
 
 /** What the page keeps: its shifts, or null when the browser doesn't report layout shifts at all. */
@@ -72,6 +72,8 @@ export type Answer = Link & {
    * lands. Given the answers landed so far, for content that needs another answer as well.
    */
   shown?: (page: Page, landed: ReadonlySet<string>) => Promise<void>
+  /** The answer asks the same address again on its own (the torrents' poll): a repeat is its later request, not a request the case doesn't name. */
+  polls?: true
 }
 
 /** What a load found besides the reading: the order the answers landed in and the requests no answer is. */
@@ -79,11 +81,13 @@ export type Landing = { landed: string[]; unnamed: string[] }
 
 /**
  * Holds every request the page sends but the document and the build's own files (`built`), and lets
- * the screen's answers land one at a time, in `order` (scripts/layout-shift/answers.ts): before each,
+ * the screen's answers land one at a time, after the web font's files (the build's, which would land
+ * by the clock and move the text when they did) are in, as a page the service worker serves has them, in `order` (scripts/layout-shift/answers.ts): before each,
  * it waits for every answer the chain says is due to be asked, so what is held when it chooses
  * doesn't depend on how fast the page asked; then it lets the held answer asked first (or last) land,
- * waits for what it shows and for a painted frame. An answer's later requests (the next poll) land
- * as they come once it has. A request that is no answer of the chain lands too, and is named in
+ * waits for what it shows and for a painted frame. An answer's later requests (another poster, the
+ * next poll) land as they come once it has. A request that is no answer of the chain, or the same
+ * address asked again beyond the answers that claim it (`claimant`), lands too, and is named in
  * `unnamed`, which fails the test; one the page sends before its chain says it would fails the load
  * at once, as does an answer due but not asked in `ASKED_LIMIT_MS`.
  *
@@ -96,7 +100,7 @@ export async function holdAnswers(
   order: Order,
   built: ReadonlySet<string>,
 ): Promise<{ land: () => Promise<Landing> }> {
-  const chain: Chain = Object.fromEntries(Object.entries(answers).map(([name, { after, afterAny }]) => [name, { after, afterAny }]))
+  const chain = chainOf(answers)
   const problems = chainProblems(chain)
   if (problems.length > 0) throw new Error(`The screen's chain of answers is wrong:\n${problems.join('\n')}`)
   const held = new Map<string, Route[]>()
@@ -104,6 +108,8 @@ export async function holdAnswers(
   const released = new Set<string>()
   const asked = new Map<string, () => void>()
   const unnamed: string[] = []
+  const addresses = new Set<string>()
+  const polls = new Set(Object.keys(answers).filter((name) => answers[name].polls))
   let requests = 0
   let early: string | undefined
   await page.route(
@@ -112,10 +118,12 @@ export async function holdAnswers(
       const request = route.request()
       if (request.isNavigationRequest()) return route.fallback()
       const url = new URL(request.url())
+      const address = `${request.method()} ${url.pathname}${url.search}`
       const candidates = Object.keys(answers).filter((name) => answers[name].matches(url, request.method()))
-      const name = claimant(candidates, new Set(firstAsked.keys()))
+      const name = claimant(candidates, new Set(firstAsked.keys()), { repeat: addresses.has(address), polls })
+      addresses.add(address)
       if (name === undefined) {
-        unnamed.push(`${request.method()} ${url.pathname}${url.search}`)
+        unnamed.push(address)
         return route.fallback()
       }
       if (released.has(name)) return route.fallback()
@@ -146,6 +154,8 @@ export async function holdAnswers(
   }
   return {
     land: async () => {
+      await page.evaluate(() => Promise.all([...document.fonts].map((face) => face.load())))
+      await painted(page)
       const landed = new Set<string>()
       while (landed.size < Object.keys(answers).length) {
         await Promise.all(due(chain, new Set(firstAsked.keys()), landed).map(askedFor))

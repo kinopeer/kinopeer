@@ -1,7 +1,7 @@
 // The screens the performance tests open by their address: the requests test counts what each asks
 // for (requests.perf.ts), the layout shift test how far each moves as it loads (layoutShift.perf.ts).
-// One list, so a screen added to one test is missed by the other's check that each screen has a
-// budget and every budget a screen.
+// One list, so a screen added for one test is opened by the other too, whose check that each screen
+// has a budget and every budget a screen fails until the screen has its budget there.
 import type { Heading, Loaded } from './page.ts'
 
 /**

@@ -7,7 +7,7 @@
 // (docs/TESTING.md → The layout shift test).
 import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
-import { ORDER_NAMES, orders } from '../../scripts/layout-shift/answers.ts'
+import { chainOf, ORDER_NAMES, orders } from '../../scripts/layout-shift/answers.ts'
 import { judge, readBudgets, uncased, unmatched, type Budgets } from '../../scripts/layout-shift/budget.ts'
 import { torrent } from '../../src/test/fixtures.ts'
 import type { Torrent } from '../../src/api/qbittorrent/types.ts'
@@ -64,6 +64,9 @@ const images =
       )
     await expect.poll(loaded).toBe(true)
   }
+/** The status Connections shows for a service, in its own row: other rows say "Connected" too. */
+const connection = (name: string, status: string | RegExp) => async (page: Page) =>
+  expect(page.getByRole('listitem').filter({ has: page.getByText(name, { exact: true }) }).getByRole('status')).toHaveText(status)
 /** Waits for what `wait` shows only once every one of `answers` has landed: a block that needs them all. */
 const once =
   (answers: string[], wait: (page: Page) => Promise<void>) =>
@@ -88,7 +91,7 @@ const session = (firstPaint: (page: Page) => Promise<void>): Record<string, Answ
  * together once it paints.
  */
 const torrentsAndMatches = (shown?: Answer['shown']): Record<string, Answer> => ({
-  torrents: { matches: get('/qbt/api/v2/sync/maindata'), after: ['tmdbSetup'], shown },
+  torrents: { matches: get('/qbt/api/v2/sync/maindata'), after: ['tmdbSetup'], shown, polls: true },
   matches: { matches: get('/api/matches'), after: ['tmdbSetup'] },
 })
 
@@ -134,7 +137,7 @@ const torrentPage = (name: string, hash: string, title: (page: Page) => Promise<
  * watch next (TitleRelated, under the page's fold), and the torrents with their titles, of which the
  * title's own show in its "In downloads" badge and block once the details are in too.
  */
-const titlePage = (name: string, type: string, id: number, related: Record<string, Answer>): Case => ({
+const titlePage = (name: string, title: string, type: string, id: number, related: Record<string, Answer>): Case => ({
   screen: type === 'movie' ? 'title' : 'series',
   name,
   answers: {
@@ -143,7 +146,7 @@ const titlePage = (name: string, type: string, id: number, related: Record<strin
       matches: get(`/tmdb/${type}/${id}`),
       after: ['tmdbSetup'],
       shown: async (page, landed) => {
-        await heading(name)(page)
+        await heading(title)(page)
         if (landed.has('torrents')) await heading('В загрузках', 2)(page)
       },
     },
@@ -261,11 +264,11 @@ const CASES: Case[] = [
     },
   },
   /** A movie in downloads, with TMDB's recommendations. */
-  titlePage('Дюна: Часть вторая', 'movie', 693134, {
+  titlePage('in downloads, with recommendations', 'Дюна: Часть вторая', 'movie', 693134, {
     recommendations: { matches: get('/tmdb/movie/693134/recommendations'), after: ['details'], shown: heading('Рекомендации', 2) },
   }),
   /** A series in downloads, which TMDB has no recommendations for: similar titles instead, asked once the recommendations come back empty. */
-  titlePage('Сёгун', 'tv', 126308, {
+  titlePage('in downloads, with similar titles', 'Сёгун', 'tv', 126308, {
     recommendations: { matches: get('/tmdb/tv/126308/recommendations'), after: ['details'] },
     similar: { matches: get('/tmdb/tv/126308/similar'), after: ['recommendations'], shown: heading('Похожее', 2) },
   }),
@@ -286,9 +289,9 @@ const CASES: Case[] = [
       // The same address as the session's two: Settings' own load of the server's settings.
       serverSettings: { matches: get('/api/settings'), after: ['tmdbSetup'] },
       // The same address as the session's check: Connections' check of qBittorrent.
-      qbittorrentCheck: { matches: get('/qbt/api/v2/app/version'), after: ['tmdbSetup'], shown: text('Подключено') },
-      prowlarrCheck: { matches: get('/prowlarr/status'), after: ['tmdbSetup'], shown: text('2.0.5.5160') },
-      tmdbCheck: { matches: get('/tmdb/configuration'), after: ['tmdbSetup'] },
+      qbittorrentCheck: { matches: get('/qbt/api/v2/app/version'), after: ['tmdbSetup'], shown: connection('qBittorrent', 'Подключено') },
+      prowlarrCheck: { matches: get('/prowlarr/status'), after: ['tmdbSetup'], shown: connection('Prowlarr', 'Подключено') },
+      tmdbCheck: { matches: get('/tmdb/configuration'), after: ['tmdbSetup'], shown: connection('TMDB', /^Подключено/) },
       categories: { matches: get('/qbt/api/v2/torrents/categories'), after: ['qbittorrentCheck'] },
     },
   },
@@ -302,7 +305,7 @@ test('every screen the list names has a case and a budget, and every budget a sc
 })
 
 for (const { screen, name, path, torrents, answers } of CASES) {
-  for (const order of orders(Object.fromEntries(Object.entries(answers).map(([key, { after, afterAny }]) => [key, { after, afterAny }])))) {
+  for (const order of orders(chainOf(answers))) {
     test(`${screen}, ${name}: ${ORDER_NAMES[order]}`, async ({ page }, testInfo) => {
       expect(BUDGETS, `budgets.layoutShift in checks.json can't be read:\n${[BUDGETS].flat().join('\n')}`).not.toBeInstanceOf(Array)
       await recordLayoutShifts(page)

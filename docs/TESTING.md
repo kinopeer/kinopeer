@@ -987,14 +987,19 @@ has the budgets' rule.
   (`e2e/performance/layoutShift.ts`) holds every request the page sends but the document and the
   build's own files, and lets the case's answers land one at a time, each after the page showed
   what the one before brought (a heading, a link, a poster loaded: the case's `shown`) and painted
-  a frame: every state in between is on the screen for a frame at least, the worst case. An
-  answer's later requests (the next poll) land as they come once it has.
+  a frame: every state in between is on the screen for a frame at least, the worst case. The
+  painted frame is what carries the readings today: with every `shown` skipped they stay the same
+  (tried in #395's review), and the waits are there for content that takes longer than a frame. An
+  answer's later requests (another poster, the next poll) land as they come once it has. The web
+  font's files are the build's and aren't held: the test loads them before the first answer lands,
+  as a page the service worker serves has them, so when they arrive doesn't change a reading.
 - **The chain comes from the code.** Each case names its answers and, for each, the answers the
   page waits for before it asks (`after`, all of them, or `afterAny`, one of them), read from the
   screen's code: the table below. The test holds the chain to the page: a request asked before the
-  answers its chain waits for were let go fails the load at once, naming it, and so does an answer
-  the chain says is due that the page doesn't ask for in 10 s. So a chain that's wrong either way
-  fails rather than reads by chance. The same address asked twice is two answers, in the order
+  answers its chain waits for were let go fails the load at once, in either order, naming it. An
+  answer the chain says is due that the page doesn't ask for in 10 s fails the load too, in the
+  order where the page is still waiting for another answer, which may be only one of the two. So a
+  chain that's wrong fails rather than reads by chance. The same address asked twice is two answers, in the order
   asked (the session's check of the server's settings, then the download defaults' load of them);
   `claimant` in `scripts/layout-shift/answers.ts` decides which a request is.
 - **Two orders, by a rule.** Answers out at the same time land in two orders, each a test: the one
@@ -1007,7 +1012,9 @@ has the budgets' rule.
   every case runs twice. The orders do differ where it matters: a movie's page reads 0.0002 in CI
   when the torrents land before the details and 0.0878 the other way (#394).
 - **Nothing lands unheld.** A request no answer of the case is lands, and fails the test with its
-  method and address: a screen that starts asking for more brings its case along.
+  method and address: a screen that starts asking for more brings its case along. So does the same
+  method and address asked again beyond the answers that claim it, but for the torrents' poll
+  (`polls`), which asks the same address every 2 s.
 - **What the reading counts.** Every `layout-shift` entry, with the elements that moved and their
   boxes in the viewport before and after (`y/height`), those within 500 ms of a click or a key
   press too, which web-vitals leaves out: the failure marks them "after input", and a screen
@@ -1022,7 +1029,7 @@ has the budgets' rule.
 - **Exact.** Every case in each order read the same number in every run, to the fourth digit: ten
   runs in a row locally (macOS) and in CI (Linux). In CI every reading has 0.0002 more than on a
   Mac, which varies in its sixth digit (0.000179 or 0.000183): the "Connecting" text, before any
-  screen, moves sideways as the font loads, in one shift or two. The budgets come from CI's
+  answer, moves sideways as the font comes in, in one shift or two. The budgets come from CI's
   readings. A reading that varies by more is a race in the test (an answer whose content wasn't
   waited for) to find, not noise to budget.
 - **The rules** (the budgets read with their ceiling, the sum, the verdict and its report, the
@@ -1055,4 +1062,9 @@ has the budgets' rule.
   Empty and "not answering" states, and the other states the screenshot tests open (other
   torrents' pages beside these three, a search that finds nothing, onboarding). Desktop, which comes
   in the next step of #378. A title the server's matches already hold (the user's choice, or a
-  guess another device saved), which is asked for by its id as `p2`'s is.
+  guess another device saved), which is asked for by its id as `p2`'s is. A title's page whose
+  torrent is matched by a guess rather than a tag, where "In downloads" comes in with TMDB's search,
+  a later answer than either case lands it with. The web font landing after the content: on a Mac
+  the releases list then moves by 0.13 as its names wrap again (0.1915 in all), so the test has the
+  fonts in before the first answer. A new jump under a budget that carries a known one (#393, #394):
+  QUALITY → The ceiling says how much room that leaves.

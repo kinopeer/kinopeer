@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { askedEarly, chainProblems, claimant, due, isDue, orders, pick, type Chain } from './answers.ts'
+import { askedEarly, chainOf, chainProblems, claimant, due, isDue, orders, pick, type Chain, type Link } from './answers.ts'
 
 /** A screen's chain as the test's cases give them: a session, then two answers out at once, then one after both, and one after either. */
 const CHAIN: Chain = {
@@ -53,22 +53,43 @@ describe('due', () => {
 })
 
 describe('claimant', () => {
+  const none = new Set<string>()
+
   it('gives a request to the only answer it matches', () => {
-    expect(claimant(['torrents'], set())).toBe('torrents')
+    expect(claimant(['torrents'], set(), { repeat: false, polls: none })).toBe('torrents')
   })
 
   it('gives the same address asked twice to each answer in turn, in the chain order', () => {
-    expect(claimant(['tmdbSetup', 'defaults'], set())).toBe('tmdbSetup')
-    expect(claimant(['tmdbSetup', 'defaults'], set('tmdbSetup'))).toBe('defaults')
+    expect(claimant(['tmdbSetup', 'defaults'], set(), { repeat: false, polls: none })).toBe('tmdbSetup')
+    expect(claimant(['tmdbSetup', 'defaults'], set('tmdbSetup'), { repeat: true, polls: none })).toBe('defaults')
   })
 
-  it('gives a later request to the last answer once every one was asked: the next poll', () => {
-    expect(claimant(['tmdbSetup', 'defaults'], set('tmdbSetup', 'defaults'))).toBe('defaults')
-    expect(claimant(['torrents'], set('torrents'))).toBe('torrents')
+  it('gives a new address to the last answer once every one was asked: another poster', () => {
+    expect(claimant(['titleP1', 'posters'], set('titleP1', 'posters'), { repeat: false, polls: none })).toBe('posters')
+  })
+
+  it('gives an address asked again to the last answer once every one was asked, when that answer polls', () => {
+    expect(claimant(['torrents'], set('torrents'), { repeat: true, polls: set('torrents') })).toBe('torrents')
+  })
+
+  it('gives an address asked again beyond the answers that claim it to none, when the last does not poll', () => {
+    expect(claimant(['tmdbSetup', 'defaults'], set('tmdbSetup', 'defaults'), { repeat: true, polls: none })).toBeUndefined()
+    expect(claimant(['tmdbSetup', 'defaults'], set('tmdbSetup', 'defaults'), { repeat: true, polls: set('tmdbSetup') })).toBeUndefined()
   })
 
   it('gives a request no answer matches to none', () => {
-    expect(claimant([], set('torrents'))).toBeUndefined()
+    expect(claimant([], set('torrents'), { repeat: false, polls: none })).toBeUndefined()
+  })
+})
+
+describe('chainOf', () => {
+  it('keeps of each answer only where it sits in the chain', () => {
+    const answers: Record<string, Link & { matches?: () => boolean }> = {
+      version: { matches: () => true },
+      settings: { after: ['version'], matches: () => true },
+      posters: { afterAny: ['settings'], after: undefined },
+    }
+    expect(chainOf(answers)).toEqual({ version: {}, settings: { after: ['version'] }, posters: { afterAny: ['settings'] } })
   })
 })
 
