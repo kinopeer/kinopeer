@@ -113,4 +113,15 @@ describe('Menu', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Open' }))
     expect(screen.getByRole('menuitem', { name: 'Disabled' })).toHaveAccessibleDescription('Not now')
   })
+
+  it('marks a highlighted item for the accent, and no other', () => {
+    render(
+      <>
+        <MenuItem highlight>Match title</MenuItem>
+        <MenuItem>Move files</MenuItem>
+      </>,
+    )
+    expect(screen.getByRole('menuitem', { name: 'Match title' })).toHaveClass('is-highlight')
+    expect(screen.getByRole('menuitem', { name: 'Move files' })).not.toHaveClass('is-highlight')
+  })
 })

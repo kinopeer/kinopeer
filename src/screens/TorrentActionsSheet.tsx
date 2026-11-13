@@ -9,6 +9,7 @@ import { Menu, MenuDivider, MenuItem, MenuLink } from '../components/Menu'
 import { Poster } from '../components/Poster'
 import { Sheet } from '../components/Sheet'
 import { StatusChip } from '../components/StatusChip'
+import { cx } from '../lib/cx'
 import { useFormatters } from '../lib/format'
 import { useIsDesktop } from '../lib/useIsDesktop'
 import { REQUEST_KINDS } from '../torrents/requestKinds'
@@ -147,7 +148,7 @@ export function TorrentActionsSheet({
             {match.type === 'tv' ? t('downloads.seriesPage') : t('downloads.moviePage')}
           </MenuLink>
         )}
-        <MenuItem icon="search" disabled={deleting} onClick={onChangeTitle}>
+        <MenuItem icon="search" highlight={match === null} disabled={deleting} onClick={onChangeTitle}>
           {changeTitle}
         </MenuItem>
         <MenuItem icon="folder" disabled={offline || deleting} onClick={onMove}>
@@ -237,7 +238,7 @@ export function TorrentActionsSheet({
           </li>
         )}
         <li>
-          <button type="button" className="ks-row-btn" disabled={deleting} onClick={onChangeTitle}>
+          <button type="button" className={cx('ks-row-btn', match === null && 'is-highlight')} disabled={deleting} onClick={onChangeTitle}>
             <Icon name="search" />
             {changeTitle}
           </button>

@@ -383,7 +383,8 @@
     "nothingFound": "Nothing found",
     "hint": "Your choice is saved on the Kinopeer server and shows on every device.",
     "saveFailed": "Couldn’t save the choice. Try again.",
-    "changed": "Match saved"
+    "changed": "Match saved",
+    "unmatched": "This torrent isn’t matched to a movie or series"
   },
   "offline": {
     "updated": "Updated {{ago}} · actions paused",

@@ -35,6 +35,24 @@
   color: var(--accent-text);
 }
 
+/* `dot`: static, out of the flow, so nothing moves when it shows. */
+.ks-icon-btn-dot {
+  position: absolute;
+  top: 7px; /* in the 44px button's corner, clear of a 20-22px icon */
+  right: 7px;
+  width: 9px;
+  height: 9px;
+  border-radius: var(--r-full);
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--bg);
+  pointer-events: none;
+}
+
+.ks-icon-btn-sm .ks-icon-btn-dot {
+  top: 4px; /* the same corner of the 36px button */
+  right: 4px;
+}
+
 .ks-icon-btn-sm {
   width: 36px;
   height: 36px;

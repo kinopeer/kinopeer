@@ -148,6 +148,12 @@ h4 {
   color: var(--error);
 }
 
+/* The row worth picking now, as `MenuItem`'s `highlight`. */
+.ks-row-btn.is-highlight:not(:disabled) {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
 /* A row's or a menu item's label with a dimmed hint under it, e.g. why it's off. */
 .ks-row-text {
   display: flex;

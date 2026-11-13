@@ -234,6 +234,17 @@ describe('TorrentActionsSheet on desktop', () => {
     expect(within(unmatched).queryByRole('menuitem', { name: 'Fix match' })).not.toBeInTheDocument()
   })
 
+  it('highlights Match title only when no title was found, not with a title or while it’s still unknown', () => {
+    const titled = renderActions()
+    expect(screen.getByRole('menuitem', { name: 'Fix match' })).not.toHaveClass('is-highlight')
+    titled.unmount()
+    const unknown = renderActions({ match: undefined })
+    expect(screen.getByRole('menuitem', { name: 'Match title' })).not.toHaveClass('is-highlight')
+    unknown.unmount()
+    renderActions({ match: null })
+    expect(screen.getByRole('menuitem', { name: 'Match title' })).toHaveClass('is-highlight')
+  })
+
   it('turns off everything that sends something for a torrent being deleted', async () => {
     const { unmount } = renderActions({ torrent: { ...TORRENT, state: 'stalledDL' } })
     await userEvent.click(screen.getByRole('button', { name: 'Delete elsewhere' }))
@@ -322,6 +333,17 @@ describe('TorrentActionsSheet on a phone', () => {
     await userEvent.click(within(unmatched).getByRole('button', { name: 'Match title' }))
     expect(none.onChangeTitle).toHaveBeenCalledOnce()
     expect(within(unmatched).queryByRole('button', { name: 'Fix match' })).not.toBeInTheDocument()
+  })
+
+  it('highlights the Match title row only when no title was found, on a phone too', () => {
+    const titled = renderActions()
+    expect(screen.getByRole('button', { name: 'Fix match' })).not.toHaveClass('is-highlight')
+    titled.unmount()
+    const unknown = renderActions({ match: undefined })
+    expect(screen.getByRole('button', { name: 'Match title' })).not.toHaveClass('is-highlight')
+    unknown.unmount()
+    renderActions({ match: null })
+    expect(screen.getByRole('button', { name: 'Match title' })).toHaveClass('ks-row-btn', 'is-highlight')
   })
 
   it('needs qBittorrent to move files on a phone too', () => {

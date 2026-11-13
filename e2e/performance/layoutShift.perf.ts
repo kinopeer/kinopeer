@@ -97,8 +97,8 @@ const CASES: Case[] = [
   },
   /**
    * `p4`: no tag, and TMDB's search finds nothing for its name, which waits for the torrents and the
-   * matches as `p3`'s does. Once it has answered Match title shows beside More, out of the flow;
-   * nothing else is asked for, and nothing is saved.
+   * matches as `p3`'s does. Once it has answered More gets its dot, out of the flow; nothing else
+   * is asked for, and nothing is saved.
    */
   {
     name: 'no title found',
@@ -107,7 +107,8 @@ const CASES: Case[] = [
     shown: {
       session: loading,
       torrents: heading(UNKNOWN.name),
-      search: async (page) => expect(page.getByRole('button', { name: 'Сопоставить' })).toBeVisible(),
+      search: async (page) =>
+        expect(page.getByRole('button', { name: /^Ещё действия/ })).toHaveAccessibleDescription('Торрент не сопоставлен с фильмом или сериалом'),
     },
   },
 ]

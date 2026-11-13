@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import { DESKTOP, openApp, settle, showWholePage } from './app.ts'
 import { GUESSED, TORRENTS } from './fixtures.ts'
 
@@ -19,12 +19,24 @@ test('title guessed from the release name, dark, Russian', async ({ page }) => {
   await expect(page).toHaveScreenshot('guess-dark-ru.png')
 })
 
-test('no title found, Match title beside More, dark, Russian', async ({ page }) => {
+/** What More says beside its dot when no title was found. */
+const UNMATCHED = 'Торрент не сопоставлен с фильмом или сериалом'
+
+test('no title found, a dot on More, dark, Russian', async ({ page }) => {
   // TMDB finds nothing for its name.
   await openApp(page, '/torrent/a9')
-  await expect(page.getByRole('button', { name: 'Сопоставить' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Ещё действия/ })).toHaveAccessibleDescription(UNMATCHED)
   await settle(page)
   await expect(page).toHaveScreenshot('no-title-dark-ru.png')
+})
+
+test('no title found, its menu with Match title in the accent, dark, Russian', async ({ page }) => {
+  await openApp(page, '/torrent/a9')
+  await expect(page.getByRole('button', { name: /^Ещё действия/ })).toHaveAccessibleDescription(UNMATCHED)
+  await page.getByRole('button', { name: /^Ещё действия/ }).click()
+  await expect(page.getByRole('dialog').getByRole('button', { name: 'Сопоставить' })).toBeVisible()
+  await settle(page)
+  await expect(page).toHaveScreenshot('no-title-menu-dark-ru.png')
 })
 
 test('fixing the match, dark, Russian', async ({ page }) => {
@@ -70,15 +82,28 @@ test.describe('desktop drawer', () => {
     await expect(page).toHaveScreenshot('desktop-drawer-dark-ru.png')
   })
 
-  test('no title found, Match title beside More, dark, Russian', async ({ page }) => {
+  /** The drawer of the torrent TMDB finds nothing for, its More with the dot. */
+  const openUnmatched = async (page: Page) => {
     await openApp(page, '/')
     // Every other torrent's title and poster are in, so the page behind looks the same every run.
     await expect(page.locator('.ks-poster-none')).toHaveCount(1)
     await page.getByRole('link', { name: /Unknown\.Nature/ }).click()
-    const drawer = page.getByRole('dialog', { name: /^Unknown\.Nature/ })
-    await expect(drawer.getByRole('button', { name: 'Сопоставить' })).toBeVisible()
+    const more = page.getByRole('dialog', { name: /^Unknown\.Nature/ }).getByRole('button', { name: /^Ещё действия/ })
+    await expect(more).toHaveAccessibleDescription(UNMATCHED)
+    return more
+  }
+
+  test('no title found, a dot on More, dark, Russian', async ({ page }) => {
+    await openUnmatched(page)
     await settle(page)
     await expect(page).toHaveScreenshot('desktop-drawer-no-title-dark-ru.png')
+  })
+
+  test('no title found, its menu with Match title in the accent, dark, Russian', async ({ page }) => {
+    await (await openUnmatched(page)).click()
+    await expect(page.getByRole('menuitem', { name: 'Сопоставить' })).toBeVisible()
+    await settle(page)
+    await expect(page).toHaveScreenshot('desktop-drawer-no-title-menu-dark-ru.png')
   })
 
   test('over the title page it was opened from, back to it on Escape, dark, Russian', async ({ page }) => {

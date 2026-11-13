@@ -85,11 +85,13 @@ interface ItemContent {
 
 export interface MenuItemProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'>, ItemContent {
   danger?: boolean
+  /** In the accent: the item worth picking now, e.g. what a button's `dot` points at. */
+  highlight?: boolean
   /** Under the label, dimmed, as the item's description: e.g. why it's off. */
   hint?: string
 }
 
-export function MenuItem({ icon, danger, hint, children, className, ...rest }: MenuItemProps) {
+export function MenuItem({ icon, danger, highlight, hint, children, className, ...rest }: MenuItemProps) {
   const hintId = useId()
   return (
     <button
@@ -98,7 +100,7 @@ export function MenuItem({ icon, danger, hint, children, className, ...rest }: M
       role="menuitem"
       tabIndex={-1}
       aria-describedby={hint ? hintId : undefined}
-      className={cx('ks-menu-item', danger && 'is-danger', className)}
+      className={cx('ks-menu-item', danger && 'is-danger', highlight && 'is-highlight', className)}
     >
       {icon && <Icon name={icon} size={18} />}
       {hint ? (
