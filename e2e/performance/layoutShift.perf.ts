@@ -11,7 +11,7 @@ import { chainOf, ORDER_NAMES, orders } from '../../scripts/layout-shift/answers
 import { judge, readBudgets, uncased, unmatched, type Budgets } from '../../scripts/layout-shift/budget.ts'
 import { torrent } from '../../src/test/fixtures.ts'
 import type { Torrent } from '../../src/api/qbittorrent/types.ts'
-import { prepareApp } from '../app.ts'
+import { prepareApp, type AppOptions } from '../app.ts'
 import { holdAnswers, layoutShifts, painted, recordLayoutShifts, type Answer } from './layoutShift.ts'
 import { builtPaths, TORRENTS } from './page.ts'
 import { SCREENS } from './screens.ts'
@@ -122,6 +122,8 @@ interface Case {
   path?: string
   /** The torrents qBittorrent has, instead of the performance tests' own. */
   torrents?: Torrent[]
+  /** What else the mocked services answer: an indexer that failed. */
+  app?: Omit<AppOptions, 'torrents'>
   answers: Record<string, Answer>
   /** What the screen shows once every answer has landed and been shown: the reading waits for it. */
   complete: Shown
@@ -166,12 +168,22 @@ const titlePage = (name: string, type: string, id: number, complete: Shown, rela
   },
 })
 
-/** The releases screen's answers (ReleasesScreen): the series' details, then Prowlarr's search, then which indexers failed during it. */
-const releasesPage = (name: string): Case => ({
+/**
+ * The releases screen's answers (ReleasesScreen): the series' details, then Prowlarr's search, then
+ * which indexers failed during it, which the count's line says once it has answered (#393).
+ */
+const releasesPage = (name: string, failingIndexers: string[] = [], noReleases = false): Case => ({
   screen: 'releases',
   name,
-  // The last answer, which indexers failed, shows nothing when none did: the results are the last state.
-  complete: all(text('Сёгун · 2024'), (page) => expect(page.getByRole('button', { name: 'Добавить в загрузки' }).first()).toBeVisible()),
+  app: { failingIndexers, noReleases },
+  complete: noReleases
+    ? all(text('Сёгун · 2024'), text('Раздачи не найдены'))
+    : all(
+        text('Сёгун · 2024'),
+        (page) => expect(page.getByRole('button', { name: 'Добавить в загрузки' }).first()).toBeVisible(),
+        // With none failed, the last answer shows nothing: the results are the last state.
+        ...(failingIndexers.length ? [(page: Page) => expect(page.getByRole('button', { name: /не ответил/ })).toBeVisible()] : []),
+      ),
   answers: {
     ...SESSION,
     details: { matches: get('/tmdb/tv/126308'), after: ['tmdbSetup'] },
@@ -272,11 +284,12 @@ const CASES: Case[] = [
     recommendations: { matches: get('/tmdb/tv/126308/recommendations'), after: ['details'] },
     similar: { matches: get('/tmdb/tv/126308/similar'), after: ['recommendations'] },
   }),
-  /**
-   * Releases found, every indexer answered. With one that failed, the note above the list moves it
-   * (#393): that case comes with the fix.
-   */
+  /** Releases found, every indexer answered: the filters' row is there, a skeleton, before them (#393). */
   releasesPage('every indexer answered'),
+  /** Releases found, one indexer didn't answer: the count's line says so, where a note above the list moved it (#393). */
+  releasesPage('an indexer didn’t answer', ['Indexer C']),
+  /** Nothing found: the filters' row keeps its room, empty, over the empty state, where it went away and moved it up (#393's review). */
+  releasesPage('nothing found', [], true),
   /**
    * Settings: every row is there from its first paint, and the checks only change what the rows say
    * (Connections, About) and fill the category selects.
@@ -311,12 +324,12 @@ test('every screen the list names has a case and a budget, and every budget a sc
   expect(unmatched(BUDGETS as Budgets, listed.map((screen) => ({ size: SIZE, screen })))).toEqual([])
 })
 
-for (const { screen, name, path, torrents, answers, complete } of CASES) {
+for (const { screen, name, path, torrents, app, answers, complete } of CASES) {
   for (const order of orders(chainOf(answers))) {
     test(`${screen}, ${name}: ${ORDER_NAMES[order]}`, async ({ page }, testInfo) => {
       expect(BUDGETS, `budgets.layoutShift in checks.json can't be read:\n${[BUDGETS].flat().join('\n')}`).not.toBeInstanceOf(Array)
       await recordLayoutShifts(page)
-      await prepareApp(page, { torrents: torrents ?? TORRENTS })
+      await prepareApp(page, { ...app, torrents: torrents ?? TORRENTS })
       const { land } = await holdAnswers(page, answers, order, builtPaths())
       await page.goto(path ?? SCREENS.find((listed) => listed.screen === screen)!.path)
       const { landed, unnamed } = await land()

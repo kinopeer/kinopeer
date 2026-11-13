@@ -325,10 +325,11 @@
     "colPeers": "Пиры",
     "colAge": "Возраст",
     "add": "Добавить",
-    "failingIndexers_one": "{{count}} индексатор не ответил: {{names}}",
-    "failingIndexers_few": "{{count}} индексатора не ответили: {{names}}",
-    "failingIndexers_many": "{{count}} индексаторов не ответили: {{names}}",
-    "failingIndexers_other": "{{count}} индексатора не ответили: {{names}}"
+    "failingCount_one": "{{count}} индексатор не ответил",
+    "failingCount_few": "{{count}} индексатора не ответили",
+    "failingCount_many": "{{count}} индексаторов не ответили",
+    "failingCount_other": "{{count}} индексатора не ответили",
+    "failingIndexers": "$t(releases.failingCount, {\"count\": {{count}} }): {{names}}"
   },
   "add": {
     "title": "Добавить в загрузки",

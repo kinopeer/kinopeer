@@ -36,7 +36,7 @@ export function IndexerLink({ release, className }: IndexerLinkProps) {
   if (!page) return <span className={cx('indexer', className)}>{name}</span>
   return (
     <a
-      className={cx('indexer indexer-link', className)}
+      className={cx('indexer indexer-link touch-line', className)}
       href={page}
       target="_blank"
       rel="noopener noreferrer"

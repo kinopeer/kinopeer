@@ -191,6 +191,22 @@ describe('ReleasesScreen', () => {
     expect(screen.getByRole('heading', { name: 'Nothing matches' })).toBeInTheDocument()
   })
 
+  // The count's line is in the list, which isn't shown then: the banner says it instead (countInList).
+  it('names the indexers that didn’t answer above "Nothing matches"', async () => {
+    vi.mocked(prowlarr.getFailingIndexers).mockResolvedValue(['Indexer B'])
+    renderAt('/title/movie/693134/releases')
+    await screen.findByRole('button', { name: '1 indexer didn’t answer' })
+    await userEvent.click(screen.getByRole('button', { name: 'Filters' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '100+' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Show 2' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Filters 1' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Dubbed' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '720p' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Show 0' }))
+    expect(screen.getByRole('heading', { name: 'Nothing matches' })).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: saying('1 indexer didn’t answer: Indexer B') })).toBeInTheDocument()
+  })
+
   it('lists every release found, whatever its category', async () => {
     const other = (id: string, title: string) => ({ ...release(id, title, 1e9, 50, 'Indexer A'), categories: [8000] })
     searchReleases.mockResolvedValue([
@@ -206,6 +222,35 @@ describe('ReleasesScreen', () => {
     renderAt('/title/tv/1396/releases')
     expect(await screen.findByText('S01–S05')).toBeInTheDocument()
     expect(searchReleases).toHaveBeenCalledWith('Breaking Bad', expect.not.objectContaining({ categories: expect.anything() }))
+  })
+
+  // The row's place while the search runs, so the results don't push the list down (#393): whether
+  // they do is the layout shift test's, which reads the built page.
+  it('shows the filter chips’ row as skeletons while the search runs, and the chips once it answers', async () => {
+    let answer!: (releases: typeof DUNE_RELEASES) => void
+    searchReleases.mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    const { container } = renderAt('/title/movie/693134/releases')
+    await screen.findByText('Dune: Part Two · 2024')
+    // Skeletons are decorative: only their class finds them.
+    expect(container.querySelectorAll('.rel-chips .rel-chip-skel')).toHaveLength(5)
+    expect(screen.queryByRole('button', { name: 'Filters' })).not.toBeInTheDocument()
+
+    await act(async () => answer(DUNE_RELEASES))
+    expect(screen.getByRole('button', { name: 'Filters' })).toBeInTheDocument()
+    expect(container.querySelectorAll('.rel-chip-skel')).toHaveLength(0)
+  })
+
+  it.each([
+    ['Prowlarr fails', () => searchReleases.mockRejectedValue(new prowlarr.ProwlarrError('down', 502, 'unreachable')), 'Prowlarr isn’t answering'],
+    ['nothing is found', () => searchReleases.mockResolvedValue([]), 'No releases found'],
+    ['TMDB fails', () => getMovie.mockRejectedValue(new tmdb.TmdbError('down', 502)), 'Prowlarr isn’t answering'],
+  ])('keeps the filter chips’ row’s room, empty, when %s', async (_, set, heading) => {
+    set()
+    const { container } = renderAt('/title/movie/693134/releases')
+    expect(await screen.findByRole('heading', { name: heading })).toBeInTheDocument()
+    // Decorative, like the skeletons in it: only its class finds it.
+    expect(container.querySelector('.rel-chips')).toBeEmptyDOMElement()
+    expect(screen.queryByRole('button', { name: 'Filters' })).not.toBeInTheDocument()
   })
 
   it('explains a missing Prowlarr setup', async () => {
@@ -226,17 +271,16 @@ describe('ReleasesScreen', () => {
     vi.mocked(prowlarr.getFailingIndexers).mockReturnValue(new Promise((resolve) => (answer = resolve)))
     renderAt('/title/movie/693134/releases')
     expect(await screen.findAllByRole('article')).toHaveLength(DUNE_RELEASES.length)
-    // The live region is there, empty, before the answer, so a screen reader announces the note.
-    const note = screen.getByRole('status')
-    expect(note).toBeEmptyDOMElement()
+    const count = screen.getByText('3 of 3 releases')
     // Asked once the search answered, with how long ago it started. The request starts in an effect,
     // which can run after the list shows, so wait for it.
     await waitFor(() => expect(prowlarr.getFailingIndexers).toHaveBeenCalledWith(3000, expect.any(AbortSignal)))
 
     // Indexer D's releases are in this search's results: its failure was another client's query.
     answer(['Indexer B', 'Indexer D'])
-    await waitFor(() => expect(note).toHaveTextContent('Indexer B'))
-    expect(note).not.toHaveTextContent('Indexer D')
+    const failed = await within(count).findByRole('button', { name: '1 indexer didn’t answer' })
+    await userEvent.click(failed)
+    expect(document.getElementById(failed.getAttribute('aria-controls')!)).toHaveTextContent(/^Indexer B$/)
   })
 
   it('still lists releases when it can’t tell which indexers failed', async () => {
@@ -250,7 +294,8 @@ describe('ReleasesScreen', () => {
 
     await act(async () => fail(new prowlarr.ProwlarrError('down', 502, 'upstream')))
     expect(screen.getAllByRole('article')).toHaveLength(DUNE_RELEASES.length)
-    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+    expect(screen.getByText('3 of 3 releases')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /didn’t answer/ })).not.toBeInTheDocument()
   })
 
   it('says when Prowlarr fails', async () => {
