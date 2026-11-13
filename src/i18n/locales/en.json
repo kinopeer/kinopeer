@@ -296,8 +296,9 @@
     "colPeers": "Peers",
     "colAge": "Age",
     "add": "Add",
-    "failingIndexers_one": "{{count}} indexer didn’t answer: {{names}}",
-    "failingIndexers_other": "{{count}} indexers didn’t answer: {{names}}"
+    "failingCount_one": "{{count}} indexer didn’t answer",
+    "failingCount_other": "{{count}} indexers didn’t answer",
+    "failingIndexers": "$t(releases.failingCount, {\"count\": {{count}} }): {{names}}"
   },
   "add": {
     "title": "Add to downloads",
