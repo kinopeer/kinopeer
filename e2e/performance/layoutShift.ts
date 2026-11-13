@@ -81,8 +81,9 @@ export type Landing = { landed: string[]; unnamed: string[] }
 
 /**
  * Holds every request the page sends but the document and the build's own files (`built`), and lets
- * the screen's answers land one at a time, after the web font's files (the build's, which would land
- * by the clock and move the text when they did) are in, as a page the service worker serves has them, in `order` (scripts/layout-shift/answers.ts): before each,
+ * the screen's answers land one at a time, after the page's fonts are ready (the web font's files are
+ * the build's, which would land by the clock and move the text when they did), as a page the
+ * service worker serves has them, in `order` (scripts/layout-shift/answers.ts): before each,
  * it waits for every answer the chain says is due to be asked, so what is held when it chooses
  * doesn't depend on how fast the page asked; then it lets the held answer asked first (or last) land,
  * waits for what it shows and for a painted frame. An answer's later requests (another poster, the
@@ -154,7 +155,7 @@ export async function holdAnswers(
   }
   return {
     land: async () => {
-      await page.evaluate(() => Promise.all([...document.fonts].map((face) => face.load())))
+      await page.evaluate(() => document.fonts.ready)
       await painted(page)
       const landed = new Set<string>()
       while (landed.size < Object.keys(answers).length) {

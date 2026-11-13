@@ -20,33 +20,42 @@ const isObject = (value: unknown): value is Record<string, unknown> => typeof va
 const shown = (budget: unknown) => (typeof budget === 'number' ? String(budget) : JSON.stringify(budget))
 const where = (...path: string[]) => `\`budgets.layoutShift${path.map((key) => `[${JSON.stringify(key)}]`).join('')}\``
 
+const CEILING = '`budgets.layoutShiftCeiling`'
+
 /**
- * The most a budget may be: the bound Web Vitals call good. A screen that moves more as it loads has
- * a bug to fix, not a budget to raise (docs/QUALITY.md → The layout shift budget).
+ * The most a budget may be, `budgets.layoutShiftCeiling` in checks.json, or what is wrong with it: a
+ * score over 0. It is 0.1, the bound Web Vitals call good: a screen that moves more as it loads has a
+ * bug to fix, not a budget to raise (docs/QUALITY.md → The layout shift budget). In checks.json, so
+ * the checks guard sends a raise of it to the owner, as it does a raised budget.
  */
-export const CEILING = 0.1
+function readCeiling(budgets: Record<string, unknown> | undefined): number | string {
+  const ceiling = budgets?.layoutShiftCeiling
+  if (ceiling === undefined) return `${CEILING} in checks.json is missing`
+  // Number.isFinite takes no string or null, and no number JSON reads as Infinity.
+  return Number.isFinite(ceiling) && (ceiling as number) > 0 ? (ceiling as number) : `${CEILING} is not a layout shift over 0: \`${shown(ceiling)}\``
+}
 
 /**
  * The budgets in checks.json's object, or what is wrong with them: an object of window sizes, each an
- * object of screens, each a score of 0 or more and no more than `CEILING`. More is weaker.
+ * object of screens, each a score of 0 or more and no more than the ceiling (`readCeiling`), which
+ * must be read too. More is weaker.
  */
 export function readBudgets(checks: unknown): Budgets | string[] {
-  const budgets = isObject(checks) && isObject(checks.budgets) ? checks.budgets.layoutShift : undefined
-  if (!isObject(budgets)) return [`${where()} in checks.json is ${budgets === undefined ? 'missing' : 'not an object of window sizes'}`]
-  const problems: string[] = []
+  const all = isObject(checks) && isObject(checks.budgets) ? checks.budgets : undefined
+  const ceiling = readCeiling(all)
+  const problems: string[] = typeof ceiling === 'string' ? [ceiling] : []
+  const budgets = all?.layoutShift
+  if (!isObject(budgets)) return [...problems, `${where()} in checks.json is ${budgets === undefined ? 'missing' : 'not an object of window sizes'}`]
   for (const [size, screens] of Object.entries(budgets)) {
     if (!isObject(screens)) {
       problems.push(`${where(size)} is not an object of screens`)
       continue
     }
     for (const [screen, budget] of Object.entries(screens)) {
-      // Number.isFinite takes no string or null, and no number JSON reads as Infinity.
       if (!(Number.isFinite(budget) && (budget as number) >= 0)) {
         problems.push(`${where(size, screen)} is not a layout shift of 0 or more: \`${shown(budget)}\``)
-      } else if ((budget as number) > CEILING) {
-        problems.push(
-          `${where(size, screen)} is ${shown(budget)}, over the ceiling of ${CEILING}, the bound Web Vitals call good: a screen that moves more has a bug to fix, not a budget to raise`,
-        )
+      } else if (typeof ceiling === 'number' && (budget as number) > ceiling) {
+        problems.push(`${where(size, screen)} is ${shown(budget)}, over the ceiling of ${ceiling} (${CEILING}): a screen that moves more has a bug to fix, not a budget to raise`)
       }
     }
   }
