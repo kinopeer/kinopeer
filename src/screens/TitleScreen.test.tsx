@@ -125,6 +125,16 @@ beforeEach(() => {
   vi.mocked(tmdb.getSimilar).mockResolvedValue({ titles: [], page: 1, totalPages: 1 })
 })
 
+/** jsdom has no scrollIntoView: a mock of it for one test, whose calls say which element it was called on. */
+function stubScrollIntoView() {
+  const scrollIntoView = vi.fn()
+  Element.prototype.scrollIntoView = scrollIntoView
+  onTestFinished(() => {
+    delete (Element.prototype as Partial<Element>).scrollIntoView
+  })
+  return scrollIntoView
+}
+
 describe('TitleScreen', () => {
   it('suggests what to watch next under the title, and opens a suggested title with its own suggestions', async () => {
     const dune = { ...DUNE, id: 438631, title: 'Dune', release_date: '2021-09-15' }
@@ -264,12 +274,7 @@ describe('TitleScreen', () => {
     // At the page's end, under the related titles, so neither pushes the other as they come (#394):
     // where it sits is in the screenshots and the layout shift test.
     it('shows with the related titles, and the header’s badge takes the page down to it', async () => {
-      // jsdom has no scrollIntoView.
-      const scrollIntoView = vi.fn()
-      Element.prototype.scrollIntoView = scrollIntoView
-      onTestFinished(() => {
-        delete (Element.prototype as Partial<Element>).scrollIntoView
-      })
+      const scrollIntoView = stubScrollIntoView()
       vi.mocked(tmdb.getRecommendations).mockResolvedValue({ titles: [tmdb.toTitle({ ...DUNE, id: 438631, title: 'Dune' }, 'movie')], page: 1, totalPages: 1 })
       torrents(download('dune', 'Dune.Part.Two.2024.2160p.WEB-DL', { tags: 'tmdb:movie:693134', progress: 0.64 }))
       renderAt('/title/movie/693134')
@@ -283,11 +288,7 @@ describe('TitleScreen', () => {
 
     // The block waits for the row, but its place is there: a tap in the meantime lands where it will show.
     it('takes the page to the block’s place from the badge while the related titles still load', async () => {
-      const scrollIntoView = vi.fn()
-      Element.prototype.scrollIntoView = scrollIntoView
-      onTestFinished(() => {
-        delete (Element.prototype as Partial<Element>).scrollIntoView
-      })
+      const scrollIntoView = stubScrollIntoView()
       let answer!: (titles: tmdb.TitlePage) => void
       vi.mocked(tmdb.getRecommendations).mockReturnValue(new Promise((resolve) => (answer = resolve)))
       torrents(download('dune', 'Dune.Part.Two.2024.2160p.WEB-DL', { tags: 'tmdb:movie:693134', progress: 0.64 }))
