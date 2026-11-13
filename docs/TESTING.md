@@ -1071,10 +1071,15 @@ has the budgets' rule.
   in the next step of #378. A title the server's matches already hold (the user's choice, or a
   guess another device saved), which is asked for by its id as `p2`'s is. A title's page whose
   torrent is matched by a guess rather than a tag, where "In downloads" comes in with TMDB's search,
-  a later answer than either case lands it with. The web font landing after the content: on a Mac
-  the releases read 0.199 on a Mac and 0.066 on the Playwright Linux image, as the names wrap again
+  a later answer than either case lands it with. The web font landing after the content: the
+  releases then read 0.199 on a Mac and 0.066 on the Playwright Linux image, as the names wrap again
   in the fallback font, so the test has the fonts in before the first answer: what a late font moves
   depends on the machine's fallback font, and a budget on it would be the runner's, not the app's.
+  The jump itself is left as it is (decided on 2026-11-13, SPEC's decision log): it can show only on
+  the very first open of Kinopeer on a device, and only when that open is the releases by a direct
+  link, since Downloads is the usual first screen and after it the service worker keeps the font, so
+  a fix isn't worth its code now. It comes back if a real phone shows the jump, or first opens by a
+  link become common.
 - **The hole under a carried jump.** One budget covers both orders of a screen. Until #394 is
   fixed, a new shift of up to 0.09 passes on the title's and the series' page in the order that
   reads 0.0002 today; until #393 is, one of up to 0.005 passes on the releases, in either order.
