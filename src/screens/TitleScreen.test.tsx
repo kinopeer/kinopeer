@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { act, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes, useLocation, useParams } from 'react-router'
 import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
@@ -280,6 +280,26 @@ describe('TitleScreen', () => {
       await userEvent.click(screen.getByRole('button', { name: 'In downloads · 64%' }))
       expect(scrollIntoView).toHaveBeenCalledExactlyOnceWith({ block: 'start', behavior: 'smooth' })
       expect(scrollIntoView.mock.contexts[0]).toBe(block)
+    })
+
+    // The block waits for the row, but its place is there: a tap in the meantime lands where it will show.
+    it('takes the page to the block’s place from the badge while the related titles still load', async () => {
+      const scrollIntoView = vi.fn()
+      Element.prototype.scrollIntoView = scrollIntoView
+      onTestFinished(() => {
+        delete (Element.prototype as Partial<Element>).scrollIntoView
+      })
+      let answer!: (titles: tmdb.TitlePage) => void
+      vi.mocked(tmdb.getRecommendations).mockReturnValue(new Promise((resolve) => (answer = resolve)))
+      torrents(download('dune', 'Dune.Part.Two.2024.2160p.WEB-DL', { tags: 'tmdb:movie:693134', progress: 0.64 }))
+      renderAt('/title/movie/693134')
+      await userEvent.click(await screen.findByRole('button', { name: 'In downloads · 64%' }))
+      expect(screen.queryByRole('region', { name: 'In downloads' })).not.toBeInTheDocument()
+      expect(scrollIntoView).toHaveBeenCalledExactlyOnceWith({ block: 'start', behavior: 'smooth' })
+      const place = scrollIntoView.mock.contexts[0] as Element
+
+      await act(async () => answer({ titles: [], page: 1, totalPages: 1 }))
+      expect(await screen.findByRole('region', { name: 'In downloads' })).toBe(place)
     })
 
     it('includes torrents guessed or chosen for the title, not those chosen for another', async () => {

@@ -253,7 +253,9 @@ export function TitleScreen({ onSessionLost }: TitleScreenProps) {
       </Badge>
     </button>
   )
-  const titleDownloads = <TitleDownloads torrents={downloads} sectionRef={downloadsRef} />
+  // Its section is there from the start, empty while the row above loads, so the badge always has
+  // the place to take the page to.
+  const titleDownloads = (settled: boolean) => <TitleDownloads torrents={downloads} sectionRef={downloadsRef} waiting={!settled} />
   const rating = details.vote_count > 0 && (
     <p className="t-label title-rating">
       <Icon name="star" size={16} filled className="title-star" />

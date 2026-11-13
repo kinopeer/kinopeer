@@ -16,15 +16,21 @@ export interface TitleDownloadsProps {
   torrents: Torrent[]
   /** The section, for scrolling to it from the badge in the page's head. */
   sectionRef?: Ref<HTMLElement>
+  /**
+   * Whether it waits for what comes above it (#394): the section is there, empty, so the badge can
+   * take the page to where it will be, and fills in when this turns false.
+   */
+  waiting?: boolean
 }
 
 /**
  * The title page's "In downloads" block: one card per torrent, each opening its torrent screen (on
  * desktop, its drawer over the title page).
  */
-export function TitleDownloads({ torrents, sectionRef }: TitleDownloadsProps) {
+export function TitleDownloads({ torrents, sectionRef, waiting = false }: TitleDownloadsProps) {
   const { t } = useTranslation()
   if (torrents.length === 0) return null
+  if (waiting) return <section ref={sectionRef} className="title-dls" />
   return (
     <section ref={sectionRef} className="title-dls" aria-labelledby="title-dls">
       <h2 id="title-dls" className="t-h3 title-dls-heading">

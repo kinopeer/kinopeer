@@ -97,17 +97,20 @@ describe('TitleRelated', () => {
   })
 
   describe('what goes under the row', () => {
-    const renderWithAfter = () => renderWithRouter(<TitleRelated type="movie" id={693134} language="en-US" after={<p>Under the row</p>} />)
+    const renderWithAfter = () =>
+      renderWithRouter(<TitleRelated type="movie" id={693134} language="en-US" after={(settled) => <p>{settled ? 'Under the row' : 'Waiting'}</p>} />)
 
-    it('waits for the row while it loads, then shows under it', async () => {
+    it('tells it to wait while the row loads, then that the row has settled, under it, the same element', async () => {
       let answer!: (titles: tmdb.TitlePage) => void
       getRecommendations.mockReturnValue(new Promise((resolve) => (answer = resolve)))
       renderWithAfter()
+      const waiting = screen.getByText('Waiting')
       expect(screen.queryByText('Under the row')).not.toBeInTheDocument()
 
       await act(async () => answer(page(title(438631, 'Dune'))))
       const row = screen.getByRole('region', { name: 'Recommendations' })
       const under = screen.getByText('Under the row')
+      expect(under).toBe(waiting)
       expect(row.compareDocumentPosition(under) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     })
 

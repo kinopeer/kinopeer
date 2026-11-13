@@ -15,16 +15,17 @@ export interface TitleRelatedProps {
   /** TMDB language tag. */
   language: string
   /**
-   * What goes under the row, shown once the row has settled (shown, failed or empty), so the row
-   * coming in doesn't push it down (#394).
+   * What goes under the row, given whether the row has settled (shown, failed or empty): what it
+   * shows only then, the row coming in doesn't push down (#394). It's in the same place in the
+   * tree either way, so what it keeps there while the row loads stays the same element.
    */
-  after?: ReactNode
+  after?: (settled: boolean) => ReactNode
 }
 
 /**
  * What to watch next, under the title: TMDB's recommendations, or similar titles when it has none.
  * It's an extra on the page, so while it loads, when it fails or when both lists are empty there's
- * no row at all; what goes under it (`after`) waits until it's settled.
+ * no row at all; what goes under it (`after`) is told when it's settled.
  */
 export function TitleRelated({ type, id, language, after }: TitleRelatedProps) {
   const { t } = useTranslation()
@@ -35,18 +36,17 @@ export function TitleRelated({ type, id, language, after }: TitleRelatedProps) {
     if (recommended.length > 0) return { kind: 'recommendations', titles: recommended }
     return { kind: 'similar', titles: others(await getSimilar(type, id, { language, signal })) }
   })
-  if (request.loading) return null
-  const { data } = request
+  const { data, loading } = request
   return (
     <>
-      {data && data.titles.length > 0 && (
+      {!loading && data && data.titles.length > 0 && (
         <PosterRow
           id="title-related"
           heading={t(data.kind === 'recommendations' ? 'title.recommendations' : 'title.similar')}
           titles={data.titles}
         />
       )}
-      {after}
+      {after?.(!loading)}
     </>
   )
 }
