@@ -1071,9 +1071,12 @@ has the budgets' rule.
 | `settings` | Settings' own load of the server's settings, the checks of qBittorrent, Prowlarr and TMDB at once; the categories once qBittorrent's check is in | None: every row is there from the first paint, and the answers change only what the rows say and the category selects' options | Every service answers |
 
 - **What it leaves out.** Moves between screens by a click: the screens are opened by their address. The app with motion on.
-  Empty and "not answering" states but the releases' "nothing found", and the other states the screenshot tests open (other
+  Empty and "not answering" states but the releases' "nothing found", and the releases' "nothing
+  found" with an indexer that didn't answer, whose banner pushes the empty state down (0.029, #401),
+  and the other states the screenshot tests open (other
   torrents' pages beside these three, a search that finds nothing, onboarding). Desktop, which comes
-  in the next step of #378. A title the server's matches already hold (the user's choice, or a
+  in the next step of #378, with the releases' filter bar that wraps to a second line once the
+  results land at 1024–1099px and about 1162–1340px (#400). A title the server's matches already hold (the user's choice, or a
   guess another device saved), which is asked for by its id as `p2`'s is. A title's page whose
   torrent is matched by a guess rather than a tag, where "In downloads" comes in with TMDB's search,
   a later answer than either case lands it with. The web font landing after the content: the
