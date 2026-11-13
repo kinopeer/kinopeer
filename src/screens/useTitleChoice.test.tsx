@@ -1,4 +1,4 @@
-import { act, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -119,6 +119,22 @@ describe('useChangeTitle', () => {
     await save.answer()
     expect(screen.getByRole('status', { name: saying('Match saved') })).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('sends one save when two screens’ sheets pick at once, and says it once', async () => {
+    const save = pendingSave()
+    const open = renderScreens()
+    const first = await open('Downloads')
+    const second = await open('Drawer')
+    // In one go, before either sheet shows the other's save: the second pick finds it in flight.
+    act(() => {
+      fireEvent.click(movieIn(first))
+      fireEvent.click(movieIn(second))
+    })
+    expect(chooseTitle).toHaveBeenCalledOnce()
+
+    await save.answer()
+    expect(screen.getAllByRole('status', { name: saying('Match saved') })).toHaveLength(1)
   })
 
   it('keeps a failure in the sheet that shows the torrent, not in a toast as well, until it’s tried again', async () => {
