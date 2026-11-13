@@ -91,8 +91,8 @@ export type Landing = { landed: string[]; unnamed: string[] }
  * worker serves has them, in `order` (scripts/layout-shift/answers.ts): before each, it waits for
  * every answer the chain says is due to be asked, so what is held when it chooses doesn't depend on
  * how fast the page asked; then it lets the held answer asked first (or last) land, waits until it
- * has landed whole and for a painted frame, which holds the state it brings: the page renders an
- * answer as it lands, so the frame after shows it (docs/TESTING.md). The later requests of an answer
+ * has landed whole and for a painted frame before the next, whose landing holds what it brought;
+ * what the last brings the test waits for itself (docs/TESTING.md). The later requests of an answer
  * marked `later` (the next poll, more posters) land as they come once it has. A request that is no
  * answer of the chain, or one beyond the answers that claim it (`claimant`), lands too, and is named in
  * `unnamed`, which fails the test; one the page sends before its chain says it would fails the load

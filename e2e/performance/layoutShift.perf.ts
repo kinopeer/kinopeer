@@ -1,12 +1,12 @@
 // How much each screen's content moves as it loads (#387, #378): the built app, every server route
 // mocked as in the screenshot tests, each screen of screens.ts opened afresh by its address on a
 // phone, with every answer it loads from held and let land one at a time, each after the page
-// painted what the one before showed, in the two orders scripts/layout-shift/answers.ts names. The
-// page's layout shifts are summed and judged against `budgets.layoutShift` in checks.json by
-// scripts/layout-shift/budget.ts; the reading and the holding are in layoutShift.ts
-// (docs/TESTING.md → The layout shift test).
+// painted what the one before showed, in the two orders scripts/layout-shift/answers.ts names, and
+// read once the screen shows what it shows complete (`complete`). The page's layout shifts are
+// summed and judged against `budgets.layoutShift` in checks.json by scripts/layout-shift/budget.ts;
+// the reading and the holding are in layoutShift.ts (docs/TESTING.md → The layout shift test).
 import { readFileSync } from 'node:fs'
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import { chainOf, ORDER_NAMES, orders } from '../../scripts/layout-shift/answers.ts'
 import { judge, readBudgets, uncased, unmatched, type Budgets } from '../../scripts/layout-shift/budget.ts'
 import { torrent } from '../../src/test/fixtures.ts'
@@ -42,6 +42,35 @@ const under =
   (prefix: string) =>
   (url: URL, method: string): boolean =>
     method === 'GET' && url.pathname.startsWith(prefix)
+
+// What a screen shows when it is complete, waited for once its last answer has landed: a condition
+// on the page, since what the last answer brings can show later than it lands (a title in a list
+// shows with the next show, `SHOW_EVERY_MS`), and nothing after it is due to hold the reading.
+type Shown = (page: Page) => Promise<void>
+const heading = (name: string, level = 1): Shown => (page) => expect(page.getByRole('heading', { level, name, exact: true })).toBeVisible()
+const link = (name: string): Shown => (page) => expect(page.getByRole('link', { name }).first()).toBeVisible()
+const text = (content: string): Shown => (page) => expect(page.getByText(content).first()).toBeVisible()
+/** The status Connections shows for a service, in its own row: other rows say "Connected" too. */
+const connection = (name: string, status: string | RegExp): Shown => (page) =>
+  expect(page.getByRole('listitem').filter({ has: page.getByText(name, { exact: true }) }).getByRole('status')).toHaveText(status)
+/** Every poster on the page (`Poster`, decorative, so found by its frame) shown and loaded, at least `count` of them. */
+const posters =
+  (count: number): Shown =>
+  async (page) => {
+    const loaded = () =>
+      page.evaluate(() =>
+        [...document.querySelectorAll<HTMLImageElement>('.ks-poster img')].filter((image) => image.complete && image.naturalWidth > 0 && image.checkVisibility()).length,
+      )
+    await expect.poll(loaded).toBeGreaterThanOrEqual(count)
+    const all = () => page.evaluate(() => [...document.querySelectorAll<HTMLImageElement>('.ks-poster img')].every((image) => image.complete && image.naturalWidth > 0 && image.checkVisibility()))
+    await expect.poll(all).toBe(true)
+  }
+/** Each of `shown`, in turn. */
+const all =
+  (...shown: Shown[]): Shown =>
+  async (page) => {
+    for (const one of shown) await one(page)
+  }
 
 /**
  * Every screen's first answers (src/App.tsx): qBittorrent's version, the session check, before which
@@ -87,13 +116,16 @@ interface Case {
   /** The torrents qBittorrent has, instead of the performance tests' own. */
   torrents?: Torrent[]
   answers: Record<string, Answer>
+  /** What the screen shows once every answer has landed and been shown: the reading waits for it. */
+  complete: Shown
 }
 
-const torrentPage = (name: string, hash: string, rest: Record<string, Answer>): Case => ({
+const torrentPage = (name: string, hash: string, complete: Shown, rest: Record<string, Answer>): Case => ({
   screen: 'torrent',
   name,
   path: `/torrent/${hash}`,
   torrents: [...TORRENTS, UNKNOWN],
+  complete,
   answers: {
     ...SESSION,
     ...TORRENTS_AND_MATCHES,
@@ -106,9 +138,10 @@ const torrentPage = (name: string, hash: string, rest: Record<string, Answer>): 
  * watch next (TitleRelated, under the page's fold), and the torrents with their titles, of which the
  * title's own show in its "In downloads" badge and block once the details are in too.
  */
-const titlePage = (name: string, type: string, id: number, related: Record<string, Answer>): Case => ({
+const titlePage = (name: string, type: string, id: number, complete: Shown, related: Record<string, Answer>): Case => ({
   screen: type === 'movie' ? 'title' : 'series',
   name,
+  complete,
   answers: {
     ...SESSION,
     details: { matches: get(`/tmdb/${type}/${id}`), after: ['tmdbSetup'] },
@@ -129,6 +162,8 @@ const titlePage = (name: string, type: string, id: number, related: Record<strin
 const releasesPage = (name: string): Case => ({
   screen: 'releases',
   name,
+  // The last answer, which indexers failed, shows nothing when none did: the results are the last state.
+  complete: all(text('Сёгун · 2024'), (page) => expect(page.getByRole('button', { name: 'Добавить в загрузки' }).first()).toBeVisible()),
   answers: {
     ...SESSION,
     details: { matches: get('/tmdb/tv/126308'), after: ['tmdbSetup'] },
@@ -145,6 +180,7 @@ const CASES: Case[] = [
   {
     screen: 'downloads',
     name: 'titles found',
+    complete: all(link('Дюна: Часть вторая'), link('Сёгун'), link('Интерстеллар'), posters(3)),
     answers: {
       ...SESSION,
       ...TORRENTS_AND_MATCHES,
@@ -156,7 +192,7 @@ const CASES: Case[] = [
    * `p2`: tagged with its title and finished. The page asks for the title by its id once the
    * torrent shows, and for the poster once the title does.
    */
-  torrentPage('tagged and finished', 'p2', {
+  torrentPage('tagged and finished', 'p2', all(heading('Сёгун'), posters(1)), {
     title: { matches: get('/tmdb/tv/126308'), after: ['torrents'] },
     poster: { matches: under('/tmdb-img/'), after: ['title'] },
   }),
@@ -165,7 +201,7 @@ const CASES: Case[] = [
    * above the progress card with the guess and moved it, Pause and Delete, by 0.1051). The poster
    * is asked for once the guess shows, and a second after it the guess is saved on the server.
    */
-  torrentPage('title guessed from its name', 'p3', {
+  torrentPage('title guessed from its name', 'p3', all(heading('Интерстеллар'), posters(1)), {
     search: { matches: under('/tmdb/search/'), after: ['torrents', 'matches'] },
     poster: { matches: under('/tmdb-img/'), after: ['search'] },
     saveGuess: { matches: (url, method) => method === 'PATCH' && url.pathname === '/api/matches', after: ['search'] },
@@ -174,9 +210,12 @@ const CASES: Case[] = [
    * `p4`: no tag, and TMDB's search finds nothing for its name. Once it has answered More gets its
    * dot, out of the flow; nothing else is asked for, and nothing is saved.
    */
-  torrentPage('no title found', 'p4', {
-    search: { matches: under('/tmdb/search/'), after: ['torrents', 'matches'] },
-  }),
+  torrentPage(
+    'no title found',
+    'p4',
+    (page) => expect(page.getByRole('button', { name: /^Ещё действия/ })).toHaveAccessibleDescription('Торрент не сопоставлен с фильмом или сериалом'),
+    { search: { matches: under('/tmdb/search/'), after: ['torrents', 'matches'] } },
+  ),
   /**
    * Search with no query: its three rows of titles, each a Discover query, show together once all
    * three have answered (`loadBrowseRows`), in place of the skeleton; then their posters.
@@ -184,6 +223,7 @@ const CASES: Case[] = [
   {
     screen: 'browse',
     name: 'rows of titles',
+    complete: all(heading('Лучшее за год', 2), posters(1)),
     answers: {
       ...SESSION,
       newMovies: { matches: (url, method) => get('/tmdb/discover/movie')(url, method) && !url.searchParams.has('vote_count.gte'), after: ['tmdbSetup'] },
@@ -196,6 +236,7 @@ const CASES: Case[] = [
   {
     screen: 'search',
     name: 'titles found',
+    complete: all(link('Дюна: Часть вторая'), posters(1)),
     answers: {
       ...SESSION,
       results: { matches: get('/tmdb/search/multi'), after: ['tmdbSetup'] },
@@ -206,6 +247,7 @@ const CASES: Case[] = [
   {
     screen: 'search-year',
     name: 'titles found',
+    complete: all(link('Разделение'), posters(1)),
     answers: {
       ...SESSION,
       movies: { matches: get('/tmdb/search/movie'), after: ['tmdbSetup'] },
@@ -214,11 +256,11 @@ const CASES: Case[] = [
     },
   },
   /** A movie in downloads, with TMDB's recommendations. */
-  titlePage('in downloads, with recommendations', 'movie', 693134, {
+  titlePage('in downloads, with recommendations', 'movie', 693134, all(heading('Дюна: Часть вторая'), heading('В загрузках', 2), heading('Рекомендации', 2), posters(2)), {
     recommendations: { matches: get('/tmdb/movie/693134/recommendations'), after: ['details'] },
   }),
   /** A series in downloads, which TMDB has no recommendations for: similar titles instead, asked once the recommendations come back empty. */
-  titlePage('in downloads, with similar titles', 'tv', 126308, {
+  titlePage('in downloads, with similar titles', 'tv', 126308, all(heading('Сёгун'), heading('В загрузках', 2), heading('Похожее', 2), posters(2)), {
     recommendations: { matches: get('/tmdb/tv/126308/recommendations'), after: ['details'] },
     similar: { matches: get('/tmdb/tv/126308/similar'), after: ['recommendations'] },
   }),
@@ -234,6 +276,13 @@ const CASES: Case[] = [
   {
     screen: 'settings',
     name: 'every service answers',
+    complete: all(
+      connection('qBittorrent', 'Подключено'),
+      connection('Prowlarr', 'Подключено'),
+      connection('TMDB', /^Подключено/),
+      text('2.0.5.5160'),
+      (page) => expect(page.getByRole('combobox', { name: 'Категория фильмов' })).toBeEnabled(),
+    ),
     answers: {
       ...SESSION,
       // The same address as the session's two: Settings' own load of the server's settings.
@@ -254,7 +303,7 @@ test('every screen the list names has a case and a budget, and every budget a sc
   expect(unmatched(BUDGETS as Budgets, listed.map((screen) => ({ size: SIZE, screen })))).toEqual([])
 })
 
-for (const { screen, name, path, torrents, answers } of CASES) {
+for (const { screen, name, path, torrents, answers, complete } of CASES) {
   for (const order of orders(chainOf(answers))) {
     test(`${screen}, ${name}: ${ORDER_NAMES[order]}`, async ({ page }, testInfo) => {
       expect(BUDGETS, `budgets.layoutShift in checks.json can't be read:\n${[BUDGETS].flat().join('\n')}`).not.toBeInstanceOf(Array)
@@ -264,6 +313,7 @@ for (const { screen, name, path, torrents, answers } of CASES) {
       await page.goto(path ?? SCREENS.find((listed) => listed.screen === screen)!.path)
       const { landed, unnamed } = await land()
       expect(unnamed, 'The page asked for what no answer of the case is: name it in the chain, from the screen\'s code').toEqual([])
+      await complete(page)
       await painted(page)
       const shifts = await layoutShifts(page)
       const verdict = judge({ size: SIZE, screen }, shifts, BUDGETS as Budgets)

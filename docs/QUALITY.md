@@ -210,7 +210,8 @@ from it what coverage measures and its thresholds, `stryker.config.mjs` the muta
 requests tests the requests budgets (`budgets.requests` for the screens' openings and
 `budgets.journeys` for the moves between them, [The requests budget](#the-requests-budget)), the
 layout shift test the layout shift budgets (`budgets.layoutShift`, a score per window size and
-screen, `docs/TESTING.md` → The layout shift test). A new
+screen, and the ceiling over them, `budgets.layoutShiftCeiling`, `docs/TESTING.md` → The layout
+shift test). A new
 threshold, budget or exclusion list goes there too, not into the config that uses it, where the
 guard wouldn't see it move.
 

@@ -991,14 +991,19 @@ has the budgets' rule.
   font's files are the build's and aren't held: every painted frame the test waits for, the first
   before any answer lands, comes after the page's fonts are ready (`document.fonts.ready`), as a
   page the service worker serves has them, so when they arrive doesn't change a reading.
-- **What holds each state is the frame.** The test lets an answer land whole and waits for a
-  painted frame; the page renders what the answer brings as it lands, so that frame shows it. It
-  doesn't also wait for what the answer shows (a heading, a link, a poster loaded): such waits had
-  no red of their own, as every load read the same with them skipped, also with the CPU slowed 6×
-  and 20×, while without the frame the releases read 0 or 0.0669 from run to run (#395's review).
-  That the page reached each state is shown by the chain itself: most answers are asked for only
-  once the one before is on the screen (a poster once its title shows, the guess's save once the
-  guess does), and a planted late block on each screen is read.
+- **The reading waits for the screen complete.** Between answers, the next one's landing holds
+  what the one before brought; after the last, nothing does. So once the last answer has landed,
+  the test waits for what the case's screen shows when it is complete (`complete` in
+  `layoutShift.perf.ts`: its headings and links, every poster loaded and shown, the description on
+  More of a torrent without a title, each service's status and the category selects in Settings),
+  then for a painted frame, and reads. A condition on the page, not a time: what an answer brings
+  can show later than it lands (a title in Downloads with the next show, `SHOW_EVERY_MS` later, a
+  poster once its image loads). Each wait was seen red with the screen's last state shown 250 ms
+  late, the page moving 130px with it: over the budget with the wait, under it without, in both
+  orders. On the title's and the series' pages, in the order where the download defaults (which
+  show nothing there) land last, five answers land after the "In downloads" block, and their
+  landing holds it: it took the block 3 s late to get past them, while at 250 ms and 1 s the
+  reading was over the budget without the wait too (#395's second review).
 - **The chain comes from the code.** Each case names its answers and, for each, the answers the
   page waits for before it asks (`after`, all of them, or `afterAny`, one of them), read from the
   screen's code: the table below. The test holds the chain to the page: a request asked before the
