@@ -17,7 +17,7 @@ Only what is on, being adopted, or declined with its reason; plans aren't listed
 | [The checks guard](#the-checks-guard) | On since 2026-11-12 (#366): its check is red while a PR lacks the records its marks call for, and is among `main`'s required checks | A script CI runs on every PR, which writes into the PR what in it weakens the checks or changes existing ones, and what record each of the two calls for |
 | [The size budget](#the-size-budget) | On since 2026-11-12 (#378): a step of CI's `performance` job, which is among `main`'s required checks | Sums the build's JS and CSS gzipped and everything else as it is, and fails over the budgets in `checks.json` |
 | [The requests budget](#the-requests-budget) | Being adopted (#378): a step of CI's `performance` job, which is among `main`'s required checks | Opens each screen afresh in a browser and moves between screens in short journeys, counts what each opening and each move asks each server route for, and fails on any count that isn't its budget in `checks.json` |
-| [The layout shift budget](#the-layout-shift-budget) | Being adopted (#378, #387): a test in CI's `performance` job, beside the requests budget's, which is among `main`'s required checks | Opens each screen on a phone in a browser, lets the answers it loads from land one at a time in two orders, sums how far its content moves, and fails over its budget in `checks.json`; desktop is to come |
+| [The layout shift budget](#the-layout-shift-budget) | Being adopted (#378, #387): a test in CI's `performance` job, beside the requests budget's, which is among `main`'s required checks | Opens each screen on a phone and on desktop in a browser, lets the answers it loads from land one at a time in two orders, sums how far its content moves, and fails over its budget in `checks.json` |
 
 ## The checks guard
 
@@ -520,7 +520,7 @@ how it lets a screen's answers land and which screens and states it reads are in
 [TESTING.md → The layout shift test](TESTING.md#the-layout-shift-test).
 
 **Each screen has its own budget**, by window size, under `budgets.layoutShift` in `checks.json`
-(`phone.torrent`): the highest reading among the screen's cases and both orders, rounded up to
+(`phone.torrent`, `desktop.torrent`): the highest reading among the screen's cases and both orders, rounded up to
 0.01, so a screen that reads 0 gets 0.01, from CI's readings. The readings are exact (the same
 number to the fourth digit every run, locally and in CI), so the budget is the screen as it is, with room only for the rounding: a new
 shift on a screen that barely moved fails, rather than hiding under a budget set for the screen
@@ -531,10 +531,11 @@ Web Vitals call good: `readBudgets` (`scripts/layout-shift/budget.ts`) refuses o
 fails when the ceiling is missing or not a number over 0. A screen that moves more has a bug to
 fix, not a budget to raise; until it is fixed, the state that moves is left out of the test with
 its issue named (TESTING → What it leaves out). A budget under the ceiling can still carry a known
-jump, its issue named beside it in TESTING's table, and the fix lowers it. Until then the budget
-leaves room under the jump it carries: on `title` and `series` (0.09) a new jump of up to 0.09
-passes in the order that reads 0 today, and on `releases` (0.07) one of up to 0.005 in either
-(TESTING → The hole under a carried jump).
+jump, its issue named beside it in TESTING, and the fix lowers it: today the releases at
+`desktop-rail` (0.04) and `desktop-1280` (0.03), the filter bar wrapping to a second line once the
+filters land (#400). A budget is one number for both orders of a screen, so where a carried jump
+shows in one order only, a new jump as large passes in the other; #400's reads the same in both, so
+the room under it is the rounding's alone.
 
 **What fails**: a reading over its budget, which names each shift with the elements that moved and
 their boxes before and after; a screen of the list without a case or a budget, or a budget for a

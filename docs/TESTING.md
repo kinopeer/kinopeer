@@ -975,9 +975,13 @@ it are in [QUALITY.md](QUALITY.md) → The requests budget.
 
 `e2e/performance/layoutShift.perf.ts` (the same config, command and CI job as the requests test)
 opens each screen of `e2e/performance/screens.ts`, the list the requests test opens, by its address
-on a phone (390×844, named in the file) and sums its layout shifts as it loads against its budget in
-`budgets.layoutShift.phone` in `checks.json`; a screen may have several cases, states of it whose
-blocks differ, and its budget covers them all. It began as #387's red test (on a phone a torrent's
+on a phone (390×844) and on desktop (1440×900, the screenshot tests' `DESKTOP`), and sums its layout
+shifts as it loads against its budget for that size, `budgets.layoutShift.phone` or `.desktop` in
+`checks.json`; a screen may have several cases, states of it whose blocks differ, and its budget
+covers them all. A state that moves only in a narrower desktop window is read there too, as a size
+of its own with only that screen's budget (`desktop-rail`, 1024×768, the screenshot tests'
+`DESKTOP_RAIL`, and `desktop-1280`, 1280×800, a laptop's window with the labeled sidebar); the sizes
+are named in the file (`VIEWPORTS`). It began as #387's red test (on a phone a torrent's
 page moved by 0.26) and #389's (a guessed title's page moved by 0.1051 as "Is it right?" came in
 above the progress card); QUALITY → [The layout shift budget](QUALITY.md#the-layout-shift-budget)
 has the budgets' rule.
@@ -1040,19 +1044,22 @@ has the budgets' rule.
 - **Reduced motion and the size are the file's own.** It runs under reduced motion, where #387's
   jump showed: the reduced-motion rule in `src/styles/base.css` gives every element a 1 ms
   transition, so an element whose styles change is drawn once more as it was (without it `main`'s
-  page read 0.0656 and passed). Both are set in the test, not taken from the configs it builds on.
+  page read 0.0656 and passed). Both are set in the test, not taken from the configs it builds on:
+  the share of the window that moves is the score, so each size reads its own number.
 - **Exact.** Every case in each order read the same number in every run, to the fourth digit: ten
   runs in a row locally (macOS) and in CI (Linux). In CI every reading has 0.0002 more than on a
   Mac, which varies in its sixth digit (0.000179 or 0.000183): the "Connecting" text, before any
   answer, moves sideways as the font comes in, in one shift or two. The budgets come from CI's
   readings. A reading that varies by more is a race in the test (an answer whose content wasn't
-  waited for) to find, not noise to budget.
+  waited for) to find, not noise to budget, but for a jump planted among the titles in Downloads,
+  which can read one of two numbers (What it leaves out).
 - **The rules** (the budgets read with their ceiling, the sum, the verdict and its report, the
   screens without a case or a budget, the table of readings; and which answer a request is, which
   are due, which lands next, how many orders a chain gives, what is wrong with a chain) are pure
   functions in `scripts/layout-shift/budget.ts` and `answers.ts`, tested beside them (layer 1);
   coverage measures the folder and Stryker mutates it. One test checks that every screen of the
-  list has a case and a budget, and every budget a screen. The reporter
+  list has a case and a budget on a phone and on desktop, that each narrower size reads only screens
+  of the list with a budget there, and that every budget has a screen read at its size. The reporter
   (`e2e/performance/summary.ts`) adds a table of every load's reading to the job's summary.
 - **A new screen** in `screens.ts` gets a case here, with its chain from its code, and a budget,
   which goes to a second review. A new late block on a screen (one that appears after the screen's
@@ -1071,13 +1078,27 @@ has the budgets' rule.
 | `releases` | The series' details; Prowlarr's search; which indexers failed during it | The title and year under the heading; the chips and the releases in place of their skeletons, or the empty state with the chips' row emptied in place; how many indexers didn't answer, in the count's line | Every indexer answered; one indexer didn't answer; nothing found |
 | `settings` | Settings' own load of the server's settings, the checks of qBittorrent, Prowlarr and TMDB at once; the categories once qBittorrent's check is in | None: every row is there from the first paint, and the answers change only what the rows say and the category selects' options | Every service answers |
 
+On desktop each screen has the same chain, with what the desktop layout adds or does otherwise:
+
+| Screen | What differs on desktop | Late blocks it adds | Cases |
+| --- | --- | --- | --- |
+| Every screen | The sidebar's torrents (its downloading count and qBittorrent card read the shared poll) once the server's settings are in; a screen that shows torrents asks for them itself | The sidebar's qBittorrent card, its speeds and free space (it grows upwards from the sidebar's foot) | |
+| `downloads` | None | The header's tools, moved sideways as the totals come in | Titles found |
+| `torrent` | The drawer over Downloads: the list's lookups three at a time (`p4`'s, among the torrents, once one of the first three is in) and the drawer's own lookup of its torrent, the same address as the list's; the posters and the guess saved once one title is | As `downloads`, under the drawer; in the drawer, as on a phone | Tagged and finished (`p2`); title guessed from its name (`p3`); no title found (`p4`) |
+| `title`, `series` | The hero's poster, a larger size | The hero's backdrop fade, in place of its loading state | As on a phone |
+| `releases` | The series' title page with its releases under the hero, searched as it opens at their address: the title page's answers, and Prowlarr's search and which indexers failed once the details are in | The filter bar's skeleton chips replaced by the filters; the table in place of its skeleton, or the empty state under the bar's room kept, empty | Every indexer answered; one indexer didn't answer; nothing found; and at `desktop-rail` and `desktop-1280`, every indexer answered, where the bar wraps to a second line once the filters land (#400) |
+
+The narrower sizes' budgets carry #400's jump, the table moving down by the bar's second line
+(0.0338 on a Mac at 1024px, 0.0247 at 1280px), and the fix lowers them.
+
 - **What it leaves out.** Moves between screens by a click: the screens are opened by their address. The app with motion on.
   Empty and "not answering" states but the releases' "nothing found", and the releases' "nothing
   found" with an indexer that didn't answer, whose banner pushes the empty state down (0.029, #401),
   and the other states the screenshot tests open (other
-  torrents' pages beside these three, a search that finds nothing, onboarding). Desktop, which comes
-  in the next step of #378, with the releases' filter bar that wraps to a second line once the
-  results land at 1024–1099px and about 1162–1340px (#400). A title the server's matches already hold (the user's choice, or a
+  torrents' pages beside these three, a search that finds nothing, onboarding). The desktop widths
+  between those read: each screen at 1440px, the releases also at 1024px and 1280px, where #400's
+  bar wraps (at 1024–1099px and about 1162–1340px), so a jump that shows only at another width isn't
+  caught. A title the server's matches already hold (the user's choice, or a
   guess another device saved), which is asked for by its id as `p2`'s is. A title's page whose
   torrent is matched by a guess rather than a tag, where "In downloads" comes in with TMDB's search,
   a later answer than either case lands it with (at the page's end, with nothing under it to move). The web font landing after the content: the
@@ -1092,7 +1113,8 @@ has the budgets' rule.
   titles that came in a batch every `SHOW_EVERY_MS` (250 ms, `src/torrents/titleMatches.ts`), and
   the next title's lookup is asked without waiting for it, so whether two titles show in one frame
   or in two goes by the clock. Today's reading (0.0028 on a Mac, 0.0030 in CI) doesn't depend on
-  it; a jump planted in a row reads one of two numbers by how the batches fall (#395's review: a
-  30px block read 0.0507 or 0.0395, both over the budget), so the jump is still caught, but its
-  number may differ from run to run. Left so, since the alternative is three more waits in one
+  it; a jump planted in a row reads one of two numbers by how the batches fall, in the order where
+  the first asked lands first (#395's review: a 30px block read 0.0507 or 0.0395 there, and 0.0450
+  in the other order, all over the budget), so the jump is still caught, but its number may differ
+  from run to run. Left so, since the alternative is three more waits in one
   case, one per title, that would have to be kept in step with the app's batching.

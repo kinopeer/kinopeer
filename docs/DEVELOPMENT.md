@@ -18,7 +18,7 @@ npm run lint       # linter (oxlint)
 npm run typecheck  # type check
 npm run build      # production build into dist/
 npm run size       # the build's size against its budgets (docs/QUALITY.md)
-npm run test:requests  # each screen's requests on opening and each move's between screens against their budgets, and each screen's layout shift on a phone, after a build (docs/QUALITY.md, docs/TESTING.md)
+npm run test:requests  # each screen's requests on opening and each move's between screens against their budgets, and each screen's layout shift on a phone and on desktop, after a build (docs/QUALITY.md, docs/TESTING.md)
 npm start          # production server over dist/
 npm run test:visual  # screenshot tests in Docker (docs/TESTING.md)
 ```
