@@ -20,6 +20,15 @@
   z-index: 5;
 }
 
+/* Match title, left of More and as tall as it, out of the flow so nothing moves when it shows. */
+.torrent-match {
+  position: absolute;
+  top: calc(var(--safe-top) + var(--space-3));
+  right: calc(var(--space-3) + var(--touch-min) + var(--space-2));
+  z-index: 5;
+  height: var(--touch-min);
+}
+
 /* Below the floating buttons: --space-3 from the top, --touch-min tall, then a gap. */
 .torrent-message {
   padding-top: calc(var(--safe-top) + var(--space-3) + var(--touch-min) + var(--space-4));
@@ -451,6 +460,11 @@
 .is-drawer .torrent-more {
   top: 12px;
   right: 62px;
+}
+
+.is-drawer .torrent-match {
+  top: 12px;
+  right: 112px; /* More's 62px, its 44px and the 6px between Close and More */
 }
 
 .is-drawer .torrent-hero {

@@ -61,8 +61,8 @@ function peerCount(connected: number, total: number | undefined): string {
 
 /**
  * What Kinopeer shows about a torrent: status and progress, pause, resume and delete (recheck and
- * reannounce in its More menu), the title (its poster a button that matches one when none was
- * found; fixing a match is in the More menu), its download settings
+ * reannounce in its More menu), the title (Match title beside More when none was found; fixing a
+ * match is in the More menu), its download settings
  * (the category, sequential download, first and last pieces first), details and files. A
  * screen of its own on a phone, the content of the details drawer on desktop.
  */
@@ -231,6 +231,17 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
   return (
     <Root className={cx('torrent', drawer && 'is-drawer')}>
       {backButton}
+      {match === null && (
+        <Button
+          variant="glass"
+          icon="search"
+          className="torrent-match"
+          disabled={deleting}
+          onClick={() => retitle.open(hash)}
+        >
+          {t('match.pickTitle')}
+        </Button>
+      )}
       <IconButton
         icon="more"
         variant="glass"
@@ -251,15 +262,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
       </div>
       <div key="body" className="torrent-body">
         <div className="torrent-head">
-          <Poster
-            src={poster}
-            className="torrent-poster"
-            action={
-              match === null
-                ? { label: t('match.pickTitle'), icon: 'search', disabled: deleting, onClick: () => retitle.open(hash) }
-                : undefined
-            }
-          />
+          <Poster src={poster} className="torrent-poster" />
           <div className="torrent-head-text">
             <Heading id={titleId} className="t-h2 torrent-title">
               {title}

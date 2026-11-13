@@ -279,7 +279,7 @@ describe('the details drawer on desktop', () => {
     expect(screen.getByRole('status', { name: saying('Torrent deleted') })).toBeInTheDocument()
   })
 
-  it('turns off the poster’s Match title and the files of a torrent being deleted, so nothing is kept for it once it’s gone', async () => {
+  it('turns off Match title and the files of a torrent being deleted, so nothing is kept for it once it’s gone', async () => {
     const name = 'Some.Home.Video'
     const buttons = ['Match title']
     getMainData.mockResolvedValue(snapshot({ tags: '', name }))

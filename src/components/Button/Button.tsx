@@ -3,7 +3,8 @@ import { cx } from '../../lib/cx'
 import { Icon, type IconName } from '../Icon'
 import './Button.css'
 
-export type ButtonVariant = 'primary' | 'secondary' | 'tonal' | 'ghost' | 'danger' | 'danger-ghost'
+/** `glass` is for over posters and backdrops, beside IconButton's glass buttons. */
+export type ButtonVariant = 'primary' | 'secondary' | 'tonal' | 'ghost' | 'danger' | 'danger-ghost' | 'glass'
 export type ButtonSize = 'sm' | 'md' | 'lg'
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

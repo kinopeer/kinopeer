@@ -569,16 +569,22 @@ describe('TorrentScreen title matching', () => {
     expect(await within(sheet).findByRole('button', { name: /^Dune: Part Two/ })).toHaveAttribute('aria-current', 'true')
   })
 
-  it('makes the empty poster a Match title button when no title was found, which opens the title search', async () => {
+  it('puts Match title in the top bar, between Back and More, when no title was found, which opens the title search', async () => {
     getMainData.mockResolvedValue(snapshot({ tags: '', name: 'Some.Home.Video' }))
     vi.mocked(tmdb.searchTitles).mockResolvedValue(searchPage([]))
     renderScreen()
-    await userEvent.click(await screen.findByRole('button', { name: 'Match title' }))
+    const pick = await screen.findByRole('button', { name: 'Match title' })
+    expect(screen.getAllByRole('button').slice(0, 3).map((button) => button.getAttribute('aria-label') ?? button.textContent)).toEqual([
+      'Back',
+      'Match title',
+      'More actions: Some.Home.Video',
+    ])
+    await userEvent.click(pick)
     expect(screen.getByRole('dialog', { name: 'Match title' })).toBeInTheDocument()
     expect(screen.queryByText(/No title found/)).not.toBeInTheDocument()
   })
 
-  it('leaves the poster alone while the title is still being looked up', async () => {
+  it('shows no Match title while the title is still being looked up', async () => {
     getMainData.mockResolvedValue(snapshot({ tags: '', name: 'Some.Home.Video' }))
     let answer = () => {}
     vi.mocked(tmdb.searchTitles).mockReturnValue(new Promise((resolve) => (answer = () => resolve(searchPage([])))))
@@ -591,7 +597,7 @@ describe('TorrentScreen title matching', () => {
     expect(await screen.findByRole('button', { name: 'Match title' })).toBeEnabled()
   })
 
-  it('leaves the title search from the poster closed without a choice as it was, and shows a title chosen there', async () => {
+  it('leaves the title search from Match title closed without a choice as it was, and shows a title chosen there', async () => {
     getMainData.mockResolvedValue(snapshot({ tags: '', name: 'Dune.Part.Two.Fan.Edit' }))
     vi.mocked(tmdb.searchTitles).mockImplementation(async (query) => searchPage(query === 'Dune' ? [DUNE_1984] : []))
     renderScreen()

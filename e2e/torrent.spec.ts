@@ -19,7 +19,7 @@ test('title guessed from the release name, dark, Russian', async ({ page }) => {
   await expect(page).toHaveScreenshot('guess-dark-ru.png')
 })
 
-test('no title found, the poster a button that matches one, dark, Russian', async ({ page }) => {
+test('no title found, Match title beside More, dark, Russian', async ({ page }) => {
   // TMDB finds nothing for its name.
   await openApp(page, '/torrent/a9')
   await expect(page.getByRole('button', { name: 'Сопоставить' })).toBeVisible()
@@ -70,7 +70,7 @@ test.describe('desktop drawer', () => {
     await expect(page).toHaveScreenshot('desktop-drawer-dark-ru.png')
   })
 
-  test('no title found, the poster a button that matches one, dark, Russian', async ({ page }) => {
+  test('no title found, Match title beside More, dark, Russian', async ({ page }) => {
     await openApp(page, '/')
     // Every other torrent's title and poster are in, so the page behind looks the same every run.
     await expect(page.locator('.ks-poster-none')).toHaveCount(1)

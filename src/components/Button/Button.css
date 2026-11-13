@@ -54,6 +54,14 @@
 .ks-btn-danger { background: var(--error); color: var(--on-error); }
 .ks-btn-danger-ghost { background: transparent; color: var(--error); border-color: var(--border-strong); }
 
+/* Over posters and backdrops, as IconButton's glass: always white on dark glass. */
+.ks-btn-glass {
+  background: rgba(8, 10, 12, 0.52);
+  color: #fff;
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
 @media (hover: hover) {
   .ks-btn-primary:hover:not(:disabled) {
     background: var(--accent-hover);
@@ -62,7 +70,8 @@
   .ks-btn-secondary:hover:not(:disabled),
   .ks-btn-ghost:hover:not(:disabled),
   .ks-btn-tonal:hover:not(:disabled),
-  .ks-btn-danger-ghost:hover:not(:disabled) {
+  .ks-btn-danger-ghost:hover:not(:disabled),
+  .ks-btn-glass:hover:not(:disabled) {
     box-shadow: inset 0 0 0 100px var(--hover);
   }
 
@@ -94,6 +103,11 @@
   background: transparent;
 }
 
+/* Keeps its glass, as IconButton's does: the disabled colour on it is enough. */
+.ks-btn-glass:disabled {
+  background: rgba(8, 10, 12, 0.52);
+}
+
 .ks-btn.is-loading {
   color: transparent !important;
   pointer-events: none;
@@ -118,6 +132,11 @@
 .ks-btn-tonal.is-loading::after,
 .ks-btn-danger-ghost.is-loading::after {
   border-color: var(--text);
+  border-right-color: transparent;
+}
+
+.ks-btn-glass.is-loading::after {
+  border-color: #fff;
   border-right-color: transparent;
 }
 

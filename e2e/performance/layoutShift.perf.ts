@@ -97,8 +97,8 @@ const CASES: Case[] = [
   },
   /**
    * `p4`: no tag, and TMDB's search finds nothing for its name, which waits for the torrents and the
-   * matches as `p3`'s does. Once it has answered the page's poster becomes the button that opens
-   * the title search; nothing else is asked for, and nothing is saved.
+   * matches as `p3`'s does. Once it has answered Match title shows beside More, out of the flow;
+   * nothing else is asked for, and nothing is saved.
    */
   {
     name: 'no title found',

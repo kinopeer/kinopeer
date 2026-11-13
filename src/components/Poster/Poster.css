@@ -31,44 +31,6 @@
   background: repeating-linear-gradient(135deg, var(--sunken) 0 8px, var(--surface) 8px 16px);
 }
 
-/* An empty poster that's a button: the same frame, the action's icon and label in the accent, and
-   the hover and press tints over the stripes, which cover the button. */
-.ks-poster-action {
-  display: block;
-  padding: 0;
-  border: 0;
-  color: var(--accent-text);
-  cursor: pointer;
-}
-
-.ks-poster-action .ks-poster-none {
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-1);
-  color: inherit;
-}
-
-.ks-poster-label {
-  font: var(--t-cap);
-  font-weight: 600;
-  text-align: center;
-}
-
-@media (hover: hover) {
-  .ks-poster-action:hover:not(:disabled) .ks-poster-none {
-    box-shadow: inset 0 0 0 100px var(--hover);
-  }
-}
-
-.ks-poster-action:active:not(:disabled) .ks-poster-none {
-  box-shadow: inset 0 0 0 100px var(--press);
-}
-
-.ks-poster-action:disabled {
-  color: var(--disabled);
-  cursor: not-allowed;
-}
-
 /* Darkens the bottom of the poster under overlaid status and progress. */
 .ks-poster-fade {
   position: absolute;
