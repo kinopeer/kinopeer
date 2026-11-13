@@ -69,6 +69,7 @@
 }
 
 .title-head-text {
+  position: relative;
   flex: 1;
   min-width: 0;
   display: flex;
@@ -131,8 +132,30 @@
   padding-bottom: 88px; /* room for the fixed actions bar */
 }
 
+/* The badge, a button that takes the page down to the "In downloads" block at its end. It sits
+   above the name out of the flow, where it would be as the head's text's first line, so it pushes
+   nothing as it comes with the torrents (#394); the head's text is its containing block. */
 .title-in-dl {
-  align-self: flex-start;
+  position: absolute;
+  bottom: calc(100% + var(--space-2));
+  left: 0;
+  display: inline-flex;
+  padding: 0;
+  border: none;
+  border-radius: var(--r-xs);
+  background: none;
+  color: inherit;
+}
+
+/* Extend the badge's hit area to the touch target, without moving the head's text. */
+.title-in-dl::before {
+  content: '';
+  position: absolute;
+  inset: calc((100% - var(--touch-min)) / 2) 0;
+}
+
+.title-in-dl:focus-visible {
+  outline: var(--focus-ring);
 }
 
 /* "In downloads": the title's torrents, each opening its torrent screen. */
@@ -282,11 +305,17 @@
 }
 
 .title-dtext {
+  position: relative;
   flex: 1 1 420px;
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+}
+
+/* The text's own gap above the name, as for the phone's. */
+.title-dtext > .title-in-dl {
+  bottom: calc(100% + var(--space-3));
 }
 
 .title-dname {
@@ -338,9 +367,14 @@
   max-width: 360px;
 }
 
-/* "In downloads" on desktop: cards side by side under the hero. */
+/* "In downloads" on desktop: cards side by side at the page's end. */
 .title-desktop > .title-dls {
-  padding: var(--space-3) var(--space-8) 0;
+  padding: var(--space-6) var(--space-8) var(--space-12);
+}
+
+/* The row's own bottom room would double the block's top room. */
+.title-desktop > .poster-row:has(+ .title-dls) {
+  padding-bottom: 0;
 }
 
 .title-desktop .title-dls-list {

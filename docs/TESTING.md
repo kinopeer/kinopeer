@@ -1022,8 +1022,9 @@ has the budgets' rule.
   page asks in, not from how fast it asked: the choice is the same every run. A chain whose every
   answer waits for the one before it can't give two orders, and runs once (`orders`); every chain
   today has a point with two answers out (the download defaults beside the screen's first), so
-  every case runs twice. The orders do differ where it matters: a movie's page reads 0.0002 in CI
-  when the torrents land before the details and 0.0878 the other way (#394).
+  every case runs twice. The orders do differ where it matters: before #394's fix a movie's page
+  read 0.0002 in CI when the torrents landed before the details and 0.0878 the other way, and the
+  fix's first version read 0 one way and 0.0608 the other.
 - **Nothing lands unheld.** A request no answer of the case is lands, and fails the test with its
   method and address: a screen that starts asking for more brings its case along. So does a request
   beyond the answers that claim it, the same address again or with another query, unless the last
@@ -1065,8 +1066,8 @@ has the budgets' rule.
 | `browse` | Three Discover queries at once; the posters once all three are in | The three rows, together, in place of the skeleton; their posters | Rows of titles |
 | `search` | TMDB's search; the posters | The results with their count and Show more, in place of the skeleton; their posters | Titles found |
 | `search-year` | TMDB's search for movies and for series, at once; the posters once both are in | The results, together, in place of the skeleton; their posters | Titles found |
-| `title` | The details, the torrents and the matches at once; the poster and the recommendations once the details are in, their posters after them; the guess of the untagged torrent's title, since the tagged ones' titles are known without TMDB (#381) | The page in place of its skeleton; the poster; the "In downloads" badge and block, once the details and the torrents are both in; the recommendations row | A movie in downloads, with recommendations. Its budget, 0.09, is #394's jump (the badge and the block coming in after the details: 0.0878 in CI), which the fix lowers |
-| `series` | As `title`; similar titles once the recommendations come back empty | As `title`, with the series hint and similar titles in place of recommendations | A series in downloads, with similar titles. Its budget, 0.09, is #394's jump (0.0818 in CI) |
+| `title` | The details, the torrents and the matches at once; the poster and the recommendations once the details are in, their posters after them; the guess of the untagged torrent's title, since the tagged ones' titles are known without TMDB (#381) | The page in place of its skeleton; the poster; the "In downloads" badge, above the title out of the flow, once the details and the torrents are both in; the recommendations row; the "In downloads" block under it once both it and the torrents are in | A movie in downloads, with recommendations |
+| `series` | As `title`; similar titles once the recommendations come back empty | As `title`, with the series hint and similar titles in place of recommendations | A series in downloads, with similar titles |
 | `releases` | The series' details; Prowlarr's search; which indexers failed during it | The title and year under the heading; the chips and the releases in place of their skeletons, or the empty state with the chips' row emptied in place; how many indexers didn't answer, in the count's line | Every indexer answered; one indexer didn't answer; nothing found |
 | `settings` | Settings' own load of the server's settings, the checks of qBittorrent, Prowlarr and TMDB at once; the categories once qBittorrent's check is in | None: every row is there from the first paint, and the answers change only what the rows say and the category selects' options | Every service answers |
 
@@ -1079,7 +1080,7 @@ has the budgets' rule.
   results land at 1024–1099px and about 1162–1340px (#400). A title the server's matches already hold (the user's choice, or a
   guess another device saved), which is asked for by its id as `p2`'s is. A title's page whose
   torrent is matched by a guess rather than a tag, where "In downloads" comes in with TMDB's search,
-  a later answer than either case lands it with. The web font landing after the content: the
+  a later answer than either case lands it with (at the page's end, with nothing under it to move). The web font landing after the content: the
   releases then read 0.199 on a Mac and 0.066 on the Playwright Linux image, as the names wrap again
   in the fallback font, so the test has the fonts in before the first answer: what a late font moves
   depends on the machine's fallback font, and a budget on it would be the runner's, not the app's.
@@ -1095,6 +1096,3 @@ has the budgets' rule.
   30px block read 0.0507 or 0.0395, both over the budget), so the jump is still caught, but its
   number may differ from run to run. Left so, since the alternative is three more waits in one
   case, one per title, that would have to be kept in step with the app's batching.
-- **The hole under a carried jump.** One budget covers both orders of a screen. Until #394 is
-  fixed, a new shift of up to 0.09 passes on the title's and the series' page in the order that
-  reads 0 on a Mac and 0.0002 in CI today.

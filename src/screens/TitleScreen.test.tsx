@@ -1,7 +1,7 @@
-import { screen, within } from '@testing-library/react'
+import { act, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes, useLocation, useParams } from 'react-router'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import * as matchesApi from '../api/matches'
 import * as qbt from '../api/qbittorrent'
 import type { Torrent } from '../api/qbittorrent'
@@ -124,6 +124,16 @@ beforeEach(() => {
   vi.mocked(tmdb.getRecommendations).mockResolvedValue({ titles: [], page: 1, totalPages: 1 })
   vi.mocked(tmdb.getSimilar).mockResolvedValue({ titles: [], page: 1, totalPages: 1 })
 })
+
+/** jsdom has no scrollIntoView: a mock of it for one test, whose calls say which element it was called on. */
+function stubScrollIntoView() {
+  const scrollIntoView = vi.fn()
+  Element.prototype.scrollIntoView = scrollIntoView
+  onTestFinished(() => {
+    delete (Element.prototype as Partial<Element>).scrollIntoView
+  })
+  return scrollIntoView
+}
 
 describe('TitleScreen', () => {
   it('suggests what to watch next under the title, and opens a suggested title with its own suggestions', async () => {
@@ -248,7 +258,7 @@ describe('TitleScreen', () => {
         'aria-valuenow',
         '100',
       )
-      expect(screen.getByText('In downloads · 2')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'In downloads · 2' })).toBeInTheDocument()
 
       await userEvent.click(links[0])
       expect(screen.getByRole('heading', { name: 'Torrent page' })).toBeInTheDocument()
@@ -257,8 +267,39 @@ describe('TitleScreen', () => {
     it("shows a single torrent's progress in the header", async () => {
       torrents(download('dune', 'Dune.Part.Two.2024.2160p.WEB-DL', { tags: 'tmdb:movie:693134', progress: 0.64 }))
       renderAt('/title/movie/693134')
-      expect(await screen.findByText('In downloads · 64%')).toBeInTheDocument()
-      expect(screen.getByRole('region', { name: 'In downloads' })).toBeInTheDocument()
+      expect(await screen.findByRole('button', { name: 'In downloads · 64%' })).toBeInTheDocument()
+      expect(await screen.findByRole('region', { name: 'In downloads' })).toBeInTheDocument()
+    })
+
+    // At the page's end, under the related titles, so neither pushes the other as they come (#394):
+    // where it sits is in the screenshots and the layout shift test.
+    it('shows with the related titles, and the header’s badge takes the page down to it', async () => {
+      const scrollIntoView = stubScrollIntoView()
+      vi.mocked(tmdb.getRecommendations).mockResolvedValue({ titles: [tmdb.toTitle({ ...DUNE, id: 438631, title: 'Dune' }, 'movie')], page: 1, totalPages: 1 })
+      torrents(download('dune', 'Dune.Part.Two.2024.2160p.WEB-DL', { tags: 'tmdb:movie:693134', progress: 0.64 }))
+      renderAt('/title/movie/693134')
+      const block = await screen.findByRole('region', { name: 'In downloads' })
+      expect(screen.getByRole('region', { name: 'Recommendations' })).toBeInTheDocument()
+
+      await userEvent.click(screen.getByRole('button', { name: 'In downloads · 64%' }))
+      expect(scrollIntoView).toHaveBeenCalledExactlyOnceWith({ block: 'start', behavior: 'smooth' })
+      expect(scrollIntoView.mock.contexts[0]).toBe(block)
+    })
+
+    // The block waits for the row, but its place is there: a tap in the meantime lands where it will show.
+    it('takes the page to the block’s place from the badge while the related titles still load', async () => {
+      const scrollIntoView = stubScrollIntoView()
+      let answer!: (titles: tmdb.TitlePage) => void
+      vi.mocked(tmdb.getRecommendations).mockReturnValue(new Promise((resolve) => (answer = resolve)))
+      torrents(download('dune', 'Dune.Part.Two.2024.2160p.WEB-DL', { tags: 'tmdb:movie:693134', progress: 0.64 }))
+      renderAt('/title/movie/693134')
+      await userEvent.click(await screen.findByRole('button', { name: 'In downloads · 64%' }))
+      expect(screen.queryByRole('region', { name: 'In downloads' })).not.toBeInTheDocument()
+      expect(scrollIntoView).toHaveBeenCalledExactlyOnceWith({ block: 'start', behavior: 'smooth' })
+      const place = scrollIntoView.mock.contexts[0] as Element
+
+      await act(async () => answer({ titles: [], page: 1, totalPages: 1 }))
+      expect(await screen.findByRole('region', { name: 'In downloads' })).toBe(place)
     })
 
     it('includes torrents guessed or chosen for the title, not those chosen for another', async () => {

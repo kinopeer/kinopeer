@@ -145,7 +145,9 @@ const torrentPage = (name: string, hash: string, complete: Shown, rest: Record<s
 /**
  * The title page's answers (TitleScreen): the title's details, its poster once they're in, what to
  * watch next (TitleRelated, under the page's fold), and the torrents with their titles, of which the
- * title's own show in its "In downloads" badge and block once the details are in too.
+ * title's own show in its "In downloads" badge and block once the details are in too. The block is
+ * at the page's end, under the related titles, and waits for them: in the order where the torrents
+ * land first, the row coming in above it would push it down (0.0608 without the wait, #394).
  */
 const titlePage = (name: string, type: string, id: number, complete: Shown, related: Record<string, Answer>): Case => ({
   screen: type === 'movie' ? 'title' : 'series',

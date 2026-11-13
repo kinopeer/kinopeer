@@ -22,7 +22,7 @@
     "size": { "js": 196300, "css": 16200, "rest": 193600 },
     "layoutShiftCeiling": 0.1,
     "layoutShift": {
-      "phone": { "downloads": 0.01, "torrent": 0.01, "browse": 0.01, "search": 0.01, "search-year": 0.01, "title": 0.09, "series": 0.09, "releases": 0.01, "settings": 0.01 }
+      "phone": { "downloads": 0.01, "torrent": 0.01, "browse": 0.01, "search": 0.01, "search-year": 0.01, "title": 0.01, "series": 0.01, "releases": 0.01, "settings": 0.01 }
     },
     "requests": {
       "phone": {

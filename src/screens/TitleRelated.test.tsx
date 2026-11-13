@@ -1,9 +1,9 @@
 import { act, screen, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import * as tmdb from '../api/tmdb'
 import type { Title } from '../api/tmdb'
 import { renderWithRouter } from '../test/render'
-import { TitleRelated } from './TitleRelated'
+import { RELATED_TIMEOUT_MS, TitleRelated } from './TitleRelated'
 
 vi.mock('../api/tmdb', async (importOriginal) => {
   const actual = await importOriginal<typeof tmdb>()
@@ -94,5 +94,62 @@ describe('TitleRelated', () => {
     expect(container).toBeEmptyDOMElement()
     // A call count is the only way to see that no fallback request goes out after a failure.
     expect(getSimilar).not.toHaveBeenCalled()
+  })
+
+  describe('what goes under the row', () => {
+    const renderWithAfter = () =>
+      renderWithRouter(<TitleRelated type="movie" id={693134} language="en-US" after={(settled) => <p>{settled ? 'Under the row' : 'Waiting'}</p>} />)
+
+    it('tells it to wait while the row loads, then that the row has settled, under it, the same element', async () => {
+      let answer!: (titles: tmdb.TitlePage) => void
+      getRecommendations.mockReturnValue(new Promise((resolve) => (answer = resolve)))
+      renderWithAfter()
+      const waiting = screen.getByText('Waiting')
+      expect(screen.queryByText('Under the row')).not.toBeInTheDocument()
+
+      await act(async () => answer(page(title(438631, 'Dune'))))
+      expect(screen.getByRole('region', { name: 'Recommendations' })).toBeInTheDocument()
+      expect(screen.getByText('Under the row')).toBe(waiting)
+    })
+
+    it('shows alone when both lists are empty', async () => {
+      renderWithAfter()
+      await answered()
+      expect(screen.getByText('Under the row')).toBeInTheDocument()
+      expect(screen.queryByRole('region')).not.toBeInTheDocument()
+    })
+
+    it('shows alone once TMDB hasn’t answered in RELATED_TIMEOUT_MS, the request given up', async () => {
+      vi.useFakeTimers()
+      onTestFinished(() => {
+        vi.useRealTimers()
+      })
+      // A request that stalls answers nothing until it's aborted, as fetch does.
+      let signal!: AbortSignal
+      getRecommendations.mockImplementation(
+        (_type, _id, options) =>
+          new Promise((_, reject) => {
+            signal = options!.signal!
+            signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
+          }),
+      )
+      renderWithAfter()
+      await act(() => vi.advanceTimersByTimeAsync(RELATED_TIMEOUT_MS - 1))
+      expect(screen.getByText('Waiting')).toBeInTheDocument()
+      expect(signal.aborted).toBe(false)
+
+      await act(() => vi.advanceTimersByTimeAsync(1))
+      expect(signal.aborted).toBe(true)
+      expect(screen.getByText('Under the row')).toBeInTheDocument()
+      expect(screen.queryByRole('region')).not.toBeInTheDocument()
+    })
+
+    it('shows alone when TMDB fails', async () => {
+      getRecommendations.mockRejectedValue(new TypeError('Failed to fetch'))
+      renderWithAfter()
+      await answered()
+      expect(screen.getByText('Under the row')).toBeInTheDocument()
+      expect(screen.queryByRole('region')).not.toBeInTheDocument()
+    })
   })
 })
