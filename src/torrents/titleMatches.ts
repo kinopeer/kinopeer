@@ -39,6 +39,15 @@ function known(type: MediaType, id: number): Lookup {
   return { key: `id:${type}:${id}`, tag: { type, id } }
 }
 
+/** A torrent's title when it's known without TMDB: the user's choice, the `tmdb:` tag or a saved guess. */
+function knownTitle(torrent: Pick<Torrent, 'tags'>, stored?: StoredMatch): Lookup['tag'] {
+  if (stored?.source === 'user') return { type: stored.type, id: stored.id }
+  const tag = tmdbTag(torrent.tags ?? '')
+  if (tag) return { type: tag.type, id: tag.id }
+  if (stored?.source === 'guess' && stored.version === GUESS_VERSION) return { type: stored.type, id: stored.id }
+  return undefined
+}
+
 /**
  * How to find a torrent's title: the user's choice first, then the `tmdb:` tag Kinopeer adds with a
  * release, then a guess the server keeps, and only then a new guess from the release name.
@@ -47,10 +56,8 @@ export function lookupFor(
   torrent: Pick<Torrent, 'name' | 'tags'> & { category?: string },
   stored?: StoredMatch,
 ): Lookup {
-  if (stored?.source === 'user') return known(stored.type, stored.id)
-  const tag = tmdbTag(torrent.tags ?? '')
-  if (tag) return known(tag.type, tag.id)
-  if (stored?.source === 'guess' && stored.version === GUESS_VERSION) return known(stored.type, stored.id)
+  const title = knownTitle(torrent, stored)
+  if (title) return known(title.type, title.id)
   const parsed = parseName(torrent.name)
   const hint = parsed.type ? undefined : categoryType(torrent.category)
   const type = parsed.type ?? (hint ? `~${hint}` : '')
@@ -425,7 +432,8 @@ export function useTitleMatches(
 
 /**
  * A title's torrents, newest first: those the user chose it for, tagged with it, or guessed to be it.
- * A tagged torrent counts right away; a guessed one once its guess is known.
+ * A torrent whose title is known (the user's choice, the tag, a saved guess) counts right away and
+ * costs no request; only the others are guessed, and count once their guess is known (#381).
  */
 export function useTitleTorrents<T extends Pick<Torrent, 'hash' | 'name' | 'tags' | 'added_on'> & { category?: string }>(
   torrents: T[],
@@ -433,10 +441,17 @@ export function useTitleTorrents<T extends Pick<Torrent, 'hash' | 'name' | 'tags
   id: number,
 ): T[] {
   const server = useServerMatches()
-  const matches = useTitleMatches(torrents)
+  const knownTitles = useMemo(() => {
+    const byHash = new Map<string, Lookup['tag']>()
+    for (const torrent of torrents) byHash.set(torrent.hash, knownTitle(torrent, server?.[torrent.hash]))
+    return byHash
+  }, [torrents, server])
+  // A new array only when the torrents or what's known changes: useTitleMatches works over it.
+  const unknown = useMemo(() => torrents.filter((torrent) => !knownTitles.get(torrent.hash)), [torrents, knownTitles])
+  const matches = useTitleMatches(unknown)
   return torrents
     .filter((torrent) => {
-      const title = lookupFor(torrent, server?.[torrent.hash]).tag ?? matches[torrent.hash]
+      const title = knownTitles.get(torrent.hash) ?? matches[torrent.hash]
       return title?.type === type && title.id === id
     })
     .sort((a, b) => b.added_on - a.added_on)
