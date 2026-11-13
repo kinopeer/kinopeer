@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes } from 'react'
+import { useId, type ButtonHTMLAttributes } from 'react'
 import { cx } from '../../lib/cx'
 import { Icon, type IconName } from '../Icon'
 import './IconButton.css'
@@ -15,6 +15,13 @@ export interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement>
   iconSize?: number
   /** Toggle state. Leave undefined for a plain action button. */
   active?: boolean
+  /**
+   * A small accent dot in the corner, pointing at something worth opening the button for. The text
+   * says why, as the button's accessible description, since the dot alone is only a colour. On a
+   * `plain` or `filled` button it follows the theme (`--accent`, ringed in `--bg` to stand off the
+   * page); on `glass`, dark in both themes, it's the same light teal in both, with no ring.
+   */
+  dot?: string
 }
 
 export function IconButton({
@@ -24,10 +31,13 @@ export function IconButton({
   size = 'md',
   iconSize,
   active,
+  dot,
   className,
   type = 'button',
+  'aria-describedby': describedBy,
   ...rest
 }: IconButtonProps) {
+  const dotId = useId()
   return (
     <button
       {...rest}
@@ -41,8 +51,17 @@ export function IconButton({
       )}
       aria-label={label}
       aria-pressed={active}
+      aria-describedby={cx(describedBy, dot && dotId) || undefined}
     >
       <Icon name={icon} size={iconSize ?? (size === 'sm' ? 18 : 20)} />
+      {dot && (
+        <>
+          <span className="ks-icon-btn-dot" aria-hidden="true" />
+          <span id={dotId} hidden>
+            {dot}
+          </span>
+        </>
+      )}
     </button>
   )
 }

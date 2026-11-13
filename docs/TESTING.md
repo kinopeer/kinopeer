@@ -852,9 +852,9 @@ under one blocking finding per PR. From then on the retro runs every forty merge
 Unit tests run in jsdom, which has no layout, so they can't catch a button in the wrong place or a title that doesn't clamp. Screenshot tests do: Playwright opens the built app (`vite preview`) in Chromium and compares each screen with a baseline PNG.
 
 - **What's covered:** what only the browser sees, one baseline per layout or state, in the dark theme and Russian unless said otherwise. Specs are in `e2e/*.spec.ts`, baselines in `e2e/__screenshots__/`.
-  - A phone (390×844): Downloads (list and poster grid, the sort and filter sheet, the actions sheet, selection, empty, offline, Kinopeer unreached before the first answer and after one, with Retry and Open again, the sticky filter bar after a scroll, also with a notched iPhone's safe area, which a DevTools override gives Chromium), Search (browse rows, results, a next page that failed, the pinned field after a scroll, also with a notched safe area), the title page (movie and series, and the page scrolled under the pinned Find releases bar), Releases (results, the filters sheet, the add sheet, also with too little free space, and its file picker), torrent details (with files, a guessed title, changing the title, changing the category, an error), Settings (and a connection with an error, and Prowlarr without indexers) and the connect screen with a wrong password and with Kinopeer unreached (the state in place of the form, Retry and Open again).
+  - A phone (390×844): Downloads (list and poster grid, the sort and filter sheet, the actions sheet, selection, empty, offline, Kinopeer unreached before the first answer and after one, with Retry and Open again, the sticky filter bar after a scroll, also with a notched iPhone's safe area, which a DevTools override gives Chromium), Search (browse rows, results, a next page that failed, the pinned field after a scroll, also with a notched safe area), the title page (movie and series, and the page scrolled under the pinned Find releases bar), Releases (results, the filters sheet, the add sheet, also with too little free space, and its file picker), torrent details (with files, a guessed title, no title found with the dot on More, also in the light theme, and its menu with Match title in the accent, fixing the match, changing the category, an error), Settings (and a connection with an error, and Prowlarr without indexers) and the connect screen with a wrong password and with Kinopeer unreached (the state in place of the form, Retry and Open again).
   - A tablet (768×1024): Downloads in the centered column, with the tab bar over it.
-  - Desktop (1440×900): the sidebar with labels, Downloads as a grid (and a card's Pause button on hover, and the offline banner with Kinopeer unreached, both buttons beside the text) and as a table (the row and sort menus, selection, offline, the sticky header and column names after a scroll, the header with a notched safe area, the install card above it, and the card left open where it doesn't show, which takes no room), Search (the pinned field after a scroll, no results), the title page (incl. the long overview with Show more), releases under the hero with a filter popover and sorted by a column's name, the torrent drawer over Downloads and over the title page, the add and delete modals, Settings and onboarding (also with Kinopeer unreached, the state in the form's card). The icon rail (1024×768) in the status menu, Search's pinned field after a scroll, releases and Settings; the labelled sidebar at its narrowest (1100×800) and full HD (1920×1080) for the table's columns.
+  - Desktop (1440×900): the sidebar with labels, Downloads as a grid (and a card's Pause button on hover, and the offline banner with Kinopeer unreached, both buttons beside the text) and as a table (the row and sort menus, selection, offline, the sticky header and column names after a scroll, the header with a notched safe area, the install card above it, and the card left open where it doesn't show, which takes no room), Search (the pinned field after a scroll, no results), the title page (incl. the long overview with Show more), releases under the hero with a filter popover and sorted by a column's name, the torrent drawer over Downloads (also with no title found, and its menu open) and over the title page, the add and delete modals, Settings and onboarding (also with Kinopeer unreached, the state in the form's card). The icon rail (1024×768) in the status menu, Search's pinned field after a scroll, releases and Settings; the labelled sidebar at its narrowest (1100×800) and full HD (1920×1080) for the table's columns.
   - The light theme in English twice, where its colors show on every status and on the sidebar: the Downloads list on the phone and the grid on desktop.
   - A behavioral `expect` in a spec only gets a screen to its state, or checks what jsdom can't see (where a click lands, sticky positioning, a container query, a real `<dialog>`); behavior itself is layers 1–4.
 - **No live services:** `e2e/app.ts` answers `/qbt`, `/tmdb`, `/tmdb-img`, `/prowlarr`, `/api/settings` and `/api/matches` from the shared fixtures (`src/test/fixtures.ts` through `e2e/fixtures.ts`), matched by URL pathname (a glob like `**/tmdb/**` would also catch Vite's `/src/api/tmdb/` modules). Posters are generated gradients and the release's `.torrent` is built from the fixtures too. The app version in Settings is masked, so a version bump doesn't change the screenshots. The clock is frozen, animations are off and the service worker is blocked. Text is always grayscale (`--disable-lcd-text` in `playwright.config.ts`): left to itself, Chromium now and then draws part of a page's text in grayscale instead of LCD, as it did in two screenshots in CI (#145). What triggers it wasn't found, and a page can't see it, so a test can't wait it out.
@@ -976,19 +976,31 @@ it are in [QUALITY.md](QUALITY.md) → The requests budget.
 `e2e/performance/layoutShift.perf.ts` (the same config, command and CI job as the requests test)
 opens a torrent's page by its address on a phone (390×844, named in the file) and sums its layout
 shifts as it loads against `budgets.layoutShift` in `checks.json` (`phone.torrent`: 0.1, the bound
-Web Vitals call good). It was #387's red test: on a phone the page moved by 0.26.
+Web Vitals call good), for three torrents. It was #387's red test (on a phone the page moved by
+0.26) and #389's (a guessed title's page moved by 0.1051 as "Is it right?" came in above the
+progress card, and a page with no title found by 0.1093 with its "No title found" card).
 
 - **Not by chance.** Which states of a page paint, and so what can move, depends on the order its
   answers land in, which a run left to the network doesn't choose. `holdAnswers`
   (`e2e/performance/layoutShift.ts`) holds each route's answers and lets them land in the order the
   test names, each after the page painted what the one before showed: every state in between is on
   the screen for a frame at least, the worst case.
-- **Which page, in which order.** `p2` of the performance tests' torrents (`TORRENTS` in
-  `e2e/performance/page.ts`): tagged with its title and finished. A tagged torrent's page asks for
-  the torrents once the session is checked, for the title once the torrent shows and for the
-  poster once the title does, so those land in that order whatever the network does. The server's
-  matches go out beside the first poll; it has none for `p2`, so where they land changes nothing
-  on the page, and the test lands them before the torrents.
+- **Which pages, in which order.** Each page in the one order its answers can land in that tells
+  anything. The session is checked first on every page, since the app asks for nothing else
+  before it, and the server's matches go out beside the first poll; the server has none for these
+  torrents, and the test lands them where a server answers them, before the torrents.
+  - `p2` of the performance tests' torrents (`TORRENTS` in `e2e/performance/page.ts`), tagged with
+    its title and finished: the page asks for the title by its id once the torrent shows and for
+    the poster once the title does, so those land in that order whatever the network does, and the
+    empty matches change nothing on the page wherever they land.
+  - `p3`, untagged, its title guessed from its name with a cold cache: a guess waits for both the
+    torrents and the matches, so TMDB's search goes out after the later of the two, and with the
+    matches empty, landing them after the torrents paints the same states as before them. The
+    poster comes after the guess, and the guess saved on the server a second later is waited for
+    too.
+  - `p4`, the test's own (`UNKNOWN`), untagged and named so that TMDB finds nothing: the search
+    waits as `p3`'s does, and once it has answered More gets its dot, out of the flow;
+    nothing else is asked for.
 - **What the reading counts.** Every `layout-shift` entry, with the elements that moved and their
   boxes in the viewport before and after (`y/height`), those within 500 ms of a click or a key
   press too, which web-vitals leaves out: the failure marks them "after input", and a screen
@@ -1005,8 +1017,8 @@ Web Vitals call good). It was #387's red test: on a phone the page moved by 0.26
   folder and Stryker mutates it. A budget raised or removed is the owner's decision, which the
   checks guard marks; a new one goes to a second review.
 - **What it leaves out.** Other screens; a check of every screen's layout shift is to come with
-  #378, extending this reading. The page's other loaded states: a guessed title, whose title waits
-  for the server's matches and whose "Is it right?" comes in above the progress card, and a
-  torrent with no title found. The torrent's drawer on desktop: a third of the window's width at
-  1440×900 and nearly half at 1024×768, so even all its content moving down by its header's
-  height scores 0.027 and 0.062, which a bound of 0.1 can't catch.
+  #378, extending this reading. A title the server's matches already hold (the user's choice, or
+  a guess another device saved), which is asked for by its id as `p2`'s is. The torrent's drawer
+  on desktop: a third of the window's width at 1440×900 and nearly half at 1024×768, so even all
+  its content moving down by its header's height scores 0.027 and 0.062, which a bound of 0.1
+  can't catch.

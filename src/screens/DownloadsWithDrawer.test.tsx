@@ -279,29 +279,44 @@ describe('the details drawer on desktop', () => {
     expect(screen.getByRole('status', { name: saying('Torrent deleted') })).toBeInTheDocument()
   })
 
-  it.each([
-    ['a guessed title', {}, [title('movie', 693134, 'Dune: Part Two', 2024)], 'Dune: Part Two', ['Yes, right', 'Change']],
-    ['no title', { name: 'Some.Home.Video' }, [], 'Some.Home.Video', ['Pick title']],
-  ])('turns off the title prompt (%s) and the files of a torrent being deleted, so nothing is kept for it once it’s gone', async (_case, fields, titles, name, buttons) => {
-    getMainData.mockResolvedValue(snapshot({ tags: '', ...fields }))
-    vi.mocked(tmdb.searchTitles).mockResolvedValue(searchPage(titles))
+  it('turns off the files of a torrent being deleted, so nothing is kept for it once it’s gone', async () => {
     getTorrentFiles.mockResolvedValue([
       { index: 0, name: 'Dune.Part.Two/Dune.Part.Two.mkv', size: 19_900_000_000, progress: 0.4, priority: 1 },
       { index: 1, name: 'Dune.Part.Two/Extras.mkv', size: 1_500_000_000, progress: 0, priority: 0 },
     ])
     deleteTorrents.mockReturnValue(new Promise(() => {}))
     renderApp(['/', '/torrent/dune'])
-    const drawer = await screen.findByRole('dialog', { name })
+    const drawer = await screen.findByRole('dialog', { name: 'Dune: Part Two' })
     await userEvent.click(await within(drawer).findByRole('button', { name: 'Files' }))
     expect(await within(drawer).findByRole('combobox', { name: 'Priority: Extras.mkv' })).toBeEnabled()
-    for (const button of buttons) expect(await within(drawer).findByRole('button', { name: button })).toBeEnabled()
     await userEvent.click(within(drawer).getByRole('button', { name: 'Delete' }))
     const confirm = screen.getByRole('alertdialog', { name: 'Delete torrent?' })
     await userEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
     fireEvent(confirm, new Event('cancel', { cancelable: true }))
 
-    for (const button of buttons) expect(within(drawer).getByRole('button', { name: button })).toBeDisabled()
     for (const file of within(drawer).getAllByRole('combobox', { name: /^Priority:/ })) expect(file).toBeDisabled()
+  })
+
+  it('puts a dot on the drawer’s More when no title was found, highlights Match title in its menu, and drops the dot once one is chosen', async () => {
+    const UNMATCHED = 'This torrent isn’t matched to a movie or series'
+    getMainData.mockResolvedValue(snapshot({ tags: '', name: 'Dune.Part.Two.Fan.Edit' }))
+    vi.mocked(tmdb.searchTitles).mockImplementation(async (query) => searchPage(query === 'Dune' ? [title('movie', 841, 'Dune', 1984)] : []))
+    renderApp(['/', '/torrent/dune'])
+    const drawer = await screen.findByRole('dialog', { name: 'Dune.Part.Two.Fan.Edit' })
+    const more = () => within(drawer).getByRole('button', { name: /^More actions: / })
+    await vi.waitFor(() => expect(more()).toHaveAccessibleDescription(UNMATCHED))
+
+    await userEvent.click(more())
+    const pick = within(screen.getByRole('menu')).getByRole('menuitem', { name: 'Match title' })
+    // `is-highlight` is what puts the item in the accent; no role or attribute says it.
+    expect(pick).toHaveClass('is-highlight')
+    await userEvent.click(pick)
+    const sheet = screen.getByRole('dialog', { name: 'Title match' })
+    const search = within(sheet).getByRole('searchbox', { name: 'Search TMDB' })
+    await userEvent.clear(search)
+    await userEvent.type(search, 'Dune')
+    await userEvent.click(await within(sheet).findByRole('button', { name: /^Dune Movie · 1984$/ }))
+    await vi.waitFor(() => expect(within(drawer).getByRole('button', { name: 'More actions: Dune' })).not.toHaveAccessibleDescription())
   })
 
   it('shows a priority change sent before the drawer was closed busy when it opens again, then keeps it over an older poll', async () => {
@@ -373,56 +388,19 @@ describe('the details drawer on desktop', () => {
       expect(where()).toBe('/')
     })
 
-    it('opens the title search from Change title, which Escape closes alone', async () => {
+    it('opens the title search from Fix match, which Escape closes alone', async () => {
       vi.mocked(tmdb.searchTitles).mockResolvedValue(searchPage([title('movie', 693134, 'Dune: Part Two', 2024)]))
       renderApp(['/torrent/dune'])
       const menu = await openMenu()
-      await userEvent.click(within(menu).getByRole('menuitem', { name: 'Change title' }))
-      const sheet = screen.getByRole('dialog', { name: 'Change title' })
+      await userEvent.click(within(menu).getByRole('menuitem', { name: 'Fix match' }))
+      const sheet = screen.getByRole('dialog', { name: 'Title match' })
       expect(within(sheet).getByRole('searchbox', { name: 'Search TMDB' })).toHaveValue('Dune Part Two')
       expect(await within(sheet).findByRole('button', { name: /^Dune: Part Two/ })).toHaveAttribute('aria-current', 'true')
 
       fireEvent(sheet, new Event('cancel', { cancelable: true }))
-      expect(screen.queryByRole('dialog', { name: 'Change title' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('dialog', { name: 'Title match' })).not.toBeInTheDocument()
       expect(screen.getByRole('dialog', { name: 'Dune: Part Two' })).toBeInTheDocument()
       expect(where()).toBe('/torrent/dune')
     })
-
-    it('confirms a guessed title with a toast', async () => {
-      getMainData.mockResolvedValue(snapshot({ tags: '' }))
-      vi.mocked(tmdb.searchTitles).mockResolvedValue(searchPage([title('movie', 693134, 'Dune: Part Two', 2024)]))
-      renderApp(['/torrent/dune'])
-      const menu = await openMenu()
-      const guess = within(menu).getByRole('group', { name: 'Matched by the release name. Is it right?' })
-      await userEvent.click(within(guess).getByRole('menuitem', { name: 'Yes, right' }))
-      expect(await screen.findByRole('status', { name: saying('Match confirmed') })).toBeInTheDocument()
-      expect(screen.queryByRole('menu')).not.toBeInTheDocument()
-    })
-  })
-
-  it('shows "Yes, right" sent from a row’s menu busy in the drawer, then says it once', async () => {
-    getMainData.mockResolvedValue(snapshot({ tags: '' }))
-    vi.mocked(tmdb.searchTitles).mockResolvedValue(searchPage([title('movie', 693134, 'Dune: Part Two', 2024)]))
-    let saved = () => {}
-    vi.mocked(matchesApi.saveMatches).mockImplementation(
-      (changes) => new Promise((resolve) => (saved = () => resolve(changes as matchesApi.Matches))),
-    )
-    renderApp(['/'])
-    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' }))
-    const guess = screen.getByRole('group', { name: 'Matched by the release name. Is it right?' })
-    await userEvent.click(within(guess).getByRole('menuitem', { name: 'Yes, right' }))
-    await userEvent.keyboard('{Escape}')
-
-    await userEvent.click(screen.getByRole('link', { name: /^Dune: Part Two/ }))
-    const drawer = await screen.findByRole('dialog', { name: 'Dune: Part Two' })
-    const confirm = within(drawer).getByRole('button', { name: 'Yes, right' })
-    expect(confirm).toBeDisabled()
-    expect(confirm).toHaveAttribute('aria-busy', 'true')
-    expect(within(drawer).getByRole('button', { name: 'Change' })).toBeDisabled()
-    expect(matchesApi.saveMatches).toHaveBeenCalledOnce()
-
-    await act(async () => saved())
-    expect(screen.getAllByRole('status', { name: saying('Match confirmed') })).toHaveLength(1)
-    expect(within(drawer).queryByRole('button', { name: 'Yes, right' })).not.toBeInTheDocument()
   })
 })

@@ -11,7 +11,6 @@ import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
 import { TorrentActionsSheet, type TorrentActionsSheetProps } from './TorrentActionsSheet'
 import { usePauseResume } from './usePauseResume'
 import { useReannounce } from './useReannounce'
-import { useConfirmTitle } from './useTitleChoice'
 import { useTorrentRequests } from '../torrents/useTorrentRequests'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
@@ -32,21 +31,16 @@ const MATCH: titleMatches.TitleMatch = { type: 'movie', id: 27205, title: 'Incep
 
 /**
  * Sends the torrent's requests from another place under the same requests: a resume (a row's button),
- * a reannounce (the menu on another screen), a recheck and a delete (confirmations) and "Yes, right"
- * (the torrent's details).
+ * a reannounce (the menu on another screen), a recheck and a delete (confirmations).
  */
 function Elsewhere({ torrent = TORRENT }: { torrent?: Torrent }) {
   const pauseResume = usePauseResume()
   const reannounce = useReannounce()
-  const confirmTitle = useConfirmTitle()
   const requests = useTorrentRequests()
   return (
     <>
       <button type="button" onClick={() => void requests.send(REQUEST_KINDS.delete, torrent, false, () => new Promise(() => {}))}>
         Delete elsewhere
-      </button>
-      <button type="button" onClick={() => void confirmTitle.confirm(torrent, MATCH)}>
-        Confirm elsewhere
       </button>
       <button type="button" onClick={() => void pauseResume.toggle(torrent)}>
         Resume elsewhere
@@ -116,7 +110,7 @@ describe('TorrentActionsSheet on desktop', () => {
     expect(screen.getByRole('menuitem', { name: 'Speed limits' })).not.toHaveAccessibleDescription()
   })
 
-  it('is a menu: resume, reannounce, recheck, speed limits, details, the title page, change title, move, delete', async () => {
+  it('is a menu: resume, reannounce, recheck, speed limits, details, the title page, fix match, move, delete', async () => {
     vi.mocked(api.startTorrents).mockResolvedValue()
     const handlers = renderActions()
     const menu = screen.getByRole('menu', { name: 'More actions: Inception' })
@@ -127,7 +121,7 @@ describe('TorrentActionsSheet on desktop', () => {
       'Speed limits',
       'Open details',
       'Movie page',
-      'Change title',
+      'Fix match',
       'Move files…',
       'Delete',
     ]
@@ -225,49 +219,45 @@ describe('TorrentActionsSheet on desktop', () => {
     expect(screen.getByRole('menuitem', { name: 'Force recheck' })).toBeDisabled()
   })
 
-  it('asks about a guessed title with Change and "Yes, right"', async () => {
-    vi.mocked(titleMatches.chooseTitle).mockResolvedValue()
-    const handlers = renderActions({ guessed: true })
-    const group = screen.getByRole('group', { name: 'Matched by the release name. Is it right?' })
-    expect(screen.queryByRole('menuitem', { name: 'Change title' })).not.toBeInTheDocument()
-    await userEvent.click(within(group).getByRole('menuitem', { name: 'Change' }))
-    expect(handlers.onChangeTitle).toHaveBeenCalled()
-    await userEvent.click(within(group).getByRole('menuitem', { name: 'Yes, right' }))
-    expect(titleMatches.chooseTitle).toHaveBeenCalledWith('b1', MATCH, expect.any(String))
-    expect(handlers.onClose).toHaveBeenCalled()
-    expect(await screen.findByRole('status', { name: saying('Match confirmed') })).toBeInTheDocument()
+  it('has one item for the match: Fix match with a title, Match title without one, each opening the title search', async () => {
+    const handlers = renderActions()
+    const menu = screen.getByRole('menu', { name: 'More actions: Inception' })
+    await userEvent.click(within(menu).getByRole('menuitem', { name: 'Fix match' }))
+    expect(handlers.onChangeTitle).toHaveBeenCalledOnce()
+    expect(within(menu).queryByRole('menuitem', { name: 'Match title' })).not.toBeInTheDocument()
+    handlers.unmount()
+
+    const none = renderActions({ match: null })
+    const unmatched = screen.getByRole('menu', { name: 'More actions: Inception.2010.1080p' })
+    await userEvent.click(within(unmatched).getByRole('menuitem', { name: 'Match title' }))
+    expect(none.onChangeTitle).toHaveBeenCalledOnce()
+    expect(within(unmatched).queryByRole('menuitem', { name: 'Fix match' })).not.toBeInTheDocument()
   })
 
-  it('turns the guess’s items off while a title save sent from elsewhere is in flight, then shows its failure', async () => {
-    let refuse = () => {}
-    vi.mocked(titleMatches.chooseTitle).mockReturnValue(new Promise((_resolve, reject) => (refuse = () => reject(new Error('500')))))
-    renderActions({ guessed: true })
-    await userEvent.click(screen.getByRole('button', { name: 'Confirm elsewhere' }))
-    const group = screen.getByRole('group', { name: 'Matched by the release name. Is it right?' })
-    expect(within(group).getByRole('menuitem', { name: 'Change' })).toBeDisabled()
-    expect(within(group).getByRole('menuitem', { name: 'Yes, right' })).toBeDisabled()
-
-    await act(async () => refuse())
-    expect(screen.getByRole('alert', { name: saying('Couldn’t save the choice. Try again.') })).toBeInTheDocument()
-    expect(screen.queryByRole('status', { name: saying('Couldn’t save the choice. Try again.') })).not.toBeInTheDocument()
-    expect(within(group).getByRole('menuitem', { name: 'Yes, right' })).toBeEnabled()
-    expect(titleMatches.chooseTitle).toHaveBeenCalledOnce()
+  it('highlights Match title only when no title was found, not with a title or while it’s still unknown', () => {
+    const titled = renderActions()
+    // `is-highlight` is what puts the item in the accent; no role or attribute says it.
+    expect(screen.getByRole('menuitem', { name: 'Fix match' })).not.toHaveClass('is-highlight')
+    titled.unmount()
+    const unknown = renderActions({ match: undefined })
+    expect(screen.getByRole('menuitem', { name: 'Match title' })).not.toHaveClass('is-highlight')
+    unknown.unmount()
+    renderActions({ match: null })
+    expect(screen.getByRole('menuitem', { name: 'Match title' })).toHaveClass('is-highlight')
   })
 
   it('turns off everything that sends something for a torrent being deleted', async () => {
     const { unmount } = renderActions({ torrent: { ...TORRENT, state: 'stalledDL' } })
     await userEvent.click(screen.getByRole('button', { name: 'Delete elsewhere' }))
-    for (const name of ['Pause', 'Reannounce', 'Force recheck', 'Speed limits', 'Change title', 'Move files…', 'Delete']) {
+    for (const name of ['Pause', 'Reannounce', 'Force recheck', 'Speed limits', 'Fix match', 'Move files…', 'Delete']) {
       expect(screen.getByRole('menuitem', { name })).toBeDisabled()
     }
     unmount()
 
-    // "Yes, right" landing after the delete would keep a title for a torrent that's gone.
-    renderActions({ guessed: true })
+    // A title saved after the delete would stay for a torrent that's gone.
+    renderActions({ match: null })
     await userEvent.click(screen.getByRole('button', { name: 'Delete elsewhere' }))
-    const group = screen.getByRole('group', { name: 'Matched by the release name. Is it right?' })
-    expect(within(group).getByRole('menuitem', { name: 'Change' })).toBeDisabled()
-    expect(within(group).getByRole('menuitem', { name: 'Yes, right' })).toBeDisabled()
+    expect(screen.getByRole('menuitem', { name: 'Match title' })).toBeDisabled()
   })
 
   it('shows a failure under the items, not in a toast as well', async () => {
@@ -321,16 +311,41 @@ describe('TorrentActionsSheet on a phone', () => {
     const { unmount } = renderActions({ torrent: { ...TORRENT, state: 'stalledDL' } })
     await userEvent.click(screen.getByRole('button', { name: 'Delete elsewhere' }))
     const sheet = screen.getByRole('dialog', { name: 'Inception' })
-    for (const name of ['Pause', 'Reannounce', 'Force recheck', 'Speed limits', 'Change title', 'Move files…', 'Delete']) {
+    for (const name of ['Pause', 'Reannounce', 'Force recheck', 'Speed limits', 'Fix match', 'Move files…', 'Delete']) {
       expect(within(sheet).getByRole('button', { name })).toBeDisabled()
     }
     unmount()
 
-    renderActions({ guessed: true })
+    renderActions({ match: null })
     await userEvent.click(screen.getByRole('button', { name: 'Delete elsewhere' }))
-    const guessed = screen.getByRole('dialog', { name: 'Inception' })
-    expect(within(guessed).getByRole('button', { name: 'Change' })).toBeDisabled()
-    expect(within(guessed).getByRole('button', { name: 'Yes, right' })).toBeDisabled()
+    expect(within(screen.getByRole('dialog', { name: 'Inception.2010.1080p' })).getByRole('button', { name: 'Match title' })).toBeDisabled()
+  })
+
+  it('has one row for the match on a phone too: Fix match with a title, Match title without one', async () => {
+    const handlers = renderActions()
+    const sheet = screen.getByRole('dialog', { name: 'Inception' })
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Fix match' }))
+    expect(handlers.onChangeTitle).toHaveBeenCalledOnce()
+    expect(within(sheet).queryByRole('button', { name: 'Match title' })).not.toBeInTheDocument()
+    handlers.unmount()
+
+    const none = renderActions({ match: null })
+    const unmatched = screen.getByRole('dialog', { name: 'Inception.2010.1080p' })
+    await userEvent.click(within(unmatched).getByRole('button', { name: 'Match title' }))
+    expect(none.onChangeTitle).toHaveBeenCalledOnce()
+    expect(within(unmatched).queryByRole('button', { name: 'Fix match' })).not.toBeInTheDocument()
+  })
+
+  it('highlights the Match title row only when no title was found, on a phone too', () => {
+    const titled = renderActions()
+    // `is-highlight` is what puts the row in the accent; no role or attribute says it.
+    expect(screen.getByRole('button', { name: 'Fix match' })).not.toHaveClass('is-highlight')
+    titled.unmount()
+    const unknown = renderActions({ match: undefined })
+    expect(screen.getByRole('button', { name: 'Match title' })).not.toHaveClass('is-highlight')
+    unknown.unmount()
+    renderActions({ match: null })
+    expect(screen.getByRole('button', { name: 'Match title' })).toHaveClass('ks-row-btn', 'is-highlight')
   })
 
   it('needs qBittorrent to move files on a phone too', () => {

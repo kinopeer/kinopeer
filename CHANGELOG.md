@@ -7,6 +7,7 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 ### Changed
 
 - On a phone, the ring that shows Downloads' refresh sits right after the title rather than among the buttons on the right. ([#374](https://github.com/kinopeer/kinopeer/issues/374))
+- Kinopeer no longer asks whether a title matched from the release name is right: the "Is it right?" card is gone from a torrent's page, panel and menu, and the menu's one item for the title, Fix match (Match title for a torrent with none), corrects it. When no title was found, the "No title found" card gives way to a small dot on the More button of the torrent's page and panel, with Match title highlighted in its menu. The title search it opens is headed Title match whether the torrent has a title or not (it was Change title or Pick title), and saving a pick says Match saved (it was Title changed). A torrent's page no longer moves down when either card used to arrive. ([#389](https://github.com/kinopeer/kinopeer/issues/389))
 
 ### Fixed
 

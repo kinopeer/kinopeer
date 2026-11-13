@@ -486,9 +486,9 @@ describe('TorrentScreen', () => {
       async () => {
         vi.mocked(tmdb.searchTitles).mockResolvedValue(searchPage([]))
         await userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' }))
-        await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Change title' }))
+        await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Fix match' }))
       },
-      () => screen.queryByRole('dialog', { name: 'Change title' }),
+      () => screen.queryByRole('dialog', { name: 'Title match' }),
     ],
     [
       'the category sheet',
@@ -531,51 +531,111 @@ describe('TorrentScreen title matching', () => {
   }
   const DUNE_1984: tmdb.Title = { ...GUESSED_DUNE, id: 841, title: 'Dune', originalTitle: 'Dune', year: 1984 }
 
-  it('asks whether a guessed title is right and saves the confirmation', async () => {
+  it('shows a guessed title as it shows any other, with nothing asking whether it’s right', async () => {
     getMainData.mockResolvedValue(snapshot({ tags: '' }))
     vi.mocked(tmdb.searchTitles).mockResolvedValue(searchPage([GUESSED_DUNE]))
     renderScreen()
     expect(await screen.findByRole('heading', { level: 1, name: 'Dune: Part Two' })).toBeInTheDocument()
-    expect(await screen.findByText('Matched by the release name. Is it right?')).toBeInTheDocument()
-
-    await userEvent.click(screen.getByRole('button', { name: 'Yes, right' }))
-    expect(await screen.findByRole('status', { name: saying('Match confirmed') })).toBeInTheDocument()
-    expect(screen.queryByText('Matched by the release name. Is it right?')).not.toBeInTheDocument()
+    expect(screen.getByText('Dune.Part.Two.2024.2160p.WEB-DL')).toBeInTheDocument()
+    expect(screen.queryByText(/Is it right/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Yes, right' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'More actions: Dune: Part Two' })).not.toHaveAccessibleDescription()
   })
 
-  it('changes a guessed title through the TMDB search', async () => {
+  it('fixes a guessed title from the More menu through the TMDB search', async () => {
     getMainData.mockResolvedValue(snapshot({ tags: '' }))
     vi.mocked(tmdb.searchTitles).mockImplementation(async (query) => searchPage(query === 'Dune Part Two' ? [GUESSED_DUNE, DUNE_1984] : []))
     renderScreen()
-    await userEvent.click(await screen.findByRole('button', { name: 'Change' }))
-    const sheet = screen.getByRole('dialog', { name: 'Change title' })
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Dune: Part Two' })).getByRole('button', { name: 'Fix match' }))
+    const sheet = screen.getByRole('dialog', { name: 'Title match' })
     await userEvent.click(await within(sheet).findByRole('button', { name: /^Dune Movie · 1984$/ }))
-    expect(await findToastOnPage('Title changed')).toBeInTheDocument()
+    expect(await findToastOnPage('Match saved')).toBeInTheDocument()
     expect(await screen.findByRole('heading', { level: 1, name: 'Dune' })).toBeInTheDocument()
-    expect(screen.queryByText('Matched by the release name. Is it right?')).not.toBeInTheDocument()
+    expect(matchesApi.saveMatches).toHaveBeenLastCalledWith({ dune: { type: 'movie', id: 841, source: 'user' } })
   })
 
-  it('doesn’t ask about a title Kinopeer tagged, and changes it from the More menu', async () => {
+  it('fixes a title Kinopeer tagged from the More menu too, the current one first', async () => {
     vi.mocked(tmdb.searchTitles).mockResolvedValue(searchPage([GUESSED_DUNE, DUNE_1984]))
     renderScreen()
     expect(await screen.findByRole('heading', { level: 1, name: 'Dune: Part Two' })).toBeInTheDocument()
-    expect(screen.queryByText('Matched by the release name. Is it right?')).not.toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'More actions: Dune: Part Two' }))
     const menu = screen.getByRole('dialog', { name: 'Dune: Part Two' })
     expect(within(menu).queryByRole('link', { name: 'Open details' })).not.toBeInTheDocument()
     expect(within(menu).getByRole('link', { name: 'Movie page' })).toHaveAttribute('href', '/title/movie/693134')
-    await userEvent.click(within(menu).getByRole('button', { name: 'Change title' }))
-    const sheet = screen.getByRole('dialog', { name: 'Change title' })
+    await userEvent.click(within(menu).getByRole('button', { name: 'Fix match' }))
+    const sheet = screen.getByRole('dialog', { name: 'Title match' })
     expect(await within(sheet).findByRole('button', { name: /^Dune: Part Two/ })).toHaveAttribute('aria-current', 'true')
   })
 
-  it('offers to pick a title when none was found', async () => {
+  const UNMATCHED = 'This torrent isn’t matched to a movie or series'
+  const more = () => screen.getByRole('button', { name: 'More actions: Some.Home.Video' })
+
+  it('puts a dot on More when no title was found, which says why, and highlights Match title in its menu', async () => {
     getMainData.mockResolvedValue(snapshot({ tags: '', name: 'Some.Home.Video' }))
     vi.mocked(tmdb.searchTitles).mockResolvedValue(searchPage([]))
     renderScreen()
-    expect(await screen.findByText('No title found for this release.')).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Pick title' }))
-    expect(screen.getByRole('dialog', { name: 'Pick title' })).toBeInTheDocument()
+    await waitFor(() => expect(more()).toHaveAccessibleDescription(UNMATCHED))
+    expect(screen.queryByText(/No title found/)).not.toBeInTheDocument()
+    await userEvent.click(more())
+    const pick = within(screen.getByRole('dialog', { name: 'Some.Home.Video' })).getByRole('button', { name: 'Match title' })
+    // `is-highlight` is what puts the row in the accent; no role or attribute says it.
+    expect(pick).toHaveClass('is-highlight')
+    await userEvent.click(pick)
+    expect(screen.getByRole('dialog', { name: 'Title match' })).toBeInTheDocument()
+  })
+
+  it('has no dot while the title is still being looked up', async () => {
+    getMainData.mockResolvedValue(snapshot({ tags: '', name: 'Some.Home.Video' }))
+    let answer = () => {}
+    vi.mocked(tmdb.searchTitles).mockReturnValue(new Promise((resolve) => (answer = () => resolve(searchPage([])))))
+    renderScreen()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Some.Home.Video' })).toBeInTheDocument()
+    await waitFor(() => expect(tmdb.searchTitles).toHaveBeenCalled())
+    expect(more()).not.toHaveAccessibleDescription()
+
+    await act(async () => answer())
+    await waitFor(() => expect(more()).toHaveAccessibleDescription(UNMATCHED))
+  })
+
+  it('drops the dot once a title is chosen from the menu', async () => {
+    getMainData.mockResolvedValue(snapshot({ tags: '', name: 'Dune.Part.Two.Fan.Edit' }))
+    vi.mocked(tmdb.searchTitles).mockImplementation(async (query) => searchPage(query === 'Dune' ? [DUNE_1984] : []))
+    renderScreen()
+    const dotted = () => screen.getByRole('button', { name: /^More actions: / })
+    await waitFor(() => expect(dotted()).toHaveAccessibleDescription(UNMATCHED))
+    const openSearch = async () => {
+      await userEvent.click(dotted())
+      await userEvent.click(within(screen.getByRole('dialog', { name: 'Dune.Part.Two.Fan.Edit' })).getByRole('button', { name: 'Match title' }))
+      return screen.getByRole('dialog', { name: 'Title match' })
+    }
+    await userEvent.click(within(await openSearch()).getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(matchesApi.saveMatches).not.toHaveBeenCalled()
+    expect(dotted()).toHaveAccessibleDescription(UNMATCHED)
+
+    const sheet = await openSearch()
+    const search = within(sheet).getByRole('searchbox', { name: 'Search TMDB' })
+    await userEvent.clear(search)
+    await userEvent.type(search, 'Dune')
+    await userEvent.click(await within(sheet).findByRole('button', { name: /^Dune Movie · 1984$/ }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Dune' })).toBeInTheDocument()
+    expect(screen.getByText('Dune.Part.Two.Fan.Edit')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'More actions: Dune' })).not.toHaveAccessibleDescription()
+    expect(matchesApi.saveMatches).toHaveBeenLastCalledWith({ dune: { type: 'movie', id: 841, source: 'user' } })
+  })
+
+  it('keeps the dot and Match title on while qBittorrent is unreachable: the choice is saved on Kinopeer’s server', async () => {
+    getMainData.mockResolvedValue(snapshot({ tags: '', name: 'Some.Home.Video' }))
+    vi.mocked(tmdb.searchTitles).mockResolvedValue(searchPage([]))
+    renderScreen()
+    await waitFor(() => expect(more()).toHaveAccessibleDescription(UNMATCHED))
+    getMainData.mockRejectedValue(qbittorrentDown())
+    window.dispatchEvent(new Event('online'))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Pause' })).toBeDisabled())
+    expect(more()).toHaveAccessibleDescription(UNMATCHED)
+    await userEvent.click(more())
+    expect(within(screen.getByRole('dialog', { name: 'Some.Home.Video' })).getByRole('button', { name: 'Match title' })).toBeEnabled()
   })
 })

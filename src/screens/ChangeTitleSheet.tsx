@@ -61,7 +61,7 @@ export function ChangeTitleSheet({ torrent, current, saving, failed, onPick, onC
     <Sheet
       open
       onClose={onClose}
-      title={current ? t('match.changeTitle') : t('match.pickTitle')}
+      title={t('match.title')}
       subtitle={torrent.name}
       action={<IconButton icon="close" label={t('common.cancel')} onClick={onClose} />}
       footer={<p className="t-cap c3 retitle-hint">{t('match.hint')}</p>}

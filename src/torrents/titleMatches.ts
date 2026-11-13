@@ -77,11 +77,6 @@ export function titleType(
   return lookup.tag?.type ?? lookup.parsed?.type ?? lookup.hint
 }
 
-/** Whether a torrent's title was guessed from its name: neither the user's choice nor the `tmdb:` tag. */
-export function isGuessed(torrent: Pick<Torrent, 'tags'>, stored?: StoredMatch): boolean {
-  return stored?.source !== 'user' && !tmdbTag(torrent.tags ?? '')
-}
-
 function normalize(text: string): string {
   return text
     .toLocaleLowerCase()
@@ -199,8 +194,8 @@ function writeCache(changes: Record<string, TitleMatch | null>): void {
 }
 
 /**
- * Saves the user's choice of title for a torrent on the server (picking the guessed title confirms
- * it). Its title is cached first, so every screen shows it without asking TMDB again.
+ * Saves the user's choice of title for a torrent on the server (picking the title it shows pins
+ * it, guessed or not). Its title is cached first, so every screen shows it without asking TMDB again.
  */
 export async function chooseTitle(hash: string, title: TitleMatch, language: string): Promise<void> {
   writeCache({ [`${language}|${known(title.type, title.id).key}`]: slim(title) })

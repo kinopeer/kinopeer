@@ -1,7 +1,6 @@
 export {
   Menu,
   MenuDivider,
-  MenuGroup,
   MenuItem,
   MenuItemRadio,
   MenuLink,

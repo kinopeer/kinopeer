@@ -16,7 +16,6 @@ import {
   chooseTitle,
   clearTitleMatchCache,
   clearTitleMatches,
-  isGuessed,
   lookupFor,
   pickBest,
   sameTitle,
@@ -195,15 +194,6 @@ describe('titleType', () => {
   it('is unknown when nothing says', () => {
     expect(titleType({ name: 'Alien.Romulus.2024.1080p', tags: '' }, undefined, null)).toBeUndefined()
     expect(titleType({ name: 'Some.Program.v2', tags: '', category: 'Software' })).toBeUndefined()
-  })
-})
-
-describe('isGuessed', () => {
-  it('is a guess unless the user chose the title or Kinopeer tagged the torrent', () => {
-    expect(isGuessed({ tags: '' })).toBe(true)
-    expect(isGuessed({ tags: '' }, { type: 'movie', id: 1, source: 'guess', version: GUESS_VERSION })).toBe(true)
-    expect(isGuessed({ tags: '' }, { type: 'movie', id: 1, source: 'user' })).toBe(false)
-    expect(isGuessed({ tags: 'hd, tmdb:movie:1' })).toBe(false)
   })
 })
 

@@ -33,7 +33,7 @@ beforeEach(() => {
 describe('ChangeTitleSheet', () => {
   it('searches TMDB for the name guessed from the release, the current title first', async () => {
     renderSheet({ type: 'tv', id: 94605, title: 'Мастер и Маргарита', year: 2005, posterPath: null })
-    expect(screen.getByRole('dialog', { name: 'Change title' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Title match' })).toBeInTheDocument()
     expect(screen.getByText(TORRENT.name)).toBeInTheDocument()
     expect(screen.getByRole('searchbox', { name: 'Search TMDB' })).toHaveValue('Master i Margarita')
 
@@ -49,7 +49,7 @@ describe('ChangeTitleSheet', () => {
 
   it('narrows the results to movies or series', async () => {
     renderSheet()
-    expect(screen.getByRole('heading', { name: 'Pick title' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Title match' })).toBeInTheDocument()
     await screen.findAllByRole('button', { name: /Мастер и Маргарита/ })
     await userEvent.click(screen.getByRole('radio', { name: 'Movies' }))
     const rows = screen.getAllByRole('button', { name: /Мастер и Маргарита/ })

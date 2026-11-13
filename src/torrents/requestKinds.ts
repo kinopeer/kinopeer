@@ -20,7 +20,7 @@ export const REQUEST_KINDS = {
   firstLastPieces: 'first-last-pieces',
   /** A torrent's category: the Category sheet. */
   category: 'category',
-  /** Saving the torrent's title: Change title, or "Yes, right" for a guessed one. */
+  /** Saving the torrent's title: the title search (Fix match, or Match title for a torrent without one). */
   title: 'title',
   /**
    * A file's download priority: the torrent's file list, one per file (`SendOptions.part`). Keyed
