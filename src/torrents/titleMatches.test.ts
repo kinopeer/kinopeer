@@ -620,6 +620,7 @@ describe('useTitleTorrents', () => {
   })
 
   it('asks TMDB only about torrents whose title is not known yet (#381)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
     server = {
       chosen: { type: 'movie', id: 841, source: 'user' },
       saved: { type: 'movie', id: 438631, source: 'guess', version: GUESS_VERSION },
@@ -634,6 +635,10 @@ describe('useTitleTorrents', () => {
     ]
     const { result } = renderHook(() => useTitleTorrents(torrents, 'movie', 438631))
     await waitFor(() => expect(result.current.map((t) => t.hash)).toEqual(['guessed', 'saved', 'tagged']))
+    // Once saved, the guess is known: the torrent stays listed, and its title isn't asked for by id.
+    await flushSave()
+    expect(server.guessed).toEqual({ type: 'movie', id: 438631, source: 'guess', version: GUESS_VERSION })
+    expect(result.current.map((t) => t.hash)).toEqual(['guessed', 'saved', 'tagged'])
     expect(searchTitles).toHaveBeenCalledTimes(1)
     expect(getMovie).not.toHaveBeenCalled()
     expect(tmdb.getTv).not.toHaveBeenCalled()
