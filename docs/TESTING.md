@@ -1020,8 +1020,11 @@ has the budgets' rule.
   transition, so an element whose styles change is drawn once more as it was (without it `main`'s
   page read 0.0656 and passed). Both are set in the test, not taken from the configs it builds on.
 - **Exact.** Every case in each order read the same number in every run, to the fourth digit: ten
-  runs in a row locally (macOS) and in CI (Linux), the same numbers on both. A reading that varies
-  is a race in the test (an answer whose content wasn't waited for) to find, not noise to budget.
+  runs in a row locally (macOS) and in CI (Linux). In CI every reading has 0.0002 more than on a
+  Mac, which varies in its sixth digit (0.000179 or 0.000183): the "Connecting" text, before any
+  screen, moves sideways as the font loads, in one shift or two. The budgets come from CI's
+  readings. A reading that varies by more is a race in the test (an answer whose content wasn't
+  waited for) to find, not noise to budget.
 - **The rules** (the budgets read with their ceiling, the sum, the verdict and its report, the
   screens without a case or a budget, the table of readings; and which answer a request is, which
   are due, which lands next, how many orders a chain gives, what is wrong with a chain) are pure

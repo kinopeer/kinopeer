@@ -520,8 +520,8 @@ how it lets a screen's answers land and which screens and states it reads are in
 
 **Each screen has its own budget**, by window size, under `budgets.layoutShift` in `checks.json`
 (`phone.torrent`): the highest reading among the screen's cases and both orders, rounded up to
-0.01, so a screen that reads 0 gets 0.01. The readings are exact (the same number every run,
-locally and in CI), so the budget is the screen as it is, with room only for the rounding: a new
+0.01, so a screen that reads 0 gets 0.01, from CI's readings. The readings are exact (the same
+number to the fourth digit every run, locally and in CI), so the budget is the screen as it is, with room only for the rounding: a new
 shift on a screen that barely moved fails, rather than hiding under a budget set for the screen
 that moves most. Decided on 2026-11-13, in place of one bound of 0.1 for all (SPEC's decision log).
 
