@@ -130,6 +130,17 @@ describe('SearchScreen', () => {
     expect(container.querySelector('img[src="/tmdb-img/w342/1.jpg"]')).toHaveAttribute('alt', '')
   })
 
+  // The field's value is the address's `q`: rendered a moment after a key (in a transition), it would put the
+  // older text back meanwhile, the caret jumping to the end and a key typed then lost (#386).
+  it('keeps the caret where the query is edited', async () => {
+    renderScreen()
+    const field = screen.getByRole('searchbox', { name: 'Search' })
+    await userEvent.type(field, 'dune')
+
+    await userEvent.keyboard('{ArrowLeft}{ArrowLeft}xy')
+    expect(field).toHaveValue('duxyne')
+  })
+
   it('restores the query from the URL', async () => {
     renderScreen('/search?q=dune&type=movie')
     expect(screen.getByRole('searchbox')).toHaveValue('dune')
@@ -293,6 +304,15 @@ describe('SearchScreen', () => {
       ['star', undefined],
       ['star', 2022],
     ])
+  })
+
+  it('keeps the caret where the year is edited', async () => {
+    renderScreen('/search?q=star')
+    const field = screen.getByRole('textbox', { name: 'Release year' })
+    await userEvent.type(field, '29')
+
+    await userEvent.keyboard('{ArrowLeft}02')
+    expect(field).toHaveValue('2029')
   })
 
   it('marks a year out of range and searches without it', async () => {
