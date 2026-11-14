@@ -74,4 +74,9 @@ describe('StatusMenu', () => {
     await userEvent.click(button)
     expect(screen.getByRole('menuitemradio', { name: 'Seeding' })).toBeInTheDocument()
   })
+
+  it('names a picked status without its count while loading', () => {
+    render(<StatusMenu value="seeding" onChange={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'Status: Seeding' })).toHaveProperty('textContent', 'Seeding')
+  })
 })
