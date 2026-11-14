@@ -4,12 +4,13 @@ import { useState } from 'react'
 import { MemoryRouter } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
 import { Menu, MenuDivider, MenuItem, MenuItemRadio, MenuLink } from './Menu'
+import { ROUTER_OPTIONS } from '../../lib/routerOptions'
 
 // Placement, the click outside, the anchor's toggle and `follow` are Popover's, tested there.
 function Harness({ onPick = vi.fn() }: { onPick?: (item: string) => void }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   return (
-    <MemoryRouter>
+    <MemoryRouter {...ROUTER_OPTIONS}>
       <button type="button" onClick={(event) => setAnchor(anchor ? null : event.currentTarget)}>
         Open
       </button>
