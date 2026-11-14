@@ -483,7 +483,9 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
             {t('downloads.noMatchBody')}
           </EmptyState>
         ) : isDesktop && !grid ? (
-          <div className={cx('dl-table', (selecting || queueColumn) && 'has-lead')} role="table" aria-label={t('nav.downloads')}>
+          // Keyed, so it isn't the loading rows' <div> made over: kept, that element would move up by
+          // the body's top padding, which the table's head takes over, and shrink to the table (#405).
+          <div key="table" className={cx('dl-table', (selecting || queueColumn) && 'has-lead')} role="table" aria-label={t('nav.downloads')}>
             <div role="rowgroup" className="dl-table-head">
               <DownloadRowHeader
                 selecting={selecting}
