@@ -255,7 +255,7 @@ export function compareLint(base: string | undefined, head: string | undefined, 
   // duplicate, one without `files` or a reordering would be read against the wrong one or not at
   // all, so the list is marked whole.
   const [had, has] = [overridesOf(was), overridesOf(now)]
-  const keyed = (list: Json[]): list is JsonObject[] => list.every((o) => isObject(o) && o.files !== undefined) && new Set(list.map(filesOf)).size === list.length
+  const keyed = (list: Json[]): list is JsonObject[] => list.every((o) => isObject(o) && Array.isArray(o.files) && o.files.length > 0) && new Set(list.map(filesOf)).size === list.length
   if (!keyed(had) || !keyed(has)) {
     if (!same(had, has)) found.push({ needs: 'owner', file, what: `the overrides change in a way the guard can't read one by one: ${show(had)} → ${show(has)}` })
     return found
@@ -271,10 +271,10 @@ export function compareLint(base: string | undefined, head: string | undefined, 
     const where = ` for ${files}`
     const [prior, current] = [before.get(files), after.get(files)]
     // An override that is new or removed, and one whose `files` change, which is both, is marked
-    // whole with its JSON: read key by key against an empty one, each round of #415's review found a
+    // whole with its JSON, a new one with its place, since a later one wins where globs overlap: read key by key against an empty one, each round of #415's review found a
     // case it missed. Only an override that keeps its `files` is read key by key.
     if (prior === undefined || current === undefined) {
-      found.push({ needs: 'owner', file, what: prior === undefined ? `the override${where} is added: ${show(current)}` : `the override${where} is removed: ${show(prior)}` })
+      found.push({ needs: 'owner', file, what: current ? `the override${where} is added as number ${has.indexOf(current) + 1}: ${show(current)}` : `the override${where} is removed: ${show(prior)}` })
       continue
     }
     found.push(...compareRules(file, where, rulesOf(prior), rulesOf(current), rulesOf(was)))
@@ -516,6 +516,8 @@ export function compareStylesheets(changes: Change[], sheets: Sheet[]): Finding[
       .map(({ path }) => ({ needs: 'coordinator', file: path, what: `the guard can't read the stylesheets, so it can't tell which values this one adds: ${why}` }))
   }
   // rawValues names only the stylesheets it checks, so another file the branch changes finds none.
+  // A value written twice on one line (`padding: 13px 13px`) is marked once.
+  const seen = new Set<string>()
   return changes.flatMap(({ path, added }) => {
     const lines = new Set(added.map(({ line }) => line))
     return raw.filter(({ allowed }) => allowed).flatMap(({ file, line, prop, raw: value, via }): Finding[] => {
@@ -525,7 +527,7 @@ export function compareStylesheets(changes: Change[], sheets: Sheet[]): Finding[
         // A line that defines the shadow and takes it is marked once, by its own mark above.
         .filter((use) => use.file === path && lines.has(use.line) && !(use.file === file && use.line === line))
         .map((use): Finding => ({ needs: 'coordinator', file: path, line: use.line, what: `a shadow off the tokens' scale, taken from \`${file}:${line}\` and let through by the comment there: \`${prop}: ${value}\`` }))
-      return [...own, ...takes]
+      return [...own, ...takes].filter(({ line: at, what }) => !seen.has(`${path}:${at}:${what}`) && seen.add(`${path}:${at}:${what}`))
     })
   })
 }

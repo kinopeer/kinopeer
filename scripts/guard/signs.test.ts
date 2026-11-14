@@ -216,7 +216,7 @@ describe('compareLint', () => {
     [
       'a new override that turns a rule off for some files',
       json({ ...config, overrides: [...config.overrides, { files: ['src/legacy/**'], rules: { 'react/rules-of-hooks': 'off' } }] }),
-      ['owner: the override for ["src/legacy/**"] is added: `{"files":["src/legacy/**"],"rules":{"react/rules-of-hooks":"off"}}`'],
+      ['owner: the override for ["src/legacy/**"] is added as number 2: `{"files":["src/legacy/**"],"rules":{"react/rules-of-hooks":"off"}}`'],
     ],
     ['an override removed', json({ ...config, overrides: [] }), ['owner: the override for ["e2e/smoke/*.smoke.ts"] is removed: `{"files":["e2e/smoke/*.smoke.ts"],"rules":{"no-restricted-imports":["error",{"paths":["@playwright/test"]}]}}`']],
     [
@@ -228,7 +228,7 @@ describe('compareLint', () => {
     [
       'a new override that repeats the top-level rule',
       json({ ...config, overrides: [...config.overrides, { files: ['src/**'], rules: { 'react/rules-of-hooks': 'error' } }] }),
-      ['owner: the override for ["src/**"] is added: `{"files":["src/**"],"rules":{"react/rules-of-hooks":"error"}}`'],
+      ['owner: the override for ["src/**"] is added as number 2: `{"files":["src/**"],"rules":{"react/rules-of-hooks":"error"}}`'],
     ],
     [
       'a new override that is not an object',
@@ -914,13 +914,13 @@ describe('compareLint: an override beside its rules (#412)', () => {
 
   it('sends an override that is new, removed or has other files to the owner whole, with its JSON', () => {
     const whole = `{"files":["src/**/*.tsx"],"excludeFiles":["src/**/*.test.tsx"],"plugins":["react"],"env":{"browser":true},"rules":{"react/jsx-no-literals":"error"}}`
-    expect(compareLint(json({ overrides: [] }), config({})).map(({ needs, what }) => `${needs}: ${what}`)).toEqual([`owner: the override ${where} is added: \`${whole}\``])
+    expect(compareLint(json({ overrides: [] }), config({})).map(({ needs, what }) => `${needs}: ${what}`)).toEqual([`owner: the override ${where} is added as number 1: \`${whole}\``])
     expect(compareLint(config({}), json({ overrides: [] })).map(({ needs, what }) => `${needs}: ${what}`)).toEqual([`owner: the override ${where} is removed: \`${whole}\``])
     // Other files are one override removed and one added, whatever else changes with them.
     const moved = { ...override, files: ['src/**/*.ts'] }
     expect(compareLint(config({}), json({ overrides: [moved] })).map(({ what }) => what)).toEqual([
       `the override ${where} is removed: \`${whole}\``,
-      `the override for ["src/**/*.ts"] is added: \`${whole.replace('src/**/*.tsx', 'src/**/*.ts')}\``,
+      `the override for ["src/**/*.ts"] is added as number 1: \`${whole.replace('src/**/*.tsx', 'src/**/*.ts')}\``,
     ])
   })
 
@@ -939,7 +939,15 @@ describe('compareLint: an override beside its rules (#412)', () => {
     expect(marks([b, a], [a, b])).toEqual(['owner: the overrides are in another order, and a later one wins where their files overlap'])
     // The same unpaired list on both sides, and a new override after those that stay, read as before.
     expect(marks([{ rules: {} }, { rules: {} }], [{ rules: {} }, { rules: {} }])).toEqual([])
-    expect(marks([a], [a, b])).toEqual(['owner: the override for ["a/b/**"] is added'])
+    expect(marks([a], [a, b])).toEqual(['owner: the override for ["a/b/**"] is added as number 2'])
+    // One moved in front with other files is removed and added, the place it's added at shown.
+    expect(compareLint(json({ overrides: [b, a] }), json({ overrides: [{ ...a, files: ['a/c/**'] }, b] })).map(({ what }) => what.split(':')[0])).toEqual([
+      'the override for ["a/**"] is removed',
+      'the override for ["a/c/**"] is added as number 1',
+    ])
+    // Files that aren't a list of globs aren't files of their own.
+    expect(marks([override], [{ ...override, files: null }])).toEqual([unpaired])
+    expect(marks([override], [{ ...override, files: [] }])).toEqual([unpaired])
   })
 
   it('sends a global it no longer takes away and an environment it no longer turns off to the owner', () => {
@@ -1015,6 +1023,10 @@ describe('compareStylesheets', () => {
 
   it('sends a value off the scale that a comment lets through on a line the branch adds to the coordinator', () => {
     expect(at([2, 4])).toEqual([{ needs: 'coordinator', file: 'src/a.css', line: 2, what: "a value off the tokens' scale, let through by the comment on its line: `padding: 3px`" }])
+  })
+
+  it('marks a value written twice on one line once', () => {
+    expect(at([2], '.a {\n  padding: 13px 13px; /* why */\n}\n')).toEqual([{ needs: 'coordinator', file: 'src/a.css', line: 2, what: "a value off the tokens' scale, let through by the comment on its line: `padding: 13px`" }])
   })
 
   it('leaves such a value on a line the branch keeps alone, and a value the test fails, which CI stops', () => {
