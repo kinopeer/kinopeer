@@ -11,6 +11,7 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 
 ### Fixed
 
+- Downloads' poster grid no longer moves as the torrents' titles come in: a card keeps room for two lines of its title, so a row of short titles is a line taller than before. ([#403](https://github.com/kinopeer/kinopeer/issues/403))
 - Screen readers and voice control name two controls by the words they show: Downloads' status button on a computer is All statuses, 9 (it was Status: All, 9), and each torrent under a title's "In downloads" reads its parts in the order it shows them, its speed and size included. ([#407](https://github.com/kinopeer/kinopeer/issues/407))
 - On a computer, the sidebar's qBittorrent card no longer grows up from the bottom of the sidebar when it first hears from qBittorrent: the speeds and the free space show `—` until then, and the alternative speed limits switch is there but can't be pressed yet. When qBittorrent can't tell the free space, the card says `—` rather than leaving the line out. ([#404](https://github.com/kinopeer/kinopeer/issues/404))
 - Search's field no longer loses a key typed fast, and the caret stays where you edit the query or the year rather than jumping to the end. ([#386](https://github.com/kinopeer/kinopeer/issues/386))

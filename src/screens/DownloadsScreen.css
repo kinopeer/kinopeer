@@ -258,6 +258,13 @@
   padding-right: var(--space-8);
 }
 
+/* Two lines of room for the title, the most it takes, whether it's the release name or the title
+   that replaces it once looked up: a card keeps its height as its title lands, so the rows under it
+   stay where they are (#403). */
+.dl-card .ks-pcard-title {
+  min-height: 2lh;
+}
+
 .dl-card-check {
   justify-self: end;
   align-self: start;
