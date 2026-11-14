@@ -219,6 +219,11 @@ describe('compareLint', () => {
       ['owner: the override for ["src/legacy/**"] is added: `{"files":["src/legacy/**"],"rules":{"react/rules-of-hooks":"off"}}`'],
     ],
     ['an override removed', json({ ...config, overrides: [] }), ['owner: the override for ["e2e/smoke/*.smoke.ts"] is removed: `{"files":["e2e/smoke/*.smoke.ts"],"rules":{"no-restricted-imports":["error",{"paths":["@playwright/test"]}]}}`']],
+    [
+      'a rule turned off in an override that stays',
+      json({ ...config, overrides: [{ ...config.overrides[0], rules: { 'no-restricted-imports': 'off' } }] }),
+      ['owner: the lint rule `no-restricted-imports` for ["e2e/smoke/*.smoke.ts"] is turned off: `["error",{"paths":["@playwright/test"]}]` → `"off"`'],
+    ],
     // A new override is marked whole even when it checks more (#415).
     [
       'a new override that repeats the top-level rule',
