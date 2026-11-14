@@ -13,14 +13,6 @@ describe('PosterCard', () => {
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 
-  it('cuts the title at two lines, or at one when asked', () => {
-    render(<PosterCard title="Dune" />)
-    render(<PosterCard title="Arrival" titleLines={1} />)
-    expect(screen.getByRole('heading', { name: 'Dune' })).toHaveClass('ks-clamp2')
-    expect(screen.getByRole('heading', { name: 'Arrival' })).toHaveClass('ks-trunc')
-    expect(screen.getByRole('heading', { name: 'Arrival' })).not.toHaveClass('ks-clamp2')
-  })
-
   it('falls back to a placeholder without a poster', () => {
     const { container } = render(<PosterCard title="Unknown" />)
     expect(container.querySelector('img')).toBeNull()

@@ -139,17 +139,26 @@ const LOOKUPS: Record<string, Answer> = {
 }
 
 /**
- * Downloads' grid with titles of one line and of two (#403's review): six torrents of two titles,
- * each looked up once (`useTitleMatches` asks for a title once however many torrents share it), the
- * queue putting a two-line title first in every row on a phone (two to a row) and in the first row
- * on desktop (five to a row at 1440px), so a card that grows as its title lands moves a row under it.
- * In English, where "Everything Everywhere All at Once" takes two lines in a card on both.
+ * Downloads' grid with every outcome of a title's lookup (#403's review): titles of one line and of
+ * two, and none found, six torrents of three lookups, each asked once (`useTitleMatches` looks a
+ * title up once however many torrents share it). The queue puts a two-line title and no title found
+ * in the first row on a phone (two to a row) and on desktop (five to a row at 1440px), with a second
+ * row under it, which a card that grows or shrinks as its title lands would move. In English, where
+ * "Everything Everywhere All at Once" takes two lines in a card on both.
  */
 const TWO_LINE = { id: 545611, title: 'Everything Everywhere All at Once', name: 'Everything.Everywhere.All.at.Once.2022.1080p.BluRay.x264-GRP' }
 const ONE_LINE = { id: 693134, title: 'Dune: Part Two', name: 'Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX-GRP' }
-const TWO_TITLES: Torrent[] = [TWO_LINE, ONE_LINE, TWO_LINE, ONE_LINE, TWO_LINE, ONE_LINE].map(({ id, name }, index) =>
-  torrent(`g${index + 1}`, { name: `${name}${index + 1}`, tags: tmdbTag('movie', id), category: 'Movies', progress: 0.5, priority: index + 1 }),
-)
+const tagged = (hash: string, { id, name }: typeof ONE_LINE, priority: number) =>
+  torrent(hash, { name: `${name}${priority}`, tags: tmdbTag('movie', id), category: 'Movies', progress: 0.5, priority })
+const OUTCOMES: Torrent[] = [
+  tagged('g1', TWO_LINE, 1),
+  // TMDB finds nothing for it: its release name stays.
+  { ...UNKNOWN, hash: 'g2', priority: 2 },
+  tagged('g3', ONE_LINE, 3),
+  tagged('g4', TWO_LINE, 4),
+  tagged('g5', ONE_LINE, 5),
+  tagged('g6', ONE_LINE, 6),
+]
 
 /** A state of a screen: its answers and the order they're asked for in (its chain). */
 interface Case {
@@ -260,18 +269,24 @@ const downloads = (name: string, view?: 'list' | 'grid'): Case => ({
   },
 })
 
-/** Downloads' grid with `TWO_TITLES`: their two titles, then their posters once one is in. */
-const twoLineTitles: Case = {
+/**
+ * Downloads' grid with `OUTCOMES`: the two titles by their tags' ids once the torrents are in, the
+ * search for the untagged one once the matches are too; the posters once a title is in. Nothing is
+ * saved, since the search finds nothing. The reading doesn't wait for that answer to show: no title
+ * found shows as the lookup does, the release name with no poster.
+ */
+const lookupOutcomes: Case = {
   screen: 'downloads',
-  name: 'titles of one line and of two, in the grid',
-  torrents: TWO_TITLES,
+  name: 'titles of one line and of two, and none found, in the grid',
+  torrents: OUTCOMES,
   app: { downloadsView: 'grid', lang: 'en' },
-  complete: all(link(TWO_LINE.title), link(ONE_LINE.title), posters(TWO_TITLES.length)),
+  complete: all(link(TWO_LINE.title), link(ONE_LINE.title), posters(OUTCOMES.length - 1)),
   answers: {
     ...SESSION,
     ...TORRENTS_AND_MATCHES,
     twoLine: { matches: get(`/tmdb/movie/${TWO_LINE.id}`), after: ['torrents'] },
     oneLine: { matches: get(`/tmdb/movie/${ONE_LINE.id}`), after: ['torrents'] },
+    noneFound: { matches: under('/tmdb/search/'), after: ['torrents', 'matches'] },
     posters: { matches: under('/tmdb-img/'), afterAny: ['twoLine', 'oneLine'], later: true },
   },
 }
@@ -284,7 +299,7 @@ const PHONE: Case[] = [
   downloads('titles found'),
   /** The other view, the grid of cards (`DownloadCard`), a layout of its own (#403: a card grew as its title landed). */
   downloads('titles found, in the grid', 'grid'),
-  twoLineTitles,
+  lookupOutcomes,
   /**
    * `p2`: tagged with its title and finished. The page asks for the title by its id once the
    * torrent shows, and for the poster once the title does.
@@ -467,8 +482,8 @@ const DESKTOP_CASES: Case[] = [
   downloads('titles found'),
   // The other view, the table of rows (`DownloadRow`, the column header): a layout of its own.
   downloads('titles found, as a table', 'list'),
-  // A second row, under a first with titles of two lines.
-  twoLineTitles,
+  // A second row, under a first with a title of two lines and none found.
+  lookupOutcomes,
   /**
    * `p2`'s drawer over Downloads: the list's lookups and posters, and the drawer's own load of the
    * title by its tag's id, the same address as the list's, once the torrent shows.

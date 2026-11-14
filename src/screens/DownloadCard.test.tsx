@@ -52,13 +52,6 @@ describe('DownloadCard', () => {
     expect(seeding.card.getByText('100% · ↑ 120 KB/s')).toBeInTheDocument()
   })
 
-  it('keeps the release name to one line while the title is looked up, so a title of one keeps the card’s height (#403)', () => {
-    expect(renderCard().card.getByRole('heading')).toHaveClass('ks-trunc')
-    // No title found: the name is all there is, on two lines like a title.
-    expect(renderCard({ match: null }).card.getByRole('heading')).toHaveClass('ks-clamp2')
-    expect(renderCard({ match: DUNE_MATCH }).card.getByRole('heading')).toHaveClass('ks-clamp2')
-  })
-
   it('marks the torrent’s own speed limits, whatever it is doing', () => {
     const downloading = renderCard({}, { ...DUNE_TORRENT, dl_limit: 5_000_000 })
     expect(downloading.card.getByRole('img', { name: 'Speed limit: download up to 5.0\u00a0MB/s' })).toBeInTheDocument()

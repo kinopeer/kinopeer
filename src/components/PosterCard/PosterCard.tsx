@@ -15,17 +15,15 @@ export interface PosterCardProps {
   overlay?: ReactNode
   /** A button next to the title, outside the link (a button can't sit inside a link). */
   action?: ReactNode
-  /** The lines the title may take, cut with an ellipsis past them: two by default. */
-  titleLines?: 1 | 2
   className?: string
 }
 
-export function PosterCard({ title, subtitle, posterUrl, to, overlay, action, titleLines = 2, className }: PosterCardProps) {
+export function PosterCard({ title, subtitle, posterUrl, to, overlay, action, className }: PosterCardProps) {
   const content = (
     <>
       <Poster src={posterUrl}>{overlay}</Poster>
       <div className="ks-pcard-text">
-        <h3 className={cx('ks-pcard-title', titleLines === 1 ? 'ks-trunc' : 'ks-clamp2')}>{title}</h3>
+        <h3 className="ks-pcard-title ks-clamp2">{title}</h3>
         {subtitle && <p className="ks-pcard-sub t-cap c3 ks-num ks-trunc">{subtitle}</p>}
       </div>
     </>

@@ -40,10 +40,6 @@ export const DownloadCard = memo(function DownloadCard({
         title={title}
         subtitle={meta.join(' · ')}
         posterUrl={match ? posterUrl(match.posterPath, 'w342') : undefined}
-        // While the title is looked up (`match` undefined, null once none is found), the release name
-        // takes one line: most titles take one, and a name cut to two then shortened the card, moving
-        // the rows under it (#403).
-        titleLines={match === undefined ? 1 : 2}
         to={selecting ? undefined : `/torrent/${torrent.hash}`}
         overlay={
           <>
