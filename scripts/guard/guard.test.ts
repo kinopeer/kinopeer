@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { changes, gitIn, guard, main, options } from './guard.ts'
-import { approval, secondReview } from './records.ts'
+import { approval, coordinatorApproval, secondReview } from './records.ts'
 
 /**
  * A repository of its own per test: `main` with the files given, then a branch that the test
@@ -81,7 +81,7 @@ describe('guard', () => {
   it('finds nothing in a branch that changes no check', async () => {
     const base = git('rev-parse', '--short', 'main')
     const head = await commit(APP)
-    expect(run()).toEqual({ found: [], report: `<!-- checks-guard -->\n**Checks guard at ${head}**, against \`main\` at ${base}.\n\nNo weakening of the checks and no change to existing ones.${NO_RUNS}`, unmet: false })
+    expect(run()).toEqual({ found: [], report: `<!-- checks-guard -->\n**Checks guard at ${head}**, against \`main\` at ${base}.\n\nNo weakening of the checks, no change to existing ones and no design value added or changed.${NO_RUNS}`, unmet: false })
   })
 
   describe("with the PR's comments", () => {
@@ -414,7 +414,7 @@ describe('main', () => {
     })
     const output = await outputFile()
     expect(main(args(), { GITHUB_OUTPUT: output })).toBe(run().report)
-    expect(await readFile(output, 'utf8')).toBe('owner=2\nreview=1\nunmet=false\n')
+    expect(await readFile(output, 'utf8')).toBe('owner=2\ncoordinator=0\nreview=1\nunmet=false\n')
   })
 
   it("tells the workflow that a record is missing when the command line names the PR's comments", async () => {
@@ -424,7 +424,7 @@ describe('main', () => {
     onTestFinished(() => rm(comments, { force: true }))
     await writeFile(comments, '')
     expect(main([...args(), '--comments', comments], { GITHUB_OUTPUT: output })).toContain('Not posted yet.')
-    expect(await readFile(output, 'utf8')).toBe('owner=1\nreview=0\nunmet=true\n')
+    expect(await readFile(output, 'utf8')).toBe('owner=1\ncoordinator=0\nreview=0\nunmet=true\n')
   })
 
   it('returns the report outside CI, where there is no file for the counts', async () => {
@@ -438,7 +438,56 @@ describe('main', () => {
     const tests = await reports({ 'vitest.json': ran('adds', 'subtracts') }, { 'vitest.json': ran('adds') })
     const output = await outputFile()
     expect(main([...args(), '--tests-base', tests.base, '--tests-head', tests.head], { GITHUB_OUTPUT: output })).toContain('- `src/sum.test.ts`: fewer tests run: 2 → 1 here, 2 → 1 in all.')
-    expect(await readFile(output, 'utf8')).toBe('owner=1\nreview=0\nunmet=false\n')
+    expect(await readFile(output, 'utf8')).toBe('owner=1\ncoordinator=0\nreview=0\nunmet=false\n')
+  })
+})
+
+describe('design values', () => {
+  const TOKENS = ':root {\n  --space-2: 8px;\n}\n'
+
+  beforeEach(async () => {
+    git('checkout', '--quiet', 'main')
+    await commit({ 'src/styles/tokens.css': TOKENS, 'src/a.css': '.a {\n  gap: var(--space-2);\n}\n' })
+    git('checkout', '--quiet', '-B', 'branch')
+  })
+
+  it("marks a token changed and a value a comment lets through for the coordinator, by the scale at the branch's head", async () => {
+    await commit({
+      'src/styles/tokens.css': TOKENS.replace('8px', '6px'),
+      // 8px is off the new scale, so its comment lets it through; 6px is on it, which the test fails whatever the comment.
+      'src/a.css': '.a {\n  gap: var(--space-2);\n  padding: 8px; /* why */\n  margin: 6px; /* why */\n}\n',
+    })
+    expect(said()).toEqual([
+      'coordinator src/styles/tokens.css: the design token `--space-2` in `:root` changed: `8px` → `6px`',
+      "coordinator src/a.css:3: a value off the tokens' scale, let through by the comment on its line: `padding: 8px`",
+    ])
+  })
+
+  it('reads the stylesheets when a commit changes other files beside them', async () => {
+    await commit({ 'src/a.ts': 'export {}\n', 'src/a.css': '.a {\n  padding: 3px; /* why */\n}\n' })
+    expect(said()).toEqual(["coordinator src/a.css:2: a value off the tokens' scale, let through by the comment on its line: `padding: 3px`"])
+  })
+
+  it("follows a shadow into a stylesheet the branch doesn't change", async () => {
+    git('checkout', '--quiet', 'main')
+    await commit({ 'src/b.css': ':root {\n  --lift: 0 2px 4px var(--scrim); /* why */\n}\n' })
+    git('checkout', '--quiet', '-B', 'branch')
+    await commit({ 'src/a.css': '.a {\n  box-shadow: var(--lift); /* why */\n}\n' })
+    // The raw shadow is --lift's, on main already; the line that takes it adds no value of its own.
+    expect(said()).toEqual([])
+  })
+
+  it('holds the PR until the coordinator approves the list, and hands the workflow its count', async () => {
+    await commit({ 'src/a.css': '.a {\n  padding: 3px; /* why */\n}\n' })
+    const output = await outputFile()
+    const comments = `${repo}-comments`
+    onTestFinished(() => rm(comments, { force: true }))
+    await writeFile(comments, '')
+    const report = main(['--repo', repo, '--base', 'main', '--head', 'branch', '--comments', comments], { GITHUB_OUTPUT: output })
+    expect(await readFile(output, 'utf8')).toBe('owner=0\ncoordinator=1\nreview=0\nunmet=true\n')
+    const code = /Coordinator's approval ([0-9a-f]{8})/.exec(report)![1]
+    await writeFile(comments, `${JSON.stringify({ association: 'MEMBER', body: `${coordinatorApproval(code)} the badge is its icon's size` })}\n`)
+    expect(guard({ repo, base: 'main', head: 'branch', comments }).unmet).toBe(false)
   })
 })
 
@@ -453,7 +502,7 @@ describe('npm run guard', () => {
     const output = await outputFile()
     const { status, stdout, stderr } = start(script, output)
     expect({ status, stdout, stderr }).toEqual({ status: 0, stdout: `${run().report}\n`, stderr: '' })
-    expect(await readFile(output, 'utf8')).toBe('owner=1\nreview=0\nunmet=false\n')
+    expect(await readFile(output, 'utf8')).toBe('owner=1\ncoordinator=0\nreview=0\nunmet=false\n')
   })
 
   it('runs through a folder that is a link to its own', async () => {

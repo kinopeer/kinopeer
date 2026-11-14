@@ -1,6 +1,6 @@
 // The checks guard's records: what a PR with marks has to hold before its check passes
-// (docs/QUALITY.md → What a marked PR needs). Each list of marks, the owner's and the second
-// review's, has a code; a record is a comment on the PR whose first line names the code; the guard
+// (docs/QUALITY.md → What a marked PR needs). Each list of marks, the owner's, the coordinator's and
+// the second review's, has a code; a record is a comment on the PR whose first line names the code; the guard
 // reads the PR's comments as data and says where each list stands.
 import type { Finding, Needs } from './signs.ts'
 
@@ -9,8 +9,9 @@ export type Comment = { association: string; body: string }
 
 /**
  * Where a list of marks stands by the PR's records: nothing posted for its code; a second review
- * that found it sound; one that found a weakening; the owner's approval, which closes the owner's
- * list, and the second review's only after a weakening found.
+ * that found it sound; one that found a weakening; an approval: the owner's, which closes the owner's
+ * list, and the second review's only after a weakening found, or the coordinator's, which closes the
+ * coordinator's list, as the owner's does.
  */
 export type State = 'none' | 'sound' | 'weakening' | 'approved'
 
@@ -25,7 +26,7 @@ function hash(text: string): string {
 }
 
 /**
- * The code of one of the two lists, or nothing for an empty one: what each of its marks says (not
+ * The code of one of the lists, or nothing for an empty one: what each of its marks says (not
  * its line, which moves with an edit elsewhere in the file) and the marked files, by path, as they
  * are at the head (`blob` gives git's id of a file's content). A record names the code, so it
  * holds while the marks and the marked files are the same, and no longer once either changes.
@@ -40,9 +41,11 @@ export function codeOf(needs: Needs, found: Finding[], blob: (file: string) => s
 /** The records' first lines, as the guard prints them to be copied and as it reads them back. */
 export const secondReview = (code: string, verdict: 'sound' | 'weakening'): string => `**Second review ${code}: ${verdict}**`
 export const approval = (code: string): string => `**Owner's approval ${code}:**`
+export const coordinatorApproval = (code: string): string => `**Coordinator's approval ${code}:**`
 const SECOND_REVIEW = /^\*\*Second review ([0-9a-f]{8}): (sound|weakening)\*\*/
 /** With a reason after it: an approval without one isn't a record, nor is the line as the guard prints it, with `…` where the reason goes. */
 const APPROVAL = /^\*\*Owner's approval ([0-9a-f]{8}):\*\*\s*(?!…\s*$)\S/
+const COORDINATOR_APPROVAL = /^\*\*Coordinator's approval ([0-9a-f]{8}):\*\*\s*(?!…\s*$)\S/
 
 /**
  * Whose comments can be records: those the owner let into the repository, the organization's
@@ -54,7 +57,8 @@ const LET_IN = ['OWNER', 'MEMBER', 'COLLABORATOR']
 export const counts = ({ association }: Comment): boolean => LET_IN.includes(association)
 
 /**
- * Where the list with this code stands. The owner's list is closed by the owner's approval. The
+ * Where the list with this code stands. The owner's list is closed by the owner's approval, the
+ * coordinator's by the coordinator's approval or the owner's: the owner is a coordinator too. The
  * second review's is closed by its `sound`; after its `weakening`, by the owner's approval of the
  * same code, which doesn't count without that verdict: the owner isn't asked to judge rewritten
  * assertions in the second review's place. A weakening found isn't cleared by another second
@@ -65,6 +69,7 @@ export function standing(needs: Needs, code: string, comments: Comment[]): State
   const lines = comments.filter(counts).map(({ body }) => body.trimStart().split('\n')[0])
   const approved = lines.some((line) => APPROVAL.exec(line)?.[1] === code)
   if (needs === 'owner') return approved ? 'approved' : 'none'
+  if (needs === 'coordinator') return approved || lines.some((line) => COORDINATOR_APPROVAL.exec(line)?.[1] === code) ? 'approved' : 'none'
   const verdicts = lines.map((line) => SECOND_REVIEW.exec(line)).flatMap((record) => (record?.[1] === code ? [record[2]] : []))
   if (verdicts.includes('weakening')) return approved ? 'approved' : 'weakening'
   return verdicts.includes('sound') ? 'sound' : 'none'
@@ -80,6 +85,10 @@ export const closed = (state: State): boolean => state === 'sound' || state === 
 export function says(needs: Needs, code: string, state: State | undefined): string {
   const reason = `\`${approval(code)} …\`, the owner's reason, in English`
   const posted = state === 'none' ? ' Not posted yet.' : ''
+  if (needs === 'coordinator') {
+    if (state === 'approved') return `The PR holds the coordinator's approval of \`${code}\`.`
+    return `Record to post once the coordinator approves: \`${coordinatorApproval(code)} …\`, the coordinator's reason, in English.${posted}`
+  }
   if (state === 'approved') return needs === 'owner' ? `The PR holds the owner's approval of \`${code}\`.` : `The second review of \`${code}\` found a weakening, and the PR holds the owner's approval of it.`
   if (needs === 'owner') return `Record to post once the owner approves: ${reason}.${posted}`
   if (state === 'sound') return `The PR holds a second review of \`${code}\`: sound.`

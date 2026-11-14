@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { approval, closed, codeOf, commentsIn, says, secondReview, standing, type Comment } from './records.ts'
+import { approval, closed, codeOf, commentsIn, coordinatorApproval, says, secondReview, standing, type Comment } from './records.ts'
 import type { Finding } from './signs.ts'
 
 const CODE = '1a2b3c4d'
@@ -181,6 +181,44 @@ describe('says', () => {
   it('prints the records as the guard reads them back', () => {
     expect(standing('review', CODE, [member(/`(\*\*Second review [^`]+)`/.exec(says('review', CODE, 'none'))![1])])).toBe('sound')
     expect(standing('owner', CODE, [member(`${/`(\*\*Owner's approval [^`]+) …`/.exec(says('owner', CODE, 'none'))![1]} a reason`)])).toBe('approved')
+  })
+})
+
+describe("the coordinator's list", () => {
+  const COORDINATED = member(`${coordinatorApproval(CODE)} the badge's size comes from its icon`)
+
+  it("is closed by the coordinator's approval of its code, or by the owner's, who is a coordinator too", () => {
+    expect(standing('coordinator', CODE, [COORDINATED])).toBe('approved')
+    expect(standing('coordinator', CODE, [APPROVED])).toBe('approved')
+  })
+
+  it('stays open without an approval of its code: a second review, an approval of another code, one without a reason', () => {
+    expect(standing('coordinator', CODE, [])).toBe('none')
+    expect(standing('coordinator', CODE, [SOUND])).toBe('none')
+    expect(standing('coordinator', CODE, [member(`${coordinatorApproval(OTHER)} a reason`)])).toBe('none')
+    expect(standing('coordinator', CODE, [member(`${coordinatorApproval(CODE)} …`), member(coordinatorApproval(CODE))])).toBe('none')
+  })
+
+  it('reads its record as the owner\'s approval is read: on the first line, at its start, with a reason after no space or several', () => {
+    const counts = (body: string) => standing('coordinator', CODE, [member(body)])
+    expect([`So: ${coordinatorApproval(CODE)} a reason`, `Here:\n${coordinatorApproval(CODE)} a reason`, `${coordinatorApproval(CODE)}   `, `${coordinatorApproval(CODE)}… `].map(counts)).toEqual(['none', 'none', 'none', 'none'])
+    expect([`${coordinatorApproval(CODE)}the size is the icon's`, `${coordinatorApproval(CODE)}   the size`, `${coordinatorApproval(CODE)} … and so the size`, `${coordinatorApproval(CODE)} …gone`].map(counts)).toEqual(['approved', 'approved', 'approved', 'approved'])
+  })
+
+  it("doesn't close the owner's list or the second review's", () => {
+    expect(standing('owner', CODE, [COORDINATED])).toBe('none')
+    expect(standing('review', CODE, [WEAKENING, COORDINATED])).toBe('weakening')
+  })
+
+  it('counts only from those the owner let into the repository', () => {
+    expect(standing('coordinator', CODE, [{ ...COORDINATED, association: 'CONTRIBUTOR' }])).toBe('none')
+  })
+
+  it('says what record to post, and that the PR holds it', () => {
+    expect(says('coordinator', CODE, 'none')).toBe("Record to post once the coordinator approves: `**Coordinator's approval 1a2b3c4d:** …`, the coordinator's reason, in English. Not posted yet.")
+    expect(says('coordinator', CODE, undefined)).toBe("Record to post once the coordinator approves: `**Coordinator's approval 1a2b3c4d:** …`, the coordinator's reason, in English.")
+    expect(says('coordinator', CODE, 'approved')).toBe("The PR holds the coordinator's approval of `1a2b3c4d`.")
+    expect(standing('coordinator', CODE, [member(`${/`(\*\*Coordinator's approval [^`]+) …`/.exec(says('coordinator', CODE, 'none'))![1]} a reason`)])).toBe('approved')
   })
 })
 

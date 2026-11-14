@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process'
 import { appendFileSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { findings, readsWhole, report, type AddedLine, type Change, type Finding } from './signs.ts'
+import { isStylesheet, type Sheet } from './stylesheets.ts'
 import { closed, codeOf, commentsIn, counts, says, standing, type Comment } from './records.ts'
 import { compareTests, testsIn, type Reports, type Test } from './tests.ts'
 
@@ -61,6 +62,14 @@ export function changes(git: Git, base: string, head: string): Change[] {
     }, [])
 }
 
+/** The app's stylesheets at a commit, which give the tokens' scale for the stylesheets a branch changes. */
+function stylesheetsAt(git: Git, rev: string): Sheet[] {
+  return git('ls-tree', '-r', '--name-only', '-z', rev, '--', 'src')
+    .split('\0')
+    .filter(isStylesheet)
+    .map((file) => ({ file, text: git('show', `${rev}:${file}`) }))
+}
+
 /**
  * The tests in a folder of reports (Vitest's JSON, Playwright's lists), report by report. The
  * folder is filled by the branch's code, so what the guard can't read there is not a crash: a
@@ -113,7 +122,9 @@ export function guard({ repo, base, head, tests, comments }: Options): { found: 
   const short = (rev: string) => git('rev-parse', '--short', rev).trim()
   // Where the branch left main, so what main gained since isn't read as the branch's loss.
   const from = git('merge-base', base, head).trim()
-  const found = [...findings(changes(git, from, head)), ...(tests ? compareTests(testsOf(tests.base), testsOf(tests.head)) : [])]
+  const changed = changes(git, from, head)
+  const sheets = changed.some(({ path }) => isStylesheet(path)) ? stylesheetsAt(git, head) : []
+  const found = [...findings(changed, sheets), ...(tests ? compareTests(testsOf(tests.base), testsOf(tests.head)) : [])]
   // The guard reads commits, so an author who runs it before committing would see "nothing" for the wrong reason.
   const dirty = head === 'HEAD' && git('status', '--porcelain') !== ''
   // git's id of a marked file's content at the head; none for a file the branch removed.
@@ -127,7 +138,7 @@ export function guard({ repo, base, head, tests, comments }: Options): { found: 
     return id
   }
   const posted = comments === undefined ? undefined : commentsOf(comments)
-  const lists = (['owner', 'review'] as const).flatMap((needs) => {
+  const lists = (['owner', 'coordinator', 'review'] as const).flatMap((needs) => {
     const code = codeOf(needs, found, blob)
     return code ? [{ needs, code, state: posted && standing(needs, code, posted) }] : []
   })
@@ -168,7 +179,7 @@ export function options(args: string[]): Options {
 export function main(args: string[], env: { GITHUB_OUTPUT?: string }): string {
   const { found, report: text, unmet } = guard(options(args))
   const count = (needs: Finding['needs']) => found.filter((finding) => finding.needs === needs).length
-  if (env.GITHUB_OUTPUT) appendFileSync(env.GITHUB_OUTPUT, `owner=${count('owner')}\nreview=${count('review')}\nunmet=${unmet}\n`)
+  if (env.GITHUB_OUTPUT) appendFileSync(env.GITHUB_OUTPUT, `owner=${count('owner')}\ncoordinator=${count('coordinator')}\nreview=${count('review')}\nunmet=${unmet}\n`)
   return text
 }
 
