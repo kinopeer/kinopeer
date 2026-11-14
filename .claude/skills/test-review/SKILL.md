@@ -78,7 +78,11 @@ trusted.
   for its words (#310), and a place the PR leaves as it is needs a reason that holds against the
   code (#323). A pattern that reads text from outside is tried on what it shouldn't catch: the token
   as a title's word, the same letters meaning something else, another way of writing the same thing
-  (#332, #333, #334), each with a row in the token's table of names it doesn't read. Where you can, break the
+  (#332, #333, #334), each with a row in the token's table of names it doesn't read. A check that
+  reads code, config, a workflow or CSS reads it with the format's own parser, not regular
+  expressions, marks the whole where comparing parts gets intricate, and keeps a table of the
+  spellings it must catch and let through (`docs/TESTING.md` → Choosing a layer; #367–#370, #410,
+  #411, #414, #415, #412). Where you can, break the
   code for exactly that case and see whether the named test fails: a green one doesn't answer it
   (#237, #244, #248, #250). Missing → check the Tests
   section's reasons (step 1) → otherwise a finding. A bug `/code-review` finds in the PR's own change
@@ -107,7 +111,9 @@ trusted.
   fakes change by addition unless the PR says why; a fake that gains behavior names the service
   version in its comment. A literal that copies a fixture instead of importing it, and a fixture
   the baselines render from changed without re-rendering them → findings.
-- **F. Hygiene.** Real timers or sleeps, `waitFor` with a `timeout` above the default, a listener
+- **F. Hygiene.** Real timers or sleeps in a Vitest test, a real-time wait in a browser test for
+  anything but an absence nothing signals or without a comment and a deadline (`docs/TESTING.md` →
+  A test that can fail → The clock), `waitFor` with a `timeout` above the default, a listener
   on `document` or `window` or fake timers removed at the end of `it` instead of in `afterEach` or
   `onTestFinished`, a spy, a global or an env stub made at the top of a file or in `beforeAll`
   (Vitest puts them back before each test, so the tests run without it: `docs/TESTING.md` → What a
@@ -149,7 +155,10 @@ trusted.
   paragraphs about what the diff changes for claims by meaning no grep finds. What a claim is checked against: the code and
   the tree; the service's own documentation page, opened rather than remembered (#299, #300); the
   words the UI shows (#287's alt text); the doc it points at (README against SPEC); for a step in a
-  checklist, that its pointer resolves and its check can pass as written (#300).
+  checklist, that its pointer resolves and its check can pass as written (#300). A doc about how
+  things are now that copies a count or a list the code or CI holds, instead of saying what it is
+  and where it lives, is a finding; a dated record keeps its numbers (`docs/TESTING.md` → Reviewing
+  a PR's tests, step 1).
   A list in the docs that the change adds to gains the new item (the screens in `docs/TESTING.md` →
   Screenshot tests, SPEC's decision log, newest first, the blind spots: any PR that meets a blind
   spot the table doesn't name adds its row), and a manual check the PR adds says what has to be in
@@ -202,9 +211,8 @@ merge of `main` needs one when it changes the PR's own lines or brings commits t
 the PR changes (other than `CHANGELOG.md`, SPEC's decision log and `CLAUDE.md`, #334), and otherwise
 the author's `Merged main at <sha>` comment carries the verdict over (`docs/TESTING.md` → Reviewing a PR's
 tests). Add
-"retro due" to it when twenty or more merged PRs are missing from the retro table in
-`docs/TESTING.md` → Improving the system (list the merged PRs since that table's last date and
-take out the ones its rows name and Dependabot's).
+"retro due" to it when fifty or more merged PRs are missing from the retro table in
+`docs/TESTING.md` → Improving the system, counted with the command its When gives, not by hand.
 Nothing else: no summary of the PR, no praise, no repeat of what the PR description already says.
 On a PR, post the report as one comment headed `Test review, round <n>`:
 `gh api repos/{owner}/{repo}/issues/<n>/comments -F body=@report.md`, or the GitHub MCP tools.
