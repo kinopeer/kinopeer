@@ -14,14 +14,14 @@ export interface SidebarStatusProps {
   offline: boolean
   /** Who stopped answering: Kinopeer's server or qBittorrent (the default). */
   unreachable?: Unreachable
-  /** Speeds in bytes/s and free space in bytes; undefined until known. */
+  /** Speeds in bytes/s and free space in bytes; undefined until known, shown as `—` meanwhile. */
   downloadSpeed?: number
   uploadSpeed?: number
   freeSpace?: number
-  /** Whether qBittorrent's alternative speed limits apply; the switch shows only once it's known. */
+  /** Whether qBittorrent's alternative speed limits apply; the switch is disabled until it's known. */
   altSpeedLimits?: boolean
   altSpeedDisabled?: boolean
-  onToggleAltSpeed?: () => void
+  onToggleAltSpeed: () => void
   /**
    * Before the connection in the card and at the top of the rail: the poll's ring, which shows
    * whether qBittorrent answers. The rail's gets the connection's status, which nothing beside it
@@ -39,7 +39,9 @@ function splitUnit(text: string): [string, string] {
 /**
  * qBittorrent's status at the bottom of the sidebar: connection, total speeds, free space and the
  * alternative speed limits switch. A card with the labels; in the rail, a narrow column with each
- * number over its unit and the switch as an icon.
+ * number over its unit and the switch as an icon. Each is there from the first paint, `—` and a
+ * disabled switch until the poll says them, so the card doesn't grow up from the sidebar's foot as
+ * the first one lands (#404).
  */
 export function SidebarStatus({
   version,
@@ -56,6 +58,7 @@ export function SidebarStatus({
   const { t } = useTranslation()
   const format = useFormatters()
   const speed = (value: number | undefined) => (value === undefined || offline ? '—' : format.speed(value))
+  const space = freeSpace === undefined ? '—' : format.size(freeSpace)
   const status = offline ? t('noAnswer.qbittorrent', { context: unreachableText(unreachable) }) : t('sidebar.connected', { version })
   const stacked = (label: string, text: string, icon: ReactNode) => {
     const [value, unit] = splitUnit(text)
@@ -65,11 +68,12 @@ export function SidebarStatus({
           {icon}
           <span className="sr-only">{label}</span> {value}
         </span>
-        {unit && <span className="ks-side-mini-unit">{unit}</span>}
+        {/* A placeholder has no unit: its line is kept, so the column is as tall as once it has one. */}
+        <span className="ks-side-mini-unit">{unit || '\u00a0'}</span>
       </p>
     )
   }
-  const showAltSpeed = altSpeedLimits !== undefined && onToggleAltSpeed !== undefined
+  const altSpeedOff = altSpeedDisabled || altSpeedLimits === undefined
   return (
     <section className="ks-side-status" aria-label={t('common.qbittorrent')}>
       <div className="ks-side-card">
@@ -85,23 +89,19 @@ export function SidebarStatus({
             ↑<span className="sr-only">{t('common.uploadSpeed')}</span> {speed(uploadSpeed)}
           </span>
         </p>
-        {freeSpace !== undefined && (
-          <p className="t-cap ks-num c3">{t('common.freeSpace', { size: format.size(freeSpace) })}</p>
-        )}
-        {showAltSpeed && (
-          <Button
-            variant={altSpeedLimits ? 'tonal' : 'secondary'}
-            size="sm"
-            icon="turtle"
-            block
-            title={t('speedLimits.alt')}
-            aria-pressed={altSpeedLimits}
-            disabled={altSpeedDisabled}
-            onClick={onToggleAltSpeed}
-          >
-            {t('speedLimits.short')}
-          </Button>
-        )}
+        <p className="t-cap ks-num c3">{t('common.freeSpace', { size: space })}</p>
+        <Button
+          variant={altSpeedLimits ? 'tonal' : 'secondary'}
+          size="sm"
+          icon="turtle"
+          block
+          title={t('speedLimits.alt')}
+          aria-pressed={altSpeedLimits ?? false}
+          disabled={altSpeedOff}
+          onClick={onToggleAltSpeed}
+        >
+          {t('speedLimits.short')}
+        </Button>
       </div>
       <div className="ks-side-mini ks-num">
         <span className="ks-side-mini-indicator">
@@ -110,17 +110,14 @@ export function SidebarStatus({
         </span>
         {stacked(t('common.downloadSpeed'), speed(downloadSpeed), <span aria-hidden="true">↓</span>)}
         {stacked(t('common.uploadSpeed'), speed(uploadSpeed), <span aria-hidden="true">↑</span>)}
-        {freeSpace !== undefined &&
-          stacked(t('sidebar.freeSpace'), format.size(freeSpace), <Icon name="disk" size={13} />)}
-        {showAltSpeed && (
-          <IconButton
-            icon="turtle"
-            label={t('speedLimits.alt')}
-            active={altSpeedLimits}
-            disabled={altSpeedDisabled}
-            onClick={onToggleAltSpeed}
-          />
-        )}
+        {stacked(t('sidebar.freeSpace'), space, <Icon name="disk" size={13} />)}
+        <IconButton
+          icon="turtle"
+          label={t('speedLimits.alt')}
+          active={altSpeedLimits ?? false}
+          disabled={altSpeedOff}
+          onClick={onToggleAltSpeed}
+        />
       </div>
     </section>
   )

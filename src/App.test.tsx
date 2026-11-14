@@ -275,7 +275,7 @@ describe('App', () => {
       expect(await screen.findByRole('status', { name: saying('Couldn’t switch the speed limits. Try again.') })).toBeInTheDocument()
     })
 
-    it('shows no free space in the sidebar when qBittorrent reports 0, which means it can’t tell', async () => {
+    it('shows the free space in the sidebar as unknown when qBittorrent reports 0, which means it can’t tell', async () => {
       getMainData.mockResolvedValue({
         rid: 1,
         full_update: true,
@@ -285,7 +285,8 @@ describe('App', () => {
       renderApp('/settings')
       const card = await screen.findByRole('region', { name: 'qBittorrent' })
       await waitFor(() => expect(card).toHaveTextContent('4.3 MB/s'))
-      expect(card).not.toHaveTextContent(/free/i)
+      // Its place kept, as before the first poll, not a disk with nothing free.
+      expect(within(card).getByText('— free')).toBeInTheDocument()
     })
 
     describe('a torrent opened from the title page', () => {

@@ -78,7 +78,7 @@ describe('Sidebar', () => {
 
 describe('SidebarStatus', () => {
   it('shows qBittorrent’s version, total speeds and free space', () => {
-    render(<SidebarStatus version="5.0.1" offline={false} downloadSpeed={4_300_000} uploadSpeed={120_000} freeSpace={1_210_000_000_000} />)
+    render(<SidebarStatus version="5.0.1" offline={false} downloadSpeed={4_300_000} uploadSpeed={120_000} freeSpace={1_210_000_000_000} onToggleAltSpeed={() => {}} />)
     const card = screen.getByRole('region', { name: 'qBittorrent' })
     expect(within(card).getAllByText('qBittorrent 5.0.1')).toHaveLength(2)
     expect(card).toHaveTextContent('↓Download speed 4.3 MB/s')
@@ -87,7 +87,7 @@ describe('SidebarStatus', () => {
   })
 
   it('stacks each number over its unit for the rail', () => {
-    render(<SidebarStatus version="5.0.1" offline={false} downloadSpeed={4_300_000} uploadSpeed={120_000} freeSpace={1_210_000_000_000} />)
+    render(<SidebarStatus version="5.0.1" offline={false} downloadSpeed={4_300_000} uploadSpeed={120_000} freeSpace={1_210_000_000_000} onToggleAltSpeed={() => {}} />)
     const download = screen.getByText('MB/s').closest('p')
     expect(download).toHaveTextContent(/^↓Download speed 4\.3MB\/s$/)
     expect(screen.getByText('KB/s').closest('p')).toHaveTextContent(/^↑Upload speed 120KB\/s$/)
@@ -95,15 +95,20 @@ describe('SidebarStatus', () => {
   })
 
   it('says when qBittorrent doesn’t answer', () => {
-    render(<SidebarStatus version="5.0.1" offline downloadSpeed={4_300_000} />)
+    render(<SidebarStatus version="5.0.1" offline downloadSpeed={4_300_000} onToggleAltSpeed={() => {}} />)
     // In the card and in the rail's column.
     expect(screen.getAllByText('qBittorrent isn’t answering')).toHaveLength(2)
     expect(screen.getByRole('region', { name: 'qBittorrent' })).toHaveTextContent('↓Download speed —')
     expect(screen.queryByText('TB')).not.toBeInTheDocument()
+    // Before its first answer, the card keeps its room as while loading.
+    expect(screen.getByText('— free')).toBeInTheDocument()
+    for (const button of screen.getAllByRole('button', { name: /^Alt(ernative|\.) speed limits$/ })) {
+      expect(button).toBeDisabled()
+    }
   })
 
   it('says when Kinopeer itself doesn’t answer', () => {
-    render(<SidebarStatus version="5.0.1" offline unreachable="kinopeer" />)
+    render(<SidebarStatus version="5.0.1" offline unreachable="kinopeer" onToggleAltSpeed={() => {}} />)
     expect(screen.getAllByText('Kinopeer isn’t answering')).toHaveLength(2)
   })
 
@@ -112,6 +117,7 @@ describe('SidebarStatus', () => {
       <SidebarStatus
         version="5.0.1"
         offline={false}
+        onToggleAltSpeed={() => {}}
         indicator={(status) => <span role="img" aria-label="Poll" title={status ?? 'none'} />}
       />,
     )
@@ -142,8 +148,17 @@ describe('SidebarStatus', () => {
     }
   })
 
-  it('has no switch until qBittorrent says which limits apply', () => {
+  // The card keeps the room it has loaded from the first paint, rather than growing up from the sidebar's
+  // foot as the first poll lands (#404).
+  it('holds the free space and a disabled switch until qBittorrent says them', () => {
     render(<SidebarStatus version="5.0.1" offline={false} onToggleAltSpeed={() => {}} />)
-    expect(screen.queryByRole('button', { name: /speed limits/ })).not.toBeInTheDocument()
+    expect(screen.getByText('— free')).toBeInTheDocument()
+    expect(screen.getByText('Free space').closest('p')).toHaveTextContent(/^Free space —$/)
+    const buttons = screen.getAllByRole('button', { name: /^Alt(ernative|\.) speed limits$/ })
+    expect(buttons).toHaveLength(2)
+    for (const button of buttons) {
+      expect(button).toBeDisabled()
+      expect(button).toHaveAttribute('aria-pressed', 'false')
+    }
   })
 })
