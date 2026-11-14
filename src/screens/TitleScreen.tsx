@@ -261,7 +261,7 @@ export function TitleScreen({ onSessionLost }: TitleScreenProps) {
       <Icon name="star" size={16} filled className="title-star" />
       <span className="sr-only">{t('title.rating')}</span>
       <span className="ks-num">{details.vote_average.toLocaleString(i18n.language, { maximumFractionDigits: 1, minimumFractionDigits: 1 })}</span>
-      <span className="t-cap c3">TMDB</span>
+      <span className="t-cap c3">{t('common.tmdb')}</span>
     </p>
   )
   const genres = details.genres.length > 0 && (

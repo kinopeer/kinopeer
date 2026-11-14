@@ -71,7 +71,7 @@ export function SidebarStatus({
   }
   const showAltSpeed = altSpeedLimits !== undefined && onToggleAltSpeed !== undefined
   return (
-    <section className="ks-side-status" aria-label="qBittorrent">
+    <section className="ks-side-status" aria-label={t('common.qbittorrent')}>
       <div className="ks-side-card">
         <p className="ks-side-status-head t-cap">
           {indicator?.()}

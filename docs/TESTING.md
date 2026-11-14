@@ -41,7 +41,9 @@ plain Node for `server/**/*.test.ts`, the integration tests included, `tmdb-prox
 the worker's `tsconfig.sw.json` rather than the app's. And a check that reads a source file as
 text (the tokens and raw px values in the stylesheets, `src/styles/tokens.test.ts`; the poll ring's
 keyframes, in `PollRing.test.tsx`) is layer 1 wherever it sits, although it reads the file through
-`node:fs`: it asserts what the file says, and how that looks is layer 6's (#241).
+`node:fs`: it asserts what the file says, and how that looks is layer 6's (#241). So is a lint
+rule's test, which plants what the rule refuses and allows and runs oxlint over it with the root's
+config (`lint()` from `src/test/oxlint.ts`; the texts in the app's JSX, `src/i18n/texts.test.ts`).
 
 `npm test` is to stay under 20 seconds on the owner's Mac (10 cores), checked before every release
 ([RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)). Most of that time isn't the tests: Vitest starts
@@ -522,6 +524,9 @@ it uses next to itself.
   and the test sends more of them than run at once: a mock that answers at once never has a call in
   flight when another one lands, so it can't show one call stopping or repeating the others (#239,
   `holdSearches` in `titleMatches.test.ts`).
+- **`src/test/oxlint.ts`:** `lint(files)` lays the files out as in the repository beside a copy of
+  the root's `.oxlintrc.json`, runs oxlint over them as `npm run lint` does and returns each problem's
+  rule, file and line, so a rule's test can plant a violation where an override applies.
 - **`server/test/fakes.ts`:** `listen(handler)` starts a handler on a free port and returns its
   origin, `serve(middleware)` does the same for the middleware under test with Vite's 404 fallback,
   `closeServers()` closes everything in `afterEach`, the connections a test left open included,
