@@ -185,17 +185,23 @@ const NAMED_COLORS = new Set(
   accentcolortext`.split(/\s+/),
 )
 const HEX = /#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b/g
-// A function with one level of nesting inside: `rgb(255 0 0 / var(--a))`, `hsl(calc(…) …)`.
-const NESTED_ARGS = String.raw`\([^()]*(?:\([^()]*\)[^()]*)*\)`
-const COLOR_FUNCTION = new RegExp(String.raw`\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)` + NESTED_ARGS, 'g')
+// Any call, whatever its arguments: `rgb(calc(var(--n) * 1) 0 0)` is as raw as `rgb(255 0 0)`.
+const COLOR_FUNCTION = /\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(/g
 // A whole identifier: `--teal` or `ks-tan` isn't the color `teal` or `tan`.
 const IDENT = /(?<![\w-])[a-zA-Z][\w-]*(?![\w-])/g
 
-/** The raw colors in a value, with their index. */
-function rawColors(value: string): [string, number][] {
+const NAMED_PROP = /^(?:-webkit-)?(?:animation|transition|grid)(?:-[a-z-]+)?$/
+
+/** The raw colors in a declaration's value, with their index. */
+function rawColors(prop: string, raw: string): [string, number][] {
+  // What a url() names is a file or an element, not a color.
+  const value = raw.replace(/\burl\([^)]*\)/g, (url) => ' '.repeat(url.length))
   const found: [string, number][] = []
   for (const m of value.matchAll(HEX)) found.push([m[0], m.index])
   for (const m of value.matchAll(COLOR_FUNCTION)) found.push([m[0], m.index])
+  // Names in an animation, a transition or a grid area are keyframes, properties and areas
+  // (`highlight`, `mark`), never colors.
+  if (NAMED_PROP.test(prop)) return found
   for (const m of value.matchAll(IDENT)) if (NAMED_COLORS.has(m[0].toLowerCase())) found.push([m[0], m.index])
   return found
 }
@@ -203,7 +209,7 @@ function rawColors(value: string): [string, number][] {
 // A time other than zero (a negative delay included), and an easing other than `linear` (no easing, as a spinner or a fill
 // that shows a clock needs).
 const TIME = /(?<![\w.-])-?(\d*\.?\d+)(ms|s)\b/g
-const EASING = /(?<![\w-])(?:ease|ease-in|ease-out|ease-in-out|step-start|step-end)(?![\w-])|\b(?:cubic-bezier|steps|linear)\([^()]*\)/g
+const EASING = /(?<![\w-])(?:ease|ease-in|ease-out|ease-in-out|step-start|step-end)(?![\w-])|\b(?:cubic-bezier|steps|linear)\(/g
 const MOTION_PROP = /^(?:-webkit-)?(?:transition|animation)(?:-[a-z-]+)?$/
 const SHADOW_PROP = /^(?:-webkit-)?(?:box-shadow|text-shadow|filter)$/
 const FILTER_PROP = /^(?:-webkit-)?filter$/
@@ -268,6 +274,8 @@ for (const d of OUTSIDE_TOKENS) {
   if (d.prop.startsWith('--')) OWN_PROPERTIES.set(d.prop, [...(OWN_PROPERTIES.get(d.prop) ?? []), d])
 }
 
+const CSS_WIDE = /^(?:inherit|initial|unset|revert|revert-layer)$/
+
 interface Shadow {
   d: Declaration
   index: number
@@ -278,11 +286,13 @@ interface Shadow {
  * The shadow layers of a value that cast a shadow. A layer that is a single var() (after `inset`)
  * is followed into its definitions outside tokens.css, and its fallback is read as layers of its own.
  */
-function shadowsIn(d: Declaration, value: string, offset: number, seen: Set<string>): Shadow[] {
+function shadowsIn(d: Declaration, important: string, offset: number, seen: Set<string>): Shadow[] {
   const found: Shadow[] = []
+  // `!important` says how the value wins, not what it draws.
+  const value = important.replace(/!\s*important\s*$/i, (flag) => ' '.repeat(flag.length))
   for (const [raw, rawIndex] of layers(value)) {
     const layer = raw.trim()
-    if (layer === '' || layer === 'none') continue
+    if (layer === '' || layer === 'none' || CSS_WIDE.test(layer)) continue
     const index = offset + rawIndex + raw.length - raw.trimStart().length
     const rest = parts(layer).filter(([part]) => part !== 'inset')
     const only = rest.length === 1 ? /^var\(\s*(--[\w-]+)\s*(?:,([\s\S]*))?\)$/.exec(rest[0][0]) : null
@@ -320,7 +330,7 @@ function at(d: Declaration, index: number, what: string, problems: string[]) {
 describe('stylesheets beyond sizes', () => {
   it('write colors through the color tokens', () => {
     const problems: string[] = []
-    for (const d of OUTSIDE_TOKENS) for (const [color, index] of rawColors(d.value)) {
+    for (const d of OUTSIDE_TOKENS) for (const [color, index] of rawColors(d.prop, d.value)) {
       at(d, index, `${color} is a raw color: use a token from tokens.css, or add a comment on the line saying why`, problems)
     }
     expect(problems).toEqual([])
