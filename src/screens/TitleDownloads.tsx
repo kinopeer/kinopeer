@@ -73,8 +73,16 @@ function TitleDownload({ torrent }: { torrent: Torrent }) {
         {/* The spaces between the card's parts are ones the flex layout doesn't show, which keep the words apart in the text axe reads (#407). */}
         <div className="title-dl-body">
           <div className="t-cap title-dl-release">
-            {coverage && <Badge>{coverage}</Badge>}{' '}
-            {info.resolution && <Badge kind="res">{info.resolution}</Badge>}{' '}
+            {coverage && (
+              <>
+                <Badge>{coverage}</Badge>{' '}
+              </>
+            )}
+            {info.resolution && (
+              <>
+                <Badge kind="res">{info.resolution}</Badge>{' '}
+              </>
+            )}
             <span className="ks-trunc c3">{torrent.name}</span>
           </div>{' '}
           <div className="title-dl-progress">
@@ -87,8 +95,13 @@ function TitleDownload({ torrent }: { torrent: Torrent }) {
             <span className="t-cap title-dl-pct ks-num c2">{percent}</span>
           </div>{' '}
           <div className="t-cap title-dl-meta ks-num">
-            <StatusChip status={status}>{statusLabel}</StatusChip>{' '}
-            {speed && <span className="c2">{speed}</span>}{' '}
+            <StatusChip status={status}>{statusLabel}</StatusChip>
+            {speed && (
+              <>
+                {' '}
+                <span className="c2">{speed}</span>
+              </>
+            )}{' '}
             <span className="title-dl-size c3">{size}</span>
           </div>
         </div>

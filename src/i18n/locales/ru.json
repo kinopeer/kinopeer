@@ -93,7 +93,7 @@
     "search": "Фильтр по названию",
     "filtersLabel": "Фильтр по статусу",
     "allStatuses": "Все статусы",
-    "allStatusesCount": "Все статусы, {{count}}",
+    "allStatusesCount": "$t(downloads.allStatuses), {{count}}",
     "statusButton": "Статус: {{status}}",
     "statusButtonCount": "Статус: {{status}}, {{count}}",
     "statusButtonErrors": "Статус: {{status}}, {{count}}. С ошибкой: {{errors}}",

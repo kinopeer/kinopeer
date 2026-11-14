@@ -666,13 +666,13 @@ one below it, since a budget left higher than the state needs would let a broken
 unnoticed. A fix lowers its budget in the same PR, to 0 rather than out of the file: the checks
 guard marks a budget removed for the owner.
 
-**The violations found at the start** are the budgets today, each rule with its issue, and their
-fixes lower them (decided on 2026-11-14: fixing them first would turn the step into design work,
-and a visible fix is the owner's):
+**The violations found at the start**, by #410's first read, each rule with its issue, went into the
+budgets as they were found, and their fixes lower them to 0 (decided on 2026-11-14: fixing them
+first would turn the step into design work, and a visible fix is the owner's):
 
 | Rule | Elements, states | What a fix changes | Issue |
 | --- | --- | --- | --- |
-| `label-content-name-mismatch` | 44 in 44: Downloads' status button on desktop, the phone's sort button with a type filter, the torrent's category row, a torrent in a title's "In downloads" | Nothing on the screen: the accessible names | #407 |
+| `label-content-name-mismatch` | 44 in 44: Downloads' status button on desktop, the phone's sort button with a type filter, the torrent's category row, a torrent in a title's "In downloads" | Nothing on the screen: the accessible names. Fixed, its budgets 0 | #407 |
 | `color-contrast` | 11 in 3: secondary text on a selected torrent, on a phone and in the desktop table, and on a skipped file | The colors, so the owner's | #408 |
 | `target-size` | 1 in 1: a row's More button under the pinned filter bar after a scroll, on a phone | Maybe nothing: it may be left as the scroll's | #409 |
 
