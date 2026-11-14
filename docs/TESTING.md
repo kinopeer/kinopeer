@@ -103,14 +103,11 @@ neighbours of a change, and answer each that applies with a test or a reason:
   in a table of their own in `parseRelease.test.ts`, as "doesn't take %s for a theater rip" does,
   and a new token or spelling adds its rows there. A check that reads code, config, a workflow or
   CSS (the checks guard, `tokens.test.ts`, a lint rule's config) reads it with that format's own
-  parser (PostCSS's tokenizer, a YAML parser, TypeScript's AST, `JSON.parse`), not with regular
+  parser (PostCSS's tokenizer, a YAML parser, oxc's `parseSync` for TypeScript, `JSON.parse`), not with regular
   expressions, and where comparing it part by part gets intricate, it marks the whole (an oxlint
-  override with other `files` is marked whole, #415). Where no parser can be installed (the guard
-  runs `main`'s copy with no `npm ci`, so it reads workflows line by line, `workflowSteps` in
-  `scripts/guard/signs.ts`), it reads the narrow way, says so in its docs, and marks whatever it
-  can't read rather than letting it through. The spellings it must catch and the ones it
+  override with other `files` is marked whole, #415). The spellings it must catch and the ones it
   must let through go in a table in its test, and a spelling found later adds its row there (41
-  findings over spellings their readers missed in #367–#370, #410, #411, #414 and #415, which took
+  blocking and should-fix findings over spellings their readers missed in #367–#370, #410, #411, #414 and #415, which took
   3.6 rounds on average, and #412 reached `main`).
 
 One behavior, one layer: every statement about what Kinopeer does lives in exactly one test, on the
@@ -799,8 +796,8 @@ record, the issues of the Bug type with their `test-gap:*` labels
 for one (decided on 2026-11-06: at ten PRs or each release a retro came almost daily, on batches too
 small for a finding to repeat three times; raised from twenty on 2026-11-14 by the owner, who had
 put the retro off past thirty to finish the planned work, while a batch of thirty-six gave every
-repeat this one acted on). Count them with one command, from the moment the newest PR the table's
-top row lists merged (`<since>`, its `mergedAt`), which takes in that retro's own PR and any PR
+repeat this one acted on). Count them with one command, from the moment the PR the table's top row
+lists that merged last did (`<since>`, its `mergedAt`), which takes in that retro's own PR and any PR
 that merged while it was open: `gh api -X GET search/issues -f q="repo:kinopeer/kinopeer is:pr
 is:merged merged:><since> -author:app/dependabot" --jq .total_count` (REST, so it runs where
 GraphQL is refused; counted by hand, sessions gave 28, 30 and 32 for one batch of 36). The
@@ -812,12 +809,13 @@ doesn't wait for it: the reviewer says in the report what disagrees with what, a
 settles it.
 
 **How.** Collect the `Test review, round <n>` comments of the merged PRs no row lists yet (the
-batch) and the issues closed since the same `<since>`, and count the findings by check and by rule.
+batch) and the issues closed since the same `<since>` that the top row doesn't name (an issue the
+batch's last PR closed can close a moment after it, #412 after #415), and count the findings by check and by rule.
 The issues are split by type: those of the Bug type are escaped bugs, counted by their `test-gap:*`
 class against the pile's rule ([When we find a bug](#when-we-find-a-bug)); those of the Task type
 with a `test-gap:*` label are problems of the tests and tooling, counted apart against the same
 rule. For example,
-`gh api -X GET search/issues -f q="repo:kinopeer/kinopeer is:issue type:Bug label:test-gap:uncovered closed:><since>" --jq '.items[].number'`.
+`gh api -X GET search/issues -f q="repo:kinopeer/kinopeer is:issue type:Bug label:test-gap:uncovered closed:><since>" -f per_page=100 --jq '.items[].number'`.
 The findings:
 
 - Three or more of one check tagged `gap` → rewrite or add the rule, with an example from the
