@@ -24,12 +24,13 @@ export function StatusMenu({ value, onChange, counts }: StatusMenuProps) {
   const count = counts?.[value]
   const errors = value === 'all' || value === 'error' ? 0 : (counts?.error ?? 0)
 
-  const label =
-    count === undefined
-      ? t('downloads.statusButton', { status: name(value) })
-      : errors > 0
-        ? t('downloads.statusButtonErrors', { status: name(value), count, errors })
-        : t('downloads.statusButtonCount', { status: name(value), count })
+  // The name holds the button's words in their order, so voice control finds it by what it shows (#407).
+  const shown = value === 'all' ? t('downloads.allStatuses') : name(value)
+  let label: string
+  if (value === 'all') label = count === undefined ? shown : t('downloads.allStatusesCount', { count })
+  else if (count === undefined) label = t('downloads.statusButton', { status: shown })
+  else if (errors > 0) label = t('downloads.statusButtonErrors', { status: shown, count, errors })
+  else label = t('downloads.statusButtonCount', { status: shown, count })
 
   return (
     <>
@@ -43,7 +44,9 @@ export function StatusMenu({ value, onChange, counts }: StatusMenuProps) {
         aria-label={label}
         onClick={(event) => setAnchor(anchor ? null : event.currentTarget)}
       >
-        {value === 'all' ? t('downloads.allStatuses') : name(value)}
+        {shown}
+        {/* A space the flex layout doesn't show, which keeps the words apart in the text axe reads (#407). */}
+        {count !== undefined && ' '}
         {count !== undefined && <span className="t-cap downloads-status-count ks-num">{count}</span>}
         <Icon name="chevron-down" size={14} />
         {errors > 0 && <span className="downloads-status-dot" />}

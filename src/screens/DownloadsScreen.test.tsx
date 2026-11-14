@@ -309,7 +309,7 @@ describe('DownloadsScreen', () => {
       'Dune: Part Two2024',
     ])
     await userEvent.click(sheet.getByRole('button', { name: 'Done' }))
-    expect(screen.getByRole('button', { name: 'Sort: Priority, Movies' })).toHaveTextContent('Movies')
+    expect(screen.getByRole('button', { name: 'Sort: Priority, Movies' })).toHaveProperty('textContent', 'Priority Movies')
 
     const filters = within(screen.getByRole('group', { name: 'Filter by status' }))
     expect(filters.getByRole('button', { name: 'All 1', pressed: true })).toBeInTheDocument()

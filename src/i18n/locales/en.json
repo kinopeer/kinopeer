@@ -93,6 +93,7 @@
     "search": "Filter by name",
     "filtersLabel": "Filter by status",
     "allStatuses": "All statuses",
+    "allStatusesCount": "All statuses, {{count}}",
     "statusButton": "Status: {{status}}",
     "statusButtonCount": "Status: {{status}}, {{count}}",
     "statusButtonErrors": "Status: {{status}}, {{count}}. With errors: {{errors}}",

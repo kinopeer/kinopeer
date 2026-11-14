@@ -319,7 +319,7 @@ describe('DownloadsScreen on desktop', () => {
     expect(screen.queryByRole('group', { name: 'Filter by status' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { pressed: false })).not.toBeInTheDocument()
 
-    await userEvent.click(screen.getByRole('button', { name: 'Status: All, 3' }))
+    await userEvent.click(screen.getByRole('button', { name: 'All statuses, 3' }))
     await userEvent.click(screen.getByRole('menuitemradio', { name: 'Paused, 1' }))
     expect(screen.getAllByRole('listitem')).toHaveLength(1)
     expect(screen.getByRole('button', { name: 'Status: Paused, 1' })).toBeInTheDocument()
@@ -327,7 +327,7 @@ describe('DownloadsScreen on desktop', () => {
     await userEvent.click(screen.getByRole('radio', { name: 'Series' }))
     expect(screen.getByRole('button', { name: 'Status: Paused, 0' })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Reset filters' }))
-    expect(screen.getByRole('button', { name: 'Status: All, 3' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'All statuses, 3' })).toBeInTheDocument()
   })
 
   it('keeps the name filter in the header, not behind a button', async () => {

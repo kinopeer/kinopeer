@@ -271,7 +271,7 @@ describe('TorrentScreen', () => {
     getMainData.mockResolvedValue(snapshot({ seq_dl: true }))
     renderScreen()
     const download = await screen.findByRole('region', { name: 'Download' })
-    expect(within(download).getByRole('button', { name: 'Category: Movies' })).toBeInTheDocument()
+    expect(within(download).getByRole('button', { name: 'Category: Movies' })).toHaveProperty('textContent', 'Category Movies')
     expect(within(download).getByRole('switch', { name: 'Sequential download' })).toBeChecked()
     expect(within(download).getByRole('switch', { name: 'First and last pieces first' })).not.toBeChecked()
   })

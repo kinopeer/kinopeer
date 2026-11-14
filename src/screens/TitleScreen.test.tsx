@@ -250,11 +250,15 @@ describe('TitleScreen', () => {
       const block = await screen.findByRole('region', { name: 'In downloads 2' })
       const links = within(block).getAllByRole('link')
       expect(links.map((link) => link.getAttribute('href'))).toEqual(['/torrent/e1', '/torrent/s1'])
-      expect(links[0]).toHaveAccessibleName('S01 E01–05, 2160p, Shogun.S01E01-E05.2160p.DSNP.WEB-DL, Downloading, 41%')
-      expect(links[0]).toHaveTextContent('↓ 6.2 MB/s')
-      expect(links[0]).toHaveTextContent('6.07 GB / 14.8 GB')
-      expect(links[1]).toHaveAccessibleName('S01, 1080p, Shogun.S01.1080p.DSNP.WEB-DL, Seeding, 100%')
-      expect(links[1]).toHaveTextContent('↑ 900 KB/s')
+      expect(links[0]).toHaveAccessibleName(
+        'S01 E01–05, 2160p, Shogun.S01E01-E05.2160p.DSNP.WEB-DL, 41%, Downloading, ↓ 6.2\u00a0MB/s, 6.07\u00a0GB / 14.8\u00a0GB',
+      )
+      expect(links[0]).toHaveProperty(
+        'textContent',
+        'S01 E01–05 2160p Shogun.S01E01-E05.2160p.DSNP.WEB-DL 41% Downloading ↓ 6.2\u00a0MB/s 6.07\u00a0GB / 14.8\u00a0GB',
+      )
+      expect(links[1]).toHaveAccessibleName('S01, 1080p, Shogun.S01.1080p.DSNP.WEB-DL, 100%, Seeding, ↑ 900\u00a0KB/s, 14.8\u00a0GB')
+      expect(links[1]).toHaveProperty('textContent', 'S01 1080p Shogun.S01.1080p.DSNP.WEB-DL 100% Seeding ↑ 900\u00a0KB/s 14.8\u00a0GB')
       expect(within(links[1]).getByRole('progressbar', { name: 'Shogun.S01.1080p.DSNP.WEB-DL: progress' })).toHaveAttribute(
         'aria-valuenow',
         '100',
