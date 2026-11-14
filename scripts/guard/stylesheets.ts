@@ -435,11 +435,11 @@ export function tokensIn(text: string): Map<string, string> {
  */
 export function atRulesIn(text: string): string[] {
   const found: string[] = []
-  parse(text.startsWith('\uFEFF') ? text.slice(1) : text).walkAtRules((rule) => {
+  // No offsets are read here, so the byte order mark PostCSS strips doesn't matter.
+  parse(text).walkAtRules((rule) => {
     let holds = false
     rule.walkDecls(() => {
       holds = true
-      return false
     })
     if (!holds) found.push(`${where(rule)} @${rule.name} ${rule.params}`.replace(/\s+/g, ' ').trim())
   })

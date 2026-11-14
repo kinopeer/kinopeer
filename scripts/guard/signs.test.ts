@@ -916,6 +916,8 @@ describe('compareLint: an override beside its rules (#412)', () => {
       `the global \`process\` is no longer taken away ${where}`,
     ])
     expect(compareLint(json({ env: { builtin: false } }), json({})).map(({ what }) => what)).toEqual(['the environment builtin is no longer turned off'])
+    // An environment turned on that is removed, or one turned off that stays, checks more or the same.
+    expect(compareLint(config({ env: { node: true, browser: false } }), config({ env: { browser: false } }))).toEqual([])
   })
 })
 
@@ -964,6 +966,7 @@ describe('compareTokens', () => {
   it('sends an at-rule that holds no token, an @import of more tokens say, added or removed to the coordinator', () => {
     expect(found(`@import './more.css';\n${tokens}`)).toEqual(["coordinator: the at-rule `@import './more.css'`, which holds no token the guard can read, is added"])
     expect(found(tokens, `@layer base;\n${tokens}`)).toEqual(['coordinator: the at-rule `@layer base`, which holds no token the guard can read, is removed'])
+    expect(found(`@import './more.css';\n${tokens}`, `@import './more.css';\n${tokens}`)).toEqual([])
   })
 })
 
@@ -987,6 +990,8 @@ describe('compareStylesheets', () => {
     const taking = (lines: number[]) => compareStylesheets([{ path: 'src/a.css', added: lines.map((line) => ({ line, text: '' })) }], [TOKENS, { file: 'src/a.css', text }, lift])
     expect(taking([3])).toEqual([{ needs: 'coordinator', file: 'src/a.css', line: 3, what: "a shadow off the tokens' scale, taken from `src/b.css:2` and let through by the comment there: `--lift: 0 2px 4px var(--scrim)`" }])
     expect(taking([2])).toEqual([])
+    // The same line in another file isn't the one that takes it.
+    expect(compareStylesheets([{ path: 'src/c.css', added: [{ line: 3, text: '' }] }], [TOKENS, { file: 'src/a.css', text }, lift])).toEqual([])
   })
 
   it('reads each of the kinds the test reads, a color among them', () => {

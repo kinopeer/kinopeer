@@ -83,6 +83,9 @@ describe('the comments rawValues reads', () => {
     ])
     // A quoted one is a string, and `URL(` is the same function.
     expect(raw('a { background: URL( "a/*.svg" ) url() ; }\nb { padding: 13px; }')).toEqual(['fails spacing src/a.css:2 padding: 13px is off the scale: add a comment on the line saying why'])
+    // A comment after one is still a comment, and one left open runs to the end, as PostCSS reads it.
+    expect(raw('a { background: url(a.svg); /* why */ padding: 13px; }')).toEqual(['allowed spacing src/a.css:1 padding: 13px is off the scale: add a comment on the line saying why'])
+    expect(() => raw('a { background: url(a/*.svg; }\nb { padding: 13px; }')).toThrow()
   })
 
   it('reads a stylesheet that starts with a byte order mark where its values are', () => {
