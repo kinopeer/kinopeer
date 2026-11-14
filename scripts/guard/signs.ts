@@ -257,21 +257,19 @@ export function compareLint(base: string | undefined, head: string | undefined, 
     found.push(...compareRules(file, where, rulesOf(before.get(files)), rulesOf(after.get(files)), after.has(files) ? rulesOf(was) : {}))
     const [had, has] = [before.get(files), after.get(files)]
     // An override that is gone takes its rules away, compared above, and is read against an empty
-    // one, so a global it took away or an environment it turned off is marked; one that is new is
-    // read the same way round, so the environments and globals it brings are marked.
+    // one, so a plugin it named (whose rules may sit at the top level), a global it took away or an
+    // environment it turned off is marked. One that is new is read the same way round, so the
+    // environments, globals and skipped paths it brings are marked: an override whose `files`
+    // change is both, so a path added to its `excludeFiles` in the same edit is read as one.
     if (!isObject(has)) {
-      // Its plugins go with its rules, which are marked one by one.
-      if (isObject(had)) found.push(...compareScope(file, where, had, {}, ['files', 'excludeFiles', 'plugins', 'jsPlugins']))
+      if (isObject(had)) found.push(...compareScope(file, where, had, {}, ['files', 'excludeFiles']))
       continue
     }
-    if (!isObject(had)) {
-      found.push(...compareScope(file, where, {}, has, ['files', 'excludeFiles']))
-      continue
+    const [skipped, skips] = [isObject(had) ? entries(had.excludeFiles) : [], entries(has.excludeFiles)]
+    for (const pattern of skips) {
+      if (!skipped.includes(pattern)) found.push({ needs: 'owner', file, what: `the lint rules${where} skip more: ${pattern} is added to \`excludeFiles\`` })
     }
-    for (const pattern of entries(has.excludeFiles)) {
-      if (!entries(had.excludeFiles).includes(pattern)) found.push({ needs: 'owner', file, what: `the lint rules${where} skip more: ${pattern} is added to \`excludeFiles\`` })
-    }
-    found.push(...compareScope(file, where, had, has, ['files', 'excludeFiles']))
+    found.push(...compareScope(file, where, isObject(had) ? had : {}, has, ['files', 'excludeFiles']))
   }
   return found
 }
@@ -284,7 +282,7 @@ export function compareLint(base: string | undefined, head: string | undefined, 
  */
 function compareScope(file: string, where: string, had: JsonObject, has: JsonObject, skip: string[]): Finding[] {
   const found: Finding[] = []
-  for (const key of ['plugins', 'jsPlugins'].filter((key) => !skip.includes(key))) {
+  for (const key of ['plugins', 'jsPlugins']) {
     for (const plugin of entries(had[key])) {
       if (!entries(has[key]).includes(plugin)) found.push({ needs: 'owner', file, what: `the lint plugin ${plugin} is removed${where}, and its rules with it` })
     }
@@ -505,15 +503,17 @@ export function compareStylesheets(changes: Change[], sheets: Sheet[]): Finding[
       .map(({ path }) => ({ needs: 'coordinator', file: path, what: `the guard can't read the stylesheets, so it can't tell which values this one adds: ${why}` }))
   }
   // rawValues names only the stylesheets it checks, so another file the branch changes finds none.
+  // A line that defines a shadow and takes it, or takes it twice, is marked once.
+  const seen = new Set<string>()
   return changes.flatMap(({ path, added }) => {
     const lines = new Set(added.map(({ line }) => line))
     return raw.filter(({ allowed }) => allowed).flatMap(({ file, line, prop, raw: value, via }): Finding[] => {
       const own: Finding[] = file === path && lines.has(line) ? [{ needs: 'coordinator', file: path, line, what: `a value off the tokens' scale, let through by the comment on its line: \`${prop}: ${value}\`` }] : []
       // A line that takes a shadow from a custom property makes it cast one, though its own line stays.
       const takes = via
-        .filter((use) => use.file === path && lines.has(use.line))
+        .filter((use) => use.file === path && lines.has(use.line) && !(use.file === file && use.line === line))
         .map((use): Finding => ({ needs: 'coordinator', file: path, line: use.line, what: `a shadow off the tokens' scale, taken from \`${file}:${line}\` and let through by the comment there: \`${prop}: ${value}\`` }))
-      return [...own, ...takes]
+      return [...own, ...takes].filter(({ line: at, what }) => !seen.has(`${path}:${at}:${what}`) && seen.add(`${path}:${at}:${what}`))
     })
   })
 }

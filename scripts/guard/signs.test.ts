@@ -896,15 +896,28 @@ describe('compareLint: an override beside its rules (#412)', () => {
     expect(found({ settings: { react: { version: '19' } } })).toEqual([`review: \`settings\` ${where} changed: nothing → \`{"react":{"version":"19"}}\``])
   })
 
-  it('reads a new override against an empty one, and leaves a removed one to its rules', () => {
-    expect(compareLint(json({ overrides: [] }), config({})).map(({ what }) => what)).toEqual([`the environment browser is turned on ${where}, and its globals with it`])
-    expect(compareLint(config({}), json({ overrides: [] })).map(({ what }) => what)).toEqual([`the lint rule \`react/jsx-no-literals\` ${where} is removed`])
+  it('reads a new override against an empty one, and a removed one the other way round', () => {
+    expect(compareLint(json({ overrides: [] }), config({})).map(({ what }) => what)).toEqual([
+      `the lint rules ${where} skip more: "src/**/*.test.tsx" is added to \`excludeFiles\``,
+      `the environment browser is turned on ${where}, and its globals with it`,
+    ])
+    expect(compareLint(config({}), json({ overrides: [] })).map(({ what }) => what)).toEqual([
+      `the lint rule \`react/jsx-no-literals\` ${where} is removed`,
+      `the lint plugin "react" is removed ${where}, and its rules with it`,
+    ])
+    // A plugin's rules may sit at the top level, so an override that only names the plugin is marked too.
+    const tests = { files: ['src/**/*.test.ts'], plugins: ['vitest'] }
+    expect(compareLint(json({ rules: { 'vitest/no-focused-tests': 'error' }, overrides: [tests] }), json({ rules: { 'vitest/no-focused-tests': 'error' }, overrides: [] })).map(({ what }) => what)).toEqual([
+      'the lint plugin "vitest" is removed for ["src/**/*.test.ts"], and its rules with it',
+    ])
   })
 
   it('reads an override whose files change as a new one, its environments and globals included', () => {
     const moved = { ...override, files: ['src/**/*.ts'], env: { node: true }, globals: { process: 'readonly' } }
     expect(compareLint(config({}), json({ overrides: [moved] })).map(({ needs, what }) => `${needs}: ${what}`)).toEqual([
       'owner: the lint rule `react/jsx-no-literals` for ["src/**/*.tsx"] is removed',
+      'owner: the lint plugin "react" is removed for ["src/**/*.tsx"], and its rules with it',
+      'owner: the lint rules for ["src/**/*.ts"] skip more: "src/**/*.test.tsx" is added to `excludeFiles`',
       'owner: the environment node is turned on for ["src/**/*.ts"], and its globals with it',
       'owner: the global `process` is allowed for ["src/**/*.ts"]: `"readonly"`',
     ])
@@ -1007,6 +1020,10 @@ describe('compareStylesheets', () => {
     // A definition added beside a line that takes it: both, the value and where it's taken.
     const both = { file: 'src/a.css', text: '.a {\n  --lift: 0 2px 4px var(--scrim); /* why */\n  box-shadow: var(--lift);\n}\n' }
     expect(compareStylesheets([{ path: 'src/a.css', added: [{ line: 2, text: '' }, { line: 3, text: '' }] }], [TOKENS, both]).map(({ line }) => line)).toEqual([2, 3])
+    // One line that defines a shadow and takes it, or takes it twice, is marked once.
+    const one = (text: string) => compareStylesheets([{ path: 'src/a.css', added: [{ line: 2, text: '' }] }], [TOKENS, { file: 'src/a.css', text }, lift]).map(({ line, what }) => `${line} ${what}`)
+    expect(one('.a {\n  --glow: 0 1px 2px var(--scrim); /* why */ box-shadow: var(--glow);\n}\n')).toEqual(["2 a value off the tokens' scale, let through by the comment on its line: `--glow: 0 1px 2px var(--scrim)`"])
+    expect(one('.a {\n  box-shadow: var(--lift); text-shadow: var(--lift);\n}\n')).toEqual(["2 a shadow off the tokens' scale, taken from `src/b.css:2` and let through by the comment there: `--lift: 0 2px 4px var(--scrim)`"])
     // The same line in another file isn't the one that takes it.
     expect(compareStylesheets([{ path: 'src/c.css', added: [{ line: 3, text: '' }] }], [TOKENS, { file: 'src/a.css', text }, lift])).toEqual([])
   })

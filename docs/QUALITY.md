@@ -54,9 +54,10 @@ or its rules.
   removed); a path added to `ignorePatterns` or to an override's `excludeFiles`, the files its rules
   skip (the root `.oxlintrc.json`). An
   override is known by its `files`, so one whose `files` change is one removed and one added. One
-  removed has its rules marked as removed, and the environments it turned off and the globals it
-  took away as given back; a new one is read against an empty override, so the environments and
-  globals it brings are marked as above. That is loud for a change that checks more: a glob added
+  removed has its rules and its plugins marked as removed (a plugin's rules may sit at the top
+  level), and the environments it turned off and the globals it took away as given back; a new one
+  is read against an empty override, so the environments, globals and `excludeFiles` paths it brings
+  are marked as above. That is loud for a change that checks more: a glob added
   to an override's `files` marks each of its rules as removed and each global it allows as allowed,
   for the owner to approve at once.
 - The linter turned off from another file, marked by the file's path whatever it says: an

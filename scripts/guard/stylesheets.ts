@@ -5,8 +5,7 @@
 // here changes both at once, and goes to the owner as a change to the guard. Stylesheets are parsed
 // with PostCSS, which Vite's own CSS handling brings in; the values inside a declaration are read by
 // the patterns below.
-/// <reference path="./postcss-tokenize.d.ts" />
-import { parse, type AtRule, type Node, type Rule } from 'postcss'
+import { Input, parse, type AtRule, type Node, type Rule } from 'postcss'
 import tokenizer from 'postcss/lib/tokenize'
 
 /** The design tokens, the only stylesheet whose values aren't checked: they are the scale. */
@@ -39,12 +38,15 @@ export interface Declaration {
  * on a comment left open.
  */
 function commentSpans(text: string): [number, number][] {
-  const tokens = tokenizer({ css: text })
+  const tokens = tokenizer(new Input(text))
   const spans: [number, number][] = []
   while (!tokens.endOfFile()) {
-    // A comment's token always has both offsets, its first character and its last.
-    const [type, , start = 0, end = 0] = tokens.nextToken() ?? []
-    if (type === 'comment') spans.push([start, end + 1])
+    const [type, , start, end] = tokens.nextToken() ?? []
+    if (type !== 'comment') continue
+    // A comment's token has its first and last offsets; the tokenizer promises nothing, so a
+    // PostCSS that stopped giving them fails here rather than reading comments wrong.
+    if (start === undefined || end === undefined) throw new Error("PostCSS's tokenizer gave a comment without its offsets")
+    spans.push([start, end + 1])
   }
   return spans
 }
