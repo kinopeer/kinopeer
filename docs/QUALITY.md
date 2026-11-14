@@ -49,10 +49,12 @@ or its rules.
   off that the config didn't name before, since it may have been on by default; a plugin removed,
   at the top level or from an override's `plugins` or `jsPlugins`; an environment turned on or a
   global allowed (`env`, `globals`, at the top level or in an override), which `no-undef` then lets
-  through; a path added to `ignorePatterns` or to an override's `excludeFiles`, the files its rules
+  through, and one no longer turned off or taken away (a `false` environment or an `'off'` global
+  removed); a path added to `ignorePatterns` or to an override's `excludeFiles`, the files its rules
   skip (the root `.oxlintrc.json`). An
   override is known by its `files`, so one whose `files` change is one removed and one added: its
-  rules are marked as removed.
+  rules are marked as removed, and the new one is read against an empty override, so the
+  environments and globals it brings are marked as above.
 - The linter turned off from another file, marked by the file's path whatever it says: an
   `.oxlintrc.json` outside the root, which oxlint obeys for its folder, or an `.eslintignore` or
   `.oxlintignore`, added or with lines added. `npm run lint` also runs oxlint with
@@ -113,8 +115,12 @@ Autopilot).
 - A declaration added, changed or removed in `src/styles/tokens.css`, in either theme: each is
   known by the selector and the media queries it sits in and by its name, and its value is compared
   without comments and runs of spaces, so a token reformatted, commented or moved within its block
-  isn't marked, and one moved to another block is removed there and added here. `tokens.css`
-  removed, or a copy on either side that the guard can't parse, is marked too. The layout's sizes
+  isn't marked, and one moved to another block is removed there and added here. `!important` counts
+  as part of the value, and a name declared twice in one block is compared with both values. An
+  at-rule that holds no declaration, such as an `@import` of another stylesheet, is marked when it
+  is added or removed, since the tokens it brings can't be read. `tokens.css` removed, or a copy on
+  either side that the guard can't parse, is marked too. `tokens.test.ts` fails a token's name
+  declared in any other stylesheet, which would override it there. The layout's sizes
   and the properties the app sets at runtime (the safe areas, the navigation's and the drawer's
   widths, the keyboard's inset) live in `src/styles/layout.css`, so that whatever is in
   `tokens.css` is a design value.
@@ -123,7 +129,9 @@ Autopilot).
   a spacing, radius or type size in px the scale doesn't have, a raw color, a `data:` URL, a raw
   shadow or raw motion. What counts as raw is the test's own definition,
   `scripts/guard/stylesheets.ts`, which the guard reads against the scale and the custom
-  properties of every stylesheet at the branch's head (a shadow's `var()` is followed into them).
+  properties of every stylesheet at the branch's head (a shadow's `var()` is followed into them,
+  so a line the branch adds that uses a commented raw shadow elsewhere is marked too, with where it
+  comes from).
   A line the branch changes counts as added, so a comment written onto a raw value's line is marked
   as well. When the guard can't parse the stylesheets, every one the branch changes is marked. A raw
   value without a comment isn't marked: the test fails it, and CI with it.

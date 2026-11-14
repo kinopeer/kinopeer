@@ -31,7 +31,23 @@ const TOKENS = SHEETS.find(({ file }) => file === TOKENS_FILE)?.text ?? ''
 /** What the test fails of one kind of value. */
 const problems = (kind: Kind) => RAW.filter((raw) => raw.kind === kind && !raw.allowed).map(problem)
 
+/** A declaration outside tokens.css of a name tokens.css declares, which overrides the token. */
+function tokensRedeclared(sheets: Sheet[]): string[] {
+  const names = new Set(sheets.filter(({ file }) => file === TOKENS_FILE).flatMap(declarations).map(({ prop }) => prop).filter((prop) => prop.startsWith('--')))
+  return sheets
+    .filter(({ file }) => file !== TOKENS_FILE)
+    .flatMap(declarations)
+    .filter(({ prop }) => names.has(prop))
+    .map((d) => `${d.file}:${d.lineAt(0)} ${d.prop}: a design token, which only tokens.css declares`)
+}
+
 describe('stylesheets', () => {
+  it('declare the design tokens in tokens.css only', () => {
+    const planted = [{ file: TOKENS_FILE, text: ':root { --space-2: 8px; }' }, { file: 'src/styles/layout.css', text: ':root {\n  --space-2: 10px;\n  --column: 760px;\n}\n' }]
+    expect(tokensRedeclared(planted)).toEqual(['src/styles/layout.css:2 --space-2: a design token, which only tokens.css declares'])
+    expect(tokensRedeclared(SHEETS)).toEqual([])
+  })
+
   it('write spacing through the --space tokens', () => {
     expect(problems('spacing')).toEqual([])
   })

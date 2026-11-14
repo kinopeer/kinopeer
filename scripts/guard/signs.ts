@@ -4,7 +4,7 @@
 // can't read or can't judge is marked, not passed. What a test file asserts is read in assertions.ts,
 // and the tests that ran are compared in tests.ts.
 import { compareAssertions } from './assertions.ts'
-import { isStylesheet, rawValues, tokensIn, TOKENS_FILE, type Sheet } from './stylesheets.ts'
+import { atRulesIn, rawValues, tokensIn, TOKENS_FILE, type Sheet } from './stylesheets.ts'
 
 /**
  * What a finding calls for before the PR merges: the owner's approval with a reason (a weakening, or
@@ -60,7 +60,7 @@ const takesScreenshots = (path: string): boolean => path.startsWith('e2e/') || (
 
 /** Whether the guard compares the file's two versions whole, rather than only the lines added. */
 export const readsWhole = (path: string): boolean =>
-  path === CHECKS_FILE || path === LINT_FILE || path === PACKAGE_FILE || isWorkflow(path) || isTestCode(path) || isStylesheet(path)
+  path === CHECKS_FILE || path === LINT_FILE || path === PACKAGE_FILE || isWorkflow(path) || isTestCode(path) || path === TOKENS_FILE
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json }
 type JsonObject = { [key: string]: Json }
@@ -256,8 +256,13 @@ export function compareLint(base: string | undefined, head: string | undefined, 
     const where = ` for ${files}`
     found.push(...compareRules(file, where, rulesOf(before.get(files)), rulesOf(after.get(files)), after.has(files) ? rulesOf(was) : {}))
     const [had, has] = [before.get(files), after.get(files)]
-    // An override that is new or gone: its rules, compared above, are all there is to it.
-    if (!isObject(had) || !isObject(has)) continue
+    // An override that is gone takes its rules away, compared above; one that is new is read against
+    // an empty one, so the environments and globals it brings are marked.
+    if (!isObject(has)) continue
+    if (!isObject(had)) {
+      found.push(...compareScope(file, where, {}, has, ['files', 'excludeFiles']))
+      continue
+    }
     for (const pattern of entries(has.excludeFiles)) {
       if (!entries(had.excludeFiles).includes(pattern)) found.push({ needs: 'owner', file, what: `the lint rules${where} skip more: ${pattern} is added to \`excludeFiles\`` })
     }
@@ -283,10 +288,18 @@ function compareScope(file: string, where: string, had: JsonObject, has: JsonObj
   for (const [name, on] of Object.entries(envNow)) {
     if (on === true && envWas[name] !== true) found.push({ needs: 'owner', file, what: `the environment ${name} is turned on${where}, and its globals with it` })
   }
+  // An environment turned off, or a global taken away, that is no longer there gives back what the
+  // defaults or the top level allow.
+  for (const [name, on] of Object.entries(envWas)) {
+    if (on === false && !(name in envNow)) found.push({ needs: 'owner', file, what: `the environment ${name} is no longer turned off${where}` })
+  }
   const [globalsWas, globalsNow] = [isObject(had.globals) ? had.globals : {}, isObject(has.globals) ? has.globals : {}]
   for (const [name, value] of Object.entries(globalsNow)) {
     // `off` takes a global away; any other value lets it through.
     if (value !== 'off' && !same(globalsWas[name], value)) found.push({ needs: 'owner', file, what: `the global \`${name}\` is allowed${where}: ${show(value)}` })
+  }
+  for (const [name, value] of Object.entries(globalsWas)) {
+    if (value === 'off' && !(name in globalsNow)) found.push({ needs: 'owner', file, what: `the global \`${name}\` is no longer taken away${where}` })
   }
   for (const key of new Set([...Object.keys(had), ...Object.keys(has)])) {
     if (['rules', 'plugins', 'jsPlugins', 'env', 'globals', ...skip].includes(key) || same(had[key], has[key])) continue
@@ -441,10 +454,10 @@ export function scanAdded(file: string, added: AddedLine[]): Finding[] {
 /** The design tokens' file against main's: a token added, changed or removed is a design decision, the coordinator's. */
 export function compareTokens(base: string | undefined, head: string | undefined, file = TOKENS_FILE): Finding[] {
   if (head === undefined) return [{ needs: 'coordinator', file, what: 'the design tokens are removed, all of them' }]
-  const read = (text: string | undefined): Map<string, string> | string => {
-    if (text === undefined) return new Map()
+  const read = (text: string | undefined): { tokens: Map<string, string>; atRules: string[] } | string => {
+    if (text === undefined) return { tokens: new Map(), atRules: [] }
     try {
-      return tokensIn(text)
+      return { tokens: tokensIn(text), atRules: atRulesIn(text) }
     } catch (error) {
       return error instanceof Error ? error.message : String(error)
     }
@@ -452,14 +465,21 @@ export function compareTokens(base: string | undefined, head: string | undefined
   const [was, now] = [read(base), read(head)]
   if (typeof now === 'string') return [{ needs: 'coordinator', file, what: `the guard can't read the file as a stylesheet, so it can't compare its tokens: ${now}` }]
   if (typeof was === 'string') return [{ needs: 'coordinator', file, what: `the guard can't read main's copy as a stylesheet, so every token here is as good as new: ${was}` }]
-  return [...new Set([...was.keys(), ...now.keys()])].flatMap((key): Finding[] => {
-    const [before, after] = [was.get(key), now.get(key)]
+  const tokens = [...new Set([...was.tokens.keys(), ...now.tokens.keys()])].flatMap((key): Finding[] => {
+    const [before, after] = [was.tokens.get(key), now.tokens.get(key)]
     if (before === after) return []
     const [where, prop] = key.split('\t')
     const token = `${prop.startsWith('--') ? 'the design token' : 'the declaration'} \`${prop}\`${where ? ` in \`${where}\`` : ''}`
     const change = before === undefined ? `is added: \`${after}\`` : after === undefined ? `is removed: \`${before}\`` : `changed: \`${before}\` → \`${after}\``
     return [{ needs: 'coordinator', file, what: `${token} ${change}` }]
   })
+  // What the tokens can't be read from, such as an @import of another stylesheet: marked whole.
+  const atRule = (rule: string, change: string): Finding => ({ needs: 'coordinator', file, what: `the at-rule \`${rule}\`, which holds no token the guard can read, is ${change}` })
+  return [
+    ...tokens,
+    ...now.atRules.filter((rule) => !was.atRules.includes(rule)).map((rule) => atRule(rule, 'added')),
+    ...was.atRules.filter((rule) => !now.atRules.includes(rule)).map((rule) => atRule(rule, 'removed')),
+  ]
 }
 
 /**
@@ -476,15 +496,19 @@ export function compareStylesheets(changes: Change[], sheets: Sheet[]): Finding[
   } catch (error) {
     const why = error instanceof Error ? error.message : String(error)
     return changes
-      .filter(({ path, head }) => isStylesheet(path) && path !== TOKENS_FILE && head !== undefined)
+      .filter(({ path }) => path !== TOKENS_FILE && sheets.some(({ file }) => file === path))
       .map(({ path }) => ({ needs: 'coordinator', file: path, what: `the guard can't read the stylesheets, so it can't tell which values this one adds: ${why}` }))
   }
   // rawValues names only the stylesheets it checks, so another file the branch changes finds none.
   return changes.flatMap(({ path, added }) => {
     const lines = new Set(added.map(({ line }) => line))
-    return raw
-      .filter(({ file, line, allowed }) => file === path && allowed && lines.has(line))
-      .map(({ line, prop, raw: value }) => ({ needs: 'coordinator' as const, file: path, line, what: `a value off the tokens' scale, let through by the comment on its line: \`${prop}: ${value}\`` }))
+    return raw.filter(({ allowed }) => allowed).flatMap(({ file, line, prop, raw: value, via }): Finding[] => {
+      if (file === path && lines.has(line)) return [{ needs: 'coordinator', file: path, line, what: `a value off the tokens' scale, let through by the comment on its line: \`${prop}: ${value}\`` }]
+      // A line that takes a shadow from a custom property makes it cast one, though its own line stays.
+      return via
+        .filter((use) => use.file === path && lines.has(use.line))
+        .map((use) => ({ needs: 'coordinator', file: path, line: use.line, what: `a shadow off the tokens' scale, taken from \`${file}:${line}\` and let through by the comment there: \`${prop}: ${value}\`` }))
+    })
   })
 }
 

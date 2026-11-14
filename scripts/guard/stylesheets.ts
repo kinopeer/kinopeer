@@ -24,21 +24,30 @@ export interface Declaration {
   prop: string
   /** The value as written, without `!important`, its comments blanked to spaces, so an index into it is one into the file. */
   value: string
+  important: boolean
   /** The value's line in the file for an index into `value`. */
   lineAt: (index: number) => number
   /** Whether the line has a comment. */
   commented: (line: number) => boolean
 }
 
+// An unquoted url(), whose content is read as it stands, a `/*` in it too, up to its `)`.
+const UNQUOTED_URL = /(?<![\w-])url\(\s*(?!['"\s])/iy
+
 /**
- * Where each comment starts and ends. A string is skipped, so `content: '/*'` doesn't open one, and
- * a comment that isn't closed runs to the end, as CSS reads it.
+ * Where each comment starts and ends. A string and an unquoted url() are skipped, so
+ * `content: '/*'` or `url(icons/*.svg)` doesn't open one, and a comment that isn't closed runs to
+ * the end, as CSS reads it.
  */
 function commentSpans(text: string): [number, number][] {
   const spans: [number, number][] = []
   for (let i = 0; i < text.length; i++) {
     const char = text[i]
-    if (char === '/' && text[i + 1] === '*') {
+    UNQUOTED_URL.lastIndex = i
+    if (UNQUOTED_URL.test(text)) {
+      const close = text.indexOf(')', UNQUOTED_URL.lastIndex)
+      i = close === -1 ? text.length : close
+    } else if (char === '/' && text[i + 1] === '*') {
       const close = text.indexOf('*/', i + 2)
       const end = close === -1 ? text.length : close + 2
       spans.push([i, end])
@@ -61,8 +70,12 @@ function where(node: Node): string {
   return around.map((part) => part.replace(/\s+/g, ' ').trim()).join(' ')
 }
 
-/** Every declaration of a stylesheet; throws, with PostCSS's reason, on one it can't parse. */
-export function declarations({ file, text }: Sheet): Declaration[] {
+/**
+ * Every declaration of a stylesheet; throws, with PostCSS's reason, on one it can't parse. A byte
+ * order mark is left out first, as PostCSS leaves it out of its offsets.
+ */
+export function declarations({ file, text: raw }: Sheet): Declaration[] {
+  const text = raw.startsWith('\uFEFF') ? raw.slice(1) : raw
   const spans = commentSpans(text)
   const newlines = [...text.matchAll(/\n/g)].map((m) => m.index)
   /** The 1-based line of an index: the newlines before it, plus one. */
@@ -85,12 +98,13 @@ export function declarations({ file, text }: Sheet): Declaration[] {
   parse(text, { from: file }).walkDecls((decl) => {
     const start = decl.source?.start?.offset ?? 0
     const valueStart = start + decl.prop.length + (decl.raws.between ?? ':').length
-    const raw = decl.raws.value?.raw ?? decl.value
+    const value = decl.raws.value?.raw ?? decl.value
     found.push({
       file,
       where: where(decl),
       prop: decl.prop,
-      value: code.slice(valueStart, valueStart + raw.length),
+      value: code.slice(valueStart, valueStart + value.length),
+      important: decl.important === true,
       lineAt: (index) => lineOf(valueStart + index),
       commented: (line) => commentedLines.has(line),
     })
@@ -115,6 +129,11 @@ export interface RawValue {
   /** What the test says, after the place: `12px is off the scale: add a comment on the line saying why`. */
   says: string
   allowed: boolean
+  /**
+   * For a shadow in a custom property: the declarations that take it through a var(), each by its
+   * file and line, since a new one makes the property cast a shadow where it didn't.
+   */
+  via: { file: string; line: number }[]
 }
 
 // Sizes: a `gap`, `padding`, `margin` or `border-radius` written in px fails when the scale has that
@@ -122,7 +141,7 @@ export interface RawValue {
 // don't have needs a comment saying why. Negative values, widths, heights and font weights aren't checked.
 const SIZES: { kind: Kind; prop: RegExp; scale: string }[] = [
   { kind: 'spacing', prop: /^(?:gap|row-gap|column-gap|padding(?:-[a-z-]+)?|margin(?:-[a-z-]+)?)$/, scale: 'the scale' },
-  { kind: 'radius', prop: /^(?:border-radius|border-[a-z-]+-radius)$/, scale: 'the scale' },
+  { kind: 'radius', prop: /^(?:-webkit-)?(?:border-radius|border-[a-z-]+-radius)$/, scale: 'the scale' },
   { kind: 'type', prop: /^(?:font-size|line-height|font)$/, scale: 'a type role' },
 ]
 // A positive px length on its own: not part of a number, a negative value or a word.
@@ -285,13 +304,15 @@ interface Shadow {
   d: Declaration
   index: number
   layer: string
+  /** The declaration that takes it through a var(), and where in its value. */
+  from?: { d: Declaration; index: number }
 }
 
 /**
  * The shadow layers of a value that cast a shadow. A layer that is a single var() (after `inset`)
  * is followed into its definitions outside tokens.css (`own`), and its fallback is read as layers of its own.
  */
-function shadowsIn(d: Declaration, value: string, offset: number, own: Map<string, Declaration[]>, seen: Set<string>): Shadow[] {
+function shadowsIn(d: Declaration, value: string, offset: number, own: Map<string, Declaration[]>, seen: Set<string>, from?: Shadow['from']): Shadow[] {
   const found: Shadow[] = []
   for (const [raw, rawIndex] of layers(value)) {
     const layer = raw.trim()
@@ -300,17 +321,17 @@ function shadowsIn(d: Declaration, value: string, offset: number, own: Map<strin
     const rest = parts(layer).filter(([part]) => part !== 'inset')
     const only = rest.length === 1 ? /^var\(\s*(--[\w-]+)\s*(?:,([\s\S]*))?\)$/.exec(rest[0][0]) : null
     if (!only) {
-      if (castsShadow(layer)) found.push({ d, index, layer })
+      if (castsShadow(layer)) found.push({ d, index, layer, from })
       continue
     }
     const [, name, fallback] = only
     if (fallback !== undefined) {
       const fallbackIndex = index + rest[0][1] + rest[0][0].indexOf(',') + 1
-      found.push(...shadowsIn(d, fallback, fallbackIndex, own, seen))
+      found.push(...shadowsIn(d, fallback, fallbackIndex, own, seen, from))
     }
     if (seen.has(name)) continue
     seen.add(name)
-    for (const definition of own.get(name) ?? []) found.push(...shadowsIn(definition, definition.value, 0, own, seen))
+    for (const definition of own.get(name) ?? []) found.push(...shadowsIn(definition, definition.value, 0, own, seen, from ?? { d, index }))
   }
   return found
 }
@@ -335,7 +356,7 @@ export function rawValues(sheets: Sheet[]): RawValue[] {
   /** A raw value at a value's index, which its line's comment lets through unless `fix` names the token it is. */
   const at = (kind: Kind, d: Declaration, index: number, raw: string, says: string, fix = false) => {
     const line = d.lineAt(index)
-    found.push({ kind, file: d.file, line, prop: d.prop, raw, says, allowed: !fix && d.commented(line) })
+    found.push({ kind, file: d.file, line, prop: d.prop, raw, says, allowed: !fix && d.commented(line), via: [] })
   }
 
   const tokenOf: Record<'spacing' | 'radius' | 'type', Token> = { spacing: scale(tokens, 'space'), radius: scale(tokens, 'r'), type: roles(tokens) }
@@ -364,10 +385,18 @@ export function rawValues(sheets: Sheet[]): RawValue[] {
   // Custom properties defined outside tokens.css, by name, which a shadow's var() is followed into.
   const own = new Map<string, Declaration[]>()
   for (const d of outside) if (d.prop.startsWith('--')) own.set(d.prop, [...(own.get(d.prop) ?? []), d])
+  // A shadow in a custom property is one value however many declarations take it: reported once,
+  // with each of them.
+  const shadows = new Map<string, RawValue>()
   for (const d of outside) {
     if (!SHADOW_PROP.test(d.prop) && !d.prop.startsWith('--')) continue
-    for (const shadow of rawShadows(d, own)) {
-      at('shadow', shadow.d, shadow.index, shadow.layer, `${shadow.layer} is a raw shadow: use a --shadow token, or add a comment on the line saying why`)
+    for (const { d: where, index, layer, from } of rawShadows(d, own)) {
+      const line = where.lineAt(index)
+      const key = `${where.file}:${line}:${where.prop}:${layer}`
+      const shadow = shadows.get(key) ?? { kind: 'shadow', file: where.file, line, prop: where.prop, raw: layer, says: `${layer} is a raw shadow: use a --shadow token, or add a comment on the line saying why`, allowed: where.commented(line), via: [] }
+      if (from) shadow.via.push({ file: from.d.file, line: from.d.lineAt(from.index) })
+      if (!shadows.has(key)) found.push(shadow)
+      shadows.set(key, shadow)
     }
   }
 
@@ -385,8 +414,34 @@ export const problem = ({ file, line, prop, says }: RawValue): string => `${file
 
 /**
  * The design tokens' declarations, each by where it sits and its name (`:root\t--space-2`), with
- * its value as written, comments and runs of spaces aside, so a reformatted value is the same one.
+ * its value as written, comments and runs of spaces aside, so a reformatted value is the same one,
+ * and `!important` kept. A name declared twice in a block (a fallback before what newer browsers
+ * read) has both values, in order, joined by `; `.
  */
 export function tokensIn(text: string): Map<string, string> {
-  return new Map(declarations({ file: TOKENS_FILE, text }).map((d) => [`${d.where}\t${d.prop}`, d.value.replace(/\s+/g, ' ').trim()]))
+  const tokens = new Map<string, string>()
+  for (const d of declarations({ file: TOKENS_FILE, text })) {
+    const key = `${d.where}\t${d.prop}`
+    const value = `${d.value.replace(/\s+/g, ' ').trim()}${d.important ? ' !important' : ''}`
+    tokens.set(key, tokens.has(key) ? `${tokens.get(key)}; ${value}` : value)
+  }
+  return tokens
+}
+
+/**
+ * The at-rules of a stylesheet that hold no declaration, which `tokensIn` can't read as tokens:
+ * an `@import` of another stylesheet, a `@layer` order, an empty block. Each as where it sits and
+ * the rule itself, in single spaces.
+ */
+export function atRulesIn(text: string): string[] {
+  const found: string[] = []
+  parse(text.startsWith('\uFEFF') ? text.slice(1) : text).walkAtRules((rule) => {
+    let holds = false
+    rule.walkDecls(() => {
+      holds = true
+      return false
+    })
+    if (!holds) found.push(`${where(rule)} @${rule.name} ${rule.params}`.replace(/\s+/g, ' ').trim())
+  })
+  return found
 }

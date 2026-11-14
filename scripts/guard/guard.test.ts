@@ -473,8 +473,8 @@ describe('design values', () => {
     await commit({ 'src/b.css': ':root {\n  --lift: 0 2px 4px var(--scrim); /* why */\n}\n' })
     git('checkout', '--quiet', '-B', 'branch')
     await commit({ 'src/a.css': '.a {\n  box-shadow: var(--lift); /* why */\n}\n' })
-    // The raw shadow is --lift's, on main already; the line that takes it adds no value of its own.
-    expect(said()).toEqual([])
+    // The raw shadow is --lift's, on main already, and the line that takes it makes it cast one.
+    expect(said()).toEqual(["coordinator src/a.css:2: a shadow off the tokens' scale, taken from `src/b.css:2` and let through by the comment there: `--lift: 0 2px 4px var(--scrim)`"])
   })
 
   it('holds the PR until the coordinator approves the list, and hands the workflow its count', async () => {

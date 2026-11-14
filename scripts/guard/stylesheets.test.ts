@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { castsShadow, declarations, isStylesheet, problem, rawColors, rawMotion, rawValues, roles, tokensIn, TOKENS_FILE, type Sheet } from './stylesheets.ts'
+import { atRulesIn, castsShadow, declarations, isStylesheet, problem, rawColors, rawMotion, rawValues, roles, tokensIn, TOKENS_FILE, type Sheet } from './stylesheets.ts'
 
 /** A scale of two spacings, a radius and a type role, as tokens.css writes them. */
 const TOKENS = ':root {\n  --space-2: 8px;\n  --space-4: 16px;\n  --r-sm: 10px;\n  --t-cap: 400 13px/18px var(--font-sans);\n}\n'
@@ -76,6 +76,19 @@ describe('the comments rawValues reads', () => {
     ])
   })
 
+  it('skips an unquoted url(), whose `/*` opens no comment', () => {
+    expect(raw('a { background: url(icons/*.svg); }\nb { padding: 13px; color: red; }')).toEqual([
+      'fails spacing src/a.css:2 padding: 13px is off the scale: add a comment on the line saying why',
+      'fails color src/a.css:2 color: red is a raw color: use a token from tokens.css, or add a comment on the line saying why',
+    ])
+    // A quoted one is a string, and `URL(` is the same function.
+    expect(raw('a { background: URL( "a/*.svg" ) url() ; }\nb { padding: 13px; }')).toEqual(['fails spacing src/a.css:2 padding: 13px is off the scale: add a comment on the line saying why'])
+  })
+
+  it('reads a stylesheet that starts with a byte order mark where its values are', () => {
+    expect(raw('\uFEFFa { padding: 13px; }')).toEqual(['fails spacing src/a.css:1 padding: 13px is off the scale: add a comment on the line saying why'])
+  })
+
   it('says where a declaration in an at-rule without a selector sits', () => {
     expect(declarations({ file: 'src/a.css', text: '@font-face { --a: 1 }' }).map(({ where }) => where)).toEqual(['@font-face'])
   })
@@ -99,6 +112,7 @@ describe('rawValues', () => {
       'fails spacing src/a.css:1 margin-inline-start: 2.25px is off the scale: add a comment on the line saying why',
       'fails radius src/a.css:1 border-top-left-radius: 10px is on the scale: use var(--r-sm)',
     ])
+    expect(raw('.a { -webkit-border-radius: 12px; }')).toEqual(['fails radius src/a.css:1 -webkit-border-radius: 12px is off the scale: add a comment on the line saying why'])
   })
 
   it('checks font sizes and line heights against the type roles', () => {
@@ -161,6 +175,13 @@ describe('rawValues', () => {
     ])
   })
 
+  it('reports a shadow in a custom property once, with each declaration that takes it', () => {
+    const lift = { file: 'src/b.css', text: ':root {\n  --lift: 0 2px 4px var(--scrim); /* why */\n}\n' }
+    const shadows = rawValues([{ file: TOKENS_FILE, text: TOKENS }, { file: 'src/a.css', text: '.a {\n  box-shadow: var(--lift);\n}\n.b { box-shadow: inset var(--x, var(--lift)); }\n' }, lift])
+    expect(shadows.map(({ file, line, via }) => ({ file, line, via }))).toEqual([{ file: 'src/b.css', line: 2, via: [{ file: 'src/a.css', line: 2 }, { file: 'src/a.css', line: 4 }] }])
+    expect(rawValues([{ file: 'src/a.css', text: '.a { box-shadow: 0 2px 4px var(--scrim); /* why */ }' }]).map(({ via }) => via)).toEqual([[]])
+  })
+
   it('follows custom properties that name each other once', () => {
     expect(raw('.a { --a: var(--b); --b: var(--a); box-shadow: var(--a); }')).toEqual([])
   })
@@ -209,6 +230,18 @@ describe('the patterns rawValues reads by', () => {
   })
 })
 
+describe('atRulesIn', () => {
+  it('names the at-rules that hold no declaration, where they sit, in single spaces', () => {
+    expect(atRulesIn("@import './more.css';\n@layer base,\n  app;\n@media (min-width: 1024px) { :root { --a: 1px; } }\n@supports (display: grid) {}\n@media print { @page { } }\n")).toEqual([
+      "@import './more.css'",
+      '@layer base, app',
+      '@supports (display: grid)',
+      '@media print',
+      '@media print @page',
+    ])
+  })
+})
+
 describe('tokensIn', () => {
   it('names each token by where it sits, with its value in single spaces and without comments', () => {
     const tokens = tokensIn(":root {\n  --space-2: 8px;\n  --stack:\n    a,  b; /* why */\n}\n[data-theme='light'] { --bg: #fff /* light */; color-scheme: light; }\n")
@@ -217,6 +250,13 @@ describe('tokensIn', () => {
       [':root\t--stack', 'a, b'],
       ["[data-theme='light']\t--bg", '#fff'],
       ["[data-theme='light']\tcolor-scheme", 'light'],
+    ])
+  })
+
+  it('keeps `!important`, and both values of a name declared twice, in order', () => {
+    expect([...tokensIn(':root { --bg: #fff !important; --accent: #0aa; --accent: color(display-p3 0 0.7 0.7); }')]).toEqual([
+      [':root\t--bg', '#fff !important'],
+      [':root\t--accent', '#0aa; color(display-p3 0 0.7 0.7)'],
     ])
   })
 })

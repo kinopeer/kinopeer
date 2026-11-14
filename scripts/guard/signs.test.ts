@@ -792,11 +792,11 @@ describe('findings', () => {
 })
 
 describe('readsWhole', () => {
-  it.each(['checks.json', '.oxlintrc.json', 'package.json', '.github/workflows/ci.yml', '.github/workflows/build.yaml', 'src/sum.test.ts', 'src/App.test.tsx', 'e2e/list.spec.ts', 'e2e/app.tsx', 'src/styles/tokens.css', 'src/App.css'])('reads %s whole', (path) => {
+  it.each(['checks.json', '.oxlintrc.json', 'package.json', '.github/workflows/ci.yml', '.github/workflows/build.yaml', 'src/sum.test.ts', 'src/App.test.tsx', 'e2e/list.spec.ts', 'e2e/app.tsx', 'src/styles/tokens.css'])('reads %s whole', (path) => {
     expect(readsWhole(path)).toBe(true)
   })
 
-  it.each(['src/App.tsx', 'e2e/__screenshots__/list.png', 'e2e/list.spec.ts.md', 'docs/e2e/list.spec.ts', 'src/sum.test.tsx.snap', 'tmdb-proxy/checks.json', 'tmdb-proxy/package.json', '.github/dependabot.yml', '.github/workflows/README.md', 'tmdb-proxy/.github/workflows/ci.yml', '.github/workflows/drafts/ci.yml', '.github/workflows/yml', 'e2e/report.css'])('reads only the added lines of %s', (path) => {
+  it.each(['src/App.tsx', 'e2e/__screenshots__/list.png', 'e2e/list.spec.ts.md', 'docs/e2e/list.spec.ts', 'src/sum.test.tsx.snap', 'tmdb-proxy/checks.json', 'tmdb-proxy/package.json', '.github/dependabot.yml', '.github/workflows/README.md', 'tmdb-proxy/.github/workflows/ci.yml', '.github/workflows/drafts/ci.yml', '.github/workflows/yml', 'e2e/report.css', 'src/App.css'])('reads only the added lines of %s', (path) => {
     expect(readsWhole(path)).toBe(false)
   })
 })
@@ -896,9 +896,26 @@ describe('compareLint: an override beside its rules (#412)', () => {
     expect(found({ settings: { react: { version: '19' } } })).toEqual([`review: \`settings\` ${where} changed: nothing → \`{"react":{"version":"19"}}\``])
   })
 
-  it('leaves a new override and a removed one to their rules', () => {
-    expect(compareLint(json({ overrides: [] }), config({})).map(({ what }) => what)).toEqual([])
+  it('reads a new override against an empty one, and leaves a removed one to its rules', () => {
+    expect(compareLint(json({ overrides: [] }), config({})).map(({ what }) => what)).toEqual([`the environment browser is turned on ${where}, and its globals with it`])
     expect(compareLint(config({}), json({ overrides: [] })).map(({ what }) => what)).toEqual([`the lint rule \`react/jsx-no-literals\` ${where} is removed`])
+  })
+
+  it('reads an override whose files change as a new one, its environments and globals included', () => {
+    const moved = { ...override, files: ['src/**/*.ts'], env: { node: true }, globals: { process: 'readonly' } }
+    expect(compareLint(config({}), json({ overrides: [moved] })).map(({ needs, what }) => `${needs}: ${what}`)).toEqual([
+      'owner: the lint rule `react/jsx-no-literals` for ["src/**/*.tsx"] is removed',
+      'owner: the environment node is turned on for ["src/**/*.ts"], and its globals with it',
+      'owner: the global `process` is allowed for ["src/**/*.ts"]: `"readonly"`',
+    ])
+  })
+
+  it('sends a global it no longer takes away and an environment it no longer turns off to the owner', () => {
+    expect(compareLint(config({ env: { node: false }, globals: { process: 'off' } }), config({ env: {}, globals: {} })).map(({ what }) => what)).toEqual([
+      `the environment node is no longer turned off ${where}`,
+      `the global \`process\` is no longer taken away ${where}`,
+    ])
+    expect(compareLint(json({ env: { builtin: false } }), json({})).map(({ what }) => what)).toEqual(['the environment builtin is no longer turned off'])
   })
 })
 
@@ -937,6 +954,17 @@ describe('compareTokens', () => {
   it('sends every token of a file main does not have yet to the coordinator', () => {
     expect(compareTokens(undefined, ':root { --a: 1px; }').map(({ what }) => what)).toEqual(['the design token `--a` in `:root` is added: `1px`'])
   })
+
+  it('sends `!important` added and a second value of a name changed to the coordinator, since each changes what the cascade reads', () => {
+    expect(found(tokens.replace('--bg: #fff;', '--bg: #fff !important;'))).toEqual(["coordinator: the design token `--bg` in `[data-theme='light']` changed: `#fff` → `#fff !important`"])
+    const twice = ':root { --a: #0aa; --a: color(display-p3 0 0.7 0.7); }'
+    expect(compareTokens(twice, twice.replace('0.7 0.7', '0.6 0.6')).map(({ what }) => what)).toEqual(['the design token `--a` in `:root` changed: `#0aa; color(display-p3 0 0.7 0.7)` → `#0aa; color(display-p3 0 0.6 0.6)`'])
+  })
+
+  it('sends an at-rule that holds no token, an @import of more tokens say, added or removed to the coordinator', () => {
+    expect(found(`@import './more.css';\n${tokens}`)).toEqual(["coordinator: the at-rule `@import './more.css'`, which holds no token the guard can read, is added"])
+    expect(found(tokens, `@layer base;\n${tokens}`)).toEqual(['coordinator: the at-rule `@layer base`, which holds no token the guard can read, is removed'])
+  })
 })
 
 describe('compareStylesheets', () => {
@@ -951,6 +979,14 @@ describe('compareStylesheets', () => {
   it('leaves such a value on a line the branch keeps alone, and a value the test fails, which CI stops', () => {
     expect(at([4])).toEqual([])
     expect(at([2], '.a {\n  padding: 3px;\n}\n')).toEqual([])
+  })
+
+  it('sends a line that takes a shadow from a custom property to the coordinator, the property left as it was', () => {
+    const lift = { file: 'src/b.css', text: ':root {\n  --lift: 0 2px 4px var(--scrim); /* why */\n}\n' }
+    const text = '.a {\n  gap: var(--space-2);\n  box-shadow: var(--lift);\n}\n'
+    const taking = (lines: number[]) => compareStylesheets([{ path: 'src/a.css', added: lines.map((line) => ({ line, text: '' })) }], [TOKENS, { file: 'src/a.css', text }, lift])
+    expect(taking([3])).toEqual([{ needs: 'coordinator', file: 'src/a.css', line: 3, what: "a shadow off the tokens' scale, taken from `src/b.css:2` and let through by the comment there: `--lift: 0 2px 4px var(--scrim)`" }])
+    expect(taking([2])).toEqual([])
   })
 
   it('reads each of the kinds the test reads, a color among them', () => {
