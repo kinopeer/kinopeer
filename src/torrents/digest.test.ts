@@ -42,4 +42,9 @@ describe('digest', () => {
       'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
     )
   })
+
+  it('falls back to the plain implementation on a platform without crypto at all', async () => {
+    vi.stubGlobal('crypto', undefined)
+    expect(toHex(await digest('SHA-1', utf8('abc')))).toBe('a9993e364706816aba3e25717850c26c9cd0d89d')
+  })
 })

@@ -467,19 +467,26 @@
                   "**/components/**"
                 ],
                 "allowTypeImports": true,
-                "message": "Pure logic imports no hook or component, which bring React in (docs/ARCHITECTURE.md → Pure logic): import the logic they use, or only its types."
+                "message": "Pure logic imports no hook or component, which bring React in (docs/ARCHITECTURE.md → Pure logic): import the logic they use, or only its types.",
+                "caseSensitive": true
               }
             ]
           }
         ],
-        "no-undef": "error",
+        "no-undef": [
+          "error",
+          {
+            "typeof": true
+          }
+        ],
         "no-restricted-globals": [
           "error",
           {
             "name": "globalThis",
             "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
           }
-        ]
+        ],
+        "react/react-in-jsx-scope": "error"
       }
     },
     {

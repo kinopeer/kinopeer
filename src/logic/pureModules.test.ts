@@ -6,12 +6,12 @@ import { lint, type LintProblem } from '../test/oxlint'
  * Pure logic doesn't depend on the framework or the platform (docs/ARCHITECTURE.md → Pure logic):
  * every module in `src/releases/`, `src/search/`, `src/torrents/` and `src/logic/` but a hook or a
  * provider imports no React, React Router, i18next's React bindings, Node built-in, hook or component,
- * and reads no global but the language's own and the few every platform has. `no-restricted-imports`,
- * `no-undef` and `no-restricted-globals` in `.oxlintrc.json` hold it; these tests plant each kind in
- * those folders and beside them.
+ * reads no global but the language's own and the few every platform has, and writes no JSX.
+ * `no-restricted-imports`, `no-undef`, `no-restricted-globals` and `react-in-jsx-scope` in
+ * `.oxlintrc.json` hold it; these tests plant each kind in those folders and beside them.
  */
 
-const RULES = ['eslint(no-restricted-imports)', 'eslint(no-undef)', 'eslint(no-restricted-globals)']
+const RULES = ['eslint(no-restricted-imports)', 'eslint(no-undef)', 'eslint(no-restricted-globals)', 'react(react-in-jsx-scope)']
 
 const PURE_FOLDERS = ['src/releases', 'src/search', 'src/torrents', 'src/logic']
 
@@ -43,6 +43,7 @@ const REFUSED: [string, string][] = [
   ["Node's setImmediate", 'export const a = () => setImmediate(() => {})'],
   ["Node's module", 'export const a = () => module.exports'],
   ['a constant the build defines', 'export const a = () => __APP_VERSION__'],
+  ['a global only asked whether it exists', "export const a = () => typeof window !== 'undefined'"],
   ['a hook', "import { useReleases } from '../screens/useReleases'\nexport const a = useReleases"],
   ['a hook beside the logic', "import { useTitleMatches } from './useTitleMatches'\nexport const a = useTitleMatches"],
   ['a hook of the app’s own library', "import { useIsDesktop } from '../lib/useIsDesktop'\nexport const a = useIsDesktop"],
@@ -58,6 +59,7 @@ const ALLOWED: [string, string][] = [
   ["the app's API clients", "import { getTorrents } from '../api/qbittorrent'\nexport const a = getTorrents"],
   ['what every platform has', "export const a = async (url: string) => {\n  setTimeout(() => {}, 1)\n  return [new URL(url), await crypto.subtle.digest('SHA-1', new Uint8Array()), await fetch(url)]\n}"],
   ['a variable named like a global', "export function a(history: string[], location: string) {\n  return [...history, location]\n}"],
+  ['a module named use and a small letter, as no hook is', "import { userName } from './user'\nexport const a = userName"],
   ["a hook's or a component's types", "import type { Releases } from '../screens/useReleases'\nimport { type SheetProps } from '../components/Sheet'\nexport type A = [Releases, SheetProps]"],
   ['the language’s own globals', 'export const a = () => [new Map(), Promise.resolve(), Intl.DateTimeFormat, Math.max(1), JSON.parse("1")]'],
 ]
@@ -70,7 +72,9 @@ describe('pure modules', () => {
     ...BUILT_INS.map(([name, code], index) => ({ what: `Node's ${name}`, code, file: `src/torrents/builtIn${index}.ts` })),
     // Named like a hook's file, but no hook: `use` and a capital letter make one.
     { what: 'React in a module whose name starts with use', code: REFUSED[0][1], file: 'src/torrents/user.ts' },
-    { what: 'React in a component', code: `${REFUSED[0][1]}\nexport const B = () => <p>{a.name}</p>`, file: 'src/torrents/Example.tsx' },
+    { what: 'React in a component', code: REFUSED[0][1], file: 'src/torrents/Example.tsx' },
+    // React's automatic runtime needs no import for JSX, so the JSX itself is what's refused.
+    { what: 'JSX in a component that imports nothing', code: 'export const B = () => <p>a</p>', file: 'src/torrents/NoImport.tsx' },
   ]
 
   beforeAll(() => {
