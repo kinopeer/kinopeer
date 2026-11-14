@@ -225,7 +225,7 @@ function slide(dialog: HTMLDialogElement): Animation | null {
   try {
     return dialog.animate([{ transform: dialog.style.transform }, { transform: 'translateY(100%)' }], {
       // As long as the spring back: the sheet's own transition, which the browser reports in seconds
-      // whatever unit the token uses, and which reduced motion already cuts to almost nothing.
+      // whatever unit the token uses, and which reduced motion cuts out: then it closes at once.
       duration: transformDuration(style),
       easing: style.getPropertyValue('--ease-in').trim() || 'ease-in',
       fill: 'forwards',

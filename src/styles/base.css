@@ -78,13 +78,13 @@ h4 {
   *::after {
     animation-duration: 1ms !important; /* reduced motion's cut to next to nothing, not a step of the motion scale */
     animation-iteration-count: 1 !important;
-    transition-duration: 1ms !important; /* reduced motion's cut to next to nothing, not a step of the motion scale */
-  }
-
-  /* Its margin goes back in one step when a modal lets the page go (holdPage.ts): on its way, the
-     page would be too short for the scroll back. */
-  body {
+    /* None at all, not a short one: transition-property defaults to all, so any duration would make
+       every style change on an element that stays a transition, its first frame drawn with the old
+       value (#390), and a modal letting the page go would put back <body>'s margin (holdPage.ts) on
+       its way, the page too short for the scroll back. Nothing in the app waits for transitionend.
+       No delay either: a transition of 0s after a delay still shows its old value until then. */
     transition-duration: 0s !important;
+    transition-delay: 0s !important;
   }
 }
 
