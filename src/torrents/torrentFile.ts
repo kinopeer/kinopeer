@@ -1,4 +1,4 @@
-import { digest, toHex, type DigestAlgorithm } from '../lib/digest'
+import { digest, toHex, type DigestAlgorithm } from './digest'
 
 /** What a .torrent file holds that matters before adding it: its hash, name and files. */
 export interface TorrentMeta {

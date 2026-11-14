@@ -6,16 +6,16 @@ import * as tmdb from '../api/tmdb'
 import { ToastProvider } from '../components/Toast'
 import { searchPage, title, torrent } from '../test/fixtures'
 import { findToastOnPage, saying } from '../test/render'
-import * as titleMatches from '../torrents/titleMatches'
-import type { TitleMatch } from '../torrents/titleMatches'
+import type { TitleMatch } from '../torrents/titleLookup'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
+import * as titleMatches from '../torrents/useTitleMatches'
 import { useChangeTitle } from './useTitleChoice'
 
 vi.mock('../api/tmdb', async (importOriginal) => ({
   ...(await importOriginal<typeof tmdb>()),
   searchTitles: vi.fn(),
 }))
-vi.mock('../torrents/titleMatches', async (importOriginal) => ({
+vi.mock('../torrents/useTitleMatches', async (importOriginal) => ({
   ...(await importOriginal<typeof titleMatches>()),
   chooseTitle: vi.fn(),
 }))

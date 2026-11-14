@@ -10,7 +10,7 @@ import * as proxySignIn from '../pwa/proxySignIn'
 import { DUNE_TORRENT, mainData, searchPage } from '../test/fixtures'
 import { controlledByServiceWorker, findToastOnPage, qbittorrentDown, renderWithRouter, saying } from '../test/render'
 import * as serverMatches from '../torrents/serverMatches'
-import { clearTitleMatchCache } from '../torrents/titleMatches'
+import { clearTitleMatchCache } from '../torrents/useTitleMatches'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
 import { TorrentScreen } from './TorrentScreen'
 

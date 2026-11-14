@@ -1,5 +1,5 @@
 import { cx } from '../../lib/cx'
-import type { SortOrder } from '../../lib/sortOrder'
+import type { SortOrder } from '../../logic/sortOrder'
 import { Icon } from '../Icon'
 import './SortHeader.css'
 

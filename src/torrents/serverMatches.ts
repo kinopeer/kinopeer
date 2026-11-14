@@ -1,4 +1,3 @@
-import { useEffect, useSyncExternalStore } from 'react'
 import { clearGuesses, getMatches, saveMatches, type Matches, type StoredMatch } from '../api/matches'
 
 /**
@@ -7,7 +6,8 @@ import { clearGuesses, getMatches, saveMatches, type Matches, type StoredMatch }
  * show after a reload.
  */
 let matches: Matches | undefined
-let loading = false
+// The load in flight, which a caller can wait for.
+let loading: Promise<void> | undefined
 let failedAt: number | undefined
 // Bumped by resetServerMatches, so a load from before it is ignored.
 let generation = 0
@@ -28,16 +28,19 @@ function emit(): void {
   for (const listener of listeners) listener()
 }
 
-function subscribe(listener: () => void): () => void {
+/** Calls `listener` whenever the matches change; returns what stops it. */
+export function subscribeServerMatches(listener: () => void): () => void {
   listeners.add(listener)
   return () => listeners.delete(listener)
 }
 
-function load(): void {
-  if (loading) return
-  loading = true
+/** The matches loaded so far: undefined until the first load settles. */
+export const currentServerMatches = (): Matches | undefined => matches
+
+function load(): Promise<void> {
+  if (loading) return loading
   const started = generation
-  getMatches().then(
+  loading = getMatches().then(
     (loaded) => {
       if (started !== generation) return
       matches = loaded
@@ -51,20 +54,20 @@ function load(): void {
     },
   ).finally(() => {
     if (started !== generation) return
-    loading = false
+    loading = undefined
     emit()
   })
+  return loading
 }
 
 /**
- * The server's matches by info hash; undefined until they load. When the server doesn't answer
- * they are empty, so the caller goes on without them.
+ * Loads the matches unless they're loaded, or asks again once a load that failed is RETRY_MS old.
+ * Settles with the load it starts or joins: while one is in flight, the matches count as not
+ * loaded, or a failed load stands, so a call then always joins it.
  */
-export function useServerMatches(): Matches | undefined {
-  useEffect(() => {
-    if (matches === undefined || (failedAt !== undefined && Date.now() - failedAt > RETRY_MS)) load()
-  }, [])
-  return useSyncExternalStore(subscribe, () => matches)
+export function loadServerMatches(): Promise<void> {
+  if (matches === undefined || (failedAt !== undefined && Date.now() - failedAt > RETRY_MS)) return load()
+  return Promise.resolve()
 }
 
 async function save(): Promise<void> {
@@ -138,7 +141,7 @@ export async function forgetServerGuesses(): Promise<void> {
 export function resetServerMatches(): void {
   generation += 1
   matches = undefined
-  loading = false
+  loading = undefined
   failedAt = undefined
   pending = {}
   if (saveTimer) clearTimeout(saveTimer)

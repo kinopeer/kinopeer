@@ -11,7 +11,8 @@ import i18n from '../i18n'
 import { mainData, torrent } from '../test/fixtures'
 import { renderWithRouter, saying } from '../test/render'
 import { resetServerMatches } from '../torrents/serverMatches'
-import { GUESS_VERSION, clearTitleMatchCache } from '../torrents/titleMatches'
+import { GUESS_VERSION } from '../torrents/titleLookup'
+import { clearTitleMatchCache } from '../torrents/useTitleMatches'
 import { TitleScreen } from './TitleScreen'
 
 vi.mock('../api/tmdb', async (importOriginal) => {

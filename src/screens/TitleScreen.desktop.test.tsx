@@ -14,7 +14,7 @@ import { resetSettings, updateSettings } from '../settings/settings'
 import { DUNE_RELEASES, release, torrent } from '../test/fixtures'
 import { Where, renderWithRouter, saying, where } from '../test/render'
 import { resetServerMatches } from '../torrents/serverMatches'
-import { clearTitleMatchCache } from '../torrents/titleMatches'
+import { clearTitleMatchCache } from '../torrents/useTitleMatches'
 import { TitleRoute } from './TitleScreen'
 
 vi.mock('../api/tmdb', async (importOriginal) => {

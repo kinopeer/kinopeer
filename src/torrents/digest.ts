@@ -9,7 +9,9 @@ export type DigestAlgorithm = 'SHA-1' | 'SHA-256'
 
 /** The digest of `data`, through Web Crypto where available. */
 export async function digest(algorithm: DigestAlgorithm, data: Uint8Array): Promise<Uint8Array> {
-  const subtle = globalThis.crypto?.subtle
+  // Only a secure context has `crypto.subtle`. Every platform the app runs on has `crypto` itself,
+  // and without one this still falls back rather than throws.
+  const subtle = typeof crypto === 'undefined' ? undefined : crypto.subtle
   if (subtle) return new Uint8Array(await subtle.digest(algorithm, data as Uint8Array<ArrayBuffer>))
   return algorithm === 'SHA-1' ? sha1(data) : sha256(data)
 }

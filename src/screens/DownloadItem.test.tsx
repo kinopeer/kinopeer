@@ -5,7 +5,7 @@ import type { Torrent } from '../api/qbittorrent'
 import i18n from '../i18n'
 import { DUNE_TORRENT } from '../test/fixtures'
 import { renderWithRouter } from '../test/render'
-import type { TitleMatch } from '../torrents/titleMatches'
+import type { TitleMatch } from '../torrents/titleLookup'
 import { DownloadItem, type DownloadItemProps } from './DownloadItem'
 
 const DUNE_MATCH: TitleMatch ={ type: 'movie', id: 693134, title: 'Dune: Part Two', year: 2024, posterPath: '/dune.jpg' }
