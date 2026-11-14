@@ -13,7 +13,8 @@ on:
     paths:
       - 'src/**'
       - 'server/**'
-      # scripts/mutants.mjs mutates these too.
+      # scripts/mutants.mjs mutates these too: checks.json's mutants.folders, each of which
+      # checks.test.ts fails on while it's missing here.
       - 'tmdb-proxy/**'
       - 'scripts/guard/**'
       - 'scripts/size/**'
