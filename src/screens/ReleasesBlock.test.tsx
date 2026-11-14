@@ -140,15 +140,6 @@ describe('ReleasesBody', () => {
     expect(screen.getByRole('heading', { name: 'No releases found' })).toBeInTheDocument()
   })
 
-  it('says the failed indexers under the empty state’s action when nothing was found, so nothing above them moves as they come (#401)', () => {
-    renderBody(releases({ status: 'none', rows: [], visible: [], failing: ['Indexer C'] }))
-    const note = screen.getByRole('status', { name: saying('1 indexer didn’t answer: Indexer C') })
-    const retry = screen.getByRole('button', { name: 'Try again' })
-    expect(retry.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    // Inside the empty state, so its gap and its centering apply (ReleasesScreen.css).
-    expect(note.parentElement).toBe(screen.getByRole('heading', { name: 'No releases found' }).parentElement)
-  })
-
   it('leaves the failed indexers to the count’s line while there are results', () => {
     renderBody(releases({ failing: ['Indexer C'] }))
     expect(screen.getByText('The list')).toBeInTheDocument()

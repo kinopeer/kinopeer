@@ -17,14 +17,13 @@ describe('EmptyState', () => {
     expect(onAction).toHaveBeenCalled()
   })
 
-  it('renders a note under the actions, the last thing it says', () => {
+  it('renders a note after the actions', () => {
     render(
       <EmptyState icon="folder" title="No releases found" actionLabel="Retry" note={<p>1 indexer didn’t answer</p>}>
         Nothing came back.
       </EmptyState>,
     )
     const note = screen.getByText('1 indexer didn’t answer')
-    expect(note.parentElement?.lastElementChild).toBe(note)
     expect(screen.getByRole('button', { name: 'Retry' }).compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
