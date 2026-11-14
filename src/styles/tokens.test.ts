@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
  * the code on them: a `gap`, `padding`, `margin` or `border-radius` written in px fails when the
  * scale has that value, a `font-size` or `line-height` in px fails when a type role has it, and a
  * value the tokens don't have fails unless the line carries a comment saying why. Negative values,
- * widths, heights and font weights aren't checked.
+ * widths, heights and font weights aren't checked. Colors, shadows and motion: below.
  */
 
 // Vitest runs from the project root (import.meta.url isn't a file URL under jsdom).
@@ -104,3 +104,309 @@ describe('stylesheets', () => {
     expect(check({ prop: TYPE_PROP, token, scale: 'a type role' })).toEqual([])
   })
 })
+
+/**
+ * Colors, shadows and motion go through the tokens too. These read each stylesheet as declarations,
+ * across lines, with comments blanked out (a comment still marks its lines). A value the tokens
+ * can't express is allowed with a comment on its line saying why, as above.
+ */
+
+/** A declaration of a stylesheet: what's after `{` or `;` up to the next `;` or `}`. */
+interface Declaration {
+  file: string
+  prop: string
+  value: string
+  /** The value's line in the file for an index into `value`. */
+  lineAt: (index: number) => number
+  /** Whether the line has a comment. */
+  commented: (line: number) => boolean
+}
+
+const TOKENS_FILE = 'src/styles/tokens.css'
+
+function declarations(path: string): Declaration[] {
+  const file = `src/${relative(SRC, path)}`
+  const text = readFileSync(path, 'utf8')
+  const commentedLines = new Set<number>()
+  const newlines = [...text.matchAll(/\n/g)].map((m) => m.index)
+  /** The 1-based line of an index: the newlines before it, plus one. */
+  const lineOf = (index: number) => {
+    let low = 0
+    let high = newlines.length
+    while (low < high) {
+      const mid = (low + high) >> 1
+      if (newlines[mid] < index) low = mid + 1
+      else high = mid
+    }
+    return low + 1
+  }
+  // Comments become spaces of the same length, so indexes and lines stay where they were.
+  const code = text.replace(/\/\*[\s\S]*?\*\//g, (comment, start: number) => {
+    const first = lineOf(start)
+    for (let line = first; line <= first + comment.split('\n').length - 1; line++) commentedLines.add(line)
+    return comment.replace(/[^\n]/g, ' ')
+  })
+  return [...code.matchAll(/[{;]\s*(-?-?[a-zA-Z][\w-]*)\s*:([^;{}]*)(?=[;}])/g)].map((match) => {
+    const valueStart = match.index + match[0].length - match[2].length
+    return {
+      file,
+      prop: match[1],
+      value: match[2],
+      lineAt: (index) => lineOf(valueStart + index),
+      commented: (line) => commentedLines.has(line),
+    }
+  })
+}
+
+const ALL = cssFiles(SRC).flatMap(declarations)
+const OUTSIDE_TOKENS = ALL.filter((d) => d.file !== TOKENS_FILE)
+
+// The named and system colors of CSS Color 4 (lowercase, as identifiers are compared).
+// `transparent` and `currentColor` aren't raw: they name no color.
+const NAMED_COLORS = new Set(
+  `aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue blueviolet
+  brown burlywood cadetblue chartreuse chocolate coral cornflowerblue cornsilk crimson cyan darkblue
+  darkcyan darkgoldenrod darkgray darkgreen darkgrey darkkhaki darkmagenta darkolivegreen darkorange
+  darkorchid darkred darksalmon darkseagreen darkslateblue darkslategray darkslategrey darkturquoise
+  darkviolet deeppink deepskyblue dimgray dimgrey dodgerblue firebrick floralwhite forestgreen fuchsia
+  gainsboro ghostwhite gold goldenrod gray green greenyellow grey honeydew hotpink indianred indigo
+  ivory khaki lavender lavenderblush lawngreen lemonchiffon lightblue lightcoral lightcyan
+  lightgoldenrodyellow lightgray lightgreen lightgrey lightpink lightsalmon lightseagreen lightskyblue
+  lightslategray lightslategrey lightsteelblue lightyellow lime limegreen linen magenta maroon
+  mediumaquamarine mediumblue mediumorchid mediumpurple mediumseagreen mediumslateblue
+  mediumspringgreen mediumturquoise mediumvioletred midnightblue mintcream mistyrose moccasin
+  navajowhite navy oldlace olive olivedrab orange orangered orchid palegoldenrod palegreen
+  paleturquoise palevioletred papayawhip peachpuff peru pink plum powderblue purple rebeccapurple red
+  rosybrown royalblue saddlebrown salmon sandybrown seagreen seashell sienna silver skyblue slateblue
+  slategray slategrey snow springgreen steelblue tan teal thistle tomato turquoise violet wheat white
+  whitesmoke yellow yellowgreen
+  canvas canvastext linktext visitedtext activetext buttonface buttontext buttonborder field fieldtext
+  highlight highlighttext selecteditem selecteditemtext mark marktext graytext accentcolor
+  accentcolortext`.split(/\s+/),
+)
+const HEX = /#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b/g
+// Any call, whatever its arguments: `rgb(calc(var(--n) * 1) 0 0)` is as raw as `rgb(255 0 0)`.
+const COLOR_FUNCTION = /\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(/g
+// A whole identifier: `--teal` or `ks-tan` isn't the color `teal` or `tan`.
+const IDENT = /(?<![\w-])[a-zA-Z][\w-]*(?![\w-])/g
+
+const DATA_URL = /\burl\(\s*['"]?data:/gi
+const NAMED_PROP = /^(?:-webkit-)?(?:animation|transition|grid)(?:-[a-z-]+)?$/
+
+/** The whole call that starts at an index, up to its closing parenthesis, for the message. */
+function call(value: string, start: number): string {
+  let depth = 0
+  for (let i = value.indexOf('(', start); i < value.length; i++) {
+    if (value[i] === '(') depth++
+    else if (value[i] === ')' && --depth === 0) return value.slice(start, i + 1)
+  }
+  return value.slice(start)
+}
+
+/** The raw colors in a declaration's value, with their index. */
+function rawColors(prop: string, raw: string): [string, number][] {
+  // What a url() names is a file or an element, not a color. A data: URL is the color test's own
+  // case (DATA_URL), since what it draws can't be read here.
+  const value = raw.replace(/\burl\([^)]*\)/gi, (url) => ' '.repeat(url.length))
+  const found: [string, number][] = []
+  for (const m of value.matchAll(HEX)) found.push([m[0], m.index])
+  for (const m of value.matchAll(COLOR_FUNCTION)) found.push([call(value, m.index), m.index])
+  // Names in an animation, a transition or a grid area are keyframes, properties and areas
+  // (`highlight`, `mark`), never colors.
+  if (NAMED_PROP.test(prop)) return found
+  for (const m of value.matchAll(IDENT)) if (NAMED_COLORS.has(m[0].toLowerCase())) found.push([m[0], m.index])
+  return found
+}
+
+// A time other than zero (a negative delay included), and an easing other than `linear` (no easing, as a spinner or a fill
+// that shows a clock needs).
+const TIME = /(?<![\w.-])-?(\d*\.?\d+)(ms|s)\b/g
+const EASING = /(?<![\w-])(?:ease|ease-in|ease-out|ease-in-out|step-start|step-end)(?![\w-])|\b(?:cubic-bezier|steps|linear)\(/g
+const MOTION_PROP = /^(?:-webkit-)?(?:transition|animation)(?:-[a-z-]+)?$/
+const SHADOW_PROP = /^(?:-webkit-)?(?:box-shadow|text-shadow|filter)$/
+const FILTER_PROP = /^(?:-webkit-)?filter$/
+
+function rawMotion(value: string): [string, number][] {
+  const found: [string, number][] = []
+  for (const m of value.matchAll(TIME)) if (Number(m[1]) !== 0) found.push([m[0], m.index])
+  for (const m of value.matchAll(EASING)) found.push([m[0].endsWith('(') ? call(value, m.index) : m[0], m.index])
+  return found
+}
+
+/** Splits a value at its top-level commas, with each part's index. */
+function layers(value: string): [string, number][] {
+  const parts: [string, number][] = []
+  let depth = 0
+  let start = 0
+  for (let i = 0; i <= value.length; i++) {
+    const char = value[i]
+    if (char === '(') depth++
+    else if (char === ')') depth--
+    else if ((char === ',' && depth === 0) || i === value.length) {
+      parts.push([value.slice(start, i), start])
+      start = i + 1
+    }
+  }
+  return parts
+}
+
+/** A value's parts at its top-level spaces, with each part's index. */
+function parts(value: string): [string, number][] {
+  const found: [string, number][] = []
+  let depth = 0
+  let start = -1
+  for (let i = 0; i <= value.length; i++) {
+    const char = value[i]
+    const space = char === undefined || (/\s/.test(char) && depth === 0)
+    if (!space && start < 0) start = i
+    if (char === '(') depth++
+    else if (char === ')') depth--
+    if (space && start >= 0) {
+      found.push([value.slice(start, i), start])
+      start = -1
+    }
+  }
+  return found
+}
+
+/**
+ * Whether a shadow layer casts a shadow. A ring or a fill drawn with box-shadow (a focus ring, a
+ * hover tint) has a literal zero for each of its offsets and its blur, its first three lengths after
+ * `inset`; anything else there, a var() or a calc() included, casts one. Its color is the color
+ * rule's.
+ */
+function castsShadow(layer: string): boolean {
+  const geometry = parts(layer).map(([part]) => part).filter((part) => part !== 'inset')
+  return geometry.length > 0 && geometry.slice(0, 3).some((part) => !/^0(?:\.0*)?(?:px|em|rem)?$/.test(part))
+}
+
+/** Custom properties defined outside tokens.css, by name. */
+const OWN_PROPERTIES = new Map<string, Declaration[]>()
+for (const d of OUTSIDE_TOKENS) {
+  if (d.prop.startsWith('--')) OWN_PROPERTIES.set(d.prop, [...(OWN_PROPERTIES.get(d.prop) ?? []), d])
+}
+
+const CSS_WIDE = /^(?:inherit|initial|unset|revert|revert-layer)$/
+
+interface Shadow {
+  d: Declaration
+  index: number
+  layer: string
+}
+
+/**
+ * The shadow layers of a value that cast a shadow. A layer that is a single var() (after `inset`)
+ * is followed into its definitions outside tokens.css, and its fallback is read as layers of its own.
+ */
+function shadowsIn(d: Declaration, important: string, offset: number, seen: Set<string>): Shadow[] {
+  const found: Shadow[] = []
+  // `!important` says how the value wins, not what it draws.
+  const value = important.replace(/!\s*important\s*$/i, (flag) => ' '.repeat(flag.length))
+  for (const [raw, rawIndex] of layers(value)) {
+    const layer = raw.trim()
+    if (layer === '' || layer === 'none' || CSS_WIDE.test(layer)) continue
+    const index = offset + rawIndex + raw.length - raw.trimStart().length
+    const rest = parts(layer).filter(([part]) => part !== 'inset')
+    const only = rest.length === 1 ? /^var\(\s*(--[\w-]+)\s*(?:,([\s\S]*))?\)$/.exec(rest[0][0]) : null
+    if (!only) {
+      if (castsShadow(layer)) found.push({ d, index, layer })
+      continue
+    }
+    const [, name, fallback] = only
+    if (fallback !== undefined) {
+      const fallbackIndex = index + rest[0][1] + rest[0][0].indexOf(',') + 1
+      found.push(...shadowsIn(d, fallback, fallbackIndex, seen))
+    }
+    if (seen.has(name)) continue
+    seen.add(name)
+    for (const own of OWN_PROPERTIES.get(name) ?? []) found.push(...shadowsIn(own, own.value, 0, seen))
+  }
+  return found
+}
+
+/** The shadows a declaration casts outside the --shadow tokens. */
+function rawShadows(d: Declaration): Shadow[] {
+  // A drop-shadow() anywhere in a filter, or in a custom property, which a filter may take.
+  if (FILTER_PROP.test(d.prop) || d.prop.startsWith('--')) {
+    return [...d.value.matchAll(/\bdrop-shadow\(/g)].map((m) => ({ d, index: m.index, layer: 'drop-shadow()' }))
+  }
+  return shadowsIn(d, d.value, 0, new Set())
+}
+
+/** A problem at a value's index, unless its line carries a comment. */
+function at(d: Declaration, index: number, what: string, problems: string[]) {
+  const line = d.lineAt(index)
+  if (!d.commented(line)) problems.push(`${d.file}:${line} ${d.prop}: ${what}`)
+}
+
+describe('stylesheets beyond sizes', () => {
+  it('write colors through the color tokens', () => {
+    const colors = (prop: string, value: string) => rawColors(prop, value).map(([color]) => color)
+    expect(colors('color', '#abc rgb(calc(var(--n) * 1) 0 0) White')).toEqual(['#abc', 'rgb(calc(var(--n) * 1) 0 0)', 'White'])
+    expect(colors('color', 'color-mix(in srgb, var(--text) 6%, transparent) currentColor')).toEqual([])
+    expect(colors('background', 'url(red.svg) url(#red) red')).toEqual(['red'])
+    expect(colors('grid-area', 'highlight')).toEqual([])
+    const problems: string[] = []
+    for (const d of OUTSIDE_TOKENS) for (const [color, index] of rawColors(d.prop, d.value)) {
+      at(d, index, `${color} is a raw color: use a token from tokens.css, or add a comment on the line saying why`, problems)
+    }
+    // A data: URL can draw any color, and its content (cut at a `;`, %-encoded or base64) can't be
+    // read for one, so it needs a comment saying why.
+    for (const d of OUTSIDE_TOKENS) for (const m of d.value.matchAll(DATA_URL)) {
+      at(d, m.index, 'a data: URL may draw raw colors: use a file or a token, or add a comment on the line saying why', problems)
+    }
+    expect(problems).toEqual([])
+  })
+
+  it('write shadows through the --shadow tokens', () => {
+    expect(castsShadow('inset 0 0 0 100px var(--hover)')).toBe(false)
+    expect(castsShadow('0 0 0 var(--space-1) var(--accent)')).toBe(false)
+    expect(castsShadow('0 var(--space-2) var(--space-4) var(--scrim)')).toBe(true)
+    expect(castsShadow('0 0 2vw var(--scrim)')).toBe(true)
+    const problems: string[] = []
+    for (const d of OUTSIDE_TOKENS) {
+      if (!SHADOW_PROP.test(d.prop) && !d.prop.startsWith('--')) continue
+      for (const shadow of rawShadows(d)) {
+        at(shadow.d, shadow.index, `${shadow.layer} is a raw shadow: use a --shadow token, or add a comment on the line saying why`, problems)
+      }
+    }
+    expect(problems).toEqual([])
+  })
+
+  it('write durations and easings through the motion tokens', () => {
+    const motion = (value: string) => rawMotion(value).map(([raw]) => raw)
+    expect(motion('opacity 0s linear -0.5s ease-out steps(var(--n))')).toEqual(['-0.5s', 'ease-out', 'steps(var(--n))'])
+    expect(motion('ks-1s var(--d-fast) var(--ease) linear')).toEqual([])
+    const problems: string[] = []
+    for (const d of OUTSIDE_TOKENS) {
+      if (!MOTION_PROP.test(d.prop) && !d.prop.startsWith('--')) continue
+      for (const [raw, index] of rawMotion(d.value)) {
+        at(d, index, `${raw} is raw motion: use --d-* and --ease*, or add a comment on the line saying why`, problems)
+      }
+    }
+    expect(problems).toEqual([])
+  })
+
+  it('use only custom properties something defines', () => {
+    // Defined by a stylesheet, or set at runtime by the app's code, which names it in a string
+    // ('--keyboard-inset' in setProperty, a style object's key, useHeightVar's argument).
+    const defined = new Set(ALL.filter((d) => d.prop.startsWith('--')).map((d) => d.prop))
+    for (const path of codeFiles(SRC)) {
+      for (const [, name] of readFileSync(path, 'utf8').matchAll(/['"](--[\w-]+)['"]/g)) defined.add(name)
+    }
+    const problems: string[] = []
+    for (const d of ALL) for (const m of d.value.matchAll(/var\(\s*(--[\w-]+)/g)) {
+      if (!defined.has(m[1])) problems.push(`${d.file}:${d.lineAt(m.index)} ${d.prop}: nothing defines ${m[1]}`)
+    }
+    expect(problems).toEqual([])
+  })
+})
+
+function codeFiles(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(dir, entry.name)
+    // The tests' own helpers (src/test/) set properties for a test, not for the app.
+    if (entry.isDirectory()) return path === join(SRC, 'test') ? [] : codeFiles(path)
+    return /\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name) ? [path] : []
+  })
+}

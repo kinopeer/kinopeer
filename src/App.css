@@ -19,7 +19,7 @@
   border-radius: 50%;
   border: 2.5px solid var(--accent);
   border-right-color: transparent;
-  animation: ks-spin 0.8s linear infinite;
+  animation: ks-spin 0.8s linear infinite; /* a loop's period: the motion tokens are for transitions */
 }
 
 .screen-controls {

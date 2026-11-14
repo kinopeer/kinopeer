@@ -113,6 +113,6 @@
 
   /* Starts at full opacity, so a screenshot with animations stopped sees it as a filled ring. */
   .poll-ring.is-waiting {
-    animation: poll-ring-wait 0.8s ease-in-out infinite alternate;
+    animation: poll-ring-wait 0.8s ease-in-out infinite alternate; /* a loop: a period and a swing the motion tokens, made for transitions, don't have */
   }
 }
