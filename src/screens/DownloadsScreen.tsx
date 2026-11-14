@@ -330,7 +330,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
         )}
         <Icon name="chevron-down" size={14} />
       </Button>
-      {/* Beside the sort rather than in its menu or sheet, as in the releases' sort bar: the grid has no column names to reverse by. */}
+      {/* Beside the sort rather than in its menu or sheet, as beside the releases' sort: the grid has no column names to reverse by. */}
       <SortDirectionButton size="sm" descending={descending} onReverse={() => setOrder(reversedOrder(order))} />
     </div>
   )

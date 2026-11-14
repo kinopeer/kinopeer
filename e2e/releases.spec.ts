@@ -187,4 +187,18 @@ test.describe('releases, desktop icon rail', () => {
     await expect(page.getByRole('button', { name: '2 индексатора не ответили' })).toBeVisible()
     await expect(page).toHaveScreenshot('rail-failing-indexers-dark-ru.png')
   })
+
+  // The names open under the count's line: the button just pressed, the heading and the sort stay
+  // where they are, the names growing down.
+  test('the count’s line keeps its place as the names open', async ({ page }) => {
+    await findReleases(page, { failingIndexers: ['Indexer C', 'Indexer D', 'Indexer E', 'Indexer F', 'Indexer G', 'Indexer H'] })
+    const failed = page.getByRole('button', { name: '6 индексаторов не ответили' })
+    const heading = page.getByRole('heading', { name: 'Раздачи', exact: true })
+    const sort = page.getByRole('radiogroup', { name: 'Сортировка' })
+    const tops = async () => [(await failed.boundingBox())?.y, (await heading.boundingBox())?.y, (await sort.boundingBox())?.y]
+    const before = await tops()
+    await failed.click()
+    await expect(page.getByText('Indexer C, Indexer D')).toBeVisible()
+    expect(await tops()).toEqual(before)
+  })
 })

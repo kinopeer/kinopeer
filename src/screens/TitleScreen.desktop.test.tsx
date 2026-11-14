@@ -252,7 +252,7 @@ describe('TitleScreen on desktop', () => {
     expect(names()).toEqual([DUNE_RELEASES[2].title, DUNE_RELEASES[1].title, DUNE_RELEASES[0].title])
   })
 
-  it('sorts by the Size, Seeds and Age columns’ names, showing the same order in the sort bar', async () => {
+  it('sorts by the Size, Seeds and Age columns’ names, showing the same order in the sort beside the heading', async () => {
     renderAt('/title/movie/693134/releases')
     await screen.findByText('3 of 3 releases')
     const table = within(screen.getByRole('table', { name: 'Releases' }))
