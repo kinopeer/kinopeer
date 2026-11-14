@@ -578,10 +578,12 @@ the screenshot, so nothing it does on the page shows in it.
 `toHaveScreenshot` takes the screenshot and then has axe read the page, as do those of the
 `expect`s it makes (`expect.soft`, `expect.configure`, `expect.extend`) and of `test.expect`, also
 on a `test` that `test.extend` makes; oxlint refuses `test`, `expect`, `mergeExpects` and the
-default export from `@playwright/test` in `e2e/**/*.spec.ts` (`.oxlintrc.json`). So a new
-screenshot can't be taken without the read, which a helper called beside it would leave to whoever
-writes the test. Under `expect.soft` the read's verdict is soft too, so the test goes on to its
-later screenshots.
+default export from `@playwright/test` and from `playwright/test`, the package it re-exports, in
+every file under `e2e/` but `e2e/test.ts` itself and the smoke and performance tests, which take no
+compared screenshot (`.oxlintrc.json`): the specs and the modules they share steps from (`app.ts`)
+alike. So a new screenshot can't be taken without the read, which a helper called beside it would
+leave to whoever writes the test. Under `expect.soft` the read's verdict is soft too, so the test
+goes on to its later screenshots.
 
 **Each state has its budgets**, under `budgets.accessibility` in `checks.json`: by spec (its file
 without `.spec.ts`), then screenshot (its name without `.png`), then axe's rule, the count of

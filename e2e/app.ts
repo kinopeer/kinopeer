@@ -1,4 +1,4 @@
-import { expect, type Page, type Route } from '@playwright/test'
+import type { Page, Route } from '@playwright/test'
 import {
   NOW,
   RELEASES,
@@ -11,6 +11,7 @@ import {
   shogunTorrent,
   torrentFiles,
 } from './fixtures.ts'
+import { expect } from './test.ts'
 import type { Torrent } from '../src/api/qbittorrent/types.ts'
 
 export interface AppOptions {

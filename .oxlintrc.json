@@ -49,29 +49,7 @@
   "overrides": [
     {
       "files": [
-        "e2e/smoke/*.smoke.ts"
-      ],
-      "rules": {
-        "no-restricted-imports": [
-          "error",
-          {
-            "paths": [
-              {
-                "name": "@playwright/test",
-                "importNames": [
-                  "test",
-                  "expect"
-                ],
-                "message": "Import test and expect from ./test.ts, which fails a journey on anything the Content-Security-Policy blocks."
-              }
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "files": [
-        "e2e/**/*.spec.ts"
+        "e2e/**/*.ts"
       ],
       "rules": {
         "no-restricted-imports": [
@@ -86,7 +64,59 @@
                   "expect",
                   "mergeExpects"
                 ],
-                "message": "Import test and expect from ./test.ts, whose toHaveScreenshot also reads the state with axe against its accessibility budget."
+                "message": "Import test and expect from e2e/test.ts, whose toHaveScreenshot also reads the state with axe against its accessibility budget."
+              },
+              {
+                "name": "playwright/test",
+                "importNames": [
+                  "default",
+                  "test",
+                  "expect",
+                  "mergeExpects"
+                ],
+                "message": "Import test and expect from e2e/test.ts, whose toHaveScreenshot also reads the state with axe against its accessibility budget."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "e2e/test.ts",
+        "e2e/smoke/**/*.ts",
+        "e2e/performance/**/*.ts"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "playwright/test",
+                "message": "Import from @playwright/test, the package this project names."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "e2e/smoke/*.smoke.ts"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@playwright/test",
+                "importNames": [
+                  "test",
+                  "expect"
+                ],
+                "message": "Import test and expect from ./test.ts, which fails a journey on anything the Content-Security-Policy blocks."
               }
             ]
           }

@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
+import { expect, test } from './test.ts'
 import { DESKTOP, openApp, settle, type AppOptions } from './app.ts'
 import { RELEASES, TORRENTS } from './fixtures.ts'
 import type { Torrent } from '../src/api/qbittorrent/types.ts'
