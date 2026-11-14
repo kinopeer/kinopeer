@@ -66,9 +66,10 @@ function where(node: Node): string {
  * are read in the text PostCSS parsed, which leaves out a leading byte order mark (either one).
  */
 export function declarations({ file, text: raw }: Sheet): Declaration[] {
-  const root = parse(raw, { from: file })
-  const input = root.source?.input ?? new Input(raw)
+  // PostCSS's own input: its text leaves out a byte order mark as the parser's offsets do.
+  const input = new Input(raw, { from: file })
   const text = input.css
+  const root = parse(text, { from: file })
   const spans = commentSpans(input)
   const newlines = [...text.matchAll(/\n/g)].map((m) => m.index)
   /** The 1-based line of an index: the newlines before it, plus one. */

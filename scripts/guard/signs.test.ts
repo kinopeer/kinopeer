@@ -1035,6 +1035,9 @@ describe('compareStylesheets', () => {
     const one = (text: string) => compareStylesheets([{ path: 'src/a.css', added: [{ line: 2, text: '' }] }], [TOKENS, { file: 'src/a.css', text }, lift]).map(({ line, what }) => `${line} ${what}`)
     expect(one('.a {\n  --glow: 0 1px 2px var(--scrim); /* why */ box-shadow: var(--glow);\n}\n')).toEqual(["2 a value off the tokens' scale, let through by the comment on its line: `--glow: 0 1px 2px var(--scrim)`"])
     expect(one('.a {\n  box-shadow: var(--lift); text-shadow: var(--lift);\n}\n')).toEqual(["2 a shadow off the tokens' scale, taken from `src/b.css:2` and let through by the comment there: `--lift: 0 2px 4px var(--scrim)`"])
+    // The same line number in two files that take it is two uses.
+    const c = { file: 'src/c.css', text }
+    expect(compareStylesheets([{ path: 'src/c.css', added: [{ line: 3, text: '' }] }], [TOKENS, { file: 'src/a.css', text }, c, lift]).map(({ file, line }) => `${file}:${line}`)).toEqual(['src/c.css:3'])
     // The same line in another file isn't the one that takes it.
     expect(compareStylesheets([{ path: 'src/c.css', added: [{ line: 3, text: '' }] }], [TOKENS, { file: 'src/a.css', text }, lift])).toEqual([])
   })
