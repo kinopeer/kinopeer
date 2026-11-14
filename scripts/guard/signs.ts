@@ -124,7 +124,7 @@ function inStateOnMain(key: string, base: JsonObject): boolean {
  * to existing checks, since a script can't tell whether it is tight; a lowered one is a stricter check.
  * `unnamed` says main's budget is the 0 a rule its accessibility state doesn't name counts as.
  */
-function compareBudget(key: string, before: Json | undefined, after: Json | undefined, unnamed = false): Pick<Finding, 'needs' | 'what'> | undefined {
+function compareBudget(key: string, before: Json | undefined, after: Json | undefined, unnamed: boolean): Pick<Finding, 'needs' | 'what'> | undefined {
   const change = `${unnamed ? "nothing (`0` for a rule its state on main doesn't name)" : show(before)} → ${show(after)}`
   if (before === undefined) return { needs: 'review', what: `the budget \`${key}\` is new: ${change}` }
   if (after === undefined) return { needs: 'owner', what: `the budget \`${key}\` is removed: ${change}` }

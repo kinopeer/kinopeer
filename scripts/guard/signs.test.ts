@@ -148,8 +148,13 @@ describe('compareChecks', () => {
         named({ empty: { 'target-size': '1' } }),
         ["owner: the budget `budgets.accessibility.downloads.empty.target-size` is no longer a number: nothing (`0` for a rule its state on main doesn't name) → `\"1\"`"],
       ],
+      ['a rule main has a budget for, raised', named({ list: { 'color-contrast': 2 } }), ['owner: the budget `budgets.accessibility.downloads.list.color-contrast` is raised: `1` → `2`']],
     ])('sends %s to the owner', (_name, head, expected) => {
       expect(said(compareChecks(withStates(states), head))).toEqual(expected)
+    })
+
+    it('finds nothing in a rule main has a budget for, lowered', () => {
+      expect(compareChecks(named({ list: { 'color-contrast': 2 } }), withStates(states))).toEqual([])
     })
 
     it('finds nothing in a new rule of 0 in such a state, what it counted as already', () => {
@@ -164,6 +169,7 @@ describe('compareChecks', () => {
         named({ 'empty-ru': { 'target-size': 1 } }),
         ['review: the budget `budgets.accessibility.downloads.empty-ru.target-size` is new: nothing → `1`'],
       ],
+      ['a state that is a number rather than its rules', named({ grid: 2 }), ['review: the budget `budgets.accessibility.downloads.grid` is new: nothing → `2`']],
     ])('sends the budgets of %s to a second review', (_name, head, expected) => {
       expect(said(compareChecks(withStates(states), head))).toEqual(expected)
     })
