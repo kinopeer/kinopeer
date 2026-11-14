@@ -40,6 +40,8 @@ export function DownloadSettings({ torrent, disabled, categoryBusy, onCategory }
         onClick={onCategory}
       >
         <span className="torrent-download-label">{t('category.title')}</span>
+        {/* A space the flex layout doesn't show, which keeps the words apart in the text axe reads (#407). */}
+        {' '}
         <span className="t-label ks-trunc">{category}</span>
         <Icon name="chevron-right" size={18} className="c3" />
       </button>

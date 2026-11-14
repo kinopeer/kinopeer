@@ -407,7 +407,7 @@ test.describe('downloads, narrow desktop', () => {
 
   test('the status menu, with errors hidden by the picked status', async ({ page }) => {
     await openDownloads(page, { downloadsView: 'list' })
-    await page.getByRole('button', { name: /^Статус: Все/ }).click()
+    await page.getByRole('button', { name: /^Все статусы/ }).click()
     await page.getByRole('menuitemradio', { name: /^Раздаётся/ }).click()
     await page.getByRole('button', { name: /^Статус: Раздаётся/ }).click()
     await expect(page.getByRole('menu')).toBeVisible()

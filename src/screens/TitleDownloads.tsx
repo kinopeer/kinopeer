@@ -62,18 +62,29 @@ function TitleDownload({ torrent }: { torrent: Torrent }) {
   const coverage = releaseCoverage(torrent.name, info)
   const statusLabel = t(`status.${status}`)
   const percent = format.percent(torrent.progress)
-  // The card's parts read as one line otherwise: "…WEB-DL41%Downloading".
-  const label = [coverage, info.resolution, torrent.name, statusLabel, percent].filter(Boolean).join(', ')
+  const size = partial ? `${format.size(torrent.size * torrent.progress)} / ${format.size(torrent.size)}` : format.size(torrent.size)
+  // The card's parts read as one line otherwise: "…WEB-DL41%Downloading". Every part the card shows,
+  // in its order, so voice control finds it by what it shows (#407).
+  const label = [coverage, info.resolution, torrent.name, percent, statusLabel, speed, size].filter(Boolean).join(', ')
 
   return (
     <li>
       <Link to={`/torrent/${torrent.hash}`} state={overPage(location)} className="title-dl" aria-label={label}>
+        {/* The spaces between the card's parts are ones the flex layout doesn't show, which keep the words apart in the text axe reads (#407). */}
         <div className="title-dl-body">
           <div className="t-cap title-dl-release">
-            {coverage && <Badge>{coverage}</Badge>}{' '}
-            {info.resolution && <Badge kind="res">{info.resolution}</Badge>}{' '}
+            {coverage && (
+              <>
+                <Badge>{coverage}</Badge>{' '}
+              </>
+            )}
+            {info.resolution && (
+              <>
+                <Badge kind="res">{info.resolution}</Badge>{' '}
+              </>
+            )}
             <span className="ks-trunc c3">{torrent.name}</span>
-          </div>
+          </div>{' '}
           <div className="title-dl-progress">
             <ProgressBar
               value={torrent.progress}
@@ -82,15 +93,16 @@ function TitleDownload({ torrent }: { torrent: Torrent }) {
               className="title-dl-bar"
             />
             <span className="t-cap title-dl-pct ks-num c2">{percent}</span>
-          </div>
+          </div>{' '}
           <div className="t-cap title-dl-meta ks-num">
             <StatusChip status={status}>{statusLabel}</StatusChip>
-            {speed && <span className="c2">{speed}</span>}
-            <span className="title-dl-size c3">
-              {partial
-                ? `${format.size(torrent.size * torrent.progress)} / ${format.size(torrent.size)}`
-                : format.size(torrent.size)}
-            </span>
+            {speed && (
+              <>
+                {' '}
+                <span className="c2">{speed}</span>
+              </>
+            )}{' '}
+            <span className="title-dl-size c3">{size}</span>
           </div>
         </div>
         <Icon name="chevron-right" className="c3 title-dl-chevron" />

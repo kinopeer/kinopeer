@@ -321,7 +321,13 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
       >
         {/* The name gives way on a narrow phone, where the type's badge sits beside it. */}
         <span className="ks-trunc">{t(`fields.${sort}`)}</span>
-        {!isDesktop && type !== 'all' && <Badge className="downloads-type">{t(`types.${type}`)}</Badge>}
+        {/* The space before the badge is one the flex layout doesn't show, which keeps the words apart in the text axe reads (#407). */}
+        {!isDesktop && type !== 'all' && (
+          <>
+            {' '}
+            <Badge className="downloads-type">{t(`types.${type}`)}</Badge>
+          </>
+        )}
         <Icon name="chevron-down" size={14} />
       </Button>
       {/* Beside the sort rather than in its menu or sheet, as in the releases' sort bar: the grid has no column names to reverse by. */}
