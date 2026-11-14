@@ -5,6 +5,7 @@ import { Link, MemoryRouter, Route, Routes, useLocation, useNavigate } from 'rea
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TAB_RETURN, forgetTabPlaces, saveTabPlace, tabPlace } from './tabPlaces'
 import { useNewScreenAtTop, useScrollRestoration } from './useScrollRestoration'
+import { ROUTER_OPTIONS } from './routerOptions'
 
 function Screen({ ready }: { ready: boolean }) {
   useScrollRestoration(ready, '/')
@@ -32,7 +33,7 @@ function Other() {
 /** The same router keeps its history across rerenders with another `ready`. */
 function app(ready: boolean, path = '/') {
   return (
-    <MemoryRouter initialEntries={[path]}>
+    <MemoryRouter initialEntries={[path]} {...ROUTER_OPTIONS}>
       <Routes>
         <Route path="/" element={<Screen ready={ready} />} />
         <Route path="/other" element={<Other />} />
@@ -160,7 +161,7 @@ function OtherTab() {
 
 function tabApp(ready: boolean, path = '/') {
   return (
-    <MemoryRouter initialEntries={[path]}>
+    <MemoryRouter initialEntries={[path]} {...ROUTER_OPTIONS}>
       <Routes>
         <Route element={<TabScreen ready={ready} />}>
           <Route index />
@@ -279,7 +280,7 @@ describe('useScrollRestoration when the page is hidden', () => {
 describe('useScrollRestoration across a reload', () => {
   /** The tab's screen on an entry its link opened, as a reload finds it again: the same key and state. */
   const tabEntry = (ready = true) => (
-    <MemoryRouter initialEntries={[{ pathname: '/', state: TAB_RETURN, key: 'tab-entry' }]}>
+    <MemoryRouter initialEntries={[{ pathname: '/', state: TAB_RETURN, key: 'tab-entry' }]} {...ROUTER_OPTIONS}>
       <Routes>
         <Route path="/" element={<TabScreen ready={ready} />} />
       </Routes>
@@ -331,7 +332,7 @@ describe('useScrollRestoration on a document’s first entry', () => {
       return <Link to="/other">Open</Link>
     }
     render(
-      <MemoryRouter initialEntries={['/']}>
+      <MemoryRouter initialEntries={['/']} {...ROUTER_OPTIONS}>
         <Routes>
           <Route path="/" element={<FirstScreen />} />
           <Route path="/other" element={<Other />} />
@@ -392,7 +393,7 @@ function Shell() {
 describe('useNewScreenAtTop', () => {
   const shell = () =>
     render(
-      <MemoryRouter initialEntries={['/a/1']}>
+      <MemoryRouter initialEntries={['/a/1']} {...ROUTER_OPTIONS}>
         <Shell />
       </MemoryRouter>,
     )
