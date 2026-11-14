@@ -1054,7 +1054,7 @@ has the budgets' rule.
 | Screen | Answers, in their chain | Late blocks | Cases |
 | --- | --- | --- | --- |
 | Every screen | qBittorrent's version; then the server's settings (whether onboarding asks for a TMDB key), after which the screen paints; then the server's settings again (the download defaults) | The screen itself, in place of "Connecting" | |
-| `downloads` | The torrents and the server's matches; `p1`'s and `p2`'s titles by their tags' ids once the torrents are in, `p3`'s guess by TMDB's search once both are; the posters once one title is; the guess saved a second after it | The rows in place of the skeleton, the totals, the chips' counts, the speed limits switch; each row's title and poster | Titles found |
+| `downloads` | The torrents and the server's matches; `p1`'s and `p2`'s titles by their tags' ids once the torrents are in, `p3`'s guess by TMDB's search once both are; the posters once one title is; the guess saved a second after it | The rows in place of the skeleton, the totals, the chips' counts, the speed limits switch; each row's title and poster. In the grid each card's title, in place of the release name, which takes one line until then, so a title that does too keeps the card's height (#403) | Titles found, in the list; titles found, in the grid |
 | `torrent` | The torrents and the matches; the title by its tag's id, or the search for a guess once both are in; the poster; the guess saved | The page in place of its skeleton; the title, its poster; More's dot when no title is found | Tagged and finished (`p2`); title guessed from its name (`p3`, cold cache); no title found (`p4`) |
 | `browse` | Three Discover queries at once; the posters once all three are in | The three rows, together, in place of the skeleton; their posters | Rows of titles |
 | `search` | TMDB's search; the posters | The results with their count and Show more, in place of the skeleton; their posters | Titles found |
@@ -1085,7 +1085,9 @@ the narrower sizes' `releases` #400's, the table moving down by the bar's second
   torrents' pages beside these three, a search that finds nothing, onboarding). The desktop widths
   between those read: each screen at 1440px, the releases also at 1024px and 1280px, where #400's
   bar wraps (at 1024–1099px and about 1162–1340px), so a jump that shows only at another width isn't
-  caught. A title the server's matches already hold (the user's choice, or a
+  caught. In Downloads' grid, a title that takes two lines, or a release name back on two once no
+  title is found: the card grows by a line as it lands, since the name takes one while the title is
+  looked up (#403), which most titles take, the cases' among them. A title the server's matches already hold (the user's choice, or a
   guess another device saved), which is asked for by its id as `p2`'s is. A title's page whose
   torrent is matched by a guess rather than a tag, where "In downloads" comes in with TMDB's search,
   a later answer than either case lands it with (at the page's end, with nothing under it to move). The web font landing after the content: the

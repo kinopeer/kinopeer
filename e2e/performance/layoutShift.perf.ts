@@ -230,21 +230,31 @@ const releasesPage = (name: string, failingIndexers: string[] = [], noReleases =
 })
 
 /**
+ * Downloads with its torrents' titles looked up and their posters, in a view (`downloadsView` on a
+ * phone and `downloadsDesktopView` on desktop), else the layout's default: the list on a phone, the
+ * grid on desktop.
+ */
+const downloads = (name: string, view?: 'list' | 'grid'): Case => ({
+  screen: 'downloads',
+  name,
+  ...(view && { app: { downloadsView: view } }),
+  complete: all(link('Дюна: Часть вторая'), link('Сёгун'), link('Интерстеллар'), posters(3)),
+  answers: {
+    ...SESSION,
+    ...TORRENTS_AND_MATCHES,
+    ...LOOKUPS,
+    posters: { matches: under('/tmdb-img/'), afterAny: ['titleP1', 'titleP2', 'guessP3'], later: true },
+  },
+})
+
+/**
  * Every state of every screen the list names whose blocks differ, by size, each with the chain of
  * answers its code asks for (docs/TESTING.md → The layout shift test lists the late blocks each covers).
  */
 const PHONE: Case[] = [
-  {
-    screen: 'downloads',
-    name: 'titles found',
-    complete: all(link('Дюна: Часть вторая'), link('Сёгун'), link('Интерстеллар'), posters(3)),
-    answers: {
-      ...SESSION,
-      ...TORRENTS_AND_MATCHES,
-      ...LOOKUPS,
-      posters: { matches: under('/tmdb-img/'), afterAny: ['titleP1', 'titleP2', 'guessP3'], later: true },
-    },
-  },
+  downloads('titles found'),
+  /** The other view, the grid of cards (`DownloadCard`), a layout of its own (#403: a card grew as its title landed). */
+  downloads('titles found, in the grid', 'grid'),
   /**
    * `p2`: tagged with its title and finished. The page asks for the title by its id once the
    * torrent shows, and for the poster once the title does.
@@ -424,9 +434,9 @@ const casesOf = (screen: string) => PHONE.filter((one) => one.screen === screen)
 
 const DESKTOP_CASES: Case[] = [
   // The list as on a phone, the sidebar reading the same poll: the grid of cards, desktop's default view.
-  ...casesOf('downloads'),
+  downloads('titles found'),
   // The other view, the table of rows (`DownloadRow`, the column header): a layout of its own.
-  ...casesOf('downloads').map((one) => ({ ...one, name: 'titles found, as a table', app: { downloadsView: 'list' as const } })),
+  downloads('titles found, as a table', 'list'),
   /**
    * `p2`'s drawer over Downloads: the list's lookups and posters, and the drawer's own load of the
    * title by its tag's id, the same address as the list's, once the torrent shows.
