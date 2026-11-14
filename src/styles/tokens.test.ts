@@ -192,13 +192,24 @@ const IDENT = /(?<![\w-])[a-zA-Z][\w-]*(?![\w-])/g
 
 const NAMED_PROP = /^(?:-webkit-)?(?:animation|transition|grid)(?:-[a-z-]+)?$/
 
+/** The whole call that starts at an index, up to its closing parenthesis, for the message. */
+function call(value: string, start: number): string {
+  let depth = 0
+  for (let i = value.indexOf('(', start); i < value.length; i++) {
+    if (value[i] === '(') depth++
+    else if (value[i] === ')' && --depth === 0) return value.slice(start, i + 1)
+  }
+  return value.slice(start)
+}
+
 /** The raw colors in a declaration's value, with their index. */
 function rawColors(prop: string, raw: string): [string, number][] {
-  // What a url() names is a file or an element, not a color.
-  const value = raw.replace(/\burl\([^)]*\)/g, (url) => ' '.repeat(url.length))
+  // What a url() names is a file or an element, not a color; a data: URL's content is read, since
+  // its colors are drawn (an SVG's `fill='red'`).
+  const value = raw.replace(/\burl\((?!\s*['"]?data:)[^)]*\)/gi, (url) => ' '.repeat(url.length))
   const found: [string, number][] = []
   for (const m of value.matchAll(HEX)) found.push([m[0], m.index])
-  for (const m of value.matchAll(COLOR_FUNCTION)) found.push([m[0], m.index])
+  for (const m of value.matchAll(COLOR_FUNCTION)) found.push([call(value, m.index), m.index])
   // Names in an animation, a transition or a grid area are keyframes, properties and areas
   // (`highlight`, `mark`), never colors.
   if (NAMED_PROP.test(prop)) return found
@@ -217,7 +228,7 @@ const FILTER_PROP = /^(?:-webkit-)?filter$/
 function rawMotion(value: string): [string, number][] {
   const found: [string, number][] = []
   for (const m of value.matchAll(TIME)) if (Number(m[1]) !== 0) found.push([m[0], m.index])
-  for (const m of value.matchAll(EASING)) found.push([m[0], m.index])
+  for (const m of value.matchAll(EASING)) found.push([m[0].endsWith('(') ? call(value, m.index) : m[0], m.index])
   return found
 }
 
@@ -329,6 +340,11 @@ function at(d: Declaration, index: number, what: string, problems: string[]) {
 
 describe('stylesheets beyond sizes', () => {
   it('write colors through the color tokens', () => {
+    const colors = (prop: string, value: string) => rawColors(prop, value).map(([color]) => color)
+    expect(colors('color', '#abc rgb(calc(var(--n) * 1) 0 0) White')).toEqual(['#abc', 'rgb(calc(var(--n) * 1) 0 0)', 'White'])
+    expect(colors('color', 'color-mix(in srgb, var(--text) 6%, transparent) currentColor')).toEqual([])
+    expect(colors('background', "url(red.svg) url(#red) url(\"data:image/svg+xml,<svg fill='red'/>\")")).toEqual(['red'])
+    expect(colors('grid-area', 'highlight')).toEqual([])
     const problems: string[] = []
     for (const d of OUTSIDE_TOKENS) for (const [color, index] of rawColors(d.prop, d.value)) {
       at(d, index, `${color} is a raw color: use a token from tokens.css, or add a comment on the line saying why`, problems)
@@ -337,6 +353,10 @@ describe('stylesheets beyond sizes', () => {
   })
 
   it('write shadows through the --shadow tokens', () => {
+    expect(castsShadow('inset 0 0 0 100px var(--hover)')).toBe(false)
+    expect(castsShadow('0 0 0 var(--space-1) var(--accent)')).toBe(false)
+    expect(castsShadow('0 var(--space-2) var(--space-4) var(--scrim)')).toBe(true)
+    expect(castsShadow('0 0 2vw var(--scrim)')).toBe(true)
     const problems: string[] = []
     for (const d of OUTSIDE_TOKENS) {
       if (!SHADOW_PROP.test(d.prop) && !d.prop.startsWith('--')) continue
@@ -348,6 +368,9 @@ describe('stylesheets beyond sizes', () => {
   })
 
   it('write durations and easings through the motion tokens', () => {
+    const motion = (value: string) => rawMotion(value).map(([raw]) => raw)
+    expect(motion('opacity 0s linear -0.5s ease-out steps(var(--n))')).toEqual(['-0.5s', 'ease-out', 'steps(var(--n))'])
+    expect(motion('ks-1s var(--d-fast) var(--ease) linear')).toEqual([])
     const problems: string[] = []
     for (const d of OUTSIDE_TOKENS) {
       if (!MOTION_PROP.test(d.prop) && !d.prop.startsWith('--')) continue
