@@ -246,10 +246,7 @@ export function compareLint(base: string | undefined, head: string | undefined, 
   const parsed = parseBoth(file, base, head)
   if ('needs' in parsed) return [parsed]
   const { base: was, head: now } = parsed
-  const found = compareRules(file, '', rulesOf(was), rulesOf(now))
-  for (const plugin of entries(was.plugins)) {
-    if (!entries(now.plugins).includes(plugin)) found.push({ needs: 'owner', file, what: `the lint plugin ${plugin} is removed, and its rules with it` })
-  }
+  const found = [...compareRules(file, '', rulesOf(was), rulesOf(now)), ...compareScope(file, '', was, now, ['overrides', 'ignorePatterns', '$schema'])]
   for (const pattern of entries(now.ignorePatterns)) {
     if (!entries(was.ignorePatterns).includes(pattern)) found.push({ needs: 'owner', file, what: `the linter skips more: ${pattern} is added to \`ignorePatterns\`` })
   }
@@ -264,19 +261,36 @@ export function compareLint(base: string | undefined, head: string | undefined, 
     for (const pattern of entries(has.excludeFiles)) {
       if (!entries(had.excludeFiles).includes(pattern)) found.push({ needs: 'owner', file, what: `the lint rules${where} skip more: ${pattern} is added to \`excludeFiles\`` })
     }
-    for (const key of ['plugins', 'jsPlugins']) {
-      for (const plugin of entries(had[key])) {
-        if (!entries(has[key]).includes(plugin)) found.push({ needs: 'owner', file, what: `the lint plugin ${plugin} is removed${where}, and its rules with it` })
-      }
-    }
-    for (const key of new Set([...Object.keys(had), ...Object.keys(has)])) {
-      if (['files', 'rules', 'excludeFiles', 'plugins', 'jsPlugins'].includes(key) || same(had[key], has[key])) continue
-      found.push({ needs: 'review', file, what: `\`${key}\`${where} changed: ${show(had[key])} → ${show(has[key])}` })
+    found.push(...compareScope(file, where, had, has, ['files', 'excludeFiles']))
+  }
+  return found
+}
+
+/**
+ * What decides where and how the rules of the config or of one override apply, besides the rules
+ * themselves and the keys `skip` names, which the caller reads: a plugin removed (and its rules
+ * with it), an environment turned on or a global allowed (which `no-undef` then lets through) go to
+ * the owner, and any other key changed, one the guard has no rule for included, to a second review.
+ */
+function compareScope(file: string, where: string, had: JsonObject, has: JsonObject, skip: string[]): Finding[] {
+  const found: Finding[] = []
+  for (const key of ['plugins', 'jsPlugins']) {
+    for (const plugin of entries(had[key])) {
+      if (!entries(has[key]).includes(plugin)) found.push({ needs: 'owner', file, what: `the lint plugin ${plugin} is removed${where}, and its rules with it` })
     }
   }
-  for (const key of new Set([...Object.keys(was), ...Object.keys(now)])) {
-    if (['rules', 'plugins', 'ignorePatterns', 'overrides', '$schema'].includes(key) || same(was[key], now[key])) continue
-    found.push({ needs: 'review', file, what: `\`${key}\` changed: ${show(was[key])} → ${show(now[key])}` })
+  const [envWas, envNow] = [isObject(had.env) ? had.env : {}, isObject(has.env) ? has.env : {}]
+  for (const [name, on] of Object.entries(envNow)) {
+    if (on === true && envWas[name] !== true) found.push({ needs: 'owner', file, what: `the environment ${name} is turned on${where}, and its globals with it` })
+  }
+  const [globalsWas, globalsNow] = [isObject(had.globals) ? had.globals : {}, isObject(has.globals) ? has.globals : {}]
+  for (const [name, value] of Object.entries(globalsNow)) {
+    // `off` takes a global away; any other value lets it through.
+    if (value !== 'off' && !same(globalsWas[name], value)) found.push({ needs: 'owner', file, what: `the global \`${name}\` is allowed${where}: ${show(value)}` })
+  }
+  for (const key of new Set([...Object.keys(had), ...Object.keys(has)])) {
+    if (['rules', 'plugins', 'jsPlugins', 'env', 'globals', ...skip].includes(key) || same(had[key], has[key])) continue
+    found.push({ needs: 'review', file, what: `\`${key}\`${where} changed: ${show(had[key])} → ${show(has[key])}` })
   }
   return found
 }

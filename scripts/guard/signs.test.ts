@@ -206,6 +206,8 @@ describe('compareLint', () => {
     ['a severity it does not know', withRules({ 'react/rules-of-hooks': 'maybe' }), ['owner: the lint rule `react/rules-of-hooks` has a severity the guard can\'t read: `"maybe"`']],
     ['a plugin removed', json({ ...config, plugins: ['react'] }), ['owner: the lint plugin "vitest" is removed, and its rules with it']],
     ['a path the linter skips', json({ ...config, ignorePatterns: ['e2e/**'] }), ['owner: the linter skips more: "e2e/**" is added to `ignorePatterns`']],
+    ['an environment turned on', json({ ...config, env: { browser: true, node: false } }), ['owner: the environment browser is turned on, and its globals with it']],
+    ['a global allowed', json({ ...config, globals: { window: 'readonly', process: 'off' } }), ['owner: the global `window` is allowed: `"readonly"`']],
     [
       'one more path the linter skips',
       [json({ ...config, ignorePatterns: ['dist/**'] }), json({ ...config, ignorePatterns: ['dist/**', 'e2e/**'] })],
@@ -875,11 +877,23 @@ describe('compareLint: an override beside its rules (#412)', () => {
     expect(compareLint(config({ jsPlugins: ['./a.js'] }), config({})).map(({ what }) => what)).toEqual([`the lint plugin "./a.js" is removed ${where}, and its rules with it`])
   })
 
-  it('sends any other key it changes to a second review', () => {
-    expect(found({ env: { browser: false }, globals: { a: 'readonly' } })).toEqual([
-      `review: \`env\` ${where} changed: \`{"browser":true}\` → \`{"browser":false}\``,
-      `review: \`globals\` ${where} changed: nothing → \`{"a":"readonly"}\``,
+  it('sends an environment it turns on and a global it allows to the owner, which no-undef then lets through', () => {
+    expect(found({ env: { browser: true, node: true }, globals: { a: 'readonly', b: 'off' } })).toEqual([
+      `owner: the environment node is turned on ${where}, and its globals with it`,
+      `owner: the global \`a\` is allowed ${where}: \`"readonly"\``,
     ])
+    const allowing = (globals: object) => compareLint(config({ globals: { a: 'readonly', b: 'off' } }), config({ globals })).map(({ what }) => what)
+    expect(allowing({ a: 'writable', b: 'readonly' })).toEqual([`the global \`a\` is allowed ${where}: \`"writable"\``, `the global \`b\` is allowed ${where}: \`"readonly"\``])
+  })
+
+  it('finds nothing in an environment turned off or a global taken away, which checks more, nor in a global that stays', () => {
+    expect(found({ env: { browser: false } })).toEqual([])
+    expect(compareLint(config({ globals: { a: 'readonly' } }), config({ globals: { a: 'readonly' } })).map(({ what }) => what)).toEqual([])
+    expect(compareLint(config({ globals: { a: 'readonly', b: 'readonly' } }), config({ globals: { b: 'off' } })).map(({ what }) => what)).toEqual([])
+  })
+
+  it('sends any other key it changes to a second review, one the guard has no rule for included', () => {
+    expect(found({ settings: { react: { version: '19' } } })).toEqual([`review: \`settings\` ${where} changed: nothing → \`{"react":{"version":"19"}}\``])
   })
 
   it('leaves a new override and a removed one to their rules', () => {

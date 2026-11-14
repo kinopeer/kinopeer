@@ -47,8 +47,10 @@ or its rules.
   marked: it checks more.
 - A lint rule removed, turned off or downgraded, at the top level or in an override; a rule turned
   off that the config didn't name before, since it may have been on by default; a plugin removed,
-  at the top level or from an override's `plugins` or `jsPlugins`; a path added to `ignorePatterns`
-  or to an override's `excludeFiles`, the files its rules skip (the root `.oxlintrc.json`). An
+  at the top level or from an override's `plugins` or `jsPlugins`; an environment turned on or a
+  global allowed (`env`, `globals`, at the top level or in an override), which `no-undef` then lets
+  through; a path added to `ignorePatterns` or to an override's `excludeFiles`, the files its rules
+  skip (the root `.oxlintrc.json`). An
   override is known by its `files`, so one whose `files` change is one removed and one added: its
   rules are marked as removed.
 - The linter turned off from another file, marked by the file's path whatever it says: an
@@ -133,7 +135,7 @@ Autopilot).
   for.
 - Any other change to `.oxlintrc.json`: a rule's options, also when its severity went up with
   them; a new rule that only warns; a key the guard has no rule for, at the top level or in an
-  override (`env`, `globals`).
+  override (`settings`, say).
 - A CI step that changed or is gone, when every command it called still runs somewhere or it
   called none of the kinds above (plain shell, `curl`): other arguments, a line taken out of a
   step whose commands stay, one of two steps alike removed. An action's version and inputs
