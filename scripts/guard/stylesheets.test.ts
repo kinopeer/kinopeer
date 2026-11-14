@@ -191,6 +191,9 @@ describe('rawValues', () => {
     const shadows = rawValues([{ file: TOKENS_FILE, text: TOKENS }, { file: 'src/a.css', text: '.a {\n  box-shadow: var(--lift);\n}\n.b { box-shadow: inset var(--x, var(--lift)); }\n' }, lift])
     expect(shadows.map(({ file, line, via }) => ({ file, line, via }))).toEqual([{ file: 'src/b.css', line: 2, via: [{ file: 'src/a.css', line: 2 }, { file: 'src/a.css', line: 4 }] }])
     expect(rawValues([{ file: 'src/a.css', text: '.a { box-shadow: 0 2px 4px var(--scrim); /* why */ }' }]).map(({ via }) => via)).toEqual([[]])
+    // A line that takes it twice is one use; the same line number in another file is another.
+    const twice = rawValues([{ file: TOKENS_FILE, text: TOKENS }, { file: 'src/a.css', text: '.a { box-shadow: var(--lift); text-shadow: var(--lift); }' }, { file: 'src/c.css', text: '.c { box-shadow: var(--lift); }' }, lift])
+    expect(twice.map(({ via }) => via)).toEqual([[{ file: 'src/a.css', line: 1 }, { file: 'src/c.css', line: 1 }]])
   })
 
   it('follows custom properties that name each other once', () => {

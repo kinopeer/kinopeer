@@ -67,8 +67,8 @@ function where(node: Node): string {
  */
 export function declarations({ file, text: raw }: Sheet): Declaration[] {
   // Offsets and comments are read in the parse's own input, whose text leaves out a leading byte
-  // order mark as its offsets do; a second Input would strip a second mark. No source map is looked for.
-  const root = parse(raw, { from: file, map: false })
+  // order mark as its offsets do; a second Input would strip a second mark.
+  const root = parse(raw, { from: file })
   const { input } = root.source as { input: Input }
   const text = input.css
   const spans = commentSpans(input)
