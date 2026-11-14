@@ -69,13 +69,10 @@ export function SidebarStatus({
           <span className="sr-only">{label}</span> {value}
         </span>
         {/* A placeholder has no unit: its line is kept, so the column is as tall as once it has one. */}
-        <span className="ks-side-mini-unit" aria-hidden={unit ? undefined : true}>
-          {unit || '\u00a0'}
-        </span>
+        <span className="ks-side-mini-unit">{unit || '\u00a0'}</span>
       </p>
     )
   }
-  const showAltSpeed = onToggleAltSpeed !== undefined
   const altSpeedOff = altSpeedDisabled || altSpeedLimits === undefined
   return (
     <section className="ks-side-status" aria-label={t('common.qbittorrent')}>
@@ -93,20 +90,18 @@ export function SidebarStatus({
           </span>
         </p>
         <p className="t-cap ks-num c3">{t('common.freeSpace', { size: space })}</p>
-        {showAltSpeed && (
-          <Button
-            variant={altSpeedLimits ? 'tonal' : 'secondary'}
-            size="sm"
-            icon="turtle"
-            block
-            title={t('speedLimits.alt')}
-            aria-pressed={altSpeedLimits ?? false}
-            disabled={altSpeedOff}
-            onClick={onToggleAltSpeed}
-          >
-            {t('speedLimits.short')}
-          </Button>
-        )}
+        <Button
+          variant={altSpeedLimits ? 'tonal' : 'secondary'}
+          size="sm"
+          icon="turtle"
+          block
+          title={t('speedLimits.alt')}
+          aria-pressed={altSpeedLimits ?? false}
+          disabled={altSpeedOff}
+          onClick={onToggleAltSpeed}
+        >
+          {t('speedLimits.short')}
+        </Button>
       </div>
       <div className="ks-side-mini ks-num">
         <span className="ks-side-mini-indicator">
@@ -116,15 +111,13 @@ export function SidebarStatus({
         {stacked(t('common.downloadSpeed'), speed(downloadSpeed), <span aria-hidden="true">↓</span>)}
         {stacked(t('common.uploadSpeed'), speed(uploadSpeed), <span aria-hidden="true">↑</span>)}
         {stacked(t('sidebar.freeSpace'), space, <Icon name="disk" size={13} />)}
-        {showAltSpeed && (
-          <IconButton
-            icon="turtle"
-            label={t('speedLimits.alt')}
-            active={altSpeedLimits ?? false}
-            disabled={altSpeedOff}
-            onClick={onToggleAltSpeed}
-          />
-        )}
+        <IconButton
+          icon="turtle"
+          label={t('speedLimits.alt')}
+          active={altSpeedLimits ?? false}
+          disabled={altSpeedOff}
+          onClick={onToggleAltSpeed}
+        />
       </div>
     </section>
   )
