@@ -600,8 +600,7 @@ Web Vitals call good: `readBudgets` (`scripts/layout-shift/budget.ts`) refuses o
 fails when the ceiling is missing or not a number over 0. A screen that moves more has a bug to
 fix, not a budget to raise; until it is fixed, the state that moves is left out of the test with
 its issue named (TESTING → What it leaves out). A budget under the ceiling can still carry a known
-jump, its issue named beside it in TESTING, and the fix lowers it: today Downloads and the
-torrent's drawer on desktop (0.02, the header's tools moving as the totals come in, #405), a title's
+jump, its issue named beside it in TESTING, and the fix lowers it: today a title's
 and a series' page on desktop (0.02, the hero's backdrop fade, #406), and the releases at
 `desktop-rail` (0.04) and `desktop-1280` (0.03), the filter bar wrapping to a second line once the
 filters land (#400). A budget is one number for both orders of a screen, so where a carried jump

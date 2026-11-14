@@ -23,7 +23,7 @@
     "layoutShiftCeiling": 0.1,
     "layoutShift": {
       "phone": { "downloads": 0.01, "torrent": 0.01, "browse": 0.01, "search": 0.01, "search-year": 0.01, "title": 0.01, "series": 0.01, "releases": 0.01, "settings": 0.01 },
-      "desktop": { "downloads": 0.02, "torrent": 0.02, "browse": 0.01, "search": 0.01, "search-year": 0.01, "title": 0.02, "series": 0.02, "releases": 0.01, "settings": 0.01 },
+      "desktop": { "downloads": 0.01, "torrent": 0.01, "browse": 0.01, "search": 0.01, "search-year": 0.01, "title": 0.02, "series": 0.02, "releases": 0.01, "settings": 0.01 },
       "desktop-rail": { "releases": 0.04 },
       "desktop-1280": { "releases": 0.03 }
     },
