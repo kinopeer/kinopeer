@@ -6,6 +6,8 @@
 export async function withTimeout<T>(ms: number, signal: AbortSignal, request: (signal: AbortSignal) => Promise<T>): Promise<T> {
   const attempt = new AbortController()
   const abort = () => attempt.abort()
+  // An abort that already happened fires no event: the attempt starts aborted, so `request` rejects at once.
+  if (signal.aborted) abort()
   signal.addEventListener('abort', abort)
   const timer = setTimeout(abort, ms)
   try {
