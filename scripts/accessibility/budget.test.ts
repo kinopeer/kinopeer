@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { LISTED, counts, judge, readBudgets, stateOf, unmatched, type Budgets, type Violation } from './budget.ts'
+import { LISTED, counts, judge, readBudgets, stateOf, unknownTags, unmatched, type Budgets, type Violation } from './budget.ts'
 
 const TAGS = ['wcag2a', 'wcag2aa']
 const BUDGETS: Budgets = { tags: TAGS, states: { downloads: { 'list-dark-ru': { 'color-contrast': 2 }, 'empty-dark-ru': {} } } }
@@ -101,6 +101,18 @@ describe('stateOf', () => {
   it('refuses a spec whose name has a dot in it', () => {
     expect(stateOf('/work/e2e/downloads.v2.spec.ts', 'list.png')).toBe(
       'The screenshot list.png in downloads.v2.spec.ts needs a name ending in .png with no other dot, in a spec whose name has none but its .spec.ts, so its accessibility budget has a key the checks guard can read',
+    )
+  })
+})
+
+describe('unknownTags', () => {
+  it('passes tags that some rule of axe has', () => {
+    expect(unknownTags(['wcag2a', 'wcag22aa'], ['wcag2a', 'cat.color', 'wcag22aa'])).toBeUndefined()
+  })
+
+  it('names every tag no rule has, a misspelled one among them', () => {
+    expect(unknownTags(['wcag2a', 'wcag22AA', 'wcag3'], ['wcag2a', 'wcag22aa'])).toBe(
+      '`budgets.accessibilityTags` names `wcag22AA`, `wcag3`, which no rule of axe\'s has: axe would read nothing for it',
     )
   })
 })

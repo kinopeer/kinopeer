@@ -81,8 +81,10 @@
               {
                 "name": "@playwright/test",
                 "importNames": [
+                  "default",
                   "test",
-                  "expect"
+                  "expect",
+                  "mergeExpects"
                 ],
                 "message": "Import test and expect from ./test.ts, whose toHaveScreenshot also reads the state with axe against its accessibility budget."
               }

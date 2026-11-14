@@ -8,7 +8,9 @@ import { BUDGETS, expect, test } from './test.ts'
 test('every screenshot with a baseline has its accessibility budgets, and every budget a baseline', () => {
   expect(BUDGETS, `budgets.accessibility in checks.json can't be read:\n${[BUDGETS].flat().join('\n')}`).not.toBeInstanceOf(Array)
   const folder = new URL('./__screenshots__/', import.meta.url)
-  const taken = readdirSync(folder).flatMap((spec) =>
+  // Only the specs' folders: a file there (a .DS_Store Finder leaves) is no spec's.
+  const specs = readdirSync(folder, { withFileTypes: true }).filter((entry) => entry.isDirectory())
+  const taken = specs.flatMap(({ name: spec }) =>
     readdirSync(new URL(`${spec}/`, folder))
       .filter((file) => file.endsWith('.png'))
       .map((file) => stateOf(spec, file)),

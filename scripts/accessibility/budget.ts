@@ -28,7 +28,10 @@ const TAGS = '`budgets.accessibilityTags`'
  */
 const readable = (key: string) => key !== '' && !key.includes('.')
 
-/** The tags axe checks, or what is wrong with them: a list of one tag or more, each a word axe knows. */
+/**
+ * The tags axe checks, or what is wrong with them: a list of one tag or more, each a string that isn't
+ * empty. Whether axe knows each is for the read to check, with the axe it runs (`unknownTags`).
+ */
 function readTags(tags: unknown): string[] | string {
   if (tags === undefined) return `${TAGS} in checks.json is missing`
   const fine = Array.isArray(tags) && tags.length > 0 && tags.every((tag) => typeof tag === 'string' && tag !== '')
@@ -70,6 +73,16 @@ export function readBudgets(checks: unknown): Budgets | string[] {
     }
   }
   return problems.length > 0 ? problems : { tags: tags as string[], states: states as Budgets['states'] }
+}
+
+/**
+ * The tags none of axe's rules has (`known`, every rule's tags), named, or undefined when axe knows them
+ * all: axe skips a tag it doesn't know without a word, so a misspelled one would leave its rules unread.
+ */
+export function unknownTags(tags: string[], known: string[]): string | undefined {
+  const unknown = tags.filter((tag) => !known.includes(tag))
+  if (unknown.length === 0) return undefined
+  return `${TAGS} names ${unknown.map((tag) => `\`${tag}\``).join(', ')}, which no rule of axe's has: axe would read nothing for it`
 }
 
 /**

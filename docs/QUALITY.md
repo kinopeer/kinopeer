@@ -566,17 +566,22 @@ of axe's rules there is held to its budget.
 
 **What axe reads.** The rules of WCAG 2.2 AA as axe checks them: the tags in
 `budgets.accessibilityTags` (`wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, `wcag22aa`). A rule axe
-can't decide on an element (text over an image, say) is "incomplete" and isn't counted. axe's
+can't decide on an element (text over an image, say) is "incomplete" and isn't counted. axe skips
+a tag none of its rules has without a word, so the read fails on one (`wcag22AA`) rather than read
+nothing for it. axe's
 `target-size` asks for 24px; the 44px of `CLAUDE.md` → Conventions has no check of its own and stays
 the reviews' (decided on 2026-11-14: a check of its own would need exceptions, such as links in
 text, for little gain). axe reads the whole page, also for a screenshot of one element, and after
 the screenshot, so nothing it does on the page shows in it.
 
 **Built into the screenshot.** The specs take `test` and `expect` from `e2e/test.ts`, whose
-`toHaveScreenshot` takes the screenshot and then has axe read the page, as do those of
-`expect.soft` and `expect.configure`; oxlint refuses `test` and `expect` from `@playwright/test` in
-`e2e/**/*.spec.ts` (`.oxlintrc.json`). So a new screenshot can't be taken without the read, which a
-helper called beside it would leave to whoever writes the test.
+`toHaveScreenshot` takes the screenshot and then has axe read the page, as do those of the
+`expect`s it makes (`expect.soft`, `expect.configure`, `expect.extend`) and of `test.expect`, also
+on a `test` that `test.extend` makes; oxlint refuses `test`, `expect`, `mergeExpects` and the
+default export from `@playwright/test` in `e2e/**/*.spec.ts` (`.oxlintrc.json`). So a new
+screenshot can't be taken without the read, which a helper called beside it would leave to whoever
+writes the test. Under `expect.soft` the read's verdict is soft too, so the test goes on to its
+later screenshots.
 
 **Each state has its budgets**, under `budgets.accessibility` in `checks.json`: by spec (its file
 without `.spec.ts`), then screenshot (its name without `.png`), then axe's rule, the count of
@@ -588,7 +593,8 @@ with dots ([What it doesn't see](#what-it-doesnt-see)).
 
 **Exact, not within a margin.** The tests run on mocked answers with the clock frozen, so a state
 is the same every run, and so is what axe finds in it: four whole runs in a row in Docker gave the
-same counts in every state, and CI's run the same as Docker's on a Mac (the same image). So the
+same counts in every state, and CI's run the same as Docker's on a Mac (the same image, at #410's
+first head). So the
 budget is the count itself, as the requests budget's is: a count above its budget fails, and so does
 one below it, since a budget left higher than the state needs would let a broken element come back
 unnoticed. A fix lowers its budget in the same PR, to 0 rather than out of the file: the checks
@@ -610,7 +616,7 @@ ten at most, or, under its budget, says to lower it; a screenshot without a budg
 to add to `checks.json`, what axe finds there; a screenshot without a name, or with a dot in its or
 its spec's name but the endings; `budgets.accessibility` or `budgets.accessibilityTags` that can't be
 read (not an object, a count that isn't a whole number of 0 or more, a key with a dot or empty, tags
-that aren't a list of words). And `e2e/accessibility.spec.ts` fails on a budget for a screenshot
+that aren't a list of strings, or a tag axe doesn't know). And `e2e/accessibility.spec.ts` fails on a budget for a screenshot
 with no baseline in `e2e/__screenshots__/`, or a baseline without a budget: every screenshot the
 specs take has a baseline, since one without fails, so the baselines stand for the list of states.
 A baseline left behind by a test that was removed keeps its budgets, which no test then reads.
@@ -631,10 +637,11 @@ sounds in VoiceOver or TalkBack.
 
 **In CI** it is part of the `visual` job, in the Playwright image the baselines are rendered in.
 The reads add about 64 s of test time, about 32 s on the job's two workers: a whole run took 60 s in
-Docker on a Mac with them. A failure uploads the Playwright report as the screenshots' do, and each
+Docker on a Mac with them, and the job 2 min 10 s in CI, against 1 min 26 s and 1 min 40 s on
+`main` before. A failure uploads the Playwright report as the screenshots' do, and each
 screenshot's test there has an `axe <spec>/<screenshot>` attachment with every element axe found.
 
-**Its tests**: the rules (the budgets and tags read, a screenshot's state from its name, the
+**Its tests**: the rules (the budgets and tags read, the tags axe doesn't know, a screenshot's state from its name, the
 verdict and its report, the budgets without a baseline and the baselines without a budget) are pure
 functions in `scripts/accessibility/budget.ts`, tested in `budget.test.ts` (layer 1); coverage
 measures the folder and Stryker mutates it. The read itself, in `e2e/test.ts`, and the check of the
