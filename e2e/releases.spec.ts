@@ -179,4 +179,12 @@ test.describe('releases, desktop icon rail', () => {
     await findReleases(page)
     await expect(page).toHaveScreenshot('rail-list-dark-ru.png')
   })
+
+  // The heading's row at its fullest at the narrowest desktop: the heading, the count with the
+  // indexers that didn't answer, and the sort, on one line (#400).
+  test('some indexers didn’t answer', async ({ page }) => {
+    await findReleases(page, { failingIndexers: ['Indexer C', 'Indexer D'] })
+    await expect(page.getByRole('button', { name: '2 индексатора не ответили' })).toBeVisible()
+    await expect(page).toHaveScreenshot('rail-failing-indexers-dark-ru.png')
+  })
 })

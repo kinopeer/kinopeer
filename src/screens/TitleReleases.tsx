@@ -28,8 +28,8 @@ export interface TitleReleasesProps {
 }
 
 /**
- * The desktop title page's releases, under the hero once Find releases is pressed: filters as
- * popovers in a sticky bar, the sort, and a table.
+ * The desktop title page's releases, under the hero once Find releases is pressed: the sort beside
+ * the heading, filters as popovers in a sticky bar, and a table.
  */
 export function TitleReleases({ details, sectionRef }: TitleReleasesProps) {
   const { t } = useTranslation()
@@ -52,7 +52,9 @@ export function TitleReleases({ details, sectionRef }: TitleReleasesProps) {
   const resolutions = options(present.resolution, filters.resolution)
   const audio = options(present.audio, filters.audio)
   const sources = options(present.source, filters.source)
-  // The sort needs no results, so it works while the search runs too.
+  // The sort needs no results, so it works while the search runs too. It sits in the heading's row
+  // rather than the filter bar, so the bar's height doesn't depend on how many filters the results
+  // bring: with the sort beside them, they wrapped to a second line in narrower windows (#400).
   const sorting = (
     <div className="title-rel-sort">
       <span className="t-cap c3" aria-hidden="true">
@@ -75,6 +77,7 @@ export function TitleReleases({ details, sectionRef }: TitleReleasesProps) {
           {t('releases.title')}
         </h2>
         {status === 'ready' && <ReleasesCount releases={releases} />}
+        {(status === 'loading' || status === 'ready') && sorting}
       </div>
 
       {/* The bar is there from the start, skeletons of the filters while the search runs, so the
@@ -85,7 +88,6 @@ export function TitleReleases({ details, sectionRef }: TitleReleasesProps) {
           {[120, 104, 116, 132].map((width, index) => (
             <div key={index} className="ks-skel rel-chip-skel" style={{ width }} aria-hidden="true" />
           ))}
-          {sorting}
         </div>
       )}
       {status !== 'loading' && status !== 'ready' && <div className="title-rel-bar title-rel-bar-room" aria-hidden="true" />}
@@ -123,7 +125,6 @@ export function TitleReleases({ details, sectionRef }: TitleReleasesProps) {
               {choices(present.indexer, filters.indexer, (value) => updateFilters({ indexer: toggle(filters.indexer, value) }))}
             </FilterPopover>
           )}
-          {sorting}
         </div>
       )}
 

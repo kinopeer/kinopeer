@@ -10,13 +10,16 @@
   min-height: 100dvh;
 }
 
+/* The heading, the count and the sort. As tall as the sort from the start, so the row keeps its
+   height whether or not the sort is there (it isn't with nothing found or an error). */
 .title-rel-heading {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: var(--space-3);
+  min-height: calc(38px + 2 * var(--space-1) + 2px); /* a Segmented button (Segmented.css), its padding and its 1px border */
 }
 
-/* Filters and sort, pinned to the top while the table scrolls under them. */
+/* The filters, pinned to the top while the table scrolls under them. */
 .title-rel-bar {
   position: sticky;
   top: 0;
@@ -30,9 +33,9 @@
   border-bottom: 1px solid var(--border);
 }
 
-/* The bar's room with nothing in it: the height of its tallest item, the sort's Segmented. */
+/* The bar's room with nothing in it: the height of its items, the filters' chips. */
 .title-rel-bar-room {
-  min-height: calc(38px + 2 * var(--space-1) + 2px); /* a Segmented button (Segmented.css), its padding and its 1px border */
+  min-height: 38px; /* a chip's (FilterChip.css) */
   box-sizing: content-box;
 }
 
