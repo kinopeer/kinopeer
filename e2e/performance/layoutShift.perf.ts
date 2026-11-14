@@ -469,12 +469,15 @@ const withSidebar = (one: Case): Case => ({ ...one, answers: { ...one.answers, .
  * The sidebar's qBittorrent card complete, its free space shown as a number, which it says once the
  * torrents have landed (a `—` until then). Read on the card's own free space line, which is in the
  * page on a narrow window too, where the rail's column shows instead: in the region's whole text the
- * speeds' numbers run up to that line's placeholder. In either language a case sets.
+ * speeds' numbers run up to that line's placeholder.
  */
 const sidebarCard: Shown = (page) =>
-  expect(page.getByRole('region', { name: 'qBittorrent' }).getByText(/^(\S+\s\S+|—) (свободно|free)$/)).toHaveText(/^\d/)
+  expect(page.getByRole('region', { name: 'qBittorrent' }).getByText(/^\S+\s\S+ свободно$|^— свободно$/)).toHaveText(/^\d/)
+/** The same in English, for a case in English. */
+const sidebarCardEn: Shown = (page) =>
+  expect(page.getByRole('region', { name: 'qBittorrent' }).getByText(/^\S+\s\S+ free$|^— free$/)).toHaveText(/^\d/)
 /** A desktop case, read once the sidebar's card is complete too: every desktop screen shows it. */
-const onDesktop = (one: Case): Case => ({ ...one, complete: all(one.complete, sidebarCard) })
+const onDesktop = (one: Case): Case => ({ ...one, complete: all(one.complete, one.app?.lang === 'en' ? sidebarCardEn : sidebarCard) })
 const casesOf = (screen: string) => PHONE.filter((one) => one.screen === screen)
 
 const DESKTOP_CASES: Case[] = [
