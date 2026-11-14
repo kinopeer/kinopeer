@@ -600,11 +600,10 @@ Web Vitals call good: `readBudgets` (`scripts/layout-shift/budget.ts`) refuses o
 fails when the ceiling is missing or not a number over 0. A screen that moves more has a bug to
 fix, not a budget to raise; until it is fixed, the state that moves is left out of the test with
 its issue named (TESTING → What it leaves out). A budget under the ceiling can still carry a known
-jump, its issue named beside it in TESTING, and the fix lowers it: today the releases at
-`desktop-rail` (0.04) and `desktop-1280` (0.03), the filter bar wrapping to a second line once the
-filters land (#400). A budget is one number for both orders of a screen, so where a carried jump
-shows in one order only, a new jump as large passes in the other; these read the same in both
-orders, so the room under them is the rounding's.
+jump, its issue named beside it in TESTING, and the fix lowers it; none carries one today (the
+releases at `desktop-rail` and `desktop-1280` did until #400). A budget is one number for both
+orders of a screen, so where a carried jump shows in one order only, a new jump as large passes in
+the other.
 
 **What fails**: a reading over its budget, which names each shift with the elements that moved and
 their boxes before and after; a screen of the list without a case or a budget, or a budget for a

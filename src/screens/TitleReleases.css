@@ -10,13 +10,29 @@
   min-height: 100dvh;
 }
 
+/* The heading, the count and the sort. As tall as the sort from the start (its heading is), so the row keeps its
+   height whether or not the sort is there (it isn't with nothing found or an error). The heading and
+   the count's first line share a baseline, and the failed indexers' names open under it, growing the
+   row down: centered, the count's line moved up under the pointer as they opened. */
 .title-rel-heading {
+  --sort-height: calc(38px + 2 * var(--space-1) + 2px); /* a Segmented button (Segmented.css), its padding and its 1px border */
   display: flex;
   align-items: baseline;
   gap: var(--space-3);
 }
 
-/* Filters and sort, pinned to the top while the table scrolls under them. */
+/* As tall as the sort, its line centered on the sort's: the count's first line takes its baseline. */
+.title-rel-heading > h2 {
+  display: flex;
+  align-items: center;
+  min-height: var(--sort-height);
+}
+
+.title-rel-heading > .title-rel-sort {
+  align-self: flex-start;
+}
+
+/* The filters, pinned to the top while the table scrolls under them. */
 .title-rel-bar {
   position: sticky;
   top: 0;
@@ -30,9 +46,9 @@
   border-bottom: 1px solid var(--border);
 }
 
-/* The bar's room with nothing in it: the height of its tallest item, the sort's Segmented. */
+/* The bar's room with nothing in it: the height of its items, the filters' chips. */
 .title-rel-bar-room {
-  min-height: calc(38px + 2 * var(--space-1) + 2px); /* a Segmented button (Segmented.css), its padding and its 1px border */
+  min-height: 38px; /* a chip's (FilterChip.css) */
   box-sizing: content-box;
 }
 

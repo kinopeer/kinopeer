@@ -551,10 +551,12 @@ const DESKTOP_CASES: Case[] = [
 ]
 
 /**
- * The narrower desktop windows: the releases' filter bar, one line while the search runs, wraps to a
- * second once the results' filters land where they don't fit one line (#400).
+ * The narrower desktop windows, where the releases' heading row and filter bar have the least room:
+ * the bar, one line while the search runs, wrapped to a second once the results' filters landed
+ * beside the sort (#400), and the heading's row holds the heading, the count with how many indexers
+ * didn't answer, and the sort. Every state of the releases desktop reads.
  */
-const NARROW: Case[] = [desktopReleases('every indexer answered, on the series’ page')]
+const NARROW: Case[] = DESKTOP_CASES.filter(({ screen }) => screen === 'releases')
 
 const CASES: Record<Size, Case[]> = { phone: PHONE, desktop: DESKTOP_CASES.map(onDesktop), 'desktop-rail': NARROW.map(onDesktop), 'desktop-1280': NARROW.map(onDesktop) }
 
