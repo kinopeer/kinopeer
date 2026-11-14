@@ -142,8 +142,17 @@ describe('SidebarStatus', () => {
     }
   })
 
-  it('has no switch until qBittorrent says which limits apply', () => {
+  // The card keeps the room it has loaded from the first paint, rather than growing up from the sidebar's
+  // foot as the first poll lands (#404).
+  it('holds the free space and a disabled switch until qBittorrent says them', () => {
     render(<SidebarStatus version="5.0.1" offline={false} onToggleAltSpeed={() => {}} />)
-    expect(screen.queryByRole('button', { name: /speed limits/ })).not.toBeInTheDocument()
+    expect(screen.getByText('— free')).toBeInTheDocument()
+    expect(screen.getByText('Free space').closest('p')).toHaveTextContent(/^Free space —$/)
+    const buttons = screen.getAllByRole('button', { name: /^Alt(ernative|\.) speed limits$/ })
+    expect(buttons).toHaveLength(2)
+    for (const button of buttons) {
+      expect(button).toBeDisabled()
+      expect(button).toHaveAttribute('aria-pressed', 'false')
+    }
   })
 })
