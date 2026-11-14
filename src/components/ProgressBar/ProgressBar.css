@@ -29,5 +29,5 @@
 
 .ks-bar.is-indet > i {
   width: 35%;
-  animation: ks-indet 1.3s var(--ease) infinite;
+  animation: ks-indet 1.3s var(--ease) infinite; /* a loop's period: the motion tokens are for transitions */
 }

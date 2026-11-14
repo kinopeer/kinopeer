@@ -76,9 +76,9 @@ h4 {
   *,
   *::before,
   *::after {
-    animation-duration: 1ms !important;
+    animation-duration: 1ms !important; /* reduced motion's cut to next to nothing, not a step of the motion scale */
     animation-iteration-count: 1 !important;
-    transition-duration: 1ms !important;
+    transition-duration: 1ms !important; /* reduced motion's cut to next to nothing, not a step of the motion scale */
   }
 
   /* Its margin goes back in one step when a modal lets the page go (holdPage.ts): on its way, the
@@ -207,7 +207,7 @@ h4 {
 .ks-skel {
   background: linear-gradient(90deg, var(--raised) 0%, var(--border) 50%, var(--raised) 100%);
   background-size: 200% 100%;
-  animation: ks-shimmer 1.4s linear infinite;
+  animation: ks-shimmer 1.4s linear infinite; /* a loop's period: the motion tokens are for transitions */
   border-radius: var(--r-sm);
 }
 
@@ -223,7 +223,7 @@ h4 {
   border-radius: 50%;
   border: 2px solid currentColor;
   border-right-color: transparent;
-  animation: ks-spin 0.8s linear infinite;
+  animation: ks-spin 0.8s linear infinite; /* a loop's period: the motion tokens are for transitions */
   flex: none;
 }
 

@@ -39,7 +39,7 @@ plain Node for `server/**/*.test.ts`, the integration tests included, `tmdb-prox
 "Where" column. The service worker: its routing rules are plain logic in `src/pwa/swRoutes.ts`
 (layer 1), and `src/sw.test.ts` is a smoke test of `src/sw.ts` with workbox mocked, compiled with
 the worker's `tsconfig.sw.json` rather than the app's. And a check that reads a source file as
-text (the tokens and raw px values in the stylesheets, `src/styles/tokens.test.ts`; the poll ring's
+text (the tokens and the raw px values, colors, shadows and motion in the stylesheets, and the custom properties they use, `src/styles/tokens.test.ts`; the poll ring's
 keyframes, in `PollRing.test.tsx`) is layer 1 wherever it sits, although it reads the file through
 `node:fs`: it asserts what the file says, and how that looks is layer 6's (#241). So is a lint
 rule's test, which plants what the rule refuses and allows and runs oxlint over it with the root's
