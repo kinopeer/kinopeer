@@ -455,8 +455,8 @@ test.describe('downloads, labelled sidebar at its narrowest', () => {
 test.describe('downloads, phone with a touch screen', () => {
   test.use({ hasTouch: true })
 
-  // This Chromium runs with reduced motion, where base.css gives everything a 1 ms transition. A
-  // margin on <body> still on its way back would shorten the page under the scroll back.
+  // This Chromium runs with reduced motion, where base.css cuts every transition out. A margin on
+  // <body> still on its way back would shorten the page under the scroll back.
   test('the list comes back to its end once a sheet with a field is closed', async ({ page }) => {
     await openDownloads(page, { downloadsView: 'grid' })
     const end = await page.evaluate(() => {
