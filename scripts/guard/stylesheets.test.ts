@@ -94,6 +94,8 @@ describe('the comments rawValues reads', () => {
 
   it('reads a stylesheet that starts with a byte order mark where its values are', () => {
     expect(raw('\uFEFFa { padding: 13px; }')).toEqual(['fails spacing src/a.css:1 padding: 13px is off the scale: add a comment on the line saying why'])
+    // PostCSS leaves out the other byte order as well.
+    expect(raw('\uFFFEa { padding: 13px; }')).toEqual(['fails spacing src/a.css:1 padding: 13px is off the scale: add a comment on the line saying why'])
   })
 
   it('says where a declaration in an at-rule without a selector sits', () => {

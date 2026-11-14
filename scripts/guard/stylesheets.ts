@@ -34,11 +34,11 @@ export interface Declaration {
 
 /**
  * Where each comment starts and ends, from PostCSS's own tokenizer, so a `/*` in a string or an
- * unquoted url() opens none, exactly as the parser reads it. Called after the parse, which throws
- * on a comment left open.
+ * unquoted url() opens none, exactly as the parser reads it: over the parse's own input, after the
+ * parse, which throws on a comment left open.
  */
-function commentSpans(text: string): [number, number][] {
-  const tokens = tokenizer(new Input(text))
+function commentSpans(input: Input): [number, number][] {
+  const tokens = tokenizer(input)
   const spans: [number, number][] = []
   while (!tokens.endOfFile()) {
     const [type, , start, end] = tokens.nextToken() ?? []
@@ -62,13 +62,14 @@ function where(node: Node): string {
 }
 
 /**
- * Every declaration of a stylesheet; throws, with PostCSS's reason, on one it can't parse. A byte
- * order mark is left out first, as PostCSS leaves it out of its offsets.
+ * Every declaration of a stylesheet; throws, with PostCSS's reason, on one it can't parse. Offsets
+ * are read in the text PostCSS parsed, which leaves out a leading byte order mark (either one).
  */
 export function declarations({ file, text: raw }: Sheet): Declaration[] {
-  const text = raw.startsWith('\uFEFF') ? raw.slice(1) : raw
-  const root = parse(text, { from: file })
-  const spans = commentSpans(text)
+  const root = parse(raw, { from: file })
+  const input = root.source?.input ?? new Input(raw)
+  const text = input.css
+  const spans = commentSpans(input)
   const newlines = [...text.matchAll(/\n/g)].map((m) => m.index)
   /** The 1-based line of an index: the newlines before it, plus one. */
   const lineOf = (index: number) => {
@@ -387,7 +388,9 @@ export function rawValues(sheets: Sheet[]): RawValue[] {
     for (const { d: where, index, layer, from } of rawShadows(d, own)) {
       const key = `${where.file}:${where.lineAt(index)}:${where.prop}:${layer}`
       const shadow = shadows.get(key) ?? at('shadow', where, index, layer, `${layer} is a raw shadow: use a --shadow token, or add a comment on the line saying why`)
-      if (from) shadow.via.push({ file: from.d.file, line: from.d.lineAt(from.index) })
+      // Each line that takes it once, though it take it twice (`box-shadow` and `text-shadow`).
+      const use = from && { file: from.d.file, line: from.d.lineAt(from.index) }
+      if (use && !shadow.via.some(({ file, line }) => file === use.file && line === use.line)) shadow.via.push(use)
       shadows.set(key, shadow)
     }
   }

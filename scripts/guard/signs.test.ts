@@ -230,7 +230,11 @@ describe('compareLint', () => {
       json({ ...config, overrides: [...config.overrides, { files: ['src/**'], rules: { 'react/rules-of-hooks': 'error' } }] }),
       ['owner: the override for ["src/**"] is added: `{"files":["src/**"],"rules":{"react/rules-of-hooks":"error"}}`'],
     ],
-    ['a new override that is not an object', json({ ...config, overrides: [...config.overrides, 'e2e'] }), ['owner: the override for "e2e" is added: `"e2e"`']],
+    [
+      'a new override that is not an object',
+      json({ ...config, overrides: [...config.overrides, 'e2e'] }),
+      ['owner: the overrides change in a way the guard can\'t read one by one: `[{"files":["e2e/smoke/*.smoke.ts"],"rules":{"no-restricted-imports":["error",{"paths":["@playwright/test"]}]}}]` → `[{"files":["e2e/smoke/*.smoke.ts"],"rules":{"no-restricted-imports":["error",{"paths":["@playwright/test"]}]}},"e2e"]`'],
+    ],
   ])('sends %s to the owner', (_name, change, expected) => {
     const [base, head] = pair(change)
     expect(said(compareLint(base, head))).toEqual(expected)
@@ -918,6 +922,24 @@ describe('compareLint: an override beside its rules (#412)', () => {
       `the override ${where} is removed: \`${whole}\``,
       `the override for ["src/**/*.ts"] is added: \`${whole.replace('src/**/*.tsx', 'src/**/*.ts')}\``,
     ])
+  })
+
+  it("sends overrides it can't pair one by one to the owner whole: a duplicate, one without files, another order, another shape", () => {
+    const off = { files: ['src/**/*.tsx'], rules: { 'react/rules-of-hooks': 'off' } }
+    const marks = (base: object[], head: object[]) => compareLint(json({ overrides: base }), json({ overrides: head })).map(({ needs, what }) => `${needs}: ${what.split(':')[0]}`)
+    const unpaired = "owner: the overrides change in a way the guard can't read one by one"
+    expect(marks([override], [off, override])).toEqual([unpaired])
+    expect(marks([off, override], [override])).toEqual([unpaired])
+    expect(marks([{ rules: {} }], [{ rules: {} }, { rules: { 'no-console': 'off' } }])).toEqual([unpaired])
+    expect(marks([override], [['src/**/*.tsx']])).toEqual([unpaired])
+    expect(marks([override], [null as unknown as object])).toEqual([unpaired])
+    // One without files is unpaired even alone, though a key it gains would otherwise go to a second review.
+    expect(marks([{ rules: {} }], [{ rules: {}, settings: {} }])).toEqual([unpaired])
+    const [a, b] = [{ files: ['a/**'], rules: { 'no-console': 'off' } }, { files: ['a/b/**'], rules: { 'no-console': 'error' } }]
+    expect(marks([b, a], [a, b])).toEqual(['owner: the overrides are in another order, and a later one wins where their files overlap'])
+    // The same unpaired list on both sides, and a new override after those that stay, read as before.
+    expect(marks([{ rules: {} }, { rules: {} }], [{ rules: {} }, { rules: {} }])).toEqual([])
+    expect(marks([a], [a, b])).toEqual(['owner: the override for ["a/b/**"] is added'])
   })
 
   it('sends a global it no longer takes away and an environment it no longer turns off to the owner', () => {

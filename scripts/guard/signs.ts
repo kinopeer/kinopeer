@@ -250,25 +250,39 @@ export function compareLint(base: string | undefined, head: string | undefined, 
   for (const pattern of entries(now.ignorePatterns)) {
     if (!entries(was.ignorePatterns).includes(pattern)) found.push({ needs: 'owner', file, what: `the linter skips more: ${pattern} is added to \`ignorePatterns\`` })
   }
-  const before = new Map(overridesOf(was).map((override) => [filesOf(override), override]))
-  const after = new Map(overridesOf(now).map((override) => [filesOf(override), override]))
+  // Overrides are read one by one only when each side's are objects with `files` of their own and
+  // those on both sides keep their order, since a later override wins where globs overlap. Else a
+  // duplicate, one without `files` or a reordering would be read against the wrong one or not at
+  // all, so the list is marked whole.
+  const [had, has] = [overridesOf(was), overridesOf(now)]
+  const keyed = (list: Json[]): list is JsonObject[] => list.every((o) => isObject(o) && o.files !== undefined) && new Set(list.map(filesOf)).size === list.length
+  if (!keyed(had) || !keyed(has)) {
+    if (!same(had, has)) found.push({ needs: 'owner', file, what: `the overrides change in a way the guard can't read one by one: ${show(had)} → ${show(has)}` })
+    return found
+  }
+  const before = new Map(had.map((override) => [filesOf(override), override]))
+  const after = new Map(has.map((override) => [filesOf(override), override]))
+  const [stayed, stays] = [[...before.keys()].filter((key) => after.has(key)), [...after.keys()].filter((key) => before.has(key))]
+  if (!same(stayed, stays)) {
+    found.push({ needs: 'owner', file, what: `the overrides are in another order, and a later one wins where their files overlap: ${show(had)} → ${show(has)}` })
+    return found
+  }
   for (const files of new Set([...before.keys(), ...after.keys()])) {
     const where = ` for ${files}`
-    const [had, has] = [before.get(files), after.get(files)]
+    const [prior, current] = [before.get(files), after.get(files)]
     // An override that is new or removed, and one whose `files` change, which is both, is marked
     // whole with its JSON: read key by key against an empty one, each round of #415's review found a
     // case it missed. Only an override that keeps its `files` is read key by key.
-    if (had === undefined || has === undefined) {
-      found.push({ needs: 'owner', file, what: had === undefined ? `the override${where} is added: ${show(has)}` : `the override${where} is removed: ${show(had)}` })
+    if (prior === undefined || current === undefined) {
+      found.push({ needs: 'owner', file, what: prior === undefined ? `the override${where} is added: ${show(current)}` : `the override${where} is removed: ${show(prior)}` })
       continue
     }
-    // Not an object: its whole JSON is its key, so it is the same on both sides.
-    if (!isObject(had) || !isObject(has)) continue
-    found.push(...compareRules(file, where, rulesOf(had), rulesOf(has), rulesOf(was)))
-    for (const pattern of entries(has.excludeFiles)) {
-      if (!entries(had.excludeFiles).includes(pattern)) found.push({ needs: 'owner', file, what: `the lint rules${where} skip more: ${pattern} is added to \`excludeFiles\`` })
+    found.push(...compareRules(file, where, rulesOf(prior), rulesOf(current), rulesOf(was)))
+    const skipped = entries(prior.excludeFiles)
+    for (const pattern of entries(current.excludeFiles)) {
+      if (!skipped.includes(pattern)) found.push({ needs: 'owner', file, what: `the lint rules${where} skip more: ${pattern} is added to \`excludeFiles\`` })
     }
-    found.push(...compareScope(file, where, had, has, ['files', 'excludeFiles']))
+    found.push(...compareScope(file, where, prior, current, ['files', 'excludeFiles']))
   }
   return found
 }
@@ -502,17 +516,16 @@ export function compareStylesheets(changes: Change[], sheets: Sheet[]): Finding[
       .map(({ path }) => ({ needs: 'coordinator', file: path, what: `the guard can't read the stylesheets, so it can't tell which values this one adds: ${why}` }))
   }
   // rawValues names only the stylesheets it checks, so another file the branch changes finds none.
-  // A line that defines a shadow and takes it, or takes it twice, is marked once.
-  const seen = new Set<string>()
   return changes.flatMap(({ path, added }) => {
     const lines = new Set(added.map(({ line }) => line))
     return raw.filter(({ allowed }) => allowed).flatMap(({ file, line, prop, raw: value, via }): Finding[] => {
       const own: Finding[] = file === path && lines.has(line) ? [{ needs: 'coordinator', file: path, line, what: `a value off the tokens' scale, let through by the comment on its line: \`${prop}: ${value}\`` }] : []
       // A line that takes a shadow from a custom property makes it cast one, though its own line stays.
       const takes = via
+        // A line that defines the shadow and takes it is marked once, by its own mark above.
         .filter((use) => use.file === path && lines.has(use.line) && !(use.file === file && use.line === line))
         .map((use): Finding => ({ needs: 'coordinator', file: path, line: use.line, what: `a shadow off the tokens' scale, taken from \`${file}:${line}\` and let through by the comment there: \`${prop}: ${value}\`` }))
-      return [...own, ...takes].filter(({ line: at, what }) => !seen.has(`${path}:${at}:${what}`) && seen.add(`${path}:${at}:${what}`))
+      return [...own, ...takes]
     })
   })
 }

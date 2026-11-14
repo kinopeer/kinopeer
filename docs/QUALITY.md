@@ -57,7 +57,9 @@ or its rules.
   override added or removed is marked whole for the owner, with its JSON, even one that checks
   more: read key by key against an empty one, it left a case unmarked in each round of #415's
   review, and overrides change rarely. Only an override that keeps its `files` is read key by key,
-  as above.
+  as above. The overrides are marked whole, both sides' lists, when they can't be paired that way:
+  one isn't an object or has no `files`, two share their `files`, or those on both sides are in
+  another order, since a later override wins where their files overlap.
 - The linter turned off from another file, marked by the file's path whatever it says: an
   `.oxlintrc.json` outside the root, which oxlint obeys for its folder, or an `.eslintignore` or
   `.oxlintignore`, added or with lines added. `npm run lint` also runs oxlint with

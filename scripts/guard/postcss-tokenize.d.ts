@@ -2,7 +2,8 @@
 // tsconfig.node.json takes it with scripts/guard, and tsconfig.app.json names it, since tokens.test.ts
 // imports stylesheets.ts.
 declare module 'postcss/lib/tokenize' {
+  import type { Input } from 'postcss'
   /** A token's type, its text and, for most types, its first and last offsets in the input. */
   type Token = [type: string, content: string, start?: number, end?: number]
-  export default function tokenizer(input: { css: string }, options?: { ignoreErrors?: boolean }): { nextToken(): Token | undefined; endOfFile(): boolean }
+  export default function tokenizer(input: Input, options?: { ignoreErrors?: boolean }): { nextToken(): Token | undefined; endOfFile(): boolean }
 }
