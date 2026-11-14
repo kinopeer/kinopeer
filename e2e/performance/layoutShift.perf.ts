@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 import { chainOf, ORDER_NAMES, orders } from '../../scripts/layout-shift/answers.ts'
 import { judge, readBudgets, uncased, unmatched, type Budgets } from '../../scripts/layout-shift/budget.ts'
-import { torrent } from '../../src/test/fixtures.ts'
+import { tmdbTag, torrent } from '../../src/test/fixtures.ts'
 import type { Torrent } from '../../src/api/qbittorrent/types.ts'
 import { DESKTOP, DESKTOP_RAIL, prepareApp, type AppOptions } from '../app.ts'
 import { holdAnswers, layoutShifts, painted, recordLayoutShifts, type Answer } from './layoutShift.ts'
@@ -138,6 +138,19 @@ const LOOKUPS: Record<string, Answer> = {
   ...GUESS,
 }
 
+/**
+ * Downloads' grid with titles of one line and of two (#403's review): six torrents of two titles,
+ * each looked up once (`useTitleMatches` asks for a title once however many torrents share it), the
+ * queue putting a two-line title first in every row on a phone (two to a row) and in the first row
+ * on desktop (five to a row at 1440px), so a card that grows as its title lands moves a row under it.
+ * In English, where "Everything Everywhere All at Once" takes two lines in a card on both.
+ */
+const TWO_LINE = { id: 545611, title: 'Everything Everywhere All at Once', name: 'Everything.Everywhere.All.at.Once.2022.1080p.BluRay.x264-GRP' }
+const ONE_LINE = { id: 693134, title: 'Dune: Part Two', name: 'Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX-GRP' }
+const TWO_TITLES: Torrent[] = [TWO_LINE, ONE_LINE, TWO_LINE, ONE_LINE, TWO_LINE, ONE_LINE].map(({ id, name }, index) =>
+  torrent(`g${index + 1}`, { name: `${name}${index + 1}`, tags: tmdbTag('movie', id), category: 'Movies', progress: 0.5, priority: index + 1 }),
+)
+
 /** A state of a screen: its answers and the order they're asked for in (its chain). */
 interface Case {
   screen: string
@@ -247,6 +260,22 @@ const downloads = (name: string, view?: 'list' | 'grid'): Case => ({
   },
 })
 
+/** Downloads' grid with `TWO_TITLES`: their two titles, then their posters once one is in. */
+const twoLineTitles: Case = {
+  screen: 'downloads',
+  name: 'titles of one line and of two, in the grid',
+  torrents: TWO_TITLES,
+  app: { downloadsView: 'grid', lang: 'en' },
+  complete: all(link(TWO_LINE.title), link(ONE_LINE.title), posters(TWO_TITLES.length)),
+  answers: {
+    ...SESSION,
+    ...TORRENTS_AND_MATCHES,
+    twoLine: { matches: get(`/tmdb/movie/${TWO_LINE.id}`), after: ['torrents'] },
+    oneLine: { matches: get(`/tmdb/movie/${ONE_LINE.id}`), after: ['torrents'] },
+    posters: { matches: under('/tmdb-img/'), afterAny: ['twoLine', 'oneLine'], later: true },
+  },
+}
+
 /**
  * Every state of every screen the list names whose blocks differ, by size, each with the chain of
  * answers its code asks for (docs/TESTING.md → The layout shift test lists the late blocks each covers).
@@ -255,6 +284,7 @@ const PHONE: Case[] = [
   downloads('titles found'),
   /** The other view, the grid of cards (`DownloadCard`), a layout of its own (#403: a card grew as its title landed). */
   downloads('titles found, in the grid', 'grid'),
+  twoLineTitles,
   /**
    * `p2`: tagged with its title and finished. The page asks for the title by its id once the
    * torrent shows, and for the poster once the title does.
@@ -424,10 +454,10 @@ const withSidebar = (one: Case): Case => ({ ...one, answers: { ...one.answers, .
  * The sidebar's qBittorrent card complete, its free space shown as a number, which it says once the
  * torrents have landed (a `—` until then). Read on the card's own free space line, which is in the
  * page on a narrow window too, where the rail's column shows instead: in the region's whole text the
- * speeds' numbers run up to that line's placeholder.
+ * speeds' numbers run up to that line's placeholder. In either language a case sets.
  */
 const sidebarCard: Shown = (page) =>
-  expect(page.getByRole('region', { name: 'qBittorrent' }).getByText(/^\S+\s\S+ свободно$|^— свободно$/)).toHaveText(/^\d/)
+  expect(page.getByRole('region', { name: 'qBittorrent' }).getByText(/^(\S+\s\S+|—) (свободно|free)$/)).toHaveText(/^\d/)
 /** A desktop case, read once the sidebar's card is complete too: every desktop screen shows it. */
 const onDesktop = (one: Case): Case => ({ ...one, complete: all(one.complete, sidebarCard) })
 const casesOf = (screen: string) => PHONE.filter((one) => one.screen === screen)
@@ -437,6 +467,8 @@ const DESKTOP_CASES: Case[] = [
   downloads('titles found'),
   // The other view, the table of rows (`DownloadRow`, the column header): a layout of its own.
   downloads('titles found, as a table', 'list'),
+  // A second row, under a first with titles of two lines.
+  twoLineTitles,
   /**
    * `p2`'s drawer over Downloads: the list's lookups and posters, and the drawer's own load of the
    * title by its tag's id, the same address as the list's, once the torrent shows.
