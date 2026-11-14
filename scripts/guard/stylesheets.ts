@@ -39,11 +39,12 @@ export interface Declaration {
  * on a comment left open.
  */
 function commentSpans(text: string): [number, number][] {
-  const tokens = tokenizer({ css: text }, { ignoreErrors: true })
+  const tokens = tokenizer({ css: text })
   const spans: [number, number][] = []
   while (!tokens.endOfFile()) {
-    const [type, , start, end] = tokens.nextToken() ?? []
-    if (type === 'comment' && start !== undefined && end !== undefined) spans.push([start, end + 1])
+    // A comment's token always has both offsets, its first character and its last.
+    const [type, , start = 0, end = 0] = tokens.nextToken() ?? []
+    if (type === 'comment') spans.push([start, end + 1])
   }
   return spans
 }
