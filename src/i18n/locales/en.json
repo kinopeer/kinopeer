@@ -1,7 +1,11 @@
 {
   "app": {
     "connecting": "Connecting to qBittorrent…",
-    "updated": "Kinopeer updated to {{version}}"
+    "updated": "Kinopeer updated to {{version}}",
+    "wordmark": {
+      "start": "kino",
+      "accent": "peer"
+    }
   },
   "theme": {
     "label": "Theme",
@@ -38,7 +42,9 @@
     "freeSpace": "{{size}} free",
     "folder": "Folder",
     "qbtFailed": "Couldn’t reach qBittorrent. Try again.",
-    "qbtFailed_kinopeer": "Couldn’t reach Kinopeer. Try again."
+    "qbtFailed_kinopeer": "Couldn’t reach Kinopeer. Try again.",
+    "qbittorrent": "qBittorrent",
+    "tmdb": "TMDB"
   },
   "noAnswer": {
     "qbittorrent": "qBittorrent isn’t answering",

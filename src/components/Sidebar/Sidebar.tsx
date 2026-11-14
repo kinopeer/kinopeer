@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { cx } from '../../lib/cx'
 import { Icon } from '../Icon'
 import { TabLink, type TabBarItem } from '../TabBar'
@@ -25,12 +26,14 @@ export interface SidebarProps {
  * then with labels. Its items are the tab bar's tabs (`TabLink`).
  */
 export function Sidebar({ items, label, footer, pathname: page }: SidebarProps) {
+  const { t } = useTranslation()
   return (
     <div className="ks-side">
       <div className="ks-side-brand">
         <img src="/icons/icon-192.png" alt="" width={34} height={34} />
         <span className="ks-side-wordmark">
-          kino<span>peer</span>
+          {t('app.wordmark.start')}
+          <span>{t('app.wordmark.accent')}</span>
         </span>
       </div>
       <nav className="ks-side-nav" aria-label={label}>

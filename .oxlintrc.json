@@ -49,6 +49,64 @@
   "overrides": [
     {
       "files": [
+        "src/**/*.tsx"
+      ],
+      "excludeFiles": [
+        "src/**/*.test.tsx",
+        "src/test/**"
+      ],
+      "rules": {
+        "react/jsx-no-literals": [
+          "error",
+          {
+            "noStrings": true,
+            "ignoreProps": true,
+            "allowedStrings": [
+              "",
+              "·",
+              "/",
+              "—",
+              "↓",
+              "↑",
+              "#",
+              ","
+            ],
+            "restrictedAttributes": [
+              "aria-label",
+              "aria-description",
+              "aria-roledescription",
+              "aria-valuetext",
+              "aria-placeholder",
+              "title",
+              "placeholder",
+              "alt",
+              "label",
+              "subtitle",
+              "heading",
+              "hint",
+              "help",
+              "error",
+              "message",
+              "text",
+              "dot",
+              "actionLabel",
+              "secondaryActionLabel",
+              "editLabel",
+              "footer",
+              "action",
+              "actions",
+              "leading",
+              "secondary",
+              "overlay",
+              "context",
+              "skeleton"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": [
         "e2e/**/*.ts"
       ],
       "rules": {

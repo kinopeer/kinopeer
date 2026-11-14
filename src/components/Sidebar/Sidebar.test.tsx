@@ -40,6 +40,12 @@ describe('Sidebar', () => {
     expect(scrollTo).toHaveBeenCalledWith(expect.objectContaining({ top: 0 }))
   })
 
+  it("shows the app's wordmark", () => {
+    renderSidebar('/')
+    // Its two halves in order; how the second is set apart is the desktop screenshots'.
+    expect(screen.getByText('kino')).toHaveTextContent(/^kinopeer$/)
+  })
+
   it('highlights an item for the screens inside it', () => {
     const nav = renderSidebar('/torrent/abc')
     // Which screens count is isTabOn's (isTabOn.test.ts); the item shows it with its class.

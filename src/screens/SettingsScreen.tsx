@@ -362,7 +362,7 @@ export function SettingsScreen() {
           <AboutRow href={REPO_URL} icon="globe" label={t('settings.sourceCode')} hint={t('settings.sourceCodeHint')} />
         </ul>
         <div className="settings-tmdb">
-          <img className="settings-tmdb-logo" src={tmdbLogo} alt="TMDB" width={42} height={18} />
+          <img className="settings-tmdb-logo" src={tmdbLogo} alt={t('common.tmdb')} width={42} height={18} />
           <p className="t-cap c3">
             {t('settings.tmdbSource')}{' '}
             {/* TMDB's required wording, in English in every language. */}
