@@ -13,7 +13,7 @@ seven `test-gap` classes, keeping a list of blind spots, reviewing a PR's tests 
 findings) are also the quality system's testing component, **version 1 (2026-11-14)**, which other
 projects copy. This file is that component's source, not a copy: the component was written from
 it, in project-neutral words, and lives in the owner's private repository (`ai-workspace`,
-`quality-system/testing/`), which outside contributors can't open, so everything needed to work in
+`quality-system/testing.md`), which outside contributors can't open, so everything needed to work in
 Kinopeer stays here. A section that holds the component's rules says so under its heading; the
 rest (the layers, the blind spots' table, the fixtures, the fakes, coverage, the lint rules, the
 browser tests) is Kinopeer's own. A change to one of the component's rules here goes into the
@@ -467,7 +467,8 @@ it goes into layer 5 or 6 when a browser in CI can run it, and when none can (th
 Home Screen on iOS) its manual check moves from the release into every PR that touches it, as the
 phone check on `preview-lan` did; three `implementation` → review the mocks in that area; three `silent-test` → a lint
 rule; three `flaky` → a helper or a lint rule that takes their shape away, as `findToastOnPage`
-did. The retro runs the same count over review findings.
+did. The retro runs the same count over review findings (the quality system's `retro.md` → What it
+reads → The review findings).
 
 Rules next to this one:
 

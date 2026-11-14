@@ -15,6 +15,7 @@ Only what is on, being adopted, or declined with its reason; plans aren't listed
 | Component | State | What it does |
 | --- | --- | --- |
 | [The testing rules](TESTING.md) | On, version 1 of the quality system's testing component (2026-11-14), of which [TESTING.md](TESTING.md) is the source | How a change is covered by tests and reviewed: the lowest layer that sees a statement, the neighbours of a change, a test seen to fail, the accepted reasons for something uncovered, what a bug calls for and its seven `test-gap` classes, the review rounds and their tags |
+| The effort journal | Being adopted (2026-11-14): built outside this repository, in the owner's `ai-workspace` (`effort-journal/`). Its hook records every session's turns on the owner's Mac and spools the rows locally; its Google Sheet's webhook isn't set yet, so nothing reaches the sheet and `journal report` has no data | Records what each session's work costs and rates each merged PR's complexity, which the retro sets against each other ([The retro](#the-retro)); the figures stay out of this repository, which is public |
 | [The retro](#the-retro) | On since 2026-10-28 as the tests' retro, the whole system's since 2026-11-14, by version 1 of the quality system's retro | Every fifty merged PRs, reads the review findings, the escaped bugs, the effort against complexity, the checks' usefulness and the owner's points, and changes the rules where a pattern repeats |
 | [The checks guard](#the-checks-guard) | On since 2026-11-12 (#366): its check is red while a PR lacks the records its marks call for, and is among `main`'s required checks | A script CI runs on every PR, which writes into the PR what in it weakens the checks, changes existing ones or adds a design value, and what record each of the three calls for |
 | The design tokens check | On since 2026-11-14 (#411): a test in CI's `check` job, which is among `main`'s required checks | `src/styles/tokens.test.ts` fails a stylesheet's spacing, radius, type size, color, shadow or motion that the tokens have, and one they lack unless its line carries a comment saying why, and a `var()` that names a property nothing defines. What counts as a raw value is defined in `scripts/guard/stylesheets.ts`, which the guard reads too ([What it marks](#what-it-marks)) |
@@ -723,7 +724,8 @@ Every fifty merged PRs a fresh session looks back at what the quality system did
 review findings and the second reviews, the bugs that got past every check, what the work cost
 against how complex it was, which checks caught something and which only cost time, and where the
 owner decided something. Where a pattern repeats, it changes the rules; a run of accidents changes
-nothing. It began on 2026-10-28 as a retro of the tests alone and became the whole system's on
+nothing (what counts as a pattern: `retro.md` → A pattern, not an accident, and → What it reads →
+The review findings). It began on 2026-10-28 as a retro of the tests alone and became the whole system's on
 2026-11-14.
 
 The procedure that isn't Kinopeer's (what each input says, how a pattern is told from an accident,
@@ -774,28 +776,36 @@ can reach ([TESTING.md](TESTING.md) → Known blind spots).
 **The effort.** The effort journal (in `ai-workspace`, `effort-journal/`) records what each
 session's work cost and rates each merged PR's complexity. First rate the batch's PRs that have no
 rating yet (`journal rate kinopeer/kinopeer#<n>`, one cheap request each), then read
-`journal report --since <since>`: the cost per complexity point over the batch and against the
-last retro's, by role (author, reviewer, second reviewer, coordinator), and the PRs that cost the
-most per point. What Kinopeer's work costs is internal and this repository is public, so the
-figures go to the owner's summary and to the owner's notes on Kinopeer in `ai-workspace`, never into
-this file, a PR or an issue; the table's row says only what the retro changed because of them.
-Retros before 2026-11-14 had no journal.
+`journal report --since <since>`: each PR's cost per complexity point and their median over the
+batch, against the last retro's; each PR's cost by role (author, reviewer, second reviewer,
+coordinator); the cost by model and effort; and the PRs that cost the most per point. What
+Kinopeer's work costs, and every figure derived from it, is internal and this repository is
+public, so those figures go to the owner's summary and to `quality-system/kinopeer.md` in
+`ai-workspace`, never into this file, a PR or an issue; the table's row says only what the retro
+changed because of them. Retros before 2026-11-14 had no journal.
 
 **The checks' usefulness.** For each check (the components above, the tests' layers, the lint
 rules, CI's jobs): what it caught in the batch, how often it failed for nothing a fix of the code
-answered (a false alarm), and what it costs. What failed: the batch's failed runs,
-`gh api -X GET repos/kinopeer/kinopeer/actions/runs -f event=pull_request -f status=failure -f created='><since>' --paginate --jq '.workflow_runs[] | [.id, .name, .head_branch] | @tsv'`,
-and each one's failed jobs, `gh api repos/kinopeer/kinopeer/actions/runs/<id>/jobs --jq '.jobs[] | select(.conclusion == "failure") | .name'`;
-the guard's marks from its comment on each PR. A failure fixed by changing the check rather than
-the code, or a mark the second review called needless, is a false alarm. The cost is a job's time
-from the same jobs' `started_at` and `completed_at`, and the reviews' share of the effort above.
+answered (a false alarm), and what it costs. GitHub reports a run by its latest attempt, so a job
+that failed and was run again to green would hide its failure: count failed attempts, not runs.
+The batch's runs that failed or were run again,
+`gh api -X GET repos/kinopeer/kinopeer/actions/runs -f event=pull_request -f status=completed -f created='><since>' --paginate --jq '.workflow_runs[] | select(.conclusion == "failure" or .run_attempt > 1) | [.id, .run_attempt, .name, .head_branch] | @tsv'`,
+and each one's failed jobs over all its attempts,
+`gh api -X GET repos/kinopeer/kinopeer/actions/runs/<id>/jobs -f filter=all --jq '.jobs[] | select(.conclusion == "failure") | [.run_attempt, .name] | @tsv'`;
+the guard's marks from its comment on each PR. The guard's check red while a marked PR waits for
+its record is the mark doing its work: it counts with the marks, not as a failure. A failure fixed
+by changing the check rather than the code, or a mark the second review called needless, is a false
+alarm. The cost is a job's time from the same jobs' `started_at` and `completed_at`, and the
+reviews' share of the effort above, which stays out of the row as every figure from the journal
+does. The counts of what each check caught and of its false alarms go into the row.
 
 **The owner's points.** Where the owner decides in Kinopeer: approving a merge (in the owner's
 sessions; on autopilot the coordinator merges), a **For the owner** finding, an approval of what
 the guard marked for the owner ([What a marked PR needs](#what-a-marked-pr-needs)), a design value
 the coordinator approves in the owner's sessions, a check on the test stand, and a release. For
 each, how often it came up in the batch and how often the owner changed something rather than
-approving it as it came, from the PRs' comments and the records the guard reads.
+approving it as it came, from the PRs' comments and the records the guard reads. These counts go
+into the row.
 
 **What the retro changes.** The rules live in [TESTING.md](TESTING.md), the `test-review` and
 `second-review` skills (`.claude/skills/`), the PR template, [CLAUDE.md](../CLAUDE.md) and this
