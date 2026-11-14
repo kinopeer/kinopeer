@@ -11,7 +11,6 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 
 ### Fixed
 
-- On a computer, Downloads no longer moves as the torrents arrive: the table of torrents no longer jumps up, and the name filter and the Select button stay where they are as the speeds and the free space come in. ([#405](https://github.com/kinopeer/kinopeer/issues/405))
 - A title's page no longer moves down as its torrents in Downloads are found: "In downloads" is at the end of the page, under the recommendations, and the "In downloads" badge in the header, which now scrolls down to it on a tap, comes in above the title without moving it. On a computer the title sits level with the poster's top. ([#394](https://github.com/kinopeer/kinopeer/issues/394))
 - The releases of a title no longer move down as the search answers: the row of filters is there from the start, with placeholders while the search runs, and when indexers didn't answer, the count of releases says so ("24 of 24 releases · 1 indexer didn't answer", a tap names them) instead of a note that came in above the list after it. ([#393](https://github.com/kinopeer/kinopeer/issues/393))
 - A title's page no longer asks TMDB for the titles of torrents Kinopeer already knows (tagged when sent from Kinopeer, matched by hand or matched before) to find which of them are this title's: with hundreds of torrents and an empty cache it sent hundreds of requests, which could hit the shared TMDB key's limit and hold up the titles in Downloads. ([#381](https://github.com/kinopeer/kinopeer/issues/381))
