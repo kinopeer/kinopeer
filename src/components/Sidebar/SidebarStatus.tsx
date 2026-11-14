@@ -21,7 +21,7 @@ export interface SidebarStatusProps {
   /** Whether qBittorrent's alternative speed limits apply; the switch is disabled until it's known. */
   altSpeedLimits?: boolean
   altSpeedDisabled?: boolean
-  onToggleAltSpeed?: () => void
+  onToggleAltSpeed: () => void
   /**
    * Before the connection in the card and at the top of the rail: the poll's ring, which shows
    * whether qBittorrent answers. The rail's gets the connection's status, which nothing beside it

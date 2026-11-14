@@ -606,7 +606,7 @@ and a series' page on desktop (0.02, the hero's backdrop fade, #406), and the re
 `desktop-rail` (0.04) and `desktop-1280` (0.03), the filter bar wrapping to a second line once the
 filters land (#400). A budget is one number for both orders of a screen, so where a carried jump
 shows in one order only, a new jump as large passes in the other; these read the same in both
-orders but the title's and the series' page (0.0093 and 0.0122), so the room under them is the
+orders but the title's and the series' page (0.0094 and 0.0122, in CI), so the room under them is the
 rounding's, and on those pages 0.003 more in one order.
 
 **What fails**: a reading over its budget, which names each shift with the elements that moved and

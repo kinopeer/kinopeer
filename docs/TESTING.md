@@ -1074,7 +1074,7 @@ On desktop each screen has the same chain, with what the desktop layout adds or 
 The desktop budgets carry these known jumps, each with its issue, and their fixes lower them:
 `downloads` (0.02) #405's, which the `torrent` drawer over it reads under the 0.01 rounding,
 `title` and `series` (0.02) #406's, and the narrower sizes' `releases` #400's, the table moving
-down by the bar's second line (0.0318 at 1024px, 0.0225 at 1280px).
+down by the bar's second line (0.0319 at 1024px, 0.0225 at 1280px, in CI).
 
 - **What it leaves out.** Moves between screens by a click: the screens are opened by their address. The app with motion on.
   Empty and "not answering" states but the releases' "nothing found", and the releases' "nothing

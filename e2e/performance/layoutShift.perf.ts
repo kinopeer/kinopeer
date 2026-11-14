@@ -412,11 +412,12 @@ const drawerOverDownloads = (name: string, hash: string, shown: Shown, guesses: 
 const withSidebar = (one: Case): Case => ({ ...one, answers: { ...one.answers, ...SIDEBAR } })
 /**
  * The sidebar's qBittorrent card complete, its free space shown as a number, which it says once the
- * torrents have landed (a `—` until then): in the card's line on a wide window, in the rail's column
- * (its label for screen readers only) on a narrow one.
+ * torrents have landed (a `—` until then). Read on the card's own free space line, which is in the
+ * page on a narrow window too, where the rail's column shows instead: in the region's whole text the
+ * speeds' numbers run up to that line's placeholder.
  */
 const sidebarCard: Shown = (page) =>
-  expect(page.getByRole('region', { name: 'qBittorrent' })).toContainText(/\d\S*\s\S+\s+свободно|свободно\s+\d/i)
+  expect(page.getByRole('region', { name: 'qBittorrent' }).getByText(/^\S+\s\S+ свободно$|^— свободно$/)).toHaveText(/^\d/)
 /** A desktop case, read once the sidebar's card is complete too: every desktop screen shows it. */
 const onDesktop = (one: Case): Case => ({ ...one, complete: all(one.complete, sidebarCard) })
 const casesOf = (screen: string) => PHONE.filter((one) => one.screen === screen)
