@@ -14,7 +14,7 @@ import { useDebouncedValue } from '../lib/useDebouncedValue'
 import { useRequest } from '../lib/useRequest'
 import { useTmdbLanguage } from '../settings/settings'
 import { parseName } from '../torrents/parseName'
-import { sameTitle, type TitleMatch } from '../torrents/titleMatches'
+import { sameTitle, type TitleMatch } from '../torrents/titleLookup'
 import { SEARCH_DEBOUNCE_MS } from './SearchScreen'
 import './ChangeTitleSheet.css'
 

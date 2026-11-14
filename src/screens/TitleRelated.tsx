@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getRecommendations, getSimilar, type MediaType, type Title, type TitlePage } from '../api/tmdb'
 import { useRequest } from '../lib/useRequest'
-import { withTimeout } from '../lib/withTimeout'
+import { withTimeout } from '../logic/withTimeout'
 import { PosterRow } from './PosterRow'
 
 /**

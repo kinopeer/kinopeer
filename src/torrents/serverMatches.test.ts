@@ -5,12 +5,14 @@ import type { Matches } from '../api/matches'
 import {
   SAVE_DELAY_MS,
   chooseMatch,
+  currentServerMatches,
   forgetMatches,
   forgetServerGuesses,
+  loadServerMatches,
   rememberMatches,
   resetServerMatches,
-  useServerMatches,
 } from './serverMatches'
+import { useServerMatches } from './useServerMatches'
 
 vi.mock('../api/matches', async (importOriginal) => ({
   ...(await importOriginal<typeof api>()),
@@ -71,6 +73,42 @@ describe('useServerMatches', () => {
     const later = renderHook(() => useServerMatches())
     await waitFor(() => expect(later.result.current).toEqual({ [A]: USER }))
     expect(first.result.current).toEqual({ [A]: USER })
+  })
+})
+
+describe('loadServerMatches', () => {
+  it('asks again once more than a minute has passed since the server didn’t answer, not at the minute', async () => {
+    // Only the clock is fake, so the minute is exact.
+    vi.useRealTimers()
+    vi.useFakeTimers({ toFake: ['Date'] })
+    let answer = (_matches: Matches) => {}
+    getMatches.mockRejectedValueOnce(new api.MatchesError(502)).mockReturnValueOnce(new Promise((resolve) => (answer = resolve)))
+    await loadServerMatches()
+    expect(currentServerMatches()).toEqual({})
+
+    vi.setSystemTime(Date.now() + 60_000)
+    loadServerMatches()
+    expect(getMatches).toHaveBeenCalledTimes(1)
+    vi.setSystemTime(Date.now() + 1)
+    const again = loadServerMatches()
+    expect(getMatches).toHaveBeenCalledTimes(2)
+    // A caller that comes while it's in flight waits for the same load, until the server answers.
+    let settled = false
+    void loadServerMatches().then(() => (settled = true))
+    await Promise.resolve()
+    expect(settled).toBe(false)
+    answer({ [A]: USER })
+    await again
+    expect(settled).toBe(true)
+    expect(currentServerMatches()).toEqual({ [A]: USER })
+    expect(getMatches).toHaveBeenCalledTimes(2)
+  })
+
+  it('settles at once when the matches are loaded', async () => {
+    getMatches.mockResolvedValue({ [A]: USER })
+    await loadServerMatches()
+    await loadServerMatches()
+    expect(getMatches).toHaveBeenCalledTimes(1)
   })
 })
 

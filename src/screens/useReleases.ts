@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ProwlarrSetupError, getFailingIndexers, searchReleases, type Release } from '../api/prowlarr'
-import { clickedOrder, cycledOrder, reversedOrder, usualOrder } from '../lib/sortOrder'
+import { clickedOrder, cycledOrder, reversedOrder, usualOrder } from '../logic/sortOrder'
 import { useRequest } from '../lib/useRequest'
 import {
   NOT_STATED,

@@ -13,7 +13,7 @@ import { findToastOnPage, qbittorrentDown, renderWithRouter, saying, Where, wher
 import { MainDataProvider } from '../torrents/MainDataProvider'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
 import * as serverMatches from '../torrents/serverMatches'
-import { clearTitleMatchCache } from '../torrents/titleMatches'
+import { clearTitleMatchCache } from '../torrents/useTitleMatches'
 import { DownloadsWithDrawer } from './DownloadsWithDrawer'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => {

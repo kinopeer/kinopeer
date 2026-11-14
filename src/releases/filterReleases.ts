@@ -1,5 +1,5 @@
 import type { Release } from '../api/prowlarr'
-import { usualOrder, type SortOrder, type UsualDirections } from '../lib/sortOrder'
+import { usualOrder, type SortOrder, type UsualDirections } from '../logic/sortOrder'
 import type { Audio, ReleaseInfo, Resolution, Source } from './parseRelease'
 
 /**

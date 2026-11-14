@@ -6,7 +6,7 @@ import { Menu, MenuItemRadio } from '../components/Menu'
 import { Segmented } from '../components/Segmented'
 import { Sheet } from '../components/Sheet'
 import { DOWNLOAD_SORTS, type DownloadSort } from '../torrents/sort'
-import { TYPE_FILTERS, type TypeFilter } from '../torrents/titleMatches'
+import { TYPE_FILTERS, type TypeFilter } from '../torrents/titleLookup'
 
 export interface SortSheetProps {
   open: boolean

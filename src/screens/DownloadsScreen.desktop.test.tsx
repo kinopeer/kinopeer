@@ -10,7 +10,7 @@ import { getSettings, resetSettings, updateSettings } from '../settings/settings
 import { mainData, searchPage, torrent as fixtureTorrent } from '../test/fixtures'
 import { renderWithRouter, saying } from '../test/render'
 import { resetServerMatches } from '../torrents/serverMatches'
-import { clearTitleMatchCache } from '../torrents/titleMatches'
+import { clearTitleMatchCache } from '../torrents/useTitleMatches'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
 import { DownloadsScreen } from './DownloadsScreen'
 

@@ -5,7 +5,8 @@ import * as api from '../api/qbittorrent'
 import type { Torrent } from '../api/qbittorrent'
 import { stubDesktop } from '../lib/stubDesktop'
 import { renderWithRouter, saying } from '../test/render'
-import * as titleMatches from '../torrents/titleMatches'
+import type { TitleMatch } from '../torrents/titleLookup'
+import * as titleMatches from '../torrents/useTitleMatches'
 import { REQUEST_KINDS } from '../torrents/requestKinds'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
 import { TorrentActionsSheet, type TorrentActionsSheetProps } from './TorrentActionsSheet'
@@ -21,13 +22,13 @@ vi.mock('../api/qbittorrent', async (importOriginal) => ({
   recheckTorrents: vi.fn(),
 }))
 
-vi.mock('../torrents/titleMatches', async (importOriginal) => ({
+vi.mock('../torrents/useTitleMatches', async (importOriginal) => ({
   ...(await importOriginal<typeof titleMatches>()),
   chooseTitle: vi.fn(),
 }))
 
 const TORRENT = { hash: 'b1', name: 'Inception.2010.1080p', state: 'stoppedDL', progress: 0.3 } as Torrent
-const MATCH: titleMatches.TitleMatch = { type: 'movie', id: 27205, title: 'Inception', year: 2010, posterPath: null }
+const MATCH: TitleMatch = { type: 'movie', id: 27205, title: 'Inception', year: 2010, posterPath: null }
 
 /**
  * Sends the torrent's requests from another place under the same requests: a resume (a row's button),
