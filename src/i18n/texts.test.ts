@@ -3,8 +3,10 @@ import { lint, type LintProblem } from '../test/oxlint'
 
 /**
  * UI texts go through translation keys (CLAUDE.md → Conventions): oxlint's `react/jsx-no-literals`
- * in `.oxlintrc.json` refuses a string written into the app's JSX, as text or in an attribute a user
- * reads or hears. These tests plant each kind where the rule applies and where it doesn't.
+ * in `.oxlintrc.json` refuses a string that is a whole child in the app's JSX or the quoted value of
+ * an attribute a user reads or hears. These tests plant each kind where the rule applies and where it
+ * doesn't. A string in braces in an attribute, inside an expression or outside JSX passes the rule
+ * and is left to review.
  */
 
 const RULE = 'react(jsx-no-literals)'
@@ -22,9 +24,10 @@ export function Example({ count, name }: { count: number; name: string }) {
 `
 
 /**
- * The attributes a user reads or hears: the ones HTML and ARIA define, and the text props of the
+ * The attributes a user reads or hears: the ones HTML and ARIA define, the text props of the
  * app's own components (`label` on `IconButton`, `hint` on `MenuItem`, `actionLabel` on
- * `EmptyState`…). The rule goes by the name, on any element.
+ * `EmptyState`…) and their slots for content (`footer` on `Sheet` and `Menu`, `actions` on
+ * `Dialog`, `overlay` on `PosterCard`…). The rule goes by the name, on any element.
  */
 const READ_ATTRIBUTES = [
   'aria-label',
@@ -47,6 +50,12 @@ const READ_ATTRIBUTES = [
   'actionLabel',
   'secondaryActionLabel',
   'editLabel',
+  'footer',
+  'action',
+  'actions',
+  'leading',
+  'secondary',
+  'overlay',
 ]
 
 const REFUSED: [string, string][] = [

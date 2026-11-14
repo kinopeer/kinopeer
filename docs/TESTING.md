@@ -526,7 +526,9 @@ it uses next to itself.
   `holdSearches` in `titleMatches.test.ts`).
 - **`src/test/oxlint.ts`:** `lint(files)` lays the files out as in the repository beside a copy of
   the root's `.oxlintrc.json`, runs oxlint over them as `npm run lint` does and returns each problem's
-  rule, file and line, so a rule's test can plant a violation where an override applies.
+  rule, file and line, so a rule's test can plant a violation where an override applies. It throws
+  when oxlint couldn't read a planted file or refused to run, so a check of what a rule allows can't
+  pass on a file no rule read.
 - **`server/test/fakes.ts`:** `listen(handler)` starts a handler on a free port and returns its
   origin, `serve(middleware)` does the same for the middleware under test with Vite's 404 fallback,
   `closeServers()` closes everything in `afterEach`, the connections a test left open included,

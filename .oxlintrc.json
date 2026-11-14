@@ -91,7 +91,13 @@
               "dot",
               "actionLabel",
               "secondaryActionLabel",
-              "editLabel"
+              "editLabel",
+              "footer",
+              "action",
+              "actions",
+              "leading",
+              "secondary",
+              "overlay"
             ]
           }
         ]
