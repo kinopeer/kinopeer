@@ -254,22 +254,21 @@ export function compareLint(base: string | undefined, head: string | undefined, 
   const after = new Map(overridesOf(now).map((override) => [filesOf(override), override]))
   for (const files of new Set([...before.keys(), ...after.keys()])) {
     const where = ` for ${files}`
-    found.push(...compareRules(file, where, rulesOf(before.get(files)), rulesOf(after.get(files)), after.has(files) ? rulesOf(was) : {}))
     const [had, has] = [before.get(files), after.get(files)]
-    // An override that is gone takes its rules away, compared above, and is read against an empty
-    // one, so a plugin it named (whose rules may sit at the top level), a global it took away or an
-    // environment it turned off is marked. One that is new is read the same way round, so the
-    // environments, globals and skipped paths it brings are marked: an override whose `files`
-    // change is both, so a path added to its `excludeFiles` in the same edit is read as one.
-    if (!isObject(has)) {
-      if (isObject(had)) found.push(...compareScope(file, where, had, {}, ['files', 'excludeFiles']))
+    // An override that is new or removed, and one whose `files` change, which is both, is marked
+    // whole with its JSON: read key by key against an empty one, each round of #415's review found a
+    // case it missed. Only an override that keeps its `files` is read key by key.
+    if (had === undefined || has === undefined) {
+      found.push({ needs: 'owner', file, what: had === undefined ? `the override${where} is added: ${show(has)}` : `the override${where} is removed: ${show(had)}` })
       continue
     }
-    const [skipped, skips] = [isObject(had) ? entries(had.excludeFiles) : [], entries(has.excludeFiles)]
-    for (const pattern of skips) {
-      if (!skipped.includes(pattern)) found.push({ needs: 'owner', file, what: `the lint rules${where} skip more: ${pattern} is added to \`excludeFiles\`` })
+    // Not an object: its whole JSON is its key, so it is the same on both sides.
+    if (!isObject(had) || !isObject(has)) continue
+    found.push(...compareRules(file, where, rulesOf(had), rulesOf(has), rulesOf(was)))
+    for (const pattern of entries(has.excludeFiles)) {
+      if (!entries(had.excludeFiles).includes(pattern)) found.push({ needs: 'owner', file, what: `the lint rules${where} skip more: ${pattern} is added to \`excludeFiles\`` })
     }
-    found.push(...compareScope(file, where, isObject(had) ? had : {}, has, ['files', 'excludeFiles']))
+    found.push(...compareScope(file, where, had, has, ['files', 'excludeFiles']))
   }
   return found
 }

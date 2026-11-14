@@ -216,9 +216,16 @@ describe('compareLint', () => {
     [
       'a new override that turns a rule off for some files',
       json({ ...config, overrides: [...config.overrides, { files: ['src/legacy/**'], rules: { 'react/rules-of-hooks': 'off' } }] }),
-      ['owner: the lint rule `react/rules-of-hooks` for ["src/legacy/**"] is turned off: `"error"` → `"off"`'],
+      ['owner: the override for ["src/legacy/**"] is added: `{"files":["src/legacy/**"],"rules":{"react/rules-of-hooks":"off"}}`'],
     ],
-    ['an override removed', json({ ...config, overrides: [] }), ['owner: the lint rule `no-restricted-imports` for ["e2e/smoke/*.smoke.ts"] is removed']],
+    ['an override removed', json({ ...config, overrides: [] }), ['owner: the override for ["e2e/smoke/*.smoke.ts"] is removed: `{"files":["e2e/smoke/*.smoke.ts"],"rules":{"no-restricted-imports":["error",{"paths":["@playwright/test"]}]}}`']],
+    // A new override is marked whole even when it checks more (#415).
+    [
+      'a new override that repeats the top-level rule',
+      json({ ...config, overrides: [...config.overrides, { files: ['src/**'], rules: { 'react/rules-of-hooks': 'error' } }] }),
+      ['owner: the override for ["src/**"] is added: `{"files":["src/**"],"rules":{"react/rules-of-hooks":"error"}}`'],
+    ],
+    ['a new override that is not an object', json({ ...config, overrides: [...config.overrides, 'e2e'] }), ['owner: the override for "e2e" is added: `"e2e"`']],
   ])('sends %s to the owner', (_name, change, expected) => {
     const [base, head] = pair(change)
     expect(said(compareLint(base, head))).toEqual(expected)
@@ -250,11 +257,11 @@ describe('compareLint', () => {
     ["a rule that only warned made to fail the run by oxlint's own word", withRules({ 'react/only-export-components': ['deny', { allowConstantExport: true }] })],
     ['a rule written the other way at the same severity', withRules({ 'react/rules-of-hooks': 2 })],
     ['a rule written the other way at the same severity and options', withRules({ 'vitest/valid-expect': ['deny', { maxArgs: 2 }] })],
-    ['an override that is not an object', json({ ...config, overrides: [...config.overrides, 'e2e'] })],
+    ['an override that is not an object, left as it was', [json({ ...config, overrides: [...config.overrides, 'e2e'] }), json({ ...config, overrides: [...config.overrides, 'e2e'] })]],
     ['a new rule that fails the run', withRules({ 'no-console': 'error' })],
     ['a rule that was off removed', without('vitest/require-to-throw-message')],
     ['a plugin added', json({ ...config, plugins: [...config.plugins, 'import'] })],
-    ['an override that repeats the top-level rule', json({ ...config, overrides: [...config.overrides, { files: ['src/**'], rules: { 'react/rules-of-hooks': 'error' } }] })],
+    ['an override that gains a rule repeating the top-level one', json({ ...config, overrides: [{ ...config.overrides[0], rules: { ...config.overrides[0].rules, 'react/rules-of-hooks': 'error' } }] })],
     ["a rule left as it was, with a severity it can't read", [withRules({ 'no-console': 'maybe' }), withRules({ 'no-console': 'maybe' })]],
   ])('finds nothing in %s', (_name, change) => {
     const [base, head] = pair(change)
@@ -896,30 +903,15 @@ describe('compareLint: an override beside its rules (#412)', () => {
     expect(found({ settings: { react: { version: '19' } } })).toEqual([`review: \`settings\` ${where} changed: nothing → \`{"react":{"version":"19"}}\``])
   })
 
-  it('reads a new override against an empty one, and a removed one the other way round', () => {
-    expect(compareLint(json({ overrides: [] }), config({})).map(({ what }) => what)).toEqual([
-      `the lint rules ${where} skip more: "src/**/*.test.tsx" is added to \`excludeFiles\``,
-      `the environment browser is turned on ${where}, and its globals with it`,
-    ])
-    expect(compareLint(config({}), json({ overrides: [] })).map(({ what }) => what)).toEqual([
-      `the lint rule \`react/jsx-no-literals\` ${where} is removed`,
-      `the lint plugin "react" is removed ${where}, and its rules with it`,
-    ])
-    // A plugin's rules may sit at the top level, so an override that only names the plugin is marked too.
-    const tests = { files: ['src/**/*.test.ts'], plugins: ['vitest'] }
-    expect(compareLint(json({ rules: { 'vitest/no-focused-tests': 'error' }, overrides: [tests] }), json({ rules: { 'vitest/no-focused-tests': 'error' }, overrides: [] })).map(({ what }) => what)).toEqual([
-      'the lint plugin "vitest" is removed for ["src/**/*.test.ts"], and its rules with it',
-    ])
-  })
-
-  it('reads an override whose files change as a new one, its environments and globals included', () => {
-    const moved = { ...override, files: ['src/**/*.ts'], env: { node: true }, globals: { process: 'readonly' } }
-    expect(compareLint(config({}), json({ overrides: [moved] })).map(({ needs, what }) => `${needs}: ${what}`)).toEqual([
-      'owner: the lint rule `react/jsx-no-literals` for ["src/**/*.tsx"] is removed',
-      'owner: the lint plugin "react" is removed for ["src/**/*.tsx"], and its rules with it',
-      'owner: the lint rules for ["src/**/*.ts"] skip more: "src/**/*.test.tsx" is added to `excludeFiles`',
-      'owner: the environment node is turned on for ["src/**/*.ts"], and its globals with it',
-      'owner: the global `process` is allowed for ["src/**/*.ts"]: `"readonly"`',
+  it('sends an override that is new, removed or has other files to the owner whole, with its JSON', () => {
+    const whole = `{"files":["src/**/*.tsx"],"excludeFiles":["src/**/*.test.tsx"],"plugins":["react"],"env":{"browser":true},"rules":{"react/jsx-no-literals":"error"}}`
+    expect(compareLint(json({ overrides: [] }), config({})).map(({ needs, what }) => `${needs}: ${what}`)).toEqual([`owner: the override ${where} is added: \`${whole}\``])
+    expect(compareLint(config({}), json({ overrides: [] })).map(({ needs, what }) => `${needs}: ${what}`)).toEqual([`owner: the override ${where} is removed: \`${whole}\``])
+    // Other files are one override removed and one added, whatever else changes with them.
+    const moved = { ...override, files: ['src/**/*.ts'] }
+    expect(compareLint(config({}), json({ overrides: [moved] })).map(({ what }) => what)).toEqual([
+      `the override ${where} is removed: \`${whole}\``,
+      `the override for ["src/**/*.ts"] is added: \`${whole.replace('src/**/*.tsx', 'src/**/*.ts')}\``,
     ])
   })
 
@@ -929,19 +921,11 @@ describe('compareLint: an override beside its rules (#412)', () => {
       `the global \`process\` is no longer taken away ${where}`,
     ])
     expect(compareLint(json({ env: { builtin: false } }), json({})).map(({ what }) => what)).toEqual(['the environment builtin is no longer turned off'])
-    // An override removed, or whose files change, gives them back too; `in` would find `toString` on any object.
-    const off = { files: ['src/logic/**'], env: { node: false, toString: false }, globals: { fetch: 'off', toString: 'off' } }
-    expect(compareLint(json({ overrides: [off] }), json({ overrides: [] })).map(({ needs, what }) => `${needs}: ${what}`)).toEqual([
-      'owner: the environment node is no longer turned off for ["src/logic/**"]',
-      'owner: the environment toString is no longer turned off for ["src/logic/**"]',
-      'owner: the global `fetch` is no longer taken away for ["src/logic/**"]',
-      'owner: the global `toString` is no longer taken away for ["src/logic/**"]',
-    ])
-    expect(compareLint(json({ overrides: [off] }), json({ overrides: [{ ...off, files: ['src/**'], env: {}, globals: {} }] })).map(({ what }) => what)).toEqual([
-      'the environment node is no longer turned off for ["src/logic/**"]',
-      'the environment toString is no longer turned off for ["src/logic/**"]',
-      'the global `fetch` is no longer taken away for ["src/logic/**"]',
-      'the global `toString` is no longer taken away for ["src/logic/**"]',
+    // `in` would find `toString` on any object.
+    const off = { env: { toString: false }, globals: { toString: 'off' } }
+    expect(compareLint(config(off), config({ env: {}, globals: {} })).map(({ what }) => what)).toEqual([
+      `the environment toString is no longer turned off ${where}`,
+      `the global \`toString\` is no longer taken away ${where}`,
     ])
     // An environment turned on that is removed, or one turned off that stays, checks more or the same.
     expect(compareLint(config({ env: { node: true, browser: false } }), config({ env: { browser: false } }))).toEqual([])

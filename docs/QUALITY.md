@@ -53,13 +53,11 @@ or its rules.
   through, and one no longer turned off or taken away (a `false` environment or an `'off'` global
   removed); a path added to `ignorePatterns` or to an override's `excludeFiles`, the files its rules
   skip (the root `.oxlintrc.json`). An
-  override is known by its `files`, so one whose `files` change is one removed and one added. One
-  removed has its rules and its plugins marked as removed (a plugin's rules may sit at the top
-  level), and the environments it turned off and the globals it took away as given back; a new one
-  is read against an empty override, so the environments, globals and `excludeFiles` paths it brings
-  are marked as above. That is loud for a change that checks more: a glob added
-  to an override's `files` marks each of its rules as removed and each global it allows as allowed,
-  for the owner to approve at once.
+  override is known by its `files`, so one whose `files` change is one removed and one added. An
+  override added or removed is marked whole for the owner, with its JSON, even one that checks
+  more: read key by key against an empty one, it left a case unmarked in each round of #415's
+  review, and overrides change rarely. Only an override that keeps its `files` is read key by key,
+  as above.
 - The linter turned off from another file, marked by the file's path whatever it says: an
   `.oxlintrc.json` outside the root, which oxlint obeys for its folder, or an `.eslintignore` or
   `.oxlintignore`, added or with lines added. `npm run lint` also runs oxlint with
