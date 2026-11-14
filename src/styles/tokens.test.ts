@@ -128,7 +128,18 @@ function declarations(path: string): Declaration[] {
   const file = `src/${relative(SRC, path)}`
   const text = readFileSync(path, 'utf8')
   const commentedLines = new Set<number>()
-  const lineOf = (index: number) => text.slice(0, index).split('\n').length
+  const newlines = [...text.matchAll(/\n/g)].map((m) => m.index)
+  /** The 1-based line of an index: the newlines before it, plus one. */
+  const lineOf = (index: number) => {
+    let low = 0
+    let high = newlines.length
+    while (low < high) {
+      const mid = (low + high) >> 1
+      if (newlines[mid] < index) low = mid + 1
+      else high = mid
+    }
+    return low + 1
+  }
   // Comments become spaces of the same length, so indexes and lines stay where they were.
   const code = text.replace(/\/\*[\s\S]*?\*\//g, (comment, start: number) => {
     const first = lineOf(start)
@@ -150,7 +161,8 @@ function declarations(path: string): Declaration[] {
 const ALL = cssFiles(SRC).flatMap(declarations)
 const OUTSIDE_TOKENS = ALL.filter((d) => d.file !== TOKENS_FILE)
 
-// The named colors of CSS Color 4. `transparent` and `currentColor` aren't raw: they name no color.
+// The named and system colors of CSS Color 4 (lowercase, as identifiers are compared).
+// `transparent` and `currentColor` aren't raw: they name no color.
 const NAMED_COLORS = new Set(
   `aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue blueviolet
   brown burlywood cadetblue chartreuse chocolate coral cornflowerblue cornsilk crimson cyan darkblue
@@ -167,10 +179,15 @@ const NAMED_COLORS = new Set(
   paleturquoise palevioletred papayawhip peachpuff peru pink plum powderblue purple rebeccapurple red
   rosybrown royalblue saddlebrown salmon sandybrown seagreen seashell sienna silver skyblue slateblue
   slategray slategrey snow springgreen steelblue tan teal thistle tomato turquoise violet wheat white
-  whitesmoke yellow yellowgreen`.split(/\s+/),
+  whitesmoke yellow yellowgreen
+  canvas canvastext linktext visitedtext activetext buttonface buttontext buttonborder field fieldtext
+  highlight highlighttext selecteditem selecteditemtext mark marktext graytext accentcolor
+  accentcolortext`.split(/\s+/),
 )
 const HEX = /#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b/g
-const COLOR_FUNCTION = /\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\([^()]*\)/g
+// A function with one level of nesting inside: `rgb(255 0 0 / var(--a))`, `hsl(calc(…) …)`.
+const NESTED_ARGS = String.raw`\([^()]*(?:\([^()]*\)[^()]*)*\)`
+const COLOR_FUNCTION = new RegExp(String.raw`\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)` + NESTED_ARGS, 'g')
 // A whole identifier: `--teal` or `ks-tan` isn't the color `teal` or `tan`.
 const IDENT = /(?<![\w-])[a-zA-Z][\w-]*(?![\w-])/g
 
@@ -183,11 +200,13 @@ function rawColors(value: string): [string, number][] {
   return found
 }
 
-// A time other than zero, and an easing other than `linear` (no easing, as a spinner or a fill
+// A time other than zero (a negative delay included), and an easing other than `linear` (no easing, as a spinner or a fill
 // that shows a clock needs).
-const TIME = /(?<![\w.-])(\d*\.?\d+)(ms|s)\b/g
+const TIME = /(?<![\w.-])-?(\d*\.?\d+)(ms|s)\b/g
 const EASING = /(?<![\w-])(?:ease|ease-in|ease-out|ease-in-out|step-start|step-end)(?![\w-])|\b(?:cubic-bezier|steps|linear)\([^()]*\)/g
-const MOTION_PROP = /^(?:transition|animation)(?:-[a-z-]+)?$/
+const MOTION_PROP = /^(?:-webkit-)?(?:transition|animation)(?:-[a-z-]+)?$/
+const SHADOW_PROP = /^(?:-webkit-)?(?:box-shadow|text-shadow|filter)$/
+const FILTER_PROP = /^(?:-webkit-)?filter$/
 
 function rawMotion(value: string): [string, number][] {
   const found: [string, number][] = []
@@ -213,17 +232,34 @@ function layers(value: string): [string, number][] {
   return parts
 }
 
-const LENGTH = /(?<![\w.-])-?(\d*\.?\d+)(?:px|em|rem)?(?![\w.%(-])/g
+/** A value's parts at its top-level spaces, with each part's index. */
+function parts(value: string): [string, number][] {
+  const found: [string, number][] = []
+  let depth = 0
+  let start = -1
+  for (let i = 0; i <= value.length; i++) {
+    const char = value[i]
+    const space = char === undefined || (/\s/.test(char) && depth === 0)
+    if (!space && start < 0) start = i
+    if (char === '(') depth++
+    else if (char === ')') depth--
+    if (space && start >= 0) {
+      found.push([value.slice(start, i), start])
+      start = -1
+    }
+  }
+  return found
+}
 
 /**
- * Whether a shadow layer casts a shadow: an offset or a blur. A layer with neither is a ring or a
- * fill drawn with box-shadow (a focus ring, a hover tint), whose color the color rule checks.
+ * Whether a shadow layer casts a shadow. A ring or a fill drawn with box-shadow (a focus ring, a
+ * hover tint) has a literal zero for each of its offsets and its blur, its first three lengths after
+ * `inset`; anything else there, a var() or a calc() included, casts one. Its color is the color
+ * rule's.
  */
 function castsShadow(layer: string): boolean {
-  // Lengths outside functions: what's inside var() or color-mix() isn't the shadow's geometry.
-  const outside = layer.replace(/\b[\w-]+\([^()]*(?:\([^()]*\)[^()]*)*\)/g, (fn) => ' '.repeat(fn.length))
-  const lengths = [...outside.matchAll(LENGTH)].map((m) => Number(m[1]))
-  return lengths.slice(0, 3).some((n) => n !== 0)
+  const geometry = parts(layer).map(([part]) => part).filter((part) => part !== 'inset')
+  return geometry.length > 0 && geometry.slice(0, 3).some((part) => !/^0(?:\.0*)?(?:px|em|rem)?$/.test(part))
 }
 
 /** Custom properties defined outside tokens.css, by name. */
@@ -232,24 +268,47 @@ for (const d of OUTSIDE_TOKENS) {
   if (d.prop.startsWith('--')) OWN_PROPERTIES.set(d.prop, [...(OWN_PROPERTIES.get(d.prop) ?? []), d])
 }
 
-/** The shadow layers of a declaration that cast a shadow, through a var() defined outside tokens.css. */
-function rawShadows(d: Declaration, seen = new Set<string>()): { d: Declaration; index: number; layer: string }[] {
-  const found: { d: Declaration; index: number; layer: string }[] = []
-  if (d.prop === 'filter' || d.prop === '-webkit-filter') {
-    for (const m of d.value.matchAll(/\bdrop-shadow\(/g)) found.push({ d, index: m.index, layer: 'drop-shadow()' })
-    return found
-  }
-  for (const [layer, index] of layers(d.value)) {
-    const only = /^\s*var\((--[\w-]+)\)\s*$/.exec(layer)
-    if (only) {
-      if (seen.has(only[1])) continue
-      seen.add(only[1])
-      for (const own of OWN_PROPERTIES.get(only[1]) ?? []) found.push(...rawShadows(own, seen))
-    } else if (castsShadow(layer)) {
-      found.push({ d, index, layer: layer.trim() })
+interface Shadow {
+  d: Declaration
+  index: number
+  layer: string
+}
+
+/**
+ * The shadow layers of a value that cast a shadow. A layer that is a single var() (after `inset`)
+ * is followed into its definitions outside tokens.css, and its fallback is read as layers of its own.
+ */
+function shadowsIn(d: Declaration, value: string, offset: number, seen: Set<string>): Shadow[] {
+  const found: Shadow[] = []
+  for (const [raw, rawIndex] of layers(value)) {
+    const layer = raw.trim()
+    if (layer === '' || layer === 'none') continue
+    const index = offset + rawIndex + raw.length - raw.trimStart().length
+    const rest = parts(layer).filter(([part]) => part !== 'inset')
+    const only = rest.length === 1 ? /^var\(\s*(--[\w-]+)\s*(?:,([\s\S]*))?\)$/.exec(rest[0][0]) : null
+    if (!only) {
+      if (castsShadow(layer)) found.push({ d, index, layer })
+      continue
     }
+    const [, name, fallback] = only
+    if (fallback !== undefined) {
+      const fallbackIndex = index + rest[0][1] + rest[0][0].indexOf(',') + 1
+      found.push(...shadowsIn(d, fallback, fallbackIndex, seen))
+    }
+    if (seen.has(name)) continue
+    seen.add(name)
+    for (const own of OWN_PROPERTIES.get(name) ?? []) found.push(...shadowsIn(own, own.value, 0, seen))
   }
   return found
+}
+
+/** The shadows a declaration casts outside the --shadow tokens. */
+function rawShadows(d: Declaration): Shadow[] {
+  // A drop-shadow() anywhere in a filter, or in a custom property, which a filter may take.
+  if (FILTER_PROP.test(d.prop) || d.prop.startsWith('--')) {
+    return [...d.value.matchAll(/\bdrop-shadow\(/g)].map((m) => ({ d, index: m.index, layer: 'drop-shadow()' }))
+  }
+  return shadowsIn(d, d.value, 0, new Set())
 }
 
 /** A problem at a value's index, unless its line carries a comment. */
@@ -270,7 +329,7 @@ describe('stylesheets beyond sizes', () => {
   it('write shadows through the --shadow tokens', () => {
     const problems: string[] = []
     for (const d of OUTSIDE_TOKENS) {
-      if (!/^(?:box-shadow|text-shadow|filter|-webkit-filter)$/.test(d.prop)) continue
+      if (!SHADOW_PROP.test(d.prop) && !d.prop.startsWith('--')) continue
       for (const shadow of rawShadows(d)) {
         at(shadow.d, shadow.index, `${shadow.layer} is a raw shadow: use a --shadow token, or add a comment on the line saying why`, problems)
       }
@@ -307,7 +366,8 @@ describe('stylesheets beyond sizes', () => {
 function codeFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = join(dir, entry.name)
-    if (entry.isDirectory()) return codeFiles(path)
+    // The tests' own helpers (src/test/) set properties for a test, not for the app.
+    if (entry.isDirectory()) return path === join(SRC, 'test') ? [] : codeFiles(path)
     return /\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name) ? [path] : []
   })
 }
