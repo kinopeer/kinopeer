@@ -236,7 +236,12 @@ const releasesPage = (name: string, failingIndexers: string[] = [], noReleases =
   name,
   app: { failingIndexers, noReleases },
   complete: noReleases
-    ? all(text('Сёгун · 2024'), text('Раздачи не найдены'))
+    ? all(
+        text('Сёгун · 2024'),
+        text('Раздачи не найдены'),
+        // With nothing found, a note says which indexers didn't answer, once Prowlarr says (#401).
+        ...(failingIndexers.length ? [text('1 индексатор не ответил: Indexer C')] : []),
+      )
     : all(
         text('Сёгун · 2024'),
         (page) => expect(page.getByRole('button', { name: 'Добавить в загрузки' }).first()).toBeVisible(),
@@ -379,6 +384,8 @@ const PHONE: Case[] = [
   releasesPage('an indexer didn’t answer', ['Indexer C']),
   /** Nothing found: the filters' row keeps its room, empty, over the empty state, where it went away and moved it up (#393's review). */
   releasesPage('nothing found', [], true),
+  /** Nothing found, one indexer didn't answer: the note naming it came in above the empty state and pushed it down (#401). */
+  releasesPage('nothing found, an indexer didn’t answer', ['Indexer C'], true),
   /**
    * Settings: every row is there from its first paint, and the checks only change what the rows say
    * (Connections, About) and fill the category selects.
@@ -420,6 +427,7 @@ const desktopReleases = (name: string, failingIndexers: string[] = [], noRelease
       ? text('Раздачи не найдены')
       : (page) => expect(page.getByRole('button', { name: 'Добавить в загрузки' }).first()).toBeVisible(),
     ...(failingIndexers.length && !noReleases ? [(page: Page) => expect(page.getByRole('button', { name: /не ответил/ })).toBeVisible()] : []),
+    ...(failingIndexers.length && noReleases ? [text('1 индексатор не ответил: Indexer C')] : []),
     heading('В загрузках', 2),
     heading('Похожее', 2),
     posters(2),
@@ -537,6 +545,8 @@ const DESKTOP_CASES: Case[] = [
   desktopReleases('an indexer didn’t answer, on the series’ page', ['Indexer C']),
   /** Nothing found: the bar's room stays, empty, over the empty state (#393's review). */
   desktopReleases('nothing found, on the series’ page', [], true),
+  /** Nothing found, one indexer didn't answer: the note naming it, as on a phone (#401). */
+  desktopReleases('nothing found, an indexer didn’t answer, on the series’ page', ['Indexer C'], true),
   ...casesOf('settings').map(withSidebar),
 ]
 

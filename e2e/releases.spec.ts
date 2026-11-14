@@ -125,6 +125,18 @@ test.describe('releases, desktop', () => {
     await expect(page).toHaveScreenshot('desktop-none-dark-ru.png')
   })
 
+  // Nothing found, and indexers that didn't answer: the note under the empty state's action (#401).
+  test('nothing found, some indexers didn’t answer', async ({ page }) => {
+    await openApp(page, '/title/tv/126308', { noReleases: true, failingIndexers: ['Indexer C', 'Indexer D'] })
+    await page.getByRole('button', { name: 'Найти раздачи' }).click()
+    await expect(page.getByRole('heading', { name: 'Раздачи не найдены' })).toBeVisible()
+    await expect(page.getByRole('status')).toHaveText('2 индексатора не ответили: Indexer C, Indexer D')
+    // Off the button just pressed, so it doesn't show its hover state.
+    await page.mouse.move(0, 0)
+    await settle(page)
+    await expect(page).toHaveScreenshot('desktop-failing-indexers-none-dark-ru.png')
+  })
+
   // The count's line beside the heading, as it comes; then the names under it on a tap.
   test('some indexers didn’t answer, named', async ({ page }) => {
     await findReleases(page, { failingIndexers: ['Indexer C', 'Indexer D'] })

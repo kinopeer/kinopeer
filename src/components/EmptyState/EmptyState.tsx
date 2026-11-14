@@ -15,6 +15,8 @@ export interface EmptyStateProps {
   secondaryActionLabel?: string
   onSecondaryAction?: () => void
   className?: string
+  /** Under the actions, the last thing it says: a note that may come in later moves nothing above it. */
+  note?: ReactNode
   children?: ReactNode
 }
 
@@ -28,6 +30,7 @@ export function EmptyState({
   secondaryActionLabel,
   onSecondaryAction,
   className,
+  note,
   children,
 }: EmptyStateProps) {
   return (
@@ -51,6 +54,7 @@ export function EmptyState({
           )}
         </div>
       )}
+      {note}
     </div>
   )
 }

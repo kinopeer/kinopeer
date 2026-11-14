@@ -81,9 +81,22 @@
 }
 
 /* Empty until the failed indexers are known: takes back the gap it would add (--rel-gap, set by
-   .rel-body and .title-rel-body, whichever holds it). */
+   .rel-body and .title-rel-body, whichever holds it). Under the empty state's actions it's inside
+   one of them too, and the empty state's gap is the same --space-3. */
 .rel-note:empty {
   margin-bottom: calc(-1 * var(--rel-gap));
+}
+
+/* Under the empty state's actions (#401), as wide as its text, centered as the rest: the text
+   reads from the start, as a banner's does elsewhere. */
+.ks-empty > .rel-note {
+  text-align: start;
+}
+
+/* As wide as its text, it ends as far from the text as it starts: the banner's narrower end is room
+   for actions, which this one has none of. */
+.ks-empty > .rel-note .ks-banner {
+  padding-inline-end: var(--space-4);
 }
 
 .rel-active {

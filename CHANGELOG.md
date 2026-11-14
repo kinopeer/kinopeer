@@ -11,6 +11,7 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 
 ### Fixed
 
+- When a release search finds nothing and some indexers didn't answer, "No releases found" no longer moves down as the note naming them comes in: the note is now under it, below Try again. ([#401](https://github.com/kinopeer/kinopeer/issues/401))
 - Downloads' poster grid no longer moves as the torrents' titles come in: a card keeps room for two lines of its title, so a row of short titles is a line taller than before. ([#403](https://github.com/kinopeer/kinopeer/issues/403))
 - Screen readers and voice control name two controls by the words they show: Downloads' status button on a computer is All statuses, 9 (it was Status: All, 9), and each torrent under a title's "In downloads" reads its parts in the order it shows them, its speed and size included. ([#407](https://github.com/kinopeer/kinopeer/issues/407))
 - Secondary text is easier to read on a selected torrent, on a phone and in the table on a computer: the year, the release name, the size and the time left are a shade lighter in the dark theme (darker in the light one). A skipped file on a torrent's page is dimmed by its name and its progress bar, and its progress and size are as readable as any other file's. ([#408](https://github.com/kinopeer/kinopeer/issues/408))

@@ -26,7 +26,8 @@ export interface ReleasesBodyProps {
 /**
  * The search's states (loading, Prowlarr not set up or unreachable, nothing found, nothing matches
  * the filters) around the list of releases, with the picked filters above it. With results, the
- * count's line says which indexers didn't answer (`ReleasesCount`); with none, a banner does.
+ * count's line says which indexers didn't answer (`ReleasesCount`); with none, a banner does: under
+ * the empty state when nothing was found, above it when the filters let nothing through.
  */
 export function ReleasesBody({ releases, skeleton, children, countInList = false }: ReleasesBodyProps) {
   const { t } = useTranslation()
@@ -52,12 +53,19 @@ export function ReleasesBody({ releases, skeleton, children, countInList = false
       )
     case 'none':
       return (
-        <>
-          <FailingIndexers releases={releases} />
-          <EmptyState icon="folder" tone="muted" title={t('releases.noneTitle')} actionLabel={t('common.retry')} actionIcon="refresh" onAction={releases.retry}>
-            {t('releases.noneBody')}
-          </EmptyState>
-        </>
+        // Which indexers didn't answer is known after the search's answer, so it's said under the
+        // empty state, where coming in moves nothing above it (#401).
+        <EmptyState
+          icon="folder"
+          tone="muted"
+          title={t('releases.noneTitle')}
+          actionLabel={t('common.retry')}
+          actionIcon="refresh"
+          onAction={releases.retry}
+          note={<FailingIndexers releases={releases} />}
+        >
+          {t('releases.noneBody')}
+        </EmptyState>
       )
   }
   const shown = releases.visible.length > 0
