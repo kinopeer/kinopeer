@@ -198,7 +198,7 @@ check's letter (there is no J: coverage left the checks on 2026-11-03, and its r
 `docs/TESTING.md` → Coverage), and `clear` when the rule says it plainly, `gap` when no rule covers it or the rule
 reads both ways, `conflict` when `docs/TESTING.md` and this skill (or the PR template, or
 `CLAUDE.md`) disagree. Say in one line what a `conflict` is between, so the next docs PR can settle
-it. The tags feed the retro (`docs/TESTING.md` → Improving the system); tag honestly, a `gap` is
+it. The tags feed the retro (`docs/TESTING.md` → Improving the system, `docs/QUALITY.md` → The retro); tag honestly, a `gap` is
 not the author's fault.
 
 Then one line with the `/code-review` run on the same commit: `Code review at <short sha>: <n>
@@ -212,7 +212,7 @@ the PR changes (other than `CHANGELOG.md`, SPEC's decision log and `CLAUDE.md`, 
 the author's `Merged main at <sha>` comment carries the verdict over (`docs/TESTING.md` → Reviewing a PR's
 tests). Add
 "retro due" to it when fifty or more merged PRs are missing from the retro table in
-`docs/TESTING.md` → Improving the system, counted with the command its When gives, not by hand.
+`docs/QUALITY.md` → The retro, counted with the command its When gives, not by hand.
 Nothing else: no summary of the PR, no praise, no repeat of what the PR description already says.
 On a PR, post the report as one comment headed `Test review, round <n>`:
 `gh api repos/{owner}/{repo}/issues/<n>/comments -F body=@report.md`, or the GitHub MCP tools.
