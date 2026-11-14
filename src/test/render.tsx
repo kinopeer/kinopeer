@@ -5,16 +5,17 @@ import { MemoryRouter, useLocation, type InitialEntry } from 'react-router'
 import { expect, onTestFinished } from 'vitest'
 import { QbittorrentError } from '../api/qbittorrent'
 import { ToastProvider } from '../components/Toast'
+import { ROUTER_OPTIONS } from '../lib/routerOptions'
 import type { PollSource, PollState } from '../torrents/useMainData'
 
 /**
- * Renders `ui` under a MemoryRouter at the last of `entries` (strings, or locations with state) and
- * a `ToastProvider`, as screens that read the URL, navigate or show toasts need. A test that renders
- * `<Routes>` puts them in `ui`.
+ * Renders `ui` under a MemoryRouter with the app's options (`ROUTER_OPTIONS`) at the last of `entries`
+ * (strings, or locations with state) and a `ToastProvider`, as screens that read the URL, navigate or
+ * show toasts need. A test that renders `<Routes>` puts them in `ui`.
  */
 export function renderWithRouter(ui: ReactNode, entries: InitialEntry[] = ['/']) {
   return render(
-    <MemoryRouter initialEntries={entries} initialIndex={entries.length - 1}>
+    <MemoryRouter initialEntries={entries} initialIndex={entries.length - 1} {...ROUTER_OPTIONS}>
       <ToastProvider>{ui}</ToastProvider>
     </MemoryRouter>,
   )

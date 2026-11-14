@@ -6,11 +6,12 @@ import type { SearchPage } from '../api/tmdb'
 import { KEPT_SEARCHES, forgetKeptResults, keepResults, keptResults } from '../search/searchResults'
 import { searchPage, title } from '../test/fixtures'
 import { useSearchResults, type SearchTab } from './useSearchResults'
+import { ROUTER_OPTIONS } from '../lib/routerOptions'
 
 const DUNE = title('movie', 1, 'Dune')
 const ALIEN = title('movie', 2, 'Alien')
 
-const wrapper = ({ children }: { children: ReactNode }) => <MemoryRouter>{children}</MemoryRouter>
+const wrapper = ({ children }: { children: ReactNode }) => <MemoryRouter {...ROUTER_OPTIONS}>{children}</MemoryRouter>
 
 /** A load whose pages answer or fail only when told to, in any order. */
 function pendingLoad() {
