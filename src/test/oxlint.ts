@@ -20,6 +20,11 @@ interface Diagnostic {
   labels: { span: { line: number } }[]
 }
 
+interface Report {
+  diagnostics: Diagnostic[]
+  number_of_files: number
+}
+
 /** One problem oxlint found: the rule, and the file and line it found it on. */
 export interface LintProblem {
   rule: string
@@ -44,15 +49,19 @@ export function lint(files: Record<string, string>): LintProblem[] {
     const run = spawnSync(process.execPath, [oxlintBin(), '--disable-nested-config', '--format', 'json', ...Object.keys(files)], { cwd: root, encoding: 'utf8' })
     if (run.error) throw run.error
     // 0 without problems, 1 with some; anything else, or no report, is oxlint refusing to run (a config it can't read, whose reason it prints where the report would be).
-    let diagnostics: Diagnostic[] | undefined
+    let report: Report | undefined
     try {
-      diagnostics = (JSON.parse(run.stdout) as { diagnostics: Diagnostic[] }).diagnostics
+      report = JSON.parse(run.stdout) as Report
     } catch {
       // Reported below with what oxlint said.
     }
-    if ((run.status !== 0 && run.status !== 1) || diagnostics === undefined) {
+    if ((run.status !== 0 && run.status !== 1) || report === undefined) {
       throw new Error(`oxlint didn't run (exit ${run.status}): ${run.stderr}${run.stdout}`)
     }
+    const { diagnostics, number_of_files: linted } = report
+    // oxlint skips a file it doesn't lint (`.txt`, say) without a word, which would read as no problem.
+    const planted = Object.keys(files).length
+    if (linted !== planted) throw new Error(`oxlint linted ${linted} of the ${planted} planted files`)
     return diagnostics.map(({ code, message, filename, labels }) => {
       // A planted file oxlint couldn't read would pass every check of what a rule allows.
       if (code === undefined) throw new Error(`oxlint couldn't read ${filename}: ${message}`)

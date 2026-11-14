@@ -27,7 +27,8 @@ export function Example({ count, name }: { count: number; name: string }) {
  * The attributes a user reads or hears: the ones HTML and ARIA define, the text props of the
  * app's own components (`label` on `IconButton`, `hint` on `MenuItem`, `actionLabel` on
  * `EmptyState`…) and their slots for content (`footer` on `Sheet` and `Menu`, `actions` on
- * `Dialog`, `overlay` on `PosterCard`…). The rule goes by the name, on any element.
+ * `Dialog`, `overlay` on `PosterCard`, `skeleton` on `ReleasesBody`…), `context` on `PollRing` among
+ * them, which its tooltip says. The rule goes by the name, on any element.
  */
 const READ_ATTRIBUTES = [
   'aria-label',
@@ -56,6 +57,8 @@ const READ_ATTRIBUTES = [
   'leading',
   'secondary',
   'overlay',
+  'context',
+  'skeleton',
 ]
 
 const REFUSED: [string, string][] = [

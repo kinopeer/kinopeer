@@ -97,7 +97,9 @@
               "actions",
               "leading",
               "secondary",
-              "overlay"
+              "overlay",
+              "context",
+              "skeleton"
             ]
           }
         ]
