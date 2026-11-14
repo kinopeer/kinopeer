@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { withTimeout } from './withTimeout'
 
 describe('withTimeout', () => {
@@ -22,11 +22,26 @@ describe('withTimeout', () => {
     expect(attempt?.aborted).toBe(true)
   })
 
-  it('aborts the attempt after the time', async () => {
+  it('aborts the attempt after the time, not before, and leaves the caller alone', async () => {
+    vi.useFakeTimers()
+    onTestFinished(() => {
+      vi.useRealTimers()
+    })
     const caller = new AbortController()
-    await expect(
-      withTimeout(5, caller.signal, (signal) => new Promise<void>((_, reject) => signal.addEventListener('abort', () => reject(new Error('late'))))),
-    ).rejects.toThrow('late')
+    let attempt: AbortSignal | undefined
+    const done = withTimeout(5, caller.signal, (signal) => {
+      attempt = signal
+      return new Promise<void>((_, reject) => signal.addEventListener('abort', () => reject(new Error('late'))))
+    })
+    const outcome = done.then(
+      () => 'resolved',
+      (error: Error) => error.message,
+    )
+    await vi.advanceTimersByTimeAsync(4)
+    expect(attempt?.aborted).toBe(false)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(attempt?.aborted).toBe(true)
+    expect(await outcome).toBe('late')
     expect(caller.signal.aborted).toBe(false)
   })
 })
