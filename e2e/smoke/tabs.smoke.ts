@@ -43,7 +43,14 @@ test('each tab comes back where it was left, and the active tab goes to the top'
   const settingsY = await scrollTo(page, 400)
 
   await tabs.getByRole('link', { name: 'Поиск' }).click()
-  await page.getByRole('searchbox', { name: 'Поиск' }).fill('Сёгун')
+  // Typed in the middle: the field keeps the caret where the keys go, as the app's router renders the
+  // address at once (#386).
+  const field = page.getByRole('searchbox', { name: 'Поиск' })
+  await field.fill('Сун')
+  await field.press('ArrowLeft')
+  await field.press('ArrowLeft')
+  await field.pressSequentially('ёг')
+  await expect(field).toHaveValue('Сёгун')
   await page.getByRole('link', { name: /Сёгун/ }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Сёгун' })).toBeVisible()
 
@@ -63,7 +70,7 @@ test('each tab comes back where it was left, and the active tab goes to the top'
     .evaluateAll((links) => links.findIndex((link) => link.getBoundingClientRect().top > 200))
   await list.getByRole('link').nth(onScreen).click()
   await expect(page).toHaveURL(/\/torrent\//)
-  // The URL changes before the screen renders (React Router renders in a transition).
+  // The scroll is read once the torrent's screen has taken Downloads' place.
   await expect(list).toBeHidden()
   expect(await scrollY(page)).toBe(0)
   await tabs.getByRole('link', { name: 'Загрузки' }).click()

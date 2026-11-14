@@ -9,6 +9,7 @@ import './i18n'
 import App from './App.tsx'
 import { trackInputModality } from './lib/inputModality'
 import { trackKeyboardInset } from './lib/keyboardInset'
+import { ROUTER_OPTIONS } from './lib/routerOptions'
 import { listenForInstallPrompt } from './pwa/install'
 import { startProxySignIn } from './pwa/proxySignIn'
 import { startUpdateChecks } from './pwa/updates'
@@ -30,7 +31,7 @@ trackKeyboardInset()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
+    <BrowserRouter {...ROUTER_OPTIONS}>
       <ErrorBoundary>
         <App />
       </ErrorBoundary>
