@@ -40,7 +40,9 @@ or its rules.
 - A mutator added to those Stryker leaves out, a pattern added to the files it doesn't mutate, or a
   folder removed from those it does (`mutants` in `checks.json`).
 - A budget raised, removed or no longer a number (`budgets` in `checks.json`, where more is
-  weaker). A budget lowered isn't marked: it checks more.
+  weaker), a new rule's budget in an accessibility state `main` has budgets for among them: a rule a
+  state doesn't name counts as 0 there, so its new budget is raised from 0. A budget lowered isn't
+  marked: it checks more.
 - A lint rule removed, turned off or downgraded, at the top level or in an override; a rule turned
   off that the config didn't name before, since it may have been on by default; a plugin removed; a
   path added to `ignorePatterns` (the root `.oxlintrc.json`).
@@ -98,8 +100,9 @@ or its rules.
 
 **For a second review**: a change to an existing check that a script can't judge.
 
-- Any other change to `checks.json`: a threshold raised, a new budget, an entry removed from an
-  exclusion list, a key the guard has no rule for.
+- Any other change to `checks.json`: a threshold raised, a new budget (an accessibility state's
+  only when the state is new), an entry removed from an exclusion list, a key the guard has no rule
+  for.
 - Any other change to `.oxlintrc.json`: a rule's options, also when its severity went up with
   them; a new rule that only warns; a key the guard has no rule for.
 - A CI step that changed or is gone, when every command it called still runs somewhere or it
@@ -625,9 +628,11 @@ A baseline left behind by a test that was removed keeps its budgets, which no te
 
 **Over a budget**, fix what axe names. Raising a budget is a weakening: it is the owner's decision,
 and the checks guard marks a budget raised, removed or no longer a number for the owner, and any
-change to the tags, which it reads as a budget that isn't a number. A new budget, for a new
-screenshot or a rule a state didn't break before, goes to a second review; a new state with `{}`
-has no number in it, so the guard marks nothing. A budget lowered needs no record. An update of
+change to the tags, which it reads as a budget that isn't a number. A rule a state didn't break
+before is a budget raised from 0, the count a rule the state doesn't name has, so the guard marks
+a new rule's budget for the owner too when `main` has budgets for that state, `{}` included
+(decided by the owner on 2026-11-14, #410). A new screenshot's budgets go to a second review; a new
+state with `{}` has no number in it, so the guard marks nothing. A budget lowered needs no record. An update of
 axe-core (Dependabot's monthly group) may find more or less; its PR then fails the `visual` job, and
 the budgets are read again there, a raised one going to the owner.
 

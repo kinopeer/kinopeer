@@ -102,11 +102,30 @@ const BUDGETS = 'budgets'
 const isBudget = (key: string): boolean => key === BUDGETS || key.startsWith(`${BUDGETS}.`)
 
 /**
+ * An accessibility budget's path, `budgets.accessibility.<spec>.<state>.<rule>`: a rule its state
+ * doesn't name counts as 0 there (scripts/accessibility/budget.ts), so a new rule's budget in a state
+ * main has budgets for is one raised from 0. A new state's budgets are new ones, and so is a path
+ * with a dot in a key, which the read refuses anyway.
+ */
+const ACCESSIBILITY = `${BUDGETS}.accessibility.`
+const RULE_DEPTH = 5
+
+/** Whether a budget's key is a rule's in an accessibility state main has budgets for, `{}` included. */
+function inStateOnMain(key: string, base: JsonObject): boolean {
+  const path = key.split('.')
+  if (!key.startsWith(ACCESSIBILITY) || path.length !== RULE_DEPTH) return false
+  let value: Json | undefined = base
+  for (const part of path.slice(0, -1)) value = isObject(value) && Object.hasOwn(value, part) ? value[part] : undefined
+  return isObject(value)
+}
+
+/**
  * A budget against main's: raised, removed or no longer a number is a weakening; a new one is a change
  * to existing checks, since a script can't tell whether it is tight; a lowered one is a stricter check.
+ * `unnamed` says main's budget is the 0 a rule its accessibility state doesn't name counts as.
  */
-function compareBudget(key: string, before: Json | undefined, after: Json | undefined): Pick<Finding, 'needs' | 'what'> | undefined {
-  const change = `${show(before)} → ${show(after)}`
+function compareBudget(key: string, before: Json | undefined, after: Json | undefined, unnamed = false): Pick<Finding, 'needs' | 'what'> | undefined {
+  const change = `${unnamed ? "nothing (`0` for a rule its state on main doesn't name)" : show(before)} → ${show(after)}`
   if (before === undefined) return { needs: 'review', what: `the budget \`${key}\` is new: ${change}` }
   if (after === undefined) return { needs: 'owner', what: `the budget \`${key}\` is removed: ${change}` }
   if (typeof after !== 'number') return { needs: 'owner', what: `the budget \`${key}\` is no longer a number: ${change}` }
@@ -141,7 +160,8 @@ export function compareChecks(base: string | undefined, head: string | undefined
       if (lowered) owner(`the threshold \`${key}\` is lowered: ${show(before)} → ${show(after)}`)
       else review(`the threshold \`${key}\` changed: ${show(before)} → ${show(after)}`)
     } else if (isBudget(key)) {
-      const finding = compareBudget(key, before, after)
+      const unnamed = before === undefined && inStateOnMain(key, parsed.base)
+      const finding = compareBudget(key, unnamed ? 0 : before, after, unnamed)
       if (finding) found.push({ ...finding, file })
     } else if (EXCLUDES.includes(key) || INCLUDES.includes(key)) {
       // Anything but a list there, and whatever reads it leaves out or takes in something else.

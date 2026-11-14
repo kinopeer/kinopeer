@@ -126,6 +126,48 @@ describe('compareChecks', () => {
       expect(compareChecks(json(budgeted), withSize({ js: 999, css: 1 }))).toEqual([])
     })
   })
+
+  describe('the accessibility budgets, where a rule a state does not name counts as 0', () => {
+    const states = { downloads: { list: { 'color-contrast': 1 }, empty: {} } }
+    const withStates = (accessibility: object) => json({ ...checks, budgets: { accessibility } })
+    const named = (rules: object) => withStates({ ...states, downloads: { ...states.downloads, ...rules } })
+
+    it.each([
+      [
+        'a new rule in a state main has budgets for',
+        named({ list: { 'color-contrast': 1, 'target-size': 2 } }),
+        ["owner: the budget `budgets.accessibility.downloads.list.target-size` is raised: nothing (`0` for a rule its state on main doesn't name) → `2`"],
+      ],
+      [
+        'a new rule in a state main has as {}',
+        named({ empty: { 'target-size': 1 } }),
+        ["owner: the budget `budgets.accessibility.downloads.empty.target-size` is raised: nothing (`0` for a rule its state on main doesn't name) → `1`"],
+      ],
+      [
+        'a new rule in such a state that is not a number',
+        named({ empty: { 'target-size': '1' } }),
+        ["owner: the budget `budgets.accessibility.downloads.empty.target-size` is no longer a number: nothing (`0` for a rule its state on main doesn't name) → `\"1\"`"],
+      ],
+    ])('sends %s to the owner', (_name, head, expected) => {
+      expect(said(compareChecks(withStates(states), head))).toEqual(expected)
+    })
+
+    it('finds nothing in a new rule of 0 in such a state, what it counted as already', () => {
+      expect(compareChecks(withStates(states), named({ empty: { 'target-size': 0 } }))).toEqual([])
+    })
+
+    it.each([
+      ['a new state', named({ grid: { 'target-size': 1 } }), ['review: the budget `budgets.accessibility.downloads.grid.target-size` is new: nothing → `1`']],
+      ['a new spec', withStates({ ...states, search: { results: { 'color-contrast': 3 } } }), ['review: the budget `budgets.accessibility.search.results.color-contrast` is new: nothing → `3`']],
+      [
+        'a state whose name only starts as one of main has',
+        named({ 'empty-ru': { 'target-size': 1 } }),
+        ['review: the budget `budgets.accessibility.downloads.empty-ru.target-size` is new: nothing → `1`'],
+      ],
+    ])('sends the budgets of %s to a second review', (_name, head, expected) => {
+      expect(said(compareChecks(withStates(states), head))).toEqual(expected)
+    })
+  })
 })
 
 describe('compareLint', () => {
