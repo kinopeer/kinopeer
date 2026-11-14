@@ -81,6 +81,11 @@ describe("checks.json's mutated folders", () => {
   const folders = checks.mutants.folders
   let checked: Set<string> | undefined
 
+  // git lists nothing for a path that names nothing, which would pass the rows below.
+  it.each(folders)('names %s, a folder with files in it', (folder) => {
+    expect(filesIn(ROOT, folder)).not.toEqual([])
+  })
+
   it.each(folders)('starts the Mutants workflow on a change to any file in %s', (folder) => {
     const paths = pullRequestPaths(readFileSync(join(ROOT, '.github/workflows/mutants.yml'), 'utf8'))
     expect(filesIn(ROOT, folder).filter((file) => !startsOn(paths, file))).toEqual([])
