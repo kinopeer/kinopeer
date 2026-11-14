@@ -256,9 +256,14 @@ export function compareLint(base: string | undefined, head: string | undefined, 
     const where = ` for ${files}`
     found.push(...compareRules(file, where, rulesOf(before.get(files)), rulesOf(after.get(files)), after.has(files) ? rulesOf(was) : {}))
     const [had, has] = [before.get(files), after.get(files)]
-    // An override that is gone takes its rules away, compared above; one that is new is read against
-    // an empty one, so the environments and globals it brings are marked.
-    if (!isObject(has)) continue
+    // An override that is gone takes its rules away, compared above, and is read against an empty
+    // one, so a global it took away or an environment it turned off is marked; one that is new is
+    // read the same way round, so the environments and globals it brings are marked.
+    if (!isObject(has)) {
+      // Its plugins go with its rules, which are marked one by one.
+      if (isObject(had)) found.push(...compareScope(file, where, had, {}, ['files', 'excludeFiles', 'plugins', 'jsPlugins']))
+      continue
+    }
     if (!isObject(had)) {
       found.push(...compareScope(file, where, {}, has, ['files', 'excludeFiles']))
       continue
@@ -279,7 +284,7 @@ export function compareLint(base: string | undefined, head: string | undefined, 
  */
 function compareScope(file: string, where: string, had: JsonObject, has: JsonObject, skip: string[]): Finding[] {
   const found: Finding[] = []
-  for (const key of ['plugins', 'jsPlugins']) {
+  for (const key of ['plugins', 'jsPlugins'].filter((key) => !skip.includes(key))) {
     for (const plugin of entries(had[key])) {
       if (!entries(has[key]).includes(plugin)) found.push({ needs: 'owner', file, what: `the lint plugin ${plugin} is removed${where}, and its rules with it` })
     }
@@ -291,7 +296,7 @@ function compareScope(file: string, where: string, had: JsonObject, has: JsonObj
   // An environment turned off, or a global taken away, that is no longer there gives back what the
   // defaults or the top level allow.
   for (const [name, on] of Object.entries(envWas)) {
-    if (on === false && !(name in envNow)) found.push({ needs: 'owner', file, what: `the environment ${name} is no longer turned off${where}` })
+    if (on === false && !Object.hasOwn(envNow, name)) found.push({ needs: 'owner', file, what: `the environment ${name} is no longer turned off${where}` })
   }
   const [globalsWas, globalsNow] = [isObject(had.globals) ? had.globals : {}, isObject(has.globals) ? has.globals : {}]
   for (const [name, value] of Object.entries(globalsNow)) {
@@ -299,7 +304,7 @@ function compareScope(file: string, where: string, had: JsonObject, has: JsonObj
     if (value !== 'off' && !same(globalsWas[name], value)) found.push({ needs: 'owner', file, what: `the global \`${name}\` is allowed${where}: ${show(value)}` })
   }
   for (const [name, value] of Object.entries(globalsWas)) {
-    if (value === 'off' && !(name in globalsNow)) found.push({ needs: 'owner', file, what: `the global \`${name}\` is no longer taken away${where}` })
+    if (value === 'off' && !Object.hasOwn(globalsNow, name)) found.push({ needs: 'owner', file, what: `the global \`${name}\` is no longer taken away${where}` })
   }
   for (const key of new Set([...Object.keys(had), ...Object.keys(has)])) {
     if (['rules', 'plugins', 'jsPlugins', 'env', 'globals', ...skip].includes(key) || same(had[key], has[key])) continue
@@ -503,11 +508,12 @@ export function compareStylesheets(changes: Change[], sheets: Sheet[]): Finding[
   return changes.flatMap(({ path, added }) => {
     const lines = new Set(added.map(({ line }) => line))
     return raw.filter(({ allowed }) => allowed).flatMap(({ file, line, prop, raw: value, via }): Finding[] => {
-      if (file === path && lines.has(line)) return [{ needs: 'coordinator', file: path, line, what: `a value off the tokens' scale, let through by the comment on its line: \`${prop}: ${value}\`` }]
+      const own: Finding[] = file === path && lines.has(line) ? [{ needs: 'coordinator', file: path, line, what: `a value off the tokens' scale, let through by the comment on its line: \`${prop}: ${value}\`` }] : []
       // A line that takes a shadow from a custom property makes it cast one, though its own line stays.
-      return via
+      const takes = via
         .filter((use) => use.file === path && lines.has(use.line))
-        .map((use) => ({ needs: 'coordinator', file: path, line: use.line, what: `a shadow off the tokens' scale, taken from \`${file}:${line}\` and let through by the comment there: \`${prop}: ${value}\`` }))
+        .map((use): Finding => ({ needs: 'coordinator', file: path, line: use.line, what: `a shadow off the tokens' scale, taken from \`${file}:${line}\` and let through by the comment there: \`${prop}: ${value}\`` }))
+      return [...own, ...takes]
     })
   })
 }

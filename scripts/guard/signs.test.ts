@@ -916,6 +916,20 @@ describe('compareLint: an override beside its rules (#412)', () => {
       `the global \`process\` is no longer taken away ${where}`,
     ])
     expect(compareLint(json({ env: { builtin: false } }), json({})).map(({ what }) => what)).toEqual(['the environment builtin is no longer turned off'])
+    // An override removed, or whose files change, gives them back too; `in` would find `toString` on any object.
+    const off = { files: ['src/logic/**'], env: { node: false, toString: false }, globals: { fetch: 'off', toString: 'off' } }
+    expect(compareLint(json({ overrides: [off] }), json({ overrides: [] })).map(({ needs, what }) => `${needs}: ${what}`)).toEqual([
+      'owner: the environment node is no longer turned off for ["src/logic/**"]',
+      'owner: the environment toString is no longer turned off for ["src/logic/**"]',
+      'owner: the global `fetch` is no longer taken away for ["src/logic/**"]',
+      'owner: the global `toString` is no longer taken away for ["src/logic/**"]',
+    ])
+    expect(compareLint(json({ overrides: [off] }), json({ overrides: [{ ...off, files: ['src/**'], env: {}, globals: {} }] })).map(({ what }) => what)).toEqual([
+      'the environment node is no longer turned off for ["src/logic/**"]',
+      'the environment toString is no longer turned off for ["src/logic/**"]',
+      'the global `fetch` is no longer taken away for ["src/logic/**"]',
+      'the global `toString` is no longer taken away for ["src/logic/**"]',
+    ])
     // An environment turned on that is removed, or one turned off that stays, checks more or the same.
     expect(compareLint(config({ env: { node: true, browser: false } }), config({ env: { browser: false } }))).toEqual([])
   })
@@ -990,6 +1004,9 @@ describe('compareStylesheets', () => {
     const taking = (lines: number[]) => compareStylesheets([{ path: 'src/a.css', added: lines.map((line) => ({ line, text: '' })) }], [TOKENS, { file: 'src/a.css', text }, lift])
     expect(taking([3])).toEqual([{ needs: 'coordinator', file: 'src/a.css', line: 3, what: "a shadow off the tokens' scale, taken from `src/b.css:2` and let through by the comment there: `--lift: 0 2px 4px var(--scrim)`" }])
     expect(taking([2])).toEqual([])
+    // A definition added beside a line that takes it: both, the value and where it's taken.
+    const both = { file: 'src/a.css', text: '.a {\n  --lift: 0 2px 4px var(--scrim); /* why */\n  box-shadow: var(--lift);\n}\n' }
+    expect(compareStylesheets([{ path: 'src/a.css', added: [{ line: 2, text: '' }, { line: 3, text: '' }] }], [TOKENS, both]).map(({ line }) => line)).toEqual([2, 3])
     // The same line in another file isn't the one that takes it.
     expect(compareStylesheets([{ path: 'src/c.css', added: [{ line: 3, text: '' }] }], [TOKENS, { file: 'src/a.css', text }, lift])).toEqual([])
   })

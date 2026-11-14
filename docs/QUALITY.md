@@ -53,9 +53,12 @@ or its rules.
   through, and one no longer turned off or taken away (a `false` environment or an `'off'` global
   removed); a path added to `ignorePatterns` or to an override's `excludeFiles`, the files its rules
   skip (the root `.oxlintrc.json`). An
-  override is known by its `files`, so one whose `files` change is one removed and one added: its
-  rules are marked as removed, and the new one is read against an empty override, so the
-  environments and globals it brings are marked as above.
+  override is known by its `files`, so one whose `files` change is one removed and one added. One
+  removed has its rules marked as removed, and the environments it turned off and the globals it
+  took away as given back; a new one is read against an empty override, so the environments and
+  globals it brings are marked as above. That is loud for a change that checks more: a glob added
+  to an override's `files` marks each of its rules as removed and each global it allows as allowed,
+  for the owner to approve at once.
 - The linter turned off from another file, marked by the file's path whatever it says: an
   `.oxlintrc.json` outside the root, which oxlint obeys for its folder, or an `.eslintignore` or
   `.oxlintignore`, added or with lines added. `npm run lint` also runs oxlint with
@@ -130,12 +133,16 @@ Autopilot).
   a spacing, radius or type size in px the scale doesn't have, a raw color, a `data:` URL, a raw
   shadow or raw motion. What counts as raw is the test's own definition,
   `scripts/guard/stylesheets.ts`, which the guard reads against the scale and the custom
-  properties of every stylesheet at the branch's head (a shadow's `var()` is followed into them,
-  so a line the branch adds that uses a commented raw shadow elsewhere is marked too, with where it
-  comes from).
+  properties of every stylesheet at the branch's head (a shadow's `var()` is followed into them).
+  A `box-shadow` or `text-shadow` line the branch adds that takes a commented raw shadow through
+  `var()` is marked too, with where the shadow comes from; a custom property the branch changes in
+  between, or a `filter` that takes one, isn't.
   A line the branch changes counts as added, so a comment written onto a raw value's line is marked
   as well. When the guard can't parse the stylesheets, every one the branch changes is marked. A raw
-  value without a comment isn't marked: the test fails it, and CI with it.
+  value without a comment isn't marked: the test fails it, and CI with it. Nor is a size in a new
+  custom property outside `tokens.css` (`--gutter: 13px;` in `layout.css`, then `gap:
+  var(--gutter)`): the test reads sizes only where they're used, and `layout.css` holds the layout's
+  sizes by design, so that one is left to review.
 
 **For a second review**: a change to an existing check that a script can't judge.
 

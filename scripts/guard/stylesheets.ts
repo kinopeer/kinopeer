@@ -5,7 +5,9 @@
 // here changes both at once, and goes to the owner as a change to the guard. Stylesheets are parsed
 // with PostCSS, which Vite's own CSS handling brings in; the values inside a declaration are read by
 // the patterns below.
+/// <reference path="./postcss-tokenize.d.ts" />
 import { parse, type AtRule, type Node, type Rule } from 'postcss'
+import tokenizer from 'postcss/lib/tokenize'
 
 /** The design tokens, the only stylesheet whose values aren't checked: they are the scale. */
 export const TOKENS_FILE = 'src/styles/tokens.css'
@@ -31,31 +33,17 @@ export interface Declaration {
   commented: (line: number) => boolean
 }
 
-// An unquoted url(), whose content is read as it stands, a `/*` in it too, up to its `)`.
-const UNQUOTED_URL = /(?<![\w-])url\(\s*(?!['"\s])/iy
-
 /**
- * Where each comment starts and ends. A string and an unquoted url() are skipped, so
- * `content: '/*'` or `url(icons/*.svg)` doesn't open one, and a comment that isn't closed runs to
- * the end, as CSS reads it.
+ * Where each comment starts and ends, from PostCSS's own tokenizer, so a `/*` in a string or an
+ * unquoted url() opens none, exactly as the parser reads it. Called after the parse, which throws
+ * on a comment left open.
  */
 function commentSpans(text: string): [number, number][] {
+  const tokens = tokenizer({ css: text }, { ignoreErrors: true })
   const spans: [number, number][] = []
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i]
-    UNQUOTED_URL.lastIndex = i
-    if (UNQUOTED_URL.test(text)) {
-      const close = text.indexOf(')', UNQUOTED_URL.lastIndex)
-      i = close === -1 ? text.length : close
-    } else if (char === '/' && text[i + 1] === '*') {
-      const close = text.indexOf('*/', i + 2)
-      const end = close === -1 ? text.length : close + 2
-      spans.push([i, end])
-      i = end - 1
-    } else if (char === '"' || char === "'") {
-      // To the closing quote, past an escaped one, across lines as PostCSS reads it.
-      for (i++; i < text.length && text[i] !== char; i++) if (text[i] === '\\') i++
-    }
+  while (!tokens.endOfFile()) {
+    const [type, , start, end] = tokens.nextToken() ?? []
+    if (type === 'comment' && start !== undefined && end !== undefined) spans.push([start, end + 1])
   }
   return spans
 }
@@ -76,6 +64,7 @@ function where(node: Node): string {
  */
 export function declarations({ file, text: raw }: Sheet): Declaration[] {
   const text = raw.startsWith('\uFEFF') ? raw.slice(1) : raw
+  const root = parse(text, { from: file })
   const spans = commentSpans(text)
   const newlines = [...text.matchAll(/\n/g)].map((m) => m.index)
   /** The 1-based line of an index: the newlines before it, plus one. */
@@ -95,7 +84,7 @@ export function declarations({ file, text: raw }: Sheet): Declaration[] {
   let code = text
   for (const [start, end] of spans) code = code.slice(0, start) + code.slice(start, end).replace(/[^\n]/g, ' ') + code.slice(end)
   const found: Declaration[] = []
-  parse(text, { from: file }).walkDecls((decl) => {
+  root.walkDecls((decl) => {
     const start = decl.source?.start?.offset ?? 0
     const valueStart = start + decl.prop.length + (decl.raws.between ?? ':').length
     const value = decl.raws.value?.raw ?? decl.value
@@ -354,9 +343,11 @@ export function rawValues(sheets: Sheet[]): RawValue[] {
   const outside = sheets.filter(({ file }) => file !== TOKENS_FILE).flatMap(declarations)
   const found: RawValue[] = []
   /** A raw value at a value's index, which its line's comment lets through unless `fix` names the token it is. */
-  const at = (kind: Kind, d: Declaration, index: number, raw: string, says: string, fix = false) => {
+  const at = (kind: Kind, d: Declaration, index: number, raw: string, says: string, fix = false): RawValue => {
     const line = d.lineAt(index)
-    found.push({ kind, file: d.file, line, prop: d.prop, raw, says, allowed: !fix && d.commented(line), via: [] })
+    const value: RawValue = { kind, file: d.file, line, prop: d.prop, raw, says, allowed: !fix && d.commented(line), via: [] }
+    found.push(value)
+    return value
   }
 
   const tokenOf: Record<'spacing' | 'radius' | 'type', Token> = { spacing: scale(tokens, 'space'), radius: scale(tokens, 'r'), type: roles(tokens) }
@@ -391,11 +382,9 @@ export function rawValues(sheets: Sheet[]): RawValue[] {
   for (const d of outside) {
     if (!SHADOW_PROP.test(d.prop) && !d.prop.startsWith('--')) continue
     for (const { d: where, index, layer, from } of rawShadows(d, own)) {
-      const line = where.lineAt(index)
-      const key = `${where.file}:${line}:${where.prop}:${layer}`
-      const shadow = shadows.get(key) ?? { kind: 'shadow', file: where.file, line, prop: where.prop, raw: layer, says: `${layer} is a raw shadow: use a --shadow token, or add a comment on the line saying why`, allowed: where.commented(line), via: [] }
+      const key = `${where.file}:${where.lineAt(index)}:${where.prop}:${layer}`
+      const shadow = shadows.get(key) ?? at('shadow', where, index, layer, `${layer} is a raw shadow: use a --shadow token, or add a comment on the line saying why`)
       if (from) shadow.via.push({ file: from.d.file, line: from.d.lineAt(from.index) })
-      if (!shadows.has(key)) found.push(shadow)
       shadows.set(key, shadow)
     }
   }

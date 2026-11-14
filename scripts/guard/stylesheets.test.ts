@@ -86,6 +86,10 @@ describe('the comments rawValues reads', () => {
     // A comment after one is still a comment, and one left open runs to the end, as PostCSS reads it.
     expect(raw('a { background: url(a.svg); /* why */ padding: 13px; }')).toEqual(['allowed spacing src/a.css:1 padding: 13px is off the scale: add a comment on the line saying why'])
     expect(() => raw('a { background: url(a/*.svg; }\nb { padding: 13px; }')).toThrow()
+    // Read as PostCSS reads it: an escaped `)` doesn't end the url(), and only `url(` in lower case
+    // is one, so `URL(` holds a comment.
+    expect(raw('.a { background: url(a\\)/*b.svg); }\n.b { padding: 13px; }\n/* x */')).toEqual(['fails spacing src/a.css:2 padding: 13px is off the scale: add a comment on the line saying why'])
+    expect(raw('a { background: URL(x/*y*/z); padding: 13px; }')).toEqual(['allowed spacing src/a.css:1 padding: 13px is off the scale: add a comment on the line saying why'])
   })
 
   it('reads a stylesheet that starts with a byte order mark where its values are', () => {
