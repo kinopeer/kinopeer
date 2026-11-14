@@ -78,21 +78,37 @@ describe('useServerMatches', () => {
 
 describe('loadServerMatches', () => {
   it('asks again once more than a minute has passed since the server didn’t answer, not at the minute', async () => {
-    // Only the clock stands still, so the minute is exact and the load still settles.
+    // Only the clock is fake, so the minute is exact.
     vi.useRealTimers()
     vi.useFakeTimers({ toFake: ['Date'] })
-    getMatches.mockRejectedValueOnce(new api.MatchesError(502)).mockResolvedValue({ [A]: USER })
-    loadServerMatches()
-    // A real timer's turn comes once the load has settled; vi.waitFor would move the clock.
-    await new Promise((settled) => setTimeout(settled, 0))
+    let answer = (_matches: Matches) => {}
+    getMatches.mockRejectedValueOnce(new api.MatchesError(502)).mockReturnValueOnce(new Promise((resolve) => (answer = resolve)))
+    await loadServerMatches()
     expect(currentServerMatches()).toEqual({})
 
     vi.setSystemTime(Date.now() + 60_000)
     loadServerMatches()
     expect(getMatches).toHaveBeenCalledTimes(1)
     vi.setSystemTime(Date.now() + 1)
-    loadServerMatches()
+    const again = loadServerMatches()
     expect(getMatches).toHaveBeenCalledTimes(2)
+    // A caller that comes while it's in flight waits for the same load, until the server answers.
+    let settled = false
+    void loadServerMatches().then(() => (settled = true))
+    await Promise.resolve()
+    expect(settled).toBe(false)
+    answer({ [A]: USER })
+    await again
+    expect(settled).toBe(true)
+    expect(currentServerMatches()).toEqual({ [A]: USER })
+    expect(getMatches).toHaveBeenCalledTimes(2)
+  })
+
+  it('settles at once when the matches are loaded', async () => {
+    getMatches.mockResolvedValue({ [A]: USER })
+    await loadServerMatches()
+    await loadServerMatches()
+    expect(getMatches).toHaveBeenCalledTimes(1)
   })
 })
 

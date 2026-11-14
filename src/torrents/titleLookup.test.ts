@@ -44,6 +44,13 @@ describe('pickBest', () => {
     expect(pickBest([special, dune], { title: 'Dune' })).toBe(dune)
   })
 
+  it('compares names in lower case, where ß and ss differ: Straße isn’t the exact name for Strasse', () => {
+    const special = title('movie', 7, 'Strasse Nights', 2000)
+    const strasse = title('movie', 8, 'Straße', 2000)
+    expect(pickBest([special, strasse], { title: 'Strasse' })).toBe(special)
+    expect(pickBest([special, strasse], { title: 'Straße' })).toBe(strasse)
+  })
+
   it('takes an exact name a year off over another title of the exact year', () => {
     const woman = title('movie', 5, 'A Normal Woman', 2025)
     const normal = { ...title('movie', 6, 'Нормал', 2026), originalTitle: 'Normal' }

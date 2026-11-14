@@ -6,7 +6,7 @@ import type { Torrent } from '../api/qbittorrent'
 import { stubDesktop } from '../lib/stubDesktop'
 import { renderWithRouter, saying } from '../test/render'
 import type { TitleMatch } from '../torrents/titleLookup'
-import * as titleLookups from '../torrents/useTitleMatches'
+import * as titleMatches from '../torrents/useTitleMatches'
 import { REQUEST_KINDS } from '../torrents/requestKinds'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
 import { TorrentActionsSheet, type TorrentActionsSheetProps } from './TorrentActionsSheet'
@@ -23,7 +23,7 @@ vi.mock('../api/qbittorrent', async (importOriginal) => ({
 }))
 
 vi.mock('../torrents/useTitleMatches', async (importOriginal) => ({
-  ...(await importOriginal<typeof titleLookups>()),
+  ...(await importOriginal<typeof titleMatches>()),
   chooseTitle: vi.fn(),
 }))
 
