@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
+import { expect, test } from './test.ts'
 import { DESKTOP, DESKTOP_RAIL, emulateNotch, openApp, settle, type AppOptions } from './app.ts'
 
 async function openSearch(page: Page, path: string, firstTitle: string, options: AppOptions = {}) {

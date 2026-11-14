@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
+import { expect, test } from './test.ts'
 import { BRIDGE_HEADERS, DESKTOP, openApp, settle, type AppOptions } from './app.ts'
 
 /** Opens the app, then answers as a fresh install would and reloads, so the given setup step shows. */

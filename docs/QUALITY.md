@@ -18,6 +18,7 @@ Only what is on, being adopted, or declined with its reason; plans aren't listed
 | [The size budget](#the-size-budget) | On since 2026-11-12 (#378): a step of CI's `performance` job, which is among `main`'s required checks | Sums the build's JS and CSS gzipped and everything else as it is, and fails over the budgets in `checks.json` |
 | [The requests budget](#the-requests-budget) | Being adopted (#378): a step of CI's `performance` job, which is among `main`'s required checks | Opens each screen afresh in a browser and moves between screens in short journeys, counts what each opening and each move asks each server route for, and fails on any count that isn't its budget in `checks.json` |
 | [The layout shift budget](#the-layout-shift-budget) | Being adopted (#378, #387): a test in CI's `performance` job, beside the requests budget's, which is among `main`'s required checks | Opens each screen on a phone and on desktop in a browser, lets the answers it loads from land one at a time in two orders, sums how far its content moves, and fails over its budget in `checks.json` |
+| [The accessibility budget](#the-accessibility-budget) | Being adopted (2026-11-14): a part of every screenshot test in CI's `visual` job, which is among `main`'s required checks | Has axe read the state each screenshot shows against WCAG 2.2 AA, counts the elements that break each rule, and fails on any count that isn't its budget in `checks.json` |
 
 ## The checks guard
 
@@ -39,7 +40,9 @@ or its rules.
 - A mutator added to those Stryker leaves out, a pattern added to the files it doesn't mutate, or a
   folder removed from those it does (`mutants` in `checks.json`).
 - A budget raised, removed or no longer a number (`budgets` in `checks.json`, where more is
-  weaker). A budget lowered isn't marked: it checks more.
+  weaker), a new rule's budget in an accessibility state `main` has budgets for among them: a rule a
+  state doesn't name counts as 0 there, so its new budget is raised from 0. A budget lowered isn't
+  marked: it checks more.
 - A lint rule removed, turned off or downgraded, at the top level or in an override; a rule turned
   off that the config didn't name before, since it may have been on by default; a plugin removed; a
   path added to `ignorePatterns` (the root `.oxlintrc.json`).
@@ -97,8 +100,9 @@ or its rules.
 
 **For a second review**: a change to an existing check that a script can't judge.
 
-- Any other change to `checks.json`: a threshold raised, a new budget, an entry removed from an
-  exclusion list, a key the guard has no rule for.
+- Any other change to `checks.json`: a threshold raised, a new budget (an accessibility state's
+  only when the state is new), an entry removed from an exclusion list, a key the guard has no rule
+  for.
 - Any other change to `.oxlintrc.json`: a rule's options, also when its severity went up with
   them; a new rule that only warns; a key the guard has no rule for.
 - A CI step that changed or is gone, when every command it called still runs somewhere or it
@@ -211,7 +215,8 @@ requests tests the requests budgets (`budgets.requests` for the screens' opening
 `budgets.journeys` for the moves between them, [The requests budget](#the-requests-budget)), the
 layout shift test the layout shift budgets (`budgets.layoutShift`, a score per window size and
 screen, and the ceiling over them, `budgets.layoutShiftCeiling`, `docs/TESTING.md` → The layout
-shift test). A new
+shift test), and the screenshot tests the accessibility budgets and the tags axe checks
+(`budgets.accessibility` and `budgets.accessibilityTags`, [The accessibility budget](#the-accessibility-budget)). A new
 threshold, budget or exclusion list goes there too, not into the config that uses it, where the
 guard wouldn't see it move.
 
@@ -553,3 +558,98 @@ a new screen, goes to a second review. **Under a budget** by a step of 0.01 or m
 lower it in the same PR: a budget lowered needs no record. The ceiling is in `checks.json` beside
 the budgets, so the checks guard marks it raised for the owner as it does a budget.
 
+## The accessibility budget
+
+A change can make the app harder to use without a screen reader, a keyboard or good eyes, and look
+the same: a button whose name doesn't say what it shows, text a shade too faint on its background,
+a control squeezed under another. The accessibility budget makes a new one a failing check. Every
+screenshot the screenshot tests take (`e2e/*.spec.ts`, `docs/TESTING.md` → Screenshot tests) also
+has axe (`@axe-core/playwright`) read the state it shows, and the count of elements that break each
+of axe's rules there is held to its budget.
+
+**What axe reads.** The rules of WCAG 2.2 AA as axe checks them: the tags in
+`budgets.accessibilityTags` (`wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, `wcag22aa`). A rule axe
+can't decide on an element (text over an image, say) is "incomplete" and isn't counted. axe skips
+a tag none of its rules has without a word, so the read fails on one (`wcag22AA`) rather than read
+nothing for it. axe's
+`target-size` asks for 24px; the 44px of `CLAUDE.md` → Conventions has no check of its own and stays
+the reviews' (decided on 2026-11-14: a check of its own would need exceptions, such as links in
+text, for little gain). axe reads the whole page, also for a screenshot of one element, and after
+the screenshot, so nothing it does on the page shows in it.
+
+**Built into the screenshot.** The specs take `test` and `expect` from `e2e/test.ts`, whose
+`toHaveScreenshot` takes the screenshot and then has axe read the page, as do those of the
+`expect`s it makes (`expect.soft`, `expect.configure`, `expect.extend`) and of `test.expect`, also
+on a `test` that `test.extend` makes; oxlint refuses `test`, `expect`, `mergeExpects` and the
+default export from `@playwright/test` and from `playwright/test`, the package it re-exports, in
+every file under `e2e/` but `e2e/test.ts` itself and the smoke and performance tests, which take no
+compared screenshot (`.oxlintrc.json`): the specs and the modules they share steps from (`app.ts`)
+alike. So a new screenshot can't be taken without the read, which a helper called beside it would
+leave to whoever writes the test. Under `expect.soft` the read's verdict is soft too, so the test
+goes on to its later screenshots.
+
+**Each state has its budgets**, under `budgets.accessibility` in `checks.json`: by spec (its file
+without `.spec.ts`), then screenshot (its name without `.png`), then axe's rule, the count of
+elements that break the rule there (`downloads.select-list-dark-ru.color-contrast`). A rule a state
+doesn't name is 0, and a state where axe finds nothing has `{}`. Two tests that take the same
+screenshot share its budgets, as they share its baseline. A screenshot's name has no dot but its
+`.png`, nor has its spec's but its `.spec.ts`: the checks guard reads a budget by its keys joined
+with dots ([What it doesn't see](#what-it-doesnt-see)).
+
+**Exact, not within a margin.** The tests run on mocked answers with the clock frozen, so a state
+is the same every run, and so is what axe finds in it: four whole runs in a row in Docker gave the
+same counts in every state, and CI's run the same as Docker's on a Mac (the same image, at #410's
+first head). So the
+budget is the count itself, as the requests budget's is: a count above its budget fails, and so does
+one below it, since a budget left higher than the state needs would let a broken element come back
+unnoticed. A fix lowers its budget in the same PR, to 0 rather than out of the file: the checks
+guard marks a budget removed for the owner.
+
+**The violations found at the start** are the budgets today, each rule with its issue, and their
+fixes lower them (decided on 2026-11-14: fixing them first would turn the step into design work,
+and a visible fix is the owner's):
+
+| Rule | Elements, states | What a fix changes | Issue |
+| --- | --- | --- | --- |
+| `label-content-name-mismatch` | 44 in 44: Downloads' status button on desktop, the phone's sort button with a type filter, the torrent's category row, a torrent in a title's "In downloads" | Nothing on the screen: the accessible names | #407 |
+| `color-contrast` | 11 in 3: secondary text on a selected torrent, on a phone and in the desktop table, and on a skipped file | The colors, so the owner's | #408 |
+| `target-size` | 1 in 1: a row's More button under the pinned filter bar after a scroll, on a phone | Maybe nothing: it may be left as the scroll's | #409 |
+
+**What fails**: a count that isn't its budget, which names the rule, the count and the budget,
+what the rule asks with axe's help link, and the elements by selector and the start of their HTML,
+ten at most, or, under its budget, says to lower it; a screenshot without a budget, which says what
+to add to `checks.json`, what axe finds there; a screenshot without a name, or with a dot in its or
+its spec's name but the endings; `budgets.accessibility` or `budgets.accessibilityTags` that can't be
+read (not an object, a count that isn't a whole number of 0 or more, a key with a dot or empty, tags
+that aren't a list of strings, or a tag axe doesn't know). And `e2e/accessibility.spec.ts` fails on a budget for a screenshot
+with no baseline in `e2e/__screenshots__/`, or a baseline without a budget: every screenshot the
+specs take has a baseline, since one without fails, so the baselines stand for the list of states.
+A baseline left behind by a test that was removed keeps its budgets, which no test then reads.
+
+**Over a budget**, fix what axe names. Raising a budget is a weakening: it is the owner's decision,
+and the checks guard marks a budget raised, removed or no longer a number for the owner, and any
+change to the tags, which it reads as a budget that isn't a number. A rule a state didn't break
+before is a budget raised from 0, the count a rule the state doesn't name has, so the guard marks
+a new rule's budget for the owner too when `main` has budgets for that state, `{}` included
+(decided by the owner on 2026-11-14, #410). A new screenshot's budgets go to a second review; a new
+state with `{}` has no number in it, so the guard marks nothing. A budget lowered needs no record. An update of
+axe-core (Dependabot's monthly group) may find more or less; its PR then fails the `visual` job, and
+the budgets are read again there, a raised one going to the owner.
+
+**What it doesn't see.** Only what the screenshots show: a state no screenshot takes, a hover or a
+focus ring but the few the specs set up, the light theme and English but in their few screenshots.
+Nothing axe leaves to a person: whether a name makes sense, the order a screen reader reads in,
+keyboard navigation and focus (`CLAUDE.md` → Conventions leaves those to each project), how the app
+sounds in VoiceOver or TalkBack.
+
+**In CI** it is part of the `visual` job, in the Playwright image the baselines are rendered in.
+The reads add about 64 s of test time, about 32 s on the job's two workers: a whole run took 60 s in
+Docker on a Mac with them, and the job 2 min 10 s in CI, against 1 min 26 s and 1 min 40 s on
+`main` before. A failure uploads the Playwright report as the screenshots' do, and each
+screenshot's test there has an `axe <spec>/<screenshot>` attachment with every element axe found.
+
+**Its tests**: the rules (the budgets and tags read, the tags axe doesn't know, a screenshot's state from its name, the
+verdict and its report, the budgets without a baseline and the baselines without a budget) are pure
+functions in `scripts/accessibility/budget.ts`, tested in `budget.test.ts` (layer 1); coverage
+measures the folder and Stryker mutates it. The read itself, in `e2e/test.ts`, and the check of the
+baselines, in `e2e/accessibility.spec.ts`, are layer 6, beside the screenshot tests.
