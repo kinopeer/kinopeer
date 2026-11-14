@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './test.ts'
 import { openApp, settle } from './app.ts'
 
@@ -9,43 +9,56 @@ import { openApp, settle } from './app.ts'
  * a page drawn 118px up for a frame). jsdom has no transitions, so this is a browser's to see.
  */
 test.describe('reduced motion', () => {
-  /** Changes `element`'s style and reads, before the next frame, what it shows and what animates it. */
-  async function change(page: Page, selector: string, property: 'marginTop' | 'transform', value: string) {
-    return page.evaluate(
-      ({ selector, property, value }) => {
-        const element = document.querySelector<HTMLElement>(selector)
-        if (!element) throw new Error(`Nothing matches ${selector}`)
+  /** Changes the element's style and reads, before the next frame, what it shows and what animates it. */
+  async function change(element: Locator, property: 'marginTop' | 'transform', value: string) {
+    return element.evaluate(
+      (node: HTMLElement, { property, value }) => {
         // Its style taken before the change, so the change is one a transition could start from.
-        void getComputedStyle(element)[property]
-        element.style[property] = value
+        void getComputedStyle(node)[property]
+        node.style[property] = value
         return {
-          shown: getComputedStyle(element)[property],
-          transitions: element.getAnimations().filter((animation) => animation instanceof CSSTransition).length,
+          shown: getComputedStyle(node)[property],
+          transitions: node.getAnimations().filter((animation) => animation instanceof CSSTransition).length,
         }
       },
-      { selector, property, value },
+      { property, value },
     )
   }
 
-  test('a style change on an element that declares no transition shows at once', async ({ page }) => {
+  /** A plain element the test adds to the page, with `transition` as its inline style, if given. */
+  async function plainElement(page: Page, transition = '') {
     await openApp(page, '/')
     await settle(page)
-    await page.evaluate(() => {
+    await page.evaluate((transition) => {
       const plain = document.createElement('div')
-      plain.id = 'plain'
+      plain.dataset.testid = 'plain'
+      plain.style.transition = transition
       document.body.append(plain)
-    })
-    expect(await change(page, '#plain', 'marginTop', '100px')).toEqual({ shown: '100px', transitions: 0 })
+    }, transition)
+    return page.getByTestId('plain')
+  }
+
+  test('a style change on an element that declares no transition shows at once', async ({ page }) => {
+    const plain = await plainElement(page)
+    expect(await change(plain, 'marginTop', '100px')).toEqual({ shown: '100px', transitions: 0 })
+  })
+
+  // As the grid card's Pause button declares for its blur, which goes once the button has faded out
+  // (DownloadsScreen.css): a jump after a delay is a transition that shows the old value until then.
+  test('a transition of no length after a delay is cut out too', async ({ page }) => {
+    const plain = await plainElement(page, 'margin-top 0s linear 200ms')
+    expect(await change(plain, 'marginTop', '100px')).toEqual({ shown: '100px', transitions: 0 })
   })
 
   test("a sheet's own transition is cut out: dragged down by a script, it shows there at once", async ({ page }) => {
     await openApp(page, '/')
     await page.getByRole('button', { name: 'Сортировка: Приоритет' }).click()
-    await expect(page.getByRole('dialog', { name: 'Сортировка и фильтр' })).toBeVisible()
+    const sheet = page.getByRole('dialog', { name: 'Сортировка и фильтр' })
+    await expect(sheet).toBeVisible()
     await settle(page)
     // Its opening slide over, so only the change below can animate it.
-    await page.waitForFunction(() => document.querySelector('.ks-sheet')!.getAnimations().length === 0)
-    expect(await change(page, '.ks-sheet', 'transform', 'translateY(100px)')).toEqual({
+    await expect.poll(() => sheet.evaluate((node) => node.getAnimations().length)).toBe(0)
+    expect(await change(sheet, 'transform', 'translateY(100px)')).toEqual({
       shown: 'matrix(1, 0, 0, 1, 0, 100)',
       transitions: 0,
     })

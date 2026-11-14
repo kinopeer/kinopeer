@@ -81,8 +81,10 @@ h4 {
     /* None at all, not a short one: transition-property defaults to all, so any duration would make
        every style change on an element that stays a transition, its first frame drawn with the old
        value (#390), and a modal letting the page go would put back <body>'s margin (holdPage.ts) on
-       its way, the page too short for the scroll back. Nothing in the app waits for transitionend. */
+       its way, the page too short for the scroll back. Nothing in the app waits for transitionend.
+       No delay either: a transition of 0s after a delay still shows its old value until then. */
     transition-duration: 0s !important;
+    transition-delay: 0s !important;
   }
 }
 
