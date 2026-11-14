@@ -190,6 +190,7 @@ const COLOR_FUNCTION = /\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(/g
 // A whole identifier: `--teal` or `ks-tan` isn't the color `teal` or `tan`.
 const IDENT = /(?<![\w-])[a-zA-Z][\w-]*(?![\w-])/g
 
+const DATA_URL = /\burl\(\s*['"]?data:/gi
 const NAMED_PROP = /^(?:-webkit-)?(?:animation|transition|grid)(?:-[a-z-]+)?$/
 
 /** The whole call that starts at an index, up to its closing parenthesis, for the message. */
@@ -204,9 +205,9 @@ function call(value: string, start: number): string {
 
 /** The raw colors in a declaration's value, with their index. */
 function rawColors(prop: string, raw: string): [string, number][] {
-  // What a url() names is a file or an element, not a color; a data: URL's content is read, since
-  // its colors are drawn (an SVG's `fill='red'`).
-  const value = raw.replace(/\burl\((?!\s*['"]?data:)[^)]*\)/gi, (url) => ' '.repeat(url.length))
+  // What a url() names is a file or an element, not a color. A data: URL is the color test's own
+  // case (DATA_URL), since what it draws can't be read here.
+  const value = raw.replace(/\burl\([^)]*\)/gi, (url) => ' '.repeat(url.length))
   const found: [string, number][] = []
   for (const m of value.matchAll(HEX)) found.push([m[0], m.index])
   for (const m of value.matchAll(COLOR_FUNCTION)) found.push([call(value, m.index), m.index])
@@ -343,11 +344,16 @@ describe('stylesheets beyond sizes', () => {
     const colors = (prop: string, value: string) => rawColors(prop, value).map(([color]) => color)
     expect(colors('color', '#abc rgb(calc(var(--n) * 1) 0 0) White')).toEqual(['#abc', 'rgb(calc(var(--n) * 1) 0 0)', 'White'])
     expect(colors('color', 'color-mix(in srgb, var(--text) 6%, transparent) currentColor')).toEqual([])
-    expect(colors('background', "url(red.svg) url(#red) url(\"data:image/svg+xml,<svg fill='red'/>\")")).toEqual(['red'])
+    expect(colors('background', 'url(red.svg) url(#red) red')).toEqual(['red'])
     expect(colors('grid-area', 'highlight')).toEqual([])
     const problems: string[] = []
     for (const d of OUTSIDE_TOKENS) for (const [color, index] of rawColors(d.prop, d.value)) {
       at(d, index, `${color} is a raw color: use a token from tokens.css, or add a comment on the line saying why`, problems)
+    }
+    // A data: URL can draw any color, and its content (cut at a `;`, %-encoded or base64) can't be
+    // read for one, so it needs a comment saying why.
+    for (const d of OUTSIDE_TOKENS) for (const m of d.value.matchAll(DATA_URL)) {
+      at(d, m.index, 'a data: URL may draw raw colors: use a file or a token, or add a comment on the line saying why', problems)
     }
     expect(problems).toEqual([])
   })
