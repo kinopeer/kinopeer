@@ -318,6 +318,11 @@
   background: color-mix(in srgb, var(--accent) 8%, var(--surface));
 }
 
+/* --text3 falls under 4.5:1 on the selection's tint in the dark theme (#408). */
+.ks-dl.is-sel .c3 {
+  color: var(--text2);
+}
+
 .ks-dl-main {
   flex: 1;
   min-width: 0;
@@ -581,6 +586,11 @@
 .dl-row.is-sel {
   border-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+
+/* As on a phone's selected row (#408). */
+.dl-row.is-sel .c3 {
+  color: var(--text2);
 }
 
 @media (hover: hover) {

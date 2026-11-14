@@ -673,8 +673,8 @@ first would turn the step into design work, and a visible fix is the owner's):
 | Rule | Elements, states | What a fix changes | Issue |
 | --- | --- | --- | --- |
 | `label-content-name-mismatch` | 44 in 44: Downloads' status button on desktop, the phone's sort button with a type filter, the torrent's category row, a torrent in a title's "In downloads" | Nothing on the screen: the accessible names. Fixed, its budgets 0 | #407 |
-| `color-contrast` | 11 in 3: secondary text on a selected torrent, on a phone and in the desktop table, and on a skipped file | The colors, so the owner's | #408 |
-| `target-size` | 1 in 1: a row's More button under the pinned filter bar after a scroll, on a phone | Maybe nothing: it may be left as the scroll's | #409 |
+| `color-contrast` | 11 in 3: secondary text on a selected torrent, on a phone and in the desktop table, and on a skipped file | The colors, so the owner's. Fixed, its budgets 0 | #408 |
+| `target-size` | 1 in 1: a row's More button under the pinned filter bar after a scroll, on a phone | Nothing: left as the scroll's, its budget stays 1 (closed as not planned on 2026-11-14) | #409 |
 
 **What fails**: a count that isn't its budget, which names the rule, the count and the budget,
 what the rule asks with axe's help link, and the elements by selector and the start of their HTML,

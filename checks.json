@@ -42,7 +42,7 @@
         "desktop-menu-dark-ru": { "label-content-name-mismatch": 0 },
         "desktop-offline-dark-ru": { "label-content-name-mismatch": 0 },
         "desktop-offline-unreached-dark-ru": { "label-content-name-mismatch": 0 },
-        "desktop-select-dark-ru": { "color-contrast": 3, "label-content-name-mismatch": 0 },
+        "desktop-select-dark-ru": { "color-contrast": 0, "label-content-name-mismatch": 0 },
         "desktop-sort-dark-ru": { "label-content-name-mismatch": 0 },
         "desktop-speed-limits-keyboard-dark-ru": {},
         "empty-dark-ru": {},
@@ -63,7 +63,7 @@
         "rail-alt-speed-on-dark-ru": { "label-content-name-mismatch": 0 },
         "rail-status-dark-ru": { "label-content-name-mismatch": 0 },
         "select-grid-dark-ru": {},
-        "select-list-dark-ru": { "color-contrast": 7 },
+        "select-list-dark-ru": { "color-contrast": 0 },
         "series-dark-ru": { "label-content-name-mismatch": 0 },
         "sort-dark-ru": {},
         "speed-limits-dark-ru": {},
@@ -144,7 +144,7 @@
         "no-title-dark-ru": { "label-content-name-mismatch": 0 },
         "no-title-light-ru": { "label-content-name-mismatch": 0 },
         "no-title-menu-dark-ru": {},
-        "series-dark-ru": { "color-contrast": 1, "label-content-name-mismatch": 0 }
+        "series-dark-ru": { "color-contrast": 0, "label-content-name-mismatch": 0 }
       }
     },
     "requests": {
