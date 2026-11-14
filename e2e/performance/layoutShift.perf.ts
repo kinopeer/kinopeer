@@ -384,7 +384,7 @@ const searchFor =
 
 /**
  * An untagged torrent's drawer over Downloads (`p3`'s or `p4`'s, `UNKNOWN` among the torrents). The
- * list looks its four titles up three at a time (`CONCURRENCY` in src/torrents/titleMatches.ts):
+ * list looks its four titles up three at a time (`CONCURRENCY` in src/torrents/useTitleMatches.ts):
  * `p1`'s and `p2`'s by their tags' ids and `p3`'s guess by TMDB's search once the torrents and the
  * matches are in, then `p4`'s once one of those has. The drawer looks its own torrent up on its own
  * once the torrents and the matches are in, the same address as the list's guess for it. Then the

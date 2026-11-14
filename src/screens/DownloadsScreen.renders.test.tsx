@@ -11,7 +11,7 @@ import { resetSettings, updateSettings } from '../settings/settings'
 import { mainData, searchPage, torrent as fixtureTorrent } from '../test/fixtures'
 import { renderWithRouter } from '../test/render'
 import { resetServerMatches } from '../torrents/serverMatches'
-import { clearTitleMatchCache } from '../torrents/titleMatches'
+import { clearTitleMatchCache } from '../torrents/useTitleMatches'
 import { DownloadsScreen } from './DownloadsScreen'
 
 // Every row, table row and card renders one progress bar, named after its download: counting the

@@ -5,12 +5,14 @@ import type { Matches } from '../api/matches'
 import {
   SAVE_DELAY_MS,
   chooseMatch,
+  currentServerMatches,
   forgetMatches,
   forgetServerGuesses,
+  loadServerMatches,
   rememberMatches,
   resetServerMatches,
-  useServerMatches,
 } from './serverMatches'
+import { useServerMatches } from './useServerMatches'
 
 vi.mock('../api/matches', async (importOriginal) => ({
   ...(await importOriginal<typeof api>()),
@@ -71,6 +73,26 @@ describe('useServerMatches', () => {
     const later = renderHook(() => useServerMatches())
     await waitFor(() => expect(later.result.current).toEqual({ [A]: USER }))
     expect(first.result.current).toEqual({ [A]: USER })
+  })
+})
+
+describe('loadServerMatches', () => {
+  it('asks again once more than a minute has passed since the server didn’t answer, not at the minute', async () => {
+    // Only the clock stands still, so the minute is exact and the load still settles.
+    vi.useRealTimers()
+    vi.useFakeTimers({ toFake: ['Date'] })
+    getMatches.mockRejectedValueOnce(new api.MatchesError(502)).mockResolvedValue({ [A]: USER })
+    loadServerMatches()
+    // A real timer's turn comes once the load has settled; vi.waitFor would move the clock.
+    await new Promise((settled) => setTimeout(settled, 0))
+    expect(currentServerMatches()).toEqual({})
+
+    vi.setSystemTime(Date.now() + 60_000)
+    loadServerMatches()
+    expect(getMatches).toHaveBeenCalledTimes(1)
+    vi.setSystemTime(Date.now() + 1)
+    loadServerMatches()
+    expect(getMatches).toHaveBeenCalledTimes(2)
   })
 })
 

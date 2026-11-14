@@ -1,5 +1,5 @@
 import type { Torrent } from '../api/qbittorrent'
-import { usualOrder, type SortOrder, type UsualDirections } from '../lib/sortOrder'
+import { usualOrder, type SortOrder, type UsualDirections } from '../logic/sortOrder'
 import { compareByQueue, downloadStatus, showsSpeed, type DownloadStatus } from './status'
 
 /** Orders for the downloads list; `priority` is qBittorrent's queue order. */

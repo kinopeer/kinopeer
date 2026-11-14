@@ -6,20 +6,20 @@ import * as tmdb from '../api/tmdb'
 import { ToastProvider } from '../components/Toast'
 import { searchPage, title, torrent } from '../test/fixtures'
 import { findToastOnPage, saying } from '../test/render'
-import * as titleMatches from '../torrents/titleMatches'
-import type { TitleMatch } from '../torrents/titleMatches'
+import type { TitleMatch } from '../torrents/titleLookup'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
+import * as titleLookups from '../torrents/useTitleMatches'
 import { useChangeTitle } from './useTitleChoice'
 
 vi.mock('../api/tmdb', async (importOriginal) => ({
   ...(await importOriginal<typeof tmdb>()),
   searchTitles: vi.fn(),
 }))
-vi.mock('../torrents/titleMatches', async (importOriginal) => ({
-  ...(await importOriginal<typeof titleMatches>()),
+vi.mock('../torrents/useTitleMatches', async (importOriginal) => ({
+  ...(await importOriginal<typeof titleLookups>()),
   chooseTitle: vi.fn(),
 }))
-const chooseTitle = vi.mocked(titleMatches.chooseTitle)
+const chooseTitle = vi.mocked(titleLookups.chooseTitle)
 
 const SERIES = title('tv', 94605, 'Мастер и Маргарита', 2005, { posterPath: null })
 const MOVIE = title('movie', 801688, 'Мастер и Маргарита', 2024, { originalTitle: 'The Master and Margarita', posterPath: null })

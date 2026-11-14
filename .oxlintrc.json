@@ -107,6 +107,313 @@
     },
     {
       "files": [
+        "src/releases/**/*.ts",
+        "src/search/**/*.ts",
+        "src/torrents/**/*.ts",
+        "src/logic/**/*.ts"
+      ],
+      "excludeFiles": [
+        "**/use*.ts",
+        "**/*.test.ts"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "react",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "react-dom",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "react-router",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "react-router-dom",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "react-i18next",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "assert",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "buffer",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "child_process",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "cluster",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "crypto",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "dgram",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "dns",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "events",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "fs",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "fs/promises",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "http",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "http2",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "https",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "module",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "net",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "os",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "path",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "perf_hooks",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "process",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "querystring",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "readline",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "stream",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "string_decoder",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "timers",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "tls",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "tty",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "url",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "util",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "v8",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "vm",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "worker_threads",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              },
+              {
+                "name": "zlib",
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              }
+            ],
+            "patterns": [
+              {
+                "group": [
+                  "react/*",
+                  "react-dom/*",
+                  "react-router/*",
+                  "node:*"
+                ],
+                "message": "Pure logic imports no React, React Router, i18next's React bindings or Node APIs (docs/ARCHITECTURE.md → Pure logic): a hook goes into a use*.ts file, a component into a .tsx."
+              }
+            ]
+          }
+        ],
+        "no-restricted-globals": [
+          "error",
+          {
+            "name": "window",
+            "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
+          },
+          {
+            "name": "document",
+            "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
+          },
+          {
+            "name": "navigator",
+            "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
+          },
+          {
+            "name": "location",
+            "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
+          },
+          {
+            "name": "history",
+            "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
+          },
+          {
+            "name": "localStorage",
+            "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
+          },
+          {
+            "name": "sessionStorage",
+            "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
+          },
+          {
+            "name": "indexedDB",
+            "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
+          },
+          {
+            "name": "caches",
+            "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
+          },
+          {
+            "name": "matchMedia",
+            "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
+          },
+          {
+            "name": "visualViewport",
+            "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
+          },
+          {
+            "name": "requestAnimationFrame",
+            "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
+          },
+          {
+            "name": "cancelAnimationFrame",
+            "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
+          },
+          {
+            "name": "requestIdleCallback",
+            "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
+          },
+          {
+            "name": "getComputedStyle",
+            "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
+          },
+          {
+            "name": "innerWidth",
+            "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
+          },
+          {
+            "name": "innerHeight",
+            "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
+          },
+          {
+            "name": "scrollX",
+            "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
+          },
+          {
+            "name": "scrollY",
+            "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
+          },
+          {
+            "name": "scrollTo",
+            "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
+          },
+          {
+            "name": "devicePixelRatio",
+            "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
+          },
+          {
+            "name": "IntersectionObserver",
+            "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
+          },
+          {
+            "name": "ResizeObserver",
+            "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
+          },
+          {
+            "name": "MutationObserver",
+            "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
+          },
+          {
+            "name": "self",
+            "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
+          },
+          {
+            "name": "process",
+            "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
+          },
+          {
+            "name": "Buffer",
+            "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
+          },
+          {
+            "name": "__dirname",
+            "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
+          },
+          {
+            "name": "__filename",
+            "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
+          },
+          {
+            "name": "require",
+            "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
+          },
+          {
+            "name": "global",
+            "message": "Pure logic reads nothing of the browser or Node (docs/ARCHITECTURE.md → Pure logic): the caller passes what it needs in."
+          }
+        ]
+      }
+    },
+    {
+      "files": [
         "e2e/**/*.ts"
       ],
       "rules": {

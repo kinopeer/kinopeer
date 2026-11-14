@@ -1,4 +1,3 @@
-import { useEffect, useSyncExternalStore } from 'react'
 import { clearGuesses, getMatches, saveMatches, type Matches, type StoredMatch } from '../api/matches'
 
 /**
@@ -28,10 +27,14 @@ function emit(): void {
   for (const listener of listeners) listener()
 }
 
-function subscribe(listener: () => void): () => void {
+/** Calls `listener` whenever the matches change; returns what stops it. */
+export function subscribeServerMatches(listener: () => void): () => void {
   listeners.add(listener)
   return () => listeners.delete(listener)
 }
+
+/** The matches loaded so far: undefined until the first load settles. */
+export const currentServerMatches = (): Matches | undefined => matches
 
 function load(): void {
   if (loading) return
@@ -56,15 +59,9 @@ function load(): void {
   })
 }
 
-/**
- * The server's matches by info hash; undefined until they load. When the server doesn't answer
- * they are empty, so the caller goes on without them.
- */
-export function useServerMatches(): Matches | undefined {
-  useEffect(() => {
-    if (matches === undefined || (failedAt !== undefined && Date.now() - failedAt > RETRY_MS)) load()
-  }, [])
-  return useSyncExternalStore(subscribe, () => matches)
+/** Loads the matches unless they're loaded, or asks again once a load that failed is RETRY_MS old. */
+export function loadServerMatches(): void {
+  if (matches === undefined || (failedAt !== undefined && Date.now() - failedAt > RETRY_MS)) load()
 }
 
 async function save(): Promise<void> {

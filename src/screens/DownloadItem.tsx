@@ -12,7 +12,7 @@ import { cx } from '../lib/cx'
 import { useFormatters } from '../lib/format'
 import { ownLimits } from '../torrents/speedLimits'
 import { downloadStatus, transferSpeed } from '../torrents/status'
-import type { TitleMatch } from '../torrents/titleMatches'
+import type { TitleMatch } from '../torrents/titleLookup'
 import { SpeedLimitMark } from './SpeedLimitMark'
 
 /**
