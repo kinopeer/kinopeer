@@ -24,8 +24,8 @@
 
 /* Over posters and backdrops: always a white icon on dark glass. */
 .ks-icon-btn-glass {
-  background: rgba(8, 10, 12, 0.52);
-  color: #fff;
+  background: var(--media-glass);
+  color: var(--on-media);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
 }
