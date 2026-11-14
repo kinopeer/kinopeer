@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 import { chainOf, ORDER_NAMES, orders } from '../../scripts/layout-shift/answers.ts'
 import { judge, readBudgets, uncased, unmatched, type Budgets } from '../../scripts/layout-shift/budget.ts'
-import { torrent } from '../../src/test/fixtures.ts'
+import { tmdbTag, torrent } from '../../src/test/fixtures.ts'
 import type { Torrent } from '../../src/api/qbittorrent/types.ts'
 import { DESKTOP, DESKTOP_RAIL, prepareApp, type AppOptions } from '../app.ts'
 import { holdAnswers, layoutShifts, painted, recordLayoutShifts, type Answer } from './layoutShift.ts'
@@ -138,6 +138,28 @@ const LOOKUPS: Record<string, Answer> = {
   ...GUESS,
 }
 
+/**
+ * Downloads' grid with every outcome of a title's lookup (#403's review): titles of one line and of
+ * two, and none found, six torrents of three lookups, each asked once (`useTitleMatches` looks a
+ * title up once however many torrents share it). The queue puts a two-line title and no title found
+ * in the first row on a phone (two to a row) and on desktop (five to a row at 1440px), with a second
+ * row under it, which a card that grows or shrinks as its title lands would move. In English, where
+ * "Everything Everywhere All at Once" takes two lines in a card on both.
+ */
+const TWO_LINE = { id: 545611, title: 'Everything Everywhere All at Once', name: 'Everything.Everywhere.All.at.Once.2022.1080p.BluRay.x264-GRP' }
+const ONE_LINE = { id: 693134, title: 'Dune: Part Two', name: 'Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX-GRP' }
+const tagged = (hash: string, { id, name }: typeof ONE_LINE, priority: number) =>
+  torrent(hash, { name: `${name}${priority}`, tags: tmdbTag('movie', id), category: 'Movies', progress: 0.5, priority })
+const OUTCOMES: Torrent[] = [
+  tagged('g1', TWO_LINE, 1),
+  // TMDB finds nothing for it: its release name stays.
+  { ...UNKNOWN, hash: 'g2', priority: 2 },
+  tagged('g3', ONE_LINE, 3),
+  tagged('g4', TWO_LINE, 4),
+  tagged('g5', ONE_LINE, 5),
+  tagged('g6', ONE_LINE, 6),
+]
+
 /** A state of a screen: its answers and the order they're asked for in (its chain). */
 interface Case {
   screen: string
@@ -230,21 +252,54 @@ const releasesPage = (name: string, failingIndexers: string[] = [], noReleases =
 })
 
 /**
+ * Downloads with its torrents' titles looked up and their posters, in a view (`downloadsView` on a
+ * phone and `downloadsDesktopView` on desktop), else the layout's default: the list on a phone, the
+ * grid on desktop.
+ */
+const downloads = (name: string, view?: 'list' | 'grid'): Case => ({
+  screen: 'downloads',
+  name,
+  ...(view && { app: { downloadsView: view } }),
+  complete: all(link('Дюна: Часть вторая'), link('Сёгун'), link('Интерстеллар'), posters(3)),
+  answers: {
+    ...SESSION,
+    ...TORRENTS_AND_MATCHES,
+    ...LOOKUPS,
+    posters: { matches: under('/tmdb-img/'), afterAny: ['titleP1', 'titleP2', 'guessP3'], later: true },
+  },
+})
+
+/**
+ * Downloads' grid with `OUTCOMES`: the two titles by their tags' ids once the torrents are in, the
+ * search for the untagged one once the matches are too; the posters once a title is in. Nothing is
+ * saved, since the search finds nothing. The reading doesn't wait for that answer to show: no title
+ * found shows as the lookup does, the release name with no poster.
+ */
+const lookupOutcomes: Case = {
+  screen: 'downloads',
+  name: 'titles of one line and of two, and none found, in the grid',
+  torrents: OUTCOMES,
+  app: { downloadsView: 'grid', lang: 'en' },
+  complete: all(link(TWO_LINE.title), link(ONE_LINE.title), posters(OUTCOMES.length - 1)),
+  answers: {
+    ...SESSION,
+    ...TORRENTS_AND_MATCHES,
+    twoLine: { matches: get(`/tmdb/movie/${TWO_LINE.id}`), after: ['torrents'] },
+    oneLine: { matches: get(`/tmdb/movie/${ONE_LINE.id}`), after: ['torrents'] },
+    noneFound: { matches: under('/tmdb/search/'), after: ['torrents', 'matches'] },
+    posters: { matches: under('/tmdb-img/'), afterAny: ['twoLine', 'oneLine'], later: true },
+  },
+}
+
+/**
  * Every state of every screen the list names whose blocks differ, by size, each with the chain of
  * answers its code asks for (docs/TESTING.md → The layout shift test lists the late blocks each covers).
  */
 const PHONE: Case[] = [
-  {
-    screen: 'downloads',
-    name: 'titles found',
-    complete: all(link('Дюна: Часть вторая'), link('Сёгун'), link('Интерстеллар'), posters(3)),
-    answers: {
-      ...SESSION,
-      ...TORRENTS_AND_MATCHES,
-      ...LOOKUPS,
-      posters: { matches: under('/tmdb-img/'), afterAny: ['titleP1', 'titleP2', 'guessP3'], later: true },
-    },
-  },
+  downloads('titles found'),
+  /** The other view, the grid of cards (`DownloadCard`), a layout of its own (#403: a card grew as its title landed). */
+  downloads('titles found, in the grid', 'grid'),
+  lookupOutcomes,
   /**
    * `p2`: tagged with its title and finished. The page asks for the title by its id once the
    * torrent shows, and for the poster once the title does.
@@ -418,15 +473,20 @@ const withSidebar = (one: Case): Case => ({ ...one, answers: { ...one.answers, .
  */
 const sidebarCard: Shown = (page) =>
   expect(page.getByRole('region', { name: 'qBittorrent' }).getByText(/^\S+\s\S+ свободно$|^— свободно$/)).toHaveText(/^\d/)
+/** The same in English, for a case in English. */
+const sidebarCardEn: Shown = (page) =>
+  expect(page.getByRole('region', { name: 'qBittorrent' }).getByText(/^\S+\s\S+ free$|^— free$/)).toHaveText(/^\d/)
 /** A desktop case, read once the sidebar's card is complete too: every desktop screen shows it. */
-const onDesktop = (one: Case): Case => ({ ...one, complete: all(one.complete, sidebarCard) })
+const onDesktop = (one: Case): Case => ({ ...one, complete: all(one.complete, one.app?.lang === 'en' ? sidebarCardEn : sidebarCard) })
 const casesOf = (screen: string) => PHONE.filter((one) => one.screen === screen)
 
 const DESKTOP_CASES: Case[] = [
   // The list as on a phone, the sidebar reading the same poll: the grid of cards, desktop's default view.
-  ...casesOf('downloads'),
+  downloads('titles found'),
   // The other view, the table of rows (`DownloadRow`, the column header): a layout of its own.
-  ...casesOf('downloads').map((one) => ({ ...one, name: 'titles found, as a table', app: { downloadsView: 'list' as const } })),
+  downloads('titles found, as a table', 'list'),
+  // A second row, under a first with a title of two lines and none found.
+  lookupOutcomes,
   /**
    * `p2`'s drawer over Downloads: the list's lookups and posters, and the drawer's own load of the
    * title by its tag's id, the same address as the list's, once the torrent shows.
