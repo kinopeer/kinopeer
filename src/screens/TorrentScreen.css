@@ -311,7 +311,13 @@
   border-bottom: 1px solid var(--border);
 }
 
-.tf-file.is-skipped .tf-file-body {
+/* Dimmed by its name's color and its bar rather than the whole body at half opacity, which took
+   its progress and size, and in the light theme its name, under 4.5:1 (#408). */
+.tf-file.is-skipped .tf-file-name {
+  color: var(--text3);
+}
+
+.tf-file.is-skipped .tf-bar {
   opacity: 0.5;
 }
 
