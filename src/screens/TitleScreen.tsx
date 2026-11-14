@@ -279,7 +279,9 @@ export function TitleScreen({ onSessionLost }: TitleScreenProps) {
       <main className="title title-desktop">
         <div className="title-dhero">
           {poster && <img src={poster} alt="" className="title-dhero-art" aria-hidden="true" />}
-          <div className="title-hero-fade" aria-hidden="true" />
+          {/* Keyed, so it isn't the loading state's head made over, which sits where the fade does in
+              this list: kept, that element would change its box from the head's to the hero's (#406). */}
+          <div key="fade" className="title-hero-fade" aria-hidden="true" />
           {backButton}
           <div className="title-dhead">
             <Poster src={poster} className="title-dposter" />
