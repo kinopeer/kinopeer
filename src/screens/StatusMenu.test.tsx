@@ -70,7 +70,7 @@ describe('StatusMenu', () => {
   it('leaves the counts out while loading', async () => {
     render(<StatusMenu value="all" onChange={vi.fn()} />)
     const button = screen.getByRole('button', { name: 'All statuses' })
-    expect(button).toHaveTextContent(/^All statuses$/)
+    expect(button).toHaveProperty('textContent', 'All statuses')
     await userEvent.click(button)
     expect(screen.getByRole('menuitemradio', { name: 'Seeding' })).toBeInTheDocument()
   })

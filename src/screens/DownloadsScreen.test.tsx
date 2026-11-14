@@ -293,7 +293,7 @@ describe('DownloadsScreen', () => {
     searchTitles.mockImplementation(async (query) => searchPage(query === 'Dune Part Two' ? [DUNE_TITLE] : []))
     renderScreen()
     await screen.findByText('Dune: Part Two')
-    expect(screen.getByRole('button', { name: 'Sort: Priority' })).toHaveTextContent(/^Priority$/)
+    expect(screen.getByRole('button', { name: 'Sort: Priority' })).toHaveProperty('textContent', 'Priority')
     await userEvent.click(screen.getByRole('button', { name: 'Sort: Priority' }))
     const sheet = within(screen.getByRole('dialog', { name: 'Sort & filter' }))
     const types = within(sheet.getByRole('radiogroup', { name: 'Type' }))

@@ -269,6 +269,15 @@ describe('TitleScreen', () => {
       expect(screen.getByRole('heading', { name: 'Torrent page' })).toBeInTheDocument()
     })
 
+    it('names a torrent by only the parts it shows', async () => {
+      torrents(download('dune', 'Dune.Part.Two.2024.2160p.WEB-DL', { tags: 'tmdb:movie:693134', state: 'stoppedDL', progress: 0.5 }))
+      renderAt('/title/movie/693134')
+      const block = await screen.findByRole('region', { name: 'In downloads' })
+      expect(within(block).getByRole('link')).toHaveAccessibleName(
+        '2160p, Dune.Part.Two.2024.2160p.WEB-DL, 50%, Paused, 7.40\u00a0GB / 14.8\u00a0GB',
+      )
+    })
+
     it("shows a single torrent's progress in the header", async () => {
       torrents(download('dune', 'Dune.Part.Two.2024.2160p.WEB-DL', { tags: 'tmdb:movie:693134', progress: 0.64 }))
       renderAt('/title/movie/693134')
