@@ -22,6 +22,6 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"],
+  "include": ["src", "scripts/guard/postcss-tokenize.d.ts"],
   "exclude": ["src/sw.ts", "src/sw.test.ts"]
 }

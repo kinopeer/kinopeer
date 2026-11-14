@@ -4,7 +4,7 @@
   right: 0;
   bottom: 0;
   z-index: 20;
-  /* The height the screens leave for it and pin their bars above (tokens.css). */
+  /* The height the screens leave for it and pin their bars above (layout.css). */
   height: var(--nav-bottom);
   display: flex;
   /* The background spans the screen; on wide screens the tabs stay over the screens' column. */

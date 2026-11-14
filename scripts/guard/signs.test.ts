@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { commands, compareChecks, compareLint, compareScripts, compareWorkflows, findings, readsWhole, report, scanAdded, workflowSteps, type Finding } from './signs.ts'
+import { commands, compareChecks, compareLint, compareScripts, compareStylesheets, compareTokens, compareWorkflows, findings, readsWhole, report, scanAdded, workflowSteps, type Finding } from './signs.ts'
 
 const json = (value: unknown) => JSON.stringify(value)
 /** What each finding calls for and says, without its file. */
@@ -206,6 +206,8 @@ describe('compareLint', () => {
     ['a severity it does not know', withRules({ 'react/rules-of-hooks': 'maybe' }), ['owner: the lint rule `react/rules-of-hooks` has a severity the guard can\'t read: `"maybe"`']],
     ['a plugin removed', json({ ...config, plugins: ['react'] }), ['owner: the lint plugin "vitest" is removed, and its rules with it']],
     ['a path the linter skips', json({ ...config, ignorePatterns: ['e2e/**'] }), ['owner: the linter skips more: "e2e/**" is added to `ignorePatterns`']],
+    ['an environment turned on', json({ ...config, env: { browser: true, node: false } }), ['owner: the environment browser is turned on, and its globals with it']],
+    ['a global allowed', json({ ...config, globals: { window: 'readonly', process: 'off' } }), ['owner: the global `window` is allowed: `"readonly"`']],
     [
       'one more path the linter skips',
       [json({ ...config, ignorePatterns: ['dist/**'] }), json({ ...config, ignorePatterns: ['dist/**', 'e2e/**'] })],
@@ -214,9 +216,25 @@ describe('compareLint', () => {
     [
       'a new override that turns a rule off for some files',
       json({ ...config, overrides: [...config.overrides, { files: ['src/legacy/**'], rules: { 'react/rules-of-hooks': 'off' } }] }),
-      ['owner: the lint rule `react/rules-of-hooks` for ["src/legacy/**"] is turned off: `"error"` → `"off"`'],
+      ['owner: the override for ["src/legacy/**"] is added as number 2: `{"files":["src/legacy/**"],"rules":{"react/rules-of-hooks":"off"}}`'],
     ],
-    ['an override removed', json({ ...config, overrides: [] }), ['owner: the lint rule `no-restricted-imports` for ["e2e/smoke/*.smoke.ts"] is removed']],
+    ['an override removed', json({ ...config, overrides: [] }), ['owner: the override for ["e2e/smoke/*.smoke.ts"] is removed: `{"files":["e2e/smoke/*.smoke.ts"],"rules":{"no-restricted-imports":["error",{"paths":["@playwright/test"]}]}}`']],
+    [
+      'a rule turned off in an override that stays',
+      json({ ...config, overrides: [{ ...config.overrides[0], rules: { 'no-restricted-imports': 'off' } }] }),
+      ['owner: the lint rule `no-restricted-imports` for ["e2e/smoke/*.smoke.ts"] is turned off: `["error",{"paths":["@playwright/test"]}]` → `"off"`'],
+    ],
+    // A new override is marked whole even when it checks more (#415).
+    [
+      'a new override that repeats the top-level rule',
+      json({ ...config, overrides: [...config.overrides, { files: ['src/**'], rules: { 'react/rules-of-hooks': 'error' } }] }),
+      ['owner: the override for ["src/**"] is added as number 2: `{"files":["src/**"],"rules":{"react/rules-of-hooks":"error"}}`'],
+    ],
+    [
+      'a new override that is not an object',
+      json({ ...config, overrides: [...config.overrides, 'e2e'] }),
+      ['owner: the overrides change in a way the guard can\'t read one by one: `[{"files":["e2e/smoke/*.smoke.ts"],"rules":{"no-restricted-imports":["error",{"paths":["@playwright/test"]}]}}]` → `[{"files":["e2e/smoke/*.smoke.ts"],"rules":{"no-restricted-imports":["error",{"paths":["@playwright/test"]}]}},"e2e"]`'],
+    ],
   ])('sends %s to the owner', (_name, change, expected) => {
     const [base, head] = pair(change)
     expect(said(compareLint(base, head))).toEqual(expected)
@@ -248,11 +266,11 @@ describe('compareLint', () => {
     ["a rule that only warned made to fail the run by oxlint's own word", withRules({ 'react/only-export-components': ['deny', { allowConstantExport: true }] })],
     ['a rule written the other way at the same severity', withRules({ 'react/rules-of-hooks': 2 })],
     ['a rule written the other way at the same severity and options', withRules({ 'vitest/valid-expect': ['deny', { maxArgs: 2 }] })],
-    ['an override that is not an object', json({ ...config, overrides: [...config.overrides, 'e2e'] })],
+    ['an override that is not an object, left as it was', [json({ ...config, overrides: [...config.overrides, 'e2e'] }), json({ ...config, overrides: [...config.overrides, 'e2e'] })]],
     ['a new rule that fails the run', withRules({ 'no-console': 'error' })],
     ['a rule that was off removed', without('vitest/require-to-throw-message')],
     ['a plugin added', json({ ...config, plugins: [...config.plugins, 'import'] })],
-    ['an override that repeats the top-level rule', json({ ...config, overrides: [...config.overrides, { files: ['src/**'], rules: { 'react/rules-of-hooks': 'error' } }] })],
+    ['an override that gains a rule repeating the top-level one', json({ ...config, overrides: [{ ...config.overrides[0], rules: { ...config.overrides[0].rules, 'react/rules-of-hooks': 'error' } }] })],
     ["a rule left as it was, with a severity it can't read", [withRules({ 'no-console': 'maybe' }), withRules({ 'no-console': 'maybe' })]],
   ])('finds nothing in %s', (_name, change) => {
     const [base, head] = pair(change)
@@ -790,11 +808,11 @@ describe('findings', () => {
 })
 
 describe('readsWhole', () => {
-  it.each(['checks.json', '.oxlintrc.json', 'package.json', '.github/workflows/ci.yml', '.github/workflows/build.yaml', 'src/sum.test.ts', 'src/App.test.tsx', 'e2e/list.spec.ts', 'e2e/app.tsx'])('reads %s whole', (path) => {
+  it.each(['checks.json', '.oxlintrc.json', 'package.json', '.github/workflows/ci.yml', '.github/workflows/build.yaml', 'src/sum.test.ts', 'src/App.test.tsx', 'e2e/list.spec.ts', 'e2e/app.tsx', 'src/styles/tokens.css'])('reads %s whole', (path) => {
     expect(readsWhole(path)).toBe(true)
   })
 
-  it.each(['src/App.tsx', 'e2e/__screenshots__/list.png', 'e2e/list.spec.ts.md', 'docs/e2e/list.spec.ts', 'src/sum.test.tsx.snap', 'tmdb-proxy/checks.json', 'tmdb-proxy/package.json', '.github/dependabot.yml', '.github/workflows/README.md', 'tmdb-proxy/.github/workflows/ci.yml', '.github/workflows/drafts/ci.yml', '.github/workflows/yml'])('reads only the added lines of %s', (path) => {
+  it.each(['src/App.tsx', 'e2e/__screenshots__/list.png', 'e2e/list.spec.ts.md', 'docs/e2e/list.spec.ts', 'src/sum.test.tsx.snap', 'tmdb-proxy/checks.json', 'tmdb-proxy/package.json', '.github/dependabot.yml', '.github/workflows/README.md', 'tmdb-proxy/.github/workflows/ci.yml', '.github/workflows/drafts/ci.yml', '.github/workflows/yml', 'e2e/report.css', 'src/App.css'])('reads only the added lines of %s', (path) => {
     expect(readsWhole(path)).toBe(false)
   })
 })
@@ -803,7 +821,7 @@ describe('report', () => {
   const at = { head: 'abc1234', base: 'def5678' }
 
   it('says so when nothing is found', () => {
-    expect(report([], at)).toBe('<!-- checks-guard -->\n**Checks guard at abc1234**, against `main` at def5678.\n\nNo weakening of the checks and no change to existing ones.')
+    expect(report([], at)).toBe('<!-- checks-guard -->\n**Checks guard at abc1234**, against `main` at def5678.\n\nNo weakening of the checks, no change to existing ones and no design value added or changed.')
   })
 
   it("lists what goes to the owner and what goes to a second review apart, each with its file and line", () => {
@@ -853,5 +871,253 @@ describe('report', () => {
 
   it('lists a finding about the branch as a whole without a file', () => {
     expect(report([{ needs: 'owner', what: "the branch's run gave no list of its tests" }], at).split('\n').at(-1)).toBe("- the branch's run gave no list of its tests")
+  })
+})
+
+describe('compareLint: an override beside its rules (#412)', () => {
+  const override = { files: ['src/**/*.tsx'], excludeFiles: ['src/**/*.test.tsx'], plugins: ['react'], env: { browser: true }, rules: { 'react/jsx-no-literals': 'error' } }
+  const config = (change: object) => json({ overrides: [{ ...override, ...change }] })
+  const found = (change: object) => compareLint(config({}), config(change)).map(({ needs, what }) => `${needs}: ${what}`)
+  const where = 'for ["src/**/*.tsx"]'
+
+  it('sends a path added to what its rules skip to the owner', () => {
+    expect(found({ excludeFiles: ['src/**/*.test.tsx', 'src/screens/**'] })).toEqual([`owner: the lint rules ${where} skip more: "src/screens/**" is added to \`excludeFiles\``])
+  })
+
+  it('finds nothing in a path taken out of what its rules skip, which checks more', () => {
+    expect(found({ excludeFiles: [] })).toEqual([])
+  })
+
+  it('sends a plugin it no longer loads to the owner', () => {
+    expect(found({ plugins: [] })).toEqual([`owner: the lint plugin "react" is removed ${where}, and its rules with it`])
+    expect(compareLint(config({ jsPlugins: ['./a.js'] }), config({})).map(({ what }) => what)).toEqual([`the lint plugin "./a.js" is removed ${where}, and its rules with it`])
+  })
+
+  it('sends an environment it turns on and a global it allows to the owner, which no-undef then lets through', () => {
+    expect(found({ env: { browser: true, node: true }, globals: { a: 'readonly', b: 'off' } })).toEqual([
+      `owner: the environment node is turned on ${where}, and its globals with it`,
+      `owner: the global \`a\` is allowed ${where}: \`"readonly"\``,
+    ])
+    const allowing = (globals: object) => compareLint(config({ globals: { a: 'readonly', b: 'off' } }), config({ globals })).map(({ what }) => what)
+    expect(allowing({ a: 'writable', b: 'readonly' })).toEqual([`the global \`a\` is allowed ${where}: \`"writable"\``, `the global \`b\` is allowed ${where}: \`"readonly"\``])
+  })
+
+  it('finds nothing in an environment turned off or a global taken away, which checks more, nor in a global that stays', () => {
+    expect(found({ env: { browser: false } })).toEqual([])
+    expect(compareLint(config({ globals: { a: 'readonly' } }), config({ globals: { a: 'readonly' } })).map(({ what }) => what)).toEqual([])
+    expect(compareLint(config({ globals: { a: 'readonly', b: 'readonly' } }), config({ globals: { b: 'off' } })).map(({ what }) => what)).toEqual([])
+  })
+
+  it('sends any other key it changes to a second review, one the guard has no rule for included', () => {
+    expect(found({ settings: { react: { version: '19' } } })).toEqual([`review: \`settings\` ${where} changed: nothing → \`{"react":{"version":"19"}}\``])
+  })
+
+  it('sends an override that is new, removed or has other files to the owner whole, with its JSON', () => {
+    const whole = `{"files":["src/**/*.tsx"],"excludeFiles":["src/**/*.test.tsx"],"plugins":["react"],"env":{"browser":true},"rules":{"react/jsx-no-literals":"error"}}`
+    expect(compareLint(json({ overrides: [] }), config({})).map(({ needs, what }) => `${needs}: ${what}`)).toEqual([`owner: the override ${where} is added as number 1: \`${whole}\``])
+    expect(compareLint(config({}), json({ overrides: [] })).map(({ needs, what }) => `${needs}: ${what}`)).toEqual([`owner: the override ${where} is removed: \`${whole}\``])
+    // Other files are one override removed and one added, whatever else changes with them.
+    const moved = { ...override, files: ['src/**/*.ts'] }
+    expect(compareLint(config({}), json({ overrides: [moved] })).map(({ what }) => what)).toEqual([
+      `the override ${where} is removed: \`${whole}\``,
+      `the override for ["src/**/*.ts"] is added as number 1: \`${whole.replace('src/**/*.tsx', 'src/**/*.ts')}\``,
+    ])
+  })
+
+  it("sends overrides it can't pair one by one to the owner whole: a duplicate, one without files, another order, another shape", () => {
+    const off = { files: ['src/**/*.tsx'], rules: { 'react/rules-of-hooks': 'off' } }
+    const marks = (base: object[], head: object[]) => compareLint(json({ overrides: base }), json({ overrides: head })).map(({ needs, what }) => `${needs}: ${what.split(':')[0]}`)
+    const unpaired = "owner: the overrides change in a way the guard can't read one by one"
+    expect(marks([override], [off, override])).toEqual([unpaired])
+    expect(marks([off, override], [override])).toEqual([unpaired])
+    expect(marks([{ rules: {} }], [{ rules: {} }, { rules: { 'no-console': 'off' } }])).toEqual([unpaired])
+    expect(marks([override], [['src/**/*.tsx']])).toEqual([unpaired])
+    expect(marks([override], [null as unknown as object])).toEqual([unpaired])
+    // One without files is unpaired even alone, though a key it gains would otherwise go to a second review.
+    expect(marks([{ rules: {} }], [{ rules: {}, settings: {} }])).toEqual([unpaired])
+    const [a, b] = [{ files: ['a/**'], rules: { 'no-console': 'off' } }, { files: ['a/b/**'], rules: { 'no-console': 'error' } }]
+    expect(marks([b, a], [a, b])).toEqual(['owner: the overrides are in another order, and a later one wins where their files overlap'])
+    // The same unpaired list on both sides, and a new override after those that stay, read as before.
+    expect(marks([{ rules: {} }, { rules: {} }], [{ rules: {} }, { rules: {} }])).toEqual([])
+    expect(marks([a], [a, b])).toEqual(['owner: the override for ["a/b/**"] is added as number 2'])
+    // One moved in front with other files is removed and added, the place it's added at shown.
+    expect(compareLint(json({ overrides: [b, a] }), json({ overrides: [{ ...a, files: ['a/c/**'] }, b] })).map(({ what }) => what.split(':')[0])).toEqual([
+      'the override for ["a/**"] is removed',
+      'the override for ["a/c/**"] is added as number 1',
+    ])
+    // Files that aren't a list of globs aren't files of their own.
+    expect(marks([override], [{ ...override, files: null }])).toEqual([unpaired])
+    expect(marks([override], [{ ...override, files: [] }])).toEqual([unpaired])
+  })
+
+  it('sends a global it no longer takes away and an environment it no longer turns off to the owner', () => {
+    expect(compareLint(config({ env: { node: false }, globals: { process: 'off' } }), config({ env: {}, globals: {} })).map(({ what }) => what)).toEqual([
+      `the environment node is no longer turned off ${where}`,
+      `the global \`process\` is no longer taken away ${where}`,
+    ])
+    expect(compareLint(json({ env: { builtin: false } }), json({})).map(({ what }) => what)).toEqual(['the environment builtin is no longer turned off'])
+    // `in` would find `toString` on any object.
+    const off = { env: { toString: false }, globals: { toString: 'off' } }
+    expect(compareLint(config(off), config({ env: {}, globals: {} })).map(({ what }) => what)).toEqual([
+      `the environment toString is no longer turned off ${where}`,
+      `the global \`toString\` is no longer taken away ${where}`,
+    ])
+    // An environment turned on that is removed, or one turned off that stays, checks more or the same.
+    expect(compareLint(config({ env: { node: true, browser: false } }), config({ env: { browser: false } }))).toEqual([])
+  })
+})
+
+describe('compareTokens', () => {
+  const tokens = ":root {\n  --space-2: 8px;\n  --r-sm: 10px;\n}\n\n[data-theme='light'] {\n  --bg: #fff;\n}\n"
+  const found = (head: string | undefined, base: string | undefined = tokens) => compareTokens(base, head).map(({ needs, what }) => `${needs}: ${what}`)
+
+  it('sends every token added, changed or removed, in either theme, to the coordinator', () => {
+    const head = ":root {\n  --space-2: 6px;\n  --space-3: 12px;\n}\n\n[data-theme='light'] {\n  --bg: #fafafa;\n  color-scheme: light;\n}\n"
+    expect(found(head)).toEqual([
+      'coordinator: the design token `--space-2` in `:root` changed: `8px` → `6px`',
+      'coordinator: the design token `--r-sm` in `:root` is removed: `10px`',
+      "coordinator: the design token `--bg` in `[data-theme='light']` changed: `#fff` → `#fafafa`",
+      'coordinator: the design token `--space-3` in `:root` is added: `12px`',
+      "coordinator: the declaration `color-scheme` in `[data-theme='light']` is added: `light`",
+    ])
+  })
+
+  it('takes a token moved to another theme or media query for one removed there and added here', () => {
+    expect(found(":root {\n  --space-2: 8px;\n  --r-sm: 10px;\n}\n\n@media (min-width: 1024px) {\n  [data-theme='light'] { --bg: #fff; }\n}\n")).toEqual([
+      "coordinator: the design token `--bg` in `[data-theme='light']` is removed: `#fff`",
+      "coordinator: the design token `--bg` in `@media (min-width: 1024px) [data-theme='light']` is added: `#fff`",
+    ])
+  })
+
+  it('finds nothing in tokens reformatted, commented or reordered', () => {
+    expect(found("/* The scale. */\n[data-theme='light'] { --bg:   #fff; }\n:root {\n  --r-sm: 10px; /* small */\n  --space-2:\n    8px;\n}\n")).toEqual([])
+  })
+
+  it('sends the file removed, or one it cannot read on either side, to the coordinator', () => {
+    expect(found(undefined)).toEqual(['coordinator: the design tokens are removed, all of them'])
+    expect(found(':root { --a: 1px;')).toEqual([expect.stringMatching(/^coordinator: the guard can't read the file as a stylesheet, so it can't compare its tokens: .*Unclosed block/)])
+    expect(found(tokens, ':root {')).toEqual([expect.stringMatching(/^coordinator: the guard can't read main's copy as a stylesheet, so every token here is as good as new: /)])
+  })
+
+  it('sends every token of a file main does not have yet to the coordinator', () => {
+    expect(compareTokens(undefined, ':root { --a: 1px; }').map(({ what }) => what)).toEqual(['the design token `--a` in `:root` is added: `1px`'])
+  })
+
+  it('sends `!important` added and a second value of a name changed to the coordinator, since each changes what the cascade reads', () => {
+    expect(found(tokens.replace('--bg: #fff;', '--bg: #fff !important;'))).toEqual(["coordinator: the design token `--bg` in `[data-theme='light']` changed: `#fff` → `#fff !important`"])
+    const twice = ':root { --a: #0aa; --a: color(display-p3 0 0.7 0.7); }'
+    expect(compareTokens(twice, twice.replace('0.7 0.7', '0.6 0.6')).map(({ what }) => what)).toEqual(['the design token `--a` in `:root` changed: `#0aa; color(display-p3 0 0.7 0.7)` → `#0aa; color(display-p3 0 0.6 0.6)`'])
+  })
+
+  it('sends an at-rule that holds no token, an @import of more tokens say, added or removed to the coordinator', () => {
+    expect(found(`@import './more.css';\n${tokens}`)).toEqual(["coordinator: the at-rule `@import './more.css'`, which holds no token the guard can read, is added"])
+    expect(found(tokens, `@layer base;\n${tokens}`)).toEqual(['coordinator: the at-rule `@layer base`, which holds no token the guard can read, is removed'])
+    expect(found(`@import './more.css';\n${tokens}`, `@import './more.css';\n${tokens}`)).toEqual([])
+  })
+})
+
+describe('compareStylesheets', () => {
+  const TOKENS = { file: 'src/styles/tokens.css', text: ':root { --space-2: 8px; }\n' }
+  const sheet = '.a {\n  padding: 3px; /* the badge size */\n  margin: 5px; /* why */\n  gap: 8px;\n}\n'
+  const at = (lines: number[], text = sheet, path = 'src/a.css') => compareStylesheets([{ path, base: '', head: text, added: lines.map((line) => ({ line, text: '' })) }], [TOKENS, { file: path, text }])
+
+  it('sends a value off the scale that a comment lets through on a line the branch adds to the coordinator', () => {
+    expect(at([2, 4])).toEqual([{ needs: 'coordinator', file: 'src/a.css', line: 2, what: "a value off the tokens' scale, let through by the comment on its line: `padding: 3px`" }])
+  })
+
+  it('marks a value written twice on one line once', () => {
+    expect(at([2], '.a {\n  padding: 13px 13px; /* why */\n}\n')).toEqual([{ needs: 'coordinator', file: 'src/a.css', line: 2, what: "a value off the tokens' scale, let through by the comment on its line: `padding: 13px`" }])
+  })
+
+  it('leaves such a value on a line the branch keeps alone, and a value the test fails, which CI stops', () => {
+    expect(at([4])).toEqual([])
+    expect(at([2], '.a {\n  padding: 3px;\n}\n')).toEqual([])
+  })
+
+  it('sends a line that takes a shadow from a custom property to the coordinator, the property left as it was', () => {
+    const lift = { file: 'src/b.css', text: ':root {\n  --lift: 0 2px 4px var(--scrim); /* why */\n}\n' }
+    const text = '.a {\n  gap: var(--space-2);\n  box-shadow: var(--lift);\n}\n'
+    const taking = (lines: number[]) => compareStylesheets([{ path: 'src/a.css', added: lines.map((line) => ({ line, text: '' })) }], [TOKENS, { file: 'src/a.css', text }, lift])
+    expect(taking([3])).toEqual([{ needs: 'coordinator', file: 'src/a.css', line: 3, what: "a shadow off the tokens' scale, taken from `src/b.css:2` and let through by the comment there: `--lift: 0 2px 4px var(--scrim)`" }])
+    expect(taking([2])).toEqual([])
+    // A definition added beside a line that takes it: both, the value and where it's taken.
+    const both = { file: 'src/a.css', text: '.a {\n  --lift: 0 2px 4px var(--scrim); /* why */\n  box-shadow: var(--lift);\n}\n' }
+    expect(compareStylesheets([{ path: 'src/a.css', added: [{ line: 2, text: '' }, { line: 3, text: '' }] }], [TOKENS, both]).map(({ line }) => line)).toEqual([2, 3])
+    // One line that defines a shadow and takes it, or takes it twice, is marked once.
+    const one = (text: string) => compareStylesheets([{ path: 'src/a.css', added: [{ line: 2, text: '' }] }], [TOKENS, { file: 'src/a.css', text }, lift]).map(({ line, what }) => `${line} ${what}`)
+    expect(one('.a {\n  --glow: 0 1px 2px var(--scrim); /* why */ box-shadow: var(--glow);\n}\n')).toEqual(["2 a value off the tokens' scale, let through by the comment on its line: `--glow: 0 1px 2px var(--scrim)`"])
+    expect(one('.a {\n  box-shadow: var(--lift); text-shadow: var(--lift);\n}\n')).toEqual(["2 a shadow off the tokens' scale, taken from `src/b.css:2` and let through by the comment there: `--lift: 0 2px 4px var(--scrim)`"])
+    // The same line number in two files that take it is two uses.
+    const c = { file: 'src/c.css', text }
+    expect(compareStylesheets([{ path: 'src/c.css', added: [{ line: 3, text: '' }] }], [TOKENS, { file: 'src/a.css', text }, c, lift]).map(({ file, line }) => `${file}:${line}`)).toEqual(['src/c.css:3'])
+    // The same line in another file isn't the one that takes it.
+    expect(compareStylesheets([{ path: 'src/c.css', added: [{ line: 3, text: '' }] }], [TOKENS, { file: 'src/a.css', text }, lift])).toEqual([])
+  })
+
+  it('reads each of the kinds the test reads, a color among them', () => {
+    expect(at([2], '.a {\n  color: #abc; /* why */\n}\n').map(({ what }) => what)).toEqual(["a value off the tokens' scale, let through by the comment on its line: `color: #abc`"])
+  })
+
+  it('leaves the tokens, a stylesheet outside src/ and one the branch removes to their own rules', () => {
+    const commented = ':root {\n  --a: #abc; /* why */\n}\n'
+    expect(compareStylesheets([{ path: TOKENS.file, base: '', head: commented, added: [{ line: 2, text: '' }] }], [{ file: TOKENS.file, text: commented }])).toEqual([])
+    expect(compareStylesheets([{ path: 'e2e/a.css', head: '.a { color: #abc; /* why */ }', added: [{ line: 1, text: '' }] }], [TOKENS])).toEqual([])
+    expect(compareStylesheets([{ path: 'src/a.css', base: sheet, added: [] }], [TOKENS])).toEqual([])
+  })
+
+  it('sends each stylesheet the branch changes to the coordinator when it cannot read them, and no other file', () => {
+    const changes = [
+      { path: 'src/a.css', head: '.a {', added: [{ line: 1, text: '.a {' }] },
+      { path: TOKENS.file, base: '', head: TOKENS.text, added: [{ line: 1, text: '' }] },
+      { path: 'src/b.css', base: '.b {}', added: [] },
+      { path: 'e2e/a.css', head: '.a {}', added: [{ line: 1, text: '' }] },
+      { path: 'src/a.ts', head: 'export {}', added: [{ line: 1, text: '' }] },
+    ]
+    expect(compareStylesheets(changes, [TOKENS, { file: 'src/a.css', text: '.a {' }])).toEqual([
+      { needs: 'coordinator', file: 'src/a.css', what: expect.stringMatching(/^the guard can't read the stylesheets, so it can't tell which values this one adds: .*Unclosed block/) },
+    ])
+  })
+})
+
+describe('findings of design values', () => {
+  it('reads the tokens and the stylesheets by their own rules, and the lines of each as any file', () => {
+    const sheets = [
+      { file: 'src/styles/tokens.css', text: ':root { --a: 2px; }\n' },
+      { file: 'src/a.css', text: '.a { margin: 3px; /* why */ }\n' },
+    ]
+    const found = findings(
+      [
+        { path: 'src/styles/tokens.css', base: ':root { --a: 1px; }\n', head: sheets[0].text, added: [{ line: 1, text: ':root { --a: 2px; } /* oxlint-disable */' }] },
+        { path: 'src/a.css', base: '', head: sheets[1].text, added: [{ line: 1, text: sheets[1].text.trim() }] },
+      ],
+      sheets,
+    )
+    expect(found.map(({ needs, file, what }) => `${needs} ${file}: ${what}`)).toEqual([
+      'coordinator src/styles/tokens.css: the design token `--a` in `:root` changed: `1px` → `2px`',
+      'owner src/styles/tokens.css: a check is turned off in the code: `:root { --a: 2px; } /* oxlint-disable */`',
+      "coordinator src/a.css: a value off the tokens' scale, let through by the comment on its line: `margin: 3px`",
+    ])
+  })
+})
+
+describe('report of the coordinator\'s list', () => {
+  it('lists it between the owner\'s and the second review\'s, with its record', () => {
+    const found: Finding[] = [
+      { needs: 'review', file: 'tsconfig.json', what: "the type check's config changed" },
+      { needs: 'coordinator', file: 'src/a.css', line: 2, what: "a value off the tokens' scale, let through by the comment on its line: `padding: 3px`" },
+      { needs: 'owner', file: 'checks.json', what: 'the file is removed' },
+    ]
+    const lines = report(found, { head: 'abc1234', base: 'def5678' }, { coordinator: 'The coordinator’s record.' }).split('\n').slice(3)
+    expect(lines.slice(3, 10)).toEqual([
+      '',
+      "**For the coordinator: 1 to approve, each with a reason.** A design value added, changed or removed: a token, or a value off the tokens' scale that a comment lets through.",
+      '',
+      "- `src/a.css:2`: a value off the tokens' scale, let through by the comment on its line: `padding: 3px`",
+      '',
+      'The coordinator’s record.',
+      '',
+    ])
+    expect(lines[0]).toMatch(/^\*\*For the owner/)
+    expect(lines[10]).toMatch(/^\*\*For a second review/)
   })
 })

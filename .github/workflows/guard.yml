@@ -1,8 +1,8 @@
 name: Guard
 
 # The checks guard on every PR (docs/QUALITY.md → The checks guard): main's copy of scripts/guard/
-# reads the PR's branch through git and writes into the PR what in it weakens the checks or changes
-# existing ones, and fails while a list of its marks lacks the record it calls for (docs/QUALITY.md →
+# reads the PR's branch through git and writes into the PR what in it weakens the checks, changes
+# existing ones or adds a design value, and fails while a list of its marks lacks the record it calls for (docs/QUALITY.md →
 # What a marked PR needs). The script is main's; this file isn't: on pull_request GitHub runs the
 # workflow as the PR has it, so a PR that changes these steps runs them changed, and main's script
 # marks the change for the owner.
@@ -155,7 +155,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
-          FOUND: ${{ steps.guard.outputs.owner != '0' || steps.guard.outputs.review != '0' }}
+          # A main whose guard has no coordinator's list yet gives no count for it, which is none.
+          FOUND: ${{ steps.guard.outputs.owner != '0' || (steps.guard.outputs.coordinator || '0') != '0' || steps.guard.outputs.review != '0' }}
         # The comment is the one the workflow's own token wrote that starts with the guard's marker
         # (MARKER in scripts/guard/signs.ts).
         run: |

@@ -1,50 +1,20 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { castsShadow, DATA_URL, declarations, problem, rawColors, rawMotion, rawValues, roles, TOKENS_FILE, type Kind, type Sheet } from '../../scripts/guard/stylesheets.ts'
 
 /**
- * Spacing, radii and type go through the tokens in tokens.css (CLAUDE.md → Design). This test keeps
- * the code on them: a `gap`, `padding`, `margin` or `border-radius` written in px fails when the
- * scale has that value, a `font-size` or `line-height` in px fails when a type role has it, and a
- * value the tokens don't have fails unless the line carries a comment saying why. Negative values,
- * widths, heights and font weights aren't checked. Colors, shadows and motion: below.
+ * Spacing, radii, type, colors, shadows and motion go through the tokens in tokens.css (CLAUDE.md →
+ * Design). This test keeps the stylesheets on them: a value the tokens have fails, and a value they
+ * don't have fails unless its line carries a comment saying why. What counts as a raw value is
+ * defined once, in scripts/guard/stylesheets.ts, which the checks guard reads too: it marks for the
+ * coordinator a raw value a branch lets through by its comment, and every token a branch adds,
+ * changes or removes (docs/QUALITY.md → The checks guard).
  */
 
 // Vitest runs from the project root (import.meta.url isn't a file URL under jsdom).
-const SRC = join(process.cwd(), 'src')
-
-// A declaration of the property, at the start of the line or after another one on the same line.
-const SPACING_PROP = /(?:^|[;{])\s*(gap|row-gap|column-gap|padding(?:-[a-z-]+)?|margin(?:-[a-z-]+)?)\s*:\s*([^;}]*)/g
-const RADIUS_PROP = /(?:^|[;{])\s*(border-radius|border-[a-z-]+-radius)\s*:\s*([^;}]*)/g
-const TYPE_PROP = /(?:^|[;{])\s*(font-size|line-height|font)\s*:\s*([^;}]*)/g
-// A positive px length on its own: not part of a number, a negative value or a word.
-const PX = /(?<![\d.\-\w])(\d+(?:\.\d+)?)px\b/g
-const COMMENT = /\/\*.*\*\//
-
-/** `var(--space-2)` by `8px`, from tokens.css itself, so the test follows the scale. */
-function scale(prefix: string): Token {
-  const tokens = readFileSync(join(SRC, 'styles/tokens.css'), 'utf8')
-  const pattern = new RegExp(`--(${prefix}-[a-z0-9]+):\\s*(\\d+px)`, 'g')
-  const byPx = new Map([...tokens.matchAll(pattern)].map(([, name, value]) => [value, `var(--${name})`]))
-  return (_prop, px) => byPx.get(px)
-}
-
-/**
- * `font: var(--t-cap)` by `13px` for a font-size (a role's size) and by `18px` for a line-height
- * (a role's line-height), from the roles in tokens.css. A `font` shorthand is checked against both.
- */
-function roles(): Token {
-  const tokens = readFileSync(join(SRC, 'styles/tokens.css'), 'utf8')
-  const pattern = /--(t-[a-z0-9-]+):\s*\d+\s+(\d+(?:\.\d+)?px)\/(\d+px)/g
-  const sizes = new Map<string, string>()
-  const lineHeights = new Map<string, string>()
-  for (const [, name, size, lineHeight] of tokens.matchAll(pattern)) {
-    const token = `font: var(--${name})`
-    if (!sizes.has(size)) sizes.set(size, token)
-    if (!lineHeights.has(lineHeight)) lineHeights.set(lineHeight, token)
-  }
-  return (prop, px) => (prop === 'line-height' ? lineHeights.get(px) : sizes.get(px) ?? lineHeights.get(px))
-}
+const ROOT = process.cwd()
+const SRC = join(ROOT, 'src')
 
 function cssFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -54,290 +24,52 @@ function cssFiles(dir: string): string[] {
   })
 }
 
-/** The token to write instead of a px value of a property, if the tokens have it. */
-type Token = (prop: string, px: string) => string | undefined
+const SHEETS: Sheet[] = cssFiles(SRC).map((path) => ({ file: relative(ROOT, path), text: readFileSync(path, 'utf8') }))
+const RAW = rawValues(SHEETS)
+const TOKENS = SHEETS.find(({ file }) => file === TOKENS_FILE)?.text ?? ''
 
-interface Kind {
-  prop: RegExp
-  token: Token
-  /** What a value the tokens have is on: "the scale" or "a type role". */
-  scale: string
-}
+/** What the test fails of one kind of value. */
+const problems = (kind: Kind) => RAW.filter((raw) => raw.kind === kind && !raw.allowed).map(problem)
 
-function check(kind: Kind): string[] {
-  const problems: string[] = []
-  for (const path of cssFiles(SRC)) {
-    const file = `src/${relative(SRC, path)}`
-    if (file === 'src/styles/tokens.css') continue
-    const lines = readFileSync(path, 'utf8').split('\n')
-    lines.forEach((line, i) => {
-      for (const [, prop, value] of line.matchAll(kind.prop)) for (const [, number] of value.matchAll(PX)) {
-        if (Number(number) === 0) continue
-        const px = `${number}px`
-        const token = kind.token(prop, px)
-        const where = `${file}:${i + 1} ${prop}: ${px}`
-        if (token) {
-          problems.push(`${where} is on ${kind.scale}: use ${token}`)
-        } else if (!COMMENT.test(line)) {
-          problems.push(`${where} is off ${kind.scale}: add a comment on the line saying why`)
-        }
-      }
-    })
-  }
-  return problems
+/** A declaration outside tokens.css of a name tokens.css declares, which overrides the token. */
+function tokensRedeclared(sheets: Sheet[]): string[] {
+  const names = new Set(sheets.filter(({ file }) => file === TOKENS_FILE).flatMap(declarations).map(({ prop }) => prop).filter((prop) => prop.startsWith('--')))
+  return sheets
+    .filter(({ file }) => file !== TOKENS_FILE)
+    .flatMap(declarations)
+    .filter(({ prop }) => names.has(prop))
+    .map((d) => `${d.file}:${d.lineAt(0)} ${d.prop}: a design token, which only tokens.css declares`)
 }
 
 describe('stylesheets', () => {
+  it('declare the design tokens in tokens.css only', () => {
+    const planted = [{ file: TOKENS_FILE, text: ':root { --space-2: 8px; }' }, { file: 'src/styles/layout.css', text: ':root {\n  --space-2: 10px;\n  --column: 760px;\n}\n' }]
+    expect(tokensRedeclared(planted)).toEqual(['src/styles/layout.css:2 --space-2: a design token, which only tokens.css declares'])
+    expect(tokensRedeclared(SHEETS)).toEqual([])
+  })
+
   it('write spacing through the --space tokens', () => {
-    expect(check({ prop: SPACING_PROP, token: scale('space'), scale: 'the scale' })).toEqual([])
+    expect(problems('spacing')).toEqual([])
   })
 
   it('write radii through the --r tokens', () => {
-    expect(check({ prop: RADIUS_PROP, token: scale('r'), scale: 'the scale' })).toEqual([])
+    expect(problems('radius')).toEqual([])
   })
 
   it('write font sizes through the type roles', () => {
-    const token = roles()
+    const token = roles(TOKENS)
     expect(token('font-size', '13px')).toBe('font: var(--t-cap)')
     expect(token('line-height', '18px')).toBe('font: var(--t-cap)')
     expect(token('font-size', '12px')).toBeUndefined()
-    expect(check({ prop: TYPE_PROP, token, scale: 'a type role' })).toEqual([])
+    expect(problems('type')).toEqual([])
   })
 })
 
 /**
- * Colors, shadows and motion go through the tokens too. These read each stylesheet as declarations,
- * across lines, with comments blanked out (a comment still marks its lines). A value the tokens
- * can't express is allowed with a comment on its line saying why, as above.
+ * Colors, shadows and motion go through the tokens too, read in each stylesheet's declarations,
+ * across lines. A value the tokens can't express is allowed with a comment on its line saying why,
+ * as above.
  */
-
-/** A declaration of a stylesheet: what's after `{` or `;` up to the next `;` or `}`. */
-interface Declaration {
-  file: string
-  prop: string
-  value: string
-  /** The value's line in the file for an index into `value`. */
-  lineAt: (index: number) => number
-  /** Whether the line has a comment. */
-  commented: (line: number) => boolean
-}
-
-const TOKENS_FILE = 'src/styles/tokens.css'
-
-function declarations(path: string): Declaration[] {
-  const file = `src/${relative(SRC, path)}`
-  const text = readFileSync(path, 'utf8')
-  const commentedLines = new Set<number>()
-  const newlines = [...text.matchAll(/\n/g)].map((m) => m.index)
-  /** The 1-based line of an index: the newlines before it, plus one. */
-  const lineOf = (index: number) => {
-    let low = 0
-    let high = newlines.length
-    while (low < high) {
-      const mid = (low + high) >> 1
-      if (newlines[mid] < index) low = mid + 1
-      else high = mid
-    }
-    return low + 1
-  }
-  // Comments become spaces of the same length, so indexes and lines stay where they were.
-  const code = text.replace(/\/\*[\s\S]*?\*\//g, (comment, start: number) => {
-    const first = lineOf(start)
-    for (let line = first; line <= first + comment.split('\n').length - 1; line++) commentedLines.add(line)
-    return comment.replace(/[^\n]/g, ' ')
-  })
-  return [...code.matchAll(/[{;]\s*(-?-?[a-zA-Z][\w-]*)\s*:([^;{}]*)(?=[;}])/g)].map((match) => {
-    const valueStart = match.index + match[0].length - match[2].length
-    return {
-      file,
-      prop: match[1],
-      value: match[2],
-      lineAt: (index) => lineOf(valueStart + index),
-      commented: (line) => commentedLines.has(line),
-    }
-  })
-}
-
-const ALL = cssFiles(SRC).flatMap(declarations)
-const OUTSIDE_TOKENS = ALL.filter((d) => d.file !== TOKENS_FILE)
-
-// The named and system colors of CSS Color 4 (lowercase, as identifiers are compared).
-// `transparent` and `currentColor` aren't raw: they name no color.
-const NAMED_COLORS = new Set(
-  `aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue blueviolet
-  brown burlywood cadetblue chartreuse chocolate coral cornflowerblue cornsilk crimson cyan darkblue
-  darkcyan darkgoldenrod darkgray darkgreen darkgrey darkkhaki darkmagenta darkolivegreen darkorange
-  darkorchid darkred darksalmon darkseagreen darkslateblue darkslategray darkslategrey darkturquoise
-  darkviolet deeppink deepskyblue dimgray dimgrey dodgerblue firebrick floralwhite forestgreen fuchsia
-  gainsboro ghostwhite gold goldenrod gray green greenyellow grey honeydew hotpink indianred indigo
-  ivory khaki lavender lavenderblush lawngreen lemonchiffon lightblue lightcoral lightcyan
-  lightgoldenrodyellow lightgray lightgreen lightgrey lightpink lightsalmon lightseagreen lightskyblue
-  lightslategray lightslategrey lightsteelblue lightyellow lime limegreen linen magenta maroon
-  mediumaquamarine mediumblue mediumorchid mediumpurple mediumseagreen mediumslateblue
-  mediumspringgreen mediumturquoise mediumvioletred midnightblue mintcream mistyrose moccasin
-  navajowhite navy oldlace olive olivedrab orange orangered orchid palegoldenrod palegreen
-  paleturquoise palevioletred papayawhip peachpuff peru pink plum powderblue purple rebeccapurple red
-  rosybrown royalblue saddlebrown salmon sandybrown seagreen seashell sienna silver skyblue slateblue
-  slategray slategrey snow springgreen steelblue tan teal thistle tomato turquoise violet wheat white
-  whitesmoke yellow yellowgreen
-  canvas canvastext linktext visitedtext activetext buttonface buttontext buttonborder field fieldtext
-  highlight highlighttext selecteditem selecteditemtext mark marktext graytext accentcolor
-  accentcolortext`.split(/\s+/),
-)
-const HEX = /#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b/g
-// Any call, whatever its arguments: `rgb(calc(var(--n) * 1) 0 0)` is as raw as `rgb(255 0 0)`.
-const COLOR_FUNCTION = /\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(/g
-// A whole identifier: `--teal` or `ks-tan` isn't the color `teal` or `tan`.
-const IDENT = /(?<![\w-])[a-zA-Z][\w-]*(?![\w-])/g
-
-const DATA_URL = /\burl\(\s*['"]?data:/gi
-const NAMED_PROP = /^(?:-webkit-)?(?:animation|transition|grid)(?:-[a-z-]+)?$/
-
-/** The whole call that starts at an index, up to its closing parenthesis, for the message. */
-function call(value: string, start: number): string {
-  let depth = 0
-  for (let i = value.indexOf('(', start); i < value.length; i++) {
-    if (value[i] === '(') depth++
-    else if (value[i] === ')' && --depth === 0) return value.slice(start, i + 1)
-  }
-  return value.slice(start)
-}
-
-/** The raw colors in a declaration's value, with their index. */
-function rawColors(prop: string, raw: string): [string, number][] {
-  // What a url() names is a file or an element, not a color. A data: URL is the color test's own
-  // case (DATA_URL), since what it draws can't be read here.
-  const value = raw.replace(/\burl\([^)]*\)/gi, (url) => ' '.repeat(url.length))
-  const found: [string, number][] = []
-  for (const m of value.matchAll(HEX)) found.push([m[0], m.index])
-  for (const m of value.matchAll(COLOR_FUNCTION)) found.push([call(value, m.index), m.index])
-  // Names in an animation, a transition or a grid area are keyframes, properties and areas
-  // (`highlight`, `mark`), never colors.
-  if (NAMED_PROP.test(prop)) return found
-  for (const m of value.matchAll(IDENT)) if (NAMED_COLORS.has(m[0].toLowerCase())) found.push([m[0], m.index])
-  return found
-}
-
-// A time other than zero (a negative delay included), and an easing other than `linear` (no easing, as a spinner or a fill
-// that shows a clock needs).
-const TIME = /(?<![\w.-])-?(\d*\.?\d+)(ms|s)\b/g
-const EASING = /(?<![\w-])(?:ease|ease-in|ease-out|ease-in-out|step-start|step-end)(?![\w-])|\b(?:cubic-bezier|steps|linear)\(/g
-const MOTION_PROP = /^(?:-webkit-)?(?:transition|animation)(?:-[a-z-]+)?$/
-const SHADOW_PROP = /^(?:-webkit-)?(?:box-shadow|text-shadow|filter)$/
-const FILTER_PROP = /^(?:-webkit-)?filter$/
-
-function rawMotion(value: string): [string, number][] {
-  const found: [string, number][] = []
-  for (const m of value.matchAll(TIME)) if (Number(m[1]) !== 0) found.push([m[0], m.index])
-  for (const m of value.matchAll(EASING)) found.push([m[0].endsWith('(') ? call(value, m.index) : m[0], m.index])
-  return found
-}
-
-/** Splits a value at its top-level commas, with each part's index. */
-function layers(value: string): [string, number][] {
-  const parts: [string, number][] = []
-  let depth = 0
-  let start = 0
-  for (let i = 0; i <= value.length; i++) {
-    const char = value[i]
-    if (char === '(') depth++
-    else if (char === ')') depth--
-    else if ((char === ',' && depth === 0) || i === value.length) {
-      parts.push([value.slice(start, i), start])
-      start = i + 1
-    }
-  }
-  return parts
-}
-
-/** A value's parts at its top-level spaces, with each part's index. */
-function parts(value: string): [string, number][] {
-  const found: [string, number][] = []
-  let depth = 0
-  let start = -1
-  for (let i = 0; i <= value.length; i++) {
-    const char = value[i]
-    const space = char === undefined || (/\s/.test(char) && depth === 0)
-    if (!space && start < 0) start = i
-    if (char === '(') depth++
-    else if (char === ')') depth--
-    if (space && start >= 0) {
-      found.push([value.slice(start, i), start])
-      start = -1
-    }
-  }
-  return found
-}
-
-/**
- * Whether a shadow layer casts a shadow. A ring or a fill drawn with box-shadow (a focus ring, a
- * hover tint) has a literal zero for each of its offsets and its blur, its first three lengths after
- * `inset`; anything else there, a var() or a calc() included, casts one. Its color is the color
- * rule's.
- */
-function castsShadow(layer: string): boolean {
-  const geometry = parts(layer).map(([part]) => part).filter((part) => part !== 'inset')
-  return geometry.length > 0 && geometry.slice(0, 3).some((part) => !/^0(?:\.0*)?(?:px|em|rem)?$/.test(part))
-}
-
-/** Custom properties defined outside tokens.css, by name. */
-const OWN_PROPERTIES = new Map<string, Declaration[]>()
-for (const d of OUTSIDE_TOKENS) {
-  if (d.prop.startsWith('--')) OWN_PROPERTIES.set(d.prop, [...(OWN_PROPERTIES.get(d.prop) ?? []), d])
-}
-
-const CSS_WIDE = /^(?:inherit|initial|unset|revert|revert-layer)$/
-
-interface Shadow {
-  d: Declaration
-  index: number
-  layer: string
-}
-
-/**
- * The shadow layers of a value that cast a shadow. A layer that is a single var() (after `inset`)
- * is followed into its definitions outside tokens.css, and its fallback is read as layers of its own.
- */
-function shadowsIn(d: Declaration, important: string, offset: number, seen: Set<string>): Shadow[] {
-  const found: Shadow[] = []
-  // `!important` says how the value wins, not what it draws.
-  const value = important.replace(/!\s*important\s*$/i, (flag) => ' '.repeat(flag.length))
-  for (const [raw, rawIndex] of layers(value)) {
-    const layer = raw.trim()
-    if (layer === '' || layer === 'none' || CSS_WIDE.test(layer)) continue
-    const index = offset + rawIndex + raw.length - raw.trimStart().length
-    const rest = parts(layer).filter(([part]) => part !== 'inset')
-    const only = rest.length === 1 ? /^var\(\s*(--[\w-]+)\s*(?:,([\s\S]*))?\)$/.exec(rest[0][0]) : null
-    if (!only) {
-      if (castsShadow(layer)) found.push({ d, index, layer })
-      continue
-    }
-    const [, name, fallback] = only
-    if (fallback !== undefined) {
-      const fallbackIndex = index + rest[0][1] + rest[0][0].indexOf(',') + 1
-      found.push(...shadowsIn(d, fallback, fallbackIndex, seen))
-    }
-    if (seen.has(name)) continue
-    seen.add(name)
-    for (const own of OWN_PROPERTIES.get(name) ?? []) found.push(...shadowsIn(own, own.value, 0, seen))
-  }
-  return found
-}
-
-/** The shadows a declaration casts outside the --shadow tokens. */
-function rawShadows(d: Declaration): Shadow[] {
-  // A drop-shadow() anywhere in a filter, or in a custom property, which a filter may take.
-  if (FILTER_PROP.test(d.prop) || d.prop.startsWith('--')) {
-    return [...d.value.matchAll(/\bdrop-shadow\(/g)].map((m) => ({ d, index: m.index, layer: 'drop-shadow()' }))
-  }
-  return shadowsIn(d, d.value, 0, new Set())
-}
-
-/** A problem at a value's index, unless its line carries a comment. */
-function at(d: Declaration, index: number, what: string, problems: string[]) {
-  const line = d.lineAt(index)
-  if (!d.commented(line)) problems.push(`${d.file}:${line} ${d.prop}: ${what}`)
-}
 
 describe('stylesheets beyond sizes', () => {
   it('write colors through the color tokens', () => {
@@ -346,16 +78,12 @@ describe('stylesheets beyond sizes', () => {
     expect(colors('color', 'color-mix(in srgb, var(--text) 6%, transparent) currentColor')).toEqual([])
     expect(colors('background', 'url(red.svg) url(#red) red')).toEqual(['red'])
     expect(colors('grid-area', 'highlight')).toEqual([])
-    const problems: string[] = []
-    for (const d of OUTSIDE_TOKENS) for (const [color, index] of rawColors(d.prop, d.value)) {
-      at(d, index, `${color} is a raw color: use a token from tokens.css, or add a comment on the line saying why`, problems)
-    }
     // A data: URL can draw any color, and its content (cut at a `;`, %-encoded or base64) can't be
-    // read for one, so it needs a comment saying why.
-    for (const d of OUTSIDE_TOKENS) for (const m of d.value.matchAll(DATA_URL)) {
-      at(d, m.index, 'a data: URL may draw raw colors: use a file or a token, or add a comment on the line saying why', problems)
-    }
-    expect(problems).toEqual([])
+    // read for one, so it needs a comment saying why: in a url(), and as a string, which image-set() takes.
+    const dataUrls = (value: string) => [...value.matchAll(DATA_URL)].map(([match]) => match.trim())
+    expect(dataUrls('url( "data:x") URL(data:y) url(data.svg) url(icons/data:x.svg)')).toEqual(['url( "data:', 'URL(data:'])
+    expect(dataUrls(`image-set("data:image/png;base64,AAAA" 1x, 'data:x' 2x, "a.png" 1x)`)).toEqual(['"data:', "'data:"])
+    expect(problems('color')).toEqual([])
   })
 
   it('write shadows through the --shadow tokens', () => {
@@ -363,42 +91,29 @@ describe('stylesheets beyond sizes', () => {
     expect(castsShadow('0 0 0 var(--space-1) var(--accent)')).toBe(false)
     expect(castsShadow('0 var(--space-2) var(--space-4) var(--scrim)')).toBe(true)
     expect(castsShadow('0 0 2vw var(--scrim)')).toBe(true)
-    const problems: string[] = []
-    for (const d of OUTSIDE_TOKENS) {
-      if (!SHADOW_PROP.test(d.prop) && !d.prop.startsWith('--')) continue
-      for (const shadow of rawShadows(d)) {
-        at(shadow.d, shadow.index, `${shadow.layer} is a raw shadow: use a --shadow token, or add a comment on the line saying why`, problems)
-      }
-    }
-    expect(problems).toEqual([])
+    expect(problems('shadow')).toEqual([])
   })
 
   it('write durations and easings through the motion tokens', () => {
     const motion = (value: string) => rawMotion(value).map(([raw]) => raw)
     expect(motion('opacity 0s linear -0.5s ease-out steps(var(--n))')).toEqual(['-0.5s', 'ease-out', 'steps(var(--n))'])
     expect(motion('ks-1s var(--d-fast) var(--ease) linear')).toEqual([])
-    const problems: string[] = []
-    for (const d of OUTSIDE_TOKENS) {
-      if (!MOTION_PROP.test(d.prop) && !d.prop.startsWith('--')) continue
-      for (const [raw, index] of rawMotion(d.value)) {
-        at(d, index, `${raw} is raw motion: use --d-* and --ease*, or add a comment on the line saying why`, problems)
-      }
-    }
-    expect(problems).toEqual([])
+    expect(problems('motion')).toEqual([])
   })
 
   it('use only custom properties something defines', () => {
+    const all = SHEETS.flatMap(declarations)
     // Defined by a stylesheet, or set at runtime by the app's code, which names it in a string
     // ('--keyboard-inset' in setProperty, a style object's key, useHeightVar's argument).
-    const defined = new Set(ALL.filter((d) => d.prop.startsWith('--')).map((d) => d.prop))
+    const defined = new Set(all.filter((d) => d.prop.startsWith('--')).map((d) => d.prop))
     for (const path of codeFiles(SRC)) {
       for (const [, name] of readFileSync(path, 'utf8').matchAll(/['"](--[\w-]+)['"]/g)) defined.add(name)
     }
-    const problems: string[] = []
-    for (const d of ALL) for (const m of d.value.matchAll(/var\(\s*(--[\w-]+)/g)) {
-      if (!defined.has(m[1])) problems.push(`${d.file}:${d.lineAt(m.index)} ${d.prop}: nothing defines ${m[1]}`)
+    const undefinedOnes: string[] = []
+    for (const d of all) for (const m of d.value.matchAll(/var\(\s*(--[\w-]+)/g)) {
+      if (!defined.has(m[1])) undefinedOnes.push(`${d.file}:${d.lineAt(m.index)} ${d.prop}: nothing defines ${m[1]}`)
     }
-    expect(problems).toEqual([])
+    expect(undefinedOnes).toEqual([])
   })
 })
 

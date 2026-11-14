@@ -1,4 +1,4 @@
-/* Above the on-screen keyboard and no taller than what it leaves visible (tokens.css). While the
+/* Above the on-screen keyboard and no taller than what it leaves visible (layout.css). While the
    keyboard is open, a gap apart from it, with its bottom corners rounded too. */
 .ks-sheet {
   --keyboard-gap: calc(var(--keyboard-open) * var(--space-2));

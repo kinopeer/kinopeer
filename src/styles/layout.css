@@ -1,0 +1,41 @@
+/*
+ * The layout's sizes and the properties the app sets at runtime, which aren't design values
+ * (tokens.css): the safe areas, the navigation's and the drawer's widths, the room the navigation
+ * takes and the part of the page above the on-screen keyboard.
+ */
+
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --sidebar: 248px;
+  --sidebar-rail: 76px;
+  --drawer: 460px;
+  /* Width of the centered column screens use on wide screens. */
+  --column: 760px;
+  /* Room the app's navigation takes: the tab bar at the bottom, the sidebar on desktop (below). */
+  --nav-left: 0px;
+  /* The tab bar's height, which `.ks-tabbar` takes from here: its 8px top padding, a 52px tab and
+     its 1px top border, over the home indicator. Anything pinned above it meets it exactly. */
+  --nav-bottom: calc(61px + var(--safe-bottom));
+  /* The part of the page above the on-screen keyboard, which Safari on iOS and Chrome on Android open
+     over the page: `trackKeyboardInset` (src/lib/keyboardInset.ts) sets them on <html> while it's
+     open. The inset is from the layout viewport's bottom; `--keyboard-open` is 1 while it's open. */
+  --keyboard-inset: 0px;
+  --visible-top: 0px;
+  --visible-height: 100dvh;
+  --keyboard-open: 0;
+}
+
+/* The desktop layout (src/lib/breakpoints.ts): the sidebar replaces the tab bar. */
+@media (min-width: 1024px) {
+  :root {
+    --nav-left: var(--sidebar-rail);
+    --nav-bottom: 0px;
+  }
+}
+
+@media (min-width: 1100px) {
+  :root {
+    --nav-left: var(--sidebar);
+  }
+}

@@ -14,7 +14,10 @@ Only what is on, being adopted, or declined with its reason; plans aren't listed
 
 | Component | State | What it does |
 | --- | --- | --- |
-| [The checks guard](#the-checks-guard) | On since 2026-11-12 (#366): its check is red while a PR lacks the records its marks call for, and is among `main`'s required checks | A script CI runs on every PR, which writes into the PR what in it weakens the checks or changes existing ones, and what record each of the two calls for |
+| [The checks guard](#the-checks-guard) | On since 2026-11-12 (#366): its check is red while a PR lacks the records its marks call for, and is among `main`'s required checks | A script CI runs on every PR, which writes into the PR what in it weakens the checks, changes existing ones or adds a design value, and what record each of the three calls for |
+| The design tokens check | On since 2026-11-14 (#411): a test in CI's `check` job, which is among `main`'s required checks | `src/styles/tokens.test.ts` fails a stylesheet's spacing, radius, type size, color, shadow or motion that the tokens have, and one they lack unless its line carries a comment saying why, and a `var()` that names a property nothing defines. What counts as a raw value is defined in `scripts/guard/stylesheets.ts`, which the guard reads too ([What it marks](#what-it-marks)) |
+| The texts check | On since 2026-11-14 (#413): an oxlint rule, `react/jsx-no-literals`, that CI's `check` job runs | Fails a string that is a whole child in the app's JSX or the quoted value of an attribute a user reads or hears, so UI copy goes through translation keys; a string in braces in an attribute, inside an expression or outside JSX is left to review |
+| The module boundaries check | On since 2026-11-14 (#414): an override of oxlint's rules for the pure logic folders, which CI's `check` job runs | Fails a module in `src/releases/`, `src/search/`, `src/torrents/` or `src/logic/` (hooks, providers and tests aside) that imports React, React Router, react-i18next, a Node built-in, a hook, a screen or a component, reads a global the browser or Node has but other platforms lack, or holds JSX, so pure logic runs anywhere (`docs/ARCHITECTURE.md` → Pure logic). Its cases are in `src/logic/pureModules.test.ts`; the guard sends widening what it allows (a global, a file left out, a rule turned off) to the owner, and a rule's options changed to a second review |
 | [The size budget](#the-size-budget) | On since 2026-11-12 (#378): a step of CI's `performance` job, which is among `main`'s required checks | Sums the build's JS and CSS gzipped and everything else as it is, and fails over the budgets in `checks.json` |
 | [The requests budget](#the-requests-budget) | Being adopted (#378): a step of CI's `performance` job, which is among `main`'s required checks | Opens each screen afresh in a browser and moves between screens in short journeys, counts what each opening and each move asks each server route for, and fails on any count that isn't its budget in `checks.json` |
 | [The layout shift budget](#the-layout-shift-budget) | Being adopted (#378, #387): a test in CI's `performance` job, beside the requests budget's, which is among `main`'s required checks | Opens each screen on a phone and on desktop in a browser, lets the answers it loads from land one at a time in two orders, sums how far its content moves, and fails over its budget in `checks.json` |
@@ -30,7 +33,7 @@ can't read or can't judge is marked, not passed.
 
 ### What it marks
 
-Two kinds of change, by what each calls for before the PR merges.
+Three kinds of change, by what each calls for before the PR merges.
 
 **For the owner**, to approve with a reason: a weakening of the checks, or a change to the guard
 or its rules.
@@ -44,8 +47,19 @@ or its rules.
   state doesn't name counts as 0 there, so its new budget is raised from 0. A budget lowered isn't
   marked: it checks more.
 - A lint rule removed, turned off or downgraded, at the top level or in an override; a rule turned
-  off that the config didn't name before, since it may have been on by default; a plugin removed; a
-  path added to `ignorePatterns` (the root `.oxlintrc.json`).
+  off that the config didn't name before, since it may have been on by default; a plugin removed,
+  at the top level or from an override's `plugins` or `jsPlugins`; an environment turned on or a
+  global allowed (`env`, `globals`, at the top level or in an override), which `no-undef` then lets
+  through, and one no longer turned off or taken away (a `false` environment or an `'off'` global
+  removed); a path added to `ignorePatterns` or to an override's `excludeFiles`, the files its rules
+  skip (the root `.oxlintrc.json`). An
+  override is known by its `files`, so one whose `files` change is one removed and one added. An
+  override added or removed is marked whole for the owner, with its JSON (one added with its place in the list), even one that checks
+  more: read key by key against an empty one, it left a case unmarked in each round of #415's
+  review, and overrides change rarely. Only an override that keeps its `files` is read key by key,
+  as above. The overrides are marked whole, both sides' lists, when they can't be paired that way:
+  one isn't an object or has no `files` list, two share their `files`, or those on both sides are in
+  another order, since a later override wins where their files overlap.
 - The linter turned off from another file, marked by the file's path whatever it says: an
   `.oxlintrc.json` outside the root, which oxlint obeys for its folder, or an `.eslintignore` or
   `.oxlintignore`, added or with lines added. `npm run lint` also runs oxlint with
@@ -98,13 +112,47 @@ or its rules.
 - Any change to `scripts/guard/`, `.github/workflows/guard.yml`, this file or the second review's
   procedure (`.claude/skills/second-review/`).
 
+**For the coordinator**, to approve with a reason: a design value added or changed. A value the
+design doesn't have yet is a decision someone signs, and the owner decided that the coordinator
+does: the owner, or the coordinator session of a task on autopilot (`CLAUDE.md` → Workflow →
+Autopilot).
+
+- A declaration added, changed or removed in `src/styles/tokens.css`, in either theme: each is
+  known by the selector and the media queries it sits in and by its name, and its value is compared
+  without comments and runs of spaces, so a token reformatted, commented or moved within its block
+  isn't marked, and one moved to another block is removed there and added here. `!important` counts
+  as part of the value, and a name declared twice in one block is compared with both values. An
+  at-rule that holds no declaration, such as an `@import` of another stylesheet, is marked when it
+  is added or removed, since the tokens it brings can't be read. `tokens.css` removed, or a copy on
+  either side that the guard can't parse, is marked too. `tokens.test.ts` fails a token's name
+  declared in any other stylesheet, which would override it there. The layout's sizes
+  and the properties the app sets at runtime (the safe areas, the navigation's and the drawer's
+  widths, the keyboard's inset) live in `src/styles/layout.css`, so that whatever is in
+  `tokens.css` is a design value.
+- A value off the tokens' scale on a line the branch adds to a stylesheet under `src/`
+  (`tokens.css` aside) that `tokens.test.ts` lets through only because the line carries a comment:
+  a spacing, radius or type size in px the scale doesn't have, a raw color, a `data:` URL, a raw
+  shadow or raw motion. What counts as raw is the test's own definition,
+  `scripts/guard/stylesheets.ts`, which the guard reads against the scale and the custom
+  properties of every stylesheet at the branch's head (a shadow's `var()` is followed into them).
+  A `box-shadow` or `text-shadow` line the branch adds that takes a commented raw shadow through
+  `var()` is marked too, with where the shadow comes from; a custom property the branch changes in
+  between, or a `filter` that takes one, isn't.
+  A line the branch changes counts as added, so a comment written onto a raw value's line is marked
+  as well. When the guard can't parse the stylesheets, every one the branch changes is marked. A raw
+  value without a comment isn't marked: the test fails it, and CI with it. Nor is a size in a new
+  custom property outside `tokens.css` (`--gutter: 13px;` in `layout.css`, then `gap:
+  var(--gutter)`): the test reads sizes only where they're used, and `layout.css` holds the layout's
+  sizes by design, so that one is left to review.
+
 **For a second review**: a change to an existing check that a script can't judge.
 
 - Any other change to `checks.json`: a threshold raised, a new budget (an accessibility state's
   only when the state is new), an entry removed from an exclusion list, a key the guard has no rule
   for.
 - Any other change to `.oxlintrc.json`: a rule's options, also when its severity went up with
-  them; a new rule that only warns; a key the guard has no rule for.
+  them; a new rule that only warns; a key the guard has no rule for, at the top level or in an
+  override (`settings`, say).
 - A CI step that changed or is gone, when every command it called still runs somewhere or it
   called none of the kinds above (plain shell, `curl`): other arguments, a line taken out of a
   step whose commands stay, one of two steps alike removed. An action's version and inputs
@@ -131,7 +179,7 @@ or its rules.
   that it has nothing to compare the branch's with.
 
 A new sign goes into `scripts/guard/` (`signs.ts`, or `assertions.ts` and `tests.ts` for what the
-tests assert and which of them ran) with its tests and into this list, in one PR, which
+tests assert and which of them ran, `stylesheets.ts` for what counts as a raw value in a stylesheet) with its tests and into this list, in one PR, which
 goes to the owner as any change to the guard does. The list is never whole, and isn't meant to be:
 the guard is a tripwire for the cheap, known ways around a check, and the reviews catch the rest.
 A way around that a review finds goes into [What it doesn't see](#what-it-doesnt-see); it joins
@@ -140,8 +188,8 @@ costs one line.
 
 ### What a marked PR needs
 
-The guard's marks are two lists, for the owner and for a second review. While a list isn't closed
-by a record, the `guard` check is red; a PR without marks has it green.
+The guard's marks are three lists, for the owner, for the coordinator and for a second review.
+While a list isn't closed by a record, the `guard` check is red; a PR without marks has it green.
 
 **The code of a list.** Each list has a code: a short hash of its marks (what each calls for, its
 file and what it says, without line numbers) and of the marked files as they are at the branch's
@@ -152,12 +200,14 @@ leaves the record in force, unless a mark's own text carries a count the push ch
 tests run" names both sides' totals, so a merge of `main` that brings a test gives that list
 another code.
 
-**A record** is a comment on the PR whose first line is one of three; the rest is free text:
+**A record** is a comment on the PR whose first line is one of four; the rest is free text:
 
 - `**Second review <code>: sound**`: the second review found no weakening among the list's marks;
 - `**Second review <code>: weakening**`: it found one, or couldn't decide;
 - `**Owner's approval <code>:** <reason>`: the owner approves, with the owner's reason on that
-  line, in English.
+  line, in English;
+- `**Coordinator's approval <code>:** <reason>`: the coordinator approves the design values, with
+  the coordinator's reason on that line, in English.
 
 The guard prints these lines with the codes in its comment, to be copied rather than composed from
 memory. A record counts only from someone the owner let into the repository: a member of the
@@ -174,6 +224,8 @@ posted by the maintainer's sessions, as the reviews of such PRs are.
 **What closes what.**
 
 - The list for the owner: the owner's approval of its code.
+- The list for the coordinator: the coordinator's approval of its code, or the owner's, since the
+  owner is a coordinator too. Neither closes another list.
 - The list for a second review: a second review of its code that found it `sound`. After a
   `weakening`, either a fix (the marked file changes, so does the code, and the second review is
   done again) or the owner's approval of the same code. Without a `weakening` record the owner's
@@ -192,6 +244,15 @@ its line on the mark. The reason in the record is the owner's own: the session o
 ready-made reason, and doesn't record an approval without one, but asks for it. It writes the
 reason in English, as everything on GitHub is, whatever language the owner gave it in, and
 doesn't quote the original.
+
+**The coordinator's approval.** It is posted by the coordinator only: the owner, or the
+coordinator session of a task on autopilot, never the session that wrote the PR or one that
+reviews it, which the record's first line can't tell apart, since every session posts as the
+owner's account. The reason is the coordinator's own: why the design needs that value, a token
+the scale lacks or a size made of other elements' sizes. On autopilot the coordinator decides
+it as it decides the task's other choices (`CLAUDE.md` → Workflow → Autopilot); otherwise the
+session that asks the owner to approve the merge asks about the list first, in a card of its own,
+as for the owner's approval.
 
 **After a record** the session that posted it re-runs the guard's job
 (`gh run rerun <run> --failed`): the check doesn't react to a new comment by itself. A record

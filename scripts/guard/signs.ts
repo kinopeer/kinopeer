@@ -4,13 +4,15 @@
 // can't read or can't judge is marked, not passed. What a test file asserts is read in assertions.ts,
 // and the tests that ran are compared in tests.ts.
 import { compareAssertions } from './assertions.ts'
+import { atRulesIn, rawValues, tokensIn, TOKENS_FILE, type Sheet } from './stylesheets.ts'
 
 /**
  * What a finding calls for before the PR merges: the owner's approval with a reason (a weakening, or
- * a change to the guard itself), or a second, independent review of the lines marked (a change to an
- * existing check that a script can't judge).
+ * a change to the guard itself), the coordinator's approval with a reason (a design value added or
+ * changed: a token, or a value off the tokens' scale that a comment lets through), or a second,
+ * independent review of the lines marked (a change to an existing check that a script can't judge).
  */
-export type Needs = 'owner' | 'review'
+export type Needs = 'owner' | 'coordinator' | 'review'
 
 /** `file` is missing where a finding is about the branch as a whole, such as a run that gave no list of its tests. */
 export type Finding = { needs: Needs; file?: string; line?: number; what: string }
@@ -57,7 +59,8 @@ const runsTests = (path: string): boolean =>
 const takesScreenshots = (path: string): boolean => path.startsWith('e2e/') || (inRoot(path) && path.startsWith('playwright'))
 
 /** Whether the guard compares the file's two versions whole, rather than only the lines added. */
-export const readsWhole = (path: string): boolean => path === CHECKS_FILE || path === LINT_FILE || path === PACKAGE_FILE || isWorkflow(path) || isTestCode(path)
+export const readsWhole = (path: string): boolean =>
+  path === CHECKS_FILE || path === LINT_FILE || path === PACKAGE_FILE || isWorkflow(path) || isTestCode(path) || path === TOKENS_FILE
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json }
 type JsonObject = { [key: string]: Json }
@@ -243,22 +246,80 @@ export function compareLint(base: string | undefined, head: string | undefined, 
   const parsed = parseBoth(file, base, head)
   if ('needs' in parsed) return [parsed]
   const { base: was, head: now } = parsed
-  const found = compareRules(file, '', rulesOf(was), rulesOf(now))
-  for (const plugin of entries(was.plugins)) {
-    if (!entries(now.plugins).includes(plugin)) found.push({ needs: 'owner', file, what: `the lint plugin ${plugin} is removed, and its rules with it` })
-  }
+  const found = [...compareRules(file, '', rulesOf(was), rulesOf(now)), ...compareScope(file, '', was, now, ['overrides', 'ignorePatterns', '$schema'])]
   for (const pattern of entries(now.ignorePatterns)) {
     if (!entries(was.ignorePatterns).includes(pattern)) found.push({ needs: 'owner', file, what: `the linter skips more: ${pattern} is added to \`ignorePatterns\`` })
   }
-  const before = new Map(overridesOf(was).map((override) => [filesOf(override), override]))
-  const after = new Map(overridesOf(now).map((override) => [filesOf(override), override]))
+  // Overrides are read one by one only when each side's are objects with `files` of their own and
+  // those on both sides keep their order, since a later override wins where globs overlap. Else a
+  // duplicate, one without `files` or a reordering would be read against the wrong one or not at
+  // all, so the list is marked whole.
+  const [had, has] = [overridesOf(was), overridesOf(now)]
+  const keyed = (list: Json[]): list is JsonObject[] => list.every((o) => isObject(o) && Array.isArray(o.files) && o.files.length > 0) && new Set(list.map(filesOf)).size === list.length
+  if (!keyed(had) || !keyed(has)) {
+    if (!same(had, has)) found.push({ needs: 'owner', file, what: `the overrides change in a way the guard can't read one by one: ${show(had)} → ${show(has)}` })
+    return found
+  }
+  const before = new Map(had.map((override) => [filesOf(override), override]))
+  const after = new Map(has.map((override) => [filesOf(override), override]))
+  const [stayed, stays] = [[...before.keys()].filter((key) => after.has(key)), [...after.keys()].filter((key) => before.has(key))]
+  if (!same(stayed, stays)) {
+    found.push({ needs: 'owner', file, what: `the overrides are in another order, and a later one wins where their files overlap: ${show(had)} → ${show(has)}` })
+    return found
+  }
   for (const files of new Set([...before.keys(), ...after.keys()])) {
     const where = ` for ${files}`
-    found.push(...compareRules(file, where, rulesOf(before.get(files)), rulesOf(after.get(files)), after.has(files) ? rulesOf(was) : {}))
+    const [prior, current] = [before.get(files), after.get(files)]
+    // An override that is new or removed, and one whose `files` change, which is both, is marked
+    // whole with its JSON, a new one with its place, since a later one wins where globs overlap: read key by key against an empty one, each round of #415's review found a
+    // case it missed. Only an override that keeps its `files` is read key by key.
+    if (prior === undefined || current === undefined) {
+      found.push({ needs: 'owner', file, what: current ? `the override${where} is added as number ${has.indexOf(current) + 1}: ${show(current)}` : `the override${where} is removed: ${show(prior)}` })
+      continue
+    }
+    found.push(...compareRules(file, where, rulesOf(prior), rulesOf(current), rulesOf(was)))
+    const skipped = entries(prior.excludeFiles)
+    for (const pattern of entries(current.excludeFiles)) {
+      if (!skipped.includes(pattern)) found.push({ needs: 'owner', file, what: `the lint rules${where} skip more: ${pattern} is added to \`excludeFiles\`` })
+    }
+    found.push(...compareScope(file, where, prior, current, ['files', 'excludeFiles']))
   }
-  for (const key of new Set([...Object.keys(was), ...Object.keys(now)])) {
-    if (['rules', 'plugins', 'ignorePatterns', 'overrides', '$schema'].includes(key) || same(was[key], now[key])) continue
-    found.push({ needs: 'review', file, what: `\`${key}\` changed: ${show(was[key])} → ${show(now[key])}` })
+  return found
+}
+
+/**
+ * What decides where and how the rules of the config or of one override apply, besides the rules
+ * themselves and the keys `skip` names, which the caller reads: a plugin removed (and its rules
+ * with it), an environment turned on or a global allowed (which `no-undef` then lets through) go to
+ * the owner, and any other key changed, one the guard has no rule for included, to a second review.
+ */
+function compareScope(file: string, where: string, had: JsonObject, has: JsonObject, skip: string[]): Finding[] {
+  const found: Finding[] = []
+  for (const key of ['plugins', 'jsPlugins']) {
+    for (const plugin of entries(had[key])) {
+      if (!entries(has[key]).includes(plugin)) found.push({ needs: 'owner', file, what: `the lint plugin ${plugin} is removed${where}, and its rules with it` })
+    }
+  }
+  const [envWas, envNow] = [isObject(had.env) ? had.env : {}, isObject(has.env) ? has.env : {}]
+  for (const [name, on] of Object.entries(envNow)) {
+    if (on === true && envWas[name] !== true) found.push({ needs: 'owner', file, what: `the environment ${name} is turned on${where}, and its globals with it` })
+  }
+  // An environment turned off, or a global taken away, that is no longer there gives back what the
+  // defaults or the top level allow.
+  for (const [name, on] of Object.entries(envWas)) {
+    if (on === false && !Object.hasOwn(envNow, name)) found.push({ needs: 'owner', file, what: `the environment ${name} is no longer turned off${where}` })
+  }
+  const [globalsWas, globalsNow] = [isObject(had.globals) ? had.globals : {}, isObject(has.globals) ? has.globals : {}]
+  for (const [name, value] of Object.entries(globalsNow)) {
+    // `off` takes a global away; any other value lets it through.
+    if (value !== 'off' && !same(globalsWas[name], value)) found.push({ needs: 'owner', file, what: `the global \`${name}\` is allowed${where}: ${show(value)}` })
+  }
+  for (const [name, value] of Object.entries(globalsWas)) {
+    if (value === 'off' && !Object.hasOwn(globalsNow, name)) found.push({ needs: 'owner', file, what: `the global \`${name}\` is no longer taken away${where}` })
+  }
+  for (const key of new Set([...Object.keys(had), ...Object.keys(has)])) {
+    if (['rules', 'plugins', 'jsPlugins', 'env', 'globals', ...skip].includes(key) || same(had[key], has[key])) continue
+    found.push({ needs: 'review', file, what: `\`${key}\`${where} changed: ${show(had[key])} → ${show(has[key])}` })
   }
   return found
 }
@@ -406,13 +467,82 @@ export function scanAdded(file: string, added: AddedLine[]): Finding[] {
   )
 }
 
-/** Every finding in a branch's changes. */
-export function findings(changes: Change[]): Finding[] {
+/** The design tokens' file against main's: a token added, changed or removed is a design decision, the coordinator's. */
+export function compareTokens(base: string | undefined, head: string | undefined, file = TOKENS_FILE): Finding[] {
+  if (head === undefined) return [{ needs: 'coordinator', file, what: 'the design tokens are removed, all of them' }]
+  const read = (text: string | undefined): { tokens: Map<string, string>; atRules: string[] } | string => {
+    if (text === undefined) return { tokens: new Map(), atRules: [] }
+    try {
+      return { tokens: tokensIn(text), atRules: atRulesIn(text) }
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error)
+    }
+  }
+  const [was, now] = [read(base), read(head)]
+  if (typeof now === 'string') return [{ needs: 'coordinator', file, what: `the guard can't read the file as a stylesheet, so it can't compare its tokens: ${now}` }]
+  if (typeof was === 'string') return [{ needs: 'coordinator', file, what: `the guard can't read main's copy as a stylesheet, so every token here is as good as new: ${was}` }]
+  const tokens = [...new Set([...was.tokens.keys(), ...now.tokens.keys()])].flatMap((key): Finding[] => {
+    const [before, after] = [was.tokens.get(key), now.tokens.get(key)]
+    if (before === after) return []
+    const [where, prop] = key.split('\t')
+    const token = `${prop.startsWith('--') ? 'the design token' : 'the declaration'} \`${prop}\`${where ? ` in \`${where}\`` : ''}`
+    const change = before === undefined ? `is added: \`${after}\`` : after === undefined ? `is removed: \`${before}\`` : `changed: \`${before}\` → \`${after}\``
+    return [{ needs: 'coordinator', file, what: `${token} ${change}` }]
+  })
+  // What the tokens can't be read from, such as an @import of another stylesheet: marked whole.
+  const atRule = (rule: string, change: string): Finding => ({ needs: 'coordinator', file, what: `the at-rule \`${rule}\`, which holds no token the guard can read, is ${change}` })
+  return [
+    ...tokens,
+    ...now.atRules.filter((rule) => !was.atRules.includes(rule)).map((rule) => atRule(rule, 'added')),
+    ...was.atRules.filter((rule) => !now.atRules.includes(rule)).map((rule) => atRule(rule, 'removed')),
+  ]
+}
+
+/**
+ * The raw values a branch adds to a stylesheet that the tokens test lets through by the comment on
+ * their line (stylesheets.ts): a design value too, which the coordinator approves. `sheets` are all
+ * the app's stylesheets at the branch's head, which give the scale and the custom properties a
+ * shadow is followed into; a changed line is an added one, so a comment written on a raw value's
+ * line is marked as well.
+ */
+export function compareStylesheets(changes: Change[], sheets: Sheet[]): Finding[] {
+  let raw: ReturnType<typeof rawValues>
+  try {
+    raw = rawValues(sheets)
+  } catch (error) {
+    const why = error instanceof Error ? error.message : String(error)
+    return changes
+      .filter(({ path }) => path !== TOKENS_FILE && sheets.some(({ file }) => file === path))
+      .map(({ path }) => ({ needs: 'coordinator', file: path, what: `the guard can't read the stylesheets, so it can't tell which values this one adds: ${why}` }))
+  }
+  // rawValues names only the stylesheets it checks, so another file the branch changes finds none.
+  // A value written twice on one line (`padding: 13px 13px`) is marked once.
+  const seen = new Set<string>()
+  return changes.flatMap(({ path, added }) => {
+    const lines = new Set(added.map(({ line }) => line))
+    return raw.filter(({ allowed }) => allowed).flatMap(({ file, line, prop, raw: value, via }): Finding[] => {
+      const own: Finding[] = file === path && lines.has(line) ? [{ needs: 'coordinator', file: path, line, what: `a value off the tokens' scale, let through by the comment on its line: \`${prop}: ${value}\`` }] : []
+      // A line that takes a shadow from a custom property makes it cast one, though its own line stays.
+      const takes = via
+        // A line that defines the shadow and takes it is marked once, by its own mark above.
+        .filter((use) => use.file === path && lines.has(use.line) && !(use.file === file && use.line === line))
+        .map((use): Finding => ({ needs: 'coordinator', file: path, line: use.line, what: `a shadow off the tokens' scale, taken from \`${file}:${line}\` and let through by the comment there: \`${prop}: ${value}\`` }))
+      return [...own, ...takes].filter(({ line: at, what }) => !seen.has(`${path}:${at}:${what}`) && seen.add(`${path}:${at}:${what}`))
+    })
+  })
+}
+
+/**
+ * Every finding in a branch's changes. `sheets` are the app's stylesheets at the branch's head, which
+ * guard.ts reads when the branch changes one.
+ */
+export function findings(changes: Change[], sheets: Sheet[] = []): Finding[] {
   const files = changes.flatMap(({ path, base, head, added }): Finding[] => {
     // The guard's own files hold these patterns as text, and each change to them goes to the owner anyway.
     if (isGuard(path)) return [{ needs: 'owner', file: path, what: 'the checks guard or its rules changed' }]
     if (path === CHECKS_FILE) return compareChecks(base, head)
     if (path === LINT_FILE) return compareLint(base, head)
+    if (path === TOKENS_FILE) return [...compareTokens(base, head), ...scanAdded(path, added)]
     // By its path alone, whatever it says: these files are rare, and what they say is the reviews' to read.
     const lines = added.length > 0
     const byPath: Finding[] = [
@@ -422,7 +552,7 @@ export function findings(changes: Change[]): Finding[] {
     ]
     return [...byPath, ...(path === PACKAGE_FILE ? compareScripts(base, head) : []), ...scanAdded(path, added), ...(isTestCode(path) ? compareAssertions(path, base, head) : [])]
   })
-  return [...files, ...compareWorkflows(changes.filter(({ path }) => isWorkflow(path) && !isGuard(path)))]
+  return [...files, ...compareStylesheets(changes, sheets), ...compareWorkflows(changes.filter(({ path }) => isWorkflow(path) && !isGuard(path)))]
 }
 
 /** The marker the workflow finds the guard's comment on a PR by. */
@@ -436,11 +566,15 @@ const list = (found: Finding[]): string[] => found.map(({ file, line, what }) =>
  */
 export function report(found: Finding[], { head, base }: { head: string; base: string }, records: { [needs in Needs]?: string } = {}): string {
   const owner = found.filter(({ needs }) => needs === 'owner')
+  const coordinator = found.filter(({ needs }) => needs === 'coordinator')
   const review = found.filter(({ needs }) => needs === 'review')
   const record = (needs: Needs): string[] => (records[needs] ? ['', records[needs]] : [])
   const lines = [MARKER, `**Checks guard at ${head}**, against \`main\` at ${base}.`]
-  if (found.length === 0) lines.push('', 'No weakening of the checks and no change to existing ones.')
+  if (found.length === 0) lines.push('', 'No weakening of the checks, no change to existing ones and no design value added or changed.')
   if (owner.length > 0) lines.push('', `**For the owner: ${owner.length} to approve, each with a reason.** A weakening of the checks, or a change to the guard or its rules.`, '', ...list(owner), ...record('owner'))
+  if (coordinator.length > 0) {
+    lines.push('', `**For the coordinator: ${coordinator.length} to approve, each with a reason.** A design value added, changed or removed: a token, or a value off the tokens' scale that a comment lets through.`, '', ...list(coordinator), ...record('coordinator'))
+  }
   if (review.length > 0) lines.push('', `**For a second review: ${review.length}.** Changes to existing checks, which a script can't judge.`, '', ...list(review), ...record('review'))
   return lines.join('\n')
 }
