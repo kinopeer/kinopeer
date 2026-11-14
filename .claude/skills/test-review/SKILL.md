@@ -80,9 +80,10 @@ trusted.
   as a title's word, the same letters meaning something else, another way of writing the same thing
   (#332, #333, #334), each with a row in the token's table of names it doesn't read. A check that
   reads code, config, a workflow or CSS reads it with the format's own parser, not regular
-  expressions, marks the whole where comparing parts gets intricate, and keeps a table of the
-  spellings it must catch and let through (`docs/TESTING.md` → Choosing a layer; #367–#370, #411,
-  #414, #415, #412). Where you can, break the
+  expressions (where none can be installed, as in the guard, it reads the narrow way, says so in
+  its docs and marks what it can't read), marks the whole where comparing parts gets intricate, and keeps a table of the
+  spellings it must catch and let through (`docs/TESTING.md` → Choosing a layer; #367–#370, #410,
+  #411, #414, #415, #412). Where you can, break the
   code for exactly that case and see whether the named test fails: a green one doesn't answer it
   (#237, #244, #248, #250). Missing → check the Tests
   section's reasons (step 1) → otherwise a finding. A bug `/code-review` finds in the PR's own change

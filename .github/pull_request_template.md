@@ -31,8 +31,9 @@ Neighbours: <!-- docs/TESTING.md → Choosing a layer. Answer each with the `it`
      place: what a grep for the changed function, text key, component or route finds, not for its
      words; a place left as it is, with a reason that holds against the code. The edges of a
      pattern that reads outside text: what else it catches (a title's word, the same letters
-     meaning something else, another way of writing it). A check that reads code, config or CSS:
-     the format's parser, not a regex, and its table of spellings caught and let through. -->
+     meaning something else, another way of writing it). A check that reads code, config, a workflow or
+     CSS: the format's parser, not a regex, the whole marked where its parts are hard to compare,
+     and its table of spellings caught and let through. -->
 
 - Another place:
 - Later:
@@ -70,7 +71,8 @@ Baselines: <!-- each changed or new PNG — what changed and why, intended or a 
      the screens in TESTING.md → Screenshot tests, SPEC's decision log (newest first), the blind
      spots. The changelog's entry names every change a user sees (each text, label and screen the
      diff changes) and claims no more than the code does. A doc about how things are now says
-     where a count or a list the code or CI holds lives, not the count or the list. Bring this section, What and Tests to
+     where a count or a list the code or CI holds lives, not the count or the list; a dated record
+     keeps its numbers. Bring this section, What and Tests to
      the head after each round's fixes. -->
 
 ## For the owner
