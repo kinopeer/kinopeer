@@ -264,7 +264,7 @@ describe('DownloadsScreen on desktop', () => {
     await userEvent.click(screen.getByRole('radio', { name: 'Series' }))
     expect((await tableRows()).map((row) => within(row).getByRole('link').textContent)).toEqual(['Andor.S02.1080p'])
     // The type has its own control here, so the sort button doesn't repeat it, as the phone's does.
-    expect(screen.getByRole('button', { name: 'Sort: Name' })).toHaveTextContent(/^Name$/)
+    expect(screen.getByRole('button', { name: 'Sort: Name' })).toHaveProperty('textContent', 'Name')
   })
 
   it('sorts by a column’s header, reverses on the next click, and shows the direction on the direction button', async () => {
@@ -319,7 +319,7 @@ describe('DownloadsScreen on desktop', () => {
     expect(screen.queryByRole('group', { name: 'Filter by status' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { pressed: false })).not.toBeInTheDocument()
 
-    await userEvent.click(screen.getByRole('button', { name: 'Status: All, 3' }))
+    await userEvent.click(screen.getByRole('button', { name: 'All statuses, 3' }))
     await userEvent.click(screen.getByRole('menuitemradio', { name: 'Paused, 1' }))
     expect(screen.getAllByRole('listitem')).toHaveLength(1)
     expect(screen.getByRole('button', { name: 'Status: Paused, 1' })).toBeInTheDocument()
@@ -327,7 +327,7 @@ describe('DownloadsScreen on desktop', () => {
     await userEvent.click(screen.getByRole('radio', { name: 'Series' }))
     expect(screen.getByRole('button', { name: 'Status: Paused, 0' })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Reset filters' }))
-    expect(screen.getByRole('button', { name: 'Status: All, 3' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'All statuses, 3' })).toBeInTheDocument()
   })
 
   it('keeps the name filter in the header, not behind a button', async () => {

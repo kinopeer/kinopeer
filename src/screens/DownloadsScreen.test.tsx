@@ -293,7 +293,7 @@ describe('DownloadsScreen', () => {
     searchTitles.mockImplementation(async (query) => searchPage(query === 'Dune Part Two' ? [DUNE_TITLE] : []))
     renderScreen()
     await screen.findByText('Dune: Part Two')
-    expect(screen.getByRole('button', { name: 'Sort: Priority' })).toHaveTextContent(/^Priority$/)
+    expect(screen.getByRole('button', { name: 'Sort: Priority' })).toHaveProperty('textContent', 'Priority')
     await userEvent.click(screen.getByRole('button', { name: 'Sort: Priority' }))
     const sheet = within(screen.getByRole('dialog', { name: 'Sort & filter' }))
     const types = within(sheet.getByRole('radiogroup', { name: 'Type' }))
@@ -309,7 +309,7 @@ describe('DownloadsScreen', () => {
       'Dune: Part Two2024',
     ])
     await userEvent.click(sheet.getByRole('button', { name: 'Done' }))
-    expect(screen.getByRole('button', { name: 'Sort: Priority, Movies' })).toHaveTextContent('Movies')
+    expect(screen.getByRole('button', { name: 'Sort: Priority, Movies' })).toHaveProperty('textContent', 'Priority Movies')
 
     const filters = within(screen.getByRole('group', { name: 'Filter by status' }))
     expect(filters.getByRole('button', { name: 'All 1', pressed: true })).toBeInTheDocument()

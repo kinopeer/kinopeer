@@ -15,15 +15,15 @@ function Harness({ initial = 'all', counts = COUNTS }: { initial?: StatusFilter;
 describe('StatusMenu', () => {
   it('shows the picked status and its count, and names it for screen readers', () => {
     render(<Harness />)
-    const button = screen.getByRole('button', { name: 'Status: All, 15' })
-    expect(button).toHaveTextContent('All statuses15')
+    const button = screen.getByRole('button', { name: 'All statuses, 15' })
+    expect(button).toHaveProperty('textContent', 'All statuses 15')
     expect(button).toHaveAttribute('aria-haspopup', 'menu')
     expect(button).toHaveAttribute('aria-expanded', 'false')
   })
 
   it('lists every status with its count and picks one', async () => {
     render(<Harness />)
-    await userEvent.click(screen.getByRole('button', { name: 'Status: All, 15' }))
+    await userEvent.click(screen.getByRole('button', { name: 'All statuses, 15' }))
     expect(screen.getByRole('menu', { name: 'Filter by status' })).toBeInTheDocument()
     const items = screen.getAllByRole('menuitemradio')
     expect(items.map((item) => item.getAttribute('aria-label'))).toEqual([
@@ -41,7 +41,7 @@ describe('StatusMenu', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
     const button = screen.getByRole('button', { name: /^Status: Seeding, 13/ })
     expect(button).toHaveFocus()
-    expect(button).toHaveTextContent('Seeding13')
+    expect(button).toHaveProperty('textContent', 'Seeding 13')
 
     await userEvent.click(button)
     expect(screen.getByRole('menuitemradio', { name: 'Seeding, 13' })).toHaveAttribute('aria-checked', 'true')
@@ -64,14 +64,19 @@ describe('StatusMenu', () => {
     expect(screen.getByRole('button', { name: 'Status: Seeding, 13' })).toBeInTheDocument()
 
     rerender(<StatusMenu value="all" onChange={vi.fn()} counts={COUNTS} />)
-    expect(screen.getByRole('button', { name: 'Status: All, 15' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'All statuses, 15' })).toBeInTheDocument()
   })
 
   it('leaves the counts out while loading', async () => {
     render(<StatusMenu value="all" onChange={vi.fn()} />)
-    const button = screen.getByRole('button', { name: 'Status: All' })
-    expect(button).toHaveTextContent(/^All statuses$/)
+    const button = screen.getByRole('button', { name: 'All statuses' })
+    expect(button).toHaveProperty('textContent', 'All statuses')
     await userEvent.click(button)
     expect(screen.getByRole('menuitemradio', { name: 'Seeding' })).toBeInTheDocument()
+  })
+
+  it('names a picked status without its count while loading', () => {
+    render(<StatusMenu value="seeding" onChange={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'Status: Seeding' })).toHaveProperty('textContent', 'Seeding')
   })
 })

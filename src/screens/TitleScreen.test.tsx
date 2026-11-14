@@ -239,22 +239,30 @@ describe('TitleScreen', () => {
   })
 
   describe('In downloads', () => {
+    /** A downloading torrent of Dune: Part Two, the movie these tests open, as Kinopeer tagged it. */
+    const dune = (fields: Partial<Torrent> = {}) =>
+      download('dune', 'Dune.Part.Two.2024.2160p.WEB-DL', { tags: 'tmdb:movie:693134', ...fields })
+
     it("lists the title's torrents, newest first, each opening its torrent screen", async () => {
       torrents(
         download('s1', 'Shogun.S01.1080p.DSNP.WEB-DL', { state: 'uploading', progress: 1, upspeed: 900_000, added_on: 1_750_000_000 }),
         download('e1', 'Shogun.S01E01-E05.2160p.DSNP.WEB-DL', { added_on: 1_760_000_000 }),
-        download('dune', 'Dune.Part.Two.2024.2160p.WEB-DL', { tags: 'tmdb:movie:693134' }),
+        dune(),
       )
       renderAt('/title/tv/126308')
 
       const block = await screen.findByRole('region', { name: 'In downloads 2' })
       const links = within(block).getAllByRole('link')
       expect(links.map((link) => link.getAttribute('href'))).toEqual(['/torrent/e1', '/torrent/s1'])
-      expect(links[0]).toHaveAccessibleName('S01 E01–05, 2160p, Shogun.S01E01-E05.2160p.DSNP.WEB-DL, Downloading, 41%')
-      expect(links[0]).toHaveTextContent('↓ 6.2 MB/s')
-      expect(links[0]).toHaveTextContent('6.07 GB / 14.8 GB')
-      expect(links[1]).toHaveAccessibleName('S01, 1080p, Shogun.S01.1080p.DSNP.WEB-DL, Seeding, 100%')
-      expect(links[1]).toHaveTextContent('↑ 900 KB/s')
+      expect(links[0]).toHaveAccessibleName(
+        'S01 E01–05, 2160p, Shogun.S01E01-E05.2160p.DSNP.WEB-DL, 41%, Downloading, ↓ 6.2\u00a0MB/s, 6.07\u00a0GB / 14.8\u00a0GB',
+      )
+      expect(links[0]).toHaveProperty(
+        'textContent',
+        'S01 E01–05 2160p Shogun.S01E01-E05.2160p.DSNP.WEB-DL 41% Downloading ↓ 6.2\u00a0MB/s 6.07\u00a0GB / 14.8\u00a0GB',
+      )
+      expect(links[1]).toHaveAccessibleName('S01, 1080p, Shogun.S01.1080p.DSNP.WEB-DL, 100%, Seeding, ↑ 900\u00a0KB/s, 14.8\u00a0GB')
+      expect(links[1]).toHaveProperty('textContent', 'S01 1080p Shogun.S01.1080p.DSNP.WEB-DL 100% Seeding ↑ 900\u00a0KB/s 14.8\u00a0GB')
       expect(within(links[1]).getByRole('progressbar', { name: 'Shogun.S01.1080p.DSNP.WEB-DL: progress' })).toHaveAttribute(
         'aria-valuenow',
         '100',
@@ -265,8 +273,21 @@ describe('TitleScreen', () => {
       expect(screen.getByRole('heading', { name: 'Torrent page' })).toBeInTheDocument()
     })
 
+    it('names a torrent by only the parts it shows', async () => {
+      torrents(dune({ state: 'stoppedDL', progress: 0.5 }))
+      renderAt('/title/movie/693134')
+      const block = await screen.findByRole('region', { name: 'In downloads' })
+      expect(within(block).getByRole('link')).toHaveAccessibleName(
+        '2160p, Dune.Part.Two.2024.2160p.WEB-DL, 50%, Paused, 7.40\u00a0GB / 14.8\u00a0GB',
+      )
+      expect(within(block).getByRole('link')).toHaveProperty(
+        'textContent',
+        '2160p Dune.Part.Two.2024.2160p.WEB-DL 50% Paused 7.40\u00a0GB / 14.8\u00a0GB',
+      )
+    })
+
     it("shows a single torrent's progress in the header", async () => {
-      torrents(download('dune', 'Dune.Part.Two.2024.2160p.WEB-DL', { tags: 'tmdb:movie:693134', progress: 0.64 }))
+      torrents(dune({ progress: 0.64 }))
       renderAt('/title/movie/693134')
       expect(await screen.findByRole('button', { name: 'In downloads · 64%' })).toBeInTheDocument()
       expect(await screen.findByRole('region', { name: 'In downloads' })).toBeInTheDocument()
@@ -277,7 +298,7 @@ describe('TitleScreen', () => {
     it('shows with the related titles, and the header’s badge takes the page down to it', async () => {
       const scrollIntoView = stubScrollIntoView()
       vi.mocked(tmdb.getRecommendations).mockResolvedValue({ titles: [tmdb.toTitle({ ...DUNE, id: 438631, title: 'Dune' }, 'movie')], page: 1, totalPages: 1 })
-      torrents(download('dune', 'Dune.Part.Two.2024.2160p.WEB-DL', { tags: 'tmdb:movie:693134', progress: 0.64 }))
+      torrents(dune({ progress: 0.64 }))
       renderAt('/title/movie/693134')
       const block = await screen.findByRole('region', { name: 'In downloads' })
       expect(screen.getByRole('region', { name: 'Recommendations' })).toBeInTheDocument()
@@ -292,7 +313,7 @@ describe('TitleScreen', () => {
       const scrollIntoView = stubScrollIntoView()
       let answer!: (titles: tmdb.TitlePage) => void
       vi.mocked(tmdb.getRecommendations).mockReturnValue(new Promise((resolve) => (answer = resolve)))
-      torrents(download('dune', 'Dune.Part.Two.2024.2160p.WEB-DL', { tags: 'tmdb:movie:693134', progress: 0.64 }))
+      torrents(dune({ progress: 0.64 }))
       renderAt('/title/movie/693134')
       await userEvent.click(await screen.findByRole('button', { name: 'In downloads · 64%' }))
       expect(screen.queryByRole('region', { name: 'In downloads' })).not.toBeInTheDocument()
