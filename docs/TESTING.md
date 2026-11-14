@@ -1021,11 +1021,14 @@ has the budgets' rule.
   record nothing. A shift comes from an element that was on the screen before and is somewhere
   else after; one that appears doesn't count, so the fix is room kept for what loads later, or the
   same element kept where it was (#387: the loading state's body became the loaded page's header).
-- **Reduced motion and the size are the file's own.** It runs under reduced motion, where #387's
-  jump showed: the reduced-motion rule in `src/styles/base.css` gives every element a 1 ms
-  transition, so an element whose styles change is drawn once more as it was (without it `main`'s
-  page read 0.0656 and passed). Both are set in the test, not taken from the configs it builds on:
-  the share of the window that moves is the score, so each size reads its own number.
+- **Reduced motion and the size are the file's own.** It runs under reduced motion, where the
+  rule in `src/styles/base.css` cuts every transition out, so an element that moves is read in the
+  frame it moves rather than across a transition's frames, and a style change shows in its own
+  frame, as it does for everyone with motion on where the element declares no transition. Until
+  #390 that rule gave every element a 1 ms transition instead, so an element whose styles changed
+  was drawn once more as it was: it made #387's jump and hid most of #405's table (0.0140 read
+  against 0.0888 with motion on). Both are set in the test, not taken from the configs it builds
+  on: the share of the window that moves is the score, so each size reads its own number.
 - **Exact.** Every case in each order read the same number in every run, to the fourth digit: ten
   runs in a row locally (macOS) and in CI (Linux). On a phone every reading in CI has 0.0002 more
   than on a Mac, which varies in its sixth digit (0.000179 or 0.000183): the "Connecting" text,
@@ -1066,7 +1069,7 @@ On desktop each screen has the same chain, with what the desktop layout adds or 
 | Screen | What differs on desktop | Late blocks it adds | Cases |
 | --- | --- | --- | --- |
 | Every screen | The sidebar's torrents (its downloading count and qBittorrent card read the shared poll) once the server's settings are in; a screen that shows torrents asks for them itself | None: the sidebar's qBittorrent card keeps its room from the first paint, `—` for the speeds and the free space and its switch disabled until the poll answers (#404) | |
-| `downloads` | None in the chain. The layout: the grid of cards by default (the list on a phone), the status as a `StatusMenu` in place of the chips, and the table of rows as the other view | The status button's count and the totals' speeds coming in, which move the type filter and the next total sideways; in the table, the rows' names wrapping as the titles come in, and the table drawn for a frame at the body's top padding, which it takes over, by reduced motion's 1 ms transition (0.0037, #390). The header's tools stay at the row's end and the table is an element of its own, not the loading rows' made over (#405) | Titles found, in the grid; titles found, as a table |
+| `downloads` | None in the chain. The layout: the grid of cards by default (the list on a phone), the status as a `StatusMenu` in place of the chips, and the table of rows as the other view | The status button's count and the totals' speeds coming in, which move the type filter and the next total sideways; in the table, the rows' names wrapping as the titles come in. The header's tools stay at the row's end and the table is an element of its own, not the loading rows' made over (#405) | Titles found, in the grid; titles found, as a table |
 | `torrent` | The drawer over Downloads: the list's lookups three at a time (`p4`'s, among the torrents, once one of the first three is in) and the drawer's own lookup of its torrent, the same address as the list's; the posters and the guess saved once one title is | As `downloads`, under the drawer; in the drawer, as on a phone | Tagged and finished (`p2`); title guessed from its name (`p3`); no title found (`p4`) |
 | `title`, `series` | The hero's poster, a larger size | Where the torrents land last, the empty "In downloads" section filling in, drawn a frame late by reduced motion's 1 ms transition (0.0029 in CI, #390). The hero's backdrop fade is an element of its own, not the loading state's head made over, so it moves nothing (#406) | As on a phone |
 | `releases` | The series' title page with its releases under the hero, searched as it opens at their address: the title page's answers, and Prowlarr's search and which indexers failed once the details are in | The filter bar's skeleton chips replaced by the filters; the table in place of its skeleton, or the empty state under the bar's room kept, empty | Every indexer answered; one indexer didn't answer; nothing found; and at `desktop-rail` and `desktop-1280`, every indexer answered, where the bar wraps to a second line once the filters land (#400) |

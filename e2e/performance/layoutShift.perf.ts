@@ -37,11 +37,11 @@ type Size = keyof typeof VIEWPORTS
 const EVERY_SCREEN: Size[] = ['phone', 'desktop']
 
 /**
- * Named here rather than taken from the configs this one builds on, since the test can only fail
- * with them: #387's jump, a frame drawn with the page 118px up, shows only under reduced motion,
- * whose rule in src/styles/base.css turns every style change into a 1 ms transition (without it
- * `main`'s page read 0.0656, under the bound); and each size (`VIEWPORTS`, set per size below),
- * since the share of the window that moves is the score.
+ * Named here rather than taken from the configs this one builds on, since the reading depends on
+ * them: reduced motion, whose rule in src/styles/base.css cuts every transition out, so an element
+ * that moves is read in the frame it moves rather than across a transition's frames, the same in
+ * every run; and each size (`VIEWPORTS`, set per size below), since the share of the window that
+ * moves is the score.
  */
 test.use({ reducedMotion: 'reduce' })
 
