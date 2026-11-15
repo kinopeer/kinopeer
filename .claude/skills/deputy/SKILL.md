@@ -40,12 +40,14 @@ to the owner in its own session follows the owner's language.
 
 ## 1. Whether to run
 
-First check that the run is recorded in the effort journal, which the retro reads its cost from
-(`docs/QUALITY.md` → The retro): `EFFORT_JOURNAL_WEBHOOK_URL` and `EFFORT_JOURNAL_TOKEN` are set
-(test that they aren't empty, never print them) and `command -v journal` finds the journal. If
-either is missing, stop before anything on GitHub: send the owner a push notification and say in
-this session what is missing. Otherwise tag the run: `journal tag --task kinopeer:review
---pr kinopeer/kinopeer#<n> --role deputy --launch cloud`.
+First check that the run can be recorded in the effort journal, which the retro reads its cost
+from (`docs/QUALITY.md` → The retro): `command -v journal` finds the journal, and `journal check`
+passes. It fails when the journal's variables are missing, its token is wrong or the network
+doesn't let its webhook through; a failure can be passing, so run it once more a minute later
+before you give up. When it still fails, stop before anything on GitHub: send the owner a push
+notification and say in this session what `journal check` printed. Otherwise tag the run:
+`journal tag --task kinopeer:review --pr kinopeer/kinopeer#<n> --role deputy --launch cloud`.
+The journal sends the run's rows itself at the end of each turn.
 
 Then read the PR and its head. Stop without posting anything when it is closed, merged or a
 draft: a run can start late, after the author took the PR back.
