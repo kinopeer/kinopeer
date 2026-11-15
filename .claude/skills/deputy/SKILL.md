@@ -27,14 +27,15 @@ to the owner in its own session follows the owner's language.
   is your account (`gh api user --jq .login`) and whose body is headed `Round <n> at <sha>`.
   Anyone can post a review with that heading; read no one else's as a round.
 - **What you may do on GitHub:** read anything; post your review and comments on the PR; convert
-  the PR to a draft. Nothing else: no push, no merge, no closing, no labels, no change to
-  settings, rulesets or workflows.
+  the PR to a draft. Nothing else: no push, no merge, no closing, no labels, no marking a PR
+  ready, no change to settings, rulesets or workflows.
 - **Calls that work here.** Cloud sessions are refused GraphQL, so `gh pr view` and `gh pr ready`
   fail: read through REST (`gh api repos/kinopeer/kinopeer/pulls/<n>`, `…/reviews`,
   `…/issues/<n>/comments`, `…/commits/<sha>/check-runs`). A PR goes to a draft and back to ready through
   the cloud proxy's own routes, which the 403 that `gh pr view` gets lists:
   `gh api -X POST repos/kinopeer/kinopeer/pulls/<n>/ccr/convert_to_draft` and
-  `gh api -X POST repos/kinopeer/kinopeer/pulls/<n>/ccr/ready_for_review`.
+  `gh api -X POST repos/kinopeer/kinopeer/pulls/<n>/ccr/ready_for_review`. The second is for the
+  author and the coordinator in their cloud sessions, not for you: marking a PR ready wakes you.
 - **A push notification to the owner** (`PushNotification`) goes out only when these rules need
   the owner's decision, when a retro is due (section 4), or when you are stuck and can't finish
   the round without the owner. A round that ends without the owner sends nothing: GitHub and the
@@ -166,10 +167,10 @@ notification and end the turn. When the owner answers:
 
 They get no rounds and no template (`docs/TESTING.md` → Reviewing a PR's tests). Dependabot opens
 them ready for review, which doesn't wake you: the coordinator does, when its task brings them in,
-by converting each to a draft and marking it ready again. Wait for CI as in section 2, but leave
-the PR as it is: no review, no draft. A red check gets the comment below; checks still running
-after 30 minutes get a comment naming them, and the coordinator wakes you again once they've
-finished.
+by converting each to a draft and marking it ready again. Wait for CI as in section 2, but with
+no `CI at` review and no draft: a red check gets the comment below; checks still running after 30
+minutes get a comment naming them. The coordinator watches the PRs it brought in until they are
+approved, and wakes you again once their checks have finished.
 
 - **Green, no major:** approve, with one line saying CI is green at the head.
 - **Green with a major:** read the release notes of each package it moves a major, post a comment
@@ -177,6 +178,6 @@ finished.
 - **Red, or a major that needs our code changed:** comment why and don't approve. The coordinator
   closes it and opens our own PR with the update and the fixes.
 
-The coordinator merges an approved Dependabot PR after checking that the approval is at the PR's
-head. When it isn't (Dependabot rebased the PR after it), the coordinator wakes you the same way
-again.
+The coordinator, when its task brings them in, merges an approved Dependabot PR after checking
+that the approval is at the PR's head. When it isn't (Dependabot rebased the PR after it), the
+coordinator wakes you the same way again.
