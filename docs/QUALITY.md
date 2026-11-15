@@ -17,7 +17,7 @@ Only what is on, being adopted, or declined with its reason; plans aren't listed
 | [The testing rules](TESTING.md) | On, version 1 of the quality system's testing component (2026-11-14), of which [TESTING.md](TESTING.md) is the source | How a change is covered by tests and reviewed: the lowest layer that sees a statement, the neighbours of a change, a test seen to fail, the accepted reasons for something uncovered, what a bug calls for and its seven `test-gap` classes, the review rounds and their tags |
 | The effort journal | Being adopted (2026-11-14): built outside this repository, in the owner's `ai-workspace` (`effort-journal/`). Its hook records every session's turns on the owner's Mac and spools the rows locally; its Google Sheet's webhook isn't set yet, so nothing reaches the sheet and `journal report` has no data | Records what each session's work costs and rates each merged PR's complexity, which the retro sets against each other ([The retro](#the-retro)); the figures stay out of this repository, which is public |
 | [The retro](#the-retro) | On since 2026-10-28 as the tests' retro, the whole system's since 2026-11-14, by version 1 of the quality system's retro | Every fifty merged PRs, reads the review findings, the escaped bugs, the effort against complexity, the checks' usefulness and the owner's points, and changes the rules where a pattern repeats |
-| [The checks guard](#the-checks-guard) | On since 2026-11-12 (#366); a report only since 2026-11-15: its `guard` job, among `main`'s required checks, passes whatever it marks and fails only when the guard breaks | A script CI runs on every PR, which writes into the PR's `guard report` check what in it weakens the checks, changes existing ones or adds a design value, and who each of the three goes to |
+| [The checks guard](#the-checks-guard) | On since 2026-11-12 (#366); a report only since 2026-11-15: its `guard` job, among `main`'s required checks, passes whatever it marks and fails only when the guard breaks or can't write its report | A script CI runs on every PR, which writes into the PR's `guard report` check what in it weakens the checks, changes existing ones or adds a design value, and who each of the three goes to |
 | The design tokens check | On since 2026-11-14 (#411): a test in CI's `check` job, which is among `main`'s required checks | `src/styles/tokens.test.ts` fails a stylesheet's spacing, radius, type size, color, shadow or motion that the tokens have, and one they lack unless its line carries a comment saying why, and a `var()` that names a property nothing defines. What counts as a raw value is defined in `scripts/guard/stylesheets.ts`, which the guard reads too ([What it marks](#what-it-marks)) |
 | The texts check | On since 2026-11-14 (#413): an oxlint rule, `react/jsx-no-literals`, that CI's `check` job runs | Fails a string that is a whole child in the app's JSX or the quoted value of an attribute a user reads or hears, so UI copy goes through translation keys; a string in braces in an attribute, inside an expression or outside JSX is left to review |
 | The module boundaries check | On since 2026-11-14 (#414): an override of oxlint's rules for the pure logic folders, which CI's `check` job runs | Fails a module in `src/releases/`, `src/search/`, `src/torrents/` or `src/logic/` (hooks, providers and tests aside) that imports React, React Router, react-i18next, a Node built-in, a hook, a screen or a component, reads a global the browser or Node has but other platforms lack, or holds JSX, so pure logic runs anywhere (`docs/ARCHITECTURE.md` → Pure logic). Its cases are in `src/logic/pureModules.test.ts`; the guard sends widening what it allows (a global, a file left out, a rule turned off) to the owner, and a rule's options changed to a second review |
@@ -98,9 +98,10 @@ or its rules.
   - a CI step that can fail without failing the run: `continue-on-error`, or `|| true`, `|| :`,
     `|| exit 0` or `set +e` in a workflow's command;
   - a path filter on a workflow's trigger (`paths`, `paths-ignore`), so it runs for fewer changes;
-  - a job, a commit status or a check run under the guard's name in a workflow other than
-    `guard.yml` (`guard:` as a job's key, `name: guard`, `context=guard` for the statuses API,
-    `name=guard` or `name: 'guard'` for the checks API), which could report in the guard's place.
+  - a job, a commit status or a check run under the guard's name or its report's (`guard
+    report`) in a workflow other than `guard.yml` (`guard:` as a job's key, `name: guard` or
+    `name: guard report`, `context=guard` for the statuses API, `name=guard`, `name: 'guard'` or
+    `"name": "guard report"` for the checks API), which could report in the guard's place.
 - Fewer tests run: a test that `main`'s run has and the branch's doesn't (removed, skipped, its
   row gone from a table), in a file where the branch runs fewer tests than `main` does, when it
   also runs fewer in all. A test is its file and its name with its groups'. The lists come from the
@@ -265,7 +266,8 @@ What the guard finds goes into the job's summary and into the PR's `guard report
 run the job writes on the PR's head on every run, green, with the report as its summary (cut,
 with a note, where it is longer than a check's summary holds), since the reviews read the report
 through the API, which has no way to a job's summary. The job itself, `guard`, is what `main`'s
-ruleset requires: it passes once the guard has run. A fork's PR gets a read-only token, so the
+ruleset requires: it passes once the guard has run and written its report, and a failure to write
+it, such as an error from GitHub's API, goes away with a re-run of the job. A fork's PR gets a read-only token, so the
 job writes it no `guard report` check, which nothing requires, and the job's summary alone has
 the report.
 

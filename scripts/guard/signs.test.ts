@@ -672,6 +672,11 @@ describe('scanAdded', () => {
     ["a check run made under the guard's name in quotes", '.github/workflows/ci.yml', '          gh api "repos/$REPO/check-runs" -f name="guard" -f head_sha="$SHA"', "a job or a status with the guard's name, which can report in its place"],
     ["a check run made under the guard's name by a script", '.github/workflows/ci.yml', "              name: 'guard',", "a job or a status with the guard's name, which can report in its place"],
     ["a check run made under the guard's name by a script, the key in quotes", '.github/workflows/ci.yml', `              'name': "guard",`, "a job or a status with the guard's name, which can report in its place"],
+    ["a job named for the guard's report", '.github/workflows/ci.yml', '    name: guard report', "a job or a status with the guard's name, which can report in its place"],
+    ["a job named for the guard's report, in quotes", '.github/workflows/ci.yml', '    name: "guard report"', "a job or a status with the guard's name, which can report in its place"],
+    ["a check run made under the guard's report's name", '.github/workflows/ci.yml', `          gh api "repos/$REPO/check-runs" -f name='guard report' -f head_sha="$SHA"`, "a job or a status with the guard's name, which can report in its place"],
+    ["a check run made under the guard's report's name as JSON", '.github/workflows/ci.yml', `          -d '{"name": "guard report", "head_sha": "abc"}'`, "a job or a status with the guard's name, which can report in its place"],
+    ["a check run made under the guard's report's name by a script", '.github/workflows/ci.yml', "              name: 'guard report',", "a job or a status with the guard's name, which can report in its place"],
   ])('sends %s to the owner', (_name, file, text, what) => {
     expect(scanAdded(file, lines(text))).toEqual([{ needs: 'owner', file, line: 10, what: `${what}: \`${text.trim()}\`` }])
   })
@@ -713,6 +718,8 @@ describe('scanAdded', () => {
     ["a job whose name only starts like the guard's", '.github/workflows/ci.yml', '  guard-tests:'],
     ["a job whose name only ends like the guard's", '.github/workflows/ci.yml', '  safeguard:'],
     ["a name that goes on after the guard's", '.github/workflows/ci.yml', '    name: guard the gate'],
+    ["a name that goes on after the guard's report's", '.github/workflows/ci.yml', '    name: guard reporter'],
+    ["a name in quotes that goes on after the guard's report's", '.github/workflows/ci.yml', '              name: "guard reports",'],
     ["a status whose name only starts like the guard's", '.github/workflows/ci.yml', '          gh api "$URL" -f context=guardian'],
     ["a status of another name that mentions the guard", '.github/workflows/ci.yml', '          gh api "$URL" -f context=lint -f description=guard'],
     ["a check run whose name only starts like the guard's", '.github/workflows/ci.yml', '          gh api "$URL" -f name=guardian'],
@@ -1112,6 +1119,9 @@ describe('capped', () => {
     expect(bytes(text)).toBeLessThanOrEqual(60_000)
     const kept = text.slice(0, -CUT.length).split('\n')
     expect(kept).toEqual(lines.slice(0, kept.length))
+    // To the byte: three lines of sixty and their two newlines fill what the note leaves exactly.
+    const sixty = 'x'.repeat(60)
+    expect(capped(Array(10).fill(sixty).join('\n'), bytes(CUT) + 182)).toBe(`${sixty}\n${sixty}\n${sixty}${CUT}`)
     // As many lines as fit: one more would go over.
     expect(bytes(`${[...kept, lines[kept.length]].join('\n')}${CUT}`)).toBeGreaterThan(60_000)
   })

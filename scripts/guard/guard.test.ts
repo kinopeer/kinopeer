@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { changes, gitIn, guard, main, options } from './guard.ts'
+import { SUMMARY_LIMIT } from './signs.ts'
 
 /**
  * A repository of its own per test: `main` with the files given, then a branch that the test
@@ -321,6 +322,18 @@ describe('main', () => {
     onTestFinished(() => rm(summary, { force: true }))
     expect(main([...args(), '--summary', summary], {})).toBe(run().report)
     expect(await readFile(summary, 'utf8')).toBe(run().report)
+  })
+
+  it("cuts the check's summary to what a check holds, and returns the report whole", async () => {
+    // A retry a line, three thousand of them: a report far longer than a check's summary holds.
+    await commit({ 'playwright.config.ts': 'retries: 2,\n'.repeat(3000) })
+    const summary = `${repo}-summary`
+    onTestFinished(() => rm(summary, { force: true }))
+    const whole = main([...args(), '--summary', summary], {})
+    expect(Buffer.byteLength(whole)).toBeGreaterThan(SUMMARY_LIMIT)
+    const written = await readFile(summary, 'utf8')
+    expect(written).toMatch(/\*\*The report is cut here\*\*[^\n]*$/)
+    expect(Buffer.byteLength(written)).toBeLessThanOrEqual(SUMMARY_LIMIT)
   })
 
   it('returns the report outside CI, where there is no file for the counts', async () => {

@@ -455,9 +455,10 @@ const ADDED: { pattern: RegExp; counts: (path: string) => boolean; needs: Needs;
   { pattern: /continue-on-error:(?! ?false\b)|\|\| ?(?:true\b|:(?!\S)|exit 0\b)|\bset \+e\b/, counts: isWorkflow, needs: 'owner', what: 'a CI step can fail without failing the run' },
   { pattern: /^\s*paths(?:-ignore)?:/, counts: isWorkflow, needs: 'owner', what: 'a workflow got a path filter, so it runs for fewer changes' },
   { pattern: /^\s*(?:- )?if:/, counts: isWorkflow, needs: 'review', what: 'a CI step or job got a condition' },
-  // In a workflow other than the guard's own, whose every change is marked: what can report under the guard's name. A job by its key
-  // or its name, a commit status by its context, a check run by its name as a field of an API call, in its JSON or in a script's call.
-  { pattern: /^\s*(?:(?:- )?name: +)?["']?guard["']?:?\s*(?:#.*)?$|\bcontext["']?[=:] *["']?guard\b|\bname(?:=["']?guard\b|["']?: *["']guard["'])/, counts: isWorkflow, needs: 'owner', what: "a job or a status with the guard's name, which can report in its place" },
+  // In a workflow other than the guard's own, whose every change is marked: what can report under the guard's name or its report's
+  // (`guard report`, the check the reviews read). A job by its key or its name, a commit status by its context, a check run by its
+  // name as a field of an API call, in its JSON or in a script's call.
+  { pattern: /^\s*(?:(?:- )?name: +)?["']?guard(?: report)?["']?:?\s*(?:#.*)?$|\bcontext["']?[=:] *["']?guard\b|\bname(?:=["']?guard\b|["']?: *["']guard(?: report)?["'])/, counts: isWorkflow, needs: 'owner', what: "a job or a status with the guard's name, which can report in its place" },
 ]
 
 /** The lines a branch adds to one file, against the patterns above. */
@@ -582,7 +583,8 @@ export function capped(text: string, limit = SUMMARY_LIMIT): string {
   const size = (part: string) => new TextEncoder().encode(part).length
   if (size(text) <= limit) return text
   const kept: string[] = []
-  let used = size(CUT)
+  // Each kept line takes its newline but the last, which the note's own start stands in for.
+  let used = size(CUT) - 1
   for (const line of text.split('\n')) {
     used += size(line) + 1
     if (used > limit) break

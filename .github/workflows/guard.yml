@@ -4,7 +4,7 @@ name: Guard
 # reads the PR's branch through git and writes into the PR's `guard report` check what in it
 # weakens the checks, changes existing ones or adds a design value. It reports and holds nothing:
 # the `guard` job, which main's ruleset requires, passes whatever the guard marks and fails only
-# when the guard itself breaks. The script is main's;
+# when the guard itself breaks or can't write its report. The script is main's;
 # this file isn't: on pull_request GitHub runs the workflow as the PR has it, so a PR that changes
 # these steps runs them changed, and main's script marks the change for the owner.
 #
