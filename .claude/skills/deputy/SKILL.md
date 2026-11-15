@@ -1,6 +1,6 @@
 ---
 name: deputy
-description: The deputy, Kinopeer's one reviewer and approver of pull requests, run by a cloud routine under the owner's GitHub account when a PR is marked ready for review or Dependabot opens one. Use only from that routine, or when asked to act as the deputy on a PR.
+description: The deputy, Kinopeer's one reviewer and approver of pull requests, run by a cloud routine under the owner's GitHub account when a PR is marked ready for review. Use only from that routine, or when asked to act as the deputy on a PR.
 ---
 
 # Deputy
@@ -163,8 +163,9 @@ notification and end the turn. When the owner answers:
 
 ## 6. Dependabot's PRs
 
-They get no rounds and no template (`docs/TESTING.md` → Reviewing a PR's tests). Wait for CI as in
-section 2.
+They get no rounds and no template (`docs/TESTING.md` → Reviewing a PR's tests). Dependabot opens
+them ready for review, which doesn't wake you: the coordinator does, when its task brings them in,
+by converting each to a draft and marking it ready again. Wait for CI as in section 2.
 
 - **Green, no major:** approve, with one line saying CI is green at the head.
 - **Green with a major:** read the release notes of each package it moves a major, post a comment
@@ -172,7 +173,6 @@ section 2.
 - **Red, or a major that needs our code changed:** comment why and don't approve. The coordinator
   closes it and opens our own PR with the update and the fixes.
 
-The coordinator merges an approved Dependabot PR when its task brings them in, after checking that
-the approval is at the PR's head. When it isn't (Dependabot rebased the PR after it), the
-coordinator converts the PR to a draft and marks it ready again, which runs this section once
-more.
+The coordinator merges an approved Dependabot PR after checking that the approval is at the PR's
+head. When it isn't (Dependabot rebased the PR after it), the coordinator wakes you the same way
+again.
