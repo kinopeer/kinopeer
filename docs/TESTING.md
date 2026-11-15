@@ -716,7 +716,8 @@ The author opens the PR as a draft, and once step 1 is done marks it ready (`gh 
 turns on auto-merge (`gh pr merge --auto --squash`), each time it marks the PR ready: GitHub
 merges it when the deputy approves and the checks pass. Marking a PR ready is what wakes the
 deputy, so a PR that needs a round while it isn't a draft goes back to a draft and is marked
-ready again (`gh pr ready --undo`, then `gh pr ready`). That's the case after a push that changes
+ready again (`gh pr ready --undo`, then `gh pr ready`; in a cloud session, where GraphQL is
+refused, through the routes the `deputy` skill → Ground rules names). That's the case after a push that changes
 the diff of an approved PR, since `main`'s ruleset then dismisses the approval; a merge of `main`
 that leaves the diff as it was keeps the approval and needs nothing. A commit after an approval fixes what the PR already
 does; a new request goes into a PR of its own (`CLAUDE.md` → Conventions). `CHANGELOG.md` merges

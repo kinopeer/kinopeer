@@ -137,8 +137,8 @@ verdict, with "retro due" after it when the `test-review` report says so.
   nits listed. The merge is GitHub's: the author turned auto-merge on, and the PR merges once its
   checks pass. Except for the PRs of section 5.
 
-When the round says "retro due" and none of your earlier reviews since the retro table's last row
-did, send the owner a push notification that a retro is due.
+When the round says "retro due" and none of your earlier reviews since the retro table's newest row
+(its top one) did, send the owner a push notification that a retro is due.
 
 ## 5. The owner's approval
 
@@ -172,6 +172,7 @@ section 2.
 - **Red, or a major that needs our code changed:** comment why and don't approve. The coordinator
   closes it and opens our own PR with the update and the fixes.
 
-The coordinator merges an approved Dependabot PR when its task brings them in. When Dependabot
-rebases it after the approval, the approval goes; the coordinator converts it to a draft and marks
-it ready again, which runs this section once more.
+The coordinator merges an approved Dependabot PR when its task brings them in, after checking that
+the approval is at the PR's head. When it isn't (Dependabot rebased the PR after it), the
+coordinator converts the PR to a draft and marks it ready again, which runs this section once
+more.
