@@ -81,7 +81,7 @@ describe('guard', () => {
   it('finds nothing in a branch that changes no check', async () => {
     const base = git('rev-parse', '--short', 'main')
     const head = await commit(APP)
-    expect(run()).toEqual({ found: [], report: `<!-- checks-guard -->\n**Checks guard at ${head}**, against \`main\` at ${base}.\n\nNo weakening of the checks, no change to existing ones and no design value added or changed.${NO_RUNS}`, unmet: false })
+    expect(run()).toEqual({ found: [], report: `**Checks guard at ${head}**, against \`main\` at ${base}.\n\nNo weakening of the checks, no change to existing ones and no design value added or changed.${NO_RUNS}`, unmet: false })
   })
 
   describe("with the PR's comments", () => {

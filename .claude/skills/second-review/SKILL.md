@@ -5,7 +5,7 @@ description: The second, independent review of the changes to existing checks th
 
 # Second review
 
-The checks guard marks, in its comment on a PR, the changes to existing checks that a script can't
+The checks guard marks, in its `guard` check on a PR, the changes to existing checks that a script can't
 judge: the list "For a second review". This review answers one question for each mark: **does the
 check still catch what it caught before the change?** What its record closes and what blocks a PR
 is in `docs/QUALITY.md` → What a marked PR needs; this file is the procedure. The comment on the PR
@@ -16,18 +16,18 @@ language.
 
 - A fresh session that the coordinator starts: not the PR's author, not its first reviewer.
 - After the first review's "ready to merge" at the PR's current head, and before the owner is asked
-  to approve the merge. Only when the guard's comment has a "For a second review" list.
+  to approve the merge. Only when the guard's check has a "For a second review" list.
 
 ## 1. Find the list and its code
 
-- Make sure the `guard` job has finished on the PR's current head: the guard's comment is edited
-  on every push, and a code from a stale one won't match. `gh api repos/{owner}/{repo}/pulls/<n>`
-  gives `head.sha`; the comment's first line names the commit it was written at.
-- Read the guard's comment: `gh api repos/{owner}/{repo}/issues/<n>/comments`, the one by
-  `github-actions[bot]` that starts with `<!-- checks-guard -->`. Take the marks under "For a
-  second review" and the two record lines printed under them, with the list's code. A fork's PR
-  gets no such comment, since the job's token can't write there: take the same report from the
-  summary of the `Guard` run's `guard` job (`gh run view <run id>`).
+- Make sure the `Guard` run's `report` job has finished on the PR's current head: it writes the
+  check on each head, and a code from an earlier head's won't match.
+  `gh api repos/{owner}/{repo}/pulls/<n>` gives `head.sha`.
+- Read the guard's check on that head, its summary is the report:
+  `gh api 'repos/{owner}/{repo}/commits/<head.sha>/check-runs?check_name=guard' --jq '.check_runs[0].output.summary'`.
+  Take the marks under "For a second review" and the two record lines printed under them, with
+  the list's code. A fork's PR gets no such check, since the job's token can't write there: take
+  the same report from the summary of the `Guard` run's `report` job (`gh run view <run id>`).
 
 ## 2. Read each mark's two sides, and nothing of the author's account
 
@@ -55,7 +55,7 @@ A mark you can't decide is a weakening.
 
 ## 4. Post the record
 
-One comment on the PR. Its first line is the record, copied from the guard's comment with the
+One comment on the PR. Its first line is the record, copied from the guard's check with the
 code: `sound` when no mark weakens a check, `weakening` when at least one does or you couldn't
 decide. Then a line per mark: the file and line, the verdict and why.
 
@@ -68,9 +68,10 @@ decide. Then a line per mark: the file and line, the verdict and why.
 
 ## 5. After posting
 
-- Re-run the guard's job, which doesn't react to a new comment by itself:
-  `gh run rerun <run id> --failed` for the `Guard` run of the PR's head
-  (`gh run list --workflow guard.yml --branch <head.ref>`).
+- Re-run the guard's `report` job, which doesn't react to a new comment by itself:
+  `gh run rerun <run id> --job <job id>` for the `Guard` run of the PR's head
+  (`gh run list --workflow guard.yml --branch <head.ref>`; the job's id from
+  `gh run view <run id> --json jobs --jq '.jobs[] | select(.name == "report") | .databaseId'`).
 - End with a report to the coordinator: the link to the record and the verdict. A `weakening` then
   needs a fix by the author, after which the list has another code and a second review again, or
   the owner's approval of the same code.

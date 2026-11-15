@@ -174,7 +174,7 @@ export function options(args: string[]): Options {
 /**
  * The command: the report for the branch the arguments name. In CI it also hands the workflow the
  * counts and whether a list lacks its record, and the workflow decides by them rather than by the
- * report's wording: it writes the comment, then fails the job for a record that is missing.
+ * report's wording: it writes the guard's check, waiting while a list lacks its record.
  */
 export function main(args: string[], env: { GITHUB_OUTPUT?: string }): string {
   const { found, report: text, unmet } = guard(options(args))

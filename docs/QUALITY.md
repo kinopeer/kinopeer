@@ -17,7 +17,7 @@ Only what is on, being adopted, or declined with its reason; plans aren't listed
 | [The testing rules](TESTING.md) | On, version 1 of the quality system's testing component (2026-11-14), of which [TESTING.md](TESTING.md) is the source | How a change is covered by tests and reviewed: the lowest layer that sees a statement, the neighbours of a change, a test seen to fail, the accepted reasons for something uncovered, what a bug calls for and its seven `test-gap` classes, the review rounds and their tags |
 | The effort journal | Being adopted (2026-11-14): built outside this repository, in the owner's `ai-workspace` (`effort-journal/`). Its hook records every session's turns on the owner's Mac and spools the rows locally; its Google Sheet's webhook isn't set yet, so nothing reaches the sheet and `journal report` has no data | Records what each session's work costs and rates each merged PR's complexity, which the retro sets against each other ([The retro](#the-retro)); the figures stay out of this repository, which is public |
 | [The retro](#the-retro) | On since 2026-10-28 as the tests' retro, the whole system's since 2026-11-14, by version 1 of the quality system's retro | Every fifty merged PRs, reads the review findings, the escaped bugs, the effort against complexity, the checks' usefulness and the owner's points, and changes the rules where a pattern repeats |
-| [The checks guard](#the-checks-guard) | On since 2026-11-12 (#366): its check is red while a PR lacks the records its marks call for, and is among `main`'s required checks | A script CI runs on every PR, which writes into the PR what in it weakens the checks, changes existing ones or adds a design value, and what record each of the three calls for |
+| [The checks guard](#the-checks-guard) | On since 2026-11-12 (#366): its check waits, in progress, while a PR lacks the records its marks call for, and is among `main`'s required checks | A script CI runs on every PR, which writes into the PR what in it weakens the checks, changes existing ones or adds a design value, and what record each of the three calls for |
 | The design tokens check | On since 2026-11-14 (#411): a test in CI's `check` job, which is among `main`'s required checks | `src/styles/tokens.test.ts` fails a stylesheet's spacing, radius, type size, color, shadow or motion that the tokens have, and one they lack unless its line carries a comment saying why, and a `var()` that names a property nothing defines. What counts as a raw value is defined in `scripts/guard/stylesheets.ts`, which the guard reads too ([What it marks](#what-it-marks)) |
 | The texts check | On since 2026-11-14 (#413): an oxlint rule, `react/jsx-no-literals`, that CI's `check` job runs | Fails a string that is a whole child in the app's JSX or the quoted value of an attribute a user reads or hears, so UI copy goes through translation keys; a string in braces in an attribute, inside an expression or outside JSX is left to review |
 | The module boundaries check | On since 2026-11-14 (#414): an override of oxlint's rules for the pure logic folders, which CI's `check` job runs | Fails a module in `src/releases/`, `src/search/`, `src/torrents/` or `src/logic/` (hooks, providers and tests aside) that imports React, React Router, react-i18next, a Node built-in, a hook, a screen or a component, reads a global the browser or Node has but other platforms lack, or holds JSX, so pure logic runs anywhere (`docs/ARCHITECTURE.md` → Pure logic). Its cases are in `src/logic/pureModules.test.ts`; the guard sends widening what it allows (a global, a file left out, a rule turned off) to the owner, and a rule's options changed to a second review |
@@ -192,7 +192,9 @@ costs one line.
 ### What a marked PR needs
 
 The guard's marks are three lists, for the owner, for the coordinator and for a second review.
-While a list isn't closed by a record, the `guard` check is red; a PR without marks has it green.
+While a list isn't closed by a record, the `guard` check waits, in progress, which holds the merge
+as a failed check would and emails no one; a PR without marks, or with every list closed, has it
+green.
 
 **The code of a list.** Each list has a code: a short hash of its marks (what each calls for, its
 file and what it says, without line numbers) and of the marked files as they are at the branch's
@@ -212,7 +214,7 @@ another code.
 - `**Coordinator's approval <code>:** <reason>`: the coordinator approves the design values, with
   the coordinator's reason on that line, in English.
 
-The guard prints these lines with the codes in its comment, to be copied rather than composed from
+The guard prints these lines with the codes in its check, to be copied rather than composed from
 memory. A record counts only from someone the owner let into the repository: a member of the
 organization or a collaborator invited to it (`author_association` `OWNER`, `MEMBER` or
 `COLLABORATOR`), not an outside contributor or a bot, since the repository is public and anyone
@@ -257,16 +259,18 @@ it as it decides the task's other choices (`CLAUDE.md` → Workflow → Autopilo
 session that asks the owner to approve the merge asks about the list first, in a card of its own,
 as for the owner's approval.
 
-**After a record** the session that posted it re-runs the guard's job
-(`gh run rerun <run> --failed`): the check doesn't react to a new comment by itself. A record
-without a re-run leaves the check red, which is visible and harms nothing.
+**After a record** the session that posted it re-runs the `report` job of the PR head's `Guard`
+run (`gh run rerun <run> --job <job>`, the job's id from
+`gh run view <run> --json jobs --jq '.jobs[] | select(.name == "report") | .databaseId'`), which
+writes the check again: the check doesn't react to a new comment by itself. A record without a
+re-run leaves the check waiting, which is visible and harms nothing.
 
 **The second review** is done by a fresh session with `/second-review <PR#>`
 (`.claude/skills/second-review/`), which owns its procedure.
 
 **When the guard itself is broken.** The `main` ruleset has no bypass for anyone. With `guard`
-among its required checks, a guard's job that fails by itself (an error in the script, not a
-mark) stops every PR, and the one way out is the owner's: taking `guard` out of the required
+among its required checks, a `report` job that fails by itself (an error in the script, not a
+mark) writes no `guard` check and stops every PR, and the one way out is the owner's: taking `guard` out of the required
 checks in the repository's settings until the fix is merged.
 
 ### The thresholds and the exclusion lists
@@ -286,25 +290,32 @@ guard wouldn't see it move.
 
 ### How it runs
 
-**In CI** the `guard` job runs on every PR (`.github/workflows/guard.yml`). It runs `main`'s copy of
+**In CI** the `report` job runs on every PR (`.github/workflows/guard.yml`). It runs `main`'s copy of
 the script, not the branch's, so a PR that changes `scripts/guard/` is still read by the guard it
 found. The script reads the branch through git and runs none of its code; the one package it
 needs, the parser that comes with Vite, is installed from `main`'s lockfile. The workflow file is
 another matter: on `pull_request` GitHub runs it as the PR has it, so a PR that changes `guard.yml`
 runs its changed steps, and what `main`'s script does about it is mark the change for the owner.
-What the guard finds goes into the job's summary and into one comment on the PR, which the job
-edits in place on every push; a fork's PR gets the summary alone, since its token can't comment.
-The job also reads the PR's comments and hands them to the script as data, for the records in
-them; after writing its comment it fails while a list of marks lacks its record
-([What a marked PR needs](#what-a-marked-pr-needs)).
+What the guard finds goes into the job's summary and into the PR's `guard` check, a check run the
+job writes on the PR's head on every run, with the report as its summary, which is what `main`'s
+ruleset requires: in progress while a list of marks lacks its record, green otherwise
+([What a marked PR needs](#what-a-marked-pr-needs)). The job's own check, `report`, passes once the
+guard has run. A check rather than a comment on the PR and a wait rather than a failure, because a
+comment emails the PR's participants and a failed run its author, on every push and every re-run,
+while a check in progress emails no one and holds the merge the same (until 2026-11-15 the guard
+wrote a comment and failed its job). The job also reads the PR's comments and hands them to the
+script as data, for the records in them. A fork's PR gets a read-only token, so the job writes it
+no check, and the summary alone has the report: such a PR can't merge as it is, and the
+maintainer's session, once it has read the PR's changes to the workflows, pushes its branch into
+the repository and opens the PR from there, with the contributor's commits as they are.
 
-The lists of the tests that ran come from a job of their own, `tests`, which the `guard` job waits
+The lists of the tests that ran come from a job of their own, `tests`, which the `report` job waits
 for. It installs and runs both sides, the commit the branch left `main` at and the branch's head:
 the Vitest tests with the JSON reporter, since only a run has a table's every row as a test and
 knows a skipped one, and Playwright's `--list` for the screenshot tests, the smoke journeys and
 the requests test (on a side that has its config), which needs no browser. A failing test is still a test that ran; CI's own jobs fail for it. The
 branch's code runs in that job, so its token can only read. What that code can still write is the
-job's artifact and the Actions cache in the PR's scope: the `guard` job takes the artifact, the
+job's artifact and the Actions cache in the PR's scope: the `report` job takes the artifact, the
 reports with their paths cut to start at the repository's root, as data to `main`'s script (one it
 can't read is one that gave no tests), and takes nothing from the cache, since a cache saved there
 could overwrite `main`'s script where the token can write. When the job fails or a report is
@@ -788,8 +799,10 @@ The batch's runs that failed or were run again,
 `gh api -X GET repos/kinopeer/kinopeer/actions/runs -f event=pull_request -f status=completed -f created='><since>' --paginate --jq '.workflow_runs[] | select(.conclusion == "failure" or .run_attempt > 1) | [.id, .run_attempt, .name, .head_branch] | @tsv'`,
 and each one's failed jobs over all its attempts,
 `gh api -X GET repos/kinopeer/kinopeer/actions/runs/<id>/jobs -f filter=all --jq '.jobs[] | select(.conclusion == "failure") | [.run_attempt, .name] | @tsv'`;
-the guard's marks from its comment on each PR. The guard's check red while a marked PR waits for
-its record is the mark doing its work: it counts with the marks, not as a failure. A failure fixed
+the guard's marks from its `guard` check on each PR's last head (its summary,
+`gh api 'repos/kinopeer/kinopeer/commits/<sha>/check-runs?check_name=guard' --jq '.check_runs[0].output.summary'`;
+before 2026-11-15, from its comment on the PR). The guard's check waiting while a marked PR waits
+for its record is the mark doing its work: it counts with the marks, not as a failure. A failure fixed
 by changing the check rather than the code, or a mark the second review called needless, is a false
 alarm. The cost is a job's time from the same jobs' `started_at` and `completed_at`, and the
 reviews' share of the effort above, which stays out of the row as every figure from the journal

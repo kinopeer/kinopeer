@@ -555,13 +555,10 @@ export function findings(changes: Change[], sheets: Sheet[] = []): Finding[] {
   return [...files, ...compareStylesheets(changes, sheets), ...compareWorkflows(changes.filter(({ path }) => isWorkflow(path) && !isGuard(path)))]
 }
 
-/** The marker the workflow finds the guard's comment on a PR by. */
-export const MARKER = '<!-- checks-guard -->'
-
 const list = (found: Finding[]): string[] => found.map(({ file, line, what }) => (file ? `- \`${file}${line ? `:${line}` : ''}\`: ${what}` : `- ${what}`))
 
 /**
- * The guard's report, as Markdown: the comment on the PR, the job's summary and what `npm run guard`
+ * The guard's report, as Markdown: the guard's check on the PR, the job's summary and what `npm run guard`
  * prints. `records` is what to say under each list of the record it needs (records.ts).
  */
 export function report(found: Finding[], { head, base }: { head: string; base: string }, records: { [needs in Needs]?: string } = {}): string {
@@ -569,7 +566,7 @@ export function report(found: Finding[], { head, base }: { head: string; base: s
   const coordinator = found.filter(({ needs }) => needs === 'coordinator')
   const review = found.filter(({ needs }) => needs === 'review')
   const record = (needs: Needs): string[] => (records[needs] ? ['', records[needs]] : [])
-  const lines = [MARKER, `**Checks guard at ${head}**, against \`main\` at ${base}.`]
+  const lines = [`**Checks guard at ${head}**, against \`main\` at ${base}.`]
   if (found.length === 0) lines.push('', 'No weakening of the checks, no change to existing ones and no design value added or changed.')
   if (owner.length > 0) lines.push('', `**For the owner: ${owner.length} to approve, each with a reason.** A weakening of the checks, or a change to the guard or its rules.`, '', ...list(owner), ...record('owner'))
   if (coordinator.length > 0) {

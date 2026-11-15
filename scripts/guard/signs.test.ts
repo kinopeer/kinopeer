@@ -821,7 +821,7 @@ describe('report', () => {
   const at = { head: 'abc1234', base: 'def5678' }
 
   it('says so when nothing is found', () => {
-    expect(report([], at)).toBe('<!-- checks-guard -->\n**Checks guard at abc1234**, against `main` at def5678.\n\nNo weakening of the checks, no change to existing ones and no design value added or changed.')
+    expect(report([], at)).toBe('**Checks guard at abc1234**, against `main` at def5678.\n\nNo weakening of the checks, no change to existing ones and no design value added or changed.')
   })
 
   it("lists what goes to the owner and what goes to a second review apart, each with its file and line", () => {
@@ -833,7 +833,6 @@ describe('report', () => {
       at,
     )
     expect(text.split('\n')).toEqual([
-      '<!-- checks-guard -->',
       '**Checks guard at abc1234**, against `main` at def5678.',
       '',
       '**For the owner: 1 to approve, each with a reason.** A weakening of the checks, or a change to the guard or its rules.',
@@ -851,7 +850,7 @@ describe('report', () => {
       { needs: 'review', file: 'tsconfig.json', what: "the type check's config changed" },
       { needs: 'owner', file: 'checks.json', what: 'the file is removed' },
     ]
-    expect(report(found, at, { owner: 'The owner’s record.', review: 'The second review’s record.' }).split('\n').slice(2)).toEqual([
+    expect(report(found, at, { owner: 'The owner’s record.', review: 'The second review’s record.' }).split('\n').slice(1)).toEqual([
       '',
       '**For the owner: 1 to approve, each with a reason.** A weakening of the checks, or a change to the guard or its rules.',
       '',
@@ -1107,7 +1106,7 @@ describe('report of the coordinator\'s list', () => {
       { needs: 'coordinator', file: 'src/a.css', line: 2, what: "a value off the tokens' scale, let through by the comment on its line: `padding: 3px`" },
       { needs: 'owner', file: 'checks.json', what: 'the file is removed' },
     ]
-    const lines = report(found, { head: 'abc1234', base: 'def5678' }, { coordinator: 'The coordinator’s record.' }).split('\n').slice(3)
+    const lines = report(found, { head: 'abc1234', base: 'def5678' }, { coordinator: 'The coordinator’s record.' }).split('\n').slice(2)
     expect(lines.slice(3, 10)).toEqual([
       '',
       "**For the coordinator: 1 to approve, each with a reason.** A design value added, changed or removed: a token, or a value off the tokens' scale that a comment lets through.",
