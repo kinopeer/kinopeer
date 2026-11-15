@@ -1,21 +1,21 @@
 name: Guard
 
 # The checks guard on every PR (docs/QUALITY.md → The checks guard): main's copy of scripts/guard/
-# reads the PR's branch through git and writes into the PR what in it weakens the checks, changes
-# existing ones or adds a design value, and fails while a list of its marks lacks the record it calls for (docs/QUALITY.md →
-# What a marked PR needs). The script is main's; this file isn't: on pull_request GitHub runs the
-# workflow as the PR has it, so a PR that changes these steps runs them changed, and main's script
-# marks the change for the owner.
+# reads the PR's branch through git and writes into the PR's `guard` check what in it weakens the
+# checks, changes existing ones or adds a design value. It reports and holds nothing: the check
+# passes whatever it marks, and is missing only when the guard itself breaks. The script is main's;
+# this file isn't: on pull_request GitHub runs the workflow as the PR has it, so a PR that changes
+# these steps runs them changed, and main's script marks the change for the owner.
 #
 # Two jobs, so the PR's code never runs where the token can write: `tests` runs the tests of both
-# sides for the lists of what ran, with a token that can only read; `guard` runs only main's script,
+# sides for the lists of what ran, with a token that can only read; `report` runs only main's script,
 # over the branch as git has it and over those lists, which to it are data. What the PR's code can
-# still write from `tests` is its artifact and the Actions cache in the PR's scope, so `guard` takes
+# still write from `tests` is its artifact and the Actions cache in the PR's scope, so `report` takes
 # the first as data and nothing from the second.
 on:
   pull_request:
 
-# Read-only by default; the job below may write its comment on the PR.
+# Read-only by default; the job below may write the PR's `guard` check.
 permissions:
   contents: read
 
@@ -79,7 +79,9 @@ jobs:
           path: lists
           retention-days: 14
 
-  guard:
+  # Not named `guard`: that is the check the job writes, which main's ruleset requires, and a job of
+  # that name would be a second `guard` check, the job's own, that passes before the report is in.
+  report:
     needs: tests
     # Also after the tests' job failed: the guard then says it has no lists, where a job that is
     # skipped would say nothing and pass.
@@ -88,7 +90,7 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: read
-      pull-requests: write
+      checks: write
     steps:
       - name: Check out the PR's branch, to read
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -98,7 +100,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
           path: pr
-          # The token can write comments on the PR.
+          # The token can write checks.
           persist-credentials: false
       - name: Check out main, to run its guard
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -124,18 +126,6 @@ jobs:
         with:
           name: tests
           path: lists
-      - name: Read the PR's comments, for its records
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          PR: ${{ github.event.pull_request.number }}
-        # One a line, as data for main's script: what its author is to the repository, and its text.
-        # GitHub answers the first by who asks (a member whose membership is private is a
-        # collaborator to a reader outside the organization), so the log says how this job's token
-        # sees the authors: a record counts only from a member or an invited collaborator.
-        run: |
-          gh api "repos/$REPO/issues/$PR/comments" --paginate --jq '.[] | {association: .author_association, body}' > comments.jsonl
-          jq -r .association comments.jsonl | sort | uniq -c
       - name: Run the guard
         id: guard
         env:
@@ -143,34 +133,22 @@ jobs:
           HEAD: ${{ github.event.pull_request.head.sha }}
         # main's copy, so a PR that changes the guard is still read by the guard it found.
         run: |
-          node main/scripts/guard/guard.ts --repo pr --base "$BASE" --head "$HEAD" --tests-base lists/base --tests-head lists/pr --comments comments.jsonl > guard.md
+          node main/scripts/guard/guard.ts --repo pr --base "$BASE" --head "$HEAD" --tests-base lists/base --tests-head lists/pr > guard.md
           cat guard.md >> "$GITHUB_STEP_SUMMARY"
-      - name: Write the findings into the PR
-        # One comment, edited in place on every push, so a PR gets one email rather than one per
-        # push, and none while there has been nothing to say. A fork's PR gets a read-only token
-        # whatever the permissions above say, and the job summary still has the findings.
-        # Dependabot's token is read-only by default too, but the job's permissions raise it.
+      - name: Write the report into the PR's `guard` check
+        # A check rather than a comment on the PR, and one that passes, since a comment emails the
+        # PR's participants and a failed run its author, on every push. A fork's PR gets a
+        # read-only token whatever the permissions above say, so it gets no check, and the job
+        # summary alone has the report. Dependabot's token is read-only by default too, but the
+        # job's permissions raise it.
         if: ${{ !github.event.pull_request.head.repo.fork }}
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          PR: ${{ github.event.pull_request.number }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
           # A main whose guard has no coordinator's list yet gives no count for it, which is none.
           FOUND: ${{ steps.guard.outputs.owner != '0' || (steps.guard.outputs.coordinator || '0') != '0' || steps.guard.outputs.review != '0' }}
-        # The comment is the one the workflow's own token wrote that starts with the guard's marker
-        # (MARKER in scripts/guard/signs.ts).
         run: |
-          comment=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
-            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- checks-guard -->"))) | .id' | head -n 1)
-          if [ -n "$comment" ]; then
-            gh api --method PATCH "repos/$REPO/issues/comments/$comment" -F body=@guard.md --silent
-          elif [ "$FOUND" = true ]; then
-            gh api "repos/$REPO/issues/$PR/comments" -F body=@guard.md --silent
-          fi
-      - name: Hold the PR while a list of marks lacks its record
-        # After the comment, which says what record each list needs and where it stands. Whoever
-        # posts a record re-runs this job: nothing here reacts to a new comment.
-        if: steps.guard.outputs.unmet == 'true'
-        run: |
-          echo "::error::The guard's marks call for records this PR doesn't hold yet: see the guard's comment, and docs/QUALITY.md → What a marked PR needs."
-          exit 1
+          if [ "$FOUND" = true ]; then title='Marks to judge'; else title='Nothing marked'; fi
+          gh api "repos/$REPO/check-runs" --silent -f name=guard -f head_sha="$HEAD" -f status=completed -f conclusion=success \
+            -f "output[title]=$title" -F 'output[summary]=@guard.md'

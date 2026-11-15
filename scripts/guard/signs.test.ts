@@ -821,7 +821,7 @@ describe('report', () => {
   const at = { head: 'abc1234', base: 'def5678' }
 
   it('says so when nothing is found', () => {
-    expect(report([], at)).toBe('<!-- checks-guard -->\n**Checks guard at abc1234**, against `main` at def5678.\n\nNo weakening of the checks, no change to existing ones and no design value added or changed.')
+    expect(report([], at)).toBe('**Checks guard at abc1234**, against `main` at def5678.\n\nNo weakening of the checks, no change to existing ones and no design value added or changed.')
   })
 
   it("lists what goes to the owner and what goes to a second review apart, each with its file and line", () => {
@@ -833,7 +833,6 @@ describe('report', () => {
       at,
     )
     expect(text.split('\n')).toEqual([
-      '<!-- checks-guard -->',
       '**Checks guard at abc1234**, against `main` at def5678.',
       '',
       '**For the owner: 1 to approve, each with a reason.** A weakening of the checks, or a change to the guard or its rules.',
@@ -844,29 +843,6 @@ describe('report', () => {
       '',
       '- `checks.json`: the threshold `coverage.thresholds.lines` changed: `96` → `97`',
     ])
-  })
-
-  it('says under each list what record it needs, when told', () => {
-    const found: Finding[] = [
-      { needs: 'review', file: 'tsconfig.json', what: "the type check's config changed" },
-      { needs: 'owner', file: 'checks.json', what: 'the file is removed' },
-    ]
-    expect(report(found, at, { owner: 'The owner’s record.', review: 'The second review’s record.' }).split('\n').slice(2)).toEqual([
-      '',
-      '**For the owner: 1 to approve, each with a reason.** A weakening of the checks, or a change to the guard or its rules.',
-      '',
-      '- `checks.json`: the file is removed',
-      '',
-      'The owner’s record.',
-      '',
-      "**For a second review: 1.** Changes to existing checks, which a script can't judge.",
-      '',
-      '- `tsconfig.json`: the type check\'s config changed',
-      '',
-      'The second review’s record.',
-    ])
-    // Only under a list that is there.
-    expect(report([found[0]], at, { owner: 'The owner’s record.' })).not.toContain('record')
   })
 
   it('lists a finding about the branch as a whole without a file', () => {
@@ -1101,23 +1077,21 @@ describe('findings of design values', () => {
 })
 
 describe('report of the coordinator\'s list', () => {
-  it('lists it between the owner\'s and the second review\'s, with its record', () => {
+  it('lists it between the owner\'s and the second review\'s', () => {
     const found: Finding[] = [
       { needs: 'review', file: 'tsconfig.json', what: "the type check's config changed" },
       { needs: 'coordinator', file: 'src/a.css', line: 2, what: "a value off the tokens' scale, let through by the comment on its line: `padding: 3px`" },
       { needs: 'owner', file: 'checks.json', what: 'the file is removed' },
     ]
-    const lines = report(found, { head: 'abc1234', base: 'def5678' }, { coordinator: 'The coordinator’s record.' }).split('\n').slice(3)
-    expect(lines.slice(3, 10)).toEqual([
+    const lines = report(found, { head: 'abc1234', base: 'def5678' }).split('\n').slice(2)
+    expect(lines.slice(3, 8)).toEqual([
       '',
       "**For the coordinator: 1 to approve, each with a reason.** A design value added, changed or removed: a token, or a value off the tokens' scale that a comment lets through.",
       '',
       "- `src/a.css:2`: a value off the tokens' scale, let through by the comment on its line: `padding: 3px`",
       '',
-      'The coordinator’s record.',
-      '',
     ])
     expect(lines[0]).toMatch(/^\*\*For the owner/)
-    expect(lines[10]).toMatch(/^\*\*For a second review/)
+    expect(lines[8]).toMatch(/^\*\*For a second review/)
   })
 })

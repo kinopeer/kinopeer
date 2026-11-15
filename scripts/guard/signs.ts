@@ -555,26 +555,19 @@ export function findings(changes: Change[], sheets: Sheet[] = []): Finding[] {
   return [...files, ...compareStylesheets(changes, sheets), ...compareWorkflows(changes.filter(({ path }) => isWorkflow(path) && !isGuard(path)))]
 }
 
-/** The marker the workflow finds the guard's comment on a PR by. */
-export const MARKER = '<!-- checks-guard -->'
-
 const list = (found: Finding[]): string[] => found.map(({ file, line, what }) => (file ? `- \`${file}${line ? `:${line}` : ''}\`: ${what}` : `- ${what}`))
 
-/**
- * The guard's report, as Markdown: the comment on the PR, the job's summary and what `npm run guard`
- * prints. `records` is what to say under each list of the record it needs (records.ts).
- */
-export function report(found: Finding[], { head, base }: { head: string; base: string }, records: { [needs in Needs]?: string } = {}): string {
+/** The guard's report, as Markdown: the PR's `guard` check, the job's summary and what `npm run guard` prints. */
+export function report(found: Finding[], { head, base }: { head: string; base: string }): string {
   const owner = found.filter(({ needs }) => needs === 'owner')
   const coordinator = found.filter(({ needs }) => needs === 'coordinator')
   const review = found.filter(({ needs }) => needs === 'review')
-  const record = (needs: Needs): string[] => (records[needs] ? ['', records[needs]] : [])
-  const lines = [MARKER, `**Checks guard at ${head}**, against \`main\` at ${base}.`]
+  const lines = [`**Checks guard at ${head}**, against \`main\` at ${base}.`]
   if (found.length === 0) lines.push('', 'No weakening of the checks, no change to existing ones and no design value added or changed.')
-  if (owner.length > 0) lines.push('', `**For the owner: ${owner.length} to approve, each with a reason.** A weakening of the checks, or a change to the guard or its rules.`, '', ...list(owner), ...record('owner'))
+  if (owner.length > 0) lines.push('', `**For the owner: ${owner.length} to approve, each with a reason.** A weakening of the checks, or a change to the guard or its rules.`, '', ...list(owner))
   if (coordinator.length > 0) {
-    lines.push('', `**For the coordinator: ${coordinator.length} to approve, each with a reason.** A design value added, changed or removed: a token, or a value off the tokens' scale that a comment lets through.`, '', ...list(coordinator), ...record('coordinator'))
+    lines.push('', `**For the coordinator: ${coordinator.length} to approve, each with a reason.** A design value added, changed or removed: a token, or a value off the tokens' scale that a comment lets through.`, '', ...list(coordinator))
   }
-  if (review.length > 0) lines.push('', `**For a second review: ${review.length}.** Changes to existing checks, which a script can't judge.`, '', ...list(review), ...record('review'))
+  if (review.length > 0) lines.push('', `**For a second review: ${review.length}.** Changes to existing checks, which a script can't judge.`, '', ...list(review))
   return lines.join('\n')
 }
