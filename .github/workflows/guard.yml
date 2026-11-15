@@ -1,21 +1,22 @@
 name: Guard
 
 # The checks guard on every PR (docs/QUALITY.md → The checks guard): main's copy of scripts/guard/
-# reads the PR's branch through git and writes into the PR's `guard` check what in it weakens the
-# checks, changes existing ones or adds a design value. It reports and holds nothing: the check
-# passes whatever it marks, and is missing only when the guard itself breaks. The script is main's;
+# reads the PR's branch through git and writes into the PR's `guard report` check what in it
+# weakens the checks, changes existing ones or adds a design value. It reports and holds nothing:
+# the `guard` job, which main's ruleset requires, passes whatever the guard marks and fails only
+# when the guard itself breaks. The script is main's;
 # this file isn't: on pull_request GitHub runs the workflow as the PR has it, so a PR that changes
 # these steps runs them changed, and main's script marks the change for the owner.
 #
 # Two jobs, so the PR's code never runs where the token can write: `tests` runs the tests of both
-# sides for the lists of what ran, with a token that can only read; `report` runs only main's script,
+# sides for the lists of what ran, with a token that can only read; `guard` runs only main's script,
 # over the branch as git has it and over those lists, which to it are data. What the PR's code can
-# still write from `tests` is its artifact and the Actions cache in the PR's scope, so `report` takes
+# still write from `tests` is its artifact and the Actions cache in the PR's scope, so `guard` takes
 # the first as data and nothing from the second.
 on:
   pull_request:
 
-# Read-only by default; the job below may write the PR's `guard` check.
+# Read-only by default; the job below may write the PR's `guard report` check.
 permissions:
   contents: read
 
@@ -79,9 +80,7 @@ jobs:
           path: lists
           retention-days: 14
 
-  # Not named `guard`: that is the check the job writes, which main's ruleset requires, and a job of
-  # that name would be a second `guard` check, the job's own, that passes before the report is in.
-  report:
+  guard:
     needs: tests
     # Also after the tests' job failed: the guard then says it has no lists, where a job that is
     # skipped would say nothing and pass.
@@ -133,14 +132,16 @@ jobs:
           HEAD: ${{ github.event.pull_request.head.sha }}
         # main's copy, so a PR that changes the guard is still read by the guard it found.
         run: |
-          node main/scripts/guard/guard.ts --repo pr --base "$BASE" --head "$HEAD" --tests-base lists/base --tests-head lists/pr > guard.md
+          node main/scripts/guard/guard.ts --repo pr --base "$BASE" --head "$HEAD" --tests-base lists/base --tests-head lists/pr --summary summary.md > guard.md
           cat guard.md >> "$GITHUB_STEP_SUMMARY"
-      - name: Write the report into the PR's `guard` check
-        # A check rather than a comment on the PR, and one that passes, since a comment emails the
-        # PR's participants and a failed run its author, on every push. A fork's PR gets a
-        # read-only token whatever the permissions above say, so it gets no check, and the job
-        # summary alone has the report. Dependabot's token is read-only by default too, but the
-        # job's permissions raise it.
+      - name: Write the report into the PR's `guard report` check
+        # A check rather than a comment on the PR, since a comment emails the PR's participants on
+        # every edit, and one the reviews read through the API, which has no way to a job's
+        # summary. It passes: the guard reports and holds nothing. Nothing requires it, so a fork's
+        # PR, whose token is read-only whatever the permissions above say, merges without it, with
+        # the report in the job summary alone. Dependabot's token is read-only by default too, but
+        # the job's permissions raise it. The summary is the report cut to what a check's summary
+        # holds (65,535 characters), the job summary has it whole.
         if: ${{ !github.event.pull_request.head.repo.fork }}
         env:
           GH_TOKEN: ${{ github.token }}
@@ -150,5 +151,7 @@ jobs:
           FOUND: ${{ steps.guard.outputs.owner != '0' || (steps.guard.outputs.coordinator || '0') != '0' || steps.guard.outputs.review != '0' }}
         run: |
           if [ "$FOUND" = true ]; then title='Marks to judge'; else title='Nothing marked'; fi
-          gh api "repos/$REPO/check-runs" --silent -f name=guard -f head_sha="$HEAD" -f status=completed -f conclusion=success \
-            -f "output[title]=$title" -F 'output[summary]=@guard.md'
+          # A main whose guard writes no summary yet (#439 added it) gives the report as it is.
+          [ -f summary.md ] || cp guard.md summary.md
+          gh api "repos/$REPO/check-runs" --silent -f name='guard report' -f head_sha="$HEAD" -f status=completed -f conclusion=success \
+            -f "output[title]=$title" -F 'output[summary]=@summary.md'

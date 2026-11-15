@@ -5,10 +5,10 @@ description: The second, independent review of the changes to existing checks th
 
 # Second review
 
-The checks guard marks, in the PR's `guard` check, the changes to existing checks that a script can't
+The checks guard marks, in the PR's `guard report` check, the changes to existing checks that a script can't
 judge: the list "For a second review". This review answers one question for each mark: **does the
-check still catch what it caught before the change?** What its record closes and what blocks a PR
-is in `docs/QUALITY.md` → What a marked PR needs; this file is the procedure. The record on the PR
+check still catch what it caught before the change?** What its record answers and who checks it
+before the merge is in `docs/QUALITY.md` → What a marked PR needs; this file is the procedure. The record on the PR
 is in English, like everything on GitHub; a summary in the chat follows the conversation's
 language.
 
@@ -16,16 +16,17 @@ language.
 
 - A fresh session that the coordinator starts: not the PR's author, not its first reviewer.
 - After the first review's "ready to merge" at the PR's current head, and before the owner is asked
-  to approve the merge. Only when the `guard` check has a "For a second review" list.
+  to approve the merge. Only when the `guard report` check has a "For a second review" list.
 
 ## 1. Find the list
 
 - Take the PR's current head: `gh api repos/{owner}/{repo}/pulls/<n> --jq .head.sha`.
-- Read the `guard` check at that head, the marks under "For a second review" in its summary:
-  `gh api 'repos/{owner}/{repo}/commits/<sha>/check-runs?check_name=guard' --jq '.check_runs[0].output.summary'`.
+- Read the `guard report` check at that head, the marks under "For a second review" in its
+  summary, the latest run's, since a re-run writes another:
+  `gh api 'repos/{owner}/{repo}/commits/<sha>/check-runs?check_name=guard%20report' --jq '.check_runs | max_by(.completed_at) | .output.summary'`.
   No check yet means the `Guard` run hasn't finished: wait for it. A fork's PR gets no such
   check, since the job's token can't write there: take the same report from the summary of the
-  `Guard` run's `report` job (`gh run view <run id>`).
+  `Guard` run's `guard` job (`gh run view <run id>`).
 
 ## 2. Read each mark's two sides, and nothing of the author's account
 

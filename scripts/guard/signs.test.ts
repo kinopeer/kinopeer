@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { commands, compareChecks, compareLint, compareScripts, compareStylesheets, compareTokens, compareWorkflows, findings, readsWhole, report, scanAdded, workflowSteps, type Finding } from './signs.ts'
+import { capped, commands, compareChecks, compareLint, compareScripts, compareStylesheets, compareTokens, compareWorkflows, findings, readsWhole, report, scanAdded, workflowSteps, type Finding } from './signs.ts'
 
 const json = (value: unknown) => JSON.stringify(value)
 /** What each finding calls for and says, without its file. */
@@ -1093,5 +1093,32 @@ describe('report of the coordinator\'s list', () => {
     ])
     expect(lines[0]).toMatch(/^\*\*For the owner/)
     expect(lines[8]).toMatch(/^\*\*For a second review/)
+  })
+})
+
+describe('capped', () => {
+  const CUT = "\n\n**The report is cut here**, to fit a check's summary: the whole report is in the summary of the `Guard` run's `guard` job."
+  const bytes = (text: string) => new TextEncoder().encode(text).length
+
+  it('leaves a report that fits as it is, up to the limit itself', () => {
+    expect(capped('a\nb', 3)).toBe('a\nb')
+    expect(capped('x'.repeat(60_000))).toBe('x'.repeat(60_000))
+  })
+
+  it("cuts a longer one at a line's end, with a note where the whole report is, within the limit", () => {
+    const lines = Array.from({ length: 5000 }, (_, index) => `- \`src/file${index}.test.ts\`: an assertion rewritten`)
+    const text = capped(lines.join('\n'))
+    expect(text.endsWith(CUT)).toBe(true)
+    expect(bytes(text)).toBeLessThanOrEqual(60_000)
+    const kept = text.slice(0, -CUT.length).split('\n')
+    expect(kept).toEqual(lines.slice(0, kept.length))
+    // As many lines as fit: one more would go over.
+    expect(bytes(`${[...kept, lines[kept.length]].join('\n')}${CUT}`)).toBeGreaterThan(60_000)
+  })
+
+  it('counts the bytes of UTF-8, not the letters', () => {
+    // 302 letters, 602 bytes: by letters the whole report would fit.
+    const line = 'ё'.repeat(100)
+    expect(capped([line, line, line].join('\n'), bytes(CUT) + 402)).toBe(`${line}\n${line}${CUT}`)
   })
 })

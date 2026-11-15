@@ -315,6 +315,14 @@ describe('main', () => {
     expect(await readFile(output, 'utf8')).toBe('owner=2\ncoordinator=0\nreview=1\n')
   })
 
+  it("writes the report into the file the command line names for the check's summary", async () => {
+    await commit({ 'playwright.config.ts': RETRIES })
+    const summary = `${repo}-summary`
+    onTestFinished(() => rm(summary, { force: true }))
+    expect(main([...args(), '--summary', summary], {})).toBe(run().report)
+    expect(await readFile(summary, 'utf8')).toBe(run().report)
+  })
+
   it('returns the report outside CI, where there is no file for the counts', async () => {
     await commit(APP)
     // With nothing named to write to, writing at all would throw.
@@ -409,6 +417,10 @@ describe('options', () => {
     expect(options(['--base'])).toEqual({ repo: '.', base: 'origin/main', head: 'HEAD' })
   })
 
+  it("takes the file for the check's summary from the command line, and none by default", () => {
+    expect(options(['--summary', 'summary.md']).summary).toBe('summary.md')
+    expect(options([])).not.toHaveProperty('summary')
+  })
 
   it('takes the folders of the two runs of the tests from the command line', () => {
     expect(options(['--tests-head', 'lists/pr', '--tests-base', 'lists/base']).tests).toEqual({ base: 'lists/base', head: 'lists/pr' })

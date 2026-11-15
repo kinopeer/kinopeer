@@ -557,7 +557,7 @@ export function findings(changes: Change[], sheets: Sheet[] = []): Finding[] {
 
 const list = (found: Finding[]): string[] => found.map(({ file, line, what }) => (file ? `- \`${file}${line ? `:${line}` : ''}\`: ${what}` : `- ${what}`))
 
-/** The guard's report, as Markdown: the PR's `guard` check, the job's summary and what `npm run guard` prints. */
+/** The guard's report, as Markdown: the PR's `guard report` check, the job's summary and what `npm run guard` prints. */
 export function report(found: Finding[], { head, base }: { head: string; base: string }): string {
   const owner = found.filter(({ needs }) => needs === 'owner')
   const coordinator = found.filter(({ needs }) => needs === 'coordinator')
@@ -570,4 +570,23 @@ export function report(found: Finding[], { head, base }: { head: string; base: s
   }
   if (review.length > 0) lines.push('', `**For a second review: ${review.length}.** Changes to existing checks, which a script can't judge.`, '', ...list(review))
   return lines.join('\n')
+}
+
+/** What a check's summary holds, in bytes of UTF-8 to be safe whatever GitHub counts: its limit is 65,535 characters. */
+export const SUMMARY_LIMIT = 60_000
+
+const CUT = "\n\n**The report is cut here**, to fit a check's summary: the whole report is in the summary of the `Guard` run's `guard` job."
+
+/** The report as a check's summary holds it: whole when it fits, else cut at a line's end with a note where the rest is. */
+export function capped(text: string, limit = SUMMARY_LIMIT): string {
+  const size = (part: string) => new TextEncoder().encode(part).length
+  if (size(text) <= limit) return text
+  const kept: string[] = []
+  let used = size(CUT)
+  for (const line of text.split('\n')) {
+    used += size(line) + 1
+    if (used > limit) break
+    kept.push(line)
+  }
+  return `${kept.join('\n')}${CUT}`
 }

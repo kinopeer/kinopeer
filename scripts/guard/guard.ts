@@ -3,9 +3,9 @@
 // commit it left main at and prints, as Markdown, what in its changes weakens the checks or changes
 // existing ones. It reads the branch through git and runs none of its code.
 import { spawnSync } from 'node:child_process'
-import { appendFileSync, readdirSync, readFileSync } from 'node:fs'
+import { appendFileSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { findings, readsWhole, report, type AddedLine, type Change, type Finding } from './signs.ts'
+import { capped, findings, readsWhole, report, type AddedLine, type Change, type Finding } from './signs.ts'
 import { isStylesheet, type Sheet } from './stylesheets.ts'
 import { compareTests, testsIn, type Reports, type Test } from './tests.ts'
 
@@ -94,8 +94,11 @@ function testsOf(folder: string): Reports {
   return new Map(names.map((name) => [name, read(name)]))
 }
 
-/** `tests`: the folders with the reports of main's run of the tests and of the branch's, when the caller has them. */
-export type Options = { repo: string; base: string; head: string; tests?: { base: string; head: string } }
+/**
+ * `tests`: the folders with the reports of main's run of the tests and of the branch's, when the
+ * caller has them. `summary`: the file to write the report into as a check's summary holds it.
+ */
+export type Options = { repo: string; base: string; head: string; tests?: { base: string; head: string }; summary?: string }
 
 /** The guard over one branch: its findings and the report. */
 export function guard({ repo, base, head, tests }: Options): { found: Finding[]; report: string } {
@@ -119,6 +122,7 @@ export function guard({ repo, base, head, tests }: Options): { found: Finding[];
  * `--repo`, `--base` and `--head` from the command line; main's remote branch and this checkout's
  * HEAD by default. `--tests-base` and `--tests-head` name the folders with the two runs' reports:
  * with either given the tests are compared, and a side without a folder is a run that gave no list.
+ * `--summary` names the file to write the report into, cut to what a check's summary holds.
  */
 export function options(args: string[]): Options {
   const value = (name: string, fallback: string) => {
@@ -126,15 +130,19 @@ export function options(args: string[]): Options {
     return index !== -1 && args[index + 1] ? args[index + 1] : fallback
   }
   const tests = { base: value('tests-base', ''), head: value('tests-head', '') }
-  return { repo: value('repo', '.'), base: value('base', 'origin/main'), head: value('head', 'HEAD'), ...(tests.base || tests.head ? { tests } : {}) }
+  const summary = value('summary', '')
+  return { repo: value('repo', '.'), base: value('base', 'origin/main'), head: value('head', 'HEAD'), ...(tests.base || tests.head ? { tests } : {}), ...(summary ? { summary } : {}) }
 }
 
 /**
  * The command: the report for the branch the arguments name. In CI it also hands the workflow the
- * counts, which the workflow names the check's title by rather than by the report's wording.
+ * counts, which the workflow names the check's title by rather than by the report's wording, and
+ * writes the check's summary.
  */
 export function main(args: string[], env: { GITHUB_OUTPUT?: string }): string {
-  const { found, report: text } = guard(options(args))
+  const given = options(args)
+  const { found, report: text } = guard(given)
+  if (given.summary) writeFileSync(given.summary, capped(text))
   const count = (needs: Finding['needs']) => found.filter((finding) => finding.needs === needs).length
   if (env.GITHUB_OUTPUT) appendFileSync(env.GITHUB_OUTPUT, `owner=${count('owner')}\ncoordinator=${count('coordinator')}\nreview=${count('review')}\n`)
   return text
