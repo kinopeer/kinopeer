@@ -52,7 +52,7 @@ Broken by hand: <!-- what Stryker leaves alone in the changed lines (docs/TESTIN
 
 Baselines: <!-- each changed or new PNG — what changed and why, intended or a side effect — diff
      looked at | re-rendered with --update-snapshots=all | new, opened. Or "none". A side effect
-     visible to the eye goes to the owner as a question in For the owner below. -->
+     visible to the eye goes to the coordinator as a question in For the coordinator below. -->
 
 ## Docs
 
@@ -75,9 +75,9 @@ Baselines: <!-- each changed or new PNG — what changed and why, intended or a 
      keeps its numbers. Bring this section, What and Tests to
      the head after each round's fixes. -->
 
-## For the owner
+## For the coordinator
 
-<!-- Questions the owner answers before the merge, such as a side effect visible in a screenshot,
+<!-- Questions the coordinator answers before the merge, such as a side effect visible in a screenshot,
      with the screen and its before and after images (docs/TESTING.md → Screenshot tests).
      Delete the section when there are none. -->
 

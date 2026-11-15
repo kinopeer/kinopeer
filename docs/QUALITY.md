@@ -1,12 +1,12 @@
 # Quality
 
 Kinopeer's code is written and reviewed by AI agents. Its quality is held by three things: the
-automated checks, independent reviews by sessions that didn't write the change, and the owner's
-look at how the app behaves. This file says which parts of that system are in force here, and it
+automated checks, an independent review by the deputy, a session that didn't write the change,
+and the owner's look at how the app behaves. This file says which parts of that system are in force here, and it
 owns the rules of the checks guard and the retro. How the tests are organized and how a PR's tests are reviewed
 is in [TESTING.md](TESTING.md); the conventions every PR follows are in [CLAUDE.md](../CLAUDE.md).
 
-Any change to this file goes to the owner: the guard marks it.
+Any change to this file waits for the owner's decision (the `deputy` skill → The owner's approval), and the guard marks it.
 
 ## Components
 
@@ -36,10 +36,10 @@ can't read or can't judge is marked, not passed.
 
 ### What it marks
 
-Three kinds of change, by what each calls for before the PR merges.
+Three kinds of change, three lists in its report. The deputy's round judges every mark (the
+`deputy` skill → The round), and the retro reads what it accepted ([The retro](#the-retro)).
 
-**For the owner**, to approve with a reason: a weakening of the checks, or a change to the guard
-or its rules.
+**Weakens the checks**: a weakening of the checks, or a change to the guard or its rules.
 
 - A coverage threshold lowered or removed, a path added to what coverage leaves out, or one removed
   from what it measures (`coverage` in `checks.json`).
@@ -113,13 +113,11 @@ or its rules.
 - `checks.json`, `.oxlintrc.json` or `package.json` that is no longer a JSON object the guard can
   read, a list in `checks.json` that is no longer a list, and `checks.json` or `.oxlintrc.json`
   removed.
-- Any change to `scripts/guard/`, `.github/workflows/guard.yml`, this file or the second review's
-  procedure (`.claude/skills/second-review/`).
+- Any change to `scripts/guard/`, `.github/workflows/guard.yml`, this file or the deputy's
+  procedure (`.claude/skills/deputy/`), which judges the marks.
 
-**For the coordinator**, to approve with a reason: a design value added or changed. A value the
-design doesn't have yet is a decision someone signs, and the owner decided that the coordinator
-does: the owner, or the coordinator session of a task on autopilot (`CLAUDE.md` → Workflow →
-Autopilot).
+**Design values**: a design value added or changed. A value the design doesn't have yet needs a
+reason why the tokens' scale lacks it.
 
 - A declaration added, changed or removed in `src/styles/tokens.css`, in either theme: each is
   known by the selector and the media queries it sits in and by its name, and its value is compared
@@ -149,7 +147,7 @@ Autopilot).
   var(--gutter)`): the test reads sizes only where they're used, and `layout.css` holds the layout's
   sizes by design, so that one is left to review.
 
-**For a second review**: a change to an existing check that a script can't judge.
+**Changes to existing checks**: a change to an existing check that a script can't judge.
 
 - Any other change to `checks.json`: a threshold raised, a new budget (an accessibility state's
   only when the state is new), an entry removed from an exclusion list, a key the guard has no rule
@@ -184,7 +182,7 @@ Autopilot).
 
 A new sign goes into `scripts/guard/` (`signs.ts`, or `assertions.ts` and `tests.ts` for what the
 tests assert and which of them ran, `stylesheets.ts` for what counts as a raw value in a stylesheet) with its tests and into this list, in one PR, which
-goes to the owner as any change to the guard does. The list is never whole, and isn't meant to be:
+the guard marks as any change to it. The list is never whole, and isn't meant to be:
 the guard is a tripwire for the cheap, known ways around a check, and the reviews catch the rest.
 A way around that a review finds goes into [What it doesn't see](#what-it-doesnt-see); it joins
 the list through the retro ([The retro](#the-retro)), once it has been met in a PR or
@@ -192,47 +190,15 @@ costs one line.
 
 ### What a marked PR needs
 
-The guard's marks are three lists, for the owner, for the coordinator and for a second review.
-The guard holds no PR: its `guard` job passes whatever it marks, so a mark emails no one, as a
-failed run or a comment on the PR would. What each list calls for is done before the merge, and
-the session that merges, or asks the owner to approve the merge, checks it at the PR's head:
+Nothing from the guard: it holds no PR, and its `guard` job passes whatever it marks, so a mark
+emails no one, as a failed run or a comment on the PR would. The deputy's round judges every mark
+(the `deputy` skill → The round), and the retro reads what it accepted ([The retro](#the-retro)).
 
-- The list for the owner: the owner's approval, with the owner's reason.
-- The list for the coordinator: the coordinator's approval, with the coordinator's reason, or the
-  owner's, since the owner is a coordinator too.
-- The list for a second review: a second review that found it `sound`. After a `weakening`,
-  either a fix and a second review again, or the owner's approval of what it called a weakening.
-  The owner's approval doesn't replace a second review: judging rewritten assertions is reading
-  code.
-
-**A record** of each is a comment on the PR, in English, that names the commit it judged and
-what it approves or found, with the reason. It holds while the guard's list stays the same: a
-push after which the `guard report` check lists other marks, or the same marks in a file changed since,
-needs a new one.
-
-**The owner's approval.** The session that asks the owner to approve the merge first shows, in a
-card of its own before the merge's, what is to be approved, a line each: for a weakening from the
-owner's list, what stops being caught, with the before and the after; for a change to the guard
-or its rules, what changes in the guard and why; for what the second review called a weakening,
-its line on the mark. The reason in the record is the owner's own: the session offers no
-ready-made reason, and doesn't record an approval without one, but asks for it. It writes the
-reason in English, as everything on GitHub is, whatever language the owner gave it in, and
-doesn't quote the original.
-
-**The coordinator's approval.** It is given by the coordinator only: the owner, or the
-coordinator session of a task on autopilot, never the session that wrote the PR or one that
-reviews it. The reason is the coordinator's own: why the design needs that value, a token the
-scale lacks or a size made of other elements' sizes. On autopilot the coordinator decides it as
-it decides the task's other choices (`CLAUDE.md` → Workflow → Autopilot); otherwise the session
-that asks the owner to approve the merge asks about the list first, in a card of its own, as for
-the owner's approval.
-
-**The second review** is done by a fresh session with `/second-review <PR#>`
-(`.claude/skills/second-review/`), which owns its procedure.
-
-Until 2026-11-15 the guard read these records from the PR's comments, by a code of each list,
-and held the PR, red, until each list had its record (#366). It stopped holding because its
-comment and its failed runs emailed the owner on every push of a marked PR.
+Until 2026-11-15 the marks were approved one by one: the owner's list by the owner, the design
+values by the coordinator, the changes to existing checks by a second review in a fresh session,
+each with a record on the PR, which the guard read from the PR's comments and held the PR red
+without (#366, until #439: its comment and its failed runs emailed the owner on every push of a
+marked PR).
 
 **When the guard itself is broken.** The `main` ruleset has no bypass for anyone. With `guard`
 among its required checks, a `guard` job that fails by itself (an error in the script, not a
@@ -297,8 +263,8 @@ compare the tests that ran, and says so: that takes a run of each side, which CI
   defined, in another file; a table the guard can't open, imported or computed, whose rows
   changed; a query that throws when nothing matches, used as a check without `expect`
   (`screen.getByRole('button')` on a line of its own), rewritten or removed.
-- What a test asserts when the same change renames it: the test goes to a second review as gone
-  or renamed, and its assertions aren't compared.
+- What a test asserts when the same change renames it: the test is marked as gone or renamed,
+  among the changes to existing checks, and its assertions aren't compared.
 - An assertion that only moved to another line of its chain (`expect(a)` and `.toBe(1)` on two
   lines) is marked, though nothing changed: the guard compares the text with its spaces
   collapsed, not the meaning.
@@ -312,12 +278,12 @@ compare the tests that ran, and says so: that takes a run of each side, which CI
   passed on by its name (`{ retry }`, `const retry = 3`), and a retry behind a name the patterns
   don't read (`repeats`, a helper that retries); `set +o errexit`, `set +eu`, `|| echo` and other
   commands that end well after a failure; `--no-verify`-like flags of the tools; a check dropped
-  from an npm script that still exists (the script changed, which goes to a second review).
+  from an npm script that still exists (the script changed, which is marked among the changes to existing checks).
 - A tracked file named in `.gitignore`: oxlint skips what git ignores, so the path is taken out
   of the lint from a third file, beside `ignorePatterns` and the lint ignore files.
 - A removed step of plain shell, with no npm script, npx tool, node script, docker command or
-  action in it (`curl` against a server, a shell test): it goes to a second review, not to the
-  owner. So does a check dropped from a step whose commands all stay.
+  action in it (`curl` against a server, a shell test): it is marked among the changes to existing
+  checks, not as a weakening. So does a check dropped from a step whose commands all stay.
 - An action's inputs (`with:`) and a step's other keys but `if:` and `continue-on-error:` (`env:`,
   `working-directory:`): a change to them isn't read, so a check an input turns off
   (`fail-on-error: false`) is marked nowhere.
@@ -345,8 +311,8 @@ compare the tests that ran, and says so: that takes a run of each side, which CI
 - A green `guard` reported by another workflow of the PR. GitHub's Free plan has no way to
   require that a check come from `main`'s copy of a workflow, and the guard marks a job or a
   status of its name for the owner by one pattern, no more.
-- Anything written on purpose to get past it. Every session works under the owner's GitHub account,
-  so the guard protects against forgetting, not against forging.
+- Anything written on purpose to get past it. The authors' sessions all work under one GitHub
+  account, so the guard protects against forgetting, not against forging.
 
 Those are the reviews' to catch (`TESTING.md` → Reviewing a PR's tests).
 
@@ -394,8 +360,9 @@ grew, by how much it is over, and its three heaviest files.
 
 **Over a budget**, find what grew: build `main` and the branch, each after `npm ci`, run
 `npm run size` on each and compare the files of that kind; then make it smaller or leave it out. Raising a budget to get a PR
-through is a weakening: it is the owner's decision, and the checks guard marks a budget raised,
-removed or no longer a number for the owner. A new budget goes to a second review. A budget
+through is a weakening: the checks guard marks a budget raised, removed or no longer a number, and
+the deputy accepts it only with the measurement and why it can't be met otherwise. A new budget is
+judged in the deputy's round too. A budget
 lowered, after the app got lighter, needs no record.
 
 **Its tests**: the rules (the kind of a file, the budgets read, the verdict and its report) are
@@ -532,9 +499,9 @@ left out of this budget for now.
 
 **Over a budget**, find what sends the new request (the failure lists them; the trace in the
 report shows when each went out) and take it out. Raising a budget to get a PR through is a
-weakening: it is the owner's decision, and the checks guard marks a budget raised, removed or no
-longer a number for the owner. **Under a budget**, lower it in `checks.json` to the new count: a
-budget lowered needs no record. A new budget, for a new screen or a new move, goes to a second review.
+weakening: the checks guard marks a budget raised, removed or no longer a number, and the deputy
+accepts it only with the measurement and why it can't be met otherwise. **Under a budget**, lower it in `checks.json` to the new count: a
+budget lowered needs nothing. A new budget, for a new screen or a new move, is judged in the deputy's round.
 
 **In CI** it is the step after the size budget's in the `performance` job, on the same build,
 Chromium from the cache as in the `smoke` job; the reporter `e2e/performance/summary.ts` adds the
@@ -582,11 +549,11 @@ that isn't a number of 0 or more, one over the ceiling, a ceiling missing or not
 the page doesn't follow.
 
 **Over a budget**, find what moves (the failure names the elements) and keep it in place or keep
-room for what loads later. Raising a budget is a weakening: it is the owner's decision, and the
-checks guard marks a budget raised, removed or no longer a number for the owner. A new budget, for
-a new screen, goes to a second review. **Under a budget** by a step of 0.01 or more, after a fix,
-lower it in the same PR: a budget lowered needs no record. The ceiling is in `checks.json` beside
-the budgets, so the checks guard marks it raised for the owner as it does a budget.
+room for what loads later. Raising a budget is a weakening: the checks guard marks a budget
+raised, removed or no longer a number, and the deputy accepts it only with the measurement and why
+it can't be met otherwise. A new budget, for a new screen, is judged in the deputy's round. **Under a budget** by a step of 0.01 or more, after a fix,
+lower it in the same PR: a budget lowered needs nothing. The ceiling is in `checks.json` beside
+the budgets, so the checks guard marks it raised as it does a budget.
 
 ## The accessibility budget
 
@@ -633,7 +600,7 @@ first head). So the
 budget is the count itself, as the requests budget's is: a count above its budget fails, and so does
 one below it, since a budget left higher than the state needs would let a broken element come back
 unnoticed. A fix lowers its budget in the same PR, to 0 rather than out of the file: the checks
-guard marks a budget removed for the owner.
+guard marks a budget removed.
 
 **The violations found at the start**, by #410's first read, each rule with its issue, went into the
 budgets as they were found, and their fixes lower them to 0 (decided on 2026-11-14: fixing them
@@ -656,15 +623,16 @@ with no baseline in `e2e/__screenshots__/`, or a baseline without a budget: ever
 specs take has a baseline, since one without fails, so the baselines stand for the list of states.
 A baseline left behind by a test that was removed keeps its budgets, which no test then reads.
 
-**Over a budget**, fix what axe names. Raising a budget is a weakening: it is the owner's decision,
-and the checks guard marks a budget raised, removed or no longer a number for the owner, and any
+**Over a budget**, fix what axe names. Raising a budget is a weakening: the checks guard marks a
+budget raised, removed or no longer a number, and the deputy accepts it only with the measurement
+and why it can't be met otherwise; the guard also marks any
 change to the tags, which it reads as a budget that isn't a number. A rule a state didn't break
 before is a budget raised from 0, the count a rule the state doesn't name has, so the guard marks
-a new rule's budget for the owner too when `main` has budgets for that state, `{}` included
-(decided by the owner on 2026-11-14, #410). A new screenshot's budgets go to a second review; a new
-state with `{}` has no number in it, so the guard marks nothing. A budget lowered needs no record. An update of
+a new rule's budget too when `main` has budgets for that state, `{}` included
+(decided by the owner on 2026-11-14, #410). A new screenshot's budgets are judged in the deputy's round; a new
+state with `{}` has no number in it, so the guard marks nothing. A budget lowered needs nothing. An update of
 axe-core (Dependabot's monthly group) may find more or less; its PR then fails the `visual` job, and
-the budgets are read again there, a raised one going to the owner.
+the budgets are read again there, a raised one marked as above.
 
 **What it doesn't see.** Only what the screenshots show: a state no screenshot takes, a hover or a
 focus ring but the few the specs set up, the light theme and English but in their few screenshots.
@@ -687,7 +655,7 @@ baselines, in `e2e/accessibility.spec.ts`, are layer 6, beside the screenshot te
 ## The retro
 
 Every fifty merged PRs a fresh session looks back at what the quality system did with them: the
-review findings and the second reviews, the bugs that got past every check, what the work cost
+review findings and the deputy's verdicts on the guard's marks, the bugs that got past every check, what the work cost
 against how complex it was, which checks caught something and which only cost time, and where the
 owner decided something. Where a pattern repeats, it changes the rules; a run of accidents changes
 nothing (what counts as a pattern: `retro.md` → A pattern, not an accident, and → What it reads →
@@ -716,17 +684,19 @@ its verdict line says "retro due", and the
 coordinator of the work (the owner, or the session that hands out PRs) starts it. A
 fresh session runs the retro, not one that wrote or reviewed the PRs in the batch.
 
-**The review findings.** Collect the `Test review, round <n>` comments of the merged PRs no row lists yet (the
-batch) and count the findings by check and by rule. Since tags come in both spellings, `[H · gap]` and `[H · gap: <reason>]`, a search that expects `]`
+**The review findings.** Collect the deputy's reviews headed `Round <n> at <sha>` of the merged
+PRs no row lists yet (the batch; before 2026-11-15, the `Test review, round <n>` comments) and count the findings by check and by rule. Since tags come in both spellings, `[H · gap]` and `[H · gap: <reason>]`, a search that expects `]`
 right after the rule misses the second (#299, #302); one that catches both is
 `\[[A-K] ?· ?(clear|gap|conflict)(\]|:)`. The search doesn't replace reading: every reviewer round
-is read whole, for the `/code-review` findings that carry no tag and the **For the owner** items.
+is read whole, for the `/code-review` findings that carry no tag and the **For the coordinator**
+and **For the owner** items.
 
-The second reviews are counted too, from the `**Second review at <commit>: …**` comments of the batch's
-PRs (`**Second review <code>: …**` before 2026-11-15, [What a marked PR needs](#what-a-marked-pr-needs)): how many were done, and how many said
-`weakening`. When twenty PRs in a row with a second review have no `weakening` verdict, the retro
-proposes to the owner to narrow the second review to weakenings. Narrowing softens the system, so
-it is the owner's to decide.
+The guard's marks are counted too, from the deputy's verdicts on them in its rounds (before
+2026-11-15, the second reviews' comments, `**Second review …**`): how many were judged, how many
+`weakening`, and how many of those the deputy accepted because the task confirmed them. When
+twenty PRs in a row with changes to existing checks have no `weakening` verdict, the retro proposes
+to the owner to judge only the weakenings. Narrowing softens the system, so it is the owner's to
+decide.
 
 **The escaped defects.** The issues closed since the same `<since>` that the top row doesn't count (an issue the
 batch's last PR closed can close a moment after it, #412 after #415).
@@ -743,12 +713,13 @@ can reach ([TESTING.md](TESTING.md) → Known blind spots).
 session's work cost and rates each merged PR's complexity. First rate the batch's PRs that have no
 rating yet (`journal rate kinopeer/kinopeer#<n>`, one cheap request each), then read
 `journal report --since <since>`: each PR's cost per complexity point and their median over the
-batch, against the last retro's; each PR's cost by role (author, reviewer, second reviewer,
-coordinator); the cost by model and effort; and the PRs that cost the most per point. What
+batch, against the last retro's; each PR's cost by role (author, deputy, coordinator); the cost by model and effort; and the PRs that cost the most per point. What
 Kinopeer's work costs, and every figure derived from it, is internal and this repository is
 public, so those figures go to the owner's summary and to `quality-system/kinopeer.md` in
 `ai-workspace`, never into this file, a PR or an issue; the table's row says only what the retro
-changed because of them. Retros before 2026-11-14 had no journal.
+changed because of them. Retros before 2026-11-14 had no journal. The deputy's runs are in the
+journal like any session's: a run that can't record stops and tells the owner (the `deputy` skill
+→ Whether to run); its rounds per PR come from its reviews.
 
 **The checks' usefulness.** For each check (the components above, the tests' layers, the lint
 rules, CI's jobs): what it caught in the batch, how often it failed for nothing a fix of the code
@@ -762,21 +733,21 @@ the guard's marks from its `guard report` check on each PR's last head (its summ
 run's, since a re-run writes another,
 `gh api 'repos/kinopeer/kinopeer/commits/<sha>/check-runs?check_name=guard%20report' --jq '.check_runs | max_by(.completed_at) | .output.summary'`;
 before 2026-11-15, from its comment on the PR). A failure fixed
-by changing the check rather than the code, or a mark the second review called needless, is a false
+by changing the check rather than the code, or a mark the deputy's verdict called needless, is a false
 alarm. The cost is a job's time from the same jobs' `started_at` and `completed_at`, and the
 reviews' share of the effort above, which stays out of the row as every figure from the journal
 does. The counts of what each check caught and of its false alarms go into the row.
 
-**The owner's points.** Where the owner decides in Kinopeer: approving a merge (in the owner's
-sessions; on autopilot the coordinator merges), a **For the owner** finding, an approval of what
-the guard marked for the owner ([What a marked PR needs](#what-a-marked-pr-needs)), a design value
-the coordinator approves in the owner's sessions, a check on the test stand, and a release. For
-each, how often it came up in the batch and how often the owner changed something rather than
-approving it as it came, from the PRs' comments and the records on them. These counts go
-into the row.
+**The owner's list.** What the owner reads here rather than approving it PR by PR: the weakenings
+the deputy accepted, the changes to the guard, the budgets raised, the design values added, the
+product decisions the coordinator took (SPEC's decision log), and the findings the deputy dropped
+after the author disputed them, each with its PR. Then where the owner still decides PR by PR: a
+change to the rules, an outside contributor's PR (the `deputy` skill → The owner's approval), and
+a release. For those, how often each came up in the batch and how often the owner changed
+something rather than approving it as it came. These counts go into the row.
 
 **What the retro changes.** The rules live in [TESTING.md](TESTING.md), the `test-review` and
-`second-review` skills (`.claude/skills/`), the PR template, [CLAUDE.md](../CLAUDE.md) and this
+`deputy` skills (`.claude/skills/`), the PR template, [CLAUDE.md](../CLAUDE.md) and this
 file. A rule that is clear and isn't followed moves closer to where the author works, preferring,
 in this order, a lint rule or a CI check, a default in a script or config (as the UTC time zone in
 `vite.config.ts` is), a column or prompt in the PR template, a line in the author's checks in

@@ -1,4 +1,4 @@
-// The checks guard: `npm run guard`, and CI's `report` job on every PR, which runs main's copy of this
+// The checks guard: `npm run guard`, and CI's `guard` job on every PR, which runs main's copy of this
 // script over the PR's branch (docs/QUALITY.md → The checks guard). It compares a branch with the
 // commit it left main at and prints, as Markdown, what in its changes weakens the checks or changes
 // existing ones. It reads the branch through git and runs none of its code.

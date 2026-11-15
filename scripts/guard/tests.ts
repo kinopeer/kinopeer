@@ -62,13 +62,13 @@ export type Reports = Map<string, Test[]>
 const NAMED = 10
 
 /**
- * The tests main's run has and the branch's doesn't, file by file. They go to the owner where the
+ * The tests main's run has and the branch's doesn't, file by file. They weaken the checks where the
  * branch runs fewer tests, in that file and in all: a test removed with nothing in its place. Else
- * to a second review, which tells a test renamed or moved from one replaced by a weaker one.
+ * they are changes to existing checks, whose review tells a test renamed or moved from one replaced by a weaker one.
  *
  * Only the reports that gave tests on both sides are compared. One that a side lacks, or that gave
- * no tests there, is a part of the run the guard can't see, said once: the branch's for the owner,
- * main's for a second review. Otherwise main's missing unit tests would let every test the branch
+ * no tests there, is a part of the run the guard can't see, said once: the branch's as a weakening,
+ * main's as a change to an existing check. Otherwise main's missing unit tests would let every test the branch
  * removed pass unseen behind the browser tests both sides list.
  */
 export function compareTests(reported: Reports, ran: Reports): Finding[] {

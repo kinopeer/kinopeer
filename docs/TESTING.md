@@ -695,90 +695,56 @@ Three steps, each by whoever can do it best:
    screens under [Screenshot tests](#screenshot-tests), SPEC's decision log, newest first, the
    blind spots). Rereading one's own tests for judgment finds little: the author sees what they
    meant to write.
-2. **A separate session reviews**, one that didn't write the PR and sees only its diff and
-   description: `/test-review <PR number>` with the `test-review` skill
-   (`.claude/skills/test-review/SKILL.md`) and `/code-review` for bugs in the code. The skill reads
-   the PR's description first (the Tests section's layers, what is declared uncovered and why, the
-   changed baselines, a fix's "Why tests missed it"), then checks the diff: every change covered or
-   explained with an accepted reason, nothing lost when a test is deleted, each assertion on its
-   layer, behavior rather than implementation, each test able to fail, fakes true to the services,
-   no sleeps or forced clicks, baselines listed, docs matching the code.
-   It doesn't run the suite (CI does), and it compares CI's survivors with the PR's `Mutants`
-   line, running the mutants itself only when [A test that can fail](#a-test-that-can-fail) says
-   so. A reviewer without the skill goes through the same list by
-   hand; the skill is the list.
-3. **A second round after the fixes**, by the same reviewer: every flagged line again, and every
-   test added or changed to fix a finding gets all the checks, since a test written to answer a
-   review is a new test. More rounds until the verdict is "ready to merge", which leaves no blocking
-   or should-fix finding open, only nits (#325's round 1 said it with a should-fix open). The author answers each
-   round with one comment headed `Fixes for round <n>`, at the commit the next round should see:
-   each finding fixed (its commit) or declined (why), the tests written for the fixes and what was
-   broken to see each red, each survivor in CI's mutants report at that commit that the `Mutants`
-   line doesn't account for, a merge of `main` and its conflicts, the docs grepped again for what
-   the fixes changed (#230's fix left two sentences stale), and the description's What, Tests and
-   Docs brought to that head: whoever merges reads the description first, and the retro counts from
-   it (11 findings in the 2026-11-08 batch: #273's What kept the claim its fix removed, #298's Not
-   covered described the step before the fix, #291's Docs list named a hunk a merge of `main` had
-   dropped). The reviewer starts the next round from that comment and checks the description against
-   the head as it checks the docs; a message that points to it is the whole hand-over. A reviewer who sees the PR grow
-   past what it set out to do (each round finds bugs in the same new mechanism, workarounds pile up)
-   says so in the round, as a finding for the owner to weigh the cost against the gain, not as one
-   more fix to ask for (#252). It has no check tag and no severity and doesn't hold the verdict: it
-   goes after the findings under its own heading, **For the owner**, and the retro names it in its
-   row rather than counting it (#253's round 3 left it open). A screenshot's visible side effect the
-   PR doesn't ask the owner about goes there too, as the question itself ([Screenshot tests](#screenshot-tests)),
-   and unlike the rest it holds the merge until the owner answers it.
+2. **The deputy reviews**: a cloud routine that acts as the owner's GitHub account, the one
+   reviewer and approver of every PR, woken when the PR is marked ready for review. How it reviews,
+   posts its rounds, judges the checks guard's marks, and what it leaves to the coordinator and the
+   owner is the `deputy` skill (`.claude/skills/deputy/SKILL.md`). The tests are reviewed with the
+   `test-review` skill (`.claude/skills/test-review/SKILL.md`), the code with `/code-review`.
+3. **The author answers each round** that leaves findings open. The round converts the PR to a
+   draft and wakes the author's session (its Auto-fix). The author fixes, then posts one comment
+   headed `Fixes for round <n>`, at the commit the next round should see: each finding fixed (its
+   commit) or declined (why), the tests written for the fixes and what was broken to see each
+   red, each survivor in CI's mutants report at that commit that the `Mutants` line doesn't
+   account for, a merge of `main` and its conflicts, the docs grepped again for what the fixes
+   changed (#230's fix left two sentences stale), and the description's What, Tests and Docs
+   brought to that head, since the retro counts from the description (11 findings in the
+   2026-11-08 batch: #273's What kept the claim its fix removed, #298's Not covered described the
+   step before the fix, #291's Docs list named a hunk a merge of `main` had dropped). Then the
+   author marks the PR ready again, which starts the next round.
 
-Each round is one comment on the PR headed `Test review, round <n>`, findings first, each tagged
-with its check and whether the rule behind it was clear ([below](#improving-the-system)), then the
-`/code-review` result on the same commit (its count of findings, or "no findings"), then the
-verdict with the commit both reviews saw (`**Verdict: ready to merge** at <short sha>`). Every round
-is posted, whichever session runs it: a review that stays in a chat is invisible to whoever merges
-and to the retro. A PR merges only on a posted "ready to merge" at its current head. A commit of
-the PR's own after that verdict needs another round, which checks only what the PR's own diff adds
-or changes; such a commit fixes what the PR already does, and a new request goes into a PR of its
-own (`CLAUDE.md` → Conventions). A merge of `main` after it needs a round when either holds:
-
-- the lines `git diff main...HEAD` adds and removes aren't those of the diff the verdict saw, apart
-  from conflicts in `CHANGELOG.md`, SPEC's decision log and `CLAUDE.md` resolved by keeping both
-  sides (a re-rendered baseline or a field added to a type is a change: #247 after #244);
-- or the commits it brings change a file the PR changes, other than those three, even where their
-  lines are apart (#243 and #244 in `DownloadsScreen.tsx`; #334's `Merged main` comment named
-  `parseRelease.ts`, which #332 and #333 had changed, and it merged without the round).
-
-Otherwise the author posts one comment headed `Merged main at <short sha>`: the PR's diff
-unchanged, the conflicts and how they were resolved (`git show --remerge-diff`), the files both
-sides change (none outside those three), and CI green at that commit. The verdict carries over to
-it, and whoever merges reads both comments. `CHANGELOG.md` merges with `merge=union`
-(`.gitattributes`), which keeps both sides' lines, this branch's first, without a conflict once
-the branch has `.gitattributes` (a branch cut before it conflicts there on its first merge of
-`main`). A line both sides rewrote then stays twice, also without a conflict (#241 rewrote a
-bullet #231 had added), so the comment checks `git diff main...HEAD -- CHANGELOG.md` for a line
-the PR adds beside `main`'s version of the same entry, keeps one, and says where the PR's entry
-ended up.
+The author opens the PR as a draft, and once step 1 is done turns on auto-merge
+(`gh pr merge --auto --squash`) and marks it ready (`gh pr ready`): GitHub merges it when the
+deputy approves and the checks pass. `main`'s ruleset dismisses an approval when a push changes the
+PR's diff, so a fix after the approval is a new round; a merge of `main` that leaves the diff as it
+was keeps the approval and needs nothing. A commit after an approval fixes what the PR already
+does; a new request goes into a PR of its own (`CLAUDE.md` → Conventions). `CHANGELOG.md` merges
+with `merge=union` (`.gitattributes`), which keeps both sides' lines, this branch's first, without
+a conflict once the branch has `.gitattributes` (a branch cut before it conflicts there on its
+first merge of `main`). A line both sides rewrote then stays twice, also without a conflict (#241
+rewrote a bullet #231 had added), so after a merge of `main` the author checks `git diff
+main...HEAD -- CHANGELOG.md` for a line the PR adds beside `main`'s version of the same entry and
+keeps one.
 
 An outside contributor's PR ([CONTRIBUTING.md](../CONTRIBUTING.md)) gets the same rounds, but the
 maintainer's session takes the author's part: it fills in the Tests section, runs the mutants, sees
 the tests red and answers each round, with commits to the contributor's branch (they leave "Allow
-edits by maintainers" on) or in a PR of our own that takes their commits. The reviewer asks the
+edits by maintainers" on) or in a PR of our own that takes their commits. The deputy asks the
 contributor for nothing the template's own line leaves to the maintainer.
 
 Dependabot's PRs (`.github/dependabot.yml`: once a month, grouped) skip the rounds and the
 template. They change only versions, in `package.json`, the lockfiles, the workflows' `uses:` and the `Dockerfile`'s image digest,
-and a round would have nothing of ours to read. One merges on green CI and the owner's OK. Before
-asking for it on a major, the session that brings the PR to the owner reads the release notes of
-each package it moves a major and says in a PR comment what of them touches Kinopeer, or that
-nothing does, since a changed default or a deprecation can pass CI unnoticed. One
-that fails, or a major that needs our code changed, is closed, and the update goes into a PR of our
-own with the fixes, which gets its rounds. The retro leaves them out of its batch and its count
-([QUALITY.md](QUALITY.md) → The retro). A PR's CI doesn't run everything they move:
-Wrangler (`tmdb-proxy/`) runs only in `tmdb-proxy.yml`, and the `docker/*` actions other than
-`setup-buildx-action` and `build-push-action` only in `edge.yml` and `release.yml`. So after the
-`tmdb-proxy` PR, or a `github-actions` PR that changes `edge.yml` or `tmdb-proxy.yml`, merges, the
-owner watches the Edge run it starts on `main`; `release.yml`'s actions first run at the next tag
-(`RELEASE_CHECKLIST.md` → Before every release). Stryker runs on an npm PR in `mutants.yml`, as a
-dry run, since #285: before it a root npm PR didn't start that workflow, and TypeScript 7 (#275)
-broke Stryker unseen until the next PR with code.
+and a round would have nothing of ours to read; what the deputy does with them is in its skill.
+One that fails, or a major that needs our code changed, is closed, and the update goes into a PR
+of our own with the fixes, which gets its rounds. The retro leaves them out of its batch and its
+count ([QUALITY.md](QUALITY.md) → The retro). A PR's CI doesn't run
+everything they move: Wrangler (`tmdb-proxy/`) runs only in `tmdb-proxy.yml`, and the `docker/*`
+actions other than `setup-buildx-action` and `build-push-action` only in `edge.yml` and
+`release.yml`. So they first run in the Edge run on `main` that the `tmdb-proxy` PR, or a
+`github-actions` PR that changes `edge.yml` or `tmdb-proxy.yml`, starts when it merges, and
+`release.yml`'s actions at the next tag (`RELEASE_CHECKLIST.md` → Before every release).
+Stryker runs on an npm PR in `mutants.yml`, as a dry run, since #285: before it a root npm PR
+didn't start that workflow, and TypeScript 7 (#275) broke Stryker unseen until the next PR with
+code.
 
 A real bug that `/code-review` finds in an open PR's own change is fixed in that PR, red test
 first, without an issue: it never reached `main`. The round that reports the bug records the
@@ -786,10 +752,10 @@ missing test under check A as well, as one finding with the bug, since the test 
 caught it wasn't there (left to the next round, four such bugs in #230, #231 and #247 were never
 counted). A bug that reached `main` follows [When we find a bug](#when-we-find-a-bug).
 
-A PR in which the checks guard marked changes to existing checks gets a second review as well
-before it merges, by a fresh session and after the "ready to merge" above: what its record closes
-is in [QUALITY.md](QUALITY.md) → What a marked PR needs, and how it is done in the `second-review`
-skill.
+Until 2026-11-15 a separate local session reviewed each PR, posted its rounds as comments headed
+`Test review, round <n>` with a "ready to merge" verdict, a fresh session gave the guard's marks a
+second review, and the owner approved each merge; the retro reads those comments for the PRs
+before it.
 
 ## Improving the system
 
@@ -811,9 +777,9 @@ one of:
 
 Each finding is tagged once, in the round that first reports it. A later round that finds it still
 open lists it as `still open (round <n>)` with no tag, and the retro counts each PR's findings once,
-from the reviewer's rounds only: the author's `Fixes for round <n>` comments repeat the tags.
+from the deputy's rounds only: the author's `Fixes for round <n>` comments repeat the tags.
 
-The review comments are the log: no other file to keep in sync. Escaped bugs keep their own
+The reviews are the log: no other file to keep in sync. Escaped bugs keep their own
 record, the issues of the Bug type with their `test-gap:*` labels
 ([When we find a bug](#when-we-find-a-bug)).
 
@@ -836,7 +802,7 @@ Unit tests run in jsdom, which has no layout, so they can't catch a button in th
 - **No live services:** `e2e/app.ts` answers `/qbt`, `/tmdb`, `/tmdb-img`, `/prowlarr`, `/api/settings` and `/api/matches` from the shared fixtures (`src/test/fixtures.ts` through `e2e/fixtures.ts`), matched by URL pathname (a glob like `**/tmdb/**` would also catch Vite's `/src/api/tmdb/` modules). Posters are generated gradients and the release's `.torrent` is built from the fixtures too. The app version in Settings is masked, so a version bump doesn't change the screenshots. The clock is frozen, animations are off and the service worker is blocked. Text is always grayscale (`--disable-lcd-text` in `playwright.config.ts`): left to itself, Chromium now and then draws part of a page's text in grayscale instead of LCD, as it did in two screenshots in CI (#145). What triggers it wasn't found, and a page can't see it, so a test can't wait it out.
 - **Docker only:** fonts render differently on macOS and on other Linux setups (about 1% of pixels, enough to fail), so baselines are rendered only in the Playwright image. `npm run test:visual` runs the tests in it with Docker; `node_modules` for the container is kept in a Docker volume, not the host's. Arguments go to `playwright test`, e.g. `npm run test:visual -- e2e/search.spec.ts`.
 - **Parallel worktrees:** each checkout, every git worktree included, gets its own `node_modules` volume, `kinopeer-visual-nm-<folder>-<checksum of its physical path>` (`scripts/playwright-docker.sh`, shared with the README screenshots), so runs in several worktrees at once don't reinstall it under each other. A run installs only when the volume wasn't installed from this `package-lock.json`, in this image, for this architecture (`scripts/install-node-modules.sh`, a stamp in the volume says which), so the first run in a worktree takes a minute longer and later ones skip `npm ci`. Since `npm ci` no longer runs every time, a run that fails inside `node_modules` (a missing module, a binary for another platform) is fixed by removing that checkout's volume and running again. Two runs in the same checkout still share `test-results/` and the baselines, so run one at a time there. Each volume takes about 250 MB, so it's labelled with its checkout's path (`kinopeer.checkout`), and every run removes the labelled volumes whose folder no longer exists, as a worktree's once its session is cleaned up; Docker refuses one a running container uses, and the next run tries again. Volumes without the label are never removed automatically: those made by hand, before the label or before the rename to Kinopeer (`kinoseed-visual-node-modules*`, every `kinoseed-visual-nm-*`, whose `kinoseed.checkout` label the cleanup no longer reads) go once by hand: `docker volume ls -q --filter name=kinoseed-visual | xargs docker volume rm`, and `docker volume rm <name>` for a hand-named one.
-- **Changing the UI:** a PR that changes how a covered screen looks updates its baselines. First run `npm run test:visual` as is: every failed screenshot leaves an expected, an actual and a diff image in `test-results/`, where the diff highlights only the changed pixels. Make sure nothing but the intended change is highlighted, then re-render with `npm run test:visual:update` and commit the PNGs (GitHub shows image diffs in the PR too). A change too small to fail its screenshot (a hover shade, a pixel of padding) is under the threshold, and the plain update keeps the old PNG: re-render that spec with `npm run test:visual -- --update-snapshots=all e2e/<spec>.spec.ts` and commit only the PNGs of the screens you meant to change. Open every new baseline and check that it shows what its test's name says. The PR lists each PNG with what changed and how it was checked: the diff looked at, re-rendered with `=all`, or new and opened. Each change on a screen is either intended, what the PR sets out to change, or a side effect: a shift, a swap or something gone on a screen or in a state the task didn't touch. A side effect isn't accepted by describing it: one visible to the eye goes to the owner as a question before the merge, in the PR's own **For the owner** section, with the before and after images, and the PR merges once the owner has answered it; a change only the diff image shows (a pixel of anti-aliasing) isn't one (#324, where a swap of the header's rows, described in #100's list, stayed for two weeks). Add a spec when a new screen, sheet, dialog or state needs one ([Saying why something is uncovered](#saying-why-something-is-uncovered)), with `test` and `expect` from `./test.ts`.
+- **Changing the UI:** a PR that changes how a covered screen looks updates its baselines. First run `npm run test:visual` as is: every failed screenshot leaves an expected, an actual and a diff image in `test-results/`, where the diff highlights only the changed pixels. Make sure nothing but the intended change is highlighted, then re-render with `npm run test:visual:update` and commit the PNGs (GitHub shows image diffs in the PR too). A change too small to fail its screenshot (a hover shade, a pixel of padding) is under the threshold, and the plain update keeps the old PNG: re-render that spec with `npm run test:visual -- --update-snapshots=all e2e/<spec>.spec.ts` and commit only the PNGs of the screens you meant to change. Open every new baseline and check that it shows what its test's name says. The PR lists each PNG with what changed and how it was checked: the diff looked at, re-rendered with `=all`, or new and opened. Each change on a screen is either intended, what the PR sets out to change, or a side effect: a shift, a swap or something gone on a screen or in a state the task didn't touch. A side effect isn't accepted by describing it: one visible to the eye is a question for the coordinator before the merge, in the PR's own **For the coordinator** section, with the before and after images, and the deputy approves the PR once the coordinator has answered it (the `deputy` skill → The round); a change only the diff image shows (a pixel of anti-aliasing) isn't one (#324, where a swap of the header's rows, described in #100's list, stayed for two weeks). Add a spec when a new screen, sheet, dialog or state needs one ([Saying why something is uncovered](#saying-why-something-is-uncovered)), with `test` and `expect` from `./test.ts`.
 - **In CI:** the `visual` job runs in the same image, on two workers (`playwright.config.ts`; locally Playwright picks). When it fails, its `playwright-report` artifact has the expected, actual and diff images.
 - **Upgrading Playwright:** `@playwright/test` in `package.json`, the image tag in `scripts/playwright-docker.sh` and `.github/workflows/ci.yml` must name the same version, and both pin the image by the digest that tag names (`docker buildx imagetools inspect mcr.microsoft.com/playwright:v<version>-noble`, the `Digest` line); re-render the baselines after an upgrade.
 
@@ -935,9 +901,10 @@ it are in [QUALITY.md](QUALITY.md) → The requests budget.
   Each sets its own torrents and runs the clock itself through
   `prepareApp` (`e2e/app.ts`), which `openApp` uses too, with the clock frozen instead.
 - **A new screen** opened by its address in the screenshot tests gets a row in its `SCREENS` and a
-  budget for each window size, which goes to a second review. A screen taken out of `SCREENS` takes
-  its budgets with it, which goes to the owner. A new journey or move gets its place in
-  `JOURNEYS_MADE` and a budget for each move in each window size, which goes to a second review.
+  budget for each window size, which the guard marks among the changes to existing checks. A screen
+  taken out of `SCREENS` takes its budgets with it, which the guard marks as a weakening. A new journey or move gets its place in
+  `JOURNEYS_MADE` and a budget for each move in each window size, which the guard marks among the changes to existing
+  checks.
 - **What it leaves out.** The other states of its screens that the screenshot tests open (other
   torrents' pages, a search that finds nothing, onboarding), whose counts would follow the shared
   fixtures' options more than the app: QUALITY → The requests budget lists them.
@@ -1048,7 +1015,7 @@ has the budgets' rule.
   and that every screen read has a budget at its size and every budget a screen read there. The reporter
   (`e2e/performance/summary.ts`) adds a table of every load's reading to the job's summary.
 - **A new screen** in `screens.ts` gets a case here, with its chain from its code, and a budget,
-  which goes to a second review. A new late block on a screen (one that appears after the screen's
+  which the guard marks among the changes to existing checks. A new late block on a screen (one that appears after the screen's
   first paint because an answer landed) goes into the table below and into a case that shows it.
 
 | Screen | Answers, in their chain | Late blocks | Cases |

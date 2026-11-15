@@ -2,7 +2,7 @@
 // which fails a raw value without a comment on its line, and for the checks guard, which marks for the
 // coordinator a raw value a branch adds with such a comment and every design token it adds, changes or
 // removes (docs/QUALITY.md → The checks guard). The guard runs main's copy over a branch, so a change
-// here changes both at once, and goes to the owner as a change to the guard. Stylesheets are parsed
+// here changes both at once, and is marked as a change to the guard. Stylesheets are parsed
 // with PostCSS, which Vite's own CSS handling brings in; the values inside a declaration are read by
 // the patterns below.
 import { Input, parse, type AtRule, type Node, type Rule } from 'postcss'

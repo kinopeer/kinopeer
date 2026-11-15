@@ -6,7 +6,7 @@ name: Guard
 # the `guard` job, which main's ruleset requires, passes whatever the guard marks and fails only
 # when the guard itself breaks or can't write its report. The script is main's;
 # this file isn't: on pull_request GitHub runs the workflow as the PR has it, so a PR that changes
-# these steps runs them changed, and main's script marks the change for the owner.
+# these steps runs them changed, and main's script marks the change as a weakening.
 #
 # Two jobs, so the PR's code never runs where the token can write: `tests` runs the tests of both
 # sides for the lists of what ran, with a token that can only read; `guard` runs only main's script,

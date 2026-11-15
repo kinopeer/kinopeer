@@ -7,10 +7,11 @@ import { compareAssertions } from './assertions.ts'
 import { atRulesIn, rawValues, tokensIn, TOKENS_FILE, type Sheet } from './stylesheets.ts'
 
 /**
- * What a finding calls for before the PR merges: the owner's approval with a reason (a weakening, or
- * a change to the guard itself), the coordinator's approval with a reason (a design value added or
- * changed: a token, or a value off the tokens' scale that a comment lets through), or a second,
- * independent review of the lines marked (a change to an existing check that a script can't judge).
+ * Which of the report's lists a finding goes in, keyed by who once approved each: what weakens the
+ * checks (`owner`; a change to the guard itself among them), a design value added or changed
+ * (`coordinator`: a token, or a value off the tokens' scale that a comment lets through), or a
+ * change to an existing check that a script can't judge (`review`). The deputy judges them all
+ * (.claude/skills/deputy → The round).
  */
 export type Needs = 'owner' | 'coordinator' | 'review'
 
@@ -32,9 +33,9 @@ export const PACKAGE_FILE = 'package.json'
 const WORKFLOWS = '.github/workflows/'
 const inRoot = (path: string): boolean => !path.includes('/')
 const isWorkflow = (path: string): boolean => path.startsWith(WORKFLOWS) && inRoot(path.slice(WORKFLOWS.length)) && (path.endsWith('.yml') || path.endsWith('.yaml'))
-/** The guard itself and its rules, the second review's procedure among them: a change to them goes to the owner, whatever it is. */
+/** The guard itself and its rules, the deputy's procedure that judges its marks among them: a change to them is marked, whatever it is. */
 const isGuard = (path: string): boolean =>
-  path.startsWith('scripts/guard/') || path === `${WORKFLOWS}guard.yml` || path === 'docs/QUALITY.md' || path.startsWith('.claude/skills/second-review/')
+  path.startsWith('scripts/guard/') || path === `${WORKFLOWS}guard.yml` || path === 'docs/QUALITY.md' || path.startsWith('.claude/skills/deputy/')
 const isDoc = (path: string): boolean => path.endsWith('.md')
 const nameOf = (path: string): string => path.slice(path.lastIndexOf('/') + 1)
 /** A lint config outside the root, which oxlint obeys for its folder: the root's rules turned off without touching the root's config. */
@@ -71,8 +72,8 @@ const show = (value: Json | undefined): string => (value === undefined ? 'nothin
 
 /**
  * Both versions of a JSON file parsed, or the finding that says which one couldn't be: the branch's
- * goes to the owner, since a check that reads it is broken or off; main's leaves nothing to compare
- * the branch's with, which a second review looks at.
+ * weakens the checks, since a check that reads it is broken or off; main's leaves nothing to compare
+ * the branch's with, which is a change to an existing check.
  */
 function parseBoth(file: string, base: string, head: string): { base: JsonObject; head: JsonObject } | Finding {
   const parse = (text: string): JsonObject | undefined => {
@@ -290,8 +291,9 @@ export function compareLint(base: string | undefined, head: string | undefined, 
 /**
  * What decides where and how the rules of the config or of one override apply, besides the rules
  * themselves and the keys `skip` names, which the caller reads: a plugin removed (and its rules
- * with it), an environment turned on or a global allowed (which `no-undef` then lets through) go to
- * the owner, and any other key changed, one the guard has no rule for included, to a second review.
+ * with it), an environment turned on or a global allowed (which `no-undef` then lets through) weaken
+ * the checks, and any other key changed, one the guard has no rule for included, is a change to an
+ * existing check.
  */
 function compareScope(file: string, where: string, had: JsonObject, has: JsonObject, skip: string[]): Finding[] {
   const found: Finding[] = []
@@ -432,8 +434,8 @@ export function compareWorkflows(workflows: Change[]): Finding[] {
  * What a line the branch adds can bring in, in which files it counts, what it calls for and what
  * the finding says. Retries: `retries` as a name in the code (a key with anything but 0, a variable
  * assigned or passed on), `retry` as a key with any value but 0, a mock or a function (the app's own
- * `retry: vi.fn()` and `retry: () => void`), and either as a command's flag. A condition on a step goes to a second review, not to
- * the owner: most are fair (`if: always()` on a summary), and a script can't tell.
+ * `retry: vi.fn()` and `retry: () => void`), and either as a command's flag. A condition on a step is a change to an existing check, not
+ * a weakening: most are fair (`if: always()` on a summary), and a script can't tell.
  */
 const ADDED: { pattern: RegExp; counts: (path: string) => boolean; needs: Needs; what: string }[] = [
   {
@@ -539,7 +541,7 @@ export function compareStylesheets(changes: Change[], sheets: Sheet[]): Finding[
  */
 export function findings(changes: Change[], sheets: Sheet[] = []): Finding[] {
   const files = changes.flatMap(({ path, base, head, added }): Finding[] => {
-    // The guard's own files hold these patterns as text, and each change to them goes to the owner anyway.
+    // The guard's own files hold these patterns as text, and each change to them is marked as one to the guard anyway.
     if (isGuard(path)) return [{ needs: 'owner', file: path, what: 'the checks guard or its rules changed' }]
     if (path === CHECKS_FILE) return compareChecks(base, head)
     if (path === LINT_FILE) return compareLint(base, head)
@@ -565,11 +567,11 @@ export function report(found: Finding[], { head, base }: { head: string; base: s
   const review = found.filter(({ needs }) => needs === 'review')
   const lines = [`**Checks guard at ${head}**, against \`main\` at ${base}.`]
   if (found.length === 0) lines.push('', 'No weakening of the checks, no change to existing ones and no design value added or changed.')
-  if (owner.length > 0) lines.push('', `**For the owner: ${owner.length} to approve, each with a reason.** A weakening of the checks, or a change to the guard or its rules.`, '', ...list(owner))
+  if (owner.length > 0) lines.push('', `**Weakens the checks: ${owner.length}.** A weakening of the checks, or a change to the guard or its rules.`, '', ...list(owner))
   if (coordinator.length > 0) {
-    lines.push('', `**For the coordinator: ${coordinator.length} to approve, each with a reason.** A design value added, changed or removed: a token, or a value off the tokens' scale that a comment lets through.`, '', ...list(coordinator))
+    lines.push('', `**Design values: ${coordinator.length}.** A design value added, changed or removed: a token, or a value off the tokens' scale that a comment lets through.`, '', ...list(coordinator))
   }
-  if (review.length > 0) lines.push('', `**For a second review: ${review.length}.** Changes to existing checks, which a script can't judge.`, '', ...list(review))
+  if (review.length > 0) lines.push('', `**Changes to existing checks: ${review.length}.** Which a script can't judge.`, '', ...list(review))
   return lines.join('\n')
 }
 

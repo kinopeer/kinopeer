@@ -747,12 +747,12 @@ describe('scanAdded', () => {
 })
 
 describe('findings', () => {
-  it.each(['scripts/guard/signs.ts', 'scripts/guard/guard.test.ts', '.github/workflows/guard.yml', 'docs/QUALITY.md', '.claude/skills/second-review/SKILL.md'])('sends a change to the guard or its rules to the owner: %s', (path) => {
+  it.each(['scripts/guard/signs.ts', 'scripts/guard/guard.test.ts', '.github/workflows/guard.yml', 'docs/QUALITY.md', '.claude/skills/deputy/SKILL.md'])('sends a change to the guard or its rules to the owner: %s', (path) => {
     // With a line that would be a finding of its own anywhere else: the guard's files hold the patterns as text.
     expect(findings([{ path, base: 'jobs: {}', head: 'jobs: {}', added: [{ line: 1, text: '  retries: 2,' }] }])).toEqual([{ needs: 'owner', file: path, what: 'the checks guard or its rules changed' }])
   })
 
-  it.each(['tmdb-proxy/scripts/guard/signs.ts', 'scripts/guardian.ts', 'docs/.github/workflows/guard.yml', '.github/workflows/guard.yml.md', 'QUALITY.md', 'docs/QUALITY.md.bak', '.claude/skills/test-review/SKILL.md', '.claude/skills/second-reviews/SKILL.md', 'docs/.claude/skills/second-review/SKILL.md'])("doesn't take %s for the guard", (path) => {
+  it.each(['tmdb-proxy/scripts/guard/signs.ts', 'scripts/guardian.ts', 'docs/.github/workflows/guard.yml', '.github/workflows/guard.yml.md', 'QUALITY.md', 'docs/QUALITY.md.bak', '.claude/skills/test-review/SKILL.md', '.claude/skills/deputys/SKILL.md', 'docs/.claude/skills/deputy/SKILL.md', '.claude/skills/second-review/SKILL.md'])("doesn't take %s for the guard", (path) => {
     expect(findings([{ path, added: [] }])).toEqual([])
   })
 
@@ -842,11 +842,11 @@ describe('report', () => {
     expect(text.split('\n')).toEqual([
       '**Checks guard at abc1234**, against `main` at def5678.',
       '',
-      '**For the owner: 1 to approve, each with a reason.** A weakening of the checks, or a change to the guard or its rules.',
+      '**Weakens the checks: 1.** A weakening of the checks, or a change to the guard or its rules.',
       '',
       '- `playwright.config.ts:16`: test retries appeared: `retries: 2,`',
       '',
-      "**For a second review: 1.** Changes to existing checks, which a script can't judge.",
+      "**Changes to existing checks: 1.** Which a script can't judge.",
       '',
       '- `checks.json`: the threshold `coverage.thresholds.lines` changed: `96` → `97`',
     ])
@@ -1093,13 +1093,13 @@ describe('report of the coordinator\'s list', () => {
     const lines = report(found, { head: 'abc1234', base: 'def5678' }).split('\n').slice(2)
     expect(lines.slice(3, 8)).toEqual([
       '',
-      "**For the coordinator: 1 to approve, each with a reason.** A design value added, changed or removed: a token, or a value off the tokens' scale that a comment lets through.",
+      "**Design values: 1.** A design value added, changed or removed: a token, or a value off the tokens' scale that a comment lets through.",
       '',
       "- `src/a.css:2`: a value off the tokens' scale, let through by the comment on its line: `padding: 3px`",
       '',
     ])
-    expect(lines[0]).toMatch(/^\*\*For the owner/)
-    expect(lines[8]).toMatch(/^\*\*For a second review/)
+    expect(lines[0]).toMatch(/^\*\*Weakens the checks/)
+    expect(lines[8]).toMatch(/^\*\*Changes to existing checks/)
   })
 })
 
