@@ -15,7 +15,7 @@ Only what is on, being adopted, or declined with its reason; plans aren't listed
 | Component | State | What it does |
 | --- | --- | --- |
 | [The testing rules](TESTING.md) | On, version 2 of the quality system's testing component (2026-11-15), of which [TESTING.md](TESTING.md) is the source | How a change is covered by tests and reviewed: the lowest layer that sees a statement, the neighbours of a change, a test seen to fail, the accepted reasons for something uncovered, what a bug calls for and its seven `test-gap` classes, the review rounds and their tags |
-| The effort journal | On since 2026-11-14, when its sheet's webhook was set: built outside this repository, in the owner's `ai-workspace` (`effort-journal/`). Its hook records every session's turns on the owner's Mac into a Google Sheet. A cloud session (the deputy's runs, a cloud author or coordinator) records only when its environment has the journal's variables, and the deputy stops without them (the `deputy` skill → Whether to run); but a cloud run's sends don't reach the sheet yet: on 2026-11-15 the deputy's `journal flush` failed (`fetch failed`; the cloud proxy refuses the webhook's hosts), so its rows stay in the container's spool and go with it. The fix is tracked in the owner's `ai-workspace`, where the journal lives | Records what each session's work costs and rates each merged PR's complexity, which the retro sets against each other ([The retro](#the-retro)); the figures stay out of this repository, which is public |
+| The effort journal | On since 2026-11-14, when its sheet's webhook was set: built outside this repository, in the owner's `ai-workspace` (`effort-journal/`). Its hook records every session's turns on the owner's Mac into a Google Sheet. A cloud session (the deputy's runs, a cloud author or coordinator) records only when its environment has the journal's variables, and the deputy stops without them (the `deputy` skill → Whether to run); but a cloud run's sends don't reach the sheet yet: on 2026-11-15 the deputy's `journal flush` failed (`fetch failed`; the cloud proxy refuses the webhook's hosts), so its rows stay in the container's spool and go with it. The fix is tracked in the owner's `ai-workspace`, where the journal lives, and the date a cloud run's rows first reach the sheet goes here, for the retro ([The retro](#the-retro)) | Records what each session's work costs and rates each merged PR's complexity, which the retro sets against each other ([The retro](#the-retro)); the figures stay out of this repository, which is public |
 | [The retro](#the-retro) | On since 2026-10-28 as the tests' retro, the whole system's since 2026-11-14, by version 2 of the quality system's retro (2026-11-15) | Every fifty merged PRs, reads the review findings, the escaped bugs, the effort against complexity, the checks' usefulness and the owner's points, and changes the rules where a pattern repeats |
 | [The checks guard](#the-checks-guard) | On since 2026-11-12 (#366); a report only since 2026-11-15: its `guard` job, among `main`'s required checks, passes whatever it marks and fails only when the guard breaks or can't write its report | A script CI runs on every PR, which writes into the PR's `guard report` check what in it weakens the checks, changes existing ones or adds a design value, for the deputy's round to judge |
 | The design tokens check | On since 2026-11-14 (#411): a test in CI's `check` job, which is among `main`'s required checks | `src/styles/tokens.test.ts` fails a stylesheet's spacing, radius, type size, color, shadow or motion that the tokens have, and one they lack unless its line carries a comment saying why, and a `var()` that names a property nothing defines. What counts as a raw value is defined in `scripts/guard/stylesheets.ts`, which the guard reads too ([What it marks](#what-it-marks)) |
@@ -716,12 +716,14 @@ batch, against the last retro's; each PR's cost by role (author, deputy, coordin
 Kinopeer's work costs, and every figure derived from it, is internal and this repository is
 public, so those figures go to the owner's summary and to `quality-system/kinopeer.md` in
 `ai-workspace`, never into this file, a PR or an issue; the table's row says only what the retro
-changed because of them. Retros before 2026-11-14 had no journal. The deputy's runs are meant to be in the journal like any
-session's: a run without the journal's variables stops and tells the owner (the `deputy` skill →
-Whether to run); its rounds per PR come from its reviews. Until a cloud run's sends reach the sheet
-([Components](#components), the effort journal's row), the deputy's runs and every other cloud
-session are missing from `journal report`: the retro says so, names the PRs whose cost is partial,
-and doesn't compare their cost per point, or the batch's median over them, as whole.
+changed because of them. Retros before 2026-11-14 had no journal. The deputy's runs are meant to be
+in the journal like any session's: a run without the journal's variables stops and tells the owner
+(the `deputy` skill → Whether to run); its rounds per PR come from its reviews. A cloud run from
+before the date its sends first reach the sheet (the effort journal's row in
+[Components](#components), which gains that date) is missing from `journal report` for good, since
+its spool went with its container. So the retro names the batch's PRs that had such runs, which
+until that date is every PR the deputy reviewed, and leaves them out of the cost per point, the
+batch's median, the cost by role and the cost by model and effort, saying how many it left out.
 
 **The checks' usefulness.** For each check (the components above, the tests' layers, the lint
 rules, CI's jobs): what it caught in the batch, how often it failed for nothing a fix of the code
