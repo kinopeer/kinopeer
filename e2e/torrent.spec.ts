@@ -91,6 +91,20 @@ test.describe('desktop drawer', () => {
     await expect(page).toHaveScreenshot('desktop-drawer-dark-ru.png')
   })
 
+  // The drawer's progress card lies on --sunken, darker than any other background a status chip
+  // sits on in the light theme, so its Completed chip has contrast of its own to keep (#432).
+  test.describe('light, English', () => {
+    test.use({ locale: 'en-US' })
+
+    test('a completed torrent', async ({ page }) => {
+      await openApp(page, '/torrent/a6', { theme: 'light', lang: 'en' })
+      const drawer = page.getByRole('dialog', { name: 'The Bear' })
+      await expect(drawer.getByText('Completed', { exact: true })).toBeVisible()
+      await settle(page)
+      await expect(page).toHaveScreenshot('desktop-drawer-completed-light-en.png')
+    })
+  })
+
   /** The drawer of the torrent TMDB finds nothing for, its More with the dot. */
   const openUnmatched = async (page: Page) => {
     await openApp(page, '/')
