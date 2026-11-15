@@ -26,7 +26,7 @@ Setup is in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). Before pushing, run `npm
 
 ## How Kinopeer is developed
 
-Kinopeer is written with [Claude Code](https://claude.com/claude-code). The maintainer sets the tasks, reads the changes and decides what merges. Every PR but Dependabot's is reviewed by a Claude routine acting as the maintainer's account, by the rules in `docs/TESTING.md`, hence the review rounds in the PRs' reviews, and `CLAUDE.md` describes the project for those sessions. If you work with Claude Code yourself, it gives your session the same context. Whether you write code with AI is up to you; the bar is the same either way: the tests and the review.
+Kinopeer is written with [Claude Code](https://claude.com/claude-code). The maintainer sets the tasks, reads the changes and decides what merges. Every PR but Dependabot's goes through review rounds by a Claude routine acting as the maintainer's account, by the rules in `docs/TESTING.md`, hence the review rounds in the PRs' reviews, and `CLAUDE.md` describes the project for those sessions. If you work with Claude Code yourself, it gives your session the same context. Whether you write code with AI is up to you; the bar is the same either way: the tests and the review.
 
 ## Licensing of contributions
 
