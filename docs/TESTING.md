@@ -716,8 +716,8 @@ The author opens the PR as a draft, and once step 1 is done marks it ready (`gh 
 turns on auto-merge (`gh pr merge --auto --squash`), each time it marks the PR ready: GitHub
 merges it when the deputy approves and the checks pass. Marking a PR ready is what wakes the
 deputy, so a PR that needs a round while it isn't a draft goes back to a draft and is marked
-ready again (`gh pr ready --undo`, then `gh pr ready`; in a cloud session, where GraphQL is
-refused, through the routes the `deputy` skill → Ground rules names). That's the case after a push that changes
+ready again (`gh pr ready --undo`, then `gh pr ready`; in a cloud session, through the routes
+below). That's the case after a push that changes
 the diff of an approved PR, since `main`'s ruleset then dismisses the approval; a merge of `main`
 that leaves the diff as it was keeps the approval and needs nothing. A commit after an approval fixes what the PR already
 does; a new request goes into a PR of its own (`CLAUDE.md` → Conventions). `CHANGELOG.md` merges
@@ -727,6 +727,19 @@ first merge of `main`). A line both sides rewrote then stays twice, also without
 rewrote a bullet #231 had added), so after a merge of `main` the author checks `git diff
 main...HEAD -- CHANGELOG.md` for a line the PR adds beside `main`'s version of the same entry and
 keeps one.
+
+In a cloud session GitHub's GraphQL is refused, so `gh pr view`, `gh pr ready` and `gh pr merge`
+fail. The cloud proxy serves REST in their place, `<n>` being the PR's number:
+
+- reading: `gh api repos/kinopeer/kinopeer/pulls/<n>`, its `/reviews`,
+  `repos/kinopeer/kinopeer/issues/<n>/comments` and `repos/kinopeer/kinopeer/commits/<sha>/check-runs`;
+- marking ready: `gh api -X POST repos/kinopeer/kinopeer/pulls/<n>/ccr/ready_for_review`, and back
+  to a draft: `gh api -X POST repos/kinopeer/kinopeer/pulls/<n>/ccr/convert_to_draft`;
+- auto-merge: `gh api -X PUT repos/kinopeer/kinopeer/pulls/<n>/ccr/auto_merge -f merge_method=squash`
+  (`-X DELETE` turns it off);
+- a merge at a given head:
+  `gh api -X PUT repos/kinopeer/kinopeer/pulls/<n>/merge -f merge_method=squash -f sha=<sha>`,
+  which GitHub refuses when the head is no longer `<sha>`.
 
 An outside contributor's PR ([CONTRIBUTING.md](../CONTRIBUTING.md)) gets the same rounds, but the
 maintainer's session takes the author's part: it fills in the Tests section, runs the mutants, sees
