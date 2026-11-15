@@ -382,6 +382,14 @@ test.describe('downloads, desktop', () => {
       await openDownloads(page, { theme: 'light', lang: 'en' })
       await expect(page).toHaveScreenshot('desktop-grid-light-en.png')
     })
+
+    // The table's rows lie on the page's background, not on a surface as a phone's do, so its
+    // status chips have contrast of their own to keep (#432).
+    test('list as a table', async ({ page }) => {
+      await openDownloads(page, { theme: 'light', lang: 'en', downloadsView: 'list' })
+      await expect(page.getByRole('table', { name: 'Downloads' })).toBeVisible()
+      await expect(page).toHaveScreenshot('desktop-list-light-en.png')
+    })
   })
 })
 
