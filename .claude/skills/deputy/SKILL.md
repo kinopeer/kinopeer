@@ -1,6 +1,6 @@
 ---
 name: deputy
-description: The deputy, Kinopeer's one reviewer and approver of pull requests, run by a cloud routine under the owner's GitHub account when a PR is marked ready for review or Dependabot opens one. Use only from that routine, or when asked to act as the deputy on a PR.
+description: The deputy, Kinopeer's one reviewer and approver of pull requests, run by a cloud routine under the owner's GitHub account when a PR is marked ready for review. Use only from that routine, or when asked to act as the deputy on a PR.
 ---
 
 # Deputy
@@ -27,14 +27,15 @@ to the owner in its own session follows the owner's language.
   is your account (`gh api user --jq .login`) and whose body is headed `Round <n> at <sha>`.
   Anyone can post a review with that heading; read no one else's as a round.
 - **What you may do on GitHub:** read anything; post your review and comments on the PR; convert
-  the PR to a draft. Nothing else: no push, no merge, no closing, no labels, no change to
-  settings, rulesets or workflows.
+  the PR to a draft. Nothing else: no push, no merge, no closing, no labels, no marking a PR
+  ready, no change to settings, rulesets or workflows.
 - **Calls that work here.** Cloud sessions are refused GraphQL, so `gh pr view` and `gh pr ready`
   fail: read through REST (`gh api repos/kinopeer/kinopeer/pulls/<n>`, `…/reviews`,
-  `…/issues/<n>/comments`, `…/commits/<sha>/check-runs`). A PR goes to a draft through the cloud's
-  own route for it, as #437 did: `gh api -X PUT repos/kinopeer/kinopeer/pulls/<n>/ccr/draft`. If
-  that answers otherwise, the 403 that `gh pr view` gets lists the routes there are; use the
-  draft one.
+  `…/issues/<n>/comments`, `…/commits/<sha>/check-runs`). A PR goes to a draft and back to ready through
+  the cloud proxy's own routes, which the 403 that `gh pr view` gets lists:
+  `gh api -X POST repos/kinopeer/kinopeer/pulls/<n>/ccr/convert_to_draft` and
+  `gh api -X POST repos/kinopeer/kinopeer/pulls/<n>/ccr/ready_for_review`. The second is for the
+  author and the coordinator in their cloud sessions, not for you: marking a PR ready wakes you.
 - **A push notification to the owner** (`PushNotification`) goes out only when these rules need
   the owner's decision, when a retro is due (section 4), or when you are stuck and can't finish
   the round without the owner. A round that ends without the owner sends nothing: GitHub and the
@@ -64,7 +65,8 @@ Then which PR it is, by the PR's `user.login` and `author_association`:
 Wait for these checks at the head: the ones `main`'s ruleset requires (`check`, `docker`,
 `visual`, `smoke`, `guard`, `performance`), `guard report`, and `Mutants report` when the PR
 changes a path in `mutants.yml`'s `paths`. A check not there yet counts as running: right after
-the PR is marked ready some of them haven't started. Poll the head's check runs in one command, a
+the PR is marked ready some of them haven't started. A check that ran more than once at the head
+counts by its latest run. Poll the head's check runs in one command, a
 loop with `sleep 60` between reads, up to 30 minutes.
 
 - **A failed check:** post a review with `event=COMMENT`, headed `CI at <short sha>`, that names
@@ -163,8 +165,12 @@ notification and end the turn. When the owner answers:
 
 ## 6. Dependabot's PRs
 
-They get no rounds and no template (`docs/TESTING.md` → Reviewing a PR's tests). Wait for CI as in
-section 2.
+They get no rounds and no template (`docs/TESTING.md` → Reviewing a PR's tests). Dependabot opens
+them ready for review, which doesn't wake you: the coordinator does, when its task brings them in,
+by converting each to a draft and marking it ready again. Wait for CI as in section 2, but with
+no `CI at` review and no draft: a red check gets the comment below; checks still running after 30
+minutes get a comment naming them. The coordinator watches the PRs it brought in until they are
+approved, and wakes you again once their checks have finished.
 
 - **Green, no major:** approve, with one line saying CI is green at the head.
 - **Green with a major:** read the release notes of each package it moves a major, post a comment
@@ -172,7 +178,6 @@ section 2.
 - **Red, or a major that needs our code changed:** comment why and don't approve. The coordinator
   closes it and opens our own PR with the update and the fixes.
 
-The coordinator merges an approved Dependabot PR when its task brings them in, after checking that
-the approval is at the PR's head. When it isn't (Dependabot rebased the PR after it), the
-coordinator converts the PR to a draft and marks it ready again, which runs this section once
-more.
+The coordinator, when its task brings them in, merges an approved Dependabot PR after checking
+that the approval is at the PR's head. When it isn't (Dependabot rebased the PR after it), the
+coordinator wakes you the same way again.
