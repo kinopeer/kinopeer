@@ -57,7 +57,7 @@ Three kinds of change, three lists in its report. The deputy's round judges ever
   removed); a path added to `ignorePatterns` or to an override's `excludeFiles`, the files its rules
   skip (the root `.oxlintrc.json`). An
   override is known by its `files`, so one whose `files` change is one removed and one added. An
-  override added or removed is marked whole for the owner, with its JSON (one added with its place in the list), even one that checks
+  override added or removed is marked whole as a weakening, with its JSON (one added with its place in the list), even one that checks
   more: read key by key against an empty one, it left a case unmarked in each round of #415's
   review, and overrides change rarely. Only an override that keeps its `files` is read key by key,
   as above. The overrides are marked whole, both sides' lists, when they can't be paired that way:
@@ -227,7 +227,7 @@ the script, not the branch's, so a PR that changes `scripts/guard/` is still rea
 found. The script reads the branch through git and runs none of its code; the one package it
 needs, the parser that comes with Vite, is installed from `main`'s lockfile. The workflow file is
 another matter: on `pull_request` GitHub runs it as the PR has it, so a PR that changes `guard.yml`
-runs its changed steps, and what `main`'s script does about it is mark the change for the owner.
+runs its changed steps, and what `main`'s script does about it is mark the change as a weakening.
 What the guard finds goes into the job's summary and into the PR's `guard report` check, a check
 run the job writes on the PR's head on every run, green, with the report as its summary (cut,
 with a note, where it is longer than a check's summary holds), since the reviews read the report
@@ -292,12 +292,12 @@ compare the tests that ran, and says so: that takes a run of each side, which CI
   tmdb-proxy run test`) is read as the script, and one before docker's subcommand (`docker
   --context ci run`) as the subcommand; `node` with a flag first (`node --test server`) isn't
   read as a command; a command that goes on on the next line (`docker \` and then `run`) is
-  read as two lines: docker and npm read no command there, so the step, removed, goes to a second
-  review, while npx and node read `npx \` and `node \`, which go to the owner under that name;
+  read as two lines: docker and npm read no command there, so the step, removed, is a change to an
+  existing check, while npx and node read `npx \` and `node \`, which are weakenings under that name;
   an image used as an action (`uses: docker://alpine:3.20`) is another action after its tag
   moves.
 - A command's word in a step's message is marked, though it runs nothing: `echo "the docker image
-  is ready"` reads as `docker image`, and removing that step goes to the owner. The guard reads
+  is ready"` reads as `docker image`, and removing that step is marked as a weakening. The guard reads
   the words wherever they stand rather than work out where a command starts.
 - A key in `checks.json` with a dot in its name (`"size.js"` under `budgets`, `"thresholds.lines"`
   under `coverage`, or a key that is empty): the guard joins the keys of a path with dots, so such a
@@ -306,11 +306,11 @@ compare the tests that ran, and says so: that takes a run of each side, which CI
 - Whatever reading YAML line by line gets wrong: it finds `run:` and `uses:` keys and the lines
   indented under a block, and knows nothing of anchors or of a command built by an expression.
 - A change to `guard.yml` that stops the script from running or from being `main`'s copy: the
-  workflow runs as the PR has it, so the mark for the owner comes from the changed steps, if they
+  workflow runs as the PR has it, so the weakening's mark comes from the changed steps, if they
   still make it.
 - A green `guard` reported by another workflow of the PR. GitHub's Free plan has no way to
   require that a check come from `main`'s copy of a workflow, and the guard marks a job or a
-  status of its name for the owner by one pattern, no more.
+  status of its name as a weakening by one pattern, no more.
 - Anything written on purpose to get past it. The authors' sessions all work under one GitHub
   account, so the guard protects against forgetting, not against forging.
 
@@ -679,9 +679,8 @@ the PRs the table's top row lists, which takes in that retro's own PR and any PR
 that merged while it was open: `gh api -X GET search/issues -f q="repo:kinopeer/kinopeer is:pr
 is:merged merged:><since> -author:app/dependabot" --jq .total_count` (REST, so it runs where
 GraphQL is refused; counted by hand, sessions gave 28, 30 and 32 for one batch of 36). The
-review counts them so: when it finds fifty or more,
-its verdict line says "retro due", and the
-coordinator of the work (the owner, or the session that hands out PRs) starts it. A
+deputy's round counts them so: when it finds fifty or more, its verdict says "retro due" and the
+owner gets a push notification (the `deputy` skill → Posting the round), and the owner starts it. A
 fresh session runs the retro, not one that wrote or reviewed the PRs in the batch.
 
 **The review findings.** Collect the deputy's reviews headed `Round <n> at <sha>` of the merged
@@ -689,13 +688,13 @@ PRs no row lists yet (the batch; before 2026-11-15, the `Test review, round <n>`
 right after the rule misses the second (#299, #302); one that catches both is
 `\[[A-K] ?· ?(clear|gap|conflict)(\]|:)`. The search doesn't replace reading: every reviewer round
 is read whole, for the `/code-review` findings that carry no tag and the **For the coordinator**
-and **For the owner** items.
+items, with the owner's approvals posted beside them.
 
 The guard's marks are counted too, from the deputy's verdicts on them in its rounds (before
 2026-11-15, the second reviews' comments, `**Second review …**`): how many were judged, how many
-`weakening`, and how many of those the deputy accepted because the task confirmed them. When
-twenty PRs in a row with changes to existing checks have no `weakening` verdict, the retro proposes
-to the owner to judge only the weakenings. Narrowing softens the system, so it is the owner's to
+`weakening`, and how many of those the deputy accepted, with its reasons. When twenty PRs in a row with
+changes to existing checks have no `weakening` verdict, the retro proposes to the owner to hand
+the deputy's subagent only the marks that weaken the checks. Narrowing softens the system, so it is the owner's to
 decide.
 
 **The escaped defects.** The issues closed since the same `<since>` that the top row doesn't count (an issue the

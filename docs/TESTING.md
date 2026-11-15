@@ -640,7 +640,7 @@ them with `main`'s ([QUALITY.md](QUALITY.md) → The checks guard). The run fail
 functions, two points under the totals of 2026-11-02 (98.01 and 97.09), 93% of branches, two points
 under 95.04 on 2026-11-05, and 95% of statements, two points under 97.14 on 2026-11-09, each rounded down. The threshold is a ratchet: when the totals have grown and
 stayed there, raise it to two points under them, in the PR that got them there or in one of its own;
-never lower it to get a PR through (the guard marks a PR that does, for the owner). A PR that lowers the totals says why in its Tests section (a
+never lower it to get a PR through (the guard marks a PR that does as a weakening). A PR that lowers the totals says why in its Tests section (a
 module left uncovered on purpose, with the reason). The numbers are there to show what a PR leaves
 uncovered; the threshold only keeps that from slipping by unnoticed. It applies to the whole run, so
 `npm run test:coverage -- --project server` alone fails it: coverage is measured over both projects.
@@ -712,11 +712,13 @@ Three steps, each by whoever can do it best:
    step before the fix, #291's Docs list named a hunk a merge of `main` had dropped). Then the
    author marks the PR ready again, which starts the next round.
 
-The author opens the PR as a draft, and once step 1 is done turns on auto-merge
-(`gh pr merge --auto --squash`) and marks it ready (`gh pr ready`): GitHub merges it when the
-deputy approves and the checks pass. `main`'s ruleset dismisses an approval when a push changes the
-PR's diff, so a fix after the approval is a new round; a merge of `main` that leaves the diff as it
-was keeps the approval and needs nothing. A commit after an approval fixes what the PR already
+The author opens the PR as a draft, and once step 1 is done marks it ready (`gh pr ready`) and
+turns on auto-merge (`gh pr merge --auto --squash`), each time it marks the PR ready: GitHub
+merges it when the deputy approves and the checks pass. Marking a PR ready is what wakes the
+deputy, so a PR that needs a round while it isn't a draft goes back to a draft and is marked
+ready again (`gh pr ready --undo`, then `gh pr ready`). That's the case after a push that changes
+the diff of an approved PR, since `main`'s ruleset then dismisses the approval; a merge of `main`
+that leaves the diff as it was keeps the approval and needs nothing. A commit after an approval fixes what the PR already
 does; a new request goes into a PR of its own (`CLAUDE.md` → Conventions). `CHANGELOG.md` merges
 with `merge=union` (`.gitattributes`), which keeps both sides' lines, this branch's first, without
 a conflict once the branch has `.gitattributes` (a branch cut before it conflicts there on its

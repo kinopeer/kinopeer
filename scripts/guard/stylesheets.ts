@@ -1,6 +1,6 @@
 // What counts as a raw value in the app's stylesheets: one definition for `src/styles/tokens.test.ts`,
-// which fails a raw value without a comment on its line, and for the checks guard, which marks for the
-// coordinator a raw value a branch adds with such a comment and every design token it adds, changes or
+// which fails a raw value without a comment on its line, and for the checks guard, which marks as a
+// design value a raw value a branch adds with such a comment and every design token it adds, changes or
 // removes (docs/QUALITY.md → The checks guard). The guard runs main's copy over a branch, so a change
 // here changes both at once, and is marked as a change to the guard. Stylesheets are parsed
 // with PostCSS, which Vite's own CSS handling brings in; the values inside a declaration are read by

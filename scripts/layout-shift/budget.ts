@@ -26,7 +26,7 @@ const CEILING = '`budgets.layoutShiftCeiling`'
  * The most a budget may be, `budgets.layoutShiftCeiling` in checks.json, or what is wrong with it: a
  * score over 0. It is 0.1, the bound Web Vitals call good: a screen that moves more as it loads has a
  * bug to fix, not a budget to raise (docs/QUALITY.md → The layout shift budget). In checks.json, so
- * the checks guard sends a raise of it to the owner, as it does a raised budget.
+ * the checks guard marks a raise of it as a weakening, as it does a raised budget.
  */
 function readCeiling(budgets: Record<string, unknown> | undefined): number | string {
   const ceiling = budgets?.layoutShiftCeiling

@@ -34,9 +34,8 @@ follows the conversation's language. Code, file paths and quotes stay as they ar
   of the diff with no test and no reason, or with a reason that doesn't hold, is a finding.
 - A PR whose description has no Tests section at all gets that as its first finding; keep
   reviewing the diff anyway.
-- Look for earlier rounds among the deputy's reviews of the PR
-  (`gh api repos/{owner}/{repo}/pulls/<n>/reviews`): those headed `Round <n> at <sha>`. If there
-  are any, this is round n+1 (section 4), and it starts from the author's `Fixes for round <n>`
+- Look for earlier rounds among the deputy's reviews of the PR, as the `deputy` skill → Ground
+  rules says which they are. If there are any, this is round n+1 (section 4), and it starts from the author's `Fixes for round <n>`
   comment after it (each finding fixed or declined, the tests for the fixes, a merge of `main`).
 
 ## 2. Sort the diff
