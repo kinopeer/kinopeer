@@ -722,8 +722,9 @@ in the journal like any session's: a run without the journal's variables stops a
 before the date its sends first reach the sheet (the effort journal's row in
 [Components](#components), which gains that date) is missing from `journal report` for good, since
 its spool went with its container. So the retro names the batch's PRs that had such runs, which
-until that date is every PR the deputy reviewed, and leaves them out of the cost per point, the
-batch's median, the cost by role and the cost by model and effort, saying how many it left out.
+until that date is every PR the deputy reviewed, leaves them out of the cost per point and the
+batch's median, saying how many, and reads the cost by role and by model and effort over the rows
+that were recorded, with the roles and models of the lost runs named as missing.
 
 **The checks' usefulness.** For each check (the components above, the tests' layers, the lint
 rules, CI's jobs): what it caught in the batch, how often it failed for nothing a fix of the code
