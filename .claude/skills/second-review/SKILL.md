@@ -5,10 +5,10 @@ description: The second, independent review of the changes to existing checks th
 
 # Second review
 
-The checks guard marks, in its comment on a PR, the changes to existing checks that a script can't
+The checks guard marks, in the PR's `guard report` check, the changes to existing checks that a script can't
 judge: the list "For a second review". This review answers one question for each mark: **does the
-check still catch what it caught before the change?** What its record closes and what blocks a PR
-is in `docs/QUALITY.md` → What a marked PR needs; this file is the procedure. The comment on the PR
+check still catch what it caught before the change?** What its record answers and who checks it
+before the merge is in `docs/QUALITY.md` → What a marked PR needs; this file is the procedure. The record on the PR
 is in English, like everything on GitHub; a summary in the chat follows the conversation's
 language.
 
@@ -16,18 +16,17 @@ language.
 
 - A fresh session that the coordinator starts: not the PR's author, not its first reviewer.
 - After the first review's "ready to merge" at the PR's current head, and before the owner is asked
-  to approve the merge. Only when the guard's comment has a "For a second review" list.
+  to approve the merge. Only when the `guard report` check has a "For a second review" list.
 
-## 1. Find the list and its code
+## 1. Find the list
 
-- Make sure the `guard` job has finished on the PR's current head: the guard's comment is edited
-  on every push, and a code from a stale one won't match. `gh api repos/{owner}/{repo}/pulls/<n>`
-  gives `head.sha`; the comment's first line names the commit it was written at.
-- Read the guard's comment: `gh api repos/{owner}/{repo}/issues/<n>/comments`, the one by
-  `github-actions[bot]` that starts with `<!-- checks-guard -->`. Take the marks under "For a
-  second review" and the two record lines printed under them, with the list's code. A fork's PR
-  gets no such comment, since the job's token can't write there: take the same report from the
-  summary of the `Guard` run's `guard` job (`gh run view <run id>`).
+- Take the PR's current head: `gh api repos/{owner}/{repo}/pulls/<n> --jq .head.sha`.
+- Read the `guard report` check at that head, the marks under "For a second review" in its
+  summary, the latest run's, since a re-run writes another:
+  `gh api 'repos/{owner}/{repo}/commits/<sha>/check-runs?check_name=guard%20report' --jq '.check_runs | max_by(.completed_at) | .output.summary'`.
+  No check yet means the `Guard` run hasn't finished: wait for it. A fork's PR gets no such
+  check, since the job's token can't write there: take the same report from the summary of the
+  `Guard` run's `guard` job (`gh run view <run id>`).
 
 ## 2. Read each mark's two sides, and nothing of the author's account
 
@@ -55,12 +54,12 @@ A mark you can't decide is a weakening.
 
 ## 4. Post the record
 
-One comment on the PR. Its first line is the record, copied from the guard's comment with the
-code: `sound` when no mark weakens a check, `weakening` when at least one does or you couldn't
-decide. Then a line per mark: the file and line, the verdict and why.
+One comment on the PR. Its first line is the record, with the head you judged: `sound` when no
+mark weakens a check, `weakening` when at least one does or you couldn't decide. Then a line per
+mark: the file and line, the verdict and why.
 
 ```markdown
-**Second review 1a2b3c4d: sound**
+**Second review at 1a2b3c4: sound**
 
 - `src/torrents/sort.test.ts:165`: sound. The assertion now expects the direction the order keeps
   since this change; `sort.ts`'s `knownOrder` returns it, and the old value is covered by …
@@ -68,10 +67,7 @@ decide. Then a line per mark: the file and line, the verdict and why.
 
 ## 5. After posting
 
-- Re-run the guard's job, which doesn't react to a new comment by itself:
-  `gh run rerun <run id> --failed` for the `Guard` run of the PR's head
-  (`gh run list --workflow guard.yml --branch <head.ref>`).
 - End with a report to the coordinator: the link to the record and the verdict. A `weakening` then
-  needs a fix by the author, after which the list has another code and a second review again, or
-  the owner's approval of the same code.
+  needs a fix by the author and a second review again, or the owner's approval of what you called
+  a weakening.
 - Don't push to the PR's branch and don't merge it.

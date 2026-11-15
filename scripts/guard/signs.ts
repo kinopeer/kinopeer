@@ -455,9 +455,10 @@ const ADDED: { pattern: RegExp; counts: (path: string) => boolean; needs: Needs;
   { pattern: /continue-on-error:(?! ?false\b)|\|\| ?(?:true\b|:(?!\S)|exit 0\b)|\bset \+e\b/, counts: isWorkflow, needs: 'owner', what: 'a CI step can fail without failing the run' },
   { pattern: /^\s*paths(?:-ignore)?:/, counts: isWorkflow, needs: 'owner', what: 'a workflow got a path filter, so it runs for fewer changes' },
   { pattern: /^\s*(?:- )?if:/, counts: isWorkflow, needs: 'review', what: 'a CI step or job got a condition' },
-  // In a workflow other than the guard's own, whose every change is marked: what can report under the guard's name. A job by its key
-  // or its name, a commit status by its context, a check run by its name as a field of an API call, in its JSON or in a script's call.
-  { pattern: /^\s*(?:(?:- )?name: +)?["']?guard["']?:?\s*(?:#.*)?$|\bcontext["']?[=:] *["']?guard\b|\bname(?:=["']?guard\b|["']?: *["']guard["'])/, counts: isWorkflow, needs: 'owner', what: "a job or a status with the guard's name, which can report in its place" },
+  // In a workflow other than the guard's own, whose every change is marked: what can report under the guard's name or its report's
+  // (`guard report`, the check the reviews read). A job by its key or its name, a commit status by its context, a check run by its
+  // name as a field of an API call, in its JSON or in a script's call.
+  { pattern: /^\s*(?:(?:- )?name: +)?["']?guard(?: report)?["']?:?\s*(?:#.*)?$|\bcontext["']?[=:] *["']?guard\b|\bname(?:=["']?guard\b|["']?: *["']guard(?: report)?["'])/, counts: isWorkflow, needs: 'owner', what: "a job or a status with the guard's name, which can report in its place" },
 ]
 
 /** The lines a branch adds to one file, against the patterns above. */
@@ -555,26 +556,39 @@ export function findings(changes: Change[], sheets: Sheet[] = []): Finding[] {
   return [...files, ...compareStylesheets(changes, sheets), ...compareWorkflows(changes.filter(({ path }) => isWorkflow(path) && !isGuard(path)))]
 }
 
-/** The marker the workflow finds the guard's comment on a PR by. */
-export const MARKER = '<!-- checks-guard -->'
-
 const list = (found: Finding[]): string[] => found.map(({ file, line, what }) => (file ? `- \`${file}${line ? `:${line}` : ''}\`: ${what}` : `- ${what}`))
 
-/**
- * The guard's report, as Markdown: the comment on the PR, the job's summary and what `npm run guard`
- * prints. `records` is what to say under each list of the record it needs (records.ts).
- */
-export function report(found: Finding[], { head, base }: { head: string; base: string }, records: { [needs in Needs]?: string } = {}): string {
+/** The guard's report, as Markdown: the PR's `guard report` check, the job's summary and what `npm run guard` prints. */
+export function report(found: Finding[], { head, base }: { head: string; base: string }): string {
   const owner = found.filter(({ needs }) => needs === 'owner')
   const coordinator = found.filter(({ needs }) => needs === 'coordinator')
   const review = found.filter(({ needs }) => needs === 'review')
-  const record = (needs: Needs): string[] => (records[needs] ? ['', records[needs]] : [])
-  const lines = [MARKER, `**Checks guard at ${head}**, against \`main\` at ${base}.`]
+  const lines = [`**Checks guard at ${head}**, against \`main\` at ${base}.`]
   if (found.length === 0) lines.push('', 'No weakening of the checks, no change to existing ones and no design value added or changed.')
-  if (owner.length > 0) lines.push('', `**For the owner: ${owner.length} to approve, each with a reason.** A weakening of the checks, or a change to the guard or its rules.`, '', ...list(owner), ...record('owner'))
+  if (owner.length > 0) lines.push('', `**For the owner: ${owner.length} to approve, each with a reason.** A weakening of the checks, or a change to the guard or its rules.`, '', ...list(owner))
   if (coordinator.length > 0) {
-    lines.push('', `**For the coordinator: ${coordinator.length} to approve, each with a reason.** A design value added, changed or removed: a token, or a value off the tokens' scale that a comment lets through.`, '', ...list(coordinator), ...record('coordinator'))
+    lines.push('', `**For the coordinator: ${coordinator.length} to approve, each with a reason.** A design value added, changed or removed: a token, or a value off the tokens' scale that a comment lets through.`, '', ...list(coordinator))
   }
-  if (review.length > 0) lines.push('', `**For a second review: ${review.length}.** Changes to existing checks, which a script can't judge.`, '', ...list(review), ...record('review'))
+  if (review.length > 0) lines.push('', `**For a second review: ${review.length}.** Changes to existing checks, which a script can't judge.`, '', ...list(review))
   return lines.join('\n')
+}
+
+/** What a check's summary holds, in bytes of UTF-8 to be safe whatever GitHub counts: its limit is 65,535 characters. */
+export const SUMMARY_LIMIT = 60_000
+
+const CUT = "\n\n**The report is cut here**, to fit a check's summary: the whole report is in the summary of the `Guard` run's `guard` job."
+
+/** The report as a check's summary holds it: whole when it fits, else cut at a line's end with a note where the rest is. */
+export function capped(text: string, limit = SUMMARY_LIMIT): string {
+  const size = (part: string) => new TextEncoder().encode(part).length
+  if (size(text) <= limit) return text
+  const kept: string[] = []
+  // Each kept line takes its newline but the last, which the note's own start stands in for.
+  let used = size(CUT) - 1
+  for (const line of text.split('\n')) {
+    used += size(line) + 1
+    if (used > limit) break
+    kept.push(line)
+  }
+  return `${kept.join('\n')}${CUT}`
 }

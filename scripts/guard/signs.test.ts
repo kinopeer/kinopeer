@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { commands, compareChecks, compareLint, compareScripts, compareStylesheets, compareTokens, compareWorkflows, findings, readsWhole, report, scanAdded, workflowSteps, type Finding } from './signs.ts'
+import { capped, commands, compareChecks, compareLint, compareScripts, compareStylesheets, compareTokens, compareWorkflows, findings, readsWhole, report, scanAdded, workflowSteps, type Finding } from './signs.ts'
 
 const json = (value: unknown) => JSON.stringify(value)
 /** What each finding calls for and says, without its file. */
@@ -672,6 +672,11 @@ describe('scanAdded', () => {
     ["a check run made under the guard's name in quotes", '.github/workflows/ci.yml', '          gh api "repos/$REPO/check-runs" -f name="guard" -f head_sha="$SHA"', "a job or a status with the guard's name, which can report in its place"],
     ["a check run made under the guard's name by a script", '.github/workflows/ci.yml', "              name: 'guard',", "a job or a status with the guard's name, which can report in its place"],
     ["a check run made under the guard's name by a script, the key in quotes", '.github/workflows/ci.yml', `              'name': "guard",`, "a job or a status with the guard's name, which can report in its place"],
+    ["a job named for the guard's report", '.github/workflows/ci.yml', '    name: guard report', "a job or a status with the guard's name, which can report in its place"],
+    ["a job named for the guard's report, in quotes", '.github/workflows/ci.yml', '    name: "guard report"', "a job or a status with the guard's name, which can report in its place"],
+    ["a check run made under the guard's report's name", '.github/workflows/ci.yml', `          gh api "repos/$REPO/check-runs" -f name='guard report' -f head_sha="$SHA"`, "a job or a status with the guard's name, which can report in its place"],
+    ["a check run made under the guard's report's name as JSON", '.github/workflows/ci.yml', `          -d '{"name": "guard report", "head_sha": "abc"}'`, "a job or a status with the guard's name, which can report in its place"],
+    ["a check run made under the guard's report's name by a script", '.github/workflows/ci.yml', "              name: 'guard report',", "a job or a status with the guard's name, which can report in its place"],
   ])('sends %s to the owner', (_name, file, text, what) => {
     expect(scanAdded(file, lines(text))).toEqual([{ needs: 'owner', file, line: 10, what: `${what}: \`${text.trim()}\`` }])
   })
@@ -713,6 +718,8 @@ describe('scanAdded', () => {
     ["a job whose name only starts like the guard's", '.github/workflows/ci.yml', '  guard-tests:'],
     ["a job whose name only ends like the guard's", '.github/workflows/ci.yml', '  safeguard:'],
     ["a name that goes on after the guard's", '.github/workflows/ci.yml', '    name: guard the gate'],
+    ["a name that goes on after the guard's report's", '.github/workflows/ci.yml', '    name: guard reporter'],
+    ["a name in quotes that goes on after the guard's report's", '.github/workflows/ci.yml', '              name: "guard reports",'],
     ["a status whose name only starts like the guard's", '.github/workflows/ci.yml', '          gh api "$URL" -f context=guardian'],
     ["a status of another name that mentions the guard", '.github/workflows/ci.yml', '          gh api "$URL" -f context=lint -f description=guard'],
     ["a check run whose name only starts like the guard's", '.github/workflows/ci.yml', '          gh api "$URL" -f name=guardian'],
@@ -821,7 +828,7 @@ describe('report', () => {
   const at = { head: 'abc1234', base: 'def5678' }
 
   it('says so when nothing is found', () => {
-    expect(report([], at)).toBe('<!-- checks-guard -->\n**Checks guard at abc1234**, against `main` at def5678.\n\nNo weakening of the checks, no change to existing ones and no design value added or changed.')
+    expect(report([], at)).toBe('**Checks guard at abc1234**, against `main` at def5678.\n\nNo weakening of the checks, no change to existing ones and no design value added or changed.')
   })
 
   it("lists what goes to the owner and what goes to a second review apart, each with its file and line", () => {
@@ -833,7 +840,6 @@ describe('report', () => {
       at,
     )
     expect(text.split('\n')).toEqual([
-      '<!-- checks-guard -->',
       '**Checks guard at abc1234**, against `main` at def5678.',
       '',
       '**For the owner: 1 to approve, each with a reason.** A weakening of the checks, or a change to the guard or its rules.',
@@ -844,29 +850,6 @@ describe('report', () => {
       '',
       '- `checks.json`: the threshold `coverage.thresholds.lines` changed: `96` → `97`',
     ])
-  })
-
-  it('says under each list what record it needs, when told', () => {
-    const found: Finding[] = [
-      { needs: 'review', file: 'tsconfig.json', what: "the type check's config changed" },
-      { needs: 'owner', file: 'checks.json', what: 'the file is removed' },
-    ]
-    expect(report(found, at, { owner: 'The owner’s record.', review: 'The second review’s record.' }).split('\n').slice(2)).toEqual([
-      '',
-      '**For the owner: 1 to approve, each with a reason.** A weakening of the checks, or a change to the guard or its rules.',
-      '',
-      '- `checks.json`: the file is removed',
-      '',
-      'The owner’s record.',
-      '',
-      "**For a second review: 1.** Changes to existing checks, which a script can't judge.",
-      '',
-      '- `tsconfig.json`: the type check\'s config changed',
-      '',
-      'The second review’s record.',
-    ])
-    // Only under a list that is there.
-    expect(report([found[0]], at, { owner: 'The owner’s record.' })).not.toContain('record')
   })
 
   it('lists a finding about the branch as a whole without a file', () => {
@@ -1101,23 +1084,51 @@ describe('findings of design values', () => {
 })
 
 describe('report of the coordinator\'s list', () => {
-  it('lists it between the owner\'s and the second review\'s, with its record', () => {
+  it('lists it between the owner\'s and the second review\'s', () => {
     const found: Finding[] = [
       { needs: 'review', file: 'tsconfig.json', what: "the type check's config changed" },
       { needs: 'coordinator', file: 'src/a.css', line: 2, what: "a value off the tokens' scale, let through by the comment on its line: `padding: 3px`" },
       { needs: 'owner', file: 'checks.json', what: 'the file is removed' },
     ]
-    const lines = report(found, { head: 'abc1234', base: 'def5678' }, { coordinator: 'The coordinator’s record.' }).split('\n').slice(3)
-    expect(lines.slice(3, 10)).toEqual([
+    const lines = report(found, { head: 'abc1234', base: 'def5678' }).split('\n').slice(2)
+    expect(lines.slice(3, 8)).toEqual([
       '',
       "**For the coordinator: 1 to approve, each with a reason.** A design value added, changed or removed: a token, or a value off the tokens' scale that a comment lets through.",
       '',
       "- `src/a.css:2`: a value off the tokens' scale, let through by the comment on its line: `padding: 3px`",
       '',
-      'The coordinator’s record.',
-      '',
     ])
     expect(lines[0]).toMatch(/^\*\*For the owner/)
-    expect(lines[10]).toMatch(/^\*\*For a second review/)
+    expect(lines[8]).toMatch(/^\*\*For a second review/)
+  })
+})
+
+describe('capped', () => {
+  const CUT = "\n\n**The report is cut here**, to fit a check's summary: the whole report is in the summary of the `Guard` run's `guard` job."
+  const bytes = (text: string) => new TextEncoder().encode(text).length
+
+  it('leaves a report that fits as it is, up to the limit itself', () => {
+    expect(capped('a\nb', 3)).toBe('a\nb')
+    expect(capped('x'.repeat(60_000))).toBe('x'.repeat(60_000))
+  })
+
+  it("cuts a longer one at a line's end, with a note where the whole report is, within the limit", () => {
+    const lines = Array.from({ length: 5000 }, (_, index) => `- \`src/file${index}.test.ts\`: an assertion rewritten`)
+    const text = capped(lines.join('\n'))
+    expect(text.endsWith(CUT)).toBe(true)
+    expect(bytes(text)).toBeLessThanOrEqual(60_000)
+    const kept = text.slice(0, -CUT.length).split('\n')
+    expect(kept).toEqual(lines.slice(0, kept.length))
+    // To the byte: three lines of sixty and their two newlines fill what the note leaves exactly.
+    const sixty = 'x'.repeat(60)
+    expect(capped(Array(10).fill(sixty).join('\n'), bytes(CUT) + 182)).toBe(`${sixty}\n${sixty}\n${sixty}${CUT}`)
+    // As many lines as fit: one more would go over.
+    expect(bytes(`${[...kept, lines[kept.length]].join('\n')}${CUT}`)).toBeGreaterThan(60_000)
+  })
+
+  it('counts the bytes of UTF-8, not the letters', () => {
+    // 302 letters, 602 bytes: by letters the whole report would fit.
+    const line = 'ё'.repeat(100)
+    expect(capped([line, line, line].join('\n'), bytes(CUT) + 402)).toBe(`${line}\n${line}${CUT}`)
   })
 })
