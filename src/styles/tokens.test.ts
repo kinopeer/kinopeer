@@ -7,8 +7,8 @@ import { castsShadow, DATA_URL, declarations, problem, rawColors, rawMotion, raw
  * Spacing, radii, type, colors, shadows and motion go through the tokens in tokens.css (CLAUDE.md →
  * Design). This test keeps the stylesheets on them: a value the tokens have fails, and a value they
  * don't have fails unless its line carries a comment saying why. What counts as a raw value is
- * defined once, in scripts/guard/stylesheets.ts, which the checks guard reads too: it marks for the
- * coordinator a raw value a branch lets through by its comment, and every token a branch adds,
+ * defined once, in scripts/guard/stylesheets.ts, which the checks guard reads too: it marks as a
+ * design value a raw value a branch lets through by its comment, and every token a branch adds,
  * changes or removes (docs/QUALITY.md → The checks guard).
  */
 

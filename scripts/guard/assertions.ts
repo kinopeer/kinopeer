@@ -1,5 +1,5 @@
 // The checks guard's reading of a test file: its tests and what each one asserts, so that an
-// assertion rewritten or removed inside a test that stays is marked for a second review
+// assertion rewritten or removed inside a test that stays is marked among the changes to existing checks
 // (docs/QUALITY.md → The checks guard). The file is parsed, not run: the tests themselves are
 // counted from the run (tests.ts).
 import { parseSync } from 'vite'

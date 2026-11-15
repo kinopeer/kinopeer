@@ -1,6 +1,6 @@
 # Version updates once a month, grouped, so a month brings a few PRs rather than one per package:
-# they merge on green CI and the owner's OK, without review rounds (docs/TESTING.md → Reviewing a
-# PR's tests). Security updates, once turned on in the repository's settings, come as soon as an
+# the deputy approves them on green CI, without review rounds, and the coordinator merges them
+# (docs/TESTING.md → Reviewing a PR's tests). Security updates, once turned on in the repository's settings, come as soon as an
 # alert does, whatever the schedule.
 version: 2
 updates:

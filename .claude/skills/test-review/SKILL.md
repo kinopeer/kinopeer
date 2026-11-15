@@ -34,11 +34,9 @@ follows the conversation's language. Code, file paths and quotes stay as they ar
   of the diff with no test and no reason, or with a reason that doesn't hold, is a finding.
 - A PR whose description has no Tests section at all gets that as its first finding; keep
   reviewing the diff anyway.
-- Look for earlier rounds among the PR's comments (fetched above): those headed
-  `Test review, round <n>`. If there are any, this is round n+1 (section 4), and it starts from the
-  author's `Fixes for round <n>` comment after it (each finding fixed or declined, the tests for the
-  fixes, a merge of `main`). A `Merged main at <sha>` comment after a **ready to merge** is read as
-  section 4 says.
+- Look for earlier rounds among the deputy's reviews of the PR, as the `deputy` skill → Ground
+  rules says which they are. If there are any, this is round n+1 (section 4), and it starts from the author's `Fixes for round <n>`
+  comment after it (each finding fixed or declined, the tests for the fixes, a merge of `main`).
 
 ## 2. Sort the diff
 
@@ -139,9 +137,10 @@ trusted.
   each new baseline yourself: it shows the state its test name promises. A new screen, sheet,
   dialog or a state with its own layout that has no baseline, only "checked on the stand" → finding.
   A change in a PNG the PR calls a consequence or a side effect rather than its goal is looked at
-  in the image: one visible to the eye with no question in the PR's For the owner section → the
-  question itself goes under the round's **For the owner**, with the screen and its before and after
-  images. Unlike other items there, it holds the merge until the owner answers it.
+  in the image: one visible to the eye with no question in the PR's For the coordinator section → the
+  question itself goes under the round's **For the coordinator**, with the screen and its before
+  and after images. Unlike other items there, it holds the approval until the coordinator answers
+  it.
 - **H. Docs match what they describe.** A claim the PR adds to any doc (a comment that exists, a
   command, a number, a file, a product claim, a step) is checked against what it describes, and so
   is one the diff makes stale, a sentence saying which test owns a statement above all. The docs
@@ -201,38 +200,20 @@ reads both ways, `conflict` when `docs/TESTING.md` and this skill (or the PR tem
 it. The tags feed the retro (`docs/TESTING.md` → Improving the system, `docs/QUALITY.md` → The retro); tag honestly, a `gap` is
 not the author's fault.
 
-Then one line with the `/code-review` run on the same commit: `Code review at <short sha>: <n>
-findings`, or `no findings`; its findings themselves stay in its own inline comments. Then one
-verdict line: **ready to merge**, only with no blocking or should-fix finding open (nits may stay,
-#325), or **needs changes**, with the count per severity and the commit
-both reviews saw, `**Verdict: ready to merge** at <short sha>`: the PR merges only on a posted
-"ready to merge" at its current head. A commit of the PR's own after it needs another round; a
-merge of `main` needs one when it changes the PR's own lines or brings commits that change a file
-the PR changes (other than `CHANGELOG.md`, SPEC's decision log and `CLAUDE.md`, #334), and otherwise
-the author's `Merged main at <sha>` comment carries the verdict over (`docs/TESTING.md` → Reviewing a PR's
-tests). Add
-"retro due" to it when fifty or more merged PRs are missing from the retro table in
-`docs/QUALITY.md` → The retro, counted with the command its When gives, not by hand.
-Nothing else: no summary of the PR, no praise, no repeat of what the PR description already says.
-On a PR, post the report as one comment headed `Test review, round <n>`:
-`gh api repos/{owner}/{repo}/issues/<n>/comments -F body=@report.md`, or the GitHub MCP tools.
-Post every round, also when the review runs in a side session: a report left in a chat is invisible
-to whoever merges and to the retro. If posting is refused, say so in the chat, so the merge waits
-for it. Hand the blocking and
-should-fix findings to the PR's author (a session or a person; for an outside contributor's PR, the
-maintainer's session: `docs/TESTING.md` → Reviewing a PR's tests): point them to the posted round.
-A PR that grows past what it set out to do (each round finds bugs in the same new mechanism,
-workarounds pile up) gets that said in the round, as a finding for the owner to weigh, not as one
-more fix to ask for (`docs/TESTING.md` → Reviewing a PR's tests). It has no tag and no severity and
-doesn't hold the verdict: put it after the findings under its own heading, **For the owner**.
+Add "retro due" when fifty or more merged PRs are missing from the retro table in
+`docs/QUALITY.md` → The retro, counted with the command its When gives, not by hand. Nothing
+else: no summary of the PR, no praise, no repeat of what the PR description already says. The
+deputy puts the report into its round, beside the `/code-review` result and its verdict, and posts
+it as a review (the `deputy` skill → Posting the round); run outside a round, by an author before
+marking a PR ready, the report stays in the chat. A PR that grows past what it set out to do (each
+round finds bugs in the same new mechanism, workarounds pile up) gets that said under **For the
+coordinator**, for the coordinator to weigh, not as one more fix to ask for. It has no tag and no
+severity.
 
-**Round 2 and later**, once the author posts `Fixes for round <n>`, or a commit of the PR's own
-lands after a **ready to merge**: start from that comment, check every line flagged in the previous round, check the description's What, Tests and Docs against the head as you check the docs (a `Fixes for round <n>` brings them to it: #273, #298, #291), and run all the checks on every
+**Round 2 and later**, once the author posts `Fixes for round <n>`: start from that comment, check every line flagged in the previous round, check the description's What, Tests and Docs against the head as you check the docs (a `Fixes for round <n>` brings them to it: #273, #298, #291), and run all the checks on every
 test the PR's own diff (`origin/main...HEAD`) adds or changes since then, since a test written to
-answer a finding is a new test. Tests a merge of `main` brought were reviewed in their own PRs. A
-merge that changes the PR's own lines or a file the PR changes other than `CHANGELOG.md`, SPEC's
-decision log and `CLAUDE.md` (`docs/TESTING.md` → Reviewing a PR's tests) gets a round over what it changed of them; one that doesn't, with the author's `Merged
-main at <sha>` comment saying so, gets no round. New
+answer a finding is a new test. Tests a merge of `main` brought were reviewed in their own PRs; the merge is reviewed for what it
+changes in the PR's own diff (the `deputy` skill → The round). New
 findings are tagged like the first round's; one
 still open from an earlier round is listed as `still open (round <n>)` with no tag, so the retro
-counts it once. Repeat until the verdict is **ready to merge**.
+counts it once. Repeat until no blocking or should-fix finding is open.
