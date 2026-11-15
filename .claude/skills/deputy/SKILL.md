@@ -40,12 +40,23 @@ to the owner in its own session follows the owner's language.
 
 ## 1. Whether to run
 
-First check that the run is recorded in the effort journal, which the retro reads its cost from
-(`docs/QUALITY.md` → The retro): `EFFORT_JOURNAL_WEBHOOK_URL` and `EFFORT_JOURNAL_TOKEN` are set
-(test that they aren't empty, never print them) and `command -v journal` finds the journal. If
-either is missing, stop before anything on GitHub: send the owner a push notification and say in
-this session what is missing. Otherwise tag the run: `journal tag --task kinopeer:review
+First check that the run can be recorded in the effort journal, which the retro reads its cost
+from (`docs/QUALITY.md` → The retro): `EFFORT_JOURNAL_WEBHOOK_URL` and `EFFORT_JOURNAL_TOKEN` are
+set (test that they aren't empty, never print them), `command -v journal` finds the journal, and
+the webhook's hosts answer:
+
+```sh
+curl -sS -o /dev/null https://script.google.com/ && curl -sS -o /dev/null https://script.googleusercontent.com/
+```
+
+Any HTTP status will do; a refused connection won't, nor a proxy's 403 to `CONNECT`, which the
+cloud's network gives a host it doesn't allow. If any of them fails, stop before anything on
+GitHub: send the owner a push notification and say in this session what failed. Otherwise tag the run: `journal tag --task kinopeer:review
 --pr kinopeer/kinopeer#<n> --role deputy --launch cloud`.
+
+From then on, however the run ends (a round posted, a `CI at` review, a question to the owner, a
+stop), its last step is `journal flush`, so its rows reach the sheet before the container goes
+with its spool. A flush that fails gets the owner a push notification naming the PR.
 
 Then read the PR and its head. Stop without posting anything when it is closed, merged or a
 draft: a run can start late, after the author took the PR back.
