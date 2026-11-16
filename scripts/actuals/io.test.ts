@@ -149,12 +149,15 @@ describe('ActualsReporter', () => {
     vi.stubEnv('ACTUALS_DIR', at('parts'))
     const reporter = new ActualsReporter({ tools: ['requests', 'journeys', 'layoutShift'] })
     reporter.onTestEnd(test, result('failed', [attachment('requests', { size: 'phone', screen: 'downloads', counts: { '/qbt': 9 } })]))
+    reporter.onTestEnd(test, result('passed', [attachment('requests', { size: 'phone', screen: 'settings', counts: { '/qbt': 3 } })]))
     reporter.onTestEnd(test, result('passed', [attachment('journey requests', { size: 'phone', screen: 'tabs.1-search', counts: { '/qbt': 0 } })]))
     reporter.onTestEnd(test, result('failed', [attachment('layout shift', { size: 'phone', screen: 'title', total: 0.5 }), attachment('trace', undefined)]))
     reporter.onTestEnd(test, result('failed', [attachment('axe downloads/list', { spec: 'downloads', shot: 'list', violations: [], passes: 3 })]))
     reporter.onEnd()
     expect((await read('parts/requests.json')).values).toContainEqual({ key: '/phone/downloads/~1qbt', value: 9 })
-    expect((await read('parts/requests.json')).health).toEqual({ screens: 1 })
+    // Every test's attachment, not only the last one's.
+    expect((await read('parts/requests.json')).values).toContainEqual({ key: '/phone/settings/~1qbt', value: 3 })
+    expect((await read('parts/requests.json')).health).toEqual({ screens: 2 })
     expect((await read('parts/journeys.json')).health).toEqual({ journeys: 1, moves: 1 })
     expect((await read('parts/layoutShift.json')).values).toContainEqual({ key: '/phone/title', value: 0.5 })
     // Not named by this config.

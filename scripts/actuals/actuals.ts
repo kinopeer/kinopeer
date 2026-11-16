@@ -70,8 +70,8 @@ function leaves(value: unknown, path: string[] = []): string[][] {
 /** The object at `path` in checks.json's object, or undefined. */
 const at = (checks: unknown, path: string[]): unknown => path.reduce<unknown>((value, name) => (isObject(value) ? value[name] : undefined), checks)
 
-/** A value measured at a budget's path. */
-export type Measured = { path: string[]; value: number }
+/** A value at a budget's path, null where the tool knows it measured nothing there. */
+export type Measured = { path: string[]; value: number | null }
 
 /**
  * A tool's part: a value for every budget of its section in checks.json (null where nothing was
@@ -156,7 +156,7 @@ export type Load = { size: string; screen: string; total: number }
  * it is judged on its own), how many screens were read and how many loads.
  */
 export function layoutShiftActuals(loads: Load[], checks: unknown): ToolActuals {
-  const largest = new Map<string, Measured>()
+  const largest = new Map<string, { path: string[]; value: number }>()
   for (const { size, screen, total } of loads) {
     const key = pointer([size, screen])
     const seen = largest.get(key)

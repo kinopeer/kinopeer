@@ -55,9 +55,9 @@ export function main({ dist, checks }: { dist: string; checks: string }, env: { 
     problems.push(`\`${checks}\` can't be read as JSON: ${why(error)}`)
   }
   if (env.ACTUALS_DIR) {
-    // A kind with no file wasn't measured: null, as the verdict refuses such a build as unchecked.
+    // A kind with no file wasn't measured: its total is null, as the verdict refuses such a build as unchecked.
     const byKind = totals(files ?? [])
-    const measured = KINDS.flatMap((kind) => (byKind[kind].size === null ? [] : [{ path: [kind], value: byKind[kind].size as number }]))
+    const measured = KINDS.map((kind) => ({ path: [kind], value: byKind[kind].size }))
     writePart(env.ACTUALS_DIR, toolActuals('size', parsed, measured, { files: files?.length }))
   }
   const verdict = files && budgets ? judge(files, budgets) : unchecked(problems)
