@@ -120,6 +120,13 @@ describe('the scripts CI runs', () => {
     expect(readJson(at('actuals-check.json'))).toBeUndefined()
   })
 
+  it('coverage.ts writes nothing when imported rather than run', async () => {
+    vi.stubEnv('ACTUALS_DIR', at('parts'))
+    vi.resetModules()
+    await import('./coverage.ts')
+    expect(readJson(at('parts/coverage.json'))).toBeUndefined()
+  })
+
   it('coverage.ts reads the report it is given, and coverage/coverage-summary.json by default', async () => {
     await mkdir(at('coverage'))
     await writeFile(at('coverage/coverage-summary.json'), JSON.stringify({ total: { lines: { pct: 91 } } }))
