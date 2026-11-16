@@ -159,6 +159,21 @@ describe('main', () => {
       })
     })
 
+    it('writes null for a kind the build has no file of, which the verdict refuses as unchecked', async () => {
+      await rm(at('dist/assets/index-Ab12.css'))
+      await write({ 'checks.json': budgets(sizes()) })
+      expect(main(paths(), { ACTUALS_DIR: at('parts') }).passed).toBe(false)
+      expect(await part()).toEqual({
+        tool: 'size',
+        values: [
+          { key: '/js', value: sizes().js },
+          { key: '/css', value: null },
+          { key: '/rest', value: sizes().rest },
+        ],
+        health: { files: 3 },
+      })
+    })
+
     it('writes nothing without ACTUALS_DIR', async () => {
       await write({ 'checks.json': budgets(sizes()) })
       main(paths(), {})

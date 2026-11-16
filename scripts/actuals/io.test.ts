@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { TestCase, TestResult } from '@playwright/test/reporter'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { toolActuals } from './actuals.ts'
+import { toolActuals, TOOLS } from './actuals.ts'
 import { main as collect } from './collect.ts'
 import { main as coverage } from './coverage.ts'
 import ActualsReporter from './reporter.ts'
@@ -40,8 +40,10 @@ describe('writePart and readJson', () => {
     expect(readJson(at('missing.json'))).toBeUndefined()
   })
 
-  it('finds the repository’s checks.json', () => {
-    expect(readJson(CHECKS)).toHaveProperty('coverage.thresholds')
+  it('finds the repository’s checks.json, which has every tool’s section', () => {
+    const checks = readJson(CHECKS)
+    // A section moved without SECTIONS would leave every value of its tool null.
+    for (const tool of TOOLS) expect(toolActuals(tool, checks, []).values, tool).not.toEqual([])
   })
 })
 

@@ -2,7 +2,8 @@
 // The actual values) from what each test attached before its budget's assertion: requests.perf.ts
 // and journeys.perf.ts the counts, layoutShift.perf.ts the layout shift, e2e/test.ts what axe read.
 // So a test that fails its budget still gives its numbers. Each config names the tools its tests
-// measure; it writes their parts into ACTUALS_DIR at the run's end, nothing without it.
+// measure; it writes their parts into ACTUALS_DIR at the run's end, nothing without it, so it is
+// loaded in every run and only CI sets the folder.
 import type { Reporter, TestCase, TestResult } from '@playwright/test/reporter'
 import { accessibilityActuals, journeysActuals, layoutShiftActuals, requestsActuals, type Counted, type Load, type Read, type Tool, type ToolActuals } from './actuals.ts'
 import { CHECKS, readJson, writePart } from './write.ts'
@@ -30,7 +31,8 @@ export default class ActualsReporter implements Reporter {
     for (const { name, body } of result.attachments) {
       const tool = toolOf(name)
       if (!tool || !body) continue
-      this.attached.set(tool, [...(this.attached.get(tool) ?? []), JSON.parse(body.toString('utf8'))])
+      if (!this.attached.has(tool)) this.attached.set(tool, [])
+      this.attached.get(tool)!.push(JSON.parse(body.toString('utf8')))
     }
   }
 

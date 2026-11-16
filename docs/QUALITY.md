@@ -690,8 +690,9 @@ file, `actuals-<job>.json`, in a shape the collector is written against:
 Each tool writes its part into `ACTUALS_DIR` (`actuals-parts/` in CI) as it measures, before its
 budget's verdict, so a red run still has its numbers: `size.ts` before it judges the totals, the
 browser tests through the attachments they make before their assertions, and coverage from the
-report Vitest writes before it judges the thresholds. The job's last steps, which run whatever came
-before, put the parts into the file (`collect.ts`) and upload it; a tool that wrote no part (its
+report Vitest writes before it judges the thresholds, also when a test fails (`reportOnFailure` in
+`vite.config.ts`). The job's last steps, which run whatever came
+before but a cancelled run (`!cancelled()`: a PR's run a later push replaced), put the parts into the file (`collect.ts`) and upload it; a tool that wrote no part (its
 step never ran, or broke before measuring) gets every value and counter `null`. Without
 `ACTUALS_DIR`, as in a local run, nothing is written. The artifacts live as long as the repository
 keeps them (90 days by default); the collector takes them from `main`'s runs while they do.

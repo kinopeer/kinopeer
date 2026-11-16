@@ -9,7 +9,7 @@ import { join, relative } from 'node:path'
 import { gzipSync } from 'node:zlib'
 import { toolActuals } from '../actuals/actuals.ts'
 import { writePart } from '../actuals/write.ts'
-import { counted, judge, KINDS, kindOf, readBudgets, unchecked, type Budgets, type File, type Verdict } from './budget.ts'
+import { counted, judge, KINDS, kindOf, readBudgets, totals, unchecked, type Budgets, type File, type Verdict } from './budget.ts'
 
 /**
  * Every file under `dir`, with the bytes it counts for. Throws when `dir` can't be read, and on an
@@ -55,7 +55,9 @@ export function main({ dist, checks }: { dist: string; checks: string }, env: { 
     problems.push(`\`${checks}\` can't be read as JSON: ${why(error)}`)
   }
   if (env.ACTUALS_DIR) {
-    const measured = (files ?? []).length === 0 ? [] : KINDS.map((kind) => ({ path: [kind], value: files!.filter((file) => kindOf(file.path) === kind).reduce((sum, file) => sum + file.size, 0) }))
+    // A kind with no file wasn't measured: null, as the verdict refuses such a build as unchecked.
+    const byKind = totals(files ?? [])
+    const measured = KINDS.flatMap((kind) => (byKind[kind].size === null ? [] : [{ path: [kind], value: byKind[kind].size as number }]))
     writePart(env.ACTUALS_DIR, toolActuals('size', parsed, measured, { files: files?.length }))
   }
   const verdict = files && budgets ? judge(files, budgets) : unchecked(problems)

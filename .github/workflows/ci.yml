@@ -61,13 +61,13 @@ jobs:
           path: coverage
           retention-days: 14
       - name: Record the actual values
-        # Without a report (the tests never ran) coverage's values are null.
-        if: always()
+        # Without a report (the tests never ran: a lint or type error) coverage's values are null.
+        if: '!cancelled()'
         run: |
           node scripts/actuals/coverage.ts coverage/coverage-summary.json
           node scripts/actuals/collect.ts check
       - name: Upload the actual values
-        if: always()
+        if: '!cancelled()'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: actuals-check
@@ -118,10 +118,10 @@ jobs:
       - run: npm run test:requests
       - name: Record the actual values
         # A tool whose step never ran gets null values.
-        if: always()
+        if: '!cancelled()'
         run: node scripts/actuals/collect.ts performance
       - name: Upload the actual values
-        if: always()
+        if: '!cancelled()'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: actuals-performance
@@ -154,10 +154,10 @@ jobs:
       - run: npm ci
       - run: npx playwright test
       - name: Record the actual values
-        if: always()
+        if: '!cancelled()'
         run: node scripts/actuals/collect.ts visual
       - name: Upload the actual values
-        if: always()
+        if: '!cancelled()'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: actuals-visual
