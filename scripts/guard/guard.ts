@@ -116,7 +116,7 @@ export function guard({ repo, base, head, tests }: Options): { found: Finding[];
     ...(tests ? [] : ["The tests that ran aren't compared: that takes a run of the tests on each side, which CI's `guard` workflow makes."]),
     ...(dirty ? ["Uncommitted changes aren't read: commit them and run it again."] : []),
   ]
-  return { found, report: [report(found, { head: short(head), base: short(from) }), ...notes].join('\n\n'), json: reportJson(found, { head: git('rev-parse', head).trim(), base: git('rev-parse', from).trim() }) }
+  return { found, report: [report(found, { head: short(head), base: short(from) }), ...notes].join('\n\n'), json: reportJson(found, { head: git('rev-parse', `${head}^{commit}`).trim(), base: git('rev-parse', `${from}^{commit}`).trim() }) }
 }
 
 /**

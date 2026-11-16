@@ -1148,6 +1148,7 @@ describe('reportJson', () => {
       ...commits,
       cut: false,
       total: 4,
+      counts: { 'weakens-checks': 2, 'design-value': 1, 'existing-check': 1 },
       marks: [
         { kind: 'weakens-checks', detail: 'a run gave no list' },
         { kind: 'weakens-checks', file: 'checks.json', detail: 'coverage `lines` lowered: 96 → 90' },
@@ -1172,12 +1173,13 @@ describe('reportJson', () => {
     const text = reportJson(many, commits)
     expect(new TextEncoder().encode(text).length).toBeLessThanOrEqual(60_000)
     const parsed = JSON.parse(text)
-    expect(parsed).toMatchObject({ schema: 1, cut: true, total: 5000 })
+    expect(parsed).toMatchObject({ schema: 1, cut: true, total: 5000, counts: { 'weakens-checks': 5000, 'design-value': 0, 'existing-check': 0 } })
     expect(parsed.marks.length).toBeGreaterThan(0)
     expect(parsed.marks.length).toBeLessThan(5000)
     expect(parsed.marks[parsed.marks.length - 1].file).toBe(`src/file${parsed.marks.length - 1}.test.ts`)
-    // As many as fit: one more would go over.
-    expect(new TextEncoder().encode(reportJson(many.slice(0, parsed.marks.length + 1), commits, Infinity)).length).toBeGreaterThan(60_000 - 100)
+    // As many as fit: one more mark, with its comma, would go over the limit itself.
+    const next = new TextEncoder().encode(JSON.stringify({ kind: 'weakens-checks', file: many[parsed.marks.length].file, detail: many[parsed.marks.length].what })).length
+    expect(new TextEncoder().encode(text).length + next + 1).toBeGreaterThan(60_000)
   })
 
   it('cuts to the byte, counting UTF-8 and not letters', () => {
@@ -1185,5 +1187,15 @@ describe('reportJson', () => {
     const whole = new TextEncoder().encode(reportJson(one, commits)).length
     expect(JSON.parse(reportJson(one, commits, whole)).cut).toBe(false)
     expect(JSON.parse(reportJson(one, commits, whole - 1))).toMatchObject({ cut: true, total: 1, marks: [] })
+  })
+
+  it('keeps a detail with backticks, quotes and non-ASCII letters as it is, and a mark with neither file nor line', () => {
+    const what = 'a `"quoted"` value: ё → "x"\n'
+    expect(JSON.parse(reportJson([{ needs: 'owner', what }], commits)).marks).toEqual([{ kind: 'weakens-checks', detail: what }])
+  })
+
+  it('writes no marks where the first alone is over the limit, still as JSON with the whole count', () => {
+    const text = reportJson([{ needs: 'owner', what: 'x'.repeat(1000) }, { needs: 'owner', what: 'y' }], commits, 500)
+    expect(JSON.parse(text)).toMatchObject({ cut: true, total: 2, marks: [] })
   })
 })

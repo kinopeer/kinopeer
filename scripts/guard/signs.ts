@@ -575,52 +575,53 @@ export function report(found: Finding[], { head, base }: { head: string; base: s
   return lines.join('\n')
 }
 
-/** The kind of mark each list of the report is, as the JSON copy names it. */
-const KINDS: Record<Needs, string> = { owner: 'weakens-checks', coordinator: 'design-value', review: 'existing-check' }
+/** What a check's summary or text holds, in bytes of UTF-8 to be safe whatever GitHub counts: its limit is 65,535 characters. */
+export const SUMMARY_LIMIT = 60_000
+
+const bytes = (part: string): number => new TextEncoder().encode(part).length
+
+/** The lists of the report, in its order, and the kind of mark each is in the JSON copy. */
+const KINDS = { owner: 'weakens-checks', coordinator: 'design-value', review: 'existing-check' } as const satisfies Record<Needs, string>
+export type Kind = (typeof KINDS)[Needs]
 
 /** One mark of the JSON copy: its kind, and the file, line and detail the report's line for it gives. */
-export type Mark = { kind: string; file?: string; line?: number; detail: string }
+export type Mark = { kind: Kind; file?: string; line?: number; detail: string }
 
 /**
  * The marks of the report as JSON for a reader that isn't a person (the dashboard's collector, through the
- * `guard report` check's `output.text`): `schema` 1, the two commits, and the same marks in the same order as the
- * report's three lists. Where the text would pass `limit` bytes, the marks that fit are written and `cut` says
- * the rest were left out (`total` is how many there were), so it is JSON either way.
+ * `guard report` check's `output.text`): `schema` 1, the commit the branch is at and the one it left `main` at, and
+ * the same marks in the same order as the report's three lists, with how many of each kind there are in all. Where
+ * the text would pass `limit` bytes, the marks that fit are written and `cut` says the rest were left out
+ * (`total` is how many there were), so it is JSON either way.
  */
-export function reportJson(found: Finding[], commits: { head: string; base: string }, limit = TEXT_LIMIT): string {
-  const marks: Mark[] = (['owner', 'coordinator', 'review'] as const).flatMap((needs) =>
-    found.filter((finding) => finding.needs === needs).map(({ file, line, what }) => ({ kind: KINDS[needs], ...(file ? { file } : {}), ...(line ? { line } : {}), detail: what })),
+export function reportJson(found: Finding[], commits: { head: string; base: string }, limit = SUMMARY_LIMIT): string {
+  const needs = Object.keys(KINDS) as Needs[]
+  const marks: Mark[] = needs.flatMap((one) =>
+    found.filter(({ needs: has }) => has === one).map(({ file, line, what }) => ({ kind: KINDS[one], ...(file ? { file } : {}), ...(line ? { line } : {}), detail: what })),
   )
-  const size = (part: string) => new TextEncoder().encode(part).length
-  const write = (kept: Mark[], cut = kept.length < marks.length) => JSON.stringify({ schema: 1, ...commits, cut, total: marks.length, marks: kept })
+  const counts = Object.fromEntries(needs.map((one) => [KINDS[one], marks.filter(({ kind }) => kind === KINDS[one]).length]))
+  const write = (kept: Mark[], cut = kept.length < marks.length) => JSON.stringify({ schema: 1, ...commits, cut, total: marks.length, counts, marks: kept })
   // The text with no marks, `cut` spelled the longer way, is the most the rest of it takes; each mark takes its own and a comma, but the last's.
-  let used = size(write([], false)) - 1
+  let used = bytes(write([], false)) - 1
   const kept: Mark[] = []
   for (const mark of marks) {
-    used += size(JSON.stringify(mark)) + 1
+    used += bytes(JSON.stringify(mark)) + 1
     if (used > limit) break
     kept.push(mark)
   }
   return write(kept)
 }
 
-/** What a check's `output.text` holds, in bytes of UTF-8 to be safe whatever GitHub counts: its limit is 65,535 characters. */
-export const TEXT_LIMIT = 60_000
-
-/** What a check's summary holds, in bytes of UTF-8 to be safe whatever GitHub counts: its limit is 65,535 characters. */
-export const SUMMARY_LIMIT = 60_000
-
 const CUT = "\n\n**The report is cut here**, to fit a check's summary: the whole report is in the summary of the `Guard` run's `guard` job."
 
 /** The report as a check's summary holds it: whole when it fits, else cut at a line's end with a note where the rest is. */
 export function capped(text: string, limit = SUMMARY_LIMIT): string {
-  const size = (part: string) => new TextEncoder().encode(part).length
-  if (size(text) <= limit) return text
+  if (bytes(text) <= limit) return text
   const kept: string[] = []
   // Each kept line takes its newline but the last, which the note's own start stands in for.
-  let used = size(CUT) - 1
+  let used = bytes(CUT) - 1
   for (const line of text.split('\n')) {
-    used += size(line) + 1
+    used += bytes(line) + 1
     if (used > limit) break
     kept.push(line)
   }

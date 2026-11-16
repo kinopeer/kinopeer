@@ -232,11 +232,11 @@ What the guard finds goes into the job's summary and into the PR's `guard report
 run the job writes on the PR's head on every run, green, with the report as its summary (cut,
 with a note, where it is longer than a check's summary holds), since the reviews read the report
 through the API, which has no way to a job's summary. The check's `output.text` holds the same marks as
-JSON for a reader that isn't a person (the quality system's dashboard collector): `schema` 1,
-the full `head` and `base` commits, `total` and `cut`, and `marks`, one per mark in the report's order, each
+JSON for a reader that isn't a person (the quality system's planned dashboard collector): `schema` 1,
+the full `head` commit and `base`, the commit the branch left `main` at (as the report's "against `main` at"), `total`, `counts` per kind and `cut`, and `marks`, one per mark in the report's order, each
 with its `kind` (`weakens-checks`, `design-value` or `existing-check`, the report's three lists), its `file`
 and `line` where it has them, and the `detail` the report's line gives, an old and a new value in it where
-there is one. It is cut to 60,000 bytes by leaving out the last marks, never mid-JSON, with `cut` true and
+there is one. It is cut to what a check's text holds (`SUMMARY_LIMIT` in `scripts/guard/signs.ts`) by leaving out the last marks, never mid-JSON, with `cut` true and
 `total` the whole count. The job itself, `guard`, is what `main`'s
 ruleset requires: it passes once the guard has run and written its report, and a failure to write
 it, such as an error from GitHub's API, goes away with a re-run of the job. A fork's PR gets a read-only token, so the
