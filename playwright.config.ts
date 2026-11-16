@@ -16,7 +16,8 @@ export default defineConfig({
   retries: 0,
   // Two Chromiums fit the CI container (it runs with --ipc=host); locally Playwright picks.
   workers: process.env.CI ? 2 : undefined,
-  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : [['list']],
+  // In CI, also what axe read for the actual values (scripts/actuals/reporter.ts, docs/QUALITY.md → The actual values).
+  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }], ['./scripts/actuals/reporter.ts', { tools: ['accessibility'] }]] : [['list']],
   expect: {
     toHaveScreenshot: { animations: 'disabled', caret: 'hide' },
   },

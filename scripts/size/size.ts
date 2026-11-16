@@ -7,7 +7,9 @@
 import { appendFileSync, readdirSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { gzipSync } from 'node:zlib'
-import { counted, judge, kindOf, readBudgets, unchecked, type Budgets, type File, type Verdict } from './budget.ts'
+import { toolActuals } from '../actuals/actuals.ts'
+import { writePart } from '../actuals/write.ts'
+import { counted, judge, KINDS, kindOf, readBudgets, unchecked, type Budgets, type File, type Verdict } from './budget.ts'
 
 /**
  * Every file under `dir`, with the bytes it counts for. Throws when `dir` can't be read, and on an
@@ -29,22 +31,32 @@ export function builtFiles(dir: string): File[] {
 // What reading a file throws: Node's file system and JSON.parse throw Errors.
 const why = (error: unknown): string => (error as Error).message
 
-/** The verdict for the build in `dist` against the budgets in `checks`. In CI it also appends the report to the job's summary. */
-export function main({ dist, checks }: { dist: string; checks: string }, env: { GITHUB_STEP_SUMMARY?: string }): Verdict {
+/**
+ * The verdict for the build in `dist` against the budgets in `checks`. In CI it also appends the
+ * report to the job's summary, and writes each kind's total and the files counted into ACTUALS_DIR
+ * before the verdict (docs/QUALITY.md → The actual values), so a build over its budget has them too.
+ */
+export function main({ dist, checks }: { dist: string; checks: string }, env: { GITHUB_STEP_SUMMARY?: string; ACTUALS_DIR?: string }): Verdict {
   const problems: string[] = []
   let files: File[] | undefined
   let budgets: Budgets | undefined
+  let parsed: unknown
   try {
     files = builtFiles(dist)
   } catch (error) {
     problems.push(`the build in \`${dist}\` can't be read (run \`npm run build\` first): ${why(error)}`)
   }
   try {
-    const read = readBudgets(JSON.parse(readFileSync(checks, 'utf8')))
+    parsed = JSON.parse(readFileSync(checks, 'utf8'))
+    const read = readBudgets(parsed)
     if (Array.isArray(read)) problems.push(...read)
     else budgets = read
   } catch (error) {
     problems.push(`\`${checks}\` can't be read as JSON: ${why(error)}`)
+  }
+  if (env.ACTUALS_DIR) {
+    const measured = (files ?? []).length === 0 ? [] : KINDS.map((kind) => ({ path: [kind], value: files!.filter((file) => kindOf(file.path) === kind).reduce((sum, file) => sum + file.size, 0) }))
+    writePart(env.ACTUALS_DIR, toolActuals('size', parsed, measured, { files: files?.length }))
   }
   const verdict = files && budgets ? judge(files, budgets) : unchecked(problems)
   if (env.GITHUB_STEP_SUMMARY) appendFileSync(env.GITHUB_STEP_SUMMARY, `${verdict.report}\n`)

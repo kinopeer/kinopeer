@@ -20,10 +20,17 @@ concurrency:
 # Each job's timeout-minutes is there for a hang, which would otherwise run to GitHub's six hours and
 # spend the account's minutes: well over the slowest healthy run, so raise it if a job's normal time
 # gets near it rather than retrying.
+# The measuring jobs (check, performance, visual) record the actual values their tools read into
+# ACTUALS_DIR and upload them as an `actuals-<job>` artifact on every run, red or green, for the
+# collector that charts them against their budgets (docs/QUALITY.md → The actual values). ACTUALS_SHA
+# is the commit measured: a PR's head, not the merge commit GitHub runs it on.
 jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      ACTUALS_DIR: actuals-parts
+      ACTUALS_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -53,6 +60,18 @@ jobs:
           name: coverage
           path: coverage
           retention-days: 14
+      - name: Record the actual values
+        # Without a report (the tests never ran) coverage's values are null.
+        if: always()
+        run: |
+          node scripts/actuals/coverage.ts coverage/coverage-summary.json
+          node scripts/actuals/collect.ts check
+      - name: Upload the actual values
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: actuals-check
+          path: actuals-check.json
       - run: npm run build
 
   performance:
@@ -63,6 +82,9 @@ jobs:
     runs-on: ubuntu-latest
     # Usually a few minutes, but apt alone has taken 550 s on a runner like this one.
     timeout-minutes: 15
+    env:
+      ACTUALS_DIR: actuals-parts
+      ACTUALS_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -94,6 +116,16 @@ jobs:
       # and budgets.journeys, on the build above (docs/QUALITY.md → The requests budget), and the
       # layout shift of each screen on a phone (docs/TESTING.md → The layout shift test).
       - run: npm run test:requests
+      - name: Record the actual values
+        # A tool whose step never ran gets null values.
+        if: always()
+        run: node scripts/actuals/collect.ts performance
+      - name: Upload the actual values
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: actuals-performance
+          path: actuals-performance.json
       - name: Upload the report with the traces
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -112,12 +144,24 @@ jobs:
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
       options: --ipc=host
+    env:
+      ACTUALS_DIR: actuals-parts
+      ACTUALS_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - run: npm ci
       - run: npx playwright test
+      - name: Record the actual values
+        if: always()
+        run: node scripts/actuals/collect.ts visual
+      - name: Upload the actual values
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: actuals-visual
+          path: actuals-visual.json
       - name: Upload the report with the screenshot diffs
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

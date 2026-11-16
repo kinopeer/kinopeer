@@ -634,7 +634,8 @@ file, plus an HTML report in `coverage/` (git-ignored). It measures the TypeScri
 leaves out what `coverage.exclude` matches: the tests, the shared test folders and setup, and
 modules with no behavior to cover. `vite.config.ts` reads both, and its comment over `coverage` says why
 each kind is left out. CI runs the same in the `check` job, adds the totals to the job summary
-(`scripts/coverage-summary.mjs`) and uploads the HTML report as the `coverage` artifact.
+(`scripts/coverage-summary.mjs`), uploads the HTML report as the `coverage` artifact and records
+the totals as actual values ([QUALITY.md](QUALITY.md) → The actual values).
 
 The checks guard compares `coverage` in `checks.json` with `main`'s ([QUALITY.md](QUALITY.md) →
 The checks guard). The run fails under a threshold

@@ -350,7 +350,8 @@ room for ordinary changes, not for noise. It is exact for the dependencies `pack
 names: a local `node_modules` that drifted from it builds another size, so measure after `npm ci`.
 
 **In CI** it is the step after `npm run build` in the `performance` job, which adds a table of the kinds,
-their sizes, budgets and what is left to the job's summary. It fails over a budget, and also when
+their sizes, budgets and what is left to the job's summary, and records the sizes as actual values
+before its verdict ([The actual values](#the-actual-values)). It fails over a budget, and also when
 it can't check: a `dist/` that is missing, a build without a file of each kind (cut short, or
 with files named in a way it doesn't read, such as `.cjs`), an entry in `dist/` that is neither a
 file nor a folder (a symlink, which the server would still serve), a `checks.json` it can't read, a
@@ -506,7 +507,7 @@ budget lowered needs nothing. A new budget, for a new screen or a new move, is j
 **In CI** it is the step after the size budget's in the `performance` job, on the same build,
 Chromium from the cache as in the `smoke` job; the reporter `e2e/performance/summary.ts` adds the
 tables of the counts, the openings' and the moves', to the job's summary, and a failure uploads the Playwright report with its
-traces.
+traces. The counts and the layout shifts are also recorded as actual values ([The actual values](#the-actual-values)).
 
 **Its tests**: the rules (which key a request counts against, the budgets read, the screens and
 moves without a budget, the verdict and its report, the table, the clock's run from the intervals
@@ -644,13 +645,63 @@ sounds in VoiceOver or TalkBack.
 The reads add about 64 s of test time, about 32 s on the job's two workers: a whole run took 60 s in
 Docker on a Mac with them, and the job 2 min 10 s in CI, against 1 min 26 s and 1 min 40 s on
 `main` before. A failure uploads the Playwright report as the screenshots' do, and each
-screenshot's test there has an `axe <spec>/<screenshot>` attachment with every element axe found.
+screenshot's test there has an `axe <spec>/<screenshot>` attachment with every element axe found,
+which is also recorded as actual values, with how many rules axe found passing ([The actual values](#the-actual-values)).
 
 **Its tests**: the rules (the budgets and tags read, the tags axe doesn't know, a screenshot's state from its name, the
 verdict and its report, the budgets without a baseline and the baselines without a budget) are pure
 functions in `scripts/accessibility/budget.ts`, tested in `budget.test.ts` (layer 1); coverage
 measures the folder and Stryker mutates it. The read itself, in `e2e/test.ts`, and the check of the
 baselines, in `e2e/accessibility.spec.ts`, are layer 6, beside the screenshot tests.
+
+## The actual values
+
+Each job that measures records the values its tools read, machine-readable, for a collector outside
+this repository that charts them against their budgets over `main`'s commits (the owner's
+`ai-workspace`, `quality-system/dashboard.md`). The logs and the job summaries have the same numbers,
+but GitHub's API returns neither. `scripts/actuals/` does it:
+
+| Job | Tools | Health counters |
+| --- | --- | --- |
+| `check` | `coverage`: each metric's percentage, from Vitest's `json-summary` report (`coverage.ts`) | `files`: the files in the report |
+| `performance` | `size` (`scripts/size/size.ts`); `requests`, `journeys` and `layoutShift` (`reporter.ts`, a Playwright reporter in `playwright.performance.config.ts`) | `size.files`: the files in the build; `requests.screens`: the screens opened, per window size; `journeys.journeys` and `journeys.moves`: the journeys made and their moves; `layoutShift.screens` and `layoutShift.loads`: the screens read and their loads (each case and order) |
+| `visual` | `accessibility` (`reporter.ts` in `playwright.config.ts`) | `states`: the screenshots' states axe read; `passes`: the rules axe found passing, summed over them |
+
+Each job uploads an `actuals-<job>` artifact on every run, PRs and `main`, also when it fails: one
+file, `actuals-<job>.json`, in a shape the collector is written against:
+
+```json
+{"schema": 1, "sha": "<commit>", "job": "<job>",
+ "tools": [{"tool": "size", "values": [{"key": "/js", "value": 185560}], "health": {"files": 21}}]}
+```
+
+- **`sha`** is the commit measured: a PR's head, not the merge commit GitHub runs a PR on.
+- **`key`** is the budget's path under the tool's section of `checks.json` (`coverage.thresholds`,
+  `budgets.size`, `budgets.requests`, `budgets.journeys`, `budgets.layoutShift`,
+  `budgets.accessibility`) as a JSON Pointer (RFC 6901), since the names have dots and slashes in
+  them: `/phone/downloads/~1qbt` is `budgets.requests.phone.downloads["/qbt"]`, `/lines` is
+  `coverage.thresholds.lines`. A value and its budget join on it.
+- **`value`** is what was measured, `null` when it wasn't, never 0 for that. Every budget of a tool
+  has a value. A tool's file also has values with no budget: an axe rule found where its state has
+  none, and, for a state read, each rule its budget names at 0 where axe found none. A layout
+  shift is the screen's largest load, which is what its budget bounds.
+- **`health`** says how much the tool measured, so a tool that measured less shows even when its
+  values equal their budgets; `null` where it didn't count.
+
+Each tool writes its part into `ACTUALS_DIR` (`actuals-parts/` in CI) as it measures, before its
+budget's verdict, so a red run still has its numbers: `size.ts` before it judges the totals, the
+browser tests through the attachments they make before their assertions, and coverage from the
+report Vitest writes before it judges the thresholds. The job's last steps, which run whatever came
+before, put the parts into the file (`collect.ts`) and upload it; a tool that wrote no part (its
+step never ran, or broke before measuring) gets every value and counter `null`. Without
+`ACTUALS_DIR`, as in a local run, nothing is written. The artifacts live as long as the repository
+keeps them (90 days by default); the collector takes them from `main`'s runs while they do.
+
+**Its tests**: the shape, the keys and each tool's values and counters are pure functions in
+`scripts/actuals/actuals.ts`, tested in `actuals.test.ts` (layer 1); writing the parts, the
+reporter and putting the file together in `io.test.ts` over a folder made in the test, and the
+size's part in `scripts/size/size.test.ts` (layer 4). Each tool has a test that its part is written
+when its budget fails. Coverage measures the folder and Stryker mutates it.
 
 ## The retro
 

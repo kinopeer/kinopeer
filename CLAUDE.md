@@ -19,7 +19,7 @@ A qBittorrent web UI built around movies and TV series. Find a title in TMDB, pi
 | `docs/ARCHITECTURE.md` | How the app is built, area by area (imported into this file, below) |
 | `docs/DEVELOPMENT.md` | Running locally, environment variables, releases, the Umbrel package |
 | `docs/TESTING.md` | The test layers and how to choose one, what to do with a bug (the seven `test-gap` classes), fixtures and fakes, coverage and its threshold, reviewing a PR's tests and tagging its findings (its rules also the quality system's testing component, of which it is the source), the screenshot tests, the smoke journeys, the blind spots |
-| `docs/QUALITY.md` | Which parts of the quality system are in force, and the checks guard: what it marks in a PR (what weakens the checks, design values, changes to existing checks), `checks.json`, how it runs; the budgets; the retro of the whole quality system every fifty merged PRs, with its table of past retros |
+| `docs/QUALITY.md` | Which parts of the quality system are in force, and the checks guard: what it marks in a PR (what weakens the checks, design values, changes to existing checks), `checks.json`, how it runs; the budgets; the actual values the measuring jobs record for the dashboard; the retro of the whole quality system every fifty merged PRs, with its table of past retros |
 | `docs/RELEASE_CHECKLIST.md` | What to check before every release |
 | `CHANGELOG.md` | User-facing changes per version |
 
