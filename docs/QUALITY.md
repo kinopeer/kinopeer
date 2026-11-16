@@ -692,8 +692,13 @@ budget's verdict, so a red run still has its numbers: `size.ts` before it judges
 browser tests through the attachments they make before their assertions, and coverage from the
 report Vitest writes before it judges the thresholds, also when a test fails (`reportOnFailure` in
 `vite.config.ts`). The job's last steps, which run whatever came
-before but a cancelled run (`!cancelled()`: a PR's run a later push replaced), put the parts into the file (`collect.ts`) and upload it; a tool that wrote no part (its
-step never ran, or broke before measuring) gets every value and counter `null`. Without
+before (`!cancelled() || github.event_name == 'push'`: they skip a PR's run a later push cancelled,
+but not a run of `main` cancelled because a job went past its `timeout-minutes`, which GitHub
+cancels, per its workflow syntax's `timeout-minutes` and the status check functions in its
+expressions page), put the parts into the file (`collect.ts`) and upload it; a tool that wrote no part (its
+step never ran, or broke before measuring) gets every value and counter `null`. GitHub's docs don't say whether a job's later steps run after its timeout cancels it, so a
+`main` run with no `actuals-<job>` artifact for a measuring job is a broken tool too, for the
+collector as much as a file of nulls. Without
 `ACTUALS_DIR`, as in a local run, nothing is written. The artifacts live as long as the repository
 keeps them (90 days by default); the collector takes them from `main`'s runs while they do.
 

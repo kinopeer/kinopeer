@@ -9,7 +9,8 @@ import { accessibilityActuals, journeysActuals, layoutShiftActuals, requestsActu
 import { CHECKS, readJson, writePart } from './write.ts'
 
 /** The tools a browser test measures, by the attachment it reads them from (`axe ` and the state for accessibility). */
-type BrowserTool = Extract<Tool, 'requests' | 'journeys' | 'layoutShift' | 'accessibility'>
+const BROWSER_TOOLS = ['requests', 'journeys', 'layoutShift', 'accessibility'] as const satisfies readonly Tool[]
+type BrowserTool = (typeof BROWSER_TOOLS)[number]
 
 const toolOf = (name: string): BrowserTool | undefined => {
   if (name === 'requests') return 'requests'
@@ -24,6 +25,9 @@ export default class ActualsReporter implements Reporter {
   private attached = new Map<BrowserTool, unknown[]>()
 
   constructor({ tools }: { tools: BrowserTool[] }) {
+    // The configs' options aren't type-checked: a misspelled tool fails the run rather than writing another tool's part.
+    const unknown = tools.filter((tool) => !BROWSER_TOOLS.includes(tool))
+    if (unknown.length > 0) throw new Error(`scripts/actuals/reporter.ts measures ${BROWSER_TOOLS.join(', ')}, not ${unknown.join(', ')}`)
     this.tools = tools
   }
 
@@ -31,8 +35,15 @@ export default class ActualsReporter implements Reporter {
     for (const { name, body } of result.attachments) {
       const tool = toolOf(name)
       if (!tool || !body) continue
+      let parsed: unknown
+      try {
+        parsed = JSON.parse(body.toString('utf8'))
+      } catch {
+        // Not one of the tests' own attachments: it measured nothing, and the run goes on.
+        continue
+      }
       if (!this.attached.has(tool)) this.attached.set(tool, [])
-      this.attached.get(tool)!.push(JSON.parse(body.toString('utf8')))
+      this.attached.get(tool)!.push(parsed)
     }
   }
 

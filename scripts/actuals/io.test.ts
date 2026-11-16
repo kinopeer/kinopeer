@@ -189,6 +189,21 @@ describe('ActualsReporter', () => {
     expect((await read('parts/requests.json')).health).toEqual({ screens: 0 })
   })
 
+  it('fails for a tool it doesn\'t measure, rather than writing another tool\'s part', () => {
+    expect(() => new ActualsReporter({ tools: ['requests', 'acessibility' as 'accessibility'] })).toThrow(
+      'scripts/actuals/reporter.ts measures requests, journeys, layoutShift, accessibility, not acessibility',
+    )
+  })
+
+  it('skips an attachment under a tool\'s name that isn\'t JSON', async () => {
+    vi.stubEnv('ACTUALS_DIR', at('parts'))
+    const reporter = new ActualsReporter({ tools: ['requests'] })
+    reporter.onTestEnd(test, result('passed', [{ name: 'requests', contentType: 'text/plain', body: Buffer.from('not JSON') }]))
+    reporter.onTestEnd(test, result('passed', [attachment('requests', { size: 'phone', screen: 'downloads', counts: { '/qbt': 2 } })]))
+    reporter.onEnd()
+    expect((await read('parts/requests.json')).health).toEqual({ screens: 1 })
+  })
+
   it('writes nothing without ACTUALS_DIR', () => {
     vi.stubEnv('ACTUALS_DIR', '')
     const reporter = new ActualsReporter({ tools: ['requests'] })
