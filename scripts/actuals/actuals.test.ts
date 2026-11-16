@@ -66,6 +66,10 @@ describe('toolActuals', () => {
     expect(part.health).toEqual({ journeys: null, moves: null })
   })
 
+  it('takes a budget that is null as one, not as a section', () => {
+    expect(toolActuals('size', { budgets: { size: { js: null } } }, []).values).toEqual([{ key: '/js', value: null }])
+  })
+
   it.each([
     ['no checks.json', undefined],
     ['a list', []],
@@ -110,6 +114,8 @@ describe('assemble', () => {
     ['values that are no list', { ...part, values: {} }],
     ['a value without a key', { ...part, values: [{ value: 1 }] }],
     ['a value that is a string', { ...part, values: [{ key: '/js', value: '90' }] }],
+    ['one good value and one that is a string', { ...part, values: [{ key: '/js', value: 90 }, { key: '/css', value: '20' }] }],
+    ['one good counter and one that is a string', { ...part, health: { files: 3, other: '3' } }],
     ['no health', { ...part, health: undefined }],
     ['a counter that is a string', { ...part, health: { files: '3' } }],
   ])('takes a part with %s as no part', (_, broken) => {

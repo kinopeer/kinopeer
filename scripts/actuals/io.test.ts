@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -72,7 +73,7 @@ describe('coverage', () => {
 })
 
 describe('collect', () => {
-  it('writes the job’s file from the parts in the folder, skipping files that aren’t JSON', async () => {
+  it('writes the job’s file from the parts in the folder, taking a file that isn’t JSON as no part', async () => {
     const part = toolActuals('coverage', {}, [{ path: ['lines'], value: 97 }], { files: 300 })
     writePart(at('parts'), part)
     await writeFile(at('parts/notes.txt'), 'not a part')
@@ -97,6 +98,36 @@ describe('collect', () => {
     await writeFile(at('parts/coverage.json'), '{')
     const made = collect({ job: 'check', sha: 'abc123', dir: at('parts'), out: at('out.json'), checks: at('checks.json') })
     expect(made.tools[0].health).toEqual({ files: null })
+  })
+})
+
+describe('the scripts CI runs', () => {
+  const run = (script: string, args: string[], env: Record<string, string>) =>
+    execFileSync(process.execPath, [join(import.meta.dirname, script), ...args], { cwd: root, env: { PATH: process.env.PATH, ...env }, encoding: 'utf8', stdio: 'pipe' })
+
+  it('collect.ts writes actuals-<job>.json in the folder it runs in', async () => {
+    writePart(at('parts'), toolActuals('coverage', {}, [{ path: ['lines'], value: 97 }]))
+    run('collect.ts', ['check'], { ACTUALS_SHA: 'abc123', ACTUALS_DIR: 'parts' })
+    expect(await read('actuals-check.json')).toMatchObject({ sha: 'abc123', job: 'check', tools: [{ tool: 'coverage', values: expect.arrayContaining([{ key: '/lines', value: 97 }]) }] })
+  })
+
+  it.each([
+    ['the job', [], { ACTUALS_SHA: 'abc123', ACTUALS_DIR: 'parts' }],
+    ['the commit', ['check'], { ACTUALS_DIR: 'parts' }],
+    ['the folder', ['check'], { ACTUALS_SHA: 'abc123' }],
+  ])('collect.ts fails without %s, writing nothing', (_, args, env) => {
+    expect(() => run('collect.ts', args, env)).toThrow(/Usage: ACTUALS_SHA=<commit> ACTUALS_DIR=<folder> node scripts\/actuals\/collect.ts <job>/)
+    expect(readJson(at('actuals-check.json'))).toBeUndefined()
+  })
+
+  it('coverage.ts reads the report it is given, and coverage/coverage-summary.json by default', async () => {
+    await mkdir(at('coverage'))
+    await writeFile(at('coverage/coverage-summary.json'), JSON.stringify({ total: { lines: { pct: 91 } } }))
+    await writeFile(at('other.json'), JSON.stringify({ total: { lines: { pct: 92 } } }))
+    run('coverage.ts', [], { ACTUALS_DIR: 'parts' })
+    expect((await read('parts/coverage.json')).values).toContainEqual({ key: '/lines', value: 91 })
+    run('coverage.ts', ['other.json'], { ACTUALS_DIR: 'parts' })
+    expect((await read('parts/coverage.json')).values).toContainEqual({ key: '/lines', value: 92 })
   })
 })
 
@@ -125,7 +156,14 @@ describe('ActualsReporter', () => {
   it('writes what axe read, the states and the passes', async () => {
     vi.stubEnv('ACTUALS_DIR', at('parts'))
     const reporter = new ActualsReporter({ tools: ['accessibility'] })
-    reporter.onTestEnd(test, result('failed', [attachment('axe downloads/list', { spec: 'downloads', shot: 'list', violations: [{ id: 'region', nodes: [{}] }], passes: 3 })]))
+    reporter.onTestEnd(
+      test,
+      result('failed', [
+        attachment('axe downloads/list', { spec: 'downloads', shot: 'list', violations: [{ id: 'region', nodes: [{}] }], passes: 3 }),
+        // Another attachment with a body: a screenshot's, or one a test adds.
+        { name: 'downloads-list-actual.png', contentType: 'image/png', body: Buffer.from([0x89, 0x50, 0x4e, 0x47]) },
+      ]),
+    )
     reporter.onEnd()
     const part = await read('parts/accessibility.json')
     expect(part.values).toContainEqual({ key: '/downloads/list/region', value: 1 })

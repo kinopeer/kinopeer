@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import { assemble, type Actuals } from './actuals.ts'
 import { CHECKS, readJson } from './write.ts'
 
-/** The parts in `dir`: every `.json` file in it, none when the folder isn't there (no tool got to write). */
+/** The parts in `dir`: each file in it as JSON (one that isn't reads as no part), none when the folder isn't there (no tool got to write). */
 function partsIn(dir: string): unknown[] {
   let names: string[]
   try {
@@ -15,7 +15,7 @@ function partsIn(dir: string): unknown[] {
   } catch {
     return []
   }
-  return names.filter((name) => name.endsWith('.json')).sort().map((name) => readJson(join(dir, name)))
+  return names.map((name) => readJson(join(dir, name)))
 }
 
 /** Writes the job's file to `out` from the parts in `dir`, and returns it. */

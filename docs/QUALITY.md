@@ -659,13 +659,12 @@ baselines, in `e2e/accessibility.spec.ts`, are layer 6, beside the screenshot te
 Each job that measures records the values its tools read, machine-readable, for a collector outside
 this repository that charts them against their budgets over `main`'s commits (the owner's
 `ai-workspace`, `quality-system/dashboard.md`). The logs and the job summaries have the same numbers,
-but GitHub's API returns neither. `scripts/actuals/` does it:
-
-| Job | Tools | Health counters |
-| --- | --- | --- |
-| `check` | `coverage`: each metric's percentage, from Vitest's `json-summary` report (`coverage.ts`) | `files`: the files in the report |
-| `performance` | `size` (`scripts/size/size.ts`); `requests`, `journeys` and `layoutShift` (`reporter.ts`, a Playwright reporter in `playwright.performance.config.ts`) | `size.files`: the files in the build; `requests.screens`: the screens opened, per window size; `journeys.journeys` and `journeys.moves`: the journeys made and their moves; `layoutShift.screens` and `layoutShift.loads`: the screens read and their loads (each case and order) |
-| `visual` | `accessibility` (`reporter.ts` in `playwright.config.ts`) | `states`: the screenshots' states axe read; `passes`: the rules axe found passing, summed over them |
+but GitHub's API returns neither. `scripts/actuals/` does it for the `check` job (coverage), the
+`performance` job (the size, the requests, the journeys and the layout shift) and the `visual` job
+(the accessibility). Which tools each job measures with (`JOBS`) and each tool's health counters
+with what each counts (`HEALTH`) are in `scripts/actuals/actuals.ts`: the files in the coverage report and in
+the build, the screens opened and the journeys made, the states axe read and the rules it found
+passing in them, and the like.
 
 Each job uploads an `actuals-<job>` artifact on every run, PRs and `main`, also when it fails: one
 file, `actuals-<job>.json`, in a shape the collector is written against:

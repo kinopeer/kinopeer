@@ -84,7 +84,7 @@ export function toolActuals(tool: Tool, checks: unknown, measured: Measured[], h
   for (const { path, value } of measured) values.set(pointer(path), Number.isFinite(value) ? value : null)
   const counted = (name: string) => {
     const count = health[name]
-    return typeof count === 'number' && Number.isFinite(count) ? count : null
+    return Number.isFinite(count) ? (count as number) : null
   }
   return {
     tool,
@@ -96,7 +96,7 @@ export function toolActuals(tool: Tool, checks: unknown, measured: Measured[], h
 /** Whether a part read back from a file has the shape a tool writes. */
 function isToolActuals(part: unknown): part is ToolActuals {
   if (!isObject(part) || !(TOOLS as readonly unknown[]).includes(part.tool) || !isObject(part.health) || !Array.isArray(part.values)) return false
-  const isCount = (value: unknown) => value === null || (typeof value === 'number' && Number.isFinite(value))
+  const isCount = (value: unknown) => value === null || Number.isFinite(value)
   return part.values.every((value) => isObject(value) && typeof value.key === 'string' && isCount(value.value)) && Object.values(part.health).every(isCount)
 }
 
