@@ -631,13 +631,13 @@ imports Node needs.
 `npm run test:coverage` runs the Vitest layers with `@vitest/coverage-v8` and prints a table per
 file, plus an HTML report in `coverage/` (git-ignored). It measures the TypeScript files that
 `coverage.include` in `checks.json` matches, not the config and data files beside them (#283), and
-leaves out what `coverage.exclude` matches: the tests and their helpers, and modules with no
-behavior to cover. `vite.config.ts` reads both, and its comment over `coverage` says why
+leaves out what `coverage.exclude` matches: the tests, the shared test folders and setup, and
+modules with no behavior to cover. `vite.config.ts` reads both, and its comment over `coverage` says why
 each kind is left out. CI runs the same in the `check` job, adds the totals to the job summary
 (`scripts/coverage-summary.mjs`) and uploads the HTML report as the `coverage` artifact.
 
-What it measures and its thresholds sit in `checks.json`, as data, where the checks guard compares
-them with `main`'s ([QUALITY.md](QUALITY.md) → The checks guard). The run fails under a threshold
+The checks guard compares `coverage` in `checks.json` with `main`'s ([QUALITY.md](QUALITY.md) →
+The checks guard). The run fails under a threshold
 for lines, statements, functions or branches (`coverage.thresholds` in `checks.json`), each set two
 points under that total on the day it was set, rounded down. The threshold is a ratchet: when the
 totals have grown and stayed there, raise it to two points under them, in the PR that got them
