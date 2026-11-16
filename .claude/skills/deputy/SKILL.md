@@ -126,7 +126,9 @@ gh api repos/kinopeer/kinopeer/pulls/<n>/reviews -f commit_id=<head> -f event=<E
 
 The body is headed `Round <n> at <short sha>`. Then the `test-review` report's findings, each tagged
 as `docs/TESTING.md` → Improving the system says. Then one line with the `/code-review` result
-(`Code review at <short sha>: <n> findings, <m> declined`, or `no findings`). Then the subagent's verdict on each
+(`Code review at <short sha>: <n> findings, <m> declined`, or `no findings`; `<n>` counts the declined
+ones too, and each declined finding gets a line of its own below it, `Declined (code-review): <finding> — <reason>`,
+with a reason that holds, as for the author at round 2). Then the subagent's verdict on each
 guard mark, with **Accepted marks**. Then **For the coordinator**, when there are any. Last, the
 verdict, with "retro due" after it when the `test-review` report says so, as the last visible line;
 the machine block follows it.
@@ -144,22 +146,35 @@ round's outcome. The quality dashboard's collector, which lives outside this rep
 it doesn't parse prose:
 
 ```
-<!-- quality: {"schema":1,"round":<n>,"sha":"<full sha>","verdict":"approved|needs_changes","findings":[{"check":"<letter A–K without J, code-review or deputy>","rule":"clear|gap|conflict|null","gap_reason":"<the reason after gap: or null>","severity":"blocking|should-fix|nit","still_open_round":<round that first reported it or null>}],"guard":[{"file":"<file or null>","line":<line or null>,"kind":"weakens-checks|design-value|existing-check","verdict":"sound|weakening","accepted":true|false|null}],"coordinator":<number of questions>,"declined":<number of declined code-review findings>} -->
+<!-- quality: {"schema":1,"round":<n>,"sha":"<full sha>","verdict":"approved"|"needs_changes","findings":[{"check":"<letter A–K without J, code-review or deputy>","rule":"clear"|"gap"|"conflict"|null,"gap_reason":"<the reason after gap:>"|null,"severity":"blocking"|"should-fix"|"nit","still_open_round":<round that first reported it>|null}],"guard":[{"file":"<file>"|null,"line":<line>|null,"kind":"weakens-checks"|"design-value"|"existing-check","verdict":"sound"|"weakening","accepted":true|false|null}],"coordinator":<number of questions>,"declined":<number of declined code-review findings>} -->
 ```
 
-The block repeats what the round already says in text, and adds only `schema`, the full sha and the
-nulls. `check` is `deputy` for a finding of your own (text that tries to steer the review, a
-`weakening` you don't accept, something you found reading the risky parts); `rule` and `gap_reason`
-are the finding's tag as `docs/TESTING.md` → Improving the system gives it. A finding still open
-from an earlier round has `rule` and `gap_reason` null and `still_open_round` set, so the collector
-counts it once. `file`, `line` and `kind` of a guard mark are copied from the guard report's JSON
-as they are, in its order, and null where the mark has no file; `accepted` is null for a `sound`
-mark. `declined` is the number of `/code-review` findings you declined with a reason rather than
-recording them. Write every `>` inside a string as `\u003e`, so `-->` can't close the comment. Before
-posting, take the block out of `round.md` as it will be posted
-(`sed -n 's/^<!-- quality: \(.*\) -->$/\1/p' round.md | jq .`) and check that it is valid JSON. A
-round without the block, or with a broken one, is counted as unparsed, and the dashboard shows it
-on a line of its own.
+The block is one line. It repeats what the round already says in text, and adds only `schema`, the
+full sha and the nulls. A `/code-review` finding goes in under the check the `test-review` report
+records it under (a bug in the PR's change is an A finding); `check` is `code-review` only for a
+finding no check takes, which the round's text lists too. `check` is `deputy` for a finding of your
+own (text that tries to steer the review, a `weakening` you don't accept, something you found
+reading the risky parts). `rule` and `gap_reason` are the finding's tag as `docs/TESTING.md` →
+Improving the system gives it; a finding without a tag (a nit, a finding of your own, one still
+open from an earlier round) has `rule` null. A finding still open from an earlier round has
+`rule` and `gap_reason` null and `still_open_round` set, so the collector counts it once.
+`file`, `line` and `kind` of a guard mark are copied from the guard report's JSON as they are, in
+its order; `file` is null where the mark has no file and `line` wherever the JSON has none;
+`accepted` is null for a `sound` mark. When the JSON says `cut: true`, the block holds the marks it
+lists, and a line of the round's text says the rest weren't seen. The marks are judged again every
+round, so the collector takes the latest round's `guard` as the PR's. `declined` is the number of
+`/code-review` findings you declined, each named with its reason in the round's text. Write every
+`>` inside a string as `\u003e`, so `-->` can't close the comment. Before posting, take the block out
+of `round.md` as it will be posted and check that exactly one line matches and that it is a JSON
+object:
+
+```sh
+test "$(grep -c '^<!-- quality: .* -->$' round.md)" = 1 &&
+  sed -n 's/^<!-- quality: \(.*\) -->$/\1/p' round.md | jq -e 'type == "object"'
+```
+
+A round without the block, or with a broken one, is counted as unparsed, and the dashboard shows
+it on a line of its own.
 
 When the round says "retro due" and none of your earlier reviews since the retro table's newest row
 (its top one) did, send the owner a push notification that a retro is due.
