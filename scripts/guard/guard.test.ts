@@ -81,7 +81,7 @@ describe('guard', () => {
   it('finds nothing in a branch that changes no check', async () => {
     const base = git('rev-parse', '--short', 'main')
     const head = await commit(APP)
-    expect(run()).toEqual({ found: [], report: `**Checks guard at ${head}**, against \`main\` at ${base}.\n\nNo weakening of the checks, no change to existing ones and no design value added or changed.${NO_RUNS}` })
+    expect(run()).toEqual({ found: [], json: expect.stringContaining('"marks":[]'), report: `**Checks guard at ${head}**, against \`main\` at ${base}.\n\nNo weakening of the checks, no change to existing ones and no design value added or changed.${NO_RUNS}` })
   })
 
   it('compares what a test file the branch changes asserts, read from both sides', async () => {
@@ -276,6 +276,15 @@ describe('guard', () => {
     expect(said()).toEqual([specFound('e2e/[id].spec.ts'), 'owner e2e/i.spec.ts:1: test retries appeared: `export const retries = 3`'])
   })
 
+  it('names the commit an annotated tag points at, in the report and in the JSON', async () => {
+    const head = await commit(APP)
+    git('tag', '--annotate', '--message', 'tag', 'v1')
+    expect(git('rev-parse', 'v1')).not.toBe(git('rev-parse', 'branch'))
+    const tagged = guard({ repo, base: 'main', head: 'v1' })
+    expect(tagged.report).toContain(`**Checks guard at ${head}**`)
+    expect(JSON.parse(tagged.json).head).toBe(git('rev-parse', 'branch'))
+  })
+
   it('fails on a base that is not in the repository', () => {
     expect(() => guard({ repo, base: 'origin/main', head: 'branch' })).toThrow(/git merge-base origin\/main branch/)
   })
@@ -322,6 +331,17 @@ describe('main', () => {
     onTestFinished(() => rm(summary, { force: true }))
     expect(main([...args(), '--summary', summary], {})).toBe(run().report)
     expect(await readFile(summary, 'utf8')).toBe(run().report)
+  })
+
+  it("writes the marks as JSON into the file named for the check's text, whole commits and the report's marks", async () => {
+    await commit({ 'playwright.config.ts': RETRIES })
+    const json = `${repo}-json`
+    onTestFinished(() => rm(json, { force: true }))
+    main([...args(), '--json', json], {})
+    const written = JSON.parse(await readFile(json, 'utf8'))
+    expect(written).toMatchObject({ schema: 1, head: git('rev-parse', 'branch'), base: git('rev-parse', 'main'), cut: false })
+    expect(written.marks).toHaveLength(run().found.length)
+    expect(written.marks.length).toBeGreaterThan(0)
   })
 
   it("cuts the check's summary to what a check holds, and returns the report whole", async () => {

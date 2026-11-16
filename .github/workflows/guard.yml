@@ -132,7 +132,7 @@ jobs:
           HEAD: ${{ github.event.pull_request.head.sha }}
         # main's copy, so a PR that changes the guard is still read by the guard it found.
         run: |
-          node main/scripts/guard/guard.ts --repo pr --base "$BASE" --head "$HEAD" --tests-base lists/base --tests-head lists/pr --summary summary.md > guard.md
+          node main/scripts/guard/guard.ts --repo pr --base "$BASE" --head "$HEAD" --tests-base lists/base --tests-head lists/pr --summary summary.md --json guard.json > guard.md
           cat guard.md >> "$GITHUB_STEP_SUMMARY"
       - name: Write the report into the PR's `guard report` check
         # A check rather than a comment on the PR, since a comment emails the PR's participants on
@@ -153,5 +153,7 @@ jobs:
           if [ "$FOUND" = true ]; then title='Marks to judge'; else title='Nothing marked'; fi
           # A main whose guard writes no summary yet (#439 added it) gives the report as it is.
           [ -f summary.md ] || cp guard.md summary.md
+          # The same marks as JSON, for a reader that isn't a person: the check's text, when main's guard writes it.
+          text=(); [ -f guard.json ] && text=(-F 'output[text]=@guard.json')
           gh api "repos/$REPO/check-runs" --silent -f name='guard report' -f head_sha="$HEAD" -f status=completed -f conclusion=success \
-            -f "output[title]=$title" -F 'output[summary]=@summary.md'
+            -f "output[title]=$title" -F 'output[summary]=@summary.md' "${text[@]}"
