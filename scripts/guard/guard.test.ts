@@ -81,7 +81,7 @@ describe('guard', () => {
   it('finds nothing in a branch that changes no check', async () => {
     const base = git('rev-parse', '--short', 'main')
     const head = await commit(APP)
-    expect(run()).toEqual({ found: [], report: `**Checks guard at ${head}**, against \`main\` at ${base}.\n\nNo weakening of the checks, no change to existing ones and no design value added or changed.${NO_RUNS}` })
+    expect(run()).toEqual({ found: [], json: expect.stringContaining('"marks":[]'), report: `**Checks guard at ${head}**, against \`main\` at ${base}.\n\nNo weakening of the checks, no change to existing ones and no design value added or changed.${NO_RUNS}` })
   })
 
   it('compares what a test file the branch changes asserts, read from both sides', async () => {
@@ -322,6 +322,17 @@ describe('main', () => {
     onTestFinished(() => rm(summary, { force: true }))
     expect(main([...args(), '--summary', summary], {})).toBe(run().report)
     expect(await readFile(summary, 'utf8')).toBe(run().report)
+  })
+
+  it("writes the marks as JSON into the file named for the check's text, whole commits and the report's marks", async () => {
+    await commit({ 'playwright.config.ts': RETRIES })
+    const json = `${repo}-json`
+    onTestFinished(() => rm(json, { force: true }))
+    main([...args(), '--json', json], {})
+    const written = JSON.parse(await readFile(json, 'utf8'))
+    expect(written).toMatchObject({ schema: 1, head: git('rev-parse', 'branch'), base: git('rev-parse', 'main'), cut: false })
+    expect(written.marks).toHaveLength(run().found.length)
+    expect(written.marks.length).toBeGreaterThan(0)
   })
 
   it("cuts the check's summary to what a check holds, and returns the report whole", async () => {

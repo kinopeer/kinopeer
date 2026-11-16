@@ -575,6 +575,38 @@ export function report(found: Finding[], { head, base }: { head: string; base: s
   return lines.join('\n')
 }
 
+/** The kind of mark each list of the report is, as the JSON copy names it. */
+const KINDS: Record<Needs, string> = { owner: 'weakens-checks', coordinator: 'design-value', review: 'existing-check' }
+
+/** One mark of the JSON copy: its kind, and the file, line and detail the report's line for it gives. */
+export type Mark = { kind: string; file?: string; line?: number; detail: string }
+
+/**
+ * The marks of the report as JSON for a reader that isn't a person (the dashboard's collector, through the
+ * `guard report` check's `output.text`): `schema` 1, the two commits, and the same marks in the same order as the
+ * report's three lists. Where the text would pass `limit` bytes, the marks that fit are written and `cut` says
+ * the rest were left out (`total` is how many there were), so it is JSON either way.
+ */
+export function reportJson(found: Finding[], commits: { head: string; base: string }, limit = TEXT_LIMIT): string {
+  const marks: Mark[] = (['owner', 'coordinator', 'review'] as const).flatMap((needs) =>
+    found.filter((finding) => finding.needs === needs).map(({ file, line, what }) => ({ kind: KINDS[needs], ...(file ? { file } : {}), ...(line ? { line } : {}), detail: what })),
+  )
+  const size = (part: string) => new TextEncoder().encode(part).length
+  const write = (kept: Mark[], cut = kept.length < marks.length) => JSON.stringify({ schema: 1, ...commits, cut, total: marks.length, marks: kept })
+  // The text with no marks, `cut` spelled the longer way, is the most the rest of it takes; each mark takes its own and a comma, but the last's.
+  let used = size(write([], false)) - 1
+  const kept: Mark[] = []
+  for (const mark of marks) {
+    used += size(JSON.stringify(mark)) + 1
+    if (used > limit) break
+    kept.push(mark)
+  }
+  return write(kept)
+}
+
+/** What a check's `output.text` holds, in bytes of UTF-8 to be safe whatever GitHub counts: its limit is 65,535 characters. */
+export const TEXT_LIMIT = 60_000
+
 /** What a check's summary holds, in bytes of UTF-8 to be safe whatever GitHub counts: its limit is 65,535 characters. */
 export const SUMMARY_LIMIT = 60_000
 

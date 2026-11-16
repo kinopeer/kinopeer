@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { capped, commands, compareChecks, compareLint, compareScripts, compareStylesheets, compareTokens, compareWorkflows, findings, readsWhole, report, scanAdded, workflowSteps, type Finding } from './signs.ts'
+import { capped, commands, compareChecks, compareLint, compareScripts, compareStylesheets, compareTokens, compareWorkflows, findings, readsWhole, report, reportJson, scanAdded, workflowSteps, type Finding } from './signs.ts'
 
 const json = (value: unknown) => JSON.stringify(value)
 /** What each finding calls for and says, without its file. */
@@ -1130,5 +1130,60 @@ describe('capped', () => {
     // 302 letters, 602 bytes: by letters the whole report would fit.
     const line = 'ё'.repeat(100)
     expect(capped([line, line, line].join('\n'), bytes(CUT) + 402)).toBe(`${line}\n${line}${CUT}`)
+  })
+})
+
+describe('reportJson', () => {
+  const commits = { head: 'a'.repeat(40), base: 'b'.repeat(40) }
+  const found: Finding[] = [
+    { needs: 'review', file: 'tsconfig.json', what: "the type check's config changed" },
+    { needs: 'coordinator', file: 'src/a.css', line: 2, what: 'a token added: `--x: 3px`' },
+    { needs: 'owner', what: 'a run gave no list' },
+    { needs: 'owner', file: 'checks.json', what: 'coverage `lines` lowered: 96 → 90' },
+  ]
+
+  it('is schema 1 with both commits and every mark of the report, in the order of its lists', () => {
+    expect(JSON.parse(reportJson(found, commits))).toEqual({
+      schema: 1,
+      ...commits,
+      cut: false,
+      total: 4,
+      marks: [
+        { kind: 'weakens-checks', detail: 'a run gave no list' },
+        { kind: 'weakens-checks', file: 'checks.json', detail: 'coverage `lines` lowered: 96 → 90' },
+        { kind: 'design-value', file: 'src/a.css', line: 2, detail: 'a token added: `--x: 3px`' },
+        { kind: 'existing-check', file: 'tsconfig.json', detail: "the type check's config changed" },
+      ],
+    })
+  })
+
+  it('lists the same marks as the report', () => {
+    const marks: { file?: string; line?: number; detail: string }[] = JSON.parse(reportJson(found, commits)).marks
+    const lines = report(found, { head: 'h', base: 'b' }).split('\n').filter((line) => line.startsWith('- '))
+    expect(marks.map(({ file, line, detail }) => (file ? `- \`${file}${line ? `:${line}` : ''}\`: ${detail}` : `- ${detail}`))).toEqual(lines)
+  })
+
+  it('is an empty list of marks where nothing is found', () => {
+    expect(JSON.parse(reportJson([], commits))).toMatchObject({ schema: 1, cut: false, total: 0, marks: [] })
+  })
+
+  it('writes the marks that fit within the limit and says the rest were cut, still as JSON', () => {
+    const many: Finding[] = Array.from({ length: 5000 }, (_, index) => ({ needs: 'owner', file: `src/file${index}.test.ts`, what: 'a test skipped: `ё`' }))
+    const text = reportJson(many, commits)
+    expect(new TextEncoder().encode(text).length).toBeLessThanOrEqual(60_000)
+    const parsed = JSON.parse(text)
+    expect(parsed).toMatchObject({ schema: 1, cut: true, total: 5000 })
+    expect(parsed.marks.length).toBeGreaterThan(0)
+    expect(parsed.marks.length).toBeLessThan(5000)
+    expect(parsed.marks[parsed.marks.length - 1].file).toBe(`src/file${parsed.marks.length - 1}.test.ts`)
+    // As many as fit: one more would go over.
+    expect(new TextEncoder().encode(reportJson(many.slice(0, parsed.marks.length + 1), commits, Infinity)).length).toBeGreaterThan(60_000 - 100)
+  })
+
+  it('cuts to the byte, counting UTF-8 and not letters', () => {
+    const one: Finding[] = [{ needs: 'owner', what: 'ё'.repeat(50) }]
+    const whole = new TextEncoder().encode(reportJson(one, commits)).length
+    expect(JSON.parse(reportJson(one, commits, whole)).cut).toBe(false)
+    expect(JSON.parse(reportJson(one, commits, whole - 1))).toMatchObject({ cut: true, total: 1, marks: [] })
   })
 })

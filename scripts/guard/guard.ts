@@ -5,7 +5,7 @@
 import { spawnSync } from 'node:child_process'
 import { appendFileSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { capped, findings, readsWhole, report, type AddedLine, type Change, type Finding } from './signs.ts'
+import { capped, findings, readsWhole, report, reportJson, type AddedLine, type Change, type Finding } from './signs.ts'
 import { isStylesheet, type Sheet } from './stylesheets.ts'
 import { compareTests, testsIn, type Reports, type Test } from './tests.ts'
 
@@ -97,11 +97,12 @@ function testsOf(folder: string): Reports {
 /**
  * `tests`: the folders with the reports of main's run of the tests and of the branch's, when the
  * caller has them. `summary`: the file to write the report into as a check's summary holds it.
+ * `json`: the file to write the same marks into as JSON, as a check's text holds it.
  */
-export type Options = { repo: string; base: string; head: string; tests?: { base: string; head: string }; summary?: string }
+export type Options = { repo: string; base: string; head: string; tests?: { base: string; head: string }; summary?: string; json?: string }
 
 /** The guard over one branch: its findings and the report. */
-export function guard({ repo, base, head, tests }: Options): { found: Finding[]; report: string } {
+export function guard({ repo, base, head, tests }: Options): { found: Finding[]; report: string; json: string } {
   const git = gitIn(repo)
   const short = (rev: string) => git('rev-parse', '--short', rev).trim()
   // Where the branch left main, so what main gained since isn't read as the branch's loss.
@@ -115,14 +116,15 @@ export function guard({ repo, base, head, tests }: Options): { found: Finding[];
     ...(tests ? [] : ["The tests that ran aren't compared: that takes a run of the tests on each side, which CI's `guard` workflow makes."]),
     ...(dirty ? ["Uncommitted changes aren't read: commit them and run it again."] : []),
   ]
-  return { found, report: [report(found, { head: short(head), base: short(from) }), ...notes].join('\n\n') }
+  return { found, report: [report(found, { head: short(head), base: short(from) }), ...notes].join('\n\n'), json: reportJson(found, { head: git('rev-parse', head).trim(), base: git('rev-parse', from).trim() }) }
 }
 
 /**
  * `--repo`, `--base` and `--head` from the command line; main's remote branch and this checkout's
  * HEAD by default. `--tests-base` and `--tests-head` name the folders with the two runs' reports:
  * with either given the tests are compared, and a side without a folder is a run that gave no list.
- * `--summary` names the file to write the report into, cut to what a check's summary holds.
+ * `--summary` names the file to write the report into, cut to what a check's summary holds, and
+ * `--json` the file to write its marks into as JSON, cut to what a check's text holds.
  */
 export function options(args: string[]): Options {
   const value = (name: string, fallback: string) => {
@@ -131,18 +133,20 @@ export function options(args: string[]): Options {
   }
   const tests = { base: value('tests-base', ''), head: value('tests-head', '') }
   const summary = value('summary', '')
-  return { repo: value('repo', '.'), base: value('base', 'origin/main'), head: value('head', 'HEAD'), ...(tests.base || tests.head ? { tests } : {}), ...(summary ? { summary } : {}) }
+  const json = value('json', '')
+  return { repo: value('repo', '.'), base: value('base', 'origin/main'), head: value('head', 'HEAD'), ...(tests.base || tests.head ? { tests } : {}), ...(summary ? { summary } : {}), ...(json ? { json } : {}) }
 }
 
 /**
  * The command: the report for the branch the arguments name. In CI it also hands the workflow the
  * counts, which the workflow names the check's title by rather than by the report's wording, and
- * writes the check's summary.
+ * writes the check's summary and its JSON text.
  */
 export function main(args: string[], env: { GITHUB_OUTPUT?: string }): string {
   const given = options(args)
-  const { found, report: text } = guard(given)
+  const { found, report: text, json } = guard(given)
   if (given.summary) writeFileSync(given.summary, capped(text))
+  if (given.json) writeFileSync(given.json, json)
   const count = (needs: Finding['needs']) => found.filter((finding) => finding.needs === needs).length
   if (env.GITHUB_OUTPUT) appendFileSync(env.GITHUB_OUTPUT, `owner=${count('owner')}\ncoordinator=${count('coordinator')}\nreview=${count('review')}\n`)
   return text
