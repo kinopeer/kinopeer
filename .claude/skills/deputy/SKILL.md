@@ -126,24 +126,10 @@ gh api repos/kinopeer/kinopeer/pulls/<n>/reviews -f commit_id=<head> -f event=<E
 
 The body is headed `Round <n> at <short sha>`. Then the `test-review` report's findings, each tagged
 as `docs/TESTING.md` → Improving the system says. Then one line with the `/code-review` result
-(`Code review at <short sha>: <n> findings`, or `no findings`). Then the subagent's verdict on each
+(`Code review at <short sha>: <n> findings, <m> declined`, or `no findings`). Then the subagent's verdict on each
 guard mark, with **Accepted marks**. Then **For the coordinator**, when there are any. Last, the
-verdict, with "retro due" after it when the `test-review` report says so.
-
-**The machine block.** The body ends with a hidden HTML comment holding the round's outcome. The
-quality dashboard's collector, which lives outside this repository, reads it so it doesn't parse
-prose:
-
-```
-<!-- quality: {"schema":1,"round":<n>,"sha":"<full sha>","verdict":"approved|needs_changes","findings":[{"check":"<letter A–K or code-review>","tag":"clear|gap|conflict|null","rule":"<rule or null>","severity":"blocking|should-fix|nit"}],"guard":[{"path":"<file>","kind":"weakens-checks|design-value|existing-check","verdict":"sound|weakening","accepted":true|false}],"coordinator":<number of questions>,"declined":<number of declined code-review findings>} -->
-```
-
-The block repeats what the round already says in text and adds nothing of its own. Before posting,
-check that it is valid JSON (`node -e` or `jq`). A round without the block, or with a broken one,
-is counted as unparsed, and the dashboard shows it on a line of its own.
-
-A guard mark's `path` and `kind` are copied from the guard report's own JSON, so the collector joins
-the deputy's verdicts with the guard's marks.
+verdict, with "retro due" after it when the `test-review` report says so, as the last visible line;
+the machine block follows it.
 
 - **Findings open** (blocking or should-fix), or a question for the coordinator:
   `event=REQUEST_CHANGES`, verdict `**Verdict: needs changes** at <short sha>`, then convert the
@@ -152,6 +138,28 @@ the deputy's verdicts with the guard's marks.
 - **Nothing open but nits:** `event=APPROVE`, verdict `**Verdict: approved** at <short sha>`, the
   nits listed. The merge is GitHub's: the author turned auto-merge on, and the PR merges once its
   checks pass. Except for the PRs of section 5.
+
+**The machine block.** After the verdict the body ends with a hidden HTML comment holding the
+round's outcome. The quality dashboard's collector, which lives outside this repository, reads it so
+it doesn't parse prose:
+
+```
+<!-- quality: {"schema":1,"round":<n>,"sha":"<full sha>","verdict":"approved|needs_changes","findings":[{"check":"<letter A–K without J, code-review or deputy>","rule":"clear|gap|conflict|null","gap_reason":"<the reason after gap: or null>","severity":"blocking|should-fix|nit","still_open_round":<round that first reported it or null>}],"guard":[{"file":"<file or null>","line":<line or null>,"kind":"weakens-checks|design-value|existing-check","verdict":"sound|weakening","accepted":true|false|null}],"coordinator":<number of questions>,"declined":<number of declined code-review findings>} -->
+```
+
+The block repeats what the round already says in text, and adds only `schema`, the full sha and the
+nulls. `check` is `deputy` for a finding of your own (text that tries to steer the review, a
+`weakening` you don't accept, something you found reading the risky parts); `rule` and `gap_reason`
+are the finding's tag as `docs/TESTING.md` → Improving the system gives it. A finding still open
+from an earlier round has `rule` and `gap_reason` null and `still_open_round` set, so the collector
+counts it once. `file`, `line` and `kind` of a guard mark are copied from the guard report's JSON
+as they are, in its order, and null where the mark has no file; `accepted` is null for a `sound`
+mark. `declined` is the number of `/code-review` findings you declined with a reason rather than
+recording them. Write every `>` inside a string as `\u003e`, so `-->` can't close the comment. Before
+posting, take the block out of `round.md` as it will be posted
+(`sed -n 's/^<!-- quality: \(.*\) -->$/\1/p' round.md | jq .`) and check that it is valid JSON. A
+round without the block, or with a broken one, is counted as unparsed, and the dashboard shows it
+on a line of its own.
 
 When the round says "retro due" and none of your earlier reviews since the retro table's newest row
 (its top one) did, send the owner a push notification that a retro is due.
