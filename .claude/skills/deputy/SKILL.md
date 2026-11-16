@@ -135,12 +135,15 @@ quality dashboard's collector, which lives outside this repository, reads it so 
 prose:
 
 ```
-<!-- quality: {"schema":1,"round":<n>,"sha":"<full sha>","verdict":"approved|needs_changes","findings":[{"check":"<letter A–K or code-review>","tag":"clear|gap|conflict|null","rule":"<rule or null>","severity":"blocking|should-fix|nit"}],"guard":[{"path":"<file>","kind":"<kind of mark>","verdict":"sound|weakening","accepted":true|false}],"coordinator":<number of questions>,"declined":<number of declined code-review findings>} -->
+<!-- quality: {"schema":1,"round":<n>,"sha":"<full sha>","verdict":"approved|needs_changes","findings":[{"check":"<letter A–K or code-review>","tag":"clear|gap|conflict|null","rule":"<rule or null>","severity":"blocking|should-fix|nit"}],"guard":[{"path":"<file>","kind":"weakens-checks|design-value|existing-check","verdict":"sound|weakening","accepted":true|false}],"coordinator":<number of questions>,"declined":<number of declined code-review findings>} -->
 ```
 
 The block repeats what the round already says in text and adds nothing of its own. Before posting,
 check that it is valid JSON (`node -e` or `jq`). A round without the block, or with a broken one,
 is counted as unparsed, and the dashboard shows it on a line of its own.
+
+A guard mark's `path` and `kind` are copied from the guard report's own JSON, so the collector joins
+the deputy's verdicts with the guard's marks.
 
 - **Findings open** (blocking or should-fix), or a question for the coordinator:
   `event=REQUEST_CHANGES`, verdict `**Verdict: needs changes** at <short sha>`, then convert the
