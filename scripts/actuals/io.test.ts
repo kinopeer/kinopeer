@@ -174,6 +174,8 @@ describe('ActualsReporter', () => {
         attachment('axe downloads/list', { spec: 'downloads', shot: 'list', violations: [{ id: 'region', nodes: [{}] }], passes: 3 }),
         // Another attachment with a body: a screenshot's, or one a test adds.
         { name: 'downloads-list-actual.png', contentType: 'image/png', body: Buffer.from([0x89, 0x50, 0x4e, 0x47]) },
+        // A JSON attachment under another name: the performance tests' own, read by none of axe's.
+        attachment('requests summary', { spec: 'downloads', shot: 'other', violations: [], passes: 50 }),
       ]),
     )
     reporter.onEnd()
