@@ -108,7 +108,7 @@ export function guard({ repo, base, head, tests }: Options): { found: Finding[];
   const tip = git('rev-parse', `${head}^{commit}`).trim()
   const short = (rev: string) => git('rev-parse', '--short', rev).trim()
   // Where the branch left main, so what main gained since isn't read as the branch's loss.
-  const from = git('merge-base', base, tip).trim()
+  const from = git('merge-base', base, head).trim()
   const changed = changes(git, from, tip)
   const sheets = changed.some(({ path }) => isStylesheet(path)) ? stylesheetsAt(git, tip) : []
   const found = [...findings(changed, sheets), ...(tests ? compareTests(testsOf(tests.base), testsOf(tests.head)) : [])]
