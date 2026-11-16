@@ -629,20 +629,22 @@ imports Node needs.
 ## Coverage
 
 `npm run test:coverage` runs the Vitest layers with `@vitest/coverage-v8` and prints a table per
-file, plus an HTML report in `coverage/` (git-ignored). It measures the TypeScript in `src/`, `server/`,
-`tmdb-proxy/`, `scripts/guard/`, `scripts/size/`, `scripts/requests/` and `scripts/layout-shift/`, not the config and data files beside it (#283), without the tests themselves, `src/test/`, `server/test/`, type-only modules and the `index.ts` barrels of
-`src/api/*` and `src/components/*`, which only re-export (`coverage` in `checks.json`, which `vite.config.ts` reads). CI runs the same in the
-`check` job, adds the totals to the job summary (`scripts/coverage-summary.mjs`) and uploads the HTML
-report as the `coverage` artifact.
+file, plus an HTML report in `coverage/` (git-ignored). It measures the TypeScript files that
+`coverage.include` in `checks.json` matches, not the config and data files beside them (#283), and
+leaves out what `coverage.exclude` matches: the tests, the shared test folders and setup, and
+modules with no behavior to cover. `vite.config.ts` reads both, and its comment over `coverage` says why
+each kind is left out. CI runs the same in the `check` job, adds the totals to the job summary
+(`scripts/coverage-summary.mjs`) and uploads the HTML report as the `coverage` artifact.
 
-What it measures and its thresholds sit in `checks.json`, as data, where the checks guard compares
-them with `main`'s ([QUALITY.md](QUALITY.md) → The checks guard). The run fails under a threshold (`coverage.thresholds` in `checks.json`): 96% of lines and 95% of
-functions, two points under the totals of 2026-11-02 (98.01 and 97.09), 93% of branches, two points
-under 95.04 on 2026-11-05, and 95% of statements, two points under 97.14 on 2026-11-09, each rounded down. The threshold is a ratchet: when the totals have grown and
-stayed there, raise it to two points under them, in the PR that got them there or in one of its own;
-never lower it to get a PR through (the guard marks a PR that does as a weakening). A PR that lowers the totals says why in its Tests section (a
-module left uncovered on purpose, with the reason). The numbers are there to show what a PR leaves
-uncovered; the threshold only keeps that from slipping by unnoticed. It applies to the whole run, so
+The checks guard compares `coverage` in `checks.json` with `main`'s ([QUALITY.md](QUALITY.md) →
+The checks guard). The run fails under a threshold
+for lines, statements, functions or branches (`coverage.thresholds` in `checks.json`), each set two
+points under that total on the day it was set, rounded down. The threshold is a ratchet: when the
+totals have grown and stayed there, raise it to two points under them, in the PR that got them
+there or in one of its own; never lower it to get a PR through (the guard marks a PR that does as a
+weakening). A PR that lowers the totals says why in its Tests section (a module left uncovered on
+purpose, with the reason). The numbers are there to show what a PR leaves uncovered; the threshold
+only keeps that from slipping by unnoticed. It applies to the whole run, so
 `npm run test:coverage -- --project server` alone fails it: coverage is measured over both projects.
 
 ## Lint rules for tests
