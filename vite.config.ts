@@ -154,7 +154,7 @@ export default defineConfig(({ mode }) => {
         },
         {
           extends: true,
-          test: { name: 'server', include: ['server/**/*.test.ts', 'tmdb-proxy/**/*.test.ts', 'scripts/guard/**/*.test.ts', 'scripts/size/**/*.test.ts', 'scripts/requests/**/*.test.ts', 'scripts/layout-shift/**/*.test.ts', 'scripts/accessibility/**/*.test.ts', 'vite.config.test.ts', 'checks.test.ts'], environment: 'node' },
+          test: { name: 'server', include: ['server/**/*.test.ts', 'tmdb-proxy/**/*.test.ts', 'scripts/guard/**/*.test.ts', 'scripts/size/**/*.test.ts', 'scripts/requests/**/*.test.ts', 'scripts/layout-shift/**/*.test.ts', 'scripts/accessibility/**/*.test.ts', 'scripts/actuals/**/*.test.ts', 'vite.config.test.ts', 'checks.test.ts'], environment: 'node' },
         },
       ],
       // `npm run test:coverage`: a table in the terminal and coverage/index.html; CI runs the same.
@@ -166,7 +166,9 @@ export default defineConfig(({ mode }) => {
       // no behavior to cover. The thresholds are a ratchet (docs/TESTING.md → Coverage): two points
       // under the totals when they were set, raised when the totals grow and stay there, never
       // lowered to get a PR through.
-      coverage: { provider: 'v8', ...checks.coverage, reporter: ['text', 'html'] },
+      // The report is written when a test fails too (Vitest doesn't by default), so CI's job summary
+      // and the actual values still have what a red run covered (docs/QUALITY.md → The actual values).
+      coverage: { provider: 'v8', ...checks.coverage, reporter: ['text', 'html'], reportOnFailure: true },
     },
   }
 })

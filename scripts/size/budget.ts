@@ -53,6 +53,18 @@ export function readBudgets(checks: unknown): Budgets | string[] {
   return problems.length > 0 ? problems : budgets
 }
 
+/**
+ * Each kind's files, heaviest first, and their total: what the verdict judges and the actual values
+ * record. A kind with no file has a total of null, which a build of the app never has (`NONE`).
+ */
+export function totals(files: File[]): Record<Kind, { size: number | null; own: File[] }> {
+  const of = (kind: Kind) => {
+    const own = files.filter((file) => kindOf(file.path) === kind).sort((a, b) => b.size - a.size || a.path.localeCompare(b.path))
+    return { size: own.length === 0 ? null : own.reduce((total, file) => total + file.size, 0), own }
+  }
+  return Object.fromEntries(KINDS.map((kind) => [kind, of(kind)])) as Record<Kind, { size: number | null; own: File[] }>
+}
+
 const bytes = (count: number): string => `${count.toLocaleString('en-US')} B`
 
 /**
@@ -61,12 +73,10 @@ const bytes = (count: number): string => `${count.toLocaleString('en-US')} B`
  * way `kindOf` doesn't read, rather than got light.
  */
 export function judge(files: File[], budgets: Budgets): Verdict {
-  const rows = KINDS.map((kind) => {
-    const own = files.filter((file) => kindOf(file.path) === kind).sort((a, b) => b.size - a.size || a.path.localeCompare(b.path))
-    return { kind, size: own.reduce((total, file) => total + file.size, 0), budget: budgets[kind], own }
-  })
-  const missing = rows.filter(({ own }) => own.length === 0)
-  if (missing.length > 0) return unchecked(missing.map(({ kind }) => `the build has ${NONE[kind]}, which every build of the app has: run \`npm run build\` again`))
+  const byKind = totals(files)
+  const missing = KINDS.filter((kind) => byKind[kind].size === null)
+  if (missing.length > 0) return unchecked(missing.map((kind) => `the build has ${NONE[kind]}, which every build of the app has: run \`npm run build\` again`))
+  const rows = KINDS.map((kind) => ({ kind, size: byKind[kind].size as number, budget: budgets[kind], own: byKind[kind].own }))
   const table = ['| Kind | Size | Budget | Left |', '| --- | ---: | ---: | ---: |', ...rows.map(({ kind, size, budget }) => `| ${LABELS[kind]} | ${bytes(size)} | ${bytes(budget)} | ${bytes(budget - size)} |`)]
   const over = rows.filter(({ size, budget }) => size > budget)
   const failures = over.map(({ kind, size, budget, own }) => {

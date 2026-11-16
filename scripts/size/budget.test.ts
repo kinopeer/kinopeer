@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { counted, judge, kindOf, readBudgets, unchecked, type Budgets } from './budget.ts'
+import { counted, judge, kindOf, readBudgets, totals, unchecked, type Budgets } from './budget.ts'
 
 const BUDGETS: Budgets = { js: 1000, css: 100, rest: 500 }
 
@@ -47,6 +47,22 @@ describe('readBudgets', () => {
 
   it('takes a budget of one byte', () => {
     expect(readBudgets({ budgets: { size: { js: 1, css: 1, rest: 1 } } })).toEqual({ js: 1, css: 1, rest: 1 })
+  })
+})
+
+describe('totals', () => {
+  it('sums each kind, its files heaviest first, and gives a kind with no file null', () => {
+    const files = [
+      { path: 'a.js', size: 10 },
+      { path: 'b.js', size: 30 },
+      { path: 'index.html', size: 0 },
+    ]
+    expect(totals(files)).toEqual({
+      js: { size: 40, own: [files[1], files[0]] },
+      css: { size: null, own: [] },
+      // A file of 0 bytes is measured: 0, not null.
+      rest: { size: 0, own: [files[2]] },
+    })
   })
 })
 

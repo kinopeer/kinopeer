@@ -117,6 +117,70 @@ describe('main', () => {
     expect(verdict.report).toContain('- `budgets.size.rest` in checks.json is missing')
   })
 
+  describe('the actual values', () => {
+    const part = async () => JSON.parse(await readFile(at('parts/size.json'), 'utf8'))
+
+    it('writes each kind\'s total and the files counted, also for a build over its budget', async () => {
+      await write({ 'checks.json': budgets({ ...sizes(), js: 1 }) })
+      const verdict = main(paths(), { ACTUALS_DIR: at('parts') })
+      expect(verdict.passed).toBe(false)
+      expect(await part()).toEqual({
+        tool: 'size',
+        values: [
+          { key: '/js', value: sizes().js },
+          { key: '/css', value: sizes().css },
+          { key: '/rest', value: sizes().rest },
+        ],
+        health: { files: 4 },
+      })
+    })
+
+    it('writes the totals when the budgets can\'t be read', async () => {
+      await write({ 'checks.json': '{' })
+      main(paths(), { ACTUALS_DIR: at('parts') })
+      expect((await part()).values).toContainEqual({ key: '/js', value: sizes().js })
+    })
+
+    it.each([
+      ['missing', 'nothing', null],
+      ['empty', 'empty', 0],
+    ])('writes null values for a build that is %s, with its files counted', async (_name, folder, files) => {
+      await mkdir(at('empty'))
+      await write({ 'checks.json': budgets(sizes()) })
+      main(paths(at(folder)), { ACTUALS_DIR: at('parts') })
+      expect(await part()).toEqual({
+        tool: 'size',
+        values: [
+          { key: '/js', value: null },
+          { key: '/css', value: null },
+          { key: '/rest', value: null },
+        ],
+        health: { files },
+      })
+    })
+
+    it('writes null for a kind the build has no file of, which the verdict refuses as unchecked', async () => {
+      await rm(at('dist/assets/index-Ab12.css'))
+      await write({ 'checks.json': budgets(sizes()) })
+      expect(main(paths(), { ACTUALS_DIR: at('parts') }).passed).toBe(false)
+      expect(await part()).toEqual({
+        tool: 'size',
+        values: [
+          { key: '/js', value: sizes().js },
+          { key: '/css', value: null },
+          { key: '/rest', value: sizes().rest },
+        ],
+        health: { files: 3 },
+      })
+    })
+
+    it('writes nothing without ACTUALS_DIR', async () => {
+      await write({ 'checks.json': budgets(sizes()) })
+      main(paths(), {})
+      await expect(readFile(at('parts/size.json'))).rejects.toThrow(/ENOENT/)
+    })
+  })
+
   it('names every problem at once: the build and the budgets', async () => {
     await write({ 'checks.json': budgets({}) })
     const { report } = main(paths(at('nothing')), {})

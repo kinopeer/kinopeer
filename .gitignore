@@ -31,6 +31,10 @@ CLAUDE.local.md
 /test-results
 /playwright-report
 
+# The actual values CI's measuring jobs record (scripts/actuals/)
+/actuals-parts
+/actuals-*.json
+
 # npm run test:coverage
 /coverage
 

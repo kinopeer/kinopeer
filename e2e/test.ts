@@ -17,18 +17,22 @@ export const BUDGETS = readBudgets(JSON.parse(readFileSync(new URL('../checks.js
  * axe skips a tag none of its rules has without a word, so a tag it doesn't know (`wcag22AA`) fails
  * the read rather than leave that tag's rules unread.
  */
-async function violations(page: Page, tags: string[]): Promise<Violation[] | string> {
+async function violations(page: Page, tags: string[]): Promise<{ violations: Violation[]; passes: number } | string> {
   const results = await new AxeBuilder({ page }).withTags(tags).analyze()
   // The analysis leaves axe in the page, the same axe that read it.
   const known = await page.evaluate(() => (window as unknown as { axe: { getRules: () => { tags: string[] }[] } }).axe.getRules().flatMap((rule) => rule.tags))
   const unknown = unknownTags(tags, known)
   if (unknown) return unknown
-  return results.violations.map(({ id, help, helpUrl, nodes }) => ({
-    id,
-    help,
-    helpUrl,
-    nodes: nodes.map(({ target, html }) => ({ target: target.flat().join(' '), html })),
-  }))
+  return {
+    violations: results.violations.map(({ id, help, helpUrl, nodes }) => ({
+      id,
+      help,
+      helpUrl,
+      nodes: nodes.map(({ target, html }) => ({ target: target.flat().join(' '), html })),
+    })),
+    // How many rules axe found passing: a health counter of the actual values (docs/QUALITY.md → The actual values).
+    passes: results.passes.length,
+  }
 }
 
 /**
@@ -44,11 +48,12 @@ async function readAccessibility(subject: Page | Locator, name: unknown, soft: b
   await playwrightTest.step(`axe reads ${state.spec}/${state.shot}`, async () => {
     base(BUDGETS, `budgets.accessibility in checks.json can't be read:\n${[BUDGETS].flat().join('\n')}`).not.toBeInstanceOf(Array)
     const page = 'page' in subject ? subject.page() : subject
-    const found = await violations(page, (BUDGETS as Budgets).tags)
-    if (typeof found === 'string') throw new Error(found)
-    // Every element axe found, in the report CI uploads on a failure, for whoever fixes one.
-    await playwrightTest.info().attach(`axe ${state.spec}/${state.shot}`, { contentType: 'application/json', body: JSON.stringify({ ...state, violations: found }) })
-    const verdict = judge(state, found, BUDGETS as Budgets)
+    const read = await violations(page, (BUDGETS as Budgets).tags)
+    if (typeof read === 'string') throw new Error(read)
+    // Every element axe found, in the report CI uploads on a failure, for whoever fixes one, and what
+    // scripts/actuals/reporter.ts records before the verdict.
+    await playwrightTest.info().attach(`axe ${state.spec}/${state.shot}`, { contentType: 'application/json', body: JSON.stringify({ ...state, ...read }) })
+    const verdict = judge(state, read.violations, BUDGETS as Budgets)
     check(verdict.passed, verdict.report).toBe(true)
   })
 }
