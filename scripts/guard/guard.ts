@@ -104,11 +104,13 @@ export type Options = { repo: string; base: string; head: string; tests?: { base
 /** The guard over one branch: its findings and the report. */
 export function guard({ repo, base, head, tests }: Options): { found: Finding[]; report: string; json: string } {
   const git = gitIn(repo)
+  // The commit `head` names, also where it names an annotated tag, whose own object is another one.
+  const tip = git('rev-parse', `${head}^{commit}`).trim()
   const short = (rev: string) => git('rev-parse', '--short', rev).trim()
   // Where the branch left main, so what main gained since isn't read as the branch's loss.
-  const from = git('merge-base', base, head).trim()
-  const changed = changes(git, from, head)
-  const sheets = changed.some(({ path }) => isStylesheet(path)) ? stylesheetsAt(git, head) : []
+  const from = git('merge-base', base, tip).trim()
+  const changed = changes(git, from, tip)
+  const sheets = changed.some(({ path }) => isStylesheet(path)) ? stylesheetsAt(git, tip) : []
   const found = [...findings(changed, sheets), ...(tests ? compareTests(testsOf(tests.base), testsOf(tests.head)) : [])]
   // The guard reads commits, so an author who runs it before committing would see "nothing" for the wrong reason.
   const dirty = head === 'HEAD' && git('status', '--porcelain') !== ''
@@ -116,7 +118,7 @@ export function guard({ repo, base, head, tests }: Options): { found: Finding[];
     ...(tests ? [] : ["The tests that ran aren't compared: that takes a run of the tests on each side, which CI's `guard` workflow makes."]),
     ...(dirty ? ["Uncommitted changes aren't read: commit them and run it again."] : []),
   ]
-  return { found, report: [report(found, { head: short(head), base: short(from) }), ...notes].join('\n\n'), json: reportJson(found, { head: git('rev-parse', `${head}^{commit}`).trim(), base: git('rev-parse', `${from}^{commit}`).trim() }) }
+  return { found, report: [report(found, { head: short(tip), base: short(from) }), ...notes].join('\n\n'), json: reportJson(found, { head: tip, base: from }) }
 }
 
 /**

@@ -582,10 +582,10 @@ const bytes = (part: string): number => new TextEncoder().encode(part).length
 
 /** The lists of the report, in its order, and the kind of mark each is in the JSON copy. */
 const KINDS = { owner: 'weakens-checks', coordinator: 'design-value', review: 'existing-check' } as const satisfies Record<Needs, string>
-export type Kind = (typeof KINDS)[Needs]
+type MarkKind = (typeof KINDS)[Needs]
 
 /** One mark of the JSON copy: its kind, and the file, line and detail the report's line for it gives. */
-export type Mark = { kind: Kind; file?: string; line?: number; detail: string }
+type Mark = { kind: MarkKind; file?: string; line?: number; detail: string }
 
 /**
  * The marks of the report as JSON for a reader that isn't a person (the dashboard's collector, through the

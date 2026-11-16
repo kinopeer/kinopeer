@@ -335,6 +335,15 @@ describe('main', () => {
     expect(written.marks.length).toBeGreaterThan(0)
   })
 
+  it('names the commit an annotated tag points at, in the report and in the JSON', async () => {
+    const head = await commit(APP)
+    git('tag', '--annotate', '--message', 'tag', 'v1')
+    expect(git('rev-parse', 'v1')).not.toBe(git('rev-parse', 'branch'))
+    const tagged = guard({ repo, base: 'main', head: 'v1' })
+    expect(tagged.report).toContain(`**Checks guard at ${head}**`)
+    expect(JSON.parse(tagged.json).head).toBe(git('rev-parse', 'branch'))
+  })
+
   it("cuts the check's summary to what a check holds, and returns the report whole", async () => {
     // A retry a line, three thousand of them: a report far longer than a check's summary holds.
     await commit({ 'playwright.config.ts': 'retries: 2,\n'.repeat(3000) })

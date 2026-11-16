@@ -1177,9 +1177,9 @@ describe('reportJson', () => {
     expect(parsed.marks.length).toBeGreaterThan(0)
     expect(parsed.marks.length).toBeLessThan(5000)
     expect(parsed.marks[parsed.marks.length - 1].file).toBe(`src/file${parsed.marks.length - 1}.test.ts`)
-    // As many as fit: one more mark, with its comma, would go over the limit itself.
+    // As many as fit: one more mark, with its comma, would reach the limit (the budget counts `cut` as the longer `false`).
     const next = new TextEncoder().encode(JSON.stringify({ kind: 'weakens-checks', file: many[parsed.marks.length].file, detail: many[parsed.marks.length].what })).length
-    expect(new TextEncoder().encode(text).length + next + 1).toBeGreaterThan(60_000)
+    expect(new TextEncoder().encode(text).length + next + 1).toBeGreaterThanOrEqual(60_000)
   })
 
   it('cuts to the byte, counting UTF-8 and not letters', () => {
