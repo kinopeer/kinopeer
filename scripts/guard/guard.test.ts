@@ -276,6 +276,15 @@ describe('guard', () => {
     expect(said()).toEqual([specFound('e2e/[id].spec.ts'), 'owner e2e/i.spec.ts:1: test retries appeared: `export const retries = 3`'])
   })
 
+  it('names the commit an annotated tag points at, in the report and in the JSON', async () => {
+    const head = await commit(APP)
+    git('tag', '--annotate', '--message', 'tag', 'v1')
+    expect(git('rev-parse', 'v1')).not.toBe(git('rev-parse', 'branch'))
+    const tagged = guard({ repo, base: 'main', head: 'v1' })
+    expect(tagged.report).toContain(`**Checks guard at ${head}**`)
+    expect(JSON.parse(tagged.json).head).toBe(git('rev-parse', 'branch'))
+  })
+
   it('fails on a base that is not in the repository', () => {
     expect(() => guard({ repo, base: 'origin/main', head: 'branch' })).toThrow(/git merge-base origin\/main branch/)
   })
@@ -333,15 +342,6 @@ describe('main', () => {
     expect(written).toMatchObject({ schema: 1, head: git('rev-parse', 'branch'), base: git('rev-parse', 'main'), cut: false })
     expect(written.marks).toHaveLength(run().found.length)
     expect(written.marks.length).toBeGreaterThan(0)
-  })
-
-  it('names the commit an annotated tag points at, in the report and in the JSON', async () => {
-    const head = await commit(APP)
-    git('tag', '--annotate', '--message', 'tag', 'v1')
-    expect(git('rev-parse', 'v1')).not.toBe(git('rev-parse', 'branch'))
-    const tagged = guard({ repo, base: 'main', head: 'v1' })
-    expect(tagged.report).toContain(`**Checks guard at ${head}**`)
-    expect(JSON.parse(tagged.json).head).toBe(git('rev-parse', 'branch'))
   })
 
   it("cuts the check's summary to what a check holds, and returns the report whole", async () => {
