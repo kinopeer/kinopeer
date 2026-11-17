@@ -1,10 +1,8 @@
-import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
-import { dockerfileInstructions, filesUnder, fingerprint, hashParts, runtimePackage, serverBundle } from './fingerprint.ts'
+import { dockerfileInstructions, filesUnder, fingerprint, hashParts, main, runtimePackage, serverBundle } from './fingerprint.ts'
 
 const folders: string[] = []
 afterEach(() => {
@@ -175,28 +173,23 @@ describe('fingerprint', () => {
   })
 })
 
-describe('the command', () => {
-  const script = fileURLToPath(new URL('./fingerprint.ts', import.meta.url))
-  const run = (cwd: string, args: string[]) => spawnSync(process.execPath, [script, ...args], { cwd, encoding: 'utf8' })
+describe('main', () => {
+  const project = { ...server, Dockerfile: 'FROM node\n', 'dist/index.html': '<html>' }
 
-  it("prints the fingerprint of the project it runs in", async () => {
-    const root = folderWith({ ...server, Dockerfile: 'FROM node\n', 'dist/index.html': '<html>' })
-    const result = run(root, ['dist', 'https://proxy.example.com/3'])
-    expect(result.stderr).toBe('')
-    expect(result.stdout).toBe(`${await fingerprint({ root, dist: join(root, 'dist'), proxy: 'https://proxy.example.com/3' })}\n`)
+  it('gives the fingerprint of the project it runs in, with the build folder relative to it', async () => {
+    const root = folderWith(project)
+    const proxy = 'https://proxy.example.com/3'
+    expect(await main(['dist', proxy], root)).toEqual({ code: 0, out: await fingerprint({ root, dist: join(root, 'dist'), proxy }) })
   })
 
-  it("takes an empty proxy address, as an image built without one has (the Dockerfile's default)", () => {
-    const root = folderWith({ ...server, Dockerfile: 'FROM node\n', 'dist/index.html': '<html>' })
-    expect(run(root, ['dist', '']).status).toBe(0)
+  it("takes an empty proxy address, as an image built without one has (the Dockerfile's default)", async () => {
+    expect((await main(['dist', ''], folderWith(project))).code).toBe(0)
   })
 
-  it('says how to run it, and fails, without the build folder or the proxy address', () => {
-    for (const args of [[], ['dist']]) {
-      const result = run(tmpdir(), args)
-      expect(result.status).toBe(2)
-      expect(result.stdout).toBe('')
-      expect(result.stderr).toBe('Usage: node scripts/edge/fingerprint.ts <dist> <proxy>\n')
-    }
+  it('says how to run it, and fails, without the build folder or the proxy address', async () => {
+    const usage = { code: 2, out: 'Usage: node scripts/edge/fingerprint.ts <dist> <proxy>' }
+    expect(await main([], tmpdir())).toEqual(usage)
+    expect(await main(['dist'], tmpdir())).toEqual(usage)
+    expect(await main(['', 'https://proxy.example.com/3'], tmpdir())).toEqual(usage)
   })
 })

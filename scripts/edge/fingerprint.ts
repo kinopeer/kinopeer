@@ -8,8 +8,7 @@
 import { createHash } from 'node:crypto'
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, relative, sep } from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { join, relative, resolve, sep } from 'node:path'
 import { build } from 'vite'
 
 /** A file the fingerprint covers: its path as the image has it, and its bytes. */
@@ -103,11 +102,20 @@ export async function fingerprint({ root, dist, proxy }: { root: string; dist: s
   ])
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const [dist, proxy] = process.argv.slice(2)
-  if (!dist || proxy === undefined) {
-    console.error('Usage: node scripts/edge/fingerprint.ts <dist> <proxy>')
-    process.exit(2)
-  }
-  console.log(await fingerprint({ root: process.cwd(), dist, proxy }))
+/**
+ * The command's outcome for its arguments, run in `cwd`: the fingerprint, or how to run it when the
+ * build folder or the proxy address is missing (an empty address counts, as the Dockerfile's default).
+ */
+export async function main(args: string[], cwd: string): Promise<{ code: number; out: string }> {
+  const [dist, proxy] = args
+  if (!dist || proxy === undefined) return { code: 2, out: 'Usage: node scripts/edge/fingerprint.ts <dist> <proxy>' }
+  return { code: 0, out: await fingerprint({ root: cwd, dist: resolve(cwd, dist), proxy }) }
+}
+
+// Run as a script rather than imported: the fingerprint on stdout, the usage on stderr.
+if (import.meta.main) {
+  const { code, out } = await main(process.argv.slice(2), process.cwd())
+  if (code === 0) console.log(out)
+  else console.error(out)
+  process.exitCode = code
 }
