@@ -92,7 +92,7 @@ It runs as two workers, the environments in `tmdb-proxy/wrangler.jsonc`, each go
 
 | Worker | Address | Called by | Deployed by |
 | --- | --- | --- | --- |
-| `kinopeer-tmdb-edge` | `https://tmdb-edge.kinopeer.com` | Kinopeer Edge | the `Edge` workflow, before the edge image, on every run that builds one (its `paths` include `tmdb-proxy/`) |
+| `kinopeer-tmdb-edge` | `https://tmdb-edge.kinopeer.com` | Kinopeer Edge | the `Edge` workflow, before the edge image, on every run (its `paths` include `tmdb-proxy/`), also one that publishes no image because its fingerprint is the store's |
 | `kinopeer-tmdb` | `https://tmdb.kinopeer.com` | released versions | the `Release` workflow, after the image and the GitHub Release |
 
 Both addresses are Workers Custom Domains: a worker's first deploy with one creates its DNS record and certificate, which needs `kinopeer.com` in the same Cloudflare account as the workers and a token that can edit Workers routes on that zone. Neither worker is on `workers.dev`, so the address released versions call doesn't change with the Cloudflare account's name. The edge worker was on `kinopeer-tmdb-edge.kinoseed.workers.dev` until the domain was bought (#259); nothing released called it there.
