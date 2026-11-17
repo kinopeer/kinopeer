@@ -5,34 +5,11 @@
 // or a dev dependency in package.json, a tool's config) publishes no update. `<dist>` is the app built without
 // KINOPEER_COMMIT, which every edge build bakes into it, and `<proxy>` the TMDB proxy address the
 // image is built for.
-import { createHash } from 'node:crypto'
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, relative, resolve, sep } from 'node:path'
+import { join, resolve } from 'node:path'
 import { build } from 'vite'
-
-/** A file the fingerprint covers: its path as the image has it, and its bytes. */
-export interface Part {
-  path: string
-  content: string | Uint8Array
-}
-
-/**
- * The hash of the parts, by path and content, whatever their order. A part's path and content are
- * hashed apart and then together, so no two different sets of parts can run into the same text.
- */
-export function hashParts(parts: Part[]): string {
-  const paths = parts.map((part) => part.path)
-  const repeated = paths.find((path, index) => paths.indexOf(path) !== index)
-  if (repeated !== undefined) throw new Error(`Two parts named ${repeated}`)
-  const lines = parts
-    .map((part) => `${sha256(part.path)} ${sha256(part.content)}`)
-    .sort()
-    .join('\n')
-  return sha256(lines)
-}
-
-const sha256 = (content: string | Uint8Array): string => createHash('sha256').update(content).digest('hex')
+import { filesUnder, hashParts, type Part } from './parts.ts'
 
 /**
  * The Dockerfile's instructions without its comments and blank lines, which build the same image.
@@ -53,22 +30,6 @@ export function dockerfileInstructions(text: string): string {
 export function runtimePackage(text: string): string {
   const { type, version } = JSON.parse(text) as { type?: unknown; version?: unknown }
   return JSON.stringify({ type, version })
-}
-
-/**
- * Every file under `dir`, with its path from `dir` (with `/`) under `prefix`. Throws on an entry
- * that is neither a file nor a folder (a symlink), which the image would still copy: what the
- * fingerprint can't read fails it rather than counting as nothing.
- */
-export function filesUnder(dir: string, prefix: string): Part[] {
-  return readdirSync(dir, { recursive: true, withFileTypes: true })
-    .filter((entry) => !entry.isDirectory())
-    .map((entry) => {
-      const full = join(entry.parentPath, entry.name)
-      const path = `${prefix}/${relative(dir, full).split(sep).join('/')}`
-      if (!entry.isFile()) throw new Error(`${path} is neither a file nor a folder`)
-      return { path, content: readFileSync(full) }
-    })
 }
 
 /**

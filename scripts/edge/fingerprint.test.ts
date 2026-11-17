@@ -4,7 +4,8 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
-import { dockerfileInstructions, filesUnder, fingerprint, hashParts, main, runtimePackage, serverBundle } from './fingerprint.ts'
+import { dockerfileInstructions, fingerprint, main, runtimePackage, serverBundle } from './fingerprint.ts'
+import { filesUnder, hashParts } from './parts.ts'
 
 const folders: string[] = []
 afterEach(() => {
