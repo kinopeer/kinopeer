@@ -100,17 +100,18 @@ jobs:
           fi
           echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
           # A failure to read is a warning, kept apart from a version that has no tag, so a Wrangler
-          # update that changes either answer shows instead of quietly deploying on every run.
+          # update that changes either answer (a call, its JSON or a field it has) shows instead of
+          # quietly deploying on every run: jq fails on a field that's gone rather than reading none.
           found=""
           if ! status="$(npx wrangler deployments status --env "$ENVIRONMENT" --json)"; then
             echo "::warning::Couldn't ask Cloudflare which version the $ENVIRONMENT worker runs; deploying."
-          elif ! version="$(jq -r '[.versions[] | select(.percentage == 100) | .version_id][0] // empty' <<< "$status")"; then
+          elif ! version="$(jq -r 'if (.versions | type) == "array" and all(.versions[]; has("percentage") and has("version_id")) then [.versions[] | select(.percentage == 100) | .version_id][0] // empty else error("no versions with their traffic") end' <<< "$status")"; then
             echo "::warning::Couldn't read the $ENVIRONMENT worker's deployment; deploying."
           elif [ -z "$version" ]; then
             echo "No version of the $ENVIRONMENT worker serves all its traffic; deploying."
           elif ! view="$(npx wrangler versions view "$version" --env "$ENVIRONMENT" --json)"; then
             echo "::warning::Couldn't ask Cloudflare for version $version of the $ENVIRONMENT worker; deploying."
-          elif ! found="$(jq -r '.annotations["workers/tag"] // empty' <<< "$view")"; then
+          elif ! found="$(jq -r 'if (.annotations | type) == "object" then .annotations["workers/tag"] // empty else error("no annotations") end' <<< "$view")"; then
             found=""
             echo "::warning::Couldn't read the tag of version $version of the $ENVIRONMENT worker; deploying."
           fi

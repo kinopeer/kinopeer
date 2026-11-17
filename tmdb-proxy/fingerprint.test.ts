@@ -53,6 +53,9 @@ describe('workerFingerprint', () => {
       of({ ...proxy, 'tmdb-proxy/bundle/chunk.cjs': 'module.exports = 1\n' }),
       of({ ...proxy, 'tmdb-proxy/bundle/data.wasm': '\0asm' }),
       of({ ...proxy, 'tmdb-proxy/bundle/paths.txt': '/3/movie\n' }),
+      // Where the filter stops: only the bundle's own README and files ending in .map are left out.
+      of({ ...proxy, 'tmdb-proxy/bundle/sub/README.md': 'a module named so\n' }),
+      of({ ...proxy, 'tmdb-proxy/bundle/a.map.js': 'export const a = 1\n' }),
       of({ ...proxy, 'tmdb-proxy/wrangler.jsonc': '{ "name": "kinopeer-tmdb", "main": "worker.ts", "routes": [] }\n' }),
       of({ ...proxy, 'tmdb-proxy/package-lock.json': '{ "packages": { "node_modules/wrangler": { "version": "4.0.1" } } }\n' }),
       of({ ...proxy, '.github/workflows/tmdb-proxy.yml': 'name: TMDB proxy\n# a comment\n' }),
