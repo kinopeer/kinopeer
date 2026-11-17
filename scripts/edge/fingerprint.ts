@@ -84,11 +84,11 @@ export async function serverBundle(root: string, entry: string): Promise<Part[]>
       configFile: false,
       logLevel: 'silent',
       root,
-      build: { ssr: entry, minify: true, outDir, emptyOutDir: true, write: true },
+      build: { ssr: entry, minify: true, outDir, write: true },
     })
     return filesUnder(outDir, 'server')
   } finally {
-    rmSync(outDir, { recursive: true, force: true })
+    rmSync(outDir, { recursive: true })
   }
 }
 

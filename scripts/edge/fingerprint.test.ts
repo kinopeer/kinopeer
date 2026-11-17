@@ -1,6 +1,8 @@
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { dockerfileInstructions, filesUnder, fingerprint, hashParts, runtimePackage, serverBundle } from './fingerprint.ts'
 
@@ -56,7 +58,7 @@ describe('hashParts', () => {
 
 describe('dockerfileInstructions', () => {
   it('drops comments and blank lines, indented ones and Windows line ends included', () => {
-    const text = '# Build\r\nFROM node AS build\r\n\r\n  # copied below\nRUN npm ci && \\\n    # the build\n    npm run build\n'
+    const text = '# Build\r\nFROM node AS build\r\n\r\n \t\n  # copied below\nRUN npm ci && \\\n    # the build\n    npm run build\n'
     expect(dockerfileInstructions(text)).toBe('FROM node AS build\nRUN npm ci && \\\n    npm run build')
   })
 
@@ -123,6 +125,14 @@ describe('serverBundle', () => {
     expect(hashParts(after)).not.toBe(hashParts(before))
   })
 
+  it('leaves no folder of its own behind', async () => {
+    const root = folderWith(server)
+    const ours = () => readdirSync(tmpdir()).filter((name) => name.startsWith('kinopeer-server-'))
+    const before = ours()
+    await serverBundle(root, 'server/main.ts')
+    expect(ours()).toEqual(before)
+  })
+
   it('names its files under server/', async () => {
     const parts = await serverBundle(folderWith(server), 'server/main.ts')
     expect(parts.map((part) => part.path)).toEqual(['server/main.js'])
@@ -162,5 +172,31 @@ describe('fingerprint', () => {
       of(project, 'https://other.example.com/3'),
     ])
     for (const other of changed) expect(other).not.toBe(hash)
+  })
+})
+
+describe('the command', () => {
+  const script = fileURLToPath(new URL('./fingerprint.ts', import.meta.url))
+  const run = (cwd: string, args: string[]) => spawnSync(process.execPath, [script, ...args], { cwd, encoding: 'utf8' })
+
+  it("prints the fingerprint of the project it runs in", async () => {
+    const root = folderWith({ ...server, Dockerfile: 'FROM node\n', 'dist/index.html': '<html>' })
+    const result = run(root, ['dist', 'https://proxy.example.com/3'])
+    expect(result.stderr).toBe('')
+    expect(result.stdout).toBe(`${await fingerprint({ root, dist: join(root, 'dist'), proxy: 'https://proxy.example.com/3' })}\n`)
+  })
+
+  it('takes an empty proxy address, as an image built without one has (the Dockerfile's default)', () => {
+    const root = folderWith({ ...server, Dockerfile: 'FROM node\n', 'dist/index.html': '<html>' })
+    expect(run(root, ['dist', '']).status).toBe(0)
+  })
+
+  it('says how to run it, and fails, without the build folder or the proxy address', () => {
+    for (const args of [[], ['dist']]) {
+      const result = run(tmpdir(), args)
+      expect(result.status).toBe(2)
+      expect(result.stdout).toBe('')
+      expect(result.stderr).toBe('Usage: node scripts/edge/fingerprint.ts <dist> <proxy>\n')
+    }
   })
 })
