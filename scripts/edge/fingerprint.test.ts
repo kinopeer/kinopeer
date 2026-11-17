@@ -186,7 +186,7 @@ describe('the command', () => {
     expect(result.stdout).toBe(`${await fingerprint({ root, dist: join(root, 'dist'), proxy: 'https://proxy.example.com/3' })}\n`)
   })
 
-  it('takes an empty proxy address, as an image built without one has (the Dockerfile's default)', () => {
+  it("takes an empty proxy address, as an image built without one has (the Dockerfile's default)", () => {
     const root = folderWith({ ...server, Dockerfile: 'FROM node\n', 'dist/index.html': '<html>' })
     expect(run(root, ['dist', '']).status).toBe(0)
   })
