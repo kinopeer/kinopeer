@@ -22,6 +22,7 @@ on:
       - 'scripts/layout-shift/**'
       - 'scripts/accessibility/**'
       - 'scripts/actuals/**'
+      - 'scripts/edge/**'
       # What Stryker runs with, each of which can break it without a line to mutate.
       - 'package.json'
       - 'package-lock.json'
