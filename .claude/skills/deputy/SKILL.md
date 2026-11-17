@@ -43,7 +43,7 @@ to the owner in its own session follows the owner's language.
 First check that the run can be recorded in the effort journal, which the retro reads its cost
 from (`docs/QUALITY.md` → The retro): `command -v journal` finds the journal, and `journal check`
 passes. It fails when the journal's variables are missing, its token is wrong or the network
-doesn't let its webhook through; a failure can be passing, so run it once more a minute later
+doesn't let its requests through; a failure can be passing, so run it once more a minute later
 before you give up. When it still fails, stop before anything on GitHub: send the owner a push
 notification and say in this session what `journal check` printed. Otherwise tag the run:
 `journal tag --task kinopeer:review --pr kinopeer/kinopeer#<n> --role deputy --launch cloud`.
