@@ -1,11 +1,11 @@
 // Kinopeer's TMDB proxy on Cloudflare Workers (docs/DEVELOPMENT.md → The TMDB proxy), as two workers
-// that follow the builds calling them: `edge` goes out with every Kinopeer Edge build, `release` with
-// every release (.github/workflows/tmdb-proxy.yml). The key is each worker's secret TMDB_API_KEY,
+// that follow the builds calling them: `edge` goes out with Kinopeer Edge builds, `release` with
+// releases, each when what it runs changed (.github/workflows/tmdb-proxy.yml). The key is each worker's secret TMDB_API_KEY,
 // never in this file. Each environment declares all of its settings, since bindings aren't inherited.
 //
 // - cache: Workers Cache in front of the worker keeps TMDB's answers by the worker's Cache-Control
 //   and runs it only on a miss. Unlike the Cache API, it works on workers.dev too. Shared across worker
-//   versions, since every edge build deploys one and a cold cache each time would send every call
+//   versions, since every deploy makes one and a cold cache each time would send every call
 //   to TMDB; a change to what an answer looks like reaches cached ones within their time, a day.
 // - observability off: no request logs, since the proxy sees each install's IP and its searches.
 // - secrets: a deploy fails unless the worker has TMDB_API_KEY, there already or in the deploy's
