@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { dockerfileInstructions, filesUnder, fingerprint, hashParts, main, runtimePackage, serverBundle } from './fingerprint.ts'
 
@@ -204,6 +204,14 @@ describe('the script', () => {
     const result = run(root, ['dist', 'https://proxy.example.com/3'])
     expect(result).toMatchObject({ status: 0, stderr: '' })
     expect(result.stdout).toBe(`${(await main(['dist', 'https://proxy.example.com/3'], root)).out}\n`)
+  })
+
+  it('does nothing when imported', () => {
+    const result = spawnSync(process.execPath, ['--input-type=module', '-e', `await import(${JSON.stringify(pathToFileURL(script).href)})`], {
+      cwd: tmpdir(),
+      encoding: 'utf8',
+    })
+    expect(result).toMatchObject({ status: 0, stdout: '', stderr: '' })
   })
 
   it('prints how to run it on stderr and fails without its arguments', () => {
