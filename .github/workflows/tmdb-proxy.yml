@@ -5,7 +5,7 @@ name: TMDB proxy
 # its own: Edge runs it for kinopeer-tmdb-edge with every edge run, and Release for kinopeer-tmdb
 # with every release, so each worker goes out with the builds that call it, whatever starts them
 # (docs/DEVELOPMENT.md → The TMDB proxy). A worker that already runs what a deploy would put on it
-# (its version's tag is the same fingerprint) is left as it is.
+# (its version's tag is the same fingerprint) gets no new version, only its routes applied again.
 on:
   workflow_call:
     inputs:
@@ -82,8 +82,8 @@ jobs:
 
       # What a deploy would put on the worker (tmdb-proxy/fingerprint.ts: Wrangler's bundle, its config,
       # Wrangler's version and this workflow; not the key, which tmdb-proxy-key.yml changes), against
-      # the tag of the version the worker runs: the same is left as it is, so a run that changes
-      # nothing in the proxy adds no version. A worker or version that can't be read deploys anyway.
+      # the tag of the version the worker runs: the same gets no new version, so a run that changes
+      # nothing in the proxy adds none. A worker or version that can't be read deploys anyway.
       - id: deployed
         name: Compare with the version the worker runs
         if: steps.newest.outputs.deploy == 'true'
@@ -146,8 +146,9 @@ jobs:
       # workers.dev and Preview URLs, so one that failed after the upload leaves a tagged version
       # without its address, and a dashboard change to them would stay. A run that doesn't deploy
       # applies them again from wrangler.jsonc, which makes no version (Wrangler's
-      # `triggers deploy`, marked experimental). Observability isn't among them: a change to it in
-      # the dashboard stays until the next deploy (docs/DEVELOPMENT.md → The TMDB proxy).
+      # `triggers deploy`, marked experimental). The script's settings, observability and Workers Cache
+      # among them, aren't: a change to them in the dashboard stays until the next deploy
+      # (docs/DEVELOPMENT.md → The TMDB proxy).
       - name: Apply the routes again
         if: steps.deployed.outputs.deploy == 'false'
         working-directory: tmdb-proxy
