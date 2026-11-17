@@ -26,7 +26,7 @@ Production: `server/main.ts` is a dependency-free Node server (run as `.ts` thro
 
 ### Versions, release images and edge builds
 
-Releases: semver in `package.json` (Vite injects it as `__APP_VERSION__`, shown in Settings → About), notes in `CHANGELOG.md`. A `v*` tag runs `.github/workflows/release.yml`: multi-arch image to `ghcr.io/kinopeer/kinopeer` and a GitHub Release. Every push to `main` that changes what goes into the image runs `.github/workflows/edge.yml`: an arm64 `edge` image with the commit in its version (`KINOPEER_COMMIT`, `0.6.0+abc1234`), which it pins in the edge store's Kinopeer Edge app, so the owner's Umbrel offers it as an update (`docs/DEVELOPMENT.md` → Edge builds). Add user-facing changes to `CHANGELOG.md` under the next version as they land.
+Releases: semver in `package.json` (Vite injects it as `__APP_VERSION__`, shown in Settings → About), notes in `CHANGELOG.md`. A `v*` tag runs `.github/workflows/release.yml`: multi-arch image to `ghcr.io/kinopeer/kinopeer` and a GitHub Release. Every push to `main` that changes what goes into the image runs `.github/workflows/edge.yml`: unless the build's fingerprint (`scripts/edge/fingerprint.ts`, what the image would run) matches the image the edge store runs, an arm64 `edge` image with the commit in its version (`KINOPEER_COMMIT`, `0.6.0+abc1234`), which it pins in the edge store's Kinopeer Edge app, so the owner's Umbrel offers it as an update (`docs/DEVELOPMENT.md` → Edge builds). Add user-facing changes to `CHANGELOG.md` under the next version as they land.
 
 ## Torrents
 

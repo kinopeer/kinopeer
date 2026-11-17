@@ -103,7 +103,9 @@ describe('tmdbProxy', () => {
     const workflow = await readFile(new URL('../.github/workflows/edge.yml', import.meta.url), 'utf8')
 
     expect(TMDB_PROXY_EDGE).toBe('https://tmdb-edge.kinopeer.com/3')
-    expect(workflow).toContain(`KINOPEER_TMDB_PROXY=${TMDB_PROXY_EDGE}\n`)
+    // One address for the build and its fingerprint (scripts/edge/fingerprint.ts).
+    expect(workflow).toContain(`  PROXY: ${TMDB_PROXY_EDGE}\n`)
+    expect(workflow).toContain('KINOPEER_TMDB_PROXY=${{ env.PROXY }}\n')
   })
 
   it('is the one an edge build bakes in, KINOPEER_TMDB_PROXY', () => {

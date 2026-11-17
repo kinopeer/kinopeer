@@ -1,0 +1,166 @@
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
+import { afterEach, describe, expect, it } from 'vitest'
+import { dockerfileInstructions, filesUnder, fingerprint, hashParts, runtimePackage, serverBundle } from './fingerprint.ts'
+
+const folders: string[] = []
+afterEach(() => {
+  for (const folder of folders.splice(0)) rmSync(folder, { recursive: true, force: true })
+})
+
+/** A folder with these files in it, removed after the test. */
+function folderWith(files: Record<string, string>): string {
+  const root = mkdtempSync(join(tmpdir(), 'kinopeer-fingerprint-test-'))
+  folders.push(root)
+  write(root, files)
+  return root
+}
+
+function write(root: string, files: Record<string, string>): void {
+  for (const [path, content] of Object.entries(files)) {
+    mkdirSync(dirname(join(root, path)), { recursive: true })
+    writeFileSync(join(root, path), content)
+  }
+}
+
+describe('hashParts', () => {
+  const parts = [
+    { path: 'dist/index.html', content: '<html>' },
+    { path: 'server/main.js', content: 'run()' },
+  ]
+
+  it("doesn't depend on the parts' order", () => {
+    expect(hashParts([...parts].reverse())).toBe(hashParts(parts))
+  })
+
+  it("changes with a part's content, path or presence", () => {
+    const hash = hashParts(parts)
+    expect(hashParts([parts[0], { ...parts[1], content: 'run(1)' }])).not.toBe(hash)
+    expect(hashParts([parts[0], { ...parts[1], path: 'server/start.js' }])).not.toBe(hash)
+    expect(hashParts([parts[0]])).not.toBe(hash)
+  })
+
+  it("keeps a part's path apart from its content", () => {
+    expect(hashParts([{ path: 'a', content: 'bc' }])).not.toBe(hashParts([{ path: 'ab', content: 'c' }]))
+  })
+
+  it('takes bytes as well as text', () => {
+    expect(hashParts([{ path: 'a', content: new TextEncoder().encode('bc') }])).toBe(hashParts([{ path: 'a', content: 'bc' }]))
+  })
+
+  it('refuses two parts with one path', () => {
+    expect(() => hashParts([parts[0], { ...parts[0], content: 'other' }])).toThrow('Two parts named dist/index.html')
+  })
+})
+
+describe('dockerfileInstructions', () => {
+  it('drops comments and blank lines, indented ones and Windows line ends included', () => {
+    const text = '# Build\r\nFROM node AS build\r\n\r\n  # copied below\nRUN npm ci && \\\n    # the build\n    npm run build\n'
+    expect(dockerfileInstructions(text)).toBe('FROM node AS build\nRUN npm ci && \\\n    npm run build')
+  })
+
+  it('keeps a # inside an instruction', () => {
+    expect(dockerfileInstructions('RUN echo "#1"')).toBe('RUN echo "#1"')
+  })
+})
+
+describe('runtimePackage', () => {
+  it('keeps the type and version and leaves out what only builds', () => {
+    const text = JSON.stringify({ name: 'kinopeer', version: '1.0.0', type: 'module', scripts: { dev: 'vite' }, devDependencies: { vite: '^8' } })
+    expect(runtimePackage(text)).toBe('{"type":"module","version":"1.0.0"}')
+  })
+})
+
+describe('filesUnder', () => {
+  it('reads every file in nested folders, with its path under the prefix', () => {
+    const root = folderWith({ 'index.html': '<html>', 'assets/app.js': 'app()' })
+    const files = filesUnder(root, 'dist').map(({ path, content }) => ({ path, content: content.toString() }))
+    expect(files.sort((a, b) => a.path.localeCompare(b.path))).toEqual([
+      { path: 'dist/assets/app.js', content: 'app()' },
+      { path: 'dist/index.html', content: '<html>' },
+    ])
+  })
+
+  it("refuses an entry that isn't a file or a folder", () => {
+    const root = folderWith({ 'index.html': '<html>' })
+    symlinkSync(join(root, 'index.html'), join(root, 'link.html'))
+    expect(() => filesUnder(root, 'dist')).toThrow('dist/link.html is neither a file nor a folder')
+  })
+
+  it("throws when the folder can't be read", () => {
+    expect(() => filesUnder(join(tmpdir(), 'kinopeer-no-such-folder'), 'dist')).toThrow()
+  })
+})
+
+// A small server in the shape of the real one: an entry that imports a module and a Node built-in,
+// in a package of ES modules.
+const server = {
+  'package.json': JSON.stringify({ type: 'module' }),
+  'server/main.ts': "import { join } from 'node:path'\nimport { greeting } from './greeting.ts'\n\nconsole.log(join('a', greeting('b')))\n",
+  'server/greeting.ts': '/** Says hello. */\nexport function greeting(name: string): string {\n  const words = `hello ${name}`\n  return words\n}\n',
+}
+
+describe('serverBundle', () => {
+  it("gives the same bundle when only comments, formatting and local names change", async () => {
+    const before = await serverBundle(folderWith(server), 'server/main.ts')
+    const after = await serverBundle(
+      folderWith({
+        ...server,
+        'server/greeting.ts': '// Greets.\nexport function greeting(name: string): string {\n  const text =\n    `hello ${name}`\n  return text\n}\n',
+      }),
+      'server/main.ts',
+    )
+    expect(hashParts(after)).toBe(hashParts(before))
+  })
+
+  it('gives another bundle when what runs changes', async () => {
+    const before = await serverBundle(folderWith(server), 'server/main.ts')
+    const after = await serverBundle(
+      folderWith({ ...server, 'server/greeting.ts': server['server/greeting.ts'].replace('`hello', '`hi') }),
+      'server/main.ts',
+    )
+    expect(hashParts(after)).not.toBe(hashParts(before))
+  })
+
+  it('names its files under server/', async () => {
+    const parts = await serverBundle(folderWith(server), 'server/main.ts')
+    expect(parts.map((part) => part.path)).toEqual(['server/main.js'])
+  })
+})
+
+describe('fingerprint', () => {
+  const project = {
+    ...server,
+    Dockerfile: '# The image\nFROM node\nCOPY server ./server\n',
+    'package.json': JSON.stringify({ version: '1.0.0', type: 'module', scripts: { test: 'vitest' } }),
+    'dist/index.html': '<html>',
+  }
+  const of = (files: Record<string, string>, proxy = 'https://proxy.example.com/3') => {
+    const root = folderWith(files)
+    return fingerprint({ root, dist: join(root, 'dist'), proxy })
+  }
+
+  it("stays when only what doesn't reach the running image changes", async () => {
+    const hash = await of(project)
+    expect(
+      await of({
+        ...project,
+        Dockerfile: `# Another comment\n${project.Dockerfile}`,
+        'package.json': JSON.stringify({ version: '1.0.0', type: 'module', scripts: { test: 'vitest run' } }),
+      }),
+    ).toBe(hash)
+  })
+
+  it('changes with the app, the server, the Dockerfile, the runtime package fields or the proxy', async () => {
+    const hash = await of(project)
+    const changed = await Promise.all([
+      of({ ...project, 'dist/index.html': '<html lang="en">' }),
+      of({ ...project, 'server/main.ts': project['server/main.ts'].replace("'a'", "'c'") }),
+      of({ ...project, Dockerfile: project.Dockerfile.replace('FROM node', 'FROM node:24') }),
+      of({ ...project, 'package.json': JSON.stringify({ version: '1.0.1', type: 'module' }) }),
+      of(project, 'https://other.example.com/3'),
+    ])
+    for (const other of changed) expect(other).not.toBe(hash)
+  })
+})

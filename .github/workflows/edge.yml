@@ -37,6 +37,10 @@ env:
   IMAGE: ghcr.io/kinopeer/kinopeer
   STORE: MrShakhov/umbrel-homelab-edge
   APP: homelab-edge-kinopeer
+  # The edge worker the proxy job below deploys: Kinopeer Edge calls it, not the release one.
+  PROXY: https://tmdb-edge.kinopeer.com/3
+  # The label that carries an edge image's fingerprint (scripts/edge/fingerprint.ts).
+  FINGERPRINT_LABEL: com.kinopeer.fingerprint
 
 jobs:
   # kinopeer-tmdb-edge, before the image, so a path the new build calls is there when it starts.
@@ -52,8 +56,33 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
 
+  # What the image would run, as a hash, so the edge job publishes only a build that runs something
+  # new (docs/DEVELOPMENT.md → Edge builds). A job of its own with nothing to write and no secrets,
+  # since it installs the dependencies and runs the build on the runner.
+  fingerprint:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      hash: ${{ steps.hash.outputs.hash }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - run: npm ci --no-audit --no-fund
+      # Without KINOPEER_COMMIT, which every edge build bakes into the app.
+      - run: npm run build
+      # Through a variable, so a failing script fails the step rather than writing an empty hash.
+      - id: hash
+        run: |
+          hash="$(node scripts/edge/fingerprint.ts dist "$PROXY")"
+          echo "hash=$hash" >> "$GITHUB_OUTPUT"
+
   edge:
-    needs: proxy
+    needs: [proxy, fingerprint]
     # A dispatch can pick any branch; only main goes to the edge store.
     if: github.ref == 'refs/heads/main'
     # Squash merges often land in a row: only the newest one is built. On the job, not the
@@ -85,6 +114,7 @@ jobs:
         name: Check what the store runs
         env:
           GH_TOKEN: ${{ github.token }}
+          FINGERPRINT: ${{ needs.fingerprint.outputs.hash }}
         run: |
           commit="$(git rev-parse --short=7 HEAD)"
           echo "COMMIT=$commit" >> "$GITHUB_ENV"
@@ -103,6 +133,23 @@ jobs:
             range="$previous..HEAD"
           else
             range="-1"
+          fi
+          # A build that runs the same as the image the store points at publishes nothing: no update
+          # on the Umbrel and no reload of an open Kinopeer Edge for a comment, a test or a tool. An
+          # image that can't be read (gone from the registry) leaves it to the build.
+          if [ -z "$FINGERPRINT" ]; then
+            echo "::error::The fingerprint job gave no fingerprint."
+            exit 1
+          fi
+          image="$(gh api "repos/$STORE/contents/$APP/docker-compose.yml" -H 'Accept: application/vnd.github.raw' | yq '.services.web.image')"
+          if config="$(docker buildx imagetools inspect "$image" --format '{{json .Image}}')"; then
+            if [ "$(jq -r --arg label "$FINGERPRINT_LABEL" '.config.Labels[$label] // empty' <<< "$config")" = "$FINGERPRINT" ]; then
+              echo "The edge store's image runs the same as this commit would (fingerprint $FINGERPRINT)."
+              echo "build=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          else
+            echo "::warning::Couldn't read the edge store's image $image; building."
           fi
           {
             echo 'NOTES<<END_OF_NOTES'
@@ -133,10 +180,13 @@ jobs:
           # The home server is a Raspberry Pi; release images are built for amd64 too.
           platforms: linux/arm64
           push: true
-          # The edge worker the proxy job above deployed: Kinopeer Edge calls it, not the release one.
           build-args: |
             KINOPEER_COMMIT=${{ env.COMMIT }}
-            KINOPEER_TMDB_PROXY=https://tmdb-edge.kinopeer.com/3
+            KINOPEER_TMDB_PROXY=${{ env.PROXY }}
+          labels: ${{ env.FINGERPRINT_LABEL }}=${{ needs.fingerprint.outputs.hash }}
+          # No provenance attestation: only the owner installs edge images, and each one would add two
+          # untagged versions to the package. Release images keep theirs.
+          provenance: false
           tags: |
             ${{ env.IMAGE }}:edge
             ${{ env.IMAGE }}:sha-${{ env.COMMIT }}
