@@ -74,10 +74,11 @@ export function filesUnder(dir: string, prefix: string): Part[] {
 /**
  * The server as it runs, minified: Vite bundles `entry` and what it imports into one file, without
  * comments, formatting or local names, so a change to those alone gives the same bundle. Only for the
- * hash: the image runs the sources as they are, which the tests run too.
+ * hash: the image runs the sources as they are, which the tests run too. It builds into a folder of
+ * its own under `temp`, removed when it's done.
  */
-export async function serverBundle(root: string, entry: string): Promise<Part[]> {
-  const outDir = mkdtempSync(join(tmpdir(), 'kinopeer-server-'))
+export async function serverBundle(root: string, entry: string, temp = tmpdir()): Promise<Part[]> {
+  const outDir = mkdtempSync(join(temp, 'kinopeer-server-'))
   try {
     await build({
       configFile: false,

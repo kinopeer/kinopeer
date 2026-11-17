@@ -1,6 +1,8 @@
+import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { dockerfileInstructions, filesUnder, fingerprint, hashParts, main, runtimePackage, serverBundle } from './fingerprint.ts'
 
@@ -124,11 +126,9 @@ describe('serverBundle', () => {
   })
 
   it('leaves no folder of its own behind', async () => {
-    const root = folderWith(server)
-    const ours = () => readdirSync(tmpdir()).filter((name) => name.startsWith('kinopeer-server-'))
-    const before = ours()
-    await serverBundle(root, 'server/main.ts')
-    expect(ours()).toEqual(before)
+    const temp = folderWith({})
+    await serverBundle(folderWith(server), 'server/main.ts', temp)
+    expect(readdirSync(temp)).toEqual([])
   })
 
   it('names its files under server/', async () => {
@@ -191,5 +191,23 @@ describe('main', () => {
     expect(await main([], tmpdir())).toEqual(usage)
     expect(await main(['dist'], tmpdir())).toEqual(usage)
     expect(await main(['', 'https://proxy.example.com/3'], tmpdir())).toEqual(usage)
+  })
+})
+
+// What edge.yml runs: the script itself, in a child process, where Stryker's mutants don't reach.
+describe('the script', () => {
+  const script = fileURLToPath(new URL('./fingerprint.ts', import.meta.url))
+  const run = (cwd: string, args: string[]) => spawnSync(process.execPath, [script, ...args], { cwd, encoding: 'utf8' })
+
+  it('prints the fingerprint alone on stdout', async () => {
+    const root = folderWith({ ...server, Dockerfile: 'FROM node\n', 'dist/index.html': '<html>' })
+    const result = run(root, ['dist', 'https://proxy.example.com/3'])
+    expect(result).toMatchObject({ status: 0, stderr: '' })
+    expect(result.stdout).toBe(`${(await main(['dist', 'https://proxy.example.com/3'], root)).out}\n`)
+  })
+
+  it('prints how to run it on stderr and fails without its arguments', () => {
+    const result = run(tmpdir(), ['dist'])
+    expect(result).toMatchObject({ status: 2, stdout: '', stderr: 'Usage: node scripts/edge/fingerprint.ts <dist> <proxy>\n' })
   })
 })
