@@ -1,8 +1,9 @@
 name: Edge
 
-# Every push to main builds ghcr.io/kinopeer/kinopeer:edge for the Raspberry Pi and points the
-# Kinopeer Edge app in the edge store at it, so umbrelOS offers it as an update within minutes
-# (docs/DEVELOPMENT.md → Edge builds).
+# A push to main whose build's fingerprint differs from the image the edge store runs (what the image
+# runs and how it's built, scripts/edge/fingerprint.ts) builds ghcr.io/kinopeer/kinopeer:edge for the
+# Raspberry Pi and points the Kinopeer Edge app in the edge store at it, so umbrelOS offers it as an
+# update within minutes (docs/DEVELOPMENT.md → Edge builds).
 on:
   push:
     branches: [main]
@@ -143,11 +144,14 @@ jobs:
           fi
           image="$(gh api "repos/$STORE/contents/$APP/docker-compose.yml" -H 'Accept: application/vnd.github.raw' | yq '.services.web.image')"
           if config="$(docker buildx imagetools inspect "$image" --format '{{json .Image}}')"; then
-            if [ "$(jq -r --arg label "$FINGERPRINT_LABEL" '.config.Labels[$label] // empty' <<< "$config")" = "$FINGERPRINT" ]; then
+            found="$(jq -r --arg label "$FINGERPRINT_LABEL" '.config.Labels[$label] // empty' <<< "$config")"
+            if [ "$found" = "$FINGERPRINT" ]; then
               echo "The edge store's image runs the same as this commit would (fingerprint $FINGERPRINT)."
               echo "build=false" >> "$GITHUB_OUTPUT"
               exit 0
             fi
+            # Said, so a check that stopped matching (the label renamed, an image index) shows.
+            echo "The edge store's image has fingerprint ${found:-none}, this commit $FINGERPRINT; building."
           else
             echo "::warning::Couldn't read the edge store's image $image; building."
           fi

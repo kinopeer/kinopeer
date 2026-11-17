@@ -1,8 +1,8 @@
 // The edge build's fingerprint: `node scripts/edge/fingerprint.ts <dist> <proxy>` prints a hash of
-// what a Kinopeer Edge image runs, and edge.yml publishes a new image only when it differs from the
-// one on the image the edge store points at (docs/DEVELOPMENT.md → Edge builds). So a change that
-// reaches the image's sources but not what runs (a comment, a test helper, a script or a dev
-// dependency in package.json, a tool's config) publishes no update. `<dist>` is the app built without
+// what a Kinopeer Edge image runs and of how it's built, and edge.yml publishes a new image only when
+// it differs from the one on the image the edge store points at (docs/DEVELOPMENT.md → Edge builds).
+// So a change that reaches the image's sources but not what runs (a comment, a test helper, a script
+// or a dev dependency in package.json, a tool's config) publishes no update. `<dist>` is the app built without
 // KINOPEER_COMMIT, which every edge build bakes into it, and `<proxy>` the TMDB proxy address the
 // image is built for.
 import { createHash } from 'node:crypto'
@@ -84,6 +84,8 @@ export async function serverBundle(root: string, entry: string, temp = tmpdir())
       configFile: false,
       logLevel: 'silent',
       root,
+      // The bundle alone: public/ goes into the image through dist/, which the fingerprint has.
+      publicDir: false,
       build: { ssr: entry, minify: true, outDir, write: true },
     })
     return filesUnder(outDir, 'server')
@@ -91,6 +93,14 @@ export async function serverBundle(root: string, entry: string, temp = tmpdir())
     rmSync(outDir, { recursive: true })
   }
 }
+
+/**
+ * How the image is built, whose files count whole: `.dockerignore`, which decides what the Docker
+ * build reads, and the Edge workflow, which pins BuildKit, the platform and the actions that build and
+ * push it, so a change to them, which the release checklist and TESTING have the next Edge run try
+ * first, builds.
+ */
+export const BUILD_FILES = ['.dockerignore', '.github/workflows/edge.yml']
 
 /** The fingerprint of the edge image built from `root`, with the app built into `dist`. */
 export async function fingerprint({ root, dist, proxy }: { root: string; dist: string; proxy: string }): Promise<string> {
@@ -100,6 +110,7 @@ export async function fingerprint({ root, dist, proxy }: { root: string; dist: s
     { path: 'Dockerfile', content: dockerfileInstructions(readFileSync(join(root, 'Dockerfile'), 'utf8')) },
     { path: 'package.json', content: runtimePackage(readFileSync(join(root, 'package.json'), 'utf8')) },
     { path: 'KINOPEER_TMDB_PROXY', content: proxy },
+    ...BUILD_FILES.map((path) => ({ path, content: readFileSync(join(root, path)) })),
   ])
 }
 

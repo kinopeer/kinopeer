@@ -103,6 +103,9 @@ const server = {
   'server/greeting.ts': '/** Says hello. */\nexport function greeting(name: string): string {\n  const words = `hello ${name}`\n  return words\n}\n',
 }
 
+// What says how the image is built (BUILD_FILES).
+const buildFiles = { '.dockerignore': 'node_modules\n', '.github/workflows/edge.yml': 'name: Edge\n' }
+
 describe('serverBundle', () => {
   it("gives the same bundle when only comments, formatting and local names change", async () => {
     const before = await serverBundle(folderWith(server), 'server/main.ts')
@@ -131,8 +134,8 @@ describe('serverBundle', () => {
     expect(readdirSync(temp)).toEqual([])
   })
 
-  it('names its files under server/', async () => {
-    const parts = await serverBundle(folderWith(server), 'server/main.ts')
+  it("names its files under server/, and has none of public/'s, which dist/ has", async () => {
+    const parts = await serverBundle(folderWith({ ...server, 'public/favicon.svg': '<svg/>' }), 'server/main.ts')
     expect(parts.map((part) => part.path)).toEqual(['server/main.js'])
   })
 })
@@ -140,6 +143,7 @@ describe('serverBundle', () => {
 describe('fingerprint', () => {
   const project = {
     ...server,
+    ...buildFiles,
     Dockerfile: '# The image\nFROM node\nCOPY server ./server\n',
     'package.json': JSON.stringify({ version: '1.0.0', type: 'module', scripts: { test: 'vitest' } }),
     'dist/index.html': '<html>',
@@ -160,7 +164,7 @@ describe('fingerprint', () => {
     ).toBe(hash)
   })
 
-  it('changes with the app, the server, the Dockerfile, the runtime package fields or the proxy', async () => {
+  it('changes with the app, the server, the Dockerfile, the runtime package fields, the proxy, .dockerignore or the Edge workflow', async () => {
     const hash = await of(project)
     const changed = await Promise.all([
       of({ ...project, 'dist/index.html': '<html lang="en">' }),
@@ -168,13 +172,20 @@ describe('fingerprint', () => {
       of({ ...project, Dockerfile: project.Dockerfile.replace('FROM node', 'FROM node:24') }),
       of({ ...project, 'package.json': JSON.stringify({ version: '1.0.1', type: 'module' }) }),
       of(project, 'https://other.example.com/3'),
+      of({ ...project, '.dockerignore': 'node_modules\nsrc/test\n' }),
+      of({ ...project, '.github/workflows/edge.yml': 'name: Edge\n# BuildKit moved\n' }),
     ])
     for (const other of changed) expect(other).not.toBe(hash)
+  })
+
+  it('fails without a file that says how the image is built', async () => {
+    const { '.dockerignore': _, ...rest } = project
+    await expect(of(rest)).rejects.toThrow('.dockerignore')
   })
 })
 
 describe('main', () => {
-  const project = { ...server, Dockerfile: 'FROM node\n', 'dist/index.html': '<html>' }
+  const project = { ...server, ...buildFiles, Dockerfile: 'FROM node\n', 'dist/index.html': '<html>' }
 
   it('gives the fingerprint of the project it runs in, with the build folder relative to it', async () => {
     const root = folderWith(project)
@@ -200,7 +211,7 @@ describe('the script', () => {
   const run = (cwd: string, args: string[]) => spawnSync(process.execPath, [script, ...args], { cwd, encoding: 'utf8' })
 
   it('prints the fingerprint alone on stdout', async () => {
-    const root = folderWith({ ...server, Dockerfile: 'FROM node\n', 'dist/index.html': '<html>' })
+    const root = folderWith({ ...server, ...buildFiles, Dockerfile: 'FROM node\n', 'dist/index.html': '<html>' })
     const result = run(root, ['dist', 'https://proxy.example.com/3'])
     expect(result).toMatchObject({ status: 0, stderr: '' })
     expect(result.stdout).toBe(`${(await main(['dist', 'https://proxy.example.com/3'], root)).out}\n`)

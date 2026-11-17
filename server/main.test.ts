@@ -4,6 +4,7 @@ import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { parse } from 'yaml'
 import { TMDB_PROXY, TMDB_PROXY_EDGE, createApp, dataStores, kinopeerServer, missingSettings, tmdbProxy } from './main.ts'
 import { CONTENT_SECURITY_POLICY, SECURITY_HEADERS } from './securityHeaders.ts'
 import { SettingsStore } from './settings.ts'
@@ -100,12 +101,21 @@ describe('tmdbProxy', () => {
   })
 
   it('is the edge worker the Edge workflow bakes into edge images', async () => {
-    const workflow = await readFile(new URL('../.github/workflows/edge.yml', import.meta.url), 'utf8')
+    interface Step { id?: string; env?: Record<string, string>; with?: Record<string, unknown> }
+    interface Job { env?: Record<string, string>; steps?: Step[] }
+    const workflow = parse(await readFile(new URL('../.github/workflows/edge.yml', import.meta.url), 'utf8')) as {
+      env: Record<string, string>
+      jobs: Record<string, Job>
+    }
+    const jobs = Object.values(workflow.jobs)
+    const build = jobs.flatMap((job) => job.steps ?? []).find((step) => step.id === 'build')
 
     expect(TMDB_PROXY_EDGE).toBe('https://tmdb-edge.kinopeer.com/3')
-    // One address for the build and its fingerprint (scripts/edge/fingerprint.ts).
-    expect(workflow).toContain(`  PROXY: ${TMDB_PROXY_EDGE}\n`)
-    expect(workflow).toContain('KINOPEER_TMDB_PROXY=${{ env.PROXY }}\n')
+    // One address for the build and its fingerprint (scripts/edge/fingerprint.ts): the workflow's,
+    // which no job or step shadows, and the build arg reads.
+    expect(workflow.env.PROXY).toBe(TMDB_PROXY_EDGE)
+    for (const scope of [...jobs, ...jobs.flatMap((job) => job.steps ?? [])]) expect(scope.env ?? {}).not.toHaveProperty('PROXY')
+    expect(String(build?.with?.['build-args']).split('\n')).toContain('KINOPEER_TMDB_PROXY=${{ env.PROXY }}')
   })
 
   it('is the one an edge build bakes in, KINOPEER_TMDB_PROXY', () => {
