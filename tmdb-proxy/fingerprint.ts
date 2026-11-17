@@ -1,5 +1,5 @@
 // The TMDB proxy's fingerprint: `node fingerprint.ts <bundle>`, run in tmdb-proxy/, prints a hash
-// of what a deploy puts on a worker and how: the JavaScript Wrangler bundles
+// of what a deploy puts on a worker and how: what Wrangler bundles
 // (`wrangler deploy --dry-run --outdir <bundle>`) and the files in BUILD_FILES. tmdb-proxy.yml tags
 // each version it deploys with it, and leaves a worker whose version has the same tag as it is
 // (docs/DEVELOPMENT.md → The TMDB proxy). The key doesn't count: nothing derived from it goes into
@@ -16,13 +16,13 @@ import { filesUnder, hashParts } from '../scripts/edge/parts.ts'
 export const BUILD_FILES = ['wrangler.jsonc', 'package-lock.json', '../.github/workflows/tmdb-proxy.yml']
 
 /**
- * The bundle's JavaScript and BUILD_FILES under `root`. The bundle's README (with the time
- * it was built) and source map (with the folder it was built in) differ on every build and aren't
- * the worker.
+ * The bundle and BUILD_FILES under `root`. The bundle's README (with the time it was built) and
+ * source maps (with the folder it was built in) differ on every build and aren't the worker; every
+ * other file in it is, whatever its kind (a .wasm or text module included), so none is left out.
  */
 export function workerFingerprint({ bundle, root }: { bundle: string; root: string }): string {
   return hashParts([
-    ...filesUnder(bundle, 'bundle').filter((part) => /\.m?js$/.test(part.path)),
+    ...filesUnder(bundle, 'bundle').filter((part) => part.path !== 'bundle/README.md' && !part.path.endsWith('.map')),
     ...BUILD_FILES.map((path) => ({ path, content: readFileSync(join(root, path)) })),
   ])
 }

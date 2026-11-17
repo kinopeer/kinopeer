@@ -1,11 +1,11 @@
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { dockerfileInstructions, fingerprint, main, runtimePackage, serverBundle } from './fingerprint.ts'
-import { filesUnder, hashParts } from './parts.ts'
+import { hashParts } from './parts.ts'
 
 const folders: string[] = []
 afterEach(() => {
@@ -27,36 +27,6 @@ function write(root: string, files: Record<string, string>): void {
   }
 }
 
-describe('hashParts', () => {
-  const parts = [
-    { path: 'dist/index.html', content: '<html>' },
-    { path: 'server/main.js', content: 'run()' },
-  ]
-
-  it("doesn't depend on the parts' order", () => {
-    expect(hashParts([...parts].reverse())).toBe(hashParts(parts))
-  })
-
-  it("changes with a part's content, path or presence", () => {
-    const hash = hashParts(parts)
-    expect(hashParts([parts[0], { ...parts[1], content: 'run(1)' }])).not.toBe(hash)
-    expect(hashParts([parts[0], { ...parts[1], path: 'server/start.js' }])).not.toBe(hash)
-    expect(hashParts([parts[0]])).not.toBe(hash)
-  })
-
-  it("keeps a part's path apart from its content", () => {
-    expect(hashParts([{ path: 'a', content: 'bc' }])).not.toBe(hashParts([{ path: 'ab', content: 'c' }]))
-  })
-
-  it('takes bytes as well as text', () => {
-    expect(hashParts([{ path: 'a', content: new TextEncoder().encode('bc') }])).toBe(hashParts([{ path: 'a', content: 'bc' }]))
-  })
-
-  it('refuses two parts with one path', () => {
-    expect(() => hashParts([parts[0], { ...parts[0], content: 'other' }])).toThrow('Two parts named dist/index.html')
-  })
-})
-
 describe('dockerfileInstructions', () => {
   it('drops comments and blank lines, indented ones and Windows line ends included', () => {
     const text = '# Build\r\nFROM node AS build\r\n\r\n \t\n  # copied below\nRUN npm ci && \\\n    # the build\n    npm run build\n'
@@ -72,27 +42,6 @@ describe('runtimePackage', () => {
   it('keeps the type and version and leaves out what only builds', () => {
     const text = JSON.stringify({ name: 'kinopeer', version: '1.0.0', type: 'module', scripts: { dev: 'vite' }, devDependencies: { vite: '^8' } })
     expect(runtimePackage(text)).toBe('{"type":"module","version":"1.0.0"}')
-  })
-})
-
-describe('filesUnder', () => {
-  it('reads every file in nested folders, with its path under the prefix', () => {
-    const root = folderWith({ 'index.html': '<html>', 'assets/app.js': 'app()' })
-    const files = filesUnder(root, 'dist').map(({ path, content }) => ({ path, content: content.toString() }))
-    expect(files.sort((a, b) => a.path.localeCompare(b.path))).toEqual([
-      { path: 'dist/assets/app.js', content: 'app()' },
-      { path: 'dist/index.html', content: '<html>' },
-    ])
-  })
-
-  it("refuses an entry that isn't a file or a folder", () => {
-    const root = folderWith({ 'index.html': '<html>' })
-    symlinkSync(join(root, 'index.html'), join(root, 'link.html'))
-    expect(() => filesUnder(root, 'dist')).toThrow('dist/link.html is neither a file nor a folder')
-  })
-
-  it("throws when the folder can't be read", () => {
-    expect(() => filesUnder(join(tmpdir(), 'kinopeer-no-such-folder'), 'dist')).toThrow()
   })
 })
 

@@ -45,11 +45,14 @@ describe('workerFingerprint', () => {
     ).toBe(of(proxy))
   })
 
-  it('changes with the bundle, an ES module in it, the config, Wrangler or the deploy', () => {
+  it('changes with the bundle, any module in it, the config, Wrangler or the deploy', () => {
     const hash = of(proxy)
     const changed = [
       of({ ...proxy, 'tmdb-proxy/bundle/worker.js': 'export default { fetch() { return 1 } }\n' }),
       of({ ...proxy, 'tmdb-proxy/bundle/chunk.mjs': 'export const a = 1\n' }),
+      of({ ...proxy, 'tmdb-proxy/bundle/chunk.cjs': 'module.exports = 1\n' }),
+      of({ ...proxy, 'tmdb-proxy/bundle/data.wasm': '\0asm' }),
+      of({ ...proxy, 'tmdb-proxy/bundle/paths.txt': '/3/movie\n' }),
       of({ ...proxy, 'tmdb-proxy/wrangler.jsonc': '{ "name": "kinopeer-tmdb", "main": "worker.ts", "routes": [] }\n' }),
       of({ ...proxy, 'tmdb-proxy/package-lock.json': '{ "packages": { "node_modules/wrangler": { "version": "4.0.1" } } }\n' }),
       of({ ...proxy, '.github/workflows/tmdb-proxy.yml': 'name: TMDB proxy\n# a comment\n' }),
