@@ -32,12 +32,11 @@ const proxy = {
   'tmdb-proxy/bundle/worker.js.map': '{"sourceRoot":"/tmp/a"}',
   'tmdb-proxy/bundle/README.md': 'Generated at 2026-11-17T12:55:46.025Z.',
 }
-const KEY = 'test-tmdb-key'
 
 describe('workerFingerprint', () => {
-  const of = (files: Record<string, string>, key = KEY) => {
+  const of = (files: Record<string, string>) => {
     const root = join(folderWith(files), 'tmdb-proxy')
-    return workerFingerprint({ bundle: join(root, 'bundle'), root, key })
+    return workerFingerprint({ bundle: join(root, 'bundle'), root })
   }
 
   it("stays when only the bundle's README or source map changes, which every build does", () => {
@@ -46,7 +45,7 @@ describe('workerFingerprint', () => {
     ).toBe(of(proxy))
   })
 
-  it('changes with the bundle, an ES module in it, the config, Wrangler, the deploy or the key', () => {
+  it('changes with the bundle, an ES module in it, the config, Wrangler or the deploy', () => {
     const hash = of(proxy)
     const changed = [
       of({ ...proxy, 'tmdb-proxy/bundle/worker.js': 'export default { fetch() { return 1 } }\n' }),
@@ -54,7 +53,6 @@ describe('workerFingerprint', () => {
       of({ ...proxy, 'tmdb-proxy/wrangler.jsonc': '{ "name": "kinopeer-tmdb", "main": "worker.ts", "routes": [] }\n' }),
       of({ ...proxy, 'tmdb-proxy/package-lock.json': '{ "packages": { "node_modules/wrangler": { "version": "4.0.1" } } }\n' }),
       of({ ...proxy, '.github/workflows/tmdb-proxy.yml': 'name: TMDB proxy\n# a comment\n' }),
-      of(proxy, 'another-test-key'),
     ]
     for (const other of changed) expect(other).not.toBe(hash)
   })
@@ -69,41 +67,29 @@ describe('workerFingerprint', () => {
     }
   })
 
-  it("doesn't show the key", () => {
-    expect(of(proxy)).not.toContain(KEY)
-    expect(of(proxy)).toMatch(/^[0-9a-f]{64}$/)
-  })
 })
 
 describe('main', () => {
-  it('gives the fingerprint of the bundle, relative to the folder it runs in, with its build files and the key', () => {
+  it('gives the fingerprint of the bundle, relative to the folder it runs in, with its build files', () => {
     const root = join(folderWith(proxy), 'tmdb-proxy')
-    expect(main(['bundle'], { TMDB_API_KEY: KEY }, root)).toEqual({
-      code: 0,
-      out: workerFingerprint({ bundle: join(root, 'bundle'), root, key: KEY }),
-    })
+    expect(main(['bundle'], root)).toEqual({ code: 0, out: workerFingerprint({ bundle: join(root, 'bundle'), root }) })
   })
 
   it('says how to run it without the bundle', () => {
-    expect(main([], { TMDB_API_KEY: KEY }, tmpdir())).toEqual({ code: 2, out: 'Usage: node fingerprint.ts <bundle>, in tmdb-proxy/ with TMDB_API_KEY set' })
-  })
-
-  it('fails without the key, set or empty', () => {
-    for (const env of [{}, { TMDB_API_KEY: '' }]) expect(main(['bundle'], env, join(folderWith(proxy), 'tmdb-proxy'))).toEqual({ code: 1, out: 'TMDB_API_KEY is not set' })
+    expect(main([], tmpdir())).toEqual({ code: 2, out: 'Usage: node fingerprint.ts <bundle>, in tmdb-proxy/' })
   })
 })
 
 // What tmdb-proxy.yml runs: the script itself, in a child process, where Stryker's mutants don't reach.
 describe('the script', () => {
   const script = fileURLToPath(new URL('./fingerprint.ts', import.meta.url))
-  const run = (cwd: string, args: string[], env: Record<string, string>) =>
-    spawnSync(process.execPath, [script, ...args], { cwd, encoding: 'utf8', env: { PATH: process.env.PATH, ...env } })
+  const run = (cwd: string, args: string[]) => spawnSync(process.execPath, [script, ...args], { cwd, encoding: 'utf8' })
 
   it('prints the fingerprint alone on stdout', () => {
     const root = join(folderWith(proxy), 'tmdb-proxy')
-    const result = run(root, ['bundle'], { TMDB_API_KEY: KEY })
+    const result = run(root, ['bundle'])
     expect(result).toMatchObject({ status: 0, stderr: '' })
-    expect(result.stdout).toBe(`${main(['bundle'], { TMDB_API_KEY: KEY }, root).out}\n`)
+    expect(result.stdout).toBe(`${main(['bundle'], root).out}\n`)
   })
 
   it('does nothing when imported', () => {
@@ -114,7 +100,7 @@ describe('the script', () => {
     expect(result).toMatchObject({ status: 0, stdout: '', stderr: '' })
   })
 
-  it("prints what's wrong on stderr and fails without the key", () => {
-    expect(run(join(folderWith(proxy), 'tmdb-proxy'), ['bundle'], {})).toMatchObject({ status: 1, stdout: '', stderr: 'TMDB_API_KEY is not set\n' })
+  it('prints how to run it on stderr and fails without the bundle', () => {
+    expect(run(tmpdir(), [])).toMatchObject({ status: 2, stdout: '', stderr: 'Usage: node fingerprint.ts <bundle>, in tmdb-proxy/\n' })
   })
 })

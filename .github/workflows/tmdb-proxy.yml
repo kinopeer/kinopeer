@@ -80,10 +80,10 @@ jobs:
         working-directory: tmdb-proxy
         run: npm ci --no-audit --no-fund
 
-      # What a deploy would put on the worker (tmdb-proxy/fingerprint.ts: Wrangler's bundle, its config
-      # and the key), against the tag of the version the worker runs: the same is left as it is, so a
-      # run that changes nothing in the proxy adds no version. A worker or version that can't be read
-      # deploys anyway.
+      # What a deploy would put on the worker (tmdb-proxy/fingerprint.ts: Wrangler's bundle, its config,
+      # Wrangler's version and this workflow; not the key, which tmdb-proxy-key.yml changes), against
+      # the tag of the version the worker runs: the same is left as it is, so a run that changes
+      # nothing in the proxy adds no version. A worker or version that can't be read deploys anyway.
       - id: deployed
         name: Compare with the version the worker runs
         if: steps.newest.outputs.deploy == 'true'
@@ -91,7 +91,6 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
         run: |
           npx wrangler deploy --dry-run --env "$ENVIRONMENT" --outdir "$RUNNER_TEMP/worker" > /dev/null
           fingerprint="$(node fingerprint.ts "$RUNNER_TEMP/worker")"
@@ -104,7 +103,7 @@ jobs:
             fi
           fi
           if [ "$found" = "$fingerprint" ]; then
-            echo "::notice::The $ENVIRONMENT worker already runs this proxy and key (fingerprint $fingerprint)."
+            echo "::notice::The $ENVIRONMENT worker already runs this proxy (fingerprint $fingerprint)."
             echo "deploy=false" >> "$GITHUB_OUTPUT"
           else
             echo "The $ENVIRONMENT worker runs fingerprint ${found:-none}, this commit $fingerprint; deploying."
