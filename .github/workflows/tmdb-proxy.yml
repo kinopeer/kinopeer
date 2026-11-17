@@ -94,13 +94,25 @@ jobs:
         run: |
           npx wrangler deploy --dry-run --env "$ENVIRONMENT" --outdir "$RUNNER_TEMP/worker" > /dev/null
           fingerprint="$(node fingerprint.ts "$RUNNER_TEMP/worker")"
+          if [[ ! "$fingerprint" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "::error::tmdb-proxy/fingerprint.ts gave no fingerprint: '$fingerprint'."
+            exit 1
+          fi
           echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
+          # A failure to read is a warning, kept apart from a version that has no tag, so a Wrangler
+          # update that changes either answer shows instead of quietly deploying on every run.
           found=""
-          if status="$(npx wrangler deployments status --env "$ENVIRONMENT" --json)"; then
-            version="$(jq -r '[.versions[] | select(.percentage == 100) | .version_id][0] // empty' <<< "$status" || true)"
-            if [ -n "$version" ] && view="$(npx wrangler versions view "$version" --env "$ENVIRONMENT" --json)"; then
-              found="$(jq -r '.annotations["workers/tag"] // empty' <<< "$view" || true)"
-            fi
+          if ! status="$(npx wrangler deployments status --env "$ENVIRONMENT" --json)"; then
+            echo "::warning::Couldn't ask Cloudflare which version the $ENVIRONMENT worker runs; deploying."
+          elif ! version="$(jq -r '[.versions[] | select(.percentage == 100) | .version_id][0] // empty' <<< "$status")"; then
+            echo "::warning::Couldn't read the $ENVIRONMENT worker's deployment; deploying."
+          elif [ -z "$version" ]; then
+            echo "No version of the $ENVIRONMENT worker serves all its traffic; deploying."
+          elif ! view="$(npx wrangler versions view "$version" --env "$ENVIRONMENT" --json)"; then
+            echo "::warning::Couldn't ask Cloudflare for version $version of the $ENVIRONMENT worker; deploying."
+          elif ! found="$(jq -r '.annotations["workers/tag"] // empty' <<< "$view")"; then
+            found=""
+            echo "::warning::Couldn't read the tag of version $version of the $ENVIRONMENT worker; deploying."
           fi
           if [ "$found" = "$fingerprint" ]; then
             echo "::notice::The $ENVIRONMENT worker already runs this proxy (fingerprint $fingerprint)."
@@ -129,3 +141,17 @@ jobs:
           trap 'rm -f "$secrets"' EXIT
           node -e 'process.stdout.write(JSON.stringify({ TMDB_API_KEY: process.env.TMDB_API_KEY }))' > "$secrets"
           npx wrangler deploy --env "$ENVIRONMENT" --secrets-file "$secrets" --tag "$FINGERPRINT"
+
+      # A deploy uploads the version and puts it at 100% before it attaches the Custom Domain and sets
+      # workers.dev and Preview URLs, so one that failed after the upload leaves a tagged version
+      # without its address, and a dashboard change to them would stay. A run that doesn't deploy
+      # applies them again from wrangler.jsonc, which makes no version (Wrangler's
+      # `triggers deploy`, marked experimental). Observability isn't among them: a change to it in
+      # the dashboard stays until the next deploy (docs/DEVELOPMENT.md → The TMDB proxy).
+      - name: Apply the routes again
+        if: steps.deployed.outputs.deploy == 'false'
+        working-directory: tmdb-proxy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler triggers deploy --env "$ENVIRONMENT"
