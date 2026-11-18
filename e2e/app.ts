@@ -117,6 +117,10 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
           'TV Shows': { name: 'TV Shows', savePath: '/downloads/tv' },
         })
       }
+      if (pathname === '/qbt/api/v2/torrents/info') {
+        const hashes = new URL(route.request().url()).searchParams.get('hashes')?.split('|')
+        return json(route, hashes ? torrents.filter((torrent) => hashes.includes(torrent.hash)) : torrents)
+      }
       if (pathname === '/qbt/api/v2/torrents/files') return json(route, torrentFiles())
       if (pathname === '/qbt/api/v2/torrents/trackers') {
         return json(route, [{ url: 'http://bt.example.org/announce', status: 2, msg: '' }])

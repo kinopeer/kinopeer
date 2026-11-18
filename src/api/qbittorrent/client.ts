@@ -107,10 +107,11 @@ export async function getAppVersion(signal?: AbortSignal): Promise<string> {
   return (await response.text()).trim().replace(/^v/, '')
 }
 
-export async function getTorrents(query: TorrentsQuery = {}): Promise<Torrent[]> {
+export async function getTorrents(query: TorrentsQuery = {}, signal?: AbortSignal): Promise<Torrent[]> {
   const { hashes, ...rest } = query
   const response = await request('/torrents/info', {
     params: { ...rest, hashes: hashes?.join('|') },
+    signal,
   })
   return (await response.json()) as Torrent[]
 }

@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useLocation } from 'react-router'
 import { fetchRelease, type Release, type ReleaseSource } from '../api/prowlarr'
-import { QbittorrentError, getSaveLocations, unreachable } from '../api/qbittorrent'
+import { QbittorrentError, getSaveLocations, getTorrents, unreachable, type Torrent } from '../api/qbittorrent'
 import { posterUrl, type MediaType } from '../api/tmdb'
 import { Accordion } from '../components/Accordion'
 import { Badge } from '../components/Badge'
 import { Banner } from '../components/Banner'
-import { Button } from '../components/Button'
+import { Button, ButtonLink } from '../components/Button'
 import { FilterChip } from '../components/FilterChip'
 import { Icon } from '../components/Icon'
 import { IconButton } from '../components/IconButton'
@@ -14,6 +15,7 @@ import { Input } from '../components/Input'
 import { Poster } from '../components/Poster'
 import { Sheet } from '../components/Sheet'
 import { Toggle } from '../components/Toggle'
+import { overPage } from '../lib/background'
 import { useFormatters } from '../lib/format'
 import { useRequest } from '../lib/useRequest'
 import { addRelease } from '../releases/addRelease'
@@ -21,7 +23,9 @@ import type { ReleaseInfo } from '../releases/parseRelease'
 import { qualityBadges, sourceName } from '../releases/qualityBadges'
 import { useSettings } from '../settings/settings'
 import { addFolder } from '../torrents/folders'
+import { parseMagnet } from '../torrents/magnet'
 import { tmdbTagFor } from '../torrents/parseName'
+import { findByHash, torrentId } from '../torrents/sameTorrent'
 import { categoryType } from '../torrents/titleLookup'
 import { readTorrentFile, type TorrentMeta } from '../torrents/torrentFile'
 import { useFreeSpace } from '../torrents/useMainData'
@@ -54,11 +58,34 @@ async function prepare(release: Release, signal: AbortSignal): Promise<Prepared>
   return { source, meta }
 }
 
-/** "Add to downloads": destination, options and file selection for one release. */
+/** The info hash of what Prowlarr gave: the .torrent's, else the magnet link's; undefined when neither says. */
+function infoHashOf(prepared: Prepared | undefined): string | undefined {
+  if (prepared?.meta) return prepared.meta.infoHash
+  return prepared?.source.kind === 'magnet' ? parseMagnet(prepared.source.uri)?.infoHash : undefined
+}
+
+/** The torrent qBittorrent already has with this info hash, or null: one request for that hash alone. */
+async function inDownloads(hash: string, signal?: AbortSignal): Promise<Torrent | null> {
+  const id = torrentId(hash)
+  if (id === undefined) return null
+  return findByHash(await getTorrents({ hashes: [id] }, signal), hash) ?? null
+}
+
+/**
+ * "Add to downloads": destination, options and file selection for one release, or, when qBittorrent
+ * already has its torrent, a way to open that torrent instead.
+ */
 export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddReleaseSheetProps) {
   const { t, i18n } = useTranslation()
   const format = useFormatters()
+  const location = useLocation()
   const prepared = useRequest(`release|${release.id}`, (signal) => prepare(release, signal))
+  const hash = infoHashOf(prepared.data)
+  // Whether qBittorrent has it already; if this fails, Download stays: sending it says what's wrong.
+  const existing = useRequest(hash === undefined ? null : `qbt|torrent|${hash}`, (signal) => inDownloads(hash ?? '', signal))
+  // Found after qBittorrent refused to add it, which it does for a torrent it has.
+  const [refusedAsAdded, setRefusedAsAdded] = useState<Torrent>()
+  const added = refusedAsAdded ?? existing.data ?? undefined
   const where = useRequest('qbt|locations', (signal) => getSaveLocations(signal))
   const free = useFreeSpace()
 
@@ -127,8 +154,16 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
       )
       onAdded()
     } catch (error) {
+      if (!(error instanceof QbittorrentError && error.status === 200)) {
+        setAdding(false)
+        setAddError(t('common.qbtFailed', { context: unreachableText(unreachable(error)) }))
+        return
+      }
+      // qBittorrent answers "Fails." for a torrent it already has, among other reasons: ask it which.
+      const there = hash === undefined ? undefined : await inDownloads(hash).catch(() => undefined)
       setAdding(false)
-      setAddError(error instanceof QbittorrentError && error.status === 200 ? t('add.addFailed') : t('common.qbtFailed', { context: unreachableText(unreachable(error)) }))
+      if (there) setRefusedAsAdded(there)
+      else setAddError(there === null ? t('add.notAdded') : t('add.addFailed'))
     }
   }
 
@@ -160,17 +195,23 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
       action={<IconButton icon="close" label={t('common.cancel')} onClick={onClose} />}
       footer={
         <div className="add-foot">
-          <Button
-            variant="primary"
-            size="lg"
-            icon="download"
-            block
-            loading={adding}
-            disabled={!prepared.data || adding || (fileCount > 0 && selectedCount === 0)}
-            onClick={() => void add()}
-          >
-            {t('add.download', { size: format.size(selectedSize) })}
-          </Button>
+          {added ? (
+            <ButtonLink to={`/torrent/${added.hash}`} state={overPage(location)} size="lg" icon="info" block onClick={onClose}>
+              {t('downloads.openDetails')}
+            </ButtonLink>
+          ) : (
+            <Button
+              variant="primary"
+              size="lg"
+              icon="download"
+              block
+              loading={adding}
+              disabled={!prepared.data || existing.loading || adding || (fileCount > 0 && selectedCount === 0)}
+              onClick={() => void add()}
+            >
+              {t('add.download', { size: format.size(selectedSize) })}
+            </Button>
+          )}
         </div>
       }
     >
@@ -198,7 +239,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
           </div>
         </div>
 
-        {prepared.loading && (
+        {(prepared.loading || existing.loading) && (
           <div className="add-row" role="status">
             <span className="ks-spin ca" />
             <span className="c2">{t('add.fetching')}</span>
@@ -209,7 +250,8 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
             {t('add.fetchFailed')}
           </Banner>
         )}
-        {meta && fileCount > 1 && (
+        {added && <Banner tone="info" icon="check-circle" title={t('add.alreadyAdded')} />}
+        {!added && meta && fileCount > 1 && (
           <button type="button" className="ks-row-btn add-files" onClick={() => setView('files')}>
             <Icon name="folder" className="c2" />
             <span className="add-files-text">
@@ -227,15 +269,15 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
             <Icon name="chevron-right" size={18} className="c3" />
           </button>
         )}
-        {prepared.data?.source.kind === 'magnet' && <p className="t-cap c3">{t('add.magnetFiles')}</p>}
-        {lowSpace && (
+        {!added && prepared.data?.source.kind === 'magnet' && <p className="t-cap c3">{t('add.magnetFiles')}</p>}
+        {!added && lowSpace && (
           <Banner icon="disk" title={t('add.notEnough')}>
             {t('add.lowSpace', lowSpace)}{' '}
             {fileCount > 1 ? t('add.lowSpaceSkip') : t('add.lowSpaceFree')}
           </Banner>
         )}
 
-        {destination && (
+        {!added && destination && (
           <div className="t-cap c2 add-dest">
             <Icon name="folder" size={16} />
             <span className="ks-trunc">
@@ -244,46 +286,48 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
           </div>
         )}
 
-        <Accordion
-          className="add-options"
-          bodyClassName="add-options-body"
-          title={t('add.options')}
-          open={optionsOpen}
-          onOpenChange={setOptionsOpen}
-        >
-          {categories.length > 0 && (
-            <div role="group" aria-label={t('category.title')} className="add-field">
-              <span className="ks-label">{t('category.title')}</span>
-              <div className="add-categories">
-                {[{ name: '' }, ...categories].map((option) => (
-                  <FilterChip
-                    key={option.name}
-                    selected={option.name === category}
-                    onClick={() => setChosenCategory(option.name)}
-                  >
-                    {option.name || t('category.none')}
-                  </FilterChip>
-                ))}
+        {!added && (
+          <Accordion
+            className="add-options"
+            bodyClassName="add-options-body"
+            title={t('add.options')}
+            open={optionsOpen}
+            onOpenChange={setOptionsOpen}
+          >
+            {categories.length > 0 && (
+              <div role="group" aria-label={t('category.title')} className="add-field">
+                <span className="ks-label">{t('category.title')}</span>
+                <div className="add-categories">
+                  {[{ name: '' }, ...categories].map((option) => (
+                    <FilterChip
+                      key={option.name}
+                      selected={option.name === category}
+                      onClick={() => setChosenCategory(option.name)}
+                    >
+                      {option.name || t('category.none')}
+                    </FilterChip>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-          <Input
-            label={t('common.folder')}
-            value={savePath}
-            placeholder={defaultPath}
-            mono
-            autoCapitalize="off"
-            autoCorrect="off"
-            spellCheck={false}
-            onChange={(event) => setSavePath(event.target.value)}
-          />
-          {toggles.map((toggle) => (
-            <div key={toggle.label} className="add-toggle">
-              <span className="t-body">{toggle.label}</span>
-              <Toggle label={toggle.label} checked={toggle.checked} onChange={toggle.set} />
-            </div>
-          ))}
-        </Accordion>
+            )}
+            <Input
+              label={t('common.folder')}
+              value={savePath}
+              placeholder={defaultPath}
+              mono
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+              onChange={(event) => setSavePath(event.target.value)}
+            />
+            {toggles.map((toggle) => (
+              <div key={toggle.label} className="add-toggle">
+                <span className="t-body">{toggle.label}</span>
+                <Toggle label={toggle.label} checked={toggle.checked} onChange={toggle.set} />
+              </div>
+            ))}
+          </Accordion>
+        )}
 
         {addError && (
           <Banner tone="error">{addError}</Banner>

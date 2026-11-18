@@ -3,13 +3,25 @@
  * src/test/fixtures.ts, shared with the jsdom and server tests; only what needs the browser or
  * Playwright stays here.
  */
+import { createHash } from 'node:crypto'
 import { shogunTorrent as shogunTorrentBytes } from '../src/test/fixtures.ts'
 
-export { GB, GUESSED, LONG_OVERVIEW_ID, NOW, RELEASES, TITLES, TORRENTS, details, mainData, page, torrentFiles } from '../src/test/fixtures.ts'
+export { GB, GUESSED, LONG_OVERVIEW_ID, NOW, RELEASES, TITLES, TORRENTS, details, mainData, page, torrent, torrentFiles } from '../src/test/fixtures.ts'
 
 /** A .torrent for the Shōgun release, as `route.fulfill` wants it. */
 export function shogunTorrent(): Buffer {
   return Buffer.from(shogunTorrentBytes())
+}
+
+/**
+ * The Shōgun .torrent's info hash, as qBittorrent knows it: the SHA-1 of its bencoded info
+ * dictionary, which is the file's last key (bencoded keys are sorted: announce, info), so it runs
+ * from after the key to the outer dictionary's closing `e`.
+ */
+export function shogunInfoHash(): string {
+  const bytes = shogunTorrent()
+  const info = bytes.subarray(bytes.indexOf('4:info') + '4:info'.length, bytes.length - 1)
+  return createHash('sha1').update(info).digest('hex')
 }
 
 /**
