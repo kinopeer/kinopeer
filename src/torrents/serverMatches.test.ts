@@ -29,6 +29,7 @@ const A = 'a'.repeat(40)
 const B = 'b'.repeat(40)
 const USER = { type: 'movie', id: 1, source: 'user' } as const
 const GUESS = { type: 'tv', id: 2, source: 'guess', version: 2 } as const
+const MISS = { source: 'miss', version: 2 } as const
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -125,6 +126,34 @@ describe('rememberMatches', () => {
     expect(result.current).toEqual({ [A]: USER, [B]: GUESS })
     expect(saveMatches).toHaveBeenCalledTimes(1)
     expect(saveMatches).toHaveBeenCalledWith({ [B]: GUESS })
+  })
+
+  it('saves a miss the server doesn’t have, a guess over a miss, and no miss it has already', async () => {
+    let kept: Matches = { [A]: MISS }
+    getMatches.mockImplementation(async () => kept)
+    saveMatches.mockImplementation(async (changes) => (kept = { ...kept, ...(changes as Matches) }))
+    const { result } = renderHook(() => useServerMatches())
+    await waitFor(() => expect(result.current).toBeDefined())
+
+    rememberMatches({ [A]: MISS, [B]: MISS })
+    await flushSave()
+    expect(saveMatches).toHaveBeenLastCalledWith({ [B]: MISS })
+    rememberMatches({ [A]: GUESS })
+    await flushSave()
+    expect(saveMatches).toHaveBeenLastCalledWith({ [A]: GUESS })
+    expect(result.current).toEqual({ [A]: GUESS, [B]: MISS })
+  })
+
+  it('saves a guess that differs from the server’s in its title or in its version of guessing', async () => {
+    getMatches.mockResolvedValue({ [A]: { ...GUESS, version: 1 }, [B]: GUESS })
+    saveMatches.mockImplementation(async (changes) => changes as Matches)
+    const { result } = renderHook(() => useServerMatches())
+    await waitFor(() => expect(result.current).toBeDefined())
+
+    const otherTitle = { type: 'movie', id: 3, source: 'guess', version: 2 } as const
+    rememberMatches({ [A]: GUESS, [B]: otherTitle })
+    await flushSave()
+    expect(saveMatches).toHaveBeenCalledWith({ [A]: GUESS, [B]: otherTitle })
   })
 
   it('tries each match once per page, even when the server fails', async () => {

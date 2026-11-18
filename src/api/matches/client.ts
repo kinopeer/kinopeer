@@ -27,8 +27,9 @@ export async function getMatches(signal?: AbortSignal): Promise<Matches> {
 }
 
 /**
- * Saves matches by info hash (null forgets one) and answers all the server has. A guess never
- * replaces the user's choice: the server keeps the choice and answers it.
+ * Saves matches by info hash (null forgets one) and answers all the server has. A guess or a miss
+ * never replaces the user's choice, nothing replaces a match of a newer version of guessing, and a
+ * miss doesn't replace a guess of the same version: the server keeps what it has and answers it.
  */
 export async function saveMatches(matches: MatchesPatch): Promise<Matches> {
   return read(
@@ -40,7 +41,7 @@ export async function saveMatches(matches: MatchesPatch): Promise<Matches> {
   )
 }
 
-/** Forgets every guess, so browsers guess again; the user's choices stay. Answers what is left. */
+/** Forgets every guess and miss, so browsers guess again; the user's choices stay. Answers what is left. */
 export async function clearGuesses(): Promise<Matches> {
   return read(await fetchKinopeer(MATCHES_BASE, { method: 'DELETE' }))
 }

@@ -1,4 +1,4 @@
-import { clearGuesses, getMatches, saveMatches, type Matches, type StoredMatch } from '../api/matches'
+import { clearGuesses, getMatches, saveMatches, type Matches, type StoredMatch, type StoredTitle } from '../api/matches'
 
 /**
  * The torrent-to-title matches the Kinopeer server keeps (server/matches.ts), shared by every
@@ -86,12 +86,15 @@ async function save(): Promise<void> {
   }
 }
 
+/** What a match says, to tell whether the server has it already. */
+const matchKey = (match: StoredMatch) => (match.source === 'miss' ? `miss::${match.version}` : `${match.source}:${match.type}:${match.id}:${match.version ?? ''}`)
+
 /** Saves matches on the server, unless it already has them or this page tried already. */
 export function rememberMatches(changes: Matches): void {
   for (const [hash, match] of Object.entries(changes)) {
-    const key = `${hash}|${match.source}:${match.type}:${match.id}:${match.version ?? ''}`
+    const key = `${hash}|${matchKey(match)}`
     const kept = matches?.[hash]
-    if (kept && key === `${hash}|${kept.source}:${kept.type}:${kept.id}:${kept.version ?? ''}`) continue
+    if (kept && key === `${hash}|${matchKey(kept)}`) continue
     if (attempted.has(key)) continue
     attempted.add(key)
     pending[hash] = match
@@ -103,7 +106,7 @@ export function rememberMatches(changes: Matches): void {
  * Saves the user's choice of title for a torrent right away; it wins over the `tmdb:` tag and any
  * guess. Throws when the server didn't save it.
  */
-export async function chooseMatch(hash: string, title: Pick<StoredMatch, 'type' | 'id'>): Promise<void> {
+export async function chooseMatch(hash: string, title: Pick<StoredTitle, 'type' | 'id'>): Promise<void> {
   delete pending[hash]
   matches = await saveMatches({ [hash]: { type: title.type, id: title.id, source: 'user' } })
   failedAt = undefined

@@ -1,4 +1,4 @@
-import type { Matches, MatchesErrorBody, MatchesPatch, StoredMatch } from '../src/api/matches/types.ts'
+import type { Matches, MatchesErrorBody, MatchesPatch, SentMatch, StoredMatch } from '../src/api/matches/types.ts'
 import { isJsonRequest, readJson, sendJson } from './json.ts'
 import { JsonFile } from './jsonFile.ts'
 import type { Middleware } from './prowlarr.ts'
@@ -6,7 +6,9 @@ import type { Middleware } from './prowlarr.ts'
 /**
  * Which TMDB title each torrent is, kept by the server so every device shows the same and
  * qBittorrent's tag list stays clean: the user's choice, or a guess a browser made from the release
- * name. They live in matches.json in the data directory, by info hash.
+ * name, one that found no title included (a miss), so no device asks TMDB for it again. They live
+ * in matches.json in the data directory, by info hash, with no expiry: a torrent's name doesn't
+ * change, so a guess is redone only when guessing changes (its version) or on DELETE.
  *
  * A torrent deleted from Kinopeer has its match forgotten right away (PATCH with null). For torrents
  * deleted elsewhere, the server checks qBittorrent's list every hour and forgets a match once its
@@ -14,22 +16,23 @@ import type { Middleware } from './prowlarr.ts'
  * after a restart, and a torrent added back within the week keeps its match.
  *
  * GET /api/matches → Matches
- * PATCH /api/matches MatchesPatch → saves them, except a guess over the user's choice, and forgets
- *   those set to null; answers Matches
- * DELETE /api/matches → forgets every guess (Settings → Clear cache), keeps the user's choices
+ * PATCH /api/matches MatchesPatch → saves them where `replaces` lets them (never a guess or a miss
+ *   over the user's choice, nothing over a newer version of guessing, no miss over a guess of the
+ *   same version), and forgets those set to null; answers Matches
+ * DELETE /api/matches → forgets every guess and miss (Settings → Clear cache), keeps the user's choices
  */
 export class MatchesStore extends JsonFile<Matches> {
   constructor(dir: string) {
     super(dir, 'matches.json')
   }
 
-  /** Saves `changes` over what is kept and forgets those set to null; a guess never replaces the user's choice. */
+  /** Saves `changes` over what is kept, where `replaces` lets them, and forgets those set to null. */
   save(changes: MatchesPatch): Promise<Matches> {
     return this.change((current) => {
       const next = { ...current }
       for (const [hash, match] of Object.entries(changes)) {
         if (match === null) delete next[hash]
-        else if (match.source !== 'guess' || current[hash]?.source !== 'user') next[hash] = match
+        else if (replaces(match, current[hash])) next[hash] = match
       }
       return next
     })
@@ -66,7 +69,7 @@ export class MatchesStore extends JsonFile<Matches> {
     })
   }
 
-  /** Forgets every guess, so browsers guess again; the user's choices stay. */
+  /** Forgets every guess and miss, so browsers guess again; the user's choices stay. */
   clearGuesses(): Promise<Matches> {
     return this.change((current) =>
       Object.fromEntries(Object.entries(current).filter(([, match]) => match.source === 'user')),
@@ -84,16 +87,35 @@ function fail(response: Parameters<Middleware>[1], status: number, error: Matche
   sendJson(response, status, { error } satisfies MatchesErrorBody)
 }
 
-function validMatch(value: unknown): value is StoredMatch {
+/**
+ * Whether a match sent replaces the one kept: the user's choice replaces anything and only the
+ * user's choice replaces it. Otherwise a newer version of guessing replaces an older one (a guess
+ * saved without a version is the oldest), nothing replaces a newer one, and of the same version a
+ * guess replaces either, a miss neither. A device whose page loaded the matches before another one
+ * found the title still sends its miss, which would take that title from every device; a page open
+ * since before guessing changed would take the newer match back to its version, so every device
+ * guessed again.
+ */
+function replaces(match: SentMatch, kept: StoredMatch | undefined): boolean {
+  if (match.source === 'user' || !kept) return true
+  if (kept.source === 'user') return false
+  const sent = match.version ?? 0
+  const held = kept.version ?? 0
+  return sent > held || (sent === held && match.source !== 'miss')
+}
+
+function validMatch(value: unknown): value is SentMatch {
   if (!value || typeof value !== 'object') return false
   const { type, id, source, version, ...rest } = value as Record<string, unknown>
+  const validVersion = Number.isSafeInteger(version) && (version as number) > 0
+  if (Object.keys(rest).length > 0) return false
+  if (source === 'miss') return type === undefined && id === undefined && validVersion
   return (
-    Object.keys(rest).length === 0 &&
     (type === 'movie' || type === 'tv') &&
     Number.isSafeInteger(id) &&
     (id as number) > 0 &&
     (source === 'user' || source === 'guess') &&
-    (version === undefined || (Number.isSafeInteger(version) && (version as number) > 0))
+    (version === undefined || validVersion)
   )
 }
 

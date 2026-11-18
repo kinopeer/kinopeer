@@ -29,7 +29,7 @@ export function torrentsByTitle<T extends Pick<Torrent, 'hash' | 'name' | 'tags'
   const byTitle = new Map<string, T[]>()
   for (const torrent of torrents) {
     const lookup = lookupFor(torrent, server[torrent.hash])
-    const title = lookup.tag ?? cached(lookup.key)
+    const title = lookup.tag ?? (lookup.miss ? undefined : cached(lookup.key))
     if (!title) continue
     const key = titleKey(title.type, title.id)
     const list = byTitle.get(key)

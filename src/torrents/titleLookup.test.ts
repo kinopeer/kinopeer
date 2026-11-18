@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { title } from '../test/fixtures'
-import { GUESS_VERSION, categoryType, lookupFor, pickBest, sameTitle, titleType } from './titleLookup'
+import { GUESS_VERSION, categoryType, known, knownTitle, lookupFor, pickBest, sameTitle, titleType } from './titleLookup'
 
 const DUNE_1984 = title('movie', 841, 'Dune', 1984)
 const DUNE_2021 = title('movie', 438631, 'Dune', 2021)
@@ -129,6 +129,14 @@ describe('lookupFor', () => {
     expect(lookupFor(untagged, { type: 'tv', id: 2, source: 'guess', version: GUESS_VERSION }).key).toBe('id:tv:2')
     expect(lookupFor(untagged, { type: 'tv', id: 2, source: 'guess', version: GUESS_VERSION - 1 }).key).toBe('q::2021:dune')
     expect(lookupFor(untagged).key).toBe('q::2021:dune')
+  })
+
+  it('says the server found no title for it, of this version of guessing only, and never over the tag', () => {
+    const untagged = { name: 'Unknown.Thing.1999.720p', tags: '' }
+    expect(lookupFor(untagged, { source: 'miss', version: GUESS_VERSION })).toMatchObject({ key: 'q::1999:unknown thing', miss: true })
+    expect(lookupFor(untagged, { source: 'miss', version: GUESS_VERSION - 1 }).miss).toBeUndefined()
+    expect(lookupFor({ ...untagged, tags: 'tmdb:movie:841' }, { source: 'miss', version: GUESS_VERSION })).toEqual(known('movie', 841))
+    expect(knownTitle(untagged, { source: 'miss', version: GUESS_VERSION })).toBeUndefined()
   })
 
   it('uses the TMDB tag before the name', () => {

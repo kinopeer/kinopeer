@@ -18,6 +18,8 @@ export interface Lookup {
   parsed?: ParsedName
   /** From the qBittorrent category ("Movies", "TV Shows", "Сериалы"): a hint, not a filter. */
   hint?: MediaType
+  /** The server keeps a guess of this version that found no title: TMDB isn't asked again. */
+  miss?: true
 }
 
 const TV_CATEGORY = /\b(?:tv|series|shows?)\b|сериал/iu
@@ -48,7 +50,8 @@ export function knownTitle(torrent: Pick<Torrent, 'tags'>, stored?: StoredMatch)
 
 /**
  * How to find a torrent's title: the user's choice first, then the `tmdb:` tag Kinopeer adds with a
- * release, then a guess the server keeps, and only then a new guess from the release name.
+ * release, then a guess the server keeps, a miss included, and only then a new guess from the
+ * release name.
  */
 export function lookupFor(
   torrent: Pick<Torrent, 'name' | 'tags'> & { category?: string },
@@ -59,7 +62,9 @@ export function lookupFor(
   const parsed = parseName(torrent.name)
   const hint = parsed.type ? undefined : categoryType(torrent.category)
   const type = parsed.type ?? (hint ? `~${hint}` : '')
-  return { key: `q:${type}:${parsed.year ?? ''}:${parsed.title.toLocaleLowerCase()}`, parsed, hint }
+  const lookup: Lookup = { key: `q:${type}:${parsed.year ?? ''}:${parsed.title.toLocaleLowerCase()}`, parsed, hint }
+  if (stored?.source === 'miss' && stored.version === GUESS_VERSION) lookup.miss = true
+  return lookup
 }
 
 /** The Downloads type filter: every torrent, or movies or series only. */

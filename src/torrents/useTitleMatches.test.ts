@@ -122,6 +122,52 @@ describe('useTitleMatches', () => {
     expect(getMovie).not.toHaveBeenCalled()
   })
 
+  it('saves a guess that found no title on the server too', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    searchTitles.mockResolvedValue(searchPage([]))
+    const { result } = renderHook(() => useTitleMatches(torrents.slice(2, 3)))
+    await waitFor(() => expect(result.current.c).toBeNull())
+    await flushSave()
+    expect(server).toEqual({ c: { source: 'miss', version: GUESS_VERSION } })
+  })
+
+  it('shows no title, without asking TMDB, for a torrent the server knows has none', async () => {
+    server = { c: { source: 'miss', version: GUESS_VERSION } }
+    const { result } = renderHook(() => useTitleMatches(torrents.slice(2, 3)))
+    // On a device that never guessed it.
+    await waitFor(() => expect(result.current.c).toBeNull())
+    expect(searchTitles).not.toHaveBeenCalled()
+  })
+
+  it('sends no title this browser cached over a miss the server keeps', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    // This browser found the title while the server didn't answer…
+    searchTitles.mockResolvedValue(searchPage([DUNE_2021]))
+    getMatches.mockRejectedValueOnce(new matchesApi.MatchesError(502))
+    saveMatches.mockRejectedValueOnce(new matchesApi.MatchesError(502))
+    const offline = renderHook(() => useTitleMatches(torrents.slice(0, 1)))
+    await waitFor(() => expect(offline.result.current.a).toMatchObject({ id: 438631 }))
+    await flushSave()
+    offline.unmount()
+
+    // …and the server has since kept a miss for it: the server's matches win over this browser's guesses.
+    resetServerMatches()
+    saveMatches.mockClear()
+    server = { a: { source: 'miss', version: GUESS_VERSION } }
+    const { result } = renderHook(() => useTitleMatches(torrents.slice(0, 1)))
+    await waitFor(() => expect(result.current.a).toBeNull())
+    await flushSave()
+    expect(saveMatches).not.toHaveBeenCalled()
+  })
+
+  it('guesses again over a miss from an older version of guessing', async () => {
+    server = { c: { source: 'miss', version: GUESS_VERSION - 1 } }
+    searchTitles.mockResolvedValue(searchPage([]))
+    const { result } = renderHook(() => useTitleMatches(torrents.slice(2, 3)))
+    await waitFor(() => expect(result.current.c).toBeNull())
+    expect(searchTitles).toHaveBeenCalledTimes(1)
+  })
+
   it('saves guesses this browser made before, and none for tagged torrents', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     searchTitles.mockResolvedValue(searchPage([DUNE_2021]))

@@ -12,6 +12,7 @@ const V2 = 'c'.repeat(64)
 
 const USER = { type: 'movie', id: 1, source: 'user' } as const
 const GUESS = { type: 'tv', id: 2, source: 'guess', version: 2 } as const
+const MISS = { source: 'miss', version: 2 } as const
 
 let dir: string
 
@@ -54,11 +55,68 @@ describe('MatchesStore', () => {
     expect(store.current[B]).toEqual({ type: 'movie', id: 4, source: 'user' })
   })
 
-  it('forgets guesses and keeps choices', async () => {
+  it('lets the user change their choice', async () => {
+    const store = new MatchesStore(dir)
+    await store.save({ [A]: { type: 'movie', id: 1, source: 'user' } })
+    await store.save({ [A]: { type: 'tv', id: 5, source: 'user' } })
+    expect(store.current[A]).toEqual({ type: 'tv', id: 5, source: 'user' })
+  })
+
+  it('keeps a guess that found no title under the user’s choice and under a guess or a miss of the same or a newer version of guessing, not an older one, with no expiry', async () => {
+    const [C, D, E, F] = ['d', 'e', 'f', '0'].map((digit) => digit.repeat(40))
+    const store = new MatchesStore(dir)
+    await store.save({
+      [A]: USER,
+      [B]: GUESS,
+      [C]: { ...GUESS, version: 3 },
+      [V2]: { ...GUESS, version: 1 },
+      [D]: { ...MISS, version: 3 },
+      [E]: { ...MISS, version: 1 },
+      // Saved before guesses had a version.
+      [F]: { type: 'tv', id: 2, source: 'guess' },
+    })
+    // A device that loaded the matches before another one found the title still sends its miss.
+    await store.save({ [A]: MISS, [B]: MISS, [C]: MISS, [V2]: MISS, [D]: MISS, [E]: MISS, [F]: MISS })
+    const kept = { [A]: USER, [B]: GUESS, [C]: { ...GUESS, version: 3 }, [V2]: MISS, [D]: { ...MISS, version: 3 }, [E]: MISS, [F]: MISS }
+    expect(store.current).toEqual(kept)
+    // Kept for as long as its torrent is there, however long that is.
+    await store.prune(new Set(Object.keys(kept)), 100, Date.now() + 10 * 365 * 24 * 3600_000)
+    expect(store.current).toEqual(kept)
+  })
+
+  it('replaces a guess that found no title by a guess, and a guess by another of the same version', async () => {
+    const store = new MatchesStore(dir)
+    await store.save({ [A]: MISS, [B]: GUESS })
+    await store.save({ [A]: GUESS, [B]: { ...GUESS, id: 3 } })
+    expect(store.current).toEqual({ [A]: GUESS, [B]: { ...GUESS, id: 3 } })
+  })
+
+  it('replaces nothing by a guess of an older version of guessing, from a page open since before it changed', async () => {
+    const store = new MatchesStore(dir)
+    const C = 'd'.repeat(40)
+    await store.save({ [A]: MISS, [B]: GUESS, [C]: MISS })
+    // A guess without a version is from before guesses had one.
+    await store.save({ [A]: { ...GUESS, version: 1 }, [B]: { ...GUESS, id: 3, version: 1 }, [C]: { type: 'tv', id: 3, source: 'guess' } })
+    expect(store.current).toEqual({ [A]: MISS, [B]: GUESS, [C]: MISS })
+  })
+
+
+  it('forgets a guess that found no title with its torrent, as other matches', async () => {
+    const store = new MatchesStore(dir)
+    await store.save({ [A]: MISS, [B]: MISS })
+    await store.prune(new Set([A]), 100, 1000)
+    expect(store.current).toEqual({ [A]: MISS, [B]: { ...MISS, missingSince: 1000 } })
+    await store.prune(new Set([A]), 100, 1100)
+    expect(store.current).toEqual({ [A]: MISS })
+    expect(await store.save({ [A]: null })).toEqual({})
+  })
+
+  it('forgets guesses, those that found no title too, and keeps choices', async () => {
     const store = new MatchesStore(dir)
     await store.save({
       [A]: { type: 'movie', id: 1, source: 'user' },
       [B]: { type: 'movie', id: 2, source: 'guess', version: 2 },
+      [V2]: MISS,
     })
     expect(await store.clearGuesses()).toEqual({ [A]: { type: 'movie', id: 1, source: 'user' } })
   })
@@ -181,6 +239,12 @@ describe('matchesMiddleware', () => {
 
     expect((await patch(app, { [B]: { type: 'movie', id: 1, source: 'guess', version: 2 } })).status).toBe(200)
     expect(Object.keys((await (await fetch(`${app}/api/matches`)).json()) as Matches)).toEqual([A, V2, B])
+
+    // A guess that found no title is saved and answered like the others.
+    const C = 'd'.repeat(40)
+    const miss = await patch(app, { [C]: MISS })
+    expect(miss.status).toBe(200)
+    expect(((await miss.json()) as Matches)[C]).toEqual(MISS)
     expect(JSON.parse(await readFile(join(dir, 'matches.json'), 'utf8'))).toMatchObject(saved)
   })
 
@@ -223,6 +287,11 @@ describe('matchesMiddleware', () => {
       { [A]: { ...good, version: '2' } },
       { [A]: { ...good, title: 'Dune' } },
       { [A]: good, [B]: false },
+      { [A]: { ...MISS, type: 'movie' } },
+      { [A]: { ...MISS, id: 1 } },
+      { [A]: { source: 'miss' } },
+      { [A]: { ...MISS, version: 0 } },
+      { [A]: { ...MISS, title: null } },
     ]) {
       const response = await patch(app, body)
       expect(response.status, JSON.stringify(body)).toBe(400)

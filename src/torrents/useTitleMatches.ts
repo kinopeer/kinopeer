@@ -259,7 +259,7 @@ export function useTitleMatches(
 
   // New guesses wait for the server's matches: another device may have made them already.
   const pendingKey = [
-    ...new Set(Object.values(lookups).flatMap((lookup) => (lookup.tag || server ? [lookup.key] : []))),
+    ...new Set(Object.values(lookups).flatMap((lookup) => (!lookup.miss && (lookup.tag || server) ? [lookup.key] : []))),
   ]
     .filter((key) => readCache(`${language}|${key}`) === undefined)
     .sort()
@@ -279,14 +279,16 @@ export function useTitleMatches(
     run.current?.want(pendingKey ? pendingKey.split('\n').map((key) => byKey.get(key)!) : [])
   }, [pendingKey, language])
 
-  // Guesses go to the server, so other devices show the same title without guessing. The title is
-  // cached under its id as well, which is how it is looked up once the server has the guess.
+  // Guesses go to the server, those that found no title too, so other devices show the same without
+  // guessing. A title is cached under its id as well, which is how it is looked up once the server
+  // has the guess.
   useEffect(() => {
     if (!server) return
     const guesses: Matches = {}
     const titles: Record<string, TitleMatch> = {}
     for (const [hash, lookup] of Object.entries(lookups)) {
-      const match = lookup.tag ? undefined : readCache(`${language}|${lookup.key}`)
+      const match = lookup.tag || lookup.miss ? undefined : readCache(`${language}|${lookup.key}`)
+      if (match === null) guesses[hash] = { source: 'miss', version: GUESS_VERSION }
       if (!match) continue
       guesses[hash] = { type: match.type, id: match.id, source: 'guess', version: GUESS_VERSION }
       const idKey = `${language}|${known(match.type, match.id).key}`
@@ -297,7 +299,7 @@ export function useTitleMatches(
   }, [lookups, server, language, version])
 
   const matches: Record<string, TitleMatch | null | undefined> = {}
-  for (const [hash, lookup] of Object.entries(lookups)) matches[hash] = readCache(`${language}|${lookup.key}`)
+  for (const [hash, lookup] of Object.entries(lookups)) matches[hash] = lookup.miss ? null : readCache(`${language}|${lookup.key}`)
   return matches
 }
 
