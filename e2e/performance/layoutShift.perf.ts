@@ -238,7 +238,9 @@ const SERIES_RELATED: Record<string, Answer> = {
 
 /**
  * The releases screen's answers (ReleasesScreen): the series' details, then Prowlarr's search, then
- * which indexers failed during it, which the count's line says once it has answered (#393).
+ * which indexers failed during it, which the count's line says once it has answered (#393); and
+ * qBittorrent's torrents once, where no screen polls, for the releases it has (#375), whose mark
+ * takes Add's place at Add's size.
  */
 const releasesPage = (name: string, failingIndexers: string[] = [], noReleases = false): Case => ({
   screen: 'releases',
@@ -259,6 +261,7 @@ const releasesPage = (name: string, failingIndexers: string[] = [], noReleases =
       ),
   answers: {
     ...SESSION,
+    oneOff: { matches: get('/qbt/api/v2/torrents/info'), after: ['tmdbSetup'] },
     details: { matches: get('/tmdb/tv/126308'), after: ['tmdbSetup'] },
     search: { matches: get('/prowlarr/search'), after: ['details'] },
     failing: { matches: get('/prowlarr/failing'), after: ['search'] },
