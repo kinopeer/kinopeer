@@ -1,6 +1,7 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Profiler, type ReactNode } from 'react'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import * as prowlarr from '../api/prowlarr'
 import type { Release } from '../api/prowlarr'
@@ -11,6 +12,8 @@ import { resetSettings, updateSettings } from '../settings/settings'
 import * as torrentFile from '../torrents/torrentFile'
 import { MainDataContext, createMainDataStore, type MainDataStore } from '../torrents/useMainData'
 import { AddReleaseSheet } from './AddReleaseSheet'
+import { torrent } from '../test/fixtures'
+import { ROUTER_OPTIONS } from '../lib/routerOptions'
 import { qbittorrentDown, saying } from '../test/render'
 
 vi.mock('../api/prowlarr', async (importOriginal) => ({
@@ -21,6 +24,7 @@ vi.mock('../api/qbittorrent', async (importOriginal) => ({
   ...(await importOriginal<typeof qbt>()),
   getSaveLocations: vi.fn(),
   getMainData: vi.fn(),
+  getTorrents: vi.fn(),
 }))
 vi.mock('../releases/addRelease', () => ({ addRelease: vi.fn() }))
 vi.mock('../torrents/torrentFile', async (importOriginal) => ({
@@ -30,6 +34,7 @@ vi.mock('../torrents/torrentFile', async (importOriginal) => ({
 
 const fetchRelease = vi.mocked(prowlarr.fetchRelease)
 const getMainData = vi.mocked(qbt.getMainData)
+const getTorrents = vi.mocked(qbt.getTorrents)
 const commits = vi.fn()
 const addRelease = vi.mocked(adding.addRelease)
 const readTorrentFile = vi.mocked(torrentFile.readTorrentFile)
@@ -46,7 +51,7 @@ const RELEASE: Release = {
 }
 const FILE = new File([new Uint8Array([1])], 'bb.torrent')
 const META = {
-  infoHash: 'abc123',
+  infoHash: 'c12fe1c06bba254a9dc9f519b335aa7c1367a88a',
   name: 'Breaking Bad',
   files: [
     { path: 'Season 1/e01.mkv', size: 10e9 },
@@ -64,17 +69,34 @@ async function runningPoll() {
   return store
 }
 
+/** The page a link took the app to, and the page it was opened over. */
+function Opened() {
+  const location = useLocation()
+  const background = (location.state as { background?: { pathname: string } } | null)?.background
+  return <output aria-label="Opened">{`${location.pathname} over ${background?.pathname ?? 'nothing'}`}</output>
+}
+
+const RELEASES_PAGE = '/title/tv/1396/releases'
+
 function renderSheet(release = RELEASE, store?: MainDataStore) {
   const onAdded = vi.fn()
   const onClose = vi.fn()
-  const { unmount } = render(
+  const sheet = (
     <AddReleaseSheet
       release={release}
       info={parseRelease(release.title)}
       title={{ type: 'tv', id: 1396, name: 'Breaking Bad', posterPath: null }}
       onClose={onClose}
       onAdded={onAdded}
-    />,
+    />
+  )
+  const { unmount } = render(
+    <MemoryRouter initialEntries={[RELEASES_PAGE]} {...ROUTER_OPTIONS}>
+      <Routes>
+        <Route path={RELEASES_PAGE} element={sheet} />
+        <Route path="/torrent/:hash" element={<Opened />} />
+      </Routes>
+    </MemoryRouter>,
     {
       wrapper:
         store &&
@@ -108,6 +130,7 @@ beforeEach(() => {
   })
   getMainData.mockResolvedValue({ rid: 1, server_state: { free_space_on_disk: 40e9 } })
   addRelease.mockResolvedValue()
+  getTorrents.mockResolvedValue([])
 })
 
 describe('AddReleaseSheet', () => {
@@ -117,6 +140,8 @@ describe('AddReleaseSheet', () => {
     expect(within(sheet).getByText('Breaking Bad')).toBeInTheDocument()
     expect(within(sheet).getByRole('link', { name: 'Open on Indexer C' })).toHaveAttribute('href', 'https://tracker.test/bb')
     expect(await within(sheet).findByText('TV → /data/tv')).toBeInTheDocument()
+    // A .torrent's files can be picked, so the magnet link's note isn't there.
+    expect(within(sheet).queryByText(/^Magnet link:/)).not.toBeInTheDocument()
 
     await userEvent.click(await within(sheet).findByRole('button', { name: /Files: all \(3\)/ }))
     const picker = screen.getByRole('dialog', { name: 'Select files' })
@@ -148,7 +173,7 @@ describe('AddReleaseSheet', () => {
   it('applies the chosen options', async () => {
     renderSheet()
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
-    await userEvent.click(within(sheet).getByRole('button', { name: 'Options' }))
+    await userEvent.click(await within(sheet).findByRole('button', { name: 'Options' }))
     await userEvent.click(await within(sheet).findByRole('button', { name: 'No category' }))
     // A path isn't a word, so the browser doesn't underline it.
     expect(within(sheet).getByLabelText('Folder')).toHaveAttribute('spellcheck', 'false')
@@ -177,7 +202,7 @@ describe('AddReleaseSheet', () => {
   it('marks the category the torrent goes to', async () => {
     renderSheet()
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
-    await userEvent.click(within(sheet).getByRole('button', { name: 'Options' }))
+    await userEvent.click(await within(sheet).findByRole('button', { name: 'Options' }))
     // A series goes to the category named like its type.
     const tv = await within(sheet).findByRole('button', { name: 'TV' })
     const none = within(sheet).getByRole('button', { name: 'No category' })
@@ -205,7 +230,7 @@ describe('AddReleaseSheet', () => {
   it('follows defaults that arrive after it opened, until the user flips them', async () => {
     renderSheet()
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
-    await userEvent.click(within(sheet).getByRole('button', { name: 'Options' }))
+    await userEvent.click(await within(sheet).findByRole('button', { name: 'Options' }))
     const paused = within(sheet).getByRole('switch', { name: 'Start paused' })
     const sequential = within(sheet).getByRole('switch', { name: 'Sequential download' })
     const firstLast = within(sheet).getByRole('switch', { name: 'First and last pieces first' })
@@ -270,7 +295,7 @@ describe('AddReleaseSheet', () => {
     expect(within(sheet).queryByText('Not enough free space')).not.toBeInTheDocument()
     expect(within(sheet).queryByText(/→/)).not.toBeInTheDocument()
 
-    await userEvent.click(within(sheet).getByRole('button', { name: 'Options' }))
+    await userEvent.click(await within(sheet).findByRole('button', { name: 'Options' }))
     expect(within(sheet).queryByRole('group', { name: 'Category' })).not.toBeInTheDocument()
     expect(within(sheet).getByLabelText('Folder')).toHaveAttribute('placeholder', '')
 
@@ -296,7 +321,8 @@ describe('AddReleaseSheet', () => {
         name: saying(/^40\.0\sGB free on qBittorrent’s disk, 10\.0\sGB short of this download\. Skip some files/),
       }),
     ).toBeInTheDocument()
-    expect(within(sheet).getByRole('button', { name: /^Download · 50\.0\sGB$/ })).toBeEnabled()
+    // Once qBittorrent has said it doesn't have the torrent, which may come after the free space.
+    await waitFor(() => expect(within(sheet).getByRole('button', { name: /^Download · 50\.0\sGB$/ })).toBeEnabled())
 
     await userEvent.click(within(sheet).getByRole('button', { name: /Files: all \(3\)/ }))
     const picker = screen.getByRole('dialog', { name: 'Select files' })
@@ -371,15 +397,32 @@ describe('AddReleaseSheet', () => {
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
     expect(await within(sheet).findByRole('status', { name: saying(/10\.0\sGB short of this download\. Free up space before it finishes\.$/) })).toBeInTheDocument()
     expect(within(sheet).queryByText(/Skip some files/)).not.toBeInTheDocument()
+    // Nor a list of files to pick from.
+    expect(within(sheet).queryByRole('button', { name: /^Files/ })).not.toBeInTheDocument()
   })
 
-  it('doesn’t warn by the release size when the torrent can’t be fetched', async () => {
+  it('doesn’t send a torrent with every file skipped', async () => {
+    renderSheet()
+    await userEvent.click(await screen.findByRole('button', { name: /Files: all \(3\)/ }))
+    const picker = screen.getByRole('dialog', { name: 'Select files' })
+    await userEvent.click(within(picker).getByRole('button', { name: 'Deselect all' }))
+    // Done waits for a file, but Back leaves with none.
+    await userEvent.click(within(picker).getByRole('button', { name: 'Back' }))
+    expect(within(screen.getByRole('dialog', { name: 'Add to downloads' })).getByRole('button', { name: /^Download/ })).toBeDisabled()
+  })
+
+  it('offers no form, the free space warning included, when the torrent can’t be fetched', async () => {
     fetchRelease.mockRejectedValue(new prowlarr.ProwlarrError('down', 502, 'upstream'))
     renderSheet(RELEASE, await runningPoll())
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
-    expect(await within(sheet).findByText('TV → /data/tv')).toBeInTheDocument()
     expect(await within(sheet).findByRole('alert', { name: saying('Couldn’t get the torrent from Prowlarr.') })).toBeInTheDocument()
+    // The folders and the poll's free space in, which the form would show.
+    await waitFor(() => expect(vi.mocked(qbt.getSaveLocations)).toHaveBeenCalled())
+    await act(async () => {})
     expect(within(sheet).queryByText('Not enough free space')).not.toBeInTheDocument()
+    expect(within(sheet).queryByText('TV → /data/tv')).not.toBeInTheDocument()
+    expect(within(sheet).queryByRole('button', { name: 'Options' })).not.toBeInTheDocument()
+    expect(within(sheet).getByRole('button', { name: /^Download/ })).toBeDisabled()
   })
 
   it('doesn’t warn by the release size when the .torrent can’t be read', async () => {
@@ -418,12 +461,63 @@ describe('AddReleaseSheet', () => {
     expect(within(sheet).getByRole('button', { name: /^Download/ })).toBeEnabled()
   })
 
-  it('says when qBittorrent refuses the torrent', async () => {
+  it('says qBittorrent refused the torrent when it then doesn’t have it', async () => {
     addRelease.mockRejectedValue(new qbt.QbittorrentError('Fails.', 200))
     const { onAdded } = renderSheet()
     await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
-    expect(await screen.findByRole('alert', { name: saying(/may already be in your downloads/) })).toBeInTheDocument()
+    expect(await screen.findByRole('alert', { name: saying('qBittorrent didn’t add the torrent.') })).toBeInTheDocument()
+    expect(getTorrents).toHaveBeenLastCalledWith({ hashes: [META.infoHash] }, undefined)
     expect(onAdded).not.toHaveBeenCalled()
+  })
+
+  it('says the torrent is already in downloads when qBittorrent refused it and has it', async () => {
+    addRelease.mockRejectedValue(new qbt.QbittorrentError('Fails.', 200))
+    // Added meanwhile, from another device: qBittorrent has it by the time it refuses it.
+    getTorrents.mockResolvedValueOnce([]).mockResolvedValueOnce([torrent(META.infoHash)])
+    const { onAdded } = renderSheet()
+    await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
+    expect(await screen.findByRole('status', { name: saying('Already in downloads') })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Open details' })).toHaveAttribute('href', `/torrent/${META.infoHash}`)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(onAdded).not.toHaveBeenCalled()
+  })
+
+  it('says it may already be in downloads when qBittorrent refused it and can’t be asked then', async () => {
+    addRelease.mockRejectedValue(new qbt.QbittorrentError('Fails.', 200))
+    getTorrents.mockResolvedValueOnce([]).mockRejectedValueOnce(qbittorrentDown())
+    renderSheet()
+    await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
+    expect(await screen.findByRole('alert', { name: saying('qBittorrent didn’t add the torrent. It may already be in your downloads.') })).toBeInTheDocument()
+  })
+
+  it('says qBittorrent refused a v1 magnet link when it then doesn’t have it', async () => {
+    const hash = 'c9e15763f722f23e98a29decdfae341b98d53056'
+    fetchRelease.mockResolvedValue({ kind: 'magnet', uri: `magnet:?xt=urn:btih:${hash}` })
+    addRelease.mockRejectedValue(new qbt.QbittorrentError('Fails.', 200))
+    renderSheet()
+    await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
+    expect(await screen.findByRole('alert', { name: saying('qBittorrent didn’t add the torrent.') })).toBeInTheDocument()
+    expect(getTorrents).toHaveBeenLastCalledWith({ hashes: [hash] }, undefined)
+  })
+
+  it('says it may already be in downloads when qBittorrent refused a magnet link with only a v2 hash and doesn’t have it by that', async () => {
+    // A hybrid torrent's ID is its v1 hash, which this link doesn't give.
+    const v2 = 'ab'.repeat(32)
+    fetchRelease.mockResolvedValue({ kind: 'magnet', uri: `magnet:?xt=urn:btmh:1220${v2}` })
+    addRelease.mockRejectedValue(new qbt.QbittorrentError('Fails.', 200))
+    renderSheet()
+    await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
+    expect(await screen.findByRole('alert', { name: saying('qBittorrent didn’t add the torrent. It may already be in your downloads.') })).toBeInTheDocument()
+    expect(getTorrents).toHaveBeenLastCalledWith({ hashes: [v2.slice(0, 40)] }, undefined)
+  })
+
+  it('says it may already be in downloads when qBittorrent refused a torrent whose hash isn’t known', async () => {
+    readTorrentFile.mockRejectedValue(new torrentFile.InvalidTorrentError())
+    addRelease.mockRejectedValue(new qbt.QbittorrentError('Fails.', 200))
+    renderSheet()
+    await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
+    expect(await screen.findByRole('alert', { name: saying('qBittorrent didn’t add the torrent. It may already be in your downloads.') })).toBeInTheDocument()
+    expect(getTorrents).not.toHaveBeenCalled()
   })
 
   it('says whether qBittorrent or Kinopeer itself didn’t answer the add', async () => {
@@ -433,5 +527,101 @@ describe('AddReleaseSheet', () => {
     expect(await screen.findByRole('alert', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: /^Download/ }))
     expect(await screen.findByRole('alert', { name: saying('Couldn’t reach Kinopeer. Try again.') })).toBeInTheDocument()
+  })
+
+  describe('a torrent qBittorrent already has', () => {
+    it('offers to open it in place of Download, over the page the sheet is on', async () => {
+      getTorrents.mockResolvedValue([torrent(META.infoHash)])
+      const { onClose } = renderSheet()
+      const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+      expect(await within(sheet).findByRole('status', { name: saying('Already in downloads') })).toBeInTheDocument()
+      expect(getTorrents).toHaveBeenCalledWith({ hashes: [META.infoHash] }, expect.any(AbortSignal))
+      // Nothing to choose for a torrent that won't be added.
+      expect(within(sheet).queryByRole('button', { name: /^Download/ })).not.toBeInTheDocument()
+      expect(within(sheet).queryByRole('button', { name: /Files:/ })).not.toBeInTheDocument()
+      expect(within(sheet).queryByRole('button', { name: 'Options' })).not.toBeInTheDocument()
+      expect(within(sheet).queryByText('TV → /data/tv')).not.toBeInTheDocument()
+
+      await userEvent.click(within(sheet).getByRole('link', { name: 'Open details' }))
+      expect(onClose).toHaveBeenCalled()
+      expect(screen.getByRole('status', { name: 'Opened' })).toHaveTextContent(`/torrent/${META.infoHash} over ${RELEASES_PAGE}`)
+    })
+
+    it('finds a magnet link’s torrent by the link’s hash', async () => {
+      const hash = 'd'.repeat(40)
+      fetchRelease.mockResolvedValue({ kind: 'magnet', uri: `magnet:?xt=urn:btih:${hash.toUpperCase()}` })
+      getTorrents.mockResolvedValue([torrent(hash)])
+      renderSheet()
+      expect(await screen.findByRole('status', { name: saying('Already in downloads') })).toBeInTheDocument()
+      expect(getTorrents).toHaveBeenCalledWith({ hashes: [hash] }, expect.any(AbortSignal))
+      expect(screen.queryByText(/Magnet link: all files/)).not.toBeInTheDocument()
+    })
+
+    it('keeps the free space warning away too', async () => {
+      getMainData.mockResolvedValue({ rid: 1, server_state: { free_space_on_disk: 10e9 } })
+      getTorrents.mockResolvedValue([torrent(META.infoHash)])
+      renderSheet()
+      expect(await screen.findByRole('status', { name: saying('Already in downloads') })).toBeInTheDocument()
+      await waitFor(() => expect(getMainData).toHaveBeenCalled())
+      expect(screen.queryByText('Not enough free space')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('a torrent qBittorrent doesn’t have', () => {
+    it('waits for qBittorrent to say so before Download', async () => {
+      let answer: (torrents: qbt.Torrent[]) => void = () => {}
+      getTorrents.mockReturnValue(new Promise((resolve) => (answer = resolve)))
+      renderSheet()
+      const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+      await waitFor(() => expect(getTorrents).toHaveBeenCalled())
+      expect(within(sheet).getByRole('status', { name: saying('Checking your downloads…') })).toBeInTheDocument()
+      expect(within(sheet).getByRole('button', { name: /^Download/ })).toBeDisabled()
+      // Nothing to open meanwhile that would go away if qBittorrent has it.
+      expect(within(sheet).queryByRole('button', { name: /^Files/ })).not.toBeInTheDocument()
+      expect(within(sheet).queryByRole('button', { name: 'Options' })).not.toBeInTheDocument()
+
+      // Another torrent of the hashes asked for isn't this one.
+      await act(async () => answer([torrent('e'.repeat(40))]))
+      expect(within(sheet).getByRole('button', { name: /^Download/ })).toBeEnabled()
+      expect(within(sheet).queryByRole('status', { name: saying('Checking your downloads…') })).not.toBeInTheDocument()
+      expect(within(sheet).getByRole('button', { name: /^Files: all \(3\)/ })).toBeInTheDocument()
+      expect(within(sheet).getByRole('button', { name: 'Options' })).toBeInTheDocument()
+      expect(within(sheet).queryByRole('status', { name: saying('Already in downloads') })).not.toBeInTheDocument()
+    })
+
+    it('doesn’t offer the options while it gets the torrent either', async () => {
+      let fetched: (source: { kind: 'magnet'; uri: string }) => void = () => {}
+      fetchRelease.mockReturnValue(new Promise((resolve) => (fetched = resolve)))
+      renderSheet()
+      const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+      expect(await within(sheet).findByRole('status', { name: saying('Getting the torrent…') })).toBeInTheDocument()
+      expect(within(sheet).queryByRole('button', { name: 'Options' })).not.toBeInTheDocument()
+
+      await act(async () => fetched({ kind: 'magnet', uri: `magnet:?xt=urn:btih:${'e'.repeat(40)}` }))
+      expect(await within(sheet).findByRole('button', { name: 'Options' })).toBeInTheDocument()
+    })
+
+    it('offers Download when qBittorrent can’t be asked', async () => {
+      getTorrents.mockRejectedValue(qbittorrentDown())
+      renderSheet()
+      await waitFor(() => expect(getTorrents).toHaveBeenCalled())
+      await waitFor(() => expect(screen.getByRole('button', { name: /^Download/ })).toBeEnabled())
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+
+    it('doesn’t ask qBittorrent when the hash isn’t known', async () => {
+      readTorrentFile.mockRejectedValue(new torrentFile.InvalidTorrentError())
+      renderSheet()
+      await waitFor(() => expect(screen.getByRole('button', { name: /^Download/ })).toBeEnabled())
+      expect(getTorrents).not.toHaveBeenCalled()
+    })
+
+    it('stops asking when the sheet goes away', async () => {
+      getTorrents.mockReturnValue(new Promise(() => {}))
+      const { unmount } = renderSheet()
+      await waitFor(() => expect(getTorrents.mock.lastCall?.[1]?.aborted).toBe(false))
+      unmount()
+      expect(getTorrents.mock.lastCall?.[1]?.aborted).toBe(true)
+    })
   })
 })

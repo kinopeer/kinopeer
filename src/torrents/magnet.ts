@@ -3,6 +3,11 @@ export interface MagnetLink {
   infoHash: string
   /** The "dn" display name, if any. */
   name?: string
+  /**
+   * The link gives only a v2 hash. A hybrid torrent's ID in qBittorrent is its v1 hash, so the
+   * truncated v2 one doesn't name it there.
+   */
+  v2Only: boolean
 }
 
 const BASE32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
@@ -25,15 +30,17 @@ export function parseMagnet(uri: string): MagnetLink | undefined {
   const name = params.get('dn')?.trim() || undefined
 
   let infoHash: string | undefined
+  let v1Found = false
   for (const xt of params.getAll('xt')) {
     const v1 = /^urn:btih:([0-9a-f]{40}|[a-z2-7]{32})$/i.exec(xt)
     if (v1) {
       infoHash = v1[1].length === 40 ? v1[1].toLowerCase() : base32ToHex(v1[1])
+      v1Found = true
       break
     }
     // A sha2-256 multihash: 0x12, length 0x20, then the digest.
     const v2 = /^urn:btmh:1220([0-9a-f]{64})$/i.exec(xt)
     if (v2) infoHash ??= v2[1].slice(0, 40).toLowerCase()
   }
-  return infoHash ? { infoHash, name } : undefined
+  return infoHash ? { infoHash, name, v2Only: !v1Found } : undefined
 }

@@ -5,7 +5,7 @@ describe('parseMagnet', () => {
   it('reads a hex v1 hash and the display name', () => {
     expect(
       parseMagnet('magnet:?xt=urn:btih:C9E15763F722F23E98A29DECDFAE341B98D53056&dn=Dune.2021.1080p&tr=udp%3A%2F%2Ftracker'),
-    ).toEqual({ infoHash: 'c9e15763f722f23e98a29decdfae341b98d53056', name: 'Dune.2021.1080p' })
+    ).toEqual({ infoHash: 'c9e15763f722f23e98a29decdfae341b98d53056', name: 'Dune.2021.1080p', v2Only: false })
   })
 
   it('converts a base32 v1 hash to hex', () => {
@@ -16,7 +16,12 @@ describe('parseMagnet', () => {
 
   it('truncates a v2 hash when there is no v1 one', () => {
     const digest = 'ab'.repeat(32)
-    expect(parseMagnet(`magnet:?xt=urn:btmh:1220${digest}`)?.infoHash).toBe('ab'.repeat(20))
+    expect(parseMagnet(`magnet:?xt=urn:btmh:1220${digest}`)).toEqual({ infoHash: 'ab'.repeat(20), v2Only: true })
+  })
+
+  it('takes the v1 hash of a hybrid link, whichever comes first', () => {
+    const v1 = 'c9e15763f722f23e98a29decdfae341b98d53056'
+    expect(parseMagnet(`magnet:?xt=urn:btmh:1220${'ab'.repeat(32)}&xt=urn:btih:${v1}`)).toEqual({ infoHash: v1, v2Only: false })
   })
 
   it('rejects anything else', () => {

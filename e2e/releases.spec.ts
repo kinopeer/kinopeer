@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from './test.ts'
 import { DESKTOP, DESKTOP_RAIL, openApp, settle, showWholePage, type AppOptions } from './app.ts'
-import { GB, RELEASES } from './fixtures.ts'
+import { GB, RELEASES, shogunInfoHash, torrent } from './fixtures.ts'
 
 /** A remembered 2160p, which these releases have, and a dub, which none of them has. */
 const REMEMBERED = { resolution: ['2160p'], audio: ['dub'], source: [], minSeeds: 0 }
@@ -74,6 +74,17 @@ test.describe('releases, phone', () => {
     await expect(page.getByRole('button', { name: /Файлы: все \(14\)/ })).toBeVisible()
     await settle(page)
     await expect(page).toHaveScreenshot('add-low-space-dark-ru.png')
+  })
+
+  // qBittorrent has the torrent already: the sheet says so and opens it in place of Download (#375).
+  test('adding a release already in downloads', async ({ page }) => {
+    const inDownloads = torrent(shogunInfoHash(), { name: RELEASES[0].title, progress: 0.4 })
+    await openReleases(page, { torrents: [inDownloads] })
+    await page.getByRole('button', { name: 'Добавить в загрузки' }).first().click()
+    await expect(page.getByText('Уже в загрузках')).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Подробности' })).toBeVisible()
+    await settle(page)
+    await expect(page).toHaveScreenshot('add-already-added-dark-ru.png')
   })
 })
 

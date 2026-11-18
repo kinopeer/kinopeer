@@ -118,6 +118,7 @@ describe('what a screen can cancel', () => {
     { name: 'getDefaultSavePath', read: () => getDefaultSavePath(signal), requests: 1 },
     { name: 'getMainData', read: () => getMainData(0, signal), requests: 1 },
     { name: 'getSaveLocations', read: () => getSaveLocations(signal), requests: 3 },
+    { name: 'getTorrents', read: () => getTorrents({ hashes: ['abc'] }, signal), requests: 1 },
     { name: 'getTorrentTrackers', read: () => getTorrentTrackers('abc', signal), requests: 1 },
   ])('$name hands the signal to every request', async ({ read, requests }) => {
     fetchMock.mockImplementation(async () => new Response('{}'))

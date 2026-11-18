@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import { Button } from './Button'
+import { renderWithRouter } from '../../test/render'
+import { Button, ButtonLink } from './Button'
 
 describe('Button', () => {
   it('defaults to a primary md button that does not submit forms', () => {
@@ -49,5 +50,36 @@ describe('Button', () => {
     )
     await userEvent.click(screen.getByRole('button'))
     expect(onClick).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('ButtonLink', () => {
+  it('is a link that looks like a button of its variant, size and width, with its icon', () => {
+    renderWithRouter(
+      <ButtonLink to="/torrent/abc" variant="secondary" size="lg" block icon="info">
+        Open details
+      </ButtonLink>,
+    )
+    const link = screen.getByRole('link', { name: 'Open details' })
+    expect(link).toHaveAttribute('href', '/torrent/abc')
+    expect(link).toHaveClass('ks-btn', 'ks-btn-secondary', 'ks-btn-lg', 'ks-btn-block')
+    expect(link.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    expect(link.querySelector('svg')).toHaveAttribute('width', '20')
+  })
+
+  it('takes the small icon in a small one', () => {
+    renderWithRouter(
+      <ButtonLink to="/" size="sm" icon="info">
+        Home
+      </ButtonLink>,
+    )
+    expect(screen.getByRole('link', { name: 'Home' }).querySelector('svg')).toHaveAttribute('width', '16')
+  })
+
+  it('defaults to a primary md one', () => {
+    renderWithRouter(<ButtonLink to="/">Home</ButtonLink>)
+    const link = screen.getByRole('link', { name: 'Home' })
+    expect(link).toHaveClass('ks-btn', 'ks-btn-primary')
+    expect(link).not.toHaveClass('ks-btn-md')
   })
 })

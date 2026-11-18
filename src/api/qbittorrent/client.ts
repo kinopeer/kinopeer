@@ -117,10 +117,11 @@ export const APP_VERSION_KEY = 'qbt|app/version'
  */
 export const APP_VERSION_FRESH_MS = 60_000
 
-export async function getTorrents(query: TorrentsQuery = {}): Promise<Torrent[]> {
+export async function getTorrents(query: TorrentsQuery = {}, signal?: AbortSignal): Promise<Torrent[]> {
   const { hashes, ...rest } = query
   const response = await request('/torrents/info', {
     params: { ...rest, hashes: hashes?.join('|') },
+    signal,
   })
   return (await response.json()) as Torrent[]
 }
