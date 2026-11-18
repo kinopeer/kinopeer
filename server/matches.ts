@@ -88,14 +88,15 @@ function fail(response: Parameters<Middleware>[1], status: number, error: Matche
 
 /**
  * Whether a match sent replaces the one kept: the user's choice replaces anything and only the
- * user's choice replaces it, and a miss doesn't replace a title guessed by the same or a newer
- * version of guessing. A device whose page loaded the matches before another one found the title
- * still sends its miss, which would take that title from every device.
+ * user's choice replaces it, and a miss replaces only a guess or a miss of an older version of
+ * guessing. A device whose page loaded the matches before another one found the title still sends its
+ * miss, which would take that title from every device; one still on an older version would take a
+ * newer miss back to its version, so every device guessed again.
  */
 function replaces(match: SentMatch, kept: StoredMatch | undefined): boolean {
   if (match.source === 'user' || !kept) return true
   if (kept.source === 'user') return false
-  return match.source !== 'miss' || kept.source !== 'guess' || (kept.version ?? 0) < match.version
+  return match.source !== 'miss' || (kept.version ?? 0) < match.version
 }
 
 function validMatch(value: unknown): value is SentMatch {

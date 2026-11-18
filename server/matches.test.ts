@@ -62,16 +62,17 @@ describe('MatchesStore', () => {
     expect(store.current[A]).toEqual({ type: 'tv', id: 5, source: 'user' })
   })
 
-  it('keeps a guess that found no title under the user’s choice and under a title guessed by the same or a newer version of guessing, not an older one, with no expiry', async () => {
+  it('keeps a guess that found no title under the user’s choice and under a guess or a miss of the same or a newer version of guessing, not an older one, with no expiry', async () => {
     const C = 'd'.repeat(40)
     const store = new MatchesStore(dir)
-    await store.save({ [A]: USER, [B]: GUESS, [C]: { ...GUESS, version: 3 }, [V2]: { ...GUESS, version: 1 } })
+    const E = 'e'.repeat(40)
+    await store.save({ [A]: USER, [B]: GUESS, [C]: { ...GUESS, version: 3 }, [V2]: { ...GUESS, version: 1 }, [E]: { ...MISS, version: 3 } })
     // A device that loaded the matches before another one found the title still sends its miss.
-    await store.save({ [A]: MISS, [B]: MISS, [C]: MISS, [V2]: MISS })
-    const kept = { [A]: USER, [B]: GUESS, [C]: { ...GUESS, version: 3 }, [V2]: MISS }
+    await store.save({ [A]: MISS, [B]: MISS, [C]: MISS, [V2]: MISS, [E]: MISS })
+    const kept = { [A]: USER, [B]: GUESS, [C]: { ...GUESS, version: 3 }, [V2]: MISS, [E]: { ...MISS, version: 3 } }
     expect(store.current).toEqual(kept)
     // Kept for as long as its torrent is there, however long that is.
-    await store.prune(new Set([A, B, C, V2]), 100, Date.now() + 10 * 365 * 24 * 3600_000)
+    await store.prune(new Set([A, B, C, V2, E]), 100, Date.now() + 10 * 365 * 24 * 3600_000)
     expect(store.current).toEqual(kept)
   })
 
