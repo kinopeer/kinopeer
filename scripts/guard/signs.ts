@@ -345,8 +345,11 @@ export function compareScripts(base: string | undefined, head: string | undefine
   })
 }
 
-/** What the shell starts a word after: a blank or one of its operators' characters. */
-const WORD_START = /[\s;&|()<>]/
+/** What bash starts a word after: a blank (a space or a tab), a newline or one of its operators' characters; not JS's `\s`, which has more. */
+const WORD_START = /[ \t\n;&|()<>]/
+
+/** A line whose first character but blanks is `#`. The lines are split at `\n` only, as bash splits them, not at `\r` or U+2028 as `^` with `m` would. */
+const COMMENT_LINE = /^[ \t]*#/
 
 /**
  * A command without its shell comments: a `#` that starts a word, to the end of its line, as the
@@ -360,7 +363,10 @@ const WORD_START = /[\s;&|()<>]/
  * a comment, and a `#` line inside a multi-line quote, text to the shell, is cut too.
  */
 function withoutComments(command: string): string {
-  const run = command.replace(/^[ \t]*#.*/gm, '')
+  const run = command
+    .split('\n')
+    .map((line) => (COMMENT_LINE.test(line) ? '' : line))
+    .join('\n')
   let kept = ''
   let quote: string | undefined
   // The text's start starts a word, though a `#` there has gone with its line above.

@@ -79,7 +79,9 @@ Three kinds of change, three lists in its report. The deputy's round judges ever
   (GitHub's docs on YAML anchors and aliases cite the 1.2.2 spec); a command built by an expression
   is read as written, and a shell comment is left out, as bash reads one but for the spellings
   under [What it doesn't see](#what-it-doesnt-see): a `#` that starts a word outside quotes (after
-  a blank or an operator's character, `npm test;# npm run lint`), to the end of its line, also
+  a space, a tab, a newline or an operator's character, `npm test;# npm run lint`, but not after
+  another of the characters JavaScript counts as blanks or line breaks, a no-break space or U+2028
+  among them, which bash doesn't), to the end of its line, also
   where a folded block folds it into the line before, while a `#` inside quotes or escaped is text;
   and, as before the parser, every line whose first character but blanks is `#`, inside quotes
   too. Its tests keep a table of the
@@ -326,19 +328,25 @@ compare the tests that ran, and says so: that takes a run of each side, which CI
 - What a command built by an expression runs: the guard reads `run: npm run ${{ matrix.script }}`
   as written, so a script taken out of the matrix, or an input's default changed, isn't read as a
   command no longer run.
-- Where its reading of a step's shell comments differs from bash's (none of these is in the
-  workflows today):
-  - `$(…)#` and `` `…`# ``: the `#` after a command substitution's end is read as a comment's
-    start, where bash keeps it in the word (`tag=$(git describe)#ci && npm run lint` runs `npm run
-    lint`). The rest of the line is read on neither side, so a command dropped from it isn't marked:
-    the one spelling `main`'s line by line reader caught and this one doesn't.
-  - `$'…'`: its backslash escapes aren't known, so `$'it\'s'` leaves a quote open and a `#` after
-    it on its line is read as text. A command commented out there reads as still run. A comment on
-    a line of its own is still cut.
-  - A heredoc's body: an apostrophe in it opens a quote, as in `$'…'`, and a line of it that starts
-    with `#`, text to bash, is cut.
-  - A step whose `shell:` isn't bash or sh: bash's rules are applied to every step, where pwsh
-    escapes with a backtick and cmd has no `#` comments.
+- Where its reading of a step's shell comments differs from bash's. The reader knows only quotes
+  (`'…'`, `"…"` with its backslash escapes), a backslash outside them and where a word starts (after
+  a space, a tab, a newline or one of `;&|()<>`), and bash's rules alone, whatever the step's
+  `shell:` (pwsh escapes with a backtick, cmd has no `#` comments). Wherever a `#` or a quote meets
+  anything else of the shell, it reads otherwise than bash: a substitution of any kind (`$(…)`,
+  `$((…))`, `<(…)`, backticks), `[[ … ]]`, an extglob, `$'…'`, a heredoc, a quote nested in a
+  substitution (`"$(echo 'a"b')"`), and a line whose first character but blanks is `#` inside a
+  multi-line quote, which the line rule cuts with the closing quote on it. None of these is in the
+  workflows today. They read one of two ways:
+  - A quote read as open where bash has closed it (`$'it\'s'`, an apostrophe in a heredoc's body, a
+    quote nested in a substitution, a closing quote cut with its line): a `#` after it, on its line
+    or a later one, is read as text, so a command commented out there reads as still run. A
+    comment on a line of its own is still cut.
+  - A `#` read as a comment's start where bash keeps it in a word or ends the comment sooner: after
+    a `)` or a backtick that doesn't end a word for bash (`tag=$(git describe)#ci && npm run lint`,
+    `x=$((1+1))#n`, `diff <(npm test)#x`, `[[ $v =~ (a|b)#x ]]`, `@(a|b)#c`), or inside backticks,
+    where bash ends it at the closing one (`` v=`git describe #tag` && npm run lint ``). The rest
+    of the line is read on neither side, so a command dropped from it isn't marked. This is the one
+    way this reader is weaker than `main`'s line by line reader, which read the whole line.
 - A change to `guard.yml` that stops the script from running or from being `main`'s copy: the
   workflow runs as the PR has it, so the weakening's mark comes from the changed steps, if they
   still make it.

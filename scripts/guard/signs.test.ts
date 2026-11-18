@@ -352,9 +352,13 @@ jobs:
       - run: npm ci
 `
 
+/** A workflow of one job with these steps, written in the job's block. */
+const job = (steps: string) => `on: pull_request\njobs:\n  check:\n    runs-on: ubuntu-latest\n    steps:\n${steps}`
+
+/** A workflow whose one step's command is a literal block of these lines, which YAML keeps as written: quotes, backslashes and all. */
+const block = (...lines: string[]) => job(`      - run: |\n${lines.map((line) => `          ${line}\n`).join('')}`)
+
 describe('workflowSteps', () => {
-  /** A workflow of one job with these steps, written in the job's block. */
-  const job = (steps: string) => `on: pull_request\njobs:\n  check:\n    runs-on: ubuntu-latest\n    steps:\n${steps}`
 
   it('reads each step as the action or the command it runs, a block whole and without its comments', () => {
     expect(workflowSteps(WORKFLOW)).toEqual([
@@ -408,9 +412,6 @@ describe('workflowSteps', () => {
     expect(workflowSteps(text)).toEqual(expected)
   })
 
-  /** A step whose command is a literal block of these lines, which YAML keeps as written: quotes, backslashes and all. */
-  const block = (...lines: string[]) => job(`      - run: |\n${lines.map((line) => `          ${line}\n`).join('')}`)
-
   // Where the shell starts a comment: a `#` that starts a word outside quotes, to the end of its line.
   it.each([
     ['at the start of a line', ['# npm run lint', 'npm test'], 'npm test'],
@@ -443,6 +444,18 @@ describe('workflowSteps', () => {
     ['with no # at all, ending in a backslash', 'npm run lint \\'],
   ])('keeps a # %s', (_name, line) => {
     expect(workflowSteps(block(line))).toEqual([`run: ${line}`])
+  })
+
+  // Characters JS takes for blanks or line breaks and bash doesn't: the `#` after them goes on a word, and the rest is a command.
+  it.each([
+    ['a no-break space', '\\_', '\u00a0'],
+    ['a vertical tab', '\\v', '\v'],
+    ['a form feed', '\\f', '\f'],
+    ['a carriage return', '\\r', '\r'],
+    ['a line separator', '\\L', '\u2028'],
+    ['a paragraph separator', '\\P', '\u2029'],
+  ])('keeps a # after %s', (_name, escape, char) => {
+    expect(workflowSteps(job(`      - run: "npm test${escape}# && npm run lint"\n`))).toEqual([`run: npm test${char}# && npm run lint`])
   })
 
   it('keeps a # that starts no line inside quotes that go on on the next line', () => {
@@ -626,9 +639,7 @@ describe('compareWorkflows', () => {
     ['dropped after a # inside quotes', ['echo "step #2" && npm run lint'], ['echo "step #2"']],
     ['commented out on the line after a backslash', ['npm test \\', '&& npm run lint'], ['npm test \\', '# && npm run lint']],
   ])('sends a command %s to the owner', (_name, was, now) => {
-    /** A workflow whose one step runs these lines, as a literal block. */
-    const step = (lines: string[]) => `jobs:\n  check:\n    steps:\n      - run: |\n${lines.map((line) => `          ${line}\n`).join('')}`
-    expect(said(compare(step(now), step(was)))).toEqual(['owner: a command CI ran is no longer run: `npm run lint`'])
+    expect(said(compare(block(...now), block(...was)))).toEqual(['owner: a command CI ran is no longer run: `npm run lint`'])
   })
 
   it('sends a command commented out in a folded block to the owner', () => {
