@@ -353,10 +353,14 @@ const WORD_START = /[\s;&|()<>]/
  * shell reads one. A word starts at the text's start or after a blank or an operator's character
  * (`npm test;# npm run lint`). Quotes are skipped, `'…'` whole and `"…"` with its backslash escapes,
  * as is a character escaped with a backslash outside them, so a `#` there is text
- * (`echo "step #2" && npm test`). A backslash before a newline joins the lines as the shell does
- * (`npm test \` and then `# npm run lint` is a comment). A quote left open keeps the rest as text.
+ * (`echo "step #2" && npm test`). A quote left open keeps the rest as text. Before that, a line
+ * whose first character but blanks is `#` is a comment whatever the quotes, as `main`'s line by
+ * line reader had it: so a line a backslash goes on to (`npm test \` and then `# npm run lint`) or
+ * one after an apostrophe the shell doesn't read as a quote (in a heredoc, in `$'it\'s'`) is still
+ * a comment, and a `#` line inside a multi-line quote, text to the shell, is cut too.
  */
-function withoutComments(run: string): string {
+function withoutComments(command: string): string {
+  const run = command.replace(/^[ \t]*#.*$/gm, '')
   let kept = ''
   let quote: string | undefined
   let wordStart = true
@@ -372,11 +376,9 @@ function withoutComments(run: string): string {
     }
     kept += char
     if (char === '\\' && quote !== "'") {
-      const next = run[index + 1] ?? ''
-      kept += next
+      kept += run[index + 1] ?? ''
       index++
-      // A backslash before a newline joins the two lines, so a word goes on, or starts, as it would have before it.
-      if (next !== '\n') wordStart = false
+      wordStart = false
       continue
     }
     if (quote === undefined && (char === '"' || char === "'")) quote = char

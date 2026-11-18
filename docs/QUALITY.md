@@ -77,10 +77,12 @@ Three kinds of change, three lists in its report. The deputy's round judges ever
   It reads them with a YAML parser (`yaml`) as GitHub does, YAML 1.2: only a job's `uses` and its
   steps' `uses` and `run`, with aliases resolved and no merge keys, which YAML 1.2 doesn't have
   (GitHub's docs on YAML anchors and aliases cite the 1.2.2 spec); a command built by an expression
-  is read as written, and a shell comment is left out where the shell starts one: a `#` that starts
-  a word outside quotes (after a blank or an operator's character, `npm test;# npm run lint`), to
-  the end of its line, also where a folded block folds it into the line before; a `#` inside quotes
-  or escaped is text. Its tests keep a table of the
+  is read as written, and a shell comment is left out, as bash reads one but for the spellings
+  under [What it doesn't see](#what-it-doesnt-see): a `#` that starts a word outside quotes (after
+  a blank or an operator's character, `npm test;# npm run lint`), to the end of its line, also
+  where a folded block folds it into the line before, while a `#` inside quotes or escaped is text;
+  and, as before the parser, every line whose first character but blanks is `#`, inside quotes
+  too. Its tests keep a table of the
   spellings it reads, lets through and can't read (`scripts/guard/signs.test.ts`).
 - An npm script removed (`scripts` in the root `package.json`): the step that called it checks
   nothing.
@@ -324,6 +326,19 @@ compare the tests that ran, and says so: that takes a run of each side, which CI
 - What a command built by an expression runs: the guard reads `run: npm run ${{ matrix.script }}`
   as written, so a script taken out of the matrix, or an input's default changed, isn't read as a
   command no longer run.
+- Where its reading of a step's shell comments differs from bash's (none of these is in the
+  workflows today):
+  - `$(…)#` and `` `…`# ``: the `#` after a command substitution's end is read as a comment's
+    start, where bash keeps it in the word (`tag=$(git describe)#ci && npm run lint` runs `npm run
+    lint`). The rest of the line is read on neither side, so a command dropped from it isn't marked:
+    the one spelling `main`'s line by line reader caught and this one doesn't.
+  - `$'…'`: its backslash escapes aren't known, so `$'it\'s'` leaves a quote open and a `#` after
+    it on its line is read as text. A command commented out there reads as still run. A comment on
+    a line of its own is still cut.
+  - A heredoc's body: an apostrophe in it opens a quote, as in `$'…'`, and a line of it that starts
+    with `#`, text to bash, is cut.
+  - A step whose `shell:` isn't bash or sh: bash's rules are applied to every step, where pwsh
+    escapes with a backtick and cmd has no `#` comments.
 - A change to `guard.yml` that stops the script from running or from being `main`'s copy: the
   workflow runs as the PR has it, so the weakening's mark comes from the changed steps, if they
   still make it.

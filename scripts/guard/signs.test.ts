@@ -423,6 +423,9 @@ describe('workflowSteps', () => {
     ['right after `>` and `<`', ['npm test >#out', 'npm ci <#in'], 'npm test > ; npm ci <'],
     ['after a closed single quote whose backslash is text', ["echo 'a\\' # npm run lint"], "echo 'a\\'"],
     ['that starts the line a backslash after a blank goes on to', ['npm test \\', '# && npm run lint'], 'npm test \\'],
+    ['that starts the line a backslash ends a word before', ['npm test\\', '#x && npm run lint'], 'npm test\\'],
+    ['that starts a line inside quotes, which the shell reads as text', ['echo "a', '  #b" && npm run lint'], 'echo "a'],
+    ["that starts a line after an apostrophe the shell doesn't read as a quote", ["echo $'it\\'s'", '# npm run lint', 'npm test'], "echo $'it\\'s' ; npm test"],
   ])('cuts a comment %s', (_name, lines, command) => {
     expect(workflowSteps(block(...lines))).toEqual([`run: ${command}`])
   })
@@ -441,11 +444,8 @@ describe('workflowSteps', () => {
     expect(workflowSteps(block(line))).toEqual([`run: ${line}`])
   })
 
-  it.each([
-    ['inside quotes that go on on the next line', ['echo "a', '#b" && npm run lint'], 'echo "a ; #b" && npm run lint'],
-    ['that goes on a word a backslash ends', ['npm test\\', '#x && npm run lint'], 'npm test\\ ; #x && npm run lint'],
-  ])('keeps a # %s', (_name, lines, command) => {
-    expect(workflowSteps(block(...lines))).toEqual([`run: ${command}`])
+  it('keeps a # that starts no line inside quotes that go on on the next line', () => {
+    expect(workflowSteps(block('echo "a', 'b #c" && npm run lint'))).toEqual(['run: echo "a ; b #c" && npm run lint'])
   })
 
   // What only looks like a step: GitHub runs none of it.
