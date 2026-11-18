@@ -359,7 +359,6 @@ const job = (steps: string) => `on: pull_request\njobs:\n  check:\n    runs-on: 
 const block = (...lines: string[]) => job(`      - run: |\n${lines.map((line) => `          ${line}\n`).join('')}`)
 
 describe('workflowSteps', () => {
-
   it('reads each step as the action or the command it runs, a block whole and without its comments', () => {
     expect(workflowSteps(WORKFLOW)).toEqual([
       'uses: actions/checkout',
@@ -456,6 +455,15 @@ describe('workflowSteps', () => {
     ['a paragraph separator', '\\P', '\u2029'],
   ])('keeps a # after %s', (_name, escape, char) => {
     expect(workflowSteps(job(`      - run: "npm test${escape}# && npm run lint"\n`))).toEqual([`run: npm test${char}# && npm run lint`])
+  })
+
+  // The line rule reads bash's lines: a line starts after `\n` only, and only spaces and tabs may come before its `#`.
+  it.each([
+    ['keeps a line that starts with a no-break space before its #', '"npm test\\n\\_# && npm run lint"', 'npm test ; # && npm run lint'],
+    ['cuts a # line to its end past a carriage return', '"npm test\\n# a\\r&& npm run lint"', 'npm test'],
+    ['cuts a # line to its end past a line separator', '"npm test\\n# a\\L&& npm run lint"', 'npm test'],
+  ])('%s', (_name, command, read) => {
+    expect(workflowSteps(job(`      - run: ${command}\n`))).toEqual([`run: ${read}`])
   })
 
   it('keeps a # that starts no line inside quotes that go on on the next line', () => {
