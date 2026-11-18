@@ -1,10 +1,10 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router'
 import { ProwlarrSetupError, getProwlarrStatus } from '../api/prowlarr'
-import { getAppVersion, getCategories, unreachable } from '../api/qbittorrent'
+import { APP_VERSION_FRESH_MS, APP_VERSION_KEY, getAppVersion, getCategories, unreachable } from '../api/qbittorrent'
 import { TmdbKeyError, checkTmdb } from '../api/tmdb'
-import { getServerSettings, type ServerSettings } from '../api/settings'
+import { SERVER_SETTINGS_FRESH_MS, SERVER_SETTINGS_KEY, getServerSettings, type ServerSettings } from '../api/settings'
 import { Button } from '../components/Button'
 import { Icon, type IconName } from '../components/Icon'
 import { IconButton } from '../components/IconButton'
@@ -184,8 +184,9 @@ export function SettingsScreen() {
   // they're missing, so a check that finds it back loads them, and loaded selects don't empty on Test.
   const [categoriesLoad, setCategoriesLoad] = useState(0)
   const categories = useRequest(categoriesLoad === 0 ? null : `qbt|categories|${categoriesLoad}`, (signal) => getCategories(signal))
-  // Loaded once; a saved or forgotten key answers with the new settings, which replace it.
-  const serverLoad = useRequest('server|settings', (signal) => getServerSettings(signal))
+  // The page's answer while it's fresh, else loaded once; a saved or forgotten key answers with the
+  // new settings, which replace it.
+  const serverLoad = useRequest(SERVER_SETTINGS_KEY, (signal) => getServerSettings(signal), { freshFor: SERVER_SETTINGS_FRESH_MS })
   const [serverChanged, setServerChanged] = useState<ServerSettings | null>(null)
   const server = serverChanged ?? serverLoad.data
   const names = (categories.data ?? []).map((category) => category.name).sort((a, b) => a.localeCompare(b))
@@ -194,11 +195,13 @@ export function SettingsScreen() {
   // The checks behind Connections, run here so About shows the versions they answer with and
   // starts none of its own; a check running again or failing has no data, so About shows "—".
   // A new key changes its check's key, so it runs again.
-  const qbittorrent = useRequest('check|qbittorrent', async (signal) => {
-    const version = await getAppVersion(signal)
-    if (categories.data === undefined) setCategoriesLoad((n) => n + 1)
-    return version
-  })
+  // qBittorrent's takes the session check's answer while it's fresh; Test asks again.
+  const qbittorrent = useRequest(APP_VERSION_KEY, (signal) => getAppVersion(signal), { freshFor: APP_VERSION_FRESH_MS })
+  const qbittorrentAnswered = qbittorrent.data !== undefined
+  const categoriesMissing = categories.data === undefined
+  useEffect(() => {
+    if (qbittorrentAnswered && categoriesMissing) setCategoriesLoad((n) => n + 1)
+  }, [qbittorrentAnswered, categoriesMissing])
   const prowlarr = useRequest(`check|prowlarr|${prowlarrKeyVersion}`, (signal) => getProwlarrStatus(signal))
   const tmdb = useRequest(`check|tmdb|${tmdbKeyVersion}`, (signal) => checkTmdb(signal))
 

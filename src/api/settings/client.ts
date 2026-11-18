@@ -1,5 +1,6 @@
 import type { DownloadDefaultsBody, ProwlarrKeyBody, QbittorrentLoginBody, ServerSettings, SettingsErrorBody, TmdbKeyBody } from './types'
 import { fetchKinopeer } from '../fetchKinopeer'
+import { sharedRequests } from '../../logic/sharedRequests'
 
 /** Settings the Kinopeer server keeps (server/settings.ts). */
 export const SETTINGS_BASE = '/api/settings'
@@ -32,6 +33,26 @@ export async function getServerSettings(signal?: AbortSignal): Promise<ServerSet
   return (await response.json()) as ServerSettings
 }
 
+/**
+ * The key the server's settings are shared under on the page (`sharedRequests`). Every change the
+ * app saves answers with the new settings, which replace the kept answer.
+ */
+export const SERVER_SETTINGS_KEY = 'api|settings'
+
+/**
+ * How long the page takes the server's settings it has instead of asking again: a minute, so the
+ * download defaults, onboarding's TMDB key step and Settings opened as the app opens, or a tab away,
+ * share one answer, while Settings opened later shows what the server has then (a key changed from
+ * another device).
+ */
+export const SERVER_SETTINGS_FRESH_MS = 60_000
+
+/** Keeps a save's answer as the page's settings, so no one reads the settings from before it. */
+function saved(settings: ServerSettings): ServerSettings {
+  sharedRequests.set(SERVER_SETTINGS_KEY, settings)
+  return settings
+}
+
 async function send<T>(method: 'PUT' | 'PATCH', path: string, body: T): Promise<ServerSettings> {
   const response = await fetchKinopeer(`${SETTINGS_BASE}/${path}`, {
     method,
@@ -39,7 +60,7 @@ async function send<T>(method: 'PUT' | 'PATCH', path: string, body: T): Promise<
     body: JSON.stringify(body),
   })
   if (!response.ok || !isJson(response)) throw await errorFor(response)
-  return (await response.json()) as ServerSettings
+  return saved((await response.json()) as ServerSettings)
 }
 
 /**
@@ -67,7 +88,7 @@ async function forget(path: string): Promise<ServerSettings> {
     headers: { 'Content-Type': 'application/json' },
   })
   if (!response.ok || !isJson(response)) throw await errorFor(response)
-  return (await response.json()) as ServerSettings
+  return saved((await response.json()) as ServerSettings)
 }
 
 /**

@@ -98,3 +98,77 @@ describe('useRequest', () => {
     expect(result.current.error).toBeUndefined()
   })
 })
+
+describe('useRequest with freshFor', () => {
+  it('shares one request between the callers of a key, and asks on its own without freshFor', async () => {
+    const load = vi.fn().mockResolvedValue('answer')
+    const first = renderHook(() => useRequest('k', load, { freshFor: 0 }))
+    const second = renderHook(() => useRequest('k', load, { freshFor: 0 }))
+    await waitFor(() => expect(second.result.current.data).toBe('answer'))
+    expect(first.result.current.data).toBe('answer')
+    expect(load).toHaveBeenCalledTimes(1)
+
+    const own = vi.fn().mockResolvedValue('own')
+    renderHook(() => useRequest('own', own))
+    renderHook(() => useRequest('own', own))
+    await waitFor(() => expect(own).toHaveBeenCalledTimes(2))
+  })
+
+  it('shows an answer kept fresh from its first render, without asking again', async () => {
+    const load = vi.fn().mockResolvedValue('answer')
+    const first = renderHook(() => useRequest('k', load, { freshFor: 60_000 }))
+    await waitFor(() => expect(first.result.current.data).toBe('answer'))
+    first.unmount()
+
+    const renders: unknown[] = []
+    renderHook(() => {
+      const state = useRequest('k', load, { freshFor: 60_000 })
+      renders.push({ data: state.data, loading: state.loading })
+      return state
+    })
+    expect(renders[0]).toEqual({ data: 'answer', loading: false })
+    await act(async () => {})
+    expect(load).toHaveBeenCalledTimes(1)
+  })
+
+  it('asks again on retry rather than take the kept answer', async () => {
+    const load = vi.fn().mockResolvedValueOnce('first').mockResolvedValueOnce('second')
+    const { result } = renderHook(() => useRequest('k', load, { freshFor: 60_000 }))
+    await waitFor(() => expect(result.current.data).toBe('first'))
+
+    act(() => result.current.retry())
+    expect(result.current).toMatchObject({ data: undefined, loading: true })
+    await waitFor(() => expect(result.current.data).toBe('second'))
+    expect(load).toHaveBeenCalledTimes(2)
+  })
+
+  it('takes the kept answer for a key it comes back to after a retry on it', async () => {
+    const load = vi.fn().mockResolvedValueOnce('a1').mockResolvedValueOnce('a2').mockResolvedValueOnce('b')
+    const { result, rerender } = renderHook(({ key }) => useRequest(key, load, { freshFor: 60_000 }), { initialProps: { key: 'a' } })
+    await waitFor(() => expect(result.current.data).toBe('a1'))
+    act(() => result.current.retry())
+    await waitFor(() => expect(result.current.data).toBe('a2'))
+
+    rerender({ key: 'b' })
+    await waitFor(() => expect(result.current.data).toBe('b'))
+    rerender({ key: 'a' })
+    expect(result.current).toMatchObject({ data: 'a2', loading: false })
+    await act(async () => {})
+    expect(load).toHaveBeenCalledTimes(3)
+  })
+
+  it('cancels a shared request only once no caller waits for it', () => {
+    const signals: AbortSignal[] = []
+    const load = (signal: AbortSignal) => {
+      signals.push(signal)
+      return new Promise<string>(() => {})
+    }
+    const first = renderHook(() => useRequest('k', load, { freshFor: 0 }))
+    const second = renderHook(() => useRequest('k', load, { freshFor: 0 }))
+    expect(signals).toHaveLength(1)
+    first.unmount()
+    expect(signals[0].aborted).toBe(false)
+    second.unmount()
+    expect(signals[0].aborted).toBe(true)
+  })
+})

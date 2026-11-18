@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
 import * as settings from '../api/settings'
+import { sharedRequests } from '../logic/sharedRequests'
 import { qbittorrentDown } from '../test/render'
 import { useQbitSession } from './useQbitSession'
 
@@ -28,6 +29,18 @@ describe('useQbitSession', () => {
 
     expect(result.current.session).toEqual({ status: 'checking' })
     await waitFor(() => expect(result.current.session).toEqual({ status: 'connected', version: '5.2.4' }))
+  })
+
+  it('keeps the version for the page’s other callers, and asks anew on each check, a kept answer there or not (#382)', async () => {
+    getAppVersion.mockResolvedValueOnce('5.2.4').mockResolvedValueOnce('5.2.5')
+    sharedRequests.set(api.APP_VERSION_KEY, '5.0.0')
+    const { result } = renderHook(() => useQbitSession())
+    await waitFor(() => expect(result.current.session).toEqual({ status: 'connected', version: '5.2.4' }))
+    expect(sharedRequests.peek(api.APP_VERSION_KEY, api.APP_VERSION_FRESH_MS)).toEqual({ data: '5.2.4' })
+
+    await act(() => result.current.recheck())
+    expect(result.current.session).toEqual({ status: 'connected', version: '5.2.5' })
+    expect(getAppVersion).toHaveBeenCalledTimes(2)
   })
 
   it('asks to sign in when there is no session', async () => {

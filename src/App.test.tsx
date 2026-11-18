@@ -11,6 +11,7 @@ import App from './App'
 import { stubDesktop } from './lib/stubDesktop'
 import { forgetTabPlaces } from './lib/tabPlaces'
 import { markReloadedFor } from './pwa/updates'
+import { resetSettings } from './settings/settings'
 import { findToastOnPage, renderWithRouter, saying, Where, where } from './test/render'
 
 vi.mock('./api/qbittorrent', async (importOriginal) => {
@@ -97,6 +98,18 @@ describe('App', () => {
   it('goes straight in when qBittorrent needs no login', async () => {
     renderApp()
     expect(await screen.findByRole('heading', { name: 'Downloads' })).toBeInTheDocument()
+  })
+
+  it('asks the server’s settings and qBittorrent’s version once for the page, Settings opened at its start included (#382)', async () => {
+    // A page whose download defaults haven't been loaded yet.
+    resetSettings()
+    renderApp('/settings')
+    const connections = await screen.findByRole('region', { name: 'Connections' })
+    // qBittorrent's row, which Settings shows from the session check's answer.
+    expect((await within(connections).findAllByRole('status', { name: saying('Connected') }))[0]).toBeInTheDocument()
+    await act(async () => {})
+    expect(serverSettings.getServerSettings).toHaveBeenCalledTimes(1)
+    expect(getAppVersion).toHaveBeenCalledTimes(1)
   })
 
   it('says the app was updated after reloading for a new version', async () => {

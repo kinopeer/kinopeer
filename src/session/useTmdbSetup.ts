@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { getServerSettings } from '../api/settings'
+import { getSharedServerSettings } from '../api/sharedAnswers'
 
 /** 'needed': the server has no TMDB key yet, so onboarding asks for one. */
 export type TmdbSetup = 'checking' | 'needed' | 'done'
@@ -14,7 +14,7 @@ export function useTmdbSetup(enabled: boolean) {
   useEffect(() => {
     if (!enabled) return
     let cancelled = false
-    getServerSettings()
+    getSharedServerSettings()
       .then((settings) => (settings.tmdb.configured ? 'done' : 'needed'))
       .catch(() => 'done' as const)
       .then((next) => {
