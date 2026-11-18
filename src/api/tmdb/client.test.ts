@@ -6,7 +6,9 @@ import {
   getRecommendations,
   getSimilar,
   posterUrl,
+  relatedTitlesKey,
   searchTitles,
+  titleDetailsKey,
   tmdbLanguage,
   toTitle,
 } from './client'
@@ -215,5 +217,18 @@ describe('helpers', () => {
   it('maps app languages to TMDB ones', () => {
     expect(tmdbLanguage('ru')).toBe('ru-RU')
     expect(tmdbLanguage('en')).toBe('en-US')
+  })
+})
+
+describe('the keys a title’s answers are shared under', () => {
+  it.each([
+    ['details', titleDetailsKey],
+    ['related titles', relatedTitlesKey],
+  ])('tells the %s of each type, id and language apart, and from the other answer', (_name, key) => {
+    const keys = [key('movie', 1396, 'en-US'), key('tv', 1396, 'en-US'), key('movie', 1397, 'en-US'), key('movie', 1396, 'ru-RU')]
+    expect(new Set(keys).size).toBe(4)
+    expect(key('movie', 1396, 'en-US')).toBe(key('movie', 1396, 'en-US'))
+    const other = key === titleDetailsKey ? relatedTitlesKey : titleDetailsKey
+    expect(other('movie', 1396, 'en-US')).not.toBe(key('movie', 1396, 'en-US'))
   })
 })

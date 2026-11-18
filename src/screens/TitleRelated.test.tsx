@@ -43,6 +43,20 @@ beforeEach(() => {
 })
 
 describe('TitleRelated', () => {
+  it('shows the row it had at once when the page comes back to the title, asking TMDB nothing (#384)', async () => {
+    getRecommendations.mockResolvedValue(page())
+    getSimilar.mockResolvedValue(page(title(438631, 'Dune')))
+    const first = renderRelated()
+    expect(await screen.findByRole('region', { name: 'Similar titles' })).toBeInTheDocument()
+    first.unmount()
+
+    renderRelated()
+    expect(screen.getByRole('region', { name: 'Similar titles' })).toBeInTheDocument()
+    await answered()
+    expect(getRecommendations).toHaveBeenCalledTimes(1)
+    expect(getSimilar).toHaveBeenCalledTimes(1)
+  })
+
   it("shows TMDB's recommendations as links to their titles, without asking for similar ones", async () => {
     getRecommendations.mockResolvedValue(page(title(438631, 'Dune', { year: 2021 }), title(157336, 'Interstellar')))
     renderRelated()

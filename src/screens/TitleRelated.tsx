@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { getRecommendations, getSimilar, type MediaType, type Title, type TitlePage } from '../api/tmdb'
+import { getRecommendations, getSimilar, relatedTitlesKey, TITLE_FRESH_MS, type MediaType, type Title, type TitlePage } from '../api/tmdb'
 import { useRequest } from '../lib/useRequest'
 import { withTimeout } from '../logic/withTimeout'
 import { useTitlesInDownloads } from '../torrents/useTitlesInDownloads'
@@ -38,14 +38,18 @@ export interface TitleRelatedProps {
  */
 export function TitleRelated({ type, id, language, after }: TitleRelatedProps) {
   const { t } = useTranslation()
-  const request = useRequest<Related>(`${type}|${id}|${language}|related`, (signal) =>
-    withTimeout(RELATED_TIMEOUT_MS, signal, async (signal) => {
-      // TMDB can list the title among its own, so it's left out before deciding whether to fall back.
-      const others = (page: TitlePage) => page.titles.filter((title) => title.id !== id)
-      const recommended = others(await getRecommendations(type, id, { language, signal }))
-      if (recommended.length > 0) return { kind: 'recommendations', titles: recommended }
-      return { kind: 'similar', titles: others(await getSimilar(type, id, { language, signal })) }
-    }),
+  // Shared on the page, so Back to the title page shows the row it had at once (#384).
+  const request = useRequest<Related>(
+    relatedTitlesKey(type, id, language),
+    (signal) =>
+      withTimeout(RELATED_TIMEOUT_MS, signal, async (signal) => {
+        // TMDB can list the title among its own, so it's left out before deciding whether to fall back.
+        const others = (page: TitlePage) => page.titles.filter((title) => title.id !== id)
+        const recommended = others(await getRecommendations(type, id, { language, signal }))
+        if (recommended.length > 0) return { kind: 'recommendations', titles: recommended }
+        return { kind: 'similar', titles: others(await getSimilar(type, id, { language, signal })) }
+      }),
+    { freshFor: TITLE_FRESH_MS },
   )
   const { data, loading } = request
   const inDownloads = useTitlesInDownloads()
