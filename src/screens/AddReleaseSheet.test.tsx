@@ -321,7 +321,8 @@ describe('AddReleaseSheet', () => {
         name: saying(/^40\.0\sGB free on qBittorrent’s disk, 10\.0\sGB short of this download\. Skip some files/),
       }),
     ).toBeInTheDocument()
-    expect(within(sheet).getByRole('button', { name: /^Download · 50\.0\sGB$/ })).toBeEnabled()
+    // Once qBittorrent has said it doesn't have the torrent, which may come after the free space.
+    await waitFor(() => expect(within(sheet).getByRole('button', { name: /^Download · 50\.0\sGB$/ })).toBeEnabled())
 
     await userEvent.click(within(sheet).getByRole('button', { name: /Files: all \(3\)/ }))
     const picker = screen.getByRole('dialog', { name: 'Select files' })
