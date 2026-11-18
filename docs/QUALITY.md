@@ -43,8 +43,9 @@ Three kinds of change, three lists in its report. The deputy's round judges ever
 
 - A coverage threshold lowered or removed, a path added to what coverage leaves out, or one removed
   from what it measures (`coverage` in `checks.json`).
-- A mutator added to those Stryker leaves out, a pattern added to the files it doesn't mutate, or a
-  folder removed from those it does (`mutants` in `checks.json`).
+- A mutator added to those Stryker leaves out, a pattern added to the files it doesn't mutate, a
+  test added to those its runs leave out, or a folder removed from those it does (`mutants` in
+  `checks.json`).
 - A budget raised, removed or no longer a number (`budgets` in `checks.json`, where more is
   weaker; the screenshots' threshold, `budgets.screenshotThreshold`, among them), a new rule's budget in an accessibility state `main` has budgets for among them: a rule a
   state doesn't name counts as 0 there, so its new budget is raised from 0. A budget lowered isn't
@@ -224,7 +225,7 @@ mark) stops every PR, and the one way out is the owner's: taking
 ### The thresholds and the exclusion lists
 
 They sit in `checks.json`, as data, so that the guard compares them exactly: `vite.config.ts` reads
-from it what coverage measures and its thresholds, `stryker.config.mjs` the mutators left out,
+from it what coverage measures and its thresholds, `stryker.config.mjs` the mutators and the tests left out,
 `scripts/mutants.mjs` the folders mutated and the files in them that aren't production code,
 `scripts/size/size.ts` the size budgets (`budgets.size`, [The size budget](#the-size-budget)), the
 requests tests the requests budgets (`budgets.requests` for the screens' openings and

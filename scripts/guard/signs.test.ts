@@ -8,7 +8,7 @@ const said = (found: Finding[]) => found.map(({ needs, what }) => `${needs}: ${w
 describe('compareChecks', () => {
   const checks = {
     coverage: { include: ['src/**'], exclude: ['**/*.test.ts'], thresholds: { lines: 96, branches: 93 } },
-    mutants: { folders: ['src', 'server'], notProduction: ['/test/'], excludedMutations: ['StringLiteral'] },
+    mutants: { folders: ['src', 'server'], notProduction: ['/test/'], excludedMutations: ['StringLiteral'], testsLeftOut: ['/checks.test.ts'] },
   }
   const withCoverage = (coverage: object) => json({ ...checks, coverage: { ...checks.coverage, ...coverage } })
   const withMutants = (mutants: object) => json({ ...checks, mutants: { ...checks.mutants, ...mutants } })
@@ -25,6 +25,7 @@ describe('compareChecks', () => {
     ['a path removed from what coverage measures', withCoverage({ include: [] }), ['owner: `coverage.include` takes in less: `"src/**"` is removed']],
     ['a mutator added to those left out', withMutants({ excludedMutations: ['StringLiteral', 'BooleanLiteral'] }), ['owner: `mutants.excludedMutations` leaves out more: `"BooleanLiteral"` is added']],
     ['a pattern added to what is not mutated', withMutants({ notProduction: ['/test/', '^server/'] }), ['owner: `mutants.notProduction` leaves out more: `"^server/"` is added']],
+    ['a test added to those Stryker leaves out', withMutants({ testsLeftOut: ['/checks.test.ts', '/server/matches.test.ts'] }), ['owner: `mutants.testsLeftOut` leaves out more: `"/server/matches.test.ts"` is added']],
     ['a folder removed from those mutated', withMutants({ folders: ['src'] }), ['owner: `mutants.folders` takes in less: `"server"` is removed']],
     [
       'an entry rewritten, as one added and one removed',

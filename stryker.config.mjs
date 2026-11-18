@@ -2,7 +2,7 @@
 // so this file says only how: docs/TESTING.md → A test that can fail.
 import { readFileSync } from 'node:fs'
 
-// The mutators left out sit in checks.json, as data, so the checks guard (scripts/guard/) marks a PR
+// The mutators and the tests left out sit in checks.json, as data, so the checks guard (scripts/guard/) marks a PR
 // that leaves out more.
 const { mutants } = JSON.parse(readFileSync(new URL('./checks.json', import.meta.url), 'utf8'))
 
@@ -16,7 +16,11 @@ export default {
   // empty array in a default) and none of what a review found.
   mutator: { excludedMutations: mutants.excludedMutations },
   timeoutMS: 15000,
-  ignorePatterns: ['e2e', 'docs', 'dist', 'coverage', 'data'],
+  // The tests left out of Stryker's runs come from checks.json, where the guard marks one added, each
+  // anchored to its path (gitignore-style, as Stryker reads these), so a later file of the same name
+  // elsewhere isn't left out unmarked. Such a test can't run in Stryker's sandbox, a git-ignored
+  // folder (checks.test.ts lists the repository's files through git), and can't kill a mutant either (#465).
+  ignorePatterns: ['e2e', 'docs', 'dist', 'coverage', 'data', ...mutants.testsLeftOut],
   tempDirName: '.stryker-tmp',
   // A file that doesn't exist, so Stryker skips rewriting tsconfig paths for its sandbox: that rewrite
   // calls TypeScript's JS API, which TypeScript 7 doesn't have (#285, stryker-mutator/stryker-js#6111).
