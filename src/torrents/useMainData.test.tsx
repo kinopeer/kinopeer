@@ -429,7 +429,7 @@ describe('MainDataProvider', () => {
       await act(async () => answer({ rid: 2 }))
 
       rerender(withRefresh(true))
-      await act(() => vi.advanceTimersByTimeAsync(0))
+      // As it subscribes, not on a timer.
       expect(getMainData).toHaveBeenCalledTimes(3)
     })
 
@@ -445,7 +445,7 @@ describe('MainDataProvider', () => {
       act(() => setHidden(false))
 
       rerender(app(true))
-      await act(() => vi.advanceTimersByTimeAsync(0))
+      // As it subscribes, not on a timer.
       expect(getMainData).toHaveBeenCalledTimes(3)
     })
 
