@@ -144,6 +144,18 @@ describe('rememberMatches', () => {
     expect(result.current).toEqual({ [A]: GUESS, [B]: MISS })
   })
 
+  it('saves a guess that differs from the server’s in its title or in its version of guessing', async () => {
+    getMatches.mockResolvedValue({ [A]: { ...GUESS, version: 1 }, [B]: GUESS })
+    saveMatches.mockImplementation(async (changes) => changes as Matches)
+    const { result } = renderHook(() => useServerMatches())
+    await waitFor(() => expect(result.current).toBeDefined())
+
+    const otherTitle = { type: 'movie', id: 3, source: 'guess', version: 2 } as const
+    rememberMatches({ [A]: GUESS, [B]: otherTitle })
+    await flushSave()
+    expect(saveMatches).toHaveBeenCalledWith({ [A]: GUESS, [B]: otherTitle })
+  })
+
   it('tries each match once per page, even when the server fails', async () => {
     getMatches.mockResolvedValue({})
     saveMatches.mockRejectedValue(new api.MatchesError(500))

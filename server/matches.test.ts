@@ -55,6 +55,13 @@ describe('MatchesStore', () => {
     expect(store.current[B]).toEqual({ type: 'movie', id: 4, source: 'user' })
   })
 
+  it('lets the user change their choice', async () => {
+    const store = new MatchesStore(dir)
+    await store.save({ [A]: { type: 'movie', id: 1, source: 'user' } })
+    await store.save({ [A]: { type: 'tv', id: 5, source: 'user' } })
+    expect(store.current[A]).toEqual({ type: 'tv', id: 5, source: 'user' })
+  })
+
   it('keeps a guess that found no title as a guess is kept: under the user’s choice, replaced by a guess, with no expiry', async () => {
     const store = new MatchesStore(dir)
     await store.save({ [A]: USER, [B]: GUESS })
