@@ -3,6 +3,7 @@
 // (docs/QUALITY.md → The checks guard, which lists the signs: a new one goes there too). The guard marks too much rather than too little: what it
 // can't read or can't judge is marked, not passed. What a test file asserts is read in assertions.ts,
 // and the tests that ran are compared in tests.ts.
+import { parseDocument } from 'yaml'
 import { compareAssertions } from './assertions.ts'
 import { atRulesIn, rawValues, tokensIn, TOKENS_FILE, type Sheet } from './stylesheets.ts'
 
@@ -66,7 +67,7 @@ export const readsWhole = (path: string): boolean =>
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json }
 type JsonObject = { [key: string]: Json }
 
-const isObject = (value: Json | undefined): value is JsonObject => typeof value === 'object' && value !== null && !Array.isArray(value)
+const isObject = (value: unknown): value is JsonObject => typeof value === 'object' && value !== null && !Array.isArray(value)
 const same = (a: Json | undefined, b: Json | undefined): boolean => JSON.stringify(a) === JSON.stringify(b)
 const show = (value: Json | undefined): string => (value === undefined ? 'nothing' : `\`${JSON.stringify(value)}\``)
 
@@ -344,39 +345,108 @@ export function compareScripts(base: string | undefined, head: string | undefine
   })
 }
 
-/** How YAML starts a block of lines under a key: `|` or `>`, with how it ends (`-`, `+`) and its indentation (`2`) if given. */
-const BLOCK = /^[|>][-+\d]*$/
+/** What bash starts a word after: a blank (a space or a tab), a newline or one of its operators' characters; not JS's `\s`, which has more. */
+const WORD_START = /[ \t\n;&|()<>]/
+
+/** A line whose first character but blanks is `#`. The lines are split at `\n` only, as bash splits them, not at `\r` or U+2028 as `^` with `m` would. */
+const COMMENT_LINE = /^[ \t]*#/
 
 /**
- * A workflow's steps, each as what it runs: an action without its version (so a bump isn't a change)
- * or a command. Read line by line rather than as YAML, which Node can't parse without a dependency:
- * a `run:` or `uses:` key and, for a block, the lines indented under it, without its comments.
+ * A command without its shell comments: a `#` that starts a word, to the end of its line, as the
+ * shell reads one. A word starts at the text's start or after a blank or an operator's character
+ * (`npm test;# npm run lint`). Quotes are skipped, `'…'` whole and `"…"` with its backslash escapes,
+ * as is a character escaped with a backslash outside them, so a `#` there is text
+ * (`echo "step #2" && npm test`). A quote left open keeps the rest as text. Before that, a line
+ * whose first character but blanks is `#` is a comment whatever the quotes, as `main`'s line by
+ * line reader had it: so a line a backslash goes on to (`npm test \` and then `# npm run lint`) or
+ * one after an apostrophe the shell doesn't read as a quote (in a heredoc, in `$'it\'s'`) is still
+ * a comment, and a `#` line inside a multi-line quote, text to the shell, is cut too.
  */
-export function workflowSteps(text: string): string[] {
-  const steps: string[] = []
-  let block: { indent: number; lines: string[] } | undefined
-  const close = () => {
-    if (block) steps.push(`run: ${block.lines.join(' ; ')}`)
-    block = undefined
-  }
-  for (const line of text.split('\n')) {
-    const command = line.trim()
-    if (block && (command === '' || line.indexOf(command) > block.indent)) {
-      if (command !== '' && !command.startsWith('#')) block.lines.push(command)
+function withoutComments(command: string): string {
+  const run = command
+    .split('\n')
+    .map((line) => (COMMENT_LINE.test(line) ? '' : line))
+    .join('\n')
+  let kept = ''
+  let quote: string | undefined
+  // The text's start starts a word, though a `#` there has gone with its line above.
+  let wordStart = true
+  for (let index = 0; index < run.length; index++) {
+    const char = run[index]
+    // Never true inside quotes: see where it is set below.
+    if (char === '#' && wordStart) {
+      const end = run.indexOf('\n', index)
+      if (end === -1) break
+      // The newline is the next character read.
+      index = end - 1
       continue
     }
-    close()
-    const key = /^(\s*(?:-\s+)?)(uses|run):(.*)/.exec(line)
-    if (!key) continue
-    const value = key[3].trim()
-    // Without its version, the quotes it may be written in and a comment after it: the same action either way.
-    if (key[2] === 'uses') steps.push(`uses: ${value.split('@')[0].replace(/["']/g, '').replace(/\s+#.*/, '')}`)
-    else if (BLOCK.test(value)) block = { indent: key[1].length, lines: [] }
-    // A `run:` with nothing after it is a mapping (`defaults: run: shell: bash`), not a step.
-    else if (value !== '') steps.push(`run: ${value}`)
+    kept += char
+    if (char === '\\' && quote !== "'") {
+      kept += run[index + 1] ?? ''
+      index++
+      wordStart = false
+      continue
+    }
+    if (quote === undefined && (char === '"' || char === "'")) quote = char
+    else if (char === quote) quote = undefined
+    wordStart = quote === undefined && WORD_START.test(char)
   }
-  close()
-  return steps
+  return kept
+}
+
+/**
+ * A command as one line: each line of a block without its indentation, blank lines and the shell's
+ * comments, joined with ` ; `, so a block reads the same however it is indented or folded. The
+ * comments go first, since a folded block folds a comment's line into the line before it
+ * (`npm test && # npm run lint`), and a commented-out command runs nothing.
+ */
+const commandLine = (run: string): string =>
+  withoutComments(run)
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '')
+    .join(' ; ')
+
+/** What an action or a reusable workflow is called by: without its version, so a bump isn't a change. */
+const actionOf = (uses: unknown): string[] => (typeof uses === 'string' ? [`uses: ${uses.split('@')[0]}`] : [])
+
+/** A value YAML reads as a scalar and GitHub as text: `run: true` runs `true`. */
+const isScalar = (value: unknown): value is string | number | boolean => typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+
+/** A step as what it runs: the action it calls or its command; nothing for anything else. */
+const stepOf = ({ uses, run }: JsonObject): string[] => (isScalar(run) ? [`run: ${commandLine(String(run))}`] : actionOf(uses))
+
+/**
+ * A workflow's steps, each as what it runs, in the order its jobs and their steps are written:
+ * each job's call of a reusable workflow (`jobs.<id>.uses`) and each of its steps' `uses` or `run`
+ * (`jobs.<id>.steps`), nowhere else, since GitHub runs nothing else. Read with a YAML parser as
+ * GitHub reads a workflow: YAML 1.2, which GitHub's docs cite, so aliases resolve and a merge key
+ * (`<<:`), which 1.2 doesn't have, merges nothing. A command built by an expression
+ * (`run: ${{ inputs.command }}`) is read as written. Undefined where the text isn't one YAML 1.2
+ * document the parser reads without an error or a warning (a `%YAML` directive it doesn't know, a
+ * tag it can't resolve): GitHub wouldn't run it, or might read it otherwise.
+ */
+export function workflowSteps(text: string): string[] | undefined {
+  // YAML 1.2 is the parser's default, which has no merge keys. A `%YAML 1.1` directive would have it read the text otherwise than
+  // GitHub does (1.1 merges); a version it doesn't know is a warning, read as 1.2 all the same, as is a tag it can't resolve, read
+  // as plain text. So each leaves the workflow unread. The tags of YAML 1.1 the parser would otherwise resolve without a word
+  // (`!!merge <<:`, which merges, `!!binary`, `!!set`, `!!timestamp`) are each such a tag, so they leave it unread too.
+  const document = parseDocument(text, { resolveKnownTags: false })
+  if (document.errors.length > 0 || document.warnings.length > 0 || document.directives?.yaml.version !== '1.2') return undefined
+  let workflow: unknown
+  try {
+    workflow = document.toJS()
+  } catch {
+    // An alias that expands past the parser's limit: unread rather than read in part.
+    return undefined
+  }
+  if (!isObject(workflow) || !isObject(workflow.jobs)) return []
+  return Object.values(workflow.jobs).flatMap((job): string[] => {
+    if (!isObject(job)) return []
+    const steps = Array.isArray(job.steps) ? job.steps.filter(isObject) : []
+    return [...actionOf(job.uses), ...steps.flatMap(stepOf)]
+  })
 }
 
 const brief = (step: string): string => (step.length > 120 ? `${step.slice(0, 117)}…` : step)
@@ -406,18 +476,22 @@ export function commands(step: string): string[] {
  * marked all the same: the guard reads only what the branch changes.
  */
 export function compareWorkflows(workflows: Change[]): Finding[] {
-  const stepsOf = (text: string | undefined): string[] => (text === undefined ? [] : workflowSteps(text))
-  const called = new Set(workflows.flatMap(({ head }) => stepsOf(head).flatMap(commands)))
+  const stepsOf = (text: string | undefined): string[] | undefined => (text === undefined ? [] : workflowSteps(text))
+  // Each side parsed once.
+  const read = workflows.map((change) => ({ ...change, was: stepsOf(change.base), left: stepsOf(change.head) }))
+  const called = new Set(read.flatMap(({ left }) => (left ?? []).flatMap(commands)))
   const dropped = new Set<string>()
-  return workflows.flatMap(({ path: file, base, head }): Finding[] => {
-    const [was, left] = [stepsOf(base), stepsOf(head)]
+  return read.flatMap(({ path: file, head, was, left }): Finding[] => {
+    const found: Finding[] = head === undefined ? [{ needs: 'owner', file, what: 'the workflow is removed, and its steps with it' }] : []
+    if (left === undefined) return [{ needs: 'owner', file, what: "the guard can't read the workflow as YAML, so it can't compare its steps" }]
+    if (was === undefined) return [...found, { needs: 'review', file, what: "the guard can't read main's copy of the workflow as YAML, so it has nothing to compare this one with" }]
+    const rest = [...left]
     const gone = was.filter((step) => {
-      const index = left.indexOf(step)
+      const index = rest.indexOf(step)
       if (index === -1) return true
-      left.splice(index, 1)
+      rest.splice(index, 1)
       return false
     })
-    const found: Finding[] = head === undefined ? [{ needs: 'owner', file, what: 'the workflow is removed, and its steps with it' }] : []
     for (const step of gone) {
       const lost = commands(step).filter((command) => !called.has(command))
       for (const command of lost.filter((command) => !dropped.has(command))) {

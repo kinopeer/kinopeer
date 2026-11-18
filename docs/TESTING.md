@@ -117,7 +117,7 @@ neighbours of a change, and answer each that applies with a test or a reason:
   its second season, #333), and every spelling SPEC promises. The names a token must not read go
   in a table of their own in `parseRelease.test.ts`, as "doesn't take %s for a theater rip" does,
   and a new token or spelling adds its rows there. A check that reads code, config, a workflow or
-  CSS (the checks guard, whose workflow reader still goes line by line until #419, `tokens.test.ts`,
+  CSS (the checks guard, `tokens.test.ts`,
   a lint rule's config) reads it with that format's own
   parser (PostCSS's tokenizer, a YAML parser, Vite's `parseSync` (oxc) for TypeScript, `JSON.parse`), not with regular
   expressions, and where comparing it part by part gets intricate, it marks the whole (an oxlint

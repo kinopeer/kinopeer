@@ -74,6 +74,18 @@ Three kinds of change, three lists in its report. The deputy's round judges ever
   branch, wherever the step went; and a workflow removed (`.github/workflows/`). The guard reads the workflows the
   branch changes, so a command that an unchanged workflow still runs is marked all the same, and
   so is an action that only prepares a job (`actions/cache`), dropped from the workflows changed.
+  It reads them with a YAML parser (`yaml`) as GitHub does, YAML 1.2: only a job's `uses` and its
+  steps' `uses` and `run`, with aliases resolved and no merge keys, which YAML 1.2 doesn't have
+  (GitHub's docs on YAML anchors and aliases cite the 1.2.2 spec); a command built by an expression
+  is read as written, and a shell comment is left out, as bash reads one but for the spellings
+  under [What it doesn't see](#what-it-doesnt-see): a `#` that starts a word outside quotes (after
+  a space, a tab, a newline or an operator's character, `npm test;# npm run lint`, but not after
+  another of the characters JavaScript counts as blanks or line breaks, a no-break space or U+2028
+  among them, which bash doesn't), to the end of its line, also
+  where a folded block folds it into the line before, while a `#` inside quotes or escaped is text;
+  and every line whose `#` comes first or after spaces and tabs only, inside quotes too. Its tests
+  keep a table of the
+  spellings it reads, lets through and can't read (`scripts/guard/signs.test.ts`).
 - An npm script removed (`scripts` in the root `package.json`): the step that called it checks
   nothing.
 - In a line the branch adds:
@@ -113,6 +125,10 @@ Three kinds of change, three lists in its report. The deputy's round judges ever
 - `checks.json`, `.oxlintrc.json` or `package.json` that is no longer a JSON object the guard can
   read, a list in `checks.json` that is no longer a list, and `checks.json` or `.oxlintrc.json`
   removed.
+- A workflow the guard can't read as one YAML 1.2 document (an error in it, two documents, a
+  `%YAML` directive other than 1.2, a tag the parser can't resolve, YAML 1.1's tags among them, as
+  `!!merge <<:` and `!!binary`), in place of its steps: GitHub wouldn't run it, or might read it
+  otherwise.
 - Any change to `scripts/guard/`, `.github/workflows/guard.yml`, this file or the deputy's
   procedure (`.claude/skills/deputy/`), which judges the marks.
 
@@ -177,8 +193,8 @@ reason why the tokens' scale lacks it.
   otherwise isn't marked; one moved to another test marks the test it left.
 - A test file the guard can't parse, on either side, and a report of `main`'s run that is missing
   or gave no tests.
-- `checks.json`, `.oxlintrc.json` or `package.json` whose copy on `main` the guard can't read, so
-  that it has nothing to compare the branch's with.
+- `checks.json`, `.oxlintrc.json`, `package.json` or a workflow whose copy on `main` the guard can't
+  read, so that it has nothing to compare the branch's with.
 
 A new sign goes into `scripts/guard/` (`signs.ts`, or `assertions.ts` and `tests.ts` for what the
 tests assert and which of them ran, `stylesheets.ts` for what counts as a raw value in a stylesheet) with its tests and into this list, in one PR, which
@@ -224,8 +240,9 @@ guard wouldn't see it move.
 
 **In CI** the `guard` job runs on every PR (`.github/workflows/guard.yml`). It runs `main`'s copy of
 the script, not the branch's, so a PR that changes `scripts/guard/` is still read by the guard it
-found. The script reads the branch through git and runs none of its code; the one package it
-needs, the parser that comes with Vite, is installed from `main`'s lockfile. The workflow file is
+found. The script reads the branch through git and runs none of its code; the parsers it needs
+(oxc's, which comes with Vite, for test files, PostCSS for stylesheets, `yaml` for workflows) are
+installed from `main`'s lockfile. The workflow file is
 another matter: on `pull_request` GitHub runs it as the PR has it, so a PR that changes `guard.yml`
 runs its changed steps, and what `main`'s script does about it is mark the change as a weakening.
 What the guard finds goes into the job's summary and into the PR's `guard report` check, a check
@@ -293,8 +310,7 @@ compare the tests that ran, and says so: that takes a run of each side, which CI
 - An action's inputs (`with:`) and a step's other keys but `if:` and `continue-on-error:` (`env:`,
   `working-directory:`): a change to them isn't read, so a check an input turns off
   (`fail-on-error: false`) is marked nowhere.
-- In reading a workflow's commands: a comment after a block's start (`run: | # the tests`) keeps
-  the block's lines from being read; a flag with a value before an npm script (`npm --prefix
+- In reading a workflow's commands: a flag with a value before an npm script (`npm --prefix
   tmdb-proxy run test`) is read as the script, and one before docker's subcommand (`docker
   --context ci run`) as the subcommand; `node` with a flag first (`node --test server`) isn't
   read as a command; a command that goes on on the next line (`docker \` and then `run`) is
@@ -309,8 +325,28 @@ compare the tests that ran, and says so: that takes a run of each side, which CI
   under `coverage`, or a key that is empty): the guard joins the keys of a path with dots, so such a
   key lands on the same path as the real one and hides what the real one did, a budget raised or a
   threshold lowered.
-- Whatever reading YAML line by line gets wrong: it finds `run:` and `uses:` keys and the lines
-  indented under a block, and knows nothing of anchors or of a command built by an expression.
+- What a command built by an expression runs: the guard reads `run: npm run ${{ matrix.script }}`
+  as written, so a script taken out of the matrix, or an input's default changed, isn't read as a
+  command no longer run.
+- Where its reading of a step's shell comments differs from bash's. The reader knows only quotes
+  (`'…'`, `"…"` with its backslash escapes), a backslash outside them and where a word starts (after
+  a space, a tab, a newline or one of `;&|()<>`), and bash's rules alone, for every step, also one
+  that runs in another shell (pwsh escapes with a backtick, cmd has no `#` comments), and it reads
+  a folded block after YAML has joined its lines. Wherever a `#` or a quote meets anything else of
+  the shell, it reads otherwise than bash: a substitution of any kind (`$(…)`, `$((…))`, `<(…)`,
+  backticks), `[[ … ]]`, an extglob, `$'…'`, a heredoc, a quote nested in a substitution
+  (`"$(echo 'a"b')"`), and a line inside a multi-line quote whose `#` comes first or after spaces
+  and tabs only, which the line rule cuts with the closing quote on it. None of these leaves a quote
+  open or meets a `#` in the workflows today, whose commands read the same with both readers.
+  Wherever it reads otherwise than the shell that runs the step, a quote read as open where that
+  shell has closed it (a `#` after it read as text, so a command commented out there reads as still
+  run) or a `#` read as a comment's start where that shell reads on (`tag=$(git describe)#ci && npm
+  run lint` in bash, `npm test # && npm run lint` in cmd: the rest of the line is read on neither
+  side, so a command dropped from it isn't marked), it may also catch less than `main`'s line by
+  line reader, which cut every line whose first character but JavaScript's blanks was `#` and read
+  every other line whole. So does a line that starts with another of JavaScript's blanks before its
+  `#` (a no-break space, `\v`, `\f`, `\r`): `main` cut it, this reader reads it as bash does, a
+  command, so a command after the `#` on it reads as still run.
 - A change to `guard.yml` that stops the script from running or from being `main`'s copy: the
   workflow runs as the PR has it, so the weakening's mark comes from the changed steps, if they
   still make it.
