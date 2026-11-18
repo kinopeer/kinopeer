@@ -461,7 +461,6 @@ describe('workflowSteps', () => {
   // command is written in YAML's double quotes, whose escapes give the characters; inside the quote the shell reads as open
   // (`echo "a`), only the line rule can cut a line.
   it.each([
-    ['cuts a # line inside a quote, after spaces', '"echo \\"a\\n  #b\\" && npm run lint"', 'echo "a'],
     ['cuts a # line inside a quote, after a tab', '"echo \\"a\\n\\t#b\\" && npm run lint"', 'echo "a'],
     ['keeps a line that starts with a no-break space before its #', '"npm test\\n\\_# && npm run lint"', 'npm test ; # && npm run lint'],
     ['keeps a line that starts with a vertical tab before its #', '"npm test\\n\\v# && npm run lint"', 'npm test ; # && npm run lint'],

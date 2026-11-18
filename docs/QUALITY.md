@@ -330,25 +330,18 @@ compare the tests that ran, and says so: that takes a run of each side, which CI
   command no longer run.
 - Where its reading of a step's shell comments differs from bash's. The reader knows only quotes
   (`'…'`, `"…"` with its backslash escapes), a backslash outside them and where a word starts (after
-  a space, a tab, a newline or one of `;&|()<>`), and bash's rules alone, whatever the step's
-  `shell:` (pwsh escapes with a backtick, cmd has no `#` comments). Wherever a `#` or a quote meets
-  anything else of the shell, it reads otherwise than bash: a substitution of any kind (`$(…)`,
-  `$((…))`, `<(…)`, backticks), `[[ … ]]`, an extglob, `$'…'`, a heredoc, a quote nested in a
-  substitution (`"$(echo 'a"b')"`), and a line whose first character but blanks is `#` inside a
-  multi-line quote, which the line rule cuts with the closing quote on it. None of these is in the
-  workflows today. They read one of two ways:
-  - A quote read as open where bash has closed it (`$'it\'s'`, an apostrophe in a heredoc's body, a
-    quote nested in a substitution, a closing quote cut with its line): a `#` after it, on its line
-    or a later one, is read as text, so a command commented out there reads as still run. A
-    comment on a line of its own is still cut.
-  - A `#` read as a comment's start where bash keeps it in a word or ends the comment sooner: after
-    a `)` or a backtick that doesn't end a word for bash (`tag=$(git describe)#ci && npm run lint`,
-    `x=$((1+1))#n`, `diff <(npm test)#x`, `[[ $v =~ (a|b)#x ]]`, `@(a|b)#c`), or inside backticks,
-    where bash ends it at the closing one (`` v=`git describe #tag` && npm run lint ``). The rest
-    of the line is read on neither side, so a command dropped from it isn't marked. The same goes
-    for a step whose `shell:` isn't bash or sh, where bash's comment cuts what that shell runs (cmd
-    with `npm test # && npm run lint`, pwsh with ``echo "a`" # b" ; npm run lint``). These two are
-    the ways this reader is weaker than `main`'s line by line reader, which read the whole line.
+  a space, a tab, a newline or one of `;&|()<>`), and bash's rules alone, for every step, also one
+  that runs in another shell (pwsh escapes with a backtick, cmd has no `#` comments), and it reads
+  a folded block after YAML has joined its lines. Wherever a `#` or a quote meets anything else of
+  the shell, it reads otherwise than bash: a substitution of any kind (`$(…)`, `$((…))`, `<(…)`,
+  backticks), `[[ … ]]`, an extglob, `$'…'`, a heredoc, a quote nested in a substitution
+  (`"$(echo 'a"b')"`), a `#` line inside a multi-line quote, which the line rule cuts with the
+  closing quote on it. None of these is in the workflows today. Either way it goes, a quote read as
+  open where bash has closed it (a `#` after it read as text, so a command commented out there reads
+  as still run) or a `#` read as a comment's start where bash reads on (`tag=$(git describe)#ci &&
+  npm run lint`: the rest of the line is read on neither side, so a command dropped from it isn't
+  marked), it may also catch less than `main`'s line by line reader, which cut every line whose
+  first character but blanks was `#` and read every other line whole.
 - A change to `guard.yml` that stops the script from running or from being `main`'s copy: the
   workflow runs as the PR has it, so the weakening's mark comes from the changed steps, if they
   still make it.
