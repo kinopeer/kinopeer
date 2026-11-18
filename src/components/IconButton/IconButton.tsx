@@ -1,4 +1,5 @@
 import { useId, type ButtonHTMLAttributes } from 'react'
+import { Link, type LinkProps } from 'react-router'
 import { cx } from '../../lib/cx'
 import { Icon, type IconName } from '../Icon'
 import './IconButton.css'
@@ -24,6 +25,14 @@ export interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement>
   dot?: string
 }
 
+type IconButtonVariant = NonNullable<IconButtonProps['variant']>
+type IconButtonSize = NonNullable<IconButtonProps['size']>
+
+const iconButtonClass = (variant: IconButtonVariant, size: IconButtonSize, on: boolean | undefined, className?: string) =>
+  cx('ks-icon-btn', variant !== 'plain' && `ks-icon-btn-${variant}`, size === 'sm' && 'ks-icon-btn-sm', on && 'is-on', className)
+
+const iconSizeOf = (size: IconButtonSize, iconSize: number | undefined) => iconSize ?? (size === 'sm' ? 18 : 20)
+
 export function IconButton({
   icon,
   label,
@@ -42,18 +51,12 @@ export function IconButton({
     <button
       {...rest}
       type={type}
-      className={cx(
-        'ks-icon-btn',
-        variant !== 'plain' && `ks-icon-btn-${variant}`,
-        size === 'sm' && 'ks-icon-btn-sm',
-        active && 'is-on',
-        className,
-      )}
+      className={iconButtonClass(variant, size, active, className)}
       aria-label={label}
       aria-pressed={active}
       aria-describedby={cx(describedBy, dot && dotId) || undefined}
     >
-      <Icon name={icon} size={iconSize ?? (size === 'sm' ? 18 : 20)} />
+      <Icon name={icon} size={iconSizeOf(size, iconSize)} />
       {dot && (
         <>
           <span className="ks-icon-btn-dot" aria-hidden="true" />
@@ -63,5 +66,26 @@ export function IconButton({
         </>
       )}
     </button>
+  )
+}
+
+export interface IconLinkProps extends LinkProps {
+  icon: IconName
+  /** Required accessible name: icon-only links have no visible text. */
+  label: string
+  variant?: IconButtonProps['variant']
+  size?: IconButtonProps['size']
+  /** Icon size in px; 20 by default, 18 at `sm`. */
+  iconSize?: number
+  /** The look of a toggle that's on, the accent's tint, for a link that says something is so. */
+  on?: boolean
+}
+
+/** A link that looks like an `IconButton`, for an action that takes the person to another screen. */
+export function IconLink({ icon, label, variant = 'plain', size = 'md', iconSize, on, className, ...rest }: IconLinkProps) {
+  return (
+    <Link {...rest} className={iconButtonClass(variant, size, on, className)} aria-label={label}>
+      <Icon name={icon} size={iconSizeOf(size, iconSize)} />
+    </Link>
   )
 }

@@ -8,8 +8,9 @@ import * as tmdb from '../api/tmdb'
 import type { MovieDetails, TvDetails } from '../api/tmdb'
 import i18n from '../i18n'
 import { resetSettings, updateSettings } from '../settings/settings'
-import { DUNE_RELEASES, release } from '../test/fixtures'
-import { renderWithRouter, saying } from '../test/render'
+import { DUNE_RELEASES, release, torrent } from '../test/fixtures'
+import { Opened, opened, renderWithRouter, saying } from '../test/render'
+import { resetOneOffTorrents } from '../torrents/oneOffTorrents'
 import { ReleasesScreen } from './ReleasesScreen'
 
 vi.mock('../api/tmdb', async (importOriginal) => {
@@ -26,6 +27,7 @@ vi.mock('../api/qbittorrent', async (importOriginal) => ({
   getCategories: vi.fn(),
   getDefaultSavePath: vi.fn(),
   getMainData: vi.fn(),
+  getTorrents: vi.fn(),
 }))
 
 const getMovie = vi.mocked(tmdb.getMovie)
@@ -41,6 +43,7 @@ function renderAt(path: string) {
       <Route path="/title/:type/:id/releases" element={<ReleasesScreen />} />
       <Route path="/title/:type/:id" element={<h1>Title page</h1>} />
       <Route path="/" element={<h1>Downloads</h1>} />
+      <Route path="/torrent/:hash" element={<Opened />} />
     </Routes>,
     [path],
   )
@@ -57,6 +60,8 @@ beforeEach(() => {
   getTv.mockResolvedValue(BB)
   searchReleases.mockResolvedValue(DUNE_RELEASES)
   vi.mocked(prowlarr.getFailingIndexers).mockResolvedValue([])
+  resetOneOffTorrents()
+  vi.mocked(qbt.getTorrents).mockResolvedValue([])
 })
 
 describe('ReleasesScreen', () => {
@@ -320,6 +325,20 @@ describe('ReleasesScreen', () => {
       expect.objectContaining({ urls: ['magnet:?xt=urn:btih:abc'], tags: ['tmdb:movie:693134'] }),
     )
     expect(await screen.findByRole('heading', { name: 'Downloads' })).toBeInTheDocument()
+  })
+
+  it('opens a release qBittorrent has in place of adding it, over the releases', async () => {
+    const hash = 'c12fe1c06bba254a9dc9f519b335aa7c1367a88a'
+    searchReleases.mockResolvedValue([{ ...DUNE_RELEASES[1], infoHash: hash }, ...DUNE_RELEASES.filter((_, index) => index !== 1)])
+    vi.mocked(qbt.getTorrents).mockResolvedValue([torrent(hash)])
+    renderAt('/title/movie/693134/releases')
+    const [top, ...rest] = await screen.findAllByRole('article')
+    const open = await within(top).findByRole('link', { name: 'In downloads' })
+    expect(within(top).queryByRole('button', { name: 'Add to downloads' })).not.toBeInTheDocument()
+    for (const card of rest) expect(within(card).getByRole('button', { name: 'Add to downloads' })).toBeInTheDocument()
+
+    await userEvent.click(open)
+    expect(opened()).toBe(`/torrent/${hash} over /title/movie/693134/releases`)
   })
 
   it('goes to the title page when opened directly', async () => {

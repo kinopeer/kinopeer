@@ -1,12 +1,14 @@
 import { useId, useState, type ReactNode, type Ref } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useLocation } from 'react-router'
 import { Badge } from '../components/Badge'
-import { Button } from '../components/Button'
+import { Button, ButtonLink } from '../components/Button'
 import { FilterChip } from '../components/FilterChip'
 import { Popover } from '../components/Popover'
 import { Segmented } from '../components/Segmented'
 import { SortDirectionButton } from '../components/SortDirectionButton'
 import { SortHeader } from '../components/SortHeader'
+import { overPage } from '../lib/background'
 import { useFormatters } from '../lib/format'
 import { MIN_SEEDS, SORT_KEYS, summary, toggle, type ReleaseRow } from '../releases/filterReleases'
 import { seasonCoverage } from '../releases/parseRelease'
@@ -218,14 +220,22 @@ function ReleasesTable({ releases }: { releases: Releases }) {
         </span>
       </div>
       {releases.visible.map((row) => (
-        <ReleaseTableRow key={row.release.id} row={row} onAdd={() => releases.setAdding(row)} />
+        <ReleaseTableRow key={row.release.id} row={row} held={releases.inDownloads(row)} onAdd={() => releases.setAdding(row)} />
       ))}
     </div>
   )
 }
 
-function ReleaseTableRow({ row, onAdd }: { row: ReleaseRow; onAdd: () => void }) {
+interface ReleaseTableRowProps {
+  row: ReleaseRow
+  /** The torrent qBittorrent has for the release, opened in place of adding it again. */
+  held?: string
+  onAdd: () => void
+}
+
+function ReleaseTableRow({ row, held, onAdd }: ReleaseTableRowProps) {
   const { t, i18n } = useTranslation()
+  const location = useLocation()
   const format = useFormatters()
   const { release, info } = row
   const coverage = seasonCoverage(info) ?? (info.complete ? t('releases.complete') : undefined)
@@ -282,9 +292,15 @@ function ReleaseTableRow({ row, onAdd }: { row: ReleaseRow; onAdd: () => void })
         {release.publishDate ? format.age(release.publishDate) : ''}
       </span>
       <div role="cell" className="title-rel-add">
-        <Button variant="tonal" size="sm" icon="plus" aria-label={t('add.title')} onClick={onAdd}>
-          {t('releases.add')}
-        </Button>
+        {held ? (
+          <ButtonLink to={`/torrent/${held}`} state={overPage(location)} variant="secondary" size="sm" icon="check">
+            {t('title.inDownloads')}
+          </ButtonLink>
+        ) : (
+          <Button variant="tonal" size="sm" icon="plus" aria-label={t('add.title')} onClick={onAdd}>
+            {t('releases.add')}
+          </Button>
+        )}
       </div>
     </div>
   )

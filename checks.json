@@ -94,6 +94,7 @@
         "desktop-failing-indexers-collapsed-dark-ru": { "label-content-name-mismatch": 0 },
         "desktop-failing-indexers-dark-ru": { "label-content-name-mismatch": 0 },
         "desktop-failing-indexers-none-dark-ru": {},
+        "desktop-in-downloads-dark-ru": { "label-content-name-mismatch": 0 },
         "desktop-list-dark-ru": { "label-content-name-mismatch": 0 },
         "desktop-none-dark-ru": { "label-content-name-mismatch": 0 },
         "desktop-popover-dark-ru": { "label-content-name-mismatch": 0 },
@@ -104,6 +105,7 @@
         "failing-indexers-named-dark-ru": {},
         "failing-indexers-none-dark-ru": {},
         "filters-dark-ru": {},
+        "in-downloads-dark-ru": {},
         "list-dark-ru": {},
         "rail-failing-indexers-dark-ru": {},
         "rail-list-dark-ru": { "label-content-name-mismatch": 0 },
@@ -163,7 +165,7 @@
         "search-year": { "/qbt": 2, "/tmdb": 2, "/tmdb-img": 2, "/prowlarr": 0, "/api": 2, "other paths": 0, "other origins": 0 },
         "title": { "/qbt": 2, "/tmdb": 3, "/tmdb-img": 6, "/prowlarr": 0, "/api": 3, "other paths": 0, "other origins": 0 },
         "series": { "/qbt": 2, "/tmdb": 4, "/tmdb-img": 4, "/prowlarr": 0, "/api": 3, "other paths": 0, "other origins": 0 },
-        "releases": { "/qbt": 1, "/tmdb": 1, "/tmdb-img": 0, "/prowlarr": 2, "/api": 1, "other paths": 0, "other origins": 0 },
+        "releases": { "/qbt": 2, "/tmdb": 1, "/tmdb-img": 0, "/prowlarr": 2, "/api": 1, "other paths": 0, "other origins": 0 },
         "settings": { "/qbt": 2, "/tmdb": 1, "/tmdb-img": 0, "/prowlarr": 1, "/api": 1, "other paths": 0, "other origins": 0 }
       },
       "desktop": {

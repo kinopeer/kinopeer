@@ -12,6 +12,7 @@ import {
   torrentFiles,
 } from './fixtures.ts'
 import { expect } from './test.ts'
+import type { Release } from '../src/api/prowlarr/types.ts'
 import type { Torrent } from '../src/api/qbittorrent/types.ts'
 
 export interface AppOptions {
@@ -47,6 +48,8 @@ export interface AppOptions {
   failingIndexers?: string[]
   /** Prowlarr finds nothing for the release search. */
   noReleases?: boolean
+  /** What Prowlarr finds for the release search, instead of the fixtures' releases. */
+  releases?: Release[]
   /** qBittorrent's free space in bytes, instead of the fixtures' 1.82 TB. */
   freeSpace?: number
   /** The release filters remembered from earlier searches. */
@@ -168,7 +171,7 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
         if (options.prowlarrDown) return json(route, { error: 'unreachable' }, 502)
         return json(route, { version: '2.0.5.5160', indexers: options.prowlarrIndexers ?? 2 })
       }
-      if (pathname === '/prowlarr/search') return json(route, options.noReleases ? [] : RELEASES)
+      if (pathname === '/prowlarr/search') return json(route, options.noReleases ? [] : (options.releases ?? RELEASES))
       if (pathname === '/prowlarr/failing') return json(route, { indexers: options.failingIndexers ?? [] })
       if (pathname === '/prowlarr/download') {
         return route.fulfill({ contentType: 'application/x-bittorrent', body: shogunTorrent() })

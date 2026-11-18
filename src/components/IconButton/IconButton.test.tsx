@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { IconButton } from './IconButton'
+import { renderWithRouter } from '../../test/render'
+import { IconButton, IconLink } from './IconButton'
 
 describe('IconButton', () => {
   it('is named by its label', () => {
@@ -48,5 +49,28 @@ describe('IconButton', () => {
       </>,
     )
     expect(screen.getByRole('button', { name: 'More actions' })).toHaveAccessibleDescription('Paused Not matched to a movie')
+  })
+})
+
+describe('IconLink', () => {
+  it('is a link named by its label that looks like an IconButton of its variant, size and state', () => {
+    renderWithRouter(<IconLink to="/torrent/a1" icon="check" label="In downloads" variant="filled" size="sm" on className="own" />)
+    const link = screen.getByRole('link', { name: 'In downloads' })
+    expect(link).toHaveAttribute('href', '/torrent/a1')
+    expect(link).toHaveClass('ks-icon-btn', 'ks-icon-btn-filled', 'ks-icon-btn-sm', 'is-on', 'own')
+    expect(link.querySelector('svg')).toHaveAttribute('width', '18')
+  })
+
+  it('defaults to a plain md one, its icon 20px or the size it’s given', () => {
+    renderWithRouter(
+      <>
+        <IconLink to="/" icon="check" label="In downloads" />
+        <IconLink to="/" icon="check" label="Larger" iconSize={22} />
+      </>,
+    )
+    const link = screen.getByRole('link', { name: 'In downloads' })
+    expect(link).toHaveAttribute('class', 'ks-icon-btn')
+    expect(link.querySelector('svg')).toHaveAttribute('width', '20')
+    expect(screen.getByRole('link', { name: 'Larger' }).querySelector('svg')).toHaveAttribute('width', '22')
   })
 })

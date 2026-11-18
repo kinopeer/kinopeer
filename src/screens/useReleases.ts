@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import type { Torrent } from '../api/qbittorrent'
 import { ProwlarrSetupError, getFailingIndexers, searchReleases, type Release } from '../api/prowlarr'
 import { clickedOrder, cycledOrder, reversedOrder, usualOrder } from '../logic/sortOrder'
 import { useRequest } from '../lib/useRequest'
@@ -29,6 +30,8 @@ import { parseRelease } from '../releases/parseRelease'
 import { sourceName } from '../releases/qualityBadges'
 import { releaseQuery, type TitleDetails } from '../releases/releaseQuery'
 import { useSettings } from '../settings/settings'
+import { heldIds, sameIds, torrentId } from '../torrents/sameTorrent'
+import { useLastTorrents } from '../torrents/useMainData'
 
 export const AUDIO_LABEL = {
   dub: 'releases.audioDub',
@@ -88,6 +91,12 @@ export interface Releases {
    * that there, while chips and notes outside the group need the filter's name in it.
    */
   optionLabel: <T extends string>(label: (value: T) => string) => (value: T) => string
+  /**
+   * The torrent qBittorrent has for a release, by the release's info hash: its hash, for opening it
+   * in place of adding the release again. Undefined for a release it doesn't have, or one whose
+   * indexer gives no hash.
+   */
+  inDownloads: (row: ReleaseRow) => string | undefined
   /** The release whose add sheet is open. */
   adding?: ReleaseRow
   setAdding: (row: ReleaseRow | undefined) => void
@@ -139,6 +148,15 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
     const answered = new Set(rows.map((row) => row.release.indexer))
     return (failing.data ?? []).filter((name) => !answered.has(name))
   }, [failing.data, rows])
+  // Which releases qBittorrent has (#375), from the torrents the page has without starting the poll,
+  // asked for once if it has none; worked out inside the subscription, so a poll that changes none
+  // of them renders nothing. A hybrid torrent named by its v2 hash isn't found: qBittorrent knows it
+  // by its v1 hash (sameTorrent.ts).
+  const ids = useMemo(() => new Set(rows.flatMap((row) => torrentId(row.release.infoHash) ?? [])), [rows])
+  const held = useLastTorrents(
+    useCallback((torrents: Torrent[] | undefined) => heldIds(torrents, ids), [ids]),
+    sameIds,
+  )
   const present = useMemo(() => presentValues(rows), [rows])
   const { releaseFilters: remembered, releaseSort: sort } = settings
   // Picks from another search (another title) don't carry over.
@@ -208,6 +226,11 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
     audioLabel,
     sourceLabel,
     optionLabel,
+    inDownloads: (row) => {
+      // No release without an ID is held: '' isn't one.
+      const id = torrentId(row.release.infoHash) ?? ''
+      return held.has(id) ? id : undefined
+    },
     adding,
     setAdding,
   }
