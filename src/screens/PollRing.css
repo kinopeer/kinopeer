@@ -103,12 +103,13 @@
    offline. base.css also cuts every animation short under reduced motion; this keeps the ring still
    even where that changes. */
 @media (prefers-reduced-motion: no-preference) {
+  /* A negative delay starts the filling as far in as the time since the answer (PollRingFill). */
   .poll-ring.is-filling .poll-ring-half.is-first svg {
-    animation: poll-ring-first var(--poll-interval) linear both;
+    animation: poll-ring-first var(--poll-interval) linear calc(-1 * var(--poll-elapsed)) both;
   }
 
   .poll-ring.is-filling .poll-ring-half.is-second svg {
-    animation: poll-ring-second var(--poll-interval) linear both;
+    animation: poll-ring-second var(--poll-interval) linear calc(-1 * var(--poll-elapsed)) both;
   }
 
   /* Starts at full opacity, so a screenshot with animations stopped sees it as a filled ring. */
