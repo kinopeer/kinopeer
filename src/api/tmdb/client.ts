@@ -228,6 +228,25 @@ async function getRelated(
   return toTypedPage(await request<Paged<MovieResult | TvResult>>(`/${type}/${id}/${list}`, {}, options), type)
 }
 
+/**
+ * How long the page takes a title's details and related titles it has instead of asking TMDB again
+ * (`sharedRequests`): an hour, so moving between a title's page and its releases, and back, asks
+ * nothing again, while a page left open longer asks anew. Details change on TMDB in hours or days: on
+ * Kinopeer's key an hour adds little to the day its TMDB proxy keeps these answers (`tmdb-proxy/worker.ts`),
+ * and with one's own key, which nothing upstream caches, it is the only age a title can have.
+ */
+export const TITLE_FRESH_MS = 60 * 60_000
+
+/** The key a title's details are shared under on the page, in a language. */
+export function titleDetailsKey(type: MediaType, id: number, language: string): string {
+  return `tmdb|details|${type}|${id}|${language}`
+}
+
+/** The key a title's related titles (recommendations, else similar) are shared under on the page. */
+export function relatedTitlesKey(type: MediaType, id: number, language: string): string {
+  return `tmdb|related|${type}|${id}|${language}`
+}
+
 export function getMovie(id: number, options: RequestOptions = {}): Promise<MovieDetails> {
   return request<MovieDetails>(`/movie/${id}`, {}, options)
 }

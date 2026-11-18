@@ -43,6 +43,41 @@ beforeEach(() => {
 })
 
 describe('TitleRelated', () => {
+  it('shows the row it had at once when the page comes back to the title, asking TMDB nothing (#384)', async () => {
+    getRecommendations.mockResolvedValue(page())
+    getSimilar.mockResolvedValue(page(title(438631, 'Dune')))
+    const first = renderRelated()
+    expect(await screen.findByRole('region', { name: 'Similar titles' })).toBeInTheDocument()
+    first.unmount()
+
+    renderRelated()
+    expect(screen.getByRole('region', { name: 'Similar titles' })).toBeInTheDocument()
+    await answered()
+    expect(getRecommendations).toHaveBeenCalledTimes(1)
+    expect(getSimilar).toHaveBeenCalledTimes(1)
+  })
+
+  it('takes the row it had for an hour, and asks TMDB again once it’s that old (#384)', async () => {
+    const now = Date.now()
+    vi.spyOn(Date, 'now').mockReturnValue(now)
+    getRecommendations.mockResolvedValue(page(title(438631, 'Dune')))
+    const first = renderRelated()
+    expect(await screen.findByRole('region', { name: 'Recommendations' })).toBeInTheDocument()
+    first.unmount()
+
+    vi.spyOn(Date, 'now').mockReturnValue(now + tmdb.TITLE_FRESH_MS - 1)
+    const kept = renderRelated()
+    expect(screen.getByRole('region', { name: 'Recommendations' })).toBeInTheDocument()
+    expect(getRecommendations).toHaveBeenCalledTimes(1)
+    kept.unmount()
+
+    vi.spyOn(Date, 'now').mockReturnValue(now + tmdb.TITLE_FRESH_MS)
+    renderRelated()
+    expect(screen.queryByRole('region', { name: 'Recommendations' })).not.toBeInTheDocument()
+    expect(await screen.findByRole('region', { name: 'Recommendations' })).toBeInTheDocument()
+    expect(getRecommendations).toHaveBeenCalledTimes(2)
+  })
+
   it("shows TMDB's recommendations as links to their titles, without asking for similar ones", async () => {
     getRecommendations.mockResolvedValue(page(title(438631, 'Dune', { year: 2021 }), title(157336, 'Interstellar')))
     renderRelated()

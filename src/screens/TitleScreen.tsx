@@ -5,11 +5,7 @@ import { useLocation, useMatch, useNavigate, useParams } from 'react-router'
 import {
   TmdbError,
   TmdbKeyError,
-  getMovie,
-  getTv,
   posterUrl,
-  type MovieDetails,
-  type TvDetails,
 } from '../api/tmdb'
 import { Badge } from '../components/Badge'
 import { Banner } from '../components/Banner'
@@ -20,7 +16,7 @@ import { IconButton } from '../components/IconButton'
 import { Poster } from '../components/Poster'
 import { useFormatters, type Formatters } from '../lib/format'
 import { useIsDesktop } from '../lib/useIsDesktop'
-import { useRequest } from '../lib/useRequest'
+import type { TitleDetails as Details } from '../releases/releaseQuery'
 import { useTmdbLanguage } from '../settings/settings'
 import { downloadsMark } from '../torrents/titleDownloads'
 import { useTitleTorrents } from '../torrents/useTitleMatches'
@@ -32,9 +28,9 @@ import { TitleDownloads } from './TitleDownloads'
 import { TitleOverview } from './TitleOverview'
 import { TitleRelated } from './TitleRelated'
 import { TitleReleases } from './TitleReleases'
+import { useTitleDetails } from './useTitleDetails'
 import './TitleScreen.css'
 
-type Details = ({ type: 'movie' } & MovieDetails) | ({ type: 'tv' } & TvDetails)
 
 function year(date: string | null | undefined): string | undefined {
   return date ? date.slice(0, 4) : undefined
@@ -109,11 +105,7 @@ export function TitleScreen({ onSessionLost }: TitleScreenProps) {
   const torrents = useMemo(() => (data ? Object.values(data.torrents) : []), [data])
   const downloads = useTitleTorrents(torrents, type ?? 'movie', valid ? id : 0)
 
-  const request = useRequest<Details>(valid ? `${type}|${id}|${language}` : null, async (signal) =>
-    type === 'movie'
-      ? { ...(await getMovie(id, { language, signal })), type }
-      : { ...(await getTv(id, { language, signal })), type: 'tv' },
-  )
+  const request = useTitleDetails(valid ? type : undefined, id, language)
 
   // Opened from inside the app: go back. Opened from a shared link: there's nothing to go back to.
   const deepLink = location.key === 'default' || (location.state as TitleLocationState | null)?.deepLink === true

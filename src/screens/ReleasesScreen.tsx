@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams } from 'react-router'
-import { TmdbError, getMovie, getTv } from '../api/tmdb'
+import { TmdbError } from '../api/tmdb'
 import { Badge } from '../components/Badge'
 import { Button } from '../components/Button'
 import { EmptyState } from '../components/EmptyState'
@@ -12,14 +12,13 @@ import { Segmented } from '../components/Segmented'
 import { Sheet } from '../components/Sheet'
 import { SortDirectionButton } from '../components/SortDirectionButton'
 import { useFormatters } from '../lib/format'
-import { useRequest } from '../lib/useRequest'
 import { MIN_SEEDS, SORT_KEYS, summary, toggle, type ReleaseRow } from '../releases/filterReleases'
 import { seasonCoverage } from '../releases/parseRelease'
 import { qualityBadges, sourceName } from '../releases/qualityBadges'
-import type { TitleDetails as Details } from '../releases/releaseQuery'
 import { useTmdbLanguage } from '../settings/settings'
 import { IndexerLink } from './IndexerLink'
 import { ReleaseName } from './ReleaseName'
+import { useTitleDetails } from './useTitleDetails'
 import { AddingRelease, ReleasesBody, ReleasesCount } from './ReleasesBlock'
 import { AUDIO_LABEL, SORT_LABEL, useReleases } from './useReleases'
 import './ReleasesScreen.css'
@@ -35,11 +34,7 @@ export function ReleasesScreen() {
   const valid = type !== undefined && Number.isInteger(id) && id > 0
   const language = useTmdbLanguage()
 
-  const details = useRequest<Details>(valid ? `${type}|${id}|${language}` : null, async (signal) =>
-    type === 'movie'
-      ? { ...(await getMovie(id, { language, signal })), type }
-      : { ...(await getTv(id, { language, signal })), type: 'tv' },
-  )
+  const details = useTitleDetails(valid ? type : undefined, id, language)
   const releases = useReleases(details.data)
   const { filters, sort, active, visible, present, resolutionLabel, audioLabel, sourceLabel, optionLabel, updateFilters } = releases
   const [sheetOpen, setSheetOpen] = useState(false)
