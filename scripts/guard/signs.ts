@@ -363,6 +363,7 @@ function withoutComments(command: string): string {
   const run = command.replace(/^[ \t]*#.*/gm, '')
   let kept = ''
   let quote: string | undefined
+  // The text's start starts a word, though a `#` there has gone with its line above.
   let wordStart = true
   for (let index = 0; index < run.length; index++) {
     const char = run[index]
