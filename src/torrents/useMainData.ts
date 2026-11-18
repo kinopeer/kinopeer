@@ -66,7 +66,8 @@ export interface MainDataStore extends PollSource {
 /**
  * Polls /sync/maindata while anyone is subscribed and the page is visible, and right away when the
  * device comes back online. Calls the unauthorized handler once if the session expires, and stops for good.
- * The last state stays when the last subscriber leaves, so the next one starts from it.
+ * The last state stays when the last subscriber leaves, so the next one starts from it, and the poll
+ * keeps its rhythm: started again, it waits for what's left of the interval since its last answer.
  */
 export function createMainDataStore(): MainDataStore {
   let onUnauthorized = () => {}
@@ -75,6 +76,11 @@ export function createMainDataStore(): MainDataStore {
   const listeners = new Set<() => void>()
   const watchers = new Set<() => void>()
   let timer: ReturnType<typeof setTimeout> | undefined
+  // When the next poll is due (ms since epoch) and the wait it was scheduled with, set as an answer
+  // settles and cleared as a poll goes out, so a poll started again keeps the rhythm rather than
+  // asking at once (#385). Null: nothing to wait for, so the next poll goes out at once.
+  let dueAt: number | null = null
+  let dueIn = 0
   let idleTimer: ReturnType<typeof setTimeout> | undefined
   let running = false
   let inFlight = false
@@ -98,13 +104,17 @@ export function createMainDataStore(): MainDataStore {
 
   const schedule = (delay: number) => {
     clearTimeout(timer)
-    if (running && !document.hidden) timer = setTimeout(() => void poll(), delay)
+    if (!running) return
+    dueAt = Date.now() + delay
+    dueIn = delay
+    if (!document.hidden) timer = setTimeout(() => void poll(), delay)
   }
 
   const poll = async () => {
     if (inFlight || !running) return
     inFlight = true
     refreshed = false
+    dueAt = null
     clearTimeout(timer)
     update({})
     const controller = new AbortController()
@@ -115,10 +125,12 @@ export function createMainDataStore(): MainDataStore {
       controller.abort()
     }
     let delay = POLL_INTERVAL_MS
+    let answered = false
     let changes: Partial<MainDataSnapshot>
     try {
       const requestedAt = Date.now()
       state = applyMainData(state, await getMainData(state.rid, controller.signal))
+      answered = true
       changes = { data: state, updatedAt: Date.now(), requestedAt, offline: false, unreachable: undefined }
     } catch (error) {
       if (running && error instanceof UnauthorizedError) {
@@ -138,6 +150,10 @@ export function createMainDataStore(): MainDataStore {
     // Stopped meanwhile: the answer is dropped, and only the poll's state says nothing is in flight.
     update(running ? changes : {})
     schedule(refreshed ? 0 : delay)
+    // A poll that brought no answer leaves nothing to wait for, so a poll started again goes out at
+    // once: one dropped, or one that failed, since the device may come back online while nothing
+    // uses the poll and so nothing listens for it.
+    if (!answered) dueAt = null
   }
 
   // A poll in flight may hang until its timeout, so it's given up and sent again, at once, rather
@@ -164,7 +180,10 @@ export function createMainDataStore(): MainDataStore {
     running = true
     document.addEventListener('visibilitychange', onVisibilityChange)
     window.addEventListener('online', onOnline)
-    void poll()
+    // The data a screen coming back shows is at most an interval old, and the poll's ring says how old.
+    // Never longer than the wait it was due after, should the clock have been set back meanwhile.
+    if (dueAt === null) void poll()
+    else schedule(Math.min(dueIn, Math.max(0, dueAt - Date.now())))
   }
 
   function stop() {
@@ -193,7 +212,9 @@ export function createMainDataStore(): MainDataStore {
     getPollState: () => pollState,
     refresh: () => {
       if (inFlight) refreshed = true
-      else void poll()
+      else if (running) void poll()
+      // Asked for while nothing uses the poll: the next start polls at once rather than waiting.
+      else dueAt = null
     },
     setUnauthorizedHandler: (handler) => {
       onUnauthorized = handler

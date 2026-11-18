@@ -74,6 +74,24 @@ describe('PollRing', () => {
     expect(ringState(screen.getByRole('img', { name: /^Updated at 9:05:09\sPM$/ }))).toBe('filling')
   })
 
+  it('starts the filling as far in as the time since the answer, read as the ring mounts (#385)', () => {
+    // A screen that comes back mounts its ring a while after the answer, which the poll waits out.
+    vi.setSystemTime(ANSWERED_AT + 1_500)
+    const { poll, set } = fakePoll(answered)
+    const { container, rerender } = render(<PollRing poll={poll} />)
+    expect(fill(container)).toHaveStyle({ '--poll-elapsed': '1500ms' })
+    // Not read again on a render, which would move the running animation.
+    vi.setSystemTime(ANSWERED_AT + 1_900)
+    rerender(<PollRing poll={poll} context="qBittorrent 5.0.1" />)
+    expect(fill(container)).toHaveStyle({ '--poll-elapsed': '1500ms' })
+
+    set({ updatedAt: ANSWERED_AT + 1_900 })
+    expect(fill(container)).toHaveStyle({ '--poll-elapsed': '0ms' })
+    // An answer stamped after the clock, set back meanwhile, fills from the start.
+    set({ updatedAt: ANSWERED_AT + 2_500 })
+    expect(fill(container)).toHaveStyle({ '--poll-elapsed': '0ms' })
+  })
+
   it('says qBittorrent isn’t answering, and since when the data is', () => {
     const { poll, set } = fakePoll({ ...answered, offline: true })
     render(<PollRing poll={poll} />)

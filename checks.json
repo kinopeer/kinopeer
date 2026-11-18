@@ -21,6 +21,7 @@
   "budgets": {
     "size": { "js": 196300, "css": 16200, "rest": 193600 },
     "layoutShiftCeiling": 0.1,
+    "screenshotThreshold": 0.1,
     "layoutShift": {
       "phone": { "downloads": 0.01, "torrent": 0.01, "browse": 0.01, "search": 0.01, "search-year": 0.01, "title": 0.01, "series": 0.01, "releases": 0.01, "settings": 0.01 },
       "desktop": { "downloads": 0.01, "torrent": 0.01, "browse": 0.01, "search": 0.01, "search-year": 0.01, "title": 0.01, "series": 0.01, "releases": 0.01, "settings": 0.01 },
@@ -184,10 +185,10 @@
         "find.2-title": { "/qbt": 1, "/tmdb": 2, "/tmdb-img": 0, "/prowlarr": 0, "/api": 0, "other paths": 0, "other origins": 0 },
         "find.3-back": { "/qbt": 0, "/tmdb": 0, "/tmdb-img": 0, "/prowlarr": 0, "/api": 0, "other paths": 0, "other origins": 0 },
         "releases.1-releases": { "/qbt": 0, "/tmdb": 1, "/tmdb-img": 0, "/prowlarr": 2, "/api": 0, "other paths": 0, "other origins": 0 },
-        "releases.2-back": { "/qbt": 1, "/tmdb": 3, "/tmdb-img": 0, "/prowlarr": 0, "/api": 0, "other paths": 0, "other origins": 0 },
+        "releases.2-back": { "/qbt": 0, "/tmdb": 3, "/tmdb-img": 0, "/prowlarr": 0, "/api": 0, "other paths": 0, "other origins": 0 },
         "tabs.1-search": { "/qbt": 0, "/tmdb": 3, "/tmdb-img": 10, "/prowlarr": 0, "/api": 0, "other paths": 0, "other origins": 0 },
         "tabs.2-settings": { "/qbt": 2, "/tmdb": 1, "/tmdb-img": 0, "/prowlarr": 1, "/api": 1, "other paths": 0, "other origins": 0 },
-        "tabs.3-downloads": { "/qbt": 1, "/tmdb": 0, "/tmdb-img": 0, "/prowlarr": 0, "/api": 0, "other paths": 0, "other origins": 0 }
+        "tabs.3-downloads": { "/qbt": 0, "/tmdb": 0, "/tmdb-img": 0, "/prowlarr": 0, "/api": 0, "other paths": 0, "other origins": 0 }
       },
       "desktop": {
         "download.1-row": { "/qbt": 0, "/tmdb": 0, "/tmdb-img": 0, "/prowlarr": 0, "/api": 0, "other paths": 0, "other origins": 0 },
