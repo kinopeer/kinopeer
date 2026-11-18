@@ -51,6 +51,14 @@ function readCache(key: string, now = Date.now()): TitleMatch | null | undefined
   return now - entry.at < (entry.match ? HIT_TTL_MS : MISS_TTL_MS) ? entry.match : undefined
 }
 
+/**
+ * The title this browser cached for a lookup's key in a language: undefined when it has none or it's
+ * too old, null when TMDB found none. Reads only, so a screen can show what's known without TMDB.
+ */
+export function cachedTitle(language: string, key: string): TitleMatch | null | undefined {
+  return readCache(`${language}|${key}`)
+}
+
 /** Caches titles in memory; `storeCache` writes them to localStorage. */
 function cacheTitles(changes: Record<string, TitleMatch | null>): void {
   const entries = loadCache()

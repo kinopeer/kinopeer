@@ -2,19 +2,22 @@ import { act, cleanup, render, renderHook } from '@testing-library/react'
 import { useEffect, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
+import { torrent } from '../test/fixtures'
 import { qbittorrentDown } from '../test/render'
 import { MainDataProvider } from './MainDataProvider'
 import { TorrentRequestsProvider } from './TorrentRequestsProvider'
 import { OFFLINE_POLL_INTERVAL_MS, POLL_INTERVAL_MS } from './pollIntervals'
-import { POLL_TIMEOUT_MS, useFreeSpace, useMainData } from './useMainData'
+import { resetOneOffTorrents } from './oneOffTorrents'
+import { POLL_TIMEOUT_MS, useFreeSpace, useLastTorrents, useMainData } from './useMainData'
 import { useTorrentRequests } from './useTorrentRequests'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => {
   const actual = await importOriginal<typeof api>()
-  return { ...actual, getMainData: vi.fn() }
+  return { ...actual, getMainData: vi.fn(), getTorrents: vi.fn() }
 })
 
 const getMainData = vi.mocked(api.getMainData)
+const getTorrents = vi.mocked(api.getTorrents)
 
 /** A request that hangs, as fetch does, failing only when its signal aborts. */
 const hang = (_rid?: number, signal?: AbortSignal) =>
@@ -29,6 +32,7 @@ function setHidden(hidden: boolean) {
 beforeEach(() => {
   vi.useFakeTimers()
   vi.resetAllMocks()
+  resetOneOffTorrents()
 })
 
 afterEach(() => {
@@ -313,6 +317,108 @@ describe('useFreeSpace', () => {
     await act(() => vi.advanceTimersByTimeAsync(0))
     expect(getMainData).toHaveBeenCalledTimes(1)
     expect(result.current[1]).toBe(40e9)
+  })
+})
+
+describe('useLastTorrents', () => {
+  const ONE_OFF = [torrent('b')]
+  const inProvider = ({ children }: { children: ReactNode }) => <MainDataProvider onUnauthorized={vi.fn()}>{children}</MainDataProvider>
+
+  beforeEach(() => {
+    getTorrents.mockResolvedValue(ONE_OFF)
+    getMainData.mockResolvedValue({ rid: 1, full_update: true, torrents: { a: { name: 'A' } } })
+  })
+
+  it('asks for the torrents once, without starting the poll, before the poll has run', async () => {
+    const { result } = renderHook(() => [useLastTorrents(), useLastTorrents()], { wrapper: inProvider })
+    expect(result.current[0]).toBeUndefined()
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS * 3))
+    expect(result.current).toEqual([ONE_OFF, ONE_OFF])
+    expect(getTorrents).toHaveBeenCalledTimes(1)
+    expect(getMainData).not.toHaveBeenCalled()
+  })
+
+  it('asks for them once outside a provider too', async () => {
+    const { result } = renderHook(() => useLastTorrents())
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    expect(result.current).toBe(ONE_OFF)
+    expect(getMainData).not.toHaveBeenCalled()
+  })
+
+  it('gives the poll’s last torrents once a screen has polled, asking nothing, and follows the poll while one runs', async () => {
+    function Poller() {
+      useMainData()
+      return null
+    }
+    function Screen({ polling }: { polling: boolean }) {
+      const torrents = useLastTorrents()
+      return (
+        <>
+          {polling && <Poller />}
+          <p>{torrents?.map((one) => one.name).join(',') ?? 'none'}</p>
+        </>
+      )
+    }
+    const { rerender, container } = render(<Screen polling />, { wrapper: inProvider })
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    expect(container).toHaveTextContent('A')
+
+    getMainData.mockResolvedValue({ rid: 2, torrents: { a: { name: 'A2' } } })
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS))
+    expect(container).toHaveTextContent('A2')
+
+    rerender(<Screen polling={false} />)
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS * 3))
+    expect(container).toHaveTextContent('A2')
+    expect(getMainData).toHaveBeenCalledTimes(2)
+    expect(getTorrents).not.toHaveBeenCalled()
+  })
+
+  it('doesn’t ask when a screen beside it starts the poll as they open', async () => {
+    function Sidebar() {
+      useMainData()
+      return null
+    }
+    function Screen() {
+      const torrents = useLastTorrents()
+      return <p>{torrents?.map((one) => one.name).join(',') ?? 'none'}</p>
+    }
+    // The screen's effects run before the sidebar's, which starts the poll.
+    const { container } = render(
+      <>
+        <Screen />
+        <Sidebar />
+      </>,
+      { wrapper: inProvider },
+    )
+    expect(container).toHaveTextContent('none')
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    expect(container).toHaveTextContent('A')
+    expect(getTorrents).not.toHaveBeenCalled()
+  })
+
+  it('takes the poll’s torrents over the ones asked once, as soon as it has them', async () => {
+    let poll = false
+    function Screen() {
+      const torrents = useLastTorrents()
+      return (
+        <>
+          {poll && <Poller />}
+          <p>{torrents?.map((one) => one.name).join(',') ?? 'none'}</p>
+        </>
+      )
+    }
+    function Poller() {
+      useMainData()
+      return null
+    }
+    const { rerender, container } = render(<Screen />, { wrapper: inProvider })
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    expect(container).toHaveTextContent('b')
+    poll = true
+    rerender(<Screen />)
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    expect(container).toHaveTextContent('A')
   })
 })
 

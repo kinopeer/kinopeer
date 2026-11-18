@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import { UnauthorizedError, getMainData, unreachable, type Unreachable } from '../api/qbittorrent'
+import { UnauthorizedError, getMainData, unreachable, type Torrent, type Unreachable } from '../api/qbittorrent'
 import { freeSpace } from './freeSpace'
+import { currentOneOffTorrents, loadOneOffTorrents, subscribeOneOffTorrents } from './oneOffTorrents'
 import { OFFLINE_POLL_INTERVAL_MS, POLL_INTERVAL_MS } from './pollIntervals'
 import { EMPTY_SYNC_STATE, applyMainData, type SyncState } from './sync'
 import { withExpected, type Expected } from './torrentRequests'
@@ -55,6 +56,8 @@ export interface MainDataState extends MainDataSnapshot {
 /** One poll of /sync/maindata for everyone subscribed to it. */
 export interface MainDataStore extends PollSource {
   getSnapshot: () => MainDataSnapshot
+  /** Calls `listener` on every change, like `subscribe`, without starting the poll or keeping it on. */
+  watch: (listener: () => void) => () => void
   refresh: () => void
   /** Called once if the session expires. */
   setUnauthorizedHandler: (handler: () => void) => void
@@ -70,6 +73,7 @@ export function createMainDataStore(): MainDataStore {
   let snapshot: MainDataSnapshot = { data: null, offline: false, updatedAt: null, requestedAt: null }
   let state = EMPTY_SYNC_STATE
   const listeners = new Set<() => void>()
+  const watchers = new Set<() => void>()
   let timer: ReturnType<typeof setTimeout> | undefined
   let idleTimer: ReturnType<typeof setTimeout> | undefined
   let running = false
@@ -89,6 +93,7 @@ export function createMainDataStore(): MainDataStore {
     if (Object.keys(changes).length > 0) snapshot = { ...snapshot, ...changes }
     pollState = { inFlight, offline: snapshot.offline, unreachable: snapshot.unreachable, updatedAt: snapshot.updatedAt }
     listeners.forEach((listener) => listener())
+    watchers.forEach((watcher) => watcher())
   }
 
   const schedule = (delay: number) => {
@@ -181,6 +186,10 @@ export function createMainDataStore(): MainDataStore {
       }
     },
     getSnapshot: () => snapshot,
+    watch(watcher) {
+      watchers.add(watcher)
+      return () => watchers.delete(watcher)
+    },
     getPollState: () => pollState,
     refresh: () => {
       if (inFlight) refreshed = true
@@ -229,6 +238,32 @@ export function useMainData(onUnauthorized?: () => void): MainDataState {
     }),
     [snapshot, expected, store],
   )
+}
+
+const noData = () => null
+
+/**
+ * qBittorrent's torrents without starting the poll, for a screen that shows what's in downloads only
+ * in passing (#460): the shared poll's last data, kept current while a screen that polls is open,
+ * else, before the poll has any on this page and while it isn't asking, one `torrents/info` for the
+ * page (`oneOffTorrents.ts`). Undefined until either has them.
+ */
+export function useLastTorrents(): Torrent[] | undefined {
+  const store = useContext(MainDataContext)
+  const data = useSyncExternalStore(store?.watch ?? noRequests, store ? () => store.getSnapshot().data : noData)
+  const oneOff = useSyncExternalStore(subscribeOneOffTorrents, currentOneOffTorrents)
+  useEffect(() => {
+    if (data) return
+    let cancelled = false
+    // After the commit's other effects, where a screen beside this one (the sidebar) starts the poll.
+    queueMicrotask(() => {
+      if (!cancelled && !store?.getPollState().inFlight && !store?.getSnapshot().data) loadOneOffTorrents()
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [data, store])
+  return useMemo(() => (data ? Object.values(data.torrents) : oneOff), [data, oneOff])
 }
 
 /**
