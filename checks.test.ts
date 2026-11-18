@@ -6,6 +6,8 @@
 // takes), never with regular expressions (docs/TESTING.md → Choosing a layer's edges). The files
 // compared are the repository's, as git lists them, so a git-ignored file a tool writes into a
 // folder (wrangler's `.wrangler/`) is left alone: no PR can change it.
+// It also holds the screenshots' threshold, which only playwright.config.ts reads: a config that stopped
+// passing it on would compare at Playwright's default with checks.json unchanged (#392).
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -18,7 +20,7 @@ import { parse } from 'yaml'
 const ROOT = dirname(fileURLToPath(import.meta.url))
 const TSC = join(dirname(createRequire(import.meta.url).resolve('typescript/package.json')), 'bin', 'tsc')
 
-const checks = JSON.parse(readFileSync(join(ROOT, 'checks.json'), 'utf8')) as { mutants: { folders: string[] } }
+const checks = JSON.parse(readFileSync(join(ROOT, 'checks.json'), 'utf8')) as { mutants: { folders: string[] }; budgets: { screenshotThreshold: number } }
 
 /** The repository's files under a folder, relative to `root`: those git tracks and the new ones it doesn't ignore, still on disk. */
 const filesIn = (root: string, folder: string): string[] =>
@@ -94,6 +96,13 @@ describe("checks.json's mutated folders", () => {
   it.each(folders)('has the type check take every TypeScript file in %s', (folder) => {
     checked ??= typeChecked(ROOT)
     expect(filesIn(ROOT, folder).filter((file) => isTypeScript(file) && !checked?.has(file))).toEqual([])
+  })
+})
+
+describe("checks.json's screenshot threshold", () => {
+  it('is what the screenshot tests compare with', async () => {
+    const { default: config } = await import('./playwright.config.ts')
+    expect(config.expect?.toHaveScreenshot?.threshold).toBe(checks.budgets.screenshotThreshold)
   })
 })
 

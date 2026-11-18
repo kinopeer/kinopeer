@@ -46,7 +46,7 @@ Three kinds of change, three lists in its report. The deputy's round judges ever
 - A mutator added to those Stryker leaves out, a pattern added to the files it doesn't mutate, or a
   folder removed from those it does (`mutants` in `checks.json`).
 - A budget raised, removed or no longer a number (`budgets` in `checks.json`, where more is
-  weaker), a new rule's budget in an accessibility state `main` has budgets for among them: a rule a
+  weaker; the screenshots' threshold, `budgets.screenshotThreshold`, among them), a new rule's budget in an accessibility state `main` has budgets for among them: a rule a
   state doesn't name counts as 0 there, so its new budget is raised from 0. A budget lowered isn't
   marked: it checks more.
 - A lint rule removed, turned off or downgraded, at the top level or in an override; a rule turned
@@ -216,7 +216,7 @@ requests tests the requests budgets (`budgets.requests` for the screens' opening
 layout shift test the layout shift budgets (`budgets.layoutShift`, a score per window size and
 screen, and the ceiling over them, `budgets.layoutShiftCeiling`, `docs/TESTING.md` → The layout
 shift test), and the screenshot tests the accessibility budgets and the tags axe checks
-(`budgets.accessibility` and `budgets.accessibilityTags`, [The accessibility budget](#the-accessibility-budget)). A new
+(`budgets.accessibility` and `budgets.accessibilityTags`, [The accessibility budget](#the-accessibility-budget)) and how far a pixel may drift from its baseline (`budgets.screenshotThreshold`, `docs/TESTING.md` → Screenshot tests). A new
 threshold, budget or exclusion list goes there too, not into the config that uses it, where the
 guard wouldn't see it move.
 

@@ -1,4 +1,15 @@
+import { readFileSync } from 'node:fs'
 import { defineConfig, devices } from '@playwright/test'
+
+// How far a pixel may drift from its baseline before it counts as changed, in Playwright's YIQ
+// scale (0 strict, 1 lax; Playwright's own default is 0.2): `budgets.screenshotThreshold` in
+// checks.json, as data, where the checks guard marks a raise as a weakening (docs/QUALITY.md → What
+// it marks); why its value is in docs/TESTING.md → Screenshot tests. No pixel over it is let through
+// (maxDiffPixels stays 0). checks.test.ts checks that this config passes it on.
+const { budgets } = JSON.parse(readFileSync(new URL('./checks.json', import.meta.url), 'utf8')) as { budgets?: { screenshotThreshold?: unknown } }
+// Without it Playwright would quietly fall back to its own 0.2.
+const threshold = budgets?.screenshotThreshold
+if (typeof threshold !== 'number' || !(threshold >= 0 && threshold <= 1)) throw new Error('budgets.screenshotThreshold in checks.json must be a number from 0 to 1')
 
 /**
  * Screenshot tests (e2e/): the built app in Chromium with every server route mocked. Baselines are
@@ -19,7 +30,7 @@ export default defineConfig({
   // Also what axe read for the actual values, written only where ACTUALS_DIR is set (scripts/actuals/reporter.ts, docs/QUALITY.md → The actual values).
   reporter: [['list'], ...(process.env.CI ? [['html', { open: 'never' }] as const] : []), ['./scripts/actuals/reporter.ts', { tools: ['accessibility'] }]],
   expect: {
-    toHaveScreenshot: { animations: 'disabled', caret: 'hide' },
+    toHaveScreenshot: { animations: 'disabled', caret: 'hide', threshold },
   },
   use: {
     ...devices['Desktop Chrome'],
