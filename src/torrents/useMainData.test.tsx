@@ -338,6 +338,13 @@ describe('useLastTorrents', () => {
     expect(getMainData).not.toHaveBeenCalled()
   })
 
+  it('doesn’t ask for a screen gone before it could', async () => {
+    const { unmount } = renderHook(() => useLastTorrents(), { wrapper: inProvider })
+    unmount()
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    expect(getTorrents).not.toHaveBeenCalled()
+  })
+
   it('asks for them once outside a provider too', async () => {
     const { result } = renderHook(() => useLastTorrents())
     await act(() => vi.advanceTimersByTimeAsync(0))

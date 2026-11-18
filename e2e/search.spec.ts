@@ -19,6 +19,17 @@ test.describe('search, phone', () => {
     await expect(page).toHaveScreenshot('results-dark-ru.png')
   })
 
+  test.describe('light, English', () => {
+    test.use({ locale: 'en-US' })
+
+    // The "In downloads" badge over a poster stays on dark glass in the light theme, and its
+    // English text fits a row's card, the narrowest a title card gets (#460).
+    test('browse rows', async ({ page }) => {
+      await openSearch(page, '/search', 'Dune', { theme: 'light', lang: 'en' })
+      await expect(page).toHaveScreenshot('browse-light-en.png')
+    })
+  })
+
   test('results, the next page failed, dark, Russian', async ({ page }) => {
     await openSearch(page, '/search?q=%D0%B0', 'Дюна', { searchMoreFails: true })
     await page.getByRole('button', { name: 'Показать ещё' }).click()

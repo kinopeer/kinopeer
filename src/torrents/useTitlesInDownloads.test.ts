@@ -54,6 +54,19 @@ describe('useTitlesInDownloads', () => {
     )
   })
 
+  it('files the torrents once they come after the server’s matches', async () => {
+    getMatches.mockResolvedValue({})
+    let answer!: (torrents: qbittorrent.Torrent[]) => void
+    getTorrents.mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    const { result } = renderHook(() => useTitlesInDownloads())
+    await settle()
+    expect(result.current.size).toBe(0)
+
+    answer([TAGGED])
+    await settle()
+    expect(result.current).toEqual(new Map([['movie:693134', [TAGGED]]]))
+  })
+
   it('reads the guesses this browser cached in the TMDB language, not another', async () => {
     const other = torrent('c', { name: 'Oppenheimer.2023.1080p' })
     getTorrents.mockResolvedValue([GUESSED, other])
@@ -67,5 +80,9 @@ describe('useTitlesInDownloads', () => {
     const { result } = renderHook(() => useTitlesInDownloads())
     await settle()
     expect(result.current).toEqual(new Map([['movie:157336', [GUESSED]]]))
+
+    // Another language reads its own guesses.
+    await act(() => i18n.changeLanguage('en'))
+    expect(result.current).toEqual(new Map([['movie:157336', [other]]]))
   })
 })

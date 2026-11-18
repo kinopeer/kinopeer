@@ -253,7 +253,6 @@ export function useLastTorrents(): Torrent[] | undefined {
   const data = useSyncExternalStore(store?.watch ?? noRequests, store ? () => store.getSnapshot().data : noData)
   const oneOff = useSyncExternalStore(subscribeOneOffTorrents, currentOneOffTorrents)
   useEffect(() => {
-    if (data) return
     let cancelled = false
     // After the commit's other effects, where a screen beside this one (the sidebar) starts the poll.
     queueMicrotask(() => {
@@ -262,7 +261,7 @@ export function useLastTorrents(): Torrent[] | undefined {
     return () => {
       cancelled = true
     }
-  }, [data, store])
+  }, [store])
   return useMemo(() => (data ? Object.values(data.torrents) : oneOff), [data, oneOff])
 }
 
