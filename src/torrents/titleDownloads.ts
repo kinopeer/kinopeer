@@ -1,6 +1,7 @@
 import type { Matches } from '../api/matches'
 import type { Torrent } from '../api/qbittorrent'
 import type { MediaType } from '../api/tmdb'
+import { wholePercent } from '../logic/wholePercent'
 import { lookupFor, type TitleMatch } from './titleLookup'
 
 /** What a title's "In downloads" mark says: one torrent's progress, or how many there are. */
@@ -50,16 +51,14 @@ export function marksByTitle(byTitle: ReadonlyMap<string, readonly Pick<Torrent,
 
 /**
  * Whether two sets of marks show the same: the same titles, each with the same count, or the same
- * whole percent, which is all a mark shows of the progress (`format.percent` rounds it down).
+ * whole percent, which is all a mark shows of the progress (`wholePercent`, as `format.percent`).
  */
 export function sameMarks(a: ReadonlyMap<string, DownloadsMark>, b: ReadonlyMap<string, DownloadsMark>): boolean {
   if (a.size !== b.size) return false
   for (const [key, mark] of a) {
     const other = b.get(key)
     if (!other) return false
-    if ('count' in mark ? !('count' in other) || other.count !== mark.count : !('progress' in other) || percent(other.progress) !== percent(mark.progress)) return false
+    if ('count' in mark ? !('count' in other) || other.count !== mark.count : !('progress' in other) || wholePercent(other.progress) !== wholePercent(mark.progress)) return false
   }
   return true
 }
-
-const percent = (progress: number) => Math.floor(progress * 100)

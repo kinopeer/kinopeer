@@ -4,7 +4,7 @@ import { freeSpace } from './freeSpace'
 import { currentOneOffTorrents, loadOneOffTorrents, subscribeOneOffTorrents } from './oneOffTorrents'
 import { OFFLINE_POLL_INTERVAL_MS, POLL_INTERVAL_MS } from './pollIntervals'
 import { EMPTY_SYNC_STATE, applyMainData, type SyncState } from './sync'
-import { withExpected, type Expected } from './torrentRequests'
+import { withExpected, type Expected, type TorrentRequests } from './torrentRequests'
 import { TorrentRequestsContext } from './useTorrentRequests'
 
 /**
@@ -261,22 +261,20 @@ export function useMainData(onUnauthorized?: () => void): MainDataState {
   )
 }
 
-const NO_SNAPSHOT: MainDataSnapshot = { data: null, offline: false, updatedAt: null, requestedAt: null }
-const noSnapshot = () => NO_SNAPSHOT
-
 /**
- * qBittorrent's torrents without starting the poll, for a screen that shows what's in downloads only
- * in passing (#460): the shared poll's last data, kept current while a screen that polls is open and
- * shown with what the torrent requests expect, as `useMainData` shows it; else, while the poll has
- * none on this page and isn't asking, one `torrents/info` for the page (`oneOffTorrents.ts`).
- * Undefined until either has them.
+ * What a screen makes of qBittorrent's torrents without starting the poll, for one that shows what's
+ * in downloads only in passing (#460): `select` over the shared poll's last data, kept current while
+ * a screen that polls is open and shown with what the torrent requests expect, as `useMainData`
+ * shows it; else, while the poll has none on this page and isn't asking, one `torrents/info` for the
+ * page (`oneOffTorrents.ts`); undefined until either has them. `select` runs inside the
+ * subscription, and while `same` holds for what it gives, the caller gets the value it had and
+ * doesn't render: a poll that changes nothing it shows renders nothing. Pass a stable `select`
+ * (`useCallback`); a new one is a new subscription, which selects afresh.
  */
-export function useLastTorrents(): Torrent[] | undefined {
+export function useLastTorrents<T>(select: (torrents: Torrent[] | undefined) => T, same: (a: T, b: T) => boolean = Object.is): T {
   const store = useContext(MainDataContext)
   const requests = useContext(TorrentRequestsContext)
-  const expected = useSyncExternalStore(requests?.subscribe ?? noRequests, requests?.getExpected ?? nothingExpected)
-  const snapshot = useSyncExternalStore(store?.watch ?? noRequests, store?.getSnapshot ?? noSnapshot)
-  const oneOff = useSyncExternalStore(subscribeOneOffTorrents, currentOneOffTorrents)
+  const source = useMemo(() => lastTorrentsSource(store, requests, select, same), [store, requests, select, same])
   useEffect(() => {
     const check = () => {
       if (!store?.getPollState().inFlight && !store?.getSnapshot().data) loadOneOffTorrents()
@@ -294,8 +292,36 @@ export function useLastTorrents(): Torrent[] | undefined {
       unwatch?.()
     }
   }, [store])
-  const data = useMemo(() => withExpected(snapshot.data, snapshot.requestedAt, expected), [snapshot.data, snapshot.requestedAt, expected])
-  return useMemo(() => (data ? Object.values(data.torrents) : oneOff), [data, oneOff])
+  return useSyncExternalStore(source.subscribe, source.getSnapshot)
+}
+
+/** `useLastTorrents`' subscription: selects again only when its inputs change, and keeps a value that's the same. */
+function lastTorrentsSource<T>(
+  store: MainDataStore | null,
+  requests: TorrentRequests | null,
+  select: (torrents: Torrent[] | undefined) => T,
+  same: (a: T, b: T) => boolean,
+) {
+  let inputs: readonly unknown[] | undefined
+  let value: T
+  return {
+    subscribe(listener: () => void) {
+      const stops = [store?.watch(listener), requests?.subscribe(listener), subscribeOneOffTorrents(listener)]
+      return () => stops.forEach((stop) => stop?.())
+    },
+    getSnapshot(): T {
+      const snapshot = store?.getSnapshot()
+      const expected = requests?.getExpected() ?? NOTHING_EXPECTED
+      const oneOff = currentOneOffTorrents()
+      const next = [snapshot?.data, snapshot?.requestedAt, expected, oneOff]
+      if (inputs && next.every((input, index) => input === inputs![index])) return value
+      const data = withExpected(snapshot?.data ?? null, snapshot?.requestedAt ?? null, expected)
+      const selected = select(data ? Object.values(data.torrents) : oneOff)
+      if (!inputs || !same(value, selected)) value = selected
+      inputs = next
+      return value
+    },
+  }
 }
 
 /**

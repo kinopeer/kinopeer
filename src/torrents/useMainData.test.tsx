@@ -19,6 +19,9 @@ vi.mock('../api/qbittorrent', async (importOriginal) => {
 const getMainData = vi.mocked(api.getMainData)
 const getTorrents = vi.mocked(api.getTorrents)
 
+/** `useLastTorrents`' select that keeps the torrents as they are. */
+const all = (torrents: api.Torrent[] | undefined) => torrents
+
 /** A request that hangs, as fetch does, failing only when its signal aborts. */
 const hang = (_rid?: number, signal?: AbortSignal) =>
   new Promise<api.MainData>((_resolve, reject) => signal?.addEventListener('abort', () => reject(signal.reason)))
@@ -352,7 +355,7 @@ describe('useLastTorrents', () => {
   })
 
   it('asks for the torrents once, without starting the poll, before the poll has run', async () => {
-    const { result } = renderHook(() => [useLastTorrents(), useLastTorrents()], { wrapper: inProvider })
+    const { result } = renderHook(() => [useLastTorrents(all), useLastTorrents(all)], { wrapper: inProvider })
     expect(result.current[0]).toBeUndefined()
     await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS * 3))
     expect(result.current).toEqual([ONE_OFF, ONE_OFF])
@@ -361,14 +364,14 @@ describe('useLastTorrents', () => {
   })
 
   it('doesn’t ask for a screen gone before it could', async () => {
-    const { unmount } = renderHook(() => useLastTorrents(), { wrapper: inProvider })
+    const { unmount } = renderHook(() => useLastTorrents(all), { wrapper: inProvider })
     unmount()
     await act(() => vi.advanceTimersByTimeAsync(0))
     expect(getTorrents).not.toHaveBeenCalled()
   })
 
   it('asks for them once outside a provider too', async () => {
-    const { result } = renderHook(() => useLastTorrents())
+    const { result } = renderHook(() => useLastTorrents(all))
     await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS * 3))
     expect(result.current).toBe(ONE_OFF)
     expect(getTorrents).toHaveBeenCalledTimes(1)
@@ -381,7 +384,7 @@ describe('useLastTorrents', () => {
       return null
     }
     function Screen({ polling }: { polling: boolean }) {
-      const torrents = useLastTorrents()
+      const torrents = useLastTorrents(all)
       return (
         <>
           {polling && <Poller />}
@@ -410,7 +413,7 @@ describe('useLastTorrents', () => {
       return null
     }
     function Screen() {
-      const torrents = useLastTorrents()
+      const torrents = useLastTorrents(all)
       return <p>{torrents?.map((one) => one.name).join(',') ?? 'none'}</p>
     }
     // The screen's effects run before the sidebar's, which starts the poll.
@@ -435,7 +438,7 @@ describe('useLastTorrents', () => {
       return null
     }
     function Search() {
-      const torrents = useLastTorrents()
+      const torrents = useLastTorrents(all)
       return <p>{torrents?.map((one) => one.name).join(',') ?? 'none'}</p>
     }
     const app = (downloads: boolean) => (downloads ? <Downloads /> : <Search />)
@@ -456,7 +459,7 @@ describe('useLastTorrents', () => {
   it('takes the poll’s torrents over the ones asked once, as soon as it has them', async () => {
     let poll = false
     function Screen() {
-      const torrents = useLastTorrents()
+      const torrents = useLastTorrents(all)
       return (
         <>
           {poll && <Poller />}
@@ -719,7 +722,7 @@ describe('useMainData under a TorrentRequestsProvider', () => {
       .mockResolvedValueOnce({ rid: 1, full_update: true, torrents: { a: { name: 'A' }, c: { name: 'C' } } })
       // The poll that would confirm the deletion doesn't come back while the screen is open.
       .mockImplementation(hang)
-    const { result } = renderHook(() => ({ last: useLastTorrents(), main: useMainData(), requests: useTorrentRequests() }), {
+    const { result } = renderHook(() => ({ last: useLastTorrents(all), main: useMainData(), requests: useTorrentRequests() }), {
       wrapper: Providers,
     })
     await act(() => vi.advanceTimersByTimeAsync(0))
