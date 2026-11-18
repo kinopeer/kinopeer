@@ -2,6 +2,7 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup, configure } from '@testing-library/react'
 import { afterEach, beforeEach } from 'vitest'
 import i18n from './i18n'
+import { sharedRequests } from './logic/sharedRequests'
 import { LANGUAGE_STORAGE_KEY, resetLanguagePreference } from './i18n/language'
 import { resetThemePreference } from './theme/theme'
 
@@ -19,6 +20,8 @@ beforeEach(async () => {
 
 afterEach(() => {
   cleanup()
+  // Answers one test's mocks gave aren't kept for the next.
+  sharedRequests.clear()
   resetThemePreference()
   // Every test starts in English (above), so a language chosen in one test doesn't stay saved for the next.
   localStorage.removeItem(LANGUAGE_STORAGE_KEY)
