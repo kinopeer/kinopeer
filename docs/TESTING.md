@@ -992,8 +992,8 @@ has the budgets' rule.
   far to have been asked, so what is held when it chooses comes from the chain and the order the
   page asks in, not from how fast it asked: the choice is the same every run. A chain whose every
   answer waits for the one before it can't give two orders, and runs once (`orders`); every chain
-  but the phone's search and releases has a point with two answers out, so those run once and the
-  rest twice (until #382 shared the server's settings, the download defaults' load of them was out
+  but the phone's releases has a point with two answers out, so that one runs once and the rest
+  twice (until #382 shared the server's settings, the download defaults' load of them was out
   beside every screen's first answer). The orders do differ where it matters: before #394's fix a movie's page
   read 0.0002 in CI when the torrents landed before the details and 0.0878 the other way, and the
   fix's first version read 0 one way and 0.0608 the other.
