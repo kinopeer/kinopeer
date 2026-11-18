@@ -306,7 +306,10 @@ with no production line changed gets Stryker's dry run instead (`--dryRunOnly`: 
 through Stryker's sandbox and instrumenter, nothing mutated), and the workflow also starts on what
 Stryker runs with (`package.json`, the lockfile, `stryker.config.mjs`, `checks.json`, `vite.config.ts`, the
 script and the workflow), so a dependency bump that breaks Stryker fails there rather than on the next PR with
-code (#285, TypeScript 7).
+code (#285, TypeScript 7). Stryker's runs leave out `checks.test.ts` (`KINOPEER_STRYKER`, set by
+`stryker.config.mjs` and read by `vite.config.ts`): it lists the repository's files through git, and
+finds none in Stryker's sandbox, a git-ignored folder, where a mutated file the Vite config imports
+makes Vitest run every test; it reads configs, so it can't kill a mutant either (#465).
 
 A test that stays green with the behavior it names removed is a `silent-test` miss in the making.
 Four shapes cause most of them:

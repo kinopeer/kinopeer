@@ -6,6 +6,11 @@ import { readFileSync } from 'node:fs'
 // that leaves out more.
 const { mutants } = JSON.parse(readFileSync(new URL('./checks.json', import.meta.url), 'utf8'))
 
+// Read by vite.config.ts, which leaves checks.test.ts out of Stryker's runs: its git listing finds
+// nothing in Stryker's git-ignored sandbox (#465). Stryker's test runners are child processes and
+// take this environment with them.
+process.env.KINOPEER_STRYKER = '1'
+
 /** @type {import('@stryker-mutator/api/core').PartialStrykerOptions} */
 export default {
   testRunner: 'vitest',
