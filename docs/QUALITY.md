@@ -216,7 +216,7 @@ requests tests the requests budgets (`budgets.requests` for the screens' opening
 layout shift test the layout shift budgets (`budgets.layoutShift`, a score per window size and
 screen, and the ceiling over them, `budgets.layoutShiftCeiling`, `docs/TESTING.md` → The layout
 shift test), and the screenshot tests the accessibility budgets and the tags axe checks
-(`budgets.accessibility` and `budgets.accessibilityTags`, [The accessibility budget](#the-accessibility-budget)). A new
+(`budgets.accessibility` and `budgets.accessibilityTags`, [The accessibility budget](#the-accessibility-budget)) and how far a pixel may drift from its baseline (`screenshots.threshold`, `docs/TESTING.md` → Screenshot tests). A new
 threshold, budget or exclusion list goes there too, not into the config that uses it, where the
 guard wouldn't see it move.
 

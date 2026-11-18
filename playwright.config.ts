@@ -1,4 +1,14 @@
+import { readFileSync } from 'node:fs'
 import { defineConfig, devices } from '@playwright/test'
+
+// How far a pixel may drift from its baseline before it counts as changed, in Playwright's YIQ
+// scale (0 strict, 1 lax; Playwright's own default is 0.2). It sits in checks.json, as data, so the
+// checks guard sees it move (docs/QUALITY.md → The thresholds and the exclusion lists); why 0.1 is in
+// docs/TESTING.md → Screenshot tests. No pixel over it is let through (maxDiffPixels stays 0).
+const { screenshots } = JSON.parse(readFileSync(new URL('./checks.json', import.meta.url), 'utf8')) as { screenshots?: { threshold?: unknown } }
+// Without it Playwright would quietly fall back to its own 0.2.
+const threshold = screenshots?.threshold
+if (typeof threshold !== 'number' || !(threshold >= 0 && threshold <= 1)) throw new Error('screenshots.threshold in checks.json must be a number from 0 to 1')
 
 /**
  * Screenshot tests (e2e/): the built app in Chromium with every server route mocked. Baselines are
@@ -19,7 +29,7 @@ export default defineConfig({
   // Also what axe read for the actual values, written only where ACTUALS_DIR is set (scripts/actuals/reporter.ts, docs/QUALITY.md → The actual values).
   reporter: [['list'], ...(process.env.CI ? [['html', { open: 'never' }] as const] : []), ['./scripts/actuals/reporter.ts', { tools: ['accessibility'] }]],
   expect: {
-    toHaveScreenshot: { animations: 'disabled', caret: 'hide' },
+    toHaveScreenshot: { animations: 'disabled', caret: 'hide', threshold },
   },
   use: {
     ...devices['Desktop Chrome'],
