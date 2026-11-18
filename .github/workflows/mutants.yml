@@ -27,7 +27,7 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'stryker.config.mjs'
-      # The mutators left out and the folders mutated, which stryker.config.mjs and the script read.
+      # The mutators and the tests left out and the folders mutated, which stryker.config.mjs and the script read.
       - 'checks.json'
       - 'vite.config.ts'
       - 'scripts/mutants.mjs'

@@ -17,7 +17,7 @@
     "folders": ["src", "server", "tmdb-proxy", "scripts/guard", "scripts/size", "scripts/requests", "scripts/layout-shift", "scripts/accessibility", "scripts/actuals", "scripts/edge"],
     "notProduction": ["\\.test\\.tsx?$", "/test/", "\\.d\\.ts$", "^src/test-setup\\.ts$"],
     "excludedMutations": ["StringLiteral", "ArrayDeclaration", "ObjectLiteral", "OptionalChaining"],
-    "testsLeftOut": ["checks.test.ts"]
+    "testsLeftOut": ["/checks.test.ts"]
   },
   "budgets": {
     "size": { "js": 196300, "css": 16200, "rest": 193600 },
