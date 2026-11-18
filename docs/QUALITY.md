@@ -345,8 +345,10 @@ compare the tests that ran, and says so: that takes a run of each side, which CI
     a `)` or a backtick that doesn't end a word for bash (`tag=$(git describe)#ci && npm run lint`,
     `x=$((1+1))#n`, `diff <(npm test)#x`, `[[ $v =~ (a|b)#x ]]`, `@(a|b)#c`), or inside backticks,
     where bash ends it at the closing one (`` v=`git describe #tag` && npm run lint ``). The rest
-    of the line is read on neither side, so a command dropped from it isn't marked. This is the one
-    way this reader is weaker than `main`'s line by line reader, which read the whole line.
+    of the line is read on neither side, so a command dropped from it isn't marked. The same goes
+    for a step whose `shell:` isn't bash or sh, where bash's comment cuts what that shell runs (cmd
+    with `npm test # && npm run lint`, pwsh with ``echo "a`" # b" ; npm run lint``). These two are
+    the ways this reader is weaker than `main`'s line by line reader, which read the whole line.
 - A change to `guard.yml` that stops the script from running or from being `main`'s copy: the
   workflow runs as the PR has it, so the weakening's mark comes from the changed steps, if they
   still make it.

@@ -457,9 +457,16 @@ describe('workflowSteps', () => {
     expect(workflowSteps(job(`      - run: "npm test${escape}# && npm run lint"\n`))).toEqual([`run: npm test${char}# && npm run lint`])
   })
 
-  // The line rule reads bash's lines: a line starts after `\n` only, and only spaces and tabs may come before its `#`.
+  // The line rule reads bash's lines: a line starts after `\n` only, and only spaces and tabs may come before its `#`. Each
+  // command is written in YAML's double quotes, whose escapes give the characters; inside the quote the shell reads as open
+  // (`echo "a`), only the line rule can cut a line.
   it.each([
+    ['cuts a # line inside a quote, after spaces', '"echo \\"a\\n  #b\\" && npm run lint"', 'echo "a'],
+    ['cuts a # line inside a quote, after a tab', '"echo \\"a\\n\\t#b\\" && npm run lint"', 'echo "a'],
     ['keeps a line that starts with a no-break space before its #', '"npm test\\n\\_# && npm run lint"', 'npm test ; # && npm run lint'],
+    ['keeps a line that starts with a vertical tab before its #', '"npm test\\n\\v# && npm run lint"', 'npm test ; # && npm run lint'],
+    ['keeps a line that starts with a form feed before its #', '"npm test\\n\\f# && npm run lint"', 'npm test ; # && npm run lint'],
+    ['keeps a line that starts with a carriage return before its #', '"npm test\\n\\r# && npm run lint"', 'npm test ; # && npm run lint'],
     ['cuts a # line to its end past a carriage return', '"npm test\\n# a\\r&& npm run lint"', 'npm test'],
     ['cuts a # line to its end past a line separator', '"npm test\\n# a\\L&& npm run lint"', 'npm test'],
   ])('%s', (_name, command, read) => {
