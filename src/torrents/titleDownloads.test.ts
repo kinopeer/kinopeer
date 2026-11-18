@@ -48,6 +48,12 @@ describe('torrentsByTitle', () => {
     expect(torrentsByTitle([untagged], {}, cache(null)).size).toBe(0)
   })
 
+  it('leaves out a torrent the server found no title for, whatever this browser cached', () => {
+    const untagged = torrent('a', { name: 'Dune.Part.Two.2024.1080p' })
+    const miss = { a: { source: 'miss', version: GUESS_VERSION } } as const
+    expect(torrentsByTitle([untagged], miss, () => DUNE).size).toBe(0)
+  })
+
   it('leaves out a torrent nobody has guessed yet', () => {
     expect(torrentsByTitle([torrent('a', { name: 'Dune.Part.Two.2024.1080p' })], {}, noCache).size).toBe(0)
   })
