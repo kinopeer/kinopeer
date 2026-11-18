@@ -81,6 +81,19 @@ describe('loadOneOffTorrents', () => {
 
   })
 
+  it('doesn’t hold back a load after a reset for a failure from before it', async () => {
+    let fail!: (error: Error) => void
+    getTorrents.mockReturnValueOnce(new Promise((_, reject) => (fail = reject)))
+    loadOneOffTorrents()
+    resetOneOffTorrents()
+    fail(new Error('offline'))
+    await vi.runAllTimersAsync()
+    getTorrents.mockResolvedValue([A])
+    loadOneOffTorrents()
+    await vi.runAllTimersAsync()
+    expect(currentOneOffTorrents()).toEqual([A])
+  })
+
   it('keeps a load in flight when one from before a reset settles', async () => {
     let fail!: (error: Error) => void
     getTorrents.mockReturnValueOnce(new Promise((_, reject) => (fail = reject)))

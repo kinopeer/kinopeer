@@ -8,7 +8,7 @@ import { MainDataProvider } from './MainDataProvider'
 import { TorrentRequestsProvider } from './TorrentRequestsProvider'
 import { OFFLINE_POLL_INTERVAL_MS, POLL_INTERVAL_MS } from './pollIntervals'
 import { resetOneOffTorrents } from './oneOffTorrents'
-import { POLL_TIMEOUT_MS, useFreeSpace, useLastTorrents, useMainData } from './useMainData'
+import { POLL_TIMEOUT_MS, createMainDataStore, useFreeSpace, useLastTorrents, useMainData } from './useMainData'
 import { useTorrentRequests } from './useTorrentRequests'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => {
@@ -317,6 +317,28 @@ describe('useFreeSpace', () => {
     await act(() => vi.advanceTimersByTimeAsync(0))
     expect(getMainData).toHaveBeenCalledTimes(1)
     expect(result.current[1]).toBe(40e9)
+  })
+})
+
+describe('createMainDataStore', () => {
+  it('tells a watcher of every change without starting the poll, until it stops watching', async () => {
+    getMainData.mockResolvedValue({ rid: 1, full_update: true })
+    const store = createMainDataStore()
+    const watcher = vi.fn()
+    const stopWatching = store.watch(watcher)
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS)
+    expect(getMainData).not.toHaveBeenCalled()
+
+    const leave = store.subscribe(() => {})
+    await vi.advanceTimersByTimeAsync(0)
+    expect(watcher).toHaveBeenCalled()
+
+    stopWatching()
+    watcher.mockClear()
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS)
+    expect(getMainData).toHaveBeenCalledTimes(2)
+    expect(watcher).not.toHaveBeenCalled()
+    leave()
   })
 })
 
