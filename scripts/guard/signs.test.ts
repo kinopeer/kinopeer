@@ -412,7 +412,7 @@ describe('workflowSteps', () => {
     ['a key outside the jobs', 'env:\n  run: npm test\nx-steps:\n  - run: npm test\njobs:\n  check:\n    steps:\n      - run: npm ci\n'],
     ["a key of a job other than its steps and uses", 'jobs:\n  check:\n    run: npm test\n    services:\n      - uses: actions/checkout@v7\n    steps:\n      - run: npm ci\n'],
     ['a command that is not text', job('      - run:\n          npm: test\n      - run:\n      - run: npm ci\n')],
-    ['a step that is not a mapping', job('      - npm test\n      - [run, npm test]\n      - run: npm ci\n')],
+    ['a step that is not a mapping', job('      - npm test\n      - [run, npm test]\n      -\n      - run: npm ci\n')],
   ])("doesn't read %s as a step", (_name, text) => {
     expect(workflowSteps(text)?.filter((step) => step !== 'uses: actions/github-script')).toEqual(['run: npm ci'])
   })
@@ -421,7 +421,7 @@ describe('workflowSteps', () => {
     ['an empty file', ''],
     ['a workflow without jobs', 'on: push\n'],
     ['jobs written as a list', 'jobs:\n  - steps:\n      - run: npm test\n'],
-    ['a job that is not a mapping', 'jobs:\n  check: npm test\n'],
+    ['a job that is not a mapping', 'jobs:\n  check: npm test\n  build:\n'],
     ['steps that are not a list', 'jobs:\n  check:\n    steps:\n      run: npm test\n'],
     ['a document that is a list', '- run: npm test\n'],
   ])('reads no step in %s', (_name, text) => {
