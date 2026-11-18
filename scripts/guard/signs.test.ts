@@ -330,7 +330,7 @@ jobs:
           persist-credentials: false
       - run:   npm ci  
       - run: npm run lint
-      - name: Dry run: nothing is uploaded
+      - name: 'Dry run: nothing is uploaded'
         run: >-
           echo
           dry
@@ -353,48 +353,93 @@ jobs:
 `
 
 describe('workflowSteps', () => {
+  /** A workflow of one job with these steps, written in the job's block. */
+  const job = (steps: string) => `on: pull_request\njobs:\n  check:\n    runs-on: ubuntu-latest\n    steps:\n${steps}`
+
   it('reads each step as the action or the command it runs, a block whole and without its comments', () => {
     expect(workflowSteps(WORKFLOW)).toEqual([
       'uses: actions/checkout',
       'run: npm ci',
       'run: npm run lint',
-      'run: echo ; dry',
+      'run: echo dry',
       'run: if [ -f coverage.json ]; then ; node summary.mjs ; fi',
       'uses: actions/upload-artifact',
       'run: npm ci',
     ])
   })
 
-  it('reads a block that ends the file', () => {
-    expect(workflowSteps('      - run: |\n          npm ci\n          npm test')).toEqual(['run: npm ci ; npm test'])
+  // The spellings of a step the guard must read as what it runs: each is a workflow GitHub runs.
+  it.each([
+    ['a plain command', job('      - run: npm test\n'), ['run: npm test']],
+    ['a command with spaces around it', job('      - run:    npm test   \n'), ['run: npm test']],
+    ['a command in double quotes, its escapes read', job('      - run: "npm ci\\nnpm test"\n'), ['run: npm ci ; npm test']],
+    ["a command in single quotes, a quote in it doubled", job("      - run: 'npm test -- --reporter=''dot'''\n"), ["run: npm test -- --reporter='dot'"]],
+    ['a plain command that goes on on the next line', job('      - run: npm test\n          -- --quiet\n'), ['run: npm test -- --quiet']],
+    ['a literal block, line by line', job('      - run: |\n          npm ci\n          npm test\n'), ['run: npm ci ; npm test']],
+    ['a literal block without its blank lines and comments', job('      - run: |\n          # The tests.\n          npm ci\n\n          npm test\n'), ['run: npm ci ; npm test']],
+    ['a block with a comment after its start', job('      - run: | # the tests\n          npm test\n'), ['run: npm test']],
+    ['a block that says how it is indented and ends', job('      - run: |2-\n          npm ci\n      - run: >+\n          npm test\n'), ['run: npm ci', 'run: npm test']],
+    ['a folded block, as one line', job('      - run: >-\n          npm test\n          -- --quiet\n'), ['run: npm test -- --quiet']],
+    ['a block that ends the file', job('      - run: |\n          npm ci\n          npm test'), ['run: npm ci ; npm test']],
+    ['a command that only ends like the start of a block', job('      - run: ls |\n'), ['run: ls |']],
+    ['a step with more than one space after its dash', job('      -   run: npm ci\n'), ['run: npm ci']],
+    ['keys in quotes', job(`      - "run": npm test\n      - 'uses': actions/checkout@v7\n`), ['run: npm test', 'uses: actions/checkout']],
+    ['an explicit key', job('      - ? run\n        : npm test\n'), ['run: npm test']],
+    ['a step in flow style', job('      - { name: Test, run: npm test }\n'), ['run: npm test']],
+    ['steps in flow style', 'jobs:\n  check:\n    steps: [{ uses: actions/checkout@v7 }, { run: npm test }]\n', ['uses: actions/checkout', 'run: npm test']],
+    ['a whole workflow in flow style', '{ jobs: { check: { steps: [{ run: npm test }] } } }', ['run: npm test']],
+    ['an action without its version, its quotes and the comment after it', job(`      - uses: "actions/checkout@abc" # v7\n      - uses: 'actions/setup-node@def'\n`), ['uses: actions/checkout', 'uses: actions/setup-node']],
+    ['an action without a version', job('      - uses: ./.github/actions/setup # the setup\n'), ['uses: ./.github/actions/setup']],
+    ["a # that is part of an action's name", job('      - uses: ./.github/actions/c#\n'), ['uses: ./.github/actions/c#']],
+    ["a job's call of a reusable workflow", 'jobs:\n  deploy:\n    uses: "./.github/workflows/deploy.yml"   # no version\n    secrets: inherit\n', ['uses: ./.github/workflows/deploy.yml']],
+    ['a command built by an expression, as written', job('      - run: ${{ inputs.command }}\n      - run: npm run ${{ matrix.script }}\n'), ['run: ${{ inputs.command }}', 'run: npm run ${{ matrix.script }}']],
+    ['a step given again by an alias', 'jobs:\n  a:\n    steps:\n      - &checkout\n        uses: actions/checkout@v7\n  b:\n    steps:\n      - *checkout\n', ['uses: actions/checkout', 'uses: actions/checkout']],
+    ['a command given again by an alias', 'jobs:\n  a:\n    steps:\n      - run: &test npm test\n  b:\n    steps:\n      - run: *test\n', ['run: npm test', 'run: npm test']],
+    ['steps given again by an alias', 'jobs:\n  a:\n    steps: &steps\n      - run: npm ci\n      - run: npm test\n  b:\n    steps: *steps\n', ['run: npm ci', 'run: npm test', 'run: npm ci', 'run: npm test']],
+    ['a job given again by an alias', 'jobs:\n  a: &job\n    steps:\n      - run: npm test\n  b: *job\n', ['run: npm test', 'run: npm test']],
+    ['a document with its start and end marked', `---\n${job('      - run: npm test\n')}...\n`, ['run: npm test']],
+    ['a document that says it is YAML 1.2', `%YAML 1.2\n---\n${job('      - run: npm test\n')}`, ['run: npm test']],
+  ])('reads %s', (_name, text, expected) => {
+    expect(workflowSteps(text)).toEqual(expected)
   })
 
-  it('reads a block that says how it is indented or how it ends', () => {
-    expect(workflowSteps('      - run: |2-\n          npm ci\n      - run: >+\n          npm test\n')).toEqual(['run: npm ci', 'run: npm test'])
+  // What only looks like a step: GitHub runs none of it.
+  it.each([
+    ['the shell a workflow sets for its commands', 'defaults:\n  run:\n    shell: bash\njobs:\n  check:\n    defaults:\n      run:\n        working-directory: app\n    steps:\n      - run: npm ci\n'],
+    ["an action's input named like a step's key", job('      - uses: actions/github-script@v8\n        with:\n          run: npm test\n          uses: actions/checkout@v7\n      - run: npm ci\n')],
+    ['a step commented out', job('      - run: npm ci\n      # - run: npm test\n')],
+    ['a step that a merge key would make, which GitHub has no merge for', `x-test: &test\n  run: npm test\n${job('      - run: npm ci\n      - <<: *test\n')}`],
+    ['a key outside the jobs', 'env:\n  run: npm test\nx-steps:\n  - run: npm test\njobs:\n  check:\n    steps:\n      - run: npm ci\n'],
+    ["a key of a job other than its steps and uses", 'jobs:\n  check:\n    run: npm test\n    services:\n      - uses: actions/checkout@v7\n    steps:\n      - run: npm ci\n'],
+    ['a command that is not text', job('      - run:\n          npm: test\n      - run:\n      - run: npm ci\n')],
+    ['a step that is not a mapping', job('      - npm test\n      - [run, npm test]\n      - run: npm ci\n')],
+  ])("doesn't read %s as a step", (_name, text) => {
+    expect(workflowSteps(text)?.filter((step) => step !== 'uses: actions/github-script')).toEqual(['run: npm ci'])
   })
 
-  it('reads a command that only starts or ends like the start of a block as a command', () => {
-    expect(workflowSteps('      - run: |x\n      - run: ls |\n')).toEqual(['run: |x', 'run: ls |'])
+  it.each([
+    ['an empty file', ''],
+    ['a workflow without jobs', 'on: push\n'],
+    ['jobs written as a list', 'jobs:\n  - steps:\n      - run: npm test\n'],
+    ['a job that is not a mapping', 'jobs:\n  check: npm test\n'],
+    ['steps that are not a list', 'jobs:\n  check:\n    steps:\n      run: npm test\n'],
+    ['a document that is a list', '- run: npm test\n'],
+  ])('reads no step in %s', (_name, text) => {
+    expect(workflowSteps(text)).toEqual([])
   })
 
-  it('reads a step with more than one space after its dash', () => {
-    expect(workflowSteps('      -   run: npm ci\n      -\tuses: actions/checkout@v7\n')).toEqual(['run: npm ci', 'uses: actions/checkout'])
-  })
-
-  it('reads an action written in quotes as the action', () => {
-    expect(workflowSteps(`      - uses: "actions/checkout@abc"\n      - uses: 'actions/setup-node@def' # v7\n`)).toEqual(['uses: actions/checkout', 'uses: actions/setup-node'])
-  })
-
-  it('reads an action without a version as the action, without the comment after it', () => {
-    expect(workflowSteps('      - uses: ./.github/actions/setup # the setup\n  deploy:\n    uses: "./.github/workflows/deploy.yml"   # no version\n')).toEqual(['uses: ./.github/actions/setup', 'uses: ./.github/workflows/deploy.yml'])
-  })
-
-  it("keeps a # that is part of an action's name", () => {
-    expect(workflowSteps('      - uses: ./.github/actions/c#\n')).toEqual(['uses: ./.github/actions/c#'])
-  })
-
-  it("doesn't take the shell a workflow sets for its commands for a step", () => {
-    expect(workflowSteps('defaults:\n  run:\n    shell: bash\njobs:\n  check:\n    steps:\n      - run: npm ci\n')).toEqual(['run: npm ci'])
+  // What GitHub wouldn't run or might read otherwise: unread, so the comparison marks it rather than pass it.
+  it.each([
+    ['a colon and a space inside a plain value', job('      - name: Dry run: nothing\n        run: npm test\n')],
+    ['a block start with more after it', job('      - run: |x\n')],
+    ['a tab after the dash', job('      -\trun: npm test\n')],
+    ['a key given twice', job('      - run: npm test\n        run: npm ci\n')],
+    ['an alias of no anchor', job('      - run: *test\n')],
+    ['two documents', `${job('      - run: npm test\n')}---\n${job('      - run: npm ci\n')}`],
+    ['a document that says it is YAML 1.1, whose merge keys GitHub would not read', `%YAML 1.1\n---\nx-test: &test\n  run: npm test\n${job('      - <<: *test\n')}`],
+    ['aliases that expand past the limit', `a: &a [x, x, x, x, x, x, x, x, x, x]\nb: &b [*a, *a, *a, *a, *a, *a, *a, *a, *a, *a]\nc: &c [*b, *b, *b, *b, *b, *b, *b, *b, *b, *b]\n${job('      - run: npm test\n')}`],
+  ])("can't read %s", (_name, text) => {
+    expect(workflowSteps(text)).toBeUndefined()
   })
 })
 
@@ -466,7 +511,7 @@ describe('compareWorkflows', () => {
 
   it.each([
     ['a command with other arguments', WORKFLOW.replace('npm run lint', 'npm run lint -- --quiet'), 'run: npm run lint'],
-    ['a command that is not a check changed', WORKFLOW.replace('echo\n          dry', 'echo\n          wet'), 'run: echo ; dry'],
+    ['a command that is not a check changed', WORKFLOW.replace('echo\n          dry', 'echo\n          wet'), 'run: echo dry'],
   ])('sends %s to a second review', (_name, head, step) => {
     expect(said(compare(head))).toEqual([`review: a CI step changed or is gone, it was: \`${step}\``])
   })
@@ -526,6 +571,33 @@ describe('compareWorkflows', () => {
     ])
   })
 
+  it("sends a workflow the guard can't read to the owner, instead of its steps", () => {
+    expect(said(compare(WORKFLOW.replace('      - run: npm run lint\n', '      - run: npm run lint\n        run: npm test\n')))).toEqual([
+      "owner: the guard can't read the workflow as YAML, so it can't compare its steps",
+    ])
+  })
+
+  it("reads no command out of a workflow it can't read, so another workflow's lost command stays marked", () => {
+    const unread = compareWorkflows([
+      { path: file, base: WORKFLOW, head: WORKFLOW.replace('      - run: npm run lint\n', ''), added: [] },
+      { path: '.github/workflows/lint.yml', base: undefined, head: 'jobs:\n  lint:\n    steps:\n      - run: npm run lint\n---\n', added: [] },
+    ])
+    expect(said(unread)).toEqual(['owner: a command CI ran is no longer run: `npm run lint`', "owner: the guard can't read the workflow as YAML, so it can't compare its steps"])
+  })
+
+  it("sends a workflow whose copy on main the guard can't read to a second review, with nothing to compare", () => {
+    expect(said(compare(WORKFLOW, `${WORKFLOW}      - run: *nope\n`))).toEqual([
+      "review: the guard can't read main's copy of the workflow as YAML, so it has nothing to compare this one with",
+    ])
+  })
+
+  it("still sends a removed workflow to the owner when the guard can't read main's copy", () => {
+    expect(said(compare(undefined, `${WORKFLOW}      - run: *nope\n`))).toEqual([
+      'owner: the workflow is removed, and its steps with it',
+      "review: the guard can't read main's copy of the workflow as YAML, so it has nothing to compare this one with",
+    ])
+  })
+
   it('finds nothing in a new workflow', () => {
     expect(compare(WORKFLOW, undefined)).toEqual([])
   })
@@ -541,7 +613,7 @@ describe('compareWorkflows', () => {
   it('names a command two workflows lose once, at the first', () => {
     const lost = compareWorkflows([
       { path: file, base: WORKFLOW, head: WORKFLOW.replace('      - run: npm run lint\n', ''), added: [] },
-      { path: '.github/workflows/lint.yml', base: '      - run: npm run lint\n', head: '      - run: npm run format\n', added: [] },
+      { path: '.github/workflows/lint.yml', base: 'jobs:\n  lint:\n    steps:\n      - run: npm run lint\n', head: 'jobs:\n  lint:\n    steps:\n      - run: npm run format\n', added: [] },
     ])
     expect(lost.map(({ needs, file: path, what }) => `${needs} ${path}: ${what}`)).toEqual(['owner .github/workflows/ci.yml: a command CI ran is no longer run: `npm run lint`'])
   })
@@ -781,7 +853,7 @@ describe('findings', () => {
     const found = findings([
       { path: 'checks.json', base: '{"coverage":{"thresholds":{"lines":96}}}', head: '{"coverage":{"thresholds":{"lines":90}}}', added: [] },
       { path: '.oxlintrc.json', base: '{"rules":{"no-console":"error"}}', head: '{"rules":{}}', added: [] },
-      { path: '.github/workflows/ci.yml', base: '      - run: npm test\n', head: '      - run: npm test -- --retry=2\n', added: [{ line: 1, text: '      - run: npm test -- --retry=2' }] },
+      { path: '.github/workflows/ci.yml', base: 'jobs:\n  test:\n    steps:\n      - run: npm test\n', head: 'jobs:\n  test:\n    steps:\n      - run: npm test -- --retry=2\n', added: [{ line: 1, text: '      - run: npm test -- --retry=2' }] },
       { path: 'package.json', base: '{"scripts":{"lint":"oxlint"}}', head: '{"scripts":{"test":"vitest run --retry=2"}}', added: [{ line: 1, text: '{"scripts":{"test":"vitest run --retry=2"}}' }] },
       { path: 'tmdb-proxy/package.json', base: '{"scripts":{"lint":"oxlint"}}', head: '{}', added: [] },
       { path: 'src/App.tsx', added: [{ line: 1, text: 'export const retries = 2' }] },

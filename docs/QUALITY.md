@@ -74,6 +74,10 @@ Three kinds of change, three lists in its report. The deputy's round judges ever
   branch, wherever the step went; and a workflow removed (`.github/workflows/`). The guard reads the workflows the
   branch changes, so a command that an unchanged workflow still runs is marked all the same, and
   so is an action that only prepares a job (`actions/cache`), dropped from the workflows changed.
+  It reads them with a YAML parser (`yaml`) as GitHub does, YAML 1.2: only a job's `uses` and its
+  steps' `uses` and `run`, with aliases resolved and no merge keys, which GitHub doesn't take; a
+  command built by an expression is read as written. Its tests keep a table of the spellings it
+  reads, lets through and can't read (`scripts/guard/signs.test.ts`).
 - An npm script removed (`scripts` in the root `package.json`): the step that called it checks
   nothing.
 - In a line the branch adds:
@@ -113,6 +117,9 @@ Three kinds of change, three lists in its report. The deputy's round judges ever
 - `checks.json`, `.oxlintrc.json` or `package.json` that is no longer a JSON object the guard can
   read, a list in `checks.json` that is no longer a list, and `checks.json` or `.oxlintrc.json`
   removed.
+- A workflow the guard can't read as one YAML document (an error in it, two documents, a `%YAML`
+  directive for a version other than 1.2), in place of its steps: GitHub wouldn't run it, or
+  might read it otherwise.
 - Any change to `scripts/guard/`, `.github/workflows/guard.yml`, this file or the deputy's
   procedure (`.claude/skills/deputy/`), which judges the marks.
 
@@ -177,8 +184,8 @@ reason why the tokens' scale lacks it.
   otherwise isn't marked; one moved to another test marks the test it left.
 - A test file the guard can't parse, on either side, and a report of `main`'s run that is missing
   or gave no tests.
-- `checks.json`, `.oxlintrc.json` or `package.json` whose copy on `main` the guard can't read, so
-  that it has nothing to compare the branch's with.
+- `checks.json`, `.oxlintrc.json`, `package.json` or a workflow whose copy on `main` the guard can't
+  read, so that it has nothing to compare the branch's with.
 
 A new sign goes into `scripts/guard/` (`signs.ts`, or `assertions.ts` and `tests.ts` for what the
 tests assert and which of them ran, `stylesheets.ts` for what counts as a raw value in a stylesheet) with its tests and into this list, in one PR, which
@@ -224,8 +231,9 @@ guard wouldn't see it move.
 
 **In CI** the `guard` job runs on every PR (`.github/workflows/guard.yml`). It runs `main`'s copy of
 the script, not the branch's, so a PR that changes `scripts/guard/` is still read by the guard it
-found. The script reads the branch through git and runs none of its code; the one package it
-needs, the parser that comes with Vite, is installed from `main`'s lockfile. The workflow file is
+found. The script reads the branch through git and runs none of its code; the parsers it needs
+(oxc's, which comes with Vite, for test files, PostCSS for stylesheets, `yaml` for workflows) are
+installed from `main`'s lockfile. The workflow file is
 another matter: on `pull_request` GitHub runs it as the PR has it, so a PR that changes `guard.yml`
 runs its changed steps, and what `main`'s script does about it is mark the change as a weakening.
 What the guard finds goes into the job's summary and into the PR's `guard report` check, a check
@@ -293,8 +301,7 @@ compare the tests that ran, and says so: that takes a run of each side, which CI
 - An action's inputs (`with:`) and a step's other keys but `if:` and `continue-on-error:` (`env:`,
   `working-directory:`): a change to them isn't read, so a check an input turns off
   (`fail-on-error: false`) is marked nowhere.
-- In reading a workflow's commands: a comment after a block's start (`run: | # the tests`) keeps
-  the block's lines from being read; a flag with a value before an npm script (`npm --prefix
+- In reading a workflow's commands: a flag with a value before an npm script (`npm --prefix
   tmdb-proxy run test`) is read as the script, and one before docker's subcommand (`docker
   --context ci run`) as the subcommand; `node` with a flag first (`node --test server`) isn't
   read as a command; a command that goes on on the next line (`docker \` and then `run`) is
@@ -309,8 +316,9 @@ compare the tests that ran, and says so: that takes a run of each side, which CI
   under `coverage`, or a key that is empty): the guard joins the keys of a path with dots, so such a
   key lands on the same path as the real one and hides what the real one did, a budget raised or a
   threshold lowered.
-- Whatever reading YAML line by line gets wrong: it finds `run:` and `uses:` keys and the lines
-  indented under a block, and knows nothing of anchors or of a command built by an expression.
+- What a command built by an expression runs: the guard reads `run: npm run ${{ matrix.script }}`
+  as written, so a script taken out of the matrix, or an input's default changed, isn't read as a
+  command no longer run.
 - A change to `guard.yml` that stops the script from running or from being `main`'s copy: the
   workflow runs as the PR has it, so the weakening's mark comes from the changed steps, if they
   still make it.
