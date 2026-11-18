@@ -14,3 +14,15 @@ export function torrentId(infoHash: string | undefined): string | undefined {
   if (/^[0-9a-f]{64}$/.test(hash)) return hash.slice(0, 40)
   return undefined
 }
+
+/**
+ * The IDs among `ids` that qBittorrent's `torrents` have (a torrent's `hash` is its ID), for marking
+ * what of a list is in downloads already. Empty without the torrents.
+ */
+export function heldIds(torrents: readonly { hash: string }[] | undefined, ids: ReadonlySet<string>): ReadonlySet<string> {
+  return new Set(torrents?.flatMap(({ hash }) => (ids.has(hash) ? [hash] : [])))
+}
+
+/** Whether two sets of IDs hold the same ones. */
+export const sameIds = (a: ReadonlySet<string>, b: ReadonlySet<string>): boolean =>
+  a.size === b.size && [...a].every((id) => b.has(id))

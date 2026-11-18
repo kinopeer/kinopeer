@@ -6,6 +6,16 @@ import { GB, RELEASES, shogunInfoHash, torrent } from './fixtures.ts'
 /** A remembered 2160p, which these releases have, and a dub, which none of them has. */
 const REMEMBERED = { resolution: ['2160p'], audio: ['dub'], source: [], minSeeds: 0 }
 
+/**
+ * The top release with its info hash, and qBittorrent with its torrent (#375), named as the torrent
+ * names itself rather than as the indexer lists it, so on desktop the title page's "In downloads"
+ * doesn't repeat the release's name.
+ */
+const TOP_IN_DOWNLOADS: AppOptions = {
+  releases: [{ ...RELEASES[0], infoHash: shogunInfoHash() }, ...RELEASES.slice(1)],
+  torrents: [torrent(shogunInfoHash(), { name: 'Shogun.S01.2160p.WEB-DL.HDR.DV.MVO-GRPA', progress: 0.4 })],
+}
+
 async function openReleases(page: Page, options: AppOptions = {}) {
   await openApp(page, '/title/tv/126308/releases', options)
   await expect(page.getByText(RELEASES[0].title)).toBeVisible()
@@ -23,6 +33,13 @@ test.describe('releases, phone', () => {
     await openReleases(page, { releaseFilters: REMEMBERED })
     await expect(page.getByText('Запомненные фильтры не применены: Дубляж')).toBeVisible()
     await expect(page).toHaveScreenshot('remembered-dark-ru.png')
+  })
+
+  // A release qBittorrent has: its card opens the torrent in place of adding it (#375).
+  test('a release already in downloads', async ({ page }) => {
+    await openReleases(page, TOP_IN_DOWNLOADS)
+    await expect(page.getByRole('link', { name: 'В загрузках' })).toBeVisible()
+    await expect(page).toHaveScreenshot('in-downloads-dark-ru.png')
   })
 
   // In the count's line, which has to stay on one line at a phone's width; the names on a tap.
@@ -110,6 +127,13 @@ test.describe('releases, desktop', () => {
     await findReleases(page, { releaseFilters: REMEMBERED })
     await expect(page.getByText('Запомненные фильтры не применены: Дубляж')).toBeVisible()
     await expect(page).toHaveScreenshot('desktop-remembered-dark-ru.png')
+  })
+
+  // A release qBittorrent has: its row opens the torrent in place of adding it (#375).
+  test('a release already in downloads', async ({ page }) => {
+    await findReleases(page, TOP_IN_DOWNLOADS)
+    await expect(page.getByRole('table').getByRole('link', { name: 'В загрузках' })).toBeVisible()
+    await expect(page).toHaveScreenshot('desktop-in-downloads-dark-ru.png')
   })
 
   // While the search runs: the filter bar there from the start, its filters as skeletons, the sort working.

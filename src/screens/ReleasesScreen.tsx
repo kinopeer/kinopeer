@@ -7,10 +7,11 @@ import { Button } from '../components/Button'
 import { EmptyState } from '../components/EmptyState'
 import { FilterChip } from '../components/FilterChip'
 import { Icon } from '../components/Icon'
-import { IconButton } from '../components/IconButton'
+import { IconButton, IconLink } from '../components/IconButton'
 import { Segmented } from '../components/Segmented'
 import { Sheet } from '../components/Sheet'
 import { SortDirectionButton } from '../components/SortDirectionButton'
+import { overPage } from '../lib/background'
 import { useFormatters } from '../lib/format'
 import { MIN_SEEDS, SORT_KEYS, summary, toggle, type ReleaseRow } from '../releases/filterReleases'
 import { seasonCoverage } from '../releases/parseRelease'
@@ -81,7 +82,7 @@ export function ReleasesScreen() {
         <ul className="rel-list">
           {visible.map((row) => (
             <li key={row.release.id}>
-              <ReleaseCard row={row} onAdd={() => releases.setAdding(row)} />
+              <ReleaseCard row={row} held={releases.inDownloads(row)} onAdd={() => releases.setAdding(row)} />
             </li>
           ))}
         </ul>
@@ -243,8 +244,16 @@ function OptionGroup<T extends string>({
   )
 }
 
-function ReleaseCard({ row, onAdd }: { row: ReleaseRow; onAdd: () => void }) {
+interface ReleaseCardProps {
+  row: ReleaseRow
+  /** The torrent qBittorrent has for the release, opened in place of adding it again. */
+  held?: string
+  onAdd: () => void
+}
+
+function ReleaseCard({ row, held, onAdd }: ReleaseCardProps) {
   const { t, i18n } = useTranslation()
+  const location = useLocation()
   const format = useFormatters()
   const { release, info } = row
   const coverage = seasonCoverage(info) ?? (info.complete ? t('releases.complete') : undefined)
@@ -262,7 +271,20 @@ function ReleaseCard({ row, onAdd }: { row: ReleaseRow; onAdd: () => void }) {
           )}
           <ReleaseName name={release.title} />
         </div>
-        <IconButton icon="plus" variant="filled" label={t('add.title')} iconSize={22} className="rel-add" onClick={onAdd} />
+        {held ? (
+          <IconLink
+            to={`/torrent/${held}`}
+            state={overPage(location)}
+            icon="check"
+            variant="filled"
+            on
+            label={t('title.inDownloads')}
+            iconSize={22}
+            className="rel-add"
+          />
+        ) : (
+          <IconButton icon="plus" variant="filled" label={t('add.title')} iconSize={22} className="rel-add" onClick={onAdd} />
+        )}
       </div>
       {badges.length > 0 && (
         <div className="rel-badges">

@@ -12,7 +12,8 @@ import { restoreLayout, stubLayout } from '../lib/stubLayout'
 import i18n from '../i18n'
 import { resetSettings, updateSettings } from '../settings/settings'
 import { DUNE_RELEASES, release, torrent } from '../test/fixtures'
-import { Where, renderWithRouter, saying, where } from '../test/render'
+import { Opened, Where, opened, renderWithRouter, saying, where } from '../test/render'
+import { resetOneOffTorrents } from '../torrents/oneOffTorrents'
 import { resetServerMatches } from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/useTitleMatches'
 import { TitleRoute } from './TitleScreen'
@@ -30,6 +31,7 @@ vi.mock('../api/qbittorrent', async (importOriginal) => ({
   getMainData: vi.fn(),
   getCategories: vi.fn(),
   getDefaultSavePath: vi.fn(),
+  getTorrents: vi.fn(),
 }))
 vi.mock('../api/matches', async (importOriginal) => ({
   ...(await importOriginal<typeof matchesApi>()),
@@ -76,6 +78,7 @@ function renderAt(path: string, history: string[] = []) {
         <Route path="/title/:type/:id" element={<TitleRoute onSessionLost={vi.fn()} />} />
         <Route path="/title/:type/:id/releases" element={<TitleRoute onSessionLost={vi.fn()} />} />
         <Route path="/search" element={<h1>Search page</h1>} />
+        <Route path="/torrent/:hash" element={<Opened />} />
       </Routes>
       <Where />
     </>,
@@ -102,6 +105,8 @@ beforeEach(() => {
   resetServerMatches()
   vi.mocked(matchesApi.getMatches).mockResolvedValue({})
   vi.mocked(qbt.getMainData).mockResolvedValue({ rid: 1, full_update: true, torrents: {}, server_state: {} })
+  resetOneOffTorrents()
+  vi.mocked(qbt.getTorrents).mockResolvedValue([])
   getMovie.mockResolvedValue(DUNE)
   getTv.mockResolvedValue(SHOGUN)
   searchReleases.mockResolvedValue(DUNE_RELEASES)
@@ -387,6 +392,21 @@ describe('TitleScreen on desktop', () => {
     const [, top] = within(table()).getAllByRole('row')
     await userEvent.click(within(top).getByRole('button', { name: 'Add to downloads' }))
     expect(within(screen.getByRole('dialog', { name: 'Add to downloads' })).getByText(DUNE_RELEASES[1].title)).toBeInTheDocument()
+  })
+
+  it('opens a release qBittorrent has in place of adding it, over the title page', async () => {
+    const hash = 'c12fe1c06bba254a9dc9f519b335aa7c1367a88a'
+    searchReleases.mockResolvedValue([{ ...DUNE_RELEASES[1], infoHash: hash }, ...DUNE_RELEASES.filter((_, index) => index !== 1)])
+    vi.mocked(qbt.getTorrents).mockResolvedValue([torrent(hash)])
+    renderAt('/title/movie/693134/releases')
+    await screen.findByText('3 of 3 releases')
+    const [, top, ...rest] = within(table()).getAllByRole('row')
+    const open = await within(top).findByRole('link', { name: 'In downloads' })
+    expect(within(top).queryByRole('button', { name: 'Add to downloads' })).not.toBeInTheDocument()
+    for (const row of rest) expect(within(row).getByRole('button', { name: 'Add to downloads' })).toBeInTheDocument()
+
+    await userEvent.click(open)
+    expect(opened()).toBe(`/torrent/${hash} over /title/movie/693134/releases`)
   })
 
   // Where the block sits (at the page's end, under the releases and the related titles) is in the

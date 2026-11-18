@@ -28,6 +28,18 @@ export function Where() {
 
 export const where = () => screen.getByRole('status', { name: 'Location' }).textContent
 
+/**
+ * Shows the page a link took the app to and the page it was opened over (`overPage`), for a route
+ * such as `/torrent/:hash`; read it with `opened()`.
+ */
+export function Opened() {
+  const location = useLocation()
+  const background = (location.state as { background?: { pathname: string } } | null)?.background
+  return <output aria-label="Opened">{`${location.pathname} over ${background?.pathname ?? 'nothing'}`}</output>
+}
+
+export const opened = () => screen.getByRole('status', { name: 'Opened' }).textContent
+
 const normalized = (text: string | null) => (text ?? '').replace(/\s+/g, ' ').trim()
 
 /**

@@ -1,7 +1,7 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Profiler, type ReactNode } from 'react'
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
+import { MemoryRouter, Route, Routes } from 'react-router'
 import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import * as prowlarr from '../api/prowlarr'
 import type { Release } from '../api/prowlarr'
@@ -14,7 +14,7 @@ import { MainDataContext, createMainDataStore, type MainDataStore } from '../tor
 import { AddReleaseSheet } from './AddReleaseSheet'
 import { torrent } from '../test/fixtures'
 import { ROUTER_OPTIONS } from '../lib/routerOptions'
-import { qbittorrentDown, saying } from '../test/render'
+import { Opened, opened, qbittorrentDown, saying } from '../test/render'
 
 vi.mock('../api/prowlarr', async (importOriginal) => ({
   ...(await importOriginal<typeof prowlarr>()),
@@ -67,13 +67,6 @@ async function runningPoll() {
   onTestFinished(store.subscribe(() => {}))
   await waitFor(() => expect(store.getSnapshot().data).not.toBeNull())
   return store
-}
-
-/** The page a link took the app to, and the page it was opened over. */
-function Opened() {
-  const location = useLocation()
-  const background = (location.state as { background?: { pathname: string } } | null)?.background
-  return <output aria-label="Opened">{`${location.pathname} over ${background?.pathname ?? 'nothing'}`}</output>
 }
 
 const RELEASES_PAGE = '/title/tv/1396/releases'
@@ -544,7 +537,7 @@ describe('AddReleaseSheet', () => {
 
       await userEvent.click(within(sheet).getByRole('link', { name: 'Open details' }))
       expect(onClose).toHaveBeenCalled()
-      expect(screen.getByRole('status', { name: 'Opened' })).toHaveTextContent(`/torrent/${META.infoHash} over ${RELEASES_PAGE}`)
+      expect(opened()).toBe(`/torrent/${META.infoHash} over ${RELEASES_PAGE}`)
     })
 
     it('finds a magnet link’s torrent by the link’s hash', async () => {

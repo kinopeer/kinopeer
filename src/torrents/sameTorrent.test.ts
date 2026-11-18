@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { torrentId } from './sameTorrent'
+import { heldIds, sameIds, torrentId } from './sameTorrent'
 
 const V1 = 'c12fe1c06bba254a9dc9f519b335aa7c1367a88a'
 const V2 = 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90'
@@ -24,5 +24,30 @@ describe('torrentId', () => {
     ['not hex', 'g'.repeat(40)],
   ])('refuses %s', (_, hash) => {
     expect(torrentId(hash)).toBeUndefined()
+  })
+})
+
+describe('heldIds', () => {
+  const ids = new Set([V1, V2.slice(0, 40)])
+
+  it('takes the IDs of the list that qBittorrent has', () => {
+    const torrents = [{ hash: 'f'.repeat(40) }, { hash: V2.slice(0, 40) }]
+    expect([...heldIds(torrents, ids)]).toEqual([V2.slice(0, 40)])
+  })
+
+  it('takes none without the torrents', () => {
+    expect(heldIds(undefined, ids).size).toBe(0)
+  })
+})
+
+describe('sameIds', () => {
+  it.each([
+    ['the same IDs in another order', [V1, 'b'], ['b', V1], true],
+    ['none and none', [], [], true],
+    ['one more', [V1], [V1, 'b'], false],
+    ['one fewer', [V1, 'b'], [V1], false],
+    ['others as many', [V1], ['b'], false],
+  ])('%s', (_, a, b, same) => {
+    expect(sameIds(new Set(a), new Set(b))).toBe(same)
   })
 })

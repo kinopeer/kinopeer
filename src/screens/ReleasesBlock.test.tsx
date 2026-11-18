@@ -34,6 +34,7 @@ function releases(fields: Partial<Releases> = {}): Releases {
     audioLabel: (value) => value,
     sourceLabel: (value) => value,
     optionLabel: (label) => label,
+    inDownloads: () => undefined,
     adding: undefined,
     setAdding: vi.fn(),
     ...fields,
