@@ -369,8 +369,9 @@ describe('useLastTorrents', () => {
 
   it('asks for them once outside a provider too', async () => {
     const { result } = renderHook(() => useLastTorrents())
-    await act(() => vi.advanceTimersByTimeAsync(0))
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS * 3))
     expect(result.current).toBe(ONE_OFF)
+    expect(getTorrents).toHaveBeenCalledTimes(1)
     expect(getMainData).not.toHaveBeenCalled()
   })
 
@@ -424,6 +425,32 @@ describe('useLastTorrents', () => {
     await act(() => vi.advanceTimersByTimeAsync(0))
     expect(container).toHaveTextContent('A')
     expect(getTorrents).not.toHaveBeenCalled()
+  })
+
+  it('asks for them once the poll in flight as the last screen that polled leaves goes unanswered', async () => {
+    let answer!: (data: api.MainData) => void
+    getMainData.mockReturnValueOnce(new Promise((resolve) => (answer = resolve)))
+    function Downloads() {
+      useMainData()
+      return null
+    }
+    function Search() {
+      const torrents = useLastTorrents()
+      return <p>{torrents?.map((one) => one.name).join(',') ?? 'none'}</p>
+    }
+    const app = (downloads: boolean) => (downloads ? <Downloads /> : <Search />)
+    const { rerender, container } = render(app(true), { wrapper: inProvider })
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    expect(getMainData).toHaveBeenCalledTimes(1)
+
+    // Search opens while Downloads' first poll is out; nothing polls then, so its answer is dropped.
+    rerender(app(false))
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    expect(getTorrents).not.toHaveBeenCalled()
+    answer({ rid: 1, full_update: true, torrents: { a: { name: 'A' } } })
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    expect(container).toHaveTextContent('b')
+    expect(getTorrents).toHaveBeenCalledTimes(1)
   })
 
   it('takes the poll’s torrents over the ones asked once, as soon as it has them', async () => {
@@ -685,6 +712,27 @@ describe('useMainData under a TorrentRequestsProvider', () => {
     await act(() => vi.advanceTimersByTimeAsync(0))
     expect(getMainData).toHaveBeenCalledTimes(3)
     expect(result.current.main.data?.torrents.a.state).toBe('downloading')
+  })
+
+  it('shows what a request expects to the screens that read the poll without starting it', async () => {
+    getMainData
+      .mockResolvedValueOnce({ rid: 1, full_update: true, torrents: { a: { name: 'A' }, c: { name: 'C' } } })
+      // The poll that would confirm the deletion doesn't come back while the screen is open.
+      .mockImplementation(hang)
+    const { result } = renderHook(() => ({ last: useLastTorrents(), main: useMainData(), requests: useTorrentRequests() }), {
+      wrapper: Providers,
+    })
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    expect(result.current.last?.map((one) => one.hash)).toEqual(['a', 'c'])
+
+    // Deleted later than the poll that brought it was sent.
+    await act(() => vi.advanceTimersByTimeAsync(500))
+    await act(() =>
+      result.current.requests.send('delete', result.current.main.data!.torrents.a, false, () => Promise.resolve(), {
+        expect: () => undefined,
+      }),
+    )
+    expect(result.current.last?.map((one) => one.hash)).toEqual(['c'])
   })
 
   it('keeps the state over the polls sent within the request’s hold, then leaves the word to qBittorrent', async () => {

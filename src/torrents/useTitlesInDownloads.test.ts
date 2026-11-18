@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as matchesApi from '../api/matches'
 import * as qbittorrent from '../api/qbittorrent'
 import i18n from '../i18n'
@@ -24,9 +24,10 @@ const getTorrents = vi.mocked(qbittorrent.getTorrents)
 const getMatches = vi.mocked(matchesApi.getMatches)
 
 const TAGGED = torrent('a', { tags: tmdbTag('movie', 693134), progress: 0.5 })
-const GUESSED = torrent('b', { name: 'Interstellar.2014.1080p' })
+const GUESSED = torrent('b', { name: 'Interstellar.2014.1080p', progress: 0 })
 
 beforeEach(() => {
+  vi.useFakeTimers()
   vi.resetAllMocks()
   resetOneOffTorrents()
   resetServerMatches()
@@ -34,7 +35,12 @@ beforeEach(() => {
   getTorrents.mockResolvedValue([TAGGED, GUESSED])
 })
 
-const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 0)))
+afterEach(() => {
+  vi.useRealTimers()
+})
+
+/** Lets the answers given so far arrive and be rendered. */
+const settle = () => act(() => vi.runAllTimersAsync())
 
 describe('useTitlesInDownloads', () => {
   it('is empty until the server’s matches are in, then files the torrents known by them', async () => {
@@ -48,8 +54,8 @@ describe('useTitlesInDownloads', () => {
     await settle()
     expect(result.current).toEqual(
       new Map([
-        ['movie:693134', [TAGGED]],
-        ['movie:157336', [GUESSED]],
+        ['movie:693134', { progress: 0.5 }],
+        ['movie:157336', { progress: 0 }],
       ]),
     )
   })
@@ -64,11 +70,11 @@ describe('useTitlesInDownloads', () => {
 
     answer([TAGGED])
     await settle()
-    expect(result.current).toEqual(new Map([['movie:693134', [TAGGED]]]))
+    expect(result.current).toEqual(new Map([['movie:693134', { progress: 0.5 }]]))
   })
 
   it('reads the guesses this browser cached in the TMDB language, not another', async () => {
-    const other = torrent('c', { name: 'Oppenheimer.2023.1080p' })
+    const other = torrent('c', { name: 'Oppenheimer.2023.1080p', progress: 1 })
     getTorrents.mockResolvedValue([GUESSED, other])
     getMatches.mockResolvedValue({})
     await i18n.changeLanguage('ru')
@@ -79,10 +85,31 @@ describe('useTitlesInDownloads', () => {
     )
     const { result } = renderHook(() => useTitlesInDownloads())
     await settle()
-    expect(result.current).toEqual(new Map([['movie:157336', [GUESSED]]]))
+    expect(result.current).toEqual(new Map([['movie:157336', { progress: 0 }]]))
 
     // Another language reads its own guesses.
     await act(() => i18n.changeLanguage('en'))
-    expect(result.current).toEqual(new Map([['movie:157336', [other]]]))
+    expect(result.current).toEqual(new Map([['movie:157336', { progress: 1 }]]))
+  })
+
+  it('goes by the tags and this browser’s guesses when the server doesn’t give its matches', async () => {
+    getMatches.mockRejectedValue(new Error('offline'))
+    const { result } = renderHook(() => useTitlesInDownloads())
+    await settle()
+    expect(result.current).toEqual(new Map([['movie:693134', { progress: 0.5 }]]))
+  })
+
+  it('gives the same marks again while what they show stays, so the cards don’t render again', async () => {
+    getTorrents.mockResolvedValue([TAGGED])
+    getMatches.mockResolvedValue({})
+    await i18n.changeLanguage('ru')
+    const { result } = renderHook(() => useTitlesInDownloads())
+    await settle()
+    const shown = result.current
+    expect(shown).toEqual(new Map([['movie:693134', { progress: 0.5 }]]))
+
+    // Filed again in another language: the tag names the same title.
+    await act(() => i18n.changeLanguage('en'))
+    expect(result.current).toBe(shown)
   })
 })

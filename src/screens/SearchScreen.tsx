@@ -222,17 +222,20 @@ export function SearchScreen() {
                 {t('search.results', { count: search.results!.totalResults })}
               </p>
               <ul className="ks-poster-grid">
-                {results.map((title) => (
-                  <li key={`${title.type}-${title.id}`}>
-                    <PosterCard
-                      title={title.title}
-                      subtitle={titleSubtitle(t, title)}
-                      posterUrl={posterUrl(title.posterPath, 'w342')}
-                      to={`/title/${title.type}/${title.id}`}
-                      overlay={<InDownloadsMark torrents={inDownloads.get(titleKey(title.type, title.id))} />}
-                    />
-                  </li>
-                ))}
+                {results.map((title) => {
+                  const mark = inDownloads.get(titleKey(title.type, title.id))
+                  return (
+                    <li key={`${title.type}-${title.id}`}>
+                      <PosterCard
+                        title={title.title}
+                        subtitle={titleSubtitle(t, title)}
+                        posterUrl={posterUrl(title.posterPath, 'w342')}
+                        to={`/title/${title.type}/${title.id}`}
+                        overlay={mark && <InDownloadsMark mark={mark} />}
+                      />
+                    </li>
+                  )
+                })}
               </ul>
               {search.hasMore &&
                 (search.moreError !== undefined ? (

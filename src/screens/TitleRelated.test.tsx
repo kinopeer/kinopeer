@@ -2,13 +2,12 @@ import { act, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import * as tmdb from '../api/tmdb'
 import type { Title } from '../api/tmdb'
-import type { Torrent } from '../api/qbittorrent'
-import { torrent } from '../test/fixtures'
+import type { DownloadsMark } from '../torrents/titleDownloads'
 import { renderWithRouter } from '../test/render'
 import { RELATED_TIMEOUT_MS, TitleRelated } from './TitleRelated'
 
 // The torrents of the titles in downloads, as useTitlesInDownloads gives them (its own test covers how).
-let inDownloads = new Map<string, Torrent[]>()
+let inDownloads = new Map<string, DownloadsMark>()
 vi.mock('../torrents/useTitlesInDownloads', () => ({ useTitlesInDownloads: () => inDownloads }))
 
 vi.mock('../api/tmdb', async (importOriginal) => {
@@ -60,13 +59,13 @@ describe('TitleRelated', () => {
   })
 
   it('says which of them are in downloads', async () => {
-    inDownloads = new Map([['movie:157336', [torrent('a', { progress: 1 })]]])
+    inDownloads = new Map([['movie:157336', { progress: 1 }]])
     getRecommendations.mockResolvedValue(page(title(438631, 'Dune'), title(157336, 'Interstellar')))
     renderRelated()
 
     const row = await screen.findByRole('region', { name: 'Recommendations' })
-    expect(within(row).getByRole('link', { name: /Interstellar/ })).toHaveTextContent('In downloads · 100%')
-    expect(within(row).getByRole('link', { name: /Dune/ })).not.toHaveTextContent('In downloads')
+    expect(within(row).getByRole('link', { name: /Interstellar/ })).toHaveAccessibleName(/In downloads · 100%/)
+    expect(within(row).getByRole('link', { name: /Dune/ })).not.toHaveAccessibleName(/In downloads/)
   })
 
   it('falls back to similar titles when nothing is recommended', async () => {

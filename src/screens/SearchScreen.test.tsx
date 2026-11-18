@@ -6,9 +6,9 @@ import * as tmdb from '../api/tmdb'
 import i18n from '../i18n'
 import { TAB_RETURN, forgetTabPlaces, tabPlace } from '../lib/tabPlaces'
 import { forgetKeptResults } from '../search/searchResults'
-import { searchPage as page, title, torrent } from '../test/fixtures'
+import { searchPage as page, title } from '../test/fixtures'
 import { renderWithRouter, saying } from '../test/render'
-import type { Torrent } from '../api/qbittorrent'
+import type { DownloadsMark } from '../torrents/titleDownloads'
 import { SearchScreen } from './SearchScreen'
 
 vi.mock('../api/tmdb', async (importOriginal) => {
@@ -17,7 +17,7 @@ vi.mock('../api/tmdb', async (importOriginal) => {
 })
 
 // The torrents of the titles in downloads, as useTitlesInDownloads gives them (its own test covers how).
-let inDownloads = new Map<string, Torrent[]>()
+let inDownloads = new Map<string, DownloadsMark>()
 vi.mock('../torrents/useTitlesInDownloads', () => ({ useTitlesInDownloads: () => inDownloads }))
 
 const searchTitles = vi.mocked(tmdb.searchTitles)
@@ -28,9 +28,9 @@ const ANDOR = title('tv', 2, 'Andor', 2022)
 const ALIEN = title('movie', 3, 'Alien: Romulus', 2024)
 const SHOGUN = title('tv', 4, 'Shōgun')
 
-const IN_DOWNLOADS = new Map([
-  ['movie:1', [torrent('a', { progress: 0.62 })]],
-  ['tv:2', [torrent('b'), torrent('c')]],
+const IN_DOWNLOADS = new Map<string, DownloadsMark>([
+  ['movie:1', { progress: 0.62 }],
+  ['tv:2', { count: 2 }],
 ])
 
 function renderScreen(path = '/search') {
@@ -73,11 +73,10 @@ describe('SearchScreen', () => {
     inDownloads = IN_DOWNLOADS
     renderScreen()
     await screen.findByRole('heading', { name: 'New on digital' })
-    expect(row('New on digital').getByRole('link', { name: /Dune: Part Two/ })).toHaveTextContent('In downloads · 62%')
-    expect(row('New episodes').getByRole('link', { name: /Andor/ })).toHaveTextContent('In downloads · 2')
-    expect(row('New episodes').getByRole('link', { name: /Shōgun/ })).not.toHaveTextContent('In downloads')
-    expect(row('Best of the year').getByRole('link', { name: /Alien/ })).not.toHaveTextContent('In downloads')
-
+    expect(row('New on digital').getByRole('link', { name: /Dune: Part Two/ })).toHaveAccessibleName(/In downloads · 62%/)
+    expect(row('New episodes').getByRole('link', { name: /Andor/ })).toHaveAccessibleName(/In downloads · 2/)
+    expect(row('New episodes').getByRole('link', { name: /Shōgun/ })).not.toHaveAccessibleName(/In downloads/)
+    expect(row('Best of the year').getByRole('link', { name: /Alien/ })).not.toHaveAccessibleName(/In downloads/)
   })
 
   it('says which titles are in downloads in its results', async () => {
@@ -85,9 +84,9 @@ describe('SearchScreen', () => {
     searchTitles.mockResolvedValue(page([DUNE, ANDOR, SHOGUN]))
     renderScreen('/search?q=dune')
     await screen.findByText('About 3 results')
-    expect(screen.getByRole('link', { name: /Dune: Part Two/ })).toHaveTextContent('In downloads · 62%')
-    expect(screen.getByRole('link', { name: /Andor/ })).toHaveTextContent('In downloads · 2')
-    expect(screen.getByRole('link', { name: /Shōgun/ })).not.toHaveTextContent('In downloads')
+    expect(screen.getByRole('link', { name: /Dune: Part Two/ })).toHaveAccessibleName(/In downloads · 62%/)
+    expect(screen.getByRole('link', { name: /Andor/ })).toHaveAccessibleName(/In downloads · 2/)
+    expect(screen.getByRole('link', { name: /Shōgun/ })).not.toHaveAccessibleName(/In downloads/)
   })
 
   it('filters by type', async () => {

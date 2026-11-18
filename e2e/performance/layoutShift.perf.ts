@@ -372,7 +372,10 @@ const PHONE: Case[] = [
       posters: { matches: under('/tmdb-img/'), after: ['results'] },
     },
   },
-  /** A search with a year: movies and series searched apart, shown together once both have answered. */
+  /**
+   * A search with a year: movies and series searched apart, shown together once both have answered.
+   * None of the year's titles has a torrent among `TORRENTS`, so no "In downloads" badge shows here.
+   */
   {
     screen: 'search-year',
     name: 'titles found',

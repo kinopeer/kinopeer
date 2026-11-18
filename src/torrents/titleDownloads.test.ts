@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { title, tmdbTag, torrent } from '../test/fixtures'
 import { GUESS_VERSION, lookupFor, slim, type TitleMatch } from './titleLookup'
-import { downloadsMark, titleKey, torrentsByTitle } from './titleDownloads'
+import { downloadsMark, marksByTitle, sameMarks, titleKey, torrentsByTitle, type DownloadsMark } from './titleDownloads'
 
 describe('downloadsMark', () => {
   it('says nothing without torrents', () => {
@@ -59,5 +59,42 @@ describe('torrentsByTitle', () => {
     const byTitle = torrentsByTitle([first, series, second], {}, noCache)
     expect(byTitle.get(titleKey('movie', 693134))).toEqual([first, second])
     expect(byTitle.get(titleKey('tv', 693134))).toEqual([series])
+  })
+})
+
+describe('marksByTitle', () => {
+  it('gives each title its mark, under the same key', () => {
+    const byTitle = new Map([
+      ['movie:1', [{ progress: 0.4 }]],
+      ['tv:2', [{ progress: 0 }, { progress: 1 }]],
+      ['tv:3', []],
+    ])
+    expect(marksByTitle(byTitle)).toEqual(
+      new Map<string, DownloadsMark>([
+        ['movie:1', { progress: 0.4 }],
+        ['tv:2', { count: 2 }],
+      ]),
+    )
+  })
+})
+
+describe('sameMarks', () => {
+  const marks = (...entries: [string, DownloadsMark][]) => new Map(entries)
+
+  it('holds for the same titles showing the same whole percent or count', () => {
+    expect(sameMarks(marks(['a', { progress: 0.621 }], ['b', { count: 2 }]), marks(['a', { progress: 0.629 }], ['b', { count: 2 }]))).toBe(true)
+    expect(sameMarks(marks(), marks())).toBe(true)
+  })
+
+  it('fails when a percent shown, a count or a mark’s kind changes', () => {
+    expect(sameMarks(marks(['a', { progress: 0.629 }]), marks(['a', { progress: 0.63 }]))).toBe(false)
+    expect(sameMarks(marks(['a', { count: 2 }]), marks(['a', { count: 3 }]))).toBe(false)
+    expect(sameMarks(marks(['a', { count: 2 }]), marks(['a', { progress: 0.02 }]))).toBe(false)
+    expect(sameMarks(marks(['a', { progress: 0.02 }]), marks(['a', { count: 2 }]))).toBe(false)
+  })
+
+  it('fails when a title comes or goes', () => {
+    expect(sameMarks(marks(['a', { count: 2 }]), marks(['a', { count: 2 }], ['b', { count: 2 }]))).toBe(false)
+    expect(sameMarks(marks(['a', { count: 2 }]), marks(['b', { count: 2 }]))).toBe(false)
   })
 })

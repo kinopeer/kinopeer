@@ -37,3 +37,29 @@ export function torrentsByTitle<T extends Pick<Torrent, 'hash' | 'name' | 'tags'
   }
   return byTitle
 }
+
+/** The mark of each title in `byTitle`, under the same key. */
+export function marksByTitle(byTitle: ReadonlyMap<string, readonly Pick<Torrent, 'progress'>[]>): Map<string, DownloadsMark> {
+  const marks = new Map<string, DownloadsMark>()
+  for (const [key, torrents] of byTitle) {
+    const mark = downloadsMark(torrents)
+    if (mark) marks.set(key, mark)
+  }
+  return marks
+}
+
+/**
+ * Whether two sets of marks show the same: the same titles, each with the same count, or the same
+ * whole percent, which is all a mark shows of the progress (`format.percent` rounds it down).
+ */
+export function sameMarks(a: ReadonlyMap<string, DownloadsMark>, b: ReadonlyMap<string, DownloadsMark>): boolean {
+  if (a.size !== b.size) return false
+  for (const [key, mark] of a) {
+    const other = b.get(key)
+    if (!other) return false
+    if ('count' in mark ? !('count' in other) || other.count !== mark.count : !('progress' in other) || percent(other.progress) !== percent(mark.progress)) return false
+  }
+  return true
+}
+
+const percent = (progress: number) => Math.floor(progress * 100)

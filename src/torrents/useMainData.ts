@@ -261,28 +261,40 @@ export function useMainData(onUnauthorized?: () => void): MainDataState {
   )
 }
 
-const noData = () => null
+const NO_SNAPSHOT: MainDataSnapshot = { data: null, offline: false, updatedAt: null, requestedAt: null }
+const noSnapshot = () => NO_SNAPSHOT
 
 /**
  * qBittorrent's torrents without starting the poll, for a screen that shows what's in downloads only
- * in passing (#460): the shared poll's last data, kept current while a screen that polls is open,
- * else, before the poll has any on this page and while it isn't asking, one `torrents/info` for the
- * page (`oneOffTorrents.ts`). Undefined until either has them.
+ * in passing (#460): the shared poll's last data, kept current while a screen that polls is open and
+ * shown with what the torrent requests expect, as `useMainData` shows it; else, while the poll has
+ * none on this page and isn't asking, one `torrents/info` for the page (`oneOffTorrents.ts`).
+ * Undefined until either has them.
  */
 export function useLastTorrents(): Torrent[] | undefined {
   const store = useContext(MainDataContext)
-  const data = useSyncExternalStore(store?.watch ?? noRequests, store ? () => store.getSnapshot().data : noData)
+  const requests = useContext(TorrentRequestsContext)
+  const expected = useSyncExternalStore(requests?.subscribe ?? noRequests, requests?.getExpected ?? nothingExpected)
+  const snapshot = useSyncExternalStore(store?.watch ?? noRequests, store?.getSnapshot ?? noSnapshot)
   const oneOff = useSyncExternalStore(subscribeOneOffTorrents, currentOneOffTorrents)
   useEffect(() => {
+    const check = () => {
+      if (!store?.getPollState().inFlight && !store?.getSnapshot().data) loadOneOffTorrents()
+    }
     let cancelled = false
     // After the commit's other effects, where a screen beside this one (the sidebar) starts the poll.
     queueMicrotask(() => {
-      if (!cancelled && !store?.getPollState().inFlight && !store?.getSnapshot().data) loadOneOffTorrents()
+      if (!cancelled) check()
     })
+    // Again as the poll settles: one in flight as the last screen that polled left is dropped
+    // unanswered, the store having stopped, and one that failed brought nothing either.
+    const unwatch = store?.watch(check)
     return () => {
       cancelled = true
+      unwatch?.()
     }
   }, [store])
+  const data = useMemo(() => withExpected(snapshot.data, snapshot.requestedAt, expected), [snapshot.data, snapshot.requestedAt, expected])
   return useMemo(() => (data ? Object.values(data.torrents) : oneOff), [data, oneOff])
 }
 

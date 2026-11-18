@@ -22,8 +22,8 @@ test.describe('search, phone', () => {
   test.describe('light, English', () => {
     test.use({ locale: 'en-US' })
 
-    // The "In downloads" badge over a poster stays on dark glass in the light theme, and its
-    // English text fits a row's card, the narrowest a title card gets (#460).
+    // The "In downloads" badge over a poster, its icon and figure, stays on dark glass in the light
+    // theme (#460).
     test('browse rows', async ({ page }) => {
       await openSearch(page, '/search', 'Dune', { theme: 'light', lang: 'en' })
       await expect(page).toHaveScreenshot('browse-light-en.png')

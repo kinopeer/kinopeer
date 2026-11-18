@@ -1,8 +1,7 @@
 import { useTranslation } from 'react-i18next'
-import type { Torrent } from '../api/qbittorrent'
 import { posterUrl, type Title } from '../api/tmdb'
 import { PosterCard } from '../components/PosterCard'
-import { titleKey } from '../torrents/titleDownloads'
+import { titleKey, type DownloadsMark } from '../torrents/titleDownloads'
 import { InDownloadsMark } from './InDownloadsMark'
 import './PosterRow.css'
 import { titleSubtitle } from './titleSubtitle'
@@ -12,8 +11,8 @@ export interface PosterRowProps {
   id: string
   heading: string
   titles: Title[]
-  /** The torrents of the titles in downloads, by `titleKey` (`useTitlesInDownloads`): their cards say so. */
-  inDownloads?: ReadonlyMap<string, readonly Torrent[]>
+  /** The marks of the titles in downloads, by `titleKey` (`useTitlesInDownloads`): their cards show them. */
+  inDownloads?: ReadonlyMap<string, DownloadsMark>
 }
 
 /** A heading over a row of poster cards that scrolls sideways, each card a link to its title. */
@@ -25,17 +24,20 @@ export function PosterRow({ id, heading, titles, inDownloads }: PosterRowProps) 
         {heading}
       </h2>
       <ul className="poster-row-list ks-hscroll">
-        {titles.map((title) => (
-          <li key={`${title.type}-${title.id}`}>
-            <PosterCard
-              title={title.title}
-              subtitle={titleSubtitle(t, title)}
-              posterUrl={posterUrl(title.posterPath, 'w342')}
-              to={`/title/${title.type}/${title.id}`}
-              overlay={<InDownloadsMark torrents={inDownloads?.get(titleKey(title.type, title.id))} />}
-            />
-          </li>
-        ))}
+        {titles.map((title) => {
+          const mark = inDownloads?.get(titleKey(title.type, title.id))
+          return (
+            <li key={`${title.type}-${title.id}`}>
+              <PosterCard
+                title={title.title}
+                subtitle={titleSubtitle(t, title)}
+                posterUrl={posterUrl(title.posterPath, 'w342')}
+                to={`/title/${title.type}/${title.id}`}
+                overlay={mark && <InDownloadsMark mark={mark} />}
+              />
+            </li>
+          )
+        })}
       </ul>
     </section>
   )
