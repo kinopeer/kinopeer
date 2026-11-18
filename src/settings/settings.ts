@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
-import { getServerSettings, saveDownloadDefaults, type DownloadDefaults } from '../api/settings'
+import { saveDownloadDefaults, type DownloadDefaults } from '../api/settings'
+import { getSharedServerSettings } from '../api/sharedAnswers'
 import { tmdbLanguage } from '../api/tmdb'
 import {
   DEFAULT_SORT,
@@ -146,7 +147,7 @@ function share(defaults: Partial<DownloadDefaults>): void {
 async function load(started: number): Promise<void> {
   let saved: Partial<DownloadDefaults>
   try {
-    saved = (await getServerSettings()).downloads ?? {}
+    saved = (await getSharedServerSettings()).downloads ?? {}
   } catch {
     // No server, or it didn't answer: this browser's defaults apply.
     if (started === generation) failedAt = Date.now()

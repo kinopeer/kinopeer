@@ -90,13 +90,12 @@ const all =
 /**
  * Every screen's first answers (src/App.tsx): qBittorrent's version, the session check, before which
  * the app shows "Connecting" and no screen; the server's settings, which say whether onboarding asks
- * for a TMDB key (`useTmdbSetup`), after which the screen paints; and the server's settings again,
- * the download defaults `useSettings` loads once per page.
+ * for a TMDB key (`useTmdbSetup`), after which the screen paints. The download defaults `useSettings`
+ * loads once per page take that answer, which the page shares (`sharedRequests`, #382).
  */
 const SESSION: Record<string, Answer> = {
   version: { matches: get('/qbt/api/v2/app/version') },
   tmdbSetup: { matches: get('/api/settings'), after: ['version'] },
-  defaults: { matches: get('/api/settings'), after: ['tmdbSetup'] },
 }
 
 /**
@@ -418,13 +417,11 @@ const PHONE: Case[] = [
     ),
     answers: {
       ...SESSION,
-      // The same address as the session's two: Settings' own load of the server's settings.
-      serverSettings: { matches: get('/api/settings'), after: ['tmdbSetup'] },
-      // The same address as the session's check: Connections' check of qBittorrent.
-      qbittorrentCheck: { matches: get('/qbt/api/v2/app/version'), after: ['tmdbSetup'] },
+      // The server's settings and Connections' check of qBittorrent take the session's answers,
+      // which the page shares while they're fresh (#382), so the categories follow the screen's paint.
       prowlarrCheck: { matches: get('/prowlarr/status'), after: ['tmdbSetup'] },
       tmdbCheck: { matches: get('/tmdb/configuration'), after: ['tmdbSetup'] },
-      categories: { matches: get('/qbt/api/v2/torrents/categories'), after: ['qbittorrentCheck'] },
+      categories: { matches: get('/qbt/api/v2/torrents/categories'), after: ['tmdbSetup'] },
     },
   },
 ]

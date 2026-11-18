@@ -9,6 +9,7 @@ import * as tmdb from '../api/tmdb'
 import i18n from '../i18n'
 import { BUG_REPORT_URL, IDEAS_URL, REPO_URL } from '../lib/links'
 import { TAB_RETURN, forgetTabPlaces, saveTabPlace } from '../lib/tabPlaces'
+import { sharedRequests } from '../logic/sharedRequests'
 import { getSettings, resetSettings } from '../settings/settings'
 import { findToastOnPage, renderWithRouter, saying } from '../test/render'
 import { SettingsScreen } from './SettingsScreen'
@@ -87,6 +88,60 @@ describe('SettingsScreen', () => {
     for (const name of ['qBittorrent', 'Prowlarr', 'TMDB']) {
       expect(await within(connection(name)).findByRole('status', { name: saying('Connected') })).toBeInTheDocument()
     }
+  })
+
+  it('takes the page’s fresh answers for the server’s settings and qBittorrent’s check, which Test asks again (#382)', async () => {
+    sharedRequests.set(qbt.APP_VERSION_KEY, '5.2.0')
+    sharedRequests.set(serverSettings.SERVER_SETTINGS_KEY, {
+      tmdb: { configured: true, source: 'shared', fallback: null },
+      prowlarr: { configured: true, source: 'env', serverKey: true },
+      qbittorrent: { configured: true, source: 'env' },
+      downloads: null,
+    } satisfies serverSettings.ServerSettings)
+    renderScreen()
+    // From the first render, with nothing asked.
+    expect(within(connection('qBittorrent')).getByRole('status', { name: saying('Connected') })).toBeInTheDocument()
+    expect(aboutRow('qBittorrent version')).toHaveTextContent(/5\.2\.0$/)
+    // The kept settings say TMDB's key is Kinopeer's.
+    expect(await within(connection('TMDB')).findByRole('status', { name: saying('Connected · Kinopeer’s key') })).toBeInTheDocument()
+    // The categories follow the check that was in.
+    expect(await within(screen.getByRole('combobox', { name: 'Movies category' })).findByRole('option', { name: 'Anime' })).toBeInTheDocument()
+    expect(qbt.getAppVersion).not.toHaveBeenCalled()
+    expect(serverSettings.getServerSettings).not.toHaveBeenCalled()
+
+    await userEvent.click(within(connection('qBittorrent')).getByRole('button', { name: 'Test' }))
+    await waitFor(() => expect(aboutRow('qBittorrent version')).toHaveTextContent(/5\.3\.0$/))
+    expect(qbt.getAppVersion).toHaveBeenCalledTimes(1)
+  })
+
+  it('asks the server’s settings itself once the page’s answer is a minute old', async () => {
+    const shared: serverSettings.ServerSettings = {
+      tmdb: { configured: true, source: 'shared', fallback: null },
+      prowlarr: { configured: true, source: 'env', serverKey: true },
+      qbittorrent: { configured: true, source: 'env' },
+      downloads: null,
+    }
+    const first = renderScreen()
+    expect(await within(connection('TMDB')).findByRole('status', { name: saying('Connected') })).toBeInTheDocument()
+    first.unmount()
+
+    vi.mocked(serverSettings.getServerSettings).mockClear().mockResolvedValue(shared)
+    const now = Date.now()
+    vi.spyOn(Date, 'now').mockReturnValue(now + serverSettings.SERVER_SETTINGS_FRESH_MS)
+    renderScreen()
+    expect(await within(connection('TMDB')).findByRole('status', { name: saying('Connected · Kinopeer’s key') })).toBeInTheDocument()
+    expect(serverSettings.getServerSettings).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the loaded categories through a Test, asking for them only once', async () => {
+    renderScreen()
+    const movies = screen.getByRole('combobox', { name: 'Movies category' })
+    expect(await within(movies).findByRole('option', { name: 'Anime' })).toBeInTheDocument()
+
+    await userEvent.click(within(connection('qBittorrent')).getByRole('button', { name: 'Test' }))
+    expect(await within(connection('qBittorrent')).findByRole('status', { name: saying(/^Connected/) })).toBeInTheDocument()
+    expect(within(movies).getByRole('option', { name: 'Anime' })).toBeInTheDocument()
+    expect(qbt.getCategories).toHaveBeenCalledTimes(1)
   })
 
   it('comes back through the Settings tab to where the tab was left, without waiting for its checks', async () => {

@@ -969,8 +969,8 @@ has the budgets' rule.
   can show later than it lands (a title in Downloads with the next show, `SHOW_EVERY_MS` later, a
   poster once its image loads). Each wait was seen red with the screen's last state shown 250 ms
   late, the page moving 130px with it: over the budget with the wait, under it without, in both
-  orders. On the title's and the series' pages, in the order where the download defaults (which
-  show nothing there) land last, other answers land after the "In downloads" block, and their
+  orders. On the title's and the series' pages, in the order where the answers that show nothing there
+  land last (the download defaults' own load of the server's settings, until #382 shared it), other answers land after the "In downloads" block, and their
   landing holds it: it took the block 3 s late to get past them, while at 250 ms and 1 s the
   reading was over the budget without the wait too (#395's second review). On desktop every case
   also waits for the sidebar's qBittorrent card to say its free space, which it shows once the
@@ -984,7 +984,7 @@ has the budgets' rule.
   answer the chain says is due that the page doesn't ask for in 10 s fails the load too, in the
   order where the page is still waiting for another answer, which may be only one of the two. So a
   chain that's wrong fails rather than reads by chance. The same address asked twice is two answers, in the order
-  asked (the session's check of the server's settings, then the download defaults' load of them);
+  asked (on desktop, the drawer's lookup of its torrent's title and the list's, at the same address);
   `claimant` in `scripts/layout-shift/answers.ts` decides which a request is.
 - **Two orders, by a rule.** Answers out at the same time land in two orders, each a test: the one
   the page asked for first lands first, or the one it asked for last (`pick`), among those held.
@@ -992,8 +992,9 @@ has the budgets' rule.
   far to have been asked, so what is held when it chooses comes from the chain and the order the
   page asks in, not from how fast it asked: the choice is the same every run. A chain whose every
   answer waits for the one before it can't give two orders, and runs once (`orders`); every chain
-  today has a point with two answers out (the download defaults beside the screen's first), so
-  every case runs twice. The orders do differ where it matters: before #394's fix a movie's page
+  but the phone's releases has a point with two answers out, so that one runs once and the rest
+  twice (until #382 shared the server's settings, the download defaults' load of them was out
+  beside every screen's first answer). The orders do differ where it matters: before #394's fix a movie's page
   read 0.0002 in CI when the torrents landed before the details and 0.0878 the other way, and the
   fix's first version read 0 one way and 0.0608 the other.
 - **Nothing lands unheld.** A request no answer of the case is lands, and fails the test with its
@@ -1040,7 +1041,7 @@ has the budgets' rule.
 
 | Screen | Answers, in their chain | Late blocks | Cases |
 | --- | --- | --- | --- |
-| Every screen | qBittorrent's version; then the server's settings (whether onboarding asks for a TMDB key), after which the screen paints; then the server's settings again (the download defaults) | The screen itself, in place of "Connecting" | |
+| Every screen | qBittorrent's version; then the server's settings (whether onboarding asks for a TMDB key), after which the screen paints; the download defaults take that answer (#382) | The screen itself, in place of "Connecting" | |
 | `downloads` | The torrents and the server's matches; `p1`'s and `p2`'s titles by their tags' ids once the torrents are in, `p3`'s guess by TMDB's search once both are; the posters once one title is; the guess saved a second after it | The rows in place of the skeleton, the totals, the chips' counts, the speed limits switch; each row's title and poster. In the grid each card's title, in place of the release name, both in two lines of room, so the card keeps its height whatever the lookup finds (#403) | Titles found, in the list; titles found, in the grid; in the grid, titles of one line and of two and none found, a two-line title and none found in the first row |
 | `torrent` | The torrents and the matches; the title by its tag's id, or the search for a guess once both are in; the poster; the guess saved | The page in place of its skeleton; the title, its poster; More's dot when no title is found | Tagged and finished (`p2`); title guessed from its name (`p3`, cold cache); no title found (`p4`) |
 | `browse` | Three Discover queries at once, with qBittorrent's torrents asked once and the server's matches (no screen polls on Search); the posters once all three queries are in | The three rows, together, in place of the skeleton; their posters; the "In downloads" badge over a poster, out of the flow (#460) | Rows of titles |
@@ -1049,7 +1050,7 @@ has the budgets' rule.
 | `title` | The details, the torrents and the matches at once; the poster and the recommendations once the details are in, their posters after them; the guess of the untagged torrent's title, since the tagged ones' titles are known without TMDB (#381) | The page in place of its skeleton; the poster; the "In downloads" badge, above the title out of the flow, once the details and the torrents are both in; the recommendations row, with the "In downloads" badge over a poster once the torrents are in (#460); the "In downloads" block under it once both it and the torrents are in | A movie in downloads, with recommendations |
 | `series` | As `title`; similar titles once the recommendations come back empty | As `title`, with the series hint and similar titles in place of recommendations | A series in downloads, with similar titles |
 | `releases` | The series' details; Prowlarr's search; which indexers failed during it | The title and year under the heading; the chips and the releases in place of their skeletons, or the empty state with the chips' row emptied in place; how many indexers didn't answer, in the count's line, or with nothing found in a note under the empty state's action (#401) | Every indexer answered; one indexer didn't answer; nothing found; nothing found, one indexer didn't answer |
-| `settings` | Settings' own load of the server's settings, the checks of qBittorrent, Prowlarr and TMDB at once; the categories once qBittorrent's check is in | None: every row is there from the first paint, and the answers change only what the rows say and the category selects' options | Every service answers |
+| `settings` | The checks of Prowlarr and TMDB and the categories at once: the server's settings and qBittorrent's check are the session's answers, which the page shares (#382) | None: every row is there from the first paint, and the answers change only what the rows say and the category selects' options | Every service answers |
 
 On desktop each screen has the same chain, with what the desktop layout adds or does otherwise:
 
