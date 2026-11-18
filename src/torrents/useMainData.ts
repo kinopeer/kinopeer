@@ -63,7 +63,8 @@ export interface MainDataStore extends PollSource {
 /**
  * Polls /sync/maindata while anyone is subscribed and the page is visible, and right away when the
  * device comes back online. Calls the unauthorized handler once if the session expires, and stops for good.
- * The last state stays when the last subscriber leaves, so the next one starts from it.
+ * The last state stays when the last subscriber leaves, so the next one starts from it, and the poll
+ * keeps its rhythm: started again, it waits for what's left of the interval since its last answer.
  */
 export function createMainDataStore(): MainDataStore {
   let onUnauthorized = () => {}
@@ -71,6 +72,10 @@ export function createMainDataStore(): MainDataStore {
   let state = EMPTY_SYNC_STATE
   const listeners = new Set<() => void>()
   let timer: ReturnType<typeof setTimeout> | undefined
+  // When the next poll is due (ms since epoch), set as an answer settles and cleared as a poll goes
+  // out, so a poll started again keeps the rhythm rather than asking at once (#385). Null: no answer
+  // kept since the last poll went out, so the next one goes out at once.
+  let dueAt: number | null = null
   let idleTimer: ReturnType<typeof setTimeout> | undefined
   let running = false
   let inFlight = false
@@ -93,13 +98,16 @@ export function createMainDataStore(): MainDataStore {
 
   const schedule = (delay: number) => {
     clearTimeout(timer)
-    if (running && !document.hidden) timer = setTimeout(() => void poll(), delay)
+    if (!running) return
+    dueAt = Date.now() + delay
+    if (!document.hidden) timer = setTimeout(() => void poll(), delay)
   }
 
   const poll = async () => {
     if (inFlight || !running) return
     inFlight = true
     refreshed = false
+    dueAt = null
     clearTimeout(timer)
     update({})
     const controller = new AbortController()
@@ -133,6 +141,8 @@ export function createMainDataStore(): MainDataStore {
     // Stopped meanwhile: the answer is dropped, and only the poll's state says nothing is in flight.
     update(running ? changes : {})
     schedule(refreshed ? 0 : delay)
+    // A dropped poll brought no answer, so a poll started again later goes out at once.
+    if (dropped) dueAt = null
   }
 
   // A poll in flight may hang until its timeout, so it's given up and sent again, at once, rather
@@ -159,7 +169,9 @@ export function createMainDataStore(): MainDataStore {
     running = true
     document.addEventListener('visibilitychange', onVisibilityChange)
     window.addEventListener('online', onOnline)
-    void poll()
+    // The data a screen coming back shows is at most an interval old, and the poll's ring says how old.
+    if (dueAt === null) void poll()
+    else schedule(Math.max(0, dueAt - Date.now()))
   }
 
   function stop() {

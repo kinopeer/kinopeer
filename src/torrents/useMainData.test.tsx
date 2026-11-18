@@ -358,6 +358,135 @@ describe('MainDataProvider', () => {
     expect(getMainData).toHaveBeenLastCalledWith(1, expect.any(AbortSignal))
   })
 
+  describe('started again', () => {
+    /** A screen that uses the poll, on or off, as moving between screens mounts and unmounts it. */
+    const app = (on: boolean) => <MainDataProvider onUnauthorized={vi.fn()}>{on && <Polling />}</MainDataProvider>
+    function Polling() {
+      useMainData()
+      return null
+    }
+    /** Leaves for that long, then comes back, as a move to a screen without the poll and back does. */
+    async function leaveFor(rerender: (ui: ReactNode) => void, ms: number) {
+      rerender(app(false))
+      await act(() => vi.advanceTimersByTimeAsync(ms))
+      rerender(app(true))
+      await act(() => vi.advanceTimersByTimeAsync(0))
+    }
+
+    it('waits for what’s left of its interval since the last answer, then keeps the interval (#385)', async () => {
+      getMainData.mockResolvedValue({ rid: 1 })
+      const { rerender } = render(app(true))
+      await act(() => vi.advanceTimersByTimeAsync(0))
+      await leaveFor(rerender, 500)
+      expect(getMainData).toHaveBeenCalledTimes(1)
+
+      await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS - 500 - 1))
+      expect(getMainData).toHaveBeenCalledTimes(1)
+      await act(() => vi.advanceTimersByTimeAsync(1))
+      expect(getMainData).toHaveBeenCalledTimes(2)
+      await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS))
+      expect(getMainData).toHaveBeenCalledTimes(3)
+    })
+
+    it('keeps the slower rhythm of retries while qBittorrent doesn’t answer', async () => {
+      getMainData.mockRejectedValue(new TypeError('Failed to fetch'))
+      const { rerender } = render(app(true))
+      await act(() => vi.advanceTimersByTimeAsync(0))
+      await leaveFor(rerender, POLL_INTERVAL_MS)
+      expect(getMainData).toHaveBeenCalledTimes(1)
+
+      await act(() => vi.advanceTimersByTimeAsync(OFFLINE_POLL_INTERVAL_MS - POLL_INTERVAL_MS - 1))
+      expect(getMainData).toHaveBeenCalledTimes(1)
+      await act(() => vi.advanceTimersByTimeAsync(1))
+      expect(getMainData).toHaveBeenCalledTimes(2)
+    })
+
+    it('polls at once when its interval is up meanwhile', async () => {
+      getMainData.mockResolvedValue({ rid: 1 })
+      const { rerender } = render(app(true))
+      await act(() => vi.advanceTimersByTimeAsync(0))
+      await leaveFor(rerender, POLL_INTERVAL_MS)
+      expect(getMainData).toHaveBeenCalledTimes(2)
+    })
+
+    it('polls at once when the answer of the poll in flight as everyone left was dropped, a refresh before its time included', async () => {
+      let answer: (data: api.MainData) => void = () => {}
+      getMainData
+        .mockResolvedValueOnce({ rid: 1, full_update: true })
+        .mockReturnValueOnce(new Promise((resolve) => (answer = resolve)))
+        .mockResolvedValue({ rid: 3 })
+      let refresh = () => {}
+      function Refreshing() {
+        refresh = useMainData().refresh
+        return null
+      }
+      const withRefresh = (on: boolean) => <MainDataProvider onUnauthorized={vi.fn()}>{on && <Refreshing />}</MainDataProvider>
+      const { rerender } = render(withRefresh(true))
+      await act(() => vi.advanceTimersByTimeAsync(0))
+      act(() => refresh())
+      rerender(withRefresh(false))
+      await act(() => vi.advanceTimersByTimeAsync(0))
+      await act(async () => answer({ rid: 2 }))
+
+      rerender(withRefresh(true))
+      await act(() => vi.advanceTimersByTimeAsync(0))
+      expect(getMainData).toHaveBeenCalledTimes(3)
+    })
+
+    it('polls at once when the poll in flight was given up as the page was hidden', async () => {
+      getMainData.mockResolvedValueOnce({ rid: 1 }).mockImplementationOnce(hang).mockResolvedValue({ rid: 2 })
+      const { rerender } = render(app(true))
+      await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS))
+      expect(getMainData).toHaveBeenCalledTimes(2)
+      act(() => setHidden(true))
+      rerender(app(false))
+      await act(() => vi.advanceTimersByTimeAsync(0))
+      // Shown while nothing uses the poll, so nothing polls as the page comes back.
+      act(() => setHidden(false))
+
+      rerender(app(true))
+      await act(() => vi.advanceTimersByTimeAsync(0))
+      expect(getMainData).toHaveBeenCalledTimes(3)
+    })
+
+    it('polls at once while it waits on a refresh, the device coming back online or the page being shown, and keeps one rhythm', async () => {
+      getMainData.mockResolvedValue({ rid: 1 })
+      let refresh = () => {}
+      function Refreshing() {
+        refresh = useMainData().refresh
+        return null
+      }
+      const withRefresh = (on: boolean) => <MainDataProvider onUnauthorized={vi.fn()}>{on && <Refreshing />}</MainDataProvider>
+      const { rerender } = render(withRefresh(true))
+      await act(() => vi.advanceTimersByTimeAsync(0))
+
+      const comeBack = async () => {
+        rerender(withRefresh(false))
+        await act(() => vi.advanceTimersByTimeAsync(500))
+        rerender(withRefresh(true))
+        await act(() => vi.advanceTimersByTimeAsync(0))
+      }
+      const ways = [
+        () => refresh(),
+        () => window.dispatchEvent(new Event('online')),
+        () => setHidden(false),
+      ]
+      for (const way of ways) {
+        const before = getMainData.mock.calls.length
+        await comeBack()
+        expect(getMainData).toHaveBeenCalledTimes(before)
+        act(way)
+        await act(() => vi.advanceTimersByTimeAsync(0))
+        expect(getMainData).toHaveBeenCalledTimes(before + 1)
+        // The wait it was in is over: the next poll is an interval after this one's answer.
+        await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS - 1))
+        expect(getMainData).toHaveBeenCalledTimes(before + 1)
+        await act(() => vi.advanceTimersByTimeAsync(1))
+        expect(getMainData).toHaveBeenCalledTimes(before + 2)
+      }
+    })
+  })
+
   it('reports an expired session to the provider’s handler', async () => {
     getMainData.mockRejectedValue(new api.UnauthorizedError())
     const onUnauthorized = vi.fn()
