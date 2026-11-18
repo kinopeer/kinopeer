@@ -106,8 +106,12 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
           }),
         )
       }
-      // Asked once by a screen that shows what's in downloads before the poll has run (#460).
-      if (pathname === '/qbt/api/v2/torrents/info') return json(route, torrents)
+      // Asked once by a screen that shows what's in downloads before the poll has run (#460), and by
+      // the add sheet for the one torrent it's adding (#375), with qBittorrent's `hashes` filter.
+      if (pathname === '/qbt/api/v2/torrents/info') {
+        const hashes = new URL(route.request().url()).searchParams.get('hashes')?.split('|')
+        return json(route, hashes ? torrents.filter((torrent) => hashes.includes(torrent.hash)) : torrents)
+      }
       if (pathname === '/qbt/api/v2/app/defaultSavePath') return route.fulfill({ body: '/downloads' })
       // Automatic management on, so new torrents go to their category's folder, as the add sheet shows.
       if (pathname === '/qbt/api/v2/app/preferences') return json(route, { auto_tmm_enabled: true })
@@ -116,10 +120,6 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
           Movies: { name: 'Movies', savePath: '/downloads/movies' },
           'TV Shows': { name: 'TV Shows', savePath: '/downloads/tv' },
         })
-      }
-      if (pathname === '/qbt/api/v2/torrents/info') {
-        const hashes = new URL(route.request().url()).searchParams.get('hashes')?.split('|')
-        return json(route, hashes ? torrents.filter((torrent) => hashes.includes(torrent.hash)) : torrents)
       }
       if (pathname === '/qbt/api/v2/torrents/files') return json(route, torrentFiles())
       if (pathname === '/qbt/api/v2/torrents/trackers') {

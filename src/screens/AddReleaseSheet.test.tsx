@@ -411,13 +411,18 @@ describe('AddReleaseSheet', () => {
     expect(within(screen.getByRole('dialog', { name: 'Add to downloads' })).getByRole('button', { name: /^Download/ })).toBeDisabled()
   })
 
-  it('doesn’t warn by the release size when the torrent can’t be fetched', async () => {
+  it('offers no form, the free space warning included, when the torrent can’t be fetched', async () => {
     fetchRelease.mockRejectedValue(new prowlarr.ProwlarrError('down', 502, 'upstream'))
     renderSheet(RELEASE, await runningPoll())
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
-    expect(await within(sheet).findByText('TV → /data/tv')).toBeInTheDocument()
     expect(await within(sheet).findByRole('alert', { name: saying('Couldn’t get the torrent from Prowlarr.') })).toBeInTheDocument()
+    // The folders and the poll's free space in, which the form would show.
+    await waitFor(() => expect(vi.mocked(qbt.getSaveLocations)).toHaveBeenCalled())
+    await act(async () => {})
     expect(within(sheet).queryByText('Not enough free space')).not.toBeInTheDocument()
+    expect(within(sheet).queryByText('TV → /data/tv')).not.toBeInTheDocument()
+    expect(within(sheet).queryByRole('button', { name: 'Options' })).not.toBeInTheDocument()
+    expect(within(sheet).getByRole('button', { name: /^Download/ })).toBeDisabled()
   })
 
   it('doesn’t warn by the release size when the .torrent can’t be read', async () => {
@@ -483,6 +488,16 @@ describe('AddReleaseSheet', () => {
     renderSheet()
     await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
     expect(await screen.findByRole('alert', { name: saying('qBittorrent didn’t add the torrent. It may already be in your downloads.') })).toBeInTheDocument()
+  })
+
+  it('says qBittorrent refused a v1 magnet link when it then doesn’t have it', async () => {
+    const hash = 'c9e15763f722f23e98a29decdfae341b98d53056'
+    fetchRelease.mockResolvedValue({ kind: 'magnet', uri: `magnet:?xt=urn:btih:${hash}` })
+    addRelease.mockRejectedValue(new qbt.QbittorrentError('Fails.', 200))
+    renderSheet()
+    await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
+    expect(await screen.findByRole('alert', { name: saying('qBittorrent didn’t add the torrent.') })).toBeInTheDocument()
+    expect(getTorrents).toHaveBeenLastCalledWith({ hashes: [hash] }, undefined)
   })
 
   it('says it may already be in downloads when qBittorrent refused a magnet link with only a v2 hash and doesn’t have it by that', async () => {

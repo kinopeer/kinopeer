@@ -91,8 +91,8 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   const [refusedAsAdded, setRefusedAsAdded] = useState<Torrent>()
   const added = refusedAsAdded ?? existing.data ?? undefined
   // The form, held back until it's known whether qBittorrent has the torrent, so it doesn't go away
-  // under a finger when it does.
-  const offered = !added && !prepared.loading && !existing.loading
+  // under a finger when it does, and out of a sheet without a torrent to send.
+  const offered = !added && prepared.data !== undefined && !existing.loading
   const where = useRequest('qbt|locations', (signal) => getSaveLocations(signal))
   const free = useFreeSpace()
 
@@ -213,7 +213,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
               icon="download"
               block
               loading={adding}
-              disabled={!prepared.data || existing.loading || adding || (fileCount > 0 && selectedCount === 0)}
+              disabled={!offered || adding || (fileCount > 0 && selectedCount === 0)}
               onClick={() => void add()}
             >
               {t('add.download', { size: format.size(selectedSize) })}
