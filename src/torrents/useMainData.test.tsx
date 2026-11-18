@@ -361,8 +361,9 @@ describe('MainDataProvider', () => {
   describe('started again', () => {
     /** A screen that uses the poll, on or off, as moving between screens mounts and unmounts it. */
     const app = (on: boolean) => <MainDataProvider onUnauthorized={vi.fn()}>{on && <Polling />}</MainDataProvider>
+    let refresh = () => {}
     function Polling() {
-      useMainData()
+      refresh = useMainData().refresh
       return null
     }
     /** Leaves for that long, then comes back, as a move to a screen without the poll and back does. */
@@ -388,14 +389,15 @@ describe('MainDataProvider', () => {
       expect(getMainData).toHaveBeenCalledTimes(3)
     })
 
-    it('keeps the slower rhythm of retries while qBittorrent doesn’t answer', async () => {
-      getMainData.mockRejectedValue(new TypeError('Failed to fetch'))
+    it('waits no longer than its interval when the clock was set back meanwhile', async () => {
+      getMainData.mockResolvedValue({ rid: 1 })
       const { rerender } = render(app(true))
       await act(() => vi.advanceTimersByTimeAsync(0))
-      await leaveFor(rerender, POLL_INTERVAL_MS)
-      expect(getMainData).toHaveBeenCalledTimes(1)
-
-      await act(() => vi.advanceTimersByTimeAsync(OFFLINE_POLL_INTERVAL_MS - POLL_INTERVAL_MS - 1))
+      rerender(app(false))
+      await act(() => vi.advanceTimersByTimeAsync(500))
+      vi.setSystemTime(Date.now() - 10 * 60_000)
+      rerender(app(true))
+      await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS - 1))
       expect(getMainData).toHaveBeenCalledTimes(1)
       await act(() => vi.advanceTimersByTimeAsync(1))
       expect(getMainData).toHaveBeenCalledTimes(2)
@@ -409,26 +411,48 @@ describe('MainDataProvider', () => {
       expect(getMainData).toHaveBeenCalledTimes(2)
     })
 
+    it('polls at once when its last poll failed: the device may have come back online while nothing listened', async () => {
+      getMainData.mockRejectedValueOnce(new TypeError('Failed to fetch')).mockResolvedValue({ rid: 1 })
+      const { rerender } = render(app(true))
+      await act(() => vi.advanceTimersByTimeAsync(0))
+      rerender(app(false))
+      await act(() => vi.advanceTimersByTimeAsync(0))
+      window.dispatchEvent(new Event('online'))
+      await act(() => vi.advanceTimersByTimeAsync(500))
+
+      rerender(app(true))
+      // As it subscribes, not after the rest of the slower retry.
+      expect(getMainData).toHaveBeenCalledTimes(2)
+    })
+
+    it('polls at once when refreshed while nothing used it', async () => {
+      getMainData.mockResolvedValue({ rid: 1 })
+      const { rerender } = render(app(true))
+      await act(() => vi.advanceTimersByTimeAsync(0))
+      rerender(app(false))
+      await act(() => vi.advanceTimersByTimeAsync(200))
+      // A sheet's request settling after the person moved to a screen without the poll.
+      act(() => refresh())
+      expect(getMainData).toHaveBeenCalledTimes(1)
+
+      rerender(app(true))
+      expect(getMainData).toHaveBeenCalledTimes(2)
+    })
+
     it('polls at once when the answer of the poll in flight as everyone left was dropped, a refresh before its time included', async () => {
       let answer: (data: api.MainData) => void = () => {}
       getMainData
         .mockResolvedValueOnce({ rid: 1, full_update: true })
         .mockReturnValueOnce(new Promise((resolve) => (answer = resolve)))
         .mockResolvedValue({ rid: 3 })
-      let refresh = () => {}
-      function Refreshing() {
-        refresh = useMainData().refresh
-        return null
-      }
-      const withRefresh = (on: boolean) => <MainDataProvider onUnauthorized={vi.fn()}>{on && <Refreshing />}</MainDataProvider>
-      const { rerender } = render(withRefresh(true))
+      const { rerender } = render(app(true))
       await act(() => vi.advanceTimersByTimeAsync(0))
       act(() => refresh())
-      rerender(withRefresh(false))
+      rerender(app(false))
       await act(() => vi.advanceTimersByTimeAsync(0))
       await act(async () => answer({ rid: 2 }))
 
-      rerender(withRefresh(true))
+      rerender(app(true))
       // As it subscribes, not on a timer.
       expect(getMainData).toHaveBeenCalledTimes(3)
     })
@@ -451,21 +475,9 @@ describe('MainDataProvider', () => {
 
     it('polls at once while it waits on a refresh, the device coming back online or the page being shown, and keeps one rhythm', async () => {
       getMainData.mockResolvedValue({ rid: 1 })
-      let refresh = () => {}
-      function Refreshing() {
-        refresh = useMainData().refresh
-        return null
-      }
-      const withRefresh = (on: boolean) => <MainDataProvider onUnauthorized={vi.fn()}>{on && <Refreshing />}</MainDataProvider>
-      const { rerender } = render(withRefresh(true))
+      const { rerender } = render(app(true))
       await act(() => vi.advanceTimersByTimeAsync(0))
 
-      const comeBack = async () => {
-        rerender(withRefresh(false))
-        await act(() => vi.advanceTimersByTimeAsync(500))
-        rerender(withRefresh(true))
-        await act(() => vi.advanceTimersByTimeAsync(0))
-      }
       const ways = [
         () => refresh(),
         () => window.dispatchEvent(new Event('online')),
@@ -473,7 +485,7 @@ describe('MainDataProvider', () => {
       ]
       for (const way of ways) {
         const before = getMainData.mock.calls.length
-        await comeBack()
+        await leaveFor(rerender, 500)
         expect(getMainData).toHaveBeenCalledTimes(before)
         act(way)
         await act(() => vi.advanceTimersByTimeAsync(0))
