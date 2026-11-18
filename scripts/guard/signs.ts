@@ -67,7 +67,7 @@ export const readsWhole = (path: string): boolean =>
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json }
 type JsonObject = { [key: string]: Json }
 
-const isObject = (value: Json | undefined): value is JsonObject => typeof value === 'object' && value !== null && !Array.isArray(value)
+const isObject = (value: unknown): value is JsonObject => typeof value === 'object' && value !== null && !Array.isArray(value)
 const same = (a: Json | undefined, b: Json | undefined): boolean => JSON.stringify(a) === JSON.stringify(b)
 const show = (value: Json | undefined): string => (value === undefined ? 'nothing' : `\`${JSON.stringify(value)}\``)
 
@@ -345,40 +345,45 @@ export function compareScripts(base: string | undefined, head: string | undefine
   })
 }
 
-const isMapping = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
-
 /**
  * A command as one line: each line of a block without its indentation, blank lines and the shell's
- * comments, joined with ` ; `, so a block reads the same however it is indented or folded.
+ * comments, joined with ` ; `, so a block reads the same however it is indented or folded. A comment
+ * is what the shell takes for one, a `#` that starts a word and the rest of its line: in a folded
+ * block a comment's line folds into the line before it (`npm test && # npm run lint`), and a
+ * commented-out command runs nothing. A `#` inside quotes that starts a word is cut as well.
  */
 const commandLine = (run: string): string =>
   run
     .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line !== '' && !line.startsWith('#'))
+    .map((line) => line.replace(/(?:^|\s)#.*/, '').trim())
+    .filter((line) => line !== '')
     .join(' ; ')
 
 /** What an action or a reusable workflow is called by: without its version, so a bump isn't a change. */
 const actionOf = (uses: unknown): string[] => (typeof uses === 'string' ? [`uses: ${uses.split('@')[0]}`] : [])
 
+/** A value YAML reads as a scalar and GitHub as text: `run: true` runs `true`. */
+const isScalar = (value: unknown): value is string | number | boolean => typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+
 /** A step as what it runs: the action it calls or its command; nothing for anything else. */
-const stepOf = ({ uses, run }: Record<string, unknown>): string[] => (typeof run === 'string' ? [`run: ${commandLine(run)}`] : actionOf(uses))
+const stepOf = ({ uses, run }: JsonObject): string[] => (isScalar(run) ? [`run: ${commandLine(String(run))}`] : actionOf(uses))
 
 /**
  * A workflow's steps, each as what it runs, in the order its jobs and their steps are written:
  * each job's call of a reusable workflow (`jobs.<id>.uses`) and each of its steps' `uses` or `run`
  * (`jobs.<id>.steps`), nowhere else, since GitHub runs nothing else. Read with a YAML parser as
- * GitHub reads a workflow: YAML 1.2, so aliases resolve and a merge key (`<<:`), which GitHub
- * doesn't take, merges nothing. A command built by an expression (`run: ${{ inputs.command }}`)
- * is read as written. Undefined where the text isn't one YAML document the parser reads without an
- * error or that names another version of YAML: GitHub wouldn't run the first, and might read the
- * second otherwise.
+ * GitHub reads a workflow: YAML 1.2, which GitHub's docs cite, so aliases resolve and a merge key
+ * (`<<:`), which 1.2 doesn't have, merges nothing. A command built by an expression
+ * (`run: ${{ inputs.command }}`) is read as written. Undefined where the text isn't one YAML 1.2
+ * document the parser reads without an error or a warning (a `%YAML` directive it doesn't know, a
+ * tag it can't resolve): GitHub wouldn't run it, or might read it otherwise.
  */
 export function workflowSteps(text: string): string[] | undefined {
-  // YAML 1.2 is the parser's default, which has no merge keys. A `%YAML` directive for another version would have it read the
-  // text otherwise than GitHub does (1.1 merges), so it leaves the workflow unread too.
+  // YAML 1.2 is the parser's default, which has no merge keys. A `%YAML 1.1` directive would have it read the text otherwise than
+  // GitHub does (1.1 merges); a version it doesn't know is a warning, read as 1.2 all the same, as is a tag it can't resolve, read
+  // as plain text. So each leaves the workflow unread.
   const document = parseDocument(text)
-  if (document.errors.length > 0 || document.directives?.yaml.version !== '1.2') return undefined
+  if (document.errors.length > 0 || document.warnings.length > 0 || document.directives?.yaml.version !== '1.2') return undefined
   let workflow: unknown
   try {
     workflow = document.toJS()
@@ -386,10 +391,10 @@ export function workflowSteps(text: string): string[] | undefined {
     // An alias that expands past the parser's limit: unread rather than read in part.
     return undefined
   }
-  if (!isMapping(workflow) || !isMapping(workflow.jobs)) return []
+  if (!isObject(workflow) || !isObject(workflow.jobs)) return []
   return Object.values(workflow.jobs).flatMap((job): string[] => {
-    if (!isMapping(job)) return []
-    const steps = Array.isArray(job.steps) ? job.steps.filter(isMapping) : []
+    if (!isObject(job)) return []
+    const steps = Array.isArray(job.steps) ? job.steps.filter(isObject) : []
     return [...actionOf(job.uses), ...steps.flatMap(stepOf)]
   })
 }
@@ -422,10 +427,11 @@ export function commands(step: string): string[] {
  */
 export function compareWorkflows(workflows: Change[]): Finding[] {
   const stepsOf = (text: string | undefined): string[] | undefined => (text === undefined ? [] : workflowSteps(text))
-  const called = new Set(workflows.flatMap(({ head }) => (stepsOf(head) ?? []).flatMap(commands)))
+  // Each side parsed once: `left` is spent below as its steps are paired with main's, after `called` is taken from it.
+  const read = workflows.map((change) => ({ ...change, was: stepsOf(change.base), left: stepsOf(change.head) }))
+  const called = new Set(read.flatMap(({ left }) => (left ?? []).flatMap(commands)))
   const dropped = new Set<string>()
-  return workflows.flatMap(({ path: file, base, head }): Finding[] => {
-    const [was, left] = [stepsOf(base), stepsOf(head)]
+  return read.flatMap(({ path: file, head, was, left }): Finding[] => {
     const found: Finding[] = head === undefined ? [{ needs: 'owner', file, what: 'the workflow is removed, and its steps with it' }] : []
     if (left === undefined) return [{ needs: 'owner', file, what: "the guard can't read the workflow as YAML, so it can't compare its steps" }]
     if (was === undefined) return [...found, { needs: 'review', file, what: "the guard can't read main's copy of the workflow as YAML, so it has nothing to compare this one with" }]

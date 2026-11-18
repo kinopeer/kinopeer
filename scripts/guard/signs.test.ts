@@ -380,6 +380,10 @@ describe('workflowSteps', () => {
     ['a block with a comment after its start', job('      - run: | # the tests\n          npm test\n'), ['run: npm test']],
     ['a block that says how it is indented and ends', job('      - run: |2-\n          npm ci\n      - run: >+\n          npm test\n'), ['run: npm ci', 'run: npm test']],
     ['a folded block, as one line', job('      - run: >-\n          npm test\n          -- --quiet\n'), ['run: npm test -- --quiet']],
+    ['a folded block without a comment line, which folds into the line before it', job('      - run: >\n          npm test &&\n          # npm run lint\n'), ['run: npm test &&']],
+    ['a command without the comment after it', job('      - run: |\n          npm test # npm run lint\n          npm ci\t# the install\n'), ['run: npm test ; npm ci']],
+    ['a # that starts no word as part of the command', job('      - run: echo a#b "#c"\n'), ['run: echo a#b "#c"']],
+    ['a command YAML reads as a number or a boolean, as text', job('      - run: 42\n      - run: true\n'), ['run: 42', 'run: true']],
     ['a block that ends the file', job('      - run: |\n          npm ci\n          npm test'), ['run: npm ci ; npm test']],
     ['a command that only ends like the start of a block', job('      - run: ls |\n'), ['run: ls |']],
     ['a step with more than one space after its dash', job('      -   run: npm ci\n'), ['run: npm ci']],
@@ -411,7 +415,7 @@ describe('workflowSteps', () => {
     ['a step that a merge key would make, which GitHub has no merge for', `x-test: &test\n  run: npm test\n${job('      - run: npm ci\n      - <<: *test\n')}`],
     ['a key outside the jobs', 'env:\n  run: npm test\nx-steps:\n  - run: npm test\njobs:\n  check:\n    steps:\n      - run: npm ci\n'],
     ["a key of a job other than its steps and uses", 'jobs:\n  check:\n    run: npm test\n    services:\n      - uses: actions/checkout@v7\n    steps:\n      - run: npm ci\n'],
-    ['a command that is not text', job('      - run:\n          npm: test\n      - run:\n      - run: npm ci\n')],
+    ['a command that is a mapping or nothing', job('      - run:\n          npm: test\n      - run:\n      - run: npm ci\n')],
     ['a step that is not a mapping', job('      - npm test\n      - [run, npm test]\n      -\n      - run: npm ci\n')],
   ])("doesn't read %s as a step", (_name, text) => {
     expect(workflowSteps(text)?.filter((step) => step !== 'uses: actions/github-script')).toEqual(['run: npm ci'])
@@ -436,6 +440,8 @@ describe('workflowSteps', () => {
     ['a key given twice', job('      - run: npm test\n        run: npm ci\n')],
     ['an alias of no anchor', job('      - run: *test\n')],
     ['two documents', `${job('      - run: npm test\n')}---\n${job('      - run: npm ci\n')}`],
+    ['a document that says it is YAML of a version the parser does not know', `%YAML 2.0\n---\n${job('      - run: npm test\n')}`],
+    ['a tag the parser cannot resolve', job('      - run: !custom npm test\n')],
     ['a document that says it is YAML 1.1, whose merge keys GitHub would not read', `%YAML 1.1\n---\nx-test: &test\n  run: npm test\n${job('      - <<: *test\n')}`],
     ['aliases that expand past the limit', `a: &a [x, x, x, x, x, x, x, x, x, x]\nb: &b [*a, *a, *a, *a, *a, *a, *a, *a, *a, *a]\nc: &c [*b, *b, *b, *b, *b, *b, *b, *b, *b, *b]\n${job('      - run: npm test\n')}`],
   ])("can't read %s", (_name, text) => {
@@ -569,6 +575,11 @@ describe('compareWorkflows', () => {
       'owner: a command CI ran is no longer run: `node summary.mjs`',
       'owner: a command CI ran is no longer run: `uses: actions/upload-artifact`',
     ])
+  })
+
+  it('sends a command commented out in a folded block to the owner', () => {
+    const folded = (lint: string) => `jobs:\n  check:\n    steps:\n      - run: >\n          npm test &&\n          ${lint}\n`
+    expect(said(compare(folded('# npm run lint'), folded('npm run lint')))).toEqual(['owner: a command CI ran is no longer run: `npm run lint`'])
   })
 
   it("sends a workflow the guard can't read to the owner, instead of its steps", () => {
