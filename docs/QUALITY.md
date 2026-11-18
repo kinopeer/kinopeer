@@ -77,8 +77,10 @@ Three kinds of change, three lists in its report. The deputy's round judges ever
   It reads them with a YAML parser (`yaml`) as GitHub does, YAML 1.2: only a job's `uses` and its
   steps' `uses` and `run`, with aliases resolved and no merge keys, which YAML 1.2 doesn't have
   (GitHub's docs on YAML anchors and aliases cite the 1.2.2 spec); a command built by an expression
-  is read as written, and a shell comment (a `#` that starts a word, to the end of its line) is
-  left out, also where a folded block folds it into the line before. Its tests keep a table of the
+  is read as written, and a shell comment is left out where the shell starts one: a `#` that starts
+  a word outside quotes (after a blank or an operator's character, `npm test;# npm run lint`), to
+  the end of its line, also where a folded block folds it into the line before; a `#` inside quotes
+  or escaped is text. Its tests keep a table of the
   spellings it reads, lets through and can't read (`scripts/guard/signs.test.ts`).
 - An npm script removed (`scripts` in the root `package.json`): the step that called it checks
   nothing.
@@ -120,8 +122,9 @@ Three kinds of change, three lists in its report. The deputy's round judges ever
   read, a list in `checks.json` that is no longer a list, and `checks.json` or `.oxlintrc.json`
   removed.
 - A workflow the guard can't read as one YAML 1.2 document (an error in it, two documents, a
-  `%YAML` directive other than 1.2, a tag the parser can't resolve), in place of its steps: GitHub
-  wouldn't run it, or might read it otherwise.
+  `%YAML` directive other than 1.2, a tag the parser can't resolve, YAML 1.1's tags among them, as
+  `!!merge <<:` and `!!binary`), in place of its steps: GitHub wouldn't run it, or might read it
+  otherwise.
 - Any change to `scripts/guard/`, `.github/workflows/guard.yml`, this file or the deputy's
   procedure (`.claude/skills/deputy/`), which judges the marks.
 
@@ -321,9 +324,6 @@ compare the tests that ran, and says so: that takes a run of each side, which CI
 - What a command built by an expression runs: the guard reads `run: npm run ${{ matrix.script }}`
   as written, so a script taken out of the matrix, or an input's default changed, isn't read as a
   command no longer run.
-- A `#` inside quotes that starts a word (`echo "step #2" && npm test`) is read as a shell comment,
-  so the rest of the line isn't read, on both sides alike: a command taken out of that rest isn't
-  marked.
 - A change to `guard.yml` that stops the script from running or from being `main`'s copy: the
   workflow runs as the PR has it, so the weakening's mark comes from the changed steps, if they
   still make it.
