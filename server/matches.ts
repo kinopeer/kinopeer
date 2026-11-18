@@ -1,4 +1,4 @@
-import type { Matches, MatchesErrorBody, MatchesPatch, SentMatch } from '../src/api/matches/types.ts'
+import type { Matches, MatchesErrorBody, MatchesPatch, SentMatch, StoredMatch } from '../src/api/matches/types.ts'
 import { isJsonRequest, readJson, sendJson } from './json.ts'
 import { JsonFile } from './jsonFile.ts'
 import type { Middleware } from './prowlarr.ts'
@@ -25,13 +25,13 @@ export class MatchesStore extends JsonFile<Matches> {
     super(dir, 'matches.json')
   }
 
-  /** Saves `changes` over what is kept and forgets those set to null; only the user's choice replaces the user's choice. */
+  /** Saves `changes` over what is kept, where `replaces` lets them, and forgets those set to null. */
   save(changes: MatchesPatch): Promise<Matches> {
     return this.change((current) => {
       const next = { ...current }
       for (const [hash, match] of Object.entries(changes)) {
         if (match === null) delete next[hash]
-        else if (match.source === 'user' || current[hash]?.source !== 'user') next[hash] = match
+        else if (replaces(match, current[hash])) next[hash] = match
       }
       return next
     })
@@ -86,16 +86,25 @@ function fail(response: Parameters<Middleware>[1], status: number, error: Matche
   sendJson(response, status, { error } satisfies MatchesErrorBody)
 }
 
+/**
+ * Whether a match sent replaces the one kept: the user's choice replaces anything and only the
+ * user's choice replaces it, and a miss doesn't replace a title guessed by the same or a newer
+ * version of guessing. A device whose page loaded the matches before another one found the title
+ * still sends its miss, which would take that title from every device.
+ */
+function replaces(match: SentMatch, kept: StoredMatch | undefined): boolean {
+  if (match.source === 'user' || !kept) return true
+  if (kept.source === 'user') return false
+  return match.source !== 'miss' || kept.source !== 'guess' || (kept.version ?? 0) < match.version
+}
+
 function validMatch(value: unknown): value is SentMatch {
   if (!value || typeof value !== 'object') return false
-  const { source, version } = value as Record<string, unknown>
+  const { type, id, source, version, ...rest } = value as Record<string, unknown>
   const validVersion = Number.isSafeInteger(version) && (version as number) > 0
-  if (source === 'miss') return Object.keys(value).length === 2 && validVersion
-  const { type, id, ...rest } = value as Record<string, unknown>
-  delete rest.source
-  delete rest.version
+  if (Object.keys(rest).length > 0) return false
+  if (source === 'miss') return type === undefined && id === undefined && validVersion
   return (
-    Object.keys(rest).length === 0 &&
     (type === 'movie' || type === 'tv') &&
     Number.isSafeInteger(id) &&
     (id as number) > 0 &&

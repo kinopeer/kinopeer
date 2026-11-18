@@ -100,7 +100,7 @@ describe('adding a release', () => {
 })
 
 describe('matching torrents to titles', () => {
-  it('keeps the user’s choice over a guess and forgets only the guesses', async () => {
+  it('keeps the user’s choice over a guess, one that found no title too, and forgets only the guesses', async () => {
     const A = 'a'.repeat(40)
     const B = 'b'.repeat(40)
     const guess = { type: 'movie', id: 27205, source: 'guess', version: 2 } as const
@@ -109,6 +109,7 @@ describe('matching torrents to titles', () => {
 
     await expect(saveMatches({ [A]: guess })).resolves.toEqual({ [A]: guess })
     await expect(saveMatches({ [A]: choice })).resolves.toEqual({ [A]: choice })
+    await expect(saveMatches({ [A]: { source: 'miss', version: 2 } })).resolves.toEqual({ [A]: choice })
     await expect(saveMatches({ [A]: { ...guess, version: 3 }, [B]: guess })).resolves.toEqual({ [A]: choice, [B]: guess })
     await expect(clearGuesses()).resolves.toEqual({ [A]: choice })
     expect(stores.matches.current).toEqual({ [A]: choice })

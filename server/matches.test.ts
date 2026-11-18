@@ -62,16 +62,24 @@ describe('MatchesStore', () => {
     expect(store.current[A]).toEqual({ type: 'tv', id: 5, source: 'user' })
   })
 
-  it('keeps a guess that found no title as a guess is kept: under the user’s choice, replaced by a guess, with no expiry', async () => {
+  it('keeps a guess that found no title under the user’s choice and under a title guessed by the same or a newer version of guessing, not an older one, with no expiry', async () => {
+    const C = 'd'.repeat(40)
     const store = new MatchesStore(dir)
-    await store.save({ [A]: USER, [B]: GUESS })
-    await store.save({ [A]: MISS, [B]: MISS, [V2]: MISS })
-    expect(store.current).toEqual({ [A]: USER, [B]: MISS, [V2]: MISS })
-    await store.save({ [V2]: GUESS })
-    expect(store.current).toEqual({ [A]: USER, [B]: MISS, [V2]: GUESS })
+    await store.save({ [A]: USER, [B]: GUESS, [C]: { ...GUESS, version: 3 }, [V2]: { ...GUESS, version: 1 } })
+    // A device that loaded the matches before another one found the title still sends its miss.
+    await store.save({ [A]: MISS, [B]: MISS, [C]: MISS, [V2]: MISS })
+    const kept = { [A]: USER, [B]: GUESS, [C]: { ...GUESS, version: 3 }, [V2]: MISS }
+    expect(store.current).toEqual(kept)
     // Kept for as long as its torrent is there, however long that is.
-    await store.prune(new Set([A, B, V2]), 100, Date.now() + 10 * 365 * 24 * 3600_000)
-    expect(store.current).toEqual({ [A]: USER, [B]: MISS, [V2]: GUESS })
+    await store.prune(new Set([A, B, C, V2]), 100, Date.now() + 10 * 365 * 24 * 3600_000)
+    expect(store.current).toEqual(kept)
+  })
+
+  it('replaces a guess that found no title by a guess, and a guess by another of the same version', async () => {
+    const store = new MatchesStore(dir)
+    await store.save({ [A]: MISS, [B]: GUESS })
+    await store.save({ [A]: GUESS, [B]: { ...GUESS, id: 3 } })
+    expect(store.current).toEqual({ [A]: GUESS, [B]: { ...GUESS, id: 3 } })
   })
 
   it('forgets a guess that found no title with its torrent, as other matches', async () => {
@@ -214,9 +222,10 @@ describe('matchesMiddleware', () => {
     expect(Object.keys((await (await fetch(`${app}/api/matches`)).json()) as Matches)).toEqual([A, V2, B])
 
     // A guess that found no title is saved and answered like the others.
-    const miss = await patch(app, { [B]: MISS })
+    const C = 'd'.repeat(40)
+    const miss = await patch(app, { [C]: MISS })
     expect(miss.status).toBe(200)
-    expect(((await miss.json()) as Matches)[B]).toEqual(MISS)
+    expect(((await miss.json()) as Matches)[C]).toEqual(MISS)
     expect(JSON.parse(await readFile(join(dir, 'matches.json'), 'utf8'))).toMatchObject(saved)
   })
 
@@ -259,7 +268,8 @@ describe('matchesMiddleware', () => {
       { [A]: { ...good, version: '2' } },
       { [A]: { ...good, title: 'Dune' } },
       { [A]: good, [B]: false },
-      { [A]: { ...MISS, type: 'movie', id: 1 } },
+      { [A]: { ...MISS, type: 'movie' } },
+      { [A]: { ...MISS, id: 1 } },
       { [A]: { source: 'miss' } },
       { [A]: { ...MISS, version: 0 } },
       { [A]: { ...MISS, title: null } },

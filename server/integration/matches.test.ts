@@ -8,6 +8,7 @@ const A = 'a'.repeat(40)
 const B = 'b'.repeat(40)
 const USER = { type: 'movie', id: 693134, source: 'user' } as const
 const GUESS = { type: 'tv', id: 126308, source: 'guess', version: 2 } as const
+const MISS = { source: 'miss', version: 2 } as const
 
 afterEach(async () => {
   await stopKinopeer()
@@ -35,6 +36,14 @@ describe('matches client through /api/matches', () => {
     await saveMatches({ [A]: USER, [B]: GUESS })
     await expect(clearGuesses()).resolves.toEqual({ [A]: USER })
     expect(received.at(-1)).toMatchObject({ method: 'DELETE', url: '/api/matches' })
+  })
+
+  it('saves a guess that found no title to matches.json, answers it, and forgets it with the guesses', async () => {
+    const { dataDir } = await startKinopeer()
+    await expect(saveMatches({ [A]: USER, [B]: MISS })).resolves.toEqual({ [A]: USER, [B]: MISS })
+    expect(JSON.parse(await readFile(join(dataDir, 'matches.json'), 'utf8'))).toEqual({ [A]: USER, [B]: MISS })
+    await expect(getMatches()).resolves.toEqual({ [A]: USER, [B]: MISS })
+    await expect(clearGuesses()).resolves.toEqual({ [A]: USER })
   })
 
   it('says when matches.json can’t be written', async () => {
