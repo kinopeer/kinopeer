@@ -32,6 +32,7 @@ describe('useTitleDetails', () => {
     const none = renderHook(() => useTitleDetails(undefined, 0, 'en-US'))
     expect(none.result.current).toMatchObject({ data: undefined, loading: false })
     expect(getMovie).toHaveBeenCalledTimes(1)
+    expect(getTv).toHaveBeenCalledTimes(1)
   })
 
   it('shares a title’s details on the page for an hour, by title and language (#384)', async () => {

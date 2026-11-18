@@ -6,8 +6,6 @@ import {
   TmdbError,
   TmdbKeyError,
   posterUrl,
-  type MovieDetails,
-  type TvDetails,
 } from '../api/tmdb'
 import { Badge } from '../components/Badge'
 import { Banner } from '../components/Banner'
@@ -18,6 +16,7 @@ import { IconButton } from '../components/IconButton'
 import { Poster } from '../components/Poster'
 import { useFormatters, type Formatters } from '../lib/format'
 import { useIsDesktop } from '../lib/useIsDesktop'
+import type { TitleDetails as Details } from '../releases/releaseQuery'
 import { useTmdbLanguage } from '../settings/settings'
 import { downloadsMark } from '../torrents/titleDownloads'
 import { useTitleTorrents } from '../torrents/useTitleMatches'
@@ -32,7 +31,6 @@ import { TitleReleases } from './TitleReleases'
 import { useTitleDetails } from './useTitleDetails'
 import './TitleScreen.css'
 
-type Details = ({ type: 'movie' } & MovieDetails) | ({ type: 'tv' } & TvDetails)
 
 function year(date: string | null | undefined): string | undefined {
   return date ? date.slice(0, 4) : undefined

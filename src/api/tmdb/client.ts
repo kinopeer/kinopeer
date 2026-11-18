@@ -231,8 +231,9 @@ async function getRelated(
 /**
  * How long the page takes a title's details and related titles it has instead of asking TMDB again
  * (`sharedRequests`): an hour, so moving between a title's page and its releases, and back, asks
- * nothing again, while a page left open longer asks anew. Well under the day Kinopeer's TMDB proxy
- * keeps those answers itself (`tmdb-proxy/worker.ts`), so a title is no staler than the proxy serves it.
+ * nothing again, while a page left open longer asks anew. Details change on TMDB in hours or days: on
+ * Kinopeer's key an hour adds little to the day its TMDB proxy keeps these answers (`tmdb-proxy/worker.ts`),
+ * and with one's own key, which nothing upstream caches, it is the only age a title can have.
  */
 export const TITLE_FRESH_MS = 60 * 60_000
 
