@@ -4,9 +4,10 @@
 
 /**
  * The ID qBittorrent knows a torrent by, for its info hash, lowercase: a v1 hash (40 hex digits) as
- * it is, a v2 one (64) truncated to 40. Undefined for anything else.
+ * it is, a v2 one (64) truncated to 40. Undefined for anything else, no hash included.
  */
-export function torrentId(infoHash: string): string | undefined {
+export function torrentId(infoHash: string | undefined): string | undefined {
+  if (infoHash === undefined) return undefined
   const hash = infoHash.trim().toLowerCase()
   if (/^[0-9a-f]{40}$/.test(hash)) return hash
   if (/^[0-9a-f]{64}$/.test(hash)) return hash.slice(0, 40)
@@ -16,6 +17,5 @@ export function torrentId(infoHash: string): string | undefined {
 /** The torrent among these with this info hash, by qBittorrent's ID. */
 export function findByHash<T extends { hash: string }>(torrents: readonly T[], infoHash: string): T | undefined {
   const id = torrentId(infoHash)
-  if (id === undefined) return undefined
   return torrents.find((torrent) => torrent.hash === id)
 }

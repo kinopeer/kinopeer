@@ -140,6 +140,8 @@ describe('AddReleaseSheet', () => {
     expect(within(sheet).getByText('Breaking Bad')).toBeInTheDocument()
     expect(within(sheet).getByRole('link', { name: 'Open on Indexer C' })).toHaveAttribute('href', 'https://tracker.test/bb')
     expect(await within(sheet).findByText('TV → /data/tv')).toBeInTheDocument()
+    // A .torrent's files can be picked, so the magnet link's note isn't there.
+    expect(within(sheet).queryByText(/^Magnet link:/)).not.toBeInTheDocument()
 
     await userEvent.click(await within(sheet).findByRole('button', { name: /Files: all \(3\)/ }))
     const picker = screen.getByRole('dialog', { name: 'Select files' })
@@ -394,6 +396,18 @@ describe('AddReleaseSheet', () => {
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
     expect(await within(sheet).findByRole('status', { name: saying(/10\.0\sGB short of this download\. Free up space before it finishes\.$/) })).toBeInTheDocument()
     expect(within(sheet).queryByText(/Skip some files/)).not.toBeInTheDocument()
+    // Nor a list of files to pick from.
+    expect(within(sheet).queryByRole('button', { name: /^Files/ })).not.toBeInTheDocument()
+  })
+
+  it('doesn’t send a torrent with every file skipped', async () => {
+    renderSheet()
+    await userEvent.click(await screen.findByRole('button', { name: /Files: all \(3\)/ }))
+    const picker = screen.getByRole('dialog', { name: 'Select files' })
+    await userEvent.click(within(picker).getByRole('button', { name: 'Deselect all' }))
+    // Done waits for a file, but Back leaves with none.
+    await userEvent.click(within(picker).getByRole('button', { name: 'Back' }))
+    expect(within(screen.getByRole('dialog', { name: 'Add to downloads' })).getByRole('button', { name: /^Download/ })).toBeDisabled()
   })
 
   it('doesn’t warn by the release size when the torrent can’t be fetched', async () => {

@@ -66,6 +66,15 @@ describe('ButtonLink', () => {
     expect(link.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
   })
 
+  it('takes the small icon in a small one', () => {
+    renderWithRouter(
+      <ButtonLink to="/" size="sm" icon="info">
+        Home
+      </ButtonLink>,
+    )
+    expect(screen.getByRole('link', { name: 'Home' }).querySelector('svg')).toHaveAttribute('width', '16')
+  })
+
   it('defaults to a primary md one', () => {
     renderWithRouter(<ButtonLink to="/">Home</ButtonLink>)
     const link = screen.getByRole('link', { name: 'Home' })

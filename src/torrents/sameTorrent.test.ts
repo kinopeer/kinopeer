@@ -15,6 +15,7 @@ describe('torrentId', () => {
   })
 
   it.each([
+    ['no hash', undefined],
     ['nothing', ''],
     ['a hash too short', V1.slice(1)],
     ['one between v1 and v2', `${V1}abcd`],

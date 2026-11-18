@@ -64,11 +64,9 @@ function infoHashOf(prepared: Prepared | undefined): string | undefined {
   return prepared?.source.kind === 'magnet' ? parseMagnet(prepared.source.uri)?.infoHash : undefined
 }
 
-/** The torrent qBittorrent already has with this info hash, or null: one request for that hash alone. */
-async function inDownloads(hash: string, signal?: AbortSignal): Promise<Torrent | null> {
-  const id = torrentId(hash)
-  if (id === undefined) return null
-  return findByHash(await getTorrents({ hashes: [id] }, signal), hash) ?? null
+/** The torrent qBittorrent has with this ID, or null: one request for that torrent alone. */
+async function inDownloads(id: string, signal?: AbortSignal): Promise<Torrent | null> {
+  return findByHash(await getTorrents({ hashes: [id] }, signal), id) ?? null
 }
 
 /**
@@ -80,9 +78,9 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   const format = useFormatters()
   const location = useLocation()
   const prepared = useRequest(`release|${release.id}`, (signal) => prepare(release, signal))
-  const hash = infoHashOf(prepared.data)
+  const id = torrentId(infoHashOf(prepared.data))
   // Whether qBittorrent has it already; if this fails, Download stays: sending it says what's wrong.
-  const existing = useRequest(hash === undefined ? null : `qbt|torrent|${hash}`, (signal) => inDownloads(hash ?? '', signal))
+  const existing = useRequest(id === undefined ? null : `qbt|torrent|${id}`, (signal) => inDownloads(id ?? '', signal))
   // Found after qBittorrent refused to add it, which it does for a torrent it has.
   const [refusedAsAdded, setRefusedAsAdded] = useState<Torrent>()
   const added = refusedAsAdded ?? existing.data ?? undefined
@@ -160,7 +158,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
         return
       }
       // qBittorrent answers "Fails." for a torrent it already has, among other reasons: ask it which.
-      const there = hash === undefined ? undefined : await inDownloads(hash).catch(() => undefined)
+      const there = id === undefined ? undefined : await inDownloads(id).catch(() => undefined)
       setAdding(false)
       if (there) setRefusedAsAdded(there)
       else setAddError(there === null ? t('add.notAdded') : t('add.addFailed'))
