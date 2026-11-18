@@ -64,6 +64,7 @@ describe('ButtonLink', () => {
     expect(link).toHaveAttribute('href', '/torrent/abc')
     expect(link).toHaveClass('ks-btn', 'ks-btn-secondary', 'ks-btn-lg', 'ks-btn-block')
     expect(link.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    expect(link.querySelector('svg')).toHaveAttribute('width', '20')
   })
 
   it('takes the small icon in a small one', () => {
