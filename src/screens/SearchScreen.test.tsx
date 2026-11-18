@@ -8,12 +8,17 @@ import { TAB_RETURN, forgetTabPlaces, tabPlace } from '../lib/tabPlaces'
 import { forgetKeptResults } from '../search/searchResults'
 import { searchPage as page, title } from '../test/fixtures'
 import { renderWithRouter, saying } from '../test/render'
+import type { DownloadsMark } from '../torrents/titleDownloads'
 import { SearchScreen } from './SearchScreen'
 
 vi.mock('../api/tmdb', async (importOriginal) => {
   const actual = await importOriginal<typeof tmdb>()
   return { ...actual, searchTitles: vi.fn(), discoverTitles: vi.fn() }
 })
+
+// The torrents of the titles in downloads, as useTitlesInDownloads gives them (its own test covers how).
+let inDownloads = new Map<string, DownloadsMark>()
+vi.mock('../torrents/useTitlesInDownloads', () => ({ useTitlesInDownloads: () => inDownloads }))
 
 const searchTitles = vi.mocked(tmdb.searchTitles)
 const discoverTitles = vi.mocked(tmdb.discoverTitles)
@@ -23,12 +28,18 @@ const ANDOR = title('tv', 2, 'Andor', 2022)
 const ALIEN = title('movie', 3, 'Alien: Romulus', 2024)
 const SHOGUN = title('tv', 4, 'Shōgun')
 
+const IN_DOWNLOADS = new Map<string, DownloadsMark>([
+  ['movie:1', { progress: 0.62 }],
+  ['tv:2', { count: 2 }],
+])
+
 function renderScreen(path = '/search') {
   return renderWithRouter(<SearchScreen />, [path])
 }
 
 beforeEach(() => {
   vi.resetAllMocks()
+  inDownloads = new Map()
   // Every test's router starts at the same history entry.
   forgetKeptResults()
   discoverTitles.mockImplementation(async (type, params) =>
@@ -56,6 +67,26 @@ describe('SearchScreen', () => {
     ])
     expect(row('New episodes').getByText('Series')).toBeInTheDocument()
     expect(row('Best of the year').getByText('Movie · 2024')).toBeInTheDocument()
+  })
+
+  it('says which titles are in downloads in its rows: one torrent’s progress, several torrents’ count', async () => {
+    inDownloads = IN_DOWNLOADS
+    renderScreen()
+    await screen.findByRole('heading', { name: 'New on digital' })
+    expect(row('New on digital').getByRole('link', { name: /Dune: Part Two/ })).toHaveAccessibleName(/In downloads · 62%/)
+    expect(row('New episodes').getByRole('link', { name: /Andor/ })).toHaveAccessibleName(/In downloads · 2/)
+    expect(row('New episodes').getByRole('link', { name: /Shōgun/ })).not.toHaveAccessibleName(/In downloads/)
+    expect(row('Best of the year').getByRole('link', { name: /Alien/ })).not.toHaveAccessibleName(/In downloads/)
+  })
+
+  it('says which titles are in downloads in its results', async () => {
+    inDownloads = IN_DOWNLOADS
+    searchTitles.mockResolvedValue(page([DUNE, ANDOR, SHOGUN]))
+    renderScreen('/search?q=dune')
+    await screen.findByText('About 3 results')
+    expect(screen.getByRole('link', { name: /Dune: Part Two/ })).toHaveAccessibleName(/In downloads · 62%/)
+    expect(screen.getByRole('link', { name: /Andor/ })).toHaveAccessibleName(/In downloads · 2/)
+    expect(screen.getByRole('link', { name: /Shōgun/ })).not.toHaveAccessibleName(/In downloads/)
   })
 
   it('filters by type', async () => {

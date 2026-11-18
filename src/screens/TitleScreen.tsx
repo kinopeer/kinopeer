@@ -22,8 +22,10 @@ import { useFormatters, type Formatters } from '../lib/format'
 import { useIsDesktop } from '../lib/useIsDesktop'
 import { useRequest } from '../lib/useRequest'
 import { useTmdbLanguage } from '../settings/settings'
+import { downloadsMark } from '../torrents/titleDownloads'
 import { useTitleTorrents } from '../torrents/useTitleMatches'
 import { useMainData } from '../torrents/useMainData'
+import { inDownloadsText } from './inDownloadsText'
 import { ReleasesScreen } from './ReleasesScreen'
 import type { SettingsLocationState } from './SettingsScreen'
 import { TitleDownloads } from './TitleDownloads'
@@ -244,12 +246,11 @@ export function TitleScreen({ onSessionLost }: TitleScreenProps) {
   // Says at the top that the title is in Downloads and takes the page down to its block, at the
   // page's end. It sits above the name out of the flow, so it pushes nothing as the torrents come
   // (#394).
-  const inDownloads = downloads.length > 0 && (
+  const mark = downloadsMark(downloads)
+  const inDownloads = mark && (
     <button type="button" className="title-in-dl" onClick={() => scrollTo(downloadsRef.current)}>
       <Badge kind="coverage" icon="check">
-        {t('title.inDownloadsBadge', {
-          value: downloads.length > 1 ? downloads.length : format.percent(downloads[0].progress),
-        })}
+        {inDownloadsText(t, format, mark)}
       </Badge>
     </button>
   )

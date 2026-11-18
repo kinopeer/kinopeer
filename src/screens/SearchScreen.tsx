@@ -21,6 +21,9 @@ import { useScrollRestoration } from '../lib/useScrollRestoration'
 import { browseRowQueries, type BrowseRowQuery } from '../search/browseRows'
 import { isYearOutOfRange, parseYear } from '../search/year'
 import { useTmdbLanguage } from '../settings/settings'
+import { titleKey } from '../torrents/titleDownloads'
+import { useTitlesInDownloads } from '../torrents/useTitlesInDownloads'
+import { InDownloadsMark } from './InDownloadsMark'
 import { PosterRow } from './PosterRow'
 import type { SettingsLocationState } from './SettingsScreen'
 import './SearchScreen.css'
@@ -89,6 +92,8 @@ export function SearchScreen() {
     searchTitles(term, { language, signal, year, page, type: searchType }),
   )
   const browse = useRequest(searching ? null : `browse|${language}`, (signal) => loadBrowseRows(language, signal))
+  // Which of the titles shown are in downloads, from what's known without a poll or a lookup.
+  const inDownloads = useTitlesInDownloads()
 
   // Kept in the URL so going back to search restores the query and filter.
   const update = (changes: { q?: string; type?: TypeFilter; year?: string }) => {
@@ -217,16 +222,20 @@ export function SearchScreen() {
                 {t('search.results', { count: search.results!.totalResults })}
               </p>
               <ul className="ks-poster-grid">
-                {results.map((title) => (
-                  <li key={`${title.type}-${title.id}`}>
-                    <PosterCard
-                      title={title.title}
-                      subtitle={titleSubtitle(t, title)}
-                      posterUrl={posterUrl(title.posterPath, 'w342')}
-                      to={`/title/${title.type}/${title.id}`}
-                    />
-                  </li>
-                ))}
+                {results.map((title) => {
+                  const mark = inDownloads.get(titleKey(title.type, title.id))
+                  return (
+                    <li key={`${title.type}-${title.id}`}>
+                      <PosterCard
+                        title={title.title}
+                        subtitle={titleSubtitle(t, title)}
+                        posterUrl={posterUrl(title.posterPath, 'w342')}
+                        to={`/title/${title.type}/${title.id}`}
+                        overlay={mark && <InDownloadsMark mark={mark} />}
+                      />
+                    </li>
+                  )
+                })}
               </ul>
               {search.hasMore &&
                 (search.moreError !== undefined ? (
@@ -273,7 +282,13 @@ export function SearchScreen() {
           </EmptyState>
         ) : (
           rows.map((row) => (
-            <PosterRow key={row.key} id={`search-row-${row.key}`} heading={t(`search.${row.key}`)} titles={row.titles} />
+            <PosterRow
+              key={row.key}
+              id={`search-row-${row.key}`}
+              heading={t(`search.${row.key}`)}
+              titles={row.titles}
+              inDownloads={inDownloads}
+            />
           ))
         )}
       </section>

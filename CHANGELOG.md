@@ -4,6 +4,10 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 
 ## Unreleased
 
+### Added
+
+- A title already in downloads says so on its card in Search, before and after a query, and in a title's recommendations or similar titles: a download icon with one torrent's progress or the count of several, as the title's own page counts them. It counts the torrents whose title Kinopeer knows already (sent from Kinopeer, matched by hand or guessed before). ([#460](https://github.com/kinopeer/kinopeer/issues/460))
+
 ### Changed
 
 - On a phone, coming back to Downloads or a title's page no longer asks qBittorrent again when it answered less than 2 seconds ago: the next refresh comes on its usual beat, and Downloads' refresh ring starts part-filled, by how old what's on screen is. ([#385](https://github.com/kinopeer/kinopeer/issues/385))

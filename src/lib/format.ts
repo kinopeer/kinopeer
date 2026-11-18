@@ -1,6 +1,7 @@
 import type { TFunction } from 'i18next'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
+import { wholePercent } from '../logic/wholePercent'
 
 /** qBittorrent reports this ETA (100 days) when it can't estimate one. */
 export const ETA_INFINITY = 8_640_000
@@ -70,8 +71,7 @@ export function createFormatters(t: TFunction, language: string): Formatters {
     eta: (seconds) =>
       !Number.isFinite(seconds) || seconds <= 0 || seconds >= ETA_INFINITY ? t('format.etaUnknown') : duration(seconds),
     duration,
-    percent: (fraction) =>
-      `${number(Math.floor(Math.min(1, Math.max(0, fraction)) * 100), 0)}%`,
+    percent: (fraction) => `${number(wholePercent(fraction), 0)}%`,
     since: (date, now = Date.now()) => {
       const minutes = Math.floor(Math.max(0, now - date) / 60_000)
       if (minutes < 1) return t('format.justNow')

@@ -2,8 +2,13 @@ import { act, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import * as tmdb from '../api/tmdb'
 import type { Title } from '../api/tmdb'
+import type { DownloadsMark } from '../torrents/titleDownloads'
 import { renderWithRouter } from '../test/render'
 import { RELATED_TIMEOUT_MS, TitleRelated } from './TitleRelated'
+
+// The torrents of the titles in downloads, as useTitlesInDownloads gives them (its own test covers how).
+let inDownloads = new Map<string, DownloadsMark>()
+vi.mock('../torrents/useTitlesInDownloads', () => ({ useTitlesInDownloads: () => inDownloads }))
 
 vi.mock('../api/tmdb', async (importOriginal) => {
   const actual = await importOriginal<typeof tmdb>()
@@ -32,6 +37,7 @@ function renderRelated(id = 693134) {
 
 beforeEach(() => {
   vi.resetAllMocks()
+  inDownloads = new Map()
   getRecommendations.mockResolvedValue(page())
   getSimilar.mockResolvedValue(page())
 })
@@ -50,6 +56,16 @@ describe('TitleRelated', () => {
     expect(getRecommendations).toHaveBeenCalledWith('movie', 693134, expect.objectContaining({ language: 'en-US' }))
     // A call count is the only way to see that no second request goes out.
     expect(getSimilar).not.toHaveBeenCalled()
+  })
+
+  it('says which of them are in downloads', async () => {
+    inDownloads = new Map([['movie:157336', { progress: 1 }]])
+    getRecommendations.mockResolvedValue(page(title(438631, 'Dune'), title(157336, 'Interstellar')))
+    renderRelated()
+
+    const row = await screen.findByRole('region', { name: 'Recommendations' })
+    expect(within(row).getByRole('link', { name: /Interstellar/ })).toHaveAccessibleName(/In downloads · 100%/)
+    expect(within(row).getByRole('link', { name: /Dune/ })).not.toHaveAccessibleName(/In downloads/)
   })
 
   it('falls back to similar titles when nothing is recommended', async () => {

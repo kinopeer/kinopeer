@@ -118,6 +118,16 @@ const SIDEBAR: Record<string, Answer> = {
 }
 
 /**
+ * What Search's cards ask for to say which titles are in downloads (#460): the server's matches,
+ * and on a phone, where no screen polls, qBittorrent's torrents once. The mark lands over a poster,
+ * out of the flow. On desktop the sidebar's poll has the torrents instead (`onDesktopSearch`).
+ */
+const IN_DOWNLOADS: Record<string, Answer> = {
+  oneOff: { matches: get('/qbt/api/v2/torrents/info'), after: ['tmdbSetup'] },
+  matches: { matches: get('/api/matches'), after: ['tmdbSetup'] },
+}
+
+/**
  * `p3`'s title, guessed from its name by TMDB's search, which waits for the server's matches too
  * (another device may have made the guess); a second after the guess it is saved on the server.
  * A title page picks its torrents among them with this guess alone (#381).
@@ -340,9 +350,10 @@ const PHONE: Case[] = [
   {
     screen: 'browse',
     name: 'rows of titles',
-    complete: all(heading('Лучшее за год', 2), posters(1)),
+    complete: all(heading('Лучшее за год', 2), posters(1), text('В загрузках · 50%')),
     answers: {
       ...SESSION,
+      ...IN_DOWNLOADS,
       newMovies: { matches: (url, method) => get('/tmdb/discover/movie')(url, method) && !url.searchParams.has('vote_count.gte'), after: ['tmdbSetup'] },
       newEpisodes: { matches: get('/tmdb/discover/tv'), after: ['tmdbSetup'] },
       bestOfYear: { matches: (url, method) => get('/tmdb/discover/movie')(url, method) && url.searchParams.has('vote_count.gte'), after: ['tmdbSetup'] },
@@ -353,20 +364,25 @@ const PHONE: Case[] = [
   {
     screen: 'search',
     name: 'titles found',
-    complete: all(link('Дюна: Часть вторая'), posters(1)),
+    complete: all(link('Дюна: Часть вторая'), posters(1), text('В загрузках · 50%')),
     answers: {
       ...SESSION,
+      ...IN_DOWNLOADS,
       results: { matches: get('/tmdb/search/multi'), after: ['tmdbSetup'] },
       posters: { matches: under('/tmdb-img/'), after: ['results'] },
     },
   },
-  /** A search with a year: movies and series searched apart, shown together once both have answered. */
+  /**
+   * A search with a year: movies and series searched apart, shown together once both have answered.
+   * None of the year's titles has a torrent among `TORRENTS`, so no "In downloads" badge shows here.
+   */
   {
     screen: 'search-year',
     name: 'titles found',
     complete: all(link('Разделение'), posters(1)),
     answers: {
       ...SESSION,
+      ...IN_DOWNLOADS,
       movies: { matches: get('/tmdb/search/movie'), after: ['tmdbSetup'] },
       series: { matches: get('/tmdb/search/tv'), after: ['tmdbSetup'] },
       posters: { matches: under('/tmdb-img/'), after: ['movies', 'series'], later: true },
@@ -487,6 +503,11 @@ const sidebarCardEn: Shown = (page) =>
 /** A desktop case, read once the sidebar's card is complete too: every desktop screen shows it. */
 const onDesktop = (one: Case): Case => ({ ...one, complete: all(one.complete, one.app?.lang === 'en' ? sidebarCardEn : sidebarCard) })
 const casesOf = (screen: string) => PHONE.filter((one) => one.screen === screen)
+/** A Search case on desktop: the sidebar's poll has the torrents, so none are asked for once. */
+const onDesktopSearch = (one: Case): Case => {
+  const { oneOff: _asked, ...answers } = one.answers
+  return withSidebar({ ...one, answers })
+}
 
 const DESKTOP_CASES: Case[] = [
   // The list as on a phone, the sidebar reading the same poll: the grid of cards, desktop's default view.
@@ -530,9 +551,9 @@ const DESKTOP_CASES: Case[] = [
     },
     ['guessP3'],
   ),
-  ...casesOf('browse').map(withSidebar),
-  ...casesOf('search').map(withSidebar),
-  ...casesOf('search-year').map(withSidebar),
+  ...casesOf('browse').map(onDesktopSearch),
+  ...casesOf('search').map(onDesktopSearch),
+  ...casesOf('search-year').map(onDesktopSearch),
   titlePage('desktop', 'in downloads, with recommendations', 'movie', 693134, all(heading('Дюна: Часть вторая'), heading('В загрузках', 2), heading('Рекомендации', 2), posters(2)), {
     recommendations: { matches: get('/tmdb/movie/693134/recommendations'), after: ['details'] },
   }),

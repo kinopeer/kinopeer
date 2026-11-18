@@ -1,0 +1,10 @@
+/* In the poster's top corner, on dark glass, so the badge's tint reads over any image. */
+.in-dl-mark {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  max-width: calc(100% - 2 * var(--space-2));
+  display: flex;
+  border-radius: var(--r-xs);
+  background: var(--media-label);
+}

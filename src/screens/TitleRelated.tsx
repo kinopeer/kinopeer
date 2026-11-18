@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { getRecommendations, getSimilar, type MediaType, type Title, type TitlePage } from '../api/tmdb'
 import { useRequest } from '../lib/useRequest'
 import { withTimeout } from '../logic/withTimeout'
+import { useTitlesInDownloads } from '../torrents/useTitlesInDownloads'
 import { PosterRow } from './PosterRow'
 
 /**
@@ -47,6 +48,7 @@ export function TitleRelated({ type, id, language, after }: TitleRelatedProps) {
     }),
   )
   const { data, loading } = request
+  const inDownloads = useTitlesInDownloads()
   return (
     <>
       {!loading && data && data.titles.length > 0 && (
@@ -54,6 +56,7 @@ export function TitleRelated({ type, id, language, after }: TitleRelatedProps) {
           id="title-related"
           heading={t(data.kind === 'recommendations' ? 'title.recommendations' : 'title.similar')}
           titles={data.titles}
+          inDownloads={inDownloads}
         />
       )}
       {after?.(!loading)}

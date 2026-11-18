@@ -106,6 +106,8 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
           }),
         )
       }
+      // Asked once by a screen that shows what's in downloads before the poll has run (#460).
+      if (pathname === '/qbt/api/v2/torrents/info') return json(route, torrents)
       if (pathname === '/qbt/api/v2/app/defaultSavePath') return route.fulfill({ body: '/downloads' })
       // Automatic management on, so new torrents go to their category's folder, as the add sheet shows.
       if (pathname === '/qbt/api/v2/app/preferences') return json(route, { auto_tmm_enabled: true })
