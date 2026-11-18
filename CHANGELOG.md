@@ -4,6 +4,10 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 
 ## Unreleased
 
+### Added
+
+- A title already in downloads says so on its card in Search, before and after a query, and in a title's recommendations or similar titles: "In downloads · 41%" for one torrent, "In downloads · 3" for several, as the title's own page does. It counts the torrents whose title Kinopeer knows already (sent from Kinopeer, matched by hand or guessed before). ([#460](https://github.com/kinopeer/kinopeer/issues/460))
+
 ### Changed
 
 - On a phone, the ring that shows Downloads' refresh sits right after the title rather than among the buttons on the right. ([#374](https://github.com/kinopeer/kinopeer/issues/374))
