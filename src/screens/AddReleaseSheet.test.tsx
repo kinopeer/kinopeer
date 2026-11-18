@@ -173,7 +173,7 @@ describe('AddReleaseSheet', () => {
   it('applies the chosen options', async () => {
     renderSheet()
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
-    await userEvent.click(within(sheet).getByRole('button', { name: 'Options' }))
+    await userEvent.click(await within(sheet).findByRole('button', { name: 'Options' }))
     await userEvent.click(await within(sheet).findByRole('button', { name: 'No category' }))
     // A path isn't a word, so the browser doesn't underline it.
     expect(within(sheet).getByLabelText('Folder')).toHaveAttribute('spellcheck', 'false')
@@ -202,7 +202,7 @@ describe('AddReleaseSheet', () => {
   it('marks the category the torrent goes to', async () => {
     renderSheet()
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
-    await userEvent.click(within(sheet).getByRole('button', { name: 'Options' }))
+    await userEvent.click(await within(sheet).findByRole('button', { name: 'Options' }))
     // A series goes to the category named like its type.
     const tv = await within(sheet).findByRole('button', { name: 'TV' })
     const none = within(sheet).getByRole('button', { name: 'No category' })
@@ -230,7 +230,7 @@ describe('AddReleaseSheet', () => {
   it('follows defaults that arrive after it opened, until the user flips them', async () => {
     renderSheet()
     const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
-    await userEvent.click(within(sheet).getByRole('button', { name: 'Options' }))
+    await userEvent.click(await within(sheet).findByRole('button', { name: 'Options' }))
     const paused = within(sheet).getByRole('switch', { name: 'Start paused' })
     const sequential = within(sheet).getByRole('switch', { name: 'Sequential download' })
     const firstLast = within(sheet).getByRole('switch', { name: 'First and last pieces first' })
@@ -295,7 +295,7 @@ describe('AddReleaseSheet', () => {
     expect(within(sheet).queryByText('Not enough free space')).not.toBeInTheDocument()
     expect(within(sheet).queryByText(/→/)).not.toBeInTheDocument()
 
-    await userEvent.click(within(sheet).getByRole('button', { name: 'Options' }))
+    await userEvent.click(await within(sheet).findByRole('button', { name: 'Options' }))
     expect(within(sheet).queryByRole('group', { name: 'Category' })).not.toBeInTheDocument()
     expect(within(sheet).getByLabelText('Folder')).toHaveAttribute('placeholder', '')
 
@@ -485,6 +485,17 @@ describe('AddReleaseSheet', () => {
     expect(await screen.findByRole('alert', { name: saying('qBittorrent didn’t add the torrent. It may already be in your downloads.') })).toBeInTheDocument()
   })
 
+  it('says it may already be in downloads when qBittorrent refused a magnet link with only a v2 hash and doesn’t have it by that', async () => {
+    // A hybrid torrent's ID is its v1 hash, which this link doesn't give.
+    const v2 = 'ab'.repeat(32)
+    fetchRelease.mockResolvedValue({ kind: 'magnet', uri: `magnet:?xt=urn:btmh:1220${v2}` })
+    addRelease.mockRejectedValue(new qbt.QbittorrentError('Fails.', 200))
+    renderSheet()
+    await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
+    expect(await screen.findByRole('alert', { name: saying('qBittorrent didn’t add the torrent. It may already be in your downloads.') })).toBeInTheDocument()
+    expect(getTorrents).toHaveBeenLastCalledWith({ hashes: [v2.slice(0, 40)] }, undefined)
+  })
+
   it('says it may already be in downloads when qBittorrent refused a torrent whose hash isn’t known', async () => {
     readTorrentFile.mockRejectedValue(new torrentFile.InvalidTorrentError())
     addRelease.mockRejectedValue(new qbt.QbittorrentError('Fails.', 200))
@@ -548,13 +559,31 @@ describe('AddReleaseSheet', () => {
       renderSheet()
       const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
       await waitFor(() => expect(getTorrents).toHaveBeenCalled())
-      expect(within(sheet).getByRole('status', { name: saying('Getting the torrent…') })).toBeInTheDocument()
+      expect(within(sheet).getByRole('status', { name: saying('Checking your downloads…') })).toBeInTheDocument()
       expect(within(sheet).getByRole('button', { name: /^Download/ })).toBeDisabled()
+      // Nothing to open meanwhile that would go away if qBittorrent has it.
+      expect(within(sheet).queryByRole('button', { name: /^Files/ })).not.toBeInTheDocument()
+      expect(within(sheet).queryByRole('button', { name: 'Options' })).not.toBeInTheDocument()
 
       // Another torrent of the hashes asked for isn't this one.
       await act(async () => answer([torrent('e'.repeat(40))]))
       expect(within(sheet).getByRole('button', { name: /^Download/ })).toBeEnabled()
-      expect(within(sheet).queryByText('Already in downloads')).not.toBeInTheDocument()
+      expect(within(sheet).queryByRole('status', { name: saying('Checking your downloads…') })).not.toBeInTheDocument()
+      expect(within(sheet).getByRole('button', { name: /^Files: all \(3\)/ })).toBeInTheDocument()
+      expect(within(sheet).getByRole('button', { name: 'Options' })).toBeInTheDocument()
+      expect(within(sheet).queryByRole('status', { name: saying('Already in downloads') })).not.toBeInTheDocument()
+    })
+
+    it('doesn’t offer the options while it gets the torrent either', async () => {
+      let fetched: (source: { kind: 'magnet'; uri: string }) => void = () => {}
+      fetchRelease.mockReturnValue(new Promise((resolve) => (fetched = resolve)))
+      renderSheet()
+      const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+      expect(await within(sheet).findByRole('status', { name: saying('Getting the torrent…') })).toBeInTheDocument()
+      expect(within(sheet).queryByRole('button', { name: 'Options' })).not.toBeInTheDocument()
+
+      await act(async () => fetched({ kind: 'magnet', uri: `magnet:?xt=urn:btih:${'e'.repeat(40)}` }))
+      expect(await within(sheet).findByRole('button', { name: 'Options' })).toBeInTheDocument()
     })
 
     it('offers Download when qBittorrent can’t be asked', async () => {

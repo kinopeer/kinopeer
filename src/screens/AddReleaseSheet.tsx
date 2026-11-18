@@ -25,7 +25,7 @@ import { useSettings } from '../settings/settings'
 import { addFolder } from '../torrents/folders'
 import { parseMagnet } from '../torrents/magnet'
 import { tmdbTagFor } from '../torrents/parseName'
-import { findByHash, torrentId } from '../torrents/sameTorrent'
+import { torrentId } from '../torrents/sameTorrent'
 import { categoryType } from '../torrents/titleLookup'
 import { readTorrentFile, type TorrentMeta } from '../torrents/torrentFile'
 import { useFreeSpace } from '../torrents/useMainData'
@@ -58,15 +58,20 @@ async function prepare(release: Release, signal: AbortSignal): Promise<Prepared>
   return { source, meta }
 }
 
-/** The info hash of what Prowlarr gave: the .torrent's, else the magnet link's; undefined when neither says. */
-function infoHashOf(prepared: Prepared | undefined): string | undefined {
-  if (prepared?.meta) return prepared.meta.infoHash
-  return prepared?.source.kind === 'magnet' ? parseMagnet(prepared.source.uri)?.infoHash : undefined
+/**
+ * The info hash of what Prowlarr gave: the .torrent's, else the magnet link's; undefined when neither
+ * says. `certain` is whether qBittorrent, asked by its ID, would find the torrent if it has it: not for
+ * a magnet link with only a v2 hash, which a hybrid torrent's ID (its v1 hash) isn't.
+ */
+function infoHashOf(prepared: Prepared | undefined): { infoHash?: string; certain: boolean } {
+  if (prepared?.meta) return { infoHash: prepared.meta.infoHash, certain: true }
+  const magnet = prepared?.source.kind === 'magnet' ? parseMagnet(prepared.source.uri) : undefined
+  return { infoHash: magnet?.infoHash, certain: !magnet?.v2Only }
 }
 
 /** The torrent qBittorrent has with this ID, or null: one request for that torrent alone. */
 async function inDownloads(id: string, signal?: AbortSignal): Promise<Torrent | null> {
-  return findByHash(await getTorrents({ hashes: [id] }, signal), id) ?? null
+  return (await getTorrents({ hashes: [id] }, signal)).find((torrent) => torrent.hash === id) ?? null
 }
 
 /**
@@ -78,12 +83,16 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   const format = useFormatters()
   const location = useLocation()
   const prepared = useRequest(`release|${release.id}`, (signal) => prepare(release, signal))
-  const id = torrentId(infoHashOf(prepared.data))
+  const hash = infoHashOf(prepared.data)
+  const id = torrentId(hash.infoHash)
   // Whether qBittorrent has it already; if this fails, Download stays: sending it says what's wrong.
   const existing = useRequest(id === undefined ? null : `qbt|torrent|${id}`, (signal) => inDownloads(id ?? '', signal))
   // Found after qBittorrent refused to add it, which it does for a torrent it has.
   const [refusedAsAdded, setRefusedAsAdded] = useState<Torrent>()
   const added = refusedAsAdded ?? existing.data ?? undefined
+  // The form, held back until it's known whether qBittorrent has the torrent, so it doesn't go away
+  // under a finger when it does.
+  const offered = !added && !prepared.loading && !existing.loading
   const where = useRequest('qbt|locations', (signal) => getSaveLocations(signal))
   const free = useFreeSpace()
 
@@ -161,7 +170,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
       const there = id === undefined ? undefined : await inDownloads(id).catch(() => undefined)
       setAdding(false)
       if (there) setRefusedAsAdded(there)
-      else setAddError(there === null ? t('add.notAdded') : t('add.addFailed'))
+      else setAddError(there === null && hash.certain ? t('add.notAdded') : t('add.addFailed'))
     }
   }
 
@@ -240,7 +249,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
         {(prepared.loading || existing.loading) && (
           <div className="add-row" role="status">
             <span className="ks-spin ca" />
-            <span className="c2">{t('add.fetching')}</span>
+            <span className="c2">{prepared.loading ? t('add.fetching') : t('add.checking')}</span>
           </div>
         )}
         {prepared.error !== undefined && (
@@ -249,7 +258,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
           </Banner>
         )}
         {added && <Banner tone="info" icon="check-circle" title={t('add.alreadyAdded')} />}
-        {!added && meta && fileCount > 1 && (
+        {offered && meta && fileCount > 1 && (
           <button type="button" className="ks-row-btn add-files" onClick={() => setView('files')}>
             <Icon name="folder" className="c2" />
             <span className="add-files-text">
@@ -267,15 +276,15 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
             <Icon name="chevron-right" size={18} className="c3" />
           </button>
         )}
-        {!added && prepared.data?.source.kind === 'magnet' && <p className="t-cap c3">{t('add.magnetFiles')}</p>}
-        {!added && lowSpace && (
+        {offered && prepared.data?.source.kind === 'magnet' && <p className="t-cap c3">{t('add.magnetFiles')}</p>}
+        {offered && lowSpace && (
           <Banner icon="disk" title={t('add.notEnough')}>
             {t('add.lowSpace', lowSpace)}{' '}
             {fileCount > 1 ? t('add.lowSpaceSkip') : t('add.lowSpaceFree')}
           </Banner>
         )}
 
-        {!added && destination && (
+        {offered && destination && (
           <div className="t-cap c2 add-dest">
             <Icon name="folder" size={16} />
             <span className="ks-trunc">
@@ -284,7 +293,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
           </div>
         )}
 
-        {!added && (
+        {offered && (
           <Accordion
             className="add-options"
             bodyClassName="add-options-body"

@@ -322,6 +322,7 @@
     "lowSpaceSkip": "Skip some files or free up space before it finishes.",
     "lowSpaceFree": "Free up space before it finishes.",
     "fetching": "Getting the torrent…",
+    "checking": "Checking your downloads…",
     "fetchFailed": "Couldn’t get the torrent from Prowlarr.",
     "magnetFiles": "Magnet link: all files are downloaded. You can skip files later in qBittorrent.",
     "notAdded": "qBittorrent didn’t add the torrent.",

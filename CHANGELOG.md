@@ -7,7 +7,7 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 ### Added
 
 - A title already in downloads says so on its card in Search, before and after a query, and in a title's recommendations or similar titles: a download icon with one torrent's progress or the count of several, as the title's own page counts them. It counts the torrents whose title Kinopeer knows already (sent from Kinopeer, matched by hand or guessed before). ([#460](https://github.com/kinopeer/kinopeer/issues/460))
-- Adding a release you already have in qBittorrent no longer ends in "qBittorrent didn't add the torrent": once the release is fetched, the add sheet says "Already in downloads" and opens the torrent in place of Download. ([#375](https://github.com/kinopeer/kinopeer/issues/375))
+- Adding a release you already have in qBittorrent no longer leads to Download and an error: once the release is fetched, the add sheet checks your downloads, then says "Already in downloads" and opens the torrent in place of Download. When qBittorrent refuses a torrent, the sheet says whether it's already there, rather than that it may be, unless it can't tell. ([#375](https://github.com/kinopeer/kinopeer/issues/375))
 
 ### Changed
 
