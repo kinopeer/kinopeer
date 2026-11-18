@@ -3,9 +3,9 @@ import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createServer, preview, type ConfigEnv, type UserConfig } from 'vite'
+import { createServer, preview } from 'vite'
 import { CONTENT_SECURITY_POLICY, SECURITY_HEADERS } from './server/securityHeaders.ts'
-import config, { inlineTouchIconPlugin } from './vite.config.ts'
+import { inlineTouchIconPlugin } from './vite.config.ts'
 
 /**
  * `npm run dev` and `npm run preview` from this config. loadEnv lets process.env win over
@@ -108,21 +108,5 @@ describe('vite.config.ts', () => {
 
   it('fails the build on a touch icon other than a PNG, which the data: URL would name wrong', () => {
     expect(() => transform('<link rel="apple-touch-icon" href="/icons/apple-touch-icon.webp" />')).toThrow('inlined as a PNG, not /icons/apple-touch-icon.webp')
-  })
-
-  /** The server project's test files, as Vitest reads the config with the environment as it is. */
-  const serverTests = () => {
-    const { test } = (config as (env: ConfigEnv) => UserConfig)({ mode: 'test', command: 'serve' })
-    const projects = test?.projects as { test: { name: string; include: string[] } }[]
-    return projects.find((project) => project.test.name === 'server')?.test.include
-  }
-
-  // Stryker's sandbox is a git-ignored folder, where checks.test.ts's git listing finds nothing (#465).
-  it('runs checks.test.ts with the server tests, and leaves it out of Stryker’s runs only', () => {
-    vi.stubEnv('KINOPEER_STRYKER', '')
-    const everywhere = serverTests()
-    expect(everywhere).toContain('checks.test.ts')
-    vi.stubEnv('KINOPEER_STRYKER', '1')
-    expect(serverTests()).toEqual(everywhere?.filter((file) => file !== 'checks.test.ts'))
   })
 })

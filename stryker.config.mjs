@@ -6,11 +6,6 @@ import { readFileSync } from 'node:fs'
 // that leaves out more.
 const { mutants } = JSON.parse(readFileSync(new URL('./checks.json', import.meta.url), 'utf8'))
 
-// Read by vite.config.ts, which leaves checks.test.ts out of Stryker's runs: its git listing finds
-// nothing in Stryker's git-ignored sandbox (#465). Stryker's test runners are child processes and
-// take this environment with them.
-process.env.KINOPEER_STRYKER = '1'
-
 /** @type {import('@stryker-mutator/api/core').PartialStrykerOptions} */
 export default {
   testRunner: 'vitest',
@@ -21,7 +16,10 @@ export default {
   // empty array in a default) and none of what a review found.
   mutator: { excludedMutations: mutants.excludedMutations },
   timeoutMS: 15000,
-  ignorePatterns: ['e2e', 'docs', 'dist', 'coverage', 'data'],
+  // The tests left out of Stryker's runs come from checks.json, where the guard marks one added: such
+  // a test can't run in Stryker's sandbox, a git-ignored folder (checks.test.ts lists the
+  // repository's files through git), and can't kill a mutant either (#465).
+  ignorePatterns: ['e2e', 'docs', 'dist', 'coverage', 'data', ...mutants.testsLeftOut],
   tempDirName: '.stryker-tmp',
   // A file that doesn't exist, so Stryker skips rewriting tsconfig paths for its sandbox: that rewrite
   // calls TypeScript's JS API, which TypeScript 7 doesn't have (#285, stryker-mutator/stryker-js#6111).

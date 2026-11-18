@@ -98,7 +98,7 @@ function leaves(value: Json, path = ''): Map<string, Json> {
 }
 
 /** The lists in checks.json where a new entry leaves more out of a check, and those where a lost one does. */
-const EXCLUDES = ['coverage.exclude', 'mutants.excludedMutations', 'mutants.notProduction']
+const EXCLUDES = ['coverage.exclude', 'mutants.excludedMutations', 'mutants.notProduction', 'mutants.testsLeftOut']
 const INCLUDES = ['coverage.include', 'mutants.folders']
 const THRESHOLD = 'coverage.thresholds.'
 /** A budget, where more is weaker: the size check (scripts/size/) fails over it. */
