@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router'
 import { ProwlarrSetupError, getProwlarrStatus } from '../api/prowlarr'
@@ -199,9 +199,12 @@ export function SettingsScreen() {
   const qbittorrent = useRequest(APP_VERSION_KEY, (signal) => getAppVersion(signal), { freshFor: APP_VERSION_FRESH_MS })
   const qbittorrentAnswered = qbittorrent.data !== undefined
   const categoriesMissing = categories.data === undefined
-  useEffect(() => {
+  // Set while rendering rather than in an effect, so the categories' request goes out with this render.
+  const [askedOn, setAskedOn] = useState({ answered: false, missing: true })
+  if (askedOn.answered !== qbittorrentAnswered || askedOn.missing !== categoriesMissing) {
+    setAskedOn({ answered: qbittorrentAnswered, missing: categoriesMissing })
     if (qbittorrentAnswered && categoriesMissing) setCategoriesLoad((n) => n + 1)
-  }, [qbittorrentAnswered, categoriesMissing])
+  }
   const prowlarr = useRequest(`check|prowlarr|${prowlarrKeyVersion}`, (signal) => getProwlarrStatus(signal))
   const tmdb = useRequest(`check|tmdb|${tmdbKeyVersion}`, (signal) => checkTmdb(signal))
 
