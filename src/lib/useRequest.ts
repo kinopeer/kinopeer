@@ -38,8 +38,9 @@ export function useRequest<T>(key: string | null, load: (signal: AbortSignal) =>
   // Retries count per key, from 0 again when the key changes, so a key's first run takes a shared
   // answer and a retry renews it.
   const [retries, setRetries] = useState({ key, count: 0 })
+  // Set while rendering, so React renders again at once with the count reset and nothing of this render is used.
   if (retries.key !== key) setRetries({ key, count: 0 })
-  const attempt = retries.key === key ? retries.count : 0
+  const attempt = retries.count
   const [settled, setSettled] = useState<Settled<T> | null>(null)
 
   useEffect(() => {
@@ -67,8 +68,8 @@ export function useRequest<T>(key: string | null, load: (signal: AbortSignal) =>
 
   const retry = useCallback(() => setRetries((last) => ({ key: last.key, count: last.count + 1 })), [])
   const own = settled && settled.key === key && settled.attempt === attempt ? settled : null
-  // A shared answer kept fresh shows from the first render, not after a loading one.
-  const kept = own === null && key !== null && freshFor !== undefined && attempt === 0 ? sharedRequests.peek<T>(key, freshFor) : undefined
+  // A shared answer kept fresh shows from the first render, not after a loading one; a retry waits for its own.
+  const kept = key === null || freshFor === undefined || attempt > 0 ? undefined : sharedRequests.peek<T>(key, freshFor)
   const current = own ?? (kept ? { data: kept.data, error: undefined } : null)
 
   return {

@@ -122,6 +122,21 @@ describe('createSharedRequests', () => {
     await expect(joined).resolves.toBe('new')
   })
 
+  it('keeps a renewed request when the one it replaced fails after it', async () => {
+    const { shared } = setup()
+    const old = deferred<string>()
+    const waiting = shared.get('k', old.load, { freshFor: 60 })
+    const renewed = deferred<string>()
+    const fresh = shared.get('k', renewed.load, { freshFor: 60, renew: true })
+    old.reject(new Error('down'))
+    await expect(waiting).rejects.toThrow('down')
+    // Joins the renewed request rather than starting another.
+    const joined = shared.get('k', vi.fn(), { freshFor: 60 })
+    renewed.resolve('new')
+    await expect(fresh).resolves.toBe('new')
+    await expect(joined).resolves.toBe('new')
+  })
+
   it('goes on with a request while anyone waits for it, and cancels it when the last one gives up', async () => {
     const { shared } = setup()
     const { load, signals, resolve } = deferred<string>()

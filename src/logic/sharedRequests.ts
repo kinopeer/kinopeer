@@ -36,10 +36,10 @@ export function isFresh(settledAt: number, now: number, freshFor: number): boole
 interface Entry {
   promise: Promise<unknown>
   controller: AbortController
-  /** The callers waiting that can give up; one that can't keeps the request going. */
+  /** The callers waiting that can give up and haven't; read only while the request is on its way. */
   waiting: number
-  /** Someone waits who can't give up (no signal). */
-  held: boolean
+  /** Someone waits who can't give up (no signal), which keeps the request going. */
+  held?: boolean
   /** When the answer came, while it's kept. */
   settledAt?: number
   data?: unknown
@@ -50,7 +50,7 @@ export function createSharedRequests(now: () => number = () => Date.now()): Shar
 
   const start = (key: string, load: (signal: AbortSignal) => Promise<unknown>): Entry => {
     const controller = new AbortController()
-    const entry: Entry = { promise: Promise.resolve(), controller, waiting: 0, held: false }
+    const entry: Entry = { promise: Promise.resolve(), controller, waiting: 0 }
     entry.promise = load(controller.signal).then(
       (data) => {
         entry.settledAt = now()
@@ -63,8 +63,6 @@ export function createSharedRequests(now: () => number = () => Date.now()): Shar
         throw error
       },
     )
-    // A rejection is for the callers; one with no caller left mustn't be reported as unhandled.
-    entry.promise.catch(() => {})
     entries.set(key, entry)
     return entry
   }
@@ -75,32 +73,20 @@ export function createSharedRequests(now: () => number = () => Date.now()): Shar
       entry.held = true
       return entry.promise as Promise<T>
     }
-    if (signal.aborted) return Promise.reject(signal.reason)
     entry.waiting += 1
     return new Promise<T>((resolve, reject) => {
-      // Once, whichever comes first: the caller giving up or the request settling.
-      let done = false
-      const finish = (settle: () => void) => {
-        if (done) return
-        done = true
+      const leave = () => {
+        reject(signal.reason)
         entry.waiting -= 1
-        signal.removeEventListener('abort', leave)
-        settle()
+        // The last one waiting for a request on its way cancels it, and the key forgets it.
+        if (entry.waiting === 0 && !entry.held && entry.settledAt === undefined) {
+          entry.controller.abort()
+          if (entries.get(key) === entry) entries.delete(key)
+        }
       }
-      const leave = () =>
-        finish(() => {
-          reject(signal.reason)
-          // The last one waiting for a request on its way cancels it, and the key forgets it.
-          if (entry.waiting === 0 && !entry.held && entry.settledAt === undefined) {
-            entry.controller.abort()
-            if (entries.get(key) === entry) entries.delete(key)
-          }
-        })
+      // An abort after the answer only rejects a settled wait, which does nothing.
       signal.addEventListener('abort', leave)
-      entry.promise.then(
-        (data) => finish(() => resolve(data as T)),
-        (error: unknown) => finish(() => reject(error)),
-      )
+      void entry.promise.then((data) => resolve(data as T), reject)
     })
   }
 
@@ -123,10 +109,11 @@ export function createSharedRequests(now: () => number = () => Date.now()): Shar
       return entry ? { data: entry.data as T } : undefined
     },
     set: (key, data) => {
-      entries.set(key, { promise: Promise.resolve(data), controller: new AbortController(), waiting: 0, held: false, settledAt: now(), data })
+      entries.set(key, { promise: Promise.resolve(data), controller: new AbortController(), waiting: 0, settledAt: now(), data })
     },
     clear: () => {
-      for (const entry of entries.values()) if (entry.settledAt === undefined) entry.controller.abort()
+      // Aborting a settled request's controller does nothing.
+      for (const entry of entries.values()) entry.controller.abort()
       entries.clear()
     },
   }
