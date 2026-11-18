@@ -1,20 +1,24 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ReactNode } from 'react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as prowlarr from '../api/prowlarr'
 import * as qbt from '../api/qbittorrent'
 import type { MovieDetails } from '../api/tmdb'
 import type { TitleDetails } from '../releases/releaseQuery'
 import { SETTINGS_STORAGE_KEY, resetSettings } from '../settings/settings'
 import { DUNE_RELEASES, torrent } from '../test/fixtures'
+import { MainDataProvider } from '../torrents/MainDataProvider'
 import { resetOneOffTorrents } from '../torrents/oneOffTorrents'
+import { POLL_INTERVAL_MS } from '../torrents/pollIntervals'
+import { useMainData } from '../torrents/useMainData'
 import { useReleases } from './useReleases'
 
 vi.mock('../api/prowlarr', async (importOriginal) => {
   const actual = await importOriginal<typeof prowlarr>()
-  return { ...actual, searchReleases: vi.fn() }
+  return { ...actual, searchReleases: vi.fn(), getFailingIndexers: vi.fn() }
 })
 
-vi.mock('../api/qbittorrent', async (importOriginal) => ({ ...(await importOriginal<typeof qbt>()), getTorrents: vi.fn() }))
+vi.mock('../api/qbittorrent', async (importOriginal) => ({ ...(await importOriginal<typeof qbt>()), getTorrents: vi.fn(), getMainData: vi.fn() }))
 
 const movie = (id: number, title: string): TitleDetails =>
   ({ type: 'movie', id, title, original_title: title, release_date: '2024-02-27' }) as { type: 'movie' } & MovieDetails
@@ -23,6 +27,7 @@ beforeEach(() => {
   vi.resetAllMocks()
   resetSettings()
   vi.mocked(prowlarr.searchReleases).mockResolvedValue(DUNE_RELEASES)
+  vi.mocked(prowlarr.getFailingIndexers).mockResolvedValue([])
   resetOneOffTorrents()
   vi.mocked(qbt.getTorrents).mockResolvedValue([])
 })
@@ -104,6 +109,60 @@ describe('useReleases', () => {
       // A v2-only torrent by its v2 hash cut to 40 digits; one it doesn't have, and one without a
       // hash, open nothing.
       expect(held).toEqual([V1, V2.slice(0, 40), ...DUNE_RELEASES.slice(2).map(() => undefined)])
+    })
+
+    describe('with the poll running', () => {
+      beforeEach(() => {
+        vi.useFakeTimers()
+      })
+      afterEach(() => {
+        vi.useRealTimers()
+      })
+
+      it('renders the list again only when a poll changes which releases qBittorrent has', async () => {
+        const [first, second] = DUNE_RELEASES
+        const other = 'e'.repeat(40)
+        vi.mocked(prowlarr.searchReleases).mockResolvedValue([{ ...first, infoHash: V1 }, second])
+        const getMainData = vi.mocked(qbt.getMainData)
+        getMainData.mockResolvedValue({ rid: 1, full_update: true, torrents: { [V1]: torrent(V1), [other]: torrent(other, { progress: 0.5 }) } })
+        // Downloads' poll beside the releases, as the sidebar's on desktop.
+        function Sidebar() {
+          useMainData()
+          return null
+        }
+        const wrapper = ({ children }: { children: ReactNode }) => (
+          <MainDataProvider onUnauthorized={vi.fn()}>
+            {children}
+            <Sidebar />
+          </MainDataProvider>
+        )
+        let renders = 0
+        const { result } = renderHook(
+          () => {
+            renders++
+            return useReleases(movie(1, 'Dune'))
+          },
+          { wrapper },
+        )
+        // The poll never runs out of timers, so the clock moves by hand here.
+        await act(() => vi.advanceTimersByTimeAsync(0))
+        await act(() => vi.advanceTimersByTimeAsync(0))
+        expect(result.current.status).toBe('ready')
+        expect(result.current.inDownloads(result.current.rows[0])).toBe(V1)
+        const before = renders
+
+        // A poll that changes another torrent, then one that changes nothing.
+        getMainData.mockResolvedValueOnce({ rid: 2, torrents: { [other]: { progress: 0.6 } } }).mockResolvedValue({ rid: 3 })
+        await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS * 3))
+        expect(getMainData.mock.calls.length).toBeGreaterThanOrEqual(4)
+        expect(renders).toBe(before)
+
+        // The torrent goes: the release is addable again.
+        getMainData.mockResolvedValueOnce({ rid: 4, torrents_removed: [V1] })
+        await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS))
+        expect(renders).toBe(before + 1)
+        expect(result.current.inDownloads(result.current.rows[0])).toBeUndefined()
+      })
     })
 
     it('gives none before the torrents are here', async () => {
