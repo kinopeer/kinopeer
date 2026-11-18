@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { UnauthorizedError, getAppVersion, unreachable, type Unreachable } from '../api/qbittorrent'
+import { UnauthorizedError, unreachable, type Unreachable } from '../api/qbittorrent'
+import { checkAppVersion } from '../api/sharedAnswers'
 import { saveQbittorrentLogin } from '../api/settings'
 
 export type QbitSession =
@@ -13,7 +14,7 @@ export type QbitSession =
 
 async function probe(): Promise<QbitSession> {
   try {
-    return { status: 'connected', version: await getAppVersion() }
+    return { status: 'connected', version: await checkAppVersion() }
   } catch (error) {
     if (error instanceof UnauthorizedError) return { status: 'signed-out' }
     return { status: 'unreachable', who: unreachable(error) }

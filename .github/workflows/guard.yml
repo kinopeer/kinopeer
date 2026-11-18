@@ -114,8 +114,8 @@ jobs:
         with:
           node-version: 22
       - name: Install what main's guard imports
-        # The parser it reads test files with comes with Vite: main's lockfile, none of the
-        # packages' install scripts, nothing from the cache.
+        # The parsers it reads test files, stylesheets and workflows with (oxc's through Vite, PostCSS,
+        # yaml): main's lockfile, none of the packages' install scripts, nothing from the cache.
         working-directory: main
         run: npm ci --ignore-scripts
       - name: Get the lists of the tests that ran

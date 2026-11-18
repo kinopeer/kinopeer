@@ -107,6 +107,16 @@ export async function getAppVersion(signal?: AbortSignal): Promise<string> {
   return (await response.text()).trim().replace(/^v/, '')
 }
 
+/** The key qBittorrent's version is shared under on the page (`sharedRequests`). */
+export const APP_VERSION_KEY = 'qbt|app/version'
+
+/**
+ * How long the page takes a version it has instead of asking qBittorrent again: a minute, so Settings
+ * opened as the app opens, or a tab away, shows the session check's answer, while Settings opened
+ * later checks the connection again, which is what its check is for.
+ */
+export const APP_VERSION_FRESH_MS = 60_000
+
 export async function getTorrents(query: TorrentsQuery = {}): Promise<Torrent[]> {
   const { hashes, ...rest } = query
   const response = await request('/torrents/info', {
