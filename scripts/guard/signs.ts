@@ -360,7 +360,7 @@ const WORD_START = /[\s;&|()<>]/
  * a comment, and a `#` line inside a multi-line quote, text to the shell, is cut too.
  */
 function withoutComments(command: string): string {
-  const run = command.replace(/^[ \t]*#.*$/gm, '')
+  const run = command.replace(/^[ \t]*#.*/gm, '')
   let kept = ''
   let quote: string | undefined
   let wordStart = true

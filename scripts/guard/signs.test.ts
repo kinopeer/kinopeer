@@ -381,6 +381,7 @@ describe('workflowSteps', () => {
     ['a block that says how it is indented and ends', job('      - run: |2-\n          npm ci\n      - run: >+\n          npm test\n'), ['run: npm ci', 'run: npm test']],
     ['a folded block, as one line', job('      - run: >-\n          npm test\n          -- --quiet\n'), ['run: npm test -- --quiet']],
     ['a folded block whose comment line folds into the line before it, without the comment', job('      - run: >\n          npm test &&\n          # npm run lint\n'), ['run: npm test &&']],
+    ['a quoted command whose comment ends it, with no newline after', job('      - run: "npm test;# npm run lint"\n'), ['run: npm test;']],
     ['a command without the comment after it', job('      - run: |\n          npm test # npm run lint\n          npm ci\t# the install\n'), ['run: npm test ; npm ci']],
     ['a # that starts no word as part of the command', job('      - run: echo a#b "#c"\n'), ['run: echo a#b "#c"']],
     ['a command YAML reads as a number or a boolean, as text', job('      - run: 42\n      - run: true\n'), ['run: 42', 'run: true']],
