@@ -28,8 +28,8 @@ export async function getMatches(signal?: AbortSignal): Promise<Matches> {
 
 /**
  * Saves matches by info hash (null forgets one) and answers all the server has. A guess or a miss
- * never replaces the user's choice, and a miss replaces only a guess or a miss of an older version
- * of guessing: the server keeps what it has and answers it.
+ * never replaces the user's choice, nothing replaces a match of a newer version of guessing, and a
+ * miss doesn't replace a guess of the same version: the server keeps what it has and answers it.
  */
 export async function saveMatches(matches: MatchesPatch): Promise<Matches> {
   return read(

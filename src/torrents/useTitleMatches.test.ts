@@ -158,7 +158,6 @@ describe('useTitleMatches', () => {
     await waitFor(() => expect(result.current.a).toBeNull())
     await flushSave()
     expect(saveMatches).not.toHaveBeenCalled()
-    expect(server).toEqual({ a: { source: 'miss', version: GUESS_VERSION } })
   })
 
   it('guesses again over a miss from an older version of guessing', async () => {

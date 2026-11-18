@@ -63,16 +63,24 @@ describe('MatchesStore', () => {
   })
 
   it('keeps a guess that found no title under the user’s choice and under a guess or a miss of the same or a newer version of guessing, not an older one, with no expiry', async () => {
-    const C = 'd'.repeat(40)
+    const [C, D, E, F] = ['d', 'e', 'f', '0'].map((digit) => digit.repeat(40))
     const store = new MatchesStore(dir)
-    const E = 'e'.repeat(40)
-    await store.save({ [A]: USER, [B]: GUESS, [C]: { ...GUESS, version: 3 }, [V2]: { ...GUESS, version: 1 }, [E]: { ...MISS, version: 3 } })
+    await store.save({
+      [A]: USER,
+      [B]: GUESS,
+      [C]: { ...GUESS, version: 3 },
+      [V2]: { ...GUESS, version: 1 },
+      [D]: { ...MISS, version: 3 },
+      [E]: { ...MISS, version: 1 },
+      // Saved before guesses had a version.
+      [F]: { type: 'tv', id: 2, source: 'guess' },
+    })
     // A device that loaded the matches before another one found the title still sends its miss.
-    await store.save({ [A]: MISS, [B]: MISS, [C]: MISS, [V2]: MISS, [E]: MISS })
-    const kept = { [A]: USER, [B]: GUESS, [C]: { ...GUESS, version: 3 }, [V2]: MISS, [E]: { ...MISS, version: 3 } }
+    await store.save({ [A]: MISS, [B]: MISS, [C]: MISS, [V2]: MISS, [D]: MISS, [E]: MISS, [F]: MISS })
+    const kept = { [A]: USER, [B]: GUESS, [C]: { ...GUESS, version: 3 }, [V2]: MISS, [D]: { ...MISS, version: 3 }, [E]: MISS, [F]: MISS }
     expect(store.current).toEqual(kept)
     // Kept for as long as its torrent is there, however long that is.
-    await store.prune(new Set([A, B, C, V2, E]), 100, Date.now() + 10 * 365 * 24 * 3600_000)
+    await store.prune(new Set(Object.keys(kept)), 100, Date.now() + 10 * 365 * 24 * 3600_000)
     expect(store.current).toEqual(kept)
   })
 
@@ -82,6 +90,16 @@ describe('MatchesStore', () => {
     await store.save({ [A]: GUESS, [B]: { ...GUESS, id: 3 } })
     expect(store.current).toEqual({ [A]: GUESS, [B]: { ...GUESS, id: 3 } })
   })
+
+  it('replaces nothing by a guess of an older version of guessing, from a page open since before it changed', async () => {
+    const store = new MatchesStore(dir)
+    const C = 'd'.repeat(40)
+    await store.save({ [A]: MISS, [B]: GUESS, [C]: MISS })
+    // A guess without a version is from before guesses had one.
+    await store.save({ [A]: { ...GUESS, version: 1 }, [B]: { ...GUESS, id: 3, version: 1 }, [C]: { type: 'tv', id: 3, source: 'guess' } })
+    expect(store.current).toEqual({ [A]: MISS, [B]: GUESS, [C]: MISS })
+  })
+
 
   it('forgets a guess that found no title with its torrent, as other matches', async () => {
     const store = new MatchesStore(dir)

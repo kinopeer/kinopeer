@@ -16,8 +16,9 @@ import type { Middleware } from './prowlarr.ts'
  * after a restart, and a torrent added back within the week keeps its match.
  *
  * GET /api/matches → Matches
- * PATCH /api/matches MatchesPatch → saves them, except a guess or a miss over the user's choice, and
- *   forgets those set to null; answers Matches
+ * PATCH /api/matches MatchesPatch → saves them where `replaces` lets them (never a guess or a miss
+ *   over the user's choice, nothing over a newer version of guessing, no miss over a guess of the
+ *   same version), and forgets those set to null; answers Matches
  * DELETE /api/matches → forgets every guess and miss (Settings → Clear cache), keeps the user's choices
  */
 export class MatchesStore extends JsonFile<Matches> {
@@ -88,15 +89,19 @@ function fail(response: Parameters<Middleware>[1], status: number, error: Matche
 
 /**
  * Whether a match sent replaces the one kept: the user's choice replaces anything and only the
- * user's choice replaces it, and a miss replaces only a guess or a miss of an older version of
- * guessing. A device whose page loaded the matches before another one found the title still sends its
- * miss, which would take that title from every device; one still on an older version would take a
- * newer miss back to its version, so every device guessed again.
+ * user's choice replaces it. Otherwise a newer version of guessing replaces an older one (a guess
+ * saved without a version is the oldest), nothing replaces a newer one, and of the same version a
+ * guess replaces either, a miss neither. A device whose page loaded the matches before another one
+ * found the title still sends its miss, which would take that title from every device; a page open
+ * since before guessing changed would take the newer match back to its version, so every device
+ * guessed again.
  */
 function replaces(match: SentMatch, kept: StoredMatch | undefined): boolean {
   if (match.source === 'user' || !kept) return true
   if (kept.source === 'user') return false
-  return match.source !== 'miss' || (kept.version ?? 0) < match.version
+  const sent = match.version ?? 0
+  const held = kept.version ?? 0
+  return sent > held || (sent === held && match.source !== 'miss')
 }
 
 function validMatch(value: unknown): value is SentMatch {
