@@ -61,10 +61,16 @@ describe('IconLink', () => {
     expect(link.querySelector('svg')).toHaveAttribute('width', '18')
   })
 
-  it('defaults to a plain md one, with the icon size it’s given', () => {
-    renderWithRouter(<IconLink to="/" icon="check" label="In downloads" iconSize={22} />)
+  it('defaults to a plain md one, its icon 20px or the size it’s given', () => {
+    renderWithRouter(
+      <>
+        <IconLink to="/" icon="check" label="In downloads" />
+        <IconLink to="/" icon="check" label="Larger" iconSize={22} />
+      </>,
+    )
     const link = screen.getByRole('link', { name: 'In downloads' })
     expect(link).toHaveAttribute('class', 'ks-icon-btn')
-    expect(link.querySelector('svg')).toHaveAttribute('width', '22')
+    expect(link.querySelector('svg')).toHaveAttribute('width', '20')
+    expect(screen.getByRole('link', { name: 'Larger' }).querySelector('svg')).toHaveAttribute('width', '22')
   })
 })

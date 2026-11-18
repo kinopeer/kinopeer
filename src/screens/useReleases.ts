@@ -227,8 +227,9 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
     sourceLabel,
     optionLabel,
     inDownloads: (row) => {
-      const id = torrentId(row.release.infoHash)
-      return id !== undefined && held.has(id) ? id : undefined
+      // No release without an ID is held: '' isn't one.
+      const id = torrentId(row.release.infoHash) ?? ''
+      return held.has(id) ? id : undefined
     },
     adding,
     setAdding,
