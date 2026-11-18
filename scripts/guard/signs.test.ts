@@ -380,7 +380,7 @@ describe('workflowSteps', () => {
     ['a block with a comment after its start', job('      - run: | # the tests\n          npm test\n'), ['run: npm test']],
     ['a block that says how it is indented and ends', job('      - run: |2-\n          npm ci\n      - run: >+\n          npm test\n'), ['run: npm ci', 'run: npm test']],
     ['a folded block, as one line', job('      - run: >-\n          npm test\n          -- --quiet\n'), ['run: npm test -- --quiet']],
-    ['a folded block without a comment line, which folds into the line before it', job('      - run: >\n          npm test &&\n          # npm run lint\n'), ['run: npm test &&']],
+    ['a folded block whose comment line folds into the line before it, without the comment', job('      - run: >\n          npm test &&\n          # npm run lint\n'), ['run: npm test &&']],
     ['a command without the comment after it', job('      - run: |\n          npm test # npm run lint\n          npm ci\t# the install\n'), ['run: npm test ; npm ci']],
     ['a # that starts no word as part of the command', job('      - run: echo a#b "#c"\n'), ['run: echo a#b "#c"']],
     ['a command YAML reads as a number or a boolean, as text', job('      - run: 42\n      - run: true\n'), ['run: 42', 'run: true']],
@@ -405,6 +405,43 @@ describe('workflowSteps', () => {
     ['a document that says it is YAML 1.2', `%YAML 1.2\n---\n${job('      - run: npm test\n')}`, ['run: npm test']],
   ])('reads %s', (_name, text, expected) => {
     expect(workflowSteps(text)).toEqual(expected)
+  })
+
+  /** A step whose command is a literal block of these lines, which YAML keeps as written: quotes, backslashes and all. */
+  const block = (...lines: string[]) => job(`      - run: |\n${lines.map((line) => `          ${line}\n`).join('')}`)
+
+  // Where the shell starts a comment: a `#` that starts a word outside quotes, to the end of its line.
+  it.each([
+    ['at the start of a line', ['# npm run lint', 'npm test'], 'npm test'],
+    ['after a tab', ['npm test\t# npm run lint'], 'npm test'],
+    ['right after `;`', ['npm test;# npm run lint'], 'npm test;'],
+    ['right after `&`', ['npm test &# npm run lint'], 'npm test &'],
+    ['right after `&&`, the command going on on the next line', ['npm test &&# npm run lint', 'npm ci'], 'npm test && ; npm ci'],
+    ['right after `||`, the command going on on the next line', ['npm test ||# npm run lint', 'npm ci'], 'npm test || ; npm ci'],
+    ['right after `|`, the command going on on the next line', ['npm test |# npm run lint', 'cat'], 'npm test | ; cat'],
+    ['right after `)`', ['(npm test)# npm run lint'], '(npm test)'],
+    ['right after `>` and `<`', ['npm test >#out', 'npm ci <#in'], 'npm test > ; npm ci <'],
+    ['after a closed single quote whose backslash is text', ["echo 'a\\' # npm run lint"], "echo 'a\\'"],
+  ])('cuts a comment %s', (_name, lines, command) => {
+    expect(workflowSteps(block(...lines))).toEqual([`run: ${command}`])
+  })
+
+  // A `#` the shell reads as text: the rest of the line is read, so a command dropped from it is marked.
+  it.each([
+    ['inside double quotes', 'echo "step #2" && npm run lint'],
+    ['inside single quotes', "echo 'step #2' && npm run lint"],
+    ['after an escaped quote inside double quotes', 'echo "a \\" #b" && npm run lint'],
+    ['after an escaped blank', 'echo a\\ #b && npm run lint'],
+    ['escaped', 'echo \\#b && npm run lint'],
+    ['in the middle of a word or a parameter', 'echo a#b $# ${#x} && npm run lint'],
+    ['after a quote left open', 'echo "open #b && npm run lint'],
+    ['with no # at all, ending in a backslash', 'npm run lint \\'],
+  ])('keeps a # %s', (_name, line) => {
+    expect(workflowSteps(block(line))).toEqual([`run: ${line}`])
+  })
+
+  it('keeps a # inside quotes that go on on the next line', () => {
+    expect(workflowSteps(block('echo "a', '#b" && npm run lint'))).toEqual(['run: echo "a ; #b" && npm run lint'])
   })
 
   // What only looks like a step: GitHub runs none of it.
@@ -442,6 +479,8 @@ describe('workflowSteps', () => {
     ['two documents', `${job('      - run: npm test\n')}---\n${job('      - run: npm ci\n')}`],
     ['a document that says it is YAML of a version the parser does not know', `%YAML 2.0\n---\n${job('      - run: npm test\n')}`],
     ['a tag the parser cannot resolve', job('      - run: !custom npm test\n')],
+    ['a merge key tagged as one, which YAML 1.1 would merge', `x-test: &test\n  run: npm test\n${job('      - !!merge <<: *test\n')}`],
+    ['a command given as binary', job('      - run: !!binary bnBtIHRlc3Q=\n')],
     ['a document that says it is YAML 1.1, whose merge keys GitHub would not read', `%YAML 1.1\n---\nx-test: &test\n  run: npm test\n${job('      - <<: *test\n')}`],
     ['aliases that expand past the limit', `a: &a [x, x, x, x, x, x, x, x, x, x]\nb: &b [*a, *a, *a, *a, *a, *a, *a, *a, *a, *a]\nc: &c [*b, *b, *b, *b, *b, *b, *b, *b, *b, *b]\n${job('      - run: npm test\n')}`],
   ])("can't read %s", (_name, text) => {
@@ -575,6 +614,16 @@ describe('compareWorkflows', () => {
       'owner: a command CI ran is no longer run: `node summary.mjs`',
       'owner: a command CI ran is no longer run: `uses: actions/upload-artifact`',
     ])
+  })
+
+  it('sends a command commented out right after an operator to the owner', () => {
+    const step = (command: string) => `jobs:\n  check:\n    steps:\n      - run: ${command}\n`
+    expect(said(compare(step('npm test;# npm run lint'), step('npm test; npm run lint')))).toEqual(['owner: a command CI ran is no longer run: `npm run lint`'])
+  })
+
+  it('sends a command dropped after a # inside quotes to the owner', () => {
+    const step = (command: string) => `jobs:\n  check:\n    steps:\n      - run: ${command}\n`
+    expect(said(compare(step(`'echo "step #2"'`), step(`'echo "step #2" && npm run lint'`)))).toEqual(['owner: a command CI ran is no longer run: `npm run lint`'])
   })
 
   it('sends a command commented out in a folded block to the owner', () => {

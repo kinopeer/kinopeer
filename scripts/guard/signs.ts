@@ -345,17 +345,53 @@ export function compareScripts(base: string | undefined, head: string | undefine
   })
 }
 
+/** What the shell starts a word after: a blank or one of its operators' characters. */
+const WORD_START = /[\s;&|()<>]/
+
+/**
+ * A command without its shell comments: a `#` that starts a word, to the end of its line, as the
+ * shell reads one. A word starts at the text's start or after a blank or an operator's character
+ * (`npm test;# npm run lint`). Quotes are skipped, `'…'` whole and `"…"` with its backslash escapes,
+ * as is a character escaped with a backslash outside them, so a `#` there is text
+ * (`echo "step #2" && npm test`). A quote left open keeps the rest as text.
+ */
+function withoutComments(run: string): string {
+  let kept = ''
+  let quote: string | undefined
+  let wordStart = true
+  for (let index = 0; index < run.length; index++) {
+    const char = run[index]
+    if (char === '#' && quote === undefined && wordStart) {
+      const end = run.indexOf('\n', index)
+      if (end === -1) break
+      // The newline is the next character read.
+      index = end - 1
+      continue
+    }
+    kept += char
+    if (char === '\\' && quote !== "'") {
+      kept += run[index + 1] ?? ''
+      index++
+      wordStart = false
+      continue
+    }
+    if (quote === undefined && (char === '"' || char === "'")) quote = char
+    else if (char === quote) quote = undefined
+    wordStart = quote === undefined && WORD_START.test(char)
+  }
+  return kept
+}
+
 /**
  * A command as one line: each line of a block without its indentation, blank lines and the shell's
- * comments, joined with ` ; `, so a block reads the same however it is indented or folded. A comment
- * is what the shell takes for one, a `#` that starts a word and the rest of its line: in a folded
- * block a comment's line folds into the line before it (`npm test && # npm run lint`), and a
- * commented-out command runs nothing. A `#` inside quotes that starts a word is cut as well.
+ * comments, joined with ` ; `, so a block reads the same however it is indented or folded. The
+ * comments go first, since a folded block folds a comment's line into the line before it
+ * (`npm test && # npm run lint`), and a commented-out command runs nothing.
  */
 const commandLine = (run: string): string =>
-  run
+  withoutComments(run)
     .split('\n')
-    .map((line) => line.replace(/(?:^|\s)#.*/, '').trim())
+    .map((line) => line.trim())
     .filter((line) => line !== '')
     .join(' ; ')
 
@@ -381,8 +417,9 @@ const stepOf = ({ uses, run }: JsonObject): string[] => (isScalar(run) ? [`run: 
 export function workflowSteps(text: string): string[] | undefined {
   // YAML 1.2 is the parser's default, which has no merge keys. A `%YAML 1.1` directive would have it read the text otherwise than
   // GitHub does (1.1 merges); a version it doesn't know is a warning, read as 1.2 all the same, as is a tag it can't resolve, read
-  // as plain text. So each leaves the workflow unread.
-  const document = parseDocument(text)
+  // as plain text. So each leaves the workflow unread. The tags of YAML 1.1 the parser would otherwise resolve without a word
+  // (`!!merge <<:`, which merges, `!!binary`, `!!set`, `!!timestamp`) are each such a tag, so they leave it unread too.
+  const document = parseDocument(text, { resolveKnownTags: false })
   if (document.errors.length > 0 || document.warnings.length > 0 || document.directives?.yaml.version !== '1.2') return undefined
   let workflow: unknown
   try {
@@ -427,7 +464,7 @@ export function commands(step: string): string[] {
  */
 export function compareWorkflows(workflows: Change[]): Finding[] {
   const stepsOf = (text: string | undefined): string[] | undefined => (text === undefined ? [] : workflowSteps(text))
-  // Each side parsed once: `left` is spent below as its steps are paired with main's, after `called` is taken from it.
+  // Each side parsed once.
   const read = workflows.map((change) => ({ ...change, was: stepsOf(change.base), left: stepsOf(change.head) }))
   const called = new Set(read.flatMap(({ left }) => (left ?? []).flatMap(commands)))
   const dropped = new Set<string>()
@@ -435,10 +472,11 @@ export function compareWorkflows(workflows: Change[]): Finding[] {
     const found: Finding[] = head === undefined ? [{ needs: 'owner', file, what: 'the workflow is removed, and its steps with it' }] : []
     if (left === undefined) return [{ needs: 'owner', file, what: "the guard can't read the workflow as YAML, so it can't compare its steps" }]
     if (was === undefined) return [...found, { needs: 'review', file, what: "the guard can't read main's copy of the workflow as YAML, so it has nothing to compare this one with" }]
+    const rest = [...left]
     const gone = was.filter((step) => {
-      const index = left.indexOf(step)
+      const index = rest.indexOf(step)
       if (index === -1) return true
-      left.splice(index, 1)
+      rest.splice(index, 1)
       return false
     })
     for (const step of gone) {
