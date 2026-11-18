@@ -197,13 +197,12 @@ export function SettingsScreen() {
   // A new key changes its check's key, so it runs again.
   // qBittorrent's takes the session check's answer while it's fresh; Test asks again.
   const qbittorrent = useRequest(APP_VERSION_KEY, (signal) => getAppVersion(signal), { freshFor: APP_VERSION_FRESH_MS })
-  const qbittorrentAnswered = qbittorrent.data !== undefined
-  const categoriesMissing = categories.data === undefined
   // Set while rendering rather than in an effect, so the categories' request goes out with this render.
-  const [askedOn, setAskedOn] = useState({ answered: false, missing: true })
-  if (askedOn.answered !== qbittorrentAnswered || askedOn.missing !== categoriesMissing) {
-    setAskedOn({ answered: qbittorrentAnswered, missing: categoriesMissing })
-    if (qbittorrentAnswered && categoriesMissing) setCategoriesLoad((n) => n + 1)
+  const qbittorrentAnswered = qbittorrent.data !== undefined
+  const [answeredBefore, setAnsweredBefore] = useState(false)
+  if (answeredBefore !== qbittorrentAnswered) {
+    setAnsweredBefore(qbittorrentAnswered)
+    if (qbittorrentAnswered && categories.data === undefined) setCategoriesLoad((n) => n + 1)
   }
   const prowlarr = useRequest(`check|prowlarr|${prowlarrKeyVersion}`, (signal) => getProwlarrStatus(signal))
   const tmdb = useRequest(`check|tmdb|${tmdbKeyVersion}`, (signal) => checkTmdb(signal))

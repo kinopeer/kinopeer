@@ -68,8 +68,9 @@ export function useRequest<T>(key: string | null, load: (signal: AbortSignal) =>
 
   const retry = useCallback(() => setRetries((last) => ({ key: last.key, count: last.count + 1 })), [])
   const own = settled && settled.key === key && settled.attempt === attempt ? settled : null
-  // A shared answer kept fresh shows from the first render, not after a loading one; a retry waits for its own.
-  const kept = key === null || freshFor === undefined || attempt > 0 ? undefined : sharedRequests.peek<T>(key, freshFor)
+  // A shared answer kept fresh shows from the first render, not after a loading one; a retry waits for
+  // its own. Nothing is fresh for 0 ms, so a caller that doesn't share finds nothing.
+  const kept = key === null || attempt > 0 ? undefined : sharedRequests.peek<T>(key, freshFor ?? 0)
   const current = own ?? (kept ? { data: kept.data, error: undefined } : null)
 
   return {

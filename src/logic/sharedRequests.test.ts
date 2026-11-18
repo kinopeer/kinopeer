@@ -101,7 +101,7 @@ describe('createSharedRequests', () => {
     expect(again).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps a renewed request when the one it replaced fails or is given up', async () => {
+  it('keeps a renewed request when the one it replaced is given up, and a failed renewal leaves the key to the next', async () => {
     const { shared } = setup()
     const old = deferred<string>()
     const controller = new AbortController()

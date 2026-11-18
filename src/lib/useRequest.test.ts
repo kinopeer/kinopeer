@@ -129,6 +129,12 @@ describe('useRequest with freshFor', () => {
     expect(renders[0]).toEqual({ data: 'answer', loading: false })
     await act(async () => {})
     expect(load).toHaveBeenCalledTimes(1)
+
+    // A caller that doesn't share asks on its own, the kept answer under its key notwithstanding.
+    const own = vi.fn().mockResolvedValue('own')
+    const unshared = renderHook(() => useRequest('k', own))
+    expect(unshared.result.current).toMatchObject({ data: undefined, loading: true })
+    await waitFor(() => expect(unshared.result.current.data).toBe('own'))
   })
 
   it('asks again on retry rather than take the kept answer', async () => {
