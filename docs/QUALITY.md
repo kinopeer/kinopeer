@@ -83,8 +83,8 @@ Three kinds of change, three lists in its report. The deputy's round judges ever
   another of the characters JavaScript counts as blanks or line breaks, a no-break space or U+2028
   among them, which bash doesn't), to the end of its line, also
   where a folded block folds it into the line before, while a `#` inside quotes or escaped is text;
-  and, as before the parser, every line whose first character but blanks is `#`, inside quotes
-  too. Its tests keep a table of the
+  and every line whose `#` comes first or after spaces and tabs only, inside quotes too. Its tests
+  keep a table of the
   spellings it reads, lets through and can't read (`scripts/guard/signs.test.ts`).
 - An npm script removed (`scripts` in the root `package.json`): the step that called it checks
   nothing.
@@ -335,13 +335,18 @@ compare the tests that ran, and says so: that takes a run of each side, which CI
   a folded block after YAML has joined its lines. Wherever a `#` or a quote meets anything else of
   the shell, it reads otherwise than bash: a substitution of any kind (`$(…)`, `$((…))`, `<(…)`,
   backticks), `[[ … ]]`, an extglob, `$'…'`, a heredoc, a quote nested in a substitution
-  (`"$(echo 'a"b')"`), a `#` line inside a multi-line quote, which the line rule cuts with the
-  closing quote on it. None of these is in the workflows today. Either way it goes, a quote read as
-  open where bash has closed it (a `#` after it read as text, so a command commented out there reads
-  as still run) or a `#` read as a comment's start where bash reads on (`tag=$(git describe)#ci &&
-  npm run lint`: the rest of the line is read on neither side, so a command dropped from it isn't
-  marked), it may also catch less than `main`'s line by line reader, which cut every line whose
-  first character but blanks was `#` and read every other line whole.
+  (`"$(echo 'a"b')"`), and a line inside a multi-line quote whose `#` comes first or after spaces
+  and tabs only, which the line rule cuts with the closing quote on it. None of these leaves a quote
+  open or meets a `#` in the workflows today, whose commands read the same with both readers.
+  Wherever it reads otherwise than the shell that runs the step, a quote read as open where that
+  shell has closed it (a `#` after it read as text, so a command commented out there reads as still
+  run) or a `#` read as a comment's start where that shell reads on (`tag=$(git describe)#ci && npm
+  run lint` in bash, `npm test # && npm run lint` in cmd: the rest of the line is read on neither
+  side, so a command dropped from it isn't marked), it may also catch less than `main`'s line by
+  line reader, which cut every line whose first character but JavaScript's blanks was `#` and read
+  every other line whole. So does a line that starts with another of JavaScript's blanks before its
+  `#` (a no-break space, `\v`, `\f`, `\r`): `main` cut it, this reader reads it as bash does, a
+  command, so a command after the `#` on it reads as still run.
 - A change to `guard.yml` that stops the script from running or from being `main`'s copy: the
   workflow runs as the PR has it, so the weakening's mark comes from the changed steps, if they
   still make it.
