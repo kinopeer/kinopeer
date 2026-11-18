@@ -422,6 +422,7 @@ describe('workflowSteps', () => {
     ['right after `)`', ['(npm test)# npm run lint'], '(npm test)'],
     ['right after `>` and `<`', ['npm test >#out', 'npm ci <#in'], 'npm test > ; npm ci <'],
     ['after a closed single quote whose backslash is text', ["echo 'a\\' # npm run lint"], "echo 'a\\'"],
+    ['that starts the line a backslash after a blank goes on to', ['npm test \\', '# && npm run lint'], 'npm test \\'],
   ])('cuts a comment %s', (_name, lines, command) => {
     expect(workflowSteps(block(...lines))).toEqual([`run: ${command}`])
   })
@@ -440,8 +441,11 @@ describe('workflowSteps', () => {
     expect(workflowSteps(block(line))).toEqual([`run: ${line}`])
   })
 
-  it('keeps a # inside quotes that go on on the next line', () => {
-    expect(workflowSteps(block('echo "a', '#b" && npm run lint'))).toEqual(['run: echo "a ; #b" && npm run lint'])
+  it.each([
+    ['inside quotes that go on on the next line', ['echo "a', '#b" && npm run lint'], 'echo "a ; #b" && npm run lint'],
+    ['that goes on a word a backslash ends', ['npm test\\', '#x && npm run lint'], 'npm test\\ ; #x && npm run lint'],
+  ])('keeps a # %s', (_name, lines, command) => {
+    expect(workflowSteps(block(...lines))).toEqual([`run: ${command}`])
   })
 
   // What only looks like a step: GitHub runs none of it.
@@ -616,14 +620,14 @@ describe('compareWorkflows', () => {
     ])
   })
 
-  it('sends a command commented out right after an operator to the owner', () => {
-    const step = (command: string) => `jobs:\n  check:\n    steps:\n      - run: ${command}\n`
-    expect(said(compare(step('npm test;# npm run lint'), step('npm test; npm run lint')))).toEqual(['owner: a command CI ran is no longer run: `npm run lint`'])
-  })
-
-  it('sends a command dropped after a # inside quotes to the owner', () => {
-    const step = (command: string) => `jobs:\n  check:\n    steps:\n      - run: ${command}\n`
-    expect(said(compare(step(`'echo "step #2"'`), step(`'echo "step #2" && npm run lint'`)))).toEqual(['owner: a command CI ran is no longer run: `npm run lint`'])
+  it.each([
+    ['commented out right after an operator', ['npm test; npm run lint'], ['npm test;# npm run lint']],
+    ['dropped after a # inside quotes', ['echo "step #2" && npm run lint'], ['echo "step #2"']],
+    ['commented out on the line after a backslash', ['npm test \\', '&& npm run lint'], ['npm test \\', '# && npm run lint']],
+  ])('sends a command %s to the owner', (_name, was, now) => {
+    /** A workflow whose one step runs these lines, as a literal block. */
+    const step = (lines: string[]) => `jobs:\n  check:\n    steps:\n      - run: |\n${lines.map((line) => `          ${line}\n`).join('')}`
+    expect(said(compare(step(now), step(was)))).toEqual(['owner: a command CI ran is no longer run: `npm run lint`'])
   })
 
   it('sends a command commented out in a folded block to the owner', () => {

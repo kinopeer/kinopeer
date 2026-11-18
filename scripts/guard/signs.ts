@@ -353,7 +353,8 @@ const WORD_START = /[\s;&|()<>]/
  * shell reads one. A word starts at the text's start or after a blank or an operator's character
  * (`npm test;# npm run lint`). Quotes are skipped, `'…'` whole and `"…"` with its backslash escapes,
  * as is a character escaped with a backslash outside them, so a `#` there is text
- * (`echo "step #2" && npm test`). A quote left open keeps the rest as text.
+ * (`echo "step #2" && npm test`). A backslash before a newline joins the lines as the shell does
+ * (`npm test \` and then `# npm run lint` is a comment). A quote left open keeps the rest as text.
  */
 function withoutComments(run: string): string {
   let kept = ''
@@ -371,9 +372,11 @@ function withoutComments(run: string): string {
     }
     kept += char
     if (char === '\\' && quote !== "'") {
-      kept += run[index + 1] ?? ''
+      const next = run[index + 1] ?? ''
+      kept += next
       index++
-      wordStart = false
+      // A backslash before a newline joins the two lines, so a word goes on, or starts, as it would have before it.
+      if (next !== '\n') wordStart = false
       continue
     }
     if (quote === undefined && (char === '"' || char === "'")) quote = char
