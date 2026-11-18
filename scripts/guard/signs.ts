@@ -361,7 +361,8 @@ function withoutComments(run: string): string {
   let wordStart = true
   for (let index = 0; index < run.length; index++) {
     const char = run[index]
-    if (char === '#' && quote === undefined && wordStart) {
+    // Never true inside quotes: see where it is set below.
+    if (char === '#' && wordStart) {
       const end = run.indexOf('\n', index)
       if (end === -1) break
       // The newline is the next character read.
