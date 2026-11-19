@@ -30,8 +30,16 @@ describe('finishedTitle', () => {
     expect(tmdb).toHaveBeenCalledWith('tv/126308?language=en-US')
   })
 
-  it('leaves the year out when TMDB has no date', async () => {
-    expect(await finishedTitle(torrent, 'en', { matches: () => ({}), tmdb: async () => ({ title: 'Dune', release_date: '' }) })).toBe('Dune')
+  it('leaves the year out when TMDB has no date, or one that doesn’t start with it', async () => {
+    for (const release_date of ['', 2021, 'about 2021']) {
+      expect(await finishedTitle(torrent, 'en', { matches: () => ({}), tmdb: async () => ({ title: 'Dune', release_date }) })).toBe('Dune')
+    }
+  })
+
+  it('names the title without the spaces around it', async () => {
+    const tmdb = async () => ({ title: ' Dune ', release_date: '2021-09-15' })
+    expect(await finishedTitle(torrent, 'en', { matches: () => ({}), tmdb })).toBe('Dune (2021)')
+    expect(await finishedTitle(torrent, 'en', { matches: () => ({}), tmdb: async () => ({ title: ' Dune ' }) })).toBe('Dune')
   })
 
   it('answers undefined without asking TMDB when the title isn’t known', async () => {

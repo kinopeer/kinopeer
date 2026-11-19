@@ -367,8 +367,8 @@ describe('kinopeerServer', () => {
     }
   })
 
-  it('notifies through the Telegram bot when a tagged torrent finishes, naming its title, then takes the tag off', async () => {
-    const finished = { ...TORRENTS[0], hash: 'c'.repeat(40), name: 'Dune.Part.Two.2024.2160p.WEB-DL-GRPA', progress: 1, state: 'stalledUP', tags: 'kinopeer:notify, tmdb:movie:693134' } as const
+  it('notifies through the Telegram bot when a tagged torrent finishes, naming the title the server matched, then takes the tag off', async () => {
+    const finished = { ...TORRENTS[0], hash: 'c'.repeat(40), name: 'Dune.Part.Two.2024.2160p.WEB-DL-GRPA', progress: 1, state: 'stalledUP', tags: 'kinopeer:notify' } as const
     const downloading = { ...TORRENTS[0], hash: 'd'.repeat(40), progress: 0.3, state: 'downloading', tags: 'kinopeer:notify' } as const
     const qbittorrent = await fakeQbittorrent({ torrents: [finished, downloading] })
     const tmdb = await fakeTmdb()
@@ -377,6 +377,7 @@ describe('kinopeerServer', () => {
     await stores.settings.update({
       telegram: { token: TELEGRAM_TOKEN, bot: 'kinopeer_home_bot', chat: { id: 42, name: 'Alex', type: 'private' }, language: 'ru' },
     })
+    await stores.matches.save({ [finished.hash]: { type: 'movie', id: 693134, source: 'guess', version: 1 } })
     const env = {
       QBITTORRENT_URL: qbittorrent.base,
       QBITTORRENT_USERNAME: 'admin',
@@ -389,13 +390,18 @@ describe('kinopeerServer', () => {
     try {
       const stop = kinopeerServer(env, stores).startJobs()
       await vi.advanceTimersByTimeAsync(30_000)
-      await vi.waitFor(() => expect(qbittorrent.torrents[0].tags).toBe('tmdb:movie:693134'))
+      await vi.waitFor(() => expect(qbittorrent.torrents[0].tags).toBe(''))
       expect(telegram.sent()).toEqual([
         expect.objectContaining({ chat_id: 42, text: 'Загрузка завершена: Дюна: Часть вторая (2024)\nDune.Part.Two.2024.2160p.WEB-DL-GRPA' }),
       ])
       expect(qbittorrent.torrents[1].tags).toBe('kinopeer:notify')
       expect(qbittorrent.seen.some((request) => request.url?.startsWith('/api/v2/sync/maindata'))).toBe(false)
+
+      // Stopped, it asks nothing more.
       stop()
+      const asked = qbittorrent.seen.length
+      await vi.advanceTimersByTimeAsync(60_000)
+      expect(qbittorrent.seen).toHaveLength(asked)
     } finally {
       vi.useRealTimers()
     }

@@ -1000,6 +1000,58 @@ describe('settingsMiddleware: Telegram', () => {
     expect(store.current.telegram).toEqual(connected)
   })
 
+  it.each([
+    ['PUT', ''],
+    ['PUT', '/chat'],
+    ['POST', '/test'],
+  ])('answers 400 to %s %s with a body that isn’t JSON', async (method, path) => {
+    const { app, store } = await setUp(connected)
+    const response = await fetch(`${app}/api/settings/telegram${path}`, { method, headers: { 'Content-Type': 'application/json' }, body: '{' })
+    expect([response.status, await response.json()]).toEqual([400, { error: 'bad-request' }])
+    expect(store.current.telegram).toEqual(connected)
+  })
+
+  it.each([
+    ['finding', 'GET', '/chat', undefined],
+    ['saving', 'PUT', '/chat', { id: 42, language: 'en' }],
+  ] as const)('says when Telegram no longer knows the token, or doesn’t answer, while %s the chat', async (_name, method, path, body) => {
+    const revoked = { token: '999:ABCdefGhIJKlmNoPQRsTUVwxyZ-_0123456', bot: 'kinopeer_home_bot' }
+    const { send, store, telegram } = await setUp(revoked)
+    const rejected = await send(method, path, body)
+    expect([rejected.status, await rejected.json()]).toEqual([422, { error: 'token-rejected' }])
+
+    await store.update({ telegram: { token: TELEGRAM_TOKEN, bot: 'kinopeer_home_bot' } })
+    telegram.state.down = true
+    const down = await send(method, path, body)
+    expect([down.status, await down.json()]).toEqual([502, { error: 'unreachable' }])
+    expect(store.current.telegram?.chat).toBeUndefined()
+  })
+
+  it('keeps what a test message was refused for only for the bot and chat it was sent to', async () => {
+    const { send, store, telegram } = await setUp({ ...connected, chat: { ...chat, id: 7 } })
+    let answer!: () => void
+    telegram.state.hold = new Promise((resolve) => (answer = resolve))
+    const testing = send('POST', '/test', { language: 'en' })
+    await vi.waitFor(() => expect(telegram.seen).toHaveLength(1))
+    // Saved while the test was on its way: a renewed token of the same bot, the same chat.
+    const renewed = { ...connected, token: '123456:NEWdefGhIJKlmNoPQRsTUVwxyZ-_0123456', chat: { ...chat, id: 7 } }
+    await store.update({ telegram: renewed })
+    answer()
+    expect((await testing).status).toBe(422)
+    expect(store.current.telegram).toEqual(renewed)
+
+    // And another chat of the same bot.
+    const other = { ...connected, chat: { ...chat, id: 8 } }
+    await store.update({ telegram: { ...connected, chat: { ...chat, id: 7 } } })
+    telegram.state.hold = new Promise((resolve) => (answer = resolve))
+    const again = send('POST', '/test', { language: 'en' })
+    await vi.waitFor(() => expect(telegram.seen).toHaveLength(3))
+    await store.update({ telegram: other })
+    answer()
+    expect((await again).status).toBe(422)
+    expect(store.current.telegram).toEqual(other)
+  })
+
   it('says whether some channel sends notifications', async () => {
     const { status, app } = await setUp(connected, () => true)
     expect(await status()).toEqual({ bot: 'kinopeer_home_bot', chat: { name: 'Alex', type: 'private' }, refused: null })

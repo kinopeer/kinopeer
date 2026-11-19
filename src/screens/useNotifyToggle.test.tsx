@@ -5,7 +5,10 @@ import * as api from '../api/qbittorrent'
 import { ToastProvider } from '../components/Toast'
 import { torrent } from '../test/fixtures'
 import { saying } from '../test/render'
+import { REQUEST_KINDS } from '../torrents/requestKinds'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
+import { requestKey } from '../torrents/torrentRequests'
+import { useTorrentRequests } from '../torrents/useTorrentRequests'
 import { useNotifyToggle } from './useNotifyToggle'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
@@ -46,6 +49,16 @@ describe('useNotifyToggle', () => {
     expect(addTags).toHaveBeenCalledWith(['dune'], ['kinopeer:notify'])
     await act(() => result.current.set(DUNE, false))
     expect(removeTags).toHaveBeenCalledWith(['dune'], ['kinopeer:notify'])
+  })
+
+  it('has the torrent shown with or without the tag once qBittorrent took it, until a poll reports it', async () => {
+    const { result } = renderHook(() => ({ toggle: useNotifyToggle(), requests: useTorrentRequests() }), { wrapper: Providers })
+    await act(() => result.current.toggle.set(DUNE, true))
+    const on = result.current.requests.getExpected().get(requestKey(REQUEST_KINDS.notify, 'dune'))
+    expect(on?.expect(DUNE)).toEqual({ ...DUNE, tags: 'kinopeer:notify, tmdb:movie:693134' })
+    await act(() => result.current.toggle.set({ ...DUNE, tags: 'kinopeer:notify, tmdb:movie:693134' }, false))
+    const off = result.current.requests.getExpected().get(requestKey(REQUEST_KINDS.notify, 'dune'))
+    expect(off?.expect({ ...DUNE, tags: 'kinopeer:notify, tmdb:movie:693134' })).toEqual(DUNE)
   })
 
   it('shows the value being sent and is busy until qBittorrent answers', async () => {

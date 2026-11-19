@@ -29,6 +29,8 @@ describe('isNotifyLanguage', () => {
     ['de', false],
     ['toString', false],
     [undefined, false],
+    // An array whose one item names a language reads as that name as a key.
+    [['en'], false],
   ])('%s: %s', (value, known) => {
     expect(isNotifyLanguage(value)).toBe(known)
   })

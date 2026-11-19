@@ -53,9 +53,10 @@ export async function finishedTitle(
 ): Promise<string | undefined> {
   const ref = knownTitle(torrent.tags, deps.matches()[torrent.hash])
   if (!ref) return undefined
+  const path = `${ref.type}/${ref.id}?language=${TMDB_LANGUAGE[language]}`
   let found: TmdbTitle
   try {
-    found = ((await deps.tmdb(`${ref.type}/${ref.id}?language=${TMDB_LANGUAGE[language]}`)) ?? {}) as TmdbTitle
+    found = ((await deps.tmdb(path)) ?? {}) as TmdbTitle
   } catch {
     return undefined
   }

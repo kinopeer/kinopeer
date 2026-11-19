@@ -86,6 +86,29 @@ describe('telegramChannel', () => {
     expect(store.current.telegram).toEqual(connected)
   })
 
+  it('keeps nothing for a token of the same bot renewed while the message was on its way', async () => {
+    const gone = { ...connected, chat: { id: 7, name: 'Gone', type: 'private' as const } }
+    const { channel, store, telegram } = await setUp(gone)
+    let answer!: () => void
+    telegram.state.hold = new Promise((resolve) => (answer = resolve))
+    const sending = channel.send(finished)
+    await vi.waitFor(() => expect(telegram.seen).toHaveLength(1))
+    const renewed = { ...gone, token: '123456:NEWdefGhIJKlmNoPQRsTUVwxyZ-_0123456' }
+    await store.update({ telegram: renewed })
+    answer()
+    expect(await sending).toBe('rejected')
+    expect(store.current.telegram).toEqual(renewed)
+  })
+
+  it('still answers what Telegram did when settings.json can’t be written, and says so in the log', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { channel, store } = await setUp({ ...connected, chat: { id: 7, name: 'Gone', type: 'private' } })
+    vi.spyOn(store, 'updateTelegram').mockRejectedValue(new Error('EACCES'))
+    expect(await channel.send(finished)).toBe('rejected')
+    expect(warn).toHaveBeenCalledWith('[kinopeer] could not write settings.json; is the data directory writable?')
+    warn.mockRestore()
+  })
+
   it('rejects when Telegram doesn’t answer, so the watcher sends again', async () => {
     const { channel, telegram } = await setUp(connected)
     telegram.state.down = true

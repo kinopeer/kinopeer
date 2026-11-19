@@ -94,13 +94,14 @@ export function TelegramForm({ telegram, onChanged, onTurnedOff, onRefused }: Te
     })
   }
 
-  const banner = (chat = telegram.chat?.name ?? '') =>
+  // Telegram refuses a chat only for a test message, which only the connected step sends.
+  const banner = () =>
     error === 'unreachable' ? (
       <Banner tone="error">{t('telegram.unreachable')}</Banner>
     ) : error === 'token-rejected' ? (
       <Banner tone="error">{t('telegram.tokenRejected')}</Banner>
     ) : error === 'chat-rejected' ? (
-      <Banner tone="error">{t('telegram.chatRefused', { chat })}</Banner>
+      <Banner tone="error">{t('telegram.chatRefused', { chat: telegram.chat?.name })}</Banner>
     ) : error === 'no-chat' ? (
       <Banner tone="info">{t('telegram.noChatFound')}</Banner>
     ) : error === 'storage' ? (
@@ -205,7 +206,7 @@ export function TelegramForm({ telegram, onChanged, onTurnedOff, onRefused }: Te
       </p>
       {error === null && telegram.refused === 'chat' && <Banner tone="error">{t('telegram.chatRefused', { chat: chat.name })}</Banner>}
       {error === null && telegram.refused === 'token' && <Banner tone="error">{t('telegram.tokenRejected')}</Banner>}
-      {banner(chat.name)}
+      {banner()}
       <div className="key-form-actions">
         <Button
           size="lg"

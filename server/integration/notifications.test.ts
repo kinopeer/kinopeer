@@ -52,14 +52,14 @@ describe('notifications through /api/settings/telegram and /qbt', () => {
 
   it('switches a torrent’s notification with the tag the server watches for', async () => {
     const { qbittorrent } = await startKinopeer()
-    const [first] = TORRENTS
+    const [first, second, third] = TORRENTS
     const server = qbittorrentBridge({ url: () => qbittorrent.base, credentials: () => ({ username: 'admin', password: 'pass word' }) })
     expect(NOTIFY_TAG).toBe(SERVER_NOTIFY_TAG)
 
-    await addTags([first.hash], [NOTIFY_TAG])
-    expect((await taggedTorrents(server.get))?.map(({ hash }) => hash)).toEqual([first.hash])
+    await addTags([first.hash, second.hash, third.hash], [NOTIFY_TAG])
+    expect((await taggedTorrents(server.get))?.map(({ hash }) => hash)).toEqual([first.hash, second.hash, third.hash])
 
-    await removeTags([first.hash], [NOTIFY_TAG])
-    expect(await taggedTorrents(server.get)).toEqual([])
+    await removeTags([first.hash, second.hash], [NOTIFY_TAG])
+    expect((await taggedTorrents(server.get))?.map(({ hash }) => hash)).toEqual([third.hash])
   })
 })

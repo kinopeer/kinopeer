@@ -1,6 +1,6 @@
 import { request as httpRequest } from 'node:http'
 import { afterEach, describe, expect, it } from 'vitest'
-import { tmdbMiddleware, type TmdbConfig } from './tmdb.ts'
+import { tmdbJson, tmdbMiddleware, type TmdbConfig } from './tmdb.ts'
 import { abandon, closeServers, fakeTmdb, listen, serve, settlesWithin, silentService } from './test/fakes.ts'
 
 /** Kinopeer's side: the middleware under test. */
@@ -259,5 +259,27 @@ describe('tmdbMiddleware', () => {
 
     expect(await (await fetch(`${app}/tmdbx/movie`)).text()).toBe('fallback')
     expect((await fetch(`${app}/tmdb/movie/771`, { method: 'POST' })).status).toBe(405)
+  })
+})
+
+describe('tmdbJson', () => {
+  it('asks TMDB with the key and answers its JSON', async () => {
+    const tmdb = await fakeTmdb()
+    const found = (await tmdbJson({ apiKey: 'abc123', apiBase: `${tmdb.base}/3` }, 'movie/693134?language=en-US')) as { title?: string }
+    expect(found.title).toBeTypeOf('string')
+    expect(tmdb.seen).toEqual([{ url: '/3/movie/693134?language=en-US&api_key=abc123', authorization: undefined, cookie: undefined }])
+  })
+
+  it('rejects without a key or a proxy, asking nothing', async () => {
+    await expect(tmdbJson({ apiKey: () => undefined }, 'movie/1')).rejects.toThrow('No TMDB key')
+  })
+
+  it('rejects, never with the key, when TMDB refuses, isn’t reachable or doesn’t answer in time', async () => {
+    const tmdb = await fakeTmdb()
+    await expect(tmdbJson({ apiKey: 'abc123', apiBase: `${tmdb.base}/3` }, 'movie/999999999')).rejects.toThrow('TMDB responded 404')
+    const unreachable = await tmdbJson({ apiKey: 'abc123', apiBase: 'http://127.0.0.1:1/3' }, 'movie/1').catch((e: unknown) => e)
+    expect(String(unreachable)).toBe('Error: TMDB did not answer')
+    const { base } = await silentService()
+    await expect(tmdbJson({ apiKey: 'abc123', apiBase: `${base}/3`, timeoutMs: 50 }, 'movie/1')).rejects.toThrow('TMDB did not answer')
   })
 })

@@ -48,7 +48,7 @@ function notifier(overrides: Partial<NotifierDeps> & { torrents?: () => NotifyTo
     tagged: vi.fn(async () => overrides.torrents?.()),
     untag: vi.fn(async (hashes: string[]) => void untagged.push(hashes)),
     now: () => clock,
-    log: () => {},
+    log: vi.fn(),
     ...overrides,
   }
   return { ...createNotifier(deps), deps, untagged, advance: (ms: number) => (clock += ms) }
@@ -94,6 +94,29 @@ describe('createNotifier', () => {
     expect(push.sent).toEqual(['a', 'c'])
     expect(off.sent).toEqual([])
     expect(watcher.untagged).toEqual([['a', 'c']])
+    expect(watcher.deps.log).not.toHaveBeenCalled()
+  })
+
+  it('notifies again about a torrent tagged again after it was notified', async () => {
+    const telegram = channel('Telegram')
+    // qBittorrent keeps the tag on the first pass's answer: switched on again on the torrent's page.
+    const watcher = notifier({ channels: [telegram.notify], torrents: () => [torrent('a')] })
+    await watcher.check()
+    await watcher.check()
+    expect(telegram.sent).toEqual(['a', 'a'])
+  })
+
+  it('says in the log, by default the server’s, when a channel refused or didn’t answer, and when to send again', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const telegram = channel('Telegram', [async () => 'rejected'])
+    await createNotifier({ channels: [telegram.notify], tagged: async () => [torrent('a')], untag: async () => {} }).check()
+    expect(warn).toHaveBeenCalledWith('[kinopeer] Telegram refused the notification for a finished download')
+
+    const log = vi.fn()
+    const down = channel('Telegram', [() => Promise.reject(new Error('no answer'))])
+    await notifier({ channels: [down.notify], torrents: () => [torrent('a')], log }).check()
+    expect(log).toHaveBeenCalledWith("Telegram didn't answer; sending again in 30 s")
+    warn.mockRestore()
   })
 
   it('sends nothing again on the next pass once the tag is off', async () => {
@@ -140,6 +163,15 @@ describe('createNotifier', () => {
     expect(watcher.untagged).toEqual([['a']])
   })
 
+  it('waits its own time when the channel asked for a wait it can’t read', async () => {
+    const telegram = channel('Telegram', [() => Promise.reject(Object.assign(new Error('429'), { retryAfterMs: '90000' }))])
+    const watcher = notifier({ channels: [telegram.notify], torrents: () => [torrent('a')] })
+    await watcher.check()
+    watcher.advance(RETRY_DELAYS_MS[0])
+    await watcher.check()
+    expect(telegram.sent).toHaveLength(2)
+  })
+
   it('waits as long as the channel asked when that’s longer', async () => {
     const telegram = channel('Telegram', [() => Promise.reject(Object.assign(new Error('429'), { retryAfterMs: 90_000 }))])
     const watcher = notifier({ channels: [telegram.notify], torrents: () => [torrent('a')] })
@@ -167,8 +199,10 @@ describe('createNotifier', () => {
   it('takes the tag off on the next pass, without sending again, when qBittorrent didn’t take it off', async () => {
     const telegram = channel('Telegram')
     const untag = vi.fn().mockRejectedValueOnce(new Error('qBittorrent')).mockResolvedValueOnce(undefined)
-    const watcher = notifier({ channels: [telegram.notify], torrents: () => [torrent('a')], untag })
+    const log = vi.fn()
+    const watcher = notifier({ channels: [telegram.notify], torrents: () => [torrent('a')], untag, log })
     await watcher.check()
+    expect(log).toHaveBeenCalledWith("couldn't take the kinopeer:notify tag off; trying again on the next pass")
     await watcher.check()
     expect(telegram.sent).toEqual(['a'])
     expect(untag).toHaveBeenCalledTimes(2)
@@ -220,6 +254,14 @@ describe('startNotifier', () => {
     await vi.advanceTimersByTimeAsync(5000)
     expect(tagged).toHaveBeenCalledTimes(1)
   })
+
+  it('never keeps the server’s process alive on its own', () => {
+    const interval = vi.spyOn(globalThis, 'setInterval')
+    const stop = startNotifier({ channels: [], tagged: async () => [], untag: async () => {} }, 60_000)
+    expect((interval.mock.results[0].value as NodeJS.Timeout).hasRef()).toBe(false)
+    stop()
+    interval.mockRestore()
+  })
 })
 
 describe('taggedTorrents', () => {
@@ -229,6 +271,8 @@ describe('taggedTorrents', () => {
         { hash: 'a', name: 'Dune', tags: 'kinopeer:notify, tmdb:movie:438631', progress: 1, state: 'uploading', size: 1 },
         { hash: 'b', progress: 0.2, state: 'downloading' },
         { name: 'no hash', progress: 1, state: 'uploading' },
+        { hash: 'c', progress: '1', state: 'uploading' },
+        { hash: 'd', progress: 1 },
         null,
       ]),
     )

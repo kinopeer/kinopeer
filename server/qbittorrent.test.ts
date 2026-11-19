@@ -283,6 +283,29 @@ describe('qbittorrentBridge.get', () => {
   })
 })
 
+describe('qbittorrentBridge.post', () => {
+  it('sends a form with the server’s session, logging in when needed', async () => {
+    const qbt = await fakeQbittorrent()
+    const bridge = qbittorrentBridge({ url: () => qbt.base, credentials: () => ({ username: 'admin', password: 'pass word' }) })
+    const response = await bridge.post('/api/v2/torrents/removeTags', new URLSearchParams({ hashes: 'a|b', tags: 'kinopeer:notify' }))
+    expect(response.ok).toBe(true)
+    expect(qbt.logins()).toBe(1)
+    expect(qbt.seen.at(-1)).toMatchObject({
+      method: 'POST',
+      url: '/api/v2/torrents/removeTags',
+      cookie: 'SID=sid1',
+      contentType: 'application/x-www-form-urlencoded',
+      body: 'hashes=a%7Cb&tags=kinopeer%3Anotify',
+    })
+  })
+
+  it('fails without an address', async () => {
+    await expect(qbittorrentBridge({ url: () => undefined }).post('/api/v2/torrents/removeTags', new URLSearchParams())).rejects.toThrow(
+      'qBittorrent has no address',
+    )
+  })
+})
+
 describe('checkQbittorrent', () => {
   /** Something at the address that answers every path with `body`, as qBittorrent's auth bypass lets the version through. */
   const answering = (body: string) =>

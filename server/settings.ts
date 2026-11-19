@@ -400,27 +400,34 @@ async function saveQbittorrentLogin(config: SettingsConfig, request: IncomingMes
 /** The bot's id, the part of its token before the colon, the same for a token @BotFather renews. */
 const botId = (token: string) => token.split(':', 1)[0]
 
-async function saveTelegramToken(config: SettingsConfig, request: IncomingMessage, response: ServerResponse) {
-  let body: unknown
+/** A Telegram route's JSON body, or undefined once it has answered 400 for a body it can't read. */
+async function telegramBody<T>(request: IncomingMessage, response: ServerResponse): Promise<Partial<T> | undefined> {
   try {
-    body = await readJson(request, MAX_BODY_BYTES)
+    const body = (await readJson(request, MAX_BODY_BYTES)) as Partial<T> | null
+    return body ?? {}
   } catch {
-    return fail(response, 400, 'bad-request')
+    fail(response, 400, 'bad-request')
+    return undefined
   }
-  const token = (body as Partial<TelegramTokenBody> | null)?.token
-  if (typeof token !== 'string' || !isBotToken(token.trim())) return fail(response, 400, 'bad-request')
+}
+
+async function saveTelegramToken(config: SettingsConfig, request: IncomingMessage, response: ServerResponse) {
+  const body = await telegramBody<TelegramTokenBody>(request, response)
+  if (!body) return
+  const token = typeof body.token === 'string' ? body.token.trim() : ''
+  if (!isBotToken(token)) return fail(response, 400, 'bad-request')
 
   let bot: string | undefined
   try {
-    bot = await botName(token.trim(), { ...config.telegram, signal: abandoned(response) })
+    bot = await botName(token, { ...config.telegram, signal: abandoned(response) })
   } catch {
     return fail(response, 502, 'unreachable')
   }
   if (bot === undefined) return fail(response, 422, 'invalid-key')
   // A renewed token of the same bot keeps its chat; another bot starts over, since its chat is another.
   const saving = config.store.updateTelegram((current) => {
-    const same = current && botId(current.token) === botId(token.trim())
-    return { token: token.trim(), bot, ...(same ? { chat: current.chat, language: current.language } : {}) }
+    const same = current && botId(current.token) === botId(token)
+    return { token, bot, ...(same ? { chat: current.chat, language: current.language } : {}) }
   })
   await save(config, response, saving)
 }
@@ -451,13 +458,9 @@ async function findTelegramChat(config: SettingsConfig, _request: IncomingMessag
  * the bot can't write to is never saved, and its name and kind are Telegram's.
  */
 async function saveTelegramChat(config: SettingsConfig, request: IncomingMessage, response: ServerResponse) {
-  let body: Partial<TelegramChatBody> | null
-  try {
-    body = (await readJson(request, MAX_BODY_BYTES)) as Partial<TelegramChatBody> | null
-  } catch {
-    return fail(response, 400, 'bad-request')
-  }
-  const { id, language } = body ?? {}
+  const body = await telegramBody<TelegramChatBody>(request, response)
+  if (!body) return
+  const { id, language } = body
   if (!Number.isSafeInteger(id) || !isNotifyLanguage(language)) return fail(response, 400, 'bad-request')
   const token = savedToken(config, response)
   if (!token) return
@@ -486,13 +489,9 @@ export async function refusedPart(token: string, options: TelegramOptions = {}):
 }
 
 async function testTelegram(config: SettingsConfig, request: IncomingMessage, response: ServerResponse) {
-  let body: Partial<TelegramTestBody> | null
-  try {
-    body = (await readJson(request, MAX_BODY_BYTES)) as Partial<TelegramTestBody> | null
-  } catch {
-    return fail(response, 400, 'bad-request')
-  }
-  if (!isNotifyLanguage(body?.language)) return fail(response, 400, 'bad-request')
+  const body = await telegramBody<TelegramTestBody>(request, response)
+  if (!body) return
+  if (!isNotifyLanguage(body.language)) return fail(response, 400, 'bad-request')
   const telegram = config.store.current.telegram
   if (!telegram?.token || !telegram.chat) return fail(response, 409, 'not-configured')
   const options = { ...config.telegram, signal: abandoned(response) }
