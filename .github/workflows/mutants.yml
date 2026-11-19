@@ -53,10 +53,10 @@ jobs:
     runs-on: ubuntu-latest
     # For a hang, well over the slowest healthy run, as in ci.yml. The runner's four cores give
     # Stryker four test runners, so a branch that adds a server module with many top-level constants
-    # (static mutants, each running the whole suite) takes long: #477's 1024 mutants were at 69%
-    # after 26 minutes, with about 42 minutes in all by the local run's pace (11 minutes 41 seconds
-    # on nine runners, its dry run 1.6 times faster than CI's).
-    timeout-minutes: 60
+    # (static mutants, each running the whole suite) takes long: #477's 1024 mutants took 42
+    # minutes, and its 1144 after a review round about 54 (11 to 12 minutes locally on nine runners,
+    # whose dry run is 1.6 times faster than CI's).
+    timeout-minutes: 90
     permissions:
       contents: read
       checks: write

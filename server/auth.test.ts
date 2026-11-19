@@ -414,10 +414,10 @@ describe('the login', () => {
     for (let day = 0; day < 40; day++) {
       clock += RENEW_EVERY_MS
       expect(await reached(app, cookie), `day ${day}`).toBe(true)
+      // A day apart, each renewal's write, which no answer waits for, has landed by the next poll.
+      await store.change((current) => current)
     }
     expect(await reached(app, cookie, '/prowlarr/search')).toBe(true)
-    // The renewals' writes, which no answer waits for, are done before the directory goes.
-    await store.change((current) => current)
   })
 
   it('moves a session on with any answer but TMDB’s, changing the password’s too', async () => {
