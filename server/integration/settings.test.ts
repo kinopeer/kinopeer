@@ -12,8 +12,8 @@ describe('settings client through /api/settings', () => {
     const { responses } = await startKinopeer()
     await expect(getServerSettings()).resolves.toEqual({
       tmdb: { configured: true, source: 'env', fallback: 'env' },
-      prowlarr: { configured: true, source: 'env', serverKey: true },
-      qbittorrent: { configured: true, source: 'env' },
+      prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } },
+      qbittorrent: { configured: true, source: 'env', address: { source: 'env' } },
       downloads: null,
       auth: { enabled: false },
     })

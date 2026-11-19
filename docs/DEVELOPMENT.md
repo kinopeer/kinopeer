@@ -38,10 +38,10 @@ The server reads environment variables (from `.env.local` in development). Whate
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `QBITTORRENT_URL` | none | qBittorrent Web UI address |
-| `QBITTORRENT_USERNAME`, `QBITTORRENT_PASSWORD` | none | Optional default login; qBittorrent's auth bypass needs none, and without these the app asks for one. A login entered in the app wins |
+| `QBITTORRENT_USERNAME`, `QBITTORRENT_PASSWORD` | none | Optional default login; qBittorrent's auth bypass needs none, and without these the app asks for one. A login entered in the app wins. Used only with `QBITTORRENT_URL`, never at an address saved from the app; without it the server says at startup that they're ignored |
 | `PROWLARR_URL` | none | Prowlarr address |
-| `PROWLARR_API_KEY` | none | Prowlarr API key; a key entered in the app wins |
-| `PROWLARR_CONFIG_XML` | none | Path to Prowlarr's `config.xml` to read the key from when neither a key entered in the app nor `PROWLARR_API_KEY` is set (the Umbrel package does this) |
+| `PROWLARR_API_KEY` | none | Prowlarr API key; a key entered in the app wins. Used only with `PROWLARR_URL`, never at an address saved from the app; without it the server says at startup that it's ignored |
+| `PROWLARR_CONFIG_XML` | none | Path to Prowlarr's `config.xml` to read the key from when neither a key entered in the app nor `PROWLARR_API_KEY` is set (the Umbrel package does this); like `PROWLARR_API_KEY`, only with `PROWLARR_URL`, and without it named at startup as ignored |
 | `TMDB_API_KEY` | none | Fallback TMDB key, not needed with the proxy (development included); a key entered in the app wins |
 | `TMDB_PROXY_URL` | the release worker, `https://tmdb.kinopeer.com/3` (edge images and the dev server: the edge worker, from `KINOPEER_TMDB_PROXY`) | Kinopeer's TMDB proxy for calls without a key (The TMDB proxy, below); empty turns it off, and the app asks for a key. The integration and smoke tests set it empty or to the worker in front of their fake. |
 | `TMDB_API_URL` | `https://api.themoviedb.org/3` | TMDB's API address; the integration and smoke tests point it at a fake |
@@ -57,7 +57,17 @@ The dev server has the login on too, so the first page you open asks you to set 
 
 ## Docker
 
-The image is built from `Dockerfile` (`node:24-alpine`, pinned by digest, no `node_modules`). `docker compose up --build` runs it locally at `http://localhost:8080` with settings from `.env.local`. Since the rename to Kinopeer its data volume is `kinopeer-data` and its port variable `KINOPEER_PORT`; a compose setup from before keeps its saved settings and matches in the old volume. Compose prefixes a volume with the project, the checkout's folder name by default: after one `docker compose up`, `docker volume ls --filter name=-data` shows both, `<project>_kinoseed-data` and `<project>_kinopeer-data`, and one run copies the old into the new: `docker run --rm -v <project>_kinoseed-data:/from -v <project>_kinopeer-data:/to alpine cp -a /from/. /to/`. That's for checking the image, not a supported way to install. `/healthz` answers `ok` while the server runs.
+The image is built from `Dockerfile` (`node:24-alpine`, pinned by digest, no `node_modules`). `/healthz` answers `ok` while the server runs.
+
+`docker-compose.yml` is the install the README describes, which an install downloads from its release (`release.yml` attaches it to each GitHub Release), so the file always goes with an image that's out: Kinopeer's released image at its major version's tag (`:1`, which `release.yml` pushes with each release, so a new major moves the file's tag too), beside qBittorrent's and Prowlarr's images at `latest`, which an install follows with `docker compose pull`, so they aren't pinned by digest as CI's images are. A script in qBittorrent's `entrypoint` runs it, on every start, as the owner of the downloads folder (`stat` on `/downloads`), so the files are the person's with nothing to set; a folder root owns (one Docker made because it was missing, and every bind mount on Docker Desktop, which gives the files to the person anyway) gets 1000:1000 rather than qBittorrent as root, and `PUID` and `PGID` in `.env` each override their half of it, which the README names only for rootless Docker and Podman (`0`, which they map to the person). On qBittorrent's first start the same script writes the settings the image would write itself, plus an auth bypass for Kinopeer's fixed address alone (`172.30.97.10/32` on the file's own network, outside the `ip_range` Docker gives the other containers their addresses from, so none of them can take it), so Kinopeer gets in without a login while qBittorrent has no password but the temporary one it makes up on every start; settings that exist are left alone. `docker-compose.test.ts` runs that script and checks what ties the services together (the address and the range, the ports, Prowlarr's config mounted read-only, the image's tag against `package.json`'s major version, the release's asset); starting it in Docker is checked by hand ([RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)).
+
+To check a build against real qBittorrent and Prowlarr, `docker-compose.build.yml` runs the image built from the checkout in place of the released one:
+
+```sh
+docker compose -p kinopeer-check -f docker-compose.yml -f docker-compose.build.yml up -d --build
+```
+
+`-p kinopeer-check` keeps its containers and volumes apart from an install of the same file on the machine (both would be the `kinopeer` project), but not its ports and network range: with such an install running, `up` fails with "port is already allocated" or "Pool overlaps", so stop it first (`docker compose stop` in its folder). Downloads go into `./downloads` in the checkout, which git ignores, unless `DOWNLOADS_DIR` says otherwise; so does a `.env` there, which the dev server reads too. `docker compose -p kinopeer-check down --volumes` removes the containers, the network and the volumes, and leaves `./downloads`.
 
 ## Releasing
 
@@ -65,7 +75,7 @@ First go through [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) → Before every r
 
 1. In a PR, set `version` in `package.json` and `package-lock.json` (`npm version 0.2.0 --no-git-tag-version`) and add a `## 0.2.0 - YYYY-MM-DD` section to `CHANGELOG.md`. Update the "as of version" line at the top of `docs/SPEC.md` too.
 2. After it merges, tag `main` and push the tag: `git tag v0.2.0 && git push origin v0.2.0`.
-3. The `Release` workflow builds `ghcr.io/kinopeer/kinopeer` for `linux/amd64` and `linux/arm64` (tags `0.2.0`, `0.2` and `latest`), without the GitHub Actions cache (any job on `main` can write to it, and the release image goes to every install) and without QEMU, since the `Dockerfile`'s runtime stage runs nothing on the target platform, and creates a GitHub Release with that version's changelog section and the image digest. Then it deploys the `kinopeer-tmdb` worker from the tag (The TMDB proxy, below). It fails if the tag doesn't match `package.json` or the changelog has no section for the version.
+3. The `Release` workflow builds `ghcr.io/kinopeer/kinopeer` for `linux/amd64` and `linux/arm64` (for 1.1.0 the tags `1.1.0`, `1.1`, `1` and `latest`), without the GitHub Actions cache (any job on `main` can write to it, and the release image goes to every install) and without QEMU, since the `Dockerfile`'s runtime stage runs nothing on the target platform, and creates a GitHub Release with that version's changelog section, the image digest and `docker-compose.yml`, which the README's Compose install downloads from the latest release. Then it deploys the `kinopeer-tmdb` worker from the tag (The TMDB proxy, below). It fails if the tag doesn't match `package.json` or the changelog has no section for the version.
 4. Wait for the `Release` workflow's `proxy` job to pass and for `https://tmdb.kinopeer.com/3/configuration` to answer 200 (the release image calls that worker, and nothing before the tag tries it: Kinopeer Edge calls the edge worker). Then update the Umbrel package (below).
 5. Close the version's [milestone](https://github.com/kinopeer/kinopeer/milestones). An issue still open in it moves to the next milestone or is closed as not planned, with the reason.
 

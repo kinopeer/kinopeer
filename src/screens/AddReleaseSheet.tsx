@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router'
 import { fetchRelease, type Release, type ReleaseSource } from '../api/prowlarr'
-import { QbittorrentError, getSaveLocations, getTorrents, unreachable, type Torrent } from '../api/qbittorrent'
+import { TorrentRefusedError, getSaveLocations, getTorrents, unreachable, type Torrent } from '../api/qbittorrent'
 import { posterUrl, type MediaType } from '../api/tmdb'
 import { Accordion } from '../components/Accordion'
 import { Badge } from '../components/Badge'
@@ -161,12 +161,12 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
       )
       onAdded()
     } catch (error) {
-      if (!(error instanceof QbittorrentError && error.status === 200)) {
+      if (!(error instanceof TorrentRefusedError)) {
         setAdding(false)
         setAddError(t('common.qbtFailed', { context: unreachableText(unreachable(error)) }))
         return
       }
-      // qBittorrent answers "Fails." for a torrent it already has, among other reasons: ask it which.
+      // qBittorrent refuses a torrent it already has, among other reasons: ask it which.
       const there = id === undefined ? undefined : await inDownloads(id).catch(() => undefined)
       setAdding(false)
       if (there) setRefusedAsAdded(there)

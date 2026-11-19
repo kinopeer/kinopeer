@@ -6,13 +6,13 @@ Fixes go into the latest release only. Kinopeer Edge, the builds from `main`, is
 
 ## Reporting a vulnerability
 
-Don't open a public issue. Report it privately through GitHub: [Security → Report a vulnerability](https://github.com/kinopeer/kinopeer/security/advisories/new). Describe the steps, your version (Settings → About) and where Kinopeer runs (Umbrel, the dev server). Leave out your own passwords and keys.
+Don't open a public issue. Report it privately through GitHub: [Security → Report a vulnerability](https://github.com/kinopeer/kinopeer/security/advisories/new). Describe the steps, your version (Settings → About) and where Kinopeer runs (Umbrel, Docker Compose, the dev server). Leave out your own passwords and keys.
 
 You'll get an answer within a week. The fix ships in a patch release, and the advisory is published after it, crediting you if you'd like.
 
 ## Scope
 
-Kinopeer's server and client, Kinopeer's TMDB proxy on Cloudflare (`tmdb-proxy/`), the images on `ghcr.io/kinopeer`, this repository's workflows, and the Kinopeer app in the [Homelab store](https://github.com/MrShakhov/umbrel-homelab-store) for Umbrel, which the README's install steps use. Vulnerabilities in qBittorrent, Prowlarr or Umbrel themselves go to their authors.
+Kinopeer's server and client, Kinopeer's TMDB proxy on Cloudflare (`tmdb-proxy/`), the images on `ghcr.io/kinopeer`, this repository's workflows, the Kinopeer app in the [Homelab store](https://github.com/MrShakhov/umbrel-homelab-store) for Umbrel, and `docker-compose.yml`, which the README's install steps use. Vulnerabilities in qBittorrent, Prowlarr or Umbrel themselves go to their authors.
 
 Kinopeer has a login of its own, on unless `KINOPEER_AUTH=off`: a way past it to qBittorrent, Prowlarr, TMDB or the saved settings is in scope. On Umbrel the package turns it off, since Umbrel's login protects Kinopeer; there, whoever reaches Kinopeer's port past Umbrel controls it, and so does anyone where an install turned the login off without a login of its own in front. That's by design, not a vulnerability.
 

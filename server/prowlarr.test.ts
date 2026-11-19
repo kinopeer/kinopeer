@@ -3,13 +3,14 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MAX_FAILING_WITHIN_MS } from '../src/api/prowlarr/types.ts'
+import { baseOf } from './address.ts'
 import { MAX_WITHIN_MS, downloadToken, failedIds, indexerNames, prowlarrMiddleware, readProwlarrApiKey, type ProwlarrConfig } from './prowlarr.ts'
 import { abandon, closeServers, listen, serve, settlesWithin, silentService } from './test/fakes.ts'
 
 const KEY = 'secret-key-123'
 
-/** Kinopeer's side: the middleware under test. */
-const kinopeer = (config: ProwlarrConfig) => serve(prowlarrMiddleware(config))
+/** Kinopeer's side, the middleware under test, with the address as the environment or the app gives it. */
+const kinopeer = ({ url, ...config }: Omit<ProwlarrConfig, 'url'> & { url?: string }) => serve(prowlarrMiddleware({ ...config, url: () => baseOf(url) }))
 
 afterEach(closeServers)
 
@@ -141,6 +142,22 @@ describe('prowlarrMiddleware', () => {
     expect(seen).toEqual([KEY, KEY])
   })
 
+  it('calls the address it has at each request, so one saved from the app applies at once', async () => {
+    const statusAt = (version: string) =>
+      listen((_request, response) => {
+        response.setHeader('Content-Type', 'application/json')
+        response.end(JSON.stringify(_request.url === '/api/v1/system/status' ? { version } : []))
+      })
+    let address: string | undefined
+    const base = await serve(prowlarrMiddleware({ url: () => address, apiKey: KEY }))
+    expect((await fetch(`${base}/prowlarr/status`)).status).toBe(503)
+
+    address = await statusAt('1.0.0')
+    expect(await (await fetch(`${base}/prowlarr/status`)).json()).toMatchObject({ version: '1.0.0' })
+    address = await statusAt('2.0.0')
+    expect(await (await fetch(`${base}/prowlarr/status`)).json()).toMatchObject({ version: '2.0.0' })
+  })
+
   it('reads the key on every request when it is a function', async () => {
     const seen: (string | undefined)[] = []
     const prowlarr = await listen((request, response) => {
@@ -212,7 +229,7 @@ describe('prowlarrMiddleware', () => {
     let leave!: () => void
     const left = new Promise<void>((resolve) => (leave = resolve))
     const middleware = prowlarrMiddleware({
-      url: prowlarr,
+      url: () => prowlarr,
       apiKey: async () => {
         reading()
         await left

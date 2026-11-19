@@ -73,8 +73,10 @@ export async function signOut(): Promise<void> {
 
 /**
  * Changes the password; this browser stays signed in and every other one is signed out. Rejects
- * with an AuthError: 'invalid-password' for a wrong current one, 'too-short', 'throttled', or
- * 'env-password' when KINOPEER_PASSWORD sets it.
+ * with an AuthError: 'invalid-password' for a wrong current one, 'too-short', 'throttled',
+ * 'env-password' when KINOPEER_PASSWORD sets it, 'auth-off' when the server's login was turned off,
+ * 'storage' when auth.json can't be written, or 'sign-in' when this browser's session has ended
+ * (every code: `AuthErrorBody` in types.ts).
  */
 export function changePassword(current: string, password: string): Promise<void> {
   return send('PUT', 'password', { current, password })

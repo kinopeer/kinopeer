@@ -27,6 +27,17 @@ export class QbittorrentError extends Error {
 }
 
 /**
+ * qBittorrent added none of the torrents sent to `torrents/add`: an invalid file, or one it has
+ * already. It answers 200 "Fails." up to 5.1 and 409 from 5.2 (Web API 2.14.0).
+ */
+export class TorrentRefusedError extends QbittorrentError {
+  constructor(status: number) {
+    super('qBittorrent could not add the torrent', status)
+    this.name = 'TorrentRefusedError'
+  }
+}
+
+/**
  * The bridge's mark on each of its answers (`BRIDGE_HEADER` in server/qbittorrent.ts): a failure
  * without it never reached Kinopeer's server, a proxy in front answered for it.
  */
@@ -135,8 +146,8 @@ export async function getMainData(rid = 0, signal?: AbortSignal): Promise<MainDa
 }
 
 /**
- * Adds torrents from .torrent files and/or magnet or HTTP links. qBittorrent answers "Fails." when
- * none of them could be added (invalid file, or the torrent is already there).
+ * Adds torrents from .torrent files and/or magnet or HTTP links. When none of them could be added
+ * (an invalid file, or the torrent is already there) it throws `TorrentRefusedError`.
  */
 export async function addTorrents(options: AddTorrentOptions): Promise<void> {
   const {
@@ -166,8 +177,13 @@ export async function addTorrents(options: AddTorrentOptions): Promise<void> {
     form.append('stopped', String(stopped))
     form.append('paused', String(stopped))
   }
-  const response = await request('/torrents/add', { form })
-  if ((await response.text()).trim() === 'Fails.') throw new QbittorrentError('qBittorrent could not add the torrent', 200)
+  const response = await request('/torrents/add', { form }).catch((error: unknown) => {
+    if (error instanceof QbittorrentError && !(error instanceof KinopeerUnreachableError) && error.status === 409) {
+      throw new TorrentRefusedError(409)
+    }
+    throw error
+  })
+  if ((await response.text()).trim() === 'Fails.') throw new TorrentRefusedError(200)
 }
 
 export async function getCategories(signal?: AbortSignal): Promise<Category[]> {

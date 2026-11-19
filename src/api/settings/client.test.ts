@@ -28,8 +28,8 @@ describe('saveDownloadDefaults', () => {
 describe('a change saved on the server', () => {
   const settings = (configured: boolean): ServerSettings => ({
     tmdb: { configured, source: 'saved', fallback: null },
-    prowlarr: { configured: true, source: 'env', serverKey: true },
-    qbittorrent: { configured: true, source: 'env' },
+    prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } },
+    qbittorrent: { configured: true, source: 'env', address: { source: 'env' } },
     downloads: null,
   })
   const answer = (body: ServerSettings) => new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' } })
