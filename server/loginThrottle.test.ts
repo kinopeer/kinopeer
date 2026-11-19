@@ -49,6 +49,12 @@ describe('LoginThrottle', () => {
 
   it('forgets an address a day after its last failure, but not while it’s locked', () => {
     const { clock, throttle: t } = throttle()
+    // Within the day the count stands: the fifth locks.
+    fail(t, 'c', FAILURES_PER_LOCK - 1)
+    clock.now += 23 * 60 * 60_000
+    t.attempt('c')
+    expect(t.retryAfter('c')).toBe(FIRST_LOCK_MS)
+
     fail(t, 'a', FAILURES_PER_LOCK - 1)
     clock.now += FORGET_AFTER_MS
     t.attempt('a')

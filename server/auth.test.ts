@@ -124,6 +124,8 @@ describe('the login', () => {
     expect(before.headers.get(AUTH_HEADER)).toBe('set-up')
     expect(before.headers.get('cache-control')).toBe('no-store')
     expect(await before.json()).toEqual({ error: 'set-up' })
+    // Nothing is written until there's something to keep.
+    await expect(readFile(join(dir, 'auth.json'), 'utf8')).rejects.toThrow()
     // The app's files and anything else the server doesn't own go on.
     expect(await reached(app, undefined, '/settings')).toBe(true)
 
@@ -215,7 +217,7 @@ describe('the login', () => {
   })
 
   it('throttles wrong passwords: five, then a wait, longer each time', async () => {
-    const { origin } = kinopeer()
+    const { store, origin } = kinopeer()
     const app = await origin
     await post(app, 'setup', { password: 'correct horse' })
     for (let i = 0; i < 4; i++) expect((await post(app, 'login', { password: `wrong ${i}` })).status).toBe(422)
@@ -227,6 +229,10 @@ describe('the login', () => {
     expect(held.status).toBe(429)
     expect(held.headers.get('retry-after')).toBe(String(FIRST_LOCK_MS / 1000))
     expect(await held.json()).toEqual({ error: 'throttled', retryAfterMs: FIRST_LOCK_MS })
+    expect(held.headers.getSetCookie()).toEqual([])
+    // And starts no session: once the writes queued before it are done, only the first is kept.
+    await store.change((current) => current)
+    expect(store.current.sessions).toHaveLength(1)
 
     clock += FIRST_LOCK_MS
     expect((await post(app, 'login', { password: 'correct horse' })).status).toBe(204)

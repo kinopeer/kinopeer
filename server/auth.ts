@@ -174,7 +174,8 @@ export function guarded(url: string | undefined): boolean {
 
 function fail(response: ServerResponse, status: number, error: AuthErrorBody['error'], retryAfterMs?: number): void {
   if (retryAfterMs !== undefined) response.setHeader('Retry-After', String(Math.ceil(retryAfterMs / 1000)))
-  sendJson(response, status, { error, ...(retryAfterMs !== undefined && { retryAfterMs }) } satisfies AuthErrorBody)
+  // JSON leaves out a retryAfterMs that's undefined.
+  sendJson(response, status, { error, retryAfterMs } satisfies AuthErrorBody)
 }
 
 function needSignIn(response: ServerResponse, need: SignInNeed): void {
