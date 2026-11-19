@@ -92,7 +92,7 @@ export async function checkQbittorrent(
     redirect: 'manual',
     signal,
   })
-  const text = (await response.text()).trim()
+  const text = await response.text()
   // Without a login, a 403 is qBittorrent asking for one.
   if (!credentials && response.status === 403) return 'invalid'
   return response.ok && VERSION.test(text) ? 'ok' : 'not-qbittorrent'

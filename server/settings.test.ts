@@ -675,7 +675,7 @@ describe('settingsMiddleware: addresses', () => {
     const store = new SettingsStore(dir)
     const base = await app(store)
 
-    const response = await fetch(`${base}/api/settings/prowlarr`, saving({ apiKey: 'good-key', url: `${prowlarr.base}/` }))
+    const response = await fetch(`${base}/api/settings/prowlarr`, saving({ apiKey: ' good-key ', url: `${prowlarr.base}/` }))
 
     expect(response.status).toBe(200)
     expect(((await response.json()) as ServerSettings).prowlarr).toEqual({
@@ -685,8 +685,7 @@ describe('settingsMiddleware: addresses', () => {
       address: { source: 'saved', url: prowlarr.base },
     })
     expect(prowlarr.seen.map((request) => request.url)).toEqual(['/api/v1/system/status'])
-    expect(prowlarrAddress(store, undefined)).toBe(prowlarr.base)
-    expect(await prowlarrKey(store, undefined, undefined)).toBe('good-key')
+    expect(store.current).toEqual({ prowlarrApiKey: 'good-key', prowlarrUrl: prowlarr.base })
   })
 
   it('keeps a saved address when a key or a login is saved without one', async () => {

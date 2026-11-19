@@ -20,7 +20,8 @@ export function parseAddress(value: unknown): string | undefined {
   if (typeof value !== 'string' || value.length > MAX_ADDRESS_LENGTH) return undefined
   let url: URL
   try {
-    url = new URL(value.trim())
+    // The parser drops spaces around the address itself.
+    url = new URL(value)
   } catch {
     return undefined
   }

@@ -279,6 +279,6 @@ describe('qbittorrentBridge.get', () => {
   })
 
   it('fails without an address', async () => {
-    await expect(qbittorrentBridge({ url: () => undefined }).get('/api/v2/app/version')).rejects.toThrow()
+    await expect(qbittorrentBridge({ url: () => undefined }).get('/api/v2/app/version')).rejects.toThrow('qBittorrent has no address')
   })
 })
