@@ -76,14 +76,14 @@ beforeEach(() => {
   vi.mocked(tmdb.checkTmdb).mockResolvedValue()
   vi.mocked(serverSettings.getServerSettings).mockResolvedValue({
     tmdb: { configured: true, source: 'saved', fallback: null },
-    prowlarr: { configured: true, source: 'env', serverKey: true },
-    qbittorrent: { configured: true, source: 'env' },
+    prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } },
+    qbittorrent: { configured: true, source: 'env', address: { source: 'env' } },
     downloads: null,
   })
   vi.mocked(serverSettings.saveDownloadDefaults).mockResolvedValue({
     tmdb: { configured: true, source: 'saved', fallback: null },
-    prowlarr: { configured: true, source: 'env', serverKey: true },
-    qbittorrent: { configured: true, source: 'env' },
+    prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } },
+    qbittorrent: { configured: true, source: 'env', address: { source: 'env' } },
     downloads: {},
   })
 })
@@ -100,8 +100,8 @@ describe('SettingsScreen', () => {
     sharedRequests.set(qbt.APP_VERSION_KEY, '5.2.0')
     sharedRequests.set(serverSettings.SERVER_SETTINGS_KEY, {
       tmdb: { configured: true, source: 'shared', fallback: null },
-      prowlarr: { configured: true, source: 'env', serverKey: true },
-      qbittorrent: { configured: true, source: 'env' },
+      prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } },
+      qbittorrent: { configured: true, source: 'env', address: { source: 'env' } },
       downloads: null,
     } satisfies serverSettings.ServerSettings)
     renderScreen()
@@ -123,8 +123,8 @@ describe('SettingsScreen', () => {
   it('asks the server’s settings itself once the page’s answer is a minute old', async () => {
     const shared: serverSettings.ServerSettings = {
       tmdb: { configured: true, source: 'shared', fallback: null },
-      prowlarr: { configured: true, source: 'env', serverKey: true },
-      qbittorrent: { configured: true, source: 'env' },
+      prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } },
+      qbittorrent: { configured: true, source: 'env', address: { source: 'env' } },
       downloads: null,
     }
     const first = renderScreen()
@@ -248,7 +248,7 @@ describe('SettingsScreen', () => {
   })
 
   it('says Kinopeer’s key is used, offers the user’s own, and drops the mention once it’s saved', async () => {
-    const shared = { tmdb: { configured: true, source: 'shared', fallback: 'shared' }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null } as const
+    const shared = { tmdb: { configured: true, source: 'shared', fallback: 'shared' }, prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } }, qbittorrent: { configured: true, source: 'env', address: { source: 'env' } }, downloads: null } as const
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue(shared)
     vi.mocked(serverSettings.saveTmdbKey).mockResolvedValue({ ...shared, tmdb: { configured: true, source: 'saved', fallback: null } })
     renderScreen()
@@ -264,7 +264,7 @@ describe('SettingsScreen', () => {
   })
 
   it('goes back from a saved TMDB key to Kinopeer’s and checks the connection again', async () => {
-    const saved = { tmdb: { configured: true, source: 'saved', fallback: 'shared' }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null } as const
+    const saved = { tmdb: { configured: true, source: 'saved', fallback: 'shared' }, prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } }, qbittorrent: { configured: true, source: 'env', address: { source: 'env' } }, downloads: null } as const
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue(saved)
     vi.mocked(serverSettings.forgetTmdbKey).mockResolvedValue({ ...saved, tmdb: { configured: true, source: 'shared', fallback: 'shared' } })
     renderScreen()
@@ -284,7 +284,7 @@ describe('SettingsScreen', () => {
   })
 
   it('goes back to Kinopeer’s TMDB key when the sheet was closed before the answer', async () => {
-    const saved = { tmdb: { configured: true, source: 'saved', fallback: 'shared' }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null } as const
+    const saved = { tmdb: { configured: true, source: 'saved', fallback: 'shared' }, prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } }, qbittorrent: { configured: true, source: 'env', address: { source: 'env' } }, downloads: null } as const
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue(saved)
     let finish = (_settings: serverSettings.ServerSettings) => {}
     vi.mocked(serverSettings.forgetTmdbKey).mockReturnValue(new Promise((resolve) => (finish = resolve)))
@@ -305,7 +305,7 @@ describe('SettingsScreen', () => {
   })
 
   it('goes back to the server’s TMDB key when it has TMDB_API_KEY', async () => {
-    const saved = { tmdb: { configured: true, source: 'saved', fallback: 'env' }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null } as const
+    const saved = { tmdb: { configured: true, source: 'saved', fallback: 'env' }, prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } }, qbittorrent: { configured: true, source: 'env', address: { source: 'env' } }, downloads: null } as const
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue(saved)
     vi.mocked(serverSettings.forgetTmdbKey).mockResolvedValue({ ...saved, tmdb: { configured: true, source: 'env', fallback: 'env' } })
     renderScreen()
@@ -322,7 +322,7 @@ describe('SettingsScreen', () => {
     ['nothing to fall back on', { configured: true, source: 'saved', fallback: null }],
     ['the key in use is the server’s', { configured: true, source: 'env', fallback: 'env' }],
   ] as const)('doesn’t offer to forget the TMDB key with %s', async (_name, status) => {
-    vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ tmdb: status, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ tmdb: status, prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } }, qbittorrent: { configured: true, source: 'env', address: { source: 'env' } }, downloads: null })
     renderScreen()
     // Let the settings load, so the button's absence isn't only the moment before they arrive.
     await waitFor(() => expect(serverSettings.getServerSettings).toHaveBeenCalled())
@@ -336,7 +336,7 @@ describe('SettingsScreen', () => {
 
   it('changes the TMDB key and checks the connection again', async () => {
     vi.mocked(tmdb.checkTmdb).mockRejectedValue(new tmdb.TmdbKeyError(401))
-    vi.mocked(serverSettings.saveTmdbKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved', fallback: null }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
+    vi.mocked(serverSettings.saveTmdbKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved', fallback: null }, prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } }, qbittorrent: { configured: true, source: 'env', address: { source: 'env' } }, downloads: null })
     renderScreen()
     expect(await within(connection('TMDB')).findByRole('status', { name: saying('The API key is missing or invalid') })).toBeInTheDocument()
     expect(await within(connection('Prowlarr')).findByRole('status', { name: saying(/^Connected/) })).toBeInTheDocument()
@@ -359,7 +359,7 @@ describe('SettingsScreen', () => {
 
   it('changes the Prowlarr key and checks the connection again', async () => {
     vi.mocked(prowlarr.getProwlarrStatus).mockRejectedValue(new prowlarr.ProwlarrSetupError(503, 'not-configured'))
-    vi.mocked(serverSettings.saveProwlarrKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved', fallback: null }, prowlarr: { configured: true, source: 'saved', serverKey: true }, qbittorrent: { configured: true, source: 'env' }, downloads: null })
+    vi.mocked(serverSettings.saveProwlarrKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved', fallback: null }, prowlarr: { configured: true, source: 'saved', serverKey: true, address: { source: 'env' } }, qbittorrent: { configured: true, source: 'env', address: { source: 'env' } }, downloads: null })
     renderScreen()
     expect(await within(connection('Prowlarr')).findByRole('status', { name: saying('Not set up, or the API key was rejected') })).toBeInTheDocument()
 
@@ -380,14 +380,14 @@ describe('SettingsScreen', () => {
   it("goes back from a saved Prowlarr key to the server's and checks the connection again", async () => {
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue({
       tmdb: { configured: true, source: 'saved', fallback: null },
-      prowlarr: { configured: true, source: 'saved', serverKey: true },
-      qbittorrent: { configured: true, source: 'env' },
+      prowlarr: { configured: true, source: 'saved', serverKey: true, address: { source: 'env' } },
+      qbittorrent: { configured: true, source: 'env', address: { source: 'env' } },
       downloads: null,
     })
     vi.mocked(serverSettings.forgetProwlarrKey).mockResolvedValue({
       tmdb: { configured: true, source: 'saved', fallback: null },
-      prowlarr: { configured: true, source: 'env', serverKey: true },
-      qbittorrent: { configured: true, source: 'env' },
+      prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } },
+      qbittorrent: { configured: true, source: 'env', address: { source: 'env' } },
       downloads: null,
     })
     renderScreen()
@@ -409,8 +409,8 @@ describe('SettingsScreen', () => {
   it("doesn't offer the server's Prowlarr key when the server has none", async () => {
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue({
       tmdb: { configured: true, source: 'saved', fallback: null },
-      prowlarr: { configured: true, source: 'saved', serverKey: false },
-      qbittorrent: { configured: true, source: 'env' },
+      prowlarr: { configured: true, source: 'saved', serverKey: false, address: { source: 'env' } },
+      qbittorrent: { configured: true, source: 'env', address: { source: 'env' } },
       downloads: null,
     })
     renderScreen()
@@ -452,8 +452,8 @@ describe('SettingsScreen', () => {
   ] as const)('has no sign-in section without Kinopeer’s own login, %s', async (_, login) => {
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue({
       tmdb: { configured: true, source: 'shared', fallback: null },
-      prowlarr: { configured: true, source: 'env', serverKey: true },
-      qbittorrent: { configured: true, source: 'env' },
+      prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } },
+      qbittorrent: { configured: true, source: 'env', address: { source: 'env' } },
       downloads: null,
       ...login,
     })
@@ -470,8 +470,8 @@ describe('SettingsScreen', () => {
     })
     sharedRequests.set(serverSettings.SERVER_SETTINGS_KEY, {
       tmdb: { configured: true, source: 'saved', fallback: null },
-      prowlarr: { configured: true, source: 'env', serverKey: true },
-      qbittorrent: { configured: true, source: 'env' },
+      prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } },
+      qbittorrent: { configured: true, source: 'env', address: { source: 'env' } },
       downloads: null,
       auth: { enabled: true, source: 'saved' },
     } satisfies serverSettings.ServerSettings)
@@ -571,8 +571,8 @@ describe('SettingsScreen', () => {
     })
     const stale = {
       tmdb: { configured: true, source: 'saved', fallback: null },
-      prowlarr: { configured: true, source: 'env', serverKey: true },
-      qbittorrent: { configured: true, source: 'env' },
+      prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } },
+      qbittorrent: { configured: true, source: 'env', address: { source: 'env' } },
       downloads: null,
       auth: { enabled: true, source: 'saved' },
     } satisfies serverSettings.ServerSettings
@@ -672,8 +672,8 @@ describe('SettingsScreen', () => {
   it("shows the download defaults the server keeps, set on another device", async () => {
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue({
       tmdb: { configured: true, source: 'saved', fallback: null },
-      prowlarr: { configured: true, source: 'env', serverKey: true },
-      qbittorrent: { configured: true, source: 'env' },
+      prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } },
+      qbittorrent: { configured: true, source: 'env', address: { source: 'env' } },
       downloads: { tvCategory: 'Anime', sequential: true, firstLastPieces: true },
     })
     renderScreen()

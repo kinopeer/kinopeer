@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   QbittorrentError,
+  TorrentRefusedError,
   UnauthorizedError,
   getAppVersion,
   getMainData,
@@ -60,6 +61,12 @@ describe('qBittorrent client through /qbt', () => {
     const sent = received.filter(({ url }) => url?.startsWith('/qbt/')).map(({ method, url }) => `${method} ${url!.slice('/qbt'.length)}`)
     expect(sent).toContain(legacy ? 'POST /api/v2/torrents/pause' : 'POST /api/v2/torrents/stop')
     expect(qbittorrent.seen.map(({ method, url }) => `${method} ${url}`).sort()).toEqual(sent.sort())
+  })
+
+  it.each([false, true])('reports a torrent qBittorrent refused as such, the way 5.2+ and earlier versions answer (before 5.2: %s)', async (legacy) => {
+    const { qbittorrent } = await startKinopeer({ qbittorrent: { legacy } })
+    await expect(client.addTorrents({ urls: [`magnet:?xt=urn:btih:${TORRENTS[0].hash}`] })).rejects.toBeInstanceOf(TorrentRefusedError)
+    expect(qbittorrent.added).toEqual([])
   })
 
   it('reads the version with the session the server holds, which never reaches the browser', async () => {

@@ -38,10 +38,10 @@ The server reads environment variables (from `.env.local` in development). Whate
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `QBITTORRENT_URL` | none | qBittorrent Web UI address |
-| `QBITTORRENT_USERNAME`, `QBITTORRENT_PASSWORD` | none | Optional default login; qBittorrent's auth bypass needs none, and without these the app asks for one. A login entered in the app wins |
+| `QBITTORRENT_USERNAME`, `QBITTORRENT_PASSWORD` | none | Optional default login; qBittorrent's auth bypass needs none, and without these the app asks for one. A login entered in the app wins. Used only with `QBITTORRENT_URL`, never at an address saved from the app; without it the server says at startup that they're ignored |
 | `PROWLARR_URL` | none | Prowlarr address |
-| `PROWLARR_API_KEY` | none | Prowlarr API key; a key entered in the app wins |
-| `PROWLARR_CONFIG_XML` | none | Path to Prowlarr's `config.xml` to read the key from when neither a key entered in the app nor `PROWLARR_API_KEY` is set (the Umbrel package does this) |
+| `PROWLARR_API_KEY` | none | Prowlarr API key; a key entered in the app wins. Used only with `PROWLARR_URL`, never at an address saved from the app; without it the server says at startup that it's ignored |
+| `PROWLARR_CONFIG_XML` | none | Path to Prowlarr's `config.xml` to read the key from when neither a key entered in the app nor `PROWLARR_API_KEY` is set (the Umbrel package does this); like `PROWLARR_API_KEY`, only with `PROWLARR_URL`, and without it named at startup as ignored |
 | `TMDB_API_KEY` | none | Fallback TMDB key, not needed with the proxy (development included); a key entered in the app wins |
 | `TMDB_PROXY_URL` | the release worker, `https://tmdb.kinopeer.com/3` (edge images and the dev server: the edge worker, from `KINOPEER_TMDB_PROXY`) | Kinopeer's TMDB proxy for calls without a key (The TMDB proxy, below); empty turns it off, and the app asks for a key. The integration and smoke tests set it empty or to the worker in front of their fake. |
 | `TMDB_API_URL` | `https://api.themoviedb.org/3` | TMDB's API address; the integration and smoke tests point it at a fake |

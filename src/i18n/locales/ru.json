@@ -76,6 +76,7 @@
     "submit": "Подключить",
     "invalidCredentials": "Неверный логин или пароль",
     "banned": "Слишком много неудачных попыток. qBittorrent временно заблокировал этот адрес.",
+    "notQbittorrent": "Адрес qBittorrent на сервере Kinopeer отвечает, но не как qBittorrent. Проверьте QBITTORRENT_URL.",
     "unreachableBody": "Проверьте, что qBittorrent запущен и веб-интерфейс включён.",
     "unreachableBody_kinopeer": "Проверьте, что устройство в сети и Kinopeer запущен на сервере.",
     "unreachableBody_openAgain": "$t(common.openAgainHint)"
