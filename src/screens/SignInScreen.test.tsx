@@ -206,6 +206,12 @@ describe('SignInScreen, signing in', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
     expect(screen.getByLabelText('Password')).toHaveAccessibleDescription('Wrong password')
     expect(signIn).not.toHaveBeenCalled()
+
+    // 256 is as long as one can be.
+    await userEvent.clear(screen.getByLabelText('Password'))
+    await userEvent.paste('x'.repeat(256))
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(signIn).toHaveBeenCalledExactlyOnceWith('x'.repeat(256))
   })
 
   it('asks to set a password when the server’s was reset since the screen opened', async () => {

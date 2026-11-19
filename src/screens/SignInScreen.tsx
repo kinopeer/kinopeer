@@ -57,7 +57,6 @@ export function SignInScreen({ need }: SignInScreenProps) {
       } else if (code === 'not-set-up') {
         // The password was reset on the server since this screen opened: what's left is to set one.
         setPassword('')
-        setError(null)
         setSignInNeed('set-up')
       } else if (code === 'invalid-password') setError('invalid')
       else if (code === 'too-short' || code === 'throttled' || code === 'storage') setError(code)

@@ -80,9 +80,10 @@ describe('ChangePasswordForm', () => {
     expect(screen.getByLabelText('Current password')).toHaveAccessibleDescription('Wrong password')
     expect(changePassword).not.toHaveBeenCalled()
 
-    await paste('Current password', 'correct horse')
+    // 256 is as long as the current one can be.
+    await paste('Current password', 'y'.repeat(256))
     await userEvent.click(screen.getByRole('button', { name: 'Change password' }))
-    expect(changePassword).toHaveBeenCalledExactlyOnceWith('correct horse', 'x'.repeat(256))
+    expect(changePassword).toHaveBeenCalledExactlyOnceWith('y'.repeat(256), 'x'.repeat(256))
   })
 
   it('takes a new password of exactly 8 characters', async () => {

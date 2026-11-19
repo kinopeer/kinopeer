@@ -329,8 +329,10 @@ describe('the login', () => {
     const cookie = cookieOf(await post(await first.origin, 'setup', { password: 'correct horse' }))
 
     // Used now and then: moved on once a day at most, with its cookie.
-    clock += RENEW_EVERY_MS - 1
-    const early = await fetch(`${await first.origin}/qbt/api/v2/app/version`, { headers: { Cookie: cookie } })
+    clock += 23 * 60 * 60_000
+    expect((await fetch(`${await first.origin}/api/settings`, { headers: { Cookie: cookie } })).headers.getSetCookie()).toEqual([])
+    clock += RENEW_EVERY_MS - 1 - 23 * 60 * 60_000
+    const early = await fetch(`${await first.origin}/api/settings`, { headers: { Cookie: cookie } })
     expect(early.headers.getSetCookie()).toEqual([])
     clock += 1
     // Only on Kinopeer's own answers: a bridge's may be kept by a shared cache, as TMDB's images are.
@@ -348,9 +350,20 @@ describe('the login', () => {
     const restarted = kinopeer({ store: new AuthStore(dir) })
     clock = renewedUntil - SESSION_MS + 1
     expect(await reached(await restarted.origin, cookie)).toBe(true)
-    // Unused for 30 days: over.
+    // Unused for 30 days: over, on the server's own routes too.
     clock = renewedUntil
     expect(await reached(await restarted.origin, cookie)).toBe(false)
+    expect((await fetch(`${await restarted.origin}/api/settings`, { headers: { Cookie: cookie } })).headers.get(AUTH_HEADER)).toBe('sign-in')
+  })
+
+  it('moves a session on with any of its /api answers, changing the password’s too', async () => {
+    const { origin } = kinopeer()
+    const app = await origin
+    const cookie = cookieOf(await post(app, 'setup', { password: 'correct horse' }))
+    clock += RENEW_EVERY_MS
+    const changed = await post(app, 'password', { current: 'correct horse', password: 'battery staple' }, cookie)
+    expect(changed.status).toBe(204)
+    expect(changed.headers.getSetCookie()[0]).toMatch(new RegExp(`^${cookie}; Path=/;.*Max-Age=2592000$`))
   })
 
   it('moves on only the session in use', async () => {

@@ -409,8 +409,7 @@ export function kinopeerAuth(config: AuthConfig): Auth {
     ready().then(
       () => {
         if (own) return route(request, response, path)
-        const lower = path.toLowerCase()
-        const checked = access(request, response, lower === '/api' || lower.startsWith('/api/'))
+        const checked = access(request, response, path.toLowerCase().startsWith('/api/'))
         if (checked.allowed) return next()
         needSignIn(response, checked.need)
       },

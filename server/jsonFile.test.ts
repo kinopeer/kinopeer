@@ -42,6 +42,10 @@ describe('JsonFile', () => {
     await writeFile(join(dir, 'list.json'), '[1, 2]')
     await expect(new JsonFile(dir, 'broken.json', { strict: true }).load()).rejects.toThrow()
     await expect(new JsonFile(dir, 'list.json', { strict: true }).load()).rejects.toThrow('not a JSON object')
+    for (const [name, json] of [['number.json', '5'], ['text.json', '"text"'], ['null.json', 'null']]) {
+      await writeFile(join(dir, name), json)
+      await expect(new JsonFile(dir, name, { strict: true }).load(), json).rejects.toThrow('not a JSON object')
+    }
     // A file it can't read, root or not: a directory in its place.
     await mkdir(join(dir, 'unreadable.json'))
     const unreadable = new JsonFile<Record<string, number>>(dir, 'unreadable.json', { strict: true })
