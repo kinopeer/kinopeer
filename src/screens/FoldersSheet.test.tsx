@@ -84,7 +84,7 @@ describe('FoldersSheet', () => {
   })
 
   it('says it’s loading until the folders come', async () => {
-    let answer = (_: Folders) => {}
+    let answer!: (folders: Folders) => void
     getFolders.mockReturnValue(new Promise((resolve) => (answer = resolve)))
     const sheet = await openSheet()
     expect(within(sheet).getByRole('status', { name: 'Loading folders' })).toBeInTheDocument()
@@ -202,8 +202,8 @@ describe('FoldersSheet', () => {
   })
 
   it('says a failure in a toast once the sheet has closed', async () => {
-    let fail = (_: unknown) => {}
-    prepareFolder.mockReturnValue(new Promise((_, reject) => (fail = reject)))
+    let fail!: (error: unknown) => void
+    prepareFolder.mockReturnValue(new Promise((_resolve, reject) => (fail = reject)))
     const sheet = await openSheet()
     await type(await edit(sheet, /^Default folder/), '/root/downloads')
     await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
