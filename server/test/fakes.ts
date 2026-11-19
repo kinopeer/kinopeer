@@ -248,7 +248,8 @@ async function parseAdd(body: Buffer, contentType: string | undefined): Promise<
  * needs a live session: the versions, the default save path and CATEGORIES, `torrents` (a copy,
  * returned as `torrents`) as /torrents/info and /sync/maindata (a full update for rid 0,
  * `mainDataDelta` after, plus what was added or deleted since the last poll), TRACKERS, and
- * adding: /torrents/add records what came in `added` (and lists what `listAdded` makes of it),
+ * adding: /torrents/add records what came in `added` (and lists what `listAdded` makes of it) and
+ * refuses a magnet link to a torrent it lists with 409 (qBittorrent 5.2+), or 200 "Fails." with `legacy`,
  * /torrents/files answers `files` (set per hash by the test, 404 for a hash it doesn't have),
  * /torrents/filePrio changes their priorities, /torrents/start and /stop answer OK and leave the
  * torrents' state as it is (qBittorrent 5.1 reports the new one only at its next refresh, 1.5 s
@@ -353,11 +354,15 @@ export async function fakeQbittorrent({
         return json(response, TRACKERS)
       case '/api/v2/torrents/add': {
         const item = await parseAdd(bytes, request.headers['content-type'])
+        const listed = new Set(listing.map((torrent) => torrent.hash))
+        if (item.urls.length && item.urls.every((uri) => listed.has(/btih:(\w+)/.exec(uri)?.[1]?.toLowerCase() ?? ''))) {
+          return legacy ? text(response, 'Fails.') : text(response, '', 409)
+        }
         added.push(item)
-        const listed = listAdded?.(item)
-        if (listed) {
-          listing.push(listed)
-          pendingAdded.push(listed)
+        const listedNow = listAdded?.(item)
+        if (listedNow) {
+          listing.push(listedNow)
+          pendingAdded.push(listedNow)
         }
         return text(response, 'Ok.')
       }

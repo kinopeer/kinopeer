@@ -9,6 +9,7 @@ import {
   QbittorrentError,
   UnauthorizedError,
   addTorrents,
+  TorrentRefusedError,
   deleteTorrents,
   getAppVersion,
   getCategories,
@@ -106,9 +107,24 @@ describe('addTorrents', () => {
     expect(form.get('addToTopOfQueue')).toBe('true')
   })
 
-  it('reports a torrent qBittorrent refused', async () => {
+  it('reports a torrent qBittorrent refused, as 5.1 and earlier answer', async () => {
     respond('Fails.')
-    await expect(addTorrents({ urls: ['magnet:?xt=urn:btih:abc'] })).rejects.toBeInstanceOf(QbittorrentError)
+    await expect(addTorrents({ urls: ['magnet:?xt=urn:btih:abc'] })).rejects.toBeInstanceOf(TorrentRefusedError)
+  })
+
+  it('reports a torrent qBittorrent refused, as 5.2 and later answer', async () => {
+    respond('', 409)
+    await expect(addTorrents({ urls: ['magnet:?xt=urn:btih:abc'] })).rejects.toBeInstanceOf(TorrentRefusedError)
+  })
+
+  it('passes on any other failure of an add as it is', async () => {
+    respond('', 500)
+    const failed = await addTorrents({ urls: ['magnet:?xt=urn:btih:abc'] }).catch((error: unknown) => error)
+    expect(failed).toBeInstanceOf(QbittorrentError)
+    expect(failed).not.toBeInstanceOf(TorrentRefusedError)
+    // A 409 from something in front of Kinopeer's server, without the bridge's mark, is no refusal.
+    fetchMock.mockResolvedValueOnce(new Response('', { status: 409 }))
+    await expect(addTorrents({ urls: ['magnet:?xt=urn:btih:abc'] })).rejects.toBeInstanceOf(KinopeerUnreachableError)
   })
 })
 
