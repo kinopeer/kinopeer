@@ -574,7 +574,7 @@
     "tokenHelp": "Create a bot with @BotFather in Telegram and paste the token it gives you. The token stays on Kinopeer’s server.",
     "tokenLabel": "Bot token",
     "tokenInvalid": "Telegram doesn’t know this token. Copy it from @BotFather again.",
-    "chatHelp": "Send @{{bot}} /start from the chat the notifications should go to (to use a group, add the bot to it first), then press Find chat.",
+    "chatHelp": "Send @{{bot}} /start from the chat the notifications should go to (to use a group, add the bot to it first; to use a channel, make the bot its admin and post /start there), then press Find chat.",
     "findChat": "Find chat",
     "noChatFound": "No chat sent the bot /start in the last day. Send it and try again.",
     "foundChat": "Is this the chat?",

@@ -8,9 +8,9 @@ afterEach(closeServers)
 
 /** A Bot API that answers every call with `status` and `body`, and records what it got. */
 async function fakeBotApi(status: number, body: unknown) {
-  const calls: { path: string; body: unknown }[] = []
+  const calls: { path: string; body: unknown; contentType?: string }[] = []
   const base = await listen(async (request, response) => {
-    calls.push({ path: request.url ?? '', body: JSON.parse((await bodyOf(request)) || 'null') })
+    calls.push({ path: request.url ?? '', body: JSON.parse((await bodyOf(request)) || 'null'), contentType: request.headers['content-type'] })
     response.statusCode = status
     response.setHeader('Content-Type', 'application/json')
     response.end(typeof body === 'string' ? body : JSON.stringify(body))
@@ -66,7 +66,25 @@ describe('startedChats', () => {
       { id: 11, name: 'First', type: 'private' },
       { id: -22, name: 'Home', type: 'group' },
     ])
-    expect(api.calls[0]).toEqual({ path: `/bot${TOKEN}/getUpdates`, body: { allowed_updates: ['message'] } })
+    expect(api.calls[0]).toEqual({
+      path: `/bot${TOKEN}/getUpdates`,
+      body: { allowed_updates: ['message', 'channel_post'] },
+      contentType: 'application/json',
+    })
+  })
+
+  it('takes a /start posted in a channel where the bot is an admin, and one with spaces around it', async () => {
+    const api = await fakeBotApi(200, {
+      ok: true,
+      result: [
+        { update_id: 1, channel_post: { message_id: 1, text: '/start', chat: { id: -100123, type: 'channel', title: 'Downloads' } } },
+        update('  /start  ', { id: 7, type: 'private', first_name: 'Ann' }),
+      ],
+    })
+    expect(await startedChats(TOKEN, { base: api.base })).toEqual([
+      { id: 7, name: 'Ann', type: 'private' },
+      { id: -100123, name: 'Downloads', type: 'channel' },
+    ])
   })
 
   it.each([
@@ -78,13 +96,16 @@ describe('startedChats', () => {
     expect(await startedChats(TOKEN, { base: api.base })).toEqual([{ id: 7, name, type: 'private' }])
   })
 
-  it('leaves out other commands, words starting with /start, and chats of a kind it doesn’t know', async () => {
+  it('leaves out other commands, words starting with /start, chats of a kind it doesn’t know and ids that aren’t whole numbers', async () => {
     const api = await fakeBotApi(200, {
       ok: true,
       result: [
         update('/stop', { id: 7, type: 'private', first_name: 'Ann' }),
         update('/starting', { id: 8, type: 'private' }),
         update('/start', { id: 9, type: 'secret' }),
+        update('/start', { id: '10', type: 'private', first_name: 'Text id' }),
+        update('/start', { id: 1.5, type: 'private', first_name: 'Odd id' }),
+        update('/start', { type: 'private', first_name: 'No id' }),
       ],
     })
     expect(await startedChats(TOKEN, { base: api.base })).toEqual([])
@@ -103,7 +124,15 @@ describe('sendMessage', () => {
     expect(api.calls[0]).toEqual({
       path: `/bot${TOKEN}/sendMessage`,
       body: { chat_id: -22, text: 'Downloaded', link_preview_options: { is_disabled: true } },
+      contentType: 'application/json',
     })
+  })
+
+  it('answers rejected when Telegram says it didn’t take it, whatever the status', async () => {
+    const refused = await fakeBotApi(200, { ok: false, description: 'Bad Request: message text is empty' })
+    expect(await sendMessage(TOKEN, 1, 'x', { base: refused.base })).toBe('rejected')
+    const odd = await fakeBotApi(404, { ok: true, result: {} })
+    expect(await sendMessage(TOKEN, 1, 'x', { base: odd.base })).toBe('rejected')
   })
 
   it.each([400, 401, 403])('answers rejected when Telegram refuses it with a %i', async (status) => {
@@ -116,9 +145,22 @@ describe('sendMessage', () => {
     await expect(sendMessage(TOKEN, 1, 'x', { base: api.base })).rejects.toEqual(expect.objectContaining({ retryAfterMs: 7000 }))
   })
 
-  it('throws TelegramUnavailable on a 5xx or an answer that isn’t JSON', async () => {
+  it.each([
+    ['without parameters', {}],
+    ['of 0 seconds', { parameters: { retry_after: 0 } }],
+    ['that isn’t a number', { parameters: { retry_after: '7' } }],
+  ])('throws TelegramUnavailable without a wait on a 429 with a retry_after %s', async (_name, fields) => {
+    const api = await fakeBotApi(429, { ok: false, error_code: 429, ...fields })
+    const error = await sendMessage(TOKEN, 1, 'x', { base: api.base }).catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(TelegramUnavailable)
+    expect((error as TelegramUnavailable).retryAfterMs).toBeUndefined()
+  })
+
+  it('throws TelegramUnavailable on a 5xx, JSON or not, or an answer that isn’t JSON', async () => {
     const down = await fakeBotApi(502, '<html>Bad gateway</html>')
     await expect(sendMessage(TOKEN, 1, 'x', { base: down.base })).rejects.toBeInstanceOf(TelegramUnavailable)
+    const failing = await fakeBotApi(500, { ok: false, error_code: 500, description: 'Internal Server Error' })
+    await expect(sendMessage(TOKEN, 1, 'x', { base: failing.base })).rejects.toBeInstanceOf(TelegramUnavailable)
     const odd = await fakeBotApi(200, 'not json')
     await expect(sendMessage(TOKEN, 1, 'x', { base: odd.base })).rejects.toBeInstanceOf(TelegramUnavailable)
   })

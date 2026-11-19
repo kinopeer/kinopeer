@@ -83,33 +83,38 @@ export async function botName(token: string, options: TelegramOptions = {}): Pro
   return answer.ok ? (answer.result.username ?? '') : undefined
 }
 
+interface Message {
+  text?: string
+  chat?: { id?: number; type?: string; title?: string; username?: string; first_name?: string; last_name?: string }
+}
+
+/** A message to the bot, or a post in a channel where the bot is an admin. */
 interface Update {
-  message?: {
-    text?: string
-    chat?: { id?: number; type?: string; title?: string; username?: string; first_name?: string; last_name?: string }
-  }
+  message?: Message
+  channel_post?: Message
 }
 
 const CHAT_TYPES: readonly string[] = ['private', 'group', 'supergroup', 'channel'] satisfies TelegramChatType[]
 
-function chatName(chat: NonNullable<NonNullable<Update['message']>['chat']>): string {
+function chatName(chat: NonNullable<Message['chat']>): string {
   const person = [chat.first_name, chat.last_name].filter(Boolean).join(' ')
   return chat.title || person || (chat.username ? `@${chat.username}` : String(chat.id))
 }
 
 /**
- * The chats that sent the bot `/start` (`/start@bot` in a group), the latest first, each once, from
- * the updates Telegram keeps for a day; `rejected` when it doesn't know the token. Reading them
- * doesn't confirm them, so the next check sees them too.
+ * The chats that sent the bot `/start` (`/start@bot` in a group; a channel's post, with the bot an
+ * admin there), the latest first, each once, from the updates Telegram keeps for a day; `rejected`
+ * when it doesn't know the token. Reading them doesn't confirm them, so the next check sees them too.
  */
 export async function startedChats(token: string, options: TelegramOptions = {}): Promise<TelegramFoundChat[] | 'rejected'> {
-  const answer = await call<Update[]>(token, 'getUpdates', { allowed_updates: ['message'] }, options)
+  const answer = await call<Update[]>(token, 'getUpdates', { allowed_updates: ['message', 'channel_post'] }, options)
   if (!answer.ok) return 'rejected'
   const updates = Array.isArray(answer.result) ? answer.result : []
   const chats: TelegramFoundChat[] = []
   for (const update of [...updates].reverse()) {
-    const chat = update.message?.chat
-    const command = update.message?.text?.trim().split(/\s/)[0]
+    const message = update.message ?? update.channel_post
+    const chat = message?.chat
+    const command = message?.text?.trim().split(/\s/)[0]
     const started = command === '/start' || command?.startsWith('/start@')
     if (!chat || !started || !Number.isSafeInteger(chat.id) || !CHAT_TYPES.includes(chat.type ?? '')) continue
     if (chats.some(({ id }) => id === chat.id)) continue
