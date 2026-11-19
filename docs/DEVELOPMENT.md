@@ -46,9 +46,13 @@ The server reads environment variables (from `.env.local` in development). Whate
 | `TMDB_PROXY_URL` | the release worker, `https://tmdb.kinopeer.com/3` (edge images and the dev server: the edge worker, from `KINOPEER_TMDB_PROXY`) | Kinopeer's TMDB proxy for calls without a key (The TMDB proxy, below); empty turns it off, and the app asks for a key. The integration and smoke tests set it empty or to the worker in front of their fake. |
 | `TMDB_API_URL` | `https://api.themoviedb.org/3` | TMDB's API address; the integration and smoke tests point it at a fake |
 | `TMDB_IMAGE_URL` | `https://image.tmdb.org/t/p` | TMDB's image address, the same way |
-| `KINOPEER_DATA_DIR` | `./data` (`/data` in the image) | Where `settings.json` and `matches.json` are kept |
+| `KINOPEER_DATA_DIR` | `./data` (`/data` in the image) | Where `settings.json`, `matches.json` and `auth.json` (the login's password hash and sessions) are kept |
+| `KINOPEER_AUTH` | `on` | Kinopeer's own login (ARCHITECTURE → Kinopeer's own login): `off` only where something in front asks for a login, as the Umbrel package does behind Umbrel's. Any other value stops the server, so a typo never leaves it open. The integration tests and the smoke journeys turn it off but for their own login tests |
+| `KINOPEER_PASSWORD` | none | Kinopeer's password, in place of one set in the app, which can't change it then. Changing it signs every browser out; removing it keeps its password until it's changed in the app |
 | `PORT`, `HOST` | `8080`, `0.0.0.0` | Where the production server listens |
 | `KINOPEER_DIST` | `../dist` | What the production server serves |
+
+The dev server has the login on too, so the first page you open asks you to set a password, which it keeps in `./data/auth.json`; `KINOPEER_AUTH=off` in `.env.local` turns it off. A forgotten password: stop the server, delete `auth.json` from the data directory and start it again, and the next visitor sets a new one; setting `KINOPEER_PASSWORD` and restarting works too. Either signs every browser out. On Umbrel the login is off, so there's nothing to reset.
 
 ## Docker
 
