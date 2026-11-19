@@ -57,6 +57,19 @@ describe('ChangePasswordForm', () => {
     expect(repeat).not.toHaveAttribute('aria-invalid')
   })
 
+  it('takes back the wait the server last asked for when it refuses the current password itself', async () => {
+    changePassword.mockRejectedValueOnce(new AuthError(429, 'throttled', 15 * 60_000))
+    render(<ChangePasswordForm onChanged={vi.fn()} />)
+    await change('correct horse', 'battery staple')
+    expect(screen.getByRole('alert', { name: saying('Too many wrong passwords. Try again in 15 minutes.') })).toBeInTheDocument()
+    await userEvent.clear(screen.getByLabelText('Current password'))
+    await userEvent.click(screen.getByLabelText('Current password'))
+    await userEvent.paste('x'.repeat(257))
+    await userEvent.click(screen.getByRole('button', { name: 'Change password' }))
+    expect(screen.getByLabelText('Current password')).toHaveAccessibleDescription('Wrong password')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('takes a new password of 256 characters at most, and refuses a longer current one as wrong', async () => {
     render(<ChangePasswordForm onChanged={vi.fn()} />)
     const paste = async (label: string, text: string) => {

@@ -18,6 +18,7 @@ import { useLanguage } from '../i18n/useLanguage'
 import { BUG_REPORT_URL, IDEAS_URL, REPO_URL } from '../lib/links'
 import { promptInstall, useInstallMethod, type ManualInstall } from '../pwa/install'
 import { useRequest, type RequestState } from '../lib/useRequest'
+import { sharedRequests } from '../logic/sharedRequests'
 import { useScrollRestoration } from '../lib/useScrollRestoration'
 import { useSettings, type Settings } from '../settings/settings'
 import type { ThemePreference } from '../theme/theme'
@@ -192,6 +193,11 @@ export function SettingsScreen() {
   const serverLoad = useRequest(SERVER_SETTINGS_KEY, (signal) => getServerSettings(signal), { freshFor: SERVER_SETTINGS_FRESH_MS })
   const [serverChanged, setServerChanged] = useState<ServerSettings | null>(null)
   const server = serverChanged ?? serverLoad.data
+  // Whether Kinopeer's own login is on is its server's environment's, fixed while it runs, so the
+  // page's answer says it however old: the Sign-in section is there from the first render rather
+  // than added under the rows when a stale answer is asked again (a layout shift on desktop).
+  const [keptAuth] = useState(() => sharedRequests.peek<ServerSettings>(SERVER_SETTINGS_KEY, Infinity)?.data.auth)
+  const auth = server ? server.auth : keptAuth
   const names = (categories.data ?? []).map((category) => category.name).sort((a, b) => a.localeCompare(b))
   const sharedTmdbKey = server?.tmdb.source === 'shared'
 
@@ -343,10 +349,10 @@ export function SettingsScreen() {
       </Section>
 
       {/* Kinopeer's own login, only when it's on: on Umbrel the login in front is the only one. */}
-      {server?.auth?.enabled && (
+      {auth?.enabled && (
         <Section id="settings-sign-in" title={t('settings.signIn')}>
           <ul className="ks-card settings-rows">
-            {server.auth.source === 'saved' && (
+            {auth.source === 'saved' && (
               <AboutRow
                 icon="key"
                 label={t('settings.changePassword')}
@@ -361,7 +367,7 @@ export function SettingsScreen() {
               onClick={() => void signOut().catch(() => toast.show(t('settings.signOutFailed'), { icon: 'alert' }))}
             />
           </ul>
-          {server.auth.source === 'env' && <p className="t-cap c3 settings-hint">{t('settings.passwordFromEnv')}</p>}
+          {auth.source === 'env' && <p className="t-cap c3 settings-hint">{t('settings.passwordFromEnv')}</p>}
         </Section>
       )}
 

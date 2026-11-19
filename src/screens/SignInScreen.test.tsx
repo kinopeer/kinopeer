@@ -214,6 +214,18 @@ describe('SignInScreen, signing in', () => {
     expect(signIn).toHaveBeenCalledExactlyOnceWith('x'.repeat(256))
   })
 
+  it('takes back the wait the server last asked for when it refuses a password itself', async () => {
+    signIn.mockRejectedValueOnce(new AuthError(429, 'throttled', 15 * 60_000))
+    render(<SignInScreen need="sign-in" />)
+    await signInWith('correct horse')
+    expect(screen.getByRole('alert', { name: saying('Too many wrong passwords. Try again in 15 minutes.') })).toBeInTheDocument()
+    await userEvent.clear(screen.getByLabelText('Password'))
+    await userEvent.paste('x'.repeat(257))
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(screen.getByLabelText('Password')).toHaveAccessibleDescription('Wrong password')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('asks to set a password when the server’s was reset since the screen opened', async () => {
     auth.setSignInNeed('sign-in')
     signIn.mockRejectedValue(new AuthError(409, 'not-set-up'))
@@ -222,6 +234,7 @@ describe('SignInScreen, signing in', () => {
     rerender(<Current />)
     expect(screen.getByRole('heading', { name: 'Set a password' })).toBeInTheDocument()
     expect(screen.getByLabelText('New password')).toHaveValue('')
+    expect(screen.getByRole('status', { name: saying('Kinopeer’s password was reset on the server. Set a new one.') })).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 

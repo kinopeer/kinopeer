@@ -16,6 +16,7 @@ import {
   kinopeerAuth,
   verifyPassword,
   type AuthConfig,
+  type StoredAuth,
 } from './auth.ts'
 import { FIRST_LOCK_MS, LoginThrottle } from './loginThrottle.ts'
 import { closeServers, serve } from './test/fakes.ts'
@@ -58,6 +59,18 @@ function cookieOf(response: Response): string {
 const reached = async (origin: string, cookie?: string, path = '/qbt/api/v2/app/version') => {
   const response = await fetch(`${origin}${path}`, { headers: cookie ? { Cookie: cookie } : {} })
   return response.status === 404 && (await response.text()) === 'fallback'
+}
+
+/** A throttle that runs `onAttempt` once each try is counted, while its password is being checked. */
+function watchingThrottle() {
+  const watch = { onAttempt: () => {} }
+  class Watching extends LoginThrottle {
+    attempt(key: string) {
+      super.attempt(key)
+      watch.onAttempt()
+    }
+  }
+  return { watch, throttle: new Watching(() => clock) }
 }
 
 describe('authMode', () => {
@@ -248,9 +261,13 @@ describe('the login', () => {
     const app = await origin
     await post(app, 'setup', { password: 'correct horse' })
     for (let i = 0; i < 4; i++) await post(app, 'login', { password: `wrong ${i}` })
-    expect((await post(app, 'login', { password: 'correct horse' })).status).toBe(204)
+    const cookie = cookieOf(await post(app, 'login', { password: 'correct horse' }))
     for (let i = 0; i < 4; i++) await post(app, 'login', { password: `wrong ${i}` })
     expect((await post(app, 'login', { password: 'correct horse' })).status).toBe(204)
+    // A change of the password with the right current one, too.
+    for (let i = 0; i < 4; i++) await post(app, 'password', { current: `wrong ${i}`, password: 'battery staple' }, cookie)
+    expect((await post(app, 'password', { current: 'correct horse', password: 'battery staple' }, cookie)).status).toBe(204)
+    expect((await post(app, 'login', { password: 'battery staple' })).status).toBe(204)
   })
 
   it('counts tries sent at once before answering any', async () => {
@@ -280,26 +297,60 @@ describe('the login', () => {
     expect(await reached(app, second)).toBe(false)
   })
 
-  it('starts no session for the old password when it changes while that one is checked', async () => {
-    let onAttempt = () => {}
-    class Watching extends LoginThrottle {
-      attempt(key: string) {
-        super.attempt(key)
-        onAttempt()
-      }
-    }
-    const { store, origin } = kinopeer({ throttle: new Watching(() => clock) })
+  it('starts no session for the old password when it changes while that one is checked, and keeps the try counted', async () => {
+    const { watch, throttle } = watchingThrottle()
+    const { store, origin } = kinopeer({ throttle })
     const app = await origin
     await post(app, 'setup', { password: 'correct horse' })
+    for (let i = 0; i < 3; i++) await post(app, 'login', { password: `wrong ${i}` })
     const changed = await hashPassword('battery staple')
     // As another browser's change of the password lands while this sign-in's hash is computed.
-    onAttempt = () => void store.change((current) => ({ ...current, password: changed, sessions: [] }))
+    watch.onAttempt = () => void store.change((current) => ({ ...current, password: changed, sessions: [] }))
 
     const late = await post(app, 'login', { password: 'correct horse' })
+    watch.onAttempt = () => {}
     expect(late.status).toBe(422)
     expect(late.headers.getSetCookie()).toEqual([])
     expect(await late.json()).toEqual({ error: 'invalid-password' })
     expect(store.current.sessions).toEqual([])
+    // Three wrong, the late one, and this: five, so the address waits.
+    expect(await (await post(app, 'login', { password: 'wrong again' })).json()).toEqual({ error: 'invalid-password', retryAfterMs: FIRST_LOCK_MS })
+  })
+
+  it.each([
+    ['replaced the password it matched', 422, { error: 'invalid-password' }, (current: StoredAuth, changed: string) => ({ ...current, password: changed })],
+    ['signed this browser out', 401, { error: 'sign-in' }, (current: StoredAuth, changed: string) => ({ ...current, password: changed, sessions: [] })],
+    // Its session ended some other way (signed out in another tab), the password as it was.
+    ['left the password but ended this browser’s session', 401, { error: 'sign-in' }, (current: StoredAuth) => ({ ...current, sessions: [] })],
+  ] as const)('changes nothing when another change %s while this one was checked', async (_, status, answer, other) => {
+    const { watch, throttle } = watchingThrottle()
+    const { store, origin } = kinopeer({ throttle })
+    const app = await origin
+    const cookie = cookieOf(await post(app, 'setup', { password: 'correct horse' }))
+    const changed = await hashPassword('battery staple')
+    const left = other(store.current, changed).password
+    watch.onAttempt = () => void store.change((current) => other(current, changed))
+
+    const late = await post(app, 'password', { current: 'correct horse', password: 'other password' }, cookie)
+    watch.onAttempt = () => {}
+    expect(late.status).toBe(status)
+    expect(await late.json()).toEqual(answer)
+    expect(store.current.password).toBe(left)
+  })
+
+  it('takes one of two changes sent at once, and signs the other browser out', async () => {
+    const { origin } = kinopeer()
+    const app = await origin
+    const first = cookieOf(await post(app, 'setup', { password: 'correct horse' }))
+    const second = cookieOf(await post(app, 'login', { password: 'correct horse' }))
+    const answers = await Promise.all([
+      post(app, 'password', { current: 'correct horse', password: 'first browser' }, first),
+      post(app, 'password', { current: 'correct horse', password: 'second browser' }, second),
+    ])
+    expect(answers.map((answer) => answer.status).sort()).toEqual([204, 401])
+    const won = answers[0].status === 204 ? { password: 'first browser', cookie: first } : { password: 'second browser', cookie: second }
+    expect(await reached(app, won.cookie)).toBe(true)
+    expect((await post(app, 'login', { password: won.password })).status).toBe(204)
   })
 
   it('changes the password for a signed-in browser and signs every other one out', async () => {
@@ -329,19 +380,19 @@ describe('the login', () => {
     const cookie = cookieOf(await post(await first.origin, 'setup', { password: 'correct horse' }))
 
     // Used now and then: moved on once a day at most, with its cookie.
-    clock += 23 * 60 * 60_000
+    const hours23 = 23 * 60 * 60_000
+    clock += hours23
     expect((await fetch(`${await first.origin}/api/settings`, { headers: { Cookie: cookie } })).headers.getSetCookie()).toEqual([])
-    clock += RENEW_EVERY_MS - 1 - 23 * 60 * 60_000
+    clock += RENEW_EVERY_MS - 1 - hours23
     const early = await fetch(`${await first.origin}/api/settings`, { headers: { Cookie: cookie } })
     expect(early.headers.getSetCookie()).toEqual([])
     clock += 1
-    // Only on Kinopeer's own answers: a bridge's may be kept by a shared cache, as TMDB's images are.
-    for (const path of ['/qbt/api/v2/app/version', '/tmdb-img/w342/poster.jpg', '/prowlarr/search']) {
+    // Never on the TMDB bridges' answers, which pass on TMDB's caching, so a shared cache may keep them.
+    for (const path of ['/tmdb-img/w342/poster.jpg', '/tmdb/movie/1', '/TMDB-IMG/w342/poster.jpg']) {
       const bridged = await fetch(`${await first.origin}${path}`, { headers: { Cookie: cookie } })
-      expect(bridged.status, path).toBe(404)
       expect(bridged.headers.getSetCookie(), path).toEqual([])
     }
-    const due = await fetch(`${await first.origin}/api/settings`, { headers: { Cookie: cookie } })
+    const due = await fetch(`${await first.origin}/qbt/api/v2/app/version`, { headers: { Cookie: cookie } })
     expect(due.headers.getSetCookie()[0]).toMatch(new RegExp(`^${cookie}; Path=/; HttpOnly; SameSite=Strict; Max-Age=2592000$`))
     const renewedUntil = clock + SESSION_MS
     await expect.poll(() => first.store.current.sessions?.[0].expiresAt).toBe(renewedUntil)
@@ -356,7 +407,20 @@ describe('the login', () => {
     expect((await fetch(`${await restarted.origin}/api/settings`, { headers: { Cookie: cookie } })).headers.get(AUTH_HEADER)).toBe('sign-in')
   })
 
-  it('moves a session on with any of its /api answers, changing the password’s too', async () => {
+  it('keeps a session used only through qBittorrent’s poll, as a tab left open on Downloads', async () => {
+    const { store, origin } = kinopeer()
+    const app = await origin
+    const cookie = cookieOf(await post(app, 'setup', { password: 'correct horse' }))
+    for (let day = 0; day < 40; day++) {
+      clock += RENEW_EVERY_MS
+      expect(await reached(app, cookie), `day ${day}`).toBe(true)
+    }
+    expect(await reached(app, cookie, '/prowlarr/search')).toBe(true)
+    // The renewals' writes, which no answer waits for, are done before the directory goes.
+    await store.change((current) => current)
+  })
+
+  it('moves a session on with any answer but TMDB’s, changing the password’s too', async () => {
     const { origin } = kinopeer()
     const app = await origin
     const cookie = cookieOf(await post(app, 'setup', { password: 'correct horse' }))

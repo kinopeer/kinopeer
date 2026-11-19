@@ -547,6 +547,7 @@
     "submit": "Sign in",
     "setUp": "Set password",
     "alreadySet": "Someone has just set Kinopeer’s password. Sign in with it.",
+    "wasReset": "Kinopeer’s password was reset on the server. Set a new one.",
     "throttledMinutes_one": "Too many wrong passwords. Try again in {{count}} minute.",
     "throttledMinutes_other": "Too many wrong passwords. Try again in {{count}} minutes.",
     "throttledHours_one": "Too many wrong passwords. Try again in {{count}} hour.",

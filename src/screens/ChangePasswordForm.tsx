@@ -26,6 +26,8 @@ export function ChangePasswordForm({ onChanged }: ChangePasswordFormProps) {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (submitting) return
+    // The last wait was the server's answer to the last try; a refusal here is no try.
+    setWaitMs(0)
     if (password.length < MIN_PASSWORD_LENGTH) return setError('too-short')
     if (password.length > MAX_PASSWORD_LENGTH) return setError('too-long')
     if (repeat !== password) return setError('mismatch')

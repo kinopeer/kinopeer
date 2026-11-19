@@ -13,7 +13,7 @@ export interface SignInScreenProps {
 }
 
 /** Why the password wasn't taken. */
-type FormError = 'invalid' | 'too-short' | 'too-long' | 'mismatch' | 'already-set' | 'throttled' | 'storage' | 'failed' | null
+type FormError = 'invalid' | 'too-short' | 'too-long' | 'mismatch' | 'already-set' | 'was-reset' | 'throttled' | 'storage' | 'failed' | null
 
 /** The name a password manager saves Kinopeer's password under, from the hidden username field. */
 const ACCOUNT_NAME = 'Kinopeer'
@@ -35,6 +35,8 @@ export function SignInScreen({ need }: SignInScreenProps) {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (submitting) return
+    // The last wait was the server's answer to the last try; a refusal here is no try.
+    setWaitMs(0)
     if (settingUp && password.length < MIN_PASSWORD_LENGTH) return setError('too-short')
     if (settingUp && password.length > MAX_PASSWORD_LENGTH) return setError('too-long')
     if (settingUp && repeat !== password) return setError('mismatch')
@@ -57,6 +59,7 @@ export function SignInScreen({ need }: SignInScreenProps) {
       } else if (code === 'not-set-up') {
         // The password was reset on the server since this screen opened: what's left is to set one.
         setPassword('')
+        setError('was-reset')
         setSignInNeed('set-up')
       } else if (code === 'invalid-password') setError('invalid')
       else if (code === 'too-short' || code === 'throttled' || code === 'storage') setError(code)
@@ -77,6 +80,7 @@ export function SignInScreen({ need }: SignInScreenProps) {
         </div>
 
         {error === 'already-set' && <Banner tone="warning">{t('signIn.alreadySet')}</Banner>}
+        {error === 'was-reset' && <Banner tone="warning">{t('signIn.wasReset')}</Banner>}
         {(error === 'throttled' || (error === 'invalid' && waitMs > 0)) && (
           <Banner tone="error">{throttledText(t, waitMs)}</Banner>
         )}
