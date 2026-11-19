@@ -18,6 +18,9 @@ vi.mock('../api/settings', async (importOriginal) => {
 const getAppVersion = vi.mocked(api.getAppVersion)
 const login = vi.mocked(settings.saveQbittorrentLogin)
 
+/** The server's settings once it saved the login. */
+const SAVED: settings.ServerSettings = { tmdb: { configured: true, source: 'saved', fallback: null }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'saved' }, downloads: null }
+
 beforeEach(() => {
   vi.resetAllMocks()
 })
@@ -65,7 +68,7 @@ describe('useQbitSession', () => {
 
   it('saves the login on the server and connects', async () => {
     getAppVersion.mockRejectedValueOnce(new api.UnauthorizedError()).mockResolvedValue('5.2.4')
-    login.mockResolvedValue({ tmdb: { configured: true, source: 'saved', fallback: null }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'saved' }, downloads: null })
+    login.mockResolvedValue(SAVED)
     const { result } = renderHook(() => useQbitSession())
     await waitFor(() => expect(result.current.session.status).toBe('signed-out'))
 
@@ -74,9 +77,29 @@ describe('useQbitSession', () => {
     expect(result.current.session).toEqual({ status: 'connected', version: '5.2.4' })
   })
 
+  it('says when qBittorrent is older than Kinopeer works with (#359)', async () => {
+    getAppVersion.mockResolvedValue('4.5.5')
+    const { result } = renderHook(() => useQbitSession())
+    await waitFor(() => expect(result.current.session).toEqual({ status: 'unsupported', version: '4.5.5' }))
+
+    getAppVersion.mockResolvedValue('4.6.0')
+    await act(() => result.current.recheck())
+    expect(result.current.session).toEqual({ status: 'connected', version: '4.6.0' })
+  })
+
+  it('signs in to a qBittorrent too old, then says so rather than refusing the login', async () => {
+    getAppVersion.mockRejectedValueOnce(new api.UnauthorizedError()).mockResolvedValue('4.4.3')
+    login.mockResolvedValue(SAVED)
+    const { result } = renderHook(() => useQbitSession())
+    await waitFor(() => expect(result.current.session.status).toBe('signed-out'))
+
+    await act(() => result.current.signIn('admin', 'secret'))
+    expect(result.current.session).toEqual({ status: 'unsupported', version: '4.4.3' })
+  })
+
   it('stays signed out when the server took the login but qBittorrent still refuses it', async () => {
     getAppVersion.mockRejectedValue(new api.UnauthorizedError())
-    login.mockResolvedValue({ tmdb: { configured: true, source: 'saved', fallback: null }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'saved' }, downloads: null })
+    login.mockResolvedValue(SAVED)
     const { result } = renderHook(() => useQbitSession())
     await waitFor(() => expect(result.current.session.status).toBe('signed-out'))
 

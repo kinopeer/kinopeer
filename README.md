@@ -43,7 +43,7 @@ Kinopeer comes with no content and no indexers: it searches only the indexers yo
 
 ## Install on Umbrel
 
-Kinopeer currently supports umbrelOS only. It needs the **qBittorrent** and **Prowlarr** apps from the Umbrel App Store.
+Kinopeer currently supports umbrelOS only. It needs the **qBittorrent** and **Prowlarr** apps from the Umbrel App Store. It works with qBittorrent 4.6.0 or later.
 
 1. Open **App Store** → the **⋯** menu at the top right → **Community App Stores**.
 2. Paste `https://github.com/MrShakhov/umbrel-homelab-store` → **Add**.

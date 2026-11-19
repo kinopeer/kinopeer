@@ -32,6 +32,8 @@ export interface AppOptions {
   unreached?: 'from-start' | 'after-first-poll'
   /** Nothing answers the session check either, so the connect screen says so in place of its form. */
   sessionUnreached?: boolean
+  /** The version qBittorrent answers the session check with, instead of 5.3.0. */
+  qbittorrentVersion?: string
   /**
    * A service worker answers the page, as over HTTPS, where Open again shows (#311). The tests
    * block service workers, so this only says one does.
@@ -103,7 +105,7 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
     (url) => url.pathname.startsWith('/qbt/'),
     (route) => {
       const { pathname } = new URL(route.request().url())
-      if (pathname === '/qbt/api/v2/app/version') return options.sessionUnreached ? route.abort('connectionrefused') : route.fulfill({ body: 'v5.3.0' })
+      if (pathname === '/qbt/api/v2/app/version') return options.sessionUnreached ? route.abort('connectionrefused') : route.fulfill({ body: `v${options.qbittorrentVersion ?? '5.3.0'}` })
       if (pathname === '/qbt/api/v2/sync/maindata') {
         polls += 1
         // The bridge's own failure: qBittorrent stopped answering, not Kinopeer's server.

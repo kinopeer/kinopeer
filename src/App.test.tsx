@@ -108,6 +108,18 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Downloads' })).toBeInTheDocument()
   })
 
+  it('says qBittorrent is too old in place of the app, and goes in once it’s updated (#359)', async () => {
+    getAppVersion.mockResolvedValue('4.5.5')
+    renderApp()
+    expect(await screen.findByRole('heading', { name: 'qBittorrent 4.5.5 is too old' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Downloads' })).not.toBeInTheDocument()
+    expect(getMainData).not.toHaveBeenCalled()
+
+    getAppVersion.mockResolvedValue('4.6.7')
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByRole('heading', { name: 'Downloads' })).toBeInTheDocument()
+  })
+
   it('asks the server’s settings and qBittorrent’s version once for the page, Settings opened at its start included (#382)', async () => {
     // A page whose download defaults haven't been loaded yet.
     resetSettings()

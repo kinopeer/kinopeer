@@ -46,6 +46,14 @@ test.describe('onboarding, desktop', () => {
     await expect(page).toHaveScreenshot('desktop-tmdb-key-dark-ru.png')
   })
 
+  // #359: qBittorrent too old, the state in the form's card.
+  test('qBittorrent too old, dark, Russian', async ({ page }) => {
+    await openApp(page, '/', { qbittorrentVersion: '4.5.5' })
+    await expect(page.getByRole('heading', { name: 'qBittorrent 4.5.5 слишком старый' })).toBeVisible()
+    await settle(page)
+    await expect(page).toHaveScreenshot('desktop-unsupported-dark-ru.png')
+  })
+
   // #311: the session check got no answer: the state in the form's card, in place of the form.
   test('Kinopeer doesn’t answer the session check, dark, Russian', async ({ page }) => {
     await openApp(page, '/', { serviceWorkerAnswers: true, sessionUnreached: true })
@@ -63,6 +71,14 @@ test.describe('onboarding, phone', () => {
     await expect(page.getByRole('button', { name: 'Открыть заново' })).toBeVisible()
     await settle(page)
     await expect(page).toHaveScreenshot('connect-unreached-dark-ru.png')
+  })
+
+  // #359: qBittorrent answers, but it's older than Kinopeer works with.
+  test('qBittorrent too old, dark, Russian', async ({ page }) => {
+    await openApp(page, '/', { qbittorrentVersion: '4.5.5' })
+    await expect(page.getByRole('heading', { name: 'qBittorrent 4.5.5 слишком старый' })).toBeVisible()
+    await settle(page)
+    await expect(page).toHaveScreenshot('unsupported-dark-ru.png')
   })
 
   test('a wrong password, dark, Russian', async ({ page }) => {

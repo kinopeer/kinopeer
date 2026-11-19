@@ -80,6 +80,10 @@
     "unreachableBody_kinopeer": "Check that this device is online and Kinopeer is running on your server.",
     "unreachableBody_openAgain": "$t(common.openAgainHint)"
   },
+  "unsupported": {
+    "title": "qBittorrent {{version}} is too old",
+    "body": "Kinopeer works with qBittorrent {{min}} or later. Update qBittorrent, then try again."
+  },
   "status": {
     "downloading": "Downloading",
     "seeding": "Seeding",

@@ -119,7 +119,8 @@ describe('qBittorrent client through /qbt', () => {
       ],
       defaultPath: '/downloads',
       categoryPaths: false,
-      subcategories: false,
+      // qBittorrent 5.2 and later always have subcategories on.
+      subcategories: true,
       relocateOnCategoryChange: true,
       downloadPath: false,
     })
