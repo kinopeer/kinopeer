@@ -6,9 +6,10 @@ import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { parse } from 'yaml'
 import { TMDB_PROXY, TMDB_PROXY_EDGE, createApp, dataStores, kinopeerServer, missingSettings, tmdbProxy } from './main.ts'
+import { refusal } from './hostCheck.ts'
 import { CONTENT_SECURITY_POLICY, SECURITY_HEADERS } from './securityHeaders.ts'
 import { SettingsStore } from './settings.ts'
-import { closeServers, fakeTmdb } from './test/fakes.ts'
+import { closeServers, fakeTmdb, getWithHost } from './test/fakes.ts'
 
 let root: string
 let server: Server
@@ -53,6 +54,29 @@ describe('createApp', () => {
       const { headers } = await fetch(`${app}${path}`)
       for (const [name, value] of Object.entries(SECURITY_HEADERS)) expect(headers.get(name), `${path} ${name}`).toBe(value)
       expect(headers.get('content-security-policy'), path).toBe(CONTENT_SECURITY_POLICY)
+    }
+  })
+
+  it('answers a page rebound to its address with nothing but the refusal, its headers included', async () => {
+    for (const path of ['/', '/settings', '/healthz', '/qbt/api/v2/app/version', '/api/settings', '/prowlarr/status', '/tmdb/movie/771']) {
+      const response = await getWithHost(app, path, { host: 'rebound.example:8080' })
+      expect(response.status, path).toBe(403)
+      expect(response.body, path).toBe(refusal('rebound.example'))
+      for (const [name, value] of Object.entries(SECURITY_HEADERS)) expect(response.headers[name.toLowerCase()], `${path} ${name}`).toBe(value)
+      expect(response.headers['content-security-policy'], path).toBe(CONTENT_SECURITY_POLICY)
+    }
+    expect((await getWithHost(app, '/healthz', { host: 'umbrel.local:8797' })).body).toBe('ok')
+  })
+
+  it('answers at the hosts KINOPEER_ALLOWED_HOSTS adds', async () => {
+    const allowing = createApp(root, kinopeerServer({ TMDB_PROXY_URL: '', KINOPEER_ALLOWED_HOSTS: 'kinopeer.example.com' }, dataStores(join(root, 'data'))))
+    await new Promise<void>((resolve) => allowing.listen(0, '127.0.0.1', resolve))
+    try {
+      const base = `http://127.0.0.1:${(allowing.address() as AddressInfo).port}`
+      expect((await getWithHost(base, '/healthz', { host: 'kinopeer.example.com' })).body).toBe('ok')
+      expect((await getWithHost(base, '/healthz', { host: 'rebound.example' })).status).toBe(403)
+    } finally {
+      await new Promise((resolve) => allowing.close(resolve))
     }
   })
 

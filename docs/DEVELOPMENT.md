@@ -47,6 +47,7 @@ The server reads environment variables (from `.env.local` in development). Whate
 | `TMDB_API_URL` | `https://api.themoviedb.org/3` | TMDB's API address; the integration and smoke tests point it at a fake |
 | `TMDB_IMAGE_URL` | `https://image.tmdb.org/t/p` | TMDB's image address, the same way |
 | `KINOPEER_DATA_DIR` | `./data` (`/data` in the image) | Where `settings.json` and `matches.json` are kept |
+| `KINOPEER_ALLOWED_HOSTS` | none | Host names the server answers at besides IP addresses, `localhost`, `*.local`, `*.onion`, `*.home.arpa`, `*.internal` and names of one label: names (`kinopeer.example.com`) and domains with every name under them (`.example.com`), separated by commas or spaces; `*` answers at any name (the Umbrel package, whose gateway signs in first). Others get a 403 that names the variable (`docs/ARCHITECTURE.md` → The host check) |
 | `PORT`, `HOST` | `8080`, `0.0.0.0` | Where the production server listens |
 | `KINOPEER_DIST` | `../dist` | What the production server serves |
 
@@ -68,7 +69,7 @@ The image is public, so Umbrel can pull it without a login.
 
 ## Umbrel package
 
-The package lives in [umbrel-homelab-store](https://github.com/MrShakhov/umbrel-homelab-store), in `homelab-kinopeer/`. It sets the qBittorrent and Prowlarr addresses and the default qBittorrent login, and mounts Prowlarr's config folder read-only. After a release, bump `version` and `releaseNotes` in `umbrel-app.yml` and the image tag and digest (from the GitHub Release) in `docker-compose.yml`. Umbrel then offers the update. Umbrel shows whatever the `icon:` URL in an app's `umbrel-app.yml` points at, a raw GitHub link to an `icon.svg` kept in a store repository, so each app's icon is a copy of `scripts/icons/icon.svg` there: when the icon changes, the copy is replaced, or the app's `icon:` is pointed at a new one.
+The package lives in [umbrel-homelab-store](https://github.com/MrShakhov/umbrel-homelab-store), in `homelab-kinopeer/`. It sets the qBittorrent and Prowlarr addresses, the default qBittorrent login and `KINOPEER_ALLOWED_HOSTS: "*"` (from the release after 1.0.0: Umbrel's gateway keeps the `Host` a person typed, which may be any name of theirs, and signs in first, so the host check has nothing to add there), and mounts Prowlarr's config folder read-only. After a release, bump `version` and `releaseNotes` in `umbrel-app.yml` and the image tag and digest (from the GitHub Release) in `docker-compose.yml`. Umbrel then offers the update. Umbrel shows whatever the `icon:` URL in an app's `umbrel-app.yml` points at, a raw GitHub link to an `icon.svg` kept in a store repository, so each app's icon is a copy of `scripts/icons/icon.svg` there: when the icon changes, the copy is replaced, or the app's `icon:` is pointed at a new one.
 
 ## Edge builds
 
