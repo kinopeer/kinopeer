@@ -167,10 +167,15 @@ describe('SettingsScreen', () => {
     expect(await within(screen.getByRole('combobox', { name: 'Movies category' })).findByRole('option', { name: 'Anime' })).toBeInTheDocument()
     expect(qbt.getFolders).not.toHaveBeenCalled()
     const defaults = screen.getByRole('region', { name: 'Download defaults' })
-    await userEvent.click(within(defaults).getByRole('button', { name: /^qBittorrent folders/ }))
+    const row = within(defaults).getByRole('button', { name: /^qBittorrent folders/ })
+    expect(row).toHaveTextContent('qBittorrent foldersWhere qBittorrent saves downloads, and each category’s folder')
+    await userEvent.click(row)
     expect(qbt.getFolders).toHaveBeenCalledTimes(1)
     const sheet = screen.getByRole('dialog', { name: 'qBittorrent folders' })
     expect(await within(sheet).findByRole('button', { name: 'Default folder/downloads' })).toBeInTheDocument()
+
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Close' }))
+    expect(screen.queryByRole('dialog', { name: 'qBittorrent folders' })).not.toBeInTheDocument()
   })
 
   it('comes back through the Settings tab to where the tab was left, without waiting for its checks', async () => {

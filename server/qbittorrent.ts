@@ -162,19 +162,18 @@ class RefusedBodyError extends Error {}
  */
 function onlySavePath(body: Buffer, contentType: string | undefined): Buffer {
   if (contentType?.split(';', 1)[0].trim().toLowerCase() !== FORM) throw new RefusedBodyError()
-  const form = new URLSearchParams(body.toString())
-  const json = form.getAll('json')
-  if ([...form.keys()].length !== 1 || json.length !== 1) throw new RefusedBodyError()
+  const fields = [...new URLSearchParams(body.toString())]
+  if (fields.length !== 1 || fields[0][0] !== 'json') throw new RefusedBodyError()
   let preferences: unknown
   try {
-    preferences = JSON.parse(json[0])
+    preferences = JSON.parse(fields[0][1])
   } catch {
-    throw new RefusedBodyError()
+    // Not JSON: refused below, as nothing with a save path.
   }
-  if (typeof preferences !== 'object' || preferences === null || Array.isArray(preferences)) throw new RefusedBodyError()
-  const keys = Object.keys(preferences)
-  const savePath = (preferences as { save_path?: unknown }).save_path
-  if (keys.length !== 1 || keys[0] !== 'save_path' || typeof savePath !== 'string') throw new RefusedBodyError()
+  // One key, and `save_path` a string: that key is `save_path`. Anything but an object (null, an
+  // array, a string, a number) has no `save_path`, or no key, or a key of another name.
+  const savePath = (preferences as { save_path?: unknown } | null)?.save_path
+  if (Object.keys(preferences ?? {}).length !== 1 || typeof savePath !== 'string') throw new RefusedBodyError()
   return Buffer.from(new URLSearchParams({ json: JSON.stringify({ save_path: savePath }) }).toString())
 }
 
@@ -312,7 +311,7 @@ async function forward(
     })
     body = filtered.filter(raw, request.headers['content-type'])
     headers['Content-Type'] = FORM
-  } else if (method !== 'GET' && method !== 'HEAD') {
+  } else if (method === 'POST') {
     body = await readBody(request)
   }
   const upstream = await send(base, session, { method, path, headers, body, signal })

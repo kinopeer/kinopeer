@@ -45,8 +45,6 @@ export function FoldersSheet({ open, onClose }: FoldersSheetProps) {
     >
       {editing && data ? (
         <FolderForm
-          // A new form for each folder, so one's typing never shows in another's.
-          key={editing.category?.name ?? ''}
           folders={data}
           category={editing.category}
           onSaved={() => {
@@ -61,7 +59,7 @@ export function FoldersSheet({ open, onClose }: FoldersSheetProps) {
               {t('folders.loadFailed')}
             </Banner>
           )}
-          {folders.loading && !data && <span className="ks-spin folders-loading" role="status" aria-label={t('folders.loading')} />}
+          {folders.loading && <span className="ks-spin folders-loading" role="status" aria-label={t('folders.loading')} />}
           {data && (
             <ul className="folders-list">
               <FolderRow label={t('folders.default')} folder={data.defaultPath} onClick={() => setEditing({})} />
@@ -121,7 +119,7 @@ function FolderForm({ folders, category, onSaved }: FolderFormProps) {
   const target = value.trim()
   // Gone when the sheet closed or went back to the list before the save settled: a failure then
   // goes to a toast.
-  const shown = useRef(true)
+  const shown = useRef(false)
   useEffect(() => {
     shown.current = true
     return () => {

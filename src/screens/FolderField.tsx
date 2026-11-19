@@ -10,11 +10,11 @@ export interface FolderFieldProps {
   /** The folders qBittorrent knows, offered as chips. */
   folders: string[]
   /** While the folder is sent: what's typed then would be lost when the sheet closes. */
-  readOnly?: boolean
+  readOnly: boolean
 }
 
 /** A full path for qBittorrent, typed or picked from the folders it knows: Move files' and Settings'. */
-export function FolderField({ value, onChange, folders, readOnly = false }: FolderFieldProps) {
+export function FolderField({ value, onChange, folders, readOnly }: FolderFieldProps) {
   const { t } = useTranslation()
   const target = value.trim()
   return (

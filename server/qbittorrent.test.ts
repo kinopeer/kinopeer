@@ -227,7 +227,8 @@ describe('qbittorrentMiddleware', () => {
 
     const response = await call(`${base}/qbt/api/v2/app/setPreferences`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+      // A form's type with spaces and a charset, as HTTP allows.
+      headers: { 'Content-Type': 'Application/X-WWW-Form-Urlencoded ; charset=UTF-8' },
       body: 'json=%7B%20%22save_path%22%20%3A%20%22%2Fdownloads%2Fnew%20folder%22%20%7D',
     })
     expect(response.status).toBe(200)
@@ -254,6 +255,7 @@ describe('qbittorrentMiddleware', () => {
     ['an array', new URLSearchParams({ json: '[{"save_path":"/a"}]' })],
     ['null', new URLSearchParams({ json: 'null' })],
     ['a string', new URLSearchParams({ json: '"/a"' })],
+    ['a number', new URLSearchParams({ json: '5' })],
     ['something that isn’t JSON', new URLSearchParams({ json: '{save_path:/a}' })],
     ['an oversize body', new URLSearchParams({ json: JSON.stringify({ save_path: `/${'a'.repeat(20_000)}` }) })],
     ['a body of another type', 'json={"save_path":"/a"}', 'text/plain'],
