@@ -90,7 +90,7 @@ const all =
 /**
  * Every screen's first answers (src/App.tsx): qBittorrent's version, the session check, before which
  * the app shows "Connecting" and no screen; the server's settings, which say whether onboarding asks
- * for a TMDB key (`useTmdbSetup`), after which the screen paints. The download defaults `useSettings`
+ * for a TMDB key or Prowlarr (`useSetupSteps`), after which the screen paints. The download defaults `useSettings`
  * loads once per page take that answer, which the page shares (`sharedRequests`, #382).
  */
 const SESSION: Record<string, Answer> = {
