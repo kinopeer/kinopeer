@@ -201,7 +201,8 @@ export function SettingsScreen() {
   const [loginOff, setLoginOff] = useState(false)
   const auth = loginOff ? undefined : server ? server.auth : keptAuth
   // Nothing in the Sign-in section can work any more: it goes, and the page's answer says so too,
-  // so Settings opened again doesn't offer it.
+  // so Settings opened again doesn't offer it. Without an answer here yet, the one on its way is the
+  // page's next, and says it itself: keeping one now would put a partial answer in its place.
   const loginTurnedOff = () => {
     setChangingPassword(false)
     setLoginOff(true)

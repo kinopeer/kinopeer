@@ -564,6 +564,34 @@ describe('SettingsScreen', () => {
     expect(sharedRequests.peek(serverSettings.SERVER_SETTINGS_KEY, Infinity)?.data).toEqual({ ...settings, auth: { enabled: false } })
   })
 
+  it('keeps no answer of its own when the login was turned off while the page’s next answer is on its way', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    onTestFinished(() => {
+      vi.useRealTimers()
+    })
+    const stale = {
+      tmdb: { configured: true, source: 'saved', fallback: null },
+      prowlarr: { configured: true, source: 'env', serverKey: true },
+      qbittorrent: { configured: true, source: 'env' },
+      downloads: null,
+      auth: { enabled: true, source: 'saved' },
+    } satisfies serverSettings.ServerSettings
+    sharedRequests.set(serverSettings.SERVER_SETTINGS_KEY, stale)
+    vi.setSystemTime(Date.now() + serverSettings.SERVER_SETTINGS_FRESH_MS + 1)
+    let answer: (settings: serverSettings.ServerSettings) => void = () => {}
+    vi.mocked(serverSettings.getServerSettings).mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    vi.mocked(auth.signOut).mockRejectedValue(new auth.AuthError(409, 'auth-off'))
+    renderScreen()
+    await userEvent.click(within(screen.getByRole('region', { name: 'Sign-in' })).getByRole('button', { name: /^Sign out/ }))
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Sign-in' })).not.toBeInTheDocument())
+
+    // The answer on its way says the login is off itself, and becomes the page's.
+    const fresh = { ...stale, auth: { enabled: false } } satisfies serverSettings.ServerSettings
+    await act(async () => answer(fresh))
+    expect(sharedRequests.peek(serverSettings.SERVER_SETTINGS_KEY, Infinity)?.data).toBe(fresh)
+    expect(screen.queryByRole('region', { name: 'Sign-in' })).not.toBeInTheDocument()
+  })
+
   it('confirms clearing the cache', async () => {
     vi.mocked(matches.clearGuesses).mockResolvedValue({})
     renderScreen()
