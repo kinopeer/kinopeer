@@ -25,6 +25,7 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 
 ### Fixed
 
+- On a computer, the last column of a title's releases is as wide as its buttons, so Add and In downloads no longer spill over the space before them toward the release's age; the release's name column is a little narrower for it. ([#471](https://github.com/kinopeer/kinopeer/issues/471))
 - On qBittorrent 5.2 and later, when qBittorrent refuses a torrent, the add sheet says whether it's already in downloads and opens it, as with earlier versions, rather than that qBittorrent failed. ([#473](https://github.com/kinopeer/kinopeer/issues/473))
 - On qBittorrent 5.2 and later, the add and Move files sheets show a subcategory without a folder of its own under its parent's folder, where qBittorrent puts it, rather than under the default folder; on qBittorrent 4.6 they show it under the default folder by its whole name, as 4.6 does. ([#472](https://github.com/kinopeer/kinopeer/issues/472))
 - On a computer, a title's releases no longer move down as the search answers in narrower windows (about 1024–1100px, and 1160–1340px with the full sidebar): the sort now sits beside the "Releases" heading, so the row of filters stays one line. ([#400](https://github.com/kinopeer/kinopeer/issues/400))
