@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as auth from '../api/auth'
@@ -42,6 +42,30 @@ describe('SignInScreen, setting the password', () => {
     expect(setUpPassword).toHaveBeenCalledExactlyOnceWith('correct horse')
   })
 
+  it('starts with no error and nothing being sent', () => {
+    render(<SignInScreen need="set-up" />)
+    for (const label of ['New password', 'Repeat the password']) {
+      expect(screen.getByLabelText(label)).not.toHaveAttribute('aria-invalid')
+    }
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Set password' })).not.toHaveAttribute('aria-busy')
+  })
+
+  it('takes a password of exactly 8 characters', async () => {
+    render(<SignInScreen need="set-up" />)
+    await setUp('8 chars!')
+    expect(setUpPassword).toHaveBeenCalledExactlyOnceWith('8 chars!')
+  })
+
+  it('shows on the field that the server found the password too short', async () => {
+    setUpPassword.mockRejectedValue(new AuthError(400, 'too-short'))
+    render(<SignInScreen need="set-up" />)
+    await setUp('correct horse')
+    expect(screen.getByLabelText('New password')).toHaveAccessibleDescription('At least 8 characters')
+    expect(screen.getByLabelText('New password')).toHaveAttribute('aria-invalid', 'true')
+  })
+
   it('asks for 8 characters and the same password twice before sending it', async () => {
     render(<SignInScreen need="set-up" />)
     await setUp('short')
@@ -55,6 +79,8 @@ describe('SignInScreen, setting the password', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Set password' }))
     expect(screen.getByLabelText('Repeat the password')).toHaveAccessibleDescription('The passwords don’t match')
     expect(setUpPassword).not.toHaveBeenCalled()
+    await userEvent.type(screen.getByLabelText('Repeat the password'), 'y')
+    expect(screen.getByLabelText('Repeat the password')).not.toHaveAttribute('aria-invalid')
   })
 
   it('asks to sign in when someone else set the password first', async () => {
@@ -68,6 +94,10 @@ describe('SignInScreen, setting the password', () => {
     expect(screen.getByRole('heading', { name: 'Sign in to Kinopeer' })).toBeInTheDocument()
     expect(screen.getByRole('status', { name: saying('Someone has just set Kinopeer’s password. Sign in with it.') })).toBeInTheDocument()
     expect(screen.getByLabelText('Password')).toHaveValue('')
+    // Should the server ask for a password again, nothing typed before is left.
+    act(() => auth.setSignInNeed('set-up'))
+    rerender(<Current />)
+    expect(screen.getByLabelText('Repeat the password')).toHaveValue('')
   })
 
   it('says the server couldn’t keep it', async () => {
@@ -75,6 +105,25 @@ describe('SignInScreen, setting the password', () => {
     render(<SignInScreen need="set-up" />)
     await setUp('correct horse')
     expect(screen.getByRole('alert', { name: saying(/couldn’t save the change/) })).toBeInTheDocument()
+    // Typing doesn't take back an error that isn't a field's.
+    await userEvent.type(screen.getByLabelText('New password'), 'x')
+    expect(screen.getByRole('alert', { name: saying(/couldn’t save the change/) })).toBeInTheDocument()
+  })
+
+  it('sends once while busy, without the last error, and takes over the form’s submit', async () => {
+    setUpPassword.mockRejectedValueOnce(new AuthError(500, 'storage'))
+    render(<SignInScreen need="set-up" />)
+    await setUp('correct horse')
+    let finish = () => {}
+    setUpPassword.mockReturnValueOnce(new Promise<void>((resolve) => (finish = resolve)))
+    const button = screen.getByRole('button', { name: 'Set password' })
+    await userEvent.click(button)
+    expect(button).toHaveAttribute('aria-busy', 'true')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    // Enter pressed again while it's on its way.
+    expect(fireEvent.submit(button.closest('form')!)).toBe(false)
+    expect(setUpPassword).toHaveBeenCalledTimes(2)
+    await act(async () => finish())
   })
 })
 
@@ -90,7 +139,10 @@ describe('SignInScreen, signing in', () => {
     expect(password).toHaveAttribute('autocomplete', 'current-password')
     expect(screen.getByText('Enter Kinopeer’s password. It keeps everyone else on your network out of Kinopeer and the qBittorrent and Prowlarr behind it.')).toBeInTheDocument()
     expect(screen.queryByLabelText('Repeat the password')).not.toBeInTheDocument()
-    expect(document.querySelector('input[autocomplete="username"]')).toHaveValue('Kinopeer')
+    const account = document.querySelector('input[autocomplete="username"]')
+    expect(account).toHaveValue('Kinopeer')
+    // Not a field to tab to.
+    expect(account).toHaveAttribute('tabindex', '-1')
     await signInWith('correct horse')
     expect(signIn).toHaveBeenCalledExactlyOnceWith('correct horse')
   })
@@ -103,10 +155,15 @@ describe('SignInScreen, signing in', () => {
     expect(password).toHaveAccessibleDescription('Wrong password')
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Sign in' })).not.toHaveAttribute('aria-busy')
+    await userEvent.type(password, 'x')
+    expect(password).not.toHaveAttribute('aria-invalid')
 
     signIn.mockRejectedValueOnce(new AuthError(422, 'invalid-password', 15 * 60_000))
     await signInWith('x')
     expect(screen.getByRole('alert', { name: saying('Too many wrong passwords. Try again in 15 minutes.') })).toBeInTheDocument()
+    // The wait goes once the field is typed in again.
+    await userEvent.type(password, 'y')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('says how long to wait while the server holds tries back', async () => {

@@ -83,6 +83,9 @@ describe('clientKey', () => {
   it('counts an IPv4 address on its own, mapped into IPv6 too', () => {
     expect(clientKey('192.168.1.20')).toBe('192.168.1.20')
     expect(clientKey('::ffff:192.168.1.20')).toBe('192.168.1.20')
+    expect(clientKey('::ffff:10.20.30.40')).toBe('10.20.30.40')
+    // IPv4 digits as the tail of another IPv6 address don't make it IPv4.
+    expect(clientKey('2001:db8::ffff:1.2.3.4')).toBe('2001:db8:0:0::/64')
     expect(clientKey(undefined)).toBe('unknown')
   })
 
@@ -90,6 +93,7 @@ describe('clientKey', () => {
     expect(clientKey('2001:db8:1:2:3:4:5:6')).toBe('2001:db8:1:2::/64')
     expect(clientKey('2001:0db8:0001:0002::7')).toBe('2001:db8:1:2::/64')
     expect(clientKey('2001:db8::1')).toBe('2001:db8:0:0::/64')
+    expect(clientKey('2001::1:2:3:4:5')).toBe('2001:0:0:1::/64')
     expect(clientKey('fe80::1%eth0')).toBe('fe80:0:0:0::/64')
     expect(clientKey('::1')).toBe('0:0:0:0::/64')
   })

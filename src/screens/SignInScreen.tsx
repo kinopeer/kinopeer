@@ -34,6 +34,7 @@ export function SignInScreen({ need }: SignInScreenProps) {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (submitting) return
     if (settingUp && password.length < MIN_PASSWORD_LENGTH) return setError('too-short')
     if (settingUp && repeat !== password) return setError('mismatch')
     setSubmitting(true)

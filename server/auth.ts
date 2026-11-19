@@ -1,6 +1,5 @@
 import { createHash, randomBytes, scrypt, timingSafeEqual, type ScryptOptions } from 'node:crypto'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import type { TLSSocket } from 'node:tls'
 import type { AuthErrorBody, AuthStatus, ChangePasswordBody, PasswordBody, SignInNeed } from '../src/api/auth/types.ts'
 import { isJsonRequest, readJson, sendJson } from './json.ts'
 import { JsonFile } from './jsonFile.ts'
@@ -120,14 +119,14 @@ function tokenOf(request: IncomingMessage): string | undefined {
 }
 
 /**
- * Whether the browser reached Kinopeer over HTTPS: its own TLS (none today), or a reverse proxy in
- * front that says so. Such a cookie is Secure, so it never goes out over plain HTTP. A request that
- * claims HTTPS falsely only keeps its own cookie from being sent back.
+ * Whether the browser reached Kinopeer over HTTPS, which only a reverse proxy in front can say:
+ * Kinopeer serves plain HTTP itself. Such a cookie is Secure, so it never goes out over plain HTTP.
+ * A request that claims HTTPS falsely only keeps its own cookie from being sent back.
  */
 function overHttps(request: IncomingMessage): boolean {
   const forwarded = request.headers['x-forwarded-proto']
   const proto = (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(',')[0].trim().toLowerCase()
-  return (request.socket as Partial<TLSSocket>).encrypted === true || proto === 'https'
+  return proto === 'https'
 }
 
 function sessionCookie(request: IncomingMessage, token: string, maxAgeMs: number): string {
@@ -136,12 +135,6 @@ function sessionCookie(request: IncomingMessage, token: string, maxAgeMs: number
   return attributes.join('; ')
 }
 
-/** Adds a cookie to the answer, beside any it already sets. */
-function addCookie(response: ServerResponse, cookie: string): void {
-  const current = response.getHeader('Set-Cookie')
-  const list = current === undefined ? [] : Array.isArray(current) ? current : [String(current)]
-  response.setHeader('Set-Cookie', [...list, cookie])
-}
 
 export interface AuthConfig {
   store: AuthStore
@@ -153,8 +146,8 @@ export interface AuthConfig {
   throttle?: LoginThrottle
 }
 
-/** What a request can do: everything with the login off or a session, else what it needs first. */
-type Access = { allowed: true; session?: StoredSession } | { allowed: false; need: SignInNeed }
+/** What a request can do with the login on: everything with a session, else what it needs first. */
+type Access = { allowed: true; session: StoredSession } | { allowed: false; need: SignInNeed }
 
 const PREFIX = '/api/auth'
 /** Every route but these and the app's files needs a session (`guarded`). */
@@ -235,7 +228,7 @@ export function kinopeerAuth(config: AuthConfig): Auth {
     if (!session) return undefined
     if (now() - session.renewedAt >= RENEW_EVERY_MS) {
       const renewed = { ...session, expiresAt: now() + SESSION_MS, renewedAt: now() }
-      addCookie(response, sessionCookie(request, token, SESSION_MS))
+      response.setHeader('Set-Cookie', sessionCookie(request, token, SESSION_MS))
       // Not waited for: a failed write leaves the session as it was, still valid.
       store
         .change((current) => ({ ...current, sessions: (current.sessions ?? []).map((s) => (s.id === id ? renewed : s)) }))
@@ -246,7 +239,6 @@ export function kinopeerAuth(config: AuthConfig): Auth {
   }
 
   const access = (request: IncomingMessage, response: ServerResponse): Access => {
-    if (mode === 'off') return { allowed: true }
     if (!store.current.password) return { allowed: false, need: 'set-up' }
     const session = sessionOf(request, response)
     return session ? { allowed: true, session } : { allowed: false, need: 'sign-in' }
@@ -271,7 +263,7 @@ export function kinopeerAuth(config: AuthConfig): Auth {
       const sessions = [...live(next.sessions), session].sort((a, b) => b.expiresAt - a.expiresAt).slice(0, MAX_SESSIONS)
       return { ...next, sessions }
     })
-    if (started) addCookie(response, sessionCookie(request, token, SESSION_MS))
+    if (started) response.setHeader('Set-Cookie', sessionCookie(request, token, SESSION_MS))
     return started
   }
 
@@ -329,13 +321,9 @@ export function kinopeerAuth(config: AuthConfig): Auth {
     const token = tokenOf(request)
     if (token) {
       const id = sessionId(token)
-      await store.change((current) =>
-        current.sessions?.some((session) => session.id === id)
-          ? { ...current, sessions: current.sessions.filter((session) => session.id !== id) }
-          : current,
-      )
+      await store.change((current) => ({ ...current, sessions: (current.sessions ?? []).filter((session) => session.id !== id) }))
     }
-    addCookie(response, sessionCookie(request, '', 0))
+    response.setHeader('Set-Cookie', sessionCookie(request, '', 0))
     response.statusCode = 204
     response.end()
   }
@@ -350,7 +338,7 @@ export function kinopeerAuth(config: AuthConfig): Auth {
     if (password.length < MIN_PASSWORD_LENGTH) return fail(response, 400, 'too-short')
     if (!(await checkPassword(request, response, current))) return
     const hash = await hashPassword(password)
-    const id = checked.session?.id
+    const id = checked.session.id
     // This browser stays signed in; every other session ends.
     await store.change((stored) => ({
       ...stored,

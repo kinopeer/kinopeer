@@ -465,9 +465,16 @@ describe('SettingsScreen', () => {
     vi.mocked(auth.changePassword).mockResolvedValue()
     renderScreen()
     const section = await screen.findByRole('region', { name: 'Sign-in' })
+    expect(within(section).queryByText(/KINOPEER_PASSWORD/)).not.toBeInTheDocument()
     const change = within(section).getByRole('button', { name: /^Change password/ })
     expect(within(change).getByText('Change password')).toBeInTheDocument()
     expect(within(change).getByText('Other devices will need to sign in again')).toBeInTheDocument()
+    // Closed without changing anything.
+    await userEvent.click(change)
+    fireEvent(screen.getByRole('dialog', { name: 'Change password' }), new Event('cancel', { cancelable: true }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Change password' })).not.toBeInTheDocument())
+    expect(auth.changePassword).not.toHaveBeenCalled()
+
     await userEvent.click(change)
 
     const sheet = screen.getByRole('dialog', { name: 'Change password' })

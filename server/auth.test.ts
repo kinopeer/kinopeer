@@ -1,3 +1,4 @@
+import { scryptSync } from 'node:crypto'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -88,6 +89,12 @@ describe('hashPassword', () => {
     await expect(verifyPassword('anything', '')).resolves.toBe(false)
     await expect(verifyPassword('anything', 'bcrypt$x$y')).resolves.toBe(false)
     await expect(verifyPassword('anything', 'scrypt$32768$8$1$c2FsdA==$')).resolves.toBe(false)
+    const stored = await hashPassword('anything')
+    await expect(verifyPassword('anything', stored.replace(/^scrypt/, 'bcrypt'))).resolves.toBe(false)
+    // Cut short, or made without a salt: not a hash this server made.
+    await expect(verifyPassword('anything', stored.slice(0, -8))).resolves.toBe(false)
+    const unsalted = scryptSync('anything', '', 32, { N: 2 ** 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024 }).toString('base64')
+    await expect(verifyPassword('anything', `scrypt$32768$8$1$$${unsalted}`)).resolves.toBe(false)
   })
 })
 
@@ -144,6 +151,9 @@ describe('the login', () => {
     expect((await post(app, 'setup', { password: '' })).status).toBe(400)
     expect((await post(app, 'setup', { password: 12345678 })).status).toBe(400)
     expect((await post(app, 'setup', { password: 'x'.repeat(257) })).status).toBe(400)
+    for (const body of ['null', '"correct horse"', '1']) {
+      expect((await fetch(`${app}/api/auth/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })).status, body).toBe(400)
+    }
 
     // Two browsers at once: one sets it, the other is told.
     const answers = await Promise.all([post(app, 'setup', { password: 'first one!' }), post(app, 'setup', { password: 'second one' })])
@@ -164,6 +174,7 @@ describe('the login', () => {
     const wrong = await post(app, 'login', { password: 'wrong horse' })
     expect(wrong.status).toBe(422)
     expect(wrong.headers.getSetCookie()).toEqual([])
+    expect(wrong.headers.get('retry-after')).toBeNull()
     expect(await wrong.json()).toEqual({ error: 'invalid-password' })
 
     const right = await post(app, 'login', { password: 'correct horse' })
@@ -172,10 +183,34 @@ describe('the login', () => {
     expect(await reached(app, `${SESSION_COOKIE}=made-up`)).toBe(false)
   })
 
+  it('takes passwords of 8 to 256 characters, and refuses what isn’t one before counting it', async () => {
+    const { origin } = kinopeer()
+    const app = await origin
+    const cookie = cookieOf(await post(app, 'setup', { password: '8 chars!' }))
+    expect((await post(app, 'password', { current: '8 chars!', password: 'y'.repeat(256) }, cookie)).status).toBe(204)
+    expect((await post(app, 'password', { current: 'y'.repeat(256), password: '8 chars?' }, cookie)).status).toBe(204)
+    for (const body of [{ password: '' }, { password: 12345678 }, {}]) {
+      expect(await (await post(app, 'login', body)).json()).toEqual({ error: 'bad-request' })
+    }
+    expect(await (await post(app, 'password', { password: 'battery staple' }, cookie)).json()).toEqual({ error: 'bad-request' })
+    // None of them counted as a wrong password: five more are still allowed.
+    for (let i = 0; i < 4; i++) expect((await post(app, 'login', { password: `wrong ${i}` })).status).toBe(422)
+    expect((await post(app, 'login', { password: '8 chars?' })).status).toBe(204)
+  })
+
+  it('finds its cookie among the browser’s others', async () => {
+    const { origin } = kinopeer()
+    const app = await origin
+    const token = cookieOf(await post(app, 'setup', { password: 'correct horse' })).split('=')[1]
+    expect(await reached(app, `theme=dark; ${SESSION_COOKIE}=${token} ; other=1`)).toBe(true)
+    expect(await reached(app, `theme=${token}; ${SESSION_COOKIE}=made-up`)).toBe(false)
+    expect(await reached(app, `x${SESSION_COOKIE}=${token}`)).toBe(false)
+  })
+
   it('makes the cookie Secure when a proxy in front says the browser came over HTTPS', async () => {
     const { origin } = kinopeer()
     const app = await origin
-    const response = await post(app, 'setup', { password: 'correct horse' }, undefined, { 'X-Forwarded-Proto': 'https, http' })
+    const response = await post(app, 'setup', { password: 'correct horse' }, undefined, { 'X-Forwarded-Proto': 'HTTPS , http' })
     expect(response.headers.getSetCookie()[0]).toMatch(/; Secure$/)
   })
 
@@ -194,6 +229,16 @@ describe('the login', () => {
     expect(await held.json()).toEqual({ error: 'throttled', retryAfterMs: FIRST_LOCK_MS })
 
     clock += FIRST_LOCK_MS
+    expect((await post(app, 'login', { password: 'correct horse' })).status).toBe(204)
+  })
+
+  it('starts the count afresh after the right password', async () => {
+    const { origin } = kinopeer()
+    const app = await origin
+    await post(app, 'setup', { password: 'correct horse' })
+    for (let i = 0; i < 4; i++) await post(app, 'login', { password: `wrong ${i}` })
+    expect((await post(app, 'login', { password: 'correct horse' })).status).toBe(204)
+    for (let i = 0; i < 4; i++) await post(app, 'login', { password: `wrong ${i}` })
     expect((await post(app, 'login', { password: 'correct horse' })).status).toBe(204)
   })
 
@@ -219,6 +264,9 @@ describe('the login', () => {
     expect(await reached(app, second)).toBe(true)
     // Without a session there's nothing to end, and nothing fails.
     expect((await post(app, 'logout', {})).status).toBe(204)
+    // The last one ends too.
+    await post(app, 'logout', {}, second)
+    expect(await reached(app, second)).toBe(false)
   })
 
   it('changes the password for a signed-in browser and signs every other one out', async () => {
@@ -266,6 +314,19 @@ describe('the login', () => {
     expect(await reached(await restarted.origin, cookie)).toBe(false)
   })
 
+  it('moves on only the session in use', async () => {
+    const { store, origin } = kinopeer()
+    const app = await origin
+    const started = clock
+    const used = cookieOf(await post(app, 'setup', { password: 'correct horse' }))
+    await post(app, 'login', { password: 'correct horse' })
+    clock += RENEW_EVERY_MS
+    await fetch(`${app}/qbt/api/v2/app/version`, { headers: { Cookie: used } })
+    await expect
+      .poll(() => store.current.sessions?.map((session) => session.expiresAt).sort())
+      .toEqual([started + SESSION_MS, clock + SESSION_MS])
+  })
+
   it(`keeps the ${MAX_SESSIONS} sessions that last longest`, async () => {
     const { store, origin } = kinopeer()
     const app = await origin
@@ -292,6 +353,11 @@ describe('the login', () => {
     expect((await fetch(`${app}/api/auth/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '[]' })).status).toBe(400)
     expect((await fetch(`${app}/api/auth/login`)).status).toBe(404)
     expect((await fetch(`${app}/api/auth`)).status).toBe(404)
+    // Each route takes its own method only.
+    for (const [method, path] of [['PUT', 'setup'], ['PUT', 'login'], ['PUT', 'logout'], ['POST', 'password'], ['POST', 'other'], ['PUT', 'other']]) {
+      const response = await fetch(`${app}/api/auth/${path}`, { method, headers: { 'Content-Type': 'application/json' }, body: '{}' })
+      expect(response.status, `${method} ${path}`).toBe(404)
+    }
   })
 
   it('says it can’t keep anything when the data directory isn’t writable', async () => {
@@ -304,6 +370,26 @@ describe('the login', () => {
 })
 
 describe('the login with KINOPEER_PASSWORD', () => {
+  it('says it can’t keep the password when the data directory isn’t writable, and tries again on the next request', async () => {
+    await writeFile(join(dir, 'file'), '')
+    const { origin } = kinopeer({ store: new AuthStore(join(dir, 'file', 'data')), envPassword: 'from the environment' })
+    const app = await origin
+    const response = await fetch(`${app}/api/settings`)
+    expect(response.status).toBe(500)
+    expect(await response.json()).toEqual({ error: 'storage' })
+
+    await rm(join(dir, 'file'))
+    expect((await fetch(`${app}/api/settings`)).headers.get(AUTH_HEADER)).toBe('sign-in')
+  })
+
+  it('takes over a password set in the app even when it’s the same, signing everyone out', async () => {
+    const saved = kinopeer()
+    const cookie = cookieOf(await post(await saved.origin, 'setup', { password: 'same password' }))
+    const env = kinopeer({ store: new AuthStore(dir), envPassword: 'same password' })
+    expect(await reached(await env.origin, cookie)).toBe(false)
+    expect(env.auth.status()).toEqual({ enabled: true, source: 'env' })
+  })
+
   it('signs in with that password, which nobody can set or change in the app', async () => {
     const { origin, auth } = kinopeer({ envPassword: 'from the environment' })
     const app = await origin

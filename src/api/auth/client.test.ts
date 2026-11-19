@@ -34,14 +34,18 @@ describe('the auth client', () => {
   it('keeps the app held back when the password isn’t taken, and says why', async () => {
     setSignInNeed('sign-in')
     fetchMock.mockResolvedValueOnce(json(429, { error: 'throttled', retryAfterMs: 60_000 }))
-    await expect(signIn('wrong')).rejects.toEqual(new AuthError(429, 'throttled', 60_000))
+    const throttled = signIn('wrong')
+    await expect(throttled).rejects.toEqual(new AuthError(429, 'throttled', 60_000))
+    await expect(throttled).rejects.toThrow('Sign-in request failed (throttled)')
     expect(signInNeed()).toBe('sign-in')
 
     fetchMock.mockResolvedValueOnce(json(422, { error: 'invalid-password', retryAfterMs: 'soon' }))
     await expect(signIn('wrong')).rejects.toMatchObject({ code: 'invalid-password', retryAfterMs: undefined })
     // Something in front of the server answered for it.
     fetchMock.mockResolvedValueOnce(new Response('Bad gateway', { status: 502 }))
-    await expect(signIn('wrong')).rejects.toMatchObject({ status: 502, code: undefined })
+    const gateway = signIn('wrong')
+    await expect(gateway).rejects.toMatchObject({ status: 502, code: undefined })
+    await expect(gateway).rejects.toThrow('Sign-in request failed (502)')
     fetchMock.mockResolvedValueOnce(new Response('{', { status: 500, headers: { 'Content-Type': 'application/json' } }))
     await expect(signIn('wrong')).rejects.toMatchObject({ status: 500, code: undefined })
   })
