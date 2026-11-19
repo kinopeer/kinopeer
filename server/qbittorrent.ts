@@ -11,7 +11,7 @@ import type { Middleware } from './prowlarr.ts'
  * preflight, and the bridge allows none. That stands in for qBittorrent's own CSRF check, which
  * can't see the browser: Origin and Referer are rewritten to the target so it passes. The server
  * logs in itself with the credentials it has (saved from the app, else QBITTORRENT_USERNAME and
- * QBITTORRENT_PASSWORD), keeps the session and logs in again when it expires, so the browser never
+ * QBITTORRENT_PASSWORD, only while QBITTORRENT_URL sets the address: `kinopeerServer`), keeps the session and logs in again when it expires, so the browser never
  * sees the password or a qBittorrent cookie. Without credentials, or after qBittorrent rejects
  * them, requests go without a session: that works with qBittorrent's auth bypass, and otherwise
  * answers 403 so the app asks for a login (server/settings.ts saves it). The browser can't reach

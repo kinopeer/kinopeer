@@ -290,7 +290,8 @@ describe('checkQbittorrent', () => {
       response.end(body)
     })
 
-  // The client reads a version the same way (`numbers` in src/torrents/qbittorrentVersion.ts).
+  // At least a major and a minor at the start: stricter than the client's parser (`numbers` in
+  // src/torrents/qbittorrentVersion.ts), which also takes a bare `v5`.
   it.each(['v5.2.4', 'v4.6.7.10', '5.1.0', 'v10.0.1', 'v5.1.0beta1'])('takes %s as qBittorrent’s version', async (version) => {
     expect(await checkQbittorrent(await answering(version), undefined)).toBe('ok')
   })

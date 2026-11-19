@@ -724,8 +724,8 @@ describe('settingsMiddleware: addresses', () => {
       expect(response.status, String(status)).toBe(502)
       expect(await response.json()).toEqual({ error: 'not-prowlarr' })
     }
-    // A server error is Prowlarr's own, as before.
-    expect(await (await save(500)).json()).toEqual({ error: 'unreachable' })
+    // A server error is Prowlarr's own, as before, and a timeout or a rate limit one to try again.
+    for (const status of [408, 429, 500]) expect(await (await save(status)).json(), String(status)).toEqual({ error: 'unreachable' })
     expect(store.current).toEqual({})
   })
 

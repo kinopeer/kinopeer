@@ -73,10 +73,27 @@ export function missingSettings(env: Record<string, string | undefined>, setting
   const missing: string[] = []
   if (!qbittorrentAddress(settings, env.QBITTORRENT_URL)) missing.push('QBITTORRENT_URL')
   if (!prowlarrAddress(settings, env.PROWLARR_URL)) missing.push('PROWLARR_URL')
-  if (!env.PROWLARR_API_KEY && !env.PROWLARR_CONFIG_XML) missing.push('PROWLARR_API_KEY')
+  // The environment's key counts only with the environment's address (`kinopeerServer`); with an
+  // address saved from the app, only a key saved there does.
+  const envKey = baseOf(env.PROWLARR_URL) && (env.PROWLARR_API_KEY || env.PROWLARR_CONFIG_XML)
+  if (!settings.current.prowlarrApiKey?.trim() && !envKey) {
+    missing.push(baseOf(env.PROWLARR_URL) || !baseOf(settings.current.prowlarrUrl) ? 'PROWLARR_API_KEY' : 'Prowlarr key (enter it in the app)')
+  }
   // Without a key, Kinopeer's proxy serves TMDB; only with it off is a key missing.
   if (!tmdbKey(settings, env.TMDB_API_KEY) && !tmdbProxy(env)) missing.push('TMDB key (enter it in the app)')
   return missing
+}
+
+/**
+ * The environment's logins and keys the server ignores at startup, each set without its service's
+ * address in the environment (`kinopeerServer`), so an operator who set one learns it isn't used.
+ */
+export function ignoredSettings(env: Record<string, string | undefined>): string[] {
+  const ignored = (url: string, names: string[]) => (baseOf(env[url]) ? [] : names.filter((name) => env[name]).map((name) => `${name} (only with ${url})`))
+  return [
+    ...ignored('QBITTORRENT_URL', ['QBITTORRENT_USERNAME', 'QBITTORRENT_PASSWORD']),
+    ...ignored('PROWLARR_URL', ['PROWLARR_API_KEY', 'PROWLARR_CONFIG_XML']),
+  ]
 }
 
 /**
@@ -90,9 +107,11 @@ export function loginWarning(env: Record<string, string | undefined>): string | 
 /**
  * The server's routes and jobs. Besides the variables in .env.example, PROWLARR_CONFIG_XML points
  * at Prowlarr's config.xml to read its API key from (the Umbrel package mounts it), used when
- * neither a key saved from the app nor PROWLARR_API_KEY is set, TMDB_API_URL and TMDB_IMAGE_URL replace TMDB's API and image
- * addresses (the integration and smoke tests point them at a fake), and TMDB_PROXY_URL replaces
- * Kinopeer's TMDB proxy (`tmdbProxy`). KINOPEER_ALLOWED_HOSTS adds the host names it answers at
+ * neither a key saved from the app nor PROWLARR_API_KEY is set. Both, like QBITTORRENT_USERNAME and
+ * QBITTORRENT_PASSWORD, apply only while the environment sets that service's address
+ * (PROWLARR_URL, QBITTORRENT_URL): a browser chose an address saved from the app. TMDB_API_URL and
+ * TMDB_IMAGE_URL replace TMDB's API and image addresses (the integration and smoke tests point them
+ * at a fake), and TMDB_PROXY_URL replaces Kinopeer's TMDB proxy (`tmdbProxy`). KINOPEER_ALLOWED_HOSTS adds the host names it answers at
  * (`allowedHosts`). KINOPEER_AUTH=off turns Kinopeer's own login off (server/auth.ts), and throws
  * for a value it doesn't know, so the server doesn't start, as it does for a KINOPEER_PASSWORD
  * shorter than 8 characters or longer than 256 (`envPassword`).
@@ -203,6 +222,8 @@ async function main() {
     console.log(`[kinopeer] ${version} listening on http://${host}:${port}`)
     const missing = missingSettings(env, stores.settings)
     if (missing.length) console.warn(`[kinopeer] not set: ${missing.join(', ')}`)
+    const ignored = ignoredSettings(env)
+    if (ignored.length) console.warn(`[kinopeer] ignored: ${ignored.join(', ')}`)
     const login = loginWarning(env)
     if (login) console.warn(`[kinopeer] ${login}`)
     const hostsWarning = allowedHostsWarning(env.KINOPEER_ALLOWED_HOSTS)

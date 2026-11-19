@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { parse } from 'yaml'
-import { TMDB_PROXY, TMDB_PROXY_EDGE, createApp, dataStores, kinopeerServer, loginWarning, missingSettings, tmdbProxy } from './main.ts'
+import { TMDB_PROXY, TMDB_PROXY_EDGE, createApp, dataStores, ignoredSettings, kinopeerServer, loginWarning, missingSettings, tmdbProxy } from './main.ts'
 import { refusal } from './hostCheck.ts'
 import { CONTENT_SECURITY_POLICY, SECURITY_HEADERS } from './securityHeaders.ts'
 import { SettingsStore } from './settings.ts'
@@ -134,9 +134,10 @@ describe('the environment’s login and key', () => {
   ])('go only to the environment’s address, never to one saved from the app (Prowlarr’s key from %s)', async (variable, value) => {
     const qbt = await fakeQbittorrent()
     const prowlarr = await fakeProwlarr({ apiKey: 'env-key' })
-    await writeFile(join(root, 'config.xml'), '<Config><ApiKey>env-key</ApiKey></Config>')
+    const dir = await mkdtemp(join(root, 'config-'))
+    await writeFile(join(dir, 'config.xml'), '<Config><ApiKey>env-key</ApiKey></Config>')
     const { base, running } = await started(
-      { QBITTORRENT_USERNAME: 'admin', QBITTORRENT_PASSWORD: 'pass word', [variable]: value(root) },
+      { QBITTORRENT_USERNAME: 'admin', QBITTORRENT_PASSWORD: 'pass word', [variable]: value(dir) },
       { qbittorrentUrl: qbt.base, prowlarrUrl: prowlarr.base },
     )
     try {
@@ -154,6 +155,7 @@ describe('the environment’s login and key', () => {
       expect(forget.status).toBe(409)
     } finally {
       await new Promise((resolve) => running.close(resolve))
+      await closeServers()
     }
   })
 })
@@ -190,9 +192,42 @@ describe('missingSettings', () => {
 
   it('names no service whose address was saved from the app', async () => {
     const settings = new SettingsStore(join(root, 'missing-saved'))
+    await settings.update({ qbittorrentUrl: 'http://qbt', prowlarrUrl: 'http://prowlarr', prowlarrApiKey: 'p' })
+
+    expect(missingSettings({}, settings)).toEqual([])
+  })
+
+  it('counts the environment’s Prowlarr key only with its address, and a key saved from the app', async () => {
+    const settings = new SettingsStore(join(root, 'missing-key'))
     await settings.update({ qbittorrentUrl: 'http://qbt', prowlarrUrl: 'http://prowlarr' })
 
-    expect(missingSettings({ PROWLARR_API_KEY: 'p' }, settings)).toEqual([])
+    // The key the environment sets isn't sent to an address saved from the app: it's to be entered there.
+    expect(missingSettings({ PROWLARR_API_KEY: 'p' }, settings)).toEqual(['Prowlarr key (enter it in the app)'])
+    expect(missingSettings({ PROWLARR_CONFIG_XML: '/config.xml' }, settings)).toEqual(['Prowlarr key (enter it in the app)'])
+    expect(missingSettings({ PROWLARR_URL: 'http://prowlarr' }, settings)).toEqual(['PROWLARR_API_KEY'])
+    await settings.update({ prowlarrApiKey: ' ' })
+    expect(missingSettings({ PROWLARR_URL: 'http://prowlarr' }, settings)).toEqual(['PROWLARR_API_KEY'])
+    await settings.update({ prowlarrApiKey: 'saved' })
+    expect(missingSettings({ PROWLARR_URL: 'http://prowlarr' }, settings)).toEqual([])
+  })
+})
+
+describe('ignoredSettings', () => {
+  it('names the environment’s logins and keys set without their service’s address there', () => {
+    const secrets = { QBITTORRENT_USERNAME: 'admin', QBITTORRENT_PASSWORD: 'pass', PROWLARR_API_KEY: 'p', PROWLARR_CONFIG_XML: '/config.xml' }
+
+    expect(ignoredSettings(secrets)).toEqual([
+      'QBITTORRENT_USERNAME (only with QBITTORRENT_URL)',
+      'QBITTORRENT_PASSWORD (only with QBITTORRENT_URL)',
+      'PROWLARR_API_KEY (only with PROWLARR_URL)',
+      'PROWLARR_CONFIG_XML (only with PROWLARR_URL)',
+    ])
+    expect(ignoredSettings({ ...secrets, QBITTORRENT_URL: 'http://qbt' })).toEqual(['PROWLARR_API_KEY (only with PROWLARR_URL)', 'PROWLARR_CONFIG_XML (only with PROWLARR_URL)'])
+    expect(ignoredSettings({ ...secrets, QBITTORRENT_URL: 'http://qbt', PROWLARR_URL: 'http://prowlarr' })).toEqual([])
+    // An address of only spaces is none; a blank variable, as .env.example leaves them, is none either.
+    expect(ignoredSettings({ QBITTORRENT_URL: ' ', QBITTORRENT_USERNAME: 'admin', QBITTORRENT_PASSWORD: '', PROWLARR_API_KEY: '' })).toEqual([
+      'QBITTORRENT_USERNAME (only with QBITTORRENT_URL)',
+    ])
   })
 })
 

@@ -81,13 +81,19 @@ export interface SettingsConfig {
   tmdbProxy?: string
   /** PROWLARR_URL, which wins over an address saved from the app. */
   envProwlarrUrl?: string
-  /** PROWLARR_API_KEY, the fallback. */
+  /** PROWLARR_API_KEY, the fallback, already gated by the caller (`kinopeerServer`): only with PROWLARR_URL. */
   envProwlarrApiKey?: string
-  /** PROWLARR_CONFIG_XML, Prowlarr's config.xml to read its key from, the last fallback. */
+  /**
+   * PROWLARR_CONFIG_XML, Prowlarr's config.xml to read its key from, the last fallback, already gated
+   * by the caller (`kinopeerServer`): only with PROWLARR_URL.
+   */
   prowlarrConfigXml?: string
   /** QBITTORRENT_URL, which wins over an address saved from the app. */
   envQbittorrentUrl?: string
-  /** QBITTORRENT_USERNAME and QBITTORRENT_PASSWORD, the fallback. */
+  /**
+   * QBITTORRENT_USERNAME and QBITTORRENT_PASSWORD, the fallback, already gated by the caller
+   * (`kinopeerServer`): only with QBITTORRENT_URL.
+   */
   envQbittorrent?: Partial<QbittorrentCredentials>
   /** Overridable for tests. */
   tmdbApiBase?: string
@@ -102,7 +108,8 @@ export function tmdbKey(store: SettingsStore, envKey: string | undefined): strin
 
 /**
  * The Prowlarr key the bridge uses: the saved one, else PROWLARR_API_KEY, else the one in Prowlarr's
- * config.xml (read on every call, so a key changed in Prowlarr is picked up).
+ * config.xml (read on every call, so a key changed in Prowlarr is picked up). The caller passes the
+ * environment's two only while PROWLARR_URL sets the address (`kinopeerServer`).
  */
 export async function prowlarrKey(
   store: SettingsStore,
@@ -127,7 +134,10 @@ export function prowlarrAddress(store: SettingsStore, envUrl: string | undefined
   return baseOf(envUrl) ?? baseOf(store.current.prowlarrUrl)
 }
 
-/** The qBittorrent login the bridge uses: the saved one, else the environment's. */
+/**
+ * The qBittorrent login the bridge uses: the saved one, else the environment's, which the caller
+ * passes only while QBITTORRENT_URL sets the address (`kinopeerServer`).
+ */
 export function qbittorrentCredentials(
   store: SettingsStore,
   env: Partial<QbittorrentCredentials> | undefined,
