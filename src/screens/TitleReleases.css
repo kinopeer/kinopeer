@@ -87,10 +87,12 @@
    its rows sharing its columns (subgrid), so the last column grows to the widest of its buttons
    rather than letting one spill out of it (#471). It starts at the widest one the app's languages
    have, so it keeps its width whether or not a row shows In downloads, and the other columns stay
-   put as a poll marks a release or the results replace the skeleton. */
+   put as a poll marks a release or the results replace the skeleton. A subgrid's padding and border
+   count toward its edge tracks, so the track's least width adds the row's end padding and border. */
 .title-rel-table {
   --rel-action: 140px; /* "В загрузках" (a small secondary button with its icon), the widest action in Russian and English */
-  --rel-cols: minmax(0, 1fr) 84px 64px 56px 96px 80px minmax(var(--rel-action), max-content);
+  --rel-action-track: calc(var(--rel-action) + var(--space-3) + 1px); /* the row's end padding and its 1px border */
+  --rel-cols: minmax(0, 1fr) 84px 64px 56px 96px 80px minmax(var(--rel-action-track), max-content);
   display: grid;
   grid-template-columns: var(--rel-cols);
   column-gap: var(--space-3);
@@ -165,7 +167,7 @@
 
 @media (min-width: 1400px) {
   .title-rel-table {
-    --rel-cols: minmax(0, 1fr) 210px 84px 64px 56px 100px 80px minmax(var(--rel-action), max-content);
+    --rel-cols: minmax(0, 1fr) 210px 84px 64px 56px 100px 80px minmax(var(--rel-action-track), max-content);
   }
 
   .title-rel .title-rel-audio {

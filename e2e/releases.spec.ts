@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './test.ts'
 import { DESKTOP, DESKTOP_RAIL, openApp, settle, showWholePage, type AppOptions } from './app.ts'
 import { GB, RELEASES, shogunInfoHash, torrent } from './fixtures.ts'
@@ -39,6 +39,18 @@ async function expectActionsInTheirCells(page: Page, count: number) {
     if (!fits) spills.push(await action.textContent())
   }
   expect(spills).toEqual([])
+}
+
+/**
+ * Where the action column starts on desktop (1440px): the same with Add only, with In downloads and
+ * in the skeleton, so no column moves as a poll marks a release or the results arrive (#471).
+ */
+const ACTION_COLUMN_LEFT = 1255
+
+/** The left edge of the cell holding `action`, or of `action` itself when it is a cell's placeholder. */
+async function expectActionColumnAt(action: Locator) {
+  const left = await action.evaluate((element) => (element.closest('[role="cell"]') ?? element).getBoundingClientRect().left)
+  expect(left).toBe(ACTION_COLUMN_LEFT)
 }
 
 async function openReleases(page: Page, options: AppOptions = {}) {
@@ -145,6 +157,7 @@ test.describe('releases, desktop', () => {
 
   test('searched from the title page, dark, Russian', async ({ page }) => {
     await findReleases(page)
+    await expectActionColumnAt(page.getByRole('table').getByRole('button', { name: 'Добавить' }).first())
     await expect(page).toHaveScreenshot('desktop-list-dark-ru.png')
   })
 
@@ -159,6 +172,8 @@ test.describe('releases, desktop', () => {
     await findReleases(page, TOP_IN_DOWNLOADS)
     await expect(page.getByRole('table').getByRole('link', { name: 'В загрузках' })).toBeVisible()
     await expectActionsInTheirCells(page, TOP_IN_DOWNLOADS.releases!.length)
+    await expectActionColumnAt(page.getByRole('table').getByRole('link', { name: 'В загрузках' }))
+    await expectActionColumnAt(page.getByRole('table').getByRole('button', { name: 'Добавить' }).first())
     await expect(page).toHaveScreenshot('desktop-in-downloads-dark-ru.png')
   })
 
@@ -172,6 +187,8 @@ test.describe('releases, desktop', () => {
     // Off the button just pressed, so it doesn't show its hover state.
     await page.mouse.move(0, 0)
     await settle(page)
+    // The skeleton has no roles to find it by (aria-hidden): its action placeholder by its class.
+    await expectActionColumnAt(page.locator('.title-rel-skel-action').first())
     await expect(page).toHaveScreenshot('desktop-searching-dark-ru.png')
   })
 
