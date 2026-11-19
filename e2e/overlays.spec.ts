@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from './test.ts'
-import { DESKTOP, openApp, settle } from './app.ts'
+import { DESKTOP, everyTitleShown, openApp, settle } from './app.ts'
 import { RELEASES } from './fixtures.ts'
 
 /** Sheets and dialogs as centered modals on desktop. On phones they're covered by the screens' tests. */
@@ -34,6 +34,7 @@ test.describe('modals, desktop', () => {
     // On desktop a download's actions are a menu next to its More button.
     await page.getByRole('menuitem', { name: 'Удалить' }).click()
     await expect(page.getByRole('alertdialog', { name: 'Удалить торрент?' })).toBeVisible()
+    await everyTitleShown(page)
     await settle(page)
     await expect(page).toHaveScreenshot('desktop-delete-dark-ru.png')
   })

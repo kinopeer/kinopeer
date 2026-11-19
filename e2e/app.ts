@@ -323,6 +323,17 @@ export async function settle(page: Page): Promise<void> {
 }
 
 /**
+ * Waits until every fixture torrent TMDB knows has its title and poster, so Downloads looks the same
+ * every run behind a drawer or a dialog over it (#458): Downloads looks its titles up a few at a time,
+ * and a drawer or dialog shows before they're all in. Only Unknown.Nature (a9), which TMDB finds
+ * nothing for, keeps the placeholder. For the fixtures' `TORRENTS`; call it before `settle`, which
+ * waits only for the images already in the page.
+ */
+export async function everyTitleShown(page: Page): Promise<void> {
+  await expect(page.locator('.ks-poster-none')).toHaveCount(1)
+}
+
+/**
  * Makes the viewport as tall as the page, so a screenshot shows the whole list with the tab bar at
  * the bottom. A full-page screenshot would leave the fixed tab bar over the middle of the list.
  *

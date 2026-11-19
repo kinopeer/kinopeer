@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from './test.ts'
-import { DESKTOP, openApp, settle, showWholePage } from './app.ts'
+import { DESKTOP, everyTitleShown, openApp, settle, showWholePage } from './app.ts'
 import { GUESSED, TORRENTS } from './fixtures.ts'
 
 test('downloading series with its files, dark, Russian', async ({ page }) => {
@@ -87,6 +87,7 @@ test.describe('desktop drawer', () => {
     await drawer.getByRole('button', { name: 'Файлы' }).click()
     await drawer.getByRole('button', { name: /^Episodes/ }).click()
     await expect(drawer.getByText(/Shogun\.S01E01/)).toBeVisible()
+    await everyTitleShown(page)
     await settle(page)
     await expect(page).toHaveScreenshot('desktop-drawer-dark-ru.png')
   })
@@ -100,6 +101,7 @@ test.describe('desktop drawer', () => {
       await openApp(page, '/torrent/a6', { theme: 'light', lang: 'en' })
       const drawer = page.getByRole('dialog', { name: 'The Bear' })
       await expect(drawer.getByText('Completed', { exact: true })).toBeVisible()
+      await everyTitleShown(page)
       await settle(page)
       await expect(page).toHaveScreenshot('desktop-drawer-completed-light-en.png')
     })
@@ -108,8 +110,7 @@ test.describe('desktop drawer', () => {
   /** The drawer of the torrent TMDB finds nothing for, its More with the dot. */
   const openUnmatched = async (page: Page) => {
     await openApp(page, '/')
-    // Every other torrent's title and poster are in, so the page behind looks the same every run.
-    await expect(page.locator('.ks-poster-none')).toHaveCount(1)
+    await everyTitleShown(page)
     await page.getByRole('link', { name: /Unknown\.Nature/ }).click()
     const more = page.getByRole('dialog', { name: /^Unknown\.Nature/ }).getByRole('button', { name: /^Ещё действия/ })
     await expect(more).toHaveAccessibleDescription(UNMATCHED)
