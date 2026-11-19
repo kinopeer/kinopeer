@@ -76,6 +76,7 @@
     "submit": "Connect",
     "invalidCredentials": "Wrong username or password",
     "banned": "Too many failed attempts. qBittorrent has blocked this address for a while.",
+    "notQbittorrent": "The qBittorrent address on the Kinopeer server answers, but not like qBittorrent. Check QBITTORRENT_URL.",
     "unreachableBody": "Check that qBittorrent is running and its Web UI is on.",
     "unreachableBody_kinopeer": "Check that this device is online and Kinopeer is running on your server.",
     "unreachableBody_openAgain": "$t(common.openAgainHint)"

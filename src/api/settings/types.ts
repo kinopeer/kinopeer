@@ -8,7 +8,21 @@ export interface SecretStatus {
   source: KeySource | null
 }
 
+/**
+ * Where a service's address comes from: the server's environment (QBITTORRENT_URL, PROWLARR_URL),
+ * which wins and whose value isn't sent, or saved from the app, sent in full, since it's no secret
+ * and the app's form edits it.
+ */
+export type AddressStatus = { source: 'env' } | { source: 'saved'; url: string } | { source: null }
+
+/** The login the server uses for qBittorrent, and qBittorrent's address. */
+export interface QbittorrentStatus extends SecretStatus {
+  address: AddressStatus
+}
+
 export interface ProwlarrKeyStatus extends SecretStatus {
+  /** Prowlarr's address. */
+  address: AddressStatus
   /**
    * The server has a key of its own (PROWLARR_API_KEY or a readable config.xml), which applies once
    * a saved key is forgotten.
@@ -49,8 +63,8 @@ export interface ServerSettings {
   tmdb: TmdbKeyStatus
   /** The Prowlarr API key: 'env' covers PROWLARR_API_KEY and the key in Prowlarr's config.xml. */
   prowlarr: ProwlarrKeyStatus
-  /** The login the server uses for qBittorrent. */
-  qbittorrent: SecretStatus
+  /** The login the server uses for qBittorrent, and its address. */
+  qbittorrent: QbittorrentStatus
   /** The download defaults saved so far; null until any is saved. */
   downloads: Partial<DownloadDefaults> | null
   /** Kinopeer's own login. Servers before 1.1 don't send it: they have none. */
@@ -65,15 +79,24 @@ export interface TmdbKeyBody {
   apiKey: string
 }
 
-/** Body of PUT /api/settings/prowlarr. */
+/**
+ * Body of PUT /api/settings/prowlarr. `url` saves Prowlarr's address with the key, only where the
+ * environment sets none and behind Kinopeer's own login.
+ */
 export interface ProwlarrKeyBody {
   apiKey: string
+  url?: string
 }
 
-/** Body of PUT /api/settings/qbittorrent. */
+/**
+ * Body of PUT /api/settings/qbittorrent. An empty username is no login, for qBittorrent's auth
+ * bypass. `url` saves qBittorrent's address with it, only where the environment sets none and
+ * behind Kinopeer's own login.
+ */
 export interface QbittorrentLoginBody {
   username: string
   password: string
+  url?: string
 }
 
 /** Error answers of /api/settings. */
@@ -86,6 +109,10 @@ export interface SettingsErrorBody {
     | 'not-configured'
     | 'unreachable'
     | 'not-prowlarr'
+    | 'not-qbittorrent'
+    | 'invalid-address'
+    | 'env-address'
+    | 'auth-off'
     | 'no-server-key'
     | 'storage'
     | 'not-found'

@@ -19,7 +19,7 @@ const getAppVersion = vi.mocked(api.getAppVersion)
 const login = vi.mocked(settings.saveQbittorrentLogin)
 
 /** The server's settings once it saved the login. */
-const SAVED: settings.ServerSettings = { tmdb: { configured: true, source: 'saved', fallback: null }, prowlarr: { configured: true, source: 'env', serverKey: true }, qbittorrent: { configured: true, source: 'saved' }, downloads: null }
+const SAVED: settings.ServerSettings = { tmdb: { configured: true, source: 'saved', fallback: null }, prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } }, qbittorrent: { configured: true, source: 'saved', address: { source: 'env' } }, downloads: null }
 
 beforeEach(() => {
   vi.resetAllMocks()
