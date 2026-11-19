@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { ProxySignInError } from '../fetchKinopeer'
 import { sharedRequests } from '../../logic/sharedRequests'
 import {
+  APP_VERSION_FRESH_MS,
   APP_VERSION_KEY,
   BRIDGE_HEADER,
   KinopeerUnreachableError,
@@ -399,6 +400,29 @@ describe('getSaveLocations', () => {
     fetchMock.mockImplementation(answer('{"use_subcategories":true}', 'v5.0.4'))
     expect(await getSaveLocations()).toMatchObject({ subcategories: false })
     expect(fetchMock.mock.calls.map(([url]) => String(url))).not.toContain('/qbt/api/v2/app/version')
+  })
+
+  it('cancels its own request of the version when the caller gives up', async () => {
+    const controller = new AbortController()
+    fetchMock.mockImplementation(answer('{}'))
+    const reading = getSaveLocations(controller.signal)
+    controller.abort()
+    await reading.catch(() => undefined)
+    const [, init] = fetchMock.mock.calls.find(([url]) => String(url) === '/qbt/api/v2/app/version')!
+    expect(init?.signal?.aborted).toBe(true)
+  })
+
+  it('takes the page’s version however old it is, since only an update changes it', async () => {
+    vi.useFakeTimers()
+    try {
+      sharedRequests.set(APP_VERSION_KEY, '4.6.7')
+      vi.advanceTimersByTime(APP_VERSION_FRESH_MS * 60)
+      fetchMock.mockImplementation(answer('{"use_subcategories":true}', 'v5.0.4'))
+      expect(await getSaveLocations()).toMatchObject({ subcategories: false })
+      expect(fetchMock.mock.calls.map(([url]) => String(url))).not.toContain('/qbt/api/v2/app/version')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('goes by the setting when the version doesn’t answer, and has no subcategories when the preferences don’t', async () => {
