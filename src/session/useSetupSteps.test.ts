@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { act, renderHook } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ServerSettings } from '../api/settings'
-import { setupSteps } from './useSetupSteps'
+import { getSharedServerSettings } from '../api/sharedAnswers'
+import { setupSteps, useSetupSteps } from './useSetupSteps'
+
+vi.mock('../api/sharedAnswers', () => ({ getSharedServerSettings: vi.fn() }))
 
 /** The server's settings with everything set: the TMDB key, Prowlarr's address from the environment, the login on. */
 const SET: ServerSettings = {
@@ -29,5 +33,31 @@ describe('setupSteps', () => {
     ['the server is older and says nothing of it', undefined],
   ])('asks nothing of Prowlarr when %s, since the server wouldn’t save an address', (_name, auth) => {
     expect(setupSteps({ ...SET, prowlarr: noProwlarr, auth })).toEqual([])
+  })
+})
+
+describe('useSetupSteps', () => {
+  const settings = vi.mocked(getSharedServerSettings)
+  beforeEach(() => settings.mockReset())
+
+  it('asks the server only once qBittorrent is connected, then goes through the steps', async () => {
+    settings.mockResolvedValue({ ...SET, prowlarr: noProwlarr })
+    const { result, rerender } = renderHook(({ enabled }) => useSetupSteps(enabled), { initialProps: { enabled: false } })
+    expect(settings).not.toHaveBeenCalled()
+    expect(result.current.step).toBe('checking')
+
+    rerender({ enabled: true })
+    await vi.waitFor(() => expect(result.current.step).toBe('prowlarr'))
+    act(() => result.current.finish('prowlarr'))
+    expect(result.current.step).toBe('done')
+  })
+
+  it('drops an answer that comes after qBittorrent disconnected', async () => {
+    let answer: (settings: ServerSettings) => void = () => {}
+    settings.mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    const { result, rerender } = renderHook(({ enabled }) => useSetupSteps(enabled), { initialProps: { enabled: true } })
+    rerender({ enabled: false })
+    await act(async () => answer({ ...SET, prowlarr: noProwlarr }))
+    expect(result.current.step).toBe('checking')
   })
 })

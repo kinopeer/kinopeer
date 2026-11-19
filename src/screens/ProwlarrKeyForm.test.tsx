@@ -135,7 +135,10 @@ describe('ProwlarrKeyForm', () => {
     it('saves the address with the key, without the spaces a url field drops', async () => {
       const { onSaved, address, field, save } = renderWithAddress()
       expect(address).toHaveAccessibleDescription('As the Kinopeer server reaches it, for example http://192.168.1.10:9696')
-      await userEvent.type(field, 'abc123')
+      expect(address).toHaveAttribute('spellcheck', 'false')
+      // Onboarding has no key of the server's to go back to.
+      expect(screen.queryByRole('button', { name: 'Use the server’s key' })).not.toBeInTheDocument()
+      await userEvent.type(field, ' abc123 ')
       await userEvent.click(save)
       // Both are needed.
       expect(saveProwlarrKey).not.toHaveBeenCalled()
@@ -168,7 +171,11 @@ describe('ProwlarrKeyForm', () => {
       await userEvent.type(address, 'http://prowlarr.test')
       await userEvent.type(field, 'abc123')
       await userEvent.click(save)
-      expect(await screen.findByRole('alert', { name: saying('Prowlarr’s address answers, but not like Prowlarr. Check the address and its port.') })).toBeInTheDocument()
+      const notProwlarr = saying('Prowlarr’s address answers, but not like Prowlarr. Check the address and its port.')
+      expect(await screen.findByRole('alert', { name: notProwlarr })).toBeInTheDocument()
+      // Typing clears only the address field's own errors: the banner goes with the next try.
+      await userEvent.type(address, '0')
+      expect(screen.getByRole('alert', { name: notProwlarr })).toBeInTheDocument()
       await userEvent.click(save)
       await vi.waitFor(() => expect(field).toHaveAttribute('aria-invalid', 'true'))
       expect(address).not.toHaveAttribute('aria-invalid')

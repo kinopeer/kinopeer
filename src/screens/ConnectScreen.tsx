@@ -50,7 +50,8 @@ export function ConnectScreen({ unreachable: unreachableProp, noAddress = false,
   const settings = useRequest(settingsKey, (signal) => getServerSettings(signal), { freshFor: SERVER_SETTINGS_FRESH_MS }).data
   const saved = settings?.auth?.enabled && settings.qbittorrent.address.source === 'saved' ? settings.qbittorrent.address.url : undefined
   const [changing, setChanging] = useState(false)
-  const askAddress = noAddress || (changing && saved !== undefined)
+  // Change shows only with an address saved from the app.
+  const askAddress = noAddress || changing
   const [address, setAddress] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')

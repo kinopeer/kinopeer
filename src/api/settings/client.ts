@@ -57,6 +57,7 @@ async function send<T>(method: 'PUT' | 'PATCH', path: string, body: T): Promise<
   const response = await fetchKinopeer(`${SETTINGS_BASE}/${path}`, {
     method,
     headers: { 'Content-Type': 'application/json' },
+    // A field left undefined (an address not sent) isn't in the JSON at all.
     body: JSON.stringify(body),
   })
   if (!response.ok || !isJson(response)) throw await errorFor(response)
@@ -80,7 +81,7 @@ export function saveTmdbKey(apiKey: string): Promise<ServerSettings> {
  * 'env-address' or 'auth-off' (`ProwlarrKeyBody`).
  */
 export function saveProwlarrKey(apiKey: string, url?: string): Promise<ServerSettings> {
-  return send<ProwlarrKeyBody>('PUT', 'prowlarr', url === undefined ? { apiKey } : { apiKey, url })
+  return send<ProwlarrKeyBody>('PUT', 'prowlarr', { apiKey, url })
 }
 
 async function forget(path: string): Promise<ServerSettings> {
@@ -119,7 +120,7 @@ export function forgetProwlarrKey(): Promise<ServerSettings> {
  * (`QbittorrentLoginBody`).
  */
 export function saveQbittorrentLogin(username: string, password: string, url?: string): Promise<ServerSettings> {
-  return send<QbittorrentLoginBody>('PUT', 'qbittorrent', url === undefined ? { username, password } : { username, password, url })
+  return send<QbittorrentLoginBody>('PUT', 'qbittorrent', { username, password, url })
 }
 
 /** Saves some of the download defaults on the server; the others stay as they are. */

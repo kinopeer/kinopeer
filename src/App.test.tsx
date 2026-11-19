@@ -594,6 +594,20 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Downloads' })).toBeInTheDocument()
   })
 
+  it('asks the server for onboarding’s steps only once qBittorrent connects, and waits for them', async () => {
+    let connect: (version: string) => void = () => {}
+    getAppVersion.mockReturnValue(new Promise((resolve) => (connect = resolve)))
+    vi.mocked(serverSettings.getServerSettings).mockReturnValue(new Promise(() => {}))
+    renderApp()
+    await act(() => Promise.resolve())
+    expect(serverSettings.getServerSettings).not.toHaveBeenCalled()
+
+    await act(async () => connect('5.2.4'))
+    await waitFor(() => expect(serverSettings.getServerSettings).toHaveBeenCalled())
+    expect(screen.getByText('Connecting to qBittorrent…')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Downloads' })).not.toBeInTheDocument()
+  })
+
   it('goes in when the server can’t say whether it has a TMDB key', async () => {
     vi.mocked(serverSettings.getServerSettings).mockRejectedValue(new serverSettings.SettingsError(404))
     renderApp()

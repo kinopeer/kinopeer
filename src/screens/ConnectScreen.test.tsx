@@ -170,6 +170,7 @@ describe('ConnectScreen', () => {
       const { onSignIn } = setup(undefined, { noAddress: true })
       expect(screen.getByText('Enter the address of qBittorrent’s Web UI as the Kinopeer server reaches it, and its login. The server keeps them, so you only do this once.')).toBeInTheDocument()
       expect(screen.getByLabelText('qBittorrent address')).toHaveAccessibleDescription('As the Kinopeer server reaches it, for example http://192.168.1.10:8080')
+      expect(screen.getByLabelText('qBittorrent address')).toHaveAttribute('spellcheck', 'false')
       expect(screen.getByLabelText('Username')).toHaveAccessibleDescription('Leave the login empty if qBittorrent lets Kinopeer in without one.')
       expect(screen.getByLabelText('Username')).not.toBeRequired()
       expect(screen.getByLabelText('Password')).not.toBeRequired()
@@ -215,6 +216,7 @@ describe('ConnectScreen', () => {
       expect(screen.getByLabelText('Username')).not.toHaveAttribute('aria-invalid')
       await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
       expect(screen.getByLabelText('Password')).toHaveAccessibleDescription('Wrong username or password')
+      expect(screen.getByLabelText('Username')).toHaveAttribute('aria-invalid', 'true')
     })
 
     it.each([
@@ -228,6 +230,10 @@ describe('ConnectScreen', () => {
       await fillAddress('http://qbt.test')
       expect(screen.getByRole('alert', { name: saying(message) })).toBeInTheDocument()
       expect(screen.getByLabelText('qBittorrent address')).toHaveValue('http://qbt.test')
+      // Typing stays with the fields' own errors: the banner goes with the next try.
+      await userEvent.type(screen.getByLabelText('qBittorrent address'), '0')
+      await userEvent.type(screen.getByLabelText('Username'), 'a')
+      expect(screen.getByRole('alert', { name: saying(message) })).toBeInTheDocument()
     })
   })
 
@@ -256,7 +262,11 @@ describe('ConnectScreen', () => {
       await screen.findByRole('button', { name: 'Change qBittorrent address' })
       await fillAndSubmit()
       expect(onSignIn).toHaveBeenCalledWith('admin', 'secret')
-      expect(screen.getByRole('alert', { name: saying('qBittorrent’s address answers, but not like qBittorrent. Check the address and its port.') })).toBeInTheDocument()
+      const notQbittorrent = saying('qBittorrent’s address answers, but not like qBittorrent. Check the address and its port.')
+      expect(screen.getByRole('alert', { name: notQbittorrent })).toBeInTheDocument()
+      // Changing the address is the fix, so the error goes with it.
+      await userEvent.click(screen.getByRole('button', { name: 'Change qBittorrent address' }))
+      expect(screen.queryByRole('alert', { name: notQbittorrent })).not.toBeInTheDocument()
     })
 
     it('offers to change it when qBittorrent doesn’t answer there, as a wrong one would', async () => {
