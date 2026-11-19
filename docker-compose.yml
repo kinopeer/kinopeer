@@ -1,5 +1,6 @@
 # Kinopeer with qBittorrent and Prowlarr. How to install, update and set it up: the README's
 # "Install with Docker Compose". Settings go in a .env file next to this one; none is needed.
+# Each release attaches the file that goes with its image.
 name: kinopeer
 
 services:
@@ -99,8 +100,12 @@ networks:
     ipam:
       config:
         # A fixed range, for Kinopeer's fixed address. If `docker compose up` says it overlaps
-        # another network, change it here and the address in both places above before the first start.
+        # another network, change it, the range below and the address in both places above before
+        # the first start.
         - subnet: 172.30.97.0/24
+          # Where Docker gives the other containers their addresses: not Kinopeer's, which another
+          # container could otherwise take, and with it qBittorrent's trust.
+          ip_range: 172.30.97.128/25
 
 volumes:
   kinopeer-data:

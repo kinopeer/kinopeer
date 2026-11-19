@@ -25,7 +25,7 @@ interface Service {
 
 interface Compose {
   services: Record<string, Service>
-  networks?: Record<string, { ipam?: { config?: { subnet?: string }[] } }>
+  networks?: Record<string, { ipam?: { config?: { subnet?: string; ip_range?: string }[] } }>
 }
 
 const readCompose = (file: string): Compose => parse(readFileSync(join(ROOT, file), 'utf8')) as Compose
@@ -81,6 +81,20 @@ const runSeed = (existing?: string): string => {
   return conf
 }
 
+/** The qBittorrent.conf the seed script writes on a first start, as `readConf` reads it. */
+const seededConf = (): Record<string, string> => readConf(readFileSync(runSeed(), 'utf8'))
+
+/** An IPv4 address as a number. */
+const ipv4 = (address: string): number => address.split('.').reduce((value, part) => value * 256 + Number(part), 0)
+
+/** Whether `address` is in the IPv4 range `cidr` (`172.30.97.0/24`). */
+const inRange = (address: string, cidr: string): boolean => {
+  const [base = '', bits = '32'] = cidr.split('/')
+  const size = 2 ** (32 - Number(bits))
+  const start = ipv4(base) - (ipv4(base) % size)
+  return ipv4(address) >= start && ipv4(address) < start + size
+}
+
 /** A port mapping's port inside the container: `"6881:6881/udp"` → 6881. */
 const containerPort = (mapping: string): number => Number(mapping.split('/')[0]?.split(':').at(-1))
 
@@ -91,9 +105,7 @@ const kinopeerAddress = (): string | undefined => {
 
 describe("qBittorrent's first start", () => {
   it('writes the settings the image would, with Kinopeer’s address let in without a password', () => {
-    const conf = readConf(readFileSync(runSeed(), 'utf8'))
-
-    expect(conf).toEqual({
+    expect(seededConf()).toEqual({
       'BitTorrent/Session\\DefaultSavePath': '/downloads',
       'BitTorrent/Session\\Port': '6881',
       'BitTorrent/Session\\TempPath': '/downloads/temp',
@@ -117,13 +129,25 @@ describe("qBittorrent's first start", () => {
 })
 
 describe('Kinopeer’s place on the network', () => {
+  const range = compose.networks?.kinopeer?.ipam?.config?.[0] ?? {}
+
   it('is a fixed address in the network’s fixed range', () => {
-    const subnet = compose.networks?.kinopeer?.ipam?.config?.[0]?.subnet ?? ''
     const address = kinopeerAddress() ?? ''
 
-    expect(subnet).toMatch(/^\d+\.\d+\.\d+\.0\/24$/)
-    expect(address.split('.').slice(0, 3)).toEqual(subnet.split('.').slice(0, 3))
+    expect(range.subnet).toMatch(/^\d+\.\d+\.\d+\.0\/24$/)
+    expect(inRange(address, range.subnet ?? '')).toBe(true)
+    // Not the range's own address, Docker's gateway (its first) or its broadcast address.
     expect(address).not.toMatch(/\.(0|1|255)$/)
+  })
+
+  it('is outside the range Docker gives the other containers their addresses from', () => {
+    // Otherwise a recreated container could take it, Kinopeer wouldn't start, and that container
+    // would get into qBittorrent without a password.
+    const address = kinopeerAddress() ?? ''
+
+    expect(range.ip_range).toMatch(/^\d+\.\d+\.\d+\.\d+\/\d+$/)
+    expect(inRange(range.ip_range?.split('/')[0] ?? '', range.subnet ?? '')).toBe(true)
+    expect(inRange(address, range.ip_range ?? '')).toBe(false)
   })
 
   it('is the network the other services are on', () => {
@@ -136,9 +160,7 @@ describe('Kinopeer’s environment', () => {
   const environment = service('kinopeer').environment ?? {}
 
   it('names qBittorrent at the port its first start sets', () => {
-    const conf = readConf(readFileSync(runSeed(), 'utf8'))
-
-    expect(environment.QBITTORRENT_URL).toBe(`http://qbittorrent:${conf['WebUI/Port']}`)
+    expect(environment.QBITTORRENT_URL).toBe(`http://qbittorrent:${seededConf()['WebUI/Port']}`)
   })
 
   it('names Prowlarr at the port its image listens at', () => {
@@ -158,22 +180,44 @@ describe('Kinopeer’s environment', () => {
 
 describe("qBittorrent's ports", () => {
   it('publish the peers’ port, not the web UI, which lets Kinopeer’s address in without a password', () => {
-    const conf = readConf(readFileSync(runSeed(), 'utf8'))
-
     expect((service('qbittorrent').ports ?? []).map(containerPort)).toEqual([6881, 6881])
-    expect(conf['BitTorrent/Session\\Port']).toBe('6881')
+    expect(seededConf()['BitTorrent/Session\\Port']).toBe('6881')
   })
 })
+
+interface Step {
+  name?: string
+  uses?: string
+  run?: string
+  with?: Record<string, unknown>
+}
+
+/** The release workflow's step that `match` picks, read with the YAML parser. */
+const releaseStep = (match: (step: Step) => boolean): Step => {
+  const workflow = parse(readFileSync(join(ROOT, '.github/workflows/release.yml'), 'utf8')) as { jobs: Record<string, { steps?: Step[] }> }
+  const step = Object.values(workflow.jobs)
+    .flatMap((job) => job.steps ?? [])
+    .find(match)
+  if (!step) throw new Error('release.yml has no such step')
+  return step
+}
 
 describe("Kinopeer's image", () => {
   it('is the newest release of the version’s major, which the release workflow tags', () => {
     const { version } = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { version: string }
-    const release = readFileSync(join(ROOT, '.github/workflows/release.yml'), 'utf8')
+    const tags = String(releaseStep((step) => step.uses?.startsWith('docker/metadata-action@') ?? false).with?.tags ?? '')
 
     expect(service('kinopeer').image).toBe(`ghcr.io/kinopeer/kinopeer:${version.split('.')[0]}`)
     // The metadata action's tags, one per line.
-    const tags = release.split('\n').map((line) => line.trim())
-    expect(tags).toContain('type=semver,pattern={{major}}')
+    expect(tags.split('\n').map((line) => line.trim())).toContain('type=semver,pattern={{major}}')
+  })
+
+  it('comes with the file, attached to each GitHub Release, which the README downloads', () => {
+    const run = releaseStep((step) => step.name === 'Create the GitHub Release').run ?? ''
+    // The shell command's words: the files after the options are the release's assets.
+    const create = run.split('\n').find((line) => line.trim().startsWith('gh release create')) ?? ''
+
+    expect(create.trim().split(/\s+/)).toContain('docker-compose.yml')
   })
 
   it('is built from the checkout with docker-compose.build.yml', () => {

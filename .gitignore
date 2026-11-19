@@ -27,8 +27,10 @@ CLAUDE.local.md
 # Settings saved from the app by the dev and production servers
 /data
 
-# What qBittorrent downloads when docker-compose.yml runs in the checkout
+# What qBittorrent downloads when docker-compose.yml runs in the checkout, and its settings, a
+# password among them
 /downloads
+/.env
 
 # Screenshot tests
 /test-results

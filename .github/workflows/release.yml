@@ -1,7 +1,7 @@
 name: Release
 
 # Pushing a tag like v0.1.0 builds the multi-arch image into GitHub Container Registry and
-# creates a GitHub Release with that version's CHANGELOG.md section.
+# creates a GitHub Release with that version's CHANGELOG.md section and docker-compose.yml.
 on:
   push:
     tags: ['v*']
@@ -97,7 +97,9 @@ jobs:
             echo
             echo "**Digest:** \`$IMAGE@$DIGEST\`"
           } >> release-notes.md
-          gh release create "$GITHUB_REF_NAME" --title "Kinopeer $VERSION" --notes-file release-notes.md --verify-tag
+          # docker-compose.yml goes with the release, so an install gets the file its image was released with
+          # (README → Install with Docker Compose), not main's, which may be ahead of it.
+          gh release create "$GITHUB_REF_NAME" --title "Kinopeer $VERSION" --notes-file release-notes.md --verify-tag docker-compose.yml
 
   # kinopeer-tmdb, which released versions call. After the image and the GitHub Release, which come
   # out only for a tag that matches package.json and the changelog; installs get the version only

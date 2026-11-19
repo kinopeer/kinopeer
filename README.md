@@ -65,17 +65,17 @@ Umbrel offers updates when a new version is out. What changed is in [CHANGELOG.m
 
 Kinopeer's [`docker-compose.yml`](docker-compose.yml) runs Kinopeer beside **qBittorrent** (the qBittorrent project's own image) and **Prowlarr** (LinuxServer.io's image, which Prowlarr's wiki points to), each in a container of its own. It needs Docker with Compose.
 
-1. In an empty folder, download the file and start it:
+1. In an empty folder, download the file from the latest release and start it:
 
    ```bash
-   curl -O https://raw.githubusercontent.com/kinopeer/kinopeer/main/docker-compose.yml
+   curl -LO https://github.com/kinopeer/kinopeer/releases/latest/download/docker-compose.yml
    ```
 
    ```bash
    docker compose up -d
    ```
 
-2. Open Kinopeer at `http://<your server>:8797` right away and set its password: until then, whoever opens it first sets it. To set it beforehand, put `KINOPEER_PASSWORD=` with a password of 8 characters or more in a `.env` file next to `docker-compose.yml`.
+2. Open Kinopeer at `http://<your server>:8797` right away and set its password: until then, whoever opens it first sets it. To set it beforehand, put `KINOPEER_PASSWORD='…'` with a password of 8 characters or more in a `.env` file next to `docker-compose.yml`, in single quotes, so that Compose keeps a `$` in it as it is.
 3. Open Prowlarr at `http://<your server>:9696`, set up its login and add your indexers. Kinopeer reads Prowlarr's API key itself.
 
 qBittorrent and TMDB need no setup. Downloads go into the `downloads` folder next to `docker-compose.yml`. The file confirms qBittorrent's legal notice for you, which qBittorrent asks for before it starts.
@@ -97,9 +97,9 @@ qBittorrent and TMDB need no setup. Downloads go into the `downloads` folder nex
 | `KINOPEER_PASSWORD` | none | Kinopeer's password, in place of one set in the app |
 | `KINOPEER_ALLOWED_HOSTS` | none | Names Kinopeer answers at besides IP addresses, `localhost`, `.local` names and names of one label, such as a reverse proxy's domain ([its rules](docs/DEVELOPMENT.md#server-configuration)) |
 
-If `docker compose up` says the network's range overlaps another, change `172.30.97.0/24` and the address `172.30.97.10`, in both places it's written, in `docker-compose.yml` before the first start.
+If `docker compose up` says the network's range overlaps another, change the range `172.30.97.0/24`, the part of it Docker gives the other containers (`172.30.97.128/25`) and Kinopeer's address `172.30.97.10`, in both places it's written, in `docker-compose.yml` before the first start. Keep Kinopeer's address in the range and out of that part.
 
-**Updating:** `docker compose pull`, then `docker compose up -d`. Kinopeer's image follows the newest 1.x release, qBittorrent's and Prowlarr's their newest releases.
+**Updating:** `docker compose pull`, then `docker compose up -d`. Kinopeer's image follows the newest 1.x release, qBittorrent's and Prowlarr's their newest releases. A release that changes `docker-compose.yml` says so in [CHANGELOG.md](CHANGELOG.md); download it again then, keeping your `.env`.
 
 **HTTPS** is up to a reverse proxy in front of Kinopeer, which this file doesn't include; here's an example, not a setup we support. Kinopeer answers only at names it knows, so add the proxy's domain to `KINOPEER_ALLOWED_HOSTS` (`KINOPEER_ALLOWED_HOSTS=kinopeer.example.com`), and have the proxy pass on the name the page was opened at, as Caddy does:
 
