@@ -141,7 +141,11 @@
         "settings-dark-ru": {},
         "settings-error-dark-ru": {},
         "settings-no-indexers-dark-ru": {},
-        "settings-sign-in-dark-ru": {}
+        "settings-sign-in-dark-ru": {},
+        "settings-telegram-dark-ru": {},
+        "telegram-chat-dark-ru": {},
+        "telegram-connected-dark-ru": {},
+        "telegram-token-dark-ru": {}
       },
       "title": {
         "desktop-long-overview-dark-ru": { "label-content-name-mismatch": 0 },
@@ -165,7 +169,8 @@
         "no-title-dark-ru": { "label-content-name-mismatch": 0 },
         "no-title-light-ru": { "label-content-name-mismatch": 0 },
         "no-title-menu-dark-ru": {},
-        "series-dark-ru": { "color-contrast": 0, "label-content-name-mismatch": 0 }
+        "series-dark-ru": { "color-contrast": 0, "label-content-name-mismatch": 0 },
+        "series-notify-dark-ru": { "color-contrast": 0, "label-content-name-mismatch": 0 }
       }
     },
     "requests": {
