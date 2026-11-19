@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { ProxySignInError } from '../fetchKinopeer'
+import { sharedRequests } from '../../logic/sharedRequests'
 import {
+  APP_VERSION_FRESH_MS,
+  APP_VERSION_KEY,
   BRIDGE_HEADER,
   KinopeerUnreachableError,
   QbittorrentError,
@@ -121,6 +124,8 @@ describe('what a screen can cancel', () => {
     { name: 'getTorrents', read: () => getTorrents({ hashes: ['abc'] }, signal), requests: 1 },
     { name: 'getTorrentTrackers', read: () => getTorrentTrackers('abc', signal), requests: 1 },
   ])('$name hands the signal to every request', async ({ read, requests }) => {
+    // The version getSaveLocations reads is the page's shared answer, which sharedRequests cancels.
+    sharedRequests.set(APP_VERSION_KEY, '5.0.4')
     fetchMock.mockImplementation(async () => new Response('{}'))
     await read()
 
@@ -338,13 +343,16 @@ describe('getRefreshInterval', () => {
 })
 
 describe('getSaveLocations', () => {
-  const answer = (preferences: string) => async (url: string | URL | Request) => {
-    const path = String(url)
-    if (path.endsWith('/torrents/categories'))
-      return new Response('{"TV":{"name":"TV","savePath":""},"Movies":{"name":"Movies","savePath":"/m"}}')
-    if (path.endsWith('/app/preferences')) return new Response(preferences)
-    return new Response('/downloads\n')
-  }
+  const answer =
+    (preferences: string, version = 'v5.0.4') =>
+    async (url: string | URL | Request) => {
+      const path = String(url)
+      if (path.endsWith('/torrents/categories'))
+        return new Response('{"TV":{"name":"TV","savePath":""},"Movies":{"name":"Movies","savePath":"/m"}}')
+      if (path.endsWith('/app/preferences')) return new Response(preferences)
+      if (path.endsWith('/app/version')) return new Response(version, { status: version ? 200 : 500 })
+      return new Response('/downloads\n')
+    }
 
   it('gets the categories by name, the default save path and how qBittorrent uses category folders', async () => {
     fetchMock.mockImplementation(answer('{"auto_tmm_enabled":false,"use_category_paths_in_manual_mode":true,"use_subcategories":true}'))
@@ -369,11 +377,61 @@ describe('getSaveLocations', () => {
   })
 
   it('uses category folders for new torrents only with automatic management or category paths in manual mode', async () => {
-    fetchMock.mockImplementation(answer('{"auto_tmm_enabled":true,"use_category_paths_in_manual_mode":false}'))
+    fetchMock.mockImplementation(
+      answer('{"auto_tmm_enabled":true,"use_category_paths_in_manual_mode":false,"use_subcategories":false}'),
+    )
     expect(await getSaveLocations()).toMatchObject({ categoryPaths: true, subcategories: false })
     // qBittorrent before 4.4 has no category paths in manual mode.
     fetchMock.mockImplementation(answer('{"auto_tmm_enabled":false}'))
     expect(await getSaveLocations()).toMatchObject({ categoryPaths: false })
+  })
+
+  it('puts subcategories under their parent’s folder as the version of qBittorrent does', async () => {
+    fetchMock.mockImplementation(answer('{"use_subcategories":true}', 'v4.6.7'))
+    expect(await getSaveLocations()).toMatchObject({ subcategories: false })
+    sharedRequests.clear()
+    // qBittorrent 5.2 always has subcategories on and no longer reports the setting.
+    fetchMock.mockImplementation(answer('{}', 'v5.2.0'))
+    expect(await getSaveLocations()).toMatchObject({ subcategories: true })
+  })
+
+  it('takes the version the page already has rather than asking qBittorrent again', async () => {
+    sharedRequests.set(APP_VERSION_KEY, '4.6.7')
+    fetchMock.mockImplementation(answer('{"use_subcategories":true}', 'v5.0.4'))
+    expect(await getSaveLocations()).toMatchObject({ subcategories: false })
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).not.toContain('/qbt/api/v2/app/version')
+  })
+
+  it('cancels its own request of the version when the caller gives up', async () => {
+    const controller = new AbortController()
+    fetchMock.mockImplementation(answer('{}'))
+    const reading = getSaveLocations(controller.signal)
+    controller.abort()
+    await reading.catch(() => undefined)
+    const [, init] = fetchMock.mock.calls.find(([url]) => String(url) === '/qbt/api/v2/app/version')!
+    expect(init?.signal?.aborted).toBe(true)
+  })
+
+  it('takes the page’s version however old it is, since only an update changes it', async () => {
+    vi.useFakeTimers()
+    try {
+      sharedRequests.set(APP_VERSION_KEY, '4.6.7')
+      vi.advanceTimersByTime(APP_VERSION_FRESH_MS * 60)
+      fetchMock.mockImplementation(answer('{"use_subcategories":true}', 'v5.0.4'))
+      expect(await getSaveLocations()).toMatchObject({ subcategories: false })
+      expect(fetchMock.mock.calls.map(([url]) => String(url))).not.toContain('/qbt/api/v2/app/version')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('goes by the setting when the version doesn’t answer, and has no subcategories when the preferences don’t', async () => {
+    fetchMock.mockImplementation(answer('{"use_subcategories":true}', ''))
+    expect(await getSaveLocations()).toMatchObject({ subcategories: true })
+    fetchMock.mockImplementation(async (url) =>
+      String(url).endsWith('/app/preferences') ? new Response('', { status: 500, headers: { [BRIDGE_HEADER]: '1' } }) : new Response('v5.2.0'),
+    )
+    expect(await getSaveLocations()).toMatchObject({ subcategories: false })
   })
 
   it('reads whether qBittorrent keeps incomplete torrents in a folder of their own', async () => {

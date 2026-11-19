@@ -10,6 +10,8 @@ import type {
   TorrentsQuery,
 } from './types'
 import { ProxySignInError, fetchKinopeer } from '../fetchKinopeer'
+import { sharedRequests } from '../../logic/sharedRequests'
+import { subcategoriesUnderParent } from '../../torrents/qbittorrentVersion'
 
 /** Same-origin prefix bridged to qBittorrent's Web API by server/qbittorrent.ts. */
 export const QBITTORRENT_BASE = '/qbt/api/v2'
@@ -184,6 +186,7 @@ interface FolderPreferences {
   auto_tmm_enabled?: boolean
   /** qBittorrent 4.4+. */
   use_category_paths_in_manual_mode?: boolean
+  /** Up to qBittorrent 5.1: from 5.2 subcategories are always on and it isn't reported. */
   use_subcategories?: boolean
   /** "When Torrent Category changed": relocate the torrent (true) or switch it to manual mode. */
   torrent_changed_tmm_enabled?: boolean
@@ -193,19 +196,24 @@ interface FolderPreferences {
 
 /** Categories by name, the default save path and how qBittorrent uses category folders. */
 export async function getSaveLocations(signal?: AbortSignal): Promise<SaveLocations> {
-  const [categories, defaultPath, preferences] = await Promise.all([
+  const [categories, defaultPath, preferences, version] = await Promise.all([
     getCategories(signal).catch(() => []),
     getDefaultSavePath(signal).catch(() => ''),
     request('/app/preferences', { signal })
       .then((response) => response.json() as Promise<FolderPreferences>)
       // qBittorrent's defaults: manual mode, no subcategories.
-      .catch((): FolderPreferences => ({})),
+      .catch((): FolderPreferences => ({ use_subcategories: false })),
+    // The session check's answer, kept for the page: qBittorrent's version doesn't change under an
+    // open page but by an update, which only the folders shown would miss until a reload.
+    sharedRequests
+      .get(APP_VERSION_KEY, getAppVersion, { freshFor: Infinity, signal })
+      .catch((): undefined => undefined),
   ])
   return {
     categories: categories.sort((a, b) => a.name.localeCompare(b.name)),
     defaultPath,
     categoryPaths: !!(preferences.auto_tmm_enabled || preferences.use_category_paths_in_manual_mode),
-    subcategories: !!preferences.use_subcategories,
+    subcategories: subcategoriesUnderParent(version, preferences.use_subcategories),
     // qBittorrent relocates by default.
     relocateOnCategoryChange: preferences.torrent_changed_tmm_enabled !== false,
     downloadPath: !!preferences.temp_path_enabled,
