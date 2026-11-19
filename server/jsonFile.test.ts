@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -34,6 +34,23 @@ describe('JsonFile', () => {
     await writeFile(join(dir, 'list.json'), '[1, 2]')
     expect(await new JsonFile(dir, 'broken.json').load()).toEqual({})
     expect(await new JsonFile(dir, 'list.json').load()).toEqual({})
+  })
+
+  it('with strict, takes only a missing file for an empty one, and reads it again after a failure', async () => {
+    expect(await new JsonFile(dir, 'missing.json', { strict: true }).load()).toEqual({})
+    await writeFile(join(dir, 'broken.json'), '{ not json')
+    await writeFile(join(dir, 'list.json'), '[1, 2]')
+    await expect(new JsonFile(dir, 'broken.json', { strict: true }).load()).rejects.toThrow()
+    await expect(new JsonFile(dir, 'list.json', { strict: true }).load()).rejects.toThrow('not a JSON object')
+    // A file it can't read, root or not: a directory in its place.
+    await mkdir(join(dir, 'unreadable.json'))
+    const unreadable = new JsonFile<Record<string, number>>(dir, 'unreadable.json', { strict: true })
+    await expect(unreadable.load()).rejects.toThrow()
+    await expect(unreadable.change((current) => ({ ...current, a: 1 }))).rejects.toThrow()
+
+    await rm(join(dir, 'unreadable.json'), { recursive: true })
+    await writeFile(join(dir, 'unreadable.json'), '{"a": 2}')
+    expect(await unreadable.load()).toEqual({ a: 2 })
   })
 
   it('applies changes made at the same time one after another, losing none', async () => {

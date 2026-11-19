@@ -540,6 +540,8 @@
     "repeatPassword": "Repeat the password",
     "passwordHelp_one": "At least {{count}} character",
     "passwordHelp_other": "At least {{count}} characters",
+    "passwordTooLong_one": "At most {{count}} character",
+    "passwordTooLong_other": "At most {{count}} characters",
     "mismatch": "The passwords don’t match",
     "invalid": "Wrong password",
     "submit": "Sign in",

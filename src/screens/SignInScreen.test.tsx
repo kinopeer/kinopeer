@@ -32,10 +32,20 @@ describe('SignInScreen, setting the password', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Set password' }))
   }
 
+  /** As setUp, pasting a long password into both fields rather than typing it. */
+  async function setUpPasted(password: string) {
+    for (const label of ['New password', 'Repeat the password']) {
+      await userEvent.click(screen.getByLabelText(label))
+      await userEvent.paste(password)
+    }
+    await userEvent.click(screen.getByRole('button', { name: 'Set password' }))
+  }
+
   it('sets the password typed twice', async () => {
     render(<SignInScreen need="set-up" />)
     expect(screen.getByRole('heading', { name: 'Set a password' })).toBeInTheDocument()
-    expect(screen.getByText('Anyone on your network can open Kinopeer, and through it control qBittorrent and Prowlarr. Set a password to keep them out: each device asks for it once.')).toBeInTheDocument()
+    // Which text the screen picked, by its start: the copy itself is the locale files'.
+    expect(screen.getByText(/^Anyone on your network can open Kinopeer/)).toBeInTheDocument()
     expect(screen.getByLabelText('New password')).toHaveAttribute('autocomplete', 'new-password')
     expect(screen.getByLabelText('New password')).toHaveAccessibleDescription('At least 8 characters')
     await setUp('correct horse')
@@ -56,6 +66,21 @@ describe('SignInScreen, setting the password', () => {
     render(<SignInScreen need="set-up" />)
     await setUp('8 chars!')
     expect(setUpPassword).toHaveBeenCalledExactlyOnceWith('8 chars!')
+  })
+
+  it('takes a password of 256 characters at most, as the server does', async () => {
+    render(<SignInScreen need="set-up" />)
+    await setUpPasted('x'.repeat(257))
+    const password = screen.getByLabelText('New password')
+    expect(password).toHaveAttribute('aria-invalid', 'true')
+    expect(password).toHaveAccessibleDescription('At most 256 characters')
+    expect(setUpPassword).not.toHaveBeenCalled()
+
+    await userEvent.clear(password)
+    expect(password).not.toHaveAttribute('aria-invalid')
+    await userEvent.clear(screen.getByLabelText('Repeat the password'))
+    await setUpPasted('x'.repeat(256))
+    expect(setUpPassword).toHaveBeenCalledExactlyOnceWith('x'.repeat(256))
   })
 
   it('shows on the field that the server found the password too short', async () => {
@@ -137,10 +162,10 @@ describe('SignInScreen, signing in', () => {
     render(<SignInScreen need="sign-in" />)
     const password = screen.getByLabelText('Password')
     expect(password).toHaveAttribute('autocomplete', 'current-password')
-    expect(screen.getByText('Enter Kinopeer’s password. It keeps everyone else on your network out of Kinopeer and the qBittorrent and Prowlarr behind it.')).toBeInTheDocument()
+    expect(screen.getByText(/^Enter Kinopeer’s password/)).toBeInTheDocument()
     expect(screen.queryByLabelText('Repeat the password')).not.toBeInTheDocument()
-    const account = document.querySelector('input[autocomplete="username"]')
-    expect(account).toHaveValue('Kinopeer')
+    const account = screen.getByDisplayValue('Kinopeer')
+    expect(account).toHaveAttribute('autocomplete', 'username')
     // Not a field to tab to.
     expect(account).toHaveAttribute('tabindex', '-1')
     await signInWith('correct horse')
@@ -172,6 +197,26 @@ describe('SignInScreen, signing in', () => {
     await signInWith('correct horse')
     expect(screen.getByRole('alert', { name: saying('Too many wrong passwords. Try again in 3 hours.') })).toBeInTheDocument()
     expect(screen.getByLabelText('Password')).not.toHaveAttribute('aria-invalid')
+  })
+
+  it('takes a password longer than any the server keeps for a wrong one, without sending it', async () => {
+    render(<SignInScreen need="sign-in" />)
+    await userEvent.click(screen.getByLabelText('Password'))
+    await userEvent.paste('x'.repeat(257))
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(screen.getByLabelText('Password')).toHaveAccessibleDescription('Wrong password')
+    expect(signIn).not.toHaveBeenCalled()
+  })
+
+  it('asks to set a password when the server’s was reset since the screen opened', async () => {
+    auth.setSignInNeed('sign-in')
+    signIn.mockRejectedValue(new AuthError(409, 'not-set-up'))
+    const { rerender } = render(<Current />)
+    await signInWith('correct horse')
+    rerender(<Current />)
+    expect(screen.getByRole('heading', { name: 'Set a password' })).toBeInTheDocument()
+    expect(screen.getByLabelText('New password')).toHaveValue('')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('says Kinopeer didn’t answer', async () => {

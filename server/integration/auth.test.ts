@@ -1,7 +1,7 @@
 import { request } from 'node:http'
 import { afterEach, describe, expect, it } from 'vitest'
-import { MIN_PASSWORD_LENGTH } from '../auth.ts'
-import { AuthError, MIN_PASSWORD_LENGTH as CLIENT_MIN_PASSWORD_LENGTH, changePassword, setSignInNeed, setUpPassword, signIn, signInNeed, signOut } from '../../src/api/auth/index.ts'
+import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from '../auth.ts'
+import { AuthError, MAX_PASSWORD_LENGTH as CLIENT_MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH as CLIENT_MIN_PASSWORD_LENGTH, changePassword, setSignInNeed, setUpPassword, signIn, signInNeed, signOut } from '../../src/api/auth/index.ts'
 import { SignInRequiredError } from '../../src/api/fetchKinopeer.ts'
 import { getAppVersion } from '../../src/api/qbittorrent/client.ts'
 import { getServerSettings } from '../../src/api/settings/client.ts'
@@ -25,6 +25,7 @@ describe('Kinopeer’s own login through the clients', () => {
 
     // The client asks for what the server takes.
     expect(CLIENT_MIN_PASSWORD_LENGTH).toBe(MIN_PASSWORD_LENGTH)
+    expect(CLIENT_MAX_PASSWORD_LENGTH).toBe(MAX_PASSWORD_LENGTH)
     await expect(setUpPassword('x'.repeat(MIN_PASSWORD_LENGTH - 1))).rejects.toMatchObject({ status: 400, code: 'too-short' })
     await setUpPassword('correct horse')
     expect(signInNeed()).toBeNull()

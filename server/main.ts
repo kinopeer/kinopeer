@@ -73,6 +73,14 @@ export function missingSettings(env: Record<string, string | undefined>, setting
 }
 
 /**
+ * What the server warns about at startup when Kinopeer's own login is off, the operator's one sign
+ * that nothing of Kinopeer's asks for a password; undefined with it on.
+ */
+export function loginWarning(env: Record<string, string | undefined>): string | undefined {
+  return authMode(env.KINOPEER_AUTH) === 'off' ? 'own login off (KINOPEER_AUTH=off): keep a login in front of Kinopeer' : undefined
+}
+
+/**
  * The server's routes and jobs. Besides the variables in .env.example, PROWLARR_CONFIG_XML points
  * at Prowlarr's config.xml to read its API key from (the Umbrel package mounts it), used when
  * neither a key saved from the app nor PROWLARR_API_KEY is set, TMDB_API_URL and TMDB_IMAGE_URL replace TMDB's API and image
@@ -168,7 +176,9 @@ async function main() {
   const host = env.HOST || '0.0.0.0'
   const root = resolve(env.KINOPEER_DIST || resolve(dirname(fileURLToPath(import.meta.url)), '../dist'))
   const stores = dataStores(resolve(env.KINOPEER_DATA_DIR || 'data'))
-  await Promise.all([stores.settings.load(), stores.matches.load(), stores.auth.load()])
+  // auth.json is read with the first request the login holds back: one it can't read answers 500
+  // then, rather than keeping the server from starting with the login off.
+  await Promise.all([stores.settings.load(), stores.matches.load()])
   const kinopeer = kinopeerServer(env, stores)
   const server = createApp(root, kinopeer)
   const stopJobs = kinopeer.startJobs()
@@ -178,7 +188,8 @@ async function main() {
     console.log(`[kinopeer] ${version} listening on http://${host}:${port}`)
     const missing = missingSettings(env, stores.settings)
     if (missing.length) console.warn(`[kinopeer] not set: ${missing.join(', ')}`)
-    if (authMode(env.KINOPEER_AUTH) === 'off') console.warn('[kinopeer] own login off (KINOPEER_AUTH=off): keep a login in front of Kinopeer')
+    const login = loginWarning(env)
+    if (login) console.warn(`[kinopeer] ${login}`)
   })
 
   // Docker sends SIGTERM on stop: finish open requests instead of waiting to be killed.

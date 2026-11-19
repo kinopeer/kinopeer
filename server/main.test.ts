@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { parse } from 'yaml'
-import { TMDB_PROXY, TMDB_PROXY_EDGE, createApp, dataStores, kinopeerServer, missingSettings, tmdbProxy } from './main.ts'
+import { TMDB_PROXY, TMDB_PROXY_EDGE, createApp, dataStores, kinopeerServer, loginWarning, missingSettings, tmdbProxy } from './main.ts'
 import { CONTENT_SECURITY_POLICY, SECURITY_HEADERS } from './securityHeaders.ts'
 import { SettingsStore } from './settings.ts'
 import { closeServers, fakeTmdb } from './test/fakes.ts'
@@ -84,6 +84,14 @@ describe('createApp', () => {
     expect(await (await fetch(`${app}/settings`)).text()).toContain('Kinopeer')
     expect((await fetch(`${app}/assets/missing.js`)).status).toBe(404)
     expect((await fetch(`${app}/settings`, { method: 'POST' })).status).toBe(404)
+  })
+})
+
+describe('loginWarning', () => {
+  it('warns that nothing asks for a password with the login off, and only then', () => {
+    expect(loginWarning({ KINOPEER_AUTH: 'off' })).toBe('own login off (KINOPEER_AUTH=off): keep a login in front of Kinopeer')
+    expect(loginWarning({ KINOPEER_AUTH: 'on' })).toBeUndefined()
+    expect(loginWarning({})).toBeUndefined()
   })
 })
 

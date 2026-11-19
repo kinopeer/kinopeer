@@ -9,21 +9,30 @@ import { join } from 'node:path'
 export class JsonFile<T extends object> {
   private readonly path: string
   private readonly dir: string
+  private readonly strict: boolean
   private cache: T | undefined
   private writing: Promise<unknown> = Promise.resolve()
 
-  constructor(dir: string, name: string) {
+  /**
+   * `strict` is for a file whose loss would open something up (the login's): only a missing file is
+   * empty, and one it can't read or parse rejects, as does every change, until a load succeeds.
+   */
+  constructor(dir: string, name: string, { strict = false }: { strict?: boolean } = {}) {
     this.dir = dir
     this.path = join(dir, name)
+    this.strict = strict
   }
 
-  /** Reads the file once; a missing or broken file is an empty object. */
+  /** Reads the file once; a missing file is an empty object, and so is a broken one unless strict. */
   async load(): Promise<T> {
     if (this.cache) return this.cache
     try {
       const parsed: unknown = JSON.parse(await readFile(this.path, 'utf8'))
-      this.cache = (parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}) as T
-    } catch {
+      const object = parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      if (!object && this.strict) throw new Error(`${this.path} is not a JSON object`)
+      this.cache = (object ? parsed : {}) as T
+    } catch (error) {
+      if (this.strict && (error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
       this.cache = {} as T
     }
     return this.cache

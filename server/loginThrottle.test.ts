@@ -83,6 +83,21 @@ describe('LoginThrottle', () => {
     expect(t.retryAfter('first')).toBe(FIRST_LOCK_MS)
     expect(t.retryAfter('second')).toBe(0)
   })
+
+  it('makes room with an address it found forgotten, rather than with one it still counts', () => {
+    const { clock, throttle: t } = throttle()
+    fail(t, 'a')
+    clock.now = 60_000
+    t.attempt('c')
+    clock.now = 2 * 60 * 60_000
+    for (let i = 0; i < MAX_ADDRESSES - 2; i++) t.attempt(`address ${i}`)
+    // 'c' is forgotten once looked up a day after its failure, while 'a''s day runs from its lock's end.
+    clock.now = 60_000 + FORGET_AFTER_MS
+    expect(t.retryAfter('c')).toBe(0)
+    t.attempt('b')
+    fail(t, 'a')
+    expect(t.retryAfter('a')).toBe(2 * FIRST_LOCK_MS)
+  })
 })
 
 describe('clientKey', () => {
@@ -100,6 +115,8 @@ describe('clientKey', () => {
     expect(clientKey('2001:0db8:0001:0002::7')).toBe('2001:db8:1:2::/64')
     expect(clientKey('2001:db8::1')).toBe('2001:db8:0:0::/64')
     expect(clientKey('2001::1:2:3:4:5')).toBe('2001:0:0:1::/64')
+    // A dotted tail stands for two groups.
+    expect(clientKey('a::b:c:d:e:1.2.3.4')).toBe('a:0:b:c::/64')
     expect(clientKey('fe80::1%eth0')).toBe('fe80:0:0:0::/64')
     expect(clientKey('::1')).toBe('0:0:0:0::/64')
   })

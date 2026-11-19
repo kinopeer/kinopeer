@@ -91,9 +91,16 @@ export function clientKey(address: string | undefined): string {
 function expandIpv6(address: string): string[] {
   const plain = address.split('%')[0].toLowerCase()
   const [head, tail = ''] = plain.split('::')
-  const groups = (part: string) => (part ? part.split(':') : [])
+  const groups = (part: string) => (part ? part.split(':').flatMap(ipv4Groups) : [])
   const left = groups(head)
   const right = plain.includes('::') ? groups(tail) : []
   const missing = 8 - left.length - right.length
   return [...left, ...Array<string>(Math.max(0, missing)).fill('0'), ...right].map((group) => group.replace(/^0+(?=.)/, ''))
+}
+
+/** A group as written, or a dotted IPv4 tail as the two groups it stands for. */
+function ipv4Groups(group: string): string[] {
+  if (!group.includes('.')) return [group]
+  const [a, b, c, d] = group.split('.').map(Number)
+  return [((a << 8) | b).toString(16), ((c << 8) | d).toString(16)]
 }

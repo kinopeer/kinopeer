@@ -55,9 +55,10 @@ export interface StoredAuth {
   sessions?: StoredSession[]
 }
 
+/** Strict: a file it can't read holds everything back rather than asking for a new password. */
 export class AuthStore extends JsonFile<StoredAuth> {
   constructor(dir: string) {
-    super(dir, 'auth.json')
+    super(dir, 'auth.json', { strict: true })
   }
 }
 
@@ -98,12 +99,18 @@ export async function hashPassword(password: string): Promise<string> {
   return ['scrypt', SCRYPT.N, SCRYPT.r, SCRYPT.p, salt.toString('base64'), hash.toString('base64')].join('$')
 }
 
-/** Whether `password` is the one `stored` was made from; false for a hash it can't read. */
+/** Whether `password` is the one `stored` was made from; false for a hash it can't read or use. */
 export async function verifyPassword(password: string, stored: string): Promise<boolean> {
   const [scheme, N, r, p, salt, hash] = stored.split('$')
   if (scheme !== 'scrypt' || !salt || !hash) return false
   const expected = Buffer.from(hash, 'base64')
-  const actual = await derive(password, Buffer.from(salt, 'base64'), { N: Number(N), r: Number(r), p: Number(p) })
+  let actual: Buffer
+  try {
+    actual = await derive(password, Buffer.from(salt, 'base64'), { N: Number(N), r: Number(r), p: Number(p) })
+  } catch {
+    // Parameters scrypt refuses (an N that isn't a power of two, a cost past maxmem): matches nothing.
+    return false
+  }
   return actual.length === expected.length && timingSafeEqual(actual, expected)
 }
 
@@ -220,14 +227,18 @@ export function kinopeerAuth(config: AuthConfig): Auth {
 
   const live = (sessions: StoredSession[] | undefined) => (sessions ?? []).filter((session) => session.expiresAt > now())
 
-  /** The request's session, moved on when it's due, with its cookie. */
-  const sessionOf = (request: IncomingMessage, response: ServerResponse): StoredSession | undefined => {
+  /**
+   * The request's session, moved on when it's due and `renew` says the answer may carry its cookie:
+   * only Kinopeer's own `/api` answers, never a bridge's, which a shared cache may keep (TMDB's
+   * images are public and cached for long), handing one browser's cookie to others.
+   */
+  const sessionOf = (request: IncomingMessage, response: ServerResponse, renew: boolean): StoredSession | undefined => {
     const token = tokenOf(request)
     if (!token) return undefined
     const id = sessionId(token)
     const session = live(store.current.sessions).find((candidate) => candidate.id === id)
     if (!session) return undefined
-    if (now() - session.renewedAt >= RENEW_EVERY_MS) {
+    if (renew && now() - session.renewedAt >= RENEW_EVERY_MS) {
       const renewed = { ...session, expiresAt: now() + SESSION_MS, renewedAt: now() }
       response.setHeader('Set-Cookie', sessionCookie(request, token, SESSION_MS))
       // Not waited for: a failed write leaves the session as it was, still valid.
@@ -239,9 +250,9 @@ export function kinopeerAuth(config: AuthConfig): Auth {
     return session
   }
 
-  const access = (request: IncomingMessage, response: ServerResponse): Access => {
+  const access = (request: IncomingMessage, response: ServerResponse, renew = true): Access => {
     if (!store.current.password) return { allowed: false, need: 'set-up' }
-    const session = sessionOf(request, response)
+    const session = sessionOf(request, response, renew)
     return session ? { allowed: true, session } : { allowed: false, need: 'sign-in' }
   }
 
@@ -273,24 +284,25 @@ export function kinopeerAuth(config: AuthConfig): Auth {
     typeof value === 'string' && value.length > 0 && value.length <= MAX_PASSWORD_LENGTH ? value : undefined
 
   /**
-   * Checks `password` against the stored one, counted by the throttle; answers and returns false
-   * when it's refused.
+   * Checks `password` against the stored one, counted by the throttle; returns the hash it matched,
+   * or answers and returns undefined when it's refused.
    */
   const checkPassword = async (request: IncomingMessage, response: ServerResponse, password: string) => {
     const key = clientKey(request.socket.remoteAddress)
     const wait = throttle.retryAfter(key)
     if (wait > 0) {
       fail(response, 429, 'throttled', wait)
-      return false
+      return undefined
     }
     throttle.attempt(key)
-    if (await verifyPassword(password, store.current.password ?? '')) {
+    const stored = store.current.password ?? ''
+    if (await verifyPassword(password, stored)) {
       throttle.succeeded(key)
-      return true
+      return stored
     }
     const next = throttle.retryAfter(key)
     fail(response, 422, 'invalid-password', next > 0 ? next : undefined)
-    return false
+    return undefined
   }
 
   const setUp = async (request: IncomingMessage, response: ServerResponse, body: Partial<PasswordBody>) => {
@@ -312,8 +324,11 @@ export function kinopeerAuth(config: AuthConfig): Auth {
     const password = readPassword(body.password)
     if (password === undefined) return fail(response, 400, 'bad-request')
     if (!store.current.password) return fail(response, 409, 'not-set-up')
-    if (!(await checkPassword(request, response, password))) return
-    await startSession(request, response, (current) => current)
+    const matched = await checkPassword(request, response, password)
+    if (matched === undefined) return
+    // The password changed while this one was checked: it's an old one now, and gets no session.
+    const started = await startSession(request, response, (current) => (current.password === matched ? current : undefined))
+    if (!started) return fail(response, 422, 'invalid-password')
     response.statusCode = 204
     response.end()
   }
@@ -337,7 +352,7 @@ export function kinopeerAuth(config: AuthConfig): Auth {
     if (current === undefined || password === undefined) return fail(response, 400, 'bad-request')
     if (store.current.source === 'env') return fail(response, 409, 'env-password')
     if (password.length < MIN_PASSWORD_LENGTH) return fail(response, 400, 'too-short')
-    if (!(await checkPassword(request, response, current))) return
+    if ((await checkPassword(request, response, current)) === undefined) return
     const hash = await hashPassword(password)
     const id = checked.session.id
     // This browser stays signed in; every other session ends.
@@ -389,10 +404,13 @@ export function kinopeerAuth(config: AuthConfig): Auth {
     const path = new URL(request.url ?? '/', 'http://kinopeer.local').pathname
     const own = path === PREFIX || path.startsWith(`${PREFIX}/`)
     if (!own && (mode === 'off' || !guarded(request.url))) return next()
+    // Off, the login's routes answer without touching auth.json or KINOPEER_PASSWORD.
+    if (mode === 'off') return route(request, response, path)
     ready().then(
       () => {
         if (own) return route(request, response, path)
-        const checked = access(request, response)
+        const lower = path.toLowerCase()
+        const checked = access(request, response, lower === '/api' || lower.startsWith('/api/'))
         if (checked.allowed) return next()
         needSignIn(response, checked.need)
       },

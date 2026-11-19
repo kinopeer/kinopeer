@@ -446,17 +446,20 @@ describe('SettingsScreen', () => {
     }
   })
 
-  it('has no sign-in section without Kinopeer’s own login, as on Umbrel or with a server before it', async () => {
+  it.each([
+    ['as on Umbrel', { auth: { enabled: false } }],
+    ['with a server before it', {}],
+  ] as const)('has no sign-in section without Kinopeer’s own login, %s', async (_, login) => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue({
+      tmdb: { configured: true, source: 'shared', fallback: null },
+      prowlarr: { configured: true, source: 'env', serverKey: true },
+      qbittorrent: { configured: true, source: 'env' },
+      downloads: null,
+      ...login,
+    })
     renderScreen()
-    await screen.findByRole('region', { name: 'About' })
-    await waitFor(() => expect(serverSettings.getServerSettings).toHaveBeenCalled())
-    await act(async () => {})
-    expect(screen.queryByRole('region', { name: 'Sign-in' })).not.toBeInTheDocument()
-
-    vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ ...(await serverSettings.getServerSettings()), auth: { enabled: false } })
-    sharedRequests.clear()
-    renderScreen()
-    await act(async () => {})
+    // Something only the settings answer shows: it's in.
+    expect(await within(connection('TMDB')).findByRole('status', { name: saying('Connected · Kinopeer’s key') })).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Sign-in' })).not.toBeInTheDocument()
   })
 
@@ -493,7 +496,7 @@ describe('SettingsScreen', () => {
     vi.mocked(auth.signOut).mockResolvedValue()
     renderScreen()
     const section = await screen.findByRole('region', { name: 'Sign-in' })
-    expect(within(section).queryByRole('button', { name: saying(/Change password/) })).not.toBeInTheDocument()
+    expect(within(section).queryByRole('button', { name: /^Change password/ })).not.toBeInTheDocument()
     expect(within(section).getByText('The password is set on the server (KINOPEER_PASSWORD), so it’s changed there.')).toBeInTheDocument()
 
     const signOut = within(section).getByRole('button', { name: /^Sign out/ })
@@ -508,7 +511,7 @@ describe('SettingsScreen', () => {
     vi.mocked(auth.signOut).mockRejectedValue(new auth.AuthError(502))
     renderScreen()
     const section = await screen.findByRole('region', { name: 'Sign-in' })
-    await userEvent.click(within(section).getByRole('button', { name: saying(/Sign out/) }))
+    await userEvent.click(within(section).getByRole('button', { name: /^Sign out/ }))
     expect(await findToastOnPage('Couldn’t sign out. Try again.')).toBeInTheDocument()
   })
 

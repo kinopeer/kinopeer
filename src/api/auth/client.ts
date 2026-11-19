@@ -7,10 +7,12 @@ import { sharedRequests } from '../../logic/sharedRequests'
 export const AUTH_BASE = '/api/auth'
 
 /**
- * The shortest password the server takes: `MIN_PASSWORD_LENGTH` in server/auth.ts, which can't
- * import this (the image has no src/), so server/integration/auth.test.ts checks they're the same.
+ * The shortest and the longest password the server takes: `MIN_PASSWORD_LENGTH` and
+ * `MAX_PASSWORD_LENGTH` in server/auth.ts, which can't import these (the image has no src/), so
+ * server/integration/auth.test.ts checks they're the same.
  */
 export const MIN_PASSWORD_LENGTH = 8
+export const MAX_PASSWORD_LENGTH = 256
 
 export class AuthError extends Error {
   readonly status: number
@@ -51,8 +53,8 @@ export async function setUpPassword(password: string): Promise<void> {
 }
 
 /**
- * Signs this browser in. Rejects with an AuthError: code 'invalid-password', or 'throttled' after
- * too many wrong ones, with `retryAfterMs`.
+ * Signs this browser in. Rejects with an AuthError: code 'invalid-password', 'throttled' after too
+ * many wrong ones, with `retryAfterMs`, or 'not-set-up' when the server has no password (reset).
  */
 export async function signIn(password: string): Promise<void> {
   await send('POST', 'login', { password })

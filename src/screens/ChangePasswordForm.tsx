@@ -1,17 +1,17 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AuthError, MIN_PASSWORD_LENGTH, changePassword } from '../api/auth'
+import { AuthError, MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH, changePassword } from '../api/auth'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { Input } from '../components/Input'
-import { throttledText } from './throttledText'
+import { throttledText } from '../logic/throttledText'
 
 export interface ChangePasswordFormProps {
   /** The server took the new password; this browser stays signed in. */
   onChanged: () => void
 }
 
-type FormError = 'invalid' | 'too-short' | 'mismatch' | 'throttled' | 'storage' | 'failed' | null
+type FormError = 'invalid' | 'too-short' | 'too-long' | 'mismatch' | 'throttled' | 'storage' | 'env-password' | 'failed' | null
 
 /** Changes Kinopeer's own password, in a sheet from Settings; every other device is signed out. */
 export function ChangePasswordForm({ onChanged }: ChangePasswordFormProps) {
@@ -27,7 +27,10 @@ export function ChangePasswordForm({ onChanged }: ChangePasswordFormProps) {
     event.preventDefault()
     if (submitting) return
     if (password.length < MIN_PASSWORD_LENGTH) return setError('too-short')
+    if (password.length > MAX_PASSWORD_LENGTH) return setError('too-long')
     if (repeat !== password) return setError('mismatch')
+    // Longer than any password the server takes, so not the current one.
+    if (current.length > MAX_PASSWORD_LENGTH) return setError('invalid')
     setSubmitting(true)
     setError(null)
     try {
@@ -38,19 +41,21 @@ export function ChangePasswordForm({ onChanged }: ChangePasswordFormProps) {
       setSubmitting(false)
       setWaitMs(e instanceof AuthError ? (e.retryAfterMs ?? 0) : 0)
       if (code === 'invalid-password') setError('invalid')
-      else if (code === 'too-short' || code === 'throttled' || code === 'storage') setError(code)
+      else if (code === 'too-short' || code === 'throttled' || code === 'storage' || code === 'env-password') setError(code)
       else setError('failed')
     }
   }
 
   const fieldChanged = () => {
-    if (error === 'invalid' || error === 'too-short' || error === 'mismatch') setError(null)
+    if (error === 'invalid' || error === 'too-short' || error === 'too-long' || error === 'mismatch') setError(null)
   }
 
   return (
     <form className="key-form" onSubmit={handleSubmit} noValidate>
       {(error === 'throttled' || (error === 'invalid' && waitMs > 0)) && <Banner tone="error">{throttledText(t, waitMs)}</Banner>}
       {error === 'storage' && <Banner tone="error">{t('keyForm.storage')}</Banner>}
+      {/* KINOPEER_PASSWORD set since Settings showed the form. */}
+      {error === 'env-password' && <Banner tone="error">{t('settings.passwordFromEnv')}</Banner>}
       {error === 'failed' && <Banner tone="error">{t('settings.changePasswordFailed')}</Banner>}
 
       <Input
@@ -78,7 +83,11 @@ export function ChangePasswordForm({ onChanged }: ChangePasswordFormProps) {
           fieldChanged()
         }}
         help={t('signIn.passwordHelp', { count: MIN_PASSWORD_LENGTH })}
-        error={error === 'too-short' && t('signIn.passwordHelp', { count: MIN_PASSWORD_LENGTH })}
+        error={
+          error === 'too-short'
+            ? t('signIn.passwordHelp', { count: MIN_PASSWORD_LENGTH })
+            : error === 'too-long' && t('signIn.passwordTooLong', { count: MAX_PASSWORD_LENGTH })
+        }
       />
       <Input
         label={t('signIn.repeatPassword')}

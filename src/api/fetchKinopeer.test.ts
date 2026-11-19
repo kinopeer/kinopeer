@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { opaqueRedirect } from '../test/fixtures'
-import { setSignInNeed, signInNeed } from './auth/signInNeed'
+import { signInNeed } from './auth/signInNeed'
 import { AUTH_HEADER, ProxySignInError, SignInRequiredError, fetchKinopeer, onProxySignIn } from './fetchKinopeer'
 
 let fetchMock: Mock<typeof fetch>
@@ -48,10 +48,6 @@ describe('fetchKinopeer', () => {
 })
 
 describe('fetchKinopeer and Kinopeer’s own login', () => {
-  afterEach(() => {
-    setSignInNeed(null)
-  })
-
   it.each(['sign-in', 'set-up'] as const)('fails a request the login holds back and says the page needs to %s', async (need) => {
     fetchMock.mockResolvedValueOnce(new Response('{}', { status: 401, headers: { [AUTH_HEADER]: need } }))
     await expect(fetchKinopeer('/qbt/api/v2/app/version')).rejects.toEqual(new SignInRequiredError(need))

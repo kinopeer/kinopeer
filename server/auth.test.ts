@@ -1,8 +1,8 @@
 import { scryptSync } from 'node:crypto'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   AUTH_HEADER,
   AuthStore,
@@ -87,6 +87,11 @@ describe('hashPassword', () => {
 
   it('matches nothing against a hash it can’t read', async () => {
     await expect(verifyPassword('anything', '')).resolves.toBe(false)
+    // Parameters scrypt refuses: an N that isn't a power of two, a cost past its memory limit.
+    const salt = Buffer.alloc(16).toString('base64')
+    const hash = Buffer.alloc(32).toString('base64')
+    await expect(verifyPassword('anything', `scrypt$3$8$1$${salt}$${hash}`)).resolves.toBe(false)
+    await expect(verifyPassword('anything', `scrypt$${2 ** 20}$8$1$${salt}$${hash}`)).resolves.toBe(false)
     await expect(verifyPassword('anything', 'bcrypt$x$y')).resolves.toBe(false)
     await expect(verifyPassword('anything', 'scrypt$32768$8$1$c2FsdA==$')).resolves.toBe(false)
     const stored = await hashPassword('anything')
@@ -275,6 +280,28 @@ describe('the login', () => {
     expect(await reached(app, second)).toBe(false)
   })
 
+  it('starts no session for the old password when it changes while that one is checked', async () => {
+    let onAttempt = () => {}
+    class Watching extends LoginThrottle {
+      attempt(key: string) {
+        super.attempt(key)
+        onAttempt()
+      }
+    }
+    const { store, origin } = kinopeer({ throttle: new Watching(() => clock) })
+    const app = await origin
+    await post(app, 'setup', { password: 'correct horse' })
+    const changed = await hashPassword('battery staple')
+    // As another browser's change of the password lands while this sign-in's hash is computed.
+    onAttempt = () => void store.change((current) => ({ ...current, password: changed, sessions: [] }))
+
+    const late = await post(app, 'login', { password: 'correct horse' })
+    expect(late.status).toBe(422)
+    expect(late.headers.getSetCookie()).toEqual([])
+    expect(await late.json()).toEqual({ error: 'invalid-password' })
+    expect(store.current.sessions).toEqual([])
+  })
+
   it('changes the password for a signed-in browser and signs every other one out', async () => {
     const { origin } = kinopeer()
     const app = await origin
@@ -306,7 +333,13 @@ describe('the login', () => {
     const early = await fetch(`${await first.origin}/qbt/api/v2/app/version`, { headers: { Cookie: cookie } })
     expect(early.headers.getSetCookie()).toEqual([])
     clock += 1
-    const due = await fetch(`${await first.origin}/qbt/api/v2/app/version`, { headers: { Cookie: cookie } })
+    // Only on Kinopeer's own answers: a bridge's may be kept by a shared cache, as TMDB's images are.
+    for (const path of ['/qbt/api/v2/app/version', '/tmdb-img/w342/poster.jpg', '/prowlarr/search']) {
+      const bridged = await fetch(`${await first.origin}${path}`, { headers: { Cookie: cookie } })
+      expect(bridged.status, path).toBe(404)
+      expect(bridged.headers.getSetCookie(), path).toEqual([])
+    }
+    const due = await fetch(`${await first.origin}/api/settings`, { headers: { Cookie: cookie } })
     expect(due.headers.getSetCookie()[0]).toMatch(new RegExp(`^${cookie}; Path=/; HttpOnly; SameSite=Strict; Max-Age=2592000$`))
     const renewedUntil = clock + SESSION_MS
     await expect.poll(() => first.store.current.sessions?.[0].expiresAt).toBe(renewedUntil)
@@ -327,7 +360,7 @@ describe('the login', () => {
     const used = cookieOf(await post(app, 'setup', { password: 'correct horse' }))
     await post(app, 'login', { password: 'correct horse' })
     clock += RENEW_EVERY_MS
-    await fetch(`${app}/qbt/api/v2/app/version`, { headers: { Cookie: used } })
+    await fetch(`${app}/api/settings`, { headers: { Cookie: used } })
     await expect
       .poll(() => store.current.sessions?.map((session) => session.expiresAt).sort())
       .toEqual([started + SESSION_MS, clock + SESSION_MS])
@@ -357,6 +390,12 @@ describe('the login', () => {
     expect(form.status).toBe(415)
     expect((await fetch(`${app}/api/auth/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '[' })).status).toBe(400)
     expect((await fetch(`${app}/api/auth/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '[]' })).status).toBe(400)
+    // A body it can't read is refused before anything else, a session's check included.
+    await post(app, 'setup', { password: 'correct horse' })
+    for (const body of ['[', '"x"']) {
+      const response = await fetch(`${app}/api/auth/password`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body })
+      expect(response.status, body).toBe(400)
+    }
     expect((await fetch(`${app}/api/auth/login`)).status).toBe(404)
     expect((await fetch(`${app}/api/auth`)).status).toBe(404)
     // Each route takes its own method only.
@@ -368,10 +407,41 @@ describe('the login', () => {
 
   it('says it can’t keep anything when the data directory isn’t writable', async () => {
     await writeFile(join(dir, 'file'), '')
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const { origin } = kinopeer({ store: new AuthStore(join(dir, 'file', 'data')) })
     const response = await post(await origin, 'setup', { password: 'correct horse' })
     expect(response.status).toBe(500)
     expect(await response.json()).toEqual({ error: 'storage' })
+    expect(warn).toHaveBeenCalledWith('[kinopeer] could not read or write auth.json; is the data directory writable?')
+  })
+
+  it('says it can’t keep a new password when auth.json can’t be written, though it can be read', async () => {
+    // A directory where JsonFile writes the file before moving it in place.
+    await mkdir(join(dir, `auth.json.${process.pid}.tmp`))
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { origin } = kinopeer()
+    const response = await post(await origin, 'setup', { password: 'correct horse' })
+    expect(response.status).toBe(500)
+    expect(await response.json()).toEqual({ error: 'storage' })
+    expect(warn).toHaveBeenCalledWith('[kinopeer] could not write auth.json; is the data directory writable?')
+  })
+})
+
+describe('a login it can’t read', () => {
+  it.each([
+    ['broken', () => writeFile(join(dir, 'auth.json'), '{ "password": "scrypt$')],
+    ['unreadable', () => mkdir(join(dir, 'auth.json'))],
+  ])('holds everything back when auth.json is %s, rather than asking for a new password', async (_, spoil) => {
+    await spoil()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { origin } = kinopeer()
+    const app = await origin
+    for (const response of [await fetch(`${app}/api/settings`), await post(app, 'setup', { password: 'correct horse' })]) {
+      expect(response.status).toBe(500)
+      expect(response.headers.get(AUTH_HEADER)).toBeNull()
+      expect(await response.json()).toEqual({ error: 'storage' })
+    }
+    expect(warn).toHaveBeenCalledWith('[kinopeer] could not read or write auth.json; is the data directory writable?')
   })
 })
 
@@ -380,9 +450,11 @@ describe('the login with KINOPEER_PASSWORD', () => {
     await writeFile(join(dir, 'file'), '')
     const { origin } = kinopeer({ store: new AuthStore(join(dir, 'file', 'data')), envPassword: 'from the environment' })
     const app = await origin
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const response = await fetch(`${app}/api/settings`)
     expect(response.status).toBe(500)
     expect(await response.json()).toEqual({ error: 'storage' })
+    expect(warn).toHaveBeenCalledWith('[kinopeer] could not read or write auth.json; is the data directory writable?')
 
     await rm(join(dir, 'file'))
     expect((await fetch(`${app}/api/settings`)).headers.get(AUTH_HEADER)).toBe('sign-in')
@@ -446,10 +518,14 @@ describe('the login off', () => {
     expect(auth.status()).toEqual({ enabled: false })
   })
 
-  it('doesn’t read auth.json, so a data directory it can’t read holds nothing back', async () => {
+  it('neither reads nor writes auth.json, so a data directory it can’t use holds nothing back, its own routes included', async () => {
     await writeFile(join(dir, 'file'), '')
     const { origin } = kinopeer({ mode: 'off', store: new AuthStore(join(dir, 'file', 'data')), envPassword: 'from the environment' })
-    expect(await reached(await origin)).toBe(true)
+    const app = await origin
+    expect(await reached(app)).toBe(true)
+    const login = await post(app, 'login', { password: 'from the environment' })
+    expect(login.status).toBe(409)
+    expect(await login.json()).toEqual({ error: 'auth-off' })
   })
 })
 

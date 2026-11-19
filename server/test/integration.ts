@@ -140,7 +140,8 @@ export async function startKinopeer(options: StandOptions = {}): Promise<Stand> 
     ...options.env,
   }
   const stores = dataStores(env.KINOPEER_DATA_DIR!)
-  await Promise.all([stores.settings.load(), stores.matches.load(), stores.auth.load()])
+  // As server/main.ts does: auth.json is read by the login itself.
+  await Promise.all([stores.settings.load(), stores.matches.load()])
   const { routes } = kinopeerServer(env, stores)
   const received: ReceivedRequest[] = []
   // The production server's chain (server/main.ts) without the static files: the routes in order,

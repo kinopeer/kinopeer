@@ -25,7 +25,7 @@ async function change(current: string, password: string, repeat = password) {
 }
 
 describe('ChangePasswordForm', () => {
-  it('changes the password and says so', async () => {
+  it('changes the password and tells Settings it’s done', async () => {
     const onChanged = vi.fn()
     render(<ChangePasswordForm onChanged={onChanged} />)
     await change('correct horse', 'battery staple')
@@ -55,6 +55,34 @@ describe('ChangePasswordForm', () => {
     expect(changePassword).not.toHaveBeenCalled()
     await userEvent.type(repeat, 'x')
     expect(repeat).not.toHaveAttribute('aria-invalid')
+  })
+
+  it('takes a new password of 256 characters at most, and refuses a longer current one as wrong', async () => {
+    render(<ChangePasswordForm onChanged={vi.fn()} />)
+    const paste = async (label: string, text: string) => {
+      await userEvent.clear(screen.getByLabelText(label))
+      await userEvent.click(screen.getByLabelText(label))
+      await userEvent.paste(text)
+    }
+    await paste('Current password', 'correct horse')
+    await paste('New password', 'x'.repeat(257))
+    await paste('Repeat the password', 'x'.repeat(257))
+    await userEvent.click(screen.getByRole('button', { name: 'Change password' }))
+    const password = screen.getByLabelText('New password')
+    expect(password).toHaveAttribute('aria-invalid', 'true')
+    expect(password).toHaveAccessibleDescription('At most 256 characters')
+
+    await paste('Current password', 'x'.repeat(257))
+    await paste('New password', 'x'.repeat(256))
+    await paste('Repeat the password', 'x'.repeat(256))
+    expect(password).not.toHaveAttribute('aria-invalid')
+    await userEvent.click(screen.getByRole('button', { name: 'Change password' }))
+    expect(screen.getByLabelText('Current password')).toHaveAccessibleDescription('Wrong password')
+    expect(changePassword).not.toHaveBeenCalled()
+
+    await paste('Current password', 'correct horse')
+    await userEvent.click(screen.getByRole('button', { name: 'Change password' }))
+    expect(changePassword).toHaveBeenCalledExactlyOnceWith('correct horse', 'x'.repeat(256))
   })
 
   it('takes a new password of exactly 8 characters', async () => {
@@ -115,7 +143,8 @@ describe('ChangePasswordForm', () => {
   it.each([
     [new AuthError(429, 'throttled', 20 * 60_000), 'Too many wrong passwords. Try again in 20 minutes.'],
     [new AuthError(500, 'storage'), /couldn’t save the change/],
-    [new AuthError(409, 'env-password'), 'Couldn’t change the password. Try again.'],
+    // KINOPEER_PASSWORD set since Settings showed the form.
+    [new AuthError(409, 'env-password'), 'The password is set on the server (KINOPEER_PASSWORD), so it’s changed there.'],
     [new TypeError('Failed to fetch'), 'Couldn’t change the password. Try again.'],
   ])('says why it couldn’t: %s', async (error, message) => {
     changePassword.mockRejectedValue(error)

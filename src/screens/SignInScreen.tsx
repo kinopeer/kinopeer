@@ -1,11 +1,11 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AuthError, MIN_PASSWORD_LENGTH, setSignInNeed, setUpPassword, signIn, type SignInNeed } from '../api/auth'
+import { AuthError, MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH, setSignInNeed, setUpPassword, signIn, type SignInNeed } from '../api/auth'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { Input } from '../components/Input'
 import { Preferences } from './Preferences'
-import { throttledText } from './throttledText'
+import { throttledText } from '../logic/throttledText'
 
 export interface SignInScreenProps {
   /** Set the first password, or sign in with the one there is. */
@@ -13,7 +13,7 @@ export interface SignInScreenProps {
 }
 
 /** Why the password wasn't taken. */
-type FormError = 'invalid' | 'too-short' | 'mismatch' | 'already-set' | 'throttled' | 'storage' | 'failed' | null
+type FormError = 'invalid' | 'too-short' | 'too-long' | 'mismatch' | 'already-set' | 'throttled' | 'storage' | 'failed' | null
 
 /** The name a password manager saves Kinopeer's password under, from the hidden username field. */
 const ACCOUNT_NAME = 'Kinopeer'
@@ -36,7 +36,10 @@ export function SignInScreen({ need }: SignInScreenProps) {
     event.preventDefault()
     if (submitting) return
     if (settingUp && password.length < MIN_PASSWORD_LENGTH) return setError('too-short')
+    if (settingUp && password.length > MAX_PASSWORD_LENGTH) return setError('too-long')
     if (settingUp && repeat !== password) return setError('mismatch')
+    // Longer than any password the server takes, so not its password.
+    if (!settingUp && password.length > MAX_PASSWORD_LENGTH) return setError('invalid')
     setSubmitting(true)
     setError(null)
     try {
@@ -51,6 +54,11 @@ export function SignInScreen({ need }: SignInScreenProps) {
         setRepeat('')
         setError('already-set')
         setSignInNeed('sign-in')
+      } else if (code === 'not-set-up') {
+        // The password was reset on the server since this screen opened: what's left is to set one.
+        setPassword('')
+        setError(null)
+        setSignInNeed('set-up')
       } else if (code === 'invalid-password') setError('invalid')
       else if (code === 'too-short' || code === 'throttled' || code === 'storage') setError(code)
       else setError('failed')
@@ -58,7 +66,7 @@ export function SignInScreen({ need }: SignInScreenProps) {
   }
 
   const clearFieldError = () => {
-    if (error === 'invalid' || error === 'too-short' || error === 'mismatch') setError(null)
+    if (error === 'invalid' || error === 'too-short' || error === 'too-long' || error === 'mismatch') setError(null)
   }
 
   return (
@@ -103,7 +111,9 @@ export function SignInScreen({ need }: SignInScreenProps) {
             error={
               error === 'invalid'
                 ? t('signIn.invalid')
-                : error === 'too-short' && t('signIn.passwordHelp', { count: MIN_PASSWORD_LENGTH })
+                : error === 'too-short'
+                  ? t('signIn.passwordHelp', { count: MIN_PASSWORD_LENGTH })
+                  : error === 'too-long' && t('signIn.passwordTooLong', { count: MAX_PASSWORD_LENGTH })
             }
           />
           {settingUp && (
