@@ -61,10 +61,10 @@ describe('ConnectScreen', () => {
 
   it('says the address answers but isn’t qBittorrent, not that qBittorrent didn’t answer', async () => {
     setup(vi.fn().mockRejectedValue(new SettingsError(502, 'not-qbittorrent')))
+    const notQbittorrent = saying('The qBittorrent address on the Kinopeer server answers, but not like qBittorrent. Check QBITTORRENT_URL.')
+    expect(screen.queryByRole('alert', { name: notQbittorrent })).not.toBeInTheDocument()
     await fillAndSubmit()
-    expect(
-      screen.getByRole('alert', { name: saying('The qBittorrent address on the Kinopeer server answers, but not like qBittorrent. Check QBITTORRENT_URL.') }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('alert', { name: notQbittorrent })).toBeInTheDocument()
     expect(screen.queryByRole('alert', { name: saying(/answering/) })).not.toBeInTheDocument()
     // What was typed stays, for a try once the address is fixed.
     expect(screen.getByLabelText('Username')).toHaveValue('admin')

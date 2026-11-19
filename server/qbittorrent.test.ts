@@ -1,7 +1,7 @@
 import { request as httpRequest } from 'node:http'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { baseOf } from './address.ts'
-import { qbittorrentBridge, qbittorrentMiddleware, type QbittorrentConfig } from './qbittorrent.ts'
+import { checkQbittorrent, qbittorrentBridge, qbittorrentMiddleware, type QbittorrentConfig } from './qbittorrent.ts'
 import { abandon, closeServers, fakeQbittorrent, listen, serve, settlesWithin, silentService } from './test/fakes.ts'
 
 /** Kinopeer's side, the middleware under test, with the address as the environment or the app gives it. */
@@ -281,4 +281,24 @@ describe('qbittorrentBridge.get', () => {
   it('fails without an address', async () => {
     await expect(qbittorrentBridge({ url: () => undefined }).get('/api/v2/app/version')).rejects.toThrow('qBittorrent has no address')
   })
+})
+
+describe('checkQbittorrent', () => {
+  /** Something at the address that answers every path with `body`, as qBittorrent's auth bypass lets the version through. */
+  const answering = (body: string) =>
+    serve((_request, response) => {
+      response.end(body)
+    })
+
+  // The client reads a version the same way (`numbers` in src/torrents/qbittorrentVersion.ts).
+  it.each(['v5.2.4', 'v4.6.7.10', '5.1.0', 'v10.0.1', 'v5.1.0beta1'])('takes %s as qBittorrent’s version', async (version) => {
+    expect(await checkQbittorrent(await answering(version), undefined)).toBe('ok')
+  })
+
+  it.each(['<!doctype html><title>Sign in</title> v5.0', 'Version 5.0', 'v5', 'version: v5.2.4', ''])(
+    'says %j isn’t qBittorrent’s version',
+    async (body) => {
+      expect(await checkQbittorrent(await answering(body), undefined)).toBe('not-qbittorrent')
+    },
+  )
 })
