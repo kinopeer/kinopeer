@@ -49,6 +49,12 @@ export function allowedHosts(value: string | undefined): { allowed: AllowedHosts
   return { allowed, invalid }
 }
 
+/** What the server warns about at startup: the entries of `KINOPEER_ALLOWED_HOSTS` it ignores. */
+export function allowedHostsWarning(value: string | undefined): string | undefined {
+  const { invalid } = allowedHosts(value)
+  return invalid.length ? `KINOPEER_ALLOWED_HOSTS: not host names, ignored: ${invalid.join(', ')}` : undefined
+}
+
 /**
  * The host name a `Host` header (or an allowed entry) names, as the URL parser reads it: lowercase,
  * ASCII, an IPv4 address in its usual form, an IPv6 one in brackets, with no port or trailing dot.
@@ -67,10 +73,11 @@ export function hostName(value: string): string | undefined {
 
 /** Whether a page can have `name` (from `hostName`) only on the person's own machine or network. */
 export function isPrivateHost(name: string): boolean {
-  // An address isn't a name DNS can point elsewhere.
-  if (name.startsWith('[') || /^\d+\.\d+\.\d+\.\d+$/.test(name)) return true
+  // An address isn't a name DNS can point elsewhere. The URL parser reads a name whose last label is
+  // a number as an IPv4 address, so only an address has this form.
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(name)) return true
   // A name of one label (`nas`, a Docker service's) only the network's own DNS answers for: public
-  // DNS has no addresses for top-level domains.
+  // DNS has no addresses for top-level domains. An IPv6 address in brackets has no dot either.
   if (!name.includes('.')) return true
   return PRIVATE_SUFFIXES.some((suffix) => name.endsWith(suffix))
 }
@@ -90,8 +97,11 @@ export function isAllowedHost(value: string | undefined, allowed: AllowedHosts):
  * catches a proxy that sends its own address as `Host` (nginx's default) and the page's in it.
  */
 export function refusedHost(headers: IncomingHttpHeaders, allowed: AllowedHosts): string | undefined {
-  const forwarded = headers['x-forwarded-host']
-  const hosts = [headers.host, ...(forwarded === undefined ? [] : String(forwarded).split(',').map((host) => host.trim()))]
+  const forwarded = String(headers['x-forwarded-host'] ?? '')
+    .split(',')
+    .map((host) => host.trim())
+    .filter(Boolean)
+  const hosts = [headers.host, ...forwarded]
   for (const host of hosts) if (!isAllowedHost(host, allowed)) return host ?? ''
   return undefined
 }

@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { allowedHosts, hostCheck } from './hostCheck.ts'
+import { allowedHosts, allowedHostsWarning, hostCheck } from './hostCheck.ts'
 import { MatchesStore, matchesMiddleware, qbittorrentHashes, startMatchesCleanup } from './matches.ts'
 import { prowlarrMiddleware, type Middleware } from './prowlarr.ts'
 import { qbittorrentBridge } from './qbittorrent.ts'
@@ -173,8 +173,8 @@ async function main() {
     console.log(`[kinopeer] ${version} listening on http://${host}:${port}`)
     const missing = missingSettings(env, stores.settings)
     if (missing.length) console.warn(`[kinopeer] not set: ${missing.join(', ')}`)
-    const { invalid } = allowedHosts(env.KINOPEER_ALLOWED_HOSTS)
-    if (invalid.length) console.warn(`[kinopeer] KINOPEER_ALLOWED_HOSTS: not host names, ignored: ${invalid.join(', ')}`)
+    const hostsWarning = allowedHostsWarning(env.KINOPEER_ALLOWED_HOSTS)
+    if (hostsWarning) console.warn(`[kinopeer] ${hostsWarning}`)
   })
 
   // Docker sends SIGTERM on stop: finish open requests instead of waiting to be killed.

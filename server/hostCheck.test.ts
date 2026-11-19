@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { allowedHosts, hostCheck, hostName, isAllowedHost, isPrivateHost, refusal, refusedHost } from './hostCheck.ts'
+import { allowedHosts, allowedHostsWarning, hostCheck, hostName, isAllowedHost, isPrivateHost, refusal, refusedHost } from './hostCheck.ts'
 import { closeServers, getWithHost, serve } from './test/fakes.ts'
 
 afterEach(closeServers)
@@ -26,6 +26,7 @@ describe('isPrivateHost', () => {
   it('takes addresses and the names public DNS doesn’t answer for', () => {
     for (const name of [
       '192.168.1.10',
+      '10.0.10.200',
       '127.0.0.1',
       '[::1]',
       '[fd00::1]',
@@ -45,6 +46,8 @@ describe('isPrivateHost', () => {
   it('refuses a name anyone can register, a private suffix’s look-alikes included', () => {
     for (const name of ['evil.example', 'local.evil.example', 'fritz.box', 'nas.lan', 'evil.onion.example', 'notlocalhost.example'])
       expect(isPrivateHost(name), name).toBe(false)
+    // An address's look-alike is a name like any other.
+    expect(isPrivateHost('192.168.1.10.rebound.example')).toBe(false)
     // A suffix counts only as a whole label.
     expect(isPrivateHost('evil.notlocal')).toBe(false)
     expect(isPrivateHost('xonion.example')).toBe(false)
@@ -74,6 +77,16 @@ describe('allowedHosts', () => {
       allowed: { any: false, names: ['ok.example.com'], domains: [] },
       invalid: ['https://kinopeer.example.com', 'kinopeer.example.com/x', '*kino.example.com', '*.', '..example.com'],
     })
+  })
+})
+
+describe('allowedHostsWarning', () => {
+  it('names the entries ignored, and says nothing without any', () => {
+    expect(allowedHostsWarning('https://kinopeer.example.com, ok.example.com, kino.example.com/x')).toBe(
+      'KINOPEER_ALLOWED_HOSTS: not host names, ignored: https://kinopeer.example.com, kino.example.com/x',
+    )
+    expect(allowedHostsWarning('ok.example.com')).toBeUndefined()
+    expect(allowedHostsWarning(undefined)).toBeUndefined()
   })
 })
 
@@ -126,6 +139,10 @@ describe('refusedHost', () => {
     // nginx sends its upstream's address as Host unless told otherwise.
     expect(refusedHost({ host: 'kinopeer:8080', 'x-forwarded-host': 'rebound.example' }, DEFAULTS)).toBe('rebound.example')
     expect(refusedHost({ host: 'kinopeer:8080', 'x-forwarded-host': 'umbrel.local, rebound.example' }, DEFAULTS)).toBe('rebound.example')
+  })
+
+  it('takes an empty forwarded host for none', () => {
+    expect(refusedHost({ host: 'umbrel.local', 'x-forwarded-host': '' }, DEFAULTS)).toBeUndefined()
   })
 
   it('lets no forwarded host through a Host not allowed', () => {
