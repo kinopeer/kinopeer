@@ -1,17 +1,128 @@
-# Runs the production image locally: `docker compose up --build`, then open http://localhost:8080.
-# Reads QBITTORRENT_URL, PROWLARR_URL, PROWLARR_API_KEY and the optional
-# QBITTORRENT_USERNAME/QBITTORRENT_PASSWORD and TMDB_API_KEY from .env.local (see .env.example).
+# Kinopeer with qBittorrent and Prowlarr. How to install, update and set it up: the README's
+# "Install with Docker Compose". Settings go in a .env file next to this one; none is needed.
+# Each release attaches the file that goes with its image.
+name: kinopeer
+
 services:
   kinopeer:
-    build: .
-    image: kinopeer:local
-    env_file: .env.local
-    ports:
-      - "${KINOPEER_PORT:-8080}:8080"
-    volumes:
-      # Settings saved from the app, such as the TMDB key.
-      - kinopeer-data:/data
+    # 1 is the newest 1.x release: `docker compose pull` brings its updates.
+    image: ghcr.io/kinopeer/kinopeer:1
     restart: unless-stopped
+    ports:
+      - "${KINOPEER_PORT:-8797}:8080"
+    environment:
+      QBITTORRENT_URL: http://qbittorrent:8080
+      PROWLARR_URL: http://prowlarr:9696
+      # Prowlarr's API key is read from its config.xml, mounted read-only below.
+      PROWLARR_CONFIG_XML: /prowlarr/config.xml
+      # Empty: the first visitor sets Kinopeer's password.
+      KINOPEER_PASSWORD: ${KINOPEER_PASSWORD:-}
+      # Host names to answer at besides the ones it answers at by default, such as a reverse proxy's
+      # (the README's settings).
+      KINOPEER_ALLOWED_HOSTS: ${KINOPEER_ALLOWED_HOSTS:-}
+    volumes:
+      # Kinopeer's password, settings and which movie or series each torrent is.
+      - kinopeer-data:/data
+      # The folder, not the file: a file mount would keep the old file after Prowlarr rewrites it.
+      - prowlarr-config:/prowlarr:ro
+    networks:
+      kinopeer:
+        # qBittorrent lets this address alone in without a password (its first start, below).
+        ipv4_address: 172.30.97.10
+
+  qbittorrent:
+    # The qBittorrent project's own image.
+    image: qbittorrentofficial/qbittorrent-nox:latest
+    restart: unless-stopped
+    environment:
+      # qBittorrent doesn't start until its legal notice is confirmed.
+      QBT_LEGAL_NOTICE: confirm
+      # Empty: the downloaded files belong to whoever owns the downloads folder (below).
+      PUID: ${PUID:-}
+      PGID: ${PGID:-}
+    # Before the image's own entrypoint, on every start: qBittorrent runs as the owner of the
+    # downloads folder, so what it downloads is theirs. A folder owned by root (one Docker made
+    # itself because it was missing, or any folder on Docker Desktop, which shows every folder as
+    # root's and gives the files to the person anyway) goes to 1000:1000 rather than running
+    # qBittorrent as root; the image then hands the folder itself to that user.
+    # On its first start, qBittorrent also gets settings that let Kinopeer's address alone in without
+    # a password, so Kinopeer connects without the temporary password qBittorrent makes up on every
+    # start until one is set. The rest is what the image writes itself when it starts without
+    # settings. Settings that exist are left alone. ($$ is Compose's way of writing $.)
+    entrypoint:
+      - /sbin/tini
+      - -g
+      - --
+      - /bin/sh
+      - -c
+      - |
+        if [ -z "$$PUID" ] || [ -z "$$PGID" ]; then
+          owner="$$(stat -c %u:%g /downloads)"
+          case "$$owner" in
+            0:*) owner=1000:1000 ;;
+          esac
+          [ -n "$$PUID" ] || export PUID="$${owner%:*}"
+          [ -n "$$PGID" ] || export PGID="$${owner#*:}"
+        fi
+        if [ ! -f /config/qBittorrent/config/qBittorrent.conf ]; then
+          mkdir -p /config/qBittorrent/config
+          printf '%s\n' \
+            '[BitTorrent]' \
+            'Session\DefaultSavePath=/downloads' \
+            'Session\Port=6881' \
+            'Session\TempPath=/downloads/temp' \
+            'Session\TempPathEnabled=true' \
+            '[Meta]' \
+            'MigrationVersion=9999' \
+            '[WebUI]' \
+            'Port=8080' \
+            'AuthSubnetWhitelistEnabled=true' \
+            'AuthSubnetWhitelist=172.30.97.10/32' \
+            > /config/qBittorrent/config/qBittorrent.conf
+        fi
+        exec /entrypoint.sh
+    ports:
+      # For other peers to connect.
+      - "6881:6881"
+      - "6881:6881/udp"
+      # qBittorrent's own web UI isn't needed with Kinopeer. To open it at port 8081, set a password
+      # in qBittorrent first (the README says how), then uncomment:
+      # - "8081:8080"
+    volumes:
+      - qbittorrent-config:/config
+      - ${DOWNLOADS_DIR:-./downloads}:/downloads
+    networks:
+      - kinopeer
+
+  prowlarr:
+    # Prowlarr publishes no image of its own; this is the one its wiki points to.
+    image: lscr.io/linuxserver/prowlarr:latest
+    restart: unless-stopped
+    environment:
+      # Kinopeer's own user, which reads Prowlarr's config.xml; Prowlarr writes nothing of the person's.
+      PUID: 1000
+      PGID: 1000
+    ports:
+      # Prowlarr's web UI, where indexers are added.
+      - "${PROWLARR_PORT:-9696}:9696"
+    volumes:
+      - prowlarr-config:/config
+    networks:
+      - kinopeer
+
+networks:
+  kinopeer:
+    ipam:
+      config:
+        # A fixed range, for Kinopeer's fixed address. If `docker compose up` says it overlaps
+        # another network, change it, the range below and the address in both places above before
+        # the first start.
+        - subnet: 172.30.97.0/24
+          # Where Docker gives the other containers their addresses: not Kinopeer's, which another
+          # container could otherwise take, and with it qBittorrent's trust.
+          ip_range: 172.30.97.128/25
 
 volumes:
   kinopeer-data:
+  qbittorrent-config:
+  prowlarr-config:

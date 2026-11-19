@@ -12,3 +12,5 @@ dist-ssr
 .DS_Store
 .vscode
 .idea
+# What qBittorrent downloads when docker-compose.yml runs in the checkout (docs/DEVELOPMENT.md → Docker)
+downloads
