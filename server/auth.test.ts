@@ -1,4 +1,4 @@
-import { scryptSync } from 'node:crypto'
+import { scrypt, scryptSync } from 'node:crypto'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -20,6 +20,12 @@ import {
 } from './auth.ts'
 import { FIRST_LOCK_MS, LoginThrottle } from './loginThrottle.ts'
 import { closeServers, serve } from './test/fakes.ts'
+
+// scrypt as it is, watched, so a test can see whether a request hashed anything.
+vi.mock('node:crypto', async (importOriginal) => {
+  const crypto = await importOriginal<typeof import('node:crypto')>()
+  return { ...crypto, scrypt: vi.fn(crypto.scrypt) }
+})
 
 let dir: string
 let clock: number
@@ -183,6 +189,16 @@ describe('the login', () => {
     expect(await refused.json()).toEqual({ error: 'already-set' })
     const winner = answers[0].status === 204 ? 'first one!' : 'second one'
     expect((await post(app, 'login', { password: winner })).status).toBe(204)
+  })
+
+  it('refuses a setup once a password is set without hashing it, so refused setups cost the server nothing', async () => {
+    const { origin } = kinopeer()
+    const app = await origin
+    expect((await post(app, 'setup', { password: 'correct horse' })).status).toBe(204)
+    vi.mocked(scrypt).mockClear()
+    const refused = await post(app, 'setup', { password: 'another one' })
+    expect(await refused.json()).toEqual({ error: 'already-set' })
+    expect(scrypt).not.toHaveBeenCalled()
   })
 
   it('signs in with the password and refuses a wrong one', async () => {

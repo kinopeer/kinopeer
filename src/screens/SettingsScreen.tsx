@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router'
-import { signOut } from '../api/auth'
+import { AuthError, signOut } from '../api/auth'
 import { ProwlarrSetupError, getProwlarrStatus } from '../api/prowlarr'
 import { APP_VERSION_FRESH_MS, APP_VERSION_KEY, getAppVersion, getCategories, unreachable } from '../api/qbittorrent'
 import { TmdbKeyError, checkTmdb } from '../api/tmdb'
@@ -197,7 +197,17 @@ export function SettingsScreen() {
   // page's answer says it however old: the Sign-in section is there from the first render rather
   // than added under the rows when a stale answer is asked again (a layout shift on desktop).
   const [keptAuth] = useState(() => sharedRequests.peek<ServerSettings>(SERVER_SETTINGS_KEY, Infinity)?.data.auth)
-  const auth = server ? server.auth : keptAuth
+  // Set when the server answers that its login is off, which it was turned since that answer.
+  const [loginOff, setLoginOff] = useState(false)
+  const auth = loginOff ? undefined : server ? server.auth : keptAuth
+  // Nothing in the Sign-in section can work any more: it goes, and the page's answer says so too,
+  // so Settings opened again doesn't offer it.
+  const loginTurnedOff = () => {
+    setChangingPassword(false)
+    setLoginOff(true)
+    if (server) sharedRequests.set<ServerSettings>(SERVER_SETTINGS_KEY, { ...server, auth: { enabled: false } })
+    toast.show(t('settings.signInTurnedOff'))
+  }
   const names = (categories.data ?? []).map((category) => category.name).sort((a, b) => a.localeCompare(b))
   const sharedTmdbKey = server?.tmdb.source === 'shared'
 
@@ -364,7 +374,13 @@ export function SettingsScreen() {
               icon="log-out"
               label={t('settings.signOut')}
               hint={t('settings.signOutHint')}
-              onClick={() => void signOut().catch(() => toast.show(t('settings.signOutFailed'), { icon: 'alert' }))}
+              onClick={() =>
+                void signOut().catch((error: unknown) =>
+                  error instanceof AuthError && error.code === 'auth-off'
+                    ? loginTurnedOff()
+                    : toast.show(t('settings.signOutFailed'), { icon: 'alert' }),
+                )
+              }
             />
           </ul>
           {auth.source === 'env' && <p className="t-cap c3 settings-hint">{t('settings.passwordFromEnv')}</p>}
@@ -439,6 +455,7 @@ export function SettingsScreen() {
             setChangingPassword(false)
             toast.show(t('settings.passwordChanged'), { icon: 'check' })
           }}
+          onLoginOff={loginTurnedOff}
         />
       </Sheet>
       <Sheet open={editingProwlarrKey} onClose={() => setEditingProwlarrKey(false)} title={t('prowlarrKey.sheetTitle')}>

@@ -27,14 +27,14 @@ async function change(current: string, password: string, repeat = password) {
 describe('ChangePasswordForm', () => {
   it('changes the password and tells Settings it’s done', async () => {
     const onChanged = vi.fn()
-    render(<ChangePasswordForm onChanged={onChanged} />)
+    render(<ChangePasswordForm onChanged={onChanged} onLoginOff={vi.fn()} />)
     await change('correct horse', 'battery staple')
     expect(changePassword).toHaveBeenCalledExactlyOnceWith('correct horse', 'battery staple')
     expect(onChanged).toHaveBeenCalledOnce()
   })
 
   it('starts with no error and nothing being sent', () => {
-    render(<ChangePasswordForm onChanged={vi.fn()} />)
+    render(<ChangePasswordForm onChanged={vi.fn()} onLoginOff={vi.fn()} />)
     for (const label of ['Current password', 'New password', 'Repeat the password']) {
       expect(screen.getByLabelText(label)).not.toHaveAttribute('aria-invalid')
     }
@@ -43,7 +43,7 @@ describe('ChangePasswordForm', () => {
   })
 
   it('asks for 8 characters and the same new password twice before sending it', async () => {
-    render(<ChangePasswordForm onChanged={vi.fn()} />)
+    render(<ChangePasswordForm onChanged={vi.fn()} onLoginOff={vi.fn()} />)
     await change('correct horse', 'short')
     const password = screen.getByLabelText('New password')
     expect(password).toHaveAttribute('aria-invalid', 'true')
@@ -58,7 +58,7 @@ describe('ChangePasswordForm', () => {
   })
 
   it('asks for the current password before sending anything', async () => {
-    render(<ChangePasswordForm onChanged={vi.fn()} />)
+    render(<ChangePasswordForm onChanged={vi.fn()} onLoginOff={vi.fn()} />)
     await change('', 'battery staple')
     const current = screen.getByLabelText('Current password')
     expect(current).toHaveAccessibleDescription('Enter your current password')
@@ -70,7 +70,7 @@ describe('ChangePasswordForm', () => {
 
   it('takes back the wait the server last asked for when it refuses the current password itself', async () => {
     changePassword.mockRejectedValueOnce(new AuthError(429, 'throttled', 15 * 60_000))
-    render(<ChangePasswordForm onChanged={vi.fn()} />)
+    render(<ChangePasswordForm onChanged={vi.fn()} onLoginOff={vi.fn()} />)
     await change('correct horse', 'battery staple')
     expect(screen.getByRole('alert', { name: saying('Too many wrong passwords. Try again in 15 minutes.') })).toBeInTheDocument()
     await userEvent.clear(screen.getByLabelText('Current password'))
@@ -82,7 +82,7 @@ describe('ChangePasswordForm', () => {
   })
 
   it('takes a new password of 256 characters at most, and refuses a longer current one as wrong', async () => {
-    render(<ChangePasswordForm onChanged={vi.fn()} />)
+    render(<ChangePasswordForm onChanged={vi.fn()} onLoginOff={vi.fn()} />)
     const paste = async (label: string, text: string) => {
       await userEvent.clear(screen.getByLabelText(label))
       await userEvent.click(screen.getByLabelText(label))
@@ -111,14 +111,14 @@ describe('ChangePasswordForm', () => {
   })
 
   it('takes a new password of exactly 8 characters', async () => {
-    render(<ChangePasswordForm onChanged={vi.fn()} />)
+    render(<ChangePasswordForm onChanged={vi.fn()} onLoginOff={vi.fn()} />)
     await change('correct horse', '8 chars!')
     expect(changePassword).toHaveBeenCalledExactlyOnceWith('correct horse', '8 chars!')
   })
 
   it('shows on the field that the server found the new password too short', async () => {
     changePassword.mockRejectedValue(new AuthError(400, 'too-short'))
-    render(<ChangePasswordForm onChanged={vi.fn()} />)
+    render(<ChangePasswordForm onChanged={vi.fn()} onLoginOff={vi.fn()} />)
     await change('correct horse', 'battery staple')
     expect(screen.getByLabelText('New password')).toHaveAttribute('aria-invalid', 'true')
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
@@ -126,7 +126,7 @@ describe('ChangePasswordForm', () => {
 
   it('sends once while busy, without the last error, and takes over the form’s submit', async () => {
     changePassword.mockRejectedValueOnce(new AuthError(500, 'storage'))
-    render(<ChangePasswordForm onChanged={vi.fn()} />)
+    render(<ChangePasswordForm onChanged={vi.fn()} onLoginOff={vi.fn()} />)
     await change('correct horse', 'battery staple')
     expect(screen.getByRole('alert', { name: saying(/couldn’t save the change/) })).toBeInTheDocument()
     // Typing doesn't take back an error that isn't a field's.
@@ -148,7 +148,7 @@ describe('ChangePasswordForm', () => {
   it('shows a wrong current password on its field', async () => {
     changePassword.mockRejectedValue(new AuthError(422, 'invalid-password'))
     const onChanged = vi.fn()
-    render(<ChangePasswordForm onChanged={onChanged} />)
+    render(<ChangePasswordForm onChanged={onChanged} onLoginOff={vi.fn()} />)
     await change('wrong horse', 'battery staple')
     const current = screen.getByLabelText('Current password')
     expect(current).toHaveAccessibleDescription('Wrong password')
@@ -173,7 +173,7 @@ describe('ChangePasswordForm', () => {
     [new TypeError('Failed to fetch'), 'Couldn’t change the password. Try again.'],
   ])('says why it couldn’t: %s', async (error, message) => {
     changePassword.mockRejectedValue(error)
-    render(<ChangePasswordForm onChanged={vi.fn()} />)
+    render(<ChangePasswordForm onChanged={vi.fn()} onLoginOff={vi.fn()} />)
     await change('correct horse', 'battery staple')
     expect(screen.getByRole('alert', { name: saying(message) })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Change password' })).not.toHaveAttribute('aria-busy')

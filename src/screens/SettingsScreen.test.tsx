@@ -536,6 +536,34 @@ describe('SettingsScreen', () => {
     expect(await findToastOnPage('Couldn’t sign out. Try again.')).toBeInTheDocument()
   })
 
+  it.each([
+    ['changing the password', async (section: HTMLElement) => {
+      vi.mocked(auth.changePassword).mockRejectedValue(new auth.AuthError(409, 'auth-off'))
+      await userEvent.click(within(section).getByRole('button', { name: /^Change password/ }))
+      const sheet = screen.getByRole('dialog', { name: 'Change password' })
+      await userEvent.type(within(sheet).getByLabelText('Current password'), 'correct horse')
+      await userEvent.type(within(sheet).getByLabelText('New password'), 'battery staple')
+      await userEvent.type(within(sheet).getByLabelText('Repeat the password'), 'battery staple')
+      await userEvent.click(within(sheet).getByRole('button', { name: 'Change password' }))
+    }],
+    ['signing out', async (section: HTMLElement) => {
+      vi.mocked(auth.signOut).mockRejectedValue(new auth.AuthError(409, 'auth-off'))
+      await userEvent.click(within(section).getByRole('button', { name: /^Sign out/ }))
+    }],
+  ])('drops the Sign-in section when the server turned its login off since Settings opened (%s)', async (_, use) => {
+    const settings = { ...(await serverSettings.getServerSettings()), auth: { enabled: true, source: 'saved' } as const }
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings)
+    renderScreen()
+    await use(await screen.findByRole('region', { name: 'Sign-in' }))
+
+    expect(await findToastOnPage('Kinopeer’s sign-in was turned off on the server.')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Sign-in' })).not.toBeInTheDocument())
+    expect(screen.queryByRole('dialog', { name: 'Change password' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Couldn’t sign out. Try again.')).not.toBeInTheDocument()
+    // The page's answer says so too, so Settings opened again doesn't offer the section.
+    expect(sharedRequests.peek(serverSettings.SERVER_SETTINGS_KEY, Infinity)?.data).toEqual({ ...settings, auth: { enabled: false } })
+  })
+
   it('confirms clearing the cache', async () => {
     vi.mocked(matches.clearGuesses).mockResolvedValue({})
     renderScreen()

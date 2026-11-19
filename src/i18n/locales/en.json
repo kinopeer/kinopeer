@@ -268,7 +268,8 @@
     "currentPassword": "Current password",
     "currentPasswordMissing": "Enter your current password",
     "passwordChanged": "Password changed. Other devices will need to sign in again.",
-    "changePasswordFailed": "Couldn’t change the password. Try again."
+    "changePasswordFailed": "Couldn’t change the password. Try again.",
+    "signInTurnedOff": "Kinopeer’s sign-in was turned off on the server."
   },
   "releases": {
     "title": "Releases",

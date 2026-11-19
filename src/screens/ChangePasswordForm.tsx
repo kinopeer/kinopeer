@@ -9,12 +9,14 @@ import { throttledText } from '../logic/throttledText'
 export interface ChangePasswordFormProps {
   /** The server took the new password; this browser stays signed in. */
   onChanged: () => void
+  /** The server's login was turned off since Settings showed the form: there's no password to change. */
+  onLoginOff: () => void
 }
 
 type FormError = 'no-current' | 'invalid' | 'too-short' | 'too-long' | 'mismatch' | 'throttled' | 'storage' | 'env-password' | 'failed' | null
 
 /** Changes Kinopeer's own password, in a sheet from Settings; every other device is signed out. */
-export function ChangePasswordForm({ onChanged }: ChangePasswordFormProps) {
+export function ChangePasswordForm({ onChanged, onLoginOff }: ChangePasswordFormProps) {
   const { t } = useTranslation()
   const [current, setCurrent] = useState('')
   const [password, setPassword] = useState('')
@@ -42,6 +44,7 @@ export function ChangePasswordForm({ onChanged }: ChangePasswordFormProps) {
     } catch (e) {
       const code = e instanceof AuthError ? e.code : undefined
       setSubmitting(false)
+      if (code === 'auth-off') return onLoginOff()
       setWaitMs(e instanceof AuthError ? (e.retryAfterMs ?? 0) : 0)
       if (code === 'invalid-password') setError('invalid')
       else if (code === 'too-short' || code === 'throttled' || code === 'storage' || code === 'env-password') setError(code)
