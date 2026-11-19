@@ -301,3 +301,11 @@
     padding-right: var(--space-5);
   }
 }
+
+/* The chat the Telegram bot found, shown before it's saved. */
+.telegram-found {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+}

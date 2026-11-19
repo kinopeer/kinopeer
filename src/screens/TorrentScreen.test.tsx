@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import * as matchesApi from '../api/matches'
 import * as api from '../api/qbittorrent'
 import type { Torrent } from '../api/qbittorrent'
+import * as settingsApi from '../api/settings'
+import type { ServerSettings } from '../api/settings'
 import * as tmdb from '../api/tmdb'
 import * as proxySignIn from '../pwa/proxySignIn'
 import { DUNE_TORRENT, mainData, searchPage } from '../test/fixtures'
@@ -44,7 +46,22 @@ vi.mock('../api/qbittorrent', async (importOriginal) => {
     getTorrents: vi.fn(),
     toggleSequentialDownload: vi.fn(),
     setCategory: vi.fn(),
+    addTags: vi.fn(),
   }
+})
+
+vi.mock('../api/settings', async (importOriginal) => ({
+  ...(await importOriginal<typeof settingsApi>()),
+  getServerSettings: vi.fn(),
+}))
+
+/** The server's settings, with a channel to notify through or without. */
+const serverSettings = (notifications: boolean): ServerSettings => ({
+  tmdb: { configured: true, source: 'env', fallback: 'env' },
+  prowlarr: { configured: true, source: 'env', serverKey: true },
+  qbittorrent: { configured: true, source: 'env' },
+  downloads: null,
+  notifications,
 })
 
 vi.mock('../api/tmdb', async (importOriginal) => {
@@ -103,6 +120,7 @@ beforeEach(() => {
     { index: 1, name: 'Dune.Part.Two/Extras.mkv', size: 1_500_000_000, progress: 0, priority: 0 },
   ])
   setFilePriority.mockResolvedValue()
+  vi.mocked(settingsApi.getServerSettings).mockResolvedValue(serverSettings(false))
   startTorrents.mockResolvedValue()
   stopTorrents.mockResolvedValue()
   deleteTorrents.mockResolvedValue()
@@ -276,13 +294,41 @@ describe('TorrentScreen', () => {
     expect(within(download).getByRole('switch', { name: 'First and last pieces first' })).not.toBeChecked()
   })
 
-  it('keeps only the category of a complete torrent, whose download order no longer matters', async () => {
+  it('keeps only the category of a complete torrent, whose download order and notification no longer matter', async () => {
+    vi.mocked(settingsApi.getServerSettings).mockResolvedValue(serverSettings(true))
     getMainData.mockResolvedValue(snapshot({ progress: 1, category: '' }))
     renderScreen()
     const download = await screen.findByRole('region', { name: 'Download' })
     expect(within(download).getByRole('button', { name: 'Category: No category' })).toBeInTheDocument()
     expect(within(download).queryByRole('switch', { name: 'Sequential download' })).not.toBeInTheDocument()
     expect(within(download).queryByRole('switch', { name: 'First and last pieces first' })).not.toBeInTheDocument()
+    await waitFor(() => expect(settingsApi.getServerSettings).toHaveBeenCalled())
+    expect(within(download).queryByRole('switch', { name: 'Notify when finished' })).not.toBeInTheDocument()
+  })
+
+  it('offers the notification when the torrent finishes while the server has a channel for it', async () => {
+    vi.mocked(settingsApi.getServerSettings).mockResolvedValue(serverSettings(true))
+    let answer = () => {}
+    vi.mocked(api.addTags).mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    getMainData.mockResolvedValue(snapshot({ tags: '' }))
+    renderScreen()
+    const download = await screen.findByRole('region', { name: 'Download' })
+    const toggle = await within(download).findByRole('switch', { name: 'Notify when finished' })
+    expect(toggle).not.toBeChecked()
+    await userEvent.click(toggle)
+    expect(api.addTags).toHaveBeenCalledWith(['dune'], ['kinopeer:notify'])
+    expect(toggle).toBeChecked()
+    expect(toggle).toBeDisabled()
+    await act(async () => answer())
+    expect(toggle).toBeEnabled()
+  })
+
+  it('offers no notification while the server has no channel for it', async () => {
+    renderScreen()
+    const download = await screen.findByRole('region', { name: 'Download' })
+    await waitFor(() => expect(settingsApi.getServerSettings).toHaveBeenCalled())
+    expect(within(download).getByRole('switch', { name: 'Sequential download' })).toBeInTheDocument()
+    expect(within(download).queryByRole('switch', { name: 'Notify when finished' })).not.toBeInTheDocument()
   })
 
   it('switches sequential download, showing the new value while it’s sent', async () => {
@@ -309,6 +355,15 @@ describe('TorrentScreen', () => {
     await waitFor(() => expect(within(download).getByRole('button', { name: 'Category: Movies' })).toBeDisabled())
     expect(within(download).getByRole('switch', { name: 'Sequential download' })).toBeDisabled()
     expect(within(download).getByRole('switch', { name: 'First and last pieces first' })).toBeDisabled()
+  })
+
+  it('turns the notification switch off while qBittorrent is unreachable', async () => {
+    vi.mocked(settingsApi.getServerSettings).mockResolvedValue(serverSettings(true))
+    renderScreen()
+    const toggle = await screen.findByRole('switch', { name: 'Notify when finished' })
+    getMainData.mockRejectedValue(qbittorrentDown())
+    window.dispatchEvent(new Event('online'))
+    await waitFor(() => expect(toggle).toBeDisabled())
   })
 
   it('turns the download settings off while the torrent is being deleted', async () => {

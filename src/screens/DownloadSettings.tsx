@@ -4,6 +4,8 @@ import type { Torrent } from '../api/qbittorrent'
 import { Icon } from '../components/Icon'
 import { Toggle } from '../components/Toggle'
 import { useDownloadToggle } from './useDownloadToggle'
+import { useNotificationsAvailable } from './useNotificationsAvailable'
+import { useNotifyToggle } from './useNotifyToggle'
 
 export interface DownloadSettingsProps {
   torrent: Torrent
@@ -18,13 +20,16 @@ export interface DownloadSettingsProps {
 /**
  * The torrent page's Download section, always open: the category, which opens its sheet, and, until
  * the torrent is complete, sequential download and first and last pieces first, which only change
- * how the rest downloads.
+ * how the rest downloads, and the notification when it finishes, while Kinopeer's server has a
+ * channel to send it through.
  */
 export function DownloadSettings({ torrent, disabled, categoryBusy, onCategory }: DownloadSettingsProps) {
   const { t } = useTranslation()
   const headingId = useId()
   const sequential = useDownloadToggle('seq_dl')
   const pieces = useDownloadToggle('f_l_piece_prio')
+  const notify = useNotifyToggle()
+  const notifications = useNotificationsAvailable()
   const category = torrent.category || t('category.none')
 
   return (
@@ -49,6 +54,7 @@ export function DownloadSettings({ torrent, disabled, categoryBusy, onCategory }
         [
           { toggle: sequential, label: t('add.sequential') },
           { toggle: pieces, label: t('add.firstLastPieces') },
+          ...(notifications ? [{ toggle: notify, label: t('add.notify') }] : []),
         ].map(({ toggle, label }) => {
           const on = toggle.value(torrent)
           return (
