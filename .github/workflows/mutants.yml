@@ -23,9 +23,9 @@ on:
       - 'scripts/accessibility/**'
       - 'scripts/actuals/**'
       - 'scripts/edge/**'
-      # The tests at the root (vite.config.test.ts, checks.test.ts), which the folders above don't
-      # take: a PR that adds or changes only one of them gets the dry run of the whole suite, so a
-      # test that can't run in Stryker's sandbox fails on it (#467).
+      # The tests at the root, which the folders above don't take: a PR that adds or changes only
+      # one of them gets the dry run of the whole suite, so a test that can't run in Stryker's
+      # sandbox fails on it, unless checks.json's mutants.testsLeftOut leaves it out (#467).
       - '*.test.ts'
       # What Stryker runs with, each of which can break it without a line to mutate.
       - 'package.json'

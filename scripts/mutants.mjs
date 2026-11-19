@@ -93,7 +93,8 @@ if (ranges.length === 0) {
 }
 
 rmSync(REPORT, { force: true })
-stryker(['--mutate', ranges.join(',')])
+// The whole suite is for the dry run only, so one left set in the shell doesn't make each mutant run it.
+stryker(['--mutate', ranges.join(',')], { MUTANTS_WHOLE_SUITE: '' })
 
 const report = existsSync(REPORT) ? JSON.parse(readFileSync(REPORT, 'utf8')) : { files: {} }
 const left = survivors(report)

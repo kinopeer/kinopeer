@@ -14,6 +14,9 @@ export default {
   // test runs through the sandbox once and one that can't run there fails on the PR that adds it,
   // rather than on a later PR whose mutants make Vitest run it (#467).
   vitest: { configFile: 'vite.config.ts', related: process.env.MUTANTS_WHOLE_SUITE !== '1' },
+  // The whole-suite dry run took 4 min 5 s on CI's runner (#487), close to Stryker's default limit
+  // of 5; 15 leaves a runner three times slower room before it fails a run for no reason of its own.
+  dryRunTimeoutMinutes: 15,
   reporters: ['json', 'progress-append-only'],
   jsonReporter: { fileName: 'reports/mutants.json' },
   // On the batch of the 2026-10-30 retro these mutators gave most of the noise (a label's text, an

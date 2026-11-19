@@ -305,11 +305,13 @@ come for that commit (Actions out of minutes, the job failed), and says so in th
 with no production line changed gets Stryker's dry run instead (`--dryRunOnly`: every test once,
 through Stryker's sandbox and instrumenter, nothing mutated), and the workflow also starts on what
 Stryker runs with (`package.json`, the lockfile, `stryker.config.mjs`, `checks.json`, `vite.config.ts`, the
-script and the workflow) and on the tests at the root, so a dependency bump that breaks Stryker fails there rather than on the next PR with
+script and the workflow), so a dependency bump that breaks Stryker fails there rather than on the next PR with
 code (#285, TypeScript 7). That dry run turns Vitest's `related` off (`MUTANTS_WHOLE_SUITE` in
 `stryker.config.mjs`), which a run with mutants keeps on, so it runs the whole suite rather than
-only the tests that import the files Stryker would mutate: a test that can't run in the sandbox fails on
-the PR that adds it, not on a later PR whose mutants make Vitest run it (#465, #467). A PR that also
+only the tests that import the files Stryker would mutate, and the workflow also starts on the tests
+at the root: a test that can't run in the sandbox fails on the PR that adds it, not on a later PR
+whose mutants make Vitest run it (#465, #467). The whole suite took 4 min 5 s there on CI's runner,
+so `dryRunTimeoutMinutes` gives it 15 rather than Stryker's default 5. A PR that also
 changes production lines runs only the tests related to them, so such a test it adds can still pass
 there. Stryker's runs leave out the tests `mutants.testsLeftOut` in `checks.json` names
 (`stryker.config.mjs` adds them to its `ignorePatterns`): `checks.test.ts` lists the repository's
