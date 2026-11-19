@@ -3,6 +3,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { AuthStore, authMode, kinopeerAuth } from './auth.ts'
+import { allowedHosts, allowedHostsWarning, hostCheck } from './hostCheck.ts'
 import { MatchesStore, matchesMiddleware, qbittorrentHashes, startMatchesCleanup } from './matches.ts'
 import { prowlarrMiddleware, type Middleware } from './prowlarr.ts'
 import { qbittorrentBridge } from './qbittorrent.ts'
@@ -39,8 +40,8 @@ export function dataStores(dir: string): DataStores {
 
 export interface KinopeerServer {
   /**
-   * The server's own routes, shared with the Vite dev and preview servers; the security headers
-   * first, then /healthz and Kinopeer's own login, which holds back every route after it.
+   * The server's own routes, shared with the Vite dev and preview servers; the security headers and
+   * the host check first, then /healthz and Kinopeer's own login, which holds back every route after it.
    */
   routes: Middleware[]
   /** Starts the background jobs (the hourly matches cleanup); returns a function that stops them. */
@@ -85,8 +86,9 @@ export function loginWarning(env: Record<string, string | undefined>): string | 
  * at Prowlarr's config.xml to read its API key from (the Umbrel package mounts it), used when
  * neither a key saved from the app nor PROWLARR_API_KEY is set, TMDB_API_URL and TMDB_IMAGE_URL replace TMDB's API and image
  * addresses (the integration and smoke tests point them at a fake), and TMDB_PROXY_URL replaces
- * Kinopeer's TMDB proxy (`tmdbProxy`). KINOPEER_AUTH=off turns Kinopeer's own login off (server/auth.ts),
- * and throws for a value it doesn't know, so the server doesn't start.
+ * Kinopeer's TMDB proxy (`tmdbProxy`). KINOPEER_ALLOWED_HOSTS adds the host names it answers at
+ * (`allowedHosts`). KINOPEER_AUTH=off turns Kinopeer's own login off (server/auth.ts), and throws
+ * for a value it doesn't know, so the server doesn't start.
  */
 export function kinopeerServer(env: Record<string, string | undefined>, stores: DataStores): KinopeerServer {
   const store = stores.settings
@@ -102,6 +104,8 @@ export function kinopeerServer(env: Record<string, string | undefined>, stores: 
     routes: [
       // First, so every answer has them, a 404 included.
       securityHeaders,
+      // Before every route, the health check included: a page rebound to Kinopeer's address gets nothing.
+      hostCheck(allowedHosts(env.KINOPEER_ALLOWED_HOSTS).allowed),
       health,
       auth.middleware,
       settingsMiddleware({
@@ -190,6 +194,8 @@ async function main() {
     if (missing.length) console.warn(`[kinopeer] not set: ${missing.join(', ')}`)
     const login = loginWarning(env)
     if (login) console.warn(`[kinopeer] ${login}`)
+    const hostsWarning = allowedHostsWarning(env.KINOPEER_ALLOWED_HOSTS)
+    if (hostsWarning) console.warn(`[kinopeer] ${hostsWarning}`)
   })
 
   // Docker sends SIGTERM on stop: finish open requests instead of waiting to be killed.

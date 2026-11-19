@@ -4,7 +4,16 @@
  * reached them. Every server started here is closed by `closeServers()`, which the tests call in
  * afterEach.
  */
-import { createServer, type IncomingMessage, type RequestListener, type Server, type ServerResponse } from 'node:http'
+import {
+  createServer,
+  request as httpRequest,
+  type IncomingHttpHeaders,
+  type IncomingMessage,
+  type OutgoingHttpHeaders,
+  type RequestListener,
+  type Server,
+  type ServerResponse,
+} from 'node:http'
 import type { AddressInfo } from 'node:net'
 import type { Release } from '../../src/api/prowlarr/types.ts'
 import type { MainData, Torrent, TorrentFile, TorrentTracker } from '../../src/api/qbittorrent/types.ts'
@@ -44,6 +53,21 @@ export async function serveTmdbProxy(tmdbApiBase: string, key: string, { overLim
     response.end(Buffer.from(await answer.arrayBuffer()))
   })
   return { base, apiBase: `${base}/3`, seen }
+}
+
+/** GETs `path` from `base` with `headers`, Host among them, which `fetch` won't let a caller set. */
+export function getWithHost(base: string, path: string, headers: OutgoingHttpHeaders) {
+  const { hostname, port } = new URL(base)
+  return new Promise<{ status: number; headers: IncomingHttpHeaders; body: string }>((resolve, reject) => {
+    httpRequest({ hostname, port, path, headers }, (response) => {
+      let body = ''
+      response.setEncoding('utf8')
+      response.on('data', (chunk: string) => (body += chunk))
+      response.on('end', () => resolve({ status: response.statusCode!, headers: response.headers, body }))
+    })
+      .on('error', reject)
+      .end()
+  })
 }
 
 /** Closes every server `listen` started, with the requests they hold open; for afterEach. */

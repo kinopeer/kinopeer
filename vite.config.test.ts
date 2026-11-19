@@ -4,7 +4,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createServer, preview } from 'vite'
+import { refusal } from './server/hostCheck.ts'
 import { CONTENT_SECURITY_POLICY, SECURITY_HEADERS } from './server/securityHeaders.ts'
+import { getWithHost } from './server/test/fakes.ts'
 import { inlineTouchIconPlugin } from './vite.config.ts'
 
 /**
@@ -16,7 +18,7 @@ const closers: (() => Promise<void>)[] = []
 
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'kinopeer-vite-'))
-  for (const name of ['QBITTORRENT_URL', 'QBITTORRENT_USERNAME', 'QBITTORRENT_PASSWORD', 'PROWLARR_URL', 'PROWLARR_API_KEY', 'TMDB_API_KEY', 'KINOPEER_PASSWORD'])
+  for (const name of ['QBITTORRENT_URL', 'QBITTORRENT_USERNAME', 'QBITTORRENT_PASSWORD', 'PROWLARR_URL', 'PROWLARR_API_KEY', 'TMDB_API_KEY', 'KINOPEER_PASSWORD', 'KINOPEER_ALLOWED_HOSTS'])
     vi.stubEnv(name, '')
   // The login on, as by default, whatever a clone's .env.local says: it answers first.
   vi.stubEnv('KINOPEER_AUTH', 'on')
@@ -31,20 +33,23 @@ afterEach(async () => {
 const options = { configFile: 'vite.config.ts', logLevel: 'silent' } as const
 const listening = { port: 0, host: '127.0.0.1', strictPort: true } as const
 
-/** `npm run dev` from this config; resolves to its port. */
-async function startDev(base?: string): Promise<number> {
-  const server = await createServer({ ...options, base, server: { ...listening, watch: null }, optimizeDeps: { noDiscovery: true } })
+/** `npm run dev` from this config; resolves to its port. `allowedHosts: true` turns Vite's own host check off. */
+async function startDev(base?: string, allowedHosts?: true): Promise<number> {
+  const server = await createServer({ ...options, base, server: { ...listening, watch: null, allowedHosts }, optimizeDeps: { noDiscovery: true } })
   closers.push(() => server.close())
   await server.listen()
   return (server.httpServer!.address() as AddressInfo).port
 }
 
-/** `npm run preview` from this config, over a build that is only an index.html; resolves to its port. */
-async function startPreview(): Promise<number> {
+/**
+ * `npm run preview` from this config, over a build that is only an index.html; resolves to its port.
+ * `allowedHosts: true` turns Vite's own host check off.
+ */
+async function startPreview(allowedHosts?: true): Promise<number> {
   const outDir = join(dir, 'dist')
   await mkdir(outDir)
   await writeFile(join(outDir, 'index.html'), '<!doctype html>')
-  const server = await preview({ ...options, build: { outDir }, preview: listening })
+  const server = await preview({ ...options, build: { outDir }, preview: { ...listening, allowedHosts } })
   closers.push(() => server.close())
   return (server.httpServer.address() as AddressInfo).port
 }
@@ -71,6 +76,16 @@ describe('vite.config.ts', () => {
     for (const [server, port] of [['dev', await startDev()], ['preview', await startPreview()]]) {
       const { headers } = await fetch(`http://127.0.0.1:${port}/`)
       for (const [name, value] of Object.entries(SECURITY_HEADERS)) expect(headers.get(name), `${server} ${name}`).toBe(value)
+    }
+  })
+
+  // Vite's own allowedHosts refuses such a host first; with it off, the server's check is still there.
+  it('runs the server’s host check on the dev and preview servers too', async () => {
+    for (const [server, port] of [['dev', await startDev(undefined, true)], ['preview', await startPreview(true)]] as const) {
+      const rebound = await getWithHost(`http://127.0.0.1:${port}`, '/', { host: 'rebound.example' })
+      expect(rebound.status, server).toBe(403)
+      expect(rebound.body, server).toBe(refusal('rebound.example'))
+      expect((await getWithHost(`http://127.0.0.1:${port}`, '/', { host: 'umbrel.local' })).status, server).toBe(200)
     }
   })
 
