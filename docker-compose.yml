@@ -56,12 +56,13 @@ services:
       - /bin/sh
       - -c
       - |
-        if [ -z "$$PUID" ]; then
+        if [ -z "$$PUID" ] || [ -z "$$PGID" ]; then
           owner="$$(stat -c %u:%g /downloads)"
           case "$$owner" in
-            0:*) export PUID=1000 PGID=1000 ;;
-            *) export PUID="$${owner%:*}" PGID="$${owner#*:}" ;;
+            0:*) owner=1000:1000 ;;
           esac
+          [ -n "$$PUID" ] || export PUID="$${owner%:*}"
+          [ -n "$$PGID" ] || export PGID="$${owner#*:}"
         fi
         if [ ! -f /config/qBittorrent/config/qBittorrent.conf ]; then
           mkdir -p /config/qBittorrent/config

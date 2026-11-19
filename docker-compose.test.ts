@@ -163,8 +163,12 @@ describe('Who qBittorrent runs as', () => {
     expect(runSeed({ owner: '0:121', env: composeEnv() }).user).toBe('1000:1000')
   })
 
-  it('is PUID and PGID when .env sets them', () => {
+  it('is PUID and PGID when .env sets them, each on its own', () => {
     expect(runSeed({ owner: '1001:121', env: { ...composeEnv(), PUID: '1234', PGID: '99' } }).user).toBe('1234:99')
+    expect(runSeed({ owner: '1001:121', env: { ...composeEnv(), PUID: '1234' } }).user).toBe('1234:121')
+    expect(runSeed({ owner: '1001:121', env: { ...composeEnv(), PGID: '99' } }).user).toBe('1001:99')
+    // Rootless Docker and Podman show the person's own folder as root's.
+    expect(runSeed({ owner: '0:0', env: { ...composeEnv(), PUID: '0', PGID: '0' } }).user).toBe('0:0')
   })
 })
 
