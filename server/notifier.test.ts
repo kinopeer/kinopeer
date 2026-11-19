@@ -114,7 +114,10 @@ describe('createNotifier', () => {
 
     const log = vi.fn()
     const down = channel('Telegram', [() => Promise.reject(new Error('no answer'))])
-    await notifier({ channels: [down.notify], torrents: () => [torrent('a')], log }).check()
+    const watcher = notifier({ channels: [down.notify], torrents: () => [torrent('a')], log })
+    // Some time into the server's life, so the wait isn't read from the clock's start.
+    watcher.advance(5 * 60_000)
+    await watcher.check()
     expect(log).toHaveBeenCalledWith("Telegram didn't answer; sending again in 30 s")
     warn.mockRestore()
   })
@@ -163,11 +166,14 @@ describe('createNotifier', () => {
     expect(watcher.untagged).toEqual([['a']])
   })
 
-  it('waits its own time when the channel asked for a wait it can’t read', async () => {
-    const telegram = channel('Telegram', [() => Promise.reject(Object.assign(new Error('429'), { retryAfterMs: '90000' }))])
+  it.each(['90000', Number.NaN, -90_000])('waits its own time when the channel asked for a wait it can’t read: %s', async (retryAfterMs) => {
+    const telegram = channel('Telegram', [() => Promise.reject(Object.assign(new Error('429'), { retryAfterMs }))])
     const watcher = notifier({ channels: [telegram.notify], torrents: () => [torrent('a')] })
     await watcher.check()
-    watcher.advance(RETRY_DELAYS_MS[0])
+    watcher.advance(RETRY_DELAYS_MS[0] - 1)
+    await watcher.check()
+    expect(telegram.sent).toHaveLength(1)
+    watcher.advance(1)
     await watcher.check()
     expect(telegram.sent).toHaveLength(2)
   })

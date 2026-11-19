@@ -39,9 +39,9 @@ function formError(e: unknown): FormError {
   return code && KNOWN_ERRORS.has(code) ? (code as FormError) : 'failed'
 }
 
-/** The language the server writes notifications in: the interface's. */
+/** The language the server writes notifications in: the interface's, which i18next resolves to one it has. */
 function notifyLanguage(language: string | undefined): NotifyLanguage {
-  return language?.startsWith('ru') ? 'ru' : 'en'
+  return language === 'ru' ? 'ru' : 'en'
 }
 
 /**

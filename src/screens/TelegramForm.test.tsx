@@ -87,6 +87,7 @@ describe('TelegramForm: the token', () => {
 
   it('takes the token without spell checking, and submits without leaving the page', () => {
     renderForm(NONE)
+    expect(screen.getByRole('button', { name: 'Save' })).not.toHaveAttribute('aria-busy')
     const field = screen.getByLabelText('Bot token')
     expect(field).toHaveAttribute('spellcheck', 'false')
     expect(screen.queryByText(FAILED)).not.toBeInTheDocument()
@@ -169,6 +170,7 @@ describe('TelegramForm: the chat', () => {
   it('shows the search in progress and sends it once however often it’s pressed', async () => {
     vi.mocked(serverSettings.findTelegramChat).mockReturnValue(pending())
     renderForm(BOT)
+    expect(screen.getByRole('button', { name: 'Find chat' })).not.toHaveAttribute('aria-busy')
     await userEvent.click(screen.getByRole('button', { name: 'Find chat' }))
     await userEvent.click(screen.getByRole('button', { name: 'Find chat' }))
     expect(screen.getByRole('button', { name: 'Find chat' })).toHaveAttribute('aria-busy', 'true')
@@ -223,6 +225,8 @@ describe('TelegramForm: connected', () => {
     vi.mocked(serverSettings.testTelegram).mockResolvedValue(settings(CONNECTED))
     const { onChanged } = renderForm(CONNECTED)
     expect(screen.getByText('Notifications go to “Alex” (Private chat) from @kinopeer_home_bot.')).toBeInTheDocument()
+    expect(screen.queryByText(CHAT_REFUSED)).not.toBeInTheDocument()
+    expect(screen.queryByText(TOKEN_REJECTED)).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Send a test message' }))
     expect(serverSettings.testTelegram).toHaveBeenCalledWith('en')
     expect(await screen.findByRole('status', { name: saying('Test message sent') })).toBeInTheDocument()
@@ -264,6 +268,29 @@ describe('TelegramForm: connected', () => {
     expect(screen.getByRole('button', { name: 'Send a test message' })).toBeInTheDocument()
   })
 
+  it.each([
+    ['another bot', 'Use another bot', BOT],
+    ['another chat', 'Choose another chat', CONNECTED],
+  ] as const)('follows the settings once %s is saved', async (_name, button, saved) => {
+    vi.mocked(serverSettings.saveTelegramToken).mockResolvedValue(settings(BOT))
+    vi.mocked(serverSettings.findTelegramChat).mockResolvedValue({ id: 42, name: 'Alex', type: 'private' })
+    vi.mocked(serverSettings.saveTelegramChat).mockResolvedValue(settings(CONNECTED))
+    const { onChanged, rerender } = renderForm(CONNECTED)
+    await userEvent.click(screen.getByRole('button', { name: button }))
+    if (saved === BOT) {
+      await userEvent.type(screen.getByLabelText('Bot token'), TOKEN)
+      await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    } else {
+      await userEvent.click(screen.getByRole('button', { name: 'Find chat' }))
+      await userEvent.click(await screen.findByRole('button', { name: 'Use this chat' }))
+    }
+    await vi.waitFor(() => expect(onChanged).toHaveBeenCalledWith(settings(saved)))
+    rerender(saved)
+    const next = saved === BOT ? 'Find chat' : 'Send a test message'
+    expect(screen.getByRole('button', { name: next })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument()
+  })
+
   it('turns notifications off', async () => {
     vi.mocked(serverSettings.forgetTelegram).mockResolvedValue(settings(NONE))
     const { onTurnedOff } = renderForm(CONNECTED)
@@ -278,6 +305,7 @@ describe('TelegramForm: connected', () => {
     expect(screen.getByRole('button', { name: 'Send a test message' })).toHaveAttribute('aria-busy', 'true')
     expect(screen.getByRole('button', { name: 'Send a test message' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Turn off' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Turn off' })).not.toHaveAttribute('aria-busy')
     expect(screen.getByRole('button', { name: 'Choose another chat' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Use another bot' })).toBeDisabled()
   })
