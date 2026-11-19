@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { expect, test } from './test.ts'
-import { DESKTOP, DESKTOP_RAIL, openApp, showWholePage, type AppOptions } from './app.ts'
+import { DESKTOP, DESKTOP_RAIL, openApp, settle, showWholePage, type AppOptions } from './app.ts'
 
 // Masked, so a version bump doesn't change the screenshots.
 const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }
@@ -33,8 +33,37 @@ test('Prowlarr without indexers, dark, Russian', async ({ page }) => {
   await expect(page).toHaveScreenshot('settings-no-indexers-dark-ru.png', { mask: [versionValue(page)] })
 })
 
+test('with Kinopeer’s own login, dark, Russian', async ({ page }) => {
+  await openSettings(page, { auth: { enabled: true, source: 'saved' } })
+  await expect(page.getByRole('region', { name: 'Вход' })).toBeVisible()
+  await expect(page).toHaveScreenshot('settings-sign-in-dark-ru.png', { mask: [versionValue(page)] })
+})
+
+test('changing the password, dark, Russian', async ({ page }) => {
+  await openApp(page, '/settings', { auth: { enabled: true, source: 'saved' } })
+  await page.getByRole('button', { name: /Сменить пароль/ }).click()
+  const sheet = page.getByRole('dialog', { name: 'Сменить пароль' })
+  await expect(sheet.getByLabel('Текущий пароль')).toBeVisible()
+  await settle(page)
+  await expect(page).toHaveScreenshot('change-password-dark-ru.png')
+})
+
 test.describe('desktop', () => {
   test.use(DESKTOP)
+
+  test('with a password from KINOPEER_PASSWORD, dark, Russian', async ({ page }) => {
+    await openSettings(page, { auth: { enabled: true, source: 'env' } })
+    await expect(page.getByText(/Пароль задан на сервере/)).toBeVisible()
+    await expect(page).toHaveScreenshot('desktop-sign-in-env-dark-ru.png', { mask: [versionValue(page)] })
+  })
+
+  test('changing the password, dark, Russian', async ({ page }) => {
+    await openApp(page, '/settings', { auth: { enabled: true, source: 'saved' } })
+    await page.getByRole('button', { name: /Сменить пароль/ }).click()
+    await expect(page.getByRole('dialog', { name: 'Сменить пароль' }).getByLabel('Текущий пароль')).toBeVisible()
+    await settle(page)
+    await expect(page).toHaveScreenshot('desktop-change-password-dark-ru.png')
+  })
 
   test('dark, Russian', async ({ page }) => {
     await openSettings(page)

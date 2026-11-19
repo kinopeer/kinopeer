@@ -38,6 +38,11 @@ export interface ResetOptions {
   torrents?: Torrent[]
   /** What matches.json holds before the server starts; nothing by default. */
   matches?: Matches
+  /**
+   * Kinopeer's own login on, as beyond Umbrel (server/auth.ts), with no password set yet. Off by
+   * default: the proxy in front stands for Umbrel's, where the package turns it off.
+   */
+  ownLogin?: boolean
 }
 
 /**
