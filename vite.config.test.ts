@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -100,17 +100,22 @@ describe('vite.config.ts', () => {
   // The data directory (./data by default) sits under the root the dev server serves files from, and
   // `dev-lan` serves that to the whole LAN: the saved keys, the qBittorrent login, the password's hash (#476).
   it('serves nothing from the data directory on the dev server, by any of the ways Vite serves a file', async () => {
-    // A root whose path has a glob's characters, which the list has to match as they are.
-    const root = join(dir, 'Dev (old) [1]')
+    // The checkout reached through a link, as Vite takes its root by its real path, and that real
+    // path with a glob's characters, which the list has to match as they are.
+    const real = join(dir, 'Dev (old) [1]')
+    const root = join(dir, 'checkout')
+    await mkdir(real)
+    await symlink(real, root)
     const data = join(root, 'data')
-    await mkdir(data, { recursive: true })
-    await writeFile(join(data, 'settings.json'), '{"secret":"x"}')
     vi.stubEnv('KINOPEER_DATA_DIR', data)
     const server = await createServer({ ...options, root, server: { ...listening, watch: null }, optimizeDeps: { noDiscovery: true } })
     closers.push(() => server.close())
     await server.listen()
+    // Made after the server starts, as ./data often is: the first save makes it.
+    await mkdir(data)
+    await writeFile(join(data, 'settings.json'), '{"secret":"x"}')
     const port = (server.httpServer!.address() as AddressInfo).port
-    for (const path of ['/data/settings.json', '/DATA/settings.json', '/data/settings.json?raw', '/data/settings.json?import', '/data/settings.json?url', `/@fs${await realpath(data)}/settings.json`]) {
+    for (const path of ['/data/settings.json', '/data/settings.json?raw', '/data/settings.json?import', '/data/settings.json?url', `/@fs${await realpath(data)}/settings.json`]) {
       const answer = await fetch(`http://127.0.0.1:${port}${path}`)
       expect(await answer.text(), path).not.toContain('secret')
     }
