@@ -77,7 +77,7 @@ describe('allowedHosts', () => {
     expect(allowedHosts('https://kinopeer.example.com, kinopeer.example.com/x, *kino.example.com, *., ..example.com, .lan, *.com, ok.example.com')).toEqual({
       allowed: { any: false, names: ['ok.example.com'], domains: [] },
       invalid: ['https://kinopeer.example.com', 'kinopeer.example.com/x', '*kino.example.com', '*.', '..example.com'],
-      tooBroad: ['.lan', '*.com'],
+      tooBroad: ['.lan', '.com'],
     })
   })
 })
@@ -90,12 +90,16 @@ describe('allowedHostsWarning', () => {
     expect(allowedHostsWarning('.lan, ok.example.com')).toBe(
       'KINOPEER_ALLOWED_HOSTS: domains of one label are too broad, ignored: .lan (list its names instead, such as kinopeer.lan)',
     )
+    // The hint is built from the domain as read, without a trailing dot, a port or capitals.
+    expect(allowedHostsWarning('.lan:8080, .LOCAL:80, .local.')).toBe(
+      'KINOPEER_ALLOWED_HOSTS: domains of one label are too broad, ignored: .lan (list its names instead, such as kinopeer.lan), .local (its names are allowed already), .local (its names are allowed already)',
+    )
     // A private suffix's names need no listing.
     expect(allowedHostsWarning('.local, *.Internal')).toBe(
-      'KINOPEER_ALLOWED_HOSTS: domains of one label are too broad, ignored: .local (its names are allowed already), *.Internal (its names are allowed already)',
+      'KINOPEER_ALLOWED_HOSTS: domains of one label are too broad, ignored: .local (its names are allowed already), .internal (its names are allowed already)',
     )
     expect(allowedHostsWarning('https://kinopeer.example.com, *.com')).toBe(
-      'KINOPEER_ALLOWED_HOSTS: not host names, ignored: https://kinopeer.example.com; domains of one label are too broad, ignored: *.com (list its names instead, such as kinopeer.com)',
+      'KINOPEER_ALLOWED_HOSTS: not host names, ignored: https://kinopeer.example.com; domains of one label are too broad, ignored: .com (list its names instead, such as kinopeer.com)',
     )
     expect(allowedHostsWarning('ok.example.com')).toBeUndefined()
     expect(allowedHostsWarning(undefined)).toBeUndefined()

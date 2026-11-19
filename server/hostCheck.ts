@@ -30,8 +30,8 @@ const PRIVATE_SUFFIXES = ['.localhost', '.local', '.onion', '.home.arpa', '.inte
  * Reads `KINOPEER_ALLOWED_HOSTS`: host names separated by commas or spaces, `.example.com` (or
  * `*.example.com`) for a domain and every name under it, `*` for any. A port or a trailing dot is
  * ignored, and a name in another script is taken in its ASCII form, as browsers send it. What isn't
- * a host name (a URL with a path, say) goes to `invalid`, and a domain of one label (`.lan`) to
- * `tooBroad`, both for a warning at startup.
+ * a host name (a URL with a path, say) goes to `invalid` as written, and a domain of one label to
+ * `tooBroad` as read (`.LAN:80` as `.lan`), both for a warning at startup.
  */
 export function allowedHosts(value: string | undefined): { allowed: AllowedHosts; invalid: string[]; tooBroad: string[] } {
   const allowed: AllowedHosts = { any: false, names: [], domains: [] }
@@ -46,8 +46,8 @@ export function allowedHosts(value: string | undefined): { allowed: AllowedHosts
     const name = hostName(domain ? entry.slice(domain[0].length) : entry)
     if (!name || name.startsWith('.') || name.includes('*')) invalid.push(entry)
     // A domain of one label (`.com`) would let in every name under a public suffix; one a router
-    // uses (`.lan`) is listed name by name.
-    else if (domain && !name.includes('.')) tooBroad.push(entry)
+    // uses (`.lan`) is listed name by name. Kept as read, for the warning's hint.
+    else if (domain && !name.includes('.')) tooBroad.push(`.${name}`)
     else if (domain) allowed.domains.push(`.${name}`)
     else allowed.names.push(name)
   }
@@ -64,11 +64,10 @@ export function allowedHostsWarning(value: string | undefined): string | undefin
   return warnings.length ? `KINOPEER_ALLOWED_HOSTS: ${warnings.join('; ')}` : undefined
 }
 
-/** A too-broad entry with what to do instead: list its names, unless the check answers them by default. */
-function tooBroadHint(entry: string): string {
-  const label = entry.replace(/^\*?\./, '').toLowerCase()
-  const example = `kinopeer.${label}`
-  return isPrivateHost(example) ? `${entry} (its names are allowed already)` : `${entry} (list its names instead, such as ${example})`
+/** A too-broad domain (`.lan`, as read) with what to do instead: list its names, unless the check answers them by default. */
+function tooBroadHint(domain: string): string {
+  const example = `kinopeer${domain}`
+  return isPrivateHost(example) ? `${domain} (its names are allowed already)` : `${domain} (list its names instead, such as ${example})`
 }
 
 /**
