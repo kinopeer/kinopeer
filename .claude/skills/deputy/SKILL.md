@@ -53,7 +53,7 @@ The journal sends the run's rows itself at the end of each turn.
 Then read the PR and its head. Stop without posting anything when it is closed, merged or a
 draft: a run can start late, after the author took the PR back.
 
-Then which PR it is, by the PR's `user.login` and `author_association`:
+Then which PR it is, by its author (`user.login`, `author_association`) and its diff:
 
 - **Dependabot's** (`dependabot[bot]`): section 6.
 - **An outside contributor's** (`author_association` other than `OWNER`, `MEMBER` or
@@ -108,8 +108,9 @@ justifies it, from what the task is and what the code shows. One you find justif
 and the round lists it under **Accepted marks** with your reason, which the retro reads; one you
 don't is a blocking finding. A mark on the rules or on the guard itself (a change to
 `docs/QUALITY.md`, this skill, `scripts/guard/` or its workflow) is judged by section 5's criterion
-instead and listed only under **Rule changes**, not under **Accepted marks**; its `accepted` in the
-machine block follows that verdict.
+instead and listed only under **Rule changes**, not under **Accepted marks**. In the machine block
+such a mark's `accepted` is null when the subagent called it `sound`, as any `sound` mark's; a
+`weakening` one takes true or false from section 5's verdict.
 
 **Questions for the coordinator.** Some decisions aren't yours: the PR revises a product decision
 recorded in `docs/SPEC.md`'s decision log, drops a feature, makes a visible change its task didn't
@@ -148,7 +149,7 @@ the machine block follows it.
   again, which starts the next round.
 - **Nothing open but nits:** `event=APPROVE`, verdict `**Verdict: approved** at <short sha>`, the
   nits listed. The merge is GitHub's: the author turned auto-merge on, and the PR merges once its
-  checks pass. Except for the PRs of section 5.
+  checks pass. Except for an outside contributor's PR and a release's PR (section 5).
 
 **The machine block.** After the verdict the body ends with a hidden HTML comment holding the
 round's outcome. The quality dashboard's collector, which lives outside this repository, reads it so
