@@ -250,7 +250,7 @@ describe('qbittorrentMiddleware', () => {
     ['another preference beside the save path', new URLSearchParams({ json: '{"save_path":"/a","web_ui_username":"x"}' })],
     ['a second json', 'json=%7B%22save_path%22%3A%22%2Fa%22%7D&json=%7B%22web_ui_password%22%3A%22x%22%7D'],
     ['another field beside json', new URLSearchParams({ json: '{"save_path":"/a"}', web_ui_password: 'x' })],
-    ['no json', new URLSearchParams({ save_path: '/a' })],
+    ['the save path in a field of another name', new URLSearchParams({ preferences: '{"save_path":"/a"}' })],
     ['a save path that isn’t a string', new URLSearchParams({ json: '{"save_path":["/a"]}' })],
     ['an array', new URLSearchParams({ json: '[{"save_path":"/a"}]' })],
     ['null', new URLSearchParams({ json: 'null' })],

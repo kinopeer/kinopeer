@@ -163,6 +163,7 @@ function FolderForm({ folders, category, onSaved }: FolderFormProps) {
       <div className="folders-actions">
         <Button
           type="submit"
+          size="lg"
           block
           loading={busy}
           disabled={!isAbsolute(target) || sameFolder(target) === sameFolder(current) || busy}

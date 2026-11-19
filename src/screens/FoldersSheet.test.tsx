@@ -126,6 +126,8 @@ describe('FoldersSheet', () => {
   it('saves nothing but a full path', async () => {
     const sheet = await openSheet()
     const field = await edit(sheet, /^Default folder/)
+    // A path, not words: no spelling marks.
+    expect(field).toHaveAttribute('spellcheck', 'false')
 
     await type(field, 'media/downloads')
     expect(within(sheet).getByText(/Type the full path/)).toBeInTheDocument()
