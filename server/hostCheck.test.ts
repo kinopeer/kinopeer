@@ -72,10 +72,10 @@ describe('allowedHosts', () => {
     expect(allowedHosts('').allowed.any).toBe(false)
   })
 
-  it('sets aside what isn’t a host name, to warn about', () => {
-    expect(allowedHosts('https://kinopeer.example.com, kinopeer.example.com/x, *kino.example.com, *., ..example.com, ok.example.com')).toEqual({
+  it('sets aside what isn’t a host name, and a domain of one label, to warn about', () => {
+    expect(allowedHosts('https://kinopeer.example.com, kinopeer.example.com/x, *kino.example.com, *., ..example.com, .com, *.com, ok.example.com')).toEqual({
       allowed: { any: false, names: ['ok.example.com'], domains: [] },
-      invalid: ['https://kinopeer.example.com', 'kinopeer.example.com/x', '*kino.example.com', '*.', '..example.com'],
+      invalid: ['https://kinopeer.example.com', 'kinopeer.example.com/x', '*kino.example.com', '*.', '..example.com', '.com', '*.com'],
     })
   })
 })
@@ -174,13 +174,24 @@ describe('hostCheck', () => {
   })
 })
 
+describe('hostCheck, a host it can’t read', () => {
+  it('says what to set rather than echo a value the variable can’t take', async () => {
+    const app = await serve(hostCheck(DEFAULTS))
+
+    const response = await getWithHost(app, '/', { host: 'umbrel.local', 'x-forwarded-host': 'kino.example.com/x' })
+
+    expect(response.status).toBe(403)
+    expect(response.body).toBe(refusal(''))
+  })
+})
+
 describe('refusal', () => {
-  it('says what to set for a request without a host name', () => {
-    // Node's server refuses an HTTP/1.1 request without Host before any route, so only an
-    // HTTP/1.0 one gets here: refusedHost names it ''.
+  it('says what to set for a request without a host name it can read', () => {
+    // For a host hostName can't read, and an HTTP/1.0 request without Host (Node's server refuses
+    // an HTTP/1.1 one before any route).
     const text = refusal('')
 
-    expect(text).toContain("Kinopeer doesn't answer a request without a host name.")
+    expect(text).toContain("Kinopeer doesn't answer a request without a host name it can read.")
     expect(text).toContain('KINOPEER_ALLOWED_HOSTS=kinopeer.example.com')
   })
 })

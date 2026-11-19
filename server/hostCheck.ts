@@ -30,7 +30,7 @@ const PRIVATE_SUFFIXES = ['.localhost', '.local', '.onion', '.home.arpa', '.inte
  * Reads `KINOPEER_ALLOWED_HOSTS`: host names separated by commas or spaces, `.example.com` (or
  * `*.example.com`) for a domain and every name under it, `*` for any. A port or a trailing dot is
  * ignored, and a name in another script is taken in its ASCII form, as browsers send it. What isn't
- * a host name (a URL with a path, say) goes to `invalid`, for a warning at startup.
+ * a host name (a URL with a path, say), and a domain of one label, go to `invalid`, for a warning at startup.
  */
 export function allowedHosts(value: string | undefined): { allowed: AllowedHosts; invalid: string[] } {
   const allowed: AllowedHosts = { any: false, names: [], domains: [] }
@@ -42,7 +42,8 @@ export function allowedHosts(value: string | undefined): { allowed: AllowedHosts
     }
     const domain = /^\*?\./.exec(entry)
     const name = hostName(domain ? entry.slice(domain[0].length) : entry)
-    if (!name || name.startsWith('.') || name.includes('*')) invalid.push(entry)
+    // A domain of one label (`.com`) would let in every name under a public suffix.
+    if (!name || name.startsWith('.') || name.includes('*') || (domain && !name.includes('.'))) invalid.push(entry)
     else if (domain) allowed.domains.push(`.${name}`)
     else allowed.names.push(name)
   }
@@ -94,7 +95,9 @@ export function isAllowedHost(value: string | undefined, allowed: AllowedHosts):
  * The first host a request names that Kinopeer doesn't answer at, or undefined when it answers it:
  * its `Host` and, when a proxy in front added one, each host in `X-Forwarded-Host`. The latter
  * can't let a request through that its `Host` doesn't, since every one must be allowed, while it
- * catches a proxy that sends its own address as `Host` (nginx's default) and the page's in it.
+ * catches a proxy that sends the upstream's address as `Host` and the page's name in it. A proxy
+ * that sends neither the page's `Host` nor `X-Forwarded-Host` (nginx's default) hides the name:
+ * its own `server_name` has to refuse a rebound one.
  */
 export function refusedHost(headers: IncomingHttpHeaders, allowed: AllowedHosts): string | undefined {
   const forwarded = String(headers['x-forwarded-host'] ?? '')
@@ -115,7 +118,8 @@ export function hostCheck(allowed: AllowedHosts): Middleware {
   return (request, response, next) => {
     const host = refusedHost(request.headers, allowed)
     if (host === undefined) return next()
-    const name = hostName(host) ?? host
+    // A host it can't read can't go into the variable either: the text for no host says what to set.
+    const name = hostName(host) ?? ''
     response.statusCode = 403
     response.setHeader('Content-Type', 'text/plain; charset=utf-8')
     response.setHeader('Cache-Control', 'no-store')
@@ -126,7 +130,7 @@ export function hostCheck(allowed: AllowedHosts): Middleware {
 /** The refusal's text, in English like the server's other answers: the app's translations aren't loaded here. */
 export function refusal(name: string): string {
   return [
-    name ? `Kinopeer doesn't answer at ${name}.` : "Kinopeer doesn't answer a request without a host name.",
+    name ? `Kinopeer doesn't answer at ${name}.` : "Kinopeer doesn't answer a request without a host name it can read.",
     '',
     "It answers only at the addresses it is meant to be reached at, so that another website can't reach it by pointing its own address at Kinopeer's (DNS rebinding).",
     '',
