@@ -670,6 +670,27 @@ describe('settingsMiddleware: addresses', () => {
     expect(store.current).toEqual({})
   })
 
+  it('never sends the login on where the address redirects, and says it isn’t qBittorrent', async () => {
+    let reached = 0
+    const elsewhere = await serve((_request, response) => {
+      reached++
+      response.end('Ok.')
+    })
+    const redirecting = await serve((request, response) => {
+      response.statusCode = 307
+      response.setHeader('Location', `${elsewhere}${request.url}`)
+      response.end()
+    })
+    const store = new SettingsStore(dir)
+
+    const response = await putLogin(await app(store), { url: redirecting, username: 'admin', password: 'pass word' })
+
+    expect(response.status).toBe(502)
+    expect(await response.json()).toEqual({ error: 'not-qbittorrent' })
+    expect(reached).toBe(0)
+    expect(store.current).toEqual({})
+  })
+
   it('saves Prowlarr’s address with the key it checked there', async () => {
     const prowlarr = await fakeProwlarr({ apiKey: 'good-key' })
     const store = new SettingsStore(dir)
@@ -686,6 +707,26 @@ describe('settingsMiddleware: addresses', () => {
     })
     expect(prowlarr.seen.map((request) => request.url)).toEqual(['/api/v1/system/status'])
     expect(store.current).toEqual({ prowlarrApiKey: 'good-key', prowlarrUrl: prowlarr.base })
+  })
+
+  it('says an address that answers with a client error isn’t Prowlarr, as another app on that port does, and saves nothing', async () => {
+    const answering = (status: number) =>
+      serve((_request, response) => {
+        response.statusCode = status
+        response.end()
+      })
+    const store = new SettingsStore(dir)
+    const base = await app(store)
+    const save = async (status: number) => fetch(`${base}/api/settings/prowlarr`, saving({ apiKey: 'good-key', url: await answering(status) }))
+
+    for (const status of [400, 404, 499]) {
+      const response = await save(status)
+      expect(response.status, String(status)).toBe(502)
+      expect(await response.json()).toEqual({ error: 'not-prowlarr' })
+    }
+    // A server error is Prowlarr's own, as before.
+    expect(await (await save(500)).json()).toEqual({ error: 'unreachable' })
+    expect(store.current).toEqual({})
   })
 
   it('keeps a saved address when a key or a login is saved without one', async () => {

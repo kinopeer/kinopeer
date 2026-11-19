@@ -9,7 +9,7 @@ import { TMDB_PROXY, TMDB_PROXY_EDGE, createApp, dataStores, kinopeerServer, log
 import { refusal } from './hostCheck.ts'
 import { CONTENT_SECURITY_POLICY, SECURITY_HEADERS } from './securityHeaders.ts'
 import { SettingsStore } from './settings.ts'
-import { closeServers, fakeTmdb, getWithHost } from './test/fakes.ts'
+import { closeServers, fakeProwlarr, fakeQbittorrent, fakeTmdb, getWithHost } from './test/fakes.ts'
 
 let root: string
 let server: Server
@@ -116,6 +116,45 @@ describe('loginWarning', () => {
     expect(loginWarning({ KINOPEER_AUTH: 'off' })).toBe('own login off (KINOPEER_AUTH=off): keep a login in front of Kinopeer')
     expect(loginWarning({ KINOPEER_AUTH: 'on' })).toBeUndefined()
     expect(loginWarning({})).toBeUndefined()
+  })
+})
+
+describe('the environment’s login and key', () => {
+  async function started(env: Record<string, string | undefined>, saved: { qbittorrentUrl: string; prowlarrUrl: string }) {
+    const stores = dataStores(await mkdtemp(join(root, 'secrets-')))
+    await stores.settings.update(saved)
+    const running = createApp(root, kinopeerServer({ TMDB_PROXY_URL: '', KINOPEER_AUTH: 'off', ...env }, stores))
+    await new Promise<void>((resolve) => running.listen(0, '127.0.0.1', resolve))
+    return { base: `http://127.0.0.1:${(running.address() as AddressInfo).port}`, running }
+  }
+
+  it.each([
+    ['PROWLARR_API_KEY', () => 'env-key'],
+    ['PROWLARR_CONFIG_XML', (dir: string) => join(dir, 'config.xml')],
+  ])('go only to the environment’s address, never to one saved from the app (Prowlarr’s key from %s)', async (variable, value) => {
+    const qbt = await fakeQbittorrent()
+    const prowlarr = await fakeProwlarr({ apiKey: 'env-key' })
+    await writeFile(join(root, 'config.xml'), '<Config><ApiKey>env-key</ApiKey></Config>')
+    const { base, running } = await started(
+      { QBITTORRENT_USERNAME: 'admin', QBITTORRENT_PASSWORD: 'pass word', [variable]: value(root) },
+      { qbittorrentUrl: qbt.base, prowlarrUrl: prowlarr.base },
+    )
+    try {
+      // A browser chose these addresses: the server's own login and key aren't sent there.
+      expect((await fetch(`${base}/qbt/api/v2/app/version`, { headers: { 'X-Kinopeer': '1' } })).status).toBe(403)
+      expect(qbt.logins()).toBe(0)
+      expect(await (await fetch(`${base}/prowlarr/status`)).json()).toEqual({ error: 'not-configured' })
+      expect(prowlarr.seen).toEqual([])
+      // So the app asks for a login and a key of its own, and has no server key to fall back on.
+      expect(await (await fetch(`${base}/api/settings`)).json()).toMatchObject({
+        qbittorrent: { configured: false, source: null },
+        prowlarr: { configured: false, source: null, serverKey: false },
+      })
+      const forget = await fetch(`${base}/api/settings/prowlarr`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } })
+      expect(forget.status).toBe(409)
+    } finally {
+      await new Promise((resolve) => running.close(resolve))
+    }
   })
 })
 
@@ -246,13 +285,15 @@ describe('kinopeerServer', () => {
     expect(start('')).not.toThrow()
   })
 
-  it('forgets nothing while qBittorrent has no address', () => {
+  it('forgets nothing while qBittorrent has no address', async () => {
     const stores = dataStores(join(root, 'no-jobs'))
     const prune = vi.spyOn(stores.matches, 'prune')
     vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval', 'clearTimeout', 'clearInterval'] })
     try {
-      kinopeerServer({}, stores).startJobs()()
-      vi.advanceTimersByTime(2 * 60 * 60_000)
+      const stop = kinopeerServer({}, stores).startJobs()
+      // The first check and the next, each failing to reach qBittorrent.
+      await vi.advanceTimersByTimeAsync(2 * 60 * 60_000)
+      stop()
       expect(prune).not.toHaveBeenCalled()
     } finally {
       vi.useRealTimers()

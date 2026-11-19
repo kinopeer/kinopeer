@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { baseOf } from './address.ts'
 import { AuthStore, authMode, envPassword, kinopeerAuth } from './auth.ts'
 import { allowedHosts, allowedHostsWarning, hostCheck } from './hostCheck.ts'
 import { MatchesStore, matchesMiddleware, qbittorrentHashes, startMatchesCleanup } from './matches.ts'
@@ -99,8 +100,11 @@ export function loginWarning(env: Record<string, string | undefined>): string | 
 export function kinopeerServer(env: Record<string, string | undefined>, stores: DataStores): KinopeerServer {
   const store = stores.settings
   const auth = kinopeerAuth({ store: stores.auth, mode: authMode(env.KINOPEER_AUTH), envPassword: envPassword(env.KINOPEER_PASSWORD) })
-  const envQbittorrent = { username: env.QBITTORRENT_USERNAME, password: env.QBITTORRENT_PASSWORD }
-  const prowlarrConfig = env.PROWLARR_CONFIG_XML
+  // The environment's login and key go only to the environment's address: where an address comes
+  // from the app, a browser chose where they'd be sent, so only a login or key saved from the app is.
+  const envQbittorrent = baseOf(env.QBITTORRENT_URL) ? { username: env.QBITTORRENT_USERNAME, password: env.QBITTORRENT_PASSWORD } : {}
+  const envProwlarrKey = baseOf(env.PROWLARR_URL) ? env.PROWLARR_API_KEY : undefined
+  const prowlarrConfig = baseOf(env.PROWLARR_URL) ? env.PROWLARR_CONFIG_XML : undefined
   const proxy = tmdbProxy(env)
   const qbittorrent = qbittorrentBridge({
     url: () => qbittorrentAddress(store, env.QBITTORRENT_URL),
@@ -123,14 +127,14 @@ export function kinopeerServer(env: Record<string, string | undefined>, stores: 
         envQbittorrentUrl: env.QBITTORRENT_URL,
         envQbittorrent,
         envProwlarrUrl: env.PROWLARR_URL,
-        envProwlarrApiKey: env.PROWLARR_API_KEY,
+        envProwlarrApiKey: envProwlarrKey,
         prowlarrConfigXml: prowlarrConfig,
       }),
       matchesMiddleware(stores.matches),
       qbittorrent.middleware,
       prowlarrMiddleware({
         url: () => prowlarrAddress(store, env.PROWLARR_URL),
-        apiKey: () => prowlarrKey(store, env.PROWLARR_API_KEY, prowlarrConfig),
+        apiKey: () => prowlarrKey(store, envProwlarrKey, prowlarrConfig),
       }),
       tmdbMiddleware({
         apiKey: () => tmdbKey(store, env.TMDB_API_KEY),

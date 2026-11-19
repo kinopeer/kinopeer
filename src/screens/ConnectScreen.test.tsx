@@ -59,6 +59,17 @@ describe('ConnectScreen', () => {
     expect(screen.queryByRole('alert', { name: saying(/unreachable|answering/) })).not.toBeInTheDocument()
   })
 
+  it('says the address answers but isn’t qBittorrent, not that qBittorrent didn’t answer', async () => {
+    setup(vi.fn().mockRejectedValue(new SettingsError(502, 'not-qbittorrent')))
+    await fillAndSubmit()
+    expect(
+      screen.getByRole('alert', { name: saying('The qBittorrent address on the Kinopeer server answers, but not like qBittorrent. Check QBITTORRENT_URL.') }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('alert', { name: saying(/answering/) })).not.toBeInTheDocument()
+    // What was typed stays, for a try once the address is fixed.
+    expect(screen.getByLabelText('Username')).toHaveValue('admin')
+  })
+
   it('shows who didn’t answer the session check in place of the form, with Retry', async () => {
     const { onRetry } = setup(undefined, { unreachable: 'qbittorrent' })
     expect(screen.getByRole('heading', { name: 'qBittorrent isn’t answering' })).toBeInTheDocument()

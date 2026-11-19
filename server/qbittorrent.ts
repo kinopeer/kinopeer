@@ -39,8 +39,8 @@ export type LoginResult = { status: 'ok'; cookie: string } | { status: 'invalid'
 
 /**
  * Logs in to qBittorrent at `base`. 'banned' is a 403 (the IP is banned after failed logins), and
- * 'not-qbittorrent' any other error, which qBittorrent's login doesn't answer with (a wrong address,
- * a proxy in front); rejects when nothing answers, or `signal` aborts first.
+ * 'not-qbittorrent' a redirect or any other error, which qBittorrent's login doesn't answer with (a
+ * wrong address, a proxy in front); rejects when nothing answers, or `signal` aborts first.
  */
 export async function qbittorrentLogin(
   base: string,
@@ -52,6 +52,9 @@ export async function qbittorrentLogin(
     method: 'POST',
     headers: { Origin: base, Referer: `${base}/` },
     body: new URLSearchParams({ username, password }),
+    // Never on to wherever a redirect points: the password goes to qBittorrent's address only, and
+    // the bridge doesn't follow redirects either, so an address that redirects isn't qBittorrent's.
+    redirect: 'manual',
     signal,
   })
   const text = (await response.text()).trim()

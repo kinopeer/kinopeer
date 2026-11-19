@@ -19,8 +19,8 @@ export interface ConnectScreenProps {
   onSignIn: (username: string, password: string) => Promise<void>
 }
 
-/** A login refused, or who didn't answer it. */
-type FormError = 'invalid' | 'banned' | Unreachable | null
+/** A login refused, something at qBittorrent's address that isn't qBittorrent, or who didn't answer. */
+type FormError = 'invalid' | 'banned' | 'not-qbittorrent' | Unreachable | null
 
 export function ConnectScreen({ unreachable: unreachableProp, onRetry, onSignIn }: ConnectScreenProps) {
   const { t } = useTranslation()
@@ -39,6 +39,7 @@ export function ConnectScreen({ unreachable: unreachableProp, onRetry, onSignIn 
       const code = e instanceof SettingsError ? e.code : undefined
       if (code === 'invalid-credentials') setError('invalid')
       else if (code === 'banned') setError('banned')
+      else if (code === 'not-qbittorrent') setError('not-qbittorrent')
       // An error the server named is its answer, so the server is there; one without a name came
       // from something in front of it (Umbrel answering for a stopped app); no answer is unreached.
       else if (e instanceof SettingsError) setError(code === undefined ? 'kinopeer' : 'qbittorrent')
@@ -48,7 +49,7 @@ export function ConnectScreen({ unreachable: unreachableProp, onRetry, onSignIn 
   }
 
   // Who didn't answer the sign-in, shown over the form, so what was typed stays.
-  const signInUnreachable = error === null || error === 'invalid' || error === 'banned' ? undefined : error
+  const signInUnreachable = error === null || error === 'invalid' || error === 'banned' || error === 'not-qbittorrent' ? undefined : error
   const openAgain = useMayOpenAgain(signInUnreachable)
 
   // The session check got no answer: no login form until there's someone to sign in to.
@@ -84,6 +85,7 @@ export function ConnectScreen({ unreachable: unreachableProp, onRetry, onSignIn 
           </Banner>
         )}
         {error === 'banned' && <Banner tone="error">{t('connect.banned')}</Banner>}
+        {error === 'not-qbittorrent' && <Banner tone="error">{t('connect.notQbittorrent')}</Banner>}
 
         <div className="connect-fields">
           <Input

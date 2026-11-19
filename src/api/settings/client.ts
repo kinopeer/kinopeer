@@ -74,8 +74,8 @@ export function saveTmdbKey(apiKey: string): Promise<ServerSettings> {
 /**
  * Saves the Prowlarr API key on the server, which checks it with Prowlarr first. Rejects with a
  * SettingsError: code 'invalid-key' when Prowlarr refuses it, 'unreachable' when Prowlarr doesn't
- * answer, 'not-prowlarr' when PROWLARR_URL answers but isn't Prowlarr, or 'not-configured' when the
- * server has no PROWLARR_URL.
+ * answer, 'not-prowlarr' when Prowlarr's address answers but isn't Prowlarr, or 'not-configured'
+ * when the server has no address for Prowlarr, from its environment or saved from the app.
  */
 export function saveProwlarrKey(apiKey: string): Promise<ServerSettings> {
   return send<ProwlarrKeyBody>('PUT', 'prowlarr', { apiKey })
@@ -109,8 +109,9 @@ export function forgetProwlarrKey(): Promise<ServerSettings> {
 
 /**
  * Saves the qBittorrent login on the server, which logs in with it first. Rejects with a
- * SettingsError: code 'invalid-credentials', 'banned' (too many failed logins), 'unreachable', or
- * 'not-configured' when the server has no QBITTORRENT_URL.
+ * SettingsError: code 'invalid-credentials', 'banned' (too many failed logins), 'unreachable',
+ * 'not-qbittorrent' when qBittorrent's address answers but isn't qBittorrent, or 'not-configured'
+ * when the server has no address for qBittorrent, from its environment or saved from the app.
  */
 export function saveQbittorrentLogin(username: string, password: string): Promise<ServerSettings> {
   return send<QbittorrentLoginBody>('PUT', 'qbittorrent', { username, password })

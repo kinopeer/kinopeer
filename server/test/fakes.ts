@@ -272,7 +272,11 @@ export async function fakeQbittorrent({
   listAdded,
 }: {
   legacy?: boolean
-  /** qBittorrent's auth bypass for the server's address: every request goes through without a session. */
+  /**
+   * qBittorrent's auth bypass (Options → Web UI → "Bypass authentication for clients on localhost" or
+   * "… in whitelisted IP subnets", in 4.x and 5.x alike) covering the server: every request goes
+   * through without a session, and /app/version answers without a login.
+   */
   authBypass?: boolean
   torrents?: Torrent[]
   /**
