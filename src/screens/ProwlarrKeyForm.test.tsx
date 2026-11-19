@@ -132,7 +132,7 @@ describe('ProwlarrKeyForm', () => {
       return { onSaved, address: screen.getByLabelText('Prowlarr address'), field: screen.getByLabelText('Prowlarr API key'), save: screen.getByRole('button', { name: 'Save' }) }
     }
 
-    it('saves the trimmed address with the key', async () => {
+    it('saves the address with the key, without the spaces a url field drops', async () => {
       const { onSaved, address, field, save } = renderWithAddress()
       expect(address).toHaveAccessibleDescription('As the Kinopeer server reaches it, for example http://192.168.1.10:9696')
       await userEvent.type(field, 'abc123')

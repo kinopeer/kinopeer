@@ -68,7 +68,7 @@ export function ConnectScreen({ unreachable: unreachableProp, noAddress = false,
     setSubmitting(true)
     setError(null)
     try {
-      await (askAddress ? onSignIn(username, password, address.trim()) : onSignIn(username, password))
+      await (askAddress ? onSignIn(username, password, address) : onSignIn(username, password))
     } catch (e) {
       const code = e instanceof SettingsError ? e.code : undefined
       if (code === 'invalid-credentials') setError(askAddress && !username ? 'login-needed' : 'invalid')

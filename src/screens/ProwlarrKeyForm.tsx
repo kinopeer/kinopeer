@@ -63,7 +63,7 @@ export function ProwlarrKeyForm({ onSaved, onForgotten, canForget = false, askAd
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    void run('save', () => (askAddress ? saveProwlarrKey(apiKey.trim(), address.trim()) : saveProwlarrKey(apiKey.trim())), onSaved)
+    void run('save', () => (askAddress ? saveProwlarrKey(apiKey.trim(), address) : saveProwlarrKey(apiKey.trim())), onSaved)
   }
   // With an address sent, the server is there and says that address didn't answer: the field's to fix.
   const addressError = (error === 'invalid-address' && t('address.invalid')) || (askAddress && error === 'unreachable' && t('prowlarrKey.addressUnreachable'))
