@@ -17,7 +17,8 @@ services:
       PROWLARR_CONFIG_XML: /prowlarr/config.xml
       # Empty: the first visitor sets Kinopeer's password.
       KINOPEER_PASSWORD: ${KINOPEER_PASSWORD:-}
-      # Host names to answer at besides IP addresses, localhost and *.local, such as a reverse proxy's.
+      # Host names to answer at besides the ones it answers at by default, such as a reverse proxy's
+      # (the README's settings).
       KINOPEER_ALLOWED_HOSTS: ${KINOPEER_ALLOWED_HOSTS:-}
     volumes:
       # Kinopeer's password, settings and which movie or series each torrent is.

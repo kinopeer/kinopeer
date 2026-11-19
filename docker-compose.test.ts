@@ -7,7 +7,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { parse } from 'yaml'
 
@@ -222,5 +222,24 @@ describe("Kinopeer's image", () => {
 
   it('is built from the checkout with docker-compose.build.yml', () => {
     expect(readCompose('docker-compose.build.yml').services.kinopeer).toEqual({ build: '.', image: 'kinopeer:local' })
+  })
+})
+
+describe('The downloads folder, by default in the checkout when the build is checked', () => {
+  // `${DOWNLOADS_DIR:-./downloads}`: the folder qBittorrent downloads into, by default.
+  const folder = (service('qbittorrent').volumes ?? []).find((volume) => volume.endsWith(':/downloads'))?.match(/:-\.\/([^}]+)\}/)?.[1]
+
+  it('stays out of the image’s build context', () => {
+    const ignored = readFileSync(join(ROOT, '.dockerignore'), 'utf8').split('\n').map((line) => line.trim())
+
+    expect(folder).toBe('downloads')
+    expect(ignored).toContain(folder)
+  })
+
+  it('stays out of Stryker’s sandbox', async () => {
+    // By its URL, since the config is plain JavaScript without types.
+    const { default: stryker } = (await import(pathToFileURL(join(ROOT, 'stryker.config.mjs')).href)) as { default: { ignorePatterns: string[] } }
+
+    expect(stryker.ignorePatterns).toContain(`/${folder}`)
   })
 })
