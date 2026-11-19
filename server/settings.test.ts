@@ -3,7 +3,16 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { ServerSettings } from '../src/api/settings/types.ts'
-import { SettingsStore, prowlarrKey, qbittorrentCredentials, settingsMiddleware, tmdbKey, type SettingsConfig } from './settings.ts'
+import {
+  SettingsStore,
+  prowlarrAddress,
+  prowlarrKey,
+  qbittorrentAddress,
+  qbittorrentCredentials,
+  settingsMiddleware,
+  tmdbKey,
+  type SettingsConfig,
+} from './settings.ts'
 import { abandon, closeServers, fakeProwlarr, fakeQbittorrent, fakeTmdb, serve, settlesWithin, silentService } from './test/fakes.ts'
 
 let dir: string
@@ -37,7 +46,7 @@ function kinopeer(
       tmdbApiBase: options.apiBase,
       tmdbTimeoutMs: options.timeoutMs,
       tmdbProxy: options.proxy,
-      qbittorrentUrl: options.qbittorrentUrl,
+      envQbittorrentUrl: options.qbittorrentUrl,
       envQbittorrent: { username: options.envUser, password: 'adminadmin' },
       auth: options.auth,
     }),
@@ -109,13 +118,13 @@ describe('settingsMiddleware: qBittorrent login', () => {
     const qbt = await fakeQbittorrent()
     const store = new SettingsStore(dir)
     const app = await kinopeer(store, { qbittorrentUrl: `${qbt.base}/`, envUser: 'admin' })
-    expect(((await (await fetch(`${app}/api/settings`)).json()) as ServerSettings).qbittorrent).toEqual({ configured: true, source: 'env' })
+    expect(((await (await fetch(`${app}/api/settings`)).json()) as ServerSettings).qbittorrent).toEqual({ configured: true, source: 'env', address: { source: 'env' } })
 
     const response = await putLogin(app, { username: ' admin ', password: 'pass word' })
 
     expect(response.status).toBe(200)
     const text = await response.text()
-    expect(JSON.parse(text).qbittorrent).toEqual({ configured: true, source: 'saved' })
+    expect(JSON.parse(text).qbittorrent).toEqual({ configured: true, source: 'saved', address: { source: 'env' } })
     expect(text).not.toContain('pass word')
     expect(qbittorrentCredentials(store, undefined)).toEqual({ username: 'admin', password: 'pass word' })
   })
@@ -143,12 +152,12 @@ describe('settingsMiddleware: qBittorrent login', () => {
     expect(await settlesWithin(qbittorrent.closed, 1000)).toBe(true)
   })
 
-  it('needs a qBittorrent address and a username', async () => {
+  it('needs a qBittorrent address and both fields', async () => {
     const store = new SettingsStore(dir)
     expect((await putLogin(await kinopeer(store), { username: 'admin', password: '' })).status).toBe(503)
     const qbt = await fakeQbittorrent()
     const app = await kinopeer(store, { qbittorrentUrl: qbt.base })
-    expect((await putLogin(app, { username: ' ', password: 'x' })).status).toBe(400)
+    expect((await putLogin(app, { password: 'x' })).status).toBe(400)
     expect((await putLogin(app, { username: 'admin' })).status).toBe(400)
     expect(qbt.logins()).toBe(0)
   })
@@ -166,8 +175,8 @@ describe('settingsMiddleware', () => {
     const store = new SettingsStore(dir)
     expect(await (await fetch(`${await kinopeer(store)}/api/settings`)).json()).toEqual({
       tmdb: { configured: false, source: null, fallback: null },
-      prowlarr: { configured: false, source: null, serverKey: false },
-      qbittorrent: { configured: false, source: null },
+      prowlarr: { configured: false, source: null, serverKey: false, address: { source: null } },
+      qbittorrent: { configured: false, source: null, address: { source: null } },
       downloads: null,
       auth: { enabled: false },
     })
@@ -178,8 +187,8 @@ describe('settingsMiddleware', () => {
     const text = await response.text()
     expect(JSON.parse(text)).toEqual({
       tmdb: { configured: true, source: 'env', fallback: 'env' },
-      prowlarr: { configured: false, source: null, serverKey: false },
-      qbittorrent: { configured: false, source: null },
+      prowlarr: { configured: false, source: null, serverKey: false, address: { source: null } },
+      qbittorrent: { configured: false, source: null, address: { source: null } },
       downloads: null,
       auth: { enabled: false },
     })
@@ -430,7 +439,7 @@ describe('settingsMiddleware: Prowlarr key', () => {
     return serve(
       settingsMiddleware({
         store,
-        prowlarrUrl: options.url,
+        envProwlarrUrl: options.url,
         envProwlarrApiKey: options.envKey,
         prowlarrConfigXml: options.configXml,
       }),
@@ -463,10 +472,10 @@ describe('settingsMiddleware: Prowlarr key', () => {
     const configXml = join(dir, 'config.xml')
     await writeFile(configXml, '<Config><ApiKey>file-key</ApiKey></Config>')
 
-    expect(await prowlarrStatus(await app(store, { configXml: join(dir, 'missing.xml') }))).toEqual({ configured: false, source: null, serverKey: false })
-    expect(await prowlarrStatus(await app(store, { envKey: 'env-key' }))).toEqual({ configured: true, source: 'env', serverKey: true })
+    expect(await prowlarrStatus(await app(store, { configXml: join(dir, 'missing.xml') }))).toEqual({ configured: false, source: null, serverKey: false, address: { source: null } })
+    expect(await prowlarrStatus(await app(store, { envKey: 'env-key' }))).toEqual({ configured: true, source: 'env', serverKey: true, address: { source: null } })
     const withFile = await app(store, { configXml })
-    expect(await prowlarrStatus(withFile)).toEqual({ configured: true, source: 'env', serverKey: true })
+    expect(await prowlarrStatus(withFile)).toEqual({ configured: true, source: 'env', serverKey: true, address: { source: null } })
     expect(await (await fetch(`${withFile}/api/settings`)).text()).not.toContain('file-key')
   })
 
@@ -478,7 +487,7 @@ describe('settingsMiddleware: Prowlarr key', () => {
     const response = await put(base, ' good-key ')
 
     expect(response.status).toBe(200)
-    expect(((await response.json()) as ServerSettings).prowlarr).toEqual({ configured: true, source: 'saved', serverKey: true })
+    expect(((await response.json()) as ServerSettings).prowlarr).toEqual({ configured: true, source: 'saved', serverKey: true, address: { source: 'env' } })
     expect(prowlarr.seen.map((request) => request.url)).toEqual(['/api/v1/system/status'])
     expect(await prowlarrKey(store, 'env-key', undefined)).toBe('good-key')
   })
@@ -516,7 +525,7 @@ describe('settingsMiddleware: Prowlarr key', () => {
     const response = await forget(base)
 
     expect(response.status).toBe(200)
-    expect(((await response.json()) as ServerSettings).prowlarr).toEqual({ configured: true, source: 'env', serverKey: true })
+    expect(((await response.json()) as ServerSettings).prowlarr).toEqual({ configured: true, source: 'env', serverKey: true, address: { source: null } })
     expect(await prowlarrKey(store, undefined, configXml)).toBe('file-key')
   })
 
@@ -524,7 +533,7 @@ describe('settingsMiddleware: Prowlarr key', () => {
     const store = new SettingsStore(dir)
     await store.update({ prowlarrApiKey: 'saved-key' })
     const base = await app(store, { configXml: join(dir, 'missing.xml') })
-    expect(await prowlarrStatus(base)).toEqual({ configured: true, source: 'saved', serverKey: false })
+    expect(await prowlarrStatus(base)).toEqual({ configured: true, source: 'saved', serverKey: false, address: { source: null } })
 
     const response = await forget(base)
 
@@ -566,5 +575,245 @@ describe('settingsMiddleware: Prowlarr key', () => {
     expect((await put(base, 42)).status).toBe(400)
     expect((await put(base, 'two words')).status).toBe(400)
     expect(prowlarr.seen).toEqual([])
+  })
+})
+
+describe('settingsMiddleware: addresses', () => {
+  const LOGIN_ON = () => ({ enabled: true, source: 'saved' }) as const
+
+  /** Kinopeer's side, Kinopeer's own login on unless a test says otherwise. */
+  function app(store: SettingsStore, options: { envQbittorrentUrl?: string; envProwlarrUrl?: string; auth?: SettingsConfig['auth'] } = {}) {
+    return serve(settingsMiddleware({ store, auth: LOGIN_ON, ...options }))
+  }
+
+  async function addresses(base: string) {
+    const settings = (await (await fetch(`${base}/api/settings`)).json()) as ServerSettings
+    return { qbittorrent: settings.qbittorrent.address, prowlarr: settings.prowlarr.address }
+  }
+
+  it('saves qBittorrent’s address with the login it checked there, and says it in full', async () => {
+    const qbt = await fakeQbittorrent()
+    const store = new SettingsStore(dir)
+    const base = await app(store)
+    expect(await addresses(base)).toEqual({ qbittorrent: { source: null }, prowlarr: { source: null } })
+
+    const response = await putLogin(base, { url: ` ${qbt.base}/ `, username: 'admin', password: 'pass word' })
+
+    expect(response.status).toBe(200)
+    expect(((await response.json()) as ServerSettings).qbittorrent).toEqual({
+      configured: true,
+      source: 'saved',
+      address: { source: 'saved', url: qbt.base },
+    })
+    expect(qbittorrentAddress(store, undefined)).toBe(qbt.base)
+    expect(qbittorrentCredentials(store, undefined)).toEqual({ username: 'admin', password: 'pass word' })
+    // Logged in, then asked for the version with that session.
+    expect(qbt.logins()).toBe(1)
+    expect(qbt.seen).toEqual([expect.objectContaining({ url: '/api/v2/app/version', cookie: 'SID=sid1' })])
+    expect(await addresses(base)).toEqual({ qbittorrent: { source: 'saved', url: qbt.base }, prowlarr: { source: null } })
+  })
+
+  it('saves qBittorrent’s address with no login when its auth bypass lets the server in, and forgets a saved login', async () => {
+    const qbt = await fakeQbittorrent({ authBypass: true })
+    const store = new SettingsStore(dir)
+    await store.update({ qbittorrentUsername: 'old', qbittorrentPassword: 'old one' })
+    const base = await app(store)
+
+    const response = await putLogin(base, { url: qbt.base, username: ' ', password: '' })
+
+    expect(response.status).toBe(200)
+    expect(((await response.json()) as ServerSettings).qbittorrent).toEqual({
+      configured: false,
+      source: null,
+      address: { source: 'saved', url: qbt.base },
+    })
+    expect(qbt.logins()).toBe(0)
+    expect(qbt.seen).toEqual([expect.objectContaining({ url: '/api/v2/app/version', cookie: undefined })])
+    expect(qbittorrentCredentials(store, undefined)).toBeUndefined()
+  })
+
+  it('refuses no login when qBittorrent asks for one, and saves nothing', async () => {
+    const qbt = await fakeQbittorrent()
+    const store = new SettingsStore(dir)
+    const base = await app(store)
+
+    const response = await putLogin(base, { url: qbt.base, username: '', password: '' })
+
+    expect(response.status).toBe(422)
+    expect(await response.json()).toEqual({ error: 'invalid-credentials' })
+    expect(store.current.qbittorrentUrl).toBeUndefined()
+  })
+
+  it('says an address that answers isn’t qBittorrent, with a login or without, and saves nothing', async () => {
+    // A proxy's sign-in page or another app answers 200 to any path.
+    const page = await serve((_request, response) => {
+      response.setHeader('Content-Type', 'text/html')
+      response.end('<!doctype html><title>Sign in</title>')
+    })
+    const missing = await serve((_request, response) => {
+      response.statusCode = 404
+      response.end('Not found')
+    })
+    const store = new SettingsStore(dir)
+    const base = await app(store)
+
+    for (const body of [
+      { url: page, username: 'admin', password: 'x' },
+      { url: page, username: '', password: '' },
+      { url: missing, username: 'admin', password: 'x' },
+      { url: missing, username: '', password: '' },
+    ]) {
+      const response = await putLogin(base, body)
+      expect(response.status, JSON.stringify(body)).toBe(502)
+      expect(await response.json()).toEqual({ error: 'not-qbittorrent' })
+    }
+    expect(store.current).toEqual({})
+  })
+
+  it('never sends the login on where the address redirects, and says it isn’t qBittorrent', async () => {
+    let reached = 0
+    const elsewhere = await serve((_request, response) => {
+      reached++
+      response.end('Ok.')
+    })
+    const redirecting = await serve((request, response) => {
+      response.statusCode = 307
+      response.setHeader('Location', `${elsewhere}${request.url}`)
+      response.end()
+    })
+    const store = new SettingsStore(dir)
+
+    const response = await putLogin(await app(store), { url: redirecting, username: 'admin', password: 'pass word' })
+
+    expect(response.status).toBe(502)
+    expect(await response.json()).toEqual({ error: 'not-qbittorrent' })
+    expect(reached).toBe(0)
+    expect(store.current).toEqual({})
+  })
+
+  it('saves Prowlarr’s address with the key it checked there', async () => {
+    const prowlarr = await fakeProwlarr({ apiKey: 'good-key' })
+    const store = new SettingsStore(dir)
+    const base = await app(store)
+
+    const response = await fetch(`${base}/api/settings/prowlarr`, saving({ apiKey: ' good-key ', url: `${prowlarr.base}/` }))
+
+    expect(response.status).toBe(200)
+    expect(((await response.json()) as ServerSettings).prowlarr).toEqual({
+      configured: true,
+      source: 'saved',
+      serverKey: false,
+      address: { source: 'saved', url: prowlarr.base },
+    })
+    expect(prowlarr.seen.map((request) => request.url)).toEqual(['/api/v1/system/status'])
+    expect(store.current).toEqual({ prowlarrApiKey: 'good-key', prowlarrUrl: prowlarr.base })
+  })
+
+  it('says an address that answers with a client error isn’t Prowlarr, as another app on that port does, and saves nothing', async () => {
+    const answering = (status: number) =>
+      serve((_request, response) => {
+        response.statusCode = status
+        response.end()
+      })
+    const store = new SettingsStore(dir)
+    const base = await app(store)
+    const save = async (status: number) => fetch(`${base}/api/settings/prowlarr`, saving({ apiKey: 'good-key', url: await answering(status) }))
+
+    for (const status of [400, 404, 499]) {
+      const response = await save(status)
+      expect(response.status, String(status)).toBe(502)
+      expect(await response.json()).toEqual({ error: 'not-prowlarr' })
+    }
+    // A server error is Prowlarr's own, as before, and a timeout or a rate limit one to try again.
+    for (const status of [408, 429, 500]) expect(await (await save(status)).json(), String(status)).toEqual({ error: 'unreachable' })
+    expect(store.current).toEqual({})
+  })
+
+  it('keeps a saved address when a key or a login is saved without one', async () => {
+    const qbt = await fakeQbittorrent()
+    const prowlarr = await fakeProwlarr({ apiKey: 'good-key' })
+    const store = new SettingsStore(dir)
+    await store.update({ qbittorrentUrl: qbt.base, prowlarrUrl: prowlarr.base })
+    const base = await app(store)
+
+    expect((await putLogin(base, { username: 'admin', password: 'pass word' })).status).toBe(200)
+    expect((await fetch(`${base}/api/settings/prowlarr`, saving({ apiKey: 'good-key' }))).status).toBe(200)
+
+    expect(store.current).toMatchObject({ qbittorrentUrl: qbt.base, prowlarrUrl: prowlarr.base })
+  })
+
+  it('never saves the environment’s address as the app’s when a login or a key is saved', async () => {
+    const qbt = await fakeQbittorrent()
+    const prowlarr = await fakeProwlarr({ apiKey: 'good-key' })
+    const store = new SettingsStore(dir)
+    const base = await app(store, { envQbittorrentUrl: qbt.base, envProwlarrUrl: prowlarr.base })
+
+    expect((await putLogin(base, { username: 'admin', password: 'pass word' })).status).toBe(200)
+    expect((await fetch(`${base}/api/settings/prowlarr`, saving({ apiKey: 'good-key' }))).status).toBe(200)
+
+    // Taken out of the environment later, it leaves no address behind.
+    expect(store.current).toEqual({ qbittorrentUsername: 'admin', qbittorrentPassword: 'pass word', prowlarrApiKey: 'good-key' })
+  })
+
+  it('says an address the environment sets without its value, and uses it over a saved one', async () => {
+    const store = new SettingsStore(dir)
+    await store.update({ qbittorrentUrl: 'http://saved.test:8080', prowlarrUrl: 'http://saved.test:9696' })
+    const base = await app(store, { envQbittorrentUrl: 'http://env.test:8080', envProwlarrUrl: 'http://env.test:9696/' })
+
+    expect(await addresses(base)).toEqual({ qbittorrent: { source: 'env' }, prowlarr: { source: 'env' } })
+    expect(await (await fetch(`${base}/api/settings`)).text()).not.toContain('env.test')
+    expect(qbittorrentAddress(store, 'http://env.test:8080')).toBe('http://env.test:8080')
+    expect(prowlarrAddress(store, 'http://env.test:9696/')).toBe('http://env.test:9696')
+  })
+
+  describe.each([
+    ['qBittorrent', 'qbittorrent', { username: 'admin', password: 'pass word' }],
+    ['Prowlarr', 'prowlarr', { apiKey: 'good-key' }],
+  ] as const)('%s', (_, path, fields) => {
+    const put = (base: string, url: unknown) => fetch(`${base}/api/settings/${path}`, saving({ ...fields, url }))
+
+    it('refuses an address while the environment sets one, before calling it', async () => {
+      const service = await silentService()
+      const store = new SettingsStore(dir)
+      const base = await app(store, { envQbittorrentUrl: 'http://env.test:8080', envProwlarrUrl: 'http://env.test:9696' })
+
+      const response = await put(base, service.base)
+
+      expect(response.status).toBe(409)
+      expect(await response.json()).toEqual({ error: 'env-address' })
+      expect(await settlesWithin(service.received, 100)).toBe(false)
+      expect(store.current).toEqual({})
+    })
+
+    it('refuses an address with Kinopeer’s own login off, before calling it', async () => {
+      const service = await silentService()
+      const store = new SettingsStore(dir)
+      for (const auth of [undefined, () => ({ enabled: false }) as const]) {
+        const response = await put(await app(store, { auth }), service.base)
+        expect(response.status).toBe(409)
+        expect(await response.json()).toEqual({ error: 'auth-off' })
+      }
+      expect(await settlesWithin(service.received, 100)).toBe(false)
+      expect(store.current).toEqual({})
+    })
+
+    it('refuses what isn’t an address, before calling anything', async () => {
+      const store = new SettingsStore(dir)
+      const base = await app(store)
+      for (const url of ['ftp://qbt.test', 'http://admin:x@qbt.test', 'qbt.test:8080', 42, null]) {
+        const response = await put(base, url)
+        expect(response.status, String(url)).toBe(400)
+        expect(await response.json()).toEqual({ error: 'invalid-address' })
+      }
+      expect(store.current).toEqual({})
+    })
+
+    it('says when the address sent doesn’t answer, and saves nothing', async () => {
+      const store = new SettingsStore(dir)
+      const response = await put(await app(store), 'http://127.0.0.1:1')
+      expect(response.status).toBe(502)
+      expect(await response.json()).toEqual({ error: 'unreachable' })
+      expect(store.current).toEqual({})
+    })
   })
 })
