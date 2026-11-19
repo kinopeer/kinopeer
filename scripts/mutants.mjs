@@ -68,8 +68,8 @@ function strykerBin() {
   return join(dirname(manifest), JSON.parse(readFileSync(manifest, 'utf8')).bin.stryker)
 }
 
-function stryker(...args) {
-  const { status } = spawnSync(process.execPath, [strykerBin(), 'run', ...args], { stdio: ['ignore', 2, 2] })
+function stryker(args, env = {}) {
+  const { status } = spawnSync(process.execPath, [strykerBin(), 'run', ...args], { stdio: ['ignore', 2, 2], env: { ...process.env, ...env } })
   if (status !== 0) process.exit(status ?? 1)
 }
 
@@ -83,15 +83,17 @@ const commit = git('rev-parse', '--short', 'HEAD').trim()
 const ranges = changedRanges()
 if (ranges.length === 0) {
   // Still a dry run, so a branch that changes only Stryker's settings or a dependency, such as a
-  // Dependabot bump, finds out whether Stryker still runs (#285).
-  stryker('--dryRunOnly')
-  console.log(`**Mutants at ${commit}:** nothing to mutate, no production lines changed since ${BASE}; Stryker's dry run passed.`)
+  // Dependabot bump, finds out whether Stryker still runs (#285). It runs the whole suite, not only
+  // the tests related to the files Stryker would mutate (stryker.config.mjs), so a test that can't
+  // run in Stryker's sandbox fails on the PR that adds it (#467).
+  stryker(['--dryRunOnly'], { MUTANTS_WHOLE_SUITE: '1' })
+  console.log(`**Mutants at ${commit}:** nothing to mutate, no production lines changed since ${BASE}; Stryker's dry run of the whole suite passed.`)
   survived(0)
   process.exit(0)
 }
 
 rmSync(REPORT, { force: true })
-stryker('--mutate', ranges.join(','))
+stryker(['--mutate', ranges.join(',')])
 
 const report = existsSync(REPORT) ? JSON.parse(readFileSync(REPORT, 'utf8')) : { files: {} }
 const left = survivors(report)

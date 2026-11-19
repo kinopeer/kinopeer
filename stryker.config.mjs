@@ -9,7 +9,11 @@ const { mutants } = JSON.parse(readFileSync(new URL('./checks.json', import.meta
 /** @type {import('@stryker-mutator/api/core').PartialStrykerOptions} */
 export default {
   testRunner: 'vitest',
-  vitest: { configFile: 'vite.config.ts' },
+  // Vitest's `related` runs only the tests that import the files mutated. The dry run that
+  // scripts/mutants.mjs makes for a branch with no production line changed turns it off, so every
+  // test runs through the sandbox once and one that can't run there fails on the PR that adds it,
+  // rather than on a later PR whose mutants make Vitest run it (#467).
+  vitest: { configFile: 'vite.config.ts', related: process.env.MUTANTS_WHOLE_SUITE !== '1' },
   reporters: ['json', 'progress-append-only'],
   jsonReporter: { fileName: 'reports/mutants.json' },
   // On the batch of the 2026-10-30 retro these mutators gave most of the noise (a label's text, an
