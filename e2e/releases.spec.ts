@@ -16,21 +16,28 @@ const TOP_IN_DOWNLOADS: AppOptions = {
   torrents: [torrent(shogunInfoHash(), { name: 'Shogun.S01.2160p.WEB-DL.HDR.DV.MVO-GRPA', progress: 0.4 })],
 }
 
-/** Each row's Add or In downloads fits its column, rather than spilling over the gap before it (#471). */
-async function expectActionsInTheirCells(page: Page) {
-  const spills = await page
-    .getByRole('table')
-    .getByRole('row')
-    .evaluateAll((rows) =>
-      rows.flatMap((row) => {
-        const cell = row.querySelector('.title-rel-add')
-        const action = cell?.firstElementChild
-        if (!cell || !action) return []
-        const outer = cell.getBoundingClientRect()
-        const inner = action.getBoundingClientRect()
-        return inner.left < outer.left || inner.right > outer.right ? [action.textContent] : []
-      }),
-    )
+/**
+ * Each row's Add or In downloads fits its cell, rather than spilling over the gap before it (#471):
+ * every one of the `count` releases' actions, found by role and name, so a miss fails.
+ */
+async function expectActionsInTheirCells(page: Page, count: number) {
+  const table = page.getByRole('table')
+  const actions = [
+    ...(await table.getByRole('button', { name: 'Добавить' }).all()),
+    ...(await table.getByRole('link', { name: 'В загрузках' }).all()),
+  ]
+  expect(actions).toHaveLength(count)
+  const spills = []
+  for (const action of actions) {
+    const fits = await action.evaluate((element) => {
+      const cell = element.closest('[role="cell"]')
+      if (!cell) return false
+      const outer = cell.getBoundingClientRect()
+      const inner = element.getBoundingClientRect()
+      return inner.left >= outer.left && inner.right <= outer.right
+    })
+    if (!fits) spills.push(await action.textContent())
+  }
   expect(spills).toEqual([])
 }
 
@@ -151,7 +158,7 @@ test.describe('releases, desktop', () => {
   test('a release already in downloads', async ({ page }) => {
     await findReleases(page, TOP_IN_DOWNLOADS)
     await expect(page.getByRole('table').getByRole('link', { name: 'В загрузках' })).toBeVisible()
-    await expectActionsInTheirCells(page)
+    await expectActionsInTheirCells(page, TOP_IN_DOWNLOADS.releases!.length)
     await expect(page).toHaveScreenshot('desktop-in-downloads-dark-ru.png')
   })
 
