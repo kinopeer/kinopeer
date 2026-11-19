@@ -1,9 +1,9 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createServer, preview } from 'vite'
+import { createServer, preview, resolveConfig } from 'vite'
 import { refusal } from './server/hostCheck.ts'
 import { CONTENT_SECURITY_POLICY, SECURITY_HEADERS } from './server/securityHeaders.ts'
 import { getWithHost } from './server/test/fakes.ts'
@@ -95,6 +95,31 @@ describe('vite.config.ts', () => {
     const [fromDev, fromPreview] = await Promise.all([startDev(), startPreview()].map(async (port) => fetch(`http://127.0.0.1:${await port}/`)))
     expect(fromPreview.headers.get('content-security-policy')).toBe(CONTENT_SECURITY_POLICY)
     expect(fromDev.headers.has('content-security-policy')).toBe(false)
+  })
+
+  // The data directory (./data by default) sits under the root the dev server serves files from, and
+  // `dev-lan` serves that to the whole LAN: the saved keys, the qBittorrent login, the password's hash (#476).
+  it('serves nothing from the data directory on the dev server, by any of the ways Vite serves a file', async () => {
+    // A root whose path has a glob's characters, which the list has to match as they are.
+    const root = join(dir, 'Dev (old) [1]')
+    const data = join(root, 'data')
+    await mkdir(data, { recursive: true })
+    await writeFile(join(data, 'settings.json'), '{"secret":"x"}')
+    vi.stubEnv('KINOPEER_DATA_DIR', data)
+    const server = await createServer({ ...options, root, server: { ...listening, watch: null }, optimizeDeps: { noDiscovery: true } })
+    closers.push(() => server.close())
+    await server.listen()
+    const port = (server.httpServer!.address() as AddressInfo).port
+    for (const path of ['/data/settings.json', '/DATA/settings.json', '/data/settings.json?raw', '/data/settings.json?import', '/data/settings.json?url', `/@fs${await realpath(data)}/settings.json`]) {
+      const answer = await fetch(`http://127.0.0.1:${port}${path}`)
+      expect(await answer.text(), path).not.toContain('secret')
+    }
+  })
+
+  // The dev server's list takes the place of Vite's own, which keeps .env.local and the keys and certificates out.
+  it('keeps every file Vite refuses by default refused on the dev server', async () => {
+    const [ours, vites] = await Promise.all([resolveConfig({ ...options }, 'serve'), resolveConfig({ configFile: false, logLevel: 'silent' }, 'serve')])
+    expect(ours.server.fs.deny).toEqual(expect.arrayContaining(vites.server.fs.deny))
   })
 
   it('answers no cross-origin preflight on the preview server either', async () => {

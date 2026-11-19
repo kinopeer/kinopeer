@@ -1,8 +1,8 @@
 /// <reference types="vitest/config" />
-import { readFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { existsSync, readFileSync, realpathSync } from 'node:fs'
+import { basename, dirname, join, resolve } from 'node:path'
 import react from '@vitejs/plugin-react'
-import { defineConfig, loadEnv, type Plugin } from 'vite'
+import { defineConfig, loadEnv, normalizePath, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { TMDB_PROXY_EDGE, dataStores, kinopeerServer, type KinopeerServer } from './server/main.ts'
 import { contentSecurityPolicy } from './server/securityHeaders.ts'
@@ -114,10 +114,32 @@ export function inlineTouchIconPlugin(): Plugin {
   }
 }
 
+/**
+ * What Vite's dev server refuses to serve by default (`server.fs.deny`), which a list of our own
+ * replaces rather than extends: .env.local, keys and certificates, .git. vite.config.test.ts checks
+ * it still holds all of Vite's own after an upgrade.
+ */
+const VITE_DENIED = ['.env', '.env.*', '*.{crt,pem,key,p12,pfx,cer,der}', '.npmrc', '.yarnrc.yml', '**/.git/**']
+
+/** A path as a glob that matches only itself and what's under it, whatever characters it has. */
+const everythingUnder = (dir: string) => `${normalizePath(dir).replace(/[\\*?[\]{}()!+@|^$]/g, '\\$&')}/**`
+
+/**
+ * A path with its symlinks resolved, as Vite resolves the root it serves files from, so a checkout
+ * reached through a link (or macOS's /var, which is /private/var) is matched too. The folder needn't
+ * exist yet: the part that does is resolved.
+ */
+function realPath(path: string): string {
+  if (existsSync(path)) return realpathSync(path)
+  const parent = dirname(path)
+  return parent === path ? path : join(realPath(parent), basename(path))
+}
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const stores = dataStores(resolve(env.KINOPEER_DATA_DIR || 'data'))
+  const dataDir = resolve(env.KINOPEER_DATA_DIR || 'data')
+  const stores = dataStores(dataDir)
   const appVersion = env.KINOPEER_COMMIT ? `${version}+${env.KINOPEER_COMMIT}` : version
   void stores.settings.load()
 
@@ -128,7 +150,10 @@ export default defineConfig(({ mode }) => {
     // Vite answers CORS preflights from any localhost origin before server/ middleware runs, which
     // would let a page on another local port send /qbt the X-Kinopeer header (server/qbittorrent.ts).
     // The app calls only its own origin. `vite preview` takes this too (vite.config.test.ts).
-    server: { cors: false },
+    // The data directory (./data by default) is under the root the dev server serves any file from,
+    // and holds the saved keys, the qBittorrent login and the password's hash; `dev-lan` serves the
+    // LAN (#476). The list covers the root, /@fs/ and imports such as ?raw alike.
+    server: { cors: false, fs: { deny: [...VITE_DENIED, ...new Set([dataDir, realPath(dataDir)].map(everythingUnder))] } },
     plugins: [
       react(),
       pwa,
