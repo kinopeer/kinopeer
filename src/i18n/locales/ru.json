@@ -80,6 +80,10 @@
     "unreachableBody_kinopeer": "Проверьте, что устройство в сети и Kinopeer запущен на сервере.",
     "unreachableBody_openAgain": "$t(common.openAgainHint)"
   },
+  "unsupported": {
+    "title": "qBittorrent {{version}} слишком старый",
+    "body": "Kinopeer работает с qBittorrent {{min}} и новее. Обновите qBittorrent и попробуйте снова."
+  },
   "status": {
     "downloading": "Загружается",
     "seeding": "Раздаётся",
