@@ -111,6 +111,11 @@ const CLIENT_HEADER = 'x-kinopeer'
  */
 export const BRIDGE_HEADER = 'x-kinopeer-bridge'
 /**
+ * The bridge's mark when it has no address for qBittorrent, from the environment or the app, so the
+ * app asks for one: `NO_ADDRESS` in src/api/qbittorrent/client.ts.
+ */
+export const NO_ADDRESS = 'no-address'
+/**
  * What src/api/qbittorrent/client.ts calls, with its method: the only requests the bridge sends on,
  * so nothing reaches qBittorrent's preferences, its logins or anything else Kinopeer doesn't use.
  * server/integration/qbittorrent.test.ts checks that every call of the client gets through.
@@ -323,7 +328,10 @@ export function qbittorrentBridge(config: QbittorrentConfig): QbittorrentBridge 
       response.end(message)
     }
     const base = config.url()
-    if (!base) return fail(503, 'qBittorrent has no address')
+    if (!base) {
+      response.setHeader(BRIDGE_HEADER, NO_ADDRESS)
+      return fail(503, 'qBittorrent has no address')
+    }
     const target = path.slice(PREFIX.length - 1)
     // Matched as written: a path with dots, encoded dots or a backslash, which fetch would resolve
     // to another one, matches none.

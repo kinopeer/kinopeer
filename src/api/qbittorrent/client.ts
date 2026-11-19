@@ -42,6 +42,8 @@ export class TorrentRefusedError extends QbittorrentError {
  * without it never reached Kinopeer's server, a proxy in front answered for it.
  */
 export const BRIDGE_HEADER = 'x-kinopeer-bridge'
+/** The bridge's mark when it has no address for qBittorrent (`NO_ADDRESS` in server/qbittorrent.ts). */
+export const NO_ADDRESS = 'no-address'
 
 /** A request failed without reaching Kinopeer's server: something in front of it answered. */
 export class KinopeerUnreachableError extends QbittorrentError {
@@ -68,6 +70,17 @@ export type Unreachable = 'unreached' | 'kinopeer' | 'qbittorrent'
 export function unreachable(error: unknown): Unreachable {
   if (error instanceof TypeError || error instanceof ProxySignInError) return 'unreached'
   return error instanceof KinopeerUnreachableError ? 'kinopeer' : 'qbittorrent'
+}
+
+/**
+ * The server has no address for qBittorrent, from its environment or saved from the app: the app
+ * asks for one (src/api/settings).
+ */
+export class NoAddressError extends QbittorrentError {
+  constructor() {
+    super('qBittorrent has no address', 503)
+    this.name = 'NoAddressError'
+  }
 }
 
 /** The server has no working qBittorrent login (the app asks for one, see src/api/settings). */
@@ -106,6 +119,7 @@ async function request(
   })
 
   if (!response.ok && !response.headers.has(BRIDGE_HEADER)) throw new KinopeerUnreachableError(response.status)
+  if (response.headers.get(BRIDGE_HEADER) === NO_ADDRESS) throw new NoAddressError()
   if (response.status === 401 || response.status === 403) throw new UnauthorizedError()
   if (!response.ok) throw new QbittorrentError(`qBittorrent responded ${response.status}`, response.status)
   return response

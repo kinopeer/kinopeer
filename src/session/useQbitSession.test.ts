@@ -52,6 +52,17 @@ describe('useQbitSession', () => {
     await waitFor(() => expect(result.current.session).toEqual({ status: 'signed-out' }))
   })
 
+  it('asks for an address when the server has none, then saves it with the login and connects', async () => {
+    getAppVersion.mockRejectedValueOnce(new api.NoAddressError()).mockResolvedValue('5.2.4')
+    login.mockResolvedValue(SAVED)
+    const { result } = renderHook(() => useQbitSession())
+    await waitFor(() => expect(result.current.session).toEqual({ status: 'no-address' }))
+
+    await act(() => result.current.signIn('', '', 'http://192.168.1.10:8080'))
+    expect(login).toHaveBeenCalledWith('', '', 'http://192.168.1.10:8080')
+    expect(result.current.session).toEqual({ status: 'connected', version: '5.2.4' })
+  })
+
   it('says who did not answer the check: Kinopeer on a network error, qBittorrent on the bridge’s failure', async () => {
     getAppVersion.mockRejectedValue(new TypeError('Failed to fetch'))
     const { result } = renderHook(() => useQbitSession())
@@ -73,7 +84,7 @@ describe('useQbitSession', () => {
     await waitFor(() => expect(result.current.session.status).toBe('signed-out'))
 
     await act(() => result.current.signIn('admin', 'secret'))
-    expect(login).toHaveBeenCalledWith('admin', 'secret')
+    expect(login).toHaveBeenCalledWith('admin', 'secret', undefined)
     expect(result.current.session).toEqual({ status: 'connected', version: '5.2.4' })
   })
 

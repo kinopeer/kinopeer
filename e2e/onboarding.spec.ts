@@ -2,8 +2,24 @@ import type { Page } from '@playwright/test'
 import { expect, test } from './test.ts'
 import { BRIDGE_HEADERS, DESKTOP, openApp, settle, type AppOptions } from './app.ts'
 
+/** The server's settings for a step: the environment's addresses, the TMDB key missing for its step, nothing for a fresh install. */
+function settingsFor(step: 'tmdb' | 'address' | 'prowlarr') {
+  const none = { source: null }
+  return {
+    tmdb: { configured: step !== 'tmdb', source: step === 'tmdb' ? null : 'saved', fallback: null },
+    prowlarr:
+      step === 'tmdb'
+        ? { configured: true, source: 'env', serverKey: true, address: { source: 'env' } }
+        : { configured: false, source: null, serverKey: false, address: none },
+    qbittorrent: { configured: true, source: 'saved', address: step === 'tmdb' ? { source: 'env' } : none },
+    downloads: null,
+    // Beyond Umbrel, where the app saves addresses: behind Kinopeer's own login.
+    auth: step === 'tmdb' ? { enabled: false } : { enabled: true, source: 'saved' },
+  }
+}
+
 /** Opens the app, then answers as a fresh install would and reloads, so the given setup step shows. */
-async function openOnboarding(page: Page, step: 'connect' | 'tmdb', options: AppOptions = {}) {
+async function openOnboarding(page: Page, step: 'connect' | 'tmdb' | 'address' | 'prowlarr', options: AppOptions = {}) {
   await openApp(page, '/', options)
   // Routes added later take precedence over the app's mocks.
   if (step === 'connect') {
@@ -14,16 +30,14 @@ async function openOnboarding(page: Page, step: 'connect' | 'tmdb', options: App
   } else {
     await page.route(
       (url) => url.pathname === '/api/settings',
-      (route) =>
-        route.fulfill({
-          contentType: 'application/json',
-          body: JSON.stringify({
-            tmdb: { configured: false, source: null, fallback: null },
-            prowlarr: { configured: true, source: 'env', serverKey: true },
-            qbittorrent: { configured: true, source: 'saved' },
-            downloads: null,
-          }),
-        }),
+      (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(settingsFor(step)) }),
+    )
+  }
+  if (step === 'address') {
+    // The bridge's mark when it has no address (server/qbittorrent.ts), written out as BRIDGE_HEADERS is.
+    await page.route(
+      (url) => url.pathname === '/qbt/api/v2/app/version',
+      (route) => route.fulfill({ status: 503, headers: { 'x-kinopeer-bridge': 'no-address' }, body: 'qBittorrent has no address' }),
     )
   }
   await page.reload()
@@ -38,6 +52,20 @@ test.describe('onboarding, desktop', () => {
     await openOnboarding(page, 'connect')
     await expect(page.getByRole('button', { name: 'Подключить' })).toBeVisible()
     await expect(page).toHaveScreenshot('desktop-connect-dark-ru.png')
+  })
+
+  // #357: no address on the server, beyond Umbrel: the form asks for one.
+  test('qBittorrent’s address, dark, Russian', async ({ page }) => {
+    await openOnboarding(page, 'address')
+    await expect(page.getByRole('textbox', { name: 'Адрес qBittorrent' })).toBeVisible()
+    await expect(page).toHaveScreenshot('desktop-connect-address-dark-ru.png')
+  })
+
+  // #357: Prowlarr's address and key, after qBittorrent connects.
+  test('Prowlarr, dark, Russian', async ({ page }) => {
+    await openOnboarding(page, 'prowlarr')
+    await expect(page.getByRole('textbox', { name: 'Адрес Prowlarr' })).toBeVisible()
+    await expect(page).toHaveScreenshot('desktop-prowlarr-dark-ru.png')
   })
 
   test('TMDB key, dark, Russian', async ({ page }) => {
@@ -79,6 +107,19 @@ test.describe('onboarding, phone', () => {
     await expect(page.getByRole('heading', { name: 'qBittorrent 4.5.5 слишком старый' })).toBeVisible()
     await settle(page)
     await expect(page).toHaveScreenshot('unsupported-dark-ru.png')
+  })
+
+  // #357: no address on the server: the address, and a login only where qBittorrent wants one.
+  test('qBittorrent’s address, dark, Russian', async ({ page }) => {
+    await openOnboarding(page, 'address')
+    await expect(page.getByRole('textbox', { name: 'Адрес qBittorrent' })).toBeVisible()
+    await expect(page).toHaveScreenshot('connect-address-dark-ru.png')
+  })
+
+  test('Prowlarr, dark, Russian', async ({ page }) => {
+    await openOnboarding(page, 'prowlarr')
+    await expect(page.getByRole('textbox', { name: 'Адрес Prowlarr' })).toBeVisible()
+    await expect(page).toHaveScreenshot('prowlarr-dark-ru.png')
   })
 
   test('a wrong password, dark, Russian', async ({ page }) => {

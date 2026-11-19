@@ -462,6 +462,7 @@ export function SettingsScreen() {
       <Sheet open={editingProwlarrKey} onClose={() => setEditingProwlarrKey(false)} title={t('prowlarrKey.sheetTitle')}>
         <ProwlarrKeyForm
           canForget={server?.prowlarr.source === 'saved' && server.prowlarr.serverKey}
+          addressFromApp={server?.prowlarr.address.source === 'saved'}
           onSaved={(changed) => {
             setServerChanged(changed)
             setEditingProwlarrKey(false)

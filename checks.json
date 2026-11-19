@@ -75,14 +75,18 @@
         "unreachable-unreached-dark-ru": {}
       },
       "onboarding": {
+        "connect-address-dark-ru": {},
         "connect-invalid-dark-ru": {},
         "connect-unreached-dark-ru": {},
+        "desktop-connect-address-dark-ru": {},
         "desktop-connect-dark-ru": {},
         "desktop-connect-unreached-dark-ru": {},
+        "desktop-prowlarr-dark-ru": {},
         "desktop-set-up-password-dark-ru": {},
         "desktop-sign-in-light-en": {},
         "desktop-tmdb-key-dark-ru": {},
         "desktop-unsupported-dark-ru": {},
+        "prowlarr-dark-ru": {},
         "set-up-password-dark-ru": {},
         "sign-in-dark-ru": {},
         "sign-in-invalid-dark-ru": {},

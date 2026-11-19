@@ -72,13 +72,15 @@ export function saveTmdbKey(apiKey: string): Promise<ServerSettings> {
 }
 
 /**
- * Saves the Prowlarr API key on the server, which checks it with Prowlarr first. Rejects with a
- * SettingsError: code 'invalid-key' when Prowlarr refuses it, 'unreachable' when Prowlarr doesn't
- * answer, 'not-prowlarr' when Prowlarr's address answers but isn't Prowlarr, or 'not-configured'
- * when the server has no address for Prowlarr, from its environment or saved from the app.
+ * Saves the Prowlarr API key on the server, which checks it with Prowlarr first, at `url` when
+ * given, which it then saves as Prowlarr's address. Rejects with a SettingsError: code 'invalid-key'
+ * when Prowlarr refuses it, 'unreachable' when Prowlarr doesn't answer, 'not-prowlarr' when
+ * Prowlarr's address answers but isn't Prowlarr, 'not-configured' when the server has no address for
+ * Prowlarr, from its environment or saved from the app, and with `url`, 'invalid-address',
+ * 'env-address' or 'auth-off' (`ProwlarrKeyBody`).
  */
-export function saveProwlarrKey(apiKey: string): Promise<ServerSettings> {
-  return send<ProwlarrKeyBody>('PUT', 'prowlarr', { apiKey })
+export function saveProwlarrKey(apiKey: string, url?: string): Promise<ServerSettings> {
+  return send<ProwlarrKeyBody>('PUT', 'prowlarr', url === undefined ? { apiKey } : { apiKey, url })
 }
 
 async function forget(path: string): Promise<ServerSettings> {
@@ -108,13 +110,16 @@ export function forgetProwlarrKey(): Promise<ServerSettings> {
 }
 
 /**
- * Saves the qBittorrent login on the server, which logs in with it first. Rejects with a
- * SettingsError: code 'invalid-credentials', 'banned' (too many failed logins), 'unreachable',
- * 'not-qbittorrent' when qBittorrent's address answers but isn't qBittorrent, or 'not-configured'
- * when the server has no address for qBittorrent, from its environment or saved from the app.
+ * Saves the qBittorrent login on the server, which logs in with it first, at `url` when given,
+ * which it then saves as qBittorrent's address. An empty username is no login, for
+ * qBittorrent's auth bypass. Rejects with a SettingsError: code 'invalid-credentials', 'banned' (too
+ * many failed logins), 'unreachable', 'not-qbittorrent' when qBittorrent's address answers but isn't
+ * qBittorrent, 'not-configured' when the server has no address for qBittorrent, from its environment
+ * or saved from the app, and with `url`, 'invalid-address', 'env-address' or 'auth-off'
+ * (`QbittorrentLoginBody`).
  */
-export function saveQbittorrentLogin(username: string, password: string): Promise<ServerSettings> {
-  return send<QbittorrentLoginBody>('PUT', 'qbittorrent', { username, password })
+export function saveQbittorrentLogin(username: string, password: string, url?: string): Promise<ServerSettings> {
+  return send<QbittorrentLoginBody>('PUT', 'qbittorrent', url === undefined ? { username, password } : { username, password, url })
 }
 
 /** Saves some of the download defaults on the server; the others stay as they are. */

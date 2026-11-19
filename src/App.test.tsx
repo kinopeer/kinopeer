@@ -51,7 +51,7 @@ vi.mock('./api/prowlarr', async (importOriginal) => ({
 
 vi.mock('./api/settings', async (importOriginal) => {
   const actual = await importOriginal<typeof serverSettings>()
-  return { ...actual, getServerSettings: vi.fn(), saveTmdbKey: vi.fn() }
+  return { ...actual, getServerSettings: vi.fn(), saveTmdbKey: vi.fn(), saveProwlarrKey: vi.fn(), saveQbittorrentLogin: vi.fn() }
 })
 
 vi.mock('./api/tmdb', async (importOriginal) => {
@@ -548,6 +548,47 @@ describe('App', () => {
 
   it('lets the TMDB key wait', async () => {
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ tmdb: { configured: false, source: null, fallback: null }, prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } }, qbittorrent: { configured: true, source: 'env', address: { source: 'env' } }, downloads: null })
+    renderApp()
+    await userEvent.click(await screen.findByRole('button', { name: 'Skip for now' }))
+    expect(await screen.findByRole('heading', { name: 'Downloads' })).toBeInTheDocument()
+  })
+
+  it('asks for qBittorrent’s address when the server has none, then for the TMDB key and Prowlarr, each skippable, then goes in', async () => {
+    const nothing: serverSettings.ServerSettings = {
+      tmdb: { configured: false, source: null, fallback: null },
+      prowlarr: { configured: false, source: null, serverKey: false, address: { source: null } },
+      qbittorrent: { configured: false, source: null, address: { source: null } },
+      downloads: null,
+      auth: { enabled: true, source: 'saved' },
+    }
+    getAppVersion.mockRejectedValueOnce(new api.NoAddressError())
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(nothing)
+    vi.mocked(serverSettings.saveQbittorrentLogin).mockResolvedValue(nothing)
+    vi.mocked(serverSettings.saveProwlarrKey).mockResolvedValue(nothing)
+    renderApp()
+
+    await userEvent.type(await screen.findByLabelText('qBittorrent address'), 'http://qbt.test:8080')
+    await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
+    expect(serverSettings.saveQbittorrentLogin).toHaveBeenCalledWith('', '', 'http://qbt.test:8080')
+
+    // TMDB first, as before; Prowlarr next.
+    await userEvent.click(await screen.findByRole('button', { name: 'Skip for now' }))
+    expect(await screen.findByRole('heading', { name: 'Connect Prowlarr' })).toBeInTheDocument()
+    await userEvent.type(screen.getByLabelText('Prowlarr address'), 'http://prowlarr.test:9696')
+    await userEvent.type(screen.getByLabelText('Prowlarr API key'), 'abc123')
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(serverSettings.saveProwlarrKey).toHaveBeenCalledWith('abc123', 'http://prowlarr.test:9696')
+    expect(await screen.findByRole('heading', { name: 'Downloads' })).toBeInTheDocument()
+  })
+
+  it('lets Prowlarr wait', async () => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue({
+      tmdb: { configured: true, source: 'saved', fallback: null },
+      prowlarr: { configured: false, source: null, serverKey: false, address: { source: null } },
+      qbittorrent: { configured: true, source: 'saved', address: { source: 'saved', url: 'http://qbt.test:8080' } },
+      downloads: null,
+      auth: { enabled: true, source: 'saved' },
+    })
     renderApp()
     await userEvent.click(await screen.findByRole('button', { name: 'Skip for now' }))
     expect(await screen.findByRole('heading', { name: 'Downloads' })).toBeInTheDocument()

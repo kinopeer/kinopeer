@@ -1,18 +1,38 @@
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
-import type { Unreachable } from '../api/qbittorrent'
-import { SettingsError } from '../api/settings'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import * as settings from '../api/settings'
+import { SettingsError, type ServerSettings } from '../api/settings'
 import * as proxySignIn from '../pwa/proxySignIn'
-import { ConnectScreen } from './ConnectScreen'
+import { ConnectScreen, type ConnectScreenProps } from './ConnectScreen'
 import { controlledByServiceWorker, saying } from '../test/render'
 
 vi.mock('../pwa/proxySignIn', async (importOriginal) => ({
   ...(await importOriginal<typeof proxySignIn>()),
   loadPastTheShell: vi.fn(),
 }))
+vi.mock('../api/settings', async (importOriginal) => ({
+  ...(await importOriginal<typeof settings>()),
+  getServerSettings: vi.fn(),
+}))
 
-function setup(onSignIn = vi.fn().mockResolvedValue(undefined), props: { unreachable?: Unreachable } = {}) {
+/** The server's settings with qBittorrent's address from `address` and Kinopeer's own login as given. */
+function serverSettings(address: ServerSettings['qbittorrent']['address'], auth: ServerSettings['auth'] = { enabled: true, source: 'saved' }): ServerSettings {
+  return {
+    tmdb: { configured: true, source: 'saved', fallback: null },
+    prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } },
+    qbittorrent: { configured: false, source: null, address },
+    downloads: null,
+    auth,
+  }
+}
+
+beforeEach(() => {
+  // The environment's address by default, as on Umbrel: nothing to change here.
+  vi.mocked(settings.getServerSettings).mockResolvedValue(serverSettings({ source: 'env' }))
+})
+
+function setup(onSignIn = vi.fn().mockResolvedValue(undefined), props: Partial<Pick<ConnectScreenProps, 'unreachable' | 'noAddress'>> = {}) {
   const onRetry = vi.fn()
   render(<ConnectScreen onSignIn={onSignIn} onRetry={onRetry} {...props} />)
   return { onSignIn, onRetry }
@@ -136,6 +156,137 @@ describe('ConnectScreen', () => {
     setup(vi.fn().mockRejectedValue(new SettingsError(502, 'unreachable')))
     await fillAndSubmit()
     expect(screen.getByRole('alert', { name: saying('qBittorrent isn’t answering') })).toBeInTheDocument()
+  })
+
+  describe('with no address on the server', () => {
+    async function fillAddress(address: string, username = '', password = '') {
+      await userEvent.type(screen.getByLabelText('qBittorrent address'), address)
+      if (username) await userEvent.type(screen.getByLabelText('Username'), username)
+      if (password) await userEvent.type(screen.getByLabelText('Password'), password)
+      await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
+    }
+
+    it('asks for qBittorrent’s address, and a login only where qBittorrent wants one', async () => {
+      const { onSignIn } = setup(undefined, { noAddress: true })
+      expect(screen.getByText('Enter the address of qBittorrent’s Web UI as the Kinopeer server reaches it, and its login. The server keeps them, so you only do this once.')).toBeInTheDocument()
+      expect(screen.getByLabelText('qBittorrent address')).toHaveAccessibleDescription('As the Kinopeer server reaches it, for example http://192.168.1.10:8080')
+      expect(screen.getByLabelText('Username')).toHaveAccessibleDescription('Leave the login empty if qBittorrent lets Kinopeer in without one.')
+      expect(screen.getByLabelText('Username')).not.toBeRequired()
+      expect(screen.getByLabelText('Password')).not.toBeRequired()
+
+      // No address, nothing sent.
+      await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
+      expect(onSignIn).not.toHaveBeenCalled()
+      await fillAddress(' http://192.168.1.10:8080 ')
+      expect(onSignIn).toHaveBeenCalledWith('', '', 'http://192.168.1.10:8080')
+      // The server is asked nothing more: there's no address to change yet.
+      expect(settings.getServerSettings).not.toHaveBeenCalled()
+    })
+
+    it('sends the login typed with the address', async () => {
+      const { onSignIn } = setup(undefined, { noAddress: true })
+      await fillAddress('http://qbt.test:8080', 'admin', 'secret')
+      expect(onSignIn).toHaveBeenCalledWith('admin', 'secret', 'http://qbt.test:8080')
+    })
+
+    it.each([
+      ['an address it refuses', new SettingsError(400, 'invalid-address'), 'Enter an address that starts with http:// or https://, with no login, ? or # in it'],
+      ['an address that doesn’t answer', new SettingsError(502, 'unreachable'), 'Nothing answers at this address. Check it, and that qBittorrent is running.'],
+    ])('says on the address field when the server finds %s, and clears it on typing', async (_name, error, message) => {
+      setup(vi.fn().mockRejectedValue(error), { noAddress: true })
+      await fillAddress('http://qbt.test')
+      const address = screen.getByLabelText('qBittorrent address')
+      expect(address).toHaveAttribute('aria-invalid', 'true')
+      expect(address).toHaveAccessibleDescription(message)
+      // The address is the thing to fix, not qBittorrent being down.
+      expect(screen.queryByRole('alert', { name: saying(/answering/) })).not.toBeInTheDocument()
+      await userEvent.type(address, '0')
+      expect(address).not.toHaveAttribute('aria-invalid')
+    })
+
+    it('asks for a login when qBittorrent wants one and none was sent, and says it’s wrong when one was', async () => {
+      const onSignIn = vi.fn().mockRejectedValue(new SettingsError(422, 'invalid-credentials'))
+      setup(onSignIn, { noAddress: true })
+      await fillAddress('http://qbt.test')
+      expect(screen.getByLabelText('Password')).toHaveAccessibleDescription('qBittorrent asks for a login: enter its username and password')
+      expect(screen.getByLabelText('Username')).toHaveAttribute('aria-invalid', 'true')
+
+      await userEvent.type(screen.getByLabelText('Username'), 'admin')
+      expect(screen.getByLabelText('Username')).not.toHaveAttribute('aria-invalid')
+      await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
+      expect(screen.getByLabelText('Password')).toHaveAccessibleDescription('Wrong username or password')
+    })
+
+    it.each([
+      ['something at it that isn’t qBittorrent', new SettingsError(502, 'not-qbittorrent'), 'qBittorrent’s address answers, but not like qBittorrent. Check the address and its port.'],
+      ['Kinopeer’s own login off', new SettingsError(409, 'auth-off'), 'Kinopeer’s own login is off, so qBittorrent’s address can only be set on the server: QBITTORRENT_URL.'],
+      ['the environment setting the address meanwhile', new SettingsError(409, 'env-address'), 'Couldn’t save the connection. Try again.'],
+      ['a save that failed', new SettingsError(500, 'storage'), 'Couldn’t save the connection. Try again.'],
+    ])('says so over the form for %s', async (_name, error, message) => {
+      setup(vi.fn().mockRejectedValue(error), { noAddress: true })
+      expect(screen.queryByRole('alert', { name: saying(message) })).not.toBeInTheDocument()
+      await fillAddress('http://qbt.test')
+      expect(screen.getByRole('alert', { name: saying(message) })).toBeInTheDocument()
+      expect(screen.getByLabelText('qBittorrent address')).toHaveValue('http://qbt.test')
+    })
+  })
+
+  describe('with an address saved from the app', () => {
+    const saved = 'http://192.168.1.10:8080'
+
+    it('changes it from the sign-in form: the saved one to edit, a login optional, both sent', async () => {
+      vi.mocked(settings.getServerSettings).mockResolvedValue(serverSettings({ source: 'saved', url: saved }))
+      const { onSignIn } = setup()
+      expect(screen.queryByLabelText('qBittorrent address')).not.toBeInTheDocument()
+      await userEvent.click(await screen.findByRole('button', { name: 'Change qBittorrent address' }))
+
+      const address = screen.getByLabelText('qBittorrent address')
+      expect(address).toHaveValue(saved)
+      expect(screen.getByLabelText('Username')).not.toBeRequired()
+      expect(screen.queryByRole('button', { name: 'Change qBittorrent address' })).not.toBeInTheDocument()
+      await userEvent.clear(address)
+      await userEvent.type(address, 'http://192.168.1.20:8080')
+      await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
+      expect(onSignIn).toHaveBeenCalledWith('', '', 'http://192.168.1.20:8080')
+    })
+
+    it('signs in at the saved address until it’s changed, and names the address, not the variable, when it isn’t qBittorrent', async () => {
+      vi.mocked(settings.getServerSettings).mockResolvedValue(serverSettings({ source: 'saved', url: saved }))
+      const { onSignIn } = setup(vi.fn().mockRejectedValue(new SettingsError(502, 'not-qbittorrent')))
+      await screen.findByRole('button', { name: 'Change qBittorrent address' })
+      await fillAndSubmit()
+      expect(onSignIn).toHaveBeenCalledWith('admin', 'secret')
+      expect(screen.getByRole('alert', { name: saying('qBittorrent’s address answers, but not like qBittorrent. Check the address and its port.') })).toBeInTheDocument()
+    })
+
+    it('offers to change it when qBittorrent doesn’t answer there, as a wrong one would', async () => {
+      vi.mocked(settings.getServerSettings).mockResolvedValue(serverSettings({ source: 'saved', url: saved }))
+      const { onSignIn } = setup(undefined, { unreachable: 'qbittorrent' })
+      expect(screen.getByRole('heading', { name: 'qBittorrent isn’t answering' })).toBeInTheDocument()
+      await userEvent.click(await screen.findByRole('button', { name: 'Change qBittorrent address' }))
+
+      expect(screen.getByLabelText('qBittorrent address')).toHaveValue(saved)
+      await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
+      expect(onSignIn).toHaveBeenCalledWith('', '', saved)
+    })
+
+    it.each([
+      ['the environment sets it', serverSettings({ source: 'env' })],
+      ['Kinopeer’s own login is off', serverSettings({ source: 'saved', url: saved }, { enabled: false })],
+      ['the server is older and says nothing of it', { ...serverSettings({ source: 'saved', url: saved }), auth: undefined }],
+    ])('offers no change when %s, since the server would refuse one', async (_name, answer) => {
+      vi.mocked(settings.getServerSettings).mockResolvedValue(answer)
+      setup(undefined, { unreachable: 'qbittorrent' })
+      await waitFor(() => expect(settings.getServerSettings).toHaveBeenCalled())
+      await act(() => Promise.resolve())
+      expect(screen.queryByRole('button', { name: 'Change qBittorrent address' })).not.toBeInTheDocument()
+    })
+
+    it('asks nothing of the server while the server itself doesn’t answer', () => {
+      setup(undefined, { unreachable: 'unreached' })
+      setup(undefined, { unreachable: 'kinopeer' })
+      expect(settings.getServerSettings).not.toHaveBeenCalled()
+    })
   })
 
   it('switches the theme and the language before signing in', async () => {

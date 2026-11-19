@@ -6,6 +6,7 @@ import {
   APP_VERSION_KEY,
   BRIDGE_HEADER,
   KinopeerUnreachableError,
+  NoAddressError,
   QbittorrentError,
   UnauthorizedError,
   addTorrents,
@@ -316,6 +317,16 @@ describe('getAppVersion', () => {
     respond('v5.0.4\n')
     await expect(getAppVersion()).resolves.toBe('5.0.4')
     expect(lastCall().url).toBe('/qbt/api/v2/app/version')
+  })
+
+  it('says the server has no address for qBittorrent when the bridge marks its answer so', async () => {
+    fetchMock.mockResolvedValueOnce(new Response('qBittorrent has no address', { status: 503, headers: { [BRIDGE_HEADER]: 'no-address' } }))
+    const error = await getAppVersion().catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(NoAddressError)
+    expect(unreachable(error)).toBe('qbittorrent')
+    // Any other failure of the bridge is qBittorrent's.
+    respond('', 503)
+    await expect(getAppVersion()).rejects.not.toBeInstanceOf(NoAddressError)
   })
 })
 

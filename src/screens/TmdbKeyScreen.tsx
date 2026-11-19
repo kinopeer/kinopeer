@@ -24,7 +24,7 @@ export function TmdbKeyScreen({ onDone, onSkip }: TmdbKeyScreenProps) {
           onSaved={onDone}
           secondary={
             <Button variant="ghost" size="lg" block onClick={onSkip}>
-              {t('tmdbKey.skip')}
+              {t('common.skipForNow')}
             </Button>
           }
         />
