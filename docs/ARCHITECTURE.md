@@ -32,7 +32,7 @@ Releases: semver in `package.json` (Vite injects it as `__APP_VERSION__`, shown 
 
 ### The qBittorrent client and torrent requests
 
-qBittorrent Web API client: `src/api/qbittorrent/` (incl. adding torrents, file lists and priorities). The add and move sheets get the categories, the default save path and the preferences that decide category folders through `getSaveLocations`, and `src/torrents/folders.ts` places a category's folder as qBittorrent's `categorySavePath` does.
+qBittorrent Web API client: `src/api/qbittorrent/` (incl. adding torrents, file lists and priorities). The add and move sheets get the categories, the default save path and the preferences that decide category folders through `getSaveLocations`, which reads qBittorrent's version from the session check's answer the page keeps (`subcategoriesUnderParent`: 4.6 puts a subcategory by its whole name under the default save path, 5.0 under its parent with subcategories on, 5.2 always), and `src/torrents/folders.ts` places a category's folder as qBittorrent's `categorySavePath` does.
 
 Moving files: `src/screens/useMoveTorrent.tsx` gives a screen the Move files sheet and runs the move itself, so its outcome shows as a toast even after the sheet was closed or the screen is gone.
 
@@ -54,7 +54,7 @@ The store is linked to the poll: `TorrentRequestsProvider` sits inside `MainData
 
 `.torrent` files and magnet links are read in the browser (`src/torrents/torrentFile.ts`, `magnet.ts`) to get the info hash and files before adding; the hash goes through `src/torrents/digest.ts`, which uses Web Crypto when the page has it and its own SHA-1/SHA-256 over plain HTTP, where `crypto.subtle` doesn't exist.
 
-Session state: `src/session/useQbitSession.ts` checks `app/version` first, so a working server login or qBittorrent's auth bypass goes straight in without a login form. Each check asks anew (`checkAppVersion` in `src/api/sharedAnswers.ts`) and keeps its answer for the page under `APP_VERSION_KEY`, which Settings' qBittorrent check takes while it's fresh (`APP_VERSION_FRESH_MS`, a minute), so Settings opened as the app opens or a tab away asks nothing again; its Test asks anew.
+Session state: `src/session/useQbitSession.ts` checks `app/version` first, so a working server login or qBittorrent's auth bypass goes straight in without a login form. Each check asks anew (`checkAppVersion` in `src/api/sharedAnswers.ts`) and keeps its answer for the page under `APP_VERSION_KEY`, which Settings' qBittorrent check takes while it's fresh (`APP_VERSION_FRESH_MS`, a minute), so Settings opened as the app opens or a tab away asks nothing again; its Test asks anew. A version older than `MIN_QBITTORRENT_VERSION` (`src/torrents/qbittorrentVersion.ts`, with what each version adds that Kinopeer needs) makes the session `unsupported`, and `App` shows `UnsupportedQbittorrentScreen` in place of the app; differences between supported versions go through that module's pure functions, the version passed in, as with the 4.x pause and resume, which fall back by the answer instead.
 
 ### Torrent state and the poll
 

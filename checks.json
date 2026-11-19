@@ -79,7 +79,8 @@
         "connect-unreached-dark-ru": {},
         "desktop-connect-dark-ru": {},
         "desktop-connect-unreached-dark-ru": {},
-        "desktop-tmdb-key-dark-ru": {}
+        "desktop-tmdb-key-dark-ru": {},
+        "unsupported-dark-ru": {}
       },
       "overlays": {
         "desktop-add-dark-ru": {},

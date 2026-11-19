@@ -6,6 +6,7 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 
 ### Added
 
+- Kinopeer says which qBittorrent it works with: 4.6.0 or later. An older qBittorrent gets a screen that names its version and asks to update it, in place of an app that would fail in odd ways. ([#359](https://github.com/kinopeer/kinopeer/issues/359))
 - A title already in downloads says so on its card in Search, before and after a query, and in a title's recommendations or similar titles: a download icon with one torrent's progress or the count of several, as the title's own page counts them. It counts the torrents whose title Kinopeer knows already (sent from Kinopeer, matched by hand or guessed before). ([#460](https://github.com/kinopeer/kinopeer/issues/460))
 - Adding a release you already have in qBittorrent no longer leads to Download and an error: once the release is fetched, the add sheet checks your downloads, then says "Already in downloads" and opens the torrent in place of Download. When qBittorrent refuses a torrent, the sheet says whether it's already there, rather than that it may be, unless it can't tell. ([#375](https://github.com/kinopeer/kinopeer/issues/375))
 - The releases list marks the releases you already have in qBittorrent, by the info hash the indexer gives: in place of Add, "In downloads" opens the torrent. A release of the same title with another hash stays addable. ([#375](https://github.com/kinopeer/kinopeer/issues/375))
@@ -21,6 +22,7 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 
 ### Fixed
 
+- On qBittorrent 5.2 and later, the add and Move files sheets show a subcategory without a folder of its own under its parent's folder, where qBittorrent puts it, rather than under the default folder; on qBittorrent 4.6 they show it under the default folder by its whole name, as 4.6 does. ([#472](https://github.com/kinopeer/kinopeer/issues/472))
 - On a computer, a title's releases no longer move down as the search answers in narrower windows (about 1024–1100px, and 1160–1340px with the full sidebar): the sort now sits beside the "Releases" heading, so the row of filters stays one line. ([#400](https://github.com/kinopeer/kinopeer/issues/400))
 - When a release search finds nothing and some indexers didn't answer, "No releases found" no longer moves down as the note naming them comes in: the note is now under it, below Try again. ([#401](https://github.com/kinopeer/kinopeer/issues/401))
 - Downloads' poster grid no longer moves as the torrents' titles come in: a card keeps room for two lines of its title, so a row of short titles is a line taller than before. ([#403](https://github.com/kinopeer/kinopeer/issues/403))

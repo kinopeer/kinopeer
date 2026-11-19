@@ -65,6 +65,14 @@ test.describe('onboarding, phone', () => {
     await expect(page).toHaveScreenshot('connect-unreached-dark-ru.png')
   })
 
+  // #359: qBittorrent answers, but it's older than Kinopeer works with.
+  test('qBittorrent too old, dark, Russian', async ({ page }) => {
+    await openApp(page, '/', { qbittorrentVersion: '4.5.5' })
+    await expect(page.getByRole('heading', { name: 'qBittorrent 4.5.5 слишком старый' })).toBeVisible()
+    await settle(page)
+    await expect(page).toHaveScreenshot('unsupported-dark-ru.png')
+  })
+
   test('a wrong password, dark, Russian', async ({ page }) => {
     await openOnboarding(page, 'connect', { wrongLogin: true })
     await page.getByRole('textbox', { name: 'Логин' }).fill('admin')
