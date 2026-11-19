@@ -6,7 +6,7 @@ and the owner's look at how the app behaves. This file says which parts of that 
 owns the rules of the checks guard and the retro. How the tests are organized and how a PR's tests are reviewed
 is in [TESTING.md](TESTING.md); the conventions every PR follows are in [CLAUDE.md](../CLAUDE.md).
 
-Any change to this file waits for the owner's decision (the `deputy` skill → The owner's approval), and the guard marks it.
+The guard marks any change to this file, and the deputy judges it as a change to the rules (the `deputy` skill → The owner's approval).
 
 ## Components
 
@@ -762,7 +762,7 @@ The review findings). It began on 2026-10-28 as a retro of the tests alone and b
 2026-11-14.
 
 The procedure that isn't Kinopeer's (what each input says, how a pattern is told from an accident,
-what the retro gives the owner and how a rule change is approved) is the quality system's retro,
+what the retro gives the owner and how it makes a rule change) is the quality system's retro,
 **version 2 (2026-11-15)**, in the owner's private repository (`ai-workspace`,
 `quality-system/retro.md`), which the owner's sessions read and outside contributors don't need:
 the retro is the maintainer's work. This section is Kinopeer's part of it: when, the commands that
@@ -786,15 +786,16 @@ fresh session runs the retro, not one that wrote or reviewed the PRs in the batc
 PRs no row lists yet (the batch; before 2026-11-15, the `Test review, round <n>` comments) and count the findings by check and by rule. Since tags come in both spellings, `[H · gap]` and `[H · gap: <reason>]`, a search that expects `]`
 right after the rule misses the second (#299, #302); one that catches both is
 `\[[A-K] ?· ?(clear|gap|conflict)(\]|:)`. The search doesn't replace reading: every reviewer round
-is read whole, for the `/code-review` findings that carry no tag and the **For the coordinator**
-items, with the owner's approvals posted beside them.
+is read whole, for the `/code-review` findings that carry no tag, the **For the coordinator**
+items with the coordinator's decisions posted beside them, and the **Rule changes** the deputy
+approved (before 2026-11-19, the owner's approvals posted on the PR).
 
 The guard's marks are counted too, from the deputy's verdicts on them in its rounds (before
 2026-11-15, the second reviews' comments, `**Second review …**`): how many were judged, how many
 `weakening`, and how many of those the deputy accepted, with its reasons. When twenty PRs in a row with
-changes to existing checks have no `weakening` verdict, the retro proposes to the owner to hand
-the deputy's subagent only the marks that weaken the checks. Narrowing softens the system, so it is the owner's to
-decide.
+changes to existing checks have no `weakening` verdict, the retro weighs handing the deputy's
+subagent only the marks that weaken the checks, and decides it, as it decides its other rule
+changes. Narrowing softens the system, so its PR says what the subagent then no longer sees.
 
 **The escaped defects.** The issues closed since the same `<since>` that the top row doesn't count (an issue the
 batch's last PR closed can close a moment after it, #412 after #415).
@@ -843,12 +844,21 @@ reviews' share of the effort above, which stays out of the row as every figure f
 does. The counts of what each check caught and of its false alarms go into the row.
 
 **The owner's list.** What the owner reads here rather than approving it PR by PR: the weakenings
-the deputy accepted, the changes to the guard, the budgets raised, the design values added, the
-product decisions the coordinator took (SPEC's decision log), and the findings the deputy dropped
-after the author disputed them, each with its PR. Then where the owner still decides PR by PR: a
-change to the rules, an outside contributor's PR (the `deputy` skill → The owner's approval), and
-a release. For those, how often each came up in the batch and how often the owner changed
-something rather than approving it as it came. These counts go into the row.
+the deputy accepted, the changes to the guard, the rule changes the deputy approved (its rounds'
+**Rule changes**), the budgets raised, the design values added, the decisions the coordinator took
+on the deputy's **For the coordinator** questions and the product decisions it took (SPEC's
+decision log), and the findings the deputy dropped after the author disputed them, each with its
+PR. Then where the owner still decides PR by PR: an outside contributor's PR (the `deputy` skill →
+The owner's approval) and a release. For those, how often each came up in the batch and how often
+the owner changed something rather than approving it as it came. These counts go into the row.
+
+Until 2026-11-19 the owner also approved, PR by PR, a change to the rules and a weakening of the
+guard the task didn't explain, as well as the retro's rule changes, the deputy's **For the
+coordinator** questions that revised or dropped a product decision or made a visible change, and,
+on autopilot, credentials. The owner decided on 2026-11-19 that the owner's approval stays
+only on releases and on communication with other people, since waiting for it held overnight
+work; the rest is decided by the deputy or the coordinator, with its reason recorded where this
+list reads it.
 
 **What the retro changes.** The rules live in [TESTING.md](TESTING.md), the `test-review` and
 `deputy` skills (`.claude/skills/`), the PR template, [CLAUDE.md](../CLAUDE.md) and this
@@ -856,8 +866,8 @@ file. A rule that is clear and isn't followed moves closer to where the author w
 in this order, a lint rule or a CI check, a default in a script or config (as the UTC time zone in
 `vite.config.ts` is), a column or prompt in the PR template, a line in the author's checks in
 [TESTING.md](TESTING.md) → Reviewing a PR's tests. Another sentence in the docs is the last resort.
-The owner gets the results in the chat first; from the owner's answers the session writes drafts of
-the rule changes (`CLAUDE.md` → Workflow), and only then opens the PR with the table's row.
+The session decides the rule changes itself and makes them; the owner reads its result, a summary
+of what it found and what it changed, and isn't waited for.
 
 The changes go into one docs PR, reviewed like any other, which adds a row to the table below and
 says which counts each change answers, so the next retro sees whether that count fell. The row and

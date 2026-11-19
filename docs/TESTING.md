@@ -388,9 +388,9 @@ of these:
   (#298), a secret passed by name to a reusable workflow (#291). The PR names the hand-off it
   checked (the group key both runs compute, the inputs of each side) and the documentation page it
   read the rest from.
-- **A known limitation the owner chose to keep:** a case the PR leaves as it is by the owner's
-  decision. The PR links the decision (the row in `docs/SPEC.md`'s decision log, or the comment with
-  the owner's decision) and says what happens in that case: a forget that fails after its sheet closed
+- **A known limitation chosen to be kept:** a case the PR leaves as it is by a recorded decision,
+  the owner's or the coordinator's. The PR links the decision (the row in `docs/SPEC.md`'s decision
+  log, or the comment with the decision) and says what happens in that case: a forget that fails after its sheet closed
   goes unsaid, as saving a key does (#248).
 - **No behavior:** docs, comments, CI and config, types, generated files, a re-export. A branch in a
   script or a workflow (whether to install, whether to deploy, which targets a matrix reaches) is
