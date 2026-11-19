@@ -21,4 +21,4 @@ What the login doesn't cover, by design:
 - The app's own files (the page, its scripts, icons) are served to anyone: they hold no secrets, and the sign-in screen is one of them.
 - Kinopeer is served over plain HTTP unless something in front adds HTTPS, so on such a network the password and the session cookie can be read in transit.
 - Browsers share cookies between the ports of one host, so another app on the same host and address, on another port, can read Kinopeer's session cookie if it's compromised.
-- Wrong passwords are counted per address, in memory: a restart forgets them, and behind a reverse proxy every request comes from the proxy, so a guesser there locks everyone out for a while.
+- Wrong passwords are counted per address, in memory: a restart forgets them, and behind a reverse proxy every request comes from the proxy, so a guesser there locks everyone out for as long as they keep guessing: each lock is twice as long as the one before, up to a day, so five wrong passwords after each lock ends keep Kinopeer locked for good.

@@ -266,6 +266,7 @@
     "signOutHint": "On this device",
     "signOutFailed": "Couldn’t sign out. Try again.",
     "currentPassword": "Current password",
+    "currentPasswordMissing": "Enter your current password",
     "passwordChanged": "Password changed. Other devices will need to sign in again.",
     "changePasswordFailed": "Couldn’t change the password. Try again."
   },

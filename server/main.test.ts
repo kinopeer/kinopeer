@@ -229,6 +229,16 @@ describe('kinopeerServer', () => {
     expect(() => kinopeerServer({ KINOPEER_AUTH: 'on' }, dataStores(join(root, 'typo')))).not.toThrow()
   })
 
+  it('refuses to start with a KINOPEER_PASSWORD no sign-in could send, so it never locks everyone out', () => {
+    const start = (password: string) => () => kinopeerServer({ KINOPEER_PASSWORD: password }, dataStores(join(root, 'env-password')))
+    expect(start('x'.repeat(257))).toThrow('KINOPEER_PASSWORD must be 8 to 256 characters, not 257')
+    expect(start('x'.repeat(7))).toThrow('KINOPEER_PASSWORD must be 8 to 256 characters, not 7')
+    expect(start('x'.repeat(256))).not.toThrow()
+    expect(start('x'.repeat(8))).not.toThrow()
+    // Empty is unset, as in .env.example.
+    expect(start('')).not.toThrow()
+  })
+
   it('starts no jobs without qBittorrent', () => {
     const stores = dataStores(join(root, 'no-jobs'))
     const prune = vi.spyOn(stores.matches, 'prune')

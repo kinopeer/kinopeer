@@ -11,7 +11,7 @@ export interface ChangePasswordFormProps {
   onChanged: () => void
 }
 
-type FormError = 'invalid' | 'too-short' | 'too-long' | 'mismatch' | 'throttled' | 'storage' | 'env-password' | 'failed' | null
+type FormError = 'no-current' | 'invalid' | 'too-short' | 'too-long' | 'mismatch' | 'throttled' | 'storage' | 'env-password' | 'failed' | null
 
 /** Changes Kinopeer's own password, in a sheet from Settings; every other device is signed out. */
 export function ChangePasswordForm({ onChanged }: ChangePasswordFormProps) {
@@ -28,6 +28,7 @@ export function ChangePasswordForm({ onChanged }: ChangePasswordFormProps) {
     if (submitting) return
     // The last wait was the server's answer to the last try; a refusal here is no try.
     setWaitMs(0)
+    if (!current) return setError('no-current')
     if (password.length < MIN_PASSWORD_LENGTH) return setError('too-short')
     if (password.length > MAX_PASSWORD_LENGTH) return setError('too-long')
     if (repeat !== password) return setError('mismatch')
@@ -49,7 +50,7 @@ export function ChangePasswordForm({ onChanged }: ChangePasswordFormProps) {
   }
 
   const fieldChanged = () => {
-    if (error === 'invalid' || error === 'too-short' || error === 'too-long' || error === 'mismatch') setError(null)
+    if (error === 'no-current' || error === 'invalid' || error === 'too-short' || error === 'too-long' || error === 'mismatch') setError(null)
   }
 
   return (
@@ -71,7 +72,7 @@ export function ChangePasswordForm({ onChanged }: ChangePasswordFormProps) {
           setCurrent(event.target.value)
           fieldChanged()
         }}
-        error={error === 'invalid' && t('signIn.invalid')}
+        error={(error === 'no-current' && t('settings.currentPasswordMissing')) || (error === 'invalid' && t('signIn.invalid'))}
       />
       <Input
         label={t('signIn.newPassword')}

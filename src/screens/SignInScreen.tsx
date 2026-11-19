@@ -61,6 +61,9 @@ export function SignInScreen({ need }: SignInScreenProps) {
         setPassword('')
         setError('was-reset')
         setSignInNeed('set-up')
+      } else if (code === 'auth-off') {
+        // The server's login was turned off since this screen opened: nothing is held back any more.
+        setSignInNeed(null)
       } else if (code === 'invalid-password') setError('invalid')
       else if (code === 'too-short' || code === 'throttled' || code === 'storage') setError(code)
       else setError('failed')

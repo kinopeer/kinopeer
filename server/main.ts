@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { AuthStore, authMode, kinopeerAuth } from './auth.ts'
+import { AuthStore, authMode, envPassword, kinopeerAuth } from './auth.ts'
 import { allowedHosts, allowedHostsWarning, hostCheck } from './hostCheck.ts'
 import { MatchesStore, matchesMiddleware, qbittorrentHashes, startMatchesCleanup } from './matches.ts'
 import { prowlarrMiddleware, type Middleware } from './prowlarr.ts'
@@ -88,11 +88,12 @@ export function loginWarning(env: Record<string, string | undefined>): string | 
  * addresses (the integration and smoke tests point them at a fake), and TMDB_PROXY_URL replaces
  * Kinopeer's TMDB proxy (`tmdbProxy`). KINOPEER_ALLOWED_HOSTS adds the host names it answers at
  * (`allowedHosts`). KINOPEER_AUTH=off turns Kinopeer's own login off (server/auth.ts), and throws
- * for a value it doesn't know, so the server doesn't start.
+ * for a value it doesn't know, so the server doesn't start, as it does for a KINOPEER_PASSWORD
+ * shorter than 8 characters or longer than 256 (`envPassword`).
  */
 export function kinopeerServer(env: Record<string, string | undefined>, stores: DataStores): KinopeerServer {
   const store = stores.settings
-  const auth = kinopeerAuth({ store: stores.auth, mode: authMode(env.KINOPEER_AUTH), envPassword: env.KINOPEER_PASSWORD })
+  const auth = kinopeerAuth({ store: stores.auth, mode: authMode(env.KINOPEER_AUTH), envPassword: envPassword(env.KINOPEER_PASSWORD) })
   const envQbittorrent = { username: env.QBITTORRENT_USERNAME, password: env.QBITTORRENT_PASSWORD }
   const prowlarrConfig = env.PROWLARR_CONFIG_XML
   const proxy = tmdbProxy(env)

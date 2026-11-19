@@ -57,6 +57,17 @@ describe('ChangePasswordForm', () => {
     expect(repeat).not.toHaveAttribute('aria-invalid')
   })
 
+  it('asks for the current password before sending anything', async () => {
+    render(<ChangePasswordForm onChanged={vi.fn()} />)
+    await change('', 'battery staple')
+    const current = screen.getByLabelText('Current password')
+    expect(current).toHaveAccessibleDescription('Enter your current password')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(changePassword).not.toHaveBeenCalled()
+    await userEvent.type(current, 'x')
+    expect(current).not.toHaveAttribute('aria-invalid')
+  })
+
   it('takes back the wait the server last asked for when it refuses the current password itself', async () => {
     changePassword.mockRejectedValueOnce(new AuthError(429, 'throttled', 15 * 60_000))
     render(<ChangePasswordForm onChanged={vi.fn()} />)

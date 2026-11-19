@@ -238,6 +238,21 @@ describe('SignInScreen, signing in', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
+  it.each(['sign-in', 'set-up'] as const)('lets the app back in when the server turned the login off since the screen opened (%s)', async (need) => {
+    auth.setSignInNeed(need)
+    signIn.mockRejectedValue(new AuthError(409, 'auth-off'))
+    setUpPassword.mockRejectedValue(new AuthError(409, 'auth-off'))
+    render(<SignInScreen need={need} />)
+    if (need === 'sign-in') await signInWith('correct horse')
+    else {
+      await userEvent.type(screen.getByLabelText('New password'), 'correct horse')
+      await userEvent.type(screen.getByLabelText('Repeat the password'), 'correct horse')
+      await userEvent.click(screen.getByRole('button', { name: 'Set password' }))
+    }
+    expect(auth.signInNeed()).toBeNull()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('says Kinopeer didn’t answer', async () => {
     signIn.mockRejectedValue(new TypeError('Failed to fetch'))
     render(<SignInScreen need="sign-in" />)

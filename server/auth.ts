@@ -76,6 +76,17 @@ export const MIN_PASSWORD_LENGTH = 8
 export const MAX_PASSWORD_LENGTH = 256
 
 /**
+ * KINOPEER_PASSWORD's value, undefined when it's empty or unset; one outside the bounds a password
+ * set in the app keeps stops the server, since a sign-in longer than the longest is refused unsent.
+ */
+export function envPassword(value: string | undefined): string | undefined {
+  if (!value) return undefined
+  if (value.length < MIN_PASSWORD_LENGTH || value.length > MAX_PASSWORD_LENGTH)
+    throw new Error(`KINOPEER_PASSWORD must be ${MIN_PASSWORD_LENGTH} to ${MAX_PASSWORD_LENGTH} characters, not ${value.length}`)
+  return value
+}
+
+/**
  * scrypt's cost: 32 MiB and about 50–100 ms a hash on a home server, so a copy of auth.json is slow
  * to guess at, while a sign-in waits no longer than a request does. `maxmem` above Node's 32 MiB
  * default, which this cost would just exceed.

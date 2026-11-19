@@ -1,6 +1,6 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import * as auth from '../api/auth'
 import * as matches from '../api/matches'
 import * as prowlarr from '../api/prowlarr'
@@ -465,24 +465,23 @@ describe('SettingsScreen', () => {
 
   it('shows its sign-in section from the first render with the page’s answer gone stale, while it asks again', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
-    try {
-      sharedRequests.set(serverSettings.SERVER_SETTINGS_KEY, {
-        tmdb: { configured: true, source: 'saved', fallback: null },
-        prowlarr: { configured: true, source: 'env', serverKey: true },
-        qbittorrent: { configured: true, source: 'env' },
-        downloads: null,
-        auth: { enabled: true, source: 'saved' },
-      } satisfies serverSettings.ServerSettings)
-      vi.setSystemTime(Date.now() + serverSettings.SERVER_SETTINGS_FRESH_MS + 1)
-      vi.mocked(serverSettings.getServerSettings).mockReturnValue(new Promise(() => {}))
-      renderScreen()
-      // Whether the login is on is the server's environment's, so an older answer still says it,
-      // and the section isn't added under the rows once the new one comes (a layout shift).
-      expect(screen.getByRole('region', { name: 'Sign-in' })).toBeInTheDocument()
-      await waitFor(() => expect(serverSettings.getServerSettings).toHaveBeenCalled())
-    } finally {
+    onTestFinished(() => {
       vi.useRealTimers()
-    }
+    })
+    sharedRequests.set(serverSettings.SERVER_SETTINGS_KEY, {
+      tmdb: { configured: true, source: 'saved', fallback: null },
+      prowlarr: { configured: true, source: 'env', serverKey: true },
+      qbittorrent: { configured: true, source: 'env' },
+      downloads: null,
+      auth: { enabled: true, source: 'saved' },
+    } satisfies serverSettings.ServerSettings)
+    vi.setSystemTime(Date.now() + serverSettings.SERVER_SETTINGS_FRESH_MS + 1)
+    vi.mocked(serverSettings.getServerSettings).mockReturnValue(new Promise(() => {}))
+    renderScreen()
+    // Whether the login is on is the server's environment's, so an older answer still says it,
+    // and the section isn't added under the rows once the new one comes (a layout shift).
+    expect(screen.getByRole('region', { name: 'Sign-in' })).toBeInTheDocument()
+    await waitFor(() => expect(serverSettings.getServerSettings).toHaveBeenCalled())
   })
 
   it('changes Kinopeer’s password in a sheet and says the other devices are signed out', async () => {
