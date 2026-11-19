@@ -166,7 +166,7 @@ export const CATEGORIES = {
 export const PREFERENCES = {
   auto_tmm_enabled: false,
   use_category_paths_in_manual_mode: false,
-  use_subcategories: false,
+  // No `use_subcategories`: qBittorrent 5.2 dropped it from the preferences, subcategories are always on.
   /** "When Torrent Category changed: Relocate torrent", qBittorrent's default. */
   torrent_changed_tmm_enabled: true,
   /** "Keep incomplete torrents in", off by default. */
