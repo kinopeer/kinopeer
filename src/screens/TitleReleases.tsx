@@ -321,7 +321,8 @@ function TableSkeleton() {
           <div className="ks-skel" style={{ height: 16 }} />
           <div className="ks-skel" style={{ height: 16 }} />
           <div className="ks-skel" style={{ height: 16 }} />
-          <div className="ks-skel" style={{ height: 32 }} />
+          {/* The last column is as wide as its buttons, so its skeleton gives it a button's width. */}
+          <div className="ks-skel" style={{ height: 32, width: 112 }} />
         </div>
       ))}
     </div>

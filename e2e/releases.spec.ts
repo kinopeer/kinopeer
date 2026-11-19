@@ -16,6 +16,24 @@ const TOP_IN_DOWNLOADS: AppOptions = {
   torrents: [torrent(shogunInfoHash(), { name: 'Shogun.S01.2160p.WEB-DL.HDR.DV.MVO-GRPA', progress: 0.4 })],
 }
 
+/** Each row's Add or In downloads fits its column, rather than spilling over the gap before it (#471). */
+async function expectActionsInTheirCells(page: Page) {
+  const spills = await page
+    .getByRole('table')
+    .getByRole('row')
+    .evaluateAll((rows) =>
+      rows.flatMap((row) => {
+        const cell = row.querySelector('.title-rel-add')
+        const action = cell?.firstElementChild
+        if (!cell || !action) return []
+        const outer = cell.getBoundingClientRect()
+        const inner = action.getBoundingClientRect()
+        return inner.left < outer.left || inner.right > outer.right ? [action.textContent] : []
+      }),
+    )
+  expect(spills).toEqual([])
+}
+
 async function openReleases(page: Page, options: AppOptions = {}) {
   await openApp(page, '/title/tv/126308/releases', options)
   await expect(page.getByText(RELEASES[0].title)).toBeVisible()
@@ -133,6 +151,7 @@ test.describe('releases, desktop', () => {
   test('a release already in downloads', async ({ page }) => {
     await findReleases(page, TOP_IN_DOWNLOADS)
     await expect(page.getByRole('table').getByRole('link', { name: 'В загрузках' })).toBeVisible()
+    await expectActionsInTheirCells(page)
     await expect(page).toHaveScreenshot('desktop-in-downloads-dark-ru.png')
   })
 

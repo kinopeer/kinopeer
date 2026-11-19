@@ -83,18 +83,21 @@
   gap: var(--rel-gap);
 }
 
-/* The table: the audio column shows from 1400px; narrower, audio sits under the name. */
+/* The table: the audio column shows from 1400px; narrower, audio sits under the name. One grid,
+   its rows sharing its columns (subgrid), so the last column is as wide as the widest of its
+   buttons, whatever their text, rather than a width they spill out of (#471). */
 .title-rel-table {
-  --rel-cols: minmax(0, 1fr) 84px 64px 56px 96px 80px 112px;
-  display: flex;
-  flex-direction: column;
+  --rel-cols: minmax(0, 1fr) 84px 64px 56px 96px 80px max-content;
+  display: grid;
+  grid-template-columns: var(--rel-cols);
+  column-gap: var(--space-3);
 }
 
 .title-rel-row {
+  grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: var(--rel-cols);
+  grid-template-columns: subgrid;
   align-items: start;
-  gap: var(--space-3);
   padding: var(--space-4) var(--space-3);
   border-radius: var(--r-md);
   border: 1px solid transparent;
@@ -154,7 +157,7 @@
 
 @media (min-width: 1400px) {
   .title-rel-table {
-    --rel-cols: minmax(0, 1fr) 210px 84px 64px 56px 100px 80px 112px;
+    --rel-cols: minmax(0, 1fr) 210px 84px 64px 56px 100px 80px max-content;
   }
 
   .title-rel .title-rel-audio {
