@@ -702,6 +702,19 @@ describe('settingsMiddleware: addresses', () => {
     expect(store.current).toMatchObject({ qbittorrentUrl: qbt.base, prowlarrUrl: prowlarr.base })
   })
 
+  it('never saves the environment’s address as the app’s when a login or a key is saved', async () => {
+    const qbt = await fakeQbittorrent()
+    const prowlarr = await fakeProwlarr({ apiKey: 'good-key' })
+    const store = new SettingsStore(dir)
+    const base = await app(store, { envQbittorrentUrl: qbt.base, envProwlarrUrl: prowlarr.base })
+
+    expect((await putLogin(base, { username: 'admin', password: 'pass word' })).status).toBe(200)
+    expect((await fetch(`${base}/api/settings/prowlarr`, saving({ apiKey: 'good-key' }))).status).toBe(200)
+
+    // Taken out of the environment later, it leaves no address behind.
+    expect(store.current).toEqual({ qbittorrentUsername: 'admin', qbittorrentPassword: 'pass word', prowlarrApiKey: 'good-key' })
+  })
+
   it('says an address the environment sets without its value, and uses it over a saved one', async () => {
     const store = new SettingsStore(dir)
     await store.update({ qbittorrentUrl: 'http://saved.test:8080', prowlarrUrl: 'http://saved.test:9696' })
