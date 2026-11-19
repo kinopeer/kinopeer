@@ -5,7 +5,7 @@ A qBittorrent web UI built around movies and TV series. Find a title in TMDB, pi
 ## Product
 
 - Core principle: find a title, pick a release and download it without leaving Kinopeer.
-- Not doing: playback, Sonarr/Radarr-style automation (watchlists, RSS, new episodes), a season picker on the series page, tracker logins or getting around site protection, Jackett, telemetry. Only Umbrel installs are supported for now.
+- Not doing: playback, Sonarr/Radarr-style automation (watchlists, RSS, new episodes), a season picker on the series page, tracker logins or getting around site protection, Jackett, telemetry. Installs are supported on Umbrel and with the repository's `docker-compose.yml`.
 - What each screen does and the log of product decisions: `docs/SPEC.md`.
 
 ## Docs

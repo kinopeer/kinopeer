@@ -57,7 +57,17 @@ The dev server has the login on too, so the first page you open asks you to set 
 
 ## Docker
 
-The image is built from `Dockerfile` (`node:24-alpine`, pinned by digest, no `node_modules`). `docker compose up --build` runs it locally at `http://localhost:8080` with settings from `.env.local`. Since the rename to Kinopeer its data volume is `kinopeer-data` and its port variable `KINOPEER_PORT`; a compose setup from before keeps its saved settings and matches in the old volume. Compose prefixes a volume with the project, the checkout's folder name by default: after one `docker compose up`, `docker volume ls --filter name=-data` shows both, `<project>_kinoseed-data` and `<project>_kinopeer-data`, and one run copies the old into the new: `docker run --rm -v <project>_kinoseed-data:/from -v <project>_kinopeer-data:/to alpine cp -a /from/. /to/`. That's for checking the image, not a supported way to install. `/healthz` answers `ok` while the server runs.
+The image is built from `Dockerfile` (`node:24-alpine`, pinned by digest, no `node_modules`). `/healthz` answers `ok` while the server runs.
+
+`docker-compose.yml` is the install the README describes: Kinopeer's released image at its major version's tag (`:1`, which `release.yml` pushes with each release, so a new major moves the file's tag too), beside qBittorrent's and Prowlarr's images at `latest`, which an install follows with `docker compose pull`, so they aren't pinned by digest as CI's images are. On qBittorrent's first start a script in its `entrypoint` writes the settings the image would write itself, plus an auth bypass for Kinopeer's fixed address alone (`172.30.97.10/32` on the file's own network), so Kinopeer gets in without a login while qBittorrent has no password but the temporary one it makes up on every start; settings that exist are left alone. `docker-compose.test.ts` runs that script and checks what ties the services together (the address, the ports, Prowlarr's config mounted read-only, the image's tag against `package.json`'s major version); starting it in Docker is checked by hand ([RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)).
+
+To check a build against real qBittorrent and Prowlarr, `docker-compose.build.yml` runs the image built from the checkout in place of the released one:
+
+```sh
+docker compose -p kinopeer-check -f docker-compose.yml -f docker-compose.build.yml up -d --build
+```
+
+`-p kinopeer-check` keeps its containers and volumes apart from an install of the same file on the machine (both would be the `kinopeer` project); downloads go into `./downloads` in the checkout, which git ignores, unless `DOWNLOADS_DIR` says otherwise. `docker compose -p kinopeer-check down --volumes` removes it all.
 
 ## Releasing
 

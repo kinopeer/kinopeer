@@ -67,6 +67,8 @@ jobs:
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+            # What docker-compose.yml installs: the newest release of a major version.
+            type=semver,pattern={{major}}
           # GitHub detects the license from the text alone and reports GPL-3.0, which can't say "or later".
           labels: |
             org.opencontainers.image.licenses=GPL-3.0-or-later

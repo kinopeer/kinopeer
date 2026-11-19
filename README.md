@@ -7,7 +7,7 @@
 A qBittorrent web UI for movies and TV series. Find a movie or a series, pick a release found by Prowlarr and follow the download, all in one app on your phone or computer.
 
 > [!NOTE]
-> For now Kinopeer installs on umbrelOS only. What's planned is in the [milestones](https://github.com/kinopeer/kinopeer/milestones).
+> Kinopeer installs [on umbrelOS](#install-on-umbrel) or [with Docker Compose](#install-with-docker-compose). What's planned is in the [milestones](https://github.com/kinopeer/kinopeer/milestones).
 
 <img src="docs/screenshots/desktop-title.png" alt="A series page on a computer, with its releases under the overview: filters for resolution, audio, source, minimum seeds and indexer over a table of releases">
 
@@ -43,7 +43,7 @@ Kinopeer comes with no content and no indexers: it searches only the indexers yo
 
 ## Install on Umbrel
 
-Kinopeer currently supports umbrelOS only. It needs the **qBittorrent** and **Prowlarr** apps from the Umbrel App Store. It works with qBittorrent 4.6.0 or later.
+It needs the **qBittorrent** and **Prowlarr** apps from the Umbrel App Store. It works with qBittorrent 4.6.0 or later.
 
 1. Open **App Store** → the **⋯** menu at the top right → **Community App Stores**.
 2. Paste `https://github.com/MrShakhov/umbrel-homelab-store` → **Add**.
@@ -58,6 +58,57 @@ On first launch:
 
 Umbrel offers updates when a new version is out. What changed is in [CHANGELOG.md](CHANGELOG.md).
 
+## Install with Docker Compose
+
+> [!NOTE]
+> This works from Kinopeer 1.1.0, the first version with a password of its own.
+
+Kinopeer's [`docker-compose.yml`](docker-compose.yml) runs Kinopeer beside **qBittorrent** (the qBittorrent project's own image) and **Prowlarr** (LinuxServer.io's image, which Prowlarr's wiki points to), each in a container of its own. It needs Docker with Compose.
+
+1. In an empty folder, download the file and start it:
+
+   ```bash
+   curl -O https://raw.githubusercontent.com/kinopeer/kinopeer/main/docker-compose.yml
+   ```
+
+   ```bash
+   docker compose up -d
+   ```
+
+2. Open Kinopeer at `http://<your server>:8797` right away and set its password: until then, whoever opens it first sets it. To set it beforehand, put `KINOPEER_PASSWORD=` with a password of 8 characters or more in a `.env` file next to `docker-compose.yml`.
+3. Open Prowlarr at `http://<your server>:9696`, set up its login and add your indexers. Kinopeer reads Prowlarr's API key itself.
+
+qBittorrent and TMDB need no setup. Downloads go into the `downloads` folder next to `docker-compose.yml`. The file confirms qBittorrent's legal notice for you, which qBittorrent asks for before it starts.
+
+**qBittorrent trusts Kinopeer without a password, and nothing else.** On its first start, the file sets qBittorrent up to let in Kinopeer's container, at its fixed address `172.30.97.10`, without a password, so you don't need the temporary one qBittorrent makes up on every start until a password is set. Everyone else needs a password, and qBittorrent's own web UI isn't reachable from outside Docker. To have qBittorrent ask Kinopeer for a password too:
+
+1. Uncomment the `8081:8080` line under `qbittorrent` in `docker-compose.yml`, run `docker compose up -d` and open `http://<your server>:8081`.
+2. Sign in as `admin` with the temporary password from `docker compose logs qbittorrent`.
+3. In **Tools → Options → Web UI**, set a password and turn off **Bypass authentication for clients in whitelisted IP subnets**.
+4. Kinopeer then asks for qBittorrent's login once and keeps it.
+
+**Settings**, all optional, go into the `.env` file:
+
+| Variable | Default | What it sets |
+| --- | --- | --- |
+| `KINOPEER_PORT`, `PROWLARR_PORT` | `8797`, `9696` | Kinopeer's and Prowlarr's ports |
+| `DOWNLOADS_DIR` | `./downloads` | The folder downloads go into |
+| `PUID`, `PGID` | `1000` | The user and group that own the downloaded files |
+| `KINOPEER_PASSWORD` | none | Kinopeer's password, in place of one set in the app |
+| `KINOPEER_ALLOWED_HOSTS` | none | Names Kinopeer answers at besides IP addresses, `localhost`, `.local` names and names of one label, such as a reverse proxy's domain ([its rules](docs/DEVELOPMENT.md#server-configuration)) |
+
+If `docker compose up` says the network's range overlaps another, change `172.30.97.0/24` and the address `172.30.97.10`, in both places it's written, in `docker-compose.yml` before the first start.
+
+**Updating:** `docker compose pull`, then `docker compose up -d`. Kinopeer's image follows the newest 1.x release, qBittorrent's and Prowlarr's their newest releases.
+
+**HTTPS** is up to a reverse proxy in front of Kinopeer, which this file doesn't include; here's an example, not a setup we support. Kinopeer answers only at names it knows, so add the proxy's domain to `KINOPEER_ALLOWED_HOSTS` (`KINOPEER_ALLOWED_HOSTS=kinopeer.example.com`), and have the proxy pass on the name the page was opened at, as Caddy does:
+
+```
+kinopeer.example.com {
+	reverse_proxy localhost:8797
+}
+```
+
 ## On your phone
 
 Kinopeer is a web app (PWA). Over plain HTTP on your home network it works in the browser, and on an iPhone or iPad you can add it to the Home Screen from Safari's Share menu to open it full screen. umbrelOS 2.0 also serves it over HTTPS (`https://umbrel.local:8797`): with the Umbrel certificate trusted on your device ([Umbrel's guide](https://umbrel.com/support/basics/accessing-your-umbrel-over-https)), Kinopeer installs as an app on Android and computers too and keeps its shell available offline. Umbrel renews that certificate every month: if your browser trusts it only because you accepted its warning (Safari's "Visit Website") rather than installing it, the installed app says it can't reach Kinopeer once the certificate changes, and **Open again** brings back the browser's warning to accept the new one.
@@ -65,7 +116,7 @@ Kinopeer is a web app (PWA). Over plain HTTP on your home network it works in th
 ## Privacy and security
 
 - The TMDB and Prowlarr keys and the qBittorrent login stay on the Kinopeer server and never reach the browser.
-- Besides your qBittorrent and Prowlarr, Kinopeer only talks to TMDB, and only through its own server. Without a TMDB key of your own, those calls go through Kinopeer's TMDB proxy on Cloudflare, which adds Kinopeer's key and sees your Umbrel's IP address and what you search for; it keeps no logs. With your own key in Settings, they go to TMDB directly. No analytics, no telemetry.
+- Besides your qBittorrent and Prowlarr, Kinopeer only talks to TMDB, and only through its own server. Without a TMDB key of your own, those calls go through Kinopeer's TMDB proxy on Cloudflare, which adds Kinopeer's key and sees your server's IP address and what you search for; it keeps no logs. With your own key in Settings, they go to TMDB directly. No analytics, no telemetry.
 - Kinopeer never stores tracker logins: that's Prowlarr's job.
 - Kinopeer has a password of its own, which the first visitor sets (or the server's `KINOPEER_PASSWORD`); on Umbrel, Umbrel's login protects it instead, and Kinopeer's is off. What it covers and what it doesn't: [SECURITY.md](SECURITY.md).
 - Found a vulnerability? Report it privately, as [SECURITY.md](SECURITY.md) says.

@@ -1,0 +1,7 @@
+# Runs docker-compose.yml with Kinopeer's image built from this checkout, to check a build against
+# real qBittorrent and Prowlarr (docs/DEVELOPMENT.md → Docker):
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up --build
+services:
+  kinopeer:
+    build: .
+    image: kinopeer:local
