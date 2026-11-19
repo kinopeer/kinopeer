@@ -7,8 +7,9 @@ description: The deputy, Kinopeer's one reviewer and approver of pull requests, 
 
 Every PR into `main` needs an approving review, and the deputy is the one who gives it: a cloud
 routine that acts as the owner's GitHub account, woken when a PR is marked ready for review
-(`docs/TESTING.md` → Reviewing a PR's tests). The owner doesn't review PRs: the owner reads the
-retro and joins only for an outside contributor's PR (section 5). So the deputy approves only a PR
+(`docs/TESTING.md` → Reviewing a PR's tests). The owner doesn't review PRs: the owner starts and reads the
+retro, decides releases (`CLAUDE.md` → Workflow) and joins a PR only when it's an outside
+contributor's (section 5). So the deputy approves only a PR
 it would defend at the retro. Everything the deputy writes on GitHub is in English; what it says
 to the owner in its own session follows the owner's language.
 
@@ -103,8 +104,8 @@ its own. For each mark it answers `sound` or `weakening`, with a line on why:
 A mark it can't decide is a `weakening`. Each `weakening` is yours to weigh: whether the task
 justifies it, from what the task is and what the code shows. One you find justified is accepted,
 and the round lists it under **Accepted marks** with your reason, which the retro reads; one you
-don't is a blocking finding. A weakening of the guard itself is judged the same way, as a change to
-the rules (section 5).
+don't is a blocking finding. A weakening of the guard itself is judged as a change to the rules,
+by section 5's criterion.
 
 **Questions for the coordinator.** Some decisions aren't yours: the PR revises a product decision
 recorded in `docs/SPEC.md`'s decision log, drops a feature, makes a visible change its task didn't
@@ -112,11 +113,13 @@ ask for (a screenshot baseline changed beyond the task, `docs/TESTING.md` → Sc
 grows past what it set out to do (each round finds bugs in the same new mechanism, workarounds
 pile up), for the coordinator to weigh the cost against the gain rather than one more fix asked
 for. Ask under **For the coordinator**, one line each; each holds the approval, even with nothing
-else open. The author takes it to the coordinator, which decides it, on autopilot or not (without
-autopilot, the coordinator is the session that hands out the PRs); none of these goes to the
-owner. The coordinator records the decision and its reason in a comment on the PR, and, for all
-but a PR that grew, in SPEC's decision log too; the next round checks that they are there and the
-code matches them.
+else open. The author takes it to the coordinator: on autopilot or not, the session that hands out
+the PRs, or, where none does, the author's session itself. The coordinator decides a revised
+product decision, a dropped feature and a visible change itself, and none of them goes to the
+owner; a PR that grew it weighs as `CLAUDE.md` → Conventions says (on autopilot it decides,
+otherwise it asks the owner). The decision and its reason come back in a comment on the PR, and,
+for all but a PR that grew, in SPEC's decision log too; the next round checks that they are there
+and the code matches them.
 
 ## 4. Posting the round
 
@@ -190,7 +193,9 @@ Only an outside contributor's PR waits for the owner's decision before you appro
 A change to the rules sessions work by (`CLAUDE.md`, `docs/TESTING.md`, `docs/QUALITY.md`,
 anything in `.claude/skills/`, this file included, the PR template) and a weakening of the guard
 itself (`scripts/guard/`, `.github/workflows/guard.yml`) are yours to judge, as any other change.
-Approve one when its task explains it and the checks still catch what they caught before;
+Approve one when its task explains it and the checks still catch what they caught before, or, for
+a change meant to weaken them (a weakening of the guard, the retro narrowing what the guard's
+subagent judges), when its task explains why and the round names what the checks no longer catch;
 otherwise it is a blocking finding. Each rule change you approve goes into the round under
 **Rule changes**, one line each: what changes and why you accept it. The retro reads that list
 (`docs/QUALITY.md` → The retro).

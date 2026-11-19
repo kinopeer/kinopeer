@@ -765,7 +765,9 @@ The procedure that isn't Kinopeer's (what each input says, how a pattern is told
 what the retro gives the owner and how it makes a rule change) is the quality system's retro,
 **version 2 (2026-11-15)**, in the owner's private repository (`ai-workspace`,
 `quality-system/retro.md`), which the owner's sessions read and outside contributors don't need:
-the retro is the maintainer's work. This section is Kinopeer's part of it: when, the commands that
+the retro is the maintainer's work. Where that version has the owner approve a rule change or the
+narrowing of the guard's marks, this section wins since 2026-11-19, until the procedure's next
+version. This section is Kinopeer's part of it: when, the commands that
 collect each input, where the rules it changes live, and the table of past retros. What a finding
 carries, the tag the retro counts by, is in [TESTING.md](TESTING.md) → Improving the system.
 
@@ -855,7 +857,7 @@ the owner changed something rather than approving it as it came. These counts go
 Until 2026-11-19 the owner also approved, PR by PR, a change to the rules and a weakening of the
 guard the task didn't explain, as well as the retro's rule changes, the deputy's **For the
 coordinator** questions that revised or dropped a product decision or made a visible change, and,
-on autopilot, credentials. The owner decided on 2026-11-19 that the owner's approval stays
+on autopilot, credentials. The owner decided on 2026-11-19 (#488) that the owner's approval stays
 only on releases and on communication with other people, since waiting for it held overnight
 work; the rest is decided by the deputy or the coordinator, with its reason recorded where this
 list reads it.
