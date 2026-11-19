@@ -23,8 +23,8 @@ const BOT: TelegramStatus = { bot: 'kinopeer_home_bot', chat: null, refused: nul
 const CONNECTED: TelegramStatus = { bot: 'kinopeer_home_bot', chat: { name: 'Alex', type: 'private' }, refused: null }
 const settings = (telegram: TelegramStatus): ServerSettings => ({
   tmdb: { configured: true, source: 'env', fallback: 'env' },
-  prowlarr: { configured: true, source: 'env', serverKey: true },
-  qbittorrent: { configured: true, source: 'env' },
+  prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } },
+  qbittorrent: { configured: true, source: 'env', address: { source: 'env' } },
   downloads: null,
   telegram,
   notifications: telegram.chat !== null,

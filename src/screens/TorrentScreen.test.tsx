@@ -58,8 +58,8 @@ vi.mock('../api/settings', async (importOriginal) => ({
 /** The server's settings, with a channel to notify through or without. */
 const serverSettings = (notifications: boolean): ServerSettings => ({
   tmdb: { configured: true, source: 'env', fallback: 'env' },
-  prowlarr: { configured: true, source: 'env', serverKey: true },
-  qbittorrent: { configured: true, source: 'env' },
+  prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } },
+  qbittorrent: { configured: true, source: 'env', address: { source: 'env' } },
   downloads: null,
   notifications,
 })

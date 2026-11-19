@@ -140,7 +140,7 @@ const ENDPOINTS = new Map<string, 'GET' | 'POST'>([
   ['/api/v2/torrents/recheck', 'POST'],
   ['/api/v2/torrents/reannounce', 'POST'],
   ['/api/v2/torrents/setLocation', 'POST'],
-  // The notification switch (server/notifier.ts).
+  // The notification switch on a torrent's page; the server's notifier takes the tag off too.
   ['/api/v2/torrents/addTags', 'POST'],
   ['/api/v2/torrents/removeTags', 'POST'],
   ['/api/v2/transfer/toggleSpeedLimitsMode', 'POST'],
