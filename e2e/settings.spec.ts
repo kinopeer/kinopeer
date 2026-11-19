@@ -62,7 +62,8 @@ test.describe('desktop', () => {
     await page.getByRole('button', { name: /Сменить пароль/ }).click()
     await expect(page.getByRole('dialog', { name: 'Сменить пароль' }).getByLabel('Текущий пароль')).toBeVisible()
     await settle(page)
-    await expect(page).toHaveScreenshot('desktop-change-password-dark-ru.png')
+    // Behind the scrim, but in the picture.
+    await expect(page).toHaveScreenshot('desktop-change-password-dark-ru.png', { mask: [versionValue(page)] })
   })
 
   test('dark, Russian', async ({ page }) => {

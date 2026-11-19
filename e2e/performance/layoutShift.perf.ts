@@ -408,15 +408,26 @@ const PHONE: Case[] = [
    * Settings: every row is there from its first paint, and the checks only change what the rows say
    * (Connections, About) and fill the category selects.
    */
-  {
+  settingsPage('every service answers'),
+  /** With Kinopeer's own login, as beyond Umbrel: its Sign-in section, which the server's settings say to show. */
+  settingsPage('with Kinopeer’s own login', { auth: { enabled: true, source: 'saved' } }, (page) =>
+    expect(page.getByRole('region', { name: 'Вход' })).toBeVisible(),
+  ),
+]
+
+/** Settings once every service answered, with what else the app's mocks say (`app`) and shows (`also`). */
+function settingsPage(name: string, app?: Case['app'], also?: (page: Page) => Promise<void>): Case {
+  return {
     screen: 'settings',
-    name: 'every service answers',
+    name,
+    app,
     complete: all(
       connection('qBittorrent', 'Подключено'),
       connection('Prowlarr', 'Подключено'),
       connection('TMDB', /^Подключено/),
       text('2.0.5.5160'),
       (page) => expect(page.getByRole('combobox', { name: 'Категория фильмов' })).toBeEnabled(),
+      ...(also ? [also] : []),
     ),
     answers: {
       ...SESSION,
@@ -426,8 +437,8 @@ const PHONE: Case[] = [
       tmdbCheck: { matches: get('/tmdb/configuration'), after: ['tmdbSetup'] },
       categories: { matches: get('/qbt/api/v2/torrents/categories'), after: ['tmdbSetup'] },
     },
-  },
-]
+  }
+}
 
 /**
  * The title page with its releases under the hero, searched since the page opened at their

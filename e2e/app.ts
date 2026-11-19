@@ -48,7 +48,7 @@ export interface AppOptions {
    * or asks to sign in. `throttled` refuses a sign-in for 15 minutes, as after too many wrong ones.
    */
   signIn?: 'set-up' | 'sign-in' | 'throttled'
-  /** Kinopeer's own login as /api/settings says it; without it the answer has none, as Umbrel's says off. */
+  /** Kinopeer's own login as /api/settings says it, instead of off, as on Umbrel (KINOPEER_AUTH=off). */
   auth?: AuthStatus
   /** Prowlarr doesn't answer the server's connection check. */
   prowlarrDown?: boolean
@@ -152,7 +152,7 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
         prowlarr: { configured: true, source: 'env', serverKey: true },
         qbittorrent: { configured: true, source: 'saved' },
         downloads: null,
-        ...(options.auth && { auth: options.auth }),
+        auth: options.auth ?? { enabled: false },
       }),
   )
   if (options.wrongLogin) {

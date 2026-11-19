@@ -111,6 +111,8 @@ test.describe('Kinopeer’s own login, phone', () => {
     await page.getByLabel('Пароль').fill('wrong password')
     await page.getByRole('button', { name: 'Войти' }).click()
     await expect(page.getByText('Неверный пароль')).toBeVisible()
+    // Off the button, which the click left in its hover shade (#287).
+    await page.mouse.move(0, 0)
     await expect(page).toHaveScreenshot('sign-in-invalid-dark-ru.png')
   })
 

@@ -3,10 +3,10 @@ import { resetStand, standState } from './control.ts'
 
 /**
  * Kinopeer's own login beyond Umbrel, through the production server: the first visitor sets the
- * password and is let in, the session cookie is one a script can't read and another site's request
- * doesn't carry, it outlasts a reload, and once signed out nothing of the server's answers until the
- * password is entered again. What the server's tests can't see is that the browser keeps and sends
- * the cookie, and that the app swaps itself for the sign-in and back.
+ * password and is let in, the browser keeps the session cookie as the server set it and the page's
+ * scripts can't read it, it outlasts a reload, and once signed out nothing of the server's answers
+ * until the password is entered again. What the server's tests can't see is that the browser keeps
+ * and sends the cookie, and that the app swaps itself for the sign-in and back.
  */
 test('the login: set the password, stay signed in, sign out and in again', async ({ page, context }) => {
   await resetStand({ ownLogin: true })
@@ -26,6 +26,8 @@ test('the login: set the password, stay signed in, sign out and in again', async
   const session = (await context.cookies()).find((cookie) => cookie.name === 'kinopeer_session')
   expect(session).toMatchObject({ httpOnly: true, sameSite: 'Strict', path: '/', secure: false })
   expect(session!.expires).toBeGreaterThan(Date.now() / 1000 + 29 * 24 * 60 * 60)
+  // HttpOnly, as the browser applies it.
+  expect(await page.evaluate(() => document.cookie)).not.toContain('kinopeer_session')
 
   // A reload rides on the cookie.
   await page.reload()
