@@ -274,7 +274,17 @@
     "sourceCodeHint": "Исходный код, релизы и список изменений",
     "opensInNewTab": "(откроется в новой вкладке)",
     "tmdbSource": "Данные о фильмах и сериалах и постеры берутся из TMDB.",
-    "tmdbNotice": "This product uses the TMDB API but is not endorsed or certified by TMDB."
+    "tmdbNotice": "This product uses the TMDB API but is not endorsed or certified by TMDB.",
+    "signIn": "Вход",
+    "changePassword": "Сменить пароль",
+    "changePasswordHint": "На других устройствах придётся войти заново",
+    "passwordFromEnv": "Пароль задан на сервере (KINOPEER_PASSWORD), поэтому меняется там.",
+    "signOut": "Выйти",
+    "signOutHint": "На этом устройстве",
+    "signOutFailed": "Не удалось выйти. Попробуйте ещё раз.",
+    "currentPassword": "Текущий пароль",
+    "passwordChanged": "Пароль сменён. На других устройствах придётся войти заново.",
+    "changePasswordFailed": "Не удалось сменить пароль. Попробуйте ещё раз."
   },
   "releases": {
     "title": "Раздачи",
@@ -551,5 +561,30 @@
     "valueDownload": "Загрузка до {{speed}}",
     "valueUpload": "Отдача до {{speed}}",
     "valueBoth": "Загрузка до {{download}}, отдача до {{upload}}"
+  },
+  "signIn": {
+    "title": "Вход в Kinopeer",
+    "body": "Введите пароль Kinopeer. Он закрывает Kinopeer, а с ним qBittorrent и Prowlarr, от остальных в вашей сети.",
+    "setUpTitle": "Задайте пароль",
+    "setUpBody": "Сейчас любой в вашей сети может открыть Kinopeer и через него управлять qBittorrent и Prowlarr. Задайте пароль, чтобы закрыть доступ: каждое устройство спросит его один раз.",
+    "newPassword": "Новый пароль",
+    "repeatPassword": "Повторите пароль",
+    "passwordHelp_one": "Не короче {{count}} символа",
+    "passwordHelp_few": "Не короче {{count}} символов",
+    "passwordHelp_many": "Не короче {{count}} символов",
+    "passwordHelp_other": "Не короче {{count}} символа",
+    "mismatch": "Пароли не совпадают",
+    "invalid": "Неверный пароль",
+    "submit": "Войти",
+    "setUp": "Задать пароль",
+    "alreadySet": "Пароль Kinopeer только что задали на другом устройстве. Войдите с ним.",
+    "throttledMinutes_one": "Слишком много неверных паролей. Попробуйте через {{count}} минуту.",
+    "throttledMinutes_few": "Слишком много неверных паролей. Попробуйте через {{count}} минуты.",
+    "throttledMinutes_many": "Слишком много неверных паролей. Попробуйте через {{count}} минут.",
+    "throttledMinutes_other": "Слишком много неверных паролей. Попробуйте через {{count}} минуты.",
+    "throttledHours_one": "Слишком много неверных паролей. Попробуйте через {{count}} час.",
+    "throttledHours_few": "Слишком много неверных паролей. Попробуйте через {{count}} часа.",
+    "throttledHours_many": "Слишком много неверных паролей. Попробуйте через {{count}} часов.",
+    "throttledHours_other": "Слишком много неверных паролей. Попробуйте через {{count}} часа."
   }
 }

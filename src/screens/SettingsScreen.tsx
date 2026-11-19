@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router'
+import { signOut } from '../api/auth'
 import { ProwlarrSetupError, getProwlarrStatus } from '../api/prowlarr'
 import { APP_VERSION_FRESH_MS, APP_VERSION_KEY, getAppVersion, getCategories, unreachable } from '../api/qbittorrent'
 import { TmdbKeyError, checkTmdb } from '../api/tmdb'
@@ -25,6 +26,7 @@ import { categoryType } from '../torrents/titleLookup'
 import { clearTitleMatches } from '../torrents/useTitleMatches'
 import tmdbLogo from '../assets/tmdb-logo.svg'
 import { unreachableText } from '../lib/unreachable'
+import { ChangePasswordForm } from './ChangePasswordForm'
 import { InstallSheet } from './InstallSheet'
 import { ProwlarrKeyForm } from './ProwlarrKeyForm'
 import { TmdbKeyForm } from './TmdbKeyForm'
@@ -177,6 +179,7 @@ export function SettingsScreen() {
   )
   const [editingProwlarrKey, setEditingProwlarrKey] = useState(false)
   const [prowlarrKeyVersion, setProwlarrKeyVersion] = useState(0)
+  const [changingPassword, setChangingPassword] = useState(false)
   const toast = useToast()
   // Its checks and loads change no heights, so the page is ready to scroll back at once.
   useScrollRestoration(true, '/settings')
@@ -339,6 +342,29 @@ export function SettingsScreen() {
         </div>
       </Section>
 
+      {/* Kinopeer's own login, only when it's on: on Umbrel the login in front is the only one. */}
+      {server?.auth?.enabled && (
+        <Section id="settings-sign-in" title={t('settings.signIn')}>
+          <ul className="ks-card settings-rows">
+            {server.auth.source === 'saved' && (
+              <AboutRow
+                icon="key"
+                label={t('settings.changePassword')}
+                hint={t('settings.changePasswordHint')}
+                onClick={() => setChangingPassword(true)}
+              />
+            )}
+            <AboutRow
+              icon="log-out"
+              label={t('settings.signOut')}
+              hint={t('settings.signOutHint')}
+              onClick={() => void signOut().catch(() => toast.show(t('settings.signOutFailed'), { icon: 'alert' }))}
+            />
+          </ul>
+          {server.auth.source === 'env' && <p className="t-cap c3 settings-hint">{t('settings.passwordFromEnv')}</p>}
+        </Section>
+      )}
+
       <Section id="settings-about" title={t('settings.about')}>
         <ul className="ks-card settings-rows">
           <AboutValue label={t('settings.version')} value={__APP_VERSION__} />
@@ -398,6 +424,14 @@ export function SettingsScreen() {
             setEditingKey(false)
             toast.show(t('tmdbKey.saved'))
             setTmdbKeyVersion((n) => n + 1)
+          }}
+        />
+      </Sheet>
+      <Sheet open={changingPassword} onClose={() => setChangingPassword(false)} title={t('settings.changePassword')}>
+        <ChangePasswordForm
+          onChanged={() => {
+            setChangingPassword(false)
+            toast.show(t('settings.passwordChanged'), { icon: 'check' })
           }}
         />
       </Sheet>

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { opaqueRedirect } from '../test/fixtures'
-import { ProxySignInError, fetchKinopeer, onProxySignIn } from './fetchKinopeer'
+import { setSignInNeed, signInNeed } from './auth/signInNeed'
+import { AUTH_HEADER, ProxySignInError, SignInRequiredError, fetchKinopeer, onProxySignIn } from './fetchKinopeer'
 
 let fetchMock: Mock<typeof fetch>
 const proxy = { signIn: vi.fn<() => void>(), answered: vi.fn<() => void>() }
@@ -43,5 +44,27 @@ describe('fetchKinopeer', () => {
     expect(response.status).toBe(502)
     expect(proxy.answered).toHaveBeenCalledOnce()
     expect(proxy.signIn).not.toHaveBeenCalled()
+  })
+})
+
+describe('fetchKinopeer and Kinopeer’s own login', () => {
+  afterEach(() => {
+    setSignInNeed(null)
+  })
+
+  it.each(['sign-in', 'set-up'] as const)('fails a request the login holds back and says the page needs to %s', async (need) => {
+    fetchMock.mockResolvedValueOnce(new Response('{}', { status: 401, headers: { [AUTH_HEADER]: need } }))
+    await expect(fetchKinopeer('/qbt/api/v2/app/version')).rejects.toEqual(new SignInRequiredError(need))
+    expect(signInNeed()).toBe(need)
+  })
+
+  it('passes on a 401 that isn’t the login’s, as qBittorrent’s', async () => {
+    fetchMock.mockResolvedValueOnce(new Response('Unauthorized', { status: 401 }))
+    expect((await fetchKinopeer('/qbt/api/v2/app/version')).status).toBe(401)
+    fetchMock.mockResolvedValueOnce(new Response('', { status: 401, headers: { [AUTH_HEADER]: 'something else' } }))
+    expect((await fetchKinopeer('/qbt/api/v2/app/version')).status).toBe(401)
+    fetchMock.mockResolvedValueOnce(new Response('', { status: 403, headers: { [AUTH_HEADER]: 'sign-in' } }))
+    expect((await fetchKinopeer('/qbt/api/v2/app/version')).status).toBe(403)
+    expect(signInNeed()).toBeNull()
   })
 })

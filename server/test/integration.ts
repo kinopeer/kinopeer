@@ -135,10 +135,12 @@ export async function startKinopeer(options: StandOptions = {}): Promise<Stand> 
     TMDB_API_URL: tmdb.apiBase,
     TMDB_PROXY_URL: proxy?.apiBase ?? '',
     KINOPEER_DATA_DIR: dataDir,
+    // As on Umbrel, where a login in front is the only one; the login's own tests turn it on.
+    KINOPEER_AUTH: 'off',
     ...options.env,
   }
   const stores = dataStores(env.KINOPEER_DATA_DIR!)
-  await Promise.all([stores.settings.load(), stores.matches.load()])
+  await Promise.all([stores.settings.load(), stores.matches.load(), stores.auth.load()])
   const { routes } = kinopeerServer(env, stores)
   const received: ReceivedRequest[] = []
   // The production server's chain (server/main.ts) without the static files: the routes in order,

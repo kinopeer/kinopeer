@@ -253,7 +253,17 @@
     "sourceCodeHint": "Source code, releases and what's changed",
     "opensInNewTab": "(opens in a new tab)",
     "tmdbSource": "Movie and series data and posters come from TMDB.",
-    "tmdbNotice": "This product uses the TMDB API but is not endorsed or certified by TMDB."
+    "tmdbNotice": "This product uses the TMDB API but is not endorsed or certified by TMDB.",
+    "signIn": "Sign-in",
+    "changePassword": "Change password",
+    "changePasswordHint": "Other devices will need to sign in again",
+    "passwordFromEnv": "The password is set on the server (KINOPEER_PASSWORD), so it’s changed there.",
+    "signOut": "Sign out",
+    "signOutHint": "On this device",
+    "signOutFailed": "Couldn’t sign out. Try again.",
+    "currentPassword": "Current password",
+    "passwordChanged": "Password changed. Other devices will need to sign in again.",
+    "changePasswordFailed": "Couldn’t change the password. Try again."
   },
   "releases": {
     "title": "Releases",
@@ -516,5 +526,24 @@
     "valueDownload": "Download up to {{speed}}",
     "valueUpload": "Upload up to {{speed}}",
     "valueBoth": "Download up to {{download}}, upload up to {{upload}}"
+  },
+  "signIn": {
+    "title": "Sign in to Kinopeer",
+    "body": "Enter Kinopeer’s password. It keeps everyone else on your network out of Kinopeer and the qBittorrent and Prowlarr behind it.",
+    "setUpTitle": "Set a password",
+    "setUpBody": "Anyone on your network can open Kinopeer, and through it control qBittorrent and Prowlarr. Set a password to keep them out: each device asks for it once.",
+    "newPassword": "New password",
+    "repeatPassword": "Repeat the password",
+    "passwordHelp_one": "At least {{count}} character",
+    "passwordHelp_other": "At least {{count}} characters",
+    "mismatch": "The passwords don’t match",
+    "invalid": "Wrong password",
+    "submit": "Sign in",
+    "setUp": "Set password",
+    "alreadySet": "Someone has just set Kinopeer’s password. Sign in with it.",
+    "throttledMinutes_one": "Too many wrong passwords. Try again in {{count}} minute.",
+    "throttledMinutes_other": "Too many wrong passwords. Try again in {{count}} minutes.",
+    "throttledHours_one": "Too many wrong passwords. Try again in {{count}} hour.",
+    "throttledHours_other": "Too many wrong passwords. Try again in {{count}} hours."
   }
 }

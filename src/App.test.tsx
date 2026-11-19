@@ -2,6 +2,8 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Link, type To } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import * as authApi from './api/auth'
+import { SignInRequiredError } from './api/fetchKinopeer'
 import * as matchesApi from './api/matches'
 import * as prowlarr from './api/prowlarr'
 import * as api from './api/qbittorrent'
@@ -29,6 +31,12 @@ vi.mock('./api/qbittorrent', async (importOriginal) => {
     stopTorrents: vi.fn(),
   }
 })
+
+vi.mock('./api/auth', async (importOriginal) => ({
+  ...(await importOriginal<typeof authApi>()),
+  setUpPassword: vi.fn(),
+  signIn: vi.fn(),
+}))
 
 vi.mock('./api/matches', async (importOriginal) => ({
   ...(await importOriginal<typeof matchesApi>()),
@@ -536,6 +544,38 @@ describe('App', () => {
   it('goes in when the server can’t say whether it has a TMDB key', async () => {
     vi.mocked(serverSettings.getServerSettings).mockRejectedValue(new serverSettings.SettingsError(404))
     renderApp()
+    expect(await screen.findByRole('heading', { name: 'Downloads' })).toBeInTheDocument()
+  })
+
+  it('sets Kinopeer’s password when the server has none, then opens the app afresh', async () => {
+    // As fetchKinopeer answers for a request the server's login holds back.
+    getAppVersion.mockImplementationOnce(async () => {
+      authApi.setSignInNeed('set-up')
+      throw new SignInRequiredError('set-up')
+    })
+    vi.mocked(authApi.setUpPassword).mockImplementation(async () => authApi.setSignInNeed(null))
+    renderApp('/settings')
+    await userEvent.type(await screen.findByLabelText('New password'), 'correct horse')
+    await userEvent.type(screen.getByLabelText('Repeat the password'), 'correct horse')
+    await userEvent.click(screen.getByRole('button', { name: 'Set password' }))
+
+    // The screen it was opened at, its session checked again.
+    expect(await screen.findByRole('heading', { name: 'Settings' })).toBeInTheDocument()
+    expect(getAppVersion).toHaveBeenCalledTimes(2)
+    expect(where()).toBe('/settings')
+  })
+
+  it('goes to the sign-in in place of any screen once the server asks for it, and back after signing in', async () => {
+    vi.mocked(authApi.signIn).mockImplementation(async () => authApi.setSignInNeed(null))
+    renderApp()
+    expect(await screen.findByRole('heading', { name: 'Downloads' })).toBeInTheDocument()
+
+    act(() => authApi.setSignInNeed('sign-in'))
+    expect(screen.queryByRole('heading', { name: 'Downloads' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
+    await userEvent.type(screen.getByLabelText('Password'), 'correct horse')
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(authApi.signIn).toHaveBeenCalledWith('correct horse')
     expect(await screen.findByRole('heading', { name: 'Downloads' })).toBeInTheDocument()
   })
 

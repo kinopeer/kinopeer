@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import type { AuthStatus } from '../src/api/auth/types.ts'
 import type {
   DownloadDefaults,
   DownloadDefaultsBody,
@@ -60,6 +61,8 @@ export class SettingsStore extends JsonFile<StoredSettings> {
 
 export interface SettingsConfig {
   store: SettingsStore
+  /** Kinopeer's own login (server/auth.ts); off without it. */
+  auth?: () => AuthStatus
   /** TMDB_API_KEY from the environment, the fallback. */
   envTmdbApiKey?: string
   /** Kinopeer's TMDB proxy, which serves calls without a key (server/tmdb.ts); none to turn it off. */
@@ -157,6 +160,7 @@ async function snapshot(stored: StoredSettings, config: SettingsConfig): Promise
     prowlarr: { ...status(stored.prowlarrApiKey, envProwlarr), serverKey: Boolean(envProwlarr) },
     qbittorrent: status(stored.qbittorrentUsername, config.envQbittorrent?.username),
     downloads: stored.downloads ?? null,
+    auth: config.auth?.() ?? { enabled: false },
   }
 }
 

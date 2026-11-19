@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { AuthStore, authMode, kinopeerAuth } from './auth.ts'
 import { MatchesStore, matchesMiddleware, qbittorrentHashes, startMatchesCleanup } from './matches.ts'
 import { prowlarrMiddleware, type Middleware } from './prowlarr.ts'
 import { qbittorrentBridge } from './qbittorrent.ts'
@@ -29,14 +30,18 @@ export function createApp(root: string, kinopeer: KinopeerServer) {
 export interface DataStores {
   settings: SettingsStore
   matches: MatchesStore
+  auth: AuthStore
 }
 
 export function dataStores(dir: string): DataStores {
-  return { settings: new SettingsStore(dir), matches: new MatchesStore(dir) }
+  return { settings: new SettingsStore(dir), matches: new MatchesStore(dir), auth: new AuthStore(dir) }
 }
 
 export interface KinopeerServer {
-  /** The server's own routes, shared with the Vite dev and preview servers; the security headers first. */
+  /**
+   * The server's own routes, shared with the Vite dev and preview servers; the security headers
+   * first, then /healthz and Kinopeer's own login, which holds back every route after it.
+   */
   routes: Middleware[]
   /** Starts the background jobs (the hourly matches cleanup); returns a function that stops them. */
   startJobs: () => () => void
@@ -72,10 +77,12 @@ export function missingSettings(env: Record<string, string | undefined>, setting
  * at Prowlarr's config.xml to read its API key from (the Umbrel package mounts it), used when
  * neither a key saved from the app nor PROWLARR_API_KEY is set, TMDB_API_URL and TMDB_IMAGE_URL replace TMDB's API and image
  * addresses (the integration and smoke tests point them at a fake), and TMDB_PROXY_URL replaces
- * Kinopeer's TMDB proxy (`tmdbProxy`).
+ * Kinopeer's TMDB proxy (`tmdbProxy`). KINOPEER_AUTH=off turns Kinopeer's own login off (server/auth.ts),
+ * and throws for a value it doesn't know, so the server doesn't start.
  */
 export function kinopeerServer(env: Record<string, string | undefined>, stores: DataStores): KinopeerServer {
   const store = stores.settings
+  const auth = kinopeerAuth({ store: stores.auth, mode: authMode(env.KINOPEER_AUTH), envPassword: env.KINOPEER_PASSWORD })
   const envQbittorrent = { username: env.QBITTORRENT_USERNAME, password: env.QBITTORRENT_PASSWORD }
   const prowlarrConfig = env.PROWLARR_CONFIG_XML
   const proxy = tmdbProxy(env)
@@ -88,8 +95,10 @@ export function kinopeerServer(env: Record<string, string | undefined>, stores: 
       // First, so every answer has them, a 404 included.
       securityHeaders,
       health,
+      auth.middleware,
       settingsMiddleware({
         store,
+        auth: auth.status,
         envTmdbApiKey: env.TMDB_API_KEY,
         tmdbProxy: proxy,
         tmdbApiBase: env.TMDB_API_URL,
@@ -159,7 +168,7 @@ async function main() {
   const host = env.HOST || '0.0.0.0'
   const root = resolve(env.KINOPEER_DIST || resolve(dirname(fileURLToPath(import.meta.url)), '../dist'))
   const stores = dataStores(resolve(env.KINOPEER_DATA_DIR || 'data'))
-  await Promise.all([stores.settings.load(), stores.matches.load()])
+  await Promise.all([stores.settings.load(), stores.matches.load(), stores.auth.load()])
   const kinopeer = kinopeerServer(env, stores)
   const server = createApp(root, kinopeer)
   const stopJobs = kinopeer.startJobs()
@@ -169,6 +178,7 @@ async function main() {
     console.log(`[kinopeer] ${version} listening on http://${host}:${port}`)
     const missing = missingSettings(env, stores.settings)
     if (missing.length) console.warn(`[kinopeer] not set: ${missing.join(', ')}`)
+    if (authMode(env.KINOPEER_AUTH) === 'off') console.warn('[kinopeer] own login off (KINOPEER_AUTH=off): keep a login in front of Kinopeer')
   })
 
   // Docker sends SIGTERM on stop: finish open requests instead of waiting to be killed.

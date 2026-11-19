@@ -15,6 +15,7 @@ describe('settings client through /api/settings', () => {
       prowlarr: { configured: true, source: 'env', serverKey: true },
       qbittorrent: { configured: true, source: 'env' },
       downloads: null,
+      auth: { enabled: false },
     })
     expect(await responses[0].text()).not.toMatch(/good-key|pass word/)
   })

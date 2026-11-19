@@ -1,3 +1,6 @@
+import { setSignInNeed } from './auth/signInNeed'
+import type { SignInNeed } from './auth/types'
+
 /** A proxy in front of Kinopeer redirected the request to its sign-in. */
 export class ProxySignInError extends Error {
   constructor() {
@@ -5,6 +8,20 @@ export class ProxySignInError extends Error {
     this.name = 'ProxySignInError'
   }
 }
+
+/** Kinopeer's own login held the request back: the browser needs to sign in, or to set the password. */
+export class SignInRequiredError extends Error {
+  readonly need: SignInNeed
+
+  constructor(need: SignInNeed) {
+    super(`Kinopeer asks to ${need}`)
+    this.name = 'SignInRequiredError'
+    this.need = need
+  }
+}
+
+/** On the 401 of Kinopeer's own login: what the browser needs (`AUTH_HEADER` in server/auth.ts). */
+export const AUTH_HEADER = 'x-kinopeer-auth'
 
 /** What fetchKinopeer tells the page about a proxy in front of Kinopeer. */
 export interface ProxySignInHandlers {
@@ -33,6 +50,9 @@ export function onProxySignIn(next: ProxySignInHandlers): void {
  * holds while the only proxy in front is Umbrel's: one that redirects for anything else (a trailing
  * slash, a rewritten path, as a reverse proxy in front of plain Docker might) would fail every call
  * after loading the screen once through it, and then a redirect to the same origin needs following.
+ *
+ * A request Kinopeer's own login holds back (server/auth.ts) fails with SignInRequiredError and sets
+ * the page's `signInNeed`, so the app shows its sign-in in place of the screen that sent it.
  */
 export async function fetchKinopeer(url: string, init: RequestInit = {}): Promise<Response> {
   const response = await fetch(url, { ...init, credentials: 'same-origin', redirect: 'manual' })
@@ -41,5 +61,10 @@ export async function fetchKinopeer(url: string, init: RequestInit = {}): Promis
     throw new ProxySignInError()
   }
   handlers.answered()
+  const need = response.status === 401 ? response.headers.get(AUTH_HEADER) : null
+  if (need === 'sign-in' || need === 'set-up') {
+    setSignInNeed(need)
+    throw new SignInRequiredError(need)
+  }
   return response
 }
