@@ -1,10 +1,11 @@
 import { request as httpRequest } from 'node:http'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { baseOf } from './address.ts'
 import { qbittorrentBridge, qbittorrentMiddleware, type QbittorrentConfig } from './qbittorrent.ts'
 import { abandon, closeServers, fakeQbittorrent, listen, serve, settlesWithin, silentService } from './test/fakes.ts'
 
-/** Kinopeer's side: the middleware under test. */
-const kinopeer = (config: QbittorrentConfig) => serve(qbittorrentMiddleware(config))
+/** Kinopeer's side, the middleware under test, with the address as the environment or the app gives it. */
+const kinopeer = ({ url, ...config }: Omit<QbittorrentConfig, 'url'> & { url?: string }) => serve(qbittorrentMiddleware({ ...config, url: () => baseOf(url) }))
 
 /** A request from Kinopeer's client, which marks every one (src/api/qbittorrent/client.ts). */
 const call = (url: string, init: RequestInit = {}) =>
@@ -116,6 +117,54 @@ describe('qbittorrentMiddleware', () => {
     expect(String(warn.mock.calls[0][0])).not.toContain('wrong')
   })
 
+  it('calls the address it has at each request, and logs in afresh at a new one after the old one rejected the login', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    // Another qBittorrent, whose login is another.
+    let refusals = 0
+    const before = await listen((request, response) => {
+      if (request.url === '/api/v2/auth/login') refusals++
+      response.statusCode = request.url === '/api/v2/auth/login' ? 401 : 403
+      response.end()
+    })
+    const after = await fakeQbittorrent()
+    let address = before
+    const base = await serve(qbittorrentMiddleware({ url: () => address, credentials: () => ({ username: 'admin', password: 'pass word' }) }))
+    expect((await call(`${base}/qbt/api/v2/app/version`)).status).toBe(403)
+    expect(refusals).toBe(1)
+
+    // The same login at the new address, where qBittorrent hasn't refused it.
+    address = after.base
+
+    expect(await (await call(`${base}/qbt/api/v2/app/version`)).text()).toBe('v5.2.4')
+    expect(after.logins()).toBe(1)
+    expect(refusals).toBe(1)
+  })
+
+  it('answers that qBittorrent has no address while it has none, and asks nothing of it', async () => {
+    const base = await kinopeer({})
+    const response = await call(`${base}/qbt/api/v2/app/version`)
+    expect(response.status).toBe(503)
+    expect(response.headers.get('x-kinopeer-bridge')).toBe('1')
+  })
+
+  it('takes an answer at the login that isn’t qBittorrent’s as one to try again later, not a rejected login', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    let logins = 0
+    const missing = await listen((request, response) => {
+      if (request.url === '/api/v2/auth/login') logins++
+      response.statusCode = 404
+      response.end('Not found')
+    })
+    const base = await kinopeer({ url: missing, credentials: () => ({ username: 'admin', password: 'pass word' }) })
+
+    expect((await call(`${base}/qbt/api/v2/app/version`)).status).toBe(404)
+    expect((await call(`${base}/qbt/api/v2/app/version`)).status).toBe(404)
+    expect(logins).toBe(1)
+    vi.setSystemTime(Date.now() + 31_000)
+    await call(`${base}/qbt/api/v2/app/version`)
+    expect(logins).toBe(2)
+  })
+
   it('waits half a minute before logging in again after qBittorrent banned the address', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     const qbt = await fakeQbittorrent()
@@ -222,7 +271,7 @@ describe('qbittorrentMiddleware', () => {
 describe('qbittorrentBridge.get', () => {
   it('asks qBittorrent with the server’s session, logging in when needed', async () => {
     const qbt = await fakeQbittorrent()
-    const bridge = qbittorrentBridge({ url: qbt.base, credentials: () => ({ username: 'admin', password: 'pass word' }) })
+    const bridge = qbittorrentBridge({ url: () => qbt.base, credentials: () => ({ username: 'admin', password: 'pass word' }) })
     const response = await bridge.get('/api/v2/app/version')
     expect(await response.text()).toBe('v5.2.4')
     expect(qbt.logins()).toBe(1)
@@ -230,6 +279,6 @@ describe('qbittorrentBridge.get', () => {
   })
 
   it('fails without an address', async () => {
-    await expect(qbittorrentBridge({}).get('/api/v2/app/version')).rejects.toThrow()
+    await expect(qbittorrentBridge({ url: () => undefined }).get('/api/v2/app/version')).rejects.toThrow()
   })
 })

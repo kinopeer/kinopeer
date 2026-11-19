@@ -17,8 +17,11 @@ import { abandoned } from './abandoned.ts'
  * Runs as Vite middleware in dev and in the production server.
  */
 export interface ProwlarrConfig {
-  /** e.g. http://192.168.1.10:9696 */
-  url?: string
+  /**
+   * The address, e.g. http://192.168.1.10:9696, without a trailing slash: PROWLARR_URL, else the one
+   * saved from the app (server/settings.ts), read on every request, so a saved one applies at once.
+   */
+  url: () => string | undefined
   /** A function when the key is read on every request, e.g. from Prowlarr's own config.xml. */
   apiKey?: string | (() => Promise<string | undefined>)
   /** How long /prowlarr/failing waits for Prowlarr. Default 5 s. */
@@ -315,7 +318,6 @@ export async function readProwlarrApiKey(configXmlPath: string): Promise<string 
 }
 
 export function prowlarrMiddleware(config: ProwlarrConfig): Middleware {
-  const base = config.url?.trim().replace(/\/+$/, '')
   const getKey = typeof config.apiKey === 'function' ? config.apiKey : async () => config.apiKey as string | undefined
   const handlers: Record<string, Handler> = { search, download, status, failing: failing(config.failingTimeoutMs ?? 5000) }
 
@@ -326,6 +328,7 @@ export function prowlarrMiddleware(config: ProwlarrConfig): Middleware {
     const signal = abandoned(response)
     void (async () => {
       const apiKey = (await getKey())?.trim()
+      const base = config.url()
       if (!base || !apiKey) return fail(response, 503, 'not-configured')
       if (request.method !== 'GET') return fail(response, 404, 'not-found')
 

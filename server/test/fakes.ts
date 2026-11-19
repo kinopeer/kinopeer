@@ -267,10 +267,13 @@ async function parseAdd(body: Buffer, contentType: string | undefined): Promise<
  */
 export async function fakeQbittorrent({
   legacy = false,
+  authBypass = false,
   torrents = TORRENTS,
   listAdded,
 }: {
   legacy?: boolean
+  /** qBittorrent's auth bypass for the server's address: every request goes through without a session. */
+  authBypass?: boolean
   torrents?: Torrent[]
   /**
    * What qBittorrent lists for a torrent after /torrents/add: a torrent it returns joins the list
@@ -315,7 +318,7 @@ export async function fakeQbittorrent({
       contentType: request.headers['content-type'],
       body,
     })
-    if (!sessions.has(/SID=(\w+)/.exec(request.headers.cookie ?? '')?.[1] ?? '')) return text(response, 'Forbidden', 403)
+    if (!authBypass && !sessions.has(/SID=(\w+)/.exec(request.headers.cookie ?? '')?.[1] ?? '')) return text(response, 'Forbidden', 403)
 
     const { pathname, searchParams } = new URL(url, base)
     const params = new URLSearchParams(body)

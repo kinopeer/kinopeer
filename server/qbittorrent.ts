@@ -3,7 +3,8 @@ import { abandoned } from './abandoned.ts'
 import type { Middleware } from './prowlarr.ts'
 
 /**
- * Same-origin bridge to qBittorrent's Web API: /qbt/api/v2/… → $QBITTORRENT_URL/api/v2/…
+ * Same-origin bridge to qBittorrent's Web API: /qbt/api/v2/… → {qBittorrent's address}/api/v2/…, the
+ * address QBITTORRENT_URL sets, else the one saved from the app (server/settings.ts).
  *
  * It forwards only the calls Kinopeer's client makes (ENDPOINTS), and only from the client: every
  * request carries the X-Kinopeer header, which a page on another site can't add without a CORS
@@ -25,17 +26,21 @@ export interface QbittorrentCredentials {
 }
 
 export interface QbittorrentConfig {
-  /** e.g. http://192.168.1.10:8080 */
-  url?: string
+  /**
+   * The address, e.g. http://192.168.1.10:8080, without a trailing slash: read on every request, so
+   * an address saved from the app applies at once.
+   */
+  url: () => string | undefined
   /** Read on every request, so credentials saved from the app apply at once. */
   credentials?: () => QbittorrentCredentials | undefined
 }
 
-export type LoginResult = { status: 'ok'; cookie: string } | { status: 'invalid' } | { status: 'banned' }
+export type LoginResult = { status: 'ok'; cookie: string } | { status: 'invalid' } | { status: 'banned' } | { status: 'not-qbittorrent' }
 
 /**
- * Logs in to qBittorrent at `base`. 'banned' covers a 403 (the IP is banned after failed logins)
- * and other refusals; rejects when qBittorrent can't be reached, or `signal` aborts first.
+ * Logs in to qBittorrent at `base`. 'banned' is a 403 (the IP is banned after failed logins), and
+ * 'not-qbittorrent' any other error, which qBittorrent's login doesn't answer with (a wrong address,
+ * a proxy in front); rejects when nothing answers, or `signal` aborts first.
  */
 export async function qbittorrentLogin(
   base: string,
@@ -52,13 +57,45 @@ export async function qbittorrentLogin(
   const text = (await response.text()).trim()
   // Wrong credentials: 401 since qBittorrent 5.3, 200 "Fails." before.
   if (response.status === 401 || (response.ok && text === 'Fails.')) return { status: 'invalid' }
-  if (!response.ok) return { status: 'banned' }
+  if (response.status === 403) return { status: 'banned' }
+  if (!response.ok) return { status: 'not-qbittorrent' }
   const cookie = response.headers
     .getSetCookie()
     .map((value) => value.split(';')[0].trim())
     .filter(Boolean)
     .join('; ')
   return { status: 'ok', cookie }
+}
+
+/** What qBittorrent's version looks like (`v5.2.4`, `v4.6.7`), told from a page that answers every path. */
+const VERSION = /^v?\d+\.\d+/
+
+/**
+ * Whether qBittorrent at `base` lets the server in: with `credentials`, by logging in, and without,
+ * through its auth bypass. Either way it then asks for qBittorrent's version, so an address that
+ * answers but isn't qBittorrent (a proxy's sign-in page, another app) says so rather than passing.
+ * Rejects when nothing answers, or `signal` aborts first.
+ */
+export async function checkQbittorrent(
+  base: string,
+  credentials: QbittorrentCredentials | undefined,
+  signal?: AbortSignal,
+): Promise<'ok' | 'invalid' | 'banned' | 'not-qbittorrent'> {
+  let cookie: string | undefined
+  if (credentials) {
+    const login = await qbittorrentLogin(base, credentials.username, credentials.password, signal)
+    if (login.status !== 'ok') return login.status
+    cookie = login.cookie
+  }
+  const response = await fetch(`${base}/api/v2/app/version`, {
+    headers: { Origin: base, Referer: `${base}/`, ...(cookie && { Cookie: cookie }) },
+    redirect: 'manual',
+    signal,
+  })
+  const text = (await response.text()).trim()
+  // Without a login, a 403 is qBittorrent asking for one.
+  if (!credentials && response.status === 403) return 'invalid'
+  return response.ok && VERSION.test(text) ? 'ok' : 'not-qbittorrent'
 }
 
 const PREFIX = '/qbt/'
@@ -156,8 +193,8 @@ class ServerSession {
       console.warn('[kinopeer] qBittorrent rejected the saved login; the app will ask for a new one')
       return undefined
     }
-    if (result.status === 'banned') {
-      // qBittorrent banned this IP after failed logins: try again later.
+    if (result.status !== 'ok') {
+      // qBittorrent banned this IP after failed logins, or something else answered: try again later.
       this.failedAt = Date.now()
       return undefined
     }
@@ -240,17 +277,20 @@ async function forward(
   response.end(Buffer.from(await upstream.arrayBuffer()))
 }
 
-/** The session for the current credentials: a new one when they change. */
-function sessions(base: string | undefined, credentials: QbittorrentConfig['credentials']) {
+/**
+ * The session for the current address and credentials: a new one when either changes, so a login
+ * qBittorrent rejected at one address is tried at a new one.
+ */
+function sessions(credentials: QbittorrentConfig['credentials']) {
   let key: string | undefined
   let session: ServerSession | undefined
-  return () => {
+  return (base: string) => {
     const current = credentials?.()
     const username = current?.username.trim()
-    const next = base && username ? `${username}\0${current!.password}` : undefined
+    const next = username ? `${base}\0${username}\0${current!.password}` : undefined
     if (next !== key) {
       key = next
-      session = base && username ? new ServerSession(base, username, current!.password) : undefined
+      session = username ? new ServerSession(base, username, current!.password) : undefined
     }
     return session
   }
@@ -260,15 +300,13 @@ export interface QbittorrentBridge {
   middleware: Middleware
   /**
    * A GET of qBittorrent's Web API for the server itself, e.g. `/api/v2/torrents/info`, with the
-   * same session as the browsers'. Rejects when QBITTORRENT_URL isn't set or qBittorrent can't be
-   * reached.
+   * same session as the browsers'. Rejects when qBittorrent has no address or can't be reached.
    */
   get(path: string): Promise<Response>
 }
 
 export function qbittorrentBridge(config: QbittorrentConfig): QbittorrentBridge {
-  const base = config.url?.trim().replace(/\/+$/, '')
-  const currentSession = sessions(base, config.credentials)
+  const currentSession = sessions(config.credentials)
 
   const middleware: Middleware = (request, response, next) => {
     const path = request.url ?? '/'
@@ -281,7 +319,8 @@ export function qbittorrentBridge(config: QbittorrentConfig): QbittorrentBridge 
       response.setHeader('Content-Type', 'text/plain; charset=utf-8')
       response.end(message)
     }
-    if (!base) return fail(503, 'QBITTORRENT_URL is not set')
+    const base = config.url()
+    if (!base) return fail(503, 'qBittorrent has no address')
     const target = path.slice(PREFIX.length - 1)
     // Matched as written: a path with dots, encoded dots or a backslash, which fetch would resolve
     // to another one, matches none.
@@ -293,7 +332,7 @@ export function qbittorrentBridge(config: QbittorrentConfig): QbittorrentBridge 
     }
     if (!request.headers[CLIENT_HEADER]) return fail(400, 'Not a request from Kinopeer')
 
-    forward(base, currentSession(), request, response, target).catch((error: unknown) => {
+    forward(base, currentSession(base), request, response, target).catch((error: unknown) => {
       if (response.headersSent) return void response.end()
       if (error instanceof BodyTooLargeError) fail(413, 'Request body too large')
       else fail(502, 'qBittorrent is unreachable')
@@ -303,8 +342,9 @@ export function qbittorrentBridge(config: QbittorrentConfig): QbittorrentBridge 
   return {
     middleware,
     get: async (path) => {
-      if (!base) throw new Error('QBITTORRENT_URL is not set')
-      return send(base, currentSession(), { method: 'GET', path })
+      const base = config.url()
+      if (!base) throw new Error('qBittorrent has no address')
+      return send(base, currentSession(base), { method: 'GET', path })
     },
   }
 }

@@ -8,7 +8,7 @@ import { MatchesStore, matchesMiddleware, qbittorrentHashes, startMatchesCleanup
 import { prowlarrMiddleware, type Middleware } from './prowlarr.ts'
 import { qbittorrentBridge } from './qbittorrent.ts'
 import { contentSecurityPolicy, securityHeaders } from './securityHeaders.ts'
-import { SettingsStore, prowlarrKey, qbittorrentCredentials, settingsMiddleware, tmdbKey } from './settings.ts'
+import { SettingsStore, prowlarrAddress, prowlarrKey, qbittorrentAddress, qbittorrentCredentials, settingsMiddleware, tmdbKey } from './settings.ts'
 import { staticMiddleware } from './static.ts'
 import { tmdbMiddleware } from './tmdb.ts'
 
@@ -64,9 +64,14 @@ export function tmdbProxy(env: Record<string, string | undefined>): string | und
   return url.trim().replace(/\/+$/, '') || undefined
 }
 
-/** What the server warns about at startup: the services it has no address for, and the keys it lacks. */
+/**
+ * What the server warns about at startup: the services it has no address for, from the environment
+ * or the app, and the keys it lacks.
+ */
 export function missingSettings(env: Record<string, string | undefined>, settings: SettingsStore): string[] {
-  const missing = ['QBITTORRENT_URL', 'PROWLARR_URL'].filter((name) => !env[name])
+  const missing: string[] = []
+  if (!qbittorrentAddress(settings, env.QBITTORRENT_URL)) missing.push('QBITTORRENT_URL')
+  if (!prowlarrAddress(settings, env.PROWLARR_URL)) missing.push('PROWLARR_URL')
   if (!env.PROWLARR_API_KEY && !env.PROWLARR_CONFIG_XML) missing.push('PROWLARR_API_KEY')
   // Without a key, Kinopeer's proxy serves TMDB; only with it off is a key missing.
   if (!tmdbKey(settings, env.TMDB_API_KEY) && !tmdbProxy(env)) missing.push('TMDB key (enter it in the app)')
@@ -98,7 +103,7 @@ export function kinopeerServer(env: Record<string, string | undefined>, stores: 
   const prowlarrConfig = env.PROWLARR_CONFIG_XML
   const proxy = tmdbProxy(env)
   const qbittorrent = qbittorrentBridge({
-    url: env.QBITTORRENT_URL,
+    url: () => qbittorrentAddress(store, env.QBITTORRENT_URL),
     credentials: () => qbittorrentCredentials(store, envQbittorrent),
   })
   return {
@@ -115,16 +120,16 @@ export function kinopeerServer(env: Record<string, string | undefined>, stores: 
         envTmdbApiKey: env.TMDB_API_KEY,
         tmdbProxy: proxy,
         tmdbApiBase: env.TMDB_API_URL,
-        qbittorrentUrl: env.QBITTORRENT_URL,
+        envQbittorrentUrl: env.QBITTORRENT_URL,
         envQbittorrent,
-        prowlarrUrl: env.PROWLARR_URL,
+        envProwlarrUrl: env.PROWLARR_URL,
         envProwlarrApiKey: env.PROWLARR_API_KEY,
         prowlarrConfigXml: prowlarrConfig,
       }),
       matchesMiddleware(stores.matches),
       qbittorrent.middleware,
       prowlarrMiddleware({
-        url: env.PROWLARR_URL,
+        url: () => prowlarrAddress(store, env.PROWLARR_URL),
         apiKey: () => prowlarrKey(store, env.PROWLARR_API_KEY, prowlarrConfig),
       }),
       tmdbMiddleware({
@@ -134,8 +139,9 @@ export function kinopeerServer(env: Record<string, string | undefined>, stores: 
         imageBase: env.TMDB_IMAGE_URL,
       }),
     ],
-    startJobs: () =>
-      env.QBITTORRENT_URL ? startMatchesCleanup(stores.matches, () => qbittorrentHashes(qbittorrent.get)) : () => {},
+    // Runs whether or not qBittorrent has an address yet: one saved from the app later applies, and a
+    // check without one finds nothing to forget.
+    startJobs: () => startMatchesCleanup(stores.matches, () => qbittorrentHashes(qbittorrent.get)),
   }
 }
 
