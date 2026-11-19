@@ -6,9 +6,16 @@ import type {
   DownloadDefaultsBody,
   ProwlarrKeyBody,
   QbittorrentLoginBody,
+  NotifyLanguage,
   SecretStatus,
   ServerSettings,
   SettingsErrorBody,
+  TelegramChatBody,
+  TelegramChatInfo,
+  TelegramCheck,
+  TelegramFoundChat,
+  TelegramTestBody,
+  TelegramTokenBody,
   TmdbFallback,
   TmdbKeyBody,
 } from '../src/api/settings/types.ts'
@@ -18,6 +25,8 @@ import { isJsonRequest, readJson, sendJson } from './json.ts'
 import { JsonFile } from './jsonFile.ts'
 import { checkProwlarrKey, readProwlarrApiKey, type Middleware } from './prowlarr.ts'
 import { checkQbittorrent, type QbittorrentCredentials } from './qbittorrent.ts'
+import { isNotifyLanguage, notifyText } from './notifyText.ts'
+import { botName, isBotToken, sendMessage, startedChats, type TelegramOptions } from './telegram.ts'
 import { TMDB_TIMEOUT_MS, checkTmdbKey } from './tmdb.ts'
 
 /**
@@ -42,6 +51,14 @@ import { TMDB_TIMEOUT_MS, checkTmdbKey } from './tmdb.ts'
  * A `url` is refused while the environment sets that address (409 env-address) and with Kinopeer's
  * own login off (409 auth-off).
  * PATCH /api/settings/downloads { …some DownloadDefaults } → merges them in, answers ServerSettings
+ *
+ * The Telegram bot that sends notifications (server/notifier.ts), set up in three steps:
+ * PUT /api/settings/telegram { token } → checks the token with Telegram, saves it, answers ServerSettings
+ * GET /api/settings/telegram/chat → TelegramFoundChat, the chat that last sent the bot /start, not saved
+ * PUT /api/settings/telegram/chat { id, language } → saves that chat, if it did, answers ServerSettings
+ * POST /api/settings/telegram/test { language } → sends a test message, answers ServerSettings
+ * GET /api/settings/telegram/check → TelegramCheck, for Settings' connection check
+ * DELETE /api/settings/telegram → forgets the bot, answers ServerSettings
  */
 export interface StoredSettings {
   tmdbApiKey?: string
@@ -53,6 +70,19 @@ export interface StoredSettings {
   /** Prowlarr's address saved from the app; PROWLARR_URL wins. */
   prowlarrUrl?: string
   downloads?: Partial<DownloadDefaults>
+  telegram?: StoredTelegram
+}
+
+/** The Telegram bot: its token (a secret), and the chat and language its messages go in. */
+export interface StoredTelegram {
+  token: string
+  /** The bot's @username, without the @, as Telegram answered for the token. */
+  bot: string
+  chat?: TelegramChatInfo & { id: number }
+  /** The language of the device that chose the chat. */
+  language?: NotifyLanguage
+  /** What Telegram refused last (TelegramStatus.refused). */
+  refused?: 'token' | 'chat'
 }
 
 export class SettingsStore extends JsonFile<StoredSettings> {
@@ -63,6 +93,14 @@ export class SettingsStore extends JsonFile<StoredSettings> {
   /** Merges `changes` in and saves them. */
   update(changes: StoredSettings): Promise<StoredSettings> {
     return this.change((current) => ({ ...current, ...changes }))
+  }
+
+  /** Saves what `change` makes of the Telegram bot; undefined forgets it. */
+  updateTelegram(change: (current: StoredTelegram | undefined) => StoredTelegram | undefined): Promise<StoredSettings> {
+    return this.change((current) => {
+      const telegram = change(current.telegram)
+      return telegram === current.telegram ? current : { ...current, telegram }
+    })
   }
 
   /** Merges in only the download defaults given, so two devices changing different ones keep both. */
@@ -99,6 +137,15 @@ export interface SettingsConfig {
   tmdbApiBase?: string
   /** How long TMDB may take to answer a key check; TMDB_TIMEOUT_MS by default. */
   tmdbTimeoutMs?: number
+  /** Whether some channel sends notifications (server/notifier.ts); none without it. */
+  notifications?: () => boolean
+  /** Telegram's Bot API and how long it may take; TELEGRAM_API and its timeout by default (tests). */
+  telegram?: Omit<TelegramOptions, 'signal'>
+}
+
+/** Whether the Telegram bot has a token and a chat, so it can send. */
+export function telegramReady(stored: StoredSettings): stored is StoredSettings & { telegram: Required<Pick<StoredTelegram, 'chat'>> & StoredTelegram } {
+  return Boolean(stored.telegram?.token && stored.telegram.chat)
 }
 
 /** The TMDB key the bridge uses: the saved one, else the environment's. */
@@ -233,6 +280,12 @@ async function snapshot(stored: StoredSettings, config: SettingsConfig): Promise
     },
     downloads: stored.downloads ?? null,
     auth: config.auth?.() ?? { enabled: false },
+    telegram: {
+      bot: stored.telegram?.bot ?? null,
+      chat: stored.telegram?.chat ? { name: stored.telegram.chat.name, type: stored.telegram.chat.type } : null,
+      refused: stored.telegram?.refused ?? null,
+    },
+    notifications: config.notifications?.() ?? false,
   }
 }
 
@@ -344,6 +397,140 @@ async function saveQbittorrentLogin(config: SettingsConfig, request: IncomingMes
   )
 }
 
+/** The bot's id, the part of its token before the colon, the same for a token @BotFather renews. */
+const botId = (token: string) => token.split(':', 1)[0]
+
+async function saveTelegramToken(config: SettingsConfig, request: IncomingMessage, response: ServerResponse) {
+  let body: unknown
+  try {
+    body = await readJson(request, MAX_BODY_BYTES)
+  } catch {
+    return fail(response, 400, 'bad-request')
+  }
+  const token = (body as Partial<TelegramTokenBody> | null)?.token
+  if (typeof token !== 'string' || !isBotToken(token.trim())) return fail(response, 400, 'bad-request')
+
+  let bot: string | undefined
+  try {
+    bot = await botName(token.trim(), { ...config.telegram, signal: abandoned(response) })
+  } catch {
+    return fail(response, 502, 'unreachable')
+  }
+  if (bot === undefined) return fail(response, 422, 'invalid-key')
+  // A renewed token of the same bot keeps its chat; another bot starts over, since its chat is another.
+  const saving = config.store.updateTelegram((current) => {
+    const same = current && botId(current.token) === botId(token.trim())
+    return { token: token.trim(), bot, ...(same ? { chat: current.chat, language: current.language } : {}) }
+  })
+  await save(config, response, saving)
+}
+
+/** The saved token, or a 409 when there's none yet. */
+function savedToken(config: SettingsConfig, response: ServerResponse): string | undefined {
+  const token = config.store.current.telegram?.token
+  if (!token) fail(response, 409, 'not-configured')
+  return token
+}
+
+async function findTelegramChat(config: SettingsConfig, _request: IncomingMessage, response: ServerResponse) {
+  const token = savedToken(config, response)
+  if (!token) return
+  let chats: Awaited<ReturnType<typeof startedChats>>
+  try {
+    chats = await startedChats(token, { ...config.telegram, signal: abandoned(response) })
+  } catch {
+    return fail(response, 502, 'unreachable')
+  }
+  if (chats === 'rejected') return fail(response, 422, 'token-rejected')
+  if (chats.length === 0) return fail(response, 404, 'no-chat')
+  sendJson(response, 200, chats[0] satisfies TelegramFoundChat)
+}
+
+/**
+ * Saves the chat the user saw and chose, checked against the chats that sent /start, so a chat id
+ * the bot can't write to is never saved, and its name and kind are Telegram's.
+ */
+async function saveTelegramChat(config: SettingsConfig, request: IncomingMessage, response: ServerResponse) {
+  let body: Partial<TelegramChatBody> | null
+  try {
+    body = (await readJson(request, MAX_BODY_BYTES)) as Partial<TelegramChatBody> | null
+  } catch {
+    return fail(response, 400, 'bad-request')
+  }
+  const { id, language } = body ?? {}
+  if (!Number.isSafeInteger(id) || !isNotifyLanguage(language)) return fail(response, 400, 'bad-request')
+  const token = savedToken(config, response)
+  if (!token) return
+  let chats: Awaited<ReturnType<typeof startedChats>>
+  try {
+    chats = await startedChats(token, { ...config.telegram, signal: abandoned(response) })
+  } catch {
+    return fail(response, 502, 'unreachable')
+  }
+  if (chats === 'rejected') return fail(response, 422, 'token-rejected')
+  const chat = chats.find((found) => found.id === id)
+  if (!chat) return fail(response, 404, 'no-chat')
+  // Saved only while the token it was found with is still the bot's.
+  const saving = config.store.updateTelegram((current) =>
+    current?.token === token ? { token, bot: current.bot, chat, language } : current,
+  )
+  await save(config, response, saving)
+}
+
+/**
+ * Which of the two Telegram refused when it didn't take a message: the token when it no longer
+ * knows it, else the chat. Rejects when it doesn't answer.
+ */
+export async function refusedPart(token: string, options: TelegramOptions = {}): Promise<'token' | 'chat'> {
+  return (await botName(token, options)) === undefined ? 'token' : 'chat'
+}
+
+async function testTelegram(config: SettingsConfig, request: IncomingMessage, response: ServerResponse) {
+  let body: Partial<TelegramTestBody> | null
+  try {
+    body = (await readJson(request, MAX_BODY_BYTES)) as Partial<TelegramTestBody> | null
+  } catch {
+    return fail(response, 400, 'bad-request')
+  }
+  if (!isNotifyLanguage(body?.language)) return fail(response, 400, 'bad-request')
+  const telegram = config.store.current.telegram
+  if (!telegram?.token || !telegram.chat) return fail(response, 409, 'not-configured')
+  const options = { ...config.telegram, signal: abandoned(response) }
+  let refused: 'token' | 'chat' | undefined
+  try {
+    const sent = await sendMessage(telegram.token, telegram.chat.id, notifyText(body.language, 'test'), options)
+    if (sent === 'rejected') refused = await refusedPart(telegram.token, options)
+  } catch {
+    return fail(response, 502, 'unreachable')
+  }
+  // What Telegram answered now replaces what it answered a notification, for the same bot and chat.
+  const saving = config.store.updateTelegram((current) =>
+    current?.token === telegram.token && current.chat?.id === telegram.chat?.id && current.refused !== refused
+      ? { ...current, refused }
+      : current,
+  )
+  if (!refused) return save(config, response, saving)
+  await saving.catch(() => {})
+  fail(response, 422, refused === 'token' ? 'token-rejected' : 'chat-rejected')
+}
+
+async function checkTelegram(config: SettingsConfig, _request: IncomingMessage, response: ServerResponse) {
+  const token = savedToken(config, response)
+  if (!token) return
+  let bot: string | undefined
+  try {
+    bot = await botName(token, { ...config.telegram, signal: abandoned(response) })
+  } catch {
+    return fail(response, 502, 'unreachable')
+  }
+  if (bot === undefined) return fail(response, 422, 'token-rejected')
+  sendJson(response, 200, { bot } satisfies TelegramCheck)
+}
+
+async function forgetTelegram(config: SettingsConfig, _request: IncomingMessage, response: ServerResponse) {
+  await save(config, response, config.store.updateTelegram(() => undefined))
+}
+
 const MAX_CATEGORY_LENGTH = 256
 
 type BooleanDefault = { [K in keyof DownloadDefaults]: DownloadDefaults[K] extends boolean ? K : never }[keyof DownloadDefaults]
@@ -385,6 +572,24 @@ async function saveDownloadDefaults(config: SettingsConfig, request: IncomingMes
   await save(config, response, config.store.updateDownloads(changes))
 }
 
+type Handler = (config: SettingsConfig, request: IncomingMessage, response: ServerResponse) => Promise<void>
+
+/** The routes under /api/settings by method and path; a route that takes a body takes only JSON. */
+const ROUTES: Record<string, Handler> = {
+  [`PUT ${PREFIX}/tmdb`]: saveTmdbKey,
+  [`DELETE ${PREFIX}/tmdb`]: forgetTmdbKey,
+  [`PUT ${PREFIX}/prowlarr`]: saveProwlarrKey,
+  [`DELETE ${PREFIX}/prowlarr`]: forgetProwlarrKey,
+  [`PUT ${PREFIX}/qbittorrent`]: saveQbittorrentLogin,
+  [`PATCH ${PREFIX}/downloads`]: saveDownloadDefaults,
+  [`PUT ${PREFIX}/telegram`]: saveTelegramToken,
+  [`DELETE ${PREFIX}/telegram`]: forgetTelegram,
+  [`GET ${PREFIX}/telegram/chat`]: findTelegramChat,
+  [`PUT ${PREFIX}/telegram/chat`]: saveTelegramChat,
+  [`POST ${PREFIX}/telegram/test`]: testTelegram,
+  [`GET ${PREFIX}/telegram/check`]: checkTelegram,
+}
+
 export function settingsMiddleware(config: SettingsConfig): Middleware {
   return (request, response, next) => {
     const path = new URL(request.url ?? '/', 'http://kinopeer.local').pathname
@@ -397,22 +602,11 @@ export function settingsMiddleware(config: SettingsConfig): Middleware {
         .then((settings) => sendJson(response, 200, settings))
       return
     }
-    const handler =
-      path === `${PREFIX}/tmdb` && request.method === 'PUT'
-        ? saveTmdbKey
-        : path === `${PREFIX}/tmdb` && request.method === 'DELETE'
-          ? forgetTmdbKey
-        : path === `${PREFIX}/prowlarr` && request.method === 'PUT'
-          ? saveProwlarrKey
-          : path === `${PREFIX}/prowlarr` && request.method === 'DELETE'
-            ? forgetProwlarrKey
-          : path === `${PREFIX}/qbittorrent` && request.method === 'PUT'
-          ? saveQbittorrentLogin
-          : path === `${PREFIX}/downloads` && request.method === 'PATCH'
-            ? saveDownloadDefaults
-            : undefined
+    const key = `${request.method} ${path}`
+    const handler = Object.hasOwn(ROUTES, key) ? ROUTES[key] : undefined
     if (handler) {
-      if (!isJsonRequest(request)) return fail(response, 415, 'bad-request')
+      // A cross-site request with a JSON body needs a CORS preflight, which never succeeds here.
+      if (request.method !== 'GET' && !isJsonRequest(request)) return fail(response, 415, 'bad-request')
       handler(config, request, response).catch(() => {
         if (!response.headersSent) fail(response, 500, 'storage')
       })

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { TelegramUnavailable, botName, isBotToken, sendMessage, startedChat } from './telegram.ts'
+import { TelegramUnavailable, botName, isBotToken, sendMessage, startedChats } from './telegram.ts'
 import { bodyOf, closeServers, listen, silentService } from './test/fakes.ts'
 
 const TOKEN = '123456:ABCdefGhIJKlmNoPQRsTUVwxyZ-_0123456'
@@ -49,19 +49,23 @@ describe('botName', () => {
   })
 })
 
-describe('startedChat', () => {
+describe('startedChats', () => {
   const update = (text: string, chat: object) => ({ update_id: 1, message: { message_id: 1, text, chat } })
 
-  it('finds the chat that sent /start last, by its name', async () => {
+  it('lists the chats that sent /start, the latest first and each once, with their names and kinds', async () => {
     const api = await fakeBotApi(200, {
       ok: true,
       result: [
         update('/start', { id: 11, type: 'private', first_name: 'First' }),
         update('hello', { id: 33, type: 'private', first_name: 'Chatty' }),
         update('/start@kinopeer_home_bot', { id: -22, type: 'group', title: 'Home' }),
+        update('/start', { id: 11, type: 'private', first_name: 'First' }),
       ],
     })
-    expect(await startedChat(TOKEN, { base: api.base })).toEqual({ id: -22, name: 'Home' })
+    expect(await startedChats(TOKEN, { base: api.base })).toEqual([
+      { id: 11, name: 'First', type: 'private' },
+      { id: -22, name: 'Home', type: 'group' },
+    ])
     expect(api.calls[0]).toEqual({ path: `/bot${TOKEN}/getUpdates`, body: { allowed_updates: ['message'] } })
   })
 
@@ -71,17 +75,24 @@ describe('startedChat', () => {
     ['nothing but its id', {}, '7'],
   ])('names a private chat by its %s', async (_name, fields, name) => {
     const api = await fakeBotApi(200, { ok: true, result: [update('/start', { id: 7, type: 'private', ...fields })] })
-    expect(await startedChat(TOKEN, { base: api.base })).toEqual({ id: 7, name })
+    expect(await startedChats(TOKEN, { base: api.base })).toEqual([{ id: 7, name, type: 'private' }])
   })
 
-  it('answers undefined when no chat sent /start', async () => {
-    const api = await fakeBotApi(200, { ok: true, result: [update('/stop', { id: 7, first_name: 'Ann' }), update('/starting', { id: 8 })] })
-    expect(await startedChat(TOKEN, { base: api.base })).toBeUndefined()
+  it('leaves out other commands, words starting with /start, and chats of a kind it doesn’t know', async () => {
+    const api = await fakeBotApi(200, {
+      ok: true,
+      result: [
+        update('/stop', { id: 7, type: 'private', first_name: 'Ann' }),
+        update('/starting', { id: 8, type: 'private' }),
+        update('/start', { id: 9, type: 'secret' }),
+      ],
+    })
+    expect(await startedChats(TOKEN, { base: api.base })).toEqual([])
   })
 
   it('answers rejected when Telegram doesn’t know the token', async () => {
     const api = await fakeBotApi(401, { ok: false })
-    expect(await startedChat(TOKEN, { base: api.base })).toBe('rejected')
+    expect(await startedChats(TOKEN, { base: api.base })).toBe('rejected')
   })
 })
 

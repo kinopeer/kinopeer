@@ -18,7 +18,7 @@ import type { Middleware } from './prowlarr.ts'
  * /auth/* itself, so it can't get the server's IP banned.
  *
  * Runs as Vite middleware in dev and in the production server. The server's own jobs (the matches
- * cleanup) go through the same session with `request`.
+ * cleanup, the notifications) go through the same session with `get` and `post`.
  */
 export interface QbittorrentCredentials {
   username: string
@@ -140,6 +140,9 @@ const ENDPOINTS = new Map<string, 'GET' | 'POST'>([
   ['/api/v2/torrents/recheck', 'POST'],
   ['/api/v2/torrents/reannounce', 'POST'],
   ['/api/v2/torrents/setLocation', 'POST'],
+  // The notification switch (server/notifier.ts).
+  ['/api/v2/torrents/addTags', 'POST'],
+  ['/api/v2/torrents/removeTags', 'POST'],
   ['/api/v2/transfer/toggleSpeedLimitsMode', 'POST'],
 ])
 const MAX_BODY_BYTES = 50 * 1024 * 1024
@@ -306,6 +309,8 @@ export interface QbittorrentBridge {
    * same session as the browsers'. Rejects when qBittorrent has no address or can't be reached.
    */
   get(path: string): Promise<Response>
+  /** A POST of a form, the same way, e.g. `/api/v2/torrents/removeTags`. */
+  post(path: string, form: URLSearchParams): Promise<Response>
 }
 
 export function qbittorrentBridge(config: QbittorrentConfig): QbittorrentBridge {
@@ -348,6 +353,16 @@ export function qbittorrentBridge(config: QbittorrentConfig): QbittorrentBridge 
       const base = config.url()
       if (!base) throw new Error('qBittorrent has no address')
       return send(base, currentSession(base), { method: 'GET', path })
+    },
+    post: async (path, form) => {
+      const base = config.url()
+      if (!base) throw new Error('qBittorrent has no address')
+      return send(base, currentSession(base), {
+        method: 'POST',
+        path,
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: Buffer.from(form.toString()),
+      })
     },
   }
 }

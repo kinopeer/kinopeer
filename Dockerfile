@@ -31,6 +31,8 @@ ENV NODE_ENV=production \
 WORKDIR /app
 COPY --from=build /app/package.json ./
 COPY --from=build /app/server ./server
+# The texts of the server's notifications (server/notifyText.ts).
+COPY --from=build /app/src/i18n/locales ./src/i18n/locales
 COPY --from=build /app/dist ./dist
 # Settings saved from the app (the TMDB key). Mount a volume here to keep them across updates.
 COPY --from=build --chown=node:node /data /data

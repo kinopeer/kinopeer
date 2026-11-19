@@ -1,3 +1,5 @@
+import type { TelegramChatType, TelegramFoundChat } from '../src/api/settings/types.ts'
+
 /**
  * The Telegram Bot API, as Kinopeer's notifications use it: the user's own bot, created with
  * @BotFather, whose token only the server knows. Every call goes to `${base}/bot<token>/<method>`;
@@ -32,12 +34,6 @@ export class TelegramUnavailable extends Error {
     this.name = 'TelegramUnavailable'
     this.retryAfterMs = retryAfterMs
   }
-}
-
-/** A chat the bot can write to, with the name the user knows it by. */
-export interface TelegramChat {
-  id: number
-  name: string
 }
 
 interface ApiAnswer<T> {
@@ -94,28 +90,32 @@ interface Update {
   }
 }
 
+const CHAT_TYPES: readonly string[] = ['private', 'group', 'supergroup', 'channel'] satisfies TelegramChatType[]
+
 function chatName(chat: NonNullable<NonNullable<Update['message']>['chat']>): string {
   const person = [chat.first_name, chat.last_name].filter(Boolean).join(' ')
   return chat.title || person || (chat.username ? `@${chat.username}` : String(chat.id))
 }
 
 /**
- * The chat that most recently sent the bot `/start` (`/start@bot` in a group), from the updates
- * Telegram keeps for a day; undefined when there's none, and `rejected` when it doesn't know the
- * token. Reading them doesn't confirm them, so the next check sees them too.
+ * The chats that sent the bot `/start` (`/start@bot` in a group), the latest first, each once, from
+ * the updates Telegram keeps for a day; `rejected` when it doesn't know the token. Reading them
+ * doesn't confirm them, so the next check sees them too.
  */
-export async function startedChat(token: string, options: TelegramOptions = {}): Promise<TelegramChat | undefined | 'rejected'> {
+export async function startedChats(token: string, options: TelegramOptions = {}): Promise<TelegramFoundChat[] | 'rejected'> {
   const answer = await call<Update[]>(token, 'getUpdates', { allowed_updates: ['message'] }, options)
   if (!answer.ok) return 'rejected'
   const updates = Array.isArray(answer.result) ? answer.result : []
+  const chats: TelegramFoundChat[] = []
   for (const update of [...updates].reverse()) {
     const chat = update.message?.chat
     const command = update.message?.text?.trim().split(/\s/)[0]
-    if (chat && Number.isSafeInteger(chat.id) && (command === '/start' || command?.startsWith('/start@'))) {
-      return { id: chat.id as number, name: chatName(chat) }
-    }
+    const started = command === '/start' || command?.startsWith('/start@')
+    if (!chat || !started || !Number.isSafeInteger(chat.id) || !CHAT_TYPES.includes(chat.type ?? '')) continue
+    if (chats.some(({ id }) => id === chat.id)) continue
+    chats.push({ id: chat.id as number, name: chatName(chat), type: chat.type as TelegramChatType })
   }
-  return undefined
+  return chats
 }
 
 /** Sends `text` as plain text: `sent`, or `rejected` when Telegram refused it for good. */

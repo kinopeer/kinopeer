@@ -555,5 +555,9 @@
     "throttledMinutes_other": "Too many wrong passwords. Try again in {{count}} minutes.",
     "throttledHours_one": "Too many wrong passwords. Try again in {{count}} hour.",
     "throttledHours_other": "Too many wrong passwords. Try again in {{count}} hours."
+  },
+  "notify": {
+    "finished": "Download finished: {{title}}",
+    "test": "Kinopeer is connected. A message comes here when a download finishes."
   }
 }

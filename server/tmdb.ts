@@ -109,9 +109,45 @@ async function forward(
     .pipe(response)
 }
 
+function keyOf(config: TmdbConfig): string | undefined {
+  return (typeof config.apiKey === 'function' ? config.apiKey() : config.apiKey)?.trim() || undefined
+}
+
+/**
+ * Where an API call to `rest` (a path under /3/ with its query) goes: TMDB with the key, else
+ * Kinopeer's proxy without any, else nowhere.
+ */
+function apiTarget(config: TmdbConfig, rest: string): { url: string; headers: Record<string, string> } | undefined {
+  const key = keyOf(config)
+  if (key) return authorize(key, `${config.apiBase ?? API_BASE}/${rest}`)
+  // No Authorization or key of any kind: the proxy adds its own, and Workers Cache in front of it
+  // bypasses a request that carries Authorization.
+  return config.proxyBase ? { url: `${config.proxyBase}/${rest}`, headers: {} } : undefined
+}
+
+/**
+ * A TMDB API call the server makes itself, such as a finished download's title, the way the
+ * bridge sends the browser's (with the key, else through Kinopeer's proxy) and with its time
+ * limit. Resolves to the answer's JSON; rejects without a key or a proxy, when TMDB refuses or
+ * doesn't answer in time, never with the URL, which may hold the key.
+ */
+export async function tmdbJson(config: TmdbConfig, rest: string): Promise<unknown> {
+  const target = apiTarget(config, rest)
+  if (!target) throw new Error('No TMDB key')
+  let response: Response
+  try {
+    response = await fetch(target.url, {
+      headers: { ...target.headers, Accept: 'application/json' },
+      signal: AbortSignal.timeout(config.timeoutMs ?? TMDB_TIMEOUT_MS),
+    })
+    if (response.ok) return await response.json()
+  } catch {
+    throw new Error('TMDB did not answer')
+  }
+  throw new Error(`TMDB responded ${response.status}`)
+}
+
 export function tmdbMiddleware(config: TmdbConfig): Middleware {
-  const getKey = typeof config.apiKey === 'function' ? config.apiKey : () => config.apiKey as string | undefined
-  const apiBase = config.apiBase ?? API_BASE
   const imageBase = config.imageBase ?? 'https://image.tmdb.org/t/p'
   const timeoutMs = config.timeoutMs ?? TMDB_TIMEOUT_MS
 
@@ -130,13 +166,10 @@ export function tmdbMiddleware(config: TmdbConfig): Middleware {
 
     let target = { url: `${imageBase}/${rest}`, headers: {} as Record<string, string> }
     if (isApi) {
-      const key = getKey()?.trim()
-      if (key) target = authorize(key, `${apiBase}/${rest}`)
-      // No Authorization or key of any kind: the proxy adds its own, and Workers Cache in front of
-      // it bypasses a request that carries Authorization.
-      else if (config.proxyBase) target = { url: `${config.proxyBase}/${rest}`, headers: {} }
+      const api = apiTarget(config, rest)
       // The app treats 401 as a missing or invalid key and asks for one.
-      else return fail(401, 'The TMDB API key is not set')
+      if (!api) return fail(401, 'The TMDB API key is not set')
+      target = api
     }
 
     // The time limit is for the answer to start: a body that streams longer, such as an image to a

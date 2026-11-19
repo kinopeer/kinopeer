@@ -49,6 +49,8 @@ const EVERY_CALL: Record<ClientCall, () => Promise<unknown>> = {
   setTorrentLocation: () => client.setTorrentLocation(['a1'], '/downloads/other'),
   getTorrentTrackers: () => client.getTorrentTrackers('a1'),
   toggleSpeedLimitsMode: () => client.toggleSpeedLimitsMode(),
+  addTags: () => client.addTags(['a1'], ['kinopeer:notify']),
+  removeTags: () => client.removeTags(['a1'], ['kinopeer:notify']),
 }
 
 describe('qBittorrent client through /qbt', () => {

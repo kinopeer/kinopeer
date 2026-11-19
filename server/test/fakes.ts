@@ -262,7 +262,9 @@ async function parseAdd(body: Buffer, contentType: string | undefined): Promise<
  * category and folder in the next poll, with the state `moving` until the files are there, which
  * the fake skips), /torrents/toggleSequentialDownload and /toggleFirstLastPiecePrio flip `seq_dl`
  * and `f_l_piece_prio` (qBittorrent 5.3 may report the new value a second later), and
- * /app/preferences answers PREFERENCES.
+ * /app/preferences answers PREFERENCES, /torrents/info lists only the torrents with a tag when
+ * asked with `tag`, and /torrents/addTags and /removeTags change the torrents' tags, sorted and
+ * joined with ", " as qBittorrent lists them.
  * Written from qBittorrent 5.3.x; when a newer version answers differently, change the fake here
  * and say the version.
  */
@@ -336,8 +338,22 @@ export async function fakeQbittorrent({
         return json(response, CATEGORIES)
       case '/api/v2/app/preferences':
         return json(response, PREFERENCES)
-      case '/api/v2/torrents/info':
-        return json(response, listing)
+      case '/api/v2/torrents/info': {
+        const tag = searchParams.get('tag')
+        return json(response, tag === null ? listing : listing.filter((torrent) => tagsOf(torrent).includes(tag)))
+      }
+      case '/api/v2/torrents/addTags':
+      case '/api/v2/torrents/removeTags': {
+        const adding = pathname.endsWith('addTags')
+        const tags = (params.get('tags') ?? '').split(',').map((tag) => tag.trim()).filter(Boolean)
+        const hashes = new Set((params.get('hashes') ?? '').split('|'))
+        for (const [index, torrent] of listing.entries()) {
+          if (!hashes.has(torrent.hash)) continue
+          const kept = tagsOf(torrent).filter((tag) => !tags.includes(tag))
+          listing[index] = { ...torrent, tags: (adding ? [...kept, ...tags] : kept).sort().join(', ') }
+        }
+        return text(response, '')
+      }
       case '/api/v2/sync/maindata': {
         const rid = Number(searchParams.get('rid') ?? 0)
         if (!rid) {
@@ -424,6 +440,11 @@ export async function fakeQbittorrent({
     }
   })
   return { base, seen, sessions, added, deleted, files, torrents: listing, logins: () => logins }
+}
+
+/** A torrent's tags, which qBittorrent lists as one string joined with ", ". */
+function tagsOf(torrent: Torrent): string[] {
+  return (torrent.tags ?? '').split(',').map((tag) => tag.trim()).filter(Boolean)
 }
 
 // TMDB
@@ -574,4 +595,53 @@ export async function fakeProwlarr({
     text(response, 'Not Found', 404)
   })
   return { base, apiKey, seen }
+}
+
+// Telegram
+
+/** A bot token the fake Telegram knows. */
+export const TELEGRAM_TOKEN = '123456:ABCdefGhIJKlmNoPQRsTUVwxyZ-_0123456'
+
+/** What the fake Telegram saw: the method called, with the token in the path, and the JSON body. */
+export interface TelegramRequest {
+  path: string
+  body: Record<string, unknown>
+}
+
+/**
+ * Telegram's Bot API for the bot TELEGRAM_TOKEN, whose @username is `kinopeer_home_bot`: any other
+ * token is 401 on every method. `getUpdates` answers `updates` (a /start from the chats in
+ * `started`, a private chat 42 by default), `sendMessage` takes any chat in `started` and refuses
+ * any other with a 403, as a chat that blocked the bot. `down` answers every call with a 502, and
+ * `hold`, while set, keeps every answer until it resolves. All of them can be changed while it runs.
+ */
+export async function fakeTelegram() {
+  const seen: TelegramRequest[] = []
+  const state = {
+    started: [{ id: 42, type: 'private', first_name: 'Alex' }] as { id: number; type: string; first_name?: string; title?: string }[],
+    down: false,
+    hold: undefined as Promise<void> | undefined,
+  }
+  const base = await listen(async (request, response) => {
+    const path = request.url ?? ''
+    const body = JSON.parse((await bodyOf(request)) || '{}') as Record<string, unknown>
+    seen.push({ path, body })
+    await state.hold
+    if (state.down) return json(response, { ok: false, error_code: 502, description: 'Bad Gateway' }, 502)
+    const match = /^\/bot([^/]+)\/(\w+)$/.exec(path)
+    if (!match || match[1] !== TELEGRAM_TOKEN) return json(response, { ok: false, error_code: 401, description: 'Unauthorized' }, 401)
+    const method = match[2]
+    if (method === 'getMe') return json(response, { ok: true, result: { id: 123456, is_bot: true, username: 'kinopeer_home_bot' } })
+    if (method === 'getUpdates') {
+      const result = state.started.map((chat, index) => ({ update_id: index + 1, message: { message_id: index + 1, text: '/start', chat } }))
+      return json(response, { ok: true, result })
+    }
+    if (method === 'sendMessage') {
+      return state.started.some((chat) => chat.id === body.chat_id)
+        ? json(response, { ok: true, result: { message_id: 1 } })
+        : json(response, { ok: false, error_code: 403, description: 'Forbidden: bot was blocked by the user' }, 403)
+    }
+    json(response, { ok: false, error_code: 404, description: 'Not Found' }, 404)
+  })
+  return { base, seen, state, sent: () => seen.filter((request) => request.path.endsWith('/sendMessage')).map((request) => request.body) }
 }

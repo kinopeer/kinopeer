@@ -1,4 +1,17 @@
-import type { DownloadDefaultsBody, ProwlarrKeyBody, QbittorrentLoginBody, ServerSettings, SettingsErrorBody, TmdbKeyBody } from './types'
+import type {
+  DownloadDefaultsBody,
+  NotifyLanguage,
+  ProwlarrKeyBody,
+  QbittorrentLoginBody,
+  ServerSettings,
+  SettingsErrorBody,
+  TelegramChatBody,
+  TelegramCheck,
+  TelegramFoundChat,
+  TelegramTestBody,
+  TelegramTokenBody,
+  TmdbKeyBody,
+} from './types'
 import { fetchKinopeer } from '../fetchKinopeer'
 import { sharedRequests } from '../../logic/sharedRequests'
 
@@ -53,7 +66,7 @@ function saved(settings: ServerSettings): ServerSettings {
   return settings
 }
 
-async function send<T>(method: 'PUT' | 'PATCH', path: string, body: T): Promise<ServerSettings> {
+async function send<T>(method: 'PUT' | 'PATCH' | 'POST', path: string, body: T): Promise<ServerSettings> {
   const response = await fetchKinopeer(`${SETTINGS_BASE}/${path}`, {
     method,
     headers: { 'Content-Type': 'application/json' },
@@ -120,4 +133,57 @@ export function saveQbittorrentLogin(username: string, password: string): Promis
 /** Saves some of the download defaults on the server; the others stay as they are. */
 export function saveDownloadDefaults(changes: DownloadDefaultsBody): Promise<ServerSettings> {
   return send<DownloadDefaultsBody>('PATCH', 'downloads', changes)
+}
+
+/** A GET of one of the Telegram routes that answers something else than the settings. */
+async function getTelegram<T>(path: string, signal?: AbortSignal): Promise<T> {
+  const response = await fetchKinopeer(`${SETTINGS_BASE}/telegram/${path}`, { signal })
+  if (!response.ok || !isJson(response)) throw await errorFor(response)
+  return (await response.json()) as T
+}
+
+/**
+ * Saves the Telegram bot's token on the server, which checks it with Telegram first. Rejects with a
+ * SettingsError: code 'invalid-key' when Telegram doesn't know it, 'bad-request' when it isn't a
+ * token, 'unreachable' when Telegram doesn't answer.
+ */
+export function saveTelegramToken(token: string): Promise<ServerSettings> {
+  return send<TelegramTokenBody>('PUT', 'telegram', { token })
+}
+
+/**
+ * The chat that last sent the bot /start, not saved yet, so the user sees it first. Rejects with
+ * code 'no-chat' when none did, 'token-rejected' or 'unreachable'.
+ */
+export function findTelegramChat(signal?: AbortSignal): Promise<TelegramFoundChat> {
+  return getTelegram<TelegramFoundChat>('chat', signal)
+}
+
+/**
+ * Sends notifications to that chat, in `language`. Rejects with code 'no-chat' when it no longer
+ * is one that sent /start, 'token-rejected' or 'unreachable'.
+ */
+export function saveTelegramChat(id: number, language: NotifyLanguage): Promise<ServerSettings> {
+  return send<TelegramChatBody>('PUT', 'telegram/chat', { id, language })
+}
+
+/**
+ * Sends a test message in `language`. Rejects with code 'token-rejected' or 'chat-rejected' when
+ * Telegram refused it, 'unreachable' when it didn't answer.
+ */
+export function testTelegram(language: NotifyLanguage): Promise<ServerSettings> {
+  return send<TelegramTestBody>('POST', 'telegram/test', { language })
+}
+
+/**
+ * Settings' connection check: the bot's name. Rejects with code 'not-configured' without a bot,
+ * 'token-rejected' or 'unreachable'.
+ */
+export function checkTelegram(signal?: AbortSignal): Promise<TelegramCheck> {
+  return getTelegram<TelegramCheck>('check', signal)
+}
+
+/** Forgets the Telegram bot: no more notifications through it. */
+export function forgetTelegram(): Promise<ServerSettings> {
+  return forget('telegram')
 }
