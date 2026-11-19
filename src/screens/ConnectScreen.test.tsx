@@ -208,7 +208,8 @@ describe('ConnectScreen', () => {
     it('asks for a login when qBittorrent wants one and none was sent, and says it’s wrong when one was', async () => {
       const onSignIn = vi.fn().mockRejectedValue(new SettingsError(422, 'invalid-credentials'))
       setup(onSignIn, { noAddress: true })
-      await fillAddress('http://qbt.test')
+      // Spaces are no login to the server either (a stray one, autofill).
+      await fillAddress('http://qbt.test', ' ')
       expect(screen.getByLabelText('Password')).toHaveAccessibleDescription('qBittorrent asks for a login: enter its username and password')
       expect(screen.getByLabelText('Username')).toHaveAttribute('aria-invalid', 'true')
 
@@ -222,8 +223,7 @@ describe('ConnectScreen', () => {
     it.each([
       ['something at it that isn’t qBittorrent', new SettingsError(502, 'not-qbittorrent'), 'qBittorrent’s address answers, but not like qBittorrent. Check the address and its port.'],
       ['Kinopeer’s own login off', new SettingsError(409, 'auth-off'), 'Kinopeer’s own login is off, so qBittorrent’s address can only be set on the server: QBITTORRENT_URL.'],
-      ['the environment setting the address meanwhile', new SettingsError(409, 'env-address'), 'Couldn’t save the connection. Try again.'],
-      ['a save that failed', new SettingsError(500, 'storage'), 'Couldn’t save the connection. Try again.'],
+      ['a server that can’t write its settings', new SettingsError(500, 'storage'), 'The Kinopeer server couldn’t save the change. Check that its data folder is writable.'],
     ])('says so over the form for %s', async (_name, error, message) => {
       setup(vi.fn().mockRejectedValue(error), { noAddress: true })
       expect(screen.queryByRole('alert', { name: saying(message) })).not.toBeInTheDocument()
@@ -234,6 +234,13 @@ describe('ConnectScreen', () => {
       await userEvent.type(screen.getByLabelText('qBittorrent address'), '0')
       await userEvent.type(screen.getByLabelText('Username'), 'a')
       expect(screen.getByRole('alert', { name: saying(message) })).toBeInTheDocument()
+    })
+
+    it('checks the session again when the environment set an address meanwhile, which wins', async () => {
+      const { onRetry } = setup(vi.fn().mockRejectedValue(new SettingsError(409, 'env-address')), { noAddress: true })
+      await fillAddress('http://qbt.test')
+      expect(onRetry).toHaveBeenCalledOnce()
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     })
   })
 
@@ -250,8 +257,13 @@ describe('ConnectScreen', () => {
       expect(address).toHaveValue(saved)
       expect(screen.getByLabelText('Username')).not.toBeRequired()
       expect(screen.queryByRole('button', { name: 'Change qBittorrent address' })).not.toBeInTheDocument()
-      await userEvent.clear(address)
-      await userEvent.type(address, 'http://192.168.1.20:8080')
+      // Cancel goes back to the saved address, and Change opens the form again.
+      await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+      expect(screen.queryByLabelText('qBittorrent address')).not.toBeInTheDocument()
+      await userEvent.click(screen.getByRole('button', { name: 'Change qBittorrent address' }))
+      const again = screen.getByLabelText('qBittorrent address')
+      await userEvent.clear(again)
+      await userEvent.type(again, 'http://192.168.1.20:8080')
       await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
       expect(onSignIn).toHaveBeenCalledWith('', '', 'http://192.168.1.20:8080')
     })
@@ -278,6 +290,9 @@ describe('ConnectScreen', () => {
       expect(screen.getByLabelText('qBittorrent address')).toHaveValue(saved)
       await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
       expect(onSignIn).toHaveBeenCalledWith('', '', saved)
+      // Cancel goes back to the state with Retry.
+      await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+      expect(screen.getByRole('heading', { name: 'qBittorrent isn’t answering' })).toBeInTheDocument()
     })
 
     it.each([

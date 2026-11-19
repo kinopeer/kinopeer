@@ -25,7 +25,7 @@ export interface ConnectScreenProps {
 /**
  * A login refused (`login-needed` when none was sent), the address refused or not answering,
  * something at it that isn't qBittorrent, the server refusing an address with its own login off,
- * a save that failed, or who didn't answer.
+ * the server unable to write its settings, or who didn't answer.
  */
 type FormError =
   | 'invalid'
@@ -35,12 +35,12 @@ type FormError =
   | 'invalid-address'
   | 'address-unreachable'
   | 'auth-off'
-  | 'failed'
+  | 'storage'
   | Unreachable
   | null
 
 /** Errors shown in the form itself rather than as who didn't answer. */
-const FORM_ERRORS = new Set<FormError>(['invalid', 'login-needed', 'banned', 'not-qbittorrent', 'invalid-address', 'address-unreachable', 'auth-off', 'failed'])
+const FORM_ERRORS = new Set<FormError>(['invalid', 'login-needed', 'banned', 'not-qbittorrent', 'invalid-address', 'address-unreachable', 'auth-off', 'storage'])
 
 export function ConnectScreen({ unreachable: unreachableProp, noAddress = false, onRetry, onSignIn }: ConnectScreenProps) {
   const { t } = useTranslation()
@@ -58,10 +58,10 @@ export function ConnectScreen({ unreachable: unreachableProp, noAddress = false,
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<FormError>(null)
 
-  const changeAddress = () => {
+  const changeAddress = (change: boolean) => {
     setAddress(saved ?? '')
     setError(null)
-    setChanging(true)
+    setChanging(change)
   }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -72,14 +72,16 @@ export function ConnectScreen({ unreachable: unreachableProp, noAddress = false,
       await (askAddress ? onSignIn(username, password, address) : onSignIn(username, password))
     } catch (e) {
       const code = e instanceof SettingsError ? e.code : undefined
-      if (code === 'invalid-credentials') setError(askAddress && !username ? 'login-needed' : 'invalid')
+      if (code === 'invalid-credentials') setError(askAddress && !username.trim() ? 'login-needed' : 'invalid')
       else if (code === 'banned') setError('banned')
       else if (code === 'not-qbittorrent') setError('not-qbittorrent')
       else if (code === 'invalid-address') setError('invalid-address')
       // With an address sent, the server is there and says that address didn't answer.
       else if (code === 'unreachable' && askAddress) setError('address-unreachable')
       else if (code === 'auth-off') setError('auth-off')
-      else if (code === 'env-address' || code === 'storage') setError('failed')
+      else if (code === 'storage') setError('storage')
+      // The environment set an address meanwhile, which wins: check the session at it.
+      else if (code === 'env-address') onRetry()
       // An error the server named is its answer, so the server is there; one without a name came
       // from something in front of it (Umbrel answering for a stopped app); no answer is unreached.
       else if (e instanceof SettingsError) setError(code === undefined ? 'kinopeer' : 'qbittorrent')
@@ -92,7 +94,7 @@ export function ConnectScreen({ unreachable: unreachableProp, noAddress = false,
   const signInUnreachable = error === null || FORM_ERRORS.has(error) ? undefined : (error as Unreachable)
   const openAgain = useMayOpenAgain(signInUnreachable)
   const changeButton = saved !== undefined && !askAddress && (
-    <Button type="button" variant="ghost" size="lg" block onClick={changeAddress}>
+    <Button type="button" variant="ghost" size="lg" block onClick={() => changeAddress(true)}>
       {t('connect.changeAddress')}
     </Button>
   )
@@ -141,7 +143,7 @@ export function ConnectScreen({ unreachable: unreachableProp, noAddress = false,
           <Banner tone="error">{t('connect.notQbittorrent', { context: askAddress || saved !== undefined ? 'app' : undefined })}</Banner>
         )}
         {error === 'auth-off' && <Banner tone="error">{t('connect.authOff')}</Banner>}
-        {error === 'failed' && <Banner tone="error">{t('connect.failed')}</Banner>}
+        {error === 'storage' && <Banner tone="error">{t('keyForm.storage')}</Banner>}
 
         <div className="connect-fields">
           {askAddress && (
@@ -201,6 +203,11 @@ export function ConnectScreen({ unreachable: unreachableProp, noAddress = false,
           {t('connect.submit')}
         </Button>
         {changeButton}
+        {changing && (
+          <Button type="button" variant="ghost" size="lg" block onClick={() => changeAddress(false)}>
+            {t('common.cancel')}
+          </Button>
+        )}
       </form>
       <Preferences />
     </main>
