@@ -65,10 +65,14 @@ Umbrel offers updates when a new version is out. What changed is in [CHANGELOG.m
 
 Kinopeer's [`docker-compose.yml`](docker-compose.yml) runs Kinopeer beside **qBittorrent** (the qBittorrent project's own image) and **Prowlarr** (LinuxServer.io's image, which Prowlarr's wiki points to), each in a container of its own. It needs Docker with Compose.
 
-1. In an empty folder, download the file from the latest release and start it:
+1. In an empty folder, download the file from the latest release, make the folder for downloads and start it:
 
    ```bash
    curl -LO https://github.com/kinopeer/kinopeer/releases/latest/download/docker-compose.yml
+   ```
+
+   ```bash
+   mkdir downloads
    ```
 
    ```bash
@@ -78,7 +82,7 @@ Kinopeer's [`docker-compose.yml`](docker-compose.yml) runs Kinopeer beside **qBi
 2. Open Kinopeer at `http://<your server>:8797` right away and set its password: until then, whoever opens it first sets it. To set it beforehand, put `KINOPEER_PASSWORD='…'` with a password of 8 characters or more in a `.env` file next to `docker-compose.yml`, in single quotes, so that Compose keeps a `$` in it as it is.
 3. Open Prowlarr at `http://<your server>:9696`, set up its login and add your indexers. Kinopeer reads Prowlarr's API key itself.
 
-qBittorrent and TMDB need no setup. Downloads go into the `downloads` folder next to `docker-compose.yml`. The file confirms qBittorrent's legal notice for you, which qBittorrent asks for before it starts.
+qBittorrent and TMDB need no setup. Downloads go into that `downloads` folder and belong to whoever owns it, you when you made it. Should Docker make it instead, it's root's, and qBittorrent writes as user 1000 rather than as root. The file confirms qBittorrent's legal notice for you, which qBittorrent asks for before it starts.
 
 **qBittorrent trusts Kinopeer without a password, and nothing else.** On its first start, the file sets qBittorrent up to let in Kinopeer's container, at its fixed address `172.30.97.10`, without a password, so you don't need the temporary one qBittorrent makes up on every start until a password is set. Everyone else needs a password, and qBittorrent's own web UI isn't reachable from outside Docker. To have qBittorrent ask Kinopeer for a password too:
 
@@ -93,7 +97,6 @@ qBittorrent and TMDB need no setup. Downloads go into the `downloads` folder nex
 | --- | --- | --- |
 | `KINOPEER_PORT`, `PROWLARR_PORT` | `8797`, `9696` | Kinopeer's and Prowlarr's ports |
 | `DOWNLOADS_DIR` | `./downloads` | The folder downloads go into |
-| `PUID`, `PGID` | `1000` | The user and group that own the downloaded files |
 | `KINOPEER_PASSWORD` | none | Kinopeer's password, in place of one set in the app |
 | `KINOPEER_ALLOWED_HOSTS` | none | Names Kinopeer answers at besides the ones it answers at by default, such as a reverse proxy's domain ([which those are, and its rules](docs/DEVELOPMENT.md#server-configuration)) |
 

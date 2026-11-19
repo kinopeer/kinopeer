@@ -37,13 +37,18 @@ services:
     environment:
       # qBittorrent doesn't start until its legal notice is confirmed.
       QBT_LEGAL_NOTICE: confirm
-      # The owner of the downloaded files.
-      PUID: ${PUID:-1000}
-      PGID: ${PGID:-1000}
-    # On its first start, before the image's own entrypoint, qBittorrent gets settings that let
-    # Kinopeer's address alone in without a password, so Kinopeer connects without the temporary
-    # password qBittorrent makes up on every start until one is set. The rest is what the image
-    # writes itself when it starts without settings. Settings that exist are left alone.
+      # Empty: the downloaded files belong to whoever owns the downloads folder (below).
+      PUID: ${PUID:-}
+      PGID: ${PGID:-}
+    # Before the image's own entrypoint, on every start: qBittorrent runs as the owner of the
+    # downloads folder, so what it downloads is theirs. A folder owned by root (one Docker made
+    # itself because it was missing, or any folder on Docker Desktop, which shows every folder as
+    # root's and gives the files to the person anyway) goes to 1000:1000 rather than running
+    # qBittorrent as root; the image then hands the folder itself to that user.
+    # On its first start, qBittorrent also gets settings that let Kinopeer's address alone in without
+    # a password, so Kinopeer connects without the temporary password qBittorrent makes up on every
+    # start until one is set. The rest is what the image writes itself when it starts without
+    # settings. Settings that exist are left alone. ($$ is Compose's way of writing $.)
     entrypoint:
       - /sbin/tini
       - -g
@@ -51,6 +56,13 @@ services:
       - /bin/sh
       - -c
       - |
+        if [ -z "$$PUID" ]; then
+          owner="$$(stat -c %u:%g /downloads)"
+          case "$$owner" in
+            0:*) export PUID=1000 PGID=1000 ;;
+            *) export PUID="$${owner%:*}" PGID="$${owner#*:}" ;;
+          esac
+        fi
         if [ ! -f /config/qBittorrent/config/qBittorrent.conf ]; then
           mkdir -p /config/qBittorrent/config
           printf '%s\n' \
@@ -86,8 +98,9 @@ services:
     image: lscr.io/linuxserver/prowlarr:latest
     restart: unless-stopped
     environment:
-      PUID: ${PUID:-1000}
-      PGID: ${PGID:-1000}
+      # Kinopeer's own user, which reads Prowlarr's config.xml; Prowlarr writes nothing of the person's.
+      PUID: 1000
+      PGID: 1000
     ports:
       # Prowlarr's web UI, where indexers are added.
       - "${PROWLARR_PORT:-9696}:9696"

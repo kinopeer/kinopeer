@@ -62,11 +62,21 @@ afterEach(() => {
   for (const folder of folders.splice(0)) rmSync(folder, { recursive: true, force: true })
 })
 
+interface Start {
+  /** A qBittorrent.conf already there. */
+  existing?: string
+  /** Who owns the downloads folder, as `stat -c %u:%g` says. */
+  owner?: string
+  /** The container's environment from Compose. */
+  env?: Record<string, string>
+}
+
 /**
- * Runs the seed script with /config moved into a temporary folder and the image's entrypoint left out,
- * and returns that folder's qBittorrent.conf path. `existing` is a conf already there.
+ * Runs the script as Compose hands it to the shell (`$$` turned into `$`), with /config moved into a
+ * temporary folder and the image's entrypoint replaced by `env`, so what the script exports shows.
+ * Returns the conf's path and the user the image would run qBittorrent as.
  */
-const runSeed = (existing?: string): string => {
+const runSeed = ({ existing, owner = '1001:121', env = {} }: Start = {}): { conf: string; user: string } => {
   const folder = mkdtempSync(join(tmpdir(), 'kinopeer-seed-'))
   folders.push(folder)
   const conf = join(folder, 'qBittorrent/config/qBittorrent.conf')
@@ -74,15 +84,28 @@ const runSeed = (existing?: string): string => {
     execFileSync('mkdir', ['-p', dirname(conf)])
     writeFileSync(conf, existing)
   }
-  const script = seedScript()
+  // The image's busybox `stat`, answering only the call the script makes for the folder's owner
+  // (macOS's own `stat` takes other options).
+  const bin = join(folder, 'bin')
+  execFileSync('mkdir', ['-p', bin])
+  writeFileSync(join(bin, 'stat'), `#!/bin/sh\nif [ "$*" = "-c %u:%g /downloads" ]; then echo ${owner}; else exit 1; fi\n`, { mode: 0o755 })
+  const script = seedScript().replaceAll('$$', '$')
   expect(script).toContain('/config/qBittorrent/config/qBittorrent.conf')
   expect(script.trimEnd().endsWith('exec /entrypoint.sh')).toBe(true)
-  execFileSync('sh', ['-c', script.replaceAll('/config/qBittorrent/config', `${folder}/qBittorrent/config`).replace('exec /entrypoint.sh', 'exec true')])
-  return conf
+  const shown = execFileSync('sh', ['-c', script.replaceAll('/config/qBittorrent/config', `${folder}/qBittorrent/config`).replace('exec /entrypoint.sh', 'exec env')], {
+    env: { PATH: `${bin}:${process.env.PATH ?? ''}`, ...env },
+    encoding: 'utf8',
+  })
+  const variable = (name: string) => shown.split('\n').find((line) => line.startsWith(`${name}=`))?.slice(name.length + 1)
+  return { conf, user: `${variable('PUID') ?? ''}:${variable('PGID') ?? ''}` }
 }
 
 /** The qBittorrent.conf the seed script writes on a first start, as `readConf` reads it. */
-const seededConf = (): Record<string, string> => readConf(readFileSync(runSeed(), 'utf8'))
+const seededConf = (): Record<string, string> => readConf(readFileSync(runSeed().conf, 'utf8'))
+
+/** Compose's environment for qBittorrent with nothing in `.env`: `${PUID:-}` is empty. */
+const composeEnv = (): Record<string, string> =>
+  Object.fromEntries(Object.entries(service('qbittorrent').environment ?? {}).map(([name, value]) => [name, String(value).replace(/^\$\{\w+:-\}$/, '')]))
 
 /** An IPv4 address as a number. */
 const ipv4 = (address: string): number => address.split('.').reduce((value, part) => value * 256 + Number(part), 0)
@@ -118,13 +141,30 @@ describe("qBittorrent's first start", () => {
   })
 
   it('leaves settings that exist alone', () => {
-    const conf = runSeed('[WebUI]\nPassword_PBKDF2=x\n')
+    const { conf } = runSeed({ existing: '[WebUI]\nPassword_PBKDF2=x\n' })
 
     expect(readFileSync(conf, 'utf8')).toBe('[WebUI]\nPassword_PBKDF2=x\n')
   })
 
-  it('has no $, which Compose would read as a variable', () => {
-    expect(seedScript()).not.toContain('$')
+  it('writes every $ as $$, which Compose hands to the shell as $ rather than read as its variable', () => {
+    expect(seedScript().replaceAll('$$', '')).not.toContain('$')
+  })
+})
+
+describe('Who qBittorrent runs as', () => {
+  it('is the downloads folder’s owner, with nothing in .env', () => {
+    expect(composeEnv()).toMatchObject({ PUID: '', PGID: '' })
+    expect(runSeed({ owner: '1001:121', env: composeEnv() }).user).toBe('1001:121')
+  })
+
+  it('is 1000:1000 rather than root, for a folder root owns', () => {
+    // One Docker made itself because it was missing, or any folder on Docker Desktop.
+    expect(runSeed({ owner: '0:0', env: composeEnv() }).user).toBe('1000:1000')
+    expect(runSeed({ owner: '0:121', env: composeEnv() }).user).toBe('1000:1000')
+  })
+
+  it('is PUID and PGID when .env sets them', () => {
+    expect(runSeed({ owner: '1001:121', env: { ...composeEnv(), PUID: '1234', PGID: '99' } }).user).toBe('1234:99')
   })
 })
 
