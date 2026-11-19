@@ -12,6 +12,7 @@ import {
   torrentFiles,
 } from './fixtures.ts'
 import { expect } from './test.ts'
+import type { AuthStatus } from '../src/api/auth/types.ts'
 import type { Release } from '../src/api/prowlarr/types.ts'
 import type { Torrent } from '../src/api/qbittorrent/types.ts'
 
@@ -42,6 +43,13 @@ export interface AppOptions {
   altSpeedLimits?: boolean
   /** The server rejects the login sent from the connect screen as a wrong login or password. */
   wrongLogin?: boolean
+  /**
+   * Kinopeer's own login holds every server route back (server/auth.ts): it has no password yet,
+   * or asks to sign in. `throttled` refuses a sign-in for 15 minutes, as after too many wrong ones.
+   */
+  signIn?: 'set-up' | 'sign-in' | 'throttled'
+  /** Kinopeer's own login as /api/settings says it, instead of off, as on Umbrel (KINOPEER_AUTH=off). */
+  auth?: AuthStatus
   /** Prowlarr doesn't answer the server's connection check. */
   prowlarrDown?: boolean
   /** How many indexers Prowlarr has set up, instead of 2. */
@@ -144,6 +152,7 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
         prowlarr: { configured: true, source: 'env', serverKey: true },
         qbittorrent: { configured: true, source: 'saved' },
         downloads: null,
+        auth: options.auth ?? { enabled: false },
       }),
   )
   if (options.wrongLogin) {
@@ -232,6 +241,22 @@ async function mockTmdb(page: Page, options: AppOptions): Promise<void> {
     (url) => url.pathname.startsWith('/tmdb-img/'),
     (route) => route.fulfill({ contentType: 'image/svg+xml', body: posterSvg(new URL(route.request().url()).pathname) }),
   )
+
+  if (options.signIn) {
+    const need = options.signIn === 'set-up' ? 'set-up' : 'sign-in'
+    // Added last, so it takes precedence over the routes above, as the login goes before them.
+    await page.route(
+      (url) => /^\/(qbt|prowlarr|tmdb|tmdb-img|api)(\/|$)/.test(url.pathname) && !url.pathname.startsWith('/api/auth/'),
+      (route) => route.fulfill({ status: 401, headers: { 'x-kinopeer-auth': need }, contentType: 'application/json', body: JSON.stringify({ error: need }) }),
+    )
+    await page.route(
+      (url) => url.pathname.startsWith('/api/auth/'),
+      (route) =>
+        options.signIn === 'throttled'
+          ? json(route, { error: 'throttled', retryAfterMs: 15 * 60_000 }, 429)
+          : json(route, { error: 'invalid-password' }, 422),
+    )
+  }
 }
 
 /** Opens the app at `path` with mocked servers, a frozen clock and the given preferences. */

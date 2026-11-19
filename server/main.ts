@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { AuthStore, authMode, envPassword, kinopeerAuth } from './auth.ts'
 import { allowedHosts, allowedHostsWarning, hostCheck } from './hostCheck.ts'
 import { MatchesStore, matchesMiddleware, qbittorrentHashes, startMatchesCleanup } from './matches.ts'
 import { prowlarrMiddleware, type Middleware } from './prowlarr.ts'
@@ -30,14 +31,18 @@ export function createApp(root: string, kinopeer: KinopeerServer) {
 export interface DataStores {
   settings: SettingsStore
   matches: MatchesStore
+  auth: AuthStore
 }
 
 export function dataStores(dir: string): DataStores {
-  return { settings: new SettingsStore(dir), matches: new MatchesStore(dir) }
+  return { settings: new SettingsStore(dir), matches: new MatchesStore(dir), auth: new AuthStore(dir) }
 }
 
 export interface KinopeerServer {
-  /** The server's own routes, shared with the Vite dev and preview servers; the security headers and the host check first. */
+  /**
+   * The server's own routes, shared with the Vite dev and preview servers; the security headers and
+   * the host check first, then /healthz and Kinopeer's own login, which holds back every route after it.
+   */
   routes: Middleware[]
   /** Starts the background jobs (the hourly matches cleanup); returns a function that stops them. */
   startJobs: () => () => void
@@ -69,15 +74,26 @@ export function missingSettings(env: Record<string, string | undefined>, setting
 }
 
 /**
+ * What the server warns about at startup when Kinopeer's own login is off, the operator's one sign
+ * that nothing of Kinopeer's asks for a password; undefined with it on.
+ */
+export function loginWarning(env: Record<string, string | undefined>): string | undefined {
+  return authMode(env.KINOPEER_AUTH) === 'off' ? 'own login off (KINOPEER_AUTH=off): keep a login in front of Kinopeer' : undefined
+}
+
+/**
  * The server's routes and jobs. Besides the variables in .env.example, PROWLARR_CONFIG_XML points
  * at Prowlarr's config.xml to read its API key from (the Umbrel package mounts it), used when
  * neither a key saved from the app nor PROWLARR_API_KEY is set, TMDB_API_URL and TMDB_IMAGE_URL replace TMDB's API and image
  * addresses (the integration and smoke tests point them at a fake), and TMDB_PROXY_URL replaces
  * Kinopeer's TMDB proxy (`tmdbProxy`). KINOPEER_ALLOWED_HOSTS adds the host names it answers at
- * (`allowedHosts`).
+ * (`allowedHosts`). KINOPEER_AUTH=off turns Kinopeer's own login off (server/auth.ts), and throws
+ * for a value it doesn't know, so the server doesn't start, as it does for a KINOPEER_PASSWORD
+ * shorter than 8 characters or longer than 256 (`envPassword`).
  */
 export function kinopeerServer(env: Record<string, string | undefined>, stores: DataStores): KinopeerServer {
   const store = stores.settings
+  const auth = kinopeerAuth({ store: stores.auth, mode: authMode(env.KINOPEER_AUTH), envPassword: envPassword(env.KINOPEER_PASSWORD) })
   const envQbittorrent = { username: env.QBITTORRENT_USERNAME, password: env.QBITTORRENT_PASSWORD }
   const prowlarrConfig = env.PROWLARR_CONFIG_XML
   const proxy = tmdbProxy(env)
@@ -92,8 +108,10 @@ export function kinopeerServer(env: Record<string, string | undefined>, stores: 
       // Before every route, the health check included: a page rebound to Kinopeer's address gets nothing.
       hostCheck(allowedHosts(env.KINOPEER_ALLOWED_HOSTS).allowed),
       health,
+      auth.middleware,
       settingsMiddleware({
         store,
+        auth: auth.status,
         envTmdbApiKey: env.TMDB_API_KEY,
         tmdbProxy: proxy,
         tmdbApiBase: env.TMDB_API_URL,
@@ -163,6 +181,8 @@ async function main() {
   const host = env.HOST || '0.0.0.0'
   const root = resolve(env.KINOPEER_DIST || resolve(dirname(fileURLToPath(import.meta.url)), '../dist'))
   const stores = dataStores(resolve(env.KINOPEER_DATA_DIR || 'data'))
+  // auth.json is read with the first request the login holds back: one it can't read answers 500
+  // then, rather than keeping the server from starting with the login off.
   await Promise.all([stores.settings.load(), stores.matches.load()])
   const kinopeer = kinopeerServer(env, stores)
   const server = createApp(root, kinopeer)
@@ -173,6 +193,8 @@ async function main() {
     console.log(`[kinopeer] ${version} listening on http://${host}:${port}`)
     const missing = missingSettings(env, stores.settings)
     if (missing.length) console.warn(`[kinopeer] not set: ${missing.join(', ')}`)
+    const login = loginWarning(env)
+    if (login) console.warn(`[kinopeer] ${login}`)
     const hostsWarning = allowedHostsWarning(env.KINOPEER_ALLOWED_HOSTS)
     if (hostsWarning) console.warn(`[kinopeer] ${hostsWarning}`)
   })

@@ -1,6 +1,7 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
+import * as auth from '../api/auth'
 import * as matches from '../api/matches'
 import * as prowlarr from '../api/prowlarr'
 import * as qbt from '../api/qbittorrent'
@@ -18,6 +19,11 @@ vi.mock('../api/qbittorrent', async (importOriginal) => ({
   ...(await importOriginal<typeof qbt>()),
   getAppVersion: vi.fn(),
   getCategories: vi.fn(),
+}))
+vi.mock('../api/auth', async (importOriginal) => ({
+  ...(await importOriginal<typeof auth>()),
+  signOut: vi.fn(),
+  changePassword: vi.fn(),
 }))
 vi.mock('../api/matches', async (importOriginal) => ({
   ...(await importOriginal<typeof matches>()),
@@ -438,6 +444,152 @@ describe('SettingsScreen', () => {
     for (const label of ['qBittorrent version', 'Prowlarr version', 'Prowlarr indexers']) {
       expect(aboutRow(label)).toHaveTextContent(new RegExp(`^${label}—Unknown$`))
     }
+  })
+
+  it.each([
+    ['as on Umbrel', { auth: { enabled: false } }],
+    ['with a server before it', {}],
+  ] as const)('has no sign-in section without Kinopeer’s own login, %s', async (_, login) => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue({
+      tmdb: { configured: true, source: 'shared', fallback: null },
+      prowlarr: { configured: true, source: 'env', serverKey: true },
+      qbittorrent: { configured: true, source: 'env' },
+      downloads: null,
+      ...login,
+    })
+    renderScreen()
+    // Something only the settings answer shows: it's in.
+    expect(await within(connection('TMDB')).findByRole('status', { name: saying('Connected · Kinopeer’s key') })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Sign-in' })).not.toBeInTheDocument()
+  })
+
+  it('shows its sign-in section from the first render with the page’s answer gone stale, while it asks again', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    onTestFinished(() => {
+      vi.useRealTimers()
+    })
+    sharedRequests.set(serverSettings.SERVER_SETTINGS_KEY, {
+      tmdb: { configured: true, source: 'saved', fallback: null },
+      prowlarr: { configured: true, source: 'env', serverKey: true },
+      qbittorrent: { configured: true, source: 'env' },
+      downloads: null,
+      auth: { enabled: true, source: 'saved' },
+    } satisfies serverSettings.ServerSettings)
+    vi.setSystemTime(Date.now() + serverSettings.SERVER_SETTINGS_FRESH_MS + 1)
+    vi.mocked(serverSettings.getServerSettings).mockReturnValue(new Promise(() => {}))
+    renderScreen()
+    // Whether the login is on is the server's environment's, so an older answer still says it,
+    // and the section isn't added under the rows once the new one comes (a layout shift).
+    expect(screen.getByRole('region', { name: 'Sign-in' })).toBeInTheDocument()
+    await waitFor(() => expect(serverSettings.getServerSettings).toHaveBeenCalled())
+  })
+
+  it('changes Kinopeer’s password in a sheet and says the other devices are signed out', async () => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ ...(await serverSettings.getServerSettings()), auth: { enabled: true, source: 'saved' } })
+    vi.mocked(auth.changePassword).mockResolvedValue()
+    renderScreen()
+    const section = await screen.findByRole('region', { name: 'Sign-in' })
+    expect(within(section).queryByText(/KINOPEER_PASSWORD/)).not.toBeInTheDocument()
+    const change = within(section).getByRole('button', { name: /^Change password/ })
+    expect(within(change).getByText('Change password')).toBeInTheDocument()
+    expect(within(change).getByText('Other devices will need to sign in again')).toBeInTheDocument()
+    // Closed without changing anything.
+    await userEvent.click(change)
+    fireEvent(screen.getByRole('dialog', { name: 'Change password' }), new Event('cancel', { cancelable: true }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Change password' })).not.toBeInTheDocument())
+    expect(auth.changePassword).not.toHaveBeenCalled()
+
+    await userEvent.click(change)
+
+    const sheet = screen.getByRole('dialog', { name: 'Change password' })
+    await userEvent.type(within(sheet).getByLabelText('Current password'), 'correct horse')
+    await userEvent.type(within(sheet).getByLabelText('New password'), 'battery staple')
+    await userEvent.type(within(sheet).getByLabelText('Repeat the password'), 'battery staple')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Change password' }))
+
+    expect(auth.changePassword).toHaveBeenCalledExactlyOnceWith('correct horse', 'battery staple')
+    expect(await findToastOnPage('Password changed. Other devices will need to sign in again.')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Change password' })).not.toBeInTheDocument())
+  })
+
+  it('says a password from KINOPEER_PASSWORD is changed on the server, and still signs out', async () => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ ...(await serverSettings.getServerSettings()), auth: { enabled: true, source: 'env' } })
+    vi.mocked(auth.signOut).mockResolvedValue()
+    renderScreen()
+    const section = await screen.findByRole('region', { name: 'Sign-in' })
+    expect(within(section).queryByRole('button', { name: /^Change password/ })).not.toBeInTheDocument()
+    expect(within(section).getByText('The password is set on the server (KINOPEER_PASSWORD), so it’s changed there.')).toBeInTheDocument()
+
+    const signOut = within(section).getByRole('button', { name: /^Sign out/ })
+    expect(within(signOut).getByText('Sign out')).toBeInTheDocument()
+    expect(within(signOut).getByText('On this device')).toBeInTheDocument()
+    await userEvent.click(signOut)
+    expect(auth.signOut).toHaveBeenCalledOnce()
+  })
+
+  it('says when signing out failed', async () => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ ...(await serverSettings.getServerSettings()), auth: { enabled: true, source: 'saved' } })
+    vi.mocked(auth.signOut).mockRejectedValue(new auth.AuthError(502))
+    renderScreen()
+    const section = await screen.findByRole('region', { name: 'Sign-in' })
+    await userEvent.click(within(section).getByRole('button', { name: /^Sign out/ }))
+    expect(await findToastOnPage('Couldn’t sign out. Try again.')).toBeInTheDocument()
+  })
+
+  it.each([
+    ['changing the password', async (section: HTMLElement) => {
+      vi.mocked(auth.changePassword).mockRejectedValue(new auth.AuthError(409, 'auth-off'))
+      await userEvent.click(within(section).getByRole('button', { name: /^Change password/ }))
+      const sheet = screen.getByRole('dialog', { name: 'Change password' })
+      await userEvent.type(within(sheet).getByLabelText('Current password'), 'correct horse')
+      await userEvent.type(within(sheet).getByLabelText('New password'), 'battery staple')
+      await userEvent.type(within(sheet).getByLabelText('Repeat the password'), 'battery staple')
+      await userEvent.click(within(sheet).getByRole('button', { name: 'Change password' }))
+    }],
+    ['signing out', async (section: HTMLElement) => {
+      vi.mocked(auth.signOut).mockRejectedValue(new auth.AuthError(409, 'auth-off'))
+      await userEvent.click(within(section).getByRole('button', { name: /^Sign out/ }))
+    }],
+  ])('drops the Sign-in section when the server turned its login off since Settings opened (%s)', async (_, use) => {
+    const settings = { ...(await serverSettings.getServerSettings()), auth: { enabled: true, source: 'saved' } as const }
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings)
+    renderScreen()
+    await use(await screen.findByRole('region', { name: 'Sign-in' }))
+
+    expect(await findToastOnPage('Kinopeer’s sign-in was turned off on the server.')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Sign-in' })).not.toBeInTheDocument())
+    expect(screen.queryByRole('dialog', { name: 'Change password' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Couldn’t sign out. Try again.')).not.toBeInTheDocument()
+    // The page's answer says so too, so Settings opened again doesn't offer the section.
+    expect(sharedRequests.peek(serverSettings.SERVER_SETTINGS_KEY, Infinity)?.data).toEqual({ ...settings, auth: { enabled: false } })
+  })
+
+  it('keeps no answer of its own when the login was turned off while the page’s next answer is on its way', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    onTestFinished(() => {
+      vi.useRealTimers()
+    })
+    const stale = {
+      tmdb: { configured: true, source: 'saved', fallback: null },
+      prowlarr: { configured: true, source: 'env', serverKey: true },
+      qbittorrent: { configured: true, source: 'env' },
+      downloads: null,
+      auth: { enabled: true, source: 'saved' },
+    } satisfies serverSettings.ServerSettings
+    sharedRequests.set(serverSettings.SERVER_SETTINGS_KEY, stale)
+    vi.setSystemTime(Date.now() + serverSettings.SERVER_SETTINGS_FRESH_MS + 1)
+    let answer: (settings: serverSettings.ServerSettings) => void = () => {}
+    vi.mocked(serverSettings.getServerSettings).mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    vi.mocked(auth.signOut).mockRejectedValue(new auth.AuthError(409, 'auth-off'))
+    renderScreen()
+    await userEvent.click(within(screen.getByRole('region', { name: 'Sign-in' })).getByRole('button', { name: /^Sign out/ }))
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Sign-in' })).not.toBeInTheDocument())
+
+    // The answer on its way says the login is off itself, and becomes the page's.
+    const fresh = { ...stale, auth: { enabled: false } } satisfies serverSettings.ServerSettings
+    await act(async () => answer(fresh))
+    expect(sharedRequests.peek(serverSettings.SERVER_SETTINGS_KEY, Infinity)?.data).toBe(fresh)
+    expect(screen.queryByRole('region', { name: 'Sign-in' })).not.toBeInTheDocument()
   })
 
   it('confirms clearing the cache', async () => {

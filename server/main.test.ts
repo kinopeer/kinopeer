@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { parse } from 'yaml'
-import { TMDB_PROXY, TMDB_PROXY_EDGE, createApp, dataStores, kinopeerServer, missingSettings, tmdbProxy } from './main.ts'
+import { TMDB_PROXY, TMDB_PROXY_EDGE, createApp, dataStores, kinopeerServer, loginWarning, missingSettings, tmdbProxy } from './main.ts'
 import { refusal } from './hostCheck.ts'
 import { CONTENT_SECURITY_POLICY, SECURITY_HEADERS } from './securityHeaders.ts'
 import { SettingsStore } from './settings.ts'
@@ -18,8 +18,9 @@ let app: string
 beforeAll(async () => {
   root = await mkdtemp(join(tmpdir(), 'kinopeer-main-'))
   await writeFile(join(root, 'index.html'), '<!doctype html><title>Kinopeer</title>')
-  // The proxy off, so nothing here calls the real one.
-  server = createApp(root, kinopeerServer({ TMDB_PROXY_URL: '' }, dataStores(join(root, 'data'))))
+  // The proxy off, so nothing here calls the real one, and the login off, as on Umbrel; its own
+  // tests below turn it on.
+  server = createApp(root, kinopeerServer({ TMDB_PROXY_URL: '', KINOPEER_AUTH: 'off' }, dataStores(join(root, 'data'))))
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
   app = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
 })
@@ -45,8 +46,31 @@ describe('createApp', () => {
       prowlarr: { configured: false, source: null, serverKey: false },
       qbittorrent: { configured: false, source: null },
       downloads: null,
+      auth: { enabled: false },
     })
     expect(await (await fetch(`${app}/api/matches`)).json()).toEqual({})
+  })
+
+  it('holds every route of the server behind the login, but the app, its version and the health check', async () => {
+    const data = join(root, 'login-on')
+    const guarded = createApp(root, kinopeerServer({ TMDB_PROXY_URL: '' }, dataStores(data)))
+    await new Promise<void>((resolve) => guarded.listen(0, '127.0.0.1', resolve))
+    const base = `http://127.0.0.1:${(guarded.address() as AddressInfo).port}`
+    await writeFile(join(root, 'version.json'), '{"version":"1.0.0"}')
+    try {
+      for (const path of ['/qbt/api/v2/app/version', '/prowlarr/status', '/tmdb/movie/771', '/tmdb-img/w342/a.jpg', '/api/settings', '/api/matches']) {
+        const response = await fetch(`${base}${path}`)
+        expect(response.status, path).toBe(401)
+        expect(response.headers.get('x-kinopeer-auth'), path).toBe('set-up')
+        expect(response.headers.get('content-security-policy'), path).toBe(CONTENT_SECURITY_POLICY)
+      }
+      expect((await fetch(`${base}/healthz`)).status).toBe(200)
+      expect(await (await fetch(`${base}/settings`)).text()).toContain('Kinopeer')
+      expect(await (await fetch(`${base}/version.json`)).json()).toEqual({ version: '1.0.0' })
+    } finally {
+      await new Promise((resolve) => guarded.close(resolve))
+      await rm(join(root, 'version.json'))
+    }
   })
 
   it('sends the security headers with every answer, the app’s, the bridges’ and a 404', async () => {
@@ -84,6 +108,14 @@ describe('createApp', () => {
     expect(await (await fetch(`${app}/settings`)).text()).toContain('Kinopeer')
     expect((await fetch(`${app}/assets/missing.js`)).status).toBe(404)
     expect((await fetch(`${app}/settings`, { method: 'POST' })).status).toBe(404)
+  })
+})
+
+describe('loginWarning', () => {
+  it('warns that nothing asks for a password with the login off, and only then', () => {
+    expect(loginWarning({ KINOPEER_AUTH: 'off' })).toBe('own login off (KINOPEER_AUTH=off): keep a login in front of Kinopeer')
+    expect(loginWarning({ KINOPEER_AUTH: 'on' })).toBeUndefined()
+    expect(loginWarning({})).toBeUndefined()
   })
 })
 
@@ -162,7 +194,7 @@ describe('tmdbProxy', () => {
 describe('kinopeerServer', () => {
   it('sends TMDB calls without a key to the proxy, and says Kinopeer’s key is used', async () => {
     const proxy = await fakeTmdb()
-    const server = createApp(root, kinopeerServer({ TMDB_PROXY_URL: proxy.apiBase }, dataStores(join(root, 'proxy'))))
+    const server = createApp(root, kinopeerServer({ TMDB_PROXY_URL: proxy.apiBase, KINOPEER_AUTH: 'off' }, dataStores(join(root, 'proxy'))))
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
     const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
     try {
@@ -177,7 +209,7 @@ describe('kinopeerServer', () => {
 
   it('points the TMDB bridge at TMDB_API_URL and TMDB_IMAGE_URL', async () => {
     const tmdb = await fakeTmdb()
-    const env = { TMDB_API_KEY: 'good-key', TMDB_API_URL: tmdb.apiBase, TMDB_IMAGE_URL: `${tmdb.base}/t/p` }
+    const env = { TMDB_API_KEY: 'good-key', TMDB_API_URL: tmdb.apiBase, TMDB_IMAGE_URL: `${tmdb.base}/t/p`, KINOPEER_AUTH: 'off' }
     const server = createApp(root, kinopeerServer(env, dataStores(join(root, 'tmdb'))))
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
     const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
@@ -189,6 +221,22 @@ describe('kinopeerServer', () => {
       await new Promise((resolve) => server.close(resolve))
       await closeServers()
     }
+  })
+
+  it('refuses to start with a KINOPEER_AUTH it doesn’t know, so a typo neither opens nor locks it', () => {
+    expect(() => kinopeerServer({ KINOPEER_AUTH: 'of' }, dataStores(join(root, 'typo')))).toThrow('KINOPEER_AUTH must be "on" or "off", not "of"')
+    expect(() => kinopeerServer({ KINOPEER_AUTH: ' OFF ' }, dataStores(join(root, 'typo')))).not.toThrow()
+    expect(() => kinopeerServer({ KINOPEER_AUTH: 'on' }, dataStores(join(root, 'typo')))).not.toThrow()
+  })
+
+  it('refuses to start with a KINOPEER_PASSWORD no sign-in could send, so it never locks everyone out', () => {
+    const start = (password: string) => () => kinopeerServer({ KINOPEER_PASSWORD: password }, dataStores(join(root, 'env-password')))
+    expect(start('x'.repeat(257))).toThrow('KINOPEER_PASSWORD must be 8 to 256 characters, not 257')
+    expect(start('x'.repeat(7))).toThrow('KINOPEER_PASSWORD must be 8 to 256 characters, not 7')
+    expect(start('x'.repeat(256))).not.toThrow()
+    expect(start('x'.repeat(8))).not.toThrow()
+    // Empty is unset, as in .env.example.
+    expect(start('')).not.toThrow()
   })
 
   it('starts no jobs without qBittorrent', () => {

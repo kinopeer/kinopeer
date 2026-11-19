@@ -90,3 +90,55 @@ test.describe('onboarding, phone', () => {
     await expect(page).toHaveScreenshot('connect-invalid-dark-ru.png')
   })
 })
+
+test.describe('Kinopeer’s own login, phone', () => {
+  test('setting the password, dark, Russian', async ({ page }) => {
+    await openApp(page, '/', { signIn: 'set-up' })
+    await expect(page.getByRole('heading', { name: 'Задайте пароль' })).toBeVisible()
+    await settle(page)
+    await expect(page).toHaveScreenshot('set-up-password-dark-ru.png')
+  })
+
+  test('signing in, dark, Russian', async ({ page }) => {
+    await openApp(page, '/', { signIn: 'sign-in' })
+    await expect(page.getByRole('heading', { name: 'Вход в Kinopeer' })).toBeVisible()
+    await settle(page)
+    await expect(page).toHaveScreenshot('sign-in-dark-ru.png')
+  })
+
+  test('a wrong password, dark, Russian', async ({ page }) => {
+    await openApp(page, '/', { signIn: 'sign-in' })
+    await page.getByLabel('Пароль').fill('wrong password')
+    await page.getByRole('button', { name: 'Войти' }).click()
+    await expect(page.getByText('Неверный пароль')).toBeVisible()
+    // Off the button, which the click left in its hover shade (#287).
+    await page.mouse.move(0, 0)
+    await expect(page).toHaveScreenshot('sign-in-invalid-dark-ru.png')
+  })
+
+  test('too many wrong passwords, dark, Russian', async ({ page }) => {
+    await openApp(page, '/', { signIn: 'throttled' })
+    await page.getByLabel('Пароль').fill('wrong password')
+    await page.getByRole('button', { name: 'Войти' }).click()
+    await expect(page.getByRole('alert')).toHaveText(/Попробуйте через 15 минут/)
+    await expect(page).toHaveScreenshot('sign-in-throttled-dark-ru.png')
+  })
+})
+
+test.describe('Kinopeer’s own login, desktop', () => {
+  test.use(DESKTOP)
+
+  test('setting the password, dark, Russian', async ({ page }) => {
+    await openApp(page, '/', { signIn: 'set-up' })
+    await expect(page.getByRole('heading', { name: 'Задайте пароль' })).toBeVisible()
+    await settle(page)
+    await expect(page).toHaveScreenshot('desktop-set-up-password-dark-ru.png')
+  })
+
+  test('signing in, light, English', async ({ page }) => {
+    await openApp(page, '/', { signIn: 'sign-in', theme: 'light', lang: 'en' })
+    await expect(page.getByRole('heading', { name: 'Sign in to Kinopeer' })).toBeVisible()
+    await settle(page)
+    await expect(page).toHaveScreenshot('desktop-sign-in-light-en.png')
+  })
+})

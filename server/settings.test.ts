@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { ServerSettings } from '../src/api/settings/types.ts'
-import { SettingsStore, prowlarrKey, qbittorrentCredentials, settingsMiddleware, tmdbKey } from './settings.ts'
+import { SettingsStore, prowlarrKey, qbittorrentCredentials, settingsMiddleware, tmdbKey, type SettingsConfig } from './settings.ts'
 import { abandon, closeServers, fakeProwlarr, fakeQbittorrent, fakeTmdb, serve, settlesWithin, silentService } from './test/fakes.ts'
 
 let dir: string
@@ -20,7 +20,15 @@ afterEach(async () => {
 /** Kinopeer's side: the middleware under test, with the environment a test wants. */
 function kinopeer(
   store: SettingsStore,
-  options: { envKey?: string; apiBase?: string; timeoutMs?: number; proxy?: string; qbittorrentUrl?: string; envUser?: string } = {},
+  options: {
+    envKey?: string
+    apiBase?: string
+    timeoutMs?: number
+    proxy?: string
+    qbittorrentUrl?: string
+    envUser?: string
+    auth?: SettingsConfig['auth']
+  } = {},
 ) {
   return serve(
     settingsMiddleware({
@@ -31,6 +39,7 @@ function kinopeer(
       tmdbProxy: options.proxy,
       qbittorrentUrl: options.qbittorrentUrl,
       envQbittorrent: { username: options.envUser, password: 'adminadmin' },
+      auth: options.auth,
     }),
   )
 }
@@ -160,6 +169,7 @@ describe('settingsMiddleware', () => {
       prowlarr: { configured: false, source: null, serverKey: false },
       qbittorrent: { configured: false, source: null },
       downloads: null,
+      auth: { enabled: false },
     })
 
     const withEnv = await kinopeer(store, { envKey: 'env-key' })
@@ -171,8 +181,14 @@ describe('settingsMiddleware', () => {
       prowlarr: { configured: false, source: null, serverKey: false },
       qbittorrent: { configured: false, source: null },
       downloads: null,
+      auth: { enabled: false },
     })
     expect(text).not.toContain('env-key')
+  })
+
+  it('says whether Kinopeer’s own login is on and where its password comes from', async () => {
+    const app = await kinopeer(new SettingsStore(dir), { auth: () => ({ enabled: true, source: 'env' }) })
+    expect(await (await fetch(`${app}/api/settings`)).json()).toMatchObject({ auth: { enabled: true, source: 'env' } })
   })
 
   it('reports Kinopeer’s key while the server has none of its own and a proxy to use', async () => {

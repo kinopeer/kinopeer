@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, Route, Routes, matchPath, useLocation } from 'react-router'
+import { onSignInNeed, signInNeed } from './api/auth'
 import { Sidebar, SidebarStatus, type SidebarItem } from './components/Sidebar'
 import { TabBar, type TabBarItem } from './components/TabBar'
 import { ToastProvider, useToast } from './components/Toast'
@@ -16,6 +17,7 @@ import { ErrorBoundary } from './screens/ErrorBoundary'
 import { PollRing } from './screens/PollRing'
 import { SearchScreen } from './screens/SearchScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
+import { SignInScreen } from './screens/SignInScreen'
 import { RELEASES_PATH, TITLE_PATH, TitleRoute } from './screens/TitleScreen'
 import { TmdbKeyScreen } from './screens/TmdbKeyScreen'
 import { TorrentDrawerOverPage } from './screens/TorrentDrawer'
@@ -30,7 +32,18 @@ import { TorrentRequestsProvider } from './torrents/TorrentRequestsProvider'
 import { useMainData } from './torrents/useMainData'
 import './App.css'
 
+/**
+ * Kinopeer's own login, when the server has it on, in place of everything else until it lets the
+ * browser in: any request it holds back sets `signInNeed` (src/api/fetchKinopeer.ts). Signing in
+ * mounts the app afresh, so every screen asks again what the server held back.
+ */
 function App() {
+  const need = useSyncExternalStore(onSignInNeed, signInNeed)
+  return need ? <SignInScreen need={need} /> : <SignedIn />
+}
+
+/** The app once Kinopeer's server answers it: qBittorrent's connection first, then the screens. */
+function SignedIn() {
   const { t } = useTranslation()
   const { session, recheck, signIn } = useQbitSession()
   const tmdb = useTmdbSetup(session.status === 'connected')

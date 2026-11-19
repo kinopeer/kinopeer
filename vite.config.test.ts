@@ -18,8 +18,10 @@ const closers: (() => Promise<void>)[] = []
 
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'kinopeer-vite-'))
-  for (const name of ['QBITTORRENT_URL', 'QBITTORRENT_USERNAME', 'QBITTORRENT_PASSWORD', 'PROWLARR_URL', 'PROWLARR_API_KEY', 'TMDB_API_KEY', 'KINOPEER_ALLOWED_HOSTS'])
+  for (const name of ['QBITTORRENT_URL', 'QBITTORRENT_USERNAME', 'QBITTORRENT_PASSWORD', 'PROWLARR_URL', 'PROWLARR_API_KEY', 'TMDB_API_KEY', 'KINOPEER_PASSWORD', 'KINOPEER_ALLOWED_HOSTS'])
     vi.stubEnv(name, '')
+  // The login on, as by default, whatever a clone's .env.local says: it answers first.
+  vi.stubEnv('KINOPEER_AUTH', 'on')
   vi.stubEnv('KINOPEER_DATA_DIR', join(dir, 'data'))
 })
 

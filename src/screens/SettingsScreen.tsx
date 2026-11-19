@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router'
+import { AuthError, signOut } from '../api/auth'
 import { ProwlarrSetupError, getProwlarrStatus } from '../api/prowlarr'
 import { APP_VERSION_FRESH_MS, APP_VERSION_KEY, getAppVersion, getCategories, unreachable } from '../api/qbittorrent'
 import { TmdbKeyError, checkTmdb } from '../api/tmdb'
@@ -17,6 +18,7 @@ import { useLanguage } from '../i18n/useLanguage'
 import { BUG_REPORT_URL, IDEAS_URL, REPO_URL } from '../lib/links'
 import { promptInstall, useInstallMethod, type ManualInstall } from '../pwa/install'
 import { useRequest, type RequestState } from '../lib/useRequest'
+import { sharedRequests } from '../logic/sharedRequests'
 import { useScrollRestoration } from '../lib/useScrollRestoration'
 import { useSettings, type Settings } from '../settings/settings'
 import type { ThemePreference } from '../theme/theme'
@@ -25,6 +27,7 @@ import { categoryType } from '../torrents/titleLookup'
 import { clearTitleMatches } from '../torrents/useTitleMatches'
 import tmdbLogo from '../assets/tmdb-logo.svg'
 import { unreachableText } from '../lib/unreachable'
+import { ChangePasswordForm } from './ChangePasswordForm'
 import { InstallSheet } from './InstallSheet'
 import { ProwlarrKeyForm } from './ProwlarrKeyForm'
 import { TmdbKeyForm } from './TmdbKeyForm'
@@ -177,6 +180,7 @@ export function SettingsScreen() {
   )
   const [editingProwlarrKey, setEditingProwlarrKey] = useState(false)
   const [prowlarrKeyVersion, setProwlarrKeyVersion] = useState(0)
+  const [changingPassword, setChangingPassword] = useState(false)
   const toast = useToast()
   // Its checks and loads change no heights, so the page is ready to scroll back at once.
   useScrollRestoration(true, '/settings')
@@ -189,6 +193,22 @@ export function SettingsScreen() {
   const serverLoad = useRequest(SERVER_SETTINGS_KEY, (signal) => getServerSettings(signal), { freshFor: SERVER_SETTINGS_FRESH_MS })
   const [serverChanged, setServerChanged] = useState<ServerSettings | null>(null)
   const server = serverChanged ?? serverLoad.data
+  // Whether Kinopeer's own login is on is its server's environment's, fixed while it runs, so the
+  // page's answer says it however old: the Sign-in section is there from the first render rather
+  // than added under the rows when a stale answer is asked again (a layout shift on desktop).
+  const [keptAuth] = useState(() => sharedRequests.peek<ServerSettings>(SERVER_SETTINGS_KEY, Infinity)?.data.auth)
+  // Set when the server answers that its login is off, which it was turned since that answer.
+  const [loginOff, setLoginOff] = useState(false)
+  const auth = loginOff ? undefined : server ? server.auth : keptAuth
+  // Nothing in the Sign-in section can work any more: it goes, and the page's answer says so too,
+  // so Settings opened again doesn't offer it. Without an answer here yet, the one on its way is the
+  // page's next, and says it itself: keeping one now would put a partial answer in its place.
+  const loginTurnedOff = () => {
+    setChangingPassword(false)
+    setLoginOff(true)
+    if (server) sharedRequests.set<ServerSettings>(SERVER_SETTINGS_KEY, { ...server, auth: { enabled: false } })
+    toast.show(t('settings.signInTurnedOff'))
+  }
   const names = (categories.data ?? []).map((category) => category.name).sort((a, b) => a.localeCompare(b))
   const sharedTmdbKey = server?.tmdb.source === 'shared'
 
@@ -339,6 +359,35 @@ export function SettingsScreen() {
         </div>
       </Section>
 
+      {/* Kinopeer's own login, only when it's on: on Umbrel the login in front is the only one. */}
+      {auth?.enabled && (
+        <Section id="settings-sign-in" title={t('settings.signIn')}>
+          <ul className="ks-card settings-rows">
+            {auth.source === 'saved' && (
+              <AboutRow
+                icon="key"
+                label={t('settings.changePassword')}
+                hint={t('settings.changePasswordHint')}
+                onClick={() => setChangingPassword(true)}
+              />
+            )}
+            <AboutRow
+              icon="log-out"
+              label={t('settings.signOut')}
+              hint={t('settings.signOutHint')}
+              onClick={() =>
+                void signOut().catch((error: unknown) =>
+                  error instanceof AuthError && error.code === 'auth-off'
+                    ? loginTurnedOff()
+                    : toast.show(t('settings.signOutFailed'), { icon: 'alert' }),
+                )
+              }
+            />
+          </ul>
+          {auth.source === 'env' && <p className="t-cap c3 settings-hint">{t('settings.passwordFromEnv')}</p>}
+        </Section>
+      )}
+
       <Section id="settings-about" title={t('settings.about')}>
         <ul className="ks-card settings-rows">
           <AboutValue label={t('settings.version')} value={__APP_VERSION__} />
@@ -399,6 +448,15 @@ export function SettingsScreen() {
             toast.show(t('tmdbKey.saved'))
             setTmdbKeyVersion((n) => n + 1)
           }}
+        />
+      </Sheet>
+      <Sheet open={changingPassword} onClose={() => setChangingPassword(false)} title={t('settings.changePassword')}>
+        <ChangePasswordForm
+          onChanged={() => {
+            setChangingPassword(false)
+            toast.show(t('settings.passwordChanged'), { icon: 'check' })
+          }}
+          onLoginOff={loginTurnedOff}
         />
       </Sheet>
       <Sheet open={editingProwlarrKey} onClose={() => setEditingProwlarrKey(false)} title={t('prowlarrKey.sheetTitle')}>

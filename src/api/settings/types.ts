@@ -1,3 +1,5 @@
+import type { AuthStatus } from '../auth/types.ts'
+
 /** Where a secret comes from: saved from the app, or the server's environment variables. */
 export type KeySource = 'saved' | 'env'
 
@@ -51,6 +53,8 @@ export interface ServerSettings {
   qbittorrent: SecretStatus
   /** The download defaults saved so far; null until any is saved. */
   downloads: Partial<DownloadDefaults> | null
+  /** Kinopeer's own login. Servers before 1.1 don't send it: they have none. */
+  auth?: AuthStatus
 }
 
 /** Body of PATCH /api/settings/downloads: the defaults to change. */

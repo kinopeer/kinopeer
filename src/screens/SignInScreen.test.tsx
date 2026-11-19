@@ -1,0 +1,262 @@
+import { act, fireEvent, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import * as auth from '../api/auth'
+import { AuthError } from '../api/auth'
+import { saying } from '../test/render'
+import { SignInScreen } from './SignInScreen'
+
+vi.mock('../api/auth', async (importOriginal) => ({
+  ...(await importOriginal<typeof auth>()),
+  setUpPassword: vi.fn(),
+  signIn: vi.fn(),
+}))
+
+const setUpPassword = vi.mocked(auth.setUpPassword)
+const signIn = vi.mocked(auth.signIn)
+
+beforeEach(() => {
+  setUpPassword.mockResolvedValue()
+  signIn.mockResolvedValue()
+})
+
+/** The screen as the app renders it: for whatever the page needs now. */
+function Current() {
+  return <SignInScreen need={auth.signInNeed() ?? 'sign-in'} />
+}
+
+describe('SignInScreen, setting the password', () => {
+  async function setUp(password: string, repeat = password) {
+    await userEvent.type(screen.getByLabelText('New password'), password)
+    await userEvent.type(screen.getByLabelText('Repeat the password'), repeat)
+    await userEvent.click(screen.getByRole('button', { name: 'Set password' }))
+  }
+
+  /** As setUp, pasting a long password into both fields rather than typing it. */
+  async function setUpPasted(password: string) {
+    for (const label of ['New password', 'Repeat the password']) {
+      await userEvent.click(screen.getByLabelText(label))
+      await userEvent.paste(password)
+    }
+    await userEvent.click(screen.getByRole('button', { name: 'Set password' }))
+  }
+
+  it('sets the password typed twice', async () => {
+    render(<SignInScreen need="set-up" />)
+    expect(screen.getByRole('heading', { name: 'Set a password' })).toBeInTheDocument()
+    // Which text the screen picked, by its start: the copy itself is the locale files'.
+    expect(screen.getByText(/^Anyone on your network can open Kinopeer/)).toBeInTheDocument()
+    expect(screen.getByLabelText('New password')).toHaveAttribute('autocomplete', 'new-password')
+    expect(screen.getByLabelText('New password')).toHaveAccessibleDescription('At least 8 characters')
+    await setUp('correct horse')
+    expect(setUpPassword).toHaveBeenCalledExactlyOnceWith('correct horse')
+  })
+
+  it('starts with no error and nothing being sent', () => {
+    render(<SignInScreen need="set-up" />)
+    for (const label of ['New password', 'Repeat the password']) {
+      expect(screen.getByLabelText(label)).not.toHaveAttribute('aria-invalid')
+    }
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Set password' })).not.toHaveAttribute('aria-busy')
+  })
+
+  it('takes a password of exactly 8 characters', async () => {
+    render(<SignInScreen need="set-up" />)
+    await setUp('8 chars!')
+    expect(setUpPassword).toHaveBeenCalledExactlyOnceWith('8 chars!')
+  })
+
+  it('takes a password of 256 characters at most, as the server does', async () => {
+    render(<SignInScreen need="set-up" />)
+    await setUpPasted('x'.repeat(257))
+    const password = screen.getByLabelText('New password')
+    expect(password).toHaveAttribute('aria-invalid', 'true')
+    expect(password).toHaveAccessibleDescription('At most 256 characters')
+    expect(setUpPassword).not.toHaveBeenCalled()
+
+    await userEvent.clear(password)
+    expect(password).not.toHaveAttribute('aria-invalid')
+    await userEvent.clear(screen.getByLabelText('Repeat the password'))
+    await setUpPasted('x'.repeat(256))
+    expect(setUpPassword).toHaveBeenCalledExactlyOnceWith('x'.repeat(256))
+  })
+
+  it('shows on the field that the server found the password too short', async () => {
+    setUpPassword.mockRejectedValue(new AuthError(400, 'too-short'))
+    render(<SignInScreen need="set-up" />)
+    await setUp('correct horse')
+    expect(screen.getByLabelText('New password')).toHaveAccessibleDescription('At least 8 characters')
+    expect(screen.getByLabelText('New password')).toHaveAttribute('aria-invalid', 'true')
+  })
+
+  it('asks for 8 characters and the same password twice before sending it', async () => {
+    render(<SignInScreen need="set-up" />)
+    await setUp('short')
+    const password = screen.getByLabelText('New password')
+    expect(password).toHaveAttribute('aria-invalid', 'true')
+    expect(password).toHaveAccessibleDescription('At least 8 characters')
+
+    await userEvent.type(password, ' horse')
+    expect(password).not.toHaveAttribute('aria-invalid')
+    await userEvent.type(screen.getByLabelText('Repeat the password'), 'x')
+    await userEvent.click(screen.getByRole('button', { name: 'Set password' }))
+    expect(screen.getByLabelText('Repeat the password')).toHaveAccessibleDescription('The passwords don’t match')
+    expect(setUpPassword).not.toHaveBeenCalled()
+    await userEvent.type(screen.getByLabelText('Repeat the password'), 'y')
+    expect(screen.getByLabelText('Repeat the password')).not.toHaveAttribute('aria-invalid')
+  })
+
+  it('asks to sign in when someone else set the password first', async () => {
+    auth.setSignInNeed('set-up')
+    setUpPassword.mockImplementation(async () => {
+      throw new AuthError(409, 'already-set')
+    })
+    const { rerender } = render(<Current />)
+    await setUp('correct horse')
+    rerender(<Current />)
+    expect(screen.getByRole('heading', { name: 'Sign in to Kinopeer' })).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: saying('Someone has just set Kinopeer’s password. Sign in with it.') })).toBeInTheDocument()
+    expect(screen.getByLabelText('Password')).toHaveValue('')
+    // Should the server ask for a password again, nothing typed before is left.
+    act(() => auth.setSignInNeed('set-up'))
+    rerender(<Current />)
+    expect(screen.getByLabelText('Repeat the password')).toHaveValue('')
+  })
+
+  it('says the server couldn’t keep it', async () => {
+    setUpPassword.mockRejectedValue(new AuthError(500, 'storage'))
+    render(<SignInScreen need="set-up" />)
+    await setUp('correct horse')
+    expect(screen.getByRole('alert', { name: saying(/couldn’t save the change/) })).toBeInTheDocument()
+    // Typing doesn't take back an error that isn't a field's.
+    await userEvent.type(screen.getByLabelText('New password'), 'x')
+    expect(screen.getByRole('alert', { name: saying(/couldn’t save the change/) })).toBeInTheDocument()
+  })
+
+  it('sends once while busy, without the last error, and takes over the form’s submit', async () => {
+    setUpPassword.mockRejectedValueOnce(new AuthError(500, 'storage'))
+    render(<SignInScreen need="set-up" />)
+    await setUp('correct horse')
+    let finish = () => {}
+    setUpPassword.mockReturnValueOnce(new Promise<void>((resolve) => (finish = resolve)))
+    const button = screen.getByRole('button', { name: 'Set password' })
+    await userEvent.click(button)
+    expect(button).toHaveAttribute('aria-busy', 'true')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    // Enter pressed again while it's on its way.
+    expect(fireEvent.submit(button.closest('form')!)).toBe(false)
+    expect(setUpPassword).toHaveBeenCalledTimes(2)
+    await act(async () => finish())
+  })
+})
+
+describe('SignInScreen, signing in', () => {
+  async function signInWith(password: string) {
+    await userEvent.type(screen.getByLabelText('Password'), password)
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+  }
+
+  it('signs in with the password, which a password manager can fill', async () => {
+    render(<SignInScreen need="sign-in" />)
+    const password = screen.getByLabelText('Password')
+    expect(password).toHaveAttribute('autocomplete', 'current-password')
+    expect(screen.getByText(/^Enter Kinopeer’s password/)).toBeInTheDocument()
+    expect(screen.queryByLabelText('Repeat the password')).not.toBeInTheDocument()
+    const account = screen.getByDisplayValue('Kinopeer')
+    expect(account).toHaveAttribute('autocomplete', 'username')
+    // Not a field to tab to.
+    expect(account).toHaveAttribute('tabindex', '-1')
+    await signInWith('correct horse')
+    expect(signIn).toHaveBeenCalledExactlyOnceWith('correct horse')
+  })
+
+  it('shows a wrong password on the field, and how long to wait once it’s the last try', async () => {
+    signIn.mockRejectedValueOnce(new AuthError(422, 'invalid-password'))
+    render(<SignInScreen need="sign-in" />)
+    await signInWith('wrong')
+    const password = screen.getByLabelText('Password')
+    expect(password).toHaveAccessibleDescription('Wrong password')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sign in' })).not.toHaveAttribute('aria-busy')
+    await userEvent.type(password, 'x')
+    expect(password).not.toHaveAttribute('aria-invalid')
+
+    signIn.mockRejectedValueOnce(new AuthError(422, 'invalid-password', 15 * 60_000))
+    await signInWith('x')
+    expect(screen.getByRole('alert', { name: saying('Too many wrong passwords. Try again in 15 minutes.') })).toBeInTheDocument()
+    // The wait goes once the field is typed in again.
+    await userEvent.type(password, 'y')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('says how long to wait while the server holds tries back', async () => {
+    signIn.mockRejectedValue(new AuthError(429, 'throttled', 3 * 60 * 60_000))
+    render(<SignInScreen need="sign-in" />)
+    await signInWith('correct horse')
+    expect(screen.getByRole('alert', { name: saying('Too many wrong passwords. Try again in 3 hours.') })).toBeInTheDocument()
+    expect(screen.getByLabelText('Password')).not.toHaveAttribute('aria-invalid')
+  })
+
+  it('takes a password longer than any the server keeps for a wrong one, without sending it', async () => {
+    render(<SignInScreen need="sign-in" />)
+    await userEvent.click(screen.getByLabelText('Password'))
+    await userEvent.paste('x'.repeat(257))
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(screen.getByLabelText('Password')).toHaveAccessibleDescription('Wrong password')
+    expect(signIn).not.toHaveBeenCalled()
+
+    // 256 is as long as one can be.
+    await userEvent.clear(screen.getByLabelText('Password'))
+    await userEvent.paste('x'.repeat(256))
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(signIn).toHaveBeenCalledExactlyOnceWith('x'.repeat(256))
+  })
+
+  it('takes back the wait the server last asked for when it refuses a password itself', async () => {
+    signIn.mockRejectedValueOnce(new AuthError(429, 'throttled', 15 * 60_000))
+    render(<SignInScreen need="sign-in" />)
+    await signInWith('correct horse')
+    expect(screen.getByRole('alert', { name: saying('Too many wrong passwords. Try again in 15 minutes.') })).toBeInTheDocument()
+    await userEvent.clear(screen.getByLabelText('Password'))
+    await userEvent.paste('x'.repeat(257))
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(screen.getByLabelText('Password')).toHaveAccessibleDescription('Wrong password')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('asks to set a password when the server’s was reset since the screen opened', async () => {
+    auth.setSignInNeed('sign-in')
+    signIn.mockRejectedValue(new AuthError(409, 'not-set-up'))
+    const { rerender } = render(<Current />)
+    await signInWith('correct horse')
+    rerender(<Current />)
+    expect(screen.getByRole('heading', { name: 'Set a password' })).toBeInTheDocument()
+    expect(screen.getByLabelText('New password')).toHaveValue('')
+    expect(screen.getByRole('status', { name: saying('Kinopeer’s password was reset on the server. Set a new one.') })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it.each(['sign-in', 'set-up'] as const)('lets the app back in when the server turned the login off since the screen opened (%s)', async (need) => {
+    auth.setSignInNeed(need)
+    signIn.mockRejectedValue(new AuthError(409, 'auth-off'))
+    setUpPassword.mockRejectedValue(new AuthError(409, 'auth-off'))
+    render(<SignInScreen need={need} />)
+    if (need === 'sign-in') await signInWith('correct horse')
+    else {
+      await userEvent.type(screen.getByLabelText('New password'), 'correct horse')
+      await userEvent.type(screen.getByLabelText('Repeat the password'), 'correct horse')
+      await userEvent.click(screen.getByRole('button', { name: 'Set password' }))
+    }
+    expect(auth.signInNeed()).toBeNull()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('says Kinopeer didn’t answer', async () => {
+    signIn.mockRejectedValue(new TypeError('Failed to fetch'))
+    render(<SignInScreen need="sign-in" />)
+    await signInWith('correct horse')
+    expect(screen.getByRole('alert', { name: saying('Couldn’t reach Kinopeer. Try again.') })).toBeInTheDocument()
+  })
+})

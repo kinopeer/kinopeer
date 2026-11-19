@@ -79,8 +79,14 @@
         "connect-unreached-dark-ru": {},
         "desktop-connect-dark-ru": {},
         "desktop-connect-unreached-dark-ru": {},
+        "desktop-set-up-password-dark-ru": {},
+        "desktop-sign-in-light-en": {},
         "desktop-tmdb-key-dark-ru": {},
         "desktop-unsupported-dark-ru": {},
+        "set-up-password-dark-ru": {},
+        "sign-in-dark-ru": {},
+        "sign-in-invalid-dark-ru": {},
+        "sign-in-throttled-dark-ru": {},
         "unsupported-dark-ru": {}
       },
       "overlays": {
@@ -127,11 +133,15 @@
         "results-scrolled-safe-area-dark-ru": {}
       },
       "settings": {
+        "change-password-dark-ru": {},
+        "desktop-change-password-dark-ru": {},
         "desktop-dark-ru": {},
+        "desktop-sign-in-env-dark-ru": {},
         "rail-dark-ru": {},
         "settings-dark-ru": {},
         "settings-error-dark-ru": {},
-        "settings-no-indexers-dark-ru": {}
+        "settings-no-indexers-dark-ru": {},
+        "settings-sign-in-dark-ru": {}
       },
       "title": {
         "desktop-long-overview-dark-ru": { "label-content-name-mismatch": 0 },

@@ -85,6 +85,7 @@ async function start(options: ResetOptions): Promise<Stand> {
       HOST: '127.0.0.1',
       KINOPEER_DIST: 'dist',
       KINOPEER_DATA_DIR: dataDir,
+      KINOPEER_AUTH: options.ownLogin ? 'on' : 'off',
       QBITTORRENT_URL: qbittorrent.base,
       PROWLARR_URL: prowlarr.base,
       PROWLARR_API_KEY: PROWLARR_KEY,

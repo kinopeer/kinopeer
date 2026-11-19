@@ -212,8 +212,9 @@
 
 /*
  * Desktop: connections across the top, then two columns, download defaults on the left and
- * Appearance on the right, then About across both, its two cards side by side and TMDB's notice
- * under them. The visual order follows the DOM order the phone keeps.
+ * Appearance on the right, with Sign-in under it when Kinopeer's own login is on, then About across
+ * both, its two cards side by side and TMDB's notice under them. The visual order follows the DOM
+ * order the phone keeps.
  */
 @media (min-width: 1024px) {
   .settings {
@@ -247,6 +248,19 @@
 
   .settings-appearance {
     grid-area: appearance;
+  }
+
+  .settings:has(> .settings-sign-in) {
+    grid-template-areas:
+      'title title'
+      'connections connections'
+      'defaults appearance'
+      'defaults sign-in'
+      'about about';
+  }
+
+  .settings-sign-in {
+    grid-area: sign-in;
   }
 
   .settings-about {
