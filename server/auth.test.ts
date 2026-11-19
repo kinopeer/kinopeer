@@ -211,7 +211,8 @@ describe('the login', () => {
     const first = cookieOf(await post(app, 'setup', { password: 'correct horse' }))
     const second = cookieOf(await post(app, 'login', { password: 'correct horse' }))
 
-    const response = await post(app, 'logout', {}, first)
+    // The app sends no body to sign out, only the JSON content type.
+    const response = await fetch(`${app}/api/auth/logout`, { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: first } })
     expect(response.status).toBe(204)
     expect(response.headers.getSetCookie()).toEqual([`${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`])
     expect(await reached(app, first)).toBe(false)
@@ -351,6 +352,12 @@ describe('the login off', () => {
     expect(await reached(app, undefined, '/api/settings')).toBe(true)
     expect(await (await post(app, 'setup', { password: 'correct horse' })).json()).toEqual({ error: 'auth-off' })
     expect(auth.status()).toEqual({ enabled: false })
+  })
+
+  it('doesn’t read auth.json, so a data directory it can’t read holds nothing back', async () => {
+    await writeFile(join(dir, 'file'), '')
+    const { origin } = kinopeer({ mode: 'off', store: new AuthStore(join(dir, 'file', 'data')), envPassword: 'from the environment' })
+    expect(await reached(await origin)).toBe(true)
   })
 })
 

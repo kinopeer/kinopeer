@@ -35,6 +35,7 @@ describe('SignInScreen, setting the password', () => {
   it('sets the password typed twice', async () => {
     render(<SignInScreen need="set-up" />)
     expect(screen.getByRole('heading', { name: 'Set a password' })).toBeInTheDocument()
+    expect(screen.getByText('Anyone on your network can open Kinopeer, and through it control qBittorrent and Prowlarr. Set a password to keep them out: each device asks for it once.')).toBeInTheDocument()
     expect(screen.getByLabelText('New password')).toHaveAttribute('autocomplete', 'new-password')
     expect(screen.getByLabelText('New password')).toHaveAccessibleDescription('At least 8 characters')
     await setUp('correct horse')
@@ -65,7 +66,7 @@ describe('SignInScreen, setting the password', () => {
     await setUp('correct horse')
     rerender(<Current />)
     expect(screen.getByRole('heading', { name: 'Sign in to Kinopeer' })).toBeInTheDocument()
-    expect(screen.getByRole('status', { name: saying(/Someone has just set Kinopeer’s password/) })).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: saying('Someone has just set Kinopeer’s password. Sign in with it.') })).toBeInTheDocument()
     expect(screen.getByLabelText('Password')).toHaveValue('')
   })
 
@@ -87,6 +88,7 @@ describe('SignInScreen, signing in', () => {
     render(<SignInScreen need="sign-in" />)
     const password = screen.getByLabelText('Password')
     expect(password).toHaveAttribute('autocomplete', 'current-password')
+    expect(screen.getByText('Enter Kinopeer’s password. It keeps everyone else on your network out of Kinopeer and the qBittorrent and Prowlarr behind it.')).toBeInTheDocument()
     expect(screen.queryByLabelText('Repeat the password')).not.toBeInTheDocument()
     expect(document.querySelector('input[autocomplete="username"]')).toHaveValue('Kinopeer')
     await signInWith('correct horse')

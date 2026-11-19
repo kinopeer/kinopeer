@@ -465,7 +465,10 @@ describe('SettingsScreen', () => {
     vi.mocked(auth.changePassword).mockResolvedValue()
     renderScreen()
     const section = await screen.findByRole('region', { name: 'Sign-in' })
-    await userEvent.click(within(section).getByRole('button', { name: saying(/Change password/) }))
+    const change = within(section).getByRole('button', { name: /^Change password/ })
+    expect(within(change).getByText('Change password')).toBeInTheDocument()
+    expect(within(change).getByText('Other devices will need to sign in again')).toBeInTheDocument()
+    await userEvent.click(change)
 
     const sheet = screen.getByRole('dialog', { name: 'Change password' })
     await userEvent.type(within(sheet).getByLabelText('Current password'), 'correct horse')
@@ -484,9 +487,12 @@ describe('SettingsScreen', () => {
     renderScreen()
     const section = await screen.findByRole('region', { name: 'Sign-in' })
     expect(within(section).queryByRole('button', { name: saying(/Change password/) })).not.toBeInTheDocument()
-    expect(within(section).getByText(/set on the server \(KINOPEER_PASSWORD\)/)).toBeInTheDocument()
+    expect(within(section).getByText('The password is set on the server (KINOPEER_PASSWORD), so it’s changed there.')).toBeInTheDocument()
 
-    await userEvent.click(within(section).getByRole('button', { name: saying(/Sign out/) }))
+    const signOut = within(section).getByRole('button', { name: /^Sign out/ })
+    expect(within(signOut).getByText('Sign out')).toBeInTheDocument()
+    expect(within(signOut).getByText('On this device')).toBeInTheDocument()
+    await userEvent.click(signOut)
     expect(auth.signOut).toHaveBeenCalledOnce()
   })
 

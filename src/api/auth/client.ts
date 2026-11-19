@@ -8,7 +8,7 @@ export const AUTH_BASE = '/api/auth'
 
 /**
  * The shortest password the server takes: `MIN_PASSWORD_LENGTH` in server/auth.ts, which can't
- * import this (the image has no src/), so server/auth.test.ts checks they're the same.
+ * import this (the image has no src/), so server/integration/auth.test.ts checks they're the same.
  */
 export const MIN_PASSWORD_LENGTH = 8
 
