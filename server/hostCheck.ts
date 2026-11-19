@@ -59,9 +59,16 @@ export function allowedHostsWarning(value: string | undefined): string | undefin
   const { invalid, tooBroad } = allowedHosts(value)
   const warnings = [
     invalid.length ? `not host names, ignored: ${invalid.join(', ')}` : '',
-    tooBroad.length ? `domains of one label are too broad, ignored (list their names instead, such as kinopeer.lan): ${tooBroad.join(', ')}` : '',
+    tooBroad.length ? `domains of one label are too broad, ignored: ${tooBroad.map(tooBroadHint).join(', ')}` : '',
   ].filter(Boolean)
   return warnings.length ? `KINOPEER_ALLOWED_HOSTS: ${warnings.join('; ')}` : undefined
+}
+
+/** A too-broad entry with what to do instead: list its names, unless the check answers them by default. */
+function tooBroadHint(entry: string): string {
+  const label = entry.replace(/^\*?\./, '').toLowerCase()
+  const example = `kinopeer.${label}`
+  return isPrivateHost(example) ? `${entry} (its names are allowed already)` : `${entry} (list its names instead, such as ${example})`
 }
 
 /**

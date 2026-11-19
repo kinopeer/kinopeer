@@ -88,10 +88,14 @@ describe('allowedHostsWarning', () => {
       'KINOPEER_ALLOWED_HOSTS: not host names, ignored: https://kinopeer.example.com, kino.example.com/x',
     )
     expect(allowedHostsWarning('.lan, ok.example.com')).toBe(
-      'KINOPEER_ALLOWED_HOSTS: domains of one label are too broad, ignored (list their names instead, such as kinopeer.lan): .lan',
+      'KINOPEER_ALLOWED_HOSTS: domains of one label are too broad, ignored: .lan (list its names instead, such as kinopeer.lan)',
+    )
+    // A private suffix's names need no listing.
+    expect(allowedHostsWarning('.local, *.Internal')).toBe(
+      'KINOPEER_ALLOWED_HOSTS: domains of one label are too broad, ignored: .local (its names are allowed already), *.Internal (its names are allowed already)',
     )
     expect(allowedHostsWarning('https://kinopeer.example.com, *.com')).toBe(
-      'KINOPEER_ALLOWED_HOSTS: not host names, ignored: https://kinopeer.example.com; domains of one label are too broad, ignored (list their names instead, such as kinopeer.lan): *.com',
+      'KINOPEER_ALLOWED_HOSTS: not host names, ignored: https://kinopeer.example.com; domains of one label are too broad, ignored: *.com (list its names instead, such as kinopeer.com)',
     )
     expect(allowedHostsWarning('ok.example.com')).toBeUndefined()
     expect(allowedHostsWarning(undefined)).toBeUndefined()
