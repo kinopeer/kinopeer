@@ -30,11 +30,13 @@ const PRIVATE_SUFFIXES = ['.localhost', '.local', '.onion', '.home.arpa', '.inte
  * Reads `KINOPEER_ALLOWED_HOSTS`: host names separated by commas or spaces, `.example.com` (or
  * `*.example.com`) for a domain and every name under it, `*` for any. A port or a trailing dot is
  * ignored, and a name in another script is taken in its ASCII form, as browsers send it. What isn't
- * a host name (a URL with a path, say), and a domain of one label, go to `invalid`, for a warning at startup.
+ * a host name (a URL with a path, say) goes to `invalid`, and a domain of one label (`.lan`) to
+ * `tooBroad`, both for a warning at startup.
  */
-export function allowedHosts(value: string | undefined): { allowed: AllowedHosts; invalid: string[] } {
+export function allowedHosts(value: string | undefined): { allowed: AllowedHosts; invalid: string[]; tooBroad: string[] } {
   const allowed: AllowedHosts = { any: false, names: [], domains: [] }
   const invalid: string[] = []
+  const tooBroad: string[] = []
   for (const entry of (value ?? '').split(/[\s,]+/).filter(Boolean)) {
     if (entry === '*') {
       allowed.any = true
@@ -42,18 +44,24 @@ export function allowedHosts(value: string | undefined): { allowed: AllowedHosts
     }
     const domain = /^\*?\./.exec(entry)
     const name = hostName(domain ? entry.slice(domain[0].length) : entry)
-    // A domain of one label (`.com`) would let in every name under a public suffix.
-    if (!name || name.startsWith('.') || name.includes('*') || (domain && !name.includes('.'))) invalid.push(entry)
+    if (!name || name.startsWith('.') || name.includes('*')) invalid.push(entry)
+    // A domain of one label (`.com`) would let in every name under a public suffix; one a router
+    // uses (`.lan`) is listed name by name.
+    else if (domain && !name.includes('.')) tooBroad.push(entry)
     else if (domain) allowed.domains.push(`.${name}`)
     else allowed.names.push(name)
   }
-  return { allowed, invalid }
+  return { allowed, invalid, tooBroad }
 }
 
-/** What the server warns about at startup: the entries of `KINOPEER_ALLOWED_HOSTS` it ignores. */
+/** What the server warns about at startup: the entries of `KINOPEER_ALLOWED_HOSTS` it ignores, and why. */
 export function allowedHostsWarning(value: string | undefined): string | undefined {
-  const { invalid } = allowedHosts(value)
-  return invalid.length ? `KINOPEER_ALLOWED_HOSTS: not host names, ignored: ${invalid.join(', ')}` : undefined
+  const { invalid, tooBroad } = allowedHosts(value)
+  const warnings = [
+    invalid.length ? `not host names, ignored: ${invalid.join(', ')}` : '',
+    tooBroad.length ? `domains of one label are too broad, ignored (list their names instead, such as kinopeer.lan): ${tooBroad.join(', ')}` : '',
+  ].filter(Boolean)
+  return warnings.length ? `KINOPEER_ALLOWED_HOSTS: ${warnings.join('; ')}` : undefined
 }
 
 /**
@@ -96,8 +104,9 @@ export function isAllowedHost(value: string | undefined, allowed: AllowedHosts):
  * its `Host` and, when a proxy in front added one, each host in `X-Forwarded-Host`. The latter
  * can't let a request through that its `Host` doesn't, since every one must be allowed, while it
  * catches a proxy that sends the upstream's address as `Host` and the page's name in it. A proxy
- * that sends neither the page's `Host` nor `X-Forwarded-Host` (nginx's default) hides the name:
- * its own `server_name` has to refuse a rebound one.
+ * that sends neither the page's `Host` nor `X-Forwarded-Host` (nginx's default) hides the name, and
+ * the check sees only the upstream's, which it allows if the proxy works at all: there only the
+ * proxy can refuse a rebound name (nginx: a catch-all `default_server` that returns 444).
  */
 export function refusedHost(headers: IncomingHttpHeaders, allowed: AllowedHosts): string | undefined {
   const forwarded = String(headers['x-forwarded-host'] ?? '')

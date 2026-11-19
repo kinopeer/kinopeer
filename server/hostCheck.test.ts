@@ -63,6 +63,7 @@ describe('allowedHosts', () => {
         domains: ['.home.example.org', '.vpn.example.net'],
       },
       invalid: [],
+      tooBroad: [],
     })
   })
 
@@ -73,17 +74,24 @@ describe('allowedHosts', () => {
   })
 
   it('sets aside what isn’t a host name, and a domain of one label, to warn about', () => {
-    expect(allowedHosts('https://kinopeer.example.com, kinopeer.example.com/x, *kino.example.com, *., ..example.com, .com, *.com, ok.example.com')).toEqual({
+    expect(allowedHosts('https://kinopeer.example.com, kinopeer.example.com/x, *kino.example.com, *., ..example.com, .lan, *.com, ok.example.com')).toEqual({
       allowed: { any: false, names: ['ok.example.com'], domains: [] },
-      invalid: ['https://kinopeer.example.com', 'kinopeer.example.com/x', '*kino.example.com', '*.', '..example.com', '.com', '*.com'],
+      invalid: ['https://kinopeer.example.com', 'kinopeer.example.com/x', '*kino.example.com', '*.', '..example.com'],
+      tooBroad: ['.lan', '*.com'],
     })
   })
 })
 
 describe('allowedHostsWarning', () => {
-  it('names the entries ignored, and says nothing without any', () => {
+  it('names the entries ignored and why, and says nothing without any', () => {
     expect(allowedHostsWarning('https://kinopeer.example.com, ok.example.com, kino.example.com/x')).toBe(
       'KINOPEER_ALLOWED_HOSTS: not host names, ignored: https://kinopeer.example.com, kino.example.com/x',
+    )
+    expect(allowedHostsWarning('.lan, ok.example.com')).toBe(
+      'KINOPEER_ALLOWED_HOSTS: domains of one label are too broad, ignored (list their names instead, such as kinopeer.lan): .lan',
+    )
+    expect(allowedHostsWarning('https://kinopeer.example.com, *.com')).toBe(
+      'KINOPEER_ALLOWED_HOSTS: not host names, ignored: https://kinopeer.example.com; domains of one label are too broad, ignored (list their names instead, such as kinopeer.lan): *.com',
     )
     expect(allowedHostsWarning('ok.example.com')).toBeUndefined()
     expect(allowedHostsWarning(undefined)).toBeUndefined()
