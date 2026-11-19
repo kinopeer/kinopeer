@@ -9,6 +9,7 @@ import {
   QbittorrentError,
   UnauthorizedError,
   addTorrents,
+  TorrentRefusedError,
   deleteTorrents,
   getAppVersion,
   getCategories,
@@ -106,9 +107,14 @@ describe('addTorrents', () => {
     expect(form.get('addToTopOfQueue')).toBe('true')
   })
 
-  it('reports a torrent qBittorrent refused', async () => {
+  it('reports a torrent qBittorrent refused, as 5.1 and earlier answer', async () => {
     respond('Fails.')
-    await expect(addTorrents({ urls: ['magnet:?xt=urn:btih:abc'] })).rejects.toBeInstanceOf(QbittorrentError)
+    await expect(addTorrents({ urls: ['magnet:?xt=urn:btih:abc'] })).rejects.toBeInstanceOf(TorrentRefusedError)
+  })
+
+  it('reports a torrent qBittorrent refused, as 5.2 and later answer', async () => {
+    respond('', 409)
+    await expect(addTorrents({ urls: ['magnet:?xt=urn:btih:abc'] })).rejects.toBeInstanceOf(TorrentRefusedError)
   })
 })
 

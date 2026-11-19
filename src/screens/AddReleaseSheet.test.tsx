@@ -455,7 +455,7 @@ describe('AddReleaseSheet', () => {
   })
 
   it('says qBittorrent refused the torrent when it then doesn’t have it', async () => {
-    addRelease.mockRejectedValue(new qbt.QbittorrentError('Fails.', 200))
+    addRelease.mockRejectedValue(new qbt.TorrentRefusedError(200))
     const { onAdded } = renderSheet()
     await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
     expect(await screen.findByRole('alert', { name: saying('qBittorrent didn’t add the torrent.') })).toBeInTheDocument()
@@ -464,7 +464,7 @@ describe('AddReleaseSheet', () => {
   })
 
   it('says the torrent is already in downloads when qBittorrent refused it and has it', async () => {
-    addRelease.mockRejectedValue(new qbt.QbittorrentError('Fails.', 200))
+    addRelease.mockRejectedValue(new qbt.TorrentRefusedError(409))
     // Added meanwhile, from another device: qBittorrent has it by the time it refuses it.
     getTorrents.mockResolvedValueOnce([]).mockResolvedValueOnce([torrent(META.infoHash)])
     const { onAdded } = renderSheet()
@@ -476,7 +476,7 @@ describe('AddReleaseSheet', () => {
   })
 
   it('says it may already be in downloads when qBittorrent refused it and can’t be asked then', async () => {
-    addRelease.mockRejectedValue(new qbt.QbittorrentError('Fails.', 200))
+    addRelease.mockRejectedValue(new qbt.TorrentRefusedError(200))
     getTorrents.mockResolvedValueOnce([]).mockRejectedValueOnce(qbittorrentDown())
     renderSheet()
     await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
@@ -486,7 +486,7 @@ describe('AddReleaseSheet', () => {
   it('says qBittorrent refused a v1 magnet link when it then doesn’t have it', async () => {
     const hash = 'c9e15763f722f23e98a29decdfae341b98d53056'
     fetchRelease.mockResolvedValue({ kind: 'magnet', uri: `magnet:?xt=urn:btih:${hash}` })
-    addRelease.mockRejectedValue(new qbt.QbittorrentError('Fails.', 200))
+    addRelease.mockRejectedValue(new qbt.TorrentRefusedError(200))
     renderSheet()
     await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
     expect(await screen.findByRole('alert', { name: saying('qBittorrent didn’t add the torrent.') })).toBeInTheDocument()
@@ -497,7 +497,7 @@ describe('AddReleaseSheet', () => {
     // A hybrid torrent's ID is its v1 hash, which this link doesn't give.
     const v2 = 'ab'.repeat(32)
     fetchRelease.mockResolvedValue({ kind: 'magnet', uri: `magnet:?xt=urn:btmh:1220${v2}` })
-    addRelease.mockRejectedValue(new qbt.QbittorrentError('Fails.', 200))
+    addRelease.mockRejectedValue(new qbt.TorrentRefusedError(200))
     renderSheet()
     await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
     expect(await screen.findByRole('alert', { name: saying('qBittorrent didn’t add the torrent. It may already be in your downloads.') })).toBeInTheDocument()
@@ -506,7 +506,7 @@ describe('AddReleaseSheet', () => {
 
   it('says it may already be in downloads when qBittorrent refused a torrent whose hash isn’t known', async () => {
     readTorrentFile.mockRejectedValue(new torrentFile.InvalidTorrentError())
-    addRelease.mockRejectedValue(new qbt.QbittorrentError('Fails.', 200))
+    addRelease.mockRejectedValue(new qbt.TorrentRefusedError(200))
     renderSheet()
     await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
     expect(await screen.findByRole('alert', { name: saying('qBittorrent didn’t add the torrent. It may already be in your downloads.') })).toBeInTheDocument()
