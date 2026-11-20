@@ -14,7 +14,7 @@ import { listenForInstallPrompt } from './pwa/install'
 import { startProxySignIn } from './pwa/proxySignIn'
 import { startUpdateChecks } from './pwa/updates'
 import { ErrorBoundary } from './screens/ErrorBoundary'
-import { initLanguage } from './i18n/language'
+import { getLanguagePreference, initLanguage, resolveLanguage, showLanguage } from './i18n/language'
 import { initSettingsSync } from './settings/settings'
 import { initTheme } from './theme/theme'
 
@@ -29,12 +29,16 @@ startUpdateChecks()
 trackInputModality()
 trackKeyboardInset()
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <BrowserRouter {...ROUTER_OPTIONS}>
-      <ErrorBoundary>
-        <App />
-      </ErrorBoundary>
-    </BrowserRouter>
-  </StrictMode>,
+// The first render waits for the texts of the language it shows, so neither the keys nor another
+// language flash first. Without them (the file unreachable) it renders anyway, with the keys.
+void showLanguage(resolveLanguage(getLanguagePreference())).then(() =>
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <BrowserRouter {...ROUTER_OPTIONS}>
+        <ErrorBoundary>
+          <App />
+        </ErrorBoundary>
+      </BrowserRouter>
+    </StrictMode>,
+  ),
 )

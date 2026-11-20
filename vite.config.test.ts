@@ -2,12 +2,13 @@ import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from 'node
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createServer, preview, resolveConfig } from 'vite'
 import { refusal } from './server/hostCheck.ts'
 import { CONTENT_SECURITY_POLICY, SECURITY_HEADERS } from './server/securityHeaders.ts'
 import { getWithHost } from './server/test/fakes.ts'
-import { inlineTouchIconPlugin } from './vite.config.ts'
+import { chunkFileName, inlineTouchIconPlugin } from './vite.config.ts'
 
 /**
  * `npm run dev` and `npm run preview` from this config. loadEnv lets process.env win over
@@ -155,5 +156,21 @@ describe('vite.config.ts', () => {
 
   it('fails the build on a touch icon other than a PNG, which the data: URL would name wrong', () => {
     expect(() => transform('<link rel="apple-touch-icon" href="/icons/apple-touch-icon.webp" />')).toThrow('inlined as a PNG, not /icons/apple-touch-icon.webp')
+  })
+})
+
+describe('chunkFileName', () => {
+  const locales = fileURLToPath(new URL('./src/i18n/locales', import.meta.url))
+
+  it("names a language's texts so the size budget tells them apart", () => {
+    expect(chunkFileName({ facadeModuleId: join(locales, 'ru.json') })).toBe('assets/language-[name]-[hash].js')
+  })
+
+  it.each([
+    ['a module elsewhere', fileURLToPath(new URL('./src/main.tsx', import.meta.url))],
+    ['a folder that only starts like the locales', `${locales}-old/ru.json`],
+    ['no module', null],
+  ])('names a chunk of %s as Vite does', (_what, facadeModuleId) => {
+    expect(chunkFileName({ facadeModuleId })).toBe('assets/[name]-[hash].js')
   })
 })

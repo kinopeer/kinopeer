@@ -20,6 +20,7 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 
 ### Changed
 
+- The app starts with only the texts of the language it shows, about 5 kB less to load before it appears in Russian and 8 kB in English; switching the language in Settings loads the other language's texts then, and says so when they can't be loaded. ([#492](https://github.com/kinopeer/kinopeer/issues/492))
 - Opening the app asks Kinopeer's server for its settings once rather than twice, and Settings, opened as the app opens or a tab away, shows the connection to qBittorrent and the server's settings the app just got rather than asking again; opened later, or with Test, it checks anew. ([#382](https://github.com/kinopeer/kinopeer/issues/382))
 - On a phone, moving from a title's page to its releases and back no longer asks TMDB again for the title's details and its recommendations: the app keeps what it showed for an hour. ([#384](https://github.com/kinopeer/kinopeer/issues/384))
 - A torrent whose title TMDB couldn't find is remembered by Kinopeer's server, so no device looks it up again, where each browser used to ask again every day. ([#461](https://github.com/kinopeer/kinopeer/issues/461))

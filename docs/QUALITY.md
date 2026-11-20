@@ -375,9 +375,14 @@ each sum with its budget in `checks.json`:
 
 | Kind | Counted | Budget |
 | --- | --- | --- |
-| JS (`.js`, `.mjs`) | gzipped, at gzip's default level | `budgets.size.js` |
+| JS (`.js`, `.mjs`), with one language's texts | gzipped, at gzip's default level | `budgets.size.js` |
 | CSS | gzipped, the same way | `budgets.size.css` |
 | Everything else | as it is | `budgets.size.rest` |
+
+Each language's texts are a file of their own, `assets/language-<code>-<hash>.js`
+(`chunkFileName` in `vite.config.ts`), and a page loads only the one it shows (#492), so JS counts
+only the heaviest of them (`isLanguageFile` in `budget.ts`) and the report names the files it left
+out. A language file named otherwise counts as any JS, so a broken name shows as JS over its budget.
 
 gzip is a steady measure of the text rather than the bytes a browser gets: `server/static.ts` sends
 Brotli to a browser that takes it and gzip only to one that doesn't. The rest is mostly fonts and
@@ -387,14 +392,14 @@ icons, compressed already; its few text files (`index.html`, the manifest, `favi
 The sums are per kind rather than per file, since the files' names carry hashes that change with
 their content. Each budget is a whole number of bytes, about 5% above what the build measured when
 it was set: on 2026-11-12, 186,937 bytes of JS, 15,392 of CSS and 184,330 of the rest, against
-budgets of 196,300, 16,200 and 193,600. Clean builds in a row gave the same numbers to the byte,
+budgets of 196,300, 16,200 and 193,600. JS's was lowered to 191,100 on 2026-11-20, to the
+measurement of 191,003 bytes rounded up to the next 100, when the languages' texts left the main bundle (#492). Clean builds in a row gave the same numbers to the byte,
 and CI's build on Node 22 the same as a local one on Node 24: the size is exact, so the margin is
 room for ordinary changes, not for noise. It is exact for the dependencies `package-lock.json`
 names: a local `node_modules` that drifted from it builds another size, so measure after `npm ci`.
-On 2026-11-20 the JS budget went to 199,800 bytes, the measured size rounded up, on the coordinator's
-decision on #486 (Telegram notifications, which add about 3.4 kB, while `main` grew under its own
-budget meanwhile): it has no margin left until #492, which loads only the active language's texts,
-brings the bundle down.
+It went to 193,700 the same day, the measurement of 193,602 bytes rounded up the same way, on the
+coordinator's decision on #486 (Telegram notifications, which add 2,599 bytes with one language's
+texts), so like the budget before it, it leaves no margin.
 
 **In CI** it is the step after `npm run build` in the `performance` job, which adds a table of the kinds,
 their sizes, budgets and what is left to the job's summary, and records the sizes as actual values

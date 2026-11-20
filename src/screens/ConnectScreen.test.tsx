@@ -4,6 +4,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as settings from '../api/settings'
 import { SettingsError, type ServerSettings } from '../api/settings'
 import * as proxySignIn from '../pwa/proxySignIn'
+import { ToastProvider } from '../components/Toast'
+import en from '../i18n/locales/en.json'
+import { russianUnreachable } from '../test/languages'
 import { ConnectScreen, type ConnectScreenProps } from './ConnectScreen'
 import { controlledByServiceWorker, saying } from '../test/render'
 
@@ -36,7 +39,7 @@ type StateProps = Partial<Pick<ConnectScreenProps, 'unreachable' | 'unsupported'
 
 function setup(onSignIn = vi.fn().mockResolvedValue(undefined), props: StateProps = {}) {
   const onRetry = vi.fn()
-  const view = render(<ConnectScreen onSignIn={onSignIn} onRetry={onRetry} {...props} />)
+  const view = render(<ConnectScreen onSignIn={onSignIn} onRetry={onRetry} {...props} />, { wrapper: ToastProvider })
   /** The session's next state, as `App` renders the same screen with it. */
   const rerender = (next: StateProps) => view.rerender(<ConnectScreen onSignIn={onSignIn} onRetry={onRetry} {...next} />)
   return { onSignIn, onRetry, rerender }
@@ -361,6 +364,26 @@ describe('ConnectScreen', () => {
     expect(screen.getByRole('button', { name: 'Русский' })).toHaveAttribute('aria-pressed', 'true')
     expect(localStorage.getItem('kinopeer.language')).toBe('ru')
     expect(screen.getByRole('button', { name: 'Светлая' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it("says when the language chosen can't be loaded, and stays in the one shown", async () => {
+    setup()
+    russianUnreachable()
+    await userEvent.click(within(screen.getByRole('group', { name: 'Language' })).getByRole('button', { name: 'Русский' }))
+    expect(await screen.findByRole('status', { name: saying(en.language.unavailable) })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'English' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it("chooses the language shown when it's tapped after another couldn't be loaded", async () => {
+    setup()
+    russianUnreachable()
+    const language = within(screen.getByRole('group', { name: 'Language' }))
+    await userEvent.click(language.getByRole('button', { name: 'Русский' }))
+    expect(await screen.findByRole('status', { name: saying(en.language.unavailable) })).toBeInTheDocument()
+    expect(localStorage.getItem('kinopeer.language')).toBe('ru')
+
+    await userEvent.click(language.getByRole('button', { name: 'English' }))
+    expect(localStorage.getItem('kinopeer.language')).toBe('en')
   })
 
   it('keeps following the browser when the language already shown is tapped', async () => {
