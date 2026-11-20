@@ -10,7 +10,7 @@ screenshot tests and the smoke journeys. Running and releasing are in
 The rules here that any project could use (choosing a layer and the neighbours of a change, a
 test that can fail, the accepted reasons for something uncovered, what to do with a bug and its
 seven `test-gap` classes, keeping a list of blind spots, reviewing a PR's tests and tagging its
-findings) are also the quality system's testing component, **version 2 (2026-11-15)**, which other
+findings) are also the quality system's testing component, **version 2.1 (2026-11-20)**, which other
 projects copy. This file is that component's source, not a copy: the component was written from
 it, in project-neutral words, and lives in the owner's private repository (`ai-workspace`,
 `quality-system/testing.md`), which outside contributors can't open, so everything needed to work in
@@ -77,7 +77,7 @@ here, and a layer named wrong keeps the review from checking that it's the lowes
 
 ## Choosing a layer
 
-*The testing component's rules, version 2, in Kinopeer's words ([above](#testing)).*
+*The testing component's rules, version 2.1, in Kinopeer's words ([above](#testing)).*
 
 A change is every new behavior and every new branch, error paths included: a status mapped to a
 message, a `.catch` that swallows or reports, an action disabled offline or while busy, a fallback
@@ -395,9 +395,9 @@ of these:
   (#298), a secret passed by name to a reusable workflow (#291). The PR names the hand-off it
   checked (the group key both runs compute, the inputs of each side) and the documentation page it
   read the rest from.
-- **A known limitation the owner chose to keep:** a case the PR leaves as it is by the owner's
-  decision. The PR links the decision (the row in `docs/SPEC.md`'s decision log, or the comment with
-  the owner's decision) and says what happens in that case: a forget that fails after its sheet closed
+- **A known limitation chosen to be kept:** a case the PR leaves as it is by a recorded decision,
+  the owner's or the coordinator's. The PR links the decision (the row in `docs/SPEC.md`'s decision
+  log, or the comment with the decision) and says what happens in that case: a forget that fails after its sheet closed
   goes unsaid, as saving a key does (#248).
 - **No behavior:** docs, comments, CI and config, types, generated files, a re-export. A branch in a
   script or a workflow (whether to install, whether to deploy, which targets a matrix reaches) is
@@ -422,7 +422,7 @@ checks the reasons before it looks for missing tests.
 
 ## When we find a bug
 
-*The testing component's rules, version 2, in Kinopeer's words ([above](#testing)).*
+*The testing component's rules, version 2.1, in Kinopeer's words ([above](#testing)).*
 
 A bug is two defects: one in the code and one in the tests that let it through. A `fix:` PR answers
 three questions: why it broke, why the tests didn't catch it, and what changes so this class of miss
@@ -510,7 +510,7 @@ journey now presses the real Escape it had skipped.
 
 ## Known blind spots
 
-*The rule in this section's first paragraph is the testing component's, version 2 ([above](#testing)); the table is Kinopeer's.*
+*The rule in this section's first paragraph is the testing component's, version 2.1 ([above](#testing)); the table is Kinopeer's.*
 
 What no layer sees. Each is either checked by hand before a release ([RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)
 → Before every release) or knowingly not checked; a bug from one of them is an `environment` miss,
@@ -684,7 +684,7 @@ here after three new calls in one batch (#309, #323, #334).
 
 ## Reviewing a PR's tests
 
-*The testing component's rules, version 2, in Kinopeer's words ([above](#testing)).*
+*The testing component's rules, version 2.1, in Kinopeer's words ([above](#testing)).*
 
 Three steps, each by whoever can do it best:
 
@@ -802,7 +802,7 @@ before it.
 
 ## Improving the system
 
-*The testing component's rules, version 2, in Kinopeer's words ([above](#testing)).*
+*The testing component's rules, version 2.1, in Kinopeer's words ([above](#testing)).*
 
 The rules in this file, the skill and the PR template are a system that should need less and less
 correcting. Every review finding says something about it: either the author slipped on a clear
@@ -836,9 +836,9 @@ it.
 Unit tests run in jsdom, which has no layout, so they can't catch a button in the wrong place or a title that doesn't clamp. Screenshot tests do: Playwright opens the built app (`vite preview`) in Chromium and compares each screen with a baseline PNG.
 
 - **What's covered:** what only the browser sees, one baseline per layout or state, in the dark theme and Russian unless said otherwise. Specs are in `e2e/*.spec.ts`, baselines in `e2e/__screenshots__/`.
-  - A phone (390×844): Downloads (list and poster grid, the sort and filter sheet, the actions sheet, selection, empty, offline, Kinopeer unreached before the first answer and after one, with Retry and Open again, the sticky filter bar after a scroll, also with a notched iPhone's safe area, which a DevTools override gives Chromium), Search (browse rows, results, a next page that failed, the pinned field after a scroll, also with a notched safe area), the title page (movie and series, and the page scrolled under the pinned Find releases bar), Releases (results, also with a release already in downloads, the filters sheet, the add sheet, also with too little free space and with the torrent already in downloads, and its file picker), torrent details (with files, a guessed title, no title found with the dot on More, also in the light theme, and its menu with Match title in the accent, fixing the match, changing the category, an error), Settings (and a connection with an error, and Prowlarr without indexers, and with Kinopeer's own login: its Sign-in section and the Change password sheet, and Telegram: its card connected and not set up, and the sheet's three steps: the token, the chat found and connected with the chat refused), the torrent page's Notify when finished switch, the connect screen with a wrong password and with Kinopeer unreached (the state in place of the form, Retry and Open again), qBittorrent too old, and Kinopeer's own sign-in: setting the password, signing in, a wrong password and the wait after too many.
+  - A phone (390×844): Downloads (list and poster grid, the sort and filter sheet, the actions sheet, selection, empty, offline, Kinopeer unreached before the first answer and after one, with Retry and Open again, the sticky filter bar after a scroll, also with a notched iPhone's safe area, which a DevTools override gives Chromium), Search (browse rows, results, a next page that failed, the pinned field after a scroll, also with a notched safe area), the title page (movie and series, and the page scrolled under the pinned Find releases bar), Releases (results, also with a release already in downloads, the filters sheet, the add sheet, also with too little free space and with the torrent already in downloads, and its file picker), torrent details (with files, a guessed title, no title found with the dot on More, also in the light theme, and its menu with Match title in the accent, fixing the match, changing the category, an error), Settings (and a connection with an error, and Prowlarr without indexers, and with Kinopeer's own login: its Sign-in section and the Change password sheet, and Telegram: its card connected and not set up, and the sheet's three steps: the token, the chat found and connected with the chat refused), the torrent page's Notify when finished switch, the connect screen with a wrong password, with Kinopeer unreached (the state in place of the form, Retry and Open again) and asking for qBittorrent's address where the server has none, onboarding's Prowlarr step, qBittorrent too old, and Kinopeer's own sign-in: setting the password, signing in, a wrong password and the wait after too many.
   - A tablet (768×1024): Downloads in the centered column, with the tab bar over it.
-  - Desktop (1440×900): the sidebar with labels, Downloads as a grid (and a card's Pause button on hover, and the offline banner with Kinopeer unreached, both buttons beside the text) and as a table (the row and sort menus, selection, offline, the sticky header and column names after a scroll, the header with a notched safe area, the install card above it, and the card left open where it doesn't show, which takes no room), Search (the pinned field after a scroll, no results), the title page (incl. the long overview with Show more), releases under the hero with a filter popover, sorted by a column's name and with a release already in downloads, and with nothing found and indexers that didn't answer, the torrent drawer over Downloads (also with no title found, and its menu open) and over the title page, the add and delete modals, Settings (also with Kinopeer's own login, its password from `KINOPEER_PASSWORD`, and the Change password modal, and the Telegram modal) and onboarding (also with Kinopeer unreached and with qBittorrent too old, each state in the form's card), and Kinopeer's own sign-in: setting the password, and signing in in the light theme and English. The icon rail (1024×768) in the status menu, Search's pinned field after a scroll, releases (also with indexers that didn't answer, the heading's row at its fullest) and Settings; the labelled sidebar at its narrowest (1100×800) and full HD (1920×1080) for the table's columns.
+  - Desktop (1440×900): the sidebar with labels, Downloads as a grid (and a card's Pause button on hover, and the offline banner with Kinopeer unreached, both buttons beside the text) and as a table (the row and sort menus, selection, offline, the sticky header and column names after a scroll, the header with a notched safe area, the install card above it, and the card left open where it doesn't show, which takes no room), Search (the pinned field after a scroll, no results), the title page (incl. the long overview with Show more), releases under the hero with a filter popover, sorted by a column's name and with a release already in downloads, and with nothing found and indexers that didn't answer, the torrent drawer over Downloads (also with no title found, and its menu open) and over the title page, the add and delete modals, Settings (also with Kinopeer's own login, its password from `KINOPEER_PASSWORD`, and the Change password modal, and the Telegram modal) and onboarding (also with Kinopeer unreached, asking for qBittorrent's address, the Prowlarr step and with qBittorrent too old, each state in the form's card), and Kinopeer's own sign-in: setting the password, and signing in in the light theme and English. The icon rail (1024×768) in the status menu, Search's pinned field after a scroll, releases (also with indexers that didn't answer, the heading's row at its fullest) and Settings; the labelled sidebar at its narrowest (1100×800) and full HD (1920×1080) for the table's columns.
   - The light theme in English, where its colors show on every status and on the sidebar: the Downloads list on the phone, and the grid, the table and a completed torrent's drawer on desktop, whose rows lie on the page's background and whose progress card on `--sunken`, rather than a surface (#432); and Search's browse rows on the phone, whose "In downloads" badges stay on the posters' dark glass (#460).
   - A behavioral `expect` in a spec only gets a screen to its state, or checks what jsdom can't see (where a click lands, sticky positioning, a container query, a real `<dialog>`); behavior itself is layers 1–4.
 - **Accessibility:** every screenshot also has axe read the state it shows, the whole page for a screenshot of an element, against WCAG 2.2 AA as axe checks it, and compares the count of elements that break each rule with its budget under `budgets.accessibility` in `checks.json`. The read is inside `toHaveScreenshot`: the specs and the modules they share steps from (`app.ts`) take `test` and `expect` from `e2e/test.ts`, not from `@playwright/test` or `playwright/test`, which oxlint refuses in every file under `e2e/` but `test.ts` and the smoke and performance tests (their default export and `mergeExpects` too), so a new screenshot can't be taken without it. A new screenshot gets its budget in the same PR: its test fails without one, naming what to add. What the reads find, why a count must equal its budget and what fails are in [QUALITY.md → The accessibility budget](QUALITY.md#the-accessibility-budget).
@@ -1065,7 +1065,7 @@ has the budgets' rule.
 
 | Screen | Answers, in their chain | Late blocks | Cases |
 | --- | --- | --- | --- |
-| Every screen | qBittorrent's version; then the server's settings (whether onboarding asks for a TMDB key), after which the screen paints; the download defaults take that answer (#382) | The screen itself, in place of "Connecting" | |
+| Every screen | qBittorrent's version; then the server's settings (whether onboarding asks for a TMDB key or Prowlarr, `useSetupSteps`), after which the screen paints; the download defaults take that answer (#382) | The screen itself, in place of "Connecting" | |
 | `downloads` | The torrents and the server's matches; `p1`'s and `p2`'s titles by their tags' ids once the torrents are in, `p3`'s guess by TMDB's search once both are; the posters once one title is; the guess saved a second after it | The rows in place of the skeleton, the totals, the chips' counts, the speed limits switch; each row's title and poster. In the grid each card's title, in place of the release name, both in two lines of room, so the card keeps its height whatever the lookup finds (#403) | Titles found, in the list; titles found, in the grid; in the grid, titles of one line and of two and none found, a two-line title and none found in the first row |
 | `torrent` | The torrents and the matches; the title by its tag's id, or the search for a guess once both are in; the poster; the guess saved | The page in place of its skeleton; the title, its poster; More's dot when no title is found | Tagged and finished (`p2`); title guessed from its name (`p3`, cold cache); no title found (`p4`) |
 | `browse` | Three Discover queries at once, with qBittorrent's torrents asked once and the server's matches (no screen polls on Search); the posters once all three queries are in | The three rows, together, in place of the skeleton; their posters; the "In downloads" badge over a poster, out of the flow (#460) | Rows of titles |

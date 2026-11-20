@@ -156,8 +156,8 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
     (route) =>
       json(route, {
         tmdb: { configured: true, source: 'saved', fallback: null },
-        prowlarr: { configured: true, source: 'env', serverKey: true },
-        qbittorrent: { configured: true, source: 'saved' },
+        prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } },
+        qbittorrent: { configured: true, source: 'saved', address: { source: 'env' } },
         downloads: null,
         auth: options.auth ?? { enabled: false },
         ...(telegram && { telegram, notifications: telegram.chat !== null }),

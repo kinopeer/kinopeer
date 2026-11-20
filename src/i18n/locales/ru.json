@@ -19,6 +19,7 @@
   },
   "common": {
     "retry": "Повторить",
+    "skipForNow": "Пропустить",
     "openAgain": "Открыть заново",
     "openAgainHint": "Если вы уверены, что сервер с Kinopeer включён и доступен в сети, возможно, браузеру нужно заново подтвердить его сертификат: откройте Kinopeer заново.",
     "close": "Закрыть",
@@ -80,7 +81,16 @@
     "notQbittorrent": "Адрес qBittorrent на сервере Kinopeer отвечает, но не как qBittorrent. Проверьте QBITTORRENT_URL.",
     "unreachableBody": "Проверьте, что qBittorrent запущен и веб-интерфейс включён.",
     "unreachableBody_kinopeer": "Проверьте, что устройство в сети и Kinopeer запущен на сервере.",
-    "unreachableBody_openAgain": "$t(common.openAgainHint)"
+    "unreachableBody_openAgain": "$t(common.openAgainHint)",
+    "addressBody": "Введите адрес веб-интерфейса qBittorrent, по которому до него доходит сервер Kinopeer, и логин. Сервер их запомнит, вводить нужно один раз.",
+    "address": "Адрес qBittorrent",
+    "addressHelp": "Как его видит сервер Kinopeer, например http://192.168.1.10:8080",
+    "addressUnreachable": "По этому адресу никто не отвечает. Проверьте адрес и что qBittorrent запущен.",
+    "notQbittorrent_app": "Адрес qBittorrent отвечает, но не как qBittorrent. Проверьте адрес и порт.",
+    "loginOptional": "Оставьте логин пустым, если qBittorrent пускает Kinopeer без него.",
+    "loginNeeded": "qBittorrent просит войти: введите логин и пароль",
+    "authOff": "Собственный вход Kinopeer выключен, поэтому адрес qBittorrent задаётся только на сервере: QBITTORRENT_URL.",
+    "changeAddress": "Изменить адрес qBittorrent"
   },
   "unsupported": {
     "title": "qBittorrent {{version}} слишком старый",
@@ -501,7 +511,6 @@
     "helpLink": "Открыть настройки API TMDB",
     "label": "Ключ API или токен доступа",
     "fieldHelp": "Kinopeer проверит его в TMDB перед сохранением.",
-    "skip": "Пропустить",
     "invalid": "TMDB не принял этот ключ",
     "unreachable": "$t(noAnswer.tmdb). Попробуйте чуть позже.",
     "saved": "Ключ TMDB сохранён",
@@ -556,6 +565,10 @@
   },
   "prowlarrKey": {
     "help": "Ключ есть в Prowlarr: Settings → General → Security → API Key.",
+    "address": "Адрес Prowlarr",
+    "addressHelp": "Как его видит сервер Kinopeer, например http://192.168.1.10:9696",
+    "addressUnreachable": "По этому адресу никто не отвечает. Проверьте адрес и что Prowlarr запущен.",
+    "notProwlarr_app": "Адрес Prowlarr отвечает, но не как Prowlarr. Проверьте адрес и порт.",
     "label": "API-ключ Prowlarr",
     "fieldHelp": "Kinopeer проверит его в Prowlarr перед сохранением. Ключ хранится на сервере Kinopeer.",
     "invalid": "Prowlarr не принял этот ключ",
@@ -568,6 +581,13 @@
     "noServerKey": "У сервера Kinopeer нет своего ключа Prowlarr, поэтому сохранённый остаётся.",
     "forgotten": "Используется ключ Prowlarr с сервера",
     "forgetFailed": "Не удалось перейти на ключ сервера. Попробуйте ещё раз."
+  },
+  "prowlarrSetup": {
+    "title": "Подключите Prowlarr",
+    "body": "Kinopeer ищет релизы через Prowlarr. Введите его адрес, по которому до него доходит сервер Kinopeer, и API-ключ. Без Prowlarr работает всё, кроме поиска релизов."
+  },
+  "address": {
+    "invalid": "Введите адрес, который начинается с http:// или https://, без логина, ? и #"
   },
   "limits": {
     "title": "Лимиты скорости",

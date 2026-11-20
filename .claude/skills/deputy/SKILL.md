@@ -7,8 +7,9 @@ description: The deputy, Kinopeer's one reviewer and approver of pull requests, 
 
 Every PR into `main` needs an approving review, and the deputy is the one who gives it: a cloud
 routine that acts as the owner's GitHub account, woken when a PR is marked ready for review
-(`docs/TESTING.md` → Reviewing a PR's tests). The owner doesn't review PRs: the owner reads the
-retro and joins when these rules ask for the owner's decision. So the deputy approves only a PR
+(`docs/TESTING.md` → Reviewing a PR's tests). The owner doesn't review PRs: the owner starts and reads the
+retro, decides releases (`CLAUDE.md` → Workflow) and joins a PR only when it's an outside
+contributor's or a release's (section 5). So the deputy approves only a PR
 it would defend at the retro. Everything the deputy writes on GitHub is in English; what it says
 to the owner in its own session follows the owner's language.
 
@@ -52,11 +53,13 @@ The journal sends the run's rows itself at the end of each turn.
 Then read the PR and its head. Stop without posting anything when it is closed, merged or a
 draft: a run can start late, after the author took the PR back.
 
-Then which PR it is, by the PR's `user.login` and `author_association`:
+Then which PR it is, by its author (`user.login`, `author_association`) and its diff:
 
 - **Dependabot's** (`dependabot[bot]`): section 6.
 - **An outside contributor's** (`author_association` other than `OWNER`, `MEMBER` or
   `COLLABORATOR`): rounds as below, but the approval waits for the owner (section 5).
+- **A release's** (it changes `version` in `package.json`, `docs/DEVELOPMENT.md` → Releasing):
+  rounds as below, but the approval waits for the owner (section 5).
 - **Any other:** the rounds below.
 
 ## 2. Wait for CI
@@ -103,8 +106,11 @@ its own. For each mark it answers `sound` or `weakening`, with a line on why:
 A mark it can't decide is a `weakening`. Each `weakening` is yours to weigh: whether the task
 justifies it, from what the task is and what the code shows. One you find justified is accepted,
 and the round lists it under **Accepted marks** with your reason, which the retro reads; one you
-don't is a blocking finding. A weakening of the guard itself that the task doesn't explain goes to
-the owner instead (section 5).
+don't is a blocking finding. A mark on the rules or on the guard itself (a change to
+`docs/QUALITY.md`, this skill, `scripts/guard/` or its workflow) is judged by section 5's criterion
+instead and listed only under **Rule changes**, not under **Accepted marks**. In the machine block
+such a mark's `accepted` is null when the subagent called it `sound`, as any `sound` mark's; a
+`weakening` one takes true or false from section 5's verdict.
 
 **Questions for the coordinator.** Some decisions aren't yours: the PR revises a product decision
 recorded in `docs/SPEC.md`'s decision log, drops a feature, makes a visible change its task didn't
@@ -112,8 +118,11 @@ ask for (a screenshot baseline changed beyond the task, `docs/TESTING.md` → Sc
 grows past what it set out to do (each round finds bugs in the same new mechanism, workarounds
 pile up), for the coordinator to weigh the cost against the gain rather than one more fix asked
 for. Ask under **For the coordinator**, one line each; each holds the approval, even with nothing
-else open. The author takes it to the coordinator. The decision comes back in a comment on the
-PR, and a product decision also in SPEC's decision log; the next round checks that they are there
+else open. The author takes it to the coordinator: on autopilot or not, the session that hands out
+the PRs, or, where none does, a fresh session that didn't write the PR, never the author's own.
+The coordinator decides a revised product decision, a dropped feature and a visible change itself,
+and none of them goes to the owner; a PR that grew it weighs as `CLAUDE.md` → Conventions says. The decision and its reason come back in a comment on the PR, and,
+for all but a PR that grew, in SPEC's decision log too; the next round checks that they are there
 and the code matches them.
 
 ## 4. Posting the round
@@ -129,7 +138,8 @@ as `docs/TESTING.md` → Improving the system says. Then one line with the `/cod
 (`Code review at <short sha>: <n> findings, <m> declined`, or `no findings`; `<n>` counts the declined
 ones too, and each declined finding gets a line of its own below it, `Declined (code-review): <finding> — <reason>`,
 with a reason that holds, as section 3 asks of an author's declined finding). Then the subagent's verdict on each
-guard mark, with **Accepted marks**. Then **For the coordinator**, when there are any. Last, the
+guard mark, with **Accepted marks**. Then **Rule changes**, when the PR changes the rules (section 5).
+Then **For the coordinator**, when there are any. Last, the
 verdict, with "retro due" after it when the `test-review` report says so, as the last visible line;
 the machine block follows it.
 
@@ -139,7 +149,7 @@ the machine block follows it.
   again, which starts the next round.
 - **Nothing open but nits:** `event=APPROVE`, verdict `**Verdict: approved** at <short sha>`, the
   nits listed. The merge is GitHub's: the author turned auto-merge on, and the PR merges once its
-  checks pass. Except for the PRs of section 5.
+  checks pass. Except for an outside contributor's PR and a release's PR (section 5).
 
 **The machine block.** After the verdict the body ends with a hidden HTML comment holding the
 round's outcome. The quality dashboard's collector, which lives outside this repository, reads it so
@@ -182,15 +192,20 @@ When the round says "retro due" and none of your earlier reviews since the retro
 
 ## 5. The owner's approval
 
-These PRs wait for the owner's decision before you approve:
+Only an outside contributor's PR and a release's PR (section 1) wait for the owner's decision
+before you approve.
 
-- a change to the rules sessions work by: `CLAUDE.md`, `docs/TESTING.md`, `docs/QUALITY.md`,
-  anything in `.claude/skills/` (this file included), the PR template;
-- an outside contributor's PR;
-- a change to the guard itself (`scripts/guard/`, `.github/workflows/guard.yml`) that weakens what
-  it marks, when the task doesn't explain it.
+A change to the rules sessions work by (`CLAUDE.md`, `docs/TESTING.md`, `docs/QUALITY.md`,
+anything in `.claude/skills/`, this file included, the PR template) and a weakening of the guard
+itself (`scripts/guard/`, `.github/workflows/guard.yml`) are yours to judge, as any other change.
+Approve one when its task explains it and the checks still catch what they caught before, or, for
+a change meant to weaken them (a weakening of the guard, the retro narrowing what the guard's
+subagent judges), when its task explains why and the round names what the checks no longer catch;
+otherwise it is a blocking finding. Each rule change you approve goes into the round under
+**Rule changes**, one line each: what changes and why you accept it. The retro reads that list
+(`docs/QUALITY.md` → The retro).
 
-Review them as any other. When nothing but nits is left, don't approve. Ask the owner in this
+Review an outside contributor's PR and a release's PR as any other. When nothing but nits is left, don't approve. Ask the owner in this
 session's chat instead: what the PR changes, the risk you see, and what you'd decide. Send a push
 notification and end the turn. When the owner answers:
 

@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SettingsError, getServerSettings, saveDownloadDefaults, forgetProwlarrKey, forgetTmdbKey, saveProwlarrKey, saveQbittorrentLogin, saveTmdbKey } from '../../src/api/settings/client.ts'
+import { setUpPassword } from '../../src/api/auth/index.ts'
 import { getProwlarrStatus } from '../../src/api/prowlarr/client.ts'
+import { NoAddressError, getAppVersion } from '../../src/api/qbittorrent/client.ts'
 import { startKinopeer, stopKinopeer } from '../test/integration.ts'
 
 afterEach(async () => {
@@ -85,6 +87,31 @@ describe('settings client through /api/settings', () => {
       downloads: { startPaused: true, movieCategory: null, sequential: true },
     })
     expect(stores.settings.current.downloads).toEqual({ startPaused: true, movieCategory: null, sequential: true })
+  })
+
+  it('says qBittorrent has no address, then saves the ones the app sends with a login and a key', async () => {
+    // Beyond Umbrel: the login on, and no address in the environment. qBittorrent's auth bypass lets
+    // the server in without a login, as a Compose install seeds it.
+    const { qbittorrent, prowlarr, stores } = await startKinopeer({
+      env: { KINOPEER_AUTH: undefined, QBITTORRENT_URL: undefined, PROWLARR_URL: undefined },
+      qbittorrent: { authBypass: true },
+    })
+    await setUpPassword('correct horse')
+    await expect(getAppVersion()).rejects.toBeInstanceOf(NoAddressError)
+    await expect(getServerSettings()).resolves.toMatchObject({ qbittorrent: { address: { source: null } }, prowlarr: { address: { source: null } } })
+
+    await expect(saveQbittorrentLogin('', '', `${qbittorrent.base}/`)).resolves.toMatchObject({
+      qbittorrent: { address: { source: 'saved', url: qbittorrent.base } },
+    })
+    await expect(getAppVersion()).resolves.toBe('5.2.4')
+    await expect(saveProwlarrKey(prowlarr.apiKey, prowlarr.base)).resolves.toMatchObject({
+      prowlarr: { configured: true, source: 'saved', address: { source: 'saved', url: prowlarr.base } },
+    })
+    await expect(getProwlarrStatus()).resolves.toMatchObject({ indexers: expect.any(Number) })
+    expect(stores.settings.current).toMatchObject({ qbittorrentUrl: qbittorrent.base, prowlarrUrl: prowlarr.base })
+    // A save without an address leaves the saved one as it is.
+    await saveProwlarrKey(prowlarr.apiKey)
+    expect(stores.settings.current.prowlarrUrl).toBe(prowlarr.base)
   })
 
   it('says when the data directory is not writable', async () => {

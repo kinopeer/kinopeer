@@ -144,7 +144,10 @@ describe('qbittorrentMiddleware', () => {
     const base = await kinopeer({})
     const response = await call(`${base}/qbt/api/v2/app/version`)
     expect(response.status).toBe(503)
-    expect(response.headers.get('x-kinopeer-bridge')).toBe('1')
+    // Marked, so the app asks for an address rather than saying qBittorrent didn't answer.
+    expect(response.headers.get('x-kinopeer-bridge')).toBe('no-address')
+    const elsewhere = await kinopeer({ url: (await fakeQbittorrent()).base })
+    expect((await call(`${elsewhere}/qbt/api/v2/app/version`)).headers.get('x-kinopeer-bridge')).toBe('1')
   })
 
   it('takes an answer at the login that isn’t qBittorrent’s as one to try again later, not a rejected login', async () => {
