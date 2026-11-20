@@ -27,9 +27,18 @@ export function telegramChannel(config: TelegramChannelConfig): NotifyChannel {
       const { token, chat, language = 'en' } = stored.telegram
       const text = finishedText(language, torrent.name, await config.title(torrent, language))
       const sent = await sendMessage(token, chat.id, text, config.telegram)
-      // A refusal stays one when Telegram then doesn't say which part it refused: nothing new is known.
-      const refused = sent === 'rejected' ? await refusedPart(token, config.telegram).catch(() => null) : undefined
-      if (refused === null) return sent
+      let refused: 'token' | 'chat' | undefined
+      if (sent === 'rejected') {
+        try {
+          refused = await refusedPart(token, config.telegram)
+        } catch (error) {
+          // Telegram doesn't say now which part it refused. With one recorded for this bot and chat,
+          // the refusal stands; otherwise it's sent again later, so Settings learns what to fix
+          // rather than the tag coming off while the card says all is well.
+          if (stored.telegram.refused) return sent
+          throw error
+        }
+      }
       // Kept for the bot and chat it was sent with, not for ones saved since.
       await config.store
         .updateTelegram((current) =>

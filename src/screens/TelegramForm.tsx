@@ -19,8 +19,8 @@ import { useToast } from '../components/Toast'
 
 export interface TelegramFormProps {
   telegram: TelegramStatus
-  /** The bot or its chat was saved: the settings the server answered with. */
-  onChanged: (settings: ServerSettings) => void
+  /** The bot or its chat was saved, or a test message went: the settings the server answered with, and which. */
+  onChanged: (settings: ServerSettings, saved: 'token' | 'chat' | 'test') => void
   /** The bot was forgotten. */
   onTurnedOff: (settings: ServerSettings) => void
   /** Telegram refused the test message: the server keeps which of the two it refused, as for a notification. */
@@ -48,7 +48,8 @@ function notifyLanguage(language: string | undefined): NotifyLanguage {
  * Telegram notifications, set up in three steps on the server: the bot's token, checked with
  * Telegram; the chat that sent the bot /start, shown with its name and kind before it's saved, so a
  * stranger's /start can't slip in unseen; then a test message. Once set up it offers the test, and
- * changing the chat or the bot, or turning it off.
+ * changing the chat or the bot, or turning it off; with a bot saved and no chat yet, the chat step
+ * offers another bot and turning it off too.
  */
 export function TelegramForm({ telegram, onChanged, onTurnedOff, onRefused }: TelegramFormProps) {
   const { t, i18n } = useTranslation()
@@ -90,7 +91,7 @@ export function TelegramForm({ telegram, onChanged, onTurnedOff, onRefused }: Te
     void run('token', () => saveTelegramToken(token.trim()), (settings) => {
       setToken('')
       goTo(null)
-      onChanged(settings)
+      onChanged(settings, 'token')
     })
   }
 
@@ -182,7 +183,7 @@ export function TelegramForm({ telegram, onChanged, onTurnedOff, onRefused }: Te
                 disabled={busy !== null && busy !== 'chat'}
                 onClick={() => void run('chat', () => saveTelegramChat(found.id, language), (settings) => {
                   goTo(null)
-                  onChanged(settings)
+                  onChanged(settings, 'chat')
                 })}
               >
                 {t('telegram.useChat')}
@@ -199,7 +200,13 @@ export function TelegramForm({ telegram, onChanged, onTurnedOff, onRefused }: Te
               </Button>
             </>
           ) : (
-            <Button size="lg" block loading={busy === 'find'} onClick={() => void run('find', () => findTelegramChat(), setFound)}>
+            <Button
+              size="lg"
+              block
+              loading={busy === 'find'}
+              disabled={busy !== null && busy !== 'find'}
+              onClick={() => void run('find', () => findTelegramChat(), setFound)}
+            >
               {t('telegram.findChat')}
             </Button>
           )}
@@ -238,7 +245,7 @@ export function TelegramForm({ telegram, onChanged, onTurnedOff, onRefused }: Te
           loading={busy === 'test'}
           disabled={busy !== null && busy !== 'test'}
           onClick={() => void run('test', () => testTelegram(language), (settings) => {
-            onChanged(settings)
+            onChanged(settings, 'test')
             toast.show(t('telegram.testSent'), { icon: 'check' })
           })}
         >

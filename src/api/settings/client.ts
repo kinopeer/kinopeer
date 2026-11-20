@@ -153,7 +153,8 @@ export function saveTelegramToken(token: string): Promise<ServerSettings> {
 
 /**
  * The chat that last sent the bot /start, not saved yet, so the user sees it first. Rejects with
- * code 'no-chat' when none did, 'token-rejected' or 'unreachable'.
+ * code 'no-chat' when none did, 'token-rejected', 'bot-in-use' when another program takes the bot's
+ * updates (a webhook, or an app polling it), or 'unreachable'.
  */
 export function findTelegramChat(signal?: AbortSignal): Promise<TelegramFoundChat> {
   return getTelegram<TelegramFoundChat>('chat', signal)
@@ -161,7 +162,7 @@ export function findTelegramChat(signal?: AbortSignal): Promise<TelegramFoundCha
 
 /**
  * Sends notifications to that chat, in `language`. Rejects with code 'no-chat' when it no longer
- * is one that sent /start, 'token-rejected' or 'unreachable'.
+ * is one that sent /start, 'token-rejected', 'bot-in-use' or 'unreachable'.
  */
 export function saveTelegramChat(id: number, language: NotifyLanguage): Promise<ServerSettings> {
   return send<TelegramChatBody>('PUT', 'telegram/chat', { id, language })

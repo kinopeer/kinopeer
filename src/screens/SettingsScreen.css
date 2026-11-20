@@ -95,6 +95,8 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
+  /* A message may name a bot (@kinopeer_home_bot) longer than the column: it breaks rather than runs under the buttons. */
+  overflow-wrap: anywhere;
 }
 
 .settings-conn-name {

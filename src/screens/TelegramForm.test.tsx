@@ -58,7 +58,7 @@ describe('TelegramForm: the token', () => {
     await userEvent.type(screen.getByLabelText('Bot token'), `  ${TOKEN} `)
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(serverSettings.saveTelegramToken).toHaveBeenCalledWith(TOKEN)
-    await vi.waitFor(() => expect(onChanged).toHaveBeenCalledWith(settings(BOT)))
+    await vi.waitFor(() => expect(onChanged).toHaveBeenCalledWith(settings(BOT), 'token'))
   })
 
   it.each([
@@ -150,7 +150,14 @@ describe('TelegramForm: the chat', () => {
     await i18n.changeLanguage('ru')
     await userEvent.click(screen.getByRole('button', { name: 'Использовать этот чат' }))
     expect(serverSettings.saveTelegramChat).toHaveBeenCalledWith(-7, 'ru')
-    await vi.waitFor(() => expect(onChanged).toHaveBeenCalled())
+    await vi.waitFor(() => expect(onChanged).toHaveBeenCalledWith(settings({ ...CONNECTED, chat: { name: 'Home', type: 'group' } }), 'chat'))
+  })
+
+  it('holds Find chat while turning off is in progress', async () => {
+    vi.mocked(serverSettings.forgetTelegram).mockReturnValue(pending())
+    renderForm(BOT)
+    await userEvent.click(screen.getByRole('button', { name: 'Turn off' }))
+    expect(screen.getByRole('button', { name: 'Find chat' })).toBeDisabled()
   })
 
   it('lets the bot be changed or turned off before a chat is chosen, as from a token Telegram no longer knows', async () => {
@@ -249,7 +256,7 @@ describe('TelegramForm: connected', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Send a test message' }))
     expect(serverSettings.testTelegram).toHaveBeenCalledWith('en')
     expect(await screen.findByRole('status', { name: saying('Test message sent') })).toBeInTheDocument()
-    expect(onChanged).toHaveBeenCalledWith(settings(CONNECTED))
+    expect(onChanged).toHaveBeenCalledWith(settings(CONNECTED), 'test')
   })
 
   it.each([
@@ -288,9 +295,9 @@ describe('TelegramForm: connected', () => {
   })
 
   it.each([
-    ['another bot', 'Use another bot', BOT],
-    ['another chat', 'Choose another chat', CONNECTED],
-  ] as const)('follows the settings once %s is saved', async (_name, button, saved) => {
+    ['another bot', 'Use another bot', BOT, 'token'],
+    ['another chat', 'Choose another chat', CONNECTED, 'chat'],
+  ] as const)('follows the settings once %s is saved', async (_name, button, saved, kind) => {
     vi.mocked(serverSettings.saveTelegramToken).mockResolvedValue(settings(BOT))
     vi.mocked(serverSettings.findTelegramChat).mockResolvedValue({ id: 42, name: 'Alex', type: 'private' })
     vi.mocked(serverSettings.saveTelegramChat).mockResolvedValue(settings(CONNECTED))
@@ -303,7 +310,7 @@ describe('TelegramForm: connected', () => {
       await userEvent.click(screen.getByRole('button', { name: 'Find chat' }))
       await userEvent.click(await screen.findByRole('button', { name: 'Use this chat' }))
     }
-    await vi.waitFor(() => expect(onChanged).toHaveBeenCalledWith(settings(saved)))
+    await vi.waitFor(() => expect(onChanged).toHaveBeenCalledWith(settings(saved), kind))
     rerender(saved)
     const next = saved === BOT ? 'Find chat' : 'Send a test message'
     expect(screen.getByRole('button', { name: next })).toBeInTheDocument()

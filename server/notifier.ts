@@ -83,8 +83,8 @@ export function createNotifier(deps: NotifierDeps): { check: () => Promise<void>
   const deliveries = new Map<string, Map<string, Delivery>>()
   let running = false
 
-  // `started` is the pass's start: a wait counts from it, so the pass that wait later sends again
-  // however long this send took.
+  // `started` is the pass's start: the notifier's own wait counts from it, so the pass that wait
+  // later sends again however long this send took.
   const deliver = async (torrent: NotifyTorrent, channel: NotifyChannel, sent: Map<string, Delivery>, started: number) => {
     const delivery = sent.get(channel.id) ?? { done: false, attempts: 0, nextAt: 0 }
     sent.set(channel.id, delivery)
@@ -96,9 +96,10 @@ export function createNotifier(deps: NotifierDeps): { check: () => Promise<void>
     } catch (error) {
       delivery.attempts += 1
       const wait = RETRY_DELAYS_MS[Math.min(delivery.attempts, RETRY_DELAYS_MS.length) - 1]
-      const after = Math.max(wait, retryAfter(error))
-      delivery.nextAt = started + after
-      log(`${channel.id} didn't answer; sending again in ${Math.round(after / 1000)} s`)
+      // The notifier's own wait counts from the pass's start, so the pass that wait later sends again;
+      // a wait the channel asked for counts from its answer, as the service counts it.
+      delivery.nextAt = Math.max(started + wait, now() + retryAfter(error))
+      log(`${channel.id} didn't answer; sending again in ${Math.round((delivery.nextAt - now()) / 1000)} s`)
     }
   }
 

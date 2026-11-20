@@ -206,7 +206,7 @@ export function SettingsScreen() {
   const [prowlarrKeyVersion, setProwlarrKeyVersion] = useState(0)
   const [changingPassword, setChangingPassword] = useState(false)
   const [editingTelegram, setEditingTelegram] = useState(false)
-  // Bumped on each change saved from the sheet, so the card checks again: a renewed token of the same bot keeps its name.
+  // Bumped on each token saved from the sheet, so the card checks again: a renewed token of the same bot keeps its name.
   const [telegramVersion, setTelegramVersion] = useState(0)
   const [editingFolders, setEditingFolders] = useState(false)
   const toast = useToast()
@@ -519,9 +519,9 @@ export function SettingsScreen() {
         {telegram && (
           <TelegramForm
             telegram={telegram}
-            onChanged={(changed) => {
+            onChanged={(changed, saved) => {
               setServerChanged(changed)
-              setTelegramVersion((n) => n + 1)
+              if (saved === 'token') setTelegramVersion((n) => n + 1)
             }}
             onRefused={(refused) => server && setServerChanged({ ...server, telegram: { ...telegram, refused } })}
             onTurnedOff={(changed) => {

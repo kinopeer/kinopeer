@@ -203,6 +203,24 @@ describe('createNotifier', () => {
     expect(telegram.sent).toHaveLength(2)
   })
 
+  it('counts a wait the channel asked for from its answer, late in a long pass, and says so in the log', async () => {
+    let watcher!: ReturnType<typeof notifier>
+    const lateRefusal = async (): Promise<'sent'> => {
+      watcher.advance(15_000)
+      throw Object.assign(new Error('429'), { retryAfterMs: 60_000 })
+    }
+    const telegram = channel('Telegram', [lateRefusal])
+    watcher = notifier({ channels: [telegram.notify], torrents: () => [torrent('a')] })
+    await watcher.check()
+    expect(watcher.deps.log).toHaveBeenCalledWith("Telegram didn't answer; sending again in 60 s")
+    watcher.advance(60_000 - 1)
+    await watcher.check()
+    expect(telegram.sent).toHaveLength(1)
+    watcher.advance(1)
+    await watcher.check()
+    expect(telegram.sent).toHaveLength(2)
+  })
+
   it('doesn’t send again through a channel that answered while another is retried', async () => {
     const telegram = channel('Telegram')
     const push = channel('Push', [() => Promise.reject(new Error('no answer'))])

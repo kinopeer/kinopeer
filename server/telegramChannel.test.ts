@@ -115,6 +115,13 @@ describe('telegramChannel', () => {
     expect(store.current.telegram?.refused).toBe('chat')
   })
 
+  it('rejects, so the watcher sends again, when Telegram refuses and then doesn’t say which part with nothing refused before', async () => {
+    const { channel, store, telegram } = await setUp({ ...connected, chat: { id: 7, name: 'Gone', type: 'private' } })
+    telegram.state.unavailable = ['getMe']
+    await expect(channel.send(finished)).rejects.toThrow()
+    expect(store.current.telegram?.refused).toBeUndefined()
+  })
+
   it('rejects when Telegram doesn’t answer, so the watcher sends again', async () => {
     const { channel, telegram } = await setUp(connected)
     telegram.state.down = true
