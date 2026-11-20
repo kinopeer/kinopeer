@@ -810,7 +810,12 @@ the round that first reported it, and a round posted twice by its latest posting
 `metrics_batch_counts` has their totals, the
 untagged ones, the PRs ready on the first round and the blocking findings. Those totals are NULL
 while a PR's findings can't be read from blocks: a round whose block didn't read, or a PR merged
-before the deputy's first round (2026-11-15).
+before the deputy's first round (2026-11-15). Those that rest on production code
+(`ready_first_round_with_code`, `blocking`, `blocking_per_pr`) are NULL also while a PR's
+`with_code` is unknown, which
+`select number from metrics_batch_prs where project = 'kinopeer/kinopeer' and batch = 'open' and with_code is null`
+names; such a PR's production code is read from its files, by the folders the table's columns
+name below.
 `select number, rounds, findings, untagged, blocking, unread_rounds from metrics_pr_review where project = 'kinopeer/kinopeer' and batch = 'open' and not known`
 names those PRs, and their findings are counted from all their rounds: the deputy's reviews headed
 `Round <n> at <sha>` (before 2026-11-15, the `Test review, round <n>` comments), with a search.
@@ -826,7 +831,8 @@ approved (before 2026-11-19, the owner's approvals posted on the PR).
 The guard's marks are counted too, from the deputy's verdicts on them in every round (each
 round's block lists them under `guard`; before 2026-11-15, the second reviews' comments,
 `**Second review …**`): how many were judged, how many `weakening`, and how many of those the
-deputy accepted, with its reasons. A mark counts once, as `weakening` when any round judged it so.
+deputy accepted, with its reasons. A mark counts once, as `weakening` when any round judged it so,
+and as accepted or not by the latest round that judged it `weakening`.
 The views don't give this count: `metrics_guard_marks` keeps only the latest round's verdicts on
 the report at that round's commit, so a `weakening` an earlier round found and a later one judged
 `sound` once the author fixed it is gone from it. When twenty PRs in a row with
@@ -842,7 +848,9 @@ with a `test-gap:*` label are problems of the tests and tooling, counted apart a
 rule.
 `select kind, class, number, closed from metrics_escaped_issues where project = 'kinopeer/kinopeer' and batch = 'open'`
 lists them (`kind` `bug` for an escaped bug, `tests` for the tests' problems), and
-`metrics_escaped` counts them by class. From GitHub, for a class:
+`metrics_escaped` counts them by class; an issue the top row already names (one closed after its
+batch's last merge and before that retro ran: `quality-data/README.md` → Batches) is left out of
+both. From GitHub, for a class:
 `gh api -X GET search/issues -f q="repo:kinopeer/kinopeer is:issue type:Bug label:test-gap:uncovered closed:><since>" -f per_page=100 --jq '.items[].number'`.
 For each escaped bug the retro also names the check that should have caught it: a test on its
 layer, a lint rule, a budget, the guard, a review's check by its letter, or a blind spot no check
@@ -881,18 +889,21 @@ The batch's failed jobs over every attempt, each once,
 other events: pushes, so `main`'s CI and Edge and the tags' releases, manual runs and GitHub's own
 `dynamic` ones), and its re-runs with the attempt before each,
 `select run_id, attempt, workflow, event, branch, previous, conclusion, flaky from metrics_reruns where project = 'kinopeer/kinopeer' and batch = 'open'`
-(`flaky`: a red attempt run again to green). From GitHub, when the `runs` source is stale and for
-the ids of the runs that failed, the batch's PR runs that failed or were run again,
+(`flaky`: a red attempt run again to green). From GitHub, each retro, the batch's PR runs that
+failed or were run again,
 `gh api -X GET repos/kinopeer/kinopeer/actions/runs -f event=pull_request -f created='><since>' --paginate --jq '.workflow_runs[] | select(.status == "completed" and (.conclusion == "failure" or .run_attempt > 1)) | [.id, .run_attempt, .name, .head_branch] | @tsv'`
 (not `-f status=completed`, which drops runs: 2 of 105 on 2026-11-13, one a Guard run that
 failed and was run again to green; GitHub lists at most 1,000 runs for a filtered listing, so a
 bigger batch is listed a day at a time, `created=<day>`), and a run's jobs over all its attempts,
-`gh api -X GET repos/kinopeer/kinopeer/actions/runs/<id>/jobs -f filter=all --jq '.jobs[] | [.run_attempt, .name, .conclusion, .started_at, .completed_at] | @tsv'`,
+`gh api -X GET repos/kinopeer/kinopeer/actions/runs/<id>/jobs -f filter=all -f per_page=100 --paginate --jq '.jobs[] | [.run_attempt, .name, .conclusion, .started_at, .completed_at] | @tsv'`,
 which also give a job's time. This listing reaches what the old recipe did: PR runs that ended
 `failure` or were run again, not the other events nor a job that failed in a run that ended
 `cancelled` (CI cancels a PR's run on the next push), which the views count. The collector sees a
 re-run only of a run created in the last 7 days (`quality-data/README.md` → Known limits), so the
-re-run of an older run is missing from both views and shows only here, by its `run_attempt`. The
+re-run of an older run is missing from both views: a run of this listing with `run_attempt` over 1
+and no row in `metrics_reruns` is added to the counts, with its failed jobs. When the `runs`
+source is stale, this listing and the jobs command give the PR runs' counts, and they give the
+ids of the runs to open. The
 guard's marks come from its `guard report` check on each PR's last head (its summary, the latest
 run's, since a re-run writes another,
 `gh api 'repos/kinopeer/kinopeer/commits/<sha>/check-runs?check_name=guard%20report' --jq '.check_runs | max_by(.completed_at) | .output.summary'`;
@@ -905,9 +916,7 @@ does. The counts of what each check caught and of its false alarms go into the r
 
 **The owner's list.** What the owner reads here rather than approving it PR by PR: the weakenings
 the deputy accepted, the changes to the guard, the rule changes the deputy approved (its rounds'
-**Rule changes**), the budgets raised (each change to a budget in the batch,
-`select c.sha, c.tool, c.key, c.previous, c.value, c.change from metrics_budget_changes c join metrics_batches b on b.project = c.project and (b.prs_after is null or c.committed_at > b.prs_after) where b.project = 'kinopeer/kinopeer' and b.batch = 'open'`,
-and their count, `metrics_budget_ratchet`), the design values added, the decisions the coordinator took
+**Rule changes**), the budgets raised, the design values added, the decisions the coordinator took
 on the deputy's **For the coordinator** questions and the product decisions it took (SPEC's
 decision log), and the findings the deputy dropped after the author disputed them, each with its
 PR. Then where the owner still decides PR by PR: an outside contributor's PR (the `deputy` skill →
