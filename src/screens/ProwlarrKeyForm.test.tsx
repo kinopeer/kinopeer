@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -122,6 +123,85 @@ describe('ProwlarrKeyForm', () => {
 
     finishSave(SAVED)
     await vi.waitFor(() => expect(onSaved).toHaveBeenCalledWith(SAVED))
+  })
+
+  describe('with Prowlarr’s address to ask', () => {
+    function renderWithAddress(secondary?: ReactNode) {
+      const onSaved = vi.fn()
+      render(<ProwlarrKeyForm onSaved={onSaved} askAddress secondary={secondary} />)
+      return { onSaved, address: screen.getByLabelText('Prowlarr address'), field: screen.getByLabelText('Prowlarr API key'), save: screen.getByRole('button', { name: 'Save' }) }
+    }
+
+    it('saves the address with the key, which is trimmed', async () => {
+      const { onSaved, address, field, save } = renderWithAddress()
+      expect(address).toHaveAccessibleDescription('As the Kinopeer server reaches it, for example http://192.168.1.10:9696')
+      expect(address).toHaveAttribute('spellcheck', 'false')
+      // Onboarding has no key of the server's to go back to.
+      expect(screen.queryByRole('button', { name: 'Use the server’s key' })).not.toBeInTheDocument()
+      await userEvent.type(field, ' abc123 ')
+      await userEvent.click(save)
+      // Both are needed.
+      expect(saveProwlarrKey).not.toHaveBeenCalled()
+      await userEvent.type(address, 'http://prowlarr.test:9696')
+      await userEvent.click(save)
+      expect(saveProwlarrKey).toHaveBeenCalledWith('abc123', 'http://prowlarr.test:9696')
+      await vi.waitFor(() => expect(onSaved).toHaveBeenCalledWith(SAVED))
+    })
+
+    it.each([
+      ['an address it refuses', new serverSettings.SettingsError(400, 'invalid-address'), 'Enter an address that starts with http:// or https://, with no login, ? or # in it'],
+      ['an address that doesn’t answer', new serverSettings.SettingsError(502, 'unreachable'), 'Nothing answers at this address. Check it, and that Prowlarr is running.'],
+    ])('says on the address field when the server finds %s, and clears it on typing', async (_name, error, message) => {
+      saveProwlarrKey.mockRejectedValue(error)
+      const { address, field, save } = renderWithAddress()
+      await userEvent.type(address, 'http://prowlarr.test')
+      await userEvent.type(field, 'abc123')
+      await userEvent.click(save)
+      await vi.waitFor(() => expect(address).toHaveAccessibleDescription(message))
+      expect(address).toHaveAttribute('aria-invalid', 'true')
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+      await userEvent.type(address, '0')
+      expect(address).not.toHaveAttribute('aria-invalid')
+    })
+
+    it('names the address, not the variable, when it isn’t Prowlarr, and keeps a refused key on the key', async () => {
+      saveProwlarrKey.mockRejectedValueOnce(new serverSettings.SettingsError(502, 'not-prowlarr'))
+      saveProwlarrKey.mockRejectedValueOnce(new serverSettings.SettingsError(422, 'invalid-key'))
+      const { address, field, save } = renderWithAddress()
+      await userEvent.type(address, 'http://prowlarr.test')
+      await userEvent.type(field, 'abc123')
+      await userEvent.click(save)
+      const notProwlarr = saying('Prowlarr’s address answers, but not like Prowlarr. Check the address and its port.')
+      expect(await screen.findByRole('alert', { name: notProwlarr })).toBeInTheDocument()
+      // Typing clears only the address field's own errors: the banner goes with the next try.
+      await userEvent.type(address, '0')
+      expect(screen.getByRole('alert', { name: notProwlarr })).toBeInTheDocument()
+      await userEvent.click(save)
+      await vi.waitFor(() => expect(field).toHaveAttribute('aria-invalid', 'true'))
+      expect(address).not.toHaveAttribute('aria-invalid')
+    })
+
+    it('sends an address without a scheme to the server, which says what’s wrong with it', async () => {
+      const { address, field, save } = renderWithAddress()
+      await userEvent.type(address, '192.168.1.10:9696')
+      await userEvent.type(field, 'abc123')
+      await userEvent.click(save)
+      expect(saveProwlarrKey).toHaveBeenCalledWith('abc123', '192.168.1.10:9696')
+    })
+
+    it('offers another action under Save', () => {
+      renderWithAddress(<button type="button">Skip</button>)
+      expect(screen.getByRole('button', { name: 'Skip' })).toBeInTheDocument()
+    })
+  })
+
+  it('names the address, not the variable, when one saved from the app isn’t Prowlarr', async () => {
+    saveProwlarrKey.mockRejectedValue(new serverSettings.SettingsError(502, 'not-prowlarr'))
+    render(<ProwlarrKeyForm onSaved={vi.fn()} addressFromApp />)
+    await userEvent.type(screen.getByLabelText('Prowlarr API key'), 'abc123')
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByRole('alert', { name: saying('Prowlarr’s address answers, but not like Prowlarr. Check the address and its port.') })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Prowlarr address')).not.toBeInTheDocument()
   })
 
   it('disables Save while forgetting', async () => {

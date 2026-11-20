@@ -9,7 +9,7 @@ Node.js 22.18+ (the tests need 22.22.2+, 24.15+ or 26+, jsdom's range) and qBitt
 ## Running
 
 ```sh
-cp .env.example .env.local   # set QBITTORRENT_URL and PROWLARR_URL
+cp .env.example .env.local   # set QBITTORRENT_URL and PROWLARR_URL, or enter them in the app
 npm install
 npm run dev        # http://localhost:5173
 npm test           # tests (Vitest)
@@ -37,9 +37,9 @@ The server reads environment variables (from `.env.local` in development). Whate
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `QBITTORRENT_URL` | none | qBittorrent Web UI address |
+| `QBITTORRENT_URL` | none | qBittorrent Web UI address; wins over one saved from the app. Without it, the app asks for the address on its connect screen, behind Kinopeer's own login (`KINOPEER_AUTH` on); with the login off it's required |
 | `QBITTORRENT_USERNAME`, `QBITTORRENT_PASSWORD` | none | Optional default login; qBittorrent's auth bypass needs none, and without these the app asks for one. A login entered in the app wins. Used only with `QBITTORRENT_URL`, never at an address saved from the app; without it the server says at startup that they're ignored |
-| `PROWLARR_URL` | none | Prowlarr address |
+| `PROWLARR_URL` | none | Prowlarr address; wins over one saved from the app. Without it, onboarding asks for the address with the key, behind Kinopeer's own login, and can skip it |
 | `PROWLARR_API_KEY` | none | Prowlarr API key; a key entered in the app wins. Used only with `PROWLARR_URL`, never at an address saved from the app; without it the server says at startup that it's ignored |
 | `PROWLARR_CONFIG_XML` | none | Path to Prowlarr's `config.xml` to read the key from when neither a key entered in the app nor `PROWLARR_API_KEY` is set (the Umbrel package does this); like `PROWLARR_API_KEY`, only with `PROWLARR_URL`, and without it named at startup as ignored |
 | `TMDB_API_KEY` | none | Fallback TMDB key, not needed with the proxy (development included); a key entered in the app wins |

@@ -19,6 +19,7 @@
   },
   "common": {
     "retry": "Try again",
+    "skipForNow": "Skip for now",
     "openAgain": "Open again",
     "openAgainHint": "If you’re sure the server running Kinopeer is on and reachable on your network, your browser may need to confirm its certificate again: open Kinopeer again.",
     "close": "Close",
@@ -79,7 +80,16 @@
     "notQbittorrent": "The qBittorrent address on the Kinopeer server answers, but not like qBittorrent. Check QBITTORRENT_URL.",
     "unreachableBody": "Check that qBittorrent is running and its Web UI is on.",
     "unreachableBody_kinopeer": "Check that this device is online and Kinopeer is running on your server.",
-    "unreachableBody_openAgain": "$t(common.openAgainHint)"
+    "unreachableBody_openAgain": "$t(common.openAgainHint)",
+    "addressBody": "Enter the address of qBittorrent’s Web UI as the Kinopeer server reaches it, and its login. The server keeps them, so you only do this once.",
+    "address": "qBittorrent address",
+    "addressHelp": "As the Kinopeer server reaches it, for example http://192.168.1.10:8080",
+    "addressUnreachable": "Nothing answers at this address. Check it, and that qBittorrent is running.",
+    "notQbittorrent_app": "qBittorrent’s address answers, but not like qBittorrent. Check the address and its port.",
+    "loginOptional": "Leave the login empty if qBittorrent lets Kinopeer in without one.",
+    "loginNeeded": "qBittorrent asks for a login: enter its username and password",
+    "authOff": "Kinopeer’s own login is off, so qBittorrent’s address can only be set on the server: QBITTORRENT_URL.",
+    "changeAddress": "Change qBittorrent address"
   },
   "unsupported": {
     "title": "qBittorrent {{version}} is too old",
@@ -464,7 +474,6 @@
     "helpLink": "Open TMDB API settings",
     "label": "API key or read access token",
     "fieldHelp": "Kinopeer checks it with TMDB before saving.",
-    "skip": "Skip for now",
     "invalid": "TMDB didn’t accept this key",
     "unreachable": "$t(noAnswer.tmdb). Try again in a moment.",
     "saved": "TMDB key saved",
@@ -519,6 +528,10 @@
   },
   "prowlarrKey": {
     "help": "Find the key in Prowlarr: Settings → General → Security → API Key.",
+    "address": "Prowlarr address",
+    "addressHelp": "As the Kinopeer server reaches it, for example http://192.168.1.10:9696",
+    "addressUnreachable": "Nothing answers at this address. Check it, and that Prowlarr is running.",
+    "notProwlarr_app": "Prowlarr’s address answers, but not like Prowlarr. Check the address and its port.",
     "label": "Prowlarr API key",
     "fieldHelp": "Kinopeer checks it with Prowlarr before saving. It stays on the Kinopeer server.",
     "invalid": "Prowlarr didn’t accept this key",
@@ -531,6 +544,13 @@
     "noServerKey": "The Kinopeer server has no Prowlarr key of its own, so the saved one stays.",
     "forgotten": "Using the server’s Prowlarr key",
     "forgetFailed": "Couldn’t switch to the server’s key. Try again."
+  },
+  "prowlarrSetup": {
+    "title": "Connect Prowlarr",
+    "body": "Kinopeer finds releases through Prowlarr. Enter its address as the Kinopeer server reaches it, and its API key. Without Prowlarr everything works but finding releases."
+  },
+  "address": {
+    "invalid": "Enter an address that starts with http:// or https://, with no login, ? or # in it"
   },
   "limits": {
     "title": "Speed limits",

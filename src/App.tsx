@@ -15,6 +15,7 @@ import { DownloadsScreen } from './screens/DownloadsScreen'
 import { DownloadsWithDrawer } from './screens/DownloadsWithDrawer'
 import { ErrorBoundary } from './screens/ErrorBoundary'
 import { PollRing } from './screens/PollRing'
+import { ProwlarrSetupScreen } from './screens/ProwlarrSetupScreen'
 import { SearchScreen } from './screens/SearchScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
 import { SignInScreen } from './screens/SignInScreen'
@@ -24,7 +25,7 @@ import { TorrentDrawerOverPage } from './screens/TorrentDrawer'
 import { TorrentScreen } from './screens/TorrentScreen'
 import { useAltSpeedSwitch } from './screens/useAltSpeedSwitch'
 import { useQbitSession } from './session/useQbitSession'
-import { useTmdbSetup } from './session/useTmdbSetup'
+import { useSetupSteps } from './session/useSetupSteps'
 import { freeSpace } from './torrents/freeSpace'
 import { downloadStatus } from './torrents/status'
 import { MainDataProvider } from './torrents/MainDataProvider'
@@ -46,7 +47,7 @@ function App() {
 function SignedIn() {
   const { t } = useTranslation()
   const { session, recheck, signIn } = useQbitSession()
-  const tmdb = useTmdbSetup(session.status === 'connected')
+  const setup = useSetupSteps(session.status === 'connected')
   const location = useLocation()
   const isDesktop = useIsDesktop()
   // Selecting downloads puts the selection's actions in place of the tab bar. The sidebar stays.
@@ -69,8 +70,9 @@ function SignedIn() {
     case 'checking':
       return connecting
     case 'connected': {
-      if (tmdb.setup === 'checking') return connecting
-      if (tmdb.setup === 'needed') return <TmdbKeyScreen onDone={tmdb.finish} onSkip={tmdb.finish} />
+      if (setup.step === 'checking') return connecting
+      if (setup.step === 'tmdb') return <TmdbKeyScreen onDone={() => setup.finish('tmdb')} onSkip={() => setup.finish('tmdb')} />
+      if (setup.step === 'prowlarr') return <ProwlarrSetupScreen onDone={() => setup.finish('prowlarr')} onSkip={() => setup.finish('prowlarr')} />
       const tabs: TabBarItem[] = [
         { to: '/', icon: 'download', label: t('nav.downloads'), also: ['/torrent/'] },
         { to: '/search', icon: 'search', label: t('nav.search') },
@@ -130,6 +132,7 @@ function SignedIn() {
       return (
         <ConnectScreen
           unreachable={session.status === 'unreachable' ? session.who : undefined}
+          noAddress={session.status === 'no-address'}
           onRetry={() => void recheck()}
           onSignIn={signIn}
         />

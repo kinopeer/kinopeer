@@ -405,6 +405,20 @@ describe('SettingsScreen', () => {
     expect(within(screen.getByRole('dialog', { name: 'Prowlarr key' })).getByRole('button', { name: 'Use the server’s key' })).toBeInTheDocument()
   })
 
+  it.each([
+    ['the address saved from the app', { source: 'saved', url: 'http://prowlarr.test:9696' }, 'Prowlarr’s address answers, but not like Prowlarr. Check the address and its port.'],
+    ['PROWLARR_URL', { source: 'env' }, 'The Prowlarr address on the Kinopeer server answers, but not like Prowlarr. Check PROWLARR_URL.'],
+  ] as const)('names %s when it answers but isn’t Prowlarr', async (_name, address, message) => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ tmdb: { configured: true, source: 'saved', fallback: null }, prowlarr: { configured: true, source: 'saved', serverKey: false, address }, qbittorrent: { configured: true, source: 'env', address: { source: 'env' } }, downloads: null })
+    vi.mocked(serverSettings.saveProwlarrKey).mockRejectedValue(new serverSettings.SettingsError(502, 'not-prowlarr'))
+    renderScreen()
+    await userEvent.click(await within(connection('Prowlarr')).findByRole('button', { name: 'Change Prowlarr key' }))
+    const sheet = screen.getByRole('dialog', { name: 'Prowlarr key' })
+    await userEvent.type(within(sheet).getByLabelText('Prowlarr API key'), 'abc123')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
+    expect(await within(sheet).findByRole('alert', { name: saying(message) })).toBeInTheDocument()
+  })
+
   it("goes back from a saved Prowlarr key to the server's and checks the connection again", async () => {
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue({
       tmdb: { configured: true, source: 'saved', fallback: null },
