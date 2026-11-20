@@ -32,7 +32,7 @@ beforeEach(() => {
   vi.mocked(settings.getServerSettings).mockResolvedValue(serverSettings({ source: 'env' }))
 })
 
-function setup(onSignIn = vi.fn().mockResolvedValue(undefined), props: Partial<Pick<ConnectScreenProps, 'unreachable' | 'noAddress'>> = {}) {
+function setup(onSignIn = vi.fn().mockResolvedValue(undefined), props: Partial<Pick<ConnectScreenProps, 'unreachable' | 'unsupported' | 'noAddress'>> = {}) {
   const onRetry = vi.fn()
   render(<ConnectScreen onSignIn={onSignIn} onRetry={onRetry} {...props} />)
   return { onSignIn, onRetry }
@@ -311,6 +311,21 @@ describe('ConnectScreen', () => {
       // Cancel goes back to the state with Retry.
       await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
       expect(screen.getByRole('heading', { name: 'qBittorrent isn’t answering' })).toBeInTheDocument()
+    })
+
+    it('offers to change it when it leads to a qBittorrent too old, which Settings can’t reach', async () => {
+      vi.mocked(settings.getServerSettings).mockResolvedValue(serverSettings({ source: 'saved', url: saved }))
+      const { onSignIn, onRetry } = setup(undefined, { unsupported: '4.5.5' })
+      expect(screen.getByRole('heading', { name: 'qBittorrent 4.5.5 is too old' })).toBeInTheDocument()
+      await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
+      expect(onRetry).toHaveBeenCalledOnce()
+      await userEvent.click(await screen.findByRole('button', { name: 'Change qBittorrent address' }))
+
+      expect(screen.getByLabelText('qBittorrent address')).toHaveValue(saved)
+      await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
+      expect(onSignIn).toHaveBeenCalledWith('', '', saved)
+      await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+      expect(screen.getByRole('heading', { name: 'qBittorrent 4.5.5 is too old' })).toBeInTheDocument()
     })
 
     it.each([

@@ -7,11 +7,14 @@ import { useRequest } from '../lib/useRequest'
 import { Preferences } from './Preferences'
 import { QbittorrentLoginForm } from './QbittorrentLoginForm'
 import { UnreachableState } from './UnreachableState'
+import { UnsupportedQbittorrent } from './UnsupportedQbittorrent'
 import './ConnectScreen.css'
 
 export interface ConnectScreenProps {
   /** Who didn't answer the session check: shown in place of the form, with Retry. */
   unreachable?: Unreachable
+  /** The version of a qBittorrent older than Kinopeer works with: said in place of the form, with Retry. */
+  unsupported?: string
   /** The server has no address for qBittorrent: the form asks for one, and a login only where qBittorrent wants one. */
   noAddress?: boolean
   onRetry: () => void
@@ -19,7 +22,7 @@ export interface ConnectScreenProps {
   onSignIn: (username: string, password: string, url?: string) => Promise<void>
 }
 
-export function ConnectScreen({ unreachable: unreachableProp, noAddress = false, onRetry, onSignIn }: ConnectScreenProps) {
+export function ConnectScreen({ unreachable: unreachableProp, unsupported, noAddress = false, onRetry, onSignIn }: ConnectScreenProps) {
   const { t } = useTranslation()
   // Only an address saved from the app can be changed here, and only behind Kinopeer's own login:
   // the server refuses one otherwise. Not asked while the server itself doesn't answer.
@@ -36,13 +39,20 @@ export function ConnectScreen({ unreachable: unreachableProp, noAddress = false,
     </Button>
   )
 
-  // The session check got no answer: no login form until there's someone to sign in to, but an
-  // address saved from the app can be changed, since a wrong one is why qBittorrent doesn't answer.
-  if (unreachableProp && !askAddress) {
+  // The session check got no answer, or an old qBittorrent's: no login form until there's someone
+  // to sign in to, but an address saved from the app can be changed, since a wrong one is why
+  // qBittorrent doesn't answer, or another qBittorrent does. Settings is out of reach until it connects.
+  const notice =
+    unsupported !== undefined ? (
+      <UnsupportedQbittorrent version={unsupported} onRetry={onRetry} />
+    ) : (
+      unreachableProp && <UnreachableState unreachable={unreachableProp} onRetry={onRetry} texts="connect" />
+    )
+  if (notice && !askAddress) {
     return (
       <main className="screen connect">
         <section className="connect-form connect-unreachable">
-          <UnreachableState unreachable={unreachableProp} onRetry={onRetry} texts="connect" />
+          {notice}
           {changeButton}
         </section>
         <Preferences />

@@ -10,7 +10,6 @@ import { useIsDesktop } from './lib/useIsDesktop'
 import { useNewScreenAtTop } from './lib/useScrollRestoration'
 import { takeJustUpdated } from './pwa/updates'
 import { ConnectScreen } from './screens/ConnectScreen'
-import { UnsupportedQbittorrentScreen } from './screens/UnsupportedQbittorrentScreen'
 import { DownloadsScreen } from './screens/DownloadsScreen'
 import { DownloadsWithDrawer } from './screens/DownloadsWithDrawer'
 import { ErrorBoundary } from './screens/ErrorBoundary'
@@ -126,12 +125,11 @@ function SignedIn() {
         </MainDataProvider>
       )
     }
-    case 'unsupported':
-      return <UnsupportedQbittorrentScreen version={session.version} onRetry={() => void recheck()} />
     default:
       return (
         <ConnectScreen
           unreachable={session.status === 'unreachable' ? session.who : undefined}
+          unsupported={session.status === 'unsupported' ? session.version : undefined}
           noAddress={session.status === 'no-address'}
           onRetry={() => void recheck()}
           onSignIn={signIn}
