@@ -1,5 +1,20 @@
 import { describe, expect, it } from 'vitest'
+import en from './locales/en.json' with { type: 'json' }
+import ru from './locales/ru.json' with { type: 'json' }
 import { finishedText, isNotifyLanguage, notifyText } from './notifyText.ts'
+
+describe('the server’s locales', () => {
+  const placeholders = (text: string) => [...text.matchAll(/\{\{(\w+)\}\}/g)].map(([, name]) => name).sort()
+
+  it('have the same texts in every language, with the same placeholders and none empty', () => {
+    expect(Object.keys(ru).sort()).toEqual(Object.keys(en).sort())
+    for (const key of Object.keys(en) as (keyof typeof en)[]) {
+      expect(ru[key], key).not.toBe('')
+      expect(en[key], key).not.toBe('')
+      expect(placeholders(ru[key]), key).toEqual(placeholders(en[key]))
+    }
+  })
+})
 
 describe('notifyText', () => {
   it('takes the text of the language asked, with its placeholders filled', () => {
