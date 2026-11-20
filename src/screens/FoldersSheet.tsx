@@ -53,11 +53,14 @@ export function FoldersSheet({ open, onClose }: FoldersSheetProps) {
   const show = (next: Editing | null) => {
     setEditing(next)
     setFailure(undefined)
-    if (next === null && stale.current) {
-      stale.current = false
-      folders.retry()
-    }
   }
+  const back = () => {
+    show(null)
+    if (!stale.current) return
+    stale.current = false
+    folders.retry()
+  }
+  // Opened again, it loads anew.
   const close = () => {
     show(null)
     stale.current = false
@@ -107,16 +110,16 @@ export function FoldersSheet({ open, onClose }: FoldersSheetProps) {
   }
 
   const data = folders.data
-  const key = editing && keyOf(editing.category)
+  const key = editing ? keyOf(editing.category) : LIST
   return (
     <Sheet
       open={open}
       onClose={close}
       title={editing ? (editing.category?.name ?? t('folders.default')) : t('move.known')}
-      leading={editing && <IconButton icon="chevron-left" label={t('common.back')} iconSize={24} onClick={() => show(null)} />}
+      leading={editing && <IconButton icon="chevron-left" label={t('common.back')} iconSize={24} onClick={back} />}
       action={<IconButton icon="close" label={t('common.close')} onClick={close} />}
     >
-      {editing && key && data ? (
+      {editing && data ? (
         <FolderForm
           folders={data}
           category={editing.category}

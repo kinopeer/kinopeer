@@ -1,4 +1,4 @@
-import { createEvent, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, createEvent, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -191,16 +191,26 @@ describe('FoldersSheet', () => {
     expect(within(sheet).queryByRole('alert')).not.toBeInTheDocument()
   })
 
-  it('says when qBittorrent didn’t take the folder', async () => {
-    setDefaultSavePath.mockRejectedValue(new api.QbittorrentError('qBittorrent responded 500', 500))
+  it.each([
+    // A category's step only says a category is gone.
+    ['the default folder', /^Default folder/, setDefaultSavePath, 404],
+    ['a category’s folder', /^Movies/, setCategoryFolder, 500],
+  ])('says when qBittorrent didn’t take %s, and asks for nothing more on Back', async (_, row, call, status) => {
+    call.mockRejectedValue(new api.QbittorrentError(`qBittorrent responded ${status}`, status))
     const sheet = await openSheet()
-    await type(await edit(sheet, /^Default folder/), '/media/downloads')
+    await type(await edit(sheet, row), '/media/downloads')
     await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
 
     expect(await within(sheet).findByRole('alert', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
     // Free to try again.
     expect(within(sheet).getByRole('button', { name: 'Save' })).toBeEnabled()
     expect(within(sheet).getByRole('textbox', { name: 'Folder' })).not.toHaveAttribute('readonly')
+
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Back' }))
+    await edit(sheet, row)
+    // The failure was that time's.
+    expect(within(sheet).queryByRole('alert')).not.toBeInTheDocument()
+    expect(getFolders).toHaveBeenCalledTimes(1)
   })
 
   it('says a failure in a toast once the sheet has closed', async () => {
@@ -257,6 +267,7 @@ describe('FoldersSheet', () => {
     await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
     await userEvent.click(within(sheet).getByRole('button', { name: 'Back' }))
 
+    expect(getFolders).toHaveBeenCalledTimes(1)
     const field = await edit(sheet, /^Movies/)
     expect(field).toHaveValue('/media/films')
     expect(field).toHaveAttribute('readonly')
@@ -283,6 +294,36 @@ describe('FoldersSheet', () => {
     await userEvent.click(within(sheet).getByRole('button', { name: 'Back' }))
     expect(await within(sheet).findByRole('button', { name: 'TV/downloads/TV' })).toBeInTheDocument()
     expect(within(sheet).queryByRole('button', { name: /^Movies/ })).not.toBeInTheDocument()
+  })
+
+  it('asks for the folders once each time it opens, whatever a save settled while it was elsewhere', async () => {
+    let settle!: () => void
+    let settleLater!: () => void
+    setCategoryFolder.mockReturnValueOnce(new Promise((resolve) => (settle = resolve)))
+    setCategoryFolder.mockReturnValueOnce(new Promise((resolve) => (settleLater = resolve)))
+    const sheet = await openSheet()
+    // Settled while another folder is shown, then closed: the next opening's load is the one.
+    await type(await edit(sheet, /^Movies/), '/media/films')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Back' }))
+    await edit(sheet, /^TV/)
+    settle()
+    expect(await screen.findByRole('status', { name: saying('Folder saved') })).toBeInTheDocument()
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Close' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Folders' }))
+    await edit(screen.getByRole('dialog', { name: 'qBittorrent folders' }), /^TV/)
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(getFolders).toHaveBeenCalledTimes(2)
+
+    // Settled while closed: the same.
+    await type(await edit(screen.getByRole('dialog', { name: 'qBittorrent folders' }), /^Movies/), '/media/other')
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }))
+    await act(async () => settleLater())
+    await userEvent.click(screen.getByRole('button', { name: 'Folders' }))
+    await edit(screen.getByRole('dialog', { name: 'qBittorrent folders' }), /^TV/)
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(getFolders).toHaveBeenCalledTimes(3)
   })
 
   it('opens on the list again after it was closed on a folder', async () => {

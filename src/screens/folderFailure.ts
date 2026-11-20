@@ -18,7 +18,6 @@ export function folderFailure(error: unknown): FolderFailure {
  * it), else as `folderFailure` says. Its folder was made by then, so a 409 here isn't that.
  */
 export function categoryFailure(error: unknown): FolderFailure {
-  if (error instanceof QbittorrentError && !(error instanceof UnauthorizedError) && (error.status === 409 || error.status === 404))
-    return 'folders.categoryGone'
+  if (error instanceof QbittorrentError && (error.status === 409 || error.status === 404)) return 'folders.categoryGone'
   return folderFailure(error)
 }
