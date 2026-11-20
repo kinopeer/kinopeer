@@ -44,8 +44,9 @@ Neighbours: <!-- docs/TESTING.md → Choosing a layer. Answer each with the `it`
 - The edges:
 
 Mutants: <!-- npm run test:mutants at the commit you mark ready: the count, then each survivor —
-     test added | an accepted reason | equivalent: the inputs tried and what each gave in both,
-     another path (a status code, a list asked again, an entry evicted) counting as a difference.
+     test added | an accepted reason | equivalent: the inputs or sequences of events tried and what
+     each gave, its result and every effect, on the original and on the mutant, another path (a
+     status code, a list asked again, an entry evicted) counting as a difference.
      Or "nothing to mutate". -->
 
 Broken by hand: <!-- what Stryker leaves alone in the changed lines (docs/TESTING.md → A test that
