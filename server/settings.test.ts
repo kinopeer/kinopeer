@@ -181,6 +181,7 @@ describe('settingsMiddleware', () => {
       downloads: null,
       auth: { enabled: false },
       telegram: { bot: null, chat: null, refused: null },
+      push: { devices: 0 },
       notifications: false,
     })
 
@@ -195,6 +196,7 @@ describe('settingsMiddleware', () => {
       downloads: null,
       auth: { enabled: false },
       telegram: { bot: null, chat: null, refused: null },
+      push: { devices: 0 },
       notifications: false,
     })
     expect(text).not.toContain('env-key')

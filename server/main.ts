@@ -7,11 +7,24 @@ import { AuthStore, authMode, envPassword, kinopeerAuth } from './auth.ts'
 import { allowedHosts, allowedHostsWarning, hostCheck } from './hostCheck.ts'
 import { finishedTitle } from './finishedTitle.ts'
 import { MatchesStore, matchesMiddleware, qbittorrentHashes, startMatchesCleanup } from './matches.ts'
-import { removeNotifyTag, startNotifier, taggedTorrents } from './notifier.ts'
+import type { NotifyLanguage } from '../src/api/settings/types.ts'
+import { removeNotifyTag, startNotifier, taggedTorrents, type NotifyTorrent } from './notifier.ts'
 import { prowlarrMiddleware, type Middleware } from './prowlarr.ts'
+import { PushStore, pushMiddleware } from './push.ts'
+import { pushChannel } from './pushChannel.ts'
 import { qbittorrentBridge } from './qbittorrent.ts'
 import { contentSecurityPolicy, securityHeaders } from './securityHeaders.ts'
-import { SettingsStore, prowlarrAddress, prowlarrKey, qbittorrentAddress, qbittorrentCredentials, settingsMiddleware, tmdbKey } from './settings.ts'
+import {
+  SettingsStore,
+  prowlarrAddress,
+  prowlarrKey,
+  qbittorrentAddress,
+  qbittorrentCredentials,
+  serverSettings,
+  settingsMiddleware,
+  tmdbKey,
+  type SettingsConfig,
+} from './settings.ts'
 import { staticMiddleware } from './static.ts'
 import { telegramChannel } from './telegramChannel.ts'
 import { tmdbJson, tmdbMiddleware, type TmdbConfig } from './tmdb.ts'
@@ -25,7 +38,7 @@ import { tmdbJson, tmdbMiddleware, type TmdbConfig } from './tmdb.ts'
  *
  * PORT (default 8080), HOST (default 0.0.0.0) and KINOPEER_DIST (default ../dist) set where it
  * listens and what it serves; KINOPEER_DATA_DIR (default ./data) is where settings saved from the
- * app and torrent-to-title matches are kept.
+ * app, torrent-to-title matches and the devices' push subscriptions are kept.
  */
 export function createApp(root: string, kinopeer: KinopeerServer) {
   return createServer(chain([contentSecurityPolicy, ...kinopeer.routes, staticMiddleware({ root })]))
@@ -36,10 +49,21 @@ export interface DataStores {
   settings: SettingsStore
   matches: MatchesStore
   auth: AuthStore
+  push: PushStore
 }
 
 export function dataStores(dir: string): DataStores {
-  return { settings: new SettingsStore(dir), matches: new MatchesStore(dir), auth: new AuthStore(dir) }
+  return { settings: new SettingsStore(dir), matches: new MatchesStore(dir), auth: new AuthStore(dir), push: new PushStore(dir) }
+}
+
+/**
+ * Reads the stores the server reads without waiting: the settings, the matches, and the push
+ * devices, which the notifier asks for on every pass. auth.json is read with the first request the
+ * login holds back: one it can't read answers 500 then, rather than keeping the server from starting
+ * with the login off.
+ */
+export async function loadStores(stores: DataStores): Promise<void> {
+  await Promise.all([stores.settings.load(), stores.matches.load(), stores.push.load()])
 }
 
 export interface KinopeerServer {
@@ -118,7 +142,8 @@ export function loginWarning(env: Record<string, string | undefined>): string | 
  * (PROWLARR_URL, QBITTORRENT_URL): a browser chose an address saved from the app. TMDB_API_URL and
  * TMDB_IMAGE_URL replace TMDB's API and image addresses (the integration and smoke tests point them
  * at a fake), TMDB_PROXY_URL replaces Kinopeer's TMDB proxy (`tmdbProxy`), and TELEGRAM_API_URL
- * Telegram's Bot API (the integration tests point it at a fake). KINOPEER_ALLOWED_HOSTS adds the host names it answers at
+ * Telegram's Bot API (the integration tests point it at a fake), and PUSH_TEST_ORIGIN adds a push service
+ * besides the known ones (the integration tests' fake). KINOPEER_ALLOWED_HOSTS adds the host names it answers at
  * (`allowedHosts`). KINOPEER_AUTH=off turns Kinopeer's own login off (server/auth.ts), and throws
  * for a value it doesn't know, so the server doesn't start, as it does for a KINOPEER_PASSWORD
  * shorter than 8 characters or longer than 256 (`envPassword`).
@@ -144,14 +169,24 @@ export function kinopeerServer(env: Record<string, string | undefined>, stores: 
   }
   // TELEGRAM_API_URL replaces Telegram's Bot API address: the integration tests point it at a fake.
   const telegram = env.TELEGRAM_API_URL ? { base: env.TELEGRAM_API_URL } : undefined
-  const channels = [
-    telegramChannel({
-      store,
-      telegram,
-      title: (torrent, language) =>
-        finishedTitle(torrent, language, { matches: () => stores.matches.current, tmdb: (rest) => tmdbJson(tmdb, rest) }),
-    }),
-  ]
+  const title = (torrent: NotifyTorrent, language: NotifyLanguage) =>
+    finishedTitle(torrent, language, { matches: () => stores.matches.current, tmdb: (rest) => tmdbJson(tmdb, rest) })
+  const channels = [telegramChannel({ store, telegram, title }), pushChannel({ store: stores.push, title })]
+  const settings: SettingsConfig = {
+    store,
+    auth: auth.status,
+    envTmdbApiKey: env.TMDB_API_KEY,
+    tmdbProxy: proxy,
+    tmdbApiBase: env.TMDB_API_URL,
+    envQbittorrentUrl: env.QBITTORRENT_URL,
+    envQbittorrent,
+    envProwlarrUrl: env.PROWLARR_URL,
+    envProwlarrApiKey: envProwlarrKey,
+    prowlarrConfigXml: prowlarrConfig,
+    notifications: () => channels.some((channel) => channel.ready()),
+    pushDevices: () => stores.push.subscriptions.length,
+    telegram,
+  }
   return {
     routes: [
       // First, so every answer has them, a 404 included.
@@ -160,20 +195,9 @@ export function kinopeerServer(env: Record<string, string | undefined>, stores: 
       hostCheck(allowedHosts(env.KINOPEER_ALLOWED_HOSTS).allowed),
       health,
       auth.middleware,
-      settingsMiddleware({
-        store,
-        auth: auth.status,
-        envTmdbApiKey: env.TMDB_API_KEY,
-        tmdbProxy: proxy,
-        tmdbApiBase: env.TMDB_API_URL,
-        envQbittorrentUrl: env.QBITTORRENT_URL,
-        envQbittorrent,
-        envProwlarrUrl: env.PROWLARR_URL,
-        envProwlarrApiKey: envProwlarrKey,
-        prowlarrConfigXml: prowlarrConfig,
-        notifications: () => channels.some((channel) => channel.ready()),
-        telegram,
-      }),
+      settingsMiddleware(settings),
+      // PUSH_TEST_ORIGIN adds a push service besides the known ones: the integration tests' fake.
+      pushMiddleware({ store: stores.push, settings: () => serverSettings(settings), testOrigin: env.PUSH_TEST_ORIGIN }),
       matchesMiddleware(stores.matches),
       qbittorrent.middleware,
       prowlarrMiddleware({
@@ -240,9 +264,7 @@ async function main() {
   const host = env.HOST || '0.0.0.0'
   const root = resolve(env.KINOPEER_DIST || resolve(dirname(fileURLToPath(import.meta.url)), '../dist'))
   const stores = dataStores(resolve(env.KINOPEER_DATA_DIR || 'data'))
-  // auth.json is read with the first request the login holds back: one it can't read answers 500
-  // then, rather than keeping the server from starting with the login off.
-  await Promise.all([stores.settings.load(), stores.matches.load()])
+  await loadStores(stores)
   const kinopeer = kinopeerServer(env, stores)
   const server = createApp(root, kinopeer)
   const stopJobs = kinopeer.startJobs()

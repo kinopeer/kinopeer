@@ -56,6 +56,12 @@ export interface AppOptions {
    * /start; without it the server says nothing of notifications, as one before 1.1.
    */
   telegram?: TelegramStatus & { found?: TelegramFoundChat }
+  /**
+   * The server sends push (1.1 and later), and this device gets it (`on`) or doesn't yet (`off`).
+   * The tests block service workers, so a stand-in registration answers for this device; without
+   * `device` the card says push needs HTTPS, as with no worker.
+   */
+  push?: { device?: 'on' | 'off' }
   /** qBittorrent's and Prowlarr's addresses were saved from the app, not set in the server's environment. */
   addressesFromApp?: boolean
   /** Prowlarr doesn't answer the server's connection check. */
@@ -172,6 +178,7 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
         downloads: null,
         auth: options.auth ?? { enabled: false },
         ...(telegram && { telegram, notifications: telegram.chat !== null }),
+        ...(options.push && { push: { devices: options.push.device === 'on' ? 1 : 0 } }),
       }),
   )
   if (telegram) {
@@ -327,6 +334,14 @@ export async function prepareApp(page: Page, options: AppOptions = {}): Promise<
   )
   if (options.serviceWorkerAnswers) {
     await page.addInitScript(() => Object.defineProperty(navigator.serviceWorker, 'controller', { get: () => ({}) }))
+  }
+  if (options.push?.device) {
+    await page.addInitScript((on) => {
+      const subscription = on ? { endpoint: 'https://fcm.googleapis.com/fcm/send/device' } : null
+      const registration = { pushManager: { getSubscription: async () => subscription } }
+      navigator.serviceWorker.getRegistration = async () => registration as unknown as ServiceWorkerRegistration
+      Object.defineProperty(Notification, 'permission', { get: () => (on ? 'granted' : 'default') })
+    }, options.push.device === 'on')
   }
   await mockServer(page, options)
 }

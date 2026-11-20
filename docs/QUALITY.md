@@ -399,7 +399,11 @@ room for ordinary changes, not for noise. It is exact for the dependencies `pack
 names: a local `node_modules` that drifted from it builds another size, so measure after `npm ci`.
 It went to 193,700 the same day, the measurement of 193,602 bytes rounded up the same way, on the
 coordinator's decision on #486 (Telegram notifications, which add 2,599 bytes with one language's
-texts), so like the budget before it, it leaves no margin.
+texts), so like the budget before it, it leaves no margin. It went to 196,300 on the same day, the
+measurement of 196,210 bytes rounded up the same way, on the coordinator's decision on #481 (push
+notifications, which add 2,514 bytes: the push card and its browser module in the main bundle, the
+service worker's push handlers, and one language's texts, with the fixes of its review's first
+round), leaving no margin either.
 
 **In CI** it is the step after `npm run build` in the `performance` job, which adds a table of the kinds,
 their sizes, budgets and what is left to the job's summary, and records the sizes as actual values

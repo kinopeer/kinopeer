@@ -1,4 +1,5 @@
 import type { AuthStatus } from '../auth/types.ts'
+import type { PushStatus } from '../push/types.ts'
 
 /** Where a secret comes from: saved from the app, or the server's environment variables. */
 export type KeySource = 'saved' | 'env'
@@ -73,6 +74,8 @@ export interface ServerSettings {
   auth?: AuthStatus
   /** The Telegram bot that sends notifications. Servers before 1.1 don't send it: they have none. */
   telegram?: TelegramStatus
+  /** The devices that get push notifications. Servers before 1.1 don't send it: they have none. */
+  push?: PushStatus
   /**
    * Some channel is set up to send a notification when a download finishes, so the app offers the
    * per-torrent switch. Servers before 1.1 don't send it.

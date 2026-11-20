@@ -285,7 +285,7 @@
 
   .settings-conns {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(350px, 100%), 1fr)); /* The longest card name, its icon, a second action and Test on one line; two to a row at 1440px. */
     gap: var(--space-3);
   }
 

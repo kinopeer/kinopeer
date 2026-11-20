@@ -7,7 +7,6 @@ import {
   saveTelegramChat,
   saveTelegramToken,
   testTelegram,
-  type NotifyLanguage,
   type ServerSettings,
   type TelegramFoundChat,
   type TelegramStatus,
@@ -16,6 +15,7 @@ import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { Input } from '../components/Input'
 import { useToast } from '../components/Toast'
+import { notifyLanguage } from '../i18n/language'
 
 export interface TelegramFormProps {
   telegram: TelegramStatus
@@ -37,11 +37,6 @@ function formError(e: unknown): FormError {
   const code = e instanceof SettingsError ? e.code : undefined
   if (code === 'invalid-key' || code === 'bad-request') return 'invalid'
   return code && KNOWN_ERRORS.has(code) ? (code as FormError) : 'failed'
-}
-
-/** The language the server writes notifications in: the interface's, which i18next resolves to one it has. */
-function notifyLanguage(language: string | undefined): NotifyLanguage {
-  return language === 'ru' ? 'ru' : 'en'
 }
 
 /**

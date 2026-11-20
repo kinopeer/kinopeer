@@ -22,6 +22,7 @@ import { Sheet } from '../components/Sheet'
 import { useToast } from '../components/Toast'
 import { Toggle } from '../components/Toggle'
 import { LANGUAGES, type LanguagePreference } from '../i18n'
+import { notifyLanguage } from '../i18n/language'
 import { useLanguage } from '../i18n/useLanguage'
 import { BUG_REPORT_URL, IDEAS_URL, REPO_URL } from '../lib/links'
 import { promptInstall, useInstallMethod, type ManualInstall } from '../pwa/install'
@@ -41,6 +42,7 @@ import { InstallSheet } from './InstallSheet'
 import { ProwlarrKeyForm } from './ProwlarrKeyForm'
 import { QbittorrentLoginForm } from './QbittorrentLoginForm'
 import { TelegramForm } from './TelegramForm'
+import { usePushDevice } from './usePushDevice'
 import { TmdbKeyForm } from './TmdbKeyForm'
 import './SettingsScreen.css'
 
@@ -53,7 +55,7 @@ export interface SettingsLocationState {
  * What a connection's card says: still checking, connected (perhaps with a warning), why not, or
  * that an optional one isn't set up.
  */
-type ConnectionStatus = { state: 'loading' } | { state: 'ok' | 'warn' | 'error' | 'off'; message: string }
+type ConnectionStatus = { state: 'loading'; message?: string } | { state: 'ok' | 'warn' | 'error' | 'off'; message: string }
 
 /** The status of a check: `ok` describes what it answered, `failed` why it failed. */
 function connectionStatus<T>(
@@ -74,19 +76,21 @@ interface ConnectionRowProps {
   name: string
   icon: IconName
   status: ConnectionStatus
-  /** Runs the check again. */
-  onTest: () => void
+  /** Runs the check again; no Test without it. */
+  onTest?: () => void
   /** Accessible name of the edit button, shown only with `onEdit`. */
   editLabel?: string
   onEdit?: () => void
   /** The edit button's icon; a key by default. */
   editIcon?: IconName
-  /** Shown in place of the edit button and Test while the status is `off`: the button that sets it up. */
+  /** Shown in place of the edit button and Test while the status is `off`, or always without Test: the button that sets it up. */
   setUpLabel?: string
+  /** Disables the set-up and edit buttons while what they start is in flight; Test is disabled while the status is loading anyway. */
+  busy?: boolean
 }
 
 /** One service's connection: its status, and Test to check it again, or Set up while it's `off`. */
-function ConnectionRow({ name, icon, status, onTest, editLabel, onEdit, editIcon = 'key', setUpLabel }: ConnectionRowProps) {
+function ConnectionRow({ name, icon, status, onTest, editLabel, onEdit, editIcon = 'key', setUpLabel, busy }: ConnectionRowProps) {
   const { t } = useTranslation()
   const { state } = status
   return (
@@ -101,19 +105,21 @@ function ConnectionRow({ name, icon, status, onTest, editLabel, onEdit, editIcon
       <span className="settings-conn-text">
         <span className="settings-conn-name">{name}</span>
         <span className={`t-cap ${MESSAGE_CLASS[state]}`} role="status">
-          {status.state === 'loading' ? t('settings.testing') : status.message}
+          {status.message ?? t('settings.testing')}
         </span>
       </span>
-      {state === 'off' && setUpLabel && onEdit ? (
-        <Button variant="secondary" size="sm" onClick={onEdit}>
+      {(state === 'off' || !onTest) && setUpLabel && onEdit ? (
+        <Button variant="secondary" size="sm" disabled={busy} onClick={onEdit}>
           {setUpLabel}
         </Button>
       ) : (
         <>
-          {onEdit && editLabel && <IconButton icon={editIcon} label={editLabel} onClick={onEdit} />}
-          <Button variant="secondary" size="sm" disabled={state === 'loading'} onClick={onTest}>
-            {t('settings.test')}
-          </Button>
+          {onEdit && editLabel && <IconButton icon={editIcon} label={editLabel} disabled={busy} onClick={onEdit} />}
+          {onTest && (
+            <Button variant="secondary" size="sm" disabled={state === 'loading'} onClick={onTest}>
+              {t('settings.test')}
+            </Button>
+          )}
         </>
       )}
     </li>
@@ -210,7 +216,7 @@ export interface SettingsScreenProps {
 }
 
 export function SettingsScreen({ signIn }: SettingsScreenProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { preference, setPreference } = useTheme()
   const language = useLanguage()
   const [settings, update] = useSettings()
@@ -303,6 +309,21 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
       (error) =>
         error instanceof SettingsError && error.code === 'token-rejected' ? t('telegram.tokenRejected') : t('noAnswer.telegram'),
     )
+  }
+
+  // Read from this browser, asking the server nothing; only where the server sends push (1.1 and later).
+  const push = usePushDevice(notifyLanguage(i18n.resolvedLanguage))
+
+  /** The push card: what this device can do, or what the last action did. */
+  const pushStatus = (): ConnectionStatus => {
+    const { state, busy, outcome } = push
+    // A test says Testing…, as every other card's.
+    if (!state || busy) return { state: 'loading', message: busy === 'on' ? t('push.turningOn') : busy === 'off' ? t('push.turningOff') : undefined }
+    if (outcome && !outcome.ok) return { state: 'error', message: outcome.message }
+    if (state.kind === 'on') return { state: 'ok', message: outcome?.message ?? t('push.on') }
+    if (state.kind === 'denied') return { state: 'warn', message: t('push.denied') }
+    if (state.kind === 'off') return { state: 'off', message: outcome?.message ?? t('push.off') }
+    return { state: 'off', message: t(`push.${state.kind === 'install' ? 'install' : state.kind === 'unsupported' ? 'unsupported' : 'needsHttps'}`) }
   }
 
   const categoryField = (type: 'movie' | 'tv') => {
@@ -405,6 +426,22 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
               editIcon="settings"
               onEdit={() => setEditingTelegram(true)}
               setUpLabel={t('telegram.setUp')}
+            />
+          )}
+          {server?.push && (
+            <ConnectionRow
+              name={t('push.name')}
+              icon="bell"
+              status={pushStatus()}
+              busy={!!push.busy}
+              onTest={push.state?.kind === 'on' ? push.test : undefined}
+              {...(push.state?.kind === 'on'
+                ? { editLabel: t('push.turnOff'), editIcon: 'close', onEdit: push.turnOff }
+                : push.state?.kind === 'off'
+                  ? { setUpLabel: t('push.turnOn'), onEdit: push.turnOn }
+                  : push.state?.kind === 'install'
+                    ? { setUpLabel: t('install.action'), onEdit: () => setInstallSteps('ios') }
+                    : {})}
             />
           )}
         </ul>

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv, normalizePath, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
-import { TMDB_PROXY_EDGE, dataStores, kinopeerServer, type KinopeerServer } from './server/main.ts'
+import { TMDB_PROXY_EDGE, dataStores, kinopeerServer, loadStores, type KinopeerServer } from './server/main.ts'
 import { contentSecurityPolicy } from './server/securityHeaders.ts'
 
 /**
@@ -155,7 +155,7 @@ export default defineConfig(({ mode }) => {
   const dataDir = resolve(env.KINOPEER_DATA_DIR || 'data')
   const stores = dataStores(dataDir)
   const appVersion = env.KINOPEER_COMMIT ? `${version}+${env.KINOPEER_COMMIT}` : version
-  void stores.settings.load()
+  void loadStores(stores)
 
   return {
     // Shown in Settings → About (src/version.d.ts). Edge builds of main (.github/workflows/edge.yml)

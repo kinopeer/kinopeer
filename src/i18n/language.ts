@@ -158,3 +158,8 @@ export function initLanguage(): () => void {
     window.removeEventListener('storage', onStorage)
   }
 }
+
+/** The language the server writes notifications in: the interface's, which i18next resolves to one it has. */
+export function notifyLanguage(language: string | undefined): 'en' | 'ru' {
+  return language === 'ru' ? 'ru' : 'en'
+}
