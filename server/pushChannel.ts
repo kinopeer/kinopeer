@@ -31,7 +31,7 @@ interface Progress {
 export function pushChannel(config: PushChannelConfig): NotifyChannel {
   const send = config.send ?? sendPush
   const log = config.log ?? ((message: string) => console.warn(`[kinopeer] ${message}`))
-  // Per torrent, kept only while it's sent again; a torrent deleted in between leaves one small entry.
+  // Per torrent, kept only while it's sent again, until it's sent or the notifier forgets the torrent.
   const progress = new Map<string, Progress>()
   return {
     id: 'Web Push',
@@ -73,6 +73,9 @@ export function pushChannel(config: PushChannelConfig): NotifyChannel {
       }
       progress.delete(torrent.hash)
       return state.sent ? 'sent' : 'rejected'
+    },
+    forget: (hash) => {
+      progress.delete(hash)
     },
   }
 }

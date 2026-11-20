@@ -163,6 +163,12 @@ test.describe('desktop', () => {
     // Behind the scrim, the cards saying an address set on the server wins.
     await expect(page).toHaveScreenshot('desktop-qbittorrent-address-dark-ru.png', { mask: [versionValue(page)] })
   })
+
+  test('push notifications on for this device beside Telegram, dark, Russian', async ({ page }) => {
+    await openSettings(page, { telegram: CONNECTED, push: { device: 'on' } })
+    await expect(page.getByText('Включены на этом устройстве')).toBeVisible()
+    await expect(page).toHaveScreenshot('desktop-push-dark-ru.png', { mask: [versionValue(page)] })
+  })
 })
 
 test.describe('desktop rail', () => {
@@ -186,7 +192,8 @@ test('push notifications off for this device, dark, Russian', async ({ page }) =
   await expect(page).toHaveScreenshot('settings-push-off-dark-ru.png', { mask: [versionValue(page)] })
 })
 
-test('push notifications where the device can’t get them, dark, Russian', async ({ page }) => {
+// No service worker runs the app here (the screenshot tests block it), which says what plain HTTP says.
+test('push notifications where no service worker runs the app, dark, Russian', async ({ page }) => {
   await openSettings(page, { push: {} })
   await expect(page.getByText('Нужен Kinopeer по HTTPS с сертификатом, которому доверяет это устройство')).toBeVisible()
   await expect(page).toHaveScreenshot('settings-push-unavailable-dark-ru.png', { mask: [versionValue(page)] })

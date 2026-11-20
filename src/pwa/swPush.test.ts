@@ -11,6 +11,9 @@ describe('appPath', () => {
     ['another origin', 'https://example.org/x', '/'],
     ['a path that leads to another host', '//example.org/x', '/'],
     ['one with a backslash that leads to another host', '/\\example.org/x', '/'],
+    ['one with a tab, which the URL parser drops, that leads to another host', '/\t/example.org/x', '/'],
+    ['one with a line break that leads to another host', '/\n/example.org/x', '/'],
+    ['a path with a hash', '/settings#push', '/settings#push'],
     ['a relative path', 'torrent/abc', '/'],
     ['nothing', undefined, '/'],
   ])('%s: %s', (_name, value, path) => {
@@ -84,6 +87,15 @@ describe('openPush', () => {
     expect(open.focus).toHaveBeenCalled()
     expect(open.navigate).toHaveBeenCalledWith(`${ORIGIN}/torrent/a`)
     expect(clients.openWindow).not.toHaveBeenCalled()
+  })
+
+  it('opens the page in a new window when the open one can’t be taken there, as one the worker doesn’t control', async () => {
+    const open = windowAt(`${ORIGIN}/search`)
+    open.navigate.mockRejectedValue(new TypeError('not controlled'))
+    const clients = clientsWith(open)
+    await openPush(clients, ORIGIN, { url: '/torrent/a' })
+    expect(open.navigate).toHaveBeenCalledWith(`${ORIGIN}/torrent/a`)
+    expect(clients.openWindow).toHaveBeenCalledWith(`${ORIGIN}/torrent/a`)
   })
 
   it('leaves a window already on the page as it is', async () => {

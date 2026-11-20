@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { PushError } from '../api/push/client'
 import { SERVER_SETTINGS_KEY } from '../api/settings/client'
 import { sharedRequests } from '../logic/sharedRequests'
-import { pushState, turnOffPush, turnOnPush } from './push'
+import { pushState, testPushDevice, turnOffPush, turnOnPush } from './push'
 
 const SERVER_KEY = 'BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4'
 const keyBytes = (key: string) => Uint8Array.from(atob(key.replace(/-/g, '+').replace(/_/g, '/')), (char) => char.charCodeAt(0))
@@ -66,7 +66,6 @@ describe('pushState', () => {
   })
 
   it('asks for the Home Screen on an iPhone without the Push API', async () => {
-    vi.stubGlobal('PushManager', undefined)
     Reflect.deleteProperty(window, 'PushManager')
     vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Version/18.0 Mobile/15E148 Safari/604.1', maxTouchPoints: 5 })
     expect(await pushState()).toEqual({ kind: 'install' })
@@ -74,6 +73,16 @@ describe('pushState', () => {
 
   it('is unsupported elsewhere without the Push API', async () => {
     Reflect.deleteProperty(window, 'PushManager')
+    expect(await pushState()).toEqual({ kind: 'unsupported' })
+  })
+
+  it('is unsupported without notifications, though the Push API is there', async () => {
+    Reflect.deleteProperty(window, 'Notification')
+    expect(await pushState()).toEqual({ kind: 'unsupported' })
+  })
+
+  it('is unsupported without service workers, though the Push API and notifications are there', async () => {
+    vi.stubGlobal('navigator', { userAgent: navigator.userAgent, maxTouchPoints: 0 })
     expect(await pushState()).toEqual({ kind: 'unsupported' })
   })
 
@@ -187,6 +196,53 @@ describe('turnOffPush', () => {
     browser.state.subscription = subscription
     fetchMock.mockResolvedValueOnce(new Response('', { status: 500 }))
     await expect(turnOffPush(subscription.endpoint)).rejects.toBeInstanceOf(PushError)
+    expect(subscription.unsubscribe).not.toHaveBeenCalled()
+  })
+})
+
+describe('testPushDevice', () => {
+  const endpoint = 'https://fcm.googleapis.com/fcm/send/a'
+
+  it('asks the server to send this device a test notification', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }))
+    await testPushDevice(endpoint)
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/push/test')
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ method: 'POST', body: JSON.stringify({ endpoint }) })
+  })
+
+  it.each([
+    ['doesn’t know the device', 404, 'unknown-device'],
+    ['forgot the device its push service said is gone', 410, 'gone'],
+  ])('drops the browser’s subscription when the server %s, so the device reads off', async (_name, status, code) => {
+    const subscription = subscriptionWith(endpoint, keyBytes(SERVER_KEY))
+    browser.state.permission = 'granted'
+    browser.state.subscription = subscription
+    subscription.unsubscribe.mockImplementation(async () => {
+      browser.state.subscription = null
+      return true
+    })
+    fetchMock.mockResolvedValueOnce(json({ error: code }, status))
+    await expect(testPushDevice(endpoint)).rejects.toMatchObject({ status, code })
+    expect(subscription.unsubscribe).toHaveBeenCalled()
+    expect(await pushState()).toEqual({ kind: 'off' })
+  })
+
+  it('still says why when the browser fails to drop the subscription', async () => {
+    const subscription = subscriptionWith(endpoint, keyBytes(SERVER_KEY))
+    browser.state.subscription = subscription
+    subscription.unsubscribe.mockRejectedValue(new DOMException('failed'))
+    fetchMock.mockResolvedValueOnce(json({ error: 'gone' }, 410))
+    await expect(testPushDevice(endpoint)).rejects.toMatchObject({ code: 'gone' })
+  })
+
+  it.each([
+    [502, 'refused'],
+    [503, 'unreachable'],
+  ])('keeps the subscription when the push service answered %i', async (status, code) => {
+    const subscription = subscriptionWith(endpoint, keyBytes(SERVER_KEY))
+    browser.state.subscription = subscription
+    fetchMock.mockResolvedValueOnce(json({ error: code }, status))
+    await expect(testPushDevice(endpoint)).rejects.toBeInstanceOf(PushError)
     expect(subscription.unsubscribe).not.toHaveBeenCalled()
   })
 })

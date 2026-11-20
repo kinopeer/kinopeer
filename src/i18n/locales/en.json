@@ -644,6 +644,7 @@
     "off": "Off on this device. Shows a notification when a download finishes.",
     "turnOn": "Turn on",
     "turningOn": "Turning on…",
+    "turningOff": "Turning off…",
     "on": "On for this device",
     "testSent": "Test notification sent",
     "turnOff": "Turn off push notifications on this device",
@@ -656,6 +657,7 @@
     "invalidEndpoint": "Kinopeer doesn’t send through this browser’s push service",
     "forgotten": "Kinopeer’s server no longer sends to this device. Turn them on again.",
     "refused": "The push service refused the notification",
-    "unreachable": "The push service isn’t answering. Kinopeer’s server needs to reach it."
+    "unreachable": "The push service isn’t answering. Kinopeer’s server needs to reach it.",
+    "serverError": "Kinopeer’s server answered with an error. Try again, and if it happens again, update Kinopeer."
   }
 }

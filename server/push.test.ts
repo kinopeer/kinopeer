@@ -4,8 +4,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ServerSettings } from '../src/api/settings/types.ts'
 import { MAX_SUBSCRIPTIONS, PushStore, pushMiddleware, pushPayload, testPayload, type StoredSubscription } from './push.ts'
-import { closeServers, serve } from './test/fakes.ts'
-import { fakePushService } from './test/pushService.ts'
+import { closeServers, fakePushService, serve } from './test/fakes.ts'
 import { MAX_PAYLOAD, PushUnavailable, vapidPublicKey } from './webPush.ts'
 
 let dir: string
@@ -160,6 +159,8 @@ describe('pushMiddleware', () => {
     ['an authentication secret that isn’t text', { language: 'en', auth: ['A'.repeat(22)] }],
     ['no authentication secret', { language: 'en', auth: undefined }],
     ['a replaced endpoint that isn’t text', { language: 'en', replaces: 42 }],
+    ['a key that isn’t a point of P-256', { language: 'en', p256dh: Buffer.concat([Buffer.from([4]), Buffer.alloc(64, 1)]).toString('base64url') }],
+    ['an authentication secret that isn’t 16 bytes', { language: 'en', auth: Buffer.alloc(17, 1).toString('base64url') }],
   ])('refuses a device with %s', async (_name, change) => {
     const { service, store, call } = await setUp()
     const response = await call('PUT', '/api/push/subscription', { ...service.subscribe('/send/a'), ...change })
@@ -216,6 +217,17 @@ describe('pushMiddleware', () => {
     expect(response.status).toBe(410)
     expect(await response.json()).toEqual({ error: 'gone' })
     expect(store.subscriptions).toEqual([])
+  })
+
+  it('says the subscription is gone even when push.json can’t be written to forget it', async () => {
+    const { service, store, call } = await setUp()
+    const target = service.subscribe('/send/a')
+    await call('PUT', '/api/push/subscription', { ...target, language: 'en' })
+    service.answers['/send/a'] = { status: 410 }
+    vi.spyOn(store, 'forget').mockRejectedValue(new Error('read-only file system'))
+    const response = await call('POST', '/api/push/test', { endpoint: target.endpoint })
+    expect(response.status).toBe(410)
+    expect(await response.json()).toEqual({ error: 'gone' })
   })
 
   it.each([

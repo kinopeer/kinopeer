@@ -85,10 +85,12 @@ interface ConnectionRowProps {
   editIcon?: IconName
   /** Shown in place of the edit button and Test while the status is `off`, or always without Test: the button that sets it up. */
   setUpLabel?: string
+  /** Disables the set-up and edit buttons while what they start is in flight; Test is disabled while the status is loading anyway. */
+  busy?: boolean
 }
 
 /** One service's connection: its status, and Test to check it again, or Set up while it's `off`. */
-function ConnectionRow({ name, icon, status, onTest, editLabel, onEdit, editIcon = 'key', setUpLabel }: ConnectionRowProps) {
+function ConnectionRow({ name, icon, status, onTest, editLabel, onEdit, editIcon = 'key', setUpLabel, busy }: ConnectionRowProps) {
   const { t } = useTranslation()
   const { state } = status
   return (
@@ -107,12 +109,12 @@ function ConnectionRow({ name, icon, status, onTest, editLabel, onEdit, editIcon
         </span>
       </span>
       {(state === 'off' || !onTest) && setUpLabel && onEdit ? (
-        <Button variant="secondary" size="sm" onClick={onEdit}>
+        <Button variant="secondary" size="sm" disabled={busy} onClick={onEdit}>
           {setUpLabel}
         </Button>
       ) : (
         <>
-          {onEdit && editLabel && <IconButton icon={editIcon} label={editLabel} onClick={onEdit} />}
+          {onEdit && editLabel && <IconButton icon={editIcon} label={editLabel} disabled={busy} onClick={onEdit} />}
           {onTest && (
             <Button variant="secondary" size="sm" disabled={state === 'loading'} onClick={onTest}>
               {t('settings.test')}
@@ -315,7 +317,8 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
   /** The push card: what this device can do, or what the last action did. */
   const pushStatus = (): ConnectionStatus => {
     const { state, busy, outcome } = push
-    if (!state || busy) return { state: 'loading', message: busy === 'on' ? t('push.turningOn') : undefined }
+    // A test says Testing…, as every other card's.
+    if (!state || busy) return { state: 'loading', message: busy === 'on' ? t('push.turningOn') : busy === 'off' ? t('push.turningOff') : undefined }
     if (outcome && !outcome.ok) return { state: 'error', message: outcome.message }
     if (state.kind === 'on') return { state: 'ok', message: outcome?.message ?? t('push.on') }
     if (state.kind === 'denied') return { state: 'warn', message: t('push.denied') }
@@ -430,6 +433,7 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
               name={t('push.name')}
               icon="bell"
               status={pushStatus()}
+              busy={!!push.busy}
               onTest={push.state?.kind === 'on' ? push.test : undefined}
               {...(push.state?.kind === 'on'
                 ? { editLabel: t('push.turnOff'), editIcon: 'close', onEdit: push.turnOff }

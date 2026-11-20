@@ -15,9 +15,17 @@ export const PUSH_SUBSCRIPTION_URL = '/api/push/subscription'
 
 const isText = (value: unknown): value is string => typeof value === 'string'
 
-/** A path of the app's, never another origin's: `//host` and `/\host` lead away. */
+/** Stands for the app's origin while a path is resolved: no address the app is opened at uses it. */
+const APP_ORIGIN = 'https://app.invalid'
+
+/**
+ * A path of the app's, never another origin's: resolved as the browser would, so `//host`, `/\host`
+ * and a tab or line break in between (`/\t/host`, which the URL parser drops) lead nowhere else.
+ */
 export function appPath(value: unknown): string {
-  return isText(value) && value.startsWith('/') && !/^\/[/\\]/.test(value) ? value : '/'
+  if (!isText(value) || !value.startsWith('/')) return '/'
+  const url = new URL(value, APP_ORIGIN)
+  return url.origin === APP_ORIGIN ? `${url.pathname}${url.search}${url.hash}` : '/'
 }
 
 /** The push's payload as the server sends it, or undefined for anything else. */
@@ -74,7 +82,8 @@ interface Clients {
 
 /**
  * Opens the notification's page: in a window of Kinopeer's that's open, brought to the front, else
- * in a new one.
+ * in a new one. A window the service worker doesn't control (opened before it took over) can't be
+ * taken to another page from here, so the page opens in a new one then.
  */
 export async function openPush(clients: Clients, origin: string, data: unknown): Promise<void> {
   const url = new URL(appPath((data as { url?: unknown } | null)?.url), origin).href
@@ -85,7 +94,7 @@ export async function openPush(clients: Clients, origin: string, data: unknown):
     return
   }
   await open.focus()
-  if (open.url !== url) await open.navigate(url)
+  if (open.url !== url) await open.navigate(url).catch(() => clients.openWindow(url))
 }
 
 /** The language a subscription renewed in the worker is saved with, when the server doesn't know the one it replaces. */

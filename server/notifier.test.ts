@@ -280,6 +280,21 @@ describe('createNotifier', () => {
     expect(push.sent).toEqual(['a', 'a'])
   })
 
+  it('has every channel forget a torrent that lost its tag while it was sent again, and only that one', async () => {
+    const forgotten: string[] = []
+    const push = channel('Push', [() => Promise.reject(new Error('no answer'))])
+    const telegram = channel('Telegram')
+    push.notify.forget = (hash) => void forgotten.push(`Push ${hash}`)
+    telegram.notify.forget = (hash) => void forgotten.push(`Telegram ${hash}`)
+    let tagged = [torrent('a'), torrent('b', { progress: 0.5, state: 'downloading' })]
+    const watcher = notifier({ channels: [push.notify, telegram.notify], torrents: () => tagged })
+    await watcher.check()
+    expect(forgotten).toEqual([])
+    tagged = [torrent('b', { progress: 0.5, state: 'downloading' })]
+    await watcher.check()
+    expect(forgotten).toEqual(['Push a', 'Telegram a'])
+  })
+
   it('does nothing when qBittorrent doesn’t answer, or answers that it can’t', async () => {
     const telegram = channel('Telegram')
     const unreachable = notifier({ channels: [telegram.notify], tagged: () => Promise.reject(new Error('down')) })

@@ -56,6 +56,16 @@ export function dataStores(dir: string): DataStores {
   return { settings: new SettingsStore(dir), matches: new MatchesStore(dir), auth: new AuthStore(dir), push: new PushStore(dir) }
 }
 
+/**
+ * Reads the stores the server reads without waiting: the settings, the matches, and the push
+ * devices, which the notifier asks for on every pass. auth.json is read with the first request the
+ * login holds back: one it can't read answers 500 then, rather than keeping the server from starting
+ * with the login off.
+ */
+export async function loadStores(stores: DataStores): Promise<void> {
+  await Promise.all([stores.settings.load(), stores.matches.load(), stores.push.load()])
+}
+
 export interface KinopeerServer {
   /**
    * The server's own routes, shared with the Vite dev and preview servers; the security headers and
@@ -254,9 +264,7 @@ async function main() {
   const host = env.HOST || '0.0.0.0'
   const root = resolve(env.KINOPEER_DIST || resolve(dirname(fileURLToPath(import.meta.url)), '../dist'))
   const stores = dataStores(resolve(env.KINOPEER_DATA_DIR || 'data'))
-  // auth.json is read with the first request the login holds back: one it can't read answers 500
-  // then, rather than keeping the server from starting with the login off.
-  await Promise.all([stores.settings.load(), stores.matches.load(), stores.push.load()])
+  await loadStores(stores)
   const kinopeer = kinopeerServer(env, stores)
   const server = createApp(root, kinopeer)
   const stopJobs = kinopeer.startJobs()

@@ -1,4 +1,4 @@
-import { forgetPushSubscription, getPushKey, savePushSubscription } from '../api/push/client'
+import { PushError, forgetPushSubscription, getPushKey, savePushSubscription, testPush } from '../api/push/client'
 import type { NotifyLanguage } from '../api/settings/types'
 import { getInstallMethod } from './install'
 import { subscriptionBody } from './swPush'
@@ -56,10 +56,34 @@ export async function turnOnPush(language: NotifyLanguage): Promise<PushState> {
   return { kind: 'on', endpoint: subscription.endpoint }
 }
 
+/** Drops the browser's subscription, so the device's state reads off. */
+async function dropSubscription(): Promise<void> {
+  const registration = await navigator.serviceWorker.getRegistration()
+  await (await registration?.pushManager.getSubscription())?.unsubscribe()
+}
+
 /** Turns notifications off for this device: the server forgets it first, then the browser drops it. */
 export async function turnOffPush(endpoint: string): Promise<PushState> {
   await forgetPushSubscription(endpoint)
-  const registration = await navigator.serviceWorker.getRegistration()
-  await (await registration?.pushManager.getSubscription())?.unsubscribe()
+  await dropSubscription()
   return { kind: 'off' }
+}
+
+/** Whether the server answered that it doesn't send to this device (any more). */
+export const isForgotten = (error: unknown): boolean => error instanceof PushError && (error.code === 'unknown-device' || error.code === 'gone')
+
+/**
+ * Sends this device a test notification. When the server answers that it doesn't send to the device
+ * (it forgot it, or its push service said it's gone), the browser drops its subscription too, so
+ * the device reads off from then on and Turn on subscribes it afresh; it still rejects with that
+ * answer, which says why.
+ */
+export async function testPushDevice(endpoint: string): Promise<void> {
+  try {
+    await testPush(endpoint)
+  } catch (error) {
+    // A subscription the browser fails to drop still reads on; the answer says why the test failed.
+    if (isForgotten(error)) await dropSubscription().catch(() => undefined)
+    throw error
+  }
 }

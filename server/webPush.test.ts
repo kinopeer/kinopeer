@@ -1,7 +1,6 @@
 import { createECDH, createPublicKey, verify } from 'node:crypto'
 import { afterEach, describe, expect, it } from 'vitest'
-import { closeServers, silentService } from './test/fakes.ts'
-import { fakeBrowser, fakePushService } from './test/pushService.ts'
+import { closeServers, fakeBrowser, fakePushService, listen, silentService } from './test/fakes.ts'
 import {
   MAX_PAYLOAD,
   PushUnavailable,
@@ -9,6 +8,7 @@ import {
   encryptPayload,
   generateVapidKey,
   isPushEndpoint,
+  isPushKeys,
   retryAfterMs,
   sendPush,
   vapidAuthorization,
@@ -154,6 +154,27 @@ describe('sendPush', () => {
     expect((error as PushUnavailable).retryAfterMs).toBe(120_000)
   })
 
+  it('doesn’t follow a redirect: the push counts as refused and nothing reaches where it points', async () => {
+    const service = await fakePushService()
+    const elsewhere = service.subscribe('/elsewhere')
+    const redirecting = await listen((_request, response) => {
+      response.statusCode = 307
+      response.setHeader('Location', elsewhere.endpoint)
+      response.end()
+    })
+    await expect(sendPush({ ...elsewhere, endpoint: `${redirecting}/send/a` }, payload, key)).resolves.toBe('refused')
+    expect(service.pushes).toEqual([])
+  })
+
+  it('throws what the device’s keys can’t be used for as itself, not as a service that didn’t answer', async () => {
+    const service = await fakePushService()
+    const target = service.subscribe('/send/a')
+    const error = await sendPush({ ...target, p256dh: Buffer.alloc(65, 4).toString('base64url') }, payload, key).catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(Error)
+    expect(error).not.toBeInstanceOf(PushUnavailable)
+    expect(service.pushes).toEqual([])
+  })
+
   it('throws PushUnavailable without the endpoint when the service doesn’t answer in time', async () => {
     const { base } = await silentService()
     const error = await sendPush({ endpoint: `${base}/send/secret`, ...fakeBrowser().keys }, payload, key, { timeoutMs: 50 }).catch(
@@ -162,6 +183,23 @@ describe('sendPush', () => {
     expect(error).toBeInstanceOf(PushUnavailable)
     expect((error as PushUnavailable).retryAfterMs).toBeUndefined()
     expect(String((error as Error).message)).not.toContain('secret')
+  })
+})
+
+describe('isPushKeys', () => {
+  const { p256dh, auth } = fakeBrowser().keys
+  const point = Buffer.from(p256dh, 'base64url')
+  it.each([
+    ['a browser’s keys', p256dh, auth, true],
+    ['RFC 8291’s example', RFC.browserPublic, RFC.auth, true],
+    ['a point in hybrid form, which says the same point but isn’t how RFC 8291 has it', Buffer.concat([Buffer.from([6 + (point[64] & 1)]), point.subarray(1)]).toString('base64url'), auth, false],
+    ['a compressed point', Buffer.concat([Buffer.from([2 + (point[64] & 1)]), point.subarray(1, 33)]).toString('base64url'), auth, false],
+    ['65 bytes that aren’t on the curve', Buffer.concat([Buffer.from([4]), Buffer.alloc(64, 1)]).toString('base64url'), auth, false],
+    ['a point a byte short', point.subarray(0, 64).toString('base64url'), auth, false],
+    ['an auth secret a byte short', p256dh, Buffer.from(auth, 'base64url').subarray(0, 15).toString('base64url'), false],
+    ['an auth secret a byte long', p256dh, Buffer.concat([Buffer.from(auth, 'base64url'), Buffer.from([1])]).toString('base64url'), false],
+  ])('%s', (_name, p256dhKey, authKey, valid) => {
+    expect(isPushKeys(p256dhKey, authKey)).toBe(valid)
   })
 })
 
@@ -190,6 +228,9 @@ describe('isPushEndpoint', () => {
     ['a known service over http', 'http://fcm.googleapis.com/fcm/send/abc', false],
     ['a known service on another port', 'https://fcm.googleapis.com:8443/fcm/send/abc', false],
     ['a host that only ends like one', 'https://evilgoogleapis.com/x', false],
+    ['another host of the push service’s company', 'https://storage.googleapis.com/bucket/x', false],
+    ['a host under the push service’s own', 'https://x.fcm.googleapis.com/fcm/send/abc', false],
+    ['another host of Mozilla’s', 'https://example.mozilla.com/x', false],
     ['a known service with a login', 'https://user:pass@fcm.googleapis.com/fcm/send/abc', false],
     ['a known service with a password alone', 'https://:pass@fcm.googleapis.com/fcm/send/abc', false],
     ['an address on the server’s network', 'https://192.168.1.10/send', false],

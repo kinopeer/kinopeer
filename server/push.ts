@@ -6,7 +6,7 @@ import { isJsonRequest, readJson, sendJson } from './json.ts'
 import { JsonFile } from './jsonFile.ts'
 import { isNotifyLanguage, notifyText } from './notifyText.ts'
 import type { Middleware } from './prowlarr.ts'
-import { MAX_PAYLOAD, PushUnavailable, generateVapidKey, isPushEndpoint, sendPush, vapidPublicKey, type PushTarget, type VapidKey } from './webPush.ts'
+import { MAX_PAYLOAD, PushUnavailable, generateVapidKey, isPushEndpoint, isPushKeys, sendPush, vapidPublicKey, type PushTarget, type VapidKey } from './webPush.ts'
 
 /** A device that gets notifications: its subscription, and the language it was turned on in. */
 export interface StoredSubscription extends PushTarget {
@@ -118,7 +118,7 @@ async function publicKey(config: PushConfig, _request: IncomingMessage, response
 
 async function subscribe(config: PushConfig, request: IncomingMessage, response: ServerResponse) {
   const sent = await body<PushSubscriptionBody>(request)
-  if (!sent || typeof sent.p256dh !== 'string' || !KEY.test(sent.p256dh) || typeof sent.auth !== 'string' || !KEY.test(sent.auth)) {
+  if (!sent || typeof sent.p256dh !== 'string' || !KEY.test(sent.p256dh) || typeof sent.auth !== 'string' || !KEY.test(sent.auth) || !isPushKeys(sent.p256dh, sent.auth)) {
     return fail(response, 400, 'bad-request')
   }
   if (sent.replaces !== undefined && typeof sent.replaces !== 'string') return fail(response, 400, 'bad-request')

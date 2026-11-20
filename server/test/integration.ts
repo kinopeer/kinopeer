@@ -1,8 +1,6 @@
 /**
  * The stand for the integration tests (server/integration/, docs/TESTING.md → Integration tests):
- * the real `kinopeerServer()` in front of the fake qBittorrent, TMDB, Prowlarr and Telegram from ./fakes.ts and the
- * push service from ./pushService.ts,
- * with a data directory of its own, and the browser's `fetch` stood in for, so the real clients in
+ * the real `kinopeerServer()` in front of the fakes of ./fakes.ts, with a data directory of its own, and the browser's `fetch` stood in for, so the real clients in
  * src/api reach it the way they reach the dev server.
  */
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
@@ -10,8 +8,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vi } from 'vitest'
 import { dataStores, kinopeerServer, type DataStores } from '../main.ts'
-import { closeServers, fakeProwlarr, fakeQbittorrent, fakeTelegram, fakeTmdb, listen, serveTmdbProxy } from './fakes.ts'
-import { fakePushService } from './pushService.ts'
+import { closeServers, fakeProwlarr, fakePushService, fakeQbittorrent, fakeTelegram, fakeTmdb, listen, serveTmdbProxy } from './fakes.ts'
 
 /** What the Kinopeer server saw of a request from the browser. */
 export interface ReceivedRequest {

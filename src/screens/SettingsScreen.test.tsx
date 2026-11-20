@@ -54,11 +54,13 @@ vi.mock('../api/settings', async (importOriginal) => ({
   findTelegramChat: vi.fn(),
   saveTelegramChat: vi.fn(),
 }))
-vi.mock('../api/push', async (importOriginal) => ({
-  ...(await importOriginal<typeof pushApi>()),
-  testPush: vi.fn(),
+vi.mock('../pwa/push', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../pwa/push')>()),
+  pushState: vi.fn(),
+  turnOnPush: vi.fn(),
+  turnOffPush: vi.fn(),
+  testPushDevice: vi.fn(),
 }))
-vi.mock('../pwa/push', () => ({ pushState: vi.fn(), turnOnPush: vi.fn(), turnOffPush: vi.fn() }))
 vi.mock('../api/tmdb', async (importOriginal) => ({
   ...(await importOriginal<typeof tmdb>()),
   checkTmdb: vi.fn(),
@@ -68,8 +70,8 @@ function renderScreen(state?: unknown) {
   return renderWithRouter(<SettingsScreen signIn={serverSettings.saveQbittorrentLogin} />, [{ pathname: '/settings', state }])
 }
 
-function connection(name: string) {
-  return within(screen.getByRole('region', { name: 'Connections' }))
+function connection(name: string, region = 'Connections') {
+  return within(screen.getByRole('region', { name: region }))
     .getByText(name)
     .closest('li') as HTMLElement
 }
@@ -1330,7 +1332,7 @@ describe('SettingsScreen: push notifications', () => {
     expect(within(screen.getByRole('region', { name: 'Connections' })).queryByText('Push notifications')).not.toBeInTheDocument()
   })
 
-  it('reads this device from the browser, asking the server nothing, and turns notifications on in the interface’s language', async () => {
+  it('reads this device from the browser and turns notifications on in the interface’s language', async () => {
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings())
     let turnedOn!: (state: push.PushState) => void
     vi.mocked(push.turnOnPush).mockReturnValue(new Promise((resolve) => (turnedOn = resolve)))
@@ -1338,7 +1340,6 @@ describe('SettingsScreen: push notifications', () => {
     const card = await pushCard()
     expect(await card.findByRole('status', { name: saying('Off on this device. Shows a notification when a download finishes.') })).toBeInTheDocument()
     expect(card.queryByRole('button', { name: 'Test' })).not.toBeInTheDocument()
-    expect(pushApi.testPush).not.toHaveBeenCalled()
 
     await userEvent.click(card.getByRole('button', { name: 'Turn on' }))
     expect(push.turnOnPush).toHaveBeenCalledWith('en')
@@ -1355,7 +1356,7 @@ describe('SettingsScreen: push notifications', () => {
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings())
     vi.mocked(push.turnOnPush).mockResolvedValue({ kind: 'on', endpoint: ENDPOINT })
     renderScreen()
-    const card = within((await screen.findByText('Push-уведомления')).closest('li') as HTMLElement)
+    const card = within(await waitFor(() => connection('Push-уведомления', 'Подключения')))
     await userEvent.click(await card.findByRole('button', { name: 'Включить' }))
     expect(push.turnOnPush).toHaveBeenCalledWith('ru')
   })
@@ -1363,12 +1364,12 @@ describe('SettingsScreen: push notifications', () => {
   it('sends a test notification to this device, and turns them off', async () => {
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(1))
     vi.mocked(push.pushState).mockResolvedValue({ kind: 'on', endpoint: ENDPOINT })
-    vi.mocked(pushApi.testPush).mockResolvedValue()
+    vi.mocked(push.testPushDevice).mockResolvedValue()
     vi.mocked(push.turnOffPush).mockResolvedValue({ kind: 'off' })
     renderScreen()
     const card = await pushCard()
     await userEvent.click(await card.findByRole('button', { name: 'Test' }))
-    expect(pushApi.testPush).toHaveBeenCalledWith(ENDPOINT)
+    expect(push.testPushDevice).toHaveBeenCalledWith(ENDPOINT)
     expect(await card.findByRole('status', { name: saying('Test notification sent') })).toBeInTheDocument()
 
     await userEvent.click(card.getByRole('button', { name: 'Turn off push notifications on this device' }))
@@ -1380,11 +1381,14 @@ describe('SettingsScreen: push notifications', () => {
   it.each([
     ['refused', 'The push service refused the notification'],
     ['unreachable', 'The push service isn’t answering. Kinopeer’s server needs to reach it.'],
+    ['storage', 'The Kinopeer server couldn’t save the change. Check that its data folder is writable.'],
+    ['bad-request', 'Kinopeer’s server answered with an error. Try again, and if it happens again, update Kinopeer.'],
+    ['not-found', 'Kinopeer’s server answered with an error. Try again, and if it happens again, update Kinopeer.'],
     [undefined, 'Kinopeer isn’t answering'],
   ] as const)('says why a test failed (%s), keeping notifications on', async (code, message) => {
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(1))
     vi.mocked(push.pushState).mockResolvedValue({ kind: 'on', endpoint: ENDPOINT })
-    vi.mocked(pushApi.testPush).mockRejectedValue(new pushApi.PushError(code ? 502 : 500, code))
+    vi.mocked(push.testPushDevice).mockRejectedValue(new pushApi.PushError(code ? 502 : 500, code))
     renderScreen()
     const card = await pushCard()
     await userEvent.click(await card.findByRole('button', { name: 'Test' }))
@@ -1395,7 +1399,7 @@ describe('SettingsScreen: push notifications', () => {
   it.each(['unknown-device', 'gone'] as const)('shows notifications off when the server no longer sends to this device (%s)', async (code) => {
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(1))
     vi.mocked(push.pushState).mockResolvedValue({ kind: 'on', endpoint: ENDPOINT })
-    vi.mocked(pushApi.testPush).mockRejectedValue(new pushApi.PushError(404, code))
+    vi.mocked(push.testPushDevice).mockRejectedValue(new pushApi.PushError(404, code))
     renderScreen()
     const card = await pushCard()
     await userEvent.click(await card.findByRole('button', { name: 'Test' }))
@@ -1434,7 +1438,7 @@ describe('SettingsScreen: push notifications', () => {
   it('marks a failure as one, and a test sent as all is well', async () => {
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(1))
     vi.mocked(push.pushState).mockResolvedValue({ kind: 'on', endpoint: ENDPOINT })
-    vi.mocked(pushApi.testPush).mockRejectedValueOnce(new pushApi.PushError(502, 'refused')).mockResolvedValueOnce()
+    vi.mocked(push.testPushDevice).mockRejectedValueOnce(new pushApi.PushError(502, 'refused')).mockResolvedValueOnce()
     renderScreen()
     const card = await pushCard()
     await userEvent.click(await card.findByRole('button', { name: 'Test' }))
@@ -1454,24 +1458,40 @@ describe('SettingsScreen: push notifications', () => {
     expect(await card.findByRole('status', { name: saying('On for this device') })).not.toHaveClass('c-err')
   })
 
-  it('turns them on once for a second tap while the first is on its way', async () => {
+  it('turns them on once: Turn on is disabled while the first tap is on its way', async () => {
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings())
     vi.mocked(push.turnOnPush).mockReturnValue(new Promise(() => {}))
     renderScreen()
     const card = await pushCard()
     await userEvent.click(await card.findByRole('button', { name: 'Turn on' }))
+    expect(card.getByRole('button', { name: 'Turn on' })).toBeDisabled()
     await userEvent.click(card.getByRole('button', { name: 'Turn on' }))
     expect(push.turnOnPush).toHaveBeenCalledTimes(1)
+  })
+
+  it('says it’s turning them off, with the buttons disabled, while that’s on its way', async () => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(1))
+    vi.mocked(push.pushState).mockResolvedValue({ kind: 'on', endpoint: ENDPOINT })
+    vi.mocked(push.turnOffPush).mockReturnValue(new Promise(() => {}))
+    renderScreen()
+    const card = await pushCard()
+    await userEvent.click(await card.findByRole('button', { name: 'Turn off push notifications on this device' }))
+    expect(card.getByRole('status', { name: saying('Turning off…') })).toBeInTheDocument()
+    expect(card.getByRole('button', { name: 'Turn off push notifications on this device' })).toBeDisabled()
+    expect(card.getByRole('button', { name: 'Test' })).toBeDisabled()
+    await userEvent.click(card.getByRole('button', { name: 'Turn off push notifications on this device' }))
+    expect(push.turnOffPush).toHaveBeenCalledTimes(1)
   })
 
   it('says only that it’s busy while a test is on its way', async () => {
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(1))
     vi.mocked(push.pushState).mockResolvedValue({ kind: 'on', endpoint: ENDPOINT })
-    vi.mocked(pushApi.testPush).mockReturnValue(new Promise(() => {}))
+    vi.mocked(push.testPushDevice).mockReturnValue(new Promise(() => {}))
     renderScreen()
     const card = await pushCard()
     await userEvent.click(await card.findByRole('button', { name: 'Test' }))
     expect(card.getByRole('status', { name: saying('Checking…') })).toBeInTheDocument()
+    expect(card.getByRole('button', { name: 'Turn off push notifications on this device' })).toBeDisabled()
   })
 
   it('on an iPhone without the Home Screen app, shows how to add it', async () => {

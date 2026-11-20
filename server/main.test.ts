@@ -5,12 +5,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { parse } from 'yaml'
-import { TMDB_PROXY, TMDB_PROXY_EDGE, createApp, dataStores, ignoredSettings, kinopeerServer, loginWarning, missingSettings, tmdbProxy } from './main.ts'
+import { TMDB_PROXY, TMDB_PROXY_EDGE, createApp, dataStores, ignoredSettings, kinopeerServer, loadStores, loginWarning, missingSettings, tmdbProxy } from './main.ts'
 import { refusal } from './hostCheck.ts'
 import { CONTENT_SECURITY_POLICY, SECURITY_HEADERS } from './securityHeaders.ts'
 import { SettingsStore } from './settings.ts'
-import { TELEGRAM_TOKEN, closeServers, fakeProwlarr, fakeQbittorrent, fakeTelegram, fakeTmdb, getWithHost } from './test/fakes.ts'
-import { fakePushService } from './test/pushService.ts'
+import { TELEGRAM_TOKEN, closeServers, fakeProwlarr, fakePushService, fakeQbittorrent, fakeTelegram, fakeTmdb, getWithHost } from './test/fakes.ts'
 import { TORRENTS } from '../src/test/fixtures.ts'
 
 let root: string
@@ -409,14 +408,17 @@ describe('kinopeerServer', () => {
     }
   })
 
-  it('notifies the devices that turned push on when a tagged torrent finishes, opening the torrent, then takes the tag off', async () => {
+  it('notifies the devices push.json keeps when a tagged torrent finishes, opening the torrent, then takes the tag off', async () => {
     const finished = { ...TORRENTS[0], hash: 'e'.repeat(40), name: 'Dune.Part.Two.2024.2160p.WEB-DL-GRPA', progress: 1, state: 'uploading', tags: 'kinopeer:notify' } as const
     const qbittorrent = await fakeQbittorrent({ torrents: [finished] })
     const tmdb = await fakeTmdb()
     const push = await fakePushService()
+    const saved = dataStores(join(root, 'push'))
+    await saved.push.save({ ...push.subscribe('/send/phone'), language: 'ru', added: 0 })
+    await saved.matches.save({ [finished.hash]: { type: 'movie', id: 693134, source: 'guess', version: 1 } })
+    // A server started afresh, as on a restart, reads the device the notifier sends to from push.json.
     const stores = dataStores(join(root, 'push'))
-    await stores.push.save({ ...push.subscribe('/send/phone'), language: 'ru', added: 0 })
-    await stores.matches.save({ [finished.hash]: { type: 'movie', id: 693134, source: 'guess', version: 1 } })
+    await loadStores(stores)
     const env = {
       QBITTORRENT_URL: qbittorrent.base,
       QBITTORRENT_USERNAME: 'admin',

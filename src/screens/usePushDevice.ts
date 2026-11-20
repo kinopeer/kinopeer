@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { PushError, testPush } from '../api/push'
+import { PushError } from '../api/push'
 import type { NotifyLanguage } from '../api/settings/types'
-import { pushState, turnOffPush, turnOnPush, type PushState } from '../pwa/push'
+import { isForgotten, pushState, testPushDevice, turnOffPush, turnOnPush, type PushState } from '../pwa/push'
 
 /** What the push card says: still reading or busy, what it is, or what went wrong. */
 export interface PushCard {
@@ -30,13 +30,17 @@ export function usePushDevice(language: NotifyLanguage): PushCard {
     pushState().then(setState, () => setState({ kind: 'unsupported' }))
   }, [])
 
-  /** What a failure says: the server's code, Kinopeer not answering, or the browser's refusal. */
+  /**
+   * What a failure says: the server's code, the server answering with another error, Kinopeer not
+   * answering (no answer, or one without the server's code, as a proxy's page), or the browser's refusal.
+   */
   const failure = (error: unknown): string => {
     if (!(error instanceof PushError)) return error instanceof DOMException ? t('push.browserFailed') : t('noAnswer.qbittorrent_kinopeer')
     if (error.code === 'invalid-endpoint') return t('push.invalidEndpoint')
     if (error.code === 'refused') return t('push.refused')
     if (error.code === 'unreachable') return t('push.unreachable')
-    return t('noAnswer.qbittorrent_kinopeer')
+    if (error.code === 'storage') return t('keyForm.storage')
+    return error.code ? t('push.serverError') : t('noAnswer.qbittorrent_kinopeer')
   }
 
   const run = (kind: NonNullable<PushCard['busy']>, action: () => Promise<PushState | void>, done?: string) => {
@@ -50,7 +54,7 @@ export function usePushDevice(language: NotifyLanguage): PushCard {
       },
       (error: unknown) => {
         // The server forgot this device: it's off, and says why.
-        if (error instanceof PushError && (error.code === 'unknown-device' || error.code === 'gone')) {
+        if (isForgotten(error)) {
           setState({ kind: 'off' })
           setOutcome({ ok: false, message: t('push.forgotten') })
         } else setOutcome({ ok: false, message: failure(error) })
@@ -64,7 +68,7 @@ export function usePushDevice(language: NotifyLanguage): PushCard {
     busy,
     outcome,
     turnOn: () => run('on', () => turnOnPush(language)),
-    test: () => run('test', () => testPush(endpoint), t('push.testSent')),
+    test: () => run('test', () => testPushDevice(endpoint), t('push.testSent')),
     turnOff: () => run('off', () => turnOffPush(endpoint), t('push.turnedOff')),
   }
 }

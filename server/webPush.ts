@@ -1,4 +1,4 @@
-import { createCipheriv, createECDH, createPrivateKey, generateKeyPairSync, hkdfSync, randomBytes, sign, type ECDH, type JsonWebKey } from 'node:crypto'
+import { ECDH, createCipheriv, createECDH, createPrivateKey, generateKeyPairSync, hkdfSync, randomBytes, sign, type JsonWebKey } from 'node:crypto'
 
 /**
  * Web Push from the server, with Node's own crypto (the image carries no node_modules): the payload
@@ -122,26 +122,27 @@ export interface SendPushOptions {
 /**
  * Sends `payload` to `target`'s push service. Resolves `sent` when it took the push, `gone` when the
  * subscription no longer exists (404, 410), so the server forgets it, and `refused` for any other
- * refusal, which sending again won't change. Throws `PushUnavailable` when it didn't answer, or
- * answered 429 or a 5xx.
+ * refusal (a redirect among them), which sending again won't change. Throws `PushUnavailable` when it
+ * didn't answer, or answered 429 or a 5xx.
  */
 export async function sendPush(target: PushTarget, payload: Buffer, key: VapidKey, options: SendPushOptions = {}): Promise<'sent' | 'gone' | 'refused'> {
   const now = options.now ?? Date.now
   const signal = AbortSignal.any([...(options.signal ? [options.signal] : []), AbortSignal.timeout(options.timeoutMs ?? PUSH_TIMEOUT_MS)])
+  // Built before the request, so a key that can't be used throws as itself, not as a service that
+  // didn't answer, which would be sent again forever.
+  const headers = {
+    Authorization: vapidAuthorization(target.endpoint, key, now()),
+    'Content-Encoding': 'aes128gcm',
+    'Content-Type': 'application/octet-stream',
+    TTL: String(PUSH_TTL_S),
+    Urgency: 'normal',
+  }
+  const body = encryptPayload(payload, target)
   let response: Response
   try {
-    response = await fetch(target.endpoint, {
-      method: 'POST',
-      headers: {
-        Authorization: vapidAuthorization(target.endpoint, key, now()),
-        'Content-Encoding': 'aes128gcm',
-        'Content-Type': 'application/octet-stream',
-        TTL: String(PUSH_TTL_S),
-        Urgency: 'normal',
-      },
-      body: encryptPayload(payload, target),
-      signal,
-    })
+    // A redirect isn't followed: the allowlist checks only the address the browser gave, and a
+    // redirect could lead anywhere, the server's own network included. Its 3xx counts as refused.
+    response = await fetch(target.endpoint, { method: 'POST', headers, body, signal, redirect: 'manual' })
   } catch {
     // Never the fetch's own error: the endpoint is a secret of the device's.
     throw new PushUnavailable()
@@ -154,10 +155,30 @@ export async function sendPush(target: PushTarget, payload: Buffer, key: VapidKe
 }
 
 /**
- * The push services browsers subscribe with, by host: Chrome's and other Chromium browsers' (Google's
- * FCM), Firefox's (Mozilla's autopush), Safari's (Apple's) and Edge's (Microsoft's WNS).
+ * The push services browsers subscribe with, by their own hosts, not their companies' whole domains:
+ * Chrome's and other Chromium browsers' (Google's FCM), Firefox's (Mozilla's autopush), Safari's
+ * (Apple's) and Edge's (Microsoft's WNS). A name starting with a dot takes the hosts under it.
  */
-const PUSH_SERVICE_HOSTS = ['.googleapis.com', '.mozilla.com', '.push.apple.com', '.notify.windows.com']
+const PUSH_SERVICE_HOSTS = ['fcm.googleapis.com', '.push.services.mozilla.com', '.push.apple.com', '.notify.windows.com']
+
+const isPushServiceHost = (host: string) =>
+  PUSH_SERVICE_HOSTS.some((name) => (name.startsWith('.') ? host.endsWith(name) : host === name))
+
+/**
+ * Whether a subscription's keys can be encrypted for: `p256dh` a point of P-256, uncompressed (65
+ * bytes from 0x04), and `auth` 16 bytes, as RFC 8291 has them. A key that isn't fails every push.
+ */
+export function isPushKeys(p256dh: string, auth: string): boolean {
+  const point = Buffer.from(p256dh, 'base64url')
+  if (point.length !== 65 || point[0] !== 4 || Buffer.from(auth, 'base64url').length !== 16) return false
+  try {
+    // Throws for 65 bytes that aren't a point on the curve.
+    ECDH.convertKey(point, 'prime256v1')
+    return true
+  } catch {
+    return false
+  }
+}
 
 /**
  * Whether the server may send to `endpoint`. A browser hands the endpoint over and the server sends
@@ -174,5 +195,5 @@ export function isPushEndpoint(endpoint: unknown, testOrigin?: string): endpoint
   }
   if (url.username || url.password) return false
   if (testOrigin && url.origin === testOrigin) return true
-  return url.protocol === 'https:' && !url.port && PUSH_SERVICE_HOSTS.some((suffix) => url.hostname.endsWith(suffix))
+  return url.protocol === 'https:' && !url.port && isPushServiceHost(url.hostname)
 }

@@ -30,9 +30,9 @@ export interface NotifyTorrent {
 }
 
 /**
- * A way to send a notification: Telegram, and later Web Push. `send` resolves `sent`, or `rejected`
- * when the channel refused it for good; it rejects when the channel didn't answer, with
- * `retryAfterMs` on the error when the channel said how long to wait.
+ * A way to send a notification: Telegram or Web Push. `send` resolves `sent`, or `rejected` when the
+ * channel refused it for good; it rejects when the channel didn't answer, with `retryAfterMs` on the
+ * error when the channel said how long to wait.
  */
 export interface NotifyChannel {
   /** A name of its own among the channels, for the log. */
@@ -40,6 +40,8 @@ export interface NotifyChannel {
   /** Whether it's set up to send. */
   ready: () => boolean
   send: (torrent: NotifyTorrent) => Promise<'sent' | 'rejected'>
+  /** Drops what the channel keeps for a torrent it was sending again, once that torrent is gone or untagged. */
+  forget?: (hash: string) => void
 }
 
 /**
@@ -112,8 +114,12 @@ export function createNotifier(deps: NotifierDeps): { check: () => Promise<void>
     const torrents = await deps.tagged()
     if (!torrents) return
     const present = new Set(torrents.map((torrent) => torrent.hash))
-    // A torrent whose tag was taken off elsewhere, or that was deleted, is forgotten.
-    for (const hash of deliveries.keys()) if (!present.has(hash)) deliveries.delete(hash)
+    // A torrent whose tag was taken off elsewhere, or that was deleted, is forgotten, by the channels too.
+    for (const hash of deliveries.keys()) {
+      if (present.has(hash)) continue
+      deliveries.delete(hash)
+      for (const channel of deps.channels) channel.forget?.(hash)
+    }
 
     const notified: string[] = []
     for (const torrent of torrents.filter(isFinished)) {

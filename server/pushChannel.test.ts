@@ -5,8 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { NotifyTorrent } from './notifier.ts'
 import { PushStore } from './push.ts'
 import { pushChannel } from './pushChannel.ts'
-import { closeServers } from './test/fakes.ts'
-import { fakePushService } from './test/pushService.ts'
+import { closeServers, fakePushService } from './test/fakes.ts'
 import { PushUnavailable } from './webPush.ts'
 
 let dir: string
@@ -35,14 +34,13 @@ async function setUp(languages: ('en' | 'ru')[], title = async (_torrent: Notify
 
 describe('pushChannel', () => {
   it('is ready while some device gets notifications', async () => {
-    const { channel, store, devices } = await setUp([])
+    const { channel, store } = await setUp([])
     expect(channel.ready()).toBe(false)
     const service = await fakePushService()
     await store.save({ ...service.subscribe('/send/a'), language: 'en', added: 0 })
     expect(channel.ready()).toBe(true)
     await store.forget([store.subscriptions[0].endpoint])
     expect(channel.ready()).toBe(false)
-    expect(devices).toEqual([])
   })
 
   it('sends each device the title in its language, the release under it, opening the torrent', async () => {
@@ -112,6 +110,16 @@ describe('pushChannel', () => {
     // Done with it: a torrent tagged again is sent to every device again.
     expect(await channel.send(finished)).toBe('sent')
     expect(service.pushes).toHaveLength(8)
+  })
+
+  it('sends a torrent the notifier forgot while it was sent again to every device anew', async () => {
+    const { channel, service } = await setUp(['en', 'en'])
+    service.answers['/send/1'] = { status: 503 }
+    await expect(channel.send(finished)).rejects.toBeInstanceOf(PushUnavailable)
+    delete service.answers['/send/1']
+    channel.forget?.(finished.hash)
+    expect(await channel.send(finished)).toBe('sent')
+    expect(service.pushes.map(({ path }) => path)).toEqual(['/send/0', '/send/0', '/send/1'])
   })
 
   it('says sent when a device took it before the service of another, sent again, refused', async () => {
