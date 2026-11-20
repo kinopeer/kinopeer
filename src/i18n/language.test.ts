@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import i18n from '.'
 import { ToastProvider } from '../components/Toast'
 import { failRussianLoads, russianUnreachable, withoutTexts } from '../test/languages'
+import { saying } from '../test/render'
 import en from './locales/en.json'
 import ru from './locales/ru.json'
 import {
@@ -205,7 +206,7 @@ describe('useLanguage', () => {
     russianUnreachable()
 
     await act(() => result.current.setPreference('ru'))
-    expect(screen.getByRole('status')).toHaveTextContent(en.language.unavailable)
+    expect(screen.getByRole('status', { name: saying(en.language.unavailable) })).toBeInTheDocument()
     expect(i18n.language).toBe('en')
 
     await act(() => result.current.setPreference('en'))

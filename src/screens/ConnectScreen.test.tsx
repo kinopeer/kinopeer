@@ -369,7 +369,7 @@ describe('ConnectScreen', () => {
     setup()
     russianUnreachable()
     await userEvent.click(within(screen.getByRole('group', { name: 'Language' })).getByRole('button', { name: 'Русский' }))
-    expect(await screen.findByRole('status')).toHaveTextContent('Couldn’t load this language')
+    expect(await screen.findByRole('status', { name: saying(/^Couldn’t load this language\./) })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'English' })).toHaveAttribute('aria-pressed', 'true')
   })
 
@@ -378,7 +378,7 @@ describe('ConnectScreen', () => {
     russianUnreachable()
     const language = within(screen.getByRole('group', { name: 'Language' }))
     await userEvent.click(language.getByRole('button', { name: 'Русский' }))
-    expect(await screen.findByRole('status')).toBeInTheDocument()
+    expect(await screen.findByRole('status', { name: saying(/^Couldn’t load this language\./) })).toBeInTheDocument()
     expect(localStorage.getItem('kinopeer.language')).toBe('ru')
 
     await userEvent.click(language.getByRole('button', { name: 'English' }))
