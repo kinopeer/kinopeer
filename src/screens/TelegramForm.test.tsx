@@ -33,6 +33,10 @@ const FAILED = 'Couldn’t save. Try again.'
 const TOKEN_REJECTED = 'Telegram no longer knows the bot’s token. Get a new one from @BotFather and save it here.'
 const CHAT_REFUSED = 'Telegram didn’t deliver to “Alex”: the bot was blocked or removed from it. Send the bot /start and choose the chat again.'
 const UNREACHABLE = 'Telegram isn’t answering. Kinopeer’s server needs to reach api.telegram.org.'
+const STORAGE = 'The Kinopeer server couldn’t save the change. Check that its data folder is writable.'
+const NO_CHAT = 'No chat sent the bot /start in the last day. Send it and try again.'
+const BOT_IN_USE =
+  'Another program gets this bot’s messages (a webhook, or an app that polls it), so Kinopeer can’t see /start. Turn that off, or use another bot.'
 const pending = () => new Promise<never>(() => {})
 const error = (status: number, code: serverSettings.SettingsErrorBody['error']) => new serverSettings.SettingsError(status, code)
 
@@ -74,15 +78,17 @@ describe('TelegramForm: the token', () => {
   })
 
   it.each([
-    [error(502, 'unreachable'), 'Telegram isn’t answering. Kinopeer’s server needs to reach api.telegram.org.'],
-    [error(500, 'storage'), 'The Kinopeer server couldn’t save the change. Check that its data folder is writable.'],
-    [new Error('offline'), 'Couldn’t save. Try again.'],
+    [error(502, 'unreachable'), UNREACHABLE],
+    [error(500, 'storage'), STORAGE],
+    [new Error('offline'), FAILED],
+    // Another device forgot the bot meanwhile: a code the form has no words of its own for.
+    [error(409, 'not-configured'), FAILED],
   ])('says why it couldn’t save: %s', async (failure, message) => {
     vi.mocked(serverSettings.saveTelegramToken).mockRejectedValue(failure)
     renderForm(NONE)
     await userEvent.type(screen.getByLabelText('Bot token'), TOKEN)
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
-    expect(await screen.findByText(message)).toBeInTheDocument()
+    expect(await screen.findByRole('alert', { name: saying(message) })).toBeInTheDocument()
   })
 
   it('takes the token without spell checking, and submits without leaving the page', () => {
@@ -90,7 +96,7 @@ describe('TelegramForm: the token', () => {
     expect(screen.getByRole('button', { name: 'Save' })).not.toHaveAttribute('aria-busy')
     const field = screen.getByLabelText('Bot token')
     expect(field).toHaveAttribute('spellcheck', 'false')
-    expect(screen.queryByText(FAILED)).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert', { name: saying(FAILED) })).not.toBeInTheDocument()
     expect(fireEvent.submit(field.closest('form')!)).toBe(false)
   })
 
@@ -121,11 +127,11 @@ describe('TelegramForm: the token', () => {
     renderForm(NONE)
     await userEvent.type(screen.getByLabelText('Bot token'), TOKEN)
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
-    expect(await screen.findByText(UNREACHABLE)).toBeInTheDocument()
+    expect(await screen.findByRole('alert', { name: saying(UNREACHABLE) })).toBeInTheDocument()
     await userEvent.type(screen.getByLabelText('Bot token'), 'x')
-    expect(screen.getByText(UNREACHABLE)).toBeInTheDocument()
+    expect(screen.getByRole('alert', { name: saying(UNREACHABLE) })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
-    expect(screen.queryByText(UNREACHABLE)).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert', { name: saying(UNREACHABLE) })).not.toBeInTheDocument()
   })
 })
 
@@ -168,14 +174,14 @@ describe('TelegramForm: the chat', () => {
   })
 
   it.each([
-    [error(404, 'no-chat'), 'No chat sent the bot /start in the last day. Send it and try again.'],
-    [error(422, 'token-rejected'), 'Telegram no longer knows the bot’s token. Get a new one from @BotFather and save it here.'],
-    [error(409, 'bot-in-use'), 'Another program gets this bot’s messages (a webhook, or an app that polls it), so Kinopeer can’t see /start. Turn that off, or use another bot.'],
-  ])('says why no chat was found: %s', async (failure, message) => {
+    [error(404, 'no-chat'), 'status', NO_CHAT],
+    [error(422, 'token-rejected'), 'alert', TOKEN_REJECTED],
+    [error(409, 'bot-in-use'), 'alert', BOT_IN_USE],
+  ] as const)('says why no chat was found: %s', async (failure, role, message) => {
     vi.mocked(serverSettings.findTelegramChat).mockRejectedValue(failure)
     renderForm(BOT)
     await userEvent.click(screen.getByRole('button', { name: 'Find chat' }))
-    expect(await screen.findByText(message)).toBeInTheDocument()
+    expect(await screen.findByRole(role, { name: saying(message) })).toBeInTheDocument()
   })
 
   it('shows the search in progress and sends it once however often it’s pressed', async () => {
@@ -210,9 +216,9 @@ describe('TelegramForm: the chat', () => {
     vi.mocked(serverSettings.testTelegram).mockRejectedValue(error(502, 'unreachable'))
     renderForm(CONNECTED)
     await userEvent.click(screen.getByRole('button', { name: 'Send a test message' }))
-    expect(await screen.findByText(UNREACHABLE)).toBeInTheDocument()
+    expect(await screen.findByRole('alert', { name: saying(UNREACHABLE) })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Choose another chat' }))
-    expect(screen.queryByText(UNREACHABLE)).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert', { name: saying(UNREACHABLE) })).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Find chat' }))
     expect(await screen.findByRole('group', { name: 'Is this the chat?' })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
@@ -226,7 +232,7 @@ describe('TelegramForm: the chat', () => {
     const { onRefused } = renderForm(CONNECTED)
     await userEvent.click(screen.getByRole('button', { name: 'Choose another chat' }))
     await userEvent.click(screen.getByRole('button', { name: 'Find chat' }))
-    expect(await screen.findByText(TOKEN_REJECTED)).toBeInTheDocument()
+    expect(await screen.findByRole('alert', { name: saying(TOKEN_REJECTED) })).toBeInTheDocument()
     expect(onRefused).not.toHaveBeenCalled()
   })
 })
@@ -236,8 +242,8 @@ describe('TelegramForm: connected', () => {
     vi.mocked(serverSettings.testTelegram).mockResolvedValue(settings(CONNECTED))
     const { onChanged } = renderForm(CONNECTED)
     expect(screen.getByText('Notifications go to “Alex” (Private chat) from @kinopeer_home_bot.')).toBeInTheDocument()
-    expect(screen.queryByText(CHAT_REFUSED)).not.toBeInTheDocument()
-    expect(screen.queryByText(TOKEN_REJECTED)).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert', { name: saying(CHAT_REFUSED) })).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert', { name: saying(TOKEN_REJECTED) })).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Send a test message' }))
     expect(serverSettings.testTelegram).toHaveBeenCalledWith('en')
     expect(await screen.findByRole('status', { name: saying('Test message sent') })).toBeInTheDocument()
@@ -245,13 +251,13 @@ describe('TelegramForm: connected', () => {
   })
 
   it.each([
-    ['chat-rejected', 'chat', 'Telegram didn’t deliver to “Alex”: the bot was blocked or removed from it. Send the bot /start and choose the chat again.'],
-    ['token-rejected', 'token', 'Telegram no longer knows the bot’s token. Get a new one from @BotFather and save it here.'],
+    ['chat-rejected', 'chat', CHAT_REFUSED],
+    ['token-rejected', 'token', TOKEN_REJECTED],
   ] as const)('says a test refused for %s and hands what was refused on', async (code, refused, message) => {
     vi.mocked(serverSettings.testTelegram).mockRejectedValue(error(422, code))
     const { onRefused } = renderForm(CONNECTED)
     await userEvent.click(screen.getByRole('button', { name: 'Send a test message' }))
-    expect(await screen.findByText(message)).toBeInTheDocument()
+    expect(await screen.findByRole('alert', { name: saying(message) })).toBeInTheDocument()
     expect(onRefused).toHaveBeenCalledWith(refused)
   })
 
@@ -259,13 +265,13 @@ describe('TelegramForm: connected', () => {
     vi.mocked(serverSettings.testTelegram).mockRejectedValue(error(502, 'unreachable'))
     const { onRefused } = renderForm(CONNECTED)
     await userEvent.click(screen.getByRole('button', { name: 'Send a test message' }))
-    expect(await screen.findByText(/Telegram isn’t answering/)).toBeInTheDocument()
+    expect(await screen.findByRole('alert', { name: saying(UNREACHABLE) })).toBeInTheDocument()
     expect(onRefused).not.toHaveBeenCalled()
   })
 
   it('shows what Telegram refused a notification before', () => {
     renderForm({ ...CONNECTED, refused: 'token' })
-    expect(screen.getByText('Telegram no longer knows the bot’s token. Get a new one from @BotFather and save it here.')).toBeInTheDocument()
+    expect(screen.getByRole('alert', { name: saying(TOKEN_REJECTED) })).toBeInTheDocument()
   })
 
   it('goes back to the chat or the token, and Cancel returns', async () => {
@@ -345,9 +351,9 @@ describe('TelegramForm: connected', () => {
   ] as const)('shows the failure of a test in place of the %s Telegram refused before', async (refused, message) => {
     vi.mocked(serverSettings.testTelegram).mockRejectedValue(error(502, 'unreachable'))
     renderForm({ ...CONNECTED, refused })
-    expect(screen.getByText(message)).toBeInTheDocument()
+    expect(screen.getByRole('alert', { name: saying(message) })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Send a test message' }))
-    expect(await screen.findByText(UNREACHABLE)).toBeInTheDocument()
-    expect(screen.queryByText(message)).not.toBeInTheDocument()
+    expect(await screen.findByRole('alert', { name: saying(UNREACHABLE) })).toBeInTheDocument()
+    expect(screen.queryByRole('alert', { name: saying(message) })).not.toBeInTheDocument()
   })
 })

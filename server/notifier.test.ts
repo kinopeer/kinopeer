@@ -119,7 +119,6 @@ describe('createNotifier', () => {
     watcher.advance(5 * 60_000)
     await watcher.check()
     expect(log).toHaveBeenCalledWith("Telegram didn't answer; sending again in 30 s")
-    warn.mockRestore()
   })
 
   it('sends nothing again on the next pass once the tag is off', async () => {
@@ -280,7 +279,6 @@ describe('startNotifier', () => {
     const stop = startNotifier({ channels: [], tagged: async () => [], untag: async () => {} }, 60_000)
     expect((interval.mock.results[0].value as NodeJS.Timeout).hasRef()).toBe(false)
     stop()
-    interval.mockRestore()
   })
 })
 

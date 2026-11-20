@@ -106,7 +106,6 @@ describe('telegramChannel', () => {
     vi.spyOn(store, 'updateTelegram').mockRejectedValue(new Error('EACCES'))
     expect(await channel.send(finished)).toBe('rejected')
     expect(warn).toHaveBeenCalledWith('[kinopeer] could not write settings.json; is the data directory writable?')
-    warn.mockRestore()
   })
 
   it('answers a refusal as one, keeping what was refused before, when Telegram then doesn’t say which part it refused', async () => {

@@ -9,6 +9,8 @@ describe('knownTitle', () => {
     ['the server’s guess without a tag', 'other', { type: 'movie', id: 4, source: 'guess' }, { type: 'movie', id: 4 }],
     ['nothing for a miss', '', { source: 'miss', version: 2 }, undefined],
     ['nothing for a tag of another kind', 'tmdb:person:5, tmdb:movie:x', undefined, undefined],
+    ['nothing for a tag with text before it', 'xtmdb:movie:1', undefined, undefined],
+    ['nothing for a tag with text after its id', 'tmdb:movie:12abc', undefined, undefined],
   ] as const)('%s', (_name, tags, match, title) => {
     expect(knownTitle(tags, match as Matches[string] | undefined)).toEqual(title)
   })

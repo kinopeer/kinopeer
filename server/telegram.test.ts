@@ -21,6 +21,8 @@ describe('isBotToken', () => {
     ['a token as @BotFather gives it', TOKEN, true],
     ['one without the bot id', ':ABCdefGhIJKlmNoPQRsTUVwxyZ', false],
     ['one with a slash, which would steer the path', '123456:ABCdefGhIJKlmNoPQRsTU/../x', false],
+    ['one with a path before the bot id', `../x/${TOKEN}`, false],
+    ['one with a path after the secret', `${TOKEN}/../getMe`, false],
     ['one with a space', '123456:ABCdefGhIJKlmNoPQRs TUVwxyZ', false],
     ['one too short to be a secret', '123456:abc', false],
   ])('%s: %s', (_name, value, valid) => {

@@ -271,7 +271,9 @@ describe('tmdbJson', () => {
   })
 
   it('rejects without a key or a proxy, asking nothing', async () => {
-    await expect(tmdbJson({ apiKey: () => undefined }, 'movie/1')).rejects.toThrow('No TMDB key')
+    const tmdb = await fakeTmdb()
+    await expect(tmdbJson({ apiKey: () => undefined, apiBase: `${tmdb.base}/3` }, 'movie/1')).rejects.toThrow('No TMDB key')
+    expect(tmdb.seen).toEqual([])
   })
 
   it('rejects, never with the key, when TMDB refuses, isn’t reachable or doesn’t answer in time', async () => {

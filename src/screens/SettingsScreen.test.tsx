@@ -46,6 +46,8 @@ vi.mock('../api/settings', async (importOriginal) => ({
   saveTelegramToken: vi.fn(),
   testTelegram: vi.fn(),
   forgetTelegram: vi.fn(),
+  findTelegramChat: vi.fn(),
+  saveTelegramChat: vi.fn(),
 }))
 vi.mock('../api/tmdb', async (importOriginal) => ({
   ...(await importOriginal<typeof tmdb>()),
@@ -762,10 +764,12 @@ describe('SettingsScreen: Telegram', () => {
   })
   const CONNECTED: serverSettings.TelegramStatus = { bot: 'kinopeer_home_bot', chat: { name: 'Alex', type: 'private' }, refused: null }
 
-  it('has no Telegram card when the server has no notifications', async () => {
+  it('has no Telegram card for a server that doesn’t know Telegram', async () => {
     renderScreen()
     await within(connection('TMDB')).findByRole('status', { name: saying('Connected') })
-    expect(within(screen.getByRole('region', { name: 'Connections' })).queryByText('Telegram')).not.toBeInTheDocument()
+    const connections = screen.getByRole('region', { name: 'Connections' })
+    expect(within(connections).queryByRole('button', { name: 'Set up' })).not.toBeInTheDocument()
+    expect(within(connections).queryByRole('button', { name: 'Change Telegram notifications' })).not.toBeInTheDocument()
   })
 
   it('offers to set Telegram up, asking Telegram nothing, and saves a token from its sheet', async () => {
@@ -855,7 +859,9 @@ describe('SettingsScreen: Telegram', () => {
     vi.mocked(serverSettings.checkTelegram).mockResolvedValue({ bot: 'kinopeer_home_bot' })
     renderScreen()
     const status = await waitFor(() => within(connection('Telegram')).getByRole('status', { name: saying(message) }))
-    expect(status.classList.contains('c-warn')).toBe(warn)
+    // c-warn is what colors the message as a warning (MESSAGE_CLASS); jsdom has no colors to read.
+    if (warn) expect(status).toHaveClass('c-warn')
+    else expect(status).not.toHaveClass('c-warn')
   })
 
   it('turns notifications off from the sheet: the sheet closes, a toast says so and the card offers to set up again', async () => {
@@ -869,6 +875,37 @@ describe('SettingsScreen: Telegram', () => {
     expect(screen.queryByRole('dialog', { name: 'Telegram notifications' })).not.toBeInTheDocument()
     expect(within(connection('Telegram')).getByRole('status')).toHaveTextContent('Not set up. Sends a message when a download finishes.')
     expect(within(connection('Telegram')).getByRole('button', { name: 'Set up' })).toBeInTheDocument()
+  })
+
+  it.each([
+    ['saving the token', { bot: null, chat: null, refused: null }, 'Set up', 'Choose the chat to send to'],
+    ['saving the chat', { bot: 'kinopeer_home_bot', chat: null, refused: null }, 'Change Telegram notifications', 'Sends to “Alex” from @kinopeer_home_bot'],
+    ['sending a test message', { ...CONNECTED, refused: 'chat' }, 'Change Telegram notifications', 'Sends to “Alex” from @kinopeer_home_bot'],
+  ] as const)('updates the card when %s settles after the sheet was closed', async (step, telegram, open, message) => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(telegram))
+    vi.mocked(serverSettings.checkTelegram).mockResolvedValue({ bot: 'kinopeer_home_bot' })
+    vi.mocked(serverSettings.findTelegramChat).mockResolvedValue({ id: 42, name: 'Alex', type: 'private' })
+    let answer!: (saved: serverSettings.ServerSettings) => void
+    const answered = new Promise<serverSettings.ServerSettings>((resolve) => (answer = resolve))
+    vi.mocked(serverSettings.saveTelegramToken).mockReturnValue(answered)
+    vi.mocked(serverSettings.saveTelegramChat).mockReturnValue(answered)
+    vi.mocked(serverSettings.testTelegram).mockReturnValue(answered)
+    renderScreen()
+    await userEvent.click(await waitFor(() => within(connection('Telegram')).getByRole('button', { name: open })))
+    const sheet = screen.getByRole('dialog', { name: 'Telegram notifications' })
+    if (step === 'saving the token') {
+      await userEvent.type(within(sheet).getByLabelText('Bot token'), TELEGRAM_TOKEN)
+      await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
+    } else if (step === 'saving the chat') {
+      await userEvent.click(within(sheet).getByRole('button', { name: 'Find chat' }))
+      await userEvent.click(await within(sheet).findByRole('button', { name: 'Use this chat' }))
+    } else {
+      await userEvent.click(within(sheet).getByRole('button', { name: 'Send a test message' }))
+    }
+    await userEvent.click(sheet)
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Telegram notifications' })).not.toBeInTheDocument())
+    answer(settings(step === 'saving the token' ? { bot: 'kinopeer_home_bot', chat: null, refused: null } : CONNECTED))
+    expect(await within(connection('Telegram')).findByRole('status', { name: saying(message) })).toBeInTheDocument()
   })
 
   it('closes the sheet on a click on its backdrop', async () => {
