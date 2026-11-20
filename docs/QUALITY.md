@@ -803,14 +803,16 @@ fresh session runs the retro, not one that wrote or reviewed the PRs in the batc
 
 **The review findings.** The deputy ends each round with a machine-readable block (the `deputy`
 skill → Posting the round), which the views read:
-`select check_name, rule, severity, findings from metrics_findings_by_tag where project = 'kinopeer/kinopeer' and batch = 'open'`
-counts the batch's findings by check and by rule, each once, in the round that first reported it,
-and a round posted twice by its latest posting; `metrics_batch_counts` has their totals, the
+`select f.check_name, f.rule, f.severity, count(*) as findings from metrics_findings f join metrics_pr_review p on p.project = f.project and p.number = f.pr where p.project = 'kinopeer/kinopeer' and p.batch = 'open' and p.known group by f.check_name, f.rule, f.severity`
+counts the findings by check and by rule of the PRs whose every round's block reads, each once, in
+the round that first reported it, and a round posted twice by its latest posting
+(`metrics_findings_by_tag` counts every readable round, a PR's below too, so it isn't used here);
+`metrics_batch_counts` has their totals, the
 untagged ones, the PRs ready on the first round and the blocking findings. Those totals are NULL
 while a PR's findings can't be read from blocks: a round whose block didn't read, or a PR merged
 before the deputy's first round (2026-11-15).
 `select number, rounds, findings, untagged, blocking, unread_rounds from metrics_pr_review where project = 'kinopeer/kinopeer' and batch = 'open' and not known`
-names those PRs, and their findings are counted from their rounds: the deputy's reviews headed
+names those PRs, and their findings are counted from all their rounds: the deputy's reviews headed
 `Round <n> at <sha>` (before 2026-11-15, the `Test review, round <n>` comments), with a search.
 Since tags come in both spellings, `[H · gap]` and `[H · gap: <reason>]`, a search that expects `]`
 right after the rule misses the second (#299, #302); one that catches both is
@@ -825,11 +827,17 @@ The guard's marks are counted too, from the deputy's verdicts on them in its rou
 2026-11-15, the second reviews' comments, `**Second review …**`): how many were judged, how many
 `weakening`, and how many of those the deputy accepted, with its reasons.
 `select kind, verdict, accepted, marks from metrics_guard_marks where project = 'kinopeer/kinopeer' and batch = 'open'`
-counts them for the PRs whose `guard report` check holds the guard's JSON (#450), which the
-deputy's block judges mark by mark;
-`select p.number from metrics_batch_prs p left join gh_guard_reports r on r.project = p.project and r.pr = p.number where p.project = 'kinopeer/kinopeer' and p.batch = 'open' and coalesce(r.json_ok, 0) = 0`
-names the rest, whose marks come from their check with the `gh` command in The checks'
-usefulness, and the reasons from reading the rounds. When twenty PRs in a row with
+counts the marks of each PR's last `guard report` that holds the guard's JSON (#450), with the
+verdicts of the latest round at its commit. It doesn't see a mark of an earlier report: one judged
+`weakening` in an earlier round that the author then fixed is gone from the last report, so the
+retro adds, from reading the earlier rounds (each round's block lists its verdicts under
+`guard`), the marks the last report no longer has, each by its verdict in the latest round that
+judged it.
+`select p.number from metrics_batch_prs p left join gh_guard_reports r on r.project = p.project and r.pr = p.number where p.project = 'kinopeer/kinopeer' and p.batch = 'open' and (coalesce(r.json_ok, 0) = 0 or r.cut = 1 or exists (select 1 from gh_guard_marks m where m.project = p.project and m.pr = p.number and m.verdict is null))`
+names the PRs the views can't count: a report with no JSON, a report cut to fit (`cut`, so some
+marks aren't listed), or a mark with no verdict (its round's block didn't read). Their marks come
+from their check with the `gh` command in The checks' usefulness, and the verdicts from reading
+the rounds. When twenty PRs in a row with
 changes to existing checks have no `weakening` verdict, the retro weighs handing the deputy's
 subagent only the marks that weaken the checks, and decides it, as it decides its other rule
 changes. Narrowing softens the system, so its PR says what the subagent then no longer sees.
@@ -877,12 +885,18 @@ answered (a false alarm), and what it costs. GitHub reports a run by its latest 
 that failed and was run again to green would hide its failure: count failed attempts, not runs.
 The batch's failed jobs over every attempt, each once,
 `select event, workflow, job, failed from metrics_failed_jobs where project = 'kinopeer/kinopeer' and batch = 'open'`
-(a job that timed out counts as failed; the `pull_request` rows are the PRs' runs, the rest
-`main`'s, Edge's and the releases'), and its re-runs with the attempt before each,
-`select workflow, event, branch, previous, conclusion, flaky from metrics_reruns where project = 'kinopeer/kinopeer' and batch = 'open'`
-(`flaky`: a red attempt run again to green). A run's jobs from GitHub, over all its attempts,
+(a job that timed out counts as failed; the `pull_request` rows are the PRs' runs, the rest the
+other events: pushes, so `main`'s CI and Edge and the tags' releases, manual runs and GitHub's own
+`dynamic` ones), and its re-runs with the attempt before each,
+`select run_id, attempt, workflow, event, branch, previous, conclusion, flaky from metrics_reruns where project = 'kinopeer/kinopeer' and batch = 'open'`
+(`flaky`: a red attempt run again to green). From GitHub, when the `runs` source is stale and for
+the ids of the runs that failed, the batch's PR runs that failed or were run again,
+`gh api -X GET repos/kinopeer/kinopeer/actions/runs -f event=pull_request -f created='><since>' --paginate --jq '.workflow_runs[] | select(.status == "completed" and (.conclusion == "failure" or .run_attempt > 1)) | [.id, .run_attempt, .name, .head_branch] | @tsv'`
+(not `-f status=completed`, which drops runs: 2 of 105 on 2026-11-13, one a Guard run that
+failed and was run again to green; GitHub lists at most 1,000 runs for a filtered listing, so a
+bigger batch is listed a day at a time, `created=<day>`), and a run's jobs over all its attempts,
 `gh api -X GET repos/kinopeer/kinopeer/actions/runs/<id>/jobs -f filter=all --jq '.jobs[] | [.run_attempt, .name, .conclusion, .started_at, .completed_at] | @tsv'`,
-give a job's time. The guard's marks come from the views (The review findings, above); for a PR
+which also give a job's time. The guard's marks come from the views (The review findings, above); for a PR
 whose report the views can't read, from its `guard report` check on its last head (the latest
 run's, since a re-run writes another,
 `gh api 'repos/kinopeer/kinopeer/commits/<sha>/check-runs?check_name=guard%20report' --jq '.check_runs | max_by(.completed_at) | .output.summary'`;
@@ -895,7 +909,7 @@ does. The counts of what each check caught and of its false alarms go into the r
 **The owner's list.** What the owner reads here rather than approving it PR by PR: the weakenings
 the deputy accepted, the changes to the guard, the rule changes the deputy approved (its rounds'
 **Rule changes**), the budgets raised (each change to a budget in the batch,
-`select c.sha, c.tool, c.key, c.previous, c.value, c.change from metrics_budget_changes c join metrics_batches b on b.project = c.project and c.committed_at > b.prs_after where b.project = 'kinopeer/kinopeer' and b.batch = 'open'`,
+`select c.sha, c.tool, c.key, c.previous, c.value, c.change from metrics_budget_changes c join metrics_batches b on b.project = c.project and (b.prs_after is null or c.committed_at > b.prs_after) where b.project = 'kinopeer/kinopeer' and b.batch = 'open'`,
 and their count, `metrics_budget_ratchet`), the design values added, the decisions the coordinator took
 on the deputy's **For the coordinator** questions and the product decisions it took (SPEC's
 decision log), and the findings the deputy dropped after the author disputed them, each with its
