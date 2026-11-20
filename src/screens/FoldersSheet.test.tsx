@@ -392,6 +392,22 @@ describe('FoldersSheet', () => {
     expect(within(sheet).queryByRole('alert')).not.toBeInTheDocument()
   })
 
+  it('says qBittorrent’s own failure in a toast when another folder is shown', async () => {
+    let fail!: (error: unknown) => void
+    setCategoryFolder.mockReturnValueOnce(new Promise((_resolve, reject) => (fail = reject)))
+    const sheet = await openSheet()
+    await type(await edit(sheet, /^Movies/), '/media/films')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Back' }))
+    await edit(sheet, /^TV/)
+
+    fail(new api.QbittorrentError('qBittorrent responded 500', 500))
+    expect(await screen.findByRole('status', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
+    // Nothing gone: Back asks for nothing.
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Back' }))
+    expect(getFolders).toHaveBeenCalledTimes(1)
+  })
+
   it('opens on the list again after it was closed on a folder', async () => {
     const sheet = await openSheet()
     await edit(sheet, /^Movies/)
