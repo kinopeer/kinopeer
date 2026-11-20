@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router'
 import { fetchRelease, type Release, type ReleaseSource } from '../api/prowlarr'
-import { TorrentRefusedError, getSaveLocations, getTorrents, unreachable, type Torrent } from '../api/qbittorrent'
+import { NOTIFY_TAG, TorrentRefusedError, getSaveLocations, getTorrents, unreachable, type Torrent } from '../api/qbittorrent'
 import { posterUrl, type MediaType } from '../api/tmdb'
 import { Accordion } from '../components/Accordion'
 import { Badge } from '../components/Badge'
@@ -32,6 +32,7 @@ import { useFreeSpace } from '../torrents/useMainData'
 import { unreachableText } from '../lib/unreachable'
 import { FilePicker } from './FilePicker'
 import { IndexerLink } from './IndexerLink'
+import { useNotificationsAvailable } from './useNotificationsAvailable'
 import './AddReleaseSheet.css'
 
 export interface AddReleaseSheetProps {
@@ -107,9 +108,13 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   const [chosenPaused, setPaused] = useState<boolean>()
   const [chosenSequential, setSequential] = useState<boolean>()
   const [chosenFirstLast, setFirstLast] = useState<boolean>()
+  const [chosenNotify, setNotify] = useState<boolean>()
   const paused = chosenPaused ?? settings.startPaused
   const sequential = chosenSequential ?? settings.sequential
   const firstLastPieces = chosenFirstLast ?? settings.firstLastPieces
+  // Offered, and its default applied, only while a channel is set up, as on a torrent's page.
+  const notifications = useNotificationsAvailable()
+  const notify = notifications && (chosenNotify ?? settings.notify)
   const [topOfQueue, setTopOfQueue] = useState(false)
   const [adding, setAdding] = useState(false)
   const [addError, setAddError] = useState<string>()
@@ -149,7 +154,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
       await addRelease(
         prepared.data.source,
         {
-          tags: [tmdbTagFor(title.type, title.id)],
+          tags: [tmdbTagFor(title.type, title.id), ...(notify ? [NOTIFY_TAG] : [])],
           category: category || undefined,
           savePath: savePath.trim() || undefined,
           paused,
@@ -191,6 +196,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
     { label: t('add.startPaused'), checked: paused, set: setPaused },
     { label: t('add.sequential'), checked: sequential, set: setSequential },
     { label: t('add.firstLastPieces'), checked: firstLastPieces, set: setFirstLast },
+    ...(notifications ? [{ label: t('add.notify'), checked: notify, set: setNotify }] : []),
     { label: t('add.addTop'), checked: topOfQueue, set: setTopOfQueue },
   ]
 
