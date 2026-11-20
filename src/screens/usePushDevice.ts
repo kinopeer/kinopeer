@@ -44,7 +44,7 @@ export function usePushDevice(language: NotifyLanguage): PushCard {
   }
 
   const run = (kind: NonNullable<PushCard['busy']>, action: () => Promise<PushState | void>, done?: string) => {
-    if (busy) return
+    // The card's buttons are disabled while one is on its way, so nothing starts a second.
     setBusy(kind)
     setOutcome(null)
     action().then(
