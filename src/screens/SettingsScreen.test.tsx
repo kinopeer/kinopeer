@@ -1026,6 +1026,30 @@ describe('SettingsScreen: Telegram', () => {
   })
   const CONNECTED: serverSettings.TelegramStatus = { bot: 'kinopeer_home_bot', chat: { name: 'Alex', type: 'private' }, refused: null }
 
+  it.each([
+    ['set up', CONNECTED, true],
+    ['with no chat yet', { ...CONNECTED, chat: null }, false],
+  ])('offers Notify when finished among the download defaults only with Telegram %s', async (_name, telegram, offered) => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(telegram))
+    vi.mocked(serverSettings.checkTelegram).mockResolvedValue({ bot: 'kinopeer_home_bot' })
+    renderScreen()
+    const defaults = screen.getByRole('region', { name: 'Download defaults' })
+    await waitFor(() => within(connection('Telegram')).getByRole('button', { name: 'Change Telegram notifications' }))
+    expect(within(defaults).getByRole('switch', { name: 'First and last pieces first' })).toBeInTheDocument()
+    expect(within(defaults).queryAllByRole('switch', { name: 'Notify when finished' })).toHaveLength(offered ? 1 : 0)
+  })
+
+  it('saves Notify when finished as a download default, off until turned on', async () => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(CONNECTED))
+    vi.mocked(serverSettings.checkTelegram).mockResolvedValue({ bot: 'kinopeer_home_bot' })
+    renderScreen()
+    const notify = await screen.findByRole('switch', { name: 'Notify when finished' })
+    expect(notify).not.toBeChecked()
+    await userEvent.click(notify)
+    expect(getSettings().notify).toBe(true)
+    expect(serverSettings.saveDownloadDefaults).toHaveBeenCalledWith({ notify: true })
+  })
+
   it('has no Telegram card for a server that doesn’t know Telegram', async () => {
     renderScreen()
     await within(connection('TMDB')).findByRole('status', { name: saying('Connected') })

@@ -30,6 +30,8 @@ export interface Settings {
   sequential: boolean
   /** New downloads fetch the start and end of each file first (with sequential, a player can open it early). */
   firstLastPieces: boolean
+  /** New downloads tell when they finish, while a channel is set up; off, as most downloads need no message. */
+  notify: boolean
   /** Language of titles and overviews from TMDB; 'app' follows the interface language. */
   tmdbLanguage: 'app' | 'en-US' | 'ru-RU'
   /** How the downloads list is shown on a phone or tablet. */
@@ -52,6 +54,7 @@ export const DEFAULT_SETTINGS: Settings = {
   startPaused: false,
   sequential: false,
   firstLastPieces: false,
+  notify: false,
   tmdbLanguage: 'app',
   downloadsView: 'list',
   downloadsDesktopView: 'grid',
@@ -70,6 +73,7 @@ const SERVER_KEY_SET: Record<ServerKey, true> = {
   startPaused: true,
   sequential: true,
   firstLastPieces: true,
+  notify: true,
 }
 const SERVER_KEYS = Object.keys(SERVER_KEY_SET) as ServerKey[]
 

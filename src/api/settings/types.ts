@@ -43,6 +43,8 @@ export interface DownloadDefaults {
   sequential: boolean
   /** New downloads fetch each file's first and last pieces first. */
   firstLastPieces: boolean
+  /** New downloads added through Kinopeer tell when they finish (the `kinopeer:notify` tag), while a channel is set up. */
+  notify: boolean
 }
 
 /** A TMDB key that serves calls without a saved one: TMDB_API_KEY, else Kinopeer's own. */
