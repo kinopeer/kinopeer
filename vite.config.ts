@@ -156,6 +156,8 @@ export default defineConfig(({ mode }) => {
   const stores = dataStores(dataDir)
   const appVersion = env.KINOPEER_COMMIT ? `${version}+${env.KINOPEER_COMMIT}` : version
   void stores.settings.load()
+  // The notifier asks whether any device gets push notifications without waiting.
+  void stores.push.load()
 
   return {
     // Shown in Settings → About (src/version.d.ts). Edge builds of main (.github/workflows/edge.yml)

@@ -1,4 +1,6 @@
 {
   "finished": "Download finished: {{title}}",
-  "test": "Kinopeer is connected. A message comes here when a download finishes."
+  "test": "Kinopeer is connected. A message comes here when a download finishes.",
+  "pushFinished": "Download finished",
+  "pushTest": "Notifications are on for this device. One comes here when a download finishes."
 }

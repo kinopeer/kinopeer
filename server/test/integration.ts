@@ -1,6 +1,7 @@
 /**
  * The stand for the integration tests (server/integration/, docs/TESTING.md → Integration tests):
- * the real `kinopeerServer()` in front of the fake qBittorrent, TMDB, Prowlarr and Telegram from ./fakes.ts,
+ * the real `kinopeerServer()` in front of the fake qBittorrent, TMDB, Prowlarr and Telegram from ./fakes.ts and the
+ * push service from ./pushService.ts,
  * with a data directory of its own, and the browser's `fetch` stood in for, so the real clients in
  * src/api reach it the way they reach the dev server.
  */
@@ -10,6 +11,7 @@ import { join } from 'node:path'
 import { vi } from 'vitest'
 import { dataStores, kinopeerServer, type DataStores } from '../main.ts'
 import { closeServers, fakeProwlarr, fakeQbittorrent, fakeTelegram, fakeTmdb, listen, serveTmdbProxy } from './fakes.ts'
+import { fakePushService } from './pushService.ts'
 
 /** What the Kinopeer server saw of a request from the browser. */
 export interface ReceivedRequest {
@@ -73,6 +75,7 @@ export interface Stand {
   tmdb: Awaited<ReturnType<typeof fakeTmdb>>
   prowlarr: Awaited<ReturnType<typeof fakeProwlarr>>
   telegram: Awaited<ReturnType<typeof fakeTelegram>>
+  push: Awaited<ReturnType<typeof fakePushService>>
   /** With `tmdbProxy`. */
   proxy?: Awaited<ReturnType<typeof serveTmdbProxy>>
   stores: DataStores
@@ -113,11 +116,12 @@ const browserFetch: typeof fetch = async (input, init) => {
  * stand is torn down by `stopKinopeer()`, which the tests call in afterEach.
  */
 export async function startKinopeer(options: StandOptions = {}): Promise<Stand> {
-  const [qbittorrent, tmdb, prowlarr, telegram] = await Promise.all([
+  const [qbittorrent, tmdb, prowlarr, telegram, push] = await Promise.all([
     fakeQbittorrent(options.qbittorrent),
     fakeTmdb(),
     fakeProwlarr(options.prowlarr),
     fakeTelegram(),
+    fakePushService(),
   ])
   const proxyOptions = options.tmdbProxy === true ? {} : options.tmdbProxy
   const proxy = proxyOptions && (await serveTmdbProxy(tmdb.apiBase, proxyOptions.key ?? 'good-key', proxyOptions))
@@ -137,6 +141,7 @@ export async function startKinopeer(options: StandOptions = {}): Promise<Stand> 
     TMDB_API_URL: tmdb.apiBase,
     TMDB_PROXY_URL: proxy?.apiBase ?? '',
     TELEGRAM_API_URL: telegram.base,
+    PUSH_TEST_ORIGIN: push.origin,
     KINOPEER_DATA_DIR: dataDir,
     // As on Umbrel, where a login in front is the only one; the login's own tests turn it on.
     KINOPEER_AUTH: 'off',
@@ -144,7 +149,7 @@ export async function startKinopeer(options: StandOptions = {}): Promise<Stand> 
   }
   const stores = dataStores(env.KINOPEER_DATA_DIR!)
   // As server/main.ts does: auth.json is read by the login itself.
-  await Promise.all([stores.settings.load(), stores.matches.load()])
+  await Promise.all([stores.settings.load(), stores.matches.load(), stores.push.load()])
   const { routes } = kinopeerServer(env, stores)
   const received: ReceivedRequest[] = []
   // The production server's chain (server/main.ts) without the static files: the routes in order,
@@ -162,7 +167,7 @@ export async function startKinopeer(options: StandOptions = {}): Promise<Stand> 
     }
     run(0)
   })
-  current = { origin, qbittorrent, tmdb, prowlarr, telegram, proxy, stores, dataDir, cookies: new CookieJar(), received, responses: [] }
+  current = { origin, qbittorrent, tmdb, prowlarr, telegram, push, proxy, stores, dataDir, cookies: new CookieJar(), received, responses: [] }
   vi.stubGlobal('fetch', browserFetch)
   return current
 }

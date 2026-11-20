@@ -5,6 +5,7 @@ import { ExpirationPlugin } from 'workbox-expiration'
 import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching'
 import { NavigationRoute, registerRoute } from 'workbox-routing'
 import { CacheFirst } from 'workbox-strategies'
+import { PUSH_SUBSCRIPTION_URL, openPush, renewPush, showPush } from './pwa/swPush'
 import { POSTER_CACHE, SHELL_DENYLIST, isPosterRequest } from './pwa/swRoutes'
 
 declare const self: ServiceWorkerGlobalScope
@@ -34,3 +35,31 @@ registerRoute(
     ],
   }),
 )
+
+// Push notifications (src/pwa/swPush.ts): a finished download, or Settings' test.
+self.addEventListener('push', (event) => event.waitUntil(showPush(self.registration, event.data)))
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  event.waitUntil(openPush(self.clients, self.location.origin, event.notification.data))
+})
+
+/** Not in TypeScript's worker types: the subscription the browser dropped, and its new one if it made one. */
+interface PushSubscriptionChangeEvent extends ExtendableEvent {
+  readonly oldSubscription: PushSubscription | null
+  readonly newSubscription: PushSubscription | null
+}
+
+self.addEventListener('pushsubscriptionchange', (event) => {
+  const { oldSubscription, newSubscription } = event as PushSubscriptionChangeEvent
+  event.waitUntil(
+    renewPush(self.registration.pushManager, oldSubscription, newSubscription, self.navigator.languages, (body) =>
+      fetch(PUSH_SUBSCRIPTION_URL, {
+        method: 'PUT',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }),
+    ),
+  )
+})

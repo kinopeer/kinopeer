@@ -173,3 +173,21 @@ test.describe('desktop rail', () => {
     await expect(page).toHaveScreenshot('rail-dark-ru.png', { mask: [versionValue(page)] })
   })
 })
+
+test('push notifications on for this device, dark, Russian', async ({ page }) => {
+  await openSettings(page, { push: { device: 'on' } })
+  await expect(page.getByText('Включены на этом устройстве')).toBeVisible()
+  await expect(page).toHaveScreenshot('settings-push-dark-ru.png', { mask: [versionValue(page)] })
+})
+
+test('push notifications off for this device, dark, Russian', async ({ page }) => {
+  await openSettings(page, { push: { device: 'off' } })
+  await expect(page.getByRole('button', { name: 'Включить' })).toBeVisible()
+  await expect(page).toHaveScreenshot('settings-push-off-dark-ru.png', { mask: [versionValue(page)] })
+})
+
+test('push notifications where the device can’t get them, dark, Russian', async ({ page }) => {
+  await openSettings(page, { push: {} })
+  await expect(page.getByText('Нужен Kinopeer по HTTPS с сертификатом, которому доверяет это устройство')).toBeVisible()
+  await expect(page).toHaveScreenshot('settings-push-unavailable-dark-ru.png', { mask: [versionValue(page)] })
+})

@@ -139,6 +139,8 @@ export interface SettingsConfig {
   tmdbTimeoutMs?: number
   /** Whether some channel sends notifications (server/notifier.ts); none without it. */
   notifications?: () => boolean
+  /** How many devices get push notifications (server/push.ts); none without it. */
+  pushDevices?: () => number
   /** Telegram's Bot API and how long it may take; TELEGRAM_API and its timeout by default (tests). */
   telegram?: Omit<TelegramOptions, 'signal'>
 }
@@ -285,8 +287,14 @@ async function snapshot(stored: StoredSettings, config: SettingsConfig): Promise
       chat: stored.telegram?.chat ? { name: stored.telegram.chat.name, type: stored.telegram.chat.type } : null,
       refused: stored.telegram?.refused ?? null,
     },
+    push: { devices: config.pushDevices?.() ?? 0 },
     notifications: config.notifications?.() ?? false,
   }
+}
+
+/** The answer of GET /api/settings, for routes elsewhere that answer with it (server/push.ts). */
+export async function serverSettings(config: SettingsConfig): Promise<ServerSettings> {
+  return snapshot(await config.store.load(), config)
 }
 
 async function save(config: SettingsConfig, response: ServerResponse, saving: Promise<StoredSettings>) {

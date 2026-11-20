@@ -638,5 +638,24 @@
     "turnedOff": "Telegram notifications are off",
     "failed": "Couldn’t save. Try again.",
     "unreachable": "$t(noAnswer.telegram). Kinopeer’s server needs to reach api.telegram.org."
+  },
+  "push": {
+    "name": "Push notifications",
+    "off": "Off on this device. Shows a notification when a download finishes.",
+    "turnOn": "Turn on",
+    "turningOn": "Turning on…",
+    "on": "On for this device",
+    "testSent": "Test notification sent",
+    "turnOff": "Turn off push notifications on this device",
+    "turnedOff": "Push notifications are off on this device",
+    "needsHttps": "Need Kinopeer opened over HTTPS, with its certificate trusted on this device",
+    "install": "On iPhone and iPad, add Kinopeer to the Home Screen and turn them on there",
+    "unsupported": "This browser can’t show push notifications",
+    "denied": "Notifications are blocked for Kinopeer. Allow them in the browser’s settings for this site.",
+    "browserFailed": "The browser couldn’t turn them on. Try again.",
+    "invalidEndpoint": "Kinopeer doesn’t send through this browser’s push service",
+    "forgotten": "Kinopeer’s server no longer sends to this device. Turn them on again.",
+    "refused": "The push service refused the notification",
+    "unreachable": "The push service isn’t answering. Kinopeer’s server needs to reach it."
   }
 }
