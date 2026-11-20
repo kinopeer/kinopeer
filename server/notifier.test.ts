@@ -97,6 +97,29 @@ describe('createNotifier', () => {
     expect(watcher.deps.log).not.toHaveBeenCalled()
   })
 
+  it('keeps the tag on a torrent a channel stopped being set up for during the pass, and sends it once set up again', async () => {
+    let setUp = true
+    const telegram = channel('Telegram', [], () => setUp)
+    // Turned off (or set to another bot) while the first message was on its way.
+    vi.mocked(telegram.notify.send).mockImplementationOnce(async (finished) => {
+      telegram.sent.push(finished.hash)
+      setUp = false
+      return 'sent'
+    })
+    const watcher = notifier({
+      channels: [telegram.notify],
+      torrents: () => [torrent('a'), torrent('b')].filter((tagged) => !watcher.untagged.flat().includes(tagged.hash)),
+    })
+    await watcher.check()
+    expect(telegram.sent).toEqual(['a'])
+    expect(watcher.untagged).toEqual([['a']])
+    expect(watcher.deps.log).not.toHaveBeenCalled()
+    setUp = true
+    await watcher.check()
+    expect(telegram.sent).toEqual(['a', 'b'])
+    expect(watcher.untagged).toEqual([['a'], ['b']])
+  })
+
   it('notifies again about a torrent tagged again after it was notified', async () => {
     const telegram = channel('Telegram')
     // qBittorrent keeps the tag on the first pass's answer: switched on again on the torrent's page.

@@ -44,6 +44,15 @@ describe('telegramChannel', () => {
     expect(channel.ready()).toBe(true)
   })
 
+  it.each([
+    ['forgotten', undefined],
+    ['without a chat', { token: TELEGRAM_TOKEN, bot: 'kinopeer_home_bot' }],
+  ])('rejects, asking Telegram nothing, when the bot was %s since the pass began, so the tag stays', async (_name, stored) => {
+    const { channel, telegram } = await setUp(stored)
+    await expect(channel.send(finished)).rejects.toThrow('Telegram isn’t set up')
+    expect(telegram.seen).toEqual([])
+  })
+
   it('sends the title in the chat’s language, then the torrent’s name', async () => {
     const { channel, telegram, titleOf } = await setUp(connected)
     expect(await channel.send(finished)).toBe('sent')
@@ -126,11 +135,5 @@ describe('telegramChannel', () => {
     const { channel, telegram } = await setUp(connected)
     telegram.state.down = true
     await expect(channel.send(finished)).rejects.toThrow()
-  })
-
-  it('refuses without sending when the bot was forgotten since the pass began', async () => {
-    const { channel, telegram } = await setUp()
-    expect(await channel.send(finished)).toBe('rejected')
-    expect(telegram.seen).toEqual([])
   })
 })

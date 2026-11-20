@@ -23,7 +23,8 @@ export function telegramChannel(config: TelegramChannelConfig): NotifyChannel {
     ready: () => telegramReady(config.store.current),
     send: async (torrent) => {
       const stored = config.store.current
-      if (!telegramReady(stored)) return 'rejected'
+      // Not set up any more: not now rather than refused, so the tag stays (the notifier asks `ready` first).
+      if (!telegramReady(stored)) throw new Error('Telegram isn’t set up')
       const { token, chat, language = 'en' } = stored.telegram
       const text = finishedText(language, torrent.name, await config.title(torrent, language))
       const sent = await sendMessage(token, chat.id, text, config.telegram)

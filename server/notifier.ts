@@ -88,7 +88,9 @@ export function createNotifier(deps: NotifierDeps): { check: () => Promise<void>
   const deliver = async (torrent: NotifyTorrent, channel: NotifyChannel, sent: Map<string, Delivery>, started: number) => {
     const delivery = sent.get(channel.id) ?? { done: false, attempts: 0, nextAt: 0 }
     sent.set(channel.id, delivery)
-    if (delivery.done || started < delivery.nextAt) return
+    // A channel turned off since the pass began (or set to another bot) sends nothing now, and the tag
+    // stays for when it's set up again.
+    if (delivery.done || started < delivery.nextAt || !channel.ready()) return
     try {
       const result = await channel.send(torrent)
       delivery.done = true
