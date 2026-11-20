@@ -1356,7 +1356,7 @@ describe('SettingsScreen: push notifications', () => {
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings())
     vi.mocked(push.turnOnPush).mockResolvedValue({ kind: 'on', endpoint: ENDPOINT })
     renderScreen()
-    const card = within(await waitFor(() => connection('Push-уведомления', 'Подключения')))
+    const card = within(await waitFor(() => connection('Уведомления', 'Подключения')))
     await userEvent.click(await card.findByRole('button', { name: 'Включить' }))
     expect(push.turnOnPush).toHaveBeenCalledWith('ru')
   })
