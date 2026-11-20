@@ -6,7 +6,7 @@ name: Mutants
 # count the round compares with the PR's Mutants line and the author's answer: a check rather than a
 # comment on the PR, which emailed its author on every push. A PR that changes only Stryker's setup
 # or the dependencies gets Stryker's dry run (scripts/mutants.mjs), so a bump that breaks it fails
-# here (#285).
+# here (#285); that dry run runs the whole suite, so a test that can't run in the sandbox does too (#467).
 on:
   pull_request:
     types: [opened, ready_for_review, synchronize]
@@ -23,6 +23,10 @@ on:
       - 'scripts/accessibility/**'
       - 'scripts/actuals/**'
       - 'scripts/edge/**'
+      # The tests at the root, which the folders above don't take: a PR that adds or changes only
+      # one of them gets the dry run of the whole suite, so a test that can't run in Stryker's
+      # sandbox fails on it, unless checks.json's mutants.testsLeftOut leaves it out (#467).
+      - '*.test.ts'
       # What Stryker runs with, each of which can break it without a line to mutate.
       - 'package.json'
       - 'package-lock.json'
