@@ -2,7 +2,7 @@
 
 Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor versions could change behavior and settings.
 
-## Unreleased
+## 1.1.0 - 2026-11-20
 
 ### Added
 
