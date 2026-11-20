@@ -823,21 +823,13 @@ is read whole, for the `/code-review` findings that carry no tag, the **For the 
 items with the coordinator's decisions posted beside them, and the **Rule changes** the deputy
 approved (before 2026-11-19, the owner's approvals posted on the PR).
 
-The guard's marks are counted too, from the deputy's verdicts on them in its rounds (before
-2026-11-15, the second reviews' comments, `**Second review …**`): how many were judged, how many
-`weakening`, and how many of those the deputy accepted, with its reasons.
-`select kind, verdict, accepted, marks from metrics_guard_marks where project = 'kinopeer/kinopeer' and batch = 'open'`
-counts the marks of each PR's last `guard report` that holds the guard's JSON (#450), with the
-verdicts of the latest round at its commit. It doesn't see a mark of an earlier report: one judged
-`weakening` in an earlier round that the author then fixed is gone from the last report, so the
-retro adds, from reading the earlier rounds (each round's block lists its verdicts under
-`guard`), the marks the last report no longer has, each by its verdict in the latest round that
-judged it.
-`select p.number from metrics_batch_prs p left join gh_guard_reports r on r.project = p.project and r.pr = p.number where p.project = 'kinopeer/kinopeer' and p.batch = 'open' and (coalesce(r.json_ok, 0) = 0 or r.cut = 1 or exists (select 1 from gh_guard_marks m where m.project = p.project and m.pr = p.number and m.verdict is null))`
-names the PRs the views can't count: a report with no JSON, a report cut to fit (`cut`, so some
-marks aren't listed), or a mark with no verdict (its round's block didn't read). Their marks come
-from their check with the `gh` command in The checks' usefulness, and the verdicts from reading
-the rounds. When twenty PRs in a row with
+The guard's marks are counted too, from the deputy's verdicts on them in every round (each
+round's block lists them under `guard`; before 2026-11-15, the second reviews' comments,
+`**Second review …**`): how many were judged, how many `weakening`, and how many of those the
+deputy accepted, with its reasons. A mark counts once, as `weakening` when any round judged it so.
+The views don't give this count: `metrics_guard_marks` keeps only the latest round's verdicts on
+the report at that round's commit, so a `weakening` an earlier round found and a later one judged
+`sound` once the author fixed it is gone from it. When twenty PRs in a row with
 changes to existing checks have no `weakening` verdict, the retro weighs handing the deputy's
 subagent only the marks that weaken the checks, and decides it, as it decides its other rule
 changes. Narrowing softens the system, so its PR says what the subagent then no longer sees.
@@ -896,11 +888,16 @@ the ids of the runs that failed, the batch's PR runs that failed or were run aga
 failed and was run again to green; GitHub lists at most 1,000 runs for a filtered listing, so a
 bigger batch is listed a day at a time, `created=<day>`), and a run's jobs over all its attempts,
 `gh api -X GET repos/kinopeer/kinopeer/actions/runs/<id>/jobs -f filter=all --jq '.jobs[] | [.run_attempt, .name, .conclusion, .started_at, .completed_at] | @tsv'`,
-which also give a job's time. The guard's marks come from the views (The review findings, above); for a PR
-whose report the views can't read, from its `guard report` check on its last head (the latest
+which also give a job's time. This listing reaches what the old recipe did: PR runs that ended
+`failure` or were run again, not the other events nor a job that failed in a run that ended
+`cancelled` (CI cancels a PR's run on the next push), which the views count. The collector sees a
+re-run only of a run created in the last 7 days (`quality-data/README.md` → Known limits), so the
+re-run of an older run is missing from both views and shows only here, by its `run_attempt`. The
+guard's marks come from its `guard report` check on each PR's last head (its summary, the latest
 run's, since a re-run writes another,
 `gh api 'repos/kinopeer/kinopeer/commits/<sha>/check-runs?check_name=guard%20report' --jq '.check_runs | max_by(.completed_at) | .output.summary'`;
-before 2026-11-15, from its comment on the PR). A failure fixed
+a report cut to fit is whole in the summary of the `Guard` run's `guard` job; before 2026-11-15,
+from its comment on the PR). A failure fixed
 by changing the check rather than the code, or a mark the deputy's verdict called needless, is a false
 alarm. The cost is a job's time, and the
 reviews' share of the effort above, which stays out of the row as every figure from the journal
