@@ -1,0 +1,16 @@
+.folder-field-known {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.folder-field-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.folder-field-chips .ks-chip {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}

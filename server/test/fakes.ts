@@ -195,6 +195,9 @@ export const PREFERENCES = {
   torrent_changed_tmm_enabled: true,
   /** "Keep incomplete torrents in", off by default. */
   temp_path_enabled: false,
+  /** "When Default Save Path changed" and "When Category Save Path changed": switch the affected torrents to manual mode, qBittorrent's default. */
+  save_path_changed_tmm_enabled: false,
+  category_changed_tmm_enabled: false,
   refresh_interval: 1500,
 }
 
@@ -203,9 +206,9 @@ export const PREFERENCES = {
  * category's path, else the default save path and the category's name; the default save path
  * without a category.
  */
-function categoryPath(category: string): string {
-  if (!category) return '/downloads'
-  return CATEGORIES[category as keyof typeof CATEGORIES]?.savePath || `/downloads/${category}`
+function categoryPath(category: string, categories: Record<string, { savePath: string }>, savePath: string): string {
+  if (!category) return savePath
+  return categories[category]?.savePath || `${savePath}/${category}`
 }
 
 /** What the fake qBittorrent answers on /torrents/trackers. */
@@ -255,8 +258,12 @@ async function parseAdd(body: Buffer, contentType: string | undefined): Promise<
  * torrents' state as it is (qBittorrent 5.1 reports the new one only at its next refresh, 1.5 s
  * by default, so polls sent before then still have the old one),
  * /torrents/delete takes the torrents off the list and records the call in `deleted`,
- * /torrents/setLocation moves torrents to `location` (403 for a folder under /readonly, which
- * qBittorrent can't write to, and 409 under /unmakeable, a folder it can't create),
+ * /torrents/setLocation moves torrents to `location`, every one for `all` (403 for a folder under
+ * /readonly, which qBittorrent can't write to, and 409 under /unmakeable, a folder it can't create),
+ * /app/setPreferences takes a new `save_path`, which /app/defaultSavePath and /app/preferences then
+ * answer (a key qBittorrent doesn't know it ignores, as qBittorrent does), /torrents/editCategory sets
+ * a category's `savePath` (404 for one it doesn't have; qBittorrent before 5.3 also drops a download
+ * path not sent with it, which the fake doesn't model),
  * /torrents/setCategory sets the category (409 for one not in CATEGORIES) and, for a torrent under
  * automatic management, its save path to the category's folder (qBittorrent 5.3 reports the new
  * category and folder in the next poll, with the state `moving` until the files are there, which
@@ -300,6 +307,9 @@ export async function fakeQbittorrent({
   const pendingAdded: Torrent[] = []
   const pendingRemoved: string[] = []
   let logins = 0
+  let savePath = '/downloads'
+  // A copy, so editing never changes the fixtures.
+  const categories: Record<string, { name: string; savePath: string }> = structuredClone(CATEGORIES)
   const base = await listen(async (request, response) => {
     const bytes = await bytesOf(request)
     const body = bytes.toString()
@@ -333,11 +343,22 @@ export async function fakeQbittorrent({
       case '/api/v2/app/version':
         return text(response, 'v5.2.4')
       case '/api/v2/app/defaultSavePath':
-        return text(response, '/downloads')
+        return text(response, savePath)
       case '/api/v2/torrents/categories':
-        return json(response, CATEGORIES)
+        return json(response, categories)
       case '/api/v2/app/preferences':
-        return json(response, PREFERENCES)
+        return json(response, { ...PREFERENCES, save_path: savePath })
+      case '/api/v2/app/setPreferences': {
+        const preferences = JSON.parse(params.get('json') ?? '{}') as { save_path?: string }
+        if (preferences.save_path !== undefined) savePath = preferences.save_path
+        return text(response, '')
+      }
+      case '/api/v2/torrents/editCategory': {
+        const category = categories[params.get('category') ?? '']
+        if (!category) return text(response, 'Category does not exist', 404)
+        category.savePath = params.get('savePath') ?? category.savePath
+        return text(response, '')
+      }
       case '/api/v2/torrents/info': {
         const tag = searchParams.get('tag')
         return json(response, tag === null ? listing : listing.filter((torrent) => tagsOf(torrent).includes(tag)))
@@ -410,11 +431,11 @@ export async function fakeQbittorrent({
         return legacy ? text(response, '') : text(response, 'Not Found', 404)
       case '/api/v2/torrents/setCategory': {
         const category = params.get('category') ?? ''
-        if (category && !(category in CATEGORIES)) return text(response, 'Incorrect category name', 409)
+        if (category && !(category in categories)) return text(response, 'Incorrect category name', 409)
         const hashes = new Set((params.get('hashes') ?? '').split('|'))
         for (const [index, torrent] of listing.entries())
           if (hashes.has(torrent.hash))
-            listing[index] = { ...torrent, category, ...(torrent.auto_tmm && { save_path: categoryPath(category) }) }
+            listing[index] = { ...torrent, category, ...(torrent.auto_tmm && { save_path: categoryPath(category, categories, savePath) }) }
         return text(response, '')
       }
       case '/api/v2/torrents/toggleSequentialDownload':
@@ -432,14 +453,14 @@ export async function fakeQbittorrent({
         if (location.startsWith('/unmakeable')) return text(response, 'Cannot make save path', 409)
         const hashes = new Set((params.get('hashes') ?? '').split('|'))
         for (const [index, torrent] of listing.entries())
-          if (hashes.has(torrent.hash)) listing[index] = { ...torrent, save_path: location }
+          if (hashes.has('all') || hashes.has(torrent.hash)) listing[index] = { ...torrent, save_path: location }
         return text(response, '')
       }
       default:
         return text(response, 'Not Found', 404)
     }
   })
-  return { base, seen, sessions, added, deleted, files, torrents: listing, logins: () => logins }
+  return { base, seen, sessions, added, deleted, files, categories, torrents: listing, savePath: () => savePath, logins: () => logins }
 }
 
 /** A torrent's tags, which qBittorrent lists as one string joined with ", ". */

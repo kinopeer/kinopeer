@@ -35,6 +35,7 @@ import { clearTitleMatches } from '../torrents/useTitleMatches'
 import tmdbLogo from '../assets/tmdb-logo.svg'
 import { unreachableText } from '../lib/unreachable'
 import { ChangePasswordForm } from './ChangePasswordForm'
+import { FoldersSheet } from './FoldersSheet'
 import { InstallSheet } from './InstallSheet'
 import { ProwlarrKeyForm } from './ProwlarrKeyForm'
 import { TelegramForm } from './TelegramForm'
@@ -207,6 +208,7 @@ export function SettingsScreen() {
   const [editingTelegram, setEditingTelegram] = useState(false)
   // Bumped on each change saved from the sheet, so the card checks again: a renewed token of the same bot keeps its name.
   const [telegramVersion, setTelegramVersion] = useState(0)
+  const [editingFolders, setEditingFolders] = useState(false)
   const toast = useToast()
   // Its checks and loads change no heights, so the page is ready to scroll back at once.
   useScrollRestoration(true, '/settings')
@@ -388,6 +390,10 @@ export function SettingsScreen() {
           ))}
         </div>
         <p className="t-cap c3 settings-hint">{t('settings.defaultsHint')}</p>
+        {/* qBittorrent's own, set once: loaded when opened, so the page asks qBittorrent nothing more. */}
+        <ul className="ks-card settings-rows">
+          <AboutRow icon="folder" label={t('move.known')} hint={t('settings.foldersHint')} onClick={() => setEditingFolders(true)} />
+        </ul>
       </Section>
 
       <Section id="settings-appearance" title={t('settings.appearance')}>
@@ -485,6 +491,7 @@ export function SettingsScreen() {
       </Section>
 
       <InstallSheet platform={installSteps} onClose={() => setInstallSteps(null)} />
+      <FoldersSheet open={editingFolders} onClose={() => setEditingFolders(false)} />
       <Sheet open={editingKey} onClose={() => setEditingKey(false)} title={t('tmdbKey.sheetTitle')}>
         <TmdbKeyForm
           forget={

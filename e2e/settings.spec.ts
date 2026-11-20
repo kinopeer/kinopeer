@@ -92,6 +92,21 @@ test('Telegram connected, the chat refused the last message, dark, Russian', asy
   await expect(page).toHaveScreenshot('telegram-connected-dark-ru.png')
 })
 
+test('qBittorrent’s folders, dark, Russian', async ({ page }) => {
+  await openApp(page, '/settings')
+  await page.getByRole('button', { name: /^Папки qBittorrent/ }).click()
+  const sheet = page.getByRole('dialog', { name: 'Папки qBittorrent' })
+  await expect(sheet.getByRole('button', { name: /^TV Shows/ })).toBeVisible()
+  await settle(page)
+  await expect(page).toHaveScreenshot('folders-dark-ru.png')
+
+  await sheet.getByRole('button', { name: /^Movies/ }).click()
+  // The sheet is named after the folder it shows now.
+  await expect(page.getByRole('dialog', { name: 'Movies' }).getByRole('group', { name: 'Папки qBittorrent' })).toBeVisible()
+  await settle(page)
+  await expect(page).toHaveScreenshot('folder-dark-ru.png')
+})
+
 test.describe('desktop', () => {
   test.use(DESKTOP)
 
