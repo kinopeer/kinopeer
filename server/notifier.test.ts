@@ -287,7 +287,7 @@ describe('createNotifier', () => {
     const telegram = channel('Telegram')
     push.notify.forget = (hash) => void forgotten.push(`Push ${hash}`)
     telegram.notify.forget = (hash) => void forgotten.push(`Telegram ${hash}`)
-    // Both are sent again; only a loses its tag.
+    // Both wait for Push's retry; only a loses its tag.
     let tagged = [torrent('a'), torrent('c')]
     const watcher = notifier({ channels: [push.notify, telegram.notify], torrents: () => tagged })
     await watcher.check()

@@ -32,7 +32,8 @@ export function appPath(value: unknown): string {
     // which Safari before 17 lacks, while push works on iOS from 16.4.
     return '/'
   }
-  return url.origin === APP_ORIGIN ? `${url.pathname}${url.search}${url.hash}` : '/'
+  // A path whose dot segments collapse into a leading `//` (`/.//host`) would lead to another host when followed.
+  return url.origin === APP_ORIGIN && !url.pathname.startsWith('//') ? `${url.pathname}${url.search}${url.hash}` : '/'
 }
 
 /** The push's payload as the server sends it, or undefined for anything else. */
