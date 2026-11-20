@@ -1,11 +1,19 @@
-import { useState, type ReactNode } from 'react'
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router'
 import { AuthError, signOut } from '../api/auth'
 import { ProwlarrSetupError, getProwlarrStatus } from '../api/prowlarr'
 import { APP_VERSION_FRESH_MS, APP_VERSION_KEY, getAppVersion, getCategories, unreachable } from '../api/qbittorrent'
 import { TmdbKeyError, checkTmdb } from '../api/tmdb'
-import { SERVER_SETTINGS_FRESH_MS, SERVER_SETTINGS_KEY, getServerSettings, type AddressStatus, type ServerSettings } from '../api/settings'
+import {
+  SERVER_SETTINGS_FRESH_MS,
+  SERVER_SETTINGS_KEY,
+  SettingsError,
+  checkTelegram,
+  getServerSettings,
+  type AddressStatus,
+  type ServerSettings,
+} from '../api/settings'
 import { Button } from '../components/Button'
 import { Icon, type IconName } from '../components/Icon'
 import { IconButton } from '../components/IconButton'
@@ -32,6 +40,7 @@ import { FoldersSheet } from './FoldersSheet'
 import { InstallSheet } from './InstallSheet'
 import { ProwlarrKeyForm } from './ProwlarrKeyForm'
 import { QbittorrentLoginForm } from './QbittorrentLoginForm'
+import { TelegramForm } from './TelegramForm'
 import { TmdbKeyForm } from './TmdbKeyForm'
 import './SettingsScreen.css'
 
@@ -40,8 +49,11 @@ export interface SettingsLocationState {
   editTmdbKey?: boolean
 }
 
-/** What a connection's card says: still checking, connected (perhaps with a warning), or why not. */
-type ConnectionStatus = { state: 'loading' } | { state: 'ok' | 'warn' | 'error'; message: string }
+/**
+ * What a connection's card says: still checking, connected (perhaps with a warning), why not, or
+ * that an optional one isn't set up.
+ */
+type ConnectionStatus = { state: 'loading' } | { state: 'ok' | 'warn' | 'error' | 'off'; message: string }
 
 /** The status of a check: `ok` describes what it answered, `failed` why it failed. */
 function connectionStatus<T>(
@@ -55,8 +67,8 @@ function connectionStatus<T>(
   return { state: warn ? 'warn' : 'ok', message }
 }
 
-const CONNECTION_CLASS = { loading: 'is-loading', ok: 'is-ok', warn: 'is-warn', error: 'is-err' } as const
-const MESSAGE_CLASS = { loading: 'c2', ok: 'c2', warn: 'c-warn', error: 'c-err' } as const
+const CONNECTION_CLASS = { loading: 'is-loading', ok: 'is-ok', warn: 'is-warn', error: 'is-err', off: '' } as const
+const MESSAGE_CLASS = { loading: 'c2', ok: 'c2', warn: 'c-warn', error: 'c-err', off: 'c3' } as const
 
 interface ConnectionRowProps {
   name: string
@@ -67,10 +79,14 @@ interface ConnectionRowProps {
   /** Accessible name of the edit button, shown only with `onEdit`. */
   editLabel?: string
   onEdit?: () => void
+  /** The edit button's icon; a key by default. */
+  editIcon?: IconName
+  /** Shown in place of the edit button and Test while the status is `off`: the button that sets it up. */
+  setUpLabel?: string
 }
 
-/** One service's connection: its status, and Test to check it again. */
-function ConnectionRow({ name, icon, status, onTest, editLabel, onEdit }: ConnectionRowProps) {
+/** One service's connection: its status, and Test to check it again, or Set up while it's `off`. */
+function ConnectionRow({ name, icon, status, onTest, editLabel, onEdit, editIcon = 'key', setUpLabel }: ConnectionRowProps) {
   const { t } = useTranslation()
   const { state } = status
   return (
@@ -88,10 +104,18 @@ function ConnectionRow({ name, icon, status, onTest, editLabel, onEdit }: Connec
           {status.state === 'loading' ? t('settings.testing') : status.message}
         </span>
       </span>
-      {onEdit && editLabel && <IconButton icon="key" label={editLabel} onClick={onEdit} />}
-      <Button variant="secondary" size="sm" disabled={state === 'loading'} onClick={onTest}>
-        {t('settings.test')}
-      </Button>
+      {state === 'off' && setUpLabel && onEdit ? (
+        <Button variant="secondary" size="sm" onClick={onEdit}>
+          {setUpLabel}
+        </Button>
+      ) : (
+        <>
+          {onEdit && editLabel && <IconButton icon={editIcon} label={editLabel} onClick={onEdit} />}
+          <Button variant="secondary" size="sm" disabled={state === 'loading'} onClick={onTest}>
+            {t('settings.test')}
+          </Button>
+        </>
+      )}
     </li>
   )
 }
@@ -197,6 +221,9 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
   const [editingQbittorrent, setEditingQbittorrent] = useState(false)
   const [prowlarrKeyVersion, setProwlarrKeyVersion] = useState(0)
   const [changingPassword, setChangingPassword] = useState(false)
+  const [editingTelegram, setEditingTelegram] = useState(false)
+  // Bumped on each token saved from the sheet, so the card checks again: a renewed token of the same bot keeps its name.
+  const [telegramVersion, setTelegramVersion] = useState(0)
   const [editingFolders, setEditingFolders] = useState(false)
   const toast = useToast()
   // Its checks and loads change no heights, so the page is ready to scroll back at once.
@@ -248,6 +275,31 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
   }
   const prowlarr = useRequest(`check|prowlarr|${prowlarrKeyVersion}`, (signal) => getProwlarrStatus(signal))
   const tmdb = useRequest(`check|tmdb|${tmdbKeyVersion}`, (signal) => checkTmdb(signal))
+  // Asked only with a bot, and again for each bot saved (its name is in the key).
+  const telegram = server?.telegram
+  const telegramCheck = useRequest(telegram?.bot ? `check|telegram|${telegram.bot}|${telegramVersion}` : null, (signal) => checkTelegram(signal))
+  // The card's check as the last render has it, read when a save from the sheet settles, since it may have
+  // failed while the save was on its way.
+  const telegramCheckNow = useRef(telegramCheck)
+  useLayoutEffect(() => {
+    telegramCheckNow.current = telegramCheck
+  })
+
+  /** The Telegram card: a failed check first, then what the settings say of the chat. */
+  const telegramStatus = (): ConnectionStatus => {
+    if (!telegram?.bot) return { state: 'off', message: t('telegram.notSetUp') }
+    return connectionStatus(
+      telegramCheck,
+      () =>
+        !telegram.chat
+          ? { message: t('telegram.noChat'), warn: true }
+          : telegram.refused === 'chat'
+            ? { message: t('telegram.chatRefused', { chat: telegram.chat.name }), warn: true }
+            : { message: t('telegram.sendsTo', { chat: telegram.chat.name, bot: telegram.bot }) },
+      (error) =>
+        error instanceof SettingsError && error.code === 'token-rejected' ? t('telegram.tokenRejected') : t('noAnswer.telegram'),
+    )
+  }
 
   const categoryField = (type: 'movie' | 'tv') => {
     const key: keyof Settings = type === 'movie' ? 'movieCategory' : 'tvCategory'
@@ -338,6 +390,19 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
             editLabel={sharedTmdbKey ? t('tmdbKey.useOwn') : t('tmdbKey.change')}
             onEdit={() => setEditingKey(true)}
           />
+          {/* A server before 1.1 has no notifications: no card. */}
+          {server?.telegram && (
+            <ConnectionRow
+              name="Telegram"
+              icon="bell"
+              status={telegramStatus()}
+              onTest={telegramCheck.retry}
+              editLabel={t('telegram.edit')}
+              editIcon="settings"
+              onEdit={() => setEditingTelegram(true)}
+              setUpLabel={t('telegram.setUp')}
+            />
+          )}
         </ul>
         <p className="t-cap c3 settings-hint">{t('settings.connectionsHint', { context: qbittorrentFromApp || prowlarrFromApp ? 'app' : undefined })}</p>
       </Section>
@@ -478,6 +543,35 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
             setTmdbKeyVersion((n) => n + 1)
           }}
         />
+      </Sheet>
+      <Sheet open={editingTelegram} onClose={() => setEditingTelegram(false)} title={t('telegram.sheetTitle')}>
+        {telegram && (
+          <TelegramForm
+            telegram={telegram}
+            onChanged={(changed, saved) => {
+              setServerChanged(changed)
+              if (saved === 'token') setTelegramVersion((n) => n + 1)
+              // A chat or a test that went through shows Telegram answers, which a failed check said it didn't.
+              else if (telegramCheckNow.current.error !== undefined) telegramCheckNow.current.retry()
+            }}
+            onRefused={(refused) => {
+              if (server) {
+                const changed = { ...server, telegram: { ...telegram, refused } }
+                setServerChanged(changed)
+                // The refusal's 422 carries no settings, so the page's shared answer learns it here.
+                sharedRequests.set<ServerSettings>(SERVER_SETTINGS_KEY, changed)
+              }
+              // The card names a refused token through its own check, which may have passed before. A refused chat
+              // shows Telegram answers (the server asked it which part it refused), which a failed check said it didn't.
+              if (refused === 'token' || telegramCheckNow.current.error !== undefined) telegramCheckNow.current.retry()
+            }}
+            onTurnedOff={(changed) => {
+              setServerChanged(changed)
+              setEditingTelegram(false)
+              toast.show(t('telegram.turnedOff'))
+            }}
+          />
+        )}
       </Sheet>
       <Sheet open={changingPassword} onClose={() => setChangingPassword(false)} title={t('settings.changePassword')}>
         <ChangePasswordForm

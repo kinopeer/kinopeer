@@ -14,6 +14,7 @@ import {
 import { expect } from './test.ts'
 import type { AuthStatus } from '../src/api/auth/types.ts'
 import type { Release } from '../src/api/prowlarr/types.ts'
+import type { TelegramFoundChat, TelegramStatus } from '../src/api/settings/types.ts'
 import type { Torrent } from '../src/api/qbittorrent/types.ts'
 
 export interface AppOptions {
@@ -50,6 +51,11 @@ export interface AppOptions {
   signIn?: 'set-up' | 'sign-in' | 'throttled'
   /** Kinopeer's own login as /api/settings says it, instead of off, as on Umbrel (KINOPEER_AUTH=off). */
   auth?: AuthStatus
+  /**
+   * The Telegram bot as /api/settings says it, which notifies with a chat, and the chat that sent it
+   * /start; without it the server says nothing of notifications, as one before 1.1.
+   */
+  telegram?: TelegramStatus & { found?: TelegramFoundChat }
   /** qBittorrent's and Prowlarr's addresses were saved from the app, not set in the server's environment. */
   addressesFromApp?: boolean
   /** Prowlarr doesn't answer the server's connection check. */
@@ -146,6 +152,7 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
 
   if (!options.realTmdb) await mockTmdb(page, options)
 
+  const telegram = options.telegram && { bot: options.telegram.bot, chat: options.telegram.chat, refused: options.telegram.refused }
   await page.route(
     (url) => url.pathname === '/api/settings',
     (route) =>
@@ -164,8 +171,19 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
         },
         downloads: null,
         auth: options.auth ?? { enabled: false },
+        ...(telegram && { telegram, notifications: telegram.chat !== null }),
       }),
   )
+  if (telegram) {
+    await page.route(
+      (url) => url.pathname === '/api/settings/telegram/check',
+      (route) => json(route, { bot: telegram.bot }),
+    )
+    await page.route(
+      (url) => url.pathname === '/api/settings/telegram/chat',
+      (route) => (options.telegram?.found ? json(route, options.telegram.found) : json(route, { error: 'no-chat' }, 404)),
+    )
+  }
   if (options.wrongLogin) {
     await page.route(
       (url) => url.pathname === '/api/settings/qbittorrent',

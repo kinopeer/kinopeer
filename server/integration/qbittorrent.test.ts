@@ -53,6 +53,8 @@ const EVERY_CALL: Record<ClientCall, () => Promise<unknown>> = {
   setCategoryFolder: () => client.setCategoryFolder({ name: 'Movies', savePath: '/downloads/movies', download_path: '/downloads/incomplete' }, '/downloads/films'),
   getTorrentTrackers: () => client.getTorrentTrackers('a1'),
   toggleSpeedLimitsMode: () => client.toggleSpeedLimitsMode(),
+  addTags: () => client.addTags(['a1'], ['kinopeer:notify']),
+  removeTags: () => client.removeTags(['a1'], ['kinopeer:notify']),
 }
 
 describe('qBittorrent client through /qbt', () => {

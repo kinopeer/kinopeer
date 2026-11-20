@@ -344,6 +344,23 @@ export async function toggleSequentialDownload(hashes: string[]): Promise<void> 
   await request('/torrents/toggleSequentialDownload', { method: 'POST', params: { hashes: hashes.join('|') } })
 }
 
+/**
+ * The tag that switches on the notification when a torrent finishes. Kinopeer's server watches for
+ * it and takes it off once it has notified (server/notifier.ts, `NOTIFY_TAG`, the same tag:
+ * server/integration/notifications.test.ts switches it on here and sees the server notify).
+ */
+export const NOTIFY_TAG = 'kinopeer:notify'
+
+/** Adds `tags` to torrents; qBittorrent creates a tag it doesn't have yet. */
+export async function addTags(hashes: string[], tags: string[]): Promise<void> {
+  await request('/torrents/addTags', { method: 'POST', params: { hashes: hashes.join('|'), tags: tags.join(',') } })
+}
+
+/** Takes `tags` off torrents; the tags themselves stay in qBittorrent's list. */
+export async function removeTags(hashes: string[], tags: string[]): Promise<void> {
+  await request('/torrents/removeTags', { method: 'POST', params: { hashes: hashes.join('|'), tags: tags.join(',') } })
+}
+
 /** Flips "first and last pieces first", which, like sequential download, can only be flipped. */
 export async function toggleFirstLastPiecePrio(hashes: string[]): Promise<void> {
   await request('/torrents/toggleFirstLastPiecePrio', { method: 'POST', params: { hashes: hashes.join('|') } })

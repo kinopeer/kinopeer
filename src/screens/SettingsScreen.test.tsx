@@ -12,6 +12,7 @@ import { BUG_REPORT_URL, IDEAS_URL, REPO_URL } from '../lib/links'
 import { TAB_RETURN, forgetTabPlaces, saveTabPlace } from '../lib/tabPlaces'
 import { sharedRequests } from '../logic/sharedRequests'
 import { getSettings, resetSettings } from '../settings/settings'
+import { TELEGRAM_TOKEN } from '../test/fixtures'
 import { russianUnreachable } from '../test/languages'
 import { findToastOnPage, renderWithRouter, saying } from '../test/render'
 import { SettingsScreen } from './SettingsScreen'
@@ -44,6 +45,12 @@ vi.mock('../api/settings', async (importOriginal) => ({
   forgetProwlarrKey: vi.fn(),
   forgetTmdbKey: vi.fn(),
   saveDownloadDefaults: vi.fn(),
+  checkTelegram: vi.fn(),
+  saveTelegramToken: vi.fn(),
+  testTelegram: vi.fn(),
+  forgetTelegram: vi.fn(),
+  findTelegramChat: vi.fn(),
+  saveTelegramChat: vi.fn(),
 }))
 vi.mock('../api/tmdb', async (importOriginal) => ({
   ...(await importOriginal<typeof tmdb>()),
@@ -996,3 +1003,276 @@ describe('SettingsScreen', () => {
     })
   })
 })
+
+describe('SettingsScreen: Telegram', () => {
+  const chatRefused = 'Telegram didn’t deliver to “Alex”: the bot was blocked or removed from it. Send the bot /start and choose the chat again.'
+  const sendTest = async (sheet: HTMLElement) => userEvent.click(within(sheet).getByRole('button', { name: 'Send a test message' }))
+
+  const settings = (telegram?: serverSettings.TelegramStatus): serverSettings.ServerSettings => ({
+    tmdb: { configured: true, source: 'saved', fallback: null },
+    prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } },
+    qbittorrent: { configured: true, source: 'env', address: { source: 'env' } },
+    downloads: null,
+    telegram,
+    notifications: Boolean(telegram?.chat),
+  })
+  const CONNECTED: serverSettings.TelegramStatus = { bot: 'kinopeer_home_bot', chat: { name: 'Alex', type: 'private' }, refused: null }
+
+  it('has no Telegram card for a server that doesn’t know Telegram', async () => {
+    renderScreen()
+    await within(connection('TMDB')).findByRole('status', { name: saying('Connected') })
+    const connections = screen.getByRole('region', { name: 'Connections' })
+    expect(within(connections).queryByRole('button', { name: 'Set up' })).not.toBeInTheDocument()
+    expect(within(connections).queryByRole('button', { name: 'Change Telegram notifications' })).not.toBeInTheDocument()
+  })
+
+  it('offers to set Telegram up, asking Telegram nothing, and saves a token from its sheet', async () => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings({ bot: null, chat: null, refused: null }))
+    vi.mocked(serverSettings.saveTelegramToken).mockResolvedValue(settings({ bot: 'kinopeer_home_bot', chat: null, refused: null }))
+    vi.mocked(serverSettings.checkTelegram).mockResolvedValue({ bot: 'kinopeer_home_bot' })
+    renderScreen()
+    const card = await waitFor(() => connection('Telegram'))
+    expect(within(card).getByRole('status')).toHaveTextContent('Not set up. Sends a message when a download finishes.')
+    expect(within(card).queryByRole('button', { name: 'Test' })).not.toBeInTheDocument()
+    expect(serverSettings.checkTelegram).not.toHaveBeenCalled()
+
+    await userEvent.click(within(card).getByRole('button', { name: 'Set up' }))
+    const sheet = screen.getByRole('dialog', { name: 'Telegram notifications' })
+    await userEvent.type(within(sheet).getByLabelText('Bot token'), TELEGRAM_TOKEN)
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
+    // The sheet goes on to the chat, and the card checks the new bot.
+    expect(await within(sheet).findByRole('button', { name: 'Find chat' })).toBeInTheDocument()
+    expect(await within(connection('Telegram')).findByRole('status', { name: saying('Choose the chat to send to') })).toBeInTheDocument()
+    expect(serverSettings.checkTelegram).toHaveBeenCalledTimes(1)
+  })
+
+  it('says where notifications go once the check passes, and checks again on Test', async () => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(CONNECTED))
+    vi.mocked(serverSettings.checkTelegram).mockResolvedValue({ bot: 'kinopeer_home_bot' })
+    renderScreen()
+    const status = await waitFor(() => within(connection('Telegram')).getByRole('status', { name: saying('Sends to “Alex” from @kinopeer_home_bot') }))
+    expect(status).toBeInTheDocument()
+    await userEvent.click(within(connection('Telegram')).getByRole('button', { name: 'Test' }))
+    await waitFor(() => expect(serverSettings.checkTelegram).toHaveBeenCalledTimes(2))
+  })
+
+  it.each([
+    ['the token Telegram no longer knows', CONNECTED, new serverSettings.SettingsError(422, 'token-rejected'), 'Telegram no longer knows the bot’s token. Get a new one from @BotFather and save it here.'],
+    ['that Telegram doesn’t answer', CONNECTED, new serverSettings.SettingsError(502, 'unreachable'), 'Telegram isn’t answering'],
+  ])('names %s', async (_name, telegram, error, message) => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(telegram))
+    vi.mocked(serverSettings.checkTelegram).mockRejectedValue(error)
+    renderScreen()
+    expect(await waitFor(() => within(connection('Telegram')).getByRole('status', { name: saying(message) }))).toBeInTheDocument()
+  })
+
+  it('checks again each time a renewed token of the same bot is saved', async () => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(CONNECTED))
+    vi.mocked(serverSettings.checkTelegram)
+      .mockRejectedValueOnce(new serverSettings.SettingsError(422, 'token-rejected'))
+      .mockResolvedValue({ bot: 'kinopeer_home_bot' })
+    vi.mocked(serverSettings.saveTelegramToken).mockResolvedValue(settings(CONNECTED))
+    renderScreen()
+    const rejected = 'Telegram no longer knows the bot’s token. Get a new one from @BotFather and save it here.'
+    await waitFor(() => within(connection('Telegram')).getByRole('status', { name: saying(rejected) }))
+    await userEvent.click(within(connection('Telegram')).getByRole('button', { name: 'Change Telegram notifications' }))
+    const sheet = screen.getByRole('dialog', { name: 'Telegram notifications' })
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Use another bot' }))
+    await userEvent.type(within(sheet).getByLabelText('Bot token'), TELEGRAM_TOKEN)
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
+    expect(await within(connection('Telegram')).findByRole('status', { name: saying('Sends to “Alex” from @kinopeer_home_bot') })).toBeInTheDocument()
+    expect(serverSettings.checkTelegram).toHaveBeenCalledTimes(2)
+    // And again on the next one: each save is a check of its own.
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Use another bot' }))
+    await userEvent.type(within(sheet).getByLabelText('Bot token'), TELEGRAM_TOKEN)
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(serverSettings.checkTelegram).toHaveBeenCalledTimes(3))
+  })
+
+  it('doesn’t check the bot again after a test message went through', async () => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(CONNECTED))
+    vi.mocked(serverSettings.checkTelegram).mockResolvedValue({ bot: 'kinopeer_home_bot' })
+    vi.mocked(serverSettings.testTelegram).mockResolvedValue(settings(CONNECTED))
+    renderScreen()
+    await waitFor(() => within(connection('Telegram')).getByRole('status', { name: saying('Sends to “Alex” from @kinopeer_home_bot') }))
+    await userEvent.click(within(connection('Telegram')).getByRole('button', { name: 'Change Telegram notifications' }))
+    await sendTest(screen.getByRole('dialog', { name: 'Telegram notifications' }))
+    // The toast shows in the sheet, the top layer while it's open.
+    expect(await screen.findByRole('status', { name: saying('Test message sent') })).toBeInTheDocument()
+    expect(serverSettings.checkTelegram).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['a test message goes through', sendTest, () => Promise.resolve(settings(CONNECTED)), 'Sends to “Alex” from @kinopeer_home_bot'],
+    [
+      'a chat is saved',
+      async (sheet: HTMLElement) => {
+        await userEvent.click(within(sheet).getByRole('button', { name: 'Choose another chat' }))
+        await userEvent.click(within(sheet).getByRole('button', { name: 'Find chat' }))
+        await userEvent.click(await within(sheet).findByRole('button', { name: 'Use this chat' }))
+      },
+      () => Promise.resolve(settings(CONNECTED)),
+      'Sends to “Alex” from @kinopeer_home_bot',
+    ],
+    // Telegram answered the bot's check before it said the chat was refused.
+    ['a test message is refused for the chat', sendTest, () => Promise.reject(new serverSettings.SettingsError(422, 'chat-rejected')), chatRefused],
+  ])('checks the bot again when %s after the card’s check failed', async (_name, save, test, message) => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(CONNECTED))
+    vi.mocked(serverSettings.checkTelegram)
+      .mockRejectedValueOnce(new serverSettings.SettingsError(502, 'unreachable'))
+      .mockResolvedValue({ bot: 'kinopeer_home_bot' })
+    vi.mocked(serverSettings.testTelegram).mockImplementation(test)
+    vi.mocked(serverSettings.findTelegramChat).mockResolvedValue({ id: 42, name: 'Alex', type: 'private' })
+    vi.mocked(serverSettings.saveTelegramChat).mockResolvedValue(settings(CONNECTED))
+    renderScreen()
+    await waitFor(() => within(connection('Telegram')).getByRole('status', { name: saying('Telegram isn’t answering') }))
+    await userEvent.click(within(connection('Telegram')).getByRole('button', { name: 'Change Telegram notifications' }))
+    await save(screen.getByRole('dialog', { name: 'Telegram notifications' }))
+    expect(await within(connection('Telegram')).findByRole('status', { name: saying(message) })).toBeInTheDocument()
+    expect(serverSettings.checkTelegram).toHaveBeenCalledTimes(2)
+  })
+
+  it('checks the bot again when a test message goes through after the card’s check failed while it was on its way', async () => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(CONNECTED))
+    let failCheck = (_error: unknown) => {}
+    vi.mocked(serverSettings.checkTelegram)
+      .mockReturnValueOnce(new Promise((_resolve, reject) => (failCheck = reject)))
+      .mockResolvedValue({ bot: 'kinopeer_home_bot' })
+    let sent = (_settings: serverSettings.ServerSettings) => {}
+    vi.mocked(serverSettings.testTelegram).mockReturnValue(new Promise((resolve) => (sent = resolve)))
+    renderScreen()
+    await userEvent.click(await waitFor(() => within(connection('Telegram')).getByRole('button', { name: 'Change Telegram notifications' })))
+    await sendTest(screen.getByRole('dialog', { name: 'Telegram notifications' }))
+    // The card's check, still on its way when the test was sent, fails while the test is on its way.
+    failCheck(new serverSettings.SettingsError(502, 'unreachable'))
+    await waitFor(() => within(connection('Telegram')).getByRole('status', { name: saying('Telegram isn’t answering') }))
+    sent(settings(CONNECTED))
+    expect(await within(connection('Telegram')).findByRole('status', { name: saying('Sends to “Alex” from @kinopeer_home_bot') })).toBeInTheDocument()
+    expect(serverSettings.checkTelegram).toHaveBeenCalledTimes(2)
+  })
+
+  it('names a token Telegram refused a test message for, though the card’s check had passed', async () => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(CONNECTED))
+    vi.mocked(serverSettings.checkTelegram)
+      .mockResolvedValueOnce({ bot: 'kinopeer_home_bot' })
+      .mockRejectedValue(new serverSettings.SettingsError(422, 'token-rejected'))
+    vi.mocked(serverSettings.testTelegram).mockRejectedValue(new serverSettings.SettingsError(422, 'token-rejected'))
+    renderScreen()
+    await waitFor(() => within(connection('Telegram')).getByRole('status', { name: saying('Sends to “Alex” from @kinopeer_home_bot') }))
+    await userEvent.click(within(connection('Telegram')).getByRole('button', { name: 'Change Telegram notifications' }))
+    await sendTest(screen.getByRole('dialog', { name: 'Telegram notifications' }))
+    const rejected = 'Telegram no longer knows the bot’s token. Get a new one from @BotFather and save it here.'
+    expect(await within(connection('Telegram')).findByRole('status', { name: saying(rejected) })).toBeInTheDocument()
+  })
+
+  it('shows in the card what Telegram refused when a test message fails', async () => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(CONNECTED))
+    vi.mocked(serverSettings.checkTelegram).mockResolvedValue({ bot: 'kinopeer_home_bot' })
+    vi.mocked(serverSettings.testTelegram).mockRejectedValue(new serverSettings.SettingsError(422, 'chat-rejected'))
+    renderScreen()
+    await waitFor(() => within(connection('Telegram')).getByRole('status', { name: saying('Sends to “Alex” from @kinopeer_home_bot') }))
+    await userEvent.click(within(connection('Telegram')).getByRole('button', { name: 'Change Telegram notifications' }))
+    await sendTest(screen.getByRole('dialog', { name: 'Telegram notifications' }))
+    expect(await within(connection('Telegram')).findByRole('status', { name: saying(chatRefused) })).toBeInTheDocument()
+    // A refused chat says nothing new about a bot the card's check found answering, so that check isn't asked again.
+    expect(serverSettings.checkTelegram).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the chat Telegram refused a test message for in the page’s settings, so Settings opened again within the minute warns of it', async () => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(CONNECTED))
+    vi.mocked(serverSettings.checkTelegram).mockResolvedValue({ bot: 'kinopeer_home_bot' })
+    vi.mocked(serverSettings.testTelegram).mockRejectedValue(new serverSettings.SettingsError(422, 'chat-rejected'))
+    const first = renderScreen()
+    await userEvent.click(await waitFor(() => within(connection('Telegram')).getByRole('button', { name: 'Change Telegram notifications' })))
+    await sendTest(screen.getByRole('dialog', { name: 'Telegram notifications' }))
+    await within(connection('Telegram')).findByRole('status', { name: saying(chatRefused) })
+    first.unmount()
+    renderScreen()
+    expect(await within(connection('Telegram')).findByRole('status', { name: saying(chatRefused) })).toBeInTheDocument()
+    expect(serverSettings.getServerSettings).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['a chat still to choose', { ...CONNECTED, chat: null }, 'Choose the chat to send to'],
+    ['a chat Telegram refused', { ...CONNECTED, refused: 'chat' as const }, chatRefused],
+  ])('marks %s as a warning', async (_name, telegram, message) => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(telegram))
+    vi.mocked(serverSettings.checkTelegram).mockResolvedValue({ bot: 'kinopeer_home_bot' })
+    renderScreen()
+    const status = await waitFor(() => within(connection('Telegram')).getByRole('status', { name: saying(message) }))
+    // c-warn is what colors the message as a warning (MESSAGE_CLASS); jsdom has no colors to read.
+    expect(status).toHaveClass('c-warn')
+  })
+
+  it('doesn’t mark a working chat as a warning', async () => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(CONNECTED))
+    vi.mocked(serverSettings.checkTelegram).mockResolvedValue({ bot: 'kinopeer_home_bot' })
+    renderScreen()
+    const status = await waitFor(() => within(connection('Telegram')).getByRole('status', { name: saying('Sends to “Alex” from @kinopeer_home_bot') }))
+    // c-warn is what colors the message as a warning (MESSAGE_CLASS); jsdom has no colors to read.
+    expect(status).not.toHaveClass('c-warn')
+  })
+
+  it('turns notifications off from the sheet: the sheet closes, a toast says so and the card offers to set up again', async () => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(CONNECTED))
+    vi.mocked(serverSettings.checkTelegram).mockResolvedValue({ bot: 'kinopeer_home_bot' })
+    vi.mocked(serverSettings.forgetTelegram).mockResolvedValue(settings({ bot: null, chat: null, refused: null }))
+    renderScreen()
+    await userEvent.click(await waitFor(() => within(connection('Telegram')).getByRole('button', { name: 'Change Telegram notifications' })))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Telegram notifications' })).getByRole('button', { name: 'Turn off' }))
+    expect(await findToastOnPage('Telegram notifications are off')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Telegram notifications' })).not.toBeInTheDocument()
+    expect(within(connection('Telegram')).getByRole('status')).toHaveTextContent('Not set up. Sends a message when a download finishes.')
+    expect(within(connection('Telegram')).getByRole('button', { name: 'Set up' })).toBeInTheDocument()
+  })
+
+  it.each([
+    ['saving the token', { bot: null, chat: null, refused: null }, 'Set up', 'Choose the chat to send to'],
+    ['saving the chat', { bot: 'kinopeer_home_bot', chat: null, refused: null }, 'Change Telegram notifications', 'Sends to “Alex” from @kinopeer_home_bot'],
+    ['sending a test message', { ...CONNECTED, refused: 'chat' }, 'Change Telegram notifications', 'Sends to “Alex” from @kinopeer_home_bot'],
+  ] as const)('updates the card when %s settles after the sheet was closed', async (step, telegram, open, message) => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(telegram))
+    vi.mocked(serverSettings.checkTelegram).mockResolvedValue({ bot: 'kinopeer_home_bot' })
+    vi.mocked(serverSettings.findTelegramChat).mockResolvedValue({ id: 42, name: 'Alex', type: 'private' })
+    let answer!: (saved: serverSettings.ServerSettings) => void
+    const answered = new Promise<serverSettings.ServerSettings>((resolve) => (answer = resolve))
+    vi.mocked(serverSettings.saveTelegramToken).mockReturnValue(answered)
+    vi.mocked(serverSettings.saveTelegramChat).mockReturnValue(answered)
+    vi.mocked(serverSettings.testTelegram).mockReturnValue(answered)
+    renderScreen()
+    await userEvent.click(await waitFor(() => within(connection('Telegram')).getByRole('button', { name: open })))
+    const sheet = screen.getByRole('dialog', { name: 'Telegram notifications' })
+    if (step === 'saving the token') {
+      await userEvent.type(within(sheet).getByLabelText('Bot token'), TELEGRAM_TOKEN)
+      await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
+    } else if (step === 'saving the chat') {
+      await userEvent.click(within(sheet).getByRole('button', { name: 'Find chat' }))
+      await userEvent.click(await within(sheet).findByRole('button', { name: 'Use this chat' }))
+    } else {
+      await sendTest(sheet)
+    }
+    await userEvent.click(sheet)
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Telegram notifications' })).not.toBeInTheDocument())
+    answer(settings(step === 'saving the token' ? { bot: 'kinopeer_home_bot', chat: null, refused: null } : CONNECTED))
+    expect(await within(connection('Telegram')).findByRole('status', { name: saying(message) })).toBeInTheDocument()
+  })
+
+  it('closes the sheet on a click on its backdrop', async () => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(CONNECTED))
+    vi.mocked(serverSettings.checkTelegram).mockResolvedValue({ bot: 'kinopeer_home_bot' })
+    renderScreen()
+    await userEvent.click(await waitFor(() => within(connection('Telegram')).getByRole('button', { name: 'Change Telegram notifications' })))
+    const sheet = screen.getByRole('dialog', { name: 'Telegram notifications' })
+    await userEvent.click(sheet)
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Telegram notifications' })).not.toBeInTheDocument())
+  })
+
+  it('gives a card without an edit action no edit button', async () => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(CONNECTED))
+    vi.mocked(serverSettings.checkTelegram).mockResolvedValue({ bot: 'kinopeer_home_bot' })
+    renderScreen()
+    await within(connection('qBittorrent')).findByRole('status', { name: saying('Connected') })
+    expect(within(connection('qBittorrent')).getAllByRole('button').map((button) => button.textContent || button.getAttribute('aria-label'))).toEqual(['Test'])
+  })
+})
+

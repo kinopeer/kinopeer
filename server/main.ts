@@ -5,13 +5,16 @@ import { fileURLToPath } from 'node:url'
 import { baseOf } from './address.ts'
 import { AuthStore, authMode, envPassword, kinopeerAuth } from './auth.ts'
 import { allowedHosts, allowedHostsWarning, hostCheck } from './hostCheck.ts'
+import { finishedTitle } from './finishedTitle.ts'
 import { MatchesStore, matchesMiddleware, qbittorrentHashes, startMatchesCleanup } from './matches.ts'
+import { removeNotifyTag, startNotifier, taggedTorrents } from './notifier.ts'
 import { prowlarrMiddleware, type Middleware } from './prowlarr.ts'
 import { qbittorrentBridge } from './qbittorrent.ts'
 import { contentSecurityPolicy, securityHeaders } from './securityHeaders.ts'
 import { SettingsStore, prowlarrAddress, prowlarrKey, qbittorrentAddress, qbittorrentCredentials, settingsMiddleware, tmdbKey } from './settings.ts'
 import { staticMiddleware } from './static.ts'
-import { tmdbMiddleware } from './tmdb.ts'
+import { telegramChannel } from './telegramChannel.ts'
+import { tmdbJson, tmdbMiddleware, type TmdbConfig } from './tmdb.ts'
 
 /**
  * The production server: the built app plus the same /api/settings, /api/matches, /qbt, /prowlarr,
@@ -45,7 +48,10 @@ export interface KinopeerServer {
    * the host check first, then /healthz and Kinopeer's own login, which holds back every route after it.
    */
   routes: Middleware[]
-  /** Starts the background jobs (the hourly matches cleanup); returns a function that stops them. */
+  /**
+   * Starts the background jobs (the hourly matches cleanup, the watcher of finished downloads);
+   * returns a function that stops them.
+   */
   startJobs: () => () => void
 }
 
@@ -111,7 +117,8 @@ export function loginWarning(env: Record<string, string | undefined>): string | 
  * QBITTORRENT_PASSWORD, apply only while the environment sets that service's address
  * (PROWLARR_URL, QBITTORRENT_URL): a browser chose an address saved from the app. TMDB_API_URL and
  * TMDB_IMAGE_URL replace TMDB's API and image addresses (the integration and smoke tests point them
- * at a fake), and TMDB_PROXY_URL replaces Kinopeer's TMDB proxy (`tmdbProxy`). KINOPEER_ALLOWED_HOSTS adds the host names it answers at
+ * at a fake), TMDB_PROXY_URL replaces Kinopeer's TMDB proxy (`tmdbProxy`), and TELEGRAM_API_URL
+ * Telegram's Bot API (the integration tests point it at a fake). KINOPEER_ALLOWED_HOSTS adds the host names it answers at
  * (`allowedHosts`). KINOPEER_AUTH=off turns Kinopeer's own login off (server/auth.ts), and throws
  * for a value it doesn't know, so the server doesn't start, as it does for a KINOPEER_PASSWORD
  * shorter than 8 characters or longer than 256 (`envPassword`).
@@ -129,6 +136,22 @@ export function kinopeerServer(env: Record<string, string | undefined>, stores: 
     url: () => qbittorrentAddress(store, env.QBITTORRENT_URL),
     credentials: () => qbittorrentCredentials(store, envQbittorrent),
   })
+  const tmdb: TmdbConfig = {
+    apiKey: () => tmdbKey(store, env.TMDB_API_KEY),
+    proxyBase: proxy,
+    apiBase: env.TMDB_API_URL,
+    imageBase: env.TMDB_IMAGE_URL,
+  }
+  // TELEGRAM_API_URL replaces Telegram's Bot API address: the integration tests point it at a fake.
+  const telegram = env.TELEGRAM_API_URL ? { base: env.TELEGRAM_API_URL } : undefined
+  const channels = [
+    telegramChannel({
+      store,
+      telegram,
+      title: (torrent, language) =>
+        finishedTitle(torrent, language, { matches: () => stores.matches.current, tmdb: (rest) => tmdbJson(tmdb, rest) }),
+    }),
+  ]
   return {
     routes: [
       // First, so every answer has them, a 404 included.
@@ -148,6 +171,8 @@ export function kinopeerServer(env: Record<string, string | undefined>, stores: 
         envProwlarrUrl: env.PROWLARR_URL,
         envProwlarrApiKey: envProwlarrKey,
         prowlarrConfigXml: prowlarrConfig,
+        notifications: () => channels.some((channel) => channel.ready()),
+        telegram,
       }),
       matchesMiddleware(stores.matches),
       qbittorrent.middleware,
@@ -155,16 +180,21 @@ export function kinopeerServer(env: Record<string, string | undefined>, stores: 
         url: () => prowlarrAddress(store, env.PROWLARR_URL),
         apiKey: () => prowlarrKey(store, envProwlarrKey, prowlarrConfig),
       }),
-      tmdbMiddleware({
-        apiKey: () => tmdbKey(store, env.TMDB_API_KEY),
-        proxyBase: proxy,
-        apiBase: env.TMDB_API_URL,
-        imageBase: env.TMDB_IMAGE_URL,
-      }),
+      tmdbMiddleware(tmdb),
     ],
-    // Runs whether or not qBittorrent has an address yet: one saved from the app later applies, and a
-    // check without one finds nothing to forget.
-    startJobs: () => startMatchesCleanup(stores.matches, () => qbittorrentHashes(qbittorrent.get)),
+    // Run whether or not qBittorrent has an address yet: one saved from the app later applies, and a
+    // check without one finds nothing to forget or to notify about.
+    startJobs: () => {
+      const stops = [
+        startMatchesCleanup(stores.matches, () => qbittorrentHashes(qbittorrent.get)),
+        startNotifier({
+          channels,
+          tagged: () => taggedTorrents(qbittorrent.get),
+          untag: (hashes) => removeNotifyTag(qbittorrent.post, hashes),
+        }),
+      ]
+      return () => stops.forEach((stop) => stop())
+    },
   }
 }
 

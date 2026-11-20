@@ -13,6 +13,13 @@ test('downloading series with its files, dark, Russian', async ({ page }) => {
   await expect(page).toHaveScreenshot('series-dark-ru.png')
 })
 
+test('with notifications set up, the switch in Download, dark, Russian', async ({ page }) => {
+  await openApp(page, '/torrent/a2', { telegram: { bot: 'kinopeer_home_bot', chat: { name: 'Alex', type: 'private' }, refused: null } })
+  await expect(page.getByRole('switch', { name: 'Уведомить о завершении' })).toBeVisible()
+  await settle(page)
+  await expect(page).toHaveScreenshot('series-notify-dark-ru.png')
+})
+
 test('title guessed from the release name, dark, Russian', async ({ page }) => {
   await openApp(page, '/torrent/b1', { torrents: [...TORRENTS, GUESSED] })
   await expect(page.getByRole('heading', { level: 1, name: 'Начало' })).toBeVisible()

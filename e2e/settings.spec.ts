@@ -48,6 +48,50 @@ test('changing the password, dark, Russian', async ({ page }) => {
   await expect(page).toHaveScreenshot('change-password-dark-ru.png')
 })
 
+const BOT = 'kinopeer_home_bot'
+const CONNECTED = { bot: BOT, chat: { name: 'Alex', type: 'private' as const }, refused: null }
+
+test('Telegram notifications connected, dark, Russian', async ({ page }) => {
+  await openSettings(page, { telegram: CONNECTED })
+  await expect(page.getByText('Отправляет в «Alex» от @kinopeer_home_bot')).toBeVisible()
+  await expect(page).toHaveScreenshot('settings-telegram-dark-ru.png', { mask: [versionValue(page)] })
+})
+
+test('Telegram notifications not set up, dark, Russian', async ({ page }) => {
+  await openSettings(page, { telegram: { bot: null, chat: null, refused: null } })
+  await expect(page.getByRole('button', { name: 'Настроить' })).toBeVisible()
+  await expect(page).toHaveScreenshot('settings-telegram-off-dark-ru.png', { mask: [versionValue(page)] })
+})
+
+test('setting up Telegram: the bot’s token, dark, Russian', async ({ page }) => {
+  await openApp(page, '/settings', { telegram: { bot: null, chat: null, refused: null } })
+  await page.getByRole('button', { name: 'Настроить' }).click()
+  await expect(page.getByRole('dialog', { name: 'Уведомления в Telegram' }).getByLabel('Токен бота')).toBeVisible()
+  await settle(page)
+  await expect(page).toHaveScreenshot('telegram-token-dark-ru.png')
+})
+
+test('setting up Telegram: the chat that sent /start, before it’s saved, dark, Russian', async ({ page }) => {
+  await openApp(page, '/settings', {
+    telegram: { bot: BOT, chat: null, refused: null, found: { id: 42, name: 'Alex', type: 'private' } },
+  })
+  await page.getByRole('button', { name: 'Изменить уведомления в Telegram' }).click()
+  const sheet = page.getByRole('dialog', { name: 'Уведомления в Telegram' })
+  await sheet.getByRole('button', { name: 'Найти чат' }).click()
+  await expect(sheet.getByRole('group', { name: 'Это нужный чат?' })).toBeVisible()
+  await settle(page)
+  await expect(page).toHaveScreenshot('telegram-chat-dark-ru.png')
+})
+
+test('Telegram connected, the chat refused the last message, dark, Russian', async ({ page }) => {
+  await openApp(page, '/settings', { telegram: { ...CONNECTED, refused: 'chat' } })
+  await page.getByRole('button', { name: 'Изменить уведомления в Telegram' }).click()
+  const sheet = page.getByRole('dialog', { name: 'Уведомления в Telegram' })
+  await expect(sheet.getByRole('button', { name: 'Отправить тестовое сообщение' })).toBeVisible()
+  await settle(page)
+  await expect(page).toHaveScreenshot('telegram-connected-dark-ru.png')
+})
+
 test('qBittorrent’s folders, dark, Russian', async ({ page }) => {
   await openApp(page, '/settings')
   await page.getByRole('button', { name: /^Папки qBittorrent/ }).click()
@@ -81,6 +125,15 @@ test('changing qBittorrent’s and Prowlarr’s addresses saved from the app, da
 
 test.describe('desktop', () => {
   test.use(DESKTOP)
+
+  test('Telegram notifications, dark, Russian', async ({ page }) => {
+    await openApp(page, '/settings', { telegram: CONNECTED })
+    await page.getByRole('button', { name: 'Изменить уведомления в Telegram' }).click()
+    const sheet = page.getByRole('dialog', { name: 'Уведомления в Telegram' })
+    await expect(sheet.getByRole('button', { name: 'Отправить тестовое сообщение' })).toBeVisible()
+    await settle(page)
+    await expect(page).toHaveScreenshot('desktop-telegram-dark-ru.png', { mask: [versionValue(page)] })
+  })
 
   test('with a password from KINOPEER_PASSWORD, dark, Russian', async ({ page }) => {
     await openSettings(page, { auth: { enabled: true, source: 'env' } })

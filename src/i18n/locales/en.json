@@ -52,7 +52,8 @@
     "qbittorrent": "qBittorrent isn’t answering",
     "qbittorrent_kinopeer": "Kinopeer isn’t answering",
     "prowlarr": "Prowlarr isn’t answering",
-    "tmdb": "TMDB isn’t answering"
+    "tmdb": "TMDB isn’t answering",
+    "telegram": "Telegram isn’t answering"
   },
   "types": {
     "movie": "Movies",
@@ -348,6 +349,7 @@
     "startPaused": "Start paused",
     "sequential": "Sequential download",
     "firstLastPieces": "First and last pieces first",
+    "notify": "Notify when finished",
     "addTop": "Add to top of queue",
     "filesAll": "Files: all ({{count}})",
     "filesSome": "Files: {{selected}} of {{count}}",
@@ -601,5 +603,40 @@
     "throttledMinutes_other": "Too many wrong passwords. Try again in {{count}} minutes.",
     "throttledHours_one": "Too many wrong passwords. Try again in {{count}} hour.",
     "throttledHours_other": "Too many wrong passwords. Try again in {{count}} hours."
+  },
+  "telegram": {
+    "notSetUp": "Not set up. Sends a message when a download finishes.",
+    "setUp": "Set up",
+    "edit": "Change Telegram notifications",
+    "sendsTo": "Sends to “{{chat}}” from @{{bot}}",
+    "noChat": "Choose the chat to send to",
+    "tokenRejected": "Telegram no longer knows the bot’s token. Get a new one from @BotFather and save it here.",
+    "chatRefused": "Telegram didn’t deliver to “{{chat}}”: the bot was blocked or removed from it. Send the bot /start and choose the chat again.",
+    "sheetTitle": "Telegram notifications",
+    "tokenHelp": "Create a bot with @BotFather in Telegram and paste the token it gives you. The token stays on Kinopeer’s server.",
+    "tokenLabel": "Bot token",
+    "tokenInvalid": "Telegram doesn’t know this token. Copy it from @BotFather again.",
+    "chatHelp": "Send @{{bot}} /start from the chat the notifications should go to (to use a group, add the bot to it first; to use a channel, make the bot its admin and post /start there), then press Find chat.",
+    "findChat": "Find chat",
+    "noChatFound": "No chat sent the bot /start in the last day. Send it and try again.",
+    "botInUse": "Another program gets this bot’s messages (a webhook, or an app that polls it), so Kinopeer can’t see /start. Turn that off, or use another bot.",
+    "foundChat": "Is this the chat?",
+    "chatTypes": {
+      "private": "Private chat",
+      "group": "Group",
+      "supergroup": "Group",
+      "channel": "Channel"
+    },
+    "useChat": "Use this chat",
+    "findAgain": "Find again",
+    "connectedTo": "Notifications go to “{{chat}}” ({{type}}) from @{{bot}}.",
+    "sendTest": "Send a test message",
+    "testSent": "Test message sent",
+    "changeChat": "Choose another chat",
+    "changeBot": "Use another bot",
+    "turnOff": "Turn off",
+    "turnedOff": "Telegram notifications are off",
+    "failed": "Couldn’t save. Try again.",
+    "unreachable": "$t(noAnswer.telegram). Kinopeer’s server needs to reach api.telegram.org."
   }
 }

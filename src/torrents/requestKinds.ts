@@ -18,6 +18,8 @@ export const REQUEST_KINDS = {
   sequential: 'sequential',
   /** First and last pieces first, on or off: the switch on the torrent's page. */
   firstLastPieces: 'first-last-pieces',
+  /** The notification when the torrent finishes, on or off: the switch on the torrent's page. */
+  notify: 'notify',
   /** A torrent's category: the Category sheet. */
   category: 'category',
   /** Saving the torrent's title: the title search (Fix match, or Match title for a torrent without one). */

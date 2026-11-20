@@ -20,6 +20,8 @@ export const TOAST_KEYS = {
   sequential: 'sequential-failed',
   /** First and last pieces first: the switch on the torrent's page and drawer. */
   firstLastPieces: 'first-last-pieces-failed',
+  /** The notification when it finishes: the switch on the torrent's page and drawer. */
+  notify: 'notify-failed',
   /** Switching the alternative speed limits. */
   altSpeed: 'alt-speed-failed',
 } as const

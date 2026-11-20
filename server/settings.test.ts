@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ServerSettings } from '../src/api/settings/types.ts'
 import {
   SettingsStore,
@@ -12,8 +12,9 @@ import {
   settingsMiddleware,
   tmdbKey,
   type SettingsConfig,
+  type StoredTelegram,
 } from './settings.ts'
-import { abandon, closeServers, fakeProwlarr, fakeQbittorrent, fakeTmdb, serve, settlesWithin, silentService } from './test/fakes.ts'
+import { OTHER_TELEGRAM_TOKEN, RENEWED_TELEGRAM_TOKEN, TELEGRAM_TOKEN, UNKNOWN_TELEGRAM_TOKEN, abandon, closeServers, fakeProwlarr, fakeQbittorrent, fakeTelegram, fakeTmdb, serve, settlesWithin, silentService } from './test/fakes.ts'
 
 let dir: string
 
@@ -179,6 +180,8 @@ describe('settingsMiddleware', () => {
       qbittorrent: { configured: false, source: null, address: { source: null } },
       downloads: null,
       auth: { enabled: false },
+      telegram: { bot: null, chat: null, refused: null },
+      notifications: false,
     })
 
     const withEnv = await kinopeer(store, { envKey: 'env-key' })
@@ -191,6 +194,8 @@ describe('settingsMiddleware', () => {
       qbittorrent: { configured: false, source: null, address: { source: null } },
       downloads: null,
       auth: { enabled: false },
+      telegram: { bot: null, chat: null, refused: null },
+      notifications: false,
     })
     expect(text).not.toContain('env-key')
   })
@@ -815,5 +820,259 @@ describe('settingsMiddleware: addresses', () => {
       expect(await response.json()).toEqual({ error: 'unreachable' })
       expect(store.current).toEqual({})
     })
+  })
+})
+
+describe('settingsMiddleware: Telegram', () => {
+  async function setUp(stored?: StoredTelegram, notifications?: () => boolean) {
+    const telegram = await fakeTelegram()
+    const store = new SettingsStore(dir)
+    if (stored) await store.update({ telegram: stored })
+    const app = await serve(settingsMiddleware({ store, telegram: { base: telegram.base }, notifications }))
+    const send = (method: string, path: string, body?: unknown) =>
+      fetch(`${app}/api/settings/telegram${path}`, {
+        method,
+        headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      })
+    const status = async () => ((await (await fetch(`${app}/api/settings`)).json()) as ServerSettings).telegram
+    return { telegram, store, app, send, status }
+  }
+  const chat = { id: 42, name: 'Alex', type: 'private' } as const
+  const connected: StoredTelegram = { token: TELEGRAM_TOKEN, bot: 'kinopeer_home_bot', chat, language: 'ru' }
+
+  it('checks a token with Telegram, saves it with the bot’s name, and never answers with it', async () => {
+    const { send, store, status } = await setUp()
+    const response = await send('PUT', '', { token: ` ${TELEGRAM_TOKEN} ` })
+    expect(response.status).toBe(200)
+    const text = await response.text()
+    expect(text).not.toContain(TELEGRAM_TOKEN.split(':')[1])
+    expect((JSON.parse(text) as ServerSettings).telegram).toEqual({ bot: 'kinopeer_home_bot', chat: null, refused: null })
+    expect(store.current.telegram).toEqual({ token: TELEGRAM_TOKEN, bot: 'kinopeer_home_bot' })
+    expect(await status()).toEqual({ bot: 'kinopeer_home_bot', chat: null, refused: null })
+  })
+
+  it('refuses a token Telegram doesn’t know, and one that isn’t a token without asking it', async () => {
+    const { send, store, telegram } = await setUp()
+    const unknown = await send('PUT', '', { token: UNKNOWN_TELEGRAM_TOKEN })
+    expect([unknown.status, await unknown.json()]).toEqual([422, { error: 'invalid-key' }])
+    const asked = telegram.seen.length
+    for (const token of ['', 'not a token', 123, '123:abc/../x']) {
+      expect((await send('PUT', '', { token })).status).toBe(400)
+    }
+    expect(telegram.seen).toHaveLength(asked)
+    expect(store.current.telegram).toBeUndefined()
+  })
+
+  it('says when Telegram is unreachable, and saves nothing', async () => {
+    const { send, store, telegram } = await setUp()
+    telegram.state.down = true
+    const response = await send('PUT', '', { token: TELEGRAM_TOKEN })
+    expect([response.status, await response.json()]).toEqual([502, { error: 'unreachable' }])
+    expect(store.current.telegram).toBeUndefined()
+  })
+
+  it('keeps the chat for a renewed token of the same bot, and drops it for another bot', async () => {
+    const { send, store } = await setUp({ ...connected, token: RENEWED_TELEGRAM_TOKEN, refused: 'token' })
+    await send('PUT', '', { token: TELEGRAM_TOKEN })
+    expect(store.current.telegram).toEqual({ token: TELEGRAM_TOKEN, bot: 'kinopeer_home_bot', chat, language: 'ru' })
+
+    // Another bot's chat, refused or not, isn't this bot's.
+    await store.update({ telegram: { ...connected, token: OTHER_TELEGRAM_TOKEN, refused: 'chat' } })
+    await send('PUT', '', { token: TELEGRAM_TOKEN })
+    expect(store.current.telegram).toEqual({ token: TELEGRAM_TOKEN, bot: 'kinopeer_home_bot' })
+  })
+
+  it('keeps a chat Telegram refused for a renewed token of the same bot, since the token doesn’t unblock it', async () => {
+    const { send, store } = await setUp({ ...connected, token: RENEWED_TELEGRAM_TOKEN, refused: 'chat' })
+    await send('PUT', '', { token: TELEGRAM_TOKEN })
+    expect(store.current.telegram).toEqual({ token: TELEGRAM_TOKEN, bot: 'kinopeer_home_bot', chat, language: 'ru', refused: 'chat' })
+  })
+
+  it('finds the chat that sent /start last without saving it', async () => {
+    const { send, store, telegram } = await setUp({ token: TELEGRAM_TOKEN, bot: 'kinopeer_home_bot' })
+    telegram.state.started = [{ id: 42, type: 'private', first_name: 'Alex' }, { id: -7, type: 'group', title: 'Home' }]
+    const response = await send('GET', '/chat')
+    expect([response.status, await response.json()]).toEqual([200, { id: -7, name: 'Home', type: 'group' }])
+    expect(store.current.telegram?.chat).toBeUndefined()
+  })
+
+  it('says when no chat sent /start, and when there’s no token yet', async () => {
+    const { send, telegram } = await setUp({ token: TELEGRAM_TOKEN, bot: 'kinopeer_home_bot' })
+    telegram.state.started = []
+    const none = await send('GET', '/chat')
+    expect([none.status, await none.json()]).toEqual([404, { error: 'no-chat' }])
+
+    const empty = await setUp()
+    const noToken = await empty.send('GET', '/chat')
+    expect([noToken.status, await noToken.json()]).toEqual([409, { error: 'not-configured' }])
+  })
+
+  it('saves a chat that sent /start, with Telegram’s name for it and the language', async () => {
+    const { send, store } = await setUp({ token: TELEGRAM_TOKEN, bot: 'kinopeer_home_bot', refused: 'chat' })
+    const response = await send('PUT', '/chat', { id: 42, language: 'ru' })
+    expect(response.status).toBe(200)
+    expect(((await response.json()) as ServerSettings).telegram).toEqual({ bot: 'kinopeer_home_bot', chat: { name: 'Alex', type: 'private' }, refused: null })
+    expect(store.current.telegram).toEqual(connected)
+  })
+
+  it('refuses a chat that didn’t send /start, and a body it can’t read', async () => {
+    const { send, store } = await setUp({ token: TELEGRAM_TOKEN, bot: 'kinopeer_home_bot' })
+    const stranger = await send('PUT', '/chat', { id: 99, language: 'en' })
+    expect([stranger.status, await stranger.json()]).toEqual([404, { error: 'no-chat' }])
+    for (const body of [{ id: '42', language: 'en' }, { id: 42, language: 'de' }, { id: 4.2, language: 'en' }, null]) {
+      expect((await send('PUT', '/chat', body)).status).toBe(400)
+    }
+    expect(store.current.telegram?.chat).toBeUndefined()
+  })
+
+  it('doesn’t save a chat over a token changed while Telegram was asked', async () => {
+    const { send, store, telegram } = await setUp({ token: TELEGRAM_TOKEN, bot: 'kinopeer_home_bot' })
+    const other = { token: OTHER_TELEGRAM_TOKEN, bot: 'other_bot' }
+    let answer!: () => void
+    telegram.state.hold = new Promise((resolve) => (answer = resolve))
+    const saving = send('PUT', '/chat', { id: 42, language: 'en' })
+    await vi.waitFor(() => expect(telegram.seen).toHaveLength(1))
+    await store.update({ telegram: other })
+    answer()
+    expect((await saving).status).toBe(200)
+    expect(store.current.telegram).toEqual(other)
+  })
+
+  it('sends a test message in the language asked, and clears what Telegram refused before', async () => {
+    const { send, store, telegram } = await setUp({ ...connected, refused: 'chat' })
+    const response = await send('POST', '/test', { language: 'en' })
+    expect(response.status).toBe(200)
+    expect(((await response.json()) as ServerSettings).telegram?.refused).toBeNull()
+    expect(telegram.sent()).toEqual([
+      { chat_id: 42, text: 'Kinopeer is connected. A message comes here when a download finishes.', link_preview_options: { is_disabled: true } },
+    ])
+    expect(store.current.telegram?.refused).toBeUndefined()
+  })
+
+  it.each([
+    ['the chat, when the bot can’t write to it', { ...connected, chat: { ...chat, id: 7 } }, 'chat-rejected', 'chat'],
+    ['the token, when Telegram no longer knows it', { ...connected, token: UNKNOWN_TELEGRAM_TOKEN }, 'token-rejected', 'token'],
+  ] as const)('says a test message was refused for %s, and keeps it', async (_name, stored, error, refused) => {
+    const { send, store, status } = await setUp(stored)
+    const response = await send('POST', '/test', { language: 'en' })
+    expect([response.status, await response.json()]).toEqual([422, { error }])
+    expect(store.current.telegram?.refused).toBe(refused)
+    expect((await status())?.refused).toBe(refused)
+  })
+
+  it('needs a chat before a test, and a language it writes in', async () => {
+    const { send } = await setUp({ token: TELEGRAM_TOKEN, bot: 'kinopeer_home_bot' })
+    expect((await send('POST', '/test', { language: 'en' })).status).toBe(409)
+    expect((await send('POST', '/test', { language: 'xx' })).status).toBe(400)
+  })
+
+  it('says when Telegram doesn’t answer a test', async () => {
+    const { send, telegram } = await setUp(connected)
+    telegram.state.down = true
+    const response = await send('POST', '/test', { language: 'en' })
+    expect([response.status, await response.json()]).toEqual([502, { error: 'unreachable' }])
+  })
+
+  it('checks the connection with the bot’s name, or says what’s wrong', async () => {
+    const { send, store, telegram } = await setUp(connected)
+    const ok = await send('GET', '/check')
+    expect([ok.status, await ok.json()]).toEqual([200, { bot: 'kinopeer_home_bot' }])
+
+    telegram.state.down = true
+    expect((await send('GET', '/check')).status).toBe(502)
+    telegram.state.down = false
+
+    await store.update({ telegram: { ...connected, token: UNKNOWN_TELEGRAM_TOKEN } })
+    const rejected = await send('GET', '/check')
+    expect([rejected.status, await rejected.json()]).toEqual([422, { error: 'token-rejected' }])
+
+    await store.update({ telegram: undefined })
+    expect((await send('GET', '/check')).status).toBe(409)
+  })
+
+  it('forgets the bot', async () => {
+    const { send, store } = await setUp(connected)
+    const response = await send('DELETE', '', {})
+    expect(((await response.json()) as ServerSettings).telegram).toEqual({ bot: null, chat: null, refused: null })
+    expect(store.current.telegram).toBeUndefined()
+  })
+
+  it('changes the bot only on a request marked as JSON', async () => {
+    const { app, store } = await setUp(connected)
+    for (const [method, path] of [['PUT', ''], ['DELETE', ''], ['PUT', '/chat'], ['POST', '/test']]) {
+      const response = await fetch(`${app}/api/settings/telegram${path}`, { method, headers: { 'Content-Type': 'text/plain' }, body: '{}' })
+      expect(response.status, `${method} ${path}`).toBe(415)
+    }
+    expect(store.current.telegram).toEqual(connected)
+  })
+
+  it.each([
+    ['PUT', ''],
+    ['PUT', '/chat'],
+    ['POST', '/test'],
+  ])('answers 400 to %s %s with a body that isn’t JSON', async (method, path) => {
+    const { app, store } = await setUp(connected)
+    const response = await fetch(`${app}/api/settings/telegram${path}`, { method, headers: { 'Content-Type': 'application/json' }, body: '{' })
+    expect([response.status, await response.json()]).toEqual([400, { error: 'bad-request' }])
+    expect(store.current.telegram).toEqual(connected)
+  })
+
+  it.each([
+    ['finding', 'GET', '/chat', undefined],
+    ['saving', 'PUT', '/chat', { id: 42, language: 'en' }],
+  ] as const)('says when Telegram no longer knows the token, or doesn’t answer, while %s the chat', async (_name, method, path, body) => {
+    const revoked = { token: UNKNOWN_TELEGRAM_TOKEN, bot: 'kinopeer_home_bot' }
+    const { send, store, telegram } = await setUp(revoked)
+    const rejected = await send(method, path, body)
+    expect([rejected.status, await rejected.json()]).toEqual([422, { error: 'token-rejected' }])
+
+    await store.update({ telegram: { token: TELEGRAM_TOKEN, bot: 'kinopeer_home_bot' } })
+    telegram.state.down = true
+    const down = await send(method, path, body)
+    expect([down.status, await down.json()]).toEqual([502, { error: 'unreachable' }])
+    expect(store.current.telegram?.chat).toBeUndefined()
+  })
+
+  it.each([
+    ['finding', 'GET', '/chat', undefined],
+    ['saving', 'PUT', '/chat', { id: 42, language: 'en' }],
+  ] as const)('says when another program takes the bot’s updates while %s the chat', async (_name, method, path, body) => {
+    const { send, store, telegram } = await setUp({ token: TELEGRAM_TOKEN, bot: 'kinopeer_home_bot' })
+    telegram.state.conflict = true
+    const response = await send(method, path, body)
+    expect([response.status, await response.json()]).toEqual([409, { error: 'bot-in-use' }])
+    expect(store.current.telegram?.chat).toBeUndefined()
+  })
+
+  it('keeps what a test message was refused for only for the bot and chat it was sent to', async () => {
+    const { send, store, telegram } = await setUp({ ...connected, chat: { ...chat, id: 7 } })
+    let answer!: () => void
+    telegram.state.hold = new Promise((resolve) => (answer = resolve))
+    const testing = send('POST', '/test', { language: 'en' })
+    await vi.waitFor(() => expect(telegram.seen).toHaveLength(1))
+    // Saved while the test was on its way: a renewed token of the same bot, the same chat.
+    const renewed = { ...connected, token: RENEWED_TELEGRAM_TOKEN, chat: { ...chat, id: 7 } }
+    await store.update({ telegram: renewed })
+    answer()
+    expect((await testing).status).toBe(422)
+    expect(store.current.telegram).toEqual(renewed)
+
+    // And another chat of the same bot.
+    const other = { ...connected, chat: { ...chat, id: 8 } }
+    await store.update({ telegram: { ...connected, chat: { ...chat, id: 7 } } })
+    telegram.state.hold = new Promise((resolve) => (answer = resolve))
+    const again = send('POST', '/test', { language: 'en' })
+    await vi.waitFor(() => expect(telegram.seen).toHaveLength(3))
+    await store.update({ telegram: other })
+    answer()
+    expect((await again).status).toBe(422)
+    expect(store.current.telegram).toEqual(other)
+  })
+
+  it('says whether some channel sends notifications', async () => {
+    const { status, app } = await setUp(connected, () => true)
+    expect(await status()).toEqual({ bot: 'kinopeer_home_bot', chat: { name: 'Alex', type: 'private' }, refused: null })
+    expect(((await (await fetch(`${app}/api/settings`)).json()) as ServerSettings).notifications).toBe(true)
   })
 })

@@ -20,7 +20,7 @@
     "testsLeftOut": ["/checks.test.ts"]
   },
   "budgets": {
-    "size": { "js": 191100, "css": 16200, "rest": 193600 },
+    "size": { "js": 193700, "css": 16200, "rest": 193600 },
     "layoutShiftCeiling": 0.1,
     "screenshotThreshold": 0.1,
     "layoutShift": {
@@ -144,6 +144,7 @@
         "desktop-dark-ru": {},
         "desktop-qbittorrent-address-dark-ru": {},
         "desktop-sign-in-env-dark-ru": {},
+        "desktop-telegram-dark-ru": {},
         "folder-dark-ru": {},
         "folders-dark-ru": {},
         "prowlarr-address-dark-ru": {},
@@ -152,7 +153,12 @@
         "settings-dark-ru": {},
         "settings-error-dark-ru": {},
         "settings-no-indexers-dark-ru": {},
-        "settings-sign-in-dark-ru": {}
+        "settings-sign-in-dark-ru": {},
+        "settings-telegram-dark-ru": {},
+        "settings-telegram-off-dark-ru": {},
+        "telegram-chat-dark-ru": {},
+        "telegram-connected-dark-ru": {},
+        "telegram-token-dark-ru": {}
       },
       "title": {
         "desktop-long-overview-dark-ru": { "label-content-name-mismatch": 0 },
@@ -176,7 +182,8 @@
         "no-title-dark-ru": { "label-content-name-mismatch": 0 },
         "no-title-light-ru": { "label-content-name-mismatch": 0 },
         "no-title-menu-dark-ru": {},
-        "series-dark-ru": { "color-contrast": 0, "label-content-name-mismatch": 0 }
+        "series-dark-ru": { "color-contrast": 0, "label-content-name-mismatch": 0 },
+        "series-notify-dark-ru": { "color-contrast": 0, "label-content-name-mismatch": 0 }
       }
     },
     "requests": {

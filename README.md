@@ -35,6 +35,7 @@ A qBittorrent web UI for movies and TV series. Find a movie or a series, pick a 
 - **Download only what you need.** The release goes to qBittorrent with your category and folder. Pick single files or seasons, and Kinopeer tells you beforehand whether they fit in the free space.
 - **Downloads as a film collection.** Kinopeer recognizes each torrent's movie or series from its release name and shows it with a poster and a title instead of the release name; a wrong guess takes a moment to correct. A title's page shows what of it is downloading.
 - **Managing torrents.** What you actually need when downloading movies and series, without opening qBittorrent's web UI: pause and delete, several torrents at once too, file priorities, speed limits, moving files, categories.
+- **Know when it's done.** Kinopeer can send you a Telegram message, through a bot of your own, when a download you marked finishes.
 - **Phone and computer.** A comfortable interface that fits both a phone and a computer. Multilingual, with dark and light themes.
 
 Kinopeer doesn't play video and never downloads anything on its own: you pick every release.
@@ -118,8 +119,8 @@ Kinopeer is a web app (PWA). Over plain HTTP on your home network it works in th
 
 ## Privacy and security
 
-- The TMDB and Prowlarr keys and the qBittorrent login stay on the Kinopeer server and never reach the browser.
-- Besides your qBittorrent and Prowlarr, Kinopeer only talks to TMDB, and only through its own server. Without a TMDB key of your own, those calls go through Kinopeer's TMDB proxy on Cloudflare, which adds Kinopeer's key and sees your server's IP address and what you search for; it keeps no logs. With your own key in Settings, they go to TMDB directly. No analytics, no telemetry.
+- The TMDB and Prowlarr keys, the qBittorrent login and a Telegram bot's token stay on the Kinopeer server and never reach the browser.
+- Besides your qBittorrent and Prowlarr, Kinopeer only talks to TMDB, and only through its own server. Without a TMDB key of your own, those calls go through Kinopeer's TMDB proxy on Cloudflare, which adds Kinopeer's key and sees your server's IP address and what you search for; it keeps no logs. With your own key in Settings, they go to TMDB directly. With Telegram notifications set up, the server also sends Telegram the finished download's title and release name. No analytics, no telemetry.
 - Kinopeer never stores tracker logins: that's Prowlarr's job.
 - Kinopeer has a password of its own, which the first visitor sets (or the server's `KINOPEER_PASSWORD`); on Umbrel, Umbrel's login protects it instead, and Kinopeer's is off. What it covers and what it doesn't: [SECURITY.md](SECURITY.md).
 - Found a vulnerability? Report it privately, as [SECURITY.md](SECURITY.md) says.

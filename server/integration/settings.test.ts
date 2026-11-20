@@ -18,6 +18,8 @@ describe('settings client through /api/settings', () => {
       qbittorrent: { configured: true, source: 'env', address: { source: 'env' } },
       downloads: null,
       auth: { enabled: false },
+      telegram: { bot: null, chat: null, refused: null },
+      notifications: false,
     })
     expect(await responses[0].text()).not.toMatch(/good-key|pass word/)
   })

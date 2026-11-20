@@ -9,7 +9,8 @@ import { TMDB_PROXY, TMDB_PROXY_EDGE, createApp, dataStores, ignoredSettings, ki
 import { refusal } from './hostCheck.ts'
 import { CONTENT_SECURITY_POLICY, SECURITY_HEADERS } from './securityHeaders.ts'
 import { SettingsStore } from './settings.ts'
-import { closeServers, fakeProwlarr, fakeQbittorrent, fakeTmdb, getWithHost } from './test/fakes.ts'
+import { TELEGRAM_TOKEN, closeServers, fakeProwlarr, fakeQbittorrent, fakeTelegram, fakeTmdb, getWithHost } from './test/fakes.ts'
+import { TORRENTS } from '../src/test/fixtures.ts'
 
 let root: string
 let server: Server
@@ -47,6 +48,8 @@ describe('createApp', () => {
       qbittorrent: { configured: false, source: null, address: { source: null } },
       downloads: null,
       auth: { enabled: false },
+      telegram: { bot: null, chat: null, refused: null },
+      notifications: false,
     })
     expect(await (await fetch(`${app}/api/matches`)).json()).toEqual({})
   })
@@ -361,6 +364,60 @@ describe('kinopeerServer', () => {
     } finally {
       vi.useRealTimers()
       await new Promise((resolve) => qbittorrent.close(resolve))
+    }
+  })
+
+  it('notifies through the Telegram bot when a tagged torrent finishes, naming the title the server matched, then takes the tag off', async () => {
+    const finished = { ...TORRENTS[0], hash: 'c'.repeat(40), name: 'Dune.Part.Two.2024.2160p.WEB-DL-GRPA', progress: 1, state: 'stalledUP', tags: 'kinopeer:notify' } as const
+    const downloading = { ...TORRENTS[0], hash: 'd'.repeat(40), progress: 0.3, state: 'downloading', tags: 'kinopeer:notify' } as const
+    const qbittorrent = await fakeQbittorrent({ torrents: [finished, downloading] })
+    const tmdb = await fakeTmdb()
+    const telegram = await fakeTelegram()
+    const stores = dataStores(join(root, 'notify'))
+    await stores.settings.update({
+      telegram: { token: TELEGRAM_TOKEN, bot: 'kinopeer_home_bot', chat: { id: 42, name: 'Alex', type: 'private' }, language: 'ru' },
+    })
+    await stores.matches.save({ [finished.hash]: { type: 'movie', id: 693134, source: 'guess', version: 1 } })
+    const env = {
+      QBITTORRENT_URL: qbittorrent.base,
+      QBITTORRENT_USERNAME: 'admin',
+      QBITTORRENT_PASSWORD: 'pass word',
+      TMDB_API_KEY: 'good-key',
+      TMDB_API_URL: tmdb.apiBase,
+      TELEGRAM_API_URL: telegram.base,
+    }
+    vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval', 'clearTimeout', 'clearInterval'] })
+    try {
+      const stop = kinopeerServer(env, stores).startJobs()
+      await vi.advanceTimersByTimeAsync(30_000)
+      await vi.waitFor(() => expect(qbittorrent.torrents[0].tags).toBe(''))
+      expect(telegram.sent()).toEqual([
+        expect.objectContaining({ chat_id: 42, text: 'Загрузка завершена: Дюна: Часть вторая (2024)\nDune.Part.Two.2024.2160p.WEB-DL-GRPA' }),
+      ])
+      expect(qbittorrent.torrents[1].tags).toBe('kinopeer:notify')
+      expect(qbittorrent.seen.some((request) => request.url?.startsWith('/api/v2/sync/maindata'))).toBe(false)
+
+      // Stopped, it asks nothing more.
+      stop()
+      const asked = qbittorrent.seen.length
+      await vi.advanceTimersByTimeAsync(60_000)
+      expect(qbittorrent.seen).toHaveLength(asked)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('asks qBittorrent nothing for notifications while no channel is set up', async () => {
+    const qbittorrent = await fakeQbittorrent()
+    const stores = dataStores(join(root, 'notify-off'))
+    vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval', 'clearTimeout', 'clearInterval'] })
+    try {
+      const stop = kinopeerServer({ QBITTORRENT_URL: qbittorrent.base, QBITTORRENT_USERNAME: 'admin', QBITTORRENT_PASSWORD: 'pass word' }, stores).startJobs()
+      await vi.advanceTimersByTimeAsync(59_000)
+      expect(qbittorrent.seen).toEqual([])
+      stop()
+    } finally {
+      vi.useRealTimers()
     }
   })
 })

@@ -397,6 +397,9 @@ measurement of 191,003 bytes rounded up to the next 100, when the languages' tex
 and CI's build on Node 22 the same as a local one on Node 24: the size is exact, so the margin is
 room for ordinary changes, not for noise. It is exact for the dependencies `package-lock.json`
 names: a local `node_modules` that drifted from it builds another size, so measure after `npm ci`.
+It went to 193,700 the same day, the measurement of 193,602 bytes rounded up the same way, on the
+coordinator's decision on #486 (Telegram notifications, which add 2,599 bytes with one language's
+texts), so like the budget before it, it leaves no margin.
 
 **In CI** it is the step after `npm run build` in the `performance` job, which adds a table of the kinds,
 their sizes, budgets and what is left to the job's summary, and records the sizes as actual values

@@ -489,3 +489,6 @@ export function shogunTorrent(): Uint8Array {
 
 /** What fetch answers with `redirect: 'manual'` for a redirect (src/api/fetchKinopeer.ts); jsdom can't build one. */
 export const opaqueRedirect = () => ({ type: 'opaqueredirect', status: 0, ok: false }) as Response
+
+/** A Telegram bot token as @BotFather gives one, for the forms that take it; the server's tests have their own beside the fake Bot API. */
+export const TELEGRAM_TOKEN = '123456:ABCdefGhIJKlmNoPQRsTUVwxyZ-_0123456'
