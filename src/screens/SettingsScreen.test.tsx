@@ -914,20 +914,27 @@ describe('SettingsScreen', () => {
 
     it('says the environment’s address wins and asks the settings again when it set Prowlarr’s meanwhile', async () => {
       vi.mocked(serverSettings.getServerSettings).mockResolvedValue(fromApp())
-      vi.mocked(serverSettings.saveProwlarrKey).mockRejectedValue(new serverSettings.SettingsError(409, 'env-address'))
+      vi.mocked(serverSettings.saveProwlarrKey)
+        .mockResolvedValueOnce(fromApp())
+        .mockRejectedValueOnce(new serverSettings.SettingsError(409, 'env-address'))
       renderScreen()
-      await userEvent.click(await within(connection('Prowlarr')).findByRole('button', { name: changeProwlarr }))
+      const save = async () => {
+        await userEvent.click(await within(connection('Prowlarr')).findByRole('button', { name: changeProwlarr }))
+        const sheet = screen.getByRole('dialog', { name: prowlarrSheet })
+        await userEvent.type(within(sheet).getByLabelText('Prowlarr API key'), 'abc123')
+        await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
+      }
+      // A save first, whose settings the screen shows until it asks again.
+      await save()
       vi.mocked(serverSettings.getServerSettings).mockResolvedValue(fromApp({ source: 'env' }))
-      const sheet = screen.getByRole('dialog', { name: prowlarrSheet })
-      await userEvent.type(within(sheet).getByLabelText('Prowlarr API key'), 'abc123')
-      await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
+      await save()
 
       const envAddress = saying('Prowlarr’s address is now set on the Kinopeer server (PROWLARR_URL), which wins over one from the app.')
       expect(await screen.findByRole('alert', { name: envAddress })).toBeInTheDocument()
       // The settings asked again: the sheet asks for the key alone, and Prowlarr is checked again.
       expect(await screen.findByRole('dialog', { name: 'Prowlarr key' })).toBeInTheDocument()
       expect(screen.queryByLabelText('Prowlarr address')).not.toBeInTheDocument()
-      await waitFor(() => expect(prowlarr.getProwlarrStatus).toHaveBeenCalledTimes(2))
+      await waitFor(() => expect(prowlarr.getProwlarrStatus).toHaveBeenCalledTimes(3))
     })
 
     it('asks for Prowlarr’s address where the server has none, onboarding’s step having been skipped', async () => {
