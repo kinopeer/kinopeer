@@ -194,8 +194,12 @@ function AboutRow({ icon, label, hint, href, onClick }: AboutRowProps) {
   )
 }
 
-/** The download defaults that are on/off switches, in order; each is labelled by `add.<key>`. */
+/**
+ * The download defaults that are on/off switches, in order; each is labelled by `add.<key>`. Notify
+ * when finished shows only while a channel is set up, as the switch on a torrent's page.
+ */
 const DEFAULT_SWITCHES = ['startPaused', 'sequential', 'firstLastPieces'] as const satisfies readonly (keyof Settings)[]
+const NOTIFY_SWITCHES = [...DEFAULT_SWITCHES, 'notify'] as const satisfies readonly (keyof Settings)[]
 
 export interface SettingsScreenProps {
   /**
@@ -411,7 +415,7 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
         <div className="ks-card settings-card">
           {categoryField('movie')}
           {categoryField('tv')}
-          {DEFAULT_SWITCHES.map((key) => (
+          {(server?.notifications ? NOTIFY_SWITCHES : DEFAULT_SWITCHES).map((key) => (
             <div key={key} className="settings-toggle">
               <span className="t-body">{t(`add.${key}`)}</span>
               <Toggle label={t(`add.${key}`)} checked={settings[key]} onChange={(on) => update({ [key]: on })} />

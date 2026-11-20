@@ -4,9 +4,11 @@ import { Profiler, type ReactNode } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import * as prowlarr from '../api/prowlarr'
+import { SERVER_SETTINGS_KEY, type ServerSettings } from '../api/settings'
 import type { Release } from '../api/prowlarr'
 import * as qbt from '../api/qbittorrent'
 import * as adding from '../releases/addRelease'
+import { sharedRequests } from '../logic/sharedRequests'
 import { parseRelease } from '../releases/parseRelease'
 import { resetSettings, updateSettings } from '../settings/settings'
 import * as torrentFile from '../torrents/torrentFile'
@@ -59,6 +61,17 @@ const META = {
     { path: 'Season 2/e02.mkv', size: 20e9 },
   ],
   totalSize: 50e9,
+}
+
+/** The page's answer of the server's settings, with a channel to notify through or without. */
+function serverHasChannel(notifications: boolean) {
+  sharedRequests.set<ServerSettings>(SERVER_SETTINGS_KEY, {
+    tmdb: { configured: true, source: 'env', fallback: 'env' },
+    prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } },
+    qbittorrent: { configured: true, source: 'env', address: { source: 'env' } },
+    downloads: null,
+    notifications,
+  })
 }
 
 /** The app's shared poll, in use by a screen and answered once. */
@@ -192,6 +205,39 @@ describe('AddReleaseSheet', () => {
       },
       { meta: META, skip: [] },
     )
+  })
+
+  it('offers Notify when finished while the server has a channel, and tags the torrent for it', async () => {
+    serverHasChannel(true)
+    renderSheet()
+    const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+    await userEvent.click(await within(sheet).findByRole('button', { name: 'Options' }))
+    const notify = within(sheet).getByRole('switch', { name: 'Notify when finished' })
+    expect(notify).not.toBeChecked()
+    await userEvent.click(notify)
+    await userEvent.click(await within(sheet).findByRole('button', { name: /^Download/ }))
+    expect(addRelease).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ tags: ['tmdb:tv:1396', 'kinopeer:notify'] }), expect.anything())
+  })
+
+  it('starts Notify when finished from the default in Settings', async () => {
+    serverHasChannel(true)
+    updateSettings({ notify: true })
+    renderSheet()
+    const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+    await userEvent.click(await within(sheet).findByRole('button', { name: /^Download/ }))
+    expect(addRelease).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ tags: ['tmdb:tv:1396', 'kinopeer:notify'] }), expect.anything())
+  })
+
+  it('neither offers Notify when finished nor applies its default without a channel to notify through', async () => {
+    serverHasChannel(false)
+    updateSettings({ notify: true })
+    renderSheet()
+    const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+    await userEvent.click(await within(sheet).findByRole('button', { name: 'Options' }))
+    expect(within(sheet).getByRole('switch', { name: 'Add to top of queue' })).toBeInTheDocument()
+    expect(within(sheet).queryByRole('switch', { name: 'Notify when finished' })).not.toBeInTheDocument()
+    await userEvent.click(await within(sheet).findByRole('button', { name: /^Download/ }))
+    expect(addRelease).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ tags: ['tmdb:tv:1396'] }), expect.anything())
   })
 
   it('marks the category the torrent goes to', async () => {

@@ -379,6 +379,15 @@ describe('settingsMiddleware: download defaults', () => {
     })
   })
 
+  it('keeps Notify when finished among them, and refuses one that isn’t on or off', async () => {
+    const store = new SettingsStore(dir)
+    const app = await kinopeer(store)
+    expect((await patchDownloads(app, { notify: 'yes' })).status).toBe(400)
+    const saved = await patchDownloads(app, { notify: true })
+    expect(((await saved.json()) as ServerSettings).downloads).toEqual({ notify: true })
+    expect(store.current.downloads).toEqual({ notify: true })
+  })
+
   it('keeps the secrets next to them', async () => {
     const store = new SettingsStore(dir)
     await store.update({ tmdbApiKey: 'abc' })
