@@ -112,13 +112,16 @@ const CLIENT_HEADER = 'x-kinopeer'
 export const BRIDGE_HEADER = 'x-kinopeer-bridge'
 /**
  * What src/api/qbittorrent/client.ts calls, with its method: the only requests the bridge sends on,
- * so nothing reaches qBittorrent's preferences, its logins or anything else Kinopeer doesn't use.
+ * so nothing reaches qBittorrent's logins or anything else Kinopeer doesn't use, and of its
+ * preferences only the default save path (BODY_FILTERS).
  * server/integration/qbittorrent.test.ts checks that every call of the client gets through.
  */
 const ENDPOINTS = new Map<string, 'GET' | 'POST'>([
   ['/api/v2/app/version', 'GET'],
   ['/api/v2/app/defaultSavePath', 'GET'],
   ['/api/v2/app/preferences', 'GET'],
+  // Only the default save path: BODY_FILTERS.
+  ['/api/v2/app/setPreferences', 'POST'],
   ['/api/v2/sync/maindata', 'GET'],
   ['/api/v2/torrents/info', 'GET'],
   ['/api/v2/torrents/categories', 'GET'],
@@ -137,12 +140,47 @@ const ENDPOINTS = new Map<string, 'GET' | 'POST'>([
   ['/api/v2/torrents/toggleSequentialDownload', 'POST'],
   ['/api/v2/torrents/toggleFirstLastPiecePrio', 'POST'],
   ['/api/v2/torrents/setCategory', 'POST'],
+  ['/api/v2/torrents/editCategory', 'POST'],
   ['/api/v2/torrents/recheck', 'POST'],
   ['/api/v2/torrents/reannounce', 'POST'],
   ['/api/v2/torrents/setLocation', 'POST'],
   ['/api/v2/transfer/toggleSpeedLimitsMode', 'POST'],
 ])
 const MAX_BODY_BYTES = 50 * 1024 * 1024
+/** A save path, with room to spare: what `onlySavePath` reads at most. */
+const MAX_PREFERENCES_BYTES = 16 * 1024
+const FORM = 'application/x-www-form-urlencoded'
+
+/** A body the bridge doesn't send on, as it is or at all: answered 400. */
+class RefusedBodyError extends Error {}
+
+/**
+ * qBittorrent's preferences hold its own login, its web UI's settings and everything else, so of
+ * `app/setPreferences` the bridge sends on only one shape: a form with a single `json`, an object
+ * with nothing but `save_path`, a string. It writes that form anew rather than passing the body on,
+ * so nothing it didn't read (a second `json`, which qBittorrent might take instead) gets through.
+ */
+function onlySavePath(body: Buffer, contentType: string | undefined): Buffer {
+  if (contentType?.split(';', 1)[0].trim().toLowerCase() !== FORM) throw new RefusedBodyError()
+  const fields = [...new URLSearchParams(body.toString())]
+  if (fields.length !== 1 || fields[0][0] !== 'json') throw new RefusedBodyError()
+  let preferences: unknown
+  try {
+    preferences = JSON.parse(fields[0][1])
+  } catch {
+    // Not JSON: refused below, as nothing with a save path.
+  }
+  // One key, and `save_path` a string: that key is `save_path`. Anything but an object (null, an
+  // array, a string, a number) has no `save_path`, or no key, or a key of another name.
+  const savePath = (preferences as { save_path?: unknown } | null)?.save_path
+  if (Object.keys(preferences ?? {}).length !== 1 || typeof savePath !== 'string') throw new RefusedBodyError()
+  return Buffer.from(new URLSearchParams({ json: JSON.stringify({ save_path: savePath }) }).toString())
+}
+
+/** Calls whose body the bridge reads and writes anew before sending it on, with the most it reads. */
+const BODY_FILTERS = new Map<string, { filter: typeof onlySavePath; maxBytes: number }>([
+  ['/api/v2/app/setPreferences', { filter: onlySavePath, maxBytes: MAX_PREFERENCES_BYTES }],
+])
 /** After qBittorrent refuses a login (e.g. the IP is banned), wait before trying again. */
 const LOGIN_RETRY_MS = 30_000
 /** Upstream response headers passed on to the browser. */
@@ -206,12 +244,12 @@ class ServerSession {
   }
 }
 
-async function readBody(request: IncomingMessage): Promise<Buffer> {
+async function readBody(request: IncomingMessage, maxBytes = MAX_BODY_BYTES): Promise<Buffer> {
   const chunks: Buffer[] = []
   let size = 0
   for await (const chunk of request as AsyncIterable<Buffer>) {
     size += chunk.length
-    if (size > MAX_BODY_BYTES) throw new BodyTooLargeError()
+    if (size > maxBytes) throw new BodyTooLargeError()
     chunks.push(chunk)
   }
   return Buffer.concat(chunks)
@@ -264,13 +302,21 @@ async function forward(
   const headers: Record<string, string> = {}
   if (request.headers['content-type']) headers['Content-Type'] = request.headers['content-type']
   if (request.headers.accept) headers.Accept = request.headers.accept
-  const upstream = await send(base, session, {
-    method,
-    path,
-    headers,
-    body: method === 'GET' || method === 'HEAD' ? undefined : await readBody(request),
-    signal,
-  })
+  let body: Buffer | undefined
+  const filtered = BODY_FILTERS.get(path.split('?', 1)[0])
+  if (filtered) {
+    // Its one shape is the body: a query would go on as sent.
+    if (path.includes('?')) throw new RefusedBodyError()
+    // Read in full and checked before anything goes to qBittorrent; too long is not the one shape.
+    const raw = await readBody(request, filtered.maxBytes).catch((error: unknown) => {
+      throw error instanceof BodyTooLargeError ? new RefusedBodyError() : error
+    })
+    body = filtered.filter(raw, request.headers['content-type'])
+    headers['Content-Type'] = FORM
+  } else if (method === 'POST') {
+    body = await readBody(request)
+  }
+  const upstream = await send(base, session, { method, path, headers, body, signal })
 
   response.statusCode = upstream.status
   for (const name of RESPONSE_HEADERS) {
@@ -338,6 +384,7 @@ export function qbittorrentBridge(config: QbittorrentConfig): QbittorrentBridge 
     forward(base, currentSession(base), request, response, target).catch((error: unknown) => {
       if (response.headersSent) return void response.end()
       if (error instanceof BodyTooLargeError) fail(413, 'Request body too large')
+      else if (error instanceof RefusedBodyError) fail(400, 'Kinopeer changes no preference but the default save path')
       else fail(502, 'qBittorrent is unreachable')
     })
   }

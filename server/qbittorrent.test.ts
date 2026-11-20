@@ -207,11 +207,8 @@ describe('qbittorrentMiddleware', () => {
     const qbt = await fakeQbittorrent()
     const base = await kinopeer({ url: qbt.base })
 
-    const preferences = await call(`${base}/qbt/api/v2/app/setPreferences`, {
-      method: 'POST',
-      body: new URLSearchParams({ json: '{"save_path":"/elsewhere"}' }),
-    })
-    expect(preferences.status).toBe(404)
+    const logout = await call(`${base}/qbt/api/v2/auth/logout`, { method: 'POST' })
+    expect(logout.status).toBe(404)
     const get = await call(`${base}/qbt/api/v2/torrents/delete`)
     expect(get.status).toBe(405)
     expect(get.headers.get('allow')).toBe('POST')
@@ -222,6 +219,76 @@ describe('qbittorrentMiddleware', () => {
 
     expect((await call(`${base}/qbt/api/v2/torrents/files?hash=a1`)).status).toBe(403)
     expect(qbt.seen).toEqual([expect.objectContaining({ method: 'GET', url: '/api/v2/torrents/files?hash=a1' })])
+  })
+
+  it('sends on a change of the default save path, written anew', async () => {
+    const qbt = await fakeQbittorrent()
+    const base = await kinopeer({ url: qbt.base, credentials: () => ({ username: 'admin', password: 'pass word' }) })
+
+    const response = await call(`${base}/qbt/api/v2/app/setPreferences`, {
+      method: 'POST',
+      // A form's type with spaces and a charset, as HTTP allows.
+      headers: { 'Content-Type': 'Application/X-WWW-Form-Urlencoded ; charset=UTF-8' },
+      body: 'json=%7B%20%22save_path%22%20%3A%20%22%2Fdownloads%2Fnew%20folder%22%20%7D',
+    })
+    expect(response.status).toBe(200)
+    expect(qbt.seen).toEqual([
+      expect.objectContaining({
+        method: 'POST',
+        url: '/api/v2/app/setPreferences',
+        contentType: 'application/x-www-form-urlencoded',
+        body: new URLSearchParams({ json: '{"save_path":"/downloads/new folder"}' }).toString(),
+      }),
+    ])
+    expect(qbt.savePath()).toBe('/downloads/new folder')
+  })
+
+  // qBittorrent's preferences hold its own login and web UI's settings: the bridge sends on only the
+  // default save path, the one shape src/api/qbittorrent/client.ts sends.
+  it.each<[string, RequestInit['body'], string?]>([
+    ['another preference', new URLSearchParams({ json: '{"web_ui_password":"x"}' })],
+    ['another preference beside the save path', new URLSearchParams({ json: '{"save_path":"/a","web_ui_username":"x"}' })],
+    ['a second json', 'json=%7B%22save_path%22%3A%22%2Fa%22%7D&json=%7B%22web_ui_password%22%3A%22x%22%7D'],
+    ['another field beside json', new URLSearchParams({ json: '{"save_path":"/a"}', web_ui_password: 'x' })],
+    ['the save path in a field of another name', new URLSearchParams({ preferences: '{"save_path":"/a"}' })],
+    ['a save path that isn’t a string', new URLSearchParams({ json: '{"save_path":["/a"]}' })],
+    ['an array', new URLSearchParams({ json: '[{"save_path":"/a"}]' })],
+    ['null', new URLSearchParams({ json: 'null' })],
+    ['a string', new URLSearchParams({ json: '"/a"' })],
+    ['a number', new URLSearchParams({ json: '5' })],
+    ['something that isn’t JSON', new URLSearchParams({ json: '{save_path:/a}' })],
+    ['an oversize body', new URLSearchParams({ json: JSON.stringify({ save_path: `/${'a'.repeat(20_000)}` }) })],
+    ['a body of another type', 'json={"save_path":"/a"}', 'text/plain'],
+    ['a multipart form', (() => {
+      const form = new FormData()
+      form.set('json', '{"save_path":"/a"}')
+      return form
+    })()],
+  ])('refuses %s as a change of preferences, and sends nothing to qBittorrent', async (_, body, contentType) => {
+    const qbt = await fakeQbittorrent()
+    const base = await kinopeer({ url: qbt.base, credentials: () => ({ username: 'admin', password: 'pass word' }) })
+
+    const response = await call(`${base}/qbt/api/v2/app/setPreferences`, {
+      method: 'POST',
+      body,
+      ...(contentType && { headers: { 'Content-Type': contentType } }),
+    })
+    expect(response.status).toBe(400)
+    expect(qbt.seen).toEqual([])
+    expect(qbt.logins()).toBe(0)
+  })
+
+  it('refuses a change of preferences with a query, and sends nothing to qBittorrent', async () => {
+    const qbt = await fakeQbittorrent()
+    const base = await kinopeer({ url: qbt.base, credentials: () => ({ username: 'admin', password: 'pass word' }) })
+
+    const response = await call(`${base}/qbt/api/v2/app/setPreferences?json=${encodeURIComponent('{"web_ui_username":"x"}')}`, {
+      method: 'POST',
+      body: new URLSearchParams({ json: '{"save_path":"/a"}' }),
+    })
+    expect(response.status).toBe(400)
+    expect(qbt.seen).toEqual([])
+    expect(qbt.logins()).toBe(0)
   })
 
   it.each([

@@ -270,7 +270,8 @@
     "currentPasswordMissing": "Enter your current password",
     "passwordChanged": "Password changed. Other devices will need to sign in again.",
     "changePasswordFailed": "Couldn’t change the password. Try again.",
-    "signInTurnedOff": "Kinopeer’s sign-in was turned off on the server."
+    "signInTurnedOff": "Kinopeer’s sign-in was turned off on the server.",
+    "foldersHint": "Where qBittorrent saves downloads, and each category’s folder"
   },
   "releases": {
     "title": "Releases",
@@ -491,6 +492,20 @@
     "moved": "Moving files to {{location}}",
     "noAccess": "qBittorrent has no access to that folder.",
     "cantCreate": "qBittorrent couldn’t create that folder."
+  },
+  "folders": {
+    "default": "Default folder",
+    "loading": "Loading folders",
+    "loadFailed": "qBittorrent didn’t send its folders. Try again.",
+    "creates": "If the folder isn’t there, qBittorrent creates it.",
+    "relocates": "qBittorrent will move the files of torrents under automatic management that are in this folder to the new one, as its settings say.",
+    "toManual": "qBittorrent will switch torrents under automatic management that are in this folder to manual mode, as its settings say, and their files stay where they are.",
+    "inDefaultNote": "Without a folder of its own, the category keeps its torrents in {{folder}}.",
+    "categoryGone": "qBittorrent no longer has this category. Go back to see the ones it has.",
+    "cantCreateNamed": "qBittorrent couldn’t create {{folder}}.",
+    "categoryGoneNamed": "qBittorrent no longer has the category {{name}}.",
+    "useDefault": "Use the default",
+    "saved": "Folder saved"
   },
   "category": {
     "title": "Category",

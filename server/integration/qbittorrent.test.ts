@@ -47,6 +47,10 @@ const EVERY_CALL: Record<ClientCall, () => Promise<unknown>> = {
   reannounceTorrents: () => client.reannounceTorrents(['a1']),
   deleteTorrents: () => client.deleteTorrents(['a1'], false),
   setTorrentLocation: () => client.setTorrentLocation(['a1'], '/downloads/other'),
+  getFolders: () => client.getFolders(),
+  prepareFolder: () => client.prepareFolder('/downloads/new'),
+  setDefaultSavePath: () => client.setDefaultSavePath('/downloads/new'),
+  setCategoryFolder: () => client.setCategoryFolder({ name: 'Movies', savePath: '/downloads/movies', download_path: '/downloads/incomplete' }, '/downloads/films'),
   getTorrentTrackers: () => client.getTorrentTrackers('a1'),
   toggleSpeedLimitsMode: () => client.toggleSpeedLimitsMode(),
 }
@@ -166,6 +170,29 @@ describe('qBittorrent client through /qbt', () => {
     // passing it on; the browser's session check then tells it's the folder.
     expect(qbittorrent.logins()).toBe(2)
     await expect(setTorrentLocation([TORRENTS[0].hash], '/unmakeable/movies')).rejects.toMatchObject({ status: 409 })
+  })
+
+  it('changes the default save path and a category’s folder, and reads them back', async () => {
+    const { qbittorrent } = await startKinopeer()
+    await client.setDefaultSavePath('/media/downloads')
+    await client.setCategoryFolder({ name: 'Movies', savePath: '/downloads/movies' }, '')
+    await expect(client.getFolders()).resolves.toMatchObject({
+      defaultPath: '/media/downloads',
+      categories: [
+        { name: 'Movies', savePath: '' },
+        { name: 'TV Shows', savePath: '/downloads/tv' },
+      ],
+      relocateOnDefaultPathChange: false,
+      relocateOnCategoryPathChange: false,
+    })
+    expect(qbittorrent.savePath()).toBe('/media/downloads')
+  })
+
+  it('has qBittorrent create a folder, moving no torrent, and says when it can’t', async () => {
+    const { qbittorrent } = await startKinopeer()
+    await client.prepareFolder('/downloads/new')
+    expect(qbittorrent.torrents.map(({ save_path }) => save_path)).toEqual(TORRENTS.map(({ save_path }) => save_path))
+    await expect(client.prepareFolder('/unmakeable/movies')).rejects.toMatchObject({ status: 409 })
   })
 
   it('reports a lost session on a move when the server has no login', async () => {

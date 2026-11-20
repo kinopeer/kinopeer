@@ -173,6 +173,18 @@ export interface SaveLocations {
   downloadPath: boolean
 }
 
+/** qBittorrent's folders as Settings shows and changes them: `getFolders`. */
+export interface Folders extends SaveLocations {
+  /**
+   * "When Default Save Path changed": the files of the torrents under automatic management that use
+   * it move to the new folder; otherwise qBittorrent turns their automatic management off and the
+   * files stay (its default).
+   */
+  relocateOnDefaultPathChange: boolean
+  /** "When Category Save Path changed", the same for a category's folder and its torrents. */
+  relocateOnCategoryPathChange: boolean
+}
+
 /** 0: skip, 1: normal, 6: high, 7: maximum. */
 export type FilePriority = 0 | 1 | 6 | 7
 

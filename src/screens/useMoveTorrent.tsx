@@ -1,20 +1,11 @@
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { QbittorrentError, setTorrentLocation, UnauthorizedError, type Torrent } from '../api/qbittorrent'
+import { setTorrentLocation, type Torrent } from '../api/qbittorrent'
 import { useToast } from '../components/Toast'
 import { REQUEST_KINDS } from '../torrents/requestKinds'
-import { MoveTorrentSheet, type MoveFailure } from './MoveTorrentSheet'
+import { folderFailure } from './folderFailure'
+import { MoveTorrentSheet } from './MoveTorrentSheet'
 import { useTorrentSheet } from './useTorrentSheet'
-
-/** Why qBittorrent didn't take the folder, as a translation key. */
-function failureKey(error: unknown): MoveFailure {
-  if (error instanceof QbittorrentError && !(error instanceof UnauthorizedError)) {
-    if (error.status === 403) return 'move.noAccess'
-    if (error.status === 409) return 'move.cantCreate'
-  }
-  // A lost session included: the screen's poll notices it and asks for the login.
-  return 'common.qbtFailed'
-}
 
 export interface MoveTorrent {
   /** Opens "Move files" for a torrent in `torrents`. */
@@ -47,7 +38,7 @@ export function useMoveTorrent({ torrents, offline, refresh }: {
       toast.show(t('move.moved', { location }), { icon: 'folder' })
       refresh()
     } else if (!settled.showing) {
-      toast.show(t(failureKey(settled.error)), { icon: 'alert' })
+      toast.show(t(folderFailure(settled.error)), { icon: 'alert' })
     }
   }
 
@@ -57,7 +48,7 @@ export function useMoveTorrent({ torrents, offline, refresh }: {
       torrent={torrent}
       offline={offline}
       pending={pending(torrent.hash)}
-      failure={failure && failureKey(failure.error)}
+      failure={failure && folderFailure(failure.error)}
       onMove={(location) => void move(torrent, location)}
       onClose={close}
     />
