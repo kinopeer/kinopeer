@@ -1,12 +1,12 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import { UnsupportedQbittorrentScreen } from './UnsupportedQbittorrentScreen'
+import { UnsupportedQbittorrent } from './UnsupportedQbittorrent'
 
-describe('UnsupportedQbittorrentScreen', () => {
+describe('UnsupportedQbittorrent', () => {
   it('names the version, the oldest one Kinopeer works with and what to do', async () => {
     const onRetry = vi.fn()
-    render(<UnsupportedQbittorrentScreen version="4.5.5" onRetry={onRetry} />)
+    render(<UnsupportedQbittorrent version="4.5.5" onRetry={onRetry} />)
 
     expect(screen.getByRole('heading', { name: 'qBittorrent 4.5.5 is too old' })).toBeInTheDocument()
     expect(

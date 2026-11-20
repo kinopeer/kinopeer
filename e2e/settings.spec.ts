@@ -107,6 +107,22 @@ test('qBittorrent’s folders, dark, Russian', async ({ page }) => {
   await expect(page).toHaveScreenshot('folder-dark-ru.png')
 })
 
+test('changing qBittorrent’s and Prowlarr’s addresses saved from the app, dark, Russian', async ({ page }) => {
+  await openApp(page, '/settings', { auth: { enabled: true, source: 'saved' }, addressesFromApp: true })
+  await page.getByRole('button', { name: 'Изменить адрес и логин qBittorrent' }).click()
+  const qbittorrent = page.getByRole('dialog', { name: 'Подключение к qBittorrent' })
+  await expect(qbittorrent.getByLabel('Адрес qBittorrent')).toHaveValue('http://192.168.1.10:8080')
+  await settle(page)
+  await expect(page).toHaveScreenshot('qbittorrent-address-dark-ru.png')
+
+  await page.keyboard.press('Escape')
+  await expect(qbittorrent).toBeHidden()
+  await page.getByRole('button', { name: 'Изменить адрес и ключ Prowlarr' }).click()
+  await expect(page.getByRole('dialog', { name: 'Подключение к Prowlarr' }).getByLabel('Адрес Prowlarr')).toHaveValue('http://192.168.1.10:9696')
+  await settle(page)
+  await expect(page).toHaveScreenshot('prowlarr-address-dark-ru.png')
+})
+
 test.describe('desktop', () => {
   test.use(DESKTOP)
 
@@ -137,6 +153,15 @@ test.describe('desktop', () => {
   test('dark, Russian', async ({ page }) => {
     await openSettings(page)
     await expect(page).toHaveScreenshot('desktop-dark-ru.png', { mask: [versionValue(page)] })
+  })
+
+  test('changing qBittorrent’s address saved from the app, dark, Russian', async ({ page }) => {
+    await openSettings(page, { auth: { enabled: true, source: 'saved' }, addressesFromApp: true })
+    await page.getByRole('button', { name: 'Изменить адрес и логин qBittorrent' }).click()
+    await expect(page.getByRole('dialog', { name: 'Подключение к qBittorrent' }).getByLabel('Адрес qBittorrent')).toBeVisible()
+    await settle(page)
+    // Behind the scrim, the cards saying an address set on the server wins.
+    await expect(page).toHaveScreenshot('desktop-qbittorrent-address-dark-ru.png', { mask: [versionValue(page)] })
   })
 })
 

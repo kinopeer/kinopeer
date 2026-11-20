@@ -45,6 +45,9 @@ beforeEach(() => {
 describe('ProwlarrKeyForm', () => {
   it('saves the trimmed key and hands the settings on', async () => {
     const { onSaved, field, save } = renderForm()
+    // A key is machine text: no autocorrect (iOS Safari's, #494) or spell check.
+    expect(field).toHaveAttribute('autocorrect', 'off')
+    expect(field).toHaveAttribute('spellcheck', 'false')
     await userEvent.type(field, '  abc123  ')
     await userEvent.click(save)
     expect(saveProwlarrKey).toHaveBeenCalledWith('abc123')
@@ -128,14 +131,17 @@ describe('ProwlarrKeyForm', () => {
   describe('with Prowlarr’s address to ask', () => {
     function renderWithAddress(secondary?: ReactNode) {
       const onSaved = vi.fn()
-      render(<ProwlarrKeyForm onSaved={onSaved} askAddress secondary={secondary} />)
-      return { onSaved, address: screen.getByLabelText('Prowlarr address'), field: screen.getByLabelText('Prowlarr API key'), save: screen.getByRole('button', { name: 'Save' }) }
+      const onEnvAddress = vi.fn()
+      render(<ProwlarrKeyForm onSaved={onSaved} onEnvAddress={onEnvAddress} askAddress secondary={secondary} />)
+      return { onSaved, onEnvAddress, address: screen.getByLabelText('Prowlarr address'), field: screen.getByLabelText('Prowlarr API key'), save: screen.getByRole('button', { name: 'Save' }) }
     }
 
     it('saves the address with the key, which is trimmed', async () => {
       const { onSaved, address, field, save } = renderWithAddress()
       expect(address).toHaveAccessibleDescription('As the Kinopeer server reaches it, for example http://192.168.1.10:9696')
       expect(address).toHaveAttribute('spellcheck', 'false')
+      // iOS Safari autocorrects a text field otherwise (#494).
+      expect(address).toHaveAttribute('autocorrect', 'off')
       // Onboarding has no key of the server's to go back to.
       expect(screen.queryByRole('button', { name: 'Use the server’s key' })).not.toBeInTheDocument()
       await userEvent.type(field, ' abc123 ')
@@ -187,6 +193,21 @@ describe('ProwlarrKeyForm', () => {
       await userEvent.type(field, 'abc123')
       await userEvent.click(save)
       expect(saveProwlarrKey).toHaveBeenCalledWith('abc123', '192.168.1.10:9696')
+    })
+
+    it.each([
+      ['the environment set Prowlarr’s address meanwhile', new serverSettings.SettingsError(409, 'env-address'), 'Prowlarr’s address is now set on the Kinopeer server (PROWLARR_URL), which wins over one from the app.', 1],
+      ['Kinopeer’s own login is off', new serverSettings.SettingsError(409, 'auth-off'), 'Kinopeer’s own login is off, so Prowlarr’s address can only be set on the server: PROWLARR_URL.', 0],
+    ])('says what refused the address when %s, rather than to try again', async (_name, error, message, envAddressCalls) => {
+      saveProwlarrKey.mockRejectedValue(error)
+      const { onEnvAddress, address, field, save } = renderWithAddress()
+      await userEvent.type(address, 'http://prowlarr.test')
+      await userEvent.type(field, 'abc123')
+      await userEvent.click(save)
+      expect(await screen.findByRole('alert', { name: saying(message) })).toBeInTheDocument()
+      expect(screen.queryByRole('alert', { name: saying('Couldn’t save the key. Try again.') })).not.toBeInTheDocument()
+      // Only the environment's address has the settings asked again.
+      expect(onEnvAddress).toHaveBeenCalledTimes(envAddressCalls)
     })
 
     it('offers another action under Save', () => {

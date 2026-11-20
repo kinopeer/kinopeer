@@ -90,6 +90,7 @@
     "loginOptional": "Leave the login empty if qBittorrent lets Kinopeer in without one.",
     "loginNeeded": "qBittorrent asks for a login: enter its username and password",
     "authOff": "Kinopeer’s own login is off, so qBittorrent’s address can only be set on the server: QBITTORRENT_URL.",
+    "envAddress": "qBittorrent’s address is now set on the Kinopeer server (QBITTORRENT_URL), which wins over one from the app.",
     "changeAddress": "Change qBittorrent address"
   },
   "unsupported": {
@@ -243,6 +244,10 @@
     "connectedSharedKey": "Connected · Kinopeer’s key",
     "tmdbKey": "The API key is missing or invalid",
     "connectionsHint": "Service addresses are set in the Kinopeer server configuration.",
+    "connectionsHint_app": "An address set on the Kinopeer server wins and can’t be changed here. One entered here is checked before it’s kept.",
+    "changeQbittorrent": "Change qBittorrent address and login",
+    "qbittorrentSheetTitle": "qBittorrent connection",
+    "qbittorrentSaved": "qBittorrent connection saved",
     "downloadDefaults": "Download defaults",
     "moviesCategory": "Movies category",
     "seriesCategory": "Series category",
@@ -545,7 +550,12 @@
     "notProwlarr": "The Prowlarr address on the Kinopeer server answers, but not like Prowlarr. Check PROWLARR_URL.",
     "noServerKey": "The Kinopeer server has no Prowlarr key of its own, so the saved one stays.",
     "forgotten": "Using the server’s Prowlarr key",
-    "forgetFailed": "Couldn’t switch to the server’s key. Try again."
+    "forgetFailed": "Couldn’t switch to the server’s key. Try again.",
+    "envAddress": "Prowlarr’s address is now set on the Kinopeer server (PROWLARR_URL), which wins over one from the app.",
+    "authOff": "Kinopeer’s own login is off, so Prowlarr’s address can only be set on the server: PROWLARR_URL.",
+    "saved_address": "Prowlarr address and key saved",
+    "change_address": "Change Prowlarr address and key",
+    "sheetTitle_address": "Prowlarr connection"
   },
   "prowlarrSetup": {
     "title": "Connect Prowlarr",
