@@ -14,7 +14,7 @@ import {
   type SettingsConfig,
   type StoredTelegram,
 } from './settings.ts'
-import { TELEGRAM_TOKEN, abandon, closeServers, fakeProwlarr, fakeQbittorrent, fakeTelegram, fakeTmdb, serve, settlesWithin, silentService } from './test/fakes.ts'
+import { OTHER_TELEGRAM_TOKEN, RENEWED_TELEGRAM_TOKEN, TELEGRAM_TOKEN, UNKNOWN_TELEGRAM_TOKEN, abandon, closeServers, fakeProwlarr, fakeQbittorrent, fakeTelegram, fakeTmdb, serve, settlesWithin, silentService } from './test/fakes.ts'
 
 let dir: string
 
@@ -854,7 +854,7 @@ describe('settingsMiddleware: Telegram', () => {
 
   it('refuses a token Telegram doesn’t know, and one that isn’t a token without asking it', async () => {
     const { send, store, telegram } = await setUp()
-    const unknown = await send('PUT', '', { token: '999:ABCdefGhIJKlmNoPQRsTUVwxyZ-_0123456' })
+    const unknown = await send('PUT', '', { token: UNKNOWN_TELEGRAM_TOKEN })
     expect([unknown.status, await unknown.json()]).toEqual([422, { error: 'invalid-key' }])
     const asked = telegram.seen.length
     for (const token of ['', 'not a token', 123, '123:abc/../x']) {
@@ -873,11 +873,11 @@ describe('settingsMiddleware: Telegram', () => {
   })
 
   it('keeps the chat for a renewed token of the same bot, and drops it for another bot', async () => {
-    const { send, store } = await setUp({ ...connected, token: '123456:OLDdefGhIJKlmNoPQRsTUVwxyZ-_0123456', refused: 'token' })
+    const { send, store } = await setUp({ ...connected, token: RENEWED_TELEGRAM_TOKEN, refused: 'token' })
     await send('PUT', '', { token: TELEGRAM_TOKEN })
     expect(store.current.telegram).toEqual({ token: TELEGRAM_TOKEN, bot: 'kinopeer_home_bot', chat, language: 'ru' })
 
-    await store.update({ telegram: { ...connected, token: '777:ABCdefGhIJKlmNoPQRsTUVwxyZ-_0123456' } })
+    await store.update({ telegram: { ...connected, token: OTHER_TELEGRAM_TOKEN } })
     await send('PUT', '', { token: TELEGRAM_TOKEN })
     expect(store.current.telegram).toEqual({ token: TELEGRAM_TOKEN, bot: 'kinopeer_home_bot' })
   })
@@ -921,7 +921,7 @@ describe('settingsMiddleware: Telegram', () => {
 
   it('doesn’t save a chat over a token changed while Telegram was asked', async () => {
     const { send, store, telegram } = await setUp({ token: TELEGRAM_TOKEN, bot: 'kinopeer_home_bot' })
-    const other = { token: '777:ABCdefGhIJKlmNoPQRsTUVwxyZ-_0123456', bot: 'other_bot' }
+    const other = { token: OTHER_TELEGRAM_TOKEN, bot: 'other_bot' }
     let answer!: () => void
     telegram.state.hold = new Promise((resolve) => (answer = resolve))
     const saving = send('PUT', '/chat', { id: 42, language: 'en' })
@@ -945,7 +945,7 @@ describe('settingsMiddleware: Telegram', () => {
 
   it.each([
     ['the chat, when the bot can’t write to it', { ...connected, chat: { ...chat, id: 7 } }, 'chat-rejected', 'chat'],
-    ['the token, when Telegram no longer knows it', { ...connected, token: '999:ABCdefGhIJKlmNoPQRsTUVwxyZ-_0123456' }, 'token-rejected', 'token'],
+    ['the token, when Telegram no longer knows it', { ...connected, token: UNKNOWN_TELEGRAM_TOKEN }, 'token-rejected', 'token'],
   ] as const)('says a test message was refused for %s, and keeps it', async (_name, stored, error, refused) => {
     const { send, store, status } = await setUp(stored)
     const response = await send('POST', '/test', { language: 'en' })
@@ -976,7 +976,7 @@ describe('settingsMiddleware: Telegram', () => {
     expect((await send('GET', '/check')).status).toBe(502)
     telegram.state.down = false
 
-    await store.update({ telegram: { ...connected, token: '999:ABCdefGhIJKlmNoPQRsTUVwxyZ-_0123456' } })
+    await store.update({ telegram: { ...connected, token: UNKNOWN_TELEGRAM_TOKEN } })
     const rejected = await send('GET', '/check')
     expect([rejected.status, await rejected.json()]).toEqual([422, { error: 'token-rejected' }])
 
@@ -1015,7 +1015,7 @@ describe('settingsMiddleware: Telegram', () => {
     ['finding', 'GET', '/chat', undefined],
     ['saving', 'PUT', '/chat', { id: 42, language: 'en' }],
   ] as const)('says when Telegram no longer knows the token, or doesn’t answer, while %s the chat', async (_name, method, path, body) => {
-    const revoked = { token: '999:ABCdefGhIJKlmNoPQRsTUVwxyZ-_0123456', bot: 'kinopeer_home_bot' }
+    const revoked = { token: UNKNOWN_TELEGRAM_TOKEN, bot: 'kinopeer_home_bot' }
     const { send, store, telegram } = await setUp(revoked)
     const rejected = await send(method, path, body)
     expect([rejected.status, await rejected.json()]).toEqual([422, { error: 'token-rejected' }])
@@ -1027,6 +1027,17 @@ describe('settingsMiddleware: Telegram', () => {
     expect(store.current.telegram?.chat).toBeUndefined()
   })
 
+  it.each([
+    ['finding', 'GET', '/chat', undefined],
+    ['saving', 'PUT', '/chat', { id: 42, language: 'en' }],
+  ] as const)('says when another program takes the bot’s updates while %s the chat', async (_name, method, path, body) => {
+    const { send, store, telegram } = await setUp({ token: TELEGRAM_TOKEN, bot: 'kinopeer_home_bot' })
+    telegram.state.conflict = true
+    const response = await send(method, path, body)
+    expect([response.status, await response.json()]).toEqual([409, { error: 'bot-in-use' }])
+    expect(store.current.telegram?.chat).toBeUndefined()
+  })
+
   it('keeps what a test message was refused for only for the bot and chat it was sent to', async () => {
     const { send, store, telegram } = await setUp({ ...connected, chat: { ...chat, id: 7 } })
     let answer!: () => void
@@ -1034,7 +1045,7 @@ describe('settingsMiddleware: Telegram', () => {
     const testing = send('POST', '/test', { language: 'en' })
     await vi.waitFor(() => expect(telegram.seen).toHaveLength(1))
     // Saved while the test was on its way: a renewed token of the same bot, the same chat.
-    const renewed = { ...connected, token: '123456:NEWdefGhIJKlmNoPQRsTUVwxyZ-_0123456', chat: { ...chat, id: 7 } }
+    const renewed = { ...connected, token: RENEWED_TELEGRAM_TOKEN, chat: { ...chat, id: 7 } }
     await store.update({ telegram: renewed })
     answer()
     expect((await testing).status).toBe(422)

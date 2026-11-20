@@ -12,6 +12,7 @@ import { BUG_REPORT_URL, IDEAS_URL, REPO_URL } from '../lib/links'
 import { TAB_RETURN, forgetTabPlaces, saveTabPlace } from '../lib/tabPlaces'
 import { sharedRequests } from '../logic/sharedRequests'
 import { getSettings, resetSettings } from '../settings/settings'
+import { TELEGRAM_TOKEN } from '../test/fixtures'
 import { findToastOnPage, renderWithRouter, saying } from '../test/render'
 import { SettingsScreen } from './SettingsScreen'
 
@@ -779,7 +780,7 @@ describe('SettingsScreen: Telegram', () => {
 
     await userEvent.click(within(card).getByRole('button', { name: 'Set up' }))
     const sheet = screen.getByRole('dialog', { name: 'Telegram notifications' })
-    await userEvent.type(within(sheet).getByLabelText('Bot token'), '123456:ABCdefGhIJKlmNoPQRsTUVwxyZ-_0123456')
+    await userEvent.type(within(sheet).getByLabelText('Bot token'), TELEGRAM_TOKEN)
     await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
     // The sheet goes on to the chat, and the card checks the new bot.
     expect(await within(sheet).findByRole('button', { name: 'Find chat' })).toBeInTheDocument()
@@ -805,6 +806,24 @@ describe('SettingsScreen: Telegram', () => {
     vi.mocked(serverSettings.checkTelegram).mockRejectedValue(error)
     renderScreen()
     expect(await waitFor(() => within(connection('Telegram')).getByRole('status', { name: saying(message) }))).toBeInTheDocument()
+  })
+
+  it('checks again once a renewed token of the same bot is saved', async () => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(CONNECTED))
+    vi.mocked(serverSettings.checkTelegram)
+      .mockRejectedValueOnce(new serverSettings.SettingsError(422, 'token-rejected'))
+      .mockResolvedValue({ bot: 'kinopeer_home_bot' })
+    vi.mocked(serverSettings.saveTelegramToken).mockResolvedValue(settings(CONNECTED))
+    renderScreen()
+    const rejected = 'Telegram no longer knows the bot’s token. Get a new one from @BotFather and save it here.'
+    await waitFor(() => within(connection('Telegram')).getByRole('status', { name: saying(rejected) }))
+    await userEvent.click(within(connection('Telegram')).getByRole('button', { name: 'Change Telegram notifications' }))
+    const sheet = screen.getByRole('dialog', { name: 'Telegram notifications' })
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Use another bot' }))
+    await userEvent.type(within(sheet).getByLabelText('Bot token'), TELEGRAM_TOKEN)
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
+    expect(await within(connection('Telegram')).findByRole('status', { name: saying('Sends to “Alex” from @kinopeer_home_bot') })).toBeInTheDocument()
+    expect(serverSettings.checkTelegram).toHaveBeenCalledTimes(2)
   })
 
   it('warns that Telegram refused the chat, so it’s chosen again', async () => {

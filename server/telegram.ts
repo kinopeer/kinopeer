@@ -42,7 +42,7 @@ interface ApiAnswer<T> {
   parameters?: { retry_after?: number }
 }
 
-type CallResult<T> = { ok: true; result: T } | { ok: false }
+type CallResult<T> = { ok: true; result: T } | { ok: false; status?: number }
 
 export interface TelegramOptions {
   /** TELEGRAM_API by default; the tests point it at a fake. */
@@ -74,7 +74,7 @@ async function call<T>(token: string, method: string, body: object, options: Tel
     const seconds = answer?.parameters?.retry_after
     throw new TelegramUnavailable(typeof seconds === 'number' && seconds > 0 ? seconds * 1000 : undefined)
   }
-  return answer.ok && response.ok ? { ok: true, result: answer.result as T } : { ok: false }
+  return answer.ok && response.ok ? { ok: true, result: answer.result as T } : { ok: false, status: response.status }
 }
 
 /** The bot's @username, or undefined when Telegram doesn't know the token. */
@@ -104,11 +104,14 @@ function chatName(chat: NonNullable<Message['chat']>): string {
 /**
  * The chats that sent the bot `/start` (`/start@bot` in a group; a channel's post, with the bot an
  * admin there), the latest first, each once, from the updates Telegram keeps for a day; `rejected`
- * when it doesn't know the token. Reading them doesn't confirm them, so the next check sees them too.
+ * when it doesn't know the token, `conflict` when another program takes the bot's updates (a webhook,
+ * or another app polling it), which Telegram answers with a 409. The last 100 updates are asked for,
+ * so a /start behind a busy group's or channel's older posts is found; asking with a negative offset
+ * makes Telegram drop the older ones, which nothing else reads.
  */
-export async function startedChats(token: string, options: TelegramOptions = {}): Promise<TelegramFoundChat[] | 'rejected'> {
-  const answer = await call<Update[]>(token, 'getUpdates', { allowed_updates: ['message', 'channel_post'] }, options)
-  if (!answer.ok) return 'rejected'
+export async function startedChats(token: string, options: TelegramOptions = {}): Promise<TelegramFoundChat[] | 'rejected' | 'conflict'> {
+  const answer = await call<Update[]>(token, 'getUpdates', { allowed_updates: ['message', 'channel_post'], offset: -100 }, options)
+  if (!answer.ok) return answer.status === 409 ? 'conflict' : 'rejected'
   const updates = Array.isArray(answer.result) ? answer.result : []
   const chats: TelegramFoundChat[] = []
   for (const update of [...updates].reverse()) {

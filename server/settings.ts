@@ -449,6 +449,7 @@ async function findTelegramChat(config: SettingsConfig, _request: IncomingMessag
     return fail(response, 502, 'unreachable')
   }
   if (chats === 'rejected') return fail(response, 422, 'token-rejected')
+  if (chats === 'conflict') return fail(response, 409, 'bot-in-use')
   if (chats.length === 0) return fail(response, 404, 'no-chat')
   sendJson(response, 200, chats[0] satisfies TelegramFoundChat)
 }
@@ -471,6 +472,7 @@ async function saveTelegramChat(config: SettingsConfig, request: IncomingMessage
     return fail(response, 502, 'unreachable')
   }
   if (chats === 'rejected') return fail(response, 422, 'token-rejected')
+  if (chats === 'conflict') return fail(response, 409, 'bot-in-use')
   const chat = chats.find((found) => found.id === id)
   if (!chat) return fail(response, 404, 'no-chat')
   // Saved only while the token it was found with is still the bot's.

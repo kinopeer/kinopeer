@@ -27,7 +27,9 @@ export function telegramChannel(config: TelegramChannelConfig): NotifyChannel {
       const { token, chat, language = 'en' } = stored.telegram
       const text = finishedText(language, torrent.name, await config.title(torrent, language))
       const sent = await sendMessage(token, chat.id, text, config.telegram)
-      const refused = sent === 'rejected' ? await refusedPart(token, config.telegram) : undefined
+      // A refusal stays one when Telegram then doesn't say which part it refused: nothing new is known.
+      const refused = sent === 'rejected' ? await refusedPart(token, config.telegram).catch(() => null) : undefined
+      if (refused === null) return sent
       // Kept for the bot and chat it was sent with, not for ones saved since.
       await config.store
         .updateTelegram((current) =>

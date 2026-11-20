@@ -29,9 +29,9 @@ export interface TelegramFormProps {
 
 type Step = 'token' | 'chat' | 'connected'
 
-type FormError = 'invalid' | 'no-chat' | 'token-rejected' | 'chat-rejected' | 'unreachable' | 'storage' | 'failed' | null
+type FormError = 'invalid' | 'no-chat' | 'bot-in-use' | 'token-rejected' | 'chat-rejected' | 'unreachable' | 'storage' | 'failed' | null
 
-const KNOWN_ERRORS = new Set<string>(['no-chat', 'token-rejected', 'chat-rejected', 'unreachable', 'storage'])
+const KNOWN_ERRORS = new Set<string>(['no-chat', 'bot-in-use', 'token-rejected', 'chat-rejected', 'unreachable', 'storage'])
 
 function formError(e: unknown): FormError {
   const code = e instanceof SettingsError ? e.code : undefined
@@ -104,11 +104,26 @@ export function TelegramForm({ telegram, onChanged, onTurnedOff, onRefused }: Te
       <Banner tone="error">{t('telegram.chatRefused', { chat: telegram.chat?.name })}</Banner>
     ) : error === 'no-chat' ? (
       <Banner tone="info">{t('telegram.noChatFound')}</Banner>
+    ) : error === 'bot-in-use' ? (
+      <Banner tone="error">{t('telegram.botInUse')}</Banner>
     ) : error === 'storage' ? (
       <Banner tone="error">{t('keyForm.storage')}</Banner>
     ) : error === 'failed' ? (
       <Banner tone="error">{t('telegram.failed')}</Banner>
     ) : null
+
+  const turnOff = (
+    <Button
+      variant="secondary"
+      size="lg"
+      block
+      loading={busy === 'off'}
+      disabled={busy !== null && busy !== 'off'}
+      onClick={() => void run('off', forgetTelegram, onTurnedOff)}
+    >
+      {t('telegram.turnOff')}
+    </Button>
+  )
 
   if (step === 'token') {
     return (
@@ -188,10 +203,19 @@ export function TelegramForm({ telegram, onChanged, onTurnedOff, onRefused }: Te
               {t('telegram.findChat')}
             </Button>
           )}
-          {editing && (
+          {editing ? (
             <Button variant="secondary" size="lg" block disabled={busy !== null} onClick={() => goTo(null)}>
               {t('common.cancel')}
             </Button>
+          ) : (
+            // The step the settings are at: without these, a wrong bot or a token Telegram no longer
+            // knows would leave the sheet nowhere to go.
+            <>
+              <Button variant="secondary" size="lg" block disabled={busy !== null} onClick={() => goTo('token')}>
+                {t('telegram.changeBot')}
+              </Button>
+              {turnOff}
+            </>
           )}
         </div>
       </div>
@@ -226,16 +250,7 @@ export function TelegramForm({ telegram, onChanged, onTurnedOff, onRefused }: Te
         <Button variant="secondary" size="lg" block disabled={busy !== null} onClick={() => goTo('token')}>
           {t('telegram.changeBot')}
         </Button>
-        <Button
-          variant="secondary"
-          size="lg"
-          block
-          loading={busy === 'off'}
-          disabled={busy !== null && busy !== 'off'}
-          onClick={() => void run('off', forgetTelegram, onTurnedOff)}
-        >
-          {t('telegram.turnOff')}
-        </Button>
+        {turnOff}
       </div>
     </div>
   )

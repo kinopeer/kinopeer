@@ -12,7 +12,7 @@ import {
 import { TORRENTS } from '../../src/test/fixtures.ts'
 import { NOTIFY_TAG as SERVER_NOTIFY_TAG, taggedTorrents } from '../notifier.ts'
 import { qbittorrentBridge } from '../qbittorrent.ts'
-import { TELEGRAM_TOKEN } from '../test/fakes.ts'
+import { TELEGRAM_TOKEN, UNKNOWN_TELEGRAM_TOKEN } from '../test/fakes.ts'
 import { startKinopeer, stopKinopeer } from '../test/integration.ts'
 
 afterEach(stopKinopeer)
@@ -42,7 +42,7 @@ describe('notifications through /api/settings/telegram and /qbt', () => {
 
   it('says what Telegram refused, so Settings can name it', async () => {
     const { telegram } = await startKinopeer()
-    await expect(saveTelegramToken('999:ABCdefGhIJKlmNoPQRsTUVwxyZ-_0123456')).rejects.toMatchObject({ status: 422, code: 'invalid-key' })
+    await expect(saveTelegramToken(UNKNOWN_TELEGRAM_TOKEN)).rejects.toMatchObject({ status: 422, code: 'invalid-key' })
     await saveTelegramToken(TELEGRAM_TOKEN)
     telegram.state.started = []
     await expect(findTelegramChat()).rejects.toMatchObject({ status: 404, code: 'no-chat' })

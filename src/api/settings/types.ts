@@ -165,6 +165,7 @@ export interface SettingsErrorBody {
     | 'invalid-credentials'
     | 'banned'
     | 'not-configured'
+    | 'bot-in-use'
     | 'unreachable'
     | 'not-prowlarr'
     | 'not-qbittorrent'

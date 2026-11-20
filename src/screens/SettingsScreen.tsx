@@ -205,6 +205,8 @@ export function SettingsScreen() {
   const [prowlarrKeyVersion, setProwlarrKeyVersion] = useState(0)
   const [changingPassword, setChangingPassword] = useState(false)
   const [editingTelegram, setEditingTelegram] = useState(false)
+  // Bumped on each change saved from the sheet, so the card checks again: a renewed token of the same bot keeps its name.
+  const [telegramVersion, setTelegramVersion] = useState(0)
   const toast = useToast()
   // Its checks and loads change no heights, so the page is ready to scroll back at once.
   useScrollRestoration(true, '/settings')
@@ -252,7 +254,7 @@ export function SettingsScreen() {
   const tmdb = useRequest(`check|tmdb|${tmdbKeyVersion}`, (signal) => checkTmdb(signal))
   // Asked only with a bot, and again for each bot saved (its name is in the key).
   const telegram = server?.telegram
-  const telegramCheck = useRequest(telegram?.bot ? `check|telegram|${telegram.bot}` : null, (signal) => checkTelegram(signal))
+  const telegramCheck = useRequest(telegram?.bot ? `check|telegram|${telegram.bot}|${telegramVersion}` : null, (signal) => checkTelegram(signal))
 
   /** The Telegram card: a failed check first, then what the settings say of the chat. */
   const telegramStatus = (): ConnectionStatus => {
@@ -510,7 +512,10 @@ export function SettingsScreen() {
         {telegram && (
           <TelegramForm
             telegram={telegram}
-            onChanged={setServerChanged}
+            onChanged={(changed) => {
+              setServerChanged(changed)
+              setTelegramVersion((n) => n + 1)
+            }}
             onRefused={(refused) => server && setServerChanged({ ...server, telegram: { ...telegram, refused } })}
             onTurnedOff={(changed) => {
               setServerChanged(changed)

@@ -83,10 +83,12 @@ export function createNotifier(deps: NotifierDeps): { check: () => Promise<void>
   const deliveries = new Map<string, Map<string, Delivery>>()
   let running = false
 
-  const deliver = async (torrent: NotifyTorrent, channel: NotifyChannel, sent: Map<string, Delivery>) => {
+  // `started` is the pass's start: a wait counts from it, so the pass that wait later sends again
+  // however long this send took.
+  const deliver = async (torrent: NotifyTorrent, channel: NotifyChannel, sent: Map<string, Delivery>, started: number) => {
     const delivery = sent.get(channel.id) ?? { done: false, attempts: 0, nextAt: 0 }
     sent.set(channel.id, delivery)
-    if (delivery.done || now() < delivery.nextAt) return
+    if (delivery.done || started < delivery.nextAt) return
     try {
       const result = await channel.send(torrent)
       delivery.done = true
@@ -94,12 +96,14 @@ export function createNotifier(deps: NotifierDeps): { check: () => Promise<void>
     } catch (error) {
       delivery.attempts += 1
       const wait = RETRY_DELAYS_MS[Math.min(delivery.attempts, RETRY_DELAYS_MS.length) - 1]
-      delivery.nextAt = now() + Math.max(wait, retryAfter(error))
-      log(`${channel.id} didn't answer; sending again in ${Math.round((delivery.nextAt - now()) / 1000)} s`)
+      const after = Math.max(wait, retryAfter(error))
+      delivery.nextAt = started + after
+      log(`${channel.id} didn't answer; sending again in ${Math.round(after / 1000)} s`)
     }
   }
 
   const pass = async () => {
+    const started = now()
     const ready = deps.channels.filter((channel) => channel.ready())
     if (ready.length === 0) return
     const torrents = await deps.tagged()
@@ -112,7 +116,7 @@ export function createNotifier(deps: NotifierDeps): { check: () => Promise<void>
     for (const torrent of torrents.filter(isFinished)) {
       const sent = deliveries.get(torrent.hash) ?? new Map<string, Delivery>()
       deliveries.set(torrent.hash, sent)
-      for (const channel of ready) await deliver(torrent, channel, sent)
+      for (const channel of ready) await deliver(torrent, channel, sent, started)
       if (ready.every((channel) => sent.get(channel.id)?.done)) notified.push(torrent.hash)
     }
     if (notified.length === 0) return

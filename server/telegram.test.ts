@@ -1,8 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { TelegramUnavailable, botName, isBotToken, sendMessage, startedChats } from './telegram.ts'
-import { bodyOf, closeServers, listen, silentService } from './test/fakes.ts'
-
-const TOKEN = '123456:ABCdefGhIJKlmNoPQRsTUVwxyZ-_0123456'
+import { TELEGRAM_TOKEN as TOKEN, bodyOf, closeServers, listen, silentService } from './test/fakes.ts'
 
 afterEach(closeServers)
 
@@ -68,7 +66,7 @@ describe('startedChats', () => {
     ])
     expect(api.calls[0]).toEqual({
       path: `/bot${TOKEN}/getUpdates`,
-      body: { allowed_updates: ['message', 'channel_post'] },
+      body: { allowed_updates: ['message', 'channel_post'], offset: -100 },
       contentType: 'application/json',
     })
   })
@@ -114,6 +112,11 @@ describe('startedChats', () => {
   it('answers rejected when Telegram doesn’t know the token', async () => {
     const api = await fakeBotApi(401, { ok: false })
     expect(await startedChats(TOKEN, { base: api.base })).toBe('rejected')
+  })
+
+  it('answers conflict when another program takes the bot’s updates: a webhook, or another app polling it', async () => {
+    const api = await fakeBotApi(409, { ok: false, error_code: 409, description: 'Conflict: terminated by other getUpdates request' })
+    expect(await startedChats(TOKEN, { base: api.base })).toBe('conflict')
   })
 })
 

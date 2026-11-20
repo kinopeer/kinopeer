@@ -602,6 +602,15 @@ export async function fakeProwlarr({
 /** A bot token the fake Telegram knows. */
 export const TELEGRAM_TOKEN = '123456:ABCdefGhIJKlmNoPQRsTUVwxyZ-_0123456'
 
+/** A token shaped like one that the fake Telegram doesn't know, as a token @BotFather revoked. */
+export const UNKNOWN_TELEGRAM_TOKEN = '999:ABCdefGhIJKlmNoPQRsTUVwxyZ-_0123456'
+
+/** Another token of TELEGRAM_TOKEN's bot (the same id before the colon), as @BotFather renews one. */
+export const RENEWED_TELEGRAM_TOKEN = '123456:NEWdefGhIJKlmNoPQRsTUVwxyZ-_0123456'
+
+/** The token of another bot than TELEGRAM_TOKEN's, for a bot saved in its place. */
+export const OTHER_TELEGRAM_TOKEN = '777:ABCdefGhIJKlmNoPQRsTUVwxyZ-_0123456'
+
 /** What the fake Telegram saw: the method called, with the token in the path, and the JSON body. */
 export interface TelegramRequest {
   path: string
@@ -609,17 +618,22 @@ export interface TelegramRequest {
 }
 
 /**
- * Telegram's Bot API for the bot TELEGRAM_TOKEN, whose @username is `kinopeer_home_bot`: any other
- * token is 401 on every method. `getUpdates` answers `updates` (a /start from the chats in
- * `started`, a private chat 42 by default), `sendMessage` takes any chat in `started` and refuses
- * any other with a 403, as a chat that blocked the bot. `down` answers every call with a 502, and
- * `hold`, while set, keeps every answer until it resolves. All of them can be changed while it runs.
+ * Telegram's Bot API 7.0 and later (`link_preview_options` came in 7.0) for the bot TELEGRAM_TOKEN,
+ * whose @username is `kinopeer_home_bot`: any other token is 401 on every method. `getUpdates`
+ * answers a /start from each chat in `started` (a private chat 42 by default), or a 409 while
+ * `conflict` is set, as Telegram does while the bot has a webhook or another program polls it;
+ * `sendMessage` takes any chat in `started` and refuses any other with a 403, as a chat that
+ * blocked the bot. `down` answers every call with a 502, `unavailable` only the methods it names,
+ * and `hold`, while set, keeps every answer until it resolves. All of them can be changed while it
+ * runs.
  */
 export async function fakeTelegram() {
   const seen: TelegramRequest[] = []
   const state = {
     started: [{ id: 42, type: 'private', first_name: 'Alex' }] as { id: number; type: string; first_name?: string; title?: string }[],
     down: false,
+    unavailable: [] as string[],
+    conflict: false,
     hold: undefined as Promise<void> | undefined,
   }
   const base = await listen(async (request, response) => {
@@ -631,8 +645,12 @@ export async function fakeTelegram() {
     const match = /^\/bot([^/]+)\/(\w+)$/.exec(path)
     if (!match || match[1] !== TELEGRAM_TOKEN) return json(response, { ok: false, error_code: 401, description: 'Unauthorized' }, 401)
     const method = match[2]
+    if (state.unavailable.includes(method)) return json(response, { ok: false, error_code: 502, description: 'Bad Gateway' }, 502)
     if (method === 'getMe') return json(response, { ok: true, result: { id: 123456, is_bot: true, username: 'kinopeer_home_bot' } })
     if (method === 'getUpdates') {
+      if (state.conflict) {
+        return json(response, { ok: false, error_code: 409, description: 'Conflict: can\'t use getUpdates method while webhook is active' }, 409)
+      }
       const result = state.started.map((chat, index) => ({ update_id: index + 1, message: { message_id: index + 1, text: '/start', chat } }))
       return json(response, { ok: true, result })
     }

@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { NotifyTorrent } from './notifier.ts'
 import { SettingsStore, type StoredTelegram } from './settings.ts'
 import { telegramChannel } from './telegramChannel.ts'
-import { TELEGRAM_TOKEN, closeServers, fakeTelegram } from './test/fakes.ts'
+import { RENEWED_TELEGRAM_TOKEN, TELEGRAM_TOKEN, UNKNOWN_TELEGRAM_TOKEN, closeServers, fakeTelegram } from './test/fakes.ts'
 
 let dir: string
 
@@ -61,7 +61,7 @@ describe('telegramChannel', () => {
 
   it.each([
     ['the chat, when the bot can’t write to it', { ...connected, chat: { id: 7, name: 'Gone', type: 'private' } }, 'chat'],
-    ['the token, when Telegram no longer knows it', { ...connected, token: '999:ABCdefGhIJKlmNoPQRsTUVwxyZ-_0123456' }, 'token'],
+    ['the token, when Telegram no longer knows it', { ...connected, token: UNKNOWN_TELEGRAM_TOKEN }, 'token'],
   ] as const)('keeps that Telegram refused %s', async (_name, stored, refused) => {
     const { channel, store } = await setUp(stored)
     expect(await channel.send(finished)).toBe('rejected')
@@ -93,7 +93,7 @@ describe('telegramChannel', () => {
     telegram.state.hold = new Promise((resolve) => (answer = resolve))
     const sending = channel.send(finished)
     await vi.waitFor(() => expect(telegram.seen).toHaveLength(1))
-    const renewed = { ...gone, token: '123456:NEWdefGhIJKlmNoPQRsTUVwxyZ-_0123456' }
+    const renewed = { ...gone, token: RENEWED_TELEGRAM_TOKEN }
     await store.update({ telegram: renewed })
     answer()
     expect(await sending).toBe('rejected')
@@ -107,6 +107,13 @@ describe('telegramChannel', () => {
     expect(await channel.send(finished)).toBe('rejected')
     expect(warn).toHaveBeenCalledWith('[kinopeer] could not write settings.json; is the data directory writable?')
     warn.mockRestore()
+  })
+
+  it('answers a refusal as one, keeping what was refused before, when Telegram then doesn’t say which part it refused', async () => {
+    const { channel, store, telegram } = await setUp({ ...connected, chat: { id: 7, name: 'Gone', type: 'private' }, refused: 'chat' })
+    telegram.state.unavailable = ['getMe']
+    expect(await channel.send(finished)).toBe('rejected')
+    expect(store.current.telegram?.refused).toBe('chat')
   })
 
   it('rejects when Telegram doesn’t answer, so the watcher sends again', async () => {

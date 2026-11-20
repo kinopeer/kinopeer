@@ -5,6 +5,7 @@ import * as serverSettings from '../api/settings'
 import type { ServerSettings, TelegramStatus } from '../api/settings'
 import { ToastProvider } from '../components/Toast'
 import i18n from '../i18n'
+import { TELEGRAM_TOKEN as TOKEN } from '../test/fixtures'
 import { saying } from '../test/render'
 import { TelegramForm } from './TelegramForm'
 
@@ -17,7 +18,6 @@ vi.mock('../api/settings', async (importOriginal) => ({
   forgetTelegram: vi.fn(),
 }))
 
-const TOKEN = '123456:ABCdefGhIJKlmNoPQRsTUVwxyZ-_0123456'
 const NONE: TelegramStatus = { bot: null, chat: null, refused: null }
 const BOT: TelegramStatus = { bot: 'kinopeer_home_bot', chat: null, refused: null }
 const CONNECTED: TelegramStatus = { bot: 'kinopeer_home_bot', chat: { name: 'Alex', type: 'private' }, refused: null }
@@ -147,6 +147,16 @@ describe('TelegramForm: the chat', () => {
     await vi.waitFor(() => expect(onChanged).toHaveBeenCalled())
   })
 
+  it('lets the bot be changed or turned off before a chat is chosen, as from a token Telegram no longer knows', async () => {
+    vi.mocked(serverSettings.forgetTelegram).mockResolvedValue(settings(NONE))
+    const { onTurnedOff } = renderForm(BOT)
+    await userEvent.click(screen.getByRole('button', { name: 'Use another bot' }))
+    expect(screen.getByLabelText('Bot token')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Turn off' }))
+    await vi.waitFor(() => expect(onTurnedOff).toHaveBeenCalledWith(settings(NONE)))
+  })
+
   it('finds again when it isn’t the chat', async () => {
     vi.mocked(serverSettings.findTelegramChat)
       .mockResolvedValueOnce({ id: 9, name: 'Stranger', type: 'private' })
@@ -160,6 +170,7 @@ describe('TelegramForm: the chat', () => {
   it.each([
     [error(404, 'no-chat'), 'No chat sent the bot /start in the last day. Send it and try again.'],
     [error(422, 'token-rejected'), 'Telegram no longer knows the bot’s token. Get a new one from @BotFather and save it here.'],
+    [error(409, 'bot-in-use'), 'Another program gets this bot’s messages (a webhook, or an app that polls it), so Kinopeer can’t see /start. Turn that off, or use another bot.'],
   ])('says why no chat was found: %s', async (failure, message) => {
     vi.mocked(serverSettings.findTelegramChat).mockRejectedValue(failure)
     renderForm(BOT)
