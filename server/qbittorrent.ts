@@ -305,6 +305,8 @@ async function forward(
   let body: Buffer | undefined
   const filtered = BODY_FILTERS.get(path.split('?', 1)[0])
   if (filtered) {
+    // Its one shape is the body: a query would go on as sent.
+    if (path.includes('?')) throw new RefusedBodyError()
     // Read in full and checked before anything goes to qBittorrent; too long is not the one shape.
     const raw = await readBody(request, filtered.maxBytes).catch((error: unknown) => {
       throw error instanceof BodyTooLargeError ? new RefusedBodyError() : error

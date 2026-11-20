@@ -98,7 +98,7 @@ describe('FoldersSheet', () => {
     getFolders.mockRejectedValueOnce(new api.QbittorrentError('qBittorrent responded 500', 500))
     const sheet = await openSheet()
 
-    expect(await within(sheet).findByRole('alert')).toHaveTextContent('qBittorrent didn’t send its folders. Try again.')
+    expect(await within(sheet).findByRole('alert', { name: saying('qBittorrent didn’t send its folders. Try again.') })).toBeInTheDocument()
     expect(within(sheet).queryByRole('status', { name: 'Loading folders' })).not.toBeInTheDocument()
     await userEvent.click(within(sheet).getByRole('button', { name: 'Try again' }))
     expect(await within(sheet).findByRole('button', { name: /^Default folder/ })).toBeInTheDocument()
@@ -181,7 +181,7 @@ describe('FoldersSheet', () => {
     await type(await edit(sheet, /^Default folder/), '/root/downloads')
     await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
 
-    expect(await within(sheet).findByRole('alert')).toHaveTextContent('qBittorrent couldn’t create that folder.')
+    expect(await within(sheet).findByRole('alert', { name: saying('qBittorrent couldn’t create that folder.') })).toBeInTheDocument()
     expect(screen.queryByRole('status', { name: saying('qBittorrent couldn’t create that folder.') })).not.toBeInTheDocument()
     expect(setDefaultSavePath).not.toHaveBeenCalled()
     expect(within(sheet).getByRole('textbox', { name: 'Folder' })).toHaveValue('/root/downloads')
@@ -197,7 +197,7 @@ describe('FoldersSheet', () => {
     await type(await edit(sheet, /^Default folder/), '/media/downloads')
     await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
 
-    expect(await within(sheet).findByRole('alert')).toHaveTextContent('Couldn’t reach qBittorrent. Try again.')
+    expect(await within(sheet).findByRole('alert', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
     // Free to try again.
     expect(within(sheet).getByRole('button', { name: 'Save' })).toBeEnabled()
     expect(within(sheet).getByRole('textbox', { name: 'Folder' })).not.toHaveAttribute('readonly')
@@ -213,6 +213,76 @@ describe('FoldersSheet', () => {
 
     fail(new api.QbittorrentError('qBittorrent responded 409', 409))
     expect(await findToastOnPage('qBittorrent couldn’t create that folder.')).toBeInTheDocument()
+  })
+
+  it('leaves another folder shown alone when a save settles after its form, and shows the list as it is now once back', async () => {
+    let settle!: () => void
+    setCategoryFolder.mockReturnValueOnce(new Promise((resolve) => (settle = resolve)))
+    const sheet = await openSheet()
+    await type(await edit(sheet, /^Movies/), '/media/films')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Back' }))
+    const field = await edit(sheet, /^TV/)
+    await type(field, '/media/shows')
+
+    getFolders.mockResolvedValue({ ...FOLDERS, categories: [{ ...MOVIES, savePath: '/media/films' }, TV] })
+    settle()
+    expect(await screen.findByRole('status', { name: saying('Folder saved') })).toBeInTheDocument()
+    expect(within(sheet).getByRole('heading', { name: 'TV' })).toBeInTheDocument()
+    expect(field).toHaveValue('/media/shows')
+    expect(getFolders).toHaveBeenCalledTimes(1)
+
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Back' }))
+    expect(await within(sheet).findByRole('button', { name: 'Movies/media/films' })).toBeInTheDocument()
+    expect(getFolders).toHaveBeenCalledTimes(2)
+  })
+
+  it('shows the list as it is now when a save settles there', async () => {
+    let settle!: () => void
+    setDefaultSavePath.mockReturnValueOnce(new Promise((resolve) => (settle = resolve)))
+    const sheet = await openSheet()
+    await type(await edit(sheet, /^Default folder/), '/media/downloads')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Back' }))
+
+    getFolders.mockResolvedValue({ ...FOLDERS, defaultPath: '/media/downloads' })
+    settle()
+    expect(await within(sheet).findByRole('button', { name: 'Default folder/media/downloads' })).toBeInTheDocument()
+  })
+
+  it('keeps a folder busy with what’s sent when it’s opened again before its save settles', async () => {
+    prepareFolder.mockReturnValue(new Promise(() => {}))
+    const sheet = await openSheet()
+    await type(await edit(sheet, /^Movies/), '/media/films')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Back' }))
+
+    const field = await edit(sheet, /^Movies/)
+    expect(field).toHaveValue('/media/films')
+    expect(field).toHaveAttribute('readonly')
+    expect(within(sheet).getByRole('button', { name: 'Save' })).toBeDisabled()
+    expect(within(sheet).getByRole('button', { name: 'Use the default' })).toBeDisabled()
+    expect(prepareFolder).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['before 5.2', 409],
+    ['from 5.2', 404],
+  ])('says when qBittorrent no longer has the category (%s), and shows the list as it is now once back', async (_, status) => {
+    setCategoryFolder.mockRejectedValue(new api.QbittorrentError(`qBittorrent responded ${status}`, status))
+    const sheet = await openSheet()
+    await type(await edit(sheet, /^Movies/), '/media/films')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
+
+    expect(
+      await within(sheet).findByRole('alert', { name: saying('qBittorrent no longer has this category. Go back to see the ones it has.') }),
+    ).toBeInTheDocument()
+    expect(prepareFolder).toHaveBeenCalledWith('/media/films')
+
+    getFolders.mockResolvedValue({ ...FOLDERS, categories: [TV] })
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Back' }))
+    expect(await within(sheet).findByRole('button', { name: 'TV/downloads/TV' })).toBeInTheDocument()
+    expect(within(sheet).queryByRole('button', { name: /^Movies/ })).not.toBeInTheDocument()
   })
 
   it('opens on the list again after it was closed on a folder', async () => {

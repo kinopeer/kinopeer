@@ -501,6 +501,7 @@
     "relocates": "qBittorrent will move the files of torrents under automatic management that are in this folder to the new one, as its settings say.",
     "toManual": "qBittorrent will switch torrents under automatic management that are in this folder to manual mode, as its settings say, and their files stay where they are.",
     "inDefaultNote": "Without a folder of its own, the category keeps its torrents in {{folder}}.",
+    "categoryGone": "qBittorrent no longer has this category. Go back to see the ones it has.",
     "useDefault": "Use the default",
     "saved": "Folder saved"
   },

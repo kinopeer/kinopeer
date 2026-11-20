@@ -278,6 +278,19 @@ describe('qbittorrentMiddleware', () => {
     expect(qbt.logins()).toBe(0)
   })
 
+  it('refuses a change of preferences with a query, and sends nothing to qBittorrent', async () => {
+    const qbt = await fakeQbittorrent()
+    const base = await kinopeer({ url: qbt.base, credentials: () => ({ username: 'admin', password: 'pass word' }) })
+
+    const response = await call(`${base}/qbt/api/v2/app/setPreferences?json=${encodeURIComponent('{"web_ui_username":"x"}')}`, {
+      method: 'POST',
+      body: new URLSearchParams({ json: '{"save_path":"/a"}' }),
+    })
+    expect(response.status).toBe(400)
+    expect(qbt.seen).toEqual([])
+    expect(qbt.logins()).toBe(0)
+  })
+
   it.each([
     '/qbt/api/x/../v2/auth/login',
     '/qbt/api/v2/%2e%2e/v2/auth/login',
