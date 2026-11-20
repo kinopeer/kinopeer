@@ -2,6 +2,7 @@ import type {
   AddTorrentOptions,
   Category,
   FilePriority,
+  Folders,
   MainData,
   SaveLocations,
   Torrent,
@@ -213,6 +214,12 @@ export async function getDefaultSavePath(signal?: AbortSignal): Promise<string> 
 
 /** The preferences that decide where qBittorrent puts a category's torrents. */
 interface FolderPreferences {
+  /** The default save path. */
+  save_path?: string
+  /** "When Default Save Path changed": relocate the affected torrents (true) or switch them to manual mode. */
+  save_path_changed_tmm_enabled?: boolean
+  /** "When Category Save Path changed", the same. */
+  category_changed_tmm_enabled?: boolean
   auto_tmm_enabled?: boolean
   /** qBittorrent 4.4+. */
   use_category_paths_in_manual_mode?: boolean
@@ -224,21 +231,45 @@ interface FolderPreferences {
   temp_path_enabled?: boolean
 }
 
+async function getFolderPreferences(signal?: AbortSignal): Promise<FolderPreferences> {
+  return (await request('/app/preferences', { signal })).json() as Promise<FolderPreferences>
+}
+
+/**
+ * The session check's answer, kept for the page: qBittorrent's version doesn't change under an open
+ * page but by an update, which only the folders shown would miss until a reload.
+ */
+function keptVersion(signal?: AbortSignal): Promise<string | undefined> {
+  return sharedRequests.get(APP_VERSION_KEY, getAppVersion, { freshFor: Infinity, signal }).catch((): undefined => undefined)
+}
+
 /** Categories by name, the default save path and how qBittorrent uses category folders. */
 export async function getSaveLocations(signal?: AbortSignal): Promise<SaveLocations> {
   const [categories, defaultPath, preferences, version] = await Promise.all([
     getCategories(signal).catch(() => []),
     getDefaultSavePath(signal).catch(() => ''),
-    request('/app/preferences', { signal })
-      .then((response) => response.json() as Promise<FolderPreferences>)
-      // qBittorrent's defaults: manual mode, no subcategories.
-      .catch((): FolderPreferences => ({ use_subcategories: false })),
-    // The session check's answer, kept for the page: qBittorrent's version doesn't change under an
-    // open page but by an update, which only the folders shown would miss until a reload.
-    sharedRequests
-      .get(APP_VERSION_KEY, getAppVersion, { freshFor: Infinity, signal })
-      .catch((): undefined => undefined),
+    // qBittorrent's defaults: manual mode, no subcategories.
+    getFolderPreferences(signal).catch((): FolderPreferences => ({ use_subcategories: false })),
+    keptVersion(signal),
   ])
+  return saveLocations(categories, defaultPath, preferences, version)
+}
+
+/**
+ * The folders Settings shows and changes: as `getSaveLocations` reads them, the default save path
+ * from the preferences, and with what a change of a folder does to the torrents in it. Fails when
+ * qBittorrent doesn't send its categories or preferences, rather than showing part of them.
+ */
+export async function getFolders(signal?: AbortSignal): Promise<Folders> {
+  const [categories, preferences, version] = await Promise.all([getCategories(signal), getFolderPreferences(signal), keptVersion(signal)])
+  return {
+    ...saveLocations(categories, preferences.save_path ?? '', preferences, version),
+    relocateOnDefaultPathChange: preferences.save_path_changed_tmm_enabled === true,
+    relocateOnCategoryPathChange: preferences.category_changed_tmm_enabled === true,
+  }
+}
+
+function saveLocations(categories: Category[], defaultPath: string, preferences: FolderPreferences, version: string | undefined): SaveLocations {
   return {
     categories: categories.sort((a, b) => a.name.localeCompare(b.name)),
     defaultPath,
@@ -355,6 +386,40 @@ export async function setTorrentLocation(hashes: string[], location: string): Pr
     await getAppVersion()
     throw new QbittorrentError('qBittorrent cannot write to that folder', 403)
   }
+}
+
+/**
+ * Has qBittorrent create `location` when it isn't there, so a folder it can't create is refused
+ * before Settings saves it: Move files' call for no torrents (never `all`, which would move every
+ * one), since neither the preferences nor a category check a folder they're given. The folder is
+ * left in place, as qBittorrent would make it for the first torrent anyway. qBittorrent 4.6 to 5.3
+ * don't check whether they can write to a folder that's there, so a read-only one passes.
+ */
+export async function prepareFolder(location: string): Promise<void> {
+  await setTorrentLocation([], location)
+}
+
+/** Sets qBittorrent's default save path: the one preference Kinopeer's server lets through. */
+export async function setDefaultSavePath(path: string): Promise<void> {
+  await request('/app/setPreferences', { method: 'POST', params: { json: JSON.stringify({ save_path: path }) } })
+}
+
+/**
+ * Sets a category's folder, empty for the default save path and the category's name. qBittorrent
+ * before 5.3 sets a category's incomplete-downloads folder from the same call, to its default
+ * when it's left out, so the one the category has is sent with it.
+ */
+export async function setCategoryFolder(category: Category, savePath: string): Promise<void> {
+  const downloadPath = category.download_path
+  await request('/torrents/editCategory', {
+    method: 'POST',
+    params: {
+      category: category.name,
+      savePath,
+      ...(typeof downloadPath === 'string' && { downloadPathEnabled: true, downloadPath }),
+      ...(downloadPath === false && { downloadPathEnabled: false }),
+    },
+  })
 }
 
 /** Trackers of a torrent, including the DHT, PeX and LSD pseudo-trackers. */

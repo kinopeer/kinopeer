@@ -28,6 +28,7 @@ import { clearTitleMatches } from '../torrents/useTitleMatches'
 import tmdbLogo from '../assets/tmdb-logo.svg'
 import { unreachableText } from '../lib/unreachable'
 import { ChangePasswordForm } from './ChangePasswordForm'
+import { FoldersSheet } from './FoldersSheet'
 import { InstallSheet } from './InstallSheet'
 import { ProwlarrKeyForm } from './ProwlarrKeyForm'
 import { TmdbKeyForm } from './TmdbKeyForm'
@@ -181,6 +182,7 @@ export function SettingsScreen() {
   const [editingProwlarrKey, setEditingProwlarrKey] = useState(false)
   const [prowlarrKeyVersion, setProwlarrKeyVersion] = useState(0)
   const [changingPassword, setChangingPassword] = useState(false)
+  const [editingFolders, setEditingFolders] = useState(false)
   const toast = useToast()
   // Its checks and loads change no heights, so the page is ready to scroll back at once.
   useScrollRestoration(true, '/settings')
@@ -330,6 +332,10 @@ export function SettingsScreen() {
           ))}
         </div>
         <p className="t-cap c3 settings-hint">{t('settings.defaultsHint')}</p>
+        {/* qBittorrent's own, set once: loaded when opened, so the page asks qBittorrent nothing more. */}
+        <ul className="ks-card settings-rows">
+          <AboutRow icon="folder" label={t('move.known')} hint={t('settings.foldersHint')} onClick={() => setEditingFolders(true)} />
+        </ul>
       </Section>
 
       <Section id="settings-appearance" title={t('settings.appearance')}>
@@ -427,6 +433,7 @@ export function SettingsScreen() {
       </Section>
 
       <InstallSheet platform={installSteps} onClose={() => setInstallSteps(null)} />
+      <FoldersSheet open={editingFolders} onClose={() => setEditingFolders(false)} />
       <Sheet open={editingKey} onClose={() => setEditingKey(false)} title={t('tmdbKey.sheetTitle')}>
         <TmdbKeyForm
           forget={

@@ -321,7 +321,7 @@ function TableSkeleton() {
           <div className="ks-skel" style={{ height: 16 }} />
           <div className="ks-skel" style={{ height: 16 }} />
           <div className="ks-skel" style={{ height: 16 }} />
-          <div className="ks-skel" style={{ height: 32 }} />
+          <div className="ks-skel title-rel-skel-action" style={{ height: 32 }} />
         </div>
       ))}
     </div>

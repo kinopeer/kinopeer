@@ -3,16 +3,13 @@ import { useTranslation } from 'react-i18next'
 import { getSaveLocations, type Torrent } from '../api/qbittorrent'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
-import { FilterChip } from '../components/FilterChip'
 import { IconButton } from '../components/IconButton'
-import { Input } from '../components/Input'
 import { Sheet } from '../components/Sheet'
 import { useRequest } from '../lib/useRequest'
 import { isAbsolute, knownFolders, sameFolder } from '../torrents/folders'
+import { FolderField } from './FolderField'
+import type { FolderFailure } from './folderFailure'
 import './MoveTorrentSheet.css'
-
-/** Why qBittorrent didn't take a folder, as a translation key. */
-export type MoveFailure = 'move.noAccess' | 'move.cantCreate' | 'common.qbtFailed'
 
 export interface MoveTorrentSheetProps {
   torrent: Torrent
@@ -22,7 +19,7 @@ export interface MoveTorrentSheetProps {
    *  this one then starts from. */
   pending?: string
   /** Why qBittorrent didn't take the last folder. */
-  failure?: MoveFailure
+  failure?: FolderFailure
   onMove: (location: string) => void
   onClose: () => void
 }
@@ -37,9 +34,6 @@ export function MoveTorrentSheet({ torrent, offline, pending, failure, onMove, o
   const sending = pending !== undefined
   const target = location.trim()
   const unchanged = sameFolder(target) === sameFolder(torrent.save_path)
-  // qBittorrent checks a relative path against its own working directory but saves under the default
-  // save path, and doesn't expand ~, so only a full path is sent.
-  const relative = !!target && !isAbsolute(target)
 
   return (
     <Sheet
@@ -55,7 +49,7 @@ export function MoveTorrentSheet({ torrent, offline, pending, failure, onMove, o
           icon="folder"
           block
           loading={sending}
-          disabled={!target || relative || unchanged || sending || offline}
+          disabled={!isAbsolute(target) || unchanged || sending || offline}
           onClick={() => onMove(target)}
         >
           {t('move.submit')}
@@ -63,35 +57,7 @@ export function MoveTorrentSheet({ torrent, offline, pending, failure, onMove, o
       }
     >
       <div className="move-body">
-        <Input
-          label={t('common.folder')}
-          value={location}
-          mono
-          error={relative ? t('move.absolute') : undefined}
-          autoCapitalize="off"
-          autoCorrect="off"
-          spellCheck={false}
-          // What's typed while the move is sent would be lost when it closes the sheet.
-          readOnly={sending}
-          onChange={(event) => setLocation(event.target.value)}
-        />
-        {folders.length > 0 && (
-          <div role="group" aria-label={t('move.known')} className="move-folders">
-            <span className="ks-label">{t('move.known')}</span>
-            <div className="move-chips">
-              {folders.map((folder) => (
-                <FilterChip
-                  key={folder}
-                  selected={sameFolder(folder) === sameFolder(target)}
-                  disabled={sending}
-                  onClick={() => setLocation(folder)}
-                >
-                  {folder}
-                </FilterChip>
-              ))}
-            </div>
-          </div>
-        )}
+        <FolderField value={location} onChange={setLocation} folders={folders} readOnly={sending} />
         <p className="t-cap c3">{t('move.note')}</p>
         {failure && <Banner tone="error">{t(failure)}</Banner>}
       </div>
