@@ -9,8 +9,9 @@ import { POSTER_CACHE, SHELL_DENYLIST, isPosterRequest } from './pwa/swRoutes'
 
 declare const self: ServiceWorkerGlobalScope
 
-// A new version takes over right away. The app loads as one bundle (no lazy chunks), so a page
-// that is already open keeps working; src/pwa/updates.ts reloads it into the new version.
+// A new version takes over right away. The app loads as one bundle, but for the texts of the other
+// language, so a page that is already open keeps working; src/pwa/updates.ts reloads it into the new
+// version, also when it can't load those texts, which the new version's precache no longer has.
 void self.skipWaiting()
 clientsClaim()
 

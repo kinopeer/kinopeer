@@ -30,6 +30,14 @@ export function kindOf(path: string): Kind {
 }
 
 /**
+ * Whether a file is a language's texts, a chunk vite.config.ts names `assets/language-<code>-<hash>.js`,
+ * the code two letters, so a chunk of a module that is only named `language…` isn't taken for one.
+ * A page loads only the language it shows (src/i18n/language.ts), so JS counts only the heaviest of
+ * them, the most a page may load.
+ */
+export const isLanguageFile = (path: string): boolean => /^assets\/language-[a-z]{2}-[^/]+\.m?js$/.test(path)
+
+/**
  * Whether a file counts gzipped. JS and CSS are most of the text the server compresses: gzip at its
  * default level is a steady measure of them, though server/static.ts sends Brotli to a browser that
  * takes it and gzip only to one that doesn't. The rest counts as it is: the fonts and icons are
@@ -53,16 +61,23 @@ export function readBudgets(checks: unknown): Budgets | string[] {
   return problems.length > 0 ? problems : budgets
 }
 
+/** A kind's files that count, heaviest first, their total, and the ones it leaves out (the lighter languages). */
+export type Total = { size: number | null; own: File[]; left: File[] }
+
 /**
  * Each kind's files, heaviest first, and their total: what the verdict judges and the actual values
- * record. A kind with no file has a total of null, which a build of the app never has (`NONE`).
+ * record. JS counts one language file, the heaviest (`isLanguageFile`), and leaves the others out. A
+ * kind with no file has a total of null, which a build of the app never has (`NONE`).
  */
-export function totals(files: File[]): Record<Kind, { size: number | null; own: File[] }> {
-  const of = (kind: Kind) => {
-    const own = files.filter((file) => kindOf(file.path) === kind).sort((a, b) => b.size - a.size || a.path.localeCompare(b.path))
-    return { size: own.length === 0 ? null : own.reduce((total, file) => total + file.size, 0), own }
+export function totals(files: File[]): Record<Kind, Total> {
+  const heaviestFirst = (a: File, b: File) => b.size - a.size || a.path.localeCompare(b.path)
+  const of = (kind: Kind): Total => {
+    const all = files.filter((file) => kindOf(file.path) === kind)
+    const [heaviest, ...left] = all.filter((file) => isLanguageFile(file.path)).sort(heaviestFirst)
+    const own = [...all.filter((file) => !isLanguageFile(file.path)), ...(heaviest ? [heaviest] : [])].sort(heaviestFirst)
+    return { size: own.length === 0 ? null : own.reduce((total, file) => total + file.size, 0), own, left }
   }
-  return Object.fromEntries(KINDS.map((kind) => [kind, of(kind)])) as Record<Kind, { size: number | null; own: File[] }>
+  return Object.fromEntries(KINDS.map((kind) => [kind, of(kind)])) as Record<Kind, Total>
 }
 
 const bytes = (count: number): string => `${count.toLocaleString('en-US')} B`
@@ -78,6 +93,14 @@ export function judge(files: File[], budgets: Budgets): Verdict {
   if (missing.length > 0) return unchecked(missing.map((kind) => `the build has ${NONE[kind]}, which every build of the app has: run \`npm run build\` again`))
   const rows = KINDS.map((kind) => ({ kind, size: byKind[kind].size as number, budget: budgets[kind], own: byKind[kind].own }))
   const table = ['| Kind | Size | Budget | Left |', '| --- | ---: | ---: | ---: |', ...rows.map(({ kind, size, budget }) => `| ${LABELS[kind]} | ${bytes(size)} | ${bytes(budget)} | ${bytes(budget - size)} |`)]
+  // With more than one language, the one counted is the heaviest among them in JS's files.
+  const name = (file: File) => `\`${file.path}\` ${bytes(file.size)}`
+  const { own: js, left } = byKind.js
+  const language = js.find((file) => isLanguageFile(file.path))
+  const languages =
+    language && left.length > 0
+      ? [`JS counts one language's texts, the heaviest, since a page loads only the language it shows: ${name(language)}. Left out: ${left.map(name).join(', ')}.`]
+      : []
   const over = rows.filter(({ size, budget }) => size > budget)
   const failures = over.map(({ kind, size, budget, own }) => {
     const heaviest = own.slice(0, HEAVIEST).map((file) => `\`${file.path}\` ${bytes(file.size)}`)
@@ -90,7 +113,7 @@ export function judge(files: File[], budgets: Budgets): Verdict {
           'Find what grew: build `main` and this branch, each after `npm ci`, run `npm run size` on each and compare the files of that kind (a new dependency, an import that pulls in a whole library, an asset). ' +
             'Make it smaller or leave it out. Raising a budget is the owner\'s decision, not a way to get a PR through (docs/QUALITY.md → The size budget).',
         ]
-  return { passed: over.length === 0, report: [TITLE, table.join('\n'), ...failures, ...advice].join('\n\n') }
+  return { passed: over.length === 0, report: [TITLE, table.join('\n'), ...languages, ...failures, ...advice].join('\n\n') }
 }
 
 /** A check that couldn't be made fails, and says why: a budget or a build it can't read is not a pass. */

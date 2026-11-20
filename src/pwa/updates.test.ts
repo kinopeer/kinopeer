@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { showLanguage } from '../i18n/language'
+import { russianUnreachable } from '../test/languages'
 import { TAKEOVER_TIMEOUT_MS, VERSION_URL, markReloadedFor, startUpdateChecks, takeJustUpdated } from './updates'
 
 const NEW = `${__APP_VERSION__}+new`
@@ -80,6 +82,30 @@ describe('startUpdateChecks', () => {
   it('stays on the same version', async () => {
     serverHas(__APP_VERSION__)
     stop = startUpdateChecks(reload)
+    await settle()
+    expect(reload).not.toHaveBeenCalled()
+  })
+
+  it("checks when a language's texts can't be loaded, as a page an update left behind finds them gone", async () => {
+    serverHas(__APP_VERSION__)
+    stop = startUpdateChecks(reload)
+    await settle()
+
+    serverHas(NEW)
+    russianUnreachable()
+    await showLanguage('ru')
+    await settle()
+    expect(reload).toHaveBeenCalledOnce()
+  })
+
+  it("no longer checks for a language's texts once stopped", async () => {
+    serverHas(__APP_VERSION__)
+    startUpdateChecks(reload)()
+    await settle()
+
+    serverHas(NEW)
+    russianUnreachable()
+    await showLanguage('ru')
     await settle()
     expect(reload).not.toHaveBeenCalled()
   })

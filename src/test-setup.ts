@@ -5,6 +5,7 @@ import { setSignInNeed } from './api/auth/signInNeed'
 import i18n from './i18n'
 import { sharedRequests } from './logic/sharedRequests'
 import { LANGUAGE_STORAGE_KEY, resetLanguagePreference } from './i18n/language'
+import { giveBothLanguages } from './test/languages'
 import { resetThemePreference } from './theme/theme'
 
 // findBy* waits up to 1 s by default; the first test of a file on a busy CI runner can take longer.
@@ -16,6 +17,10 @@ configure({ asyncUtilTimeout: 3000 })
 window.scrollTo = () => {}
 
 beforeEach(async () => {
+  // The app loads a language's texts when it shows it (src/i18n/language.ts); every test has both
+  // from the start, so it switches the language with i18n.changeLanguage and waits for nothing, and
+  // one that took them away (src/test/languages.ts) leaves none missing for the next.
+  giveBothLanguages()
   await i18n.changeLanguage('en')
 })
 
