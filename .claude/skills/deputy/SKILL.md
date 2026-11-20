@@ -72,8 +72,12 @@ counts by its latest run. Poll the head's check runs with a loop of `sleep 60` b
 commands of up to 10 minutes one after another, since one command can't wait as long as below:
 up to 30 minutes, and for `Mutants report` up to the `mutants` job's own `timeout-minutes` in
 `.github/workflows/mutants.yml` after that job's check run (`check_name=mutants`) started, one
-not started after 30 minutes counting as missing. `Mutants report` itself appears only once that
-job ends. The job takes longer than the others on a big diff, and stopping at 30 minutes left #498 waiting twice for a run that then
+not started after 30 minutes counting as missing. `Mutants report` itself appears only when that job ends
+well on a PR from this repository: once the `mutants` check run has completed, stop waiting for
+it. With no `Mutants report` at the head, a `mutants` run that failed or was cancelled counts as
+a failed check; on a fork's PR, which gets no report, the round reads the survivors from that
+run's summary, which the maintainer's session accounts for (`docs/TESTING.md` → Reviewing a PR's
+tests, an outside contributor's PR). The job takes longer than the others on a big diff, and stopping at 30 minutes left #498 waiting twice for a run that then
 passed (#477 noted it for the retro).
 
 - **A failed check:** post a review with `event=COMMENT`, headed `CI at <short sha>`, that names
