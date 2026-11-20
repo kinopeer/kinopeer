@@ -373,6 +373,18 @@ describe('ConnectScreen', () => {
     expect(screen.getByRole('button', { name: 'English' })).toHaveAttribute('aria-pressed', 'true')
   })
 
+  it("chooses the language shown when it's tapped after another couldn't be loaded", async () => {
+    setup()
+    russianUnreachable()
+    const language = within(screen.getByRole('group', { name: 'Language' }))
+    await userEvent.click(language.getByRole('button', { name: 'Русский' }))
+    expect(await screen.findByRole('status')).toBeInTheDocument()
+    expect(localStorage.getItem('kinopeer.language')).toBe('ru')
+
+    await userEvent.click(language.getByRole('button', { name: 'English' }))
+    expect(localStorage.getItem('kinopeer.language')).toBe('en')
+  })
+
   it('keeps following the browser when the language already shown is tapped', async () => {
     setup()
     const language = within(screen.getByRole('group', { name: 'Language' }))
