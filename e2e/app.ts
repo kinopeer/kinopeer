@@ -50,6 +50,8 @@ export interface AppOptions {
   signIn?: 'set-up' | 'sign-in' | 'throttled'
   /** Kinopeer's own login as /api/settings says it, instead of off, as on Umbrel (KINOPEER_AUTH=off). */
   auth?: AuthStatus
+  /** qBittorrent's and Prowlarr's addresses were saved from the app, not set in the server's environment. */
+  addressesFromApp?: boolean
   /** Prowlarr doesn't answer the server's connection check. */
   prowlarrDown?: boolean
   /** How many indexers Prowlarr has set up, instead of 2. */
@@ -149,8 +151,17 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
     (route) =>
       json(route, {
         tmdb: { configured: true, source: 'saved', fallback: null },
-        prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } },
-        qbittorrent: { configured: true, source: 'saved', address: { source: 'env' } },
+        prowlarr: {
+          configured: true,
+          source: options.addressesFromApp ? 'saved' : 'env',
+          serverKey: !options.addressesFromApp,
+          address: options.addressesFromApp ? { source: 'saved', url: 'http://192.168.1.10:9696' } : { source: 'env' },
+        },
+        qbittorrent: {
+          configured: true,
+          source: 'saved',
+          address: options.addressesFromApp ? { source: 'saved', url: 'http://192.168.1.10:8080' } : { source: 'env' },
+        },
         downloads: null,
         auth: options.auth ?? { enabled: false },
       }),

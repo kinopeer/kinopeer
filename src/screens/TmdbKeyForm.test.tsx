@@ -47,6 +47,9 @@ describe('TmdbKeyForm', () => {
     let finish = (_settings: ServerSettings) => {}
     saveTmdbKey.mockReturnValue(new Promise((resolve) => (finish = resolve)))
     const { onSaved, field, save } = renderForm()
+    // A key is machine text: no autocorrect (iOS Safari's, #494) or spell check.
+    expect(field).toHaveAttribute('autocorrect', 'off')
+    expect(field).toHaveAttribute('spellcheck', 'false')
     expect(screen.getByRole('link', { name: 'Open TMDB API settings' })).toHaveAttribute('href', 'https://www.themoviedb.org/settings/api')
     expect(screen.getByRole('button', { name: 'Skip for now' })).toBeInTheDocument()
 

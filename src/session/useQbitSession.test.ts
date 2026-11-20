@@ -58,9 +58,14 @@ describe('useQbitSession', () => {
     const { result } = renderHook(() => useQbitSession())
     await waitFor(() => expect(result.current.session).toEqual({ status: 'no-address' }))
 
-    await act(() => result.current.signIn('', '', 'http://192.168.1.10:8080'))
+    let answer: unknown
+    await act(async () => {
+      answer = await result.current.signIn('', '', 'http://192.168.1.10:8080')
+    })
     expect(login).toHaveBeenCalledWith('', '', 'http://192.168.1.10:8080')
     expect(result.current.session).toEqual({ status: 'connected', version: '5.2.4' })
+    // The server's settings, which Settings shows after a save.
+    expect(answer).toBe(SAVED)
   })
 
   it('says who did not answer the check: Kinopeer on a network error, qBittorrent on the bridge’s failure', async () => {

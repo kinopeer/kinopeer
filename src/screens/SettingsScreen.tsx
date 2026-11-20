@@ -5,7 +5,7 @@ import { AuthError, signOut } from '../api/auth'
 import { ProwlarrSetupError, getProwlarrStatus } from '../api/prowlarr'
 import { APP_VERSION_FRESH_MS, APP_VERSION_KEY, getAppVersion, getCategories, unreachable } from '../api/qbittorrent'
 import { TmdbKeyError, checkTmdb } from '../api/tmdb'
-import { SERVER_SETTINGS_FRESH_MS, SERVER_SETTINGS_KEY, getServerSettings, type ServerSettings } from '../api/settings'
+import { SERVER_SETTINGS_FRESH_MS, SERVER_SETTINGS_KEY, getServerSettings, type AddressStatus, type ServerSettings } from '../api/settings'
 import { Button } from '../components/Button'
 import { Icon, type IconName } from '../components/Icon'
 import { IconButton } from '../components/IconButton'
@@ -31,6 +31,7 @@ import { ChangePasswordForm } from './ChangePasswordForm'
 import { FoldersSheet } from './FoldersSheet'
 import { InstallSheet } from './InstallSheet'
 import { ProwlarrKeyForm } from './ProwlarrKeyForm'
+import { QbittorrentLoginForm } from './QbittorrentLoginForm'
 import { TmdbKeyForm } from './TmdbKeyForm'
 import './SettingsScreen.css'
 
@@ -93,6 +94,11 @@ function ConnectionRow({ name, icon, status, onTest, editLabel, onEdit }: Connec
       </Button>
     </li>
   )
+}
+
+/** The address saved from the app, which a form starts from. */
+function savedUrl(address: AddressStatus | undefined): string | undefined {
+  return address?.source === 'saved' ? address.url : undefined
 }
 
 /** A row in About that shows a value; "—" while it isn't known (Connections says why). */
@@ -167,7 +173,15 @@ function AboutRow({ icon, label, hint, href, onClick }: AboutRowProps) {
 /** The download defaults that are on/off switches, in order; each is labelled by `add.<key>`. */
 const DEFAULT_SWITCHES = ['startPaused', 'sequential', 'firstLastPieces'] as const satisfies readonly (keyof Settings)[]
 
-export function SettingsScreen() {
+export interface SettingsScreenProps {
+  /**
+   * Saves qBittorrent's login and address and checks the app's session at them (`useQbitSession`'s
+   * `signIn`), so the sidebar's version follows, and an old qBittorrent there is said to be too old.
+   */
+  signIn: (username: string, password: string, url?: string) => Promise<ServerSettings>
+}
+
+export function SettingsScreen({ signIn }: SettingsScreenProps) {
   const { t } = useTranslation()
   const { preference, setPreference } = useTheme()
   const language = useLanguage()
@@ -180,6 +194,7 @@ export function SettingsScreen() {
     () => (location.state as SettingsLocationState | null)?.editTmdbKey === true,
   )
   const [editingProwlarrKey, setEditingProwlarrKey] = useState(false)
+  const [editingQbittorrent, setEditingQbittorrent] = useState(false)
   const [prowlarrKeyVersion, setProwlarrKeyVersion] = useState(0)
   const [changingPassword, setChangingPassword] = useState(false)
   const [editingFolders, setEditingFolders] = useState(false)
@@ -213,6 +228,11 @@ export function SettingsScreen() {
   }
   const names = (categories.data ?? []).map((category) => category.name).sort((a, b) => a.localeCompare(b))
   const sharedTmdbKey = server?.tmdb.source === 'shared'
+  // An address changes here only where the server would take one from the app: behind its own login,
+  // and where its environment doesn't set it, which it shows as set on the server, not its value.
+  const fromApp = (address: AddressStatus | undefined) => auth?.enabled === true && address !== undefined && address.source !== 'env'
+  const qbittorrentFromApp = fromApp(server?.qbittorrent.address)
+  const prowlarrFromApp = fromApp(server?.prowlarr.address)
 
   // The checks behind Connections, run here so About shows the versions they answer with and
   // starts none of its own; a check running again or failing has no data, so About shows "—".
@@ -288,6 +308,8 @@ export function SettingsScreen() {
             icon="server"
             status={connectionStatus(qbittorrent, () => ({ message: t('settings.connected') }), (error) => t('noAnswer.qbittorrent', { context: unreachableText(unreachable(error)) }))}
             onTest={qbittorrent.retry}
+            editLabel={qbittorrentFromApp ? t('settings.changeQbittorrent') : undefined}
+            onEdit={() => setEditingQbittorrent(true)}
           />
           <ConnectionRow
             name="Prowlarr"
@@ -300,7 +322,7 @@ export function SettingsScreen() {
               (error) => (error instanceof ProwlarrSetupError ? t('settings.prowlarrSetup') : t('noAnswer.prowlarr')),
             )}
             onTest={prowlarr.retry}
-            editLabel={t('prowlarrKey.change')}
+            editLabel={t('prowlarrKey.change', { context: prowlarrFromApp ? 'address' : undefined })}
             onEdit={() => setEditingProwlarrKey(true)}
           />
           <ConnectionRow
@@ -317,7 +339,7 @@ export function SettingsScreen() {
             onEdit={() => setEditingKey(true)}
           />
         </ul>
-        <p className="t-cap c3 settings-hint">{t('settings.connectionsHint')}</p>
+        <p className="t-cap c3 settings-hint">{t('settings.connectionsHint', { context: qbittorrentFromApp || prowlarrFromApp ? 'app' : undefined })}</p>
       </Section>
 
       <Section id="settings-defaults" title={t('settings.downloadDefaults')}>
@@ -466,20 +488,62 @@ export function SettingsScreen() {
           onLoginOff={loginTurnedOff}
         />
       </Sheet>
-      <Sheet open={editingProwlarrKey} onClose={() => setEditingProwlarrKey(false)} title={t('prowlarrKey.sheetTitle')}>
+      <Sheet
+        open={editingQbittorrent}
+        onClose={() => setEditingQbittorrent(false)}
+        title={t('settings.qbittorrentSheetTitle')}
+      >
+        <QbittorrentLoginForm
+          className="key-form"
+          askAddress
+          initialAddress={savedUrl(server?.qbittorrent.address)}
+          addressFromApp
+          onSubmit={async (username, password, url) => {
+            setServerChanged(await signIn(username, password, url))
+            setEditingQbittorrent(false)
+            toast.show(t('settings.qbittorrentSaved'))
+            // The row and the categories come from the qBittorrent at the new address.
+            qbittorrent.retry()
+            setCategoriesLoad((n) => n + 1)
+          }}
+          onEnvAddress={() => {
+            // The environment's address wins now: the row offers no change once the settings say so,
+            // and its check runs at that address.
+            setEditingQbittorrent(false)
+            toast.show(t('connect.envAddress'))
+            setServerChanged(null)
+            serverLoad.retry()
+            qbittorrent.retry()
+          }}
+        />
+      </Sheet>
+      <Sheet
+        open={editingProwlarrKey}
+        onClose={() => setEditingProwlarrKey(false)}
+        title={t('prowlarrKey.sheetTitle', { context: prowlarrFromApp ? 'address' : undefined })}
+      >
         <ProwlarrKeyForm
           canForget={server?.prowlarr.source === 'saved' && server.prowlarr.serverKey}
+          askAddress={prowlarrFromApp}
+          initialAddress={savedUrl(server?.prowlarr.address)}
           addressFromApp={server?.prowlarr.address.source === 'saved'}
           onSaved={(changed) => {
             setServerChanged(changed)
             setEditingProwlarrKey(false)
-            toast.show(t('prowlarrKey.saved'))
+            toast.show(t('prowlarrKey.saved', { context: prowlarrFromApp ? 'address' : undefined }))
             setProwlarrKeyVersion((n) => n + 1)
           }}
           onForgotten={(changed) => {
             setServerChanged(changed)
             setEditingProwlarrKey(false)
             toast.show(t('prowlarrKey.forgotten'))
+            setProwlarrKeyVersion((n) => n + 1)
+          }}
+          // The sheet keeps saying why; the settings asked again stop asking for an address, and
+          // the row's check runs at the environment's.
+          onEnvAddress={() => {
+            setServerChanged(null)
+            serverLoad.retry()
             setProwlarrKeyVersion((n) => n + 1)
           }}
         />

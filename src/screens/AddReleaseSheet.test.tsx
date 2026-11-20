@@ -170,6 +170,8 @@ describe('AddReleaseSheet', () => {
     await userEvent.click(await within(sheet).findByRole('button', { name: 'No category' }))
     // A path isn't a word, so the browser doesn't underline it.
     expect(within(sheet).getByLabelText('Folder')).toHaveAttribute('spellcheck', 'false')
+    // Nor does iOS Safari correct it (#494).
+    expect(within(sheet).getByLabelText('Folder')).toHaveAttribute('autocorrect', 'off')
     await userEvent.type(within(sheet).getByLabelText('Folder'), '/mnt/tv')
     await userEvent.click(within(sheet).getByRole('switch', { name: 'Start paused' }))
     await userEvent.click(within(sheet).getByRole('switch', { name: 'First and last pieces first' }))

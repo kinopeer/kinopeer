@@ -89,6 +89,7 @@
     "loginOptional": "Оставьте логин пустым, если qBittorrent пускает Kinopeer без него.",
     "loginNeeded": "qBittorrent просит войти: введите логин и пароль",
     "authOff": "Собственный вход Kinopeer выключен, поэтому адрес qBittorrent задаётся только на сервере: QBITTORRENT_URL.",
+    "envAddress": "Адрес qBittorrent теперь задан на сервере Kinopeer (QBITTORRENT_URL), и он важнее сохранённого в приложении.",
     "changeAddress": "Изменить адрес qBittorrent"
   },
   "unsupported": {
@@ -263,6 +264,10 @@
     "connectedSharedKey": "Подключено · ключ Kinopeer",
     "tmdbKey": "API-ключ не задан или неверен",
     "connectionsHint": "Адреса сервисов задаются в конфигурации сервера Kinopeer.",
+    "connectionsHint_app": "Адрес, заданный на сервере Kinopeer, важнее и здесь не меняется. Адрес, введённый здесь, проверяется перед сохранением.",
+    "changeQbittorrent": "Изменить адрес и логин qBittorrent",
+    "qbittorrentSheetTitle": "Подключение к qBittorrent",
+    "qbittorrentSaved": "Подключение к qBittorrent сохранено",
     "downloadDefaults": "Загрузка по умолчанию",
     "moviesCategory": "Категория фильмов",
     "seriesCategory": "Категория сериалов",
@@ -578,7 +583,12 @@
     "notProwlarr": "Адрес Prowlarr на сервере Kinopeer отвечает, но не как Prowlarr. Проверьте PROWLARR_URL.",
     "noServerKey": "У сервера Kinopeer нет своего ключа Prowlarr, поэтому сохранённый остаётся.",
     "forgotten": "Используется ключ Prowlarr с сервера",
-    "forgetFailed": "Не удалось перейти на ключ сервера. Попробуйте ещё раз."
+    "forgetFailed": "Не удалось перейти на ключ сервера. Попробуйте ещё раз.",
+    "envAddress": "Адрес Prowlarr теперь задан на сервере Kinopeer (PROWLARR_URL), и он важнее сохранённого в приложении.",
+    "authOff": "Собственный вход Kinopeer выключен, поэтому адрес Prowlarr задаётся только на сервере: PROWLARR_URL.",
+    "saved_address": "Адрес и ключ Prowlarr сохранены",
+    "change_address": "Изменить адрес и ключ Prowlarr",
+    "sheetTitle_address": "Подключение к Prowlarr"
   },
   "prowlarrSetup": {
     "title": "Подключите Prowlarr",

@@ -1,4 +1,4 @@
-/* Onboarding (connect, TMDB key and qBittorrent too old, UnsupportedQbittorrentScreen): on desktop the form sits in a centered card. */
+/* Onboarding (connect, with qBittorrent too old among its states, and the TMDB key): on desktop the form sits in a centered card. */
 @media (min-width: 1024px) {
   .connect-form {
     max-width: 480px;

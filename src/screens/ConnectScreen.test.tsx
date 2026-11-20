@@ -32,10 +32,14 @@ beforeEach(() => {
   vi.mocked(settings.getServerSettings).mockResolvedValue(serverSettings({ source: 'env' }))
 })
 
-function setup(onSignIn = vi.fn().mockResolvedValue(undefined), props: Partial<Pick<ConnectScreenProps, 'unreachable' | 'noAddress'>> = {}) {
+type StateProps = Partial<Pick<ConnectScreenProps, 'unreachable' | 'unsupported' | 'noAddress'>>
+
+function setup(onSignIn = vi.fn().mockResolvedValue(undefined), props: StateProps = {}) {
   const onRetry = vi.fn()
-  render(<ConnectScreen onSignIn={onSignIn} onRetry={onRetry} {...props} />)
-  return { onSignIn, onRetry }
+  const view = render(<ConnectScreen onSignIn={onSignIn} onRetry={onRetry} {...props} />)
+  /** The session's next state, as `App` renders the same screen with it. */
+  const rerender = (next: StateProps) => view.rerender(<ConnectScreen onSignIn={onSignIn} onRetry={onRetry} {...next} />)
+  return { onSignIn, onRetry, rerender }
 }
 
 async function fillAndSubmit(username = 'admin', password = 'secret') {
@@ -152,10 +156,12 @@ describe('ConnectScreen', () => {
     expect(screen.getByRole('alert', { name: saying('qBittorrent isn’t answering') })).toBeInTheDocument()
   })
 
-  it('takes the server’s word that qBittorrent did not answer the sign-in', async () => {
-    setup(vi.fn().mockRejectedValue(new SettingsError(502, 'unreachable')))
+  it('takes the server’s word that qBittorrent did not answer the sign-in, with Retry', async () => {
+    const { onRetry } = setup(vi.fn().mockRejectedValue(new SettingsError(502, 'unreachable')))
     await fillAndSubmit()
-    expect(screen.getByRole('alert', { name: saying('qBittorrent isn’t answering') })).toBeInTheDocument()
+    const alert = screen.getByRole('alert', { name: saying('qBittorrent isn’t answering') })
+    await userEvent.click(within(alert).getByRole('button', { name: 'Try again' }))
+    expect(onRetry).toHaveBeenCalledOnce()
   })
 
   describe('with no address on the server', () => {
@@ -171,6 +177,10 @@ describe('ConnectScreen', () => {
       expect(screen.getByText('Enter the address of qBittorrent’s Web UI as the Kinopeer server reaches it, and its login. The server keeps them, so you only do this once.')).toBeInTheDocument()
       expect(screen.getByLabelText('qBittorrent address')).toHaveAccessibleDescription('As the Kinopeer server reaches it, for example http://192.168.1.10:8080')
       expect(screen.getByLabelText('qBittorrent address')).toHaveAttribute('spellcheck', 'false')
+      // iOS Safari autocorrects a text field otherwise (#494).
+      expect(screen.getByLabelText('qBittorrent address')).toHaveAttribute('autocorrect', 'off')
+      expect(screen.getByLabelText('Username')).toHaveAttribute('spellcheck', 'false')
+      expect(screen.getByLabelText('Username')).toHaveAttribute('autocorrect', 'off')
       expect(screen.getByLabelText('Username')).toHaveAccessibleDescription('Leave the login empty if qBittorrent lets Kinopeer in without one.')
       expect(screen.getByLabelText('Username')).not.toBeRequired()
       expect(screen.getByLabelText('Password')).not.toBeRequired()
@@ -294,18 +304,29 @@ describe('ConnectScreen', () => {
       expect(screen.queryByRole('alert', { name: notQbittorrent })).not.toBeInTheDocument()
     })
 
-    it('offers to change it when qBittorrent doesn’t answer there, as a wrong one would', async () => {
+    it.each([
+      ['qBittorrent doesn’t answer there, as a wrong one would', { unreachable: 'qbittorrent' } as const, 'qBittorrent isn’t answering'],
+      ['it leads to a qBittorrent too old, which Settings can’t reach', { unsupported: '4.5.5' }, 'qBittorrent 4.5.5 is too old'],
+    ])('offers to change it when %s', async (_name, state, heading) => {
       vi.mocked(settings.getServerSettings).mockResolvedValue(serverSettings({ source: 'saved', url: saved }))
-      const { onSignIn } = setup(undefined, { unreachable: 'qbittorrent' })
-      expect(screen.getByRole('heading', { name: 'qBittorrent isn’t answering' })).toBeInTheDocument()
+      const { onSignIn, onRetry, rerender } = setup(undefined, state)
+      expect(screen.getByRole('heading', { name: heading })).toBeInTheDocument()
+      await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
+      expect(onRetry).toHaveBeenCalledOnce()
       await userEvent.click(await screen.findByRole('button', { name: 'Change qBittorrent address' }))
 
       expect(screen.getByLabelText('qBittorrent address')).toHaveValue(saved)
       await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
       expect(onSignIn).toHaveBeenCalledWith('', '', saved)
+      // The new address leads to a qBittorrent too old as well: the screen says so, the form gone.
+      rerender({ unsupported: '4.5.6' })
+      expect(await screen.findByRole('heading', { name: 'qBittorrent 4.5.6 is too old' })).toBeInTheDocument()
+      expect(screen.queryByLabelText('qBittorrent address')).not.toBeInTheDocument()
+
       // Cancel goes back to the state with Retry.
+      await userEvent.click(screen.getByRole('button', { name: 'Change qBittorrent address' }))
       await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
-      expect(screen.getByRole('heading', { name: 'qBittorrent isn’t answering' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'qBittorrent 4.5.6 is too old' })).toBeInTheDocument()
     })
 
     it.each([
