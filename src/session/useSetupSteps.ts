@@ -20,14 +20,18 @@ export function setupSteps(settings: ServerSettings): SetupStep[] {
 
 /**
  * The onboarding step to show once qBittorrent is connected: 'checking' until the server says,
- * 'done' once each was saved or skipped. A skipped step is asked again on the next visit. A server
+ * 'done' once each was saved or skipped. A skipped step is asked again on the next visit, not
+ * when the session is checked again within this one. A server
  * that can't say (an older build) never blocks the app.
  */
 export function useSetupSteps(enabled: boolean) {
   const [steps, setSteps] = useState<SetupStep[] | null>(null)
+  const known = steps !== null
 
   useEffect(() => {
-    if (!enabled) return
+    // Asked once per page: a session lost and found again (a recheck, Retry) brings back no step
+    // that was finished or skipped.
+    if (!enabled || known) return
     let cancelled = false
     getSharedServerSettings()
       .then(setupSteps)
@@ -38,7 +42,7 @@ export function useSetupSteps(enabled: boolean) {
     return () => {
       cancelled = true
     }
-  }, [enabled])
+  }, [enabled, known])
 
   const finish = useCallback((step: SetupStep) => setSteps((current) => current?.filter((each) => each !== step) ?? current), [])
   const step: SetupStep | 'checking' | 'done' = steps === null ? 'checking' : (steps[0] ?? 'done')

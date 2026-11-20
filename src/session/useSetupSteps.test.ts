@@ -52,6 +52,20 @@ describe('useSetupSteps', () => {
     expect(result.current.step).toBe('done')
   })
 
+  it('keeps a skipped step skipped for the page when qBittorrent connects again', async () => {
+    settings.mockResolvedValue({ ...SET, prowlarr: noProwlarr })
+    const { result, rerender } = renderHook(({ enabled }) => useSetupSteps(enabled), { initialProps: { enabled: true } })
+    await vi.waitFor(() => expect(result.current.step).toBe('prowlarr'))
+    act(() => result.current.finish('prowlarr'))
+
+    // A session lost and found again (a recheck after a 403, Retry) asks the server nothing more.
+    rerender({ enabled: false })
+    rerender({ enabled: true })
+    await act(() => Promise.resolve())
+    expect(result.current.step).toBe('done')
+    expect(settings).toHaveBeenCalledOnce()
+  })
+
   it('drops an answer that comes after qBittorrent disconnected', async () => {
     let answer: (settings: ServerSettings) => void = () => {}
     settings.mockReturnValue(new Promise((resolve) => (answer = resolve)))

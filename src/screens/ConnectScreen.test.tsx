@@ -178,10 +178,16 @@ describe('ConnectScreen', () => {
       // No address, nothing sent.
       await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
       expect(onSignIn).not.toHaveBeenCalled()
-      await fillAddress(' http://192.168.1.10:8080 ')
+      await fillAddress('http://192.168.1.10:8080')
       expect(onSignIn).toHaveBeenCalledWith('', '', 'http://192.168.1.10:8080')
       // The server is asked nothing more: there's no address to change yet.
       expect(settings.getServerSettings).not.toHaveBeenCalled()
+    })
+
+    it('sends an address without a scheme to the server, which says what’s wrong with it', async () => {
+      const { onSignIn } = setup(undefined, { noAddress: true })
+      await fillAddress('192.168.1.10:8080')
+      expect(onSignIn).toHaveBeenCalledWith('', '', '192.168.1.10:8080')
     })
 
     it('sends the login typed with the address', async () => {
@@ -257,15 +263,22 @@ describe('ConnectScreen', () => {
       expect(address).toHaveValue(saved)
       expect(screen.getByLabelText('Username')).not.toBeRequired()
       expect(screen.queryByRole('button', { name: 'Change qBittorrent address' })).not.toBeInTheDocument()
-      // Cancel goes back to the saved address, and Change opens the form again.
-      await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
-      expect(screen.queryByLabelText('qBittorrent address')).not.toBeInTheDocument()
-      await userEvent.click(screen.getByRole('button', { name: 'Change qBittorrent address' }))
-      const again = screen.getByLabelText('qBittorrent address')
-      await userEvent.clear(again)
-      await userEvent.type(again, 'http://192.168.1.20:8080')
+      await userEvent.clear(address)
+      await userEvent.type(address, 'http://192.168.1.20:8080')
       await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
       expect(onSignIn).toHaveBeenCalledWith('', '', 'http://192.168.1.20:8080')
+    })
+
+    it('goes back to signing in at the saved address on Cancel, sending none', async () => {
+      vi.mocked(settings.getServerSettings).mockResolvedValue(serverSettings({ source: 'saved', url: saved }))
+      const { onSignIn } = setup()
+      await userEvent.click(await screen.findByRole('button', { name: 'Change qBittorrent address' }))
+      await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+      expect(screen.queryByLabelText('qBittorrent address')).not.toBeInTheDocument()
+      expect(screen.getByLabelText('Username')).toBeRequired()
+      await fillAndSubmit()
+      expect(onSignIn).toHaveBeenCalledWith('admin', 'secret')
+      expect(onSignIn.mock.calls[0]).toHaveLength(2)
     })
 
     it('signs in at the saved address until it’s changed, and names the address, not the variable, when it isn’t qBittorrent', async () => {

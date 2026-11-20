@@ -86,7 +86,7 @@ export function ProwlarrKeyForm({ onSaved, onForgotten, canForget = false, askAd
         <Input
           label={t('prowlarrKey.address')}
           name="prowlarr-url"
-          type="url"
+          // Text, not url, as on the connect screen: the server's invalid-address says what's missing.
           inputMode="url"
           autoComplete="url"
           autoCapitalize="none"

@@ -150,7 +150,8 @@ export function ConnectScreen({ unreachable: unreachableProp, noAddress = false,
             <Input
               label={t('connect.address')}
               name="url"
-              type="url"
+              // Text, not url: the browser would block an address without a scheme with a bubble of its
+              // own, before the server's invalid-address could say what's missing.
               inputMode="url"
               autoComplete="url"
               autoCapitalize="none"

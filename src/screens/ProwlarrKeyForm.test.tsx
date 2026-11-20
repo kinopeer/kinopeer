@@ -132,7 +132,7 @@ describe('ProwlarrKeyForm', () => {
       return { onSaved, address: screen.getByLabelText('Prowlarr address'), field: screen.getByLabelText('Prowlarr API key'), save: screen.getByRole('button', { name: 'Save' }) }
     }
 
-    it('saves the address with the key, without the spaces a url field drops', async () => {
+    it('saves the address with the key, which is trimmed', async () => {
       const { onSaved, address, field, save } = renderWithAddress()
       expect(address).toHaveAccessibleDescription('As the Kinopeer server reaches it, for example http://192.168.1.10:9696')
       expect(address).toHaveAttribute('spellcheck', 'false')
@@ -142,7 +142,7 @@ describe('ProwlarrKeyForm', () => {
       await userEvent.click(save)
       // Both are needed.
       expect(saveProwlarrKey).not.toHaveBeenCalled()
-      await userEvent.type(address, ' http://prowlarr.test:9696 ')
+      await userEvent.type(address, 'http://prowlarr.test:9696')
       await userEvent.click(save)
       expect(saveProwlarrKey).toHaveBeenCalledWith('abc123', 'http://prowlarr.test:9696')
       await vi.waitFor(() => expect(onSaved).toHaveBeenCalledWith(SAVED))
@@ -179,6 +179,14 @@ describe('ProwlarrKeyForm', () => {
       await userEvent.click(save)
       await vi.waitFor(() => expect(field).toHaveAttribute('aria-invalid', 'true'))
       expect(address).not.toHaveAttribute('aria-invalid')
+    })
+
+    it('sends an address without a scheme to the server, which says what’s wrong with it', async () => {
+      const { address, field, save } = renderWithAddress()
+      await userEvent.type(address, '192.168.1.10:9696')
+      await userEvent.type(field, 'abc123')
+      await userEvent.click(save)
+      expect(saveProwlarrKey).toHaveBeenCalledWith('abc123', '192.168.1.10:9696')
     })
 
     it('offers another action under Save', () => {
