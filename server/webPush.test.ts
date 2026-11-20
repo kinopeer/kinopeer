@@ -155,15 +155,20 @@ describe('sendPush', () => {
   })
 
   it('doesn’t follow a redirect: the push counts as refused and nothing reaches where it points', async () => {
-    const service = await fakePushService()
-    const elsewhere = service.subscribe('/elsewhere')
-    const redirecting = await listen((_request, response) => {
-      response.statusCode = 307
-      response.setHeader('Location', elsewhere.endpoint)
+    // Where it points takes anything, as an address on the server's own network might.
+    const reached: string[] = []
+    const elsewhere = await listen((request, response) => {
+      reached.push(request.url ?? '')
+      response.statusCode = 201
       response.end()
     })
-    await expect(sendPush({ ...elsewhere, endpoint: `${redirecting}/send/a` }, payload, key)).resolves.toBe('refused')
-    expect(service.pushes).toEqual([])
+    const redirecting = await listen((_request, response) => {
+      response.statusCode = 307
+      response.setHeader('Location', `${elsewhere}/inside`)
+      response.end()
+    })
+    await expect(sendPush({ endpoint: `${redirecting}/send/a`, ...fakeBrowser().keys }, payload, key)).resolves.toBe('refused')
+    expect(reached).toEqual([])
   })
 
   it('throws what the device’s keys can’t be used for as itself, not as a service that didn’t answer', async () => {

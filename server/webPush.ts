@@ -170,9 +170,9 @@ const isPushServiceHost = (host: string) =>
  */
 export function isPushKeys(p256dh: string, auth: string): boolean {
   const point = Buffer.from(p256dh, 'base64url')
-  if (point.length !== 65 || point[0] !== 4 || Buffer.from(auth, 'base64url').length !== 16) return false
+  if (point[0] !== 4 || Buffer.from(auth, 'base64url').length !== 16) return false
   try {
-    // Throws for 65 bytes that aren't a point on the curve.
+    // Throws for bytes that aren't an uncompressed point on the curve, of any length.
     ECDH.convertKey(point, 'prime256v1')
     return true
   } catch {

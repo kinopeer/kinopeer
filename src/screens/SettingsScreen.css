@@ -101,6 +101,8 @@
 
 .settings-conn-name {
   font-weight: 600;
+  /* A name longer than a narrow card's column (Push-уведомления on desktop) breaks at a syllable where the browser knows the language's hyphenation, rather than anywhere. */
+  hyphens: auto;
 }
 
 .settings-card {
