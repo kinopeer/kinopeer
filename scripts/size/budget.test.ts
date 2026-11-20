@@ -26,6 +26,7 @@ describe('isLanguageFile', () => {
     ['assets/en-Ab12.js', false],
     ['language-en-Ab12.js', false],
     ['assets/nested/language-en-Ab12.js', false],
+    ['nested/assets/language-en-Ab12.js', false],
     ['assets/language-en-Ab12.css', false],
     ['assets/language-en-Ab12.js.map', false],
   ])('reads %s as a language file: %s', (path, language) => {

@@ -878,7 +878,9 @@ need no Docker: Chromium on the host will do (`npx playwright install chromium`,
   on a phone: each comes back to where it was left once its content is in, the position read as a
   screen goes away being the one the user left rather than the next screen's, clamped; a reload of
   an entry a tab's link opened (the browser keeps its history state) comes back to where the user
-  was on it; and the active tab scrolls to the top, which only a real browser's scrolling shows. Every
+  was on it; and the active tab scrolls to the top, which only a real browser's scrolling shows. The
+  languages (#492): a page loads only its own language's file, its first render already has that
+  language's texts (no keys, no English first), and switching in Settings loads the other's. Every
   journey also asserts the proxy refused nothing, so every fetch carried its cookie, and, through
   the `test` they import from `e2e/smoke/test.ts`, that the Content-Security-Policy blocked nothing
   the built app loads or runs.
