@@ -522,8 +522,14 @@ export function SettingsScreen() {
             onChanged={(changed, saved) => {
               setServerChanged(changed)
               if (saved === 'token') setTelegramVersion((n) => n + 1)
+              // A chat or a test that went through shows Telegram answers, which a failed check said it didn't.
+              else if (telegramCheck.error !== undefined) telegramCheck.retry()
             }}
-            onRefused={(refused) => server && setServerChanged({ ...server, telegram: { ...telegram, refused } })}
+            onRefused={(refused) => {
+              if (server) setServerChanged({ ...server, telegram: { ...telegram, refused } })
+              // The card names a refused token through its own check, which may have passed before.
+              if (refused === 'token') telegramCheck.retry()
+            }}
             onTurnedOff={(changed) => {
               setServerChanged(changed)
               setEditingTelegram(false)
