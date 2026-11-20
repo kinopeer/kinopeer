@@ -391,6 +391,10 @@ budgets of 196,300, 16,200 and 193,600. Clean builds in a row gave the same numb
 and CI's build on Node 22 the same as a local one on Node 24: the size is exact, so the margin is
 room for ordinary changes, not for noise. It is exact for the dependencies `package-lock.json`
 names: a local `node_modules` that drifted from it builds another size, so measure after `npm ci`.
+On 2026-11-20 the JS budget went to 199,800 bytes, the measured size rounded up, on the coordinator's
+decision on #486 (Telegram notifications, which add about 3.4 kB, while `main` grew under its own
+budget meanwhile): it has no margin left until #492, which loads only the active language's texts,
+brings the bundle down.
 
 **In CI** it is the step after `npm run build` in the `performance` job, which adds a table of the kinds,
 their sizes, budgets and what is left to the job's summary, and records the sizes as actual values

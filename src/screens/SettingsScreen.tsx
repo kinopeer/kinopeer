@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router'
 import { AuthError, signOut } from '../api/auth'
@@ -278,6 +278,12 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
   // Asked only with a bot, and again for each bot saved (its name is in the key).
   const telegram = server?.telegram
   const telegramCheck = useRequest(telegram?.bot ? `check|telegram|${telegram.bot}|${telegramVersion}` : null, (signal) => checkTelegram(signal))
+  // The card's check as the last render has it, read when a save from the sheet settles, since it may have
+  // failed while the save was on its way.
+  const telegramCheckNow = useRef(telegramCheck)
+  useLayoutEffect(() => {
+    telegramCheckNow.current = telegramCheck
+  })
 
   /** The Telegram card: a failed check first, then what the settings say of the chat. */
   const telegramStatus = (): ConnectionStatus => {
@@ -546,12 +552,13 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
               setServerChanged(changed)
               if (saved === 'token') setTelegramVersion((n) => n + 1)
               // A chat or a test that went through shows Telegram answers, which a failed check said it didn't.
-              else if (telegramCheck.error !== undefined) telegramCheck.retry()
+              else if (telegramCheckNow.current.error !== undefined) telegramCheckNow.current.retry()
             }}
             onRefused={(refused) => {
               if (server) setServerChanged({ ...server, telegram: { ...telegram, refused } })
-              // The card names a refused token through its own check, which may have passed before.
-              if (refused === 'token') telegramCheck.retry()
+              // The card names a refused token through its own check, which may have passed before. A refused chat
+              // shows Telegram answers (the server asked it which part it refused), which a failed check said it didn't.
+              if (refused === 'token' || telegramCheckNow.current.error !== undefined) telegramCheckNow.current.retry()
             }}
             onTurnedOff={(changed) => {
               setServerChanged(changed)
