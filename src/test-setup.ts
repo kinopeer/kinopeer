@@ -3,6 +3,8 @@ import { cleanup, configure } from '@testing-library/react'
 import { afterEach, beforeEach } from 'vitest'
 import { setSignInNeed } from './api/auth/signInNeed'
 import i18n from './i18n'
+import en from './i18n/locales/en.json'
+import ru from './i18n/locales/ru.json'
 import { sharedRequests } from './logic/sharedRequests'
 import { LANGUAGE_STORAGE_KEY, resetLanguagePreference } from './i18n/language'
 import { resetThemePreference } from './theme/theme'
@@ -14,6 +16,11 @@ configure({ asyncUtilTimeout: 3000 })
 // when a screen comes back through history). Every browser has it, so the stub lives here, not in
 // the code. A test that checks the scrolling replaces it with its own mock.
 window.scrollTo = () => {}
+
+// The app loads a language's texts when it shows it (src/i18n/language.ts); tests have both from the
+// start, so a test switches the language with i18n.changeLanguage and waits for nothing.
+i18n.addResourceBundle('en', 'translation', en)
+i18n.addResourceBundle('ru', 'translation', ru)
 
 beforeEach(async () => {
   await i18n.changeLanguage('en')

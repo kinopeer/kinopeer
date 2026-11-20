@@ -1,12 +1,17 @@
 import { act, renderHook } from '@testing-library/react'
+import { useTranslation } from 'react-i18next'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import i18n from '.'
+import en from './locales/en.json'
+import ru from './locales/ru.json'
 import {
   LANGUAGE_STORAGE_KEY,
   initLanguage,
+  onLanguageUnavailable,
   readLanguagePreference,
   resolveLanguage,
   setLanguagePreference,
+  showLanguage,
   systemLanguage,
   watchSystemLanguage,
   writeLanguagePreference,
@@ -77,6 +82,95 @@ describe('language preference storage', () => {
       throw new Error('blocked')
     })
     expect(readLanguagePreference()).toBe('system')
+  })
+})
+
+describe('showLanguage', () => {
+  const unavailable = vi.fn()
+
+  afterEach(() => {
+    vi.doUnmock('./locales/ru.json')
+    onLanguageUnavailable(() => {})
+    unavailable.mockReset()
+    // test-setup.ts gives every test both languages' texts.
+    i18n.addResourceBundle('en', 'translation', en, true, true)
+    i18n.addResourceBundle('ru', 'translation', ru, true, true)
+  })
+
+  /** The page without a language's texts, as it starts: it has loaded none. */
+  const withoutTexts = (language: 'en' | 'ru') => i18n.removeResourceBundle(language, 'translation')
+
+  /** The next load of Russian's texts fails, as it does once an update took the old build's files away. */
+  const russianUnreachable = () =>
+    vi.doMock('./locales/ru.json', () => {
+      throw new TypeError('Failed to fetch dynamically imported module')
+    })
+
+  it.each([
+    ['en', en],
+    ['ru', ru],
+  ] as const)("loads the texts of a language the page doesn't have, then shows it: %s", async (language, texts) => {
+    await act(() => i18n.changeLanguage(language === 'en' ? 'ru' : 'en'))
+    withoutTexts(language)
+    await act(() => showLanguage(language))
+    expect(i18n.language).toBe(language)
+    expect(i18n.hasResourceBundle(language, 'translation')).toBe(true)
+    expect(i18n.t('theme.label')).toBe(texts.theme.label)
+  })
+
+  it('renders the texts once they arrive in the language already set, as the page does at startup', async () => {
+    // No texts at all, so no English to fall back on either.
+    withoutTexts('en')
+    withoutTexts('ru')
+    await act(() => i18n.changeLanguage('ru'))
+    const { result } = renderHook(() => useTranslation())
+    expect(result.current.t('language.label')).toBe('language.label')
+
+    await act(() => showLanguage('ru'))
+    expect(result.current.t('language.label')).toBe(ru.language.label)
+    expect(i18n.resolvedLanguage).toBe('ru')
+  })
+
+  it('shows the language asked for last when an earlier one loads after it', async () => {
+    withoutTexts('ru')
+    const russian = showLanguage('ru')
+    await act(() => showLanguage('en'))
+    await act(() => russian)
+    expect(i18n.language).toBe('en')
+  })
+
+  it("doesn't load a language's texts again once it has them", async () => {
+    withoutTexts('ru')
+    await act(() => showLanguage('ru'))
+    await act(() => showLanguage('en'))
+    russianUnreachable()
+    onLanguageUnavailable(unavailable)
+
+    await act(() => showLanguage('ru'))
+    expect(i18n.language).toBe('ru')
+    expect(unavailable).not.toHaveBeenCalled()
+  })
+
+  it("keeps the language shown and says so when a language's texts can't be loaded", async () => {
+    withoutTexts('ru')
+    russianUnreachable()
+    onLanguageUnavailable(unavailable)
+
+    await act(() => showLanguage('ru'))
+    expect(i18n.language).toBe('en')
+    expect(unavailable).toHaveBeenCalledOnce()
+  })
+
+  it("says nothing of a language that can't be loaded once another was asked for", async () => {
+    withoutTexts('ru')
+    russianUnreachable()
+    onLanguageUnavailable(unavailable)
+
+    const russian = showLanguage('ru')
+    await act(() => showLanguage('en'))
+    await act(() => russian)
+    expect(i18n.language).toBe('en')
+    expect(unavailable).not.toHaveBeenCalled()
   })
 })
 

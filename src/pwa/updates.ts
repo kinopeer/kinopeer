@@ -86,8 +86,14 @@ export function takeJustUpdated(): boolean {
   return true
 }
 
-/** Checks now and on every return to the foreground. Returns a function that stops it. */
-export function startUpdateChecks(reload: () => void = () => window.location.reload()): () => void {
+/** The update check: `check` runs it once more, `stop` stops the checks on returns to the foreground. */
+export type UpdateChecks = { check: () => Promise<void>; stop: () => void }
+
+/**
+ * Checks now and on every return to the foreground. `check` is also for a page that finds the files
+ * of its build gone, as it does when it can't load a language's texts (main.tsx).
+ */
+export function startUpdateChecks(reload: () => void = () => window.location.reload()): UpdateChecks {
   let checking = false
   const check = async () => {
     if (checking) return
@@ -107,5 +113,5 @@ export function startUpdateChecks(reload: () => void = () => window.location.rel
   }
   void check()
   document.addEventListener('visibilitychange', onVisibilityChange)
-  return () => document.removeEventListener('visibilitychange', onVisibilityChange)
+  return { check, stop: () => document.removeEventListener('visibilitychange', onVisibilityChange) }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { counted, judge, kindOf, readBudgets, totals, unchecked, type Budgets } from './budget.ts'
+import { counted, isLanguageFile, judge, kindOf, readBudgets, totals, unchecked, type Budgets } from './budget.ts'
 
 const BUDGETS: Budgets = { js: 1000, css: 100, rest: 500 }
 
@@ -15,6 +15,21 @@ describe('kindOf', () => {
     ['style.css.txt', 'rest'],
   ])('counts %s under %s', (path, kind) => {
     expect(kindOf(path)).toBe(kind)
+  })
+})
+
+describe('isLanguageFile', () => {
+  it.each([
+    ['assets/language-en-Ab12.js', true],
+    ['assets/language-ru-Ab_1-2.mjs', true],
+    ['assets/index-Ab12.js', false],
+    ['assets/en-Ab12.js', false],
+    ['language-en-Ab12.js', false],
+    ['assets/nested/language-en-Ab12.js', false],
+    ['assets/language-en-Ab12.css', false],
+    ['assets/language-en-Ab12.js.map', false],
+  ])('reads %s as a language file: %s', (path, language) => {
+    expect(isLanguageFile(path)).toBe(language)
   })
 })
 
@@ -58,11 +73,24 @@ describe('totals', () => {
       { path: 'index.html', size: 0 },
     ]
     expect(totals(files)).toEqual({
-      js: { size: 40, own: [files[1], files[0]] },
-      css: { size: null, own: [] },
+      js: { size: 40, own: [files[1], files[0]], left: [] },
+      css: { size: null, own: [], left: [] },
       // A file of 0 bytes is measured: 0, not null.
-      rest: { size: 0, own: [files[2]] },
+      rest: { size: 0, own: [files[2]], left: [] },
     })
+  })
+
+  it('counts only the heaviest language file in JS, and leaves the others out', () => {
+    const index = { path: 'assets/index-Ab12.js', size: 100 }
+    const en = { path: 'assets/language-en-Ab12.js', size: 8 }
+    const ru = { path: 'assets/language-ru-Cd34.js', size: 10 }
+    const de = { path: 'assets/language-de-Ef56.js', size: 9 }
+    expect(totals([en, index, ru, de]).js).toEqual({ size: 110, own: [index, ru], left: [de, en] })
+  })
+
+  it('counts a lone language file as any other', () => {
+    const en = { path: 'assets/language-en-Ab12.js', size: 8 }
+    expect(totals([en]).js).toEqual({ size: 8, own: [en], left: [] })
   })
 })
 
@@ -89,6 +117,20 @@ describe('judge', () => {
         '| Everything else, as is | 350 B | 500 B | 150 B |',
       ].join('\n'),
     )
+  })
+
+  it('names the language file JS counts and the ones it leaves out', () => {
+    const languages = [...files, { path: 'assets/language-en-Ab12.js', size: 40 }, { path: 'assets/language-ru-Cd34.js', size: 60 }]
+    const { passed, report } = judge(languages, BUDGETS)
+    expect(passed).toBe(true)
+    expect(report).toContain('| JS, gzipped | 960 B | 1,000 B | 40 B |')
+    expect(report).toContain(
+      "\n\nJS counts one language's texts, the heaviest, since a page loads only the language it shows: `assets/language-ru-Cd34.js` 60 B. Left out: `assets/language-en-Ab12.js` 40 B.",
+    )
+  })
+
+  it('says nothing of languages with one language file', () => {
+    expect(judge([...files, { path: 'assets/language-en-Ab12.js', size: 40 }], BUDGETS).report).not.toContain('language')
   })
 
   it('passes a kind exactly at its budget', () => {

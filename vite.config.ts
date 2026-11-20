@@ -1,6 +1,7 @@
 /// <reference types="vitest/config" />
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { basename, dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv, normalizePath, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -56,6 +57,19 @@ function serverRoutesPlugin(kinopeer: KinopeerServer): Plugin {
       server.httpServer?.once('close', stopJobs)
     }
   return { name: 'kinopeer-server', configureServer: serve([]), configurePreviewServer: serve([contentSecurityPolicy]) }
+}
+
+/** Where the interface's texts are, one file per language (src/i18n/locales/). */
+const LOCALES = normalizePath(fileURLToPath(new URL('./src/i18n/locales', import.meta.url)))
+
+/**
+ * A built chunk's file name. A language's texts, loaded on their own when the page shows that
+ * language (`showLanguage` in src/i18n/language.ts, #492), are named `language-<code>-<hash>.js`,
+ * so the size budget counts only the heaviest of them, the one a page may load
+ * (scripts/size/budget.ts); the app has no other lazy chunk.
+ */
+export function chunkFileName({ facadeModuleId }: { facadeModuleId: string | null }): string {
+  return facadeModuleId !== null && normalizePath(facadeModuleId).startsWith(`${LOCALES}/`) ? 'assets/language-[name]-[hash].js' : 'assets/[name]-[hash].js'
 }
 
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }
@@ -153,6 +167,7 @@ export default defineConfig(({ mode }) => {
     // The data directory (./data by default) is under the root the dev server serves any file from,
     // and holds the saved keys, the qBittorrent login and the password's hash; `dev-lan` serves the
     // LAN (#476). The list covers the root, /@fs/ and imports such as ?raw alike.
+    build: { rolldownOptions: { output: { chunkFileNames: chunkFileName } } },
     server: { cors: false, fs: { deny: [...VITE_DENIED, ...new Set([dataDir, realPath(dataDir)].map(everythingUnder))] } },
     plugins: [
       react(),
