@@ -10,7 +10,7 @@ screenshot tests and the smoke journeys. Running and releasing are in
 The rules here that any project could use (choosing a layer and the neighbours of a change, a
 test that can fail, the accepted reasons for something uncovered, what to do with a bug and its
 seven `test-gap` classes, keeping a list of blind spots, reviewing a PR's tests and tagging its
-findings) are also the quality system's testing component, **version 2.1 (2026-11-20)**, which other
+findings) are also the quality system's testing component, **version 2.2 (2026-11-20)**, which other
 projects copy. This file is that component's source, not a copy: the component was written from
 it, in project-neutral words, and lives in the owner's private repository (`ai-workspace`,
 `quality-system/testing.md`), which outside contributors can't open, so everything needed to work in
@@ -36,18 +36,18 @@ npm run test:requests       # layer 6: each screen's requests on opening and eac
 
 | # | Layer | What it checks | What it doesn't | Tool | Where | Run |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Pure logic | Parsing release and torrent names, picking a title, filtering and sorting, formatting, the SHA-1 fallback, the checks guard's signs, its reading of a test file and its comparison of the tests that ran, the size budget's rules, the requests budget's rules, the layout shift budget's rules, the accessibility budget's rules, the actual values' rules: functions that import no React, DOM or Node APIs | Rendering, the network | Vitest | `*.test.ts` next to the module (`src/releases/`, `src/search/`, `src/torrents/`, `src/logic/`, `src/lib/`, `server/json.ts`, `scripts/guard/` but for `guard.ts`, `scripts/size/budget.ts`, `scripts/requests/budget.ts`, `scripts/layout-shift/budget.ts`, `scripts/accessibility/budget.ts`, `scripts/actuals/actuals.ts`) | `npm test` |
+| 1 | Pure logic | Parsing release and torrent names, picking a title, filtering and sorting, formatting, the SHA-1 fallback, the checks guard's signs, its reading of a test file and its comparison of the tests that ran, the size budget's rules, the requests budget's rules, the layout shift budget's rules, the accessibility budget's rules, the actual values' rules: functions that import no React, DOM or Node APIs | Rendering, the network | Vitest | `*.test.ts` next to the module: the pure folders ([ARCHITECTURE.md](ARCHITECTURE.md) → Pure logic), the pure modules of `src/lib/` and `server/json.ts`, and each script's rules, kept apart from its reading and writing of files (`budget.ts` beside a budget's runner, `signs.ts` beside the guard's) | `npm test` |
 | 2 | Components and generic hooks | A shared component renders its props with the right roles and names and reacts to input; a hook that knows nothing of the app's data does its job in a DOM (`useIsDesktop`, `useHeightVar`, `useScrollRestoration`, the theme) | Layout and looks, which jsdom has none of; the app's data | Vitest + Testing Library, jsdom | `src/components/*/*.test.tsx`, the hooks in `src/lib/`, `src/theme/` | `npm test` |
 | 3 | Screens, stores and clients | A screen or a user flow with the API clients mocked (`vi.mock('../api/…')`): what it shows for a state, what it sends, where it navigates. A hook or a store that holds the app's data, with the clients mocked. An API client with `fetch` stubbed: the request it builds and how it reads each answer, errors included | Real HTTP, the server, layout | Vitest + Testing Library + user-event, jsdom | `src/screens/*.test.tsx` (sheets and dialogs included), `src/App.test.tsx`, the hooks and stores in `src/session/`, `src/torrents/`, `src/settings/`, the clients in `src/api/*/` and the browser code that drives one (`src/pwa/push.ts`) | `npm test` |
-| 4 | Server | Each middleware under `server/` against fakes of the services it reaches, started in the test: routing, headers, what reaches the service and what comes back | Browser code | Vitest, Node (`server` project) | `server/*.test.ts`, fakes in `server/test/fakes.ts` (one per service, Shared test data below); the TMDB proxy worker in `tmdb-proxy/worker.test.ts`, with TMDB and the rate limiter faked in the test, its deploy check in `tmdb-proxy/deployCheck.test.ts` over a git repository made in the test and its fingerprint in `tmdb-proxy/fingerprint.test.ts` over folders made in the test; the dev and preview servers started from the config in `vite.config.test.ts`; the checks guard in `scripts/guard/guard.test.ts`, over a git repository made in the test; the size check in `scripts/size/size.test.ts`, over a build folder made in the test; the actual values' parts, reporter and job file in `scripts/actuals/io.test.ts`, over a folder made in the test; the edge build's fingerprint in `scripts/edge/fingerprint.test.ts`, over folders made in the test, and the hashing both fingerprints share in `scripts/edge/parts.test.ts`; `docker-compose.yml` in `docker-compose.test.ts`, which runs qBittorrent's first-start script in `sh` over a folder made in the test and reads the compose files and `release.yml` with `yaml`; the folders `checks.json` mutates against the Mutants workflow's `paths` and the type check in `checks.test.ts`, its readers' spellings over configs made in the test | `npm test -- --project server` |
+| 4 | Server | Each middleware under `server/` against fakes of the services it reaches, started in the test: routing, headers, what reaches the service and what comes back | Browser code | Vitest, Node (`server` project) | `server/*.test.ts` and every other test the `server` project's `include` in `vite.config.ts` names (the TMDB proxy's, the scripts', those at the root), each over the folders or git repository it makes for itself; fakes in `server/test/fakes.ts` (one per service, Shared test data below) | `npm test -- --project server` |
 | 5 | Integration | The real clients in `src/api/*` calling the real `kinopeerServer()` in front of the fakes: both ends of each route agree on paths, bodies, cookies and errors, and the flows that cross several routes (login, adding a release, matches) | Rendering; a server without a route (the SPA fallback), which stays in the client tests | Vitest, Node | `server/integration/*.test.ts`, the stand in `server/test/integration.ts` | `npm test -- --project server` |
-| 6 | Browser | How the screens look: the built app in Chromium against baseline PNGs, with every server route mocked, and what axe finds broken in each state they show, against its budget (screenshot tests). And the smoke journeys through the real production server behind a proxy that wants a cookie, with the services faked: the browser and the server together (smoke journeys). And what each screen asks the servers for when it opens, and each move between screens in short journeys, counted against its budget, with the routes mocked as for the screenshots (the requests tests). And how far each screen moves as it loads on a phone, its answers let land one at a time, against its budget (the layout shift test) | Behavior, which the layers above cover faster | Playwright in Docker; Playwright on the host | `e2e/*.spec.ts` through `e2e/test.ts`, baselines in `e2e/__screenshots__/`; `e2e/smoke/*.smoke.ts`, the stand in `e2e/smoke/stack.ts`; `e2e/performance/requests.perf.ts`, `e2e/performance/journeys.perf.ts`, `e2e/performance/layoutShift.perf.ts` | `npm run test:visual`; `npm run test:smoke`; `npm run test:requests` |
+| 6 | Browser | How the screens look: the built app in Chromium against baseline PNGs, with every server route mocked, and what axe finds broken in each state they show, against its budget (screenshot tests). And the smoke journeys through the real production server behind a proxy that wants a cookie, with the services faked: the browser and the server together (smoke journeys). And what each screen asks the servers for when it opens, and each move between screens in short journeys, counted against its budget, with the routes mocked as for the screenshots (the requests tests). And how far each screen moves as it loads on a phone, its answers let land one at a time, against its budget (the layout shift test) | Behavior, which the layers above cover faster | Playwright in Docker; Playwright on the host | `e2e/*.spec.ts` through `e2e/test.ts`, baselines in `e2e/__screenshots__/`; `e2e/smoke/*.smoke.ts`, the stand in `e2e/smoke/stack.ts`; `e2e/performance/*.perf.ts` | `npm run test:visual`; `npm run test:smoke`; `npm run test:requests` |
 
 Layers 1–5 run on every `npm test` in two Vitest projects (`vite.config.ts`): `app` is jsdom with
 `src/test-setup.ts` (jest-dom matchers, both languages' texts, which the app loads one at a time, the interface language reset to English, Testing Library's
 cleanup, a no-op `window.scrollTo` since jsdom only logs "not implemented" for it); `server` is
 plain Node for the tests its `include` there names: the server's, the integration tests included,
-the TMDB proxy's, the scripts' and the three at the root, `vite.config.test.ts`, `checks.test.ts` and `docker-compose.test.ts`. Tests sit next to the code as
+the TMDB proxy's, the scripts' and those at the root. Tests sit next to the code as
 `*.test.ts(x)` and query by role and accessible name. Two kinds of test don't follow the table's
 "Where" column. The service worker: its routing rules are plain logic in `src/pwa/swRoutes.ts`
 (layer 1), and `src/sw.test.ts` is a smoke test of `src/sw.ts` with workbox mocked, compiled with
@@ -77,7 +77,7 @@ here, and a layer named wrong keeps the review from checking that it's the lowes
 
 ## Choosing a layer
 
-*The testing component's rules, version 2.1, in Kinopeer's words ([above](#testing)).*
+*The testing component's rules, version 2.2, in Kinopeer's words ([above](#testing)).*
 
 A change is every new behavior and every new branch, error paths included: a status mapped to a
 message, a `.catch` that swallows or reports, an action disabled offline or while busy, a fallback
@@ -124,7 +124,16 @@ neighbours of a change, and answer each that applies with a test or a reason:
   override with other `files` is marked whole, #415). The spellings it must catch and the ones it
   must let through go in a table in its test, and a spelling found later adds its row there (41
   blocking and should-fix findings over spellings their readers missed in #367–#370, #410, #411, #414 and #415, which took
-  3.6 rounds on average, and #412 reached `main`).
+  3.6 rounds on average, and #412 reached `main`). Where the format has no parser the check can
+  use (the shell in a workflow's `run:`), the PR says before its first round what the check reads
+  and which spellings it leaves unread, as classes, each with what in the check leaves it out (a
+  quote, a substitution, another `shell:`), not as a list of spellings, which a reviewer extends
+  each round (#456: nine rounds over one shell-comment scanner, a missed spelling in each of the
+  first six and a list of the spellings left unread found incomplete or false in six, until round
+  3's scope and round 9's classes held). Then a spelling the stated scope claims and the check
+  misses is a finding, fixed in the check with a row in the table; a spelling in none of the named
+  classes is a finding against the classes, fixed by correcting them; only a spelling inside a
+  named class is no finding.
 
 One behavior, one layer: every statement about what Kinopeer does lives in exactly one test, on the
 lowest layer that can see it. Higher layers meet that behavior only as a step towards the state they
@@ -267,8 +276,14 @@ Before marking a PR ready, the author does both of these and says so in the PR:
    `origin/main`, breaks them one small change at a time (a condition always true, a body emptied)
    and runs the tests that reach each one. A break no test notices survives, and the report lists it
    by file and line. The PR's `Mutants` line gives the count and says what each survivor is: a test
-   was added, an accepted reason ([below](#saying-why-something-is-uncovered)), or equivalent (no
-   test could tell it from the original, and why). A survivor that only a test's own reset hides
+   was added, an accepted reason ([below](#saying-why-something-is-uncovered)), or equivalent, meaning no
+   input tells it from the original, said with the inputs or sequences of events tried and what
+   each gave, its result and every effect, on the original and on the mutant. A
+   survivor whose difference shows only by another path is not equivalent, however small that
+   difference: another status code for the same refusal (401 for 400, #477), a list not asked
+   again (#493), an entry evicted from a map (#477), a 500 for a 400 on a key of the wrong type
+   (#498), a message no longer shown (#486); 8 survivors called equivalent in 4 PRs of the
+   2026-11-20 retro's batch weren't. A survivor that only a test's own reset hides
    isn't equivalent: before #224's fix, a module-level `let reading = false` flipped to `true`
    survived because every test called `resetStateLag()` first, and a test on a fresh module (`vi.resetModules()`, then
    `await import(…)`) tells them apart (#224). Stryker can't see code that isn't there, so a missing
@@ -427,7 +442,7 @@ checks the reasons before it looks for missing tests.
 
 ## When we find a bug
 
-*The testing component's rules, version 2.1, in Kinopeer's words ([above](#testing)).*
+*The testing component's rules, version 2.2, in Kinopeer's words ([above](#testing)).*
 
 A bug is two defects: one in the code and one in the tests that let it through. A `fix:` PR answers
 three questions: why it broke, why the tests didn't catch it, and what changes so this class of miss
@@ -515,7 +530,7 @@ journey now presses the real Escape it had skipped.
 
 ## Known blind spots
 
-*The rule in this section's first paragraph is the testing component's, version 2.1 ([above](#testing)); the table is Kinopeer's.*
+*The rule in this section's first paragraph is the testing component's, version 2.2 ([above](#testing)); the table is Kinopeer's.*
 
 What no layer sees. Each is either checked by hand before a release ([RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)
 → Before every release) or knowingly not checked; a bug from one of them is an `environment` miss,
@@ -695,7 +710,7 @@ here after three new calls in one batch (#309, #323, #334).
 
 ## Reviewing a PR's tests
 
-*The testing component's rules, version 2.1, in Kinopeer's words ([above](#testing)).*
+*The testing component's rules, version 2.2, in Kinopeer's words ([above](#testing)).*
 
 Three steps, each by whoever can do it best:
 
@@ -813,7 +828,7 @@ before it.
 
 ## Improving the system
 
-*The testing component's rules, version 2.1, in Kinopeer's words ([above](#testing)).*
+*The testing component's rules, version 2.2, in Kinopeer's words ([above](#testing)).*
 
 The rules in this file, the skill and the PR template are a system that should need less and less
 correcting. Every review finding says something about it: either the author slipped on a clear
@@ -847,10 +862,9 @@ it.
 Unit tests run in jsdom, which has no layout, so they can't catch a button in the wrong place or a title that doesn't clamp. Screenshot tests do: Playwright opens the built app (`vite preview`) in Chromium and compares each screen with a baseline PNG.
 
 - **What's covered:** what only the browser sees, one baseline per layout or state, in the dark theme and Russian unless said otherwise. Specs are in `e2e/*.spec.ts`, baselines in `e2e/__screenshots__/`.
-  - A phone (390×844): Downloads (list and poster grid, the sort and filter sheet, the actions sheet, selection, empty, offline, Kinopeer unreached before the first answer and after one, with Retry and Open again, the sticky filter bar after a scroll, also with a notched iPhone's safe area, which a DevTools override gives Chromium), Search (browse rows, results, a next page that failed, the pinned field after a scroll, also with a notched safe area), the title page (movie and series, and the page scrolled under the pinned Find releases bar), Releases (results, also with a release already in downloads, the filters sheet, the add sheet, also with too little free space and with the torrent already in downloads, and its file picker), torrent details (with files, a guessed title, no title found with the dot on More, also in the light theme, and its menu with Match title in the accent, fixing the match, changing the category, an error), Settings (and a connection with an error, and Prowlarr without indexers, and with Kinopeer's own login: its Sign-in section and the Change password sheet, and with addresses saved from the app: the sheets changing qBittorrent's address and login and Prowlarr's address and key, and Telegram: its card connected and not set up, and the sheet's three steps: the token, the chat found and connected with the chat refused, and push notifications: on on this device, off, and unavailable where no service worker runs the app, whose text is plain HTTP's too), the torrent page's Notify when finished switch, the connect screen with a wrong password, with Kinopeer unreached (the state in place of the form, Retry and Open again) and asking for qBittorrent's address where the server has none, onboarding's Prowlarr step, qBittorrent too old (also with Change at an address saved from the app), and Kinopeer's own sign-in: setting the password, signing in, a wrong password and the wait after too many.
-  - A tablet (768×1024): Downloads in the centered column, with the tab bar over it.
-  - Desktop (1440×900): the sidebar with labels, Downloads as a grid (and a card's Pause button on hover, and the offline banner with Kinopeer unreached, both buttons beside the text) and as a table (the row and sort menus, selection, offline, the sticky header and column names after a scroll, the header with a notched safe area, the install card above it, and the card left open where it doesn't show, which takes no room), Search (the pinned field after a scroll, no results), the title page (incl. the long overview with Show more), releases under the hero with a filter popover, sorted by a column's name and with a release already in downloads, and with nothing found and indexers that didn't answer, the torrent drawer over Downloads (also with no title found, and its menu open) and over the title page, the add and delete modals, Settings (also with Kinopeer's own login, its password from `KINOPEER_PASSWORD`, the Change password modal, the modal changing qBittorrent's address saved from the app, and the Telegram modal) and onboarding (also with Kinopeer unreached, asking for qBittorrent's address, the Prowlarr step and with qBittorrent too old, also with Change at an address saved from the app, each state in the form's card), and Kinopeer's own sign-in: setting the password, and signing in in the light theme and English. The icon rail (1024×768) in the status menu, Search's pinned field after a scroll, releases (also with indexers that didn't answer, the heading's row at its fullest) and Settings; the labelled sidebar at its narrowest (1100×800) and full HD (1920×1080) for the table's columns.
-  - The light theme in English, where its colors show on every status and on the sidebar: the Downloads list on the phone, and the grid, the table and a completed torrent's drawer on desktop, whose rows lie on the page's background and whose progress card on `--sunken`, rather than a surface (#432); and Search's browse rows on the phone, whose "In downloads" badges stay on the posters' dark glass (#460).
+  - The sizes: a phone (390×844, also with a notched iPhone's safe area, which a DevTools override gives Chromium), a tablet (768×1024, the centered column with the tab bar over it), desktop (1440×900, `DESKTOP` in `e2e/app.ts`), the icon rail (1024×768, `DESKTOP_RAIL`), the labelled sidebar at its narrowest (1100×800) and full HD (1920×1080) for the table's columns.
+  - The light theme in English, on the screens where its colors show: every status and the sidebar, rows that lie on the page's background and cards on `--sunken` rather than a surface (#432), and badges on the posters' dark glass (#460).
+  - Which screens and states: each spec's tests, named for the state they shoot, and the baselines under `e2e/__screenshots__/`. They aren't listed here: a list of them went stale with nearly every screen a PR added (#462, #463, #474, #486, #489, #498), and `ls e2e/__screenshots__` or the specs' test names answer what is covered.
   - A behavioral `expect` in a spec only gets a screen to its state, or checks what jsdom can't see (where a click lands, sticky positioning, a container query, a real `<dialog>`); behavior itself is layers 1–4.
 - **Accessibility:** every screenshot also has axe read the state it shows, the whole page for a screenshot of an element, against WCAG 2.2 AA as axe checks it, and compares the count of elements that break each rule with its budget under `budgets.accessibility` in `checks.json`. The read is inside `toHaveScreenshot`: the specs and the modules they share steps from (`app.ts`) take `test` and `expect` from `e2e/test.ts`, not from `@playwright/test` or `playwright/test`, which oxlint refuses in every file under `e2e/` but `test.ts` and the smoke and performance tests (their default export and `mergeExpects` too), so a new screenshot can't be taken without it. A new screenshot gets its budget in the same PR: its test fails without one, naming what to add. What the reads find, why a count must equal its budget and what fails are in [QUALITY.md → The accessibility budget](QUALITY.md#the-accessibility-budget).
 - **No live services:** `e2e/app.ts` answers `/qbt`, `/tmdb`, `/tmdb-img`, `/prowlarr`, `/api/settings` and `/api/matches` from the shared fixtures (`src/test/fixtures.ts` through `e2e/fixtures.ts`), matched by URL pathname (a glob like `**/tmdb/**` would also catch Vite's `/src/api/tmdb/` modules). Posters are generated gradients and the release's `.torrent` is built from the fixtures too. The app version in Settings is masked, so a version bump doesn't change the screenshots. The clock is frozen, animations are off and the service worker is blocked. Text is always grayscale (`--disable-lcd-text` in `playwright.config.ts`): left to itself, Chromium now and then draws part of a page's text in grayscale instead of LCD, as it did in two screenshots in CI (#145). What triggers it wasn't found, and a page can't see it, so a test can't wait it out.

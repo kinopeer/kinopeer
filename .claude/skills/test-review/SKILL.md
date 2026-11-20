@@ -80,7 +80,10 @@ trusted.
   reads code, config, a workflow or CSS reads it with the format's own parser, not regular
   expressions, marks the whole where comparing parts gets intricate, and keeps a table of the
   spellings it must catch and let through (`docs/TESTING.md` → Choosing a layer; #367–#370, #410,
-  #411, #414, #415, #412). Where you can, break the
+  #411, #414, #415, #412); where the format has no parser it can use, the PR names before its
+  first round what it reads and the spellings it leaves unread as classes; a spelling the scope
+  claims and the check misses is a finding against the check, one in no named class a finding
+  against the classes, and one inside a named class none (#456). Where you can, break the
   code for exactly that case and see whether the named test fails: a green one doesn't answer it
   (#237, #244, #248, #250). Missing → check the Tests
   section's reasons (step 1) → otherwise a finding. A bug `/code-review` finds in the PR's own change
@@ -172,7 +175,9 @@ trusted.
   `Mutants` line accounts for each survivor in CI's `Mutants report` check on the commit the round
   reviews (`gh api 'repos/{owner}/{repo}/commits/<sha>/check-runs?check_name=Mutants%20report'
   --jq '.check_runs | max_by(.completed_at) | .output.summary // "no report yet"'`), an
-  `equivalent` with a reason you agree with; missing either, or a test you can see would stay green
+  `equivalent` with the inputs tried and a reason you agree with, after trying one input of your
+  own that reaches the mutated line by another path (a status code, a list asked again, an entry
+  evicted: `docs/TESTING.md` → A test that can fail); missing either, or a test you can see would stay green
   with its behavior removed, → finding. CI mutates every push to a ready PR's head, so its report is
   at the commit the round reviews (a survivor new since the `Mutants` line is accounted for in the
   author's `Fixes for round <n>`): while the run is going, wait for it. Run `npm run test:mutants`

@@ -69,12 +69,15 @@ Wait for these checks at the head: the ones `main`'s ruleset requires (`check`, 
 changes a path in `mutants.yml`'s `paths`. A check not there yet counts as running: right after
 the PR is marked ready some of them haven't started. A check that ran more than once at the head
 counts by its latest run. Poll the head's check runs in one command, a
-loop with `sleep 60` between reads, up to 30 minutes.
+loop with `sleep 60` between reads, up to 30 minutes, and `Mutants report` up to the `mutants`
+job's own `timeout-minutes` in `.github/workflows/mutants.yml`: that job takes longer than the
+others on a big diff, and stopping at 30 minutes left #498 waiting twice for a run that then
+passed (#477 noted it for the retro).
 
 - **A failed check:** post a review with `event=COMMENT`, headed `CI at <short sha>`, that names
   the failed checks and nothing else, convert the PR to a draft, and stop. Fixing CI is the
   author's turn, and a full round over a red head would be repeated.
-- **Still missing after 30 minutes:** the same, naming the checks you didn't see finish. The
+- **Still missing after its wait:** the same, naming the checks you didn't see finish. The
   author marks the PR ready again once they have.
 
 ## 3. The round
@@ -127,7 +130,11 @@ and the code matches them.
 
 ## 4. Posting the round
 
-One review per round, on the head you reviewed:
+One review per round, on the head you reviewed. A round takes long enough for the PR to move under
+it, so read it again right before posting: when it is closed, merged or a draft, when its head is
+no longer the commit you reviewed, or when a review headed `Round <n>` at that commit was posted
+since your run began, post nothing and stop. That was a second run started by the PR marked ready
+twice (#455, twice), or a run that ended after the merge (#489).
 
 ```sh
 gh api repos/kinopeer/kinopeer/pulls/<n>/reviews -f commit_id=<head> -f event=<EVENT> -F body=@round.md
