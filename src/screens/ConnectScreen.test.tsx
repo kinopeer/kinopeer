@@ -173,6 +173,9 @@ describe('ConnectScreen', () => {
       expect(screen.getByText('Enter the address of qBittorrent’s Web UI as the Kinopeer server reaches it, and its login. The server keeps them, so you only do this once.')).toBeInTheDocument()
       expect(screen.getByLabelText('qBittorrent address')).toHaveAccessibleDescription('As the Kinopeer server reaches it, for example http://192.168.1.10:8080')
       expect(screen.getByLabelText('qBittorrent address')).toHaveAttribute('spellcheck', 'false')
+      // iOS Safari autocorrects a text field otherwise (#494).
+      expect(screen.getByLabelText('qBittorrent address')).toHaveAttribute('autocorrect', 'off')
+      expect(screen.getByLabelText('Username')).toHaveAttribute('spellcheck', 'false')
       expect(screen.getByLabelText('Username')).toHaveAccessibleDescription('Leave the login empty if qBittorrent lets Kinopeer in without one.')
       expect(screen.getByLabelText('Username')).not.toBeRequired()
       expect(screen.getByLabelText('Password')).not.toBeRequired()

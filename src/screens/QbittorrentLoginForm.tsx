@@ -57,9 +57,9 @@ export function QbittorrentLoginForm({
   className,
   header,
   actions,
-  askAddress = false,
+  askAddress,
   initialAddress = '',
-  addressFromApp = false,
+  addressFromApp,
   onSubmit,
   onEnvAddress,
   onRetry,
@@ -137,6 +137,8 @@ export function QbittorrentLoginForm({
             inputMode="url"
             autoComplete="url"
             autoCapitalize="none"
+            // type="url" turned iOS Safari's autocorrect off; a text field needs it said (#494).
+            autoCorrect="off"
             spellCheck={false}
             mono
             required

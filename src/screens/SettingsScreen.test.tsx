@@ -829,17 +829,47 @@ describe('SettingsScreen', () => {
       // The row and the categories come from the qBittorrent at the new address.
       await waitFor(() => expect(qbt.getAppVersion).toHaveBeenCalledTimes(2))
       await waitFor(() => expect(qbt.getCategories).toHaveBeenCalledTimes(2))
+
+      // And again after the next save.
+      await userEvent.click(within(connection('qBittorrent')).getByRole('button', { name: 'Change qBittorrent address and login' }))
+      await userEvent.click(within(screen.getByRole('dialog', { name: 'qBittorrent connection' })).getByRole('button', { name: 'Connect' }))
+      await waitFor(() => expect(qbt.getCategories).toHaveBeenCalledTimes(3))
     })
 
-    it('closes the sheet and asks for the settings again when the environment set qBittorrent’s address meanwhile', async () => {
+    it.each([
+      ['qBittorrent connection', 'qBittorrent', 'Change qBittorrent address and login'],
+      ['Prowlarr connection', 'Prowlarr', 'Change Prowlarr address and key'],
+    ])('closes the %s sheet on Escape', async (sheetName, row, button) => {
       vi.mocked(serverSettings.getServerSettings).mockResolvedValue(fromApp())
-      vi.mocked(serverSettings.saveQbittorrentLogin).mockRejectedValue(new serverSettings.SettingsError(409, 'env-address'))
       renderScreen()
-      await userEvent.click(await within(connection('qBittorrent')).findByRole('button', { name: 'Change qBittorrent address and login' }))
-      const sheet = screen.getByRole('dialog', { name: 'qBittorrent connection' })
-      await userEvent.click(within(sheet).getByRole('button', { name: 'Connect' }))
+      await userEvent.click(await within(connection(row)).findByRole('button', { name: button }))
+      // Escape: the browser cancels the modal <dialog>, which jsdom doesn't do on a key press.
+      fireEvent(screen.getByRole('dialog', { name: sheetName }), new Event('cancel', { cancelable: true }))
+      expect(screen.queryByRole('dialog', { name: sheetName })).not.toBeInTheDocument()
+    })
+
+    it('closes the sheet and shows the settings asked again when the environment set qBittorrent’s address meanwhile', async () => {
+      vi.mocked(serverSettings.getServerSettings).mockResolvedValue(fromApp())
+      vi.mocked(serverSettings.saveQbittorrentLogin)
+        .mockResolvedValueOnce(fromApp())
+        .mockRejectedValueOnce(new serverSettings.SettingsError(409, 'env-address'))
+      renderScreen()
+      const change = async () => {
+        await userEvent.click(await within(connection('qBittorrent')).findByRole('button', { name: 'Change qBittorrent address and login' }))
+        await userEvent.click(within(screen.getByRole('dialog', { name: 'qBittorrent connection' })).getByRole('button', { name: 'Connect' }))
+      }
+      // A save first, whose settings the screen shows until it asks again.
+      await change()
+      vi.mocked(serverSettings.getServerSettings).mockResolvedValue({
+        ...fromApp(),
+        qbittorrent: { configured: true, source: 'saved', address: { source: 'env' } },
+      })
+      await change()
       await waitFor(() => expect(screen.queryByRole('dialog', { name: 'qBittorrent connection' })).not.toBeInTheDocument())
       await waitFor(() => expect(serverSettings.getServerSettings).toHaveBeenCalledTimes(2))
+      await waitFor(() =>
+        expect(within(connection('qBittorrent')).queryByRole('button', { name: 'Change qBittorrent address and login' })).not.toBeInTheDocument(),
+      )
     })
 
     it('changes Prowlarr’s address with its key, the sheet starting at the saved address', async () => {

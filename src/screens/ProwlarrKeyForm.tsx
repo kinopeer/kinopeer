@@ -105,6 +105,8 @@ export function ProwlarrKeyForm({
           inputMode="url"
           autoComplete="url"
           autoCapitalize="none"
+          // type="url" turned iOS Safari's autocorrect off; a text field needs it said (#494).
+          autoCorrect="off"
           spellCheck={false}
           mono
           required

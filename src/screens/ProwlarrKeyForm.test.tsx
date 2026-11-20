@@ -136,6 +136,8 @@ describe('ProwlarrKeyForm', () => {
       const { onSaved, address, field, save } = renderWithAddress()
       expect(address).toHaveAccessibleDescription('As the Kinopeer server reaches it, for example http://192.168.1.10:9696')
       expect(address).toHaveAttribute('spellcheck', 'false')
+      // iOS Safari autocorrects a text field otherwise (#494).
+      expect(address).toHaveAttribute('autocorrect', 'off')
       // Onboarding has no key of the server's to go back to.
       expect(screen.queryByRole('button', { name: 'Use the server’s key' })).not.toBeInTheDocument()
       await userEvent.type(field, ' abc123 ')
