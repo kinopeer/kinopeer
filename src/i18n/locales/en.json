@@ -502,6 +502,8 @@
     "toManual": "qBittorrent will switch torrents under automatic management that are in this folder to manual mode, as its settings say, and their files stay where they are.",
     "inDefaultNote": "Without a folder of its own, the category keeps its torrents in {{folder}}.",
     "categoryGone": "qBittorrent no longer has this category. Go back to see the ones it has.",
+    "cantCreateNamed": "qBittorrent couldn’t create {{folder}}.",
+    "categoryGoneNamed": "qBittorrent no longer has the category {{name}}.",
     "useDefault": "Use the default",
     "saved": "Folder saved"
   },

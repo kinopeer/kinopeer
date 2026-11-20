@@ -46,6 +46,10 @@ export function FoldersSheet({ open, onClose }: FoldersSheetProps) {
   const shown = useRef(CLOSED)
   useEffect(() => {
     shown.current = open ? (editing ? keyOf(editing.category) : LIST) : CLOSED
+    // Gone with Settings, the sheet shows nothing: a save that settles then is a toast.
+    return () => {
+      shown.current = CLOSED
+    }
   }, [open, editing])
   // A save settled while another folder was shown: the list asks again when it's back.
   const stale = useRef(false)
@@ -105,6 +109,9 @@ export function FoldersSheet({ open, onClose }: FoldersSheetProps) {
       return
     }
     if (where === key) setFailure(said)
+    // Not shown, the toast names what failed.
+    else if (said === 'move.cantCreate') toast.show(t('folders.cantCreateNamed', { folder }), { icon: 'alert' })
+    else if (said === 'folders.categoryGone') toast.show(t('folders.categoryGoneNamed', { name: category?.name }), { icon: 'alert' })
     else toast.show(t(said), { icon: 'alert' })
     if (said === 'folders.categoryGone') reload()
   }
