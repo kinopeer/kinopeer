@@ -122,6 +122,16 @@ describe('pushChannel', () => {
     expect(await channel.send(finished)).toBe('sent')
   })
 
+  it('logs to the server’s log by default', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const service = await fakePushService()
+    const store = new PushStore(dir)
+    await store.save({ ...service.subscribe('/send/0'), language: 'en', added: 0 })
+    service.answers['/send/0'] = { status: 400 }
+    await pushChannel({ store, title: async () => undefined }).send(finished)
+    expect(warn).toHaveBeenCalledWith('[kinopeer] a push service refused the notification for a finished download')
+  })
+
   it('passes on an error that isn’t the push service’s', async () => {
     const store = new PushStore(dir)
     const service = await fakePushService()
