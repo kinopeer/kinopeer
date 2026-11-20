@@ -11,13 +11,11 @@ function syncDocumentLanguage(lng: string) {
 i18n.on('languageChanged', syncDocumentLanguage)
 
 // No texts yet: each language's are loaded when the page shows it (`showLanguage` in ./language,
-// which main.tsx waits for before the first render). Without resources or a backend, i18next would
-// otherwise finish initializing a tick later.
+// which main.tsx waits for before the first render).
 void i18n.use(initReactI18next).init({
   lng: resolveLanguage(getLanguagePreference()),
   supportedLngs: LANGUAGES.map((l) => l.code),
   fallbackLng: 'en',
-  initAsync: false,
   interpolation: { escapeValue: false },
 })
 
