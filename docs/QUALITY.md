@@ -16,7 +16,7 @@ Only what is on, being adopted, or declined with its reason; plans aren't listed
 | --- | --- | --- |
 | [The testing rules](TESTING.md) | On, version 2.1 of the quality system's testing component (2026-11-20), of which [TESTING.md](TESTING.md) is the source | How a change is covered by tests and reviewed: the lowest layer that sees a statement, the neighbours of a change, a test seen to fail, the accepted reasons for something uncovered, what a bug calls for and its seven `test-gap` classes, the review rounds and their tags |
 | The effort journal | On since 2026-11-14: built outside this repository, in the owner's `ai-workspace` (`effort-journal/`). Its hook records every session's turns on the owner's Mac into a database of the owner's on Cloudflare. Until 2026-11-17 it recorded into a Google Sheet behind a webhook; that day it moved to the database, with the Sheet's rows carried over. A cloud session (the deputy's runs, a cloud author or coordinator) records only when its environment has the journal's variables, and the deputy stops when it can't reach the journal (the `deputy` skill → Whether to run). Until 2026-11-15 a cloud run's rows didn't reach the Sheet: the cloud's network refused the webhook's hosts, and the hook kept a run's one turn in a spool that waited five minutes and went with the container. Both were fixed that day, in the cloud environment's network and in the journal, which sends at once in a cloud session. A cloud run's rows first reached the Sheet on 2026-11-15, from the deputy's round 2 on #447; every cloud run before it is missing from the journal ([The retro](#the-retro)) | Records what each session's work costs and rates each merged PR's complexity, which the retro sets against each other ([The retro](#the-retro)); the figures stay out of this repository, which is public |
-| [The retro](#the-retro) | On since 2026-10-28 as the tests' retro, the whole system's since 2026-11-14, by version 3.2 of the quality system's retro (2026-11-20) | Every fifty merged PRs, reads the review findings, the escaped bugs, the effort against complexity, the checks' usefulness and the owner's points, and changes the rules where a pattern repeats |
+| [The retro](#the-retro) | On since 2026-10-28 as the tests' retro, the whole system's since 2026-11-14, by version 3.2 of the quality system's retro (2026-11-20); its counts come from the quality system's database since 2026-11-20 ([Where the counts come from](#the-retro)) | Every fifty merged PRs, reads the review findings, the escaped bugs, the effort against complexity, the checks' usefulness and the owner's points, and changes the rules where a pattern repeats |
 | [The checks guard](#the-checks-guard) | On since 2026-11-12 (#366); a report only since 2026-11-15: its `guard` job, among `main`'s required checks, passes whatever it marks and fails only when the guard breaks or can't write its report | A script CI runs on every PR, which writes into the PR's `guard report` check what in it weakens the checks, changes existing ones or adds a design value, for the deputy's round to judge |
 | The design tokens check | On since 2026-11-14 (#411): a test in CI's `check` job, which is among `main`'s required checks | `src/styles/tokens.test.ts` fails a stylesheet's spacing, radius, type size, color, shadow or motion that the tokens have, and one they lack unless its line carries a comment saying why, and a `var()` that names a property nothing defines. What counts as a raw value is defined in `scripts/guard/stylesheets.ts`, which the guard reads too ([What it marks](#what-it-marks)) |
 | The texts check | On since 2026-11-14 (#413): an oxlint rule, `react/jsx-no-literals`, that CI's `check` job runs | Fails a string that is a whole child in the app's JSX or the quoted value of an attribute a user reads or hears, so UI copy goes through translation keys; a string in braces in an attribute, inside an expression or outside JSX is left to review |
@@ -765,9 +765,30 @@ The procedure that isn't Kinopeer's (what each input says, how a pattern is told
 what the retro gives the owner and how it makes a rule change) is the quality system's retro,
 **version 3.2 (2026-11-20)**, in the owner's private repository (`ai-workspace`,
 `quality-system/retro.md`), which the owner's sessions read and outside contributors don't need:
-the retro is the maintainer's work. This section is Kinopeer's part of it: when, the commands that
-collect each input, where the rules it changes live, and the table of past retros. What a finding
-carries, the tag the retro counts by, is in [TESTING.md](TESTING.md) → Improving the system.
+the retro is the maintainer's work. This section is Kinopeer's part of it: when, the queries and
+commands that collect each input, where the rules it changes live, and the table of past retros.
+What a finding carries, the tag the retro counts by, is in [TESTING.md](TESTING.md) → Improving the
+system.
+
+**Where the counts come from.** The quality system's database, in the owner's `ai-workspace`
+(`quality-data/`), has a collector that reads this repository from GitHub every six hours, at :41
+of 00, 06, 12 and 18 UTC, and `metrics_*` views that count each input by batch: `open` is every PR
+merged after the top row's batch, and the issues closed since (`quality-data/README.md` → The
+metrics, which gives each view and how a batch is bounded). The retro runs them on the owner's Mac
+with the token and the command that README's Reading the metrics gives; each query below is what
+goes after `--command`, and
+`select * from metrics_batch_counts where project = 'kinopeer/kinopeer' and batch = 'open'` gives
+the table's columns at once. First the data's age:
+`select source, last_status, error, hours_since_ok from metrics_freshness` shows
+`github kinopeer/kinopeer issues`, `github kinopeer/kinopeer runs` and `rebuild` `ok` within the
+last six and a half hours, and `select * from metrics_last_pr` the PR that merged last. When a
+source is stale or failed, or the last merges aren't in yet, the retro waits for the next run or
+takes that input from GitHub with the `gh` commands kept below, and its row says which inputs came
+from where. A count the data can't give is NULL, never 0, and the paragraphs below say what gives
+it then. GitHub still gives what no view does: the count in When, which the deputy makes in the
+cloud, where the database can't be reached; every round, read whole; and a job's time. The retro's
+range then goes into `ai-workspace`'s `quality-system/data/manual_retros.csv`, which closes the
+batch (the same README → Batches).
 
 **When.** Once fifty PRs have merged that no row of the table below lists, Dependabot's left out; a release doesn't call
 for one (decided on 2026-11-06: at ten PRs or each release a retro came almost daily, on batches too
@@ -782,17 +803,35 @@ deputy's round counts them so: when it finds fifty or more, its verdict says "re
 owner gets a push notification (the `deputy` skill → Posting the round), and the owner starts it. A
 fresh session runs the retro, not one that wrote or reviewed the PRs in the batch.
 
-**The review findings.** Collect the deputy's reviews headed `Round <n> at <sha>` of the merged
-PRs no row lists yet (the batch; before 2026-11-15, the `Test review, round <n>` comments) and count the findings by check and by rule. Since tags come in both spellings, `[H · gap]` and `[H · gap: <reason>]`, a search that expects `]`
+**The review findings.** The deputy ends each round with a machine-readable block (the `deputy`
+skill → Posting the round), which the views read:
+`select check_name, rule, severity, findings from metrics_findings_by_tag where project = 'kinopeer/kinopeer' and batch = 'open'`
+counts the batch's findings by check and by rule, each once, in the round that first reported it,
+and a round posted twice by its latest posting; `metrics_batch_counts` has their totals, the
+untagged ones, the PRs ready on the first round and the blocking findings. Those totals are NULL
+while a PR's findings can't be read from blocks: a round whose block didn't read, or a PR merged
+before the deputy's first round (2026-11-15).
+`select number, rounds, findings, untagged, blocking, unread_rounds from metrics_pr_review where project = 'kinopeer/kinopeer' and batch = 'open' and not known`
+names those PRs, and their findings are counted from their rounds: the deputy's reviews headed
+`Round <n> at <sha>` (before 2026-11-15, the `Test review, round <n>` comments), with a search.
+Since tags come in both spellings, `[H · gap]` and `[H · gap: <reason>]`, a search that expects `]`
 right after the rule misses the second (#299, #302); one that catches both is
-`\[[A-K] ?· ?(clear|gap|conflict)(\]|:)`. The search doesn't replace reading: every reviewer round
+`\[[A-K] ?· ?(clear|gap|conflict)(\]|:)`. Where a block can be read, it is the count: a search
+counts a round posted twice twice (#455) and misses a tag on a `/code-review` finding (#466).
+Neither replaces reading: every reviewer round
 is read whole, for the `/code-review` findings that carry no tag, the **For the coordinator**
 items with the coordinator's decisions posted beside them, and the **Rule changes** the deputy
 approved (before 2026-11-19, the owner's approvals posted on the PR).
 
 The guard's marks are counted too, from the deputy's verdicts on them in its rounds (before
 2026-11-15, the second reviews' comments, `**Second review …**`): how many were judged, how many
-`weakening`, and how many of those the deputy accepted, with its reasons. When twenty PRs in a row with
+`weakening`, and how many of those the deputy accepted, with its reasons.
+`select kind, verdict, accepted, marks from metrics_guard_marks where project = 'kinopeer/kinopeer' and batch = 'open'`
+counts them for the PRs whose `guard report` check holds the guard's JSON (#450), which the
+deputy's block judges mark by mark;
+`select p.number from metrics_batch_prs p left join gh_guard_reports r on r.project = p.project and r.pr = p.number where p.project = 'kinopeer/kinopeer' and p.batch = 'open' and coalesce(r.json_ok, 0) = 0`
+names the rest, whose marks come from their check with the `gh` command in The checks'
+usefulness, and the reasons from reading the rounds. When twenty PRs in a row with
 changes to existing checks have no `weakening` verdict, the retro weighs handing the deputy's
 subagent only the marks that weaken the checks, and decides it, as it decides its other rule
 changes. Narrowing softens the system, so its PR says what the subagent then no longer sees.
@@ -802,7 +841,10 @@ batch's last PR closed can close a moment after it, #412 after #415).
 The issues are split by type: those of the Bug type are escaped bugs, counted by their `test-gap:*`
 class against the pile's rule ([TESTING.md](TESTING.md) → When we find a bug); those of the Task type
 with a `test-gap:*` label are problems of the tests and tooling, counted apart against the same
-rule. For example,
+rule.
+`select kind, class, number, closed from metrics_escaped_issues where project = 'kinopeer/kinopeer' and batch = 'open'`
+lists them (`kind` `bug` for an escaped bug, `tests` for the tests' problems), and
+`metrics_escaped` counts them by class. From GitHub, for a class:
 `gh api -X GET search/issues -f q="repo:kinopeer/kinopeer is:issue type:Bug label:test-gap:uncovered closed:><since>" -f per_page=100 --jq '.items[].number'`.
 For each escaped bug the retro also names the check that should have caught it: a test on its
 layer, a lint rule, a budget, the guard, a review's check by its letter, or a blind spot no check
@@ -821,31 +863,42 @@ in the journal like any session's: a run that can't reach the journal stops and 
 (the `deputy` skill → Whether to run); its rounds per PR come from its reviews. A cloud run from
 before the deputy's round 2 on #447 (2026-11-15, the effort journal's row in
 [Components](#components)) is missing from `journal report` for good, since its spool went with
-its container. So the retro names the batch's PRs that had such runs, which until then is every PR
-the deputy reviewed, leaves them out of the cost per point and the
-batch's median, saying how many, and reads the cost by role and by model and effort over the rows
-that were recorded, with the roles and models of the lost runs named as missing.
+its container. So the retro names the batch's PRs that had such runs,
+`select number, lost_rounds from metrics_pr_cost where project = 'kinopeer/kinopeer' and batch = 'open' and lost_rounds > 0`
+(the rounds with no run of the deputy's in the journal before them), leaves them out of the cost
+per point and the batch's median, saying how many, and reads the cost by role and by model and
+effort over the rows that were recorded, with the roles and models of the lost runs named as
+missing. The views read the same journal: `metrics_pr_cost` gives each PR's cost and rating and
+whether the cost per point counts it, `metrics_cost_per_point` the batch's cost per point repriced
+by one price table, by class, role and model, and `metrics_completeness` how much of the batch
+those figures stand on (the PRs rated, recorded and with a lost run).
 
 **The checks' usefulness.** For each check (the components above, the tests' layers, the lint
 rules, CI's jobs): what it caught in the batch, how often it failed for nothing a fix of the code
 answered (a false alarm), and what it costs. GitHub reports a run by its latest attempt, so a job
 that failed and was run again to green would hide its failure: count failed attempts, not runs.
-The batch's runs that failed or were run again,
-`gh api -X GET repos/kinopeer/kinopeer/actions/runs -f event=pull_request -f status=completed -f created='><since>' --paginate --jq '.workflow_runs[] | select(.conclusion == "failure" or .run_attempt > 1) | [.id, .run_attempt, .name, .head_branch] | @tsv'`,
-and each one's failed jobs over all its attempts,
-`gh api -X GET repos/kinopeer/kinopeer/actions/runs/<id>/jobs -f filter=all --jq '.jobs[] | select(.conclusion == "failure") | [.run_attempt, .name] | @tsv'`;
-the guard's marks from its `guard report` check on each PR's last head (its summary, the latest
+The batch's failed jobs over every attempt, each once,
+`select event, workflow, job, failed from metrics_failed_jobs where project = 'kinopeer/kinopeer' and batch = 'open'`
+(a job that timed out counts as failed; the `pull_request` rows are the PRs' runs, the rest
+`main`'s, Edge's and the releases'), and its re-runs with the attempt before each,
+`select workflow, event, branch, previous, conclusion, flaky from metrics_reruns where project = 'kinopeer/kinopeer' and batch = 'open'`
+(`flaky`: a red attempt run again to green). A run's jobs from GitHub, over all its attempts,
+`gh api -X GET repos/kinopeer/kinopeer/actions/runs/<id>/jobs -f filter=all --jq '.jobs[] | [.run_attempt, .name, .conclusion, .started_at, .completed_at] | @tsv'`,
+give a job's time. The guard's marks come from the views (The review findings, above); for a PR
+whose report the views can't read, from its `guard report` check on its last head (the latest
 run's, since a re-run writes another,
 `gh api 'repos/kinopeer/kinopeer/commits/<sha>/check-runs?check_name=guard%20report' --jq '.check_runs | max_by(.completed_at) | .output.summary'`;
 before 2026-11-15, from its comment on the PR). A failure fixed
 by changing the check rather than the code, or a mark the deputy's verdict called needless, is a false
-alarm. The cost is a job's time from the same jobs' `started_at` and `completed_at`, and the
+alarm. The cost is a job's time, and the
 reviews' share of the effort above, which stays out of the row as every figure from the journal
 does. The counts of what each check caught and of its false alarms go into the row.
 
 **The owner's list.** What the owner reads here rather than approving it PR by PR: the weakenings
 the deputy accepted, the changes to the guard, the rule changes the deputy approved (its rounds'
-**Rule changes**), the budgets raised, the design values added, the decisions the coordinator took
+**Rule changes**), the budgets raised (each change to a budget in the batch,
+`select c.sha, c.tool, c.key, c.previous, c.value, c.change from metrics_budget_changes c join metrics_batches b on b.project = c.project and c.committed_at > b.prs_after where b.project = 'kinopeer/kinopeer' and b.batch = 'open'`,
+and their count, `metrics_budget_ratchet`), the design values added, the decisions the coordinator took
 on the deputy's **For the coordinator** questions and the product decisions it took (SPEC's
 decision log), and the findings the deputy dropped after the author disputed them, each with its
 PR. Then where the owner still decides PR by PR: an outside contributor's PR (the `deputy` skill →
