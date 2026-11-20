@@ -47,7 +47,7 @@ function Harness() {
   )
 }
 
-/** Settings with the sheet open, left without closing it: the browser's Back, or the sign-in screen. */
+/** Settings with the sheet open, left without closing it: the browser's Back on desktop. */
 function Leaving() {
   const [here, setHere] = useState(true)
   return (
