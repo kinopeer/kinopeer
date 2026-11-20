@@ -5,6 +5,7 @@ import * as settings from '../api/settings'
 import { SettingsError, type ServerSettings } from '../api/settings'
 import * as proxySignIn from '../pwa/proxySignIn'
 import { ToastProvider } from '../components/Toast'
+import en from '../i18n/locales/en.json'
 import { russianUnreachable } from '../test/languages'
 import { ConnectScreen, type ConnectScreenProps } from './ConnectScreen'
 import { controlledByServiceWorker, saying } from '../test/render'
@@ -369,7 +370,7 @@ describe('ConnectScreen', () => {
     setup()
     russianUnreachable()
     await userEvent.click(within(screen.getByRole('group', { name: 'Language' })).getByRole('button', { name: 'Русский' }))
-    expect(await screen.findByRole('status', { name: saying(/^Couldn’t load this language\./) })).toBeInTheDocument()
+    expect(await screen.findByRole('status', { name: saying(en.language.unavailable) })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'English' })).toHaveAttribute('aria-pressed', 'true')
   })
 
@@ -378,7 +379,7 @@ describe('ConnectScreen', () => {
     russianUnreachable()
     const language = within(screen.getByRole('group', { name: 'Language' }))
     await userEvent.click(language.getByRole('button', { name: 'Русский' }))
-    expect(await screen.findByRole('status', { name: saying(/^Couldn’t load this language\./) })).toBeInTheDocument()
+    expect(await screen.findByRole('status', { name: saying(en.language.unavailable) })).toBeInTheDocument()
     expect(localStorage.getItem('kinopeer.language')).toBe('ru')
 
     await userEvent.click(language.getByRole('button', { name: 'English' }))

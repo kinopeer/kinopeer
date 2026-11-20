@@ -30,11 +30,12 @@ export function kindOf(path: string): Kind {
 }
 
 /**
- * Whether a file is a language's texts, a chunk vite.config.ts names `assets/language-<code>-<hash>.js`.
+ * Whether a file is a language's texts, a chunk vite.config.ts names `assets/language-<code>-<hash>.js`,
+ * the code two letters, so a chunk of a module that is only named `language…` isn't taken for one.
  * A page loads only the language it shows (src/i18n/language.ts), so JS counts only the heaviest of
  * them, the most a page may load.
  */
-export const isLanguageFile = (path: string): boolean => /^assets\/language-[^/]+\.m?js$/.test(path)
+export const isLanguageFile = (path: string): boolean => /^assets\/language-[a-z]{2}-[^/]+\.m?js$/.test(path)
 
 /**
  * Whether a file counts gzipped. JS and CSS are most of the text the server compresses: gzip at its

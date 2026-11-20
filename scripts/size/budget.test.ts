@@ -24,6 +24,8 @@ describe('isLanguageFile', () => {
     ['assets/language-ru-Ab_1-2.mjs', true],
     ['assets/index-Ab12.js', false],
     ['assets/en-Ab12.js', false],
+    ['assets/language-Ab12.js', false],
+    ['assets/language-picker-Ab12.js', false],
     ['language-en-Ab12.js', false],
     ['assets/nested/language-en-Ab12.js', false],
     ['nested/assets/language-en-Ab12.js', false],

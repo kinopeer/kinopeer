@@ -393,7 +393,7 @@ The sums are per kind rather than per file, since the files' names carry hashes 
 their content. Each budget is a whole number of bytes, about 5% above what the build measured when
 it was set: on 2026-11-12, 186,937 bytes of JS, 15,392 of CSS and 184,330 of the rest, against
 budgets of 196,300, 16,200 and 193,600. JS's was lowered to 191,100 on 2026-11-20, to the
-measurement rounded up to the next 100 bytes, when the languages' texts left the main bundle (#492). Clean builds in a row gave the same numbers to the byte,
+measurement of 191,003 bytes rounded up to the next 100, when the languages' texts left the main bundle (#492). Clean builds in a row gave the same numbers to the byte,
 and CI's build on Node 22 the same as a local one on Node 24: the size is exact, so the margin is
 room for ordinary changes, not for noise. It is exact for the dependencies `package-lock.json`
 names: a local `node_modules` that drifted from it builds another size, so measure after `npm ci`.
