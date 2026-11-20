@@ -245,6 +245,28 @@ describe('FoldersSheet', () => {
     await userEvent.click(within(sheet).getByRole('button', { name: 'Back' }))
     expect(await within(sheet).findByRole('button', { name: 'Movies/media/films' })).toBeInTheDocument()
     expect(getFolders).toHaveBeenCalledTimes(2)
+    // Once.
+    await edit(sheet, /^TV/)
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Back' }))
+    expect(getFolders).toHaveBeenCalledTimes(2)
+  })
+
+  it('shows the list as it is now once, when a folder saved there follows a save settled elsewhere', async () => {
+    let settle!: () => void
+    setCategoryFolder.mockReturnValueOnce(new Promise((resolve) => (settle = resolve)))
+    const sheet = await openSheet()
+    await type(await edit(sheet, /^Movies/), '/media/films')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Back' }))
+    await type(await edit(sheet, /^TV/), '/media/shows')
+    await act(async () => settle())
+
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
+    expect(await within(sheet).findByRole('button', { name: /^Default folder/ })).toBeInTheDocument()
+    expect(getFolders).toHaveBeenCalledTimes(2)
+    await edit(sheet, /^TV/)
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Back' }))
+    expect(getFolders).toHaveBeenCalledTimes(2)
   })
 
   it('shows the list as it is now when a save settles there', async () => {
