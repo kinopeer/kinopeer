@@ -82,6 +82,14 @@ test.describe('onboarding, desktop', () => {
     await expect(page).toHaveScreenshot('desktop-unsupported-dark-ru.png')
   })
 
+  // #357: an address saved from the app can be changed there, under the state in the card.
+  test('qBittorrent too old at an address saved from the app, dark, Russian', async ({ page }) => {
+    await openApp(page, '/', { qbittorrentVersion: '4.5.5', auth: { enabled: true, source: 'saved' }, addressesFromApp: true })
+    await expect(page.getByRole('button', { name: 'Изменить адрес qBittorrent' })).toBeVisible()
+    await settle(page)
+    await expect(page).toHaveScreenshot('desktop-unsupported-address-dark-ru.png')
+  })
+
   // #311: the session check got no answer: the state in the form's card, in place of the form.
   test('Kinopeer doesn’t answer the session check, dark, Russian', async ({ page }) => {
     await openApp(page, '/', { serviceWorkerAnswers: true, sessionUnreached: true })
@@ -107,6 +115,14 @@ test.describe('onboarding, phone', () => {
     await expect(page.getByRole('heading', { name: 'qBittorrent 4.5.5 слишком старый' })).toBeVisible()
     await settle(page)
     await expect(page).toHaveScreenshot('unsupported-dark-ru.png')
+  })
+
+  // #357: an address saved from the app can be changed there, under the state.
+  test('qBittorrent too old at an address saved from the app, dark, Russian', async ({ page }) => {
+    await openApp(page, '/', { qbittorrentVersion: '4.5.5', auth: { enabled: true, source: 'saved' }, addressesFromApp: true })
+    await expect(page.getByRole('button', { name: 'Изменить адрес qBittorrent' })).toBeVisible()
+    await settle(page)
+    await expect(page).toHaveScreenshot('unsupported-address-dark-ru.png')
   })
 
   // #357: no address on the server: the address, and a login only where qBittorrent wants one.

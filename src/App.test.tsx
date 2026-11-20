@@ -120,6 +120,23 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Downloads' })).toBeInTheDocument()
   })
 
+  it('checks the session again when Settings saves qBittorrent’s address, so an old qBittorrent there is said to be too old', async () => {
+    const fromApp: serverSettings.ServerSettings = {
+      tmdb: { configured: true, source: 'saved', fallback: null },
+      prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } },
+      qbittorrent: { configured: true, source: 'saved', address: { source: 'saved', url: 'http://192.168.1.10:8080' } },
+      downloads: null,
+      auth: { enabled: true, source: 'saved' },
+    }
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(fromApp)
+    vi.mocked(serverSettings.saveQbittorrentLogin).mockResolvedValue(fromApp)
+    renderApp('/settings')
+    await userEvent.click(await screen.findByRole('button', { name: 'Change qBittorrent address and login' }))
+    getAppVersion.mockResolvedValue('4.5.5')
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'qBittorrent connection' })).getByRole('button', { name: 'Connect' }))
+    expect(await screen.findByRole('heading', { name: 'qBittorrent 4.5.5 is too old' })).toBeInTheDocument()
+  })
+
   it('asks the server’s settings and qBittorrent’s version once for the page, Settings opened at its start included (#382)', async () => {
     // A page whose download defaults haven't been loaded yet.
     resetSettings()

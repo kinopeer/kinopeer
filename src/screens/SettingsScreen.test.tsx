@@ -50,7 +50,7 @@ vi.mock('../api/tmdb', async (importOriginal) => ({
 }))
 
 function renderScreen(state?: unknown) {
-  return renderWithRouter(<SettingsScreen />, [{ pathname: '/settings', state }])
+  return renderWithRouter(<SettingsScreen signIn={serverSettings.saveQbittorrentLogin} />, [{ pathname: '/settings', state }])
 }
 
 function connection(name: string) {
@@ -805,6 +805,10 @@ describe('SettingsScreen', () => {
     }
     const hintFromApp = 'An address set on the Kinopeer server wins and can’t be changed here. One entered here is checked before it’s kept.'
     const hintFromServer = 'Service addresses are set in the Kinopeer server configuration.'
+    const changeQbittorrent = 'Change qBittorrent address and login'
+    const qbittorrentSheet = 'qBittorrent connection'
+    const changeProwlarr = 'Change Prowlarr address and key'
+    const prowlarrSheet = 'Prowlarr connection'
 
     it('changes qBittorrent’s address and login in a sheet that starts at the saved address, then checks it again', async () => {
       vi.mocked(serverSettings.getServerSettings).mockResolvedValue(fromApp())
@@ -812,33 +816,35 @@ describe('SettingsScreen', () => {
       renderScreen()
       expect(await screen.findByText(hintFromApp)).toBeInTheDocument()
       await waitFor(() => expect(qbt.getCategories).toHaveBeenCalledOnce())
-      await userEvent.click(within(connection('qBittorrent')).getByRole('button', { name: 'Change qBittorrent address and login' }))
+      await userEvent.click(within(connection('qBittorrent')).getByRole('button', { name: changeQbittorrent }))
 
-      const sheet = screen.getByRole('dialog', { name: 'qBittorrent connection' })
+      const sheet = screen.getByRole('dialog', { name: qbittorrentSheet })
       const address = within(sheet).getByLabelText('qBittorrent address')
       expect(address).toHaveValue(qbtUrl)
       await userEvent.clear(address)
       await userEvent.type(address, 'http://192.168.1.20:8080')
       await userEvent.type(within(sheet).getByLabelText('Username'), 'admin')
       await userEvent.type(within(sheet).getByLabelText('Password'), 'secret')
+      // The row's check at the new address is still on its way when the categories are asked.
+      vi.mocked(qbt.getAppVersion).mockReturnValue(new Promise(() => {}))
       await userEvent.click(within(sheet).getByRole('button', { name: 'Connect' }))
 
       expect(serverSettings.saveQbittorrentLogin).toHaveBeenCalledWith('admin', 'secret', 'http://192.168.1.20:8080')
       expect(await findToastOnPage('qBittorrent connection saved')).toBeInTheDocument()
-      expect(screen.queryByRole('dialog', { name: 'qBittorrent connection' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('dialog', { name: qbittorrentSheet })).not.toBeInTheDocument()
       // The row and the categories come from the qBittorrent at the new address.
       await waitFor(() => expect(qbt.getAppVersion).toHaveBeenCalledTimes(2))
       await waitFor(() => expect(qbt.getCategories).toHaveBeenCalledTimes(2))
 
       // And again after the next save.
-      await userEvent.click(within(connection('qBittorrent')).getByRole('button', { name: 'Change qBittorrent address and login' }))
-      await userEvent.click(within(screen.getByRole('dialog', { name: 'qBittorrent connection' })).getByRole('button', { name: 'Connect' }))
+      await userEvent.click(within(connection('qBittorrent')).getByRole('button', { name: changeQbittorrent }))
+      await userEvent.click(within(screen.getByRole('dialog', { name: qbittorrentSheet })).getByRole('button', { name: 'Connect' }))
       await waitFor(() => expect(qbt.getCategories).toHaveBeenCalledTimes(3))
     })
 
     it.each([
-      ['qBittorrent connection', 'qBittorrent', 'Change qBittorrent address and login'],
-      ['Prowlarr connection', 'Prowlarr', 'Change Prowlarr address and key'],
+      [qbittorrentSheet, 'qBittorrent', changeQbittorrent],
+      [prowlarrSheet, 'Prowlarr', changeProwlarr],
     ])('closes the %s sheet on Escape', async (sheetName, row, button) => {
       vi.mocked(serverSettings.getServerSettings).mockResolvedValue(fromApp())
       renderScreen()
@@ -848,15 +854,15 @@ describe('SettingsScreen', () => {
       expect(screen.queryByRole('dialog', { name: sheetName })).not.toBeInTheDocument()
     })
 
-    it('closes the sheet and shows the settings asked again when the environment set qBittorrent’s address meanwhile', async () => {
+    it('closes the sheet, says so and shows the settings asked again when the environment set qBittorrent’s address meanwhile', async () => {
       vi.mocked(serverSettings.getServerSettings).mockResolvedValue(fromApp())
       vi.mocked(serverSettings.saveQbittorrentLogin)
         .mockResolvedValueOnce(fromApp())
         .mockRejectedValueOnce(new serverSettings.SettingsError(409, 'env-address'))
       renderScreen()
       const change = async () => {
-        await userEvent.click(await within(connection('qBittorrent')).findByRole('button', { name: 'Change qBittorrent address and login' }))
-        await userEvent.click(within(screen.getByRole('dialog', { name: 'qBittorrent connection' })).getByRole('button', { name: 'Connect' }))
+        await userEvent.click(await within(connection('qBittorrent')).findByRole('button', { name: changeQbittorrent }))
+        await userEvent.click(within(screen.getByRole('dialog', { name: qbittorrentSheet })).getByRole('button', { name: 'Connect' }))
       }
       // A save first, whose settings the screen shows until it asks again.
       await change()
@@ -864,20 +870,41 @@ describe('SettingsScreen', () => {
         ...fromApp(),
         qbittorrent: { configured: true, source: 'saved', address: { source: 'env' } },
       })
+      await waitFor(() => expect(qbt.getAppVersion).toHaveBeenCalledTimes(2))
       await change()
-      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'qBittorrent connection' })).not.toBeInTheDocument())
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: qbittorrentSheet })).not.toBeInTheDocument())
+      expect(await findToastOnPage('qBittorrent’s address is now set on the Kinopeer server (QBITTORRENT_URL), which wins over one from the app.')).toBeInTheDocument()
+      // The row is checked at the environment's address.
+      await waitFor(() => expect(qbt.getAppVersion).toHaveBeenCalledTimes(3))
       await waitFor(() => expect(serverSettings.getServerSettings).toHaveBeenCalledTimes(2))
       await waitFor(() =>
-        expect(within(connection('qBittorrent')).queryByRole('button', { name: 'Change qBittorrent address and login' })).not.toBeInTheDocument(),
+        expect(within(connection('qBittorrent')).queryByRole('button', { name: changeQbittorrent })).not.toBeInTheDocument(),
       )
+    })
+
+    it('saves qBittorrent’s address when the sheet was closed before the answer, and says so', async () => {
+      vi.mocked(serverSettings.getServerSettings).mockResolvedValue(fromApp())
+      let answer = (_settings: serverSettings.ServerSettings) => {}
+      vi.mocked(serverSettings.saveQbittorrentLogin).mockReturnValue(new Promise((resolve) => (answer = resolve)))
+      renderScreen()
+      await userEvent.click(await within(connection('qBittorrent')).findByRole('button', { name: changeQbittorrent }))
+      const sheet = screen.getByRole('dialog', { name: qbittorrentSheet })
+      await userEvent.click(within(sheet).getByRole('button', { name: 'Connect' }))
+      // Escape: the browser cancels the modal <dialog>, which jsdom doesn't do on a key press.
+      fireEvent(sheet, new Event('cancel', { cancelable: true }))
+      expect(screen.queryByRole('dialog', { name: qbittorrentSheet })).not.toBeInTheDocument()
+
+      await act(async () => answer(fromApp()))
+      expect(await findToastOnPage('qBittorrent connection saved')).toBeInTheDocument()
+      await waitFor(() => expect(qbt.getAppVersion).toHaveBeenCalledTimes(2))
     })
 
     it('changes Prowlarr’s address with its key, the sheet starting at the saved address', async () => {
       vi.mocked(serverSettings.getServerSettings).mockResolvedValue(fromApp())
       vi.mocked(serverSettings.saveProwlarrKey).mockResolvedValue(fromApp())
       renderScreen()
-      await userEvent.click(await within(connection('Prowlarr')).findByRole('button', { name: 'Change Prowlarr address and key' }))
-      const sheet = screen.getByRole('dialog', { name: 'Prowlarr connection' })
+      await userEvent.click(await within(connection('Prowlarr')).findByRole('button', { name: changeProwlarr }))
+      const sheet = screen.getByRole('dialog', { name: prowlarrSheet })
       expect(within(sheet).getByLabelText('Prowlarr address')).toHaveValue(prowlarrUrl)
       await userEvent.type(within(sheet).getByLabelText('Prowlarr API key'), 'abc123')
       await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
@@ -885,11 +912,29 @@ describe('SettingsScreen', () => {
       expect(await findToastOnPage('Prowlarr address and key saved')).toBeInTheDocument()
     })
 
+    it('says the environment’s address wins and asks the settings again when it set Prowlarr’s meanwhile', async () => {
+      vi.mocked(serverSettings.getServerSettings).mockResolvedValue(fromApp())
+      vi.mocked(serverSettings.saveProwlarrKey).mockRejectedValue(new serverSettings.SettingsError(409, 'env-address'))
+      renderScreen()
+      await userEvent.click(await within(connection('Prowlarr')).findByRole('button', { name: changeProwlarr }))
+      vi.mocked(serverSettings.getServerSettings).mockResolvedValue(fromApp({ source: 'env' }))
+      const sheet = screen.getByRole('dialog', { name: prowlarrSheet })
+      await userEvent.type(within(sheet).getByLabelText('Prowlarr API key'), 'abc123')
+      await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
+
+      const envAddress = saying('Prowlarr’s address is now set on the Kinopeer server (PROWLARR_URL), which wins over one from the app.')
+      expect(await screen.findByRole('alert', { name: envAddress })).toBeInTheDocument()
+      // The settings asked again: the sheet asks for the key alone, and Prowlarr is checked again.
+      expect(await screen.findByRole('dialog', { name: 'Prowlarr key' })).toBeInTheDocument()
+      expect(screen.queryByLabelText('Prowlarr address')).not.toBeInTheDocument()
+      await waitFor(() => expect(prowlarr.getProwlarrStatus).toHaveBeenCalledTimes(2))
+    })
+
     it('asks for Prowlarr’s address where the server has none, onboarding’s step having been skipped', async () => {
       vi.mocked(serverSettings.getServerSettings).mockResolvedValue(fromApp({ source: null }))
       renderScreen()
-      await userEvent.click(await within(connection('Prowlarr')).findByRole('button', { name: 'Change Prowlarr address and key' }))
-      expect(within(screen.getByRole('dialog', { name: 'Prowlarr connection' })).getByLabelText('Prowlarr address')).toHaveValue('')
+      await userEvent.click(await within(connection('Prowlarr')).findByRole('button', { name: changeProwlarr }))
+      expect(within(screen.getByRole('dialog', { name: prowlarrSheet })).getByLabelText('Prowlarr address')).toHaveValue('')
     })
 
     it('changes only Prowlarr’s key, and qBittorrent nothing, where the environment sets their addresses', async () => {
@@ -901,14 +946,14 @@ describe('SettingsScreen', () => {
       expect(await screen.findByText(hintFromServer)).toBeInTheDocument()
       await userEvent.click(await within(connection('Prowlarr')).findByRole('button', { name: 'Change Prowlarr key' }))
       expect(within(screen.getByRole('dialog', { name: 'Prowlarr key' })).queryByLabelText('Prowlarr address')).not.toBeInTheDocument()
-      expect(within(connection('qBittorrent')).queryByRole('button', { name: 'Change qBittorrent address and login' })).not.toBeInTheDocument()
+      expect(within(connection('qBittorrent')).queryByRole('button', { name: changeQbittorrent })).not.toBeInTheDocument()
     })
 
     it('says one is from the app while Prowlarr’s is the environment’s', async () => {
       vi.mocked(serverSettings.getServerSettings).mockResolvedValue(fromApp({ source: 'env' }))
       renderScreen()
       expect(await screen.findByText(hintFromApp)).toBeInTheDocument()
-      expect(await within(connection('qBittorrent')).findByRole('button', { name: 'Change qBittorrent address and login' })).toBeInTheDocument()
+      expect(await within(connection('qBittorrent')).findByRole('button', { name: changeQbittorrent })).toBeInTheDocument()
       expect(within(connection('Prowlarr')).getByRole('button', { name: 'Change Prowlarr key' })).toBeInTheDocument()
     })
 
@@ -919,8 +964,8 @@ describe('SettingsScreen', () => {
       })
       renderScreen()
       expect(await screen.findByText(hintFromApp)).toBeInTheDocument()
-      expect(await within(connection('Prowlarr')).findByRole('button', { name: 'Change Prowlarr address and key' })).toBeInTheDocument()
-      expect(within(connection('qBittorrent')).queryByRole('button', { name: 'Change qBittorrent address and login' })).not.toBeInTheDocument()
+      expect(await within(connection('Prowlarr')).findByRole('button', { name: changeProwlarr })).toBeInTheDocument()
+      expect(within(connection('qBittorrent')).queryByRole('button', { name: changeQbittorrent })).not.toBeInTheDocument()
     })
 
     it.each([
@@ -930,7 +975,7 @@ describe('SettingsScreen', () => {
       vi.mocked(serverSettings.getServerSettings).mockResolvedValue({ ...fromApp(), auth })
       renderScreen()
       expect(await within(connection('Prowlarr')).findByRole('button', { name: 'Change Prowlarr key' })).toBeInTheDocument()
-      expect(within(connection('qBittorrent')).queryByRole('button', { name: 'Change qBittorrent address and login' })).not.toBeInTheDocument()
+      expect(within(connection('qBittorrent')).queryByRole('button', { name: changeQbittorrent })).not.toBeInTheDocument()
       expect(screen.getByText(hintFromServer)).toBeInTheDocument()
     })
   })

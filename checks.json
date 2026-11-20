@@ -85,12 +85,14 @@
         "desktop-set-up-password-dark-ru": {},
         "desktop-sign-in-light-en": {},
         "desktop-tmdb-key-dark-ru": {},
+        "desktop-unsupported-address-dark-ru": {},
         "desktop-unsupported-dark-ru": {},
         "prowlarr-dark-ru": {},
         "set-up-password-dark-ru": {},
         "sign-in-dark-ru": {},
         "sign-in-invalid-dark-ru": {},
         "sign-in-throttled-dark-ru": {},
+        "unsupported-address-dark-ru": {},
         "unsupported-dark-ru": {}
       },
       "overlays": {

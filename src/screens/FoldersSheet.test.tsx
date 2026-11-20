@@ -121,6 +121,9 @@ describe('FoldersSheet', () => {
     const sheet = await openSheet()
     const field = await edit(sheet, /^Default folder/)
     expect(field).toHaveValue('/downloads')
+    // A path is machine text: no autocorrect (iOS Safari's, #494) or spell check.
+    expect(field).toHaveAttribute('autocorrect', 'off')
+    expect(field).toHaveAttribute('spellcheck', 'false')
     expect(within(sheet).getByRole('button', { name: 'Save' })).toBeDisabled()
 
     getFolders.mockResolvedValue({ ...FOLDERS, defaultPath: '/media/downloads' })

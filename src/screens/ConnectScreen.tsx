@@ -19,7 +19,7 @@ export interface ConnectScreenProps {
   noAddress?: boolean
   onRetry: () => void
   /** Rejects with a SettingsError saying why the server couldn't log in; `url` only when the form asked for an address. */
-  onSignIn: (username: string, password: string, url?: string) => Promise<void>
+  onSignIn: (username: string, password: string, url?: string) => Promise<unknown>
 }
 
 export function ConnectScreen({ unreachable: unreachableProp, unsupported, noAddress = false, onRetry, onSignIn }: ConnectScreenProps) {
@@ -85,7 +85,12 @@ export function ConnectScreen({ unreachable: unreachableProp, unsupported, noAdd
         askAddress={askAddress}
         initialAddress={saved}
         addressFromApp={saved !== undefined}
-        onSubmit={onSignIn}
+        // Passed on as they come: no address unless the form asked for one.
+        onSubmit={async (...login) => {
+          await onSignIn(...login)
+          // Signed in, the session's state renders next: an old qBittorrent's notice in place of the form.
+          setChanging(false)
+        }}
         // The environment's address wins: check the session at it.
         onEnvAddress={onRetry}
         onRetry={onRetry}

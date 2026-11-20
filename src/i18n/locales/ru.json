@@ -89,6 +89,7 @@
     "loginOptional": "Оставьте логин пустым, если qBittorrent пускает Kinopeer без него.",
     "loginNeeded": "qBittorrent просит войти: введите логин и пароль",
     "authOff": "Собственный вход Kinopeer выключен, поэтому адрес qBittorrent задаётся только на сервере: QBITTORRENT_URL.",
+    "envAddress": "Адрес qBittorrent теперь задан на сервере Kinopeer (QBITTORRENT_URL), и он важнее сохранённого в приложении.",
     "changeAddress": "Изменить адрес qBittorrent"
   },
   "unsupported": {

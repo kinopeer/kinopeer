@@ -102,7 +102,7 @@ function SignedIn() {
                     <Route path="search" element={<SearchScreen />} />
                     <Route path={TITLE_PATH} element={<TitleRoute onSessionLost={onSessionLost} />} />
                     <Route path={RELEASES_PATH} element={<TitleRoute onSessionLost={onSessionLost} />} />
-                    <Route path="settings" element={<SettingsScreen />} />
+                    <Route path="settings" element={<SettingsScreen signIn={signIn} />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
                 </ErrorBoundary>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { NoAddressError, UnauthorizedError, unreachable, type Unreachable } from '../api/qbittorrent'
 import { checkAppVersion } from '../api/sharedAnswers'
-import { saveQbittorrentLogin } from '../api/settings'
+import { saveQbittorrentLogin, type ServerSettings } from '../api/settings'
 import { isSupportedVersion } from '../torrents/qbittorrentVersion'
 
 export type QbitSession =
@@ -48,14 +48,16 @@ export function useQbitSession() {
 
   /**
    * Saves the login on the server, which keeps it, and with `url` qBittorrent's address. Throws its
-   * SettingsError so the form can show why; resolves once qBittorrent answers, also when its version
-   * is too old, which the app then says.
+   * SettingsError so the form can show why; resolves with the server's settings once qBittorrent
+   * answers, also when its version is too old, which the app then says. Settings saves through it
+   * too, so the app's session follows a new address: its version, or that it's too old.
    */
-  const signIn = useCallback(async (username: string, password: string, url?: string) => {
-    await saveQbittorrentLogin(username, password, url)
+  const signIn = useCallback(async (username: string, password: string, url?: string): Promise<ServerSettings> => {
+    const settings = await saveQbittorrentLogin(username, password, url)
     const next = await probe()
     setSession(next)
     if (next.status !== 'connected' && next.status !== 'unsupported') throw new UnauthorizedError()
+    return settings
   }, [])
 
   return { session, recheck, signIn }

@@ -17,24 +17,26 @@ describe('QbittorrentLoginForm', () => {
     expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
   })
 
-  it('is busy only while the server checks, and takes the last error back as it tries again', async () => {
-    let settle: () => void = () => {}
+  it('is busy only while the server checks, sends nothing more meanwhile, and takes the last error back as it tries again', async () => {
+    const banned = saying('Too many failed attempts. qBittorrent has blocked this address for a while.')
     const onSubmit = vi
       .fn()
       .mockRejectedValueOnce(new SettingsError(403, 'banned'))
-      .mockReturnValueOnce(new Promise<void>((resolve) => (settle = resolve)))
+      .mockReturnValueOnce(new Promise<void>(() => {}))
     render(<QbittorrentLoginForm className="key-form" onSubmit={onSubmit} onEnvAddress={vi.fn()} />)
     const connect = screen.getByRole('button', { name: 'Connect' })
     expect(connect).not.toHaveAttribute('aria-busy')
     await userEvent.type(screen.getByLabelText('Username'), 'admin')
     await userEvent.type(screen.getByLabelText('Password'), 'secret')
     await userEvent.click(connect)
-    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    expect(await screen.findByRole('alert', { name: banned })).toBeInTheDocument()
     expect(connect).not.toHaveAttribute('aria-busy')
 
     await userEvent.click(connect)
     expect(connect).toHaveAttribute('aria-busy', 'true')
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-    settle()
+    expect(screen.queryByRole('alert', { name: banned })).not.toBeInTheDocument()
+    // Enter again while it's checked: a wrong password would count twice toward qBittorrent's ban.
+    await userEvent.type(screen.getByLabelText('Password'), '{Enter}')
+    expect(onSubmit).toHaveBeenCalledTimes(2)
   })
 })

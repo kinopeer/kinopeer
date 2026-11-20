@@ -17,6 +17,8 @@ export interface ProwlarrKeyFormProps {
   initialAddress?: string
   /** Prowlarr's address was saved from the app, not set on the server, which is what a wrong one is said to be. */
   addressFromApp?: boolean
+  /** The environment set Prowlarr's address meanwhile, which the form says: load the settings again, which ask for none. */
+  onEnvAddress?: () => void
   /** Another action under Save, as onboarding's Skip. */
   secondary?: ReactNode
 }
@@ -52,6 +54,7 @@ export function ProwlarrKeyForm({
   askAddress = false,
   initialAddress = '',
   addressFromApp = false,
+  onEnvAddress,
   secondary,
 }: ProwlarrKeyFormProps) {
   const { t } = useTranslation()
@@ -68,8 +71,10 @@ export function ProwlarrKeyForm({
     try {
       done(await request())
     } catch (e) {
-      setError(formError(e, kind))
+      const error = formError(e, kind)
+      setError(error)
       setBusy(null)
+      if (error === 'env-address') onEnvAddress?.()
     }
   }
 

@@ -45,6 +45,9 @@ beforeEach(() => {
 describe('ProwlarrKeyForm', () => {
   it('saves the trimmed key and hands the settings on', async () => {
     const { onSaved, field, save } = renderForm()
+    // A key is machine text: no autocorrect (iOS Safari's, #494) or spell check.
+    expect(field).toHaveAttribute('autocorrect', 'off')
+    expect(field).toHaveAttribute('spellcheck', 'false')
     await userEvent.type(field, '  abc123  ')
     await userEvent.click(save)
     expect(saveProwlarrKey).toHaveBeenCalledWith('abc123')

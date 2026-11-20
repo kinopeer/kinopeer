@@ -73,6 +73,8 @@ export function QbittorrentLoginForm({
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    // One check at a time: `loading` doesn't stop Enter in a field.
+    if (submitting) return
     setSubmitting(true)
     setError(null)
     try {
@@ -156,6 +158,7 @@ export function QbittorrentLoginForm({
           name="username"
           autoComplete="username"
           autoCapitalize="none"
+          autoCorrect="off"
           spellCheck={false}
           // With an address, qBittorrent's auth bypass may let the server in without a login.
           required={!askAddress}
