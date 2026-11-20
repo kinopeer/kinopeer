@@ -851,17 +851,24 @@ describe('SettingsScreen: Telegram', () => {
   })
 
   it.each([
-    ['a chat still to choose', { ...CONNECTED, chat: null }, 'Choose the chat to send to', true],
-    ['a chat Telegram refused', { ...CONNECTED, refused: 'chat' as const }, 'Telegram didn’t deliver to “Alex”: the bot was blocked or removed from it. Send the bot /start and choose the chat again.', true],
-    ['a working chat', CONNECTED, 'Sends to “Alex” from @kinopeer_home_bot', false],
-  ])('marks %s as a warning or not', async (_name, telegram, message, warn) => {
+    ['a chat still to choose', { ...CONNECTED, chat: null }, 'Choose the chat to send to'],
+    ['a chat Telegram refused', { ...CONNECTED, refused: 'chat' as const }, 'Telegram didn’t deliver to “Alex”: the bot was blocked or removed from it. Send the bot /start and choose the chat again.'],
+  ])('marks %s as a warning', async (_name, telegram, message) => {
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(telegram))
     vi.mocked(serverSettings.checkTelegram).mockResolvedValue({ bot: 'kinopeer_home_bot' })
     renderScreen()
     const status = await waitFor(() => within(connection('Telegram')).getByRole('status', { name: saying(message) }))
     // c-warn is what colors the message as a warning (MESSAGE_CLASS); jsdom has no colors to read.
-    if (warn) expect(status).toHaveClass('c-warn')
-    else expect(status).not.toHaveClass('c-warn')
+    expect(status).toHaveClass('c-warn')
+  })
+
+  it('doesn’t mark a working chat as a warning', async () => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(CONNECTED))
+    vi.mocked(serverSettings.checkTelegram).mockResolvedValue({ bot: 'kinopeer_home_bot' })
+    renderScreen()
+    const status = await waitFor(() => within(connection('Telegram')).getByRole('status', { name: saying('Sends to “Alex” from @kinopeer_home_bot') }))
+    // c-warn is what colors the message as a warning (MESSAGE_CLASS); jsdom has no colors to read.
+    expect(status).not.toHaveClass('c-warn')
   })
 
   it('turns notifications off from the sheet: the sheet closes, a toast says so and the card offers to set up again', async () => {
