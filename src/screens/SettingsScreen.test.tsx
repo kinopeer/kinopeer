@@ -812,7 +812,7 @@ describe('SettingsScreen: Telegram', () => {
     expect(await waitFor(() => within(connection('Telegram')).getByRole('status', { name: saying(message) }))).toBeInTheDocument()
   })
 
-  it('checks again once a renewed token of the same bot is saved', async () => {
+  it('checks again each time a renewed token of the same bot is saved', async () => {
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(CONNECTED))
     vi.mocked(serverSettings.checkTelegram)
       .mockRejectedValueOnce(new serverSettings.SettingsError(422, 'token-rejected'))
@@ -828,6 +828,11 @@ describe('SettingsScreen: Telegram', () => {
     await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
     expect(await within(connection('Telegram')).findByRole('status', { name: saying('Sends to “Alex” from @kinopeer_home_bot') })).toBeInTheDocument()
     expect(serverSettings.checkTelegram).toHaveBeenCalledTimes(2)
+    // And again on the next one: each save is a check of its own.
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Use another bot' }))
+    await userEvent.type(within(sheet).getByLabelText('Bot token'), TELEGRAM_TOKEN)
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(serverSettings.checkTelegram).toHaveBeenCalledTimes(3))
   })
 
   it('warns that Telegram refused the chat, so it’s chosen again', async () => {

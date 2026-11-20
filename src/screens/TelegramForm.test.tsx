@@ -184,13 +184,15 @@ describe('TelegramForm: the chat', () => {
     expect(await screen.findByRole(role, { name: saying(message) })).toBeInTheDocument()
   })
 
-  it('shows the search in progress and sends it once however often it’s pressed', async () => {
+  it('shows the search in progress, holds the other buttons, and sends it once however often it’s pressed', async () => {
     vi.mocked(serverSettings.findTelegramChat).mockReturnValue(pending())
     renderForm(BOT)
     expect(screen.getByRole('button', { name: 'Find chat' })).not.toHaveAttribute('aria-busy')
     await userEvent.click(screen.getByRole('button', { name: 'Find chat' }))
     await userEvent.click(screen.getByRole('button', { name: 'Find chat' }))
     expect(screen.getByRole('button', { name: 'Find chat' })).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByRole('button', { name: 'Use another bot' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Turn off' })).toBeDisabled()
     expect(serverSettings.findTelegramChat).toHaveBeenCalledTimes(1)
   })
 
