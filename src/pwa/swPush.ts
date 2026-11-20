@@ -24,7 +24,14 @@ const APP_ORIGIN = 'https://app.invalid'
  */
 export function appPath(value: unknown): string {
   if (!isText(value) || !value.startsWith('/')) return '/'
-  const url = new URL(value, APP_ORIGIN)
+  let url: URL
+  try {
+    url = new URL(value, APP_ORIGIN)
+  } catch {
+    // A value the URL parser refuses (`//[x`) is no path of the app's either. Not URL.canParse,
+    // which Safari before 17 lacks, while push works on iOS from 16.4.
+    return '/'
+  }
   return url.origin === APP_ORIGIN ? `${url.pathname}${url.search}${url.hash}` : '/'
 }
 

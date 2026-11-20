@@ -282,15 +282,17 @@ describe('createNotifier', () => {
 
   it('has every channel forget a torrent that lost its tag while it was sent again, and only that one', async () => {
     const forgotten: string[] = []
-    const push = channel('Push', [() => Promise.reject(new Error('no answer'))])
+    const down = () => Promise.reject(new Error('no answer'))
+    const push = channel('Push', [down, down])
     const telegram = channel('Telegram')
     push.notify.forget = (hash) => void forgotten.push(`Push ${hash}`)
     telegram.notify.forget = (hash) => void forgotten.push(`Telegram ${hash}`)
-    let tagged = [torrent('a'), torrent('b', { progress: 0.5, state: 'downloading' })]
+    // Both are sent again; only a loses its tag.
+    let tagged = [torrent('a'), torrent('c')]
     const watcher = notifier({ channels: [push.notify, telegram.notify], torrents: () => tagged })
     await watcher.check()
     expect(forgotten).toEqual([])
-    tagged = [torrent('b', { progress: 0.5, state: 'downloading' })]
+    tagged = [torrent('c')]
     await watcher.check()
     expect(forgotten).toEqual(['Push a', 'Telegram a'])
   })

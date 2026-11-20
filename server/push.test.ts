@@ -160,6 +160,8 @@ describe('pushMiddleware', () => {
     ['no authentication secret', { language: 'en', auth: undefined }],
     ['a replaced endpoint that isn’t text', { language: 'en', replaces: 42 }],
     ['a key that isn’t a point of P-256', { language: 'en', p256dh: Buffer.concat([Buffer.from([4]), Buffer.alloc(64, 1)]).toString('base64url') }],
+    ['a key that’s a number, whose digits KEY would take', { language: 'en', p256dh: 1234567890123456 }],
+    ['an authentication secret that’s a number, whose digits KEY would take', { language: 'en', auth: 1234567890123456 }],
     ['an authentication secret that isn’t 16 bytes', { language: 'en', auth: Buffer.alloc(17, 1).toString('base64url') }],
   ])('refuses a device with %s', async (_name, change) => {
     const { service, store, call } = await setUp()

@@ -14,6 +14,8 @@ describe('appPath', () => {
     ['one with a tab, which the URL parser drops, that leads to another host', '/\t/example.org/x', '/'],
     ['one with a line break that leads to another host', '/\n/example.org/x', '/'],
     ['a path with a hash', '/settings#push', '/settings#push'],
+    ['one the URL parser refuses', '//[x', '/'],
+    ['one with a tab the URL parser refuses', '/\t/[x', '/'],
     ['a relative path', 'torrent/abc', '/'],
     ['nothing', undefined, '/'],
   ])('%s: %s', (_name, value, path) => {
