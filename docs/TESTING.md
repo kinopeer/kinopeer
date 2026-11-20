@@ -10,7 +10,7 @@ screenshot tests and the smoke journeys. Running and releasing are in
 The rules here that any project could use (choosing a layer and the neighbours of a change, a
 test that can fail, the accepted reasons for something uncovered, what to do with a bug and its
 seven `test-gap` classes, keeping a list of blind spots, reviewing a PR's tests and tagging its
-findings) are also the quality system's testing component, **version 2 (2026-11-15)**, which other
+findings) are also the quality system's testing component, **version 2.1 (2026-11-20)**, which other
 projects copy. This file is that component's source, not a copy: the component was written from
 it, in project-neutral words, and lives in the owner's private repository (`ai-workspace`,
 `quality-system/testing.md`), which outside contributors can't open, so everything needed to work in
@@ -77,7 +77,7 @@ here, and a layer named wrong keeps the review from checking that it's the lowes
 
 ## Choosing a layer
 
-*The testing component's rules, version 2, in Kinopeer's words ([above](#testing)).*
+*The testing component's rules, version 2.1, in Kinopeer's words ([above](#testing)).*
 
 A change is every new behavior and every new branch, error paths included: a status mapped to a
 message, a `.catch` that swallows or reports, an action disabled offline or while busy, a fallback
@@ -395,9 +395,9 @@ of these:
   (#298), a secret passed by name to a reusable workflow (#291). The PR names the hand-off it
   checked (the group key both runs compute, the inputs of each side) and the documentation page it
   read the rest from.
-- **A known limitation the owner chose to keep:** a case the PR leaves as it is by the owner's
-  decision. The PR links the decision (the row in `docs/SPEC.md`'s decision log, or the comment with
-  the owner's decision) and says what happens in that case: a forget that fails after its sheet closed
+- **A known limitation chosen to be kept:** a case the PR leaves as it is by a recorded decision,
+  the owner's or the coordinator's. The PR links the decision (the row in `docs/SPEC.md`'s decision
+  log, or the comment with the decision) and says what happens in that case: a forget that fails after its sheet closed
   goes unsaid, as saving a key does (#248).
 - **No behavior:** docs, comments, CI and config, types, generated files, a re-export. A branch in a
   script or a workflow (whether to install, whether to deploy, which targets a matrix reaches) is
@@ -422,7 +422,7 @@ checks the reasons before it looks for missing tests.
 
 ## When we find a bug
 
-*The testing component's rules, version 2, in Kinopeer's words ([above](#testing)).*
+*The testing component's rules, version 2.1, in Kinopeer's words ([above](#testing)).*
 
 A bug is two defects: one in the code and one in the tests that let it through. A `fix:` PR answers
 three questions: why it broke, why the tests didn't catch it, and what changes so this class of miss
@@ -510,7 +510,7 @@ journey now presses the real Escape it had skipped.
 
 ## Known blind spots
 
-*The rule in this section's first paragraph is the testing component's, version 2 ([above](#testing)); the table is Kinopeer's.*
+*The rule in this section's first paragraph is the testing component's, version 2.1 ([above](#testing)); the table is Kinopeer's.*
 
 What no layer sees. Each is either checked by hand before a release ([RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)
 → Before every release) or knowingly not checked; a bug from one of them is an `environment` miss,
@@ -675,7 +675,7 @@ here after three new calls in one batch (#309, #323, #334).
 
 ## Reviewing a PR's tests
 
-*The testing component's rules, version 2, in Kinopeer's words ([above](#testing)).*
+*The testing component's rules, version 2.1, in Kinopeer's words ([above](#testing)).*
 
 Three steps, each by whoever can do it best:
 
@@ -793,7 +793,7 @@ before it.
 
 ## Improving the system
 
-*The testing component's rules, version 2, in Kinopeer's words ([above](#testing)).*
+*The testing component's rules, version 2.1, in Kinopeer's words ([above](#testing)).*
 
 The rules in this file, the skill and the PR template are a system that should need less and less
 correcting. Every review finding says something about it: either the author slipped on a clear
