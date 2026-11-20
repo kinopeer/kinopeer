@@ -152,10 +152,12 @@ describe('ConnectScreen', () => {
     expect(screen.getByRole('alert', { name: saying('qBittorrent isn’t answering') })).toBeInTheDocument()
   })
 
-  it('takes the server’s word that qBittorrent did not answer the sign-in', async () => {
-    setup(vi.fn().mockRejectedValue(new SettingsError(502, 'unreachable')))
+  it('takes the server’s word that qBittorrent did not answer the sign-in, with Retry', async () => {
+    const { onRetry } = setup(vi.fn().mockRejectedValue(new SettingsError(502, 'unreachable')))
     await fillAndSubmit()
-    expect(screen.getByRole('alert', { name: saying('qBittorrent isn’t answering') })).toBeInTheDocument()
+    const alert = screen.getByRole('alert', { name: saying('qBittorrent isn’t answering') })
+    await userEvent.click(within(alert).getByRole('button', { name: 'Try again' }))
+    expect(onRetry).toHaveBeenCalledOnce()
   })
 
   describe('with no address on the server', () => {

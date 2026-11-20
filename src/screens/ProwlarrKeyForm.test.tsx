@@ -189,6 +189,19 @@ describe('ProwlarrKeyForm', () => {
       expect(saveProwlarrKey).toHaveBeenCalledWith('abc123', '192.168.1.10:9696')
     })
 
+    it.each([
+      ['the environment set Prowlarr’s address meanwhile', new serverSettings.SettingsError(409, 'env-address'), 'Prowlarr’s address is now set on the Kinopeer server (PROWLARR_URL), which wins over one from the app.'],
+      ['Kinopeer’s own login is off', new serverSettings.SettingsError(409, 'auth-off'), 'Kinopeer’s own login is off, so Prowlarr’s address can only be set on the server: PROWLARR_URL.'],
+    ])('says what refused the address when %s, rather than to try again', async (_name, error, message) => {
+      saveProwlarrKey.mockRejectedValue(error)
+      const { address, field, save } = renderWithAddress()
+      await userEvent.type(address, 'http://prowlarr.test')
+      await userEvent.type(field, 'abc123')
+      await userEvent.click(save)
+      expect(await screen.findByRole('alert', { name: saying(message) })).toBeInTheDocument()
+      expect(screen.queryByRole('alert', { name: saying('Couldn’t save the key. Try again.') })).not.toBeInTheDocument()
+    })
+
     it('offers another action under Save', () => {
       renderWithAddress(<button type="button">Skip</button>)
       expect(screen.getByRole('button', { name: 'Skip' })).toBeInTheDocument()
