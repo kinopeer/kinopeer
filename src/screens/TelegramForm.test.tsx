@@ -198,6 +198,8 @@ describe('TelegramForm: the chat', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Find chat' }))
     await userEvent.click(screen.getByRole('button', { name: 'Find chat' }))
     expect(screen.getByRole('button', { name: 'Find chat' })).toHaveAttribute('aria-busy', 'true')
+    // The button in progress keeps its look, its spinner in place of a greyed-out button.
+    expect(screen.getByRole('button', { name: 'Find chat' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Use another bot' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Turn off' })).toBeDisabled()
     expect(serverSettings.findTelegramChat).toHaveBeenCalledTimes(1)
