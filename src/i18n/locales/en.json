@@ -15,7 +15,8 @@
   },
   "language": {
     "label": "Language",
-    "system": "System"
+    "system": "System",
+    "unavailable": "Couldn’t load this language. Check that the server running Kinopeer is reachable, then choose it again."
   },
   "common": {
     "retry": "Try again",

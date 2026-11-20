@@ -1,7 +1,9 @@
-import { act, renderHook } from '@testing-library/react'
+import { act, renderHook, screen } from '@testing-library/react'
 import { useTranslation } from 'react-i18next'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import i18n from '.'
+import { ToastProvider } from '../components/Toast'
+import { failRussianLoads, russianUnreachable, withoutTexts } from '../test/languages'
 import en from './locales/en.json'
 import ru from './locales/ru.json'
 import {
@@ -89,22 +91,8 @@ describe('showLanguage', () => {
   const unavailable = vi.fn()
 
   afterEach(() => {
-    vi.doUnmock('./locales/ru.json')
-    onLanguageUnavailable(() => {})
     unavailable.mockReset()
-    // test-setup.ts gives every test both languages' texts.
-    i18n.addResourceBundle('en', 'translation', en, true, true)
-    i18n.addResourceBundle('ru', 'translation', ru, true, true)
   })
-
-  /** The page without a language's texts, as it starts: it has loaded none. */
-  const withoutTexts = (language: 'en' | 'ru') => i18n.removeResourceBundle(language, 'translation')
-
-  /** The next load of Russian's texts fails, as it does once an update took the old build's files away. */
-  const russianUnreachable = () =>
-    vi.doMock('./locales/ru.json', () => {
-      throw new TypeError('Failed to fetch dynamically imported module')
-    })
 
   it.each([
     ['en', en],
@@ -112,7 +100,7 @@ describe('showLanguage', () => {
   ] as const)("loads the texts of a language the page doesn't have, then shows it: %s", async (language, texts) => {
     await act(() => i18n.changeLanguage(language === 'en' ? 'ru' : 'en'))
     withoutTexts(language)
-    await act(() => showLanguage(language))
+    await act(async () => expect(await showLanguage(language)).toBe(true))
     expect(i18n.language).toBe(language)
     expect(i18n.hasResourceBundle(language, 'translation')).toBe(true)
     expect(i18n.t('theme.label')).toBe(texts.theme.label)
@@ -143,7 +131,7 @@ describe('showLanguage', () => {
     withoutTexts('ru')
     await act(() => showLanguage('ru'))
     await act(() => showLanguage('en'))
-    russianUnreachable()
+    failRussianLoads()
     onLanguageUnavailable(unavailable)
 
     await act(() => showLanguage('ru'))
@@ -152,23 +140,21 @@ describe('showLanguage', () => {
   })
 
   it("keeps the language shown and says so when a language's texts can't be loaded", async () => {
-    withoutTexts('ru')
     russianUnreachable()
     onLanguageUnavailable(unavailable)
 
-    await act(() => showLanguage('ru'))
+    await act(async () => expect(await showLanguage('ru')).toBe(false))
     expect(i18n.language).toBe('en')
     expect(unavailable).toHaveBeenCalledOnce()
   })
 
   it("says nothing of a language that can't be loaded once another was asked for", async () => {
-    withoutTexts('ru')
     russianUnreachable()
     onLanguageUnavailable(unavailable)
 
     const russian = showLanguage('ru')
     await act(() => showLanguage('en'))
-    await act(() => russian)
+    await act(async () => expect(await russian).toBe(true))
     expect(i18n.language).toBe('en')
     expect(unavailable).not.toHaveBeenCalled()
   })
@@ -187,6 +173,13 @@ describe('setLanguagePreference', () => {
     expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('en')
   })
 
+  it("resolves to whether its language's texts could be loaded", async () => {
+    await act(async () => expect(await setLanguagePreference('en')).toBe(true))
+    russianUnreachable()
+    await act(async () => expect(await setLanguagePreference('ru')).toBe(false))
+    expect(i18n.language).toBe('en')
+  })
+
   it('still switches for this page when storage is unavailable', async () => {
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('blocked')
@@ -196,13 +189,35 @@ describe('setLanguagePreference', () => {
   })
 
   it('updates every hook that shows it', async () => {
-    const first = renderHook(() => useLanguage())
-    const second = renderHook(() => useLanguage())
+    const first = renderHook(() => useLanguage(), { wrapper: ToastProvider })
+    const second = renderHook(() => useLanguage(), { wrapper: ToastProvider })
     expect(first.result.current.preference).toBe('system')
 
     await act(async () => first.result.current.setPreference('ru'))
     expect(first.result.current.preference).toBe('ru')
     expect(second.result.current.preference).toBe('ru')
+  })
+})
+
+describe('useLanguage', () => {
+  it("says in a toast, in the language still shown, that a choice's texts couldn't be loaded, and takes it back once a choice shows", async () => {
+    const { result } = renderHook(() => useLanguage(), { wrapper: ToastProvider })
+    russianUnreachable()
+
+    await act(() => result.current.setPreference('ru'))
+    expect(screen.getByRole('status')).toHaveTextContent(en.language.unavailable)
+    expect(i18n.language).toBe('en')
+
+    await act(() => result.current.setPreference('en'))
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('shows no toast for a choice it shows', async () => {
+    const { result } = renderHook(() => useLanguage(), { wrapper: ToastProvider })
+    withoutTexts('ru')
+    await act(() => result.current.setPreference('ru'))
+    expect(i18n.language).toBe('ru')
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 })
 
@@ -238,7 +253,7 @@ describe('following the browser', () => {
   it('takes a choice made in another tab', async () => {
     stubBrowserLanguages(['en-US'])
     stopFollowing = initLanguage()
-    const { result } = renderHook(() => useLanguage())
+    const { result } = renderHook(() => useLanguage(), { wrapper: ToastProvider })
 
     localStorage.setItem(LANGUAGE_STORAGE_KEY, 'ru')
     await act(async () => window.dispatchEvent(new StorageEvent('storage', { key: LANGUAGE_STORAGE_KEY })))
@@ -250,7 +265,7 @@ describe('following the browser', () => {
     stubBrowserLanguages(['en-US'])
     await act(async () => setLanguagePreference('ru'))
     stopFollowing = initLanguage()
-    const { result } = renderHook(() => useLanguage())
+    const { result } = renderHook(() => useLanguage(), { wrapper: ToastProvider })
 
     // Written straight to storage, as another tab would, without this tab's store knowing.
     localStorage.setItem(LANGUAGE_STORAGE_KEY, 'en')

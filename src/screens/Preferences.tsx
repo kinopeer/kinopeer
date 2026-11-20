@@ -42,7 +42,7 @@ export function Preferences() {
             aria-pressed={i18n.resolvedLanguage === code}
             onClick={() => {
               // Tapping the language already shown while it follows the browser keeps System.
-              if (language.preference !== 'system' || i18n.resolvedLanguage !== code) language.setPreference(code)
+              if (language.preference !== 'system' || i18n.resolvedLanguage !== code) void language.setPreference(code)
             }}
           >
             {name}

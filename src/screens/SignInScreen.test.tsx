@@ -1,10 +1,15 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render as renderInto, screen } from '@testing-library/react'
+import type { ReactNode } from 'react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as auth from '../api/auth'
 import { AuthError } from '../api/auth'
+import { ToastProvider } from '../components/Toast'
 import { saying } from '../test/render'
 import { SignInScreen } from './SignInScreen'
+
+/** The screen with the toasts `App` gives every screen (its language switch says when a language can't be loaded). */
+const render = (ui: ReactNode) => renderInto(ui, { wrapper: ToastProvider })
 
 vi.mock('../api/auth', async (importOriginal) => ({
   ...(await importOriginal<typeof auth>()),

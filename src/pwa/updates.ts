@@ -1,4 +1,5 @@
 import { fetchKinopeer } from '../api/fetchKinopeer'
+import { onLanguageUnavailable } from '../i18n/language'
 
 /**
  * Brings an open app to a new version. A page kept in memory (the app on the Home Screen resumed
@@ -6,7 +7,8 @@ import { fetchKinopeer } from '../api/fetchKinopeer'
  * plain HTTP there is no service worker at all, and over HTTPS the new worker takes over but the
  * page keeps the old scripts. So at startup and whenever the app comes back to the foreground, it
  * asks for the built version (version.json, written next to index.html by vite.config.ts) and
- * reloads when it differs and nothing is open.
+ * reloads when it differs and nothing is open. A page that can't load a language's texts checks too:
+ * an update it missed takes the old build's files away, and the new build has its own.
  */
 
 /** The built app's version, a static file, so it works without Kinopeer's server. */
@@ -86,14 +88,11 @@ export function takeJustUpdated(): boolean {
   return true
 }
 
-/** The update check: `check` runs it once more, `stop` stops the checks on returns to the foreground. */
-export type UpdateChecks = { check: () => Promise<void>; stop: () => void }
-
 /**
- * Checks now and on every return to the foreground. `check` is also for a page that finds the files
- * of its build gone, as it does when it can't load a language's texts (main.tsx).
+ * Checks now, on every return to the foreground and when a language's texts can't be loaded
+ * (`onLanguageUnavailable`). Returns a function that stops it.
  */
-export function startUpdateChecks(reload: () => void = () => window.location.reload()): UpdateChecks {
+export function startUpdateChecks(reload: () => void = () => window.location.reload()): () => void {
   let checking = false
   const check = async () => {
     if (checking) return
@@ -113,5 +112,9 @@ export function startUpdateChecks(reload: () => void = () => window.location.rel
   }
   void check()
   document.addEventListener('visibilitychange', onVisibilityChange)
-  return { check, stop: () => document.removeEventListener('visibilitychange', onVisibilityChange) }
+  onLanguageUnavailable(() => void check())
+  return () => {
+    document.removeEventListener('visibilitychange', onVisibilityChange)
+    onLanguageUnavailable(() => {})
+  }
 }

@@ -3,10 +3,9 @@ import { cleanup, configure } from '@testing-library/react'
 import { afterEach, beforeEach } from 'vitest'
 import { setSignInNeed } from './api/auth/signInNeed'
 import i18n from './i18n'
-import en from './i18n/locales/en.json'
-import ru from './i18n/locales/ru.json'
 import { sharedRequests } from './logic/sharedRequests'
 import { LANGUAGE_STORAGE_KEY, resetLanguagePreference } from './i18n/language'
+import { giveBothLanguages } from './test/languages'
 import { resetThemePreference } from './theme/theme'
 
 // findBy* waits up to 1 s by default; the first test of a file on a busy CI runner can take longer.
@@ -17,12 +16,11 @@ configure({ asyncUtilTimeout: 3000 })
 // the code. A test that checks the scrolling replaces it with its own mock.
 window.scrollTo = () => {}
 
-// The app loads a language's texts when it shows it (src/i18n/language.ts); tests have both from the
-// start, so a test switches the language with i18n.changeLanguage and waits for nothing.
-i18n.addResourceBundle('en', 'translation', en)
-i18n.addResourceBundle('ru', 'translation', ru)
-
 beforeEach(async () => {
+  // The app loads a language's texts when it shows it (src/i18n/language.ts); every test has both
+  // from the start, so it switches the language with i18n.changeLanguage and waits for nothing, and
+  // one that took them away (src/test/languages.ts) leaves none missing for the next.
+  giveBothLanguages()
   await i18n.changeLanguage('en')
 })
 

@@ -14,7 +14,7 @@ import { listenForInstallPrompt } from './pwa/install'
 import { startProxySignIn } from './pwa/proxySignIn'
 import { startUpdateChecks } from './pwa/updates'
 import { ErrorBoundary } from './screens/ErrorBoundary'
-import { getLanguagePreference, initLanguage, onLanguageUnavailable, resolveLanguage, showLanguage } from './i18n/language'
+import { getLanguagePreference, initLanguage, resolveLanguage, showLanguage } from './i18n/language'
 import { initSettingsSync } from './settings/settings'
 import { initTheme } from './theme/theme'
 
@@ -25,9 +25,7 @@ initTheme()
 initLanguage()
 initSettingsSync()
 listenForInstallPrompt()
-// A page an update left behind finds its build's language files gone: the check reloads it into the new build.
-const updates = startUpdateChecks()
-onLanguageUnavailable(() => void updates.check())
+startUpdateChecks()
 trackInputModality()
 trackKeyboardInset()
 

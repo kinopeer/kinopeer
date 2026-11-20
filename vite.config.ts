@@ -167,8 +167,9 @@ export default defineConfig(({ mode }) => {
     // The data directory (./data by default) is under the root the dev server serves any file from,
     // and holds the saved keys, the qBittorrent login and the password's hash; `dev-lan` serves the
     // LAN (#476). The list covers the root, /@fs/ and imports such as ?raw alike.
-    build: { rolldownOptions: { output: { chunkFileNames: chunkFileName } } },
     server: { cors: false, fs: { deny: [...VITE_DENIED, ...new Set([dataDir, realPath(dataDir)].map(everythingUnder))] } },
+    // Each language's texts in a chunk of their own, named for the size budget (chunkFileName, above).
+    build: { rolldownOptions: { output: { chunkFileNames: chunkFileName } } },
     plugins: [
       react(),
       pwa,

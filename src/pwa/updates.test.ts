@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { showLanguage } from '../i18n/language'
+import { russianUnreachable } from '../test/languages'
 import { TAKEOVER_TIMEOUT_MS, VERSION_URL, markReloadedFor, startUpdateChecks, takeJustUpdated } from './updates'
 
 const NEW = `${__APP_VERSION__}+new`
@@ -71,7 +73,7 @@ afterEach(() => {
 describe('startUpdateChecks', () => {
   it('reloads when the server has another version', async () => {
     const fetchMock = serverHas(NEW)
-    stop = startUpdateChecks(reload).stop
+    stop = startUpdateChecks(reload)
     await settle()
     expect(fetchMock).toHaveBeenCalledWith(VERSION_URL, expect.objectContaining({ cache: 'no-store', redirect: 'manual' }))
     expect(reload).toHaveBeenCalledOnce()
@@ -79,20 +81,33 @@ describe('startUpdateChecks', () => {
 
   it('stays on the same version', async () => {
     serverHas(__APP_VERSION__)
-    stop = startUpdateChecks(reload).stop
+    stop = startUpdateChecks(reload)
     await settle()
     expect(reload).not.toHaveBeenCalled()
   })
 
-  it('checks again when asked, as a page that finds its build files gone does', async () => {
+  it("checks when a language's texts can't be loaded, as a page an update left behind finds them gone", async () => {
     serverHas(__APP_VERSION__)
-    const checks = startUpdateChecks(reload)
-    stop = checks.stop
+    stop = startUpdateChecks(reload)
     await settle()
 
     serverHas(NEW)
-    await checks.check()
+    russianUnreachable()
+    await showLanguage('ru')
+    await settle()
     expect(reload).toHaveBeenCalledOnce()
+  })
+
+  it("no longer checks for a language's texts once stopped", async () => {
+    serverHas(__APP_VERSION__)
+    startUpdateChecks(reload)()
+    await settle()
+
+    serverHas(NEW)
+    russianUnreachable()
+    await showLanguage('ru')
+    await settle()
+    expect(reload).not.toHaveBeenCalled()
   })
 
   it('stays when the server says nothing it can read', async () => {
@@ -103,19 +118,19 @@ describe('startUpdateChecks', () => {
       Response.json({ version: 7 }),
     ]) {
       serverHas(answer)
-      stop = startUpdateChecks(reload).stop
+      stop = startUpdateChecks(reload)
       await settle()
       stop()
     }
     vi.stubGlobal('fetch', () => Promise.reject(new TypeError('offline')))
-    stop = startUpdateChecks(reload).stop
+    stop = startUpdateChecks(reload)
     await settle()
     expect(reload).not.toHaveBeenCalled()
   })
 
   it('checks again when the app comes back to the foreground', async () => {
     serverHas(__APP_VERSION__)
-    stop = startUpdateChecks(reload).stop
+    stop = startUpdateChecks(reload)
     await settle()
 
     const fetchMock = serverHas(NEW)
@@ -131,7 +146,7 @@ describe('startUpdateChecks', () => {
     const dialog = document.body.appendChild(document.createElement('dialog'))
     dialog.setAttribute('open', '')
     serverHas(NEW)
-    stop = startUpdateChecks(reload).stop
+    stop = startUpdateChecks(reload)
     await settle()
     expect(reload).not.toHaveBeenCalled()
 
@@ -147,7 +162,7 @@ describe('startUpdateChecks', () => {
     const field = document.body.appendChild(document.createElement('input'))
     field.focus()
     serverHas(NEW)
-    stop = startUpdateChecks(reload).stop
+    stop = startUpdateChecks(reload)
     await settle()
     expect(reload).not.toHaveBeenCalled()
 
@@ -160,11 +175,11 @@ describe('startUpdateChecks', () => {
 
   it('reloads once for a version, so a page that stays old doesn\'t reload again and again', async () => {
     serverHas(NEW)
-    stop = startUpdateChecks(reload).stop
+    stop = startUpdateChecks(reload)
     await settle()
     stop()
     // The reloaded page: the same session, still the old bundle.
-    stop = startUpdateChecks(reload).stop
+    stop = startUpdateChecks(reload)
     await settle()
     expect(reload).toHaveBeenCalledOnce()
   })
@@ -172,7 +187,7 @@ describe('startUpdateChecks', () => {
   it('waits for the new service worker to take over before reloading', async () => {
     const { registration, takeOver } = serviceWorker()
     serverHas(NEW)
-    stop = startUpdateChecks(reload).stop
+    stop = startUpdateChecks(reload)
     await settle()
     expect(registration.update).toHaveBeenCalledOnce()
     // Reloading now would get the old shell from the old worker.
@@ -186,7 +201,7 @@ describe('startUpdateChecks', () => {
   it('waits for a new service worker left waiting, too', async () => {
     const { takeOver } = serviceWorker({ next: 'waiting' })
     serverHas(NEW)
-    stop = startUpdateChecks(reload).stop
+    stop = startUpdateChecks(reload)
     await settle()
     expect(reload).not.toHaveBeenCalled()
 
@@ -198,7 +213,7 @@ describe('startUpdateChecks', () => {
   it('doesn\'t reload when a sheet opened while it waited for the service worker', async () => {
     const { takeOver } = serviceWorker()
     serverHas(NEW)
-    stop = startUpdateChecks(reload).stop
+    stop = startUpdateChecks(reload)
     await settle()
     const dialog = document.body.appendChild(document.createElement('dialog'))
     dialog.setAttribute('open', '')
@@ -216,7 +231,7 @@ describe('startUpdateChecks', () => {
   it('doesn\'t reload when the app went to the background while it waited for the service worker', async () => {
     const { takeOver } = serviceWorker()
     serverHas(NEW)
-    stop = startUpdateChecks(reload).stop
+    stop = startUpdateChecks(reload)
     await settle()
     setHidden(true)
     takeOver()
@@ -231,7 +246,7 @@ describe('startUpdateChecks', () => {
   it('reloads right away when no service worker is registered yet', async () => {
     serviceWorker({ registered: false })
     serverHas(NEW)
-    stop = startUpdateChecks(reload).stop
+    stop = startUpdateChecks(reload)
     await settle()
     expect(reload).toHaveBeenCalledOnce()
   })
@@ -239,7 +254,7 @@ describe('startUpdateChecks', () => {
   it('checks once at a time, so returns while it waits for the service worker don\'t ask it again', async () => {
     const { registration, takeOver } = serviceWorker()
     serverHas(NEW)
-    stop = startUpdateChecks(reload).stop
+    stop = startUpdateChecks(reload)
     await settle()
     setHidden(true)
     setHidden(false)
@@ -258,7 +273,7 @@ describe('startUpdateChecks', () => {
       })
     }
     serverHas(NEW)
-    stop = startUpdateChecks(reload).stop
+    stop = startUpdateChecks(reload)
     await settle()
     expect(reload).toHaveBeenCalledOnce()
   })
@@ -266,7 +281,7 @@ describe('startUpdateChecks', () => {
   it('reloads right away when the service worker has nothing newer to install', async () => {
     serviceWorker({ next: null })
     serverHas(NEW)
-    stop = startUpdateChecks(reload).stop
+    stop = startUpdateChecks(reload)
     await settle()
     expect(reload).toHaveBeenCalledOnce()
   })
@@ -274,7 +289,7 @@ describe('startUpdateChecks', () => {
   it('tries again later when the new service worker doesn\'t come', async () => {
     const { registration } = serviceWorker({ fails: true })
     serverHas(NEW)
-    stop = startUpdateChecks(reload).stop
+    stop = startUpdateChecks(reload)
     await settle()
     expect(reload).not.toHaveBeenCalled()
 

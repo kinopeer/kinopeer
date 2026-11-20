@@ -25,8 +25,8 @@ let wanted: Language | undefined
 let onUnavailable: () => void = () => {}
 
 /**
- * What to do when a language's texts can't be loaded. main.tsx checks for a newer build: an update
- * the page missed removes the old build's files, and the new build has its own.
+ * What to do when a language's texts can't be loaded. The update check (src/pwa/updates.ts) sets it:
+ * an update the page missed removes the old build's files, and the new build has its own.
  */
 export function onLanguageUnavailable(handler: () => void): void {
   onUnavailable = handler
@@ -34,23 +34,26 @@ export function onLanguageUnavailable(handler: () => void): void {
 
 /**
  * Shows the page in `language` once its texts are loaded, each language's once per page. When they
- * can't be loaded, the page keeps the language it shows (at startup, none: the keys) and the
- * `onLanguageUnavailable` handler is called. A later call wins over one still loading.
+ * can't be loaded, the page keeps the language it shows (at startup, none: the keys), the
+ * `onLanguageUnavailable` handler is called and the promise resolves to false. A later call wins
+ * over one still loading, which then resolves to true: there's nothing to say about it.
  */
-export async function showLanguage(language: Language): Promise<void> {
+export async function showLanguage(language: Language): Promise<boolean> {
   wanted = language
   if (!i18n.hasResourceBundle(language, 'translation')) {
     try {
       const { default: texts } = await TEXTS[language]()
       i18n.addResourceBundle(language, 'translation', texts)
     } catch {
-      if (wanted === language) onUnavailable()
-      return
+      if (wanted !== language) return true
+      onUnavailable()
+      return false
     }
   }
   // Also when it's the language already set: i18next picks the resolved language, and React renders
   // the texts, only on a change.
   if (wanted === language) await i18n.changeLanguage(language)
+  return true
 }
 
 /** The app's language for a tag by its base language ('ru-RU' → 'ru'), or null if the app doesn't have it. */
@@ -110,11 +113,13 @@ export function subscribeLanguagePreference(listener: () => void): () => void {
   return () => listeners.delete(listener)
 }
 
-export function setLanguagePreference(next: LanguagePreference): void {
+/** Saves the preference and shows its language; resolves to false when that language's texts couldn't be loaded. */
+export function setLanguagePreference(next: LanguagePreference): Promise<boolean> {
   writeLanguagePreference(next)
   preference = next
-  void showLanguage(resolveLanguage(next))
+  const shown = showLanguage(resolveLanguage(next))
   listeners.forEach((listener) => listener())
+  return shown
 }
 
 /** Forgets the preference read from storage, so the next read starts over, and the language asked for. For tests. */
