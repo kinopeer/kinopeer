@@ -16,7 +16,7 @@ Only what is on, being adopted, or declined with its reason; plans aren't listed
 | --- | --- | --- |
 | [The testing rules](TESTING.md) | On, version 2.1 of the quality system's testing component (2026-11-20), of which [TESTING.md](TESTING.md) is the source | How a change is covered by tests and reviewed: the lowest layer that sees a statement, the neighbours of a change, a test seen to fail, the accepted reasons for something uncovered, what a bug calls for and its seven `test-gap` classes, the review rounds and their tags |
 | The effort journal | On since 2026-11-14: built outside this repository, in the owner's `ai-workspace` (`effort-journal/`). Its hook records every session's turns on the owner's Mac into a database of the owner's on Cloudflare. Until 2026-11-17 it recorded into a Google Sheet behind a webhook; that day it moved to the database, with the Sheet's rows carried over. A cloud session (the deputy's runs, a cloud author or coordinator) records only when its environment has the journal's variables, and the deputy stops when it can't reach the journal (the `deputy` skill → Whether to run). Until 2026-11-15 a cloud run's rows didn't reach the Sheet: the cloud's network refused the webhook's hosts, and the hook kept a run's one turn in a spool that waited five minutes and went with the container. Both were fixed that day, in the cloud environment's network and in the journal, which sends at once in a cloud session. A cloud run's rows first reached the Sheet on 2026-11-15, from the deputy's round 2 on #447; every cloud run before it is missing from the journal ([The retro](#the-retro)) | Records what each session's work costs and rates each merged PR's complexity, which the retro sets against each other ([The retro](#the-retro)); the figures stay out of this repository, which is public |
-| [The retro](#the-retro) | On since 2026-10-28 as the tests' retro, the whole system's since 2026-11-14, by version 3.2 of the quality system's retro (2026-11-20); its counts come from the quality system's database since 2026-11-20 ([Where the counts come from](#the-retro)) | Every fifty merged PRs, reads the review findings, the escaped bugs, the effort against complexity, the checks' usefulness and the owner's points, and changes the rules where a pattern repeats |
+| [The retro](#the-retro) | On since 2026-10-28 as the tests' retro, the whole system's since 2026-11-14, by version 3.3 of the quality system's retro (2026-11-20); its counts come from the quality system's database since 2026-11-20 ([Where the counts come from](#the-retro)) | Every fifty merged PRs, reads the review findings, the escaped bugs, the effort against complexity, the checks' usefulness and the owner's points, and changes the rules where a pattern repeats |
 | [The checks guard](#the-checks-guard) | On since 2026-11-12 (#366); a report only since 2026-11-15: its `guard` job, among `main`'s required checks, passes whatever it marks and fails only when the guard breaks or can't write its report | A script CI runs on every PR, which writes into the PR's `guard report` check what in it weakens the checks, changes existing ones or adds a design value, for the deputy's round to judge |
 | The design tokens check | On since 2026-11-14 (#411): a test in CI's `check` job, which is among `main`'s required checks | `src/styles/tokens.test.ts` fails a stylesheet's spacing, radius, type size, color, shadow or motion that the tokens have, and one they lack unless its line carries a comment saying why, and a `var()` that names a property nothing defines. What counts as a raw value is defined in `scripts/guard/stylesheets.ts`, which the guard reads too ([What it marks](#what-it-marks)) |
 | The texts check | On since 2026-11-14 (#413): an oxlint rule, `react/jsx-no-literals`, that CI's `check` job runs | Fails a string that is a whole child in the app's JSX or the quoted value of an attribute a user reads or hears, so UI copy goes through translation keys; a string in braces in an attribute, inside an expression or outside JSX is left to review |
@@ -763,7 +763,7 @@ The review findings). It began on 2026-10-28 as a retro of the tests alone and b
 
 The procedure that isn't Kinopeer's (what each input says, how a pattern is told from an accident,
 what the retro gives the owner and how it makes a rule change) is the quality system's retro,
-**version 3.2 (2026-11-20)**, in the owner's private repository (`ai-workspace`,
+**version 3.3 (2026-11-20)**, in the owner's private repository (`ai-workspace`,
 `quality-system/retro.md`), which the owner's sessions read and outside contributors don't need:
 the retro is the maintainer's work. This section is Kinopeer's part of it: when, the queries and
 commands that collect each input, where the rules it changes live, and the table of past retros.
@@ -771,24 +771,22 @@ What a finding carries, the tag the retro counts by, is in [TESTING.md](TESTING.
 system.
 
 **Where the counts come from.** The quality system's database, in the owner's `ai-workspace`
-(`quality-data/`), has a collector that reads this repository from GitHub every six hours, at :41
-of 00, 06, 12 and 18 UTC, and `metrics_*` views that count each input by batch: `open` is every PR
-merged after the top row's batch, and the issues closed since (`quality-data/README.md` → The
-metrics, which gives each view and how a batch is bounded). The retro runs them on the owner's Mac
-with the token and the command that README's Reading the metrics gives; each query below is what
-goes after `--command`, and
+(`quality-data/`), has a collector that reads this repository from GitHub every six hours and
+`metrics_*` views that count each input by batch: `open` is every PR merged after the top row's
+batch, and the issues closed since (`quality-data/README.md` → The metrics, which gives each view
+and how a batch is bounded). The token that reads them lives only on the owner's Mac, so the retro
+runs there, not in the cloud, with the command that README's Reading the metrics gives; each query
+below is what goes after `--command`, and
 `select * from metrics_batch_counts where project = 'kinopeer/kinopeer' and batch = 'open'` gives
-the table's columns at once. First the data's age:
-`select source, last_status, error, hours_since_ok from metrics_freshness` shows
-`github kinopeer/kinopeer issues`, `github kinopeer/kinopeer runs` and `rebuild` `ok` within the
-last six and a half hours, and `select * from metrics_last_pr` the PR that merged last. When a
-source is stale or failed, or the last merges aren't in yet, the retro waits for the next run or
-takes that input from GitHub with the `gh` commands kept below, and its row says which inputs came
-from where. A count the data can't give is NULL, never 0, and the paragraphs below say what gives
-it then. GitHub still gives what no view does: the count in When, which the deputy makes in the
-cloud, where the database can't be reached; every round, read whole; and a job's time. The retro's
-range then goes into `ai-workspace`'s `quality-system/data/manual_retros.csv`, which closes the
-batch (the same README → Batches).
+the table's columns at once. First the data's age, as the same section says: every source fresh
+and `metrics_last_pr` the PR that merged last. When a source is stale or failed, or the last
+merges aren't in yet, the retro waits for the next run or takes that input from GitHub with the
+`gh` commands kept below, and its row says which inputs came from where. A count the data can't
+give is NULL, never 0, and the paragraphs below say what gives it then. GitHub still gives what no
+view does: the count in When, which the deputy makes in the cloud, where the database can't be
+reached; every round, read whole; and a job's time. The retro's range then goes into
+`ai-workspace`'s `quality-system/data/manual_retros.csv`, which closes the batch (the same README →
+Batches).
 
 **When.** Once fifty PRs have merged that no row of the table below lists, Dependabot's left out; a release doesn't call
 for one (decided on 2026-11-06: at ten PRs or each release a retro came almost daily, on batches too
