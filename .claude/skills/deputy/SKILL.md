@@ -70,7 +70,8 @@ changes a path in `mutants.yml`'s `paths`. A check not there yet counts as runni
 the PR is marked ready some of them haven't started. A check that ran more than once at the head
 counts by its latest run. Poll the head's check runs in one command, a
 loop with `sleep 60` between reads, up to 30 minutes, and `Mutants report` up to the `mutants`
-job's own `timeout-minutes` in `.github/workflows/mutants.yml`: that job takes longer than the
+job's own `timeout-minutes` in `.github/workflows/mutants.yml`, counted from its run's
+`started_at` (one not started after 30 minutes is missing): that job takes longer than the
 others on a big diff, and stopping at 30 minutes left #498 waiting twice for a run that then
 passed (#477 noted it for the retro).
 
@@ -130,14 +131,16 @@ and the code matches them.
 
 ## 4. Posting the round
 
-One review per round, on the head you reviewed. A round takes long enough for the PR to move under
-it, so read it again right before posting: when it is closed, merged or a draft, when its head is
-no longer the commit you reviewed, or when a review headed `Round <n>` at that commit was posted
-since your run began, post nothing and stop. That was a second run started by the PR marked ready
+One review per round, at the commit you reviewed, even when the head has moved since: an approval
+there survives a merge of `main` that leaves the diff as it was, which no one marks ready again,
+and the ruleset dismisses it when the diff changes. A round takes long enough for the PR to move
+under it, so read it again right before posting: when it is closed, merged or a draft, or when a
+round of yours (Ground rules) is already at that commit, whenever it was posted, post nothing and
+stop. That was a second run started by the PR marked ready
 twice (#455, twice), or a run that ended after the merge (#489).
 
 ```sh
-gh api repos/kinopeer/kinopeer/pulls/<n>/reviews -f commit_id=<head> -f event=<EVENT> -F body=@round.md
+gh api repos/kinopeer/kinopeer/pulls/<n>/reviews -f commit_id=<the commit you reviewed> -f event=<EVENT> -F body=@round.md
 ```
 
 The body is headed `Round <n> at <short sha>`. Then the `test-review` report's findings, each tagged
@@ -228,8 +231,8 @@ notification and end the turn. When the owner answers:
 They get no rounds and no template (`docs/TESTING.md` → Reviewing a PR's tests). Dependabot opens
 them ready for review, which doesn't wake you: the coordinator does, when its task brings them in,
 by converting each to a draft and marking it ready again. Wait for CI as in section 2, but with
-no `CI at` review and no draft: a red check gets the comment below; checks still running after 30
-minutes get a comment naming them. The coordinator watches the PRs it brought in until they are
+no `CI at` review and no draft: a red check gets the comment below; checks still running after section 2's
+wait get a comment naming them. The coordinator watches the PRs it brought in until they are
 approved, and wakes you again once their checks have finished.
 
 - **Green, no major:** approve, with one line saying CI is green at the head.

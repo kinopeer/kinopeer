@@ -161,8 +161,8 @@ trusted.
   things are now that copies a count or a list the code or CI holds, instead of saying what it is
   and where it lives, is a finding; a dated record keeps its numbers (`docs/TESTING.md` → Reviewing
   a PR's tests, step 1).
-  A list in the docs that the change adds to gains the new item (the screens in `docs/TESTING.md` →
-  Screenshot tests, SPEC's decision log, newest first, the blind spots: any PR that meets a blind
+  A list in the docs that the change adds to gains the new item (SPEC's decision log, newest first, the blind
+  spots: any PR that meets a blind
   spot the table doesn't name adds its row), and a manual check the PR adds says what has to be in
   place for it to pass. How a paragraph wraps is not a finding.
 - **I. A `fix:` PR carries its record.** So does the fix of a flaky test. The issue is linked and
