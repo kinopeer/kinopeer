@@ -877,9 +877,16 @@ describe('settingsMiddleware: Telegram', () => {
     await send('PUT', '', { token: TELEGRAM_TOKEN })
     expect(store.current.telegram).toEqual({ token: TELEGRAM_TOKEN, bot: 'kinopeer_home_bot', chat, language: 'ru' })
 
-    await store.update({ telegram: { ...connected, token: OTHER_TELEGRAM_TOKEN } })
+    // Another bot's chat, refused or not, isn't this bot's.
+    await store.update({ telegram: { ...connected, token: OTHER_TELEGRAM_TOKEN, refused: 'chat' } })
     await send('PUT', '', { token: TELEGRAM_TOKEN })
     expect(store.current.telegram).toEqual({ token: TELEGRAM_TOKEN, bot: 'kinopeer_home_bot' })
+  })
+
+  it('keeps a chat Telegram refused for a renewed token of the same bot, since the token doesn’t unblock it', async () => {
+    const { send, store } = await setUp({ ...connected, token: RENEWED_TELEGRAM_TOKEN, refused: 'chat' })
+    await send('PUT', '', { token: TELEGRAM_TOKEN })
+    expect(store.current.telegram).toEqual({ token: TELEGRAM_TOKEN, bot: 'kinopeer_home_bot', chat, language: 'ru', refused: 'chat' })
   })
 
   it('finds the chat that sent /start last without saving it', async () => {

@@ -555,7 +555,12 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
               else if (telegramCheckNow.current.error !== undefined) telegramCheckNow.current.retry()
             }}
             onRefused={(refused) => {
-              if (server) setServerChanged({ ...server, telegram: { ...telegram, refused } })
+              if (server) {
+                const changed = { ...server, telegram: { ...telegram, refused } }
+                setServerChanged(changed)
+                // The refusal's 422 carries no settings, so the page's shared answer learns it here.
+                sharedRequests.set<ServerSettings>(SERVER_SETTINGS_KEY, changed)
+              }
               // The card names a refused token through its own check, which may have passed before. A refused chat
               // shows Telegram answers (the server asked it which part it refused), which a failed check said it didn't.
               if (refused === 'token' || telegramCheckNow.current.error !== undefined) telegramCheckNow.current.retry()

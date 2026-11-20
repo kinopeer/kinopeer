@@ -424,10 +424,12 @@ async function saveTelegramToken(config: SettingsConfig, request: IncomingMessag
     return fail(response, 502, 'unreachable')
   }
   if (bot === undefined) return fail(response, 422, 'invalid-key')
-  // A renewed token of the same bot keeps its chat; another bot starts over, since its chat is another.
+  // A renewed token of the same bot keeps its chat, and a refusal of that chat, which a new token doesn't
+  // unblock (a refused token it answers); another bot starts over, since its chat is another.
   const saving = config.store.updateTelegram((current) => {
     const same = current && botId(current.token) === botId(token)
-    return { token, bot, ...(same ? { chat: current.chat, language: current.language } : {}) }
+    if (!same) return { token, bot }
+    return { token, bot, chat: current.chat, language: current.language, ...(current.refused === 'chat' ? { refused: 'chat' as const } : {}) }
   })
   await save(config, response, saving)
 }

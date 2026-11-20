@@ -1178,6 +1178,20 @@ describe('SettingsScreen: Telegram', () => {
     expect(serverSettings.checkTelegram).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps the chat Telegram refused a test message for in the page’s settings, so Settings opened again within the minute warns of it', async () => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(CONNECTED))
+    vi.mocked(serverSettings.checkTelegram).mockResolvedValue({ bot: 'kinopeer_home_bot' })
+    vi.mocked(serverSettings.testTelegram).mockRejectedValue(new serverSettings.SettingsError(422, 'chat-rejected'))
+    const first = renderScreen()
+    await userEvent.click(await waitFor(() => within(connection('Telegram')).getByRole('button', { name: 'Change Telegram notifications' })))
+    await sendTest(screen.getByRole('dialog', { name: 'Telegram notifications' }))
+    await within(connection('Telegram')).findByRole('status', { name: saying(chatRefused) })
+    first.unmount()
+    renderScreen()
+    expect(await within(connection('Telegram')).findByRole('status', { name: saying(chatRefused) })).toBeInTheDocument()
+    expect(serverSettings.getServerSettings).toHaveBeenCalledTimes(1)
+  })
+
   it.each([
     ['a chat still to choose', { ...CONNECTED, chat: null }, 'Choose the chat to send to'],
     ['a chat Telegram refused', { ...CONNECTED, refused: 'chat' as const }, chatRefused],
