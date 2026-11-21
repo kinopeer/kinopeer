@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { failureOf, type ConnectionFailure } from '../api/connectionFailure'
 import { NoAddressError, UnauthorizedError, unreachable, type Unreachable } from '../api/qbittorrent'
+import type { SourceAddress } from '../api/settings'
 import { checkAppVersion } from '../api/sharedAnswers'
 import { saveQbittorrentLogin, type ServerSettings } from '../api/settings'
 import { isSupportedVersion } from '../torrents/qbittorrentVersion'
@@ -12,7 +13,7 @@ export type QbitSession =
   /** qBittorrent answered, but it's older than Kinopeer works with (`MIN_QBITTORRENT_VERSION`). */
   | { status: 'unsupported'; version: string }
   /** The server has no working qBittorrent login: the app asks for one. */
-  | { status: 'signed-out' }
+  | { status: 'signed-out'; source?: SourceAddress }
   /** The server has no address for qBittorrent, from its environment or the app: the app asks for one. */
   | { status: 'no-address' }
   /**
@@ -26,7 +27,7 @@ async function probe(): Promise<QbitSession> {
     const version = await checkAppVersion()
     return isSupportedVersion(version) ? { status: 'connected', version } : { status: 'unsupported', version }
   } catch (error) {
-    if (error instanceof UnauthorizedError) return { status: 'signed-out' }
+    if (error instanceof UnauthorizedError) return { status: 'signed-out', source: error.source }
     if (error instanceof NoAddressError) return { status: 'no-address' }
     return { status: 'unreachable', who: unreachable(error), failure: failureOf(error) }
   }

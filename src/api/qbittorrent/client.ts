@@ -11,6 +11,8 @@ import type {
   TorrentsQuery,
 } from './types'
 import { knownFailure, type ConnectionFailure } from '../connectionFailure'
+import { parseSource } from '../containerHints'
+import type { SourceAddress } from '../settings/types'
 import { ProxySignInError, fetchKinopeer } from '../fetchKinopeer'
 import { sharedRequests } from '../../logic/sharedRequests'
 import { subcategoriesUnderParent } from '../../torrents/qbittorrentVersion'
@@ -51,6 +53,8 @@ export const BRIDGE_HEADER = 'x-kinopeer-bridge'
 export const NO_ADDRESS = 'no-address'
 /** Beside the bridge's 502: why qBittorrent didn't answer (`FAILURE_HEADER` in server/qbittorrent.ts, #508). */
 export const FAILURE_HEADER = 'x-kinopeer-failure'
+/** Beside the bridge's 403: where qBittorrent sees Kinopeer come from (`SOURCE_HEADER` in server/qbittorrent.ts, #509). */
+export const SOURCE_HEADER = 'x-kinopeer-source'
 
 /** A request failed without reaching Kinopeer's server: something in front of it answered. */
 export class KinopeerUnreachableError extends QbittorrentError {
@@ -92,9 +96,13 @@ export class NoAddressError extends QbittorrentError {
 
 /** The server has no working qBittorrent login (the app asks for one, see src/api/settings). */
 export class UnauthorizedError extends QbittorrentError {
-  constructor() {
+  /** With no login on the server, in a container: where qBittorrent sees Kinopeer come from, which its auth bypass doesn't cover (#509). */
+  readonly source?: SourceAddress
+
+  constructor(source?: SourceAddress) {
     super('Not logged in to qBittorrent', 403)
     this.name = 'UnauthorizedError'
+    this.source = source
   }
 }
 
@@ -127,7 +135,7 @@ async function request(
 
   if (!response.ok && !response.headers.has(BRIDGE_HEADER)) throw new KinopeerUnreachableError(response.status)
   if (response.headers.get(BRIDGE_HEADER) === NO_ADDRESS) throw new NoAddressError()
-  if (response.status === 401 || response.status === 403) throw new UnauthorizedError()
+  if (response.status === 401 || response.status === 403) throw new UnauthorizedError(parseSource(response.headers.get(SOURCE_HEADER)))
   if (!response.ok) throw new QbittorrentError(`qBittorrent responded ${response.status}`, response.status, knownFailure(response.headers.get(FAILURE_HEADER)))
   return response
 }

@@ -35,7 +35,7 @@ beforeEach(() => {
   vi.mocked(settings.getServerSettings).mockResolvedValue(serverSettings({ source: 'env' }))
 })
 
-type StateProps = Partial<Pick<ConnectScreenProps, 'unreachable' | 'failure' | 'unsupported' | 'noAddress'>>
+type StateProps = Partial<Pick<ConnectScreenProps, 'unreachable' | 'failure' | 'unsupported' | 'noAddress' | 'source'>>
 
 function setup(onSignIn = vi.fn().mockResolvedValue(undefined), props: StateProps = {}) {
   const onRetry = vi.fn()
@@ -106,6 +106,12 @@ describe('ConnectScreen', () => {
     expect(screen.getByRole('group', { name: 'Theme' })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
     expect(onRetry).toHaveBeenCalledOnce()
+  })
+
+  it('says where qBittorrent sees Kinopeer when the session check was asked for a login (#509)', () => {
+    setup(undefined, { source: { address: '172.18.0.5', subnet: '172.18.0.0/16' } })
+    expect(screen.getByRole('status', { name: saying(/which qBittorrent sees at 172\.18\.0\.5\. Add 172\.18\.0\.0\/16/) })).toBeInTheDocument()
+    expect(screen.getByLabelText('Username')).toBeRequired()
   })
 
   it('says why qBittorrent didn’t answer the session check, where the server could tell (#508)', () => {
@@ -238,6 +244,64 @@ describe('ConnectScreen', () => {
       expect(screen.queryByRole('alert', { name: saying(/answering/) })).not.toBeInTheDocument()
       await userEvent.type(address, '0')
       expect(address).not.toHaveAttribute('aria-invalid')
+    })
+
+    describe('in a container (#509)', () => {
+      const LOCALHOST = saying('localhost is Kinopeer’s own container')
+      const hostKnown = (code: 'unreachable' | 'not-qbittorrent') =>
+        new SettingsError(502, code, code === 'unreachable' ? 'refused' : undefined, { container: { hostAddress: 'http://host.docker.internal:8080' } })
+
+      it.each([
+        ['doesn’t answer', hostKnown('unreachable')],
+        ['answers as something else', hostKnown('not-qbittorrent')],
+      ])('says localhost there is Kinopeer when it %s, and puts the host’s address in on a tap', async (_, error) => {
+        const onSignIn = vi.fn().mockRejectedValueOnce(error).mockResolvedValue(undefined)
+        setup(onSignIn, { noAddress: true })
+        await fillAddress('http://localhost:8080')
+        const hint = screen.getByRole('status', { name: LOCALHOST })
+        expect(hint).toHaveTextContent(
+          'Inside its container, localhost and 127.0.0.1 are Kinopeer itself. From there, the computer Kinopeer runs on is at http://host.docker.internal:8080. If qBittorrent runs in a container on a shared Docker network, enter that container’s name instead.',
+        )
+
+        await userEvent.click(screen.getByRole('button', { name: 'Use this address' }))
+        expect(screen.getByLabelText('qBittorrent address')).toHaveValue('http://host.docker.internal:8080')
+        expect(screen.getByLabelText('qBittorrent address')).not.toHaveAttribute('aria-invalid')
+        expect(screen.queryByRole('status', { name: LOCALHOST })).not.toBeInTheDocument()
+        await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
+        expect(onSignIn).toHaveBeenLastCalledWith('', '', 'http://host.docker.internal:8080')
+      })
+
+      it('says what to enter instead when the server doesn’t know the host’s address', async () => {
+        setup(vi.fn().mockRejectedValue(new SettingsError(502, 'unreachable', 'refused', { container: {} })), { noAddress: true })
+        await fillAddress('http://127.0.0.1:8080')
+        expect(screen.getByRole('status', { name: LOCALHOST })).toHaveTextContent(
+          'Inside its container, localhost and 127.0.0.1 are Kinopeer itself. Enter the address of the computer qBittorrent runs on, or the name of qBittorrent’s container if they share a Docker network.',
+        )
+        expect(screen.queryByRole('button', { name: 'Use this address' })).not.toBeInTheDocument()
+      })
+
+      it('says nothing of the container for another failure, or without the server’s word', async () => {
+        const onSignIn = vi
+          .fn()
+          .mockRejectedValueOnce(new SettingsError(422, 'invalid-credentials', undefined, { container: {} }))
+          .mockRejectedValueOnce(new SettingsError(502, 'unreachable', 'refused'))
+        setup(onSignIn, { noAddress: true })
+        await fillAddress('http://localhost:8080')
+        expect(screen.queryByRole('status', { name: LOCALHOST })).not.toBeInTheDocument()
+        await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
+        expect(screen.getByLabelText('qBittorrent address')).toHaveAttribute('aria-invalid', 'true')
+        expect(screen.queryByRole('status', { name: LOCALHOST })).not.toBeInTheDocument()
+      })
+
+      it('says where qBittorrent sees Kinopeer when it asks for a login none was sent for', async () => {
+        const source = { address: '172.18.0.5', subnet: '172.18.0.0/16' }
+        setup(vi.fn().mockRejectedValue(new SettingsError(422, 'invalid-credentials', undefined, { source })), { noAddress: true })
+        expect(screen.queryByRole('status', { name: saying(/auth bypass/) })).not.toBeInTheDocument()
+        await fillAddress('http://qbittorrent:8080')
+        expect(screen.getByRole('status', { name: saying('qBittorrent doesn’t let Kinopeer in without a login') })).toHaveTextContent(
+          'Its auth bypass doesn’t cover Kinopeer’s container, which qBittorrent sees at 172.18.0.5. Add 172.18.0.0/16 to the subnets it lets in without a login (Tools → Options → Web UI in qBittorrent), or enter its login.',
+        )
+      })
     })
 
     it('asks for a login when qBittorrent wants one and none was sent, and says it’s wrong when one was', async () => {

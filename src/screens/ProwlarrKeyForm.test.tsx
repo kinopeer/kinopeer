@@ -181,6 +181,39 @@ describe('ProwlarrKeyForm', () => {
       expect(address).not.toHaveAttribute('aria-invalid')
     })
 
+    it.each([
+      ['doesn’t answer', new serverSettings.SettingsError(502, 'unreachable', 'refused', { container: { hostAddress: 'http://host.docker.internal:9696' } })],
+      ['answers as something else', new serverSettings.SettingsError(502, 'not-prowlarr', undefined, { container: { hostAddress: 'http://host.docker.internal:9696' } })],
+    ])('says localhost is Kinopeer’s container when Prowlarr there %s, and puts the host’s address in on a tap (#509)', async (_, error) => {
+      saveProwlarrKey.mockRejectedValueOnce(error)
+      const { address, field, save } = renderWithAddress()
+      await userEvent.type(address, 'http://localhost:9696')
+      await userEvent.type(field, 'abc123')
+      await userEvent.click(save)
+      const hint = await screen.findByRole('status', { name: saying('localhost is Kinopeer’s own container') })
+      expect(hint).toHaveTextContent(/If Prowlarr runs in a container on a shared Docker network/)
+
+      await userEvent.click(screen.getByRole('button', { name: 'Use this address' }))
+      expect(address).toHaveValue('http://host.docker.internal:9696')
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+      await userEvent.click(save)
+      expect(saveProwlarrKey).toHaveBeenLastCalledWith('abc123', 'http://host.docker.internal:9696')
+    })
+
+    it('says nothing of the container for a refused key, or without the server’s word (#509)', async () => {
+      saveProwlarrKey.mockRejectedValueOnce(new serverSettings.SettingsError(422, 'invalid-key', undefined, { container: {} }))
+      saveProwlarrKey.mockRejectedValueOnce(new serverSettings.SettingsError(502, 'unreachable', 'refused'))
+      const { address, field, save } = renderWithAddress()
+      await userEvent.type(address, 'http://localhost:9696')
+      await userEvent.type(field, 'abc123')
+      await userEvent.click(save)
+      await vi.waitFor(() => expect(field).toHaveAttribute('aria-invalid', 'true'))
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+      await userEvent.click(save)
+      await vi.waitFor(() => expect(address).toHaveAttribute('aria-invalid', 'true'))
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    })
+
     it('names the address, not the variable, when it isn’t Prowlarr, and keeps a refused key on the key', async () => {
       saveProwlarrKey.mockRejectedValueOnce(new serverSettings.SettingsError(502, 'not-prowlarr'))
       saveProwlarrKey.mockRejectedValueOnce(new serverSettings.SettingsError(422, 'invalid-key'))
@@ -225,6 +258,15 @@ describe('ProwlarrKeyForm', () => {
       renderWithAddress(<button type="button">Skip</button>)
       expect(screen.getByRole('button', { name: 'Skip' })).toBeInTheDocument()
     })
+  })
+
+  it('says nothing of the container where it doesn’t ask for the address (#509)', async () => {
+    saveProwlarrKey.mockRejectedValue(new serverSettings.SettingsError(502, 'not-prowlarr', undefined, { container: { hostAddress: 'http://host.docker.internal:9696' } }))
+    renderForm()
+    await userEvent.type(screen.getByLabelText('Prowlarr API key'), 'abc123')
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
   it('names the address, not the variable, when one saved from the app isn’t Prowlarr', async () => {

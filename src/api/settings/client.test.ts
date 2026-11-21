@@ -37,6 +37,27 @@ describe('a check the server couldn’t finish', () => {
   })
 })
 
+describe('the hints for Kinopeer in a container (#509)', () => {
+  it('passes on the host’s address for localhost, and where qBittorrent sees Kinopeer', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json({ error: 'not-qbittorrent', container: { hostAddress: 'http://host.docker.internal:8080' } }, { status: 502 }))
+    await expect(saveQbittorrentLogin('', '', 'http://localhost:8080')).rejects.toMatchObject({
+      code: 'not-qbittorrent',
+      container: { hostAddress: 'http://host.docker.internal:8080' },
+    })
+    const source = { address: '172.18.0.5', subnet: '172.18.0.0/16' }
+    fetchMock.mockResolvedValueOnce(Response.json({ error: 'invalid-credentials', source }, { status: 422 }))
+    await expect(saveQbittorrentLogin('', '')).rejects.toMatchObject({ code: 'invalid-credentials', source })
+  })
+
+  it('takes neither in a shape the server doesn’t send', async () => {
+    fetchMock.mockResolvedValueOnce(
+      Response.json({ error: 'invalid-credentials', container: { hostAddress: 'javascript:x' }, source: { address: 'x' } }, { status: 422 }),
+    )
+    const error = (await saveQbittorrentLogin('', '').catch((caught: unknown) => caught)) as SettingsError
+    expect([error.container, error.source]).toEqual([undefined, undefined])
+  })
+})
+
 describe('saveDownloadDefaults', () => {
   it('fails when the server has no such route', async () => {
     fetchMock.mockResolvedValueOnce(new Response('Not found', { status: 404 }))

@@ -2,13 +2,14 @@ import { useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { failureOf, type ConnectionFailure } from '../api/connectionFailure'
 import { unreachable, type Unreachable } from '../api/qbittorrent'
-import { SettingsError } from '../api/settings'
+import { SettingsError, type SourceAddress } from '../api/settings'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { Input } from '../components/Input'
 import { failureText } from '../lib/failureText'
 import { unreachableText, useMayOpenAgain } from '../lib/unreachable'
 import { loadPastTheShell } from '../pwa/proxySignIn'
+import { BypassHint, LocalhostHint } from './ContainerHints'
 
 export interface QbittorrentLoginFormProps {
   /** The form's layout: the connect screen's card, or a sheet's. */
@@ -29,6 +30,8 @@ export interface QbittorrentLoginFormProps {
   onEnvAddress: () => void
   /** Retry beside who didn't answer; without it the banner only says so. */
   onRetry?: () => void
+  /** Where qBittorrent sees Kinopeer come from, when it asked the session check for a login (#509). */
+  source?: SourceAddress
 }
 
 /**
@@ -66,6 +69,7 @@ export function QbittorrentLoginForm({
   onSubmit,
   onEnvAddress,
   onRetry,
+  source: sessionSource,
 }: QbittorrentLoginFormProps) {
   const { t } = useTranslation()
   const [address, setAddress] = useState(initialAddress)
@@ -75,6 +79,10 @@ export function QbittorrentLoginForm({
   const [error, setError] = useState<FormError>(null)
   // Why qBittorrent didn't answer the check, where the server could tell (#508).
   const [failure, setFailure] = useState<ConnectionFailure>()
+  // The server's hints for Kinopeer in a container (#509), from the last check.
+  const [localhost, setLocalhost] = useState<SettingsError['container']>()
+  const [checkSource, setCheckSource] = useState<SourceAddress>()
+  const source = checkSource ?? sessionSource
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -86,6 +94,8 @@ export function QbittorrentLoginForm({
       await (askAddress ? onSubmit(username, password, address) : onSubmit(username, password))
     } catch (e) {
       setFailure(failureOf(e))
+      setLocalhost(e instanceof SettingsError ? e.container : undefined)
+      setCheckSource(e instanceof SettingsError ? e.source : undefined)
       const code = e instanceof SettingsError ? e.code : undefined
       if (code === 'invalid-credentials') setError(askAddress && !username.trim() ? 'login-needed' : 'invalid')
       else if (code === 'banned') setError('banned')
@@ -138,6 +148,17 @@ export function QbittorrentLoginForm({
       {error === 'host-refused' && <Banner tone="error">{t('connect.hostRefused')}</Banner>}
       {error === 'auth-off' && <Banner tone="error">{t('connect.authOff')}</Banner>}
       {error === 'storage' && <Banner tone="error">{t('keyForm.storage')}</Banner>}
+      {askAddress && localhost && (error === 'address-unreachable' || error === 'not-qbittorrent') && (
+        <LocalhostHint
+          service="qbittorrent"
+          hostAddress={localhost.hostAddress}
+          onUse={(hostAddress) => {
+            setAddress(hostAddress)
+            setError(null)
+          }}
+        />
+      )}
+      {source && <BypassHint source={source} />}
 
       <div className="connect-fields">
         {askAddress && (

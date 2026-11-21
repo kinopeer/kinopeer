@@ -6,6 +6,7 @@ import {
   APP_VERSION_KEY,
   BRIDGE_HEADER,
   FAILURE_HEADER,
+  SOURCE_HEADER,
   KinopeerUnreachableError,
   NoAddressError,
   QbittorrentError,
@@ -333,6 +334,17 @@ describe('getAppVersion', () => {
     // Any other failure of the bridge is qBittorrent's.
     respond('', 503)
     await expect(getAppVersion()).rejects.not.toBeInstanceOf(NoAddressError)
+  })
+
+  it('passes on where qBittorrent sees Kinopeer when it asks for a login (#509)', async () => {
+    const asked = (source?: string) =>
+      new Response('Forbidden', { status: 403, headers: { [BRIDGE_HEADER]: '1', ...(source && { [SOURCE_HEADER]: source }) } })
+    fetchMock.mockResolvedValueOnce(asked('172.18.0.5 172.18.0.0/16'))
+    const error = await getAppVersion().catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(UnauthorizedError)
+    expect((error as UnauthorizedError).source).toEqual({ address: '172.18.0.5', subnet: '172.18.0.0/16' })
+    fetchMock.mockResolvedValueOnce(asked())
+    expect(((await getAppVersion().catch((caught: unknown) => caught)) as UnauthorizedError).source).toBeUndefined()
   })
 
   it('passes on why qBittorrent didn’t answer the bridge, where the server could tell (#508)', async () => {

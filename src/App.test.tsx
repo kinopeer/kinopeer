@@ -687,6 +687,12 @@ describe('App', () => {
     expect(await screen.findByText(/Nothing listens on this port/)).toBeInTheDocument()
   })
 
+  it('says where qBittorrent sees Kinopeer when the session check is asked for a login (#509)', async () => {
+    getAppVersion.mockRejectedValue(new api.UnauthorizedError({ address: '172.18.0.5', subnet: '172.18.0.0/16' }))
+    renderApp()
+    expect(await screen.findByText(/which qBittorrent sees at 172\.18\.0\.5/)).toBeInTheDocument()
+  })
+
   it('shows the sign-in form without a session', async () => {
     getAppVersion.mockRejectedValue(new api.UnauthorizedError())
     renderApp()

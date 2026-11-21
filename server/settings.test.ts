@@ -14,7 +14,8 @@ import {
   type SettingsConfig,
   type StoredTelegram,
 } from './settings.ts'
-import { OTHER_TELEGRAM_TOKEN, RENEWED_TELEGRAM_TOKEN, TELEGRAM_TOKEN, UNKNOWN_TELEGRAM_TOKEN, abandon, closeServers, CLOSED_ADDRESS, fakeProwlarr, fakeQbittorrent, fakeTelegram, fakeTmdb, serve, settlesWithin, silentService } from './test/fakes.ts'
+import type { Container } from './container.ts'
+import { OTHER_TELEGRAM_TOKEN, RENEWED_TELEGRAM_TOKEN, TELEGRAM_TOKEN, UNKNOWN_TELEGRAM_TOKEN, abandon, closeServers, CLOSED_ADDRESS, fakeProwlarr, fakeQbittorrent, fakeTelegram, fakeTmdb, listen, serve, settlesWithin, silentService } from './test/fakes.ts'
 
 let dir: string
 
@@ -621,6 +622,90 @@ describe('settingsMiddleware: Prowlarr key', () => {
     expect((await put(base, 42)).status).toBe(400)
     expect((await put(base, 'two words')).status).toBe(400)
     expect(prowlarr.seen).toEqual([])
+  })
+})
+
+describe('settingsMiddleware: hints for Kinopeer in a container (#509)', () => {
+  const SOURCE = { address: '172.18.0.5', subnet: '172.18.0.0/16' }
+
+  /** A container whose host is `hostAddress` (null: unknown), from where qBittorrent sees Kinopeer at SOURCE. */
+  function inContainer(hostAddress: string | null = 'host.docker.internal'): Container & { asked: string[] } {
+    const asked: string[] = []
+    return {
+      asked,
+      hostAddress: async () => hostAddress ?? undefined,
+      sourceFor: async (host) => {
+        asked.push(host)
+        return SOURCE
+      },
+    }
+  }
+
+  function app(container: Container | undefined) {
+    return serve(settingsMiddleware({ store: new SettingsStore(dir), auth: () => ({ enabled: true, source: 'saved' }), container }))
+  }
+
+  /** Something on the address that answers, but not as qBittorrent or Prowlarr: Kinopeer itself, say. */
+  const notTheService = () => listen((_request, response) => response.end('<!doctype html>'))
+
+  it('offers the host for qBittorrent on localhost that doesn’t answer, the port and path kept', async () => {
+    const closed = CLOSED_ADDRESS
+    const port = new URL(closed).port
+    const response = await putLogin(await app(inContainer()), { url: closed.replace('127.0.0.1', 'localhost') + '/qbt', username: '', password: '' })
+    expect(await response.json()).toEqual({
+      error: 'unreachable',
+      failure: 'refused',
+      container: { hostAddress: `http://host.docker.internal:${port}/qbt` },
+    })
+  })
+
+  it('offers the host for qBittorrent on localhost where something else answers', async () => {
+    const other = await notTheService()
+    const response = await putLogin(await app(inContainer('172.17.0.1')), { url: other, username: '', password: '' })
+    expect(await response.json()).toEqual({ error: 'not-qbittorrent', container: { hostAddress: other.replace('127.0.0.1', '172.17.0.1') } })
+  })
+
+  it('still says localhost is the container when the host’s address isn’t known', async () => {
+    const response = await putLogin(await app(inContainer(null)), { url: CLOSED_ADDRESS, username: '', password: '' })
+    expect(await response.json()).toEqual({ error: 'unreachable', failure: 'refused', container: {} })
+  })
+
+  it('offers nothing for an address that isn’t localhost, or outside a container', async () => {
+    const elsewhere = await putLogin(await app(inContainer()), { url: 'http://qbittorrent.invalid:8080', username: '', password: '' })
+    expect(await elsewhere.json()).toEqual({ error: 'unreachable', failure: 'name' })
+    const outside = await putLogin(await app(undefined), { url: CLOSED_ADDRESS, username: '', password: '' })
+    expect(await outside.json()).toEqual({ error: 'unreachable', failure: 'refused' })
+  })
+
+  it('offers the host for Prowlarr on localhost that doesn’t answer, or where something else answers', async () => {
+    const closed = CLOSED_ADDRESS
+    const unreachable = await fetch(`${await app(inContainer())}/api/settings/prowlarr`, saving({ url: closed, apiKey: 'key' }))
+    expect(await unreachable.json()).toEqual({
+      error: 'unreachable',
+      failure: 'refused',
+      container: { hostAddress: closed.replace('127.0.0.1', 'host.docker.internal') },
+    })
+    const other = await notTheService()
+    const notProwlarr = await fetch(`${await app(inContainer())}/api/settings/prowlarr`, saving({ url: other, apiKey: 'key' }))
+    expect(await notProwlarr.json()).toEqual({ error: 'not-prowlarr', container: { hostAddress: other.replace('127.0.0.1', 'host.docker.internal') } })
+  })
+
+  it('says where qBittorrent sees Kinopeer when it asks for a login none was sent for', async () => {
+    const qbt = await fakeQbittorrent()
+    const container = inContainer()
+    const response = await putLogin(await app(container), { url: qbt.base, username: ' ', password: '' })
+    expect([response.status, await response.json()]).toEqual([422, { error: 'invalid-credentials', source: SOURCE }])
+    expect(container.asked).toEqual(['127.0.0.1'])
+  })
+
+  it('says nothing of where Kinopeer comes from for a wrong login, or outside a container', async () => {
+    const qbt = await fakeQbittorrent()
+    const container = inContainer()
+    const wrong = await putLogin(await app(container), { url: qbt.base, username: 'admin', password: 'nope' })
+    expect(await wrong.json()).toEqual({ error: 'invalid-credentials' })
+    expect(container.asked).toEqual([])
+    const outside = await putLogin(await app(undefined), { url: qbt.base, username: '', password: '' })
+    expect(await outside.json()).toEqual({ error: 'invalid-credentials' })
   })
 })
 

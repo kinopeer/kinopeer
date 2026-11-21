@@ -4,6 +4,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { baseOf } from './address.ts'
 import { AuthStore, authMode, envPassword, kinopeerAuth } from './auth.ts'
+import { container } from './container.ts'
 import { allowedHosts, allowedHostsWarning, hostCheck } from './hostCheck.ts'
 import { finishedTitle } from './finishedTitle.ts'
 import { MatchesStore, matchesMiddleware, qbittorrentHashes, startMatchesCleanup } from './matches.ts'
@@ -157,9 +158,12 @@ export function kinopeerServer(env: Record<string, string | undefined>, stores: 
   const envProwlarrKey = baseOf(env.PROWLARR_URL) ? env.PROWLARR_API_KEY : undefined
   const prowlarrConfig = baseOf(env.PROWLARR_URL) ? env.PROWLARR_CONFIG_XML : undefined
   const proxy = tmdbProxy(env)
+  // The setup hints of a container (#509), read once: whether there is one doesn't change.
+  const inside = container(env)
   const qbittorrent = qbittorrentBridge({
     url: () => qbittorrentAddress(store, env.QBITTORRENT_URL),
     credentials: () => qbittorrentCredentials(store, envQbittorrent),
+    container: inside,
   })
   const tmdb: TmdbConfig = {
     apiKey: () => tmdbKey(store, env.TMDB_API_KEY),
@@ -186,6 +190,7 @@ export function kinopeerServer(env: Record<string, string | undefined>, stores: 
     notifications: () => channels.some((channel) => channel.ready()),
     pushDevices: () => stores.push.subscriptions.length,
     telegram,
+    container: inside,
   }
   return {
     routes: [

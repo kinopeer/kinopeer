@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ConnectionFailure } from '../api/connectionFailure'
 import type { Unreachable } from '../api/qbittorrent'
-import { SERVER_SETTINGS_FRESH_MS, SERVER_SETTINGS_KEY, getServerSettings } from '../api/settings'
+import { SERVER_SETTINGS_FRESH_MS, SERVER_SETTINGS_KEY, getServerSettings, type SourceAddress } from '../api/settings'
 import { Button } from '../components/Button'
 import { useRequest } from '../lib/useRequest'
 import { Preferences } from './Preferences'
@@ -20,12 +20,14 @@ export interface ConnectScreenProps {
   unsupported?: string
   /** The server has no address for qBittorrent: the form asks for one, and a login only where qBittorrent wants one. */
   noAddress?: boolean
+  /** Where qBittorrent sees Kinopeer come from, when it asked the session check for a login (#509). */
+  source?: SourceAddress
   onRetry: () => void
   /** Rejects with a SettingsError saying why the server couldn't log in; `url` only when the form asked for an address. */
   onSignIn: (username: string, password: string, url?: string) => Promise<unknown>
 }
 
-export function ConnectScreen({ unreachable: unreachableProp, failure, unsupported, noAddress = false, onRetry, onSignIn }: ConnectScreenProps) {
+export function ConnectScreen({ unreachable: unreachableProp, failure, unsupported, noAddress = false, source, onRetry, onSignIn }: ConnectScreenProps) {
   const { t } = useTranslation()
   // Only an address saved from the app can be changed here, and only behind Kinopeer's own login:
   // the server refuses one otherwise. Not asked while the server itself doesn't answer.
@@ -69,6 +71,7 @@ export function ConnectScreen({ unreachable: unreachableProp, failure, unsupport
         // Change and Cancel start the form afresh: the saved address to edit, no error left.
         key={askAddress ? 'address' : 'login'}
         className="connect-form"
+        source={source}
         header={
           <div className="connect-intro">
             <h1 className="t-h1">{t('connect.title')}</h1>

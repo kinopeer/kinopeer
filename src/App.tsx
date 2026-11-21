@@ -132,6 +132,7 @@ function SignedIn() {
           failure={session.status === 'unreachable' ? session.failure : undefined}
           unsupported={session.status === 'unsupported' ? session.version : undefined}
           noAddress={session.status === 'no-address'}
+          source={session.status === 'signed-out' ? session.source : undefined}
           onRetry={() => void recheck()}
           onSignIn={signIn}
         />
