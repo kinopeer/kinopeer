@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as settings from '../api/settings'
@@ -107,14 +107,43 @@ describe('ReleasesBody', () => {
     expect(search.retry).toHaveBeenCalledOnce()
   })
 
-  it('asks only for the key where the server has Prowlarr’s address', async () => {
-    vi.mocked(settings.getServerSettings).mockResolvedValue(serverSettings({ source: 'env' }))
+  it.each([true, false])('asks only for the key where the server has Prowlarr’s address, Kinopeer’s own login on: %s', async (login) => {
+    vi.mocked(settings.getServerSettings).mockResolvedValue(serverSettings({ source: 'env' }, { login }))
     renderBody(releases({ status: 'setup', rows: [], visible: [] }))
     expect(await screen.findByText('Kinopeer finds releases through Prowlarr. Enter its API key, and the search runs again.')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Set up Prowlarr' }))
     const sheet = screen.getByRole('dialog', { name: 'Prowlarr key' })
     expect(within(sheet).queryByLabelText('Prowlarr address')).not.toBeInTheDocument()
     expect(within(sheet).getByLabelText('Prowlarr API key')).toBeInTheDocument()
+
+    // Escape cancels the dialog.
+    fireEvent(sheet, new Event('cancel', { cancelable: true }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('offers nothing until the server’s settings say what the app can set', async () => {
+    vi.mocked(settings.getServerSettings).mockReturnValue(new Promise(() => {}))
+    renderBody(releases({ status: 'setup', rows: [], visible: [] }))
+    expect(screen.getByRole('heading', { name: 'Prowlarr isn’t set up' })).toBeInTheDocument()
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Prowlarr\./)).not.toBeInTheDocument()
+  })
+
+  it.each([
+    // The environment's address is the server's to fix.
+    [{ source: 'env' } as const, true, 'The Prowlarr address on the Kinopeer server answers, but not like Prowlarr. Check PROWLARR_URL.'],
+    // One saved from the app before the login was turned off is the app's.
+    [{ source: 'saved', url: 'http://prowlarr:9696' } as const, false, 'Prowlarr’s address answers, but not like Prowlarr. Check the address and its port.'],
+  ])('names the address the key was checked at as the server has it: %o', async (address, login, text) => {
+    vi.mocked(settings.getServerSettings).mockResolvedValue(serverSettings(address, { key: true, login }))
+    vi.mocked(settings.saveProwlarrKey).mockRejectedValue(new settings.SettingsError(502, 'not-prowlarr'))
+    renderBody(releases({ status: 'rejected', rows: [], visible: [] }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Change Prowlarr key' }))
+    const sheet = screen.getByRole('dialog', { name: 'Prowlarr key' })
+    await userEvent.type(within(sheet).getByLabelText('Prowlarr API key'), 'new-key')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
+    expect(await within(sheet).findByText(text)).toBeInTheDocument()
+    expect(settings.saveProwlarrKey).toHaveBeenCalledWith('new-key')
   })
 
   it('says Prowlarr’s address is the server’s to set, with nothing to press, where Kinopeer’s own login is off', async () => {
