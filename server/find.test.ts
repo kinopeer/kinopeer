@@ -1,8 +1,7 @@
-import { createServer } from 'node:net'
+import { createServer, isIPv4 } from 'node:net'
 import type { networkInterfaces } from 'node:os'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  CONNECT_TIMEOUT_MS,
   MAX_SUBNETS,
   PARALLEL,
   USUAL,
@@ -12,6 +11,7 @@ import {
   opens,
   pooled,
   subnetHosts,
+  systemOnDisk,
   type FindSystem,
 } from './find.ts'
 import { CLOSED_ADDRESS, closeServers, fakeProwlarr, fakeQbittorrent, listen, settlesWithin } from './test/fakes.ts'
@@ -96,7 +96,8 @@ describe('findService', () => {
       tried,
       most: 0,
       interfaces: () => interfaces,
-      resolve: async (host) => names[host],
+      // As a lookup does, an address resolves to itself.
+      resolve: async (host) => names[host] ?? (isIPv4(host) ? host : undefined),
       opens: async (host, port) => {
         tried.push(`${host}:${port}`)
         fake.most = Math.max(fake.most, ++running)
@@ -151,16 +152,30 @@ describe('findService', () => {
 })
 
 describe('opens', () => {
-  it('takes a listening port for open, and a closed one for not', async () => {
-    const server = createServer((socket) => socket.end())
+  it('takes a listening port for open, and leaves nothing behind: the connection, the timer, the listener', async () => {
+    let closed: () => void = () => {}
+    const gone = new Promise<void>((resolve) => (closed = resolve))
+    const server = createServer((socket) => socket.on('close', closed))
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
     const { port } = server.address() as { port: number }
+    const signal = new AbortController().signal
+    const removed = vi.spyOn(signal, 'removeEventListener')
+    const cleared = vi.spyOn(globalThis, 'clearTimeout')
     try {
-      expect(await opens('127.0.0.1', port, CONNECT_TIMEOUT_MS, new AbortController().signal)).toBe(true)
-      expect(await opens('127.0.0.1', Number(new URL(CLOSED_ADDRESS).port), CONNECT_TIMEOUT_MS, new AbortController().signal)).toBe(false)
+      expect(await opens('127.0.0.1', port, 60_000, signal)).toBe(true)
+      expect(await settlesWithin(gone, 1000)).toBe(true)
+      expect(removed).toHaveBeenCalledWith('abort', expect.any(Function))
+      expect(cleared).toHaveBeenCalled()
     } finally {
+      cleared.mockRestore()
       server.close()
     }
+  })
+
+  it('takes a closed port for not open at once, not after its time limit', async () => {
+    const pending = opens('127.0.0.1', Number(new URL(CLOSED_ADDRESS).port), 60_000, new AbortController().signal)
+    expect(await settlesWithin(pending, 1000)).toBe(true)
+    expect(await pending).toBe(false)
   })
 
   it('gives a host that doesn’t answer up after its time limit, or when the request is gone', async () => {
@@ -200,6 +215,11 @@ describe('identifies', () => {
       response.setHeader('X-XSS-Protection', '1; mode=block')
       response.end('<h1>Forbidden</h1>')
     }],
+    ['qBittorrent’s headers and text on another status', (response: import('node:http').ServerResponse) => {
+      response.statusCode = 401
+      response.setHeader('X-XSS-Protection', '1; mode=block')
+      response.end('Forbidden')
+    }],
     ['a page that isn’t a version', (response: import('node:http').ServerResponse) => response.end('<!doctype html><title>Login - Sonarr</title>')],
   ])('takes nothing else for qBittorrent or Prowlarr: %s', async (_, answer) => {
     const base = await listen((_request, response) => answer(response))
@@ -215,5 +235,12 @@ describe('identifies', () => {
     abort.abort()
     expect(await settlesWithin(pending, 1000)).toBe(true)
     expect(await pending).toBe(false)
+  })
+})
+
+describe('systemOnDisk.resolve', () => {
+  it('gives a name’s IPv4 address, and nothing for a name that doesn’t resolve', async () => {
+    expect(await systemOnDisk.resolve('localhost')).toBe('127.0.0.1')
+    expect(await systemOnDisk.resolve('qbittorrent.invalid')).toBeUndefined()
   })
 })

@@ -37,7 +37,6 @@ export function FindAddress({ service, onPick, onRefused }: FindAddressProps) {
     try {
       setFound(await findAddresses(service, controller.signal))
     } catch (e) {
-      if (controller.signal.aborted) return
       const code = e instanceof SettingsError ? e.code : undefined
       if (code === 'env-address' || code === 'auth-off') onRefused(code)
       else setFound('failed')

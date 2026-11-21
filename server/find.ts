@@ -1,5 +1,5 @@
 import { lookup } from 'node:dns/promises'
-import { connect } from 'node:net'
+import { connect, isIPv4 } from 'node:net'
 import { networkInterfaces } from 'node:os'
 import { answersAsProwlarr } from './prowlarr.ts'
 import { answersAsQbittorrent } from './qbittorrent.ts'
@@ -98,7 +98,7 @@ export async function findService(
   const found = answered.filter((probe) => probe !== undefined)
   const named = new Set(
     await Promise.all(
-      found.filter(({ host }) => !/^\d+\.\d+\.\d+\.\d+$/.test(host)).map(async ({ host, port }) => `${await system.resolve(host)}:${port}`),
+      found.filter(({ host }) => !isIPv4(host)).map(async ({ host, port }) => `${await system.resolve(host)}:${port}`),
     ),
   )
   return found.filter(({ host, port }) => !named.has(`${host}:${port}`)).map(({ base }) => base)
@@ -108,10 +108,8 @@ export async function findService(
 export function opens(host: string, port: number, ms: number, signal: AbortSignal): Promise<boolean> {
   return new Promise((resolve) => {
     const socket = connect({ host, port })
-    let settled = false
+    // Each step is harmless twice, so a second outcome (the timer after an error) changes nothing.
     const done = (open: boolean) => {
-      if (settled) return
-      settled = true
       clearTimeout(timer)
       signal.removeEventListener('abort', abort)
       socket.destroy()
@@ -119,7 +117,7 @@ export function opens(host: string, port: number, ms: number, signal: AbortSigna
     }
     const abort = () => done(false)
     const timer = setTimeout(() => done(false), ms)
-    signal.addEventListener('abort', abort, { once: true })
+    signal.addEventListener('abort', abort)
     socket.once('connect', () => done(true))
     socket.once('error', () => done(false))
   })

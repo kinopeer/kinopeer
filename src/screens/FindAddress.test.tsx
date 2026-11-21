@@ -30,6 +30,7 @@ describe('FindAddress (#511)', () => {
     findAddresses.mockReturnValueOnce(new Promise((resolve) => (answer = resolve)))
     const { onPick } = renderFind()
     const find = screen.getByRole('button', { name: 'Find qBittorrent' })
+    expect(find).not.toHaveAttribute('aria-busy')
     await userEvent.click(find)
     expect(find).toHaveAttribute('aria-busy', 'true')
     await userEvent.click(find)
@@ -43,14 +44,17 @@ describe('FindAddress (#511)', () => {
     expect(onPick).toHaveBeenCalledWith('http://192.168.1.20:8080')
   })
 
-  it('says it found nothing, and looks again when asked', async () => {
-    findAddresses.mockResolvedValueOnce([]).mockResolvedValueOnce(['http://localhost:9696'])
+  it('says it found nothing, and takes that back as it looks again', async () => {
+    let answer: (addresses: string[]) => void = () => {}
+    findAddresses.mockResolvedValueOnce([]).mockReturnValueOnce(new Promise((resolve) => (answer = resolve)))
     renderFind('prowlarr')
     await userEvent.click(screen.getByRole('button', { name: 'Find Prowlarr' }))
     expect(await screen.findByText('Kinopeer found no Prowlarr. Enter its address.')).toBeInTheDocument()
+    expect(screen.queryByText('Found. Tap an address to use it.')).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Find Prowlarr' }))
-    expect(await screen.findByRole('button', { name: 'http://localhost:9696' })).toBeInTheDocument()
     expect(screen.queryByText(/found no Prowlarr/)).not.toBeInTheDocument()
+    answer(['http://localhost:9696'])
+    expect(await screen.findByRole('button', { name: 'http://localhost:9696' })).toBeInTheDocument()
   })
 
   it.each([

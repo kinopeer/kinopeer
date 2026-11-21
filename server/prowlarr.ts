@@ -323,10 +323,6 @@ export async function checkProwlarrKey(
  */
 export async function answersAsProwlarr(base: string, signal?: AbortSignal): Promise<boolean> {
   const response = await fetch(`${base}/login`, { redirect: 'manual', signal })
-  if (!response.ok) {
-    await response.body?.cancel()
-    return false
-  }
   return (await response.text()).includes('<title>Login - Prowlarr</title>')
 }
 
