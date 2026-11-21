@@ -16,12 +16,21 @@ afterEach(async () => {
  */
 const SYSTEM: ContainerSystem = {
   exists: (path) => path === '/.dockerenv',
+  // A veth, backed by no device: a network of the container's own.
+  list: (path) => (path === '/sys/class/net' ? ['lo', 'eth0'] : []),
   readFile: () => undefined,
   resolve: async (host) => ({ 'host.docker.internal': '192.168.65.254', localhost: '172.18.0.3' })[host],
   localAddressTo: async () => '172.18.0.5',
   interfaces: () => ({
     eth0: [{ address: '172.18.0.5', netmask: '255.255.0.0', family: 'IPv4', mac: '02:42:ac:12:00:05', internal: false, cidr: '172.18.0.5/16' }],
   }),
+}
+
+/** The same container under host networking: it sees the host's network card. */
+const HOST_NETWORK: ContainerSystem = {
+  ...SYSTEM,
+  exists: (path) => path === '/.dockerenv' || path === '/sys/class/net/enp3s0/device',
+  list: (path) => (path === '/sys/class/net' ? ['lo', 'enp3s0', 'docker0'] : []),
 }
 
 describe('the hints for Kinopeer in a container, through the real server (#509)', () => {
@@ -44,5 +53,21 @@ describe('the hints for Kinopeer in a container, through the real server (#509)'
     const error = await getAppVersion().catch((caught: unknown) => caught)
     expect(error).toBeInstanceOf(UnauthorizedError)
     expect((error as UnauthorizedError).source).toEqual({ address: '172.18.0.5', subnet: '172.18.0.0/16' })
+  })
+
+  it('gives neither hint under host networking, where localhost is the host and qBittorrent sees its address (#518)', async () => {
+    const { qbittorrent, stores } = await startKinopeer({
+      env: { KINOPEER_AUTH: undefined, QBITTORRENT_URL: undefined, PROWLARR_URL: undefined, QBITTORRENT_USERNAME: undefined, QBITTORRENT_PASSWORD: undefined },
+      container: HOST_NETWORK,
+    })
+    await setUpPassword('correct horse')
+    await expect(saveQbittorrentLogin('admin', 'x', CLOSED_ADDRESS)).rejects.toMatchObject({ code: 'unreachable', container: undefined })
+    await expect(saveProwlarrKey('a-key', CLOSED_ADDRESS)).rejects.toMatchObject({ code: 'unreachable', container: undefined })
+    const localhost = qbittorrent.base.replace('127.0.0.1', 'localhost')
+    await expect(saveQbittorrentLogin('', '', localhost)).rejects.toMatchObject({ code: 'invalid-credentials', source: undefined })
+    await stores.settings.update({ qbittorrentUrl: localhost })
+    const error = await getAppVersion().catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(UnauthorizedError)
+    expect((error as UnauthorizedError).source).toBeUndefined()
   })
 })

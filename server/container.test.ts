@@ -21,9 +21,20 @@ const INTERFACES = {
   ],
 } as ReturnType<typeof networkInterfaces>
 
+/** A container's own network in /sys/class/net: loopback and a veth, neither backed by a device. */
+const OWN_NETWORK = { '/sys/class/net/lo/address': '', '/sys/class/net/eth0/address': '' }
+
+/** The host's network: its card has a device, its Docker bridge and a container's veth don't. */
+const HOST_NETWORK = {
+  '/sys/class/net/lo/address': '',
+  '/sys/class/net/enp3s0/device': '',
+  '/sys/class/net/docker0/address': '',
+  '/sys/class/net/veth1a2b3c/address': '',
+}
+
 /** A container's system: files that exist, names that resolve, and the route out of it. */
 function system({
-  files = { '/.dockerenv': '', '/proc/net/route': ROUTES } as Record<string, string>,
+  files = { '/.dockerenv': '', '/proc/net/route': ROUTES, ...OWN_NETWORK } as Record<string, string>,
   names = {} as Record<string, string>,
   /** The address a socket to the service goes out from; null when there's no route. */
   local = '172.18.0.5' as string | null,
@@ -31,7 +42,9 @@ function system({
   const resolved: string[] = []
   return {
     resolved,
-    exists: (path) => path in files,
+    // A directory exists where a file is under it.
+    exists: (path) => Object.keys(files).some((file) => file === path || file.startsWith(`${path}/`)),
+    list: (path) => [...new Set(Object.keys(files).flatMap((file) => (file.startsWith(`${path}/`) ? [file.slice(path.length + 1).split('/')[0]] : [])))],
     readFile: (path) => files[path],
     resolve: async (host) => {
       resolved.push(host)
@@ -41,6 +54,12 @@ function system({
     interfaces: () => INTERFACES,
   }
 }
+
+describe('container under host networking (#518)', () => {
+  it('gives no hints, as outside a container: localhost is the host, and qBittorrent sees the host’s address', () => {
+    expect(container({ KINOPEER_CONTAINER: '1' }, system({ files: { '/.dockerenv': '', '/proc/net/route': ROUTES, ...HOST_NETWORK } }))).toBeUndefined()
+  })
+})
 
 describe('inContainer', () => {
   it.each([
@@ -57,15 +76,18 @@ describe('inContainer', () => {
 })
 
 describe('ownNetwork', () => {
-  it('takes a container for one with a network of its own', () => {
+  it('takes a container whose interfaces are all virtual for one with a network of its own', () => {
     expect(ownNetwork(system())).toBe(true)
-    expect(container({}, system())!.ownNetwork).toBe(true)
+    // A Docker-in-Docker sidecar's bridge in a shared namespace is still the container's own.
+    expect(ownNetwork(system({ files: { ...OWN_NETWORK, '/sys/class/net/docker0/address': '' } }))).toBe(true)
   })
 
-  it.each(['/sys/class/net/docker0', '/sys/class/net/podman0'])('takes one that sees the host’s %s for one under host networking', (bridge) => {
-    const host = system({ files: { '/.dockerenv': '', [bridge]: '' } })
-    expect(ownNetwork(host)).toBe(false)
-    expect(container({}, host)!.ownNetwork).toBe(false)
+  it('takes one that sees an interface backed by a device for one under host networking', () => {
+    expect(ownNetwork(system({ files: HOST_NETWORK }))).toBe(false)
+  })
+
+  it('takes one whose interfaces it can’t read for one with a network of its own', () => {
+    expect(ownNetwork(system({ files: {} }))).toBe(true)
   })
 })
 
@@ -183,6 +205,8 @@ describe('the system on disk', () => {
       expect(systemOnDisk.exists(join(dir, 'missing'))).toBe(false)
       expect(systemOnDisk.readFile(join(dir, 'route'))).toBe(ROUTES)
       expect(systemOnDisk.readFile(join(dir, 'missing'))).toBeUndefined()
+      expect(systemOnDisk.list(dir)).toEqual(['route'])
+      expect(systemOnDisk.list(join(dir, 'missing'))).toEqual([])
     } finally {
       await rm(dir, { recursive: true, force: true })
     }

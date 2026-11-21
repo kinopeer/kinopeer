@@ -84,7 +84,7 @@ export function QbittorrentLoginForm({
   const [failure, setFailure] = useState<ConnectionFailure>()
   // The server's hints for Kinopeer in a container (#509), from the last check.
   const [localhost, setLocalhost] = useState<SettingsError['container']>()
-  // Once a check has answered, only its source: the session's was for a check before it.
+  // Once the server has answered a check, only its source: the session's was for a check before it.
   const [checkSource, setCheckSource] = useState<{ source?: SourceAddress }>()
   const source = checkSource ? checkSource.source : sessionSource
 
@@ -99,7 +99,8 @@ export function QbittorrentLoginForm({
     } catch (e) {
       setFailure(failureOf(e))
       setLocalhost(e instanceof SettingsError ? e.container : undefined)
-      setCheckSource({ source: e instanceof SettingsError ? e.source : undefined })
+      // A failure no check answered (no answer, a sign-in proxy) says nothing of the bypass.
+      if (e instanceof SettingsError && e.code !== undefined) setCheckSource({ source: e.source })
       const code = e instanceof SettingsError ? e.code : undefined
       if (code === 'invalid-credentials') setError(askAddress && !username.trim() ? 'login-needed' : 'invalid')
       else if (code === 'banned') setError('banned')

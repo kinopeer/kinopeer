@@ -121,6 +121,16 @@ describe('ConnectScreen', () => {
     expect(screen.queryByRole('status', { name: saying(/auth bypass/) })).not.toBeInTheDocument()
   })
 
+  it.each([
+    ['no answer', new TypeError('Failed to fetch')],
+    ['an answer from something in front of the server', new SettingsError(502, undefined)],
+  ])('keeps the session check’s source after a check the server didn’t answer: %s (#509)', async (_, error) => {
+    setup(vi.fn().mockRejectedValue(error), { source: { address: '172.18.0.5', subnet: '172.18.0.0/16' } })
+    await fillAndSubmit()
+    expect(screen.getByRole('alert', { name: saying(/isn’t answering/) })).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: saying(/auth bypass/) })).toBeInTheDocument()
+  })
+
   it('says why qBittorrent didn’t answer the session check, where the server could tell (#508)', () => {
     setup(undefined, { unreachable: 'qbittorrent', failure: 'refused' })
     expect(screen.getByRole('heading', { name: 'qBittorrent isn’t answering' })).toBeInTheDocument()
@@ -395,6 +405,7 @@ describe('ConnectScreen', () => {
       const bypass = saying(/auth bypass/)
       expect(screen.getByRole('status', { name: bypass })).toBeInTheDocument()
       await userEvent.click(await screen.findByRole('button', { name: 'Change qBittorrent address' }))
+      expect(screen.getByLabelText('qBittorrent address')).toBeInTheDocument()
       expect(screen.queryByRole('status', { name: bypass })).not.toBeInTheDocument()
     })
 

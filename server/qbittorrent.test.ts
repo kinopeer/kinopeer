@@ -68,7 +68,6 @@ describe('qbittorrentMiddleware', () => {
     function inContainer(seen: { address: string; subnet: string } | null | 'fails' = { address: '172.18.0.5', subnet: '172.18.0.0/16' }) {
       const asked: string[] = []
       const container: Container = {
-        ownNetwork: true,
         hostAddress: async () => undefined,
         sourceFor: async (host) => {
           asked.push(host)

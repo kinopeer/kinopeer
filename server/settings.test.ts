@@ -630,13 +630,12 @@ describe('settingsMiddleware: hints for Kinopeer in a container (#509)', () => {
 
   /**
    * A container whose host is `hostAddress` (null: unknown), from where qBittorrent sees Kinopeer at
-   * SOURCE, on a network of its own unless `ownNetwork` says not; `fails` has both hints throw.
+   * SOURCE; `fails` has both hints throw.
    */
-  function inContainer(hostAddress: string | null = 'host.docker.internal', { ownNetwork = true, fails = false } = {}): Container & { asked: string[] } {
+  function inContainer(hostAddress: string | null = 'host.docker.internal', { fails = false } = {}): Container & { asked: string[] } {
     const asked: string[] = []
     return {
       asked,
-      ownNetwork,
       hostAddress: async () => {
         if (fails) throw new Error('no answer')
         return hostAddress ?? undefined
@@ -676,14 +675,6 @@ describe('settingsMiddleware: hints for Kinopeer in a container (#509)', () => {
   it('still says localhost is the container when the host’s address isn’t known', async () => {
     const response = await putLogin(await app(inContainer(null)), { url: CLOSED_ADDRESS, username: '', password: '' })
     expect(await response.json()).toEqual({ error: 'unreachable', failure: 'refused', container: {} })
-  })
-
-  it('says nothing of localhost under host networking, where it’s the host', async () => {
-    const container = inContainer('host.docker.internal', { ownNetwork: false })
-    const qbittorrent = await putLogin(await app(container), { url: CLOSED_ADDRESS, username: '', password: '' })
-    expect(await qbittorrent.json()).toEqual({ error: 'unreachable', failure: 'refused' })
-    const prowlarr = await fetch(`${await app(container)}/api/settings/prowlarr`, saving({ url: CLOSED_ADDRESS, apiKey: 'key' }))
-    expect(await prowlarr.json()).toEqual({ error: 'unreachable', failure: 'refused' })
   })
 
   it('answers as without a hint when the hint can’t be had', async () => {

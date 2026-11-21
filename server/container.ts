@@ -1,6 +1,6 @@
 import { createSocket, type Socket } from 'node:dgram'
 import { lookup } from 'node:dns/promises'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { networkInterfaces } from 'node:os'
 import type { SourceAddress } from '../src/api/settings/types.ts'
 
@@ -10,11 +10,6 @@ import type { SourceAddress } from '../src/api/settings/types.ts'
  * bypass, which covers the host or the LAN while Kinopeer comes from the container's network.
  */
 export interface Container {
-  /**
-   * Whether the container has a network of its own, where localhost is the container. Under host
-   * networking (`--network host`) it shares the host's, where localhost is the host (`ownNetwork`).
-   */
-  ownNetwork: boolean
   /**
    * The host's name or address as the container reaches it: `host.docker.internal` where it
    * resolves (Docker Desktop, or `extra_hosts: host-gateway`), else the default gateway, which on a
@@ -31,6 +26,8 @@ export interface Container {
 /** What `container` reads from the system: the real one by default, a fake in tests. */
 export interface ContainerSystem {
   exists: (path: string) => boolean
+  /** A directory's entries, none when it can't be read. */
+  list: (path: string) => string[]
   readFile: (path: string) => string | undefined
   /** An IPv4 address for a host name, or undefined when it doesn't resolve. */
   resolve: (host: string) => Promise<string | undefined>
@@ -45,11 +42,14 @@ export function inContainer(env: Record<string, string | undefined>, system: Pic
 }
 
 /**
- * Whether the container has a network of its own: its /sys shows its own interfaces, and under host
- * networking the host's, among them the bridge Docker (or Podman) makes on the host.
+ * Whether the container has a network of its own, where localhost is the container, rather than the
+ * host's (`--network host`, Kubernetes' `hostNetwork`), where it's the host. Its /sys/class/net
+ * shows the interfaces of its network, and only the host's has one backed by a device (a network
+ * card, a VM's virtio one): a container's own are virtual (veth, macvlan). A card handed to a
+ * container (SR-IOV) reads as the host's network, and gives no hints.
  */
-export function ownNetwork(system: Pick<ContainerSystem, 'exists'>): boolean {
-  return !system.exists('/sys/class/net/docker0') && !system.exists('/sys/class/net/podman0')
+export function ownNetwork(system: Pick<ContainerSystem, 'exists' | 'list'>): boolean {
+  return !system.list('/sys/class/net').some((name) => system.exists(`/sys/class/net/${name}/device`))
 }
 
 /**
@@ -158,6 +158,13 @@ export function localAddressTo(ip: string, socket: UdpSocket): Promise<string | 
 /** The real system, which `container` reads by default. */
 export const systemOnDisk: ContainerSystem = {
   exists: existsSync,
+  list: (path) => {
+    try {
+      return readdirSync(path)
+    } catch {
+      return []
+    }
+  },
   readFile: (path) => {
     try {
       return readFileSync(path, 'utf8')
@@ -170,11 +177,13 @@ export const systemOnDisk: ContainerSystem = {
   interfaces: networkInterfaces,
 }
 
-/** The container's hints, or undefined outside a container, where localhost is the service's host. */
+/**
+ * The container's hints, or undefined outside a container, where localhost is the service's host and
+ * qBittorrent sees the machine's own address, and as well under host networking, which is the same.
+ */
 export function container(env: Record<string, string | undefined>, system: ContainerSystem = systemOnDisk): Container | undefined {
-  if (!inContainer(env, system)) return undefined
+  if (!inContainer(env, system) || !ownNetwork(system)) return undefined
   return {
-    ownNetwork: ownNetwork(system),
     hostAddress: async () => {
       if (await system.resolve('host.docker.internal')) return 'host.docker.internal'
       const routes = system.readFile('/proc/net/route')

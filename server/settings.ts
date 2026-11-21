@@ -218,8 +218,7 @@ function fail(response: ServerResponse, status: number, error: SettingsErrorBody
  * container: that localhost is Kinopeer itself, and the host's address may be the one (#509).
  */
 async function localhostHint(config: SettingsConfig, base: string): Promise<SettingsErrorBody['container']> {
-  // Under host networking localhost is the host, where the service may well be.
-  if (!config.container?.ownNetwork || !isLoopback(new URL(base).hostname)) return undefined
+  if (!config.container || !isLoopback(new URL(base).hostname)) return undefined
   // A hint that can't be had is no reason to answer otherwise.
   const host = await config.container.hostAddress().catch(() => undefined)
   return host ? { hostAddress: atHost(base, host) } : {}
