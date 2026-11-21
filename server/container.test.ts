@@ -284,18 +284,20 @@ describe('localAddressTo', () => {
 
 describe('container on this machine', () => {
   // The real lookups and the UDP route, which the tests above fake: what the server runs in its image.
+  // Its interfaces are taken for the container's own: this machine's (a CI runner's) has a network
+  // card, which reads as host networking, as it would be for a container sharing it.
+  const real = () => container({ KINOPEER_CONTAINER: '1' }, { ...systemOnDisk, list: () => [] })!
   const own = Object.values(networkInterfaces())
     .flat()
     .find((entry) => entry?.family === 'IPv4' && !entry.internal)
 
   it('resolves a name, and none for one that doesn’t exist', async () => {
-    const real = container({ KINOPEER_CONTAINER: '1' })!
-    expect(await real.sourceFor('localhost')).toBeUndefined()
-    expect(await real.sourceFor('qbittorrent.invalid')).toBeUndefined()
+    expect(await real().sourceFor('localhost')).toBeUndefined()
+    expect(await real().sourceFor('qbittorrent.invalid')).toBeUndefined()
   })
 
   it.skipIf(!own)('finds the address it goes out from to its own network', async () => {
-    const source = await container({ KINOPEER_CONTAINER: '1' })!.sourceFor(own!.address)
+    const source = await real().sourceFor(own!.address)
     expect(source?.address).toBe(own!.address)
   })
 })
