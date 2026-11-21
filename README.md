@@ -152,16 +152,28 @@ The addresses can also come from the server's environment, `QBITTORRENT_URL` and
 
 - The machine's address on your network, such as `http://192.168.1.10:8080`: for a qBittorrent or Prowlarr anywhere on your network, the same machine included, and a seedbox's address the same way.
 - `http://host.docker.internal:8080` for one on the same machine: Docker Desktop has that name; on Linux, add `--add-host=host.docker.internal:host-gateway` to `docker run` (`extra_hosts: ["host.docker.internal:host-gateway"]` in Compose).
-- The container's name, such as `http://qbittorrent:8080`, for one in Docker on a network Kinopeer's container joins too (`--network <that network>` with `docker run`, `networks:` in Compose), at the port inside its container.
+- The container's name, such as `http://qbittorrent:8080`, at the port inside its container, for one in Docker on a network of your own that Kinopeer's container joins too: Docker resolves names only on such a network, not on its default `bridge`, where a container started with plain `docker run` sits. Make one with `docker network create media`, put a running qBittorrent on it with `docker network connect media qbittorrent`, and start Kinopeer with `--network media`. In Compose, join a network made elsewhere by declaring it `external`:
+
+  ```yaml
+  services:
+    kinopeer:
+      networks:
+        - media
+  networks:
+    media:
+      external: true
+  ```
+
 - With `--network host` (Linux), Kinopeer shares the machine's network, so `localhost` is the machine. Kinopeer then listens at 8080 itself, the port qBittorrent's web UI often has: add `-e PORT=8797` and leave out `-p` (in Compose, `network_mode: host`, `PORT: "8797"` under `environment:` and no `ports:`).
 
 **When it doesn't connect:**
 
-- **"Nothing answers at this address."** Check the address and the port. On Linux, a qBittorrent or Prowlarr that listens only on 127.0.0.1 isn't reachable from Kinopeer's container (through Docker Desktop's `host.docker.internal` it is): in qBittorrent, Tools → Options → Web UI → IP address set to `*`; in Prowlarr, Settings → General → Bind Address set to `*`. A firewall on the machine (ufw, firewalld) may also drop what comes from Docker's network: allow it to the port.
+- **"Nothing answers at this address."** Check the address and the port. On Linux, a qBittorrent or Prowlarr that listens only on 127.0.0.1 isn't reachable from Kinopeer's container, unless it runs with `--network host` (and through Docker Desktop's `host.docker.internal` it is): in qBittorrent, Tools → Options → Web UI → IP address set to `*`; in Prowlarr, Settings → General → Bind Address set to `*`. A firewall on the machine (ufw, firewalld) may also drop what comes from Docker's network: allow it to the port.
 - **"qBittorrent's address answers, but not like qBittorrent."** The port is another program's; at `localhost:8080` without `--network host`, it's Kinopeer itself.
 - **"Wrong username or password" with the right password.** qBittorrent's Host header validation (Tools → Options → Web UI) refuses a request whose address has another port than its own web UI's, as when Docker publishes its 8080 as 8081 and Kinopeer is given `:8081`. Give the port qBittorrent itself listens at (the container's name and its own port), publish it at the same port, or turn the validation off.
 - **qBittorrent asks for a login you didn't set.** qBittorrent 4.6.1 and later have no password at first and make up a temporary one on every start, in qBittorrent's log. Set a password of your own in qBittorrent's web UI and enter that in Kinopeer. qBittorrent's bypasses (Tools → Options → Web UI) let Kinopeer in by the address its requests come from, which depends on where qBittorrent runs:
-  - On the same Linux machine, they come from the container's address on Docker's network (such as `172.17.0.2`): "Bypass authentication for clients on localhost" doesn't cover them, and "Bypass authentication for clients in whitelisted IP subnets" does only with that network's subnet in the list.
+  - On the same Linux machine, they come from the container's address on Docker's network (such as `172.17.0.2`): "Bypass authentication for clients on localhost" doesn't cover them, and "Bypass authentication for clients in whitelisted IP subnets" does only with that network's subnet in the list, which lets every container on that network in too (on Docker's default `bridge`, `172.17.0.0/16`, all of them started without a network of their own). To let Kinopeer alone in, give it a fixed address on a network of its own and whitelist only that address, as Kinopeer's `docker-compose.yml` does with `172.30.97.10/32`.
+  - With `--network host` (Linux), they come from `127.0.0.1`: the localhost bypass lets Kinopeer in, and with it everything else on the machine, so prefer a password there.
   - On another computer or a seedbox, they come from the Docker machine's own address (over the internet, your network's public one), so a whitelisted subnet that holds it lets Kinopeer in, as it does everything else from that machine.
   - Through Docker Desktop's `host.docker.internal` (checked on a Mac), they come from the machine's loopback, `127.0.0.1`: the localhost bypass lets Kinopeer in, and with it every other container on that Docker, so prefer a password there.
 
@@ -175,7 +187,7 @@ Mount the folder, not the file: a file mount would keep the old file after Prowl
 
 **Updating:** `docker pull ghcr.io/kinopeer/kinopeer:1`, then remove the container (`docker rm -f kinopeer`) and run the same `docker run` again; or, with Compose, `docker compose pull`, then `docker compose up -d`. The `:1` tag follows the newest 1.x release, and the volume keeps what you set up. What changed is in [CHANGELOG.md](CHANGELOG.md).
 
-**Names and HTTPS.** Kinopeer answers at your server's IP address, `localhost`, `.local` names and names of one label. Any other name, such as `nas.lan` from your router or a reverse proxy's domain for HTTPS, goes into `KINOPEER_ALLOWED_HOSTS`: `-e KINOPEER_ALLOWED_HOSTS=kinopeer.example.com` with `docker run`, `KINOPEER_ALLOWED_HOSTS: kinopeer.example.com` under `environment:` in Compose. With the proxy on the same machine, publish Kinopeer's port to that machine alone, `-p 127.0.0.1:8797:8080` (`"127.0.0.1:8797:8080"` under `ports:`), so it isn't also open over plain HTTP. The proxy passes on the name the page was opened at, as in the Caddy example under **HTTPS** in [Install with Docker Compose](#install-with-docker-compose).
+**Names and HTTPS.** Kinopeer answers at your server's IP address, `localhost`, `.local` names, names of one label and the other private names in [DEVELOPMENT.md](docs/DEVELOPMENT.md#server-configuration). Any other name, such as `nas.lan` from your router or a reverse proxy's domain for HTTPS, goes into `KINOPEER_ALLOWED_HOSTS`: `-e KINOPEER_ALLOWED_HOSTS=kinopeer.example.com` with `docker run`, `KINOPEER_ALLOWED_HOSTS: kinopeer.example.com` under `environment:` in Compose. With a proxy installed on the machine itself, publish Kinopeer's port to that machine alone, `-p 127.0.0.1:8797:8080` (`"127.0.0.1:8797:8080"` under `ports:`), so it isn't also open over plain HTTP. A proxy in a container of its own (Nginx Proxy Manager, Caddy in Docker) can't reach the machine's loopback: put it and Kinopeer on a network of your own, as above, point it at `http://kinopeer:8080`, and leave out `-p`. The proxy passes on the name the page was opened at, as in the Caddy example under **HTTPS** in [Install with Docker Compose](#install-with-docker-compose).
 
 ### TrueNAS
 
