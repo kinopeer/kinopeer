@@ -261,7 +261,7 @@ describe('ReleasesScreen', () => {
   it('explains a missing Prowlarr setup', async () => {
     searchReleases.mockRejectedValue(new prowlarr.ProwlarrSetupError(503, 'not-configured'))
     renderAt('/title/movie/693134/releases')
-    expect(await screen.findByRole('heading', { name: 'Prowlarr isn’t connected' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Prowlarr isn’t set up' })).toBeInTheDocument()
   })
 
   it('lists the releases without waiting to hear which indexers failed, then names them', async () => {

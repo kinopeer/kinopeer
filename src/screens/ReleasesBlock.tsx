@@ -8,6 +8,7 @@ import { FilterChip } from '../components/FilterChip'
 import { formatList } from '../i18n/formatList'
 import type { TitleDetails } from '../releases/releaseQuery'
 import { AddReleaseSheet } from './AddReleaseSheet'
+import { ProwlarrSetupState } from './ProwlarrSetupState'
 import type { Releases } from './useReleases'
 
 export interface ReleasesBodyProps {
@@ -24,7 +25,7 @@ export interface ReleasesBodyProps {
 }
 
 /**
- * The search's states (loading, Prowlarr not set up or unreachable, nothing found, nothing matches
+ * The search's states (loading, Prowlarr not set up, its key rejected or unreachable, nothing found, nothing matches
  * the filters) around the list of releases, with the picked filters above it. With results, the
  * count's line says which indexers didn't answer (`ReleasesCount`); with none, a banner does: under
  * the empty state when nothing was found, above it when the filters let nothing through.
@@ -33,11 +34,8 @@ export function ReleasesBody({ releases, skeleton, children, countInList = false
   const { t } = useTranslation()
   switch (releases.status) {
     case 'setup':
-      return (
-        <EmptyState icon="key" tone="error" title={t('releases.setupTitle')}>
-          {t('releases.setupBody')}
-        </EmptyState>
-      )
+    case 'rejected':
+      return <ProwlarrSetupState rejected={releases.status === 'rejected'} onSaved={releases.retry} />
     case 'error':
       return (
         <EmptyState icon="wifi-off" tone="error" title={t('noAnswer.prowlarr')} actionLabel={t('common.retry')} actionIcon="refresh" onAction={releases.retry}>

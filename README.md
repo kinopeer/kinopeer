@@ -144,7 +144,7 @@ If you already run qBittorrent (4.6.0 or later) and Prowlarr, in Docker, install
 
    Kinopeer listens at port 8080 inside its container; `8797` is the port you open it at. The `kinopeer-data` volume keeps its password, the addresses and logins you enter and its settings across updates.
 2. Open Kinopeer at `http://<your server>:8797` right away and set its password: until then, whoever opens it first sets it. To set it beforehand, add `-e KINOPEER_PASSWORD='…'` (`KINOPEER_PASSWORD` under `environment:` in Compose, where a `$` in it is written `$$`) with a password of 8 characters or more.
-3. Kinopeer asks for qBittorrent's address and login, then for Prowlarr's address and API key, which you find in Prowlarr under Settings → General → Security → API Key. Each address is the one Kinopeer's container reaches the service at (below). The server checks each before keeping it. You can skip Prowlarr and add it later; everything but finding releases works without it. Settings → Connections changes either address later.
+3. Kinopeer asks for qBittorrent's address and login, then for Prowlarr's address and API key, which you find in Prowlarr under Settings → General → Security → API Key. Each address is the one Kinopeer's container reaches the service at (below). The server checks each before keeping it. You can skip Prowlarr and add it later, from a title's releases or Settings → Connections; everything but finding releases works without it. Settings → Connections changes either address later.
 
 The addresses can also come from the server's environment, `QBITTORRENT_URL` and `PROWLARR_URL` with the other variables in [DEVELOPMENT.md](docs/DEVELOPMENT.md#server-configuration); an address set there wins, and the app doesn't ask for it.
 
