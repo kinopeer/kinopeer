@@ -1,7 +1,9 @@
 import { readFile } from 'node:fs/promises'
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import type { ConnectionFailure } from '../src/api/connectionFailure.ts'
 import type { FailingIndexers, MagnetResponse, ProwlarrErrorBody, ProwlarrStatus, Release } from '../src/api/prowlarr/types.ts'
 import { abandoned } from './abandoned.ts'
+import { connectionFailure } from './connectionFailure.ts'
 
 /**
  * Same-origin bridge to Prowlarr. Unlike a plain proxy it reshapes responses, because Prowlarr's
@@ -63,8 +65,8 @@ function send(response: ServerResponse, status: number, body: unknown): void {
   response.end(JSON.stringify(body))
 }
 
-function fail(response: ServerResponse, status: number, error: ProwlarrErrorBody['error']): void {
-  send(response, status, { error } satisfies ProwlarrErrorBody)
+function fail(response: ServerResponse, status: number, error: ProwlarrErrorBody['error'], failure?: ConnectionFailure): void {
+  send(response, status, { error, ...(failure && { failure }) } satisfies ProwlarrErrorBody)
 }
 
 /**
@@ -154,6 +156,9 @@ async function download(base: string, apiKey: string, query: URLSearchParams, re
       redirect: 'manual',
       headers: hop === 0 ? { 'X-Api-Key': apiKey } : undefined,
       signal,
+    }).catch((error: unknown) => {
+      // A later hop is the indexer's own host, not Prowlarr: why it didn't answer is no cause of Prowlarr's.
+      throw hop === 0 ? error : new Error('The indexer’s link didn’t answer')
     })
     const location = upstream.headers.get('location')
     if (upstream.status >= 300 && upstream.status < 400 && location) {
@@ -341,8 +346,8 @@ export function prowlarrMiddleware(config: ProwlarrConfig): Middleware {
       if (!handler) return fail(response, 404, 'not-found')
       // Errors never echo upstream URLs: they would contain the API key.
       await handler(base, apiKey, url.searchParams, response, signal)
-    })().catch(() => {
-      if (!response.headersSent) fail(response, 502, 'unreachable')
+    })().catch((error: unknown) => {
+      if (!response.headersSent) fail(response, 502, 'unreachable', connectionFailure(error))
       else response.end()
     })
   }

@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MAX_FAILING_WITHIN_MS } from '../src/api/prowlarr/types.ts'
 import { baseOf } from './address.ts'
 import { MAX_WITHIN_MS, downloadToken, failedIds, indexerNames, prowlarrMiddleware, readProwlarrApiKey, type ProwlarrConfig } from './prowlarr.ts'
-import { abandon, closeServers, listen, serve, settlesWithin, silentService } from './test/fakes.ts'
+import { abandon, closeServers, CLOSED_ADDRESS, listen, serve, settlesWithin, silentService } from './test/fakes.ts'
 
 const KEY = 'secret-key-123'
 
@@ -319,7 +319,15 @@ describe('prowlarrMiddleware', () => {
     })
     const slow = await fetch(`${await kinopeer({ url: hanging, apiKey: KEY, failingTimeoutMs: 50 })}/prowlarr/failing?within=0`)
     expect(slow.status).toBe(502)
-    expect(await slow.json()).toEqual({ error: 'unreachable' })
+    expect(await slow.json()).toEqual({ error: 'unreachable', failure: 'timeout' })
+  })
+
+  it('says why Prowlarr didn’t answer, where it can tell (#508)', async () => {
+    const refused = await fetch(`${await kinopeer({ url: CLOSED_ADDRESS, apiKey: KEY })}/prowlarr/status`)
+    expect([refused.status, await refused.json()]).toEqual([502, { error: 'unreachable', failure: 'refused' }])
+    // Port 9 is one fetch won't connect to ("bad port"): no cause to name.
+    const blocked = await fetch(`${await kinopeer({ url: 'http://127.0.0.1:9', apiKey: KEY })}/prowlarr/status`)
+    expect([blocked.status, await blocked.json()]).toEqual([502, { error: 'unreachable' }])
   })
 
   it('reports a rejected key and a failing Prowlarr on the indexer list, asked after a failure', async () => {
@@ -421,6 +429,20 @@ describe('prowlarrMiddleware', () => {
       { url: `/api/v1/indexer/1/download?link=A&apikey=${KEY}`, key: KEY },
       { url: '/tracker/dune.torrent', key: undefined },
     ])
+  })
+
+  it('names why Prowlarr didn’t answer a download, and no cause of Prowlarr’s when the tracker’s own link doesn’t (#508)', async () => {
+    const refused = await fetch(`${await kinopeer({ url: CLOSED_ADDRESS, apiKey: KEY })}/prowlarr/download?token=${encodeURIComponent('1/download?link=A')}`)
+    expect([refused.status, await refused.json()]).toEqual([502, { error: 'unreachable', failure: 'refused' }])
+
+    const prowlarr = await listen((_request, response) => {
+      response.statusCode = 302
+      response.setHeader('Location', `${CLOSED_ADDRESS}/dune.torrent`)
+      response.end()
+    })
+    const base = await kinopeer({ url: prowlarr, apiKey: KEY })
+    const response = await fetch(`${base}/prowlarr/download?token=${encodeURIComponent('1/download?link=A')}`)
+    expect([response.status, await response.json()]).toEqual([502, { error: 'unreachable' }])
   })
 
   it('refuses a redirect to anything but a web address', async () => {

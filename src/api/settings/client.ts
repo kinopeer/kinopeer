@@ -12,6 +12,7 @@ import type {
   TelegramTokenBody,
   TmdbKeyBody,
 } from './types'
+import { knownFailure, type ConnectionFailure } from '../connectionFailure'
 import { fetchKinopeer } from '../fetchKinopeer'
 import { sharedRequests } from '../../logic/sharedRequests'
 
@@ -21,12 +22,15 @@ export const SETTINGS_BASE = '/api/settings'
 export class SettingsError extends Error {
   readonly status: number
   readonly code?: SettingsErrorBody['error']
+  /** Why qBittorrent or Prowlarr didn't answer a check (`unreachable`), where the server could tell. */
+  readonly failure?: ConnectionFailure
 
-  constructor(status: number, code?: SettingsErrorBody['error']) {
+  constructor(status: number, code?: SettingsErrorBody['error'], failure?: ConnectionFailure) {
     super(`Settings request failed (${code ?? status})`)
     this.name = 'SettingsError'
     this.status = status
     this.code = code
+    this.failure = failure
   }
 }
 
@@ -36,7 +40,7 @@ function isJson(response: Response): boolean {
 
 async function errorFor(response: Response): Promise<SettingsError> {
   const body = isJson(response) ? ((await response.json().catch(() => ({}))) as Partial<SettingsErrorBody>) : {}
-  return new SettingsError(response.status, body.error)
+  return new SettingsError(response.status, body.error, knownFailure(body.failure))
 }
 
 export async function getServerSettings(signal?: AbortSignal): Promise<ServerSettings> {

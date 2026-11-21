@@ -79,6 +79,13 @@ describe('settings client through /api/settings', () => {
     await expect(saveQbittorrentLogin('admin', 'x')).rejects.toMatchObject({ status: 503, code: 'not-configured' })
   })
 
+  it('says when qBittorrent refuses the address’s port, and saves nothing (#508)', async () => {
+    // Its Web UI on 8080, published on the fake's own port: Host header validation refuses the login.
+    const { stores } = await startKinopeer({ qbittorrent: { webUiPort: 8080 }, env: { QBITTORRENT_USERNAME: undefined, QBITTORRENT_PASSWORD: undefined } })
+    await expect(saveQbittorrentLogin('admin', 'pass word')).rejects.toMatchObject({ status: 502, code: 'host-refused' })
+    expect(stores.settings.current.qbittorrentPassword).toBeUndefined()
+  })
+
   it('patches only the download defaults given, so two devices’ changes both stay', async () => {
     const { stores } = await startKinopeer()
     await expect(saveDownloadDefaults({ startPaused: true, movieCategory: null })).resolves.toMatchObject({

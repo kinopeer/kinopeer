@@ -35,6 +35,13 @@ export async function listen(handler: RequestListener): Promise<string> {
 }
 
 /**
+ * An address on this machine where nothing listens. Port 2: below 1024, so the system never hands it
+ * out for port 0 to a server another test file starts meanwhile, as it can a port let go, and not one
+ * of fetch's bad ports, which it refuses without connecting.
+ */
+export const CLOSED_ADDRESS = 'http://127.0.0.1:2'
+
+/**
  * Kinopeer's TMDB proxy (tmdb-proxy/worker.ts), the real worker served over HTTP in front of
  * `tmdbApiBase` with `key` as its secret and a rate limiter that lets everything through, or with
  * `overLimit` refuses everything, as for an IP over its limit: what the Workers runtime does, without
@@ -280,6 +287,7 @@ async function parseAdd(body: Buffer, contentType: string | undefined): Promise<
 export async function fakeQbittorrent({
   legacy = false,
   authBypass = false,
+  webUiPort,
   torrents = TORRENTS,
   listAdded,
 }: {
@@ -290,6 +298,13 @@ export async function fakeQbittorrent({
    * through without a session, and /app/version answers without a login.
    */
   authBypass?: boolean
+  /**
+   * qBittorrent's Web UI port behind a port published as another (`18080:8080`): with Host header
+   * validation, on by default, every request whose `Host` has another port is answered 401 with the
+   * text `Unauthorized`, the login included, as qBittorrent 4.6 to 5.3 do (seen on 5.3.0, and in
+   * `WebApplication::processRequest` of each).
+   */
+  webUiPort?: number
   torrents?: Torrent[]
   /**
    * What qBittorrent lists for a torrent after /torrents/add: a torrent it returns joins the list
@@ -316,6 +331,9 @@ export async function fakeQbittorrent({
     const bytes = await bytesOf(request)
     const body = bytes.toString()
     const url = request.url ?? ''
+    // On every answer, an error's included (qBittorrent 4.6 to 5.3).
+    response.setHeader('X-XSS-Protection', '1; mode=block')
+    if (webUiPort !== undefined && request.headers.host?.split(':')[1] !== String(webUiPort)) return text(response, 'Unauthorized', 401)
     if (url === '/api/v2/auth/login') {
       logins++
       const params = new URLSearchParams(body)

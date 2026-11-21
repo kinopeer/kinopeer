@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { abandoned } from './abandoned.ts'
+import { connectionFailure } from './connectionFailure.ts'
 import type { Middleware } from './prowlarr.ts'
 
 /**
@@ -70,6 +71,40 @@ export async function qbittorrentLogin(
   return { status: 'ok', cookie }
 }
 
+/**
+ * Whether `response` is qBittorrent's Host header validation refusing the request (on by default):
+ * it answers 401 to every request whose `Host` carries another port than its Web UI's, as when the
+ * Web UI is published on another port of the host (`18080:8080`), the login included. Told from
+ * another 401 by what qBittorrent 4.6 to 5.3 put on it: the text `Unauthorized`, and the
+ * `X-XSS-Protection` it sends on every answer, with no `WWW-Authenticate`, which a proxy's basic
+ * auth asks with; an *arr app's API answers 401 with neither.
+ */
+function isHostRefusal(response: Response, text: string): boolean {
+  return hasRefusalHead(response) && text === 'Unauthorized'
+}
+
+/**
+ * `isHostRefusal` but the text, so a body is read only when the status and headers match. The
+ * header's value may come twice, comma-joined, when a proxy in front adds it too.
+ */
+function hasRefusalHead(response: Response): boolean {
+  // `Headers.get` joins values with ", ", as the Fetch standard says.
+  const xss = response.headers.get('x-xss-protection')?.split(', ') ?? []
+  return response.status === 401 && xss.includes('1; mode=block') && !response.headers.has('www-authenticate')
+}
+
+/**
+ * Whether qBittorrent refuses requests at `base` before any login (`isHostRefusal`), while one it
+ * only wants a login for gets 403. Asked after a login's 401, which qBittorrent 5.3 also gives a
+ * wrong password.
+ */
+async function refusesHost(base: string, signal?: AbortSignal): Promise<boolean> {
+  const response = await fetch(`${base}/api/v2/app/version`, { headers: { Origin: base, Referer: `${base}/` }, redirect: 'manual', signal })
+  if (hasRefusalHead(response)) return isHostRefusal(response, await response.text())
+  await response.body?.cancel()
+  return false
+}
+
 /** What qBittorrent's version looks like (`v5.2.4`, `v4.6.7`), told from a page that answers every path. */
 const VERSION = /^v?\d+\.\d+/
 
@@ -83,10 +118,11 @@ export async function checkQbittorrent(
   base: string,
   credentials: QbittorrentCredentials | undefined,
   signal?: AbortSignal,
-): Promise<'ok' | 'invalid' | 'banned' | 'not-qbittorrent'> {
+): Promise<'ok' | 'invalid' | 'banned' | 'not-qbittorrent' | 'host-refused'> {
   let cookie: string | undefined
   if (credentials) {
     const login = await qbittorrentLogin(base, credentials.username, credentials.password, signal)
+    if (login.status === 'invalid' && (await refusesHost(base, signal))) return 'host-refused'
     if (login.status !== 'ok') return login.status
     cookie = login.cookie
   }
@@ -98,6 +134,7 @@ export async function checkQbittorrent(
   const text = await response.text()
   // Without a login, a 403 is qBittorrent asking for one.
   if (!credentials && response.status === 403) return 'invalid'
+  if (isHostRefusal(response, text)) return 'host-refused'
   return response.ok && VERSION.test(text) ? 'ok' : 'not-qbittorrent'
 }
 
@@ -115,6 +152,11 @@ export const BRIDGE_HEADER = 'x-kinopeer-bridge'
  * app asks for one: `NO_ADDRESS` in src/api/qbittorrent/client.ts.
  */
 export const NO_ADDRESS = 'no-address'
+/**
+ * Beside a 502 for qBittorrent not answering, why, where the server could tell (`connectionFailure`,
+ * #508): `FAILURE_HEADER` in src/api/qbittorrent/client.ts. A header, since the answer is text.
+ */
+export const FAILURE_HEADER = 'x-kinopeer-failure'
 /**
  * What src/api/qbittorrent/client.ts calls, with its method: the only requests the bridge sends on,
  * so nothing reaches qBittorrent's logins or anything else Kinopeer doesn't use, and of its
@@ -398,7 +440,11 @@ export function qbittorrentBridge(config: QbittorrentConfig): QbittorrentBridge 
       if (response.headersSent) return void response.end()
       if (error instanceof BodyTooLargeError) fail(413, 'Request body too large')
       else if (error instanceof RefusedBodyError) fail(400, 'Kinopeer changes no preference but the default save path')
-      else fail(502, 'qBittorrent is unreachable')
+      else {
+        const failure = connectionFailure(error)
+        if (failure) response.setHeader(FAILURE_HEADER, failure)
+        fail(502, 'qBittorrent is unreachable')
+      }
     })
   }
 

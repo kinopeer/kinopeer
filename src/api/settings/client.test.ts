@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { sharedRequests } from '../../logic/sharedRequests'
-import { SERVER_SETTINGS_FRESH_MS, SERVER_SETTINGS_KEY, SettingsError, forgetTmdbKey, getServerSettings, saveDownloadDefaults, saveTmdbKey } from './client'
+import { SERVER_SETTINGS_FRESH_MS, SERVER_SETTINGS_KEY, SettingsError, forgetTmdbKey, getServerSettings, saveDownloadDefaults, saveQbittorrentLogin, saveTmdbKey } from './client'
 import type { ServerSettings } from './types'
 
 let fetchMock: Mock<typeof fetch>
@@ -15,6 +15,25 @@ describe('getServerSettings', () => {
     fetchMock.mockResolvedValueOnce(new Response('<!doctype html>', { headers: { 'Content-Type': 'text/html' } }))
     await expect(getServerSettings()).rejects.toBeInstanceOf(SettingsError)
     expect(fetchMock.mock.calls[0][1]).toMatchObject({ credentials: 'same-origin', redirect: 'manual' })
+  })
+})
+
+describe('a check the server couldn’t finish', () => {
+  const unreachable = (body: object) => Response.json(body, { status: 502 })
+
+  it('passes on why the service didn’t answer (#508)', async () => {
+    fetchMock.mockResolvedValueOnce(unreachable({ error: 'unreachable', failure: 'refused' }))
+    await expect(saveQbittorrentLogin('admin', 'x')).rejects.toMatchObject({ status: 502, code: 'unreachable', failure: 'refused' })
+  })
+
+  it.each([
+    ['none', { error: 'unreachable' }],
+    ['one this app doesn’t know', { error: 'unreachable', failure: 'solar-flare' }],
+  ])('names no cause when the server names %s', async (_, body) => {
+    fetchMock.mockResolvedValueOnce(unreachable(body))
+    const error = await saveQbittorrentLogin('admin', 'x').catch((caught: unknown) => caught)
+    expect(error).toMatchObject({ code: 'unreachable' })
+    expect((error as SettingsError).failure).toBeUndefined()
   })
 })
 

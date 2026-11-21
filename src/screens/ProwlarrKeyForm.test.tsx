@@ -85,6 +85,16 @@ describe('ProwlarrKeyForm', () => {
     expect(screen.getAllByRole('alert')).toHaveLength(1)
   })
 
+  it('says why Prowlarr didn’t answer at the server’s address, where the server could tell (#508)', async () => {
+    saveProwlarrKey.mockRejectedValue(new serverSettings.SettingsError(502, 'unreachable', 'name'))
+    const { field, save } = renderForm()
+    await userEvent.type(field, 'abc123')
+    await userEvent.click(save)
+    const alert = await screen.findByRole('alert', { name: saying('Prowlarr isn’t answering') })
+    expect(alert).toHaveTextContent('Kinopeer’s server can’t find this host. Check the name, or use the IP address.')
+    expect(alert).not.toHaveTextContent('Check that it’s running')
+  })
+
   it("goes back to the server's key and hands the settings on", async () => {
     forgetProwlarrKey.mockResolvedValue(SERVER)
     const { onForgotten, onSaved } = renderForm(true)
@@ -157,6 +167,7 @@ describe('ProwlarrKeyForm', () => {
     it.each([
       ['an address it refuses', new serverSettings.SettingsError(400, 'invalid-address'), 'Enter an address that starts with http:// or https://, with no login, ? or # in it'],
       ['an address that doesn’t answer', new serverSettings.SettingsError(502, 'unreachable'), 'Nothing answers at this address. Check it, and that Prowlarr is running.'],
+      ['an address that doesn’t answer, and why (#508)', new serverSettings.SettingsError(502, 'unreachable', 'http'), 'Prowlarr answers here without HTTPS: start the address with http://.'],
     ])('says on the address field when the server finds %s, and clears it on typing', async (_name, error, message) => {
       saveProwlarrKey.mockRejectedValue(error)
       const { address, field, save } = renderWithAddress()

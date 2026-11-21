@@ -6,6 +6,7 @@ import { Button } from '../components/Button'
 import { EmptyState } from '../components/EmptyState'
 import { FilterChip } from '../components/FilterChip'
 import { formatList } from '../i18n/formatList'
+import { failureText } from '../lib/failureText'
 import type { TitleDetails } from '../releases/releaseQuery'
 import { AddReleaseSheet } from './AddReleaseSheet'
 import { ProwlarrSetupState } from './ProwlarrSetupState'
@@ -39,7 +40,7 @@ export function ReleasesBody({ releases, skeleton, children, countInList = false
     case 'error':
       return (
         <EmptyState icon="wifi-off" tone="error" title={t('noAnswer.prowlarr')} actionLabel={t('common.retry')} actionIcon="refresh" onAction={releases.retry}>
-          {t('releases.errorBody')}
+          {failureText(t, 'prowlarr', releases.failure) ?? t('releases.errorBody')}
         </EmptyState>
       )
     case 'loading':

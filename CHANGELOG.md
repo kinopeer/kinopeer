@@ -8,6 +8,10 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 
 - Kinopeer's image installs on its own next to a qBittorrent and a Prowlarr you already run, in Docker, installed on the machine, on another computer or on a seedbox: run it with `docker run` or a Compose file with Kinopeer alone, set its password and enter their addresses in the app. The README's Install next to your own qBittorrent and Prowlarr says which address a container reaches them at and what to check when one doesn't connect, and installs it the same way on TrueNAS (24.10 and later) and CasaOS or ZimaOS, with their own qBittorrent and Prowlarr apps. The bug form asks for this install and Docker Compose's. ([#507](https://github.com/kinopeer/kinopeer/issues/507))
 
+### Changed
+
+- When Kinopeer's server can't reach qBittorrent or Prowlarr, the app says why and what to check: a host name that doesn't resolve, a port nothing listens on (for qBittorrent, its Web UI off or listening on 127.0.0.1 only), no answer in time, an https address on a plain HTTP port, a certificate the server doesn't trust, or a connection closed with no answer. A qBittorrent that refuses the address (its Host header validation, when its Web UI is published on another port or the name is missing from its Server domains) is no longer taken for a wrong login. It's said on the connect screen and onboarding's forms, in Settings → Connections and on a title's releases. A check of an address, a login or a key now gives up after 15 seconds. ([#508](https://github.com/kinopeer/kinopeer/issues/508))
+
 ### Fixed
 
 - When Prowlarr isn't set up, a title's releases say so and open the form to enter its address (where the app can set it) and API key, as Settings → Connections does, then search again; they no longer send you to the server's `PROWLARR_URL` where the app can set the address. A key Prowlarr rejected is named as such, with the form to change it. ([#510](https://github.com/kinopeer/kinopeer/issues/510))

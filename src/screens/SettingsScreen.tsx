@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router'
 import { AuthError, signOut } from '../api/auth'
+import { failureOf } from '../api/connectionFailure'
 import { ProwlarrSetupError, getProwlarrStatus } from '../api/prowlarr'
 import { APP_VERSION_FRESH_MS, APP_VERSION_KEY, getAppVersion, getCategories, unreachable } from '../api/qbittorrent'
 import { TmdbKeyError, checkTmdb } from '../api/tmdb'
@@ -35,6 +36,7 @@ import { useTheme } from '../theme/useTheme'
 import { categoryType } from '../torrents/titleLookup'
 import { clearTitleMatches } from '../torrents/useTitleMatches'
 import tmdbLogo from '../assets/tmdb-logo.svg'
+import { failureText } from '../lib/failureText'
 import { unreachableText } from '../lib/unreachable'
 import { ChangePasswordForm } from './ChangePasswordForm'
 import { FoldersSheet } from './FoldersSheet'
@@ -383,7 +385,7 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
           <ConnectionRow
             name="qBittorrent"
             icon="server"
-            status={connectionStatus(qbittorrent, () => ({ message: t('settings.connected') }), (error) => t('noAnswer.qbittorrent', { context: unreachableText(unreachable(error)) }))}
+            status={connectionStatus(qbittorrent, () => ({ message: t('settings.connected') }), (error) => failureText(t, 'qbittorrent', failureOf(error)) ?? t('noAnswer.qbittorrent', { context: unreachableText(unreachable(error)) }))}
             onTest={qbittorrent.retry}
             editLabel={qbittorrentFromApp ? t('settings.changeQbittorrent') : undefined}
             onEdit={() => setEditingQbittorrent(true)}
@@ -396,7 +398,8 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
               // Search finds nothing without indexers, so the card warns rather than only connects.
               ({ indexers }) =>
                 indexers === 0 ? { message: t('settings.connectedNoIndexers'), warn: true } : { message: t('settings.connected') },
-              (error) => (error instanceof ProwlarrSetupError ? t('settings.prowlarrSetup') : t('noAnswer.prowlarr')),
+              (error) =>
+                error instanceof ProwlarrSetupError ? t('settings.prowlarrSetup') : (failureText(t, 'prowlarr', failureOf(error)) ?? t('noAnswer.prowlarr')),
             )}
             onTest={prowlarr.retry}
             editLabel={t('prowlarrKey.change', { context: prowlarrFromApp ? 'address' : undefined })}

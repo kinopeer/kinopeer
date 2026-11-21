@@ -1,9 +1,11 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { failureOf, type ConnectionFailure } from '../api/connectionFailure'
 import { SettingsError, forgetProwlarrKey, saveProwlarrKey, type ServerSettings } from '../api/settings'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { Input } from '../components/Input'
+import { failureText } from '../lib/failureText'
 
 export interface ProwlarrKeyFormProps {
   onSaved: (settings: ServerSettings) => void
@@ -63,6 +65,8 @@ export function ProwlarrKeyForm({
   // One request at a time: saving and forgetting at once would race for what the server keeps.
   const [busy, setBusy] = useState<'save' | 'forget' | null>(null)
   const [error, setError] = useState<FormError>(null)
+  // Why Prowlarr didn't answer the check, where the server could tell (#508).
+  const [failure, setFailure] = useState<ConnectionFailure>()
 
   const run = async (kind: 'save' | 'forget', request: () => Promise<ServerSettings>, done: (settings: ServerSettings) => void) => {
     if (busy) return
@@ -72,6 +76,7 @@ export function ProwlarrKeyForm({
       done(await request())
     } catch (e) {
       const error = formError(e, kind)
+      setFailure(failureOf(e))
       setError(error)
       setBusy(null)
       if (error === 'env-address') onEnvAddress?.()
@@ -83,13 +88,23 @@ export function ProwlarrKeyForm({
     void run('save', () => (askAddress ? saveProwlarrKey(apiKey.trim(), address) : saveProwlarrKey(apiKey.trim())), onSaved)
   }
   // With an address sent, the server is there and says that address didn't answer: the field's to fix.
-  const addressError = (error === 'invalid-address' && t('address.invalid')) || (askAddress && error === 'unreachable' && t('prowlarrKey.addressUnreachable'))
+  const why = failureText(t, 'prowlarr', failure)
+  const addressError =
+    (error === 'invalid-address' && t('address.invalid')) || (askAddress && error === 'unreachable' && (why ?? t('prowlarrKey.addressUnreachable')))
 
   return (
     <form className="key-form" onSubmit={handleSubmit}>
       <p className="t-body c2">{t('prowlarrKey.help')}</p>
 
-      {error === 'unreachable' && !askAddress && <Banner tone="error">{t('prowlarrKey.unreachable')}</Banner>}
+      {error === 'unreachable' &&
+        !askAddress &&
+        (why ? (
+          <Banner tone="error" title={t('noAnswer.prowlarr')}>
+            {why}
+          </Banner>
+        ) : (
+          <Banner tone="error">{t('prowlarrKey.unreachable')}</Banner>
+        ))}
       {error === 'not-prowlarr' && (
         <Banner tone="error">{t('prowlarrKey.notProwlarr', { context: askAddress || addressFromApp ? 'app' : undefined })}</Banner>
       )}

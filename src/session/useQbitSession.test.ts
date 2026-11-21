@@ -82,6 +82,12 @@ describe('useQbitSession', () => {
     expect(result.current.session).toEqual({ status: 'connected', version: '5.2.4' })
   })
 
+  it('keeps why qBittorrent didn’t answer the check, where the server could tell (#508)', async () => {
+    getAppVersion.mockRejectedValue(new api.QbittorrentError('qBittorrent responded 502', 502, 'refused'))
+    const { result } = renderHook(() => useQbitSession())
+    await waitFor(() => expect(result.current.session).toStrictEqual({ status: 'unreachable', who: 'qbittorrent', failure: 'refused' }))
+  })
+
   it('saves the login on the server and connects', async () => {
     getAppVersion.mockRejectedValueOnce(new api.UnauthorizedError()).mockResolvedValue('5.2.4')
     login.mockResolvedValue(SAVED)

@@ -223,6 +223,16 @@ describe('SettingsScreen', () => {
     expect(await within(connection('TMDB')).findByRole('status', { name: saying('TMDB isn’t answering') })).toBeInTheDocument()
   })
 
+  it('says why qBittorrent or Prowlarr didn’t answer its check, where the server could tell (#508)', async () => {
+    vi.mocked(qbt.getAppVersion).mockRejectedValue(new qbt.QbittorrentError('down', 502, 'certificate'))
+    vi.mocked(prowlarr.getProwlarrStatus).mockRejectedValue(new prowlarr.ProwlarrError('down', 502, 'unreachable', 'closed'))
+    renderScreen()
+    const qbittorrentWhy = 'Kinopeer’s server doesn’t trust qBittorrent’s certificate. Use its http:// address.'
+    expect(await within(connection('qBittorrent')).findByRole('status', { name: saying(qbittorrentWhy) })).toBeInTheDocument()
+    const prowlarrWhy = 'The connection closed without an answer: check the port, and http:// or https:// at the start.'
+    expect(await within(connection('Prowlarr')).findByRole('status', { name: saying(prowlarrWhy) })).toBeInTheDocument()
+  })
+
   it('explains failures and shows the service connected after Test', async () => {
     vi.mocked(prowlarr.getProwlarrStatus).mockRejectedValue(new prowlarr.ProwlarrSetupError(502, 'unauthorized'))
     vi.mocked(tmdb.checkTmdb).mockRejectedValue(new tmdb.TmdbKeyError(401))

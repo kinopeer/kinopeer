@@ -93,7 +93,10 @@ describe('vite.config.ts', () => {
   // The test stand runs under the Content-Security-Policy; the dev server's pages run Vite's
   // inline scripts, which it would block.
   it('sends the Content-Security-Policy from the preview server and not the dev server', async () => {
-    const [fromDev, fromPreview] = await Promise.all([startDev(), startPreview()].map(async (port) => fetch(`http://127.0.0.1:${await port}/`)))
+    // One after the other: with port 0 Vite probes for a free port with a socket of its own, closes it, then
+    // listens, so two servers started at once can both be handed the port just freed (seen on CI's Linux).
+    const fromDev = await fetch(`http://127.0.0.1:${await startDev()}/`)
+    const fromPreview = await fetch(`http://127.0.0.1:${await startPreview()}/`)
     expect(fromPreview.headers.get('content-security-policy')).toBe(CONTENT_SECURITY_POLICY)
     expect(fromDev.headers.has('content-security-policy')).toBe(false)
   })

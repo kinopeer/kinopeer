@@ -21,6 +21,7 @@ import type {
 } from '../src/api/settings/types.ts'
 import { abandoned } from './abandoned.ts'
 import { baseOf, parseAddress } from './address.ts'
+import { connectionFailure } from './connectionFailure.ts'
 import { isJsonRequest, readJson, sendJson } from './json.ts'
 import { JsonFile } from './jsonFile.ts'
 import { checkProwlarrKey, readProwlarrApiKey, type Middleware } from './prowlarr.ts'
@@ -137,6 +138,8 @@ export interface SettingsConfig {
   tmdbApiBase?: string
   /** How long TMDB may take to answer a key check; TMDB_TIMEOUT_MS by default. */
   tmdbTimeoutMs?: number
+  /** How long qBittorrent or Prowlarr may take to answer a check; ADDRESS_CHECK_TIMEOUT_MS by default. */
+  checkTimeoutMs?: number
   /** Whether some channel sends notifications (server/notifier.ts); none without it. */
   notifications?: () => boolean
   /** How many devices get push notifications (server/push.ts); none without it. */
@@ -202,9 +205,16 @@ export function qbittorrentCredentials(
 const PREFIX = '/api/settings'
 const MAX_BODY_BYTES = 16 * 1024
 
-function fail(response: ServerResponse, status: number, error: SettingsErrorBody['error']): void {
-  sendJson(response, status, { error } satisfies SettingsErrorBody)
+function fail(response: ServerResponse, status: number, error: SettingsErrorBody['error'], failure?: SettingsErrorBody['failure']): void {
+  sendJson(response, status, { error, ...(failure && { failure }) } satisfies SettingsErrorBody)
 }
+
+/**
+ * How long qBittorrent or Prowlarr may take to answer the check of an address, a login or a key: past
+ * undici's 10 seconds to connect, for a service that takes the connection and never answers, which
+ * would otherwise hold the form for undici's 5 minutes.
+ */
+export const ADDRESS_CHECK_TIMEOUT_MS = 15_000
 
 function status(saved: string | undefined, env: string | undefined): SecretStatus {
   const source = saved?.trim() ? 'saved' : env?.trim() ? 'env' : null
@@ -334,8 +344,13 @@ async function forgetTmdbKey(config: SettingsConfig, _request: IncomingMessage, 
   await save(config, response, config.store.update({ tmdbApiKey: undefined }))
 }
 
+/** A service's check: given up when the browser goes, or after `checkTimeoutMs`. Taken before the first await. */
+function checkSignal(config: SettingsConfig, response: ServerResponse): AbortSignal {
+  return AbortSignal.any([abandoned(response), AbortSignal.timeout(config.checkTimeoutMs ?? ADDRESS_CHECK_TIMEOUT_MS)])
+}
+
 async function saveProwlarrKey(config: SettingsConfig, request: IncomingMessage, response: ServerResponse) {
-  const signal = abandoned(response)
+  const signal = checkSignal(config, response)
   let body: Partial<ProwlarrKeyBody> | null
   try {
     body = (await readJson(request, MAX_BODY_BYTES)) as Partial<ProwlarrKeyBody> | null
@@ -352,8 +367,8 @@ async function saveProwlarrKey(config: SettingsConfig, request: IncomingMessage,
   let result: Awaited<ReturnType<typeof checkProwlarrKey>>
   try {
     result = await checkProwlarrKey(base, apiKey.trim(), signal)
-  } catch {
-    return fail(response, 502, 'unreachable')
+  } catch (error) {
+    return fail(response, 502, 'unreachable', connectionFailure(error))
   }
   if (result === 'invalid') return fail(response, 422, 'invalid-key')
   if (result === 'not-prowlarr') return fail(response, 502, 'not-prowlarr')
@@ -368,7 +383,7 @@ async function forgetProwlarrKey(config: SettingsConfig, _request: IncomingMessa
 
 async function saveQbittorrentLogin(config: SettingsConfig, request: IncomingMessage, response: ServerResponse) {
   // The browser's own attempt, not the shared session's login, so it's given up with the browser.
-  const signal = abandoned(response)
+  const signal = checkSignal(config, response)
   let body: Partial<QbittorrentLoginBody> | null
   try {
     body = (await readJson(request, MAX_BODY_BYTES)) as Partial<QbittorrentLoginBody> | null
@@ -388,12 +403,13 @@ async function saveQbittorrentLogin(config: SettingsConfig, request: IncomingMes
   let result: Awaited<ReturnType<typeof checkQbittorrent>>
   try {
     result = await checkQbittorrent(base, credentials, signal)
-  } catch {
-    return fail(response, 502, 'unreachable')
+  } catch (error) {
+    return fail(response, 502, 'unreachable', connectionFailure(error))
   }
   if (result === 'invalid') return fail(response, 422, 'invalid-credentials')
   if (result === 'banned') return fail(response, 429, 'banned')
   if (result === 'not-qbittorrent') return fail(response, 502, 'not-qbittorrent')
+  if (result === 'host-refused') return fail(response, 502, 'host-refused')
   await save(
     config,
     response,

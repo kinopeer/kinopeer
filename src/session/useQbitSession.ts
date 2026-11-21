@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { failureOf, type ConnectionFailure } from '../api/connectionFailure'
 import { NoAddressError, UnauthorizedError, unreachable, type Unreachable } from '../api/qbittorrent'
 import { checkAppVersion } from '../api/sharedAnswers'
 import { saveQbittorrentLogin, type ServerSettings } from '../api/settings'
@@ -14,8 +15,11 @@ export type QbitSession =
   | { status: 'signed-out' }
   /** The server has no address for qBittorrent, from its environment or the app: the app asks for one. */
   | { status: 'no-address' }
-  /** The check got no answer: from Kinopeer's server (or the way to it) or from qBittorrent behind it. */
-  | { status: 'unreachable'; who: Unreachable }
+  /**
+   * The check got no answer: from Kinopeer's server (or the way to it) or from qBittorrent behind
+   * it, with why qBittorrent didn't answer where the server could tell.
+   */
+  | { status: 'unreachable'; who: Unreachable; failure?: ConnectionFailure }
 
 async function probe(): Promise<QbitSession> {
   try {
@@ -24,7 +28,7 @@ async function probe(): Promise<QbitSession> {
   } catch (error) {
     if (error instanceof UnauthorizedError) return { status: 'signed-out' }
     if (error instanceof NoAddressError) return { status: 'no-address' }
-    return { status: 'unreachable', who: unreachable(error) }
+    return { status: 'unreachable', who: unreachable(error), failure: failureOf(error) }
   }
 }
 

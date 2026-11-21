@@ -1,4 +1,5 @@
 import { MAX_FAILING_WITHIN_MS, type FailingIndexers, type MagnetResponse, type ProwlarrErrorBody, type ProwlarrStatus, type Release, type SearchType } from './types'
+import { knownFailure, type ConnectionFailure } from '../connectionFailure'
 import { fetchKinopeer } from '../fetchKinopeer'
 
 /** Same-origin prefix served by Kinopeer's Prowlarr bridge (server/prowlarr.ts). */
@@ -7,12 +8,15 @@ export const PROWLARR_BASE = '/prowlarr'
 export class ProwlarrError extends Error {
   readonly status: number
   readonly code?: ProwlarrErrorBody['error']
+  /** Why Prowlarr didn't answer (`unreachable`), where the server could tell. */
+  readonly failure?: ConnectionFailure
 
-  constructor(message: string, status: number, code?: ProwlarrErrorBody['error']) {
+  constructor(message: string, status: number, code?: ProwlarrErrorBody['error'], failure?: ConnectionFailure) {
     super(message)
     this.name = 'ProwlarrError'
     this.status = status
     this.code = code
+    this.failure = failure
   }
 }
 
@@ -25,13 +29,14 @@ export class ProwlarrSetupError extends ProwlarrError {
 }
 
 async function errorFor(response: Response): Promise<ProwlarrError> {
-  let code: ProwlarrErrorBody['error'] | undefined
+  let body: Partial<ProwlarrErrorBody> = {}
   if (response.headers.get('content-type')?.includes('application/json')) {
-    code = ((await response.json().catch(() => ({}))) as Partial<ProwlarrErrorBody>).error
+    body = (await response.json().catch(() => ({}))) as Partial<ProwlarrErrorBody>
   }
+  const code = body.error
   // No JSON at all: the server has no /prowlarr route (e.g. an old build), so treat it as setup.
   if (code === 'not-configured' || code === 'unauthorized' || !code) return new ProwlarrSetupError(response.status, code)
-  return new ProwlarrError(`Prowlarr request failed (${code})`, response.status, code)
+  return new ProwlarrError(`Prowlarr request failed (${code})`, response.status, code, knownFailure(body.failure))
 }
 
 export interface SearchOptions {

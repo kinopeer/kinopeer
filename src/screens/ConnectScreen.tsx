@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import type { ConnectionFailure } from '../api/connectionFailure'
 import type { Unreachable } from '../api/qbittorrent'
 import { SERVER_SETTINGS_FRESH_MS, SERVER_SETTINGS_KEY, getServerSettings } from '../api/settings'
 import { Button } from '../components/Button'
@@ -13,6 +14,8 @@ import './ConnectScreen.css'
 export interface ConnectScreenProps {
   /** Who didn't answer the session check: shown in place of the form, with Retry. */
   unreachable?: Unreachable
+  /** Why qBittorrent didn't answer it, where the server could tell. */
+  failure?: ConnectionFailure
   /** The version of a qBittorrent older than Kinopeer works with: said in place of the form, with Retry. */
   unsupported?: string
   /** The server has no address for qBittorrent: the form asks for one, and a login only where qBittorrent wants one. */
@@ -22,7 +25,7 @@ export interface ConnectScreenProps {
   onSignIn: (username: string, password: string, url?: string) => Promise<unknown>
 }
 
-export function ConnectScreen({ unreachable: unreachableProp, unsupported, noAddress = false, onRetry, onSignIn }: ConnectScreenProps) {
+export function ConnectScreen({ unreachable: unreachableProp, failure, unsupported, noAddress = false, onRetry, onSignIn }: ConnectScreenProps) {
   const { t } = useTranslation()
   // Only an address saved from the app can be changed here, and only behind Kinopeer's own login:
   // the server refuses one otherwise. Not asked while the server itself doesn't answer.
@@ -46,7 +49,7 @@ export function ConnectScreen({ unreachable: unreachableProp, unsupported, noAdd
     unsupported !== undefined ? (
       <UnsupportedQbittorrent version={unsupported} onRetry={onRetry} />
     ) : (
-      unreachableProp && <UnreachableState unreachable={unreachableProp} onRetry={onRetry} texts="connect" />
+      unreachableProp && <UnreachableState unreachable={unreachableProp} failure={failure} onRetry={onRetry} texts="connect" />
     )
   if (notice && !askAddress) {
     return (

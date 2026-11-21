@@ -5,6 +5,7 @@ import {
   APP_VERSION_FRESH_MS,
   APP_VERSION_KEY,
   BRIDGE_HEADER,
+  FAILURE_HEADER,
   KinopeerUnreachableError,
   NoAddressError,
   QbittorrentError,
@@ -332,6 +333,19 @@ describe('getAppVersion', () => {
     // Any other failure of the bridge is qBittorrent's.
     respond('', 503)
     await expect(getAppVersion()).rejects.not.toBeInstanceOf(NoAddressError)
+  })
+
+  it('passes on why qBittorrent didn’t answer the bridge, where the server could tell (#508)', async () => {
+    const failed = (failure?: string) =>
+      new Response('qBittorrent is unreachable', { status: 502, headers: { [BRIDGE_HEADER]: '1', ...(failure && { [FAILURE_HEADER]: failure }) } })
+    fetchMock.mockResolvedValueOnce(failed('timeout'))
+    await expect(getAppVersion()).rejects.toMatchObject({ status: 502, failure: 'timeout' })
+    for (const failure of [undefined, 'solar-flare']) {
+      fetchMock.mockResolvedValueOnce(failed(failure))
+      const error = await getAppVersion().catch((caught: unknown) => caught)
+      expect(error, failure).toMatchObject({ status: 502 })
+      expect((error as QbittorrentError).failure, failure).toBeUndefined()
+    }
   })
 })
 

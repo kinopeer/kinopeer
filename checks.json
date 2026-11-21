@@ -20,7 +20,7 @@
     "testsLeftOut": ["/checks.test.ts"]
   },
   "budgets": {
-    "size": { "js": 196600, "css": 16200, "rest": 193600 },
+    "size": { "js": 197500, "css": 16200, "rest": 193600 },
     "layoutShiftCeiling": 0.1,
     "screenshotThreshold": 0.1,
     "layoutShift": {
