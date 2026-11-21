@@ -9,7 +9,7 @@ import { parseRelease } from '../releases/parseRelease'
 import { DUNE_RELEASES } from '../test/fixtures'
 import { ReleasesBody, ReleasesCount } from './ReleasesBlock'
 import type { Releases } from './useReleases'
-import { saying } from '../test/render'
+import { findToastOnPage, saying } from '../test/render'
 
 vi.mock('../api/settings', async (importOriginal) => ({
   ...(await importOriginal<typeof settings>()),
@@ -102,7 +102,7 @@ describe('ReleasesBody', () => {
     await userEvent.type(within(sheet).getByLabelText('Prowlarr API key'), 'abc123')
     await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
     expect(settings.saveProwlarrKey).toHaveBeenCalledWith('abc123', 'http://prowlarr:9696')
-    expect(await screen.findByText('Prowlarr address and key saved')).toBeInTheDocument()
+    expect(await findToastOnPage('Prowlarr address and key saved')).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(search.retry).toHaveBeenCalledOnce()
   })
@@ -138,7 +138,7 @@ describe('ReleasesBody', () => {
     await userEvent.type(within(sheet).getByLabelText('Prowlarr API key'), 'new-key')
     await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
     expect(settings.saveProwlarrKey).toHaveBeenCalledWith('new-key', 'http://prowlarr:9696')
-    expect(await screen.findByText('Prowlarr address and key saved')).toBeInTheDocument()
+    expect(await findToastOnPage('Prowlarr address and key saved')).toBeInTheDocument()
     expect(search.retry).toHaveBeenCalledOnce()
   })
 

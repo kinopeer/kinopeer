@@ -2,6 +2,12 @@
 
 Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor versions could change behavior and settings.
 
+## Unreleased
+
+### Fixed
+
+- When Prowlarr isn't set up, a title's releases say so and open the form to enter its address and API key, as Settings → Connections does, then search again; they no longer send you to the server's `PROWLARR_URL`, which Kinopeer doesn't need since 1.1.0. A key Prowlarr rejected is named as such, with the form to change it. ([#510](https://github.com/kinopeer/kinopeer/issues/510))
+
 ## 1.1.0 - 2026-11-21
 
 Kinopeer goes beyond Umbrel: it installs with Docker Compose beside qBittorrent and Prowlarr, has a password of its own, asks for their addresses itself and answers only at the addresses it's meant to be reached at. It tells you when a download finishes, in Telegram or with a push notification, changes qBittorrent's folders from Settings, and marks what you already have in Search, a title's releases and the add sheet. Screens no longer move as their data comes in.

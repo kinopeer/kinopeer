@@ -53,7 +53,11 @@ export interface ActiveFilter {
   remove: Partial<Filters>
 }
 
-export type ReleasesStatus = 'loading' | 'setup' | 'error' | 'none' | 'ready'
+/**
+ * 'setup': the server has no address or key for Prowlarr; 'rejected': Prowlarr rejected the server's
+ * key; 'error': Prowlarr or the server didn't answer.
+ */
+export type ReleasesStatus = 'loading' | 'setup' | 'rejected' | 'error' | 'none' | 'ready'
 
 export interface Releases {
   status: ReleasesStatus
@@ -186,7 +190,9 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
 
   const status: ReleasesStatus =
     search.error instanceof ProwlarrSetupError
-      ? 'setup'
+      ? search.error.code === 'unauthorized'
+        ? 'rejected'
+        : 'setup'
       : search.error
         ? 'error'
         : !search.data

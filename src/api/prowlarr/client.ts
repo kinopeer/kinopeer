@@ -16,7 +16,7 @@ export class ProwlarrError extends Error {
   }
 }
 
-/** PROWLARR_URL or PROWLARR_API_KEY isn't set on the server, or Prowlarr rejected the key. */
+/** The server has no address or key for Prowlarr (`not-configured`), or Prowlarr rejected its key (`unauthorized`). */
 export class ProwlarrSetupError extends ProwlarrError {
   constructor(status: number, code?: ProwlarrErrorBody['error']) {
     super('Prowlarr is not configured or rejected the API key', status, code)
