@@ -73,12 +73,12 @@ from when the PR was marked ready.
 
 `Mutants report`, when the PR changes a path in `mutants.yml`'s `paths`, isn't waited for before
 the round: run section 3 while it runs, and post the round only once it's there, polling for it
-up to the `timeout-minutes` of the `mutants` job in the head's `.github/workflows/mutants.yml`.
-That job takes longer than the others on a big diff (up to 46 minutes, #520), and stopping at
-30 minutes left #498 waiting twice for a run that then passed (#477 noted it for the retro).
-`/test-review` run before it says `no report yet` for its K: read the report once it's there and
-judge its survivors by K yourself, as findings of the same round. One review before the report
-and another after it would split the round in two.
+up to the `timeout-minutes` of the `mutants` job in the head's `.github/workflows/mutants.yml`,
+counted from when the PR was marked ready. That job takes longer than the others on a big diff
+(up to 46 minutes, #520), and stopping at 30 minutes left #498 waiting twice for a run that then
+passed (#477 noted it for the retro). Its survivors are judged by `/test-review`'s K once it's
+there, as findings of the same round under `K`, tagged like any other. One review before the
+report and another after it would split the round in two.
 
 - **A failed check:** post a review with `event=COMMENT`, headed `CI at <short sha>`, that names
   the failed checks and nothing else, convert the PR to a draft, and stop. Fixing CI is the
@@ -229,9 +229,11 @@ notification and end the turn. When the owner answers:
 
 They get no rounds and no template (`docs/TESTING.md` → Reviewing a PR's tests). Dependabot opens
 them ready for review, which doesn't wake you: the coordinator does, when its task brings them in,
-by converting each to a draft and marking it ready again. Wait for CI as in section 2, but with
-no `CI at` review and no draft: a red check gets the comment below; checks still running after
-section 2's wait get a comment naming them. The coordinator watches the PRs it brought in until they are
+by converting each to a draft and marking it ready again. Wait for CI as in section 2, and for
+`Mutants report` too when the PR changes a path in `mutants.yml`'s `paths` (every npm bump
+changes `package.json` and the lockfile), up to the same timeout, since its dry run is what
+catches a bump that breaks Stryker (#285); but with no `CI at` review and no draft: a red check, `Mutants report` among them, gets the comment below; checks still running after
+their wait get a comment naming them. The coordinator watches the PRs it brought in until they are
 approved, and wakes you again once their checks have finished.
 
 - **Green, no major:** approve, with one line saying CI is green at the head.
