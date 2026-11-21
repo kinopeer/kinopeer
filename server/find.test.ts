@@ -7,6 +7,7 @@ import {
   PARALLEL,
   USUAL,
   candidateHosts,
+  isPrivate,
   findService,
   identifies,
   opens,
@@ -61,6 +62,33 @@ describe('subnetHosts', () => {
 
   it('scans nothing without a network of its own', () => {
     expect(subnetHosts({ lo: [v4('127.0.0.1', '127.0.0.1/8', true)] } as Interfaces)).toEqual([])
+  })
+
+  it('scans no public address’s /24, a provider’s other customers, beside a private one', () => {
+    const hosts = subnetHosts({ eth0: [v4('203.0.113.5', '203.0.113.5/24')], wg0: [v4('10.8.0.2', '10.8.0.2/24')] } as Interfaces)
+    expect(hosts).toHaveLength(253)
+    expect(hosts.every((host) => host.startsWith('10.8.0.'))).toBe(true)
+  })
+
+})
+
+describe('isPrivate', () => {
+  it.each([
+    ['10.0.0.1', true],
+    ['172.16.0.1', true],
+    ['172.31.255.254', true],
+    ['192.168.1.10', true],
+    ['100.64.0.1', true],
+    ['100.127.255.254', true],
+    ['172.15.0.1', false],
+    ['172.32.0.1', false],
+    ['192.167.1.1', false],
+    ['100.63.0.1', false],
+    ['100.128.0.1', false],
+    ['11.0.0.1', false],
+    ['203.0.113.5', false],
+  ])('%s is private: %s', (address, expected) => {
+    expect(isPrivate(address)).toBe(expected)
   })
 })
 

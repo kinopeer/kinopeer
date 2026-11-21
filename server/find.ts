@@ -42,16 +42,27 @@ export interface FindSystem {
 }
 
 /**
- * Every host of the /24 around each IPv4 address on the server's own interfaces but loopback (.1
- * to .254), the server's own addresses left out, at most MAX_SUBNETS of them in the interfaces'
- * order. A network wider than a /24 (Docker's /16) is scanned around the server's address only.
+ * Whether an IPv4 address is in a private range (RFC 1918's, and the shared 100.64.0.0/10 of
+ * carrier-grade NAT and Tailscale): the server's own network, where a public one is a provider's,
+ * other people's machines, which a scan of would read as a port scan (SPEC's decision log).
+ */
+export function isPrivate(address: string): boolean {
+  const [a, b] = address.split('.').map(Number)
+  return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127)
+}
+
+/**
+ * Every host of the /24 around each private IPv4 address on the server's own interfaces but
+ * loopback (.1 to .254), the server's own addresses left out, at most MAX_SUBNETS of them in the
+ * interfaces' order. A network wider than a /24 (Docker's /16) is scanned around the server's
+ * address only, and a public address not at all.
  */
 export function subnetHosts(interfaces: ReturnType<typeof networkInterfaces>): string[] {
   const own = Object.values(interfaces)
     .flat()
     .filter((entry) => entry?.family === 'IPv4' && !entry.internal)
     .map((entry) => entry!.address)
-  const prefixes = [...new Set(own.map((address) => address.split('.').slice(0, 3).join('.')))].slice(0, MAX_SUBNETS)
+  const prefixes = [...new Set(own.filter(isPrivate).map((address) => address.split('.').slice(0, 3).join('.')))].slice(0, MAX_SUBNETS)
   return prefixes.flatMap((prefix) => Array.from({ length: 254 }, (_, i) => `${prefix}.${i + 1}`)).filter((host) => !own.includes(host))
 }
 
