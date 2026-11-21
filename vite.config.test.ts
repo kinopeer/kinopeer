@@ -8,6 +8,7 @@ import { createServer, preview, resolveConfig } from 'vite'
 import { refusal } from './server/hostCheck.ts'
 import { CONTENT_SECURITY_POLICY, SECURITY_HEADERS } from './server/securityHeaders.ts'
 import { getWithHost } from './server/test/fakes.ts'
+import { BaseSequencer, type TestSequencerConstructor, type TestSpecification, type Vitest } from 'vitest/node'
 import { chunkFileName, inlineTouchIconPlugin } from './vite.config.ts'
 
 /**
@@ -175,5 +176,47 @@ describe('chunkFileName', () => {
     ['no module', null],
   ])('names a chunk of %s as Vite does', (_what, facadeModuleId) => {
     expect(chunkFileName({ facadeModuleId })).toBe('assets/[name]-[hash].js')
+  })
+})
+
+describe('RelatedFilesFirst', () => {
+  /** Files of three sizes, so Vitest's own order, larger first while it has no results, is known. */
+  async function specs(): Promise<TestSpecification[]> {
+    const project = { name: 'server', config: { sequence: { groupOrder: 0 }, isolate: true } }
+    const sizes = { 'big.test.ts': 300, 'container.test.ts': 100, 'mid.test.ts': 200 }
+    return Promise.all(
+      Object.entries(sizes).map(async ([name, size]) => {
+        const moduleId = join(dir, name)
+        await writeFile(moduleId, 'x'.repeat(size))
+        return { moduleId, project } as unknown as TestSpecification
+      }),
+    )
+  }
+
+  /** What a sequencer reads of Vitest: a run related to `related`, cut into `shard`, with no results kept. */
+  const context = (related?: string[], shard?: { index: number; count: number }) =>
+    ({ config: { related, shard, root: dir }, cache: { getTestSpecificationResult: () => undefined } }) as unknown as Vitest
+
+  /** The sequencer this config gives Vitest, as `vitest` resolves it, over `context`'s run. */
+  async function sequencer(related?: string[], shard?: { index: number; count: number }) {
+    const config = (await resolveConfig(options, 'serve', 'test')) as { test?: { sequence?: { sequencer?: TestSequencerConstructor } } }
+    const Sequencer = config.test?.sequence?.sequencer
+    if (!Sequencer) throw new Error('vite.config.ts gives Vitest no sequencer')
+    return new Sequencer(context(related, shard))
+  }
+  const names = (files: TestSpecification[]) => files.map((spec) => spec.moduleId.slice(dir.length + 1))
+
+  it("runs the tests named after a related file first, the rest in Vitest's order", async () => {
+    expect(names(await (await sequencer(['/sandbox/server/container.ts'])).sort(await specs()))).toStrictEqual(['container.test.ts', 'big.test.ts', 'mid.test.ts'])
+  })
+
+  it("keeps Vitest's order in a run of every test", async () => {
+    expect(names(await (await sequencer()).sort(await specs()))).toStrictEqual(['big.test.ts', 'mid.test.ts', 'container.test.ts'])
+  })
+
+  it.each([1, 2])("shards as Vitest does: shard %i of 2 holds the files Vitest's own sequencer puts there", async (index) => {
+    const files = await specs()
+    const shard = { index, count: 2 }
+    expect(names(await (await sequencer(undefined, shard)).shard(files))).toStrictEqual(names(await new BaseSequencer(context(undefined, shard)).shard(files)))
   })
 })
