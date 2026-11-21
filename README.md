@@ -148,7 +148,7 @@ If you already run qBittorrent (4.6.0 or later) and Prowlarr, in Docker, install
 
 The addresses can also come from the server's environment, `QBITTORRENT_URL` and `PROWLARR_URL` with the other variables in [DEVELOPMENT.md](docs/DEVELOPMENT.md#server-configuration); an address set there wins, and the app doesn't ask for it.
 
-**Which address to enter.** Inside Kinopeer's container, `localhost` is Kinopeer itself, not your server. Use one of these, with the port the service's web UI answers at:
+**Which address to enter.** Inside Kinopeer's container, `localhost` and `127.0.0.1` lead into the container itself, not to your server. Use one of these, with the port the service's web UI answers at:
 
 - The machine's address on your network, such as `http://192.168.1.10:8080`: for a qBittorrent or Prowlarr anywhere on your network, the same machine included, and a seedbox's address the same way.
 - `http://host.docker.internal:8080` for one on the same machine: Docker Desktop has that name; on Linux, add `--add-host=host.docker.internal:host-gateway` to `docker run` (`extra_hosts: ["host.docker.internal:host-gateway"]` in Compose).

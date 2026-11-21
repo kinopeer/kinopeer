@@ -191,4 +191,22 @@ export interface SettingsErrorBody {
     | 'chat-rejected'
   /** With `unreachable` from qBittorrent's or Prowlarr's check: why it didn't answer, where the server could tell (#508). */
   failure?: ConnectionFailure
+  /**
+   * With `unreachable`, `not-qbittorrent` or `not-prowlarr` for an address on localhost while
+   * Kinopeer runs in a container, where localhost leads into the container (#509): `hostAddress` is the
+   * same address at the host, when the server knows the host's.
+   */
+  container?: { hostAddress?: string }
+  /**
+   * With `invalid-credentials` for no username while Kinopeer runs in a container, qBittorrent asking
+   * for a login: where it sees Kinopeer come from, for its auth bypass (#509).
+   */
+  source?: SourceAddress
+}
+
+/** Where qBittorrent sees Kinopeer's requests come from: its address and its network's subnet (#509). */
+export interface SourceAddress {
+  address: string
+  /** In CIDR, as qBittorrent's bypass list takes it: `172.18.0.0/16`. */
+  subnet: string
 }

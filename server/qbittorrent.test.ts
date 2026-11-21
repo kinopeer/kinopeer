@@ -1,7 +1,8 @@
 import { request as httpRequest } from 'node:http'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { baseOf } from './address.ts'
-import { checkQbittorrent, qbittorrentBridge, qbittorrentMiddleware, type QbittorrentConfig } from './qbittorrent.ts'
+import type { Container } from './container.ts'
+import { SOURCE_HEADER, checkQbittorrent, qbittorrentBridge, qbittorrentMiddleware, type QbittorrentConfig } from './qbittorrent.ts'
 import { abandon, closeServers, CLOSED_ADDRESS, fakeQbittorrent, listen, serve, settlesWithin, silentService } from './test/fakes.ts'
 
 /** Kinopeer's side, the middleware under test, with the address as the environment or the app gives it. */
@@ -60,6 +61,54 @@ describe('qbittorrentMiddleware', () => {
     })
     expect(login.status).toBe(404)
     expect(qbt.logins()).toBe(0)
+  })
+
+  describe('in a container (#509)', () => {
+    /** A container from where qBittorrent sees Kinopeer at 172.18.0.5, or (null) nowhere it can tell. */
+    function inContainer(seen: { address: string; subnet: string } | null | 'fails' = { address: '172.18.0.5', subnet: '172.18.0.0/16' }) {
+      const asked: string[] = []
+      const container: Container = {
+        hostAddress: async () => undefined,
+        sourceFor: async (host) => {
+          asked.push(host)
+          if (seen === 'fails') throw new Error('no answer')
+          return seen ?? undefined
+        },
+      }
+      return { container, asked }
+    }
+
+    it('says where qBittorrent sees Kinopeer come from when it asks for a login the server has none for', async () => {
+      const qbt = await fakeQbittorrent()
+      const { container, asked } = inContainer()
+      const response = await call(`${await kinopeer({ url: qbt.base, container })}/qbt/api/v2/app/version`)
+      expect([response.status, response.headers.get(SOURCE_HEADER)]).toEqual([403, '172.18.0.5 172.18.0.0/16'])
+      expect(asked).toEqual(['127.0.0.1'])
+    })
+
+    it('says nothing with a login of the server’s, where it can’t tell, or outside a container', async () => {
+      const qbt = await fakeQbittorrent()
+      vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const withLogin = inContainer()
+      const login = await call(`${await kinopeer({ url: qbt.base, container: withLogin.container, credentials: () => ({ username: 'admin', password: 'wrong' }) })}/qbt/api/v2/app/version`)
+      expect([login.status, login.headers.get(SOURCE_HEADER)]).toEqual([403, null])
+      expect(withLogin.asked).toEqual([])
+
+      const unknown = await call(`${await kinopeer({ url: qbt.base, container: inContainer(null).container })}/qbt/api/v2/app/version`)
+      expect([unknown.status, unknown.headers.get(SOURCE_HEADER)]).toEqual([403, null])
+      // A hint that can't be had leaves qBittorrent's answer as it is.
+      const failed = await call(`${await kinopeer({ url: qbt.base, container: inContainer('fails').container })}/qbt/api/v2/app/version`)
+      expect([failed.status, failed.headers.get(SOURCE_HEADER)]).toEqual([403, null])
+      const outside = await call(`${await kinopeer({ url: qbt.base })}/qbt/api/v2/app/version`)
+      expect([outside.status, outside.headers.get(SOURCE_HEADER)]).toEqual([403, null])
+    })
+
+    it('asks nothing when qBittorrent lets the server in', async () => {
+      const qbt = await fakeQbittorrent({ authBypass: true })
+      const { container, asked } = inContainer()
+      expect((await call(`${await kinopeer({ url: qbt.base, container })}/qbt/api/v2/app/version`)).status).toBe(200)
+      expect(asked).toEqual([])
+    })
   })
 
   it('switches to new credentials as soon as they change', async () => {

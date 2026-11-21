@@ -64,6 +64,15 @@
     "certificate": "Сервер Kinopeer не доверяет сертификату {{service}}. Укажите его адрес с http://.",
     "closed": "Соединение закрылось без ответа: проверьте порт и http:// или https:// в начале адреса."
   },
+  "container": {
+    "localhostTitle": "localhost — внутри контейнера Kinopeer",
+    "localhostInside": "В контейнере Kinopeer localhost и 127.0.0.1 ведут в сам контейнер, а не на компьютер, где он запущен.",
+    "localhostBody": "$t(container.localhostInside) Введите адрес компьютера, на котором работает {{service}}, или имя контейнера {{service}}, если у них общая сеть Docker.",
+    "localhostBody_host": "$t(container.localhostInside) Из контейнера этот компьютер виден как {{address}}. Если {{service}} работает в контейнере в общей сети Docker, введите вместо этого имя его контейнера.",
+    "useHostAddress": "Подставить этот адрес",
+    "bypassTitle": "qBittorrent не пускает Kinopeer без логина",
+    "bypassBody": "Задайте пароль в qBittorrent (Инструменты → Настройки → Веб-интерфейс) и введите логин. Или через обход авторизации: qBittorrent видит Kinopeer как {{address}}, и если добавить {{subnet}} в подсети без логина, он пустит и Kinopeer, и всё остальное из этой подсети."
+  },
   "types": {
     "movie": "Фильмы",
     "tv": "Сериалы"

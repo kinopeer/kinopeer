@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { abandoned } from './abandoned.ts'
 import { connectionFailure } from './connectionFailure.ts'
+import type { Container } from './container.ts'
 import type { Middleware } from './prowlarr.ts'
 
 /**
@@ -34,6 +35,8 @@ export interface QbittorrentConfig {
   url: () => string | undefined
   /** Read on every request, so credentials saved from the app apply at once. */
   credentials?: () => QbittorrentCredentials | undefined
+  /** The container Kinopeer runs in, for `SOURCE_HEADER`; none outside one. */
+  container?: Container
 }
 
 export type LoginResult = { status: 'ok'; cookie: string } | { status: 'invalid' } | { status: 'banned' } | { status: 'not-qbittorrent' }
@@ -157,6 +160,13 @@ export const NO_ADDRESS = 'no-address'
  * #508): `FAILURE_HEADER` in src/api/qbittorrent/client.ts. A header, since the answer is text.
  */
 export const FAILURE_HEADER = 'x-kinopeer-failure'
+
+/**
+ * Beside qBittorrent's 403 when the server has no login, in a container, qBittorrent asking for a
+ * login the server has none for: where it sees Kinopeer come from, the address and its subnet with a
+ * space between, for its auth bypass (#509). `SOURCE_HEADER` in src/api/qbittorrent/client.ts.
+ */
+export const SOURCE_HEADER = 'x-kinopeer-source'
 /**
  * What src/api/qbittorrent/client.ts calls, with its method: the only requests the bridge sends on,
  * so nothing reaches qBittorrent's logins or anything else Kinopeer doesn't use, and of its
@@ -345,6 +355,7 @@ async function forward(
   request: IncomingMessage,
   response: ServerResponse,
   path: string,
+  container: Container | undefined,
 ): Promise<void> {
   const method = request.method ?? 'GET'
   // Only the call itself: a login it waits for is the session's, shared with other requests.
@@ -369,6 +380,12 @@ async function forward(
   const upstream = await send(base, session, { method, path, headers, body, signal })
 
   response.statusCode = upstream.status
+  if (upstream.status === 403 && !session && container) {
+    // qBittorrent asks for a login the server has none for: where it sees Kinopeer, for its bypass.
+    // A hint that can't be had leaves qBittorrent's 403 as it is.
+    const source = await container.sourceFor(new URL(base).hostname).catch(() => undefined)
+    if (source) response.setHeader(SOURCE_HEADER, `${source.address} ${source.subnet}`)
+  }
   for (const name of RESPONSE_HEADERS) {
     const value = upstream.headers.get(name)
     if (value) response.setHeader(name, value)
@@ -436,7 +453,7 @@ export function qbittorrentBridge(config: QbittorrentConfig): QbittorrentBridge 
     }
     if (!request.headers[CLIENT_HEADER]) return fail(400, 'Not a request from Kinopeer')
 
-    forward(base, currentSession(base), request, response, target).catch((error: unknown) => {
+    forward(base, currentSession(base), request, response, target, config.container).catch((error: unknown) => {
       if (response.headersSent) return void response.end()
       if (error instanceof BodyTooLargeError) fail(413, 'Request body too large')
       else if (error instanceof RefusedBodyError) fail(400, 'Kinopeer changes no preference but the default save path')

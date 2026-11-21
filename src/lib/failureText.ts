@@ -1,7 +1,8 @@
 import type { TFunction } from 'i18next'
 import type { ConnectionFailure } from '../api/connectionFailure'
 
-const SERVICE_NAMES = { qbittorrent: 'qBittorrent', prowlarr: 'Prowlarr' } as const
+/** The services' names, as every language writes them. */
+export const SERVICE_NAMES = { qbittorrent: 'qBittorrent', prowlarr: 'Prowlarr' } as const
 
 /**
  * What to check when Kinopeer's server didn't reach the service for `failure` (#508), or undefined

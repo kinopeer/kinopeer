@@ -6,6 +6,7 @@ import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { Input } from '../components/Input'
 import { failureText } from '../lib/failureText'
+import { LocalhostHint } from './ContainerHints'
 
 export interface ProwlarrKeyFormProps {
   onSaved: (settings: ServerSettings) => void
@@ -67,6 +68,8 @@ export function ProwlarrKeyForm({
   const [error, setError] = useState<FormError>(null)
   // Why Prowlarr didn't answer the check, where the server could tell (#508).
   const [failure, setFailure] = useState<ConnectionFailure>()
+  // The address was localhost inside Kinopeer's container (#509), and the host's, when known.
+  const [localhost, setLocalhost] = useState<SettingsError['container']>()
 
   const run = async (kind: 'save' | 'forget', request: () => Promise<ServerSettings>, done: (settings: ServerSettings) => void) => {
     if (busy) return
@@ -77,6 +80,7 @@ export function ProwlarrKeyForm({
     } catch (e) {
       const error = formError(e, kind)
       setFailure(failureOf(e))
+      setLocalhost(e instanceof SettingsError ? e.container : undefined)
       setError(error)
       setBusy(null)
       if (error === 'env-address') onEnvAddress?.()
@@ -116,6 +120,16 @@ export function ProwlarrKeyForm({
       {error === 'storage' && <Banner tone="error">{t('keyForm.storage')}</Banner>}
       {error === 'failed' && <Banner tone="error">{t('keyForm.failed')}</Banner>}
       {error === 'forget-failed' && <Banner tone="error">{t('prowlarrKey.forgetFailed')}</Banner>}
+      {askAddress && localhost && (error === 'unreachable' || error === 'not-prowlarr') && (
+        <LocalhostHint
+          service="prowlarr"
+          hostAddress={localhost.hostAddress}
+          onUse={(hostAddress) => {
+            setAddress(hostAddress)
+            setError(null)
+          }}
+        />
+      )}
 
       {askAddress && (
         <Input
@@ -133,6 +147,8 @@ export function ProwlarrKeyForm({
           value={address}
           onChange={(event) => {
             setAddress(event.target.value)
+            // The hint was for the address checked.
+            setLocalhost(undefined)
             if (addressError) setError(null)
           }}
           error={addressError}

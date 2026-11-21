@@ -4,6 +4,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { baseOf } from './address.ts'
 import { AuthStore, authMode, envPassword, kinopeerAuth } from './auth.ts'
+import { container, type ContainerSystem } from './container.ts'
 import { allowedHosts, allowedHostsWarning, hostCheck } from './hostCheck.ts'
 import { finishedTitle } from './finishedTitle.ts'
 import { MatchesStore, matchesMiddleware, qbittorrentHashes, startMatchesCleanup } from './matches.ts'
@@ -146,9 +147,10 @@ export function loginWarning(env: Record<string, string | undefined>): string | 
  * besides the known ones (the integration tests' fake). KINOPEER_ALLOWED_HOSTS adds the host names it answers at
  * (`allowedHosts`). KINOPEER_AUTH=off turns Kinopeer's own login off (server/auth.ts), and throws
  * for a value it doesn't know, so the server doesn't start, as it does for a KINOPEER_PASSWORD
- * shorter than 8 characters or longer than 256 (`envPassword`).
+ * shorter than 8 characters or longer than 256 (`envPassword`). `system` is what the container's
+ * hints read (`ContainerSystem`), the real one unless a test fakes it.
  */
-export function kinopeerServer(env: Record<string, string | undefined>, stores: DataStores): KinopeerServer {
+export function kinopeerServer(env: Record<string, string | undefined>, stores: DataStores, system?: ContainerSystem): KinopeerServer {
   const store = stores.settings
   const auth = kinopeerAuth({ store: stores.auth, mode: authMode(env.KINOPEER_AUTH), envPassword: envPassword(env.KINOPEER_PASSWORD) })
   // The environment's login and key go only to the environment's address: where an address comes
@@ -157,9 +159,12 @@ export function kinopeerServer(env: Record<string, string | undefined>, stores: 
   const envProwlarrKey = baseOf(env.PROWLARR_URL) ? env.PROWLARR_API_KEY : undefined
   const prowlarrConfig = baseOf(env.PROWLARR_URL) ? env.PROWLARR_CONFIG_XML : undefined
   const proxy = tmdbProxy(env)
+  // The setup hints of a container (#509), read once: whether there is one doesn't change.
+  const inside = container(env, system)
   const qbittorrent = qbittorrentBridge({
     url: () => qbittorrentAddress(store, env.QBITTORRENT_URL),
     credentials: () => qbittorrentCredentials(store, envQbittorrent),
+    container: inside,
   })
   const tmdb: TmdbConfig = {
     apiKey: () => tmdbKey(store, env.TMDB_API_KEY),
@@ -186,6 +191,7 @@ export function kinopeerServer(env: Record<string, string | undefined>, stores: 
     notifications: () => channels.some((channel) => channel.ready()),
     pushDevices: () => stores.push.subscriptions.length,
     telegram,
+    container: inside,
   }
   return {
     routes: [

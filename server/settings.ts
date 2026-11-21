@@ -22,6 +22,7 @@ import type {
 import { abandoned } from './abandoned.ts'
 import { baseOf, parseAddress } from './address.ts'
 import { connectionFailure } from './connectionFailure.ts'
+import { atHost, isLoopback, type Container } from './container.ts'
 import { isJsonRequest, readJson, sendJson } from './json.ts'
 import { JsonFile } from './jsonFile.ts'
 import { checkProwlarrKey, readProwlarrApiKey, type Middleware } from './prowlarr.ts'
@@ -140,6 +141,8 @@ export interface SettingsConfig {
   tmdbTimeoutMs?: number
   /** How long qBittorrent or Prowlarr may take to answer a check; ADDRESS_CHECK_TIMEOUT_MS by default. */
   checkTimeoutMs?: number
+  /** The container Kinopeer runs in, for the hints of a failed check (#509); none outside one. */
+  container?: Container
   /** Whether some channel sends notifications (server/notifier.ts); none without it. */
   notifications?: () => boolean
   /** How many devices get push notifications (server/push.ts); none without it. */
@@ -205,8 +208,20 @@ export function qbittorrentCredentials(
 const PREFIX = '/api/settings'
 const MAX_BODY_BYTES = 16 * 1024
 
-function fail(response: ServerResponse, status: number, error: SettingsErrorBody['error'], failure?: SettingsErrorBody['failure']): void {
-  sendJson(response, status, { error, ...(failure && { failure }) } satisfies SettingsErrorBody)
+/** A refusal; what `more` leaves undefined isn't sent. */
+function fail(response: ServerResponse, status: number, error: SettingsErrorBody['error'], more: Omit<SettingsErrorBody, 'error'> = {}): void {
+  sendJson(response, status, { error, ...more } satisfies SettingsErrorBody)
+}
+
+/**
+ * For an address on localhost that didn't answer as the service while Kinopeer runs in a
+ * container: that localhost leads into the container, and the host's address may be the one (#509).
+ */
+async function localhostHint(config: SettingsConfig, base: string): Promise<SettingsErrorBody['container']> {
+  if (!config.container || !isLoopback(new URL(base).hostname)) return undefined
+  // A hint that can't be had is no reason to answer otherwise.
+  const host = await config.container.hostAddress().catch(() => undefined)
+  return host ? { hostAddress: atHost(base, host) } : {}
 }
 
 /**
@@ -368,10 +383,10 @@ async function saveProwlarrKey(config: SettingsConfig, request: IncomingMessage,
   try {
     result = await checkProwlarrKey(base, apiKey.trim(), signal)
   } catch (error) {
-    return fail(response, 502, 'unreachable', connectionFailure(error))
+    return fail(response, 502, 'unreachable', { failure: connectionFailure(error), container: await localhostHint(config, base) })
   }
   if (result === 'invalid') return fail(response, 422, 'invalid-key')
-  if (result === 'not-prowlarr') return fail(response, 502, 'not-prowlarr')
+  if (result === 'not-prowlarr') return fail(response, 502, 'not-prowlarr', { container: await localhostHint(config, base) })
   await save(config, response, config.store.update({ prowlarrApiKey: apiKey.trim(), ...(address.sent && { prowlarrUrl: base }) }))
 }
 
@@ -404,11 +419,15 @@ async function saveQbittorrentLogin(config: SettingsConfig, request: IncomingMes
   try {
     result = await checkQbittorrent(base, credentials, signal)
   } catch (error) {
-    return fail(response, 502, 'unreachable', connectionFailure(error))
+    return fail(response, 502, 'unreachable', { failure: connectionFailure(error), container: await localhostHint(config, base) })
   }
-  if (result === 'invalid') return fail(response, 422, 'invalid-credentials')
+  if (result === 'invalid') {
+    // No login means the auth bypass was to let Kinopeer in: say where qBittorrent sees it come from.
+    const source = !credentials && config.container ? await config.container.sourceFor(new URL(base).hostname).catch(() => undefined) : undefined
+    return fail(response, 422, 'invalid-credentials', { source })
+  }
   if (result === 'banned') return fail(response, 429, 'banned')
-  if (result === 'not-qbittorrent') return fail(response, 502, 'not-qbittorrent')
+  if (result === 'not-qbittorrent') return fail(response, 502, 'not-qbittorrent', { container: await localhostHint(config, base) })
   if (result === 'host-refused') return fail(response, 502, 'host-refused')
   await save(
     config,

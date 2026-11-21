@@ -52,6 +52,13 @@ describe('useQbitSession', () => {
     await waitFor(() => expect(result.current.session).toEqual({ status: 'signed-out' }))
   })
 
+  it('keeps where qBittorrent sees Kinopeer when it asks for a login (#509)', async () => {
+    const source = { address: '172.18.0.5', subnet: '172.18.0.0/16' }
+    getAppVersion.mockRejectedValue(new api.UnauthorizedError(source))
+    const { result } = renderHook(() => useQbitSession())
+    await waitFor(() => expect(result.current.session).toStrictEqual({ status: 'signed-out', source }))
+  })
+
   it('asks for an address when the server has none, then saves it with the login and connects', async () => {
     getAppVersion.mockRejectedValueOnce(new api.NoAddressError()).mockResolvedValue('5.2.4')
     login.mockResolvedValue(SAVED)

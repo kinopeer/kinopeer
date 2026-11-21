@@ -64,6 +64,15 @@
     "certificate": "Kinopeer’s server doesn’t trust {{service}}’s certificate. Use its http:// address.",
     "closed": "The connection closed without an answer: check the port, and http:// or https:// at the start."
   },
+  "container": {
+    "localhostTitle": "localhost is inside Kinopeer’s container",
+    "localhostInside": "In Kinopeer’s container, localhost and 127.0.0.1 lead into the container itself, not to the computer it runs on.",
+    "localhostBody": "$t(container.localhostInside) Enter the address of the computer {{service}} runs on, or the name of {{service}}’s container if they share a Docker network.",
+    "localhostBody_host": "$t(container.localhostInside) From the container, that computer is at {{address}}. If {{service}} runs in a container on a shared Docker network, enter that container’s name instead.",
+    "useHostAddress": "Use this address",
+    "bypassTitle": "qBittorrent doesn’t let Kinopeer in without a login",
+    "bypassBody": "Set a password in qBittorrent (Tools → Options → Web UI) and enter its login here. Or, with its auth bypass: qBittorrent sees Kinopeer at {{address}}, and adding {{subnet}} to the subnets it lets in without a login would let Kinopeer in, and everything else that comes from that subnet too."
+  },
   "types": {
     "movie": "Movies",
     "tv": "Series"

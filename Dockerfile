@@ -25,9 +25,11 @@ FROM node:24-alpine@sha256:a34ab6d7f6f4813f4d0c5469d74685604b962fbdbf5793a7bc7b4
 # versions' (server/main.ts → tmdbProxy). TMDB_PROXY_URL at run time replaces either.
 ARG KINOPEER_TMDB_PROXY=""
 ENV KINOPEER_TMDB_PROXY=$KINOPEER_TMDB_PROXY
+# KINOPEER_CONTAINER tells the server that localhost is its own container (server/container.ts).
 ENV NODE_ENV=production \
     PORT=8080 \
-    KINOPEER_DATA_DIR=/data
+    KINOPEER_DATA_DIR=/data \
+    KINOPEER_CONTAINER=1
 WORKDIR /app
 COPY --from=build /app/package.json ./
 COPY --from=build /app/server ./server

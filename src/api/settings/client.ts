@@ -5,6 +5,7 @@ import type {
   QbittorrentLoginBody,
   ServerSettings,
   SettingsErrorBody,
+  SourceAddress,
   TelegramChatBody,
   TelegramCheck,
   TelegramFoundChat,
@@ -13,6 +14,7 @@ import type {
   TmdbKeyBody,
 } from './types'
 import { knownFailure, type ConnectionFailure } from '../connectionFailure'
+import { isContainerHint, isSourceAddress } from '../containerHints'
 import { fetchKinopeer } from '../fetchKinopeer'
 import { sharedRequests } from '../../logic/sharedRequests'
 
@@ -24,13 +26,24 @@ export class SettingsError extends Error {
   readonly code?: SettingsErrorBody['error']
   /** Why qBittorrent or Prowlarr didn't answer a check (`unreachable`), where the server could tell. */
   readonly failure?: ConnectionFailure
+  /** The address was localhost inside Kinopeer's container (#509), and the host's, when known. */
+  readonly container?: { hostAddress?: string }
+  /** No login sent, and qBittorrent asks for one: where it sees Kinopeer come from, for its auth bypass (#509). */
+  readonly source?: SourceAddress
 
-  constructor(status: number, code?: SettingsErrorBody['error'], failure?: ConnectionFailure) {
+  constructor(
+    status: number,
+    code?: SettingsErrorBody['error'],
+    failure?: ConnectionFailure,
+    hints: Pick<SettingsErrorBody, 'container' | 'source'> = {},
+  ) {
     super(`Settings request failed (${code ?? status})`)
     this.name = 'SettingsError'
     this.status = status
     this.code = code
     this.failure = failure
+    this.container = hints.container
+    this.source = hints.source
   }
 }
 
@@ -40,7 +53,10 @@ function isJson(response: Response): boolean {
 
 async function errorFor(response: Response): Promise<SettingsError> {
   const body = isJson(response) ? ((await response.json().catch(() => ({}))) as Partial<SettingsErrorBody>) : {}
-  return new SettingsError(response.status, body.error, knownFailure(body.failure))
+  return new SettingsError(response.status, body.error, knownFailure(body.failure), {
+    container: isContainerHint(body.container) ? body.container : undefined,
+    source: isSourceAddress(body.source) ? body.source : undefined,
+  })
 }
 
 export async function getServerSettings(signal?: AbortSignal): Promise<ServerSettings> {
