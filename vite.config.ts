@@ -155,7 +155,10 @@ function realPath(path: string): string {
  * Vitest's own order with the tests named after the files a run is related to first
  * (`scripts/test-order/testOrder.ts`, #520), so a static mutant in Stryker's run stops at its file's
  * own test rather than after most of the suite. A run of every test has nothing related and keeps
- * Vitest's order. Vitest is imported when it sorts, so `vite` and `vite build` don't load it.
+ * Vitest's order. The tests moved to the front leave Vitest's grouping by project, on purpose: in a
+ * parallel `vitest related` the app's and the server's among them interleave, which changes no
+ * outcome, and Stryker's runs use one worker. Vitest is imported when it sorts, so `vite` and
+ * `vite build` don't load it.
  */
 class RelatedFilesFirst implements TestSequencer {
   private readonly ctx: Vitest
