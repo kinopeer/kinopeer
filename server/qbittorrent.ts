@@ -82,7 +82,7 @@ export async function qbittorrentLogin(
 function isHostRefusal(response: Response, text: string): boolean {
   return (
     response.status === 401 &&
-    text.trim() === 'Unauthorized' &&
+    text === 'Unauthorized' &&
     response.headers.get('x-xss-protection') === '1; mode=block' &&
     !response.headers.has('www-authenticate')
   )

@@ -402,18 +402,20 @@ describe('checkQbittorrent', () => {
     },
   )
 
-  // A proxy's basic auth, an *arr app's API, or a page that copies qBittorrent's text but not its header.
-  it.each<[string, Record<string, string>, string]>([
-    ['basic auth', { 'WWW-Authenticate': 'Basic realm="x"', 'X-XSS-Protection': '1; mode=block' }, 'Unauthorized'],
-    ['an API', {}, ''],
-    ['the text alone', {}, 'Unauthorized'],
-    ['the header alone', { 'X-XSS-Protection': '1; mode=block' }, ''],
-  ])('doesn’t take a page that answers 401 to every path for qBittorrent refusing its port (%s)', async (_, headers, body) => {
+  // A proxy's basic auth, an *arr app's API, or a page that copies qBittorrent's text or its header
+  // but not both, or not its status. With a login, a 401 is a wrong one, and a 200 lets the version through.
+  it.each<[string, number, Record<string, string>, string, string]>([
+    ['basic auth', 401, { 'WWW-Authenticate': 'Basic realm="x"', 'X-XSS-Protection': '1; mode=block' }, 'Unauthorized', 'invalid'],
+    ['an API', 401, {}, '', 'invalid'],
+    ['the text alone', 401, {}, 'Unauthorized', 'invalid'],
+    ['the header alone', 401, { 'X-XSS-Protection': '1; mode=block' }, '', 'invalid'],
+    ['a 200 that reads the same', 200, { 'X-XSS-Protection': '1; mode=block' }, 'Unauthorized', 'not-qbittorrent'],
+  ])('doesn’t take a page that answers every path alike for qBittorrent refusing its port (%s)', async (_, status, headers, body, withLogin) => {
     const base = await serve((_request, response) => {
-      response.writeHead(401, headers).end(body)
+      response.writeHead(status, headers).end(body)
     })
     expect(await checkQbittorrent(base, undefined)).toBe('not-qbittorrent')
-    expect(await checkQbittorrent(base, { username: 'admin', password: 'pass word' })).toBe('invalid')
+    expect(await checkQbittorrent(base, { username: 'admin', password: 'pass word' })).toBe(withLogin)
   })
 
   it('tells qBittorrent refusing the address’s port from a wrong login, which 5.3 also answers 401', async () => {

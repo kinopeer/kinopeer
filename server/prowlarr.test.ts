@@ -431,7 +431,10 @@ describe('prowlarrMiddleware', () => {
     ])
   })
 
-  it('names no cause of Prowlarr’s when the tracker’s own link doesn’t answer (#508)', async () => {
+  it('names why Prowlarr didn’t answer a download, and no cause of Prowlarr’s when the tracker’s own link doesn’t (#508)', async () => {
+    const refused = await fetch(`${await kinopeer({ url: CLOSED_ADDRESS, apiKey: KEY })}/prowlarr/download?token=${encodeURIComponent('1/download?link=A')}`)
+    expect([refused.status, await refused.json()]).toEqual([502, { error: 'unreachable', failure: 'refused' }])
+
     const prowlarr = await listen((_request, response) => {
       response.statusCode = 302
       response.setHeader('Location', `${CLOSED_ADDRESS}/dune.torrent`)
