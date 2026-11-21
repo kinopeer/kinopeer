@@ -197,9 +197,13 @@ TrueNAS's own qBittorrent and Prowlarr apps answer at your TrueNAS's address wit
 
 ### Unraid
 
-Kinopeer is in Unraid's Community Applications:
+Kinopeer's template for Unraid's Community Applications is submitted there after the release that ships it, 1.2.0. Until Kinopeer shows up in the **Apps** tab, add the template by hand: in Unraid's terminal (the **>_** icon in its header), save it among your own templates:
 
-1. Open the **Apps** tab, search for **Kinopeer** and install it. The defaults open it at port 8797 and keep its data in `/mnt/user/appdata/kinopeer`. Kinopeer runs as Unraid's usual user and group, `nobody:users` (99:100), which own that folder.
+```sh
+curl -fsSL -o /boot/config/plugins/dockerMan/templates-user/my-kinopeer.xml https://raw.githubusercontent.com/kinopeer/kinopeer/main/unraid/kinopeer.xml
+```
+
+1. Open the **Apps** tab, search for **Kinopeer** and install it; or, with the template added by hand, open the **Docker** tab → **Add Container**, pick **kinopeer** under **Template** and apply. The defaults open it at port 8797 and keep its data in `/mnt/user/appdata/kinopeer`. Kinopeer runs as Unraid's usual user and group, `nobody:users` (99:100), which own that folder.
 2. Open Kinopeer from its icon in the **Docker** tab (WebUI), or at `http://<your Unraid>:8797`, and set its password right away; or set **Password** in the template beforehand.
 3. Kinopeer asks for qBittorrent's address and login, then Prowlarr's address and API key. Enter your server's address with the port the Docker tab shows under **LAN IP:Port**, such as `http://192.168.1.10:8080` for qBittorrent or `http://192.168.1.10:9696` for Prowlarr: it stays the same when Unraid recreates a container, as an update does. **Find**, under each address field, looks on Unraid's Docker network too, where qBittorrent's and Prowlarr's containers are with Unraid's default network; it may offer a container's own address there (the Docker tab's **Container IP** column), which can change when the container is recreated.
 
