@@ -2,7 +2,7 @@
 
 Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor versions could change behavior and settings.
 
-## 1.1.0 - 2026-11-20
+## 1.1.0 - 2026-11-21
 
 Kinopeer goes beyond Umbrel: it installs with Docker Compose beside qBittorrent and Prowlarr, has a password of its own, asks for their addresses itself and answers only at the addresses it's meant to be reached at. It tells you when a download finishes, in Telegram or with a push notification, changes qBittorrent's folders from Settings, and marks what you already have in Search, a title's releases and the add sheet. Screens no longer move as their data comes in.
 
