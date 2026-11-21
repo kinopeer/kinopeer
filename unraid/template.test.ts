@@ -2,20 +2,24 @@
 // unraid/kinopeer.xml is what Unraid's Community Applications installs (#512). What it hands the
 // image is checked here, read with an XML parser as CA reads it: the image's tag, port and volume,
 // that each variable is one the server reads, and that the empty ones Unraid still passes (`-e NAME=''`,
-// dockerMan's xmlToCommand) read as unset. Installing it on Unraid isn't: that's done by hand in an
-// Unraid VM whenever the template changes (docs/RELEASE_CHECKLIST.md). jsdom gives the XML parser,
-// DOMParser.
+// dockerMan's xmlToCommand) read as unset, by the real server started with them and by its startup
+// log. Installing it on Unraid isn't: that's done by hand in an Unraid VM (docs/RELEASE_CHECKLIST.md).
+// jsdom gives the XML parser, DOMParser.
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterAll, describe, expect, it } from 'vitest'
+import { parseSync } from 'vite'
+import { afterAll, afterEach, describe, expect, it } from 'vitest'
 import { parse } from 'yaml'
 import { allowedHostsWarning } from '../server/hostCheck.ts'
 import { ignoredSettings, missingSettings } from '../server/main.ts'
 import { SettingsStore } from '../server/settings.ts'
+import { startKinopeer, stopKinopeer } from '../server/test/integration.ts'
+import { setUpPassword } from '../src/api/auth/index.ts'
+import { getServerSettings, saveProwlarrKey, saveQbittorrentLogin } from '../src/api/settings/client.ts'
 
-// tsconfig.node.json, which types this file with the server's, has no DOM: the few members read here.
+// tsconfig.integration.json, which types this file with the integration tests, has no DOM: the few members read here.
 interface XmlElement {
   tagName: string
   textContent: string | null
@@ -66,6 +70,31 @@ const byTarget = (target: string): Config => {
 /** The environment Unraid starts the container with: every variable, an empty one as ''. */
 const environment = Object.fromEntries(ofType('Variable').map((config) => [config.target, config.default]))
 
+/**
+ * The environment variables a TypeScript source reads: `env.NAME`, `env?.NAME`, `env['NAME']` and
+ * `process.env.NAME`, found in its syntax tree, so a name in a comment or a string isn't a read.
+ */
+function variablesRead(text: string): Set<string> {
+  type Node = { type: string; [key: string]: unknown }
+  const isNode = (value: unknown): value is Node => typeof (value as Node | null)?.type === 'string'
+  const isEnv = (node: Node): boolean =>
+    (node.type === 'Identifier' && node.name === 'env') ||
+    (node.type === 'MemberExpression' && !node.computed && isNode(node.object) && node.object.type === 'Identifier' && node.object.name === 'process' && (node.property as Node).name === 'env')
+  const names = new Set<string>()
+  const walk = (node: Node) => {
+    if (node.type === 'MemberExpression' && isNode(node.object) && isEnv(node.object)) {
+      const property = node.property as Node
+      const name = node.computed ? (property.type === 'Literal' ? property.value : undefined) : property.name
+      if (typeof name === 'string') names.add(name)
+    }
+    for (const value of Object.values(node)) for (const child of Array.isArray(value) ? value : [value]) if (isNode(child)) walk(child)
+  }
+  const { program, errors } = parseSync('source.ts', text)
+  expect(errors).toEqual([])
+  walk(program as unknown as Node)
+  return names
+}
+
 const compose = parse(read('docker-compose.yml')) as { services: { kinopeer: { image: string; ports: string[] } } }
 
 describe("The template's image", () => {
@@ -104,21 +133,62 @@ describe("The template's port and folders", () => {
   })
 })
 
+describe('Finding the variables a source reads', () => {
+  it.each([
+    ['env.NAME', true],
+    ['env?.NAME', true],
+    ["env['NAME']", true],
+    ['process.env.NAME', true],
+    ['const value = (env.NAME ?? "").trim()', true],
+    ['// env.NAME', false],
+    ['/* env.NAME */', false],
+    ["const text = 'env.NAME'", false],
+    ['const text = `env.NAME`', false],
+    ['options.NAME', false],
+    ['env.NAME_TOO', false],
+    ['env[name]', false],
+  ])('%s reads NAME: %s', (source, reads) => {
+    expect(variablesRead(source).has('NAME')).toBe(reads)
+  })
+})
+
 describe("The template's variables", () => {
   const dirs: string[] = []
   afterAll(() => {
     for (const dir of dirs) rmSync(dir, { recursive: true, force: true })
   })
-
-  it('are each one the server reads', () => {
-    const sources = readdirSync(join(ROOT, 'server'), { recursive: true, encoding: 'utf8' })
-      .filter((file) => file.endsWith('.ts') && !file.endsWith('.test.ts') && !file.startsWith('test'))
-      .map((file) => readFileSync(join(ROOT, 'server', file), 'utf8'))
-      .join('\n')
-    for (const name of Object.keys(environment)) expect(sources, name).toMatch(new RegExp(`\\benv\\.${name}\\b`))
+  afterEach(async () => {
+    await stopKinopeer()
   })
 
-  it('read as unset while empty, as Unraid passes them', () => {
+  it('are each one the server reads', () => {
+    const read = new Set(
+      readdirSync(join(ROOT, 'server'), { recursive: true, encoding: 'utf8' })
+        .filter((file) => file.endsWith('.ts') && !file.endsWith('.test.ts') && !file.startsWith('test'))
+        .flatMap((file) => [...variablesRead(readFileSync(join(ROOT, 'server', file), 'utf8'))]),
+    )
+    for (const name of Object.keys(environment)) expect(read.has(name), name).toBe(true)
+  })
+
+  it('read as unset while empty, as Unraid passes them: the password the first visitor sets, the addresses the app saves', async () => {
+    // The stand's own logins and keys unset, and its login on, as Unraid starts the image: only the
+    // template's variables, each empty. An empty KINOPEER_PASSWORD read as set stops the server
+    // here, and an empty address read as set refuses the app's saves as env-address.
+    const { qbittorrent, prowlarr } = await startKinopeer({
+      env: { KINOPEER_AUTH: undefined, QBITTORRENT_USERNAME: undefined, QBITTORRENT_PASSWORD: undefined, PROWLARR_API_KEY: undefined, TMDB_API_KEY: undefined, ...environment },
+      qbittorrent: { authBypass: true },
+    })
+    await setUpPassword('correct horse')
+    await expect(getServerSettings()).resolves.toMatchObject({
+      auth: { enabled: true, source: 'saved' },
+      qbittorrent: { address: { source: null } },
+      prowlarr: { configured: false, address: { source: null } },
+    })
+    await expect(saveQbittorrentLogin('', '', qbittorrent.base)).resolves.toMatchObject({ qbittorrent: { address: { source: 'saved', url: qbittorrent.base } } })
+    await expect(saveProwlarrKey(prowlarr.apiKey, prowlarr.base)).resolves.toMatchObject({ prowlarr: { address: { source: 'saved', url: prowlarr.base } } })
+  })
+
+  it('read as unset while empty in the startup log', () => {
     const dir = mkdtempSync(join(tmpdir(), 'kinopeer-unraid-'))
     dirs.push(dir)
     const settings = new SettingsStore(dir)
