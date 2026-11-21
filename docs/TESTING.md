@@ -534,8 +534,8 @@ journey now presses the real Escape it had skipped.
 
 *The rule in this section's first paragraph is the testing component's, version 2.2 ([above](#testing)); the table is Kinopeer's.*
 
-What no layer sees. Each is either checked by hand before a release ([RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)
-→ Before every release) or knowingly not checked; a bug from one of them is an `environment` miss,
+What no layer sees. Each is either checked by hand around a release ([RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)
+→ Before every release, and → After the tag for Unraid's template) or knowingly not checked; a bug from one of them is an `environment` miss,
 and its fix either adds the environment to a layer or adds a line here. Any PR that meets a blind
 spot this table doesn't name adds its row, a feature as much as a fix (#240's desktop Safari,
 #247's flip of sequential download); a blind spot is an environment no layer can start, not a
