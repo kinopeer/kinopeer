@@ -68,13 +68,17 @@ Wait for these checks at the head: the ones `main`'s ruleset requires (`check`, 
 `visual`, `smoke`, `guard`, `performance`), `guard report`, and `Mutants report` when the PR
 changes a path in `mutants.yml`'s `paths`. A check not there yet counts as running: right after
 the PR is marked ready some of them haven't started. A check that ran more than once at the head
-counts by its latest run. Poll the head's check runs in one command, a
-loop with `sleep 60` between reads, up to 30 minutes.
+counts by its latest run. Poll the head's check runs with a loop of `sleep 60` between reads, in
+commands of under 10 minutes one after another, up to 30 minutes from when the PR was marked
+ready, and for `Mutants report` up to the `timeout-minutes` of the `mutants` job in the head's
+`.github/workflows/mutants.yml`: that job takes longer than the others on a big diff, and
+stopping at 30 minutes left #498 waiting twice for a run that then passed (#477 noted it for the
+retro).
 
 - **A failed check:** post a review with `event=COMMENT`, headed `CI at <short sha>`, that names
   the failed checks and nothing else, convert the PR to a draft, and stop. Fixing CI is the
   author's turn, and a full round over a red head would be repeated.
-- **Still missing after 30 minutes:** the same, naming the checks you didn't see finish. The
+- **Still missing after its wait:** the same, naming the checks you didn't see finish. The
   author marks the PR ready again once they have.
 
 ## 3. The round
@@ -221,8 +225,8 @@ notification and end the turn. When the owner answers:
 They get no rounds and no template (`docs/TESTING.md` → Reviewing a PR's tests). Dependabot opens
 them ready for review, which doesn't wake you: the coordinator does, when its task brings them in,
 by converting each to a draft and marking it ready again. Wait for CI as in section 2, but with
-no `CI at` review and no draft: a red check gets the comment below; checks still running after 30
-minutes get a comment naming them. The coordinator watches the PRs it brought in until they are
+no `CI at` review and no draft: a red check gets the comment below; checks still running after
+section 2's wait get a comment naming them. The coordinator watches the PRs it brought in until they are
 approved, and wakes you again once their checks have finished.
 
 - **Green, no major:** approve, with one line saying CI is green at the head.

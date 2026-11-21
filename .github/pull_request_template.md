@@ -33,7 +33,9 @@ Neighbours: <!-- docs/TESTING.md → Choosing a layer. Answer each with the `it`
      pattern that reads outside text: what else it catches (a title's word, the same letters
      meaning something else, another way of writing it). A check that reads code, config, a workflow or
      CSS: the format's parser, not a regex, the whole marked where its parts are hard to compare,
-     and its table of spellings caught and let through. -->
+     and its table of spellings caught and let through; with no parser it can use (the shell in a
+     `run:`), what it reads and the spellings it leaves unread as
+     classes, each with what in the check leaves it out, named here before the first round. -->
 
 - Another place:
 - Later:
@@ -42,7 +44,10 @@ Neighbours: <!-- docs/TESTING.md → Choosing a layer. Answer each with the `it`
 - The edges:
 
 Mutants: <!-- npm run test:mutants at the commit you mark ready: the count, then each survivor —
-     test added | an accepted reason | equivalent, and why. Or "nothing to mutate". -->
+     test added | an accepted reason | equivalent: the inputs or sequences of events tried and what
+     each gave, its result and every effect, on the original and on the mutant, another path (a
+     status code, a list asked again, an entry evicted) counting as a difference.
+     Or "nothing to mutate". -->
 
 Broken by hand: <!-- what Stryker leaves alone in the changed lines (docs/TESTING.md → A test that
      can fail): each dependency dropped from an effect or memo, each operand of a condition, each
@@ -68,8 +73,7 @@ Baselines: <!-- each changed or new PNG — what changed and why, intended or a 
      name to grep. Check each claim against what it describes: the code, the service's own docs
      (opened, not remembered), the UI's words, the doc it points at; a checklist step's pointer
      resolves and its check can pass as written. A list the change adds to gains the new item:
-     the screens in TESTING.md → Screenshot tests, SPEC's decision log (newest first), the blind
-     spots. The changelog's entry names every change a user sees (each text, label and screen the
+     SPEC's decision log (newest first), the blind spots. The changelog's entry names every change a user sees (each text, label and screen the
      diff changes) and claims no more than the code does. A doc about how things are now says
      where a count or a list the code or CI holds lives, not the count or the list; a dated record
      keeps its numbers. Bring this section, What and Tests to

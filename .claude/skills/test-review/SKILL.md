@@ -80,7 +80,11 @@ trusted.
   reads code, config, a workflow or CSS reads it with the format's own parser, not regular
   expressions, marks the whole where comparing parts gets intricate, and keeps a table of the
   spellings it must catch and let through (`docs/TESTING.md` → Choosing a layer; #367–#370, #410,
-  #411, #414, #415, #412). Where you can, break the
+  #411, #414, #415, #412); where the format has no parser it can use, the PR names before its
+  first round what it reads and the spellings it leaves unread as classes, each class judged
+  against what the check protects (one too wide for it is a finding); a spelling the scope
+  claims and the check misses is a finding against the check, one in no named class a finding
+  against the classes, and one inside a named class none (#456). Where you can, break the
   code for exactly that case and see whether the named test fails: a green one doesn't answer it
   (#237, #244, #248, #250). Missing → check the Tests
   section's reasons (step 1) → otherwise a finding. A bug `/code-review` finds in the PR's own change
@@ -158,8 +162,8 @@ trusted.
   things are now that copies a count or a list the code or CI holds, instead of saying what it is
   and where it lives, is a finding; a dated record keeps its numbers (`docs/TESTING.md` → Reviewing
   a PR's tests, step 1).
-  A list in the docs that the change adds to gains the new item (the screens in `docs/TESTING.md` →
-  Screenshot tests, SPEC's decision log, newest first, the blind spots: any PR that meets a blind
+  A list in the docs that the change adds to gains the new item (SPEC's decision log, newest first, the blind
+  spots: any PR that meets a blind
   spot the table doesn't name adds its row), and a manual check the PR adds says what has to be in
   place for it to pass. How a paragraph wraps is not a finding.
 - **I. A `fix:` PR carries its record.** So does the fix of a flaky test. The issue is linked and
@@ -172,7 +176,9 @@ trusted.
   `Mutants` line accounts for each survivor in CI's `Mutants report` check on the commit the round
   reviews (`gh api 'repos/{owner}/{repo}/commits/<sha>/check-runs?check_name=Mutants%20report'
   --jq '.check_runs | max_by(.completed_at) | .output.summary // "no report yet"'`), an
-  `equivalent` with a reason you agree with; missing either, or a test you can see would stay green
+  `equivalent` with the inputs tried and a reason you agree with, after trying one input of your
+  own that reaches the mutated line by another path (a status code, a list asked again, an entry
+  evicted: `docs/TESTING.md` → A test that can fail); missing either, or a test you can see would stay green
   with its behavior removed, → finding. CI mutates every push to a ready PR's head, so its report is
   at the commit the round reviews (a survivor new since the `Mutants` line is accounted for in the
   author's `Fixes for round <n>`): while the run is going, wait for it. Run `npm run test:mutants`
