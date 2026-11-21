@@ -11,7 +11,7 @@
       "src/api/*/index.ts",
       "src/components/*/index.ts"
     ],
-    "thresholds": { "lines": 96, "statements": 95, "functions": 96, "branches": 94 }
+    "thresholds": { "lines": 96, "statements": 96, "functions": 96, "branches": 94 }
   },
   "mutants": {
     "folders": ["src", "server", "tmdb-proxy", "scripts/guard", "scripts/size", "scripts/requests", "scripts/layout-shift", "scripts/accessibility", "scripts/actuals", "scripts/edge", "scripts/test-order"],
