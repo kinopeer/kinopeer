@@ -72,6 +72,16 @@ describe('ConnectScreen', () => {
     expect(onSignIn).toHaveBeenLastCalledWith('', '')
   })
 
+  it.each([
+    ['a password without a username', 'Password'],
+    ['a username without a password', 'Username'],
+  ])('sends nothing for half a login, %s', async (_, filled) => {
+    const { onSignIn } = setup()
+    await userEvent.type(screen.getByLabelText(filled), 'admin')
+    await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
+    expect(onSignIn).not.toHaveBeenCalled()
+  })
+
   it('shows wrong credentials on the password field', async () => {
     setup(vi.fn().mockRejectedValue(new SettingsError(422, 'invalid-credentials')))
     await fillAndSubmit()
@@ -119,8 +129,6 @@ describe('ConnectScreen', () => {
   it('says where qBittorrent sees Kinopeer when the session check was asked for a login (#509)', () => {
     setup(undefined, { source: { address: '172.18.0.5', subnet: '172.18.0.0/16' } })
     expect(screen.getByRole('status', { name: saying(/^Set a password in qBittorrent.*qBittorrent sees Kinopeer at 172\.18\.0\.5, and adding 172\.18\.0\.0\/16/) })).toBeInTheDocument()
-    // With the bypass on, Connect with the login left empty checks again (#519).
-    expect(screen.getByLabelText('Username')).toHaveAccessibleDescription('Leave the login empty if qBittorrent lets Kinopeer in without one.')
   })
 
   it('drops the session check’s source once its own check answers without one (#509)', async () => {
@@ -364,6 +372,8 @@ describe('ConnectScreen', () => {
 
       await userEvent.type(screen.getByLabelText('Username'), 'admin')
       expect(screen.getByLabelText('Username')).not.toHaveAttribute('aria-invalid')
+      // A username goes with a password: half a login isn't sent.
+      await userEvent.type(screen.getByLabelText('Password'), 'secret')
       await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
       expect(screen.getByLabelText('Password')).toHaveAccessibleDescription('Wrong username or password')
       expect(screen.getByLabelText('Username')).toHaveAttribute('aria-invalid', 'true')

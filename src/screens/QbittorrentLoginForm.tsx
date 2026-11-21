@@ -208,7 +208,9 @@ export function QbittorrentLoginForm({
           autoCorrect="off"
           spellCheck={false}
           // qBittorrent's auth bypass may let the server in without a login, and a Connect with none
-          // checks again once it's turned on (#519), with no reload the Home Screen app hasn't got.
+          // checks again once it's turned on (#519), with no reload the Home Screen app hasn't got. Half a
+          // login isn't sent: a password alone would go as none, a username alone as a login to refuse.
+          required={password !== ''}
           value={username}
           onChange={(e) => {
             setUsername(e.target.value)
@@ -222,6 +224,7 @@ export function QbittorrentLoginForm({
           name="password"
           type="password"
           autoComplete="current-password"
+          required={username.trim() !== ''}
           value={password}
           onChange={(e) => {
             setPassword(e.target.value)
