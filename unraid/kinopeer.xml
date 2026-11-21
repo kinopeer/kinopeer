@@ -17,6 +17,14 @@
   <ReadMe>https://github.com/kinopeer/kinopeer#readme</ReadMe>
   <Overview>A qBittorrent web UI for movies and TV series. Find a movie or a series, pick a release found by Prowlarr and follow the download, all in one app on your phone or computer. Install it next to your qBittorrent (4.6.0 or later) and Prowlarr containers: on its first start, Kinopeer asks for their addresses, and its Find button looks for them on Unraid's Docker network.</Overview>
   <Category>Downloaders: MediaApp:Video</Category>
+  <!-- CA links a //name\\ to its search for that app. -->
+  <Requires>//qBittorrent\\ 4.6.0 or later and //Prowlarr\\, each in its own container or anywhere Kinopeer can reach.</Requires>
+  <ExtraSearchTerms>qbittorrent prowlarr tmdb torrent movies series</ExtraSearchTerms>
+  <License>GPL-3.0-or-later</License>
+  <Screenshot>https://raw.githubusercontent.com/kinopeer/kinopeer/main/docs/screenshots/desktop-title.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/kinopeer/kinopeer/main/docs/screenshots/desktop-downloads.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/kinopeer/kinopeer/main/docs/screenshots/releases.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/kinopeer/kinopeer/main/docs/screenshots/downloads.png</Screenshot>
   <WebUI>http://[IP]:[PORT:8080]/</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/kinopeer/kinopeer/main/unraid/kinopeer.xml</TemplateURL>
   <Icon>https://raw.githubusercontent.com/kinopeer/kinopeer/main/public/icons/icon-512.png</Icon>

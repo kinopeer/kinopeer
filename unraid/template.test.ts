@@ -204,6 +204,7 @@ describe("The template's variables", () => {
 })
 
 describe('What Community Applications reads', () => {
+  // The template's screenshots, under docs/, which Stryker's sandbox leaves out, are checked in xml-files.test.ts.
   it('finds the template at its TemplateURL and the icon at its address, both on main', () => {
     const raw = 'https://raw.githubusercontent.com/kinopeer/kinopeer/main/'
     expect(text('TemplateURL')).toBe(`${raw}unraid/kinopeer.xml`)
@@ -211,6 +212,17 @@ describe('What Community Applications reads', () => {
       expect(address.startsWith(raw)).toBe(true)
       expect(existsSync(join(ROOT, address.slice(raw.length)))).toBe(true)
     }
+  })
+
+  it('names the licence package.json names', () => {
+    expect(text('License')).toBe(JSON.parse(read('package.json')).license)
+  })
+
+  it('links each app it requires to CA’s search, with the //name\\\\ CA reads', () => {
+    // CA turns //name\\ into a link to its search for that app; a mark left unclosed shows as typed.
+    const requires = text('Requires')
+    expect([...requires.matchAll(/\/\/(.*?)\\\\/g)].map((match) => match[1])).toEqual(['qBittorrent', 'Prowlarr'])
+    expect(requires.replaceAll(/\/\/.*?\\\\/g, '')).not.toMatch(/\/\/|\\/)
   })
 
   it('has the repository’s profile at its root, its Profile not empty', () => {
