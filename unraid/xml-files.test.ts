@@ -1,16 +1,21 @@
+// @vitest-environment jsdom
 // Community Applications clones a repository and reads every XML file in it as a template (its feed
 // lists other repositories' Android manifests as "Not an unRaid Application"), so the repository holds
 // only its two (#512): CA's profile at the root and Kinopeer's template. A fixture written as an .xml
 // file would go to Unraid's Apps tab as a broken app, or fail CA's scan. The template's screenshots,
 // which CA shows from main, are checked here too, since Stryker's sandbox has no docs/. The files are
 // the repository's as git lists them, tracked and new, so the tests can't run in that sandbox, which
-// isn't a checkout: checks.json leaves this file out of its runs.
+// isn't a checkout: checks.json leaves this file out of its runs. jsdom gives the XML parser, DOMParser.
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
 
+// The project's tsconfig for this file has no DOM: the members read here.
+const { DOMParser } = globalThis as unknown as {
+  DOMParser: new () => { parseFromString(text: string, type: 'text/xml'): { querySelectorAll(selectors: string): Iterable<{ textContent: string | null }> } }
+}
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 it('finds no XML in the repository but CA’s profile and the template', () => {
@@ -20,8 +25,8 @@ it('finds no XML in the repository but CA’s profile and the template', () => {
 
 it('finds each of the template’s screenshots among the repository’s files, at its address on main', () => {
   const raw = 'https://raw.githubusercontent.com/kinopeer/kinopeer/main/'
-  const template = readFileSync(join(ROOT, 'unraid/kinopeer.xml'), 'utf8')
-  const screenshots = [...template.matchAll(/<Screenshot>(.*?)<\/Screenshot>/g)].map((match) => match[1])
+  const template = new DOMParser().parseFromString(readFileSync(join(ROOT, 'unraid/kinopeer.xml'), 'utf8'), 'text/xml')
+  const screenshots = [...template.querySelectorAll('Container > Screenshot')].map((element) => element.textContent ?? '')
   expect(screenshots.length).toBeGreaterThan(0)
   const files = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', 'docs/screenshots'], { cwd: ROOT, encoding: 'utf8' }).split('\0')
   for (const address of screenshots) {
