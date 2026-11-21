@@ -152,6 +152,11 @@ function json(response: ServerResponse, body: unknown, status = 200): void {
   response.end(JSON.stringify(body))
 }
 
+function html(response: ServerResponse, body: string): void {
+  response.setHeader('Content-Type', 'text/html')
+  response.end(body)
+}
+
 function text(response: ServerResponse, body: string, status = 200): void {
   response.statusCode = status
   response.setHeader('Content-Type', 'text/plain')
@@ -580,6 +585,9 @@ function toProwlarr(release: Release, base: string, apiKey: string) {
   }
 }
 
+/** The head of Prowlarr's sign-in page, as frontend/src/login.html has it. */
+const PROWLARR_LOGIN = '<!doctype html><html><head><meta name="description" content="Prowlarr" /><title>Login - Prowlarr</title></head><body></body></html>'
+
 /**
  * A Prowlarr that needs `apiKey` in X-Api-Key on every API call (401 otherwise) and records what
  * reached it. /api/v1/system/status and /api/v1/indexer (two enabled, one not) serve the status
@@ -588,6 +596,7 @@ function toProwlarr(release: Release, base: string, apiKey: string) {
  * /api/v1/search answers `releases`, each with a download link that carries the key, as Prowlarr's
  * do; /api/v1/indexer/1/download serves by its `link`: "shogun" is the Shōgun .torrent
  * from the fixtures, "magnet" redirects to PROWLARR_MAGNET, anything else is 404.
+ * /login is its sign-in page, which needs no key, with Prowlarr's title (`PROWLARR_LOGIN`).
  * Written from Prowlarr 1.24.x; when a newer version answers differently, change the fake here and
  * say the version.
  */
@@ -606,6 +615,8 @@ export async function fakeProwlarr({
     const key = request.headers['x-api-key']?.toString()
     seen.push({ url, key })
     const { pathname, searchParams } = new URL(url, base)
+    // Prowlarr's sign-in page, served to anyone (its frontend/src/login.html).
+    if (pathname === '/login') return html(response, PROWLARR_LOGIN)
     if (key !== apiKey) return text(response, 'Unauthorized', 401)
     if (pathname === '/api/v1/system/status') return json(response, { version: '1.24.3.4754' })
     if (pathname === '/api/v1/indexer') {

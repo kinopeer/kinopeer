@@ -4,6 +4,7 @@ import type {
   AddressStatus,
   DownloadDefaults,
   DownloadDefaultsBody,
+  FoundAddresses,
   ProwlarrKeyBody,
   QbittorrentLoginBody,
   NotifyLanguage,
@@ -23,6 +24,7 @@ import { abandoned } from './abandoned.ts'
 import { baseOf, parseAddress } from './address.ts'
 import { connectionFailure } from './connectionFailure.ts'
 import { atHost, isLoopback, type Container } from './container.ts'
+import { findService, type FindService, type FindSystem } from './find.ts'
 import { isJsonRequest, readJson, sendJson } from './json.ts'
 import { JsonFile } from './jsonFile.ts'
 import { checkProwlarrKey, readProwlarrApiKey, type Middleware } from './prowlarr.ts'
@@ -143,6 +145,8 @@ export interface SettingsConfig {
   checkTimeoutMs?: number
   /** The container Kinopeer runs in, for the hints of a failed check (#509); none outside one. */
   container?: Container
+  /** What Find reads and the ports it tries (#511): the real system and the usual ports by default (tests). */
+  find?: { system?: FindSystem; ports?: Partial<Record<FindService, number[]>> }
   /** Whether some channel sends notifications (server/notifier.ts); none without it. */
   notifications?: () => boolean
   /** How many devices get push notifications (server/push.ts); none without it. */
@@ -620,6 +624,24 @@ async function saveDownloadDefaults(config: SettingsConfig, request: IncomingMes
 
 type Handler = (config: SettingsConfig, request: IncomingMessage, response: ServerResponse) => Promise<void>
 
+/**
+ * Find (#511): where `service` answers, for a form to offer. Refused where an address can't be
+ * saved from the app (`addressRefusal`), since the server would otherwise call addresses for
+ * anyone. Outside a container the service may be on localhost; inside one, at the host.
+ */
+function findAddresses(service: FindService): Handler {
+  return async (config, _request, response) => {
+    const refusal = addressRefusal(config, service === 'qbittorrent' ? config.envQbittorrentUrl : config.envProwlarrUrl)
+    if (refusal) return fail(response, 409, refusal)
+    // Before the host's lookup, which may take its 2 s: a browser that leaves meanwhile stops it all.
+    const signal = abandoned(response)
+    const host = await config.container?.hostAddress().catch(() => undefined)
+    const near = config.container ? ['host.docker.internal', ...(host ? [host] : [])] : ['localhost']
+    const addresses = await findService(service, near, signal, { system: config.find?.system, ports: config.find?.ports?.[service] })
+    sendJson(response, 200, { addresses } satisfies FoundAddresses)
+  }
+}
+
 /** The routes under /api/settings by method and path; a route that takes a body takes only JSON. */
 const ROUTES: Record<string, Handler> = {
   [`PUT ${PREFIX}/tmdb`]: saveTmdbKey,
@@ -627,6 +649,8 @@ const ROUTES: Record<string, Handler> = {
   [`PUT ${PREFIX}/prowlarr`]: saveProwlarrKey,
   [`DELETE ${PREFIX}/prowlarr`]: forgetProwlarrKey,
   [`PUT ${PREFIX}/qbittorrent`]: saveQbittorrentLogin,
+  [`POST ${PREFIX}/qbittorrent/find`]: findAddresses('qbittorrent'),
+  [`POST ${PREFIX}/prowlarr/find`]: findAddresses('prowlarr'),
   [`PATCH ${PREFIX}/downloads`]: saveDownloadDefaults,
   [`PUT ${PREFIX}/telegram`]: saveTelegramToken,
   [`DELETE ${PREFIX}/telegram`]: forgetTelegram,

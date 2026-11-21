@@ -138,6 +138,18 @@ test.describe('onboarding, phone', () => {
     await expect(page).toHaveScreenshot('prowlarr-dark-ru.png')
   })
 
+  // #511: Find lists where the server found qBittorrent, one tap each.
+  test('qBittorrent’s addresses found, dark, Russian', async ({ page }) => {
+    await openOnboarding(page, 'address')
+    await page.route('/api/settings/qbittorrent/find', (route) =>
+      route.fulfill({ json: { addresses: ['http://qbittorrent:8080', 'http://192.168.1.20:8080'] } }),
+    )
+    await page.getByRole('button', { name: 'Найти qBittorrent' }).click()
+    await expect(page.getByRole('button', { name: 'http://192.168.1.20:8080' })).toBeVisible()
+    await settle(page)
+    await expect(page).toHaveScreenshot('connect-address-found-dark-ru.png')
+  })
+
   test('a wrong password, dark, Russian', async ({ page }) => {
     await openOnboarding(page, 'connect', { wrongLogin: true })
     await page.getByRole('textbox', { name: 'Логин' }).fill('admin')

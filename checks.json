@@ -20,7 +20,7 @@
     "testsLeftOut": ["/checks.test.ts"]
   },
   "budgets": {
-    "size": { "js": 198500, "css": 16200, "rest": 193600 },
+    "size": { "js": 198900, "css": 16200, "rest": 193600 },
     "layoutShiftCeiling": 0.1,
     "screenshotThreshold": 0.1,
     "layoutShift": {
@@ -76,6 +76,7 @@
       },
       "onboarding": {
         "connect-address-dark-ru": {},
+        "connect-address-found-dark-ru": {},
         "connect-invalid-dark-ru": {},
         "connect-unreached-dark-ru": {},
         "desktop-connect-address-dark-ru": {},

@@ -1,5 +1,6 @@
 import type {
   DownloadDefaultsBody,
+  FoundAddresses,
   NotifyLanguage,
   ProwlarrKeyBody,
   QbittorrentLoginBody,
@@ -115,6 +116,23 @@ export function saveTmdbKey(apiKey: string): Promise<ServerSettings> {
  */
 export function saveProwlarrKey(apiKey: string, url?: string): Promise<ServerSettings> {
   return send<ProwlarrKeyBody>('PUT', 'prowlarr', { apiKey, url })
+}
+
+/**
+ * Find (#511): the addresses where the server found `service` answering, for a form to offer; an
+ * empty list when it found none. Rejects with code 'env-address' or 'auth-off' where an address
+ * can't be saved from the app.
+ */
+export async function findAddresses(service: 'qbittorrent' | 'prowlarr', signal?: AbortSignal): Promise<string[]> {
+  const response = await fetchKinopeer(`${SETTINGS_BASE}/${service}/find`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}',
+    signal,
+  })
+  if (!response.ok || !isJson(response)) throw await errorFor(response)
+  const { addresses } = (await response.json()) as Partial<FoundAddresses>
+  return Array.isArray(addresses) ? addresses.filter((address) => typeof address === 'string') : []
 }
 
 async function forget(path: string): Promise<ServerSettings> {

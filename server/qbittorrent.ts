@@ -3,6 +3,7 @@ import { abandoned } from './abandoned.ts'
 import { connectionFailure } from './connectionFailure.ts'
 import type { Container } from './container.ts'
 import type { Middleware } from './prowlarr.ts'
+import { textPrefix } from './textPrefix.ts'
 
 /**
  * Same-origin bridge to qBittorrent's Web API: /qbt/api/v2/… → {qBittorrent's address}/api/v2/…, the
@@ -139,6 +140,20 @@ export async function checkQbittorrent(
   if (!credentials && response.status === 403) return 'invalid'
   if (isHostRefusal(response, text)) return 'host-refused'
   return response.ok && VERSION.test(text) ? 'ok' : 'not-qbittorrent'
+}
+
+/**
+ * Whether `base` answers as qBittorrent without a login, for Find (#511): its version, through the
+ * auth bypass; its 403 asking for a login (the text `Forbidden`), or its Host header validation's
+ * 401 (`isHostRefusal`), each with the `X-XSS-Protection` qBittorrent puts on every answer, so
+ * another app's 403 isn't taken for it. Rejects when nothing answers, or `signal` aborts first.
+ */
+export async function answersAsQbittorrent(base: string, signal?: AbortSignal): Promise<boolean> {
+  const response = await fetch(`${base}/api/v2/app/version`, { headers: { Origin: base, Referer: `${base}/` }, redirect: 'manual', signal })
+  const text = await textPrefix(response)
+  if (response.ok) return VERSION.test(text)
+  const xss = response.headers.get('x-xss-protection')?.split(', ') ?? []
+  return (response.status === 403 && xss.includes('1; mode=block') && text === 'Forbidden') || isHostRefusal(response, text)
 }
 
 const PREFIX = '/qbt/'

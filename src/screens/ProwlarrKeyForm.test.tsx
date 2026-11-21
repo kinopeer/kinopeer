@@ -11,10 +11,12 @@ vi.mock('../api/settings', async (importOriginal) => ({
   ...(await importOriginal<typeof serverSettings>()),
   saveProwlarrKey: vi.fn(),
   forgetProwlarrKey: vi.fn(),
+  findAddresses: vi.fn(),
 }))
 
 const saveProwlarrKey = vi.mocked(serverSettings.saveProwlarrKey)
 const forgetProwlarrKey = vi.mocked(serverSettings.forgetProwlarrKey)
+const findAddresses = vi.mocked(serverSettings.findAddresses)
 
 const SAVED: ServerSettings = {
   tmdb: { configured: true, source: 'saved', fallback: null },
@@ -139,6 +141,8 @@ describe('ProwlarrKeyForm', () => {
   })
 
   describe('with Prowlarr’s address to ask', () => {
+    const LOCALHOST = saying('localhost is inside Kinopeer’s container')
+
     function renderWithAddress(secondary?: ReactNode) {
       const onSaved = vi.fn()
       const onEnvAddress = vi.fn()
@@ -187,7 +191,6 @@ describe('ProwlarrKeyForm', () => {
       await userEvent.type(address, 'http://localhost:9696')
       await userEvent.type(field, 'abc123')
       await userEvent.click(save)
-      const LOCALHOST = saying('localhost is inside Kinopeer’s container')
       expect(await screen.findByRole('status', { name: LOCALHOST })).toBeInTheDocument()
       await userEvent.type(address, '1')
       expect(screen.queryByRole('status', { name: LOCALHOST })).not.toBeInTheDocument()
@@ -202,7 +205,7 @@ describe('ProwlarrKeyForm', () => {
       await userEvent.type(address, 'http://localhost:9696')
       await userEvent.type(field, 'abc123')
       await userEvent.click(save)
-      const hint = await screen.findByRole('status', { name: saying('localhost is inside Kinopeer’s container') })
+      const hint = await screen.findByRole('status', { name: LOCALHOST })
       expect(
         within(hint).getByText(
           'In Kinopeer’s container, localhost and 127.0.0.1 lead into the container itself, not to the computer it runs on. From the container, that computer is at http://host.docker.internal:9696. If Prowlarr runs in a container on a shared Docker network, enter that container’s name instead.',
@@ -211,7 +214,7 @@ describe('ProwlarrKeyForm', () => {
 
       await userEvent.click(screen.getByRole('button', { name: 'Use this address' }))
       expect(address).toHaveValue('http://host.docker.internal:9696')
-      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+      expect(screen.queryByRole('status', { name: LOCALHOST })).not.toBeInTheDocument()
       await userEvent.click(save)
       expect(saveProwlarrKey).toHaveBeenLastCalledWith('abc123', 'http://host.docker.internal:9696')
     })
@@ -224,10 +227,10 @@ describe('ProwlarrKeyForm', () => {
       await userEvent.type(field, 'abc123')
       await userEvent.click(save)
       await vi.waitFor(() => expect(field).toHaveAttribute('aria-invalid', 'true'))
-      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+      expect(screen.queryByRole('status', { name: LOCALHOST })).not.toBeInTheDocument()
       await userEvent.click(save)
       await vi.waitFor(() => expect(address).toHaveAttribute('aria-invalid', 'true'))
-      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+      expect(screen.queryByRole('status', { name: LOCALHOST })).not.toBeInTheDocument()
     })
 
     it('names the address, not the variable, when it isn’t Prowlarr, and keeps a refused key on the key', async () => {
@@ -270,6 +273,31 @@ describe('ProwlarrKeyForm', () => {
       expect(onEnvAddress).toHaveBeenCalledTimes(envAddressCalls)
     })
 
+    it('fills the address with one Find found, which takes back the error on it (#511)', async () => {
+      saveProwlarrKey.mockRejectedValue(new serverSettings.SettingsError(502, 'unreachable'))
+      findAddresses.mockResolvedValue(['http://prowlarr:9696'])
+      const { address, field, save } = renderWithAddress()
+      await userEvent.type(address, 'http://localhost:9696')
+      await userEvent.type(field, 'abc123')
+      await userEvent.click(save)
+      await vi.waitFor(() => expect(address).toHaveAttribute('aria-invalid', 'true'))
+      await userEvent.click(screen.getByRole('button', { name: 'Find Prowlarr' }))
+      await userEvent.click(await screen.findByRole('button', { name: 'http://prowlarr:9696' }))
+      expect(address).toHaveValue('http://prowlarr:9696')
+      expect(address).not.toHaveAttribute('aria-invalid')
+    })
+
+    it.each([
+      ['env-address', 'Prowlarr’s address is now set on the Kinopeer server (PROWLARR_URL), which wins over one from the app.', 1],
+      ['auth-off', 'Kinopeer’s own login is off, so Prowlarr’s address can only be set on the server: PROWLARR_URL.', 0],
+    ] as const)('says the server’s %s refusal of Find as for a save', async (code, message, envAddressCalls) => {
+      findAddresses.mockRejectedValue(new serverSettings.SettingsError(409, code))
+      const { onEnvAddress } = renderWithAddress()
+      await userEvent.click(screen.getByRole('button', { name: 'Find Prowlarr' }))
+      expect(await screen.findByRole('alert', { name: saying(message) })).toBeInTheDocument()
+      expect(onEnvAddress).toHaveBeenCalledTimes(envAddressCalls)
+    })
+
     it('offers another action under Save', () => {
       renderWithAddress(<button type="button">Skip</button>)
       expect(screen.getByRole('button', { name: 'Skip' })).toBeInTheDocument()
@@ -283,6 +311,11 @@ describe('ProwlarrKeyForm', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByRole('alert')).toBeInTheDocument()
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('offers no Find where it doesn’t ask for the address (#511)', () => {
+    renderForm()
+    expect(screen.queryByRole('button', { name: 'Find Prowlarr' })).not.toBeInTheDocument()
   })
 
   it('names the address, not the variable, when one saved from the app isn’t Prowlarr', async () => {

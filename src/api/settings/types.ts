@@ -163,6 +163,11 @@ export interface QbittorrentLoginBody {
   url?: string
 }
 
+/** What Find answers (`POST /api/settings/qbittorrent/find`, `/prowlarr/find`, #511): where the service answered. */
+export interface FoundAddresses {
+  addresses: string[]
+}
+
 /** Error answers of /api/settings. */
 export interface SettingsErrorBody {
   error:

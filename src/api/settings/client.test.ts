@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { sharedRequests } from '../../logic/sharedRequests'
-import { SERVER_SETTINGS_FRESH_MS, SERVER_SETTINGS_KEY, SettingsError, forgetTmdbKey, getServerSettings, saveDownloadDefaults, saveQbittorrentLogin, saveTmdbKey } from './client'
+import { SERVER_SETTINGS_FRESH_MS, SERVER_SETTINGS_KEY, SettingsError, findAddresses, forgetTmdbKey, getServerSettings, saveDownloadDefaults, saveQbittorrentLogin, saveTmdbKey } from './client'
 import type { ServerSettings } from './types'
 
 let fetchMock: Mock<typeof fetch>
@@ -89,5 +89,24 @@ describe('a change saved on the server', () => {
     fetchMock.mockResolvedValueOnce(new Response('{"error":"invalid-key"}', { status: 400, headers: { 'Content-Type': 'application/json' } }))
     await expect(saveTmdbKey('key')).rejects.toBeInstanceOf(SettingsError)
     expect(sharedRequests.peek(SERVER_SETTINGS_KEY, SERVER_SETTINGS_FRESH_MS)).toEqual({ data: settings(false) })
+  })
+})
+
+describe('findAddresses (#511)', () => {
+  it('asks the server to look for the service and gives the addresses it found', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json({ addresses: ['http://qbittorrent:8080', 7, 'http://192.168.1.20:8080'] }))
+    expect(await findAddresses('qbittorrent')).toEqual(['http://qbittorrent:8080', 'http://192.168.1.20:8080'])
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/settings/qbittorrent/find')
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+    fetchMock.mockResolvedValueOnce(Response.json({}))
+    expect(await findAddresses('prowlarr')).toEqual([])
+    expect(fetchMock.mock.calls[1][0]).toBe('/api/settings/prowlarr/find')
+  })
+
+  it('fails with the server’s refusal, or an answer that isn’t its', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json({ error: 'auth-off' }, { status: 409 }))
+    await expect(findAddresses('prowlarr')).rejects.toMatchObject({ status: 409, code: 'auth-off' })
+    fetchMock.mockResolvedValueOnce(new Response('<!doctype html>', { headers: { 'Content-Type': 'text/html' } }))
+    await expect(findAddresses('prowlarr')).rejects.toBeInstanceOf(SettingsError)
   })
 })

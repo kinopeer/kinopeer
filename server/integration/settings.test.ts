@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { SettingsError, getServerSettings, saveDownloadDefaults, forgetProwlarrKey, forgetTmdbKey, saveProwlarrKey, saveQbittorrentLogin, saveTmdbKey } from '../../src/api/settings/client.ts'
+import { SettingsError, findAddresses, getServerSettings, saveDownloadDefaults, forgetProwlarrKey, forgetTmdbKey, saveProwlarrKey, saveQbittorrentLogin, saveTmdbKey } from '../../src/api/settings/client.ts'
 import { setUpPassword } from '../../src/api/auth/index.ts'
 import { getProwlarrStatus } from '../../src/api/prowlarr/client.ts'
 import { NoAddressError, getAppVersion } from '../../src/api/qbittorrent/client.ts'
-import { startKinopeer, stopKinopeer } from '../test/integration.ts'
+import { fakeProwlarr, fakeQbittorrent } from '../test/fakes.ts'
+import { NO_NETWORKS, startKinopeer, stopKinopeer } from '../test/integration.ts'
 
 afterEach(async () => {
   await stopKinopeer()
@@ -128,5 +129,26 @@ describe('settings client through /api/settings', () => {
     const error = await saveDownloadDefaults({ sequential: true }).catch((caught: unknown) => caught)
     expect(error).toBeInstanceOf(SettingsError)
     expect(error).toMatchObject({ status: 500, code: 'storage' })
+  })
+})
+
+describe('Find through the real server (#511)', () => {
+  const port = (base: string) => Number(new URL(base).port)
+
+  it('finds qBittorrent and Prowlarr on their ports where the app can save an address', async () => {
+    const [qbittorrent, prowlarr] = await Promise.all([fakeQbittorrent(), fakeProwlarr()])
+    await startKinopeer({
+      env: { KINOPEER_AUTH: undefined, QBITTORRENT_URL: undefined, PROWLARR_URL: undefined },
+      find: { system: NO_NETWORKS, ports: { qbittorrent: [port(qbittorrent.base)], prowlarr: [port(prowlarr.base)] } },
+    })
+    await setUpPassword('correct horse')
+    await expect(findAddresses('qbittorrent')).resolves.toEqual([qbittorrent.base.replace('127.0.0.1', 'localhost')])
+    await expect(findAddresses('prowlarr')).resolves.toEqual([prowlarr.base.replace('127.0.0.1', 'localhost')])
+  })
+
+  it('refuses where the environment sets the address', async () => {
+    await startKinopeer({ env: { KINOPEER_AUTH: undefined } })
+    await setUpPassword('correct horse')
+    await expect(findAddresses('qbittorrent')).rejects.toMatchObject({ status: 409, code: 'env-address' })
   })
 })

@@ -555,6 +555,7 @@ server a Node test can (Vite's dev server, #271).
 | TMDB for real: field shapes, missing posters, the language fallback, rate limits | The fake and the fixtures' titles | Only the README screenshots (`npm run screenshots:readme`, through the edge worker's cache unless a key is set) and the test stand see the real API; nothing compares them, so a change in TMDB's answers arrives as a bug report |
 | An app resumed from memory after an update: Safari on iOS keeping the Home Screen app's page, the new service worker taking it over, Umbrel's proxy in front of `version.json` | `src/pwa/updates.test.ts` on layer 2 with `fetch`, `visibilitychange` and the service worker's registration stubbed (#210); every browser test loads a fresh page, which already has the new version | The checklist: after Umbrel updates Kinopeer Edge, resume the app on the owner's phone from the background and see it reload with the "updated" toast. Only a page that already has the update check can pass: the first update from a build before it can't |
 | The Content-Security-Policy outside Chromium and behind Umbrel's app_proxy: WebKit's enforcement (Safari on iOS and the Mac), and whatever the proxy adds to or changes in the pages | The smoke journeys, which fail on anything the policy blocks in Chromium on the production server (`e2e/smoke/test.ts`), and the screenshot tests, which run under it on `vite preview` | The checklist: no "Content Security Policy" error in Safari's console on Kinopeer Edge while going through the phone's and the desktop's checks (but for Safari's own "Refused to apply a stylesheet", one per `<select>` on the page, SPEC's decision log), and the app still opening from Umbrel (`frame-ancestors 'none'` would stop it in a frame); for a PR that changes the policy, the same on the `preview-lan` stand |
+| Find (#511) over a real network: a LAN's /24, Docker's network and its DNS for container names, `host.docker.internal` and the gateway, a real qBittorrent or Prowlarr answering there, Prowlarr's `/login` behind a URL base or a proxy | A faked `FindSystem` on layer 4 (the candidates, the dedupe, the parallelism, the abort); the real `opens` on 127.0.0.1, a closed port and a TEST-NET address; the real `identifies` against the fakes; the stand with no networks to scan (`NO_NETWORKS`) | By hand on the owner's Docker, with Kinopeer and qBittorrent on a shared network and on the LAN, before the release that ships it; otherwise knowingly not checked |
 | Docker Compose (#358): the images starting together, qBittorrent reading the settings its first start writes, Docker's network with Kinopeer's fixed address | `docker-compose.test.ts`, which runs the first start's script in a shell and reads the file for what ties the services together | The checklist: the install from the checkout in Docker Desktop |
 | Real time: the hour before a refused login is retried, the week before a missing torrent's match is forgotten, the hourly cleanup, the notifications' 30-second pass and the waits before a message is sent again (30 s, 2 min, then every 10 min) | Fake timers and the notifier's injected clock on layer 4 | Not checked for real; the logic is small and the timers are the only difference |
 | Real time: Kinopeer's own login's lockouts (15 minutes up to a day), forgetting an address a day after its last failure or lock, its 30-day sessions and their daily renewal | An injected clock: `now` in `kinopeerAuth` on layer 4, `LoginThrottle`'s on layer 1 | Not checked for real; the clock is the only difference |
@@ -616,7 +617,8 @@ it uses next to itself.
   them). `fakeTmdb()`
   answers the API (a title's details from the fixtures, TMDB's 404 for one it doesn't have, 401 for
   the key `bad-key`), the authentication check (`good-key` passes) and the image host, recording
-  what reached it. `fakeProwlarr()` wants its key in `X-Api-Key` (401 otherwise) and answers the
+  what reached it. `fakeProwlarr()` serves its sign-in page at `/login` to anyone, with Prowlarr's title, as Find
+  (#511) reads it; everything else wants its key in `X-Api-Key` (401 otherwise): the
   status check, the indexers' status (`indexerStatus`, none failed by default), a search with the fixtures' releases (their download links carry the key, as
   Prowlarr's do) and a download: the Shōgun `.torrent` for the link `shogun`, a redirect to a magnet
   link for `magnet`, 404 for anything else. `fakeTelegram()` is Telegram's Bot API (7.0 and later)
@@ -651,7 +653,9 @@ TMDB at `TMDB_PROXY_URL`, which is empty otherwise, so no test reaches the deplo
 `overLimit` its rate limiter refuses every call, as for an IP over its limit), `container` to have
 the server run in a container whose system (`ContainerSystem` in `server/container.ts`: its files,
 name lookups, route out and interfaces) the test fakes (without it the server runs as outside a
-container, even where the tests run in one), and the fakes' options. Kinopeer's own login is off on the stand (`KINOPEER_AUTH: 'off'`, as on Umbrel), so a test
+container, even where the tests run in one), `find` for what Find (#511) reads and the ports it tries
+(`SettingsConfig['find']`; without it, the real system with no networks of its own, `NO_NETWORKS`, so
+no test sweeps the network it runs on), and the fakes' options. Kinopeer's own login is off on the stand (`KINOPEER_AUTH: 'off'`, as on Umbrel), so a test
 about another route needs no session; a test of the login unsets it (`env: { KINOPEER_AUTH:
 undefined }`).
 

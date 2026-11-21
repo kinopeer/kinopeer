@@ -10,6 +10,7 @@ import { failureText } from '../lib/failureText'
 import { unreachableText, useMayOpenAgain } from '../lib/unreachable'
 import { loadPastTheShell } from '../pwa/proxySignIn'
 import { BypassHint, LocalhostHint } from './ContainerHints'
+import { FindAddress } from './FindAddress'
 
 export interface QbittorrentLoginFormProps {
   /** The form's layout: the connect screen's card, or a sheet's. */
@@ -123,6 +124,12 @@ export function QbittorrentLoginForm({
   // Who didn't answer the sign-in, shown over the form, so what was typed stays.
   const signInUnreachable = error === null || FORM_ERRORS.has(error) ? undefined : (error as Unreachable)
   const openAgain = useMayOpenAgain(signInUnreachable)
+  const changeAddress = (value: string) => {
+    setAddress(value)
+    // The hint was for the address checked.
+    setLocalhost(undefined)
+    if (error === 'invalid-address' || error === 'address-unreachable') setError(null)
+  }
   const clearLoginError = () => {
     if (error === 'invalid' || error === 'login-needed') setError(null)
   }
@@ -181,14 +188,16 @@ export function QbittorrentLoginForm({
             mono
             required
             value={address}
-            onChange={(e) => {
-              setAddress(e.target.value)
-              // The hint was for the address checked.
-              setLocalhost(undefined)
-              if (error === 'invalid-address' || error === 'address-unreachable') setError(null)
-            }}
+            onChange={(e) => changeAddress(e.target.value)}
             error={(error === 'invalid-address' && t('address.invalid')) || (error === 'address-unreachable' && (failureText(t, 'qbittorrent', failure) ?? t('connect.addressUnreachable')))}
             help={t('connect.addressHelp')}
+          />
+        )}
+        {askAddress && (
+          <FindAddress
+            service="qbittorrent"
+            onPick={changeAddress}
+            onRefused={(code) => (code === 'auth-off' ? setError('auth-off') : onEnvAddress())}
           />
         )}
         <Input

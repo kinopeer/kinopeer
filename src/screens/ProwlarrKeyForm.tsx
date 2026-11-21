@@ -7,6 +7,7 @@ import { Button } from '../components/Button'
 import { Input } from '../components/Input'
 import { failureText } from '../lib/failureText'
 import { LocalhostHint } from './ContainerHints'
+import { FindAddress } from './FindAddress'
 
 export interface ProwlarrKeyFormProps {
   onSaved: (settings: ServerSettings) => void
@@ -96,6 +97,13 @@ export function ProwlarrKeyForm({
   const addressError =
     (error === 'invalid-address' && t('address.invalid')) || (askAddress && error === 'unreachable' && (why ?? t('prowlarrKey.addressUnreachable')))
 
+  const changeAddress = (value: string) => {
+    setAddress(value)
+    // The hint was for the address checked.
+    setLocalhost(undefined)
+    if (addressError) setError(null)
+  }
+
   return (
     <form className="key-form" onSubmit={handleSubmit}>
       <p className="t-body c2">{t('prowlarrKey.help')}</p>
@@ -145,14 +153,19 @@ export function ProwlarrKeyForm({
           mono
           required
           value={address}
-          onChange={(event) => {
-            setAddress(event.target.value)
-            // The hint was for the address checked.
-            setLocalhost(undefined)
-            if (addressError) setError(null)
-          }}
+          onChange={(event) => changeAddress(event.target.value)}
           error={addressError}
           help={t('prowlarrKey.addressHelp')}
+        />
+      )}
+      {askAddress && (
+        <FindAddress
+          service="prowlarr"
+          onPick={changeAddress}
+          onRefused={(code) => {
+            setError(code)
+            if (code === 'env-address') onEnvAddress?.()
+          }}
         />
       )}
       <Input
