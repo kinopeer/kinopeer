@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as serverSettings from '../api/settings'
@@ -191,7 +191,11 @@ describe('ProwlarrKeyForm', () => {
       await userEvent.type(field, 'abc123')
       await userEvent.click(save)
       const hint = await screen.findByRole('status', { name: saying('localhost is Kinopeer’s own container') })
-      expect(hint).toHaveTextContent(/If Prowlarr runs in a container on a shared Docker network/)
+      expect(
+        within(hint).getByText(
+          'Inside its container, localhost and 127.0.0.1 are Kinopeer itself. From there, the computer Kinopeer runs on is at http://host.docker.internal:9696. If Prowlarr runs in a container on a shared Docker network, enter that container’s name instead.',
+        ),
+      ).toBeInTheDocument()
 
       await userEvent.click(screen.getByRole('button', { name: 'Use this address' }))
       expect(address).toHaveValue('http://host.docker.internal:9696')

@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { networkInterfaces, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { atHost, container, defaultGateway, inContainer, isLoopback, localAddressTo, resolver, sourceOf, systemOnDisk, type ContainerSystem, type UdpSocket } from './container.ts'
+import { atHost, container, defaultGateway, inContainer, isLoopback, localAddressTo, ownNetwork, resolver, sourceOf, systemOnDisk, type ContainerSystem, type UdpSocket } from './container.ts'
 import { settlesWithin } from './test/fakes.ts'
 
 /** /proc/net/route on a Docker network: the default route through 172.18.0.1, then the network's own. */
@@ -56,13 +56,26 @@ describe('inContainer', () => {
   })
 })
 
+describe('ownNetwork', () => {
+  it('takes a container for one with a network of its own', () => {
+    expect(ownNetwork(system())).toBe(true)
+    expect(container({}, system())!.ownNetwork).toBe(true)
+  })
+
+  it.each(['/sys/class/net/docker0', '/sys/class/net/podman0'])('takes one that sees the host’s %s for one under host networking', (bridge) => {
+    const host = system({ files: { '/.dockerenv': '', [bridge]: '' } })
+    expect(ownNetwork(host)).toBe(false)
+    expect(container({}, host)!.ownNetwork).toBe(false)
+  })
+})
+
 describe('isLoopback', () => {
-  it.each(['localhost', 'LOCALHOST', 'kinopeer.localhost', '127.0.0.1', '127.1.2.3', '127.10.20.30', '[::1]', '0.0.0.0'])('takes %s for this machine', (host) => {
+  it.each(['localhost', 'LOCALHOST', 'kinopeer.localhost', '127.0.0.1', '127.1.2.3', '127.10.20.30', '[::1]', '[::]', '0.0.0.0', '[::ffff:7f00:1]', '[::ffff:7f01:203]'])('takes %s for this machine', (host) => {
     expect(isLoopback(host)).toBe(true)
   })
 
   // A name that only starts or ends like a loopback address is another host's (`127.0.0.1.example.com` resolves in public DNS).
-  it.each(['qbittorrent', '192.168.1.10', '172.17.0.1', 'localhost.example.com', '128.0.0.1', '[::2]', '127.0.0.1.example.com', 'x127.0.0.1'])('takes %s for another', (host) => {
+  it.each(['qbittorrent', '192.168.1.10', '172.17.0.1', 'localhost.example.com', '128.0.0.1', '[::2]', '127.0.0.1.example.com', 'x127.0.0.1', '[::ffff:c0a8:10a]', '[::ffff:8000:1]', '[::ffff:7f00:1]x'])('takes %s for another', (host) => {
     expect(isLoopback(host)).toBe(false)
   })
 })
@@ -87,6 +100,10 @@ describe('defaultGateway', () => {
     expect(defaultGateway(ROUTES.replace('010012AC', 'Z010012AC'))).toBeUndefined()
     expect(defaultGateway(ROUTES.replace('010012AC', '010012ACZ'))).toBeUndefined()
     expect(defaultGateway('')).toBeUndefined()
+  })
+
+  it('finds none for a default route with no gateway, a WireGuard or point-to-point device’s', () => {
+    expect(defaultGateway(ROUTES.replace('010012AC', '00000000'))).toBeUndefined()
   })
 })
 
@@ -182,7 +199,10 @@ describe('the system on disk', () => {
 })
 
 describe('localAddressTo', () => {
-  /** A UDP socket that connects, or fails, as told, and counts its closes. */
+  /**
+   * A UDP socket that connects, or fails, as told, and counts its closes. As Node's dgram does, a
+   * failed connect goes to the connect callback, not to 'error', and leaves the address 0.0.0.0.
+   */
   function socket({ connects, failsAfter = false }: { connects: boolean; failsAfter?: boolean }) {
     let onError: (() => void) | undefined
     const fake = {
@@ -191,12 +211,12 @@ describe('localAddressTo', () => {
         onError = listener
         return fake
       },
-      connect: (_port: number, _ip: string, connected: () => void) => {
-        if (!connects) return onError?.()
+      connect: (_port: number, _ip: string, connected: (error?: Error) => void) => {
+        if (!connects) return connected(Object.assign(new Error('connect EACCES'), { code: 'EACCES' }))
         connected()
         if (failsAfter) onError?.()
       },
-      address: () => ({ address: '172.18.0.5', family: 'IPv4', port: 40000 }),
+      address: () => ({ address: connects ? '172.18.0.5' : '0.0.0.0', family: 'IPv4', port: 40000 }),
       close: () => {
         fake.closes++
         return fake

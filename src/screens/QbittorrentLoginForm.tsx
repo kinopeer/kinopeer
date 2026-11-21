@@ -30,7 +30,10 @@ export interface QbittorrentLoginFormProps {
   onEnvAddress: () => void
   /** Retry beside who didn't answer; without it the banner only says so. */
   onRetry?: () => void
-  /** Where qBittorrent sees Kinopeer come from, when it asked the session check for a login (#509). */
+  /**
+   * Where qBittorrent sees Kinopeer come from, when it asked the session check for a login (#509),
+   * shown until the form's own check answers. Not for a form that asks for another address.
+   */
   source?: SourceAddress
 }
 
@@ -81,8 +84,9 @@ export function QbittorrentLoginForm({
   const [failure, setFailure] = useState<ConnectionFailure>()
   // The server's hints for Kinopeer in a container (#509), from the last check.
   const [localhost, setLocalhost] = useState<SettingsError['container']>()
-  const [checkSource, setCheckSource] = useState<SourceAddress>()
-  const source = checkSource ?? sessionSource
+  // Once a check has answered, only its source: the session's was for a check before it.
+  const [checkSource, setCheckSource] = useState<{ source?: SourceAddress }>()
+  const source = checkSource ? checkSource.source : sessionSource
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -95,7 +99,7 @@ export function QbittorrentLoginForm({
     } catch (e) {
       setFailure(failureOf(e))
       setLocalhost(e instanceof SettingsError ? e.container : undefined)
-      setCheckSource(e instanceof SettingsError ? e.source : undefined)
+      setCheckSource({ source: e instanceof SettingsError ? e.source : undefined })
       const code = e instanceof SettingsError ? e.code : undefined
       if (code === 'invalid-credentials') setError(askAddress && !username.trim() ? 'login-needed' : 'invalid')
       else if (code === 'banned') setError('banned')

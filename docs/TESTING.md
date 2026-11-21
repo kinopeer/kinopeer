@@ -649,7 +649,8 @@ worker (`tmdb-proxy/worker.ts`, `serveTmdbProxy` in `server/test/fakes.ts`) in f
 TMDB at `TMDB_PROXY_URL`, which is empty otherwise, so no test reaches the deployed one (with
 `overLimit` its rate limiter refuses every call, as for an IP over its limit), `container` to have
 the server run in a container whose system (`ContainerSystem` in `server/container.ts`: its files,
-name lookups, route out and interfaces) the test fakes, and the fakes' options. Kinopeer's own login is off on the stand (`KINOPEER_AUTH: 'off'`, as on Umbrel), so a test
+name lookups, route out and interfaces) the test fakes (without it the server runs as outside a
+container, even where the tests run in one), and the fakes' options. Kinopeer's own login is off on the stand (`KINOPEER_AUTH: 'off'`, as on Umbrel), so a test
 about another route needs no session; a test of the login unsets it (`env: { KINOPEER_AUTH:
 undefined }`).
 

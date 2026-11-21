@@ -114,6 +114,13 @@ describe('ConnectScreen', () => {
     expect(screen.getByLabelText('Username')).toBeRequired()
   })
 
+  it('drops the session check’s source once its own check answers without one (#509)', async () => {
+    setup(vi.fn().mockRejectedValue(new SettingsError(422, 'invalid-credentials')), { source: { address: '172.18.0.5', subnet: '172.18.0.0/16' } })
+    await fillAndSubmit()
+    expect(screen.getByLabelText('Password')).toHaveAccessibleDescription('Wrong username or password')
+    expect(screen.queryByRole('status', { name: saying(/auth bypass/) })).not.toBeInTheDocument()
+  })
+
   it('says why qBittorrent didn’t answer the session check, where the server could tell (#508)', () => {
     setup(undefined, { unreachable: 'qbittorrent', failure: 'refused' })
     expect(screen.getByRole('heading', { name: 'qBittorrent isn’t answering' })).toBeInTheDocument()
@@ -273,6 +280,15 @@ describe('ConnectScreen', () => {
         expect(onSignIn).toHaveBeenLastCalledWith('', '', 'http://host.docker.internal:8080')
       })
 
+      it('says nothing of the container on the form that doesn’t ask for the address', async () => {
+        // The server's own address may be on localhost (one saved from the app), but no field shows it.
+        setup(vi.fn().mockRejectedValue(hostKnown('not-qbittorrent')))
+        await fillAndSubmit()
+        expect(screen.getByRole('alert', { name: saying(/not like qBittorrent/) })).toBeInTheDocument()
+        expect(screen.queryByRole('status', { name: LOCALHOST })).not.toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: 'Use this address' })).not.toBeInTheDocument()
+      })
+
       it('says what to enter instead when the server doesn’t know the host’s address', async () => {
         setup(vi.fn().mockRejectedValue(new SettingsError(502, 'unreachable', 'refused', { container: {} })), { noAddress: true })
         await fillAddress('http://127.0.0.1:8080')
@@ -371,6 +387,15 @@ describe('ConnectScreen', () => {
       await userEvent.type(address, 'http://192.168.1.20:8080')
       await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
       expect(onSignIn).toHaveBeenCalledWith('', '', 'http://192.168.1.20:8080')
+    })
+
+    it('names where qBittorrent sees Kinopeer for the saved address only, not on the form that changes it (#509)', async () => {
+      vi.mocked(settings.getServerSettings).mockResolvedValue(serverSettings({ source: 'saved', url: saved }))
+      setup(undefined, { source: { address: '172.18.0.5', subnet: '172.18.0.0/16' } })
+      const bypass = saying(/auth bypass/)
+      expect(screen.getByRole('status', { name: bypass })).toBeInTheDocument()
+      await userEvent.click(await screen.findByRole('button', { name: 'Change qBittorrent address' }))
+      expect(screen.queryByRole('status', { name: bypass })).not.toBeInTheDocument()
     })
 
     it('goes back to signing in at the saved address on Cancel, sending none', async () => {

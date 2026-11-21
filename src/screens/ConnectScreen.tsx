@@ -71,7 +71,8 @@ export function ConnectScreen({ unreachable: unreachableProp, failure, unsupport
         // Change and Cancel start the form afresh: the saved address to edit, no error left.
         key={askAddress ? 'address' : 'login'}
         className="connect-form"
-        source={source}
+        // The session's source is for the address it checked, not for one being changed.
+        source={askAddress ? undefined : source}
         header={
           <div className="connect-intro">
             <h1 className="t-h1">{t('connect.title')}</h1>

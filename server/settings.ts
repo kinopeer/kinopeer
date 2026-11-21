@@ -218,8 +218,10 @@ function fail(response: ServerResponse, status: number, error: SettingsErrorBody
  * container: that localhost is Kinopeer itself, and the host's address may be the one (#509).
  */
 async function localhostHint(config: SettingsConfig, base: string): Promise<SettingsErrorBody['container']> {
-  if (!config.container || !isLoopback(new URL(base).hostname)) return undefined
-  const host = await config.container.hostAddress()
+  // Under host networking localhost is the host, where the service may well be.
+  if (!config.container?.ownNetwork || !isLoopback(new URL(base).hostname)) return undefined
+  // A hint that can't be had is no reason to answer otherwise.
+  const host = await config.container.hostAddress().catch(() => undefined)
   return host ? { hostAddress: atHost(base, host) } : {}
 }
 
@@ -422,7 +424,7 @@ async function saveQbittorrentLogin(config: SettingsConfig, request: IncomingMes
   }
   if (result === 'invalid') {
     // No login means the auth bypass was to let Kinopeer in: say where qBittorrent sees it come from.
-    const source = !credentials && config.container ? await config.container.sourceFor(new URL(base).hostname) : undefined
+    const source = !credentials && config.container ? await config.container.sourceFor(new URL(base).hostname).catch(() => undefined) : undefined
     return fail(response, 422, 'invalid-credentials', { source })
   }
   if (result === 'banned') return fail(response, 429, 'banned')

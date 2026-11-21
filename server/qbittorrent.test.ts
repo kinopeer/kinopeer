@@ -65,12 +65,14 @@ describe('qbittorrentMiddleware', () => {
 
   describe('in a container (#509)', () => {
     /** A container from where qBittorrent sees Kinopeer at 172.18.0.5, or (null) nowhere it can tell. */
-    function inContainer(seen: { address: string; subnet: string } | null = { address: '172.18.0.5', subnet: '172.18.0.0/16' }) {
+    function inContainer(seen: { address: string; subnet: string } | null | 'fails' = { address: '172.18.0.5', subnet: '172.18.0.0/16' }) {
       const asked: string[] = []
       const container: Container = {
+        ownNetwork: true,
         hostAddress: async () => undefined,
         sourceFor: async (host) => {
           asked.push(host)
+          if (seen === 'fails') throw new Error('no answer')
           return seen ?? undefined
         },
       }
@@ -95,6 +97,9 @@ describe('qbittorrentMiddleware', () => {
 
       const unknown = await call(`${await kinopeer({ url: qbt.base, container: inContainer(null).container })}/qbt/api/v2/app/version`)
       expect([unknown.status, unknown.headers.get(SOURCE_HEADER)]).toEqual([403, null])
+      // A hint that can't be had leaves qBittorrent's answer as it is.
+      const failed = await call(`${await kinopeer({ url: qbt.base, container: inContainer('fails').container })}/qbt/api/v2/app/version`)
+      expect([failed.status, failed.headers.get(SOURCE_HEADER)]).toEqual([403, null])
       const outside = await call(`${await kinopeer({ url: qbt.base })}/qbt/api/v2/app/version`)
       expect([outside.status, outside.headers.get(SOURCE_HEADER)]).toEqual([403, null])
     })

@@ -11,6 +11,11 @@ import type { SourceAddress } from '../src/api/settings/types.ts'
  */
 export interface Container {
   /**
+   * Whether the container has a network of its own, where localhost is the container. Under host
+   * networking (`--network host`) it shares the host's, where localhost is the host (`ownNetwork`).
+   */
+  ownNetwork: boolean
+  /**
    * The host's name or address as the container reaches it: `host.docker.internal` where it
    * resolves (Docker Desktop, or `extra_hosts: host-gateway`), else the default gateway, which on a
    * Docker network is the host. Undefined when neither is known.
@@ -40,12 +45,23 @@ export function inContainer(env: Record<string, string | undefined>, system: Pic
 }
 
 /**
+ * Whether the container has a network of its own: its /sys shows its own interfaces, and under host
+ * networking the host's, among them the bridge Docker (or Podman) makes on the host.
+ */
+export function ownNetwork(system: Pick<ContainerSystem, 'exists'>): boolean {
+  return !system.exists('/sys/class/net/docker0') && !system.exists('/sys/class/net/podman0')
+}
+
+/**
  * Host names that are this machine: inside a container, the container itself (#509). `hostname` is
  * a URL's, which keeps an IPv6 address in brackets.
  */
 export function isLoopback(hostname: string): boolean {
   const host = hostname.toLowerCase()
-  return host === 'localhost' || host.endsWith('.localhost') || host === '[::1]' || host === '0.0.0.0' || /^127\.\d+\.\d+\.\d+$/.test(host)
+  const v4 = /^127\.\d+\.\d+\.\d+$/.test(host) || host === '0.0.0.0'
+  // A URL writes an IPv4-mapped address in hex: [::ffff:127.0.0.1] is [::ffff:7f00:1].
+  const v6 = host === '[::1]' || host === '[::]' || /^\[::ffff:7f[0-9a-f]{2}:[0-9a-f]{1,4}\]$/.test(host)
+  return host === 'localhost' || host.endsWith('.localhost') || v4 || v6
 }
 
 /** `base` with its host replaced by `host`, the port and path kept. */
@@ -57,12 +73,13 @@ export function atHost(base: string, host: string): string {
 
 /**
  * The default gateway in /proc/net/route, whose fields the kernel separates with tabs and whose
- * addresses are hex in its (little-endian) byte order. The header line's fields are words.
+ * addresses are hex in its (little-endian) byte order. The header line's fields are words. A
+ * default route with no gateway (a WireGuard or point-to-point device's) names no host.
  */
 export function defaultGateway(routes: string): string | undefined {
   for (const line of routes.split('\n')) {
     const [, destination, gateway] = line.split('\t')
-    if (destination !== '00000000' || !gateway || !/^[0-9A-Fa-f]{8}$/.test(gateway)) continue
+    if (destination !== '00000000' || !gateway || !/^[0-9A-Fa-f]{8}$/.test(gateway) || gateway === '00000000') continue
     const bytes = gateway.match(/../g)!.map((byte) => parseInt(byte, 16))
     return bytes.reverse().join('.')
   }
@@ -132,8 +149,9 @@ export function localAddressTo(ip: string, socket: UdpSocket): Promise<string | 
       resolve(address)
     }
     socket.on('error', () => done(undefined))
-    // Any port: a UDP connect only picks the route and the local address.
-    socket.connect(9, ip, () => done(socket.address().address))
+    // Any port: a UDP connect only picks the route and the local address. With a callback, Node
+    // hands it a failed connect's error rather than emitting 'error'.
+    socket.connect(9, ip, (error?: Error) => done(error ? undefined : socket.address().address))
   })
 }
 
@@ -156,6 +174,7 @@ export const systemOnDisk: ContainerSystem = {
 export function container(env: Record<string, string | undefined>, system: ContainerSystem = systemOnDisk): Container | undefined {
   if (!inContainer(env, system)) return undefined
   return {
+    ownNetwork: ownNetwork(system),
     hostAddress: async () => {
       if (await system.resolve('host.docker.internal')) return 'host.docker.internal'
       const routes = system.readFile('/proc/net/route')

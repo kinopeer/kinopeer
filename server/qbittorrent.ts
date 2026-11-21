@@ -382,7 +382,8 @@ async function forward(
   response.statusCode = upstream.status
   if (upstream.status === 403 && !session && container) {
     // No login: qBittorrent's auth bypass was to let Kinopeer in, and doesn't cover where it comes from.
-    const source = await container.sourceFor(new URL(base).hostname)
+    // A hint that can't be had leaves qBittorrent's 403 as it is.
+    const source = await container.sourceFor(new URL(base).hostname).catch(() => undefined)
     if (source) response.setHeader(SOURCE_HEADER, `${source.address} ${source.subnet}`)
   }
   for (const name of RESPONSE_HEADERS) {

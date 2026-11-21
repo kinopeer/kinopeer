@@ -147,9 +147,9 @@ export function loginWarning(env: Record<string, string | undefined>): string | 
  * besides the known ones (the integration tests' fake). KINOPEER_ALLOWED_HOSTS adds the host names it answers at
  * (`allowedHosts`). KINOPEER_AUTH=off turns Kinopeer's own login off (server/auth.ts), and throws
  * for a value it doesn't know, so the server doesn't start, as it does for a KINOPEER_PASSWORD
- * shorter than 8 characters or longer than 256 (`envPassword`).
+ * shorter than 8 characters or longer than 256 (`envPassword`). `system` is what the container's
+ * hints read (`ContainerSystem`), the real one unless a test fakes it.
  */
-/** `system` is what the container's hints read (`ContainerSystem`), the real one unless a test fakes it. */
 export function kinopeerServer(env: Record<string, string | undefined>, stores: DataStores, system?: ContainerSystem): KinopeerServer {
   const store = stores.settings
   const auth = kinopeerAuth({ store: stores.auth, mode: authMode(env.KINOPEER_AUTH), envPassword: envPassword(env.KINOPEER_PASSWORD) })

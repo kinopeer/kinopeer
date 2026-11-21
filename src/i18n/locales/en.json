@@ -66,8 +66,9 @@
   },
   "container": {
     "localhostTitle": "localhost is Kinopeer’s own container",
-    "localhostBody": "Inside its container, localhost and 127.0.0.1 are Kinopeer itself. Enter the address of the computer {{service}} runs on, or the name of {{service}}’s container if they share a Docker network.",
-    "localhostBody_host": "Inside its container, localhost and 127.0.0.1 are Kinopeer itself. From there, the computer Kinopeer runs on is at {{address}}. If {{service}} runs in a container on a shared Docker network, enter that container’s name instead.",
+    "localhostIsKinopeer": "Inside its container, localhost and 127.0.0.1 are Kinopeer itself.",
+    "localhostBody": "$t(container.localhostIsKinopeer) Enter the address of the computer {{service}} runs on, or the name of {{service}}’s container if they share a Docker network.",
+    "localhostBody_host": "$t(container.localhostIsKinopeer) From there, the computer Kinopeer runs on is at {{address}}. If {{service}} runs in a container on a shared Docker network, enter that container’s name instead.",
     "useHostAddress": "Use this address",
     "bypassTitle": "qBittorrent doesn’t let Kinopeer in without a login",
     "bypassBody": "Its auth bypass doesn’t cover Kinopeer’s container, which qBittorrent sees at {{address}}. Add {{subnet}} to the subnets it lets in without a login (Tools → Options → Web UI in qBittorrent), or enter its login."
