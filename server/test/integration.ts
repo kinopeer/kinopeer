@@ -7,6 +7,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vi } from 'vitest'
+import type { ContainerSystem } from '../container.ts'
 import { dataStores, kinopeerServer, type DataStores } from '../main.ts'
 import { closeServers, fakeProwlarr, fakePushService, fakeQbittorrent, fakeTelegram, fakeTmdb, listen, serveTmdbProxy } from './fakes.ts'
 
@@ -63,6 +64,8 @@ export interface StandOptions {
    * `overLimit` has its rate limiter refuse every call.
    */
   tmdbProxy?: true | { key?: string; overLimit?: boolean }
+  /** What the container's hints read (#509), faked; the real system without it. */
+  container?: ContainerSystem
 }
 
 export interface Stand {
@@ -147,7 +150,7 @@ export async function startKinopeer(options: StandOptions = {}): Promise<Stand> 
   const stores = dataStores(env.KINOPEER_DATA_DIR!)
   // As server/main.ts does: auth.json is read by the login itself.
   await Promise.all([stores.settings.load(), stores.matches.load(), stores.push.load()])
-  const { routes } = kinopeerServer(env, stores)
+  const { routes } = kinopeerServer(env, stores, options.container)
   const received: ReceivedRequest[] = []
   // The production server's chain (server/main.ts) without the static files: the routes in order,
   // then 404, as the dev server's own fallback would answer an unknown API path.
