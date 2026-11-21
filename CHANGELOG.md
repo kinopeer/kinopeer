@@ -4,6 +4,10 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 
 ## Unreleased
 
+### Added
+
+- Kinopeer's image installs on its own next to a qBittorrent and a Prowlarr you already run, in Docker, installed on the machine, on another computer or on a seedbox: run it with `docker run` or a Compose file with Kinopeer alone, set its password and enter their addresses in the app. The README's Install next to your own qBittorrent and Prowlarr says which address a container reaches them at and what to check when one doesn't connect, and installs it the same way on TrueNAS (24.10 and later) and CasaOS or ZimaOS, with their own qBittorrent and Prowlarr apps. The bug form asks for this install and Docker Compose's. ([#507](https://github.com/kinopeer/kinopeer/issues/507))
+
 ### Fixed
 
 - When Prowlarr isn't set up, a title's releases say so and open the form to enter its address (where the app can set it) and API key, as Settings → Connections does, then search again; they no longer send you to the server's `PROWLARR_URL` where the app can set the address. A key Prowlarr rejected is named as such, with the form to change it. ([#510](https://github.com/kinopeer/kinopeer/issues/510))
