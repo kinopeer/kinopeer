@@ -23,6 +23,7 @@ on:
       - 'scripts/accessibility/**'
       - 'scripts/actuals/**'
       - 'scripts/edge/**'
+      - 'scripts/test-order/**'
       # The tests at the root, which the folders above don't take: a PR that adds or changes only
       # one of them gets the dry run of the whole suite, so a test that can't run in Stryker's
       # sandbox fails on it, unless checks.json's mutants.testsLeftOut leaves it out (#467).
@@ -56,10 +57,11 @@ jobs:
     if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     # For a hang, well over the slowest healthy run, as in ci.yml. The runner's four cores give
-    # Stryker four test runners, so a branch that adds a server module with many top-level constants
-    # (static mutants, each running the whole suite) takes long: #477's 1024 mutants took 42
-    # minutes, and its 1144 after a review round about 54 (11 to 12 minutes locally on nine runners,
-    # whose dry run is 1.6 times faster than CI's).
+    # Stryker four test runners, and a static mutant (code that runs as its module loads) runs every
+    # test related to its file until one fails, the whole suite for a module the Vite config imports:
+    # #477's 1024 mutants took 42 minutes, its 1144 after a review round about 54, and 1235 took 72.
+    # Its own tests now run first, where such a run stops (#520), so only a static mutant that
+    # survives runs the whole suite.
     timeout-minutes: 90
     permissions:
       contents: read

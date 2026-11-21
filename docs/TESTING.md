@@ -339,6 +339,16 @@ there. Stryker's runs leave out the tests `mutants.testsLeftOut` in `checks.json
 (`stryker.config.mjs` adds them to its `ignorePatterns`): `checks.test.ts` lists the repository's
 files through git and finds none in Stryker's sandbox, a git-ignored folder, where a mutated file the
 Vite config imports makes Vitest run every test; it reads configs, so it can't kill a mutant either (#465).
+A static mutant, one that acts as its module loads (a regex or a condition at the top of a
+module), has no tests Stryker can tie to it, so it runs every test related to its file until one
+fails, and for a file the Vite config imports, as every module under `server/` is, that's the
+whole suite. So a run related to some files starts with the tests named after them
+(`container.test.ts` and `integration/container.test.ts` for `container.ts`), the rest in Vitest's
+own order, which puts the longest first (`RelatedFilesFirst` in `vite.config.ts` over
+`scripts/test-order/testOrder.ts`, #520): on #518's changes in a Linux container with CI's four
+CPUs the run went from 19 minutes to under 3, every mutant with the status it had. A static
+mutant that survives still runs the whole suite, and on CI's runner that can outlast Stryker's
+time limit, which counts it as a timeout, and so as killed, rather than as a survivor.
 
 A test that stays green with the behavior it names removed is a `silent-test` miss in the making.
 Four shapes cause most of them:

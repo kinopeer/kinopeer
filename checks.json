@@ -1,6 +1,6 @@
 {
   "coverage": {
-    "include": ["src/**/*.{ts,tsx}", "server/**/*.ts", "tmdb-proxy/**/*.ts", "scripts/guard/**/*.ts", "scripts/size/**/*.ts", "scripts/requests/**/*.ts", "scripts/layout-shift/**/*.ts", "scripts/accessibility/**/*.ts", "scripts/actuals/**/*.ts", "scripts/edge/**/*.ts"],
+    "include": ["src/**/*.{ts,tsx}", "server/**/*.ts", "tmdb-proxy/**/*.ts", "scripts/guard/**/*.ts", "scripts/size/**/*.ts", "scripts/requests/**/*.ts", "scripts/layout-shift/**/*.ts", "scripts/accessibility/**/*.ts", "scripts/actuals/**/*.ts", "scripts/edge/**/*.ts", "scripts/test-order/**/*.ts"],
     "exclude": [
       "**/*.test.{ts,tsx}",
       "src/test/**",
@@ -14,7 +14,7 @@
     "thresholds": { "lines": 96, "statements": 96, "functions": 96, "branches": 94 }
   },
   "mutants": {
-    "folders": ["src", "server", "tmdb-proxy", "scripts/guard", "scripts/size", "scripts/requests", "scripts/layout-shift", "scripts/accessibility", "scripts/actuals", "scripts/edge"],
+    "folders": ["src", "server", "tmdb-proxy", "scripts/guard", "scripts/size", "scripts/requests", "scripts/layout-shift", "scripts/accessibility", "scripts/actuals", "scripts/edge", "scripts/test-order"],
     "notProduction": ["\\.test\\.tsx?$", "/test/", "\\.d\\.ts$", "^src/test-setup\\.ts$"],
     "excludedMutations": ["StringLiteral", "ArrayDeclaration", "ObjectLiteral", "OptionalChaining"],
     "testsLeftOut": ["/checks.test.ts", "/unraid/xml-files.test.ts"]
