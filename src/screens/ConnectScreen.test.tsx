@@ -58,8 +58,26 @@ describe('ConnectScreen', () => {
     expect(onSignIn).toHaveBeenCalledWith('admin', 'secret')
   })
 
-  it('does not submit empty fields', async () => {
+  it('checks again with the login left empty, for qBittorrent changed to let Kinopeer in without one (#519)', async () => {
+    const onSignIn = vi.fn().mockRejectedValueOnce(new SettingsError(422, 'invalid-credentials')).mockResolvedValueOnce(undefined)
+    setup(onSignIn)
+    expect(screen.getByLabelText('Username')).toHaveAccessibleDescription('Leave the login empty if qBittorrent lets Kinopeer in without one.')
+    // Its bypass not on yet: qBittorrent still asks for a login.
+    await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
+    expect(onSignIn).toHaveBeenLastCalledWith('', '')
+    expect(screen.getByLabelText('Password')).toHaveAccessibleDescription('qBittorrent asks for a login: enter its username and password')
+    // Then on: the same Connect checks again, with no reload.
+    await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
+    expect(onSignIn).toHaveBeenCalledTimes(2)
+    expect(onSignIn).toHaveBeenLastCalledWith('', '')
+  })
+
+  it.each([
+    ['a password without a username', 'Password'],
+    ['a username without a password', 'Username'],
+  ])('sends nothing for half a login, %s', async (_, filled) => {
     const { onSignIn } = setup()
+    await userEvent.type(screen.getByLabelText(filled), 'admin')
     await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
     expect(onSignIn).not.toHaveBeenCalled()
   })
@@ -111,7 +129,6 @@ describe('ConnectScreen', () => {
   it('says where qBittorrent sees Kinopeer when the session check was asked for a login (#509)', () => {
     setup(undefined, { source: { address: '172.18.0.5', subnet: '172.18.0.0/16' } })
     expect(screen.getByRole('status', { name: saying(/^Set a password in qBittorrent.*qBittorrent sees Kinopeer at 172\.18\.0\.5, and adding 172\.18\.0\.0\/16/) })).toBeInTheDocument()
-    expect(screen.getByLabelText('Username')).toBeRequired()
   })
 
   it('drops the session check’s source once its own check answers without one (#509)', async () => {
@@ -355,6 +372,8 @@ describe('ConnectScreen', () => {
 
       await userEvent.type(screen.getByLabelText('Username'), 'admin')
       expect(screen.getByLabelText('Username')).not.toHaveAttribute('aria-invalid')
+      // A username goes with a password: half a login isn't sent.
+      await userEvent.type(screen.getByLabelText('Password'), 'secret')
       await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
       expect(screen.getByLabelText('Password')).toHaveAccessibleDescription('Wrong username or password')
       expect(screen.getByLabelText('Username')).toHaveAttribute('aria-invalid', 'true')
@@ -424,7 +443,6 @@ describe('ConnectScreen', () => {
       await userEvent.click(await screen.findByRole('button', { name: 'Change qBittorrent address' }))
       await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
       expect(screen.queryByLabelText('qBittorrent address')).not.toBeInTheDocument()
-      expect(screen.getByLabelText('Username')).toBeRequired()
       await fillAndSubmit()
       expect(onSignIn).toHaveBeenCalledWith('admin', 'secret')
       expect(onSignIn.mock.calls[0]).toHaveLength(2)

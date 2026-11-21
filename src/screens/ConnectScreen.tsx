@@ -18,7 +18,7 @@ export interface ConnectScreenProps {
   failure?: ConnectionFailure
   /** The version of a qBittorrent older than Kinopeer works with: said in place of the form, with Retry. */
   unsupported?: string
-  /** The server has no address for qBittorrent: the form asks for one, and a login only where qBittorrent wants one. */
+  /** The server has no address for qBittorrent: the form asks for one beside the login, optional on every connect form (#519). */
   noAddress?: boolean
   /** Where qBittorrent sees Kinopeer come from, when it asked the session check for a login (#509). */
   source?: SourceAddress

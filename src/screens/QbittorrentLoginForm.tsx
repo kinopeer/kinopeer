@@ -19,7 +19,7 @@ export interface QbittorrentLoginFormProps {
   header?: ReactNode
   /** Under Connect: the connect screen's Change or Cancel. */
   actions?: ReactNode
-  /** Ask for qBittorrent's address beside the login, which is optional then. */
+  /** Ask for qBittorrent's address beside the login. */
   askAddress?: boolean
   /** What the address field starts with: the address saved from the app. */
   initialAddress?: string
@@ -103,7 +103,7 @@ export function QbittorrentLoginForm({
       // A failure no check answered (no answer, a sign-in proxy) says nothing of the bypass.
       if (e instanceof SettingsError && e.code !== undefined) setCheckSource({ source: e.source })
       const code = e instanceof SettingsError ? e.code : undefined
-      if (code === 'invalid-credentials') setError(askAddress && !username.trim() ? 'login-needed' : 'invalid')
+      if (code === 'invalid-credentials') setError(username.trim() ? 'invalid' : 'login-needed')
       else if (code === 'banned') setError('banned')
       else if (code === 'not-qbittorrent') setError('not-qbittorrent')
       else if (code === 'host-refused') setError('host-refused')
@@ -207,22 +207,24 @@ export function QbittorrentLoginForm({
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
-          // With an address, qBittorrent's auth bypass may let the server in without a login.
-          required={!askAddress}
+          // qBittorrent's auth bypass may let the server in without a login, and a Connect with none
+          // checks again once it's turned on (#519), with no reload the Home Screen app hasn't got. Half a
+          // login isn't sent: a password alone would go as none, a username alone as a login to refuse.
+          required={password !== ''}
           value={username}
           onChange={(e) => {
             setUsername(e.target.value)
             clearLoginError()
           }}
           error={error === 'invalid' || error === 'login-needed'}
-          help={askAddress ? t('connect.loginOptional') : undefined}
+          help={t('connect.loginOptional')}
         />
         <Input
           label={t('connect.password')}
           name="password"
           type="password"
           autoComplete="current-password"
-          required={!askAddress}
+          required={username.trim() !== ''}
           value={password}
           onChange={(e) => {
             setPassword(e.target.value)
