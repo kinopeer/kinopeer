@@ -7,7 +7,7 @@
 A qBittorrent web UI for movies and TV series. Find a movie or a series, pick a release found by Prowlarr and follow the download, all in one app on your phone or computer.
 
 > [!NOTE]
-> Kinopeer installs [on umbrelOS](#install-on-umbrel), [with Docker Compose](#install-with-docker-compose) beside qBittorrent and Prowlarr, or [next to the qBittorrent and Prowlarr you already run](#install-next-to-your-own-qbittorrent-and-prowlarr), TrueNAS and CasaOS among them. What's planned is in the [milestones](https://github.com/kinopeer/kinopeer/milestones).
+> Kinopeer installs [on umbrelOS](#install-on-umbrel), [with Docker Compose](#install-with-docker-compose) beside qBittorrent and Prowlarr, or [next to the qBittorrent and Prowlarr you already run](#install-next-to-your-own-qbittorrent-and-prowlarr), TrueNAS, CasaOS and Unraid among them. What's planned is in the [milestones](https://github.com/kinopeer/kinopeer/milestones).
 
 <img src="docs/screenshots/desktop-title.png" alt="A series page on a computer, with its releases under the overview: filters for resolution, audio, source, minimum seeds and indexer over a table of releases">
 
@@ -194,6 +194,23 @@ TrueNAS Community Edition 24.10 and later installs a Docker Compose file as a cu
 3. Open Kinopeer at `http://<your TrueNAS>:8797` and go on from step 2 above.
 
 TrueNAS's own qBittorrent and Prowlarr apps answer at your TrueNAS's address with the ports they're installed with, by default `http://<your TrueNAS>:30024` for qBittorrent and `http://<your TrueNAS>:30050` for Prowlarr. The qBittorrent app writes its temporary password in its logs at first: set a password of your own in its web UI first.
+
+### Unraid
+
+> [!NOTE]
+> This works from Kinopeer 1.2.0, the first version with Find.
+
+Kinopeer's template for Unraid's Community Applications is submitted there after the release that ships it, 1.2.0. Until Kinopeer shows up in the **Apps** tab, add the template by hand: in Unraid's terminal (the **>_** icon in its header), save it among your own templates:
+
+```sh
+curl -fsSL --create-dirs -o /boot/config/plugins/dockerMan/templates-user/my-kinopeer.xml https://raw.githubusercontent.com/kinopeer/kinopeer/main/unraid/kinopeer.xml
+```
+
+1. Open the **Apps** tab, search for **Kinopeer** and install it; or, with the template added by hand, open the **Docker** tab → **Add Container**, pick **kinopeer** under **Template** and apply. The defaults open it at port 8797 and keep its data in `/mnt/user/appdata/kinopeer`. Kinopeer runs as Unraid's usual user and group, `nobody:users` (99:100), which own that folder.
+2. Open Kinopeer from its icon in the **Docker** tab (WebUI), or at `http://<your Unraid>:8797`, and set its password right away; or set **Password** in the template beforehand.
+3. Kinopeer asks for qBittorrent's address and login, then Prowlarr's address and API key. Enter your server's address with the port the Docker tab shows under **LAN IP:Port**, such as `http://192.168.1.10:8080` for qBittorrent or `http://192.168.1.10:9696` for Prowlarr: it stays the same when Unraid recreates a container, as an update does. **Find**, under each address field, looks on Unraid's Docker network too, where qBittorrent's and Prowlarr's containers are with Unraid's default network; it may offer a container's own address there (the Docker tab's **Container IP** column), which can change when the container is recreated.
+
+The template's advanced view (**Show more settings**) also takes the addresses up front, then the app doesn't ask for them. Kinopeer can read Prowlarr's key itself, as **Prowlarr's key without entering it** above says, with three of its fields set: **Prowlarr address**, **Prowlarr config folder** (Prowlarr's appdata folder, usually `/mnt/user/appdata/prowlarr`) and **Prowlarr config file**, `/prowlarr/config.xml`. On Unraid Kinopeer runs as 99:100 rather than 1000, so that's who needs to be able to read the file.
 
 ### CasaOS and ZimaOS
 

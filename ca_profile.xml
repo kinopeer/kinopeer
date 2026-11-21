@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!--
+  Unraid's Community Applications reads this file from the repository's root (#512): its profile of
+  the repository. Kinopeer's template is unraid/kinopeer.xml.
+-->
+<CommunityApplications>
+  <Profile>Kinopeer, a qBittorrent web UI for movies and TV series, which finds releases through Prowlarr. Questions go to GitHub Discussions → Q&amp;A, bugs to GitHub Issues.</Profile>
+  <Icon>https://raw.githubusercontent.com/kinopeer/kinopeer/main/public/icons/icon-512.png</Icon>
+  <WebPage>https://github.com/kinopeer/kinopeer</WebPage>
+</CommunityApplications>

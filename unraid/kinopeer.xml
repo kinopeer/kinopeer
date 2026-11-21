@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<!--
+  Kinopeer's template for Unraid's Community Applications (#512): what Unraid's Apps tab installs.
+  CA rereads it from main, so a release needs no change here; the :1 tag follows the newest 1.x.
+  Its checks are in unraid/template.test.ts, and the check by hand in docs/RELEASE_CHECKLIST.md.
+-->
+<Container version="2">
+  <Name>kinopeer</Name>
+  <Repository>ghcr.io/kinopeer/kinopeer:1</Repository>
+  <Registry>https://github.com/kinopeer/kinopeer/pkgs/container/kinopeer</Registry>
+  <Network>bridge</Network>
+  <Privileged>false</Privileged>
+  <Shell>sh</Shell>
+  <Support>https://github.com/kinopeer/kinopeer/discussions/categories/q-a</Support>
+  <Project>https://github.com/kinopeer/kinopeer</Project>
+  <ReadMe>https://github.com/kinopeer/kinopeer#readme</ReadMe>
+  <Overview>A qBittorrent web UI for movies and TV series. Find a movie or a series, pick a release found by Prowlarr and follow the download, all in one app on your phone or computer. Install it next to your qBittorrent (4.6.0 or later) and Prowlarr containers: on its first start, Kinopeer asks for their addresses, and its Find button looks for them on Unraid's Docker network.</Overview>
+  <Category>Downloaders: MediaApp:Video</Category>
+  <WebUI>http://[IP]:[PORT:8080]/</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/kinopeer/kinopeer/main/unraid/kinopeer.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/kinopeer/kinopeer/main/public/icons/icon-512.png</Icon>
+  <!-- Unraid's user and group (nobody:users), which own the appdata folder dockerMan creates for /data. -->
+  <ExtraParams>--user 99:100</ExtraParams>
+  <Config Name="Web UI port" Target="8080" Default="8797" Mode="tcp" Description="The port you open Kinopeer at." Type="Port" Display="always" Required="true" Mask="false"/>
+  <Config Name="Data" Target="/data" Default="/mnt/user/appdata/kinopeer" Mode="rw" Description="Kinopeer's password, the addresses and logins you enter in the app and its settings." Type="Path" Display="always" Required="true" Mask="false"/>
+  <Config Name="Password" Target="KINOPEER_PASSWORD" Default="" Mode="" Description="Optional, 8 characters or more. Left empty, the first visitor sets Kinopeer's password: open Kinopeer right after installing and set it." Type="Variable" Display="always" Required="false" Mask="true"/>
+  <Config Name="qBittorrent address" Target="QBITTORRENT_URL" Default="" Mode="" Description="Optional. Left empty, Kinopeer asks for it on its first start, and its Find button looks for qBittorrent. Set here, for example http://192.168.1.10:8080, it can't be changed from the app." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Prowlarr address" Target="PROWLARR_URL" Default="" Mode="" Description="Optional. Left empty, Kinopeer asks for it and Prowlarr's API key after qBittorrent's. Set here, for example http://192.168.1.10:9696, it can't be changed from the app, and Kinopeer can read the key from Prowlarr's config folder (the two fields below)." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Prowlarr config folder" Target="/prowlarr" Default="" Mode="ro" Description="Optional, read only with the Prowlarr address above: Prowlarr's /config folder, usually /mnt/user/appdata/prowlarr, mounted read-only." Type="Path" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Prowlarr config file" Target="PROWLARR_CONFIG_XML" Default="" Mode="" Description="Optional, with the two fields above: /prowlarr/config.xml, where Kinopeer reads Prowlarr's API key." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Allowed host names" Target="KINOPEER_ALLOWED_HOSTS" Default="" Mode="" Description="Optional. Kinopeer answers at your server's IP address and .local name; add any other name you open it at, such as a reverse proxy's domain, comma-separated." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+</Container>

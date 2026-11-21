@@ -8,7 +8,8 @@
 
     /* The integration tests import the browser clients (src/api), written for the bundler's
        resolution without file extensions, so they can't be checked the Node way tsconfig.node.json
-       checks the rest of server/. */
+       checks the rest of server/. So does Unraid's template's test, which starts the server with
+       the template's variables (#512). */
     "module": "esnext",
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
@@ -23,5 +24,5 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["server/integration"]
+  "include": ["server/integration", "unraid"]
 }
