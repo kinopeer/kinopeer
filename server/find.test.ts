@@ -86,6 +86,9 @@ describe('isPrivate', () => {
     ['100.63.0.1', false],
     ['100.128.0.1', false],
     ['11.0.0.1', false],
+    ['11.20.0.1', false],
+    ['193.168.0.1', false],
+    ['101.100.0.1', false],
     ['203.0.113.5', false],
   ])('%s is private: %s', (address, expected) => {
     expect(isPrivate(address)).toBe(expected)

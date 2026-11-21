@@ -58,10 +58,8 @@ export function isPrivate(address: string): boolean {
  * address only, and a public address not at all.
  */
 export function subnetHosts(interfaces: ReturnType<typeof networkInterfaces>): string[] {
-  const own = Object.values(interfaces)
-    .flat()
-    .filter((entry) => entry?.family === 'IPv4' && !entry.internal)
-    .map((entry) => entry!.address)
+  // Loopback and IPv6 addresses are in no private range, so they're never scanned around.
+  const own = Object.values(interfaces).flatMap((entries) => (entries ?? []).map((entry) => entry.address))
   const prefixes = [...new Set(own.filter(isPrivate).map((address) => address.split('.').slice(0, 3).join('.')))].slice(0, MAX_SUBNETS)
   return prefixes.flatMap((prefix) => Array.from({ length: 254 }, (_, i) => `${prefix}.${i + 1}`)).filter((host) => !own.includes(host))
 }
