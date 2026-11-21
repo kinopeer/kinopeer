@@ -213,14 +213,8 @@ describe('What Community Applications reads', () => {
     }
   })
 
-  it('finds every screenshot on main, and the licence is the one package.json names', () => {
-    const raw = 'https://raw.githubusercontent.com/kinopeer/kinopeer/main/'
-    const screenshots = [...template.querySelectorAll('Container > Screenshot')].map((element) => element.textContent ?? '')
-    expect(screenshots.length).toBeGreaterThan(0)
-    for (const address of screenshots) {
-      expect(address.startsWith(`${raw}docs/screenshots/`)).toBe(true)
-      expect(existsSync(join(ROOT, address.slice(raw.length)))).toBe(true)
-    }
+  // Its screenshots, under docs/, which Stryker's sandbox leaves out, are checked in xml-files.test.ts.
+  it('names the licence package.json names', () => {
     expect(text('License')).toBe(JSON.parse(read('package.json')).license)
   })
 
