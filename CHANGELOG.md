@@ -10,7 +10,7 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 
 ### Changed
 
-- When Kinopeer's server can't reach qBittorrent or Prowlarr, the app says why and what to check: a host name that doesn't resolve, a port nothing listens on (for qBittorrent, its Web UI off or listening on 127.0.0.1 only), no answer in time, an https address on a plain HTTP port, a certificate the server doesn't trust, or a connection closed with no answer. A qBittorrent that refuses the address's port (its Host header validation, when its Web UI is published on another port) is no longer taken for a wrong login. It's said on the connect screen and onboarding's forms, in Settings → Connections and on a title's releases. A check of an address, a login or a key now gives up after 15 seconds. ([#508](https://github.com/kinopeer/kinopeer/issues/508))
+- When Kinopeer's server can't reach qBittorrent or Prowlarr, the app says why and what to check: a host name that doesn't resolve, a port nothing listens on (for qBittorrent, its Web UI off or listening on 127.0.0.1 only), no answer in time, an https address on a plain HTTP port, a certificate the server doesn't trust, or a connection closed with no answer. A qBittorrent that refuses the address (its Host header validation, when its Web UI is published on another port or the name is missing from its Server domains) is no longer taken for a wrong login. It's said on the connect screen and onboarding's forms, in Settings → Connections and on a title's releases. A check of an address, a login or a key now gives up after 15 seconds. ([#508](https://github.com/kinopeer/kinopeer/issues/508))
 
 ### Fixed
 

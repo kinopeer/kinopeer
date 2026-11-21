@@ -80,12 +80,16 @@ export async function qbittorrentLogin(
  * auth asks with; an *arr app's API answers 401 with neither.
  */
 function isHostRefusal(response: Response, text: string): boolean {
-  return (
-    response.status === 401 &&
-    text === 'Unauthorized' &&
-    response.headers.get('x-xss-protection') === '1; mode=block' &&
-    !response.headers.has('www-authenticate')
-  )
+  return hasRefusalHead(response) && text === 'Unauthorized'
+}
+
+/**
+ * `isHostRefusal` but the text, so a body is read only when the status and headers match. The
+ * header's value may come twice, comma-joined, when a proxy in front adds it too.
+ */
+function hasRefusalHead(response: Response): boolean {
+  const xss = response.headers.get('x-xss-protection')?.split(',') ?? []
+  return response.status === 401 && xss.some((value) => value.trim() === '1; mode=block') && !response.headers.has('www-authenticate')
 }
 
 /**
@@ -95,7 +99,9 @@ function isHostRefusal(response: Response, text: string): boolean {
  */
 async function refusesHost(base: string, signal?: AbortSignal): Promise<boolean> {
   const response = await fetch(`${base}/api/v2/app/version`, { headers: { Origin: base, Referer: `${base}/` }, redirect: 'manual', signal })
-  return isHostRefusal(response, await response.text())
+  if (hasRefusalHead(response)) return isHostRefusal(response, await response.text())
+  await response.body?.cancel()
+  return false
 }
 
 /** What qBittorrent's version looks like (`v5.2.4`, `v4.6.7`), told from a page that answers every path. */
