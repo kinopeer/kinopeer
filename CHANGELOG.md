@@ -2,7 +2,9 @@
 
 Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor versions could change behavior and settings.
 
-## Unreleased
+## 1.2.0 - 2026-11-22
+
+Kinopeer installs anywhere: its image runs next to a qBittorrent and a Prowlarr you already have, in Docker, on the machine, on another computer or a seedbox, with steps for TrueNAS, CasaOS and ZimaOS, and a template for Unraid. It finds their addresses itself, says why a connection failed and what to check, and gives hints for Kinopeer in a container.
 
 ### Added
 
