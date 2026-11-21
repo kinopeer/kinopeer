@@ -4,6 +4,8 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 
 ## 1.1.0 - 2026-11-20
 
+Kinopeer goes beyond Umbrel: it installs with Docker Compose beside qBittorrent and Prowlarr, has a password of its own, asks for their addresses itself and answers only at the addresses it's meant to be reached at. It tells you when a download finishes, in Telegram or with a push notification, changes qBittorrent's folders from Settings, and marks what you already have in Search, a title's releases and the add sheet. Screens no longer move as their data comes in.
+
 ### Added
 
 - Kinopeer can also tell you a download finished with a push notification on your phone or computer. Turn them on for the device in Settings → Connections → Push notifications and send a test; then Notify when finished on a torrent's page tells every device that turned them on, and Telegram if it's set up. A tap on the notification opens the torrent. Push needs Kinopeer over HTTPS with a certificate the device trusts (on Umbrel, its own certificate trusted on the device), and on an iPhone or iPad, Kinopeer added to the Home Screen; where a device can't get them, the card says why. ([#481](https://github.com/kinopeer/kinopeer/issues/481))
