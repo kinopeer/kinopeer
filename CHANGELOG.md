@@ -16,6 +16,7 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 
 ### Fixed
 
+- The connect screen checks again with the login left empty, so a qBittorrent you've changed to let Kinopeer in without a login (its auth bypass) is let in with no reload, which the iOS Home Screen app hasn't got. ([#519](https://github.com/kinopeer/kinopeer/issues/519))
 - When Prowlarr isn't set up, a title's releases say so and open the form to enter its address (where the app can set it) and API key, as Settings → Connections does, then search again; they no longer send you to the server's `PROWLARR_URL` where the app can set the address. A key Prowlarr rejected is named as such, with the form to change it. ([#510](https://github.com/kinopeer/kinopeer/issues/510))
 
 ## 1.1.0 - 2026-11-21
