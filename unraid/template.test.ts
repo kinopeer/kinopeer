@@ -204,6 +204,7 @@ describe("The template's variables", () => {
 })
 
 describe('What Community Applications reads', () => {
+  // The template's screenshots, under docs/, which Stryker's sandbox leaves out, are checked in xml-files.test.ts.
   it('finds the template at its TemplateURL and the icon at its address, both on main', () => {
     const raw = 'https://raw.githubusercontent.com/kinopeer/kinopeer/main/'
     expect(text('TemplateURL')).toBe(`${raw}unraid/kinopeer.xml`)
@@ -213,7 +214,6 @@ describe('What Community Applications reads', () => {
     }
   })
 
-  // Its screenshots, under docs/, which Stryker's sandbox leaves out, are checked in xml-files.test.ts.
   it('names the licence package.json names', () => {
     expect(text('License')).toBe(JSON.parse(read('package.json')).license)
   })
