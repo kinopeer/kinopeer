@@ -48,6 +48,7 @@ body:
         - umbrelOS (Homelab App Store)
         - Docker Compose (Kinopeer's docker-compose.yml)
         - Kinopeer's image next to my own qBittorrent and Prowlarr (docker run, TrueNAS, CasaOS…)
+        - Unraid (Community Applications)
         - From source (npm run dev or npm start)
         - Other
     validations:
