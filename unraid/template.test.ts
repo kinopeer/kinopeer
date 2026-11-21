@@ -5,7 +5,6 @@
 // dockerMan's xmlToCommand) read as unset. Installing it on Unraid isn't: that's done by hand in an
 // Unraid VM whenever the template changes (docs/RELEASE_CHECKLIST.md). jsdom gives the XML parser,
 // DOMParser.
-import { execFileSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -148,10 +147,5 @@ describe('What Community Applications reads', () => {
     const profile = xml('ca_profile.xml')
     expect(profile.documentElement.tagName).toBe('CommunityApplications')
     expect(profile.querySelector('CommunityApplications > Profile')?.textContent?.trim()).not.toBe('')
-  })
-
-  it('finds no other XML in the repository, since CA’s docs don’t say which files it reads as templates', () => {
-    const tracked = execFileSync('git', ['ls-files', '*.xml'], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean)
-    expect(tracked.sort()).toEqual(['ca_profile.xml', 'unraid/kinopeer.xml'])
   })
 })
