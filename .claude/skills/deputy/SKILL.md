@@ -65,15 +65,20 @@ Then which PR it is, by its author (`user.login`, `author_association`) and its 
 ## 2. Wait for CI
 
 Wait for these checks at the head: the ones `main`'s ruleset requires (`check`, `docker`,
-`visual`, `smoke`, `guard`, `performance`), `guard report`, and `Mutants report` when the PR
-changes a path in `mutants.yml`'s `paths`. A check not there yet counts as running: right after
-the PR is marked ready some of them haven't started. A check that ran more than once at the head
-counts by its latest run. Poll the head's check runs with a loop of `sleep 60` between reads, in
-commands of under 10 minutes one after another, up to 30 minutes from when the PR was marked
-ready, and for `Mutants report` up to the `timeout-minutes` of the `mutants` job in the head's
-`.github/workflows/mutants.yml`: that job takes longer than the others on a big diff, and
-stopping at 30 minutes left #498 waiting twice for a run that then passed (#477 noted it for the
-retro).
+`visual`, `smoke`, `guard`, `performance`) and `guard report`. A check not there yet counts as
+running: right after the PR is marked ready some of them haven't started. A check that ran more
+than once at the head counts by its latest run. Poll the head's check runs with a loop of
+`sleep 60` between reads, in commands of under 10 minutes one after another, up to 30 minutes
+from when the PR was marked ready.
+
+`Mutants report`, when the PR changes a path in `mutants.yml`'s `paths`, isn't waited for before
+the round: run section 3 while it runs, and post the round only once it's there, polling for it
+up to the `timeout-minutes` of the `mutants` job in the head's `.github/workflows/mutants.yml`.
+That job takes longer than the others on a big diff (up to 46 minutes, #520), and stopping at
+30 minutes left #498 waiting twice for a run that then passed (#477 noted it for the retro).
+`/test-review` run before it says `no report yet` for its K: read the report once it's there and
+judge its survivors by K yourself, as findings of the same round. One review before the report
+and another after it would split the round in two.
 
 - **A failed check:** post a review with `event=COMMENT`, headed `CI at <short sha>`, that names
   the failed checks and nothing else, convert the PR to a draft, and stop. Fixing CI is the
