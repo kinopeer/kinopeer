@@ -88,8 +88,9 @@ function isHostRefusal(response: Response, text: string): boolean {
  * header's value may come twice, comma-joined, when a proxy in front adds it too.
  */
 function hasRefusalHead(response: Response): boolean {
-  const xss = response.headers.get('x-xss-protection')?.split(',') ?? []
-  return response.status === 401 && xss.some((value) => value.trim() === '1; mode=block') && !response.headers.has('www-authenticate')
+  // `Headers.get` joins values with ", ", as the Fetch standard says.
+  const xss = response.headers.get('x-xss-protection')?.split(', ') ?? []
+  return response.status === 401 && xss.includes('1; mode=block') && !response.headers.has('www-authenticate')
 }
 
 /**

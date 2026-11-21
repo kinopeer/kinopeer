@@ -409,6 +409,7 @@ describe('checkQbittorrent', () => {
     ['an API', 401, {}, '', 'invalid'],
     ['the text alone', 401, {}, 'Unauthorized', 'invalid'],
     ['the header alone', 401, { 'X-XSS-Protection': '1; mode=block' }, '', 'invalid'],
+    ['the header with another value', 401, { 'X-XSS-Protection': '0' }, 'Unauthorized', 'invalid'],
     ['a 200 that reads the same', 200, { 'X-XSS-Protection': '1; mode=block' }, 'Unauthorized', 'not-qbittorrent'],
   ])('doesn’t take a page that answers every path alike for qBittorrent refusing its port (%s)', async (_, status, headers, body, withLogin) => {
     const base = await serve((_request, response) => {
@@ -420,7 +421,7 @@ describe('checkQbittorrent', () => {
 
   it('takes qBittorrent’s refusal with its header added again by a proxy in front', async () => {
     const base = await serve((_request, response) => {
-      response.writeHead(401, { 'X-XSS-Protection': ['1; mode=block', '1; mode=block'] }).end('Unauthorized')
+      response.writeHead(401, { 'X-XSS-Protection': ['0', '1; mode=block'] }).end('Unauthorized')
     })
     expect(await checkQbittorrent(base, undefined)).toBe('host-refused')
     expect(await checkQbittorrent(base, { username: 'admin', password: 'pass word' })).toBe('host-refused')
