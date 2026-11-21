@@ -93,8 +93,8 @@ describe('ownNetwork', () => {
     expect(ownNetwork(system({ files }))).toBe(false)
   })
 
-  it('takes one whose interfaces it can’t read for one with a network of its own', () => {
-    expect(ownNetwork(system({ files: {} }))).toBe(true)
+  it('takes one whose interfaces it can’t read for one under host networking, as doubtful', () => {
+    expect(ownNetwork(system({ files: {} }))).toBe(false)
   })
 })
 
@@ -169,13 +169,13 @@ describe('sourceOf', () => {
 
 describe('container', () => {
   it('is none outside a container', () => {
-    expect(container({}, system({ files: {} }))).toBeUndefined()
+    expect(container({}, system({ files: { ...OWN_NETWORK } }))).toBeUndefined()
   })
 
   it('takes host.docker.internal for the host where it resolves, else the default gateway', async () => {
     expect(await container({}, system({ names: { 'host.docker.internal': '192.168.65.254' } }))!.hostAddress()).toBe('host.docker.internal')
     expect(await container({}, system())!.hostAddress()).toBe('172.18.0.1')
-    expect(await container({}, system({ files: { '/.dockerenv': '' } }))!.hostAddress()).toBeUndefined()
+    expect(await container({}, system({ files: { '/.dockerenv': '', ...OWN_NETWORK } }))!.hostAddress()).toBeUndefined()
   })
 
   it('says where a service by name or address sees Kinopeer come from', async () => {
@@ -291,9 +291,9 @@ describe('localAddressTo', () => {
 
 describe('container on this machine', () => {
   // The real lookups and the UDP route, which the tests above fake: what the server runs in its image.
-  // Its interfaces are taken for the container's own: this machine's (a CI runner's) has a network
-  // card, which reads as host networking, as it would be for a container sharing it.
-  const real = () => container({ KINOPEER_CONTAINER: '1' }, { ...systemOnDisk, list: () => [] })!
+  // Its interfaces are a container's own, loopback and a veth that isn't there: this machine's (a CI
+  // runner's) has a network card, which reads as host networking, as it would for a container sharing it.
+  const real = () => container({ KINOPEER_CONTAINER: '1' }, { ...systemOnDisk, list: () => ['lo', 'veth-kinopeer-test'] })!
   const own = Object.values(networkInterfaces())
     .flat()
     .find((entry) => entry?.family === 'IPv4' && !entry.internal)

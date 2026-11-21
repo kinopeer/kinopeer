@@ -181,6 +181,18 @@ describe('ProwlarrKeyForm', () => {
       expect(address).not.toHaveAttribute('aria-invalid')
     })
 
+    it('takes the hint back once another address is typed, so Use this address can’t replace it (#509)', async () => {
+      saveProwlarrKey.mockRejectedValueOnce(new serverSettings.SettingsError(502, 'not-prowlarr', undefined, { container: { hostAddress: 'http://host.docker.internal:9696' } }))
+      const { address, field, save } = renderWithAddress()
+      await userEvent.type(address, 'http://localhost:9696')
+      await userEvent.type(field, 'abc123')
+      await userEvent.click(save)
+      const LOCALHOST = saying('localhost is inside Kinopeer’s container')
+      expect(await screen.findByRole('status', { name: LOCALHOST })).toBeInTheDocument()
+      await userEvent.type(address, '1')
+      expect(screen.queryByRole('status', { name: LOCALHOST })).not.toBeInTheDocument()
+    })
+
     it.each([
       ['doesn’t answer', new serverSettings.SettingsError(502, 'unreachable', 'refused', { container: { hostAddress: 'http://host.docker.internal:9696' } })],
       ['answers as something else', new serverSettings.SettingsError(502, 'not-prowlarr', undefined, { container: { hostAddress: 'http://host.docker.internal:9696' } })],

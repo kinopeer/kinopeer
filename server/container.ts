@@ -48,12 +48,14 @@ export function inContainer(env: Record<string, string | undefined>, system: Pic
  * shows the interfaces of its network. A container's own are virtual (veth, macvlan), while a
  * host's include one backed by a device (a network card, a VM's virtio one) or a bridge (Docker's
  * and Podman's, also in an LXC container running Docker, whose own interfaces are veths). A
- * doubtful setup reads as the host's network, and gets no hints: a wrong hint costs more than a
+ * doubtful setup reads as the host's network, an unreadable /sys/class/net among them, and gets no hints: a wrong hint costs more than a
  * missing one. SPEC's decision log lists the setups this misreads; no rule is added for them.
  */
 export function ownNetwork(system: Pick<ContainerSystem, 'exists' | 'list'>): boolean {
   const net = '/sys/class/net'
-  return !system.list(net).some((name) => system.exists(`${net}/${name}/device`) || system.exists(`${net}/${name}/bridge`))
+  const names = system.list(net)
+  // A readable /sys/class/net lists lo at least: none means it couldn't be read, which is doubtful.
+  return names.length > 0 && !names.some((name) => system.exists(`${net}/${name}/device`) || system.exists(`${net}/${name}/bridge`))
 }
 
 /**

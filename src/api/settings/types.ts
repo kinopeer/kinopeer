@@ -193,13 +193,13 @@ export interface SettingsErrorBody {
   failure?: ConnectionFailure
   /**
    * With `unreachable`, `not-qbittorrent` or `not-prowlarr` for an address on localhost while
-   * Kinopeer runs in a container, where localhost is Kinopeer itself (#509): `hostAddress` is the
+   * Kinopeer runs in a container, where localhost leads into the container (#509): `hostAddress` is the
    * same address at the host, when the server knows the host's.
    */
   container?: { hostAddress?: string }
   /**
-   * With `invalid-credentials` for no username while Kinopeer runs in a container: where
-   * qBittorrent sees Kinopeer come from, which its auth bypass doesn't cover (#509).
+   * With `invalid-credentials` for no username while Kinopeer runs in a container, qBittorrent asking
+   * for a login: where it sees Kinopeer come from, for its auth bypass (#509).
    */
   source?: SourceAddress
 }

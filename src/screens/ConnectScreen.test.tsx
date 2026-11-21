@@ -271,7 +271,7 @@ describe('ConnectScreen', () => {
       it.each([
         ['doesn’t answer', hostKnown('unreachable')],
         ['answers as something else', hostKnown('not-qbittorrent')],
-      ])('says localhost there is Kinopeer when it %s, and puts the host’s address in on a tap', async (_, error) => {
+      ])('says localhost there leads into the container when it %s, and puts the host’s address in on a tap', async (_, error) => {
         const onSignIn = vi.fn().mockRejectedValueOnce(error).mockResolvedValue(undefined)
         setup(onSignIn, { noAddress: true })
         await fillAddress('http://localhost:8080')
@@ -288,6 +288,15 @@ describe('ConnectScreen', () => {
         expect(screen.queryByRole('status', { name: LOCALHOST })).not.toBeInTheDocument()
         await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
         expect(onSignIn).toHaveBeenLastCalledWith('', '', 'http://host.docker.internal:8080')
+      })
+
+      it('takes the hint back once another address is typed, so Use this address can’t replace it', async () => {
+        setup(vi.fn().mockRejectedValue(hostKnown('not-qbittorrent')), { noAddress: true })
+        await fillAddress('http://localhost:8080')
+        expect(screen.getByRole('status', { name: LOCALHOST })).toBeInTheDocument()
+        await userEvent.type(screen.getByLabelText('qBittorrent address'), '1')
+        expect(screen.queryByRole('status', { name: LOCALHOST })).not.toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: 'Use this address' })).not.toBeInTheDocument()
       })
 
       it('says nothing of the container on the form that doesn’t ask for the address', async () => {

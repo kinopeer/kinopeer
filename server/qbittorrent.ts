@@ -162,9 +162,9 @@ export const NO_ADDRESS = 'no-address'
 export const FAILURE_HEADER = 'x-kinopeer-failure'
 
 /**
- * Beside qBittorrent's 403 when the server has no login, in a container: where qBittorrent sees
- * Kinopeer come from, the address and its subnet with a space between (#509), which its auth bypass
- * doesn't cover. `SOURCE_HEADER` in src/api/qbittorrent/client.ts.
+ * Beside qBittorrent's 403 when the server has no login, in a container, qBittorrent asking for a
+ * login the server has none for: where it sees Kinopeer come from, the address and its subnet with a
+ * space between, for its auth bypass (#509). `SOURCE_HEADER` in src/api/qbittorrent/client.ts.
  */
 export const SOURCE_HEADER = 'x-kinopeer-source'
 /**
@@ -381,7 +381,7 @@ async function forward(
 
   response.statusCode = upstream.status
   if (upstream.status === 403 && !session && container) {
-    // No login: qBittorrent's auth bypass was to let Kinopeer in, and doesn't cover where it comes from.
+    // qBittorrent asks for a login the server has none for: where it sees Kinopeer, for its bypass.
     // A hint that can't be had leaves qBittorrent's 403 as it is.
     const source = await container.sourceFor(new URL(base).hostname).catch(() => undefined)
     if (source) response.setHeader(SOURCE_HEADER, `${source.address} ${source.subnet}`)

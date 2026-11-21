@@ -183,6 +183,8 @@ export function QbittorrentLoginForm({
             value={address}
             onChange={(e) => {
               setAddress(e.target.value)
+              // The hint was for the address checked.
+              setLocalhost(undefined)
               if (error === 'invalid-address' || error === 'address-unreachable') setError(null)
             }}
             error={(error === 'invalid-address' && t('address.invalid')) || (error === 'address-unreachable' && (failureText(t, 'qbittorrent', failure) ?? t('connect.addressUnreachable')))}

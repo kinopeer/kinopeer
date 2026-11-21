@@ -147,6 +147,8 @@ export function ProwlarrKeyForm({
           value={address}
           onChange={(event) => {
             setAddress(event.target.value)
+            // The hint was for the address checked.
+            setLocalhost(undefined)
             if (addressError) setError(null)
           }}
           error={addressError}

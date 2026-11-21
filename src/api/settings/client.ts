@@ -28,7 +28,7 @@ export class SettingsError extends Error {
   readonly failure?: ConnectionFailure
   /** The address was localhost inside Kinopeer's container (#509), and the host's, when known. */
   readonly container?: { hostAddress?: string }
-  /** No login, and qBittorrent's auth bypass doesn't cover where it sees Kinopeer come from (#509). */
+  /** No login sent, and qBittorrent asks for one: where it sees Kinopeer come from, for its auth bypass (#509). */
   readonly source?: SourceAddress
 
   constructor(

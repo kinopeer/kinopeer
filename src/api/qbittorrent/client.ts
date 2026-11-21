@@ -96,7 +96,7 @@ export class NoAddressError extends QbittorrentError {
 
 /** The server has no working qBittorrent login (the app asks for one, see src/api/settings). */
 export class UnauthorizedError extends QbittorrentError {
-  /** With no login on the server, in a container: where qBittorrent sees Kinopeer come from, which its auth bypass doesn't cover (#509). */
+  /** With no login on the server, in a container: where qBittorrent sees Kinopeer come from, for its auth bypass (#509). */
   readonly source?: SourceAddress
 
   constructor(source?: SourceAddress) {
