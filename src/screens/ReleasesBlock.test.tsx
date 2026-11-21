@@ -1,12 +1,40 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import * as settings from '../api/settings'
+import type { ServerSettings } from '../api/settings'
+import { ToastProvider } from '../components/Toast'
 import { DEFAULT_SORT, NO_FILTERS, NO_REMEMBERED_FILTERS } from '../releases/filterReleases'
 import { parseRelease } from '../releases/parseRelease'
 import { DUNE_RELEASES } from '../test/fixtures'
 import { ReleasesBody, ReleasesCount } from './ReleasesBlock'
 import type { Releases } from './useReleases'
 import { saying } from '../test/render'
+
+vi.mock('../api/settings', async (importOriginal) => ({
+  ...(await importOriginal<typeof settings>()),
+  getServerSettings: vi.fn(),
+  saveProwlarrKey: vi.fn(),
+}))
+
+/** The server's settings with Prowlarr's address from `address`, its key as given, and Kinopeer's own login on or off. */
+function serverSettings(
+  address: ServerSettings['prowlarr']['address'],
+  { key = false, login = true }: { key?: boolean; login?: boolean } = {},
+): ServerSettings {
+  return {
+    tmdb: { configured: true, source: 'saved', fallback: null },
+    prowlarr: { configured: key, source: key ? 'saved' : null, serverKey: false, address },
+    qbittorrent: { configured: true, source: 'saved', address: { source: 'env' } },
+    downloads: null,
+    auth: login ? { enabled: true, source: 'saved' } : { enabled: false },
+  }
+}
+
+beforeEach(() => {
+  vi.mocked(settings.getServerSettings).mockReset()
+  vi.mocked(settings.saveProwlarrKey).mockReset()
+})
 
 const ROWS = DUNE_RELEASES.map((release) => ({ release, info: parseRelease(release.title) }))
 
@@ -46,6 +74,7 @@ function renderBody(search: Releases) {
     <ReleasesBody releases={search} skeleton={<p>Skeleton</p>}>
       <p>The list</p>
     </ReleasesBody>,
+    { wrapper: ToastProvider },
   )
 }
 
@@ -58,11 +87,66 @@ describe('ReleasesBody', () => {
     expect(screen.queryByText('The list')).not.toBeInTheDocument()
   })
 
-  it('explains a missing Prowlarr setup, with nothing to retry', () => {
+  it('sets Prowlarr up from the releases screen where the app can, then searches again (#510)', async () => {
+    vi.mocked(settings.getServerSettings).mockResolvedValue(serverSettings({ source: null }))
+    const saved = serverSettings({ source: 'saved', url: 'http://prowlarr:9696' }, { key: true })
+    vi.mocked(settings.saveProwlarrKey).mockResolvedValue(saved)
+    const search = releases({ status: 'setup', rows: [], visible: [] })
+    renderBody(search)
+    expect(screen.getByRole('heading', { name: 'Prowlarr isn’t set up' })).toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('button', { name: 'Set up Prowlarr' }))
+    expect(screen.queryByText(/PROWLARR_URL/)).not.toBeInTheDocument()
+
+    const sheet = screen.getByRole('dialog', { name: 'Prowlarr connection' })
+    await userEvent.type(within(sheet).getByLabelText('Prowlarr address'), 'http://prowlarr:9696')
+    await userEvent.type(within(sheet).getByLabelText('Prowlarr API key'), 'abc123')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
+    expect(settings.saveProwlarrKey).toHaveBeenCalledWith('abc123', 'http://prowlarr:9696')
+    expect(await screen.findByText('Prowlarr address and key saved')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(search.retry).toHaveBeenCalledOnce()
+  })
+
+  it('asks only for the key where the server has Prowlarr’s address', async () => {
+    vi.mocked(settings.getServerSettings).mockResolvedValue(serverSettings({ source: 'env' }))
     renderBody(releases({ status: 'setup', rows: [], visible: [] }))
-    expect(screen.getByRole('heading', { name: 'Prowlarr isn’t connected' })).toBeInTheDocument()
-    expect(screen.getByText(/PROWLARR_URL/)).toBeInTheDocument()
+    expect(await screen.findByText('Kinopeer finds releases through Prowlarr. Enter its API key, and the search runs again.')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Set up Prowlarr' }))
+    const sheet = screen.getByRole('dialog', { name: 'Prowlarr key' })
+    expect(within(sheet).queryByLabelText('Prowlarr address')).not.toBeInTheDocument()
+    expect(within(sheet).getByLabelText('Prowlarr API key')).toBeInTheDocument()
+  })
+
+  it('says Prowlarr’s address is the server’s to set, with nothing to press, where Kinopeer’s own login is off', async () => {
+    vi.mocked(settings.getServerSettings).mockResolvedValue(serverSettings({ source: null }, { login: false }))
+    renderBody(releases({ status: 'setup', rows: [], visible: [] }))
+    expect(
+      await screen.findByText('Kinopeer’s own login is off, so Prowlarr’s address can only be set on the server: PROWLARR_URL.'),
+    ).toBeInTheDocument()
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  it('says Prowlarr rejected the key and changes it, with the saved address, then searches again', async () => {
+    vi.mocked(settings.getServerSettings).mockResolvedValue(serverSettings({ source: 'saved', url: 'http://prowlarr:9696' }, { key: true }))
+    vi.mocked(settings.saveProwlarrKey).mockResolvedValue(serverSettings({ source: 'saved', url: 'http://prowlarr:9696' }, { key: true }))
+    const search = releases({ status: 'rejected', rows: [], visible: [] })
+    renderBody(search)
+    expect(screen.getByRole('heading', { name: 'Prowlarr didn’t accept the API key' })).toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('button', { name: 'Change Prowlarr address and key' }))
+    const sheet = screen.getByRole('dialog', { name: 'Prowlarr connection' })
+    expect(within(sheet).getByLabelText('Prowlarr address')).toHaveValue('http://prowlarr:9696')
+    await userEvent.type(within(sheet).getByLabelText('Prowlarr API key'), 'new-key')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
+    expect(settings.saveProwlarrKey).toHaveBeenCalledWith('new-key', 'http://prowlarr:9696')
+    expect(await screen.findByText('Prowlarr address and key saved')).toBeInTheDocument()
+    expect(search.retry).toHaveBeenCalledOnce()
+  })
+
+  it('still offers the key where the server’s settings don’t load', async () => {
+    vi.mocked(settings.getServerSettings).mockRejectedValue(new Error('down'))
+    renderBody(releases({ status: 'setup', rows: [], visible: [] }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Set up Prowlarr' }))
+    expect(screen.getByRole('dialog', { name: 'Prowlarr key' })).toBeInTheDocument()
   })
 
   it('says when Prowlarr can’t be reached and searches again on Try again', async () => {
