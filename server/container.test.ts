@@ -75,7 +75,7 @@ describe('isLoopback', () => {
   })
 
   // A name that only starts or ends like a loopback address is another host's (`127.0.0.1.example.com` resolves in public DNS).
-  it.each(['qbittorrent', '192.168.1.10', '172.17.0.1', 'localhost.example.com', '128.0.0.1', '[::2]', '127.0.0.1.example.com', 'x127.0.0.1', '[::ffff:c0a8:10a]', '[::ffff:8000:1]', '[::ffff:7f00:1]x'])('takes %s for another', (host) => {
+  it.each(['qbittorrent', '192.168.1.10', '172.17.0.1', 'localhost.example.com', '128.0.0.1', '[::2]', '127.0.0.1.example.com', 'x127.0.0.1', '[::ffff:c0a8:10a]', '[::ffff:8000:1]', '[::ffff:7f00:1]x', 'x[::ffff:7f00:1]'])('takes %s for another', (host) => {
     expect(isLoopback(host)).toBe(false)
   })
 })
@@ -100,6 +100,12 @@ describe('defaultGateway', () => {
     expect(defaultGateway(ROUTES.replace('010012AC', 'Z010012AC'))).toBeUndefined()
     expect(defaultGateway(ROUTES.replace('010012AC', '010012ACZ'))).toBeUndefined()
     expect(defaultGateway('')).toBeUndefined()
+  })
+
+  it('takes only the default route’s gateway, not another route’s', () => {
+    // 192.168.0.0/16 through 172.18.0.254, listed before the default route.
+    const routes = ROUTES.replace('eth0\t00000000', 'eth0\t0000A8C0\tFE0012AC\t0003\t0\t0\t0\t0000FFFF\t0\t0\t0\neth0\t00000000')
+    expect(defaultGateway(routes)).toBe('172.18.0.1')
   })
 
   it('finds none for a default route with no gateway, a WireGuard or point-to-point device’s', () => {
@@ -203,7 +209,7 @@ describe('localAddressTo', () => {
    * A UDP socket that connects, or fails, as told, and counts its closes. As Node's dgram does, a
    * failed connect goes to the connect callback, not to 'error', and leaves the address 0.0.0.0.
    */
-  function socket({ connects, failsAfter = false }: { connects: boolean; failsAfter?: boolean }) {
+  function socket({ connects, failsAfter = false, errorsInstead = false }: { connects: boolean; failsAfter?: boolean; errorsInstead?: boolean }) {
     let onError: (() => void) | undefined
     const fake = {
       closes: 0,
@@ -212,6 +218,7 @@ describe('localAddressTo', () => {
         return fake
       },
       connect: (_port: number, _ip: string, connected: (error?: Error) => void) => {
+        if (errorsInstead) return onError?.()
         if (!connects) return connected(Object.assign(new Error('connect EACCES'), { code: 'EACCES' }))
         connected()
         if (failsAfter) onError?.()
@@ -234,6 +241,13 @@ describe('localAddressTo', () => {
   it('gives none, and closes the socket, where it can’t connect', async () => {
     const failed = socket({ connects: false })
     expect(await localAddressTo('172.18.0.3', failed as unknown as UdpSocket)).toBeUndefined()
+    expect(failed.closes).toBe(1)
+  })
+
+  it('gives none, should the socket emit an error in place of connecting', async () => {
+    const failed = socket({ connects: false, errorsInstead: true })
+    expect(await settlesWithin(localAddressTo('172.18.0.3', failed as unknown as UdpSocket), 1000)).toBe(true)
+    expect(await localAddressTo('172.18.0.3', socket({ connects: false, errorsInstead: true }) as unknown as UdpSocket)).toBeUndefined()
     expect(failed.closes).toBe(1)
   })
 
