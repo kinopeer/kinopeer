@@ -130,8 +130,9 @@ neighbours of a change, and answer each that applies with a test or a reason:
   quote, a substitution, another `shell:`), not as a list of spellings, which a reviewer extends
   each round (#456: nine rounds over one shell-comment scanner, a missed spelling in each of the
   first six and a list of the spellings left unread found incomplete or false in six, until round
-  3's scope and round 9's classes held). Then a spelling the stated scope claims and the check
-  misses is a finding, fixed in the check with a row in the table; a spelling in none of the named
+  3's scope and round 9's classes held). The round first judges that scope and each class against what the
+  check protects, a class too wide for it being a finding. Then a spelling the stated scope claims
+  and the check misses is a finding, fixed in the check with a row in the table; a spelling in none of the named
   classes is a finding against the classes, fixed by correcting them; only a spelling inside a
   named class is no finding.
 

@@ -81,7 +81,8 @@ trusted.
   expressions, marks the whole where comparing parts gets intricate, and keeps a table of the
   spellings it must catch and let through (`docs/TESTING.md` → Choosing a layer; #367–#370, #410,
   #411, #414, #415, #412); where the format has no parser it can use, the PR names before its
-  first round what it reads and the spellings it leaves unread as classes; a spelling the scope
+  first round what it reads and the spellings it leaves unread as classes, each class judged
+  against what the check protects (one too wide for it is a finding); a spelling the scope
   claims and the check misses is a finding against the check, one in no named class a finding
   against the classes, and one inside a named class none (#456). Where you can, break the
   code for exactly that case and see whether the named test fails: a green one doesn't answer it
