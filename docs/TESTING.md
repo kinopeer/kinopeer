@@ -802,6 +802,8 @@ keeps one.
 In a cloud session GitHub's GraphQL is refused, so `gh pr view`, `gh pr ready` and `gh pr merge`
 fail. The cloud proxy serves REST in their place, `<n>` being the PR's number:
 
+- opening a draft, since `gh pr create --draft` fails too:
+  `gh api -X POST repos/kinopeer/kinopeer/pulls -f title=<title> -f head=<branch> -f base=main -f body=<text> -F draft=true`;
 - reading: `gh api repos/kinopeer/kinopeer/pulls/<n>`, its `/reviews`,
   `repos/kinopeer/kinopeer/issues/<n>/comments` and `repos/kinopeer/kinopeer/commits/<sha>/check-runs`;
 - marking ready: `gh api -X POST repos/kinopeer/kinopeer/pulls/<n>/ccr/ready_for_review`, and back
