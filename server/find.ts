@@ -59,7 +59,7 @@ export function isPrivate(address: string): boolean {
  */
 export function subnetHosts(interfaces: ReturnType<typeof networkInterfaces>): string[] {
   const entries = Object.values(interfaces).flatMap((list) => list ?? [])
-  // Every own address is left out, but a private alias on loopback (10.254.254.254 on a Mac) is no network to scan.
+  // Every own address is left out, but a private alias some setups add on loopback (10.254.254.254) is no network to scan.
   const own = entries.map((entry) => entry.address)
   const scanned = entries.filter((entry) => !entry.internal && isPrivate(entry.address)).map((entry) => entry.address.split('.').slice(0, 3).join('.'))
   const prefixes = [...new Set(scanned)].slice(0, MAX_SUBNETS)

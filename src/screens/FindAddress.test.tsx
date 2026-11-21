@@ -57,19 +57,19 @@ describe('FindAddress (#511)', () => {
     expect(await screen.findByRole('button', { name: 'http://localhost:9696' })).toBeInTheDocument()
   })
 
-  it('says Kinopeer’s server didn’t answer when the request got no answer', async () => {
-    findAddresses.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+  it.each([
+    ['no answer', new TypeError('Failed to fetch')],
+    ['an answer from something in front of it', new SettingsError(502)],
+  ])('says Kinopeer’s server didn’t answer after %s', async (_, error) => {
+    findAddresses.mockRejectedValueOnce(error)
     renderFind()
     await userEvent.click(screen.getByRole('button', { name: 'Find qBittorrent' }))
     expect(await screen.findByRole('status', { name: saying('Couldn’t reach Kinopeer. Try again.') })).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
-  it.each([
-    ['an answer that isn’t the server’s', new SettingsError(502)],
-    ['a failure on the server', new SettingsError(500, 'storage')],
-  ])('says the server couldn’t look after %s', async (_, error) => {
-    findAddresses.mockRejectedValueOnce(error)
+  it('says the server couldn’t look after a failure on it', async () => {
+    findAddresses.mockRejectedValueOnce(new SettingsError(500, 'storage'))
     const { onRefused } = renderFind()
     await userEvent.click(screen.getByRole('button', { name: 'Find qBittorrent' }))
     // Said once, by the results' status region, not again by an alert inside it.

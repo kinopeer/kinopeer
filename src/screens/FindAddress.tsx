@@ -19,7 +19,7 @@ export interface FindAddressProps {
  */
 export function FindAddress({ service, onPick, onRefused }: FindAddressProps) {
   const { t } = useTranslation()
-  // What the last look found, or that it failed (`unreached`: no answer from Kinopeer's server); nothing before one.
+  // What the last look found, or that it failed (`unreached`: no answer from Kinopeer's server, whose every answer here has a code); nothing before one.
   const [found, setFound] = useState<string[] | 'failed' | 'unreached'>()
   const [finding, setFinding] = useState(false)
   const running = useRef<AbortController | undefined>(undefined)
@@ -39,7 +39,7 @@ export function FindAddress({ service, onPick, onRefused }: FindAddressProps) {
     } catch (e) {
       const code = e instanceof SettingsError ? e.code : undefined
       if (code === 'env-address' || code === 'auth-off') onRefused(code)
-      else setFound(e instanceof SettingsError ? 'failed' : 'unreached')
+      else setFound(code ? 'failed' : 'unreached')
     }
     running.current = undefined
     setFinding(false)
