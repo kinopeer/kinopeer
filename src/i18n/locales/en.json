@@ -73,6 +73,11 @@
     "bypassTitle": "qBittorrent doesn’t let Kinopeer in without a login",
     "bypassBody": "Set a password in qBittorrent (Tools → Options → Web UI) and enter its login here. Or, with its auth bypass: qBittorrent sees Kinopeer at {{address}}, and adding {{subnet}} to the subnets it lets in without a login would let Kinopeer in, and everything else that comes from that subnet too."
   },
+  "find": {
+    "button": "Find {{service}}",
+    "found": "Found. Tap an address to use it.",
+    "none": "Kinopeer found no {{service}}. Enter its address."
+  },
   "types": {
     "movie": "Movies",
     "tv": "Series"

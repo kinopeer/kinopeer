@@ -315,6 +315,21 @@ export async function checkProwlarrKey(
   return typeof body?.version === 'string' ? 'valid' : 'not-prowlarr'
 }
 
+/**
+ * Whether `base` answers as Prowlarr without its key, for Find (#511): its sign-in page, which it
+ * serves to anyone, has Prowlarr's name in its title, where Sonarr's and Radarr's have theirs
+ * (Prowlarr's frontend/src/login.html). The key never goes to an address that isn't checked yet.
+ * Rejects when nothing answers, or `signal` aborts first.
+ */
+export async function answersAsProwlarr(base: string, signal?: AbortSignal): Promise<boolean> {
+  const response = await fetch(`${base}/login`, { redirect: 'manual', signal })
+  if (!response.ok) {
+    await response.body?.cancel()
+    return false
+  }
+  return (await response.text()).includes('<title>Login - Prowlarr</title>')
+}
+
 /** Prowlarr's API key from its config.xml (<ApiKey>…</ApiKey>), or undefined when it can't be read. */
 export async function readProwlarrApiKey(configXmlPath: string): Promise<string | undefined> {
   try {

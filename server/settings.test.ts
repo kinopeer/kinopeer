@@ -15,6 +15,8 @@ import {
   type StoredTelegram,
 } from './settings.ts'
 import type { Container } from './container.ts'
+import type { FindSystem } from './find.ts'
+import { NO_NETWORKS } from './test/integration.ts'
 import { OTHER_TELEGRAM_TOKEN, RENEWED_TELEGRAM_TOKEN, TELEGRAM_TOKEN, UNKNOWN_TELEGRAM_TOKEN, abandon, closeServers, CLOSED_ADDRESS, fakeProwlarr, fakeQbittorrent, fakeTelegram, fakeTmdb, listen, serve, settlesWithin, silentService } from './test/fakes.ts'
 
 let dir: string
@@ -722,6 +724,100 @@ describe('settingsMiddleware: hints for Kinopeer in a container (#509)', () => {
     expect(container.asked).toEqual([])
     const outside = await putLogin(await app(undefined), { url: qbt.base, username: '', password: '' })
     expect(await outside.json()).toEqual({ error: 'invalid-credentials' })
+  })
+})
+
+describe('settingsMiddleware: Find (#511)', () => {
+  const LOGIN_ON = () => ({ enabled: true, source: 'saved' }) as const
+
+  /** A system with no networks that records the hosts tried and the signal they were tried with. */
+  function recording({ stall = false } = {}): FindSystem & { tried: string[]; signals: AbortSignal[] } {
+    const tried: string[] = []
+    const signals: AbortSignal[] = []
+    return {
+      tried,
+      signals,
+      interfaces: () => ({}),
+      resolve: async () => undefined,
+      opens: (host, port, _ms, signal) => {
+        tried.push(`${host}:${port}`)
+        signals.push(signal)
+        if (!stall) return Promise.resolve(false)
+        return new Promise((resolve) => signal.addEventListener('abort', () => resolve(false)))
+      },
+      identifies: async () => false,
+    }
+  }
+
+  function app(options: Partial<SettingsConfig> = {}) {
+    return serve(settingsMiddleware({ store: new SettingsStore(dir), auth: LOGIN_ON, ...options }))
+  }
+
+  const find = (base: string, service: string, init: RequestInit = {}) =>
+    fetch(`${base}/api/settings/${service}/find`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', ...init })
+
+  it('lists where qBittorrent and Prowlarr answer, on localhost outside a container', async () => {
+    const qbt = await fakeQbittorrent()
+    const prowlarr = await fakeProwlarr()
+    const ports = { qbittorrent: [Number(new URL(qbt.base).port)], prowlarr: [Number(new URL(prowlarr.base).port)] }
+    const base = await app({ find: { system: NO_NETWORKS, ports } })
+
+    const qbittorrent = await find(base, 'qbittorrent')
+    expect([qbittorrent.status, await qbittorrent.json()]).toEqual([200, { addresses: [qbt.base.replace('127.0.0.1', 'localhost')] }])
+    const found = await find(base, 'prowlarr')
+    expect([found.status, await found.json()]).toEqual([200, { addresses: [prowlarr.base.replace('127.0.0.1', 'localhost')] }])
+    // Prowlarr is told by its sign-in page, never sent a key.
+    expect(prowlarr.seen).toEqual([{ url: '/login', key: undefined }])
+  })
+
+  it('answers an empty list where nothing answers', async () => {
+    const response = await find(await app({ find: { system: recording() } }), 'qbittorrent')
+    expect([response.status, await response.json()]).toEqual([200, { addresses: [] }])
+  })
+
+  it('looks at the host in a container, not at localhost', async () => {
+    const system = recording()
+    const container: Container = { hostAddress: async () => '172.17.0.1', sourceFor: async () => undefined }
+    await find(await app({ container, find: { system, ports: { prowlarr: [9696] } } }), 'prowlarr')
+    expect(system.tried).toEqual(['prowlarr:9696', 'host.docker.internal:9696', '172.17.0.1:9696'])
+
+    const unknown = recording()
+    const noHost: Container = { hostAddress: () => Promise.reject(new Error('no answer')), sourceFor: async () => undefined }
+    await find(await app({ container: noHost, find: { system: unknown, ports: { prowlarr: [9696] } } }), 'prowlarr')
+    expect(unknown.tried).toEqual(['prowlarr:9696', 'host.docker.internal:9696'])
+
+    const outside = recording()
+    await find(await app({ find: { system: outside, ports: { qbittorrent: [8080] } } }), 'qbittorrent')
+    expect(outside.tried).toEqual(['qbittorrent:8080', 'qbittorrentvpn:8080', 'gluetun:8080', 'localhost:8080'])
+  })
+
+  it('stops looking once the browser has gone', async () => {
+    const system = recording({ stall: true })
+    const base = await app({ find: { system, ports: { prowlarr: [9696] } } })
+    const controller = new AbortController()
+    const sent = find(base, 'prowlarr', { signal: controller.signal }).catch(() => undefined)
+    await vi.waitFor(() => expect(system.signals).toHaveLength(2))
+    controller.abort()
+    await sent
+    await vi.waitFor(() => expect(system.signals.every((signal) => signal.aborted)).toBe(true))
+  })
+
+  it('refuses to look where an address can’t be saved from the app, or for a body that isn’t JSON', async () => {
+    for (const [service, options, error] of [
+      ['qbittorrent', { envQbittorrentUrl: 'http://env.test:8080' }, 'env-address'],
+      ['prowlarr', { envProwlarrUrl: 'http://env.test:9696' }, 'env-address'],
+      ['qbittorrent', { auth: undefined }, 'auth-off'],
+      ['prowlarr', { auth: () => ({ enabled: false }) as const }, 'auth-off'],
+    ] as const) {
+      const system = recording()
+      const response = await find(await app({ ...options, find: { system } }), service)
+      expect([response.status, await response.json()]).toEqual([409, { error }])
+      expect(system.tried).toEqual([])
+    }
+    const system = recording()
+    const form = await find(await app({ find: { system } }), 'qbittorrent', { headers: { 'Content-Type': 'text/plain' } })
+    expect(form.status).toBe(415)
+    expect(system.tried).toEqual([])
   })
 })
 

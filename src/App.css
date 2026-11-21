@@ -92,3 +92,28 @@
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+
+/* Find under a form's address field (#511): the button, then what it found. */
+.find-address {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.find-address-result:empty {
+  display: none;
+}
+
+.find-address-result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-self: stretch;
+}
+
+.find-address-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}

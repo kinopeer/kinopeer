@@ -8,7 +8,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vi } from 'vitest'
 import { systemOnDisk, type ContainerSystem } from '../container.ts'
+import { systemOnDisk as findOnDisk } from '../find.ts'
 import { dataStores, kinopeerServer, type DataStores } from '../main.ts'
+import type { SettingsConfig } from '../settings.ts'
 import { closeServers, fakeProwlarr, fakePushService, fakeQbittorrent, fakeTelegram, fakeTmdb, listen, serveTmdbProxy } from './fakes.ts'
 
 /** What the Kinopeer server saw of a request from the browser. */
@@ -69,10 +71,19 @@ export interface StandOptions {
    * the stand run in one (a devcontainer) gives no hints and looks nothing up.
    */
   container?: ContainerSystem
+  /**
+   * What Find reads and the ports it tries (#511); without it, the real system with no networks to
+   * scan, so no test sweeps the network it runs on.
+   */
+  find?: SettingsConfig['find']
 }
 
 /** The real system, but no container's marks. */
 const OUTSIDE_A_CONTAINER: ContainerSystem = { ...systemOnDisk, exists: () => false }
+
+/** Find's real system, but no networks of its own to scan. */
+export const NO_NETWORKS = { ...findOnDisk, interfaces: () => ({}) }
+const NOWHERE_TO_FIND: SettingsConfig['find'] = { system: NO_NETWORKS }
 
 export interface Stand {
   /** The Kinopeer server's origin; the clients reach it through the stubbed `fetch`. */
@@ -156,7 +167,7 @@ export async function startKinopeer(options: StandOptions = {}): Promise<Stand> 
   const stores = dataStores(env.KINOPEER_DATA_DIR!)
   // As server/main.ts does: auth.json is read by the login itself.
   await Promise.all([stores.settings.load(), stores.matches.load(), stores.push.load()])
-  const { routes } = kinopeerServer(env, stores, options.container ?? OUTSIDE_A_CONTAINER)
+  const { routes } = kinopeerServer(env, stores, { container: options.container ?? OUTSIDE_A_CONTAINER, find: options.find ?? NOWHERE_TO_FIND })
   const received: ReceivedRequest[] = []
   // The production server's chain (server/main.ts) without the static files: the routes in order,
   // then 404, as the dev server's own fallback would answer an unknown API path.
