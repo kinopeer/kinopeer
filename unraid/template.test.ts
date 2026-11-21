@@ -213,6 +213,24 @@ describe('What Community Applications reads', () => {
     }
   })
 
+  it('finds every screenshot on main, and the licence is the one package.json names', () => {
+    const raw = 'https://raw.githubusercontent.com/kinopeer/kinopeer/main/'
+    const screenshots = [...template.querySelectorAll('Container > Screenshot')].map((element) => element.textContent ?? '')
+    expect(screenshots.length).toBeGreaterThan(0)
+    for (const address of screenshots) {
+      expect(address.startsWith(`${raw}docs/screenshots/`)).toBe(true)
+      expect(existsSync(join(ROOT, address.slice(raw.length)))).toBe(true)
+    }
+    expect(text('License')).toBe(JSON.parse(read('package.json')).license)
+  })
+
+  it('links each app it requires to CA’s search, with the //name\\\\ CA reads', () => {
+    // CA turns //name\\ into a link to its search for that app; a mark left unclosed shows as typed.
+    const requires = text('Requires')
+    expect([...requires.matchAll(/\/\/(.*?)\\\\/g)].map((match) => match[1])).toEqual(['qBittorrent', 'Prowlarr'])
+    expect(requires.replaceAll(/\/\/.*?\\\\/g, '')).not.toMatch(/\/\/|\\/)
+  })
+
   it('has the repository’s profile at its root, its Profile not empty', () => {
     const profile = xml('ca_profile.xml')
     expect(profile.documentElement.tagName).toBe('CommunityApplications')

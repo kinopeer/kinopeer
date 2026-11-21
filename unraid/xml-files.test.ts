@@ -1,5 +1,5 @@
-// Community Applications' docs don't say which XML files in a repository it reads as templates
-// (ca.unraid.net/submit/help), so the repository holds only its two (#512): CA's profile at the root
+// Community Applications clones a repository and reads every XML file in it as a template (its feed
+// lists other repositories' Android manifests as "Not an unRaid Application"), so the repository holds only its two (#512): CA's profile at the root
 // and Kinopeer's template. A fixture written as an .xml file would go to Unraid's Apps tab as a broken
 // app, or fail CA's scan. The files are the repository's as git lists them, tracked and new, so the
 // test can't run in Stryker's sandbox, which isn't a checkout: checks.json leaves it out of its runs.
