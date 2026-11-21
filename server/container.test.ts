@@ -133,6 +133,10 @@ describe('container', () => {
     expect(await container({}, byAddress)!.sourceFor('172.18.0.1')).toEqual({ address: '172.18.0.5', subnet: '172.18.0.0/16' })
     // An address needs no lookup.
     expect(byAddress.resolved).toEqual([])
+    // Three numbers are a name, not an address.
+    const threeParts = system({ names: { '172.18.3': '172.18.0.3' } })
+    expect(await container({}, threeParts)!.sourceFor('172.18.3')).toEqual({ address: '172.18.0.5', subnet: '172.18.0.0/16' })
+    expect(threeParts.resolved).toEqual(['172.18.3'])
   })
 
   it('says nothing for a service it can’t resolve or route to, or on localhost, which is the container', async () => {
