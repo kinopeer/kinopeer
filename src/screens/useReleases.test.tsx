@@ -36,8 +36,9 @@ describe('useReleases', () => {
   it.each([
     ['not-configured', 'setup'],
     ['unauthorized', 'rejected'],
-    [undefined, 'setup'],
-  ] as const)('tells Prowlarr not set up from a rejected key: %s', async (code, status) => {
+    // An answer without the server's code, a proxy's error page say: nothing to set up.
+    [undefined, 'error'],
+  ] as const)('tells Prowlarr not set up from a rejected key, and from neither: %s', async (code, status) => {
     vi.mocked(prowlarr.searchReleases).mockRejectedValue(new prowlarr.ProwlarrSetupError(code === 'unauthorized' ? 502 : 503, code))
     const { result } = renderHook(() => useReleases(movie(1, 'Dune')))
     await waitFor(() => expect(result.current.status).toBe(status))

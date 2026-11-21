@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { SERVER_SETTINGS_FRESH_MS, SERVER_SETTINGS_KEY, getServerSettings } from '../api/settings'
+import { SERVER_SETTINGS_FRESH_MS, SERVER_SETTINGS_KEY, getServerSettings, type ServerSettings } from '../api/settings'
 import { EmptyState } from '../components/EmptyState'
 import { Sheet } from '../components/Sheet'
 import { useToast } from '../components/Toast'
@@ -25,7 +25,11 @@ export function ProwlarrSetupState({ rejected, onSaved }: ProwlarrSetupStateProp
   const toast = useToast()
   const [open, setOpen] = useState(false)
   const server = useRequest(SERVER_SETTINGS_KEY, (signal) => getServerSettings(signal), { freshFor: SERVER_SETTINGS_FRESH_MS })
-  const settings = server.data
+  // The last answer stays while the settings are asked again, so the state and an open sheet don't
+  // flip to the key alone and back.
+  const [lastSettings, setLastSettings] = useState<ServerSettings>()
+  if (server.data && server.data !== lastSettings) setLastSettings(server.data)
+  const settings = server.data ?? lastSettings
   const address = settings?.prowlarr.address
   const login = settings?.auth?.enabled === true
   // The address changes from the app only behind Kinopeer's own login and where the environment
@@ -46,6 +50,9 @@ export function ProwlarrSetupState({ rejected, onSaved }: ProwlarrSetupStateProp
         actionLabel={known && !serverOnly ? (rejected ? t('prowlarrKey.change', { context }) : t('releases.setUp')) : undefined}
         actionIcon="key"
         onAction={() => setOpen(true)}
+        // Without the settings, the key alone is offered; asking again may bring the address field.
+        secondaryActionLabel={known && !settings ? t('common.retry') : undefined}
+        onSecondaryAction={server.retry}
       >
         {known && (serverOnly ? t('prowlarrKey.authOff') : rejected ? t('releases.rejectedBody') : t('releases.setupBody', { context }))}
       </EmptyState>

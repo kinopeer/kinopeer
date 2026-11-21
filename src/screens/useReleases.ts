@@ -55,7 +55,8 @@ export interface ActiveFilter {
 
 /**
  * 'setup': the server has no address or key for Prowlarr; 'rejected': Prowlarr rejected the server's
- * key; 'error': Prowlarr or the server didn't answer.
+ * key; 'error': Prowlarr or the server didn't answer, or something in front of the server answered
+ * without its code (a proxy's error page on a long search).
  */
 export type ReleasesStatus = 'loading' | 'setup' | 'rejected' | 'error' | 'none' | 'ready'
 
@@ -189,7 +190,9 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
   ]
 
   const status: ReleasesStatus =
-    search.error instanceof ProwlarrSetupError
+    // One without the server's code is something in front of it failing (a proxy's error page on a
+    // long search), not Prowlarr wanting a setup: it's an error to try again.
+    search.error instanceof ProwlarrSetupError && search.error.code
       ? search.error.code === 'unauthorized'
         ? 'rejected'
         : 'setup'
