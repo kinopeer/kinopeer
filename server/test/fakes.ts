@@ -34,14 +34,12 @@ export async function listen(handler: RequestListener): Promise<string> {
   return `http://127.0.0.1:${(server.address() as AddressInfo).port}`
 }
 
-/** An address on this machine where nothing listens: a port taken from the system and let go. */
-export async function closedAddress(): Promise<string> {
-  const server = createServer()
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
-  const { port } = server.address() as AddressInfo
-  await new Promise<void>((resolve) => server.close(() => resolve()))
-  return `http://127.0.0.1:${port}`
-}
+/**
+ * An address on this machine where nothing listens. Port 2: below 1024, so the system never hands it
+ * out for port 0 to a server another test file starts meanwhile, as it can a port let go, and not one
+ * of fetch's bad ports, which it refuses without connecting.
+ */
+export const CLOSED_ADDRESS = 'http://127.0.0.1:2'
 
 /**
  * Kinopeer's TMDB proxy (tmdb-proxy/worker.ts), the real worker served over HTTP in front of
@@ -302,8 +300,9 @@ export async function fakeQbittorrent({
   authBypass?: boolean
   /**
    * qBittorrent's Web UI port behind a port published as another (`18080:8080`): with Host header
-   * validation, on by default, every request whose `Host` has another port is answered 401, the
-   * login included.
+   * validation, on by default, every request whose `Host` has another port is answered 401 with the
+   * text `Unauthorized`, the login included, as qBittorrent 4.6 to 5.3 do (seen on 5.3.0, and in
+   * `WebApplication::processRequest` of each).
    */
   webUiPort?: number
   torrents?: Torrent[]
@@ -332,6 +331,8 @@ export async function fakeQbittorrent({
     const bytes = await bytesOf(request)
     const body = bytes.toString()
     const url = request.url ?? ''
+    // On every answer, an error's included (qBittorrent 4.6 to 5.3).
+    response.setHeader('X-XSS-Protection', '1; mode=block')
     if (webUiPort !== undefined && request.headers.host?.split(':')[1] !== String(webUiPort)) return text(response, 'Unauthorized', 401)
     if (url === '/api/v2/auth/login') {
       logins++

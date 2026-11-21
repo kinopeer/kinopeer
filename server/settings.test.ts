@@ -14,7 +14,7 @@ import {
   type SettingsConfig,
   type StoredTelegram,
 } from './settings.ts'
-import { OTHER_TELEGRAM_TOKEN, RENEWED_TELEGRAM_TOKEN, TELEGRAM_TOKEN, UNKNOWN_TELEGRAM_TOKEN, abandon, closeServers, closedAddress, fakeProwlarr, fakeQbittorrent, fakeTelegram, fakeTmdb, serve, settlesWithin, silentService } from './test/fakes.ts'
+import { OTHER_TELEGRAM_TOKEN, RENEWED_TELEGRAM_TOKEN, TELEGRAM_TOKEN, UNKNOWN_TELEGRAM_TOKEN, abandon, closeServers, CLOSED_ADDRESS, fakeProwlarr, fakeQbittorrent, fakeTelegram, fakeTmdb, serve, settlesWithin, silentService } from './test/fakes.ts'
 
 let dir: string
 
@@ -174,7 +174,7 @@ describe('settingsMiddleware: qBittorrent login', () => {
   })
 
   it('says when qBittorrent is unreachable, and why where the server can tell (#508)', async () => {
-    const refused = await kinopeer(new SettingsStore(dir), { qbittorrentUrl: await closedAddress() })
+    const refused = await kinopeer(new SettingsStore(dir), { qbittorrentUrl: CLOSED_ADDRESS })
     const response = await putLogin(refused, { username: 'admin', password: 'x' })
     expect([response.status, await response.json()]).toEqual([502, { error: 'unreachable', failure: 'refused' }])
 
@@ -545,7 +545,7 @@ describe('settingsMiddleware: Prowlarr key', () => {
   })
 
   it('says when Prowlarr is unreachable or not set up', async () => {
-    const unreachable = await put(await app(new SettingsStore(dir), { url: await closedAddress() }), 'good-key')
+    const unreachable = await put(await app(new SettingsStore(dir), { url: CLOSED_ADDRESS }), 'good-key')
     expect(unreachable.status).toBe(502)
     expect(await unreachable.json()).toEqual({ error: 'unreachable', failure: 'refused' })
 

@@ -156,6 +156,9 @@ async function download(base: string, apiKey: string, query: URLSearchParams, re
       redirect: 'manual',
       headers: hop === 0 ? { 'X-Api-Key': apiKey } : undefined,
       signal,
+    }).catch((error: unknown) => {
+      // A later hop is the indexer's own host, not Prowlarr: why it didn't answer is no cause of Prowlarr's.
+      throw hop === 0 ? error : new Error('The indexer’s link didn’t answer')
     })
     const location = upstream.headers.get('location')
     if (upstream.status >= 300 && upstream.status < 400 && location) {

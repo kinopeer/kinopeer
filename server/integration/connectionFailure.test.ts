@@ -4,7 +4,7 @@ import type { ConnectionFailure } from '../../src/api/connectionFailure.ts'
 import { getProwlarrStatus } from '../../src/api/prowlarr/client.ts'
 import { getAppVersion } from '../../src/api/qbittorrent/client.ts'
 import { saveProwlarrKey, saveQbittorrentLogin } from '../../src/api/settings/client.ts'
-import { closedAddress, listen } from '../test/fakes.ts'
+import { CLOSED_ADDRESS, listen } from '../test/fakes.ts'
 import { startKinopeer, stopKinopeer } from '../test/integration.ts'
 
 const sockets: { close: () => void }[] = []
@@ -24,7 +24,7 @@ async function closingAddress(): Promise<string> {
 
 describe('why qBittorrent or Prowlarr didn’t answer, from a real socket through the clients (#508)', () => {
   it.each<[string, ConnectionFailure, () => Promise<string>]>([
-    ['nothing listens on the port', 'refused', closedAddress],
+    ['nothing listens on the port', 'refused', async () => CLOSED_ADDRESS],
     // .invalid never resolves (RFC 2606).
     ['the name doesn’t resolve', 'name', async () => 'http://kinopeer-test.invalid:8080'],
     ['https on a port that answers in plain HTTP', 'http', async () => (await listen((_request, response) => response.end('ok'))).replace('http:', 'https:')],

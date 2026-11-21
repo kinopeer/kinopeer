@@ -72,16 +72,30 @@ export async function qbittorrentLogin(
 }
 
 /**
- * Whether qBittorrent refuses requests at `base` before any login: its Host header validation (on
- * by default) answers 401 to every request whose `Host` carries another port than its Web UI's, as
- * when the Web UI is published on another port of the host (`18080:8080`), while a request it only
- * wants a login for gets 403. Asked after a login's 401, which qBittorrent 5.3 also gives a wrong
- * password.
+ * Whether `response` is qBittorrent's Host header validation refusing the request (on by default):
+ * it answers 401 to every request whose `Host` carries another port than its Web UI's, as when the
+ * Web UI is published on another port of the host (`18080:8080`), the login included. Told from
+ * another 401 by what qBittorrent 4.6 to 5.3 put on it: the text `Unauthorized`, and the
+ * `X-XSS-Protection` it sends on every answer, with no `WWW-Authenticate`, which a proxy's basic
+ * auth asks with; an *arr app's API answers 401 with neither.
+ */
+function isHostRefusal(response: Response, text: string): boolean {
+  return (
+    response.status === 401 &&
+    text.trim() === 'Unauthorized' &&
+    response.headers.get('x-xss-protection') === '1; mode=block' &&
+    !response.headers.has('www-authenticate')
+  )
+}
+
+/**
+ * Whether qBittorrent refuses requests at `base` before any login (`isHostRefusal`), while one it
+ * only wants a login for gets 403. Asked after a login's 401, which qBittorrent 5.3 also gives a
+ * wrong password.
  */
 async function refusesHost(base: string, signal?: AbortSignal): Promise<boolean> {
   const response = await fetch(`${base}/api/v2/app/version`, { headers: { Origin: base, Referer: `${base}/` }, redirect: 'manual', signal })
-  await response.body?.cancel()
-  return response.status === 401
+  return isHostRefusal(response, await response.text())
 }
 
 /** What qBittorrent's version looks like (`v5.2.4`, `v4.6.7`), told from a page that answers every path. */
@@ -111,9 +125,9 @@ export async function checkQbittorrent(
     signal,
   })
   const text = await response.text()
-  // Without a login, a 403 is qBittorrent asking for one, and a 401 refusing the address's port.
+  // Without a login, a 403 is qBittorrent asking for one.
   if (!credentials && response.status === 403) return 'invalid'
-  if (response.status === 401) return 'host-refused'
+  if (isHostRefusal(response, text)) return 'host-refused'
   return response.ok && VERSION.test(text) ? 'ok' : 'not-qbittorrent'
 }
 

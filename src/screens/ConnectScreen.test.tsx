@@ -111,7 +111,7 @@ describe('ConnectScreen', () => {
   it('says why qBittorrent didn’t answer the session check, where the server could tell (#508)', () => {
     setup(undefined, { unreachable: 'qbittorrent', failure: 'refused' })
     expect(screen.getByRole('heading', { name: 'qBittorrent isn’t answering' })).toBeInTheDocument()
-    expect(screen.getByText('Nothing listens on this port: check it, and that qBittorrent’s Web UI is on and takes connections from the network, not only from 127.0.0.1.')).toBeInTheDocument()
+    expect(screen.getByText('Nothing listens on this port: check that qBittorrent is running, the port, and that its Web UI is on and takes connections from the network, not only from 127.0.0.1.')).toBeInTheDocument()
     expect(screen.queryByText('Check that qBittorrent is running and its Web UI is on.')).not.toBeInTheDocument()
   })
 
@@ -227,7 +227,7 @@ describe('ConnectScreen', () => {
     it.each([
       ['an address it refuses', new SettingsError(400, 'invalid-address'), 'Enter an address that starts with http:// or https://, with no login, ? or # in it'],
       ['an address that doesn’t answer', new SettingsError(502, 'unreachable'), 'Nothing answers at this address. Check it, and that qBittorrent is running.'],
-      ['an address that doesn’t answer, and why (#508)', new SettingsError(502, 'unreachable', 'refused'), 'Nothing listens on this port: check it, and that qBittorrent’s Web UI is on and takes connections from the network, not only from 127.0.0.1.'],
+      ['an address that doesn’t answer, and why (#508)', new SettingsError(502, 'unreachable', 'refused'), 'Nothing listens on this port: check that qBittorrent is running, the port, and that its Web UI is on and takes connections from the network, not only from 127.0.0.1.'],
     ])('says on the address field when the server finds %s, and clears it on typing', async (_name, error, message) => {
       setup(vi.fn().mockRejectedValue(error), { noAddress: true })
       await fillAddress('http://qbt.test')
@@ -260,7 +260,7 @@ describe('ConnectScreen', () => {
       [
         'qBittorrent refusing its port (#508)',
         new SettingsError(502, 'host-refused'),
-        'qBittorrent refused this address’s port: with Host header validation on, its Web UI takes only its own port. Publish it on the same port as inside its container, or turn the validation off in its Web UI options.',
+        'qBittorrent refused this address: with Host header validation on, its Web UI takes only its own port and the names in Server domains. Publish it on the same port as inside its container, add the name to Server domains, or turn the validation off.',
       ],
       ['Kinopeer’s own login off', new SettingsError(409, 'auth-off'), 'Kinopeer’s own login is off, so qBittorrent’s address can only be set on the server: QBITTORRENT_URL.'],
       ['a server that can’t write its settings', new SettingsError(500, 'storage'), 'The Kinopeer server couldn’t save the change. Check that its data folder is writable.'],
