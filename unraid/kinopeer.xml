@@ -2,7 +2,7 @@
 <!--
   Kinopeer's template for Unraid's Community Applications (#512): what Unraid's Apps tab installs.
   CA rereads it from main, so a release needs no change here; the :1 tag follows the newest 1.x.
-  Its checks are in unraid/template.test.ts, and the check by hand in docs/RELEASE_CHECKLIST.md.
+  Its checks are in unraid/template.test.ts; nothing checks it on Unraid itself (docs/TESTING.md → Known blind spots).
 -->
 <Container version="2">
   <Name>kinopeer</Name>

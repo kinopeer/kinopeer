@@ -3,7 +3,7 @@
 // image is checked here, read with an XML parser as CA reads it: the image's tag, port and volume,
 // that each variable is one the server reads, and that the empty ones Unraid still passes (`-e NAME=''`,
 // dockerMan's xmlToCommand) read as unset, by the real server started with them and by its startup
-// log. Installing it on Unraid isn't: that's done by hand in an Unraid VM (docs/RELEASE_CHECKLIST.md).
+// log. Installing it on Unraid isn't, by anything: docs/TESTING.md → Known blind spots says why.
 // jsdom gives the XML parser, DOMParser.
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
