@@ -82,6 +82,8 @@ describe('ownNetwork', () => {
 
   it.each([
     ['an interface backed by a device: the host’s card', HOST_NETWORK],
+    // Rootless Podman or Kubernetes' hostNetwork: the host's card, and no bridge.
+    ['an interface backed by a device alone', { '/sys/class/net/lo/address': '', '/sys/class/net/enp3s0/device': '' }],
     // An LXC container running Docker: its own interfaces are veths, Docker's bridge is there.
     ['a bridge: Docker’s in an LXC container', { ...OWN_NETWORK, '/sys/class/net/docker0/bridge/stp_state': '' }],
     ['a bridge: Podman’s', { ...OWN_NETWORK, '/sys/class/net/podman0/bridge/stp_state': '' }],
