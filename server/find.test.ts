@@ -70,6 +70,13 @@ describe('subnetHosts', () => {
     expect(hosts.every((host) => host.startsWith('10.8.0.'))).toBe(true)
   })
 
+  it('scans around no private alias on loopback, yet leaves it out as the server’s own', () => {
+    const lo = [v4('127.0.0.1', '127.0.0.1/8', true), v4('10.254.254.254', '10.254.254.254/32', true), v4('10.0.0.9', '10.0.0.9/32', true)]
+    const hosts = subnetHosts({ lo, eth0: [v4('10.0.0.5', '10.0.0.5/24')] } as Interfaces)
+    expect(hosts).toHaveLength(252)
+    expect(hosts.every((host) => host.startsWith('10.0.0.'))).toBe(true)
+    expect(hosts).not.toContain('10.0.0.9')
+  })
 })
 
 describe('isPrivate', () => {

@@ -19,8 +19,8 @@ export interface FindAddressProps {
  */
 export function FindAddress({ service, onPick, onRefused }: FindAddressProps) {
   const { t } = useTranslation()
-  // What the last look found, or that it failed; nothing before one.
-  const [found, setFound] = useState<string[] | 'failed'>()
+  // What the last look found, or that it failed (`unreached`: no answer from Kinopeer's server); nothing before one.
+  const [found, setFound] = useState<string[] | 'failed' | 'unreached'>()
   const [finding, setFinding] = useState(false)
   const running = useRef<AbortController | undefined>(undefined)
   const name = SERVICE_NAMES[service]
@@ -39,7 +39,7 @@ export function FindAddress({ service, onPick, onRefused }: FindAddressProps) {
     } catch (e) {
       const code = e instanceof SettingsError ? e.code : undefined
       if (code === 'env-address' || code === 'auth-off') onRefused(code)
-      else setFound('failed')
+      else setFound(e instanceof SettingsError ? 'failed' : 'unreached')
     }
     running.current = undefined
     setFinding(false)
@@ -64,7 +64,12 @@ export function FindAddress({ service, onPick, onRefused }: FindAddressProps) {
             </div>
           </>
         )}
-        {found === 'failed' && <Banner tone="error">{t('find.failed', { service: name })}</Banner>}
+        {/* The status region says the failure, so the banner isn't an alert of its own. */}
+        {typeof found === 'string' && (
+          <Banner tone="error" live={false}>
+            {found === 'failed' ? t('find.failed', { service: name }) : t('common.qbtFailed_kinopeer')}
+          </Banner>
+        )}
       </div>
     </div>
   )
