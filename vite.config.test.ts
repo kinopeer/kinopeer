@@ -8,6 +8,7 @@ import { createServer, preview, resolveConfig } from 'vite'
 import { refusal } from './server/hostCheck.ts'
 import { CONTENT_SECURITY_POLICY, SECURITY_HEADERS } from './server/securityHeaders.ts'
 import { getWithHost } from './server/test/fakes.ts'
+import type { TestSequencerConstructor, TestSpecification, Vitest } from 'vitest/node'
 import { chunkFileName, inlineTouchIconPlugin } from './vite.config.ts'
 
 /**
@@ -175,5 +176,44 @@ describe('chunkFileName', () => {
     ['no module', null],
   ])('names a chunk of %s as Vite does', (_what, facadeModuleId) => {
     expect(chunkFileName({ facadeModuleId })).toBe('assets/[name]-[hash].js')
+  })
+})
+
+describe('RelatedFilesFirst', () => {
+  /** Files of three sizes, so Vitest's own order, larger first while it has no results, is known. */
+  async function specs(): Promise<TestSpecification[]> {
+    const project = { name: 'server', config: { sequence: { groupOrder: 0 }, isolate: true } }
+    const sizes = { 'big.test.ts': 300, 'container.test.ts': 100, 'mid.test.ts': 200 }
+    return Promise.all(
+      Object.entries(sizes).map(async ([name, size]) => {
+        const moduleId = join(dir, name)
+        await writeFile(moduleId, 'x'.repeat(size))
+        return { moduleId, project } as unknown as TestSpecification
+      }),
+    )
+  }
+
+  /** The sequencer this config gives Vitest, as `vitest` resolves it, over a run related to `related`. */
+  async function sequencer(related?: string[], shard?: { index: number; count: number }) {
+    const config = (await resolveConfig(options, 'serve', 'test')) as { test?: { sequence?: { sequencer?: TestSequencerConstructor } } }
+    const Sequencer = config.test?.sequence?.sequencer
+    if (!Sequencer) throw new Error('vite.config.ts gives Vitest no sequencer')
+    return new Sequencer({ config: { related, shard, root: dir }, cache: { getTestSpecificationResult: () => undefined } } as unknown as Vitest)
+  }
+  const names = (files: TestSpecification[]) => files.map((spec) => spec.moduleId.slice(dir.length + 1))
+
+  it("runs the tests named after a related file first, the rest in Vitest's order", async () => {
+    expect(names(await (await sequencer(['/sandbox/server/container.ts'])).sort(await specs()))).toStrictEqual(['container.test.ts', 'big.test.ts', 'mid.test.ts'])
+  })
+
+  it("keeps Vitest's order in a run of every test", async () => {
+    expect(names(await (await sequencer()).sort(await specs()))).toStrictEqual(['big.test.ts', 'mid.test.ts', 'container.test.ts'])
+  })
+
+  it('shards as Vitest does', async () => {
+    const files = await specs()
+    const halves = await Promise.all([1, 2].map(async (index) => names(await (await sequencer(undefined, { index, count: 2 })).shard(files))))
+    expect(halves.map((half) => half.length).sort()).toStrictEqual([1, 2])
+    expect(halves.flat().sort()).toStrictEqual(['big.test.ts', 'container.test.ts', 'mid.test.ts'])
   })
 })

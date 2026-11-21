@@ -7,6 +7,8 @@ import { defineConfig, loadEnv, normalizePath, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { TMDB_PROXY_EDGE, dataStores, kinopeerServer, loadStores, type KinopeerServer } from './server/main.ts'
 import { contentSecurityPolicy } from './server/securityHeaders.ts'
+import type { TestSequencer, TestSpecification, Vitest } from 'vitest/node'
+import { relatedFilesFirst } from './scripts/test-order/testOrder.ts'
 
 /**
  * The PWA: web app manifest and a service worker (src/sw.ts) that precaches the app shell. Icons
@@ -149,6 +151,34 @@ function realPath(path: string): string {
   return parent === path ? path : join(realPath(parent), basename(path))
 }
 
+/**
+ * Vitest's own order with the tests named after the files a run is related to first
+ * (`scripts/test-order/testOrder.ts`, #520), so a static mutant in Stryker's run stops at its file's
+ * own test rather than after most of the suite. A run of every test has nothing related and keeps
+ * Vitest's order. Vitest is imported when it sorts, so `vite` and `vite build` don't load it.
+ */
+class RelatedFilesFirst implements TestSequencer {
+  private readonly ctx: Vitest
+
+  constructor(ctx: Vitest) {
+    this.ctx = ctx
+  }
+
+  private async base() {
+    const { BaseSequencer } = await import('vitest/node')
+    return new BaseSequencer(this.ctx)
+  }
+
+  async shard(files: TestSpecification[]) {
+    return (await this.base()).shard(files)
+  }
+
+  async sort(files: TestSpecification[]) {
+    const sorted = await (await this.base()).sort(files)
+    return relatedFilesFirst(sorted, this.ctx.config.related ?? [], (spec) => spec.moduleId)
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
@@ -183,6 +213,7 @@ export default defineConfig(({ mode }) => {
       // One time zone everywhere, so a test that reads local time passes in any machine's local
       // zone and in CI alike; a test about another zone stubs it (docs/TESTING.md → A test that can fail).
       env: { TZ: 'UTC' },
+      sequence: { sequencer: RelatedFilesFirst },
       // Before each test, put back every vi.spyOn spy, vi.stubGlobal and vi.stubEnv, so a test that
       // fails halfway leaves none of them to the tests after it (docs/TESTING.md → A test that can fail).
       restoreMocks: true,
@@ -195,7 +226,7 @@ export default defineConfig(({ mode }) => {
         },
         {
           extends: true,
-          test: { name: 'server', include: ['server/**/*.test.ts', 'tmdb-proxy/**/*.test.ts', 'scripts/guard/**/*.test.ts', 'scripts/size/**/*.test.ts', 'scripts/requests/**/*.test.ts', 'scripts/layout-shift/**/*.test.ts', 'scripts/accessibility/**/*.test.ts', 'scripts/actuals/**/*.test.ts', 'scripts/edge/**/*.test.ts', 'vite.config.test.ts', 'checks.test.ts', 'docker-compose.test.ts', 'unraid/**/*.test.ts'], environment: 'node' },
+          test: { name: 'server', include: ['server/**/*.test.ts', 'tmdb-proxy/**/*.test.ts', 'scripts/guard/**/*.test.ts', 'scripts/size/**/*.test.ts', 'scripts/requests/**/*.test.ts', 'scripts/layout-shift/**/*.test.ts', 'scripts/accessibility/**/*.test.ts', 'scripts/actuals/**/*.test.ts', 'scripts/edge/**/*.test.ts', 'scripts/test-order/**/*.test.ts', 'vite.config.test.ts', 'checks.test.ts', 'docker-compose.test.ts', 'unraid/**/*.test.ts'], environment: 'node' },
         },
       ],
       // `npm run test:coverage`: a table in the terminal and coverage/index.html; CI runs the same.

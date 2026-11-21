@@ -9,7 +9,8 @@ const { mutants } = JSON.parse(readFileSync(new URL('./checks.json', import.meta
 /** @type {import('@stryker-mutator/api/core').PartialStrykerOptions} */
 export default {
   testRunner: 'vitest',
-  // Vitest's `related` runs only the tests that import the files mutated. The dry run that
+  // Vitest's `related` runs only the tests that import the files mutated, those named after them first
+  // (vite.config.ts → RelatedFilesFirst), which is where a static mutant's run stops (#520). The dry run that
   // scripts/mutants.mjs makes for a branch with no production line changed turns it off, so every
   // test runs through the sandbox once and one that can't run there fails on the PR that adds it,
   // rather than on a later PR whose mutants make Vitest run it (#467).
