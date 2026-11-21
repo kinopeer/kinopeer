@@ -75,7 +75,7 @@ from when the PR was marked ready.
 the round: run section 3 while it runs, and post the round only once it's there, polling for it
 up to the `timeout-minutes` of the `mutants` job in the head's `.github/workflows/mutants.yml`,
 counted from when the PR was marked ready. That job takes longer than the others on a big diff
-(up to 46 minutes, #520), and stopping at 30 minutes left #498 waiting twice for a run that then
+(#520; the longest known run is in the comment over its `timeout-minutes`), and stopping at 30 minutes left #498 waiting twice for a run that then
 passed (#477 noted it for the retro). Its survivors are judged by `/test-review`'s K once it's
 there, as findings of the same round under `K`, tagged like any other. One review before the
 report and another after it would split the round in two.
@@ -125,7 +125,7 @@ such a mark's `accepted` is null when the subagent called it `sound`, as any `so
 recorded in `docs/SPEC.md`'s decision log, drops a feature, makes a visible change its task didn't
 ask for (a screenshot baseline changed beyond the task, `docs/TESTING.md` → Screenshot tests), or
 grows past what it set out to do (each round finds bugs in the same new mechanism, workarounds
-pile up), for the coordinator to weigh the cost against the gain rather than one more fix asked
+pile up), or its heuristic says nothing in a common setup (`CLAUDE.md` → Conventions), for the coordinator to weigh the cost against the gain rather than one more fix asked
 for. Ask under **For the coordinator**, one line each; each holds the approval, even with nothing
 else open. The author takes it to the coordinator: on autopilot or not, the session that hands out
 the PRs, or, where none does, a fresh session that didn't write the PR, never the author's own.
@@ -232,8 +232,9 @@ them ready for review, which doesn't wake you: the coordinator does, when its ta
 by converting each to a draft and marking it ready again. Wait for CI as in section 2, and for
 `Mutants report` too when the PR changes a path in `mutants.yml`'s `paths` (every npm bump
 changes `package.json` and the lockfile), up to the same timeout, since its dry run is what
-catches a bump that breaks Stryker (#285); but with no `CI at` review and no draft: a red check, `Mutants report` among them, gets the comment below; checks still running after
-their wait get a comment naming them. The coordinator watches the PRs it brought in until they are
+catches a bump that breaks Stryker (#285); but with no `CI at` review and no draft: a red check gets the comment below; checks still running after
+their wait get a comment naming them, and so does a `Mutants report` missing after its wait,
+which is what a dry run that breaks Stryker leaves (the report step doesn't run). The coordinator watches the PRs it brought in until they are
 approved, and wakes you again once their checks have finished.
 
 - **Green, no major:** approve, with one line saying CI is green at the head.
