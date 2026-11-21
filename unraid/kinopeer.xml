@@ -2,6 +2,7 @@
 <!--
   Kinopeer's template for Unraid's Community Applications (#512): what Unraid's Apps tab installs.
   CA rereads it from main, so a release needs no change here; the :1 tag follows the newest 1.x.
+  A change that relies on behavior no released :1 has yet stays a draft until it's out (docs/DEVELOPMENT.md → Docker).
   Its checks are in unraid/template.test.ts; nothing checks it on Unraid itself (docs/TESTING.md → Known blind spots).
 -->
 <Container version="2">
