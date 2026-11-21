@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
-import { ProwlarrSetupError, fetchRelease, getFailingIndexers, searchReleases } from './client'
+import { ProwlarrError, ProwlarrSetupError, fetchRelease, getFailingIndexers, searchReleases } from './client'
 import type { Release } from './types'
 
 let fetchMock: Mock<typeof fetch>
@@ -17,6 +17,17 @@ describe('searchReleases', () => {
     fetchMock.mockResolvedValueOnce(new Response('<!doctype html>', { headers: { 'Content-Type': 'text/html' } }))
     await expect(searchReleases('a')).rejects.toBeInstanceOf(ProwlarrSetupError)
     expect(fetchMock.mock.calls[0][1]).toMatchObject({ credentials: 'same-origin', redirect: 'manual' })
+  })
+})
+
+describe('a Prowlarr that didn’t answer', () => {
+  it('passes on why, where the server could tell (#508)', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json({ error: 'unreachable', failure: 'name' }, { status: 502 }))
+    await expect(searchReleases('a')).rejects.toMatchObject({ status: 502, code: 'unreachable', failure: 'name' })
+    fetchMock.mockResolvedValueOnce(Response.json({ error: 'unreachable', failure: 'solar-flare' }, { status: 502 }))
+    const error = await searchReleases('a').catch((caught: unknown) => caught)
+    expect(error).toMatchObject({ code: 'unreachable' })
+    expect((error as ProwlarrError).failure).toBeUndefined()
   })
 })
 

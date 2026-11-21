@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MAX_FAILING_WITHIN_MS } from '../src/api/prowlarr/types.ts'
 import { baseOf } from './address.ts'
 import { MAX_WITHIN_MS, downloadToken, failedIds, indexerNames, prowlarrMiddleware, readProwlarrApiKey, type ProwlarrConfig } from './prowlarr.ts'
-import { abandon, closeServers, listen, serve, settlesWithin, silentService } from './test/fakes.ts'
+import { abandon, closeServers, closedAddress, listen, serve, settlesWithin, silentService } from './test/fakes.ts'
 
 const KEY = 'secret-key-123'
 
@@ -319,7 +319,15 @@ describe('prowlarrMiddleware', () => {
     })
     const slow = await fetch(`${await kinopeer({ url: hanging, apiKey: KEY, failingTimeoutMs: 50 })}/prowlarr/failing?within=0`)
     expect(slow.status).toBe(502)
-    expect(await slow.json()).toEqual({ error: 'unreachable' })
+    expect(await slow.json()).toEqual({ error: 'unreachable', failure: 'timeout' })
+  })
+
+  it('says why Prowlarr didn’t answer, where it can tell (#508)', async () => {
+    const refused = await fetch(`${await kinopeer({ url: await closedAddress(), apiKey: KEY })}/prowlarr/status`)
+    expect([refused.status, await refused.json()]).toEqual([502, { error: 'unreachable', failure: 'refused' }])
+    // Port 9 is one fetch won't connect to ("bad port"): no cause to name.
+    const blocked = await fetch(`${await kinopeer({ url: 'http://127.0.0.1:9', apiKey: KEY })}/prowlarr/status`)
+    expect([blocked.status, await blocked.json()]).toEqual([502, { error: 'unreachable' }])
   })
 
   it('reports a rejected key and a failing Prowlarr on the indexer list, asked after a failure', async () => {

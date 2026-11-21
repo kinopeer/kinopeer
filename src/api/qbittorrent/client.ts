@@ -10,6 +10,7 @@ import type {
   TorrentTracker,
   TorrentsQuery,
 } from './types'
+import { knownFailure, type ConnectionFailure } from '../connectionFailure'
 import { ProxySignInError, fetchKinopeer } from '../fetchKinopeer'
 import { sharedRequests } from '../../logic/sharedRequests'
 import { subcategoriesUnderParent } from '../../torrents/qbittorrentVersion'
@@ -19,11 +20,14 @@ export const QBITTORRENT_BASE = '/qbt/api/v2'
 
 export class QbittorrentError extends Error {
   readonly status: number
+  /** Why qBittorrent didn't answer the bridge, where the server could tell (`FAILURE_HEADER`). */
+  readonly failure?: ConnectionFailure
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, failure?: ConnectionFailure) {
     super(message)
     this.name = 'QbittorrentError'
     this.status = status
+    this.failure = failure
   }
 }
 
@@ -45,6 +49,8 @@ export class TorrentRefusedError extends QbittorrentError {
 export const BRIDGE_HEADER = 'x-kinopeer-bridge'
 /** The bridge's mark when it has no address for qBittorrent (`NO_ADDRESS` in server/qbittorrent.ts). */
 export const NO_ADDRESS = 'no-address'
+/** Beside the bridge's 502: why qBittorrent didn't answer (`FAILURE_HEADER` in server/qbittorrent.ts, #508). */
+export const FAILURE_HEADER = 'x-kinopeer-failure'
 
 /** A request failed without reaching Kinopeer's server: something in front of it answered. */
 export class KinopeerUnreachableError extends QbittorrentError {
@@ -122,7 +128,7 @@ async function request(
   if (!response.ok && !response.headers.has(BRIDGE_HEADER)) throw new KinopeerUnreachableError(response.status)
   if (response.headers.get(BRIDGE_HEADER) === NO_ADDRESS) throw new NoAddressError()
   if (response.status === 401 || response.status === 403) throw new UnauthorizedError()
-  if (!response.ok) throw new QbittorrentError(`qBittorrent responded ${response.status}`, response.status)
+  if (!response.ok) throw new QbittorrentError(`qBittorrent responded ${response.status}`, response.status, knownFailure(response.headers.get(FAILURE_HEADER)))
   return response
 }
 

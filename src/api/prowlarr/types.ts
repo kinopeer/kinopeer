@@ -1,3 +1,5 @@
+import type { ConnectionFailure } from '../connectionFailure.ts'
+
 /** Newznab categories Prowlarr uses: 2000 movies, 5000 TV (subcategories like 2040 or 5070 fall under them). */
 export const MOVIE_CATEGORY = 2000
 export const TV_CATEGORY = 5000
@@ -60,4 +62,6 @@ export interface FailingIndexers {
 /** Error body of the /prowlarr routes. */
 export interface ProwlarrErrorBody {
   error: 'not-configured' | 'unauthorized' | 'unreachable' | 'bad-request' | 'not-found' | 'upstream'
+  /** With `unreachable`: why Prowlarr didn't answer, where the server could tell (#508). */
+  failure?: ConnectionFailure
 }

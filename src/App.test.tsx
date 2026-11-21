@@ -681,6 +681,12 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Kinopeer isn’t answering' })).toBeInTheDocument()
   })
 
+  it('says why qBittorrent didn’t answer the session check, on the connect screen', async () => {
+    getAppVersion.mockRejectedValue(new api.QbittorrentError('qBittorrent responded 502', 502, 'refused'))
+    renderApp()
+    expect(await screen.findByText(/Nothing listens on this port/)).toBeInTheDocument()
+  })
+
   it('shows the sign-in form without a session', async () => {
     getAppVersion.mockRejectedValue(new api.UnauthorizedError())
     renderApp()

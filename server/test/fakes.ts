@@ -34,6 +34,15 @@ export async function listen(handler: RequestListener): Promise<string> {
   return `http://127.0.0.1:${(server.address() as AddressInfo).port}`
 }
 
+/** An address on this machine where nothing listens: a port taken from the system and let go. */
+export async function closedAddress(): Promise<string> {
+  const server = createServer()
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+  const { port } = server.address() as AddressInfo
+  await new Promise<void>((resolve) => server.close(() => resolve()))
+  return `http://127.0.0.1:${port}`
+}
+
 /**
  * Kinopeer's TMDB proxy (tmdb-proxy/worker.ts), the real worker served over HTTP in front of
  * `tmdbApiBase` with `key` as its secret and a rate limiter that lets everything through, or with
@@ -280,6 +289,7 @@ async function parseAdd(body: Buffer, contentType: string | undefined): Promise<
 export async function fakeQbittorrent({
   legacy = false,
   authBypass = false,
+  webUiPort,
   torrents = TORRENTS,
   listAdded,
 }: {
@@ -290,6 +300,12 @@ export async function fakeQbittorrent({
    * through without a session, and /app/version answers without a login.
    */
   authBypass?: boolean
+  /**
+   * qBittorrent's Web UI port behind a port published as another (`18080:8080`): with Host header
+   * validation, on by default, every request whose `Host` has another port is answered 401, the
+   * login included.
+   */
+  webUiPort?: number
   torrents?: Torrent[]
   /**
    * What qBittorrent lists for a torrent after /torrents/add: a torrent it returns joins the list
@@ -316,6 +332,7 @@ export async function fakeQbittorrent({
     const bytes = await bytesOf(request)
     const body = bytes.toString()
     const url = request.url ?? ''
+    if (webUiPort !== undefined && request.headers.host?.split(':')[1] !== String(webUiPort)) return text(response, 'Unauthorized', 401)
     if (url === '/api/v2/auth/login') {
       logins++
       const params = new URLSearchParams(body)

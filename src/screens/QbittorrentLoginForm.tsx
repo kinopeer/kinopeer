@@ -1,10 +1,12 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { failureOf, type ConnectionFailure } from '../api/connectionFailure'
 import { unreachable, type Unreachable } from '../api/qbittorrent'
 import { SettingsError } from '../api/settings'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { Input } from '../components/Input'
+import { failureText } from '../lib/failureText'
 import { unreachableText, useMayOpenAgain } from '../lib/unreachable'
 import { loadPastTheShell } from '../pwa/proxySignIn'
 
@@ -39,6 +41,7 @@ type FormError =
   | 'login-needed'
   | 'banned'
   | 'not-qbittorrent'
+  | 'host-refused'
   | 'invalid-address'
   | 'address-unreachable'
   | 'auth-off'
@@ -47,7 +50,7 @@ type FormError =
   | null
 
 /** Errors shown in the form itself rather than as who didn't answer. */
-const FORM_ERRORS = new Set<FormError>(['invalid', 'login-needed', 'banned', 'not-qbittorrent', 'invalid-address', 'address-unreachable', 'auth-off', 'storage'])
+const FORM_ERRORS = new Set<FormError>(['invalid', 'login-needed', 'banned', 'not-qbittorrent', 'host-refused', 'invalid-address', 'address-unreachable', 'auth-off', 'storage'])
 
 /**
  * qBittorrent's login, and its address where the app may set it: the server checks them together
@@ -70,6 +73,8 @@ export function QbittorrentLoginForm({
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<FormError>(null)
+  // Why qBittorrent didn't answer the check, where the server could tell (#508).
+  const [failure, setFailure] = useState<ConnectionFailure>()
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -80,10 +85,12 @@ export function QbittorrentLoginForm({
     try {
       await (askAddress ? onSubmit(username, password, address) : onSubmit(username, password))
     } catch (e) {
+      setFailure(failureOf(e))
       const code = e instanceof SettingsError ? e.code : undefined
       if (code === 'invalid-credentials') setError(askAddress && !username.trim() ? 'login-needed' : 'invalid')
       else if (code === 'banned') setError('banned')
       else if (code === 'not-qbittorrent') setError('not-qbittorrent')
+      else if (code === 'host-refused') setError('host-refused')
       else if (code === 'invalid-address') setError('invalid-address')
       // With an address sent, the server is there and says that address didn't answer.
       else if (code === 'unreachable' && askAddress) setError('address-unreachable')
@@ -118,7 +125,9 @@ export function QbittorrentLoginForm({
           secondaryActionLabel={openAgain ? t('common.openAgain') : undefined}
           onSecondaryAction={() => loadPastTheShell()}
         >
-          {t('connect.unreachableBody', { context: openAgain ? 'openAgain' : unreachableText(signInUnreachable) })}
+          {/* A cause comes only with qBittorrent's no answer, which the server names. */}
+          {failureText(t, 'qbittorrent', failure) ??
+            t('connect.unreachableBody', { context: openAgain ? 'openAgain' : unreachableText(signInUnreachable) })}
         </Banner>
       )}
       {error === 'banned' && <Banner tone="error">{t('connect.banned')}</Banner>}
@@ -126,6 +135,7 @@ export function QbittorrentLoginForm({
         // An address from the app, typed here or saved before, is checked here; the environment's on the server.
         <Banner tone="error">{t('connect.notQbittorrent', { context: askAddress || addressFromApp ? 'app' : undefined })}</Banner>
       )}
+      {error === 'host-refused' && <Banner tone="error">{t('connect.hostRefused')}</Banner>}
       {error === 'auth-off' && <Banner tone="error">{t('connect.authOff')}</Banner>}
       {error === 'storage' && <Banner tone="error">{t('keyForm.storage')}</Banner>}
 
@@ -149,7 +159,7 @@ export function QbittorrentLoginForm({
               setAddress(e.target.value)
               if (error === 'invalid-address' || error === 'address-unreachable') setError(null)
             }}
-            error={(error === 'invalid-address' && t('address.invalid')) || (error === 'address-unreachable' && t('connect.addressUnreachable'))}
+            error={(error === 'invalid-address' && t('address.invalid')) || (error === 'address-unreachable' && (failureText(t, 'qbittorrent', failure) ?? t('connect.addressUnreachable')))}
             help={t('connect.addressHelp')}
           />
         )}

@@ -1,4 +1,5 @@
 import type { AuthStatus } from '../auth/types.ts'
+import type { ConnectionFailure } from '../connectionFailure.ts'
 import type { PushStatus } from '../push/types.ts'
 
 /** Where a secret comes from: saved from the app, or the server's environment variables. */
@@ -174,6 +175,8 @@ export interface SettingsErrorBody {
     | 'unreachable'
     | 'not-prowlarr'
     | 'not-qbittorrent'
+    /** qBittorrent's Host header validation refused the address: its port isn't the Web UI's own (#508). */
+    | 'host-refused'
     | 'invalid-address'
     | 'env-address'
     | 'auth-off'
@@ -186,4 +189,6 @@ export interface SettingsErrorBody {
     | 'token-rejected'
     /** Telegram refused to write to the chat: the bot was blocked or removed. */
     | 'chat-rejected'
+  /** With `unreachable` from qBittorrent's or Prowlarr's check: why it didn't answer, where the server could tell (#508). */
+  failure?: ConnectionFailure
 }

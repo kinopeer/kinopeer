@@ -217,6 +217,13 @@ describe('ReleasesBody', () => {
     expect(search.retry).toHaveBeenCalledOnce()
   })
 
+  it('says why Prowlarr can’t be reached, where the server could tell (#508)', () => {
+    renderBody(releases({ status: 'error', failure: 'timeout', rows: [], visible: [] }))
+    expect(screen.getByRole('heading', { name: 'Prowlarr isn’t answering' })).toBeInTheDocument()
+    expect(screen.getByText('Nothing answered in time: a firewall may be in the way, or the host is wrong.')).toBeInTheDocument()
+    expect(screen.queryByText(/reachable from the Kinopeer server/)).not.toBeInTheDocument()
+  })
+
   it('says when nothing was found and searches again on Try again', async () => {
     const search = releases({ status: 'none', rows: [], visible: [] })
     renderBody(search)

@@ -55,6 +55,15 @@
     "tmdb": "TMDB isn’t answering",
     "telegram": "Telegram isn’t answering"
   },
+  "failure": {
+    "name": "Kinopeer’s server can’t find this host. Check the name, or use the IP address.",
+    "refused": "Nothing listens on this port: check it, and that {{service}} takes connections from the network, not only from 127.0.0.1.",
+    "refusedWebUi": "Nothing listens on this port: check it, and that qBittorrent’s Web UI is on and takes connections from the network, not only from 127.0.0.1.",
+    "timeout": "Nothing answered in time: a firewall may be in the way, or the host is wrong.",
+    "http": "{{service}} answers here without HTTPS: start the address with http://.",
+    "certificate": "Kinopeer’s server doesn’t trust {{service}}’s certificate. Use its http:// address.",
+    "closed": "The connection closed without an answer: check the port, and http:// or https:// at the start."
+  },
   "types": {
     "movie": "Movies",
     "tv": "Series"
@@ -88,6 +97,7 @@
     "addressHelp": "As the Kinopeer server reaches it, for example http://192.168.1.10:8080",
     "addressUnreachable": "Nothing answers at this address. Check it, and that qBittorrent is running.",
     "notQbittorrent_app": "qBittorrent’s address answers, but not like qBittorrent. Check the address and its port.",
+    "hostRefused": "qBittorrent refused this address’s port: with Host header validation on, its Web UI takes only its own port. Publish it on the same port as inside its container, or turn the validation off in its Web UI options.",
     "loginOptional": "Leave the login empty if qBittorrent lets Kinopeer in without one.",
     "loginNeeded": "qBittorrent asks for a login: enter its username and password",
     "authOff": "Kinopeer’s own login is off, so qBittorrent’s address can only be set on the server: QBITTORRENT_URL.",

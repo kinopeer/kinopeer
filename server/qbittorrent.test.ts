@@ -2,7 +2,7 @@ import { request as httpRequest } from 'node:http'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { baseOf } from './address.ts'
 import { checkQbittorrent, qbittorrentBridge, qbittorrentMiddleware, type QbittorrentConfig } from './qbittorrent.ts'
-import { abandon, closeServers, fakeQbittorrent, listen, serve, settlesWithin, silentService } from './test/fakes.ts'
+import { abandon, closeServers, closedAddress, fakeQbittorrent, listen, serve, settlesWithin, silentService } from './test/fakes.ts'
 
 /** Kinopeer's side, the middleware under test, with the address as the environment or the app gives it. */
 const kinopeer = ({ url, ...config }: Omit<QbittorrentConfig, 'url'> & { url?: string }) => serve(qbittorrentMiddleware({ ...config, url: () => baseOf(url) }))
@@ -329,7 +329,13 @@ describe('qbittorrentMiddleware', () => {
 
   it('reports an unreachable qBittorrent and only proxies the API', async () => {
     const down = await kinopeer({ url: 'http://127.0.0.1:9', credentials: () => ({ username: 'admin', password: 'x' }) })
-    expect((await call(`${down}/qbt/api/v2/app/version`)).status).toBe(502)
+    const blocked = await call(`${down}/qbt/api/v2/app/version`)
+    expect(blocked.status).toBe(502)
+    // Port 9 is one fetch won't connect to ("bad port"): no cause to name.
+    expect(blocked.headers.get('x-kinopeer-failure')).toBeNull()
+    // Nothing listens: the bridge says why beside the 502 (#508).
+    const refused = await call(`${await kinopeer({ url: await closedAddress() })}/qbt/api/v2/app/version`)
+    expect([refused.status, refused.headers.get('x-kinopeer-failure')]).toEqual([502, 'refused'])
 
     const qbt = await fakeQbittorrent()
     const base = await kinopeer({ url: qbt.base })
@@ -395,4 +401,15 @@ describe('checkQbittorrent', () => {
       expect(await checkQbittorrent(await answering(body), undefined)).toBe('not-qbittorrent')
     },
   )
+
+  it('tells qBittorrent refusing the address’s port from a wrong login, which 5.3 also answers 401', async () => {
+    // Its Web UI on 8080, published on the fake's own port: every request is refused before any login.
+    const published = await fakeQbittorrent({ webUiPort: 8080 })
+    expect(await checkQbittorrent(published.base, { username: 'admin', password: 'pass word' })).toBe('host-refused')
+    expect(await checkQbittorrent(published.base, undefined)).toBe('host-refused')
+
+    const own = await fakeQbittorrent()
+    expect(await checkQbittorrent(own.base, { username: 'admin', password: 'nope' })).toBe('invalid')
+    expect(await checkQbittorrent(own.base, undefined)).toBe('invalid')
+  })
 })

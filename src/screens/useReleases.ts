@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { failureOf, type ConnectionFailure } from '../api/connectionFailure'
 import type { Torrent } from '../api/qbittorrent'
 import { ProwlarrSetupError, getFailingIndexers, searchReleases, type Release } from '../api/prowlarr'
 import { clickedOrder, cycledOrder, reversedOrder, usualOrder } from '../logic/sortOrder'
@@ -62,6 +63,8 @@ export type ReleasesStatus = 'loading' | 'setup' | 'rejected' | 'error' | 'none'
 
 export interface Releases {
   status: ReleasesStatus
+  /** With `error`: why Prowlarr didn't answer, where the server could tell (#508). */
+  failure?: ConnectionFailure
   retry: () => void
   /** Names of the indexers that didn't answer this search, so their releases are missing. */
   failing: string[]
@@ -206,6 +209,7 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
 
   return {
     status,
+    failure: failureOf(search.error),
     retry: search.retry,
     failing: missing,
     rows,

@@ -1,7 +1,9 @@
 import { readFile } from 'node:fs/promises'
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import type { ConnectionFailure } from '../src/api/connectionFailure.ts'
 import type { FailingIndexers, MagnetResponse, ProwlarrErrorBody, ProwlarrStatus, Release } from '../src/api/prowlarr/types.ts'
 import { abandoned } from './abandoned.ts'
+import { connectionFailure } from './connectionFailure.ts'
 
 /**
  * Same-origin bridge to Prowlarr. Unlike a plain proxy it reshapes responses, because Prowlarr's
@@ -63,8 +65,8 @@ function send(response: ServerResponse, status: number, body: unknown): void {
   response.end(JSON.stringify(body))
 }
 
-function fail(response: ServerResponse, status: number, error: ProwlarrErrorBody['error']): void {
-  send(response, status, { error } satisfies ProwlarrErrorBody)
+function fail(response: ServerResponse, status: number, error: ProwlarrErrorBody['error'], failure?: ConnectionFailure): void {
+  send(response, status, { error, ...(failure && { failure }) } satisfies ProwlarrErrorBody)
 }
 
 /**
@@ -341,8 +343,8 @@ export function prowlarrMiddleware(config: ProwlarrConfig): Middleware {
       if (!handler) return fail(response, 404, 'not-found')
       // Errors never echo upstream URLs: they would contain the API key.
       await handler(base, apiKey, url.searchParams, response, signal)
-    })().catch(() => {
-      if (!response.headersSent) fail(response, 502, 'unreachable')
+    })().catch((error: unknown) => {
+      if (!response.headersSent) fail(response, 502, 'unreachable', connectionFailure(error))
       else response.end()
     })
   }

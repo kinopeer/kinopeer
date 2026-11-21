@@ -35,7 +35,7 @@ beforeEach(() => {
   vi.mocked(settings.getServerSettings).mockResolvedValue(serverSettings({ source: 'env' }))
 })
 
-type StateProps = Partial<Pick<ConnectScreenProps, 'unreachable' | 'unsupported' | 'noAddress'>>
+type StateProps = Partial<Pick<ConnectScreenProps, 'unreachable' | 'failure' | 'unsupported' | 'noAddress'>>
 
 function setup(onSignIn = vi.fn().mockResolvedValue(undefined), props: StateProps = {}) {
   const onRetry = vi.fn()
@@ -108,6 +108,13 @@ describe('ConnectScreen', () => {
     expect(onRetry).toHaveBeenCalledOnce()
   })
 
+  it('says why qBittorrent didn’t answer the session check, where the server could tell (#508)', () => {
+    setup(undefined, { unreachable: 'qbittorrent', failure: 'refused' })
+    expect(screen.getByRole('heading', { name: 'qBittorrent isn’t answering' })).toBeInTheDocument()
+    expect(screen.getByText('Nothing listens on this port: check it, and that qBittorrent’s Web UI is on and takes connections from the network, not only from 127.0.0.1.')).toBeInTheDocument()
+    expect(screen.queryByText('Check that qBittorrent is running and its Web UI is on.')).not.toBeInTheDocument()
+  })
+
   it('says Kinopeer, not qBittorrent, didn’t answer the session check, and offers Open again past the shell beside Retry', async () => {
     controlledByServiceWorker()
     const { onRetry } = setup(undefined, { unreachable: 'unreached' })
@@ -157,6 +164,14 @@ describe('ConnectScreen', () => {
     setup(vi.fn().mockRejectedValue(new SettingsError(503, 'not-configured')))
     await fillAndSubmit()
     expect(screen.getByRole('alert', { name: saying('qBittorrent isn’t answering') })).toBeInTheDocument()
+  })
+
+  it('says why qBittorrent didn’t answer the sign-in at the server’s address, where the server could tell (#508)', async () => {
+    setup(vi.fn().mockRejectedValue(new SettingsError(502, 'unreachable', 'timeout')))
+    await fillAndSubmit()
+    const alert = screen.getByRole('alert', { name: saying('qBittorrent isn’t answering') })
+    expect(alert).toHaveTextContent('Nothing answered in time: a firewall may be in the way, or the host is wrong.')
+    expect(alert).not.toHaveTextContent('Check that qBittorrent is running')
   })
 
   it('takes the server’s word that qBittorrent did not answer the sign-in, with Retry', async () => {
@@ -212,6 +227,7 @@ describe('ConnectScreen', () => {
     it.each([
       ['an address it refuses', new SettingsError(400, 'invalid-address'), 'Enter an address that starts with http:// or https://, with no login, ? or # in it'],
       ['an address that doesn’t answer', new SettingsError(502, 'unreachable'), 'Nothing answers at this address. Check it, and that qBittorrent is running.'],
+      ['an address that doesn’t answer, and why (#508)', new SettingsError(502, 'unreachable', 'refused'), 'Nothing listens on this port: check it, and that qBittorrent’s Web UI is on and takes connections from the network, not only from 127.0.0.1.'],
     ])('says on the address field when the server finds %s, and clears it on typing', async (_name, error, message) => {
       setup(vi.fn().mockRejectedValue(error), { noAddress: true })
       await fillAddress('http://qbt.test')
@@ -241,6 +257,11 @@ describe('ConnectScreen', () => {
 
     it.each([
       ['something at it that isn’t qBittorrent', new SettingsError(502, 'not-qbittorrent'), 'qBittorrent’s address answers, but not like qBittorrent. Check the address and its port.'],
+      [
+        'qBittorrent refusing its port (#508)',
+        new SettingsError(502, 'host-refused'),
+        'qBittorrent refused this address’s port: with Host header validation on, its Web UI takes only its own port. Publish it on the same port as inside its container, or turn the validation off in its Web UI options.',
+      ],
       ['Kinopeer’s own login off', new SettingsError(409, 'auth-off'), 'Kinopeer’s own login is off, so qBittorrent’s address can only be set on the server: QBITTORRENT_URL.'],
       ['a server that can’t write its settings', new SettingsError(500, 'storage'), 'The Kinopeer server couldn’t save the change. Check that its data folder is writable.'],
     ])('says so over the form for %s', async (_name, error, message) => {

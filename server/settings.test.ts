@@ -14,7 +14,7 @@ import {
   type SettingsConfig,
   type StoredTelegram,
 } from './settings.ts'
-import { OTHER_TELEGRAM_TOKEN, RENEWED_TELEGRAM_TOKEN, TELEGRAM_TOKEN, UNKNOWN_TELEGRAM_TOKEN, abandon, closeServers, fakeProwlarr, fakeQbittorrent, fakeTelegram, fakeTmdb, serve, settlesWithin, silentService } from './test/fakes.ts'
+import { OTHER_TELEGRAM_TOKEN, RENEWED_TELEGRAM_TOKEN, TELEGRAM_TOKEN, UNKNOWN_TELEGRAM_TOKEN, abandon, closeServers, closedAddress, fakeProwlarr, fakeQbittorrent, fakeTelegram, fakeTmdb, serve, settlesWithin, silentService } from './test/fakes.ts'
 
 let dir: string
 
@@ -34,6 +34,7 @@ function kinopeer(
     envKey?: string
     apiBase?: string
     timeoutMs?: number
+    checkTimeoutMs?: number
     proxy?: string
     qbittorrentUrl?: string
     envUser?: string
@@ -46,6 +47,7 @@ function kinopeer(
       envTmdbApiKey: options.envKey,
       tmdbApiBase: options.apiBase,
       tmdbTimeoutMs: options.timeoutMs,
+      checkTimeoutMs: options.checkTimeoutMs,
       tmdbProxy: options.proxy,
       envQbittorrentUrl: options.qbittorrentUrl,
       envQbittorrent: { username: options.envUser, password: 'adminadmin' },
@@ -163,11 +165,31 @@ describe('settingsMiddleware: qBittorrent login', () => {
     expect(qbt.logins()).toBe(0)
   })
 
-  it('says when qBittorrent is unreachable', async () => {
-    const app = await kinopeer(new SettingsStore(dir), { qbittorrentUrl: 'http://127.0.0.1:1' })
-    const response = await putLogin(app, { username: 'admin', password: 'x' })
-    expect(response.status).toBe(502)
-    expect(await response.json()).toEqual({ error: 'unreachable' })
+  it('says when qBittorrent refuses the address’s port before the login (#508)', async () => {
+    const qbt = await fakeQbittorrent({ webUiPort: 8080 })
+    const store = new SettingsStore(dir)
+    const response = await putLogin(await kinopeer(store, { qbittorrentUrl: qbt.base }), { username: 'admin', password: 'pass word' })
+    expect([response.status, await response.json()]).toEqual([502, { error: 'host-refused' }])
+    expect(qbittorrentCredentials(store, undefined)).toBeUndefined()
+  })
+
+  it('says when qBittorrent is unreachable, and why where the server can tell (#508)', async () => {
+    const refused = await kinopeer(new SettingsStore(dir), { qbittorrentUrl: await closedAddress() })
+    const response = await putLogin(refused, { username: 'admin', password: 'x' })
+    expect([response.status, await response.json()]).toEqual([502, { error: 'unreachable', failure: 'refused' }])
+
+    // Port 1 is one fetch won't connect to ("bad port"), a failure with no cause to name.
+    const unknown = await kinopeer(new SettingsStore(dir), { qbittorrentUrl: 'http://127.0.0.1:1' })
+    const blocked = await putLogin(unknown, { username: 'admin', password: 'x' })
+    expect([blocked.status, await blocked.json()]).toEqual([502, { error: 'unreachable' }])
+  })
+
+  it('gives the check up when qBittorrent takes the connection and doesn’t answer in time (#508)', async () => {
+    const qbittorrent = await silentService()
+    const app = await kinopeer(new SettingsStore(dir), { qbittorrentUrl: qbittorrent.base, checkTimeoutMs: 50 })
+    const response = await putLogin(app, { username: '', password: '' })
+    expect([response.status, await response.json()]).toEqual([502, { error: 'unreachable', failure: 'timeout' }])
+    expect(await settlesWithin(qbittorrent.closed, 1000)).toBe(true)
   })
 })
 
@@ -451,13 +473,14 @@ describe('prowlarrKey', () => {
 })
 
 describe('settingsMiddleware: Prowlarr key', () => {
-  function app(store: SettingsStore, options: { url?: string; envKey?: string; configXml?: string } = {}) {
+  function app(store: SettingsStore, options: { url?: string; envKey?: string; configXml?: string; checkTimeoutMs?: number } = {}) {
     return serve(
       settingsMiddleware({
         store,
         envProwlarrUrl: options.url,
         envProwlarrApiKey: options.envKey,
         prowlarrConfigXml: options.configXml,
+        checkTimeoutMs: options.checkTimeoutMs,
       }),
     )
   }
@@ -522,13 +545,20 @@ describe('settingsMiddleware: Prowlarr key', () => {
   })
 
   it('says when Prowlarr is unreachable or not set up', async () => {
-    const unreachable = await put(await app(new SettingsStore(dir), { url: 'http://127.0.0.1:1' }), 'good-key')
+    const unreachable = await put(await app(new SettingsStore(dir), { url: await closedAddress() }), 'good-key')
     expect(unreachable.status).toBe(502)
-    expect(await unreachable.json()).toEqual({ error: 'unreachable' })
+    expect(await unreachable.json()).toEqual({ error: 'unreachable', failure: 'refused' })
 
     const noUrl = await put(await app(new SettingsStore(dir)), 'good-key')
     expect(noUrl.status).toBe(503)
     expect(await noUrl.json()).toEqual({ error: 'not-configured' })
+  })
+
+  it('gives the check up when Prowlarr takes the connection and doesn’t answer in time (#508)', async () => {
+    const prowlarr = await silentService()
+    const response = await put(await app(new SettingsStore(dir), { url: prowlarr.base, checkTimeoutMs: 50 }), 'good-key')
+    expect([response.status, await response.json()]).toEqual([502, { error: 'unreachable', failure: 'timeout' }])
+    expect(await settlesWithin(prowlarr.closed, 1000)).toBe(true)
   })
 
   it('forgets a saved key, so the one in config.xml applies again', async () => {

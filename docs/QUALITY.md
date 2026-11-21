@@ -403,7 +403,7 @@ texts), so like the budget before it, it leaves no margin. It went to 196,300 on
 measurement of 196,210 bytes rounded up the same way, on the coordinator's decision on #481 (push
 notifications, which add 2,514 bytes: the push card and its browser module in the main bundle, the
 service worker's push handlers, and one language's texts, with the fixes of its review's first
-round), leaving no margin either. It went to 196,600 on 2026-11-21, the measurement of 196,557 bytes rounded up the same way, on the coordinator's decision on #510 (the releases screen setting Prowlarr up in a sheet, 336 bytes with one language's texts), leaving no margin either.
+round), leaving no margin either. It went to 196,600 on 2026-11-21, the measurement of 196,557 bytes rounded up the same way, on the coordinator's decision on #510 (the releases screen setting Prowlarr up in a sheet, 336 bytes with one language's texts), leaving no margin either. It went to 197,400 on 2026-11-21, the measurement of 197,390 bytes rounded up the same way, on the coordinator's decision on #508 (a failed connection naming its cause: 794 bytes, 406 of them one language's texts, after the texts were shortened), leaving no margin either.
 
 **In CI** it is the step after `npm run build` in the `performance` job, which adds a table of the kinds,
 their sizes, budgets and what is left to the job's summary, and records the sizes as actual values

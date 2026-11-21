@@ -129,6 +129,7 @@ function SignedIn() {
       return (
         <ConnectScreen
           unreachable={session.status === 'unreachable' ? session.who : undefined}
+          failure={session.status === 'unreachable' ? session.failure : undefined}
           unsupported={session.status === 'unsupported' ? session.version : undefined}
           noAddress={session.status === 'no-address'}
           onRetry={() => void recheck()}

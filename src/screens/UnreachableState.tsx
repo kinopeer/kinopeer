@@ -1,12 +1,16 @@
 import { useTranslation } from 'react-i18next'
+import type { ConnectionFailure } from '../api/connectionFailure'
 import type { Unreachable } from '../api/qbittorrent'
 import { EmptyState } from '../components/EmptyState'
+import { failureText } from '../lib/failureText'
 import { unreachableText, useMayOpenAgain } from '../lib/unreachable'
 import { loadPastTheShell } from '../pwa/proxySignIn'
 
 export interface UnreachableStateProps {
   /** Who didn't answer the poll: Kinopeer's server or qBittorrent (the default). */
   unreachable?: Unreachable
+  /** Why qBittorrent didn't answer, where the server could tell: said in place of the body. */
+  failure?: ConnectionFailure
   onRetry: () => void
   /** Whose body text: the poll's (`offline.unreachableBody`, the default) or the session check's on the connect screen (`connect.unreachableBody`). */
   texts?: 'offline' | 'connect'
@@ -17,7 +21,7 @@ export interface UnreachableStateProps {
  * again beside it when nothing answered for Kinopeer's server (`useMayOpenAgain`). Downloads and the
  * torrent details show it.
  */
-export function UnreachableState({ unreachable, onRetry, texts = 'offline' }: UnreachableStateProps) {
+export function UnreachableState({ unreachable, failure, onRetry, texts = 'offline' }: UnreachableStateProps) {
   const { t } = useTranslation()
   const openAgain = useMayOpenAgain(unreachable)
   return (
@@ -30,7 +34,7 @@ export function UnreachableState({ unreachable, onRetry, texts = 'offline' }: Un
       secondaryActionLabel={openAgain ? t('common.openAgain') : undefined}
       onSecondaryAction={() => loadPastTheShell()}
     >
-      {t(`${texts}.unreachableBody`, { context: openAgain ? 'openAgain' : unreachableText(unreachable) })}
+      {failureText(t, 'qbittorrent', failure) ?? t(`${texts}.unreachableBody`, { context: openAgain ? 'openAgain' : unreachableText(unreachable) })}
     </EmptyState>
   )
 }

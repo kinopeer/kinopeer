@@ -44,6 +44,13 @@ describe('useReleases', () => {
     await waitFor(() => expect(result.current.status).toBe(status))
   })
 
+  it('keeps why Prowlarr didn’t answer the search, where the server could tell (#508)', async () => {
+    vi.mocked(prowlarr.searchReleases).mockRejectedValue(new prowlarr.ProwlarrError('Prowlarr request failed (unreachable)', 502, 'unreachable', 'refused'))
+    const { result } = renderHook(() => useReleases(movie(1, 'Dune')))
+    await waitFor(() => expect(result.current.status).toBe('error'))
+    expect(result.current.failure).toBe('refused')
+  })
+
   it("starts another title's search without the last one's picks", async () => {
     const { result, rerender } = renderHook(({ details }) => useReleases(details), { initialProps: { details: movie(1, 'Dune') } })
     await waitFor(() => expect(result.current.status).toBe('ready'))
