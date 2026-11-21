@@ -1,6 +1,10 @@
-import { networkInterfaces } from 'node:os'
+import type { lookup } from 'node:dns/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { networkInterfaces, tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { atHost, container, defaultGateway, inContainer, isLoopback, sourceOf, type ContainerSystem } from './container.ts'
+import { atHost, container, defaultGateway, inContainer, isLoopback, localAddressTo, resolver, sourceOf, systemOnDisk, type ContainerSystem, type UdpSocket } from './container.ts'
+import { settlesWithin } from './test/fakes.ts'
 
 /** /proc/net/route on a Docker network: the default route through 172.18.0.1, then the network's own. */
 const ROUTES = `Iface\tDestination\tGateway \tFlags\tRefCnt\tUse\tMetric\tMask\t\tMTU\tWindow\tIRTT
@@ -53,11 +57,12 @@ describe('inContainer', () => {
 })
 
 describe('isLoopback', () => {
-  it.each(['localhost', 'LOCALHOST', 'kinopeer.localhost', '127.0.0.1', '127.1.2.3', '[::1]', '::1', '0.0.0.0'])('takes %s for this machine', (host) => {
+  it.each(['localhost', 'LOCALHOST', 'kinopeer.localhost', '127.0.0.1', '127.1.2.3', '127.10.20.30', '[::1]', '0.0.0.0'])('takes %s for this machine', (host) => {
     expect(isLoopback(host)).toBe(true)
   })
 
-  it.each(['qbittorrent', '192.168.1.10', '172.17.0.1', 'localhost.example.com', '128.0.0.1', '[::2]'])('takes %s for another', (host) => {
+  // A name that only starts or ends like a loopback address is another host's (`127.0.0.1.example.com` resolves in public DNS).
+  it.each(['qbittorrent', '192.168.1.10', '172.17.0.1', 'localhost.example.com', '128.0.0.1', '[::2]', '127.0.0.1.example.com', 'x127.0.0.1'])('takes %s for another', (host) => {
     expect(isLoopback(host)).toBe(false)
   })
 })
@@ -66,6 +71,7 @@ describe('atHost', () => {
   it('replaces the host and keeps the scheme, the port and the path', () => {
     expect(atHost('https://localhost:8443/qbt', 'host.docker.internal')).toBe('https://host.docker.internal:8443/qbt')
     expect(atHost('http://127.0.0.1:8080', '172.17.0.1')).toBe('http://172.17.0.1:8080')
+    expect(atHost('http://localhost:8080/qbt//', '172.17.0.1')).toBe('http://172.17.0.1:8080/qbt')
   })
 })
 
@@ -77,6 +83,9 @@ describe('defaultGateway', () => {
   it('finds none without a default route, or with a gateway it can’t read', () => {
     expect(defaultGateway(ROUTES.split('\n').filter((line) => !line.includes('\t00000000\t010012AC')).join('\n'))).toBeUndefined()
     expect(defaultGateway(ROUTES.replace('010012AC', 'XYZ'))).toBeUndefined()
+    // Eight hex digits exactly, not eight among more.
+    expect(defaultGateway(ROUTES.replace('010012AC', 'Z010012AC'))).toBeUndefined()
+    expect(defaultGateway(ROUTES.replace('010012AC', '010012ACZ'))).toBeUndefined()
     expect(defaultGateway('')).toBeUndefined()
   })
 })
@@ -96,6 +105,13 @@ describe('sourceOf', () => {
     expect(sourceOf('172.18.0.9', '172.18.0.3', INTERFACES)).toBeUndefined()
     expect(sourceOf('172.18.0.5', 'fe80::1', INTERFACES)).toBeUndefined()
     expect(sourceOf('172.18.0.5', '172.18.0.300', INTERFACES)).toBeUndefined()
+    expect(sourceOf('172.18.0.5', '172.18.3', INTERFACES)).toBeUndefined()
+    expect(sourceOf('172.18.0.5', '172.18.0.+3', INTERFACES)).toBeUndefined()
+    expect(sourceOf('172.18.0.5', '172.18.0.3 ', INTERFACES)).toBeUndefined()
+  })
+
+  it('takes 255 in an address', () => {
+    expect(sourceOf('172.18.0.5', '172.18.255.255', INTERFACES)).toEqual({ address: '172.18.0.5', subnet: '172.18.0.0/16' })
   })
 })
 
@@ -124,6 +140,83 @@ describe('container', () => {
     expect(await container({}, system({ local: null }))!.sourceFor('172.18.0.3')).toBeUndefined()
     expect(await container({}, system({ names: { localhost: '127.0.0.1' } }))!.sourceFor('localhost')).toBeUndefined()
     expect(await container({}, system())!.sourceFor('127.0.0.1')).toBeUndefined()
+    // IPv6, as a URL keeps it, isn't looked up.
+    const v6 = system({ names: { 'fe80::1': '172.18.0.3' } })
+    expect(await container({}, v6)!.sourceFor('[fe80::1]')).toBeUndefined()
+    expect(v6.resolved).toEqual([])
+  })
+})
+
+describe('the system on disk', () => {
+  it('says which files exist and reads them, and nothing for a file that isn’t there', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'kinopeer-container-'))
+    try {
+      await writeFile(join(dir, 'route'), ROUTES)
+      expect(systemOnDisk.exists(join(dir, 'route'))).toBe(true)
+      expect(systemOnDisk.exists(join(dir, 'missing'))).toBe(false)
+      expect(systemOnDisk.readFile(join(dir, 'route'))).toBe(ROUTES)
+      expect(systemOnDisk.readFile(join(dir, 'missing'))).toBeUndefined()
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('resolves a name to its IPv4 address, and none for one that doesn’t exist', async () => {
+    expect(await systemOnDisk.resolve('localhost')).toBe('127.0.0.1')
+    expect(await systemOnDisk.resolve('qbittorrent.invalid')).toBeUndefined()
+  })
+
+  it('gives a lookup up after its time limit', async () => {
+    const stalled = (() => new Promise(() => undefined)) as unknown as typeof lookup
+    expect(await settlesWithin(resolver(stalled, 10)('qbittorrent'), 1000)).toBe(true)
+    expect(await resolver(stalled, 10)('qbittorrent')).toBeUndefined()
+  })
+
+  it('finds the address a socket goes out from', async () => {
+    expect(await systemOnDisk.localAddressTo('127.0.0.1')).toBe('127.0.0.1')
+  })
+})
+
+describe('localAddressTo', () => {
+  /** A UDP socket that connects, or fails, as told, and counts its closes. */
+  function socket({ connects, failsAfter = false }: { connects: boolean; failsAfter?: boolean }) {
+    let onError: (() => void) | undefined
+    const fake = {
+      closes: 0,
+      on: (_event: string, listener: () => void) => {
+        onError = listener
+        return fake
+      },
+      connect: (_port: number, _ip: string, connected: () => void) => {
+        if (!connects) return onError?.()
+        connected()
+        if (failsAfter) onError?.()
+      },
+      address: () => ({ address: '172.18.0.5', family: 'IPv4', port: 40000 }),
+      close: () => {
+        fake.closes++
+        return fake
+      },
+    }
+    return fake
+  }
+
+  it('gives the local address and closes the socket', async () => {
+    const connected = socket({ connects: true })
+    expect(await localAddressTo('172.18.0.3', connected as unknown as UdpSocket)).toBe('172.18.0.5')
+    expect(connected.closes).toBe(1)
+  })
+
+  it('gives none, and closes the socket, where it can’t connect', async () => {
+    const failed = socket({ connects: false })
+    expect(await localAddressTo('172.18.0.3', failed as unknown as UdpSocket)).toBeUndefined()
+    expect(failed.closes).toBe(1)
+  })
+
+  it('settles once, should the socket also fail after connecting', async () => {
+    const both = socket({ connects: true, failsAfter: true })
+    expect(await localAddressTo('172.18.0.3', both as unknown as UdpSocket)).toBe('172.18.0.5')
+    expect(both.closes).toBe(1)
   })
 })
 

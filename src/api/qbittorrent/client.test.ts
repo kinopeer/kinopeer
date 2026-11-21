@@ -347,6 +347,11 @@ describe('getAppVersion', () => {
     expect(((await getAppVersion().catch((caught: unknown) => caught)) as UnauthorizedError).source).toBeUndefined()
   })
 
+  it('takes the bridge’s 401 for a login asked, as its 403', async () => {
+    fetchMock.mockResolvedValueOnce(new Response('Unauthorized', { status: 401, headers: { [BRIDGE_HEADER]: '1' } }))
+    await expect(getAppVersion()).rejects.toBeInstanceOf(UnauthorizedError)
+  })
+
   it('passes on why qBittorrent didn’t answer the bridge, where the server could tell (#508)', async () => {
     const failed = (failure?: string) =>
       new Response('qBittorrent is unreachable', { status: 502, headers: { [BRIDGE_HEADER]: '1', ...(failure && { [FAILURE_HEADER]: failure }) } })

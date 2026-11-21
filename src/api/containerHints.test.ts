@@ -14,6 +14,13 @@ describe('isSourceAddress', () => {
     ['a subnet without its prefix', { address: '172.18.0.5', subnet: '172.18.0.0' }],
     ['an address that isn’t one', { address: '<b>x</b>', subnet: '172.18.0.0/16' }],
     ['a number for the address', { address: 1, subnet: '172.18.0.0/16' }],
+    ['an address with more around it', { address: 'x172.18.0.5', subnet: '172.18.0.0/16' }],
+    ['an address with more after it', { address: '172.18.0.5x', subnet: '172.18.0.0/16' }],
+    ['a subnet with more around it', { address: '172.18.0.5', subnet: 'x172.18.0.0/16' }],
+    ['a subnet with more after it', { address: '172.18.0.5', subnet: '172.18.0.0/16x' }],
+    // Not strings, though they read as ones.
+    ['an address that only reads as one', { address: { toString: (): string => '172.18.0.5' }, subnet: '172.18.0.0/16' }],
+    ['a subnet that only reads as one', { address: '172.18.0.5', subnet: { toString: (): string => '172.18.0.0/16' } }],
   ])('refuses %s', (_, value) => {
     expect(isSourceAddress(value)).toBe(false)
   })
@@ -31,6 +38,8 @@ describe('isContainerHint', () => {
     ['an address that isn’t http', { hostAddress: 'javascript:alert(1)' }],
     ['an address with a space', { hostAddress: 'http://host docker' }],
     ['a number', { hostAddress: 8080 }],
+    ['an address with more before it', { hostAddress: 'xhttp://host.docker.internal:8080' }],
+    ['an address that only reads as one', { hostAddress: { toString: (): string => 'http://host.docker.internal:8080' } }],
   ])('refuses %s', (_, value) => {
     expect(isContainerHint(value)).toBe(false)
   })
