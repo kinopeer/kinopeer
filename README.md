@@ -7,7 +7,7 @@
 A qBittorrent web UI for movies and TV series. Find a movie or a series, pick a release found by Prowlarr and follow the download, all in one app on your phone or computer.
 
 > [!NOTE]
-> Kinopeer installs [on umbrelOS](#install-on-umbrel) or [with Docker Compose](#install-with-docker-compose). What's planned is in the [milestones](https://github.com/kinopeer/kinopeer/milestones).
+> Kinopeer installs [on umbrelOS](#install-on-umbrel), [with Docker Compose](#install-with-docker-compose) beside qBittorrent and Prowlarr, or [next to the qBittorrent and Prowlarr you already run](#install-next-to-your-own-qbittorrent-and-prowlarr), TrueNAS and CasaOS among them. What's planned is in the [milestones](https://github.com/kinopeer/kinopeer/milestones).
 
 <img src="docs/screenshots/desktop-title.png" alt="A series page on a computer, with its releases under the overview: filters for resolution, audio, source, minimum seeds and indexer over a table of releases">
 
@@ -112,6 +112,97 @@ kinopeer.example.com {
 	reverse_proxy localhost:8797
 }
 ```
+
+## Install next to your own qBittorrent and Prowlarr
+
+> [!NOTE]
+> This works from Kinopeer 1.1.0, the first version that asks for their addresses itself.
+
+If you already run qBittorrent (4.6.0 or later) and Prowlarr, in Docker, installed on the machine itself, on another computer or on a seedbox, run Kinopeer's image on its own and give it their addresses in the app. It needs Docker.
+
+1. Start Kinopeer:
+
+   ```bash
+   docker run -d --name kinopeer --restart unless-stopped -p 8797:8080 -v kinopeer-data:/data ghcr.io/kinopeer/kinopeer:1
+   ```
+
+   Or with Compose, this `docker-compose.yml` in a folder of its own, then `docker compose up -d`:
+
+   ```yaml
+   name: kinopeer
+   services:
+     kinopeer:
+       image: ghcr.io/kinopeer/kinopeer:1
+       restart: unless-stopped
+       ports:
+         - "8797:8080"
+       volumes:
+         - kinopeer-data:/data
+   volumes:
+     kinopeer-data:
+   ```
+
+   Kinopeer listens at port 8080 inside its container; `8797` is the port you open it at. The `kinopeer-data` volume keeps its password, the addresses and logins you enter and its settings across updates.
+2. Open Kinopeer at `http://<your server>:8797` right away and set its password: until then, whoever opens it first sets it. To set it beforehand, add `-e KINOPEER_PASSWORD='…'` (`KINOPEER_PASSWORD` under `environment:` in Compose, where a `$` in it is written `$$`) with a password of 8 characters or more.
+3. Kinopeer asks for qBittorrent's address and login, then for Prowlarr's address and API key, which you find in Prowlarr under Settings → General → Security → API Key. Each address is the one Kinopeer's container reaches the service at (below). The server checks each before keeping it. You can skip Prowlarr and add it later; everything but finding releases works without it. Settings → Connections changes either address later.
+
+The addresses can also come from the server's environment, `QBITTORRENT_URL` and `PROWLARR_URL` with the other variables in [DEVELOPMENT.md](docs/DEVELOPMENT.md#server-configuration); an address set there wins, and the app doesn't ask for it.
+
+**Which address to enter.** Inside Kinopeer's container, `localhost` is Kinopeer itself, not your server. Use one of these, with the port the service's web UI answers at:
+
+- The machine's address on your network, such as `http://192.168.1.10:8080`: for a qBittorrent or Prowlarr anywhere on your network, the same machine included, and a seedbox's address the same way.
+- `http://host.docker.internal:8080` for one on the same machine: Docker Desktop has that name; on Linux, add `--add-host=host.docker.internal:host-gateway` to `docker run` (`extra_hosts: ["host.docker.internal:host-gateway"]` in Compose).
+- The container's name, such as `http://qbittorrent:8080`, for one in Docker on a network Kinopeer's container joins too (`--network <that network>` with `docker run`, `networks:` in Compose), at the port inside its container.
+- With `--network host` (Linux), Kinopeer shares the machine's network, so `localhost` is the machine. Kinopeer then listens at 8080 itself, the port qBittorrent's web UI often has: add `-e PORT=8797` and leave out `-p`.
+
+**When it doesn't connect:**
+
+- **"Nothing answers at this address."** Check the address and the port. qBittorrent or Prowlarr may listen only on 127.0.0.1, which Kinopeer's container doesn't reach: in qBittorrent, Tools → Options → Web UI → IP address set to `*`; in Prowlarr, Settings → General → Bind Address set to `*`. A firewall on the machine (ufw, firewalld) may also drop what comes from Docker's network: allow it to the port.
+- **"qBittorrent's address answers, but not like qBittorrent."** The port is another program's; at `localhost:8080` without `--network host`, it's Kinopeer itself.
+- **"Wrong username or password" with the right password.** qBittorrent's Host header validation (Tools → Options → Web UI) refuses a request whose address has another port than its own web UI's, as when Docker publishes its 8080 as 8081 and Kinopeer is given `:8081`. Give the port qBittorrent itself listens at (the container's name and its own port), publish it at the same port, or turn the validation off.
+- **qBittorrent asks for a login you didn't set.** qBittorrent 4.6.1 and later have no password at first and make up a temporary one on every start, in qBittorrent's log. Set a password of your own in qBittorrent's web UI and enter that in Kinopeer. Its "Bypass authentication for clients on localhost" doesn't let Kinopeer in, since Kinopeer's container isn't localhost to qBittorrent, and "Bypass authentication for clients in whitelisted IP subnets" only when the subnet holds the address Kinopeer's requests come from, the Docker network's.
+
+**Prowlarr's key without entering it.** With Prowlarr's config folder on the same machine, Kinopeer can read the key from Prowlarr's `config.xml` itself, as on Umbrel: mount the folder read-only and set Prowlarr's address in the environment, since the key is read only with it. With `docker run`, add (with your folder in place of `/path/to/prowlarr/config`):
+
+```bash
+-e PROWLARR_URL=http://<Prowlarr's address>:9696 -e PROWLARR_CONFIG_XML=/prowlarr/config.xml -v /path/to/prowlarr/config:/prowlarr:ro
+```
+
+Mount the folder, not the file: a file mount would keep the old file after Prowlarr rewrites it. Kinopeer runs as user 1000, which needs to be able to read the file.
+
+**Updating:** `docker pull ghcr.io/kinopeer/kinopeer:1`, then remove the container (`docker rm -f kinopeer`) and run the same `docker run` again; or, with Compose, `docker compose pull`, then `docker compose up -d`. The `:1` tag follows the newest 1.x release, and the volume keeps what you set up. What changed is in [CHANGELOG.md](CHANGELOG.md).
+
+Kinopeer answers at your server's IP address, `localhost`, `.local` names and names of one label; for a domain of your own, such as behind a reverse proxy for HTTPS, see **HTTPS** under [Install with Docker Compose](#install-with-docker-compose), which applies here too.
+
+### TrueNAS
+
+TrueNAS Community Edition 24.10 and later installs a Docker Compose file as a custom app:
+
+1. Open **Apps** → **Discover Apps**, then the **⋮** menu next to **Custom App** → **Install via YAML**.
+2. Enter `kinopeer` as the name, paste the Compose file above under **Custom Config** and **Save**.
+3. Open Kinopeer at `http://<your TrueNAS>:8797` and go on from step 2 above.
+
+TrueNAS's own qBittorrent and Prowlarr apps answer at your TrueNAS's address with the ports they're installed with, by default `http://<your TrueNAS>:30024` for qBittorrent and `http://<your TrueNAS>:30050` for Prowlarr. The qBittorrent app writes its temporary password in its logs at first: set a password of your own in its web UI first.
+
+### CasaOS and ZimaOS
+
+CasaOS installs a Docker Compose file as a custom app:
+
+1. On the dashboard, press **+** next to **Apps** → **Install a customized app**, then the import icon at the top right.
+2. On the **Docker Compose** tab, paste the Compose file above, press **Submit**, then **Install**. CasaOS imports only the first service of a file, and Kinopeer's is the only one.
+3. Open Kinopeer at `http://<your CasaOS>:8797` and go on from step 2 above.
+
+The qBittorrent and Prowlarr apps from CasaOS's App Store answer at `http://<your CasaOS>:8181` and `http://<your CasaOS>:9696`. qBittorrent's login is `admin` with the temporary password in its log, until you set one of your own in its web UI. To have Kinopeer read Prowlarr's key itself, add to the Compose file, under `kinopeer:`:
+
+```yaml
+    environment:
+      PROWLARR_URL: http://<your CasaOS>:9696
+      PROWLARR_CONFIG_XML: /prowlarr/config.xml
+```
+
+and under its `volumes:`, `- /DATA/AppData/prowlarr/config:/prowlarr:ro`.
+
+ZimaOS installs apps from your own Docker Compose file too, and the same file and addresses apply.
 
 ## On your phone
 

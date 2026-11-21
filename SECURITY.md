@@ -6,7 +6,7 @@ Fixes go into the latest release only. Kinopeer Edge, the builds from `main`, is
 
 ## Reporting a vulnerability
 
-Don't open a public issue. Report it privately through GitHub: [Security → Report a vulnerability](https://github.com/kinopeer/kinopeer/security/advisories/new). Describe the steps, your version (Settings → About) and where Kinopeer runs (Umbrel, Docker Compose, the dev server). Leave out your own passwords and keys.
+Don't open a public issue. Report it privately through GitHub: [Security → Report a vulnerability](https://github.com/kinopeer/kinopeer/security/advisories/new). Describe the steps, your version (Settings → About) and where Kinopeer runs (Umbrel, Docker Compose, the image next to your own qBittorrent and Prowlarr, the dev server). Leave out your own passwords and keys.
 
 You'll get an answer within a week. The fix ships in a patch release, and the advisory is published after it, crediting you if you'd like.
 
