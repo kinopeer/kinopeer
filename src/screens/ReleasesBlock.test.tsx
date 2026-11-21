@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as settings from '../api/settings'
@@ -95,6 +95,7 @@ describe('ReleasesBody', () => {
     renderBody(search)
     expect(screen.getByRole('heading', { name: 'Prowlarr isn’t set up' })).toBeInTheDocument()
     await userEvent.click(await screen.findByRole('button', { name: 'Set up Prowlarr' }))
+    expect(screen.getByText('Kinopeer finds releases through Prowlarr. Enter its address and API key, and the search runs again.')).toBeInTheDocument()
     expect(screen.queryByText(/PROWLARR_URL/)).not.toBeInTheDocument()
 
     const sheet = screen.getByRole('dialog', { name: 'Prowlarr connection' })
@@ -161,6 +162,7 @@ describe('ReleasesBody', () => {
     const search = releases({ status: 'rejected', rows: [], visible: [] })
     renderBody(search)
     expect(screen.getByRole('heading', { name: 'Prowlarr didn’t accept the API key' })).toBeInTheDocument()
+    expect(await screen.findByText('Its key may have changed in Prowlarr. Enter the current one, and the search runs again.')).toBeInTheDocument()
     await userEvent.click(await screen.findByRole('button', { name: 'Change Prowlarr address and key' }))
     const sheet = screen.getByRole('dialog', { name: 'Prowlarr connection' })
     expect(within(sheet).getByLabelText('Prowlarr address')).toHaveValue('http://prowlarr:9696')
@@ -169,6 +171,22 @@ describe('ReleasesBody', () => {
     expect(settings.saveProwlarrKey).toHaveBeenCalledWith('new-key', 'http://prowlarr:9696')
     expect(await findToastOnPage('Prowlarr address and key saved')).toBeInTheDocument()
     expect(search.retry).toHaveBeenCalledOnce()
+  })
+
+  it('asks for the key alone once the server’s environment sets the address meanwhile', async () => {
+    vi.mocked(settings.getServerSettings)
+      .mockResolvedValueOnce(serverSettings({ source: null }))
+      .mockResolvedValue(serverSettings({ source: 'env' }))
+    vi.mocked(settings.saveProwlarrKey).mockRejectedValue(new settings.SettingsError(409, 'env-address'))
+    renderBody(releases({ status: 'setup', rows: [], visible: [] }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Set up Prowlarr' }))
+    const sheet = screen.getByRole('dialog', { name: 'Prowlarr connection' })
+    await userEvent.type(within(sheet).getByLabelText('Prowlarr address'), 'http://prowlarr:9696')
+    await userEvent.type(within(sheet).getByLabelText('Prowlarr API key'), 'abc123')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
+    expect(await within(sheet).findByText('Prowlarr’s address is now set on the Kinopeer server (PROWLARR_URL), which wins over one from the app.')).toBeInTheDocument()
+    await waitFor(() => expect(within(sheet).queryByLabelText('Prowlarr address')).not.toBeInTheDocument())
+    expect(settings.getServerSettings).toHaveBeenCalledTimes(2)
   })
 
   it('still offers the key where the server’s settings don’t load', async () => {
