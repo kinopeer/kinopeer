@@ -24,11 +24,11 @@ const INTERFACES = {
 /** A container's own network in /sys/class/net: loopback and a veth, neither backed by a device. */
 const OWN_NETWORK = { '/sys/class/net/lo/address': '', '/sys/class/net/eth0/address': '' }
 
-/** The host's network: its card has a device, its Docker bridge and a container's veth don't. */
+/** The host's network: its card, backed by a device, Docker's bridge and a container's veth. */
 const HOST_NETWORK = {
   '/sys/class/net/lo/address': '',
   '/sys/class/net/enp3s0/device': '',
-  '/sys/class/net/docker0/address': '',
+  '/sys/class/net/docker0/bridge/stp_state': '',
   '/sys/class/net/veth1a2b3c/address': '',
 }
 
@@ -76,14 +76,19 @@ describe('inContainer', () => {
 })
 
 describe('ownNetwork', () => {
-  it('takes a container whose interfaces are all virtual for one with a network of its own', () => {
+  it('takes a container whose interfaces are all virtual, none a bridge, for one with a network of its own', () => {
     expect(ownNetwork(system())).toBe(true)
-    // A Docker-in-Docker sidecar's bridge in a shared namespace is still the container's own.
-    expect(ownNetwork(system({ files: { ...OWN_NETWORK, '/sys/class/net/docker0/address': '' } }))).toBe(true)
   })
 
-  it('takes one that sees an interface backed by a device for one under host networking', () => {
-    expect(ownNetwork(system({ files: HOST_NETWORK }))).toBe(false)
+  it.each([
+    ['an interface backed by a device: the host’s card', HOST_NETWORK],
+    // An LXC container running Docker: its own interfaces are veths, Docker's bridge is there.
+    ['a bridge: Docker’s in an LXC container', { ...OWN_NETWORK, '/sys/class/net/docker0/bridge/stp_state': '' }],
+    ['a bridge: Podman’s', { ...OWN_NETWORK, '/sys/class/net/podman0/bridge/stp_state': '' }],
+    // Doubtful, so taken for the host's: a Docker-in-Docker sidecar sharing the container's namespace.
+    ['a bridge: a Docker-in-Docker sidecar’s', { ...OWN_NETWORK, '/sys/class/net/docker0/bridge/stp_state': '', '/sys/class/net/veth9f8e7d/address': '' }],
+  ])('takes one that sees %s for one under host networking', (_, files) => {
+    expect(ownNetwork(system({ files }))).toBe(false)
   })
 
   it('takes one whose interfaces it can’t read for one with a network of its own', () => {

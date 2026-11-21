@@ -190,10 +190,10 @@ describe('ProwlarrKeyForm', () => {
       await userEvent.type(address, 'http://localhost:9696')
       await userEvent.type(field, 'abc123')
       await userEvent.click(save)
-      const hint = await screen.findByRole('status', { name: saying('localhost is Kinopeer’s own container') })
+      const hint = await screen.findByRole('status', { name: saying('localhost is inside Kinopeer’s container') })
       expect(
         within(hint).getByText(
-          'Inside its container, localhost and 127.0.0.1 are Kinopeer itself. From there, the computer Kinopeer runs on is at http://host.docker.internal:9696. If Prowlarr runs in a container on a shared Docker network, enter that container’s name instead.',
+          'In Kinopeer’s container, localhost and 127.0.0.1 lead into the container itself, not to the computer it runs on. From the container, that computer is at http://host.docker.internal:9696. If Prowlarr runs in a container on a shared Docker network, enter that container’s name instead.',
         ),
       ).toBeInTheDocument()
 

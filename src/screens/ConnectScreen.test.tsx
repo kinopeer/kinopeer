@@ -110,7 +110,7 @@ describe('ConnectScreen', () => {
 
   it('says where qBittorrent sees Kinopeer when the session check was asked for a login (#509)', () => {
     setup(undefined, { source: { address: '172.18.0.5', subnet: '172.18.0.0/16' } })
-    expect(screen.getByRole('status', { name: saying(/which qBittorrent sees at 172\.18\.0\.5\. Add 172\.18\.0\.0\/16/) })).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: saying(/^Set a password in qBittorrent.*qBittorrent sees Kinopeer at 172\.18\.0\.5, and adding 172\.18\.0\.0\/16/) })).toBeInTheDocument()
     expect(screen.getByLabelText('Username')).toBeRequired()
   })
 
@@ -264,7 +264,7 @@ describe('ConnectScreen', () => {
     })
 
     describe('in a container (#509)', () => {
-      const LOCALHOST = saying('localhost is Kinopeer’s own container')
+      const LOCALHOST = saying('localhost is inside Kinopeer’s container')
       const hostKnown = (code: 'unreachable' | 'not-qbittorrent') =>
         new SettingsError(502, code, code === 'unreachable' ? 'refused' : undefined, { container: { hostAddress: 'http://host.docker.internal:8080' } })
 
@@ -278,7 +278,7 @@ describe('ConnectScreen', () => {
         const hint = screen.getByRole('status', { name: LOCALHOST })
         expect(
           within(hint).getByText(
-            'Inside its container, localhost and 127.0.0.1 are Kinopeer itself. From there, the computer Kinopeer runs on is at http://host.docker.internal:8080. If qBittorrent runs in a container on a shared Docker network, enter that container’s name instead.',
+            'In Kinopeer’s container, localhost and 127.0.0.1 lead into the container itself, not to the computer it runs on. From the container, that computer is at http://host.docker.internal:8080. If qBittorrent runs in a container on a shared Docker network, enter that container’s name instead.',
           ),
         ).toBeInTheDocument()
 
@@ -304,7 +304,7 @@ describe('ConnectScreen', () => {
         await fillAddress('http://127.0.0.1:8080')
         expect(
           within(screen.getByRole('status', { name: LOCALHOST })).getByText(
-            'Inside its container, localhost and 127.0.0.1 are Kinopeer itself. Enter the address of the computer qBittorrent runs on, or the name of qBittorrent’s container if they share a Docker network.',
+            'In Kinopeer’s container, localhost and 127.0.0.1 lead into the container itself, not to the computer it runs on. Enter the address of the computer qBittorrent runs on, or the name of qBittorrent’s container if they share a Docker network.',
           ),
         ).toBeInTheDocument()
         expect(screen.queryByRole('button', { name: 'Use this address' })).not.toBeInTheDocument()
@@ -330,7 +330,7 @@ describe('ConnectScreen', () => {
         await fillAddress('http://qbittorrent:8080')
         expect(
           within(screen.getByRole('status', { name: saying('qBittorrent doesn’t let Kinopeer in without a login') })).getByText(
-            'Its auth bypass doesn’t cover Kinopeer’s container, which qBittorrent sees at 172.18.0.5. Add 172.18.0.0/16 to the subnets it lets in without a login (Tools → Options → Web UI in qBittorrent), or enter its login.',
+            'Set a password in qBittorrent (Tools → Options → Web UI) and enter its login here. Or, with its auth bypass: qBittorrent sees Kinopeer at 172.18.0.5, and adding 172.18.0.0/16 to the subnets it lets in without a login would let Kinopeer in, and everything else that comes from that subnet too.',
           ),
         ).toBeInTheDocument()
       })

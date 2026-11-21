@@ -13,7 +13,7 @@ export interface LocalhostHintProps {
 
 /**
  * Under a form's address that didn't answer as the service, for an address on localhost while
- * Kinopeer runs in a container: that localhost is Kinopeer itself (#509).
+ * Kinopeer runs in a container: that localhost leads into the container, not to the host (#509).
  */
 export function LocalhostHint({ service, hostAddress, onUse }: LocalhostHintProps) {
   const { t } = useTranslation()
@@ -29,7 +29,10 @@ export function LocalhostHint({ service, hostAddress, onUse }: LocalhostHintProp
   )
 }
 
-/** On qBittorrent's login, when its auth bypass doesn't cover where it sees Kinopeer come from (#509). */
+/**
+ * On qBittorrent's login, when it asks for one the server has none for (#509): a password first, as
+ * README says, and its auth bypass as the other way, with what else that lets in.
+ */
 export function BypassHint({ source }: { source: SourceAddress }) {
   const { t } = useTranslation()
   return (

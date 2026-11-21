@@ -6,8 +6,9 @@ import type { SourceAddress } from '../src/api/settings/types.ts'
 
 /**
  * What Kinopeer's server can tell about the container it runs in, for the two setup hints of #509:
- * an address on localhost, which inside the container is Kinopeer itself, and qBittorrent's auth
- * bypass, which covers the host or the LAN while Kinopeer comes from the container's network.
+ * an address on localhost, which inside the container leads into the container, not to the host, and
+ * qBittorrent's auth bypass, which covers the host or the LAN while Kinopeer comes from the
+ * container's network.
  */
 export interface Container {
   /**
@@ -44,12 +45,15 @@ export function inContainer(env: Record<string, string | undefined>, system: Pic
 /**
  * Whether the container has a network of its own, where localhost is the container, rather than the
  * host's (`--network host`, Kubernetes' `hostNetwork`), where it's the host. Its /sys/class/net
- * shows the interfaces of its network, and only the host's has one backed by a device (a network
- * card, a VM's virtio one): a container's own are virtual (veth, macvlan). A card handed to a
- * container (SR-IOV) reads as the host's network, and gives no hints.
+ * shows the interfaces of its network. A container's own are virtual (veth, macvlan), while a
+ * host's include one backed by a device (a network card, a VM's virtio one) or a bridge (Docker's
+ * and Podman's, also in an LXC container running Docker, whose own interfaces are veths). A
+ * doubtful setup reads as the host's network, and gets no hints: a wrong hint costs more than a
+ * missing one. SPEC's decision log lists the setups this misreads; no rule is added for them.
  */
 export function ownNetwork(system: Pick<ContainerSystem, 'exists' | 'list'>): boolean {
-  return !system.list('/sys/class/net').some((name) => system.exists(`/sys/class/net/${name}/device`))
+  const net = '/sys/class/net'
+  return !system.list(net).some((name) => system.exists(`${net}/${name}/device`) || system.exists(`${net}/${name}/bridge`))
 }
 
 /**

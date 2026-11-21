@@ -215,7 +215,7 @@ function fail(response: ServerResponse, status: number, error: SettingsErrorBody
 
 /**
  * For an address on localhost that didn't answer as the service while Kinopeer runs in a
- * container: that localhost is Kinopeer itself, and the host's address may be the one (#509).
+ * container: that localhost leads into the container, and the host's address may be the one (#509).
  */
 async function localhostHint(config: SettingsConfig, base: string): Promise<SettingsErrorBody['container']> {
   if (!config.container || !isLoopback(new URL(base).hostname)) return undefined
