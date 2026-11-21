@@ -75,8 +75,9 @@
   },
   "find": {
     "button": "Find {{service}}",
-    "found": "Found. Tap an address to use it.",
-    "none": "Kinopeer found no {{service}}. Enter its address."
+    "found": "Found. Choose an address to use it.",
+    "none": "Kinopeer found no {{service}}. Enter its address.",
+    "failed": "Kinopeer couldn’t look for {{service}}. Try again."
   },
   "types": {
     "movie": "Movies",

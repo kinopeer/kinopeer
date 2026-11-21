@@ -141,6 +141,8 @@ describe('ProwlarrKeyForm', () => {
   })
 
   describe('with Prowlarr’s address to ask', () => {
+    const LOCALHOST = saying('localhost is inside Kinopeer’s container')
+
     function renderWithAddress(secondary?: ReactNode) {
       const onSaved = vi.fn()
       const onEnvAddress = vi.fn()
@@ -189,7 +191,6 @@ describe('ProwlarrKeyForm', () => {
       await userEvent.type(address, 'http://localhost:9696')
       await userEvent.type(field, 'abc123')
       await userEvent.click(save)
-      const LOCALHOST = saying('localhost is inside Kinopeer’s container')
       expect(await screen.findByRole('status', { name: LOCALHOST })).toBeInTheDocument()
       await userEvent.type(address, '1')
       expect(screen.queryByRole('status', { name: LOCALHOST })).not.toBeInTheDocument()
@@ -204,7 +205,7 @@ describe('ProwlarrKeyForm', () => {
       await userEvent.type(address, 'http://localhost:9696')
       await userEvent.type(field, 'abc123')
       await userEvent.click(save)
-      const hint = await screen.findByRole('status', { name: saying('localhost is inside Kinopeer’s container') })
+      const hint = await screen.findByRole('status', { name: LOCALHOST })
       expect(
         within(hint).getByText(
           'In Kinopeer’s container, localhost and 127.0.0.1 lead into the container itself, not to the computer it runs on. From the container, that computer is at http://host.docker.internal:9696. If Prowlarr runs in a container on a shared Docker network, enter that container’s name instead.',
@@ -213,7 +214,7 @@ describe('ProwlarrKeyForm', () => {
 
       await userEvent.click(screen.getByRole('button', { name: 'Use this address' }))
       expect(address).toHaveValue('http://host.docker.internal:9696')
-      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+      expect(screen.queryByRole('status', { name: LOCALHOST })).not.toBeInTheDocument()
       await userEvent.click(save)
       expect(saveProwlarrKey).toHaveBeenLastCalledWith('abc123', 'http://host.docker.internal:9696')
     })
@@ -226,10 +227,10 @@ describe('ProwlarrKeyForm', () => {
       await userEvent.type(field, 'abc123')
       await userEvent.click(save)
       await vi.waitFor(() => expect(field).toHaveAttribute('aria-invalid', 'true'))
-      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+      expect(screen.queryByRole('status', { name: LOCALHOST })).not.toBeInTheDocument()
       await userEvent.click(save)
       await vi.waitFor(() => expect(address).toHaveAttribute('aria-invalid', 'true'))
-      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+      expect(screen.queryByRole('status', { name: LOCALHOST })).not.toBeInTheDocument()
     })
 
     it('names the address, not the variable, when it isn’t Prowlarr, and keeps a refused key on the key', async () => {

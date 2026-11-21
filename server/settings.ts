@@ -633,9 +633,11 @@ function findAddresses(service: FindService): Handler {
   return async (config, _request, response) => {
     const refusal = addressRefusal(config, service === 'qbittorrent' ? config.envQbittorrentUrl : config.envProwlarrUrl)
     if (refusal) return fail(response, 409, refusal)
+    // Before the host's lookup, which may take its 2 s: a browser that leaves meanwhile stops it all.
+    const signal = abandoned(response)
     const host = await config.container?.hostAddress().catch(() => undefined)
     const near = config.container ? ['host.docker.internal', ...(host ? [host] : [])] : ['localhost']
-    const addresses = await findService(service, near, abandoned(response), { system: config.find?.system, ports: config.find?.ports?.[service] })
+    const addresses = await findService(service, near, signal, { system: config.find?.system, ports: config.find?.ports?.[service] })
     sendJson(response, 200, { addresses } satisfies FoundAddresses)
   }
 }

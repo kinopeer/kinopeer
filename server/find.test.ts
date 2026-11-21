@@ -1,6 +1,7 @@
+import { getEventListeners } from 'node:events'
 import { createServer, isIPv4 } from 'node:net'
 import type { networkInterfaces } from 'node:os'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import {
   MAX_SUBNETS,
   PARALLEL,
@@ -76,11 +77,12 @@ describe('pooled', () => {
   it('runs at most `limit` tasks at once and keeps the items’ order', async () => {
     let running = 0
     let most = 0
-    const results = await pooled([5, 1, 4, 2, 3], 2, async (ms) => {
+    // Each task takes that many turns of the microtask queue, so they end in another order.
+    const results = await pooled([5, 1, 4, 2, 3], 2, async (turns) => {
       most = Math.max(most, ++running)
-      await new Promise((resolve) => setTimeout(resolve, ms))
+      for (let turn = 0; turn < turns; turn++) await null
       running--
-      return ms * 10
+      return turns * 10
     })
     expect(results).toEqual([50, 10, 40, 20, 30])
     expect(most).toBe(2)
@@ -101,7 +103,7 @@ describe('findService', () => {
       opens: async (host, port) => {
         tried.push(`${host}:${port}`)
         fake.most = Math.max(fake.most, ++running)
-        await new Promise((resolve) => setTimeout(resolve, 1))
+        await null
         running--
         return open.includes(`${host}:${port}`)
       },
@@ -152,24 +154,17 @@ describe('findService', () => {
 })
 
 describe('opens', () => {
-  it('takes a listening port for open, and leaves nothing behind: the connection, the timer, the listener', async () => {
+  it('takes a listening port for open, and lets the connection and its listener on the caller’s signal go', async () => {
     let closed: () => void = () => {}
     const gone = new Promise<void>((resolve) => (closed = resolve))
     const server = createServer((socket) => socket.on('close', closed))
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
     const { port } = server.address() as { port: number }
     const signal = new AbortController().signal
-    const removed = vi.spyOn(signal, 'removeEventListener')
-    const cleared = vi.spyOn(globalThis, 'clearTimeout')
-    try {
-      expect(await opens('127.0.0.1', port, 60_000, signal)).toBe(true)
-      expect(await settlesWithin(gone, 1000)).toBe(true)
-      expect(removed).toHaveBeenCalledWith('abort', expect.any(Function))
-      expect(cleared).toHaveBeenCalled()
-    } finally {
-      cleared.mockRestore()
-      server.close()
-    }
+    expect(await opens('127.0.0.1', port, 60_000, signal)).toBe(true)
+    expect(await settlesWithin(gone, 1000)).toBe(true)
+    expect(getEventListeners(signal, 'abort')).toEqual([])
+    server.close()
   })
 
   it('takes a closed port for not open at once, not after its time limit', async () => {
@@ -179,7 +174,9 @@ describe('opens', () => {
   })
 
   it('gives a host that doesn’t answer up after its time limit, or when the request is gone', async () => {
-    // A TEST-NET address, which no host answers (RFC 5737).
+    // A TEST-NET address, which no host answers (RFC 5737). Where it's routed, as on CI's runners and
+    // the owner's Mac, the connect hangs and the limit ends it; on a network with no route it fails
+    // at once, and the first assertion passes on that error rather than on the limit.
     expect(await settlesWithin(opens('192.0.2.1', 80, 50, new AbortController().signal), 1000)).toBe(true)
     expect(await opens('192.0.2.1', 80, 50, new AbortController().signal)).toBe(false)
     const abort = new AbortController()
@@ -225,6 +222,19 @@ describe('identifies', () => {
     const base = await listen((_request, response) => answer(response))
     expect(await identifies('qbittorrent', base, signal())).toBe(false)
     expect(await identifies('prowlarr', base, signal())).toBe(false)
+  })
+
+  it('reads only the start of an answer that never ends, and gives it up', async () => {
+    const chunk = Buffer.alloc(16_384, 'x')
+    const endless = await listen((_request, response) => {
+      const pump = () => {
+        while (!response.destroyed && response.write(chunk));
+        if (!response.destroyed) response.once('drain', pump)
+      }
+      pump()
+    })
+    expect(await settlesWithin(identifies('qbittorrent', endless, signal()), 1000)).toBe(true)
+    expect(await settlesWithin(identifies('prowlarr', endless, signal()), 1000)).toBe(true)
   })
 
   it('takes nothing for an address that doesn’t answer, or a request that’s gone', async () => {

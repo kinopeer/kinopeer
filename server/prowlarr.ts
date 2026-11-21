@@ -4,6 +4,7 @@ import type { ConnectionFailure } from '../src/api/connectionFailure.ts'
 import type { FailingIndexers, MagnetResponse, ProwlarrErrorBody, ProwlarrStatus, Release } from '../src/api/prowlarr/types.ts'
 import { abandoned } from './abandoned.ts'
 import { connectionFailure } from './connectionFailure.ts'
+import { textPrefix } from './textPrefix.ts'
 
 /**
  * Same-origin bridge to Prowlarr. Unlike a plain proxy it reshapes responses, because Prowlarr's
@@ -323,7 +324,7 @@ export async function checkProwlarrKey(
  */
 export async function answersAsProwlarr(base: string, signal?: AbortSignal): Promise<boolean> {
   const response = await fetch(`${base}/login`, { redirect: 'manual', signal })
-  return (await response.text()).includes('<title>Login - Prowlarr</title>')
+  return (await textPrefix(response)).includes('<title>Login - Prowlarr</title>')
 }
 
 /** Prowlarr's API key from its config.xml (<ApiKey>…</ApiKey>), or undefined when it can't be read. */

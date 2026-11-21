@@ -585,6 +585,9 @@ function toProwlarr(release: Release, base: string, apiKey: string) {
   }
 }
 
+/** The head of Prowlarr's sign-in page, as frontend/src/login.html has it. */
+const PROWLARR_LOGIN = '<!doctype html><html><head><meta name="description" content="Prowlarr" /><title>Login - Prowlarr</title></head><body></body></html>'
+
 /**
  * A Prowlarr that needs `apiKey` in X-Api-Key on every API call (401 otherwise) and records what
  * reached it. /api/v1/system/status and /api/v1/indexer (two enabled, one not) serve the status
@@ -597,9 +600,6 @@ function toProwlarr(release: Release, base: string, apiKey: string) {
  * Written from Prowlarr 1.24.x; when a newer version answers differently, change the fake here and
  * say the version.
  */
-/** The head of Prowlarr's sign-in page, as frontend/src/login.html has it. */
-export const PROWLARR_LOGIN = '<!doctype html><html><head><meta name="description" content="Prowlarr" /><title>Login - Prowlarr</title></head><body></body></html>'
-
 export async function fakeProwlarr({
   apiKey = 'prowlarr-key',
   releases = RELEASES,

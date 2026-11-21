@@ -101,8 +101,9 @@
   gap: var(--space-3);
 }
 
-.find-address-result:empty {
-  display: none;
+/* The results stay in the tree while empty, so what lands in them is announced; no gap for them then. */
+.find-address:has(> .find-address-result:empty) {
+  gap: 0;
 }
 
 .find-address-result {

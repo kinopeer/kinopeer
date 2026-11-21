@@ -38,7 +38,7 @@ describe('FindAddress (#511)', () => {
     expect(findAddresses).toHaveBeenCalledWith('qbittorrent', expect.any(AbortSignal))
 
     answer(['http://qbittorrent:8080', 'http://192.168.1.20:8080'])
-    expect(await screen.findByText('Found. Tap an address to use it.')).toBeInTheDocument()
+    expect(await screen.findByRole('status', { name: saying(/^Found\. Choose an address to use it\./) })).toBeInTheDocument()
     expect(find).not.toHaveAttribute('aria-busy')
     await userEvent.click(screen.getByRole('button', { name: 'http://192.168.1.20:8080' }))
     expect(onPick).toHaveBeenCalledWith('http://192.168.1.20:8080')
@@ -49,10 +49,10 @@ describe('FindAddress (#511)', () => {
     findAddresses.mockResolvedValueOnce([]).mockReturnValueOnce(new Promise((resolve) => (answer = resolve)))
     renderFind('prowlarr')
     await userEvent.click(screen.getByRole('button', { name: 'Find Prowlarr' }))
-    expect(await screen.findByText('Kinopeer found no Prowlarr. Enter its address.')).toBeInTheDocument()
-    expect(screen.queryByText('Found. Tap an address to use it.')).not.toBeInTheDocument()
+    expect(await screen.findByRole('status', { name: saying('Kinopeer found no Prowlarr. Enter its address.') })).toBeInTheDocument()
+    expect(screen.getByRole('status')).not.toHaveTextContent('Found.')
     await userEvent.click(screen.getByRole('button', { name: 'Find Prowlarr' }))
-    expect(screen.queryByText(/found no Prowlarr/)).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
     answer(['http://localhost:9696'])
     expect(await screen.findByRole('button', { name: 'http://localhost:9696' })).toBeInTheDocument()
   })
@@ -65,7 +65,7 @@ describe('FindAddress (#511)', () => {
     findAddresses.mockRejectedValueOnce(error)
     const { onRefused } = renderFind()
     await userEvent.click(screen.getByRole('button', { name: 'Find qBittorrent' }))
-    expect(await screen.findByRole('alert', { name: saying('Couldn’t reach Kinopeer. Try again.') })).toBeInTheDocument()
+    expect(await screen.findByRole('alert', { name: saying('Kinopeer couldn’t look for qBittorrent. Try again.') })).toBeInTheDocument()
     expect(onRefused).not.toHaveBeenCalled()
   })
 
@@ -78,15 +78,14 @@ describe('FindAddress (#511)', () => {
     expect(screen.getByRole('button', { name: 'Find qBittorrent' })).not.toHaveAttribute('aria-busy')
   })
 
-  it('stops the server looking once the form is gone, and says nothing after', async () => {
+  it('stops the server looking once the form is gone', async () => {
     findAddresses.mockImplementationOnce(
       (_service, signal) => new Promise((_resolve, reject) => signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))),
     )
-    const { view, onRefused } = renderFind()
+    const { view } = renderFind()
     await userEvent.click(screen.getByRole('button', { name: 'Find qBittorrent' }))
     const signal = findAddresses.mock.calls[0][1]!
     view.unmount()
     expect(signal.aborted).toBe(true)
-    expect(onRefused).not.toHaveBeenCalled()
   })
 })

@@ -50,7 +50,7 @@ export function FindAddress({ service, onPick, onRefused }: FindAddressProps) {
       <Button variant="secondary" size="sm" icon="search" loading={finding} onClick={() => void find()}>
         {t('find.button', { service: name })}
       </Button>
-      <div className="find-address-result" aria-live="polite">
+      <div className="find-address-result" role="status">
         {found?.length === 0 && <p className="t-body c2">{t('find.none', { service: name })}</p>}
         {Array.isArray(found) && found.length > 0 && (
           <>
@@ -64,7 +64,7 @@ export function FindAddress({ service, onPick, onRefused }: FindAddressProps) {
             </div>
           </>
         )}
-        {found === 'failed' && <Banner tone="error">{t('common.qbtFailed', { context: 'kinopeer' })}</Banner>}
+        {found === 'failed' && <Banner tone="error">{t('find.failed', { service: name })}</Banner>}
       </div>
     </div>
   )

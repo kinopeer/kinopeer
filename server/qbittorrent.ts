@@ -3,6 +3,7 @@ import { abandoned } from './abandoned.ts'
 import { connectionFailure } from './connectionFailure.ts'
 import type { Container } from './container.ts'
 import type { Middleware } from './prowlarr.ts'
+import { textPrefix } from './textPrefix.ts'
 
 /**
  * Same-origin bridge to qBittorrent's Web API: /qbt/api/v2/… → {qBittorrent's address}/api/v2/…, the
@@ -149,7 +150,7 @@ export async function checkQbittorrent(
  */
 export async function answersAsQbittorrent(base: string, signal?: AbortSignal): Promise<boolean> {
   const response = await fetch(`${base}/api/v2/app/version`, { headers: { Origin: base, Referer: `${base}/` }, redirect: 'manual', signal })
-  const text = await response.text()
+  const text = await textPrefix(response)
   if (response.ok) return VERSION.test(text)
   const xss = response.headers.get('x-xss-protection')?.split(', ') ?? []
   return (response.status === 403 && xss.includes('1; mode=block') && text === 'Forbidden') || isHostRefusal(response, text)

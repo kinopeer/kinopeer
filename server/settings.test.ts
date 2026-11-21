@@ -775,20 +775,45 @@ describe('settingsMiddleware: Find (#511)', () => {
     expect([response.status, await response.json()]).toEqual([200, { addresses: [] }])
   })
 
-  it('looks at the host in a container, not at localhost', async () => {
+  it.each([
+    ['the host’s address in a container', { hostAddress: async () => '172.17.0.1', sourceFor: async () => undefined }, ['prowlarr:9696', 'host.docker.internal:9696', '172.17.0.1:9696']],
+    ['no host’s address in a container whose lookup throws', { hostAddress: () => Promise.reject(new Error('no answer')), sourceFor: async () => undefined }, ['prowlarr:9696', 'host.docker.internal:9696']],
+    ['localhost outside a container', undefined, ['prowlarr:9696', 'localhost:9696']],
+  ] as [string, Container | undefined, string[]][])('looks at %s', async (_, container, tried) => {
     const system = recording()
-    const container: Container = { hostAddress: async () => '172.17.0.1', sourceFor: async () => undefined }
     await find(await app({ container, find: { system, ports: { prowlarr: [9696] } } }), 'prowlarr')
-    expect(system.tried).toEqual(['prowlarr:9696', 'host.docker.internal:9696', '172.17.0.1:9696'])
+    expect(system.tried).toEqual(tried)
+  })
 
-    const unknown = recording()
-    const noHost: Container = { hostAddress: () => Promise.reject(new Error('no answer')), sourceFor: async () => undefined }
-    await find(await app({ container: noHost, find: { system: unknown, ports: { prowlarr: [9696] } } }), 'prowlarr')
-    expect(unknown.tried).toEqual(['prowlarr:9696', 'host.docker.internal:9696'])
-
-    const outside = recording()
-    await find(await app({ find: { system: outside, ports: { qbittorrent: [8080] } } }), 'qbittorrent')
-    expect(outside.tried).toEqual(['qbittorrent:8080', 'qbittorrentvpn:8080', 'gluetun:8080', 'localhost:8080'])
+  it('tries nothing when the browser leaves while the host’s address is looked up', async () => {
+    let lookedUp: () => void = () => {}
+    let answer: (address: string) => void = () => {}
+    const asked = new Promise<void>((resolve) => (lookedUp = resolve))
+    const container: Container = {
+      hostAddress: () => {
+        lookedUp()
+        return new Promise((resolve) => (answer = resolve))
+      },
+      sourceFor: async () => undefined,
+    }
+    const system = recording()
+    let closed: () => void = () => {}
+    const gone = new Promise<void>((resolve) => (closed = resolve))
+    const middleware = settingsMiddleware({ store: new SettingsStore(dir), auth: LOGIN_ON, container, find: { system, ports: { prowlarr: [9696] } } })
+    const base = await serve((request, response, next) => {
+      response.once('close', closed)
+      middleware(request, response, next)
+    })
+    const controller = new AbortController()
+    const sent = find(base, 'prowlarr', { signal: controller.signal }).catch(() => undefined)
+    await asked
+    controller.abort()
+    await sent
+    await gone
+    answer('172.17.0.1')
+    // The search after the lookup: it would try something by now, as the test before it does.
+    await new Promise((resolve) => setImmediate(resolve))
+    expect(system.tried).toEqual([])
   })
 
   it('stops looking once the browser has gone', async () => {
