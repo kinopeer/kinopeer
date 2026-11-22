@@ -7,9 +7,11 @@ import { EmptyState } from '../components/EmptyState'
 import { FilterChip } from '../components/FilterChip'
 import { formatList } from '../i18n/formatList'
 import { failureText } from '../lib/failureText'
+import { unreachableText } from '../lib/unreachable'
 import type { TitleDetails } from '../releases/releaseQuery'
 import { AddReleaseSheet } from './AddReleaseSheet'
 import { ProwlarrSetupState } from './ProwlarrSetupState'
+import { UnreachableState } from './UnreachableState'
 import type { Releases } from './useReleases'
 
 export interface ReleasesBodyProps {
@@ -26,7 +28,7 @@ export interface ReleasesBodyProps {
 }
 
 /**
- * The search's states (loading, Prowlarr not set up, its key rejected or unreachable, nothing found, nothing matches
+ * The search's states (loading, Prowlarr not set up, its key rejected, it or Kinopeer's server unreachable, nothing found, nothing matches
  * the filters) around the list of releases, with the picked filters above it. With results, the
  * count's line says which indexers didn't answer (`ReleasesCount`); with none, a banner does: under
  * the empty state when nothing was found, above it when the filters let nothing through.
@@ -38,6 +40,7 @@ export function ReleasesBody({ releases, skeleton, children, countInList = false
     case 'rejected':
       return <ProwlarrSetupState rejected={releases.status === 'rejected'} onSaved={releases.retry} />
     case 'error':
+      if (unreachableText(releases.unreachable)) return <UnreachableState unreachable={releases.unreachable} onRetry={releases.retry} texts="connect" retryIcon="refresh" />
       return (
         <EmptyState icon="wifi-off" tone="error" title={t('noAnswer.prowlarr')} actionLabel={t('common.retry')} actionIcon="refresh" onAction={releases.retry}>
           {failureText(t, 'prowlarr', releases.failure) ?? t('releases.errorBody')}

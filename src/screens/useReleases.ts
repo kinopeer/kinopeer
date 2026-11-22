@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { failureOf, type ConnectionFailure } from '../api/connectionFailure'
-import type { Torrent } from '../api/qbittorrent'
+import { unreachable, type Torrent, type Unreachable } from '../api/qbittorrent'
 import { ProwlarrSetupError, getFailingIndexers, searchReleases, type Release } from '../api/prowlarr'
 import { clickedOrder, cycledOrder, reversedOrder, usualOrder } from '../logic/sortOrder'
 import { useRequest } from '../lib/useRequest'
@@ -56,8 +56,8 @@ export interface ActiveFilter {
 
 /**
  * 'setup': the server has no address or key for Prowlarr; 'rejected': Prowlarr rejected the server's
- * key; 'error': Prowlarr or the server didn't answer, or something in front of the server answered
- * without its code (a proxy's error page on a long search).
+ * key; 'error': Prowlarr or Kinopeer's server didn't answer (`unreachable` says which), something in
+ * front of the server answering for it (a proxy's error page on a long search) among them.
  */
 export type ReleasesStatus = 'loading' | 'setup' | 'rejected' | 'error' | 'none' | 'ready'
 
@@ -65,6 +65,8 @@ export interface Releases {
   status: ReleasesStatus
   /** With `error`: why Prowlarr didn't answer, where the server could tell (#508). */
   failure?: ConnectionFailure
+  /** With `error`: who didn't answer, Kinopeer's server or Prowlarr behind it (`qbittorrent`, #566). */
+  unreachable?: Unreachable
   retry: () => void
   /** Names of the indexers that didn't answer this search, so their releases are missing. */
   failing: string[]
@@ -193,9 +195,7 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
   ]
 
   const status: ReleasesStatus =
-    // One without the server's code is something in front of it failing (a proxy's error page on a
-    // long search), not Prowlarr wanting a setup: it's an error to try again.
-    search.error instanceof ProwlarrSetupError && search.error.code
+    search.error instanceof ProwlarrSetupError
       ? search.error.code === 'unauthorized'
         ? 'rejected'
         : 'setup'
@@ -210,6 +210,7 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
   return {
     status,
     failure: failureOf(search.error),
+    unreachable: status === 'error' ? unreachable(search.error) : undefined,
     retry: search.retry,
     failing: missing,
     rows,

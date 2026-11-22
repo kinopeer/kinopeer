@@ -452,6 +452,17 @@ describe('AddReleaseSheet', () => {
     expect(within(screen.getByRole('dialog', { name: 'Add to downloads' })).getByRole('button', { name: /^Download/ })).toBeDisabled()
   })
 
+  it.each([
+    ['nothing answered for it', () => new TypeError('Failed to fetch')],
+    ['something in front of it answered', () => new qbt.KinopeerUnreachableError(502)],
+  ])('says it’s Kinopeer that didn’t answer for the torrent when %s, not Prowlarr (#566)', async (_name, error) => {
+    fetchRelease.mockRejectedValue(error())
+    renderSheet()
+    const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+    expect(await within(sheet).findByRole('alert', { name: saying('Couldn’t reach Kinopeer. Try again.') })).toBeInTheDocument()
+    expect(within(sheet).getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+  })
+
   it('offers no form, the free space warning included, when the torrent can’t be fetched', async () => {
     fetchRelease.mockRejectedValue(new prowlarr.ProwlarrError('down', 502, 'upstream'))
     renderSheet(RELEASE, await runningPoll())
