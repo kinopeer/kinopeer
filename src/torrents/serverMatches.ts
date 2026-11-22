@@ -25,8 +25,8 @@ let pending: Matches = {}
 let saveTimer: ReturnType<typeof setTimeout> | undefined
 // What this page already tried to save, so a failing server isn't asked again on every poll.
 const attempted = new Set<string>()
-// When this page last checked which torrents qBittorrent no longer has (WebUI build).
-let checkedAt: number | undefined
+// When this page last checked which torrents qBittorrent no longer has (WebUI build); never yet.
+let checkedAt = -Infinity
 
 function emit(): void {
   for (const listener of listeners) listener()
@@ -152,7 +152,7 @@ export async function forgetServerGuesses(): Promise<void> {
  */
 export function checkMissingMatches(torrents: Readonly<Record<string, unknown>>, now = Date.now()): void {
   if (matches === undefined || failedAt !== undefined) return
-  if (checkedAt !== undefined && now - checkedAt < CHECK_INTERVAL_MS) return
+  if (now - checkedAt < CHECK_INTERVAL_MS) return
   checkedAt = now
   const started = generation
   pruneWebuiMatches((hash) => hash in torrents, MISSING_GRACE_MS, now).then(
@@ -175,5 +175,5 @@ export function resetServerMatches(): void {
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = undefined
   attempted.clear()
-  checkedAt = undefined
+  checkedAt = -Infinity
 }

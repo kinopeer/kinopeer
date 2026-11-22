@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Matches } from '../api/matches/types'
-import { merged, pruned, validStoredMatch, withoutGuesses } from './titleMatches'
+import { HASH, MISSING_GRACE_MS, merged, pruned, validMatch, validStoredMatch, withoutGuesses } from './titleMatches'
 
 const A = 'a'.repeat(40)
 const B = 'b'.repeat(40)
@@ -103,6 +103,13 @@ describe('pruned', () => {
     expect(pruned(first, having(A), 100, 1100)).toEqual({ [A]: MISS })
   })
 
+  it('keeps a missing torrent’s match for a week', () => {
+    const DAY = 24 * 3600_000
+    const noted: Matches = { [A]: { ...USER, missingSince: 0 } }
+    expect(pruned(noted, having(), MISSING_GRACE_MS, 7 * DAY - 1)).toBe(noted)
+    expect(pruned(noted, having(), MISSING_GRACE_MS, 7 * DAY)).toEqual({})
+  })
+
   it('answers the matches it was given, as they are, when every torrent is still there', () => {
     const current: Matches = { [A]: USER }
     expect(pruned(current, having(A, B), 100, 1000)).toBe(current)
@@ -117,6 +124,19 @@ describe('withoutGuesses', () => {
   it('answers the matches it was given, as they are, when they are all choices', () => {
     const current: Matches = { [A]: USER }
     expect(withoutGuesses(current)).toBe(current)
+  })
+})
+
+describe('HASH', () => {
+  it('takes an info hash, v1 or v2, and nothing around one', () => {
+    expect([A, V2].map((hash) => HASH.test(hash))).toEqual([true, true])
+    expect([`x${A}`, `${A}x`, 'a'.repeat(39), 'A'.repeat(40)].map((hash) => HASH.test(hash))).toEqual([false, false, false, false])
+  })
+})
+
+describe('validMatch', () => {
+  it.each([null, undefined, 0, ''])('refuses %j, which has no fields to read', (value) => {
+    expect(validMatch(value)).toBe(false)
   })
 })
 
