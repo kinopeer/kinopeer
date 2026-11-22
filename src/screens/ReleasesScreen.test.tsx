@@ -1,6 +1,6 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { Route, Routes } from 'react-router'
+import { Route, Routes, useLocation } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as prowlarr from '../api/prowlarr'
 import * as qbt from '../api/qbittorrent'
@@ -37,6 +37,10 @@ const searchReleases = vi.mocked(prowlarr.searchReleases)
 const DUNE = { id: 693134, title: 'Dune: Part Two', original_title: 'Dune: Part Two', release_date: '2024-02-27' } as MovieDetails
 const BB = { id: 1396, name: 'Breaking Bad', original_name: 'Breaking Bad', first_air_date: '2008-01-20' } as TvDetails
 
+function SettingsPage() {
+  return <h1>Settings page {JSON.stringify(useLocation().state)}</h1>
+}
+
 function renderAt(path: string) {
   return renderWithRouter(
     <Routes>
@@ -44,6 +48,7 @@ function renderAt(path: string) {
       <Route path="/title/:type/:id" element={<h1>Title page</h1>} />
       <Route path="/" element={<h1>Downloads</h1>} />
       <Route path="/torrent/:hash" element={<Opened />} />
+      <Route path="/settings" element={<SettingsPage />} />
     </Routes>,
     [path],
   )
@@ -266,6 +271,15 @@ describe('ReleasesScreen', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
     await waitFor(() => expect(screen.queryByRole('heading', { name: 'Couldn’t load from TMDB' })).not.toBeInTheDocument())
     expect(getMovie).toHaveBeenCalledTimes(2)
+  })
+
+  it('explains a missing TMDB key and sends the user to enter it in Settings', async () => {
+    getMovie.mockRejectedValue(new tmdb.TmdbKeyError(401))
+    renderAt('/title/movie/693134/releases')
+    expect(await screen.findByRole('heading', { name: 'TMDB isn’t set up' })).toBeInTheDocument()
+    expect(screen.getByText(/Search needs a TMDB key/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Enter key' }))
+    expect(screen.getByRole('heading', { name: /^Settings page/ })).toHaveTextContent('{"editTmdbKey":true}')
   })
 
   it('explains a missing Prowlarr setup', async () => {
