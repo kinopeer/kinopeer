@@ -28,7 +28,8 @@ export function substitutionsIn(path: string, content: string): Substitution[] {
 
 /**
  * Each string qBittorrent would replace in the files under `dir`. Throws when `dir` can't be read,
- * and on an entry that is neither a file nor a folder (a symlink), which qBittorrent refuses to serve.
+ * and on an entry that is neither a file nor a folder (a symlink), whose target the check doesn't read,
+ * though qBittorrent would serve a linked file's.
  */
 export function findSubstitutions(dir: string): Substitution[] {
   return readdirSync(dir, { recursive: true, withFileTypes: true })
@@ -36,7 +37,7 @@ export function findSubstitutions(dir: string): Substitution[] {
     .flatMap((entry) => {
       const full = join(entry.parentPath, entry.name)
       const path = relative(dir, full)
-      if (!entry.isFile()) throw new Error(`\`${path}\` is neither a file nor a folder, which qBittorrent doesn't serve`)
+      if (!entry.isFile()) throw new Error(`\`${path}\` is neither a file nor a folder, and the check doesn't read a link's target`)
       return substitutionsIn(path, readFileSync(full, 'latin1'))
     })
 }

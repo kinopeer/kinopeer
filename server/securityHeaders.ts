@@ -43,13 +43,15 @@ export const CONTENT_SECURITY_POLICY = [
 ].join('; ')
 
 /**
- * What a page of the Alternative WebUI may load and run (#360), which qBittorrent serves with no
- * policy of its own but `frame-ancestors 'self'`: the build puts it into index.html as a `<meta>`
- * (`webuiPolicyPlugin` in vite.config.ts). The same as CONTENT_SECURITY_POLICY but for what the page
- * calls itself, with no Kinopeer server in between: TMDB, through Kinopeer's proxy or with the user's
- * key, and its images from image.tmdb.org, and Prowlarr at whatever address the user gives it, over
- * HTTP on a home network too, so any address. A `<meta>` can't carry `frame-ancestors`, which
- * browsers ignore there, and qBittorrent's header already says it.
+ * What a page of the Alternative WebUI may load and run (#360). qBittorrent's own policy for an
+ * Alternative WebUI is only `frame-ancestors 'self'`, with `upgrade-insecure-requests` over its own
+ * HTTPS (`WebApplication::configure` in its src/webui/webapplication.cpp, 5.2 and 5.3), so the build
+ * puts this one into index.html as a `<meta>` (`webuiPolicyPlugin` in vite.config.ts), and a browser
+ * applies both. The same as CONTENT_SECURITY_POLICY but for what the page calls itself, with no
+ * Kinopeer server in between: TMDB, through Kinopeer's proxy or with the user's key, and its images
+ * from image.tmdb.org, and Prowlarr at whatever address the user gives it, over HTTP too when
+ * qBittorrent is opened over HTTP on a home network, so any address. A `<meta>` can't carry
+ * `frame-ancestors`, which browsers ignore there, and qBittorrent's header already says it.
  */
 export const WEBUI_CONTENT_SECURITY_POLICY = [
   "default-src 'self'",

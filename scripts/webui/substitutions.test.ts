@@ -66,10 +66,10 @@ describe('findSubstitutions', () => {
     ])
   })
 
-  it("fails on a symlink, which qBittorrent doesn't serve", async () => {
+  it("fails on a symlink, whose target it doesn't read", async () => {
     await write({ 'index.html': 'ok' })
     await symlink(at('index.html'), at('linked.html'))
-    expect(() => findSubstitutions(root)).toThrow('`linked.html` is neither a file nor a folder')
+    expect(() => findSubstitutions(root)).toThrow("`linked.html` is neither a file nor a folder, and the check doesn't read a link's target")
   })
 })
 

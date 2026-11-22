@@ -145,11 +145,15 @@ describe('vite.config.ts', () => {
   })
 
   // qBittorrent serves the WebUI with no policy but frame-ancestors; Kinopeer's server sends its own as a header.
-  it('puts the WebUI’s Content-Security-Policy into the WebUI build’s index.html only', async () => {
+  // qBittorrent sends an Alternative WebUI no Referrer-Policy either: a link out would tell the site the page's address.
+  it('puts the WebUI’s Content-Security-Policy and Referrer-Policy into the WebUI build’s index.html only', async () => {
     const policyIn = async (mode: string) => (await resolveConfig(options, 'build', mode)).plugins.some(({ name }) => name === 'kinopeer-webui-policy')
     expect([await policyIn('production'), await policyIn('webui')]).toStrictEqual([false, true])
     const transform = webuiPolicyPlugin().transformIndexHtml as () => unknown
-    expect(transform()).toStrictEqual([{ tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: WEBUI_CONTENT_SECURITY_POLICY }, injectTo: 'head-prepend' }])
+    expect(transform()).toStrictEqual([
+      { tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: WEBUI_CONTENT_SECURITY_POLICY }, injectTo: 'head-prepend' },
+      { tag: 'meta', attrs: { name: 'referrer', content: 'same-origin' }, injectTo: 'head-prepend' },
+    ])
     expect(webuiPolicyPlugin().apply).toBe('build')
   })
 

@@ -7,21 +7,60 @@
  * turned off in qBittorrent's settings (or its folder is gone, or a sign-in proxy answers in front of
  * qBittorrent), the same address answers with something else, which the worker shows instead of the
  * app it cached. It then removes itself and its caches, so the next load is that page's alone; the
- * app registers the worker again whenever it loads (vite-plugin-pwa's registerSW.js). Only when the
- * network doesn't answer at all does the precached index.html open, so the app can say qBittorrent
- * doesn't answer.
+ * app registers the worker again whenever it loads (vite-plugin-pwa's registerSW.js). When nothing
+ * usable answers (no answer, none in PAGE_TIMEOUT_MS, a proxy's gateway error), the precached
+ * index.html opens instead and the worker stays, so the app can say qBittorrent doesn't answer.
+ *
+ * How an answer is read (`pageAnswer`) is a heuristic, with this scope: Kinopeer's page is a success
+ * whose HTML has the mark; nothing usable is no answer, none in time, 502, 503 or 504 (what nginx,
+ * Caddy and other proxies answer while qBittorrent behind them doesn't) and a body that broke off;
+ * anything else is another page now answering here: a success without the mark (qBittorrent's own
+ * interface, another Alternative WebUI, a sign-in page), a redirect (a sign-in proxy) and any other
+ * error (qBittorrent's 500 for a folder with no index.html, a proxy's 401 or 403). A proxy that
+ * answers its own outage with another status or a page of its own is read as another page: the worker
+ * goes, and only the offline app is lost until Kinopeer loads again.
  */
 
 /**
  * What only Kinopeer's index.html has (the `<meta>` in the project's index.html, which
- * vite.config.test.ts checks the build keeps): qBittorrent's own interface, another Alternative WebUI
- * and a sign-in page don't name the application Kinopeer.
+ * vite.config.test.ts checks the dev server's page keeps; the build only adds tags to it):
+ * qBittorrent's own interface, another Alternative WebUI and a sign-in page don't name the
+ * application Kinopeer.
  */
 export const KINOPEER_PAGE_MARK = '<meta name="application-name" content="Kinopeer"'
 
-/** Whether a page's answer is Kinopeer's: a success whose HTML has the mark. A redirect isn't. */
-export async function isKinopeerPage(response: Response): Promise<boolean> {
-  return response.ok && (await response.clone().text()).includes(KINOPEER_PAGE_MARK)
+/**
+ * The addresses of the app's page, the only ones the worker's page route takes (src/sw.ts), matched on
+ * the path and query: `/` and `/index.html`, since the routes go after the `#`. Any other page opened
+ * in a tab (an icon, version.json, qBittorrent's API) is left to the network, so it never reads as
+ * another page answering in Kinopeer's place.
+ */
+export const WEBUI_PAGES: RegExp[] = [/^\/(index\.html)?(\?.*)?$/]
+
+/**
+ * How long a page load waits for qBittorrent before the precached app opens: index.html is a few
+ * kilobytes, so a qBittorrent that hasn't sent it by then is stuck, or a proxy is waiting on it, and
+ * the app opens at once and says so through its own calls, as before the network came first.
+ */
+export const PAGE_TIMEOUT_MS = 5_000
+
+/** What proxies answer while the qBittorrent behind them doesn't: Bad Gateway, Service Unavailable, Gateway Timeout. */
+export const GATEWAY_FAILURES: readonly number[] = [502, 503, 504]
+
+/** Kinopeer's page, nothing usable, or another page now answering at Kinopeer's address (the scope above). */
+export type PageAnswer = 'kinopeer' | 'unanswered' | 'other'
+
+/** What a page's answer is (the scope above). The body read is a clone's, so the answer can still be handed on. */
+export async function pageAnswer(response: Response): Promise<PageAnswer> {
+  if (GATEWAY_FAILURES.includes(response.status)) return 'unanswered'
+  if (!response.ok) return 'other'
+  let html: string
+  try {
+    html = await response.clone().text()
+  } catch {
+    return 'unanswered'
+  }
+  return html.includes(KINOPEER_PAGE_MARK) ? 'kinopeer' : 'other'
 }
 
 /** What loading a page needs from the worker. */
@@ -34,21 +73,33 @@ export interface PageLoad {
   forget: () => Promise<void>
 }
 
+/** `promise`'s value once it settles within `ms`, else undefined, as it is when it rejects. */
+function within<T>(promise: Promise<T>, ms: number): Promise<T | undefined> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(undefined), ms)
+    const settle = (value: T | undefined) => {
+      clearTimeout(timer)
+      resolve(value)
+    }
+    promise.then(settle, () => settle(undefined))
+  })
+}
+
 /**
- * The answer to a page load: the network's, from Kinopeer or not, removing the worker first when it
- * isn't Kinopeer's; the precached index.html when the network doesn't answer, else the network's error.
+ * The answer to a page load. Kinopeer's page from the network as it is. Another page as it is, the
+ * worker forgotten first; a failure to forget doesn't hold the page back. When nothing usable answered,
+ * the precached index.html, else what the network gives in the end: its answer or its error.
  */
 export async function loadPage(request: Request, load: PageLoad): Promise<Response> {
-  let response: Response
-  try {
-    response = await load.fetch(request)
-  } catch (error) {
-    const cached = await load.cachedPage()
-    if (cached) return cached
-    throw error
+  const network = load.fetch(request)
+  const answer = await within(network, PAGE_TIMEOUT_MS)
+  const kind = answer ? await pageAnswer(answer) : 'unanswered'
+  if (answer && kind === 'kinopeer') return answer
+  if (answer && kind === 'other') {
+    await load.forget().catch(() => {})
+    return answer
   }
-  if (!(await isKinopeerPage(response))) await load.forget()
-  return response
+  return (await load.cachedPage()) ?? network
 }
 
 /** What forgetting the worker needs: its registration and the page's cache storage. */

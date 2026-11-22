@@ -5,6 +5,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { POSTER_CACHE, SHELL_DENYLIST } from './pwa/swRoutes'
+import { WEBUI_PAGES } from './pwa/swWebui'
 
 class NavigationRoute {
   handler: unknown
@@ -156,11 +157,12 @@ describe('the service worker in the WebUI build', () => {
   }
 
   // The precache's route answers `/` with the cached index.html, so the page's route goes first.
-  it('loads pages through its own route, ahead of the precache, and not the server build’s shell', async () => {
+  // Any other page opened in a tab (an icon, version.json, qBittorrent's API) has no mark, and isn't Kinopeer turned off.
+  it('loads the app’s page through its own route, ahead of the precache, and not the server build’s shell', async () => {
     const { routes, registeredAt, precachedAt } = await runWebui()
     const [navigation] = routes[0] as [NavigationRoute, unknown]
     expect(navigation).toBeInstanceOf(NavigationRoute)
-    expect(navigation.options).toBeUndefined()
+    expect(navigation.options).toEqual({ allowlist: WEBUI_PAGES })
     expect(registeredAt[0]).toBeLessThan(precachedAt)
     expect(routes.filter(([route]) => route instanceof NavigationRoute)).toHaveLength(1)
   })

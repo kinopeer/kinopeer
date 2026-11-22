@@ -6,7 +6,7 @@ import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv, normalizePath, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { TMDB_PROXY_EDGE, dataStores, kinopeerServer, loadStores, type KinopeerServer } from './server/main.ts'
-import { WEBUI_CONTENT_SECURITY_POLICY, contentSecurityPolicy } from './server/securityHeaders.ts'
+import { SECURITY_HEADERS, WEBUI_CONTENT_SECURITY_POLICY, contentSecurityPolicy } from './server/securityHeaders.ts'
 import type { TestSequencer, TestSpecification, Vitest } from 'vitest/node'
 import { relatedFilesFirst } from './scripts/test-order/testOrder.ts'
 
@@ -184,15 +184,20 @@ class RelatedFilesFirst implements TestSequencer {
 
 /**
  * Puts the WebUI's Content-Security-Policy (server/securityHeaders.ts) into index.html as a `<meta>`,
- * first in its head, so it governs the theme script after it: qBittorrent serves the WebUI with no
- * policy of its own (#360). In the WebUI build only, since Kinopeer's server sends its own as a header,
- * and not from `vite --mode webui`, whose pages run Vite's inline scripts.
+ * first in its head, so it governs the theme script after it, and the server's Referrer-Policy as a
+ * `<meta name="referrer">`, so a link out (an indexer's page, TMDB) doesn't tell the site the page's
+ * address on the home network: qBittorrent sends an Alternative WebUI neither (#360). In the WebUI
+ * build only, since Kinopeer's server sends its own as headers, and not from `vite --mode webui`,
+ * whose pages run Vite's inline scripts.
  */
 export function webuiPolicyPlugin(): Plugin {
   return {
     name: 'kinopeer-webui-policy',
     apply: 'build',
-    transformIndexHtml: () => [{ tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: WEBUI_CONTENT_SECURITY_POLICY }, injectTo: 'head-prepend' }],
+    transformIndexHtml: () => [
+      { tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: WEBUI_CONTENT_SECURITY_POLICY }, injectTo: 'head-prepend' },
+      { tag: 'meta', attrs: { name: 'referrer', content: SECURITY_HEADERS['Referrer-Policy'] }, injectTo: 'head-prepend' },
+    ],
   }
 }
 

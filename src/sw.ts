@@ -7,7 +7,7 @@ import { NavigationRoute, registerRoute } from 'workbox-routing'
 import { CacheFirst } from 'workbox-strategies'
 import { PUSH_SUBSCRIPTION_URL, openPush, renewPush, showPush } from './pwa/swPush'
 import { POSTER_CACHE, SHELL_DENYLIST, isPosterRequest } from './pwa/swRoutes'
-import { forgetWorker, loadPage } from './pwa/swWebui'
+import { WEBUI_PAGES, forgetWorker, loadPage } from './pwa/swWebui'
 
 declare const self: ServiceWorkerGlobalScope
 
@@ -17,16 +17,16 @@ declare const self: ServiceWorkerGlobalScope
 void self.skipWaiting()
 clientsClaim()
 
-// In the Alternative WebUI build a page comes from the network first, and the worker removes itself
-// when the answer isn't Kinopeer's (src/pwa/swWebui.ts). Registered before the precache, whose route
-// would answer `/` with the cached index.html.
+// In the Alternative WebUI build the app's page comes from the network first, and the worker removes
+// itself when another page answers in its place (src/pwa/swWebui.ts). Registered before the precache,
+// whose route would answer `/` with the cached index.html.
 if (__WEBUI__) {
   const load = {
     fetch: (request: Request) => fetch(request),
     cachedPage: () => matchPrecache('/index.html'),
     forget: () => forgetWorker({ registration: self.registration, caches }, [cacheNames.precache, POSTER_CACHE.cacheName]),
   }
-  registerRoute(new NavigationRoute(({ request }) => loadPage(request, load)))
+  registerRoute(new NavigationRoute(({ request }) => loadPage(request, load), { allowlist: WEBUI_PAGES }))
 }
 
 // The app shell: built scripts, styles, fonts and icons, so Kinopeer opens without the network.
