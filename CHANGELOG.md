@@ -2,6 +2,12 @@
 
 Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor versions could change behavior and settings.
 
+## Unreleased
+
+### Fixed
+
+- On a phone, a title's releases no longer say Prowlarr isn't answering when it's TMDB that didn't answer for the title's details: they say Kinopeer couldn't load from TMDB, as the title page does. ([#517](https://github.com/kinopeer/kinopeer/issues/517))
+
 ## 1.2.0 - 2026-11-22
 
 Kinopeer installs anywhere: its image runs next to a qBittorrent and a Prowlarr you already have, in Docker, on the machine, on another computer or a seedbox, with steps for TrueNAS, CasaOS and ZimaOS, and a template for Unraid. It finds their addresses itself, says why a connection failed and what to check, and gives hints for Kinopeer in a container.
