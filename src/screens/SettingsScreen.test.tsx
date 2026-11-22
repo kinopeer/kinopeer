@@ -476,6 +476,9 @@ describe('SettingsScreen', () => {
     // Checked again with the server's key, which sees another set of indexers.
     await waitFor(() => expect(aboutRow('Prowlarr indexers')).toHaveTextContent(/1$/))
     expect(within(connection('Prowlarr')).getByRole('status', { name: saying('Connected') })).toBeInTheDocument()
+    // The settings it answered with say the server's key is in use, so the sheet opened again doesn't offer it.
+    await userEvent.click(within(connection('Prowlarr')).getByRole('button', { name: 'Change Prowlarr key' }))
+    expect(within(screen.getByRole('dialog', { name: 'Prowlarr key' })).queryByRole('button', { name: 'Use the server’s key' })).not.toBeInTheDocument()
   })
 
   it("doesn't offer the server's Prowlarr key when the server has none", async () => {
@@ -937,6 +940,38 @@ describe('SettingsScreen', () => {
       await act(async () => answer(fromApp()))
       expect(await findToastOnPage('qBittorrent connection saved')).toBeInTheDocument()
       await waitFor(() => expect(qbt.getAppVersion).toHaveBeenCalledTimes(2))
+    })
+
+    it('shows the qBittorrent address saved while Settings was left and opened again (#545)', async () => {
+      vi.mocked(serverSettings.getServerSettings).mockResolvedValue(fromApp())
+      const saved = fromApp()
+      saved.qbittorrent.address = { source: 'saved', url: 'http://192.168.1.20:8080' }
+      let answer = () => {}
+      vi.mocked(serverSettings.saveQbittorrentLogin).mockReturnValue(
+        new Promise((resolve) => {
+          // As the real client does: the save's answer becomes the page's settings.
+          answer = () => {
+            sharedRequests.set(serverSettings.SERVER_SETTINGS_KEY, saved)
+            resolve(saved)
+          }
+        }),
+      )
+      const first = renderScreen()
+      await userEvent.click(await within(connection('qBittorrent')).findByRole('button', { name: changeQbittorrent }))
+      const sheet = screen.getByRole('dialog', { name: qbittorrentSheet })
+      await userEvent.clear(within(sheet).getByLabelText('qBittorrent address'))
+      await userEvent.type(within(sheet).getByLabelText('qBittorrent address'), 'http://192.168.1.20:8080')
+      await userEvent.click(within(sheet).getByRole('button', { name: 'Connect' }))
+      first.unmount()
+
+      // Opened again within the minute, so it shows the page's answer from before the save.
+      renderScreen()
+      await userEvent.click(await within(connection('qBittorrent')).findByRole('button', { name: changeQbittorrent }))
+      fireEvent(screen.getByRole('dialog', { name: qbittorrentSheet }), new Event('cancel', { cancelable: true }))
+      await act(async () => answer())
+
+      await userEvent.click(within(connection('qBittorrent')).getByRole('button', { name: changeQbittorrent }))
+      expect(within(screen.getByRole('dialog', { name: qbittorrentSheet })).getByLabelText('qBittorrent address')).toHaveValue('http://192.168.1.20:8080')
     })
 
     it('changes Prowlarr’s address with its key, the sheet starting at the saved address', async () => {

@@ -14,7 +14,8 @@ export interface RequestOptions {
    * Shares the request under its key with every caller on the page that shares it (`sharedRequests`):
    * one request on its way serves them all, and its answer serves those that come later for this many
    * ms (0: only while it's on its way). The key then names the request itself, the same for every
-   * caller, and a kept answer shows at once. Without it the caller asks on its own.
+   * caller, and a kept answer shows at once, as does one the app keeps for the key later (`set`, a
+   * save's answer). Without it the caller asks on its own.
    */
   freshFor?: number
 }
@@ -50,6 +51,16 @@ export function useRequest<T>(key: string | null, load: (signal: AbortSignal) =>
   useEffect(() => {
     if (key === null) return
     const controller = new AbortController()
+    // A shared caller follows the answers kept for its key from elsewhere (a save's), which are newer than
+    // its own run's, so that run's answer no longer counts once one came.
+    let overtaken = false
+    const unfollow =
+      freshFor === undefined
+        ? undefined
+        : sharedRequests.follow<T>(key, (data) => {
+            overtaken = true
+            setSettled({ key, attempt, data })
+          })
     const run =
       freshFor === undefined
         ? loadRef.current(controller.signal)
@@ -57,13 +68,16 @@ export function useRequest<T>(key: string | null, load: (signal: AbortSignal) =>
     run.then(
       // A load can resolve after its abort (it ignored the signal, or settled some parts first).
       (data) => {
-        if (!controller.signal.aborted) setSettled({ key, attempt, data })
+        if (!controller.signal.aborted && !overtaken) setSettled({ key, attempt, data })
       },
       (error: unknown) => {
-        if (!controller.signal.aborted) setSettled({ key, attempt, error })
+        if (!controller.signal.aborted && !overtaken) setSettled({ key, attempt, error })
       },
     )
-    return () => controller.abort()
+    return () => {
+      unfollow?.()
+      controller.abort()
+    }
   }, [key, attempt, freshFor])
 
   const retry = useCallback(() => setRetries((last) => ({ key: last.key, count: last.count + 1 })), [])

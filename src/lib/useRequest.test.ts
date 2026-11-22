@@ -1,5 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { sharedRequests } from '../logic/sharedRequests'
 import { useRequest } from './useRequest'
 
 interface Load {
@@ -161,6 +162,55 @@ describe('useRequest with freshFor', () => {
     expect(result.current).toMatchObject({ data: 'a2', loading: false })
     await act(async () => {})
     expect(load).toHaveBeenCalledTimes(3)
+  })
+
+  it('follows an answer kept for its key later, over its own run on its way (#545)', async () => {
+    const first = load()
+    const { result } = renderHook(() => useRequest('k', () => first.promise, { freshFor: 60_000 }))
+    act(() => sharedRequests.set('k', 'saved'))
+    expect(result.current).toMatchObject({ data: 'saved', loading: false })
+    // The run went out before the save settled, so its answer may be from before it.
+    await act(async () => first.resolve('older'))
+    expect(result.current.data).toBe('saved')
+
+    act(() => sharedRequests.set('k', 'again'))
+    expect(result.current.data).toBe('again')
+  })
+
+  it('follows nothing without freshFor, nor for a key it left', async () => {
+    const own = renderHook(() => useRequest('k', () => Promise.resolve('own')))
+    await waitFor(() => expect(own.result.current.data).toBe('own'))
+    const { result, rerender } = renderHook(({ key }) => useRequest(key, () => Promise.resolve(key), { freshFor: 60_000 }), {
+      initialProps: { key: 'a' },
+    })
+    await waitFor(() => expect(result.current.data).toBe('a'))
+    rerender({ key: 'b' })
+    await waitFor(() => expect(result.current.data).toBe('b'))
+    act(() => {
+      sharedRequests.set('k', 'saved')
+      sharedRequests.set('a', 'saved')
+    })
+    expect(own.result.current.data).toBe('own')
+    expect(result.current.data).toBe('b')
+  })
+
+  it('stops following a key it leaves or as it goes', async () => {
+    const follow = sharedRequests.follow.bind(sharedRequests)
+    const left: string[] = []
+    vi.spyOn(sharedRequests, 'follow').mockImplementation((key, listener) => {
+      const unfollow = follow(key, listener)
+      return () => {
+        left.push(key)
+        unfollow()
+      }
+    })
+    const { rerender, unmount } = renderHook(({ key }) => useRequest(key, () => Promise.resolve(key), { freshFor: 60_000 }), {
+      initialProps: { key: 'a' },
+    })
+    rerender({ key: 'b' })
+    expect(left).toEqual(['a'])
+    unmount()
+    expect(left).toEqual(['a', 'b'])
   })
 
   it('cancels a shared request only once no caller waits for it', () => {

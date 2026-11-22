@@ -244,11 +244,12 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
   // they're missing, so a check that finds it back loads them, and loaded selects don't empty on Test.
   const [categoriesLoad, setCategoriesLoad] = useState(0)
   const categories = useRequest(categoriesLoad === 0 ? null : `qbt|categories|${categoriesLoad}`, (signal) => getCategories(signal))
-  // The page's answer while it's fresh, else loaded once; a saved or forgotten key answers with the
-  // new settings, which replace it.
+  // The page's answer while it's fresh, else loaded once, and followed after: a save answers with the
+  // new settings, which the client keeps as the page's, so a save sent from a Settings since left shows too (#545).
   const serverLoad = useRequest(SERVER_SETTINGS_KEY, (signal) => getServerSettings(signal), { freshFor: SERVER_SETTINGS_FRESH_MS })
-  const [serverChanged, setServerChanged] = useState<ServerSettings | null>(null)
-  const server = serverChanged ?? serverLoad.data
+  const server = serverLoad.data
+  /** Keeps settings a sheet answers with as the page's, which the client has done already for a save's. */
+  const keepServer = (changed: ServerSettings) => sharedRequests.set<ServerSettings>(SERVER_SETTINGS_KEY, changed)
   // Whether Kinopeer's own login is on is its server's environment's, fixed while it runs, so the
   // page's answer says it however old: the Sign-in section is there from the first render rather
   // than added under the rows when a stale answer is asked again (a layout shift on desktop).
@@ -572,7 +573,7 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
               ? {
                   to: server.tmdb.fallback,
                   onForgotten: (changed) => {
-                    setServerChanged(changed)
+                    keepServer(changed)
                     setEditingKey(false)
                     toast.show(t(changed.tmdb.source === 'shared' ? 'tmdbKey.forgottenToShared' : 'tmdbKey.forgottenToServer'))
                     setTmdbKeyVersion((n) => n + 1)
@@ -581,7 +582,7 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
               : undefined
           }
           onSaved={(changed) => {
-            setServerChanged(changed)
+            keepServer(changed)
             setEditingKey(false)
             toast.show(t('tmdbKey.saved'))
             setTmdbKeyVersion((n) => n + 1)
@@ -593,7 +594,7 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
           <TelegramForm
             telegram={telegram}
             onChanged={(changed, saved) => {
-              setServerChanged(changed)
+              keepServer(changed)
               if (saved === 'token') setTelegramVersion((n) => n + 1)
               // A chat or a test that went through shows Telegram answers, which a failed check said it didn't.
               else if (telegramCheckNow.current.error !== undefined) telegramCheckNow.current.retry()
@@ -605,16 +606,15 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
               // Always there: the sheet is open only with Telegram's status, which every answer since has too.
               if (latest?.telegram) {
                 const changed = { ...latest, telegram: { ...latest.telegram, refused } }
-                setServerChanged(changed)
                 // The refusal's 422 carries no settings, so the page's shared answer learns it here.
-                sharedRequests.set<ServerSettings>(SERVER_SETTINGS_KEY, changed)
+                keepServer(changed)
               }
               // The card names a refused token through its own check, which may have passed before. A refused chat
               // shows Telegram answers (the server asked it which part it refused), which a failed check said it didn't.
               if (refused === 'token' || telegramCheckNow.current.error !== undefined) telegramCheckNow.current.retry()
             }}
             onTurnedOff={(changed) => {
-              setServerChanged(changed)
+              keepServer(changed)
               setEditingTelegram(false)
               toast.show(t('telegram.turnedOff'))
             }}
@@ -642,7 +642,7 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
           addressFromApp
           onSubmit={signIn}
           onSaved={(changed) => {
-            setServerChanged(changed)
+            keepServer(changed)
             setEditingQbittorrent(false)
             toast.show(t('settings.qbittorrentSaved'))
             // The row and the categories come from the qBittorrent at the new address.
@@ -654,7 +654,6 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
             // and its check runs at that address.
             setEditingQbittorrent(false)
             toast.show(t('connect.envAddress'))
-            setServerChanged(null)
             serverLoad.retry()
             qbittorrent.retry()
           }}
@@ -671,13 +670,13 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
           initialAddress={savedUrl(server?.prowlarr.address)}
           addressFromApp={server?.prowlarr.address.source === 'saved'}
           onSaved={(changed) => {
-            setServerChanged(changed)
+            keepServer(changed)
             setEditingProwlarrKey(false)
             toast.show(t('prowlarrKey.saved', { context: prowlarrFromApp ? 'address' : undefined }))
             setProwlarrKeyVersion((n) => n + 1)
           }}
           onForgotten={(changed) => {
-            setServerChanged(changed)
+            keepServer(changed)
             setEditingProwlarrKey(false)
             toast.show(t('prowlarrKey.forgotten'))
             setProwlarrKeyVersion((n) => n + 1)
@@ -685,7 +684,6 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
           // The sheet keeps saying why; the settings asked again stop asking for an address, and
           // the row's check runs at the environment's.
           onEnvAddress={() => {
-            setServerChanged(null)
             serverLoad.retry()
             setProwlarrKeyVersion((n) => n + 1)
           }}
