@@ -1617,3 +1617,31 @@ describe('SettingsScreen: push notifications', () => {
     expect(await card.findByRole('status', { name: saying('This browser can’t show push notifications') })).toBeInTheDocument()
   })
 })
+
+describe('SettingsScreen in the WebUI build', () => {
+  it('shows nothing that needs Kinopeer’s server: its login, an address it keeps, its notifications', async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    // All of them on, as a server would say: the build, not the answer, leaves them out.
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue({
+      tmdb: { configured: true, source: 'saved', fallback: null },
+      prowlarr: { configured: true, source: 'saved', serverKey: false, address: { source: 'saved', url: 'http://prowlarr:9696' } },
+      qbittorrent: { configured: true, source: 'saved', address: { source: 'saved', url: 'http://qbittorrent:8080' } },
+      downloads: null,
+      auth: { enabled: true, source: 'saved' },
+      telegram: { bot: 'kinopeer_home_bot', chat: { name: 'Alex', type: 'private' }, refused: null },
+      push: { devices: 1 },
+      notifications: true,
+    })
+    renderScreen()
+
+    const connections = screen.getByRole('region', { name: 'Connections' })
+    await within(connection('qBittorrent')).findByRole('status', { name: saying('Connected') })
+    await waitFor(() => expect(serverSettings.getServerSettings).toHaveBeenCalled())
+    expect(within(connections).queryByText('Telegram')).not.toBeInTheDocument()
+    expect(within(connections).queryByText('Push notifications')).not.toBeInTheDocument()
+    expect(within(connections).queryByRole('button', { name: 'Change qBittorrent address and login' })).not.toBeInTheDocument()
+    expect(within(connections).queryByText(/Kinopeer server/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Sign-in' })).not.toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: 'Download defaults' })).queryByRole('switch', { name: 'Notify when finished' })).not.toBeInTheDocument()
+  })
+})

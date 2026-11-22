@@ -4,15 +4,18 @@ import { NoAddressError, UnauthorizedError, unreachable, type Unreachable } from
 import type { SourceAddress } from '../api/settings'
 import { checkAppVersion } from '../api/sharedAnswers'
 import { saveQbittorrentLogin, type ServerSettings } from '../api/settings'
-import { isSupportedVersion } from '../torrents/qbittorrentVersion'
+import { MIN_QBITTORRENT_VERSION, MIN_WEBUI_QBITTORRENT_VERSION, isSupportedVersion } from '../torrents/qbittorrentVersion'
 
 export type QbitSession =
   | { status: 'checking' }
-  /** The server's login works, or qBittorrent skips auth for it (localhost / whitelisted subnet). */
+  /**
+   * The server's login works, or qBittorrent skips auth for it (localhost / whitelisted subnet); in
+   * the WebUI build, the browser's own session with qBittorrent, or its auth bypass for the browser.
+   */
   | { status: 'connected'; version: string }
-  /** qBittorrent answered, but it's older than Kinopeer works with (`MIN_QBITTORRENT_VERSION`). */
+  /** qBittorrent answered, but it's older than this build works with (`requiredQbittorrentVersion()`). */
   | { status: 'unsupported'; version: string }
-  /** The server has no working qBittorrent login: the app asks for one. */
+  /** The server has no working qBittorrent login, or in the WebUI build the browser has no session: the app asks for one. */
   | { status: 'signed-out'; source?: SourceAddress }
   /** The server has no address for qBittorrent, from its environment or the app: the app asks for one. */
   | { status: 'no-address' }
@@ -22,10 +25,15 @@ export type QbitSession =
    */
   | { status: 'unreachable'; who: Unreachable; failure?: ConnectionFailure }
 
+/** The oldest qBittorrent this build works with: the WebUI build keeps its settings in qBittorrent's `clientdata` (5.2). */
+export function requiredQbittorrentVersion(): string {
+  return __WEBUI__ ? MIN_WEBUI_QBITTORRENT_VERSION : MIN_QBITTORRENT_VERSION
+}
+
 async function probe(): Promise<QbitSession> {
   try {
     const version = await checkAppVersion()
-    return isSupportedVersion(version) ? { status: 'connected', version } : { status: 'unsupported', version }
+    return isSupportedVersion(version, requiredQbittorrentVersion()) ? { status: 'connected', version } : { status: 'unsupported', version }
   } catch (error) {
     if (error instanceof UnauthorizedError) return { status: 'signed-out', source: error.source }
     if (error instanceof NoAddressError) return { status: 'no-address' }

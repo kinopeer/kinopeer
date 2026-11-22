@@ -10,105 +10,13 @@ import type {
   TorrentTracker,
   TorrentsQuery,
 } from './types'
-import { knownFailure, type ConnectionFailure } from '../connectionFailure'
-import { parseSource } from '../containerHints'
-import type { SourceAddress } from '../settings/types'
-import { ProxySignInError, fetchKinopeer } from '../fetchKinopeer'
+import { KinopeerUnreachableError, QbittorrentError, TorrentRefusedError } from './errors'
+import { bridgeTransport, webuiTransport } from './transport'
 import { sharedRequests } from '../../logic/sharedRequests'
 import { subcategoriesUnderParent } from '../../torrents/qbittorrentVersion'
 
-/** Same-origin prefix bridged to qBittorrent's Web API by server/qbittorrent.ts. */
-export const QBITTORRENT_BASE = '/qbt/api/v2'
-
-export class QbittorrentError extends Error {
-  readonly status: number
-  /** Why qBittorrent didn't answer the bridge, where the server could tell (`FAILURE_HEADER`). */
-  readonly failure?: ConnectionFailure
-
-  constructor(message: string, status: number, failure?: ConnectionFailure) {
-    super(message)
-    this.name = 'QbittorrentError'
-    this.status = status
-    this.failure = failure
-  }
-}
-
-/**
- * qBittorrent added none of the torrents sent to `torrents/add`: an invalid file, or one it has
- * already. It answers 200 "Fails." up to 5.1 and 409 from 5.2 (Web API 2.14.0).
- */
-export class TorrentRefusedError extends QbittorrentError {
-  constructor(status: number) {
-    super('qBittorrent could not add the torrent', status)
-    this.name = 'TorrentRefusedError'
-  }
-}
-
-/**
- * The bridge's mark on each of its answers, and the TMDB bridge's (`BRIDGE_HEADER` in
- * server/qbittorrent.ts): a failure without it never reached Kinopeer's server, a proxy in front
- * answered for it.
- */
-export const BRIDGE_HEADER = 'x-kinopeer-bridge'
-/** The bridge's mark when it has no address for qBittorrent (`NO_ADDRESS` in server/qbittorrent.ts). */
-export const NO_ADDRESS = 'no-address'
-/** Beside the bridge's 502: why qBittorrent didn't answer (`FAILURE_HEADER` in server/qbittorrent.ts, #508). */
-export const FAILURE_HEADER = 'x-kinopeer-failure'
-/** Beside the bridge's 403: where qBittorrent sees Kinopeer come from (`SOURCE_HEADER` in server/qbittorrent.ts, #509). */
-export const SOURCE_HEADER = 'x-kinopeer-source'
-
-/** A request failed without reaching Kinopeer's server: something in front of it answered. */
-export class KinopeerUnreachableError extends QbittorrentError {
-  constructor(status: number) {
-    super(`Kinopeer's server did not answer (${status})`, status)
-    this.name = 'KinopeerUnreachableError'
-  }
-}
-
-/**
- * Who didn't answer. Kinopeer's server, two ways: `unreached`, nothing answered at all (the network,
- * a certificate the browser no longer trusts, both a TypeError with no detail) or a sign-in proxy
- * redirected the request; `kinopeer`, something in front answered for the server (Umbrel's 502 for
- * a stopped app), so the way to it works. Or `qbittorrent`: the service behind Kinopeer's bridge,
- * which is TMDB for TMDB's calls (src/api/tmdb/client.ts, #537).
- */
-export type Unreachable = 'unreached' | 'kinopeer' | 'qbittorrent'
-
-/**
- * Who a failed request didn't get an answer from: Kinopeer's server when the network failed
- * (fetch's TypeError) or a proxy in front asked to sign in (`unreached`), or answered for it
- * (`kinopeer`). Otherwise the service behind the bridge, `qbittorrent`, which is TMDB for TMDB's
- * calls. A request that took too long counts as qBittorrent: its bridge waits for qBittorrent with
- * no limit, so a request that hangs is most likely waiting on it. The TMDB bridge gives up after
- * `TMDB_TIMEOUT_MS` and answers its own 504, so for TMDB's calls that reading is only likely.
- */
-export function unreachable(error: unknown): Unreachable {
-  if (error instanceof TypeError || error instanceof ProxySignInError) return 'unreached'
-  return error instanceof KinopeerUnreachableError ? 'kinopeer' : 'qbittorrent'
-}
-
-/**
- * The server has no address for qBittorrent, from its environment or saved from the app: the app
- * asks for one (src/api/settings).
- */
-export class NoAddressError extends QbittorrentError {
-  constructor() {
-    super('qBittorrent has no address', 503)
-    this.name = 'NoAddressError'
-  }
-}
-
-/** The server has no working qBittorrent login (the app asks for one, see src/api/settings). */
-export class UnauthorizedError extends QbittorrentError {
-  /** With no login on the server, in a container: where qBittorrent sees Kinopeer come from, for its auth bypass (#509). */
-  readonly source?: SourceAddress
-
-  constructor(source?: SourceAddress) {
-    super('Not logged in to qBittorrent', 403)
-    this.name = 'UnauthorizedError'
-    this.source = source
-  }
-}
+export * from './errors'
+export { BRIDGE_HEADER, FAILURE_HEADER, NO_ADDRESS, QBITTORRENT_BASE, SOURCE_HEADER } from './transport'
 
 type Params = Record<string, string | number | boolean | undefined>
 
@@ -126,22 +34,10 @@ async function request(
 ): Promise<Response> {
   const { method = init.form ? 'POST' : 'GET', params = {} } = init
   const search = toSearchParams(params)
-  const url = method === 'GET' && [...search].length ? `${QBITTORRENT_BASE}${path}?${search}` : `${QBITTORRENT_BASE}${path}`
-
-  const response = await fetchKinopeer(url, {
-    method,
-    // The server forwards only requests that carry it (server/qbittorrent.ts): another site can't
-    // add a header to a request without asking first, so it can't act through Kinopeer.
-    headers: { 'X-Kinopeer': '1' },
-    body: method === 'POST' ? (init.form ?? search) : undefined,
-    signal: init.signal,
-  })
-
-  if (!response.ok && !response.headers.has(BRIDGE_HEADER)) throw new KinopeerUnreachableError(response.status)
-  if (response.headers.get(BRIDGE_HEADER) === NO_ADDRESS) throw new NoAddressError()
-  if (response.status === 401 || response.status === 403) throw new UnauthorizedError(parseSource(response.headers.get(SOURCE_HEADER)))
-  if (!response.ok) throw new QbittorrentError(`qBittorrent responded ${response.status}`, response.status, knownFailure(response.headers.get(FAILURE_HEADER)))
-  return response
+  const target = method === 'GET' && [...search].length ? `${path}?${search}` : path
+  // The build's way to qBittorrent, read with each call so a test can stub `__WEBUI__`: in a build
+  // it's a constant, and the way the build doesn't take is left out of it.
+  return (__WEBUI__ ? webuiTransport : bridgeTransport)(target, { method, body: method === 'POST' ? (init.form ?? search) : undefined, signal: init.signal })
 }
 
 /**

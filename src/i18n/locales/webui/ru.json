@@ -1,0 +1,7 @@
+{
+  "webui": {
+    "signInTitle": "Вход в qBittorrent",
+    "signInBody": "Kinopeer работает в веб-интерфейсе qBittorrent: войдите с его логином и паролем.",
+    "signInFailed": "qBittorrent не дал войти. Попробуйте ещё раз."
+  }
+}

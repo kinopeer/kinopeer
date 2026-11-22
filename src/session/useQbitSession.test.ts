@@ -4,7 +4,7 @@ import * as api from '../api/qbittorrent'
 import * as settings from '../api/settings'
 import { sharedRequests } from '../logic/sharedRequests'
 import { qbittorrentDown } from '../test/render'
-import { useQbitSession } from './useQbitSession'
+import { requiredQbittorrentVersion, useQbitSession } from './useQbitSession'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => {
   const actual = await importOriginal<typeof api>()
@@ -114,6 +114,18 @@ describe('useQbitSession', () => {
     getAppVersion.mockResolvedValue('4.6.0')
     await act(() => result.current.recheck())
     expect(result.current.session).toEqual({ status: 'connected', version: '4.6.0' })
+  })
+
+  it('asks for qBittorrent 5.2 or later in the WebUI build, which keeps its settings in qBittorrent’s clientdata', async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    expect(requiredQbittorrentVersion()).toBe('5.2.0')
+    getAppVersion.mockResolvedValue('5.1.4')
+    const { result } = renderHook(() => useQbitSession())
+    await waitFor(() => expect(result.current.session).toEqual({ status: 'unsupported', version: '5.1.4' }))
+
+    getAppVersion.mockResolvedValue('5.2.0')
+    await act(() => result.current.recheck())
+    expect(result.current.session).toEqual({ status: 'connected', version: '5.2.0' })
   })
 
   it('signs in to a qBittorrent too old, then says so rather than refusing the login', async () => {

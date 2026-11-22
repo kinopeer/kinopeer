@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MIN_QBITTORRENT_VERSION, isSupportedVersion, subcategoriesUnderParent } from './qbittorrentVersion'
+import { MIN_QBITTORRENT_VERSION, MIN_WEBUI_QBITTORRENT_VERSION, isSupportedVersion, subcategoriesUnderParent } from './qbittorrentVersion'
 
 describe('isSupportedVersion', () => {
   it.each(['4.6.0', '4.6.7', '4.6.7.10', '5.0.0', '5.1.0beta1', '4.10.0', '10.0', 'v4.6.0', MIN_QBITTORRENT_VERSION])(
@@ -17,6 +17,14 @@ describe('isSupportedVersion', () => {
     expect(isSupportedVersion('')).toBe(true)
     expect(isSupportedVersion('dev')).toBe(true)
     expect(isSupportedVersion('r4.5.0')).toBe(true)
+  })
+
+  it.each(['5.2.0', '5.2.1', '5.3.0', '6.0', MIN_WEBUI_QBITTORRENT_VERSION])('takes %s as the WebUI build’s minimum', (version) => {
+    expect(isSupportedVersion(version, MIN_WEBUI_QBITTORRENT_VERSION)).toBe(true)
+  })
+
+  it.each(['5.1.4', '5.1.0', '5.0.0', '4.6.7', '5.1.99.1'])('refuses %s below the WebUI build’s minimum', (version) => {
+    expect(isSupportedVersion(version, MIN_WEBUI_QBITTORRENT_VERSION)).toBe(false)
   })
 })
 

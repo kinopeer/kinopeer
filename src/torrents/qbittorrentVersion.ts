@@ -9,6 +9,12 @@
 export const MIN_QBITTORRENT_VERSION = '4.6.0'
 
 /**
+ * The oldest qBittorrent the WebUI build works with: 5.2.0 added the `clientdata` store, which holds
+ * the settings and the torrent-to-title matches there in place of Kinopeer's server.
+ */
+export const MIN_WEBUI_QBITTORRENT_VERSION = '5.2.0'
+
+/**
  * A version's numbers, e.g. [5, 0, 4] for "5.0.4", [4, 6, 7, 10] for "4.6.7.10" and [5, 1, 0] for
  * "5.1.0beta1"; undefined when it doesn't start with one.
  */
@@ -31,11 +37,12 @@ function atLeast(version: string | undefined, min: string): boolean | undefined 
 }
 
 /**
- * Whether Kinopeer works with this qBittorrent. A version it can't read (a build of qBittorrent's
- * own) is let through: only a version known to be too old is refused.
+ * Whether Kinopeer works with this qBittorrent, `minimum` or later (the WebUI build's is
+ * `MIN_WEBUI_QBITTORRENT_VERSION`). A version it can't read (a build of qBittorrent's own) is let
+ * through: only a version known to be too old is refused.
  */
-export function isSupportedVersion(version: string): boolean {
-  return atLeast(version, MIN_QBITTORRENT_VERSION) !== false
+export function isSupportedVersion(version: string, minimum = MIN_QBITTORRENT_VERSION): boolean {
+  return atLeast(version, minimum) !== false
 }
 
 /**

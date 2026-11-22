@@ -261,7 +261,9 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
   const [keptAuth] = useState(() => sharedRequests.peek<ServerSettings>(SERVER_SETTINGS_KEY, Infinity)?.data.auth)
   // Set when the server answers that its login is off, which it was turned since that answer.
   const [loginOff, setLoginOff] = useState(false)
-  const auth = loginOff ? undefined : server ? server.auth : keptAuth
+  // The WebUI build has no Kinopeer server, so nothing here that needs one: its login, an address
+  // the server keeps, its notifications.
+  const auth = __WEBUI__ || loginOff ? undefined : server ? server.auth : keptAuth
   // Nothing in the Sign-in section can work any more: it goes, and the page's answer says so too,
   // so Settings opened again doesn't offer it. With a request for them on its way, its answer is the
   // page's next and says it itself: keeping one now would put a partial answer in its place.
@@ -295,7 +297,7 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
   const prowlarr = useRequest(`check|prowlarr|${prowlarrKeyVersion}`, (signal) => getProwlarrStatus(signal))
   const tmdb = useRequest(`check|tmdb|${tmdbKeyVersion}`, (signal) => checkTmdb(signal))
   // Asked only with a bot, and again for each bot saved (its name is in the key).
-  const telegram = server?.telegram
+  const telegram = __WEBUI__ ? undefined : server?.telegram
   const telegramCheck = useRequest(telegram?.bot ? `check|telegram|${telegram.bot}|${telegramVersion}` : null, (signal) => checkTelegram(signal))
   // The card's check as the last render has it, read when a save from the sheet settles, since it may have
   // failed while the save was on its way.
@@ -430,7 +432,7 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
             onEdit={() => setEditingKey(true)}
           />
           {/* A server before 1.1 has no notifications: no card. */}
-          {server?.telegram && (
+          {telegram && (
             <ConnectionRow
               name="Telegram"
               icon="bell"
@@ -442,7 +444,7 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
               setUpLabel={t('telegram.setUp')}
             />
           )}
-          {server?.push && (
+          {!__WEBUI__ && server?.push && (
             <ConnectionRow
               name={t('push.name')}
               icon="bell"
@@ -459,14 +461,17 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
             />
           )}
         </ul>
-        <p className="t-cap c3 settings-hint">{t('settings.connectionsHint', { context: qbittorrentFromApp || prowlarrFromApp ? 'app' : undefined })}</p>
+        {/* Where the addresses are set: on Kinopeer's server, which the WebUI build has none of. */}
+        {!__WEBUI__ && (
+          <p className="t-cap c3 settings-hint">{t('settings.connectionsHint', { context: qbittorrentFromApp || prowlarrFromApp ? 'app' : undefined })}</p>
+        )}
       </Section>
 
       <Section id="settings-defaults" title={t('settings.downloadDefaults')}>
         <div className="ks-card settings-card">
           {categoryField('movie')}
           {categoryField('tv')}
-          {(server?.notifications ? NOTIFY_SWITCHES : DEFAULT_SWITCHES).map((key) => (
+          {(!__WEBUI__ && server?.notifications ? NOTIFY_SWITCHES : DEFAULT_SWITCHES).map((key) => (
             <div key={key} className="settings-toggle">
               <span className="t-body">{t(`add.${key}`)}</span>
               <Toggle label={t(`add.${key}`)} checked={settings[key]} onChange={(on) => update({ [key]: on })} />
