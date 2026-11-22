@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createServer, preview, resolveConfig } from 'vite'
 import { refusal } from './server/hostCheck.ts'
+import { TMDB_PROXY, TMDB_PROXY_EDGE } from './server/main.ts'
 import { CONTENT_SECURITY_POLICY, SECURITY_HEADERS, WEBUI_CONTENT_SECURITY_POLICY } from './server/securityHeaders.ts'
 import { getWithHost } from './server/test/fakes.ts'
 import { BaseSequencer, type TestSequencerConstructor, type TestSpecification, type Vitest } from 'vitest/node'
@@ -142,6 +143,19 @@ describe('vite.config.ts', () => {
     const [server, webui] = await Promise.all([resolveConfig(options, 'build', modeOf('build')), resolveConfig(options, 'build', modeOf('build:webui'))])
     expect([server.build.outDir, server.define?.__WEBUI__]).toStrictEqual(['dist', 'false'])
     expect([webui.build.outDir, webui.define?.__WEBUI__]).toStrictEqual(['dist-webui/public', 'true'])
+  })
+
+  // The WebUI build calls Kinopeer's TMDB proxy from the page, so the build bakes in the one the image would use.
+  it('gives the build the TMDB proxy the image would use: the release worker unless the environment names another', async () => {
+    const proxyOf = async () => (await resolveConfig(options, 'build', 'webui')).define?.__TMDB_PROXY__
+    vi.stubEnv('TMDB_PROXY_URL', undefined)
+    vi.stubEnv('KINOPEER_TMDB_PROXY', '')
+    expect(await proxyOf()).toBe(JSON.stringify(TMDB_PROXY))
+    vi.stubEnv('KINOPEER_TMDB_PROXY', TMDB_PROXY_EDGE)
+    expect(await proxyOf()).toBe(JSON.stringify(TMDB_PROXY_EDGE))
+    // An empty TMDB_PROXY_URL turns the proxy off, as for the image.
+    vi.stubEnv('TMDB_PROXY_URL', '')
+    expect(await proxyOf()).toBe('""')
   })
 
   // qBittorrent serves the WebUI with no policy but frame-ancestors; Kinopeer's server sends its own as a header.
