@@ -579,17 +579,25 @@ describe('ProwlarrKeyForm in the WebUI build', () => {
 
   beforeEach(() => vi.stubGlobal('__WEBUI__', true))
 
-  it("asks for the address as the browser reaches it, says the key is checked and who can see it, and has no Find, which needs Kinopeer's server", () => {
+  it('asks for the address as the browser reaches it and says the key is checked and who can see it', () => {
     render(<ProwlarrKeyForm onSaved={vi.fn()} askAddress />, { wrapper: ToastProvider })
     expect(screen.getByLabelText('Prowlarr address')).toHaveAccessibleDescription('As this browser reaches it, for example http://192.168.1.10:9696')
     expect(screen.getByLabelText('Prowlarr API key')).toHaveAccessibleDescription(
       'Kinopeer checks it with Prowlarr, then keeps it in qBittorrent, where this browser reads it to call Prowlarr.',
     )
     expect(screen.getByText('This browser sees the key')).toBeInTheDocument()
-    // Said as the form opens, not announced as news.
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    // Said as the form opens, not announced as news (Find's empty status region below it says nothing yet).
+    expect(screen.getByText('This browser sees the key').closest('[role="status"], [role="alert"]')).toBeNull()
     expect(screen.getByText(/anyone with qBittorrent’s login, a browser extension or a release’s link can see it/)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Find Prowlarr' })).not.toBeInTheDocument()
+  })
+
+  it('fills the address with one Find found from the page (#560)', async () => {
+    findAddresses.mockResolvedValue(['http://192.168.1.20:9696'])
+    render(<ProwlarrKeyForm onSaved={vi.fn()} askAddress />, { wrapper: ToastProvider })
+    await userEvent.click(screen.getByRole('button', { name: 'Find Prowlarr' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'http://192.168.1.20:9696' }))
+    expect(screen.getByLabelText('Prowlarr address')).toHaveValue('http://192.168.1.20:9696')
+    expect(findAddresses).toHaveBeenCalledWith('prowlarr', expect.any(AbortSignal))
   })
 
   it('says on the address that the browser won’t call Prowlarr over HTTP from qBittorrent over HTTPS', async () => {
