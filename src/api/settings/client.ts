@@ -18,7 +18,7 @@ import { isContainerHint, isSourceAddress } from '../containerHints'
 import { SettingsError } from './errors'
 import { fetchKinopeer } from '../fetchKinopeer'
 import { sharedRequests } from '../../logic/sharedRequests'
-import { forgetWebuiTmdbKey, loadWebuiServerSettings, saveWebuiDownloadDefaults, saveWebuiProwlarr, saveWebuiTmdbKey } from './webui'
+import { findWebuiProwlarr, forgetWebuiTmdbKey, loadWebuiServerSettings, saveWebuiDownloadDefaults, saveWebuiProwlarr, saveWebuiTmdbKey } from './webui'
 
 /** Settings the Kinopeer server keeps (server/settings.ts). */
 export const SETTINGS_BASE = '/api/settings'
@@ -110,6 +110,8 @@ export function saveProwlarrKey(apiKey: string, url?: string): Promise<ServerSet
  * can't be saved from the app.
  */
 export async function findAddresses(service: 'qbittorrent' | 'prowlarr', signal?: AbortSignal): Promise<string[]> {
+  // The WebUI build's page looks for Prowlarr itself; it asks for no qBittorrent address.
+  if (__WEBUI__) return findWebuiProwlarr(signal)
   const response = await fetchKinopeer(`${SETTINGS_BASE}/${service}/find`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

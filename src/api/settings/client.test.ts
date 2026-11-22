@@ -103,6 +103,14 @@ describe('findAddresses (#511)', () => {
     expect(fetchMock.mock.calls[1][0]).toBe('/api/settings/prowlarr/find')
   })
 
+  it('looks for Prowlarr from the page in the WebUI build, asking Kinopeer’s server nothing', async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    vi.stubGlobal('location', new URL('http://192.168.1.20:8080/'))
+    fetchMock.mockImplementation(async (url) => new Response(null, { status: new URL(String(url)).hostname === 'localhost' ? 401 : 404 }))
+    expect(await findAddresses('prowlarr')).toEqual(['http://localhost:9696'])
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).not.toContain('/api/settings/prowlarr/find')
+  })
+
   it('fails with the server’s refusal, or an answer that isn’t its', async () => {
     fetchMock.mockResolvedValueOnce(Response.json({ error: 'auth-off' }, { status: 409 }))
     await expect(findAddresses('prowlarr')).rejects.toMatchObject({ status: 409, code: 'auth-off' })
