@@ -72,9 +72,9 @@ export function createSaves(): Saves {
     watch(kind, watcher) {
       const ofKind = watchers.get(kind) ?? new Set()
       watchers.set(kind, ofKind.add(watcher))
+      // A kind's set stays once empty: the kinds are a few names.
       return () => {
         ofKind.delete(watcher)
-        if (ofKind.size === 0) watchers.delete(kind)
       }
     },
     clear() {

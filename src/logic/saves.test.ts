@@ -35,6 +35,14 @@ describe('createSaves', () => {
     expect(listener).toHaveBeenCalledTimes(4)
   })
 
+  it('tells a listener nothing once it unsubscribed', async () => {
+    const saves = createSaves()
+    const listener = vi.fn()
+    saves.subscribe(listener)()
+    await saves.send('folder', 'default', '/media', () => Promise.resolve())
+    expect(listener).not.toHaveBeenCalled()
+  })
+
   it('sends nothing for a target while its save is in flight, so it never goes out twice', async () => {
     const saves = createSaves()
     const first = request()
