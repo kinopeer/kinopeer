@@ -5,7 +5,7 @@ import { AuthError, signOut } from '../api/auth'
 import { failureOf } from '../api/connectionFailure'
 import { ProwlarrSetupError, getProwlarrStatus } from '../api/prowlarr'
 import { APP_VERSION_FRESH_MS, APP_VERSION_KEY, getAppVersion, getCategories, unreachable } from '../api/qbittorrent'
-import { TmdbKeyError, checkTmdb } from '../api/tmdb'
+import { TmdbKeyError, TmdbKeyReadError, checkTmdb } from '../api/tmdb'
 import {
   SERVER_SETTINGS_FRESH_MS,
   SERVER_SETTINGS_KEY,
@@ -309,7 +309,10 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
 
   /** A check's service didn't answer, or Kinopeer's server didn't answer for it, as the qBittorrent card says (#566). */
   const noAnswer = (error: unknown, service: 'prowlarr' | 'tmdb' | 'telegram') =>
-    unreachableText(unreachable(error)) ? t('noAnswer.qbittorrent_kinopeer') : t(`noAnswer.${service}`)
+    unreachableText(unreachable(error))
+      ? t('noAnswer.qbittorrent_kinopeer')
+      : // In the WebUI build, qBittorrent may not have given the TMDB key: it didn't answer, not TMDB.
+        t(__WEBUI__ && error instanceof TmdbKeyReadError ? 'noAnswer.qbittorrent' : `noAnswer.${service}`)
 
   /** The Telegram card: a failed check first, then what the settings say of the chat. */
   const telegramStatus = (): ConnectionStatus => {

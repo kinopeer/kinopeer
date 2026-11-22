@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router'
 import {
   TmdbKeyError,
+  TmdbKeyReadError,
   discoverTitles,
   posterUrl,
   searchTitles,
@@ -114,7 +115,11 @@ export function SearchScreen() {
   const request = searching ? search : browse
   // Nothing left because the type's rows failed, not because TMDB had nothing: their error, not "nothing to suggest".
   // A wrong key found by a next page shows the key screen too: Try again under the results would only fail again.
-  const moreKeyError = search.moreError instanceof TmdbKeyError ? search.moreError : undefined
+  // So does a key the WebUI build couldn't read from qBittorrent, which names qBittorrent and brings back its login.
+  const moreKeyError =
+    search.moreError instanceof TmdbKeyError || (__WEBUI__ && search.moreError instanceof TmdbKeyReadError)
+      ? search.moreError
+      : undefined
   // Whether Kinopeer's server didn't answer for the next page (#553): `qbittorrent` here is TMDB.
   const moreWho = unreachable(search.moreError)
   const moreKinopeer = unreachableText(moreWho)
@@ -193,7 +198,9 @@ export function SearchScreen() {
 
       <section className="search-body" aria-busy={loading}>
         {error ? (
-          <TmdbFailedState error={error} onRetry={request.retry} />
+          // A next page whose key the WebUI build couldn't read is tried again by Show more: the first page is
+          // kept, so retry would ask nothing. A key error's state has no Try again.
+          <TmdbFailedState error={error} onRetry={__WEBUI__ && error === moreKeyError ? search.showMore : request.retry} />
         ) : loading ? (
           <div className="ks-poster-grid" role="status">
             <span className="sr-only">{t('search.loading')}</span>

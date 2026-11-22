@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv, normalizePath, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
-import { TMDB_PROXY_EDGE, dataStores, kinopeerServer, loadStores, type KinopeerServer } from './server/main.ts'
+import { TMDB_PROXY_EDGE, dataStores, kinopeerServer, loadStores, tmdbProxy, type KinopeerServer } from './server/main.ts'
 import { SECURITY_HEADERS, WEBUI_CONTENT_SECURITY_POLICY, contentSecurityPolicy } from './server/securityHeaders.ts'
 import type { TestSequencer, TestSpecification, Vitest } from 'vitest/node'
 import { relatedFilesFirst } from './scripts/test-order/testOrder.ts'
@@ -230,8 +230,13 @@ export default defineConfig(({ mode }) => {
   return {
     // Shown in Settings → About (src/version.d.ts). Edge builds of main (.github/workflows/edge.yml)
     // pass the commit, so the version says which one is running: 0.6.0+abc1234.
-    // `__WEBUI__`: which build this is (buildTarget, above).
-    define: { __APP_VERSION__: JSON.stringify(appVersion), __WEBUI__: JSON.stringify(target.webui) },
+    // `__WEBUI__`: which build this is (buildTarget, above). `__TMDB_PROXY__`: the TMDB proxy the WebUI
+    // build calls, the release worker unless the environment names another, as for the image (Dockerfile).
+    define: {
+      __APP_VERSION__: JSON.stringify(appVersion),
+      __WEBUI__: JSON.stringify(target.webui),
+      __TMDB_PROXY__: JSON.stringify(tmdbProxy(env) ?? ''),
+    },
     // Vite answers CORS preflights from any localhost origin before server/ middleware runs, which
     // would let a page on another local port send /qbt the X-Kinopeer header (server/qbittorrent.ts).
     // The app calls only its own origin. `vite preview` takes this too (vite.config.test.ts).

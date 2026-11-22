@@ -3,6 +3,7 @@ import { BRIDGE_HEADER, KinopeerUnreachableError, unreachable } from '../qbittor
 import {
   TmdbError,
   TmdbKeyError,
+  backdropUrl,
   discoverTitles,
   getMovie,
   getRecommendations,
@@ -157,9 +158,24 @@ describe('searchTitles', () => {
   })
 })
 
+describe('the WebUI build', () => {
+  it("calls TMDB from the page rather than through Kinopeer's server", async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    vi.stubGlobal('__TMDB_PROXY__', 'https://tmdb.example.test/3')
+    vi.stubGlobal('location', new URL('http://192.168.1.20:8080/'))
+    // qBittorrent keeps no key of the user's own, then the proxy's answer.
+    fetchMock.mockResolvedValueOnce(Response.json({})).mockResolvedValueOnce(Response.json({ ...dune, genres: [] }))
+    await expect(getMovie(693134, { language: 'en-US' })).resolves.toMatchObject({ id: 693134 })
+    expect(lastUrl()).toBe('https://tmdb.example.test/3/movie/693134?language=en-US')
+  })
+})
+
 describe('errors', () => {
   it('reports a missing proxy route as a key problem', async () => {
     respond('Not Found', 404, 'text/plain')
+    await expect(getMovie(1)).rejects.toBeInstanceOf(TmdbKeyError)
+    // An answer that says no type at all is no JSON either.
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 404, headers: { [BRIDGE_HEADER]: '1' } }))
     await expect(getMovie(1)).rejects.toBeInstanceOf(TmdbKeyError)
   })
 
@@ -229,6 +245,14 @@ describe('helpers', () => {
   it('builds same-origin image URLs', () => {
     expect(posterUrl('/abc.jpg', 'w185')).toBe('/tmdb-img/w185/abc.jpg')
     expect(posterUrl(null)).toBeUndefined()
+    expect(backdropUrl('/abc.jpg')).toBe('/tmdb-img/w1280/abc.jpg')
+    expect(backdropUrl(null)).toBeUndefined()
+  })
+
+  it("takes images from TMDB's own CDN in the WebUI build, which has no server", () => {
+    vi.stubGlobal('__WEBUI__', true)
+    expect(posterUrl('/abc.jpg', 'w185')).toBe('https://image.tmdb.org/t/p/w185/abc.jpg')
+    expect(backdropUrl('/abc.jpg', 'w780')).toBe('https://image.tmdb.org/t/p/w780/abc.jpg')
   })
 
   it('maps app languages to TMDB ones', () => {
