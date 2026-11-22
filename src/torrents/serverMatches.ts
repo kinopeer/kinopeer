@@ -25,8 +25,9 @@ let pending: Matches = {}
 let saveTimer: ReturnType<typeof setTimeout> | undefined
 // What this page already tried to save, so a failing server isn't asked again on every poll.
 const attempted = new Set<string>()
-// When this page last checked which torrents qBittorrent no longer has (WebUI build); never yet.
-let checkedAt = -Infinity
+// When this page last checked which torrents qBittorrent no longer has (WebUI build).
+const NEVER = -Infinity
+let checkedAt = NEVER
 
 function emit(): void {
   for (const listener of listeners) listener()
@@ -175,5 +176,5 @@ export function resetServerMatches(): void {
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = undefined
   attempted.clear()
-  checkedAt = -Infinity
+  checkedAt = NEVER
 }
