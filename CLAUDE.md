@@ -55,7 +55,7 @@ npm run test:smoke          # smoke journeys in Chromium through the production 
 npm run test:smoke:webui    # the WebUI's smoke journeys through a real qBittorrent 5.2.0, in Docker
 ```
 
-Run lint, typecheck, test, build and size before pushing, the requests test when a screen's data or what it loads changes, and the screenshot tests when the UI changes; `npm run guard` shows what the checks guard will mark in the PR. CI must be green before merge.
+Run lint, typecheck, test, build and size before pushing, the requests test when a screen's data or what it loads changes, the WebUI's smoke journeys (Docker) when the WebUI build's login, its calls to qBittorrent or what it keeps in qBittorrent change, and the screenshot tests when the UI changes; `npm run guard` shows what the checks guard will mark in the PR. CI must be green before merge.
 
 ## Architecture
 
