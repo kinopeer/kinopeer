@@ -145,6 +145,12 @@ describe('statusDirect', () => {
     await expect(statusDirect()).rejects.toMatchObject({ name: 'ProwlarrError', code: 'upstream' })
   })
 
+  it('reads an indexer list that isn’t JSON as an answer that isn’t Prowlarr’s, not as no indexers', async () => {
+    answers['/api/v1/system/status'] = () => Response.json({ version: '3.0.2.5780' })
+    answers['/api/v1/indexer'] = () => new Response('<html>Sign in</html>', { headers: { 'Content-Type': 'text/html' } })
+    await expect(statusDirect()).rejects.toMatchObject({ name: 'ProwlarrError', code: 'upstream' })
+  })
+
   it.each([['null', null], ['a string', 'ok']])('reads a status of %s as an answer that isn’t Prowlarr’s', async (_case, system) => {
     answers['/api/v1/system/status'] = () => Response.json(system)
     answers['/api/v1/indexer'] = () => Response.json([])

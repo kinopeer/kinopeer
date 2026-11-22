@@ -677,6 +677,16 @@ describe('AddReleaseSheet', () => {
       expect(screen.queryByText(/Magnet link: all files/)).not.toBeInTheDocument()
     })
 
+    it('finds a magnet link’s torrent by the link’s hash in the WebUI build too, not by the one Prowlarr gave', async () => {
+      vi.stubGlobal('__WEBUI__', true)
+      const hash = 'd'.repeat(40)
+      fetchRelease.mockResolvedValue({ kind: 'magnet', uri: `magnet:?xt=urn:btih:${hash}` })
+      getTorrents.mockResolvedValue([torrent(hash)])
+      renderSheet({ ...RELEASE, infoHash: 'e'.repeat(40) })
+      expect(await screen.findByRole('status', { name: saying('Already in downloads') })).toBeInTheDocument()
+      expect(getTorrents).toHaveBeenCalledWith({ hashes: [hash] }, expect.any(AbortSignal))
+    })
+
     it('finds the torrent behind a link qBittorrent would follow by the hash Prowlarr gave with the release', async () => {
       vi.stubGlobal('__WEBUI__', true)
       const hash = 'f'.repeat(40)
