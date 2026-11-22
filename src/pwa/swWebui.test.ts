@@ -48,7 +48,11 @@ describe('loadPage', () => {
     const other = page(QBITTORRENT)
     const order: string[] = []
     const load = stand(async () => other)
-    load.forget.mockImplementation(async () => void order.push('forgot'))
+    // Forgetting takes a while, as unregistering and deleting caches do; the answer waits for it.
+    load.forget.mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10))
+      order.push('forgot')
+    })
     const answer = await loadPage(request, load).then((response) => (order.push('answered'), response))
     expect(answer).toBe(other)
     expect(order).toEqual(['forgot', 'answered'])
