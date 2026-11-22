@@ -99,8 +99,10 @@ describe('useScrollRestoration', () => {
       release()
     }
     expect(tabPlace('/')?.y).toBe(640)
+    // The release puts the window back itself: only Back's own restore counts.
+    scrollTo.mockClear()
     await user.click(screen.getByRole('button', { name: 'Back' }))
-    expect(scrollTo).toHaveBeenLastCalledWith(0, 640)
+    expect(scrollTo).toHaveBeenCalledWith(0, 640)
   })
 
   it('saves where the page really is as it’s hidden while a modal with a field holds it by the top, as Open again reloads it (#553)', () => {
