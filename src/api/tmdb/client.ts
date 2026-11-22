@@ -70,8 +70,11 @@ async function request<T>(path: string, params: QueryParams, { language, signal 
   }
   // Without the TMDB bridge's mark, something in front of Kinopeer's server answered for it (#537):
   // `unreachable` in the qBittorrent client tells who didn't answer, for TMDB's calls too.
-  if (!response.ok && !response.headers.has(BRIDGE_HEADER)) throw new KinopeerUnreachableError(response.status)
-  if (!response.ok) throw new TmdbError(`TMDB responded ${response.status}`, response.status, retryAfter(response))
+  if (!response.ok) {
+    throw response.headers.has(BRIDGE_HEADER)
+      ? new TmdbError(`TMDB responded ${response.status}`, response.status, retryAfter(response))
+      : new KinopeerUnreachableError(response.status)
+  }
   return (await response.json()) as T
 }
 

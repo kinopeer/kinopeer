@@ -78,8 +78,9 @@ export type Unreachable = 'unreached' | 'kinopeer' | 'qbittorrent'
  * Who a failed request didn't get an answer from: Kinopeer's server when the network failed
  * (fetch's TypeError) or a proxy in front asked to sign in (`unreached`), or answered for it
  * (`kinopeer`). Otherwise the service behind the bridge, `qbittorrent`, which is TMDB for TMDB's
- * calls: a request that took too long included, since the bridge waits for that service, so a
- * request that hangs is most likely waiting on it.
+ * calls. A request that took too long counts as qBittorrent: its bridge waits for qBittorrent with
+ * no limit, so a request that hangs is most likely waiting on it. The TMDB bridge gives up after
+ * `TMDB_TIMEOUT_MS` and answers its own 504, so for TMDB's calls that reading is only likely.
  */
 export function unreachable(error: unknown): Unreachable {
   if (error instanceof TypeError || error instanceof ProxySignInError) return 'unreached'

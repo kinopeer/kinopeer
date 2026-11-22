@@ -268,6 +268,8 @@ describe('ReleasesScreen', () => {
     renderAt('/title/movie/693134/releases')
     expect(await screen.findByRole('heading', { name: 'Couldn’t load from TMDB' })).toBeInTheDocument()
     expect(screen.getByText('Check the connection and try again.')).toBeInTheDocument()
+    // Decorative, like the icon of Kinopeer's state: only its tag finds it.
+    expect(screen.getByRole('button', { name: 'Try again' }).querySelector('svg')).not.toBeNull()
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
     await waitFor(() => expect(screen.queryByRole('heading', { name: 'Couldn’t load from TMDB' })).not.toBeInTheDocument())
     expect(getMovie).toHaveBeenCalledTimes(2)
