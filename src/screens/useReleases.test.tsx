@@ -60,6 +60,13 @@ describe('useReleases', () => {
     expect(result.current.unreachable).toBe(who)
   })
 
+  it('names no one who didn’t answer a search that was answered (#566)', async () => {
+    vi.mocked(prowlarr.searchReleases).mockResolvedValue(DUNE_RELEASES)
+    const { result } = renderHook(() => useReleases(movie(1, 'Dune')))
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    expect(result.current.unreachable).toBeUndefined()
+  })
+
   it("starts another title's search without the last one's picks", async () => {
     const { result, rerender } = renderHook(({ details }) => useReleases(details), { initialProps: { details: movie(1, 'Dune') } })
     await waitFor(() => expect(result.current.status).toBe('ready'))
