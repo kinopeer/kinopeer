@@ -1091,13 +1091,13 @@ has the budgets' rule.
   against 0.0888 with motion on). Both are set in the test, not taken from the configs it builds
   on: the share of the window that moves is the score, so each size reads its own number.
 - **Exact.** Every case in each order read the same number in every run, to the fourth digit: ten
-  runs in a row locally (macOS) and in CI (Linux). On a phone every reading in CI has 0.0002 more
-  than on a Mac, which varies in its sixth digit (0.000179 or 0.000183): the "Connecting" text,
-  before any answer, moves sideways as the font comes in, in one shift or two. On desktop, read in
-  five runs on a Mac and in CI at #402's head, CI reads up to 0.0002 more (downloads and the
-  torrent's drawer), 0.0001 (the title's and the series' page in one order, `desktop-1280`) or the
-  same (the rest). The budgets come from CI's
-  readings. A reading that varies by more is a race in the test (an answer whose content wasn't
+  runs in a row locally (macOS) and in CI (Linux). Where they part is the font coming in: the
+  "Connecting" text, before any answer, moves sideways as the web font replaces the fallback, in
+  one shift or two, which adds 0.000179 or 0.000183 to a phone's reading on a Mac. CI reads in the
+  Playwright image since #502, where it doesn't move: the phone's screens without a shift of their
+  own read 0 there, and desktop's read up to 0.00007 less than on the plain runner before (the
+  table in #533). Until then CI read on that runner, which added 0.000183 on a phone and up to
+  0.0002 on desktop (#402's head). The budgets come from CI's readings. A reading that varies by more is a race in the test (an answer whose content wasn't
   waited for) to find, not noise to budget, but for a jump planted among the titles in Downloads,
   which can read one of two numbers (What it leaves out).
 - **The rules** (the budgets read with their ceiling, the sum, the verdict and its report, the
