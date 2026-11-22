@@ -276,20 +276,20 @@ describe('SearchScreen', () => {
     searchTitles.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     renderScreen('/search?q=dune')
     await userEvent.click(await screen.findByRole('button', { name: 'Show more' }))
-    const failure = await screen.findByRole('alert', { name: saying('Kinopeer isn’t answering') })
+    const failure = await screen.findByRole('alert', { name: saying('Couldn’t load more') })
     expect(within(failure).getByText(/your browser may need to confirm its certificate again/)).toBeInTheDocument()
     await userEvent.click(within(failure).getByRole('button', { name: 'Open again' }))
     expect(proxySignIn.loadPastTheShell).toHaveBeenCalledOnce()
     expect(screen.getByRole('heading', { name: 'Dune: Part Two' })).toBeInTheDocument()
   })
 
-  it('says Kinopeer isn’t answering for the next page without Open again where something answered for its server', async () => {
+  it('says to check that Kinopeer is running when something answered for its server for the next page, without Open again', async () => {
     controlledByServiceWorker()
     searchTitles.mockResolvedValueOnce(page([DUNE], { totalPages: 2 }))
     searchTitles.mockRejectedValueOnce(new KinopeerUnreachableError(502))
     renderScreen('/search?q=dune')
     await userEvent.click(await screen.findByRole('button', { name: 'Show more' }))
-    const failure = await screen.findByRole('alert', { name: saying('Kinopeer isn’t answering') })
+    const failure = await screen.findByRole('alert', { name: saying('Couldn’t load more') })
     expect(within(failure).getByText('Check that this device is online and Kinopeer is running on your server.')).toBeInTheDocument()
     expect(within(failure).queryByRole('button', { name: 'Open again' })).not.toBeInTheDocument()
     expect(within(failure).getByRole('button', { name: 'Try again' })).toBeInTheDocument()

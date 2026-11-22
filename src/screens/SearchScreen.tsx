@@ -227,7 +227,7 @@ export function SearchScreen() {
                 (search.moreError !== undefined ? (
                   <Banner
                     tone="error"
-                    title={moreKinopeer ? t('noAnswer.qbittorrent', { context: moreKinopeer }) : t('search.moreErrorTitle')}
+                    title={t('search.moreErrorTitle')}
                     actionLabel={t('common.retry')}
                     onAction={search.showMore}
                     secondaryActionLabel={moreOpenAgain ? t('common.openAgain') : undefined}
