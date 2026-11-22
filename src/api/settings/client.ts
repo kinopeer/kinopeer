@@ -105,13 +105,13 @@ export function saveProwlarrKey(apiKey: string, url?: string): Promise<ServerSet
 }
 
 /**
- * Find (#511): the addresses where the server found `service` answering, for a form to offer; an
- * empty list when it found none. Rejects with code 'env-address' or 'auth-off' where an address
- * can't be saved from the app.
+ * Find (#511): the addresses where the server found `service` answering, or in the WebUI build where
+ * the page found Prowlarr (#560), for a form to offer; an empty list when it found none. Rejects with
+ * code 'env-address' or 'auth-off' where an address can't be saved from the app.
  */
 export async function findAddresses(service: 'qbittorrent' | 'prowlarr', signal?: AbortSignal): Promise<string[]> {
   // The WebUI build's page looks for Prowlarr itself; it asks for no qBittorrent address.
-  if (__WEBUI__) return findWebuiProwlarr(signal)
+  if (__WEBUI__) return service === 'prowlarr' ? findWebuiProwlarr(signal) : []
   const response = await fetchKinopeer(`${SETTINGS_BASE}/${service}/find`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

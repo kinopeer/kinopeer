@@ -226,8 +226,12 @@ export function isMixedContent(pageProtocol: string | undefined, address: string
   if (pageProtocol !== 'https:') return false
   const { protocol, hostname } = new URL(address)
   if (protocol !== 'http:') return false
-  const loopback = hostname === 'localhost' || hostname.endsWith('.localhost') || hostname === '[::1]' || /^127\.\d+\.\d+\.\d+$/.test(hostname)
-  return !loopback
+  return !isLoopback(hostname)
+}
+
+/** Whether `hostname`, as `URL` gives it, is this device: an address or a name browsers trust over plain HTTP. */
+function isLoopback(hostname: string): boolean {
+  return hostname === 'localhost' || hostname.endsWith('.localhost') || hostname === '[::1]' || /^127\.\d+\.\d+\.\d+$/.test(hostname)
 }
 
 /**
@@ -262,12 +266,16 @@ export const FIND_TIMEOUT_MS = 3000
 const PROWLARR_PORT = 9696
 
 /**
- * Where Find looks for Prowlarr from the page (#560): on Prowlarr's port at qBittorrent's own host,
- * on this device and at Prowlarr's usual name, over plain HTTP as Prowlarr installs, leaving out an
- * address the browser would block as mixed content.
+ * Where Find looks for Prowlarr from the page (#560): on Prowlarr's port at qBittorrent's own host and
+ * at Prowlarr's usual name, over plain HTTP as Prowlarr installs, leaving out an address the browser
+ * would block as mixed content. This device only from a page over HTTPS that isn't on it, where it's
+ * the one plain HTTP address left: from a page on it, qBittorrent's host is this device already, and
+ * from one on the home network Chrome would ask the person to let the page reach this device, for a
+ * Prowlarr that is rarely there.
  */
 export function prowlarrCandidates(page: { protocol: string; hostname: string }): string[] {
-  const hosts = [page.hostname, 'localhost', 'prowlarr']
+  const device = page.protocol === 'https:' && !isLoopback(page.hostname) ? ['localhost'] : []
+  const hosts = [page.hostname, ...device, 'prowlarr']
   const addresses = [...new Set(hosts.map((host) => `http://${host}:${PROWLARR_PORT}`))]
   return addresses.filter((address) => !isMixedContent(page.protocol, address))
 }

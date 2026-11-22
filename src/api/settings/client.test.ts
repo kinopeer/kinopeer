@@ -106,9 +106,13 @@ describe('findAddresses (#511)', () => {
   it('looks for Prowlarr from the page in the WebUI build, asking Kinopeer’s server nothing', async () => {
     vi.stubGlobal('__WEBUI__', true)
     vi.stubGlobal('location', new URL('http://192.168.1.20:8080/'))
-    fetchMock.mockImplementation(async (url) => new Response(null, { status: new URL(String(url)).hostname === 'localhost' ? 401 : 404 }))
-    expect(await findAddresses('prowlarr')).toEqual(['http://localhost:9696'])
+    fetchMock.mockImplementation(async (url) => new Response(null, { status: new URL(String(url)).hostname === 'prowlarr' ? 401 : 404 }))
+    expect(await findAddresses('prowlarr')).toEqual(['http://prowlarr:9696'])
     expect(fetchMock.mock.calls.map(([url]) => String(url))).not.toContain('/api/settings/prowlarr/find')
+    // It asks for no qBittorrent address there, and looks for none.
+    fetchMock.mockClear()
+    expect(await findAddresses('qbittorrent')).toEqual([])
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('fails with the server’s refusal, or an answer that isn’t its', async () => {

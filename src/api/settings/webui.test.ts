@@ -421,49 +421,59 @@ describe('the settings in qBittorrent', () => {
 
 describe('Find for Prowlarr in the WebUI build (#560)', () => {
   it.each([
-    ['qBittorrent’s host, this device and the usual name', 'http://192.168.1.20:8080/', ['http://192.168.1.20:9696', 'http://localhost:9696', 'http://prowlarr:9696']],
-    ['each once', 'http://localhost:8080/', ['http://localhost:9696', 'http://prowlarr:9696']],
-    ['an IPv6 host in brackets', 'http://[fd00::20]:8080/', ['http://[fd00::20]:9696', 'http://localhost:9696', 'http://prowlarr:9696']],
-    // A page over HTTPS can call plain HTTP only on this device.
+    ['qBittorrent’s host and the usual name from a page on the home network', 'http://192.168.1.20:8080/', ['http://192.168.1.20:9696', 'http://prowlarr:9696']],
+    ['this device once from a page on it', 'http://127.0.0.1:8080/', ['http://127.0.0.1:9696', 'http://prowlarr:9696']],
+    ['this device once from a page at localhost', 'http://localhost:8080/', ['http://localhost:9696', 'http://prowlarr:9696']],
+    ['an IPv6 host in brackets', 'http://[fd00::20]:8080/', ['http://[fd00::20]:9696', 'http://prowlarr:9696']],
+    // A page over HTTPS can call plain HTTP only on this device, the one address left to try.
     ['this device alone from a page over HTTPS', 'https://qbt.example.com/', ['http://localhost:9696']],
+    ['this device once from a page on it over HTTPS', 'https://[::1]:8080/', ['http://[::1]:9696']],
   ])('looks at %s', (_case, page, candidates) => {
     expect(prowlarrCandidates(new URL(page))).toEqual(candidates)
   })
 
-  it('answers the addresses where Prowlarr’s API refuses a call without a key, in their order', async () => {
+  it('answers the addresses where Prowlarr’s API refuses a call without a key, in the list’s order however they answer', async () => {
     const cancel = vi.fn()
+    let hostAnswers: (response: Response) => void = () => {}
     fetchMock.mockImplementation(async (url) => {
       const { host } = new URL(String(url))
-      // Prowlarr: its API's 401, which it lets any origin read.
-      if (host === '192.168.1.20:9696') return new Response(new ReadableStream({ cancel }), { status: 401 })
-      // Nothing listens on this device.
-      if (host === 'localhost:9696') throw new TypeError('Failed to fetch')
-      // Another service at the usual name, which answers otherwise.
-      return Response.json({ version: '1' })
+      // Prowlarr at qBittorrent's host, which answers after the one at the usual name.
+      if (host === '192.168.1.20:9696') return new Promise<Response>((resolve) => (hostAnswers = resolve))
+      // Prowlarr at the usual name: its API's 401, which it lets any origin read.
+      return new Response(new ReadableStream({ cancel }), { status: 401 })
     })
-    await expect(findWebuiProwlarr()).resolves.toEqual(['http://192.168.1.20:9696'])
-    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
-      'http://192.168.1.20:9696/api/v1/system/status',
-      'http://localhost:9696/api/v1/system/status',
-      'http://prowlarr:9696/api/v1/system/status',
-    ])
+    const found = findWebuiProwlarr()
+    await vi.waitFor(() => expect(cancel).toHaveBeenCalledOnce())
+    hostAnswers(new Response(null, { status: 401 }))
+    await expect(found).resolves.toEqual(['http://192.168.1.20:9696', 'http://prowlarr:9696'])
     // A plain GET with no header, which needs no preflight.
     expect(fetchMock.mock.calls.every(([, init]) => init?.headers === undefined && init?.method === undefined)).toBe(true)
     // The connection freed rather than left with its body unread.
     expect(cancel).toHaveBeenCalledOnce()
   })
 
+  it('leaves out an address where nothing answers or another service answers otherwise', async () => {
+    fetchMock.mockImplementation(async (url) => {
+      // Nothing listens at qBittorrent's host on Prowlarr's port.
+      if (new URL(String(url)).host === '192.168.1.20:9696') throw new TypeError('Failed to fetch')
+      // Another service at the usual name.
+      return Response.json({ version: '1' })
+    })
+    await expect(findWebuiProwlarr()).resolves.toEqual([])
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual(['http://192.168.1.20:9696/api/v1/system/status', 'http://prowlarr:9696/api/v1/system/status'])
+  })
+
   it('waits for each address no longer than its time limit', async () => {
     vi.useFakeTimers()
     fetchMock.mockImplementation(async (url, init) => {
-      if (new URL(String(url)).host === 'localhost:9696') return new Response(null, { status: 401 })
+      if (new URL(String(url)).host === 'prowlarr:9696') return new Response(null, { status: 401 })
       return new Promise((_resolve, reject) => init!.signal!.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError'))))
     })
     const found = findWebuiProwlarr()
     await vi.advanceTimersByTimeAsync(FIND_TIMEOUT_MS - 1)
     expect(await Promise.race([found, 'waiting'])).toBe('waiting')
     await vi.advanceTimersByTimeAsync(1)
-    await expect(found).resolves.toEqual(['http://localhost:9696'])
+    await expect(found).resolves.toEqual(['http://prowlarr:9696'])
   })
 
   it('passes on the abort of a form closed while it looks', async () => {

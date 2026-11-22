@@ -15,7 +15,8 @@ export interface FindAddressProps {
 
 /**
  * Under a form's address field (#511): asks the server where the service answers, at the usual
- * names and ports and on the server's own network, and offers each address found to fill the field.
+ * names and ports and on the server's own network, or in the WebUI build has the page look for
+ * Prowlarr itself (#560), and offers each address found to fill the field.
  */
 export function FindAddress({ service, onPick, onRefused }: FindAddressProps) {
   const { t } = useTranslation()
@@ -25,7 +26,7 @@ export function FindAddress({ service, onPick, onRefused }: FindAddressProps) {
   const running = useRef<AbortController | undefined>(undefined)
   const name = SERVICE_NAMES[service]
 
-  // A form closed while the server looks stops it looking.
+  // A form closed while the server or the page looks stops it looking.
   useEffect(() => () => running.current?.abort(), [])
 
   const find = async () => {
