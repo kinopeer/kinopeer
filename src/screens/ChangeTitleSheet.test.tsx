@@ -123,3 +123,26 @@ describe('ChangeTitleSheet', () => {
     expect(onClose).toHaveBeenCalled()
   })
 })
+
+describe('ChangeTitleSheet in the WebUI build', () => {
+  const STORE_FULL = 'Couldn’t save the choice. qBittorrent’s store for web interfaces is full: it holds 1 MiB for all of them. Another interface used with this qBittorrent may have filled it.'
+
+  it('says qBittorrent keeps the choice, not a Kinopeer server', () => {
+    vi.stubGlobal('__WEBUI__', true)
+    renderSheet()
+    expect(screen.getByText('Your choice is kept in qBittorrent and shows on every device that signs in to it.')).toBeInTheDocument()
+    expect(screen.queryByText(/Kinopeer server/)).not.toBeInTheDocument()
+  })
+
+  it('says qBittorrent’s store had no room for the choice', () => {
+    vi.stubGlobal('__WEBUI__', true)
+    renderSheet(null, { failed: 'store-full' })
+    expect(screen.getByRole('alert', { name: saying(STORE_FULL) })).toBeInTheDocument()
+  })
+
+  it('says any other failure as the server build does', () => {
+    vi.stubGlobal('__WEBUI__', true)
+    renderSheet(null, { failed: true })
+    expect(screen.getByRole('alert', { name: saying('Couldn’t save the choice. Try again.') })).toBeInTheDocument()
+  })
+})

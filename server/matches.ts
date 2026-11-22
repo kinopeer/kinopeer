@@ -1,4 +1,5 @@
-import type { Matches, MatchesErrorBody, MatchesPatch, SentMatch, StoredMatch } from '../src/api/matches/types.ts'
+import type { Matches, MatchesErrorBody, MatchesPatch } from '../src/api/matches/types.ts'
+import { CHECK_INTERVAL_MS, HASH, MISSING_GRACE_MS, merged, pruned, validMatch, withoutGuesses } from '../src/logic/titleMatches.ts'
 import { isJsonRequest, readJson, sendJson } from './json.ts'
 import { JsonFile } from './jsonFile.ts'
 import type { Middleware } from './prowlarr.ts'
@@ -16,9 +17,9 @@ import type { Middleware } from './prowlarr.ts'
  * after a restart, and a torrent added back within the week keeps its match.
  *
  * GET /api/matches → Matches
- * PATCH /api/matches MatchesPatch → saves them where `replaces` lets them (never a guess or a miss
- *   over the user's choice, nothing over a newer version of guessing, no miss over a guess of the
- *   same version), and forgets those set to null; answers Matches
+ * PATCH /api/matches MatchesPatch → saves them where `replaces` (src/logic/titleMatches.ts) lets
+ *   them (never a guess or a miss over the user's choice, nothing over a newer version of guessing,
+ *   no miss over a guess of the same version), and forgets those set to null; answers Matches
  * DELETE /api/matches → forgets every guess and miss (Settings → Clear cache), keeps the user's choices
  */
 export class MatchesStore extends JsonFile<Matches> {
@@ -28,14 +29,7 @@ export class MatchesStore extends JsonFile<Matches> {
 
   /** Saves `changes` over what is kept, where `replaces` lets them, and forgets those set to null. */
   save(changes: MatchesPatch): Promise<Matches> {
-    return this.change((current) => {
-      const next = { ...current }
-      for (const [hash, match] of Object.entries(changes)) {
-        if (match === null) delete next[hash]
-        else if (replaces(match, current[hash])) next[hash] = match
-      }
-      return next
-    })
+    return this.change((current) => merged(current, changes))
   }
 
   /**
@@ -43,80 +37,21 @@ export class MatchesStore extends JsonFile<Matches> {
    * gone for `graceMs`; a torrent that is back loses its note.
    */
   prune(present: Set<string>, graceMs: number, now: number): Promise<Matches> {
-    return this.change((current) => {
-      let changed = false
-      const next: Matches = {}
-      for (const [hash, match] of Object.entries(current)) {
-        if (present.has(hash)) {
-          if (match.missingSince === undefined) {
-            next[hash] = match
-          } else {
-            const back = { ...match }
-            delete back.missingSince
-            next[hash] = back
-            changed = true
-          }
-        } else if (match.missingSince === undefined) {
-          next[hash] = { ...match, missingSince: now }
-          changed = true
-        } else if (now - match.missingSince < graceMs) {
-          next[hash] = match
-        } else {
-          changed = true
-        }
-      }
-      return changed ? next : current
-    })
+    return this.change((current) => pruned(current, (hash) => present.has(hash), graceMs, now))
   }
 
   /** Forgets every guess and miss, so browsers guess again; the user's choices stay. */
   clearGuesses(): Promise<Matches> {
-    return this.change((current) =>
-      Object.fromEntries(Object.entries(current).filter(([, match]) => match.source === 'user')),
-    )
+    return this.change(withoutGuesses)
   }
 }
 
 const PATH = '/api/matches'
 // About a thousand matches per request.
 const MAX_BODY_BYTES = 128 * 1024
-// qBittorrent's info hash: SHA-1 (v1, or v2 truncated), or a full v2 SHA-256.
-const HASH = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/
 
 function fail(response: Parameters<Middleware>[1], status: number, error: MatchesErrorBody['error']): void {
   sendJson(response, status, { error } satisfies MatchesErrorBody)
-}
-
-/**
- * Whether a match sent replaces the one kept: the user's choice replaces anything and only the
- * user's choice replaces it. Otherwise a newer version of guessing replaces an older one (a guess
- * saved without a version is the oldest), nothing replaces a newer one, and of the same version a
- * guess replaces either, a miss neither. A device whose page loaded the matches before another one
- * found the title still sends its miss, which would take that title from every device; a page open
- * since before guessing changed would take the newer match back to its version, so every device
- * guessed again.
- */
-function replaces(match: SentMatch, kept: StoredMatch | undefined): boolean {
-  if (match.source === 'user' || !kept) return true
-  if (kept.source === 'user') return false
-  const sent = match.version ?? 0
-  const held = kept.version ?? 0
-  return sent > held || (sent === held && match.source !== 'miss')
-}
-
-function validMatch(value: unknown): value is SentMatch {
-  if (!value || typeof value !== 'object') return false
-  const { type, id, source, version, ...rest } = value as Record<string, unknown>
-  const validVersion = Number.isSafeInteger(version) && (version as number) > 0
-  if (Object.keys(rest).length > 0) return false
-  if (source === 'miss') return type === undefined && id === undefined && validVersion
-  return (
-    (type === 'movie' || type === 'tv') &&
-    Number.isSafeInteger(id) &&
-    (id as number) > 0 &&
-    (source === 'user' || source === 'guess') &&
-    (version === undefined || validVersion)
-  )
 }
 
 function validPatch(value: unknown): value is MatchesPatch {
@@ -159,8 +94,6 @@ async function write(response: Parameters<Middleware>[1], change: () => Promise<
 
 // The first check waits a minute after start, so qBittorrent has time to come up with the server.
 const FIRST_CHECK_MS = 60_000
-export const CHECK_INTERVAL_MS = 60 * 60_000
-export const MISSING_GRACE_MS = 7 * 24 * 60 * 60_000
 
 /** Every info hash qBittorrent has, or undefined when it didn't answer with its list. */
 export async function qbittorrentHashes(get: (path: string) => Promise<Response>): Promise<Set<string> | undefined> {

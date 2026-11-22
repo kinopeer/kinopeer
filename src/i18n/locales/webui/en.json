@@ -7,6 +7,8 @@
     "keyStoreFull": "The key wasn’t saved. $t(webui.storeFull)",
     "prowlarrStoreFull": "Prowlarr’s address and key weren’t saved. $t(webui.storeFull)",
     "defaultsStoreFull": "Saved in this browser, not in qBittorrent, whose value may come back when the page is reloaded. $t(webui.storeFull)",
+    "matchStoreFull": "Couldn’t save the choice. $t(webui.storeFull)",
+    "matchHint": "Your choice is kept in qBittorrent and shows on every device that signs in to it.",
     "tmdbKeyBody": "Posters, search and metadata come from The Movie Database. Kinopeer’s own key works only when qBittorrent is opened at a local address, so here use a free API key (v3) or read access token of your own. Kinopeer keeps it in qBittorrent.",
     "tmdbKeyFieldHelp": "Kept in qBittorrent, for every device that signs in to it.",
     "prowlarrSetupBody": "Kinopeer finds releases through Prowlarr. Enter its address as this browser reaches it, and its API key. Without Prowlarr everything works but finding releases.",

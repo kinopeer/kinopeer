@@ -8,8 +8,8 @@ export const AUTH_BASE = '/api/auth'
 
 /**
  * The shortest and the longest password the server takes: `MIN_PASSWORD_LENGTH` and
- * `MAX_PASSWORD_LENGTH` in server/auth.ts, which can't import these (the image has no src/), so
- * server/integration/auth.test.ts checks they're the same.
+ * `MAX_PASSWORD_LENGTH` in server/auth.ts, which can't import these (the image carries none of src/
+ * but src/logic/titleMatches.ts), so server/integration/auth.test.ts checks they're the same.
  */
 export const MIN_PASSWORD_LENGTH = 8
 export const MAX_PASSWORD_LENGTH = 256

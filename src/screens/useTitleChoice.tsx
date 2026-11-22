@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Torrent } from '../api/qbittorrent'
+import { isStoreFull } from '../api/qbittorrent/webui'
 import { useToast } from '../components/Toast'
 import { useTmdbLanguage } from '../settings/settings'
 import { REQUEST_KINDS } from '../torrents/requestKinds'
@@ -47,7 +48,7 @@ export function useChangeTitle({ torrents, matchOf }: {
     const settled = await send(target, { title }, () => chooseTitle(target.hash, title, language))
     if (!settled) return
     if (settled.ok) toast.show(t('match.changed'))
-    else if (!settled.showing) toast.show(t('match.saveFailed'), { icon: 'alert', key: TOAST_KEYS.title })
+    else if (!settled.showing) toast.show(t(__WEBUI__ && isStoreFull(settled.error) ? 'webui.matchStoreFull' : 'match.saveFailed'), { icon: 'alert', key: TOAST_KEYS.title })
   }
 
   const element = torrent && (
@@ -56,7 +57,7 @@ export function useChangeTitle({ torrents, matchOf }: {
       torrent={torrent}
       current={matchOf(torrent)}
       saving={pending(torrent.hash)?.title}
-      failed={failure !== undefined}
+      failed={__WEBUI__ && failure && isStoreFull(failure.error) ? 'store-full' : failure !== undefined}
       onPick={(title) => void pick(torrent, title)}
       onClose={close}
     />

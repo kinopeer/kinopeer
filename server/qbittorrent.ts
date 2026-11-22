@@ -163,7 +163,7 @@ const CLIENT_HEADER = 'x-kinopeer'
  * On every answer of the bridge, and of the TMDB bridge (server/tmdb.ts), so the client tells a
  * failure of qBittorrent's or TMDB's from one that never reached Kinopeer's server (a proxy in front
  * answering for it): `BRIDGE_HEADER` in src/api/qbittorrent/client.ts, which server code can't
- * import (the image has no src/).
+ * import (the image carries none of src/ but src/logic/titleMatches.ts).
  */
 export const BRIDGE_HEADER = 'x-kinopeer-bridge'
 /**

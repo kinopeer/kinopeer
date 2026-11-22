@@ -27,8 +27,8 @@ export interface ChangeTitleSheetProps {
   current?: TitleMatch | null
   /** A title being saved for the torrent, picked here or elsewhere: every pick is off meanwhile. */
   saving?: Pick<TitleMatch, 'type' | 'id'>
-  /** The last save failed while this showed the torrent. */
-  failed: boolean
+  /** The last save failed while this showed the torrent; in the WebUI build, 'store-full' when qBittorrent's store had no room. */
+  failed: boolean | 'store-full'
   onPick: (title: Title) => void
   onClose: () => void
 }
@@ -40,7 +40,8 @@ function details(t: TFunction, title: Title): string {
 
 /**
  * Finds the torrent's title in TMDB, starting from the name guessed from the release, for the user
- * to pick. `useChangeTitle` renders it and saves the pick on the Kinopeer server as their choice.
+ * to pick. `useChangeTitle` renders it and saves the pick on the Kinopeer server (in qBittorrent in the
+ * WebUI build) as their choice.
  */
 export function ChangeTitleSheet({ torrent, current, saving, failed, onPick, onClose }: ChangeTitleSheetProps) {
   const { t } = useTranslation()
@@ -65,7 +66,7 @@ export function ChangeTitleSheet({ torrent, current, saving, failed, onPick, onC
       title={t('match.title')}
       subtitle={torrent.name}
       action={<IconButton icon="close" label={t('common.cancel')} onClick={onClose} />}
-      footer={<p className="t-cap c3 retitle-hint">{t('match.hint')}</p>}
+      footer={<p className="t-cap c3 retitle-hint">{t(__WEBUI__ ? 'webui.matchHint' : 'match.hint')}</p>}
       size="lg"
       className="retitle-sheet"
     >
@@ -101,7 +102,7 @@ export function ChangeTitleSheet({ torrent, current, saving, failed, onPick, onC
             { value: 'tv', label: t('types.tv') },
           ]}
         />
-        {failed && <Banner tone="error">{t('match.saveFailed')}</Banner>}
+        {failed && <Banner tone="error">{t(__WEBUI__ && failed === 'store-full' ? 'webui.matchStoreFull' : 'match.saveFailed')}</Banner>}
       </div>
 
       <div className="retitle-results" aria-busy={loading}>

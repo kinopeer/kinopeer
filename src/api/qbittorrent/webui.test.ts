@@ -83,8 +83,8 @@ describe('logIn', () => {
   })
 })
 
-// Checked against qBittorrent 5.3.0 in Docker (#558): `clientdata/load` answers a GET with `keys` as
-// a JSON array, only the keys it has; `clientdata/store` takes a POST whose `data` is a JSON object,
+// Checked against qBittorrent 5.3.0 in Docker (#558, #561): `clientdata/load` answers a GET with `keys`
+// as a JSON array, only the keys it has, and one without `keys` every key it has; `clientdata/store` takes a POST whose `data` is a JSON object,
 // answers 204, merges it key by key and removes a key sent as null; past 1 MiB for the whole store it
 // answers 409 and keeps none of it.
 describe('clientdata', () => {
@@ -104,6 +104,14 @@ describe('clientdata', () => {
     caller.abort()
     await expect(load).rejects.toThrow()
     expect(fetchMock.mock.calls[1][1]!.signal!.aborted).toBe(true)
+  })
+
+  it('asks qBittorrent for every key it keeps when no keys are named', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json({ 'kinopeer.a': 1, 'other.b': 2 }))
+    await expect(loadClientData()).resolves.toEqual({ 'kinopeer.a': 1, 'other.b': 2 })
+    const asked = new URL(String(fetchMock.mock.calls[0][0]), 'http://qbt.test/')
+    expect(asked.pathname).toBe('/api/v2/clientdata/load')
+    expect(asked.search).toBe('')
   })
 
   it.each([['an array', [1]], ['null', null], ['a string', 'x']])('reads an answer that is %s as nothing kept', async (_, answer) => {

@@ -2,8 +2,11 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/matches'
 import type { Matches } from '../api/matches'
+import * as webui from '../api/matches/webui'
+import { CHECK_INTERVAL_MS, MISSING_GRACE_MS } from '../logic/titleMatches'
 import {
   SAVE_DELAY_MS,
+  checkMissingMatches,
   chooseMatch,
   currentServerMatches,
   forgetMatches,
@@ -21,7 +24,13 @@ vi.mock('../api/matches', async (importOriginal) => ({
   clearGuesses: vi.fn(),
 }))
 
+vi.mock('../api/matches/webui', async (importOriginal) => ({
+  ...(await importOriginal<typeof webui>()),
+  pruneWebuiMatches: vi.fn(),
+}))
+
 const getMatches = vi.mocked(api.getMatches)
+const pruneWebuiMatches = vi.mocked(webui.pruneWebuiMatches)
 const saveMatches = vi.mocked(api.saveMatches)
 const clearGuesses = vi.mocked(api.clearGuesses)
 
@@ -258,5 +267,70 @@ describe('chooseMatch', () => {
   it('fails when the server doesn’t save it', async () => {
     saveMatches.mockRejectedValue(new api.MatchesError(500))
     await expect(chooseMatch(A, { type: 'movie', id: 1 })).rejects.toThrow()
+  })
+})
+
+describe('checkMissingMatches', () => {
+  it('has qBittorrent forget the matches of torrents gone for a week, at most once an hour, and shows what it keeps', async () => {
+    getMatches.mockResolvedValue({ [A]: USER, [B]: GUESS })
+    pruneWebuiMatches.mockResolvedValue({ [A]: USER, [B]: { ...GUESS, missingSince: 1000 } })
+    const { result } = renderHook(() => useServerMatches())
+    await waitFor(() => expect(result.current).toEqual({ [A]: USER, [B]: GUESS }))
+
+    checkMissingMatches({ [A]: {} }, 1000)
+    expect(pruneWebuiMatches).toHaveBeenCalledWith(expect.any(Function), MISSING_GRACE_MS, 1000)
+    const has = pruneWebuiMatches.mock.calls[0][0]
+    expect([A, B].map(has)).toEqual([true, false])
+    await waitFor(() => expect(result.current).toEqual({ [A]: USER, [B]: { ...GUESS, missingSince: 1000 } }))
+
+    // The poll hands it every answer; within the hour it asks qBittorrent nothing more.
+    checkMissingMatches({ [A]: {} }, 1000 + CHECK_INTERVAL_MS - 1)
+    expect(pruneWebuiMatches).toHaveBeenCalledTimes(1)
+    checkMissingMatches({ [A]: {} }, 1000 + CHECK_INTERVAL_MS)
+    expect(pruneWebuiMatches).toHaveBeenCalledTimes(2)
+  })
+
+  it('checks nothing until the matches are loaded from qBittorrent, or while they couldn’t be', async () => {
+    checkMissingMatches({ [A]: {} }, 1000)
+    let answer!: (matches: Matches) => void
+    getMatches.mockReturnValueOnce(new Promise((resolve) => (answer = resolve)))
+    void loadServerMatches()
+    checkMissingMatches({ [A]: {} }, 1000)
+    expect(pruneWebuiMatches).not.toHaveBeenCalled()
+    answer({ [A]: USER })
+    await waitFor(() => expect(currentServerMatches()).toEqual({ [A]: USER }))
+
+    resetServerMatches()
+    getMatches.mockRejectedValue(new Error('network'))
+    await loadServerMatches()
+    expect(currentServerMatches()).toEqual({})
+    checkMissingMatches({ [A]: {} }, 1000)
+    expect(pruneWebuiMatches).not.toHaveBeenCalled()
+  })
+
+  it('keeps the matches it shows, and checks again an hour later, when qBittorrent doesn’t answer', async () => {
+    getMatches.mockResolvedValue({ [B]: GUESS })
+    pruneWebuiMatches.mockRejectedValueOnce(new Error('network'))
+    await loadServerMatches()
+    checkMissingMatches({}, 1000)
+    await act(() => Promise.resolve())
+    expect(currentServerMatches()).toEqual({ [B]: GUESS })
+    pruneWebuiMatches.mockResolvedValueOnce({})
+    checkMissingMatches({}, 1000 + CHECK_INTERVAL_MS)
+    await waitFor(() => expect(currentServerMatches()).toEqual({}))
+  })
+
+  it('drops an answer from before the matches were loaded afresh', async () => {
+    getMatches.mockResolvedValue({ [B]: GUESS })
+    let answer!: (matches: Matches) => void
+    pruneWebuiMatches.mockReturnValueOnce(new Promise((resolve) => (answer = resolve)))
+    await loadServerMatches()
+    checkMissingMatches({}, 1000)
+    resetServerMatches()
+    getMatches.mockResolvedValue({ [A]: USER })
+    await loadServerMatches()
+    answer({})
+    await act(() => Promise.resolve())
+    expect(currentServerMatches()).toEqual({ [A]: USER })
   })
 })
