@@ -4,6 +4,8 @@
 // so the screens read one shape on both builds (docs/ARCHITECTURE.md → Settings in qBittorrent).
 import { isPrivateOrigin } from '../../logic/privateOrigin'
 import { sharedRequests } from '../../logic/sharedRequests'
+import { withTimeout } from '../../logic/withTimeout'
+import { checkProwlarrKey } from '../../releases/prowlarrResults'
 import { isStoreFull, loadClientData, storeClientData, type ClientData } from '../qbittorrent/webui'
 import { checkTmdbKey } from '../tmdb/direct'
 import { SettingsError } from './errors'
@@ -132,7 +134,7 @@ async function loadStored(signal: AbortSignal): Promise<ClientData> {
 /**
  * Kinopeer's settings as qBittorrent keeps them, shared with the page's other callers while
  * `WEBUI_SETTINGS_FRESH_MS` fresh; `renew` asks qBittorrent anew. Where TMDB's client reads the key it
- * calls TMDB with (src/api/tmdb/transport.ts), and Prowlarr's will once this build calls it itself (#560).
+ * calls TMDB with (src/api/tmdb/transport.ts) and Prowlarr's its address and key (src/api/prowlarr/direct.ts).
  */
 export async function getWebuiSettings(signal?: AbortSignal, renew = false): Promise<WebuiSettings> {
   return readSettings(await sharedRequests.get(WEBUI_SETTINGS_KEY, loadStored, { freshFor: WEBUI_SETTINGS_FRESH_MS, signal, renew }))
@@ -196,8 +198,8 @@ const MAX_ADDRESS_LENGTH = 2048
  * The address the browser will call Prowlarr at, or undefined when it isn't one: http or https,
  * with no login (the key has its own field), query or fragment, a path kept for a reverse proxy, and
  * no trailing slash, and no longer than `MAX_ADDRESS_LENGTH`. The server's rule for a Prowlarr
- * address from the app (`parseAddress` in server/address.ts), which the image can't share, since it
- * ships server/ alone.
+ * address from the app (`parseAddress` in server/address.ts), which the image doesn't share: of src/
+ * it ships only the modules the Dockerfile copies.
  */
 export function prowlarrAddress(value: string): string | undefined {
   if (value.length > MAX_ADDRESS_LENGTH) return undefined
@@ -213,17 +215,44 @@ export function prowlarrAddress(value: string): string | undefined {
   return `${url.origin}${url.pathname}`.replace(/\/+$/, '')
 }
 
+/** How long a Prowlarr key's check waits, as the server's (`ADDRESS_CHECK_TIMEOUT_MS` in server/settings.ts). */
+export const PROWLARR_CHECK_TIMEOUT_MS = 15_000
+
 /**
- * Saves Prowlarr's address and key together, at `url` or the address saved before. Not checked with
- * Prowlarr yet: the WebUI build calls Prowlarr itself from #560 on. Rejects with code 'bad-request'
- * for an empty key, 'invalid-address' for an address that isn't one, and 'not-configured' with no
- * address at all, as the server does.
+ * Whether a page at `pageProtocol` can't call Prowlarr at `address`: the browser blocks a plain HTTP
+ * call from a page served over HTTPS (mixed content), but for a loopback address, which it trusts.
+ */
+export function isMixedContent(pageProtocol: string | undefined, address: string): boolean {
+  if (pageProtocol !== 'https:') return false
+  const { protocol, hostname } = new URL(address)
+  if (protocol !== 'http:') return false
+  const loopback = hostname === 'localhost' || hostname.endsWith('.localhost') || hostname === '[::1]' || /^127\.\d+\.\d+\.\d+$/.test(hostname)
+  return !loopback
+}
+
+/**
+ * Checks Prowlarr's key at `url` or the address saved before, as the server does, then saves both
+ * together. Rejects with code 'bad-request' for an empty key, 'invalid-address' for an address that
+ * isn't one, 'not-configured' with no address at all, 'mixed-content' for a plain HTTP address on a
+ * page served over HTTPS, 'invalid-key' for a key Prowlarr refuses, 'not-prowlarr' for an address
+ * where something else answers and 'unreachable' when nothing answers in time, and stores nothing then.
  */
 export async function saveWebuiProwlarr(apiKey: string, url?: string): Promise<ServerSettings> {
-  if (apiKey === '') throw new SettingsError(400, 'bad-request')
+  const key = apiKey.trim()
+  if (key === '') throw new SettingsError(400, 'bad-request')
   const address = url === undefined ? (await getWebuiSettings()).prowlarr?.url : prowlarrAddress(url)
   if (address === undefined) throw new SettingsError(url === undefined ? 409 : 400, url === undefined ? 'not-configured' : 'invalid-address')
-  return store({ [SETTING_KEYS.prowlarr]: { url: address, apiKey } satisfies StoredProwlarr })
+  // Read through globalThis, as the clients also run in Node (the integration tests), where there's no page.
+  if (isMixedContent((globalThis as { location?: { protocol: string } }).location?.protocol, address)) throw new SettingsError(400, 'mixed-content')
+  let result: Awaited<ReturnType<typeof checkProwlarrKey>>
+  try {
+    result = await withTimeout(PROWLARR_CHECK_TIMEOUT_MS, new AbortController().signal, (signal) => checkProwlarrKey(address, key, signal))
+  } catch {
+    throw new SettingsError(502, 'unreachable')
+  }
+  if (result === 'invalid') throw new SettingsError(422, 'invalid-key')
+  if (result === 'not-prowlarr') throw new SettingsError(502, 'not-prowlarr')
+  return store({ [SETTING_KEYS.prowlarr]: { url: address, apiKey: key } satisfies StoredProwlarr })
 }
 
 /** Saves the download defaults in `changes`, each under its own key; the others stay as they are. */

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router'
 import { AuthError, signOut } from '../api/auth'
 import { failureOf } from '../api/connectionFailure'
-import { ProwlarrSetupError, getProwlarrStatus } from '../api/prowlarr'
+import { ProwlarrKeyReadError, ProwlarrSetupError, getProwlarrStatus } from '../api/prowlarr'
 import { APP_VERSION_FRESH_MS, APP_VERSION_KEY, getAppVersion, getCategories, unreachable } from '../api/qbittorrent'
 import { TmdbKeyError, TmdbKeyReadError, checkTmdb } from '../api/tmdb'
 import {
@@ -311,8 +311,8 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
   const noAnswer = (error: unknown, service: 'prowlarr' | 'tmdb' | 'telegram') =>
     unreachableText(unreachable(error))
       ? t('noAnswer.qbittorrent_kinopeer')
-      : // In the WebUI build, qBittorrent may not have given the TMDB key: it didn't answer, not TMDB.
-        t(__WEBUI__ && error instanceof TmdbKeyReadError ? 'noAnswer.qbittorrent' : `noAnswer.${service}`)
+      : // In the WebUI build, qBittorrent may not have given the TMDB key or Prowlarr's: it didn't answer, not the service.
+        t(__WEBUI__ && (error instanceof TmdbKeyReadError || error instanceof ProwlarrKeyReadError) ? 'noAnswer.qbittorrent' : `noAnswer.${service}`)
 
   /** The Telegram card: a failed check first, then what the settings say of the chat. */
   const telegramStatus = (): ConnectionStatus => {

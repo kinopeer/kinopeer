@@ -40,6 +40,7 @@ type FormError =
   | 'auth-off'
   | 'storage'
   | 'store-full'
+  | 'mixed-content'
   | 'failed'
   | 'forget-failed'
   | null
@@ -50,8 +51,8 @@ function formError(e: unknown, kind: 'save' | 'forget'): FormError {
   const code = e instanceof SettingsError ? e.code : undefined
   if (kind === 'save' && (code === 'invalid-key' || code === 'bad-request')) return 'invalid'
   if (code && KNOWN_ERRORS.has(code)) return code as FormError
-  // Only the WebUI build's qBittorrent keeps the key in a store that can be full.
-  if (__WEBUI__ && code === 'store-full') return code
+  // Only the WebUI build's qBittorrent keeps the key in a store that can be full, and only its page calls Prowlarr.
+  if (__WEBUI__ && (code === 'store-full' || code === 'mixed-content')) return code
   return kind === 'save' ? 'failed' : 'forget-failed'
 }
 
@@ -141,6 +142,7 @@ export function ProwlarrKeyForm({
     if (failed === 'auth-off') return t('prowlarrKey.authOff')
     if (failed === 'storage') return t('keyForm.storage')
     if (__WEBUI__ && failed === 'store-full') return t('webui.prowlarrStoreFull')
+    if (__WEBUI__ && failed === 'mixed-content') return t('webui.prowlarrMixedContent')
     if (failed === 'forget-failed') return t('prowlarrKey.forgetFailed')
     // Else that it failed, which trying again may change.
     return named ? t('prowlarrKey.saveFailed', { context: checked ? 'address' : undefined }) : t('keyForm.failed')
@@ -153,7 +155,10 @@ export function ProwlarrKeyForm({
   // With an address sent, the server is there and says that address didn't answer: the field's to fix.
   const why = failureText(t, 'prowlarr', failure)
   // Only on a field there is: a form that stopped asking for the address says it in the banner.
-  const addressError = askAddress && (error === 'invalid-address' || (checkedAddress && error === 'unreachable')) && errorText(error, why, true)
+  const addressError =
+    askAddress &&
+    (error === 'invalid-address' || (__WEBUI__ && error === 'mixed-content') || (checkedAddress && error === 'unreachable')) &&
+    errorText(error, why, true)
 
   const changeAddress = (value: string) => {
     setAddress(value)
@@ -164,7 +169,17 @@ export function ProwlarrKeyForm({
 
   return (
     <form className="key-form" onSubmit={handleSubmit}>
-      <p className="t-body c2">{t('prowlarrKey.help')}</p>
+      {__WEBUI__ ? (
+        <>
+          <p className="t-body c2">{t('prowlarrKey.help')}</p>
+          {/* The page calls Prowlarr with the key, a stated exception to keeping secrets on a server (docs/SPEC.md, 2026-11-22). */}
+          <Banner tone="info" live={false} title={t('webui.prowlarrKeySeenTitle')}>
+            {t('webui.prowlarrKeySeen')}
+          </Banner>
+        </>
+      ) : (
+        <p className="t-body c2">{t('prowlarrKey.help')}</p>
+      )}
 
       {error && error !== 'invalid' && !addressError && (
         <Banner tone="error" title={error === 'unreachable' && why ? t('noAnswer.prowlarr') : undefined}>
@@ -227,7 +242,7 @@ export function ProwlarrKeyForm({
           if (error === 'invalid') setError(null)
         }}
         error={error === 'invalid' && errorText(error)}
-        // The WebUI build keeps it in qBittorrent, where the browser reads it to call Prowlarr, without checking it yet (#560).
+        // The WebUI build checks it with Prowlarr, then keeps it in qBittorrent, where the browser reads it to call Prowlarr.
         help={t(__WEBUI__ ? 'webui.prowlarrKeyFieldHelp' : 'prowlarrKey.fieldHelp')}
       />
 

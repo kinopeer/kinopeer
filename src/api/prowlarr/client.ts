@@ -1,33 +1,14 @@
 import { MAX_FAILING_WITHIN_MS, type FailingIndexers, type MagnetResponse, type ProwlarrErrorBody, type ProwlarrStatus, type Release, type SearchType } from './types'
-import { knownFailure, type ConnectionFailure } from '../connectionFailure'
+import { knownFailure } from '../connectionFailure'
+import { downloadDirect, failingDirect, searchDirect, statusDirect } from './direct'
+import { ProwlarrError, ProwlarrSetupError } from './errors'
 import { fetchKinopeer } from '../fetchKinopeer'
 import { KinopeerUnreachableError } from '../qbittorrent/client'
 
+export { ProwlarrError, ProwlarrKeyReadError, ProwlarrSetupError } from './errors'
+
 /** Same-origin prefix served by Kinopeer's Prowlarr bridge (server/prowlarr.ts). */
 export const PROWLARR_BASE = '/prowlarr'
-
-export class ProwlarrError extends Error {
-  readonly status: number
-  readonly code?: ProwlarrErrorBody['error']
-  /** Why Prowlarr didn't answer (`unreachable`), where the server could tell. */
-  readonly failure?: ConnectionFailure
-
-  constructor(message: string, status: number, code?: ProwlarrErrorBody['error'], failure?: ConnectionFailure) {
-    super(message)
-    this.name = 'ProwlarrError'
-    this.status = status
-    this.code = code
-    this.failure = failure
-  }
-}
-
-/** The server has no address or key for Prowlarr (`not-configured`), or Prowlarr rejected its key (`unauthorized`). */
-export class ProwlarrSetupError extends ProwlarrError {
-  constructor(status: number, code: 'not-configured' | 'unauthorized') {
-    super('Prowlarr is not configured or rejected the API key', status, code)
-    this.name = 'ProwlarrSetupError'
-  }
-}
 
 async function errorFor(response: Response): Promise<ProwlarrError | KinopeerUnreachableError> {
   let body: Partial<ProwlarrErrorBody> = {}
@@ -51,6 +32,8 @@ export interface SearchOptions {
 
 export async function searchReleases(query: string, options: SearchOptions = {}): Promise<Release[]> {
   const { type = 'search', categories = [], signal } = options
+  // The WebUI build calls Prowlarr itself, with the key qBittorrent keeps (./direct.ts).
+  if (__WEBUI__) return searchDirect(query, type, categories, signal)
   const params = new URLSearchParams({ query, type })
   for (const category of categories) params.append('categories', String(category))
   const response = await fetchKinopeer(`${PROWLARR_BASE}/search?${params}`, { signal })
@@ -66,7 +49,9 @@ export async function searchReleases(query: string, options: SearchOptions = {})
 export async function getFailingIndexers(elapsedMs: number, signal?: AbortSignal): Promise<string[]> {
   // The server takes ten minutes at most. A page left open longer (or a clock that kept counting
   // through sleep) still gets a note about the last ten minutes.
-  const params = new URLSearchParams({ within: String(Math.min(MAX_FAILING_WITHIN_MS, Math.max(0, Math.round(elapsedMs)))) })
+  const within = Math.min(MAX_FAILING_WITHIN_MS, Math.max(0, Math.round(elapsedMs)))
+  if (__WEBUI__) return failingDirect(within, signal)
+  const params = new URLSearchParams({ within: String(within) })
   const response = await fetchKinopeer(`${PROWLARR_BASE}/failing?${params}`, { signal })
   if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) throw await errorFor(response)
   return ((await response.json()) as FailingIndexers).indexers
@@ -74,12 +59,17 @@ export async function getFailingIndexers(elapsedMs: number, signal?: AbortSignal
 
 /** Checks the connection: Prowlarr's version and how many indexers are enabled. */
 export async function getProwlarrStatus(signal?: AbortSignal): Promise<ProwlarrStatus> {
+  if (__WEBUI__) return statusDirect(signal)
   const response = await fetchKinopeer(`${PROWLARR_BASE}/status`, { signal })
   if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) throw await errorFor(response)
   return (await response.json()) as ProwlarrStatus
 }
 
-export type ReleaseSource = { kind: 'magnet'; uri: string } | { kind: 'torrent'; file: File }
+/**
+ * What qBittorrent is given to add a release: a magnet link, a .torrent, or, in the WebUI build, the
+ * download link Prowlarr answered with a redirect, which qBittorrent follows itself (`link`).
+ */
+export type ReleaseSource = { kind: 'magnet'; uri: string } | { kind: 'torrent'; file: File } | { kind: 'link'; uri: string }
 
 /**
  * Gets what qBittorrent needs to add a release. The .torrent file comes first, because it lists the
@@ -100,14 +90,22 @@ export async function fetchRelease(release: Release, signal?: AbortSignal): Prom
 }
 
 async function download(release: Release, token: string, signal?: AbortSignal): Promise<ReleaseSource> {
+  if (__WEBUI__) {
+    const got = await downloadDirect(token, signal)
+    return got.kind === 'link' ? { kind: 'link', uri: got.url } : { kind: 'torrent', file: torrentFile(release, got.bytes) }
+  }
   const params = new URLSearchParams({ token })
   const response = await fetchKinopeer(`${PROWLARR_BASE}/download?${params}`, { signal })
   if (!response.ok) throw await errorFor(response)
   if (response.headers.get('content-type')?.includes('application/json')) {
     return { kind: 'magnet', uri: ((await response.json()) as MagnetResponse).magnet }
   }
-  const name = `${release.title.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim() || 'release'}.torrent`
   // A view, not the buffer itself: typed as a blob part by the DOM's and Node's File alike.
-  const bytes = new Uint8Array(await response.arrayBuffer())
-  return { kind: 'torrent', file: new File([bytes], name, { type: 'application/x-bittorrent' }) }
+  return { kind: 'torrent', file: torrentFile(release, new Uint8Array(await response.arrayBuffer())) }
+}
+
+/** The .torrent's bytes as a file named after the release. */
+function torrentFile(release: Release, bytes: Uint8Array<ArrayBuffer>): File {
+  const name = `${release.title.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim() || 'release'}.torrent`
+  return new File([bytes], name, { type: 'application/x-bittorrent' })
 }

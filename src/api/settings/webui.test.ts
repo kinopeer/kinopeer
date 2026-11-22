@@ -13,6 +13,8 @@ import {
   prowlarrAddress,
   readSettings,
   saveWebuiDownloadDefaults,
+  PROWLARR_CHECK_TIMEOUT_MS,
+  isMixedContent,
   saveWebuiProwlarr,
   saveWebuiTmdbKey,
   sharedTmdbAvailable,
@@ -47,6 +49,8 @@ beforeEach(() => {
     }
     // TMDB's check of a key (`checkTmdbKey`), which takes any key unless a test says otherwise.
     if (target.origin === 'https://api.themoviedb.org' && target.pathname === '/3/authentication') return tmdbAccepts()
+    // Prowlarr's check of a key (`checkProwlarrKey`), which takes any key unless a test says otherwise.
+    if (target.pathname === '/api/v1/system/status') return prowlarrAccepts()
     return new Response('Not Found', { status: 404 })
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -55,6 +59,9 @@ beforeEach(() => {
   // jsdom's page is on localhost, which the proxy answers; a test on a public origin says so.
   vi.stubGlobal('location', new URL('http://192.168.1.20:8080/'))
 })
+
+/** Prowlarr's status, its answer to a key it takes. */
+const prowlarrAccepts = () => Response.json({ appName: 'Prowlarr', version: '3.0.2.5780' })
 
 /** TMDB's answer to a key it takes. */
 const tmdbAccepts = () => Response.json({ success: true, status_code: 1, status_message: 'Success.' })
@@ -319,9 +326,59 @@ describe('the settings in qBittorrent', () => {
     expect(stored()).toEqual([])
   })
 
-  it("keeps Prowlarr's address and key under one key, the address as the browser will call it", async () => {
-    await saveProwlarrKey('prowlarr-key', 'http://192.168.1.20:9696/')
+  it("keeps Prowlarr's address and key under one key, the address as the browser will call it, once Prowlarr takes the key", async () => {
+    await saveProwlarrKey(' prowlarr-key ', 'http://192.168.1.20:9696/')
+    const check = fetchMock.mock.calls.find(([url]) => String(url) === 'http://192.168.1.20:9696/api/v1/system/status')
+    expect(check?.[1]?.headers).toEqual({ 'X-Api-Key': 'prowlarr-key', Accept: 'application/json' })
+    expect(paths()).toEqual(['/api/v1/system/status', '/api/v2/clientdata/load', '/api/v2/clientdata/store'])
     expect(stored()).toEqual([{ [SETTING_KEYS.prowlarr]: { url: 'http://192.168.1.20:9696', apiKey: 'prowlarr-key' } }])
+  })
+
+  it.each([
+    ['refuses the key', async () => new Response(null, { status: 401 }), 422, 'invalid-key'],
+    ['answers with something but Prowlarr', async () => new Response('<html>Sign in</html>', { status: 200, headers: { 'Content-Type': 'text/html' } }), 502, 'not-prowlarr'],
+    ['answers with an error of its own', async () => new Response(null, { status: 503 }), 502, 'unreachable'],
+    ['doesn’t answer', () => Promise.reject(new TypeError('Failed to fetch')), 502, 'unreachable'],
+  ] as const)("stores no Prowlarr key when Prowlarr %s, as the server does", async (_case, answer, status, code) => {
+    fetchMock.mockImplementationOnce(answer)
+    await expect(saveWebuiProwlarr('prowlarr-key', 'http://192.168.1.20:9696')).rejects.toMatchObject({ status, code })
+    expect(stored()).toEqual([])
+  })
+
+  it("gives up the Prowlarr key's check when Prowlarr doesn't answer in time", async () => {
+    vi.useFakeTimers()
+    fetchMock.mockImplementationOnce(
+      (_url, init) => new Promise((_resolve, reject) => init!.signal!.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))),
+    )
+    const error = saveWebuiProwlarr('prowlarr-key', 'http://192.168.1.20:9696').catch((caught: unknown) => caught)
+    await vi.advanceTimersByTimeAsync(PROWLARR_CHECK_TIMEOUT_MS - 1)
+    expect(await Promise.race([error, 'waiting'])).toBe('waiting')
+    await vi.advanceTimersByTimeAsync(1)
+    await expect(error).resolves.toMatchObject({ code: 'unreachable' })
+    expect(stored()).toEqual([])
+  })
+
+  it.each([
+    ['http:', 'http://192.168.1.20:9696', false],
+    ['https:', 'http://192.168.1.20:9696', true],
+    ['https:', 'http://nas.local:9696', true],
+    ['https:', 'https://192.168.1.20:9696', false],
+    // A loopback address is one the browser trusts over plain HTTP too.
+    ['https:', 'http://localhost:9696', false],
+    ['https:', 'http://prowlarr.localhost', false],
+    ['https:', 'http://127.0.0.1:9696', false],
+    ['https:', 'http://[::1]:9696', false],
+    [undefined, 'http://192.168.1.20:9696', false],
+  ] as const)('reads a page at %s calling %s as mixed content: %s', (page, address, mixed) => {
+    expect(isMixedContent(page, address)).toBe(mixed)
+  })
+
+  it('refuses a plain HTTP address for Prowlarr on a page served over HTTPS, without asking it', async () => {
+    vi.stubGlobal('location', new URL('https://qbt.example.com/'))
+    await expect(saveWebuiProwlarr('prowlarr-key', 'http://192.168.1.20:9696')).rejects.toMatchObject({ status: 400, code: 'mixed-content' })
+    expect(fetchMock).not.toHaveBeenCalled()
+    await saveWebuiProwlarr('prowlarr-key', 'https://prowlarr.example.com')
+    expect(kept[SETTING_KEYS.prowlarr]).toEqual({ url: 'https://prowlarr.example.com', apiKey: 'prowlarr-key' })
   })
 
   it('saves a new key at the address kept before, and refuses without one or with one that is no address', async () => {

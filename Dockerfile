@@ -35,6 +35,8 @@ COPY --from=build /app/package.json ./
 COPY --from=build /app/server ./server
 # The matches store's rules, which server/matches.ts shares with the WebUI build.
 COPY --from=build /app/src/logic/titleMatches.ts ./src/logic/titleMatches.ts
+# What the server reads of Prowlarr's answers, shared with the WebUI build, which calls Prowlarr from the page.
+COPY --from=build /app/src/releases/prowlarrResults.ts ./src/releases/prowlarrResults.ts
 COPY --from=build /app/dist ./dist
 # Settings saved from the app (the TMDB key). Mount a volume here to keep them across updates.
 COPY --from=build --chown=node:node /data /data

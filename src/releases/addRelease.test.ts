@@ -53,6 +53,13 @@ describe('addRelease', () => {
     expect(getTorrentFiles).not.toHaveBeenCalled()
   })
 
+  it('gives qBittorrent a download link to follow itself as it gives a magnet link', async () => {
+    const link = 'http://192.168.1.20:9696/api/v1/indexer/1/download?link=abc&apikey=k'
+    await addRelease({ kind: 'link', uri: link }, OPTIONS)
+    expect(addTorrents).toHaveBeenCalledWith(expect.objectContaining({ urls: [link] }))
+    expect(addTorrents.mock.calls[0][0]).not.toHaveProperty('files')
+  })
+
   it('adds a .torrent with every file selected as is', async () => {
     await addRelease({ kind: 'torrent', file: FILE }, OPTIONS, { meta: META, skip: [] })
     expect(addTorrents).toHaveBeenCalledWith(expect.objectContaining({ files: [FILE], stopped: false }))

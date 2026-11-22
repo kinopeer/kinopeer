@@ -14,6 +14,10 @@
     "tmdbKeyNeeded": "Search needs a TMDB key. Enter it once, and Kinopeer keeps it in qBittorrent.",
     "prowlarrSetupBody": "Kinopeer finds releases through Prowlarr. Enter its address as this browser reaches it, and its API key. Without Prowlarr everything works but finding releases.",
     "prowlarrAddressHelp": "As this browser reaches it, for example http://192.168.1.10:9696",
-    "prowlarrKeyFieldHelp": "Kept in qBittorrent: anyone who can sign in to it can read the key."
+    "prowlarrKeyFieldHelp": "Kinopeer checks it with Prowlarr, then keeps it in qBittorrent, where this browser reads it to call Prowlarr.",
+    "linkFiles": "Prowlarr gave a link qBittorrent fetches itself, so all files are downloaded. You can skip files on the torrent’s page once qBittorrent has them.",
+    "prowlarrKeySeenTitle": "This browser sees the key",
+    "prowlarrKeySeen": "Without a Kinopeer server, the browser calls Prowlarr with its key, so anyone with qBittorrent’s login, a browser extension or a release’s link can see it. Keep Prowlarr on your home network, on HTTPS where you can.",
+    "prowlarrMixedContent": "qBittorrent is open over HTTPS, so the browser won’t call Prowlarr over HTTP. Enter Prowlarr’s HTTPS address."
   }
 }

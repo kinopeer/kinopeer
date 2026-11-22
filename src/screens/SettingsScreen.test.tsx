@@ -1655,6 +1655,16 @@ describe('SettingsScreen in the WebUI build', () => {
     expect(await within(connection('TMDB')).findByRole('status', { name: saying(text) })).toBeInTheDocument()
   })
 
+  it.each([
+    ["qBittorrent didn't give Prowlarr's address and key", () => new prowlarr.ProwlarrKeyReadError(new TypeError('Failed to fetch')), 'qBittorrent isn’t answering'],
+    ['Prowlarr itself failed', () => new TypeError('Failed to fetch'), 'Prowlarr isn’t answering'],
+  ])("names on Prowlarr's row who didn't answer when %s", async (_case, failure, text) => {
+    vi.stubGlobal('__WEBUI__', true)
+    vi.mocked(prowlarr.getProwlarrStatus).mockRejectedValue(failure())
+    renderScreen()
+    expect(await within(connection('Prowlarr')).findByRole('status', { name: saying(text) })).toBeInTheDocument()
+  })
+
   it("changes Prowlarr's address with its key, which qBittorrent keeps", async () => {
     vi.stubGlobal('__WEBUI__', true)
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue({

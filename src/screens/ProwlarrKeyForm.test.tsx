@@ -58,6 +58,11 @@ describe('ProwlarrKeyForm', () => {
     await vi.waitFor(() => expect(onSaved).toHaveBeenCalledWith(SAVED))
   })
 
+  it('says nothing of a browser that sees the key, which the server keeps', () => {
+    renderForm()
+    expect(screen.queryByText('This browser sees the key')).not.toBeInTheDocument()
+  })
+
   it.each([
     [422, 'invalid-key'],
     [400, 'bad-request'],
@@ -574,11 +579,29 @@ describe('ProwlarrKeyForm in the WebUI build', () => {
 
   beforeEach(() => vi.stubGlobal('__WEBUI__', true))
 
-  it("asks for the address as the browser reaches it, says who can read the key, and has no Find, which needs Kinopeer's server", () => {
+  it("asks for the address as the browser reaches it, says the key is checked and who can see it, and has no Find, which needs Kinopeer's server", () => {
     render(<ProwlarrKeyForm onSaved={vi.fn()} askAddress />, { wrapper: ToastProvider })
     expect(screen.getByLabelText('Prowlarr address')).toHaveAccessibleDescription('As this browser reaches it, for example http://192.168.1.10:9696')
-    expect(screen.getByLabelText('Prowlarr API key')).toHaveAccessibleDescription('Kept in qBittorrent: anyone who can sign in to it can read the key.')
+    expect(screen.getByLabelText('Prowlarr API key')).toHaveAccessibleDescription(
+      'Kinopeer checks it with Prowlarr, then keeps it in qBittorrent, where this browser reads it to call Prowlarr.',
+    )
+    expect(screen.getByText('This browser sees the key')).toBeInTheDocument()
+    expect(screen.getByText(/anyone with qBittorrent’s login, a browser extension or a release’s link can see it/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Find Prowlarr' })).not.toBeInTheDocument()
+  })
+
+  it('says on the address that the browser won’t call Prowlarr over HTTP from qBittorrent over HTTPS', async () => {
+    saveProwlarrKey.mockRejectedValue(new serverSettings.SettingsError(400, 'mixed-content'))
+    render(<ProwlarrKeyForm onSaved={vi.fn()} askAddress />, { wrapper: ToastProvider })
+    await userEvent.type(screen.getByLabelText('Prowlarr address'), 'http://192.168.1.20:9696')
+    await userEvent.type(screen.getByLabelText('Prowlarr API key'), 'abc123')
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    const address = screen.getByLabelText('Prowlarr address')
+    await vi.waitFor(() =>
+      expect(address).toHaveAccessibleDescription('qBittorrent is open over HTTPS, so the browser won’t call Prowlarr over HTTP. Enter Prowlarr’s HTTPS address.'),
+    )
+    expect(address).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it("says qBittorrent's store had no room for the key, and only that", async () => {

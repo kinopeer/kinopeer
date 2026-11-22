@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
-import { ProwlarrError, ProwlarrSetupError, fetchRelease, getFailingIndexers, searchReleases } from './client'
+import { ProwlarrError, ProwlarrSetupError, fetchRelease, getFailingIndexers, getProwlarrStatus, searchReleases } from './client'
+import { SETTING_KEYS } from '../settings/webui'
 import type { Release } from './types'
 import { KinopeerUnreachableError } from '../qbittorrent/client'
 
@@ -80,4 +81,55 @@ describe('fetchRelease', () => {
     expect(file.size).toBe(2)
   })
 
+})
+
+describe('the WebUI build', () => {
+  const PROWLARR = 'http://192.168.1.20:9696'
+
+  beforeEach(() => {
+    vi.stubGlobal('__WEBUI__', true)
+    fetchMock.mockImplementation(async (url) => {
+      if (String(url).startsWith('api/v2/clientdata/load')) return Response.json({ [SETTING_KEYS.prowlarr]: { url: PROWLARR, apiKey: 'k' } })
+      const { pathname } = new URL(String(url))
+      if (pathname === '/api/v1/search') return Response.json([])
+      if (pathname === '/api/v1/indexerstatus') return Response.json([])
+      if (pathname === '/api/v1/system/status') return Response.json({ version: '3.0.2.5780' })
+      if (pathname === '/api/v1/indexer') return Response.json([])
+      if (pathname === '/api/v1/indexer/1/download') return { type: 'opaqueredirect', ok: false, status: 0, body: null } as unknown as Response
+      return new Response(null, { status: 404 })
+    })
+  })
+
+  /** The paths of the calls that went to Prowlarr, none to Kinopeer's server. */
+  const prowlarrPaths = () =>
+    fetchMock.mock.calls.flatMap(([url]) => (String(url).startsWith(PROWLARR) ? [new URL(String(url)).pathname] : String(url).startsWith('api/v2/') ? [] : [String(url)]))
+
+  it('calls Prowlarr from the page rather than through Kinopeer’s server', async () => {
+    await searchReleases('Dune', { type: 'movie' })
+    await getProwlarrStatus()
+    await getFailingIndexers(1000)
+    expect(prowlarrPaths()).toEqual(['/api/v1/search', '/api/v1/system/status', '/api/v1/indexer', '/api/v1/indexerstatus'])
+  })
+
+  it('asks about the failing indexers of the last ten minutes at most, as on the server build', async () => {
+    vi.useFakeTimers({ now: Date.parse('2026-11-22T12:00:00Z'), toFake: ['Date'] })
+    const answer = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url, init) => {
+      const { pathname } = new URL(String(url), 'http://192.168.1.20:8080/')
+      if (pathname === '/api/v1/indexerstatus') {
+        return Response.json([
+          { indexerId: 1, mostRecentFailure: '2026-11-22T11:49:00Z' },
+          { indexerId: 2, mostRecentFailure: '2026-11-22T11:51:00Z' },
+        ])
+      }
+      if (pathname === '/api/v1/indexer') return Response.json([{ id: 1, name: 'Indexer A', enable: true }, { id: 2, name: 'Indexer B', enable: true }])
+      return answer(url, init)
+    })
+    await expect(getFailingIndexers(45 * 60 * 1000)).resolves.toEqual(['Indexer B'])
+    vi.useRealTimers()
+  })
+
+  it('hands qBittorrent the download link when Prowlarr answers with a redirect', async () => {
+    await expect(fetchRelease(RELEASE)).resolves.toEqual({ kind: 'link', uri: `${PROWLARR}/api/v1/indexer/1/download?link=A&apikey=k` })
+  })
 })

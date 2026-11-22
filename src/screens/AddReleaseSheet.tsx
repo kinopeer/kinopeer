@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router'
-import { fetchRelease, type Release, type ReleaseSource } from '../api/prowlarr'
+import { ProwlarrKeyReadError, fetchRelease, type Release, type ReleaseSource } from '../api/prowlarr'
 import { NOTIFY_TAG, TorrentRefusedError, getSaveLocations, getTorrents, unreachable, type Torrent } from '../api/qbittorrent'
 import { posterUrl, type MediaType } from '../api/tmdb'
 import { Accordion } from '../components/Accordion'
@@ -47,13 +47,13 @@ export interface AddReleaseSheetProps {
 
 interface Prepared {
   source: ReleaseSource
-  /** Read from the .torrent; missing for magnet links. */
+  /** Read from the .torrent; missing for magnet links and links qBittorrent follows itself. */
   meta?: TorrentMeta
 }
 
 async function prepare(release: Release, signal: AbortSignal): Promise<Prepared> {
   const source = await fetchRelease(release, signal)
-  if (source.kind === 'magnet') return { source }
+  if (source.kind !== 'torrent') return { source }
   // An unreadable file still goes to qBittorrent, just without file selection.
   const meta = await readTorrentFile(await source.file.arrayBuffer()).catch(() => undefined)
   return { source, meta }
@@ -139,8 +139,10 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   const selectedCount = fileCount - skipped.size
   // qBittorrent reports the free space where its default save path is. A warning, not a block: the
   // space may be freed before the download finishes, or the save path may be on another disk. Only by
-  // known sizes: a read .torrent's files or a magnet's release size, not an unreadable .torrent's.
-  const knownSize = meta !== undefined || prepared.data?.source.kind === 'magnet'
+  // known sizes: a read .torrent's files or a link's release size, not an unreadable .torrent's.
+  const knownSize =
+    meta !== undefined ||
+    (__WEBUI__ ? prepared.data !== undefined && prepared.data.source.kind !== 'torrent' : prepared.data?.source.kind === 'magnet')
   const lowSpace =
     knownSize && free !== undefined && selectedSize > free
       ? { free: format.size(free), missing: format.size(selectedSize - free) }
@@ -260,7 +262,12 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
         )}
         {prepared.error !== undefined && (
           <Banner tone="error" actionLabel={t('common.retry')} onAction={prepared.retry}>
-            {unreachableText(unreachable(prepared.error)) ? t('common.qbtFailed_kinopeer') : t('add.fetchFailed')}
+            {/* In the WebUI build qBittorrent may not have given Prowlarr's address and key. */}
+            {__WEBUI__ && prepared.error instanceof ProwlarrKeyReadError
+              ? t('common.qbtFailed')
+              : unreachableText(unreachable(prepared.error))
+                ? t('common.qbtFailed_kinopeer')
+                : t('add.fetchFailed')}
           </Banner>
         )}
         {added && <Banner tone="info" icon="check-circle" title={t('add.alreadyAdded')} />}
@@ -282,7 +289,14 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
             <Icon name="chevron-right" size={18} className="c3" />
           </button>
         )}
-        {offered && prepared.data?.source.kind === 'magnet' && <p className="t-cap c3">{t('add.magnetFiles')}</p>}
+        {offered &&
+          (__WEBUI__
+            ? // Only the WebUI build has a link qBittorrent follows itself, which gets its files as a magnet link does.
+              prepared.data !== undefined &&
+              prepared.data.source.kind !== 'torrent' && (
+                <p className="t-cap c3">{t(prepared.data.source.kind === 'link' ? 'webui.linkFiles' : 'add.magnetFiles')}</p>
+              )
+            : prepared.data?.source.kind === 'magnet' && <p className="t-cap c3">{t('add.magnetFiles')}</p>)}
         {offered && lowSpace && (
           <Banner icon="disk" title={t('add.notEnough')}>
             {t('add.lowSpace', lowSpace)}{' '}
