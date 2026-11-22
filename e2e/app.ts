@@ -95,8 +95,9 @@ export const DESKTOP = { viewport: { width: 1440, height: 900 } }
 export const DESKTOP_RAIL = { viewport: { width: 1024, height: 768 } }
 
 /**
- * The qBittorrent bridge's mark on its answers (server/qbittorrent.ts): a failure of /qbt without it
- * reads as Kinopeer's server not answering, so a mocked failure of qBittorrent carries it. Written
+ * The qBittorrent and TMDB bridges' mark on their answers (server/qbittorrent.ts, server/tmdb.ts): a
+ * failure of /qbt or /tmdb without it reads as Kinopeer's server not answering, so a mocked failure
+ * of qBittorrent or TMDB carries it. Written
  * out rather than imported from src/api/qbittorrent/client.ts, whose extensionless imports this
  * tsconfig's Node resolution doesn't take; the screenshots of a failing qBittorrent go wrong if
  * the two drift.
@@ -228,6 +229,10 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
   )
 }
 
+/** An answer of the TMDB bridge, which marks every one as the qBittorrent bridge does (server/tmdb.ts, #537). */
+const tmdbJson = (route: Route, body: unknown, status = 200) =>
+  route.fulfill({ status, contentType: 'application/json', headers: BRIDGE_HEADERS, body: JSON.stringify(body) })
+
 /** Answers /tmdb and /tmdb-img from the fixtures, with generated posters. */
 async function mockTmdb(page: Page, options: AppOptions): Promise<void> {
   await page.route(
@@ -237,15 +242,15 @@ async function mockTmdb(page: Page, options: AppOptions): Promise<void> {
       const language = url.searchParams.get('language') ?? 'en-US'
       const path = url.pathname.slice('/tmdb'.length)
       const query = url.searchParams.get('query')?.toLocaleLowerCase()
-      if (path === '/configuration') return json(route, {})
+      if (path === '/configuration') return tmdbJson(route, {})
       if (path === '/search/multi') {
         const found = TITLES.filter((title) => [title.en, title.ru].some((name) => name.toLocaleLowerCase().includes(query ?? '')))
-        if (found.length === 0) return json(route, titlePage(found, language))
+        if (found.length === 0) return tmdbJson(route, titlePage(found, language))
         // Two pages, with people counted as TMDB does, so the results show an estimate and Show more.
         const pages = { total_pages: 2, total_results: 1296 }
-        if (url.searchParams.get('page') !== '2') return json(route, { ...titlePage(found, language), ...pages })
-        if (options.searchMoreFails) return json(route, { status_message: 'Internal error' }, 500)
-        return json(route, { ...titlePage([], language), page: 2, ...pages })
+        if (url.searchParams.get('page') !== '2') return tmdbJson(route, { ...titlePage(found, language), ...pages })
+        if (options.searchMoreFails) return tmdbJson(route, { status_message: 'Internal error' }, 500)
+        return tmdbJson(route, { ...titlePage([], language), page: 2, ...pages })
       }
       // A search for one type, by year if one is given.
       if (path === '/search/movie' || path === '/search/tv') {
@@ -257,19 +262,19 @@ async function mockTmdb(page: Page, options: AppOptions): Promise<void> {
             (year === null || title.date.startsWith(`${year}-`)) &&
             [title.en, title.ru].some((name) => name.toLocaleLowerCase().includes(query ?? '')),
         )
-        return json(route, titlePage(found, language))
+        return tmdbJson(route, titlePage(found, language))
       }
-      if (path === '/discover/movie') return json(route, titlePage(TITLES.filter((title) => title.type === 'movie'), language))
-      if (path === '/discover/tv') return json(route, titlePage(TITLES.filter((title) => title.type === 'tv'), language))
+      if (path === '/discover/movie') return tmdbJson(route, titlePage(TITLES.filter((title) => title.type === 'movie'), language))
+      if (path === '/discover/tv') return tmdbJson(route, titlePage(TITLES.filter((title) => title.type === 'tv'), language))
       const [, type, id, list] = path.split('/')
       // A movie's recommendations are the other movies; a series has none, so it shows similar ones.
       if (list === 'recommendations' || list === 'similar') {
         const related = list === 'recommendations' ? type === 'movie' : type === 'tv'
         const others = TITLES.filter((title) => related && title.type === type && title.id !== Number(id))
-        return json(route, titlePage(others, language))
+        return tmdbJson(route, titlePage(others, language))
       }
       const found = details(type, Number(id), language)
-      return found ? json(route, found) : json(route, { status_message: 'Not found' }, 404)
+      return found ? tmdbJson(route, found) : tmdbJson(route, { status_message: 'Not found' }, 404)
     },
   )
 
