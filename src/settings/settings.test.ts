@@ -237,7 +237,7 @@ describe('download defaults on the server', () => {
     await waitFor(() => expect(getSettings().startPaused).toBe(false))
 
     // With none in qBittorrent, the browser's value stays, and goes to qBittorrent again.
-    vi.mocked(api.saveDownloadDefaults).mockResolvedValue(server({ sequential: true }))
+    vi.mocked(api.saveDownloadDefaults).mockRejectedValueOnce(new api.SettingsError(409, 'store-full'))
     await updateAndShareSettings({ sequential: true })
     const again = localStorage.getItem(SETTINGS_STORAGE_KEY)!
     resetSettings()
