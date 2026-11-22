@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { StrictMode } from 'react'
 import { Link, MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { holdPage } from './holdPage'
+import { stubTouchScreen } from './stubTouchScreen'
 import { TAB_RETURN, forgetTabPlaces, saveTabPlace, tabPlace } from './tabPlaces'
 import { useNewScreenAtTop, useScrollRestoration } from './useScrollRestoration'
 import { ROUTER_OPTIONS } from './routerOptions'
@@ -78,6 +80,43 @@ describe('useScrollRestoration', () => {
     view.rerender(app(true))
     expect(scrollTo).toHaveBeenCalledWith(0, 640)
     expect(scrollTo).toHaveBeenCalledTimes(1)
+  })
+
+  it('saves where the page really is when a modal with a field held it by the top as the screen went away (#553)', async () => {
+    const user = userEvent.setup()
+    stubTouchScreen()
+    render(app(true))
+    scrolledTo(640)
+    // A sheet with a search field opens over the screen: the window waits a pixel from the top.
+    const modal = document.createElement('dialog')
+    modal.append(document.createElement('input'))
+    const release = holdPage(modal)
+    scrolledTo(1)
+    try {
+      // A link in the sheet leaves the screen before the sheet releases its hold.
+      await user.click(screen.getByRole('link', { name: 'Open' }))
+    } finally {
+      release()
+    }
+    expect(tabPlace('/')?.y).toBe(640)
+    await user.click(screen.getByRole('button', { name: 'Back' }))
+    expect(scrollTo).toHaveBeenLastCalledWith(0, 640)
+  })
+
+  it('saves where the page really is as it’s hidden while a modal with a field holds it by the top, as Open again reloads it (#553)', () => {
+    stubTouchScreen()
+    render(app(true))
+    scrolledTo(640)
+    const modal = document.createElement('dialog')
+    modal.append(document.createElement('input'))
+    const release = holdPage(modal)
+    scrolledTo(1)
+    try {
+      window.dispatchEvent(new Event('pagehide'))
+    } finally {
+      release()
+    }
+    expect(Object.values(sessionStorage).map(String)).toContain('640')
   })
 
   it('leaves a fresh navigation and the first load at the top', async () => {

@@ -14,6 +14,13 @@ function savedPosition(key: string): number | undefined {
   }
 }
 
+/**
+ * Where the page is scrolled to. While a modal with a field holds the page (`holdPage`), the window
+ * waits by the top and the body's negative margin stands in for the rest, so a screen that goes away
+ * under it (a link or a reload from the modal) adds the margin back (#553).
+ */
+const pageScrollY = () => window.scrollY - (parseFloat(document.body.style.marginTop) || 0)
+
 function savePosition(key: string, y: number): void {
   try {
     sessionStorage.setItem(STORAGE_PREFIX + key, String(y))
@@ -85,7 +92,7 @@ export function useScrollRestoration(ready: boolean, tab: string): void {
   useLayoutEffect(
     () => () => {
       // Runs before the next screen's content replaces this one, so the position is still intact.
-      if (settledKey.current === key) savePosition(key, window.scrollY)
+      if (settledKey.current === key) savePosition(key, pageScrollY())
     },
     [key],
   )
@@ -94,7 +101,7 @@ export function useScrollRestoration(ready: boolean, tab: string): void {
   // and only the last one matters.
   useLayoutEffect(
     () => () => {
-      if (settledKey.current === shown.current.key) saveTabPlace(tab, { search: shown.current.search, y: window.scrollY })
+      if (settledKey.current === shown.current.key) saveTabPlace(tab, { search: shown.current.search, y: pageScrollY() })
     },
     [tab],
   )
@@ -105,7 +112,7 @@ export function useScrollRestoration(ready: boolean, tab: string): void {
   useEffect(() => {
     // Shown again, the page is where it was, so saving then changes nothing.
     const save = () => {
-      if (settledKey.current === key) savePosition(key, window.scrollY)
+      if (settledKey.current === key) savePosition(key, pageScrollY())
     }
     window.addEventListener('pagehide', save)
     document.addEventListener('visibilitychange', save)
