@@ -240,7 +240,7 @@ describe('TMDB proxy worker', () => {
       expect(await response.json()).toEqual({ ok: true })
     })
 
-    // A public site could otherwise spend the shared key's daily quota from its visitors' browsers.
+    // A public site can't read the answers, so it can't use the shared key as its pages' TMDB backend.
     it('gives a page on a public origin no CORS headers, and still answers', async () => {
       const { call } = setup()
       const response = await call('/3/movie/550', { headers: { Origin: 'https://example.com' } })

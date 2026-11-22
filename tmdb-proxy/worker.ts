@@ -13,9 +13,11 @@
  *
  * A page served from a private origin (Kinopeer as qBittorrent's Alternative WebUI, at a LAN address)
  * calls the proxy from the browser, so those origins get CORS headers (`isPrivateOrigin`); a page on a
- * public origin gets none, so a public site can't spend the shared key's daily quota from its
- * visitors' browsers. Every answer says `Vary: Origin`, so Workers Cache keeps one copy per origin and
- * never hands one origin's CORS headers to another (docs/SPEC.md's decision log, 2026-11-22).
+ * public origin gets none, so it can't read the answers, and a public site can't use the shared key
+ * as the TMDB backend of its own pages. It can still send the calls (a simple GET needs no preflight)
+ * and spend the daily quota with them, as a script can. Every answer says `Vary: Origin`, so Workers
+ * Cache keeps one copy per origin and never hands one origin's CORS headers to another
+ * (docs/SPEC.md's decision log, 2026-11-22).
  */
 
 /** The worker's bindings (wrangler.jsonc) and secrets. */
@@ -69,8 +71,11 @@ const USER_AGENT = 'Kinopeer-TMDB-proxy'
 const ALLOW = 'GET, HEAD, OPTIONS'
 
 /**
- * What a browser keeps a preflight for, in seconds. Chromium caps it at two hours, Firefox at a day;
- * the client's GETs send no header that needs one, so this is for what a later client might send.
+ * What a browser keeps a preflight for, in seconds. Chromium caps it at two hours, Firefox at a day.
+ * A GET or HEAD is preflighted only for a request header outside the safelist, and the answer names
+ * no `Access-Control-Allow-Headers`, so today a preflight admits nothing: the client's GETs send no
+ * such header, and one that does needs its name added here first. The branch is there so a
+ * preflight gets an answer that says so, rather than a 405.
  */
 const PREFLIGHT_MAX_AGE = String(24 * HOUR)
 
