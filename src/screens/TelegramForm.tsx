@@ -17,6 +17,7 @@ import { Input } from '../components/Input'
 import { useToast } from '../components/Toast'
 import { notifyLanguage } from '../i18n/language'
 import { useSaves, type SaveOutcome } from '../lib/useSaves'
+import { saveKey, saves } from '../logic/saves'
 
 export interface TelegramFormProps {
   telegram: TelegramStatus
@@ -40,9 +41,10 @@ type Request = 'token' | 'find' | 'chat' | 'test' | 'off'
 
 const KNOWN_ERRORS = new Set<string>(['no-chat', 'bot-in-use', 'token-rejected', 'chat-rejected', 'unreachable', 'storage'])
 
-function formError(e: unknown): FormError {
+function formError(e: unknown, kind: Request): FormError {
   const code = e instanceof SettingsError ? e.code : undefined
-  if (code === 'invalid-key' || code === 'bad-request') return 'invalid'
+  // Only the token is checked with Telegram: another request refused so is a failure of its own.
+  if (code === 'invalid-key' || code === 'bad-request') return kind === 'token' ? 'invalid' : 'failed'
   return code && KNOWN_ERRORS.has(code) ? (code as FormError) : 'failed'
 }
 
@@ -56,9 +58,15 @@ function formError(e: unknown): FormError {
 export function TelegramForm({ telegram, onChanged, onTurnedOff, onRefused }: TelegramFormProps) {
   const { t, i18n } = useTranslation()
   const toast = useToast()
-  // A step the user went back to; otherwise the one the settings are at.
-  const [editing, setEditing] = useState<Step | null>(null)
-  const step: Step = editing ?? (!telegram.bot ? 'token' : !telegram.chat ? 'chat' : 'connected')
+  const settingsStep: Step = !telegram.bot ? 'token' : !telegram.chat ? 'chat' : 'connected'
+  // A step the user went back to; otherwise the one the settings are at. Opened while a request is on
+  // its way, the sheet is at the step that sent it, which shows its outcome.
+  const [editing, setEditing] = useState<Step | null>(() => {
+    const sent = saves.getSnapshot().get(saveKey(TELEGRAM_SAVES, BOT))
+    const from = sent === 'token' ? 'token' : sent === 'find' || sent === 'chat' ? 'chat' : settingsStep
+    return from === settingsStep ? null : from
+  })
+  const step = editing ?? settingsStep
   const [token, setToken] = useState('')
   const [found, setFound] = useState<TelegramFoundChat | null>(null)
   const [error, setError] = useState<FormError>(null)
@@ -77,7 +85,7 @@ export function TelegramForm({ telegram, onChanged, onTurnedOff, onRefused }: Te
       if (kind === 'off') onTurnedOff(settings)
       else if (kind !== 'find') onChanged(settings, kind)
     } else if (kind === 'test') {
-      const failed = formError(outcome.error)
+      const failed = formError(outcome.error, kind)
       if (failed === 'token-rejected') onRefused('token')
       if (failed === 'chat-rejected') onRefused('chat')
     }
@@ -86,7 +94,7 @@ export function TelegramForm({ telegram, onChanged, onTurnedOff, onRefused }: Te
   // Open, the sheet takes every outcome: what it moves to, or why it failed.
   const saving = useSaves<Request>(TELEGRAM_SAVES, (outcome, kind) => {
     apply(kind, outcome)
-    if (!outcome.ok) setError(formError(outcome.error))
+    if (!outcome.ok) setError(formError(outcome.error, kind))
     else if (kind === 'find') setFound(outcome.result as TelegramFoundChat)
     else if (kind === 'test') toast.show(t('telegram.testSent'), { icon: 'check' })
     else {
@@ -106,7 +114,7 @@ export function TelegramForm({ telegram, onChanged, onTurnedOff, onRefused }: Te
     // Closed meanwhile: Settings learns it, and a toast says it; a chat found then is forgotten.
     if (!settled || settled.taken || kind === 'find') return
     apply(kind, settled)
-    if (!settled.ok) toast.show(errorText(formError(settled.error), true), { icon: 'alert' })
+    if (!settled.ok) toast.show(errorText(formError(settled.error, kind), true), { icon: 'alert' })
     else if (kind !== 'off') toast.show(t(kind === 'test' ? 'telegram.testSent' : kind === 'token' ? 'telegram.botSaved' : 'telegram.chatSaved'), { icon: 'check' })
   }
 

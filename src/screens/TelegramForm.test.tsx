@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -504,6 +504,75 @@ describe('TelegramForm: a request that settles after the sheet closed', () => {
     expect(await screen.findByRole('alert', { name: saying(UNREACHABLE) })).toBeInTheDocument()
     expect(onChanged).not.toHaveBeenCalled()
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('sends nothing more from the sheet opened again while a request is on its way', async () => {
+    const test = held<ServerSettings>()
+    vi.mocked(serverSettings.testTelegram).mockReturnValue(test.promise)
+    const { toggle } = renderClosable(CONNECTED)
+    await userEvent.click(screen.getByRole('button', { name: 'Send a test message' }))
+    await toggle()
+    await toggle()
+    // A busy button isn't disabled, so it can be pressed.
+    await userEvent.click(screen.getByRole('button', { name: 'Send a test message' }))
     expect(serverSettings.testTelegram).toHaveBeenCalledTimes(1)
+    await act(async () => test.resolve(settings(CONNECTED)))
+  })
+
+  it('opens again at the step of another bot’s token on its way, which takes its refusal', async () => {
+    const save = held<ServerSettings>()
+    vi.mocked(serverSettings.saveTelegramToken).mockReturnValue(save.promise)
+    const { toggle } = renderClosable(CONNECTED)
+    await userEvent.click(screen.getByRole('button', { name: 'Use another bot' }))
+    await userEvent.type(screen.getByLabelText('Bot token'), TOKEN)
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await toggle()
+    await toggle()
+    expect(screen.getByRole('button', { name: 'Save' })).toHaveAttribute('aria-busy', 'true')
+    await act(async () => save.reject(error(400, 'invalid-key')))
+    expect(screen.getByLabelText('Bot token')).toHaveAccessibleDescription(/Telegram doesn’t know this token/)
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('opens again at the step of another chat looked for, which shows the chat found', async () => {
+    const find = held<serverSettings.TelegramFoundChat>()
+    vi.mocked(serverSettings.findTelegramChat).mockReturnValue(find.promise)
+    const { toggle } = renderClosable(CONNECTED)
+    await userEvent.click(screen.getByRole('button', { name: 'Choose another chat' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Find chat' }))
+    await toggle()
+    await toggle()
+    expect(screen.getByRole('button', { name: 'Find chat' })).toHaveAttribute('aria-busy', 'true')
+    await act(async () => find.resolve({ id: 2, name: 'Family', type: 'group' }))
+    expect(within(screen.getByRole('group', { name: 'Is this the chat?' })).getByText('Family')).toBeInTheDocument()
+  })
+
+  it('opens again at the step the settings are at for a request sent from it, with no way back to offer', async () => {
+    const save = held<ServerSettings>()
+    vi.mocked(serverSettings.saveTelegramToken).mockReturnValue(save.promise)
+    const { toggle } = renderClosable(NONE)
+    await userEvent.type(screen.getByLabelText('Bot token'), TOKEN)
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await toggle()
+    await toggle()
+    expect(screen.getByRole('button', { name: 'Save' })).toHaveAttribute('aria-busy', 'true')
+    expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument()
+    await act(async () => save.resolve(settings(BOT)))
+  })
+
+  it.each([
+    ['saving a chat', BOT, 'Use this chat'],
+    ['a test message', CONNECTED, 'Send a test message'],
+  ])('says a malformed request when %s as a failure in the toast, not as an unknown token', async (_name, telegram, button) => {
+    const refused = held<ServerSettings>()
+    vi.mocked(serverSettings.findTelegramChat).mockResolvedValue({ id: 1, name: 'Alex', type: 'private' })
+    vi.mocked(serverSettings.saveTelegramChat).mockReturnValue(refused.promise)
+    vi.mocked(serverSettings.testTelegram).mockReturnValue(refused.promise)
+    const { toggle } = renderClosable(telegram)
+    if (telegram === BOT) await userEvent.click(screen.getByRole('button', { name: 'Find chat' }))
+    await userEvent.click(await screen.findByRole('button', { name: button }))
+    await toggle()
+    await act(async () => refused.reject(error(400, 'bad-request')))
+    expect(await findToastOnPage('Couldn’t save Telegram notifications. Try again.')).toBeInTheDocument()
   })
 })

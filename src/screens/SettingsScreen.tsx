@@ -599,8 +599,11 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
               else if (telegramCheckNow.current.error !== undefined) telegramCheckNow.current.retry()
             }}
             onRefused={(refused) => {
-              if (server) {
-                const changed = { ...server, telegram: { ...telegram, refused } }
+              // The page's settings as they are now, not as this render had them: another save may
+              // have come in while the test was on its way.
+              const latest = sharedRequests.peek<ServerSettings>(SERVER_SETTINGS_KEY, Infinity)?.data ?? server
+              if (latest?.telegram) {
+                const changed = { ...latest, telegram: { ...latest.telegram, refused } }
                 setServerChanged(changed)
                 // The refusal's 422 carries no settings, so the page's shared answer learns it here.
                 sharedRequests.set<ServerSettings>(SERVER_SETTINGS_KEY, changed)
