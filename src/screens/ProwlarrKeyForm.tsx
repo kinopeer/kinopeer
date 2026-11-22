@@ -212,8 +212,7 @@ export function ProwlarrKeyForm({
           help={t(__WEBUI__ ? 'webui.prowlarrAddressHelp' : 'prowlarrKey.addressHelp')}
         />
       )}
-      {/* Find asks Kinopeer's server to look, which the WebUI build has none of. */}
-      {!__WEBUI__ && askAddress && (
+      {askAddress && (
         <FindAddress
           service="prowlarr"
           onPick={changeAddress}

@@ -226,8 +226,12 @@ export function isMixedContent(pageProtocol: string | undefined, address: string
   if (pageProtocol !== 'https:') return false
   const { protocol, hostname } = new URL(address)
   if (protocol !== 'http:') return false
-  const loopback = hostname === 'localhost' || hostname.endsWith('.localhost') || hostname === '[::1]' || /^127\.\d+\.\d+\.\d+$/.test(hostname)
-  return !loopback
+  return !isLoopback(hostname)
+}
+
+/** Whether `hostname`, as `URL` gives it, is this device: an address or a name browsers trust over plain HTTP. */
+function isLoopback(hostname: string): boolean {
+  return hostname === 'localhost' || hostname.endsWith('.localhost') || hostname === '[::1]' || /^127\.\d+\.\d+\.\d+$/.test(hostname)
 }
 
 /**
@@ -253,6 +257,56 @@ export async function saveWebuiProwlarr(apiKey: string, url?: string): Promise<S
   if (result === 'invalid') throw new SettingsError(422, 'invalid-key')
   if (result === 'not-prowlarr') throw new SettingsError(502, 'not-prowlarr')
   return store({ [SETTING_KEYS.prowlarr]: { url: address, apiKey: key } satisfies StoredProwlarr })
+}
+
+/** How long Find waits for Prowlarr at each address: a host that drops the connection answers nothing. */
+export const FIND_TIMEOUT_MS = 3000
+
+/** Prowlarr's port as it installs. */
+const PROWLARR_PORT = 9696
+
+/**
+ * Where Find looks for Prowlarr from the page (#560): on Prowlarr's port at qBittorrent's own host and
+ * at Prowlarr's usual name, over plain HTTP as Prowlarr installs, leaving out an address the browser
+ * would block as mixed content. This device only from a page over HTTPS that isn't on it, where it's
+ * the one plain HTTP address left: from a page on it, qBittorrent's host is this device already, and
+ * from one on the home network Chrome would ask the person to let the page reach this device, for a
+ * Prowlarr that is rarely there.
+ */
+export function prowlarrCandidates(page: { protocol: string; hostname: string }): string[] {
+  const device = page.protocol === 'https:' && !isLoopback(page.hostname) ? ['localhost'] : []
+  const hosts = [page.hostname, ...device, 'prowlarr']
+  const addresses = [...new Set(hosts.map((host) => `http://${host}:${PROWLARR_PORT}`))]
+  return addresses.filter((address) => !isMixedContent(page.protocol, address))
+}
+
+/**
+ * Whether Prowlarr answers at `address`: its API's 401 without a key, which it lets any origin read,
+ * while another service sends no CORS (the page can't read its answer) or answers otherwise.
+ */
+async function answersAsProwlarr(address: string, signal: AbortSignal): Promise<boolean> {
+  try {
+    return await withTimeout(FIND_TIMEOUT_MS, signal, async (timed) => {
+      // No header, so no preflight: a plain GET, as any page may send.
+      const response = await fetch(`${address}/api/v1/system/status`, { signal: timed })
+      await response.body?.cancel()
+      return response.status === 401
+    })
+  } catch (error) {
+    // Given up by the caller: an abort, not an address where nothing answers.
+    if (signal.aborted) throw error
+    return false
+  }
+}
+
+/** The addresses among `prowlarrCandidates` where Prowlarr answers, in their order, for this page. */
+export async function findWebuiProwlarr(signal: AbortSignal = new AbortController().signal): Promise<string[]> {
+  // Read through globalThis, as saveWebuiProwlarr does: the clients also run in Node.
+  const page = (globalThis as { location?: { protocol: string; hostname: string } }).location
+  if (!page) return []
+  const candidates = prowlarrCandidates(page)
+  const answers = await Promise.all(candidates.map((address) => answersAsProwlarr(address, signal)))
+  return candidates.filter((_address, index) => answers[index])
 }
 
 /** Saves the download defaults in `changes`, each under its own key; the others stay as they are. */
