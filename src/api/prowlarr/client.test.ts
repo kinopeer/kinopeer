@@ -1,5 +1,7 @@
-import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
-import { ProwlarrError, ProwlarrSetupError, fetchRelease, getFailingIndexers, searchReleases } from './client'
+import { beforeEach, describe, expect, it, onTestFinished, vi, type Mock } from 'vitest'
+import { PROWLARR_ADDRESS as PROWLARR, opaqueRedirect } from '../../test/fixtures'
+import { ProwlarrError, ProwlarrSetupError, fetchRelease, getFailingIndexers, getProwlarrStatus, searchReleases } from './client'
+import { SETTING_KEYS } from '../settings/webui'
 import type { Release } from './types'
 import { KinopeerUnreachableError } from '../qbittorrent/client'
 
@@ -80,4 +82,71 @@ describe('fetchRelease', () => {
     expect(file.size).toBe(2)
   })
 
+})
+
+describe('the WebUI build', () => {
+  beforeEach(() => {
+    vi.stubGlobal('__WEBUI__', true)
+    fetchMock.mockImplementation(async (url) => {
+      if (String(url).startsWith('api/v2/clientdata/load')) return Response.json({ [SETTING_KEYS.prowlarr]: { url: PROWLARR, apiKey: 'k' } })
+      const { pathname } = new URL(String(url))
+      if (pathname === '/api/v1/search') return Response.json([])
+      if (pathname === '/api/v1/indexerstatus') return Response.json([])
+      if (pathname === '/api/v1/system/status') return Response.json({ version: '3.0.2.5780' })
+      if (pathname === '/api/v1/indexer') return Response.json([])
+      if (pathname === '/api/v1/indexer/1/download') return opaqueRedirect()
+      return new Response(null, { status: 404 })
+    })
+  })
+
+  /** The paths of the calls that went to Prowlarr, none to Kinopeer's server. */
+  const prowlarrPaths = () =>
+    fetchMock.mock.calls.flatMap(([url]) => (String(url).startsWith(PROWLARR) ? [new URL(String(url)).pathname] : String(url).startsWith('api/v2/') ? [] : [String(url)]))
+
+  it('calls Prowlarr from the page rather than through Kinopeer’s server', async () => {
+    await searchReleases('Dune', { type: 'movie' })
+    await getProwlarrStatus()
+    await getFailingIndexers(1000)
+    expect(prowlarrPaths()).toEqual(['/api/v1/search', '/api/v1/system/status', '/api/v1/indexer', '/api/v1/indexerstatus'])
+  })
+
+  it('asks about the failing indexers of the last ten minutes at most, as on the server build', async () => {
+    vi.useFakeTimers({ now: Date.parse('2026-11-22T12:00:00Z'), toFake: ['Date'] })
+    onTestFinished(() => void vi.useRealTimers())
+    const answer = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url, init) => {
+      const { pathname } = new URL(String(url), 'http://192.168.1.20:8080/')
+      if (pathname === '/api/v1/indexerstatus') {
+        return Response.json([
+          { indexerId: 1, mostRecentFailure: '2026-11-22T11:49:00Z' },
+          { indexerId: 2, mostRecentFailure: '2026-11-22T11:51:00Z' },
+        ])
+      }
+      if (pathname === '/api/v1/indexer') return Response.json([{ id: 1, name: 'Indexer A', enable: true }, { id: 2, name: 'Indexer B', enable: true }])
+      return answer(url, init)
+    })
+    await expect(getFailingIndexers(45 * 60 * 1000)).resolves.toEqual(['Indexer B'])
+  })
+
+  it('hands qBittorrent the download link when Prowlarr answers with a redirect', async () => {
+    await expect(fetchRelease(RELEASE)).resolves.toEqual({ kind: 'link', uri: `${PROWLARR}/api/v1/indexer/1/download?link=A&apikey=k` })
+  })
+
+  it('takes the release’s magnet link over a redirect, since it names the torrent’s hash', async () => {
+    const magnet = 'magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567'
+    await expect(fetchRelease({ ...RELEASE, magnet })).resolves.toEqual({ kind: 'magnet', uri: magnet })
+  })
+
+  it('names the .torrent Prowlarr answers with after the release, as on the server build', async () => {
+    const answer = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url, init) =>
+      String(url).startsWith(`${PROWLARR}/api/v1/indexer/1/download`) ? new Response(new Uint8Array([0x64, 0x65])) : answer(url, init),
+    )
+    const source = await fetchRelease({ ...RELEASE, title: 'Dune: Part Two ' })
+    expect(source).toMatchObject({ kind: 'torrent' })
+    const { file } = source as { file: File }
+    expect(file.name).toBe('Dune Part Two.torrent')
+    expect(file.type).toBe('application/x-bittorrent')
+    expect(new Uint8Array(await file.arrayBuffer())).toEqual(new Uint8Array([0x64, 0x65]))
+  })
 })

@@ -62,6 +62,17 @@ describe('useReleases', () => {
     expect(result.current.unreachable).toBe(who)
   })
 
+  it.each([
+    ["qBittorrent didn't give Prowlarr's address and key", () => new prowlarr.ProwlarrKeyReadError(new TypeError('Failed to fetch')), true],
+    ["Prowlarr didn't answer", () => new TypeError('Failed to fetch'), false],
+  ] as const)('tells in the WebUI build whether qBittorrent or Prowlarr failed the search: %s', async (_name, error, unread) => {
+    vi.stubGlobal('__WEBUI__', true)
+    vi.mocked(prowlarr.searchReleases).mockRejectedValue(error())
+    const { result } = renderHook(() => useReleases(movie(1, 'Dune')))
+    await waitFor(() => expect(result.current.status).toBe('error'))
+    expect(result.current.unread).toBe(unread)
+  })
+
   it('names no one who didn’t answer a search that was answered (#566)', async () => {
     vi.mocked(prowlarr.searchReleases).mockResolvedValue(DUNE_RELEASES)
     const { result } = renderHook(() => useReleases(movie(1, 'Dune')))

@@ -463,6 +463,23 @@ describe('AddReleaseSheet', () => {
     expect(within(sheet).getByRole('button', { name: 'Try again' })).toBeInTheDocument()
   })
 
+  it('says qBittorrent didn’t answer, not Prowlarr, when it didn’t give Prowlarr’s address and key in the WebUI build', async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    fetchRelease.mockRejectedValue(new prowlarr.ProwlarrKeyReadError(new TypeError('Failed to fetch')))
+    renderSheet()
+    const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+    expect(await within(sheet).findByRole('alert', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
+    expect(within(sheet).getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+  })
+
+  it('says it’s Prowlarr whose torrent failed in the WebUI build when qBittorrent gave its address and key', async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    fetchRelease.mockRejectedValue(new prowlarr.ProwlarrError('down', 502, 'upstream'))
+    renderSheet()
+    const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+    expect(await within(sheet).findByRole('alert', { name: saying('Couldn’t get the torrent from Prowlarr.') })).toBeInTheDocument()
+  })
+
   it('offers no form, the free space warning included, when the torrent can’t be fetched', async () => {
     fetchRelease.mockRejectedValue(new prowlarr.ProwlarrError('down', 502, 'upstream'))
     renderSheet(RELEASE, await runningPoll())
@@ -511,6 +528,43 @@ describe('AddReleaseSheet', () => {
       await within(sheet).findByRole('status', { name: saying(/40\.0\sGB short of this download\. Free up space before it finishes\./) }),
     ).toBeInTheDocument()
     expect(within(sheet).getByRole('button', { name: /^Download/ })).toBeEnabled()
+  })
+
+  it('adds the link qBittorrent follows itself in the WebUI build, warned by the release size, with all its files', async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    const link = 'http://192.168.1.20:9696/api/v1/indexer/1/download?link=abc&apikey=k'
+    fetchRelease.mockResolvedValue({ kind: 'link', uri: link })
+    getMainData.mockResolvedValue({ rid: 1, server_state: { free_space_on_disk: 10e9 } })
+    const { onAdded } = renderSheet()
+    const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+    expect(await within(sheet).findByText(/Prowlarr gave a link qBittorrent fetches itself, so all files are downloaded/)).toBeInTheDocument()
+    expect(within(sheet).queryByText(/Magnet link: all files/)).not.toBeInTheDocument()
+    expect(
+      await within(sheet).findByRole('status', { name: saying(/40\.0\sGB short of this download\. Free up space before it finishes\./) }),
+    ).toBeInTheDocument()
+    await userEvent.click(within(sheet).getByRole('button', { name: /^Download/ }))
+    await waitFor(() => expect(onAdded).toHaveBeenCalled())
+    expect(addRelease).toHaveBeenCalledWith({ kind: 'link', uri: link }, expect.anything(), undefined)
+  })
+
+  it('says a magnet link’s files in the WebUI build as in the server build', async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    fetchRelease.mockResolvedValue({ kind: 'magnet', uri: 'magnet:?xt=urn:btih:abc' })
+    renderSheet()
+    const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+    expect(await within(sheet).findByText(/Magnet link: all files/)).toBeInTheDocument()
+    expect(within(sheet).queryByText(/Prowlarr gave a link/)).not.toBeInTheDocument()
+  })
+
+  it('neither notes the files of a .torrent it can’t read nor warns by the release size in the WebUI build', async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    readTorrentFile.mockRejectedValue(new Error('not bencoded'))
+    renderSheet(RELEASE, await runningPoll())
+    const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+    expect(await within(sheet).findByText('TV → /data/tv')).toBeInTheDocument()
+    await waitFor(() => expect(within(sheet).getByRole('button', { name: /^Download · 50\.0\sGB$/ })).toBeEnabled())
+    expect(within(sheet).queryByText('Not enough free space')).not.toBeInTheDocument()
+    expect(within(sheet).queryByText(/Magnet link: all files|Prowlarr gave a link/)).not.toBeInTheDocument()
   })
 
   it('says qBittorrent refused the torrent when it then doesn’t have it', async () => {
@@ -563,6 +617,20 @@ describe('AddReleaseSheet', () => {
     expect(getTorrents).toHaveBeenLastCalledWith({ hashes: [v2.slice(0, 40)] }, undefined)
   })
 
+  it.each([
+    ['a v1 hash', 'c'.repeat(40), 'qBittorrent didn’t add the torrent.'],
+    // A hybrid torrent's ID is its v1 hash, which a v2 hash alone doesn't give.
+    ['only a v2 hash', 'cd'.repeat(32), 'qBittorrent didn’t add the torrent. It may already be in your downloads.'],
+  ])('says whether a refused link may be in downloads by the hash Prowlarr gave, %s, in the WebUI build', async (_hash, infoHash, said) => {
+    vi.stubGlobal('__WEBUI__', true)
+    fetchRelease.mockResolvedValue({ kind: 'link', uri: 'http://192.168.1.20:9696/api/v1/indexer/1/download?link=abc&apikey=k' })
+    addRelease.mockRejectedValue(new qbt.TorrentRefusedError(200))
+    renderSheet({ ...RELEASE, infoHash })
+    await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
+    expect(await screen.findByRole('alert', { name: saying(said) })).toBeInTheDocument()
+    expect(getTorrents).toHaveBeenLastCalledWith({ hashes: [infoHash.slice(0, 40)] }, undefined)
+  })
+
   it('says it may already be in downloads when qBittorrent refused a torrent whose hash isn’t known', async () => {
     readTorrentFile.mockRejectedValue(new torrentFile.InvalidTorrentError())
     addRelease.mockRejectedValue(new qbt.TorrentRefusedError(200))
@@ -607,6 +675,27 @@ describe('AddReleaseSheet', () => {
       expect(await screen.findByRole('status', { name: saying('Already in downloads') })).toBeInTheDocument()
       expect(getTorrents).toHaveBeenCalledWith({ hashes: [hash] }, expect.any(AbortSignal))
       expect(screen.queryByText(/Magnet link: all files/)).not.toBeInTheDocument()
+    })
+
+    it('finds a magnet link’s torrent by the link’s hash in the WebUI build too, not by the one Prowlarr gave', async () => {
+      vi.stubGlobal('__WEBUI__', true)
+      const hash = 'd'.repeat(40)
+      fetchRelease.mockResolvedValue({ kind: 'magnet', uri: `magnet:?xt=urn:btih:${hash}` })
+      getTorrents.mockResolvedValue([torrent(hash)])
+      renderSheet({ ...RELEASE, infoHash: 'e'.repeat(40) })
+      expect(await screen.findByRole('status', { name: saying('Already in downloads') })).toBeInTheDocument()
+      expect(getTorrents).toHaveBeenCalledWith({ hashes: [hash] }, expect.any(AbortSignal))
+    })
+
+    it('finds the torrent behind a link qBittorrent would follow by the hash Prowlarr gave with the release', async () => {
+      vi.stubGlobal('__WEBUI__', true)
+      const hash = 'f'.repeat(40)
+      fetchRelease.mockResolvedValue({ kind: 'link', uri: 'http://192.168.1.20:9696/api/v1/indexer/1/download?link=abc&apikey=k' })
+      getTorrents.mockResolvedValue([torrent(hash)])
+      renderSheet({ ...RELEASE, infoHash: hash.toUpperCase() })
+      expect(await screen.findByRole('status', { name: saying('Already in downloads') })).toBeInTheDocument()
+      expect(getTorrents).toHaveBeenCalledWith({ hashes: [hash] }, expect.any(AbortSignal))
+      expect(screen.queryByRole('button', { name: /^Download/ })).not.toBeInTheDocument()
     })
 
     it('keeps the free space warning away too', async () => {

@@ -4,9 +4,10 @@ import type { SettingsErrorBody, SourceAddress } from './types'
 /**
  * Why a settings request failed: the server's code (`SettingsErrorBody`), or in the WebUI build,
  * where qBittorrent keeps the settings, `store-full` when its store for web interfaces has no room
- * for the change (`isStoreFull` in src/api/qbittorrent/webui.ts).
+ * for the change (`isStoreFull` in src/api/qbittorrent/webui.ts), and `mixed-content` for a
+ * Prowlarr address over plain HTTP on a page served over HTTPS, which the browser won't call.
  */
-export type SettingsErrorCode = SettingsErrorBody['error'] | 'store-full'
+export type SettingsErrorCode = SettingsErrorBody['error'] | 'store-full' | 'mixed-content'
 
 export class SettingsError extends Error {
   readonly status: number

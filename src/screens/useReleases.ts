@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { failureOf, type ConnectionFailure } from '../api/connectionFailure'
 import { unreachable, type Torrent, type Unreachable } from '../api/qbittorrent'
-import { ProwlarrSetupError, getFailingIndexers, searchReleases, type Release } from '../api/prowlarr'
+import { ProwlarrKeyReadError, ProwlarrSetupError, getFailingIndexers, searchReleases, type Release } from '../api/prowlarr'
 import { clickedOrder, cycledOrder, reversedOrder, usualOrder } from '../logic/sortOrder'
 import { useRequest } from '../lib/useRequest'
 import {
@@ -67,6 +67,8 @@ export interface Releases {
   failure?: ConnectionFailure
   /** With `error`: who didn't answer, Kinopeer's server or Prowlarr behind it (`qbittorrent`, #566). */
   unreachable?: Unreachable
+  /** With `error`, in the WebUI build: qBittorrent didn't give Prowlarr's address and key (`ProwlarrKeyReadError`). */
+  unread?: boolean
   retry: () => void
   /** Names of the indexers that didn't answer this search, so their releases are missing. */
   failing: string[]
@@ -211,6 +213,8 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
     status,
     failure: failureOf(search.error),
     unreachable: status === 'error' ? unreachable(search.error) : undefined,
+    // Only the WebUI build reads Prowlarr's address and key from qBittorrent.
+    ...(__WEBUI__ && { unread: search.error instanceof ProwlarrKeyReadError }),
     retry: search.retry,
     failing: missing,
     rows,

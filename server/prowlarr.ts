@@ -1,7 +1,19 @@
 import { readFile } from 'node:fs/promises'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { ConnectionFailure } from '../src/api/connectionFailure.ts'
-import type { FailingIndexers, MagnetResponse, ProwlarrErrorBody, ProwlarrStatus, Release } from '../src/api/prowlarr/types.ts'
+import type { FailingIndexers, MagnetResponse, ProwlarrErrorBody, ProwlarrStatus, SearchType } from '../src/api/prowlarr/types.ts'
+import {
+  downloadUrl,
+  enabledIndexers,
+  failedIds,
+  indexerNames,
+  isTorrentFile,
+  searchQuery,
+  toReleases,
+  type ProwlarrIndexer,
+  type ProwlarrIndexerStatus,
+  type ProwlarrRelease,
+} from '../src/releases/prowlarrResults.ts'
 import { abandoned } from './abandoned.ts'
 import { connectionFailure } from './connectionFailure.ts'
 import { textPrefix } from './textPrefix.ts'
@@ -36,28 +48,7 @@ export type Middleware = (request: IncomingMessage, response: ServerResponse, ne
 
 const PREFIX = '/prowlarr/'
 const SEARCH_TYPES = new Set(['search', 'movie', 'tvsearch'])
-const MAX_TORRENT_BYTES = 20 * 1024 * 1024
 const MAX_REDIRECTS = 3
-const BENCODE_DICT = 0x64 // "d"
-
-/** What Kinopeer reads from Prowlarr's /api/v1/search results. */
-interface ProwlarrRelease {
-  guid?: string
-  title?: string
-  indexer?: string
-  size?: number
-  seeders?: number
-  leechers?: number
-  publishDate?: string
-  infoUrl?: string
-  categories?: { id: number }[]
-  infoHash?: string
-  magnetUrl?: string
-  downloadUrl?: string
-  imdbId?: number
-  tmdbId?: number
-  protocol?: string
-}
 
 function send(response: ServerResponse, status: number, body: unknown): void {
   response.statusCode = status
@@ -68,58 +59,6 @@ function send(response: ServerResponse, status: number, body: unknown): void {
 
 function fail(response: ServerResponse, status: number, error: ProwlarrErrorBody['error'], failure?: ConnectionFailure): void {
   send(response, status, { error, ...(failure && { failure }) } satisfies ProwlarrErrorBody)
-}
-
-/**
- * Prowlarr download links look like {base}/{indexerId}/download?apikey=…&link=…&file=…. The token
- * keeps the indexer id and the query without the key, so the server can rebuild the link later.
- */
-export function downloadToken(link: string | undefined): string | undefined {
-  if (!link) return undefined
-  let url: URL
-  try {
-    url = new URL(link)
-  } catch {
-    return undefined
-  }
-  const match = /\/(\d+)\/download$/.exec(url.pathname)
-  if (!match) return undefined
-  url.searchParams.delete('apikey')
-  return `${match[1]}/download?${url.searchParams}`
-}
-
-function downloadUrl(base: string, token: string, apiKey: string): URL | undefined {
-  const match = /^(\d+)\/download\?(.*)$/.exec(token)
-  if (!match) return undefined
-  const params = new URLSearchParams(match[2])
-  params.delete('apikey')
-  params.set('apikey', apiKey)
-  // The /api/ path, not Prowlarr's /{id}/download alias: proxies in front of Prowlarr (e.g. Umbrel's
-  // app auth) often let only /api/* through without their own login.
-  return new URL(`${base}/api/v1/indexer/${match[1]}/download?${params}`)
-}
-
-export function toRelease(item: ProwlarrRelease): Release | undefined {
-  if (!item.guid || !item.title || (item.protocol && item.protocol !== 'torrent')) return undefined
-  const magnet = item.magnetUrl?.startsWith('magnet:') ? item.magnetUrl : undefined
-  const download = downloadToken(item.downloadUrl) ?? (magnet ? undefined : downloadToken(item.magnetUrl))
-  if (!magnet && !download) return undefined
-  return {
-    id: item.guid,
-    title: item.title,
-    indexer: item.indexer ?? '',
-    size: item.size ?? 0,
-    seeders: item.seeders,
-    leechers: item.leechers,
-    publishDate: item.publishDate,
-    infoUrl: item.infoUrl,
-    categories: (item.categories ?? []).map((category) => category.id),
-    infoHash: item.infoHash?.toLowerCase(),
-    magnet,
-    download,
-    imdbId: item.imdbId || undefined,
-    tmdbId: item.tmdbId || undefined,
-  }
 }
 
 /** `signal` gives Prowlarr's requests up once the browser's request is gone. */
@@ -133,18 +72,14 @@ async function search(base: string, apiKey: string, query: URLSearchParams, resp
     return fail(response, 400, 'bad-request')
   }
 
-  const params = new URLSearchParams({ query: term, type, limit: '100' })
-  for (const category of categories) params.append('categories', category)
-  const upstream = await fetch(`${base}/api/v1/search?${params}`, {
+  const upstream = await fetch(`${base}/api/v1/search?${searchQuery(term, type as SearchType, categories)}`, {
     headers: { 'X-Api-Key': apiKey, Accept: 'application/json' },
     signal,
   })
   if (upstream.status === 401) return fail(response, 502, 'unauthorized')
   if (!upstream.ok) return fail(response, 502, 'upstream')
 
-  const items = (await upstream.json()) as ProwlarrRelease[]
-  const releases = items.map(toRelease).filter((release): release is Release => release !== undefined)
-  send(response, 200, releases)
+  send(response, 200, toReleases((await upstream.json()) as ProwlarrRelease[]))
 }
 
 async function download(base: string, apiKey: string, query: URLSearchParams, response: ServerResponse, signal: AbortSignal): Promise<void> {
@@ -174,8 +109,7 @@ async function download(base: string, apiKey: string, query: URLSearchParams, re
     if (!upstream.ok) return fail(response, 502, 'upstream')
 
     const bytes = new Uint8Array(await upstream.arrayBuffer())
-    // A .torrent is a bencoded dictionary; anything else (say, a proxy's login page) is not one.
-    if (bytes.length > MAX_TORRENT_BYTES || bytes[0] !== BENCODE_DICT) return fail(response, 502, 'upstream')
+    if (!isTorrentFile(bytes)) return fail(response, 502, 'upstream')
     response.statusCode = 200
     response.setHeader('Content-Type', 'application/x-bittorrent')
     response.setHeader('Cache-Control', 'no-store')
@@ -195,56 +129,16 @@ async function status(base: string, apiKey: string, _query: URLSearchParams, res
   if (!system.ok || !indexers.ok) return fail(response, 502, 'upstream')
 
   const { version } = (await system.json()) as { version?: string }
-  const list = (await indexers.json()) as { enable?: boolean }[]
+  const list = (await indexers.json()) as ProwlarrIndexer[]
   send(response, 200, {
     version: version ?? '',
-    indexers: list.filter((indexer) => indexer.enable).length,
+    indexers: enabledIndexers(list),
   } satisfies ProwlarrStatus)
-}
-
-/** What Kinopeer reads from Prowlarr's /api/v1/indexer. */
-interface ProwlarrIndexer {
-  id?: number
-  name?: string
-  enable?: boolean
-}
-
-/** What Kinopeer reads from Prowlarr's /api/v1/indexerstatus: indexers that have failed lately. */
-interface ProwlarrIndexerStatus {
-  indexerId?: number
-  /** ISO date until which Prowlarr skips the indexer. */
-  disabledTill?: string
-  mostRecentFailure?: string
-}
-
-/**
- * Ids of the indexers that failed at or after `since`, or that are on hold now. Prowlarr's search
- * answers 200 with whatever the other indexers found, so this is the only way to tell.
- */
-export function failedIds(statuses: ProwlarrIndexerStatus[], since: number, now: number): Set<number> {
-  return new Set(
-    statuses
-      .filter(
-        (status) =>
-          Date.parse(status.disabledTill ?? '') > now || Date.parse(status.mostRecentFailure ?? '') >= since,
-      )
-      .map((status) => status.indexerId)
-      // A row without an id is malformed, never a failure.
-      .filter((id): id is number => typeof id === 'number'),
-  )
-}
-
-/** Names of the enabled indexers among `ids`, sorted. */
-export function indexerNames(indexers: ProwlarrIndexer[], ids: Set<number>): string[] {
-  return indexers
-    .filter((indexer) => indexer.enable && indexer.name && typeof indexer.id === 'number' && ids.has(indexer.id))
-    .map((indexer) => indexer.name!)
-    .sort((a, b) => a.localeCompare(b))
 }
 
 /**
  * The longest `within` accepted, as the client's MAX_FAILING_WITHIN_MS (a value, so not imported:
- * the image carries none of src/ but src/logic/titleMatches.ts; a test keeps them equal).
+ * the image carries of src/ only the modules the Dockerfile copies; a test keeps them equal).
  */
 export const MAX_WITHIN_MS = 10 * 60 * 1000
 
@@ -291,29 +185,6 @@ class UpstreamError extends Error {
     super(code)
     this.code = code
   }
-}
-
-/**
- * Whether Prowlarr at `base` takes `apiKey`: 'invalid' when it answers 401, 'not-prowlarr' when
- * the answer isn't Prowlarr's status (a proxy's login page, an app's index.html, another app's 404).
- * Throws when it doesn't answer, answers with a server error, a 408 or a 429, or `signal` aborts first.
- */
-export async function checkProwlarrKey(
-  base: string,
-  apiKey: string,
-  signal?: AbortSignal,
-): Promise<'valid' | 'invalid' | 'not-prowlarr'> {
-  const response = await fetch(`${base}/api/v1/system/status`, {
-    headers: { 'X-Api-Key': apiKey, Accept: 'application/json' },
-    signal,
-  })
-  if (response.status === 401) return 'invalid'
-  // Prowlarr's status answers whenever it runs; another error of the caller's is another app there,
-  // but a timeout or a rate limit (a proxy in front, say) is one to try again.
-  if (response.status >= 400 && response.status < 500 && response.status !== 408 && response.status !== 429) return 'not-prowlarr'
-  if (!response.ok) throw new Error(`Prowlarr answered ${response.status}`)
-  const body = (await response.json().catch(() => undefined)) as { version?: unknown } | undefined
-  return typeof body?.version === 'string' ? 'valid' : 'not-prowlarr'
 }
 
 /**

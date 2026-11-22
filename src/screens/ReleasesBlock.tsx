@@ -11,6 +11,7 @@ import { unreachableText } from '../lib/unreachable'
 import type { TitleDetails } from '../releases/releaseQuery'
 import { AddReleaseSheet } from './AddReleaseSheet'
 import { ProwlarrSetupState } from './ProwlarrSetupState'
+import { StoreUnreadState } from './StoreUnreadState'
 import { UnreachableState } from './UnreachableState'
 import type { Releases } from './useReleases'
 
@@ -40,6 +41,7 @@ export function ReleasesBody({ releases, skeleton, children, countInList = false
     case 'rejected':
       return <ProwlarrSetupState rejected={releases.status === 'rejected'} onSaved={releases.retry} />
     case 'error':
+      if (__WEBUI__ && releases.unread) return <StoreUnreadState onRetry={releases.retry} retryIcon="refresh" />
       if (unreachableText(releases.unreachable)) return <UnreachableState unreachable={releases.unreachable} onRetry={releases.retry} texts="connect" retryIcon="refresh" />
       return (
         <EmptyState icon="wifi-off" tone="error" title={t('noAnswer.prowlarr')} actionLabel={t('common.retry')} actionIcon="refresh" onAction={releases.retry}>

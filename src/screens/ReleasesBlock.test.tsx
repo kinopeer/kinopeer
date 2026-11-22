@@ -227,6 +227,17 @@ describe('ReleasesBody', () => {
     expect(search.retry).toHaveBeenCalledOnce()
   })
 
+  it('names qBittorrent, not Prowlarr, when it didn’t give Prowlarr’s address and key in the WebUI build', async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(() => new Promise(() => {})))
+    const search = releases({ status: 'error', unreachable: 'qbittorrent', unread: true, rows: [], visible: [] })
+    renderBody(search)
+    expect(screen.getByRole('heading', { name: 'qBittorrent isn’t answering' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Prowlarr isn’t answering' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(search.retry).toHaveBeenCalledOnce()
+  })
+
   it('says when Kinopeer’s server didn’t answer the search, not Prowlarr (#566)', async () => {
     const search = releases({ status: 'error', unreachable: 'kinopeer', rows: [], visible: [] })
     renderBody(search)
