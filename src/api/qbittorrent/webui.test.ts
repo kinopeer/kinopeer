@@ -62,4 +62,30 @@ describe('logIn', () => {
       vi.useRealTimers()
     }
   })
+
+  it('gives up an answer whose body stops coming in the same time limit', async () => {
+    vi.useFakeTimers()
+    try {
+      // A real fetch's body errors once the request's signal aborts.
+      fetchMock.mockImplementationOnce(async (_url, init) => {
+        const body = new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode('O'))
+            init!.signal!.addEventListener('abort', () => controller.error(new DOMException('Aborted', 'AbortError')))
+          },
+        })
+        return new Response(body)
+      })
+      let settled = false
+      const login = logIn('admin', 'secret').catch((caught: unknown) => caught).finally(() => (settled = true))
+      await vi.advanceTimersByTimeAsync(LOGIN_TIMEOUT_MS - 1)
+      expect(settled).toBe(false)
+      await vi.advanceTimersByTimeAsync(1)
+      const error = await login
+      expect(error).toBeInstanceOf(DOMException)
+      expect(error).not.toBeInstanceOf(QbittorrentError)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })
