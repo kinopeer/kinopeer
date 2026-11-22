@@ -13,6 +13,7 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 - On a phone, a title's releases no longer say Prowlarr isn't answering when it's TMDB that didn't answer for the title's details: they say Kinopeer couldn't load from TMDB, as the title page does. ([#517](https://github.com/kinopeer/kinopeer/issues/517))
 - On a phone, a title's releases opened by their address with no TMDB key say TMDB isn't set up and offer Enter key, as the title page does, rather than that Kinopeer couldn't load from TMDB. ([#535](https://github.com/kinopeer/kinopeer/issues/535))
 - The title page, Search and a title's releases on a phone say Kinopeer isn't answering when Kinopeer's own server didn't (it's stopped, the network is gone, or a sign-in in front of it), rather than that Kinopeer couldn't load from TMDB, and offer Open again where it may help, as Downloads does. ([#537](https://github.com/kinopeer/kinopeer/issues/537))
+- Fix match's search and Search's banner for a next page that didn't load say Kinopeer isn't answering when Kinopeer's own server didn't, with Open again where it may help, as the title page does; Fix match without a TMDB key says TMDB isn't set up and offers Enter key. ([#553](https://github.com/kinopeer/kinopeer/issues/553))
 
 ## 1.2.0 - 2026-11-22
 

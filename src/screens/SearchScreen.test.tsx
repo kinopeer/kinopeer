@@ -2,12 +2,14 @@ import { act, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Link, Route, Routes, useNavigate } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
+import { KinopeerUnreachableError } from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
 import i18n from '../i18n'
 import { TAB_RETURN, forgetTabPlaces, tabPlace } from '../lib/tabPlaces'
 import { forgetKeptResults } from '../search/searchResults'
 import { searchPage as page, title } from '../test/fixtures'
-import { renderWithRouter, saying } from '../test/render'
+import * as proxySignIn from '../pwa/proxySignIn'
+import { controlledByServiceWorker, renderWithRouter, saying } from '../test/render'
 import type { DownloadsMark } from '../torrents/titleDownloads'
 import { SearchScreen } from './SearchScreen'
 
@@ -18,6 +20,10 @@ vi.mock('../api/tmdb', async (importOriginal) => {
 
 // The torrents of the titles in downloads, as useTitlesInDownloads gives them (its own test covers how).
 let inDownloads = new Map<string, DownloadsMark>()
+vi.mock('../pwa/proxySignIn', async (importOriginal) => ({
+  ...(await importOriginal<typeof proxySignIn>()),
+  loadPastTheShell: vi.fn(),
+}))
 vi.mock('../torrents/useTitlesInDownloads', () => ({ useTitlesInDownloads: () => inDownloads }))
 
 const searchTitles = vi.mocked(tmdb.searchTitles)
@@ -251,8 +257,9 @@ describe('SearchScreen', () => {
     expect(more).toHaveAttribute('aria-busy', 'true')
     expect(more).toBeDisabled()
 
-    await act(async () => fail(new TypeError('Failed to fetch')))
+    await act(async () => fail(new tmdb.TmdbError('TMDB responded 502', 502)))
     const failure = screen.getByRole('alert', { name: saying('Couldn’t load more') })
+    expect(within(failure).getByText('Check the connection and try again.')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Dune: Part Two' })).toBeInTheDocument()
 
     await userEvent.click(within(failure).getByRole('button', { name: 'Try again' }))
@@ -261,6 +268,31 @@ describe('SearchScreen', () => {
     expect(searchTitles.mock.calls.map(([, options]) => options?.page)).toEqual([1, 2, 2])
     // Page 3 is still to come.
     expect(screen.getByRole('button', { name: 'Show more' })).toBeEnabled()
+  })
+
+  it('says under the results when Kinopeer’s server didn’t answer for the next page, with Open again', async () => {
+    controlledByServiceWorker()
+    searchTitles.mockResolvedValueOnce(page([DUNE], { totalPages: 2 }))
+    searchTitles.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    renderScreen('/search?q=dune')
+    await userEvent.click(await screen.findByRole('button', { name: 'Show more' }))
+    const failure = await screen.findByRole('alert', { name: saying('Kinopeer isn’t answering') })
+    expect(within(failure).getByText(/your browser may need to confirm its certificate again/)).toBeInTheDocument()
+    await userEvent.click(within(failure).getByRole('button', { name: 'Open again' }))
+    expect(proxySignIn.loadPastTheShell).toHaveBeenCalledOnce()
+    expect(screen.getByRole('heading', { name: 'Dune: Part Two' })).toBeInTheDocument()
+  })
+
+  it('says Kinopeer isn’t answering for the next page without Open again where something answered for its server', async () => {
+    controlledByServiceWorker()
+    searchTitles.mockResolvedValueOnce(page([DUNE], { totalPages: 2 }))
+    searchTitles.mockRejectedValueOnce(new KinopeerUnreachableError(502))
+    renderScreen('/search?q=dune')
+    await userEvent.click(await screen.findByRole('button', { name: 'Show more' }))
+    const failure = await screen.findByRole('alert', { name: saying('Kinopeer isn’t answering') })
+    expect(within(failure).getByText('Check that this device is online and Kinopeer is running on your server.')).toBeInTheDocument()
+    expect(within(failure).queryByRole('button', { name: 'Open again' })).not.toBeInTheDocument()
+    expect(within(failure).getByRole('button', { name: 'Try again' })).toBeInTheDocument()
   })
 
   it('explains a missing TMDB key when the next page finds it', async () => {
