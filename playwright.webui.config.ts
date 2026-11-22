@@ -18,6 +18,6 @@ export default defineConfig({
   workers: 1,
   reporter: [['list'], ...(process.env.CI ? [['html', { open: 'never' }] as const] : [])],
   globalSetup: './e2e/webui/setup.ts',
-  use: { ...base.use, baseURL: QBITTORRENT_URL, serviceWorkers: 'allow' },
+  use: { ...base.use, baseURL: QBITTORRENT_URL },
   webServer: undefined,
 })

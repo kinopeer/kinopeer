@@ -18,7 +18,9 @@ cleanup() {
   docker network rm "$run" >/dev/null 2>&1 || true
   docker volume rm "$run-config" >/dev/null 2>&1 || true
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+# Ctrl-C or a stop ends the run (the EXIT trap cleans up) rather than letting it go on.
+trap 'exit 130' INT TERM
 
 prepare_node_modules_volume
 docker network create "$run" >/dev/null
