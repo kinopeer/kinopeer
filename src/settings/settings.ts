@@ -204,8 +204,8 @@ export function updateSettings(changes: Partial<Settings>): void {
 
 /**
  * What became of download defaults sent to be kept for every device: `store-full` when the WebUI
- * build's qBittorrent had no room for them (src/api/settings/webui.ts), so they apply in this browser
- * until the page is reloaded, when the value qBittorrent keeps, if any, wins (`load`); else
+ * build's qBittorrent had no room for them (src/api/settings/webui.ts), so they're saved in this
+ * browser alone, and a reload brings back the value qBittorrent keeps, if any (`load`); else
  * undefined, a failure of any other kind kept here as `updateSettings` keeps it.
  */
 export type SharedOutcome = 'store-full' | undefined

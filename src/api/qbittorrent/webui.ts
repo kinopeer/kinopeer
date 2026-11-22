@@ -62,7 +62,9 @@ export async function loadClientData(keys: readonly string[], signal = new Abort
  * Merges `data` into qBittorrent's store key by key: the keys sent replace their values, a null
  * removes its key, and every other key stays, so two browsers saving different keys don't overwrite
  * each other. qBittorrent refuses the whole call with 409 when the store would hold more than
- * 1 MiB (`isStoreFull`), and keeps nothing of it.
+ * 1 MiB (`isStoreFull`), and keeps nothing of it. A store given up after `CLIENT_DATA_TIMEOUT_MS`
+ * has normally reached qBittorrent whole already, its body being small, so it may have been taken;
+ * sending it again does no harm, since it sets the same values.
  */
 export async function storeClientData(data: ClientData): Promise<void> {
   await withTimeout(CLIENT_DATA_TIMEOUT_MS, new AbortController().signal, (signal) =>

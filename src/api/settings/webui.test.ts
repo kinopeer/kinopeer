@@ -124,15 +124,17 @@ describe('sharedTmdbAvailable', () => {
 })
 
 describe('prowlarrAddress', () => {
+  /** An address of `length` characters. */
+  const addressOf = (length: number) => `http://nas.local/${'x'.repeat(length - 'http://nas.local/'.length)}`
+
   it('takes an http or https address, its path kept for a reverse proxy, without trailing slashes', () => {
     expect(prowlarrAddress(' http://192.168.1.20:9696/ ')).toBe('http://192.168.1.20:9696')
     expect(prowlarrAddress('https://nas.local/prowlarr//')).toBe('https://nas.local/prowlarr')
     // As long as the server takes one (server/address.ts), and no longer (below).
-    const longest = `http://nas.local/${'x'.repeat(2048 - 'http://nas.local/'.length)}`
-    expect(prowlarrAddress(longest)).toBe(longest)
+    expect(prowlarrAddress(addressOf(2048))).toBe(addressOf(2048))
   })
 
-  it.each(['192.168.1.20:9696', 'ftp://nas.local', 'http://user:pass@nas.local', 'http://user@nas.local', 'http://:pass@nas.local', 'http://nas.local/?apikey=1', 'http://nas.local/#x', '', `http://nas.local/${'x'.repeat(2048 - 'http://nas.local/'.length + 1)}`])(
+  it.each(['192.168.1.20:9696', 'ftp://nas.local', 'http://user:pass@nas.local', 'http://user@nas.local', 'http://:pass@nas.local', 'http://nas.local/?apikey=1', 'http://nas.local/#x', '', addressOf(2049)])(
     'refuses %j',
     (value) => {
       expect(prowlarrAddress(value)).toBeUndefined()
@@ -164,6 +166,41 @@ describe('the settings in qBittorrent', () => {
     await saveDownloadDefaults({ startPaused: true })
     expect(stored()).toEqual([{ 'kinopeer.downloads.startPaused': true }])
     expect(kept).toEqual({ 'kinopeer.downloads.startPaused': true, 'kinopeer.downloads.sequential': true })
+  })
+
+  it.each([
+    ['in the order sent', [0, 1]],
+    ['the other way round', [1, 0]],
+  ])('keeps both of two saves on their way at once in the page\'s answer, settled %s', async (_order, order) => {
+    await getServerSettings()
+    const held: (() => void)[] = []
+    const store = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation((url, init) =>
+      String(url).endsWith('/clientdata/store') ? new Promise<Response>((resolve) => held.push(() => resolve(store(url, init)))) : store(url, init),
+    )
+    const saves = [saveDownloadDefaults({ startPaused: true }), saveDownloadDefaults({ sequential: true })]
+    await vi.waitFor(() => expect(held).toHaveLength(2))
+    for (const index of order) {
+      held[index]()
+      await saves[index]
+    }
+    expect(sharedRequests.peek(WEBUI_SETTINGS_KEY, Infinity)?.data).toEqual({ 'kinopeer.downloads.startPaused': true, 'kinopeer.downloads.sequential': true })
+    expect(sharedRequests.peek<ServerSettings>(SERVER_SETTINGS_KEY, Infinity)?.data?.downloads).toEqual({ startPaused: true, sequential: true })
+  })
+
+  it("answers from what it read when the page's answer was forgotten while it was on its way", async () => {
+    kept['kinopeer.downloads.sequential'] = true
+    await getServerSettings()
+    let release = () => {}
+    const store = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation((url, init) =>
+      String(url).endsWith('/clientdata/store') ? new Promise<Response>((resolve) => (release = () => resolve(store(url, init)))) : store(url, init),
+    )
+    const save = saveDownloadDefaults({ startPaused: true })
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    sharedRequests.clear()
+    release()
+    await expect(save).resolves.toMatchObject({ downloads: { sequential: true, startPaused: true } })
   })
 
   it("keeps a category picked automatically as a value, so a device that had picked one doesn't send it back", async () => {

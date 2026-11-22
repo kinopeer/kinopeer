@@ -145,8 +145,8 @@ export async function loadWebuiServerSettings(signal?: AbortSignal): Promise<Ser
 /**
  * Stores `changes` (a null removes its key) and answers the settings with them. What qBittorrent
  * keeps besides is read first, the page's answer while it's fresh, so once qBittorrent has taken the
- * change nothing more can fail the save; the page's answer then takes the change in, so callers
- * don't read what was there before. Throws `SettingsError` with `store-full` when qBittorrent's
+ * change nothing more can fail the save; the page's newest answer then takes the change in (another
+ * save's, settled meanwhile, among it), so callers don't read what was there before. Throws `SettingsError` with `store-full` when qBittorrent's
  * store has no room for them, and the transport's errors when qBittorrent doesn't answer or take them.
  */
 async function store(changes: ClientData): Promise<ServerSettings> {
@@ -157,7 +157,8 @@ async function store(changes: ClientData): Promise<ServerSettings> {
     if (isStoreFull(error)) throw new SettingsError(409, 'store-full')
     throw error
   }
-  const merged: ClientData = { ...kept, ...changes }
+  // Not `kept` alone: a save or a load that settled while this one was on its way set a newer answer.
+  const merged: ClientData = { ...(sharedRequests.peek<ClientData>(WEBUI_SETTINGS_KEY, Infinity)?.data ?? kept), ...changes }
   for (const key of Object.keys(changes)) if (changes[key] === null) delete merged[key]
   sharedRequests.set(WEBUI_SETTINGS_KEY, merged)
   return asServerSettings(readSettings(merged), sharedTmdbAvailable())

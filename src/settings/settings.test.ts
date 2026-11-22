@@ -224,7 +224,7 @@ describe('download defaults on the server', () => {
     expect(api.saveDownloadDefaults).toHaveBeenCalledTimes(3)
   })
 
-  it("brings back the default qBittorrent keeps on the next page load, after a change its store had no room for, as the toast says", async () => {
+  it("brings back the default qBittorrent keeps on the next page load, after a change its store had no room for, as the toast says it may", async () => {
     vi.mocked(api.saveDownloadDefaults).mockRejectedValueOnce(new api.SettingsError(409, 'store-full'))
     await updateAndShareSettings({ startPaused: true })
     // A reload: this browser's settings are kept, the page's state isn't.
@@ -235,6 +235,18 @@ describe('download defaults on the server', () => {
     vi.mocked(api.getServerSettings).mockResolvedValue(server({ startPaused: false }))
     loadServerSettings()
     await waitFor(() => expect(getSettings().startPaused).toBe(false))
+
+    // With none in qBittorrent, the browser's value stays, and goes to qBittorrent again.
+    vi.mocked(api.saveDownloadDefaults).mockResolvedValue(server({ sequential: true }))
+    await updateAndShareSettings({ sequential: true })
+    const again = localStorage.getItem(SETTINGS_STORAGE_KEY)!
+    resetSettings()
+    localStorage.setItem(SETTINGS_STORAGE_KEY, again)
+    vi.mocked(api.getServerSettings).mockResolvedValue(server({ startPaused: false }))
+    vi.mocked(api.saveDownloadDefaults).mockClear()
+    loadServerSettings()
+    await waitFor(() => expect(api.saveDownloadDefaults).toHaveBeenCalledWith({ sequential: true }))
+    expect(getSettings().sequential).toBe(true)
   })
 
   it('saves a changed download default on the server, and nothing else', () => {

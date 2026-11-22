@@ -1660,7 +1660,7 @@ describe('SettingsScreen in the WebUI build', () => {
   })
 
   const DEFAULTS_STORE_FULL =
-    'Changed in this browser only, until the page is reloaded. qBittorrent’s store for web interfaces is full: it holds 1 MiB for all of them. Another interface used with this qBittorrent may have filled it.'
+    'Saved in this browser, not in qBittorrent, whose value may come back when the page is reloaded. qBittorrent’s store for web interfaces is full: it holds 1 MiB for all of them. Another interface used with this qBittorrent may have filled it.'
 
   it("says a download default stays in this browser when qBittorrent's store has no room for it", async () => {
     vi.stubGlobal('__WEBUI__', true)
