@@ -1,7 +1,11 @@
 import type { Matches, MatchesPatch } from './types'
 import { fetchKinopeer } from '../fetchKinopeer'
+import { clearWebuiGuesses, loadWebuiMatches, saveWebuiMatches } from './webui'
 
-/** Torrent-to-title matches the Kinopeer server keeps (server/matches.ts). */
+/**
+ * Torrent-to-title matches the Kinopeer server keeps (server/matches.ts), or in the WebUI build
+ * qBittorrent's `clientdata` (./webui.ts), by the same rules.
+ */
 export const MATCHES_BASE = '/api/matches'
 
 export class MatchesError extends Error {
@@ -23,15 +27,17 @@ async function read(response: Response): Promise<Matches> {
 }
 
 export async function getMatches(signal?: AbortSignal): Promise<Matches> {
+  if (__WEBUI__) return loadWebuiMatches(signal)
   return read(await fetchKinopeer(MATCHES_BASE, { signal }))
 }
 
 /**
  * Saves matches by info hash (null forgets one) and answers all the server has. A guess or a miss
  * never replaces the user's choice, nothing replaces a match of a newer version of guessing, and a
- * miss doesn't replace a guess of the same version: the server keeps what it has and answers it.
+ * miss doesn't replace a guess of the same version: the store keeps what it has and answers it.
  */
 export async function saveMatches(matches: MatchesPatch): Promise<Matches> {
+  if (__WEBUI__) return saveWebuiMatches(matches)
   return read(
     await fetchKinopeer(MATCHES_BASE, {
       method: 'PATCH',
@@ -43,5 +49,6 @@ export async function saveMatches(matches: MatchesPatch): Promise<Matches> {
 
 /** Forgets every guess and miss, so browsers guess again; the user's choices stay. Answers what is left. */
 export async function clearGuesses(): Promise<Matches> {
+  if (__WEBUI__) return clearWebuiGuesses()
   return read(await fetchKinopeer(MATCHES_BASE, { method: 'DELETE' }))
 }

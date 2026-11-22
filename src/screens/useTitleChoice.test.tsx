@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { QbittorrentError } from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
 import { ToastProvider } from '../components/Toast'
 import { searchPage, title, torrent } from '../test/fixtures'
@@ -165,5 +166,47 @@ describe('useChangeTitle', () => {
     pendingSave()
     await userEvent.click(movieIn(await open('Drawer')))
     expect(screen.queryByRole('status', { name: saying(FAILED) })).not.toBeInTheDocument()
+  })
+})
+
+describe('useChangeTitle in the WebUI build', () => {
+  const STORE_FULL = 'Couldn’t save the choice. qBittorrent’s store for web interfaces is full: it holds 1 MiB for all of them. Another interface used with this qBittorrent may have filled it.'
+  const storeFull = () => new QbittorrentError('qBittorrent responded 409', 409)
+
+  it('says qBittorrent’s store had no room for the choice in the sheet that shows the torrent', async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    chooseTitle.mockRejectedValueOnce(storeFull())
+    const sheet = await renderScreens()('Downloads')
+    await userEvent.click(movieIn(sheet))
+    expect(await within(sheet).findByRole('alert', { name: saying(STORE_FULL) })).toBeInTheDocument()
+  })
+
+  it('says it in a toast once its sheet closed', async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    let fail = () => {}
+    chooseTitle.mockImplementationOnce(() => new Promise((_resolve, reject) => (fail = () => reject(storeFull()))))
+    const sheet = await renderScreens()('Downloads')
+    await userEvent.click(movieIn(sheet))
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Cancel' }))
+    await act(async () => fail())
+    expect(screen.getByRole('status', { name: saying(STORE_FULL) })).toBeInTheDocument()
+  })
+
+  it('says any other failure as the server build does', async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    let fail = () => {}
+    chooseTitle.mockImplementationOnce(() => new Promise((_resolve, reject) => (fail = () => reject(new QbittorrentError('qBittorrent responded 502', 502)))))
+    const open = renderScreens()
+    const sheet = await open('Downloads')
+    await userEvent.click(movieIn(sheet))
+    await act(async () => fail())
+    expect(within(sheet).getByRole('alert', { name: saying(FAILED) })).toBeInTheDocument()
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Cancel' }))
+    chooseTitle.mockImplementationOnce(() => new Promise((_resolve, reject) => (fail = () => reject(new QbittorrentError('qBittorrent responded 502', 502)))))
+    const again = await open('Drawer')
+    await userEvent.click(movieIn(again))
+    await userEvent.click(within(again).getByRole('button', { name: 'Cancel' }))
+    await act(async () => fail())
+    expect(screen.getByRole('status', { name: saying(FAILED) })).toBeInTheDocument()
   })
 })

@@ -7,6 +7,8 @@
     "keyStoreFull": "Ключ не сохранён. $t(webui.storeFull)",
     "prowlarrStoreFull": "Адрес и ключ Prowlarr не сохранены. $t(webui.storeFull)",
     "defaultsStoreFull": "Сохранено в этом браузере, но не в qBittorrent: после перезагрузки страницы может вернуться его значение. $t(webui.storeFull)",
+    "matchStoreFull": "Не удалось сохранить выбор. $t(webui.storeFull)",
+    "matchHint": "Выбор сохранится в qBittorrent и будет виден на всех устройствах, которые к нему подключаются.",
     "tmdbKeyBody": "Постеры, поиск и описания берутся из The Movie Database. Ключ Kinopeer работает, только когда qBittorrent открыт по локальному адресу, а здесь нужен свой бесплатный API-ключ (v3) или токен доступа. Kinopeer хранит его в qBittorrent.",
     "tmdbKeyFieldHelp": "Kinopeer проверит его в TMDB и сохранит в qBittorrent для всех устройств, которые в него входят.",
     "tmdbKeyNeeded": "Для поиска нужен ключ TMDB. Введите его один раз, Kinopeer сохранит его в qBittorrent.",

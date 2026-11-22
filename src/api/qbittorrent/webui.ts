@@ -49,10 +49,14 @@ export type ClientData = Record<string, unknown>
  */
 export const CLIENT_DATA_TIMEOUT_MS = 15_000
 
-/** The values of `keys` that qBittorrent keeps; a key it doesn't keep isn't in the answer. */
-export async function loadClientData(keys: readonly string[], signal = new AbortController().signal): Promise<ClientData> {
+/**
+ * The values of `keys` that qBittorrent keeps, a key it doesn't keep left out of the answer, or with
+ * no keys every key it keeps, every interface's.
+ */
+export async function loadClientData(keys?: readonly string[], signal = new AbortController().signal): Promise<ClientData> {
+  const query = keys ? `?${new URLSearchParams({ keys: JSON.stringify(keys) })}` : ''
   const data: unknown = await withTimeout(CLIENT_DATA_TIMEOUT_MS, signal, async (attempt) => {
-    const response = await webuiTransport(`/clientdata/load?${new URLSearchParams({ keys: JSON.stringify(keys) })}`, { method: 'GET', signal: attempt })
+    const response = await webuiTransport(`/clientdata/load${query}`, { method: 'GET', signal: attempt })
     return response.json()
   })
   return typeof data === 'object' && data !== null && !Array.isArray(data) ? (data as ClientData) : {}

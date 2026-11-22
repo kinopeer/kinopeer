@@ -36,120 +36,33 @@ function patch(app: string, body: unknown, contentType = 'application/json') {
   })
 }
 
+// The store's rules themselves are src/logic/titleMatches.ts's, tested there; these check that the
+// store applies them and keeps what they answer in matches.json.
 describe('MatchesStore', () => {
-  it('keeps the user’s choice over a guess, and lets a choice or a newer guess replace a guess', async () => {
-    const store = new MatchesStore(dir)
-    await store.save({
-      [A]: { type: 'movie', id: 1, source: 'user' },
-      [B]: { type: 'movie', id: 2, source: 'guess', version: 1 },
-    })
-    await store.save({
-      [A]: { type: 'movie', id: 9, source: 'guess', version: 2 },
-      [B]: { type: 'tv', id: 3, source: 'guess', version: 2 },
-    })
-    expect(store.current).toEqual({
-      [A]: { type: 'movie', id: 1, source: 'user' },
-      [B]: { type: 'tv', id: 3, source: 'guess', version: 2 },
-    })
-    await store.save({ [B]: { type: 'movie', id: 4, source: 'user' } })
-    expect(store.current[B]).toEqual({ type: 'movie', id: 4, source: 'user' })
-  })
+  const written = async () => JSON.parse(await readFile(join(dir, 'matches.json'), 'utf8')) as Matches
 
-  it('lets the user change their choice', async () => {
-    const store = new MatchesStore(dir)
-    await store.save({ [A]: { type: 'movie', id: 1, source: 'user' } })
-    await store.save({ [A]: { type: 'tv', id: 5, source: 'user' } })
-    expect(store.current[A]).toEqual({ type: 'tv', id: 5, source: 'user' })
-  })
-
-  it('keeps a guess that found no title under the user’s choice and under a guess or a miss of the same or a newer version of guessing, not an older one, with no expiry', async () => {
-    const [C, D, E, F] = ['d', 'e', 'f', '0'].map((digit) => digit.repeat(40))
-    const store = new MatchesStore(dir)
-    await store.save({
-      [A]: USER,
-      [B]: GUESS,
-      [C]: { ...GUESS, version: 3 },
-      [V2]: { ...GUESS, version: 1 },
-      [D]: { ...MISS, version: 3 },
-      [E]: { ...MISS, version: 1 },
-      // Saved before guesses had a version.
-      [F]: { type: 'tv', id: 2, source: 'guess' },
-    })
-    // A device that loaded the matches before another one found the title still sends its miss.
-    await store.save({ [A]: MISS, [B]: MISS, [C]: MISS, [V2]: MISS, [D]: MISS, [E]: MISS, [F]: MISS })
-    const kept = { [A]: USER, [B]: GUESS, [C]: { ...GUESS, version: 3 }, [V2]: MISS, [D]: { ...MISS, version: 3 }, [E]: MISS, [F]: MISS }
-    expect(store.current).toEqual(kept)
-    // Kept for as long as its torrent is there, however long that is.
-    await store.prune(new Set(Object.keys(kept)), 100, Date.now() + 10 * 365 * 24 * 3600_000)
-    expect(store.current).toEqual(kept)
-  })
-
-  it('replaces a guess that found no title by a guess, and a guess by another of the same version', async () => {
-    const store = new MatchesStore(dir)
-    await store.save({ [A]: MISS, [B]: GUESS })
-    await store.save({ [A]: GUESS, [B]: { ...GUESS, id: 3 } })
-    expect(store.current).toEqual({ [A]: GUESS, [B]: { ...GUESS, id: 3 } })
-  })
-
-  it('replaces nothing by a guess of an older version of guessing, from a page open since before it changed', async () => {
-    const store = new MatchesStore(dir)
-    const C = 'd'.repeat(40)
-    await store.save({ [A]: MISS, [B]: GUESS, [C]: MISS })
-    // A guess without a version is from before guesses had one.
-    await store.save({ [A]: { ...GUESS, version: 1 }, [B]: { ...GUESS, id: 3, version: 1 }, [C]: { type: 'tv', id: 3, source: 'guess' } })
-    expect(store.current).toEqual({ [A]: MISS, [B]: GUESS, [C]: MISS })
-  })
-
-
-  it('forgets a guess that found no title with its torrent, as other matches', async () => {
-    const store = new MatchesStore(dir)
-    await store.save({ [A]: MISS, [B]: MISS })
-    await store.prune(new Set([A]), 100, 1000)
-    expect(store.current).toEqual({ [A]: MISS, [B]: { ...MISS, missingSince: 1000 } })
-    await store.prune(new Set([A]), 100, 1100)
-    expect(store.current).toEqual({ [A]: MISS })
-    expect(await store.save({ [A]: null })).toEqual({})
-  })
-
-  it('forgets guesses, those that found no title too, and keeps choices', async () => {
-    const store = new MatchesStore(dir)
-    await store.save({
-      [A]: { type: 'movie', id: 1, source: 'user' },
-      [B]: { type: 'movie', id: 2, source: 'guess', version: 2 },
-      [V2]: MISS,
-    })
-    expect(await store.clearGuesses()).toEqual({ [A]: { type: 'movie', id: 1, source: 'user' } })
-  })
-
-  it('forgets matches set to null, the user’s choice too', async () => {
+  it('saves matches where the rules let them, forgets those set to null, and keeps them in matches.json', async () => {
     const store = new MatchesStore(dir)
     await store.save({ [A]: USER, [B]: GUESS })
-    expect(await store.save({ [A]: null, [V2]: null })).toEqual({ [B]: GUESS })
+    expect(await store.save({ [A]: GUESS, [B]: null, [V2]: MISS })).toEqual({ [A]: USER, [V2]: MISS })
+    expect(store.current).toEqual({ [A]: USER, [V2]: MISS })
+    expect(await written()).toEqual({ [A]: USER, [V2]: MISS })
   })
 
-  it('forgets a torrent’s match only after qBittorrent has not had it for the whole grace period', async () => {
+  it('notes a torrent qBittorrent no longer has, forgets its match after the grace period, and keeps that in matches.json', async () => {
     const store = new MatchesStore(dir)
-    await store.save({ [A]: USER, [B]: GUESS, [V2]: GUESS })
-
-    await store.prune(new Set([A, V2]), 100, 1000)
-    expect(store.current).toEqual({ [A]: USER, [B]: { ...GUESS, missingSince: 1000 }, [V2]: GUESS })
-
-    // Still within the grace period: the note keeps its first time.
-    await store.prune(new Set([A]), 100, 1050)
-    expect(store.current).toEqual({ [A]: USER, [B]: { ...GUESS, missingSince: 1000 }, [V2]: { ...GUESS, missingSince: 1050 } })
-
-    // V2 is back; B has been gone for the whole grace period.
-    await store.prune(new Set([A, V2]), 100, 1100)
-    expect(store.current).toEqual({ [A]: USER, [V2]: GUESS })
-    expect(JSON.parse(await readFile(join(dir, 'matches.json'), 'utf8'))).toEqual({ [A]: USER, [V2]: GUESS })
+    await store.save({ [A]: USER, [B]: GUESS })
+    await store.prune(new Set([A]), 100, 1000)
+    expect(await written()).toEqual({ [A]: USER, [B]: { ...GUESS, missingSince: 1000 } })
+    expect(await store.prune(new Set([A]), 100, 1100)).toEqual({ [A]: USER })
+    expect(await written()).toEqual({ [A]: USER })
   })
 
-  it('keeps the note when a torrent comes back as a new match is saved for it', async () => {
+  it('forgets guesses and keeps choices in matches.json', async () => {
     const store = new MatchesStore(dir)
-    await store.save({ [B]: GUESS })
-    await store.prune(new Set(), 100, 1000)
-    await store.save({ [B]: USER })
-    expect(store.current).toEqual({ [B]: USER })
+    await store.save({ [A]: USER, [B]: GUESS })
+    expect(await store.clearGuesses()).toEqual({ [A]: USER })
+    expect(await written()).toEqual({ [A]: USER })
   })
 
   it('writes nothing when every torrent is still there', async () => {

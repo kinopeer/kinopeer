@@ -8,6 +8,7 @@ import { MainDataProvider } from './MainDataProvider'
 import { TorrentRequestsProvider } from './TorrentRequestsProvider'
 import { OFFLINE_POLL_INTERVAL_MS, POLL_INTERVAL_MS } from './pollIntervals'
 import { resetOneOffTorrents } from './oneOffTorrents'
+import * as serverMatches from './serverMatches'
 import { POLL_TIMEOUT_MS, createMainDataStore, useFreeSpace, useLastTorrents, useMainData } from './useMainData'
 import { useTorrentRequests } from './useTorrentRequests'
 
@@ -15,6 +16,11 @@ vi.mock('../api/qbittorrent', async (importOriginal) => {
   const actual = await importOriginal<typeof api>()
   return { ...actual, getMainData: vi.fn(), getTorrents: vi.fn() }
 })
+
+vi.mock('./serverMatches', async (importOriginal) => ({
+  ...(await importOriginal<typeof serverMatches>()),
+  checkMissingMatches: vi.fn(),
+}))
 
 const getMainData = vi.mocked(api.getMainData)
 const getTorrents = vi.mocked(api.getTorrents)
@@ -47,6 +53,31 @@ afterEach(() => {
 })
 
 describe('useMainData', () => {
+  it("hands the WebUI build's matches every torrent qBittorrent has with each answer, for the check no server makes there", async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    getMainData
+      .mockResolvedValueOnce({ rid: 1, full_update: true, torrents: { a: { name: 'A' }, b: { name: 'B' } } })
+      .mockResolvedValueOnce({ rid: 2, torrents_removed: ['b'] })
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    renderHook(() => useMainData(vi.fn()))
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    expect(vi.mocked(serverMatches.checkMissingMatches)).toHaveBeenLastCalledWith({ a: expect.objectContaining({ name: 'A' }), b: expect.objectContaining({ name: 'B' }) })
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS))
+    expect(vi.mocked(serverMatches.checkMissingMatches)).toHaveBeenLastCalledWith({ a: expect.objectContaining({ name: 'A' }) })
+    // A poll that brought no answer says nothing of what qBittorrent has.
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS))
+    expect(getMainData).toHaveBeenCalledTimes(3)
+    expect(vi.mocked(serverMatches.checkMissingMatches)).toHaveBeenCalledTimes(2)
+  })
+
+  it("leaves that check to Kinopeer's server in its build", async () => {
+    getMainData.mockResolvedValueOnce({ rid: 1, full_update: true, torrents: { a: { name: 'A' } } })
+    const { result } = renderHook(() => useMainData(vi.fn()))
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    expect(result.current.data?.torrents.a).toBeDefined()
+    expect(vi.mocked(serverMatches.checkMissingMatches)).not.toHaveBeenCalled()
+  })
+
   it('polls with the last response id and merges the deltas', async () => {
     getMainData
       .mockResolvedValueOnce({ rid: 1, full_update: true, torrents: { a: { name: 'A', progress: 0 } } })

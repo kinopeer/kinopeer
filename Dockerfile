@@ -33,6 +33,8 @@ ENV NODE_ENV=production \
 WORKDIR /app
 COPY --from=build /app/package.json ./
 COPY --from=build /app/server ./server
+# The matches store's rules, which server/matches.ts shares with the WebUI build.
+COPY --from=build /app/src/logic/titleMatches.ts ./src/logic/titleMatches.ts
 COPY --from=build /app/dist ./dist
 # Settings saved from the app (the TMDB key). Mount a volume here to keep them across updates.
 COPY --from=build --chown=node:node /data /data

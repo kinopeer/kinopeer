@@ -244,7 +244,7 @@ export function indexerNames(indexers: ProwlarrIndexer[], ids: Set<number>): str
 
 /**
  * The longest `within` accepted, as the client's MAX_FAILING_WITHIN_MS (a value, so not imported:
- * the image carries server/ without src/; a test keeps them equal).
+ * the image carries none of src/ but src/logic/titleMatches.ts; a test keeps them equal).
  */
 export const MAX_WITHIN_MS = 10 * 60 * 1000
 

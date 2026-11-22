@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { UnauthorizedError, getMainData, unreachable, type Torrent, type Unreachable } from '../api/qbittorrent'
 import { freeSpace } from './freeSpace'
+import { checkMissingMatches } from './serverMatches'
 import { currentOneOffTorrents, loadOneOffTorrents, subscribeOneOffTorrents } from './oneOffTorrents'
 import { OFFLINE_POLL_INTERVAL_MS, POLL_INTERVAL_MS } from './pollIntervals'
 import { EMPTY_SYNC_STATE, applyMainData, type SyncState } from './sync'
@@ -131,6 +132,8 @@ export function createMainDataStore(): MainDataStore {
       const requestedAt = Date.now()
       state = applyMainData(state, await getMainData(state.rid, controller.signal))
       answered = true
+      // No server checks which torrents qBittorrent no longer has for the WebUI build's matches.
+      if (__WEBUI__) checkMissingMatches(state.torrents)
       changes = { data: state, updatedAt: Date.now(), requestedAt, offline: false, unreachable: undefined }
     } catch (error) {
       if (running && error instanceof UnauthorizedError) {
