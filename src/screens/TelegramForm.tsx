@@ -16,6 +16,7 @@ import { Button } from '../components/Button'
 import { Input } from '../components/Input'
 import { useToast } from '../components/Toast'
 import { notifyLanguage } from '../i18n/language'
+import { useSaves, type SaveOutcome } from '../lib/useSaves'
 
 export interface TelegramFormProps {
   telegram: TelegramStatus
@@ -30,6 +31,12 @@ export interface TelegramFormProps {
 type Step = 'token' | 'chat' | 'connected'
 
 type FormError = 'invalid' | 'no-chat' | 'bot-in-use' | 'token-rejected' | 'chat-rejected' | 'unreachable' | 'storage' | 'failed' | null
+
+/** The bot's requests (`useSaves`): one target, since they all change or read what the server keeps for it. */
+const TELEGRAM_SAVES = 'telegram'
+const BOT = 'bot'
+
+type Request = 'token' | 'find' | 'chat' | 'test' | 'off'
 
 const KNOWN_ERRORS = new Set<string>(['no-chat', 'bot-in-use', 'token-rejected', 'chat-rejected', 'unreachable', 'storage'])
 
@@ -54,26 +61,8 @@ export function TelegramForm({ telegram, onChanged, onTurnedOff, onRefused }: Te
   const step: Step = editing ?? (!telegram.bot ? 'token' : !telegram.chat ? 'chat' : 'connected')
   const [token, setToken] = useState('')
   const [found, setFound] = useState<TelegramFoundChat | null>(null)
-  // One request at a time: they all change or read what the server keeps for the bot.
-  const [busy, setBusy] = useState<'token' | 'find' | 'chat' | 'test' | 'off' | null>(null)
   const [error, setError] = useState<FormError>(null)
   const language = notifyLanguage(i18n.resolvedLanguage)
-
-  const run = async <T,>(kind: NonNullable<typeof busy>, request: () => Promise<T>, done: (result: T) => void) => {
-    if (busy) return
-    setBusy(kind)
-    setError(null)
-    try {
-      done(await request())
-    } catch (e) {
-      const failed = formError(e)
-      setError(failed)
-      if (kind === 'test' && failed === 'token-rejected') onRefused('token')
-      if (kind === 'test' && failed === 'chat-rejected') onRefused('chat')
-    } finally {
-      setBusy(null)
-    }
-  }
 
   const goTo = (next: Step | null) => {
     setEditing(next)
@@ -81,32 +70,64 @@ export function TelegramForm({ telegram, onChanged, onTurnedOff, onRefused }: Te
     setError(null)
   }
 
-  const saveToken = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    void run('token', () => saveTelegramToken(token.trim()), (settings) => {
-      setToken('')
-      goTo(null)
-      onChanged(settings, 'token')
-    })
+  /** What Settings learns from an outcome, whether or not the sheet is still there to show it. */
+  const apply = (kind: Request, outcome: SaveOutcome) => {
+    if (outcome.ok) {
+      const settings = outcome.result as ServerSettings
+      if (kind === 'off') onTurnedOff(settings)
+      else if (kind !== 'find') onChanged(settings, kind)
+    } else if (kind === 'test') {
+      const failed = formError(outcome.error)
+      if (failed === 'token-rejected') onRefused('token')
+      if (failed === 'chat-rejected') onRefused('chat')
+    }
   }
 
-  // Telegram refuses a chat only for a test message, which only the connected step sends.
+  // Open, the sheet takes every outcome: what it moves to, or why it failed.
+  const saving = useSaves<Request>(TELEGRAM_SAVES, (outcome, kind) => {
+    apply(kind, outcome)
+    if (!outcome.ok) setError(formError(outcome.error))
+    else if (kind === 'find') setFound(outcome.result as TelegramFoundChat)
+    else if (kind === 'test') toast.show(t('telegram.testSent'), { icon: 'check' })
+    else if (kind === 'token' || kind === 'chat') {
+      if (kind === 'token') setToken('')
+      goTo(null)
+    }
+    return true
+  })
+  // One request at a time, from this sheet or one opened before it.
+  const busy = saving.pending(BOT) ?? null
+
+  const run = async (kind: Request, request: () => Promise<unknown>) => {
+    setError(null)
+    const settled = await saving.send(BOT, kind, request)
+    // Closed meanwhile: Settings learns it, and a toast says it; a chat found then is forgotten.
+    if (!settled || settled.taken || kind === 'find') return
+    apply(kind, settled)
+    if (!settled.ok) toast.show(errorText(formError(settled.error), true), { icon: 'alert' })
+    else if (kind !== 'off') toast.show(t(kind === 'test' ? 'telegram.testSent' : kind === 'token' ? 'telegram.botSaved' : 'telegram.chatSaved'), { icon: 'check' })
+  }
+
+  const saveToken = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    void run('token', () => saveTelegramToken(token.trim()))
+  }
+
+  /** What a failure says, in the sheet or, once it's closed, in a toast. Telegram refuses a chat only
+   *  for a test message, which only the connected step sends. */
+  function errorText(failed: FormError, named = false): string {
+    if (failed === 'invalid') return t('telegram.tokenInvalid')
+    if (failed === 'unreachable') return t('telegram.unreachable')
+    if (failed === 'token-rejected') return t('telegram.tokenRejected')
+    if (failed === 'chat-rejected') return t('telegram.chatRefused', { chat: telegram.chat?.name })
+    if (failed === 'no-chat') return t('telegram.noChatFound')
+    if (failed === 'bot-in-use') return t('telegram.botInUse')
+    if (failed === 'storage') return t('keyForm.storage')
+    // A toast names what failed.
+    return t(named ? 'telegram.failedNamed' : 'telegram.failed')
+  }
   const banner = () =>
-    error === 'unreachable' ? (
-      <Banner tone="error">{t('telegram.unreachable')}</Banner>
-    ) : error === 'token-rejected' ? (
-      <Banner tone="error">{t('telegram.tokenRejected')}</Banner>
-    ) : error === 'chat-rejected' ? (
-      <Banner tone="error">{t('telegram.chatRefused', { chat: telegram.chat?.name })}</Banner>
-    ) : error === 'no-chat' ? (
-      <Banner tone="info">{t('telegram.noChatFound')}</Banner>
-    ) : error === 'bot-in-use' ? (
-      <Banner tone="error">{t('telegram.botInUse')}</Banner>
-    ) : error === 'storage' ? (
-      <Banner tone="error">{t('keyForm.storage')}</Banner>
-    ) : error === 'failed' ? (
-      <Banner tone="error">{t('telegram.failed')}</Banner>
-    ) : null
+    error === null || error === 'invalid' ? null : <Banner tone={error === 'no-chat' ? 'info' : 'error'}>{errorText(error)}</Banner>
 
   const turnOff = (
     <Button
@@ -115,7 +136,7 @@ export function TelegramForm({ telegram, onChanged, onTurnedOff, onRefused }: Te
       block
       loading={busy === 'off'}
       disabled={busy !== null && busy !== 'off'}
-      onClick={() => void run('off', forgetTelegram, onTurnedOff)}
+      onClick={() => void run('off', forgetTelegram)}
     >
       {t('telegram.turnOff')}
     </Button>
@@ -176,10 +197,7 @@ export function TelegramForm({ telegram, onChanged, onTurnedOff, onRefused }: Te
                 block
                 loading={busy === 'chat'}
                 disabled={busy !== null && busy !== 'chat'}
-                onClick={() => void run('chat', () => saveTelegramChat(found.id, language), (settings) => {
-                  goTo(null)
-                  onChanged(settings, 'chat')
-                })}
+                onClick={() => void run('chat', () => saveTelegramChat(found.id, language))}
               >
                 {t('telegram.useChat')}
               </Button>
@@ -189,7 +207,7 @@ export function TelegramForm({ telegram, onChanged, onTurnedOff, onRefused }: Te
                 block
                 loading={busy === 'find'}
                 disabled={busy !== null && busy !== 'find'}
-                onClick={() => void run('find', () => findTelegramChat(), setFound)}
+                onClick={() => void run('find', () => findTelegramChat())}
               >
                 {t('telegram.findAgain')}
               </Button>
@@ -200,7 +218,7 @@ export function TelegramForm({ telegram, onChanged, onTurnedOff, onRefused }: Te
               block
               loading={busy === 'find'}
               disabled={busy !== null && busy !== 'find'}
-              onClick={() => void run('find', () => findTelegramChat(), setFound)}
+              onClick={() => void run('find', () => findTelegramChat())}
             >
               {t('telegram.findChat')}
             </Button>
@@ -239,10 +257,7 @@ export function TelegramForm({ telegram, onChanged, onTurnedOff, onRefused }: Te
           block
           loading={busy === 'test'}
           disabled={busy !== null && busy !== 'test'}
-          onClick={() => void run('test', () => testTelegram(language), (settings) => {
-            onChanged(settings, 'test')
-            toast.show(t('telegram.testSent'), { icon: 'check' })
-          })}
+          onClick={() => void run('test', () => testTelegram(language))}
         >
           {t('telegram.sendTest')}
         </Button>

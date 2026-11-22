@@ -703,11 +703,14 @@
     "connectedTo": "Уведомления приходят в «{{chat}}» ({{type}}) от @{{bot}}.",
     "sendTest": "Отправить тестовое сообщение",
     "testSent": "Тестовое сообщение отправлено",
+    "botSaved": "Бот Telegram сохранён",
+    "chatSaved": "Чат Telegram сохранён",
     "changeChat": "Выбрать другой чат",
     "changeBot": "Другой бот",
     "turnOff": "Отключить",
     "turnedOff": "Уведомления в Telegram отключены",
     "failed": "Не удалось сохранить. Попробуйте снова.",
+    "failedNamed": "Не удалось сохранить уведомления в Telegram. Попробуйте снова.",
     "unreachable": "$t(noAnswer.telegram). Серверу Kinopeer нужен доступ к api.telegram.org."
   },
   "push": {
