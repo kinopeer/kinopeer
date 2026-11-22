@@ -19,16 +19,18 @@ export interface TmdbKeyFormProps {
   secondary?: ReactNode
 }
 
-type FormError = 'invalid' | 'unreachable' | 'storage' | 'no-server-key' | 'failed' | 'forget-failed' | null
+type FormError = 'invalid' | 'unreachable' | 'storage' | 'store-full' | 'no-server-key' | 'failed' | 'forget-failed' | null
 
 function formError(e: unknown, kind: 'save' | 'forget'): FormError {
   const code = e instanceof SettingsError ? e.code : undefined
   if (kind === 'save' && (code === 'invalid-key' || code === 'bad-request')) return 'invalid'
   if (code === 'storage' || code === 'unreachable' || code === 'no-server-key') return code
+  // Only the WebUI build's qBittorrent keeps the key in a store that can be full.
+  if (__WEBUI__ && code === 'store-full') return code
   return kind === 'save' ? 'failed' : 'forget-failed'
 }
 
-/** The TMDB key field: the server checks the key with TMDB, then keeps it. */
+/** The TMDB key field: the server checks the key with TMDB, then keeps it; in the WebUI build qBittorrent keeps it. */
 export function TmdbKeyForm({ onSaved, forget, secondary }: TmdbKeyFormProps) {
   const { t } = useTranslation()
   const [apiKey, setApiKey] = useState('')
@@ -63,7 +65,8 @@ export function TmdbKeyForm({ onSaved, forget, secondary }: TmdbKeyFormProps) {
       </p>
 
       {error === 'unreachable' && <Banner tone="error">{t('tmdbKey.unreachable')}</Banner>}
-      {error === 'storage' && <Banner tone="error">{t('keyForm.storage')}</Banner>}
+      {/* Where the build keeps the key couldn't take it: the server's data folder, or qBittorrent's store in the WebUI build. */}
+      {error === (__WEBUI__ ? 'store-full' : 'storage') && <Banner tone="error">{t(__WEBUI__ ? 'webui.keyStoreFull' : 'keyForm.storage')}</Banner>}
       {error === 'no-server-key' && <Banner tone="error">{t('tmdbKey.noFallback')}</Banner>}
       {error === 'failed' && <Banner tone="error">{t('keyForm.failed')}</Banner>}
       {error === 'forget-failed' && <Banner tone="error">{t('tmdbKey.forgetFailed')}</Banner>}
@@ -83,7 +86,8 @@ export function TmdbKeyForm({ onSaved, forget, secondary }: TmdbKeyFormProps) {
           if (error === 'invalid') setError(null)
         }}
         error={error === 'invalid' && t('tmdbKey.invalid')}
-        help={t('tmdbKey.fieldHelp')}
+        // The WebUI build keeps it in qBittorrent, without checking it with TMDB yet (#559).
+        help={t(__WEBUI__ ? 'webui.tmdbKeyFieldHelp' : 'tmdbKey.fieldHelp')}
       />
 
       <div className="key-form-actions">

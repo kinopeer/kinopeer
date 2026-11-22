@@ -9,7 +9,7 @@ export interface ProwlarrSetupScreenProps {
   onSkip: () => void
 }
 
-/** Onboarding step after qBittorrent (and the TMDB key): Prowlarr's address and key, kept by the server. */
+/** Onboarding step after qBittorrent (and the TMDB key): Prowlarr's address and key, kept by the server, or by qBittorrent in the WebUI build. */
 export function ProwlarrSetupScreen({ onDone, onSkip }: ProwlarrSetupScreenProps) {
   const { t } = useTranslation()
 
@@ -18,7 +18,7 @@ export function ProwlarrSetupScreen({ onDone, onSkip }: ProwlarrSetupScreenProps
       <div className="connect-form">
         <div className="connect-intro">
           <h1 className="t-h1">{t('prowlarrSetup.title')}</h1>
-          <p className="t-body c2">{t('prowlarrSetup.body')}</p>
+          <p className="t-body c2">{t(__WEBUI__ ? 'webui.prowlarrSetupBody' : 'prowlarrSetup.body')}</p>
         </div>
         <ProwlarrKeyForm
           askAddress

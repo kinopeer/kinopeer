@@ -9,7 +9,7 @@ export interface TmdbKeyScreenProps {
   onSkip: () => void
 }
 
-/** Onboarding step after qBittorrent: the TMDB key, kept by the server. */
+/** Onboarding step after qBittorrent: the TMDB key, kept by the server, or by qBittorrent in the WebUI build. */
 export function TmdbKeyScreen({ onDone, onSkip }: TmdbKeyScreenProps) {
   const { t } = useTranslation()
 
@@ -18,7 +18,8 @@ export function TmdbKeyScreen({ onDone, onSkip }: TmdbKeyScreenProps) {
       <div className="connect-form">
         <div className="connect-intro">
           <h1 className="t-h1">{t('tmdbKey.title')}</h1>
-          <p className="t-body c2">{t('tmdbKey.body')}</p>
+          {/* The WebUI build asks only where Kinopeer's own key doesn't answer the page (`setupSteps`). */}
+          <p className="t-body c2">{t(__WEBUI__ ? 'webui.tmdbKeyBody' : 'tmdbKey.body')}</p>
         </div>
         <TmdbKeyForm
           onSaved={onDone}

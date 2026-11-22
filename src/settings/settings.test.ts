@@ -10,6 +10,7 @@ import {
   initSettingsSync,
   loadServerSettings,
   resetSettings,
+  updateAndShareSettings,
   useSettings,
   useTmdbLanguage,
 } from './settings'
@@ -206,6 +207,20 @@ describe('download defaults on the server', () => {
     await waitFor(() => expect(api.getServerSettings).toHaveBeenCalled())
     await act(() => Promise.resolve())
     expect(api.saveDownloadDefaults).not.toHaveBeenCalled()
+  })
+
+  it("answers that a changed default stays in this browser alone when the WebUI build's qBittorrent has no room for it", async () => {
+    vi.mocked(api.saveDownloadDefaults).mockRejectedValueOnce(new api.SettingsError(409, 'store-full'))
+    await expect(updateAndShareSettings({ startPaused: true })).resolves.toBe('store-full')
+    expect(getSettings().startPaused).toBe(true)
+    // Any other failure is the server's or the network's, as before: this browser keeps it until the next load.
+    vi.mocked(api.saveDownloadDefaults).mockRejectedValueOnce(new api.SettingsError(500, 'storage'))
+    await expect(updateAndShareSettings({ sequential: true })).resolves.toBeUndefined()
+    vi.mocked(api.saveDownloadDefaults).mockResolvedValueOnce(server({ firstLastPieces: true }))
+    await expect(updateAndShareSettings({ firstLastPieces: true })).resolves.toBeUndefined()
+    // Nothing to send, nothing to say.
+    await expect(updateAndShareSettings({ downloadsView: 'grid' })).resolves.toBeUndefined()
+    expect(api.saveDownloadDefaults).toHaveBeenCalledTimes(3)
   })
 
   it('saves a changed download default on the server, and nothing else', () => {

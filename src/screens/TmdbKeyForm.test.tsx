@@ -171,3 +171,32 @@ describe('TmdbKeyForm', () => {
     expect(save).toBeDisabled()
   })
 })
+
+describe('TmdbKeyForm in the WebUI build', () => {
+  it('says qBittorrent keeps the key, not a server that checks it', () => {
+    vi.stubGlobal('__WEBUI__', true)
+    const { field } = renderForm()
+    expect(field).toHaveAccessibleDescription('Kept in qBittorrent, for every device that signs in to it.')
+  })
+
+  it("says qBittorrent's store had no room for the key in a banner, leaving the key as it is", async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    saveTmdbKey.mockRejectedValue(new serverSettings.SettingsError(409, 'store-full'))
+    const { field, save } = renderForm()
+    await userEvent.type(field, 'abc123')
+    await userEvent.click(save)
+    expect(screen.getByRole('alert', { name: saying('The key wasn’t saved. qBittorrent’s store for web interfaces is full: it holds 1 MiB for all of them. Another interface used with this qBittorrent may have filled it.') })).toBeInTheDocument()
+    expect(field).not.toHaveAttribute('aria-invalid')
+    expect(field).toHaveValue('abc123')
+  })
+
+  it('says any other failure as the server build does', async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    saveTmdbKey.mockRejectedValue(new TypeError('Failed to fetch'))
+    const { field, save } = renderForm()
+    await userEvent.type(field, 'abc123')
+    await userEvent.click(save)
+    expect(screen.getByRole('alert', { name: saying('Couldn’t save the key. Try again.') })).toBeInTheDocument()
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
+  })
+})
