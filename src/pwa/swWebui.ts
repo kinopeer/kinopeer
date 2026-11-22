@@ -8,17 +8,19 @@
  * qBittorrent), the same address answers with something else, which the worker shows instead of the
  * app it cached. It then removes itself and its caches, so the next load is that page's alone; the
  * app registers the worker again whenever it loads (vite-plugin-pwa's registerSW.js). When nothing
- * usable answers (no answer, none in PAGE_TIMEOUT_MS, a proxy's gateway error), the precached
+ * usable answers (no answer, no whole page in PAGE_TIMEOUT_MS, a proxy's gateway error), the precached
  * index.html opens instead and the worker stays, so the app can say qBittorrent doesn't answer.
  *
  * How an answer is read (`pageAnswer`) is a heuristic, with this scope: Kinopeer's page is a success
- * whose HTML has the mark; nothing usable is no answer, none in time, 502, 503 or 504 (what nginx,
- * Caddy and other proxies answer while qBittorrent behind them doesn't) and a body that broke off;
+ * whose HTML has the mark; nothing usable is no answer or no whole page in time, a gateway failure
+ * (GATEWAY_FAILURES: what nginx, Caddy, Cloudflare and other proxies answer while qBittorrent behind
+ * them doesn't) and a body that broke off;
  * anything else is another page now answering here: a success without the mark (qBittorrent's own
  * interface, another Alternative WebUI, a sign-in page), a redirect (a sign-in proxy) and any other
  * error (qBittorrent's 500 for a folder with no index.html, a proxy's 401 or 403). A proxy that
- * answers its own outage with another status or a page of its own is read as another page: the worker
- * goes, and only the offline app is lost until Kinopeer loads again.
+ * answers its own outage with another status or a page of its own (Cloudflare's 525 and 526 for a
+ * certificate it can't use among them, which are a setup to fix rather than an outage) is read as
+ * another page: the worker goes, and only the offline app is lost until Kinopeer loads again.
  */
 
 /**
@@ -38,14 +40,20 @@ export const KINOPEER_PAGE_MARK = '<meta name="application-name" content="Kinope
 export const WEBUI_PAGES: RegExp[] = [/^\/(index\.html)?(\?.*)?$/]
 
 /**
- * How long a page load waits for qBittorrent before the precached app opens: index.html is a few
+ * How long a page load waits for qBittorrent's whole page, its body read included, before the
+ * precached app opens: index.html is a few
  * kilobytes, so a qBittorrent that hasn't sent it by then is stuck, or a proxy is waiting on it, and
  * the app opens at once and says so through its own calls, as before the network came first.
  */
 export const PAGE_TIMEOUT_MS = 5_000
 
-/** What proxies answer while the qBittorrent behind them doesn't: Bad Gateway, Service Unavailable, Gateway Timeout. */
-export const GATEWAY_FAILURES: readonly number[] = [502, 503, 504]
+/**
+ * What proxies answer while the qBittorrent behind them doesn't: Bad Gateway, Service Unavailable,
+ * Gateway Timeout, and Cloudflare's own for an origin that doesn't answer (520 to 524, and 530 for a
+ * tunnel with no connector or a name it can't resolve: developers.cloudflare.com/support/troubleshooting/
+ * http-status-codes/cloudflare-5xx-errors/).
+ */
+export const GATEWAY_FAILURES: readonly number[] = [502, 503, 504, 520, 521, 522, 523, 524, 530]
 
 /** Kinopeer's page, nothing usable, or another page now answering at Kinopeer's address (the scope above). */
 export type PageAnswer = 'kinopeer' | 'unanswered' | 'other'
@@ -92,12 +100,14 @@ function within<T>(promise: Promise<T>, ms: number): Promise<T | undefined> {
  */
 export async function loadPage(request: Request, load: PageLoad): Promise<Response> {
   const network = load.fetch(request)
-  const answer = await within(network, PAGE_TIMEOUT_MS)
-  const kind = answer ? await pageAnswer(answer) : 'unanswered'
-  if (answer && kind === 'kinopeer') return answer
-  if (answer && kind === 'other') {
+  const read = await within(
+    network.then(async (response) => ({ response, kind: await pageAnswer(response) })),
+    PAGE_TIMEOUT_MS,
+  )
+  if (read?.kind === 'kinopeer') return read.response
+  if (read?.kind === 'other') {
     await load.forget().catch(() => {})
-    return answer
+    return read.response
   }
   return (await load.cachedPage()) ?? network
 }

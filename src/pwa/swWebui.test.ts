@@ -23,6 +23,7 @@ describe('pageAnswer', () => {
   it.each([
     ['qBittorrent’s own interface', page(QBITTORRENT)],
     ['qBittorrent’s refusal of a folder with no index.html', page('Unacceptable file type, only regular file is allowed.', { status: 500 })],
+    ['Cloudflare’s refusal of the origin’s certificate, a setup to fix', page('SSL handshake failed', { status: 525 })],
     ['a redirect, as to a sign-in page', Response.redirect('https://sign-in.example.com/', 302)],
     ['a proxy’s sign-in refusal', page('Unauthorized', { status: 401 })],
     ['an error that has the mark, as a server answering every path with index.html and a 404', page(KINOPEER, { status: 404 })],
@@ -30,8 +31,8 @@ describe('pageAnswer', () => {
     expect(await pageAnswer(response)).toBe('other')
   })
 
-  // nginx, Caddy and other proxies answer so while qBittorrent behind them restarts or is down.
-  it.each([502, 503, 504])('takes a proxy’s %i for nothing usable, the mark or not', async (status) => {
+  // nginx, Caddy, Cloudflare and other proxies answer so while qBittorrent behind them restarts or is down.
+  it.each([502, 503, 504, 520, 521, 522, 523, 524, 530])('takes a proxy’s %i for nothing usable, the mark or not', async (status) => {
     expect(await pageAnswer(page('Bad Gateway', { status }))).toBe('unanswered')
     expect(await pageAnswer(page(KINOPEER, { status }))).toBe('unanswered')
   })
@@ -114,10 +115,17 @@ describe('loadPage', () => {
     expect(load.forget).not.toHaveBeenCalled()
   })
 
-  it('leaves no timer behind once the network answers', async () => {
+  // Headers sent and the page never finished: the limit covers reading the body too.
+  it('opens the precached index.html when the body hasn’t ended in PAGE_TIMEOUT_MS', async () => {
     vi.useFakeTimers()
-    await loadPage(request, stand(async () => page(KINOPEER)))
-    expect(vi.getTimerCount()).toBe(0)
+    const load = stand(async () => new Response(new ReadableStream({ pull: () => new Promise(() => {}) })))
+    let answer: Response | undefined
+    void loadPage(request, load).then((response) => (answer = response))
+    await vi.advanceTimersByTimeAsync(PAGE_TIMEOUT_MS - 1)
+    expect(answer).toBeUndefined()
+    await vi.advanceTimersByTimeAsync(1)
+    expect(answer).toBe(cached)
+    expect(load.forget).not.toHaveBeenCalled()
   })
 
   it('passes the network’s error on when nothing is precached', async () => {
