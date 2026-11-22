@@ -91,6 +91,28 @@ describe('ProwlarrKeyForm', () => {
     expect(screen.getByRole('alert').textContent).toBe(message)
   })
 
+  it('says a refusal of Find’s after a check that failed with a cause, without saying Prowlarr didn’t answer', async () => {
+    saveProwlarrKey.mockRejectedValue(new serverSettings.SettingsError(502, 'unreachable', 'refused'))
+    findAddresses.mockRejectedValue(new serverSettings.SettingsError(409, 'auth-off'))
+    render(<ProwlarrKeyForm askAddress initialAddress="http://prowlarr.test" onSaved={vi.fn()} />, { wrapper: ToastProvider })
+    await saveKey()
+    expect(await screen.findByText(/^Nothing listens on this port/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Find Prowlarr' }))
+    const authOff = await screen.findByRole('alert', { name: saying(/Kinopeer’s own login is off/) })
+    expect(authOff).not.toHaveTextContent('Prowlarr isn’t answering')
+  })
+
+  it('says an address that didn’t answer over the form once it asks for no address', async () => {
+    saveProwlarrKey.mockRejectedValue(new serverSettings.SettingsError(502, 'unreachable'))
+    const view = render(<ProwlarrKeyForm askAddress initialAddress="http://prowlarr.test" onSaved={vi.fn()} />, { wrapper: ToastProvider })
+    await saveKey()
+    const unanswered = 'Nothing answers at this address. Check it, and that Prowlarr is running.'
+    expect(await screen.findByText(unanswered)).toBeInTheDocument()
+    // The server's settings answered again, with the address set elsewhere: no field to say it on.
+    view.rerender(<ProwlarrKeyForm onSaved={vi.fn()} />)
+    expect(screen.getByRole('alert', { name: saying(unanswered) })).toBeInTheDocument()
+  })
+
   it('says why Prowlarr didn’t answer at the server’s address, where the server could tell (#508)', async () => {
     saveProwlarrKey.mockRejectedValue(new serverSettings.SettingsError(502, 'unreachable', 'name'))
     const { field, save } = renderForm()

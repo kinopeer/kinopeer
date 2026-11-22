@@ -148,7 +148,7 @@ describe('QbittorrentLoginForm: a check that settles after the form is gone (#50
     ['no answer from Kinopeer', new TypeError('Failed to fetch'), 'admin', 'Couldn’t save the qBittorrent connection. Try again.'],
   ])('says %s in a toast, as the form would', async (_name, error, username, message) => {
     const check = held<serverSettings.ServerSettings>()
-    const { toggle } = renderClosable(() => check.promise)
+    const { sender, toggle } = renderClosable(() => check.promise)
     await userEvent.clear(screen.getByLabelText('qBittorrent address'))
     await userEvent.type(screen.getByLabelText('qBittorrent address'), 'http://qbt.test')
     if (username) {
@@ -159,6 +159,8 @@ describe('QbittorrentLoginForm: a check that settles after the form is gone (#50
     await toggle()
     await act(async () => check.reject(error))
     expect(await findToastOnPage(message)).toBeInTheDocument()
+    expect(sender.onSaved).not.toHaveBeenCalled()
+    expect(sender.onEnvAddress).not.toHaveBeenCalled()
   })
 
   it.each([

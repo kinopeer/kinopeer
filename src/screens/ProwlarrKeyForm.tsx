@@ -148,7 +148,8 @@ export function ProwlarrKeyForm({
   }
   // With an address sent, the server is there and says that address didn't answer: the field's to fix.
   const why = failureText(t, 'prowlarr', failure)
-  const addressError = (error === 'invalid-address' || (checkedAddress && error === 'unreachable')) && errorText(error, why, true)
+  // Only on a field there is: a form that stopped asking for the address says it in the banner.
+  const addressError = askAddress && (error === 'invalid-address' || (checkedAddress && error === 'unreachable')) && errorText(error, why, true)
 
   const changeAddress = (value: string) => {
     setAddress(value)
@@ -162,7 +163,7 @@ export function ProwlarrKeyForm({
       <p className="t-body c2">{t('prowlarrKey.help')}</p>
 
       {error && error !== 'invalid' && !addressError && (
-        <Banner tone="error" title={why ? t('noAnswer.prowlarr') : undefined}>
+        <Banner tone="error" title={error === 'unreachable' && why ? t('noAnswer.prowlarr') : undefined}>
           {errorText(error, why, checkedAddress)}
         </Banner>
       )}
