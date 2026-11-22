@@ -712,6 +712,19 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Downloads' })).toBeInTheDocument()
   })
 
+  it('says in the WebUI build when qBittorrent doesn’t answer the session check, and when it’s too old for that build', async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    getAppVersion.mockReset().mockRejectedValueOnce(new TypeError('Failed to fetch')).mockResolvedValue('5.1.4')
+    renderApp()
+    // qBittorrent serves the page: there's no Kinopeer server to blame.
+    expect(await screen.findByRole('heading', { name: 'qBittorrent isn’t answering' })).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: 'Username' })).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByRole('heading', { name: 'qBittorrent 5.1.4 is too old' })).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: 'Username' })).not.toBeInTheDocument()
+  })
+
   it('never shows Kinopeer’s own login in the WebUI build, which has no Kinopeer server', async () => {
     vi.stubGlobal('__WEBUI__', true)
     renderApp()

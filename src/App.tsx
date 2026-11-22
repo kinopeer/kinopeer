@@ -132,7 +132,6 @@ function SignedIn() {
         return (
           <WebuiConnectScreen
             unreachable={session.status === 'unreachable' ? session.who : undefined}
-            failure={session.status === 'unreachable' ? session.failure : undefined}
             unsupported={session.status === 'unsupported' ? session.version : undefined}
             onRetry={() => void recheck()}
           />

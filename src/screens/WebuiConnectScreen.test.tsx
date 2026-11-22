@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as webui from '../api/qbittorrent/webui'
@@ -30,6 +30,7 @@ describe('WebuiConnectScreen', () => {
     const username = screen.getByRole('textbox', { name: 'Username' })
     expect(username).toHaveAttribute('autocomplete', 'username')
     expect(username).toBeRequired()
+    expect(username).toHaveAttribute('spellcheck', 'false')
     const password = screen.getByLabelText('Password')
     expect(password).toHaveAttribute('type', 'password')
     expect(password).toHaveAttribute('autocomplete', 'current-password')
@@ -37,6 +38,11 @@ describe('WebuiConnectScreen', () => {
     expect(password.closest('form')).toBe(username.closest('form'))
     expect(screen.getAllByRole('textbox')).toHaveLength(1)
     expect(screen.queryByRole('button', { name: /find/i })).not.toBeInTheDocument()
+    // No error before a login is sent.
+    expect(username).not.toHaveAttribute('aria-invalid')
+    expect(screen.queryByText('Wrong username or password')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Too many failed attempts/)).not.toBeInTheDocument()
+    expect(screen.queryByText('qBittorrent didn’t sign you in. Try again.')).not.toBeInTheDocument()
   })
 
   it('signs in and checks the session again, which brings the app', async () => {
@@ -47,6 +53,13 @@ describe('WebuiConnectScreen', () => {
 
     expect(logIn).toHaveBeenCalledWith('admin', 'secret')
     expect(onRetry).toHaveBeenCalledOnce()
+  })
+
+  it('keeps the page where it is as the form is sent, rather than letting the browser submit it', () => {
+    logIn.mockReturnValue(new Promise(() => {}))
+    render(<WebuiConnectScreen onRetry={() => {}} />, { wrapper: ToastProvider })
+    // fireEvent answers false when the handler prevented the browser's own submit.
+    expect(fireEvent.submit(screen.getByRole('button', { name: 'Sign in' }).closest('form')!)).toBe(false)
   })
 
   it('shows a wrong login on the password field, and clears it as the login changes', async () => {
@@ -65,6 +78,12 @@ describe('WebuiConnectScreen', () => {
 
     await userEvent.type(password, 'x')
     expect(screen.queryByText('Wrong username or password')).not.toBeInTheDocument()
+
+    // The username clears it too.
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(await screen.findByText('Wrong username or password')).toBeInTheDocument()
+    await userEvent.type(screen.getByRole('textbox', { name: 'Username' }), 'x')
+    expect(screen.queryByText('Wrong username or password')).not.toBeInTheDocument()
   })
 
   it('explains a ban', async () => {
@@ -72,6 +91,18 @@ describe('WebuiConnectScreen', () => {
     render(<WebuiConnectScreen onRetry={() => {}} />, { wrapper: ToastProvider })
     await fillAndSubmit()
     expect(await screen.findByText('Too many failed attempts. qBittorrent has blocked this address for a while.')).toBeInTheDocument()
+    // Typing doesn't lift a ban: only a login does.
+    await userEvent.type(screen.getByLabelText('Password'), 'x')
+    expect(screen.getByText('Too many failed attempts. qBittorrent has blocked this address for a while.')).toBeInTheDocument()
+  })
+
+  it('takes the last failure back while the next login is on its way', async () => {
+    logIn.mockResolvedValueOnce('banned').mockReturnValueOnce(new Promise(() => {}))
+    render(<WebuiConnectScreen onRetry={() => {}} />, { wrapper: ToastProvider })
+    await fillAndSubmit()
+    expect(await screen.findByText(/Too many failed attempts/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(screen.queryByText(/Too many failed attempts/)).not.toBeInTheDocument()
   })
 
   it('says qBittorrent didn’t answer when nothing did, and that it refused otherwise', async () => {

@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { ConnectionFailure } from '../api/connectionFailure'
 import type { Unreachable } from '../api/qbittorrent'
 import { logIn } from '../api/qbittorrent/webui'
 import { Banner } from '../components/Banner'
@@ -11,10 +10,11 @@ import { UnreachableState } from './UnreachableState'
 import { UnsupportedQbittorrent } from './UnsupportedQbittorrent'
 
 export interface WebuiConnectScreenProps {
-  /** Who didn't answer the session check: shown in place of the form, with Retry. */
+  /**
+   * Who didn't answer the session check: shown in place of the form, with Retry. Always qBittorrent
+   * here, and with no cause, which only Kinopeer's bridge can tell.
+   */
   unreachable?: Unreachable
-  /** Why it didn't answer, where that's known. */
-  failure?: ConnectionFailure
   /** The version of a qBittorrent older than the WebUI build works with: said in place of the form. */
   unsupported?: string
   /** Checks the session again: Retry, and what a login that went through does next. */
@@ -26,12 +26,12 @@ export interface WebuiConnectScreenProps {
  * the browser keeps a session of (`logIn`), and nothing about an address or Kinopeer's server, which
  * this build has none of. Shown again when qBittorrent's session ends (an hour unused by default).
  */
-export function WebuiConnectScreen({ unreachable, failure, unsupported, onRetry }: WebuiConnectScreenProps) {
+export function WebuiConnectScreen({ unreachable, unsupported, onRetry }: WebuiConnectScreenProps) {
   const notice =
     unsupported !== undefined ? (
       <UnsupportedQbittorrent version={unsupported} onRetry={onRetry} />
     ) : (
-      unreachable && <UnreachableState unreachable={unreachable} failure={failure} onRetry={onRetry} texts="connect" />
+      unreachable && <UnreachableState unreachable={unreachable} onRetry={onRetry} texts="connect" />
     )
   return (
     <main className="screen connect">
