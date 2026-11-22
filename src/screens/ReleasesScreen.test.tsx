@@ -277,6 +277,7 @@ describe('ReleasesScreen', () => {
     getMovie.mockRejectedValue(new tmdb.TmdbKeyError(401))
     renderAt('/title/movie/693134/releases')
     expect(await screen.findByRole('heading', { name: 'TMDB isn’t set up' })).toBeInTheDocument()
+    expect(screen.getByText(/Search needs a TMDB key/)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Enter key' }))
     expect(screen.getByRole('heading', { name: /^Settings page/ })).toHaveTextContent('{"editTmdbKey":true}')
   })
