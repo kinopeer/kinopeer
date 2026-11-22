@@ -20,7 +20,7 @@
     "testsLeftOut": ["/checks.test.ts", "/unraid/xml-files.test.ts"]
   },
   "budgets": {
-    "size": { "js": 198900, "css": 16200, "rest": 193600 },
+    "size": { "js": 199200, "css": 16200, "rest": 193600 },
     "layoutShiftCeiling": 0.1,
     "screenshotThreshold": 0.1,
     "layoutShift": {

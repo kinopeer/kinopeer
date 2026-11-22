@@ -3,6 +3,7 @@ import { cleanup, configure } from '@testing-library/react'
 import { afterEach, beforeEach } from 'vitest'
 import { setSignInNeed } from './api/auth/signInNeed'
 import i18n from './i18n'
+import { saves } from './logic/saves'
 import { sharedRequests } from './logic/sharedRequests'
 import { LANGUAGE_STORAGE_KEY, resetLanguagePreference } from './i18n/language'
 import { giveBothLanguages } from './test/languages'
@@ -28,6 +29,8 @@ afterEach(() => {
   cleanup()
   // Answers one test's mocks gave aren't kept for the next.
   sharedRequests.clear()
+  // A save one test left in flight doesn't hold the next test's sheet busy.
+  saves.clear()
   // A request one test's server held back doesn't keep the next test's app at the sign-in.
   setSignInNeed(null)
   resetThemePreference()

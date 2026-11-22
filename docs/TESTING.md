@@ -604,6 +604,13 @@ it uses next to itself.
   and the test sends more of them than run at once: a mock that answers at once never has a call in
   flight when another one lands, so it can't show one call stopping or repeating the others (#239,
   `holdSearches` in `useTitleMatches.test.ts`).
+- **`src/test/held.ts`:** `held<T>()`, a request that settles when the test says so: its `promise`,
+  for a mock to return, and its `resolve` and `reject`, for what happens while it's on its way.
+- **`src/test/languages.ts`:** `giveBothLanguages()`, which `src/test-setup.ts` runs before every test
+  so each starts with both languages' texts, `withoutTexts(language)` for a page that hasn't loaded a
+  language yet, `failRussianLoads()` for a page whose every load of Russian's texts fails from then
+  on (an update left it behind, or it's offline without the service worker), and
+  `russianUnreachable()` for both at once, as the language switch's tests need.
 - **`src/test/oxlint.ts`:** `lint(files)` lays the files out as in the repository beside a copy of
   the root's `.oxlintrc.json`, runs oxlint over them as `npm run lint` does and returns each problem's
   rule, file and line, so a rule's test can plant a violation where an override applies. It throws

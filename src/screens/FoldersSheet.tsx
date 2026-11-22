@@ -8,6 +8,7 @@ import { IconButton } from '../components/IconButton'
 import { Sheet } from '../components/Sheet'
 import { useToast } from '../components/Toast'
 import { useRequest } from '../lib/useRequest'
+import { useSaves } from '../lib/useSaves'
 import { categoryFolder, isAbsolute, knownFolders, sameFolder } from '../torrents/folders'
 import { FolderField } from './FolderField'
 import { categoryFailure, folderFailure, type FolderFailure } from './folderFailure'
@@ -24,6 +25,26 @@ function keyOf(category?: Category): string {
   return category ? `category:${category.name}` : 'default'
 }
 
+/** The saves of qBittorrent's folders (`useSaves`), by `keyOf`, with the folder sent. */
+const FOLDER_SAVES = 'folder'
+
+/** Saves a folder, made first, and says why qBittorrent didn't take it, if it didn't. */
+async function saveFolder(category: Category | undefined, folder: string): Promise<FolderFailure | undefined> {
+  // The category's own step: its folder is made by then.
+  let categoryStep = false
+  try {
+    // A category's own folder emptied is the default save path and its name, which qBittorrent
+    // makes itself; any other is made now, so one it can't make is said here and not saved.
+    if (folder) await prepareFolder(folder)
+    categoryStep = category !== undefined
+    if (category) await setCategoryFolder(category, folder)
+    else await setDefaultSavePath(folder)
+    return undefined
+  } catch (error) {
+    return categoryStep ? categoryFailure(error) : folderFailure(error)
+  }
+}
+
 export interface FoldersSheetProps {
   open: boolean
   onClose: () => void
@@ -31,28 +52,46 @@ export interface FoldersSheetProps {
 
 /**
  * qBittorrent's folders, from Settings: the default save path and each category's, loaded when the
- * sheet opens. Picking one changes it in the same sheet. A save outlives its form: the folder stays
- * busy if it's opened again, and its outcome moves the sheet only while that folder is shown.
+ * sheet opens. Picking one changes it in the same sheet. A save outlives its form and the sheet
+ * (`useSaves`): the folder stays busy if it's opened again, and its outcome moves the sheet only
+ * while that folder is shown, else it's a toast.
  */
 export function FoldersSheet({ open, onClose }: FoldersSheetProps) {
   const { t } = useTranslation()
   const toast = useToast()
   const folders = useRequest(open ? 'qbt|folders' : null, (signal) => getFolders(signal))
   const [editing, setEditing] = useState<Editing | null>(null)
-  // The folders being saved, by key, with the folder sent.
-  const [saving, setSaving] = useState<ReadonlyMap<string, string>>(new Map())
   // The last save's failure, said while its folder is shown: any move in the sheet clears it.
   const [failure, setFailure] = useState<FolderFailure>()
   const shown = useRef(CLOSED)
   useEffect(() => {
     shown.current = open ? (editing ? keyOf(editing.category) : LIST) : CLOSED
-    // Gone with Settings, the sheet shows nothing: a save that settles then is a toast.
-    return () => {
-      shown.current = CLOSED
-    }
   }, [open, editing])
   // A save settled while another folder was shown: the list asks again when it's back.
   const stale = useRef(false)
+
+  // A save that settles moves the sheet only while its folder is shown; the list shows what
+  // qBittorrent has now, at once when it's shown, else when it's back.
+  const saving = useSaves<string>(FOLDER_SAVES, (outcome, _sent, key) => {
+    const where = shown.current
+    const said = outcome.ok ? (outcome.result as FolderFailure | undefined) : 'common.qbtFailed'
+    if (where === key) {
+      if (said !== undefined) {
+        setFailure(said)
+        if (said === 'folders.categoryGone') stale.current = true
+      } else {
+        stale.current = false
+        setEditing(null)
+        folders.retry()
+      }
+      return true
+    }
+    if (said === undefined || said === 'folders.categoryGone') {
+      if (where === LIST) folders.retry()
+      else if (where !== CLOSED) stale.current = true
+    }
+    return false
+  })
 
   const show = (next: Editing | null) => {
     setEditing(next)
@@ -72,48 +111,16 @@ export function FoldersSheet({ open, onClose }: FoldersSheetProps) {
   }
 
   const save = async (category: Category | undefined, folder: string) => {
-    const key = keyOf(category)
-    setSaving((current) => new Map(current).set(key, folder))
     setFailure(undefined)
-    // The category's own step: its folder is made by then.
-    let categoryStep = false
-    let said: FolderFailure | undefined
-    try {
-      // A category's own folder emptied is the default save path and its name, which qBittorrent
-      // makes itself; any other is made now, so one it can't make is said here and not saved.
-      if (folder) await prepareFolder(folder)
-      categoryStep = category !== undefined
-      if (category) await setCategoryFolder(category, folder)
-      else await setDefaultSavePath(folder)
-    } catch (error) {
-      said = categoryStep ? categoryFailure(error) : folderFailure(error)
-    } finally {
-      setSaving((current) => {
-        const next = new Map(current)
-        next.delete(key)
-        return next
-      })
-    }
-    const where = shown.current
-    // What qBittorrent has now: at once on the list, else when the list is back.
-    const reload = () => {
-      if (where === LIST) folders.retry()
-      else if (where !== CLOSED) stale.current = true
-    }
-    if (said === undefined) {
-      toast.show(t('folders.saved'), { icon: 'folder' })
-      if (where !== key) return reload()
-      stale.current = false
-      setEditing(null)
-      folders.retry()
-      return
-    }
-    if (where === key) setFailure(said)
+    const settled = await saving.send(keyOf(category), folder, () => saveFolder(category, folder))
+    if (!settled) return
+    const said = settled.ok ? settled.result : 'common.qbtFailed'
+    if (said === undefined) toast.show(t('folders.saved'), { icon: 'folder' })
     // Not shown, the toast names what failed.
+    else if (settled.taken) return
     else if (said === 'move.cantCreate') toast.show(t('folders.cantCreateNamed', { folder }), { icon: 'alert' })
     else if (said === 'folders.categoryGone') toast.show(t('folders.categoryGoneNamed', { name: category?.name }), { icon: 'alert' })
     else toast.show(t(said), { icon: 'alert' })
-    if (said === 'folders.categoryGone') reload()
   }
 
   const data = folders.data
@@ -130,7 +137,7 @@ export function FoldersSheet({ open, onClose }: FoldersSheetProps) {
         <FolderForm
           folders={data}
           category={editing.category}
-          sending={saving.get(key)}
+          sending={saving.pending(key)}
           failure={failure}
           onSave={(folder) => void save(editing.category, folder)}
         />
