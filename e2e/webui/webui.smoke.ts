@@ -65,6 +65,12 @@ test('the TMDB key and a match kept in qBittorrent, read back by another browser
  * so onboarding asks for TMDB again, and without a key the page asks TMDB nothing.
  */
 test('the login, then Downloads', async ({ page, tmdbCalls }) => {
+  // Downloads' title lookups wait for the matches, loaded from qBittorrent as every key of
+  // `clientdata` (no `keys` in the query), which may answer after the torrent's row shows.
+  const matchesLoaded = page.waitForResponse((response) => {
+    const url = new URL(response.url())
+    return url.pathname === '/api/v2/clientdata/load' && !url.searchParams.has('keys')
+  })
   await page.goto('/')
   await expect(page.getByRole('heading', { level: 1, name: 'Вход в qBittorrent' })).toBeVisible()
 
@@ -79,5 +85,9 @@ test('the login, then Downloads', async ({ page, tmdbCalls }) => {
 
   await expect(page.getByRole('heading', { level: 1, name: 'Загрузки' })).toBeVisible()
   await expect(page.getByText(SEEDED_NAME).first()).toBeVisible()
+  // No call is an absence nothing signals: once the matches are in, the lookups start at once, so
+  // a call without a key would go out within this deadline.
+  await matchesLoaded
+  await page.waitForTimeout(2_000)
   expect(tmdbCalls).toEqual([])
 })

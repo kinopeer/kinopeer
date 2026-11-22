@@ -48,7 +48,8 @@ async function fakeTmdb(context: BrowserContext, device: TmdbCall['device'], { c
         strays.push(url.href)
         return route.abort()
       }
-      const bearer = (await route.request().headerValue('authorization'))?.replace(/^Bearer /, '') ?? null
+      // Recorded at once, before anything awaited, so a call is in the list as soon as the page sent it.
+      const bearer = route.request().headers().authorization?.replace(/^Bearer /, '') ?? null
       calls.push({ device, path: url.pathname, key: url.searchParams.get('api_key') ?? bearer })
       return route.fulfill({ json: answer(url.pathname), headers: { 'Access-Control-Allow-Origin': '*' } })
     },
