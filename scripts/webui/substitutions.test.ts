@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { findSubstitutions, main, substitutionsIn } from './substitutions.ts'
 
 /** A folder of its own per test, with a build in it. */
@@ -106,5 +106,14 @@ describe('the script', () => {
     await write({ 'dist-webui/public/index.html': '<html lang="en">' })
     const { status, stdout } = run()
     expect([status, stdout]).toEqual([0, 'The WebUI build in dist-webui has nothing qBittorrent would replace.\n'])
+  })
+
+  // Imported, as by these tests, it checks nothing and leaves the process's exit code alone.
+  it('runs only as a script, not when imported', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    const before = process.exitCode
+    vi.resetModules()
+    await import('./substitutions.ts')
+    expect([log.mock.calls, process.exitCode]).toEqual([[], before])
   })
 })
