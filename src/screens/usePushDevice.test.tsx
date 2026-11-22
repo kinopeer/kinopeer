@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PushError } from '../api/push'
@@ -130,7 +130,7 @@ describe('usePushDevice: the card shown again while an action is on its way (#50
     const settled = held<void>()
     vi.mocked(push.testPushDevice).mockReturnValue(settled.promise)
     const { toggle } = renderLeavable()
-    await screen.findByText('on')
+    await waitFor(() => expect(shows('State')).toHaveTextContent('on'))
     await userEvent.click(screen.getByRole('button', { name: 'Test' }))
     await toggle()
     await toggle()
