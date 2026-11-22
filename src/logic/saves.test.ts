@@ -1,16 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createSaves, saveKey, type SaveWatcher } from './saves'
-
-/** A request that settles when the test says so. */
-function request<T = void>() {
-  let resolve!: (value: T) => void
-  let reject!: (error: unknown) => void
-  const promise = new Promise<T>((done, fail) => {
-    resolve = done
-    reject = fail
-  })
-  return { promise, resolve, reject }
-}
+import { held } from '../test/held'
 
 const watcher = (takes: boolean) => ({ settled: vi.fn<SaveWatcher['settled']>(() => takes) })
 
@@ -19,7 +9,7 @@ describe('createSaves', () => {
     const saves = createSaves()
     const listener = vi.fn()
     saves.subscribe(listener)
-    const folder = request()
+    const folder = held()
     const sent = saves.send('folder', 'default', '/media', () => folder.promise)
     void saves.send('folder', 'category:Movies', '/films', () => new Promise(() => {}))
     void saves.send('telegram', 'default', 'token', () => new Promise(() => {}))
@@ -45,7 +35,7 @@ describe('createSaves', () => {
 
   it('sends nothing for a target while its save is in flight, so it never goes out twice', async () => {
     const saves = createSaves()
-    const first = request()
+    const first = held()
     const sending = saves.send('folder', 'default', '/media', () => first.promise)
     const again = vi.fn(() => Promise.resolve())
     await expect(saves.send('folder', 'default', '/other', again)).resolves.toBeUndefined()
@@ -101,7 +91,7 @@ describe('createSaves', () => {
     const saves = createSaves()
     const sheet = watcher(true)
     const stop = saves.watch('folder', sheet)
-    const folder = request()
+    const folder = held()
     const sent = saves.send('folder', 'default', '/media', () => folder.promise)
     stop()
     folder.reject(new Error('refused'))
@@ -111,7 +101,7 @@ describe('createSaves', () => {
 
   it('gives the outcome to a sheet that started watching while the save was in flight', async () => {
     const saves = createSaves()
-    const folder = request()
+    const folder = held()
     const sent = saves.send('folder', 'default', '/media', () => folder.promise)
     const opened = watcher(true)
     saves.watch('folder', opened)
@@ -132,7 +122,7 @@ describe('createSaves', () => {
     const saves = createSaves()
     const sheet = watcher(true)
     saves.watch('folder', sheet)
-    const folder = request()
+    const folder = held()
     void saves.send('folder', 'default', '/media', () => folder.promise)
     saves.clear()
     expect(saves.getSnapshot().size).toBe(0)

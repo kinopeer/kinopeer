@@ -4,6 +4,7 @@ import type { Torrent } from '../api/qbittorrent'
 import { torrent } from '../test/fixtures'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
 import { useTorrentSheet } from './useTorrentSheet'
+import { held } from '../test/held'
 
 const DUNE = torrent('dune')
 
@@ -19,12 +20,12 @@ describe('useTorrentSheet', () => {
   it('says a request’s sheet still shows its torrent when it settles while open, or opened again since', async () => {
     const { result } = renderSheet()
     act(() => result.current.open('dune'))
-    const open = request()
+    const open = held()
     const whileOpen = result.current.send(DUNE, 'a', () => open.promise)
     await act(async () => open.resolve())
     expect(await whileOpen).toEqual({ ok: true, showing: true })
 
-    const reopened = request()
+    const reopened = held()
     const sent = result.current.send(DUNE, 'b', () => reopened.promise)
     act(() => result.current.close())
     act(() => result.current.open('dune'))
@@ -40,7 +41,7 @@ describe('useTorrentSheet', () => {
   ])('says no sheet shows a request’s torrent once it was %s', async (_case, leave) => {
     const view = renderSheet()
     act(() => view.result.current.open('dune'))
-    const pending = request()
+    const pending = held()
     const sent = view.result.current.send(DUNE, 'a', () => pending.promise)
     leave(view)
     await act(async () => pending.resolve())
@@ -50,13 +51,13 @@ describe('useTorrentSheet', () => {
   it('keeps a failed request for the sheet that shows its torrent, with what it sent, until a sheet opens or sends again', async () => {
     const { result } = renderSheet()
     act(() => result.current.open('dune'))
-    const first = request()
+    const first = held()
     const sent = result.current.send(DUNE, '/root', () => first.promise)
     await act(async () => first.reject('403'))
     await sent
     expect(result.current.failure).toEqual({ sent: '/root', error: '403' })
 
-    const second = request()
+    const second = held()
     act(() => void result.current.send(DUNE, '/media', () => second.promise))
     expect(result.current.failure).toBeUndefined()
     await act(async () => second.reject('409'))
@@ -69,13 +70,13 @@ describe('useTorrentSheet', () => {
     const alien = torrent('alien')
     const { result } = renderHook(() => useTorrentSheet<string>('move', { dune: DUNE, alien }))
     act(() => result.current.open('dune'))
-    const dune = request()
+    const dune = held()
     let duneSent!: Promise<unknown>
     act(() => {
       duneSent = result.current.send(DUNE, '/media', () => dune.promise)
     })
     act(() => result.current.open('alien'))
-    const other = request()
+    const other = held()
     act(() => void result.current.send(alien, '/tv', () => other.promise))
     await act(async () => other.reject('403'))
     await act(async () => dune.reject('409'))
@@ -86,7 +87,7 @@ describe('useTorrentSheet', () => {
   it('knows a sheet was closed or opened as soon as it’s asked, before React renders it', async () => {
     const { result } = renderSheet()
     act(() => result.current.open('dune'))
-    const first = request()
+    const first = held()
     const closed = result.current.send(DUNE, 'a', () => first.promise)
     // A sheet dragged away closes when its animation ends, outside an event React renders at once:
     // a request that settles before that render still learns the sheet is gone.
@@ -96,7 +97,7 @@ describe('useTorrentSheet', () => {
       expect(await closed).toEqual({ ok: true, showing: false })
     })
 
-    const second = request()
+    const second = held()
     const opened = result.current.send(DUNE, 'b', () => second.promise)
     await act(async () => {
       result.current.open('dune')
@@ -108,8 +109,8 @@ describe('useTorrentSheet', () => {
   it('keeps each torrent’s request pending until that one settles', async () => {
     const alien = torrent('alien')
     const { result } = renderHook(() => useTorrentSheet<string>('move', { dune: DUNE, alien }))
-    const dune = request()
-    const other = request()
+    const dune = held()
+    const other = held()
     let sent!: Promise<unknown>
     act(() => {
       sent = result.current.send(DUNE, '/movies', () => dune.promise)
@@ -139,7 +140,7 @@ describe('useTorrentSheet on two screens under one TorrentRequestsProvider', () 
 
   it('shows a request sent from one screen busy on the other, and closes the other’s sheet once it goes through', async () => {
     const { result } = renderScreens()
-    const sending = request()
+    const sending = held()
     let sent!: Promise<unknown>
     act(() => {
       sent = result.current.downloads.send(DUNE, '/media', () => sending.promise)
@@ -156,7 +157,7 @@ describe('useTorrentSheet on two screens under one TorrentRequestsProvider', () 
 
   it('keeps the failure in the other screen’s sheet, which then says it', async () => {
     const { result } = renderScreens()
-    const sending = request()
+    const sending = held()
     let sent!: Promise<unknown>
     act(() => {
       sent = result.current.downloads.send(DUNE, '/media', () => sending.promise)
@@ -169,13 +170,3 @@ describe('useTorrentSheet on two screens under one TorrentRequestsProvider', () 
   })
 })
 
-/** A request that settles when the test says so. */
-function request() {
-  let resolve!: () => void
-  let reject!: (error: unknown) => void
-  const promise = new Promise<void>((done, fail) => {
-    resolve = done
-    reject = fail
-  })
-  return { promise, resolve, reject }
-}

@@ -3,20 +3,10 @@ import { torrent } from '../test/fixtures'
 import { mainData } from '../test/fixtures'
 import { applyMainData, EMPTY_SYNC_STATE } from './sync'
 import { createTorrentRequests, inFlightParts, requestKey, withExpected, type Expectation, type RequestWatcher } from './torrentRequests'
+import { held } from '../test/held'
 
 const DUNE = torrent('dune')
 const ALIEN = torrent('alien')
-
-/** A request that settles when the test says so. */
-function request() {
-  let resolve!: () => void
-  let reject!: (error: unknown) => void
-  const promise = new Promise<void>((done, fail) => {
-    resolve = done
-    reject = fail
-  })
-  return { promise, resolve, reject }
-}
 
 const watcher = (shows: RequestWatcher['shows']) => ({ shows, settled: vi.fn<RequestWatcher['settled']>() })
 
@@ -25,7 +15,7 @@ describe('createTorrentRequests', () => {
     const requests = createTorrentRequests()
     const listener = vi.fn()
     requests.subscribe(listener)
-    const move = request()
+    const move = held()
     const sent = requests.send('move', DUNE, '/media', () => move.promise)
     void requests.send('limits', DUNE, { download: 1 }, () => new Promise(() => {}))
     expect(requests.getSnapshot().get(requestKey('move', 'dune'))).toBe('/media')
@@ -59,7 +49,7 @@ describe('createTorrentRequests', () => {
     requests.watch('move', downloads)
     requests.watch('move', drawer)
     requests.watch('limits', limits)
-    const move = request()
+    const move = held()
     const sent = requests.send('move', DUNE, '/media', () => move.promise)
     move.reject('409')
     expect(await sent).toEqual({ ok: false, error: '409', showing: true })
@@ -117,7 +107,7 @@ describe('createTorrentRequests', () => {
 describe('createTorrentRequests with parts', () => {
   it('keeps one request per part of a torrent, so another part goes out while one is in flight', async () => {
     const requests = createTorrentRequests()
-    const first = request()
+    const first = held()
     void requests.send('file', DUNE, 6, () => first.promise, { part: '0' })
     expect(await requests.send('file', DUNE, 0, () => Promise.resolve(), { part: '0' })).toBeUndefined()
     await expect(requests.send('file', DUNE, 0, () => Promise.resolve(), { part: '1' })).resolves.toMatchObject({ ok: true })
@@ -139,7 +129,7 @@ describe('createTorrentRequests linked to a poll', () => {
     vi.useFakeTimers({ now: 5_000 })
     const linked = poll()
     const requests = createTorrentRequests(linked)
-    const stop = request()
+    const stop = held()
     const sent = requests.send('pause', [DUNE, ALIEN], false, () => stop.promise, { expect: paused })
     // Not before qBittorrent took it.
     expect(requests.getExpected().size).toBe(0)
@@ -155,7 +145,7 @@ describe('createTorrentRequests linked to a poll', () => {
     vi.useFakeTimers({ now: 5_000 })
     const requests = createTorrentRequests(poll())
     let lag = 2_000
-    const stop = request()
+    const stop = held()
     const sent = requests.send('pause', DUNE, false, () => stop.promise, { expect: paused, hold: () => lag })
     vi.setSystemTime(7_000)
     // Learnt while the request was on its way.

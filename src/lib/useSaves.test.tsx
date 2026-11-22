@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { saves, type SaveSettled } from '../logic/saves'
 import { useSaves, type SaveOutcome } from './useSaves'
+import { held } from '../test/held'
 
 type Takes = (outcome: SaveOutcome, sent: string, target: string) => boolean
 
@@ -24,17 +25,6 @@ function Sheet({ kind = 'folder', target = 'default', takes, request, onSettled 
       </button>
     </>
   )
-}
-
-/** A request that settles when the test says so. */
-function held() {
-  let resolve!: () => void
-  let reject!: (error: unknown) => void
-  const promise = new Promise<void>((done, fail) => {
-    resolve = done
-    reject = fail
-  })
-  return { promise, resolve, reject }
 }
 
 describe('useSaves', () => {
