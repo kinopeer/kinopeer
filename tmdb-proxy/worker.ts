@@ -10,6 +10,14 @@
  * public as the key. Workers Cache, in front of the worker (`cache` in wrangler.jsonc), keeps TMDB's
  * answers by their Cache-Control and runs the worker only on a miss, so only the calls that reach
  * TMDB meet the limit per IP (an IPv6 caller's /64, `limitKey`). Nothing is logged (wrangler.jsonc).
+ *
+ * A page served from a private origin (Kinopeer as qBittorrent's Alternative WebUI, at a LAN address)
+ * calls the proxy from the browser, so those origins get CORS headers (`isPrivateOrigin`); a page on a
+ * public origin gets none, so it can't read the answers, and a public site can't use the shared key
+ * as the TMDB backend of its own pages. It can still send the calls (a simple GET needs no preflight)
+ * and spend the daily quota with them, as a script can. Every answer says `Vary: Origin`, so Workers
+ * Cache keeps one copy per origin and never hands one origin's CORS headers to another
+ * (docs/SPEC.md's decision log, 2026-11-22).
  */
 
 /** The worker's bindings (wrangler.jsonc) and secrets. */
@@ -59,6 +67,21 @@ const RESPONSE_HEADERS = ['content-type', 'etag', 'last-modified']
 /** TMDB's terms ask that an application doesn't hide who it is. */
 const USER_AGENT = 'Kinopeer-TMDB-proxy'
 
+/** The methods the proxy answers; OPTIONS is a CORS preflight. */
+const ALLOW = 'GET, HEAD, OPTIONS'
+
+/**
+ * What a browser keeps a preflight for, in seconds. Chromium caps it at two hours, Firefox at a day.
+ * A GET or HEAD is preflighted only for a request header outside the safelist, and the answer names
+ * no `Access-Control-Allow-Headers`, so today a preflight admits nothing: the client's GETs send no
+ * such header, and one that does needs its name added here first. The branch is there so a
+ * preflight gets an answer that says so, rather than a 405.
+ */
+const PREFLIGHT_MAX_AGE = String(24 * HOUR)
+
+/** Response headers a page's script may read beyond the CORS-safelisted ones: a 429's wait. */
+const EXPOSED_HEADERS = 'Retry-After'
+
 /** Never cached: a 429 kept by Workers Cache would answer every install, not the IP over its limit. */
 const NO_STORE = 'no-store'
 
@@ -73,6 +96,81 @@ function fail(status: number, message: string, headers: Record<string, string> =
 function authorize(key: string, url: string): { url: string; headers: Record<string, string> } {
   if (key.startsWith('eyJ')) return { url, headers: { Authorization: `Bearer ${key}` } }
   return { url: `${url}${url.includes('?') ? '&' : '?'}api_key=${encodeURIComponent(key)}`, headers: {} }
+}
+
+/** Suffixes of names public DNS never answers for (RFC 6761, 6762, 8375; `.internal`, ICANN, 2024). */
+const PRIVATE_SUFFIXES = ['.localhost', '.local', '.home.arpa', '.internal']
+
+/** Whether `address`, an IPv4 address in dotted decimal, is private, loopback, link-local or CGNAT. */
+function isPrivateIpv4(address: string): boolean {
+  // Four numbers, as the caller's pattern holds; the defaults only satisfy the type.
+  const [a = -1, b = -1] = address.split('.').map(Number)
+  return (
+    a === 10 || // 10.0.0.0/8
+    a === 127 || // loopback
+    (a === 172 && b >= 16 && b <= 31) || // 172.16.0.0/12
+    (a === 192 && b === 168) || // 192.168.0.0/16
+    (a === 169 && b === 254) || // link-local
+    (a === 100 && b >= 64 && b <= 127) // 100.64.0.0/10, carrier-grade NAT's and Tailscale's
+  )
+}
+
+/**
+ * Whether `address`, an IPv6 address as the URL parser writes it (compressed, lowercase, without
+ * brackets), is loopback, unique local (fc00::/7) or link-local (fe80::/10). An IPv4-mapped address
+ * (`::ffff:c0a8:101`) isn't read: no browser opens a page at one, so it says nothing.
+ */
+function isPrivateIpv6(address: string): boolean {
+  if (address === '::1') return true
+  // An address that starts with `::` has an empty first group, read as NaN, whose bits are none.
+  const first = Number.parseInt(address.split(':')[0] ?? '', 16)
+  return (first & 0xfe00) === 0xfc00 || (first & 0xffc0) === 0xfe80
+}
+
+/**
+ * Whether a page at `origin` (a request's `Origin` header) is on a private network: an http(s)
+ * origin whose host is an IP address in a private, loopback, link-local or CGNAT range, `localhost`
+ * or a name under `.localhost`, `.local`, `.home.arpa` or `.internal`, or a name of one label (a LAN
+ * name). Anything else, `null` (a sandboxed page, a file) included, is public.
+ *
+ * Not server/hostCheck.ts's `isPrivateHost`, which counts every IP address as private: that check is
+ * against DNS rebinding, where a page reached at an IP address can't be an attacker's name. Here the
+ * question is whose page it is, and a public IP address is someone's public site.
+ */
+export function isPrivateOrigin(origin: string | null): boolean {
+  let url: URL
+  try {
+    // No Origin, `null` and an empty one don't parse.
+    url = new URL(origin ?? '')
+  } catch {
+    return false
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return false
+  // A fully qualified name's trailing dot names the same host.
+  const host = url.hostname.replace(/\.$/, '')
+  if (host.startsWith('[')) return isPrivateIpv6(host.slice(1, -1))
+  // The URL parser writes every IPv4 address in dotted decimal (0x7f.1 as 127.0.0.1).
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(host)) return isPrivateIpv4(host)
+  // A name of one label, `localhost` among them; empty for an origin of a lone dot.
+  if (!host.includes('.')) return host !== ''
+  return PRIVATE_SUFFIXES.some((suffix) => host.endsWith(suffix))
+}
+
+/**
+ * `response` with the CORS headers for `origin`: `Vary: Origin` on every answer, since Workers Cache
+ * honors it and keeps an answer per origin, and the rest only for a private one. A preflight also
+ * gets the methods and how long the browser may keep it.
+ */
+function withCors(response: Response, origin: string | null, preflight: boolean): Response {
+  response.headers.append('Vary', 'Origin')
+  if (!isPrivateOrigin(origin)) return response
+  response.headers.set('Access-Control-Allow-Origin', origin ?? '')
+  response.headers.set('Access-Control-Expose-Headers', EXPOSED_HEADERS)
+  if (preflight) {
+    response.headers.set('Access-Control-Allow-Methods', 'GET, HEAD')
+    response.headers.set('Access-Control-Max-Age', PREFLIGHT_MAX_AGE)
+  }
+  return response
 }
 
 /** The groups of one side of an IPv6 address's `::`, an IPv4 tail counted as the two it takes. */
@@ -99,13 +197,22 @@ export function limitKey(ip: string): string {
 }
 
 export async function handle(request: Request, env: Env, deps: Deps = {}): Promise<Response> {
-  if (request.method !== 'GET' && request.method !== 'HEAD') {
-    return fail(405, 'Method not allowed', { Allow: 'GET, HEAD' })
+  const response = await answer(request, env, deps)
+  // A preflight's own headers only on its 204: a 404 refuses it, for a path the proxy doesn't serve.
+  return withCors(response, request.headers.get('Origin'), request.method === 'OPTIONS' && response.ok)
+}
+
+async function answer(request: Request, env: Env, deps: Deps): Promise<Response> {
+  const preflight = request.method === 'OPTIONS'
+  if (request.method !== 'GET' && request.method !== 'HEAD' && !preflight) {
+    return fail(405, 'Method not allowed', { Allow: ALLOW })
   }
   const url = new URL(request.url)
   const path = url.pathname.startsWith(`${PREFIX}/`) ? url.pathname.slice(PREFIX.length) : ''
   const ttl = ROUTES.find(([pattern]) => pattern.test(path))?.[1]
   if (ttl === undefined) return fail(404, 'Not a path Kinopeer calls')
+  // Answered without the key, the limit or TMDB: a preflight only asks what the GET may do.
+  if (preflight) return new Response(null, { status: 204, headers: { Allow: ALLOW, 'Cache-Control': NO_STORE } })
   const key = env.TMDB_API_KEY?.trim()
   if (!key) return fail(503, 'The proxy has no TMDB key')
   // A worker deployed without its environment has no limiter; it mustn't read as "no limit".
