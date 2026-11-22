@@ -248,7 +248,7 @@ describe('ReleasesScreen', () => {
   it.each([
     ['Prowlarr fails', () => searchReleases.mockRejectedValue(new prowlarr.ProwlarrError('down', 502, 'unreachable')), 'Prowlarr isn’t answering'],
     ['nothing is found', () => searchReleases.mockResolvedValue([]), 'No releases found'],
-    ['TMDB fails', () => getMovie.mockRejectedValue(new tmdb.TmdbError('down', 502)), 'Prowlarr isn’t answering'],
+    ['TMDB fails', () => getMovie.mockRejectedValue(new tmdb.TmdbError('down', 502)), 'Couldn’t load from TMDB'],
   ])('keeps the filter chips’ row’s room, empty, when %s', async (_, set, heading) => {
     set()
     const { container } = renderAt('/title/movie/693134/releases')
@@ -256,6 +256,16 @@ describe('ReleasesScreen', () => {
     // Decorative, like the skeletons in it: only its class finds it.
     expect(container.querySelector('.rel-chips')).toBeEmptyDOMElement()
     expect(screen.queryByRole('button', { name: 'Filters' })).not.toBeInTheDocument()
+  })
+
+  it('says TMDB didn’t answer for the title, and asks it again on Try again', async () => {
+    getMovie.mockRejectedValueOnce(new tmdb.TmdbError('down', 502))
+    renderAt('/title/movie/693134/releases')
+    expect(await screen.findByRole('heading', { name: 'Couldn’t load from TMDB' })).toBeInTheDocument()
+    expect(screen.getByText('Check the connection and try again.')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Couldn’t load from TMDB' })).not.toBeInTheDocument())
+    expect(getMovie).toHaveBeenCalledTimes(2)
   })
 
   it('explains a missing Prowlarr setup', async () => {
