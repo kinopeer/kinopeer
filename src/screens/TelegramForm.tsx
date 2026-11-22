@@ -89,8 +89,10 @@ export function TelegramForm({ telegram, onChanged, onTurnedOff, onRefused }: Te
     if (!outcome.ok) setError(formError(outcome.error))
     else if (kind === 'find') setFound(outcome.result as TelegramFoundChat)
     else if (kind === 'test') toast.show(t('telegram.testSent'), { icon: 'check' })
-    else if (kind === 'token' || kind === 'chat') {
-      if (kind === 'token') setToken('')
+    else {
+      // Saved or turned off: the step the settings are at, with no token typed (Settings closes the
+      // sheet once it's off).
+      setToken('')
       goTo(null)
     }
     return true

@@ -4,6 +4,10 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 
 ## Unreleased
 
+### Changed
+
+- In Settings, saving qBittorrent's folders and setting up Telegram notifications go on when the sheet is closed or Settings is left: the sheet opened again shows the request on its way, and a toast says how it went, the failure included, which Telegram's sheet used to lose. ([#500](https://github.com/kinopeer/kinopeer/issues/500))
+
 ### Fixed
 
 - On a phone, a title's releases no longer say Prowlarr isn't answering when it's TMDB that didn't answer for the title's details: they say Kinopeer couldn't load from TMDB, as the title page does. ([#517](https://github.com/kinopeer/kinopeer/issues/517))
