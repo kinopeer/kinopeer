@@ -2,12 +2,14 @@ import { useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { failureOf, type ConnectionFailure } from '../api/connectionFailure'
 import { unreachable, type Unreachable } from '../api/qbittorrent'
-import { SettingsError, type SourceAddress } from '../api/settings'
+import { SettingsError, type ServerSettings, type SourceAddress } from '../api/settings'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { Input } from '../components/Input'
+import { useToast } from '../components/Toast'
 import { failureText } from '../lib/failureText'
 import { unreachableText, useMayOpenAgain } from '../lib/unreachable'
+import { useSaves } from '../lib/useSaves'
 import { loadPastTheShell } from '../pwa/proxySignIn'
 import { BypassHint, LocalhostHint } from './ContainerHints'
 import { FindAddress } from './FindAddress'
@@ -26,7 +28,12 @@ export interface QbittorrentLoginFormProps {
   /** The address in use was saved from the app, not set on the server, which is what a wrong one is said to be. */
   addressFromApp?: boolean
   /** Rejects with a SettingsError saying why the server couldn't log in; `url` only when the form asked for an address. */
-  onSubmit: (username: string, password: string, url?: string) => Promise<void>
+  onSubmit: (username: string, password: string, url?: string) => Promise<ServerSettings>
+  /**
+   * The check passed, with the settings it answered: what the caller does next. The form open as it
+   * settles calls it, one opened again by another caller included, else the form that sent it.
+   */
+  onSaved?: (settings: ServerSettings) => void
   /** The environment set an address meanwhile, which wins over one sent from here. */
   onEnvAddress: () => void
   /** Retry beside who didn't answer; without it the banner only says so. */
@@ -59,6 +66,30 @@ type FormError =
 /** Errors shown in the form itself rather than as who didn't answer. */
 const FORM_ERRORS = new Set<FormError>(['invalid', 'login-needed', 'banned', 'not-qbittorrent', 'host-refused', 'invalid-address', 'address-unreachable', 'auth-off', 'storage'])
 
+/** Errors the form says in a banner; the rest are on a field, or who didn't answer. */
+const BANNER_ERRORS = new Set<FormError>(['banned', 'not-qbittorrent', 'host-refused', 'auth-off', 'storage'])
+
+/** The connection's save (`useSaves`), with what was typed but the password. */
+const QBITTORRENT_SAVES = 'qbittorrent'
+const CONNECTION = 'connection'
+interface Sent {
+  username: string
+  url?: string
+}
+
+/** What a refused check says, by what was sent; the environment's address is the caller's to say. */
+function errorOf(e: unknown, sent: Sent): FormError | 'env-address' {
+  const code = e instanceof SettingsError ? e.code : undefined
+  if (code === 'invalid-credentials') return sent.username.trim() ? 'invalid' : 'login-needed'
+  if (code === 'env-address' || (code && FORM_ERRORS.has(code as FormError))) return code as FormError
+  // With an address sent, the server is there and says that address didn't answer.
+  if (code === 'unreachable' && sent.url !== undefined) return 'address-unreachable'
+  // An error the server named is its answer, so the server is there; one without a name came
+  // from something in front of it (Umbrel answering for a stopped app); no answer is unreached.
+  if (e instanceof SettingsError) return code === undefined ? 'kinopeer' : 'qbittorrent'
+  return unreachable(e)
+}
+
 /**
  * qBittorrent's login, and its address where the app may set it: the server checks them together
  * and keeps them. The connect screen and Settings → Connections both use it.
@@ -71,15 +102,13 @@ export function QbittorrentLoginForm({
   initialAddress = '',
   addressFromApp,
   onSubmit,
+  onSaved,
   onEnvAddress,
   onRetry,
   source: sessionSource,
 }: QbittorrentLoginFormProps) {
   const { t } = useTranslation()
-  const [address, setAddress] = useState(initialAddress)
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [submitting, setSubmitting] = useState(false)
+  const toast = useToast()
   const [error, setError] = useState<FormError>(null)
   // Why qBittorrent didn't answer the check, where the server could tell (#508).
   const [failure, setFailure] = useState<ConnectionFailure>()
@@ -89,36 +118,65 @@ export function QbittorrentLoginForm({
   const [checkSource, setCheckSource] = useState<{ source?: SourceAddress }>()
   const source = checkSource ? checkSource.source : sessionSource
 
+  function fail(e: unknown, sent: Sent) {
+    setFailure(failureOf(e))
+    setLocalhost(e instanceof SettingsError ? e.container : undefined)
+    // A failure no check answered (no answer, a sign-in proxy) says nothing of the bypass.
+    if (e instanceof SettingsError && e.code !== undefined) setCheckSource({ source: e.source })
+    const failed = errorOf(e, sent)
+    if (failed === 'env-address') onEnvAddress()
+    else setError(failed)
+  }
+
+  // Open, the form takes every save, for its caller to follow, and every failure it can show: one that
+  // asks for no address (the connect screen's Cancel) can't show what refused one.
+  const saving = useSaves<Sent>(QBITTORRENT_SAVES, (outcome, sent) => {
+    if (outcome.ok) onSaved?.(outcome.result as ServerSettings)
+    else if (sent.url !== undefined && !askAddress) return false
+    else fail(outcome.error, sent)
+    return true
+  })
+  // One check at a time, from this form or one opened before it, which this one starts from.
+  const sending = saving.pending(CONNECTION)
+  const [address, setAddress] = useState(sending?.url ?? initialAddress)
+  const [username, setUsername] = useState(sending?.username ?? '')
+  const [password, setPassword] = useState('')
+
+  /**
+   * What a failure says, on its field or in a banner, or in a toast once the form is gone (`named`,
+   * which names what failed where a field would): one wording per failure for both. `sentAddress`: the
+   * check was of an address from the app.
+   */
+  function errorText(failed: FormError, why?: string, sentAddress?: boolean, named?: boolean): string {
+    if (failed === 'invalid') return t(named ? 'connect.loginRefused' : 'connect.invalidCredentials')
+    if (failed === 'login-needed') return t('connect.loginNeeded')
+    if (failed === 'banned') return t('connect.banned')
+    // An address from the app, typed here or saved before, is checked here; the environment's on the server.
+    if (failed === 'not-qbittorrent') return t('connect.notQbittorrent', { context: sentAddress || addressFromApp ? 'app' : undefined })
+    if (failed === 'host-refused') return t('connect.hostRefused')
+    if (failed === 'auth-off') return t('connect.authOff')
+    if (failed === 'storage') return t('keyForm.storage')
+    if (failed === 'invalid-address') return t('address.invalid')
+    // Why nothing answered, at the address sent or the server's, where the server could tell (#508).
+    if (why) return why
+    if (failed === 'address-unreachable') return t('connect.addressUnreachable')
+    // Else that it failed, which trying again may change.
+    return t('connect.saveFailed')
+  }
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    // One check at a time: `loading` doesn't stop Enter in a field.
-    if (submitting) return
-    setSubmitting(true)
+    // Nothing goes while a check is on its way, and what it shows stays: `loading` doesn't stop Enter in a field.
+    if (sending) return
     setError(null)
-    try {
-      await (askAddress ? onSubmit(username, password, address) : onSubmit(username, password))
-    } catch (e) {
-      setFailure(failureOf(e))
-      setLocalhost(e instanceof SettingsError ? e.container : undefined)
-      // A failure no check answered (no answer, a sign-in proxy) says nothing of the bypass.
-      if (e instanceof SettingsError && e.code !== undefined) setCheckSource({ source: e.source })
-      const code = e instanceof SettingsError ? e.code : undefined
-      if (code === 'invalid-credentials') setError(username.trim() ? 'invalid' : 'login-needed')
-      else if (code === 'banned') setError('banned')
-      else if (code === 'not-qbittorrent') setError('not-qbittorrent')
-      else if (code === 'host-refused') setError('host-refused')
-      else if (code === 'invalid-address') setError('invalid-address')
-      // With an address sent, the server is there and says that address didn't answer.
-      else if (code === 'unreachable' && askAddress) setError('address-unreachable')
-      else if (code === 'auth-off') setError('auth-off')
-      else if (code === 'storage') setError('storage')
-      else if (code === 'env-address') onEnvAddress()
-      // An error the server named is its answer, so the server is there; one without a name came
-      // from something in front of it (Umbrel answering for a stopped app); no answer is unreached.
-      else if (e instanceof SettingsError) setError(code === undefined ? 'kinopeer' : 'qbittorrent')
-      else setError(unreachable(e))
-      setSubmitting(false)
-    }
+    const sent = { username, url: askAddress ? address : undefined }
+    const settled = await saving.send(CONNECTION, sent, () => (askAddress ? onSubmit(username, password, address) : onSubmit(username, password)))
+    // No form took it: the caller still follows a save, and the environment's address; a failure is
+    // said in a toast.
+    if (!settled || settled.taken) return
+    if (settled.ok) onSaved?.(settled.result)
+    else if (errorOf(settled.error, sent) === 'env-address') onEnvAddress()
+    else toast.show(errorText(errorOf(settled.error, sent) as FormError, failureText(t, 'qbittorrent', failureOf(settled.error)), sent.url !== undefined, true), { icon: 'alert' })
   }
 
   // Who didn't answer the sign-in, shown over the form, so what was typed stays.
@@ -152,14 +210,7 @@ export function QbittorrentLoginForm({
             t('connect.unreachableBody', { context: openAgain ? 'openAgain' : unreachableText(signInUnreachable) })}
         </Banner>
       )}
-      {error === 'banned' && <Banner tone="error">{t('connect.banned')}</Banner>}
-      {error === 'not-qbittorrent' && (
-        // An address from the app, typed here or saved before, is checked here; the environment's on the server.
-        <Banner tone="error">{t('connect.notQbittorrent', { context: askAddress || addressFromApp ? 'app' : undefined })}</Banner>
-      )}
-      {error === 'host-refused' && <Banner tone="error">{t('connect.hostRefused')}</Banner>}
-      {error === 'auth-off' && <Banner tone="error">{t('connect.authOff')}</Banner>}
-      {error === 'storage' && <Banner tone="error">{t('keyForm.storage')}</Banner>}
+      {BANNER_ERRORS.has(error) && <Banner tone="error">{errorText(error, undefined, askAddress)}</Banner>}
       {askAddress && localhost && (error === 'address-unreachable' || error === 'not-qbittorrent') && (
         <LocalhostHint
           service="qbittorrent"
@@ -189,7 +240,7 @@ export function QbittorrentLoginForm({
             required
             value={address}
             onChange={(e) => changeAddress(e.target.value)}
-            error={(error === 'invalid-address' && t('address.invalid')) || (error === 'address-unreachable' && (failureText(t, 'qbittorrent', failure) ?? t('connect.addressUnreachable')))}
+            error={(error === 'invalid-address' || error === 'address-unreachable') && errorText(error, failureText(t, 'qbittorrent', failure))}
             help={t('connect.addressHelp')}
           />
         )}
@@ -230,11 +281,11 @@ export function QbittorrentLoginForm({
             setPassword(e.target.value)
             clearLoginError()
           }}
-          error={(error === 'invalid' && t('connect.invalidCredentials')) || (error === 'login-needed' && t('connect.loginNeeded'))}
+          error={(error === 'invalid' || error === 'login-needed') && errorText(error)}
         />
       </div>
 
-      <Button type="submit" size="lg" block loading={submitting}>
+      <Button type="submit" size="lg" block loading={sending !== undefined}>
         {t('connect.submit')}
       </Button>
       {actions}

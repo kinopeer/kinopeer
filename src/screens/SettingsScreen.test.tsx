@@ -849,7 +849,9 @@ describe('SettingsScreen', () => {
 
     it('changes qBittorrent’s address and login in a sheet that starts at the saved address, then checks it again', async () => {
       vi.mocked(serverSettings.getServerSettings).mockResolvedValue(fromApp())
-      vi.mocked(serverSettings.saveQbittorrentLogin).mockResolvedValue(fromApp())
+      const saved = fromApp()
+      saved.qbittorrent.address = { source: 'saved', url: 'http://192.168.1.20:8080' }
+      vi.mocked(serverSettings.saveQbittorrentLogin).mockResolvedValue(saved)
       renderScreen()
       expect(await screen.findByText(hintFromApp)).toBeInTheDocument()
       await waitFor(() => expect(qbt.getCategories).toHaveBeenCalledOnce())
@@ -873,8 +875,9 @@ describe('SettingsScreen', () => {
       await waitFor(() => expect(qbt.getAppVersion).toHaveBeenCalledTimes(2))
       await waitFor(() => expect(qbt.getCategories).toHaveBeenCalledTimes(2))
 
-      // And again after the next save.
+      // And again after the next save, the sheet starting at the address the server now keeps.
       await userEvent.click(within(connection('qBittorrent')).getByRole('button', { name: changeQbittorrent }))
+      expect(within(screen.getByRole('dialog', { name: qbittorrentSheet })).getByLabelText('qBittorrent address')).toHaveValue('http://192.168.1.20:8080')
       await userEvent.click(within(screen.getByRole('dialog', { name: qbittorrentSheet })).getByRole('button', { name: 'Connect' }))
       await waitFor(() => expect(qbt.getCategories).toHaveBeenCalledTimes(3))
     })

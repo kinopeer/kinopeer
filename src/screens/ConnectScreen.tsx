@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ConnectionFailure } from '../api/connectionFailure'
 import type { Unreachable } from '../api/qbittorrent'
-import { SERVER_SETTINGS_FRESH_MS, SERVER_SETTINGS_KEY, getServerSettings, type SourceAddress } from '../api/settings'
+import { SERVER_SETTINGS_FRESH_MS, SERVER_SETTINGS_KEY, getServerSettings, type ServerSettings, type SourceAddress } from '../api/settings'
 import { Button } from '../components/Button'
 import { useRequest } from '../lib/useRequest'
 import { Preferences } from './Preferences'
@@ -24,7 +24,7 @@ export interface ConnectScreenProps {
   source?: SourceAddress
   onRetry: () => void
   /** Rejects with a SettingsError saying why the server couldn't log in; `url` only when the form asked for an address. */
-  onSignIn: (username: string, password: string, url?: string) => Promise<unknown>
+  onSignIn: (username: string, password: string, url?: string) => Promise<ServerSettings>
 }
 
 export function ConnectScreen({ unreachable: unreachableProp, failure, unsupported, noAddress = false, source, onRetry, onSignIn }: ConnectScreenProps) {
@@ -93,11 +93,9 @@ export function ConnectScreen({ unreachable: unreachableProp, failure, unsupport
         initialAddress={saved}
         addressFromApp={saved !== undefined}
         // Passed on as they come: no address unless the form asked for one.
-        onSubmit={async (...login) => {
-          await onSignIn(...login)
-          // Signed in, the session's state renders next: an old qBittorrent's notice in place of the form.
-          setChanging(false)
-        }}
+        onSubmit={onSignIn}
+        // Signed in, the session's state renders next: an old qBittorrent's notice in place of the form.
+        onSaved={() => setChanging(false)}
         // The environment's address wins: check the session at it.
         onEnvAddress={onRetry}
         onRetry={onRetry}
