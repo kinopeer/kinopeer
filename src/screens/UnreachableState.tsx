@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import type { ConnectionFailure } from '../api/connectionFailure'
 import type { Unreachable } from '../api/qbittorrent'
 import { EmptyState } from '../components/EmptyState'
+import type { IconName } from '../components/Icon'
 import { failureText } from '../lib/failureText'
 import { unreachableText, useMayOpenAgain } from '../lib/unreachable'
 import { loadPastTheShell } from '../pwa/proxySignIn'
@@ -14,14 +15,15 @@ export interface UnreachableStateProps {
   onRetry: () => void
   /** Whose body text: the poll's (`offline.unreachableBody`, the default) or the session check's on the connect screen (`connect.unreachableBody`). */
   texts?: 'offline' | 'connect'
+  retryIcon?: IconName
 }
 
 /**
  * Nothing came from qBittorrent yet and the poll failed: who didn't answer, with Retry, and Open
  * again beside it when nothing answered for Kinopeer's server (`useMayOpenAgain`). Downloads and the
- * torrent details show it.
+ * torrent details show it, and `TmdbFailedState` where Kinopeer's server didn't answer a TMDB call.
  */
-export function UnreachableState({ unreachable, failure, onRetry, texts = 'offline' }: UnreachableStateProps) {
+export function UnreachableState({ unreachable, failure, onRetry, texts = 'offline', retryIcon }: UnreachableStateProps) {
   const { t } = useTranslation()
   const openAgain = useMayOpenAgain(unreachable)
   return (
@@ -30,6 +32,7 @@ export function UnreachableState({ unreachable, failure, onRetry, texts = 'offli
       tone="error"
       title={t('noAnswer.qbittorrent', { context: unreachableText(unreachable) })}
       actionLabel={t('common.retry')}
+      actionIcon={retryIcon}
       onAction={onRetry}
       secondaryActionLabel={openAgain ? t('common.openAgain') : undefined}
       onSecondaryAction={() => loadPastTheShell()}

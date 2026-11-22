@@ -45,8 +45,9 @@ export class TorrentRefusedError extends QbittorrentError {
 }
 
 /**
- * The bridge's mark on each of its answers (`BRIDGE_HEADER` in server/qbittorrent.ts): a failure
- * without it never reached Kinopeer's server, a proxy in front answered for it.
+ * The bridge's mark on each of its answers, and the TMDB bridge's (`BRIDGE_HEADER` in
+ * server/qbittorrent.ts): a failure without it never reached Kinopeer's server, a proxy in front
+ * answered for it.
  */
 export const BRIDGE_HEADER = 'x-kinopeer-bridge'
 /** The bridge's mark when it has no address for qBittorrent (`NO_ADDRESS` in server/qbittorrent.ts). */
@@ -68,15 +69,18 @@ export class KinopeerUnreachableError extends QbittorrentError {
  * Who didn't answer. Kinopeer's server, two ways: `unreached`, nothing answered at all (the network,
  * a certificate the browser no longer trusts, both a TypeError with no detail) or a sign-in proxy
  * redirected the request; `kinopeer`, something in front answered for the server (Umbrel's 502 for
- * a stopped app), so the way to it works. Or `qbittorrent`, behind the server.
+ * a stopped app), so the way to it works. Or `qbittorrent`: the service behind Kinopeer's bridge,
+ * which is TMDB for TMDB's calls (src/api/tmdb/client.ts, #537).
  */
 export type Unreachable = 'unreached' | 'kinopeer' | 'qbittorrent'
 
 /**
  * Who a failed request didn't get an answer from: Kinopeer's server when the network failed
  * (fetch's TypeError) or a proxy in front asked to sign in (`unreached`), or answered for it
- * (`kinopeer`). Otherwise qBittorrent, a request that took too long included: the bridge waits for
- * qBittorrent, so a request that hangs is most likely waiting on it.
+ * (`kinopeer`). Otherwise the service behind the bridge, `qbittorrent`, which is TMDB for TMDB's
+ * calls. A request that took too long counts as qBittorrent: its bridge waits for qBittorrent with
+ * no limit, so a request that hangs is most likely waiting on it. The TMDB bridge gives up after
+ * `TMDB_TIMEOUT_MS` and answers its own 504, so for TMDB's calls that reading is only likely.
  */
 export function unreachable(error: unknown): Unreachable {
   if (error instanceof TypeError || error instanceof ProxySignInError) return 'unreached'

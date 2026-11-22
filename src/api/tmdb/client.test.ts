@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
+import { BRIDGE_HEADER, KinopeerUnreachableError, unreachable } from '../qbittorrent/client'
 import {
+  TmdbError,
   TmdbKeyError,
   discoverTitles,
   getMovie,
@@ -15,11 +17,12 @@ import {
 
 let fetchMock: Mock<typeof fetch>
 
+/** An answer of Kinopeer's TMDB bridge, which marks every one (`BRIDGE_HEADER`). */
 function respond(body: unknown, status = 200, contentType = 'application/json;charset=utf-8') {
   fetchMock.mockResolvedValueOnce(
     new Response(typeof body === 'string' ? body : JSON.stringify(body), {
       status,
-      headers: { 'Content-Type': contentType },
+      headers: { 'Content-Type': contentType, [BRIDGE_HEADER]: '1' },
     }),
   )
 }
@@ -161,15 +164,29 @@ describe('errors', () => {
   })
 
   it('says how long a 429 asks to wait', async () => {
-    fetchMock.mockResolvedValueOnce(Response.json({ status_message: 'Too many requests' }, { status: 429, headers: { 'Retry-After': '10' } }))
+    fetchMock.mockResolvedValueOnce(Response.json({ status_message: 'Too many requests' }, { status: 429, headers: { 'Retry-After': '10', [BRIDGE_HEADER]: '1' } }))
     await expect(getMovie(1)).rejects.toMatchObject({ status: 429, retryAfterMs: 10_000 })
     respond({ status_message: 'Too many requests' }, 429)
     await expect(getMovie(1)).rejects.toMatchObject({ status: 429, retryAfterMs: undefined })
     // Retry-After: 0 says nothing about how long, so the caller's own wait applies.
-    fetchMock.mockResolvedValueOnce(Response.json({ status_message: 'Too many requests' }, { status: 429, headers: { 'Retry-After': '0' } }))
+    fetchMock.mockResolvedValueOnce(Response.json({ status_message: 'Too many requests' }, { status: 429, headers: { 'Retry-After': '0', [BRIDGE_HEADER]: '1' } }))
     await expect(getMovie(1)).rejects.toMatchObject({ status: 429, retryAfterMs: undefined })
   })
 
+  it('tells a failure of TMDB, which the server’s bridge answers for, from one that never reached the server', async () => {
+    respond({ status_message: 'TMDB is unreachable' }, 502)
+    const tmdbFailed = await getMovie(1).catch((error: unknown) => error)
+    expect(tmdbFailed).toBeInstanceOf(TmdbError)
+    // `unreachable` reads anything but Kinopeer's server as the service behind it.
+    expect(unreachable(tmdbFailed)).toBe('qbittorrent')
+
+    // Umbrel's 502 for a stopped app: something in front of the server answered, without the bridge's mark.
+    fetchMock.mockResolvedValueOnce(new Response('Bad Gateway', { status: 502, headers: { 'Content-Type': 'text/html' } }))
+    const inFront = await getMovie(1).catch((error: unknown) => error)
+    expect(inFront).toBeInstanceOf(KinopeerUnreachableError)
+    expect(inFront).toMatchObject({ status: 502 })
+    expect(unreachable(inFront)).toBe('kinopeer')
+  })
 })
 
 describe('discoverTitles', () => {
