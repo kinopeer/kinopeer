@@ -25,6 +25,7 @@ describe('pageAnswer', () => {
     ['qBittorrent’s refusal of a folder with no index.html', page('Unacceptable file type, only regular file is allowed.', { status: 500 })],
     ['a redirect, as to a sign-in page', Response.redirect('https://sign-in.example.com/', 302)],
     ['a proxy’s sign-in refusal', page('Unauthorized', { status: 401 })],
+    ['an error that has the mark, as a server answering every path with index.html and a 404', page(KINOPEER, { status: 404 })],
   ])('takes %s for another page', async (_what, response) => {
     expect(await pageAnswer(response)).toBe('other')
   })
@@ -113,6 +114,12 @@ describe('loadPage', () => {
     expect(load.forget).not.toHaveBeenCalled()
   })
 
+  it('leaves no timer behind once the network answers', async () => {
+    vi.useFakeTimers()
+    await loadPage(request, stand(async () => page(KINOPEER)))
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
   it('passes the network’s error on when nothing is precached', async () => {
     const failure = new TypeError('Failed to fetch')
     const load = stand(async () => Promise.reject(failure), { precached: false })
@@ -136,7 +143,7 @@ describe('WEBUI_PAGES', () => {
   })
 
   // Opened in a tab, each answers without the mark, which must not read as Kinopeer turned off.
-  it.each(['/version.json', '/manifest.webmanifest', '/icons/icon-192.png', '/api/v2/app/version', '/index.html.bak', '/search'])('leaves %s to the network', (path) => {
+  it.each(['/version.json', '/manifest.webmanifest', '/icons/icon-192.png', '/api/v2/app/version', '/index.html.bak', '/search', '/icons/', '/old/index.html'])('leaves %s to the network', (path) => {
     expect(taken(path)).toBe(false)
   })
 })
