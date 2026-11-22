@@ -45,39 +45,32 @@ describe('logIn', () => {
     await expect(logIn('admin', 'secret')).rejects.toBeInstanceOf(TypeError)
   })
 
-  it('gives up a login qBittorrent hasn’t answered in its time limit, so the form can be sent again', async () => {
-    vi.useFakeTimers()
-    try {
-      fetchMock.mockImplementationOnce(
-        (_url, init) => new Promise((_resolve, reject) => init!.signal!.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))),
-      )
-      const login = logIn('admin', 'secret').catch((caught: unknown) => caught)
-      await vi.advanceTimersByTimeAsync(LOGIN_TIMEOUT_MS - 1)
-      expect(fetchMock.mock.calls[0][1]!.signal!.aborted).toBe(false)
-      await vi.advanceTimersByTimeAsync(1)
-      const error = await login
-      expect(error).toBeInstanceOf(DOMException)
-      expect(error).not.toBeInstanceOf(QbittorrentError)
-    } finally {
-      vi.useRealTimers()
-    }
-  })
+  // What a real fetch rejects with, and errors its body with, once the request's signal aborts.
+  const aborted = () => new DOMException('Aborted', 'AbortError')
+  const onAbort = (init: RequestInit | undefined, then: () => void) => init!.signal!.addEventListener('abort', then)
 
-  it('gives up an answer whose body stops coming in the same time limit', async () => {
+  it.each<[string, typeof fetch]>([
+    ['no answer', (_url, init) => new Promise((_resolve, reject) => onAbort(init, () => reject(aborted())))],
+    [
+      'an answer whose body stops coming',
+      async (_url, init) =>
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(new TextEncoder().encode('O'))
+              onAbort(init, () => controller.error(aborted()))
+            },
+          }),
+        ),
+    ],
+  ])('gives up a login in its time limit, so the form can be sent again: %s', async (_, stall) => {
     vi.useFakeTimers()
     try {
-      // A real fetch's body errors once the request's signal aborts.
-      fetchMock.mockImplementationOnce(async (_url, init) => {
-        const body = new ReadableStream<Uint8Array>({
-          start(controller) {
-            controller.enqueue(new TextEncoder().encode('O'))
-            init!.signal!.addEventListener('abort', () => controller.error(new DOMException('Aborted', 'AbortError')))
-          },
-        })
-        return new Response(body)
-      })
+      fetchMock.mockImplementationOnce(stall)
       let settled = false
-      const login = logIn('admin', 'secret').catch((caught: unknown) => caught).finally(() => (settled = true))
+      const login = logIn('admin', 'secret')
+        .catch((caught: unknown) => caught)
+        .finally(() => (settled = true))
       await vi.advanceTimersByTimeAsync(LOGIN_TIMEOUT_MS - 1)
       expect(settled).toBe(false)
       await vi.advanceTimersByTimeAsync(1)
