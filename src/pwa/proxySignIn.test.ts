@@ -60,6 +60,13 @@ describe('loadPastTheShell', () => {
     loadPastTheShell(location)
     expect(location.replace).toHaveBeenCalledExactlyOnceWith('https://umbrel.local:8798/title/movie/1?tab=cast&proxy-sign-in=1')
   })
+
+  // The WebUI build routes after the #, which the browser doesn't send: the parameter goes into the page's own query.
+  it('keeps a route after the # as it is, with the parameter in the address the browser sends', () => {
+    const location = navigation('http://192.168.1.2:8080/#/title/movie/1?tab=cast')
+    loadPastTheShell(location)
+    expect(location.replace).toHaveBeenCalledExactlyOnceWith('http://192.168.1.2:8080/?proxy-sign-in=1#/title/movie/1?tab=cast')
+  })
 })
 
 describe('startProxySignIn', () => {
@@ -67,6 +74,13 @@ describe('startProxySignIn', () => {
     window.history.replaceState({ key: 'abc' }, '', '/title/movie/1?tab=cast&proxy-sign-in=1#crew')
     startProxySignIn(navigation(window.location.href))
     expect(`${window.location.pathname}${window.location.search}${window.location.hash}`).toBe('/title/movie/1?tab=cast#crew')
+    expect(window.history.state).toEqual({ key: 'abc' })
+  })
+
+  it('takes the parameter out of the page’s query and keeps a route after the # whole', () => {
+    window.history.replaceState({ key: 'abc' }, '', '/?proxy-sign-in=1#/title/movie/1?tab=cast')
+    startProxySignIn(navigation(window.location.href))
+    expect(`${window.location.pathname}${window.location.search}${window.location.hash}`).toBe('/#/title/movie/1?tab=cast')
     expect(window.history.state).toEqual({ key: 'abc' })
   })
 

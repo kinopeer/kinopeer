@@ -182,19 +182,37 @@ class RelatedFilesFirst implements TestSequencer {
   }
 }
 
+/**
+ * The two builds from one source. `npm run build` is the app Kinopeer's server serves (server/main.ts),
+ * into dist/. `npm run build:webui` (`--mode webui`) is the Alternative WebUI qBittorrent serves itself
+ * (#360), into dist-webui/public/, with `__WEBUI__` true (src/webui.d.ts): code only one build needs branches
+ * on it and is dropped from the other's bundle, so the server's build doesn't grow. The WebUI build
+ * routes after `#` (src/lib/appRouter.ts), since qBittorrent serves no index.html for an app path.
+ * qBittorrent serves an Alternative WebUI's files from the `public/` folder under the one its settings
+ * name (and from `private/` first once signed in, which the build has none of), so dist-webui/ is
+ * that folder.
+ */
+const WEBUI_MODE = 'webui'
+
+function buildTarget(mode: string): { webui: boolean; outDir: string } {
+  const webui = mode === WEBUI_MODE
+  return { webui, outDir: webui ? 'dist-webui/public' : 'dist' }
+}
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const dataDir = resolve(env.KINOPEER_DATA_DIR || 'data')
   const stores = dataStores(dataDir)
   const appVersion = env.KINOPEER_COMMIT ? `${version}+${env.KINOPEER_COMMIT}` : version
+  const target = buildTarget(mode)
   void loadStores(stores)
 
   return {
     // Shown in Settings → About (src/version.d.ts). Edge builds of main (.github/workflows/edge.yml)
     // pass the commit, so the version says which one is running: 0.6.0+abc1234.
-    // The WebUI build (`--mode webui`, src/webui.d.ts) is the one qBittorrent serves itself.
-    define: { __APP_VERSION__: JSON.stringify(appVersion), __WEBUI__: JSON.stringify(mode === 'webui') },
+    // `__WEBUI__`: which build this is (buildTarget, above).
+    define: { __APP_VERSION__: JSON.stringify(appVersion), __WEBUI__: JSON.stringify(target.webui) },
     // Vite answers CORS preflights from any localhost origin before server/ middleware runs, which
     // would let a page on another local port send /qbt the X-Kinopeer header (server/qbittorrent.ts).
     // The app calls only its own origin. `vite preview` takes this too (vite.config.test.ts).
@@ -203,7 +221,7 @@ export default defineConfig(({ mode }) => {
     // LAN (#476). The list covers the root, /@fs/ and imports such as ?raw alike.
     server: { cors: false, fs: { deny: [...VITE_DENIED, ...new Set([dataDir, realPath(dataDir)].map(everythingUnder))] } },
     // Each language's texts in a chunk of their own, named for the size budget (chunkFileName, above).
-    build: { rolldownOptions: { output: { chunkFileNames: chunkFileName } } },
+    build: { outDir: target.outDir, rolldownOptions: { output: { chunkFileNames: chunkFileName } } },
     plugins: [
       react(),
       pwa,

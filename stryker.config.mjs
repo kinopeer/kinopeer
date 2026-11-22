@@ -29,7 +29,7 @@ export default {
   // elsewhere isn't left out unmarked. Such a test can't run in Stryker's sandbox, a git-ignored
   // folder (checks.test.ts lists the repository's files through git), and can't kill a mutant either (#465).
   // `/downloads` is what qBittorrent downloads when docker-compose.yml runs in the checkout.
-  ignorePatterns: ['e2e', 'docs', 'dist', 'coverage', 'data', '/downloads', ...mutants.testsLeftOut],
+  ignorePatterns: ['e2e', 'docs', 'dist', 'dist-webui', 'coverage', 'data', '/downloads', ...mutants.testsLeftOut],
   tempDirName: '.stryker-tmp',
   // A file that doesn't exist, so Stryker skips rewriting tsconfig paths for its sandbox: that rewrite
   // calls TypeScript's JS API, which TypeScript 7 doesn't have (#285, stryker-mutator/stryker-js#6111).

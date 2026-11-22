@@ -132,6 +132,17 @@ describe('vite.config.ts', () => {
     expect(ours.server.fs.deny).toEqual(expect.arrayContaining(vites.server.fs.deny))
   })
 
+  // The WebUI build (#360) branches on __WEBUI__, which the server's build has false, so its code is dropped there.
+  // qBittorrent serves an Alternative WebUI from the `public/` folder under the one its settings name.
+  // The modes are the ones package.json's scripts pass, so a script that names another builds no WebUI.
+  it('builds the server’s app into dist/ and the WebUI into dist-webui/public/, each with its own __WEBUI__', async () => {
+    const { scripts } = JSON.parse(await readFile('package.json', 'utf8')) as { scripts: Record<string, string> }
+    const modeOf = (script: string) => /--mode (\S+)/.exec(scripts[script])?.[1] ?? 'production'
+    const [server, webui] = await Promise.all([resolveConfig(options, 'build', modeOf('build')), resolveConfig(options, 'build', modeOf('build:webui'))])
+    expect([server.build.outDir, server.define?.__WEBUI__]).toStrictEqual(['dist', 'false'])
+    expect([webui.build.outDir, webui.define?.__WEBUI__]).toStrictEqual(['dist-webui/public', 'true'])
+  })
+
   it('answers no cross-origin preflight on the preview server either', async () => {
     const answer = await preflight(await startPreview())
     expect(answer.headers.has('access-control-allow-origin')).toBe(false)

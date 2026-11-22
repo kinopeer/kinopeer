@@ -18,8 +18,9 @@ export interface TmdbFailedStateProps {
 /**
  * A TMDB call that a screen needs failed: no key (Enter key, to Settings' key sheet), Kinopeer's
  * server didn't answer (the connect screen's `UnreachableState`, with Open again where
- * `useMayOpenAgain` says so, #537), or TMDB didn't. The title page, Search and the phone's releases
- * show it.
+ * `useMayOpenAgain` says so, #537), or TMDB didn't. The title page, Search, the phone's releases
+ * and Fix match's sheet show it; from the sheet, Enter key and Open again leave the screen under it,
+ * whose scroll `useScrollRestoration` saves with the offset `holdPage` holds it at (#553).
  */
 export function TmdbFailedState({ error, onRetry, retryIcon }: TmdbFailedStateProps) {
   const { t } = useTranslation()
