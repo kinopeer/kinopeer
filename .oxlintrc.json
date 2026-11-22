@@ -527,6 +527,7 @@
       "files": [
         "e2e/test.ts",
         "e2e/smoke/**/*.ts",
+        "e2e/webui/**/*.ts",
         "e2e/performance/**/*.ts"
       ],
       "rules": {
@@ -545,7 +546,8 @@
     },
     {
       "files": [
-        "e2e/smoke/*.smoke.ts"
+        "e2e/smoke/*.smoke.ts",
+        "e2e/webui/*.smoke.ts"
       ],
       "rules": {
         "no-restricted-imports": [

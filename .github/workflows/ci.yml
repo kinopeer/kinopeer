@@ -186,6 +186,28 @@ jobs:
             test-results
           retention-days: 14
 
+  webui-smoke:
+    # The WebUI's smoke journeys through a real qBittorrent (docs/TESTING.md → The WebUI's smoke
+    # journeys). On the runner itself, not in a container, since the script runs qBittorrent's image
+    # and Playwright's, both pinned by digest in it and in scripts/playwright-docker.sh.
+    runs-on: ubuntu-latest
+    # About a minute, most of it the images' pull and npm ci.
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: scripts/test-smoke-webui.sh
+      - name: Upload the report with the traces
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report-webui-smoke
+          path: |
+            playwright-report
+            test-results
+          retention-days: 14
+
   docker:
     runs-on: ubuntu-latest
     # Room for a build with nothing cached, which the 100 s of the slowest recent run doesn't show.

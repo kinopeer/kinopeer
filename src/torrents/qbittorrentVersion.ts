@@ -10,7 +10,8 @@ export const MIN_QBITTORRENT_VERSION = '4.6.0'
 
 /**
  * The oldest qBittorrent the WebUI build works with: 5.2.0 added the `clientdata` store, which holds
- * the settings and the torrent-to-title matches there in place of Kinopeer's server.
+ * the settings and the torrent-to-title matches there in place of Kinopeer's server. The WebUI's
+ * smoke journeys run against this version: scripts/test-smoke-webui.sh pins its image, which moves with it.
  */
 export const MIN_WEBUI_QBITTORRENT_VERSION = '5.2.0'
 

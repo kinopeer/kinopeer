@@ -1,5 +1,5 @@
 #!/bin/sh
-# Runs inside the Playwright Docker image (test-visual.sh, readme-screenshots.sh) before Playwright:
+# Runs inside the Playwright Docker image (test-visual.sh, readme-screenshots.sh, test-smoke-webui.sh) before Playwright:
 # installs node_modules into the checkout's volume only when it wasn't installed from this
 # package-lock.json, in this image, for this architecture. A stamp in node_modules records that once
 # npm ci succeeds, so later runs skip the install and runs in one checkout don't reinstall under each

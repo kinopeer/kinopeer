@@ -1,4 +1,4 @@
-# Sourced by test-visual.sh and readme-screenshots.sh from the repository root: what they share to
+# Sourced by test-visual.sh, readme-screenshots.sh and test-smoke-webui.sh from the repository root: what they share to
 # run Playwright in its Docker image, where the screenshots are rendered. In the container they run
 # scripts/install-node-modules.sh first, which needs PLAYWRIGHT_IMAGE passed in.
 
