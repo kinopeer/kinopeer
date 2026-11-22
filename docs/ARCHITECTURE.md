@@ -156,7 +156,7 @@ PWA: `vite-plugin-pwa` builds the manifest (in `vite.config.ts`) and the service
 
 ## The WebUI build
 
-Kinopeer also builds as qBittorrent's Alternative WebUI, which qBittorrent serves itself with no Kinopeer server (#360, `docs/SPEC.md`'s decision log, 2026-11-22). The build is told by `__WEBUI__` (`src/version.d.ts`), a boolean `vite.config.ts` defines like `__APP_VERSION__`: a constant in a build, so the code only the other build needs is left out of it, and the server build carries none of the WebUI's (`npm run size` measures the server build). Code reads it inside a function, never as a module loads: Vitest makes a `define` a global, so a test of the WebUI build stubs it (`vi.stubGlobal('__WEBUI__', true)`). The pure-logic folders can't read it (`no-undef`, Pure logic, below): the caller passes in what it decides, as `isSupportedVersion` takes the minimum.
+Kinopeer also builds as qBittorrent's Alternative WebUI, which qBittorrent serves itself with no Kinopeer server (#360, `docs/SPEC.md`'s decision log, 2026-11-22). The build is told by `__WEBUI__` (`src/webui.d.ts`), a boolean `vite.config.ts` defines like `__APP_VERSION__`: a constant in a build, so the code only the other build needs is left out of it, and the server build carries none of the WebUI's (`npm run size` measures the server build). Code reads it inside a function, never as a module loads: Vitest makes a `define` a global, so a test of the WebUI build stubs it (`vi.stubGlobal('__WEBUI__', true)`). The pure-logic folders can't read it (`no-undef`, Pure logic, below): the caller passes in what it decides, as `isSupportedVersion` takes the minimum.
 
 ### The transport
 

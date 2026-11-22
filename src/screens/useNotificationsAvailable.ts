@@ -10,5 +10,5 @@ import { useRequest } from '../lib/useRequest'
 export function useNotificationsAvailable(): boolean {
   // The WebUI build has no Kinopeer server to notify: nothing to ask.
   const { data } = useRequest(__WEBUI__ ? null : SERVER_SETTINGS_KEY, (signal) => getServerSettings(signal), { freshFor: Infinity })
-  return !__WEBUI__ && data?.notifications === true
+  return data?.notifications === true
 }
