@@ -220,6 +220,46 @@ describe('createSharedRequests', () => {
     expect(none).not.toHaveBeenCalled()
   })
 
+  it('tells the key’s followers each answer kept for it, until they leave', () => {
+    const { shared } = setup()
+    const first = vi.fn()
+    const second = vi.fn()
+    const other = vi.fn()
+    const leaveFirst = shared.follow('k', first)
+    shared.follow('k', second)
+    shared.follow('other', other)
+    shared.set('k', 'saved')
+    expect(first).toHaveBeenCalledWith('saved')
+    expect(second).toHaveBeenCalledWith('saved')
+    expect(other).not.toHaveBeenCalled()
+
+    leaveFirst()
+    shared.set('k', 'again')
+    expect(first).toHaveBeenCalledTimes(1)
+    expect(second).toHaveBeenLastCalledWith('again')
+  })
+
+  it('keeps a follower that came after another left, however often that one leaves', () => {
+    const { shared } = setup()
+    const first = vi.fn()
+    const later = vi.fn()
+    const leaveFirst = shared.follow('k', first)
+    leaveFirst()
+    shared.follow('k', later)
+    leaveFirst()
+    shared.set('k', 'saved')
+    expect(later).toHaveBeenCalledWith('saved')
+    expect(first).not.toHaveBeenCalled()
+  })
+
+  it('doesn’t tell followers of an answer a request of their own brought', async () => {
+    const { shared } = setup()
+    const follower = vi.fn()
+    shared.follow('k', follower)
+    await shared.get('k', () => Promise.resolve('answer'), { freshFor: 60 })
+    expect(follower).not.toHaveBeenCalled()
+  })
+
   it('forgets everything on clear and cancels what’s on its way', async () => {
     const { shared } = setup()
     await shared.get('kept', () => Promise.resolve('answer'), { freshFor: 60 })
