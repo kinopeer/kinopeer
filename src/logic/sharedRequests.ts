@@ -19,9 +19,14 @@ export interface SharedRequests {
   get: <T>(key: string, load: (signal: AbortSignal) => Promise<T>, options: ShareOptions) => Promise<T>
   /** A kept answer fresh enough for `freshFor`, for a caller that renders it without waiting. */
   peek: <T>(key: string, freshFor: number) => { data: T } | undefined
-  /** Keeps an answer the app got otherwise, such as a save that answers with what it saved. */
+  /** Keeps an answer the app got otherwise, such as a save that answers with what it saved, and tells the key's followers. */
   set: <T>(key: string, data: T) => void
-  /** Forgets everything kept and cancels what's on its way (tests). */
+  /**
+   * Calls `listener` with each answer `set` keeps for the key from now on, so a caller that shows the
+   * key's answer follows a save sent from elsewhere (a Settings left and opened again); until the returned call.
+   */
+  follow: <T>(key: string, listener: (data: T) => void) => () => void
+  /** Forgets everything kept and cancels what's on its way (tests); followers stay. */
   clear: () => void
 }
 
@@ -47,6 +52,7 @@ interface Entry {
 
 export function createSharedRequests(now: () => number = () => Date.now()): SharedRequests {
   const entries = new Map<string, Entry>()
+  const followers = new Map<string, Set<(data: unknown) => void>>()
 
   const start = (key: string, load: (signal: AbortSignal) => Promise<unknown>): Entry => {
     const controller = new AbortController()
@@ -110,8 +116,20 @@ export function createSharedRequests(now: () => number = () => Date.now()): Shar
     },
     set: (key, data) => {
       entries.set(key, { promise: Promise.resolve(data), controller: new AbortController(), waiting: 0, settledAt: now(), data })
+      followers.get(key)?.forEach((listener) => listener(data))
+    },
+    follow: <T>(key: string, listener: (data: T) => void) => {
+      const follower = listener as (data: unknown) => void
+      followers.set(key, (followers.get(key) ?? new Set()).add(follower))
+      // A key is followed while something shows it: one per title opened, say, so an emptied one goes.
+      return () => {
+        const ofKey = followers.get(key)
+        ofKey?.delete(follower)
+        if (ofKey?.size === 0) followers.delete(key)
+      }
     },
     clear: () => {
+      // Followers stay: they're the mounted callers', which leave by themselves.
       // Aborting a settled request's controller does nothing.
       for (const entry of entries.values()) entry.controller.abort()
       entries.clear()
