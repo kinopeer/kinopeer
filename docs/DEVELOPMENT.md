@@ -17,7 +17,7 @@ npm run test:coverage  # the same with a coverage report
 npm run lint       # linter (oxlint)
 npm run typecheck  # type check
 npm run build      # production build into dist/
-npm run build:webui  # the Alternative WebUI build into dist-webui/, which qBittorrent serves itself (docs/ARCHITECTURE.md → The two builds)
+npm run build:webui  # the Alternative WebUI build into dist-webui/public/: point qBittorrent's Alternative WebUI at dist-webui/ (docs/ARCHITECTURE.md → The two builds)
 npm run size       # the build's size against its budgets (docs/QUALITY.md)
 npm run test:requests  # each screen's requests on opening and each move's between screens against their budgets, and each screen's layout shift on a phone and on desktop, after a build (docs/QUALITY.md, docs/TESTING.md)
 npm start          # production server over dist/

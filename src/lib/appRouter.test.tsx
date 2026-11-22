@@ -39,7 +39,8 @@ afterEach(() => {
 })
 
 describe('AppRouter', () => {
-  it('routes by the path in the server’s build, which Kinopeer’s server answers with index.html', async () => {
+  // Kinopeer's server answers every app path with index.html (server/static.ts).
+  it('routes by the path in the server’s build', async () => {
     await renderAt('/title/movie/1?tab=cast', false)
     expect(route()).toBe('/title/movie/1?tab=cast')
     await userEvent.click(screen.getByRole('link', { name: 'Search' }))

@@ -185,15 +185,18 @@ class RelatedFilesFirst implements TestSequencer {
 /**
  * The two builds from one source. `npm run build` is the app Kinopeer's server serves (server/main.ts),
  * into dist/. `npm run build:webui` (`--mode webui`) is the Alternative WebUI qBittorrent serves itself
- * (#360), into dist-webui/, with `__WEBUI__` true (src/webui.d.ts): code only one build needs branches
+ * (#360), into dist-webui/public/, with `__WEBUI__` true (src/webui.d.ts): code only one build needs branches
  * on it and is dropped from the other's bundle, so the server's build doesn't grow. The WebUI build
  * routes after `#` (src/lib/appRouter.ts), since qBittorrent serves no index.html for an app path.
+ * qBittorrent serves an Alternative WebUI's files from the `public/` folder under the one its settings
+ * name (and from `private/` first once signed in, which the build has none of), so dist-webui/ is
+ * that folder.
  */
 const WEBUI_MODE = 'webui'
 
 function buildTarget(mode: string): { webui: boolean; outDir: string } {
   const webui = mode === WEBUI_MODE
-  return { webui, outDir: webui ? 'dist-webui' : 'dist' }
+  return { webui, outDir: webui ? 'dist-webui/public' : 'dist' }
 }
 
 // https://vite.dev/config/
