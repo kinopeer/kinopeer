@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/settings'
 import type { DownloadDefaults, ServerSettings } from '../api/settings'
 import i18n from '../i18n'
+import { sharedRequests } from '../logic/sharedRequests'
 import {
   DEFAULT_SETTINGS,
   SETTINGS_STORAGE_KEY,
@@ -227,9 +228,10 @@ describe('download defaults on the server', () => {
   it("brings back the default qBittorrent keeps on the next page load, after a change its store had no room for, as the toast says it may", async () => {
     vi.mocked(api.saveDownloadDefaults).mockRejectedValueOnce(new api.SettingsError(409, 'store-full'))
     await updateAndShareSettings({ startPaused: true })
-    // A reload: this browser's settings are kept, the page's state isn't.
+    // A reload: this browser's settings are kept, the page's state isn't, its shared answers included.
     const stored = localStorage.getItem(SETTINGS_STORAGE_KEY)!
     resetSettings()
+    sharedRequests.clear()
     localStorage.setItem(SETTINGS_STORAGE_KEY, stored)
     expect(getSettings().startPaused).toBe(true)
     vi.mocked(api.getServerSettings).mockResolvedValue(server({ startPaused: false }))
@@ -241,12 +243,13 @@ describe('download defaults on the server', () => {
     await updateAndShareSettings({ sequential: true })
     const again = localStorage.getItem(SETTINGS_STORAGE_KEY)!
     resetSettings()
+    sharedRequests.clear()
     localStorage.setItem(SETTINGS_STORAGE_KEY, again)
-    vi.mocked(api.getServerSettings).mockResolvedValue(server({ startPaused: false }))
+    vi.mocked(api.getServerSettings).mockResolvedValue(server({ firstLastPieces: true }))
     vi.mocked(api.saveDownloadDefaults).mockClear()
     loadServerSettings()
     await waitFor(() => expect(api.saveDownloadDefaults).toHaveBeenCalledWith({ sequential: true }))
-    expect(getSettings().sequential).toBe(true)
+    expect(getSettings()).toMatchObject({ sequential: true, firstLastPieces: true })
   })
 
   it('saves a changed download default on the server, and nothing else', () => {
