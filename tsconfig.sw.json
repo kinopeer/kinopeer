@@ -20,5 +20,5 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src/sw.ts", "src/sw.test.ts"]
+  "include": ["src/sw.ts", "src/sw.test.ts", "src/webui.d.ts"]
 }

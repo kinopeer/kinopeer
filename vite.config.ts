@@ -6,7 +6,7 @@ import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv, normalizePath, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { TMDB_PROXY_EDGE, dataStores, kinopeerServer, loadStores, type KinopeerServer } from './server/main.ts'
-import { contentSecurityPolicy } from './server/securityHeaders.ts'
+import { SECURITY_HEADERS, WEBUI_CONTENT_SECURITY_POLICY, contentSecurityPolicy } from './server/securityHeaders.ts'
 import type { TestSequencer, TestSpecification, Vitest } from 'vitest/node'
 import { relatedFilesFirst } from './scripts/test-order/testOrder.ts'
 
@@ -183,6 +183,25 @@ class RelatedFilesFirst implements TestSequencer {
 }
 
 /**
+ * Puts the WebUI's Content-Security-Policy (server/securityHeaders.ts) into index.html as a `<meta>`,
+ * first in its head, so it governs the theme script after it, and the server's Referrer-Policy as a
+ * `<meta name="referrer">`, so a link out (an indexer's page, TMDB) doesn't tell the site the page's
+ * address on the home network: qBittorrent sends an Alternative WebUI neither (#360). In the WebUI
+ * build only, since Kinopeer's server sends its own as headers, and not from `vite --mode webui`,
+ * whose pages run Vite's inline scripts.
+ */
+export function webuiPolicyPlugin(): Plugin {
+  return {
+    name: 'kinopeer-webui-policy',
+    apply: 'build',
+    transformIndexHtml: () => [
+      { tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: WEBUI_CONTENT_SECURITY_POLICY }, injectTo: 'head-prepend' },
+      { tag: 'meta', attrs: { name: 'referrer', content: SECURITY_HEADERS['Referrer-Policy'] }, injectTo: 'head-prepend' },
+    ],
+  }
+}
+
+/**
  * The two builds from one source. `npm run build` is the app Kinopeer's server serves (server/main.ts),
  * into dist/. `npm run build:webui` (`--mode webui`) is the Alternative WebUI qBittorrent serves itself
  * (#360), into dist-webui/public/, with `__WEBUI__` true (src/webui.d.ts): code only one build needs branches
@@ -227,6 +246,7 @@ export default defineConfig(({ mode }) => {
       pwa,
       versionFilePlugin(appVersion),
       inlineTouchIconPlugin(),
+      ...(target.webui ? [webuiPolicyPlugin()] : []),
       // A checkout runs main's code, which only the edge worker of the TMDB proxy keeps up with: the
       // release worker gets a new path at the release (docs/DEVELOPMENT.md → The TMDB proxy).
       serverRoutesPlugin(kinopeerServer({ KINOPEER_TMDB_PROXY: TMDB_PROXY_EDGE, ...env }, stores)),
@@ -248,7 +268,7 @@ export default defineConfig(({ mode }) => {
         },
         {
           extends: true,
-          test: { name: 'server', include: ['server/**/*.test.ts', 'tmdb-proxy/**/*.test.ts', 'scripts/guard/**/*.test.ts', 'scripts/size/**/*.test.ts', 'scripts/requests/**/*.test.ts', 'scripts/layout-shift/**/*.test.ts', 'scripts/accessibility/**/*.test.ts', 'scripts/actuals/**/*.test.ts', 'scripts/edge/**/*.test.ts', 'scripts/test-order/**/*.test.ts', 'vite.config.test.ts', 'checks.test.ts', 'docker-compose.test.ts', 'unraid/**/*.test.ts'], environment: 'node' },
+          test: { name: 'server', include: ['server/**/*.test.ts', 'tmdb-proxy/**/*.test.ts', 'scripts/guard/**/*.test.ts', 'scripts/size/**/*.test.ts', 'scripts/requests/**/*.test.ts', 'scripts/layout-shift/**/*.test.ts', 'scripts/accessibility/**/*.test.ts', 'scripts/actuals/**/*.test.ts', 'scripts/edge/**/*.test.ts', 'scripts/test-order/**/*.test.ts', 'scripts/webui/**/*.test.ts', 'vite.config.test.ts', 'checks.test.ts', 'docker-compose.test.ts', 'unraid/**/*.test.ts'], environment: 'node' },
         },
       ],
       // `npm run test:coverage`: a table in the terminal and coverage/index.html; CI runs the same.

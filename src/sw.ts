@@ -1,12 +1,13 @@
 /// <reference lib="webworker" />
 import { CacheableResponsePlugin } from 'workbox-cacheable-response'
-import { clientsClaim } from 'workbox-core'
+import { cacheNames, clientsClaim } from 'workbox-core'
 import { ExpirationPlugin } from 'workbox-expiration'
-import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching'
+import { cleanupOutdatedCaches, createHandlerBoundToURL, matchPrecache, precacheAndRoute } from 'workbox-precaching'
 import { NavigationRoute, registerRoute } from 'workbox-routing'
 import { CacheFirst } from 'workbox-strategies'
 import { PUSH_SUBSCRIPTION_URL, openPush, renewPush, showPush } from './pwa/swPush'
 import { POSTER_CACHE, SHELL_DENYLIST, isPosterRequest } from './pwa/swRoutes'
+import { WEBUI_PAGES, forgetWorker, loadPage } from './pwa/swWebui'
 
 declare const self: ServiceWorkerGlobalScope
 
@@ -16,13 +17,26 @@ declare const self: ServiceWorkerGlobalScope
 void self.skipWaiting()
 clientsClaim()
 
+// In the Alternative WebUI build the app's page comes from the network first, and the worker removes
+// itself when another page answers in its place (src/pwa/swWebui.ts). Registered before the precache,
+// whose route would answer `/` with the cached index.html.
+if (__WEBUI__) {
+  const load = {
+    fetch: (request: Request) => fetch(request),
+    cachedPage: () => matchPrecache('/index.html'),
+    forget: () => forgetWorker({ registration: self.registration, caches }, [cacheNames.precache, POSTER_CACHE.cacheName]),
+  }
+  registerRoute(new NavigationRoute(({ request }) => loadPage(request, load), { allowlist: WEBUI_PAGES }))
+}
+
 // The app shell: built scripts, styles, fonts and icons, so Kinopeer opens without the network.
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
 
-// Every app route (/, /search, /title/…) opens the cached index.html. The server's own routes are
-// left alone, and qBittorrent, Prowlarr and TMDB API answers are never cached: they must be live.
-registerRoute(new NavigationRoute(createHandlerBoundToURL('/index.html'), { denylist: SHELL_DENYLIST }))
+// In the server's build every app route (/, /search, /title/…) opens the cached index.html. The
+// server's own routes are left alone, and qBittorrent, Prowlarr and TMDB API answers are never
+// cached: they must be live.
+if (!__WEBUI__) registerRoute(new NavigationRoute(createHandlerBoundToURL('/index.html'), { denylist: SHELL_DENYLIST }))
 
 // Posters and backdrops never change for a given URL, so keep them for a month.
 registerRoute(
