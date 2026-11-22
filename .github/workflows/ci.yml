@@ -191,7 +191,7 @@ jobs:
     # journeys). On the runner itself, not in a container, since the script runs qBittorrent's image
     # and Playwright's, both pinned by digest in it and in scripts/playwright-docker.sh.
     runs-on: ubuntu-latest
-    # About two minutes, most of it the images' pull and npm ci.
+    # About a minute, most of it the images' pull and npm ci.
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
