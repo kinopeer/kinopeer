@@ -86,10 +86,12 @@ describe('the comments rawValues reads', () => {
     // A comment after one is still a comment, and a url() left open is a stylesheet PostCSS can't parse.
     expect(raw('a { background: url(a.svg); /* why */ padding: 13px; }')).toEqual(['allowed spacing src/a.css:1 padding: 13px is off the scale: add a comment on the line saying why'])
     expect(() => raw('a { background: url(a/*.svg; }\nb { padding: 13px; }')).toThrow()
-    // Read as PostCSS reads it: an escaped `)` doesn't end the url(), and `URL(` is one too, in any
-    // case, as a browser reads it (from PostCSS 8.5.33), so its `/*` opens no comment either.
+    // Read as PostCSS reads it: an escaped `)` doesn't end the url(). From PostCSS 8.5.33, as a
+    // browser reads them, `URL(` is one too, in any case, and so is a url() with whitespace after its
+    // `(` and no quote after that, so the `/*` in either opens no comment.
     expect(raw('.a { background: url(a\\)/*b.svg); }\n.b { padding: 13px; }\n/* x */')).toEqual(['fails spacing src/a.css:2 padding: 13px is off the scale: add a comment on the line saying why'])
     expect(raw('a { background: URL(x/*y*/z); padding: 13px; }')).toEqual(['fails spacing src/a.css:1 padding: 13px is off the scale: add a comment on the line saying why'])
+    expect(raw('a { background: url( a/*b.svg); }\nb { padding: 13px; }')).toEqual(['fails spacing src/a.css:2 padding: 13px is off the scale: add a comment on the line saying why'])
   })
 
   it('reads a stylesheet that starts with a byte order mark where its values are', () => {

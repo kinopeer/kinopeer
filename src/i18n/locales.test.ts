@@ -24,6 +24,20 @@ describe('locales', () => {
     expect(baseKeys(ru)).toEqual(baseKeys(en))
   })
 
+  it("give every plural all of its language's forms", () => {
+    // i18next 27.1 fills a missing form in from the same language's `_other`, which in Russian is
+    // the wrong grammar for that count, so a missing form would show with no error.
+    const forms = { en: ['one', 'other'], ru: ['few', 'many', 'one', 'other'] }
+    for (const [language, locale] of [['en', en], ['ru', ru]] as const) {
+      const all = new Set(keys(locale))
+      const plurals = new Set(keys(locale).filter((k) => PLURAL_SUFFIX.test(k)).map((k) => k.replace(PLURAL_SUFFIX, '')))
+      expect(plurals.size, language).toBeGreaterThan(0)
+      for (const base of plurals) {
+        expect(forms[language].filter((form) => !all.has(`${base}_${form}`)), `${language} ${base}`).toEqual([])
+      }
+    }
+  })
+
   it('have no empty strings', () => {
     for (const locale of [en, ru]) {
       for (const key of keys(locale)) {
