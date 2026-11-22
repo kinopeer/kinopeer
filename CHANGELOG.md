@@ -4,6 +4,10 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 
 ## Unreleased
 
+### Added
+
+- Kinopeer installs as qBittorrent's Alternative WebUI, with no Docker and no server of its own: unpack `kinopeer-webui.zip` from the release and point qBittorrent 5.2.0 or later at it, and qBittorrent serves Kinopeer at its own address. Kinopeer signs in with qBittorrent's login, keeps its settings and the torrents' titles in qBittorrent for every browser that signs in, and calls TMDB and Prowlarr from the browser. It has no notifications (qBittorrent's e-mail is the advice) and no login of its own. The README's Install as qBittorrent's Alternative WebUI says how, what to set in qBittorrent first and what to check when it doesn't open or connect, and its Ways to install compares the installs; the bug form asks for this install. ([#360](https://github.com/kinopeer/kinopeer/issues/360), [#564](https://github.com/kinopeer/kinopeer/issues/564))
+
 ### Changed
 
 - In Settings, saving qBittorrent's folders, setting up Telegram notifications, changing qBittorrent's or Prowlarr's address, login or key, and turning push notifications on or off or testing them go on when the sheet is closed or Settings is left: the sheet or card shown again shows the request on its way, and a toast says how it went, the failure included, which Telegram's, the connections' and push's used to lose. ([#500](https://github.com/kinopeer/kinopeer/issues/500))

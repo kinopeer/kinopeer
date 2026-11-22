@@ -7,7 +7,7 @@
 A qBittorrent web UI for movies and TV series. Find a movie or a series, pick a release found by Prowlarr and follow the download, all in one app on your phone or computer.
 
 > [!NOTE]
-> Kinopeer installs [on umbrelOS](#install-on-umbrel), [with Docker Compose](#install-with-docker-compose) beside qBittorrent and Prowlarr, or [next to the qBittorrent and Prowlarr you already run](#install-next-to-your-own-qbittorrent-and-prowlarr), TrueNAS, CasaOS and Unraid among them. What's planned is in the [milestones](https://github.com/kinopeer/kinopeer/milestones).
+> Kinopeer installs [on umbrelOS](#install-on-umbrel), [with Docker Compose](#install-with-docker-compose) beside qBittorrent and Prowlarr, [next to the qBittorrent and Prowlarr you already run](#install-next-to-your-own-qbittorrent-and-prowlarr), TrueNAS, CasaOS and Unraid among them, or [as qBittorrent's Alternative WebUI](#install-as-qbittorrents-alternative-webui), with no server of its own. [Ways to install](#ways-to-install) compares them. What's planned is in the [milestones](https://github.com/kinopeer/kinopeer/milestones).
 
 <img src="docs/screenshots/desktop-title.png" alt="A series page on a computer, with its releases under the overview: filters for resolution, audio, source, minimum seeds and indexer over a table of releases">
 
@@ -41,6 +41,17 @@ A qBittorrent web UI for movies and TV series. Find a movie or a series, pick a 
 Kinopeer doesn't play video and never downloads anything on its own: you pick every release.
 
 Kinopeer comes with no content and no indexers: it searches only the indexers you add to Prowlarr yourself. Use it only for what you have the right to download.
+
+## Ways to install
+
+Every install runs the same app. They differ in what they need and in what only Kinopeer's own server can do; each install's section has the details.
+
+| Install | What it needs | Notifications | Login | TMDB | Where settings live | Updating |
+| --- | --- | --- | --- | --- | --- | --- |
+| [Umbrel](#install-on-umbrel) | umbrelOS with its qBittorrent and Prowlarr apps | Push (over HTTPS) and Telegram | Umbrel's | Kinopeer's key, or your own | On your Umbrel | Umbrel offers it |
+| [Docker Compose](#install-with-docker-compose) | Docker with Compose; the file brings qBittorrent and Prowlarr | Push (over HTTPS) and Telegram | Kinopeer's own password | Kinopeer's key, or your own | Kinopeer's Docker volume | `docker compose pull`, then `up -d` |
+| [Next to your own qBittorrent and Prowlarr](#install-next-to-your-own-qbittorrent-and-prowlarr), [TrueNAS](#truenas), [Unraid](#unraid), [CasaOS](#casaos-and-zimaos) | Docker, qBittorrent 4.6.0 or later and Prowlarr | Push (over HTTPS) and Telegram | Kinopeer's own password | Kinopeer's key, or your own | Kinopeer's Docker volume (Unraid: its appdata folder) | Pull the image, then a new container |
+| [qBittorrent's Alternative WebUI](#install-as-qbittorrents-alternative-webui) | qBittorrent 5.2.0 or later and Prowlarr; no Docker | None ([qBittorrent's e-mail](#what-the-alternative-webui-doesnt-have)) | qBittorrent's | Kinopeer's key at a home-network address, else your own | In qBittorrent, shared by every browser | Unpack the new zip over the old |
 
 ## Install on Umbrel
 
@@ -226,18 +237,70 @@ and under its `volumes:`, `- /DATA/AppData/prowlarr/config:/prowlarr:ro`.
 
 ZimaOS installs apps from your own Docker Compose file too, and the same file and addresses apply.
 
+## Install as qBittorrent's Alternative WebUI
+
+> [!NOTE]
+> This works from Kinopeer 1.3.0, the first release with `kinopeer-webui.zip`.
+
+qBittorrent can serve another web interface in place of its own, and Kinopeer comes as one too: qBittorrent serves it at qBittorrent's own address, with no Docker and no server of Kinopeer's, wherever qBittorrent runs. It needs qBittorrent 5.2.0 or later with its Web UI on, which keeps Kinopeer's settings for every browser that signs in to it, and Prowlarr for finding releases. Without a server of its own Kinopeer can't send notifications or have a login of its own: [what it doesn't have](#what-the-alternative-webui-doesnt-have).
+
+1. Download `kinopeer-webui.zip` from the latest release and unpack it on the machine qBittorrent runs on, where qBittorrent can read it:
+
+   ```bash
+   curl -LO https://github.com/kinopeer/kinopeer/releases/latest/download/kinopeer-webui.zip
+   ```
+
+   ```bash
+   unzip kinopeer-webui.zip
+   ```
+
+   That makes a `kinopeer-webui` folder. For qBittorrent in Docker, unpack it into a folder you mount into qBittorrent's container, such as `-v /path/to/webui:/webui:ro` with `docker run` (`- /path/to/webui:/webui:ro` under its `volumes:` in Compose).
+2. In qBittorrent's web UI, open **Tools → Options… → WebUI** and set the options Kinopeer has no screen for, above all the session timeout (below). Then turn on **Use alternative WebUI**, set **Files location** to the `kinopeer-webui` folder as qBittorrent sees it (`/webui/kinopeer-webui` in the container above) and **Save**. The desktop app has the same settings under Tools → Options → Web UI.
+3. Reload qBittorrent's address: Kinopeer asks for qBittorrent's login, then for a TMDB key where it needs one (below), then for Prowlarr's address and API key, which you find in Prowlarr under Settings → General → Security → API Key. The address is the one this browser reaches Prowlarr at, such as `http://192.168.1.10:9696`, since the browser calls Prowlarr itself; Find, under the address field, tries Prowlarr's port at qBittorrent's machine and at the name `prowlarr`. You can skip Prowlarr and add it later, from a title's releases or Settings → Connections.
+
+**qBittorrent's session timeout.** qBittorrent signs a browser out after its **Session timeout** without a request (Tools → Options… → WebUI → Authentication), an hour by default, and Kinopeer then asks for the login again. Raise it to how long you'd like to stay signed in.
+
+**TMDB.** Kinopeer's own TMDB key answers only a page at a home-network address: an IP address in a private range, `localhost`, a `.local`, `.home.arpa` or `.internal` name, or a name of one label. Opened at any other name, such as a seedbox's or a reverse proxy's domain, Kinopeer asks for your own free [TMDB API key](https://www.themoviedb.org/settings/api), which qBittorrent keeps.
+
+**When it doesn't open or connect:**
+
+- **qBittorrent answers "Unauthorized" to everything, its own page too.** qBittorrent's Host header validation refuses an address with another port than its own Web UI's, as when Docker publishes the container's 8080 as 8081 (`-p 8081:8080`). Publish it at the same port (`-p 8080:8080`), or move qBittorrent's own port to the one you publish (`QBT_WEBUI_PORT` in the qBittorrent project's image), or turn off **Enable Host header validation** in Tools → Options… → WebUI.
+- **Kinopeer refuses Prowlarr's `http://` address.** A page opened over HTTPS can't call a plain HTTP address, so with qBittorrent over HTTPS, Prowlarr needs an HTTPS address too (its own HTTPS or a reverse proxy), with a certificate this browser trusts: open that address in the browser once to check. An address on this device (`localhost`) is fine over plain HTTP. Or open qBittorrent over plain HTTP on your home network.
+- **Behind a reverse proxy,** serve qBittorrent at the root of a name of its own (`https://qbittorrent.example.com/`), not under a path: Kinopeer's page loads its files from `/`.
+
+**The way back to qBittorrent's own interface.** While Kinopeer is on, qBittorrent's address shows Kinopeer, so turn it off in qBittorrent's desktop app, or from the browser: signed in to Kinopeer, open the browser's developer tools on its page, and in their **Console** run
+
+```js
+fetch('api/v2/app/setPreferences', { method: 'POST', body: new URLSearchParams({ json: '{"alternative_webui_enabled":false}' }) })
+```
+
+and reload: qBittorrent's own interface is back. Moving or deleting the `kinopeer-webui` folder doesn't reliably bring it back.
+
+**Updating:** download the new `kinopeer-webui.zip` and unpack it over the old folder (`unzip -o kinopeer-webui.zip`); open pages reload into the new version by themselves. New versions are on the [releases page](https://github.com/kinopeer/kinopeer/releases), what changed in [CHANGELOG.md](CHANGELOG.md).
+
+### What the Alternative WebUI doesn't have
+
+Each of these needs Kinopeer's own server, which this install does without:
+
+- **Notifications.** Kinopeer sends no push or Telegram notifications here. qBittorrent can e-mail you instead when a download finishes: Tools → Options… → Downloads → **Email notification upon download completion**.
+- **A login of Kinopeer's own.** qBittorrent's login is the login, with qBittorrent's ban after wrong passwords.
+- **qBittorrent's address in the app.** Kinopeer is on qBittorrent's own address, so there's none to set or find.
+- **Keys kept from the browser.** The browser calls TMDB and Prowlarr itself, so it holds their keys, which qBittorrent keeps: anyone with qBittorrent's login or a browser extension on the page can read them. Keep Prowlarr on your home network, over HTTPS where you can.
+
 ## On your phone
 
 Kinopeer is a web app (PWA). Over plain HTTP on your home network it works in the browser, and on an iPhone or iPad you can add it to the Home Screen from Safari's Share menu to open it full screen. umbrelOS 2.0 also serves it over HTTPS (`https://umbrel.local:8797`): with the Umbrel certificate trusted on your device ([Umbrel's guide](https://umbrel.com/support/basics/accessing-your-umbrel-over-https)), Kinopeer installs as an app on Android and computers too and keeps its shell available offline. Umbrel renews that certificate every month: if your browser trusts it only because you accepted its warning (Safari's "Visit Website") rather than installing it, the installed app says it can't reach Kinopeer once the certificate changes, and **Open again** brings back the browser's warning to accept the new one.
+
+As qBittorrent's Alternative WebUI, Kinopeer installs as an app the same way when qBittorrent is opened over HTTPS with a certificate your device trusts.
 
 Push notifications need that HTTPS address with the certificate trusted on your device, as Umbrel's guide says, and on an iPhone or iPad, Kinopeer added to the Home Screen from it: Safari gives push only to Home Screen apps. Turn them on for each device in Settings → Connections → Push notifications, which says what's missing when a device can't get them.
 
 ## Privacy and security
 
-- The TMDB and Prowlarr keys, the qBittorrent login and a Telegram bot's token stay on the Kinopeer server and never reach the browser.
-- Besides your qBittorrent and Prowlarr, Kinopeer only talks to TMDB, and only through its own server. Without a TMDB key of your own, those calls go through Kinopeer's TMDB proxy on Cloudflare, which adds Kinopeer's key and sees your server's IP address and what you search for; it keeps no logs. With your own key in Settings, they go to TMDB directly. With Telegram notifications set up, the server also sends Telegram the finished download's title and release name. With push notifications on, it sends them through the push service of each device's browser (Google's, Mozilla's, Apple's or Microsoft's), encrypted so that only the device can read them; the service sees when one is sent and to which device. No analytics, no telemetry.
+- The TMDB and Prowlarr keys, the qBittorrent login and a Telegram bot's token stay on the Kinopeer server and never reach the browser. As qBittorrent's Alternative WebUI there's no Kinopeer server: qBittorrent keeps the keys and the browser uses them, as [what it doesn't have](#what-the-alternative-webui-doesnt-have) says.
+- Besides your qBittorrent and Prowlarr, Kinopeer only talks to TMDB, and only through its own server (as the Alternative WebUI, from the browser). Without a TMDB key of your own, those calls go through Kinopeer's TMDB proxy on Cloudflare, which adds Kinopeer's key and sees your server's IP address (the browser's, as the Alternative WebUI) and what you search for; it keeps no logs. With your own key in Settings, they go to TMDB directly. With Telegram notifications set up, the server also sends Telegram the finished download's title and release name. With push notifications on, it sends them through the push service of each device's browser (Google's, Mozilla's, Apple's or Microsoft's), encrypted so that only the device can read them; the service sees when one is sent and to which device. No analytics, no telemetry.
 - Kinopeer never stores tracker logins: that's Prowlarr's job.
-- Kinopeer has a password of its own, which the first visitor sets (or the server's `KINOPEER_PASSWORD`); on Umbrel, Umbrel's login protects it instead, and Kinopeer's is off. What it covers and what it doesn't: [SECURITY.md](SECURITY.md).
+- Kinopeer has a password of its own, which the first visitor sets (or the server's `KINOPEER_PASSWORD`); on Umbrel, Umbrel's login protects it instead, and Kinopeer's is off, and as the Alternative WebUI, qBittorrent's. What it covers and what it doesn't: [SECURITY.md](SECURITY.md).
 - Found a vulnerability? Report it privately, as [SECURITY.md](SECURITY.md) says.
 
 ## Ideas and bugs
