@@ -40,6 +40,8 @@ describe('useReleases', () => {
     vi.mocked(prowlarr.searchReleases).mockRejectedValue(new prowlarr.ProwlarrSetupError(code === 'unauthorized' ? 502 : 503, code))
     const { result } = renderHook(() => useReleases(movie(1, 'Dune')))
     await waitFor(() => expect(result.current.status).toBe(status))
+    // Only the `error` status names who didn't answer.
+    expect(result.current.unreachable).toBeUndefined()
   })
 
   it('keeps why Prowlarr didn’t answer the search, where the server could tell (#508)', async () => {

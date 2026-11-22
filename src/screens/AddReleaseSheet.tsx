@@ -260,7 +260,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
         )}
         {prepared.error !== undefined && (
           <Banner tone="error" actionLabel={t('common.retry')} onAction={prepared.retry}>
-            {t('add.fetchFailed')}
+            {unreachableText(unreachable(prepared.error)) ? t('common.qbtFailed_kinopeer') : t('add.fetchFailed')}
           </Banner>
         )}
         {added && <Banner tone="info" icon="check-circle" title={t('add.alreadyAdded')} />}

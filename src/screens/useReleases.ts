@@ -210,7 +210,7 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
   return {
     status,
     failure: failureOf(search.error),
-    unreachable: search.error === undefined ? undefined : unreachable(search.error),
+    unreachable: status === 'error' ? unreachable(search.error) : undefined,
     retry: search.retry,
     failing: missing,
     rows,
