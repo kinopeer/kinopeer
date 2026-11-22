@@ -84,7 +84,11 @@ test('deleting from the drawer with its files, then two at once from the list', 
   const deletes = stand.qbittorrent.seen.filter((request) => request.url === '/api/v2/torrents/delete')
   expect(deletes.map((request) => request.cookie)).toEqual([expect.stringMatching(/^SID=\w+$/), expect.stringMatching(/^SID=\w+$/)])
   expect(stand.qbittorrent.torrents).toEqual(['a3', 'a4', 'a6', 'a7', 'a8', 'a9'].map(hashOf))
-  // The matches are forgotten right after the delete, without waiting for the hourly cleanup.
-  await expect.poll(async () => (await standState()).matches).toEqual({ [hashOf('a3')]: MATCHES[hashOf('a3')] })
+  // The matches are forgotten right after the delete, without waiting for the hourly cleanup. Only
+  // the user's choices: the torrents left find their titles meanwhile, and a lookup's guess or miss
+  // may land in the file before or after this read (#503).
+  const choices = (matches: Matches | null) =>
+    Object.fromEntries(Object.entries(matches ?? {}).filter(([, match]) => match.source === 'user'))
+  await expect.poll(async () => choices((await standState()).matches)).toEqual({ [hashOf('a3')]: MATCHES[hashOf('a3')] })
   expect(refused).toEqual([])
 })
