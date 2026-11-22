@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
+import { beforeEach, describe, expect, it, onTestFinished, vi, type Mock } from 'vitest'
+import { PROWLARR_ADDRESS as PROWLARR, opaqueRedirect } from '../../test/fixtures'
 import { ProwlarrError, ProwlarrSetupError, fetchRelease, getFailingIndexers, getProwlarrStatus, searchReleases } from './client'
 import { SETTING_KEYS } from '../settings/webui'
 import type { Release } from './types'
@@ -84,8 +85,6 @@ describe('fetchRelease', () => {
 })
 
 describe('the WebUI build', () => {
-  const PROWLARR = 'http://192.168.1.20:9696'
-
   beforeEach(() => {
     vi.stubGlobal('__WEBUI__', true)
     fetchMock.mockImplementation(async (url) => {
@@ -95,7 +94,7 @@ describe('the WebUI build', () => {
       if (pathname === '/api/v1/indexerstatus') return Response.json([])
       if (pathname === '/api/v1/system/status') return Response.json({ version: '3.0.2.5780' })
       if (pathname === '/api/v1/indexer') return Response.json([])
-      if (pathname === '/api/v1/indexer/1/download') return { type: 'opaqueredirect', ok: false, status: 0, body: null } as unknown as Response
+      if (pathname === '/api/v1/indexer/1/download') return opaqueRedirect()
       return new Response(null, { status: 404 })
     })
   })
@@ -113,6 +112,7 @@ describe('the WebUI build', () => {
 
   it('asks about the failing indexers of the last ten minutes at most, as on the server build', async () => {
     vi.useFakeTimers({ now: Date.parse('2026-11-22T12:00:00Z'), toFake: ['Date'] })
+    onTestFinished(() => void vi.useRealTimers())
     const answer = fetchMock.getMockImplementation()!
     fetchMock.mockImplementation(async (url, init) => {
       const { pathname } = new URL(String(url), 'http://192.168.1.20:8080/')
@@ -126,11 +126,15 @@ describe('the WebUI build', () => {
       return answer(url, init)
     })
     await expect(getFailingIndexers(45 * 60 * 1000)).resolves.toEqual(['Indexer B'])
-    vi.useRealTimers()
   })
 
   it('hands qBittorrent the download link when Prowlarr answers with a redirect', async () => {
     await expect(fetchRelease(RELEASE)).resolves.toEqual({ kind: 'link', uri: `${PROWLARR}/api/v1/indexer/1/download?link=A&apikey=k` })
+  })
+
+  it('takes the release’s magnet link over a redirect, since it names the torrent’s hash', async () => {
+    const magnet = 'magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567'
+    await expect(fetchRelease({ ...RELEASE, magnet })).resolves.toEqual({ kind: 'magnet', uri: magnet })
   })
 
   it('names the .torrent Prowlarr answers with after the release, as on the server build', async () => {

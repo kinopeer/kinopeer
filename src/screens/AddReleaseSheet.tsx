@@ -51,6 +51,9 @@ interface Prepared {
   meta?: TorrentMeta
 }
 
+/** A v1 info hash, 40 hex digits: the ID qBittorrent knows a torrent by, a hybrid's included. */
+const V1_HASH = /^\s*[0-9a-f]{40}\s*$/i
+
 async function prepare(release: Release, signal: AbortSignal): Promise<Prepared> {
   const source = await fetchRelease(release, signal)
   if (source.kind !== 'torrent') return { source }
@@ -60,12 +63,14 @@ async function prepare(release: Release, signal: AbortSignal): Promise<Prepared>
 }
 
 /**
- * The info hash of what Prowlarr gave: the .torrent's, else the magnet link's; undefined when neither
- * says. `certain` is whether qBittorrent, asked by its ID, would find the torrent if it has it: not for
- * a magnet link with only a v2 hash, which a hybrid torrent's ID (its v1 hash) isn't.
+ * The info hash of what Prowlarr gave: the .torrent's, else the magnet link's, else, for a link
+ * qBittorrent follows itself, the one Prowlarr gave with the release; undefined when none says.
+ * `certain` is whether qBittorrent, asked by its ID, would find the torrent if it has it: not for a v2
+ * hash alone, which a hybrid torrent's ID (its v1 hash) isn't.
  */
-function infoHashOf(prepared: Prepared | undefined): { infoHash?: string; certain: boolean } {
+function infoHashOf(release: Release, prepared: Prepared | undefined): { infoHash?: string; certain: boolean } {
   if (prepared?.meta) return { infoHash: prepared.meta.infoHash, certain: true }
+  if (__WEBUI__ && prepared?.source.kind === 'link') return { infoHash: release.infoHash, certain: V1_HASH.test(release.infoHash ?? '') }
   const magnet = prepared?.source.kind === 'magnet' ? parseMagnet(prepared.source.uri) : undefined
   return { infoHash: magnet?.infoHash, certain: !magnet?.v2Only }
 }
@@ -84,7 +89,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   const format = useFormatters()
   const location = useLocation()
   const prepared = useRequest(`release|${release.id}`, (signal) => prepare(release, signal))
-  const hash = infoHashOf(prepared.data)
+  const hash = infoHashOf(release, prepared.data)
   const id = torrentId(hash.infoHash)
   // Whether qBittorrent has it already; if this fails, Download stays: sending it says what's wrong.
   const existing = useRequest(id === undefined ? null : `qbt|torrent|${id}`, (signal) => inDownloads(id ?? '', signal))

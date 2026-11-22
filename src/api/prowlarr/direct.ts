@@ -66,7 +66,9 @@ async function json<T>({ url, apiKey }: StoredProwlarr, path: string, signal?: A
   }
   try {
     return (await response.json()) as T
-  } catch {
+  } catch (error) {
+    // Given up by the caller while the answer was read: an abort, not an answer that isn't Prowlarr's.
+    if (signal?.aborted) throw error
     // A proxy's login page, say: not Prowlarr's answer.
     throw new ProwlarrError('Prowlarr answered with no JSON', 502, 'upstream')
   }
@@ -84,9 +86,10 @@ export async function searchDirect(term: string, type: SearchType, categories: n
 export async function statusDirect(signal?: AbortSignal): Promise<ProwlarrStatus> {
   const stored = await prowlarr(signal)
   const [system, indexers] = await Promise.all([
-    json<{ version?: string }>(stored, '/api/v1/system/status', signal),
+    json<{ version?: string } | null>(stored, '/api/v1/system/status', signal),
     json<ProwlarrIndexer[]>(stored, '/api/v1/indexer', signal),
   ])
+  if (typeof system !== 'object' || system === null) throw new ProwlarrError('Prowlarr answered with no status', 502, 'upstream')
   return { version: system.version ?? '', indexers: Array.isArray(indexers) ? enabledIndexers(indexers) : 0 }
 }
 

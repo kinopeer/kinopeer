@@ -15,7 +15,7 @@
     "prowlarrSetupBody": "Kinopeer finds releases through Prowlarr. Enter its address as this browser reaches it, and its API key. Without Prowlarr everything works but finding releases.",
     "prowlarrAddressHelp": "As this browser reaches it, for example http://192.168.1.10:9696",
     "prowlarrKeyFieldHelp": "Kinopeer checks it with Prowlarr, then keeps it in qBittorrent, where this browser reads it to call Prowlarr.",
-    "linkFiles": "Prowlarr gave a link qBittorrent fetches itself, so all files are downloaded. You can skip files on the torrent’s page once qBittorrent has them.",
+    "linkFiles": "Prowlarr gave a link qBittorrent fetches itself, so all files are downloaded; you can skip files on the torrent’s page later. If the torrent doesn’t show up in downloads, qBittorrent couldn’t fetch the link: try another release.",
     "prowlarrKeySeenTitle": "This browser sees the key",
     "prowlarrKeySeen": "Without a Kinopeer server, the browser calls Prowlarr with its key, so anyone with qBittorrent’s login, a browser extension or a release’s link can see it. Keep Prowlarr on your home network, on HTTPS where you can.",
     "prowlarrMixedContent": "qBittorrent is open over HTTPS, so the browser won’t call Prowlarr over HTTP. Enter Prowlarr’s HTTPS address."

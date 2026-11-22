@@ -169,17 +169,13 @@ export function ProwlarrKeyForm({
 
   return (
     <form className="key-form" onSubmit={handleSubmit}>
+      <p className="t-body c2">{t('prowlarrKey.help')}</p>
+      {/* The page calls Prowlarr with the key, a stated exception to keeping secrets on a server (docs/SPEC.md, 2026-11-22). */}
       {__WEBUI__ ? (
-        <>
-          <p className="t-body c2">{t('prowlarrKey.help')}</p>
-          {/* The page calls Prowlarr with the key, a stated exception to keeping secrets on a server (docs/SPEC.md, 2026-11-22). */}
-          <Banner tone="info" live={false} title={t('webui.prowlarrKeySeenTitle')}>
-            {t('webui.prowlarrKeySeen')}
-          </Banner>
-        </>
-      ) : (
-        <p className="t-body c2">{t('prowlarrKey.help')}</p>
-      )}
+        <Banner tone="info" live={false} title={t('webui.prowlarrKeySeenTitle')}>
+          {t('webui.prowlarrKeySeen')}
+        </Banner>
+      ) : null}
 
       {error && error !== 'invalid' && !addressError && (
         <Banner tone="error" title={error === 'unreachable' && why ? t('noAnswer.prowlarr') : undefined}>

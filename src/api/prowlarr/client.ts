@@ -92,7 +92,9 @@ export async function fetchRelease(release: Release, signal?: AbortSignal): Prom
 async function download(release: Release, token: string, signal?: AbortSignal): Promise<ReleaseSource> {
   if (__WEBUI__) {
     const got = await downloadDirect(token, signal)
-    return got.kind === 'link' ? { kind: 'link', uri: got.url } : { kind: 'torrent', file: torrentFile(release, got.bytes) }
+    if (got.kind === 'file') return { kind: 'torrent', file: torrentFile(release, got.bytes) }
+    // A magnet link names the torrent's hash, so the sheet can tell whether qBittorrent has it; a link doesn't.
+    return release.magnet ? { kind: 'magnet', uri: release.magnet } : { kind: 'link', uri: got.url }
   }
   const params = new URLSearchParams({ token })
   const response = await fetchKinopeer(`${PROWLARR_BASE}/download?${params}`, { signal })

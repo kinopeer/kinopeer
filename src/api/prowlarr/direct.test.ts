@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
+import { beforeEach, describe, expect, it, onTestFinished, vi, type Mock } from 'vitest'
+import { PROWLARR_ADDRESS as PROWLARR, opaqueRedirect } from '../../test/fixtures'
 import { UnauthorizedError } from '../qbittorrent/errors'
 import { SETTING_KEYS } from '../settings/webui'
 import { FAILING_TIMEOUT_MS, downloadDirect, failingDirect, searchDirect, statusDirect } from './direct'
@@ -12,14 +13,10 @@ let kept: Record<string, unknown>
 /** Prowlarr's answer to each call, by its path. */
 let answers: Record<string, () => Promise<Response> | Response>
 
-const PROWLARR = 'http://192.168.1.20:9696'
 const KEY = 'prowlarr-key'
 
 /** The calls that went to Prowlarr, not qBittorrent's store. */
 const prowlarrCalls = () => fetchMock.mock.calls.filter(([url]) => String(url).startsWith(PROWLARR))
-
-/** A redirect, as fetch answers one it was told not to follow: a response that says nothing of it. */
-const opaqueRedirect = () => ({ type: 'opaqueredirect', ok: false, status: 0, body: null }) as unknown as Response
 
 beforeEach(() => {
   kept = { [SETTING_KEYS.prowlarr]: { url: PROWLARR, apiKey: KEY } }
@@ -86,6 +83,23 @@ describe('searchDirect', () => {
     expect(cancel).toHaveBeenCalledOnce()
   })
 
+  it('passes on the abort of a caller that gave the search up while its answer was read', async () => {
+    const caller = new AbortController()
+    // Pulled only once the answer is read, not as it's made.
+    const body = new ReadableStream(
+      {
+        pull(controller) {
+          caller.abort()
+          controller.error(new DOMException('Aborted', 'AbortError'))
+        },
+      },
+      { highWaterMark: 0 },
+    )
+    answers['/api/v1/search'] = () => new Response(body, { headers: { 'Content-Type': 'application/json' } })
+    const error = await searchDirect('Dune', 'search', [], caller.signal).catch((caught: unknown) => caught)
+    expect(error).toMatchObject({ name: 'AbortError' })
+  })
+
   it('passes on what fetch throws when Prowlarr doesn’t answer', async () => {
     const failure = new TypeError('Failed to fetch')
     answers['/api/v1/search'] = () => Promise.reject(failure)
@@ -131,6 +145,12 @@ describe('statusDirect', () => {
     await expect(statusDirect()).rejects.toMatchObject({ name: 'ProwlarrError', code: 'upstream' })
   })
 
+  it.each([['null', null], ['a string', 'ok']])('reads a status of %s as an answer that isn’t Prowlarr’s', async (_case, system) => {
+    answers['/api/v1/system/status'] = () => Response.json(system)
+    answers['/api/v1/indexer'] = () => Response.json([])
+    await expect(statusDirect()).rejects.toMatchObject({ name: 'ProwlarrError', code: 'upstream' })
+  })
+
   it('reads a 401 on either as a key Prowlarr refuses', async () => {
     answers['/api/v1/system/status'] = () => Response.json({ version: '3.0.2.5780' })
     answers['/api/v1/indexer'] = () => new Response(null, { status: 401 })
@@ -143,6 +163,7 @@ describe('failingDirect', () => {
 
   it('names the enabled indexers that failed since the search started, by this device’s clock', async () => {
     vi.useFakeTimers({ now, toFake: ['Date'] })
+    onTestFinished(() => void vi.useRealTimers())
     answers['/api/v1/indexerstatus'] = () =>
       Response.json([
         { indexerId: 1, mostRecentFailure: '2026-11-22T11:59:30Z' },
@@ -151,7 +172,6 @@ describe('failingDirect', () => {
       ])
     answers['/api/v1/indexer'] = () => Response.json([{ id: 1, name: 'Indexer A', enable: true }, { id: 2, name: 'Indexer B', enable: true }])
     await expect(failingDirect(60_000)).resolves.toEqual(['Indexer A'])
-    vi.useRealTimers()
   })
 
   it('asks for the indexer list only to name a failure', async () => {
@@ -170,6 +190,7 @@ describe('failingDirect', () => {
 
   it('gives up when Prowlarr doesn’t answer in time', async () => {
     vi.useFakeTimers()
+    onTestFinished(() => void vi.useRealTimers())
     fetchMock.mockImplementation(async (url, init) => {
       if (String(url).startsWith('api/v2/clientdata/load')) return Response.json(kept)
       return new Promise((_resolve, reject) => init!.signal!.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError'))))
@@ -179,7 +200,6 @@ describe('failingDirect', () => {
     expect(await Promise.race([error, 'waiting'])).toBe('waiting')
     await vi.advanceTimersByTimeAsync(1)
     await expect(error).resolves.toMatchObject({ name: 'AbortError' })
-    vi.useRealTimers()
   })
 })
 

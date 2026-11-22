@@ -617,6 +617,20 @@ describe('AddReleaseSheet', () => {
     expect(getTorrents).toHaveBeenLastCalledWith({ hashes: [v2.slice(0, 40)] }, undefined)
   })
 
+  it.each([
+    ['a v1 hash', 'c'.repeat(40), 'qBittorrent didn’t add the torrent.'],
+    // A hybrid torrent's ID is its v1 hash, which a v2 hash alone doesn't give.
+    ['only a v2 hash', 'cd'.repeat(32), 'qBittorrent didn’t add the torrent. It may already be in your downloads.'],
+  ])('says whether a refused link may be in downloads by the hash Prowlarr gave, %s, in the WebUI build', async (_hash, infoHash, said) => {
+    vi.stubGlobal('__WEBUI__', true)
+    fetchRelease.mockResolvedValue({ kind: 'link', uri: 'http://192.168.1.20:9696/api/v1/indexer/1/download?link=abc&apikey=k' })
+    addRelease.mockRejectedValue(new qbt.TorrentRefusedError(200))
+    renderSheet({ ...RELEASE, infoHash })
+    await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
+    expect(await screen.findByRole('alert', { name: saying(said) })).toBeInTheDocument()
+    expect(getTorrents).toHaveBeenLastCalledWith({ hashes: [infoHash.slice(0, 40)] }, undefined)
+  })
+
   it('says it may already be in downloads when qBittorrent refused a torrent whose hash isn’t known', async () => {
     readTorrentFile.mockRejectedValue(new torrentFile.InvalidTorrentError())
     addRelease.mockRejectedValue(new qbt.TorrentRefusedError(200))
@@ -661,6 +675,17 @@ describe('AddReleaseSheet', () => {
       expect(await screen.findByRole('status', { name: saying('Already in downloads') })).toBeInTheDocument()
       expect(getTorrents).toHaveBeenCalledWith({ hashes: [hash] }, expect.any(AbortSignal))
       expect(screen.queryByText(/Magnet link: all files/)).not.toBeInTheDocument()
+    })
+
+    it('finds the torrent behind a link qBittorrent would follow by the hash Prowlarr gave with the release', async () => {
+      vi.stubGlobal('__WEBUI__', true)
+      const hash = 'f'.repeat(40)
+      fetchRelease.mockResolvedValue({ kind: 'link', uri: 'http://192.168.1.20:9696/api/v1/indexer/1/download?link=abc&apikey=k' })
+      getTorrents.mockResolvedValue([torrent(hash)])
+      renderSheet({ ...RELEASE, infoHash: hash.toUpperCase() })
+      expect(await screen.findByRole('status', { name: saying('Already in downloads') })).toBeInTheDocument()
+      expect(getTorrents).toHaveBeenCalledWith({ hashes: [hash] }, expect.any(AbortSignal))
+      expect(screen.queryByRole('button', { name: /^Download/ })).not.toBeInTheDocument()
     })
 
     it('keeps the free space warning away too', async () => {

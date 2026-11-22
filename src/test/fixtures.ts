@@ -487,7 +487,10 @@ export function shogunTorrent(): Uint8Array {
   )
 }
 
-/** What fetch answers with `redirect: 'manual'` for a redirect (src/api/fetchKinopeer.ts); jsdom can't build one. */
+/** Prowlarr's address on the home network, as qBittorrent keeps it for the WebUI build's page. */
+export const PROWLARR_ADDRESS = 'http://192.168.1.20:9696'
+
+/** What fetch answers with `redirect: 'manual'` for a redirect (src/api/fetchKinopeer.ts, src/api/prowlarr/direct.ts); jsdom can't build one. */
 export const opaqueRedirect = () => ({ type: 'opaqueredirect', status: 0, ok: false }) as Response
 
 /** A Telegram bot token as @BotFather gives one, for the forms that take it; the server's tests have their own beside the fake Bot API. */

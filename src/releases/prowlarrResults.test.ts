@@ -27,6 +27,10 @@ describe('downloadUrl', () => {
     expect(downloadUrl('http://prowlarr:9696', '../system/status?x=1', KEY)).toBeUndefined()
     expect(downloadUrl('http://prowlarr:9696', 'x12/download?link=abc', KEY)).toBeUndefined()
   })
+
+  it('rebuilds nothing from a token with a line break, whose query would end at it', () => {
+    expect(downloadUrl('http://prowlarr:9696', '1/download?a=b\nc', KEY)).toBeUndefined()
+  })
 })
 
 describe('toRelease', () => {
