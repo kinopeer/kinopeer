@@ -59,7 +59,7 @@ rule's test, which plants what the rule refuses and allows and runs oxlint over 
 config (`lint()` from `src/test/oxlint.ts`; the texts in the app's JSX, `src/i18n/texts.test.ts`, and
 the pure modules' imports and globals, `src/logic/pureModules.test.ts`).
 
-`npm test` is to stay under 20 seconds on the owner's Mac (10 cores), checked before every release
+`npm test` is to stay under 30 seconds on the owner's Mac (10 cores), checked before every release
 ([RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)). Most of that time isn't the tests: Vitest starts
 every file in a fresh worker, and each `app` file imports jsdom, React, Testing Library and i18n
 again, about half of the run at 0.7.0 (17.8 s for 147 files, the test bodies about 50 s of worker
@@ -68,7 +68,12 @@ limit was 15 seconds until 0.7.0, when it was raised rather than the run made fa
 the `vmThreads` pool reuses each worker's imports and ran the suite in 7.7 s, but held 3.2 GB at its
 peak instead of 0.4 GB, and gives each file jsdom's window as its global, so an object from a Node
 module (`node:crypto`, `Buffer`) comes from another realm and fails an `instanceof` the browser
-would pass; `isolate: false` failed 113 tests that rely on modules loaded afresh per file.
+would pass; `isolate: false` failed 113 tests that rely on modules loaded afresh per file. The
+limit was 20 seconds until 2026-11-22, when it was raised again (#506): 232 files took 23.7–25.7 s
+in three runs, and no setting tried brought them under 20 (three runs each on the same Mac: the
+`threads` pool 21.9–22.4 s, `maxWorkers: 10` 23.6–24.0 s, both 21.5–25.5 s; the dependency
+optimizer, run twice on the `app` project alone while other sessions ran tests, 14.4 s against
+14.2–14.3 s).
 
 A test in `src/screens/` is layer 3, a sheet or a dialog included: layer 2 is only what knows
 nothing of the app's data. A PR names a test's layer by its number and its name in this table
