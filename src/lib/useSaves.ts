@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react'
+import { useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react'
 import { saveKey, saves, type SaveOutcome, type SaveSettled } from '../logic/saves'
 
 export type { SaveOutcome, SaveSettled } from '../logic/saves'
@@ -32,9 +32,8 @@ export function useSaves<Payload>(
   useEffect(() => saves.watch(kind, { settled: (outcome, sent, target) => latest.current(outcome, sent as Payload, target) }), [kind])
 
   const pending = (target: string) => inFlight.get(saveKey(kind, target)) as Payload | undefined
-  const send = useCallback(
-    <Result,>(target: string, payload: Payload, request: () => Promise<Result>) => saves.send(kind, target, payload, request),
-    [kind],
-  )
-  return { pending, send }
+  return {
+    pending,
+    send: (target, payload, request) => saves.send(kind, target, payload, request),
+  }
 }

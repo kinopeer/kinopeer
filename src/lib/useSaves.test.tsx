@@ -7,13 +7,14 @@ import { useSaves, type SaveOutcome } from './useSaves'
 type Takes = (outcome: SaveOutcome, sent: string, target: string) => boolean
 
 /** A sheet that saves its target and shows what's in flight for it. */
-function Sheet({ target = 'default', takes, request, onSettled }: {
+function Sheet({ kind = 'folder', target = 'default', takes, request, onSettled }: {
+  kind?: string
   target?: string
   takes: Takes
   request?: () => Promise<unknown>
   onSettled?: (settled: SaveSettled<unknown> | undefined) => void
 }) {
-  const folder = useSaves<string>('folder', takes)
+  const folder = useSaves<string>(kind, takes)
   const pending = folder.pending(target)
   return (
     <>
@@ -106,5 +107,13 @@ describe('useSaves', () => {
     expect(before).not.toHaveBeenCalled()
     expect(after).toHaveBeenCalledTimes(1)
     expect(onSettled).toHaveBeenCalledWith(expect.objectContaining({ taken: false }))
+  })
+
+  it('takes the outcomes of the kind it has now', async () => {
+    const takes = vi.fn<Takes>(() => true)
+    const view = render(<Sheet kind="folder" takes={takes} />)
+    view.rerender(<Sheet kind="telegram" takes={takes} />)
+    await expect(saves.send('telegram', 'default', 'token', () => Promise.resolve())).resolves.toMatchObject({ taken: true })
+    await expect(saves.send('folder', 'default', '/media', () => Promise.resolve())).resolves.toMatchObject({ taken: false })
   })
 })
